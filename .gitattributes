@@ -1,0 +1,13 @@
+# Finais de linha determinísticos: LF no repositório (evita ruído CRLF no Windows
+# e mantém o build da Vercel/Linux consistente).
+* text=auto eol=lf
+
+# Binários — nunca normalizar.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.woff  binary
+*.woff2 binary
