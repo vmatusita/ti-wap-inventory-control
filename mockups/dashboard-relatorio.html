@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estoque TI WAP — Relatório · Matriz (mockup)</title>
+<style>
+  :root {
+    --surface:#fcfcfb; --page:#f9f9f7; --ink:#0b0b0b; --ink2:#52514e;
+    --muted:#898781; --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --amarelo:#eda100; --azul:#2a78d6;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--page); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; font-size:14px; }
+  header { background:#111110; color:#fff; padding:0 28px; height:56px; display:flex; align-items:center; gap:14px; }
+  .logo { background:var(--amarelo); color:#111110; font-weight:800; padding:3px 10px; border-radius:6px; letter-spacing:.5px; }
+  .apptitle { font-weight:600; font-size:15px; }
+  .live { margin-left:auto; display:flex; align-items:center; gap:7px; font-size:12.5px; color:#c9c8c0; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#35c06f; animation:pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity:.35; } }
+  .user { font-size:12.5px; color:#c9c8c0; border:1px solid #3a3a37; border-radius:99px; padding:4px 12px; }
+  .tabs { display:flex; gap:2px; padding:10px 28px 0; background:#111110; }
+  .tab { padding:9px 16px 11px; font-size:13.5px; color:#b9b8b0; border-radius:8px 8px 0 0; cursor:default; }
+  .tab.on { background:var(--page); color:var(--ink); font-weight:650; box-shadow:inset 0 3px 0 var(--amarelo); }
+  main { max-width:1080px; margin:0 auto; padding:22px 28px 40px; }
+  .pagehead { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  h1 { font-size:19px; }
+  .upd { font-size:12.5px; color:var(--muted); }
+  .tiles { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:14px; }
+  .tile { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
+  .tlabel { font-size:12px; color:var(--ink2); font-weight:600; }
+  .tval { font-size:26px; font-weight:700; margin:2px 0 1px; }
+  .tsub { font-size:11px; color:var(--muted); }
+  .pendrow { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .chip { background:#fbf6e8; border:1px solid #eadfc0; color:#6b5310; font-size:12.5px; padding:5px 12px; border-radius:99px; }
+  .cnum { font-weight:750; font-variant-numeric:tabular-nums; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px; }
+  .card.wide { grid-column:1 / -1; }
+  .ctitle { font-size:14px; font-weight:650; }
+  .csub { font-size:12px; color:var(--muted); margin:1px 0 12px; }
+  .legend { display:flex; gap:16px; font-size:12.5px; color:var(--ink2); margin-bottom:6px; }
+  .lg { display:flex; align-items:center; gap:6px; }
+  .sw { width:10px; height:10px; border-radius:3px; }
+  svg { width:100%; height:auto; display:block; }
+  .hrow { display:grid; grid-template-columns:172px 1fr 40px; align-items:center; gap:10px; padding:5px 0; }
+  .hlbl { font-size:12.5px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .htrack { height:16px; }
+  .hbar { height:16px; border-radius:0 4px 4px 0; min-width:3px; }
+  .hval { font-size:12.5px; font-weight:650; font-variant-numeric:tabular-nums; text-align:right; }
+  .mrow { display:flex; align-items:baseline; gap:10px; padding:5.5px 0; border-bottom:1px solid var(--grid); font-size:12.5px; }
+  .mrow:last-of-type { border-bottom:none; }
+  .mqt { font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); min-width:30px; }
+  .mpat { font-weight:650; font-variant-numeric:tabular-nums; min-width:96px; }
+  .mmod { color:var(--ink2); white-space:nowrap; }
+  .mobs { color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .mmore { font-size:12px; color:var(--muted); padding-top:6px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:650; padding:8px 10px; border-bottom:1px solid var(--grid); }
+  td { padding:8px 10px; border-bottom:1px solid var(--grid); color:var(--ink2); }
+  td:first-child, .num { font-variant-numeric:tabular-nums; }
+  .pill { font-size:11.5px; font-weight:650; padding:3px 9px; border-radius:99px; white-space:nowrap; }
+  footer { max-width:1080px; margin:0 auto; padding:0 28px 30px; font-size:12px; color:var(--muted); line-height:1.6; }
+  #tip { position:fixed; pointer-events:none; background:#111110; color:#fff; font-size:12px; padding:6px 10px; border-radius:8px; opacity:0; transition:opacity .12s; z-index:9; max-width:260px; }
+  @media (max-width:900px) { .tiles { grid-template-columns:repeat(3,1fr); } .grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">WAP</span><span class="apptitle">Estoque TI</span>
+  <span class="live"><span class="dot"></span> atualizado em tempo real</span>
+  <span class="user">Gestor Filial · Visualizador</span>
+</header>
+<nav class="tabs">
+  <span class="tab on">Matriz</span><span class="tab">CD Afonso Pena</span><span class="tab">Linhares</span>
+  <span class="tab">Serra Park</span><span class="tab">Eusébio</span><span class="tab">Consolidado</span>
+</nav>
+<main>
+  <div class="pagehead">
+    <h1>Relatório de Estoque TI — Matriz</h1>
+    <span class="upd">atualizado agora · 09/07/2026 · quem tem o link vê sempre a versão atual (após login)</span>
+  </div>
+
+  <section class="tiles"><div class="tile"><div class="tlabel">Total de ativos</div><div class="tval">1.179</div><div class="tsub">na planilha da Matriz</div></div><div class="tile"><div class="tlabel">Em uso</div><div class="tval">830</div><div class="tsub">com colaborador/setor</div></div><div class="tile"><div class="tlabel">Em estoque</div><div class="tval">57</div><div class="tsub">disponíveis p/ entrega</div></div><div class="tile"><div class="tlabel">Reservados</div><div class="tval">47</div><div class="tsub">aguardando entrega</div></div><div class="tile"><div class="tlabel">Em manutenção</div><div class="tval">14</div><div class="tsub">conserto/assistência</div></div><div class="tile"><div class="tlabel">Reserva técnica</div><div class="tval">114</div><div class="tsub">defasados / posse WAP</div></div></section>
+  <section class="pendrow"><span class="chip"><span class="cnum">276</span> termos de responsabilidade pendentes</span><span class="chip"><span class="cnum">90</span> devoluções com itens faltantes</span><span class="chip"><span class="cnum">16</span> ativos aguardando triagem</span><span class="chip"><span class="cnum">31</span> ativos sem patrimônio</span></section>
+
+  <section class="grid">
+    <div class="card wide">
+      <div class="ctitle">Movimentações por mês — 2026</div>
+      <div class="csub">todas as unidades · saídas × devoluções registradas</div>
+      <div class="legend">
+        <span class="lg"><span class="sw" style="background:var(--amarelo)"></span>Saídas (423)</span>
+        <span class="lg"><span class="sw" style="background:var(--azul)"></span>Devoluções (291)</span>
+      </div>
+      <svg viewBox="0 0 660 240" role="img" aria-label="Saídas e devoluções por mês de 2026"><line x1="34" y1="214.0" x2="648" y2="214.0" stroke="#e1e0d9" stroke-width="1"/><text x="28" y="217.5" text-anchor="end" font-size="10.5" fill="#898781" style="font-variant-numeric:tabular-nums">0</text><line x1="34" y1="164.0" x2="648" y2="164.0" stroke="#e1e0d9" stroke-width="1"/><text x="28" y="167.5" text-anchor="end" font-size="10.5" fill="#898781" style="font-variant-numeric:tabular-nums">25</text><line x1="34" y1="114.0" x2="648" y2="114.0" stroke="#e1e0d9" stroke-width="1"/><text x="28" y="117.5" text-anchor="end" font-size="10.5" fill="#898781" style="font-variant-numeric:tabular-nums">50</text><line x1="34" y1="64.0" x2="648" y2="64.0" stroke="#e1e0d9" stroke-width="1"/><text x="28" y="67.5" text-anchor="end" font-size="10.5" fill="#898781" style="font-variant-numeric:tabular-nums">75</text><line x1="34" y1="14.0" x2="648" y2="14.0" stroke="#e1e0d9" stroke-width="1"/><text x="28" y="17.5" text-anchor="end" font-size="10.5" fill="#898781" style="font-variant-numeric:tabular-nums">100</text><path d="M50.9 24.0 q0 -4 4 -4 h18.0 q4 0 4 4 v190.0 h-26.0 z" fill="#eda100"><title>Saídas · jan/2026: 97</title></path><text x="63.9" y="16.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">97</text><path d="M78.9 164.0 q0 -4 4 -4 h18.0 q4 0 4 4 v50.0 h-26.0 z" fill="#2a78d6"><title>Devoluções · jan/2026: 27</title></path><text x="91.9" y="156.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">27</text><text x="77.9" y="232" text-anchor="middle" font-size="11" fill="#898781">jan</text><path d="M138.6 48.0 q0 -4 4 -4 h18.0 q4 0 4 4 v166.0 h-26.0 z" fill="#eda100"><title>Saídas · fev/2026: 85</title></path><text x="151.6" y="40.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">85</text><path d="M166.6 126.0 q0 -4 4 -4 h18.0 q4 0 4 4 v88.0 h-26.0 z" fill="#2a78d6"><title>Devoluções · fev/2026: 46</title></path><text x="179.6" y="118.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">46</text><text x="165.6" y="232" text-anchor="middle" font-size="11" fill="#898781">fev</text><path d="M226.3 104.0 q0 -4 4 -4 h18.0 q4 0 4 4 v110.0 h-26.0 z" fill="#eda100"><title>Saídas · mar/2026: 57</title></path><text x="239.3" y="96.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">57</text><path d="M254.3 56.0 q0 -4 4 -4 h18.0 q4 0 4 4 v158.0 h-26.0 z" fill="#2a78d6"><title>Devoluções · mar/2026: 81</title></path><text x="267.3" y="48.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">81</text><text x="253.3" y="232" text-anchor="middle" font-size="11" fill="#898781">mar</text><path d="M314.0 142.0 q0 -4 4 -4 h18.0 q4 0 4 4 v72.0 h-26.0 z" fill="#eda100"><title>Saídas · abr/2026: 38</title></path><text x="327.0" y="134.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">38</text><path d="M342.0 126.0 q0 -4 4 -4 h18.0 q4 0 4 4 v88.0 h-26.0 z" fill="#2a78d6"><title>Devoluções · abr/2026: 46</title></path><text x="355.0" y="118.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">46</text><text x="341.0" y="232" text-anchor="middle" font-size="11" fill="#898781">abr</text><path d="M401.7 88.0 q0 -4 4 -4 h18.0 q4 0 4 4 v126.0 h-26.0 z" fill="#eda100"><title>Saídas · mai/2026: 65</title></path><text x="414.7" y="80.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">65</text><path d="M429.7 150.0 q0 -4 4 -4 h18.0 q4 0 4 4 v64.0 h-26.0 z" fill="#2a78d6"><title>Devoluções · mai/2026: 34</title></path><text x="442.7" y="142.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">34</text><text x="428.7" y="232" text-anchor="middle" font-size="11" fill="#898781">mai</text><path d="M489.4 84.0 q0 -4 4 -4 h18.0 q4 0 4 4 v130.0 h-26.0 z" fill="#eda100"><title>Saídas · jun/2026: 67</title></path><text x="502.4" y="76.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">67</text><path d="M517.4 142.0 q0 -4 4 -4 h18.0 q4 0 4 4 v72.0 h-26.0 z" fill="#2a78d6"><title>Devoluções · jun/2026: 38</title></path><text x="530.4" y="134.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">38</text><text x="516.4" y="232" text-anchor="middle" font-size="11" fill="#898781">jun</text><path d="M577.1 190.0 q0 -4 4 -4 h18.0 q4 0 4 4 v24.0 h-26.0 z" fill="#eda100"><title>Saídas · jul/2026: 14</title></path><text x="590.1" y="182.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">14</text><path d="M605.1 180.0 q0 -4 4 -4 h18.0 q4 0 4 4 v34.0 h-26.0 z" fill="#2a78d6"><title>Devoluções · jul/2026: 19</title></path><text x="618.1" y="172.0" text-anchor="middle" font-size="10.5" fill="#52514e" style="font-variant-numeric:tabular-nums">19</text><text x="604.1" y="232" text-anchor="middle" font-size="11" fill="#898781">jul</text><line x1="34" y1="214.0" x2="648" y2="214.0" stroke="#c3c2b7" stroke-width="1"/></svg>
+    </div>
+    <div class="card">
+      <div class="ctitle">Ativos por categoria</div>
+      <div class="csub">Matriz · inventário completo</div>
+      <div class="hrow" data-tip="Notebook: 497"><div class="hlbl" title="Notebook">Notebook</div><div class="htrack"><div class="hbar" style="width:100.0%;background:#2a78d6"></div></div><div class="hval">497</div></div><div class="hrow" data-tip="Celular: 325"><div class="hlbl" title="Celular">Celular</div><div class="htrack"><div class="hbar" style="width:65.4%;background:#2a78d6"></div></div><div class="hval">325</div></div><div class="hrow" data-tip="Monitor: 290"><div class="hlbl" title="Monitor">Monitor</div><div class="htrack"><div class="hbar" style="width:58.4%;background:#2a78d6"></div></div><div class="hval">290</div></div><div class="hrow" data-tip="Desktop: 49"><div class="hlbl" title="Desktop">Desktop</div><div class="htrack"><div class="hbar" style="width:9.9%;background:#2a78d6"></div></div><div class="hval">49</div></div><div class="hrow" data-tip="Tablet: 18"><div class="hlbl" title="Tablet">Tablet</div><div class="htrack"><div class="hbar" style="width:3.6%;background:#2a78d6"></div></div><div class="hval">18</div></div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Saídas por motivo</div>
+      <div class="csub">todas as unidades · 2026</div>
+      <div class="hrow" data-tip="Novo colaborador: 219"><div class="hlbl" title="Novo colaborador">Novo colaborador</div><div class="htrack"><div class="hbar" style="width:100.0%;background:#eda100"></div></div><div class="hval">219</div></div><div class="hrow" data-tip="Troca / upgrade: 55"><div class="hlbl" title="Troca / upgrade">Troca / upgrade</div><div class="htrack"><div class="hbar" style="width:25.1%;background:#eda100"></div></div><div class="hval">55</div></div><div class="hrow" data-tip="Transferência de unidade: 27"><div class="hlbl" title="Transferência de unidade">Transferência de unidade</div><div class="htrack"><div class="hbar" style="width:12.3%;background:#eda100"></div></div><div class="hval">27</div></div><div class="hrow" data-tip="Monitor adicional: 18"><div class="hlbl" title="Monitor adicional">Monitor adicional</div><div class="htrack"><div class="hbar" style="width:8.2%;background:#eda100"></div></div><div class="hval">18</div></div><div class="hrow" data-tip="Empréstimo: 6"><div class="hlbl" title="Empréstimo">Empréstimo</div><div class="htrack"><div class="hbar" style="width:2.7%;background:#eda100"></div></div><div class="hval">6</div></div><div class="hrow" data-tip="Uso compartilhado: 5"><div class="hlbl" title="Uso compartilhado">Uso compartilhado</div><div class="htrack"><div class="hbar" style="width:2.3%;background:#eda100"></div></div><div class="hval">5</div></div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Disponíveis por modelo (guardadas)</div>
+      <div class="csub">Matriz · 57 unidades — a lista que abre o e-mail semanal, sempre atual</div>
+      <div class="mrow"><span class="mqt">16×</span><span class="mmod">HP Pro SFF 280 G9</span></div><div class="mrow"><span class="mqt">04×</span><span class="mmod">Samsung Galaxy A56</span></div><div class="mrow"><span class="mqt">03×</span><span class="mmod">Samsung Galaxy A17</span></div><div class="mrow"><span class="mqt">02×</span><span class="mmod">Avell Storm 470</span></div><div class="mrow"><span class="mqt">02×</span><span class="mmod">Dell P2222H</span></div><div class="mrow"><span class="mqt">02×</span><span class="mmod">Apple Iphone 15</span></div><div class="mrow"><span class="mqt">02×</span><span class="mmod">Avell B.ON Smart</span></div><div class="mrow"><span class="mqt">02×</span><span class="mmod">Samsung Galaxy A16</span></div><div class="mrow"><span class="mqt">02×</span><span class="mmod">Avell Storm 570</span></div>
+    </div>
+    <div class="card">
+      <div class="ctitle">Em manutenção, caso a caso</div>
+      <div class="csub">Matriz · 14 unidades — com a observação que hoje vai em vermelho no e-mail</div>
+      <div class="mrow" data-tip="Tela Quebrada"><span class="mpat">LEA0000020</span><span class="mmod">Dell E2222HS</span><span class="mobs">Tela Quebrada</span></div><div class="mrow" data-tip="Chamado Tecmobile #0626566 - 23/06"><span class="mpat">TEC019849</span><span class="mmod">Dell Latitude 3440</span><span class="mobs">Chamado Tecmobile #0626566 - 23/06</span></div><div class="mrow" data-tip="PULSUS 23 (41)988739734 - TIM"><span class="mpat">WAP0005078</span><span class="mmod">Xiaomi Redmi 12C</span><span class="mobs">PULSUS 23 (41)988739734 - TIM</span></div><div class="mrow" data-tip="sem observação"><span class="mpat">WAP05131</span><span class="mmod">Xiaomi Redmi 13C</span><span class="mobs">—</span></div><div class="mrow" data-tip="sem observação"><span class="mpat">WAP2801</span><span class="mmod">Xiaomi Redmi 12C</span><span class="mobs">—</span></div><div class="mrow" data-tip="Esta com senha  e tela quebrada / Logistica"><span class="mpat">WAP4807</span><span class="mmod">Motorola G60 s</span><span class="mobs">Esta com senha  e tela quebrada / Logistica</span></div><div class="mrow" data-tip="esta com senha o celular"><span class="mpat">WAP4952</span><span class="mmod">Xiaomi Redmi 12C</span><span class="mobs">esta com senha o celular</span></div><div class="mrow" data-tip="Tela quebrada. O e-mail foi enviado, mas não foi possível realizar o reparo porque o orçamento não foi autorizado."><span class="mpat">WAP5082</span><span class="mmod">Xiaomi Redmi 12C</span><span class="mobs">Tela quebrada. O e-mail foi enviado, mas não foi pos…</span></div><div class="mrow" data-tip="sem observação"><span class="mpat">WAP5136</span><span class="mmod">Xiaomi Redmi 13C</span><span class="mobs">—</span></div>
+      <div class="mmore">+ 5 outros…</div>
+    </div>
+    <div class="card wide">
+      <div class="ctitle">Últimas movimentações</div>
+      <div class="csub">as 10 mais recentes · no sistema final: filtros por período, filial, categoria e exportação CSV</div>
+      <table>
+        <thead><tr><th>Data</th><th>Tipo</th><th>Patrimônio</th><th>Ativo</th><th>Colaborador / Setor</th><th>Unidade</th><th>Chamado</th></tr></thead>
+        <tbody><tr><td class="num">07/07/2026</td><td><span class="pill" style="background:#fdf3dd;color:#8a5b00">Saída</span></td><td class="num">LEA0000478</td><td>Monitor E2225HS</td><td>Andreza Cruz da Silva Conceição</td><td>Linhares</td><td class="num">10550</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#fdf3dd;color:#8a5b00">Saída</span></td><td class="num">PRO0003683</td><td>Notebook Dell Latitude 3540</td><td>Guilherme Teixeira</td><td>Matriz</td><td class="num">10152</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#fdf3dd;color:#8a5b00">Saída</span></td><td class="num">WAP006011</td><td>Notebook HP 250R G9</td><td>Laís Henrique Cheutchuk</td><td>Matriz</td><td class="num">9693</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#fdf3dd;color:#8a5b00">Saída</span></td><td class="num">WAP0002809</td><td>Monitor E2222HS</td><td>Laís Henrique Cheutchuk</td><td>Matriz</td><td class="num">9693</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#fdf3dd;color:#8a5b00">Saída</span></td><td class="num">PRO0003595</td><td>Notebook Dell Latitude 3440</td><td>Paola Tavares</td><td>Matriz</td><td class="num">9707</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#fdf3dd;color:#8a5b00">Saída</span></td><td class="num">PRO0003598</td><td>Notebook Dell Latitude 3440</td><td>Agatha Cristina Pimentel</td><td>Matriz</td><td class="num">9710</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#fdf3dd;color:#8a5b00">Saída</span></td><td class="num">TEC0020033</td><td>Notebook Dell Latitude 3440</td><td>Flavia Cristina Rodrigues Mota</td><td>Matriz</td><td class="num">10218</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#fdf3dd;color:#8a5b00">Saída</span></td><td class="num">LEA0000570</td><td>Monitor E2225HSM</td><td>Flavia Cristina Rodrigues Mota</td><td>Matriz</td><td class="num">10218</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#e3eefb;color:#1c5cab">Devolução</span></td><td class="num">LEA0000239</td><td>Notebook Dell Latitude 3450</td><td>José Paulo Gianizelli Oliveira</td><td>Matriz</td><td class="num">—</td></tr><tr><td class="num">06/07/2026</td><td><span class="pill" style="background:#e3eefb;color:#1c5cab">Devolução</span></td><td class="num">LEA0000470</td><td>Monitor E2222HS</td><td>José Paulo Gianizelli Oliveira</td><td>Matriz</td><td class="num">—</td></tr></tbody>
+      </table>
+    </div>
+    <div class="card wide">
+      <div class="ctitle">Devoluções por motivo</div>
+      <div class="csub">todas as unidades · 2026 (entradas por compra contam como movimentação de compra, não devolução)</div>
+      <div class="hrow" data-tip="Desligamento: 206"><div class="hlbl" title="Desligamento">Desligamento</div><div class="htrack"><div class="hbar" style="width:100.0%;background:#2a78d6"></div></div><div class="hval">206</div></div><div class="hrow" data-tip="Troca / upgrade: 52"><div class="hlbl" title="Troca / upgrade">Troca / upgrade</div><div class="htrack"><div class="hbar" style="width:25.2%;background:#2a78d6"></div></div><div class="hval">52</div></div><div class="hrow" data-tip="Fim de empréstimo: 4"><div class="hlbl" title="Fim de empréstimo">Fim de empréstimo</div><div class="htrack"><div class="hbar" style="width:1.9%;background:#2a78d6"></div></div><div class="hval">4</div></div><div class="hrow" data-tip="Assistência: 1"><div class="hlbl" title="Assistência">Assistência</div><div class="htrack"><div class="hbar" style="width:1.2%;background:#2a78d6"></div></div><div class="hval">1</div></div><div class="hrow" data-tip="Afastamento: 1"><div class="hlbl" title="Afastamento">Afastamento</div><div class="htrack"><div class="hbar" style="width:1.2%;background:#2a78d6"></div></div><div class="hval">1</div></div><div class="hrow" data-tip="Manutenção: 1"><div class="hlbl" title="Manutenção">Manutenção</div><div class="htrack"><div class="hbar" style="width:1.2%;background:#2a78d6"></div></div><div class="hval">1</div></div>
+    </div>
+  </section>
+</main>
+<footer>
+  <strong>Mockup</strong> — proposta visual da página <code>/relatorios/matriz</code> do sistema (acesso após login).
+  Números reais extraídos das planilhas de jan–jul/2026 em 09/07/2026: 1179 ativos, 423 saídas, 291 devoluções/entradas.
+  No sistema final os dados vêm do Supabase e a página atualiza sozinha a cada movimentação.
+</footer>
+<div id="tip"></div>
+<script>
+  const tip = document.getElementById('tip');
+  document.querySelectorAll('[data-tip]').forEach(el => {
+    el.addEventListener('mousemove', e => {
+      tip.textContent = el.dataset.tip;
+      tip.style.left = Math.min(e.clientX + 14, innerWidth - 270) + 'px';
+      tip.style.top = (e.clientY + 14) + 'px';
+      tip.style.opacity = 1;
+    });
+    el.addEventListener('mouseleave', () => tip.style.opacity = 0);
+  });
+</script>
+</body>
+</html>
