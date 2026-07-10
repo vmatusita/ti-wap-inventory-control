@@ -12,7 +12,7 @@ Você é o executor desta ordem de serviço no repositório `ti-wap-inventory-co
 
 ## 1. Objetivo (o que existe quando você terminar)
 
-Um app Next.js 16 deployado na Vercel em que: usuário sem sessão só vê `/login`; um usuário convidado pelo painel do Supabase define a senha via e-mail e cai num layout autenticado vazio (sidebar + header) com seu nome e papel exibidos; contas têm papel `admin` ou `viewer` vindo da tabela `profiles`. Nenhuma tela de dados ainda.
+Um app Next.js 16 deployado na Vercel em que: usuário sem sessão só vê `/login`; um usuário convidado pelo painel do Supabase define a senha via e-mail e cai num layout autenticado vazio (sidebar + header) com seu nome exibido. **Toda conta é operador (nível único — spec §3)** e e-mails fora de `@wap.ind.br` são recusados no banco. Nenhuma tela de dados ainda. (O acesso por senha dos relatórios, sem login, é da F3 — aqui tudo fica atrás de sessão.)
 
 ## 2. Escopo proibido nesta ordem
 
@@ -20,6 +20,8 @@ Um app Next.js 16 deployado na Vercel em que: usuário sem sessão só vê `/log
 - NÃO criar telas de ativos, movimentações, relatórios ou admin.
 - NÃO adicionar dependência fora da lista do `CLAUDE.md`.
 - NÃO implementar cadastro aberto (signup). Convite é a única porta de entrada.
+- NÃO implementar ainda o acesso por senha dos relatórios (é tarefa da F3).
+- NÃO criar papéis/roles: todo usuário logado é operador (nível único).
 
 ## 3. Tarefas (executar em ordem)
 
@@ -46,14 +48,14 @@ Um app Next.js 16 deployado na Vercel em que: usuário sem sessão só vê `/log
 ### 3.4 Profiles + papéis (única migration desta fase)
 
 1. Inicialize o Supabase CLI no repo (`supabase init`) e vincule ao projeto dev (`supabase link`) — peça o project-ref ao Johnny.
-2. Crie a migration `0001_profiles.sql` com exatamente: enum `user_role ('admin','viewer')`; tabela `public.profiles (id uuid pk → auth.users on delete cascade, nome text, role user_role not null default 'viewer', created_at timestamptz default now())`; trigger `handle_new_user` que insere profile no signup (copie do bloco correspondente em `supabase/schema.sql`); RLS habilitada com: select para authenticated (próprio perfil ou admin), update só admin. Aplique com `supabase db push` **no projeto dev**.
+2. Crie a migration `0001_profiles.sql` com exatamente: tabela `public.profiles (id uuid pk → auth.users on delete cascade, nome text, created_at timestamptz default now())` — **sem coluna de papel** (nível único, spec §3); trigger `handle_new_user` copiado do bloco correspondente em `supabase/schema.sql`, incluindo a **recusa de e-mail fora de `@wap.ind.br`** (`raise exception`); RLS habilitada com: select para authenticated, update só do próprio perfil. Aplique com `supabase db push` **no projeto dev**.
 3. `npm run db:types` (crie o script no package.json: `supabase gen types typescript --linked > src/lib/types/database.ts`).
 
 ### 3.5 Layout autenticado
 
-1. Grupo `(app)` com `src/app/(app)/layout.tsx`: header escuro `#111110` (badge WAP amarela + "Estoque TI" + avatar com nome e papel do profile) e sidebar com itens **desabilitados/placeholder**: Dashboard, Ativos, Movimentações, Relatórios, Administração (só admin vê Administração). Responsivo: sidebar vira `sheet` no mobile.
+1. Grupo `(app)` com `src/app/(app)/layout.tsx`: header escuro `#111110` (badge WAP amarela + "Estoque TI" + avatar com o nome do profile) e sidebar com itens **desabilitados/placeholder**: Dashboard, Ativos, Movimentações, Relatórios, Administração. Todos os logados veem os mesmos itens (nível único). Responsivo: sidebar vira `sheet` no mobile.
 2. `src/app/(app)/page.tsx`: título "Dashboard" + `card` com texto "Os dados chegam na F1." — nada além disso.
-3. O papel vem de `profiles` via query em `src/lib/queries/profile.ts`; um `viewer` NUNCA vê o item Administração.
+3. O nome vem de `profiles` via query em `src/lib/queries/profile.ts`.
 
 ### 3.6 Deploy
 
@@ -65,7 +67,7 @@ Um app Next.js 16 deployado na Vercel em que: usuário sem sessão só vê `/log
 - [ ] `npm run lint` e `npm run build` sem erro/warning de TS.
 - [ ] Acessar `/` deslogado redireciona para `/login`.
 - [ ] Convite enviado pelo painel do Supabase → e-mail → define senha → cai logado no dashboard.
-- [ ] Conta com `role=admin` vê "Administração" na sidebar; `role=viewer` não vê.
+- [ ] Convite para e-mail fora de `@wap.ind.br` é recusado (tentativa pelo painel do Supabase → o trigger do banco barra na aceitação, com a mensagem "Login restrito a contas @wap.ind.br").
 - [ ] Logout volta para `/login` e `/` volta a ser bloqueado.
 - [ ] Mobile 375px: layout usável, sidebar em sheet.
 - [ ] Deploy de produção na Vercel abrindo e logando.

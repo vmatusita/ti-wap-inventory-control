@@ -5,11 +5,11 @@ Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. 
 ## 0. Antes de qualquer coisa (obrigatório)
 
 1. Leia `CLAUDE.md`, `docs/ESPECIFICACAO.md` §4 (estados e transições — decore a tabela), §5, §6 (itens 3 e 4), §8 (regras 1–8) e `docs/PLANEJAMENTO.md` §5.
-2. Pré-requisitos (senão PARE): F1 mergeada; `db:seed` populado no dev; tipos gerados atualizados; login admin e viewer funcionando.
+2. Pré-requisitos (senão PARE): F1 mergeada; `db:seed` populado no dev; tipos gerados atualizados; login de operador funcionando.
 
 ## 1. Objetivo
 
-A operadora registra TODO o dia a dia pelo sistema: consulta ativos com filtros, abre a ficha com linha do tempo, registra movimentações (inclusive em lote) com as validações certas e estorna a última movimentação de um ativo. Viewer vê tudo, não edita nada.
+A operadora registra TODO o dia a dia pelo sistema: consulta ativos com filtros, abre a ficha com linha do tempo, registra movimentações (inclusive em lote) com as validações certas e estorna a última movimentação de um ativo. Modelo de acesso (spec §3): qualquer operador logado opera tudo; sem sessão, nada — não existe papel de leitura com conta.
 
 ## 2. Escopo proibido
 
@@ -28,7 +28,7 @@ A operadora registra TODO o dia a dia pelo sistema: consulta ativos com filtros,
 
 ### 3.2 Ficha do ativo — `src/app/(app)/ativos/[id]/page.tsx`
 
-1. Cabeçalho: patrimônio canônico grande + badge de status + service tag + botão "Nova movimentação" (pré-selecionando este ativo; só admin vê).
+1. Cabeçalho: patrimônio canônico grande + badge de status + service tag + botão "Nova movimentação" (pré-selecionando este ativo).
 2. Grid de dados: categoria, marca/modelo, specs (memória/armazenamento/processador), hostname, fornecedor, filial, colaborador/setor atuais, termo (status + data), pendência (destacada em âmbar se houver), observações, origem.
 3. **Linha do tempo** (query própria em `src/lib/queries/movimentacoes.ts`): lista vertical das movimentações do ativo, mais recente no topo — data, tipo (badge), motivo, colaborador/setor, chamado, `status_anterior → status_resultante`, itens faltantes, **observação (quando houver — texto em itálico na linha)**, quem registrou. Movimentação estornada aparece riscada com link para o estorno.
 4. Admin vê botão "Editar dados cadastrais" (dialog com form Zod para campos NÃO derivados: specs, hostname, observações, termo). Status/colaborador/filial **não são editáveis aqui** — mudam só por movimentação (deixe um hint explicando).
@@ -42,7 +42,7 @@ A operadora registra TODO o dia a dia pelo sistema: consulta ativos com filtros,
 
 ### 3.4 Server Action — `src/lib/actions/movimentacoes.ts`
 
-1. `registrarMovimentacoes(input)` recebe **um lote**: `{ itens: MovimentacaoInput[] }` (1..10). Valida com Zod; confere sessão + `is_admin` (rejeita viewer com erro claro); insere **um a um em ordem** via cliente server; se o trigger do banco rejeitar algum (transição inválida), interrompe, retorna quais entraram e qual falhou com a mensagem do banco traduzida para pt-BR amigável.
+1. `registrarMovimentacoes(input)` recebe **um lote**: `{ itens: MovimentacaoInput[] }` (1..10). Valida com Zod; exige sessão de operador (sem sessão → erro claro); insere **um a um em ordem** via cliente server; se o trigger do banco rejeitar algum (transição inválida), interrompe, retorna quais entraram e qual falhou com a mensagem do banco traduzida para pt-BR amigável.
 2. `estornarMovimentacao(movimentacaoId)`: monta o insert de estorno (`tipo='estorno'`, `estorno_de`) e devolve sucesso/erro do trigger.
 3. `revalidatePath` nas rotas afetadas após sucesso.
 
@@ -53,11 +53,11 @@ O fluxo mais importante do sistema. Meta: **registrar 1 ativo em ≤ 30 segundos
 1. Passo 1 — ativo: combobox com busca por patrimônio (server, debounce 300ms, mín. 2 caracteres) mostrando `patrimônio · modelo · status atual · filial`. **Se o patrimônio digitado tiver duplicata, as opções exibem também a service tag e o campo fica com aviso "patrimônio duplicado — confira a service tag"**. Selecionar adiciona o ativo a uma lista de "itens do lote" (chips/cards) — dá para adicionar vários antes de prosseguir.
 2. Passo 2 — movimentação: select de tipo mostrando SOMENTE os tipos válidos para o estado de cada item (use `TRANSICOES`; com itens em estados diferentes, aplique por item e sinalize). Campos aparecem conforme o tipo (motivo filtrado por `motivos.aplica_a`; colaborador/setor; chamado; termo; itens faltantes como checkboxes carregador/mochila/mouse/teclado/mousepad/fone/cabo + campo livre; **observação — textarea opcional, visível para TODOS os tipos, placeholder "Observação (opcional) — ex.: aguardando NF-e, tela trincada…"**; filial destino para transferência). Um único preenchimento vale para o lote inteiro, com opção "ajustar por item".
 3. Passo 3 — revisão: tabela-resumo do lote (`patrimônio → tipo → destino/motivo`) e botão "Registrar". Sucesso: toast por lote ("3 movimentações registradas"), limpa o formulário e mostra links para as fichas. Falha parcial: mantém no form apenas os itens que falharam, com o erro de cada um.
-4. Acesso: rota bloqueada para viewer (redirect + toast "somente leitura").
+4. Acesso: exige sessão de operador (o middleware da F0 já cobre — sem sessão, redirect ao login).
 
 ### 3.6 Estorno (na ficha)
 
-Na linha do tempo, a movimentação **mais recente** do ativo (e só ela) mostra ao admin o botão "Estornar" → dialog de confirmação mostrando o que o ativo volta a ser (status/colaborador/filial do snapshot) + campo observação opcional → chama a action. Sucesso atualiza a ficha; erro do banco vira toast pt-BR.
+Na linha do tempo, a movimentação **mais recente** do ativo (e só ela) mostra o botão "Estornar" → dialog de confirmação mostrando o que o ativo volta a ser (status/colaborador/filial do snapshot) + campo observação opcional → chama a action. Sucesso atualiza a ficha; erro do banco vira toast pt-BR.
 
 ### 3.7 Facilitadores — o que faz o sistema ganhar do Excel (spec §6.4)
 
@@ -77,7 +77,7 @@ Proibido aqui: kits salvos de lote (é item 5.9 da F5) e qualquer dependência n
 - [ ] Devolução com itens faltantes → pendência aparece na ficha; triagem_ok → some.
 - [ ] Movimentação com observação → texto aparece na linha do tempo; sem observação → nada quebra (campo é opcional em todo tipo, menos ajuste).
 - [ ] Estorno da última movimentação restaura status/colaborador/filial e aparece na linha do tempo; botão não existe em movimentação antiga.
-- [ ] Logado como viewer: sem botões de ação, rota /movimentacoes/nova bloqueada e chamada direta da Server Action rejeitada (teste via fetch manual).
+- [ ] Sem sessão: rotas redirecionam ao login e chamada direta da Server Action é rejeitada (teste via fetch manual).
 - [ ] Facilitadores: data default = hoje com foco na busca; atalho `N` abre a tela; "repetir última" e "duplicar" pré-preenchem os campos certos.
 - [ ] Estados de loading/vazio/erro visíveis; mobile 375px usável; `lint`+`build` limpos.
 

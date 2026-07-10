@@ -17,7 +17,7 @@ Edge Function do Supabase agendada (pg_cron) gerando o "Resumo do período" (mes
 Export CSV mensal automático (ativos + movimentações) para um bucket do Supabase Storage + botão de download em `admin`. Mitiga o bus-factor e a dependência do free tier.
 
 ### 5.5 Upload do termo assinado (PDF)
-Campo de anexo na movimentação de saída (Supabase Storage, bucket privado, RLS por papel); link na ficha e cobrança na pendência. Depende da resposta da pergunta 5 da spec §13.
+Campo de anexo na movimentação de saída (Supabase Storage, bucket privado, acesso só de operador logado — visualizador por senha não baixa termos); link na ficha e cobrança na pendência. Depende da resposta da pergunta 5 da spec §13.
 
 ### 5.6 Dark mode
 `next-themes` + revisão das cores dos gráficos para a superfície escura (recalibrar as duas séries; manter contraste — ver PLANEJAMENTO §2.1 e o padrão do mockup). Item de conforto, por último.

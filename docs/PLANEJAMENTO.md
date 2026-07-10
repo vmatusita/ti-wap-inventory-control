@@ -89,14 +89,14 @@ Ponto de atenção (também no checklist da seção 8): produção em contas do 
 **Execução: cada fase é uma ordem de serviço rodada no Claude Code** (ver seção 9 e `docs/prompts/`). As estimativas abaixo em "sessões de ~2–3h" foram feitas pensando em codar à mão; com o Claude Code executando, cada fase tende a virar **1–3 rodadas de prompt + o tempo do Johnny revisando e testando os critérios de aceite** — o esforço total cai bastante, mas os critérios de pronto continuam exatamente os mesmos (quem aceita é o Johnny, não o Claude).
 
 ### F0 — Fundação (4–5 sessões)
-- **Entrega:** repositório organizado, Next.js + Tailwind + shadcn instalados, projeto Supabase criado, login por convite funcionando (admin convida → pessoa recebe e-mail → define senha → entra como viewer), layout base (sidebar, header, tema claro), deploy na Vercel com variáveis de ambiente.
+- **Entrega:** repositório organizado, Next.js + Tailwind + shadcn instalados, projeto Supabase criado, login por convite funcionando (admin convida → pessoa recebe e-mail → define senha → entra como **operador**; e-mails só `@wap.ind.br`, validado também no banco), layout base (sidebar, header, tema claro), deploy na Vercel com variáveis de ambiente.
 - **Fora do escopo:** qualquer tela de dados.
-- **Pronto quando:** duas contas (admin e viewer) logam **em produção** e veem o layout vazio.
+- **Pronto quando:** duas contas de operador logam **em produção** e veem o layout vazio; convite fora de `@wap.ind.br` é recusado.
 
 ### F1 — Banco + dados fictícios (3–4 sessões)
 - **Entrega:** `schema.sql` revisado e quebrado em migrations versionadas; tipos TS gerados; **script de seed fictício** (item 3.1) com reset; views de relatório respondendo.
 - **Fora do escopo:** telas.
-- **Pronto quando:** seed roda e resseta com um comando; `v_estoque_atual` e `v_movimentacoes_mes` retornam os números do seed; conta viewer não consegue escrever (teste manual de RLS).
+- **Pronto quando:** seed roda e resseta com um comando; `v_estoque_atual` e `v_movimentacoes_mes` retornam os números do seed; a anon key sem sessão não lê nada (teste manual de RLS).
 
 ### F2 — Operação (7–8 sessões)
 - **Entrega:** lista de ativos (busca + filtros filial/categoria/status), ficha do ativo com linha do tempo, **nova movimentação** (fluxo rápido, em lote — notebook+monitor+celular do mesmo chamado de uma vez), estorno, validações Zod espelhando a máquina de estados, e os **facilitadores anti-Excel** (data default, atalho `N`, "repetir última", "duplicar" da linha do tempo).
@@ -104,7 +104,7 @@ Ponto de atenção (também no checklist da seção 8): produção em contas do 
 - **Pronto quando:** o ciclo compra → saída → devolução → triagem → estoque é registrável de ponta a ponta na interface, com os erros certos ao tentar transições inválidas.
 
 ### F3 — Relatórios (5–6 sessões)
-- **Entrega:** `/relatorios/[filial]` + consolidado, com tudo da spec §7: KPIs, movimentações por mês, disponíveis por modelo, reservados com chamado, manutenção caso a caso, motivos, pendências, últimas movimentações (com observações), resumo do período no formato do e-mail, export CSV/impressão. Realtime atualizando a página aberta. **+ Relatório gerado da semana** (spec §7.1): snapshot interativo congelado e versionado, com histórico — o clique que substitui o ritual de sexta-feira. (O mockup `mockups/dashboard-relatorio.html` é a referência visual.)
+- **Entrega:** `/relatorios/[filial]` + consolidado, com tudo da spec §7: KPIs, movimentações por mês, disponíveis por modelo, reservados com chamado, manutenção caso a caso, motivos, pendências, últimas movimentações (com observações), resumo do período no formato do e-mail, export CSV/impressão. Realtime atualizando a página aberta. **+ Relatório gerado da semana** (spec §7.1): snapshot interativo congelado e versionado, com histórico — o clique que substitui o ritual de sexta-feira. **+ Acesso por senha** (spec §3): visualizador entra sem conta (senha → cookie assinado; gestão de senhas com rótulo e revogação em `admin/senhas`; auto-refresh de 60 s no lugar do realtime). (O mockup `mockups/dashboard-relatorio.html` é a referência visual.)
 - **Fora do escopo:** acessórios por quantidade (F5).
 - **Pronto quando:** demo com dados fictícios validada com 2–3 pessoas que recebem o e-mail hoje (inclusive de filial).
 
@@ -128,7 +128,7 @@ Acessórios/componentes por quantidade (fecha a 2ª metade do e-mail semanal) ·
 ## 6. Definição de pronto (vale para toda fase)
 
 - Build passa sem warning de TypeScript; lint limpo.
-- RLS verificada com a conta viewer (tentativa de escrita falha).
+- RLS verificada: anon sem sessão não lê nem escreve; cookie de visualização (a partir da F3) não abre rota de operação.
 - Tela funciona em notebook e celular (as filiais vão abrir no celular).
 - **Nenhum dado real** em código, seed, fixture ou screenshot no repositório.
 - Migration versionada para qualquer mudança de banco; nada aplicado "na mão" na produção.

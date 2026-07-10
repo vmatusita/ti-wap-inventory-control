@@ -33,9 +33,8 @@ create type public.tipo_movimentacao as enum (
   'marcar_defasado', 'descarte', 'transferencia', 'ajuste', 'estorno'
 );
 
-create type public.user_role as enum ('admin', 'viewer');
-
 create type public.termo_status as enum ('sim', 'nao', 'enviado');
+-- (não existe enum de papel: todo usuário logado é OPERADOR — nível único, spec §3)
 
 -- ---------- TABELAS ----------
 
@@ -47,12 +46,25 @@ create table public.filiais (
   created_at timestamptz not null default now()
 );
 
--- Espelho de auth.users com papel. Criado por trigger no signup/convite.
+-- Espelho de auth.users. Criado por trigger no signup/convite.
+-- Nível único: todo logado é OPERADOR. Visualizador de relatório NÃO tem
+-- conta — entra por senha de acesso (tabela senhas_acesso).
 create table public.profiles (
   id         uuid primary key references auth.users (id) on delete cascade,
   nome       text,
-  role       public.user_role not null default 'viewer',
   created_at timestamptz not null default now()
+);
+
+-- Senhas de visualização dos relatórios (geridas pelo operador em admin/senhas).
+-- Hash scrypt; validação SEMPRE no servidor (service role) — anon nunca lê.
+create table public.senhas_acesso (
+  id         uuid primary key default gen_random_uuid(),
+  rotulo     text not null,               -- 'Filial Linhares', 'Stefanini'…
+  hash       text not null,
+  ativa      boolean not null default true,
+  criado_por uuid not null references public.profiles (id),
+  created_at timestamptz not null default now(),
+  ultimo_uso timestamptz
 );
 
 -- Motivos como tabela (não enum): o admin ajusta o vocabulário pela UI.
@@ -256,9 +268,14 @@ create trigger trg_aplicar_movimentacao
   for each row execute function public.aplicar_movimentacao();
 
 -- Cria o profile quando o convite é aceito.
+-- Defesa no banco: login é restrito a contas WAP (spec §3) — a aplicação
+-- valida no convite, e o trigger garante mesmo se alguém contornar a UI.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
+  if new.email is null or new.email not ilike '%@wap.ind.br' then
+    raise exception 'Login restrito a contas @wap.ind.br';
+  end if;
   insert into public.profiles (id, nome)
   values (new.id, coalesce(new.raw_user_meta_data ->> 'nome', new.email));
   return new;
@@ -269,43 +286,41 @@ create trigger trg_on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- ---------- RLS ----------
--- viewer: só leitura · admin: escrita · anon: nada · mov.: imutável
+-- Modelo (decisão 09/07/2026): logado (@wap.ind.br) = OPERADOR, nível único —
+-- lê e escreve tudo. `anon`: nada. O visualizador de relatório não tem
+-- credencial de banco: entra por senha (camada da aplicação — cookie assinado;
+-- as queries de relatório dele rodam no servidor). Mov.: imutável.
 
 alter table public.filiais       enable row level security;
 alter table public.profiles      enable row level security;
 alter table public.motivos       enable row level security;
 alter table public.ativos        enable row level security;
 alter table public.movimentacoes enable row level security;
+alter table public.senhas_acesso enable row level security;
 
-create or replace function public.is_admin()
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.profiles
-    where id = auth.uid() and role = 'admin'
-  );
-$$;
+-- Leitura: qualquer operador logado
+create policy "leitura operador" on public.filiais       for select to authenticated using (true);
+create policy "leitura operador" on public.motivos       for select to authenticated using (true);
+create policy "leitura operador" on public.ativos        for select to authenticated using (true);
+create policy "leitura operador" on public.movimentacoes for select to authenticated using (true);
+create policy "leitura operador" on public.profiles      for select to authenticated using (true);
+create policy "leitura operador" on public.senhas_acesso for select to authenticated using (true);
 
--- Leitura: qualquer usuário logado
-create policy "leitura autenticada" on public.filiais       for select to authenticated using (true);
-create policy "leitura autenticada" on public.motivos       for select to authenticated using (true);
-create policy "leitura autenticada" on public.ativos        for select to authenticated using (true);
-create policy "leitura autenticada" on public.movimentacoes for select to authenticated using (true);
-create policy "perfil próprio ou admin" on public.profiles  for select to authenticated
-  using (id = auth.uid() or public.is_admin());
+-- Escrita: qualquer operador logado (nível único)
+create policy "operador escreve" on public.filiais for all to authenticated
+  using (true) with check (true);
+create policy "operador escreve" on public.motivos for all to authenticated
+  using (true) with check (true);
+create policy "operador escreve" on public.ativos for all to authenticated
+  using (true) with check (true);
+create policy "operador gerencia senhas" on public.senhas_acesso for all to authenticated
+  using (true) with check (true);
+create policy "perfil próprio" on public.profiles for update to authenticated
+  using (id = auth.uid()) with check (id = auth.uid());
 
--- Escrita: só admin
-create policy "admin escreve" on public.filiais for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
-create policy "admin escreve" on public.motivos for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
-create policy "admin escreve" on public.ativos for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
-create policy "admin gerencia perfis" on public.profiles for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
-
--- Movimentações: admin INSERE; ninguém edita/apaga (imutáveis — sem policy de update/delete)
-create policy "admin insere" on public.movimentacoes for insert to authenticated
-  with check (public.is_admin());
+-- Movimentações: operador INSERE; ninguém edita/apaga (imutáveis — sem policy de update/delete)
+create policy "operador insere" on public.movimentacoes for insert to authenticated
+  with check (true);
 
 -- ---------- RELATÓRIOS GERADOS (snapshot semanal — spec §7.1, entregue na F3) ----------
 
@@ -324,8 +339,8 @@ create table public.relatorios_gerados (
 create index rel_gerados_periodo_idx on public.relatorios_gerados (periodo_de desc, filial_id);
 
 alter table public.relatorios_gerados enable row level security;
-create policy "leitura autenticada" on public.relatorios_gerados for select to authenticated using (true);
-create policy "admin gera"          on public.relatorios_gerados for insert to authenticated with check (public.is_admin());
+create policy "leitura operador" on public.relatorios_gerados for select to authenticated using (true);
+create policy "operador gera"    on public.relatorios_gerados for insert to authenticated with check (true);
 -- Imutável: sem policy de update/delete — regerar o período cria versão nova.
 
 -- ---------- VIEWS DE RELATÓRIO ----------

@@ -13,6 +13,8 @@ Sistema interno para substituir o controle de ativos de TI feito hoje em três p
 
 **Regra de patrimônio:** o patrimônio identifica o equipamento, mas repete em casos raros — quem é único é o par **patrimônio + service tag** (spec §5, regra 1).
 
+**Modelo de acesso:** operar = login com conta WAP (só `@wap.ind.br`, nível único — todo logado é admin); visualizar relatórios = **senha de acesso, sem conta** (senhas com rótulo, criadas e revogadas individualmente pelo admin) — spec §3.
+
 ## Estrutura deste repositório
 
 | Caminho | Conteúdo |

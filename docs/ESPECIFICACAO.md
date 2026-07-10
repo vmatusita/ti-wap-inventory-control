@@ -33,7 +33,7 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 
 - Registrar cada movimentação **uma única vez** e derivar todo o resto (estoque, status do ativo, relatórios) automaticamente.
 - Estoque em tempo real por filial, categoria e status.
-- Relatórios acessíveis por link (com login), atualizados a cada mudança — **aposentar o envio semanal por e-mail**.
+- Relatórios acessíveis por link **com senha de acesso (sem conta)**, atualizados a cada mudança — **aposentar o envio semanal por e-mail**.
 - **Carga inicial única no go-live** (seção 10): o Johnny importa as 3 planilhas **uma única vez**, via scripts com limpeza/normalização, dry-run e relatório de inconsistências. **Depois disso não existe importação no sistema** — a entrada de dados é 100% manual, e o requisito é ela ser **mais prática que o Excel** (telas e facilitadores da seção 6). Até o go-live, desenvolvimento e demonstrações rodam com **dados fictícios** (seção 10.1).
 - Histórico auditável: toda movimentação tem autor, data e não é apagável (estorna-se).
 - Operação continua centralizada na admin da Matriz — o sistema precisa ser **mais rápido que a planilha**, não mais burocrático.
@@ -50,16 +50,19 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 
 ## 3. Usuários e perfis
 
-| Perfil | Quem é | O que pode |
-|---|---|---|
-| **Admin** | A pessoa da Matriz que controla o estoque hoje (e eventuais substitutos) | Tudo: cadastrar/editar ativos, registrar movimentações, importar planilhas, convidar usuários, configurar filiais e listas |
-| **Visualizador** | Gestores/pontos focais das filiais e quem mais precisar consultar | Login e leitura: relatórios, consulta de ativos e histórico. Não edita nada |
+| Perfil | Quem é | Como entra | O que pode |
+|---|---|---|---|
+| **Operador** | A pessoa da Matriz que controla o estoque hoje + quem o admin incluir | **Login com conta WAP** — convite por e-mail, obrigatoriamente `@wap.ind.br` | Tudo: ativos, movimentações, snapshots, senhas de acesso, filiais, motivos, convites. **Todos os logados têm o mesmo nível** — não há hierarquia entre operadores |
+| **Visualizador** | Filiais, gestores, suporte terceirizado (Stefanini) — quem só consulta | **Senha de acesso** no link dos relatórios — sem conta, sem cadastro | Somente as rotas de relatório (ao vivo, snapshots, histórico). Nada de operação |
 
-Decisões confirmadas em 09/07/2026:
+Neste documento, **"admin" e "operador" são sinônimos** — todo usuário logado é admin (nível único).
 
-- **Todo acesso exige login**, inclusive para ver relatórios (escolha do Johnny na v1 — protege nomes de colaboradores; um link público pode ser reavaliado depois).
-- **Não há auto-cadastro**: o admin convida por e-mail (Supabase Auth invite). Sugestão: aceitar convites apenas do domínio corporativo da WAP (ver pergunta 3, seção 13).
-- O papel fica em `profiles.role` (`admin` | `viewer`).
+Decisões **atualizadas em 09/07/2026** (substituem a versão anterior "login para todos"):
+
+- **Relatórios: senha, não login.** O link de visualização pede uma senha de acesso; quem tem a senha vê os relatórios. Todas as senhas dão o **mesmo nível** de acesso (todas as filiais, sem escopo).
+- **Senhas gerenciadas pelo admin:** cria quantas quiser, cada uma com **rótulo** ("Filial Linhares", "Stefanini"…), e **revoga individualmente** — se uma vazar, mata só ela sem trocar as outras.
+- **Operação: login restrito a `@wap.ind.br`**, validado no convite e no banco. Sem auto-cadastro; o admin convida ("incluir novas pessoas").
+- Implementação: Supabase Auth só para operadores; o acesso por senha é camada da aplicação — cookie httpOnly assinado após validar contra `senhas_acesso` (hash scrypt), com queries rodando no servidor. **Visualizador nunca recebe credencial do banco.**
 
 ## 4. Conceito central: a movimentação é a fonte da verdade
 
@@ -123,7 +126,8 @@ Schema completo em [`supabase/schema.sql`](../supabase/schema.sql). Resumo:
 - **`filiais`** — id, nome, slug (`matriz`, `cd-afonso-pena`, `linhares`, …), ativo. Cadastro gerenciável pelo admin (resolve a dúvida CE Serra/Serra Park/Eusébio sem travar o desenvolvimento).
 - **`ativos`** — patrimônio normalizado (único), patrimônio original (como veio da planilha), categoria, marca, modelo, service_tag, hostname, memória, armazenamento, processador, fornecedor, filial atual, **status** (derivado), colaborador/setor atual (derivados), termo_assinado, observações.
 - **`movimentacoes`** — ativo, tipo, motivo, data, filial, colaborador, setor, nº do chamado, termo_assinado, itens_faltantes, observação, **criado_por**, created_at. Imutável: correção é estorno + novo lançamento.
-- **`profiles`** — espelho de `auth.users` com nome e role (`admin`/`viewer`).
+- **`profiles`** — espelho de `auth.users` com nome. Todo usuário logado é operador — nível único (decisão de 09/07/2026); não existe papel "viewer" com conta.
+- **`senhas_acesso`** — senhas de visualização dos relatórios: rótulo, hash (scrypt), ativa, criado_por, último uso. Validadas exclusivamente no servidor; revogação individual tem efeito imediato.
 - **`relatorios_gerados`** — snapshots da semana (§7.1): período, filial (null = geral), versão, `dados` (jsonb congelado), gerado_por, gerado_em. Imutável — regerar o período cria versão nova.
 - **Views** — `v_estoque_atual` (agregado por filial/categoria/status), `v_movimentacoes_mes`, `v_pendencias` (termos não assinados, itens faltantes, ativos em triagem parados).
 
@@ -147,13 +151,13 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 
 ## 6. Módulos e telas
 
-1. **Login** — e-mail + senha via convite (Supabase Auth). Sem cadastro aberto.
-2. **Dashboard (home)** — visão geral: KPIs do estoque, movimentações recentes, pendências. Admin vê atalhos de ação; visualizador vê o mesmo sem botões de edição.
+1. **Login (operação)** — e-mail `@wap.ind.br` + senha, via convite (Supabase Auth). Sem cadastro aberto. Quem só visualiza relatórios **não loga**: entra pela senha de acesso (item 5 e §3).
+2. **Dashboard (home)** — visão geral do operador: KPIs do estoque, movimentações recentes, pendências, atalhos de ação. (Quem entra por senha não vê esta tela — vai direto aos relatórios.)
 3. **Ativos** — lista com busca por patrimônio/colaborador/modelo e filtros (filial, categoria, status). Detalhe do ativo = ficha + **linha do tempo de movimentações**. Admin: criar/editar.
 4. **Nova movimentação** — a tela mais usada; otimizada para ser mais rápida que a planilha: buscar ativo por patrimônio (autocomplete; se o patrimônio tiver duplicata, mostra as opções com service tag e modelo para escolher) → escolher tipo → o form só pede o que aquele tipo exige → salvar. Validações de transição de estado (seção 8). Suporta lote (ex.: notebook + monitor + celular para o mesmo colaborador num único fluxo, como no chamado 5065 dos dados).
    **Facilitadores para vencer o Excel** (decisão de 09/07/2026 — sem importação depois do go-live, a operação manual é a única entrada): data de hoje já preenchida, foco automático no campo de busca ao abrir, atalho de teclado `N` abre "nova movimentação" de qualquer tela, **"repetir última"** (pré-preenche tudo da movimentação anterior, menos o ativo) e **"duplicar"** a partir de qualquer linha da linha do tempo. Kits de lote salvos ("Kit novo colaborador") ficam na F5.
 5. **Relatórios** — página ao vivo por filial (`/relatorios/[filial]`) + **geração do relatório da semana** (snapshot interativo versionado) com histórico em `/relatorios/gerados` — detalhes na seção 7.
-6. **Administração** — convidar/gerenciar usuários, filiais, ajustes de vocabulário (motivos), exportar backup CSV.
+6. **Administração** — convidar/gerenciar usuários (só `@wap.ind.br`), **senhas de acesso dos relatórios** (criar com rótulo, ver último uso, revogar), filiais, ajustes de vocabulário (motivos), exportar backup CSV.
 
 > **Não existe tela de importação.** Decisão de 09/07/2026: a carga das planilhas é uma operação única de go-live, feita pelo Johnny via scripts (seção 10). Depois do cutover, a única porta de entrada de dados é a operação manual do item 4 — e vencê-la do Excel é requisito, não detalhe.
 
@@ -161,7 +165,7 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 
 Dois modos complementares substituem o e-mail semanal (decisão de 09/07/2026):
 
-- **Ao vivo** — `/relatorios/[filial]`: manda-se o link uma vez; a página está sempre atual.
+- **Ao vivo** — `/relatorios/[filial]`: manda-se o link (e a senha de acesso) uma vez; a página está sempre atual. Sem conta, sem cadastro.
 - **Gerado** — o ritual da sexta-feira vira **um clique**: um snapshot interativo dos dados da semana, congelado e versionado (§7.1), com link permanente.
 
 Conteúdo de `/relatorios/[filial]` (e uma visão consolidada `/relatorios/geral`):
@@ -178,7 +182,7 @@ Conteúdo de `/relatorios/[filial]` (e uma visão consolidada `/relatorios/geral
 - **Últimas movimentações** — tabela com data, ativo, tipo, colaborador, chamado.
 - **Exportar:** CSV da tabela e impressão limpa (PDF pelo navegador) para quem ainda pedir "o arquivo".
 
-Tempo real, em duas camadas: Server Components buscam dados frescos a cada acesso; na página aberta, subscription de Supabase Realtime na tabela `movimentacoes` atualiza os números sem F5.
+Tempo real, em duas camadas: Server Components buscam dados frescos a cada acesso; na página aberta, subscription de Supabase Realtime na tabela `movimentacoes` atualiza os números sem F5 (para operadores logados). Sessões por senha não têm credencial de banco e não abrem websocket — para elas a página se atualiza sozinha por revalidação periódica (~60 s), o que na prática é tempo real para quem consulta.
 
 **Por que não Power BI:** foi considerado e descartado para a v1 em 09/07/2026 — compartilhar exige licença Pro por usuário, o refresh do plano básico é agendado (não tempo real) e ninguém da equipe domina a ferramenta. A porta fica aberta: o Postgres do Supabase aceita conexão direta do Power BI no futuro, sem mudar nada no sistema.
 
@@ -191,7 +195,7 @@ O equivalente moderno do e-mail de sexta-feira — pedido do Johnny em 09/07/202
 - **Versionado — o fim da ERRATA:** regerar o mesmo período cria a **versão 2**; a versão 1 continua acessível com um aviso "existe versão mais recente". Ninguém reenvia nada: o link aponta para a versão atual.
 - **Interativo:** a página `/relatorios/gerados/[id]` renderiza o snapshot com os mesmos componentes do relatório ao vivo — gráficos com tooltip, tabelas ordenáveis, filtros internos (filial/categoria/tipo) aplicados sobre o snapshot, resumo no formato do e-mail com "copiar texto", export CSV e impressão limpa. Não é um PDF morto.
 - **Histórico:** `/relatorios/gerados` lista todos (período, filial, versão, quem gerou, quando) — o arquivo semanal que hoje se perde na caixa de e-mail.
-- **Acesso:** login como todo o resto; visualizador vê e navega, não gera.
+- **Acesso:** a mesma senha de acesso dos relatórios; **gerar** é ação de operador logado.
 - Download como **HTML autocontido** (arquivo único para anexar/arquivar) fica no backlog da F5.
 
 Conteúdo do snapshot = as mesmas seções da página ao vivo recortadas no período + resumo textual, com destaque para as **observações das movimentações** (o contexto que hoje vai em texto vermelho no e-mail).
@@ -221,9 +225,9 @@ Confirmada em 09/07/2026:
 | Validação | Zod + Server Actions | Uma definição de schema serve form e servidor |
 | Deploy | **Vercel** (conta Pro já paga do Johnny) | Deploy por git push; preview por branch; o Hobby gratuito não permite uso comercial |
 
-Arquitetura em uma linha: **Next.js fala com o Supabase; leituras via Server Components (+ Realtime no cliente), escritas via Server Actions; RLS garante no banco que visualizador não escreve — mesmo se a UI falhar.**
+Arquitetura em uma linha: **Next.js fala com o Supabase; leituras via Server Components (+ Realtime no cliente para logados), escritas via Server Actions; RLS garante no banco que só operador logado lê/escreve — o visualizador por senha nem credencial de banco tem (as páginas de relatório dele são servidas pelo servidor).**
 
-Padrões de segurança: RLS em todas as tabelas (`viewer`: só SELECT; `admin`: tudo; `anon`: nada), service key só no servidor, convites com expiração.
+Padrões de segurança: RLS em todas as tabelas (`authenticated` = operador: tudo; `anon`: nada), acesso por senha 100% no servidor (hash scrypt, cookie httpOnly assinado, revogação com efeito imediato, escopo restrito às rotas de relatório), service key só no servidor, convites com expiração e restritos a `@wap.ind.br` (validação na aplicação **e** no banco).
 
 Custo para a WAP: **R$ 0**. Supabase no plano Free; deploy na conta **Vercel Pro que o Johnny já paga** — o Hobby gratuito da Vercel é restrito por fair use a uso pessoal não-comercial e não serve para sistema de empresa. Limites do free tier no risco 5 (seção 12).
 
@@ -265,15 +269,15 @@ Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados r
 1. **Limpeza de dados subestimada** — é o risco nº 1 em migração de planilha. Mitigação: carga inicial com dry-run + relatório de inconsistências (F4), ensaiada com as planilhas reais em ambiente de teste antes do go-live, e a regra "nada entra silenciosamente errado".
 2. **Adoção** — se registrar movimentação for mais lento que a planilha, a planilha volta. Mitigação: tela de movimentação desenhada para ≤30s por registro, fluxo em lote, atalhos.
 3. **Período de transição** — evitar sistema e planilha em paralelo por semanas (divergem de novo). Mitigação: durante o desenvolvimento o sistema roda só com dados fictícios (convivência zero); a virada acontece de uma vez na F4 — importa, confere os números e as planilhas viram só-leitura na mesma semana.
-4. **Dados pessoais (LGPD)** — nomes de colaboradores. Login obrigatório (decisão confirmada) já limita exposição; guardar o mínimo (nome/setor, sem CPF), definir retenção do histórico de desligados.
+4. **Dados pessoais (LGPD)** — nomes de colaboradores visíveis a quem tiver uma senha de acesso (senha compartilhada expõe mais que conta individual). Mitigação: a senha só abre as rotas de relatório; senhas rotuladas e revogáveis uma a uma (vazou → mata só aquela); rotação periódica recomendada; guardar o mínimo (nome/setor, sem CPF); retenção do histórico de desligados a definir.
 5. **Free tier do Supabase** (números conferidos em 09/07/2026) — pausa após **1 semana sem requisição** (com uso diário não acontece; se pausar durante o desenvolvimento, religa-se no painel em segundos), **500 MB** de banco (anos de folga para ~1,2k ativos) e **2 projetos gratuitos** — exatamente o que o plano usa: produção + ambiente de ensaio do importador. Se crescer: Pro US$ 25/mês, só se a WAP um dia decidir pagar.
 6. **Bus factor = 1** — uma pessoa opera tudo. Mitigação: segundo admin de contingência (pergunta 7) + backup CSV automático mensal.
 
 ## 13. Perguntas em aberto (para Johnny/WAP responder)
 
 1. **Filiais oficiais:** o e-mail semanal real reporta Matriz, CD-Afonso Pena, Linhares e **Eusébio–Ceará** — e os chamados do **Serra Park** aparecem atendidos pelo estoque de Linhares. Serra Park é filial com estoque próprio ou ponto atendido por Linhares? "CE Serra" que você citou = Eusébio/CE + Serra? (O cadastro de filiais é flexível — isso não trava o desenvolvimento.)
-2. **Escopo do visualizador:** vê todas as filiais ou só a dele? (v1 proposta: vê todas; o e-mail atual já circula com tudo para todo mundo.)
-3. **Convites restritos a domínio?** O e-mail atual vai para `@wap.ind.br` **e para o suporte terceirizado (`@stefanini.com`)**. Convidados de fora do domínio WAP podem entrar como visualizadores?
+2. ~~Escopo do visualizador~~ — **respondida em 09/07/2026:** acesso por senha tem nível único; toda senha vê todos os relatórios de todas as filiais.
+3. ~~Convites restritos a domínio?~~ — **respondida em 09/07/2026:** login (operação) só com `@wap.ind.br`; terceirizados (Stefanini) e filiais consultam pelos relatórios **com senha de acesso, sem conta**.
 4. **Nº do chamado:** só guardar o número ou linkar para o sistema de chamados? Qual sistema é?
 5. **Termo de responsabilidade:** anexar o PDF assinado no sistema (F5) ou basta a flag + cobrança?
 6. **Acessórios** (mochila, mouse, teclado): confirma que na v1 ficam só como checklist da devolução, sem patrimônio próprio?
