@@ -1,4 +1,10 @@
 -- =============================================================
+-- HISTÓRICO — substituído pelas migrations em supabase/migrations a partir da F1.
+-- A verdade do banco agora são as migrations (0001..0007). Este arquivo é mantido
+-- apenas como referência do rascunho original; NÃO aplicar e NÃO editar para mudar
+-- o banco — toda alteração vira uma nova migration.
+-- =============================================================
+--
 -- Sistema de Controle de Estoque TI — WAP
 -- Rascunho do schema (Postgres / Supabase) — v1.0 · 09/07/2026
 --
