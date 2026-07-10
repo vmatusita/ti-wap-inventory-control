@@ -1,10 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import { type Tables } from '@/lib/types/database'
 
-export type Perfil = {
-  id: string
-  nome: string | null
-  role: 'admin' | 'viewer'
-}
+export type Perfil = Pick<Tables<'profiles'>, 'id' | 'nome' | 'role'>
 
 // Perfil do usuario logado (nome + papel), lido de public.profiles.
 // Retorna null quando nao ha sessao.
@@ -21,10 +18,9 @@ export async function getPerfilAtual(): Promise<Perfil | null> {
     .from('profiles')
     .select('id, nome, role')
     .eq('id', user.id)
-    .single<Perfil>()
+    .single()
 
-  // Enquanto a tabela profiles nao existir (antes da migration da F0 3.4),
-  // ou se o perfil ainda nao foi criado, degrada para viewer com o e-mail.
+  // Se o perfil ainda nao foi criado, degrada para viewer com o e-mail.
   if (!data) {
     return { id: user.id, nome: user.email ?? null, role: 'viewer' }
   }
