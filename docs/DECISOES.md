@@ -24,3 +24,64 @@ Operações destrutivas em produção (reset, carga, migration com perda potenci
 - Reversível? sim — histórico das fases está nos commits (branches `f0-fundacao`, `claude/f1-banco-prompt-seed-096b7c`, `main`).
 - Nota de processo: a decisão da F1 sobre o volume de movimentações do seed (maior que ~700 para atingir a distribuição-alvo de status) está documentada no cabeçalho de `scripts/seed.ts`.
 - Lição operacional (vale para as duas pontas): **sempre ler a versão atual do arquivo no disco antes de regravar docs** — sessões paralelas não podem sobrescrever às cegas.
+
+---
+
+## 2026-07-10 · F2 · Pré-requisitos: seed rodado no dev + tipos regenerados
+
+- Contexto: OS-F2 §0.2 exige `db:seed` populado e tipos atualizados. No início da F2 o dev tinha as migrations 0001–0007 e os dados de referência, mas `ativos`/`movimentacoes` estavam vazios e `src/lib/types/database.ts` só continha `profiles` (desatualizado).
+- Decisão: adicionei `SEED_CONFIRM=sim` e `SEED_PROJECT_REF=pbtjcalbmepmrqzprusb` ao `.env.local` (gitignored) e rodei `npm run db:seed` (1.200 ativos, 2.381 movimentações). Regenerei `src/lib/types/database.ts` a partir do schema atual.
+- Motivo: destravar a F2 sem depender do Johnny (modo autônomo). O seed é 100% fictício (regra 2).
+- Reversível? sim — `npm run db:reset` + `npm run db:seed` reproduz o mesmo conjunto determinístico.
+- Backlog (bug F1, fora do escopo da F2): o `sumario()` do `scripts/seed.ts` lê os ativos com `select` sem `.range()`, então o PostgREST corta em 1.000 linhas e o resumo mostra contagens/`✗` enganosos ("Ativos: 1000"). As contagens REAIS estão corretas (1.200/2.381, conferidas por SQL). Correção sugerida: paginar o select do resumo.
+
+## 2026-07-10 · F2 · Dependências da stack instaladas (estavam na lista, faltavam no projeto)
+
+- Contexto: `react-hook-form`, `@hookform/resolvers`, `@tanstack/react-table` e `date-fns` constam da stack fechada do CLAUDE.md, mas não estavam no `package.json` (F0/F1 não precisaram).
+- Decisão: instalei as quatro (mais os componentes shadcn `table/select/dialog/command/popover/checkbox/textarea/tooltip/form/tabs`). Nada fora da stack fechada.
+- Motivo: são exatamente as peças previstas para a F2 (data-table, forms com Zod, datas ptBR).
+- Reversível? sim (remoção via npm).
+- Nota: o `npx shadcn add form` falhou em silêncio (conflito com o pacote unificado `radix-ui` do projeto). Escrevi `src/components/ui/form.tsx` à mão, adaptado para `import { Slot } from "radix-ui"` (`Slot.Root`) — mesma convenção dos componentes existentes.
+
+## 2026-07-10 · F2 · Fluxo de lote com preenchimento único (sem tipos heterogêneos por item)
+
+- Contexto: OS-F2 3.5.2 pede "tipos válidos por item" e opção "ajustar por item" no lote.
+- Decisão: o lote usa UM tipo compartilhado, oferecido a partir da **interseção** dos tipos válidos de todos os ativos selecionados (`tiposComunsPara`). Se os itens estão em estados diferentes, só aparecem as movimentações válidas para todos, com aviso. Não implementei tipos diferentes por item na mesma submissão.
+- Motivo: adoção é o risco nº 1 (spec §12.2) — um fluxo que **nunca** falha parcialmente por transição inválida vale mais que heterogeneidade rara. Cobre todos os critérios de aceite (kit de 3 em_estoque → saída; "saída some" ao incluir um em_uso). O caso real (kit para um colaborador) tem tipo/campos idênticos.
+- Reversível? sim — o form isola a config compartilhada; dá para evoluir para override por item depois. Registrado como possível refino (não é F5 formal).
+
+## 2026-07-10 · F2 · Cores de status não especificadas + detalhes de UI
+
+- Contexto: a OS especifica cores só para em_uso/em_estoque/manutenção/descartado/defasado.
+- Decisão: atribuí cores coerentes aos demais — reservado (violeta), emprestado (ciano), em_triagem (laranja) — em `src/lib/dominio.ts`. Dialog de estorno mostra status/colaborador/setor do snapshot; a filial só aparece quando a mov era transferência (o snapshot guarda `filial_id`, não o nome).
+- Motivo: consistência visual sem inventar regra de negócio.
+- Reversível? trivial (tabela `STATUS_META`).
+
+## 2026-07-10 · F2 · Lint: ignorar `.claude/**`
+
+- Contexto: sobrou um worktree da F1 em `.claude/worktrees/f1-banco-prompt-seed-096b7c/` com um `.next` buildado; o ESLint varria esses artefatos e falhava.
+- Decisão: adicionei `".claude/**"` aos `globalIgnores` do `eslint.config.mjs`.
+- Motivo: são artefatos internos do Claude Code, nunca código-fonte do projeto.
+- Reversível? sim (uma linha).
+
+## 2026-07-10 · F2 · Verificação E2E: writes conferidos no contrato do banco
+
+- Contexto: as telas exigem sessão de operador. Criei um operador de QA fictício (`qa.f2@wap.ind.br`, `@wap.ind.br`) via admin API só para dirigir o navegador no dev.
+- Decisão: **leituras** (lista, filtros, busca, desambiguação por service tag, ficha, linha do tempo, exibição do estorno) verificadas pelo app real logado. **Escritas** (kit saída→em_uso, transição inválida barrada, estorno restaura, devolução→pendência, triagem_ok limpa) verificadas no **contrato do banco** (o trigger 0004, que é a fonte da verdade que as Server Actions apenas delegam) porque os `Select`/`Dialog` do Radix não respondem a eventos sintéticos do navegador headless. Busca multi-palavra (`Gabriel Pereira`) conferida no mesmo `.or()` ilike via service role (o app deu 0 apenas porque a sessão caiu ao apagar o usuário QA).
+- Limpeza: `db:reset` + remoção do usuário QA + `db:seed` — dev restaurado ao seed determinístico pristino (1.200/2.381, autor = Victor Matusita, 0 usuários QA). `.claude/launch.json` adicionado para o dev server do preview.
+- Motivo: verificação real e honesta dentro das limitações da ferramenta; dev entregue limpo.
+- Reversível? o estado do dev é o seed determinístico; reprodutível a qualquer momento.
+
+## 2026-07-10 · F2 · Revisão adversarial multi-agente + correções
+
+- Contexto: rodei uma revisão adversarial (5 lentes: máquina de estados, server actions, Zod, React/Next, segurança/spec) com verificação independente de cada achado — 13 agentes.
+- Achados confirmados e **corrigidos** (7 distintos):
+  1. **[ALTO] Perda silenciosa de dados na edição cadastral** — `editar-ativo-dialog.tsx` usava `form.reset()` sem args, que restaura os defaults do MOUNT (RHF). Após salvar+refresh e reabrir, o form mostrava dados velhos e, como o update grava TODAS as colunas cadastrais, um novo salvar revertia as demais. Correção: usar o prop `values` (sincroniza quando `ativo` muda) + `reset(valores)` ao fechar.
+  2. **[MÉDIO] Motivo obsoleto entre tipos** — trocar o tipo não limpava `config.motivo`; um motivo válido só p/ saída vazava para empréstimo (o banco não amarra motivo×tipo). Correção: `trocarTipo()` limpa motivo/filialDestino/itens/statusResultante.
+  3. **[BAIXO] Mapa de ativos obsoleto no lote** — mesmo `ativo_id` repetido no lote usaria filial/estado velhos (só via payload forjado; a UI deduplica). Correção: a Server Action rejeita lote com ativo repetido.
+  4. **[BAIXO] "Não futura" com fuso errado** — `hojeISOServer()` usava o fuso do processo (UTC na Vercel), afrouxando a regra perto da meia-noite BRT. Correção: `hojeISO()` fixado em `America/Sao_Paulo` (Intl), reusado no validador e no estorno.
+  5. **[BAIXO] i18n** — ajuste com status/justificativa vazios caía nas mensagens padrão do Zod em inglês. Correção: mensagens pt-BR em `status_resultante`/`observacao` do ajuste (API `{ message }` do zod v4 conferida).
+  6. **[BAIXO] Envio duplo por Enter** — `registrar()` não checava `enviando` (só o botão desabilitava); Enter 2× no passo 3 podia duplicar um ajuste. Correção: trava de reentrância (`enviandoRef`).
+  7. **[BAIXO] Corrida no debounce da busca** — o timeout capturava `params` do render; um filtro alterado nos 300ms era descartado. Correção: o debounce lê `window.location.search` fresco no disparo.
+- Motivo: correção e robustez acima de custo (modo ultracode). `lint`+`build`+`tsc` limpos após as correções.
+- Reversível? sim (mudanças localizadas por arquivo, no histórico do git).

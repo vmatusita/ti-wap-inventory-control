@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu } from 'lucide-react'
+import Link from 'next/link'
+import { Menu, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -47,14 +48,30 @@ export function AppHeader({ nome }: { nome: string }) {
             </SheetTitle>
           </SheetHeader>
           <div className="p-3">
-            <SidebarNav />
+            <SidebarNav onNavigate={() => setAberto(false)} />
           </div>
         </SheetContent>
       </Sheet>
 
       <Marca />
 
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-3">
+        <Button
+          asChild
+          size="sm"
+          className="bg-[#eda100] text-black hover:bg-[#eda100]/90"
+        >
+          <Link href="/movimentacoes/nova">
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Nova movimentação</span>
+            <span
+              aria-hidden
+              className="ml-1 hidden rounded border border-black/20 bg-black/10 px-1 text-[10px] font-semibold sm:inline"
+            >
+              N
+            </span>
+          </Link>
+        </Button>
         <UserMenu nome={nome} />
       </div>
     </header>

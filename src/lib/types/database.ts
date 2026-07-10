@@ -14,6 +14,256 @@ export type Database = {
   }
   public: {
     Tables: {
+      ativos: {
+        Row: {
+          armazenamento: string | null
+          categoria: Database["public"]["Enums"]["categoria_ativo"]
+          colaborador_atual: string | null
+          created_at: string
+          filial_id: number
+          fornecedor: string | null
+          hostname: string | null
+          id: string
+          marca: string | null
+          memoria: string | null
+          modelo: string | null
+          observacoes: string | null
+          origem: string
+          patrimonio: string
+          patrimonio_original: string | null
+          pendencia: string | null
+          processador: string | null
+          service_tag: string | null
+          setor_atual: string | null
+          status: Database["public"]["Enums"]["status_ativo"]
+          termo_assinado: Database["public"]["Enums"]["termo_status"] | null
+          termo_data: string | null
+          updated_at: string
+        }
+        Insert: {
+          armazenamento?: string | null
+          categoria: Database["public"]["Enums"]["categoria_ativo"]
+          colaborador_atual?: string | null
+          created_at?: string
+          filial_id: number
+          fornecedor?: string | null
+          hostname?: string | null
+          id?: string
+          marca?: string | null
+          memoria?: string | null
+          modelo?: string | null
+          observacoes?: string | null
+          origem?: string
+          patrimonio: string
+          patrimonio_original?: string | null
+          pendencia?: string | null
+          processador?: string | null
+          service_tag?: string | null
+          setor_atual?: string | null
+          status?: Database["public"]["Enums"]["status_ativo"]
+          termo_assinado?: Database["public"]["Enums"]["termo_status"] | null
+          termo_data?: string | null
+          updated_at?: string
+        }
+        Update: {
+          armazenamento?: string | null
+          categoria?: Database["public"]["Enums"]["categoria_ativo"]
+          colaborador_atual?: string | null
+          created_at?: string
+          filial_id?: number
+          fornecedor?: string | null
+          hostname?: string | null
+          id?: string
+          marca?: string | null
+          memoria?: string | null
+          modelo?: string | null
+          observacoes?: string | null
+          origem?: string
+          patrimonio?: string
+          patrimonio_original?: string | null
+          pendencia?: string | null
+          processador?: string | null
+          service_tag?: string | null
+          setor_atual?: string | null
+          status?: Database["public"]["Enums"]["status_ativo"]
+          termo_assinado?: Database["public"]["Enums"]["termo_status"] | null
+          termo_data?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ativos_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      filiais: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: number
+          nome: string
+          slug: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: never
+          nome: string
+          slug: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: never
+          nome?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      motivos: {
+        Row: {
+          aplica_a: Database["public"]["Enums"]["tipo_movimentacao"][]
+          ativo: boolean
+          codigo: string
+          rotulo: string
+        }
+        Insert: {
+          aplica_a: Database["public"]["Enums"]["tipo_movimentacao"][]
+          ativo?: boolean
+          codigo: string
+          rotulo: string
+        }
+        Update: {
+          aplica_a?: Database["public"]["Enums"]["tipo_movimentacao"][]
+          ativo?: boolean
+          codigo?: string
+          rotulo?: string
+        }
+        Relationships: []
+      }
+      movimentacoes: {
+        Row: {
+          ativo_id: string
+          chamado: string | null
+          colaborador: string | null
+          created_at: string
+          criado_por: string
+          data: string
+          estorno_de: string | null
+          filial_destino_id: number | null
+          filial_id: number
+          id: string
+          itens_faltantes: string[] | null
+          motivo: string | null
+          observacao: string | null
+          setor: string | null
+          snapshot_anterior: Json | null
+          status_anterior: Database["public"]["Enums"]["status_ativo"] | null
+          status_resultante: Database["public"]["Enums"]["status_ativo"] | null
+          termo_assinado: Database["public"]["Enums"]["termo_status"] | null
+          termo_data: string | null
+          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
+        }
+        Insert: {
+          ativo_id: string
+          chamado?: string | null
+          colaborador?: string | null
+          created_at?: string
+          criado_por: string
+          data?: string
+          estorno_de?: string | null
+          filial_destino_id?: number | null
+          filial_id: number
+          id?: string
+          itens_faltantes?: string[] | null
+          motivo?: string | null
+          observacao?: string | null
+          setor?: string | null
+          snapshot_anterior?: Json | null
+          status_anterior?: Database["public"]["Enums"]["status_ativo"] | null
+          status_resultante?: Database["public"]["Enums"]["status_ativo"] | null
+          termo_assinado?: Database["public"]["Enums"]["termo_status"] | null
+          termo_data?: string | null
+          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
+        }
+        Update: {
+          ativo_id?: string
+          chamado?: string | null
+          colaborador?: string | null
+          created_at?: string
+          criado_por?: string
+          data?: string
+          estorno_de?: string | null
+          filial_destino_id?: number | null
+          filial_id?: number
+          id?: string
+          itens_faltantes?: string[] | null
+          motivo?: string | null
+          observacao?: string | null
+          setor?: string | null
+          snapshot_anterior?: Json | null
+          status_anterior?: Database["public"]["Enums"]["status_ativo"] | null
+          status_resultante?: Database["public"]["Enums"]["status_ativo"] | null
+          termo_assinado?: Database["public"]["Enums"]["termo_status"] | null
+          termo_data?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_movimentacao"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "ativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "v_pendencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estorno_de_fkey"
+            columns: ["estorno_de"]
+            isOneToOne: false
+            referencedRelation: "movimentacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_filial_destino_id_fkey"
+            columns: ["filial_destino_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_motivo_fkey"
+            columns: ["motivo"]
+            isOneToOne: false
+            referencedRelation: "motivos"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -32,15 +282,117 @@ export type Database = {
         }
         Relationships: []
       }
+      senhas_acesso: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          criado_por: string
+          hash: string
+          id: string
+          rotulo: string
+          ultimo_uso: string | null
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          criado_por: string
+          hash: string
+          id?: string
+          rotulo: string
+          ultimo_uso?: string | null
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          criado_por?: string
+          hash?: string
+          id?: string
+          rotulo?: string
+          ultimo_uso?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "senhas_acesso_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      v_estoque_atual: {
+        Row: {
+          categoria: Database["public"]["Enums"]["categoria_ativo"] | null
+          filial: string | null
+          status: Database["public"]["Enums"]["status_ativo"] | null
+          total: number | null
+        }
+        Relationships: []
+      }
+      v_movimentacoes_mes: {
+        Row: {
+          filial: string | null
+          mes: string | null
+          tipo: Database["public"]["Enums"]["tipo_movimentacao"] | null
+          total: number | null
+        }
+        Relationships: []
+      }
+      v_pendencias: {
+        Row: {
+          categoria: Database["public"]["Enums"]["categoria_ativo"] | null
+          filial: string | null
+          id: string | null
+          patrimonio: string | null
+          pendencia: string | null
+          status: Database["public"]["Enums"]["status_ativo"] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      status_apos_movimentacao: {
+        Args: {
+          p_status: Database["public"]["Enums"]["status_ativo"]
+          p_tipo: Database["public"]["Enums"]["tipo_movimentacao"]
+        }
+        Returns: Database["public"]["Enums"]["status_ativo"]
+      }
     }
     Enums: {
-      [_ in never]: never
+      categoria_ativo:
+        | "notebook"
+        | "desktop"
+        | "monitor"
+        | "celular"
+        | "tablet"
+        | "outro"
+      status_ativo:
+        | "em_estoque"
+        | "reservado"
+        | "em_uso"
+        | "emprestado"
+        | "em_triagem"
+        | "em_manutencao"
+        | "defasado"
+        | "descartado"
+      termo_status: "sim" | "nao" | "enviado"
+      tipo_movimentacao:
+        | "compra"
+        | "saida"
+        | "emprestimo"
+        | "reserva"
+        | "devolucao"
+        | "triagem_ok"
+        | "envio_manutencao"
+        | "retorno_manutencao"
+        | "marcar_defasado"
+        | "descarte"
+        | "transferencia"
+        | "ajuste"
+        | "estorno"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -167,6 +519,41 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      categoria_ativo: [
+        "notebook",
+        "desktop",
+        "monitor",
+        "celular",
+        "tablet",
+        "outro",
+      ],
+      status_ativo: [
+        "em_estoque",
+        "reservado",
+        "em_uso",
+        "emprestado",
+        "em_triagem",
+        "em_manutencao",
+        "defasado",
+        "descartado",
+      ],
+      termo_status: ["sim", "nao", "enviado"],
+      tipo_movimentacao: [
+        "compra",
+        "saida",
+        "emprestimo",
+        "reserva",
+        "devolucao",
+        "triagem_ok",
+        "envio_manutencao",
+        "retorno_manutencao",
+        "marcar_defasado",
+        "descarte",
+        "transferencia",
+        "ajuste",
+        "estorno",
+      ],
+    },
   },
 } as const
