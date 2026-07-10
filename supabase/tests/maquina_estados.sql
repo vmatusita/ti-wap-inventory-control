@@ -1,10 +1,11 @@
 -- =============================================================
 -- Roteiro de teste da MAQUINA DE ESTADOS (rodar no SQL editor do projeto DEV).
 --
--- Cobre os 6 cenarios da OS-F1 3.2. E auto-verificavel: cada passo emite
+-- Cobre os 6 cenarios da OS-F1 3.2 (+ 4b: regressao do guard de estorno). E
+-- auto-verificavel: cada passo emite
 --   NOTICE  '✓ ...'  quando o resultado bate com o esperado
 --   WARNING '✗ ...'  quando NAO bate (procure por ✗ na aba de mensagens)
--- Os cenarios negativos (2 e 4) DEVEM falhar — o roteiro captura a excecao e
+-- Os cenarios negativos (2, 4 e 4b) DEVEM falhar — o roteiro captura a excecao e
 -- marca ✓ quando ela acontece.
 --
 -- Tudo roda dentro de uma transacao que termina em ROLLBACK: NADA e gravado no
@@ -12,7 +13,7 @@
 -- usa o primeiro como `criado_por`.
 --
 -- Como ler o resultado: abra a aba "Messages"/"Notices" do SQL editor. Sucesso
--- total = seis blocos com ✓ e nenhum ✗.
+-- total = todos os cenarios com ✓ e nenhum ✗.
 -- =============================================================
 
 begin;
@@ -22,7 +23,7 @@ declare
   v_prof     uuid;
   v_matriz   smallint;
   v_linhares smallint;
-  a uuid; b uuid; c uuid; d uuid; e uuid; f uuid;   -- ids dos ativos de teste
+  a uuid; b uuid; c uuid; d uuid; e uuid; f uuid; g uuid;   -- ids dos ativos de teste
   v_transf   uuid;                                   -- id da transferencia (cenario 6)
   v_status   public.status_ativo;
   v_colab    text;
@@ -100,10 +101,12 @@ begin
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('TESTE0000003', 'celular', v_matriz);
   select id into c from public.ativos where patrimonio = 'TESTE0000003';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (c, 'saida', 'Ciclano Teste', 'RH', v_matriz, v_prof);      -- em_uso @ matriz
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por)
-    values (c, 'transferencia', v_matriz, v_linhares, v_prof);          -- em_uso @ linhares
+  -- created_at explicito e crescente: dentro de UMA transacao now() e constante,
+  -- entao o guard de estorno (que ordena por created_at) precisa de ordem real.
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por, created_at)
+    values (c, 'saida', 'Ciclano Teste', 'RH', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');  -- em_uso @ matriz
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por, created_at)
+    values (c, 'transferencia', v_matriz, v_linhares, v_prof, timestamptz '2026-06-01 10:01:00+00');       -- em_uso @ linhares
   select id into v_transf from public.movimentacoes
     where ativo_id = c and tipo = 'transferencia' order by created_at desc limit 1;
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
@@ -124,10 +127,10 @@ begin
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('TESTE0000004', 'monitor', v_matriz);
   select id into d from public.ativos where patrimonio = 'TESTE0000004';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (d, 'saida', 'Beltrano Teste', v_matriz, v_prof);            -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (d, 'devolucao', v_matriz, v_prof);                          -- em_triagem
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (d, 'saida', 'Beltrano Teste', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');  -- em_uso
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
+    values (d, 'devolucao', v_matriz, v_prof, timestamptz '2026-06-01 10:01:00+00');                 -- em_triagem
   declare v_saida uuid;
   begin
     select id into v_saida from public.movimentacoes
@@ -141,6 +144,34 @@ begin
         raise notice '✓ 4 estorno de mov. antiga rejeitado: %', sqlerrm;
       else
         raise warning '✗ 4 falhou por motivo INESPERADO (nao a regra de estorno): %', sqlerrm;
+      end if;
+    end;
+  end;
+
+  -- ---------------------------------------------------------------
+  -- CENARIO 4b — regressao do furo corrigido: saida -> transferencia (ambas
+  -- terminam em em_uso). Estorno da SAIDA (nao-ultima) DEVE falhar, mesmo com o
+  -- status coincidindo (o proxy antigo por status_resultante deixava passar).
+  -- ---------------------------------------------------------------
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('TESTE0000007', 'notebook', v_matriz);
+  select id into g from public.ativos where patrimonio = 'TESTE0000007';
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (g, 'saida', 'Sicrano Teste', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00'); -- em_uso
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por, created_at)
+    values (g, 'transferencia', v_matriz, v_linhares, v_prof, timestamptz '2026-06-01 10:01:00+00'); -- em_uso @ linhares
+  declare v_saida_g uuid;
+  begin
+    select id into v_saida_g from public.movimentacoes where ativo_id = g and tipo = 'saida' limit 1;
+    begin
+      insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
+        values (g, 'estorno', v_linhares, v_prof, v_saida_g);           -- nao-ultima (mesmo status!)
+      raise warning '✗ 4b estorno de saida nao-ultima (mesmo status): NAO falhou (deveria)';
+    exception when others then
+      if sqlerrm like '%ultima movimentacao%' then
+        raise notice '✓ 4b estorno de saida nao-ultima (saida->transferencia) rejeitado: %', sqlerrm;
+      else
+        raise warning '✗ 4b falhou por motivo INESPERADO: %', sqlerrm;
       end if;
     end;
   end;

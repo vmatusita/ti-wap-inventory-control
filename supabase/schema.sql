@@ -208,7 +208,14 @@ begin
     if v_orig.tipo = 'estorno' or v_orig.snapshot_anterior is null then
       raise exception 'Esta movimentação não pode ser estornada';
     end if;
-    if v_orig.status_resultante is distinct from v_ativo.status then
+    -- Corrigido na F1 (migration 0004): checagem REAL da última movimentação
+    -- (não existe mov. posterior do ativo). O proxy antigo por status_resultante
+    -- era burlável quando duas movs seguidas terminavam no mesmo status.
+    if exists (
+      select 1 from public.movimentacoes m
+      where m.ativo_id = new.ativo_id
+        and (m.created_at, m.id) > (v_orig.created_at, v_orig.id)
+    ) then
       raise exception 'Só a última movimentação efetiva do ativo pode ser estornada (use ajuste, com justificativa)';
     end if;
     update public.ativos set
