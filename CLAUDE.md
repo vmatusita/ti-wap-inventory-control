@@ -97,4 +97,4 @@ Se a estrutura real divergir desta ao começar uma ordem, PARE e reporte a difer
 
 ## Referência visual
 
-`mockups/dashboard-relatorio.html` é a referência de layout/estilo do relatório (F3): tema claro, acento amarelo WAP `#eda100` sobre header escuro `#111110`, azul `#2a78d6` como segunda série, KPI tiles, barras com rótulo de valor. Fonte do sistema; nada de fonte externa.
+`mockups/dashboard-relatorio.html` é a referência de layout/estilo do relatório (F3): tema claro, acento amarelo WAP `#eda100` sobre header escuro `#111110`, azul `#2a78d6` como segunda série, KPI tiles, barras com rótulo de valor. Tipografia: **Geist** (Geist Sans na UI, Geist Mono para números/código), via `next/font` (self-hosted — sem requisição externa em runtime), com fallback de fonte do sistema.
