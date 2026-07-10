@@ -34,7 +34,7 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 - Registrar cada movimentação **uma única vez** e derivar todo o resto (estoque, status do ativo, relatórios) automaticamente.
 - Estoque em tempo real por filial, categoria e status.
 - Relatórios acessíveis por link **com senha de acesso (sem conta)**, atualizados a cada mudança — **aposentar o envio semanal por e-mail**.
-- **Carga inicial única no go-live** (seção 10): o Johnny importa as 3 planilhas **uma única vez**, via scripts com limpeza/normalização, dry-run e relatório de inconsistências. **Depois disso não existe importação no sistema** — a entrada de dados é 100% manual, e o requisito é ela ser **mais prática que o Excel** (telas e facilitadores da seção 6). Até o go-live, desenvolvimento e demonstrações rodam com **dados fictícios** (seção 10.1).
+- **Carga inicial única no go-live** (seção 10): as 3 planilhas entram **uma única vez**, via scripts com limpeza/normalização, dry-run e relatório de inconsistências (execução autônoma pelo Claude Code). **Depois disso não existe importação no sistema** — a entrada de dados é 100% manual, e o requisito é ela ser **mais prática que o Excel** (telas e facilitadores da seção 6). Até o go-live, desenvolvimento e demonstrações rodam com **dados fictícios** (seção 10.1).
 - Histórico auditável: toda movimentação tem autor, data e não é apagável (estorna-se).
 - Operação continua centralizada na admin da Matriz — o sistema precisa ser **mais rápido que a planilha**, não mais burocrático.
 
@@ -159,7 +159,7 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 5. **Relatórios** — página ao vivo por filial (`/relatorios/[filial]`) + **geração do relatório da semana** (snapshot interativo versionado) com histórico em `/relatorios/gerados` — detalhes na seção 7.
 6. **Administração** — convidar/gerenciar usuários (só `@wap.ind.br`), **senhas de acesso dos relatórios** (criar com rótulo, ver último uso, revogar), filiais, ajustes de vocabulário (motivos), exportar backup CSV.
 
-> **Não existe tela de importação.** Decisão de 09/07/2026: a carga das planilhas é uma operação única de go-live, feita pelo Johnny via scripts (seção 10). Depois do cutover, a única porta de entrada de dados é a operação manual do item 4 — e vencê-la do Excel é requisito, não detalhe.
+> **Não existe tela de importação.** Decisão de 09/07/2026: a carga das planilhas é uma operação única de go-live, via scripts executados de forma autônoma (seção 10). Depois do cutover, a única porta de entrada de dados é a operação manual do item 4 — e vencê-la do Excel é requisito, não detalhe.
 
 ## 7. Relatórios: ao vivo e gerados
 
@@ -233,7 +233,7 @@ Custo para a WAP: **R$ 0**. Supabase no plano Free; deploy na conta **Vercel Pro
 
 ## 10. Carga inicial única (go-live) — scripts, não tela
 
-Decisão final de 09/07/2026: o sistema **não tem importação**. A carga das planilhas é uma **operação única de go-live**, executada pelo Johnny com os scripts de `scripts/import/` (entregues na F4): dry-run → relatório de inconsistências → carga confirmada. Reexecutável **durante a janela do go-live** (idempotente), sem nenhuma interface no app; após o cutover os scripts permanecem no repositório apenas como ferramenta de emergência. Não há sincronização com planilhas — nunca. Estratégia em 4 passos, pensada para dados sujos:
+Decisão final de 09/07/2026: o sistema **não tem importação**. A carga das planilhas é uma **operação única de go-live**, executada de forma autônoma pelo Claude Code (com os CSVs fornecidos pelo Johnny) via scripts de `scripts/import/` (entregues na F4): dry-run → relatório de inconsistências → carga confirmada. Reexecutável **durante a janela do go-live** (idempotente), sem nenhuma interface no app; após o cutover os scripts permanecem no repositório apenas como ferramenta de emergência. Não há sincronização com planilhas — nunca. Estratégia em 4 passos, pensada para dados sujos:
 
 1. **Staging** — os 3 CSVs entram crus na estrutura de trabalho do script (nada é rejeitado ainda).
 2. **Normalização automática** — aplica os De→Para da seção 5: patrimônios, motivos, unidades, datas (`dd/mm/aaaa` e variações), typos conhecidos, remoção das 6 duplicatas exatas.

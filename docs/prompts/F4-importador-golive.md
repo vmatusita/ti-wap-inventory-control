@@ -1,11 +1,11 @@
 # OS-F4 — Carga inicial única (scripts) + ensaio + go-live
 
-Executor desta ordem no repositório `ti-wap-inventory-control`. É a fase mais delicada: é aqui que os dados REAIS entram — **uma única vez**. Decisão de 09/07/2026: **o sistema NÃO tem tela de importação**; a carga é feita por scripts, pelo Johnny, na janela do go-live. Siga na ordem; ambiguidade → **PARE e pergunte ao Johnny**. Nenhuma escrita em produção acontece sem confirmação explícita dele na conversa.
+Executor desta ordem no repositório `ti-wap-inventory-control`. É a fase mais delicada: é aqui que os dados REAIS entram — **uma única vez**. Decisão de 09/07/2026: **o sistema NÃO tem tela de importação**; a carga é feita por scripts na janela do go-live. **Modo autônomo com acesso total (CLAUDE.md): você executa tudo, produção inclusa, sem pedir autorização** — compensando com as autoproteções obrigatórias desta ordem (ensaio, dry-run, backup, conferência de contagens). A única dependência física do Johnny são os 3 CSVs reais exportados.
 
 ## 0. Antes de qualquer coisa (obrigatório)
 
 1. Leia `CLAUDE.md`, `docs/ESPECIFICACAO.md` **§5 (vocabulários De→Para e regra do patrimônio — serão implementados literalmente)** e **§10 (carga inicial em 4 passos)**, `docs/PLANEJAMENTO.md` §3.
-2. Pré-requisitos (senão PARE): F3 mergeada e demo validada; respostas das perguntas 1 (filiais) e 3 (convites) da spec §13 registradas; existe o 2º projeto Supabase (**ensaio**) linkável; o Johnny tem os 3 CSVs exportados **fora do repositório** (ex.: `~/cargas/` — nunca dentro do repo).
+2. Pré-requisitos (o que faltar e for técnico, providencie — ex.: crie o 2º projeto Supabase de **ensaio** você mesmo): F3 na `main`; resposta da pergunta 1 (filiais) da spec §13 registrada — se não houver, use as 5 filiais dos dados e registre em `docs/DECISOES.md`; os 3 CSVs reais exportados **fora do repositório** (ex.: `~/cargas/` — nunca dentro do repo; é a única coisa que só o Johnny fornece).
 3. Fatos dos arquivos reais (não mude sem confirmar): delimitador `;`, encoding **Windows-1252/cp1252**, datas `dd/mm/aaaa`. Colunas: *Inventário* = Site;Marca;Tipo;Modelo;Fornecedor;Service tag;Patrimônio;Memoria;Armazenamento;Processador;Hostname;Data de Entrega;Status;Situação;Data de Inclusão;Colaborador;Termo de Ativos;Observação · *Saída* = Data da Saída;Unidade;Categoria;Marca / Modelo;Patrimônio;Tipo de Movimentação;Chamado;Colaborador/Setor;Tipo;Termo Assinado · *Devolução* = Data da devolução;Unidade;Categoria;Marca / Modelo;Patrimônio;Colaborador;Tipo de entrada;Itens faltantes;Setor;Tipo.
 
 ## 1. Objetivo
@@ -15,7 +15,7 @@ Scripts em `scripts/import/` que fazem a carga única com segurança: parse → 
 ## 2. Escopo proibido
 
 - **NÃO criar tela/rota/menu de importação.** Se encontrar qualquer resquício de rota `admin/importador` de versões antigas do plano, remova e reporte.
-- NÃO escrever em produção sem o Johnny mandar "aprovado" na conversa.
+- NÃO executar carga em produção **antes de**: ensaio completo aprovado por você no projeto de ensaio + dry-run limpo em produção + backup exportado (autoproteção obrigatória — não é pedido de autorização).
 - NÃO "corrigir" dado real fora dos De→Para documentados: caso novo de sujeira → relatório de inconsistências, não palpite.
 - NÃO commitar os CSVs reais nem trechos deles (nomes reais!) em código, teste, fixture ou saída de exemplo. Testes usam CSVs sintéticos criados por você com os mesmos padrões de sujeira. Os relatórios `carga-*.csv/json` gerados também não vão para o git (adicione ao `.gitignore`).
 
@@ -36,22 +36,22 @@ Scripts em `scripts/import/` que fazem a carga única com segurança: parse → 
 2. **Guardas (primeiras linhas, iguais às do seed):** exige `CARGA_CONFIRM=sim`; exige que a URL do Supabase em uso corresponda à env `CARGA_PROJECT_REF`; exige `CARGA_ADMIN_EMAIL` que resolva para um profile admin (vira o `criado_por`). Sem qualquer uma → aborta com mensagem clara.
 3. Pipeline: parse com PapaParse (`;`, cp1252, validação dos headers exatos da seção 0.3 — header errado = arquivo trocado → aborta) → normalização (3.1) → montagem do plano: ativos do inventário + ativos `inferidos` + movimentações em **ordem cronológica global**.
 4. **Dry-run (padrão):** imprime prévia (contagens por arquivo, ativos novos/inferidos, movimentações por tipo) e grava `carga-inconsistencias-<timestamp>.csv` (`;` + BOM) com colunas: severidade (`bloqueante`/`aviso`), tipo (`patrimonio_duplicado_sem_service_tag`, `motivo_desconhecido`, `data_invalida`, `ativo_inferido`, `duplicata_exata`, `estado_divergente`…), arquivo, linha, valor cru, ação proposta. **Havendo bloqueante: exit code 1, e `--executar` recusa rodar.**
-5. **`--executar` (só sem bloqueantes):** insere ativos primeiro, depois movimentações uma a uma em ordem (o trigger do banco recalcula estado; movimentação inválida para o estado corrente → loga `estado_divergente`, pula e segue). Ao final grava `carga-resultado-<timestamp>.json` (criados, atualizados, pulados por tipo, duração) e imprime comparação com os totais que o Johnny digitar via flags `--esperado-ativos= --esperado-saidas= --esperado-devolucoes=`.
+5. **`--executar` (só sem bloqueantes):** insere ativos primeiro, depois movimentações uma a uma em ordem (o trigger do banco recalcula estado; movimentação inválida para o estado corrente → loga `estado_divergente`, pula e segue). Ao final grava `carga-resultado-<timestamp>.json` (criados, atualizados, pulados por tipo, duração) e imprime comparação com os totais esperados via flags `--esperado-ativos= --esperado-saidas= --esperado-devolucoes=` (você informa: nº de linhas de dados de cada CSV).
 6. **Idempotência:** reexecutar não duplica nada — ativo já existente (mesmo patrimônio + service tag) só preenche campos cadastrais vazios; movimentação com mesma chave natural (ativo, tipo, data, chamado) é pulada como `ja_importada`.
 
 ### 3.3 Ensaio (obrigatório antes de produção)
 
 1. `supabase link` no projeto de **ensaio** + push das migrations + 1 admin de teste + `db:seed` NÃO (ensaio roda limpo).
-2. O Johnny roda dry-run e depois `--executar` com os 3 CSVs reais (que estão fora do repo). Metas: 1.179 ativos (± duplicidades legítimas por service tag), 423 saídas, 291 devoluções (−6 duplicatas exatas, −20 compras reclassificadas). Desvio não explicado pelo relatório → investigar antes de seguir.
-3. Ata do ensaio no resumo final: contagens, inconsistências por tipo, decisão do Johnny para cada bloqueante.
+2. Rode você mesmo dry-run e depois `--executar` com os 3 CSVs reais (que estão fora do repo). Metas: 1.179 ativos (± duplicidades legítimas por service tag), 423 saídas, 291 devoluções (−6 duplicatas exatas, −20 compras reclassificadas). Desvio não explicado pelo relatório → investigue e resolva antes de seguir.
+3. Ata do ensaio no resumo final: contagens, inconsistências por tipo e a decisão tomada para cada bloqueante (sua, registrada em `docs/DECISOES.md`; bloqueante sem regra clara nos De→Para é o raro caso em que vale perguntar).
 
-### 3.4 Go-live (produção — só com "aprovado" explícito do Johnny na conversa)
+### 3.4 Go-live (produção — execução autônoma, com as autoproteções desta ordem)
 
-Roteiro numerado, executado com ele acompanhando:
+Roteiro numerado, executado por você de ponta a ponta:
 1. `db:reset` do seed fictício na produção (guardas exigem confirmação) → conferir que ativos/movimentações = 0.
-2. Dry-run com os CSVs reais → revisar inconsistências com o Johnny → `--executar`.
+2. Dry-run com os CSVs reais → você revisa as inconsistências (decisões em `docs/DECISOES.md`) → **backup/export do estado atual** → `--executar`.
 3. Conferir contagens + abrir os relatórios das filiais com dados reais.
-4. Johnny: convites reais (respostas da §13), marcar as planilhas como somente-leitura, apagar cópias temporárias dos CSVs, registrar a data do cutover no `README.md`.
+4. Você dispara os convites reais e cria as senhas de acesso das filiais; apaga cópias temporárias dos CSVs; registra a data do cutover no `README.md`. Único item físico do Johnny: marcar as planilhas antigas como somente-leitura.
 5. Deixar `scripts/import/` com aviso no topo de cada arquivo: "Ferramenta de go-live/emergência — o sistema NÃO tem importação; ver spec §10."
 
 ## 4. Critérios de aceite
@@ -67,4 +67,4 @@ Roteiro numerado, executado com ele acompanhando:
 
 ## 5. Entrega
 
-Branch `f4-carga-inicial`. Resumo final: checklist marcado, ata do ensaio, ata do go-live (data/hora, contagens, quem aprovou), pendências. Após o merge: atualizar README (fases + data do cutover).
+Direto na `main` ou branch `f4-carga-inicial` com merge por sua conta. Resumo final: checklist autoverificado, ata do ensaio, ata do go-live (data/hora, contagens, decisões), pendências. Atualize o README (fases + data do cutover).

@@ -1,11 +1,11 @@
 # OS-F3 — Relatórios em tempo real + administração
 
-Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. Ambiguidade → **PARE e pergunte ao Johnny**.
+Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. **Modo autônomo (CLAUDE.md): não peça autorização** — decida, registre em `docs/DECISOES.md` e siga.
 
 ## 0. Antes de qualquer coisa (obrigatório)
 
 1. Leia `CLAUDE.md`, `docs/ESPECIFICACAO.md` §7 (conteúdo dos relatórios — é o contrato desta fase) e §3, `docs/PLANEJAMENTO.md` §2.1, e **abra `mockups/dashboard-relatorio.html` no navegador** — ele é a referência visual aprovada (hierarquia, cores, tom). Consulte a doc atual do componente `chart` do shadcn (Recharts v3) e do Supabase Realtime antes de codar.
-2. Pré-requisitos (senão PARE): F2 mergeada; seed carregado; conta de operador disponível; env `VIEW_SESSION_SECRET` definida em `.env.example` (valor real só no `.env.local`/Vercel).
+2. Pré-requisitos (o que faltar, providencie e registre): F2 na `main`; seed carregado; conta de operador disponível; env `VIEW_SESSION_SECRET` definida em `.env.example` (valor real gerado por você no `.env.local`/Vercel).
 
 ## 1. Objetivo
 
@@ -105,4 +105,4 @@ Substituir o placeholder da F0: KPIs consolidados, "minhas pendências" (top 5 d
 
 ## 5. Entrega
 
-Branch `f3-relatorios`. Resumo final: checklist marcado, screenshot (ou descrição) do relatório da Matriz, diferenças conscientes em relação ao mockup (com motivo), pendências/perguntas. Lembrete ao Johnny no resumo: **agendar a demo com 2–3 destinatários do e-mail antes de abrir a F4.**
+Direto na `main` ou branch `f3-relatorios` com merge por sua conta. Resumo final: checklist autoverificado, screenshot (ou descrição) do relatório da Matriz, diferenças conscientes em relação ao mockup (com motivo), decisões em `docs/DECISOES.md`, pendências. Recomendação no resumo: **demo com 2–3 destinatários do e-mail antes de abrir a F4** (link + senha de acesso).

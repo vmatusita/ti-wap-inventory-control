@@ -1,11 +1,11 @@
 # OS-F2 — Operação (ativos, ficha, nova movimentação em lote, estorno)
 
-Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. Ambiguidade → **PARE e pergunte ao Johnny**. Esta é a fase mais longa; se o contexto da sessão ficar pesado, feche a Parte A antes de abrir a Parte B em nova sessão (as duas estão neste arquivo).
+Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. **Modo autônomo (CLAUDE.md): não peça autorização** — decida, registre em `docs/DECISOES.md` e siga. Esta é a fase mais longa; se o contexto da sessão ficar pesado, feche a Parte A antes de abrir a Parte B em nova sessão (as duas estão neste arquivo).
 
 ## 0. Antes de qualquer coisa (obrigatório)
 
 1. Leia `CLAUDE.md`, `docs/ESPECIFICACAO.md` §4 (estados e transições — decore a tabela), §5, §6 (itens 3 e 4), §8 (regras 1–8) e `docs/PLANEJAMENTO.md` §5.
-2. Pré-requisitos (senão PARE): F1 mergeada; `db:seed` populado no dev; tipos gerados atualizados; login de operador funcionando.
+2. Pré-requisitos (o que faltar, providencie e registre): F1 na `main`; `db:seed` populado no dev; tipos gerados atualizados; login de operador funcionando.
 
 ## 1. Objetivo
 
@@ -83,4 +83,4 @@ Proibido aqui: kits salvos de lote (é item 5.9 da F5) e qualquer dependência n
 
 ## 5. Entrega
 
-Branch `f2-operacao`. Commits por bloco (3.1 a 3.6). Resumo final com checklist marcado, mensagens de erro do banco mapeadas (tabela trigger→texto pt-BR), pendências/perguntas.
+Direto na `main` ou branch `f2-operacao` com merge por sua conta. Commits por bloco (3.1 a 3.7). Resumo final com checklist autoverificado, mensagens de erro do banco mapeadas (tabela trigger→texto pt-BR), decisões em `docs/DECISOES.md`, pendências.

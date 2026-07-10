@@ -1,11 +1,11 @@
 # OS-F1 — Banco definitivo + dados fictícios (seed)
 
-Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. Ambiguidade ou pré-requisito quebrado → **PARE e pergunte ao Johnny**.
+Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. **Modo autônomo (CLAUDE.md): não peça autorização** — decida, registre em `docs/DECISOES.md` e siga; providencie você mesmo pré-requisito que faltar.
 
 ## 0. Antes de qualquer coisa (obrigatório)
 
 1. Leia `CLAUDE.md`, `supabase/schema.sql` (inteiro — é a matéria-prima desta fase), `docs/ESPECIFICACAO.md` §4 (máquina de estados), §5 (modelo + vocabulários) e §10.1 (seed), `docs/PLANEJAMENTO.md` §3.
-2. Pré-requisitos (se falhar, PARE): F0 mergeada na `main` (login funciona); `supabase link` configurado para o projeto dev; migration `0001_profiles.sql` aplicada; existe ao menos 1 operador logável (`@wap.ind.br`) no projeto dev.
+2. Pré-requisitos (o que faltar, providencie e registre): F0 na `main` (login funciona); `supabase link` configurado para o projeto dev; migration `0001_profiles.sql` aplicada; existe ao menos 1 operador logável (`@wap.ind.br`) no projeto dev.
 
 ## 1. Objetivo
 
@@ -69,4 +69,4 @@ Crie `supabase/tests/maquina_estados.sql` com um roteiro de `insert`s que o John
 
 ## 5. Entrega
 
-Branch `f1-banco-seed`. No resumo final: checklist marcado, TODAS as correções feitas sobre o schema.sql listadas (arquivo/linha/motivo), sumário do seed colado, pendências/perguntas.
+Direto na `main` ou branch `f1-banco-seed` com merge por sua conta após a autoverificação. No resumo final: checklist marcado, TODAS as correções feitas sobre o schema.sql listadas (arquivo/linha/motivo), sumário do seed colado, decisões em `docs/DECISOES.md`, pendências.

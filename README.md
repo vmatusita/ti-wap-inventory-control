@@ -19,11 +19,12 @@ Sistema interno para substituir o controle de ativos de TI feito hoje em três p
 
 | Caminho | Conteúdo |
 |---|---|
-| `CLAUDE.md` | Regras permanentes para o Claude Code (lido automaticamente em toda sessão): stack travada, convenções, estrutura prescrita, dados fictícios, custo zero |
+| `CLAUDE.md` | Regras permanentes para o Claude Code (lido automaticamente em toda sessão): modo autônomo, stack travada, convenções, estrutura prescrita, dados fictícios, custo zero |
 | `docs/ESPECIFICACAO.md` | **O quê** — especificação completa: problema, conceito, modelo de dados, telas, regras, fases e perguntas em aberto |
 | `docs/PLANEJAMENTO.md` | **Como e quando** — stack fechada, estratégia de dados, fases com critérios e o fluxo de execução via Claude Code (§9) |
 | `docs/prompts/` | **Ordens de serviço F0–F5** — um prompt detalhado por fase, pronto para colar no Claude Code (leia `docs/prompts/README.md` antes) |
-| `supabase/schema.sql` | Rascunho do banco (enums, tabelas, trigger da máquina de estados, RLS, seeds) — vira migrations na F1 |
+| `docs/DECISOES.md` | Rastro de auditoria das decisões autônomas |
+| `supabase/migrations/` | Fonte da verdade do banco a partir da F1 (`schema.sql` é histórico) |
 | `mockups/dashboard-relatorio.html` | Mockup navegável do relatório por filial, com os números reais das planilhas de 2026 |
 
 ## Status
@@ -33,18 +34,20 @@ Sistema interno para substituir o controle de ativos de TI feito hoje em três p
 - [x] Especificação v1.1
 - [x] Planejamento de desenvolvimento (stack fechada, fases F0–F5, estratégia de dados)
 - [x] Ordens de serviço para o Claude Code (`CLAUDE.md` + `docs/prompts/F0–F5`)
-- [ ] Validar o planejamento + responder perguntas da seção 13 → **só então começa código**
-- [ ] F0 — fundação (Next.js + Supabase + login por convite + deploy)
-- [ ] F1 — banco + dados fictícios (seed)
-- [ ] F2 — operação (ativos + movimentações + estorno)
-- [ ] F3 — relatórios em tempo real por filial (com dados fictícios)
-- [ ] F4 — carga inicial única via scripts + go-live (cutover)
+- [x] Planejamento validado → execução autônoma iniciada
+- [x] **F0 — fundação** — concluída em 10/07/2026 (Next 16.2.10, login por convite restrito a `@wap.ind.br`, layout, sessão via proxy, deploy)
+- [x] **F1 — banco + dados fictícios** — concluída em 10/07/2026 (migrations 0001–0007 incl. `senhas_acesso`, seed determinístico com guardas anti-produção, tipos gerados, roteiro SQL de teste da máquina de estados)
+- [ ] F2 — operação (ativos + ficha com linha do tempo + movimentações em lote + estorno + facilitadores anti-Excel)
+- [ ] F3 — relatórios (ao vivo + snapshot semanal gerado + acesso por senha) + administração
+- [ ] F4 — carga inicial única via scripts + go-live (cutover em __/__/____)
 - [ ] F5 — refino (acessórios por quantidade, alertas, e-mail, termos)
+
+Pendências não bloqueantes: perguntas 1, 4, 5, 6 e 7 da spec §13 (a nº 1 — filiais oficiais — precisa de resposta até a F4).
 
 ## Próximo passo
 
-Ler e validar `docs/PLANEJAMENTO.md` (checklist da seção 8) e responder a seção 13 da especificação. Nenhum código antes disso — decisão de 09/07/2026.
+**F2 — Operação.** Abra o Claude Code na raiz deste repositório e cole `docs/prompts/F2-operacao.md`. A ordem é longa: Parte A (consulta) e Parte B (escrita) podem ser sessões separadas. Fluxo completo em `docs/prompts/README.md`.
 
-Quando validar: abra o Claude Code na raiz deste repositório e cole `docs/prompts/F0-fundacao.md`. O fluxo completo está em `docs/prompts/README.md`.
+As ordens rodam em **modo autônomo com acesso total** (decisão de 09/07/2026, regras no `CLAUDE.md`): o Claude executa tudo — decisões, merge, deploy e produção — sem pedir autorização, compensando com autoproteções (backup/dry-run em operação destrutiva) e rastro auditável em `docs/DECISOES.md`.
 
-Importante: o sistema **não nasce com os dados reais**. O desenvolvimento roda com dados fictícios; os dados reais entram por uma **carga única via scripts no go-live** (F4), feita pelo Johnny. Depois disso **não existe importação** — a entrada de dados é 100% manual pelo sistema, e ser mais prático que o Excel é o requisito central (facilitadores da F2).
+Importante: o sistema **não nasce com os dados reais**. O desenvolvimento roda com dados fictícios; os dados reais entram por uma **carga única via scripts no go-live** (F4), executada de forma autônoma na janela do go-live. Depois disso **não existe importação** — a entrada de dados é 100% manual pelo sistema, e ser mais prático que o Excel é o requisito central (facilitadores da F2).

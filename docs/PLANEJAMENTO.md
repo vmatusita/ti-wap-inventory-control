@@ -86,7 +86,7 @@ Ponto de atenção (também no checklist da seção 8): produção em contas do 
 
 ## 4. Fases detalhadas
 
-**Execução: cada fase é uma ordem de serviço rodada no Claude Code** (ver seção 9 e `docs/prompts/`). As estimativas abaixo em "sessões de ~2–3h" foram feitas pensando em codar à mão; com o Claude Code executando, cada fase tende a virar **1–3 rodadas de prompt + o tempo do Johnny revisando e testando os critérios de aceite** — o esforço total cai bastante, mas os critérios de pronto continuam exatamente os mesmos (quem aceita é o Johnny, não o Claude).
+**Execução: cada fase é uma ordem de serviço rodada no Claude Code** (ver seção 9 e `docs/prompts/`). As estimativas abaixo em "sessões de ~2–3h" foram feitas pensando em codar à mão; com o Claude Code executando em **modo autônomo** (seção 9), cada fase tende a virar **1–3 rodadas de prompt** — o esforço total cai bastante. Os critérios de pronto continuam os mesmos, autoverificados pelo Claude, com rastro auditável (resumos + `docs/DECISOES.md` + git) para o Johnny revisar quando quiser.
 
 ### F0 — Fundação (4–5 sessões)
 - **Entrega:** repositório organizado, Next.js + Tailwind + shadcn instalados, projeto Supabase criado, login por convite funcionando (admin convida → pessoa recebe e-mail → define senha → entra como **operador**; e-mails só `@wap.ind.br`, validado também no banco), layout base (sidebar, header, tema claro), deploy na Vercel com variáveis de ambiente.
@@ -167,8 +167,8 @@ Decisão de 09/07/2026: **cada fase é executada pelo Claude Code**, guiado por 
 - **`docs/prompts/F0…F5`** — uma ordem de serviço por fase, autocontida, no formato fixo: **0)** pré-requisitos verificáveis (se falhar → parar), **1)** objetivo, **2)** escopo proibido, **3)** tarefas numeradas com caminhos e comportamentos exatos, **4)** critérios de aceite que o *Johnny* confere, **5)** formato da entrega (branch, commits, resumo com checklist).
 - **`docs/prompts/README.md`** — o fluxo de uso passo a passo.
 
-**O ciclo de cada fase:** conferir que a anterior fechou → colar a ordem no Claude Code → ele executa (e tem instrução explícita de PARAR e perguntar diante de ambiguidade) → entrega resumo com checklist → **Johnny testa item por item** → merge na `main` → marca no README. Uma ordem por sessão, nunca duas.
+**O ciclo de cada fase (modo AUTÔNOMO — decisão do Johnny, 09/07/2026):** colar a ordem no Claude Code → ele executa de ponta a ponta com **acesso total e sem pedir autorização** (decisões próprias registradas em `docs/DECISOES.md`; migrations, merge, deploy e produção por conta dele) → autoverifica o checklist da ordem → entrega o resumo e atualiza o README. O Johnny audita quando quiser, pelo rastro (resumo + DECISOES.md + git); nada fica bloqueado esperando por ele. Uma ordem por sessão, nunca duas.
 
-**Princípios embutidos em toda ordem:** proibido inventar escopo ("aproveitar e fazer"); proibido dado real e recurso pago; APIs de integração sempre conferidas na doc oficial atual (Context7) em vez de memória do modelo; `lint` + `build` limpos antes de encerrar; quem dá o aceite é o engenheiro (Johnny), nunca o pedreiro.
+**Princípios embutidos em toda ordem:** proibido inventar escopo ("aproveitar e fazer"); proibido dado real em código e recurso pago; APIs de integração sempre conferidas na doc oficial atual (Context7) em vez de memória do modelo; `lint` + `build` limpos antes de encerrar; **operação destrutiva em produção sempre precedida de backup + dry-run + conferência de contagens** — autoproteção do agente, não pedido de autorização.
 
 **Manutenção das ordens:** se o repositório mudar fora do fluxo (ajuste manual, decisão nova), a ordem da fase seguinte deve ser atualizada ANTES de rodar — prompt desatualizado constrói errado. As ordens F2–F4 assumem a estrutura de pastas prescrita no CLAUDE.md; cada uma começa verificando os pré-requisitos justamente para pegar esse tipo de desvio.

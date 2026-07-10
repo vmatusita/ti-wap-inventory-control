@@ -1,6 +1,6 @@
 # OS-F5 — Refino (backlog de ordens curtas)
 
-A F5 não é uma ordem única: é um backlog priorizado pelo uso real após o go-live. Cada item abaixo vira uma **ordem de serviço curta e independente** — rode um por sessão do Claude Code, no branch `f5-<item>`, sempre com as regras do `CLAUDE.md` e o padrão das ordens anteriores (pré-requisitos → escopo proibido → tarefas → aceite → entrega). Antes de rodar qualquer um, peça ao Johnny/Claude para expandir o item em ordem completa com o estado real do repo.
+A F5 não é uma ordem única: é um backlog priorizado pelo uso real após o go-live. Cada item abaixo vira uma **ordem de serviço curta e independente** — um por sessão do Claude Code, sempre com as regras do `CLAUDE.md` (modo autônomo) e o padrão das ordens anteriores (pré-requisitos → escopo proibido → tarefas → aceite → entrega). Antes de executar um item, **expanda-o você mesmo** em ordem completa com o estado real do repo, salve em `docs/prompts/` e siga — sem pedir autorização.
 
 ## Itens do backlog (ordem sugerida)
 

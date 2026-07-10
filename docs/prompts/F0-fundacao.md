@@ -1,14 +1,14 @@
 # OS-F0 — Fundação (projeto, login por convite, layout, deploy)
 
-Você é o executor desta ordem de serviço no repositório `ti-wap-inventory-control`. Siga-a na ordem, sem improvisar. Diante de ambiguidade, erro de pré-requisito ou decisão não coberta aqui: **PARE e pergunte ao Johnny**.
+Você é o executor desta ordem de serviço no repositório `ti-wap-inventory-control`. Siga-a na ordem. **Modo autônomo (CLAUDE.md): não peça autorização** — decisões não cobertas aqui você mesmo toma e registra em `docs/DECISOES.md`.
 
 ## 0. Antes de qualquer coisa (obrigatório)
 
 1. Leia `CLAUDE.md` (raiz), `docs/PLANEJAMENTO.md` §1–§3 e `docs/ESPECIFICACAO.md` §3 (perfis) e §9 (arquitetura).
-2. Confirme os pré-requisitos. Se QUALQUER um falhar, PARE e reporte qual:
+2. Confirme os pré-requisitos — o que faltar e você puder providenciar, **providencie e registre**:
    - A raiz do repo contém apenas: `.git/`, `CLAUDE.md`, `README.md`, `docs/`, `supabase/schema.sql`, `mockups/` (nenhum projeto Next existente).
    - `node --version` ≥ 20.
-   - Existe um projeto Supabase de desenvolvimento criado pelo Johnny, com URL e chave publicável/anon em mãos (pergunte a ele; NÃO crie projeto por conta própria).
+   - Existe um projeto Supabase de desenvolvimento com URL e chave publicável/anon — se não existir, **crie você mesmo** (Supabase CLI/MCP na conta configurada) e registre em `docs/DECISOES.md`.
 
 ## 1. Objetivo (o que existe quando você terminar)
 
@@ -59,8 +59,8 @@ Um app Next.js 16 deployado na Vercel em que: usuário sem sessão só vê `/log
 
 ### 3.6 Deploy
 
-1. Prepare o repo para deploy (build limpo). Peça ao Johnny para conectar o repo no painel da Vercel (conta Pro dele) e configurar as duas envs públicas + a service key — **não** peça nem armazene esses valores no chat/código.
-2. Confirme com ele que o deploy de produção abriu e o login funciona lá.
+1. Prepare o repo (build limpo) e **deploye você mesmo** na conta Vercel Pro (CLI `vercel` autenticada na máquina, ou painel), configurando as envs públicas + a service key. Se a credencial da Vercel não existir no ambiente, registre como a única pendência física do Johnny e siga com o resto.
+2. Verifique você mesmo que o deploy de produção abre e o login funciona lá.
 
 ## 4. Critérios de aceite (o Johnny confere um a um)
 
@@ -75,4 +75,4 @@ Um app Next.js 16 deployado na Vercel em que: usuário sem sessão só vê `/log
 
 ## 5. Entrega
 
-Trabalhe no branch `f0-fundacao`. Commits pequenos em pt (`feat(f0): ...`). Ao final, produza um resumo com: o que foi feito, o checklist acima marcado, decisões tomadas dentro do permitido, e perguntas/pendências. NÃO faça merge na `main` — quem faz é o Johnny após conferir.
+Commits pequenos em pt (`feat(f0): ...`), direto na `main` ou em branch `f0-fundacao` com **merge feito por você** após a autoverificação do checklist. Resumo final: o que foi feito, checklist marcado, decisões registradas em `docs/DECISOES.md`, pendências físicas (se houver).

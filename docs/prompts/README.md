@@ -7,14 +7,14 @@ Cada arquivo `F*.md` desta pasta é um prompt completo para uma fase, escrito pa
 1. Confira no `README.md` que a fase anterior está fechada (checklist de aceite passou).
 2. Abra o Claude Code na raiz do repositório (`claude` no terminal). Ele lê o `CLAUDE.md` automaticamente — as regras de lá valem sempre.
 3. Cole o conteúdo inteiro do `F<N>-*.md` da fase.
-4. Acompanhe: o prompt manda o Claude Code **parar e perguntar** diante de qualquer ambiguidade — responda e deixe seguir.
-5. Ao final, ele entrega um resumo com o checklist de aceite preenchido. **Você confere item por item** (os passos de teste manual estão no próprio prompt). Só então faça o merge do branch da fase na `main` e marque a fase no `README.md`.
+4. **Modo autônomo (CLAUDE.md):** ele decide sozinho (registrando em `docs/DECISOES.md`), executa de ponta a ponta — decisões, merge, deploy e produção inclusos — e se autoverifica pelo checklist da ordem. Só te procura se faltar um insumo físico seu (ex.: os CSVs reais).
+5. Ao final, ele entrega o resumo com checklist marcado, decisões e pendências, e atualiza o `README.md`. Revise quando quiser — nada fica bloqueado esperando você.
 
 ## Regras de ouro
 
 - **Uma ordem por vez.** Não cole duas fases na mesma sessão.
 - Se o repositório mudou desde que o prompt foi escrito (ex.: você mexeu em algo à mão), me peça para atualizar a ordem antes de rodar — prompt desatualizado gera obra torta.
-- Prompt bom não dispensa fiscal: o critério de aceite é seu, não do Claude Code.
+- Modo autônomo não elimina auditoria: o resumo de cada fase + `docs/DECISOES.md` + o histórico do git são o seu rastro para revisar depois, no seu tempo.
 - Custo R$ 0 e dados 100% fictícios até a F4 — se qualquer rodada pedir cartão de crédito ou dado real, algo está errado: pare.
 
 ## As fases
