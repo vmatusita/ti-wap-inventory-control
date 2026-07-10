@@ -3,7 +3,6 @@
 import { LogOut } from 'lucide-react'
 import { signOut } from '@/lib/actions/auth'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,9 +20,7 @@ function iniciais(nome: string) {
   return (primeira + ultima).toUpperCase()
 }
 
-export function UserMenu({ nome, role }: { nome: string; role: string }) {
-  const papel = role === 'admin' ? 'Administrador' : 'Visualizador'
-
+export function UserMenu({ nome }: { nome: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -40,11 +37,8 @@ export function UserMenu({ nome, role }: { nome: string; role: string }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col items-start gap-1">
-          <span className="max-w-full truncate text-sm font-medium">{nome}</span>
-          <Badge variant="secondary" className="text-[10px] font-normal">
-            {papel}
-          </Badge>
+        <DropdownMenuLabel className="max-w-full truncate text-sm font-medium">
+          {nome}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <form action={signOut}>

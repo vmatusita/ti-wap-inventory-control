@@ -24,15 +24,7 @@ function Marca() {
   )
 }
 
-export function AppHeader({
-  nome,
-  role,
-  isAdmin,
-}: {
-  nome: string
-  role: string
-  isAdmin: boolean
-}) {
+export function AppHeader({ nome }: { nome: string }) {
   const [aberto, setAberto] = useState(false)
 
   return (
@@ -55,7 +47,7 @@ export function AppHeader({
             </SheetTitle>
           </SheetHeader>
           <div className="p-3">
-            <SidebarNav isAdmin={isAdmin} />
+            <SidebarNav />
           </div>
         </SheetContent>
       </Sheet>
@@ -63,7 +55,7 @@ export function AppHeader({
       <Marca />
 
       <div className="ml-auto">
-        <UserMenu nome={nome} role={role} />
+        <UserMenu nome={nome} />
       </div>
     </header>
   )
