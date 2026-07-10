@@ -34,7 +34,7 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 - Registrar cada movimentação **uma única vez** e derivar todo o resto (estoque, status do ativo, relatórios) automaticamente.
 - Estoque em tempo real por filial, categoria e status.
 - Relatórios acessíveis por link (com login), atualizados a cada mudança — **aposentar o envio semanal por e-mail**.
-- Ter **importação das planilhas dentro do sistema** (tela do admin): quando a WAP decidir abastecer com os dados reais, sobe os arquivos e o sistema limpa/normaliza na hora — não existe fase de "migração" fora do app. Até lá, desenvolvimento e demonstrações rodam com **dados fictícios** de estrutura idêntica (seção 10.1).
+- **Carga inicial única no go-live** (seção 10): o Johnny importa as 3 planilhas **uma única vez**, via scripts com limpeza/normalização, dry-run e relatório de inconsistências. **Depois disso não existe importação no sistema** — a entrada de dados é 100% manual, e o requisito é ela ser **mais prática que o Excel** (telas e facilitadores da seção 6). Até o go-live, desenvolvimento e demonstrações rodam com **dados fictícios** (seção 10.1).
 - Histórico auditável: toda movimentação tem autor, data e não é apagável (estorna-se).
 - Operação continua centralizada na admin da Matriz — o sistema precisa ser **mais rápido que a planilha**, não mais burocrático.
 
@@ -46,6 +46,7 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 - Rastrear acessórios como ativos individuais com patrimônio — na v1 eles são checklist da devolução. **Atenção:** o e-mail semanal atual tem uma seção inteira de acessórios, periféricos e componentes **por quantidade** (fones, mochilas, teclados, memórias, SSDs, carregadores — com status tipo "29 atrelados"). Esse controle simples de quantidade por item×filial entra na F5; até lá o sistema substitui a parte de **equipamentos principais** do e-mail.
 - App mobile nativo (a interface web é responsiva).
 - Múltiplos idiomas, multi-empresa.
+- **Importação recorrente ou sincronização com planilhas** — decisão de 09/07/2026: a carga é única, no go-live. Manter uma porta de importação aberta seria manter a tentação da planilha viva; o sistema só cumpre o objetivo se a operação manual for melhor que o Excel.
 
 ## 3. Usuários e perfis
 
@@ -123,6 +124,7 @@ Schema completo em [`supabase/schema.sql`](../supabase/schema.sql). Resumo:
 - **`ativos`** — patrimônio normalizado (único), patrimônio original (como veio da planilha), categoria, marca, modelo, service_tag, hostname, memória, armazenamento, processador, fornecedor, filial atual, **status** (derivado), colaborador/setor atual (derivados), termo_assinado, observações.
 - **`movimentacoes`** — ativo, tipo, motivo, data, filial, colaborador, setor, nº do chamado, termo_assinado, itens_faltantes, observação, **criado_por**, created_at. Imutável: correção é estorno + novo lançamento.
 - **`profiles`** — espelho de `auth.users` com nome e role (`admin`/`viewer`).
+- **`relatorios_gerados`** — snapshots da semana (§7.1): período, filial (null = geral), versão, `dados` (jsonb congelado), gerado_por, gerado_em. Imutável — regerar o período cria versão nova.
 - **Views** — `v_estoque_atual` (agregado por filial/categoria/status), `v_movimentacoes_mes`, `v_pendencias` (termos não assinados, itens faltantes, ativos em triagem parados).
 
 ### Vocabulários normalizados (De → Para)
@@ -149,13 +151,18 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 2. **Dashboard (home)** — visão geral: KPIs do estoque, movimentações recentes, pendências. Admin vê atalhos de ação; visualizador vê o mesmo sem botões de edição.
 3. **Ativos** — lista com busca por patrimônio/colaborador/modelo e filtros (filial, categoria, status). Detalhe do ativo = ficha + **linha do tempo de movimentações**. Admin: criar/editar.
 4. **Nova movimentação** — a tela mais usada; otimizada para ser mais rápida que a planilha: buscar ativo por patrimônio (autocomplete; se o patrimônio tiver duplicata, mostra as opções com service tag e modelo para escolher) → escolher tipo → o form só pede o que aquele tipo exige → salvar. Validações de transição de estado (seção 8). Suporta lote (ex.: notebook + monitor + celular para o mesmo colaborador num único fluxo, como no chamado 5065 dos dados).
-5. **Relatórios por filial** — `/relatorios/[filial]` (detalhes na seção 7).
-6. **Importador** — só admin: upload dos 3 CSVs → prévia com normalizações aplicadas → relatório de inconsistências → confirmar carga. É **funcionalidade permanente do sistema** (entra na F4), reaproveitável caso apareçam planilhas antigas de outras filiais — até lá o app roda com dados fictícios.
-7. **Administração** — convidar/gerenciar usuários, filiais, ajustes de vocabulário (motivos), exportar backup CSV.
+   **Facilitadores para vencer o Excel** (decisão de 09/07/2026 — sem importação depois do go-live, a operação manual é a única entrada): data de hoje já preenchida, foco automático no campo de busca ao abrir, atalho de teclado `N` abre "nova movimentação" de qualquer tela, **"repetir última"** (pré-preenche tudo da movimentação anterior, menos o ativo) e **"duplicar"** a partir de qualquer linha da linha do tempo. Kits de lote salvos ("Kit novo colaborador") ficam na F5.
+5. **Relatórios** — página ao vivo por filial (`/relatorios/[filial]`) + **geração do relatório da semana** (snapshot interativo versionado) com histórico em `/relatorios/gerados` — detalhes na seção 7.
+6. **Administração** — convidar/gerenciar usuários, filiais, ajustes de vocabulário (motivos), exportar backup CSV.
 
-## 7. Relatórios em tempo real
+> **Não existe tela de importação.** Decisão de 09/07/2026: a carga das planilhas é uma operação única de go-live, feita pelo Johnny via scripts (seção 10). Depois do cutover, a única porta de entrada de dados é a operação manual do item 4 — e vencê-la do Excel é requisito, não detalhe.
 
-Substituem o e-mail semanal: em vez de gerar e mandar, **manda-se o link uma vez**; a página está sempre atual.
+## 7. Relatórios: ao vivo e gerados
+
+Dois modos complementares substituem o e-mail semanal (decisão de 09/07/2026):
+
+- **Ao vivo** — `/relatorios/[filial]`: manda-se o link uma vez; a página está sempre atual.
+- **Gerado** — o ritual da sexta-feira vira **um clique**: um snapshot interativo dos dados da semana, congelado e versionado (§7.1), com link permanente.
 
 Conteúdo de `/relatorios/[filial]` (e uma visão consolidada `/relatorios/geral`):
 
@@ -175,6 +182,20 @@ Tempo real, em duas camadas: Server Components buscam dados frescos a cada acess
 
 **Por que não Power BI:** foi considerado e descartado para a v1 em 09/07/2026 — compartilhar exige licença Pro por usuário, o refresh do plano básico é agendado (não tempo real) e ninguém da equipe domina a ferramenta. A porta fica aberta: o Postgres do Supabase aceita conexão direta do Power BI no futuro, sem mudar nada no sistema.
 
+### 7.1 Relatório gerado da semana (snapshot interativo)
+
+O equivalente moderno do e-mail de sexta-feira — pedido do Johnny em 09/07/2026:
+
+- **Gerar:** botão "Gerar relatório" (só admin) com período padrão **segunda a sexta da semana corrente** (mesmo recorte dos e-mails reais, ex.: "22/06 até 26/06"), ajustável; escopo por filial ou geral.
+- **Snapshot congelado:** os dados do período são calculados na hora e gravados em `relatorios_gerados` (jsonb). O relatório **não muda mais** — mesmo que depois haja estorno ou correção, o que foi apresentado na sexta continua auditável. Quem corrige gera nova versão.
+- **Versionado — o fim da ERRATA:** regerar o mesmo período cria a **versão 2**; a versão 1 continua acessível com um aviso "existe versão mais recente". Ninguém reenvia nada: o link aponta para a versão atual.
+- **Interativo:** a página `/relatorios/gerados/[id]` renderiza o snapshot com os mesmos componentes do relatório ao vivo — gráficos com tooltip, tabelas ordenáveis, filtros internos (filial/categoria/tipo) aplicados sobre o snapshot, resumo no formato do e-mail com "copiar texto", export CSV e impressão limpa. Não é um PDF morto.
+- **Histórico:** `/relatorios/gerados` lista todos (período, filial, versão, quem gerou, quando) — o arquivo semanal que hoje se perde na caixa de e-mail.
+- **Acesso:** login como todo o resto; visualizador vê e navega, não gera.
+- Download como **HTML autocontido** (arquivo único para anexar/arquivar) fica no backlog da F5.
+
+Conteúdo do snapshot = as mesmas seções da página ao vivo recortadas no período + resumo textual, com destaque para as **observações das movimentações** (o contexto que hoje vai em texto vermelho no e-mail).
+
 ## 8. Regras de negócio e validações
 
 1. Patrimônio é obrigatório e identifica o ativo, mas **pode repetir em casos raros** — único mesmo é o par patrimônio + service tag (§5). Movimentação sobre patrimônio duplicado exige desambiguar pela service tag. Ativo sem patrimônio entra com pendência sinalizada, nunca silenciosamente.
@@ -185,6 +206,7 @@ Tempo real, em duas camadas: Server Components buscam dados frescos a cada acess
 6. Movimentação não se apaga: **estorno** (disponível desde a F2) devolve o ativo ao estado completo anterior — status, colaborador, setor e filial — e fica registrado apontando para a movimentação estornada. Só a última movimentação efetiva do ativo pode ser estornada; para casos excepcionais existe o `ajuste`, sempre com justificativa. Toda linha tem `criado_por` + timestamp.
 7. Alerta de possível duplicata: mesmo ativo + mesmo tipo + mesmo dia (era um erro real nas planilhas — 6 casos).
 8. Compra em dois passos num fluxo só: cadastra-se o ativo (que nasce `em_estoque`) e registra-se a movimentação `compra`, que documenta a entrada (nota/observação) e fixa a filial que recebeu.
+9. **Toda movimentação aceita observação** — texto livre, **opcional** (obrigatória apenas no `ajuste`, como justificativa). Aparece na linha do tempo do ativo, nas tabelas de relatório e nos snapshots gerados: é onde vive o contexto que hoje vai em vermelho no e-mail ("aguardando NF-e", "recolhido por problema de tela"…).
 
 ## 9. Stack e arquitetura
 
@@ -205,11 +227,11 @@ Padrões de segurança: RLS em todas as tabelas (`viewer`: só SELECT; `admin`: 
 
 Custo para a WAP: **R$ 0**. Supabase no plano Free; deploy na conta **Vercel Pro que o Johnny já paga** — o Hobby gratuito da Vercel é restrito por fair use a uso pessoal não-comercial e não serve para sistema de empresa. Limites do free tier no risco 5 (seção 12).
 
-## 10. Importador — funcionalidade do sistema, não fase de migração
+## 10. Carga inicial única (go-live) — scripts, não tela
 
-Decisão de 09/07/2026: o sistema **não nasce abastecido** com os dados reais e não há sincronização automática com planilhas. A importação é um módulo do próprio app (tela do admin, entregue na F4): quando a WAP decidir virar a chave, sobe as 3 planilhas e os dados entram na hora — reexecutável quantas vezes for preciso. Estratégia em 4 passos, pensada para dados sujos:
+Decisão final de 09/07/2026: o sistema **não tem importação**. A carga das planilhas é uma **operação única de go-live**, executada pelo Johnny com os scripts de `scripts/import/` (entregues na F4): dry-run → relatório de inconsistências → carga confirmada. Reexecutável **durante a janela do go-live** (idempotente), sem nenhuma interface no app; após o cutover os scripts permanecem no repositório apenas como ferramenta de emergência. Não há sincronização com planilhas — nunca. Estratégia em 4 passos, pensada para dados sujos:
 
-1. **Staging** — os 3 CSVs entram crus em tabelas `stg_*` (nada é rejeitado ainda).
+1. **Staging** — os 3 CSVs entram crus na estrutura de trabalho do script (nada é rejeitado ainda).
 2. **Normalização automática** — aplica os De→Para da seção 5: patrimônios, motivos, unidades, datas (`dd/mm/aaaa` e variações), typos conhecidos, remoção das 6 duplicatas exatas.
 3. **Relatório de inconsistências** — CSV para o Johnny/admin revisar; nada entra silenciosamente errado. Casos já identificados nos dados reais:
    - Ativo movimentado (saída/devolução) que **não existe** no inventário → criar automaticamente com dados mínimos + flag `origem: inferido`.
@@ -219,7 +241,7 @@ Decisão de 09/07/2026: o sistema **não nasce abastecido** com os dados reais e
    - Campo "Termo" com valores estranhos ("15/12/2025", "enviado") → mapear para `sim/não/enviado` + data quando houver.
 4. **Carga final** — ativos primeiro, depois movimentações em ordem cronológica **recalculando o estado** de cada ativo pela sequência de eventos. Divergência entre estado calculado e o que a planilha Matriz diz → vai para o relatório de inconsistências (é a planilha que está errada na maioria dos casos — é exatamente o problema que motivou o sistema).
 
-A planilha da Matriz cobre só a Matriz; se existirem inventários das outras filiais, importam-se pelos mesmos passos (o importador fica reutilizável na interface admin).
+A planilha da Matriz cobre só a Matriz; se existirem inventários das outras filiais, importam-se pelos mesmos scripts **dentro da janela de go-live** — depois dela, equipamento novo entra pelo fluxo manual de compra (regra 8).
 
 ### 10.1 Dados fictícios de desenvolvimento (seed)
 
@@ -233,14 +255,14 @@ Enquanto o importador não roda com os dados reais, um script de seed povoa o ba
 | **F1 — Banco + dados fictícios** | Migrations do schema + **seed fictício realista** (~1.200 ativos, ~700 movimentações, seção 10.1) + views | Seed roda e reseta com um comando; `v_estoque_atual` bate com o seed |
 | **F2 — Operação** | Lista/ficha de ativos + **nova movimentação** com validações + **estorno** (sem estorno não há como corrigir erro, já que movimentação é imutável) | Ciclo completo compra → saída → devolução → triagem registrável de ponta a ponta, sobre dados fictícios |
 | **F3 — Relatórios** | `/relatorios/[filial]` + consolidado, tempo real, export | Dashboards demonstráveis com dados fictícios; validação visual com quem recebe o e-mail hoje |
-| **F4 — Importador + go-live** | Módulo de importação (upload das 3 planilhas → prévia → inconsistências → carga) + reset do seed | Dados reais dentro; números batem com as planilhas; **cutover: planilhas viram só-leitura e o e-mail de equipamentos é aposentado** |
+| **F4 — Carga inicial + go-live** | Scripts de carga única (`scripts/import/`): normalização De→Para + dry-run + relatório de inconsistências + carga idempotente; ensaio no projeto de ensaio; reset do seed | Dados reais dentro; números batem com as planilhas; **cutover: planilhas viram só-leitura, e-mail aposentado e nenhuma tela de importação existe no app** |
 | **F5 — Refino** | Estoque de acessórios/componentes por quantidade (fecha a 2ª metade do e-mail), pendências e alertas avançados, resumo automático por e-mail (opcional), backup agendado, upload dos termos (PDF) | E-mail semanal 100% substituído; backlog priorizado com o uso real |
 
 Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados reais**: F3 já mostra os relatórios com dados fictícios; a virada de chave (F4) acontece quando a WAP quiser, sem pressa e sem período de convivência planilha×sistema. Detalhamento de esforço, escopo por fase e ordem das telas: [`PLANEJAMENTO.md`](./PLANEJAMENTO.md).
 
 ## 12. Riscos e pontos de atenção
 
-1. **Limpeza de dados subestimada** — é o risco nº 1 em migração de planilha. Mitigação: importador com prévia + relatório de inconsistências (F4), ensaiado com as planilhas reais em ambiente de teste antes do go-live, e a regra "nada entra silenciosamente errado".
+1. **Limpeza de dados subestimada** — é o risco nº 1 em migração de planilha. Mitigação: carga inicial com dry-run + relatório de inconsistências (F4), ensaiada com as planilhas reais em ambiente de teste antes do go-live, e a regra "nada entra silenciosamente errado".
 2. **Adoção** — se registrar movimentação for mais lento que a planilha, a planilha volta. Mitigação: tela de movimentação desenhada para ≤30s por registro, fluxo em lote, atalhos.
 3. **Período de transição** — evitar sistema e planilha em paralelo por semanas (divergem de novo). Mitigação: durante o desenvolvimento o sistema roda só com dados fictícios (convivência zero); a virada acontece de uma vez na F4 — importa, confere os números e as planilhas viram só-leitura na mesma semana.
 4. **Dados pessoais (LGPD)** — nomes de colaboradores. Login obrigatório (decisão confirmada) já limita exposição; guardar o mínimo (nome/setor, sem CPF), definir retenção do histórico de desligados.

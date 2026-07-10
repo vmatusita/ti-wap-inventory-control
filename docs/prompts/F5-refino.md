@@ -22,8 +22,14 @@ Campo de anexo na movimentação de saída (Supabase Storage, bucket privado, RL
 ### 5.6 Dark mode
 `next-themes` + revisão das cores dos gráficos para a superfície escura (recalibrar as duas séries; manter contraste — ver PLANEJAMENTO §2.1 e o padrão do mockup). Item de conforto, por último.
 
-### 5.7 ECharts em gráfico específico (só se pedirem)
+### 5.7 Download do relatório gerado como HTML autocontido
+Botão "Baixar HTML" no snapshot (spec §7.1): gera arquivo único com CSS/JS inline e o JSON do snapshot embutido — interativo offline, no estilo de `mockups/dashboard-relatorio.html` — para anexar em e-mail ou arquivar fora do sistema. Aceite: arquivo abre sem internet com filtros e tooltips funcionando.
+
+### 5.8 ECharts em gráfico específico (só se pedirem)
 Se as filiais pedirem zoom/brush/drill-down de verdade em algum gráfico, trocar SOMENTE aquele gráfico por Apache ECharts (grátis), mantendo o resto em Recharts. Gatilho: pedido real, não antecipação.
+
+### 5.9 Kits de movimentação salvos
+Complemento dos facilitadores da F2: salvar um lote como modelo nomeado ("Kit novo colaborador" = notebook + monitor + celular com motivo novo_colaborador) e aplicá-lo na tela de nova movimentação escolhendo só os ativos. Tabela `kits_modelos (id, nome, payload jsonb, criado_por)` + gestão simples em admin. Aceite: registrar um kit de 3 itens em menos de 60 segundos usando o modelo.
 
 ## Regras permanentes do backlog
 

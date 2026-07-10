@@ -74,15 +74,15 @@ Ponto de atenção (também no checklist da seção 8): produção em contas do 
 
 ```
  F1 ────────────── F3          F4                depois
- [ seed fictício ]──► demo ──► [reset] ──► [importador: 3 planilhas] ──► operação real
+ [ seed fictício ]──► demo ──► [reset] ──► [carga ÚNICA via scripts] ──► operação 100% manual
                                                 │
                                                 └─ relatório de inconsistências p/ revisão
 ```
 
 1. **Dev/demonstração (F1–F3):** seed **fictício e determinístico** — ~1.200 ativos nas proporções reais (42% notebooks, 28% celulares, 25% monitores, 4% desktops, 1,5% tablets; ~70% em uso, ~5% em estoque, ~10% reserva técnica…), ~700 movimentações espalhadas por 7 meses com sazonalidade parecida, 5 filiais, nomes de pessoas **gerados** (nenhum colaborador real), chamados e termos variados, incluindo casos-limite de propósito (ativo sem patrimônio, devolução com itens faltantes, triagem parada). Gráficos ficam com cara de verdade e a demo não expõe ninguém.
-2. **Go-live (F4):** comando de **reset** zera o seed → admin sobe as 3 planilhas no importador → prévia → relatório de inconsistências → carga em ordem cronológica recalculando os estados. Reexecutável.
+2. **Go-live (F4):** reset do seed → o Johnny roda os **scripts de carga** (`scripts/import/`) com os 3 CSVs: dry-run → relatório de inconsistências → carga em ordem cronológica recalculando os estados. Idempotente dentro da janela do go-live. **Sem tela — decisão de 09/07/2026: o sistema não tem importação.**
 3. **Ensaio geral antes do go-live:** rodar o importador com as planilhas reais **em projeto Supabase de teste** (sem carga na produção) para calibrar os De→Para da spec §5 com zero risco.
-4. **Depois do go-live:** planilhas viram só-leitura (cutover) e o importador permanece disponível para planilhas históricas de outras filiais.
+4. **Depois do go-live:** planilhas viram só-leitura (cutover); os scripts ficam no repositório apenas como ferramenta de emergência. A única entrada de dados passa a ser a **operação manual** — que é o produto: mais prática que o Excel (facilitadores da F2 e kits da F5).
 
 ## 4. Fases detalhadas
 
@@ -99,18 +99,18 @@ Ponto de atenção (também no checklist da seção 8): produção em contas do 
 - **Pronto quando:** seed roda e resseta com um comando; `v_estoque_atual` e `v_movimentacoes_mes` retornam os números do seed; conta viewer não consegue escrever (teste manual de RLS).
 
 ### F2 — Operação (7–8 sessões)
-- **Entrega:** lista de ativos (busca + filtros filial/categoria/status), ficha do ativo com linha do tempo, **nova movimentação** (fluxo rápido, em lote — notebook+monitor+celular do mesmo chamado de uma vez), estorno, validações Zod espelhando a máquina de estados.
+- **Entrega:** lista de ativos (busca + filtros filial/categoria/status), ficha do ativo com linha do tempo, **nova movimentação** (fluxo rápido, em lote — notebook+monitor+celular do mesmo chamado de uma vez), estorno, validações Zod espelhando a máquina de estados, e os **facilitadores anti-Excel** (data default, atalho `N`, "repetir última", "duplicar" da linha do tempo).
 - **Fora do escopo:** relatórios, importador, admin de usuários.
 - **Pronto quando:** o ciclo compra → saída → devolução → triagem → estoque é registrável de ponta a ponta na interface, com os erros certos ao tentar transições inválidas.
 
 ### F3 — Relatórios (5–6 sessões)
-- **Entrega:** `/relatorios/[filial]` + consolidado, com tudo da spec §7: KPIs, movimentações por mês, disponíveis por modelo, reservados com chamado, manutenção caso a caso, motivos, pendências, últimas movimentações, resumo do período no formato do e-mail, export CSV/impressão. Realtime atualizando a página aberta. (O mockup `mockups/dashboard-relatorio.html` é a referência visual.)
+- **Entrega:** `/relatorios/[filial]` + consolidado, com tudo da spec §7: KPIs, movimentações por mês, disponíveis por modelo, reservados com chamado, manutenção caso a caso, motivos, pendências, últimas movimentações (com observações), resumo do período no formato do e-mail, export CSV/impressão. Realtime atualizando a página aberta. **+ Relatório gerado da semana** (spec §7.1): snapshot interativo congelado e versionado, com histórico — o clique que substitui o ritual de sexta-feira. (O mockup `mockups/dashboard-relatorio.html` é a referência visual.)
 - **Fora do escopo:** acessórios por quantidade (F5).
 - **Pronto quando:** demo com dados fictícios validada com 2–3 pessoas que recebem o e-mail hoje (inclusive de filial).
 
-### F4 — Importador + go-live (5–7 sessões)
-- **Entrega:** tela de importação (upload dos 3 CSVs → staging → normalizações De→Para → prévia → relatório de inconsistências para download → confirmar carga), comando de reset do seed, ensaio com planilhas reais em ambiente de teste, go-live e cutover.
-- **Pronto quando:** números no sistema batem com as planilhas reais (1.179 ativos, 423 saídas, 291 devoluções, menos duplicatas tratadas); inconsistências revisadas pela operadora; planilhas marcadas como só-leitura; e-mail de equipamentos principais aposentado.
+### F4 — Carga inicial + go-live (4–6 sessões)
+- **Entrega:** scripts de carga única em `scripts/import/` (parse cp1252/`;` → normalização De→Para → **dry-run com relatório de inconsistências** → carga idempotente com guardas anti-acidente), ensaio completo com as planilhas reais no projeto de ensaio, go-live na produção com aprovação explícita e cutover. **Nenhuma tela nova** — o sistema não tem importação (decisão de 09/07/2026).
+- **Pronto quando:** números no sistema batem com as planilhas reais (1.179 ativos, 423 saídas, 291 devoluções, menos duplicatas tratadas); inconsistências revisadas pelo Johnny; planilhas marcadas como só-leitura; e-mail de equipamentos principais aposentado; `grep importador src/` = zero.
 
 ### F5 — Refino (contínuo, priorizado pelo uso)
 Acessórios/componentes por quantidade (fecha a 2ª metade do e-mail semanal) · alertas de pendência · resumo semanal automático por e-mail (opcional) · backup CSV agendado · upload dos termos assinados (Storage) · dark mode · testes E2E se fizer sentido.
@@ -121,9 +121,9 @@ Acessórios/componentes por quantidade (fecha a 2ª metade do e-mail semanal) ·
 2. Ficha do ativo + linha do tempo
 3. Nova movimentação (a tela mais importante — meta: registrar em ≤30s)
 4. Home/dashboard (KPIs simples reaproveitando as views)
-5. Relatório por filial (o produto para as filiais)
+5. Relatório por filial ao vivo + geração do snapshot semanal (o produto para as filiais)
 6. Administração (convites, filiais, motivos)
-7. Importador (F4)
+7. — (a F4 não cria telas: a carga inicial é via scripts, fora do app)
 
 ## 6. Definição de pronto (vale para toda fase)
 
@@ -138,7 +138,7 @@ Acessórios/componentes por quantidade (fecha a 2ª metade do e-mail semanal) ·
 
 | Risco | Mitigação |
 |---|---|
-| Seed fictício não representar a sujeira real → importador quebrar no go-live | Ensaio geral na F4 com as 3 planilhas reais em projeto de teste; casos-limite reais (patrimônio N/A, duplicatas, typos) incluídos de propósito no seed |
+| Seed fictício não representar a sujeira real → carga quebrar no go-live | Ensaio geral na F4 com as 3 planilhas reais em projeto de teste (dry-run obrigatório); casos-limite reais (patrimônio N/A, duplicatas, typos) incluídos de propósito no seed |
 | Validar visual só no fim | Demo da F3 com dados fictícios para quem recebe o e-mail hoje, antes de investir na F4 |
 | Disponibilidade do Johnny (projeto nas horas vagas) | Fases curtas com pronto objetivo; qualquer fase concluída já se sustenta sozinha |
 | Perguntas da spec §13 travarem o início | Nenhuma trava a F0/F1: filiais são cadastro flexível e o seed é fictício. As respostas só são obrigatórias antes da F4 (convites e filiais reais) |

@@ -25,5 +25,5 @@ Cada arquivo `F*.md` desta pasta é um prompt completo para uma fase, escrito pa
 | F1 | `F1-banco-e-seed.md` | Migrations do schema + banco populado com dados fictícios |
 | F2 | `F2-operacao.md` | Ativos, ficha com linha do tempo, nova movimentação em lote, estorno |
 | F3 | `F3-relatorios.md` | Relatórios por filial em tempo real + telas de administração |
-| F4 | `F4-importador-golive.md` | Importador das 3 planilhas + ensaio + go-live/cutover |
+| F4 | `F4-importador-golive.md` | Carga inicial ÚNICA via scripts + ensaio + go-live/cutover (sem tela de importação) |
 | F5 | `F5-refino.md` | Backlog de ordens curtas (acessórios, alertas, backup…) |

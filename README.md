@@ -36,7 +36,7 @@ Sistema interno para substituir o controle de ativos de TI feito hoje em três p
 - [ ] F1 — banco + dados fictícios (seed)
 - [ ] F2 — operação (ativos + movimentações + estorno)
 - [ ] F3 — relatórios em tempo real por filial (com dados fictícios)
-- [ ] F4 — importador das planilhas + go-live (cutover)
+- [ ] F4 — carga inicial única via scripts + go-live (cutover)
 - [ ] F5 — refino (acessórios por quantidade, alertas, e-mail, termos)
 
 ## Próximo passo
@@ -45,4 +45,4 @@ Ler e validar `docs/PLANEJAMENTO.md` (checklist da seção 8) e responder a seç
 
 Quando validar: abra o Claude Code na raiz deste repositório e cole `docs/prompts/F0-fundacao.md`. O fluxo completo está em `docs/prompts/README.md`.
 
-Importante: o sistema **não nasce com os dados reais**. O desenvolvimento roda com dados fictícios; os dados reais entram pelo módulo de importação (F4), quando a WAP decidir virar a chave.
+Importante: o sistema **não nasce com os dados reais**. O desenvolvimento roda com dados fictícios; os dados reais entram por uma **carga única via scripts no go-live** (F4), feita pelo Johnny. Depois disso **não existe importação** — a entrada de dados é 100% manual pelo sistema, e ser mais prático que o Excel é o requisito central (facilitadores da F2).

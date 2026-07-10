@@ -30,14 +30,14 @@ A operadora registra TODO o dia a dia pelo sistema: consulta ativos com filtros,
 
 1. Cabeçalho: patrimônio canônico grande + badge de status + service tag + botão "Nova movimentação" (pré-selecionando este ativo; só admin vê).
 2. Grid de dados: categoria, marca/modelo, specs (memória/armazenamento/processador), hostname, fornecedor, filial, colaborador/setor atuais, termo (status + data), pendência (destacada em âmbar se houver), observações, origem.
-3. **Linha do tempo** (query própria em `src/lib/queries/movimentacoes.ts`): lista vertical das movimentações do ativo, mais recente no topo — data, tipo (badge), motivo, colaborador/setor, chamado, `status_anterior → status_resultante`, itens faltantes, quem registrou. Movimentação estornada aparece riscada com link para o estorno.
+3. **Linha do tempo** (query própria em `src/lib/queries/movimentacoes.ts`): lista vertical das movimentações do ativo, mais recente no topo — data, tipo (badge), motivo, colaborador/setor, chamado, `status_anterior → status_resultante`, itens faltantes, **observação (quando houver — texto em itálico na linha)**, quem registrou. Movimentação estornada aparece riscada com link para o estorno.
 4. Admin vê botão "Editar dados cadastrais" (dialog com form Zod para campos NÃO derivados: specs, hostname, observações, termo). Status/colaborador/filial **não são editáveis aqui** — mudam só por movimentação (deixe um hint explicando).
 
 ## PARTE B — Escrita
 
 ### 3.3 Validações compartilhadas — `src/lib/validators/movimentacao.ts`
 
-1. Schema Zod discriminado por tipo, espelhando spec §8: `saida`/`emprestimo` exigem (colaborador OU setor) + motivo; `devolucao` exige motivo + array `itens_faltantes` (pode ser vazio); `transferencia` exige `filial_destino_id` ≠ filial atual; `ajuste` exige `status_resultante` + observação ≥ 10 caracteres; `estorno` exige `estorno_de`. Campos comuns: `ativo_id`, `data` (não-futura), `chamado` (opcional, numérico como texto), `termo_assinado`/`termo_data` opcionais.
+1. Schema Zod discriminado por tipo, espelhando spec §8: `saida`/`emprestimo` exigem (colaborador OU setor) + motivo; `devolucao` exige motivo + array `itens_faltantes` (pode ser vazio); `transferencia` exige `filial_destino_id` ≠ filial atual; `ajuste` exige `status_resultante` + observação ≥ 10 caracteres; `estorno` exige `estorno_de`. Campos comuns: `ativo_id`, `data` (não-futura), `chamado` (opcional, numérico como texto), `termo_assinado`/`termo_data` opcionais, **`observacao` (opcional, texto livre ≤ 500 caracteres — spec §8 regra 9; no `ajuste` é obrigatória com ≥ 10)**.
 2. Exporte também `TRANSICOES: Record<status, tipo[]>` — cópia EXATA da tabela da spec §4 — usada só para filtrar o select de tipos na UI.
 
 ### 3.4 Server Action — `src/lib/actions/movimentacoes.ts`
@@ -51,13 +51,22 @@ A operadora registra TODO o dia a dia pelo sistema: consulta ativos com filtros,
 O fluxo mais importante do sistema. Meta: **registrar 1 ativo em ≤ 30 segundos e um kit de 3 em ≤ 90 segundos.**
 
 1. Passo 1 — ativo: combobox com busca por patrimônio (server, debounce 300ms, mín. 2 caracteres) mostrando `patrimônio · modelo · status atual · filial`. **Se o patrimônio digitado tiver duplicata, as opções exibem também a service tag e o campo fica com aviso "patrimônio duplicado — confira a service tag"**. Selecionar adiciona o ativo a uma lista de "itens do lote" (chips/cards) — dá para adicionar vários antes de prosseguir.
-2. Passo 2 — movimentação: select de tipo mostrando SOMENTE os tipos válidos para o estado de cada item (use `TRANSICOES`; com itens em estados diferentes, aplique por item e sinalize). Campos aparecem conforme o tipo (motivo filtrado por `motivos.aplica_a`; colaborador/setor; chamado; termo; itens faltantes como checkboxes carregador/mochila/mouse/teclado/mousepad/fone/cabo + campo livre; filial destino para transferência). Um único preenchimento vale para o lote inteiro, com opção "ajustar por item".
+2. Passo 2 — movimentação: select de tipo mostrando SOMENTE os tipos válidos para o estado de cada item (use `TRANSICOES`; com itens em estados diferentes, aplique por item e sinalize). Campos aparecem conforme o tipo (motivo filtrado por `motivos.aplica_a`; colaborador/setor; chamado; termo; itens faltantes como checkboxes carregador/mochila/mouse/teclado/mousepad/fone/cabo + campo livre; **observação — textarea opcional, visível para TODOS os tipos, placeholder "Observação (opcional) — ex.: aguardando NF-e, tela trincada…"**; filial destino para transferência). Um único preenchimento vale para o lote inteiro, com opção "ajustar por item".
 3. Passo 3 — revisão: tabela-resumo do lote (`patrimônio → tipo → destino/motivo`) e botão "Registrar". Sucesso: toast por lote ("3 movimentações registradas"), limpa o formulário e mostra links para as fichas. Falha parcial: mantém no form apenas os itens que falharam, com o erro de cada um.
 4. Acesso: rota bloqueada para viewer (redirect + toast "somente leitura").
 
 ### 3.6 Estorno (na ficha)
 
 Na linha do tempo, a movimentação **mais recente** do ativo (e só ela) mostra ao admin o botão "Estornar" → dialog de confirmação mostrando o que o ativo volta a ser (status/colaborador/filial do snapshot) + campo observação opcional → chama a action. Sucesso atualiza a ficha; erro do banco vira toast pt-BR.
+
+### 3.7 Facilitadores — o que faz o sistema ganhar do Excel (spec §6.4)
+
+Sem importação depois do go-live, a operação manual é a única entrada de dados — estes detalhes são requisito, não luxo:
+1. **Defaults:** data = hoje; ao abrir `/movimentacoes/nova` o foco já está na busca de patrimônio; `Enter` avança entre os passos do fluxo.
+2. **Atalho global `N`** (quando nenhum input está focado): abre nova movimentação de qualquer tela autenticada — só para admin.
+3. **"Repetir última":** botão na tela de nova movimentação que pré-preenche tipo, motivo, colaborador/setor, chamado e termo da última movimentação registrada pelo usuário logado (menos o ativo).
+4. **"Duplicar":** ação em cada item da linha do tempo da ficha que abre `/movimentacoes/nova` pré-preenchida com aquela movimentação (permitindo trocar o ativo).
+Proibido aqui: kits salvos de lote (é item 5.9 da F5) e qualquer dependência nova.
 
 ## 4. Critérios de aceite (roteiro manual do Johnny — com o seed carregado)
 
@@ -66,8 +75,10 @@ Na linha do tempo, a movimentação **mais recente** do ativo (e só ela) mostra
 - [ ] Registrar kit (notebook+monitor+celular `em_estoque` → saída, novo_colaborador, mesmo chamado): 3 movimentações criadas, fichas atualizadas p/ em_uso com colaborador, em ≤ 90s.
 - [ ] Tentar saída de ativo `em_uso` direto no form: o tipo "saída" nem aparece no select; forçando via ajuste sem observação, Zod barra.
 - [ ] Devolução com itens faltantes → pendência aparece na ficha; triagem_ok → some.
+- [ ] Movimentação com observação → texto aparece na linha do tempo; sem observação → nada quebra (campo é opcional em todo tipo, menos ajuste).
 - [ ] Estorno da última movimentação restaura status/colaborador/filial e aparece na linha do tempo; botão não existe em movimentação antiga.
 - [ ] Logado como viewer: sem botões de ação, rota /movimentacoes/nova bloqueada e chamada direta da Server Action rejeitada (teste via fetch manual).
+- [ ] Facilitadores: data default = hoje com foco na busca; atalho `N` abre a tela; "repetir última" e "duplicar" pré-preenchem os campos certos.
 - [ ] Estados de loading/vazio/erro visíveis; mobile 375px usável; `lint`+`build` limpos.
 
 ## 5. Entrega

@@ -15,7 +15,7 @@ Se o código existente, a ordem de serviço e os documentos se contradisserem: *
 ## Regras de conduta (valem em TODA sessão, sem exceção)
 
 1. **Ambiguidade ou pré-requisito faltando → PARE e pergunte.** Não invente escopo, não "aproveite para fazer" nada fora da ordem de serviço atual.
-2. **NUNCA dados reais.** Nenhum nome de colaborador real, patrimônio real ou linha das planilhas da WAP em seed, fixture, teste, comentário ou screenshot. Dados de desenvolvimento são 100% fictícios (F1). Os dados reais só entram em produção pelo importador (F4), operado pelo Johnny.
+2. **NUNCA dados reais.** Nenhum nome de colaborador real, patrimônio real ou linha das planilhas da WAP em seed, fixture, teste, comentário ou screenshot. Dados de desenvolvimento são 100% fictícios (F1). Os dados reais só entram em produção pela **carga única de go-live** (scripts da F4, operados pelo Johnny) — **o sistema não tem tela de importação, nunca**.
 3. **Custo R$ 0.** Não habilitar nenhum recurso pago, nenhum serviço novo, nenhuma lib com licença comercial. Infra permitida: Supabase Free + Vercel (conta Pro existente do Johnny).
 4. **Segredos:** nunca commitar `.env*` (mantenha `.env.example` atualizado). `SUPABASE_SERVICE_ROLE_KEY` só em código server-side ou scripts locais — jamais em Client Component ou variável `NEXT_PUBLIC_*`.
 5. **Banco de produção é intocável sem confirmação explícita do Johnny na conversa.** Migrations e seed rodam no projeto de desenvolvimento/ensaio.
@@ -27,7 +27,7 @@ Se o código existente, a ordem de serviço e os documentos se contradisserem: *
 - **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript strict**
 - **Tailwind CSS v4** + **shadcn/ui** (componentes via CLI) + **Recharts v3** (só via componente `chart` do shadcn)
 - **Supabase**: `@supabase/supabase-js` + `@supabase/ssr` · tipos gerados por `supabase gen types typescript`
-- **Zod** + **react-hook-form** (+ `@hookform/resolvers`) · **TanStack Table** (via data-table do shadcn) · **date-fns** (locale `ptBR`) · **PapaParse** (F3 export / F4 importador) · **sonner** (toasts, via shadcn)
+- **Zod** + **react-hook-form** (+ `@hookform/resolvers`) · **TanStack Table** (via data-table do shadcn) · **date-fns** (locale `ptBR`) · **PapaParse** (F3 export / scripts de carga única F4) · **sonner** (toasts, via shadcn)
 - Dev: **Supabase CLI**, **@faker-js/faker** (locale pt_BR, só em `scripts/`), **seedrandom**, **Vitest** (só funções puras), ESLint + Prettier
 - Proibidos (decisão registrada): Prisma/Drizzle, Redux/Zustand/TanStack Query, ECharts (upgrade futuro documentado), Highcharts/AG Charts/MUI X Pro, i18n, monorepo.
 
@@ -53,11 +53,13 @@ src/
       ativos/page.tsx               # lista
       ativos/[id]/page.tsx          # ficha + linha do tempo
       movimentacoes/nova/page.tsx   # fluxo de nova movimentação (lote)
-      relatorios/[filial]/page.tsx  # relatório por filial ('geral' = consolidado)
+      relatorios/[filial]/page.tsx  # relatório AO VIVO por filial ('geral' = consolidado)
+      relatorios/gerados/page.tsx        # histórico de snapshots semanais
+      relatorios/gerados/[id]/page.tsx   # snapshot congelado e interativo (spec §7.1)
       admin/usuarios/page.tsx
       admin/filiais/page.tsx
       admin/motivos/page.tsx
-      admin/importador/page.tsx     # F4
+      # (não existe admin/importador — carga inicial é via scripts, spec §10)
   components/
     ui/            # shadcn (CLI)
     layout/  ativos/  movimentacoes/  relatorios/  admin/
@@ -71,6 +73,7 @@ supabase/
   migrations/      # fonte da verdade do banco a partir da F1
 scripts/
   seed.ts  reset.ts     # dados fictícios (guardas anti-produção obrigatórias)
+  import/               # carga ÚNICA do go-live (F4) — ferramenta, não feature do app
 docs/  mockups/
 ```
 
@@ -87,6 +90,7 @@ Se a estrutura real divergir desta ao começar uma ordem, PARE e reporte a difer
 - `npm run dev` · `npm run build` · `npm run lint`
 - A partir da F1: `npm run db:seed` (popula fictício), `npm run db:reset` (zera), `npm run db:types` (regenera `src/lib/types/database.ts`)
 - Supabase local (opcional): `supabase start` / `supabase db reset`
+- Só na janela do go-live (F4): `npm run carga` (`scripts/import/` — guardas obrigatórias; não é feature)
 
 ## Referência visual
 

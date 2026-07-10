@@ -307,6 +307,27 @@ create policy "admin gerencia perfis" on public.profiles for update to authentic
 create policy "admin insere" on public.movimentacoes for insert to authenticated
   with check (public.is_admin());
 
+-- ---------- RELATÓRIOS GERADOS (snapshot semanal — spec §7.1, entregue na F3) ----------
+
+create table public.relatorios_gerados (
+  id          uuid primary key default gen_random_uuid(),
+  periodo_de  date not null,
+  periodo_ate date not null,
+  filial_id   smallint references public.filiais (id),  -- null = consolidado (geral)
+  versao      smallint not null default 1,
+  dados       jsonb not null,      -- snapshot congelado (KPIs, séries, listas, resumo)
+  gerado_por  uuid not null references public.profiles (id),
+  gerado_em   timestamptz not null default now(),
+  unique (periodo_de, periodo_ate, filial_id, versao)
+);
+
+create index rel_gerados_periodo_idx on public.relatorios_gerados (periodo_de desc, filial_id);
+
+alter table public.relatorios_gerados enable row level security;
+create policy "leitura autenticada" on public.relatorios_gerados for select to authenticated using (true);
+create policy "admin gera"          on public.relatorios_gerados for insert to authenticated with check (public.is_admin());
+-- Imutável: sem policy de update/delete — regerar o período cria versão nova.
+
 -- ---------- VIEWS DE RELATÓRIO ----------
 
 create or replace view public.v_estoque_atual
@@ -383,7 +404,7 @@ insert into public.motivos (codigo, rotulo, aplica_a) values
 
 -- =============================================================
 -- Pendente (fase F1, junto das migrations):
---   * tabelas stg_* do importador + fn de normalização de patrimônio
+--   * (carga inicial é via scripts TS de go-live — sem tabelas de staging no banco)
 --   * publicação realtime: alter publication supabase_realtime add table movimentacoes;
 --   * view v_kpis_filial p/ os cards do relatório
 -- =============================================================

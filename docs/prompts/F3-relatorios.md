@@ -9,7 +9,7 @@ Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. 
 
 ## 1. Objetivo
 
-O link que substitui o e-mail semanal: `/relatorios/[filial]` sempre atual, com todas as seções da spec §7, atualizando sozinho quando entra movimentação, com export. Home com KPIs. Telas de administração (usuários/convites, filiais, motivos). Dados ainda fictícios — no fim desta fase o Johnny demonstra para 2–3 pessoas que recebem o e-mail hoje.
+Os dois modos de relatório da spec §7: a página **ao vivo** `/relatorios/[filial]` sempre atual (realtime) e o **relatório gerado da semana** — snapshot interativo, congelado e versionado (spec §7.1), com histórico. Home com KPIs. Telas de administração (usuários/convites, filiais, motivos). Dados ainda fictícios — no fim desta fase o Johnny demonstra para 2–3 pessoas que recebem o e-mail hoje.
 
 ## 2. Escopo proibido
 
@@ -21,7 +21,7 @@ O link que substitui o e-mail semanal: `/relatorios/[filial]` sempre atual, com 
 
 ### 3.1 Camada de dados — `src/lib/queries/relatorios.ts`
 
-Funções tipadas, todas parametrizadas por `filialSlug | 'geral'` e período `{de, ate}`: `getKpis` (total, em_uso, em_estoque, reservado, em_manutencao, em_triagem, defasado), `getEstoquePorCategoria`, `getDisponiveisPorModelo` (status em_estoque, agrupado por marca+modelo, ordenado desc), `getReservadosComChamado` (status reservado + último chamado da linha do tempo), `getEmManutencao` (patrimônio, modelo, observação da última movimentação), `getMovimentacoesPorMes` (saídas × devoluções), `getPorMotivo` (saída e devolução separados), `getPendencias` (via `v_pendencias`), `getUltimasMovimentacoes` (paginada), `getResumoPeriodo` (contagens por tipo→motivo→categoria, por filial — insumo do texto 3.3.6).
+Funções tipadas, todas parametrizadas por `filialSlug | 'geral'` e período `{de, ate}`: `getKpis` (total, em_uso, em_estoque, reservado, em_manutencao, em_triagem, defasado), `getEstoquePorCategoria`, `getDisponiveisPorModelo` (status em_estoque, agrupado por marca+modelo, ordenado desc), `getReservadosComChamado` (status reservado + último chamado da linha do tempo), `getEmManutencao` (patrimônio, modelo, observação da última movimentação), `getMovimentacoesPorMes` (saídas × devoluções), `getPorMotivo` (saída e devolução separados), `getPendencias` (via `v_pendencias`), `getUltimasMovimentacoes` (paginada, incluindo a coluna `observacao`), `getResumoPeriodo` (contagens por tipo→motivo→categoria, por filial — insumo do texto 3.3.6) e `getSnapshotRelatorio(filialSlug, de, ate)` — reúne TODAS as anteriores num único objeto JSON serializável (é o que a tarefa 3.8 congela).
 
 ### 3.2 Rota e layout — `src/app/(app)/relatorios/[filial]/page.tsx`
 
@@ -35,7 +35,7 @@ Funções tipadas, todas parametrizadas por `filialSlug | 'geral'` e período `{
 2. **Gráficos** (todos com o `chart` do shadcn): movimentações por mês = barras agrupadas saídas `#eda100` × devoluções `#2a78d6`, rótulo de valor em cima de cada barra (o amarelo exige rótulo visível), legenda com totais; categoria/motivos = barras horizontais de série única com valor à direita. Tooltip padrão do wrapper em todos.
 3. **Disponíveis por modelo**: lista `NN× · modelo` (formato do e-mail semanal).
 4. **Em manutenção**: lista patrimônio · modelo · observação truncada com tooltip do texto completo.
-5. **Últimas movimentações**: tabela com Data, Tipo (pill amarela saída / azul devolução / verde compra), Patrimônio, Ativo, Colaborador/Setor, Filial, Chamado; botão "Exportar CSV".
+5. **Últimas movimentações**: tabela com Data, Tipo (pill amarela saída / azul devolução / verde compra), Patrimônio, Ativo, Colaborador/Setor, Filial, Chamado e **Observação** (truncada com tooltip do texto completo; ícone 💬 discreto quando houver); botão "Exportar CSV" (a coluna observação vai no CSV).
 6. **Resumo do período**: texto gerado no formato do e-mail atual — "No período de X a Y foram realizadas N saídas: **Matriz** — novo colaborador: 04 notebooks, 04 monitores; …" — a partir de `getResumoPeriodo`. Botão "Copiar texto".
 7. Todo card tem estado vazio ("Sem registros no período") e skeleton.
 
@@ -58,6 +58,15 @@ Substituir o placeholder da F0: KPIs consolidados, "minhas pendências" (top 5 d
 2. `filiais`: CRUD (nome, slug, ativo). Bloquear desativar filial com ativos (mostrar contagem).
 3. `motivos`: tabela com rótulo, código, `aplica_a` (checkboxes de tipos), ativo. Criar/editar/desativar (nunca excluir — histórico referencia).
 
+### 3.8 Relatório gerado da semana (snapshot interativo — spec §7.1)
+
+1. Migration `0009_relatorios_gerados.sql`: copie a tabela `relatorios_gerados` + índice + RLS do `supabase/schema.sql` (seção "RELATÓRIOS GERADOS"). Regenere os tipos.
+2. Server Action `gerarRelatorio({filialSlug, de, ate})` (só admin): chama `getSnapshotRelatorio`, calcula `versao = max(versao)+1` para o mesmo (período, filial), insere e retorna o id. Nenhum update/delete existe — snapshot é imutável.
+3. Botão "**Gerar relatório**" no topo da página ao vivo (só admin): dialog com período (padrão: **segunda a sexta da semana corrente**, como os e-mails reais "22/06 até 26/06"), escopo (filial atual ou geral) e confirmação mostrando o resumo do que será congelado. Sucesso → navega para o snapshot novo.
+4. `/relatorios/gerados/page.tsx` — histórico: tabela (Período, Filial, Versão, Gerado por, Em, botão Abrir), mais recente primeiro, filtro por filial. Viewer vê e abre; não vê o botão de gerar.
+5. `/relatorios/gerados/[id]/page.tsx` — renderiza o snapshot **reaproveitando os MESMOS componentes de card/gráfico da página ao vivo** (eles devem aceitar dados via props — refatore o necessário; proibido duplicar componente). Diferenças obrigatórias: banner fixo no topo "📄 Relatório gerado · período X–Y · versão N · por Fulano em dd/MM/yyyy HH:mm — dados congelados"; **filtros internos client-side** (filial se geral, categoria, tipo) aplicados sobre o JSON do snapshot, sem ir ao banco; se existir versão mais nova do mesmo período, banner âmbar "Existe a versão N+1 deste relatório" com link; export CSV e impressão funcionam sobre o snapshot; observações das movimentações visíveis como na página ao vivo.
+6. Realtime NÃO se aplica aqui (é congelado) — não assine canal nesta rota.
+
 ## 4. Critérios de aceite
 
 - [ ] `/relatorios/matriz` reproduz a estrutura do mockup com os dados do seed; tabs trocam filial; `geral` consolida.
@@ -67,6 +76,11 @@ Substituir o placeholder da F0: KPIs consolidados, "minhas pendências" (top 5 d
 - [ ] CSV abre no Excel BR com acentos e colunas certas.
 - [ ] Impressão (Ctrl+P) sai limpa em 1–3 páginas.
 - [ ] Convite enviado pela tela de admin chega e a pessoa entra como viewer; viewer não acessa `/admin/*` (rota e action).
+- [ ] Gerar relatório da semana (seg–sex) → abre o snapshot; registrar movimentação nova → página ao vivo muda, **snapshot não muda**.
+- [ ] Regerar o mesmo período → versão 2; a versão 1 mostra o banner "existe versão mais recente" com link.
+- [ ] Viewer abre o histórico e o snapshot, mas não vê o botão "Gerar relatório" (e a action rejeita).
+- [ ] Filtros internos do snapshot funcionam offline do banco (desligar rede após carregar e filtrar mesmo assim).
+- [ ] Observações aparecem nas últimas movimentações (ao vivo e no snapshot) com tooltip do texto completo.
 - [ ] Mobile 375px: KPIs empilham, tabela vira scroll horizontal, gráficos legíveis.
 - [ ] `lint` + `build` limpos.
 
