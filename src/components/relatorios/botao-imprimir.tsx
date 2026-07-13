@@ -10,7 +10,8 @@ export function BotaoImprimir() {
     <Button
       variant="outline"
       size="sm"
-      className="gap-1.5 print:hidden"
+      aria-label="Imprimir"
+      className="h-9 gap-1.5 sm:h-7 print:hidden"
       onClick={() => window.print()}
     >
       <Printer className="size-4" />

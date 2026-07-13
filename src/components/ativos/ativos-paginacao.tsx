@@ -29,7 +29,7 @@ export function AtivosPaginacao({
   }
 
   return (
-    <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
+    <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <span className="tabular-nums">
         {primeiro}–{ultimo} de {total}
       </span>
@@ -37,6 +37,7 @@ export function AtivosPaginacao({
         <Button
           variant="outline"
           size="sm"
+          className="h-10 sm:h-7"
           onClick={() => irPara(page - 1)}
           disabled={page <= 1}
           aria-label="Página anterior"
@@ -50,6 +51,7 @@ export function AtivosPaginacao({
         <Button
           variant="outline"
           size="sm"
+          className="h-10 sm:h-7"
           onClick={() => irPara(page + 1)}
           disabled={page >= totalPaginas}
           aria-label="Próxima página"

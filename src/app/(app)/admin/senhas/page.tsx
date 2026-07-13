@@ -17,7 +17,7 @@ export default async function AdminSenhasPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           Senhas de visualização dos relatórios — sem conta, revogáveis uma a uma.
         </p>
@@ -29,13 +29,13 @@ export default async function AdminSenhasPage() {
           Nenhuma senha de acesso criada ainda.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Rótulo</TableHead>
-                <TableHead>Criada em</TableHead>
-                <TableHead>Último uso</TableHead>
+                <TableHead className="hidden md:table-cell">Criada em</TableHead>
+                <TableHead className="hidden md:table-cell">Último uso</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -44,10 +44,10 @@ export default async function AdminSenhasPage() {
               {senhas.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.rotulo}</TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">
+                  <TableCell className="hidden tabular-nums text-muted-foreground md:table-cell">
                     {formatDate(s.created_at)}
                   </TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">
+                  <TableCell className="hidden tabular-nums text-muted-foreground md:table-cell">
                     {s.ultimo_uso ? formatDateTime(s.ultimo_uso) : 'nunca'}
                   </TableCell>
                   <TableCell>

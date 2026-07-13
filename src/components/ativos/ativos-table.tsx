@@ -21,7 +21,22 @@ import { Badge } from '@/components/ui/badge'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { formatDate, ouTraco } from '@/lib/format'
 import { rotuloCategoria } from '@/lib/dominio'
+import { cn } from '@/lib/utils'
 import type { AtivoLista } from '@/lib/queries/ativos'
+
+// Revelação progressiva de colunas: em ~375px só cabem Patrimônio + Categoria +
+// Status; as demais aparecem conforme a tela cresce, eliminando a rolagem
+// horizontal longa no mobile (o ativo já é acessível pelo link do patrimônio).
+const COL_RESP: Record<string, string> = {
+  patrimonio: '',
+  categoria: '',
+  status: '',
+  colaborador_atual: 'hidden sm:table-cell',
+  modelo: 'hidden md:table-cell',
+  service_tag: 'hidden lg:table-cell',
+  filial_nome: 'hidden lg:table-cell',
+  updated_at: 'hidden xl:table-cell',
+}
 
 export function AtivosTable({
   rows,
@@ -118,13 +133,16 @@ export function AtivosTable({
   })
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="overflow-hidden rounded-lg border">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id}>
               {hg.headers.map((h) => (
-                <TableHead key={h.id} className="whitespace-nowrap">
+                <TableHead
+                  key={h.id}
+                  className={cn('whitespace-nowrap', COL_RESP[h.column.id])}
+                >
                   {h.isPlaceholder
                     ? null
                     : flexRender(h.column.columnDef.header, h.getContext())}
@@ -141,7 +159,10 @@ export function AtivosTable({
               className="cursor-pointer"
             >
               {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id} className="whitespace-nowrap">
+                <TableCell
+                  key={cell.id}
+                  className={cn('whitespace-nowrap', COL_RESP[cell.column.id])}
+                >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}

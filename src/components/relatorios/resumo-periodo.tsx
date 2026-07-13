@@ -34,7 +34,7 @@ export function ResumoPeriodoCard({ resumo }: { resumo: ResumoPeriodo }) {
         {copiado ? <Check className="size-4" /> : <Copy className="size-4" />}
         {copiado ? 'Copiado' : 'Copiar texto'}
       </Button>
-      <pre className="mt-1 max-w-full whitespace-pre-wrap break-words pr-0 font-sans text-[13px] leading-relaxed text-foreground/90 sm:pr-32">
+      <pre className="mt-1 max-w-full whitespace-pre-wrap break-words pt-9 pr-0 font-sans text-[13px] leading-relaxed text-foreground/90 sm:pt-0 sm:pr-32">
         {texto}
       </pre>
     </div>

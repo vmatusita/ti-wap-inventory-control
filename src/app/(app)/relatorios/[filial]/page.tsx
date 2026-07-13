@@ -76,8 +76,8 @@ export default async function RelatorioFilialPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {acesso.modo === 'operador' ? <RealtimeRefresh /> : <ViewerAutoRefresh />}
-          <Button asChild variant="outline" size="sm" className="gap-1.5">
-            <Link href="/relatorios/gerados">
+          <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 sm:h-7">
+            <Link href="/relatorios/gerados" aria-label="Relatórios gerados">
               <FileClock className="size-4" />
               <span className="hidden sm:inline">Relatórios gerados</span>
             </Link>
@@ -95,8 +95,10 @@ export default async function RelatorioFilialPage({
         </div>
       </div>
 
-      <FilialTabs filiais={filiais} atual={filialSlug} />
-      <PeriodoFiltro preset={periodo.preset} de={periodo.de} ate={periodo.ate} />
+      <div className="space-y-3">
+        <FilialTabs filiais={filiais} atual={filialSlug} />
+        <PeriodoFiltro preset={periodo.preset} de={periodo.de} ate={periodo.ate} />
+      </div>
 
       <CorpoRelatorio
         snapshot={snapshot}

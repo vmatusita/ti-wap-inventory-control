@@ -19,7 +19,7 @@ export function FilialTabs({
   const tabs = [...filiais, { slug: 'geral', nome: 'Consolidado' }]
 
   return (
-    <nav className="-mb-px flex gap-1 overflow-x-auto border-b print:hidden">
+    <nav className="-mx-4 -mb-px flex gap-1 overflow-x-auto border-b px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden print:hidden">
       {tabs.map((t) => {
         const ativa = t.slug === atual
         return (
@@ -28,7 +28,7 @@ export function FilialTabs({
             href={`/relatorios/${t.slug}${sufixo}`}
             aria-current={ativa ? 'page' : undefined}
             className={cn(
-              'whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors',
+              'flex min-h-11 items-center whitespace-nowrap border-b-2 px-3 py-1 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               ativa
                 ? 'border-[#eda100] font-semibold text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground',

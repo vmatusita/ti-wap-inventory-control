@@ -67,6 +67,7 @@ export default function DefinirSenhaPage() {
                 autoComplete="new-password"
                 required
               />
+              <p className="text-xs text-muted-foreground">Mínimo 8 caracteres.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmacao">Confirmar senha</Label>
@@ -78,7 +79,7 @@ export default function DefinirSenhaPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={pending}>
+            <Button type="submit" className="h-11 w-full" disabled={pending}>
               {pending ? 'Salvando…' : 'Definir senha'}
             </Button>
           </form>

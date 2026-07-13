@@ -66,15 +66,15 @@ export default async function RelatoriosGeradosPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Período</TableHead>
                 <TableHead>Filial</TableHead>
                 <TableHead>Versão</TableHead>
-                <TableHead>Gerado por</TableHead>
-                <TableHead>Em</TableHead>
+                <TableHead className="hidden md:table-cell">Gerado por</TableHead>
+                <TableHead className="hidden md:table-cell">Em</TableHead>
                 <TableHead className="text-right">Abrir</TableHead>
               </TableRow>
             </TableHeader>
@@ -90,14 +90,14 @@ export default async function RelatoriosGeradosPage({
                       v{g.versao}
                     </Badge>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="hidden whitespace-nowrap md:table-cell">
                     {ouTraco(g.autorNome)}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+                  <TableCell className="hidden whitespace-nowrap tabular-nums text-muted-foreground md:table-cell">
                     {formatDateTime(g.gerado_em)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" className="h-9 sm:h-7">
                       <Link href={`/relatorios/gerados/${g.id}`}>Abrir</Link>
                     </Button>
                   </TableCell>

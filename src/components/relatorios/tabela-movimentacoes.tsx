@@ -98,7 +98,7 @@ export function TabelaMovimentacoes({
           <>
             {ehGeral && (
               <Select value={filial || TODOS} onValueChange={(v) => setFilial(v === TODOS ? '' : v)}>
-                <SelectTrigger size="sm" className="w-[150px]" aria-label="Filtrar por filial">
+                <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por filial">
                   <SelectValue placeholder="Filial" />
                 </SelectTrigger>
                 <SelectContent>
@@ -112,7 +112,7 @@ export function TabelaMovimentacoes({
               </Select>
             )}
             <Select value={categoria || TODOS} onValueChange={(v) => setCategoria(v === TODOS ? '' : v)}>
-              <SelectTrigger size="sm" className="w-[150px]" aria-label="Filtrar por categoria">
+              <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por categoria">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
@@ -125,7 +125,7 @@ export function TabelaMovimentacoes({
               </SelectContent>
             </Select>
             <Select value={tipo || TODOS} onValueChange={(v) => setTipo(v === TODOS ? '' : v)}>
-              <SelectTrigger size="sm" className="w-[150px]" aria-label="Filtrar por tipo">
+              <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por tipo">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -171,18 +171,18 @@ export function TabelaMovimentacoes({
           Nenhuma movimentação no período.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Patrimônio</TableHead>
-                <TableHead>Ativo</TableHead>
+                <TableHead className="hidden lg:table-cell">Ativo</TableHead>
                 <TableHead>Colaborador / Setor</TableHead>
-                <TableHead>Filial</TableHead>
-                <TableHead>Chamado</TableHead>
-                <TableHead>Observação</TableHead>
+                <TableHead className="hidden md:table-cell">Filial</TableHead>
+                <TableHead className="hidden md:table-cell">Chamado</TableHead>
+                <TableHead className="hidden lg:table-cell">Observação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -204,16 +204,16 @@ export function TabelaMovimentacoes({
                   <TableCell className="whitespace-nowrap font-medium tabular-nums">
                     {r.patrimonio}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{r.ativo}</TableCell>
+                  <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.ativo}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {r.colaborador_setor ?? '—'}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{r.filial}</TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+                  <TableCell className="hidden whitespace-nowrap md:table-cell">{r.filial}</TableCell>
+                  <TableCell className="hidden whitespace-nowrap tabular-nums text-muted-foreground md:table-cell">
                     {r.chamado ? `#${r.chamado}` : '—'}
                   </TableCell>
-                  <TableCell>
-                    <div className="max-w-[240px]">
+                  <TableCell className="hidden lg:table-cell">
+                    <div className="max-w-[160px] sm:max-w-[240px]">
                       <ObsTooltip texto={r.observacao} comIcone className="w-full text-xs" />
                     </div>
                   </TableCell>

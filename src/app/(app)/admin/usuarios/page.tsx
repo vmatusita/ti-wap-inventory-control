@@ -15,20 +15,20 @@ export default async function AdminUsuariosPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           {usuarios.length} operador(es) com acesso ao sistema.
         </p>
         <ConvidarUsuarioDialog />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
-              <TableHead>Criado em</TableHead>
+              <TableHead className="hidden md:table-cell">Criado em</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -38,7 +38,7 @@ export default async function AdminUsuariosPage() {
                 <TableCell className="text-muted-foreground">
                   {ouTraco(u.email)}
                 </TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">
+                <TableCell className="hidden tabular-nums text-muted-foreground md:table-cell">
                   {formatDate(u.created_at)}
                 </TableCell>
               </TableRow>

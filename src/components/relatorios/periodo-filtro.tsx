@@ -53,12 +53,13 @@ export function PeriodoFiltro({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       {PRESETS.map((p) => (
         <Button
           key={p.valor}
           variant={preset === p.valor ? 'default' : 'outline'}
           size="sm"
+          className="h-10 sm:h-7"
           onClick={() => aplicarPreset(p.valor)}
         >
           {p.rotulo}
@@ -69,7 +70,7 @@ export function PeriodoFiltro({
           <Button
             variant={preset === 'custom' ? 'default' : 'outline'}
             size="sm"
-            className="gap-1.5"
+            className="h-10 gap-1.5 sm:h-7"
           >
             <CalendarRange className="size-4" />
             Personalizado

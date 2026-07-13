@@ -8,7 +8,7 @@ import { ViewerNav } from '@/components/layout/viewer-nav'
 // operação (ativos/movimentações/admin) — a navegação de relatório fica aqui.
 export function ViewerHeader({ rotulo }: { rotulo: string }) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-[#111110] px-4 text-white print:hidden">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-[#111110] px-4 text-white md:px-6 print:hidden">
       <div className="flex items-center gap-2">
         <span className="rounded bg-[#eda100] px-2 py-1 text-xs font-bold tracking-tight text-black">
           WAP

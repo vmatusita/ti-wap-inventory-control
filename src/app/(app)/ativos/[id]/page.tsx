@@ -79,7 +79,7 @@ export default async function AtivoFichaPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild size="sm" className="gap-2">
+          <Button asChild size="sm" className="h-10 gap-2 sm:h-8">
             <Link href={`/movimentacoes/nova?ativo=${ativo.id}`}>
               <Plus className="size-4" />
               Nova movimentação

@@ -14,7 +14,7 @@ const ITENS = [
 export function AdminNav() {
   const pathname = usePathname()
   return (
-    <nav className="-mb-px flex gap-1 overflow-x-auto border-b">
+    <nav className="-mx-4 -mb-px flex gap-1 overflow-x-auto border-b px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
       {ITENS.map((i) => {
         const ativa = pathname === i.href || pathname.startsWith(`${i.href}/`)
         return (
@@ -23,7 +23,7 @@ export function AdminNav() {
             href={i.href}
             aria-current={ativa ? 'page' : undefined}
             className={cn(
-              'whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors',
+              'flex min-h-11 items-center whitespace-nowrap border-b-2 px-3 py-1 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               ativa
                 ? 'border-[#eda100] font-semibold text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground',

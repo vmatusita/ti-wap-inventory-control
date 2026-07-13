@@ -63,12 +63,16 @@ export function GerarRelatorioDialog({
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5 bg-[#eda100] text-black hover:bg-[#eda100]/90">
+        <Button
+          size="sm"
+          aria-label="Gerar relatório"
+          className="h-9 gap-1.5 bg-[#eda100] text-black hover:bg-[#eda100]/90 sm:h-7"
+        >
           <FileText className="size-4" />
           <span className="hidden sm:inline">Gerar relatório</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Gerar relatório da semana</DialogTitle>
           <DialogDescription>
@@ -96,7 +100,7 @@ export function GerarRelatorioDialog({
                 type="button"
                 variant={escopo === 'atual' ? 'default' : 'outline'}
                 size="sm"
-                className="flex-1"
+                className="min-w-0 flex-1 truncate"
                 onClick={() => setEscopo('atual')}
               >
                 {filialNome}

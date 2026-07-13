@@ -29,14 +29,14 @@ export function AppHeader({ nome }: { nome: string }) {
   const [aberto, setAberto] = useState(false)
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-[#111110] px-4 text-white print:hidden">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-[#111110] px-4 text-white md:px-6 print:hidden">
       <Sheet open={aberto} onOpenChange={setAberto}>
         <SheetTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
             aria-label="Abrir menu"
-            className="text-white hover:bg-white/10 hover:text-white md:hidden"
+            className="size-10 text-white hover:bg-white/10 hover:text-white md:size-8 md:hidden"
           >
             <Menu className="size-5" />
           </Button>
@@ -47,7 +47,7 @@ export function AppHeader({ nome }: { nome: string }) {
               <Marca />
             </SheetTitle>
           </SheetHeader>
-          <div className="p-3">
+          <div className="px-3 pt-1 pb-3">
             <SidebarNav onNavigate={() => setAberto(false)} />
           </div>
         </SheetContent>
@@ -59,7 +59,7 @@ export function AppHeader({ nome }: { nome: string }) {
         <Button
           asChild
           size="sm"
-          className="bg-[#eda100] text-black hover:bg-[#eda100]/90"
+          className="h-10 bg-[#eda100] text-black hover:bg-[#eda100]/90 sm:h-7"
         >
           <Link href="/movimentacoes/nova">
             <Plus className="size-4" />

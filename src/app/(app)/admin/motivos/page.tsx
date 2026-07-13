@@ -16,20 +16,20 @@ export default async function AdminMotivosPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           Vocabulário de motivos oferecido na tela de movimentação.
         </p>
         <MotivoDialog />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Rótulo</TableHead>
-              <TableHead>Código</TableHead>
-              <TableHead>Aplica-se a</TableHead>
+              <TableHead className="hidden md:table-cell">Código</TableHead>
+              <TableHead className="hidden lg:table-cell">Aplica-se a</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -38,10 +38,10 @@ export default async function AdminMotivosPage() {
             {motivos.map((m) => (
               <TableRow key={m.codigo}>
                 <TableCell className="font-medium">{m.rotulo}</TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
+                <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
                   {m.codigo}
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden lg:table-cell">
                   <div className="flex max-w-md flex-wrap gap-1">
                     {m.aplica_a.map((t) => (
                       <Badge key={t} variant="secondary" className="font-normal">

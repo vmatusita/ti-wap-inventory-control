@@ -52,16 +52,11 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={pending}>
+            <Button type="submit" className="h-11 w-full" disabled={pending}>
               {pending ? 'Entrando…' : 'Entrar'}
             </Button>
-            <p className="text-center text-sm">
-              <span
-                className="cursor-not-allowed text-muted-foreground/70"
-                title="peça ao administrador"
-              >
-                Esqueci a senha
-              </span>
+            <p className="text-center text-xs text-muted-foreground">
+              Esqueceu a senha? Peça a um administrador para reenviar o convite.
             </p>
           </form>
         </div>

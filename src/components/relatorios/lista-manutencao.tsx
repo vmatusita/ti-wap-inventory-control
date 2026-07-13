@@ -14,7 +14,7 @@ export function ListaManutencao({ itens }: { itens: ItemManutencao[] }) {
           <span className="w-24 shrink-0 font-semibold tabular-nums">
             {i.patrimonio}
           </span>
-          <span className="shrink-0 whitespace-nowrap text-foreground/70">
+          <span className="min-w-0 max-w-[45%] truncate text-foreground/70">
             {i.modelo}
           </span>
           <ObsTooltip texto={i.observacao} className="min-w-0 flex-1 text-xs" />

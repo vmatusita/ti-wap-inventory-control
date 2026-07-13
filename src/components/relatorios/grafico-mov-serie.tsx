@@ -45,10 +45,21 @@ export function GraficoMovSerie({ serie }: { serie: SerieMovimentacoes }) {
           Devoluções ({totalDev.toLocaleString('pt-BR')})
         </span>
       </div>
-      <ChartContainer config={config} className="aspect-[16/6] w-full">
+      <ChartContainer
+        config={config}
+        className="aspect-[3/2] w-full sm:aspect-[2/1] md:aspect-[16/6]"
+      >
         <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} />
-          <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} />
+          <XAxis
+            dataKey="rotulo"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            interval="preserveStartEnd"
+            minTickGap={16}
+            tick={{ fontSize: 11 }}
+          />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
           <Bar dataKey="saidas" fill="var(--color-saidas)" radius={[4, 4, 0, 0]}>
             <LabelList
@@ -56,7 +67,7 @@ export function GraficoMovSerie({ serie }: { serie: SerieMovimentacoes }) {
               position="top"
               offset={6}
               className="fill-foreground"
-              fontSize={10.5}
+              fontSize={10}
               formatter={rotuloValor}
             />
           </Bar>
@@ -66,7 +77,7 @@ export function GraficoMovSerie({ serie }: { serie: SerieMovimentacoes }) {
               position="top"
               offset={6}
               className="fill-foreground"
-              fontSize={10.5}
+              fontSize={10}
               formatter={rotuloValor}
             />
           </Bar>

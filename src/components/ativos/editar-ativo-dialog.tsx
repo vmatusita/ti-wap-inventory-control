@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { atualizarDadosCadastrais } from '@/lib/actions/ativos'
+import { hojeISO } from '@/lib/format'
 import type { TermoStatus } from '@/lib/dominio'
 
 const TERMO_NULO = '__nulo'
@@ -97,7 +98,7 @@ export function EditarAtivoDialog({ ativo }: { ativo: AtivoEditavel }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="h-10 gap-2 sm:h-8">
           <Pencil className="size-4" />
           Editar dados cadastrais
         </Button>
@@ -201,7 +202,7 @@ export function EditarAtivoDialog({ ativo }: { ativo: AtivoEditavel }) {
                   <FormItem>
                     <FormLabel>Data do termo</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="date" max={hojeISO()} {...field} />
                     </FormControl>
                   </FormItem>
                 )}

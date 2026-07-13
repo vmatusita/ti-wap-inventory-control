@@ -28,6 +28,7 @@ export function SenhaAcoes({ id, ativa }: { id: string; ativa: boolean }) {
     <Button
       variant={ativa ? 'outline' : 'secondary'}
       size="sm"
+      className="min-h-10 sm:min-h-0"
       onClick={alternar}
       disabled={pending}
     >

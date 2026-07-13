@@ -95,7 +95,7 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
         {edicao ? (
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="min-h-10 gap-1.5 sm:min-h-0">
             <Pencil className="size-3.5" />
             Editar
           </Button>
@@ -106,7 +106,7 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{edicao ? 'Editar motivo' : 'Novo motivo'}</DialogTitle>
           <DialogDescription>
@@ -115,7 +115,7 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="motivo-rotulo">Rótulo</Label>
             <Input id="motivo-rotulo" value={rotulo} onChange={(e) => mudarRotulo(e.target.value)} />

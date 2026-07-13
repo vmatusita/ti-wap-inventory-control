@@ -76,7 +76,7 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
         {edicao ? (
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="min-h-10 gap-1.5 sm:min-h-0">
             <Pencil className="size-3.5" />
             Editar
           </Button>
@@ -87,7 +87,7 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{edicao ? 'Editar filial' : 'Nova filial'}</DialogTitle>
           <DialogDescription>

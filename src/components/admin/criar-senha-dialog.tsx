@@ -83,7 +83,7 @@ export function CriarSenhaDialog() {
           Nova senha
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-md">
         {criada ? (
           <>
             <DialogHeader>

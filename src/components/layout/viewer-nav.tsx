@@ -38,14 +38,14 @@ export function ViewerNav() {
             href={item.href}
             aria-current={on ? 'page' : undefined}
             className={cn(
-              'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3',
+              'flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#eda100] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111110]',
               on
                 ? 'bg-white/15 text-white'
                 : 'text-white/70 hover:bg-white/10 hover:text-white',
             )}
           >
             <item.icone className="size-4 shrink-0" aria-hidden />
-            <span className="hidden sm:inline">{item.rotulo}</span>
+            <span>{item.rotulo}</span>
           </Link>
         )
       })}

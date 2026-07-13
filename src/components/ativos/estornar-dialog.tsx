@@ -59,12 +59,12 @@ export function EstornarDialog({
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs sm:h-7">
           <Undo2 className="size-3.5" />
           Estornar
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Estornar última movimentação</DialogTitle>
           <DialogDescription>

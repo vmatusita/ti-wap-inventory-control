@@ -15,19 +15,19 @@ export default async function AdminFiliaisPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           {filiais.length} filial(is) cadastrada(s).
         </p>
         <FilialDialog />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Slug</TableHead>
+              <TableHead className="hidden md:table-cell">Slug</TableHead>
               <TableHead>Ativos</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -37,7 +37,7 @@ export default async function AdminFiliaisPage() {
             {filiais.map((f) => (
               <TableRow key={f.id}>
                 <TableCell className="font-medium">{f.nome}</TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
+                <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
                   {f.slug}
                 </TableCell>
                 <TableCell className="tabular-nums">

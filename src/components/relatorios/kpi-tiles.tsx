@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import type { KpisRelatorio } from '@/lib/relatorios/tipos'
 
 // KPI tiles (spec §7 / mockup + OS-F3 3.3.1). Reconcilia a lista da spec §7
@@ -16,7 +17,15 @@ export function KpiTiles({ kpis }: { kpis: KpisRelatorio }) {
   return (
     <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-7">
       {TILES.map((t) => (
-        <div key={t.chave} className="rounded-xl border bg-card px-3.5 py-3">
+        <div
+          key={t.chave}
+          className={cn(
+            'rounded-xl border bg-card px-3.5 py-3',
+            // 7 tiles (nº primo) deixariam um órfão em quase todo breakpoint;
+            // "Total de ativos" ocupa a linha cheia (menos no xl, onde os 7 cabem).
+            t.chave === 'total' && 'col-span-2 sm:col-span-3 xl:col-span-1',
+          )}
+        >
           <div className="text-xs font-semibold text-foreground/80">{t.rotulo}</div>
           <div className="mt-0.5 text-2xl font-bold tabular-nums">
             {kpis[t.chave].toLocaleString('pt-BR')}

@@ -47,7 +47,7 @@ export function AcessoForm({ next }: { next: string }) {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={pending}>
+            <Button type="submit" className="h-11 w-full" disabled={pending}>
               {pending ? 'Entrando…' : 'Entrar'}
             </Button>
             <p className="text-center text-xs text-muted-foreground">

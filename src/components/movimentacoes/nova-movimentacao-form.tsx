@@ -396,7 +396,7 @@ export function NovaMovimentacaoForm({
   return (
     <div onKeyDown={onKeyDown} className="space-y-6">
       {/* Stepper */}
-      <ol className="flex items-center gap-2 text-sm">
+      <ol className="flex flex-wrap items-center gap-2 text-sm">
         {PASSOS.map((rotulo, i) => {
           const n = i + 1
           const ativo = passo === n
@@ -408,7 +408,7 @@ export function NovaMovimentacaoForm({
                 onClick={() => n < passo && setPasso(n)}
                 disabled={n > passo}
                 className={
-                  'flex items-center gap-2 rounded-full px-3 py-1 font-medium transition-colors ' +
+                  'flex items-center gap-2 rounded-full px-2.5 py-1 font-medium transition-colors ' +
                   (ativo
                     ? 'bg-primary text-primary-foreground'
                     : concluido
@@ -485,7 +485,7 @@ export function NovaMovimentacaoForm({
                       type="button"
                       onClick={() => remover(a.id)}
                       aria-label={`Remover ${a.patrimonio}`}
-                      className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="-my-1 -mr-1 rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <X className="size-4" />
                     </button>
@@ -541,7 +541,7 @@ export function NovaMovimentacaoForm({
                 value={config.tipo || undefined}
                 onValueChange={(v) => trocarTipo(v as TipoMovimentacao)}
               >
-                <SelectTrigger className="w-[240px]">
+                <SelectTrigger className="w-full sm:w-[240px]">
                   <SelectValue placeholder="Escolha o tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -660,6 +660,7 @@ export function NovaMovimentacaoForm({
                     <Input
                       id="termo-data"
                       type="date"
+                      max={hojeISO()}
                       value={config.termoData}
                       onChange={(e) => set('termoData', e.target.value)}
                     />
