@@ -83,6 +83,18 @@ export function rotuloTipo(t: TipoMovimentacao): string {
   return TIPO_META[t]?.rotulo ?? t
 }
 
+// Pílula colorida da coluna Tipo nas tabelas de relatório (OS-F3 3.3.5):
+// saída amarela, devolução azul, compra verde; os demais tipos, neutro.
+const TIPO_PILL: Partial<Record<TipoMovimentacao, string>> = {
+  saida: 'bg-amber-100 text-amber-800',
+  devolucao: 'bg-blue-100 text-blue-700',
+  compra: 'bg-green-100 text-green-700',
+}
+
+export function pillTipo(t: TipoMovimentacao): string {
+  return TIPO_PILL[t] ?? 'bg-muted text-muted-foreground'
+}
+
 // ---------- CATEGORIA ----------
 export const CATEGORIA_META: Record<CategoriaAtivo, { rotulo: string }> = {
   notebook: { rotulo: 'Notebook' },

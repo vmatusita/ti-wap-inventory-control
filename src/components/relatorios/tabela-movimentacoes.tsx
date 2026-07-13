@@ -1,0 +1,228 @@
+'use client'
+
+import { useMemo, useState, useTransition } from 'react'
+import { Download, X } from 'lucide-react'
+import { toast } from 'sonner'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
+import { baixarMovimentacoesCSV } from '@/lib/relatorios/csv'
+import { formatDate } from '@/lib/format'
+import {
+  CATEGORIA_ORDEM,
+  pillTipo,
+  rotuloCategoria,
+  rotuloTipo,
+} from '@/lib/dominio'
+import { cn } from '@/lib/utils'
+import type { MovimentacaoRelatorio } from '@/lib/relatorios/tipos'
+
+const TODOS = '__todos'
+
+// Tabela "Últimas movimentações" (OS-F3 3.3.5): Data, Tipo (pill), Patrimônio,
+// Ativo, Colaborador/Setor, Filial, Chamado, Observação (truncada + tooltip).
+// Filtros internos client-side (snapshot) e export CSV. No ao vivo, o export
+// busca o período inteiro pela Server Action `carregarExport`.
+export function TabelaMovimentacoes({
+  rows,
+  nomeArquivo,
+  filtrosInternos = false,
+  ehGeral = false,
+  carregarExport,
+}: {
+  rows: MovimentacaoRelatorio[]
+  nomeArquivo: string
+  filtrosInternos?: boolean
+  ehGeral?: boolean
+  carregarExport?: () => Promise<MovimentacaoRelatorio[]>
+}) {
+  const [filial, setFilial] = useState('')
+  const [categoria, setCategoria] = useState('')
+  const [tipo, setTipo] = useState('')
+  const [exportando, startExport] = useTransition()
+
+  const filiaisDisponiveis = useMemo(
+    () => [...new Set(rows.map((r) => r.filial))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [rows],
+  )
+  const tiposDisponiveis = useMemo(
+    () => [...new Set(rows.map((r) => r.tipo))],
+    [rows],
+  )
+
+  const filtradas = useMemo(() => {
+    if (!filtrosInternos) return rows
+    return rows.filter(
+      (r) =>
+        (!filial || r.filial === filial) &&
+        (!categoria || r.categoria === categoria) &&
+        (!tipo || r.tipo === tipo),
+    )
+  }, [rows, filtrosInternos, filial, categoria, tipo])
+
+  const temFiltro = !!filial || !!categoria || !!tipo
+
+  function exportar() {
+    startExport(async () => {
+      try {
+        const dados = carregarExport ? await carregarExport() : filtradas
+        if (dados.length === 0) {
+          toast.info('Nenhuma movimentação para exportar no período.')
+          return
+        }
+        baixarMovimentacoesCSV(dados, nomeArquivo)
+      } catch {
+        toast.error('Não foi possível gerar o CSV.')
+      }
+    })
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-2 print:hidden">
+        {filtrosInternos && (
+          <>
+            {ehGeral && (
+              <Select value={filial || TODOS} onValueChange={(v) => setFilial(v === TODOS ? '' : v)}>
+                <SelectTrigger size="sm" className="w-[150px]" aria-label="Filtrar por filial">
+                  <SelectValue placeholder="Filial" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODOS}>Todas as filiais</SelectItem>
+                  {filiaisDisponiveis.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={categoria || TODOS} onValueChange={(v) => setCategoria(v === TODOS ? '' : v)}>
+              <SelectTrigger size="sm" className="w-[150px]" aria-label="Filtrar por categoria">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todas categorias</SelectItem>
+                {CATEGORIA_ORDEM.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {rotuloCategoria(c)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={tipo || TODOS} onValueChange={(v) => setTipo(v === TODOS ? '' : v)}>
+              <SelectTrigger size="sm" className="w-[150px]" aria-label="Filtrar por tipo">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos os tipos</SelectItem>
+                {tiposDisponiveis.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {rotuloTipo(t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {temFiltro && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-muted-foreground"
+                onClick={() => {
+                  setFilial('')
+                  setCategoria('')
+                  setTipo('')
+                }}
+              >
+                <X className="size-4" />
+                Limpar
+              </Button>
+            )}
+          </>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-2"
+          onClick={exportar}
+          disabled={exportando}
+        >
+          <Download className="size-4" />
+          {exportando ? 'Gerando…' : 'Exportar CSV'}
+        </Button>
+      </div>
+
+      {filtradas.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Nenhuma movimentação no período.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Patrimônio</TableHead>
+                <TableHead>Ativo</TableHead>
+                <TableHead>Colaborador / Setor</TableHead>
+                <TableHead>Filial</TableHead>
+                <TableHead>Chamado</TableHead>
+                <TableHead>Observação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtradas.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+                    {formatDate(r.data)}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                        pillTipo(r.tipo),
+                      )}
+                    >
+                      {rotuloTipo(r.tipo)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-medium tabular-nums">
+                    {r.patrimonio}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">{r.ativo}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {r.colaborador_setor ?? '—'}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">{r.filial}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+                    {r.chamado ? `#${r.chamado}` : '—'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="max-w-[240px]">
+                      <ObsTooltip texto={r.observacao} comIcone className="w-full text-xs" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  )
+}

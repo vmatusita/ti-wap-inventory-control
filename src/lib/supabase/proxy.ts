@@ -1,11 +1,24 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { type Database } from '@/lib/types/database'
+import { VIEW_COOKIE_NAME } from '@/lib/auth/view-cookie'
 
-// Mantem a sessao do Supabase viva e protege as rotas:
-// usuario sem sessao so acessa /login e /auth/*.
+// Mantém a sessão do Supabase viva e faz o roteamento de acesso (spec §3):
+//  - Operador logado (@wap.ind.br): acessa tudo.
+//  - Sem operador: só as rotas de RELATÓRIO (/relatorios/**), e apenas se
+//    portar o cookie de visualização — a verificação REAL (assinatura + senha
+//    ativa) roda no servidor Node (lib/auth/acesso.ts), não aqui (Edge, sem
+//    node:crypto). `/relatorios/acesso` e `/login` /`/auth` são públicas.
+//  - Qualquer outra rota sem operador → /login.
+// Também injeta `x-wap-pathname` para o layout distinguir o shell (operador ×
+// visualizador × público) sem depender de heurística.
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  const { pathname } = request.nextUrl
+
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-wap-pathname', pathname)
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } })
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,7 +32,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           )
-          response = NextResponse.next({ request })
+          response = NextResponse.next({ request: { headers: requestHeaders } })
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           )
@@ -33,16 +46,32 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
-  const rotaPublica =
-    pathname.startsWith('/login') || pathname.startsWith('/auth')
+  if (user) {
+    // Operador logado: libera tudo.
+    return response
+  }
 
-  if (!user && !rotaPublica) {
+  const rotaAuth = pathname.startsWith('/login') || pathname.startsWith('/auth')
+  const acessoRelatorio = pathname === '/relatorios/acesso'
+  if (rotaAuth || acessoRelatorio) {
+    return response
+  }
+
+  // Rotas de relatório: aceitam sessão por senha (cookie de visualização). A
+  // presença basta aqui; a validade é conferida no servidor Node.
+  const rotaRelatorio = pathname.startsWith('/relatorios')
+  if (rotaRelatorio) {
+    if (request.cookies.get(VIEW_COOKIE_NAME)) {
+      return response
+    }
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = '/relatorios/acesso'
+    url.search = ''
     return NextResponse.redirect(url)
   }
 
-  // Retornar sempre este response para preservar os cookies renovados.
-  return response
+  // Qualquer outra rota exige operador logado.
+  const url = request.nextUrl.clone()
+  url.pathname = '/login'
+  return NextResponse.redirect(url)
 }

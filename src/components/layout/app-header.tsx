@@ -29,7 +29,7 @@ export function AppHeader({ nome }: { nome: string }) {
   const [aberto, setAberto] = useState(false)
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-[#111110] px-4 text-white">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-[#111110] px-4 text-white print:hidden">
       <Sheet open={aberto} onOpenChange={setAberto}>
         <SheetTrigger asChild>
           <Button

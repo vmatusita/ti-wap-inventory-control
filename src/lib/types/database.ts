@@ -282,6 +282,54 @@ export type Database = {
         }
         Relationships: []
       }
+      relatorios_gerados: {
+        Row: {
+          dados: Json
+          filial_id: number | null
+          gerado_em: string
+          gerado_por: string
+          id: string
+          periodo_ate: string
+          periodo_de: string
+          versao: number
+        }
+        Insert: {
+          dados: Json
+          filial_id?: number | null
+          gerado_em?: string
+          gerado_por: string
+          id?: string
+          periodo_ate: string
+          periodo_de: string
+          versao?: number
+        }
+        Update: {
+          dados?: Json
+          filial_id?: number | null
+          gerado_em?: string
+          gerado_por?: string
+          id?: string
+          periodo_ate?: string
+          periodo_de?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorios_gerados_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relatorios_gerados_gerado_por_fkey"
+            columns: ["gerado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       senhas_acesso: {
         Row: {
           ativa: boolean
@@ -358,6 +406,33 @@ export type Database = {
         Returns: {
           ativo_id: string
           patrimonio: string
+        }[]
+      }
+      rel_mov_por_mes: {
+        Args: { p_filial: number | null; p_de: string; p_ate: string }
+        Returns: {
+          mes: string
+          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
+          total: number
+        }[]
+      }
+      rel_por_motivo: {
+        Args: { p_filial: number | null; p_de: string; p_ate: string }
+        Returns: {
+          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
+          motivo: string
+          total: number
+        }[]
+      }
+      rel_resumo: {
+        Args: { p_filial: number | null; p_de: string; p_ate: string }
+        Returns: {
+          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
+          filial_slug: string
+          filial_nome: string
+          motivo: string
+          categoria: Database["public"]["Enums"]["categoria_ativo"]
+          total: number
         }[]
       }
       status_apos_movimentacao: {

@@ -105,3 +105,63 @@ Operações destrutivas em produção (reset, carga, migration com perda potenci
 - Achado confirmado (1, baixo, regressão de integração): `ultimaMovimentacaoDoUsuario` excluía só `estorno`, não `compra`. Como a movimentação `compra` agora é atribuída ao operador, o botão "Repetir última" do wizard podia trazer uma `compra` — tipo que o wizard esconde — limpando os campos já digitados e mostrando um toast enganoso. Correção: excluir `compra` como o `estorno` (`.neq('tipo','compra')`).
 - As outras 3 lentes (patrimônio-util, validação/duplicidade, atomicidade/RLS) voltaram limpas.
 - `lint`+`build`+`tsc` limpos após a correção.
+
+---
+
+## 2026-07-13 · F3 · Numeração das migrations (0009–0011)
+
+- Contexto: a OS-F3 pedia `0008_realtime.sql` (3.4) e `0009_relatorios_gerados.sql` (3.8.1), mas `0008_compra_lote.sql` já existia da F2.
+- Decisão: renumerei — `0009_realtime.sql` (publication do Realtime em `movimentacoes`), `0010_relatorios_gerados.sql` (tabela de snapshots, cópia da seção do `schema.sql`) e `0011_relatorios_rpc.sql` (funções de agregação `rel_mov_por_mes`/`rel_por_motivo`/`rel_resumo`). Aplicadas no dev via MCP; tipos regenerados.
+- Motivo: nunca reeditar/renumerar migration aplicada; seguir a sequência.
+- Reversível? migrations só adicionam objetos; drop manual se preciso.
+
+## 2026-07-13 · F3 · Agregações por período em RPC (não em JS)
+
+- Contexto: "movimentações por mês", "por motivo" e o resumo podem passar do teto de 1.000 linhas do PostgREST se buscados linha a linha (período "Tudo" tem ~2,4k movs).
+- Decisão: empurrei as três agregações para funções SQL `SECURITY INVOKER` (migration 0011), chamadas via `client.rpc(...)`. Devolvem poucas linhas agregadas. `p_filial null` = consolidado. Grant a `authenticated` (operador, RLS) e `service_role` (sessão por senha via client admin). As listas de estado atual (disponíveis/reservados/manutenção) e KPIs continuam em query direta (volumes pequenos); o export CSV do período inteiro pagina com `.range()`.
+- Motivo: correção (sem truncamento silencioso) + eficiência + "lógica crítica no Postgres" (CLAUDE.md). Verificado por SQL: o resumo da semana da Matriz bate com o formato do e-mail.
+- Reversível? as funções são aditivas.
+
+## 2026-07-13 · F3 · Acesso por senha: verificação em duas camadas (Edge × Node)
+
+- Contexto: o proxy (middleware) do Next 16 roda no Edge Runtime, que NÃO tem `node:crypto` (scrypt/HMAC). A revogação precisa ter efeito "no request seguinte" (spec §3 / OS-F3 3.9.3).
+- Decisão: o proxy só faz a checagem BARATA (presença do cookie de visualização) para liberar `/relatorios/**`; a verificação REAL (assinatura HMAC + senha ainda `ativa` no banco) roda no servidor Node a cada request, em `lib/auth/acesso.ts#getViewerSession`, consumido pelo `(app)/layout.tsx`. Cookie httpOnly, `secure` só em produção, `sameSite=lax`, `path=/relatorios`, 30 dias. Hash `crypto.scrypt` nativo (`scrypt$salt$derivado`), comparação `timingSafeEqual`. O nome do cookie mora num módulo-folha (`view-cookie.ts`) sem `node:crypto`, para o proxy poder importá-lo no Edge. O client administrativo (service role) é `server-only` e só serve as queries do visualizador (que não tem credencial de banco).
+- Motivo: segurança correta dentro da restrição do Edge; revogação com efeito imediato comprovada em teste (revoguei a senha → o request seguinte ao relatório caiu em `/relatorios/acesso`).
+- Reversível? camadas isoladas; trocar `VIEW_SESSION_SECRET` invalida todas as sessões de visualização.
+
+## 2026-07-13 · F3 · Layout único com três modos + header `x-wap-pathname`
+
+- Contexto: as rotas `/relatorios/**` vivem no grupo `(app)`, cujo layout antes exigia operador — o visualizador por senha (sem sessão Supabase) seria expulso para `/login`.
+- Decisão: o proxy injeta `x-wap-pathname`; o `(app)/layout.tsx` decide o shell: público (só `/relatorios/acesso`), operador (header+sidebar completos) ou visualizador (shell reduzido, sem sidebar de operação, com "Sair"). `/relatorios/acesso` ficou em `app/(app)/relatorios/acesso/` (não em `app/relatorios/acesso/` como sugeria a estrutura do CLAUDE.md) para não conflitar com a rota dinâmica `[filial]` (Next barra rota estática × dinâmica em grupos diferentes resolvendo a mesma URL). Comportamento público garantido no proxy + layout.
+- Motivo: um só grupo de rotas serve operador e visualizador sem duplicar páginas; evita o conflito de rota do App Router.
+- Reversível? o roteamento é localizado no proxy + layout.
+
+## 2026-07-13 · F3 · loading.tsx de rota removidos (streaming Suspense)
+
+- Contexto: `loading.tsx` nas rotas de relatório criava um boundary de Suspense; na verificação (navegador da preview do Claude), o swap de streaming do React (`$RC`) não completava — o esqueleto ficava visível e o conteúdo real ficava no `<div id="S:0" hidden>`. Funciona em navegadores reais, mas impedia a verificação.
+- Decisão: removi os `loading.tsx` das rotas de relatório. A página renderiza server-side e transmite como unidade única (sem fallback a "prender"). Os estados vazio/skeleton por card (OS-F3 3.3.7) continuam existindo dentro da página.
+- Motivo: correção verificável > esqueleto de navegação (nice-to-have) para ferramenta interna; elimina uma classe de fragilidade de streaming.
+- Reversível? re-adicionar os arquivos `loading.tsx` a qualquer momento.
+
+## 2026-07-13 · F3 · Reconciliações spec × mockup (decisões de conteúdo)
+
+- Contexto: a spec §7 e o mockup aprovado divergem em pontos pequenos; a OS manda seguir o mockup como referência visual.
+- Decisões: (1) KPI tiles mostram 7 (total + em uso + em estoque + reservados + em triagem + em manutenção + reserva técnica) — concilia a lista da spec §7 (tem "em triagem") com o mockup (tem "reserva técnica"). (2) Card "Ativos por categoria" = inventário completo por categoria (título/legenda do mockup), não só disponíveis — a disponibilidade já aparece no KPI e no card "Disponíveis por modelo". (3) `descartado` não entra no "Total de ativos" (baixa definitiva); `emprestado` conta no total mas não tem tile. (4) "Saídas/Devoluções por motivo" contam só por MOTIVO real — não inventei pseudo-motivos "Transferência"/"Empréstimo" (spec §5: são TIPOS, não motivos), diferindo do mockup de propósito. (5) Filtros internos do snapshot (filial/categoria/tipo) atuam sobre a tabela "Últimas movimentações" (onde o filtro por linha é natural e offline), não recomputam KPIs/gráficos agregados. (6) Chip de pendências "outras pendências" agrega o resto (inclui "sem patrimônio") — rótulo genérico e honesto.
+- Motivo: fidelidade ao mockup aprovado sem inventar regra de negócio; hierarquia spec-primeiro registrada.
+- Reversível? tudo em componentes/queries localizados.
+
+## 2026-07-13 · F3 · Revisão adversarial multi-agente + correções (9 achados)
+
+- Contexto: revisão adversarial em 6 dimensões (segurança do acesso, middleware/rotas, camada de dados, snapshot/versão, React/Next, aderência à spec/OS), cada achado verificado por um cético independente — 17 agentes. 9 achados confirmados e **corrigidos**:
+  1. **[ALTO] Visualizador via só "Consolidado"** — as páginas de relatório carregavam `listarFiliais()` pelo client anon (RLS `authenticated`-only → lista vazia para a sessão por senha). As tabs de filial e o filtro do histórico sumiam para o visualizador, quebrando o caso de uso central (entregar link+senha por filial). Correção: `listarFiliais(client?)` aceita o client resolvido; as páginas passam `acesso.client` (admin para o viewer). Verificado: viewer agora vê as 5 filiais + Consolidado e abre o relatório de cada uma.
+  2. **[MÉDIO] Hash de senha exposto ao browser do operador** — a policy RLS de `senhas_acesso` concedia SELECT (row-level, não column-level) a `authenticated`; um operador podia ler a coluna `hash` direto no PostgREST (anon key + seu JWT) e brute-forçar offline as senhas de visualização. Correção: `listarSenhasAcesso` passou ao client administrativo; **migration 0012** removeu as policies de `authenticated` em `senhas_acesso` (RLS habilitada, sem policy → só a service role, server-side, acessa). Todas as operações da tabela já rodam no servidor com service role.
+  3. **[MÉDIO] `getDisponiveisPorModelo` truncava em 1.000** — `.limit(2000)` é cortado pelo teto do PostgREST; o estoque disponível pode passar disso no consolidado. Correção: paginação por `.range()` com ordenação por `id`.
+  4. **[MÉDIO] Paginação do CSV do período sem desempate único** — `getTodasMovimentacoesPeriodo` ordenava por `created_at, data` (não únicos) → linhas podiam duplicar/sumir entre páginas. Correção: desempate final por `id` (aplicado também em `getUltimasMovimentacoes`).
+  5. **[MÉDIO] `UNIQUE` não protegia o 'geral' contra versão duplicada** — `filial_id` NULL é distinto em índice único no Postgres; dois snapshots consolidados do mesmo período poderiam receber a mesma versão numa corrida. Correção: **migration 0013** cria índice único com `coalesce(filial_id, -1)`.
+  6. **[MÉDIO] Última mov (reservados/manutenção) truncava em 1.000** — a busca `.in('ativo_id', ids)` sem paginação podia perder a última movimentação de um ativo. Correção: paginação com desempate por `id` e parada antecipada quando todos os ativos foram cobertos.
+  7. **[BAIXO] Concordância verbal no resumo** — "Foram realizada 1 saída". Correção: "Foi realizada 1 saída" / "Foram realizadas N".
+  8. **[BAIXO] CSV injection** — células começando com `= + - @` seriam fórmula no Excel. Correção: prefixo `'` nos valores de texto livre.
+  9. **[BAIXO] `PeriodoFiltro` não sincronizava as datas** — trocar o preset não atualizava os campos do range custom. Correção: padrão "ajustar estado no render".
+- Uma dimensão (react-next) voltou sem achados confirmados após verificação.
+- Motivo: correção e segurança acima de custo (modo ultracode). `tsc`+`lint`+`build` limpos após as correções; Fix 1 e a listagem de senhas revalidados no navegador.
+- Reversível? correções localizadas por arquivo; migrations 0012/0013 são reversíveis (recriar policy / dropar índice).

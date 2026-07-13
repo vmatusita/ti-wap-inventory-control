@@ -16,20 +16,21 @@ type NavItem = {
   rotulo: string
   icone: LucideIcon
   href?: string // sem href = placeholder (fase futura)
+  match?: string // prefixo p/ marcar "ativo" (default: href)
 }
 
-// Ativos e Movimentações entram na F2. Relatórios e Administração chegam na F3.
 const ITENS: NavItem[] = [
   { rotulo: 'Dashboard', icone: LayoutDashboard, href: '/' },
   { rotulo: 'Ativos', icone: Package, href: '/ativos' },
   { rotulo: 'Movimentações', icone: ArrowLeftRight, href: '/movimentacoes/nova' },
-  { rotulo: 'Relatórios', icone: BarChart3 },
-  { rotulo: 'Administração', icone: Settings },
+  { rotulo: 'Relatórios', icone: BarChart3, href: '/relatorios/geral', match: '/relatorios' },
+  { rotulo: 'Administração', icone: Settings, href: '/admin/usuarios', match: '/admin' },
 ]
 
-function ativa(pathname: string, href: string): boolean {
-  if (href === '/') return pathname === '/'
-  return pathname === href || pathname.startsWith(`${href}/`)
+function ativa(pathname: string, item: NavItem): boolean {
+  const alvo = item.match ?? item.href ?? ''
+  if (alvo === '/') return pathname === '/'
+  return pathname === alvo || pathname.startsWith(`${alvo}/`) || pathname === item.href
 }
 
 // Navegacao lateral. Nivel unico: todo operador ve os mesmos itens.
@@ -62,7 +63,7 @@ export function SidebarNav({
           )
         }
 
-        const atual = ativa(pathname, item.href)
+        const atual = ativa(pathname, item)
         return (
           <Link
             key={item.rotulo}

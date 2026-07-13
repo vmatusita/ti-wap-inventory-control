@@ -130,3 +130,17 @@
     @apply font-sans;
   }
 }
+
+/* Impressão dos relatórios (OS-F3 3.5.2): cards em coluna única, sem cortar um
+   card entre páginas, fundo branco. O que é só de tela usa a variante print:hidden. */
+@media print {
+  .rel-print-cols {
+    grid-template-columns: 1fr !important;
+  }
+  .break-inside-avoid {
+    break-inside: avoid;
+  }
+  body {
+    background: #fff;
+  }
+}
