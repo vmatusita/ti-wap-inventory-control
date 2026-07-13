@@ -31,6 +31,7 @@ import {
   rotuloCategoria,
   rotuloStatus,
   rotuloTipo,
+  type StatusAtivo,
   type TipoMovimentacao,
   type TermoStatus,
 } from '@/lib/dominio'
@@ -118,6 +119,13 @@ function construirItem(ativo: AtivoResumo, c: Config): Record<string, unknown> {
 
 const PASSOS = ['Ativos', 'Movimentação', 'Revisão'] as const
 
+// `compra` sai do fluxo de movimentação: a entrada de equipamento novo tem tela
+// própria (/ativos/novo, que cria o ativo + a movimentação de compra atômica).
+// TRANSICOES continua sendo a cópia exata da spec §4; aqui só filtramos a UI.
+function tiposDoLote(status: StatusAtivo[]): TipoMovimentacao[] {
+  return tiposComunsPara(status).filter((t) => t !== 'compra')
+}
+
 export function NovaMovimentacaoForm({
   filiais,
   motivos,
@@ -142,7 +150,7 @@ export function NovaMovimentacaoForm({
     if (
       ativoInicial &&
       c.tipo &&
-      !tiposComunsPara([ativoInicial.status]).includes(c.tipo)
+      !tiposDoLote([ativoInicial.status]).includes(c.tipo)
     ) {
       c.tipo = ''
     }
@@ -163,7 +171,7 @@ export function NovaMovimentacaoForm({
   const enviandoRef = useRef(false)
 
   const tiposValidos = useMemo(
-    () => tiposComunsPara(itens.map((i) => i.status)),
+    () => tiposDoLote(itens.map((i) => i.status)),
     [itens],
   )
   const estadosMistos = useMemo(
@@ -199,7 +207,7 @@ export function NovaMovimentacaoForm({
 
   // Ao mudar o lote, se o tipo escolhido deixar de ser valido para todos, limpa.
   function ajustarTipoPara(lista: AtivoResumo[]) {
-    const validos = tiposComunsPara(lista.map((i) => i.status))
+    const validos = tiposDoLote(lista.map((i) => i.status))
     setConfig((c) =>
       c.tipo && !validos.includes(c.tipo) ? { ...c, tipo: '' } : c,
     )

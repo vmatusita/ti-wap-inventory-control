@@ -85,3 +85,16 @@ Operações destrutivas em produção (reset, carga, migration com perda potenci
   7. **[BAIXO] Corrida no debounce da busca** — o timeout capturava `params` do render; um filtro alterado nos 300ms era descartado. Correção: o debounce lê `window.location.search` fresco no disparo.
 - Motivo: correção e robustez acima de custo (modo ultracode). `lint`+`build`+`tsc` limpos após as correções.
 - Reversível? sim (mudanças localizadas por arquivo, no histórico do git).
+
+## 2026-07-13 · F2 · Entrada de equipamento novo (compra) — atualização da OS
+
+- Contexto: a OS-F2 ganhou a tarefa 3.5.5 (entrada de equipamento novo por `compra`, single e em lote) + botão na lista/dashboard (3.1.5) + `compra` no schema Zod (3.3.1).
+- Decisões:
+  1. **Rota dedicada `/ativos/novo`** (em vez de embutir no wizard de `/movimentacoes/nova`). A OS chama de "variante do fluxo"; implementei como rota irmã porque o passo 1 (cadastro/lote) é totalmente diferente da busca de ativo — mesmo resultado de UX, código mais limpo. Botão "Novo equipamento" na toolbar da lista e card no dashboard levam a ela.
+  2. **Atomicidade (tudo ou nada) no Postgres:** migration `0008_compra_lote.sql` cria a função `criar_compra_lote(jsonb, uuid)` — uma transação que insere os ativos (nascem `em_estoque`) e uma movimentação `compra` por ativo. Qualquer colisão no índice único (patrimônio+service_tag, §5) faz rollback total. É o lugar certo da regra crítica (CLAUDE.md) e resolve corrida. A action ainda faz pré-checagem de duplicidade para erro amigável apontando o patrimônio.
+  3. **`compra` sai do select do wizard de movimentação** — passou a significar exclusivamente entrada de equipamento novo (tela própria). `TRANSICOES` continua sendo a cópia EXATA da spec §4 (o banco aceita `compra` em `em_estoque`); só a UI do wizard filtra.
+  4. **Cadastrais exigidos na compra:** categoria + marca + modelo + filial que recebeu (specs opcionais). A observação (nº da NF-e) vai na movimentação `compra` (aparece na linha do tempo), não em `ativos.observacoes`.
+  5. **Formato do patrimônio:** util `src/lib/patrimonio.ts` canonicaliza (PREFIXO 2–4 letras + 7 dígitos), expande faixa (mesmo prefixo, teto 200) e parseia lista colada (um por linha, service tag após vírgula). Compartilhado cliente (preview) e servidor (validação).
+- Verificação (contrato do banco, via MCP): lote de 3 → 3 ativos `em_estoque` + 3 `compra`; lote com 1 duplicado → **rollback total** (vizinhos não entram); papel `authenticated` executa a RPC sob RLS. `lint`+`build`+`tsc` limpos.
+- Nota: o dev tem 6 movimentações extras de teste manual do Johnny (datas 10/07) sobre ativos do seed — preservadas (dado dele); o seed determinístico volta com `db:reset && db:seed`.
+- Reversível? a migration 0008 só adiciona uma função; as telas são localizadas no git.

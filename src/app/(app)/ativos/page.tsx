@@ -6,10 +6,12 @@ import {
   type CategoriaAtivo,
   type StatusAtivo,
 } from '@/lib/dominio'
+import Link from 'next/link'
 import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
 import { AtivosTable } from '@/components/ativos/ativos-table'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
-import { PackageOpen } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { PackageOpen, PackagePlus } from 'lucide-react'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -48,11 +50,19 @@ export default async function AtivosPage({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Ativos</h1>
-        <p className="text-sm text-muted-foreground">
-          {resultado.total.toLocaleString('pt-BR')} ativos cadastrados
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Ativos</h1>
+          <p className="text-sm text-muted-foreground">
+            {resultado.total.toLocaleString('pt-BR')} ativos cadastrados
+          </p>
+        </div>
+        <Button asChild variant="outline" className="gap-2">
+          <Link href="/ativos/novo">
+            <PackagePlus className="size-4" />
+            Novo equipamento
+          </Link>
+        </Button>
       </div>
 
       <AtivosFiltros filiais={filiais} />

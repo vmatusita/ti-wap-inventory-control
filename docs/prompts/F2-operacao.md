@@ -25,6 +25,7 @@ A operadora registra TODO o dia a dia pelo sistema: consulta ativos com filtros,
 2. Filtros na toolbar (server-side, via searchParams): busca livre (patrimônio OU colaborador OU modelo, `ilike`), Filial (select), Categoria (select), Status (multi). Paginação server-side de 50 em 50, ordenação por Atualizado em desc por padrão.
 3. Estados obrigatórios: skeleton no carregamento, vazio ("Nenhum ativo encontrado com esses filtros") e erro com retry.
 4. Busca por patrimônio que case com **mais de um ativo** (caso raro legítimo) mostra os dois normalmente — a desambiguação visual é a coluna Service Tag exibida quando houver duplicata no resultado.
+5. Botão **"Novo equipamento"** na toolbar da lista (e atalho no dashboard) — leva ao fluxo de entrada por compra da tarefa 3.5.5.
 
 ### 3.2 Ficha do ativo — `src/app/(app)/ativos/[id]/page.tsx`
 
@@ -37,7 +38,7 @@ A operadora registra TODO o dia a dia pelo sistema: consulta ativos com filtros,
 
 ### 3.3 Validações compartilhadas — `src/lib/validators/movimentacao.ts`
 
-1. Schema Zod discriminado por tipo, espelhando spec §8: `saida`/`emprestimo` exigem (colaborador OU setor) + motivo; `devolucao` exige motivo + array `itens_faltantes` (pode ser vazio); `transferencia` exige `filial_destino_id` ≠ filial atual; `ajuste` exige `status_resultante` + observação ≥ 10 caracteres; `estorno` exige `estorno_de`. Campos comuns: `ativo_id`, `data` (não-futura), `chamado` (opcional, numérico como texto), `termo_assinado`/`termo_data` opcionais, **`observacao` (opcional, texto livre ≤ 500 caracteres — spec §8 regra 9; no `ajuste` é obrigatória com ≥ 10)**.
+1. Schema Zod discriminado por tipo, espelhando spec §8: `saida`/`emprestimo` exigem (colaborador OU setor) + motivo; `devolucao` exige motivo + array `itens_faltantes` (pode ser vazio); `transferencia` exige `filial_destino_id` ≠ filial atual; `ajuste` exige `status_resultante` + observação ≥ 10 caracteres; `estorno` exige `estorno_de`; `compra` exige filial de recebimento + dados cadastrais do ativo novo (patrimônio canônico, categoria, marca/modelo — ver 3.5.5), observação recomendada (nº da nota). Campos comuns: `ativo_id`, `data` (não-futura), `chamado` (opcional, numérico como texto), `termo_assinado`/`termo_data` opcionais, **`observacao` (opcional, texto livre ≤ 500 caracteres — spec §8 regra 9; no `ajuste` é obrigatória com ≥ 10)**.
 2. Exporte também `TRANSICOES: Record<status, tipo[]>` — cópia EXATA da tabela da spec §4 — usada só para filtrar o select de tipos na UI.
 
 ### 3.4 Server Action — `src/lib/actions/movimentacoes.ts`
@@ -54,6 +55,7 @@ O fluxo mais importante do sistema. Meta: **registrar 1 ativo em ≤ 30 segundos
 2. Passo 2 — movimentação: select de tipo mostrando SOMENTE os tipos válidos para o estado de cada item (use `TRANSICOES`; com itens em estados diferentes, aplique por item e sinalize). Campos aparecem conforme o tipo (motivo filtrado por `motivos.aplica_a`; colaborador/setor; chamado; termo; itens faltantes como checkboxes carregador/mochila/mouse/teclado/mousepad/fone/cabo + campo livre; **observação — textarea opcional, visível para TODOS os tipos, placeholder "Observação (opcional) — ex.: aguardando NF-e, tela trincada…"**; filial destino para transferência). Um único preenchimento vale para o lote inteiro, com opção "ajustar por item".
 3. Passo 3 — revisão: tabela-resumo do lote (`patrimônio → tipo → destino/motivo`) e botão "Registrar". Sucesso: toast por lote ("3 movimentações registradas"), limpa o formulário e mostra links para as fichas. Falha parcial: mantém no form apenas os itens que falharam, com o erro de cada um.
 4. Acesso: exige sessão de operador (o middleware da F0 já cobre — sem sessão, redirect ao login).
+5. **Entrada de equipamento novo (tipo `compra` — spec §8 regra 8):** o botão "Novo equipamento" abre a variante do fluxo em que o passo 1 é um **form de cadastro** em vez de busca: patrimônio (valida formato canônico e duplicidade — se já existir, exige service tag distinta), service tag, categoria, marca, modelo, specs opcionais, fornecedor, **filial que recebeu**, observação (nº da nota fiscal etc.). **Suporta lote**, porque compra chega em série (caso real: 10 Samsung Galaxy A17, WAP0006026–0006035, numa única entrada): colar lista de patrimônios (um por linha, service tag opcional após vírgula) **ou** informar faixa (`WAP0006026-WAP0006035`) para N unidades do mesmo modelo. Um único submit cria os ativos (nascem `em_estoque` na filial informada) e registra uma movimentação `compra` por ativo — **tudo ou nada**: se um patrimônio falhar na validação, nada entra e o erro aponta a linha.
 
 ### 3.6 Estorno (na ficha)
 
@@ -73,6 +75,7 @@ Proibido aqui: kits salvos de lote (é item 5.9 da F5) e qualquer dependência n
 - [ ] Lista filtra por filial+status combinados e a busca acha por pedaço de patrimônio e por nome fictício.
 - [ ] Ficha de um ativo com patrimônio duplicado do seed: os dois aparecem na busca distinguíveis pela service tag.
 - [ ] Registrar kit (notebook+monitor+celular `em_estoque` → saída, novo_colaborador, mesmo chamado): 3 movimentações criadas, fichas atualizadas p/ em_uso com colaborador, em ≤ 90s.
+- [ ] Entrada de compra em lote: cadastrar 10 celulares do mesmo modelo por faixa de patrimônio em ≤ 2 minutos; todos nascem `em_estoque` na filial certa, cada um com movimentação `compra` na linha do tempo; faixa com 1 patrimônio já existente → nada entra e o erro aponta qual.
 - [ ] Tentar saída de ativo `em_uso` direto no form: o tipo "saída" nem aparece no select; forçando via ajuste sem observação, Zod barra.
 - [ ] Devolução com itens faltantes → pendência aparece na ficha; triagem_ok → some.
 - [ ] Movimentação com observação → texto aparece na linha do tempo; sem observação → nada quebra (campo é opcional em todo tipo, menos ajuste).

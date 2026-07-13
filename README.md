@@ -37,7 +37,7 @@ Sistema interno para substituir o controle de ativos de TI feito hoje em três p
 - [x] Planejamento validado → execução autônoma iniciada
 - [x] **F0 — fundação** — concluída em 10/07/2026 (Next 16.2.10, login por convite restrito a `@wap.ind.br`, layout, sessão via proxy, deploy)
 - [x] **F1 — banco + dados fictícios** — concluída em 10/07/2026 (migrations 0001–0007 incl. `senhas_acesso`, seed determinístico com guardas anti-produção, tipos gerados, roteiro SQL de teste da máquina de estados)
-- [x] **F2 — operação** — concluída em 10/07/2026 (lista com filtros/busca server-side + data-table, ficha com linha do tempo, nova movimentação em lote com validações Zod espelhando a máquina de estados, estorno da última movimentação, facilitadores anti-Excel: atalho `N`, "repetir última", "duplicar", data default, foco na busca)
+- [x] **F2 — operação** — concluída em 13/07/2026 (lista com filtros/busca server-side + data-table, ficha com linha do tempo, nova movimentação em lote com validações Zod espelhando a máquina de estados, estorno da última movimentação, **entrada de equipamento novo por compra — single/lote via lista ou faixa de patrimônios, atômica (RPC `criar_compra_lote`, migration 0008)**, facilitadores anti-Excel: atalho `N`, "repetir última", "duplicar", data default, foco na busca)
 - [ ] F3 — relatórios (ao vivo + snapshot semanal gerado + acesso por senha) + administração
 - [ ] F4 — carga inicial única via scripts + go-live (cutover em __/__/____)
 - [ ] F5 — refino (acessórios por quantidade, alertas, e-mail, termos)

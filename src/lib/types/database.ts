@@ -353,6 +353,13 @@ export type Database = {
       }
     }
     Functions: {
+      criar_compra_lote: {
+        Args: { p_criado_por: string; p_itens: Json }
+        Returns: {
+          ativo_id: string
+          patrimonio: string
+        }[]
+      }
       status_apos_movimentacao: {
         Args: {
           p_status: Database["public"]["Enums"]["status_ativo"]
