@@ -165,3 +165,15 @@ Operações destrutivas em produção (reset, carga, migration com perda potenci
 - Uma dimensão (react-next) voltou sem achados confirmados após verificação.
 - Motivo: correção e segurança acima de custo (modo ultracode). `tsc`+`lint`+`build` limpos após as correções; Fix 1 e a listagem de senhas revalidados no navegador.
 - Reversível? correções localizadas por arquivo; migrations 0012/0013 são reversíveis (recriar policy / dropar índice).
+
+## 2026-07-13 · F3 · Melhorias pós-entrega (gráfico adaptativo, sidebar fixa, navegação do gestor, redirect por senha)
+
+- Contexto: F3 entregue, mas 4 ajustes pedidos: (1) o gestor (visualizador por senha) não tinha caminho de navegação até os relatórios GERADOS; (2) o gráfico "por mês" ficava obsoleto no relatório semanal (uma barra só); (3) a sidebar do operador sumia ao rolar; (4) ao entrar por senha caía sempre em `/relatorios/geral`, ignorando o relatório que foi clicado.
+- Decisão:
+  1. Navegação no header do shell reduzido (`ViewerNav`: "Ao vivo" / "Gerados") + links cruzados nas páginas ao vivo ↔ gerados (para operador e gestor).
+  2. Série de movimentações **adaptativa à duração do período**: ≤16 dias → por dia; ≤120 dias → por semana; acima → por mês. Rótulos (ptBR) e eixo já resolvidos na query e gravados no snapshot (congela estável no tempo). Compat: snapshots antigos (`movimentacoesPorMes`) continuam abrindo via normalização no `CorpoRelatorio`.
+  3. `<aside>` do layout do operador vira `sticky top-14`, com altura de viewport e rolagem interna.
+  4. O proxy guarda o destino em `?next=`; a Server Action `entrarComSenha` valida (só caminho interno de `/relatorios/**`, sem traversal / CRLF / protocolo-relativo / loop no `/acesso`) e redireciona para lá após autenticar.
+- Decisão técnica (item 2): a granularidade dia/semana é agregada em TS a partir das linhas cruas (`data`, `tipo`) da janela curta (paginado), reaproveitando a RPC `rel_mov_por_mes` apenas no modo mensal — evitou nova migration + regeneração de tipos numa fase sem deploy. Um RPC `rel_mov_serie(p_bucket)` pode substituir no futuro sem mudar o front.
+- Reversível? sim — mudanças 100% de aplicação (sem alteração de schema). Reverter = `git revert` do commit.
+- Nota de incidente (infra, não-código): durante a execução, uma **cópia-fantasma** do projeto fora do OneDrive (`C:\Users\victor.matusita\Documents\Projetos\...`) foi progressivamente esvaziada pelo OneDrive (Known Folder Move redireciona a pasta Documentos). O repositório real e íntegro está em `...\OneDrive - FRESNOMAQ IND DE MAQUINAS SA\Documents\Projetos\...`; as mudanças foram aplicadas e validadas (lint + build limpos) nele.

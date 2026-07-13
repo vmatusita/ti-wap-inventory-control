@@ -64,9 +64,17 @@ export async function updateSession(request: NextRequest) {
     if (request.cookies.get(VIEW_COOKIE_NAME)) {
       return response
     }
+    // Sem sessão: manda para a entrada por senha guardando o destino em `next`,
+    // para o gestor cair direto no relatório que clicou depois de entrar. Só
+    // caminhos internos de relatório viram `next` (a validação final está na
+    // Server Action de login).
     const url = request.nextUrl.clone()
     url.pathname = '/relatorios/acesso'
     url.search = ''
+    const destino = pathname + request.nextUrl.search
+    if (destino.startsWith('/relatorios/') && pathname !== '/relatorios/acesso') {
+      url.searchParams.set('next', destino)
+    }
     return NextResponse.redirect(url)
   }
 

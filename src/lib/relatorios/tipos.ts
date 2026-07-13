@@ -28,7 +28,25 @@ export type ItemManutencao = {
   modelo: string
   observacao: string | null
 }
-export type PontoMes = { mes: string; saidas: number; devolucoes: number } // mes = 'yyyy-MM'
+export type PontoMes = { mes: string; saidas: number; devolucoes: number } // mes = 'yyyy-MM' (legado — ver SerieMovimentacoes)
+
+// Série de movimentações adaptativa ao período (OS-F3 melhoria): o balde segue a
+// duração — semana/curto → por DIA, médio → por SEMANA, longo (ano/tudo) → por
+// MÊS. O relatório da WAP é semanal, então um gráfico "por mês" mostrava uma
+// barra só e ficava obsoleto no snapshot. `rotulo` já vem pronto (ptBR) para o
+// snapshot ser estável no tempo; `chave` é o balde canônico ('yyyy-MM-dd' p/ dia
+// e semana-segunda, 'yyyy-MM' p/ mês).
+export type GranularidadeSerie = 'dia' | 'semana' | 'mes'
+export type PontoSerie = {
+  chave: string
+  rotulo: string
+  saidas: number
+  devolucoes: number
+}
+export type SerieMovimentacoes = {
+  granularidade: GranularidadeSerie
+  pontos: PontoSerie[]
+}
 export type ContagemMotivo = { motivo: string; total: number } // motivo = rótulo
 export type PorMotivo = { saidas: ContagemMotivo[]; devolucoes: ContagemMotivo[] }
 export type ChipPendencia = { chave: string; rotulo: string; total: number }
@@ -78,7 +96,10 @@ export type SnapshotRelatorio = {
   disponiveisPorModelo: ItemModelo[]
   reservados: ItemReservado[]
   emManutencao: ItemManutencao[]
-  movimentacoesPorMes: PontoMes[]
+  // Snapshots novos gravam `serieMovimentacoes`; os antigos só têm
+  // `movimentacoesPorMes` — CorpoRelatorio normaliza os dois (compat).
+  serieMovimentacoes?: SerieMovimentacoes
+  movimentacoesPorMes?: PontoMes[]
   porMotivo: PorMotivo
   pendencias: ChipPendencia[]
   ultimasMovimentacoes: MovimentacaoRelatorio[]

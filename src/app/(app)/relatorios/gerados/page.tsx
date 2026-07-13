@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { FileClock } from 'lucide-react'
+import { BarChart3, FileClock } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
@@ -46,7 +46,15 @@ export default async function RelatoriosGeradosPage({
             O arquivo semanal — snapshots congelados e versionados.
           </p>
         </div>
-        <GeradosFiltroFilial filiais={filiais} atual={filialFiltro ?? ''} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link href="/relatorios/geral">
+              <BarChart3 className="size-4" />
+              Ver ao vivo
+            </Link>
+          </Button>
+          <GeradosFiltroFilial filiais={filiais} atual={filialFiltro ?? ''} />
+        </div>
       </div>
 
       {gerados.length === 0 ? (

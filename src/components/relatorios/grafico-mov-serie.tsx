@@ -7,23 +7,16 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import type { PontoMes } from '@/lib/relatorios/tipos'
+import type { SerieMovimentacoes } from '@/lib/relatorios/tipos'
 
-// Movimentações por mês — barras agrupadas saídas (#eda100) × devoluções
-// (#2a78d6), rótulo de valor em cima de cada barra, legenda com totais
-// (OS-F3 3.3.2). Cores fixas da paleta WAP.
-const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-
+// Movimentações no período — barras agrupadas saídas (#eda100) × devoluções
+// (#2a78d6), rótulo de valor em cima de cada barra, legenda com totais. A
+// granularidade (dia/semana/mês) já vem resolvida na série; aqui o gráfico só
+// desenha os `rotulo` prontos. Cores fixas da paleta WAP (OS-F3 3.3.2).
 const config = {
   saidas: { label: 'Saídas', color: '#eda100' },
   devolucoes: { label: 'Devoluções', color: '#2a78d6' },
 } satisfies ChartConfig
-
-function rotuloMes(mes: string, multiAno: boolean): string {
-  const [ano, m] = mes.split('-')
-  const nome = MESES[Number(m) - 1] ?? mes
-  return multiAno ? `${nome}/${ano.slice(2)}` : nome
-}
 
 // LabelList do Recharts entrega o valor bruto; escondemos o zero.
 function rotuloValor(v: unknown): string {
@@ -31,16 +24,14 @@ function rotuloValor(v: unknown): string {
   return n > 0 ? String(n) : ''
 }
 
-export function GraficoMovMes({ dados }: { dados: PontoMes[] }) {
-  const anos = new Set(dados.map((d) => d.mes.slice(0, 4)))
-  const multiAno = anos.size > 1
-  const data = dados.map((d) => ({
-    mes: rotuloMes(d.mes, multiAno),
-    saidas: d.saidas,
-    devolucoes: d.devolucoes,
+export function GraficoMovSerie({ serie }: { serie: SerieMovimentacoes }) {
+  const data = serie.pontos.map((p) => ({
+    rotulo: p.rotulo,
+    saidas: p.saidas,
+    devolucoes: p.devolucoes,
   }))
-  const totalSaidas = dados.reduce((s, d) => s + d.saidas, 0)
-  const totalDev = dados.reduce((s, d) => s + d.devolucoes, 0)
+  const totalSaidas = serie.pontos.reduce((s, p) => s + p.saidas, 0)
+  const totalDev = serie.pontos.reduce((s, p) => s + p.devolucoes, 0)
 
   return (
     <div>
@@ -57,7 +48,7 @@ export function GraficoMovMes({ dados }: { dados: PontoMes[] }) {
       <ChartContainer config={config} className="aspect-[16/6] w-full">
         <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} />
-          <XAxis dataKey="mes" tickLine={false} axisLine={false} tickMargin={8} />
+          <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
           <Bar dataKey="saidas" fill="var(--color-saidas)" radius={[4, 4, 0, 0]}>
             <LabelList

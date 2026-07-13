@@ -39,6 +39,20 @@ function excedeuRateLimit(ip: string): boolean {
   return reg.count > MAX_TENTATIVAS
 }
 
+// Destino pós-login (OS-F3 melhoria): leva o gestor direto ao relatório clicado.
+// Só caminhos INTERNOS de relatório entram — bloqueia URL absoluta, protocolo-
+// relativo, backslash, traversal, o próprio /acesso (loop) e quebra de linha
+// (CRLF em header). Qualquer coisa fora disso cai no consolidado ao vivo.
+function destinoRelatorio(next: FormDataEntryValue | null): string {
+  const padrao = '/relatorios/geral'
+  if (typeof next !== 'string' || next.length === 0) return padrao
+  if (!next.startsWith('/relatorios/')) return padrao
+  if (next.startsWith('/relatorios/acesso')) return padrao
+  if (next.includes('..') || next.includes('\\') || next.includes('//')) return padrao
+  if (next.includes('\n') || next.includes('\r')) return padrao
+  return next
+}
+
 // ---- Entrar por senha (público) ----
 
 export type EntrarState = { erro?: string }
@@ -91,7 +105,7 @@ export async function entrarComSenha(
     maxAge: VIEW_MAX_AGE_SEG,
   })
 
-  redirect('/relatorios/geral')
+  redirect(destinoRelatorio(formData.get('next')))
 }
 
 // ---- Sair da visualização (apaga o cookie) ----

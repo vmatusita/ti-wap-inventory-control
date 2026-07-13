@@ -33,7 +33,7 @@ export default async function AppLayout({
         <div className="flex min-h-svh flex-col">
           <AppHeader nome={operador.nome} />
           <div className="flex flex-1">
-            <aside className="hidden w-60 shrink-0 border-r bg-background p-3 md:block print:hidden">
+            <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
               <SidebarNav />
             </aside>
             <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>

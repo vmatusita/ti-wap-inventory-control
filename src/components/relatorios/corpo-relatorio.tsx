@@ -1,15 +1,53 @@
 import { rotuloCategoria } from '@/lib/dominio'
-import type { MovimentacaoRelatorio, SnapshotRelatorio } from '@/lib/relatorios/tipos'
+import type {
+  GranularidadeSerie,
+  MovimentacaoRelatorio,
+  SerieMovimentacoes,
+  SnapshotRelatorio,
+} from '@/lib/relatorios/tipos'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
 import { KpiTiles } from '@/components/relatorios/kpi-tiles'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
-import { GraficoMovMes } from '@/components/relatorios/grafico-mov-mes'
+import { GraficoMovSerie } from '@/components/relatorios/grafico-mov-serie'
 import { BarrasHorizontais } from '@/components/relatorios/barras-horizontais'
 import { ListaModelo } from '@/components/relatorios/lista-modelo'
 import { ListaManutencao } from '@/components/relatorios/lista-manutencao'
 import { ListaReservados } from '@/components/relatorios/lista-reservados'
 import { TabelaMovimentacoes } from '@/components/relatorios/tabela-movimentacoes'
 import { ResumoPeriodoCard } from '@/components/relatorios/resumo-periodo'
+
+const MESES_ABREV_COMPAT = [
+  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+  'jul', 'ago', 'set', 'out', 'nov', 'dez',
+]
+
+const SUBTITULO_SERIE: Record<GranularidadeSerie, string> = {
+  dia: 'saídas × devoluções por dia',
+  semana: 'saídas × devoluções por semana',
+  mes: 'saídas × devoluções por mês',
+}
+
+// Normaliza a série do gráfico: snapshots novos trazem `serieMovimentacoes`;
+// os antigos só têm `movimentacoesPorMes` (mensal) — reconstrói a série a partir
+// dele para o relatório congelado antigo continuar abrindo (compat).
+function serieDoSnapshot(s: SnapshotRelatorio): SerieMovimentacoes {
+  if (s.serieMovimentacoes) return s.serieMovimentacoes
+  const mensal = s.movimentacoesPorMes ?? []
+  const multiAno = new Set(mensal.map((p) => p.mes.slice(0, 4))).size > 1
+  return {
+    granularidade: 'mes',
+    pontos: mensal.map((p) => {
+      const [ano, m] = p.mes.split('-')
+      const nome = MESES_ABREV_COMPAT[Number(m) - 1] ?? p.mes
+      return {
+        chave: p.mes,
+        rotulo: multiAno ? `${nome}/${ano.slice(2)}` : nome,
+        saidas: p.saidas,
+        devolucoes: p.devolucoes,
+      }
+    }),
+  }
+}
 
 // Grade de cards do relatório — a MESMA para a página ao vivo e o snapshot
 // gerado (OS-F3 3.8.5). Recebe o SnapshotRelatorio por props; só a tabela de
@@ -27,6 +65,10 @@ export function CorpoRelatorio({
   carregarExport?: () => Promise<MovimentacaoRelatorio[]>
 }) {
   const s = snapshot
+  const serieMov = serieDoSnapshot(s)
+  const temMovimentacao = serieMov.pontos.some(
+    (p) => p.saidas > 0 || p.devolucoes > 0,
+  )
   return (
     <div className="space-y-3.5">
       <KpiTiles kpis={s.kpis} />
@@ -36,11 +78,11 @@ export function CorpoRelatorio({
       <div className="rel-print-cols grid gap-3.5 md:grid-cols-2">
         <CardRelatorio
           wide
-          titulo="Movimentações por mês"
-          subtitulo="saídas × devoluções no período"
-          vazio={s.movimentacoesPorMes.length === 0}
+          titulo="Movimentações"
+          subtitulo={SUBTITULO_SERIE[serieMov.granularidade]}
+          vazio={!temMovimentacao}
         >
-          <GraficoMovMes dados={s.movimentacoesPorMes} />
+          <GraficoMovSerie serie={serieMov} />
         </CardRelatorio>
 
         <CardRelatorio

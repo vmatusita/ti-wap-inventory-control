@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { FileText, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, FileText, TriangleAlert } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { buscarRelatorioGerado } from '@/lib/queries/gerados'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
@@ -25,6 +25,14 @@ export default async function RelatorioGeradoPage({
 
   return (
     <div className="space-y-4">
+      <Link
+        href="/relatorios/gerados"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground print:hidden"
+      >
+        <ArrowLeft className="size-4" />
+        Relatórios gerados
+      </Link>
+
       {/* Banner fixo: relatório congelado (OS-F3 3.8.5) */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2.5 text-sm">
         <FileText className="size-4 shrink-0 text-muted-foreground" />

@@ -1,5 +1,8 @@
+import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { FileClock } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
+import { Button } from '@/components/ui/button'
 import { listarFiliais } from '@/lib/queries/filiais'
 import {
   CAPS,
@@ -73,6 +76,12 @@ export default async function RelatorioFilialPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {acesso.modo === 'operador' ? <RealtimeRefresh /> : <ViewerAutoRefresh />}
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link href="/relatorios/gerados">
+              <FileClock className="size-4" />
+              <span className="hidden sm:inline">Relatórios gerados</span>
+            </Link>
+          </Button>
           {acesso.modo === 'operador' && (
             <GerarRelatorioDialog
               filialSlug={filialSlug}
