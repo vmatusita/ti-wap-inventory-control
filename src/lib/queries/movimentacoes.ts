@@ -112,7 +112,9 @@ export async function listarMovimentacoesDoAtivo(
 
 // "Repetir ultima" (OS-F2 3.7.3): pre-preenche tipo/motivo/colaborador/setor/
 // chamado/termo da ultima movimentacao registrada pelo usuario logado (menos o
-// ativo). Estorno nao entra — nao ha o que repetir.
+// ativo). Estorno e compra NAO entram — o wizard nao oferece nenhum dos dois
+// (compra tem tela propria, /ativos/novo), entao repetir um deles so limparia os
+// campos ja digitados sem preencher nada util.
 export type UltimaMovimentacaoUsuario = {
   tipo: TipoMovimentacao
   motivo: string | null
@@ -132,6 +134,7 @@ export async function ultimaMovimentacaoDoUsuario(
     .select('tipo, motivo, colaborador, setor, chamado, termo_assinado, termo_data')
     .eq('criado_por', userId)
     .neq('tipo', 'estorno')
+    .neq('tipo', 'compra')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()

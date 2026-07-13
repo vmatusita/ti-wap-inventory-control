@@ -98,3 +98,10 @@ Operações destrutivas em produção (reset, carga, migration com perda potenci
 - Verificação (contrato do banco, via MCP): lote de 3 → 3 ativos `em_estoque` + 3 `compra`; lote com 1 duplicado → **rollback total** (vizinhos não entram); papel `authenticated` executa a RPC sob RLS. `lint`+`build`+`tsc` limpos.
 - Nota: o dev tem 6 movimentações extras de teste manual do Johnny (datas 10/07) sobre ativos do seed — preservadas (dado dele); o seed determinístico volta com `db:reset && db:seed`.
 - Reversível? a migration 0008 só adiciona uma função; as telas são localizadas no git.
+
+## 2026-07-13 · F2 · Revisão adversarial da compra + correção
+
+- Contexto: revisão adversarial focada (4 lentes × verificação independente) sobre a feature de compra.
+- Achado confirmado (1, baixo, regressão de integração): `ultimaMovimentacaoDoUsuario` excluía só `estorno`, não `compra`. Como a movimentação `compra` agora é atribuída ao operador, o botão "Repetir última" do wizard podia trazer uma `compra` — tipo que o wizard esconde — limpando os campos já digitados e mostrando um toast enganoso. Correção: excluir `compra` como o `estorno` (`.neq('tipo','compra')`).
+- As outras 3 lentes (patrimônio-util, validação/duplicidade, atomicidade/RLS) voltaram limpas.
+- `lint`+`build`+`tsc` limpos após a correção.
