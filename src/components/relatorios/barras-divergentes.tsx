@@ -5,11 +5,12 @@ import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
 import type { SaldoItemPeriodo } from '@/lib/relatorios/tipos'
 
 // Movimentação do período por item (§4.2): barras DIVERGENTES — entradas para a
-// direita (azul #2a78d6), saídas para a esquerda (amarelo #eda100), rótulo em
-// valor absoluto nas pontas. Só itens com movimento. Domínio simétrico + eixo 0.
+// direita (azul), saídas para a esquerda (amarelo), rótulo em valor absoluto
+// nas pontas. Só itens com movimento. Domínio simétrico + eixo 0. Cores da marca
+// WAP via token.
 const config = {
-  entradas: { label: 'Entradas', color: '#2a78d6' },
-  saidas: { label: 'Saídas', color: '#eda100' },
+  entradas: { label: 'Entradas', color: 'var(--color-brand-azul)' },
+  saidas: { label: 'Saídas', color: 'var(--color-brand-amarelo)' },
 } satisfies ChartConfig
 
 function abs(v: unknown): string {
@@ -39,11 +40,11 @@ export function BarrasDivergentes({ itens }: { itens: SaldoItemPeriodo[] }) {
     <div>
       <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-foreground/70">
         <span className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-[3px]" style={{ background: '#eda100' }} />
+          <span className="size-2.5 rounded-[3px]" style={{ background: 'var(--color-brand-amarelo)' }} />
           Saídas
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-[3px]" style={{ background: '#2a78d6' }} />
+          <span className="size-2.5 rounded-[3px]" style={{ background: 'var(--color-brand-azul)' }} />
           Entradas
         </span>
       </div>

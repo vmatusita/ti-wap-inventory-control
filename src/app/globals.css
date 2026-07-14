@@ -25,6 +25,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-brand-amarelo: var(--brand-amarelo);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-azul: var(--brand-azul);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -83,6 +86,14 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Marca WAP — fonte única da identidade (mockup + spec "Referência visual").
+     Os valores são idênticos aos hex que antes viviam espalhados no código;
+     trocar aqui passa a valer no app inteiro. O chrome (header e lockup de
+     login) é escuro por design — não acompanha tema claro/escuro. */
+  --brand-amarelo: #eda100;
+  --brand-dark: #111110;
+  --brand-azul: #2a78d6;
 }
 
 .dark {
@@ -111,8 +122,10 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  /* Espelha --primary do dark (neutro). Antes era um roxo herdado do preset
+     padrão do shadcn, estranho à marca — corrigido na revisão de design. */
+  --sidebar-primary: oklch(0.922 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);

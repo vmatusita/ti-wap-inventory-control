@@ -69,7 +69,7 @@ export function GerarRelatorioDialog({
         <Button
           size="sm"
           aria-label="Gerar relatório"
-          className="h-9 gap-1.5 bg-[#eda100] text-black hover:bg-[#eda100]/90 sm:h-7"
+          className="h-9 gap-1.5 bg-brand-amarelo text-black hover:bg-brand-amarelo/90 sm:h-7"
         >
           <FileText className="size-4" />
           <span className="hidden sm:inline">Gerar relatório</span>

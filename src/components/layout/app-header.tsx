@@ -13,23 +13,13 @@ import {
 } from '@/components/ui/sheet'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { UserMenu } from '@/components/layout/user-menu'
-
-function Marca() {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="rounded bg-[#eda100] px-2 py-1 text-xs font-bold tracking-tight text-black">
-        WAP
-      </span>
-      <span className="text-sm font-semibold">Estoque TI</span>
-    </div>
-  )
-}
+import { Marca } from '@/components/layout/marca'
 
 export function AppHeader({ nome }: { nome: string }) {
   const [aberto, setAberto] = useState(false)
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-[#111110] px-4 text-white md:px-6 print:hidden">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-brand-dark px-4 text-white md:px-6 print:hidden">
       <Sheet open={aberto} onOpenChange={setAberto}>
         <SheetTrigger asChild>
           <Button
@@ -59,7 +49,7 @@ export function AppHeader({ nome }: { nome: string }) {
         <Button
           asChild
           size="sm"
-          className="h-10 bg-[#eda100] text-black hover:bg-[#eda100]/90 sm:h-7"
+          className="h-10 bg-brand-amarelo text-black hover:bg-brand-amarelo/90 sm:h-7"
         >
           <Link href="/movimentacoes/nova">
             <Plus className="size-4" />

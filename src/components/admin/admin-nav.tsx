@@ -26,7 +26,7 @@ export function AdminNav() {
             className={cn(
               'flex min-h-11 items-center whitespace-nowrap border-b-2 px-3 py-1 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               ativa
-                ? 'border-[#eda100] font-semibold text-foreground'
+                ? 'border-brand-amarelo font-semibold text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >

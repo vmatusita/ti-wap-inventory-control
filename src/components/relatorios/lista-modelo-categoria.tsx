@@ -30,7 +30,7 @@ export function ListaModeloCategoria({ grupos }: { grupos: ModelosPorCategoria[]
                 </span>
                 <span className="relative h-4 min-w-0 flex-1 overflow-hidden rounded-sm bg-muted">
                   <span
-                    className="absolute inset-y-0 left-0 rounded-sm bg-[#2a78d6]"
+                    className="absolute inset-y-0 left-0 rounded-sm bg-brand-azul"
                     style={{ width: `${Math.max(3, (m.total / maxGlobal) * 100)}%` }}
                   />
                 </span>

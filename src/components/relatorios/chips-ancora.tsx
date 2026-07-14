@@ -19,7 +19,7 @@ export function ChipsAncora({ temTransferencias }: { temTransferencias?: boolean
         <a
           key={c.href}
           href={c.href}
-          className="shrink-0 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-[#eda100] hover:text-foreground"
+          className="shrink-0 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-amarelo hover:text-foreground"
         >
           {c.rotulo}
         </a>

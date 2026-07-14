@@ -276,3 +276,17 @@ Aceito, não corrigido:
 
 - Reversível? migrations aditivas — para desfazer, um `create or replace` restaurando o corpo anterior (0016/0004/0008/0019); edições de código isoladas no git.
 - Verificação: `lint`+`build` limpos após as edições; correção do as-of e do estorno checadas por revisão adversarial (agentes) contra regressão no fast-path e em snapshots antigos. Migrations aplicadas no dev (`pbtjcalbmepmrqzprusb`) via MCP.
+
+---
+
+## 2026-07-14 · Revisão de design (skill /design-system) — melhorias aplicadas
+
+- Contexto: auditoria de design do projeto inteiro (skill `/design-system`), pedida pelo Johnny; ele autorizou "aplicar todas as melhorias". A auditoria apontou que a identidade WAP (amarelo `#eda100`, escuro `#111110`, azul `#2a78d6`) nunca virou token — vivia como hex arbitrário espalhado em 12 arquivos (19 ocorrências) + a cor de status `em_uso` em `dominio.ts` —, criando "dois botões primário" (o `default` do shadcn é preto; o CTA real era `bg-[#eda100]` manual) e sem fonte única para a marca. Também: lockup "WAP" copiado à mão em 5 telas; dark mode definido mas inalcançável, com um roxo herdado do preset shadcn no `.dark`.
+- Decisão: **só edições de apresentação** — nenhuma mudança de dado, schema, RPC ou lógica. Zero regressão visual esperada porque os tokens recebem os **mesmos valores hex** que antes estavam inline (hex→token = render idêntico).
+  - **Tokenização da marca** (`globals.css`): novos `--brand-amarelo/-dark/-azul` em `:root` + expostos em `@theme inline` como `--color-brand-*` → utilitários `bg-brand-amarelo`, `border-brand-amarelo`, `ring-brand-amarelo`, `ring-offset-brand-dark`, `bg-brand-azul` etc. Os 19 hex arbitrários trocados pelos tokens; opacidade preservada (`bg-brand-amarelo/90` = `bg-[#eda100]/90`). Gráficos (config/legenda/props `cor`) e `STATUS_CHART_COLOR.em_uso` passam a referenciar `var(--color-brand-azul)` — azul da marca com fonte única.
+  - **`<Marca />` compartilhado** (`components/layout/marca.tsx`): elimina as 5 cópias do lockup (app-header, viewer-header, login, definir-senha, acesso-form). Props `size` (sm header / lg auth) e `labelClassName` (cor/visibilidade). Markup idêntico ao anterior em cada contexto.
+  - **Anel de foco** unificado na marca (viewer-nav, user-menu) — antes misturava `ring-[#eda100]` e `ring-ring`.
+  - **Dark mode — decisão: app é tema claro por design** (spec "Referência visual": tema claro, acento amarelo sobre header escuro). Toggle ficaria fora de escopo e exigiria `next-themes` (fora da stack fechada), então NÃO foi adicionado. O único ajuste no `.dark` foi corrigir o `--sidebar-primary` roxo herdado do shadcn para espelhar o `--primary` neutro (higiene de token; sem efeito em runtime — não há Sidebar shadcn nem dark ativo). As variantes `dark:` existentes ficam como estão (inócuas, gancho futuro).
+- Não feito (fora do escopo desta revisão): habilitar dark mode de fato; `--font-heading` distinto (hoje = sans); mover a escala pastel de status/pílulas (`bg-green-100`…) para tokens — é uma escala categórica já centralizada em `dominio.ts`, não uma violação.
+- Reversível? sim — tudo é edição de apresentação isolada no git; reverter os `Edit` restaura os hex inline. Sem migration, sem dado tocado.
+- Verificação: `lint`+`build`+TypeScript limpos; grep confirma que os únicos `#eda100/#111110/#2a78d6` restantes são as 3 definições de token em `globals.css`; revisão adversarial multidimensional (agentes) contra regressão visual, completude e contraste.

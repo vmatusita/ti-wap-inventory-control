@@ -100,7 +100,7 @@ export function CorpoRelatorioV2({ snapshot }: { snapshot: SnapshotRelatorioV2 }
           >
             <BarrasHorizontais
               dados={s.porMotivo.saidas.map((m) => ({ rotulo: m.motivo, total: m.total }))}
-              cor="#eda100"
+              cor="var(--color-brand-amarelo)"
             />
           </CardRelatorio>
 
@@ -111,7 +111,7 @@ export function CorpoRelatorioV2({ snapshot }: { snapshot: SnapshotRelatorioV2 }
           >
             <BarrasHorizontais
               dados={s.porMotivo.devolucoes.map((m) => ({ rotulo: m.motivo, total: m.total }))}
-              cor="#2a78d6"
+              cor="var(--color-brand-azul)"
             />
           </CardRelatorio>
 

@@ -27,10 +27,10 @@ export function UserMenu({ nome }: { nome: string }) {
         <button
           type="button"
           aria-label="Abrir menu do usuário"
-          className="rounded-full outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-[#eda100]"
+          className="rounded-full outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-brand-amarelo"
         >
           <Avatar className="size-8">
-            <AvatarFallback className="bg-[#eda100] text-xs font-semibold text-black">
+            <AvatarFallback className="bg-brand-amarelo text-xs font-semibold text-black">
               {iniciais(nome)}
             </AvatarFallback>
           </Avatar>

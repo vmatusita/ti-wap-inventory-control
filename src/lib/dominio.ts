@@ -62,12 +62,14 @@ export function rotuloStatus(s: StatusAtivo): string {
   return STATUS_META[s]?.rotulo ?? s
 }
 
-// Cor de gráfico por status (barras empilhadas de estoque — F3B). Neutros
-// distintos; em_uso azul e em_manutencao âmbar seguem a paleta do relatório.
+// Cor de gráfico por status (barras empilhadas de estoque — F3B). Escala
+// categórica distinta; `em_uso` é o azul da marca (token único --color-brand-azul,
+// mesma cor da 2ª série dos gráficos). Consumido só em barras-empilhadas, como
+// fill SVG / style.background / config de chart — todos aceitam CSS var.
 export const STATUS_CHART_COLOR: Record<StatusAtivo, string> = {
   em_estoque: '#16a34a',
   reservado: '#7c3aed',
-  em_uso: '#2a78d6',
+  em_uso: 'var(--color-brand-azul)',
   emprestado: '#0891b2',
   em_triagem: '#ea580c',
   em_manutencao: '#d97706',
