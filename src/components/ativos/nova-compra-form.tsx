@@ -247,8 +247,8 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
               Corrija antes de continuar:
             </p>
             <ul className="list-inside list-disc space-y-0.5">
-              {preview.erros.map((e) => (
-                <li key={e}>{e}</li>
+              {preview.erros.map((e, i) => (
+                <li key={`${i}-${e}`}>{e}</li>
               ))}
             </ul>
           </div>
@@ -280,8 +280,8 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
         <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
           <p className="mb-1 font-medium">Nada foi cadastrado:</p>
           <ul className="list-inside list-disc space-y-0.5">
-            {errosServidor.map((e) => (
-              <li key={e}>{e}</li>
+            {errosServidor.map((e, i) => (
+              <li key={`${i}-${e}`}>{e}</li>
             ))}
           </ul>
         </div>

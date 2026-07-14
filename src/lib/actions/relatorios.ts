@@ -5,7 +5,8 @@ import { z } from 'zod'
 import { getOperador } from '@/lib/auth/acesso'
 import { createClient } from '@/lib/supabase/server'
 import { traduzErroBanco } from '@/lib/actions/erros'
-import { formatDate } from '@/lib/format'
+import { formatDate, hojeISO } from '@/lib/format'
+import { semanaUtilCorrente } from '@/lib/relatorios/periodo'
 import {
   getSnapshotRelatorioV2,
   resolverFilialPorSlug,
@@ -39,6 +40,14 @@ export async function gerarRelatorio(input: {
   const { filialSlug, de, ate } = parsed.data
   if (de > ate) {
     return { ok: false, erro: 'A data inicial não pode ser depois da final.' }
+  }
+  // Teto: não congelar snapshot de período futuro. Aceita até hoje OU o fim da
+  // semana útil corrente (o padrão do dialog é a sexta desta semana, que gerado
+  // no meio da semana é "futuro" mas legítimo) — o que for maior.
+  const fimSemana = semanaUtilCorrente().ate
+  const teto = hojeISO() > fimSemana ? hojeISO() : fimSemana
+  if (ate > teto) {
+    return { ok: false, erro: 'A data final não pode ser no futuro.' }
   }
 
   const operador = await getOperador()

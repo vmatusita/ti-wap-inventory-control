@@ -28,12 +28,15 @@ export function GerarRelatorioDialog({
   ehGeral,
   padraoDe,
   padraoAte,
+  maxData,
 }: {
   filialSlug: string
   filialNome: string
   ehGeral: boolean
   padraoDe: string
   padraoAte: string
+  // Teto de data (não gerar snapshot futuro) — hoje ou fim da semana útil.
+  maxData: string
 }) {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
@@ -44,7 +47,7 @@ export function GerarRelatorioDialog({
 
   const slugAlvo = escopo === 'geral' ? 'geral' : filialSlug
   const nomeAlvo = escopo === 'geral' ? 'Consolidado' : filialNome
-  const periodoValido = !!de && !!ate && de <= ate
+  const periodoValido = !!de && !!ate && de <= ate && ate <= maxData
 
   function gerar() {
     if (!periodoValido) return
@@ -88,7 +91,7 @@ export function GerarRelatorioDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ger-ate">Até</Label>
-            <Input id="ger-ate" type="date" value={ate} min={de || undefined} onChange={(e) => setAte(e.target.value)} />
+            <Input id="ger-ate" type="date" value={ate} min={de || undefined} max={maxData} onChange={(e) => setAte(e.target.value)} />
           </div>
         </div>
 

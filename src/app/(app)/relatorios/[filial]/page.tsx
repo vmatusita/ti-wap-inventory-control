@@ -9,7 +9,7 @@ import {
   resolverFilialPorSlug,
 } from '@/lib/queries/relatorios'
 import { resolverPeriodo, semanaUtilCorrente } from '@/lib/relatorios/periodo'
-import { formatDate } from '@/lib/format'
+import { formatDate, hojeISO } from '@/lib/format'
 import { FilialTabs } from '@/components/relatorios/filial-tabs'
 import { PeriodoFiltro } from '@/components/relatorios/periodo-filtro'
 import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
@@ -58,6 +58,9 @@ export default async function RelatorioFilialPage({
   ])
 
   const semana = semanaUtilCorrente()
+  // Teto do dialog "Gerar relatório": hoje ou o fim da semana útil (o maior) —
+  // permite a sexta-padrão gerada no meio da semana, barra futuro arbitrário.
+  const tetoData = hojeISO() > semana.ate ? hojeISO() : semana.ate
 
   return (
     <div className="space-y-4">
@@ -85,6 +88,7 @@ export default async function RelatorioFilialPage({
               ehGeral={snapshot.meta.ehGeral}
               padraoDe={semana.de}
               padraoAte={semana.ate}
+              maxData={tetoData}
             />
           )}
           <BotaoImprimir />

@@ -49,9 +49,16 @@ export function traduzErroBanco(mensagem: string | undefined | null): string {
   if (m.includes('lanc_item_estorna')) {
     return 'Este lançamento já foi estornado.'
   }
-  // Constraint de unicidade patrimonio + service tag (§5).
-  if (m.includes('ativos_patrimonio_service_tag') || m.includes('duplicate key')) {
+  // Constraint de unicidade patrimonio + service tag (§5). SÓ a constraint
+  // específica — não presumir que todo "duplicate key" é de patrimônio (há
+  // uniques em relatorios_gerados, termos_gerados, filiais, motivos, itens).
+  if (m.includes('ativos_patrimonio_service_tag')) {
     return 'Já existe um ativo com esse patrimônio e service tag.'
+  }
+  // Demais violações de unicidade (corrida de versão de relatório, termo já
+  // gerado para o mesmo conjunto etc.): mensagem genérica de recarregar.
+  if (m.includes('duplicate key') || m.includes('unique constraint')) {
+    return 'Já existe um registro com esses dados. Atualize a página e tente de novo.'
   }
   // Violacao de FK (motivo/filial inexistente).
   if (m.includes('foreign key') || m.includes('violates foreign key')) {
@@ -62,6 +69,10 @@ export function traduzErroBanco(mensagem: string | undefined | null): string {
     return 'Sem permissão para esta operação. Faça login novamente.'
   }
 
-  // Fallback: devolve a mensagem original (util em dev; raro em producao).
-  return mensagem ?? 'Não foi possível concluir a operação.'
+  // Fallback: em dev devolve a mensagem crua (debug); em produção NUNCA vaza o
+  // texto interno do Postgres para a operadora — mensagem genérica.
+  if (process.env.NODE_ENV !== 'production') {
+    return mensagem ?? 'Não foi possível concluir a operação.'
+  }
+  return 'Não foi possível concluir a operação. Tente novamente.'
 }

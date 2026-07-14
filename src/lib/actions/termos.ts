@@ -3,6 +3,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
 import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
 import { revalidatePath } from 'next/cache'
@@ -379,6 +380,10 @@ export async function urlTermo(input: {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, erro: 'Sua sessão expirou.' }
+
+  if (!z.string().uuid().safeParse(input.id).success) {
+    return { ok: false, erro: 'Termo inválido.' }
+  }
 
   const { data: row, error } = await supabase
     .from('termos_gerados')
