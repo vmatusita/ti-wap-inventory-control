@@ -65,6 +65,7 @@ src/
       ativos/page.tsx               # lista
       ativos/[id]/page.tsx          # ficha + linha do tempo
       movimentacoes/nova/page.tsx   # fluxo de nova movimentação (lote)
+      itens/page.tsx                # itens por quantidade: saldos + lançamento + histórico (F3B)
       relatorios/[filial]/page.tsx  # relatório AO VIVO por filial ('geral' = consolidado)
       relatorios/gerados/page.tsx        # histórico de snapshots semanais
       relatorios/gerados/[id]/page.tsx   # snapshot congelado e interativo (spec §7.1)
@@ -72,6 +73,7 @@ src/
       admin/senhas/page.tsx         # senhas de acesso dos relatórios (F3)
       admin/filiais/page.tsx
       admin/motivos/page.tsx
+      admin/itens/page.tsx          # catálogo de itens por quantidade (F3B)
       # (não existe admin/importador — carga inicial é via scripts, spec §10)
   components/
     ui/            # shadcn (CLI)
@@ -79,7 +81,7 @@ src/
   lib/
     supabase/      # client.ts, server.ts, middleware de sessão
     actions/       # Server Actions (Zod dentro)
-    queries/       # leituras tipadas
+    queries/       # leituras tipadas (ativos, movimentacoes, relatorios, itens…)
     validators/    # schemas Zod compartilhados
     types/database.ts   # GERADO — não editar à mão
 supabase/

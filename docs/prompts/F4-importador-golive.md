@@ -39,6 +39,17 @@ Scripts em `scripts/import/` que fazem a carga única com segurança: parse → 
 5. **`--executar` (só sem bloqueantes):** insere ativos primeiro, depois movimentações uma a uma em ordem (o trigger do banco recalcula estado; movimentação inválida para o estado corrente → loga `estado_divergente`, pula e segue). Ao final grava `carga-resultado-<timestamp>.json` (criados, atualizados, pulados por tipo, duração) e imprime comparação com os totais esperados via flags `--esperado-ativos= --esperado-saidas= --esperado-devolucoes=` (você informa: nº de linhas de dados de cada CSV).
 6. **Idempotência:** reexecutar não duplica nada — ativo já existente (mesmo patrimônio + service tag) só preenche campos cadastrais vazios; movimentação com mesma chave natural (ativo, tipo, data, chamado) é pulada como `ja_importada`.
 
+### 3.2b Carga dos saldos iniciais de ITENS por quantidade (F3B — 4ª fonte)
+
+A planilha de gestão online (export fornecido pelo Johnny) é a **4ª fonte** da carga única. Os itens por quantidade (catálogo + saldos) nasceram na F3B; aqui entram os saldos reais.
+
+1. Uso: `npm run carga -- --itens=<path> --dry-run|--executar` (mesmas guardas da 3.2: `CARGA_CONFIRM`, project-ref, admin). Pode rodar junto ou separado da carga de ativos.
+2. Pipeline: parse do export (headers exatos conferidos → header errado = arquivo trocado → aborta) → normalização dos nomes de item contra o catálogo `itens` (De→Para conferido com o analista na F3B; nome novo não casado → inconsistência `item_desconhecido`, ação proposta = criar no catálogo ou mapear) → montagem de um lançamento inicial por item × filial.
+3. **Carga:** para cada par item × filial com saldo, gera **um lançamento `entrada`** (a "abertura de estoque") com a quantidade da planilha, data do go-live, observação "saldo inicial (go-live)". Reservas em aberto da planilha (se houver) viram lançamentos `reserva` com o respectivo chamado. O trigger valida saldo ≥ 0 normalmente.
+4. **Dry-run + inconsistências:** contagens por grupo/filial, itens não casados (`item_desconhecido`), saldos negativos na origem (`saldo_invalido`). Bloqueante recusa `--executar`, como na 3.2.
+5. **Idempotência:** reexecutar não duplica — a abertura de estoque de um item × filial já carregado é pulada (`ja_importada`).
+6. **Plano B (se o export não sair):** lançamentos de `ajuste` manuais na tela `/itens` (~20–30 itens × filiais) — documentar no resumo.
+
 ### 3.3 Ensaio (obrigatório antes de produção)
 
 1. `supabase link` no projeto de **ensaio** + push das migrations + 1 admin de teste + `db:seed` NÃO (ensaio roda limpo).
@@ -50,7 +61,7 @@ Scripts em `scripts/import/` que fazem a carga única com segurança: parse → 
 Roteiro numerado, executado por você de ponta a ponta:
 1. `db:reset` do seed fictício na produção (guardas exigem confirmação) → conferir que ativos/movimentações = 0.
 2. Dry-run com os CSVs reais → você revisa as inconsistências (decisões em `docs/DECISOES.md`) → **backup/export do estado atual** → `--executar`.
-3. Conferir contagens + abrir os relatórios das filiais com dados reais.
+3. Conferir contagens (ativos, movimentações **e saldos de itens**) + abrir os relatórios das filiais com dados reais — os 3 grupos do e-mail devem bater.
 4. Você dispara os convites reais e cria as senhas de acesso das filiais; apaga cópias temporárias dos CSVs; registra a data do cutover no `README.md`. Único item físico do Johnny: marcar as planilhas antigas como somente-leitura.
 5. Deixar `scripts/import/` com aviso no topo de cada arquivo: "Ferramenta de go-live/emergência — o sistema NÃO tem importação; ver spec §10."
 

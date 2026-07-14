@@ -43,7 +43,7 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 - Fluxo de compras/orçamento de equipamentos.
 - Sistema de chamados (existe um; guardamos só o nº do chamado como referência).
 - Integração com MDM (Pulsus) e inventário automático de rede.
-- Rastrear acessórios como ativos individuais com patrimônio — na v1 eles são checklist da devolução. **Atenção:** o e-mail semanal atual tem uma seção inteira de acessórios, periféricos e componentes **por quantidade** (fones, mochilas, teclados, memórias, SSDs, carregadores — com status tipo "29 atrelados"). Esse controle simples de quantidade por item×filial entra na F5; até lá o sistema substitui a parte de **equipamentos principais** do e-mail.
+- Rastrear acessórios como ativos individuais com patrimônio — eles são quantidade pura (sem patrimônio, sem máquina de estados) e também checklist da devolução. **Nota (F3B, 14/07/2026):** o controle de acessórios, periféricos e componentes **por quantidade** (fones, mochilas, teclados, memórias, SSDs, carregadores — com "atrelados" e "faltam N") foi **antecipado da F5 para a F3B** e já faz parte do sistema (catálogo + lançamentos por item×filial — §5). Com isso o relatório cobre o e-mail semanal por completo, não só os equipamentos principais.
 - App mobile nativo (a interface web é responsiva).
 - Múltiplos idiomas, multi-empresa.
 - **Importação recorrente ou sincronização com planilhas** — decisão de 09/07/2026: a carga é única, no go-live. Manter uma porta de importação aberta seria manter a tentação da planilha viva; o sistema só cumpre o objetivo se a operação manual for melhor que o Excel.
@@ -128,8 +128,11 @@ Schema completo em [`supabase/schema.sql`](../supabase/schema.sql). Resumo:
 - **`movimentacoes`** — ativo, tipo, motivo, data, filial, colaborador, setor, nº do chamado, termo_assinado, itens_faltantes, observação, **criado_por**, created_at. Imutável: correção é estorno + novo lançamento.
 - **`profiles`** — espelho de `auth.users` com nome. Todo usuário logado é operador — nível único (decisão de 09/07/2026); não existe papel "viewer" com conta.
 - **`senhas_acesso`** — senhas de visualização dos relatórios: rótulo, hash (scrypt), ativa, criado_por, último uso. Validadas exclusivamente no servidor; revogação individual tem efeito imediato.
-- **`relatorios_gerados`** — snapshots da semana (§7.1): período, filial (null = geral), versão, `dados` (jsonb congelado), gerado_por, gerado_em. Imutável — regerar o período cria versão nova.
-- **Views** — `v_estoque_atual` (agregado por filial/categoria/status), `v_movimentacoes_mes`, `v_pendencias` (termos não assinados, itens faltantes, ativos em triagem parados).
+- **`relatorios_gerados`** — snapshots da semana (§7.1): período, filial (null = geral), versão, `dados` (jsonb congelado — `schema: 2` na F3B), gerado_por, gerado_em. Imutável — regerar o período cria versão nova.
+- **`itens`** (F3B) — catálogo de acessórios/periféricos/componentes controlados por **quantidade**: nome (único, case-insensitive), `grupo` (`acessorio` | `componente`), ativo, ordem. Sem patrimônio, sem service tag, sem máquina de estados (quantidade pura). Gerenciado em `admin/itens`. Granularidade: memórias separadas por DDR e tamanho; "kit teclado+mouse" é item próprio.
+- **`lancamentos_item`** (F3B) — movimentação de quantidade: item, filial, `tipo` (`entrada` | `saida` | `reserva` | `liberacao` | `ajuste`), quantidade, chamado, colaborador, data, observação, criado_por, `estorna_id`. Imutável como `movimentacoes` — corrigir = lançamento inverso. Regra crítica no Postgres (trigger): **saldo** (Σ entrada − Σ saída ± ajuste) e **atrelados** (por chamado: Σ reserva − Σ liberação − Σ saída com reserva aberta) nunca ficam negativos; **falta** = max(0, atrelados − saldo) é o "faltam N" automático do e-mail.
+- **`anotacoes`** (F3B) — nota avulsa na linha do tempo do ativo: texto, criado_por, created_at. Imutável, sem transição de estado. É onde vive o "texto vermelho" da manutenção que muda no meio do caso ("aguardando NF-e"). Aparece na ficha e na seção de manutenção do relatório.
+- **Views / RPCs** — `v_estoque_atual` (agregado por filial/categoria/status), `v_movimentacoes_mes`, `v_pendencias`; funções de agregação do relatório (`rel_mov_por_mes`, `rel_por_motivo`, `rel_resumo`) e, na F3B, as as-of: `rel_saldo_itens`, `rel_mov_itens`, `rel_frescor_itens`, `rel_estoque_asof` (estado de cada ativo em uma data, par movimentação+estorno se anula).
 
 ### Vocabulários normalizados (De → Para)
 
@@ -168,21 +171,21 @@ Dois modos complementares substituem o e-mail semanal (decisão de 09/07/2026):
 - **Ao vivo** — `/relatorios/[filial]`: manda-se o link (e a senha de acesso) uma vez; a página está sempre atual. Sem conta, sem cadastro.
 - **Gerado** — o ritual da sexta-feira vira **um clique**: um snapshot interativo dos dados da semana, congelado e versionado (§7.1), com link permanente.
 
-Conteúdo de `/relatorios/[filial]` (e uma visão consolidada `/relatorios/geral`):
+Estrutura de `/relatorios/[filial]` (e a visão consolidada `/relatorios/geral`) — **o formato do e-mail semanal, reorganizado por grupo de equipamento** (v2, F3B). Chips-âncora fixos no topo (Principais · Acessórios · Componentes · Saídas · Entradas) para navegar o relatório longo; no mobile os grupos são recolhíveis (o primeiro fica aberto); a impressão quebra página por grupo.
 
-- **Cards:** total de ativos, em estoque, em uso, em manutenção, reservados, em triagem.
-- **Estoque por categoria** — quantos notebooks/celulares/monitores disponíveis agora (a pergunta nº 1 do dia a dia).
-- **Disponíveis por modelo** — a lista de "guardadas" que abre o e-mail atual ("02 A70 MOB, 01 Latitude 5420, 01 XPS9320…").
-- **Reservados com nº do chamado** — como no e-mail ("30 reservadas: #8461 #9176 …", turma de aprendizes); o chamado já é campo da movimentação.
-- **Em manutenção, caso a caso** — patrimônio, modelo e a observação (orçamento, NF-e, previsão), que hoje é texto vermelho no e-mail.
-- **Resumo do período no formato do e-mail** — "19 saídas: Matriz — novo colaborador: 04 notebooks, 04 monitores; Serra — …" gerado automaticamente, com a tabela detalhada logo abaixo.
-- **Movimentações do período** — saídas × devoluções por semana/mês (gráfico de barras).
-- **Saídas por motivo** e **devoluções por motivo** no período.
-- **Pendências:** termos não assinados, devoluções com itens faltantes, ativos parados em triagem.
-- **Últimas movimentações** — tabela com data, ativo, tipo, colaborador, chamado.
-- **Exportar:** CSV da tabela e impressão limpa (PDF pelo navegador) para quem ainda pedir "o arquivo".
+1. **KPIs gerais** — total de ativos, em uso, em estoque, reservados, em triagem, em manutenção, reserva técnica — cada um com **Δ vs período anterior** (setinha ▲▼) — + gráfico de saídas × entradas do período (granularidade adaptativa dia/semana/mês).
+2. **Grupo — Equipamentos principais** (notebooks, desktops, monitores, celulares, tablets): KPIs do grupo (guardados · reservados · em manutenção · emprestados, com Δ) → **estoque no último dia por categoria × status** (barras horizontais empilhadas com rótulo por segmento + total) → **disponíveis por modelo** (bar list agrupada por categoria — a lista que abre o e-mail) → **reservados com nº do chamado** → **em manutenção, caso a caso** (um card por ativo: patrimônio, modelo, chamado, "há N dias", e a mini-linha do tempo obs do envio → **anotações** (autor+data) → retorno; inclui quem voltou de manutenção no período) → saídas e entradas por motivo.
+3. **Grupo — Acessórios e periféricos** — tabela por item (saldo · atrelados · Δ período · **falta** · obs) + barras divergentes da movimentação por item + carimbo "último lançamento em dd/MM".
+4. **Grupo — Componentes** — idem, filtrando o catálogo por `grupo = componente` (SSD, memórias por DDR e tamanho).
+5. **Pendências** — termos não assinados, devoluções com itens faltantes, ativos parados em triagem.
+6. **Saídas do período** — tabela detalhada (saída + empréstimo) com contagem no título, resumo por filial × motivo e filtros internos: Data · Filial · Categoria · Marca/Modelo · Patrimônio · Tipo · Motivo · Chamado · Colaborador/Setor · Termo · Obs.
+7. **Entradas do período** — idem (devolução + compra): Data · Filial · Categoria · Marca/Modelo · Patrimônio · Tipo · Motivo · Colaborador · Setor · Itens faltantes · Obs.
+8. **Transferências** — bloco condicional (só quando houver), aparece nas duas filiais (regra 5).
+9. **Resumo no formato do e-mail** — "19 saídas: Matriz — novo colaborador: 04 notebooks, 04 monitores; …" gerado automaticamente, com botão **copiar texto** e **imprimir** a página limpa.
 
-Tempo real, em duas camadas: Server Components buscam dados frescos a cada acesso; na página aberta, subscription de Supabase Realtime na tabela `movimentacoes` atualiza os números sem F5 (para operadores logados). Sessões por senha não têm credencial de banco e não abrem websocket — para elas a página se atualiza sozinha por revalidação periódica (~60 s), o que na prática é tempo real para quem consulta.
+O **estoque "no último dia do período"** e todas as listas de estado são reconstruídos **as-of** (função SQL): período terminando hoje usa o estado atual (caminho barato); período no passado (snapshot regerado, errata) reconstrói o estado exato do fim do período. **Sem export CSV** (decisão do plano de 14/07/2026): quem precisar de arquivo usa a impressão limpa (PDF pelo navegador).
+
+Tempo real, em duas camadas: Server Components buscam dados frescos a cada acesso; na página aberta, subscription de Supabase Realtime nas tabelas `movimentacoes`, `lancamentos_item` e `anotacoes` atualiza os números sem F5 (para operadores logados). Sessões por senha não têm credencial de banco e não abrem websocket — para elas a página se atualiza sozinha por revalidação periódica (~60 s), o que na prática é tempo real para quem consulta.
 
 **Por que não Power BI:** foi considerado e descartado para a v1 em 09/07/2026 — compartilhar exige licença Pro por usuário, o refresh do plano básico é agendado (não tempo real) e ninguém da equipe domina a ferramenta. A porta fica aberta: o Postgres do Supabase aceita conexão direta do Power BI no futuro, sem mudar nada no sistema.
 
@@ -193,7 +196,7 @@ O equivalente moderno do e-mail de sexta-feira — pedido do Johnny em 09/07/202
 - **Gerar:** botão "Gerar relatório" (só admin) com período padrão **segunda a sexta da semana corrente** (mesmo recorte dos e-mails reais, ex.: "22/06 até 26/06"), ajustável; escopo por filial ou geral.
 - **Snapshot congelado:** os dados do período são calculados na hora e gravados em `relatorios_gerados` (jsonb). O relatório **não muda mais** — mesmo que depois haja estorno ou correção, o que foi apresentado na sexta continua auditável. Quem corrige gera nova versão.
 - **Versionado — o fim da ERRATA:** regerar o mesmo período cria a **versão 2**; a versão 1 continua acessível com um aviso "existe versão mais recente". Ninguém reenvia nada: o link aponta para a versão atual.
-- **Interativo:** a página `/relatorios/gerados/[id]` renderiza o snapshot com os mesmos componentes do relatório ao vivo — gráficos com tooltip, tabelas ordenáveis, filtros internos (filial/categoria/tipo) aplicados sobre o snapshot, resumo no formato do e-mail com "copiar texto", export CSV e impressão limpa. Não é um PDF morto.
+- **Interativo:** a página `/relatorios/gerados/[id]` renderiza o snapshot com os mesmos componentes do relatório ao vivo (v2: 3 grupos + tabelas detalhadas) — gráficos com tooltip, tabelas filtráveis, resumo no formato do e-mail com "copiar texto" e impressão limpa. Não é um PDF morto. Snapshots gerados antes da F3B (formato v1) continuam abrindo (o leitor normaliza pelo carimbo de schema).
 - **Histórico:** `/relatorios/gerados` lista todos (período, filial, versão, quem gerou, quando) — o arquivo semanal que hoje se perde na caixa de e-mail.
 - **Acesso:** a mesma senha de acesso dos relatórios; **gerar** é ação de operador logado.
 - Download como **HTML autocontido** (arquivo único para anexar/arquivar) fica no backlog da F5.
@@ -258,9 +261,10 @@ Enquanto o importador não roda com os dados reais, um script de seed povoa o ba
 | **F0 — Fundação** | Repo + Next.js + Tailwind + shadcn/ui + projeto Supabase + login por convite + layout base + deploy Vercel | Johnny e a operadora logam em produção |
 | **F1 — Banco + dados fictícios** | Migrations do schema + **seed fictício realista** (~1.200 ativos, ~700 movimentações, seção 10.1) + views | Seed roda e reseta com um comando; `v_estoque_atual` bate com o seed |
 | **F2 — Operação** | Lista/ficha de ativos + **nova movimentação** com validações + **estorno** (sem estorno não há como corrigir erro, já que movimentação é imutável) | Ciclo completo compra → saída → devolução → triagem registrável de ponta a ponta, sobre dados fictícios |
-| **F3 — Relatórios** | `/relatorios/[filial]` + consolidado, tempo real, export | Dashboards demonstráveis com dados fictícios; validação visual com quem recebe o e-mail hoje |
-| **F4 — Carga inicial + go-live** | Scripts de carga única (`scripts/import/`): normalização De→Para + dry-run + relatório de inconsistências + carga idempotente; ensaio no projeto de ensaio; reset do seed | Dados reais dentro; números batem com as planilhas; **cutover: planilhas viram só-leitura, e-mail aposentado e nenhuma tela de importação existe no app** |
-| **F5 — Refino** | Estoque de acessórios/componentes por quantidade (fecha a 2ª metade do e-mail), pendências e alertas avançados, resumo automático por e-mail (opcional), backup agendado, upload dos termos (PDF) | E-mail semanal 100% substituído; backlog priorizado com o uso real |
+| **F3 — Relatórios** | `/relatorios/[filial]` + consolidado, tempo real, snapshot versionado, acesso por senha | Dashboards demonstráveis com dados fictícios; validação visual com quem recebe o e-mail hoje |
+| **F3B — Relatórios v2** | Relatório no formato do e-mail (3 grupos + tabelas de Saídas/Entradas), **itens por quantidade** (catálogo + lançamentos, antecipados da F5), **anotações** na linha do tempo, reconstrução as-of do estoque, sem export CSV | Relatório cobre 100% do e-mail com dados fictícios; falta/atrelados automáticos; snapshot v2 congela os 3 grupos |
+| **F4 — Carga inicial + go-live** | Scripts de carga única (`scripts/import/`): normalização De→Para + dry-run + relatório de inconsistências + carga idempotente (inclui os **saldos iniciais de itens** a partir da planilha de gestão online); ensaio; reset do seed | Dados reais dentro; números batem com as planilhas; **cutover: planilhas viram só-leitura, e-mail semanal aposentado por completo e nenhuma tela de importação existe no app** |
+| **F5 — Refino** | Pendências e alertas avançados, **estoque mínimo por item** (reorder point), resumo automático por e-mail (opcional), backup agendado, upload dos termos (PDF), HTML autocontido do snapshot, kits de lote salvos | Backlog priorizado com o uso real |
 
 Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados reais**: F3 já mostra os relatórios com dados fictícios; a virada de chave (F4) acontece quando a WAP quiser, sem pressa e sem período de convivência planilha×sistema. Detalhamento de esforço, escopo por fase e ordem das telas: [`PLANEJAMENTO.md`](./PLANEJAMENTO.md).
 

@@ -105,15 +105,21 @@ Ponto de atenção (também no checklist da seção 8): produção em contas do 
 
 ### F3 — Relatórios (5–6 sessões)
 - **Entrega:** `/relatorios/[filial]` + consolidado, com tudo da spec §7: KPIs, movimentações por mês, disponíveis por modelo, reservados com chamado, manutenção caso a caso, motivos, pendências, últimas movimentações (com observações), resumo do período no formato do e-mail, export CSV/impressão. Realtime atualizando a página aberta. **+ Relatório gerado da semana** (spec §7.1): snapshot interativo congelado e versionado, com histórico — o clique que substitui o ritual de sexta-feira. **+ Acesso por senha** (spec §3): visualizador entra sem conta (senha → cookie assinado; gestão de senhas com rótulo e revogação em `admin/senhas`; auto-refresh de 60 s no lugar do realtime). (O mockup `mockups/dashboard-relatorio.html` é a referência visual.)
-- **Fora do escopo:** acessórios por quantidade (F5).
+- **Fora do escopo:** acessórios por quantidade (movido para a F3B) · export CSV das páginas de relatório (removido na F3B).
 - **Pronto quando:** demo com dados fictícios validada com 2–3 pessoas que recebem o e-mail hoje (inclusive de filial).
+
+### F3B — Relatórios v2 (formato do e-mail) — plano aprovado em 14/07/2026
+- **Entrega:** relatório reestruturado no **formato do e-mail** (3 grupos — equipamentos principais, acessórios/periféricos, componentes — + tabelas detalhadas de Saídas e Entradas + transferências). Nasce o controle de **itens por quantidade** (catálogo `admin/itens` + tela de lançamento `/itens` com saldo/atrelados/falta, antecipado da F5), as **anotações** na linha do tempo do ativo, e a reconstrução **as-of** do estoque (o snapshot regerado meses depois continua fiel ao período). KPIs com Δ vs período anterior. **Sem export CSV** nas páginas de relatório (fica a impressão limpa + copiar texto). Contrato: `docs/PLANO-RELATORIOS-V2.md`.
+- **Fora do escopo (segue na F5):** kits de lote salvos · alertas por e-mail · HTML autocontido · dark mode · estoque mínimo por item · integração checklist-devolução ↔ quantidade.
+- **Pronto quando:** o relatório cobre 100% do e-mail (equipamentos + acessórios + componentes + tabelas) com dados fictícios; falta/atrelados automáticos; snapshot v2 congela os 3 grupos e snapshots v1 antigos continuam abrindo; demo com 2–3 destinatários do e-mail já no formato v2 antes da F4.
 
 ### F4 — Carga inicial + go-live (4–6 sessões)
 - **Entrega:** scripts de carga única em `scripts/import/` (parse cp1252/`;` → normalização De→Para → **dry-run com relatório de inconsistências** → carga idempotente com guardas anti-acidente), ensaio completo com as planilhas reais no projeto de ensaio, go-live na produção com aprovação explícita e cutover. **Nenhuma tela nova** — o sistema não tem importação (decisão de 09/07/2026).
-- **Pronto quando:** números no sistema batem com as planilhas reais (1.179 ativos, 423 saídas, 291 devoluções, menos duplicatas tratadas); inconsistências revisadas pelo Johnny; planilhas marcadas como só-leitura; e-mail de equipamentos principais aposentado; `grep importador src/` = zero.
+- **Adicionado na F3B:** a carga inclui os **saldos iniciais de itens** a partir do export da planilha de gestão online (4ª fonte da carga única, com dry-run e conferência de contagens; plano B = lançamentos de `ajuste` manuais).
+- **Pronto quando:** números no sistema batem com as planilhas reais (1.179 ativos, 423 saídas, 291 devoluções, menos duplicatas tratadas) **e os saldos de itens batem com a planilha de gestão**; inconsistências revisadas pelo Johnny; planilhas marcadas como só-leitura; **e-mail semanal aposentado por completo** (equipamentos + acessórios + componentes); `grep importador src/` = zero.
 
 ### F5 — Refino (contínuo, priorizado pelo uso)
-Acessórios/componentes por quantidade (fecha a 2ª metade do e-mail semanal) · alertas de pendência · resumo semanal automático por e-mail (opcional) · backup CSV agendado · upload dos termos assinados (Storage) · dark mode · testes E2E se fizer sentido.
+Estoque mínimo por item (reorder point — candidato natural agora que os saldos existem) · alertas de pendência · resumo semanal automático por e-mail (opcional) · backup CSV agendado · upload dos termos assinados (Storage) · HTML autocontido do snapshot · kits de lote salvos · integração checklist-devolução ↔ quantidade · dark mode · testes E2E se fizer sentido.
 
 ## 5. Ordem de construção das telas (dentro de F2–F3)
 
