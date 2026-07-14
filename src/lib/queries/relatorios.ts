@@ -13,6 +13,7 @@ import type {
   CategoriaAtivo,
   GrupoItem,
   StatusAtivo,
+  TermoStatus,
   TipoMovimentacao,
 } from '@/lib/dominio'
 import { CATEGORIA_ORDEM, STATUS_ORDEM, rotuloTermo } from '@/lib/dominio'
@@ -1078,7 +1079,7 @@ type RawTabelaRow = {
   colaborador: string | null
   setor: string | null
   motivo: string | null
-  termo_assinado: 'sim' | 'nao' | 'enviado' | null
+  termo_assinado: TermoStatus | null
   itens_faltantes: string[] | null
   ativo: { patrimonio: string; marca: string | null; modelo: string | null; categoria: CategoriaAtivo } | null
   filial: { nome: string } | null

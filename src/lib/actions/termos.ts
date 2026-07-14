@@ -366,6 +366,9 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
 
   for (const aid of ativoIds) revalidatePath(`/ativos/${aid}`)
   revalidatePath('/ativos')
+  // Termo de responsabilidade muda ativos.termo_assinado -> 'gerado', que a
+  // coluna "Termo" do relatorio e as pendencias leem: revalida o relatorio.
+  revalidatePath('/relatorios', 'layout')
 
   const nomeArquivo = nomeDownload(tipo, campos.colaborador ?? '')
   return { ok: true, id, url: signed?.signedUrl, nomeArquivo }

@@ -115,6 +115,8 @@ export async function registrarCompra(
   }
 
   revalidatePath('/ativos')
+  // Compras entram como estoque disponivel — o relatorio ao vivo precisa refletir.
+  revalidatePath('/relatorios', 'layout')
   return {
     ok: true,
     criados: (criados ?? []).map((c) => ({ id: c.ativo_id, patrimonio: c.patrimonio })),

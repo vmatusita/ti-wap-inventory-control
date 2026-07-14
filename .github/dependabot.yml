@@ -1,0 +1,22 @@
+# Varredura semanal de dependências (GitHub Dependabot).
+# Custo R$ 0, sem novo serviço — apenas abre PRs de atualização/segurança.
+# Alinhado ao CLAUDE.md: não adiciona dependência nova, só atualiza as existentes.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencias"
+    groups:
+      # Agrupa minor/patch num único PR por semana para reduzir ruído;
+      # updates major vêm em PRs separados para revisão manual (stack travada).
+      atualizacoes-menores:
+        update-types:
+          - "minor"
+          - "patch"

@@ -197,6 +197,10 @@ export async function registrarMovimentacoes(input: {
     revalidatePath('/ativos')
     revalidatePath('/movimentacoes/nova')
     for (const id of rotasAtivos) revalidatePath(`/ativos/${id}`)
+    // Saidas, devolucoes, transferencias etc. alimentam os relatorios ao vivo e
+    // v_pendencias — revalida como fazem itens.ts/ativos.ts (senao o link do
+    // relatorio serve dado obsoleto ao visualizador por senha).
+    revalidatePath('/relatorios', 'layout')
   }
 
   return {
@@ -256,6 +260,7 @@ export async function estornarMovimentacao(input: {
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${mov.ativo_id}`)
+  revalidatePath('/relatorios', 'layout')
   return { ok: true }
 }
 
@@ -268,7 +273,11 @@ export async function buscarAtivosParaMovimentacao(
 ): Promise<AtivoResumo[]> {
   try {
     return await buscarAtivosParaCombobox(term)
-  } catch {
+  } catch (err) {
+    // Degrada para lista vazia (o combobox roda com debounce e nao deve derrubar
+    // o fluxo por um hiccup transitorio), mas NAO silencia: registra no log do
+    // servidor para que uma falha sistematica (RLS/config/rede) seja visivel.
+    console.error('[buscarAtivosParaMovimentacao] falha na busca de ativos:', err)
     return []
   }
 }

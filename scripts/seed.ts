@@ -889,6 +889,29 @@ function mark(actualPct: number, targetPct: number): string {
   return Math.abs(actualPct - targetPct) <= 3 ? '✓' : '✗'
 }
 
+// PostgREST corta selects em ~1000 linhas por padrao, e o resumo do seed lida
+// com ~1.2k ativos e ~2.4k movimentacoes. Pagina com .range() ate a ultima
+// pagina incompleta para que as contagens e os checks (✓/✗) sejam reais — sem
+// isso o sumario mostra "Ativos: 1000" e marca falso-negativos.
+const PAGINA_SUMARIO = 1000
+async function lerPaginado<Row>(
+  rotulo: string,
+  pagina: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+): Promise<Row[]> {
+  const acc: Row[] = []
+  for (let from = 0; ; from += PAGINA_SUMARIO) {
+    const { data, error } = await pagina(from, from + PAGINA_SUMARIO - 1)
+    if (error) throw new Error(`${rotulo}: ${error.message}`)
+    const rows = (data ?? []) as Row[]
+    acc.push(...rows)
+    if (rows.length < PAGINA_SUMARIO) break
+  }
+  return acc
+}
+
 async function sumario(
   db: ReturnType<typeof createAdminClient>,
   slugById: Map<number, string>,
@@ -897,22 +920,23 @@ async function sumario(
   totalLanc: number,
   totalAnot: number,
 ) {
-  const { data: ativos, error: e1 } = await db
-    .from('ativos')
-    .select('categoria,status,filial_id,patrimonio,service_tag,pendencia')
-  if (e1) throw new Error(`Sumario (ativos): ${e1.message}`)
-  const { data: movs, error: e2 } = await db.from('movimentacoes').select('tipo,data')
-  if (e2) throw new Error(`Sumario (movimentacoes): ${e2.message}`)
-
-  const rowsA: {
+  const rowsA = await lerPaginado<{
     categoria: string
     status: string
     filial_id: number
     patrimonio: string
     service_tag: string | null
     pendencia: string | null
-  }[] = ativos ?? []
-  const rowsM: { tipo: string; data: string }[] = movs ?? []
+  }>('Sumario (ativos)', (from, to) =>
+    db
+      .from('ativos')
+      .select('categoria,status,filial_id,patrimonio,service_tag,pendencia')
+      .range(from, to),
+  )
+  const rowsM = await lerPaginado<{ tipo: string; data: string }>(
+    'Sumario (movimentacoes)',
+    (from, to) => db.from('movimentacoes').select('tipo,data').range(from, to),
+  )
   const totalA = rowsA.length
 
   const countBy = <T extends string | number>(rows: { [k: string]: unknown }[], key: string) => {

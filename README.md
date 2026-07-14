@@ -27,6 +27,25 @@ Sistema interno para substituir o controle de ativos de TI feito hoje em três p
 | `supabase/migrations/` | Fonte da verdade do banco a partir da F1 (`schema.sql` é histórico) |
 | `mockups/dashboard-relatorio.html` | Mockup navegável do relatório por filial, com os números reais das planilhas de 2026 |
 
+## Desenvolvimento local
+
+Pré-requisitos: **Node 20+** e **npm**. Banco, Auth e Storage rodam num projeto **Supabase de desenvolvimento** — nunca produção.
+
+1. `npm install`
+2. Copie `.env.example` para `.env.local` e preencha com os valores do Supabase **de DEV**.
+3. `npm run dev` → app em `http://localhost:3000`.
+
+Variáveis de ambiente (todas documentadas em `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (só server-side/scripts — nunca `NEXT_PUBLIC`), `VIEW_SESSION_SECRET` (assina o cookie da sessão de visualização por senha) e as guardas `SEED_CONFIRM`/`SEED_PROJECT_REF`, que impedem os scripts de dados fictícios de rodarem fora do DEV.
+
+Scripts (dados 100% fictícios — jamais apontam para produção):
+
+| Comando | O quê faz |
+|---|---|
+| `npm run dev` / `npm run build` / `npm run lint` | Desenvolvimento · build de produção · verificação obrigatória ao fim de cada ordem |
+| `npm run db:seed` | Popula o banco de DEV com dados fictícios determinísticos |
+| `npm run db:reset` | Zera as tabelas de dados (exige as guardas do `.env.local`) |
+| `npm run db:types` | Regenera `src/lib/types/database.ts` a partir do schema (CLI linkada; grava só se a saída for TypeScript válido) |
+
 ## Status
 
 - [x] Análise das planilhas reais (1.179 ativos, 423 saídas, 291 devoluções — jan–jul/2026) e dos e-mails semanais
