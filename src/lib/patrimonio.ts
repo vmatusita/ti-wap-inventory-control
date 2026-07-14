@@ -68,3 +68,21 @@ export function expandirFaixa(
   for (let n = a; n <= b; n++) itens.push(`${pi[1]}${String(n).padStart(7, '0')}`)
   return { itens }
 }
+
+// Chave de unicidade do ativo (§5): o PAR patrimônio + service tag é único — o
+// patrimônio sozinho repete em casos raros. Espelha o índice do banco, que usa
+// coalesce(service_tag, ''). Usada para dedupe/conflito no lote de compra.
+export function chavePatrimonio(patrimonio: string, serviceTag?: string | null): string {
+  return `${patrimonio}::${serviceTag ?? ''}`
+}
+
+// Quais patrimônios da lista aparecem em MAIS DE UM item — a duplicidade legítima
+// do §5 (mesmo patrimônio em ativos distintos), usada para sinalizar/desambiguar
+// na UI. Conta pelo patrimônio SOZINHO (≠ chavePatrimonio, que é o par único).
+export function patrimoniosRepetidos(patrimonios: string[]): Set<string> {
+  const contagem = new Map<string, number>()
+  for (const p of patrimonios) contagem.set(p, (contagem.get(p) ?? 0) + 1)
+  return new Set(
+    [...contagem.entries()].filter(([, n]) => n > 1).map(([p]) => p),
+  )
+}

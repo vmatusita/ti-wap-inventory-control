@@ -1,42 +1,28 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { traduzErroBanco } from '@/lib/actions/erros'
-import { editarAtivoSchema } from '@/lib/validators/ativo'
-
-export type EditarAtivoResult = { ok: boolean; erro?: string }
-
-// Anotação na linha do tempo (F3B): nota avulsa, imutável, com autor + data.
-const anotacaoSchema = z.object({
-  ativo_id: z.string().uuid('Ativo inválido'),
-  texto: z
-    .string()
-    .trim()
-    .min(1, 'Escreva a anotação')
-    .max(2000, 'Anotação: no máximo 2000 caracteres'),
-})
+import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { anotacaoSchema, editarAtivoSchema } from '@/lib/validators/ativo'
 
 export async function anotarAtivo(input: {
   ativo_id: string
   texto: string
-}): Promise<EditarAtivoResult> {
+}): Promise<ActionResult> {
   const parsed = anotacaoSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false, erro: 'Sua sessão expirou. Faça login novamente.' }
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
   const { error } = await supabase.from('anotacoes').insert({
     ativo_id: parsed.data.ativo_id,
     texto: parsed.data.texto,
-    criado_por: user.id,
+    criado_por: uid,
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message) }
 
@@ -56,7 +42,7 @@ export async function atualizarDadosCadastrais(input: {
   observacoes?: string
   termo_assinado?: string | null
   termo_data?: string | null
-}): Promise<EditarAtivoResult> {
+}): Promise<ActionResult> {
   const parsed = editarAtivoSchema.safeParse(input)
   if (!parsed.success) {
     return {
@@ -66,10 +52,8 @@ export async function atualizarDadosCadastrais(input: {
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false, erro: 'Sua sessão expirou. Faça login novamente.' }
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
   const { id, ...campos } = parsed.data
 

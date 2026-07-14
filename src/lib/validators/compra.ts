@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
-import { hojeISO } from '@/lib/format'
+import { dataNaoFuturaSchema } from '@/lib/validators/data'
 import { MAX_LOTE_COMPRA, PATRIMONIO_CANONICAL_RE } from '@/lib/patrimonio'
 
 // Entrada de equipamento novo (tipo `compra` — spec §8 regra 8 / OS-F2 3.5.5).
@@ -10,11 +10,6 @@ const opcional = z.preprocess(
   (v) => (v === '' || v == null ? undefined : v),
   z.string().trim().optional(),
 )
-
-const dataSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
-  .refine((d) => d <= hojeISO(), 'A data não pode ser futura')
 
 export const compraItemSchema = z.object({
   patrimonio: z
@@ -44,7 +39,7 @@ export const compraLoteSchema = z.object({
     (v) => (v === '' || v == null ? undefined : v),
     z.string().trim().max(500, 'Observação: no máximo 500 caracteres').optional(),
   ),
-  data: dataSchema,
+  data: dataNaoFuturaSchema,
 })
 
 export type CompraLoteInput = z.infer<typeof compraLoteSchema>

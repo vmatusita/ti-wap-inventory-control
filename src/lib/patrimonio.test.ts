@@ -3,6 +3,8 @@ import {
   canonicalizarPatrimonio,
   parsearLista,
   expandirFaixa,
+  chavePatrimonio,
+  patrimoniosRepetidos,
   MAX_LOTE_COMPRA,
   PATRIMONIO_CANONICAL_RE,
 } from '@/lib/patrimonio'
@@ -104,5 +106,32 @@ describe('expandirFaixa', () => {
   it('recusa patrimônio inicial/final inválido', () => {
     expect(expandirFaixa('lixo', 'WAP3').erro).toMatch(/inicial/i)
     expect(expandirFaixa('WAP1', 'lixo').erro).toMatch(/final/i)
+  })
+})
+
+describe('chavePatrimonio (par único §5)', () => {
+  it('combina patrimônio + service tag', () => {
+    expect(chavePatrimonio('WAP0000001', 'ST9')).toBe('WAP0000001::ST9')
+  })
+
+  it('trata service tag ausente como string vazia (coalesce do banco)', () => {
+    expect(chavePatrimonio('WAP0000001')).toBe('WAP0000001::')
+    expect(chavePatrimonio('WAP0000001', null)).toBe('WAP0000001::')
+  })
+
+  it('distingue mesmo patrimônio com service tags diferentes', () => {
+    expect(chavePatrimonio('WAP0000001', 'A')).not.toBe(chavePatrimonio('WAP0000001', 'B'))
+  })
+})
+
+describe('patrimoniosRepetidos (repetição §5, por patrimônio só)', () => {
+  it('devolve só os patrimônios que aparecem em mais de um item', () => {
+    const r = patrimoniosRepetidos(['WAP1', 'WAP2', 'WAP1', 'WAP3', 'WAP3'])
+    expect(r).toEqual(new Set(['WAP1', 'WAP3']))
+  })
+
+  it('devolve conjunto vazio quando não há repetição', () => {
+    expect(patrimoniosRepetidos(['WAP1', 'WAP2'])).toEqual(new Set())
+    expect(patrimoniosRepetidos([])).toEqual(new Set())
   })
 })

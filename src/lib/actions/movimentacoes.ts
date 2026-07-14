@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { traduzErroBanco } from '@/lib/actions/erros'
+import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import {
   loteMovimentacaoSchema,
@@ -57,15 +58,13 @@ export async function registrarMovimentacoes(input: {
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
+  const uid = await idOperador(supabase)
+  if (!uid) {
     return {
       ok: false,
       criadas: 0,
       resultados: [],
-      erroGeral: 'Sua sessão expirou. Faça login novamente.',
+      erroGeral: MSG_SESSAO_EXPIRADA,
     }
   }
 
@@ -163,7 +162,7 @@ export async function registrarMovimentacoes(input: {
       // Ajuste: o trigger LE o status_resultante; nos demais ele o CALCULA.
       status_resultante:
         item.tipo === 'ajuste' ? item.status_resultante : null,
-      criado_por: user.id,
+      criado_por: uid,
     }
 
     const { data: inserida, error: insertErr } = await supabase
@@ -213,22 +212,18 @@ export async function registrarMovimentacoes(input: {
 // ---------------------------------------------------------------------------
 // Estorno da ULTIMA movimentacao (OS-F2 3.6). O trigger valida "so a ultima".
 // ---------------------------------------------------------------------------
-export type EstornoResult = { ok: boolean; erro?: string }
-
 export async function estornarMovimentacao(input: {
   movimentacao_id: string
   observacao?: string
-}): Promise<EstornoResult> {
+}): Promise<ActionResult> {
   const parsed = estornoActionSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: 'Dados inválidos para o estorno.' }
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false, erro: 'Sua sessão expirou. Faça login novamente.' }
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
   // Movimentacao original -> ativo (e, dele, a filial corrente p/ o insert).
   const { data: mov, error: movErr } = await supabase
@@ -253,7 +248,7 @@ export async function estornarMovimentacao(input: {
     data: hojeISO(),
     filial_id: ativo.filial_id,
     observacao: parsed.data.observacao ?? null,
-    criado_por: user.id,
+    criado_por: uid,
   })
 
   if (insertErr) return { ok: false, erro: traduzErroBanco(insertErr.message) }

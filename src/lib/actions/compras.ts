@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { compraLoteSchema, type CompraLoteInput } from '@/lib/validators/compra'
+import { chavePatrimonio } from '@/lib/patrimonio'
+import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
 import type { Json } from '@/lib/types/database'
 
 export type CompraResult = {
@@ -11,12 +13,6 @@ export type CompraResult = {
   criados: { id: string; patrimonio: string }[]
   erros?: string[]
   erroGeral?: string
-}
-
-// Chave de unicidade real do ativo (§5): patrimônio + service tag (o índice do
-// banco usa coalesce(service_tag, '')). Aqui espelhamos exatamente.
-function chave(patrimonio: string, serviceTag?: string | null): string {
-  return `${patrimonio}::${serviceTag ?? ''}`
 }
 
 // Entrada de equipamento novo (compra), single ou lote — TUDO OU NADA (OS-F2
@@ -36,15 +32,9 @@ export async function registrarCompra(
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return {
-      ok: false,
-      criados: [],
-      erroGeral: 'Sua sessão expirou. Faça login novamente.',
-    }
+  const uid = await idOperador(supabase)
+  if (!uid) {
+    return { ok: false, criados: [], erroGeral: MSG_SESSAO_EXPIRADA }
   }
 
   const dados = parsed.data
@@ -53,7 +43,7 @@ export async function registrarCompra(
   // Duplicidade DENTRO do lote.
   const vistos = new Set<string>()
   for (const it of dados.itens) {
-    const k = chave(it.patrimonio, it.service_tag)
+    const k = chavePatrimonio(it.patrimonio, it.service_tag)
     if (vistos.has(k)) {
       erros.push(
         `Patrimônio repetido no lote: ${it.patrimonio}${it.service_tag ? ` (service tag ${it.service_tag})` : ''}.`,
@@ -72,10 +62,10 @@ export async function registrarCompra(
     return { ok: false, criados: [], erroGeral: traduzErroBanco(exErr.message) }
   }
   const existSet = new Set(
-    (existentes ?? []).map((e) => chave(e.patrimonio, e.service_tag)),
+    (existentes ?? []).map((e) => chavePatrimonio(e.patrimonio, e.service_tag)),
   )
   for (const it of dados.itens) {
-    if (existSet.has(chave(it.patrimonio, it.service_tag))) {
+    if (existSet.has(chavePatrimonio(it.patrimonio, it.service_tag))) {
       erros.push(
         `Já existe um ativo ${it.patrimonio} ${it.service_tag ? `com service tag ${it.service_tag}` : 'sem service tag'} — use uma service tag distinta.`,
       )
@@ -107,7 +97,7 @@ export async function registrarCompra(
 
   const { data: criados, error } = await supabase.rpc('criar_compra_lote', {
     p_itens: p_itens as unknown as Json,
-    p_criado_por: user.id,
+    p_criado_por: uid,
   })
 
   if (error) {

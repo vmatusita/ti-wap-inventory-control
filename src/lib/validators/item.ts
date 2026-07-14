@@ -1,17 +1,10 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
-import { hojeISO } from '@/lib/format'
+import { dataNaoFuturaSchema } from '@/lib/validators/data'
 
 // Validadores compartilhados (cliente E servidor) do lançamento de item por
 // quantidade e do catálogo (F3B). Espelham as constraints/trigger da migration
 // 0015 — a regra crítica vive no Postgres; aqui é a segunda linha (CLAUDE.md).
-
-const DATA_RE = /^\d{4}-\d{2}-\d{2}$/
-
-const dataSchema = z
-  .string()
-  .regex(DATA_RE, 'Data inválida')
-  .refine((d) => d <= hojeISO(), 'A data não pode ser futura')
 
 // Chamado: dígitos como texto (padrão da movimentação). Vazio = ausente. A
 // obrigatoriedade em reserva/liberação é checada no superRefine.
@@ -44,7 +37,7 @@ export const lancamentoItemSchema = z
       .int('A quantidade deve ser inteira'),
     chamado: chamadoOpcional,
     colaborador: colaboradorOpcional,
-    data: dataSchema,
+    data: dataNaoFuturaSchema,
     observacao: observacaoOpcional,
   })
   .superRefine((v, ctx) => {

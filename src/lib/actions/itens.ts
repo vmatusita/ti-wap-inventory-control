@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { getOperador } from '@/lib/auth/acesso'
-import { traduzErroBanco } from '@/lib/actions/erros'
+import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import {
   lancamentoItemSchema,
@@ -14,19 +14,17 @@ import {
 } from '@/lib/validators/item'
 import type { TipoLancamento } from '@/lib/dominio'
 
-export type ItemActionResult = { ok: boolean; erro?: string }
-
 async function operadorId(): Promise<string | null> {
-  const op = await getOperador()
-  return op?.id ?? null
+  const supabase = await createClient()
+  return idOperador(supabase)
 }
 
 // Lança uma movimentação de quantidade (entrada/saida/reserva/liberacao/ajuste).
 // A regra crítica (saldo/atrelados nunca negativos) é do trigger 0015 — aqui é a
 // segunda linha. O erro do banco é traduzido para pt-BR amigável.
-export async function lancarItem(input: LancamentoItemInput): Promise<ItemActionResult> {
+export async function lancarItem(input: LancamentoItemInput): Promise<ActionResult> {
   const uid = await operadorId()
-  if (!uid) return { ok: false, erro: 'Sessão expirada. Faça login novamente.' }
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
   const parsed = lancamentoItemSchema.safeParse(input)
   if (!parsed.success) {
@@ -67,9 +65,9 @@ const INVERSO: Record<TipoLancamento, TipoLancamento> = {
 // impede duplo estorno (índice único em estorna_id) e valida o saldo do inverso.
 export async function estornarLancamento(input: {
   lancamento_id: string
-}): Promise<ItemActionResult> {
+}): Promise<ActionResult> {
   const uid = await operadorId()
-  if (!uid) return { ok: false, erro: 'Sessão expirada. Faça login novamente.' }
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
   const parsed = estornoLancamentoSchema.safeParse(input)
   if (!parsed.success) return { ok: false, erro: 'Lançamento inválido.' }
@@ -123,9 +121,9 @@ export async function criarItem(input: {
   nome: string
   grupo: string
   ordem: number
-}): Promise<ItemActionResult> {
+}): Promise<ActionResult> {
   const uid = await operadorId()
-  if (!uid) return { ok: false, erro: 'Sessão expirada. Faça login novamente.' }
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
   const parsed = itemCatalogoSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
@@ -152,9 +150,9 @@ export async function atualizarItem(input: {
   grupo: string
   ordem: number
   ativo: boolean
-}): Promise<ItemActionResult> {
+}): Promise<ActionResult> {
   const uid = await operadorId()
-  if (!uid) return { ok: false, erro: 'Sessão expirada. Faça login novamente.' }
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
   const parsed = atualizarItemSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
@@ -179,9 +177,9 @@ export async function atualizarItem(input: {
 
 // Exclusão só quando NÃO houver lançamentos (senão o histórico ficaria órfão);
 // caso contrário, a tela oferece desativar.
-export async function excluirItem(input: { id: number }): Promise<ItemActionResult> {
+export async function excluirItem(input: { id: number }): Promise<ActionResult> {
   const uid = await operadorId()
-  if (!uid) return { ok: false, erro: 'Sessão expirada. Faça login novamente.' }
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
   const id = Number(input.id)
   if (!Number.isInteger(id) || id <= 0) return { ok: false, erro: 'Item inválido.' }
 

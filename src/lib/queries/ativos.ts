@@ -4,6 +4,7 @@ import type {
   StatusAtivo,
   TermoStatus,
 } from '@/lib/dominio'
+import { patrimoniosRepetidos } from '@/lib/patrimonio'
 import type { Tables } from '@/lib/types/database'
 
 export const PAGE_SIZE = 50
@@ -97,11 +98,7 @@ export async function listarAtivos(
     }
   })
 
-  const contagem = new Map<string, number>()
-  for (const r of rows) contagem.set(r.patrimonio, (contagem.get(r.patrimonio) ?? 0) + 1)
-  const patrimoniosDuplicados = new Set(
-    [...contagem.entries()].filter(([, n]) => n > 1).map(([p]) => p),
-  )
+  const patrimoniosDuplicados = patrimoniosRepetidos(rows.map((r) => r.patrimonio))
 
   return {
     rows,
@@ -230,10 +227,7 @@ async function patrimoniosDuplicados(
     .select('patrimonio')
     .in('patrimonio', unicos)
   if (error) return new Set()
-  const contagem = new Map<string, number>()
-  for (const r of data ?? [])
-    contagem.set(r.patrimonio, (contagem.get(r.patrimonio) ?? 0) + 1)
-  return new Set([...contagem.entries()].filter(([, n]) => n > 1).map(([p]) => p))
+  return patrimoniosRepetidos((data ?? []).map((r) => r.patrimonio))
 }
 
 // Busca do combobox (OS-F2 3.5.1): por patrimonio OU modelo, ate 12 resultados.

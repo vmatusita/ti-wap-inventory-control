@@ -7,6 +7,7 @@ import {
   startOfYear,
 } from 'date-fns'
 import { hojeISO } from '@/lib/format'
+import { DATA_RE } from '@/lib/validators/data'
 
 // Período do relatório (spec §7 / OS-F3 3.2.1). Datas puras 'yyyy-MM-dd',
 // intervalo INCLUSIVO [de, ate]. Os presets são resolvidos a partir de
@@ -17,7 +18,6 @@ export type PresetPeriodo = 'semana' | '30dias' | 'ano' | 'tudo' | 'custom'
 
 export const PRESET_PADRAO: PresetPeriodo = 'ano'
 const DATA_MINIMA = '2000-01-01' // "Tudo": teto inferior seguro
-const DATA_RE = /^\d{4}-\d{2}-\d{2}$/
 
 function fmt(d: Date): string {
   return format(d, 'yyyy-MM-dd')

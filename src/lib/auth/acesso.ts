@@ -10,6 +10,20 @@ export type DbClient = SupabaseClient<Database>
 
 export type Operador = { id: string; nome: string }
 
+// Mensagem única de "sessão expirada" — antes escrita em 4 variações espalhadas
+// pelas actions.
+export const MSG_SESSAO_EXPIRADA = 'Sua sessão expirou. Faça login novamente.'
+
+// Id do operador logado a partir de um client de sessão JÁ criado — sem o SELECT
+// extra em `profiles` que `getOperador` faz (a maioria das actions só quer o id
+// do autor para `criado_por`/`gerado_por`). Retorna null quando não há sessão.
+export async function idOperador(supabase: DbClient): Promise<string | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user?.id ?? null
+}
+
 // Operador logado (Supabase Auth). null quando não há sessão de operador.
 export async function getOperador(): Promise<Operador | null> {
   const supabase = await createClient()

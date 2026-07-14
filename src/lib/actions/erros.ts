@@ -1,3 +1,9 @@
+// Contrato de retorno padrão das Server Actions simples (ok + erro opcional).
+// Antes redefinido como AdminResult/ItemActionResult/EditarAtivoResult/
+// EstornoResult/CriarSenhaResult — todos idênticos. Actions com retorno rico
+// (erros[], criados[], união discriminada) mantêm o próprio tipo.
+export type ActionResult = { ok: boolean; erro?: string }
+
 // Traducao das mensagens de erro do banco (trigger da maquina de estados, 0004,
 // e constraints) para pt-BR amigavel. A tabela trigger -> texto vai no resumo da
 // OS. O objetivo e nunca vazar mensagem crua do Postgres para a operadora.

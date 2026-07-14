@@ -2,36 +2,28 @@
 
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getOperador } from '@/lib/auth/acesso'
-import { traduzErroBanco } from '@/lib/actions/erros'
-import { Constants } from '@/lib/types/database'
+import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import {
+  conviteSchema,
+  filialSchema,
+  atualizarFilialSchema,
+  motivoSchema,
+  atualizarMotivoSchema,
+} from '@/lib/validators/admin'
 
-export type AdminResult = { ok: boolean; erro?: string }
-
-async function exigirOperador(): Promise<AdminResult | null> {
-  const operador = await getOperador()
-  if (!operador) return { ok: false, erro: 'Sessão expirada. Faça login novamente.' }
-  return null
+async function exigirOperador(): Promise<ActionResult | null> {
+  const supabase = await createClient()
+  const uid = await idOperador(supabase)
+  return uid ? null : { ok: false, erro: MSG_SESSAO_EXPIRADA }
 }
 
 // ---- Convite de operador (só @wap.ind.br — validação client E server) ----
-
-const DOMINIO = '@wap.ind.br'
-const conviteSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .email('E-mail inválido')
-    .refine((e) => e.endsWith(DOMINIO), `O e-mail precisa terminar com ${DOMINIO}`),
-})
-
 export async function convidarUsuario(input: {
   email: string
-}): Promise<AdminResult> {
+}): Promise<ActionResult> {
   const bloqueio = await exigirOperador()
   if (bloqueio) return bloqueio
 
@@ -61,21 +53,10 @@ export async function convidarUsuario(input: {
 }
 
 // ---- Filiais ----
-
-const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const filialSchema = z.object({
-  nome: z.string().trim().min(2, 'Informe o nome').max(80),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(SLUG_RE, 'Slug: só letras minúsculas, números e hífens'),
-})
-
 export async function criarFilial(input: {
   nome: string
   slug: string
-}): Promise<AdminResult> {
+}): Promise<ActionResult> {
   const bloqueio = await exigirOperador()
   if (bloqueio) return bloqueio
   const parsed = filialSchema.safeParse(input)
@@ -95,17 +76,12 @@ export async function criarFilial(input: {
   return { ok: true }
 }
 
-const atualizarFilialSchema = filialSchema.extend({
-  id: z.number().int().positive(),
-  ativo: z.boolean(),
-})
-
 export async function atualizarFilial(input: {
   id: number
   nome: string
   slug: string
   ativo: boolean
-}): Promise<AdminResult> {
+}): Promise<ActionResult> {
   const bloqueio = await exigirOperador()
   if (bloqueio) return bloqueio
   const parsed = atualizarFilialSchema.safeParse(input)
@@ -145,24 +121,11 @@ export async function atualizarFilial(input: {
 }
 
 // ---- Motivos ----
-
-const tiposMov = Constants.public.Enums.tipo_movimentacao
-const motivoSchema = z.object({
-  codigo: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9_]+$/, 'Código: só letras minúsculas, números e _')
-    .max(40),
-  rotulo: z.string().trim().min(2, 'Informe o rótulo').max(80),
-  aplica_a: z.array(z.enum(tiposMov)).min(1, 'Escolha ao menos um tipo'),
-})
-
 export async function criarMotivo(input: {
   codigo: string
   rotulo: string
   aplica_a: string[]
-}): Promise<AdminResult> {
+}): Promise<ActionResult> {
   const bloqueio = await exigirOperador()
   if (bloqueio) return bloqueio
   const parsed = motivoSchema.safeParse(input)
@@ -182,20 +145,13 @@ export async function criarMotivo(input: {
   return { ok: true }
 }
 
-const atualizarMotivoSchema = z.object({
-  codigo: z.string().trim().min(1),
-  rotulo: z.string().trim().min(2, 'Informe o rótulo').max(80),
-  aplica_a: z.array(z.enum(tiposMov)).min(1, 'Escolha ao menos um tipo'),
-  ativo: z.boolean(),
-})
-
 // Motivo nunca é excluído (o histórico referencia) — só editado/desativado.
 export async function atualizarMotivo(input: {
   codigo: string
   rotulo: string
   aplica_a: string[]
   ativo: boolean
-}): Promise<AdminResult> {
+}): Promise<ActionResult> {
   const bloqueio = await exigirOperador()
   if (bloqueio) return bloqueio
   const parsed = atualizarMotivoSchema.safeParse(input)

@@ -8,6 +8,7 @@ import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import type { CategoriaAtivo } from '@/lib/dominio'
@@ -100,10 +101,8 @@ export async function prepararTermo(input: {
   if (!parsed.success) return falhaPrep('Dados inválidos para preparar o termo.')
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return falhaPrep('Sua sessão expirou. Faça login novamente.')
+  const uid = await idOperador(supabase)
+  if (!uid) return falhaPrep(MSG_SESSAO_EXPIRADA)
 
   const { movimentacaoIds, familia } = parsed.data
 
@@ -206,7 +205,7 @@ export async function prepararTermo(input: {
   const { data: perfil } = await supabase
     .from('profiles')
     .select('nome')
-    .eq('id', user.id)
+    .eq('id', uid)
     .maybeSingle()
   const campos: CamposTermo = {
     colaborador,
@@ -251,10 +250,8 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
   const { tipo, movimentacaoIds, data, campos } = parsed.data
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false, erro: 'Sua sessão expirou. Faça login novamente.' }
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
   // `ativo_ids` e a flag derivam das MOVIMENTAÇÕES no servidor (a movimentação é a
   // fonte da verdade) — não confia no ativoIds vindo do cliente.
@@ -331,13 +328,13 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
   if (reutilizar) {
     const { error } = await supabase
       .from('termos_gerados')
-      .update({ ...linha, atualizado_em: new Date().toISOString(), atualizado_por: user.id })
+      .update({ ...linha, atualizado_em: new Date().toISOString(), atualizado_por: uid })
       .eq('id', id)
     if (error) return { ok: false, erro: traduzErroBanco(error.message) }
   } else {
     const { error } = await supabase
       .from('termos_gerados')
-      .insert({ ...linha, gerado_por: user.id })
+      .insert({ ...linha, gerado_por: uid })
     if (error) {
       // Insert falhou (ex.: corrida no unique tipo+movimentações) — remove o .docx
       // recém-enviado para não deixar objeto órfão no bucket.
@@ -379,10 +376,8 @@ export async function urlTermo(input: {
   id: string
 }): Promise<{ ok: boolean; url?: string; nomeArquivo?: string; erro?: string }> {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false, erro: 'Sua sessão expirou.' }
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
   if (!z.string().uuid().safeParse(input.id).success) {
     return { ok: false, erro: 'Termo inválido.' }

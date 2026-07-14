@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
+import { DATA_RE } from '@/lib/validators/data'
 
 // Edicao de dados CADASTRAIS do ativo (OS-F2 3.2.4). SO campos NAO derivados:
 // specs, hostname, observacoes e termo. Status/colaborador/filial NAO entram
@@ -28,9 +29,19 @@ export const editarAtivoSchema = z.object({
     (v) => (v === '' || v == null ? null : v),
     z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')
+      .regex(DATA_RE, 'Data inválida')
       .nullable(),
   ),
 })
 
 export type EditarAtivoInput = z.infer<typeof editarAtivoSchema>
+
+// Anotação na linha do tempo (F3B): nota avulsa, imutável, com autor + data.
+export const anotacaoSchema = z.object({
+  ativo_id: z.string().uuid('Ativo inválido'),
+  texto: z
+    .string()
+    .trim()
+    .min(1, 'Escreva a anotação')
+    .max(2000, 'Anotação: no máximo 2000 caracteres'),
+})

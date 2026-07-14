@@ -3,8 +3,11 @@
 import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getOperador } from '@/lib/auth/acesso'
+import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { type ActionResult } from '@/lib/actions/erros'
+import { criarSenhaSchema } from '@/lib/validators/senha'
 import {
   assinarSessaoView,
   hashSenha,
@@ -116,25 +119,15 @@ export async function sairVisualizacao() {
 }
 
 // ---- Gestão das senhas (admin) ----
-
-const criarSchema = z.object({
-  rotulo: z.string().trim().min(2, 'Informe um rótulo').max(80),
-  senha: z
-    .string()
-    .min(8, 'A senha precisa de ao menos 8 caracteres')
-    .max(200),
-})
-
-export type CriarSenhaResult = { ok: boolean; erro?: string }
-
 export async function criarSenhaAcesso(input: {
   rotulo: string
   senha: string
-}): Promise<CriarSenhaResult> {
-  const operador = await getOperador()
-  if (!operador) return { ok: false, erro: 'Sessão expirada. Faça login.' }
+}): Promise<ActionResult> {
+  const supabase = await createClient()
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
-  const parsed = criarSchema.safeParse(input)
+  const parsed = criarSenhaSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
@@ -144,7 +137,7 @@ export async function criarSenhaAcesso(input: {
   const { error } = await admin.from('senhas_acesso').insert({
     rotulo: parsed.data.rotulo,
     hash,
-    criado_por: operador.id,
+    criado_por: uid,
   })
   if (error) return { ok: false, erro: 'Não foi possível criar a senha.' }
 
@@ -155,9 +148,10 @@ export async function criarSenhaAcesso(input: {
 export async function definirStatusSenha(
   id: string,
   ativa: boolean,
-): Promise<CriarSenhaResult> {
-  const operador = await getOperador()
-  if (!operador) return { ok: false, erro: 'Sessão expirada. Faça login.' }
+): Promise<ActionResult> {
+  const supabase = await createClient()
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
   if (!z.string().uuid().safeParse(id).success) {
     return { ok: false, erro: 'Senha inválida.' }
   }

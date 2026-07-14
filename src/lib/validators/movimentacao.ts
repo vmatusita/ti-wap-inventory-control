@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
-import { hojeISO } from '@/lib/format'
+import { dataNaoFuturaSchema, dataOpcionalSchema } from '@/lib/validators/data'
 import type { StatusAtivo, TipoMovimentacao } from '@/lib/dominio'
 
 // ---------------------------------------------------------------------------
@@ -61,22 +61,6 @@ export function tiposComunsPara(status: StatusAtivo[]): TipoMovimentacao[] {
 
 const termoEnum = z.enum(Constants.public.Enums.termo_status)
 
-const DATA_RE = /^\d{4}-\d{2}-\d{2}$/
-
-// Data obrigatoria, formato yyyy-MM-dd e nao-futura (spec §8 / OS-F2 3.3.1).
-// `hojeISO()` fixa o fuso de São Paulo — o servidor não pode usar a data UTC do
-// processo (aceitaria "amanhã" perto da meia-noite no Brasil).
-const dataSchema = z
-  .string()
-  .regex(DATA_RE, 'Data inválida')
-  .refine((d) => d <= hojeISO(), 'A data não pode ser futura')
-
-// Data opcional (termo_data) — mesmo formato, sem regra de futuro.
-const dataOpcionalSchema = z
-  .string()
-  .regex(DATA_RE, 'Data inválida')
-  .optional()
-
 // Chamado: opcional, numerico como texto (OS-F2 3.3.1). String vazia = ausente.
 const chamadoSchema = z.preprocess(
   (v) => (v === '' || v == null ? undefined : v),
@@ -101,7 +85,7 @@ const observacaoOpcional = z.preprocess(
 // Campos comuns a toda movimentacao.
 const base = z.object({
   ativo_id: z.string().uuid('Ativo inválido'),
-  data: dataSchema,
+  data: dataNaoFuturaSchema,
   chamado: chamadoSchema,
   termo_assinado: termoEnum.optional(),
   termo_data: dataOpcionalSchema,

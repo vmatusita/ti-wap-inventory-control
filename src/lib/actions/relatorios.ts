@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { getOperador } from '@/lib/auth/acesso'
+import { idOperador } from '@/lib/auth/acesso'
 import { createClient } from '@/lib/supabase/server'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { formatDate, hojeISO } from '@/lib/format'
@@ -11,9 +11,9 @@ import {
   getSnapshotRelatorioV2,
   resolverFilialPorSlug,
 } from '@/lib/queries/relatorios'
+import { DATA_RE } from '@/lib/validators/data'
 import type { Json } from '@/lib/types/database'
 
-const DATA_RE = /^\d{4}-\d{2}-\d{2}$/
 const periodoSchema = z.object({
   filialSlug: z.string().min(1),
   de: z.string().regex(DATA_RE, 'Data inicial inválida'),
@@ -50,12 +50,12 @@ export async function gerarRelatorio(input: {
     return { ok: false, erro: 'A data final não pode ser no futuro.' }
   }
 
-  const operador = await getOperador()
-  if (!operador) {
+  const client = await createClient()
+  const uid = await idOperador(client)
+  if (!uid) {
     return { ok: false, erro: 'Apenas operadores logados podem gerar relatórios.' }
   }
 
-  const client = await createClient()
   const filial =
     filialSlug === 'geral' ? null : await resolverFilialPorSlug(client, filialSlug)
   if (filialSlug !== 'geral' && !filial) {
@@ -101,7 +101,7 @@ export async function gerarRelatorio(input: {
       filial_id: filialId,
       versao,
       dados: snapshot as unknown as Json,
-      gerado_por: operador.id,
+      gerado_por: uid,
     })
     .select('id')
     .single()
