@@ -7,9 +7,12 @@ import { StatusBadge } from '@/components/ativos/status-badge'
 import { EditarAtivoDialog } from '@/components/ativos/editar-ativo-dialog'
 import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
+import { TermosDaFicha } from '@/components/ativos/termos-da-ficha'
 import { buscarAtivoPorId, listarAnotacoesDoAtivo } from '@/lib/queries/ativos'
 import { listarMovimentacoesDoAtivo } from '@/lib/queries/movimentacoes'
 import { listarMotivos } from '@/lib/queries/motivos'
+import { listarTermosDoAtivo } from '@/lib/queries/termos'
+import type { TermoTipo } from '@/lib/termos/tipos'
 import { rotuloCategoria, rotuloTermo } from '@/lib/dominio'
 import { formatDate, ouTraco } from '@/lib/format'
 
@@ -38,12 +41,25 @@ export default async function AtivoFichaPage({
   const ativo = await buscarAtivoPorId(id)
   if (!ativo) notFound()
 
-  const [movimentacoes, anotacoes, motivosLista] = await Promise.all([
+  const [movimentacoes, anotacoes, motivosLista, termos] = await Promise.all([
     listarMovimentacoesDoAtivo(id),
     listarAnotacoesDoAtivo(id),
     listarMotivos(),
+    listarTermosDoAtivo(id),
   ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
+
+  // Movimentações elegíveis a termo (mais recentes; a linha do tempo vem desc):
+  // responsabilidade (saída/empréstimo) e devolução — para geração retroativa.
+  const respMov = movimentacoes.find(
+    (m) => m.tipo === 'saida' || m.tipo === 'emprestimo',
+  )
+  const devolMov = movimentacoes.find((m) => m.tipo === 'devolucao')
+  const devolTipo: TermoTipo | null = devolMov
+    ? devolMov.motivo === 'desligamento'
+      ? 'devolucao_desligamento'
+      : 'devolucao_equipamento'
+    : null
 
   const specs = [ativo.memoria, ativo.armazenamento, ativo.processador]
     .filter(Boolean)
@@ -143,6 +159,16 @@ export default async function AtivoFichaPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Termos gerados + geração retroativa (F5A) */}
+      <TermosDaFicha
+        patrimonio={ativo.patrimonio}
+        categoria={ativo.categoria}
+        termos={termos}
+        respMovId={respMov?.id ?? null}
+        devolMovId={devolMov?.id ?? null}
+        devolTipo={devolTipo}
+      />
 
       {/* Linha do tempo */}
       <div className="space-y-3">

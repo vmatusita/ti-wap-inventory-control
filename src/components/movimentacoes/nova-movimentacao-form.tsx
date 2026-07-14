@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { Check, FileText, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { AtivoCombobox } from '@/components/movimentacoes/ativo-combobox'
+import { GerarTermoDialog } from '@/components/movimentacoes/gerar-termo-dialog'
+import { categoriaTemTermo } from '@/lib/termos/tipos'
 import { registrarMovimentacoes } from '@/lib/actions/movimentacoes'
 import {
   loteMovimentacaoSchema,
@@ -31,6 +33,7 @@ import {
   rotuloCategoria,
   rotuloStatus,
   rotuloTipo,
+  type CategoriaAtivo,
   type StatusAtivo,
   type TipoMovimentacao,
   type TermoStatus,
@@ -162,7 +165,14 @@ export function NovaMovimentacaoForm({
   const [enviando, setEnviando] = useState(false)
   const [sucesso, setSucesso] = useState<{
     criadas: number
-    ativos: { id: string; patrimonio: string }[]
+    tipo: TipoMovimentacao
+    motivo: string
+    ativos: {
+      id: string
+      patrimonio: string
+      categoria: CategoriaAtivo
+      movimentacaoId: string
+    }[]
   } | null>(null)
 
   const comandoRef = useRef<HTMLDivElement>(null)
@@ -313,9 +323,21 @@ export function NovaMovimentacaoForm({
     const falhaIds = res.resultados.filter((r) => !r.ok).map((r) => r.ativo_id)
 
     if (res.ok) {
+      const movPorAtivo = new Map(
+        res.resultados
+          .filter((r) => r.movimentacao_id)
+          .map((r) => [r.ativo_id, r.movimentacao_id as string]),
+      )
       setSucesso({
         criadas: res.criadas,
-        ativos: submetidos.map((a) => ({ id: a.id, patrimonio: a.patrimonio })),
+        tipo: config.tipo as TipoMovimentacao,
+        motivo: config.motivo,
+        ativos: submetidos.map((a) => ({
+          id: a.id,
+          patrimonio: a.patrimonio,
+          categoria: a.categoria,
+          movimentacaoId: movPorAtivo.get(a.id) ?? '',
+        })),
       })
       router.refresh()
       return
@@ -386,6 +408,66 @@ export function NovaMovimentacaoForm({
             </Button>
           ))}
         </div>
+
+        {/* Termo de responsabilidade — um por ativo elegível (saida/emprestimo) */}
+        {['saida', 'emprestimo'].includes(sucesso.tipo) && (
+          <div className="mt-6 border-t pt-5">
+            <p className="text-sm font-medium">Termo de responsabilidade</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Documento pronto para assinatura — o sistema já preenche o que sabe.
+            </p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {sucesso.ativos.filter((a) => categoriaTemTermo(a.categoria)).map((a) => (
+                <GerarTermoDialog
+                  key={a.id}
+                  familia="responsabilidade"
+                  categoria={a.categoria}
+                  movimentacaoIds={[a.movimentacaoId]}
+                  rotulo={`${a.patrimonio} · ${rotuloCategoria(a.categoria)}`}
+                  onGerado={() => router.refresh()}
+                  trigger={
+                    <Button variant="outline" size="sm" className="gap-2 tabular-nums">
+                      <FileText className="size-4" />
+                      {a.patrimonio}
+                    </Button>
+                  }
+                />
+              ))}
+            </div>
+            {sucesso.ativos.every((a) => !categoriaTemTermo(a.categoria)) && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                As categorias deste lote não têm modelo de termo.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Termo de devolução — um por lote (consolida os equipamentos) */}
+        {sucesso.tipo === 'devolucao' && sucesso.ativos.length > 0 && (
+          <div className="mt-6 border-t pt-5">
+            <p className="text-sm font-medium">Termo de devolução</p>
+            <div className="mt-3 flex justify-center">
+              <GerarTermoDialog
+                familia="devolucao"
+                tipoDevolucao={
+                  sucesso.motivo === 'desligamento'
+                    ? 'devolucao_desligamento'
+                    : 'devolucao_equipamento'
+                }
+                movimentacaoIds={sucesso.ativos.map((a) => a.movimentacaoId)}
+                rotulo={`${sucesso.ativos.length} equipamento${sucesso.ativos.length > 1 ? 's' : ''}`}
+                onGerado={() => router.refresh()}
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <FileText className="size-4" />
+                    Gerar termo de devolução ({sucesso.ativos.length})
+                  </Button>
+                }
+              />
+            </div>
+          </div>
+        )}
+
         <div className="mt-6">
           <Button onClick={reiniciar}>Registrar outra movimentação</Button>
         </div>
@@ -651,6 +733,7 @@ export function NovaMovimentacaoForm({
                         <SelectItem value="enviado">
                           Enviado (sem assinatura)
                         </SelectItem>
+                        <SelectItem value="gerado">Gerado</SelectItem>
                         <SelectItem value="nao">Não gerado</SelectItem>
                       </SelectContent>
                     </Select>

@@ -38,6 +38,7 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 - **Tailwind CSS v4** + **shadcn/ui** (componentes via CLI) + **Recharts v3** (só via componente `chart` do shadcn)
 - **Supabase**: `@supabase/supabase-js` + `@supabase/ssr` · tipos gerados por `supabase gen types typescript`
 - **Zod** + **react-hook-form** (+ `@hookform/resolvers`) · **TanStack Table** (via data-table do shadcn) · **date-fns** (locale `ptBR`) · **PapaParse** (F3 export / scripts de carga única F4) · **sonner** (toasts, via shadcn)
+- **docxtemplater** + **pizzip** (preenchem os templates `.docx` dos termos, server-side — F5A) · **docx-preview** (preview do termo no navegador). Libs **MIT**, aprovadas pelo Johnny (PLANO-TERMOS §3.1). `serverExternalPackages` no `next.config.ts`.
 - Dev: **Supabase CLI**, **@faker-js/faker** (locale pt_BR, só em `scripts/`), **seedrandom**, **Vitest** (só funções puras), ESLint + Prettier
 - Proibidos (decisão registrada): Prisma/Drizzle, Redux/Zustand/TanStack Query, ECharts (upgrade futuro documentado), Highcharts/AG Charts/MUI X Pro, i18n, monorepo.
 
@@ -80,10 +81,13 @@ src/
     layout/  ativos/  movimentacoes/  relatorios/  admin/
   lib/
     supabase/      # client.ts, server.ts, middleware de sessão
-    actions/       # Server Actions (Zod dentro)
-    queries/       # leituras tipadas (ativos, movimentacoes, relatorios, itens…)
+    actions/       # Server Actions (Zod dentro) — inclui termos.ts (F5A)
+    queries/       # leituras tipadas (ativos, movimentacoes, relatorios, itens, termos…)
     validators/    # schemas Zod compartilhados
+    termos/        # tipos, mapa motivo→Descrição, ordenação do lote, datas (F5A)
     types/database.ts   # GERADO — não editar à mão
+  templates/
+    termos/*.docx  # 7 modelos de termo tagueados e sanitizados (F5A) — lidos em runtime
 supabase/
   migrations/      # fonte da verdade do banco a partir da F1
 scripts/

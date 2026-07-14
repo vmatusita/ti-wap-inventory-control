@@ -1,6 +1,7 @@
 // scripts/reset.ts — zera os dados de desenvolvimento.
-// Apaga anotacoes/lancamentos_item -> movimentacoes -> ativos -> itens (nessa
-// ordem, por causa das FKs). PRESERVA filiais, motivos e profiles (dados de
+// Apaga anotacoes/lancamentos_item/termos_gerados (+ .docx no Storage) ->
+// movimentacoes -> ativos -> itens (nessa ordem, por causa das FKs). PRESERVA
+// filiais, motivos e profiles (dados de
 // referencia / contas). O catalogo de itens (F3B) e dado de DEV recriado pelo
 // seed, entao tambem e limpo aqui. Mesmas guardas anti-acidente do seed.
 // Uso: `npm run db:reset`.
@@ -34,6 +35,18 @@ async function main() {
     .gte('created_at', EPOCH)
   if (lancErr) throw new Error(`Falha ao apagar lancamentos_item: ${lancErr.message}`)
 
+  // termos_gerados (F5A): sem FK de outras tabelas apontando p/ ela — ordem livre.
+  // Apaga as linhas E os .docx do bucket privado `termos` (senão ficam órfãos).
+  const { count: termoCount, error: termoErr } = await db
+    .from('termos_gerados')
+    .delete({ count: 'exact' })
+    .gte('created_at', EPOCH)
+  if (termoErr) throw new Error(`Falha ao apagar termos_gerados: ${termoErr.message}`)
+  const { data: termoObjs } = await db.storage.from('termos').list('', { limit: 1000 })
+  if (termoObjs && termoObjs.length > 0) {
+    await db.storage.from('termos').remove(termoObjs.map((o) => o.name))
+  }
+
   const { count: movCount, error: movErr } = await db
     .from('movimentacoes')
     .delete({ count: 'exact' })
@@ -54,7 +67,8 @@ async function main() {
 
   console.log(
     `[reset] apagados: ${anotCount ?? 0} anotacoes, ${lancCount ?? 0} lancamentos_item, ` +
-      `${movCount ?? 0} movimentacoes, ${ativoCount ?? 0} ativos, ${itemCount ?? 0} itens.`,
+      `${termoCount ?? 0} termos_gerados, ${movCount ?? 0} movimentacoes, ` +
+      `${ativoCount ?? 0} ativos, ${itemCount ?? 0} itens.`,
   )
   console.log('[reset] preservados: filiais, motivos, profiles.')
 }

@@ -515,6 +515,63 @@ export type Database = {
           },
         ]
       }
+      termos_gerados: {
+        Row: {
+          arquivo_path: string
+          ativo_ids: string[]
+          atualizado_em: string
+          atualizado_por: string | null
+          colaborador: string | null
+          created_at: string
+          dados: Json
+          gerado_por: string
+          id: string
+          movimentacao_ids: string[]
+          tipo: string
+        }
+        Insert: {
+          arquivo_path: string
+          ativo_ids: string[]
+          atualizado_em?: string
+          atualizado_por?: string | null
+          colaborador?: string | null
+          created_at?: string
+          dados: Json
+          gerado_por: string
+          id?: string
+          movimentacao_ids: string[]
+          tipo: string
+        }
+        Update: {
+          arquivo_path?: string
+          ativo_ids?: string[]
+          atualizado_em?: string
+          atualizado_por?: string | null
+          colaborador?: string | null
+          created_at?: string
+          dados?: Json
+          gerado_por?: string
+          id?: string
+          movimentacao_ids?: string[]
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "termos_gerados_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "termos_gerados_gerado_por_fkey"
+            columns: ["gerado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_estoque_atual: {
@@ -651,7 +708,7 @@ export type Database = {
         | "em_manutencao"
         | "defasado"
         | "descartado"
-      termo_status: "sim" | "nao" | "enviado"
+      termo_status: "sim" | "nao" | "enviado" | "gerado"
       tipo_lancamento: "entrada" | "saida" | "reserva" | "liberacao" | "ajuste"
       tipo_movimentacao:
         | "compra"
@@ -813,7 +870,7 @@ export const Constants = {
         "defasado",
         "descartado",
       ],
-      termo_status: ["sim", "nao", "enviado"],
+      termo_status: ["sim", "nao", "enviado", "gerado"],
       tipo_lancamento: ["entrada", "saida", "reserva", "liberacao", "ajuste"],
       tipo_movimentacao: [
         "compra",

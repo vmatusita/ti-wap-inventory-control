@@ -142,7 +142,7 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 
 **Motivo de devolução:** `desligamento` (← "Desligamento", "Deligamento", "Desligamento "), `troca_upgrade`, `afastamento`, `fim_emprestimo` (← "Empréstimo", "Emprétimo"), `manutencao`, `garantia`, `outro`. Entradas por "Compra" viram movimentação `compra`, não devolução.
 
-**Termo de responsabilidade** (`sim` / `nao` / `enviado`): `enviado` = termo gerado e mandado ao colaborador, **ainda sem assinatura**; `sim` = assinado e arquivado; `nao` = nem gerado. `enviado`, `nao` e não-informado contam como pendência.
+**Termo de responsabilidade** (`sim` / `nao` / `enviado` / `gerado`): `gerado` = documento emitido pelo sistema (F5A, §8.1), ainda sem assinatura; `enviado` = gerado e mandado ao colaborador, ainda sem assinatura; `sim` = assinado e arquivado; `nao` = nem gerado. `gerado`, `enviado`, `nao` e não-informado contam como pendência — só `sim` encerra a cobrança.
 
 **Nomenclatura:** "filial" no sistema = "unidade"/"site" nas planilhas — sinônimos. "Pendência" é tudo que a view `v_pendencias` agrega: termos não assinados, itens faltantes de devolução, triagem parada e o campo livre `ativos.pendencia`.
 
@@ -208,12 +208,21 @@ Conteúdo do snapshot = as mesmas seções da página ao vivo recortadas no per�
 1. Patrimônio é obrigatório e identifica o ativo, mas **pode repetir em casos raros** — único mesmo é o par patrimônio + service tag (§5). Movimentação sobre patrimônio duplicado exige desambiguar pela service tag. Ativo sem patrimônio entra com pendência sinalizada, nunca silenciosamente.
 2. Só transições de estado válidas (seção 4): não há saída de ativo `descartado`, nem devolução de ativo `em_estoque`. O erro mais comum da planilha morre aqui.
 3. Saída/empréstimo exigem: colaborador **ou** setor de destino, motivo e (se houver) nº do chamado. Devolução exige: motivo + checklist de itens faltantes (carregador, mochila, mouse…) — vira a pendência automaticamente.
-4. Termo de responsabilidade: flag por movimentação de saída (`sim/não/enviado`) com data; relatório cobra os pendentes. Upload do PDF assinado fica para fase futura (pergunta 5, seção 13).
+4. Termo de responsabilidade: flag por movimentação de saída (`sim/não/enviado/gerado`) com data; relatório cobra os pendentes (só `sim` = assinado sai da cobrança). Desde a **F5A** o próprio sistema **gera o documento** (`.docx`) já preenchido — ver §8.1. Upload do PDF assinado fica para fase futura (pergunta 5, seção 13).
 5. Transferência entre filiais muda a filial do ativo e aparece no relatório das duas.
 6. Movimentação não se apaga: **estorno** (disponível desde a F2) devolve o ativo ao estado completo anterior — status, colaborador, setor e filial — e fica registrado apontando para a movimentação estornada. Só a última movimentação efetiva do ativo pode ser estornada; para casos excepcionais existe o `ajuste`, sempre com justificativa. Toda linha tem `criado_por` + timestamp.
 7. Alerta de possível duplicata: mesmo ativo + mesmo tipo + mesmo dia (era um erro real nas planilhas — 6 casos).
 8. Compra em dois passos num fluxo só: cadastra-se o ativo (que nasce `em_estoque`) e registra-se a movimentação `compra`, que documenta a entrada (nota/observação) e fixa a filial que recebeu.
 9. **Toda movimentação aceita observação** — texto livre, **opcional** (obrigatória apenas no `ajuste`, como justificativa). Aparece na linha do tempo do ativo, nas tabelas de relatório e nos snapshots gerados: é onde vive o contexto que hoje vai em vermelho no e-mail ("aguardando NF-e", "recolhido por problema de tela"…).
+
+### 8.1 Geração de termos pelo sistema (F5A)
+
+Ao registrar a movimentação, o sistema oferece o **termo pronto**: o que ele já sabe (colaborador, marca, modelo, service tag, patrimônio, chamado, datas) vem preenchido; o que não sabe (extras do celular, "outros componentes", observação, variante do monitor) é digitado uma vez num formulário curto — **todo campo é editável, inclusive as datas**, e a edição vale só para o documento (não altera o cadastro do ativo nem a movimentação). Visualiza-se o **arquivo `.docx` real** antes de baixar; o download é fiel ao preview.
+
+- **7 modelos** (`src/templates/termos/`, tagueados e sanitizados): 5 de **responsabilidade** (notebook, desktop, celular, monitor uso interno, monitor home office) e 2 de **devolução** (equipamento, desligamento). A caixa/logos/marca d'água/cláusulas são idênticas aos modelos manuais que a WAP já usa.
+- **Responsabilidade** = um termo por ativo (saída/empréstimo). **Devolução** = um termo por lote (consolida 1..n equipamentos; desligamento usa o modelo consolidado). Categorias **tablet** e **outro** ainda não têm modelo (não oferecem geração).
+- Gerar grava o **snapshot completo** (jsonb) na tabela `termos_gerados` **e** o `.docx` no **Storage privado** (bucket `termos`), sempre. **Versão única** por termo: regerar/editar **substitui** o anterior (sem arquivos órfãos). Só o operador autenticado acessa; o visualizador por senha **não** vê termos.
+- Gerar um termo de **responsabilidade** marca o ativo como **`gerado`** (`termo_assinado` + `termo_data`) — que **continua contando como pendência** (`v_pendencias`): a cobrança só encerra em `sim` (assinado). `enviado` e `sim` seguem manuais. As movimentações são imutáveis (§8 regra 6), então a flag mora no ativo.
 
 ## 9. Stack e arquitetura
 
@@ -283,7 +292,7 @@ Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados r
 2. ~~Escopo do visualizador~~ — **respondida em 09/07/2026:** acesso por senha tem nível único; toda senha vê todos os relatórios de todas as filiais.
 3. ~~Convites restritos a domínio?~~ — **respondida em 09/07/2026:** login (operação) só com `@wap.ind.br`; terceirizados (Stefanini) e filiais consultam pelos relatórios **com senha de acesso, sem conta**.
 4. **Nº do chamado:** só guardar o número ou linkar para o sistema de chamados? Qual sistema é?
-5. **Termo de responsabilidade:** anexar o PDF assinado no sistema (F5) ou basta a flag + cobrança?
+5. **Termo de responsabilidade:** ~~anexar o PDF assinado no sistema (F5) ou basta a flag + cobrança?~~ **Parcialmente respondida (F5A, 14/07/2026):** o sistema **gera** o `.docx` preenchido (§8.1) e a flag `gerado` mantém a cobrança. Falta decidir o **upload do PDF assinado** (fluxo gerar → enviar → assinar → anexar) — segue como item 5.5 da F5.
 6. **Acessórios** (mochila, mouse, teclado): confirma que na v1 ficam só como checklist da devolução, sem patrimônio próprio?
 7. **Segundo admin:** quem cobre férias/afastamento da admin da Matriz?
 

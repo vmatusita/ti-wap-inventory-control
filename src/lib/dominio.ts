@@ -191,6 +191,9 @@ export function pillTipoLancamento(t: TipoLancamento): string {
 export const TERMO_META: Record<TermoStatus, { rotulo: string }> = {
   sim: { rotulo: 'Assinado' },
   enviado: { rotulo: 'Enviado (sem assinatura)' },
+  // 'gerado' = documento emitido pelo sistema, ainda sem assinatura (F5A).
+  // Continua contando como pendência (v_pendencias) — a cobrança não afrouxa.
+  gerado: { rotulo: 'Gerado' },
   nao: { rotulo: 'Não gerado' },
 }
 
