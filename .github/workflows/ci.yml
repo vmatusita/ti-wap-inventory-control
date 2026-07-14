@@ -1,0 +1,40 @@
+name: CI
+
+# Portão de qualidade automático (antes só rodava à mão a cada fase — CLAUDE.md
+# regra 7). Roda em todo push na main (modo autônomo comita direto) e em qualquer
+# PR. O deploy segue na Vercel, com os segredos reais; aqui só validamos.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Um push novo no mesmo ref cancela a execução anterior (economiza minutos).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    # Env PLACEHOLDER: o app só lê process.env em runtime (clients Supabase com
+    # `!`), então o build NÃO precisa de credenciais reais — valores fake bem
+    # formados bastam para o `next build` passar. Segredos reais vivem só na
+    # Vercel, que faz o deploy. Nada aqui é sensível.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+      VIEW_SESSION_SECRET: placeholder-view-secret-para-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Testes (Vitest — funções puras)
+        run: npm run test
+      - name: Build (inclui type-check do TypeScript)
+        run: npm run build
