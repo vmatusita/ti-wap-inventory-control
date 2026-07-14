@@ -14,6 +14,52 @@ export type Database = {
   }
   public: {
     Tables: {
+      anotacoes: {
+        Row: {
+          ativo_id: string
+          created_at: string
+          criado_por: string
+          id: string
+          texto: string
+        }
+        Insert: {
+          ativo_id: string
+          created_at?: string
+          criado_por: string
+          id?: string
+          texto: string
+        }
+        Update: {
+          ativo_id?: string
+          created_at?: string
+          criado_por?: string
+          id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anotacoes_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "ativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anotacoes_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "v_pendencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anotacoes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ativos: {
         Row: {
           armazenamento: string | null
@@ -123,6 +169,107 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      itens: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          grupo: Database["public"]["Enums"]["grupo_item"]
+          id: number
+          nome: string
+          ordem: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          grupo: Database["public"]["Enums"]["grupo_item"]
+          id?: never
+          nome: string
+          ordem?: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          grupo?: Database["public"]["Enums"]["grupo_item"]
+          id?: never
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
+      }
+      lancamentos_item: {
+        Row: {
+          chamado: string | null
+          colaborador: string | null
+          created_at: string
+          criado_por: string
+          data: string
+          estorna_id: string | null
+          filial_id: number
+          id: string
+          item_id: number
+          observacao: string | null
+          quantidade: number
+          tipo: Database["public"]["Enums"]["tipo_lancamento"]
+        }
+        Insert: {
+          chamado?: string | null
+          colaborador?: string | null
+          created_at?: string
+          criado_por: string
+          data?: string
+          estorna_id?: string | null
+          filial_id: number
+          id?: string
+          item_id: number
+          observacao?: string | null
+          quantidade: number
+          tipo: Database["public"]["Enums"]["tipo_lancamento"]
+        }
+        Update: {
+          chamado?: string | null
+          colaborador?: string | null
+          created_at?: string
+          criado_por?: string
+          data?: string
+          estorna_id?: string | null
+          filial_id?: number
+          id?: string
+          item_id?: number
+          observacao?: string | null
+          quantidade?: number
+          tipo?: Database["public"]["Enums"]["tipo_lancamento"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_item_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_item_estorna_id_fkey"
+            columns: ["estorna_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_item_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_item_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       motivos: {
         Row: {
@@ -408,8 +555,39 @@ export type Database = {
           patrimonio: string
         }[]
       }
+      rel_estoque_asof: {
+        Args: { p_data: string; p_filial: number | null }
+        Returns: {
+          ativo_id: string
+          categoria: Database["public"]["Enums"]["categoria_ativo"]
+          colaborador: string
+          filial_id: number
+          marca: string
+          modelo: string
+          setor: string
+          status: Database["public"]["Enums"]["status_ativo"]
+        }[]
+      }
+      rel_frescor_itens: {
+        Args: { p_ate: string; p_filial: number | null }
+        Returns: {
+          grupo: Database["public"]["Enums"]["grupo_item"]
+          ultima: string
+        }[]
+      }
+      rel_mov_itens: {
+        Args: { p_ate: string; p_de: string; p_filial: number | null }
+        Returns: {
+          entradas: number
+          grupo: Database["public"]["Enums"]["grupo_item"]
+          item: string
+          item_id: number
+          ordem: number
+          saidas: number
+        }[]
+      }
       rel_mov_por_mes: {
-        Args: { p_filial: number | null; p_de: string; p_ate: string }
+        Args: { p_ate: string; p_de: string; p_filial: number | null }
         Returns: {
           mes: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao"]
@@ -417,22 +595,34 @@ export type Database = {
         }[]
       }
       rel_por_motivo: {
-        Args: { p_filial: number | null; p_de: string; p_ate: string }
+        Args: { p_ate: string; p_de: string; p_filial: number | null }
         Returns: {
-          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
           motivo: string
+          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
           total: number
         }[]
       }
       rel_resumo: {
-        Args: { p_filial: number | null; p_de: string; p_ate: string }
+        Args: { p_ate: string; p_de: string; p_filial: number | null }
         Returns: {
-          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
-          filial_slug: string
-          filial_nome: string
-          motivo: string
           categoria: Database["public"]["Enums"]["categoria_ativo"]
+          filial_nome: string
+          filial_slug: string
+          motivo: string
+          tipo: Database["public"]["Enums"]["tipo_movimentacao"]
           total: number
+        }[]
+      }
+      rel_saldo_itens: {
+        Args: { p_ate: string; p_filial: number | null }
+        Returns: {
+          atrelados: number
+          falta: number
+          grupo: Database["public"]["Enums"]["grupo_item"]
+          item: string
+          item_id: number
+          ordem: number
+          saldo: number
         }[]
       }
       status_apos_movimentacao: {
@@ -451,6 +641,7 @@ export type Database = {
         | "celular"
         | "tablet"
         | "outro"
+      grupo_item: "acessorio" | "componente"
       status_ativo:
         | "em_estoque"
         | "reservado"
@@ -461,6 +652,7 @@ export type Database = {
         | "defasado"
         | "descartado"
       termo_status: "sim" | "nao" | "enviado"
+      tipo_lancamento: "entrada" | "saida" | "reserva" | "liberacao" | "ajuste"
       tipo_movimentacao:
         | "compra"
         | "saida"
@@ -610,6 +802,7 @@ export const Constants = {
         "tablet",
         "outro",
       ],
+      grupo_item: ["acessorio", "componente"],
       status_ativo: [
         "em_estoque",
         "reservado",
@@ -621,6 +814,7 @@ export const Constants = {
         "descartado",
       ],
       termo_status: ["sim", "nao", "enviado"],
+      tipo_lancamento: ["entrada", "saida", "reserva", "liberacao", "ajuste"],
       tipo_movimentacao: [
         "compra",
         "saida",

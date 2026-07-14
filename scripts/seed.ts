@@ -175,6 +175,71 @@ const MOTIVO_DEVOLUCAO: [string, number][] = [
   ['outro', 0.02],
 ]
 
+// ---- Itens por quantidade (F3B) ----
+type GrupoItem = 'acessorio' | 'componente'
+type TipoLanc = 'entrada' | 'saida' | 'reserva' | 'liberacao' | 'ajuste'
+
+// Catalogo ~25 itens — nomes GENERICOS de produto (regra 2: nada real). Plano
+// §3.8: memorias separadas por DDR e tamanho; "kit teclado+mouse" e item proprio.
+// `ordem` = posicao no array (o admin ajusta depois).
+const ITENS_CATALOGO: { nome: string; grupo: GrupoItem }[] = [
+  { nome: 'Fone de ouvido', grupo: 'acessorio' },
+  { nome: 'Headset', grupo: 'acessorio' },
+  { nome: 'Mochila para notebook', grupo: 'acessorio' },
+  { nome: 'Teclado USB', grupo: 'acessorio' },
+  { nome: 'Mouse USB', grupo: 'acessorio' },
+  { nome: 'Kit teclado + mouse', grupo: 'acessorio' },
+  { nome: 'Mousepad', grupo: 'acessorio' },
+  { nome: 'Hub USB-C', grupo: 'acessorio' },
+  { nome: 'Adaptador USB-C', grupo: 'acessorio' },
+  { nome: 'Carregador Type-C', grupo: 'acessorio' },
+  { nome: 'Carregador micro-USB', grupo: 'acessorio' },
+  { nome: 'Cabo HDMI', grupo: 'acessorio' },
+  { nome: 'Webcam', grupo: 'acessorio' },
+  { nome: 'Suporte para notebook', grupo: 'acessorio' },
+  { nome: 'SSD 256 GB', grupo: 'componente' },
+  { nome: 'SSD 512 GB', grupo: 'componente' },
+  { nome: 'SSD 1 TB', grupo: 'componente' },
+  { nome: 'Memória notebook DDR4 4 GB', grupo: 'componente' },
+  { nome: 'Memória notebook DDR4 8 GB', grupo: 'componente' },
+  { nome: 'Memória notebook DDR4 16 GB', grupo: 'componente' },
+  { nome: 'Memória notebook DDR5 8 GB', grupo: 'componente' },
+  { nome: 'Memória notebook DDR5 16 GB', grupo: 'componente' },
+  { nome: 'Memória desktop DDR3 8 GB', grupo: 'componente' },
+  { nome: 'Memória desktop DDR4 8 GB', grupo: 'componente' },
+  { nome: 'Memória desktop DDR4 16 GB', grupo: 'componente' },
+]
+
+type ItemSeed = { id: number; nome: string; grupo: GrupoItem }
+type LancRow = {
+  item_id: number
+  filial_id: number
+  tipo: TipoLanc
+  quantidade: number
+  chamado: string | null
+  colaborador: string | null
+  data: string
+  observacao: string | null
+}
+
+// Micro-narrativas de manutencao (o "texto vermelho" do e-mail) — ficticias.
+const ANOTACAO_PROBLEMAS = [
+  'problema de tela',
+  'não liga',
+  'teclado com defeito',
+  'bateria não segura carga',
+  'superaquecimento',
+  'porta USB danificada',
+]
+const ANOTACAO_PASSOS: ((p: string) => string)[] = [
+  (p) => `Recolhido — ${p}.`,
+  () => 'Aberto chamado com a assistência técnica.',
+  () => 'Cotação solicitada ao fornecedor.',
+  () => 'Aguardando aprovação da NF-e.',
+  () => 'Peça a caminho — previsão para os próximos dias.',
+  () => 'Reparo em andamento na assistência.',
+]
+
 // ============================ RNG / HELPERS =============================
 
 const rng = seedrandom(RNG_SEED)
@@ -626,6 +691,195 @@ async function reforcarPendenciaSemPatrimonio(
   console.log(`[seed] pendencia "sem patrimônio físico" reaplicada em ${ids.length} ativos.`)
 }
 
+// ============================ ITENS POR QUANTIDADE (F3B) =============================
+
+async function inserirItens(
+  db: ReturnType<typeof createAdminClient>,
+): Promise<ItemSeed[]> {
+  const rows = ITENS_CATALOGO.map((c, i) => ({ nome: c.nome, grupo: c.grupo, ordem: i + 1 }))
+  const { data, error } = await db.from('itens').insert(rows).select('id, nome, grupo')
+  if (error) throw new Error(`Insert de itens falhou: ${error.message}`)
+  console.log(`[seed] ${data?.length ?? 0} itens (catalogo) inseridos.`)
+  return (data ?? []) as ItemSeed[]
+}
+
+// Casos GARANTIDOS (independentes do rng): 1 item com FALTA (atrelados > saldo,
+// o "faltam N" do e-mail) e 1 com saldo ZERADO — exigidos pela OS 3.2.
+function casosGarantidos(
+  itens: ItemSeed[],
+  filialIdBySlug: Map<string, number>,
+): LancRow[] {
+  const rows: LancRow[] = []
+  const matriz = filialIdBySlug.get('matriz')!
+  const linhares = filialIdBySlug.get('linhares')!
+  const mouse = itens.find((i) => i.nome === 'Mouse USB')
+  const carregador = itens.find((i) => i.nome === 'Carregador micro-USB')
+
+  // FALTA: Mouse @ matriz -> saldo 5, atrelados 20 -> faltam 15.
+  if (mouse) {
+    const seq: [TipoLanc, number, string | null, string][] = [
+      ['entrada', 40, null, '2026-01-08'],
+      ['saida', 15, null, '2026-02-12'],
+      ['saida', 20, null, '2026-03-20'],
+      ['reserva', 12, '48870', '2026-05-05'],
+      ['reserva', 8, '48915', '2026-06-18'],
+    ]
+    for (const [tipo, quantidade, chamado, data] of seq) {
+      rows.push({ item_id: mouse.id, filial_id: matriz, tipo, quantidade, chamado, colaborador: null, data, observacao: null })
+    }
+  }
+  // SALDO ZERADO: Carregador micro-USB @ linhares.
+  if (carregador) {
+    rows.push({ item_id: carregador.id, filial_id: linhares, tipo: 'entrada', quantidade: 12, chamado: null, colaborador: null, data: '2026-01-15', observacao: null })
+    rows.push({ item_id: carregador.id, filial_id: linhares, tipo: 'saida', quantidade: 12, chamado: null, colaborador: null, data: '2026-03-22', observacao: null })
+  }
+  return rows
+}
+
+// Gera lancamentos VALIDOS (o trigger valida cada linha): por item×filial, uma
+// cadeia cronologica que mantem saldo >= 0 e reserva liquida >= 0 por chamado.
+// Sazonalidade reaproveita a forma mensal (sortedDates). `pular` = pares
+// item×filial ja cobertos pelos casos garantidos (nao sobrepor).
+function gerarLancamentos(
+  itens: ItemSeed[],
+  filialIdBySlug: Map<string, number>,
+  pular: Set<string>,
+): LancRow[] {
+  const rows: LancRow[] = []
+  const matriz = filialIdBySlug.get('matriz')!
+  const outrasFiliais = [...filialIdBySlug.entries()]
+    .filter(([s]) => s !== 'matriz')
+    .map(([, id]) => id)
+  const novoChamado = () => `${randInt(20000, 99999)}`
+
+  function cadeia(itemId: number, filialId: number, grupo: GrupoItem, nEventos: number) {
+    if (pular.has(`${itemId}:${filialId}`)) return
+    let saldo = 0
+    const reservaAberta = new Map<string, number>() // chamado -> reserva liquida (reserva - liberacao)
+    const eventos: Omit<LancRow, 'data'>[] = []
+
+    const inicial = grupo === 'acessorio' ? randInt(20, 80) : randInt(6, 30)
+    saldo += inicial
+    eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'entrada', quantidade: inicial, chamado: null, colaborador: null, observacao: null })
+
+    for (let i = 0; i < nEventos; i++) {
+      const r = rng()
+      if (r < 0.45 && saldo > 0) {
+        const q = randInt(1, Math.min(saldo, grupo === 'acessorio' ? 8 : 4))
+        // as vezes a saida cita um chamado com reserva aberta (consome atrelados)
+        let chamado: string | null = null
+        const abertos = [...reservaAberta.entries()].filter(([, n]) => n > 0)
+        if (abertos.length && chance(0.5)) chamado = pick(abertos)[0]
+        saldo -= q
+        eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'saida', quantidade: q, chamado, colaborador: chance(0.4) ? faker.person.fullName() : null, observacao: null })
+      } else if (r < 0.65) {
+        const q = grupo === 'acessorio' ? randInt(5, 40) : randInt(4, 16)
+        saldo += q
+        eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'entrada', quantidade: q, chamado: null, colaborador: null, observacao: null })
+      } else if (r < 0.85) {
+        const q = randInt(1, 6)
+        const ch = novoChamado()
+        reservaAberta.set(ch, (reservaAberta.get(ch) ?? 0) + q)
+        eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'reserva', quantidade: q, chamado: ch, colaborador: chance(0.4) ? faker.person.fullName() : null, observacao: null })
+      } else if (r < 0.92) {
+        const abertos = [...reservaAberta.entries()].filter(([, n]) => n > 0)
+        if (abertos.length) {
+          const [ch, n] = pick(abertos)
+          const q = randInt(1, n)
+          reservaAberta.set(ch, n - q)
+          eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'liberacao', quantidade: q, chamado: ch, colaborador: null, observacao: null })
+        }
+      } else {
+        const negativo = saldo > 0 && chance(0.5)
+        const delta = negativo ? -randInt(1, Math.min(saldo, 3)) : randInt(1, 5)
+        saldo += delta
+        eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'ajuste', quantidade: delta, chamado: null, colaborador: null, observacao: delta < 0 ? 'Acerto de inventário (baixa)' : 'Acerto de inventário (sobra)' })
+      }
+    }
+
+    // Datas crescentes na forma mensal, na ordem de emissao (a validade do saldo
+    // e garantida pela ORDEM de insercao, nao pela data).
+    const datas = sortedDates(eventos.length)
+    eventos.forEach((e, k) => rows.push({ ...e, data: datas[k] }))
+  }
+
+  for (const it of itens) {
+    cadeia(it.id, matriz, it.grupo, randInt(4, 12))
+    const extras = shuffle([...outrasFiliais]).slice(0, randInt(0, 2))
+    for (const f of extras) cadeia(it.id, f, it.grupo, randInt(2, 7))
+  }
+  return rows
+}
+
+// Insercao 1 a 1 (o trigger valida cada linha contra o estado corrente do par
+// item×filial — igual as movimentacoes). A ordem do array preserva a validade.
+async function inserirLancamentos(
+  db: ReturnType<typeof createAdminClient>,
+  rows: LancRow[],
+  criadoPor: string,
+): Promise<number> {
+  let total = 0
+  for (const r of rows) {
+    const { error } = await db.from('lancamentos_item').insert({
+      item_id: r.item_id,
+      filial_id: r.filial_id,
+      tipo: r.tipo,
+      quantidade: r.quantidade,
+      chamado: r.chamado,
+      colaborador: r.colaborador,
+      data: r.data,
+      observacao: r.observacao,
+      criado_por: criadoPor,
+      created_at: `${r.data}T12:00:00Z`,
+    })
+    if (error) {
+      throw new Error(`Insert de lancamento_item falhou (item ${r.item_id}, ${r.tipo} ${r.quantidade}): ${error.message}`)
+    }
+    total++
+    if (total % 200 === 0) console.log(`[seed] lancamentos_item: ${total} inseridos...`)
+  }
+  console.log(`[seed] ${total} lancamentos_item inseridos.`)
+  return total
+}
+
+// 2-4 anotacoes por ativo em manutencao (alguns ativos), com datas espacadas —
+// a micro-historia que a seção de manutencao do relatorio exibe.
+async function inserirAnotacoes(
+  db: ReturnType<typeof createAdminClient>,
+  criadoPor: string,
+): Promise<number> {
+  const { data: ativos, error } = await db
+    .from('ativos')
+    .select('id')
+    .eq('status', 'em_manutencao')
+    .order('id', { ascending: true })
+    .limit(6)
+  if (error) throw new Error(`Falha ao listar ativos em manutencao: ${error.message}`)
+  const lista = (ativos ?? []) as { id: string }[]
+  const alvo = lista.slice(0, Math.min(5, lista.length))
+  let total = 0
+  for (const a of alvo) {
+    const nNotas = randInt(2, 4)
+    const problema = pick(ANOTACAO_PROBLEMAS)
+    let ord = randInt(MONTH_OFFSET[5] + 5, MONTH_OFFSET[5] + 20) // meados de junho
+    for (let k = 0; k < nNotas; k++) {
+      const texto = k === 0 ? ANOTACAO_PASSOS[0](problema) : pick(ANOTACAO_PASSOS.slice(1))('')
+      const data = ordToDate(Math.min(ord, WIN_MAX_ORD))
+      const { error: e } = await db.from('anotacoes').insert({
+        ativo_id: a.id,
+        texto,
+        criado_por: criadoPor,
+        created_at: `${data}T14:30:00Z`,
+      })
+      if (e) throw new Error(`Insert de anotacao falhou: ${e.message}`)
+      total++
+      ord += randInt(4, 12)
+    }
+  }
+  console.log(`[seed] ${total} anotacoes inseridas em ${alvo.length} ativos em manutencao.`)
+  return total
+}
+
 // ============================ SUMARIO =============================
 
 function pct(n: number, total: number): number {
@@ -639,6 +893,9 @@ async function sumario(
   db: ReturnType<typeof createAdminClient>,
   slugById: Map<number, string>,
   totalMov: number,
+  totalItens: number,
+  totalLanc: number,
+  totalAnot: number,
 ) {
   const { data: ativos, error: e1 } = await db
     .from('ativos')
@@ -727,6 +984,27 @@ async function sumario(
     console.log(`     ${t.padEnd(18)} ${c.toString().padStart(4)}  ${pct(c, rowsM.length).toFixed(1)}%${alvo}`)
   }
 
+  console.log('\n-- Itens por quantidade (F3B) --')
+  console.log(`  itens (catalogo): ${totalItens}  |  lancamentos: ${totalLanc}  |  anotacoes: ${totalAnot}`)
+  // Falta e saldo zerado sao conceitos POR FILIAL (o e-mail e por filial); o
+  // consolidado mascara a falta de uma filial com a sobra de outra. Checa por filial.
+  type SaldoRow = { item: string; saldo: number; falta: number }
+  const idBySlug = new Map<string, number>()
+  for (const [id, slug] of slugById) idBySlug.set(slug, id)
+  let faltasTotais = 0
+  for (const [, id] of idBySlug) {
+    const { data } = await db.rpc('rel_saldo_itens', { p_filial: id, p_ate: '2026-12-31' })
+    faltasTotais += ((data ?? []) as SaldoRow[]).filter((s) => Number(s.falta) > 0).length
+  }
+  const { data: sLinhares } = await db.rpc('rel_saldo_itens', {
+    p_filial: idBySlug.get('linhares'),
+    p_ate: '2026-12-31',
+  })
+  const carregador = ((sLinhares ?? []) as SaldoRow[]).find((s) => s.item === 'Carregador micro-USB')
+  const zeradoOk = carregador ? Number(carregador.saldo) === 0 : false
+  console.log(`  ${faltasTotais >= 1 ? '✓' : '✗'} itens com falta (atrelados > saldo), por filial: ${faltasTotais}  (meta >= 1)`)
+  console.log(`  ${zeradoOk ? '✓' : '✗'} item com saldo zerado (Carregador micro-USB @ Linhares)  (meta: sim)`)
+
   console.log('\nNOTA (pendente de sign-off do Johnny): a estrategia prioriza a distribuicao de')
   console.log(`      STATUS FINAL (spec 10.1). Por isso o total de movimentacoes (~${totalMov}) e o mix`)
   console.log('      divergem do "~700" e dos percentuais de tipo citados na OS 3.3.4 — impossivel ter')
@@ -782,7 +1060,16 @@ async function main() {
   await inserirAtivos(db, ativos)
   const totalMov = await inserirMovimentacoes(db, ativos, criadoPor)
   await reforcarPendenciaSemPatrimonio(db, ativos)
-  await sumario(db, slugById, totalMov)
+
+  // F3B: catalogo de itens + lancamentos de quantidade + anotacoes de manutencao.
+  const itens = await inserirItens(db)
+  const garantidos = casosGarantidos(itens, filialIdBySlug)
+  const pular = new Set(garantidos.map((r) => `${r.item_id}:${r.filial_id}`))
+  const lancRows = [...garantidos, ...gerarLancamentos(itens, filialIdBySlug, pular)]
+  const totalLanc = await inserirLancamentos(db, lancRows, criadoPor)
+  const totalAnot = await inserirAnotacoes(db, criadoPor)
+
+  await sumario(db, slugById, totalMov, itens.length, totalLanc, totalAnot)
   console.log('[seed] concluido.')
 }
 

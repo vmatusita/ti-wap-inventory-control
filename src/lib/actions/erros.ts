@@ -25,6 +25,25 @@ export function traduzErroBanco(mensagem: string | undefined | null): string {
   if (m.includes('estorno_de precisa apontar')) {
     return 'A movimentação de origem não pertence a este ativo.'
   }
+  // Itens por quantidade (trigger/constraints da 0015).
+  if (m.includes('saldo insuficiente') || m.includes('saldo negativo')) {
+    return 'Saldo insuficiente: a operação deixaria o item com saldo negativo.'
+  }
+  if (m.includes('liberação maior') || m.includes('liberacao maior') || m.includes('reserva aberta')) {
+    return 'A liberação é maior que a reserva aberta do chamado.'
+  }
+  if (m.includes('lanc_item_ajuste_obs')) {
+    return 'O ajuste exige uma justificativa (observação).'
+  }
+  if (m.includes('lanc_item_chamado')) {
+    return 'Reserva e liberação exigem o número do chamado.'
+  }
+  if (m.includes('lanc_item_qtd_valida')) {
+    return 'Quantidade inválida para este tipo de lançamento.'
+  }
+  if (m.includes('itens_nome_uidx')) {
+    return 'Já existe um item com esse nome.'
+  }
   // Constraint de unicidade patrimonio + service tag (§5).
   if (m.includes('ativos_patrimonio_service_tag') || m.includes('duplicate key')) {
     return 'Já existe um ativo com esse patrimônio e service tag.'

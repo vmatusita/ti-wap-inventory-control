@@ -130,6 +130,50 @@ export const CATEGORIA_ORDEM: CategoriaAtivo[] = [
   'outro',
 ]
 
+// ---------- ITEM POR QUANTIDADE (F3B) ----------
+export type GrupoItem = Enums<'grupo_item'>
+export type TipoLancamento = Enums<'tipo_lancamento'>
+
+export const GRUPO_ITEM_META: Record<
+  GrupoItem,
+  { rotulo: string; titulo: string }
+> = {
+  acessorio: { rotulo: 'Acessório', titulo: 'Acessórios e periféricos' },
+  componente: { rotulo: 'Componente', titulo: 'Componentes' },
+}
+
+export function rotuloGrupoItem(g: GrupoItem): string {
+  return GRUPO_ITEM_META[g]?.rotulo ?? g
+}
+
+export const GRUPO_ITEM_ORDEM: GrupoItem[] = ['acessorio', 'componente']
+
+export const TIPO_LANCAMENTO_META: Record<TipoLancamento, { rotulo: string }> = {
+  entrada: { rotulo: 'Entrada' },
+  saida: { rotulo: 'Saída' },
+  reserva: { rotulo: 'Reserva' },
+  liberacao: { rotulo: 'Liberação' },
+  ajuste: { rotulo: 'Ajuste' },
+}
+
+export function rotuloTipoLancamento(t: TipoLancamento): string {
+  return TIPO_LANCAMENTO_META[t]?.rotulo ?? t
+}
+
+// Pílula colorida da coluna Tipo no histórico de lançamentos: entrada azul,
+// saída amarela (paleta WAP), reserva violeta, liberação verde, ajuste neutro.
+const TIPO_LANC_PILL: Record<TipoLancamento, string> = {
+  entrada: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  saida: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  reserva: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  liberacao: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
+  ajuste: 'bg-muted text-muted-foreground',
+}
+
+export function pillTipoLancamento(t: TipoLancamento): string {
+  return TIPO_LANC_PILL[t] ?? 'bg-muted text-muted-foreground'
+}
+
 // ---------- TERMO ----------
 export const TERMO_META: Record<TermoStatus, { rotulo: string }> = {
   sim: { rotulo: 'Assinado' },

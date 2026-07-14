@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   ArrowLeftRight,
   BarChart3,
+  Boxes,
   LayoutDashboard,
   Package,
   Settings,
@@ -23,6 +24,7 @@ const ITENS: NavItem[] = [
   { rotulo: 'Dashboard', icone: LayoutDashboard, href: '/' },
   { rotulo: 'Ativos', icone: Package, href: '/ativos' },
   { rotulo: 'Movimentações', icone: ArrowLeftRight, href: '/movimentacoes/nova' },
+  { rotulo: 'Itens', icone: Boxes, href: '/itens' },
   { rotulo: 'Relatórios', icone: BarChart3, href: '/relatorios/geral', match: '/relatorios' },
   { rotulo: 'Administração', icone: Settings, href: '/admin/usuarios', match: '/admin' },
 ]

@@ -1,4 +1,9 @@
-import type { CategoriaAtivo, TipoMovimentacao } from '@/lib/dominio'
+import type {
+  CategoriaAtivo,
+  GrupoItem,
+  StatusAtivo,
+  TipoMovimentacao,
+} from '@/lib/dominio'
 
 // Tipos compartilhados do relatório (spec §7). Módulo SÓ de tipos (sem código de
 // servidor) — pode ser importado por Client Components sem arrastar o client do
@@ -14,6 +19,9 @@ export type KpisRelatorio = {
   em_manutencao: number
   em_triagem: number
   defasado: number
+  // v2: emprestado ganha KPI no grupo "equipamentos principais" (opcional para
+  // compat com snapshots v1, que não gravavam este campo).
+  emprestado?: number
 }
 
 export type ContagemCategoria = { categoria: CategoriaAtivo; total: number }
@@ -87,6 +95,100 @@ export type MetaSnapshot = {
   de: string
   ate: string
   periodoRotulo: string
+  // v1 (ausente) × v2 (formato do e-mail: 3 grupos + tabelas). CorpoRelatorio
+  // normaliza — snapshots antigos continuam abrindo.
+  schema?: 1 | 2
+}
+
+// ---- Estruturas do relatório v2 (formato do e-mail — F3B) ----
+
+// Estoque no último dia por categoria × status (barras horizontais empilhadas).
+export type EstoqueCatStatus = {
+  categoria: CategoriaAtivo
+  segmentos: { status: StatusAtivo; total: number }[]
+  total: number
+}
+
+// Disponíveis por modelo, agrupados por categoria (bar list do e-mail).
+export type ModelosPorCategoria = {
+  categoria: CategoriaAtivo
+  modelos: ItemModelo[]
+  total: number
+}
+
+// Manutenção caso a caso, enriquecida (mini-linha do tempo do card).
+export type AnotacaoManutencao = { texto: string; autor: string | null; em: string }
+export type ManutencaoCaso = {
+  patrimonio: string
+  modelo: string
+  filial: string
+  chamado: string | null
+  dataEnvio: string | null
+  diasEmManutencao: number | null
+  obsEnvio: string | null
+  anotacoes: AnotacaoManutencao[]
+  retornoData: string | null
+  retornoObs: string | null
+  fechado: boolean // true = voltou de manutenção dentro do período
+}
+
+// Linha de item nos grupos 2–3 (acessórios / componentes).
+export type SaldoItemPeriodo = {
+  item: string
+  saldo: number
+  atrelados: number
+  falta: number
+  entradas: number
+  saidas: number
+  delta: number // entradas − saidas no período
+  obs: string | null
+}
+export type GrupoRelatorio = {
+  grupo: GrupoItem
+  itens: SaldoItemPeriodo[]
+  ultimoLancamento: string | null // carimbo de frescor (data)
+  temAtrelados: boolean
+}
+
+// Tabelas detalhadas do período (o fecho do e-mail).
+export type LinhaSaida = {
+  id: string
+  data: string
+  filial: string
+  categoria: CategoriaAtivo
+  modelo: string
+  patrimonio: string
+  tipo: TipoMovimentacao
+  motivo: string | null
+  chamado: string | null
+  colaboradorSetor: string | null
+  termo: string | null
+  obs: string | null
+}
+export type LinhaEntrada = {
+  id: string
+  data: string
+  filial: string
+  categoria: CategoriaAtivo
+  modelo: string
+  patrimonio: string
+  tipo: TipoMovimentacao
+  motivo: string | null
+  colaborador: string | null
+  setor: string | null
+  itensFaltantes: string[] | null
+  obs: string | null
+}
+export type LinhaTransferencia = {
+  id: string
+  data: string
+  de: string
+  para: string
+  categoria: CategoriaAtivo
+  modelo: string
+  patrimonio: string
+  chamado: string | null
+  obs: string | null
 }
 
 export type SnapshotRelatorio = {
@@ -104,4 +206,32 @@ export type SnapshotRelatorio = {
   pendencias: ChipPendencia[]
   ultimasMovimentacoes: MovimentacaoRelatorio[]
   resumo: ResumoPeriodo
+}
+
+// Snapshot v2 — o formato do e-mail (3 grupos + tabelas detalhadas). O estado é
+// reconstruído as-of no fim do período; congela junto com o resto (F3B 3.6/3.10).
+export type SnapshotRelatorioV2 = {
+  meta: MetaSnapshot & { schema: 2 }
+  kpis: KpisRelatorio
+  kpisAnterior: KpisRelatorio // mesmo shape, estado as-of do fim do período anterior
+  estoquePorCategoria: ContagemCategoria[]
+  estoqueCatStatus: EstoqueCatStatus[]
+  disponiveisPorModelo: ModelosPorCategoria[]
+  reservados: ItemReservado[]
+  manutencao: ManutencaoCaso[]
+  serieMovimentacoes: SerieMovimentacoes
+  porMotivo: PorMotivo
+  grupos: GrupoRelatorio[]
+  pendencias: ChipPendencia[]
+  saidas: LinhaSaida[]
+  entradas: LinhaEntrada[]
+  transferencias: LinhaTransferencia[]
+  resumo: ResumoPeriodo
+}
+
+export type AnySnapshot = SnapshotRelatorio | SnapshotRelatorioV2
+
+// Discrimina v2 pelo carimbo de schema no meta (snapshots v1 não têm).
+export function ehSnapshotV2(s: AnySnapshot): s is SnapshotRelatorioV2 {
+  return (s.meta as { schema?: number }).schema === 2
 }

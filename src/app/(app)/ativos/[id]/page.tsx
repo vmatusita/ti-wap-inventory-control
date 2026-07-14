@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { EditarAtivoDialog } from '@/components/ativos/editar-ativo-dialog'
+import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
-import { buscarAtivoPorId } from '@/lib/queries/ativos'
+import { buscarAtivoPorId, listarAnotacoesDoAtivo } from '@/lib/queries/ativos'
 import { listarMovimentacoesDoAtivo } from '@/lib/queries/movimentacoes'
 import { listarMotivos } from '@/lib/queries/motivos'
 import { rotuloCategoria, rotuloTermo } from '@/lib/dominio'
@@ -37,8 +38,9 @@ export default async function AtivoFichaPage({
   const ativo = await buscarAtivoPorId(id)
   if (!ativo) notFound()
 
-  const [movimentacoes, motivosLista] = await Promise.all([
+  const [movimentacoes, anotacoes, motivosLista] = await Promise.all([
     listarMovimentacoesDoAtivo(id),
+    listarAnotacoesDoAtivo(id),
     listarMotivos(),
   ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
@@ -85,6 +87,7 @@ export default async function AtivoFichaPage({
               Nova movimentação
             </Link>
           </Button>
+          <AnotarDialog ativoId={ativo.id} />
           <EditarAtivoDialog ativo={ativo} />
         </div>
       </div>
@@ -144,7 +147,11 @@ export default async function AtivoFichaPage({
       {/* Linha do tempo */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Linha do tempo</h2>
-        <LinhaDoTempo movimentacoes={movimentacoes} motivos={motivos} />
+        <LinhaDoTempo
+          movimentacoes={movimentacoes}
+          anotacoes={anotacoes}
+          motivos={motivos}
+        />
       </div>
     </div>
   )

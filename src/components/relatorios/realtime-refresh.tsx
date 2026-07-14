@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-// Tempo real p/ OPERADOR logado (OS-F3 3.4): assina INSERTs em `movimentacoes`
-// (Supabase Realtime) e faz `router.refresh()` com debounce de 2s + badge
-// "atualizado agora". Fallback: refetch ao focar a aba. A página segue 100%
-// funcional sem WebSocket. Sessões por senha usam ViewerAutoRefresh (não abrem
-// canal — não têm credencial de banco).
+// Tempo real p/ OPERADOR logado (OS-F3 3.4 / F3B 3.10.4): assina INSERTs em
+// `movimentacoes`, `lancamentos_item` e `anotacoes` (Supabase Realtime) e faz
+// `router.refresh()` com debounce de 2s + badge "atualizado agora". Fallback:
+// refetch ao focar a aba. A página segue 100% funcional sem WebSocket. Sessões
+// por senha usam ViewerAutoRefresh (não abrem canal — não têm credencial).
 export function RealtimeRefresh() {
   const router = useRouter()
   const [atualizado, setAtualizado] = useState(false)
@@ -18,21 +18,21 @@ export function RealtimeRefresh() {
     let debounce: ReturnType<typeof setTimeout> | null = null
     let flash: ReturnType<typeof setTimeout> | null = null
 
+    const aoMudar = () => {
+      if (debounce) clearTimeout(debounce)
+      debounce = setTimeout(() => {
+        router.refresh()
+        setAtualizado(true)
+        if (flash) clearTimeout(flash)
+        flash = setTimeout(() => setAtualizado(false), 3000)
+      }, 2000)
+    }
+
     const canal = supabase
-      .channel('relatorio-movimentacoes')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'movimentacoes' },
-        () => {
-          if (debounce) clearTimeout(debounce)
-          debounce = setTimeout(() => {
-            router.refresh()
-            setAtualizado(true)
-            if (flash) clearTimeout(flash)
-            flash = setTimeout(() => setAtualizado(false), 3000)
-          }, 2000)
-        },
-      )
+      .channel('relatorio-tempo-real')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'movimentacoes' }, aoMudar)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lancamentos_item' }, aoMudar)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'anotacoes' }, aoMudar)
       .subscribe()
 
     const onFocus = () => router.refresh()

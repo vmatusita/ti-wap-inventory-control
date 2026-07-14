@@ -138,6 +138,38 @@ export async function buscarAtivoPorId(id: string): Promise<AtivoFicha | null> {
   }
 }
 
+// Anotação avulsa na linha do tempo (F3B). Imutável, com autor + data/hora.
+export type AnotacaoTimeline = {
+  id: string
+  texto: string
+  autor_nome: string | null
+  created_at: string
+}
+
+export async function listarAnotacoesDoAtivo(
+  ativoId: string,
+): Promise<AnotacaoTimeline[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('anotacoes')
+    .select('id, texto, created_at, autor:profiles!anotacoes_criado_por_fkey(nome)')
+    .eq('ativo_id', ativoId)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(`Falha ao carregar anotações: ${error.message}`)
+  type Row = {
+    id: string
+    texto: string
+    created_at: string
+    autor: { nome: string | null } | null
+  }
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    id: r.id,
+    texto: r.texto,
+    autor_nome: r.autor?.nome ?? null,
+    created_at: r.created_at,
+  }))
+}
+
 // Resumo p/ chip/combobox do fluxo de movimentacao.
 export type AtivoResumo = {
   id: string

@@ -1,11 +1,49 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { editarAtivoSchema } from '@/lib/validators/ativo'
 
 export type EditarAtivoResult = { ok: boolean; erro?: string }
+
+// Anotação na linha do tempo (F3B): nota avulsa, imutável, com autor + data.
+const anotacaoSchema = z.object({
+  ativo_id: z.string().uuid('Ativo inválido'),
+  texto: z
+    .string()
+    .trim()
+    .min(1, 'Escreva a anotação')
+    .max(2000, 'Anotação: no máximo 2000 caracteres'),
+})
+
+export async function anotarAtivo(input: {
+  ativo_id: string
+  texto: string
+}): Promise<EditarAtivoResult> {
+  const parsed = anotacaoSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, erro: 'Sua sessão expirou. Faça login novamente.' }
+
+  const { error } = await supabase.from('anotacoes').insert({
+    ativo_id: parsed.data.ativo_id,
+    texto: parsed.data.texto,
+    criado_por: user.id,
+  })
+  if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+
+  revalidatePath(`/ativos/${parsed.data.ativo_id}`)
+  revalidatePath('/relatorios', 'layout')
+  return { ok: true }
+}
 
 // Atualiza SO os campos cadastrais NAO derivados (OS-F2 3.2.4). Status,
 // colaborador, setor e filial NAO entram — mudam apenas por movimentacao.
