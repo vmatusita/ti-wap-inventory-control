@@ -5,12 +5,10 @@ import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { Button } from '@/components/ui/button'
 import { listarFiliais } from '@/lib/queries/filiais'
 import {
-  CAPS,
-  getSnapshotRelatorio,
+  getSnapshotRelatorioV2,
   resolverFilialPorSlug,
 } from '@/lib/queries/relatorios'
 import { resolverPeriodo, semanaUtilCorrente } from '@/lib/relatorios/periodo'
-import { exportarMovimentacoesRelatorio } from '@/lib/actions/relatorios'
 import { formatDate } from '@/lib/format'
 import { FilialTabs } from '@/components/relatorios/filial-tabs'
 import { PeriodoFiltro } from '@/components/relatorios/periodo-filtro'
@@ -52,15 +50,13 @@ export default async function RelatorioFilialPage({
 
   const [filiais, snapshot] = await Promise.all([
     listarFiliais(acesso.client),
-    getSnapshotRelatorio(
-      acesso.client,
-      filialSlug,
-      { de: periodo.de, ate: periodo.ate, rotulo: periodo.rotulo },
-      { maxMovimentacoes: CAPS.aoVivo },
-    ),
+    getSnapshotRelatorioV2(acesso.client, filialSlug, {
+      de: periodo.de,
+      ate: periodo.ate,
+      rotulo: periodo.rotulo,
+    }),
   ])
 
-  const nomeArquivo = `relatorio-${filialSlug}-${periodo.ate}.csv`
   const semana = semanaUtilCorrente()
 
   return (
@@ -100,16 +96,7 @@ export default async function RelatorioFilialPage({
         <PeriodoFiltro preset={periodo.preset} de={periodo.de} ate={periodo.ate} />
       </div>
 
-      <CorpoRelatorio
-        snapshot={snapshot}
-        nomeArquivoCsv={nomeArquivo}
-        carregarExport={exportarMovimentacoesRelatorio.bind(
-          null,
-          filialSlug,
-          periodo.de,
-          periodo.ate,
-        )}
-      />
+      <CorpoRelatorio snapshot={snapshot} />
     </div>
   )
 }

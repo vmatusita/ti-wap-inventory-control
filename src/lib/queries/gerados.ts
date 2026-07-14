@@ -1,5 +1,5 @@
 import type { DbClient } from '@/lib/queries/relatorios'
-import type { SnapshotRelatorio } from '@/lib/relatorios/tipos'
+import type { AnySnapshot } from '@/lib/relatorios/tipos'
 
 // Histórico e leitura dos relatórios GERADOS (snapshots — spec §7.1 / OS-F3 3.8).
 // Recebe o client resolvido (operador OU visualizador por senha) — ambos leem.
@@ -70,7 +70,7 @@ export type RelatorioGeradoDetalhe = {
   gerado_em: string
   filialId: number | null
   autorNome: string | null
-  snapshot: SnapshotRelatorio
+  snapshot: AnySnapshot
   versaoMaisNova: { id: string; versao: number } | null
 }
 
@@ -126,7 +126,7 @@ export async function buscarRelatorioGerado(
     gerado_em: r.gerado_em,
     filialId: r.filial_id,
     autorNome: r.autor?.nome ?? null,
-    snapshot: r.dados as SnapshotRelatorio,
+    snapshot: r.dados as AnySnapshot,
     versaoMaisNova: novas ? { id: novas.id, versao: novas.versao } : null,
   }
 }

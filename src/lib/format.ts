@@ -83,3 +83,10 @@ export function hojeISO(): string {
     timeZone: FUSO,
   }).format(new Date())
 }
+
+// Data (yyyy-MM-dd) de um instante (timestamptz) já no fuso de São Paulo. Usado
+// para comparar `created_at` (UTC) com colunas `date` de negócio (que já estão
+// em SP) sem o erro de fuso de `iso.slice(0,10)` — que devolveria a data UTC.
+export function dataEmSP(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: FUSO }).format(new Date(iso))
+}

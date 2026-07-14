@@ -1,10 +1,11 @@
 import { rotuloCategoria } from '@/lib/dominio'
 import type {
+  AnySnapshot,
   GranularidadeSerie,
-  MovimentacaoRelatorio,
   SerieMovimentacoes,
   SnapshotRelatorio,
 } from '@/lib/relatorios/tipos'
+import { ehSnapshotV2 } from '@/lib/relatorios/tipos'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
 import { KpiTiles } from '@/components/relatorios/kpi-tiles'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
@@ -15,6 +16,7 @@ import { ListaManutencao } from '@/components/relatorios/lista-manutencao'
 import { ListaReservados } from '@/components/relatorios/lista-reservados'
 import { TabelaMovimentacoes } from '@/components/relatorios/tabela-movimentacoes'
 import { ResumoPeriodoCard } from '@/components/relatorios/resumo-periodo'
+import { CorpoRelatorioV2 } from '@/components/relatorios/corpo-relatorio-v2'
 
 const MESES_ABREV_COMPAT = [
   'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
@@ -49,26 +51,20 @@ function serieDoSnapshot(s: SnapshotRelatorio): SerieMovimentacoes {
   }
 }
 
-// Grade de cards do relatório — a MESMA para a página ao vivo e o snapshot
-// gerado (OS-F3 3.8.5). Recebe o SnapshotRelatorio por props; só a tabela de
-// movimentações muda de comportamento (filtros internos + export offline no
-// snapshot; export do período inteiro via Server Action no ao vivo).
-export function CorpoRelatorio({
-  snapshot,
-  nomeArquivoCsv,
-  filtrosInternos = false,
-  carregarExport,
-}: {
-  snapshot: SnapshotRelatorio
-  nomeArquivoCsv: string
-  filtrosInternos?: boolean
-  carregarExport?: () => Promise<MovimentacaoRelatorio[]>
-}) {
+// Ponto de entrada do relatório: despacha v2 (formato do e-mail — F3B) ou v1
+// (grade da F3, para snapshots antigos que continuam abrindo — 3.10.2).
+export function CorpoRelatorio({ snapshot }: { snapshot: AnySnapshot }) {
+  if (ehSnapshotV2(snapshot)) {
+    return <CorpoRelatorioV2 snapshot={snapshot} />
+  }
+  return <CorpoRelatorioV1 snapshot={snapshot} />
+}
+
+// Grade da F3 (v1) — usada só para reabrir snapshots gerados antes do F3B.
+function CorpoRelatorioV1({ snapshot }: { snapshot: SnapshotRelatorio }) {
   const s = snapshot
   const serieMov = serieDoSnapshot(s)
-  const temMovimentacao = serieMov.pontos.some(
-    (p) => p.saidas > 0 || p.devolucoes > 0,
-  )
+  const temMovimentacao = serieMov.pontos.some((p) => p.saidas > 0 || p.devolucoes > 0)
   return (
     <div className="space-y-3.5">
       <KpiTiles kpis={s.kpis} />
@@ -146,13 +142,7 @@ export function CorpoRelatorio({
         </CardRelatorio>
 
         <CardRelatorio wide titulo="Últimas movimentações">
-          <TabelaMovimentacoes
-            rows={s.ultimasMovimentacoes}
-            nomeArquivo={nomeArquivoCsv}
-            filtrosInternos={filtrosInternos}
-            ehGeral={s.meta.ehGeral}
-            carregarExport={carregarExport}
-          />
+          <TabelaMovimentacoes rows={s.ultimasMovimentacoes} filtrosInternos ehGeral={s.meta.ehGeral} />
         </CardRelatorio>
 
         <CardRelatorio

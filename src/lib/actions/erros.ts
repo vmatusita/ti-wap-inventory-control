@@ -44,6 +44,11 @@ export function traduzErroBanco(mensagem: string | undefined | null): string {
   if (m.includes('itens_nome_uidx')) {
     return 'Já existe um item com esse nome.'
   }
+  // Corrida de duplo-estorno: o índice único parcial dispara "duplicate key" —
+  // trata ANTES do ramo genérico de duplicidade (senão vazaria a msg de patrimônio).
+  if (m.includes('lanc_item_estorna')) {
+    return 'Este lançamento já foi estornado.'
+  }
   // Constraint de unicidade patrimonio + service tag (§5).
   if (m.includes('ativos_patrimonio_service_tag') || m.includes('duplicate key')) {
     return 'Já existe um ativo com esse patrimônio e service tag.'

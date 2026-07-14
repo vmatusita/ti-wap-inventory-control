@@ -1,8 +1,7 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
-import { Download, X } from 'lucide-react'
-import { toast } from 'sonner'
+import { useMemo, useState } from 'react'
+import { X } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -20,7 +19,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
-import { baixarMovimentacoesCSV } from '@/lib/relatorios/csv'
 import { formatDate } from '@/lib/format'
 import {
   CATEGORIA_ORDEM,
@@ -33,27 +31,21 @@ import type { MovimentacaoRelatorio } from '@/lib/relatorios/tipos'
 
 const TODOS = '__todos'
 
-// Tabela "Últimas movimentações" (OS-F3 3.3.5): Data, Tipo (pill), Patrimônio,
-// Ativo, Colaborador/Setor, Filial, Chamado, Observação (truncada + tooltip).
-// Filtros internos client-side (snapshot) e export CSV. No ao vivo, o export
-// busca o período inteiro pela Server Action `carregarExport`.
+// Tabela "Últimas movimentações" — usada só na grade v1 (snapshots antigos que
+// continuam abrindo). Filtros internos client-side. Sem export CSV (removido na
+// v2 — decisão do plano §3.9): quem precisar de arquivo usa a impressão limpa.
 export function TabelaMovimentacoes({
   rows,
-  nomeArquivo,
   filtrosInternos = false,
   ehGeral = false,
-  carregarExport,
 }: {
   rows: MovimentacaoRelatorio[]
-  nomeArquivo: string
   filtrosInternos?: boolean
   ehGeral?: boolean
-  carregarExport?: () => Promise<MovimentacaoRelatorio[]>
 }) {
   const [filial, setFilial] = useState('')
   const [categoria, setCategoria] = useState('')
   const [tipo, setTipo] = useState('')
-  const [exportando, startExport] = useTransition()
 
   const filiaisDisponiveis = useMemo(
     () => [...new Set(rows.map((r) => r.filial))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
@@ -76,95 +68,68 @@ export function TabelaMovimentacoes({
 
   const temFiltro = !!filial || !!categoria || !!tipo
 
-  function exportar() {
-    startExport(async () => {
-      try {
-        const dados = carregarExport ? await carregarExport() : filtradas
-        if (dados.length === 0) {
-          toast.info('Nenhuma movimentação para exportar no período.')
-          return
-        }
-        baixarMovimentacoesCSV(dados, nomeArquivo)
-      } catch {
-        toast.error('Não foi possível gerar o CSV.')
-      }
-    })
-  }
-
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2 print:hidden">
-        {filtrosInternos && (
-          <>
-            {ehGeral && (
-              <Select value={filial || TODOS} onValueChange={(v) => setFilial(v === TODOS ? '' : v)}>
-                <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por filial">
-                  <SelectValue placeholder="Filial" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TODOS}>Todas as filiais</SelectItem>
-                  {filiaisDisponiveis.map((f) => (
-                    <SelectItem key={f} value={f}>
-                      {f}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Select value={categoria || TODOS} onValueChange={(v) => setCategoria(v === TODOS ? '' : v)}>
-              <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por categoria">
-                <SelectValue placeholder="Categoria" />
+      {filtrosInternos && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 print:hidden">
+          {ehGeral && (
+            <Select value={filial || TODOS} onValueChange={(v) => setFilial(v === TODOS ? '' : v)}>
+              <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por filial">
+                <SelectValue placeholder="Filial" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={TODOS}>Todas categorias</SelectItem>
-                {CATEGORIA_ORDEM.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {rotuloCategoria(c)}
+                <SelectItem value={TODOS}>Todas as filiais</SelectItem>
+                {filiaisDisponiveis.map((f) => (
+                  <SelectItem key={f} value={f}>
+                    {f}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={tipo || TODOS} onValueChange={(v) => setTipo(v === TODOS ? '' : v)}>
-              <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por tipo">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={TODOS}>Todos os tipos</SelectItem>
-                {tiposDisponiveis.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {rotuloTipo(t)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {temFiltro && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1 text-muted-foreground"
-                onClick={() => {
-                  setFilial('')
-                  setCategoria('')
-                  setTipo('')
-                }}
-              >
-                <X className="size-4" />
-                Limpar
-              </Button>
-            )}
-          </>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto gap-2"
-          onClick={exportar}
-          disabled={exportando}
-        >
-          <Download className="size-4" />
-          {exportando ? 'Gerando…' : 'Exportar CSV'}
-        </Button>
-      </div>
+          )}
+          <Select value={categoria || TODOS} onValueChange={(v) => setCategoria(v === TODOS ? '' : v)}>
+            <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por categoria">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODOS}>Todas categorias</SelectItem>
+              {CATEGORIA_ORDEM.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {rotuloCategoria(c)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={tipo || TODOS} onValueChange={(v) => setTipo(v === TODOS ? '' : v)}>
+            <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por tipo">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODOS}>Todos os tipos</SelectItem>
+              {tiposDisponiveis.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {rotuloTipo(t)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {temFiltro && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-muted-foreground"
+              onClick={() => {
+                setFilial('')
+                setCategoria('')
+                setTipo('')
+              }}
+            >
+              <X className="size-4" />
+              Limpar
+            </Button>
+          )}
+        </div>
+      )}
 
       {filtradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">

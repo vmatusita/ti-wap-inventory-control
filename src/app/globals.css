@@ -131,14 +131,20 @@
   }
 }
 
-/* Impressão dos relatórios (OS-F3 3.5.2): cards em coluna única, sem cortar um
-   card entre páginas, fundo branco. O que é só de tela usa a variante print:hidden. */
+/* Impressão dos relatórios (OS-F3 3.5.2 / F3B 3.7): cards em coluna única, sem
+   cortar um card entre páginas, fundo branco, quebra de página por grupo e todos
+   os grupos expandidos (mesmo os recolhidos no mobile). O que é só de tela usa a
+   variante print:hidden. */
 @media print {
   .rel-print-cols {
     grid-template-columns: 1fr !important;
   }
   .break-inside-avoid {
     break-inside: avoid;
+  }
+  /* Grupos recolhidos no mobile voltam a aparecer na impressão. */
+  .grupo-conteudo {
+    display: block !important;
   }
   body {
     background: #fff;

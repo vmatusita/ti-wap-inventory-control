@@ -21,7 +21,6 @@ export default async function RelatorioGeradoPage({
   if (!detalhe) notFound()
 
   const s = detalhe.snapshot
-  const nomeArquivo = `relatorio-${s.meta.filialSlug}-${detalhe.periodo_de}-v${detalhe.versao}.csv`
 
   return (
     <div className="space-y-4">
@@ -71,11 +70,7 @@ export default async function RelatorioGeradoPage({
         <BotaoImprimir />
       </div>
 
-      <CorpoRelatorio
-        snapshot={s}
-        nomeArquivoCsv={nomeArquivo}
-        filtrosInternos
-      />
+      <CorpoRelatorio snapshot={s} />
     </div>
   )
 }

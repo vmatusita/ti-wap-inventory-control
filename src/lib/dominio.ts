@@ -62,6 +62,19 @@ export function rotuloStatus(s: StatusAtivo): string {
   return STATUS_META[s]?.rotulo ?? s
 }
 
+// Cor de gráfico por status (barras empilhadas de estoque — F3B). Neutros
+// distintos; em_uso azul e em_manutencao âmbar seguem a paleta do relatório.
+export const STATUS_CHART_COLOR: Record<StatusAtivo, string> = {
+  em_estoque: '#16a34a',
+  reservado: '#7c3aed',
+  em_uso: '#2a78d6',
+  emprestado: '#0891b2',
+  em_triagem: '#ea580c',
+  em_manutencao: '#d97706',
+  defasado: '#9ca3af',
+  descartado: '#6b7280',
+}
+
 // ---------- TIPO DE MOVIMENTACAO ----------
 export const TIPO_META: Record<TipoMovimentacao, { rotulo: string }> = {
   compra: { rotulo: 'Compra' },

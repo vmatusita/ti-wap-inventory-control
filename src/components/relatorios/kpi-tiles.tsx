@@ -1,8 +1,10 @@
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { KpisRelatorio } from '@/lib/relatorios/tipos'
 
 // KPI tiles (spec §7 / mockup + OS-F3 3.3.1). Reconcilia a lista da spec §7
 // (inclui "em triagem") com o mockup (inclui "reserva técnica"): mostra os dois.
+// v2 (F3B): quando `anterior` vem, mostra o Δ vs período anterior (setinha ▲▼).
 const TILES: { chave: keyof KpisRelatorio; rotulo: string; sub: string }[] = [
   { chave: 'total', rotulo: 'Total de ativos', sub: 'no inventário' },
   { chave: 'em_uso', rotulo: 'Em uso', sub: 'com colaborador/setor' },
@@ -13,26 +15,97 @@ const TILES: { chave: keyof KpisRelatorio; rotulo: string; sub: string }[] = [
   { chave: 'defasado', rotulo: 'Reserva técnica', sub: 'defasados / posse WAP' },
 ]
 
-export function KpiTiles({ kpis }: { kpis: KpisRelatorio }) {
+// Δ vs período anterior: seta + valor. ▲ verde (aumento), ▼ vermelho (queda).
+// Direcional (não julga se aumentar é "bom" para cada KPI).
+export function DeltaKpi({ delta }: { delta: number }) {
+  if (delta === 0) {
+    return <span className="text-[11px] text-muted-foreground tabular-nums">→ 0</span>
+  }
+  const positivo = delta > 0
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums',
+        positivo ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+      )}
+    >
+      {positivo ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+      {positivo ? '+' : ''}
+      {delta.toLocaleString('pt-BR')}
+    </span>
+  )
+}
+
+export function KpiTiles({
+  kpis,
+  anterior,
+}: {
+  kpis: KpisRelatorio
+  anterior?: KpisRelatorio
+}) {
   return (
     <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-7">
-      {TILES.map((t) => (
-        <div
-          key={t.chave}
-          className={cn(
-            'rounded-xl border bg-card px-3.5 py-3',
-            // 7 tiles (nº primo) deixariam um órfão em quase todo breakpoint;
-            // "Total de ativos" ocupa a linha cheia (menos no xl, onde os 7 cabem).
-            t.chave === 'total' && 'col-span-2 sm:col-span-3 xl:col-span-1',
-          )}
-        >
-          <div className="text-xs font-semibold text-foreground/80">{t.rotulo}</div>
-          <div className="mt-0.5 text-2xl font-bold tabular-nums">
-            {kpis[t.chave].toLocaleString('pt-BR')}
+      {TILES.map((t) => {
+        const valor = kpis[t.chave] ?? 0
+        const delta = anterior ? valor - (anterior[t.chave] ?? 0) : null
+        return (
+          <div
+            key={t.chave}
+            className={cn(
+              'rounded-xl border bg-card px-3.5 py-3',
+              // 7 tiles (nº primo) deixariam um órfão em quase todo breakpoint;
+              // "Total de ativos" ocupa a linha cheia (menos no xl, onde os 7 cabem).
+              t.chave === 'total' && 'col-span-2 sm:col-span-3 xl:col-span-1',
+            )}
+          >
+            <div className="text-xs font-semibold text-foreground/80">{t.rotulo}</div>
+            <div className="mt-0.5 flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold tabular-nums">
+                {valor.toLocaleString('pt-BR')}
+              </span>
+              {delta != null && <DeltaKpi delta={delta} />}
+            </div>
+            <div className="text-[11px] text-muted-foreground">{t.sub}</div>
           </div>
-          <div className="text-[11px] text-muted-foreground">{t.sub}</div>
-        </div>
-      ))}
+        )
+      })}
     </section>
+  )
+}
+
+// KPIs do grupo "Equipamentos principais" (guardados · reservados · em manutenção
+// · emprestados), cada um com Δ. Derivados dos mesmos KPIs de estado.
+const GRUPO_TILES: { chave: keyof KpisRelatorio; rotulo: string }[] = [
+  { chave: 'em_estoque', rotulo: 'Guardados' },
+  { chave: 'reservado', rotulo: 'Reservados' },
+  { chave: 'em_manutencao', rotulo: 'Em manutenção' },
+  { chave: 'emprestado', rotulo: 'Emprestados' },
+]
+
+export function GrupoKpis({
+  kpis,
+  anterior,
+}: {
+  kpis: KpisRelatorio
+  anterior?: KpisRelatorio
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      {GRUPO_TILES.map((t) => {
+        const valor = kpis[t.chave] ?? 0
+        const delta = anterior ? valor - (anterior[t.chave] ?? 0) : null
+        return (
+          <div key={t.chave} className="rounded-lg border bg-card px-3 py-2.5">
+            <div className="text-xs font-medium text-muted-foreground">{t.rotulo}</div>
+            <div className="mt-0.5 flex items-baseline gap-1.5">
+              <span className="text-xl font-bold tabular-nums">
+                {valor.toLocaleString('pt-BR')}
+              </span>
+              {delta != null && <DeltaKpi delta={delta} />}
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }

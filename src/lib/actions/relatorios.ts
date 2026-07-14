@@ -2,17 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { getOperador, resolverAcessoRelatorio } from '@/lib/auth/acesso'
+import { getOperador } from '@/lib/auth/acesso'
 import { createClient } from '@/lib/supabase/server'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { formatDate } from '@/lib/format'
 import {
-  getSnapshotRelatorio,
-  getTodasMovimentacoesPeriodo,
+  getSnapshotRelatorioV2,
   resolverFilialPorSlug,
-  CAPS,
 } from '@/lib/queries/relatorios'
-import type { MovimentacaoRelatorio } from '@/lib/relatorios/tipos'
 import type { Json } from '@/lib/types/database'
 
 const DATA_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -22,36 +19,8 @@ const periodoSchema = z.object({
   ate: z.string().regex(DATA_RE, 'Data final inválida'),
 })
 
-// Export CSV do período (OS-F3 3.5.1): busca TODAS as movimentações do período
-// (paginado). Serve operador (RLS) e visualizador por senha (client admin) —
-// resolverAcessoRelatorio decide o client. Sem acesso → lista vazia.
-export async function exportarMovimentacoesRelatorio(
-  filialSlug: string,
-  de: string,
-  ate: string,
-): Promise<MovimentacaoRelatorio[]> {
-  const parsed = periodoSchema.safeParse({ filialSlug, de, ate })
-  if (!parsed.success) return []
-
-  const acesso = await resolverAcessoRelatorio()
-  if (!acesso) return []
-  const { client } = acesso
-
-  const filial =
-    filialSlug === 'geral' ? null : await resolverFilialPorSlug(client, filialSlug)
-  if (filialSlug !== 'geral' && !filial) return []
-
-  try {
-    return await getTodasMovimentacoesPeriodo(client, filial?.id ?? null, {
-      de,
-      ate,
-    })
-  } catch {
-    return []
-  }
-}
-
-// Gera o relatório da semana (snapshot congelado — spec §7.1 / OS-F3 3.8.2).
+// Gera o relatório da semana (snapshot congelado — spec §7.1 / OS-F3 3.8.2 /
+// F3B 3.10.1: grava o objeto schema 2, com as-of do período).
 // SÓ operador logado. Calcula o snapshot, versiona (max+1 para o mesmo período+
 // filial) e insere. Imutável — regerar cria versão nova.
 export type GerarRelatorioResult =
@@ -87,12 +56,11 @@ export async function gerarRelatorio(input: {
 
   let snapshot
   try {
-    snapshot = await getSnapshotRelatorio(
-      client,
-      filialSlug,
-      { de, ate, rotulo: `${formatDate(de)} a ${formatDate(ate)}` },
-      { maxMovimentacoes: CAPS.snapshot },
-    )
+    snapshot = await getSnapshotRelatorioV2(client, filialSlug, {
+      de,
+      ate,
+      rotulo: `${formatDate(de)} a ${formatDate(ate)}`,
+    })
   } catch (e) {
     return {
       ok: false,
