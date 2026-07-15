@@ -47,3 +47,7 @@ next-env.d.ts
 
 # Claude Code (worktrees, launch.json, artefatos internos)
 .claude/
+
+# F4 — relatórios da carga única (contêm dados reais; nunca commitar)
+carga-*.csv
+carga-*.json

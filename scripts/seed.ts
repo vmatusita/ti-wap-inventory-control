@@ -66,7 +66,7 @@ const FILIAL_DIST: [string, number][] = [
   ['matriz', 0.72],
   ['linhares', 0.12],
   ['cd-afonso-pena', 0.08],
-  ['serra-park', 0.05],
+  ['serra', 0.05],
   ['eusebio', 0.03],
 ]
 

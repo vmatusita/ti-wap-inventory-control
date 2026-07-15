@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/reset.ts",
-    "db:types": "tsx scripts/gen-types.ts"
+    "db:types": "tsx scripts/gen-types.ts",
+    "carga": "tsx scripts/import/carga.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
