@@ -68,6 +68,7 @@ export type TipoInconsistencia =
   | 'itens_faltantes_texto_livre'
   | 'colaborador_divergente'
   | 'linha_incompleta'
+  | 'chave_natural_duplicada'
   | 'duplicidade_resolvida'
   | 'prefixo_corrigido'
   | 'item_desconhecido'

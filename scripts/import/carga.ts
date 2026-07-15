@@ -178,8 +178,16 @@ async function buscarAtivosExistentes(db: Db): Promise<Map<string, AtivoDb>> {
   return mapa
 }
 
-async function buscarChavesMovimentacoes(db: Db): Promise<Set<string>> {
-  const chaves = new Set<string>()
+// Idempotência de reexecução por MULTICONJUNTO: contagem de cada chave natural
+// já existente no banco (duas movimentações legítimas podem compartilhar a
+// chave — churn no mesmo dia sem chamado). compra_inicial é idempotente por
+// PAPEL (qualquer compra pré-existente do ativo); ajuste, pelo estado corrente.
+async function buscarMovimentacoesExistentes(db: Db): Promise<{
+  chaves: Map<string, number>
+  comprasPorAtivo: Map<string, number>
+}> {
+  const chaves = new Map<string, number>()
+  const comprasPorAtivo = new Map<string, number>()
   const PAGE = 1000
   for (let de = 0; ; de += PAGE) {
     const { data, error } = await db
@@ -189,11 +197,15 @@ async function buscarChavesMovimentacoes(db: Db): Promise<Set<string>> {
       .range(de, de + PAGE - 1)
     if (error) throw new Error(`Falha ao ler movimentações: ${error.message}`)
     for (const m of data ?? []) {
-      chaves.add(`${m.ativo_id}|${m.tipo}|${m.data}|${m.chamado ?? ''}`)
+      const k = `${m.ativo_id}|${m.tipo}|${m.data}|${m.chamado ?? ''}`
+      chaves.set(k, (chaves.get(k) ?? 0) + 1)
+      if (m.tipo === 'compra') {
+        comprasPorAtivo.set(m.ativo_id as string, (comprasPorAtivo.get(m.ativo_id as string) ?? 0) + 1)
+      }
     }
     if (!data || data.length < PAGE) break
   }
-  return chaves
+  return { chaves, comprasPorAtivo }
 }
 
 // ---------------------------------------------------------------------------
@@ -294,25 +306,37 @@ async function executarAtivos(
   }
 
   // 2. movimentações uma a uma, em ordem (o trigger valida e recalcula)
-  const chavesExistentes = await buscarChavesMovimentacoes(db)
+  const { chaves: chavesExistentes, comprasPorAtivo } = await buscarMovimentacoesExistentes(db)
   for (const m of plano.movimentacoes) {
     const ativoId = idPorChave.get(m.chaveAtivo)
     if (!ativoId) {
       res.falhas.push({ contexto: `movimentação ${m.tipo} de ${m.chaveAtivo}`, erro: 'ativo não inserido (ver falhas acima)' })
       continue
     }
-    const chaveNatural = `${ativoId}|${m.tipo}|${m.data}|${m.chamado ?? ''}`
-    if (chavesExistentes.has(chaveNatural)) {
-      res.movimentacoesJaImportadas++
-      const simulado = statusAposMovimentacao(statusPorChave.get(m.chaveAtivo) ?? 'em_estoque', m.tipo, m.statusResultante)
-      if (simulado) statusPorChave.set(m.chaveAtivo, simulado)
-      continue
-    }
-    if (m.tipo === 'ajuste') {
-      // reexecução não gera novo ajuste se o estado já confere (ordem 3.2.7)
+    // Pulos de idempotência são NO-OP na simulação: o status do banco (base do
+    // statusPorChave) já incorpora a movimentação existente — re-aplicar
+    // contaria em dobro (achados #1/#6 da revisão).
+    if (m.papel === 'compra_inicial') {
+      // idempotente por PAPEL: a data do fallback muda entre execuções — o que
+      // importa é o ativo já ter a compra que abre a linha do tempo
+      if ((comprasPorAtivo.get(ativoId) ?? 0) > 0) {
+        res.movimentacoesJaImportadas++
+        continue
+      }
+    } else if (m.tipo === 'ajuste') {
+      // idempotente pelo ESTADO: não gera novo ajuste se o estado já confere
+      // (ordem 3.2.7); estado divergente em reexecução → novo ajuste documentado
       const atual = statusPorChave.get(m.chaveAtivo)
       if (atual === m.statusResultante) {
         res.ajustesPulados++
+        continue
+      }
+    } else {
+      const chaveNatural = `${ativoId}|${m.tipo}|${m.data}|${m.chamado ?? ''}`
+      const existentes = chavesExistentes.get(chaveNatural) ?? 0
+      if (existentes > 0) {
+        chavesExistentes.set(chaveNatural, existentes - 1)
+        res.movimentacoesJaImportadas++
         continue
       }
     }
@@ -340,7 +364,7 @@ async function executarAtivos(
       })
       continue
     }
-    chavesExistentes.add(chaveNatural)
+    if (m.tipo === 'compra') comprasPorAtivo.set(ativoId, (comprasPorAtivo.get(ativoId) ?? 0) + 1)
     res.movimentacoesInseridas[m.tipo] = (res.movimentacoesInseridas[m.tipo] ?? 0) + 1
     const simulado = statusAposMovimentacao(statusPorChave.get(m.chaveAtivo) ?? 'em_estoque', m.tipo, m.statusResultante)
     if (simulado) statusPorChave.set(m.chaveAtivo, simulado)

@@ -100,7 +100,8 @@ export type RegistroInventario = {
   dataInclusao: string
   colaborador: string
   glpi: string
-  termoAtivos: string
+  /** null quando o layout NÃO tem a coluna (CD, 16 col) — termo desconhecido ≠ "nao" */
+  termoAtivos: string | null
   observacao: string
 }
 
@@ -189,7 +190,7 @@ export function extrairInventario(csv: CsvCru): {
       dataInclusao: campo(celulas, mapa, 'data de inclusao'),
       colaborador: campo(celulas, mapa, 'colaborador'),
       glpi: campo(celulas, mapa, 'glpi'),
-      termoAtivos: campo(celulas, mapa, 'termo de ativos'),
+      termoAtivos: mapa.has('termo de ativos') ? campo(celulas, mapa, 'termo de ativos') : null,
       observacao: campo(celulas, mapa, 'observacao'),
     })
   }

@@ -297,6 +297,51 @@ describe('reconciliação de estado (ordem 3.2.4)', () => {
     expect(p.sincronizarFilial).toEqual([{ chaveAtivo: p.ativos[0]!.chave, filial: 'CD-Afonso Pena' }])
   })
 
+  it('compra reclassificada com Unidade ≠ Site do inventário → filial volta ao Site via sincronização (regra 8 do trigger)', () => {
+    const p = planoDe({
+      inventarios: [{
+        filialDoArquivo: 'Matriz',
+        registros: [regInv({ site: 'Matriz', dataInclusao: '10/02/2026', status: 'Estoque', situacao: 'Guardada' })],
+      }],
+      devolucoes: [regDev({ data: '10/02/2026', unidade: 'Linhares', tipoEntrada: 'Compra', tipo: 'Compra' })],
+    })
+    // a compra do replay (Unidade=Linhares) move o ativo no banco; o Site (Matriz) é a verdade
+    expect(p.sincronizarFilial).toEqual([{ chaveAtivo: p.ativos[0]!.chave, filial: 'Matriz' }])
+  })
+
+  it('saída e devolução no MESMO dia em arquivos diferentes aplicam na ordem válida (greedy)', () => {
+    // nº de linha da devolução (2) < nº da saída (50) — a ordem por linha crua
+    // aplicaria a devolução antes; o greedy escolhe pela transição válida
+    const p = planoDe({
+      inventarios: [{
+        filialDoArquivo: 'Matriz',
+        registros: [regInv({ dataInclusao: '10/01/2026', status: 'Estoque', situacao: 'Validar' })],
+      }],
+      saidas: [regSaida({ linha: 50, data: '10/03/2026' })],
+      devolucoes: [regDev({ linha: 2, data: '10/03/2026' })],
+    })
+    const tipos = p.movimentacoes.map((m) => m.tipo)
+    expect(tipos).toEqual(['compra', 'saida', 'devolucao'])
+    expect(p.inconsistencias.filter((i) => i.tipo === 'estado_divergente')).toHaveLength(0)
+  })
+
+  it('movimentações distintas com a mesma chave natural → aviso chave_natural_duplicada (todas entram)', () => {
+    const p = planoDe({
+      inventarios: [{
+        filialDoArquivo: 'Matriz',
+        registros: [regInv({ dataInclusao: '10/01/2026', status: 'Remanejo', situacao: 'Saída', colaborador: 'Sicrana' })],
+      }],
+      saidas: [
+        regSaida({ linha: 2, data: '10/03/2026', chamado: '', colaboradorSetor: 'Fulana de Tal' }),
+        regSaida({ linha: 3, data: '10/03/2026', chamado: '', colaboradorSetor: 'Sicrana' }),
+      ],
+      devolucoes: [regDev({ linha: 2, data: '10/03/2026', tipo: 'Troca' })],
+    })
+    // saida → devolucao → saida, tudo no mesmo dia sem chamado
+    expect(p.movimentacoes.map((m) => m.tipo)).toEqual(['compra', 'saida', 'devolucao', 'saida'])
+    expect(p.inconsistencias.filter((i) => i.tipo === 'chave_natural_duplicada')).toHaveLength(1)
+  })
+
   it('estado da planilha em_uso sem colaborador + replay com colaborador → mantém o do replay', () => {
     const p = planoDe({
       inventarios: [{
@@ -381,8 +426,28 @@ describe('estados e pendências', () => {
     })
     expect(p.ativos).toHaveLength(2)
     expect(p.ativos[0]!.patrimonio).toBe('SEMPAT')
-    expect(p.ativos[1]!.patrimonio).toMatch(/^SEMPAT-.+-L3$/)
+    // placeholder derivado do CONTEÚDO da linha (estável entre reexports)
+    expect(p.ativos[1]!.patrimonio).toMatch(/^SEMPAT-[0-9A-F]{10}$/)
     for (const a of p.ativos) expect(a.pendencia).toContain('sem patrimônio')
+  })
+
+  it('placeholder SEMPAT é estável e distingue linhas de conteúdo idêntico por ocorrência', () => {
+    const linha = { patrimonio: '', serviceTag: '', hostname: '' }
+    const p1 = planoDe({
+      inventarios: [{ filialDoArquivo: 'Matriz', registros: [regInv({ ...linha, linha: 3 })] }],
+    })
+    const p2 = planoDe({
+      inventarios: [{ filialDoArquivo: 'Matriz', registros: [regInv({ ...linha, linha: 9, arquivo: 'outro-nome.csv' })] }],
+    })
+    // mesmo conteúdo, arquivo/linha diferentes → mesmo placeholder
+    expect(p1.ativos[0]!.patrimonio).toBe(p2.ativos[0]!.patrimonio)
+    // duas linhas de conteúdo idêntico no mesmo plano → sufixo de ocorrência
+    const p3 = planoDe({
+      inventarios: [{ filialDoArquivo: 'Matriz', registros: [regInv({ ...linha, linha: 3 }), regInv({ ...linha, linha: 4 })] }],
+    })
+    const pats = p3.ativos.map((a) => a.patrimonio).sort()
+    expect(pats[0]).toMatch(/^SEMPAT-[0-9A-F]{10}$/)
+    expect(pats[1]).toBe(`${pats[0]}-2`)
   })
 
   it('patrimônio não parseável entra cru com pendência + aviso', () => {
@@ -414,5 +479,39 @@ describe('estados e pendências', () => {
       inventarios: [{ filialDoArquivo: 'Matriz', registros: [regInv({ patrimonio: '8001', hostname: 'WAP0008001' })] }],
     })
     expect(p.ativos[0]!.patrimonio).toBe('WAP0008001')
+  })
+
+  it('hostname com prefixo DESCONHECIDO não entra nos "vistos" nem infere', () => {
+    const p = planoDe({
+      inventarios: [{
+        filialDoArquivo: 'Matriz',
+        registros: [
+          regInv({ patrimonio: 'WAP8001', hostname: 'WW224001' }),
+          regInv({ linha: 3, patrimonio: '224001', serviceTag: 'TAGX0001', hostname: '' }),
+        ],
+      }],
+    })
+    // '224001' não pode virar 'WW0224001' — fica cru com aviso
+    const bare = p.ativos.find((a) => a.chave.includes('TAGX0001'))!
+    expect(bare.patrimonio).toBe('224001')
+    expect(p.inconsistencias.filter((i) => i.tipo === 'patrimonio_invalido')).toHaveLength(1)
+  })
+
+  it('layout CD (sem coluna de termo) não sobrescreve o termo vindo de outra aba', () => {
+    const p = planoDe({
+      inventarios: [
+        // aba tipo CD: termoAtivos null (coluna não existe); linha auto-consistente (vence)
+        { filialDoArquivo: 'CD-Afonso Pena', registros: [regInv({ site: 'CD-PENA', termoAtivos: null, status: 'Estoque', situacao: 'Guardada' })] },
+        // aba da Matriz: mesmo ativo com termo SIM
+        { filialDoArquivo: 'Matriz', registros: [regInv({ site: 'Matriz', linha: 7, termoAtivos: 'SIM', status: 'Estoque', situacao: 'Guardada' })] },
+      ],
+    })
+    expect(p.ativos).toHaveLength(1)
+    expect(p.ativos[0]!.termo).toBe('sim')
+    // ativo SÓ de aba CD: termo desconhecido → null (não "nao")
+    const p2 = planoDe({
+      inventarios: [{ filialDoArquivo: 'CD-Afonso Pena', registros: [regInv({ site: 'CD-PENA', termoAtivos: null, status: 'Estoque', situacao: 'Guardada' })] }],
+    })
+    expect(p2.ativos[0]!.termo).toBeNull()
   })
 })

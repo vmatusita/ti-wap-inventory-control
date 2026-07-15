@@ -6,6 +6,7 @@
 // reconciliação de estado (compra inicial → replay jan–jul/2026 → ajuste
 // final para o estado da planilha) — ordem F4 §3.1/§3.2.4.
 
+import { createHash } from 'node:crypto'
 import { chavePatrimonio } from '../../src/lib/patrimonio'
 import {
   chaveServiceTag,
@@ -69,7 +70,8 @@ type LinhaInv = {
   estado: StatusAtivo | null
   colaborador: string | null
   glpi: string | null
-  termo: ReturnType<typeof mapearTermo>
+  /** null = layout sem a coluna Termo de Ativos (CD) — desconhecido, não "nao" */
+  termo: ReturnType<typeof mapearTermo> | null
   dataInclusao: string | null
   dataEntrega: string | null
   observacao: string | null
@@ -95,8 +97,21 @@ type MovClassificada = {
   observacao: string | null
 }
 
-function slugArquivo(arquivo: string): string {
-  return normalizarTexto(arquivo).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24)
+/**
+ * Placeholder de patrimônio para linha sem patrimônio E sem service tag —
+ * derivado do CONTEÚDO da linha (não do nome do arquivo/linha física), para
+ * ser estável entre reexecuções e reexports (revisão F4, achado #9).
+ */
+function placeholderSemPatrimonio(reg: RegistroInventario): string {
+  const base = createHash('sha256')
+    .update(
+      [reg.site, reg.marca, reg.modelo, reg.hostname, reg.colaborador, reg.dataInclusao, reg.observacao]
+        .map((c) => normalizarTexto(c ?? ''))
+        .join('|'),
+    )
+    .digest('hex')
+    .slice(0, 10)
+  return `SEMPAT-${base.toUpperCase()}`
 }
 
 function juntarObs(...partes: (string | null | undefined)[]): string | null {
@@ -118,8 +133,10 @@ export function montarPlano(entrada: EntradaPlano): Plano {
     for (const reg of inv.registros) {
       const direto = parsePatrimonio(reg.patrimonio)
       if (direto.ok) vistos.add(direto.canonico)
+      // hostname só entra como "visto" com prefixo CONHECIDO (um hostname
+      // "WW224001" não pode virar fonte de inferência de prefixo)
       const host = parsePatrimonio(reg.hostname)
-      if (host.ok) vistos.add(host.canonico)
+      if (host.ok && parecePatrimonioConhecido(host.canonico)) vistos.add(host.canonico)
     }
   }
   for (const reg of [...entrada.saidas, ...entrada.devolucoes]) {
@@ -130,6 +147,7 @@ export function montarPlano(entrada: EntradaPlano): Plano {
   // -------------------------------------------------------------------------
   // Inventários → linhas normalizadas
   const linhasInv: LinhaInv[] = []
+  const sempatOcorrencias = new Map<string, number>()
   for (const inv of entrada.inventarios) {
     for (const reg of inv.registros) {
       const filial = mapearUnidade(reg.site)
@@ -156,9 +174,14 @@ export function montarPlano(entrada: EntradaPlano): Plano {
         }
       } else if (pat.semPatrimonio) {
         semPatrimonio = true
-        patrimonio = serviceTag
-          ? 'SEMPAT'
-          : `SEMPAT-${slugArquivo(reg.arquivo)}-L${reg.linha}`
+        if (serviceTag) {
+          patrimonio = 'SEMPAT' // par único garantido pela service tag
+        } else {
+          const base = placeholderSemPatrimonio(reg)
+          const n = (sempatOcorrencias.get(base) ?? 0) + 1
+          sempatOcorrencias.set(base, n)
+          patrimonio = n === 1 ? base : `${base}-${n}`
+        }
         add({
           severidade: 'aviso', tipo: 'sem_patrimonio', arquivo: reg.arquivo, linha: reg.linha,
           valor: pat.original || '(vazio)',
@@ -225,11 +248,11 @@ export function montarPlano(entrada: EntradaPlano): Plano {
         })
       }
 
-      const termo = mapearTermo(reg.termoAtivos, hoje)
-      if (termo.aviso) {
+      const termo = reg.termoAtivos === null ? null : mapearTermo(reg.termoAtivos, hoje)
+      if (termo?.aviso) {
         add({
           severidade: 'aviso', tipo: 'termo_invalido', arquivo: reg.arquivo, linha: reg.linha,
-          valor: reg.termoAtivos, acaoProposta: 'valor estranho na coluna Termo de Ativos → "nao"',
+          valor: reg.termoAtivos ?? '', acaoProposta: 'valor estranho na coluna Termo de Ativos → "nao"',
         })
       }
 
@@ -318,8 +341,16 @@ export function montarPlano(entrada: EntradaPlano): Plano {
       processador: primeiroValor((l) => limparCampo(l.reg.processador)),
       filial: vencedora.filial,
       origem: 'importacao',
-      termo: vencedora.termo.status,
-      termoData: vencedora.termo.data,
+      // termo: 1ª linha do grupo COM a coluna (o layout do CD não tem — a
+      // ausência não pode sobrescrever um "sim" vindo de outra aba)
+      termo: (() => {
+        const comTermo = [vencedora, ...grupo.filter((g) => g !== vencedora)].find((l) => l.termo !== null)
+        return comTermo?.termo?.status ?? null
+      })(),
+      termoData: (() => {
+        const comTermo = [vencedora, ...grupo.filter((g) => g !== vencedora)].find((l) => l.termo !== null)
+        return comTermo?.termo?.data ?? null
+      })(),
       pendencia: pendencias.length > 0 ? pendencias.join('; ') : null,
       observacoes: juntarObs(...new Set(grupo.map((l) => l.observacao).filter(Boolean) as string[])),
       estadoPlanilha: vencedora.estado,
@@ -670,13 +701,17 @@ export function montarPlano(entrada: EntradaPlano): Plano {
   const estadoDivergentePorArquivo: Record<string, number> = {}
 
   for (const ativo of ativos.values()) {
-    const replay = (replayPorAtivo.get(ativo.chave) ?? []).sort((a, b) =>
-      a.data < b.data ? -1 : a.data > b.data ? 1 : a.linha - b.linha,
-    )
+    // ordem base determinística; nº de linha só desempata DENTRO do mesmo
+    // arquivo (Saída e Devolução têm numerações independentes — achado #11/#15)
+    const restantes = (replayPorAtivo.get(ativo.chave) ?? []).sort((a, b) => {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1
+      if (a.arquivo !== b.arquivo) return a.arquivo < b.arquivo ? -1 : 1
+      return a.linha - b.linha
+    })
     const cadeia: MovPlano[] = []
 
     // compra inicial — pulada se o replay já COMEÇA com uma compra real
-    const primeiroEhCompra = replay.length > 0 && replay[0]!.tipo === 'compra'
+    const primeiroEhCompra = restantes.length > 0 && restantes[0]!.tipo === 'compra'
     if (!primeiroEhCompra) {
       cadeia.push({
         chaveAtivo: ativo.chave,
@@ -698,11 +733,22 @@ export function montarPlano(entrada: EntradaPlano): Plano {
       })
     }
 
-    // replay simulado (espelho do trigger) — inválida → estado_divergente, pula
+    // replay simulado (espelho do trigger) — inválida → estado_divergente, pula.
+    // Em DATAS IGUAIS a escolha é greedy pela transição VÁLIDA no estado
+    // corrente (saída+devolução no mesmo dia aplicam na única ordem possível).
     let status: StatusAtivo = 'em_estoque'
     let filialSimulada: FilialOficial = ativo.filial
     let colab: { colaborador: string | null; setor: string | null } = { colaborador: null, setor: null }
-    for (const mov of replay) {
+    while (restantes.length > 0) {
+      const dataAtual = restantes[0]!.data
+      let escolhido = 0
+      for (let i = 0; i < restantes.length && restantes[i]!.data === dataAtual; i++) {
+        if (statusAposMovimentacao(status, restantes[i]!.tipo) !== null) {
+          escolhido = i
+          break
+        }
+      }
+      const mov = restantes.splice(escolhido, 1)[0]!
       const novo = statusAposMovimentacao(status, mov.tipo)
       if (novo === null) {
         estadoDivergentePorArquivo[mov.arquivo] = (estadoDivergentePorArquivo[mov.arquivo] ?? 0) + 1
@@ -714,7 +760,9 @@ export function montarPlano(entrada: EntradaPlano): Plano {
         continue
       }
       status = novo
-      if (mov.tipo === 'transferencia' && mov.filialDestino) filialSimulada = mov.filialDestino
+      // espelho do trigger (regra 8 + transferência): compra FIXA a filial
+      if (mov.tipo === 'compra') filialSimulada = mov.filial
+      else if (mov.tipo === 'transferencia' && mov.filialDestino) filialSimulada = mov.filialDestino
       colab = colaboradorAposMovimentacao(colab, mov.tipo, { colaborador: mov.colaborador, setor: mov.setor })
       cadeia.push({
         chaveAtivo: ativo.chave,
@@ -809,6 +857,22 @@ export function montarPlano(entrada: EntradaPlano): Plano {
     return 0
   })
   const movimentacoesOrdenadas = decorados.map((d) => d.m)
+
+  // chaves naturais repetidas DENTRO do plano (churn real no mesmo dia sem nº
+  // de chamado): legítimas — todas serão inseridas; o aviso deixa visível
+  const chavesPlano = new Map<string, number>()
+  for (const m of movimentacoesOrdenadas) {
+    const k = `${m.chaveAtivo}|${m.tipo}|${m.data}|${m.chamado ?? ''}`
+    chavesPlano.set(k, (chavesPlano.get(k) ?? 0) + 1)
+  }
+  for (const [k, n] of chavesPlano) {
+    if (n < 2) continue
+    add({
+      severidade: 'aviso', tipo: 'chave_natural_duplicada', arquivo: '(plano)', linha: null,
+      valor: `${k} (${n}×)`,
+      acaoProposta: 'movimentações distintas com a mesma chave (ativo, tipo, data, chamado) — todas entram; a idempotência de reexecução conta por multiplicidade',
+    })
+  }
 
   // -------------------------------------------------------------------------
   const movimentacoesPorTipo: Record<string, number> = {}
