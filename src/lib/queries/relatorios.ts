@@ -28,7 +28,6 @@ import type {
   ContagemCategoria,
   EstoqueCatStatus,
   GrupoRelatorio,
-  ItemManutencao,
   ItemModelo,
   ItemReservado,
   KpisRelatorio,
@@ -45,23 +44,19 @@ import type {
   ResumoTipo,
   SaldoItemPeriodo,
   SerieMovimentacoes,
-  SnapshotRelatorio,
   SnapshotRelatorioV2,
 } from '@/lib/relatorios/tipos'
 
 // Camada de dados dos relatórios (OS-F3 3.1). TODAS as funções recebem o client
 // já resolvido (RLS do operador OU client administrativo p/ sessão por senha —
 // lib/auth/acesso.ts) e são parametrizadas por filial e período. `filialId null`
-// = consolidado (geral). `getSnapshotRelatorio` reúne tudo num objeto JSON
-// serializável — é o que a geração de relatório (3.8) congela.
+// = consolidado (geral). `getSnapshotRelatorioV2` reúne tudo num objeto JSON
+// serializável — é o que a geração de relatório (3.8/3.10) congela. O motor v1
+// (grade da F3) foi removido na Fase 3.5: o relatório ao vivo, a geração de
+// snapshot e o dashboard consomem uma única implementação por agregação, sobre
+// o estado reconstruído (`lerEstadoAtivos`). Ver docs/DECISOES.md.
 
 export type DbClient = SupabaseClient<Database>
-
-// Movimentações capturadas no snapshot (frozen) — o suficiente p/ um relatório
-// da semana + CSV offline. A página ao vivo mostra menos e exporta o período
-// inteiro por Server Action (OS-F3 3.5.1).
-const CAP_MOV_SNAPSHOT = 1000
-const CAP_MOV_AO_VIVO = 200
 
 export type Filial = { id: number; nome: string; slug: string }
 
@@ -77,200 +72,56 @@ export async function resolverFilialPorSlug(
   return data ?? null
 }
 
-// ---- KPIs e categoria (estado ATUAL, via view agregada v_estoque_atual) ----
+// ---- Helpers compartilhados (modelo, paginação, "última mov por ativo") ----
 
-type LinhaEstoque = {
-  categoria: CategoriaAtivo | null
-  status: StatusAtivo | null
-  total: number | null
-}
-
-async function lerEstoqueAtual(
-  client: DbClient,
-  filialSlug: string | null,
-): Promise<LinhaEstoque[]> {
-  let q = client.from('v_estoque_atual').select('categoria, status, total')
-  if (filialSlug) q = q.eq('filial', filialSlug)
-  const { data, error } = await q
-  if (error) throw new Error(`Falha ao ler o estoque: ${error.message}`)
-  return (data ?? []) as LinhaEstoque[]
-}
-
-// Buckets de KPI que ganham tile próprio (spec §7 / mockup). `emprestado` conta
-// no total mas não tem tile; `descartado` (baixa definitiva) não entra no total.
-const KPI_BUCKETS: Partial<Record<StatusAtivo, keyof KpisRelatorio>> = {
-  em_uso: 'em_uso',
-  em_estoque: 'em_estoque',
-  reservado: 'reservado',
-  em_manutencao: 'em_manutencao',
-  em_triagem: 'em_triagem',
-  defasado: 'defasado',
-}
-
-function kpisDeEstoque(linhas: LinhaEstoque[]): KpisRelatorio {
-  const kpis: KpisRelatorio = {
-    total: 0,
-    em_uso: 0,
-    em_estoque: 0,
-    reservado: 0,
-    em_manutencao: 0,
-    em_triagem: 0,
-    defasado: 0,
-  }
-  for (const l of linhas) {
-    if (!l.status || l.status === 'descartado') continue
-    const n = l.total ?? 0
-    kpis.total += n
-    const bucket = KPI_BUCKETS[l.status]
-    if (bucket) kpis[bucket] += n
-  }
-  return kpis
-}
-
-function categoriaDeEstoque(linhas: LinhaEstoque[]): ContagemCategoria[] {
-  const map = new Map<CategoriaAtivo, number>()
-  for (const l of linhas) {
-    if (l.status === 'descartado' || !l.categoria) continue
-    map.set(l.categoria, (map.get(l.categoria) ?? 0) + (l.total ?? 0))
-  }
-  return CATEGORIA_ORDEM.filter((c) => map.has(c)).map((categoria) => ({
-    categoria,
-    total: map.get(categoria) ?? 0,
-  }))
-}
-
-export async function getKpis(
-  client: DbClient,
-  filialSlug: string | null,
-): Promise<KpisRelatorio> {
-  return kpisDeEstoque(await lerEstoqueAtual(client, filialSlug))
-}
-
-export async function getEstoquePorCategoria(
-  client: DbClient,
-  filialSlug: string | null,
-): Promise<ContagemCategoria[]> {
-  return categoriaDeEstoque(await lerEstoqueAtual(client, filialSlug))
-}
-
-// ---- Listas de estado atual ----
-
+// Rótulo de modelo a partir de marca+modelo (fonte única das listas do
+// relatório). Vazio → "Sem modelo".
 function modeloDe(marca: string | null, modelo: string | null): string {
   return [marca, modelo].filter(Boolean).join(' ').trim() || 'Sem modelo'
 }
 
-export async function getDisponiveisPorModelo(
-  client: DbClient,
-  filialId: number | null,
-): Promise<ItemModelo[]> {
-  // Pagina (o PostgREST corta em 1.000 por chamada); o estoque disponível pode
-  // passar disso no consolidado ao longo do tempo. Ordena por `id` para o
-  // .range() ser estável entre páginas.
-  const map = new Map<string, number>()
-  const PAGE = 1000
-  for (let from = 0; from < 50_000; from += PAGE) {
-    let q = client.from('ativos').select('marca, modelo').eq('status', 'em_estoque')
-    if (filialId) q = q.eq('filial_id', filialId)
-    q = q.order('id', { ascending: true }).range(from, from + PAGE - 1)
-    const { data, error } = await q
-    if (error) throw new Error(`Falha ao listar disponíveis: ${error.message}`)
-    for (const r of data ?? []) {
-      const m = modeloDe(r.marca, r.modelo)
-      map.set(m, (map.get(m) ?? 0) + 1)
-    }
-    if (!data || data.length < PAGE) break
+// Paginação única do PostgREST (que corta selects em 1.000 linhas). Uma única
+// constante de página e um teto único: o maior domínio hoje é "todos os ativos"
+// (~1,2 mil) e "movimentações de um período"; 100 páginas dão ~80× de folga
+// sobre o pior caso atual. O teto é só um cinto de segurança contra loop
+// infinito — nenhuma consulta real chega perto. (Antes: 4 loops com tetos
+// divergentes 20k/50k/100k; unificar em 100k só AMPLIA o menor, nunca trunca o
+// que já passava.)
+const PAGINA = 1000
+const CAP_PAGINACAO = 100_000
+
+async function paginarTodos<Row>(
+  rotuloErro: string,
+  fazPagina: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+): Promise<Row[]> {
+  const acc: Row[] = []
+  for (let from = 0; from < CAP_PAGINACAO; from += PAGINA) {
+    const { data, error } = await fazPagina(from, from + PAGINA - 1)
+    if (error) throw new Error(`${rotuloErro}: ${error.message}`)
+    const rows = (data ?? []) as Row[]
+    acc.push(...rows)
+    if (rows.length < PAGINA) break
   }
-  return [...map.entries()]
-    .map(([modelo, total]) => ({ modelo, total }))
-    .sort((a, b) => b.total - a.total || a.modelo.localeCompare(b.modelo, 'pt-BR'))
+  return acc
 }
 
-// Estado atual + o chamado da última movimentação que tinha chamado.
-export async function getReservadosComChamado(
-  client: DbClient,
-  filialId: number | null,
-): Promise<ItemReservado[]> {
-  let q = client
-    .from('ativos')
-    .select('id, patrimonio, marca, modelo')
-    .eq('status', 'reservado')
-    .limit(1000)
-  if (filialId) q = q.eq('filial_id', filialId)
-  const { data: ativos, error } = await q
-  if (error) throw new Error(`Falha ao listar reservados: ${error.message}`)
-  if (!ativos?.length) return []
-
-  const ids = ativos.map((a) => a.id)
-  // Pagina com desempate por `id` (o .in pode passar de 1.000 movs) e para
-  // assim que achou o chamado mais recente de cada ativo.
-  const chamadoPorAtivo = new Map<string, string>()
-  const PAGE = 1000
-  for (let from = 0; from < 100_000; from += PAGE) {
-    const { data: movs } = await client
-      .from('movimentacoes')
-      .select('ativo_id, chamado, created_at')
-      .in('ativo_id', ids)
-      .not('chamado', 'is', null)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .range(from, from + PAGE - 1)
-    for (const m of movs ?? []) {
-      if (m.chamado && !chamadoPorAtivo.has(m.ativo_id)) {
-        chamadoPorAtivo.set(m.ativo_id, m.chamado)
-      }
-    }
-    if (chamadoPorAtivo.size >= ids.length || !movs || movs.length < PAGE) break
+// "Última movimentação por ativo": reduz linhas JÁ ordenadas (mais recente
+// primeiro) a um Map ativo→primeiro valor visto. Fonte única do padrão que se
+// repetia para chamado, envio e retorno de manutenção.
+function ultimoPorAtivo<T, V>(
+  rows: T[],
+  ativoDe: (r: T) => string,
+  valorDe: (r: T) => V,
+): Map<string, V> {
+  const out = new Map<string, V>()
+  for (const r of rows) {
+    const id = ativoDe(r)
+    if (!out.has(id)) out.set(id, valorDe(r))
   }
-
-  return ativos
-    .map((a) => ({
-      patrimonio: a.patrimonio,
-      modelo: modeloDe(a.marca, a.modelo),
-      chamado: chamadoPorAtivo.get(a.id) ?? null,
-    }))
-    .sort((a, b) => a.patrimonio.localeCompare(b.patrimonio, 'pt-BR'))
-}
-
-// Em manutenção, caso a caso: observação da última movimentação do ativo.
-export async function getEmManutencao(
-  client: DbClient,
-  filialId: number | null,
-): Promise<ItemManutencao[]> {
-  let q = client
-    .from('ativos')
-    .select('id, patrimonio, marca, modelo')
-    .eq('status', 'em_manutencao')
-    .limit(1000)
-  if (filialId) q = q.eq('filial_id', filialId)
-  const { data: ativos, error } = await q
-  if (error) throw new Error(`Falha ao listar manutenção: ${error.message}`)
-  if (!ativos?.length) return []
-
-  const ids = ativos.map((a) => a.id)
-  // Idem: pagina com desempate por `id` e para quando cobriu todos os ativos.
-  const obsPorAtivo = new Map<string, string | null>()
-  const PAGE = 1000
-  for (let from = 0; from < 100_000; from += PAGE) {
-    const { data: movs } = await client
-      .from('movimentacoes')
-      .select('ativo_id, observacao, created_at')
-      .in('ativo_id', ids)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .range(from, from + PAGE - 1)
-    for (const m of movs ?? []) {
-      if (!obsPorAtivo.has(m.ativo_id)) obsPorAtivo.set(m.ativo_id, m.observacao)
-    }
-    if (obsPorAtivo.size >= ids.length || !movs || movs.length < PAGE) break
-  }
-
-  return ativos
-    .map((a) => ({
-      patrimonio: a.patrimonio,
-      modelo: modeloDe(a.marca, a.modelo),
-      observacao: obsPorAtivo.get(a.id) ?? null,
-    }))
-    .sort((a, b) => a.patrimonio.localeCompare(b.patrimonio, 'pt-BR'))
+  return out
 }
 
 // ---- Série de movimentações adaptativa ao período (OS-F3 melhoria) ----
@@ -294,34 +145,29 @@ async function serieMensal(
 }
 
 // Dia/semana: baldes calculados a partir das linhas cruas (data, tipo). A janela
-// é curta (<=120 dias) → volume limitado; paginado por segurança até um teto.
-const CAP_LINHAS_SERIE = 50_000
-
+// é curta (<=120 dias) → volume limitado; paginado por segurança até o teto único.
 async function serieCurta(
   client: DbClient,
   filialId: number | null,
   periodo: Periodo,
   gran: 'dia' | 'semana',
 ): Promise<SerieMovimentacoes> {
-  const linhas: LinhaSerieCurta[] = []
-  const PAGE = 1000
-  for (let from = 0; from < CAP_LINHAS_SERIE; from += PAGE) {
-    let q = client
-      .from('movimentacoes')
-      .select('data, tipo')
-      .gte('data', periodo.de)
-      .lte('data', periodo.ate)
-      .in('tipo', ['saida', 'devolucao'])
-    if (filialId) q = q.eq('filial_id', filialId)
-    q = q
-      .order('data', { ascending: true })
-      .order('id', { ascending: true })
-      .range(from, from + PAGE - 1)
-    const { data, error } = await q
-    if (error) throw new Error(`Falha na série de movimentações: ${error.message}`)
-    for (const r of data ?? []) linhas.push(r)
-    if (!data || data.length < PAGE) break
-  }
+  const linhas = await paginarTodos<LinhaSerieCurta>(
+    'Falha na série de movimentações',
+    (from, to) => {
+      let q = client
+        .from('movimentacoes')
+        .select('data, tipo')
+        .gte('data', periodo.de)
+        .lte('data', periodo.ate)
+        .in('tipo', ['saida', 'devolucao'])
+      if (filialId) q = q.eq('filial_id', filialId)
+      return q
+        .order('data', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to)
+    },
+  )
   return montarSerieCurta(linhas, periodo, gran)
 }
 
@@ -502,69 +348,6 @@ export async function getUltimasMovimentacoes(
   return mapMovRows(data)
 }
 
-// ---- Snapshot: reúne tudo num objeto serializável (OS-F3 3.1 / 3.8) ----
-
-export async function getSnapshotRelatorio(
-  client: DbClient,
-  filialSlug: string,
-  periodo: Periodo & { rotulo?: string },
-  opts: { maxMovimentacoes?: number; geradoEm?: boolean } = {},
-): Promise<SnapshotRelatorio> {
-  const ehGeral = filialSlug === 'geral'
-  const filial = ehGeral ? null : await resolverFilialPorSlug(client, filialSlug)
-  if (!ehGeral && !filial) {
-    throw new Error(`Filial "${filialSlug}" não encontrada`)
-  }
-  const filialId = filial?.id ?? null
-  const slugParaView = ehGeral ? null : filialSlug
-  const limite = opts.maxMovimentacoes ?? CAP_MOV_AO_VIVO
-
-  const [
-    estoque,
-    disponiveis,
-    reservados,
-    manutencao,
-    serie,
-    porMotivo,
-    pendencias,
-    ultimas,
-    resumo,
-  ] = await Promise.all([
-    lerEstoqueAtual(client, slugParaView),
-    getDisponiveisPorModelo(client, filialId),
-    getReservadosComChamado(client, filialId),
-    getEmManutencao(client, filialId),
-    getSerieMovimentacoes(client, filialId, periodo),
-    getPorMotivo(client, filialId, periodo),
-    getPendencias(client, slugParaView),
-    getUltimasMovimentacoes(client, filialId, periodo, limite),
-    getResumoPeriodo(client, filialId, periodo),
-  ])
-
-  return {
-    meta: {
-      filialSlug,
-      filialNome: filial?.nome ?? 'Consolidado',
-      ehGeral,
-      de: periodo.de,
-      ate: periodo.ate,
-      periodoRotulo: periodo.rotulo ?? '',
-    },
-    kpis: kpisDeEstoque(estoque),
-    estoquePorCategoria: categoriaDeEstoque(estoque),
-    disponiveisPorModelo: disponiveis,
-    reservados,
-    emManutencao: manutencao,
-    serieMovimentacoes: serie,
-    porMotivo,
-    pendencias,
-    ultimasMovimentacoes: ultimas,
-    resumo,
-  }
-}
-
-export const CAPS = { snapshot: CAP_MOV_SNAPSHOT, aoVivo: CAP_MOV_AO_VIVO }
-
 // ===========================================================================
 // RELATÓRIO v2 (formato do e-mail — F3B). Estado reconstruído AS-OF no fim do
 // período (fast path quando o período termina hoje), 3 grupos, KPIs com Δ e as
@@ -593,32 +376,37 @@ async function lerEstadoAtivos(
   ate: string,
 ): Promise<EstadoAtivo[]> {
   if (ate >= hojeISO()) {
-    const out: EstadoAtivo[] = []
-    const PAGE = 1000
-    for (let from = 0; from < 100_000; from += PAGE) {
-      let q = client
-        .from('ativos')
-        .select('id, categoria, marca, modelo, filial_id, status, colaborador_atual, setor_atual')
-        .neq('status', 'descartado')
-      if (filialId) q = q.eq('filial_id', filialId)
-      q = q.order('id', { ascending: true }).range(from, from + PAGE - 1)
-      const { data, error } = await q
-      if (error) throw new Error(`Falha ao ler estado atual: ${error.message}`)
-      for (const r of data ?? []) {
-        out.push({
-          ativo_id: r.id,
-          categoria: r.categoria,
-          marca: r.marca,
-          modelo: r.modelo,
-          filial_id: r.filial_id,
-          status: r.status,
-          colaborador: r.colaborador_atual,
-          setor: r.setor_atual,
-        })
-      }
-      if (!data || data.length < PAGE) break
+    type LinhaAtivo = {
+      id: string
+      categoria: CategoriaAtivo
+      marca: string | null
+      modelo: string | null
+      filial_id: number
+      status: StatusAtivo
+      colaborador_atual: string | null
+      setor_atual: string | null
     }
-    return out
+    const linhas = await paginarTodos<LinhaAtivo>(
+      'Falha ao ler estado atual',
+      (from, to) => {
+        let q = client
+          .from('ativos')
+          .select('id, categoria, marca, modelo, filial_id, status, colaborador_atual, setor_atual')
+          .neq('status', 'descartado')
+        if (filialId) q = q.eq('filial_id', filialId)
+        return q.order('id', { ascending: true }).range(from, to)
+      },
+    )
+    return linhas.map((r) => ({
+      ativo_id: r.id,
+      categoria: r.categoria,
+      marca: r.marca,
+      modelo: r.modelo,
+      filial_id: r.filial_id,
+      status: r.status,
+      colaborador: r.colaborador_atual,
+      setor: r.setor_atual,
+    }))
   }
 
   const { data, error } = await client.rpc('rel_estoque_asof', {
@@ -661,6 +449,17 @@ function kpisDeEstado(estado: EstadoAtivo[]): KpisRelatorio {
     else if (a.status === 'emprestado') k.emprestado++
   }
   return k
+}
+
+// Dashboard (home): estado atual consolidado. Mesmo motor do relatório v2 — uma
+// única implementação de KPI (kpisDeEstado) sobre o estado reconstruído (fast
+// path de hoje). O tile do dashboard ignora `emprestado`, então o campo a mais
+// não muda a tela. Único caminho do antigo v1 que sobrevive.
+export async function getKpis(
+  client: DbClient,
+  filialId: number | null,
+): Promise<KpisRelatorio> {
+  return kpisDeEstado(await lerEstadoAtivos(client, filialId, hojeISO()))
 }
 
 function categoriaDeEstado(estado: EstadoAtivo[]): ContagemCategoria[] {
@@ -736,25 +535,31 @@ async function chamadoAteData(
   ids: string[],
   ate: string,
 ): Promise<Map<string, string>> {
-  const out = new Map<string, string>()
-  if (ids.length === 0) return out
-  const PAGE = 1000
-  for (let from = 0; from < 100_000; from += PAGE) {
-    const { data } = await client
-      .from('movimentacoes')
-      .select('ativo_id, chamado, created_at')
-      .in('ativo_id', ids)
-      .not('chamado', 'is', null)
-      .lte('data', ate)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .range(from, from + PAGE - 1)
-    for (const m of data ?? []) {
-      if (m.chamado && !out.has(m.ativo_id)) out.set(m.ativo_id, m.chamado)
-    }
-    if (out.size >= ids.length || !data || data.length < PAGE) break
-  }
-  return out
+  if (ids.length === 0) return new Map()
+  type LinhaChamado = { ativo_id: string; chamado: string }
+  const rows = await paginarTodos<LinhaChamado>(
+    'Falha ao ler chamados as-of',
+    (from, to) =>
+      client
+        .from('movimentacoes')
+        .select('ativo_id, chamado, created_at')
+        .in('ativo_id', ids)
+        .not('chamado', 'is', null)
+        .lte('data', ate)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to),
+  )
+  // Paridade com o motor anterior: chamado '' (string vazia) NÃO reivindica o
+  // slot — deixa um chamado real mais antigo vencer. O filtro `.not(is null)` só
+  // remove NULL; `movimentacoes.chamado` é `text` sem constraint, então '' é
+  // gravável (o seed/app nunca gravam — Zod normaliza ''→null — mas a carga de
+  // go-live F4, via CSV fora do Zod, pode).
+  return ultimoPorAtivo(
+    rows.filter((r) => r.chamado),
+    (r) => r.ativo_id,
+    (r) => r.chamado,
+  )
 }
 
 async function reservadosDeEstado(
@@ -801,10 +606,11 @@ async function manutencaoDeEstado(
     .lte('data', periodo.ate)
   if (filialId) retQ = retQ.eq('filial_id', filialId)
   const { data: retornos } = await retQ.order('created_at', { ascending: false })
-  const retornoPorAtivo = new Map<string, { data: string; obs: string | null }>()
-  for (const r of retornos ?? []) {
-    if (!retornoPorAtivo.has(r.ativo_id)) retornoPorAtivo.set(r.ativo_id, { data: r.data, obs: r.observacao })
-  }
+  const retornoPorAtivo = ultimoPorAtivo(
+    retornos ?? [],
+    (r) => r.ativo_id,
+    (r) => ({ data: r.data, obs: r.observacao }),
+  )
 
   const ids = [...new Set([...emManutencao, ...retornoPorAtivo.keys()])]
   if (ids.length === 0) return []
@@ -828,12 +634,11 @@ async function manutencaoDeEstado(
       .order('created_at', { ascending: true }),
   ])
 
-  const envioPorAtivo = new Map<string, { data: string; obs: string | null; chamado: string | null }>()
-  for (const e of enviosRaw.data ?? []) {
-    if (!envioPorAtivo.has(e.ativo_id)) {
-      envioPorAtivo.set(e.ativo_id, { data: e.data, obs: e.observacao, chamado: e.chamado })
-    }
-  }
+  const envioPorAtivo = ultimoPorAtivo(
+    enviosRaw.data ?? [],
+    (e) => e.ativo_id,
+    (e) => ({ data: e.data, obs: e.observacao, chamado: e.chamado }),
+  )
   type AnotRow = { ativo_id: string; texto: string; created_at: string; autor: { nome: string | null } | null }
   const anotacoesPorAtivo = new Map<string, { texto: string; autor: string | null; em: string }[]>()
   for (const a of (anotacoesRaw.data ?? []) as unknown as AnotRow[]) {
@@ -997,34 +802,28 @@ async function buscarLinhasPeriodo(
   tipos: TipoMovimentacao[],
   incluirDestino = false,
 ): Promise<RawTabelaRow[]> {
-  const PAGE = 1000
-  const CAP = 20000
-  const todas: RawTabelaRow[] = []
-  for (let from = 0; from < CAP; from += PAGE) {
-    let q = client
-      .from('movimentacoes')
-      .select(TAB_SELECT)
-      .in('tipo', tipos)
-      .gte('data', periodo.de)
-      .lte('data', periodo.ate)
-    if (filialId) {
-      // Transferência aparece nas DUAS filiais (regra 5): origem OU destino.
-      q = incluirDestino
-        ? q.or(`filial_id.eq.${filialId},filial_destino_id.eq.${filialId}`)
-        : q.eq('filial_id', filialId)
-    }
-    q = q
-      .order('data', { ascending: false })
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .range(from, from + PAGE - 1)
-    const { data, error } = await q
-    if (error) throw new Error(`Falha ao montar tabela do período: ${error.message}`)
-    const lote = (data ?? []) as unknown as RawTabelaRow[]
-    todas.push(...lote)
-    if (lote.length < PAGE) break
-  }
-  return todas
+  return paginarTodos<RawTabelaRow>(
+    'Falha ao montar tabela do período',
+    (from, to) => {
+      let q = client
+        .from('movimentacoes')
+        .select(TAB_SELECT)
+        .in('tipo', tipos)
+        .gte('data', periodo.de)
+        .lte('data', periodo.ate)
+      if (filialId) {
+        // Transferência aparece nas DUAS filiais (regra 5): origem OU destino.
+        q = incluirDestino
+          ? q.or(`filial_id.eq.${filialId},filial_destino_id.eq.${filialId}`)
+          : q.eq('filial_id', filialId)
+      }
+      return q
+        .order('data', { ascending: false })
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to)
+    },
+  )
 }
 
 async function getTabelasFinais(
