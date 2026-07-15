@@ -3,9 +3,6 @@ import {
   parseISO,
   format,
   differenceInCalendarDays,
-  startOfWeek,
-  addDays,
-  addWeeks,
   subDays,
 } from 'date-fns'
 import type { Database } from '@/lib/types/database'
@@ -17,14 +14,19 @@ import type {
   TipoMovimentacao,
 } from '@/lib/dominio'
 import { CATEGORIA_ORDEM, STATUS_ORDEM, rotuloTermo } from '@/lib/dominio'
-import { dataEmSP, hojeISO } from '@/lib/format'
+import { dataEmSP, fimDoDiaSP, hojeISO } from '@/lib/format'
 import { listarFiliais } from '@/lib/queries/filiais'
 import type { Periodo } from '@/lib/relatorios/periodo'
+import {
+  granularidadeDoPeriodo,
+  montarSerieCurta,
+  montarSerieMensal,
+  type LinhaSerieCurta,
+} from '@/lib/relatorios/serie'
 import type {
   ChipPendencia,
   ContagemCategoria,
   EstoqueCatStatus,
-  GranularidadeSerie,
   GrupoRelatorio,
   ItemManutencao,
   ItemModelo,
@@ -36,7 +38,6 @@ import type {
   ManutencaoCaso,
   ModelosPorCategoria,
   MovimentacaoRelatorio,
-  PontoSerie,
   PorMotivo,
   ResumoFilial,
   ResumoMotivo,
@@ -273,58 +274,11 @@ export async function getEmManutencao(
 }
 
 // ---- Série de movimentações adaptativa ao período (OS-F3 melhoria) ----
-// O relatório da WAP é semanal; um gráfico fixo "por mês" mostrava uma barra só
-// e ficava obsoleto no snapshot gerado. A granularidade agora acompanha a
-// duração: janela curta (semana) → por DIA, média → por SEMANA, longa
-// (ano/tudo) → por MÊS. Rótulos (ptBR) e eixo já vêm prontos, então o snapshot
-// congelado é estável no tempo.
+// A granularidade acompanha a duração do período (dia/semana/mês). Toda a
+// matemática de calendário/série vive em lib/relatorios/serie.ts (pura, testada);
+// aqui ficam só as leituras do banco, que passam as linhas cruas aos builders.
 
-const MESES_ABREV = [
-  'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-  'jul', 'ago', 'set', 'out', 'nov', 'dez',
-]
-
-// Até 16 dias (uma semana/quinzena) → dia; até 120 dias (~um trimestre) →
-// semana; acima disso → mês. Intervalo INCLUSIVO [de, ate].
-function granularidadeDoPeriodo(periodo: Periodo): GranularidadeSerie {
-  const dias =
-    differenceInCalendarDays(parseISO(periodo.ate), parseISO(periodo.de)) + 1
-  if (dias <= 16) return 'dia'
-  if (dias <= 120) return 'semana'
-  return 'mes'
-}
-
-function rotuloMes(mes: string, multiAno: boolean): string {
-  const [ano, m] = mes.split('-')
-  const nome = MESES_ABREV[Number(m) - 1] ?? mes
-  return multiAno ? `${nome}/${ano.slice(2)}` : nome
-}
-
-function contarMeses(periodo: Periodo): number {
-  const de = parseISO(periodo.de)
-  const ate = parseISO(periodo.ate)
-  return (
-    (ate.getFullYear() * 12 + ate.getMonth()) -
-    (de.getFullYear() * 12 + de.getMonth()) +
-    1
-  )
-}
-
-function mesesDoIntervalo(periodo: Periodo): string[] {
-  const de = parseISO(periodo.de)
-  const inicio = de.getFullYear() * 12 + de.getMonth()
-  const qtd = contarMeses(periodo)
-  const out: string[] = []
-  for (let i = 0; i < qtd; i++) {
-    const idx = inicio + i
-    out.push(`${Math.floor(idx / 12)}-${String((idx % 12) + 1).padStart(2, '0')}`)
-  }
-  return out
-}
-
-// Mensal: agregação no banco (rel_mov_por_mes) — pode passar de 1.000 linhas se
-// buscada linha a linha. Preenche o eixo com todos os meses quando são poucos
-// (ano); no "tudo" (dezenas de meses) mostra só os meses com registro.
+// Mensal: agregação no banco (rel_mov_por_mes) — uma linha por (mês, tipo).
 async function serieMensal(
   client: DbClient,
   filialId: number | null,
@@ -336,64 +290,22 @@ async function serieMensal(
     p_ate: periodo.ate,
   })
   if (error) throw new Error(`Falha nas movimentações por mês: ${error.message}`)
-
-  const map = new Map<string, { saidas: number; devolucoes: number }>()
-  for (const r of data ?? []) {
-    const mes = String(r.mes).slice(0, 7)
-    const cur = map.get(mes) ?? { saidas: 0, devolucoes: 0 }
-    if (r.tipo === 'saida') cur.saidas = Number(r.total)
-    else if (r.tipo === 'devolucao') cur.devolucoes = Number(r.total)
-    map.set(mes, cur)
-  }
-
-  const baldes =
-    contarMeses(periodo) <= 24
-      ? mesesDoIntervalo(periodo)
-      : [...map.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-  const multiAno = new Set(baldes.map((m) => m.slice(0, 4))).size > 1
-
-  const pontos: PontoSerie[] = baldes.map((mes) => {
-    const v = map.get(mes) ?? { saidas: 0, devolucoes: 0 }
-    return {
-      chave: mes,
-      rotulo: rotuloMes(mes, multiAno),
-      saidas: v.saidas,
-      devolucoes: v.devolucoes,
-    }
-  })
-  return { granularidade: 'mes', pontos }
+  return montarSerieMensal(data ?? [], periodo)
 }
 
-function chaveSemana(dataISO: string): string {
-  return format(startOfWeek(parseISO(dataISO), { weekStartsOn: 1 }), 'yyyy-MM-dd')
-}
+// Dia/semana: baldes calculados a partir das linhas cruas (data, tipo). A janela
+// é curta (<=120 dias) → volume limitado; paginado por segurança até um teto.
+const CAP_LINHAS_SERIE = 50_000
 
-function baldesCurtos(periodo: Periodo, gran: 'dia' | 'semana'): string[] {
-  const out: string[] = []
-  const fim = gran === 'dia' ? parseISO(periodo.ate) : startOfWeek(parseISO(periodo.ate), { weekStartsOn: 1 })
-  let d = gran === 'dia' ? parseISO(periodo.de) : startOfWeek(parseISO(periodo.de), { weekStartsOn: 1 })
-  const passo = gran === 'dia' ? (x: Date) => addDays(x, 1) : (x: Date) => addWeeks(x, 1)
-  while (d <= fim) {
-    out.push(format(d, 'yyyy-MM-dd'))
-    d = passo(d)
-  }
-  return out
-}
-
-// Dia/semana: baldes calculados no cliente a partir das linhas cruas (data,
-// tipo). A janela é curta (<=120 dias) → volume limitado; paginado por
-// segurança. Preenche o eixo inteiro (todos os dias/semanas), inclusive zeros —
-// o relatório da semana mostra segunda a sexta mesmo sem movimento no dia.
 async function serieCurta(
   client: DbClient,
   filialId: number | null,
   periodo: Periodo,
   gran: 'dia' | 'semana',
 ): Promise<SerieMovimentacoes> {
-  const contagem = new Map<string, { saidas: number; devolucoes: number }>()
+  const linhas: LinhaSerieCurta[] = []
   const PAGE = 1000
-  const CAP = 50_000
-  for (let from = 0; from < CAP; from += PAGE) {
+  for (let from = 0; from < CAP_LINHAS_SERIE; from += PAGE) {
     let q = client
       .from('movimentacoes')
       .select('data, tipo')
@@ -407,26 +319,10 @@ async function serieCurta(
       .range(from, from + PAGE - 1)
     const { data, error } = await q
     if (error) throw new Error(`Falha na série de movimentações: ${error.message}`)
-    for (const r of data ?? []) {
-      const chave = gran === 'dia' ? r.data : chaveSemana(r.data)
-      const cur = contagem.get(chave) ?? { saidas: 0, devolucoes: 0 }
-      if (r.tipo === 'saida') cur.saidas += 1
-      else if (r.tipo === 'devolucao') cur.devolucoes += 1
-      contagem.set(chave, cur)
-    }
+    for (const r of data ?? []) linhas.push(r)
     if (!data || data.length < PAGE) break
   }
-
-  const pontos: PontoSerie[] = baldesCurtos(periodo, gran).map((chave) => {
-    const v = contagem.get(chave) ?? { saidas: 0, devolucoes: 0 }
-    return {
-      chave,
-      rotulo: format(parseISO(chave), 'dd/MM'),
-      saidas: v.saidas,
-      devolucoes: v.devolucoes,
-    }
-  })
-  return { granularidade: gran, pontos }
+  return montarSerieCurta(linhas, periodo, gran)
 }
 
 export async function getSerieMovimentacoes(
@@ -928,7 +824,7 @@ async function manutencaoDeEstado(
       .in('ativo_id', ids)
       // Fim do dia `ate` no fuso de São Paulo (UTC-3 fixo), não em UTC — senão as
       // anotações das últimas 3h do dia (21:00–23:59 BRT) cairiam para fora.
-      .lte('created_at', `${periodo.ate}T23:59:59.999-03:00`)
+      .lte('created_at', fimDoDiaSP(periodo.ate))
       .order('created_at', { ascending: true }),
   ])
 

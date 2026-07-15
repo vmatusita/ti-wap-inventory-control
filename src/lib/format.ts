@@ -8,6 +8,10 @@ import { ptBR } from 'date-fns/locale'
 // convertido para SP na exibicao — senao a hora fica 3h adiantada e datas perto
 // da meia-noite "viram o dia". Sem dependencia nova: usamos Intl nativo.
 const FUSO = 'America/Sao_Paulo'
+// Offset fixo de São Paulo (UTC-3, sem horário de verão desde 2019). Fonte única
+// do literal que antes aparecia solto em queries/relatorios.ts — se o Brasil um
+// dia reintroduzir horário de verão, é AQUI que muda.
+const OFFSET_SP = '-03:00'
 const DATA_PURA_RE = /^\d{4}-\d{2}-\d{2}$/
 
 // Extrai as partes de um instante ja no fuso de São Paulo.
@@ -89,4 +93,12 @@ export function hojeISO(): string {
 // em SP) sem o erro de fuso de `iso.slice(0,10)` — que devolveria a data UTC.
 export function dataEmSP(iso: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: FUSO }).format(new Date(iso))
+}
+
+// Instante do FIM do dia `data` ('yyyy-MM-dd') no fuso de São Paulo, como ISO com
+// offset — teto para comparar contra timestamptz (ex.: `.lte('created_at', …)`).
+// Sem isto, um teto em UTC (`…T23:59:59Z`) perderia os registros das últimas 3h
+// do dia em SP (21:00–23:59 BRT cai no dia seguinte em UTC).
+export function fimDoDiaSP(data: string): string {
+  return `${data}T23:59:59.999${OFFSET_SP}`
 }

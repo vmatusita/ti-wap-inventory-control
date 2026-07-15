@@ -5,6 +5,7 @@ import {
   ouTraco,
   hojeISO,
   dataEmSP,
+  fimDoDiaSP,
 } from '@/lib/format'
 
 describe('formatDate', () => {
@@ -55,5 +56,17 @@ describe('dataEmSP', () => {
 describe('hojeISO', () => {
   it('devolve uma data pura yyyy-MM-dd', () => {
     expect(hojeISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
+describe('fimDoDiaSP', () => {
+  it('devolve o fim do dia com o offset de São Paulo (UTC-3)', () => {
+    expect(fimDoDiaSP('2026-07-14')).toBe('2026-07-14T23:59:59.999-03:00')
+  })
+
+  it('representa o instante final do dia em SP — 02:59:59.999Z do dia seguinte', () => {
+    // 23:59:59.999 BRT = 02:59:59.999Z do dia seguinte. Prova que é fim de dia em
+    // SP (não em UTC): um teto UTC perderia as últimas 3h do dia.
+    expect(new Date(fimDoDiaSP('2026-07-14')).toISOString()).toBe('2026-07-15T02:59:59.999Z')
   })
 })
