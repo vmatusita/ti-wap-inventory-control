@@ -14,6 +14,9 @@ import {
   buscarAtivosParaCombobox,
   type AtivoResumo,
 } from '@/lib/queries/ativos'
+import type { StatusAtivo } from '@/lib/dominio'
+
+type ServerClient = Awaited<ReturnType<typeof createClient>>
 
 // ---------------------------------------------------------------------------
 // Resultado do lote (OS-F2 3.4.1): quais entraram e qual falhou.
@@ -33,11 +36,100 @@ export type RegistrarLoteResult = {
   erroGeral?: string
 }
 
-type AtivoBasico = { id: string; filial_id: number; status: string }
+type AtivoBasico = { id: string; filial_id: number; status: StatusAtivo }
 
-// Le campo opcional de um item validado sem brigar com a uniao discriminada.
-function campo(item: MovimentacaoInput, chave: string): unknown {
-  return (item as unknown as Record<string, unknown>)[chave]
+// Monta a row de INSERT de uma movimentacao a partir do item validado + o estado
+// corrente do ativo. Os campos condicionais (motivo/colaborador/setor) sao lidos
+// por narrowing da uniao discriminada (`'campo' in item`), sem escape de tipo; os
+// comuns (chamado/observacao/termo_*) vem do base do schema.
+function montarRow(item: MovimentacaoInput, ativo: AtivoBasico, uid: string) {
+  return {
+    ativo_id: item.ativo_id,
+    tipo: item.tipo,
+    motivo: ('motivo' in item ? item.motivo : undefined) ?? null,
+    data: item.data,
+    filial_id: ativo.filial_id, // origem (a corrente do ativo)
+    filial_destino_id:
+      item.tipo === 'transferencia' ? item.filial_destino_id : null,
+    colaborador: ('colaborador' in item ? item.colaborador : undefined) ?? null,
+    setor: ('setor' in item ? item.setor : undefined) ?? null,
+    chamado: item.chamado ?? null,
+    termo_assinado: item.termo_assinado ?? null,
+    termo_data: item.termo_data ?? null,
+    itens_faltantes:
+      item.tipo === 'devolucao' ? item.itens_faltantes ?? [] : null,
+    observacao: item.observacao ?? null,
+    // Ajuste: o trigger LE o status_resultante; nos demais ele o CALCULA.
+    status_resultante: item.tipo === 'ajuste' ? item.status_resultante : null,
+    criado_por: uid,
+  }
+}
+
+// Processa UM item do lote: valida a transicao (transferencia != filial atual),
+// monta a row e insere. Devolve o resultado do item e se o lote deve parar — as
+// linhas anteriores ja estao commitadas (cada insert e uma transacao). OS-F2 3.4.1.
+async function processarItemLote(
+  supabase: ServerClient,
+  item: MovimentacaoInput,
+  index: number,
+  ativo: AtivoBasico | undefined,
+  uid: string,
+): Promise<{ resultado: ItemResultado; interromper: boolean }> {
+  if (!ativo) {
+    return {
+      resultado: {
+        index,
+        ativo_id: item.ativo_id,
+        ok: false,
+        erro: 'Ativo não encontrado.',
+      },
+      interromper: true,
+    }
+  }
+
+  // Transferencia: destino tem de ser diferente da filial atual (OS-F2 3.3.1).
+  if (
+    item.tipo === 'transferencia' &&
+    item.filial_destino_id === ativo.filial_id
+  ) {
+    return {
+      resultado: {
+        index,
+        ativo_id: item.ativo_id,
+        ok: false,
+        erro: 'A filial de destino deve ser diferente da atual.',
+      },
+      interromper: true,
+    }
+  }
+
+  const { data: inserida, error: insertErr } = await supabase
+    .from('movimentacoes')
+    .insert(montarRow(item, ativo, uid))
+    .select('id')
+    .single()
+
+  if (insertErr) {
+    return {
+      resultado: {
+        index,
+        ativo_id: item.ativo_id,
+        ok: false,
+        erro: traduzErroBanco(insertErr.message),
+      },
+      interromper: true,
+    }
+  }
+
+  return {
+    resultado: {
+      index,
+      ativo_id: item.ativo_id,
+      ok: true,
+      movimentacao_id: inserida?.id,
+    },
+    interromper: false,
+  }
 }
 
 // Registra um LOTE de 1..10 movimentacoes, inserindo uma a uma em ordem. Se o
@@ -119,77 +211,19 @@ export async function registrarMovimentacoes(input: {
       continue
     }
 
-    const ativo = ativoPorId.get(item.ativo_id)
-    if (!ativo) {
-      resultados.push({
-        index,
-        ativo_id: item.ativo_id,
-        ok: false,
-        erro: 'Ativo não encontrado.',
-      })
-      interrompido = true
-      continue
-    }
-
-    // Transferencia: destino tem de ser diferente da filial atual (OS-F2 3.3.1).
-    if (item.tipo === 'transferencia' && item.filial_destino_id === ativo.filial_id) {
-      resultados.push({
-        index,
-        ativo_id: item.ativo_id,
-        ok: false,
-        erro: 'A filial de destino deve ser diferente da atual.',
-      })
-      interrompido = true
-      continue
-    }
-
-    const row = {
-      ativo_id: item.ativo_id,
-      tipo: item.tipo,
-      motivo: (campo(item, 'motivo') as string | undefined) ?? null,
-      data: item.data,
-      filial_id: ativo.filial_id, // origem (a corrente do ativo)
-      filial_destino_id:
-        item.tipo === 'transferencia' ? item.filial_destino_id : null,
-      colaborador: (campo(item, 'colaborador') as string | undefined) ?? null,
-      setor: (campo(item, 'setor') as string | undefined) ?? null,
-      chamado: (campo(item, 'chamado') as string | undefined) ?? null,
-      termo_assinado: item.termo_assinado ?? null,
-      termo_data: item.termo_data ?? null,
-      itens_faltantes:
-        item.tipo === 'devolucao' ? item.itens_faltantes ?? [] : null,
-      observacao: item.observacao ?? null,
-      // Ajuste: o trigger LE o status_resultante; nos demais ele o CALCULA.
-      status_resultante:
-        item.tipo === 'ajuste' ? item.status_resultante : null,
-      criado_por: uid,
-    }
-
-    const { data: inserida, error: insertErr } = await supabase
-      .from('movimentacoes')
-      .insert(row)
-      .select('id')
-      .single()
-
-    if (insertErr) {
-      resultados.push({
-        index,
-        ativo_id: item.ativo_id,
-        ok: false,
-        erro: traduzErroBanco(insertErr.message),
-      })
-      interrompido = true
-      continue
-    }
-
-    criadas++
-    rotasAtivos.add(item.ativo_id)
-    resultados.push({
+    const { resultado, interromper } = await processarItemLote(
+      supabase,
+      item,
       index,
-      ativo_id: item.ativo_id,
-      ok: true,
-      movimentacao_id: inserida?.id,
-    })
+      ativoPorId.get(item.ativo_id),
+      uid,
+    )
+    resultados.push(resultado)
+    if (resultado.ok) {
+      criadas++
+      rotasAtivos.add(item.ativo_id)
+    }
+    if (interromper) interrompido = true
   }
 
   if (criadas > 0) {

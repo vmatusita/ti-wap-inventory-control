@@ -35,6 +35,16 @@ import {
 const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
+type ServerClient = Awaited<ReturnType<typeof createClient>>
+
+// Payload do merge (jsonb + docx): os campos editáveis do dialog + as datas por
+// extenso derivadas no servidor a partir de `data`.
+type DadosTermo = CamposTermo & {
+  data: string
+  data_extenso: string
+  data_mes_ano: string
+}
+
 // ---------------------------------------------------------------------------
 // prepararTermo — lê movimentações + ativos e monta o pré-preenchimento editável
 // do dialog (§3.9). Serve tanto ao painel de sucesso quanto à ficha (retroativo).
@@ -242,55 +252,51 @@ export type GeracaoTermo = {
   nomeArquivo?: string
 }
 
-export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
-  const parsed = gerarTermoSchema.safeParse(input)
-  if (!parsed.success) {
-    return { ok: false, erro: 'Há campos inválidos. Revise o termo.' }
-  }
-  const { tipo, movimentacaoIds, data, campos } = parsed.data
+// Renderiza o .docx do template `tipo` com o payload `dados`. Lança se o arquivo
+// não existir ou o merge falhar — o orquestrador traduz para mensagem amigável.
+async function renderizarDocx(
+  tipo: TermoTipo,
+  dados: DadosTermo,
+): Promise<Buffer> {
+  const arquivo = path.join(
+    process.cwd(),
+    'src',
+    'templates',
+    'termos',
+    TERMO_ARQUIVO[tipo],
+  )
+  const content = await readFile(arquivo)
+  const zip = new PizZip(content)
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    nullGetter: () => '',
+  })
+  doc.render(dados)
+  return doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
+}
 
-  const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
-
-  // `ativo_ids` e a flag derivam das MOVIMENTAÇÕES no servidor (a movimentação é a
-  // fonte da verdade) — não confia no ativoIds vindo do cliente.
-  const { data: movAtivos, error: movErr } = await supabase
-    .from('movimentacoes')
-    .select('ativo_id')
-    .in('id', movimentacaoIds)
-  if (movErr) return { ok: false, erro: traduzErroBanco(movErr.message) }
-  const ativoIds = [...new Set((movAtivos ?? []).map((m) => m.ativo_id))]
-  if (ativoIds.length === 0) return { ok: false, erro: 'Movimentação não encontrada.' }
-
-  // Payload do merge (jsonb + docx). Datas por extenso derivadas de `data`.
-  const dados = {
-    ...campos,
-    data,
-    data_extenso: dataPorExtenso(data),
-    data_mes_ano: mesAnoPorExtenso(data),
-  }
-
-  // Render do template.
-  let buffer: Buffer
-  try {
-    const arquivo = path.join(process.cwd(), 'src', 'templates', 'termos', TERMO_ARQUIVO[tipo])
-    const content = await readFile(arquivo)
-    const zip = new PizZip(content)
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-      nullGetter: () => '',
-    })
-    doc.render(dados)
-    buffer = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
-  } catch {
-    return { ok: false, erro: 'Não foi possível montar o documento do termo.' }
-  }
-
+// Grava o termo em versão única (§3.10): sobe o .docx no Storage e faz upsert da
+// linha em `termos_gerados` para ESTE conjunto de movimentações, removendo órfãos
+// de variantes antigas do mesmo conjunto. Devolve o id e o path do arquivo.
+async function persistirTermo(
+  supabase: ServerClient,
+  params: {
+    tipo: TermoTipo
+    movimentacaoIds: string[]
+    ativoIds: string[]
+    campos: CamposTermo
+    dados: DadosTermo
+    buffer: Buffer
+    uid: string
+  },
+): Promise<
+  { ok: true; id: string; arquivoPath: string } | { ok: false; erro: string }
+> {
+  const { tipo, movimentacaoIds, ativoIds, campos, dados, buffer, uid } = params
   const sortedMovIds = [...movimentacaoIds].sort()
 
-  // Versão única (§3.10): termos já existentes para ESTE conjunto de movimentações.
+  // Termos já existentes para ESTE conjunto de movimentações.
   const { data: existentes } = await supabase
     .from('termos_gerados')
     .select('id, arquivo_path')
@@ -343,19 +349,77 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
     }
   }
 
-  // Responsabilidade: marca a flag 'gerado' nos ativos (sem rebaixar 'sim'/'enviado').
-  // Inclui 'gerado' no predicado para que REGERAR com data nova atualize termo_data
-  // (o alvo é não rebaixar sim/enviado — 'gerado'→'gerado' não rebaixa nada).
-  // A movimentação é IMUTÁVEL (RLS insert-only, 0005) — por isso a flag mora no
-  // ativo, que é o que v_pendencias/ficha/relatório leem (ver DECISOES). Devolução
-  // não mexe no termo (o ativo está em triagem; a coluna é sobre responsabilidade).
-  if (familiaDoTipo(tipo) === 'responsabilidade') {
-    await supabase
-      .from('ativos')
-      .update({ termo_assinado: 'gerado', termo_data: data })
-      .in('id', ativoIds)
-      .or('termo_assinado.is.null,termo_assinado.eq.nao,termo_assinado.eq.gerado')
+  return { ok: true, id, arquivoPath }
+}
+
+// Responsabilidade: marca a flag 'gerado' nos ativos (sem rebaixar 'sim'/'enviado').
+// Inclui 'gerado' no predicado para que REGERAR com data nova atualize termo_data
+// (o alvo é não rebaixar sim/enviado — 'gerado'→'gerado' não rebaixa nada).
+// A movimentação é IMUTÁVEL (RLS insert-only, 0005) — por isso a flag mora no
+// ativo, que é o que v_pendencias/ficha/relatório leem (ver DECISOES). Devolução
+// não mexe no termo (o ativo está em triagem; a coluna é sobre responsabilidade).
+async function aplicarFlagTermo(
+  supabase: ServerClient,
+  tipo: TermoTipo,
+  ativoIds: string[],
+  data: string,
+): Promise<void> {
+  if (familiaDoTipo(tipo) !== 'responsabilidade') return
+  await supabase
+    .from('ativos')
+    .update({ termo_assinado: 'gerado', termo_data: data })
+    .in('id', ativoIds)
+    .or('termo_assinado.is.null,termo_assinado.eq.nao,termo_assinado.eq.gerado')
+}
+
+export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
+  const parsed = gerarTermoSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: 'Há campos inválidos. Revise o termo.' }
   }
+  const { tipo, movimentacaoIds, data, campos } = parsed.data
+
+  const supabase = await createClient()
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+
+  // `ativo_ids` e a flag derivam das MOVIMENTAÇÕES no servidor (a movimentação é a
+  // fonte da verdade) — não confia no ativoIds vindo do cliente.
+  const { data: movAtivos, error: movErr } = await supabase
+    .from('movimentacoes')
+    .select('ativo_id')
+    .in('id', movimentacaoIds)
+  if (movErr) return { ok: false, erro: traduzErroBanco(movErr.message) }
+  const ativoIds = [...new Set((movAtivos ?? []).map((m) => m.ativo_id))]
+  if (ativoIds.length === 0) return { ok: false, erro: 'Movimentação não encontrada.' }
+
+  const dados: DadosTermo = {
+    ...campos,
+    data,
+    data_extenso: dataPorExtenso(data),
+    data_mes_ano: mesAnoPorExtenso(data),
+  }
+
+  let buffer: Buffer
+  try {
+    buffer = await renderizarDocx(tipo, dados)
+  } catch {
+    return { ok: false, erro: 'Não foi possível montar o documento do termo.' }
+  }
+
+  const persistido = await persistirTermo(supabase, {
+    tipo,
+    movimentacaoIds,
+    ativoIds,
+    campos,
+    dados,
+    buffer,
+    uid,
+  })
+  if (!persistido.ok) return { ok: false, erro: persistido.erro }
+  const { id, arquivoPath } = persistido
+
+  await aplicarFlagTermo(supabase, tipo, ativoIds, data)
 
   const { data: signed } = await supabase.storage
     .from('termos')
