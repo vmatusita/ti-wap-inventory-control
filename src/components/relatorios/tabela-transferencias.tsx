@@ -7,20 +7,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
-import { formatDate } from '@/lib/format'
+import {
+  CabecalhoDetalhe,
+  CelulaChamado,
+  CelulaData,
+  CelulaObs,
+} from '@/components/relatorios/celulas'
 import { rotuloCategoria } from '@/lib/dominio'
 import type { LinhaTransferencia } from '@/lib/relatorios/tipos'
 
-// Transferências do período (§4.4) — bloco condicional (só quando houver).
-// Colunas: Data · De → Para · Categoria · Marca/Modelo · Patrimônio · Chamado · Obs.
+// Transferências do período (§4.4) — bloco condicional (só quando houver). Sem
+// barra de filtros (é a exceção entre as tabelas). Colunas: Data · De → Para ·
+// Categoria · Marca/Modelo · Patrimônio · Chamado · Obs. Células compartilhadas
+// (OS tech-debt 3.2); componente server (sem estado).
 export function TabelaTransferencias({ rows }: { rows: LinhaTransferencia[] }) {
   if (rows.length === 0) return null
   return (
     <section id="transferencias" className="scroll-mt-16 space-y-3 break-before-page">
-      <h2 className="text-lg font-semibold tracking-tight">
-        Transferências — {rows.length.toLocaleString('pt-BR')} no período
-      </h2>
+      <CabecalhoDetalhe titulo="Transferências" total={rows.length} />
       <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
@@ -37,9 +41,7 @@ export function TabelaTransferencias({ rows }: { rows: LinhaTransferencia[] }) {
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.id}>
-                <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
-                  {formatDate(r.data)}
-                </TableCell>
+                <CelulaData data={r.data} />
                 <TableCell className="whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5">
                     {r.de}
@@ -50,14 +52,8 @@ export function TabelaTransferencias({ rows }: { rows: LinhaTransferencia[] }) {
                 <TableCell className="hidden sm:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
                 <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
                 <TableCell className="whitespace-nowrap font-medium tabular-nums">{r.patrimonio}</TableCell>
-                <TableCell className="hidden whitespace-nowrap tabular-nums text-muted-foreground md:table-cell">
-                  {r.chamado ? `#${r.chamado}` : '—'}
-                </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  <div className="max-w-[220px]">
-                    <ObsTooltip texto={r.obs} className="w-full text-xs" />
-                  </div>
-                </TableCell>
+                <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
+                <CelulaObs texto={r.obs} className="hidden lg:table-cell" />
               </TableRow>
             ))}
           </TableBody>

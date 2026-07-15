@@ -1,7 +1,5 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { X } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -10,31 +8,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
-import { formatDate } from '@/lib/format'
+  CabecalhoDetalhe,
+  CelulaData,
+  CelulaObs,
+  PilulaTipo,
+} from '@/components/relatorios/celulas'
+import { FiltrosTabela, ChipsResumo } from '@/components/relatorios/filtros-tabela'
 import {
-  CATEGORIA_ORDEM,
-  pillTipo,
-  rotuloAcessorio,
-  rotuloCategoria,
-  rotuloTipo,
-} from '@/lib/dominio'
-import { cn } from '@/lib/utils'
+  useFiltrosTabela,
+  chaveResumoMotivo,
+  type CampoFiltro,
+} from '@/components/relatorios/use-filtros-tabela'
+import { rotuloAcessorio, rotuloCategoria } from '@/lib/dominio'
 import type { LinhaEntrada } from '@/lib/relatorios/tipos'
 
-const TODOS = '__todos'
+const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
 
 // Entradas do período (§4.4): tipos devolucao + compra. Colunas: Data · Filial ·
 // Categoria · Marca/Modelo · Patrimônio · Tipo (Devolução/Compra) · Motivo ·
-// Colaborador · Setor · Itens faltantes · Obs.
+// Colaborador · Setor · Itens faltantes · Obs. Filtros/resumo/células via os
+// compartilhados (OS tech-debt 3.2).
 export function TabelaEntradas({
   rows,
   ehGeral,
@@ -42,115 +36,25 @@ export function TabelaEntradas({
   rows: LinhaEntrada[]
   ehGeral: boolean
 }) {
-  const [categoria, setCategoria] = useState('')
-  const [motivo, setMotivo] = useState('')
-  const [filial, setFilial] = useState('')
-
-  const motivos = useMemo(
-    () => [...new Set(rows.map((r) => r.motivo).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'pt-BR')),
-    [rows],
-  )
-  const filiais = useMemo(
-    () => [...new Set(rows.map((r) => r.filial))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
-    [rows],
-  )
-
-  const filtradas = useMemo(
-    () =>
-      rows.filter(
-        (r) =>
-          (!categoria || r.categoria === categoria) &&
-          (!motivo || r.motivo === motivo) &&
-          (!filial || r.filial === filial),
-      ),
-    [rows, categoria, motivo, filial],
-  )
-  const temFiltro = !!categoria || !!motivo || !!filial
-
-  const resumo = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const r of filtradas) {
-      const chave = ehGeral ? `${r.filial} · ${r.motivo ?? 'Outro'}` : (r.motivo ?? 'Outro')
-      map.set(chave, (map.get(chave) ?? 0) + 1)
-    }
-    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)
-  }, [filtradas, ehGeral])
+  const { filtradas, temFiltro, resumo, filtros, opcoes, camposAtivos, setFiltro, limpar } =
+    useFiltrosTabela(rows, { campos: CAMPOS, ehGeral, resumoChave: chaveResumoMotivo })
 
   return (
     <section id="entradas" className="scroll-mt-16 space-y-3 break-before-page">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold tracking-tight">
-          Entradas — {rows.length.toLocaleString('pt-BR')} no período
-        </h2>
-        {temFiltro && (
-          <span className="text-sm text-muted-foreground tabular-nums">
-            {filtradas.length.toLocaleString('pt-BR')} exibida(s)
-          </span>
-        )}
-      </div>
-
-      {resumo.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 print:hidden">
-          {resumo.map(([chave, n]) => (
-            <span key={chave} className="rounded-full bg-muted px-2.5 py-0.5 text-xs">
-              {chave}: <span className="font-semibold tabular-nums">{n}</span>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        {ehGeral && (
-          <Select value={filial || TODOS} onValueChange={(v) => setFilial(v === TODOS ? '' : v)}>
-            <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por filial">
-              <SelectValue placeholder="Filial" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas as filiais</SelectItem>
-              {filiais.map((f) => (
-                <SelectItem key={f} value={f}>{f}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <Select value={categoria || TODOS} onValueChange={(v) => setCategoria(v === TODOS ? '' : v)}>
-          <SelectTrigger size="sm" className="w-full sm:w-[150px]" aria-label="Filtrar por categoria">
-            <SelectValue placeholder="Categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS}>Todas categorias</SelectItem>
-            {CATEGORIA_ORDEM.map((c) => (
-              <SelectItem key={c} value={c}>{rotuloCategoria(c)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={motivo || TODOS} onValueChange={(v) => setMotivo(v === TODOS ? '' : v)}>
-          <SelectTrigger size="sm" className="w-full sm:w-[170px]" aria-label="Filtrar por motivo">
-            <SelectValue placeholder="Motivo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS}>Todos os motivos</SelectItem>
-            {motivos.map((m) => (
-              <SelectItem key={m} value={m}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {temFiltro && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1 text-muted-foreground"
-            onClick={() => {
-              setCategoria('')
-              setMotivo('')
-              setFilial('')
-            }}
-          >
-            <X className="size-4" />
-            Limpar
-          </Button>
-        )}
-      </div>
+      <CabecalhoDetalhe
+        titulo="Entradas"
+        total={rows.length}
+        exibidas={temFiltro ? filtradas.length : undefined}
+      />
+      <ChipsResumo resumo={resumo} />
+      <FiltrosTabela
+        campos={camposAtivos}
+        filtros={filtros}
+        opcoes={opcoes}
+        temFiltro={temFiltro}
+        setFiltro={setFiltro}
+        limpar={limpar}
+      />
 
       {filtradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
@@ -177,9 +81,7 @@ export function TabelaEntradas({
             <TableBody>
               {filtradas.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
-                    {formatDate(r.data)}
-                  </TableCell>
+                  <CelulaData data={r.data} />
                   {ehGeral && (
                     <TableCell className="hidden whitespace-nowrap md:table-cell">{r.filial}</TableCell>
                   )}
@@ -187,14 +89,7 @@ export function TabelaEntradas({
                   <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
                   <TableCell className="whitespace-nowrap font-medium tabular-nums">{r.patrimonio}</TableCell>
                   <TableCell>
-                    <span
-                      className={cn(
-                        'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                        pillTipo(r.tipo),
-                      )}
-                    >
-                      {rotuloTipo(r.tipo)}
-                    </span>
+                    <PilulaTipo tipo={r.tipo} />
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{r.motivo ?? '—'}</TableCell>
                   <TableCell className="hidden whitespace-nowrap lg:table-cell">
@@ -217,11 +112,7 @@ export function TabelaEntradas({
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="hidden xl:table-cell">
-                    <div className="max-w-[200px]">
-                      <ObsTooltip texto={r.obs} className="w-full text-xs" />
-                    </div>
-                  </TableCell>
+                  <CelulaObs texto={r.obs} className="hidden xl:table-cell" />
                 </TableRow>
               ))}
             </TableBody>
