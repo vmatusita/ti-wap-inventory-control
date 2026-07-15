@@ -1,124 +1,37 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, FileText, RotateCcw, TriangleAlert, X } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
+import { PainelSucesso } from '@/components/movimentacoes/nova/painel-sucesso'
+import { PassoAtivos } from '@/components/movimentacoes/nova/passo-ativos'
+import { PassoMovimentacao } from '@/components/movimentacoes/nova/passo-movimentacao'
+import { PassoRevisao } from '@/components/movimentacoes/nova/passo-revisao'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { StatusBadge } from '@/components/ativos/status-badge'
-import { AtivoCombobox } from '@/components/movimentacoes/ativo-combobox'
-import { GerarTermoDialog } from '@/components/movimentacoes/gerar-termo-dialog'
-import { categoriaTemTermo } from '@/lib/termos/tipos'
+  configPadrao,
+  montarItensInput,
+  type Config,
+  type ConfigInicial,
+  type SucessoLote,
+} from '@/components/movimentacoes/nova/config'
 import { registrarMovimentacoes } from '@/lib/actions/movimentacoes'
 import {
   loteMovimentacaoSchema,
   tiposComunsPara,
 } from '@/lib/validators/movimentacao'
 import {
-  ACESSORIOS_DEVOLUCAO,
-  STATUS_ORDEM,
-  rotuloAcessorio,
-  rotuloCategoria,
-  rotuloStatus,
   rotuloTipo,
-  type CategoriaAtivo,
   type StatusAtivo,
   type TipoMovimentacao,
   type TermoStatus,
 } from '@/lib/dominio'
-import { hojeISO } from '@/lib/format'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Motivo } from '@/lib/queries/motivos'
 import type { UltimaMovimentacaoUsuario } from '@/lib/queries/movimentacoes'
 
-type Config = {
-  data: string
-  tipo: TipoMovimentacao | ''
-  motivo: string
-  colaborador: string
-  setor: string
-  chamado: string
-  termo: '' | TermoStatus
-  termoData: string
-  observacao: string
-  filialDestinoId: string
-  itensFaltantes: string[]
-}
-
-export type ConfigInicial = Partial<Omit<Config, 'itensFaltantes'>> & {
-  itensFaltantes?: string[]
-}
-
-function configPadrao(inicial?: ConfigInicial | null): Config {
-  return {
-    data: inicial?.data || hojeISO(),
-    tipo: (inicial?.tipo as TipoMovimentacao) || '',
-    motivo: inicial?.motivo || '',
-    colaborador: inicial?.colaborador || '',
-    setor: inicial?.setor || '',
-    chamado: inicial?.chamado || '',
-    termo: (inicial?.termo as TermoStatus) || '',
-    termoData: inicial?.termoData || '',
-    observacao: inicial?.observacao || '',
-    filialDestinoId: inicial?.filialDestinoId || '',
-    itensFaltantes: inicial?.itensFaltantes || [],
-  }
-}
-
-// Constroi o objeto de input (validado pelo Zod) de um item do lote.
-function construirItem(ativo: AtivoResumo, c: Config): Record<string, unknown> {
-  const base: Record<string, unknown> = {
-    ativo_id: ativo.id,
-    tipo: c.tipo,
-    data: c.data,
-    chamado: c.chamado || undefined,
-    observacao: c.observacao || undefined,
-  }
-  switch (c.tipo) {
-    case 'saida':
-    case 'emprestimo':
-      return {
-        ...base,
-        motivo: c.motivo || '',
-        colaborador: c.colaborador || undefined,
-        setor: c.setor || undefined,
-        termo_assinado: c.termo || undefined,
-        termo_data: c.termoData || undefined,
-      }
-    case 'reserva':
-      return {
-        ...base,
-        motivo: c.motivo || undefined,
-        colaborador: c.colaborador || undefined,
-        setor: c.setor || undefined,
-      }
-    case 'devolucao':
-      return { ...base, motivo: c.motivo || '', itens_faltantes: c.itensFaltantes }
-    case 'transferencia':
-      return {
-        ...base,
-        filial_destino_id: c.filialDestinoId ? Number(c.filialDestinoId) : 0,
-      }
-    case 'ajuste':
-      // status_resultante e injetado por quem chama (estado `statusResultante`).
-      return { ...base }
-    default:
-      return { ...base, motivo: c.motivo || undefined }
-  }
-}
+export type { ConfigInicial }
 
 const PASSOS = ['Ativos', 'Movimentação', 'Revisão'] as const
 
@@ -163,17 +76,7 @@ export function NovaMovimentacaoForm({
   const [erros, setErros] = useState<string[]>([])
   const [errosPorAtivo, setErrosPorAtivo] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
-  const [sucesso, setSucesso] = useState<{
-    criadas: number
-    tipo: TipoMovimentacao
-    motivo: string
-    ativos: {
-      id: string
-      patrimonio: string
-      categoria: CategoriaAtivo
-      movimentacaoId: string
-    }[]
-  } | null>(null)
+  const [sucesso, setSucesso] = useState<SucessoLote | null>(null)
 
   const comandoRef = useRef<HTMLDivElement>(null)
   // Trava de reentrância: bloqueia um 2º envio (ex.: Enter apertado 2x rápido no
@@ -256,11 +159,7 @@ export function NovaMovimentacaoForm({
 
   // Monta e valida o lote. Retorna as mensagens de erro (vazio = ok).
   function validarLote(): string[] {
-    const itensInput = itens.map((a) => {
-      const obj = construirItem(a, config)
-      if (config.tipo === 'ajuste') obj.status_resultante = statusResultante || undefined
-      return obj
-    })
+    const itensInput = montarItensInput(itens, config, statusResultante)
     const msgs: string[] = []
     const parsed = loteMovimentacaoSchema.safeParse({ itens: itensInput })
     if (!parsed.success) {
@@ -295,11 +194,7 @@ export function NovaMovimentacaoForm({
       return
     }
 
-    const itensInput = itens.map((a) => {
-      const obj = construirItem(a, config)
-      if (config.tipo === 'ajuste') obj.status_resultante = statusResultante || undefined
-      return obj
-    })
+    const itensInput = montarItensInput(itens, config, statusResultante)
 
     enviandoRef.current = true
     setEnviando(true)
@@ -385,93 +280,13 @@ export function NovaMovimentacaoForm({
     else if (passo === 3) registrar()
   }
 
-  // ---------- Painel de sucesso ----------
   if (sucesso) {
     return (
-      <div className="rounded-lg border bg-card p-6 text-center">
-        <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">
-          <Check className="size-6" />
-        </div>
-        <h2 className="text-lg font-semibold">
-          {sucesso.criadas}{' '}
-          {sucesso.criadas === 1 ? 'movimentação registrada' : 'movimentações registradas'}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Fichas atualizadas:
-        </p>
-        <div className="mt-3 flex flex-wrap justify-center gap-2">
-          {sucesso.ativos.map((a) => (
-            <Button key={a.id} asChild variant="outline" size="sm">
-              <Link href={`/ativos/${a.id}`} className="tabular-nums">
-                {a.patrimonio}
-              </Link>
-            </Button>
-          ))}
-        </div>
-
-        {/* Termo de responsabilidade — um por ativo elegível (saida/emprestimo) */}
-        {['saida', 'emprestimo'].includes(sucesso.tipo) && (
-          <div className="mt-6 border-t pt-5">
-            <p className="text-sm font-medium">Termo de responsabilidade</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Documento pronto para assinatura — o sistema já preenche o que sabe.
-            </p>
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
-              {sucesso.ativos.filter((a) => categoriaTemTermo(a.categoria)).map((a) => (
-                <GerarTermoDialog
-                  key={a.id}
-                  familia="responsabilidade"
-                  categoria={a.categoria}
-                  movimentacaoIds={[a.movimentacaoId]}
-                  rotulo={`${a.patrimonio} · ${rotuloCategoria(a.categoria)}`}
-                  onGerado={() => router.refresh()}
-                  trigger={
-                    <Button variant="outline" size="sm" className="gap-2 tabular-nums">
-                      <FileText className="size-4" />
-                      {a.patrimonio}
-                    </Button>
-                  }
-                />
-              ))}
-            </div>
-            {sucesso.ativos.every((a) => !categoriaTemTermo(a.categoria)) && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                As categorias deste lote não têm modelo de termo.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Termo de devolução — um por lote (consolida os equipamentos) */}
-        {sucesso.tipo === 'devolucao' && sucesso.ativos.length > 0 && (
-          <div className="mt-6 border-t pt-5">
-            <p className="text-sm font-medium">Termo de devolução</p>
-            <div className="mt-3 flex justify-center">
-              <GerarTermoDialog
-                familia="devolucao"
-                tipoDevolucao={
-                  sucesso.motivo === 'desligamento'
-                    ? 'devolucao_desligamento'
-                    : 'devolucao_equipamento'
-                }
-                movimentacaoIds={sucesso.ativos.map((a) => a.movimentacaoId)}
-                rotulo={`${sucesso.ativos.length} equipamento${sucesso.ativos.length > 1 ? 's' : ''}`}
-                onGerado={() => router.refresh()}
-                trigger={
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <FileText className="size-4" />
-                    Gerar termo de devolução ({sucesso.ativos.length})
-                  </Button>
-                }
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="mt-6">
-          <Button onClick={reiniciar}>Registrar outra movimentação</Button>
-        </div>
-      </div>
+      <PainelSucesso
+        sucesso={sucesso}
+        onGerado={() => router.refresh()}
+        onReiniciar={reiniciar}
+      />
     )
   }
 
@@ -526,419 +341,48 @@ export function NovaMovimentacaoForm({
         </div>
       )}
 
-      {/* ---------------- PASSO 1 — Ativos ---------------- */}
       {passo === 1 && (
-        <div className="space-y-4">
-          <div ref={comandoRef}>
-            <AtivoCombobox
-              onSelecionar={adicionar}
-              jaAdicionados={jaAdicionados}
-            />
-          </div>
-
-          {itens.length === 0 ? (
-            <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
-              Nenhum ativo no lote ainda. Busque e adicione um ou mais ativos.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {itens.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex flex-wrap items-center gap-2 rounded-lg border p-2.5"
-                >
-                  <span className="font-medium tabular-nums">{a.patrimonio}</span>
-                  {a.patrimonio_duplicado && (
-                    <span className="rounded bg-amber-100 px-1.5 text-xs tabular-nums text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                      ST {a.service_tag ?? '—'}
-                    </span>
-                  )}
-                  <span className="truncate text-sm text-muted-foreground">
-                    {[rotuloCategoria(a.categoria), a.modelo]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                  <span className="ml-auto flex items-center gap-2">
-                    <span className="hidden text-xs text-muted-foreground sm:inline">
-                      {a.filial_nome}
-                    </span>
-                    <StatusBadge status={a.status} className="text-[11px]" />
-                    <button
-                      type="button"
-                      onClick={() => remover(a.id)}
-                      aria-label={`Remover ${a.patrimonio}`}
-                      className="-my-1 -mr-1 rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="flex justify-end">
-            <Button onClick={() => setPasso(2)} disabled={itens.length === 0}>
-              Avançar ({itens.length}{' '}
-              {itens.length === 1 ? 'ativo' : 'ativos'})
-            </Button>
-          </div>
-        </div>
+        <PassoAtivos
+          itens={itens}
+          jaAdicionados={jaAdicionados}
+          comandoRef={comandoRef}
+          onAdicionar={adicionar}
+          onRemover={remover}
+          onAvancar={() => setPasso(2)}
+        />
       )}
 
-      {/* ---------------- PASSO 2 — Movimentação ---------------- */}
       {passo === 2 && (
-        <div className="space-y-5">
-          {Object.keys(errosPorAtivo).length > 0 && (
-            <div className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
-              <p className="font-medium text-destructive">
-                Itens que falharam no último envio:
-              </p>
-              {itens.map(
-                (a) =>
-                  errosPorAtivo[a.id] && (
-                    <p key={a.id} className="text-destructive">
-                      <span className="font-medium tabular-nums">
-                        {a.patrimonio}
-                      </span>{' '}
-                      — {errosPorAtivo[a.id]}
-                    </p>
-                  ),
-              )}
-            </div>
-          )}
-
-          {estadosMistos && (
-            <p className="flex items-center gap-1.5 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-              <TriangleAlert className="size-3.5" />
-              Os ativos estão em estados diferentes — só aparecem as movimentações
-              válidas para todos eles.
-            </p>
-          )}
-
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="grid gap-2">
-              <Label>Tipo de movimentação</Label>
-              <Select
-                value={config.tipo || undefined}
-                onValueChange={(v) => trocarTipo(v as TipoMovimentacao)}
-              >
-                <SelectTrigger className="w-full sm:w-[240px]">
-                  <SelectValue placeholder="Escolha o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tiposValidos.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {rotuloTipo(t)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {ultimaMov && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={repetirUltima}
-                className="gap-2"
-              >
-                <RotateCcw className="size-4" />
-                Repetir última
-              </Button>
-            )}
-          </div>
-
-          {config.tipo && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {/* Motivo */}
-              {motivosAplicaveis.length > 0 && (
-                <div className="grid gap-2">
-                  <Label>
-                    Motivo
-                    {['saida', 'emprestimo', 'devolucao'].includes(
-                      config.tipo,
-                    ) && <span className="text-destructive"> *</span>}
-                  </Label>
-                  <Select
-                    value={config.motivo || undefined}
-                    onValueChange={(v) => set('motivo', v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o motivo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {motivosAplicaveis.map((m) => (
-                        <SelectItem key={m.codigo} value={m.codigo}>
-                          {m.rotulo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Colaborador / Setor */}
-              {['saida', 'emprestimo', 'reserva'].includes(config.tipo) && (
-                <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="colaborador">Colaborador</Label>
-                    <Input
-                      id="colaborador"
-                      value={config.colaborador}
-                      onChange={(e) => set('colaborador', e.target.value)}
-                      placeholder="Nome do colaborador"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="setor">Setor</Label>
-                    <Input
-                      id="setor"
-                      value={config.setor}
-                      onChange={(e) => set('setor', e.target.value)}
-                      placeholder="Setor de destino"
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Chamado */}
-              {['saida', 'emprestimo', 'reserva'].includes(config.tipo) && (
-                <div className="grid gap-2">
-                  <Label htmlFor="chamado">Chamado (opcional)</Label>
-                  <Input
-                    id="chamado"
-                    inputMode="numeric"
-                    value={config.chamado}
-                    onChange={(e) => set('chamado', e.target.value)}
-                    placeholder="Nº do chamado"
-                  />
-                </div>
-              )}
-
-              {/* Termo */}
-              {['saida', 'emprestimo'].includes(config.tipo) && (
-                <>
-                  <div className="grid gap-2">
-                    <Label>Termo de responsabilidade</Label>
-                    <Select
-                      value={config.termo || undefined}
-                      onValueChange={(v) => set('termo', v as TermoStatus)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Não informado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sim">Assinado</SelectItem>
-                        <SelectItem value="enviado">
-                          Enviado (sem assinatura)
-                        </SelectItem>
-                        <SelectItem value="gerado">Gerado</SelectItem>
-                        <SelectItem value="nao">Não gerado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="termo-data">Data do termo</Label>
-                    <Input
-                      id="termo-data"
-                      type="date"
-                      max={hojeISO()}
-                      value={config.termoData}
-                      onChange={(e) => set('termoData', e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Filial destino (transferencia) */}
-              {config.tipo === 'transferencia' && (
-                <div className="grid gap-2">
-                  <Label>
-                    Filial de destino<span className="text-destructive"> *</span>
-                  </Label>
-                  <Select
-                    value={config.filialDestinoId || undefined}
-                    onValueChange={(v) => set('filialDestinoId', v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a filial" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filiais.map((f) => (
-                        <SelectItem key={f.id} value={String(f.id)}>
-                          {f.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Status resultante (ajuste) */}
-              {config.tipo === 'ajuste' && (
-                <div className="grid gap-2">
-                  <Label>
-                    Novo status<span className="text-destructive"> *</span>
-                  </Label>
-                  <Select
-                    value={statusResultante || undefined}
-                    onValueChange={setStatusResultante}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_ORDEM.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {rotuloStatus(s)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Data */}
-              <div className="grid gap-2">
-                <Label htmlFor="data">Data</Label>
-                <Input
-                  id="data"
-                  type="date"
-                  max={hojeISO()}
-                  value={config.data}
-                  onChange={(e) => set('data', e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Itens faltantes (devolucao) */}
-          {config.tipo === 'devolucao' && (
-            <div className="grid gap-2">
-              <Label>Itens faltantes na devolução</Label>
-              <div className="flex flex-wrap gap-3 rounded-lg border p-3">
-                {ACESSORIOS_DEVOLUCAO.map((it) => {
-                  const marcado = config.itensFaltantes.includes(it)
-                  return (
-                    <label
-                      key={it}
-                      className="flex cursor-pointer items-center gap-2 text-sm"
-                    >
-                      <Checkbox
-                        checked={marcado}
-                        onCheckedChange={(c) =>
-                          set(
-                            'itensFaltantes',
-                            c === true
-                              ? [...config.itensFaltantes, it]
-                              : config.itensFaltantes.filter((x) => x !== it),
-                          )
-                        }
-                      />
-                      {rotuloAcessorio(it)}
-                    </label>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Observacao (todos os tipos) */}
-          {config.tipo && (
-            <div className="grid gap-2">
-              <Label htmlFor="observacao">
-                Observação
-                {config.tipo === 'ajuste' ? (
-                  <span className="text-destructive"> * (justificativa)</span>
-                ) : (
-                  ' (opcional)'
-                )}
-              </Label>
-              <Textarea
-                id="observacao"
-                rows={2}
-                maxLength={500}
-                value={config.observacao}
-                onChange={(e) => set('observacao', e.target.value)}
-                placeholder="Observação (opcional) — ex.: aguardando NF-e, tela trincada…"
-              />
-            </div>
-          )}
-
-          <div className="flex justify-between">
-            <Button variant="ghost" onClick={() => setPasso(1)}>
-              Voltar
-            </Button>
-            <Button onClick={avancarParaRevisao} disabled={!config.tipo}>
-              Revisar
-            </Button>
-          </div>
-        </div>
+        <PassoMovimentacao
+          config={config}
+          statusResultante={statusResultante}
+          itens={itens}
+          tiposValidos={tiposValidos}
+          estadosMistos={estadosMistos}
+          motivosAplicaveis={motivosAplicaveis}
+          errosPorAtivo={errosPorAtivo}
+          filiais={filiais}
+          ultimaMov={ultimaMov}
+          onTrocarTipo={trocarTipo}
+          onSet={set}
+          onSetStatusResultante={setStatusResultante}
+          onRepetirUltima={repetirUltima}
+          onVoltar={() => setPasso(1)}
+          onRevisar={avancarParaRevisao}
+        />
       )}
 
-      {/* ---------------- PASSO 3 — Revisão ---------------- */}
       {passo === 3 && (
-        <div className="space-y-4">
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
-              <thead className="border-b bg-muted/50 text-left text-muted-foreground">
-                <tr>
-                  <th className="p-2.5 font-medium">Patrimônio</th>
-                  <th className="p-2.5 font-medium">Movimentação</th>
-                  <th className="p-2.5 font-medium">Destino / Motivo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {itens.map((a) => (
-                  <tr key={a.id}>
-                    <td className="p-2.5 font-medium tabular-nums">
-                      {a.patrimonio}
-                    </td>
-                    <td className="p-2.5">
-                      {config.tipo && rotuloTipo(config.tipo)}
-                    </td>
-                    <td className="p-2.5 text-muted-foreground">
-                      {resumoDestino(config, filiais, motivos)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex justify-between">
-            <Button variant="ghost" onClick={() => setPasso(2)}>
-              Voltar
-            </Button>
-            <Button onClick={registrar} disabled={enviando}>
-              {enviando
-                ? 'Registrando…'
-                : `Registrar ${itens.length} ${itens.length === 1 ? 'movimentação' : 'movimentações'}`}
-            </Button>
-          </div>
-        </div>
+        <PassoRevisao
+          itens={itens}
+          config={config}
+          filiais={filiais}
+          motivos={motivos}
+          enviando={enviando}
+          onVoltar={() => setPasso(2)}
+          onRegistrar={registrar}
+        />
       )}
     </div>
   )
-}
-
-// Texto resumido do destino/motivo para a tabela de revisao.
-function resumoDestino(
-  c: Config,
-  filiais: Filial[],
-  motivos: Motivo[],
-): string {
-  if (c.tipo === 'transferencia') {
-    const f = filiais.find((x) => String(x.id) === c.filialDestinoId)
-    return f ? `→ ${f.nome}` : '—'
-  }
-  const partes: string[] = []
-  if (c.motivo) {
-    const m = motivos.find((x) => x.codigo === c.motivo)
-    partes.push(m?.rotulo ?? c.motivo)
-  }
-  if (c.colaborador) partes.push(c.colaborador)
-  if (c.setor) partes.push(c.setor)
-  return partes.length > 0 ? partes.join(' · ') : '—'
 }

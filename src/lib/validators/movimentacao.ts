@@ -56,6 +56,122 @@ export function tiposComunsPara(status: StatusAtivo[]): TipoMovimentacao[] {
 }
 
 // ---------------------------------------------------------------------------
+// CAMPOS_POR_TIPO — a matriz "tipo × campos" do formulario de nova movimentacao
+// em UM lugar so. Antes ela estava espalhada como arrays de string repetidos no
+// `construirItem` (switch) e no JSX do passo 2 (`['saida','emprestimo']`,
+// `['saida','emprestimo','reserva']`, `['saida','emprestimo','devolucao']`…), o
+// que virava fonte de bug se um tipo novo entrasse. Fonte unica consultada por:
+//   - `construirItem` (serializa a Config nas chaves certas de cada tipo);
+//   - a UI condicional do passo 2 (quais inputs aparecem, quais levam "*");
+//   - o painel de sucesso (termo so nos tipos que tem termo).
+//
+// Divisao de responsabilidade com o `movimentacaoSchema` abaixo: a TABELA e a
+// fonte da verdade da APLICABILIDADE (que campo existe em cada tipo e se e
+// obrigatorio); o SCHEMA, das REGRAS de validacao (formato, min/max, enum). Um
+// teste (movimentacao.test.ts) trava os dois em sincronia — o schema segue a
+// tabela, sem gerar a uniao em runtime (o que apagaria o narrowing da uniao
+// discriminada de que `actions/movimentacoes.ts` depende).
+//
+// Campos COMUNS a todo tipo (fora da tabela): `ativo_id`, `data`, `chamado`,
+// `observacao` — o base do Zod os aceita em qualquer tipo. `chamado` tambem
+// aparece na tabela porque sua VISIBILIDADE no passo 2 e por tipo, mas o
+// `construirItem` sempre o inclui pelo base. `status_resultante` (ajuste) vem de
+// estado proprio do form e e injetado por `montarItensInput`; a tabela so o
+// lista para a UI mostrar o select. `estorno_de` idem — o form nao cria estornos
+// (fluxo da linha do tempo), a tabela cobre o tipo so por completude.
+// ---------------------------------------------------------------------------
+export type CampoMovimentacao =
+  | 'motivo'
+  | 'colaborador'
+  | 'setor'
+  | 'chamado'
+  | 'termo'
+  | 'filial_destino'
+  | 'status_resultante'
+  | 'itens_faltantes'
+  | 'estorno_de'
+
+export type RegraCampo = 'obrigatorio' | 'opcional'
+
+export type MetaTipoMovimentacao = {
+  // Campos condicionais coletados no formulario para este tipo + a regra de cada.
+  campos: Partial<Record<CampoMovimentacao, RegraCampo>>
+  // A observacao vira justificativa obrigatoria (>=10 chars) — so no ajuste.
+  observacaoObrigatoria?: boolean
+  // saida/emprestimo exigem colaborador OU setor (regra cruzada do superRefine).
+  exigeColaboradorOuSetor?: boolean
+}
+
+const CAMPOS_SAIDA_EMPRESTIMO: MetaTipoMovimentacao = {
+  campos: {
+    motivo: 'obrigatorio',
+    colaborador: 'opcional',
+    setor: 'opcional',
+    chamado: 'opcional',
+    termo: 'opcional',
+  },
+  exigeColaboradorOuSetor: true,
+}
+
+// Tipos "simples": so coletam motivo opcional (compra e os passos de ciclo de
+// vida). Espelham o `simples(...)` do schema.
+const CAMPOS_SIMPLES: MetaTipoMovimentacao = { campos: { motivo: 'opcional' } }
+
+export const CAMPOS_POR_TIPO: Record<TipoMovimentacao, MetaTipoMovimentacao> = {
+  compra: CAMPOS_SIMPLES,
+  saida: CAMPOS_SAIDA_EMPRESTIMO,
+  emprestimo: CAMPOS_SAIDA_EMPRESTIMO,
+  reserva: {
+    campos: {
+      motivo: 'opcional',
+      colaborador: 'opcional',
+      setor: 'opcional',
+      chamado: 'opcional',
+    },
+  },
+  devolucao: { campos: { motivo: 'obrigatorio', itens_faltantes: 'opcional' } },
+  triagem_ok: CAMPOS_SIMPLES,
+  envio_manutencao: CAMPOS_SIMPLES,
+  retorno_manutencao: CAMPOS_SIMPLES,
+  marcar_defasado: CAMPOS_SIMPLES,
+  descarte: CAMPOS_SIMPLES,
+  transferencia: { campos: { filial_destino: 'obrigatorio' } },
+  ajuste: {
+    campos: { status_resultante: 'obrigatorio' },
+    observacaoObrigatoria: true,
+  },
+  estorno: { campos: { estorno_de: 'obrigatorio' } },
+}
+
+// ----- Predicados derivados da tabela (consumidos pela UI e pelo construirItem) -----
+
+// Este tipo coleta este campo no formulario?
+export function campoAplica(
+  tipo: TipoMovimentacao | '' | undefined,
+  campo: CampoMovimentacao,
+): boolean {
+  if (!tipo) return false
+  return CAMPOS_POR_TIPO[tipo].campos[campo] !== undefined
+}
+
+// Este campo e obrigatorio para este tipo? (falso quando nem se aplica.)
+export function campoObrigatorio(
+  tipo: TipoMovimentacao | '' | undefined,
+  campo: CampoMovimentacao,
+): boolean {
+  if (!tipo) return false
+  return CAMPOS_POR_TIPO[tipo].campos[campo] === 'obrigatorio'
+}
+
+// A observacao e justificativa obrigatoria neste tipo? (ajuste)
+export function observacaoObrigatoria(
+  tipo: TipoMovimentacao | '' | undefined,
+): boolean {
+  if (!tipo) return false
+  return CAMPOS_POR_TIPO[tipo].observacaoObrigatoria ?? false
+}
+
+// ---------------------------------------------------------------------------
 // SCHEMAS
 // ---------------------------------------------------------------------------
 
