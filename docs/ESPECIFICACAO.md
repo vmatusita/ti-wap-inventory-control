@@ -150,7 +150,7 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 
 **Duplicidade de patrimônio (regra definida pelo Johnny em 09/07):** o patrimônio é o identificador do dia a dia, mas **repete em casos raros** — por isso quem é único no banco é o par **patrimônio + service tag**. Quando uma busca por patrimônio encontrar mais de um ativo, a interface obriga a escolher pela service tag (exibida junto de modelo e filial). Dois ativos com o mesmo patrimônio e ambos **sem** service tag não podem coexistir — a importação acusa como inconsistência.
 
-**Unidades:** `CD-AFP` = `CD-Afonso Pena`; `Eusebio` = `Eusébio`; "Matriz " (com espaço) = `Matriz`.
+**Unidades:** `CD-AFP` = `CD-Afonso Pena`; `CD-PENA` = `CD-Afonso Pena`; `Afonso Pena` = `CD-Afonso Pena`; `Eusebio` = `Eusébio`; `Filial-CE` = `Eusébio`; `Serra Park` = `Serra`; "Matriz " (com espaço) = `Matriz`. *(Ampliado em 15/07/2026 com os valores reais da planilha — pergunta 1 da §13 respondida.)*
 
 ## 6. Módulos e telas
 
@@ -288,7 +288,7 @@ Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados r
 
 ## 13. Perguntas em aberto (para Johnny/WAP responder)
 
-1. **Filiais oficiais:** o e-mail semanal real reporta Matriz, CD-Afonso Pena, Linhares e **Eusébio–Ceará** — e os chamados do **Serra Park** aparecem atendidos pelo estoque de Linhares. Serra Park é filial com estoque próprio ou ponto atendido por Linhares? "CE Serra" que você citou = Eusébio/CE + Serra? (O cadastro de filiais é flexível — isso não trava o desenvolvimento.)
+1. ~~Filiais oficiais~~ — **respondida em 15/07/2026 (pré-F4):** Serra Park é **filial própria** ("Serra", com estoque — a planilha tem aba própria com 63 ativos) e **Filial-CE = Eusébio**. Filiais oficiais: **Matriz, CD-Afonso Pena, Linhares, Eusébio e Serra**. De→Para de unidades ampliado na §5; análise em `docs/ANALISE-PLANILHA-F4.md`.
 2. ~~Escopo do visualizador~~ — **respondida em 09/07/2026:** acesso por senha tem nível único; toda senha vê todos os relatórios de todas as filiais.
 3. ~~Convites restritos a domínio?~~ — **respondida em 09/07/2026:** login (operação) só com `@wap.ind.br`; terceirizados (Stefanini) e filiais consultam pelos relatórios **com senha de acesso, sem conta**.
 4. **Nº do chamado:** só guardar o número ou linkar para o sistema de chamados? Qual sistema é?
