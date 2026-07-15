@@ -20,26 +20,14 @@ import { revalidatePath } from 'next/cache'
 // Acesso por senha aos relatórios (spec §3 / OS-F3 3.9). Toda a validação roda
 // no servidor com o client administrativo — nunca a anon key, nunca o browser.
 
-// ---- Rate-limit simples em memória por IP (OS-F3 3.9.1) ----
-const JANELA_MS = 60_000
-const MAX_TENTATIVAS = 5
-const tentativas = new Map<string, { count: number; reset: number }>()
-
+// ---- Rate-limit por IP (OS-F3 3.9.1) ----
+// O contador é PERSISTENTE no Postgres (função registrar_tentativa_senha, migration
+// 0025): compartilhado entre instâncias da Vercel e atômico. O Map em memória antigo
+// era por-processo e sumia no cold start — best-effort demais contra brute force.
 function ipCliente(h: Headers): string {
   const fwd = h.get('x-forwarded-for')
   if (fwd) return fwd.split(',')[0]!.trim()
   return h.get('x-real-ip') ?? 'desconhecido'
-}
-
-function excedeuRateLimit(ip: string): boolean {
-  const agora = Date.now()
-  const reg = tentativas.get(ip)
-  if (!reg || reg.reset < agora) {
-    tentativas.set(ip, { count: 1, reset: agora + JANELA_MS })
-    return false
-  }
-  reg.count += 1
-  return reg.count > MAX_TENTATIVAS
 }
 
 // Destino pós-login (OS-F3 melhoria): leva o gestor direto ao relatório clicado.
@@ -65,7 +53,15 @@ export async function entrarComSenha(
   formData: FormData,
 ): Promise<EntrarState> {
   const h = await headers()
-  if (excedeuRateLimit(ipCliente(h))) {
+  const admin = createAdminClient()
+
+  // Rate-limit PERSISTENTE (§3.9.1): contador atômico no Postgres, compartilhado
+  // entre instâncias. Falha ABERTO se a RPC der erro — a senha é a barreira real,
+  // não travamos o acesso por um hiccup de infra.
+  const { data: excedeu } = await admin.rpc('registrar_tentativa_senha', {
+    p_ip: ipCliente(h),
+  })
+  if (excedeu) {
     return { erro: 'Muitas tentativas. Aguarde um instante e tente de novo.' }
   }
 
@@ -74,7 +70,6 @@ export async function entrarComSenha(
     return { erro: 'Senha inválida.' }
   }
 
-  const admin = createAdminClient()
   const { data: ativas } = await admin
     .from('senhas_acesso')
     .select('id, hash')

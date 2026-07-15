@@ -477,6 +477,24 @@ export type Database = {
           },
         ]
       }
+      senha_tentativas: {
+        Row: {
+          ip: string
+          janela_fim: string
+          tentativas: number
+        }
+        Insert: {
+          ip: string
+          janela_fim: string
+          tentativas?: number
+        }
+        Update: {
+          ip?: string
+          janela_fim?: string
+          tentativas?: number
+        }
+        Relationships: []
+      }
       senhas_acesso: {
         Row: {
           ativa: boolean
@@ -611,6 +629,10 @@ export type Database = {
           ativo_id: string
           patrimonio: string
         }[]
+      }
+      registrar_tentativa_senha: {
+        Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
+        Returns: boolean
       }
       rel_estoque_asof: {
         Args: { p_data: string; p_filial: number | null }
