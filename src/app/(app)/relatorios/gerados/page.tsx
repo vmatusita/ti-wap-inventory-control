@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { BarChart3, FileClock } from 'lucide-react'
+import { BarChart3, FileClock, MessageSquareText } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
@@ -82,7 +82,17 @@ export default async function RelatoriosGeradosPage({
               {gerados.map((g) => (
                 <TableRow key={g.id}>
                   <TableCell className="whitespace-nowrap tabular-nums">
-                    {formatDate(g.periodo_de)} – {formatDate(g.periodo_ate)}
+                    <span className="inline-flex items-center gap-1.5">
+                      {formatDate(g.periodo_de)} – {formatDate(g.periodo_ate)}
+                      {g.temObservacao && (
+                        <span
+                          title="Tem observação da semana"
+                          aria-label="Tem observação da semana"
+                        >
+                          <MessageSquareText className="size-3.5 shrink-0 text-brand-amarelo" />
+                        </span>
+                      )}
+                    </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{g.filialNome}</TableCell>
                   <TableCell>

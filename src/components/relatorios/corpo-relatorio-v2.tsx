@@ -14,8 +14,10 @@ import { TabelaItensGrupo } from '@/components/relatorios/tabela-itens-grupo'
 import { TabelaSaidas } from '@/components/relatorios/tabela-saidas'
 import { TabelaEntradas } from '@/components/relatorios/tabela-entradas'
 import { TabelaTransferencias } from '@/components/relatorios/tabela-transferencias'
+import { TabelaMovItens } from '@/components/relatorios/tabela-mov-itens'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
 import { ResumoPeriodoCard } from '@/components/relatorios/resumo-periodo'
+import { ObservacaoCard } from '@/components/relatorios/observacao-card'
 import { ChipsAncora } from '@/components/relatorios/chips-ancora'
 import { GrupoColapsavel } from '@/components/relatorios/grupo-colapsavel'
 
@@ -50,7 +52,10 @@ export function CorpoRelatorioV2({
 
   return (
     <div className="space-y-4">
-      <ChipsAncora temTransferencias={s.transferencias.length > 0} />
+      <ChipsAncora
+        temTransferencias={s.transferencias.length > 0}
+        temMovItens={(s.movimentacoesItens?.length ?? 0) > 0}
+      />
 
       {/* 1. KPIs gerais + série */}
       <KpiTiles kpis={s.kpis} anterior={s.kpisAnterior} />
@@ -183,10 +188,16 @@ export function CorpoRelatorioV2({
       <TabelaEntradas rows={s.entradas} ehGeral={s.meta.ehGeral} />
       <TabelaTransferencias rows={s.transferencias} />
 
-      {/* 8. Resumo no formato do e-mail */}
+      {/* 8. Movimentações de itens por quantidade (B5 — seção própria) */}
+      <TabelaMovItens rows={s.movimentacoesItens} ehGeral={s.meta.ehGeral} />
+
+      {/* 9. Resumo no formato do e-mail */}
       <CardRelatorio wide titulo="Resumo do período" subtitulo="no formato do e-mail semanal">
         <ResumoPeriodoCard resumo={s.resumo} />
       </CardRelatorio>
+
+      {/* 10. Observação da semana (B4 — só quando gravada no ato de gerar) */}
+      <ObservacaoCard texto={s.meta.observacao} />
     </div>
   )
 }

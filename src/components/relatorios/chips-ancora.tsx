@@ -9,10 +9,16 @@ const BASE: { href: string; rotulo: string }[] = [
   { href: '#entradas', rotulo: 'Entradas' },
 ]
 
-export function ChipsAncora({ temTransferencias }: { temTransferencias?: boolean }) {
-  const chips = temTransferencias
-    ? [...BASE, { href: '#transferencias', rotulo: 'Transferências' }]
-    : BASE
+export function ChipsAncora({
+  temTransferencias,
+  temMovItens,
+}: {
+  temTransferencias?: boolean
+  temMovItens?: boolean
+}) {
+  const chips = [...BASE]
+  if (temTransferencias) chips.push({ href: '#transferencias', rotulo: 'Transferências' })
+  if (temMovItens) chips.push({ href: '#mov-itens', rotulo: 'Itens' })
   return (
     <nav className="sticky top-14 z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-lg border bg-background/95 px-1 py-1.5 backdrop-blur [scrollbar-width:none] print:hidden [&::-webkit-scrollbar]:hidden">
       {chips.map((c) => (

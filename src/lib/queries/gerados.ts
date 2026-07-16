@@ -13,6 +13,7 @@ export type RelatorioGeradoLista = {
   filialNome: string
   filialSlug: string | null
   autorNome: string | null
+  temObservacao: boolean // B4 (F6B): indicador discreto na lista
 }
 
 type RawLista = {
@@ -21,12 +22,13 @@ type RawLista = {
   periodo_ate: string
   versao: number
   gerado_em: string
+  observacao: string | null
   filial: { nome: string; slug: string } | null
   autor: { nome: string | null } | null
 }
 
 const LISTA_SELECT =
-  'id, periodo_de, periodo_ate, versao, gerado_em, ' +
+  'id, periodo_de, periodo_ate, versao, gerado_em, observacao, ' +
   'filial:filiais!relatorios_gerados_filial_id_fkey(nome, slug), ' +
   'autor:profiles!relatorios_gerados_gerado_por_fkey(nome)'
 
@@ -59,6 +61,7 @@ export async function listarRelatoriosGerados(
     filialNome: r.filial?.nome ?? 'Consolidado',
     filialSlug: r.filial?.slug ?? null,
     autorNome: r.autor?.nome ?? null,
+    temObservacao: !!(r.observacao && r.observacao.trim()),
   }))
 }
 
