@@ -2,11 +2,15 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Download, FileText, Pencil } from 'lucide-react'
+import { CheckCircle2, Download, FileText, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { GerarTermoDialog } from '@/components/movimentacoes/gerar-termo-dialog'
+import {
+  ConfirmarAssinaturaDialog,
+  DesfazerAssinaturaDialog,
+} from '@/components/ativos/confirmar-assinatura-dialog'
 import { urlTermo } from '@/lib/actions/termos'
 import {
   TERMO_ROTULO,
@@ -14,22 +18,33 @@ import {
   familiaDoTipo,
   type TermoTipo,
 } from '@/lib/termos/tipos'
-import { formatDateTime } from '@/lib/format'
-import { rotuloCategoria, type CategoriaAtivo } from '@/lib/dominio'
+import { formatDate, formatDateTime } from '@/lib/format'
+import {
+  rotuloCategoria,
+  rotuloTermo,
+  type CategoriaAtivo,
+  type TermoStatus,
+} from '@/lib/dominio'
 import type { TermoGerado } from '@/lib/queries/termos'
 
 // Seção "Termos" da ficha (F5A §5): histórico dos termos gerados (download +
 // editar) e geração retroativa a partir das movimentações elegíveis do ativo.
 export function TermosDaFicha({
+  ativoId,
   patrimonio,
   categoria,
+  termoAssinado,
+  termoData,
   termos,
   respMovId,
   devolMovId,
   devolTipo,
 }: {
+  ativoId: string
   patrimonio: string
   categoria: CategoriaAtivo
+  termoAssinado: TermoStatus | null
+  termoData: string | null
   termos: TermoGerado[]
   respMovId: string | null
   devolMovId: string | null
@@ -109,7 +124,34 @@ export function TermosDaFicha({
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Assinatura do termo de responsabilidade (B6): confirmar / desfazer.
+            Só 'sim' encerra a pendência. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+          {termoAssinado === 'sim' ? (
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
+                <span className="font-medium">Termo assinado</span>
+                {termoData && (
+                  <span className="text-muted-foreground tabular-nums">
+                    em {formatDate(termoData)}
+                  </span>
+                )}
+              </div>
+              <DesfazerAssinaturaDialog ativoId={ativoId} />
+            </>
+          ) : (
+            <>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Assinatura do termo: </span>
+                <span className="font-medium">{rotuloTermo(termoAssinado)}</span>
+              </div>
+              <ConfirmarAssinaturaDialog ativoId={ativoId} />
+            </>
+          )}
+        </div>
+
         {termos.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nenhum termo gerado para este ativo ainda.

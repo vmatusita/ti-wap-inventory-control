@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { EditarAtivoDialog } from '@/components/ativos/editar-ativo-dialog'
+import { CorrigirPatrimonioDialog } from '@/components/ativos/corrigir-patrimonio-dialog'
 import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
 import { TermosDaFicha } from '@/components/ativos/termos-da-ficha'
@@ -104,6 +105,11 @@ export default async function AtivoFichaPage({
             </Link>
           </Button>
           <AnotarDialog ativoId={ativo.id} />
+          <CorrigirPatrimonioDialog
+            ativoId={ativo.id}
+            patrimonioAtual={ativo.patrimonio}
+            serviceTag={ativo.service_tag}
+          />
           <EditarAtivoDialog ativo={ativo} />
         </div>
       </div>
@@ -160,10 +166,13 @@ export default async function AtivoFichaPage({
         </CardContent>
       </Card>
 
-      {/* Termos gerados + geração retroativa (F5A) */}
+      {/* Termos gerados + geração retroativa (F5A) + confirmar assinatura (B6) */}
       <TermosDaFicha
+        ativoId={ativo.id}
         patrimonio={ativo.patrimonio}
         categoria={ativo.categoria}
+        termoAssinado={ativo.termo_assinado}
+        termoData={ativo.termo_data}
         termos={termos}
         respMovId={respMov?.id ?? null}
         devolMovId={devolMov?.id ?? null}
