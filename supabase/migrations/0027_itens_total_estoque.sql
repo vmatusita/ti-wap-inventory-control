@@ -14,7 +14,16 @@
 --   atrelados = Σ_chamado max(0, Σreserva − Σliberacao)     -- reserva/liberacao independem de saida/retorno
 --   liberados = max(0, Σsaida − Σretorno)                    -- "em uso com pessoas"
 --   estoque   = max(0, total − atrelados − liberados)        -- prateleira
---   falta     = max(0, atrelados − estoque)
+--   falta     = max(0, atrelados + liberados − total)         -- déficit REAL (ver nota falta)
+--
+-- NOTA (falta — correção da revisão adversarial 16/07): a OS §A4 l.152 define
+-- falta = max(0, atrelados − estoque), mas nesta doutrina atrelar DESCONTA o
+-- estoque (pools disjuntos), então atrelados > estoque é NORMAL e aquela fórmula
+-- acende "faltam N" falso a cada atrelagem (ex.: entrada 10 + atrelar 8 →
+-- estoque 2, atrelados 8, falta 6 — nada está faltando). O déficit REAL é
+-- atrelados + liberados − total, que o trigger impede de ficar > 0 em dados
+-- válidos (estoque nunca < 0). Falta vira indicador de anomalia (0 na operação
+-- normal), não alarme espúrio. Decisão registrada em DECISOES.
 --
 -- NOTA (drift da OS §A4 l.149, decisão A4/D1): a OS escreveu
 -- `atrelados = Σ_chamado max(0, Σreserva − Σliberacao − Σsaida)`, mas isso produz
@@ -87,8 +96,7 @@ create function public.rel_saldo_itens(
          p.total::bigint,
          greatest(0, p.total - p.atrelados - p.liberados)::bigint                     as estoque,
          p.atrelados::bigint,
-         greatest(0, p.atrelados
-                     - greatest(0, p.total - p.atrelados - p.liberados))::bigint      as falta
+         greatest(0, p.atrelados + p.liberados - p.total)::bigint                      as falta
   from por_item p
   order by p.grupo, p.ordem, p.nome;
 $$;

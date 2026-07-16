@@ -1012,22 +1012,26 @@ async function sumario(
   console.log(`  itens (catalogo): ${totalItens}  |  lancamentos: ${totalLanc}  |  anotacoes: ${totalAnot}`)
   // Falta e saldo zerado sao conceitos POR FILIAL (o e-mail e por filial); o
   // consolidado mascara a falta de uma filial com a sobra de outra. Checa por filial.
-  type SaldoRow = { item: string; saldo: number; falta: number }
+  // F6A: a RPC agora devolve total/estoque/atrelados/falta (sem `saldo`). Na
+  // doutrina nova `falta` é indicador de anomalia (0 na operação válida — o
+  // trigger impede estoque < 0), então a auto-verificação passa a checar
+  // `atrelados > 0` (atrelar desconta o estoque) em vez de falta.
+  type SaldoRow = { item: string; estoque: number; atrelados: number; falta: number }
   const idBySlug = new Map<string, number>()
   for (const [id, slug] of slugById) idBySlug.set(slug, id)
-  let faltasTotais = 0
+  let comAtrelados = 0
   for (const [, id] of idBySlug) {
     const { data } = await db.rpc('rel_saldo_itens', { p_filial: id, p_ate: '2026-12-31' })
-    faltasTotais += ((data ?? []) as SaldoRow[]).filter((s) => Number(s.falta) > 0).length
+    comAtrelados += ((data ?? []) as SaldoRow[]).filter((s) => Number(s.atrelados) > 0).length
   }
   const { data: sLinhares } = await db.rpc('rel_saldo_itens', {
     p_filial: idBySlug.get('linhares'),
     p_ate: '2026-12-31',
   })
   const carregador = ((sLinhares ?? []) as SaldoRow[]).find((s) => s.item === 'Carregador micro-USB')
-  const zeradoOk = carregador ? Number(carregador.saldo) === 0 : false
-  console.log(`  ${faltasTotais >= 1 ? '✓' : '✗'} itens com falta (atrelados > saldo), por filial: ${faltasTotais}  (meta >= 1)`)
-  console.log(`  ${zeradoOk ? '✓' : '✗'} item com saldo zerado (Carregador micro-USB @ Linhares)  (meta: sim)`)
+  const zeradoOk = carregador ? Number(carregador.estoque) === 0 : false
+  console.log(`  ${comAtrelados >= 1 ? '✓' : '✗'} itens com atrelados (F6A: atrelar desconta estoque), por filial: ${comAtrelados}  (meta >= 1)`)
+  console.log(`  ${zeradoOk ? '✓' : '✗'} item com estoque zerado (Carregador micro-USB @ Linhares)  (meta: sim)`)
 
   console.log('\nNOTA (pendente de sign-off do Johnny): a estrategia prioriza a distribuicao de')
   console.log(`      STATUS FINAL (spec 10.1). Por isso o total de movimentacoes (~${totalMov}) e o mix`)
