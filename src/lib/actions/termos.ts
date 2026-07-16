@@ -9,8 +9,12 @@ import Docxtemplater from 'docxtemplater'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
-import { traduzErroBanco } from '@/lib/actions/erros'
-import { hojeISO } from '@/lib/format'
+import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import {
+  confirmarAssinaturaSchema,
+  desfazerAssinaturaSchema,
+} from '@/lib/validators/ativo'
+import { formatDate, hojeISO } from '@/lib/format'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import {
   TERMO_ARQUIVO,
@@ -465,6 +469,126 @@ export async function urlTermo(input: {
     url: signed.signedUrl,
     nomeArquivo: nomeDownload(row.tipo as TermoTipo, row.colaborador ?? ''),
   }
+}
+
+// ---------------------------------------------------------------------------
+// confirmarAssinaturaTermo (B6, F6B) — marca termo_assinado = 'sim' (o único
+// status que ENCERRA a pendência) + termo_data. O rastro de "quem confirmou /
+// quando" vive na `anotacoes` (imutável; autor+data já na linha do tempo) —
+// `ativos` não tem coluna de autor. SEM upload (o PDF assinado segue na F5 5.5).
+// ---------------------------------------------------------------------------
+export async function confirmarAssinaturaTermo(input: {
+  ativo_id: string
+  data?: string
+}): Promise<ActionResult> {
+  const parsed = confirmarAssinaturaSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+
+  const supabase = await createClient()
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+
+  const { ativo_id } = parsed.data
+  const dataAssinatura = parsed.data.data ?? hojeISO()
+
+  // Guard: só age se ainda não estiver 'sim' (idempotente; evita anotação boba).
+  const { data: ativo, error: eLer } = await supabase
+    .from('ativos')
+    .select('termo_assinado')
+    .eq('id', ativo_id)
+    .maybeSingle()
+  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message) }
+  if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+  if (ativo.termo_assinado === 'sim') {
+    return { ok: false, erro: 'Este termo já consta como assinado.' }
+  }
+
+  const { error: eUpd } = await supabase
+    .from('ativos')
+    .update({ termo_assinado: 'sim', termo_data: dataAssinatura })
+    .eq('id', ativo_id)
+  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message) }
+
+  // Rastro imutável na linha do tempo (autor + created_at vêm das colunas).
+  const { error: eNota } = await supabase.from('anotacoes').insert({
+    ativo_id,
+    texto: `Termo confirmado como assinado (data da assinatura: ${formatDate(dataAssinatura)}).`,
+    criado_por: uid,
+  })
+  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message) }
+
+  revalidatePath(`/ativos/${ativo_id}`)
+  revalidatePath('/pendencias')
+  // Coluna "Termo" do relatório lê o histórico da movimentação, mas as pendências
+  // do relatório ao vivo derivam de ativos — revalida por garantia.
+  revalidatePath('/relatorios', 'layout')
+  return { ok: true }
+}
+
+// ---------------------------------------------------------------------------
+// desfazerConfirmacaoTermo (B6, F6B) — ação inversa. Volta para 'gerado' se
+// houver termo gerado cobrindo o ativo (termos_gerados.ativo_ids), senão 'nao'.
+// Limpa termo_data (a data de assinatura deixou de valer e a data de geração
+// não é recuperável). Registra o desfazer na linha do tempo.
+// ---------------------------------------------------------------------------
+export async function desfazerConfirmacaoTermo(input: {
+  ativo_id: string
+}): Promise<ActionResult> {
+  const parsed = desfazerAssinaturaSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+
+  const supabase = await createClient()
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+
+  const { ativo_id } = parsed.data
+
+  const { data: ativo, error: eLer } = await supabase
+    .from('ativos')
+    .select('termo_assinado')
+    .eq('id', ativo_id)
+    .maybeSingle()
+  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message) }
+  if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+  if (ativo.termo_assinado !== 'sim') {
+    return { ok: false, erro: 'Só é possível desfazer um termo confirmado como assinado.' }
+  }
+
+  // Existe termo gerado pelo sistema cobrindo este ativo? Se sim, o estado
+  // honesto de volta é 'gerado' (documento existe, falta assinatura); senão 'nao'.
+  const { data: gerados, error: eGer } = await supabase
+    .from('termos_gerados')
+    .select('id')
+    .contains('ativo_ids', [ativo_id])
+    .limit(1)
+  if (eGer) return { ok: false, erro: traduzErroBanco(eGer.message) }
+  const destino: 'gerado' | 'nao' = gerados && gerados.length > 0 ? 'gerado' : 'nao'
+
+  const { error: eUpd } = await supabase
+    .from('ativos')
+    .update({ termo_assinado: destino, termo_data: null })
+    .eq('id', ativo_id)
+  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message) }
+
+  const texto =
+    destino === 'gerado'
+      ? 'Confirmação de assinatura desfeita — o termo volta a constar como gerado (pendente de assinatura).'
+      : 'Confirmação de assinatura desfeita — o termo volta a constar como não gerado.'
+  const { error: eNota } = await supabase.from('anotacoes').insert({
+    ativo_id,
+    texto,
+    criado_por: uid,
+  })
+  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message) }
+
+  revalidatePath(`/ativos/${ativo_id}`)
+  revalidatePath('/pendencias')
+  revalidatePath('/relatorios', 'layout')
+  return { ok: true }
 }
 
 // Nome amigável para o download (o arquivo no Storage é `${id}.docx`).

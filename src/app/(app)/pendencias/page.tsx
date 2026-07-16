@@ -20,9 +20,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { PenLine } from 'lucide-react'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { PendenciasFiltros } from '@/components/pendencias/pendencias-filtros'
+import { ConfirmarAssinaturaDialog } from '@/components/ativos/confirmar-assinatura-dialog'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -102,6 +105,7 @@ export default async function PendenciasPage({
                 <TableHead>Setor</TableHead>
                 <TableHead>Filial</TableHead>
                 <TableHead className="text-right">Desde</TableHead>
+                <TableHead className="text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -136,6 +140,19 @@ export default async function PendenciasPage({
                       <span className="block text-xs text-muted-foreground">
                         {haQuantosDias(p.desde)}
                       </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {p.tipo === 'termo' && (
+                        <ConfirmarAssinaturaDialog
+                          ativoId={p.id}
+                          trigger={
+                            <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                              <PenLine className="size-3.5" />
+                              Confirmar assinatura
+                            </Button>
+                          }
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 )
