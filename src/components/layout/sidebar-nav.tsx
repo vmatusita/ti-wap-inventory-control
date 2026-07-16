@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   Boxes,
+  CircleHelp,
   ClipboardList,
   LayoutDashboard,
   Package,
@@ -29,6 +30,7 @@ const ITENS: NavItem[] = [
   { rotulo: 'Pendências', icone: ClipboardList, href: '/pendencias' },
   { rotulo: 'Relatórios', icone: BarChart3, href: '/relatorios/geral', match: '/relatorios' },
   { rotulo: 'Administração', icone: Settings, href: '/admin/usuarios', match: '/admin' },
+  { rotulo: 'Ajuda', icone: CircleHelp, href: '/ajuda' },
 ]
 
 function ativa(pathname: string, item: NavItem): boolean {
