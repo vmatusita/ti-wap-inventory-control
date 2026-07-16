@@ -135,7 +135,11 @@ export type ManutencaoCaso = {
 // Linha de item nos grupos 2–3 (acessórios / componentes).
 export type SaldoItemPeriodo = {
   item: string
-  saldo: number
+  // v3 (F6A): total possuído + estoque na prateleira. Snapshots v2 pré-F6A só têm
+  // `saldo` (= estoque de então) → `saldo` é opcional/legado e o render tolera.
+  total?: number
+  estoque?: number
+  saldo?: number // legado (snapshots pré-F6A) — não gravar em snapshots novos
   atrelados: number
   falta: number
   entradas: number

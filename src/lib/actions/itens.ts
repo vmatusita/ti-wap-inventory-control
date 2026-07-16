@@ -13,6 +13,7 @@ import {
   type LancamentoItemInput,
 } from '@/lib/validators/item'
 import type { TipoLancamento } from '@/lib/dominio'
+import { planejarEstorno } from '@/lib/itens/estorno'
 
 async function operadorId(): Promise<string | null> {
   const supabase = await createClient()
@@ -51,16 +52,6 @@ export async function lancarItem(input: LancamentoItemInput): Promise<ActionResu
   return { ok: true }
 }
 
-// Inverso de cada tipo (correção = lançamento inverso vinculado — a linha some
-// nunca; regra do sistema).
-const INVERSO: Record<TipoLancamento, TipoLancamento> = {
-  entrada: 'saida',
-  saida: 'entrada',
-  reserva: 'liberacao',
-  liberacao: 'reserva',
-  ajuste: 'ajuste',
-}
-
 // Estorna um lançamento criando o INVERSO com estorna_id. Nada se apaga. O banco
 // impede duplo estorno (índice único em estorna_id) e valida o saldo do inverso.
 export async function estornarLancamento(input: {
@@ -92,19 +83,21 @@ export async function estornarLancamento(input: {
     .maybeSingle()
   if (jaEstorno) return { ok: false, erro: 'Este lançamento já foi estornado.' }
 
-  const tipoInverso = INVERSO[orig.tipo as TipoLancamento]
-  const ehAjuste = orig.tipo === 'ajuste'
+  const plano = planejarEstorno({
+    tipo: orig.tipo as TipoLancamento,
+    quantidade: orig.quantidade,
+    chamado: orig.chamado,
+    observacao: orig.observacao,
+  })
   const { error: e2 } = await supabase.from('lancamentos_item').insert({
     item_id: orig.item_id,
     filial_id: orig.filial_id,
-    tipo: tipoInverso,
-    // ajuste inverte o sinal; os demais repetem a quantidade no tipo oposto.
-    quantidade: ehAjuste ? -orig.quantidade : orig.quantidade,
-    // reserva/liberacao carregam o chamado (obrigatório); entrada/saida não.
-    chamado: tipoInverso === 'reserva' || tipoInverso === 'liberacao' ? orig.chamado : null,
+    tipo: plano.tipo,
+    quantidade: plano.quantidade,
+    chamado: plano.chamado,
     colaborador: null,
     data: hojeISO(),
-    observacao: ehAjuste ? `Estorno de ajuste (${orig.observacao ?? '—'})`.slice(0, 500) : null,
+    observacao: plano.observacao,
     criado_por: uid,
     estorna_id: orig.id,
   })

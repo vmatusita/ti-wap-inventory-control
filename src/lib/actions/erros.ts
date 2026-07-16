@@ -31,12 +31,22 @@ export function traduzErroBanco(mensagem: string | undefined | null): string {
   if (m.includes('estorno_de precisa apontar')) {
     return 'A movimentação de origem não pertence a este ativo.'
   }
-  // Itens por quantidade (trigger/constraints da 0015).
-  if (m.includes('saldo insuficiente') || m.includes('saldo negativo')) {
-    return 'Saldo insuficiente: a operação deixaria o item com saldo negativo.'
+  // Itens por quantidade (trigger 0015 → 0027, semântica Total/Estoque F6A).
+  // Mantém os textos antigos por compat; adiciona os novos do trigger 0027.
+  if (m.includes('estoque insuficiente') || m.includes('saldo insuficiente') || m.includes('saldo negativo')) {
+    return 'Estoque insuficiente: a operação deixaria o item com estoque negativo na prateleira.'
   }
-  if (m.includes('liberação maior') || m.includes('liberacao maior') || m.includes('reserva aberta')) {
-    return 'A liberação é maior que a reserva aberta do chamado.'
+  if (m.includes('ajuste inválido') || m.includes('ajuste invalido')) {
+    return 'Ajuste inválido: deixaria o item com total negativo.'
+  }
+  if (
+    m.includes('devolução maior') || m.includes('devolucao maior') || m.includes('atrelado aberto') ||
+    m.includes('liberação maior') || m.includes('liberacao maior') || m.includes('reserva aberta')
+  ) {
+    return 'A devolução é maior que a quantidade atrelada ao chamado.'
+  }
+  if (m.includes('retorno maior') || m.includes('liberado em aberto')) {
+    return 'O retorno é maior que a quantidade liberada em aberto.'
   }
   if (m.includes('lanc_item_ajuste_obs')) {
     return 'O ajuste exige uma justificativa (observação).'

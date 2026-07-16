@@ -132,7 +132,7 @@ export function HistoricoLancamentos({ rows }: { rows: LancamentoHistorico[] }) 
           <DialogHeader>
             <DialogTitle>Estornar lançamento</DialogTitle>
             <DialogDescription>
-              Cria o lançamento <strong>inverso</strong> vinculado (nada é apagado). O saldo
+              Cria o lançamento <strong>inverso</strong> vinculado (nada é apagado). O estoque
               e os atrelados voltam ao estado anterior.
             </DialogDescription>
           </DialogHeader>

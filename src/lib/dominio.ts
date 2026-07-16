@@ -163,25 +163,40 @@ export function rotuloGrupoItem(g: GrupoItem): string {
 
 export const GRUPO_ITEM_ORDEM: GrupoItem[] = ['acessorio', 'componente']
 
-export const TIPO_LANCAMENTO_META: Record<TipoLancamento, { rotulo: string }> = {
-  entrada: { rotulo: 'Entrada' },
-  saida: { rotulo: 'Saída' },
-  reserva: { rotulo: 'Reserva' },
-  liberacao: { rotulo: 'Liberação' },
-  ajuste: { rotulo: 'Ajuste' },
+// Semântica Total/Estoque (F6A §A4, decisão Johnny 16/07/2026). Os VALORES do enum
+// são imutáveis (renomear quebraria histórico); a reconciliação é só de RÓTULO:
+//   saida→Liberação (fica c/ a pessoa), reserva→Atrelar (vai retornar),
+//   liberacao→Devolução (repõe estoque), retorno→Retorno (novo). `descricao` ajuda
+//   o operador no dialog a entender o efeito de cada tipo.
+export const TIPO_LANCAMENTO_META: Record<
+  TipoLancamento,
+  { rotulo: string; descricao: string }
+> = {
+  entrada: { rotulo: 'Entrada', descricao: 'Compra/recebimento — soma ao total e ao estoque.' },
+  saida: { rotulo: 'Liberação', descricao: 'Item fica com a pessoa — baixa o estoque; o total continua.' },
+  reserva: { rotulo: 'Atrelar', descricao: 'Acompanha um ativo/chamado e vai retornar — baixa o estoque.' },
+  liberacao: { rotulo: 'Devolução', descricao: 'Item atrelado voltou — repõe o estoque.' },
+  retorno: { rotulo: 'Retorno', descricao: 'Item liberado voltou para a prateleira — repõe o estoque.' },
+  ajuste: { rotulo: 'Ajuste', descricao: 'Correção de inventário (± com justificativa).' },
 }
 
 export function rotuloTipoLancamento(t: TipoLancamento): string {
   return TIPO_LANCAMENTO_META[t]?.rotulo ?? t
 }
 
-// Pílula colorida da coluna Tipo no histórico de lançamentos: entrada azul,
-// saída amarela (paleta WAP), reserva violeta, liberação verde, ajuste neutro.
+export function descricaoTipoLancamento(t: TipoLancamento): string {
+  return TIPO_LANCAMENTO_META[t]?.descricao ?? ''
+}
+
+// Pílula colorida da coluna Tipo no histórico: entrada azul, liberação(saida)
+// âmbar, atrelar(reserva) violeta, devolução(liberacao) verde, retorno teal,
+// ajuste neutro.
 const TIPO_LANC_PILL: Record<TipoLancamento, string> = {
   entrada: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
   saida: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   reserva: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
   liberacao: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
+  retorno: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
   ajuste: 'bg-muted text-muted-foreground',
 }
 

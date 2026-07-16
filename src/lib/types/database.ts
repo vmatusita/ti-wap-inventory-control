@@ -696,12 +696,13 @@ export type Database = {
         Args: { p_ate: string; p_filial: number | null }
         Returns: {
           atrelados: number
+          estoque: number
           falta: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           item: string
           item_id: number
           ordem: number
-          saldo: number
+          total: number
         }[]
       }
       status_apos_movimentacao: {
@@ -731,7 +732,13 @@ export type Database = {
         | "defasado"
         | "descartado"
       termo_status: "sim" | "nao" | "enviado" | "gerado"
-      tipo_lancamento: "entrada" | "saida" | "reserva" | "liberacao" | "ajuste"
+      tipo_lancamento:
+        | "entrada"
+        | "saida"
+        | "reserva"
+        | "liberacao"
+        | "ajuste"
+        | "retorno"
       tipo_movimentacao:
         | "compra"
         | "saida"
@@ -893,7 +900,14 @@ export const Constants = {
         "descartado",
       ],
       termo_status: ["sim", "nao", "enviado", "gerado"],
-      tipo_lancamento: ["entrada", "saida", "reserva", "liberacao", "ajuste"],
+      tipo_lancamento: [
+        "entrada",
+        "saida",
+        "reserva",
+        "liberacao",
+        "ajuste",
+        "retorno",
+      ],
       tipo_movimentacao: [
         "compra",
         "saida",

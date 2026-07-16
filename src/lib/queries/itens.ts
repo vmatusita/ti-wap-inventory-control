@@ -24,7 +24,8 @@ export type SaldoItem = {
   item: string
   grupo: GrupoItem
   ordem: number
-  saldo: number
+  total: number
+  estoque: number
   atrelados: number
   falta: number
 }
@@ -109,7 +110,8 @@ export async function getSaldosItens(filialId: number | null): Promise<SaldoItem
     item: r.item,
     grupo: r.grupo,
     ordem: r.ordem,
-    saldo: Number(r.saldo),
+    total: Number(r.total),
+    estoque: Number(r.estoque),
     atrelados: Number(r.atrelados),
     falta: Number(r.falta),
   }))

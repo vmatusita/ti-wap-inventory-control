@@ -72,7 +72,7 @@ export default async function ItensPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Itens por quantidade</h1>
           <p className="text-sm text-muted-foreground">
-            Acessórios, periféricos e componentes — saldo, atrelados e falta por filial.
+            Acessórios, periféricos e componentes — total, estoque, atrelados e falta por filial.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -100,7 +100,8 @@ export default async function ItensPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Item</TableHead>
-                      <TableHead className="text-right">Saldo</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Estoque</TableHead>
                       <TableHead className="text-right">Atrelados</TableHead>
                       <TableHead className="text-right">Falta</TableHead>
                     </TableRow>
@@ -109,8 +110,11 @@ export default async function ItensPage({
                     {bloco.itens.map((s) => (
                       <TableRow key={s.item_id}>
                         <TableCell className="font-medium">{s.item}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {s.total.toLocaleString('pt-BR')}
+                        </TableCell>
                         <TableCell className="text-right font-semibold tabular-nums">
-                          {s.saldo.toLocaleString('pt-BR')}
+                          {s.estoque.toLocaleString('pt-BR')}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">
                           {s.atrelados > 0 ? s.atrelados.toLocaleString('pt-BR') : '—'}

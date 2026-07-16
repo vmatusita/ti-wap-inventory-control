@@ -134,7 +134,7 @@ export function CorpoRelatorioV2({ snapshot }: { snapshot: SnapshotRelatorioV2 }
           descricao="fone, mochila, teclado, mouse, hub, carregadores…"
         >
           <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
-            <CardRelatorio titulo="Saldo por item" subtitulo="saldo · atrelados · Δ · falta">
+            <CardRelatorio titulo="Saldo por item" subtitulo="total · estoque · atrelados · Δ · falta">
               <TabelaItensGrupo itens={acessorios.itens} mostrarAtrelados />
             </CardRelatorio>
             <CardRelatorio titulo="Movimentação por item" subtitulo="entradas × saídas no período">
@@ -153,7 +153,7 @@ export function CorpoRelatorioV2({ snapshot }: { snapshot: SnapshotRelatorioV2 }
           descricao="SSD, memórias por DDR e tamanho…"
         >
           <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
-            <CardRelatorio titulo="Saldo por item" subtitulo="saldo · Δ · falta">
+            <CardRelatorio titulo="Saldo por item" subtitulo="total · estoque · Δ · falta">
               <TabelaItensGrupo itens={componentes.itens} mostrarAtrelados={componentes.temAtrelados} />
             </CardRelatorio>
             <CardRelatorio titulo="Movimentação por item" subtitulo="entradas × saídas no período">

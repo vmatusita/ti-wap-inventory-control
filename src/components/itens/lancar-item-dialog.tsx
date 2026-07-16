@@ -40,13 +40,14 @@ import {
   GRUPO_ITEM_META,
   GRUPO_ITEM_ORDEM,
   TIPO_LANCAMENTO_META,
+  descricaoTipoLancamento,
   type TipoLancamento,
 } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import type { ItemCatalogo, UltimoLancamento } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 
-const TIPOS: TipoLancamento[] = ['entrada', 'saida', 'reserva', 'liberacao', 'ajuste']
+const TIPOS: TipoLancamento[] = ['entrada', 'saida', 'reserva', 'liberacao', 'retorno', 'ajuste']
 
 // Lançamento de quantidade (OS 3.3.2): dialog enxuto, meta ≤15s. "Repetir último"
 // pré-preenche tudo menos a quantidade. Atalho `L` abre de qualquer lugar de
@@ -162,7 +163,7 @@ export function LancarItemDialog({
         <DialogHeader>
           <DialogTitle>Lançar quantidade</DialogTitle>
           <DialogDescription>
-            Entrada, saída, reserva, liberação ou ajuste de um item por quantidade.
+            Entrada, liberação, atrelar, devolução, retorno ou ajuste de um item.
           </DialogDescription>
         </DialogHeader>
 
@@ -265,6 +266,9 @@ export function LancarItemDialog({
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {descricaoTipoLancamento(tipo)}
+              </p>
             </div>
           </div>
 

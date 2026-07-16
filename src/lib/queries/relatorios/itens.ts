@@ -45,16 +45,21 @@ export async function getGruposItens(
   const porGrupo = new Map<GrupoItem, SaldoItemPeriodo[]>()
   for (const s of saldos.data ?? []) {
     const mov = movPorItem.get(s.item_id) ?? { entradas: 0, saidas: 0 }
-    const saldo = Number(s.saldo)
+    const total = Number(s.total)
+    const estoque = Number(s.estoque)
     const atrelados = Number(s.atrelados)
     const falta = Number(s.falta)
-    // Esconde itens sem nenhum sinal no filtro (saldo/atrelados/mov/falta zerados).
-    if (saldo === 0 && atrelados === 0 && falta === 0 && mov.entradas === 0 && mov.saidas === 0) {
+    // Esconde itens sem nenhum sinal no filtro (total/estoque/atrelados/mov/falta zerados).
+    if (
+      total === 0 && estoque === 0 && atrelados === 0 && falta === 0 &&
+      mov.entradas === 0 && mov.saidas === 0
+    ) {
       continue
     }
     const linha: SaldoItemPeriodo = {
       item: s.item,
-      saldo,
+      total,
+      estoque,
       atrelados,
       falta,
       entradas: mov.entradas,
