@@ -263,3 +263,16 @@ export const OBS_CARGA_GOLIVE = 'carga go-live'
 // mesma lição do A1. Igualdade EXATA de propósito; nunca filtrar por LIKE. É a
 // FONTE ÚNICA do literal (a carga da F6C importará daqui).
 export const OBS_SALDO_INICIAL = 'saldo inicial (go-live)'
+
+// ---------- MARCADOR DA CARGA DE STARTUP POR CSV (F7 — import "Substituir tudo") ----------
+// O import de startup por filial (RPC importar_ativos_substituir, migration 0032)
+// grava, para cada ativo do plano, uma COMPRA de abertura e — quando o estado-alvo
+// não é 'em_estoque' — um AJUSTE de reconciliação, AMBOS com esta observação
+// prefixada pela data: `import startup dd/MM/yyyy` (ex.: 'import startup 16/07/2026').
+// Não é evento do período: as leituras do relatório excluem por PREFIXO
+// (src/lib/queries/relatorios/movimentacoes.ts — `not.like 'import startup*'`).
+// Diferente do OBS_CARGA_GOLIVE (igualdade exata), aqui o filtro é por PREFIXO
+// porque a observação carrega a data variável do import. É a FONTE ÚNICA do literal
+// do PREFIXO (a RPC grava `import startup dd/MM/yyyy`; o filtro importa daqui) —
+// mantenha em sincronia com a string hard-coded na migration 0032.
+export const OBS_IMPORT_STARTUP = 'import startup'

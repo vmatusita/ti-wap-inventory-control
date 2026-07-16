@@ -3,7 +3,7 @@ import type {
   TermoStatus,
   TipoMovimentacao,
 } from '@/lib/dominio'
-import { OBS_CARGA_GOLIVE, rotuloTermo } from '@/lib/dominio'
+import { OBS_CARGA_GOLIVE, OBS_IMPORT_STARTUP, rotuloTermo } from '@/lib/dominio'
 import type { Periodo } from '@/lib/relatorios/periodo'
 import {
   granularidadeDoPeriodo,
@@ -215,6 +215,11 @@ export async function getUltimasMovimentacoes(
     // F6A-A1: exclui as compras sintéticas de abertura da carga go-live. .neq
     // sozinho descartaria observacao IS NULL (PostgREST) — .or null-safe preserva.
     .or(`observacao.is.null,observacao.neq."${OBS_CARGA_GOLIVE}"`)
+    // F7: exclui também a carga de startup por CSV (compra + ajuste de abertura).
+    // A observação é `import startup dd/MM/yyyy` (data variável) → filtro por
+    // PREFIXO com not.like (wildcard `*` do PostgREST). Segundo .or() é ANDado no
+    // topo com o de cima → (null OU ≠golive) AND (null OU NÃO começa com o marcador).
+    .or(`observacao.is.null,observacao.not.like."${OBS_IMPORT_STARTUP}*"`)
   if (filialId) q = q.eq('filial_id', filialId)
   q = q
     .order('created_at', { ascending: false })
@@ -264,6 +269,11 @@ async function buscarLinhasPeriodo(
         // texto exato. .or null-safe preserva linhas com observacao IS NULL;
         // fica ANDado com o .or() de origem/destino da transferência abaixo.
         .or(`observacao.is.null,observacao.neq."${OBS_CARGA_GOLIVE}"`)
+        // F7: exclui também a carga de startup por CSV (compra + ajuste de
+        // abertura). Observação `import startup dd/MM/yyyy` → filtro por PREFIXO
+        // (not.like, wildcard `*`). Cada .or() é ANDado no topo → preserva a
+        // null-safety e o .or() de origem/destino da transferência abaixo.
+        .or(`observacao.is.null,observacao.not.like."${OBS_IMPORT_STARTUP}*"`)
       if (filialId) {
         // Transferência aparece nas DUAS filiais (regra 5): origem OU destino.
         q = incluirDestino
