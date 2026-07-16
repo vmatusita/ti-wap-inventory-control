@@ -4,6 +4,8 @@ Executor desta ordem no repositório `ti-wap-inventory-control`. **Modo autônom
 
 Nasce da sessão de melhorias de 16/07/2026 com o Johnny (decisões em §5). **Pré-requisito: OS-F6A concluída** (a página `/pendencias` do A5 é destino de ações do B6; a semântica Total/Estoque do A4 aparece em telas que o B5 toca).
 
+> **Para executar, prefira `F6B-ultracode.md`** (mesmo escopo, mesmas decisões): versão com prompts detalhados por frente e orquestração multi-agente em duas ondas, fatos verificados no código pós-F6A e migrations pré-alocadas (0030+). Este arquivo permanece como registro do escopo e das decisões.
+
 ## 0. Antes de qualquer coisa
 
 1. Leia `CLAUDE.md`, spec §4/§5/§6/§7 e `docs/PLANO-RELATORIOS-V2.md`.
