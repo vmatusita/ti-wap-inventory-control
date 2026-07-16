@@ -27,14 +27,14 @@ export default async function AjudaPage() {
       <AjudaBusca>
         <nav
           aria-label="Sumário"
-          className="sticky top-14 z-20 -mx-1 flex flex-wrap gap-1.5 rounded-lg border bg-background/95 px-2 py-2 backdrop-blur print:hidden"
+          className="sticky top-14 z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-lg border bg-background/95 px-2 py-2 backdrop-blur [scrollbar-width:none] print:hidden [&::-webkit-scrollbar]:hidden"
         >
           {SECOES.map((s) => (
             <a
               key={s.id}
               href={`#${s.id}`}
               data-ajuda-chip={s.id}
-              className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-amarelo hover:text-foreground"
+              className="shrink-0 whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-amarelo hover:text-foreground"
             >
               {s.titulo}
             </a>
@@ -48,7 +48,7 @@ export default async function AjudaPage() {
               id={s.id}
               data-ajuda-secao
               data-ajuda-texto={textoDaSecao(s)}
-              className="scroll-mt-16 space-y-4"
+              className="scroll-mt-28 space-y-4"
             >
               <h2 className="text-lg font-semibold tracking-tight">{s.titulo}</h2>
               {s.blocos.map((b, i) => (
