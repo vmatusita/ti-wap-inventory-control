@@ -170,6 +170,66 @@ export type Database = {
         }
         Relationships: []
       }
+      import_logs: {
+        Row: {
+          anotacoes_apagadas: number
+          arquivo_hash: string
+          ativos_criados: number
+          backup_path: string
+          created_at: string
+          criado_por: string
+          filial_id: number
+          id: string
+          modo: string
+          movs_apagadas: number
+          termos_apagados: number
+          total_linhas: number
+        }
+        Insert: {
+          anotacoes_apagadas: number
+          arquivo_hash: string
+          ativos_criados: number
+          backup_path: string
+          created_at?: string
+          criado_por: string
+          filial_id: number
+          id?: string
+          modo: string
+          movs_apagadas: number
+          termos_apagados: number
+          total_linhas: number
+        }
+        Update: {
+          anotacoes_apagadas?: number
+          arquivo_hash?: string
+          ativos_criados?: number
+          backup_path?: string
+          created_at?: string
+          criado_por?: string
+          filial_id?: number
+          id?: string
+          modo?: string
+          movs_apagadas?: number
+          termos_apagados?: number
+          total_linhas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_logs_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_logs_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itens: {
         Row: {
           ativo: boolean
@@ -640,6 +700,10 @@ export type Database = {
           ativo_id: string
           patrimonio: string
         }[]
+      }
+      importar_ativos_substituir: {
+        Args: { p_backup_path: string; p_plano: Json }
+        Returns: Json
       }
       registrar_tentativa_senha: {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
