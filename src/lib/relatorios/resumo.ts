@@ -3,9 +3,14 @@ import type { CategoriaAtivo } from '@/lib/dominio'
 import type { ResumoPeriodo, ResumoTipo } from '@/lib/relatorios/tipos'
 
 // Gera o texto do resumo no formato do e-mail semanal (spec §7 / OS-F3 3.3.6):
-// "No período de X a Y foram realizadas N saídas: Matriz — novo colaborador:
-// 04 notebooks, 04 monitores; …". Função PURA — usada na página ao vivo e no
-// snapshot, e é o texto do botão "Copiar texto".
+// a filial vira cabeçalho e cada motivo ganha a própria linha indentada (B3/F6B —
+// decisão do Johnny, 16/07/2026):
+//   • Matriz (8) —
+//     novo colaborador: 04 notebooks, 04 monitores
+//     troca: 02 desktops
+// Função PURA — usada na página ao vivo, no snapshot (ao vivo e congelados v1/v2,
+// que regeram o texto no render) e no botão "Copiar texto". As quebras `\n` viram
+// quebra visual no `<pre whitespace-pre-wrap>` do card e são copiadas junto.
 
 const CATEGORIA_PLURAL: Record<CategoriaAtivo, { um: string; varios: string }> = {
   notebook: { um: 'notebook', varios: 'notebooks' },
@@ -38,15 +43,15 @@ function blocoTipo(
     }:`,
   ]
   for (const f of tipo.filiais) {
-    const motivos = f.motivos
-      .map((m) => {
-        const cats = m.categorias
-          .map((c) => categoriaTexto(c.categoria, c.total))
-          .join(', ')
-        return `${m.motivo.toLowerCase()}: ${cats}`
-      })
-      .join('; ')
-    linhas.push(`• ${f.filial} (${f.total}) — ${motivos}`)
+    // Cabeçalho da filial; cada motivo em linha própria indentada. O `;` que antes
+    // separava motivos some — a quebra de linha o substitui (B3/F6B).
+    linhas.push(`• ${f.filial} (${f.total}) —`)
+    for (const m of f.motivos) {
+      const cats = m.categorias
+        .map((c) => categoriaTexto(c.categoria, c.total))
+        .join(', ')
+      linhas.push(`  ${m.motivo.toLowerCase()}: ${cats}`)
+    }
   }
   return linhas
 }
