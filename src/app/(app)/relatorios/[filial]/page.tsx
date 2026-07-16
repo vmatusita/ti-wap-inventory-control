@@ -48,13 +48,16 @@ export default async function RelatorioFilialPage({
     if (!f) notFound()
   }
 
+  const ehOperador = acesso.modo === 'operador'
+
   const [filiais, snapshot] = await Promise.all([
     listarFiliais(acesso.client),
-    getSnapshotRelatorioV2(acesso.client, filialSlug, {
-      de: periodo.de,
-      ate: periodo.ate,
-      rotulo: periodo.rotulo,
-    }),
+    getSnapshotRelatorioV2(
+      acesso.client,
+      filialSlug,
+      { de: periodo.de, ate: periodo.ate, rotulo: periodo.rotulo },
+      ehOperador, // viewer → sem pendências no snapshot ao vivo
+    ),
   ])
 
   const semana = semanaUtilCorrente()
@@ -100,7 +103,7 @@ export default async function RelatorioFilialPage({
         <PeriodoFiltro preset={periodo.preset} de={periodo.de} ate={periodo.ate} />
       </div>
 
-      <CorpoRelatorio snapshot={snapshot} />
+      <CorpoRelatorio snapshot={snapshot} ehOperador={ehOperador} />
     </div>
   )
 }

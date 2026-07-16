@@ -75,10 +75,10 @@ export default async function DashboardPage() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Pendências</h2>
               <Link
-                href="/relatorios/geral"
+                href="/pendencias"
                 className="text-xs text-muted-foreground underline-offset-2 hover:underline"
               >
-                ver relatório
+                ver todas
               </Link>
             </div>
             {pendencias.length === 0 ? (

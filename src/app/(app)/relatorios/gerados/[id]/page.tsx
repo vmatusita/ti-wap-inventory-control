@@ -16,6 +16,7 @@ export default async function RelatorioGeradoPage({
 
   const acesso = await resolverAcessoRelatorio()
   if (!acesso) redirect('/relatorios/acesso')
+  const ehOperador = acesso.modo === 'operador'
 
   const detalhe = await buscarRelatorioGerado(acesso.client, id)
   if (!detalhe) notFound()
@@ -70,7 +71,7 @@ export default async function RelatorioGeradoPage({
         <BotaoImprimir />
       </div>
 
-      <CorpoRelatorio snapshot={s} />
+      <CorpoRelatorio snapshot={s} ehOperador={ehOperador} />
     </div>
   )
 }

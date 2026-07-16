@@ -35,7 +35,13 @@ function Frescor({ data }: { data: string | null }) {
 
 // Relatório v2 no formato do e-mail (F3B §4): 3 grupos + tabelas detalhadas. A
 // MESMA grade serve a página ao vivo e o snapshot congelado.
-export function CorpoRelatorioV2({ snapshot }: { snapshot: SnapshotRelatorioV2 }) {
+export function CorpoRelatorioV2({
+  snapshot,
+  ehOperador = false,
+}: {
+  snapshot: SnapshotRelatorioV2
+  ehOperador?: boolean
+}) {
   const s = snapshot
   const serie = s.serieMovimentacoes
   const temMov = serie.pontos.some((p) => p.saidas > 0 || p.devolucoes > 0)
@@ -164,8 +170,8 @@ export function CorpoRelatorioV2({ snapshot }: { snapshot: SnapshotRelatorioV2 }
         </GrupoColapsavel>
       )}
 
-      {/* 5. Pendências */}
-      {s.pendencias.length > 0 && (
+      {/* 5. Pendências — assunto interno da TI: só o operador vê (A5/F6A) */}
+      {ehOperador && s.pendencias.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-lg font-semibold tracking-tight">Pendências</h2>
           <PendenciasChips pendencias={s.pendencias} />

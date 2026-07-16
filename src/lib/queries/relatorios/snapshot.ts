@@ -43,6 +43,9 @@ export async function getSnapshotRelatorioV2(
   client: DbClient,
   filialSlug: string,
   periodo: Periodo & { rotulo?: string },
+  // A5/F6A: o viewer por senha NÃO recebe pendências (defesa em profundidade; o
+  // corte de verdade é no render). Geração de snapshot e operador mantêm `true`.
+  incluirPendencias = true,
 ): Promise<SnapshotRelatorioV2> {
   const ehGeral = filialSlug === 'geral'
   const filial = ehGeral ? null : await resolverFilialPorSlug(client, filialSlug)
@@ -60,7 +63,9 @@ export async function getSnapshotRelatorioV2(
       lerEstadoAtivos(client, filialId, anterior.ate),
       getSerieMovimentacoes(client, filialId, periodo),
       getPorMotivo(client, filialId, periodo),
-      getPendencias(client, slugParaView),
+      incluirPendencias
+        ? getPendencias(client, slugParaView)
+        : Promise.resolve([] as SnapshotRelatorioV2['pendencias']),
       getGruposItens(client, filialId, periodo),
       getTabelasFinais(client, filialId, periodo),
       getResumoPeriodo(client, filialId, periodo),

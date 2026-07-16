@@ -53,15 +53,30 @@ function serieDoSnapshot(s: SnapshotRelatorio): SerieMovimentacoes {
 
 // Ponto de entrada do relatório: despacha v2 (formato do e-mail — F3B) ou v1
 // (grade da F3, para snapshots antigos que continuam abrindo — 3.10.2).
-export function CorpoRelatorio({ snapshot }: { snapshot: AnySnapshot }) {
+// `ehOperador` (default seguro `false`): pendência é assunto interno da TI — o
+// viewer por senha não vê a seção Pendências em lugar nenhum (A5/F6A). Quem
+// esquecer de passar a flag ESCONDE, não vaza.
+export function CorpoRelatorio({
+  snapshot,
+  ehOperador = false,
+}: {
+  snapshot: AnySnapshot
+  ehOperador?: boolean
+}) {
   if (ehSnapshotV2(snapshot)) {
-    return <CorpoRelatorioV2 snapshot={snapshot} />
+    return <CorpoRelatorioV2 snapshot={snapshot} ehOperador={ehOperador} />
   }
-  return <CorpoRelatorioV1 snapshot={snapshot} />
+  return <CorpoRelatorioV1 snapshot={snapshot} ehOperador={ehOperador} />
 }
 
 // Grade da F3 (v1) — usada só para reabrir snapshots gerados antes do F3B.
-function CorpoRelatorioV1({ snapshot }: { snapshot: SnapshotRelatorio }) {
+function CorpoRelatorioV1({
+  snapshot,
+  ehOperador,
+}: {
+  snapshot: SnapshotRelatorio
+  ehOperador: boolean
+}) {
   const s = snapshot
   const serieMov = serieDoSnapshot(s)
   const temMovimentacao = serieMov.pontos.some((p) => p.saidas > 0 || p.devolucoes > 0)
@@ -69,7 +84,7 @@ function CorpoRelatorioV1({ snapshot }: { snapshot: SnapshotRelatorio }) {
     <div className="space-y-3.5">
       <KpiTiles kpis={s.kpis} />
 
-      <PendenciasChips pendencias={s.pendencias} />
+      {ehOperador && <PendenciasChips pendencias={s.pendencias} />}
 
       <div className="rel-print-cols grid gap-3.5 md:grid-cols-2">
         <CardRelatorio

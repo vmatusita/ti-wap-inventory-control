@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   Boxes,
+  ClipboardList,
   LayoutDashboard,
   Package,
   Settings,
@@ -25,6 +26,7 @@ const ITENS: NavItem[] = [
   { rotulo: 'Ativos', icone: Package, href: '/ativos' },
   { rotulo: 'Movimentações', icone: ArrowLeftRight, href: '/movimentacoes/nova' },
   { rotulo: 'Itens', icone: Boxes, href: '/itens' },
+  { rotulo: 'Pendências', icone: ClipboardList, href: '/pendencias' },
   { rotulo: 'Relatórios', icone: BarChart3, href: '/relatorios/geral', match: '/relatorios' },
   { rotulo: 'Administração', icone: Settings, href: '/admin/usuarios', match: '/admin' },
 ]

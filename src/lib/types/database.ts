@@ -613,11 +613,19 @@ export type Database = {
       v_pendencias: {
         Row: {
           categoria: Database["public"]["Enums"]["categoria_ativo"] | null
+          colaborador_atual: string | null
+          desde: string | null
           filial: string | null
+          filial_nome: string | null
           id: string | null
+          marca: string | null
+          modelo: string | null
           patrimonio: string | null
           pendencia: string | null
+          setor_atual: string | null
           status: Database["public"]["Enums"]["status_ativo"] | null
+          termo_data: string | null
+          updated_at: string | null
         }
         Relationships: []
       }
