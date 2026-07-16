@@ -61,7 +61,17 @@ export async function verificarSenha(
 
 // ---- Cookie assinado da sessão de visualização (HMAC) ----
 
-export const VIEW_MAX_AGE_SEG = 30 * 24 * 60 * 60 // 30 dias (OS-F3 3.9.2)
+// Sessão de visualização expira em 24h (decisão do Johnny, 16/07/2026 — F6B/B8).
+// Antes eram 30 dias (OS-F3 3.9.2). Governa OS DOIS lados: o `exp` do payload
+// assinado e o `maxAge` do cookie `wap_view` (lib/actions/senhas.ts).
+export const VIEW_MAX_AGE_SEG = 24 * 60 * 60 // 24h
+
+// Folga (clock skew) no teto de `exp` aceito por `lerSessaoView`. Serve para
+// derrubar cookies do regime antigo de 30 dias: um cookie legítimo tem
+// `exp <= agora + VIEW_MAX_AGE_SEG`; qualquer `exp` muito além disso foi assinado
+// antes de 16/07/2026 e é rejeitado no request seguinte (o gestor redigita a
+// senha — efeito desejado). A revogação por banco continua imediata (acesso.ts).
+const FOLGA_TETO_SEG = 60
 
 type PayloadView = { sid: string; exp: number } // sid = senha_id, exp = epoch (s)
 
@@ -115,5 +125,9 @@ export function lerSessaoView(
     return null
   }
   if (payload.exp * 1000 <= agoraMs) return null // expirado
+  // Teto anti-regime-antigo: exp não pode ultrapassar agora + 24h + folga. Mata
+  // cookies emitidos com validade de 30 dias antes da decisão de 16/07/2026.
+  const tetoExpSeg = Math.floor(agoraMs / 1000) + VIEW_MAX_AGE_SEG + FOLGA_TETO_SEG
+  if (payload.exp > tetoExpSeg) return null
   return { senhaId: payload.sid }
 }
