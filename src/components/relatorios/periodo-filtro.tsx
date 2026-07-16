@@ -11,6 +11,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import { cn } from '@/lib/utils'
 import { PRESETS, type PresetPeriodo } from '@/lib/relatorios/periodo'
 
 // Filtro de período (OS-F3 3.2.1): presets + range custom, tudo via searchParams
@@ -26,7 +28,8 @@ export function PeriodoFiltro({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [, start] = useTransition()
+  const [isPending, start] = useTransition()
+  useReportarNavegacao(isPending)
   const [pDe, setPDe] = useState(de)
   const [pAte, setPAte] = useState(ate)
   const [aberto, setAberto] = useState(false)
@@ -53,7 +56,13 @@ export function PeriodoFiltro({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      aria-busy={isPending}
+      className={cn(
+        'flex flex-wrap items-center gap-2 transition-opacity',
+        isPending && 'opacity-70',
+      )}
+    >
       {PRESETS.map((p) => (
         <Button
           key={p.valor}
