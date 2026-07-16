@@ -4,6 +4,10 @@ import { getOperador, getViewerSession } from '@/lib/auth/acesso'
 import { AppHeader } from '@/components/layout/app-header'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { ViewerHeader } from '@/components/layout/viewer-header'
+import {
+  BarraProgressoNavegacao,
+  ProgressoNavegacaoProvider,
+} from '@/components/layout/progresso-navegacao'
 import { AtalhoGlobalNovaMovimentacao } from '@/components/movimentacoes/atalho-global'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -29,16 +33,19 @@ export default async function AppLayout({
   if (operador) {
     return (
       <TooltipProvider delayDuration={300}>
-        <AtalhoGlobalNovaMovimentacao />
-        <div className="flex min-h-svh flex-col">
-          <AppHeader nome={operador.nome} />
-          <div className="flex flex-1">
-            <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
-              <SidebarNav />
-            </aside>
-            <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+        <ProgressoNavegacaoProvider>
+          <BarraProgressoNavegacao />
+          <AtalhoGlobalNovaMovimentacao />
+          <div className="flex min-h-svh flex-col">
+            <AppHeader nome={operador.nome} />
+            <div className="flex flex-1">
+              <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
+                <SidebarNav />
+              </aside>
+              <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+            </div>
           </div>
-        </div>
+        </ProgressoNavegacaoProvider>
       </TooltipProvider>
     )
   }
@@ -50,10 +57,13 @@ export default async function AppLayout({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex min-h-svh flex-col">
-        <ViewerHeader rotulo={viewer.rotulo} />
-        <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
-      </div>
+      <ProgressoNavegacaoProvider>
+        <BarraProgressoNavegacao />
+        <div className="flex min-h-svh flex-col">
+          <ViewerHeader rotulo={viewer.rotulo} />
+          <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+        </div>
+      </ProgressoNavegacaoProvider>
     </TooltipProvider>
   )
 }

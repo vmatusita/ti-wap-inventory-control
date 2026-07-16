@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 import type { Filial } from '@/lib/queries/filiais'
 import type { TipoPendencia } from '@/lib/queries/pendencias-detalhe'
 
@@ -43,7 +44,8 @@ export function PendenciasFiltros({
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
+  useReportarNavegacao(isPending)
 
   const [busca, setBusca] = useState(q ?? '')
   const [qSync, setQSync] = useState(q ?? '')

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 
 const TODAS = '__todas'
 
@@ -22,7 +23,8 @@ export function GeradosFiltroFilial({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [, start] = useTransition()
+  const [isPending, start] = useTransition()
+  useReportarNavegacao(isPending)
 
   function mudar(valor: string) {
     const qs = valor === TODAS ? '' : `?filial=${valor}`

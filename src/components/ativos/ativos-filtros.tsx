@@ -26,6 +26,8 @@ import {
   rotuloCategoria,
   rotuloStatus,
 } from '@/lib/dominio'
+import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import { cn } from '@/lib/utils'
 import type { Filial } from '@/lib/queries/filiais'
 
 const TODAS = '__todas'
@@ -34,7 +36,11 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
+
+  // Acende a barra global enquanto a navegação por filtro está pendente (roda
+  // em startTransition, então NÃO dispara o loading.tsx da rota).
+  useReportarNavegacao(isPending)
 
   const qAtual = params.get('q') ?? ''
   const filialAtual = params.get('filial') ?? ''
@@ -95,7 +101,13 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
     !!qAtual || !!filialAtual || !!categoriaAtual || statusAtual.length > 0
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      aria-busy={isPending}
+      className={cn(
+        'flex flex-wrap items-center gap-2 transition-opacity',
+        isPending && 'opacity-70',
+      )}
+    >
       <div className="relative min-w-0 flex-1 sm:max-w-xs">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input

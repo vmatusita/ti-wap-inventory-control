@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM } from '@/lib/dominio'
+import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 import type { Filial } from '@/lib/queries/filiais'
 
 const TODAS = '__todas'
@@ -24,7 +25,8 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
+  useReportarNavegacao(isPending)
 
   const qAtual = params.get('q') ?? ''
   const filialAtual = params.get('filial') ?? ''

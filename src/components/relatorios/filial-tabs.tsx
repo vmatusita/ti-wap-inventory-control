@@ -1,8 +1,21 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { useLinkStatus } from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+
+// Indicador de navegação de uma tab (F6B/B1). useLinkStatus (Next 16) só
+// funciona DENTRO de um <Link>, então este subcomponente vive como filho do
+// Link e expõe o `pending` daquela tab: acende a barra global e mostra um
+// spinner discreto na tab clicada enquanto o destino carrega.
+function IndicadorTab() {
+  const { pending } = useLinkStatus()
+  useReportarNavegacao(pending)
+  if (!pending) return null
+  return <Loader2 className="ml-1.5 size-3 animate-spin" aria-hidden />
+}
 
 // Tabs de filial (mockup): filiais ativas + "Consolidado" (slug 'geral'). Tab
 // ativa com o sublinhado amarelo WAP. Preserva o período nos searchParams.
@@ -35,6 +48,7 @@ export function FilialTabs({
             )}
           >
             {t.nome}
+            <IndicadorTab />
           </Link>
         )
       })}
