@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ export function GerarRelatorioDialog({
   const [aberto, setAberto] = useState(false)
   const [de, setDe] = useState(padraoDe)
   const [ate, setAte] = useState(padraoAte)
+  const [observacao, setObservacao] = useState('')
   const [escopo, setEscopo] = useState<'atual' | 'geral'>(ehGeral ? 'geral' : 'atual')
   const [enviando, start] = useTransition()
 
@@ -52,7 +54,12 @@ export function GerarRelatorioDialog({
   function gerar() {
     if (!periodoValido) return
     start(async () => {
-      const res = await gerarRelatorio({ filialSlug: slugAlvo, de, ate })
+      const res = await gerarRelatorio({
+        filialSlug: slugAlvo,
+        de,
+        ate,
+        observacao: observacao.trim() || undefined,
+      })
       if (!res.ok) {
         toast.error(res.erro)
         return
@@ -120,6 +127,22 @@ export function GerarRelatorioDialog({
             </div>
           </div>
         )}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="ger-obs">Observações da semana (opcional)</Label>
+          <Textarea
+            id="ger-obs"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            maxLength={2000}
+            placeholder="Ex.: semana com feriado; parte dos notebooks em trânsito entre filiais."
+            className="min-h-20"
+          />
+          <p className="text-xs text-muted-foreground">
+            Aparece no final do relatório congelado, com destaque — visível também
+            para quem acessa por senha.
+          </p>
+        </div>
 
         <div className="rounded-md border bg-muted/40 p-3 text-sm">
           Será congelado: <strong>{nomeAlvo}</strong> · {formatDate(de)} a{' '}

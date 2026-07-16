@@ -255,3 +255,11 @@ export function rotuloAcessorio(codigo: string): string {
 // usa 'carga go-live: estado conforme planilha…' (prefixo homônimo); um filtro
 // por LIKE varreria os ajustes também. Nunca usar LIKE 'carga go-live%'.
 export const OBS_CARGA_GOLIVE = 'carga go-live'
+
+// ---------- MARCADOR DA CARGA DE SALDOS INICIAIS DE ITENS (F6C, futura) ----------
+// A carga de saldos de itens por quantidade (scripts/import/carga.ts) marcará cada
+// LANÇAMENTO inicial com esta observação EXATA. Não é movimentação do período — as
+// leituras do relatório de itens a excluem (src/lib/queries/relatorios/itens.ts),
+// mesma lição do A1. Igualdade EXATA de propósito; nunca filtrar por LIKE. É a
+// FONTE ÚNICA do literal (a carga da F6C importará daqui).
+export const OBS_SALDO_INICIAL = 'saldo inicial (go-live)'

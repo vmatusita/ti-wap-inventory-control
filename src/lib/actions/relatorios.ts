@@ -18,6 +18,8 @@ const periodoSchema = z.object({
   filialSlug: z.string().min(1),
   de: z.string().regex(DATA_RE, 'Data inicial inválida'),
   ate: z.string().regex(DATA_RE, 'Data final inválida'),
+  // B4 (F6B): observação da semana — texto livre opcional definido no ato de gerar.
+  observacao: z.string().trim().max(2000, 'Observação: no máximo 2000 caracteres').optional(),
 })
 
 // Gera o relatório da semana (snapshot congelado — spec §7.1 / OS-F3 3.8.2 /
@@ -32,12 +34,15 @@ export async function gerarRelatorio(input: {
   filialSlug: string
   de: string
   ate: string
+  observacao?: string
 }): Promise<GerarRelatorioResult> {
   const parsed = periodoSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: 'Período inválido para a geração.' }
   }
-  const { filialSlug, de, ate } = parsed.data
+  const { filialSlug, de, ate, observacao } = parsed.data
+  // Trim já aplicado pelo Zod; obs vazia (ou só espaços) vira ausência (null).
+  const obs = observacao && observacao.length > 0 ? observacao : null
   if (de > ate) {
     return { ok: false, erro: 'A data inicial não pode ser depois da final.' }
   }
@@ -77,6 +82,12 @@ export async function gerarRelatorio(input: {
     }
   }
 
+  // A obs é do ATO de gerar (o relatório ao vivo não a tem): injeta no snapshot
+  // congelado para o corpo renderizar de forma autossuficiente (operador e viewer),
+  // além de gravar na coluna (a lista de gerados indica quais têm obs sem parsear
+  // o jsonb). Só grava quando há texto — snapshots sem obs não têm o campo.
+  if (obs) snapshot.meta.observacao = obs
+
   // Versão = max(versao)+1 para o mesmo (período, filial). filial null = geral.
   let versaoQuery = client
     .from('relatorios_gerados')
@@ -102,6 +113,7 @@ export async function gerarRelatorio(input: {
       versao,
       dados: snapshot as unknown as Json,
       gerado_por: uid,
+      observacao: obs,
     })
     .select('id')
     .single()

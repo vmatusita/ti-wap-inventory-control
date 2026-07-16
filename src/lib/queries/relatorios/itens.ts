@@ -1,6 +1,11 @@
-import type { GrupoItem } from '@/lib/dominio'
+import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
+import { OBS_SALDO_INICIAL } from '@/lib/dominio'
 import type { Periodo } from '@/lib/relatorios/periodo'
-import type { GrupoRelatorio, SaldoItemPeriodo } from '@/lib/relatorios/tipos'
+import type {
+  GrupoRelatorio,
+  LinhaLancamentoItem,
+  SaldoItemPeriodo,
+} from '@/lib/relatorios/tipos'
 import type { DbClient } from './comum'
 
 // Itens por quantidade nos grupos 2–3 do relatório v2 (acessórios/componentes —
@@ -83,4 +88,88 @@ export async function getGruposItens(
     })
   }
   return grupos
+}
+
+// ===========================================================================
+// B5 (F6B) — tabela de movimentações de ITENS por quantidade no período (seção
+// própria). Ao contrário de rel_mov_itens (agregado Σ por item), esta é lançamento
+// a lançamento: PostgREST direto em lancamentos_item com os embeds de item e
+// filial, filtrada pela janela. Recebe o client resolvido (serve operador E
+// viewer por senha, como as demais leituras de relatório). CAP no snapshot para o
+// JSON congelado não inchar sem limite (o relatório é semanal — dezenas de linhas).
+// ===========================================================================
+
+// CAP de linhas da tabela (registrado em DECISOES): folga larga sobre o volume
+// semanal real, sem deixar o snapshot congelado crescer sem teto.
+const CAP_MOV_ITENS = 500
+
+const MOV_ITENS_SELECT =
+  'id, data, tipo, quantidade, chamado, colaborador, observacao, estorna_id, ' +
+  'item:itens!lancamentos_item_item_id_fkey(nome, grupo), ' +
+  'filial:filiais!lancamentos_item_filial_id_fkey(nome)'
+
+type RawMovItemRow = {
+  id: string
+  data: string
+  tipo: TipoLancamento
+  quantidade: number
+  chamado: string | null
+  colaborador: string | null
+  observacao: string | null
+  estorna_id: string | null
+  item: { nome: string; grupo: GrupoItem } | null
+  filial: { nome: string } | null
+}
+
+// A carga de saldos iniciais (F6C) marca os lançamentos de abertura com esta obs
+// EXATA — não são movimentação do período. Predicado puro (testado): usado como
+// backstop em JS do filtro do banco (defesa em profundidade). NULL não é marcador
+// → aparece; o gotcha do `.neq` + NULL é resolvido no `.or` null-safe da query.
+export function ehSaldoInicialGoLive(obs: string | null): boolean {
+  return obs === OBS_SALDO_INICIAL
+}
+
+// Mapeia a linha crua (embeds do PostgREST) para o tipo do relatório. Puro.
+export function mapLancamentoItemRow(r: RawMovItemRow): LinhaLancamentoItem {
+  return {
+    id: r.id,
+    data: r.data,
+    filial: r.filial?.nome ?? '—',
+    item: r.item?.nome ?? '—',
+    grupo: r.item?.grupo ?? 'acessorio',
+    tipo: r.tipo,
+    quantidade: Number(r.quantidade),
+    chamado: r.chamado,
+    colaborador: r.colaborador,
+    obs: r.observacao,
+    ehEstorno: r.estorna_id != null,
+  }
+}
+
+export async function getLancamentosItensPeriodo(
+  client: DbClient,
+  filialId: number | null,
+  periodo: Periodo,
+): Promise<LinhaLancamentoItem[]> {
+  let q = client
+    .from('lancamentos_item')
+    .select(MOV_ITENS_SELECT)
+    .gte('data', periodo.de)
+    .lte('data', periodo.ate)
+    // F6C: exclui os lançamentos de saldo inicial da carga (não são do período).
+    // `.neq` sozinho descartaria observacao IS NULL (PostgREST) — o `.or` null-safe
+    // preserva as linhas sem observação. Mesmo padrão do filtro da carga em A1.
+    .or(`observacao.is.null,observacao.neq."${OBS_SALDO_INICIAL}"`)
+  if (filialId) q = q.eq('filial_id', filialId)
+  q = q
+    .order('data', { ascending: false })
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(CAP_MOV_ITENS)
+
+  const { data, error } = await q
+  if (error) throw new Error(`Falha ao listar movimentações de itens: ${error.message}`)
+  const rows = (data ?? []) as unknown as RawMovItemRow[]
+  // Backstop em JS do filtro da carga (defesa em profundidade — testado).
+  return rows.filter((r) => !ehSaldoInicialGoLive(r.observacao)).map(mapLancamentoItemRow)
 }

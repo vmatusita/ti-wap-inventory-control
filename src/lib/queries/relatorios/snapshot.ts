@@ -18,7 +18,7 @@ import {
   getSerieMovimentacoes,
   getTabelasFinais,
 } from './movimentacoes'
-import { getGruposItens } from './itens'
+import { getGruposItens, getLancamentosItensPeriodo } from './itens'
 import { getPendencias } from './pendencias'
 
 // ===========================================================================
@@ -57,7 +57,7 @@ export async function getSnapshotRelatorioV2(
   const filiais = await listarFiliais(client)
   const filiaisNome = new Map(filiais.map((f) => [f.id, f.nome]))
 
-  const [estado, estadoAnt, serie, porMotivo, pendencias, grupos, tabelas, resumo] =
+  const [estado, estadoAnt, serie, porMotivo, pendencias, grupos, tabelas, resumo, movsItens] =
     await Promise.all([
       lerEstadoAtivos(client, filialId, periodo.ate),
       lerEstadoAtivos(client, filialId, anterior.ate),
@@ -69,6 +69,7 @@ export async function getSnapshotRelatorioV2(
       getGruposItens(client, filialId, periodo),
       getTabelasFinais(client, filialId, periodo),
       getResumoPeriodo(client, filialId, periodo),
+      getLancamentosItensPeriodo(client, filialId, periodo),
     ])
 
   const [reservados, manutencao] = await Promise.all([
@@ -100,6 +101,7 @@ export async function getSnapshotRelatorioV2(
     saidas: tabelas.saidas,
     entradas: tabelas.entradas,
     transferencias: tabelas.transferencias,
+    movimentacoesItens: movsItens,
     resumo,
   }
 }

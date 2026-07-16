@@ -436,6 +436,7 @@ export type Database = {
           gerado_em: string
           gerado_por: string
           id: string
+          observacao: string | null
           periodo_ate: string
           periodo_de: string
           versao: number
@@ -446,6 +447,7 @@ export type Database = {
           gerado_em?: string
           gerado_por: string
           id?: string
+          observacao?: string | null
           periodo_ate: string
           periodo_de: string
           versao?: number
@@ -456,6 +458,7 @@ export type Database = {
           gerado_em?: string
           gerado_por?: string
           id?: string
+          observacao?: string | null
           periodo_ate?: string
           periodo_de?: string
           versao?: number

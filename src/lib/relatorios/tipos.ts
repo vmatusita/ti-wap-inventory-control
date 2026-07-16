@@ -2,6 +2,7 @@ import type {
   CategoriaAtivo,
   GrupoItem,
   StatusAtivo,
+  TipoLancamento,
   TipoMovimentacao,
 } from '@/lib/dominio'
 
@@ -98,6 +99,10 @@ export type MetaSnapshot = {
   // v1 (ausente) × v2 (formato do e-mail: 3 grupos + tabelas). CorpoRelatorio
   // normaliza — snapshots antigos continuam abrindo.
   schema?: 1 | 2
+  // B4 (F6B): observação da semana definida no ATO de gerar o snapshot (texto
+  // livre opcional). Congela junto com o resto; snapshots sem obs não têm o campo
+  // e o corpo não renderiza a seção. Campo OPCIONAL — mantém `schema: 2`.
+  observacao?: string
 }
 
 // ---- Estruturas do relatório v2 (formato do e-mail — F3B) ----
@@ -195,6 +200,23 @@ export type LinhaTransferencia = {
   obs: string | null
 }
 
+// B5 (F6B): uma linha da tabela de movimentações de ITENS por quantidade no
+// período (seção própria — só para acessórios/componentes; os ativos não mudam).
+// Lançamento a lançamento (ao contrário de rel_mov_itens, que agrega por item).
+export type LinhaLancamentoItem = {
+  id: string
+  data: string
+  filial: string
+  item: string
+  grupo: GrupoItem
+  tipo: TipoLancamento
+  quantidade: number
+  chamado: string | null
+  colaborador: string | null
+  obs: string | null
+  ehEstorno: boolean // estorna_id não nulo (o lançamento é o inverso de outro)
+}
+
 export type SnapshotRelatorio = {
   meta: MetaSnapshot
   kpis: KpisRelatorio
@@ -230,6 +252,10 @@ export type SnapshotRelatorioV2 = {
   saidas: LinhaSaida[]
   entradas: LinhaEntrada[]
   transferencias: LinhaTransferencia[]
+  // B5 (F6B): tabela de movimentações de itens do período. Campo OPCIONAL —
+  // snapshots gerados antes da F6B não têm o campo e a seção não renderiza.
+  // Mantém `schema: 2` (precedentes: `emprestado?`, `total?/estoque?`).
+  movimentacoesItens?: LinhaLancamentoItem[]
   resumo: ResumoPeriodo
 }
 
