@@ -10,6 +10,7 @@ const ITENS = [
   { href: '/admin/filiais', rotulo: 'Filiais' },
   { href: '/admin/motivos', rotulo: 'Motivos' },
   { href: '/admin/itens', rotulo: 'Itens' },
+  { href: '/admin/importar', rotulo: 'Importar' },
 ]
 
 export function AdminNav() {
