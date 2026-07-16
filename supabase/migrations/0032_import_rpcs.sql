@@ -36,9 +36,18 @@
 --
 -- Aditiva. Aplicar no projeto de DESENVOLVIMENTO.
 
+-- A revisão adversarial (16/07) achou uma janela TOCTOU: a revalidação de estado do
+-- W3 rodava fora desta transação/lock, então uma movimentação inserida entre o backup
+-- e o DELETE seria apagada sem constar no backup (e dois applies simultâneos se
+-- sobrescreviam). Fecha-se aqui: `p_contagens` traz as contagens do acervo backupeado
+-- e a RPC as reconfere JÁ sob o advisory lock, antes do DELETE (passo 2b). Assinatura
+-- mudou (2→3 args) → derruba a versão antiga primeiro.
+drop function if exists public.importar_ativos_substituir(jsonb, text);
+
 create or replace function public.importar_ativos_substituir(
   p_plano       jsonb,
-  p_backup_path text
+  p_backup_path text,
+  p_contagens   jsonb
 ) returns jsonb
 language plpgsql
 security definer
@@ -60,6 +69,13 @@ declare
   v_termos_apagados  int     := 0;
   v_arquivos_termos  text[]  := '{}';
   v_conferidos       int;
+  v_esp_ativos       int;
+  v_esp_movs         int;
+  v_esp_anot         int;
+  v_esp_termos       int;
+  v_liv_movs         int;
+  v_liv_anot         int;
+  v_liv_termos       int;
   v_log_id           uuid;
 begin
   -- ---------- 0. contexto de operador ----------
@@ -141,6 +157,40 @@ begin
                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
   ) then
     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
+  end if;
+
+  -- ---------- 2b. revalidação do estado vivo (fecha a janela TOCTOU) ----------
+  -- O W3 fotografou o acervo (preview + backup) ANTES desta transação, em round-trips
+  -- FORA do lock. Aqui, já sob o advisory lock e na MESMA transação do DELETE,
+  -- reconferimos que o estado vivo ainda bate com o que foi backupeado (`p_contagens`
+  -- = contagens do acervo exportado: ativos/movimentacoes/anotacoes/termos, mesmo
+  -- escopo do DELETE abaixo). Divergiu — uma movimentação inserida na janela entre o
+  -- backup e este ponto, ou um segundo "substituir" concorrente que já recriou o
+  -- acervo — então ABORTA: nada é apagado, o backup segue fiel e a mov avulsa
+  -- sobrevive. Fecha o lost-update de dois applies simultâneos (o 2º vê contagens
+  -- alteradas pelo 1º e aborta). Tolerante a p_contagens ausente (smoke/manual).
+  if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
+    v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
+    v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
+    v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
+    v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
+
+    select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
+    select count(*) into v_liv_movs from public.movimentacoes
+     where ativo_id in (select id from public.ativos where filial_id = v_filial);
+    select count(*) into v_liv_anot from public.anotacoes
+     where ativo_id in (select id from public.ativos where filial_id = v_filial);
+    select count(*) into v_liv_termos from public.termos_gerados t
+     where exists (select 1 from unnest(t.ativo_ids) aid
+                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
+       and not exists (select 1 from unnest(t.ativo_ids) aid
+                     join public.ativos a on a.id = aid where a.filial_id <> v_filial);
+
+    if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
+       or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
+      raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
+        v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
+    end if;
   end if;
 
   -- ---------- 3. DELETE ordenado (só desta filial) ----------
@@ -315,8 +365,8 @@ end $$;
 -- concede EXECUTE a public/anon/service_role via ALTER DEFAULT PRIVILEGES, então
 -- revogamos desses papéis ALÉM de public (advisor
 -- anon/authenticated_security_definer_function_executable / SECURITY DEFINER).
-revoke all on function public.importar_ativos_substituir(jsonb, text) from public, anon, service_role;
-grant execute on function public.importar_ativos_substituir(jsonb, text) to authenticated;
+revoke all on function public.importar_ativos_substituir(jsonb, text, jsonb) from public, anon, service_role;
+grant execute on function public.importar_ativos_substituir(jsonb, text, jsonb) to authenticated;
 
 
 -- =====================================================================
@@ -372,7 +422,8 @@ grant execute on function public.importar_ativos_substituir(jsonb, text) to auth
 --           )
 --         )
 --       ),
---       'backups-import/smoke/plano-smoke.json'
+--       'backups-import/smoke/plano-smoke.json',
+--       jsonb_build_object('ativos',0,'movimentacoes',0,'anotacoes',0,'termos',0)  -- filial nova = tudo 0
 --     );
 --     raise notice 'RESULTADO: %', v_res;
 --     raise notice 'ATIVOS: %', (

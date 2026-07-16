@@ -286,10 +286,14 @@ export async function aplicarImport(input: {
   }
 
   // RPC transacional (apaga o acervo + recria a partir do plano). Chamada pelo
-  // client autenticado — a RPC lê auth.uid() para criado_por.
+  // client autenticado — a RPC lê auth.uid() para criado_por. Passa `p_contagens`
+  // (as 4 contagens do preview/backup): a RPC as reconfere JÁ sob o advisory lock,
+  // na mesma transação do DELETE, fechando a janela TOCTOU entre backup e delete
+  // (mov concorrente apagada fora do backup / dois applies simultâneos).
   const { data, error } = await client.rpc('importar_ativos_substituir', {
     p_plano: plano as unknown as Json,
     p_backup_path: backupPath,
+    p_contagens: custoPreview as unknown as Json,
   })
   if (error) {
     return { ok: false, erro: traduzErroBanco(error.message) }

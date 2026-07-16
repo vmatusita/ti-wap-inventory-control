@@ -702,7 +702,7 @@ export type Database = {
         }[]
       }
       importar_ativos_substituir: {
-        Args: { p_backup_path: string; p_plano: Json }
+        Args: { p_backup_path: string; p_contagens: Json; p_plano: Json }
         Returns: Json
       }
       registrar_tentativa_senha: {
