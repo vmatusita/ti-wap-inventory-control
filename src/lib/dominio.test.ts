@@ -5,6 +5,7 @@ import {
   rotuloTipo,
   rotuloCategoria,
   rotuloAcessorio,
+  OBS_CARGA_GOLIVE,
   TERMO_META,
   STATUS_META,
   STATUS_ORDEM,
@@ -45,6 +46,16 @@ describe('rótulos de domínio', () => {
   it('rotuloAcessorio faz passthrough de código desconhecido', () => {
     expect(rotuloAcessorio('mouse')).toBe('Mouse')
     expect(rotuloAcessorio('inexistente')).toBe('inexistente')
+  })
+})
+
+describe('OBS_CARGA_GOLIVE (marcador da carga go-live — F6A-A1)', () => {
+  // Trava o literal: ~1.576 linhas em produção têm exatamente este texto, e a
+  // leitura do relatório (queries/relatorios/movimentacoes.ts) e a escrita da
+  // carga (scripts/import/plano.ts) dependem dele. Mudar a string re-exibiria a
+  // carga inicial no relatório. É a fonte única — plano.ts importa daqui.
+  it('é a string exata gravada pela carga F4', () => {
+    expect(OBS_CARGA_GOLIVE).toBe('carga go-live')
   })
 })
 

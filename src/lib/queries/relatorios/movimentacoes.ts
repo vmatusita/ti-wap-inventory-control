@@ -3,7 +3,7 @@ import type {
   TermoStatus,
   TipoMovimentacao,
 } from '@/lib/dominio'
-import { rotuloTermo } from '@/lib/dominio'
+import { OBS_CARGA_GOLIVE, rotuloTermo } from '@/lib/dominio'
 import type { Periodo } from '@/lib/relatorios/periodo'
 import {
   granularidadeDoPeriodo,
@@ -212,6 +212,9 @@ export async function getUltimasMovimentacoes(
     .select(MOV_SELECT)
     .gte('data', periodo.de)
     .lte('data', periodo.ate)
+    // F6A-A1: exclui as compras sintéticas de abertura da carga go-live. .neq
+    // sozinho descartaria observacao IS NULL (PostgREST) — .or null-safe preserva.
+    .or(`observacao.is.null,observacao.neq."${OBS_CARGA_GOLIVE}"`)
   if (filialId) q = q.eq('filial_id', filialId)
   q = q
     .order('created_at', { ascending: false })
@@ -256,6 +259,11 @@ async function buscarLinhasPeriodo(
         .in('tipo', tipos)
         .gte('data', periodo.de)
         .lte('data', periodo.ate)
+        // F6A-A1: exclui a carga go-live (compras sintéticas). Uniforme p/
+        // Saídas/Entradas/Transferências — nenhuma mov legítima carrega esse
+        // texto exato. .or null-safe preserva linhas com observacao IS NULL;
+        // fica ANDado com o .or() de origem/destino da transferência abaixo.
+        .or(`observacao.is.null,observacao.neq."${OBS_CARGA_GOLIVE}"`)
       if (filialId) {
         // Transferência aparece nas DUAS filiais (regra 5): origem OU destino.
         q = incluirDestino

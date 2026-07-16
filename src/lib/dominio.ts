@@ -229,3 +229,14 @@ export const ACESSORIO_ROTULO: Record<string, string> = {
 export function rotuloAcessorio(codigo: string): string {
   return ACESSORIO_ROTULO[codigo] ?? codigo
 }
+
+// ---------- MARCADOR DA CARGA ÚNICA DE GO-LIVE (F4 → filtro F6A-A1) ----------
+// A carga inicial (scripts/import/plano.ts, papel 'compra_inicial') gravou, para
+// cada ativo, uma COMPRA sintética de abertura com esta observação EXATA. Não é
+// evento do período — as leituras do relatório a excluem
+// (src/lib/queries/relatorios/movimentacoes.ts). É a FONTE ÚNICA do literal
+// (plano.ts importa daqui): mudá-lo re-exibiria ~1.576 linhas de abertura no
+// relatório de produção. Igualdade EXATA de propósito — o AJUSTE de reconciliação
+// usa 'carga go-live: estado conforme planilha…' (prefixo homônimo); um filtro
+// por LIKE varreria os ajustes também. Nunca usar LIKE 'carga go-live%'.
+export const OBS_CARGA_GOLIVE = 'carga go-live'

@@ -8,6 +8,7 @@
 
 import { createHash } from 'node:crypto'
 import { chavePatrimonio } from '../../src/lib/patrimonio'
+import { OBS_CARGA_GOLIVE } from '../../src/lib/dominio'
 import {
   chaveServiceTag,
   colaboradorAposMovimentacao,
@@ -726,7 +727,7 @@ export function montarPlano(entrada: EntradaPlano): Plano {
         termo: null,
         termoData: null,
         itensFaltantes: null,
-        observacao: 'carga go-live',
+        observacao: OBS_CARGA_GOLIVE,
         statusResultante: null,
         papel: 'compra_inicial',
         origem: null,
