@@ -34,7 +34,7 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 - Registrar cada movimentação **uma única vez** e derivar todo o resto (estoque, status do ativo, relatórios) automaticamente.
 - Estoque em tempo real por filial, categoria e status.
 - Relatórios acessíveis por link **com senha de acesso (sem conta)**, atualizados a cada mudança — **aposentar o envio semanal por e-mail**.
-- **Carga inicial única no go-live** (seção 10): as 3 planilhas entram **uma única vez**, via scripts com limpeza/normalização, dry-run e relatório de inconsistências (execução autônoma pelo Claude Code). **Depois disso não existe importação no sistema** — a entrada de dados é 100% manual, e o requisito é ela ser **mais prática que o Excel** (telas e facilitadores da seção 6). Até o go-live, desenvolvimento e demonstrações rodam com **dados fictícios** (seção 10.1).
+- **Carga inicial única no go-live** (seção 10): as 3 planilhas entram **uma única vez**, via scripts com limpeza/normalização, dry-run e relatório de inconsistências (execução autônoma pelo Claude Code). A entrada de dados do dia a dia é 100% manual, e o requisito é ela ser **mais prática que o Excel** (telas e facilitadores da seção 6). Até o go-live, desenvolvimento e demonstrações rodam com **dados fictícios** (seção 10.1). **Emenda F7 (16/07/2026):** a regra absoluta "depois disso não existe importação" foi revista — passou a existir um **import de startup por filial na administração** (só o modo *Substituir tudo*, para o go-live novo de cada filial), ver §10.2. A entrada operacional do dia a dia continua sendo manual; sincronização recorrente e o modo *Atualizar* seguem fora de escopo.
 - Histórico auditável: toda movimentação tem autor, data e não é apagável (estorna-se).
 - Operação continua centralizada na admin da Matriz — o sistema precisa ser **mais rápido que a planilha**, não mais burocrático.
 
@@ -46,7 +46,7 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 - Rastrear acessórios como ativos individuais com patrimônio — eles são quantidade pura (sem patrimônio, sem máquina de estados) e também checklist da devolução. **Nota (F3B, 14/07/2026):** o controle de acessórios, periféricos e componentes **por quantidade** (fones, mochilas, teclados, memórias, SSDs, carregadores — com "atrelados" e "faltam N") foi **antecipado da F5 para a F3B** e já faz parte do sistema (catálogo + lançamentos por item×filial — §5). Com isso o relatório cobre o e-mail semanal por completo, não só os equipamentos principais.
 - App mobile nativo (a interface web é responsiva).
 - Múltiplos idiomas, multi-empresa.
-- **Importação recorrente ou sincronização com planilhas** — decisão de 09/07/2026: a carga é única, no go-live. Manter uma porta de importação aberta seria manter a tentação da planilha viva; o sistema só cumpre o objetivo se a operação manual for melhor que o Excel.
+- **Importação recorrente ou sincronização com planilhas** — decisão de 09/07/2026: a carga do dia a dia é manual. Manter uma porta de sincronização aberta seria manter a tentação da planilha viva; o sistema só cumpre o objetivo se a operação manual for melhor que o Excel. **Emenda F7 (16/07/2026):** abriu-se **uma** exceção pontual — o *import de startup por filial* (Substituir tudo) para o go-live novo de cada filial (§10.2). Não é sincronização recorrente nem upsert incremental (o modo *Atualizar* foi adiado): é um evento de abertura, com o custo destrutivo assumido e salvaguardas obrigatórias.
 
 ## 3. Usuários e perfis
 
@@ -162,7 +162,7 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 5. **Relatórios** — página ao vivo por filial (`/relatorios/[filial]`) + **geração do relatório da semana** (snapshot interativo versionado) com histórico em `/relatorios/gerados` — detalhes na seção 7.
 6. **Administração** — convidar/gerenciar usuários (só `@wap.ind.br`), **senhas de acesso dos relatórios** (criar com rótulo, ver último uso, revogar), filiais, ajustes de vocabulário (motivos), exportar backup CSV.
 
-> **Não existe tela de importação.** Decisão de 09/07/2026: a carga das planilhas é uma operação única de go-live, via scripts executados de forma autônoma (seção 10). Depois do cutover, a única porta de entrada de dados é a operação manual do item 4 — e vencê-la do Excel é requisito, não detalhe.
+> **Import de startup por filial (emenda F7, 16/07/2026).** A regra original (09/07/2026) era "não existe tela de importação"; a carga do go-live rodava só por scripts (seção 10). A F7 abriu uma **tela `admin/importar`** para o *import de startup* — o go-live novo de **uma filial**, no modo **Substituir tudo** (apaga o acervo da filial e recria a partir do CSV), com preview do custo, backup automático e confirmação pelo nome da filial (§10.2). A entrada de dados **do dia a dia** continua sendo a operação manual do item 4 — vencê-la do Excel segue sendo requisito. Sincronização recorrente e o modo *Atualizar* continuam fora de escopo.
 
 ## 7. Relatórios: ao vivo e gerados
 
@@ -245,7 +245,7 @@ Custo para a WAP: **R$ 0**. Supabase no plano Free; deploy na conta **Vercel Pro
 
 ## 10. Carga inicial única (go-live) — scripts, não tela
 
-Decisão final de 09/07/2026: o sistema **não tem importação**. A carga das planilhas é uma **operação única de go-live**, executada de forma autônoma pelo Claude Code (com os CSVs fornecidos pelo Johnny) via scripts de `scripts/import/` (entregues na F4): dry-run → relatório de inconsistências → carga confirmada. Reexecutável **durante a janela do go-live** (idempotente), sem nenhuma interface no app; após o cutover os scripts permanecem no repositório apenas como ferramenta de emergência. Não há sincronização com planilhas — nunca. Estratégia em 4 passos, pensada para dados sujos:
+Decisão de 09/07/2026 (revista pela F7 em 16/07/2026 — ver §10.2): a carga das planilhas do go-live inicial é uma **operação única**, executada de forma autônoma pelo Claude Code (com os CSVs fornecidos pelo Johnny) via scripts de `scripts/import/` (entregues na F4): dry-run → relatório de inconsistências → carga confirmada. Reexecutável **durante a janela do go-live** (idempotente), sem interface no app; após o cutover os scripts permanecem no repositório apenas como ferramenta histórica. Não há sincronização recorrente com planilhas. Estratégia em 4 passos, pensada para dados sujos:
 
 1. **Staging** — os 3 CSVs entram crus na estrutura de trabalho do script (nada é rejeitado ainda).
 2. **Normalização automática** — aplica os De→Para da seção 5: patrimônios, motivos, unidades, datas (`dd/mm/aaaa` e variações), typos conhecidos, remoção das 6 duplicatas exatas.
@@ -262,6 +262,16 @@ A planilha da Matriz cobre só a Matriz; se existirem inventários das outras fi
 ### 10.1 Dados fictícios de desenvolvimento (seed)
 
 Enquanto o importador não roda com os dados reais, um script de seed povoa o banco com dados **inventados de estrutura idêntica**: ~1.200 ativos nas mesmas proporções reais (42% notebooks, 28% celulares, 25% monitores…), ~700 movimentações espalhadas por 7 meses, 5 filiais, nomes de colaboradores gerados, chamados e termos variados. Serve para desenvolver os gráficos com volume realista e demonstrar o sistema para as filiais **sem expor o nome de ninguém** (bônus de LGPD em ambiente de desenvolvimento). O seed é apagável com um comando de reset — o go-live com o importador (F4) começa de banco limpo.
+
+### 10.2 Import de startup por filial na administração (F7, 16/07/2026)
+
+Emenda à regra "não existe tela de importação". Decisão do Johnny (16/07/2026, registrada em `docs/DECISOES.md`): além da carga única por scripts do go-live global (F4), existe uma tela **`admin/importar`** para o **go-live novo de cada filial** — quando uma filial passa a ser controlada pelo sistema e seu inventário chega como CSV (mesmo layout da planilha, 3 variantes por nome de coluna).
+
+- **Só o modo *Substituir tudo*** (import de startup): apaga fisicamente o acervo atual **daquela filial** (ativos + movimentações + anotações + termos gerados que só a referenciam, com os `.docx` do bucket) e recria a partir do CSV. O modo *Atualizar* (upsert incremental) foi **adiado** — correção do dia a dia é manual, no próprio sistema, linha por linha.
+- **A entrada de cada ativo usa a data real do CSV** (a mais antiga válida entre Inclusão/Entrega), gravada como `compra` de abertura com o marcador `import startup dd/MM/yyyy`; um `ajuste` leva ao estado da planilha (precedência Situação>Status). Linha sem data válida entra "sem data", **fora dos relatórios do período** (mesmo tratamento da carga go-live). Startup não conta como entrada do período — o marcador exclui compras e ajustes do import das tabelas/série do relatório; a data real vale para o histórico de estoque (as-of) e para a ficha.
+- **Tudo-ou-nada, com erros linha a linha:** qualquer linha inválida (patrimônio inválido, par patrimônio+service tag duplicado, `Site`≠filial, categoria/estado fora do De→Para, ativo descartado) **bloqueia** o import inteiro, com lista erro a erro para correção manual no CSV. Zero bloqueante para aplicar.
+- **Salvaguardas obrigatórias (operação destrutiva assumida):** preview com o custo à vista (quantos ativos/movimentações/anotações/termos serão apagados), **backup automático** do acervo antes de aplicar (bucket privado `backups-import`, baixável), **confirmação digitando o nome exato da filial**, transação única com contagens conferidas dentro dela (`importar_ativos_substituir`, `security definer`), e trilha de auditoria (`import_logs`). Snapshots congelados (`relatorios_gerados`) **não** são tocados. Termo que mistura ativos de mais de uma filial bloqueia o import (resolver antes). Import **nunca transfere** ativo entre filiais.
+- Import de startup ≠ sincronização recorrente: continua sendo um evento de abertura, não uma porta de sincronização com o Excel. A entrada operacional do dia a dia permanece 100% manual (item 4 da seção 6).
 
 ## 11. Fases de entrega
 

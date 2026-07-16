@@ -25,7 +25,7 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 ## Regras permanentes (continuam valendo — não são pedidos de autorização)
 
 1. **Escopo da ordem atual.** Não "aproveite para fazer" trabalho de outra fase — o que surgir de fora vai para o backlog no resumo.
-2. **NUNCA dados reais.** Nenhum nome de colaborador real, patrimônio real ou linha das planilhas da WAP em seed, fixture, teste, comentário ou screenshot. Dados de desenvolvimento são 100% fictícios (F1). Os dados reais só entram em produção pela **carga única de go-live** (scripts da F4, executados de forma autônoma com os CSVs fornecidos pelo Johnny) — **o sistema não tem tela de importação, nunca**.
+2. **NUNCA dados reais.** Nenhum nome de colaborador real, patrimônio real ou linha das planilhas da WAP em seed, fixture, teste, comentário ou screenshot. Dados de desenvolvimento são 100% fictícios (F1). Os dados reais só entram em produção pela **carga de go-live** — a carga global inicial pelos **scripts da F4** (autônoma, com os CSVs do Johnny) e, desde a **F7 (16/07/2026)**, o **import de startup por filial** pela tela `admin/importar` (só modo *Substituir tudo*, go-live novo de uma filial; ver spec §10.2 e `docs/DECISOES.md`). A entrada de dados **do dia a dia continua 100% manual** — não há sincronização recorrente nem modo *Atualizar* (adiado). CSVs de teste e o smoke do import são **100% fictícios** (`WAP0001234`/"Fulano"); os CSVs reais nunca entram no repositório.
 3. **Custo R$ 0.** Não habilitar nenhum recurso pago, nenhum serviço novo, nenhuma lib com licença comercial. Infra permitida: Supabase Free + Vercel (conta Pro existente do Johnny).
 4. **Segredos:** nunca commitar `.env*` (mantenha `.env.example` atualizado). `SUPABASE_SERVICE_ROLE_KEY` só em código server-side ou scripts locais — jamais em Client Component ou variável `NEXT_PUBLIC_*`.
 5. **Produção: acesso total, com autoproteção.** Migrations, scripts e deploy rodam direto em produção sem pedir autorização — precedidos de backup/dry-run quando destrutivos (ver Modo de operação). Seed fictício jamais roda em produção depois do go-live.
@@ -75,7 +75,7 @@ src/
       admin/filiais/page.tsx
       admin/motivos/page.tsx
       admin/itens/page.tsx          # catálogo de itens por quantidade (F3B)
-      # (não existe admin/importador — carga inicial é via scripts, spec §10)
+      admin/importar/page.tsx      # import de startup por filial (F7 — Substituir tudo; spec §10.2)
   components/
     ui/            # shadcn (CLI)
     layout/  ativos/  movimentacoes/  relatorios/  admin/
