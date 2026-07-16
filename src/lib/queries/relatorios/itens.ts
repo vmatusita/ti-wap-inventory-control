@@ -6,7 +6,7 @@ import type {
   LinhaLancamentoItem,
   SaldoItemPeriodo,
 } from '@/lib/relatorios/tipos'
-import type { DbClient } from './comum'
+import { paginarTodos, type DbClient } from './comum'
 
 // Itens por quantidade nos grupos 2–3 do relatório v2 (acessórios/componentes —
 // OS-F3 3.6): saldo as-of + movimentação no período + carimbo de frescor + a
@@ -95,13 +95,12 @@ export async function getGruposItens(
 // própria). Ao contrário de rel_mov_itens (agregado Σ por item), esta é lançamento
 // a lançamento: PostgREST direto em lancamentos_item com os embeds de item e
 // filial, filtrada pela janela. Recebe o client resolvido (serve operador E
-// viewer por senha, como as demais leituras de relatório). CAP no snapshot para o
-// JSON congelado não inchar sem limite (o relatório é semanal — dezenas de linhas).
+// viewer por senha, como as demais leituras de relatório). Traz o período
+// COMPLETO, paginado como as tabelas irmãs (Saídas/Entradas/Transferências) — sem
+// teto próprio, para não truncar em silêncio nem exibir contador enganoso; congela
+// junto no snapshot (o relatório é semanal — dezenas de linhas; o teto de 100k do
+// paginarTodos é só cinto de segurança contra loop, nunca alcançado).
 // ===========================================================================
-
-// CAP de linhas da tabela (registrado em DECISOES): folga larga sobre o volume
-// semanal real, sem deixar o snapshot congelado crescer sem teto.
-const CAP_MOV_ITENS = 500
 
 const MOV_ITENS_SELECT =
   'id, data, tipo, quantidade, chamado, colaborador, observacao, estorna_id, ' +
@@ -151,25 +150,28 @@ export async function getLancamentosItensPeriodo(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<LinhaLancamentoItem[]> {
-  let q = client
-    .from('lancamentos_item')
-    .select(MOV_ITENS_SELECT)
-    .gte('data', periodo.de)
-    .lte('data', periodo.ate)
-    // F6C: exclui os lançamentos de saldo inicial da carga (não são do período).
-    // `.neq` sozinho descartaria observacao IS NULL (PostgREST) — o `.or` null-safe
-    // preserva as linhas sem observação. Mesmo padrão do filtro da carga em A1.
-    .or(`observacao.is.null,observacao.neq."${OBS_SALDO_INICIAL}"`)
-  if (filialId) q = q.eq('filial_id', filialId)
-  q = q
-    .order('data', { ascending: false })
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
-    .limit(CAP_MOV_ITENS)
-
-  const { data, error } = await q
-  if (error) throw new Error(`Falha ao listar movimentações de itens: ${error.message}`)
-  const rows = (data ?? []) as unknown as RawMovItemRow[]
+  // Período COMPLETO, paginado como buscarLinhasPeriodo (Saídas/Entradas/Transf.):
+  // sem teto próprio que truncaria em silêncio e enganaria o contador da seção.
+  const rows = await paginarTodos<RawMovItemRow>(
+    'Falha ao listar movimentações de itens',
+    (from, to) => {
+      let q = client
+        .from('lancamentos_item')
+        .select(MOV_ITENS_SELECT)
+        .gte('data', periodo.de)
+        .lte('data', periodo.ate)
+        // F6C: exclui os lançamentos de saldo inicial da carga (não são do período).
+        // `.neq` sozinho descartaria observacao IS NULL (PostgREST) — o `.or` null-safe
+        // preserva as linhas sem observação. Mesmo padrão do filtro da carga em A1.
+        .or(`observacao.is.null,observacao.neq."${OBS_SALDO_INICIAL}"`)
+      if (filialId) q = q.eq('filial_id', filialId)
+      return q
+        .order('data', { ascending: false })
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to)
+    },
+  )
   // Backstop em JS do filtro da carga (defesa em profundidade — testado).
   return rows.filter((r) => !ehSaldoInicialGoLive(r.observacao)).map(mapLancamentoItemRow)
 }
