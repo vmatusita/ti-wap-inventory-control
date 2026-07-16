@@ -16,7 +16,9 @@ import { DATA_RE } from '@/lib/validators/data'
 export type Periodo = { de: string; ate: string }
 export type PresetPeriodo = 'semana' | '30dias' | 'ano' | 'tudo' | 'custom'
 
-export const PRESET_PADRAO: PresetPeriodo = 'ano'
+// Default do relatório ao vivo (filial e consolidado): semana atual dom–sáb
+// (decisão do Johnny, 16/07/2026 — B2/F6B). Ver `intervaloDoPreset('semana')`.
+export const PRESET_PADRAO: PresetPeriodo = 'semana'
 const DATA_MINIMA = '2000-01-01' // "Tudo": teto inferior seguro
 
 function fmt(d: Date): string {
@@ -41,8 +43,12 @@ export const PRESETS: { valor: Exclude<PresetPeriodo, 'custom'>; rotulo: string 
 function intervaloDoPreset(preset: Exclude<PresetPeriodo, 'custom'>, hoje: string): Periodo {
   const base = parseISO(hoje)
   switch (preset) {
+    // "Esta semana": semana corrente domingo→sábado (B2/F6B). `ate = hoje` (e não
+    // sábado) porque `hoje` está SEMPRE dentro da semana [domingo..sábado], então
+    // `hoje === min(sábado, hoje)`; usar `hoje` mantém paridade com os demais
+    // presets e deixa o rótulo honesto (sem dias futuros vazios no intervalo).
     case 'semana':
-      return { de: fmt(startOfWeek(base, { weekStartsOn: 1 })), ate: hoje }
+      return { de: fmt(startOfWeek(base, { weekStartsOn: 0 })), ate: hoje }
     case '30dias':
       return { de: fmt(subDays(base, 29)), ate: hoje }
     case 'ano':
@@ -76,6 +82,6 @@ export function resolverPeriodo(
   const presetValido = PRESETS.find((p) => p.valor === sp.preset)?.valor
   const preset = presetValido ?? PRESET_PADRAO
   const intervalo = intervaloDoPreset(preset as Exclude<PresetPeriodo, 'custom'>, hoje)
-  const rotulo = PRESETS.find((p) => p.valor === preset)?.rotulo ?? 'Este ano'
+  const rotulo = PRESETS.find((p) => p.valor === preset)?.rotulo ?? 'Esta semana'
   return { ...intervalo, preset, rotulo }
 }
