@@ -432,6 +432,7 @@ export const SECOES: Secao[] = [
           'A service tag é imutável: ela identifica o equipamento e nunca muda. Só o patrimônio se corrige.',
           'A correção fica registrada na linha do tempo (de → para, quem, quando). A busca passa a encontrar o ativo pelo novo patrimônio.',
           'Alguns ativos nascem sem patrimônio (equipamento sem plaqueta trazido pelo import de startup): aparecem como "Sem patrimônio", com pendência na lista e em /pendencias. Dar o número aqui encerra essa pendência.',
+          'No import de startup, quando o hostname já traz o patrimônio (ex.: NB-WAP0001234), o preview preenche o número sozinho — é um aviso, não um erro, e não impede a importação. Só confira se está certo.',
         ],
       },
       {
@@ -494,12 +495,13 @@ export const SECOES: Secao[] = [
           'Filiais — cadastro das filiais.',
           'Motivos — o vocabulário de motivos oferecido na tela de movimentação.',
           'Itens — o catálogo de itens por quantidade (nome, grupo, estoque mínimo).',
+          'Importar — import de startup de uma filial por CSV, para o go-live dela no sistema.',
         ],
       },
       {
         tipo: 'nota',
         texto:
-          'Não existe tela de importação. A carga inicial de dados é feita por script, uma única vez, no go-live.',
+          'A entrada do dia a dia é 100% manual — não há sincronização com o Excel. A única importação é o import de startup em Administração › Importar: só o modo "Substituir tudo", que troca o acervo inteiro de UMA filial pelo CSV, no go-live dela. Ele mostra o custo, faz backup automático e exige que você digite o nome da filial antes de aplicar. No preview, cada erro se corrige na própria tela (o CSV original não muda); os avisos (em âmbar, como o patrimônio ausente) não bloqueiam a importação.',
       },
     ],
   },

@@ -452,6 +452,25 @@ describe('F7F — auto-preenchimento do patrimônio pelo hostname', () => {
     expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(true)
     expect(r.grupos.some((g) => g.tipo === 'patrimonio_do_hostname')).toBe(false)
   })
+
+  it('(g) INJEÇÃO: hostname com payload em volta do token → auto-preenche só o canônico limpo', () => {
+    // patrimônio vazio + hostname com token canônico embutido em meio a lixo de
+    // fórmula/SQL/shell → o motor grava SÓ o token canônico, nunca o payload.
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '', Hostname: '=WAP0001234; rm -rf /' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    const a = r.plano!.ativos[0]!
+    expect(a.patrimonio).toBe('WAP0001234')
+    expect(a.patrimonio).toMatch(/^[A-Z]{2,4}\d{7}$/) // nunca um payload
+    expect(r.avisos.filter((e) => e.tipo === 'patrimonio_do_hostname')).toHaveLength(1)
+  })
+
+  it('(h) INJEÇÃO: hostname sem token canônico (só payload) → nulo + patrimonio_vazio', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '', Hostname: '=cmd()|nada' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano!.ativos[0]!.patrimonio).toBeNull()
+    expect(r.avisos.filter((e) => e.tipo === 'patrimonio_vazio')).toHaveLength(1)
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(false)
+  })
 })
 
 describe('linhas vazias / sem chave / cadastrais', () => {
