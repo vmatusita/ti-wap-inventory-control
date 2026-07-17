@@ -766,4 +766,22 @@ O classificador do modo automático **bloqueou a aplicação da `0033` em produ�
 - **Fórmula em célula (`=cmd`) no CSV baixado** — já aceito na F7D (ferramenta interna, operador `@wap.ind.br`); não é vetor novo da F7E.
 - **Ledger de migrations:** a `0034` será aplicada em produção pelo SQL Editor (gate do classificador — corpo destrutivo), então não constará em `supabase_migrations` (como 0031–0033).
 
-**ROLLOUT — PENDENTE (mesmo gate destrutivo da F7/F7B).** O corpo da RPC contém `delete from public.ativos/movimentacoes`, então o classificador do modo automático bloqueia a aplicação da `0034` em produção pelo MCP (a mesma migration passou no DEV). O Johnny aplica `supabase/migrations/0034_import_melhorias.sql` **como está** (idempotente: `drop index if exists` + `create or replace` puro, sem drop da função — assinatura idêntica de 4 args) pelo SQL Editor; o orquestrador confere ANTES de mergear, mergeia, publica e faz o smoke de produção **só leitura** (`ativos.patrimonio` nullable via `information_schema`, índice parcial via `pg_indexes`, RPC 1 linha 4 args via `pg_proc`, `v_pendencias` com contagem inalterada, tela analisa CSV fictício até o preview sem aplicar). Advisors depois. Backup da definição atual da RPC guardado antes (padrão F6A). *(Esta seção será fechada com a ata do rollout quando aplicado.)*
+**ROLLOUT — FEITO em 17/07/2026 (mesmo gate destrutivo da F7/F7B).** O corpo da RPC contém `delete from public.ativos/movimentacoes`, então o classificador do modo automático bloqueia a `0034` em produção pelo MCP (a mesma migration passou no DEV). O Johnny aplicou `supabase/migrations/0034_import_melhorias.sql` pelo SQL Editor.
+
+*Gotcha do rollout (registrado — a evitar no próximo):* na 1ª tentativa o SQL Editor rodou o arquivo **errado** — a `0033` (que ainda estava carregada do rollout da F7B) — e falhou com `42701 column "correcoes" already exists` (a `0033` adiciona essa coluna, que já existia). Como o erro foi na **1ª instrução** da `0033` (o `add column`), **nada se aplicou** — o orquestrador conferiu produção intacta (patrimônio ainda NOT NULL, sem índice, RPC = corpo F7B) antes de qualquer merge. O jeito de distinguir os dois: a **`0034`** começa com `alter table public.ativos alter column patrimonio drop not null;`; a **`0033`** com `alter table public.import_logs add column correcoes …`. Rodou-se então a `0034` correta.
+
+**Conferência em produção (antes do merge):** `patrimonio` nullable=YES; índice parcial `ativos_service_tag_sem_patrimonio_uidx` presente; RPC **1 linha**, `pronargs=4` (sem overload), `proacl={postgres=X/postgres,authenticated=X/postgres}` (anon/public/service_role **sem** execute); as **5 emendas** no corpo (`pg_get_functiondef`); `v_pendencias` = **1006** (inalterada). Backup da definição prévia da RPC = o próprio `supabase/migrations/0033_import_correcoes.sql` (idêntico ao corpo vivo antes da `0034`).
+
+**Merge + deploy:** `notify pgrst, 'reload schema'` → merge `f7e`→`main` (`78452d9`) → push → Vercel **READY** (~44s, `dpl_GjYj…`).
+
+**Smoke de produção — só leitura:** rotas públicas (`/login` 200; `/`, `/pendencias`, `/admin/importar`, `/ativos` → 307 `/login` — gate de operador e fronteira do viewer de pé, sem 500); PostgREST com a anon key: `POST /rpc/importar_ativos_substituir` (4 args) → **401 `42501`** (assinatura resolvida no cache pós-DDL, não `PGRST202`; e anon sem execute) e `GET /ativos?patrimonio=is.null` → **200** (o filtro do bucket parseia; cache recarregado). **Advisors sem novidade** além dos pré-existentes aceitos (a `0034` não criou tabela/policy nova; índice e coluna nullable são benignos; a RPC segue `security definer` executável só por `authenticated`).
+
+**Ledger:** a `0034` **não consta** em `supabase_migrations` (aplicada pelo SQL Editor), como 0031–0033. Rollback, se preciso: recriar a partir da `0033` + regrants; coluna nullable e índice são aditivos/inofensivos.
+
+<details><summary>Runbook (próximo go-live com função destrutiva)</summary>
+
+1. Aplicar `supabase/migrations/0034_import_melhorias.sql` **como está** (idempotente) pelo SQL Editor do projeto de produção. **Conferir que é a `0034`** — 1ª instrução = `alter … ativos … patrimonio drop not null`, NÃO a `0033` (`add column correcoes`).
+2. Conferir (leitura): `patrimonio` nullable, índice parcial, RPC 1 linha/4 args/grants, 5 emendas, `v_pendencias` inalterada.
+3. `notify pgrst, 'reload schema'` → merge → push → Vercel READY.
+4. Smoke só-leitura: rotas públicas + PostgREST (`RPC 4 args` → 401/42501, `?patrimonio=is.null` → 200).
+</details>
