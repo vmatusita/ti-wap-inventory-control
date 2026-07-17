@@ -417,6 +417,42 @@ function CardSiteOutraFilial({
 }
 
 // ---------------------------------------------------------------------------
+// kind: 'existe_em_outra_filial' (F7C) — o ativo JÁ está cadastrado noutra filial.
+// Mesma doutrina da decisão 4: mudar de filial é transferência, não import.
+
+function CardExisteEmOutraFilial({
+  grupo,
+  filialDona,
+  filialNome,
+  ...comuns
+}: {
+  grupo: GrupoErro
+  filialDona: string
+  filialNome: string
+  bloqueante: boolean
+  contexto: Record<number, RegistroImport>
+  pendente: boolean
+  onCorrigir: CorrigirFn
+}) {
+  const n = grupo.linhas.length
+  return (
+    <CardGrupo grupo={grupo} {...comuns}>
+      <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+        {n === 1 ? 'Este ativo já está' : `Estes ${n} ativos já estão`} cadastrado
+        {n === 1 ? '' : 's'} na filial <strong>{filialDona}</strong>. O import de{' '}
+        {filialNome} <strong>não apaga</strong> o acervo de {filialDona}, e o par
+        patrimônio + service tag é único no sistema inteiro — então{' '}
+        {n === 1 ? 'esta linha' : 'estas linhas'} não {n === 1 ? 'entra' : 'entram'}{' '}
+        por aqui. Se {n === 1 ? 'o aparelho mudou' : 'os aparelhos mudaram'} de filial,
+        isso é uma <strong>transferência</strong>: remova{' '}
+        {n === 1 ? 'a linha' : 'as linhas'} para seguir com o import e registre a
+        transferência pelo sistema (o histórico do ativo é preservado).
+      </p>
+    </CardGrupo>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // kind: 'patrimonio' — pontual por linha (o mesmo valor em N linhas viraria par
 // duplicado; OS-F7B §3.2).
 
@@ -911,6 +947,16 @@ export function GruposErros({
               <CardSiteOutraFilial
                 key={chaveReact}
                 grupo={grupo}
+                filialNome={filialNome}
+                {...comuns}
+              />
+            )
+          case 'existe_em_outra_filial':
+            return (
+              <CardExisteEmOutraFilial
+                key={chaveReact}
+                grupo={grupo}
+                filialDona={grupo.correcao.filial}
                 filialNome={filialNome}
                 {...comuns}
               />

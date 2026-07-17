@@ -412,11 +412,20 @@ export function sugerirValor(valor: string, candidatos: readonly string[]): stri
 const SEP_ESTADO = '␟' // U+241F — não aparece em planilha; separa Status de Situação
 
 /** Valor cru agrupador. Estado usa o PAR (a precedência Situação>Status importa). */
-function chaveDoGrupo(erro: ErroImport, reg: RegistroImport | undefined): string {
+function chaveDoGrupo(
+  erro: ErroImport,
+  reg: RegistroImport | undefined,
+  filialPorLinha: ReadonlyMap<number, string>,
+): string {
   switch (erro.tipo) {
     case 'estado_desconhecido':
     case 'estado_descartado':
       return reg ? `${reg.status}${SEP_ESTADO}${reg.situacao}` : erro.valor
+    // F7C — agrupa pela FILIAL onde o ativo já está cadastrado: é o que o operador
+    // precisa ver ("3 ativos deste CSV já estão em Linhares"), e é o que decide a
+    // ação (remover as N linhas daquela filial).
+    case 'patrimonio_em_outra_filial':
+      return filialPorLinha.get(erro.linha) ?? ''
     // A correção de data em massa grava em Data de Inclusão (OS-F7B §7) — o
     // agrupador é o valor cru DESSA célula, não a mensagem com as duas datas.
     case 'sem_data_entrada':
@@ -466,6 +475,11 @@ function correcaoDoGrupo(tipo: string, chave: string, filialNome: string): Grupo
         sugestao: termo === null ? null : estadoPlanilha(null, termo),
       }
     }
+    // F7C — o par já existe no banco, em outra filial: o Substituir tudo não apaga
+    // o ativo de lá e o índice único (GLOBAL) recusaria o insert. Mudar de filial é
+    // transferência — decisão 4: o import não faz. Única ação: remover a linha.
+    case 'patrimonio_em_outra_filial':
+      return { kind: 'existe_em_outra_filial', filial: chave }
     case 'patrimonio_invalido':
       return { kind: 'patrimonio' }
     case 'par_duplicado':
@@ -491,12 +505,15 @@ export function agruparErros(
   avisos: ErroImport[],
   registros: RegistroImport[],
   filialNome: string,
+  /** F7C — linha → filial onde o ativo daquela linha JÁ está cadastrado (só as
+   *  linhas com `patrimonio_em_outra_filial`). Agrupa o card por filial dona. */
+  filialPorLinha: ReadonlyMap<number, string> = new Map(),
 ): GrupoErro[] {
   const porLinha = new Map(registros.map((r) => [r.linha, r]))
   const acumulado = new Map<string, { tipo: string; chave: string; erros: ErroImport[] }>()
 
   for (const erro of [...bloqueantes, ...avisos]) {
-    const chave = chaveDoGrupo(erro, porLinha.get(erro.linha))
+    const chave = chaveDoGrupo(erro, porLinha.get(erro.linha), filialPorLinha)
     const id = `${erro.tipo}${SEP_ESTADO}${chave}`
     const grupo = acumulado.get(id)
     if (grupo) grupo.erros.push(erro)

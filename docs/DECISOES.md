@@ -653,6 +653,29 @@ Execução da OS `F7B-ultracode.md` (refino da `F7B-correcao-erros-import.md`), 
 
 **E2E ao vivo no DEV** (roteiro da OS §10): CSV fictício de 18 linhas com 1 ocorrência de cada caso → 13 bloqueantes / 4 avisos / 10 grupos, sugestões de Levenshtein acertando (`Notbook`→notebook, `Empréstimos`→emprestado) → as 12 ops que os cards emitem → **zero bloqueante**, `porOp` exato, `arquivoHash` inalterado → RPC de 4 args numa filial de teste descartável (dentro de `do $$ … raise exception $$`, rollback conferido, **resíduo zero**): **17 ativos criados, estados derivados pelo TRIGGER batendo 1:1 com o `estadoAlvo`** (a RPC nunca escreve `ativos.status`), datas/colaborador/setor sem divergência, `import_logs.correcoes` com as 12 ops → CSV corrigido baixado **reimporta limpo na primeira análise**, com o mesmo conjunto de ativos. **Produção não foi tocada em nenhum momento do desenvolvimento.**
 
+### 2026-07-17 · F7C — bug achado no 1º uso real: ativo que já existe em OUTRA filial
+
+*Contexto:* no primeiro import real (Serra, CSV do Johnny), o apply morria com **"Já existe um ativo com esse patrimônio e service tag"**, e mexer nas linhas que o preview acusava não adiantava — porque **não eram essas as linhas**. Diagnóstico: 6 ativos do CSV da Serra já estavam cadastrados em outra filial (3 em Linhares, 3 na Matriz).
+
+*Causa:* o índice `ativos_patrimonio_service_tag_uidx` é **GLOBAL** — `(patrimonio, coalesce(service_tag,''))`, **sem `filial_id`**. Mas o "Substituir tudo" apaga só o acervo da filial selecionada: o ativo da outra filial sobrevive ao DELETE e o INSERT da RPC estoura no índice. O preview nunca via isso porque **só procura duplicata DENTRO do CSV** — nunca perguntou ao banco. Resultado: erro cru do Postgres no último passo, **depois do backup e da confirmação**, apontando um patrimônio que a tela jamais marcou.
+
+*Furo da F7*, não da F7B — a F7B herdou. A revisão adversarial não pegou porque testou o motor contra CSV (onde ele é puro e correto): a colisão só existe contra o **estado vivo do banco**.
+
+*Escolha:* **bloqueante novo `patrimonio_em_outra_filial` no preview**, com **remover a linha** como única ação. *Motivo:* o ativo estar no CSV de outra filial significa que ele mudou de filial — isso é **transferência**, e a **decisão 4 do Johnny** já resolveu o caso ("forçar a filial mascararia uma transferência, que é operação do sistema, não do import"). Mesma doutrina do `site_outra_filial`, outra fonte da verdade (o banco em vez da coluna Site). A transferência se faz depois pelo sistema, com movimentação e histórico preservados.
+
+*Alternativa rejeitada — o import "adotar" o ativo:* exigiria apagar/alterar ativo de **outra** filial, furando o "restrito a UMA filial" da RPC e saindo do escopo do backup (que só cobre a filial selecionada). Risco desproporcional.
+
+*Como (sem migration):* o motor é **puro** e não fala com o banco, e continua sendo o único juiz. Então:
+- `ValidacaoImport` ganha **`candidatos`** (pares que passaram na validação de linha) — sobrevive ao bloqueante, ao contrário do `plano`;
+- `validarCsvImport` ganha o **5º parâmetro** `existentesEmOutraFilial: Map<chave, nome da filial>` (ausente = comportamento anterior byte a byte);
+- a action faz a **passada dupla**: motor → `paresEmOutrasFiliais` (query nova, em lotes de 100 para não estourar a URL) → motor de novo **só se houver colisão**;
+- comparação **EXATA** `(patrimonio, service_tag ?? '')`, igual ao índice — casar por tag normalizada acusaria colisão que o banco não teria (testado);
+- o card agrupa pela **filial dona** ("3 ativos deste CSV já estão em Linhares"), que é o que decide a ação.
+
+*Prova no arquivo real da Serra:* antes, preview limpo → apply estourava. Agora, na 1ª análise: 2 cards novos apontando as linhas 6, 9, 32, 33, 34 e 36; removendo tudo pela tela, plano com 42 ativos e **zero** colisão remanescente. 452 testes.
+
+*Backlog:* a RPC não repete a checagem (o índice único já é a rede — o erro seria só feio, não perigoso); se um ativo for cadastrado em outra filial **entre** o preview e o apply, o índice barra a transação inteira (tudo-ou-nada intacto).
+
 **Backlog aberto (registrado, não bloqueia).**
 - **Cap de 300 e grupos grandes de remoção:** remover um grupo emite N ops, então um grupo `site_outra_filial` com >300 linhas (ex.: operador escolhe Matriz e sobe o CSV da Serra) não tem saída pela tela — o estado final é o certo (import segue bloqueado), mas a saída é trocar a filial/arquivo. Fecha com uma op `remover_grupo` (1 op por grupo) ou isentando remoções do cap.
 - **Fórmula em célula (`=cmd|…`) sai crua no CSV baixado** e o Excel a abre como fórmula. **Não é vetor novo da F7B**: vale igual para a célula original do CSV e para o "Baixar lista de erros" da F7, e é consequência direta da regra §8.8 (célula corrigida indistinguível da digitada). Ferramenta interna, operador autenticado `@wap.ind.br`.

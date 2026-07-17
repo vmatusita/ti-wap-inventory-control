@@ -225,6 +225,13 @@ export function validarCsvImport(
   filial: FilialSelecionada,
   hoje: string = hojeIso(),
   correcoes: CorrecaoImport[] = [],
+  /**
+   * F7C — chave `chavePatrimonio(patrimonio, serviceTag)` → nome da filial onde o
+   * ativo JÁ está cadastrado, para os pares que existem em OUTRA filial. Quem
+   * chama pergunta ao banco (o motor é puro) usando `candidatos` do retorno.
+   * Ausente/vazio = comportamento anterior, byte a byte.
+   */
+  existentesEmOutraFilial: ReadonlyMap<string, string> = new Map(),
 ): ValidacaoImport {
   // sha-256 do buffer ORIGINAL — as correções NÃO alteram o arquivo enviado
   // (invariante da F7: auditoria = arquivo + correções → plano).
@@ -259,6 +266,7 @@ export function validarCsvImport(
       ],
       contexto: {},
       correcoes: { aplicadas: 0, porOp: correcoes.map(() => 0) },
+      candidatos: [],
       plano: null,
       resumo: { criar: 0, semData: 0, layout: det.maisProximo, linhasRemovidas: 0 },
     }
@@ -324,6 +332,33 @@ export function validarCsvImport(
     }
   }
 
+  // F7C — o par já existe no banco, em OUTRA filial. O índice único
+  // `ativos_patrimonio_service_tag_uidx` é GLOBAL (patrimonio + coalesce(service_tag,'')),
+  // mas o "Substituir tudo" só apaga o acervo da filial SELECIONADA: o ativo da outra
+  // filial sobrevive e o insert da RPC colide. Sem esta régua, a colisão só aparecia
+  // como erro cru do banco no apply — depois do backup e da confirmação, e sem que o
+  // preview jamais tivesse apontado a linha.
+  // O ativo estar num CSV de outra filial significa que ele MUDOU de filial: isso é
+  // transferência, e a decisão 4 do Johnny (17/07) já resolveu o caso — o import não
+  // transfere. Logo: bloqueia e a única ação é remover a linha (a transferência se faz
+  // pelo sistema, com movimentação e histórico).
+  const filialPorLinha = new Map<number, string>()
+  for (const c of candidatos) {
+    const chaveBanco = chavePatrimonio(c.ativo.patrimonio, c.ativo.serviceTag)
+    const filialDono = existentesEmOutraFilial.get(chaveBanco)
+    if (filialDono === undefined) continue
+    filialPorLinha.set(c.linha, filialDono)
+    bloqueantes.push({
+      linha: c.linha,
+      coluna: 'Patrimônio',
+      valor: c.ativo.serviceTag
+        ? `${c.ativo.patrimonio} + ${c.ativo.serviceTag}`
+        : c.ativo.patrimonio,
+      tipo: 'patrimonio_em_outra_filial',
+      mensagem: `${c.ativo.patrimonio} já está cadastrado na filial ${filialDono} — o import não transfere ativo entre filiais. Remova a linha e faça a transferência pelo sistema.`,
+    })
+  }
+
   const ativos = candidatos.map((c) => c.ativo)
 
   // F7B §8.4 — removeu tudo, não sobrou ativo: a RPC já exige ≥ 1; a UI avisa
@@ -345,7 +380,7 @@ export function validarCsvImport(
 
   // F7B — agrupamento + contexto das linhas com erro/aviso (a tela corrige a
   // linha inteira, não a célula solta). `registros` já vem CORRIGIDO.
-  const grupos = agruparErros(bloqueantes, avisos, registros, filial.nome)
+  const grupos = agruparErros(bloqueantes, avisos, registros, filial.nome, filialPorLinha)
   const porNumero = new Map(registros.map((r) => [r.linha, r]))
   const contexto: Record<number, RegistroImport> = {}
   for (const erro of [...bloqueantes, ...avisos]) {
@@ -353,9 +388,25 @@ export function validarCsvImport(
     if (reg) contexto[erro.linha] = reg
   }
   const infoCorrecoes = { aplicadas: porOp.filter((n) => n > 0).length, porOp }
+  // F7C — sobrevive ao bloqueante (ao contrário do plano): é com isto que a action
+  // pergunta ao banco quais pares já existem em outra filial.
+  const listaCandidatos = candidatos.map((c) => ({
+    linha: c.linha,
+    patrimonio: c.ativo.patrimonio,
+    serviceTag: c.ativo.serviceTag,
+  }))
 
   if (bloqueantes.length > 0) {
-    return { bloqueantes, avisos, grupos, contexto, correcoes: infoCorrecoes, plano: null, resumo }
+    return {
+      bloqueantes,
+      avisos,
+      grupos,
+      contexto,
+      correcoes: infoCorrecoes,
+      candidatos: listaCandidatos,
+      plano: null,
+      resumo,
+    }
   }
 
   const plano: ValidacaoImport['plano'] = {
@@ -364,7 +415,16 @@ export function validarCsvImport(
     totalLinhasDados,
     ativos,
   }
-  return { bloqueantes, avisos, grupos, contexto, correcoes: infoCorrecoes, plano, resumo }
+  return {
+    bloqueantes,
+    avisos,
+    grupos,
+    contexto,
+    correcoes: infoCorrecoes,
+    candidatos: listaCandidatos,
+    plano,
+    resumo,
+  }
 }
 
 // Re-export do tipo de estado para consumidores que só importam daqui.

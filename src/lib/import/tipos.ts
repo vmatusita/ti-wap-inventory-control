@@ -131,6 +131,7 @@ export type GrupoErro = {
   linhas: number[] // ordenadas
   erros: ErroImport[] // os erros individuais do grupo (para expandir)
   correcao:
+    | { kind: 'existe_em_outra_filial'; filial: string }
     | { kind: 'categoria'; sugestao: CategoriaAtivo | null }
     | { kind: 'estado'; statusDe: string; situacaoDe: string; sugestao: StatusAtivo | null }
     | { kind: 'site_desconhecido' } // ação única: definir como a filial selecionada
@@ -152,6 +153,17 @@ export type ValidacaoImport = {
   contexto: Record<number, RegistroImport>
   /** F7B — `aplicadas` = ops que tiveram efeito; `porOp` = linhas afetadas por op, na ordem da lista. */
   correcoes: { aplicadas: number; porOp: number[] }
+  /**
+   * F7C — pares (patrimônio, service tag) das linhas que passaram na validação de
+   * LINHA, mesmo quando há bloqueante (o `plano` some, estes não). O motor é puro e
+   * não fala com o banco: quem chama usa isto para perguntar ao banco quais desses
+   * pares JÁ EXISTEM em outra filial e devolve o mapa no 5º parâmetro de
+   * `validarCsvImport` — que aí emite o bloqueante `patrimonio_em_outra_filial`.
+   * Sem isso a colisão só apareceria no `insert` da RPC, depois do backup e da
+   * confirmação (o índice único do banco é GLOBAL, e o Substituir tudo só apaga a
+   * filial selecionada).
+   */
+  candidatos: { linha: number; patrimonio: string; serviceTag: string | null }[]
   plano: PlanoImport | null // null quando há bloqueante
   resumo: { criar: number; semData: number; layout: LayoutImport; linhasRemovidas: number }
 }

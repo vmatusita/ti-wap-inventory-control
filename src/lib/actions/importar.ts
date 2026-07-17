@@ -16,6 +16,7 @@ import { correcoesSchema, parseCorrecoesJson } from '@/lib/validators/importar'
 import {
   custoSubstituir,
   exportarAcervoFilial,
+  paresEmOutrasFiliais,
   type CustoSubstituir,
   type TermoMultiFilial,
 } from '@/lib/queries/import-logs'
@@ -198,17 +199,36 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
   if (!filial.ativo) return { ok: false, erro: 'Filial inativa: import bloqueado.' }
 
+  const filialSel = { id: filial.id, slug: filial.slug, nome: filial.nome }
   let validacao: ValidacaoImport
+  let buffer: ArrayBuffer
   try {
-    const buffer = await arqRes.arquivo.arrayBuffer()
-    validacao = validarCsvImport(
-      buffer,
-      { id: filial.id, slug: filial.slug, nome: filial.nome },
-      undefined,
-      corrRes.correcoes,
-    )
+    buffer = await arqRes.arquivo.arrayBuffer()
+    validacao = validarCsvImport(buffer, filialSel, undefined, corrRes.correcoes)
   } catch {
     return { ok: false, erro: 'Não foi possível ler o CSV. Confira o arquivo e tente de novo.' }
+  }
+
+  // F7C — o motor é PURO (não fala com o banco), mas o índice único do banco é
+  // GLOBAL e o Substituir tudo só apaga a filial selecionada: um ativo do CSV que
+  // já esteja cadastrado em OUTRA filial faria o insert da RPC estourar lá na
+  // frente, depois do backup e da confirmação. Então: 1ª passada dá os candidatos,
+  // o banco diz quais colidem, e a 2ª passada devolve o veredito COM os bloqueantes
+  // (o motor continua o único juiz). Sem colisão, a 2ª passada nem roda.
+  try {
+    const emOutras = await paresEmOutrasFiliais(
+      client,
+      filial.id,
+      validacao.candidatos.map((c) => c.patrimonio),
+    )
+    if (emOutras.size > 0) {
+      validacao = validarCsvImport(buffer, filialSel, undefined, corrRes.correcoes, emOutras)
+    }
+  } catch {
+    return {
+      ok: false,
+      erro: 'Não foi possível conferir os patrimônios contra as outras filiais. Tente novamente.',
+    }
   }
 
   let custo: CustoSubstituir

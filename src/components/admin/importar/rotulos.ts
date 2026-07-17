@@ -29,6 +29,7 @@ const ROTULO_TIPO_ERRO: Record<string, string> = {
   estado_descartado: 'Descartado',
   par_duplicado: 'Duplicata',
   patrimonio_duplicado_sem_service_tag: 'Duplicata',
+  patrimonio_em_outra_filial: 'Já existe em outra filial',
   sem_data_entrada: 'Sem data',
   estado_em_uso_sem_colaborador: 'Sem colaborador',
   linha_sem_chave: 'Linha sem chave',

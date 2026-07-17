@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { chavePatrimonio } from '@/lib/patrimonio'
 import type { Database } from '@/lib/types/database'
 
 // Leituras da tela admin/importar (OS-F7 / W3): custo da substituição por filial,
@@ -79,6 +80,47 @@ async function contarAnotacoes(client: DbClient, ids: string[]): Promise<number>
     total += count ?? 0
   }
   return total
+}
+
+/**
+ * F7C — quais dos pares (patrimônio, service tag) do CSV já existem no banco em
+ * OUTRA filial. Devolve `chavePatrimonio(patrimonio, serviceTag)` → nome da filial
+ * onde o ativo está hoje.
+ *
+ * Por que existe: `ativos_patrimonio_service_tag_uidx` é GLOBAL — `(patrimonio,
+ * coalesce(service_tag,''))` sem `filial_id`. O "Substituir tudo" só apaga o acervo
+ * da filial SELECIONADA, então um ativo do CSV que esteja cadastrado em outra filial
+ * sobrevive ao DELETE e faz o INSERT da RPC estourar o índice ("Já existe um ativo
+ * com esse patrimônio e service tag") — depois do backup e da confirmação, sem que o
+ * preview tivesse apontado a linha. O motor é puro e não fala com o banco: esta
+ * query alimenta o 5º parâmetro de `validarCsvImport`.
+ *
+ * A comparação é EXATA (patrimônio + `service_tag ?? ''`), igual ao índice — casar
+ * por tag normalizada acusaria colisão que o banco não teria.
+ */
+export async function paresEmOutrasFiliais(
+  client: DbClient,
+  filialId: number,
+  patrimonios: string[],
+): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  const unicos = [...new Set(patrimonios)]
+  if (unicos.length === 0) return mapa
+
+  for (const lote of emLotes(unicos)) {
+    const { data, error } = await client
+      .from('ativos')
+      .select('patrimonio, service_tag, filiais(nome)')
+      .in('patrimonio', lote)
+      .neq('filial_id', filialId)
+    if (error) throw new Error(`Falha ao conferir patrimônios em outras filiais: ${error.message}`)
+    for (const a of data ?? []) {
+      const nome = (a.filiais as { nome: string } | null)?.nome
+      if (!nome) continue
+      mapa.set(chavePatrimonio(a.patrimonio, a.service_tag), nome)
+    }
+  }
+  return mapa
 }
 
 // Custo da substituição + termos multi-filial que a bloqueiam. Usado no preview e

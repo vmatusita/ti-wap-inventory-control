@@ -47,8 +47,19 @@ function aplicar(texto: string, correcoes: CorrecaoImport[], filialNome: string 
 }
 
 /** Atalho do ciclo completo do preview (o que a tela faz a cada correção). */
-function validar(linhas: Record<string, string>[], correcoes: CorrecaoImport[] = [], filial = MATRIZ) {
-  return validarCsvImport(buf(montar(H_MATRIZ, linhas)), filial, HOJE, correcoes)
+function validar(
+  linhas: Record<string, string>[],
+  correcoes: CorrecaoImport[] = [],
+  filial = MATRIZ,
+  existentesEmOutraFilial?: ReadonlyMap<string, string>,
+) {
+  return validarCsvImport(
+    buf(montar(H_MATRIZ, linhas)),
+    filial,
+    HOJE,
+    correcoes,
+    existentesEmOutraFilial,
+  )
 }
 
 const LAYOUT_MATRIZ = new Set(mapaColunas(H_MATRIZ.split(';')).keys())
@@ -623,6 +634,71 @@ describe('agruparErros', () => {
     expect(validarCsvImport(buf(texto), MATRIZ, HOJE, ops).plano).toBeNull() // preview recusa
     expect(csvCorrigido(buf(texto), ops, MATRIZ.nome)).toContain('Matriz SM') // artefato espelha o preview
     expect(csvCorrigido(buf(texto), ops, MATRIZ.nome)).not.toContain('Serra')
+  })
+
+  // F7C — o índice único do banco é GLOBAL, mas o Substituir tudo só apaga a filial
+  // selecionada: um ativo do CSV cadastrado em OUTRA filial sobrevive ao DELETE e
+  // faz o insert da RPC estourar. Antes disso, o preview passava limpo e o erro só
+  // aparecia no apply, depois do backup e da confirmação (bug real, achado no CSV da
+  // Serra em 17/07/2026: 6 ativos já estavam em Linhares/Matriz).
+  describe('ativo que já existe em OUTRA filial (F7C)', () => {
+    const chave = (p: string, st: string | null) => `${p}::${st ?? ''}`
+
+    it('bloqueia com patrimonio_em_outra_filial e agrupa pela filial dona', () => {
+      const r = validar(
+        [
+          rowMatriz(),
+          rowMatriz({ 'Patrimônio': 'WAP0002222', 'Service Tag': 'ST-B' }),
+        ],
+        [],
+        MATRIZ,
+        new Map([[chave('WAP0002222', 'ST-B'), 'Linhares']]),
+      )
+      const bloq = r.bloqueantes.find((e) => e.tipo === 'patrimonio_em_outra_filial')
+      expect(bloq?.linha).toBe(3)
+      expect(bloq?.mensagem).toContain('Linhares')
+      expect(r.plano).toBeNull() // não chega no insert da RPC
+
+      const grupo = r.grupos.find((g) => g.tipo === 'patrimonio_em_outra_filial')
+      expect(grupo?.chave).toBe('Linhares') // agrupa por filial dona
+      expect(grupo?.correcao).toEqual({ kind: 'existe_em_outra_filial', filial: 'Linhares' })
+    })
+
+    it('remover a linha resolve (única ação — decisão 4: import não transfere)', () => {
+      const r = validar(
+        [rowMatriz(), rowMatriz({ 'Patrimônio': 'WAP0002222', 'Service Tag': 'ST-B' })],
+        [{ op: 'remover_linha', linha: 3 }],
+        MATRIZ,
+        new Map([[chave('WAP0002222', 'ST-B'), 'Linhares']]),
+      )
+      expect(r.bloqueantes).toHaveLength(0)
+      expect(r.plano!.ativos.map((a) => a.patrimonio)).toEqual(['WAP0001234'])
+    })
+
+    it('o par é EXATO: mesmo patrimônio com outra service tag não colide', () => {
+      // o índice é (patrimonio, coalesce(service_tag,'')) — casar só por patrimônio
+      // acusaria colisão que o banco não teria.
+      const r = validar(
+        [rowMatriz({ 'Service Tag': 'ST-A' })],
+        [],
+        MATRIZ,
+        new Map([[chave('WAP0001234', 'ST-OUTRA'), 'Linhares']]),
+      )
+      expect(r.bloqueantes).toHaveLength(0)
+      expect(r.plano!.ativos).toHaveLength(1)
+    })
+
+    it('mapa vazio (5º arg ausente) = comportamento anterior, byte a byte', () => {
+      const linhas = [rowMatriz()]
+      expect(validar(linhas, [], MATRIZ, new Map())).toEqual(validar(linhas))
+    })
+
+    it('`candidatos` sobrevive ao bloqueante (é o que a action leva ao banco)', () => {
+      const r = validar([rowMatriz({ Tipo: 'Notbook' }), rowMatriz({ 'Patrimônio': 'WAP0002222' })])
+      expect(r.plano).toBeNull() // categoria_desconhecida bloqueia
+      // a linha boa segue candidata: sem isso a action não teria o que perguntar
+      expect(r.candidatos).toEqual([{ linha: 3, patrimonio: 'WAP0002222', serviceTag: null }])
+    })
   })
 
   it('linha_sem_chave: um card só, sem ação (§3.9)', () => {
