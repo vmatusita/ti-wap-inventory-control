@@ -189,6 +189,8 @@ export type ImportLogRow = {
   anotacoesApagadas: number
   termosApagados: number
   backupPath: string
+  /** F7B — quantas correções foram declaradas na tela neste import (0 nos antigos). */
+  correcoes: number
 }
 
 // Histórico de imports (auditoria). Join em filiais (nome/slug) e profiles (nome
@@ -200,7 +202,7 @@ export async function listarImportLogs(
   const { data, error } = await client
     .from('import_logs')
     .select(
-      'id, total_linhas, ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, created_at, filiais(nome, slug), profiles(nome)',
+      'id, total_linhas, ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, created_at, filiais(nome, slug), profiles(nome)',
     )
     .order('created_at', { ascending: false })
     .limit(limite)
@@ -218,5 +220,7 @@ export async function listarImportLogs(
     anotacoesApagadas: l.anotacoes_apagadas,
     termosApagados: l.termos_apagados,
     backupPath: l.backup_path,
+    // jsonb (default '[]'); imports da F7 e qualquer valor fora do formato → 0.
+    correcoes: Array.isArray(l.correcoes) ? l.correcoes.length : 0,
   }))
 }

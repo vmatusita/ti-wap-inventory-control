@@ -47,6 +47,7 @@ export default async function AdminImportarPage() {
                   <TableHead>Filial</TableHead>
                   <TableHead className="text-right">Linhas</TableHead>
                   <TableHead className="text-right">Criados</TableHead>
+                  <TableHead className="text-right">Correções</TableHead>
                   <TableHead className="text-right">Apagados</TableHead>
                   <TableHead className="text-right">Backup</TableHead>
                 </TableRow>
@@ -64,6 +65,9 @@ export default async function AdminImportarPage() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {l.ativosCriados.toLocaleString('pt-BR')}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {l.correcoes > 0 ? l.correcoes.toLocaleString('pt-BR') : '—'}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {l.movsApagadas.toLocaleString('pt-BR')} movs ·{' '}
