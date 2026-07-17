@@ -81,9 +81,10 @@ export type CorrecaoPatrimonio =
 
 // Valida e canonicaliza o patrimônio novo contra o atual (correção — B7). PURA:
 // serve tanto ao preview do dialog (cliente) quanto à Server Action. `noop` =
-// o novo, canonicalizado, é igual ao atual (nada a corrigir).
+// o novo, canonicalizado, é igual ao atual (nada a corrigir). `atual` pode ser
+// null (F7E — ativo importado SEM patrimônio; o "de" é vazio e nunca é no-op).
 export function validarCorrecaoPatrimonio(
-  atual: string,
+  atual: string | null,
   patrimonioNovoRaw: string,
 ): CorrecaoPatrimonio {
   const canon = canonicalizarPatrimonio(patrimonioNovoRaw)

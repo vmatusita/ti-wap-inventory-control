@@ -58,7 +58,14 @@ export function AtivosTable({
             className="font-medium tabular-nums underline-offset-4 hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
-            {row.original.patrimonio}
+            {row.original.patrimonio ?? (
+              <Badge
+                variant="outline"
+                className="font-normal text-muted-foreground"
+              >
+                sem patrimônio
+              </Badge>
+            )}
           </Link>
         ),
       },

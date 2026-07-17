@@ -176,7 +176,9 @@ export function disponiveisPorModeloDeEstado(estado: EstadoAtivo[]): ModelosPorC
 }
 
 // Dados estáticos (patrimônio/marca/modelo) de um conjunto pequeno de ativos.
-type DadosAtivo = { patrimonio: string; marca: string | null; modelo: string | null; filial_id: number }
+// patrimonio pode ser null (F7E — ativo sem plaqueta); os consumidores já usam
+// `?? '—'` na exibição do relatório.
+type DadosAtivo = { patrimonio: string | null; marca: string | null; modelo: string | null; filial_id: number }
 
 async function dadosAtivos(
   client: DbClient,

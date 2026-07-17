@@ -81,7 +81,9 @@ export default async function AtivoFichaPage({
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight tabular-nums">
-              {ativo.patrimonio}
+              {ativo.patrimonio ?? (
+                <span className="text-muted-foreground italic">Sem patrimônio</span>
+              )}
             </h1>
             <StatusBadge status={ativo.status} />
           </div>

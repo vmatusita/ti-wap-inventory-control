@@ -101,7 +101,7 @@ export function AtivoCombobox({
                     className="flex items-center gap-2"
                   >
                     <span className="font-medium tabular-nums">
-                      {r.patrimonio}
+                      {r.patrimonio ?? 'sem patrimônio'}
                     </span>
                     <span className="truncate text-muted-foreground">
                       {[rotuloCategoria(r.categoria), r.modelo]

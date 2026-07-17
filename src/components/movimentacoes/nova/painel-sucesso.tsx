@@ -36,7 +36,7 @@ export function PainelSucesso({
         {sucesso.ativos.map((a) => (
           <Button key={a.id} asChild variant="outline" size="sm">
             <Link href={`/ativos/${a.id}`} className="tabular-nums">
-              {a.patrimonio}
+              {a.patrimonio ?? 'sem patrimônio'}
             </Link>
           </Button>
         ))}
@@ -56,12 +56,12 @@ export function PainelSucesso({
                 familia="responsabilidade"
                 categoria={a.categoria}
                 movimentacaoIds={[a.movimentacaoId]}
-                rotulo={`${a.patrimonio} · ${rotuloCategoria(a.categoria)}`}
+                rotulo={`${a.patrimonio ?? 'sem patrimônio'} · ${rotuloCategoria(a.categoria)}`}
                 onGerado={onGerado}
                 trigger={
                   <Button variant="outline" size="sm" className="gap-2 tabular-nums">
                     <FileText className="size-4" />
-                    {a.patrimonio}
+                    {a.patrimonio ?? 'sem patrimônio'}
                   </Button>
                 }
               />

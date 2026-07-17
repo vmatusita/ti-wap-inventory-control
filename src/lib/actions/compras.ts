@@ -61,8 +61,12 @@ export async function registrarCompra(
   if (exErr) {
     return { ok: false, criados: [], erroGeral: traduzErroBanco(exErr.message) }
   }
+  // Um lote de compra sempre tem patrimônio canônico; ativos existentes sem
+  // patrimônio (F7E) nunca colidem com ele — filtra os nulos antes da chave.
   const existSet = new Set(
-    (existentes ?? []).map((e) => chavePatrimonio(e.patrimonio, e.service_tag)),
+    (existentes ?? [])
+      .filter((e): e is { patrimonio: string; service_tag: string | null } => e.patrimonio !== null)
+      .map((e) => chavePatrimonio(e.patrimonio, e.service_tag)),
   )
   for (const it of dados.itens) {
     if (existSet.has(chavePatrimonio(it.patrimonio, it.service_tag))) {

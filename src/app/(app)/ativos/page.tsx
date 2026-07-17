@@ -43,9 +43,11 @@ export default async function AtivosPage({
   const pageRaw = texto(sp.page)
   const page = pageRaw && /^\d+$/.test(pageRaw) ? Number(pageRaw) : 1
 
+  const semPatrimonio = texto(sp.semPatrimonio) === '1'
+
   const [filiais, resultado] = await Promise.all([
     listarFiliais(),
-    listarAtivos({ q, filialId, categoria, status, page }),
+    listarAtivos({ q, filialId, categoria, status, semPatrimonio, page }),
   ])
 
   return (

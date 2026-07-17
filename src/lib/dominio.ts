@@ -276,3 +276,13 @@ export const OBS_SALDO_INICIAL = 'saldo inicial (go-live)'
 // do PREFIXO (a RPC grava `import startup dd/MM/yyyy`; o filtro importa daqui) —
 // mantenha em sincronia com a string hard-coded na migration 0032.
 export const OBS_IMPORT_STARTUP = 'import startup'
+
+// ---------- PENDÊNCIA DE PATRIMÔNIO NULO (F7E — import sem plaqueta) ----------
+// Ativo importado sem patrimônio físico (`""`/`n/a`/"SEM PATRIMONIO"…) nasce com
+// `ativos.pendencia` contendo ESTE trecho. É o MESMO literal que o go-live F4 já
+// gravou (a fila de pendências fica uma só) e o MESMO que a RPC
+// importar_ativos_substituir (migration 0034) hard-coda no insert — mantenha em
+// SINCRONIA com aquele SQL (precedente OBS_IMPORT_STARTUP). A pendência é
+// `;`-joinable (ex.: 'sem patrimônio físico; termo pendente'): ao corrigir o
+// patrimônio na ficha, remove-se só ESTE trecho, preservando os demais.
+export const PENDENCIA_SEM_PATRIMONIO = 'sem patrimônio físico'

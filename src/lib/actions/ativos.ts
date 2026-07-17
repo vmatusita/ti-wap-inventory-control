@@ -10,6 +10,19 @@ import {
   editarAtivoSchema,
   validarCorrecaoPatrimonio,
 } from '@/lib/validators/ativo'
+import { PENDENCIA_SEM_PATRIMONIO } from '@/lib/dominio'
+
+// Remove o trecho 'sem patrimônio físico' de uma pendência `;`-joinable,
+// preservando os demais (ex.: 'sem patrimônio físico; termo pendente' → 'termo
+// pendente'). String vazia após a limpeza vira null (sem pendência). PURA.
+function limparPendenciaSemPatrimonio(pendencia: string | null): string | null {
+  if (!pendencia) return pendencia
+  const restantes = pendencia
+    .split(';')
+    .map((t) => t.trim())
+    .filter((t) => t !== '' && t.toLowerCase() !== PENDENCIA_SEM_PATRIMONIO.toLowerCase())
+  return restantes.length > 0 ? restantes.join('; ') : null
+}
 
 export async function anotarAtivo(input: {
   ativo_id: string
@@ -107,7 +120,7 @@ export async function corrigirPatrimonio(input: {
 
   const { data: ativo, error: eLer } = await supabase
     .from('ativos')
-    .select('patrimonio')
+    .select('patrimonio, pendencia')
     .eq('id', ativo_id)
     .maybeSingle()
   if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message) }
@@ -121,22 +134,31 @@ export async function corrigirPatrimonio(input: {
   const antigo = ativo.patrimonio
   const novo = validacao.patrimonio
 
+  // F7E — ao dar patrimônio a um ativo que veio sem plaqueta, encerra o trecho
+  // 'sem patrimônio físico' da pendência (preservando os demais, ex.: termo).
+  const pendenciaLimpa = limparPendenciaSemPatrimonio(ativo.pendencia)
+  const patch: { patrimonio: string; pendencia?: string | null } = { patrimonio: novo }
+  if (pendenciaLimpa !== ativo.pendencia) patch.pendencia = pendenciaLimpa
+
   const { error: eUpd } = await supabase
     .from('ativos')
-    .update({ patrimonio: novo })
+    .update(patch)
     .eq('id', ativo_id)
   // Violação do par único patrimônio + service tag → mensagem amigável (erros.ts).
   if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message) }
 
+  // "de" nulo (ativo sem patrimônio) → registra "de sem patrimônio para WAP…".
   const { error: eNota } = await supabase.from('anotacoes').insert({
     ativo_id,
-    texto: `Patrimônio corrigido de ${antigo} para ${novo}.`,
+    texto: `Patrimônio corrigido de ${antigo ?? 'sem patrimônio'} para ${novo}.`,
     criado_por: uid,
   })
   if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message) }
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${ativo_id}`)
+  // A pendência 'sem patrimônio físico' pode ter sido encerrada — atualiza a fila.
+  revalidatePath('/pendencias')
   revalidatePath('/relatorios', 'layout')
   return { ok: true }
 }

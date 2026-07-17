@@ -42,4 +42,9 @@ describe('validarCorrecaoPatrimonio', () => {
   it('rejeita mais de 7 dígitos significativos', () => {
     expect(validarCorrecaoPatrimonio('WAP0004491', 'WAP12345678').ok).toBe(false)
   })
+
+  it('aceita "de" nulo (F7E — ativo importado sem patrimônio) e nunca marca noop', () => {
+    const r = validarCorrecaoPatrimonio(null, 'WAP4491')
+    expect(r).toEqual({ ok: true, patrimonio: 'WAP0004491', noop: false })
+  })
 })

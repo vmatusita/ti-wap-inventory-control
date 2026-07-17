@@ -24,6 +24,7 @@ const TABS: { valor: TipoPendencia | 'todas'; rotulo: string }[] = [
   { valor: 'termo', rotulo: 'Termos' },
   { valor: 'itens', rotulo: 'Itens faltantes' },
   { valor: 'triagem', rotulo: 'Triagem' },
+  { valor: 'patrimonio', rotulo: 'Patrimônio' },
   { valor: 'outras', rotulo: 'Outras' },
 ]
 

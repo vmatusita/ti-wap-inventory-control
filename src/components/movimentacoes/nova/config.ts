@@ -59,7 +59,8 @@ export type SucessoLote = {
   motivo: string
   ativos: {
     id: string
-    patrimonio: string
+    // null = ativo sem patrimônio físico (F7E) — a UI mostra "sem patrimônio".
+    patrimonio: string | null
     categoria: CategoriaAtivo
     movimentacaoId: string
   }[]
