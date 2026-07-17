@@ -5,7 +5,14 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
 import { traduzErroBanco } from '@/lib/actions/erros'
-import { validarCsvImport, type PlanoImport, type ValidacaoImport } from '@/lib/import'
+import {
+  csvCorrigido,
+  validarCsvImport,
+  type CorrecaoImport,
+  type PlanoImport,
+  type ValidacaoImport,
+} from '@/lib/import'
+import { correcoesSchema, parseCorrecoesJson } from '@/lib/validators/importar'
 import {
   custoSubstituir,
   exportarAcervoFilial,
@@ -20,6 +27,11 @@ import type { Json } from '@/lib/types/database'
 // `importar_ativos_substituir` usa auth.uid() e só concede EXECUTE ao authenticated
 // — jamais service_role). O conteúdo do CSV nunca é persistido nem logado: só o
 // hash viaja no plano.
+//
+// F7B (17/07/2026): as três actions passam a receber as CORREÇÕES da tela (schema
+// em `@/lib/validators/importar`). Elas alimentam o motor no preview e viram
+// trilha de auditoria no aplicar (`import_logs.correcoes`) — o arquivo enviado
+// continua imutável e o `arquivoHash` continua sendo o do arquivo ORIGINAL.
 
 // DECISÃO (W3): limite de 5 MB para o CSV de import. O maior inventário real das 5
 // filiais fica na casa de dezenas de KB; 5 MB cobre folgadamente e barra upload
@@ -66,6 +78,9 @@ const aplicarSchema = z.object({
   plano: planoImportSchema,
   confirmacaoTexto: z.string(),
   custoPreview: custoSchema,
+  // F7B — só auditoria: o plano já vem CORRIGIDO do preview. Nada aqui altera o
+  // fluxo do Substituir tudo (backup/confirmação/contagens/TOCTOU intactos).
+  correcoes: correcoesSchema,
 })
 
 // Retorno da RPC (jsonb) — validado antes de confiar nos números.
@@ -98,6 +113,8 @@ export type ResultadoImport = {
   anotacoesApagadas: number
   termosApagados: number
   arquivosTermosRemovidos: number
+  /** F7B — correções gravadas em `import_logs.correcoes` (= o que o histórico conta). */
+  correcoesAplicadas: number
 }
 
 export type AplicarImportResult =
@@ -106,7 +123,38 @@ export type AplicarImportResult =
 
 export type UrlBackupResult = { ok: true; url: string } | { ok: false; erro: string }
 
+export type BaixarCsvCorrigidoResult =
+  | { ok: true; nome: string; conteudo: string }
+  | { ok: false; erro: string }
+
 // ---- helpers -------------------------------------------------------------
+
+// Guardas do arquivo enviado (extensão/vazio/tamanho) — as MESMAS em toda action
+// que recebe o CSV. Extraídas na F7B para que `baixarCsvCorrigido` não afrouxe
+// nada por descuido; a régua da F7 é a de sempre.
+function lerArquivoCsv(formData: FormData): { ok: true; arquivo: File } | { ok: false; erro: string } {
+  const arquivo = formData.get('arquivo')
+  if (!(arquivo instanceof File)) return { ok: false, erro: 'Envie um arquivo CSV.' }
+  if (!arquivo.name.toLowerCase().endsWith('.csv')) {
+    return { ok: false, erro: 'O arquivo precisa ter extensão .csv.' }
+  }
+  if (arquivo.size === 0) return { ok: false, erro: 'O arquivo está vazio.' }
+  if (arquivo.size > TAMANHO_MAX) {
+    return {
+      ok: false,
+      erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB — o limite é 5 MB.`,
+    }
+  }
+  return { ok: true, arquivo }
+}
+
+function lerFilialId(formData: FormData): { ok: true; filialId: number } | { ok: false; erro: string } {
+  const filialId = Number(formData.get('filialId'))
+  if (!Number.isInteger(filialId) || filialId <= 0) {
+    return { ok: false, erro: 'Selecione uma filial válida.' }
+  }
+  return { ok: true, filialId }
+}
 
 async function filialPorId(
   client: Awaited<ReturnType<typeof createClient>>,
@@ -128,48 +176,37 @@ function timestampArquivo(): string {
 
 // ---- 1) validarImport ----------------------------------------------------
 
-// Recebe o arquivo (File) + filialId no FormData, valida tamanho/extensão, roda o
-// motor W1 e devolve preview + custo da substituição. O arquivo NÃO é persistido.
+// Recebe o arquivo (File) + filialId + correcoes (JSON) no FormData, valida
+// tamanho/extensão, roda o motor W1 com as correções e devolve preview + custo da
+// substituição. O arquivo NÃO é persistido; as correções não saem daqui.
 export async function validarImport(formData: FormData): Promise<ValidarImportResult> {
   const client = await createClient()
   const uid = await idOperador(client)
   if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
 
-  const arquivo = formData.get('arquivo')
-  const filialIdRaw = formData.get('filialId')
+  const idRes = lerFilialId(formData)
+  if (!idRes.ok) return idRes
+  const arqRes = lerArquivoCsv(formData)
+  if (!arqRes.ok) return arqRes
 
-  const filialId = Number(filialIdRaw)
-  if (!Number.isInteger(filialId) || filialId <= 0) {
-    return { ok: false, erro: 'Selecione uma filial válida.' }
-  }
-  if (!(arquivo instanceof File)) {
-    return { ok: false, erro: 'Envie um arquivo CSV.' }
-  }
-  if (!arquivo.name.toLowerCase().endsWith('.csv')) {
-    return { ok: false, erro: 'O arquivo precisa ter extensão .csv.' }
-  }
-  if (arquivo.size === 0) {
-    return { ok: false, erro: 'O arquivo está vazio.' }
-  }
-  if (arquivo.size > TAMANHO_MAX) {
-    return {
-      ok: false,
-      erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB — o limite é 5 MB.`,
-    }
-  }
+  // F7B — correções da tela (ausente = []). Estrutura/whitelist/cap/datas aqui; o
+  // que depende do CSV vira `correcao_invalida` no motor.
+  const corrRes = parseCorrecoesJson(formData.get('correcoes'))
+  if (!corrRes.ok) return { ok: false, erro: corrRes.erro }
 
-  const filial = await filialPorId(client, filialId)
+  const filial = await filialPorId(client, idRes.filialId)
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
   if (!filial.ativo) return { ok: false, erro: 'Filial inativa: import bloqueado.' }
 
   let validacao: ValidacaoImport
   try {
-    const buffer = await arquivo.arrayBuffer()
-    validacao = validarCsvImport(buffer, {
-      id: filial.id,
-      slug: filial.slug,
-      nome: filial.nome,
-    })
+    const buffer = await arqRes.arquivo.arrayBuffer()
+    validacao = validarCsvImport(
+      buffer,
+      { id: filial.id, slug: filial.slug, nome: filial.nome },
+      undefined,
+      corrRes.correcoes,
+    )
   } catch {
     return { ok: false, erro: 'Não foi possível ler o CSV. Confira o arquivo e tente de novo.' }
   }
@@ -202,6 +239,7 @@ export async function aplicarImport(input: {
   plano: PlanoImport
   confirmacaoTexto: string
   custoPreview: CustoSubstituir
+  correcoes: CorrecaoImport[]
 }): Promise<AplicarImportResult> {
   const client = await createClient()
   const uid = await idOperador(client)
@@ -211,7 +249,7 @@ export async function aplicarImport(input: {
   if (!parsed.success) {
     return { ok: false, erro: 'Plano de import inválido. Gere o preview novamente.' }
   }
-  const { plano, confirmacaoTexto, custoPreview } = parsed.data
+  const { plano, confirmacaoTexto, custoPreview, correcoes } = parsed.data
 
   const filial = await filialPorId(client, plano.filialId)
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
@@ -290,10 +328,13 @@ export async function aplicarImport(input: {
   // (as 4 contagens do preview/backup): a RPC as reconfere JÁ sob o advisory lock,
   // na mesma transação do DELETE, fechando a janela TOCTOU entre backup e delete
   // (mov concorrente apagada fora do backup / dois applies simultâneos).
+  // `p_correcoes` (F7B) é trilha de auditoria: a RPC só grava em import_logs —
+  // auditoria do import = arquivo original (hash) + correções → plano.
   const { data, error } = await client.rpc('importar_ativos_substituir', {
     p_plano: plano as unknown as Json,
     p_backup_path: backupPath,
     p_contagens: custoPreview as unknown as Json,
+    p_correcoes: correcoes as unknown as Json,
   })
   if (error) {
     return { ok: false, erro: traduzErroBanco(error.message) }
@@ -342,6 +383,7 @@ export async function aplicarImport(input: {
       anotacoesApagadas: ret.data.anotacoes_apagadas,
       termosApagados: ret.data.termos_apagados,
       arquivosTermosRemovidos,
+      correcoesAplicadas: correcoes.length,
     },
   }
 }
@@ -372,4 +414,40 @@ export async function urlBackup(logId: string): Promise<UrlBackupResult> {
   if (sErr || !signed) return { ok: false, erro: 'Falha ao gerar o link do backup.' }
 
   return { ok: true, url: signed.signedUrl }
+}
+
+// ---- 4) baixarCsvCorrigido (F7B) -----------------------------------------
+
+// Aplica as correções sobre o CSV enviado e devolve o TEXTO do arquivo corrigido
+// (header/ordem originais, `;`, CRLF, sem as linhas removidas). É o artefato do
+// que foi efetivamente importado — reimportável no futuro sem correção nenhuma.
+// Mesmas guardas de operador/extensão/tamanho das demais; o arquivo original
+// segue intocado e nada é persistido aqui.
+export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvCorrigidoResult> {
+  const client = await createClient()
+  const uid = await idOperador(client)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+
+  const idRes = lerFilialId(formData)
+  if (!idRes.ok) return idRes
+  const arqRes = lerArquivoCsv(formData)
+  if (!arqRes.ok) return arqRes
+
+  const corrRes = parseCorrecoesJson(formData.get('correcoes'))
+  if (!corrRes.ok) return { ok: false, erro: corrRes.erro }
+
+  const filial = await filialPorId(client, idRes.filialId)
+  if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
+
+  try {
+    const buffer = await arqRes.arquivo.arrayBuffer()
+    // Sem BOM — quem baixa põe o BOM (padrão de export do projeto).
+    // A filial vai junto: sem ela o motor não roda a metade "para = a filial
+    // selecionada" da regra do Site e o artefato sairia com uma op que o preview
+    // recusou (revisão adversarial da F7B) — o baixado tem de espelhar o preview.
+    const conteudo = csvCorrigido(buffer, corrRes.correcoes, filial.nome)
+    return { ok: true, nome: `import-corrigido-${filial.slug}.csv`, conteudo }
+  } catch {
+    return { ok: false, erro: 'Não foi possível gerar o CSV corrigido. Refaça a análise.' }
+  }
 }

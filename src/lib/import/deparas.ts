@@ -109,6 +109,23 @@ export function mapearCategoria(raw: string | null | undefined): CategoriaAtivo 
   return CATEGORIAS[normalizarTexto(raw ?? '')] ?? null
 }
 
+/** F7B — termos de Tipo aceitos pelo De→Para (candidatos da sugestão por Levenshtein). */
+export const CATEGORIAS_TERMOS: readonly string[] = Object.keys(CATEGORIAS)
+
+/**
+ * F7B — tabela reversa de `CATEGORIAS`: enum → termo que a UI grava na célula Tipo.
+ * `outro` fica de fora porque o vocabulário do CSV não tem termo que resolva para
+ * ele (`mapearCategoria` nunca devolve 'outro') — categoria desconhecida se corrige
+ * para uma das 5 conhecidas ou a linha sai do import.
+ */
+export const TIPO_CANONICO: Record<Exclude<CategoriaAtivo, 'outro'>, string> = {
+  notebook: 'Notebook',
+  desktop: 'Desktop',
+  monitor: 'Monitor',
+  celular: 'Celular',
+  tablet: 'Tablet',
+}
+
 // ---------------------------------------------------------------------------
 // Estado da planilha (spec §4; precedência Situação > Status — DECISOES 15/07)
 
@@ -146,6 +163,33 @@ export function estadoPlanilha(
   const efetivo = sit !== '' ? sit : sta
   if (efetivo === '') return null
   return ESTADOS[efetivo] ?? null
+}
+
+/**
+ * F7B — termos de Situação/Status aceitos como CORREÇÃO: o vocabulário `ESTADOS`
+ * menos os que resolvem para `descartado`. Descartado continua bloqueante (régua
+ * da F7 §W1.5 — intocada): corrigir `estado_descartado` é trocar o estado ou
+ * remover a linha, nunca "aceitar o descartado".
+ */
+export const ESTADOS_CORRIGIVEIS: readonly string[] = Object.entries(ESTADOS)
+  .filter(([, estado]) => estado !== 'descartado')
+  .map(([termo]) => termo)
+
+/**
+ * F7B — tabela canônica reversa (OS-F7B §3.4): estado do sistema → termo que a UI
+ * grava na coluna Situação. Como Situação vence Status na precedência, escrever
+ * `SITUACAO_CANONICA[estado]` na célula resolve o estado da linha sem tocar em
+ * Status. `descartado` não tem entrada — de propósito (ver ESTADOS_CORRIGIVEIS).
+ * O teste de ciclo garante `estadoPlanilha(_, SITUACAO_CANONICA[e]) === e`.
+ */
+export const SITUACAO_CANONICA: Record<Exclude<StatusAtivo, 'descartado'>, string> = {
+  em_estoque: 'Estoque',
+  em_uso: 'Saída',
+  reservado: 'Reservado',
+  emprestado: 'Empréstimo',
+  em_triagem: 'Validar',
+  em_manutencao: 'Manutenção',
+  defasado: 'Defasado',
 }
 
 // ---------------------------------------------------------------------------

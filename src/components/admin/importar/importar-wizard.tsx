@@ -27,16 +27,23 @@ import {
 import { cn } from '@/lib/utils'
 import type { Filial } from '@/lib/queries/filiais'
 import type { CustoSubstituir, TermoMultiFilial } from '@/lib/queries/import-logs'
-import type { ErroImport, PlanoImport, ValidacaoImport } from '@/lib/import'
+import type { CorrecaoImport, ErroImport, PlanoImport, ValidacaoImport } from '@/lib/import'
 import { TabelaErros } from '@/components/admin/importar/tabela-erros'
+import { GruposErros } from '@/components/admin/importar/grupos-erros'
+import { CorrecoesAplicadas } from '@/components/admin/importar/correcoes-aplicadas'
 import {
   aplicarImport,
+  baixarCsvCorrigido,
   urlBackup,
   validarImport,
   type ResultadoImport,
 } from '@/lib/actions/importar'
 
 const TAMANHO_MAX = 5 * 1024 * 1024
+
+// Espelha o cap do Zod (`src/lib/validators/importar.ts`) — o servidor é o juiz;
+// aqui é só para avisar antes de mandar. Mesmo padrão do TAMANHO_MAX acima.
+const MAX_CORRECOES = 300
 
 const PASSOS = ['Configurar', 'Upload', 'Preview', 'Confirmar', 'Resultado'] as const
 
@@ -133,6 +140,12 @@ function Stepper({ passo }: { passo: number }) {
 // Wizard do import "Substituir tudo" (OS-F7 / W3). Client: estados por passo,
 // pending em todos os botões, erros por toast + inline. As escritas passam pelas
 // Server Actions (validarImport / aplicarImport).
+//
+// F7B — ciclo de correção: o `File` fica em memória entre os passos e cada
+// correção reenvia ARQUIVO + CORREÇÕES ACUMULADAS para `validarImport`, que
+// revalida tudo do zero pelo motor. O arquivo nunca é alterado; a lista de
+// correções zera ao trocar arquivo ou filial (OS-F7B §3.8 — previsível vence
+// esperto).
 export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
   const router = useRouter()
   const [passo, setPasso] = useState(1)
@@ -140,6 +153,9 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [erroUpload, setErroUpload] = useState<string | null>(null)
   const [previa, setPrevia] = useState<Previa | null>(null)
+  const [correcoes, setCorrecoes] = useState<CorrecaoImport[]>([])
+  const [listaAberta, setListaAberta] = useState(false)
+  const [baixandoCsv, setBaixandoCsv] = useState(false)
   const [confirmacao, setConfirmacao] = useState('')
   const [resultado, setResultado] = useState<{
     resultado: ResultadoImport
@@ -157,12 +173,31 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     [filiais, filialId],
   )
 
+  // `criar > 0` fecha um beco sem saída achado na revisão adversarial da F7B: um
+  // CSV com header válido e nenhuma linha aproveitável (só cabeçalho, ou só
+  // sobras de edição sem Site e sem patrimônio) não gera bloqueante — o motor
+  // devolve plano com 0 ativos e a tela dizia "Pronto para aplicar". O operador
+  // gastava o backup, digitava o nome da filial e só então o Zod recusava com
+  // "gere o preview novamente" — que devolveria exatamente o mesmo estado. A
+  // régua do plano_vazio no motor só cobre o caso de REMOÇÃO (retrocompat da F7);
+  // aqui a UI avisa antes, como manda a OS-F7B §8.4.
   const aplicavel =
-    !!previa?.validacao.plano && previa.termosMultiFilial.length === 0
+    !!previa?.validacao.plano &&
+    previa.validacao.resumo.criar > 0 &&
+    previa.termosMultiFilial.length === 0
+
+  // Tipos que o motor classificou como AVISO nesta análise — decide a cor do
+  // badge do card (bloqueante × aviso) sem depender de identidade de objeto (o
+  // retorno da Server Action é serializado: as referências não sobrevivem).
+  const tiposAviso = useMemo(
+    () => new Set((previa?.validacao.avisos ?? []).map((e) => e.tipo)),
+    [previa],
+  )
 
   function mudarFilial(v: string) {
     setFilialId(v)
     setPrevia(null)
+    setCorrecoes([]) // §3.8: trocar a filial zera as correções
     setConfirmacao('')
     setErroAcao(null)
   }
@@ -170,6 +205,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
   function mudarArquivo(f: File | null) {
     setArquivo(f)
     setPrevia(null)
+    setCorrecoes([]) // §3.8: trocar o arquivo zera as correções
     setErroUpload(null)
     setErroAcao(null)
     if (f) {
@@ -185,11 +221,14 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     }
   }
 
-  function analisar() {
+  // Único caminho de análise: arquivo + lista de correções → motor. Chamado no
+  // passo 2 (primeira análise) e a cada correção/desfazer (reanálise no passo 3).
+  function analisarCom(lista: CorrecaoImport[], irParaPreview: boolean) {
     if (!arquivo || !filialSel || erroUpload) return
     const fd = new FormData()
     fd.set('arquivo', arquivo)
     fd.set('filialId', String(filialSel.id))
+    fd.set('correcoes', JSON.stringify(lista))
     setErroAcao(null)
     startAnalise(async () => {
       const res = await validarImport(fd)
@@ -198,6 +237,9 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
         setErroAcao(res.erro)
         return
       }
+      // A lista só vira estado quando a análise volta OK: `porOp` é posicional e
+      // precisa casar com as correções exibidas no painel.
+      setCorrecoes(lista)
       setPrevia({
         filial: res.filial,
         validacao: res.validacao,
@@ -205,8 +247,61 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
         termosMultiFilial: res.termosMultiFilial,
       })
       setConfirmacao('')
-      setPasso(3)
+      if (irParaPreview) setPasso(3)
     })
+  }
+
+  function analisar() {
+    analisarCom(correcoes, true)
+  }
+
+  function corrigir(ops: CorrecaoImport[]) {
+    if (ops.length === 0 || analisando) return
+    if (correcoes.length + ops.length > MAX_CORRECOES) {
+      toast.error(
+        `São no máximo ${MAX_CORRECOES} correções por import — acima disso o arquivo precisa ser revisto na origem.`,
+      )
+      return
+    }
+    analisarCom([...correcoes, ...ops], false)
+  }
+
+  function desfazer(indice: number) {
+    if (analisando) return
+    analisarCom(
+      correcoes.filter((_, i) => i !== indice),
+      false,
+    )
+  }
+
+  async function baixarCorrigido() {
+    if (!arquivo || !filialSel) return
+    const fd = new FormData()
+    fd.set('arquivo', arquivo)
+    fd.set('filialId', String(filialSel.id))
+    fd.set('correcoes', JSON.stringify(correcoes))
+    setBaixandoCsv(true)
+    try {
+      const res = await baixarCsvCorrigido(fd)
+      if (!res.ok) {
+        toast.error(res.erro)
+        return
+      }
+      // BOM na hora de baixar (padrão de export do projeto: abre direto no Excel).
+      const blob = new Blob(['﻿' + res.conteudo], { type: 'text/csv;charset=utf-8' })
+      const u = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = u
+      a.download = res.nome
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(u)
+    } catch {
+      toast.error('Falha ao gerar o CSV corrigido.')
+    } finally {
+      setBaixandoCsv(false)
+    }
   }
 
   function aplicar() {
@@ -219,6 +314,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
         plano,
         confirmacaoTexto: confirmacao,
         custoPreview: previa.custo,
+        correcoes,
       })
       if (!res.ok) {
         toast.error(res.erro)
@@ -265,6 +361,8 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     setArquivo(null)
     setErroUpload(null)
     setPrevia(null)
+    setCorrecoes([])
+    setListaAberta(false)
     setConfirmacao('')
     setResultado(null)
     setErroAcao(null)
@@ -371,30 +469,79 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
         {/* -------- Passo 3: Preview -------- */}
         {passo === 3 && previa && (
           <div className="space-y-5">
+            {/* Barra de status do ciclo de correção (F7B) */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums">
+              <span
+                className={cn(
+                  previa.validacao.bloqueantes.length > 0
+                    ? 'font-medium text-destructive'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {previa.validacao.bloqueantes.length.toLocaleString('pt-BR')} bloqueantes
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">
+                {previa.validacao.avisos.length.toLocaleString('pt-BR')} avisos
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">
+                {previa.validacao.resumo.linhasRemovidas.toLocaleString('pt-BR')} linhas
+                removidas
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">
+                {correcoes.length.toLocaleString('pt-BR')} correções
+              </span>
+              {analisando && (
+                <span className="ml-auto text-muted-foreground">Reanalisando…</span>
+              )}
+            </div>
+
             {aplicavel ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <NumeroGrande
-                  valor={previa.validacao.resumo.criar}
-                  rotulo="ativos a criar"
-                  tom="positivo"
-                />
-                <NumeroGrande
-                  valor={previa.validacao.resumo.semData}
-                  rotulo="sem data de entrada"
-                />
-                <NumeroGrande valor={previa.custo.ativos} rotulo="ativos a apagar" tom="destrutivo" />
-                <NumeroGrande
-                  valor={previa.custo.movimentacoes}
-                  rotulo="movimentações a apagar"
-                  tom="destrutivo"
-                />
-                <NumeroGrande
-                  valor={previa.custo.anotacoes}
-                  rotulo="anotações a apagar"
-                  tom="destrutivo"
-                />
-                <NumeroGrande valor={previa.custo.termos} rotulo="termos a apagar" tom="destrutivo" />
-              </div>
+              <>
+                <div className="rounded-lg border border-green-600/40 bg-green-50 p-4 dark:border-green-400/30 dark:bg-green-950/30">
+                  <div className="flex items-center gap-2 font-medium text-green-700 dark:text-green-400">
+                    <CheckCircle2 className="size-4" />
+                    Pronto para aplicar
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Nenhum bloqueante. Confira os números abaixo e avance para a
+                    confirmação.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <NumeroGrande
+                    valor={previa.validacao.resumo.criar}
+                    rotulo="ativos a criar"
+                    tom="positivo"
+                  />
+                  <NumeroGrande
+                    valor={previa.validacao.resumo.semData}
+                    rotulo="sem data de entrada"
+                  />
+                  <NumeroGrande
+                    valor={previa.custo.ativos}
+                    rotulo="ativos a apagar"
+                    tom="destrutivo"
+                  />
+                  <NumeroGrande
+                    valor={previa.custo.movimentacoes}
+                    rotulo="movimentações a apagar"
+                    tom="destrutivo"
+                  />
+                  <NumeroGrande
+                    valor={previa.custo.anotacoes}
+                    rotulo="anotações a apagar"
+                    tom="destrutivo"
+                  />
+                  <NumeroGrande
+                    valor={previa.custo.termos}
+                    rotulo="termos a apagar"
+                    tom="destrutivo"
+                  />
+                </div>
+              </>
             ) : (
               <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
                 <div className="flex items-center gap-2 font-medium text-destructive">
@@ -403,8 +550,10 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {previa.validacao.bloqueantes.length > 0
-                    ? 'Corrija os erros abaixo no CSV e reenvie o arquivo.'
-                    : 'Há termo(s) que misturam esta filial com outra. Resolva os termos antes de substituir.'}
+                    ? 'Corrija os erros abaixo — em massa ou linha a linha. O arquivo enviado não é alterado: a análise refaz sozinha a cada correção.'
+                    : previa.termosMultiFilial.length > 0
+                      ? 'Há termo(s) que misturam esta filial com outra. Resolva os termos antes de substituir.'
+                      : 'Nenhum ativo a criar: o arquivo não tem nenhuma linha aproveitável. O import de startup precisa de ao menos 1 ativo — confira se o CSV é o da filial certa.'}
                 </p>
               </div>
             )}
@@ -425,50 +574,97 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               </div>
             )}
 
-            {previa.validacao.bloqueantes.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-destructive">
-                  Bloqueantes ({previa.validacao.bloqueantes.length})
-                </h3>
-                <TabelaErros erros={previa.validacao.bloqueantes} />
-              </div>
-            )}
+            {/* Cards acionáveis: um por grupo de erro/aviso (F7B) */}
+            <GruposErros
+              grupos={previa.validacao.grupos}
+              contexto={previa.validacao.contexto}
+              filialNome={previa.filial.nome}
+              tiposAviso={tiposAviso}
+              pendente={analisando}
+              onCorrigir={corrigir}
+            />
 
-            {previa.validacao.avisos.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold">
-                  Avisos ({previa.validacao.avisos.length})
-                </h3>
-                <TabelaErros erros={previa.validacao.avisos} />
-              </div>
-            )}
+            <CorrecoesAplicadas
+              correcoes={correcoes}
+              porOp={previa.validacao.correcoes.porOp}
+              pendente={analisando}
+              onDesfazer={desfazer}
+            />
 
-            {(previa.validacao.bloqueantes.length > 0 ||
-              previa.validacao.avisos.length > 0) && (
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={() =>
-                  baixarCsvErros(
-                    [...previa.validacao.bloqueantes, ...previa.validacao.avisos],
-                    previa.filial.slug,
-                  )
-                }
+                disabled={baixandoCsv}
+                onClick={baixarCorrigido}
               >
                 <Download className="size-4" />
-                Baixar lista de erros (CSV)
+                {baixandoCsv ? 'Gerando…' : 'Baixar CSV corrigido'}
               </Button>
+              {(previa.validacao.bloqueantes.length > 0 ||
+                previa.validacao.avisos.length > 0) && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() =>
+                      baixarCsvErros(
+                        [...previa.validacao.bloqueantes, ...previa.validacao.avisos],
+                        previa.filial.slug,
+                      )
+                    }
+                  >
+                    <Download className="size-4" />
+                    Baixar lista de erros (CSV)
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setListaAberta((v) => !v)}
+                  >
+                    {listaAberta ? 'Ocultar lista completa' : 'Ver lista completa'}
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {listaAberta && (
+              <div className="space-y-5">
+                {previa.validacao.bloqueantes.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-destructive">
+                      Bloqueantes ({previa.validacao.bloqueantes.length})
+                    </h3>
+                    <TabelaErros erros={previa.validacao.bloqueantes} />
+                  </div>
+                )}
+
+                {previa.validacao.avisos.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">
+                      Avisos ({previa.validacao.avisos.length})
+                    </h3>
+                    <TabelaErros erros={previa.validacao.avisos} />
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="flex items-center justify-between border-t pt-4">
-              <Button variant="ghost" className="gap-2" onClick={() => setPasso(2)}>
+              <Button
+                variant="ghost"
+                className="gap-2"
+                disabled={analisando}
+                onClick={() => setPasso(2)}
+              >
                 <ArrowLeft className="size-4" />
                 Trocar arquivo
               </Button>
               <Button
                 className="gap-2"
-                disabled={!aplicavel}
+                disabled={!aplicavel || analisando}
                 onClick={() => setPasso(4)}
               >
                 Avançar
@@ -576,6 +772,17 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               />
               <NumeroGrande valor={resultado.resultado.termosApagados} rotulo="termos apagados" />
             </div>
+
+            {resultado.resultado.correcoesAplicadas > 0 && (
+              <p className="text-sm text-muted-foreground">
+                <strong className="tabular-nums">
+                  {resultado.resultado.correcoesAplicadas.toLocaleString('pt-BR')}
+                </strong>{' '}
+                {resultado.resultado.correcoesAplicadas === 1 ? 'correção' : 'correções'} de
+                tela {resultado.resultado.correcoesAplicadas === 1 ? 'registrada' : 'registradas'}{' '}
+                no log deste import (o arquivo enviado não foi alterado).
+              </p>
+            )}
 
             <div className="flex flex-wrap gap-2">
               <Button

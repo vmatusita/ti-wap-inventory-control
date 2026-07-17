@@ -176,6 +176,7 @@ export type Database = {
           arquivo_hash: string
           ativos_criados: number
           backup_path: string
+          correcoes: Json
           created_at: string
           criado_por: string
           filial_id: number
@@ -190,6 +191,7 @@ export type Database = {
           arquivo_hash: string
           ativos_criados: number
           backup_path: string
+          correcoes?: Json
           created_at?: string
           criado_por: string
           filial_id: number
@@ -204,6 +206,7 @@ export type Database = {
           arquivo_hash?: string
           ativos_criados?: number
           backup_path?: string
+          correcoes?: Json
           created_at?: string
           criado_por?: string
           filial_id?: number
@@ -702,7 +705,12 @@ export type Database = {
         }[]
       }
       importar_ativos_substituir: {
-        Args: { p_backup_path: string; p_contagens: Json; p_plano: Json }
+        Args: {
+          p_backup_path: string
+          p_contagens: Json
+          p_correcoes?: Json
+          p_plano: Json
+        }
         Returns: Json
       }
       registrar_tentativa_senha: {
