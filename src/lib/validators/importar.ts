@@ -20,9 +20,11 @@ import type { CampoEditavel, CorrecaoImport } from '@/lib/import'
 // `@/lib/import`, que re-exporta `plano.ts` (node:crypto). Client Component que
 // precise da mesma régua importa dos módulos-folha (`@/lib/import/deparas`).
 
-/** Cap de operações por import (OS-F7B §3.8). Corrigir um grupo custa 1 op (massa)
- *  ou 1 op por linha (pontual/data) — 300 cobre um CSV de startup bem sujo. */
-export const MAX_CORRECOES = 300
+/** Teto de operações por import. F7D (17/07/2026) removeu o limite prático de 300
+ *  (o Johnny corrige em lote/global — um CSV bem sujo passa fácil de 300 ops): este
+ *  teto é só uma rede contra payload absurdo forjado FORA da tela. Invisível no uso
+ *  real — a maior filial tem 1.217 ativos, e cada ativo gera no máximo ~1 op. */
+export const MAX_CORRECOES = 20_000
 
 // Tetos de tamanho: uma correção escreve UMA célula de planilha. `de`/`statusDe`/
 // `situacaoDe` são valores CRUS do CSV (podem ser vazios — Site em branco é um
@@ -135,7 +137,7 @@ export const correcaoSchema = z
 
 export const correcoesSchema = z
   .array(correcaoSchema)
-  .max(MAX_CORRECOES, `São no máximo ${MAX_CORRECOES} correções por import.`)
+  .max(MAX_CORRECOES, 'Correções demais neste import — algo está errado com o arquivo.')
 
 export type ParseCorrecoesResult =
   | { ok: true; correcoes: CorrecaoImport[] }

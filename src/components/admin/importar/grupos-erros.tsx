@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, ChevronRight, Trash2, Wand2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { CheckCheck, ChevronDown, ChevronRight, Trash2, Wand2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 // VALOR só dos módulos-folha PUROS do motor: o barrel `@/lib/import` re-exporta
 // `plano.ts`, que importa node:crypto — ele não pode entrar no bundle do cliente.
 // Os TIPOS vêm do barrel normalmente (são apagados no build).
-import { parseData, SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
+import { SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 import type {
   CategoriaAtivo,
@@ -27,6 +27,17 @@ import type {
   StatusAtivo,
 } from '@/lib/import'
 import { rotuloTipoErro, VAZIO } from '@/components/admin/importar/rotulos'
+import {
+  chaveLinha,
+  chaveMassa,
+  dataValida,
+  faltamNoGrupo,
+  grupoPronto,
+  massaEfetiva,
+  opsDoGrupo,
+  resumoOps,
+  type Rascunho,
+} from '@/components/admin/importar/ops-grupo'
 
 // Cards de correção do preview do import (OS-F7B / W3 · §7). Um card por
 // `GrupoErro` — o MOTOR já decidiu o que cada grupo oferece (`correcao.kind`) e
@@ -38,19 +49,21 @@ import { rotuloTipoErro, VAZIO } from '@/components/admin/importar/rotulos'
 
 type CorrigirFn = (ops: CorrecaoImport[]) => void
 
+/** Props comuns que o dispatcher passa a cada card. F7D: o rascunho (valores
+ *  digitados/escolhidos) vive no PAI, não em cada card — é o que torna possível o
+ *  botão "corrigir a seção" e o botão global. */
+type CtrlProps = {
+  bloqueante: boolean
+  contexto: Record<number, RegistroImport>
+  pendente: boolean
+  onCorrigir: CorrigirFn
+  filialNome: string
+  rascunho: Rascunho
+  setCampo: (chave: string, valor: string) => void
+}
+
 const CATEGORIAS = Object.entries(TIPO_CANONICO) as [Exclude<CategoriaAtivo, 'outro'>, string][]
 const ESTADOS = Object.entries(SITUACAO_CANONICA) as [Exclude<StatusAtivo, 'descartado'>, string][]
-
-function hojeIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-/** Mesma régua do CSV (motor): dd/MM/aaaa válida e não futura. */
-function dataValida(valor: string): boolean {
-  const r = parseData(valor, hojeIso())
-  return r.iso !== null && !r.invalida && !r.futura
-}
 
 function plural(n: number, singular: string, pluralTxt: string): string {
   return n === 1 ? singular : pluralTxt
@@ -121,13 +134,9 @@ function CardGrupo({
   onCorrigir,
   removivel = true,
   children,
-}: {
+}: CtrlProps & {
   grupo: GrupoErro
-  bloqueante: boolean
   chaveVisivel?: string
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
   removivel?: boolean
   children?: React.ReactNode
 }) {
@@ -225,21 +234,18 @@ function CardCategoria({
   grupo,
   sugestao,
   ...comuns
-}: {
+}: CtrlProps & {
   grupo: GrupoErro
   sugestao: Exclude<CategoriaAtivo, 'outro'> | null
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
 }) {
-  const [categoria, setCategoria] = useState<string>(sugestao ?? '')
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
+  const categoria = massaEfetiva(grupo, rascunho)
   const n = grupo.linhas.length
 
   return (
     <CardGrupo grupo={grupo} {...comuns}>
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={categoria} onValueChange={setCategoria}>
+        <Select value={categoria} onValueChange={(v) => setCampo(chaveMassa(grupo), v)}>
           <SelectTrigger className="w-48" aria-label="Categoria correta">
             <SelectValue placeholder="Escolha o tipo correto" />
           </SelectTrigger>
@@ -260,17 +266,8 @@ function CardCategoria({
           type="button"
           size="sm"
           className="gap-2"
-          disabled={categoria === '' || comuns.pendente}
-          onClick={() =>
-            comuns.onCorrigir([
-              {
-                op: 'substituir',
-                campo: 'tipo',
-                de: grupo.chave,
-                para: TIPO_CANONICO[categoria as Exclude<CategoriaAtivo, 'outro'>],
-              },
-            ])
-          }
+          disabled={!grupoPronto(grupo, rascunho, contexto) || pendente}
+          onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
         >
           <Wand2 className="size-3.5" />
           Corrigir {n} {plural(n, 'linha', 'linhas')}
@@ -291,17 +288,14 @@ function CardEstado({
   situacaoDe,
   sugestao,
   ...comuns
-}: {
+}: CtrlProps & {
   grupo: GrupoErro
   statusDe: string
   situacaoDe: string
   sugestao: Exclude<StatusAtivo, 'descartado'> | null
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
 }) {
-  const [estado, setEstado] = useState<string>(sugestao ?? '')
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
+  const estado = massaEfetiva(grupo, rascunho)
   const n = grupo.linhas.length
 
   return (
@@ -311,7 +305,7 @@ function CardEstado({
       {...comuns}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={estado} onValueChange={setEstado}>
+        <Select value={estado} onValueChange={(v) => setCampo(chaveMassa(grupo), v)}>
           <SelectTrigger className="w-56" aria-label="Estado correto">
             <SelectValue placeholder="Escolha o estado correto" />
           </SelectTrigger>
@@ -333,17 +327,8 @@ function CardEstado({
           type="button"
           size="sm"
           className="gap-2"
-          disabled={estado === '' || comuns.pendente}
-          onClick={() =>
-            comuns.onCorrigir([
-              {
-                op: 'substituir_estado',
-                statusDe,
-                situacaoDe,
-                para: SITUACAO_CANONICA[estado as Exclude<StatusAtivo, 'descartado'>],
-              },
-            ])
-          }
+          disabled={!grupoPronto(grupo, rascunho, contexto) || pendente}
+          onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
         >
           <Wand2 className="size-3.5" />
           Corrigir {n} {plural(n, 'linha', 'linhas')}
@@ -356,18 +341,8 @@ function CardEstado({
 // ---------------------------------------------------------------------------
 // kind: 'site_desconhecido' — erro de grafia: ação única, vira a filial do import.
 
-function CardSiteDesconhecido({
-  grupo,
-  filialNome,
-  ...comuns
-}: {
-  grupo: GrupoErro
-  filialNome: string
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
-}) {
+function CardSiteDesconhecido({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
+  const { filialNome, rascunho, contexto, pendente, onCorrigir } = comuns
   const n = grupo.linhas.length
   return (
     <CardGrupo grupo={grupo} {...comuns}>
@@ -375,12 +350,8 @@ function CardSiteDesconhecido({
         type="button"
         size="sm"
         className="gap-2"
-        disabled={comuns.pendente}
-        onClick={() =>
-          comuns.onCorrigir([
-            { op: 'substituir', campo: 'site', de: grupo.chave, para: filialNome },
-          ])
-        }
+        disabled={pendente}
+        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
       >
         <Wand2 className="size-3.5" />
         Definir como {filialNome} ({n} {plural(n, 'linha', 'linhas')})
@@ -392,23 +363,12 @@ function CardSiteDesconhecido({
 // ---------------------------------------------------------------------------
 // kind: 'site_outra_filial' — decisão 4 do Johnny: só remover.
 
-function CardSiteOutraFilial({
-  grupo,
-  filialNome,
-  ...comuns
-}: {
-  grupo: GrupoErro
-  filialNome: string
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
-}) {
+function CardSiteOutraFilial({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
   return (
     <CardGrupo grupo={grupo} {...comuns}>
       <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
         Estas linhas são de outra filial e <strong>não entram</strong> no import de{' '}
-        {filialNome}. Forçar o Site mascararia uma transferência — mover ativo entre
+        {comuns.filialNome}. Forçar o Site mascararia uma transferência — mover ativo entre
         filiais é operação do sistema (movimentação de transferência), não do import.
         Remova as linhas para seguir.
       </p>
@@ -423,17 +383,9 @@ function CardSiteOutraFilial({
 function CardExisteEmOutraFilial({
   grupo,
   filialDona,
-  filialNome,
   ...comuns
-}: {
-  grupo: GrupoErro
-  filialDona: string
-  filialNome: string
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
-}) {
+}: CtrlProps & { grupo: GrupoErro; filialDona: string }) {
+  const { filialNome } = comuns
   const n = grupo.linhas.length
   return (
     <CardGrupo grupo={grupo} {...comuns}>
@@ -453,22 +405,65 @@ function CardExisteEmOutraFilial({
 }
 
 // ---------------------------------------------------------------------------
+// Botão "corrigir a seção inteira" — só habilita quando TODAS as linhas do card
+// estão preenchidas e válidas (decisão do Johnny, F7D). Uma reanálise só.
+
+function BotaoSecao({
+  n,
+  pronto,
+  faltam,
+  pendente,
+  onClick,
+}: {
+  n: number
+  pronto: boolean
+  faltam: number
+  pendente: boolean
+  onClick: () => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-2">
+      <Button
+        type="button"
+        size="sm"
+        className="gap-2"
+        disabled={!pronto || pendente}
+        onClick={onClick}
+      >
+        <CheckCheck className="size-3.5" />
+        Corrigir {n === 1 ? 'a linha' : `todas as ${n} linhas`}
+      </Button>
+      {!pronto && faltam > 0 && (
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {faltam === 1 ? 'falta 1 linha' : `faltam ${faltam} linhas`} para corrigir de uma vez
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // kind: 'patrimonio' — pontual por linha (o mesmo valor em N linhas viraria par
-// duplicado; OS-F7B §3.2).
+// duplicado; OS-F7B §3.2). Controlado pelo rascunho do pai (F7D).
 
 function LinhaPatrimonio({
   linha,
   reg,
   pendente,
   onCorrigir,
+  rascunho,
+  setCampo,
 }: {
   linha: number
   reg: RegistroImport | undefined
   pendente: boolean
   onCorrigir: CorrigirFn
+  rascunho: Rascunho
+  setCampo: (chave: string, valor: string) => void
 }) {
   const original = reg?.patrimonio ?? ''
-  const [valor, setValor] = useState(original)
+  const chave = chaveLinha(linha, 'patrimonio')
+  const valor = rascunho[chave] ?? original
   const canonico = canonicalizarPatrimonio(valor)
 
   return (
@@ -478,7 +473,7 @@ function LinhaPatrimonio({
       </span>
       <Input
         value={valor}
-        onChange={(e) => setValor(e.target.value)}
+        onChange={(e) => setCampo(chave, e.target.value)}
         placeholder="WAP0004491"
         aria-label={`Patrimônio da linha ${linha}`}
         className="w-44 font-mono"
@@ -510,16 +505,8 @@ function LinhaPatrimonio({
   )
 }
 
-function CardPatrimonio({
-  grupo,
-  ...comuns
-}: {
-  grupo: GrupoErro
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
-}) {
+function CardPatrimonio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
   return (
     <CardGrupo grupo={grupo} {...comuns}>
       <div className="space-y-2">
@@ -527,12 +514,21 @@ function CardPatrimonio({
           <LinhaPatrimonio
             key={l}
             linha={l}
-            reg={comuns.contexto[l]}
-            pendente={comuns.pendente}
-            onCorrigir={comuns.onCorrigir}
+            reg={contexto[l]}
+            pendente={pendente}
+            onCorrigir={onCorrigir}
+            rascunho={rascunho}
+            setCampo={setCampo}
           />
         ))}
       </div>
+      <BotaoSecao
+        n={grupo.linhas.length}
+        pronto={grupoPronto(grupo, rascunho, contexto)}
+        faltam={faltamNoGrupo(grupo, rascunho, contexto)}
+        pendente={pendente}
+        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+      />
     </CardGrupo>
   )
 }
@@ -640,16 +636,9 @@ function LinhaDuplicata({
   )
 }
 
-function CardDuplicata({
-  grupo,
-  ...comuns
-}: {
-  grupo: GrupoErro
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
-}) {
+// Duplicata fica linha a linha (grupos pequenos, DOIS campos por linha, e o
+// conserto típico é mexer só numa das duas) — fora do lote/global (F7D).
+function CardDuplicata({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
   return (
     <CardGrupo grupo={grupo} {...comuns} removivel={false}>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -679,27 +668,26 @@ function CardDuplicata({
 // escreveria nela, podendo mudar em silêncio a dataEntrada dela (o motor calcula
 // dataEntrada = a mais antiga válida). `editar` por linha é exato.
 
-function CardData({
-  grupo,
-  ...comuns
-}: {
-  grupo: GrupoErro
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
-}) {
-  const [valor, setValor] = useState(grupo.chave)
+function CardData({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
+  const [massa, setMassa] = useState('')
   const n = grupo.linhas.length
-  const ok = dataValida(valor)
+  const massaOk = dataValida(massa)
+
+  // Digitar aqui preenche o rascunho de TODAS as linhas — o botão da seção (e o
+  // global) enxergam; cada linha ainda pode ser ajustada individualmente depois.
+  function preencherTodas(v: string) {
+    setMassa(v)
+    for (const l of grupo.linhas) setCampo(chaveLinha(l, 'dataInclusao'), v)
+  }
 
   return (
     <CardGrupo grupo={grupo} {...comuns}>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Input
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
+            value={massa}
+            onChange={(e) => preencherTodas(e.target.value)}
             placeholder="dd/mm/aaaa"
             aria-label="Data de inclusão para todas as linhas do grupo"
             className="w-36 tabular-nums"
@@ -708,38 +696,19 @@ function CardData({
           <span
             className={cn(
               'text-xs',
-              valor.trim() === ''
+              massa.trim() === ''
                 ? 'text-muted-foreground'
-                : ok
+                : massaOk
                   ? 'text-green-600 dark:text-green-400'
                   : 'text-destructive',
             )}
           >
-            {valor.trim() === ''
-              ? 'formato dd/mm/aaaa'
-              : ok
-                ? 'data válida'
+            {massa.trim() === ''
+              ? `preenche as ${n} linhas de uma vez`
+              : massaOk
+                ? 'aplicada às linhas abaixo'
                 : 'data inválida ou futura'}
           </span>
-          <Button
-            type="button"
-            size="sm"
-            className="gap-2"
-            disabled={!ok || comuns.pendente}
-            onClick={() =>
-              comuns.onCorrigir(
-                grupo.linhas.map((linha) => ({
-                  op: 'editar',
-                  linha,
-                  campo: 'dataInclusao',
-                  para: valor,
-                })),
-              )
-            }
-          >
-            <Wand2 className="size-3.5" />
-            Definir para {n === 1 ? 'a linha' : `as ${n} linhas`}
-          </Button>
         </div>
 
         <div className="space-y-2">
@@ -747,13 +716,22 @@ function CardData({
             <LinhaData
               key={l}
               linha={l}
-              reg={comuns.contexto[l]}
-              pendente={comuns.pendente}
-              onCorrigir={comuns.onCorrigir}
+              reg={contexto[l]}
+              pendente={pendente}
+              onCorrigir={onCorrigir}
+              rascunho={rascunho}
+              setCampo={setCampo}
             />
           ))}
         </div>
       </div>
+      <BotaoSecao
+        n={n}
+        pronto={grupoPronto(grupo, rascunho, contexto)}
+        faltam={faltamNoGrupo(grupo, rascunho, contexto)}
+        pendente={pendente}
+        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+      />
     </CardGrupo>
   )
 }
@@ -763,13 +741,18 @@ function LinhaData({
   reg,
   pendente,
   onCorrigir,
+  rascunho,
+  setCampo,
 }: {
   linha: number
   reg: RegistroImport | undefined
   pendente: boolean
   onCorrigir: CorrigirFn
+  rascunho: Rascunho
+  setCampo: (chave: string, valor: string) => void
 }) {
-  const [valor, setValor] = useState(reg?.dataInclusao ?? '')
+  const chave = chaveLinha(linha, 'dataInclusao')
+  const valor = rascunho[chave] ?? (reg?.dataInclusao ?? '')
   const ok = dataValida(valor)
 
   return (
@@ -779,7 +762,7 @@ function LinhaData({
       </span>
       <Input
         value={valor}
-        onChange={(e) => setValor(e.target.value)}
+        onChange={(e) => setCampo(chave, e.target.value)}
         placeholder="dd/mm/aaaa"
         aria-label={`Data de inclusão da linha ${linha}`}
         className="w-36 tabular-nums"
@@ -811,14 +794,19 @@ function LinhaColaborador({
   reg,
   pendente,
   onCorrigir,
+  rascunho,
+  setCampo,
 }: {
   linha: number
   reg: RegistroImport | undefined
   pendente: boolean
   onCorrigir: CorrigirFn
+  rascunho: Rascunho
+  setCampo: (chave: string, valor: string) => void
 }) {
   const original = reg?.colaborador ?? ''
-  const [valor, setValor] = useState(original)
+  const chave = chaveLinha(linha, 'colaborador')
+  const valor = rascunho[chave] ?? original
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border p-2.5">
@@ -827,7 +815,7 @@ function LinhaColaborador({
       </span>
       <Input
         value={valor}
-        onChange={(e) => setValor(e.target.value)}
+        onChange={(e) => setCampo(chave, e.target.value)}
         placeholder="Nome / Setor"
         aria-label={`Colaborador da linha ${linha}`}
         className="w-64"
@@ -848,16 +836,8 @@ function LinhaColaborador({
   )
 }
 
-function CardColaborador({
-  grupo,
-  ...comuns
-}: {
-  grupo: GrupoErro
-  bloqueante: boolean
-  contexto: Record<number, RegistroImport>
-  pendente: boolean
-  onCorrigir: CorrigirFn
-}) {
+function CardColaborador({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
   return (
     <CardGrupo grupo={grupo} {...comuns}>
       <div className="space-y-2">
@@ -865,12 +845,21 @@ function CardColaborador({
           <LinhaColaborador
             key={l}
             linha={l}
-            reg={comuns.contexto[l]}
-            pendente={comuns.pendente}
-            onCorrigir={comuns.onCorrigir}
+            reg={contexto[l]}
+            pendente={pendente}
+            onCorrigir={onCorrigir}
+            rascunho={rascunho}
+            setCampo={setCampo}
           />
         ))}
       </div>
+      <BotaoSecao
+        n={grupo.linhas.length}
+        pronto={grupoPronto(grupo, rascunho, contexto)}
+        faltam={faltamNoGrupo(grupo, rascunho, contexto)}
+        pendente={pendente}
+        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+      />
     </CardGrupo>
   )
 }
@@ -893,16 +882,59 @@ export function GruposErros({
   pendente: boolean
   onCorrigir: CorrigirFn
 }) {
+  // F7D — o rascunho (valores digitados/escolhidos) vive AQUI, não em cada card:
+  // é o que torna possível o botão global juntar tudo numa reanálise só. Persiste
+  // entre reanálises de propósito (a linha que segue com erro mantém o que foi
+  // digitado); o wizard remonta este componente com `key` ao trocar arquivo/filial
+  // (regra §3.8), então o rascunho morre junto quando deve.
+  const [rascunho, setRascunho] = useState<Rascunho>({})
+  const setCampo = (chave: string, valor: string) =>
+    setRascunho((r) => ({ ...r, [chave]: valor }))
+
+  // O que o botão global aplicaria: as ops de TODOS os cards prontos (massa +
+  // pontual completo + remoções). Derivado do MESMO módulo puro que os botões dos
+  // cards — a régua não se duplica.
+  const opsGlobais = useMemo(
+    () =>
+      grupos
+        .filter((g) => grupoPronto(g, rascunho, contexto))
+        .flatMap((g) => opsDoGrupo(g, rascunho, contexto, filialNome)),
+    [grupos, rascunho, contexto, filialNome],
+  )
+  const resumoGlobal = resumoOps(opsGlobais)
+
   if (grupos.length === 0) return null
 
   return (
     <div className="space-y-3">
+      {opsGlobais.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Aplicar tudo o que está pronto</p>
+            <p className="text-xs text-muted-foreground">{resumoGlobal}</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="gap-2"
+            disabled={pendente}
+            onClick={() => onCorrigir(opsGlobais)}
+          >
+            <CheckCheck className="size-4" />
+            Aplicar todas as correções ({opsGlobais.length.toLocaleString('pt-BR')})
+          </Button>
+        </div>
+      )}
+
       {grupos.map((grupo) => {
-        const comuns = {
+        const comuns: CtrlProps = {
           bloqueante: !tiposAviso.has(grupo.tipo),
           contexto,
           pendente,
           onCorrigir,
+          filialNome,
+          rascunho,
+          setCampo,
         }
         const chaveReact = `${grupo.tipo}::${grupo.chave}`
 
@@ -934,30 +966,15 @@ export function GruposErros({
             )
           }
           case 'site_desconhecido':
-            return (
-              <CardSiteDesconhecido
-                key={chaveReact}
-                grupo={grupo}
-                filialNome={filialNome}
-                {...comuns}
-              />
-            )
+            return <CardSiteDesconhecido key={chaveReact} grupo={grupo} {...comuns} />
           case 'site_outra_filial':
-            return (
-              <CardSiteOutraFilial
-                key={chaveReact}
-                grupo={grupo}
-                filialNome={filialNome}
-                {...comuns}
-              />
-            )
+            return <CardSiteOutraFilial key={chaveReact} grupo={grupo} {...comuns} />
           case 'existe_em_outra_filial':
             return (
               <CardExisteEmOutraFilial
                 key={chaveReact}
                 grupo={grupo}
                 filialDona={grupo.correcao.filial}
-                filialNome={filialNome}
                 {...comuns}
               />
             )

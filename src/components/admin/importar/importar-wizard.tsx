@@ -41,10 +41,6 @@ import {
 
 const TAMANHO_MAX = 5 * 1024 * 1024
 
-// Espelha o cap do Zod (`src/lib/validators/importar.ts`) — o servidor é o juiz;
-// aqui é só para avisar antes de mandar. Mesmo padrão do TAMANHO_MAX acima.
-const MAX_CORRECOES = 300
-
 const PASSOS = ['Configurar', 'Upload', 'Preview', 'Confirmar', 'Resultado'] as const
 
 type Previa = {
@@ -257,12 +253,9 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
 
   function corrigir(ops: CorrecaoImport[]) {
     if (ops.length === 0 || analisando) return
-    if (correcoes.length + ops.length > MAX_CORRECOES) {
-      toast.error(
-        `São no máximo ${MAX_CORRECOES} correções por import — acima disso o arquivo precisa ser revisto na origem.`,
-      )
-      return
-    }
+    // Sem cap na tela: o servidor (Zod) é a única guarda, e o teto lá é altíssimo,
+    // só contra payload forjado — o uso real (maior filial = 1.217 ativos) nunca
+    // encosta. Corrigir em lote/global manda muitas ops de uma vez, e tudo bem.
     analisarCom([...correcoes, ...ops], false)
   }
 
@@ -576,6 +569,9 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
 
             {/* Cards acionáveis: um por grupo de erro/aviso (F7B) */}
             <GruposErros
+              // F7D — remonta (zera o rascunho) ao trocar arquivo ou filial (§3.8);
+              // entre reanálises do MESMO arquivo, o rascunho persiste.
+              key={`${filialId}|${arquivo?.name ?? ''}`}
               grupos={previa.validacao.grupos}
               contexto={previa.validacao.contexto}
               filialNome={previa.filial.nome}

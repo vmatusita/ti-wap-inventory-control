@@ -93,12 +93,12 @@ describe('parseCorrecoes — o que o servidor barra', () => {
     expect(parseCorrecoes([{ op: 'remover_linha', linha: 2.5 }]).ok).toBe(false)
   })
 
-  it(`recusa mais de ${MAX_CORRECOES} ops (cap §3.8)`, () => {
+  it(`recusa mais de ${MAX_CORRECOES} ops (teto anti-payload; F7D)`, () => {
     const uma = { op: 'remover_linha', linha: 2 }
     expect(parseCorrecoes(Array.from({ length: MAX_CORRECOES }, () => uma)).ok).toBe(true)
     const demais = parseCorrecoes(Array.from({ length: MAX_CORRECOES + 1 }, () => uma))
     expect(demais.ok).toBe(false)
-    expect(demais.ok === false && demais.erro).toContain('300')
+    expect(demais.ok === false && demais.erro).toContain('Correções demais')
   })
 
   it('aponta QUAL correção falhou', () => {
