@@ -174,11 +174,21 @@ export function opsDoGrupo(
           campo: 'dataInclusao',
           para: linhaEfetiva(linha, 'dataInclusao', rascunho, contexto),
         }))
+    // F7E — aviso: as linhas importam SEM patrimônio (pendência). Preencher é OPCIONAL;
+    // por isso emite `editar` SÓ das linhas que o operador preencheu com valor canônico
+    // (espelha 'patrimonio'), e nunca entra no lote/global (grupoPronto = false). O
+    // `patrimonioLinhaOk` já ignora as linhas em branco e as que não canonicalizam.
+    case 'patrimonio_vazio':
+      return grupo.linhas
+        .filter((l) => patrimonioLinhaOk(l, rascunho, contexto))
+        .map((linha) => ({
+          op: 'editar',
+          linha,
+          campo: 'patrimonio',
+          para: linhaEfetiva(linha, 'patrimonio', rascunho, contexto),
+        }))
     // duplicata: resolvida linha a linha no próprio card (grupos pequenos, dois
     // campos por linha); nenhuma: sem ação. Fora do lote/global.
-    // patrimonio_vazio: F7E-bridge (onda 1) — o W3 emite as linhas preenchidas na
-    // onda 2 (espelhando 'patrimonio'); por ora fica fora do lote/global.
-    case 'patrimonio_vazio':
     case 'duplicata':
     case 'nenhuma':
       return []

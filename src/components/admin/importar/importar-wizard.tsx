@@ -513,6 +513,13 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                     valor={previa.validacao.resumo.semData}
                     rotulo="sem data de entrada"
                   />
+                  {/* F7E — quantos ativos nascem sem patrimônio (pendência "sem
+                      patrimônio físico"). `patrimonio_vazio` já cai como aviso via
+                      `tiposAviso` (derivado de `avisos`), então nada a fixar aqui. */}
+                  <NumeroGrande
+                    valor={previa.validacao.resumo.semPatrimonio}
+                    rotulo="sem patrimônio (importam com pendência)"
+                  />
                   <NumeroGrande
                     valor={previa.custo.ativos}
                     rotulo="ativos a apagar"

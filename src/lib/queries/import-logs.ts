@@ -82,31 +82,42 @@ async function contarAnotacoes(client: DbClient, ids: string[]): Promise<number>
   return total
 }
 
+// F7E — sentinela do espaço de chaves dos ativos SEM patrimônio: `∅` (U+2205). TEM
+// de ser idêntico ao `SEM_PATRIMONIO` de `src/lib/import/plano.ts`: a chave que esta
+// query devolve para os nulos-com-tag (`∅::<service_tag>`) é a MESMA que o motor monta
+// na 2ª passada de `validarCsvImport` (`existentesEmOutraFilial.get(chaveBanco)`).
+// Mudar aqui sem mudar lá quebra silenciosamente a detecção — sincronia é contrato.
+const SEM_PATRIMONIO = '∅'
+
 /**
- * F7C — quais dos pares (patrimônio, service tag) do CSV já existem no banco em
- * OUTRA filial. Devolve `chavePatrimonio(patrimonio, serviceTag)` → nome da filial
- * onde o ativo está hoje.
+ * F7C — quais das linhas do CSV já existem no banco em OUTRA filial. Devolve uma
+ * chave → nome da filial onde o ativo está hoje. F7E amplia para DUAS identidades:
+ *   · COM patrimônio → chave `chavePatrimonio(patrimonio, service_tag)` (par exato);
+ *   · SEM patrimônio, COM service tag → chave `∅::<service_tag exata>` (índice parcial
+ *     `ativos_service_tag_sem_patrimonio_uidx`, a tag vira a identidade dos sem-plaqueta).
  *
- * Por que existe: `ativos_patrimonio_service_tag_uidx` é GLOBAL — `(patrimonio,
- * coalesce(service_tag,''))` sem `filial_id`. O "Substituir tudo" só apaga o acervo
- * da filial SELECIONADA, então um ativo do CSV que esteja cadastrado em outra filial
- * sobrevive ao DELETE e faz o INSERT da RPC estourar o índice ("Já existe um ativo
- * com esse patrimônio e service tag") — depois do backup e da confirmação, sem que o
- * preview tivesse apontado a linha. O motor é puro e não fala com o banco: esta
- * query alimenta o 5º parâmetro de `validarCsvImport`.
+ * Por que existe: os índices únicos são GLOBAIS (não filtram `filial_id`). O
+ * "Substituir tudo" só apaga o acervo da filial SELECIONADA, então um ativo do CSV que
+ * esteja cadastrado em outra filial sobrevive ao DELETE e faz o INSERT da RPC estourar
+ * o índice — depois do backup e da confirmação, sem que o preview tivesse apontado a
+ * linha. O motor é puro e não fala com o banco: esta query alimenta o 5º parâmetro de
+ * `validarCsvImport`, que emite o bloqueante `patrimonio_em_outra_filial`.
  *
- * A comparação é EXATA (patrimônio + `service_tag ?? ''`), igual ao índice — casar
- * por tag normalizada acusaria colisão que o banco não teria.
+ * A comparação é EXATA nos dois casos (patrimônio + `service_tag ?? ''`; tag RAW sem
+ * uppercase), igual aos índices e ao motor — normalizar acusaria colisão que o banco
+ * não teria. `serviceTagsSemPatrimonio` são as tags dos candidatos com patrimônio null;
+ * vazio (default) preserva o comportamento pré-F7E byte a byte.
  */
 export async function paresEmOutrasFiliais(
   client: DbClient,
   filialId: number,
   patrimonios: string[],
+  serviceTagsSemPatrimonio: string[] = [],
 ): Promise<Map<string, string>> {
   const mapa = new Map<string, string>()
-  const unicos = [...new Set(patrimonios)]
-  if (unicos.length === 0) return mapa
 
+  // (1) Pares COM patrimônio — a régua F7C original.
+  const unicos = [...new Set(patrimonios)]
   for (const lote of emLotes(unicos)) {
     const { data, error } = await client
       .from('ativos')
@@ -117,9 +128,36 @@ export async function paresEmOutrasFiliais(
     for (const a of data ?? []) {
       const nome = (a.filiais as { nome: string } | null)?.nome
       if (!nome) continue
+      // `.in('patrimonio', …)` nunca traz null/vazio; o guard é defensivo e satisfaz o
+      // tipo (F7E deixou `ativos.patrimonio` nullable) sem depender do estado do W4.
+      if (!a.patrimonio) continue
       mapa.set(chavePatrimonio(a.patrimonio, a.service_tag), nome)
     }
   }
+
+  // (2) SEM patrimônio, COM service tag — a tag é a identidade (índice parcial novo).
+  // A chave montada aqui espelha 1:1 a de `plano.ts`: `∅` + `::` + service tag RAW/exata.
+  const tags = [...new Set(serviceTagsSemPatrimonio)].filter((t) => t.trim() !== '')
+  for (const lote of emLotes(tags)) {
+    const { data, error } = await client
+      .from('ativos')
+      .select('service_tag, filiais(nome)')
+      .is('patrimonio', null)
+      .in('service_tag', lote)
+      .neq('filial_id', filialId)
+    if (error) {
+      throw new Error(
+        `Falha ao conferir service tags sem patrimônio em outras filiais: ${error.message}`,
+      )
+    }
+    for (const a of data ?? []) {
+      const nome = (a.filiais as { nome: string } | null)?.nome
+      if (!nome) continue
+      if (!a.service_tag) continue // o filtro já exclui, mas o tipo é nullable
+      mapa.set(`${SEM_PATRIMONIO}::${a.service_tag}`, nome)
+    }
+  }
+
   return mapa
 }
 

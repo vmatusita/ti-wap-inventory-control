@@ -465,6 +465,11 @@ function LinhaPatrimonio({
   const chave = chaveLinha(linha, 'patrimonio')
   const valor = rascunho[chave] ?? original
   const canonico = canonicalizarPatrimonio(valor)
+  // F7E — sugestão de 1 clique: quando o Hostname da linha canonicaliza (padrão real
+  // patrimônio `1234` / hostname `WAP0001234`), oferece preencher o rascunho com ele.
+  // NÃO aplica sozinho — só preenche o input; o "Corrigir" (por linha / seção / global)
+  // é que aplica. A não-inferência automática de 16/07 vale para o motor, não para a UI.
+  const hostnameCanonico = canonicalizarPatrimonio(reg?.hostname ?? '')
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border p-2.5">
@@ -480,6 +485,19 @@ function LinhaPatrimonio({
         autoComplete="off"
       />
       <PreviewPatrimonio valor={valor} />
+      {hostnameCanonico && hostnameCanonico !== valor.trim() && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="gap-1 font-mono"
+          disabled={pendente}
+          onClick={() => setCampo(chave, hostnameCanonico)}
+        >
+          <Wand2 className="size-3.5" />
+          usar {hostnameCanonico}
+        </Button>
+      )}
       <div className="ml-auto flex items-center gap-1">
         <Button
           type="button"
@@ -529,6 +547,39 @@ function CardPatrimonio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) 
         pendente={pendente}
         onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
       />
+    </CardGrupo>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// kind: 'patrimonio_vazio' (AVISO, F7E) — as linhas importam SEM patrimônio, com a
+// pendência "sem patrimônio físico". Preencher é OPCIONAL: mesma doutrina do card
+// `duplicata` — fica FORA do botão de seção e do lote global (pode legitimamente
+// ficar em branco), então nada de `BotaoSecao` aqui e `removivel={false}` (a remoção
+// é por linha, dentro de `LinhaPatrimonio`, que também traz a sugestão de hostname).
+
+function CardPatrimonioVazio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
+  const { rascunho, setCampo, contexto, pendente, onCorrigir } = comuns
+  return (
+    <CardGrupo grupo={grupo} {...comuns} removivel={false}>
+      <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+        Estas linhas importam <strong>sem patrimônio</strong>, com a pendência
+        &ldquo;sem patrimônio físico&rdquo; — preencha só as que você souber o número. As
+        demais entram assim mesmo e podem ser corrigidas depois, na ficha do ativo.
+      </p>
+      <div className="space-y-2">
+        {grupo.linhas.map((l) => (
+          <LinhaPatrimonio
+            key={l}
+            linha={l}
+            reg={contexto[l]}
+            pendente={pendente}
+            onCorrigir={onCorrigir}
+            rascunho={rascunho}
+            setCampo={setCampo}
+          />
+        ))}
+      </div>
     </CardGrupo>
   )
 }
@@ -710,6 +761,14 @@ function CardData({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
                 : 'data inválida ou futura'}
           </span>
         </div>
+
+        {/* F7E — entrega dd/MMM (ex.: 18/nov) resolve o ajuste sozinha quando a
+            inclusão tem ano; só as linhas SEM nenhuma data caem neste aviso. */}
+        <p className="text-xs text-muted-foreground">
+          As linhas com entrega no formato <span className="font-mono">dd/MMM</span> (ex.:{' '}
+          <span className="font-mono">18/nov</span>) resolvem sozinhas assim que a inclusão
+          ganhar uma data — o ano vem da própria inclusão.
+        </p>
 
         <div className="space-y-2">
           {grupo.linhas.map((l) => (
@@ -980,6 +1039,8 @@ export function GruposErros({
             )
           case 'patrimonio':
             return <CardPatrimonio key={chaveReact} grupo={grupo} {...comuns} />
+          case 'patrimonio_vazio':
+            return <CardPatrimonioVazio key={chaveReact} grupo={grupo} {...comuns} />
           case 'duplicata':
             return <CardDuplicata key={chaveReact} grupo={grupo} {...comuns} />
           case 'data':
