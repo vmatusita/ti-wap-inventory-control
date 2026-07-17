@@ -9,9 +9,16 @@
 //   escolhida (após De→Para); categoria (Tipo) desconhecida; estado não
 //   resolvível; estado alvo `descartado`.
 //   AVISOS: sem_data_entrada; estado_em_uso_sem_colaborador; linha sem chave.
+//
+// F7B (17/07/2026): `validarCsvImport` ganhou um 4º parâmetro OPCIONAL com as
+// correções da tela, aplicadas nas células ANTES de `extrairRegistros`. A régua
+// acima é a MESMA — só a alimentação mudou. Sem correções, o comportamento é
+// idêntico ao da F7 (retrocompatibilidade coberta por teste). `arquivoHash`
+// continua sendo o sha-256 do buffer ORIGINAL, nunca do corrigido.
 
 import { createHash } from 'node:crypto'
 import { canonicalizarPatrimonio, chavePatrimonio } from '@/lib/patrimonio'
+import { agruparErros, aplicarCorrecoes } from './correcoes'
 import {
   chaveServiceTag,
   estadoPlanilha,
@@ -28,11 +35,13 @@ import {
   decodificarCsv,
   detectarLayout,
   extrairRegistros,
+  mapaColunas,
   parseCsv,
   type RegistroImport,
 } from './parse'
 import type {
   AtivoPlano,
+  CorrecaoImport,
   ErroImport,
   FilialSelecionada,
   LayoutImport,
@@ -200,45 +209,70 @@ export function montarPlanoImport(
 
 /**
  * Função pública do motor. Recebe o buffer bruto do arquivo (o W3 faz
- * `File.arrayBuffer()`) e a filial escolhida; devolve bloqueantes/avisos, o
- * plano aplicável (null se houver bloqueante) e o resumo do preview.
+ * `File.arrayBuffer()`), a filial escolhida e — F7B — as correções declaradas na
+ * tela; devolve bloqueantes/avisos (agrupados para correção), o plano aplicável
+ * (null se houver bloqueante) e o resumo do preview.
  *
  * `hoje` é injetável (default = hoje) só para tornar os testes determinísticos
  * na detecção de data futura — o contrato de 2 argumentos é preservado.
+ *
+ * `correcoes` (F7B) é opcional: sem ela, o resultado é o da F7. Com ela, o ciclo
+ * é sempre validação DO ZERO sobre as células corrigidas — nunca patch
+ * incremental do resultado anterior (OS-F7B §8.1).
  */
 export function validarCsvImport(
   conteudo: ArrayBuffer | Uint8Array,
   filial: FilialSelecionada,
   hoje: string = hojeIso(),
+  correcoes: CorrecaoImport[] = [],
 ): ValidacaoImport {
+  // sha-256 do buffer ORIGINAL — as correções NÃO alteram o arquivo enviado
+  // (invariante da F7: auditoria = arquivo + correções → plano).
   const arquivoHash = hashConteudo(conteudo)
   const { texto } = decodificarCsv(conteudo)
-  const csv = parseCsv(texto)
-  const det = detectarLayout(csv.header)
+  const csvOriginal = parseCsv(texto)
+  const det = detectarLayout(csvOriginal.header)
 
   const bloqueantes: ErroImport[] = []
   const avisos: ErroImport[] = []
 
   // Header fora dos 3 layouts → bloqueante único; sem plano, resumo best-effort.
+  // Correções NÃO se aplicam (estrutura/arquivo errado não se corrige por célula
+  // — OS-F7B §8.6): a única saída é trocar o arquivo.
   if (det.layout === null) {
-    bloqueantes.push({
+    const erro: ErroImport = {
       linha: 1,
       coluna: 'cabeçalho',
-      valor: csv.header.filter((h) => h.trim() !== '').join(' | '),
+      valor: csvOriginal.header.filter((h) => h.trim() !== '').join(' | '),
       tipo: 'header_invalido',
       mensagem:
         `Cabeçalho não corresponde a nenhum layout (matriz/cd/padrao20). ` +
         `Mais próximo: ${det.maisProximo}. ` +
         `Faltando: [${det.faltando.join(', ') || '—'}]. Sobrando: [${det.sobrando.join(', ') || '—'}]`,
-    })
+    }
+    bloqueantes.push(erro)
     return {
       bloqueantes,
       avisos,
+      grupos: [
+        { tipo: 'header_invalido', chave: '', linhas: [1], erros: [erro], correcao: { kind: 'nenhuma' } },
+      ],
+      contexto: {},
+      correcoes: { aplicadas: 0, porOp: correcoes.map(() => 0) },
       plano: null,
-      resumo: { criar: 0, semData: 0, layout: det.maisProximo },
+      resumo: { criar: 0, semData: 0, layout: det.maisProximo, linhasRemovidas: 0 },
     }
   }
   const layout: LayoutImport = det.layout
+
+  // ---- F7B: correções nas CÉLULAS, antes da extração dos registros ----------
+  const {
+    csv,
+    porOp,
+    linhasRemovidas,
+    invalidas,
+  } = aplicarCorrecoes(csvOriginal, correcoes, mapaColunas(csvOriginal.header), filial.nome)
+  bloqueantes.push(...invalidas)
 
   const { registros, descartadas, totalLinhasDados } = extrairRegistros(csv)
 
@@ -291,11 +325,37 @@ export function validarCsvImport(
   }
 
   const ativos = candidatos.map((c) => c.ativo)
+
+  // F7B §8.4 — removeu tudo, não sobrou ativo: a RPC já exige ≥ 1; a UI avisa
+  // antes. Condicionado a `linhasRemovidas > 0` de propósito: sem correções, o
+  // comportamento da F7 fica byte-a-byte igual (retrocompatibilidade).
+  if (linhasRemovidas > 0 && ativos.length === 0) {
+    bloqueantes.push({
+      linha: 0,
+      coluna: '—',
+      valor: `${linhasRemovidas} linha(s) removida(s)`,
+      tipo: 'plano_vazio',
+      mensagem:
+        'todas as linhas foram removidas — o import de startup precisa de ao menos 1 ativo',
+    })
+  }
+
   const semData = ativos.filter((a) => a.dataEntrada === null).length
-  const resumo = { criar: ativos.length, semData, layout }
+  const resumo = { criar: ativos.length, semData, layout, linhasRemovidas }
+
+  // F7B — agrupamento + contexto das linhas com erro/aviso (a tela corrige a
+  // linha inteira, não a célula solta). `registros` já vem CORRIGIDO.
+  const grupos = agruparErros(bloqueantes, avisos, registros, filial.nome)
+  const porNumero = new Map(registros.map((r) => [r.linha, r]))
+  const contexto: Record<number, RegistroImport> = {}
+  for (const erro of [...bloqueantes, ...avisos]) {
+    const reg = porNumero.get(erro.linha)
+    if (reg) contexto[erro.linha] = reg
+  }
+  const infoCorrecoes = { aplicadas: porOp.filter((n) => n > 0).length, porOp }
 
   if (bloqueantes.length > 0) {
-    return { bloqueantes, avisos, plano: null, resumo }
+    return { bloqueantes, avisos, grupos, contexto, correcoes: infoCorrecoes, plano: null, resumo }
   }
 
   const plano: ValidacaoImport['plano'] = {
@@ -304,7 +364,7 @@ export function validarCsvImport(
     totalLinhasDados,
     ativos,
   }
-  return { bloqueantes, avisos, plano, resumo }
+  return { bloqueantes, avisos, grupos, contexto, correcoes: infoCorrecoes, plano, resumo }
 }
 
 // Re-export do tipo de estado para consumidores que só importam daqui.

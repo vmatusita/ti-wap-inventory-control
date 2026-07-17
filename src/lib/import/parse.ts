@@ -160,7 +160,9 @@ export type RegistroImport = {
 
 export type LinhaDescartada = { linha: number; conteudo: string }
 
-function mapaColunas(header: string[]): Map<string, number> {
+/** Nome de coluna normalizado → índice físico. Exportada na F7B: o motor de
+ *  correções escreve nas células pelo MESMO mapeamento usado aqui. */
+export function mapaColunas(header: string[]): Map<string, number> {
   const mapa = new Map<string, number>()
   header.forEach((h, i) => {
     const nome = normalizarHeader(h)

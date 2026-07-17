@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CATEGORIAS_TERMOS,
+  ESTADOS_CORRIGIVEIS,
+  SITUACAO_CANONICA,
+  TIPO_CANONICO,
   chaveServiceTag,
   estadoPlanilha,
   extrairChamado,
@@ -13,6 +17,7 @@ import {
   parseColaboradorInventario,
   parseData,
 } from './deparas'
+import type { CategoriaAtivo, StatusAtivo } from './tipos'
 
 // Nenhum dado real — tudo fictício (padrão WAP0001234 / "Fulano").
 
@@ -88,6 +93,71 @@ describe('estadoPlanilha (precedência Situação > Status — DECISOES 15/07)',
   it('fora da tabela → null', () => {
     expect(estadoPlanilha('Foo', '')).toBeNull()
     expect(estadoPlanilha('', '')).toBeNull()
+  })
+})
+
+// F7B — tabelas canônicas reversas: o que a tela GRAVA na célula tem que voltar
+// ao estado/categoria pretendido pelo mesmo De→Para que valida o CSV.
+describe('SITUACAO_CANONICA (F7B §3.4) — ciclo fechado com estadoPlanilha', () => {
+  const ESPERADOS: Exclude<StatusAtivo, 'descartado'>[] = [
+    'em_estoque',
+    'em_uso',
+    'reservado',
+    'emprestado',
+    'em_triagem',
+    'em_manutencao',
+    'defasado',
+  ]
+
+  it('cobre os 7 estados (descartado fica de fora — continua bloqueante)', () => {
+    expect(Object.keys(SITUACAO_CANONICA).sort()).toEqual([...ESPERADOS].sort())
+    expect(Object.keys(SITUACAO_CANONICA)).not.toContain('descartado')
+  })
+
+  it.each(ESPERADOS)('%s → termo → volta ao mesmo estado (Situação vence Status)', (estado) => {
+    const termo = SITUACAO_CANONICA[estado]
+    expect(estadoPlanilha('', termo)).toBe(estado)
+    // Situação preenchida vence QUALQUER Status na linha — é o que faz a
+    // correção em massa de estado funcionar gravando só em Situação.
+    expect(estadoPlanilha('Descarte', termo)).toBe(estado)
+  })
+
+  it('os termos canônicos são exatamente os da OS-F7B §3.4', () => {
+    expect(SITUACAO_CANONICA).toEqual({
+      em_estoque: 'Estoque',
+      em_uso: 'Saída',
+      reservado: 'Reservado',
+      emprestado: 'Empréstimo',
+      em_triagem: 'Validar',
+      em_manutencao: 'Manutenção',
+      defasado: 'Defasado',
+    })
+  })
+
+  it('todo termo canônico está entre os corrigíveis; nenhum corrigível vira descartado', () => {
+    for (const termo of Object.values(SITUACAO_CANONICA)) {
+      expect(ESTADOS_CORRIGIVEIS).toContain(normalizarTexto(termo))
+    }
+    for (const termo of ESTADOS_CORRIGIVEIS) {
+      expect(estadoPlanilha('', termo)).not.toBe('descartado')
+      expect(estadoPlanilha('', termo)).not.toBeNull()
+    }
+    expect(ESTADOS_CORRIGIVEIS).not.toContain('descarte')
+    expect(ESTADOS_CORRIGIVEIS).not.toContain('descartado')
+  })
+})
+
+describe('TIPO_CANONICO (F7B) — ciclo fechado com mapearCategoria', () => {
+  it.each(['notebook', 'desktop', 'monitor', 'celular', 'tablet'] as Exclude<
+    CategoriaAtivo,
+    'outro'
+  >[])('%s → termo → volta à mesma categoria', (categoria) => {
+    expect(mapearCategoria(TIPO_CANONICO[categoria])).toBe(categoria)
+  })
+
+  it('todo termo do vocabulário mapeia; `outro` não é alcançável pelo CSV', () => {
+    for (const termo of CATEGORIAS_TERMOS) expect(mapearCategoria(termo)).not.toBeNull()
+    expect(Object.keys(TIPO_CANONICO)).not.toContain('outro')
   })
 })
 
