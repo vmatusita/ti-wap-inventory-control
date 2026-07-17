@@ -30,6 +30,8 @@ import {
   normalizarServiceTag,
   parseColaboradorInventario,
   parseData,
+  patrimonioVazio,
+  resolverDataEntrega,
 } from './deparas'
 import {
   decodificarCsv,
@@ -55,6 +57,15 @@ function hojeIso(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+// F7E — sentinela do espaço de chaves para ativos SEM patrimônio. U+2205 (∅) nunca
+// ocorre num patrimônio canônico ([A-Z]{2,4}\d{7}), então convive sem colisão com
+// as chaves dos ativos com patrimônio. ATENÇÃO: há DOIS espaços de chave distintos
+// e propositais (§ contrato) — o DEDUPE (linhas repetidas no MESMO CSV) usa a tag
+// UPPERCASED via `chaveServiceTag` (espelha coalesce(service_tag,'') do índice); a
+// F7C (lookup em OUTRA filial) usa a tag RAW/exata (espelha o índice parcial do
+// banco). É o mesmo padrão pré-existente dos com-patrimônio, replicado para os nulos.
+const SEM_PATRIMONIO = '∅'
 
 /** sha-256 (hex) do conteúdo bruto do arquivo — estável entre reexecuções. */
 export function hashConteudo(input: ArrayBuffer | Uint8Array): string {
@@ -101,17 +112,30 @@ export function montarPlanoImport(
       )
     }
 
-    // 2) Patrimônio canônico (SEM inferência por hostname).
-    const patrimonio = canonicalizarPatrimonio(reg.patrimonio)
-    if (!patrimonio) {
-      bloq(
-        'Patrimônio',
-        reg.patrimonio,
-        'patrimonio_invalido',
-        reg.patrimonio.trim() === ''
-          ? 'Patrimônio vazio — obrigatório e canonicalizável (ex.: WAP0004491)'
-          : `Patrimônio "${reg.patrimonio}" fora do formato canônico (ex.: WAP0004491)`,
-      )
+    // 2) Patrimônio (SEM inferência por hostname). F7E: vazio-na-prática (`""`,
+    //    `n/a`, `SEM PATRIMONIO`, `0`…) NÃO bloqueia — importa com patrimônio NULO
+    //    + aviso `patrimonio_vazio` (a RPC grava a pendência "sem patrimônio
+    //    físico"). Não-vazio que não canonicaliza segue BLOQUEANTE (como a F7).
+    let patrimonio: string | null = null
+    if (patrimonioVazio(reg.patrimonio)) {
+      avisos.push({
+        linha: reg.linha,
+        coluna: 'Patrimônio',
+        valor: reg.patrimonio,
+        tipo: 'patrimonio_vazio',
+        mensagem:
+          'sem patrimônio — importa com pendência "sem patrimônio físico"; preencha na tela se souber o número',
+      })
+    } else {
+      patrimonio = canonicalizarPatrimonio(reg.patrimonio)
+      if (!patrimonio) {
+        bloq(
+          'Patrimônio',
+          reg.patrimonio,
+          'patrimonio_invalido',
+          `Patrimônio "${reg.patrimonio}" fora do formato canônico (ex.: WAP0004491)`,
+        )
+      }
     }
 
     // 3) Categoria (Tipo) no De→Para (desconhecido = bloqueante).
@@ -143,17 +167,24 @@ export function montarPlanoImport(
       )
     }
 
-    if (bloqueado || !patrimonio || !categoria || !estado) continue
+    // Patrimônio null (vazio-na-prática) NÃO bloqueia — só invalidez o faz (via
+    // `bloq`). Por isso o guard não olha mais `!patrimonio`.
+    if (bloqueado || !categoria || !estado) continue
 
     // ------- linha válida: monta o AtivoPlano (campos do alinhamento F7 §3) ---
     const serviceTag = normalizarServiceTag(reg.serviceTag)
 
-    // dataEntrada = mais antiga válida (não-futura) entre Inclusão e Entrega
-    const datas = [reg.dataInclusao, reg.dataEntrega]
-      .map((d) => parseData(d, hoje))
-      .filter((r) => r.iso !== null && !r.futura)
-      .map((r) => r.iso as string)
-    const dataEntrada = datas.length > 0 ? datas.sort()[0]! : null
+    // Datas (F7E). Inclusão = `parseData` (dd/MM/aaaa). Entrega = `resolverDataEntrega`,
+    // que aceita `dd/MMM` puxando o ano da inclusão. dataEntrada = mais antiga válida
+    // (não-futura) entre Inclusão e Entrega RESOLVIDA (regra F7, com a entrega agora
+    // participando). dataAjuste = entrega válida-não-futura ?? dataEntrada ?? null.
+    const inclusao = parseData(reg.dataInclusao, hoje)
+    const inclusaoIso = inclusao.iso !== null && !inclusao.futura ? inclusao.iso : null
+    const entrega = resolverDataEntrega(reg.dataEntrega, inclusaoIso, hoje)
+    const entregaIso = entrega.iso !== null && !entrega.futura ? entrega.iso : null
+    const datasValidas = [inclusaoIso, entregaIso].filter((d): d is string => d !== null)
+    const dataEntrada = datasValidas.length > 0 ? datasValidas.sort()[0]! : null
+    const dataAjuste = entregaIso ?? dataEntrada
     if (dataEntrada === null) {
       avisos.push({
         linha: reg.linha,
@@ -190,15 +221,27 @@ export function montarPlanoImport(
       hostname: limparCampo(reg.hostname),
       observacoes: limparCampo(reg.observacao),
       dataEntrada,
+      dataAjuste,
       estadoAlvo: estado,
       colaborador,
       setor,
       chamado: extrairChamado(reg.glpi),
     }
+    // Chave de DEDUPE (linhas repetidas no MESMO CSV). Com patrimônio → a chave da
+    // F7 (tag UPPERCASED, espelha coalesce(service_tag,'') do índice). Sem patrimônio
+    // e com tag → `∅::<tag-uppercased>` (o índice parcial novo: duas linhas sem
+    // patrimônio com a mesma tag colidem). Sem patrimônio e sem tag → chave ÚNICA por
+    // linha (`∅::sem-tag::<linha>`): sem identidade não há como deduplicar.
+    const chaveDedupe =
+      patrimonio === null
+        ? serviceTag === null
+          ? `${SEM_PATRIMONIO}::sem-tag::${reg.linha}`
+          : `${SEM_PATRIMONIO}::${chaveServiceTag(serviceTag)}`
+        : chavePatrimonio(patrimonio, chaveServiceTag(serviceTag))
     candidatos.push({
       ativo,
       linha: reg.linha,
-      chave: chavePatrimonio(patrimonio, chaveServiceTag(serviceTag)),
+      chave: chaveDedupe,
     })
   }
 
@@ -268,7 +311,7 @@ export function validarCsvImport(
       correcoes: { aplicadas: 0, porOp: correcoes.map(() => 0) },
       candidatos: [],
       plano: null,
-      resumo: { criar: 0, semData: 0, layout: det.maisProximo, linhasRemovidas: 0 },
+      resumo: { criar: 0, semData: 0, semPatrimonio: 0, layout: det.maisProximo, linhasRemovidas: 0 },
     }
   }
   const layout: LayoutImport = det.layout
@@ -315,18 +358,35 @@ export function validarCsvImport(
   }
   for (const grupo of porChave.values()) {
     if (grupo.length < 2) continue
-    const semTag = grupo[0]!.ativo.serviceTag === null
     const linhas = grupo.map((c) => c.linha).sort((a, b) => a - b)
+    const ref = grupo[0]!.ativo
+    // F7E — colisão entre linhas SEM patrimônio: a identidade é a service tag (índice
+    // parcial novo). Nulo-sem-tag nunca chega aqui (chave única por linha), então todo
+    // membro deste grupo tem tag. Vira o MESMO bloqueante de duplicata (kind duplicata).
+    if (ref.patrimonio === null) {
+      for (const c of grupo) {
+        bloqueantes.push({
+          linha: c.linha,
+          coluna: 'Service Tag',
+          valor: c.ativo.serviceTag ?? '',
+          tipo: 'par_duplicado',
+          mensagem: `service tag "${c.ativo.serviceTag}" repetida em linhas sem patrimônio (colide no índice parcial de service tag) — linhas ${linhas.join(', ')}`,
+        })
+      }
+      continue
+    }
+    // Com patrimônio: régua da F7, intocada. `patrimonio` é não-nulo neste ramo
+    // (o espaço de chave `∅::…` dos nulos nunca cai no mesmo balde de um canônico).
+    const semTag = ref.serviceTag === null
     for (const c of grupo) {
+      const patr = c.ativo.patrimonio!
       bloqueantes.push({
         linha: c.linha,
         coluna: semTag ? 'Patrimônio' : 'Service Tag',
-        valor: semTag
-          ? c.ativo.patrimonio
-          : `${c.ativo.patrimonio} + ${c.ativo.serviceTag ?? ''}`,
+        valor: semTag ? patr : `${patr} + ${c.ativo.serviceTag ?? ''}`,
         tipo: semTag ? 'patrimonio_duplicado_sem_service_tag' : 'par_duplicado',
         mensagem: semTag
-          ? `patrimônio ${c.ativo.patrimonio} repetido sem service tag (colide no índice único) — linhas ${linhas.join(', ')}`
+          ? `patrimônio ${patr} repetido sem service tag (colide no índice único) — linhas ${linhas.join(', ')}`
           : `par patrimônio+service tag repetido no CSV — linhas ${linhas.join(', ')}`,
       })
     }
@@ -344,18 +404,31 @@ export function validarCsvImport(
   // pelo sistema, com movimentação e histórico).
   const filialPorLinha = new Map<number, string>()
   for (const c of candidatos) {
-    const chaveBanco = chavePatrimonio(c.ativo.patrimonio, c.ativo.serviceTag)
+    // F7E — a chaveBanco espelha os DOIS índices do banco: com patrimônio → o par
+    // (patrimonio, service_tag); sem patrimônio → `∅::<service_tag>` com a tag RAW,
+    // EXATA (o índice parcial `coalesce(service_tag,'')` — NÃO uppercased, ao
+    // contrário do dedupe). Nulo-sem-tag cai em `∅::` e nunca casa (a action nunca
+    // monta essa chave: só consulta por tags não-vazias). A action (W3) constrói o
+    // mapa `existentesEmOutraFilial` com estas MESMAS chaves.
+    const chaveBanco =
+      c.ativo.patrimonio === null
+        ? `${SEM_PATRIMONIO}::${c.ativo.serviceTag ?? ''}`
+        : chavePatrimonio(c.ativo.patrimonio, c.ativo.serviceTag)
     const filialDono = existentesEmOutraFilial.get(chaveBanco)
     if (filialDono === undefined) continue
     filialPorLinha.set(c.linha, filialDono)
+    // Rótulo do erro: patrimônio quando há; senão a service tag (nulo-com-tag).
+    const rotulo = c.ativo.patrimonio ?? `service tag ${c.ativo.serviceTag}`
     bloqueantes.push({
       linha: c.linha,
       coluna: 'Patrimônio',
-      valor: c.ativo.serviceTag
-        ? `${c.ativo.patrimonio} + ${c.ativo.serviceTag}`
-        : c.ativo.patrimonio,
+      valor: c.ativo.patrimonio
+        ? c.ativo.serviceTag
+          ? `${c.ativo.patrimonio} + ${c.ativo.serviceTag}`
+          : c.ativo.patrimonio
+        : `sem patrimônio + ${c.ativo.serviceTag}`,
       tipo: 'patrimonio_em_outra_filial',
-      mensagem: `${c.ativo.patrimonio} já está cadastrado na filial ${filialDono} — o import não transfere ativo entre filiais. Remova a linha e faça a transferência pelo sistema.`,
+      mensagem: `${rotulo} já está cadastrado na filial ${filialDono} — o import não transfere ativo entre filiais. Remova a linha e faça a transferência pelo sistema.`,
     })
   }
 
@@ -376,7 +449,8 @@ export function validarCsvImport(
   }
 
   const semData = ativos.filter((a) => a.dataEntrada === null).length
-  const resumo = { criar: ativos.length, semData, layout, linhasRemovidas }
+  const semPatrimonio = ativos.filter((a) => a.patrimonio === null).length
+  const resumo = { criar: ativos.length, semData, semPatrimonio, layout, linhasRemovidas }
 
   // F7B — agrupamento + contexto das linhas com erro/aviso (a tela corrige a
   // linha inteira, não a célula solta). `registros` já vem CORRIGIDO.

@@ -157,10 +157,12 @@ describe('patrimônio', () => {
     expect(r.plano!.ativos.map((a) => a.patrimonio).sort()).toEqual(['LEA0000057', 'STF0000123'])
   })
 
-  it('inválido/vazio → bloqueante patrimonio_invalido', () => {
+  // F7E — só o NÃO-vazio-mas-não-canonicalizável segue bloqueante. O vazio
+  // (`""`, `n/a`…) virou aviso `patrimonio_vazio` (ver bloco dedicado adiante).
+  it('não-vazio não-canonicalizável (letras / só-números) → bloqueante patrimonio_invalido', () => {
     const r = validarMatriz([
       rowMatriz({ 'Patrimônio': 'ABC' }),
-      rowMatriz({ 'Patrimônio': '' }),
+      rowMatriz({ 'Patrimônio': '12345' }),
     ])
     expect(r.plano).toBeNull()
     expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_invalido')).toHaveLength(2)
@@ -257,6 +259,136 @@ describe('datas → dataEntrada + aviso', () => {
     const r = validarMatriz([rowMatriz({ 'Data de Inclusão': '10/01/2025', 'Data de Entrega': '05/01/2025' })])
     expect(r.plano!.ativos[0]!.dataEntrada).toBe('2025-01-05')
     expect(r.avisos.some((e) => e.tipo === 'sem_data_entrada')).toBe(false)
+  })
+})
+
+// F7E — patrimônio vazio importa nulo (pendência), não bloqueia (OS §2.2/§2.4).
+describe('F7E — patrimônio vazio → nulo + aviso patrimonio_vazio', () => {
+  it('variantes de vazio importam com patrimônio NULO + aviso + resumo.semPatrimonio', () => {
+    const r = validarMatriz([
+      rowMatriz({ 'Patrimônio': '' }),
+      rowMatriz({ 'Patrimônio': 'n/a', 'Service Tag': 'TAG-A' }),
+      rowMatriz({ 'Patrimônio': 'SEM PATRIMONIO', 'Service Tag': 'TAG-B' }),
+      rowMatriz({ 'Patrimônio': '-', 'Service Tag': 'TAG-C' }),
+    ])
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano).not.toBeNull()
+    expect(r.plano!.ativos.every((a) => a.patrimonio === null)).toBe(true)
+    // patrimonioOriginal guarda o cru mesmo com patrimônio nulo
+    expect(r.plano!.ativos.map((a) => a.patrimonioOriginal)).toEqual(['', 'n/a', 'SEM PATRIMONIO', '-'])
+    expect(r.avisos.filter((e) => e.tipo === 'patrimonio_vazio')).toHaveLength(4)
+    expect(r.resumo.semPatrimonio).toBe(4)
+  })
+
+  it('só-números (não-vazio) segue BLOQUEANTE patrimonio_invalido', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '12345' })])
+    expect(r.plano).toBeNull()
+    expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_invalido')).toHaveLength(1)
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_vazio')).toBe(false)
+  })
+
+  it('candidatos inclui os sem-patrimônio-COM-tag (patrimonio null)', () => {
+    const r = validarMatriz([
+      rowMatriz(), // com patrimônio (linha 2)
+      rowMatriz({ 'Patrimônio': 'n/a', 'Service Tag': 'ST-Y' }), // sem patrimônio (linha 3)
+    ])
+    expect(r.candidatos).toContainEqual({ linha: 3, patrimonio: null, serviceTag: 'ST-Y' })
+  })
+})
+
+describe('F7E — dedupe dos sem-patrimônio (índice parcial de service tag)', () => {
+  it('duas linhas SEM patrimônio com a MESMA tag (caixa diferente) → duplicata bloqueante', () => {
+    const r = validarMatriz([
+      rowMatriz({ 'Patrimônio': 'n/a', 'Service Tag': 'DUP' }),
+      rowMatriz({ 'Patrimônio': '', 'Service Tag': 'dup' }), // uppercased colide → mesma chave ∅::DUP
+    ])
+    expect(r.plano).toBeNull()
+    expect(r.bloqueantes.filter((e) => e.tipo === 'par_duplicado')).toHaveLength(2)
+    expect(r.bloqueantes[0]!.coluna).toBe('Service Tag')
+    expect(r.bloqueantes[0]!.mensagem).toContain('índice parcial')
+  })
+
+  it('duas linhas SEM patrimônio e SEM tag NÃO colidem (sem identidade, sem dedupe)', () => {
+    const r = validarMatriz([
+      rowMatriz({ 'Patrimônio': 'n/a' }),
+      rowMatriz({ 'Patrimônio': 'SEM PATRIMONIO' }),
+    ])
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano!.ativos).toHaveLength(2)
+    expect(r.resumo.semPatrimonio).toBe(2)
+  })
+})
+
+describe('F7E — dataAjuste (ajuste de reconciliação) nas 3 quedas', () => {
+  it('queda 1: entrega dd/MMM resolvida → dataAjuste = entrega; dataEntrada = inclusão (mais antiga)', () => {
+    const r = validarMatriz([rowMatriz({ 'Data de Inclusão': '18/12/2024', 'Data de Entrega': '21/jan' })])
+    const a = r.plano!.ativos[0]!
+    expect(a.dataEntrada).toBe('2024-12-18') // mais antiga válida
+    expect(a.dataAjuste).toBe('2025-01-21') // entrega resolvida (+1 na virada)
+  })
+
+  it('queda 2: sem entrega, inclusão válida → dataAjuste = dataEntrada (inclusão)', () => {
+    const r = validarMatriz([rowMatriz({ 'Data de Inclusão': '10/03/2025', 'Data de Entrega': '' })])
+    const a = r.plano!.ativos[0]!
+    expect(a.dataEntrada).toBe('2025-03-10')
+    expect(a.dataAjuste).toBe('2025-03-10')
+  })
+
+  it('queda 3: nenhuma data → dataAjuste null + aviso sem_data_entrada', () => {
+    const r = validarMatriz([rowMatriz({ 'Data de Inclusão': '', 'Data de Entrega': '' })])
+    const a = r.plano!.ativos[0]!
+    expect(a.dataEntrada).toBeNull()
+    expect(a.dataAjuste).toBeNull()
+    expect(r.avisos.some((e) => e.tipo === 'sem_data_entrada')).toBe(true)
+  })
+
+  it('entrega dd/MMM SEM inclusão (sem âncora de ano) → cai no aviso sem_data_entrada', () => {
+    const r = validarMatriz([rowMatriz({ 'Data de Inclusão': '', 'Data de Entrega': '18/nov' })])
+    const a = r.plano!.ativos[0]!
+    expect(a.dataEntrada).toBeNull()
+    expect(a.dataAjuste).toBeNull()
+    expect(r.avisos.some((e) => e.tipo === 'sem_data_entrada')).toBe(true)
+  })
+
+  it('entrega dd/MM/aaaa mais antiga que a inclusão participa da dataEntrada (retrocompat) e é o ajuste', () => {
+    const r = validarMatriz([rowMatriz({ 'Data de Inclusão': '10/01/2025', 'Data de Entrega': '05/01/2025' })])
+    const a = r.plano!.ativos[0]!
+    expect(a.dataEntrada).toBe('2025-01-05') // mais antiga
+    expect(a.dataAjuste).toBe('2025-01-05') // entrega válida vira o ajuste
+  })
+})
+
+describe('F7E/F7C — sem patrimônio com tag existente em OUTRA filial', () => {
+  const SEM = String.fromCodePoint(0x2205) // ∅ — sentinela do espaço de chave
+
+  it('nulo-com-tag existente noutra filial → patrimonio_em_outra_filial (mensagem pela tag)', () => {
+    const r = validarCsvImport(
+      buf(montar(H_MATRIZ, [rowMatriz({ 'Patrimônio': 'n/a', 'Service Tag': 'ST-X' })])),
+      MATRIZ,
+      HOJE,
+      [],
+      new Map([[`${SEM}::ST-X`, 'Linhares']]),
+    )
+    expect(r.plano).toBeNull()
+    const bloq = r.bloqueantes.find((e) => e.tipo === 'patrimonio_em_outra_filial')
+    expect(bloq).toBeDefined()
+    expect(bloq!.mensagem).toContain('Linhares')
+    expect(bloq!.mensagem).toContain('ST-X')
+  })
+
+  it('nulo-SEM-tag não é detectável (aceito): mapa realista só tem chaves de tags reais', () => {
+    // A action monta o mapa consultando por service_tag NÃO-vazias, então nunca
+    // produz a chave `∅::` — a única com que um candidato nulo-sem-tag casaria.
+    const r = validarCsvImport(
+      buf(montar(H_MATRIZ, [rowMatriz({ 'Patrimônio': 'n/a' })])),
+      MATRIZ,
+      HOJE,
+      [],
+      new Map([[`${SEM}::ST-OUTRA`, 'Linhares']]),
+    )
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano!.ativos).toHaveLength(1)
+    expect(r.candidatos).toContainEqual({ linha: 2, patrimonio: null, serviceTag: null })
   })
 })
 

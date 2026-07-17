@@ -426,10 +426,15 @@ function chaveDoGrupo(
     // ação (remover as N linhas daquela filial).
     case 'patrimonio_em_outra_filial':
       return filialPorLinha.get(erro.linha) ?? ''
-    // A correção de data em massa grava em Data de Inclusão (OS-F7B §7) — o
-    // agrupador é o valor cru DESSA célula, não a mensagem com as duas datas.
+    // F7E (OS §2.5) — UM card por tipo. `patrimonio_invalido` e `sem_data_entrada`
+    // deixam de agrupar pelo valor cru (o agrupador por Data de Inclusão era herança
+    // da correção em massa por `substituir`, abandonada na F7B): cada card reúne
+    // TODAS as linhas e a correção da F7D preenche linha a linha / "a seção" de uma
+    // vez. `patrimonio_vazio` (aviso novo) também é card único — todas as linhas sem
+    // patrimônio num só lugar (a correção é opcional; ver correcaoDoGrupo).
+    case 'patrimonio_invalido':
+    case 'patrimonio_vazio':
     case 'sem_data_entrada':
-      return reg ? reg.dataInclusao : erro.valor
     // Sem correção possível e valor cru irrelevante → um card só para todas.
     case 'header_invalido':
     case 'linha_sem_chave':
@@ -482,6 +487,11 @@ function correcaoDoGrupo(tipo: string, chave: string, filialNome: string): Grupo
       return { kind: 'existe_em_outra_filial', filial: chave }
     case 'patrimonio_invalido':
       return { kind: 'patrimonio' }
+    // F7E — aviso: as linhas importam SEM patrimônio (pendência "sem patrimônio
+    // físico"). Preencher é OPCIONAL (a UI trata como o card `duplicata`: fora do
+    // lote global; correção por linha). Ver ops-grupo.ts do W3.
+    case 'patrimonio_vazio':
+      return { kind: 'patrimonio_vazio' }
     case 'par_duplicado':
     case 'patrimonio_duplicado_sem_service_tag':
       return { kind: 'duplicata' }

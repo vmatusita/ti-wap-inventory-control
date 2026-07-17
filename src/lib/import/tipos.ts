@@ -8,6 +8,14 @@
 // `resumo.linhasRemovidas`. Nada da F7 foi removido — chamadas de 2/3 argumentos
 // de `validarCsvImport` seguem válidas e a régua de bloqueio é a mesma.
 //
+// AMPLIADO PELA F7E (OS-F7E §2.3, 17/07/2026): o CONTRATO §1.5 ganha o patrimônio
+// OPCIONAL (`AtivoPlano.patrimonio: string | null` — null importa com pendência
+// "sem patrimônio físico"), a data do ajuste de reconciliação
+// (`AtivoPlano.dataAjuste`), o kind de correção `patrimonio_vazio`, o contador
+// `resumo.semPatrimonio` e os `candidatos` com patrimônio nulo (F7C ampliado). A
+// régua de LINHA muda só no patrimônio (vazio deixa de bloquear); todo o resto
+// segue idêntico à F7B.
+//
 // Os enums de domínio são declarados localmente (como em scripts/import/tipos.ts
 // da F4) para manter o motor autocontido e independente dos tipos GERADOS do
 // banco (src/lib/types/database.ts). Os valores coincidem 1:1 com os enums do
@@ -58,8 +66,8 @@ export type ErroImport = {
 
 /** Um ativo a criar (modo Substituir tudo — tudo nasce do CSV). Contrato §1.5. */
 export type AtivoPlano = {
-  patrimonio: string // canônico (WAP0004491)
-  patrimonioOriginal: string // como veio no CSV
+  patrimonio: string | null // canônico (WAP0004491); null = SEM patrimônio (F7E — importa com pendência "sem patrimônio físico")
+  patrimonioOriginal: string // como veio no CSV (guarda o cru mesmo quando patrimonio é null)
   serviceTag: string | null
   categoria: CategoriaAtivo
   marca: string | null
@@ -70,7 +78,8 @@ export type AtivoPlano = {
   processador: string | null
   hostname: string | null
   observacoes: string | null // Observação do CSV (sobrescreve sempre; vazio = null)
-  dataEntrada: string | null // yyyy-MM-dd = mais antiga válida entre Inclusão/Entrega; null = SEM data válida
+  dataEntrada: string | null // yyyy-MM-dd = mais antiga válida entre Inclusão/Entrega resolvida; null = SEM data válida
+  dataAjuste: string | null // F7E — yyyy-MM-dd do ajuste de reconciliação: entrega resolvida ?? dataEntrada ?? null (RPC usa a data do import quando null)
   estadoAlvo: StatusAtivo // precedência Situação>Status, De→Para spec §5
   colaborador: string | null
   setor: string | null
@@ -137,6 +146,7 @@ export type GrupoErro = {
     | { kind: 'site_desconhecido' } // ação única: definir como a filial selecionada
     | { kind: 'site_outra_filial' } // ação única: remover linhas (decisão 4 do Johnny)
     | { kind: 'patrimonio' } // pontual por linha (input com preview da canonicalização)
+    | { kind: 'patrimonio_vazio' } // F7E — aviso: importa sem patrimônio (pendência); preencher é opcional
     | { kind: 'duplicata' } // grupo lado a lado; editar patrimônio/ST ou remover sobras
     | { kind: 'data' } // massa por valor cru + pontual
     | { kind: 'colaborador' } // pontual por linha
@@ -162,8 +172,14 @@ export type ValidacaoImport = {
    * Sem isso a colisão só apareceria no `insert` da RPC, depois do backup e da
    * confirmação (o índice único do banco é GLOBAL, e o Substituir tudo só apaga a
    * filial selecionada).
+   *
+   * F7E — `patrimonio` passa a ser nullable: os candidatos SEM patrimônio COM
+   * service tag entram aqui (`patrimonio: null`) para a action perguntar ao banco
+   * por `patrimonio is null and service_tag in (…)` em outra filial (índice parcial
+   * novo). Sem patrimônio E sem tag não tem identidade — não é detectável (aceito).
    */
-  candidatos: { linha: number; patrimonio: string; serviceTag: string | null }[]
+  candidatos: { linha: number; patrimonio: string | null; serviceTag: string | null }[]
   plano: PlanoImport | null // null quando há bloqueante
-  resumo: { criar: number; semData: number; layout: LayoutImport; linhasRemovidas: number }
+  // F7E — `semPatrimonio` = nº de ativos do plano com patrimônio null (importam com pendência).
+  resumo: { criar: number; semData: number; semPatrimonio: number; layout: LayoutImport; linhasRemovidas: number }
 }
