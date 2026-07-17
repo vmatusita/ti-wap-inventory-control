@@ -2,13 +2,18 @@
 // `validarCsvImport(buffer, filial)` → `ValidacaoImport` (contrato §1.5). Puro,
 // determinístico: mesmo conteúdo → mesmo `arquivoHash` (sha-256). Nada de banco/UI.
 //
-// Régua de validação (decisões do Johnny 16/07/2026):
-//   BLOQUEANTES (1+ ⇒ plano null): header fora dos 3 layouts; patrimônio
-//   inválido/vazio (SEM inferência por hostname); par patrimônio+ST repetido no
-//   CSV (ou patrimônio repetido sem ST — colisão do índice único); Site ≠ filial
-//   escolhida (após De→Para); categoria (Tipo) desconhecida; estado não
-//   resolvível; estado alvo `descartado`.
-//   AVISOS: sem_data_entrada; estado_em_uso_sem_colaborador; linha sem chave.
+// Régua de validação (decisões do Johnny 16/07 + F7F 17/07/2026):
+//   BLOQUEANTES (1+ ⇒ plano null): header fora dos 3 layouts; patrimônio COM valor
+//   fora do formato canônico (vazio-na-prática NÃO bloqueia — ver abaixo); par
+//   patrimônio+ST repetido no CSV (ou patrimônio repetido sem ST — colisão do índice
+//   único); Site ≠ filial escolhida (após De→Para); categoria (Tipo) desconhecida;
+//   estado não resolvível; estado alvo `descartado`.
+//   PATRIMÔNIO VAZIO-NA-PRÁTICA (F7F, decisão do Johnny 17/07/2026 — REVOGA a
+//   não-inferência por hostname de 16/07): auto-preenche pelo patrimônio embutido no
+//   HOSTNAME quando houver (aviso informativo `patrimonio_do_hostname`); senão importa
+//   NULO com pendência "sem patrimônio físico" (aviso `patrimonio_vazio`, F7E).
+//   AVISOS: sem_data_entrada; estado_em_uso_sem_colaborador; linha sem chave;
+//   patrimonio_vazio; patrimonio_do_hostname (informativo, fora do fluxo de correção).
 //
 // F7B (17/07/2026): `validarCsvImport` ganhou um 4º parâmetro OPCIONAL com as
 // correções da tela, aplicadas nas células ANTES de `extrairRegistros`. A régua
@@ -23,6 +28,7 @@ import {
   chaveServiceTag,
   estadoPlanilha,
   extrairChamado,
+  extrairPatrimonioDoHostname,
   filialPorSlug,
   limparCampo,
   mapearCategoria,
@@ -112,20 +118,36 @@ export function montarPlanoImport(
       )
     }
 
-    // 2) Patrimônio (SEM inferência por hostname). F7E: vazio-na-prática (`""`,
-    //    `n/a`, `SEM PATRIMONIO`, `0`…) NÃO bloqueia — importa com patrimônio NULO
-    //    + aviso `patrimonio_vazio` (a RPC grava a pendência "sem patrimônio
-    //    físico"). Não-vazio que não canonicaliza segue BLOQUEANTE (como a F7).
+    // 2) Patrimônio. F7F (decisão do Johnny, 17/07/2026 — REVOGA a não-inferência por
+    //    hostname de 16/07): vazio-na-prática (`""`, `n/a`, `SEM PATRIMONIO`, `0`…) tenta
+    //    PRIMEIRO o patrimônio embutido no hostname. Achou → auto-preenche + aviso
+    //    informativo `patrimonio_do_hostname` (a linha entra na dedupe e no plano com esse
+    //    valor, como qualquer ativo; se colidir, a reanálise a devolve bloqueante). Não achou
+    //    → F7E intacto: importa NULO + aviso `patrimonio_vazio` (a RPC grava a pendência
+    //    "sem patrimônio físico"). Patrimônio COM valor que não canonicaliza segue
+    //    BLOQUEANTE (como a F7) — NUNCA é sobrescrito pelo hostname (o ramo `else` é idêntico).
     let patrimonio: string | null = null
     if (patrimonioVazio(reg.patrimonio)) {
-      avisos.push({
-        linha: reg.linha,
-        coluna: 'Patrimônio',
-        valor: reg.patrimonio,
-        tipo: 'patrimonio_vazio',
-        mensagem:
-          'sem patrimônio — importa com pendência "sem patrimônio físico"; preencha na tela se souber o número',
-      })
+      const doHostname = extrairPatrimonioDoHostname(reg.hostname)
+      if (doHostname) {
+        patrimonio = doHostname
+        avisos.push({
+          linha: reg.linha,
+          coluna: 'Patrimônio',
+          valor: reg.patrimonio,
+          tipo: 'patrimonio_do_hostname',
+          mensagem: `patrimônio ausente — preenchido pelo hostname (${doHostname}); confira`,
+        })
+      } else {
+        avisos.push({
+          linha: reg.linha,
+          coluna: 'Patrimônio',
+          valor: reg.patrimonio,
+          tipo: 'patrimonio_vazio',
+          mensagem:
+            'sem patrimônio — importa com pendência "sem patrimônio físico"; preencha na tela se souber o número',
+        })
+      }
     } else {
       patrimonio = canonicalizarPatrimonio(reg.patrimonio)
       if (!patrimonio) {
@@ -311,7 +333,7 @@ export function validarCsvImport(
       correcoes: { aplicadas: 0, porOp: correcoes.map(() => 0) },
       candidatos: [],
       plano: null,
-      resumo: { criar: 0, semData: 0, semPatrimonio: 0, layout: det.maisProximo, linhasRemovidas: 0 },
+      resumo: { criar: 0, semData: 0, semPatrimonio: 0, patrimonioDoHostname: 0, layout: det.maisProximo, linhasRemovidas: 0 },
     }
   }
   const layout: LayoutImport = det.layout
@@ -450,7 +472,10 @@ export function validarCsvImport(
 
   const semData = ativos.filter((a) => a.dataEntrada === null).length
   const semPatrimonio = ativos.filter((a) => a.patrimonio === null).length
-  const resumo = { criar: ativos.length, semData, semPatrimonio, layout, linhasRemovidas }
+  // F7F — nº de linhas auto-preenchidas pelo hostname. Deriva do resultado final (os
+  // avisos), como semData/semPatrimonio, e não de estado intermediário do loop.
+  const patrimonioDoHostname = avisos.filter((a) => a.tipo === 'patrimonio_do_hostname').length
+  const resumo = { criar: ativos.length, semData, semPatrimonio, patrimonioDoHostname, layout, linhasRemovidas }
 
   // F7B — agrupamento + contexto das linhas com erro/aviso (a tela corrige a
   // linha inteira, não a célula solta). `registros` já vem CORRIGIDO.

@@ -125,26 +125,50 @@ describe('site_desconhecido / remoções — ação fixa, sempre pronta', () => 
   })
 })
 
-describe('patrimônio (pontual) — TODAS as linhas preenchidas para o lote', () => {
+// F7F — o botão de seção e o lote GLOBAL passam a incluir grupos pontuais
+// PARCIALMENTE preenchidos: `grupoPronto` deixou de ser tudo-ou-nada (`.every`)
+// e virou "há ≥1 linha pronta" (`.some`). `opsDoGrupo` já emitia só as prontas.
+describe('patrimônio (pontual) — F7F: PARCIAIS entram no lote', () => {
   const contexto = { 2: reg(2, { patrimonio: '1011' }), 3: reg(3, { patrimonio: 'WAP-XYZ' }) }
   const g = grupo({ tipo: 'patrimonio_invalido', chave: '', linhas: [2, 3], correcao: { kind: 'patrimonio' } })
 
-  it('nada preenchido → não pronto, faltam 2', () => {
+  it('nada preenchido → não pronto, faltam 2, nenhuma op', () => {
     expect(grupoPronto(g, {}, contexto)).toBe(false)
     expect(faltamNoGrupo(g, {}, contexto)).toBe(2)
     expect(opsDoGrupo(g, {}, contexto, FILIAL)).toEqual([])
   })
 
-  it('só uma preenchida → ainda não pronto, mas a op da preenchida sai', () => {
+  it('só uma preenchida → PRONTO (F7F), a op da preenchida sai, faltam 1', () => {
     const r: Rascunho = { [chaveLinha(2, 'patrimonio')]: 'wap 1011' }
-    expect(grupoPronto(g, r, contexto)).toBe(false)
+    expect(grupoPronto(g, r, contexto)).toBe(true)
     expect(faltamNoGrupo(g, r, contexto)).toBe(1)
     expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([
       { op: 'editar', linha: 2, campo: 'patrimonio', para: 'wap 1011' },
     ])
   })
 
-  it('todas preenchidas e canonizáveis → pronto', () => {
+  it('3 linhas, 2 preenchidas válidas → pronto, 2 ops, faltam 1 (exemplo da OS)', () => {
+    const ctx3 = {
+      2: reg(2, { patrimonio: '1011' }),
+      3: reg(3, { patrimonio: '1012' }),
+      4: reg(4, { patrimonio: '1013' }),
+    }
+    const g3 = grupo({
+      tipo: 'patrimonio_invalido',
+      chave: '',
+      linhas: [2, 3, 4],
+      correcao: { kind: 'patrimonio' },
+    })
+    const r: Rascunho = {
+      [chaveLinha(2, 'patrimonio')]: 'WAP0001011',
+      [chaveLinha(3, 'patrimonio')]: 'WAP0001012',
+    }
+    expect(grupoPronto(g3, r, ctx3)).toBe(true)
+    expect(opsDoGrupo(g3, r, ctx3, FILIAL)).toHaveLength(2)
+    expect(faltamNoGrupo(g3, r, ctx3)).toBe(1)
+  })
+
+  it('todas preenchidas e canonizáveis → pronto, faltam 0, 2 ops', () => {
     const r: Rascunho = {
       [chaveLinha(2, 'patrimonio')]: 'WAP0001011',
       [chaveLinha(3, 'patrimonio')]: 'WAP0001012',
@@ -154,9 +178,13 @@ describe('patrimônio (pontual) — TODAS as linhas preenchidas para o lote', ()
     expect(opsDoGrupo(g, r, contexto, FILIAL)).toHaveLength(2)
   })
 
-  it('valor que não canoniza não conta como preenchido', () => {
+  it('linha não-canônica é excluída, mas ≥1 canônica já deixa o grupo pronto (F7F)', () => {
     const r: Rascunho = { [chaveLinha(2, 'patrimonio')]: 'lixo', [chaveLinha(3, 'patrimonio')]: 'WAP0001012' }
-    expect(grupoPronto(g, r, contexto)).toBe(false)
+    expect(grupoPronto(g, r, contexto)).toBe(true)
+    expect(faltamNoGrupo(g, r, contexto)).toBe(1)
+    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([
+      { op: 'editar', linha: 3, campo: 'patrimonio', para: 'WAP0001012' },
+    ])
   })
 })
 

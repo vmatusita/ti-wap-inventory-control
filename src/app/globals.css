@@ -32,6 +32,8 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -69,6 +71,13 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  /* F7F — tier ÂMBAR (aviso ≠ erro vermelho). Alinhado ao amarelo WAP #eda100
+     (hue ~70), mas ESCURECIDO no tema claro para ser texto AA sobre fundo
+     âmbar-claro (bg-warning/10): contraste ~4.9:1 no badge, ~5.7:1 sobre branco.
+     No .dark ele clareia (mesmo movimento do --destructive) p/ ser AA sobre o
+     card escuro. Par semântico — nunca cor mágica solta. */
+  --warning: oklch(0.52 0.12 70);
+  --warning-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -112,6 +121,9 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  /* F7F — âmbar claro (AA sobre o card escuro: ~9.5:1; ~6.2:1 no badge/20). */
+  --warning: oklch(0.8 0.13 80);
+  --warning-foreground: oklch(0.205 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);

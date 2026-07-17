@@ -7,6 +7,7 @@ import {
   chaveServiceTag,
   estadoPlanilha,
   extrairChamado,
+  extrairPatrimonioDoHostname,
   filialPorSlug,
   limparCampo,
   mapearCategoria,
@@ -279,6 +280,49 @@ describe('patrimonioVazio (F7E)', () => {
     expect(patrimonioVazio('WAP4491')).toBe(false)
     expect(patrimonioVazio('12345')).toBe(false)
     expect(patrimonioVazio('ABC')).toBe(false)
+  })
+})
+
+// F7F (OS §1) — extrai do HOSTNAME o patrimônio canônico embutido. É a MESMA régua
+// que o motor (plano.ts) e a UI (botão 1-clique / painel) usam — extrator único.
+describe('extrairPatrimonioDoHostname (F7F)', () => {
+  it('hostname com token canônico embutido → canônico limpo', () => {
+    expect(extrairPatrimonioDoHostname('NB-WAP0001234')).toBe('WAP0001234')
+    expect(extrairPatrimonioDoHostname('DESKTOP-WAP0004491')).toBe('WAP0004491')
+    expect(extrairPatrimonioDoHostname('wap0001234')).toBe('WAP0001234') // caixa baixa sobe
+    expect(extrairPatrimonioDoHostname('LEA0000057-PC')).toBe('LEA0000057') // token no início
+  })
+
+  it('sem token canônico completo → null (F7E intacto: nulo + pendência)', () => {
+    expect(extrairPatrimonioDoHostname('DESKTOP-SALA')).toBeNull() // sem número
+    expect(extrairPatrimonioDoHostname('PC-01')).toBeNull() // número curto
+    expect(extrairPatrimonioDoHostname('NB-WAP001')).toBeNull() // só 3 dígitos
+    expect(extrairPatrimonioDoHostname('')).toBeNull()
+    expect(extrairPatrimonioDoHostname(null)).toBeNull()
+    expect(extrairPatrimonioDoHostname(undefined)).toBeNull()
+  })
+
+  it('não confunde número de 8+ dígitos com o token de 7 (exige token delimitado)', () => {
+    expect(extrairPatrimonioDoHostname('NB-WAP00012345')).toBeNull() // 8 dígitos, ambíguo
+    expect(extrairPatrimonioDoHostname('SERIAL12345678')).toBeNull()
+  })
+
+  // INJEÇÃO (OS §1): o extrator só captura o token canônico [A-Z]{2,4}\d{7} (ou nada)
+  // e NUNCA executa/interpola nada. O valor devolvido é SEMPRE o canônico limpo —
+  // qualquer payload em volta (=cmd, aspas, ;, OR 1=1, rm -rf) é descartado.
+  it('injeção: extrai só o token limpo, descarta o payload em volta', () => {
+    expect(extrairPatrimonioDoHostname('=cmd()')).toBeNull()
+    expect(extrairPatrimonioDoHostname(" OR 1=1")).toBeNull()
+    expect(extrairPatrimonioDoHostname('=WAP0001234')).toBe('WAP0001234') // dropa o '='
+    expect(extrairPatrimonioDoHostname('WAP0001234; rm -rf /')).toBe('WAP0001234')
+    expect(extrairPatrimonioDoHostname("WAP0001234' OR '1'='1")).toBe('WAP0001234')
+    expect(extrairPatrimonioDoHostname('"WAP0001234"')).toBe('WAP0001234')
+    expect(extrairPatrimonioDoHostname('=cmd()|WAP0001234')).toBe('WAP0001234')
+    expect(extrairPatrimonioDoHostname("'; DROP TABLE ativos; --")).toBeNull()
+    // o valor devolvido casa sempre o formato canônico — nunca um payload
+    for (const h of ['=WAP0001234', 'WAP0001234; rm -rf', '"WAP0001234"']) {
+      expect(extrairPatrimonioDoHostname(h)).toMatch(/^[A-Z]{2,4}\d{7}$/)
+    }
   })
 })
 

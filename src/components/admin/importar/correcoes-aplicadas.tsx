@@ -19,11 +19,15 @@ export function CorrecoesAplicadas({
   porOp,
   pendente,
   onDesfazer,
+  patrimonioDoHostname = 0,
 }: {
   correcoes: CorrecaoImport[]
   porOp: number[]
   pendente: boolean
   onDesfazer: (indice: number) => void
+  /** F7F — nº de patrimônios que o MOTOR preencheu sozinho pelo hostname
+   *  (auto, não é correção do operador). Vira uma linha de auditoria no rodapé. */
+  patrimonioDoHostname?: number
 }) {
   if (correcoes.length === 0) return null
 
@@ -67,6 +71,13 @@ export function CorrecoesAplicadas({
           )
         })}
       </ul>
+      {patrimonioDoHostname > 0 && (
+        <p className="text-xs text-warning">
+          + {patrimonioDoHostname.toLocaleString('pt-BR')}{' '}
+          {patrimonioDoHostname === 1 ? 'patrimônio veio' : 'patrimônios vieram'} do hostname
+          (preenchimento automático do motor, não conta como correção).
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">
         O arquivo enviado não é alterado: as correções são aplicadas em memória e o
         CSV é revalidado do zero a cada mudança. Elas ficam registradas no log deste

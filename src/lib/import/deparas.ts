@@ -12,6 +12,7 @@
 //     normalizarServiceTag / chaveServiceTag / extrairChamado
 // Os scripts da F4 permanecem intocados (ferramenta histórica do go-live).
 
+import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 import type { CategoriaAtivo, FilialOficial, StatusAtivo } from './tipos'
 
 // ---------------------------------------------------------------------------
@@ -58,6 +59,23 @@ const PATRIMONIO_VAZIO = new Set<string>([...VAZIOS, 'sem patrimonio'])
 /** Patrimônio "vazio na prática" (F7E)? true → importa nulo (pendência), não bloqueia. */
 export function patrimonioVazio(raw: string | null | undefined): boolean {
   return PATRIMONIO_VAZIO.has(normalizarTexto(raw ?? ''))
+}
+
+// F7F (decisão do Johnny, 17/07/2026 — REVOGA a não-inferência por hostname de 16/07):
+// procura no HOSTNAME um patrimônio JÁ no formato canônico ([A-Z]{2,4} + 7 dígitos)
+// embutido — ex.: `NB-WAP0001234`/`DESKTOP-WAP0004491` → `WAP0001234`/`WAP0004491`. Exige
+// o token canônico COMPLETO (7 dígitos) delimitado: `PC-01` (número curto) e `DESKTOP-SALA`
+// (sem número) NÃO preenchem — caem no F7E (nulo + pendência). O token achado ainda passa por
+// `canonicalizarPatrimonio`, o juiz final do valor (contrato §1.5), que NÃO muda. NOTA: chamar
+// `canonicalizarPatrimonio(hostname)` direto não serve — ele apaga separadores e ou falha em
+// `NB-WAP…` (5 letras coladas) ou aceita lixo (`PC-01`→`PC0000001`); por isso a extração aqui.
+// Fica em deparas.ts (folha client-safe) para o motor (plano.ts) E a UI (botão 1-clique do W3)
+// usarem EXATAMENTE a mesma régua — sem duplicar o extrator.
+const PATRIMONIO_EMBUTIDO_RE = /(?:^|[^A-Z0-9])([A-Z]{2,4}\d{7})(?![0-9])/
+
+export function extrairPatrimonioDoHostname(hostname: string | null | undefined): string | null {
+  const m = (hostname ?? '').toUpperCase().match(PATRIMONIO_EMBUTIDO_RE)
+  return m ? canonicalizarPatrimonio(m[1]!) : null
 }
 
 // ---------------------------------------------------------------------------

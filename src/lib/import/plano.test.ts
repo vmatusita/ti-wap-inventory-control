@@ -392,6 +392,87 @@ describe('F7E/F7C — sem patrimônio com tag existente em OUTRA filial', () => 
   })
 })
 
+// F7F — patrimônio ausente + hostname com patrimônio embutido → auto-preenche no
+// preview (decisão do Johnny, 17/07/2026; REVOGA a não-inferência por hostname de 16/07).
+describe('F7F — auto-preenchimento do patrimônio pelo hostname', () => {
+  it('(a) vazio/n/a/SEM PATRIMONIO + hostname NB-WAP0001234 → auto-preenche + aviso, sem patrimonio_vazio', () => {
+    for (const vazio of ['', 'n/a', 'SEM PATRIMONIO']) {
+      const r = validarMatriz([rowMatriz({ 'Patrimônio': vazio, Hostname: 'NB-WAP0001234' })])
+      expect(r.bloqueantes).toHaveLength(0)
+      const a = r.plano!.ativos[0]!
+      expect(a.patrimonio).toBe('WAP0001234')
+      expect(a.patrimonioOriginal).toBe(vazio) // guarda o cru mesmo auto-preenchido
+      expect(r.avisos.filter((e) => e.tipo === 'patrimonio_do_hostname')).toHaveLength(1)
+      expect(r.avisos.some((e) => e.tipo === 'patrimonio_vazio')).toBe(false)
+      expect(r.resumo.patrimonioDoHostname).toBe(1)
+      expect(r.resumo.semPatrimonio).toBe(0)
+      const aviso = r.avisos.find((e) => e.tipo === 'patrimonio_do_hostname')!
+      expect(aviso.mensagem).toContain('WAP0001234') // mensagem informativa cita o canônico
+    }
+  })
+
+  it('(b) vazio SEM hostname aproveitável (DESKTOP-SALA) → nulo + patrimonio_vazio (F7E intacto)', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '', Hostname: 'DESKTOP-SALA' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano!.ativos[0]!.patrimonio).toBeNull()
+    expect(r.avisos.filter((e) => e.tipo === 'patrimonio_vazio')).toHaveLength(1)
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(false)
+    expect(r.resumo.semPatrimonio).toBe(1)
+    expect(r.resumo.patrimonioDoHostname).toBe(0)
+  })
+
+  it('(c) duas linhas vazias cujo hostname canoniza para o MESMO patrimônio → duplicata bloqueante', () => {
+    const r = validarMatriz([
+      rowMatriz({ 'Patrimônio': '', Hostname: 'NB-WAP0001234' }),
+      rowMatriz({ 'Patrimônio': 'n/a', Hostname: 'DESKTOP-WAP0001234' }),
+    ])
+    // a dedupe usou o valor preenchido; ambas sem service tag colidem no índice único
+    expect(r.plano).toBeNull()
+    expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_duplicado_sem_service_tag')).toHaveLength(2)
+  })
+
+  it('(d) patrimônio COM valor só-números (12345) + hostname válido → patrimonio_invalido, NÃO sobrescreve', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '12345', Hostname: 'NB-WAP0009999' })])
+    expect(r.plano).toBeNull()
+    expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_invalido')).toHaveLength(1)
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(false)
+  })
+
+  it('(e) hostname com número que NÃO canoniza (PC-01) + patrimônio vazio → F7E (nulo + patrimonio_vazio)', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '', Hostname: 'PC-01' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano!.ativos[0]!.patrimonio).toBeNull()
+    expect(r.avisos.filter((e) => e.tipo === 'patrimonio_vazio')).toHaveLength(1)
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(false)
+    expect(r.resumo.patrimonioDoHostname).toBe(0)
+  })
+
+  it('(f) aviso patrimonio_do_hostname fica FORA do agrupamento (nenhum card), mas segue em avisos', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '', Hostname: 'NB-WAP0001234' })])
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(true)
+    expect(r.grupos.some((g) => g.tipo === 'patrimonio_do_hostname')).toBe(false)
+  })
+
+  it('(g) INJEÇÃO: hostname com payload em volta do token → auto-preenche só o canônico limpo', () => {
+    // patrimônio vazio + hostname com token canônico embutido em meio a lixo de
+    // fórmula/SQL/shell → o motor grava SÓ o token canônico, nunca o payload.
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '', Hostname: '=WAP0001234; rm -rf /' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    const a = r.plano!.ativos[0]!
+    expect(a.patrimonio).toBe('WAP0001234')
+    expect(a.patrimonio).toMatch(/^[A-Z]{2,4}\d{7}$/) // nunca um payload
+    expect(r.avisos.filter((e) => e.tipo === 'patrimonio_do_hostname')).toHaveLength(1)
+  })
+
+  it('(h) INJEÇÃO: hostname sem token canônico (só payload) → nulo + patrimonio_vazio', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '', Hostname: '=cmd()|nada' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano!.ativos[0]!.patrimonio).toBeNull()
+    expect(r.avisos.filter((e) => e.tipo === 'patrimonio_vazio')).toHaveLength(1)
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(false)
+  })
+})
+
 describe('linhas vazias / sem chave / cadastrais', () => {
   it('linha 100% vazia pulada; linha sem Site e sem patrimônio → aviso linha_sem_chave', () => {
     // 2ª linha só com Tipo/Service Tag preenchidos (sem Site, sem patrimônio)

@@ -16,6 +16,15 @@
 // régua de LINHA muda só no patrimônio (vazio deixa de bloquear); todo o resto
 // segue idêntico à F7B.
 //
+// AMPLIADO PELA F7F (decisão do Johnny, 17/07/2026 — REVOGA a não-inferência por
+// hostname de 16/07): patrimônio ausente cujo HOSTNAME contém um patrimônio no
+// formato canônico é AUTO-PREENCHIDO no preview (aviso informativo
+// `patrimonio_do_hostname`, contado em `resumo.patrimonioDoHostname`). NÃO há novo
+// `correcao.kind`: o aviso é filtrado antes do agrupamento (não vira card) — segue
+// em `avisos[]`/`contexto` para contagem/auditoria + painel âmbar da UI. A régua de
+// bloqueio é a MESMA: patrimônio COM valor inválido segue bloqueante (não é
+// sobrescrito) e a reanálise continua juíza (auto-preenchido que duplica reaparece).
+//
 // Os enums de domínio são declarados localmente (como em scripts/import/tipos.ts
 // da F4) para manter o motor autocontido e independente dos tipos GERADOS do
 // banco (src/lib/types/database.ts). Os valores coincidem 1:1 com os enums do
@@ -181,5 +190,14 @@ export type ValidacaoImport = {
   candidatos: { linha: number; patrimonio: string | null; serviceTag: string | null }[]
   plano: PlanoImport | null // null quando há bloqueante
   // F7E — `semPatrimonio` = nº de ativos do plano com patrimônio null (importam com pendência).
-  resumo: { criar: number; semData: number; semPatrimonio: number; layout: LayoutImport; linhasRemovidas: number }
+  // F7F — `patrimonioDoHostname` = nº de linhas cujo patrimônio ausente foi auto-preenchido
+  //       pelo patrimônio embutido no hostname (aviso informativo `patrimonio_do_hostname`).
+  resumo: {
+    criar: number
+    semData: number
+    semPatrimonio: number
+    patrimonioDoHostname: number
+    layout: LayoutImport
+    linhasRemovidas: number
+  }
 }
