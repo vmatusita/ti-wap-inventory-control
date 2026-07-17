@@ -659,12 +659,23 @@ Execução da OS `F7B-ultracode.md` (refino da `F7B-correcao-erros-import.md`), 
 - **`plano_vazio` com linha bloqueada remanescente** diz "todas as linhas foram removidas" quando 1 de 2 foi removida e a outra está bloqueada (cosmético; o import está bloqueado de qualquer forma).
 - **Ledger de migrations:** as `0031`/`0032` foram aplicadas em produção e no DEV via `execute_sql` (F7), então **não constam em `supabase_migrations`** nos dois projetos — os objetos existem e estão corretos, mas um rebuild só pelo ledger não reproduziria o caminho. A `0033` entrou pelo `apply_migration` **no DEV**; em produção, ver o runbook abaixo.
 
-**ROLLOUT PENDENTE — precisa do Johnny (mesmo gate da F7).** O classificador do modo automático **bloqueia a aplicação da `0033` em produção**: o corpo da função contém `delete from public.ativos/movimentacoes`, e a salvaguarda barra DDL de função destrutiva no projeto de produção (a mesma migration passou no DEV). É salvaguarda legítima — não se contorna. O código está na branch **`f7b`**, **não** mergeado na `main` e **não** deployado, de propósito.
+**ROLLOUT — FEITO em 17/07/2026.** Registro de como foi, porque o gate se repete.
 
-> **ORDEM OBRIGATÓRIA: migration PRIMEIRO, deploy DEPOIS.** Não é preferência, é dependência dura. O código da F7B (a) chama a RPC com `p_correcoes` (4 args) e (b) faz `select … correcoes` em `import_logs` no histórico. Com a `0033` ausente, o PostgREST não acha a função nem a coluna: **deployar antes derruba a tela `admin/importar` inteira** (não só o apply). Como a Vercel deploya a partir da `main`, **um `git push` da `main` antes da migration já é o estrago** — daí a `f7b` não ter sido mergeada.
+O classificador do modo automático **bloqueou a aplicação da `0033` em produção** pelo MCP: o corpo da função contém `delete from public.ativos/movimentacoes`, e a salvaguarda barra DDL de função destrutiva no projeto de produção — **a mesma migration passou no DEV** (o gatilho é a combinação com o projeto de produção, não o texto do SQL). É salvaguarda legítima: não se contorna. **O Johnny aplicou a `0033` pelo SQL Editor do painel**; o orquestrador conferiu o resultado ANTES de mergear, mergeou (`e0327e2`), publicou e o deploy da Vercel ficou READY em ~36s.
 
-Passos:
-1. **Aplicar a `0033` em produção** (`pbtjcalbmepmrqzprusb`) por um caminho com aval humano: SQL Editor do painel Supabase, ou uma sessão interativa do Claude Code com permissão. O arquivo `supabase/migrations/0033_import_correcoes.sql` roda **como está** (é idempotente: `drop … if exists` + `create or replace`); o bloco de smoke no fim está comentado.
+> **ORDEM OBRIGATÓRIA: migration PRIMEIRO, deploy DEPOIS.** Não é preferência, é dependência dura. O código da F7B (a) chama a RPC com `p_correcoes` (4 args) e (b) faz `select … correcoes` em `import_logs` no histórico (`src/lib/queries/import-logs.ts`). Com a `0033` ausente, o PostgREST não acha a função nem a coluna: **deployar antes derruba a tela `admin/importar` inteira** (não só o apply). Como a Vercel deploya a partir da `main`, **um `git push` da `main` antes da migration já seria o estrago** — por isso a `f7b` só foi mergeada depois da conferência abaixo.
+
+**Conferência feita em produção (antes do merge):** função **única** com `pronargs = 4`, `prosecdef = t`, `proconfig = {search_path=public}`, `proacl = {postgres=X/postgres,authenticated=X/postgres}` (anon/public/service_role **sem** execute); `import_logs.correcoes jsonb NOT NULL default '[]'`; e o corpo aplicado contendo as duas mudanças da F7B (`1b-bis`, `coalesce(p_correcoes`) **e** as salvaguardas da F7 (advisory lock, backup obrigatório, TOCTOU).
+
+**Smoke de produção — só leitura** (produção não tem filial de teste; padrão da F7). Além de `/admin/importar` responder 307 → `/login` (gate de operador de pé, não 500), o teste que importa foi pelo PostgREST com a anon key:
+- `GET /rest/v1/import_logs?select=correcoes&limit=1` → **200 `[]`** (coluna no cache do schema; se faltasse seria 400/42703).
+- `POST /rest/v1/rpc/importar_ativos_substituir` com os 4 args → **401 `42501 permission denied for function`**. Isto prova DUAS coisas de uma vez: o PostgREST **resolveu a assinatura de 4 args** (fora do cache seria `PGRST202`/404) e o **anon não executa** a função destrutiva. Um `notify pgrst, 'reload schema'` foi disparado antes, por garantia (DDL + cache velho = `PGRST202` em produção).
+
+**Ledger:** a `0033` **não consta em `supabase_migrations`** em produção (aplicada pelo SQL Editor), como já era o caso da `0031`/`0032` (F7). Os objetos estão corretos; o buraco é só de bookkeeping — ver o backlog acima.
+
+<details><summary>Runbook (para o próximo go-live/rollout com função destrutiva)</summary>
+
+1. **Aplicar a migration em produção** (`pbtjcalbmepmrqzprusb`) por um caminho com aval humano: SQL Editor do painel Supabase, ou uma sessão interativa do Claude Code com permissão. O arquivo `supabase/migrations/0033_import_correcoes.sql` roda **como está** (é idempotente: `drop … if exists` + `create or replace`); o bloco de smoke no fim está comentado.
 2. **Conferir (leitura):**
    ```sql
    select proname, pronargs, prosecdef, proacl::text, proconfig
@@ -681,3 +692,6 @@ Passos:
 3. **Merge + deploy:** `git checkout main && git merge f7b` → push (a Vercel deploya).
 4. **Smoke de produção — SOMENTE LEITURA** (produção não tem filial de teste; padrão da F7): abrir `admin/importar`, subir um CSV **fictício** com erro, conferir que os grupos aparecem e que a correção funciona **até o preview — sem aplicar**.
 5. **Rollback** (se preciso): `drop function public.importar_ativos_substituir(jsonb,text,jsonb,jsonb);` + recriar o bloco `create … end $$;` da `0032_import_rpcs.sql` verbatim + reaplicar os grants com 3 args. A coluna `correcoes` é aditiva e inofensiva — só remover se necessário. **Rollback do banco exige rollback do deploy junto** (o código da F7B não roda sem a `0033`).
+6. Depois de qualquer DDL em produção: `notify pgrst, 'reload schema';` — o Supabase costuma recarregar sozinho por event trigger, mas cache velho depois de DDL vira `PGRST202` na cara do usuário.
+
+</details>
