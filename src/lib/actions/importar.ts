@@ -374,7 +374,18 @@ export async function aplicarImport(input: {
     p_correcoes: correcoes as unknown as Json,
   })
   if (error) {
-    return { ok: false, erro: traduzErroBanco(error.message) }
+    // F7F — diagnóstico: o erro da RPC caía no genérico cego (traduzErroBanco só
+    // casava por substring da mensagem e ignorava o SQLSTATE). Agora logamos o
+    // code/mensagem/detalhes ANTES de traduzir (nunca vaza para a operadora, mas
+    // fica no servidor) e passamos o `error.code` para o mapa — timeout (57014),
+    // índice do import (23505) e raises P0001 da RPC viram mensagem acionável.
+    console.error('[importar] aplicarImport RPC error', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      filialId: plano.filialId,
+    })
+    return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
 
   const ret = rpcRetornoSchema.safeParse(data)
@@ -442,7 +453,7 @@ export async function urlBackup(logId: string): Promise<UrlBackupResult> {
     .select('backup_path')
     .eq('id', logId)
     .maybeSingle()
-  if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   if (!log) return { ok: false, erro: 'Import não encontrado.' }
 
   const { data: signed, error: sErr } = await client.storage

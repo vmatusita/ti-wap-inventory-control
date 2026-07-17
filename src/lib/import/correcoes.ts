@@ -492,6 +492,11 @@ function correcaoDoGrupo(tipo: string, chave: string, filialNome: string): Grupo
     // lote global; correção por linha). Ver ops-grupo.ts do W3.
     case 'patrimonio_vazio':
       return { kind: 'patrimonio_vazio' }
+    // F7F — defesa: o aviso informativo `patrimonio_do_hostname` é filtrado antes do
+    // agrupamento (nunca chega aqui). Se chegasse, não há correção — é auto-preenchimento
+    // auditável, não um erro a consertar.
+    case 'patrimonio_do_hostname':
+      return { kind: 'nenhuma' }
     case 'par_duplicado':
     case 'patrimonio_duplicado_sem_service_tag':
       return { kind: 'duplicata' }
@@ -523,6 +528,11 @@ export function agruparErros(
   const acumulado = new Map<string, { tipo: string; chave: string; erros: ErroImport[] }>()
 
   for (const erro of [...bloqueantes, ...avisos]) {
+    // F7F — o aviso `patrimonio_do_hostname` é informativo (auto-preenchimento pelo
+    // hostname): NÃO vira card de correção. Fica FORA do agrupamento — permanece em
+    // `avisos[]` e `contexto` (contagem + auditoria + painel âmbar informativo da UI,
+    // que é de outra frente). Filtrado aqui, `chaveDoGrupo`/`correcaoDoGrupo` nunca o veem.
+    if (erro.tipo === 'patrimonio_do_hostname') continue
     const chave = chaveDoGrupo(erro, porLinha.get(erro.linha), filialPorLinha)
     const id = `${erro.tipo}${SEP_ESTADO}${chave}`
     const grupo = acumulado.get(id)
