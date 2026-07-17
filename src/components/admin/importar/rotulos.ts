@@ -25,6 +25,7 @@ const ROTULO_TIPO_ERRO: Record<string, string> = {
   site_divergente: 'Site',
   categoria_desconhecida: 'Tipo',
   patrimonio_invalido: 'Patrimônio',
+  patrimonio_vazio: 'Sem patrimônio', // F7E — aviso: importa sem patrimônio (pendência)
   estado_desconhecido: 'Situação',
   estado_descartado: 'Descartado',
   par_duplicado: 'Duplicata',

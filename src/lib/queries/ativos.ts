@@ -12,7 +12,8 @@ export const PAGE_SIZE = 50
 // Linha da LISTA de ativos (OS-F2 3.1).
 export type AtivoLista = {
   id: string
-  patrimonio: string
+  // null = ativo sem patrimônio físico (import F7E) — a UI mostra "sem patrimônio".
+  patrimonio: string | null
   service_tag: string | null
   categoria: CategoriaAtivo
   marca: string | null
@@ -28,6 +29,8 @@ export type ListarAtivosParams = {
   filialId?: number
   categoria?: CategoriaAtivo
   status?: StatusAtivo[]
+  // Só ativos sem patrimônio físico (pendência 'sem patrimônio físico' — F7E).
+  semPatrimonio?: boolean
   page?: number
 }
 
@@ -76,6 +79,7 @@ export async function listarAtivos(
   if (params.status && params.status.length > 0) {
     query = query.in('status', params.status)
   }
+  if (params.semPatrimonio) query = query.is('patrimonio', null)
 
   query = query.order('updated_at', { ascending: false }).range(from, to)
 
@@ -98,7 +102,10 @@ export async function listarAtivos(
     }
   })
 
-  const patrimoniosDuplicados = patrimoniosRepetidos(rows.map((r) => r.patrimonio))
+  // Patrimônios null (ativos sem plaqueta) não entram na conta de duplicidade.
+  const patrimoniosDuplicados = patrimoniosRepetidos(
+    rows.map((r) => r.patrimonio).filter((p): p is string => p !== null),
+  )
 
   return {
     rows,
@@ -170,7 +177,8 @@ export async function listarAnotacoesDoAtivo(
 // Resumo p/ chip/combobox do fluxo de movimentacao.
 export type AtivoResumo = {
   id: string
-  patrimonio: string
+  // null = ativo sem patrimônio físico (import F7E) — a UI mostra "sem patrimônio".
+  patrimonio: string | null
   service_tag: string | null
   categoria: CategoriaAtivo
   marca: string | null
@@ -185,7 +193,7 @@ export type AtivoResumo = {
 function resumoDe(
   r: {
     id: string
-    patrimonio: string
+    patrimonio: string | null
     service_tag: string | null
     categoria: CategoriaAtivo
     marca: string | null
@@ -227,10 +235,16 @@ async function patrimoniosDuplicados(
     .select('patrimonio')
     .in('patrimonio', unicos)
   if (error) return new Set()
-  return patrimoniosRepetidos((data ?? []).map((r) => r.patrimonio))
+  return patrimoniosRepetidos(
+    (data ?? []).map((r) => r.patrimonio).filter((p): p is string => p !== null),
+  )
 }
 
-// Busca do combobox (OS-F2 3.5.1): por patrimonio OU modelo, ate 12 resultados.
+// Busca do combobox (OS-F2 3.5.1): por patrimônio OU modelo OU service tag OU
+// hostname (F7E — o ativo sem patrimônio precisa ser encontrável no fluxo de
+// movimentação; a plaqueta pode não existir, mas a tag/hostname identificam). Até
+// 12 resultados. Ordena null-last (patrimônio nulo cai no fim; NULLS FIRST é o
+// default do PostgREST em asc, então força nullsFirst:false).
 export async function buscarAtivosParaCombobox(
   term: string,
 ): Promise<AtivoResumo[]> {
@@ -241,17 +255,21 @@ export async function buscarAtivosParaCombobox(
   const { data, error } = await supabase
     .from('ativos')
     .select(RESUMO_SELECT)
-    .or(`patrimonio.ilike.%${termo}%,modelo.ilike.%${termo}%`)
-    .order('patrimonio', { ascending: true })
+    .or(
+      `patrimonio.ilike.%${termo}%,modelo.ilike.%${termo}%,service_tag.ilike.%${termo}%,hostname.ilike.%${termo}%`,
+    )
+    .order('patrimonio', { ascending: true, nullsFirst: false })
     .limit(12)
 
   if (error) throw new Error(`Falha na busca de ativos: ${error.message}`)
   const rows = (data ?? []) as unknown as Parameters<typeof resumoDe>[0][]
   const dups = await patrimoniosDuplicados(
     supabase,
-    rows.map((r) => r.patrimonio),
+    rows.map((r) => r.patrimonio).filter((p): p is string => p !== null),
   )
-  return rows.map((r) => resumoDe(r, dups.has(r.patrimonio)))
+  return rows.map((r) =>
+    resumoDe(r, r.patrimonio !== null && dups.has(r.patrimonio)),
+  )
 }
 
 // Resumo de um ativo por id (preselecao vinda da ficha / duplicar).
@@ -265,6 +283,9 @@ export async function buscarAtivoResumo(id: string): Promise<AtivoResumo | null>
   if (error) throw new Error(`Falha ao buscar ativo: ${error.message}`)
   if (!data) return null
   const row = data as unknown as Parameters<typeof resumoDe>[0]
-  const dups = await patrimoniosDuplicados(supabase, [row.patrimonio])
-  return resumoDe(row, dups.has(row.patrimonio))
+  const dups = await patrimoniosDuplicados(
+    supabase,
+    row.patrimonio !== null ? [row.patrimonio] : [],
+  )
+  return resumoDe(row, row.patrimonio !== null && dups.has(row.patrimonio))
 }

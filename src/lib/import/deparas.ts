@@ -46,6 +46,20 @@ export function limparCampo(raw: string | undefined | null): string | null {
   return t
 }
 
+// F7E (OS §2.2) — patrimônio "vazio na prática". Amplia `VAZIOS` com os dizeres
+// explícitos "sem patrimônio". Diferente da F7: aqui o vazio NÃO bloqueia — o ativo
+// importa com patrimônio NULO e pendência "sem patrimônio físico" (spec §10.2). A
+// comparação é sempre via `normalizarTexto`, então "SEM PATRIMÔNIO" (com acento e
+// caixa alta) cai na mesma chave `sem patrimonio`; `""`, `-`, `n/a`, `0`, `x`… vêm
+// de `VAZIOS`. NÃO mexe em `canonicalizarPatrimonio` — nenhum patrimônio canônico
+// ([A-Z]{2,4}\d{7}) está neste conjunto, então nada real vira nulo por engano.
+const PATRIMONIO_VAZIO = new Set<string>([...VAZIOS, 'sem patrimonio'])
+
+/** Patrimônio "vazio na prática" (F7E)? true → importa nulo (pendência), não bloqueia. */
+export function patrimonioVazio(raw: string | null | undefined): boolean {
+  return PATRIMONIO_VAZIO.has(normalizarTexto(raw ?? ''))
+}
+
 // ---------------------------------------------------------------------------
 // Unidades / filiais (spec §5, ampliado 15/07/2026) — espelho da F4
 
@@ -219,6 +233,71 @@ export function parseData(raw: string | null | undefined, hoje: string): ParseDa
   }
   const iso = `${String(ano).padStart(4, '0')}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
   return { iso, invalida: false, futura: iso > hoje }
+}
+
+// F7E (OS §2.1) — datas de entrega no formato abreviado `dd/MMM` (ex.: `18/nov`,
+// `21/jan`, `Nov.` com ponto/caixa qualquer). A planilha real traz o mês por
+// extenso abreviado e sem ano; o ano vem da Data de Inclusão da MESMA linha.
+const MESES_ABREV: Record<string, number> = {
+  jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6,
+  jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12,
+}
+
+/**
+ * F7E — resolve a Data de Entrega, que pode vir como `dd/MM/aaaa` OU `dd/MMM`.
+ * O destino é a DATA DO AJUSTE de reconciliação (spec §10.2); `parseData` NÃO muda
+ * (correções digitadas na tela continuam exigindo `dd/MM/aaaa` completa).
+ *
+ *  - vazio-na-prática (`DATA_VAZIA`) → `{ iso: null, invalida: false }` (sem data,
+ *    não é erro);
+ *  - `dd/MM/aaaa` → delega a `parseData` (comportamento F4/F7, byte a byte);
+ *  - `dd/MMM` → exige `inclusaoIso` válida (senão `invalida: true`); ano = ano da
+ *    inclusão; se `(mês, dia)` da entrega < `(mês, dia)` da inclusão → **ano + 1**
+ *    (a entrega nunca antecede a inclusão na planilha — virada de ano); valida
+ *    dia/mês reais (`31/fev` → inválida); resultado > `hoje` → `futura: true`;
+ *  - qualquer outra coisa → `invalida: true`.
+ *
+ * `inclusaoIso` é o iso já validado (não-futuro) da Data de Inclusão da linha, ou
+ * null quando a inclusão não deu data — nesse caso o `dd/MMM` fica sem âncora de
+ * ano e é marcado inválido (a linha cai no aviso `sem_data_entrada` se nada sobrar).
+ */
+export function resolverDataEntrega(
+  raw: string | null | undefined,
+  inclusaoIso: string | null,
+  hoje: string,
+): ParseDataResult {
+  const t = (raw ?? '').trim()
+  if (DATA_VAZIA.has(normalizarTexto(t))) {
+    return { iso: null, invalida: false, futura: false }
+  }
+  // `dd/MM/aaaa` completa → mesma régua da F4/F7.
+  if (/^\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4}$/.test(t)) {
+    return parseData(t, hoje)
+  }
+  // `dd/MMM` (mês abreviado, ponto final opcional).
+  const abrev = t.match(/^(\d{1,2})\s*\/\s*([A-Za-zÀ-ÿ]{3,4})\.?$/)
+  if (abrev) {
+    const mes = MESES_ABREV[normalizarTexto(abrev[2]!)]
+    if (mes === undefined) return { iso: null, invalida: true, futura: false }
+    if (inclusaoIso === null) return { iso: null, invalida: true, futura: false }
+    const dia = Number(abrev[1])
+    const anoInclusao = Number(inclusaoIso.slice(0, 4))
+    const mesInclusao = Number(inclusaoIso.slice(5, 7))
+    const diaInclusao = Number(inclusaoIso.slice(8, 10))
+    // Virada de ano: entrega antes da inclusão no calendário → ano seguinte.
+    const ano =
+      mes < mesInclusao || (mes === mesInclusao && dia < diaInclusao)
+        ? anoInclusao + 1
+        : anoInclusao
+    // Valida dia/mês reais (rejeita 31/fev, 30/fev etc.).
+    const d = new Date(Date.UTC(ano, mes - 1, dia))
+    if (d.getUTCFullYear() !== ano || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) {
+      return { iso: null, invalida: true, futura: false }
+    }
+    const iso = `${String(ano).padStart(4, '0')}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+    return { iso, invalida: false, futura: iso > hoje }
+  }
+  return { iso: null, invalida: true, futura: false }
 }
 
 // ---------------------------------------------------------------------------

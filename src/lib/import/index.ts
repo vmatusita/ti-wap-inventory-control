@@ -27,7 +27,9 @@ export {
 } from './deparas'
 
 // Re-export para o Zod das actions (W3) e o preview ao vivo da UI.
-export { mapearUnidade, parseData } from './deparas'
+// F7E — `resolverDataEntrega` (datas dd/MMM do arquivo) e `patrimonioVazio`
+// (patrimônio "vazio na prática" → importa nulo) fazem parte do contrato §1.5.
+export { mapearUnidade, parseData, patrimonioVazio, resolverDataEntrega } from './deparas'
 export { canonicalizarPatrimonio } from '@/lib/patrimonio'
 export { mapaColunas } from './parse'
 export type { CsvCru, RegistroImport } from './parse'

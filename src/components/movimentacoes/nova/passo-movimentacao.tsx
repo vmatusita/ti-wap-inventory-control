@@ -82,7 +82,7 @@ export function PassoMovimentacao({
               errosPorAtivo[a.id] && (
                 <p key={a.id} className="text-destructive">
                   <span className="font-medium tabular-nums">
-                    {a.patrimonio}
+                    {a.patrimonio ?? 'sem patrimônio'}
                   </span>{' '}
                   — {errosPorAtivo[a.id]}
                 </p>

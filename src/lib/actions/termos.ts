@@ -189,7 +189,8 @@ export async function prepararTermo(input: {
   const ordenados = ordenarEquipamentos(
     ativos.map((a) => ({
       categoria: a.categoria,
-      patrimonio: a.patrimonio ?? '',
+      // Preserva o nulo (F7E): ordena por último e imprime "sem patrimônio".
+      patrimonio: a.patrimonio,
       service_tag: a.service_tag,
       marca: a.marca,
       modelo: a.modelo,

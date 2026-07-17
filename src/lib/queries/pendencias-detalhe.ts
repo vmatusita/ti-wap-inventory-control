@@ -1,6 +1,13 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import type { CategoriaAtivo } from '@/lib/dominio'
+import { PENDENCIA_SEM_PATRIMONIO, type CategoriaAtivo } from '@/lib/dominio'
+
+// Prefixo do texto de pendência de patrimônio NÃO CANÔNICO gravado pelo go-live
+// F4 (literal completo: 'patrimônio não canônico (importado como veio da
+// planilha)'). Usamos só o PREFIXO — o filtro `.or()` do PostgREST parte a vírgula
+// como separador de condições e trata parênteses como agrupamento, então NUNCA
+// incluir a parte "(importado…)". `%prefixo%` casa o literal completo.
+const PENDENCIA_PATRIMONIO_NAO_CANONICO = 'patrimônio não canônico'
 
 // Lista detalhada de pendências para a página interna /pendencias (só operador —
 // F6A/A5). Lê a v_pendencias ESTENDIDA (0028). Roda sob o client do operador
@@ -9,7 +16,7 @@ import type { CategoriaAtivo } from '@/lib/dominio'
 
 const PAGE_SIZE = 30
 
-export type TipoPendencia = 'termo' | 'itens' | 'triagem' | 'outras'
+export type TipoPendencia = 'termo' | 'itens' | 'triagem' | 'patrimonio' | 'outras'
 
 export type PendenciaDetalhe = {
   id: string
@@ -34,10 +41,21 @@ export type ListaPendencias = {
 }
 
 // Deriva o bucket a partir do texto canônico da view (mesmos rótulos de getPendencias).
+// O bucket 'patrimonio' (F7E) casa quando a pendência CONTÉM 'sem patrimônio físico'
+// (importados sem plaqueta) OU 'patrimônio não canônico' (os 61 do go-live F4). A
+// pendência é `;`-joinable, então usamos `includes` (não igualdade) — coerente com
+// o filtro SQL de `listarPendencias` (ilike %...%). Precede o fallback 'outras'.
 export function classificarPendencia(pendencia: string | null): TipoPendencia {
   if (pendencia === 'termo pendente') return 'termo'
   if (pendencia === 'triagem parada') return 'triagem'
-  if (pendencia?.toLowerCase().startsWith('itens faltantes')) return 'itens'
+  const p = pendencia?.toLowerCase() ?? ''
+  if (p.startsWith('itens faltantes')) return 'itens'
+  if (
+    p.includes(PENDENCIA_SEM_PATRIMONIO.toLowerCase()) ||
+    p.includes(PENDENCIA_PATRIMONIO_NAO_CANONICO.toLowerCase())
+  ) {
+    return 'patrimonio'
+  }
   return 'outras'
 }
 
@@ -66,11 +84,19 @@ export async function listarPendencias(opts: {
   if (opts.tipo === 'termo') query = query.eq('pendencia', 'termo pendente')
   else if (opts.tipo === 'triagem') query = query.eq('pendencia', 'triagem parada')
   else if (opts.tipo === 'itens') query = query.ilike('pendencia', 'itens faltantes%')
+  else if (opts.tipo === 'patrimonio')
+    // Sem plaqueta (F7E) OU não canônico (go-live F4). Literais SEM vírgula/parênteses
+    // (footgun do `.or()` do PostgREST) — só os prefixos.
+    query = query.or(
+      `pendencia.ilike.%${PENDENCIA_SEM_PATRIMONIO}%,pendencia.ilike.%${PENDENCIA_PATRIMONIO_NAO_CANONICO}%`,
+    )
   else if (opts.tipo === 'outras')
     query = query
       .not('pendencia', 'eq', 'termo pendente')
       .not('pendencia', 'eq', 'triagem parada')
       .not('pendencia', 'ilike', 'itens faltantes%')
+      .not('pendencia', 'ilike', `%${PENDENCIA_SEM_PATRIMONIO}%`)
+      .not('pendencia', 'ilike', `%${PENDENCIA_PATRIMONIO_NAO_CANONICO}%`)
 
   const termo = opts.q?.trim()
   if (termo) {

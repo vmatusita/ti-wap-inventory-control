@@ -42,7 +42,10 @@ const TAMANHO_MAX = 5 * 1024 * 1024
 // ---- schemas -------------------------------------------------------------
 
 const ativoPlanoSchema = z.object({
-  patrimonio: z.string(),
+  // F7E — patrimônio OPCIONAL: null importa com pendência "sem patrimônio físico"
+  // (a RPC grava a pendência quando null). Se este campo não fosse nullable, o
+  // `safeParse` do aplicar recusaria o plano inteiro por causa de 1 ativo sem plaqueta.
+  patrimonio: z.string().nullable(),
   patrimonioOriginal: z.string(),
   serviceTag: z.string().nullable(),
   categoria: z.string(),
@@ -55,6 +58,10 @@ const ativoPlanoSchema = z.object({
   hostname: z.string().nullable(),
   observacoes: z.string().nullable(),
   dataEntrada: z.string().nullable(),
+  // F7E — data do ajuste de reconciliação (yyyy-MM-dd): entrega resolvida ??
+  // dataEntrada ?? null. TEM de estar no schema: o Zod DESCARTA chaves fora do
+  // shape, então sem esta linha o `dataAjuste` sairia do plano antes de chegar à RPC.
+  dataAjuste: z.string().nullable(),
   estadoAlvo: z.string(),
   colaborador: z.string().nullable(),
   setor: z.string().nullable(),
@@ -216,11 +223,21 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   // o banco diz quais colidem, e a 2ª passada devolve o veredito COM os bloqueantes
   // (o motor continua o único juiz). Sem colisão, a 2ª passada nem roda.
   try {
-    const emOutras = await paresEmOutrasFiliais(
-      client,
-      filial.id,
-      validacao.candidatos.map((c) => c.patrimonio),
+    // F7C ampliado (F7E, contrato §1.5): DUAS identidades a conferir em outra filial —
+    // (1) os pares COM patrimônio (comportamento F7C original); (2) os SEM patrimônio
+    // COM service tag, pela tag (índice parcial novo). O motor devolve ambos em
+    // `candidatos` (patrimonio null para os sem-plaqueta). `paresEmOutrasFiliais`
+    // devolve um mapa cujas chaves casam EXATAMENTE com as que `plano.ts` monta na 2ª
+    // passada (`chavePatrimonio(...)` para os com patrimônio; `∅::<service tag exata>`
+    // para os nulos-com-tag). Sem colisão nenhuma, a 2ª passada nem roda — o motor
+    // continua o único juiz.
+    const patrimonios = validacao.candidatos
+      .map((c) => c.patrimonio)
+      .filter((p): p is string => p !== null)
+    const tagsSemPatrimonio = validacao.candidatos.flatMap((c) =>
+      c.patrimonio === null && c.serviceTag ? [c.serviceTag] : [],
     )
+    const emOutras = await paresEmOutrasFiliais(client, filial.id, patrimonios, tagsSemPatrimonio)
     if (emOutras.size > 0) {
       validacao = validarCsvImport(buffer, filialSel, undefined, corrRes.correcoes, emOutras)
     }

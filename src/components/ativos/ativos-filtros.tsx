@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import { Search, SlidersHorizontal, Tag, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +45,7 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
   const qAtual = params.get('q') ?? ''
   const filialAtual = params.get('filial') ?? ''
   const categoriaAtual = params.get('categoria') ?? ''
+  const semPatrimonioAtual = params.get('semPatrimonio') === '1'
   const statusAtual = (params.get('status') ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -98,7 +99,11 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
   }
 
   const temFiltro =
-    !!qAtual || !!filialAtual || !!categoriaAtual || statusAtual.length > 0
+    !!qAtual ||
+    !!filialAtual ||
+    !!categoriaAtual ||
+    statusAtual.length > 0 ||
+    semPatrimonioAtual
 
   return (
     <div
@@ -186,6 +191,18 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
           </div>
         </PopoverContent>
       </Popover>
+
+      <Button
+        variant={semPatrimonioAtual ? 'default' : 'outline'}
+        onClick={() =>
+          aplicar({ semPatrimonio: semPatrimonioAtual ? null : '1' })
+        }
+        aria-pressed={semPatrimonioAtual}
+        className="gap-2"
+      >
+        <Tag className="size-4" />
+        Sem patrimônio
+      </Button>
 
       {temFiltro && (
         <Button

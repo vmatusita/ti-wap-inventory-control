@@ -523,17 +523,17 @@ describe('agruparErros', () => {
     expect(r.grupos.find((g) => g.tipo === 'sem_data_entrada')!.correcao).toEqual({ kind: 'data' })
   })
 
-  it('sem_data_entrada agrupa pelo valor cru da Data de Inclusão (a célula que a massa grava)', () => {
+  it('F7E — sem_data_entrada agrupa TODAS as linhas num card único (não mais por valor cru)', () => {
     const r = validar([
       rowMatriz({ 'Data de Inclusão': '' }),
       rowMatriz({ 'Data de Inclusão': '', 'Patrimônio': 'WAP0002222' }),
       rowMatriz({ 'Data de Inclusão': '#######', 'Patrimônio': 'WAP0003333' }),
     ])
     const grupos = r.grupos.filter((g) => g.tipo === 'sem_data_entrada')
-    expect(grupos).toHaveLength(2)
+    expect(grupos).toHaveLength(1)
     expect(grupos[0]!.chave).toBe('')
-    expect(grupos[0]!.linhas).toEqual([2, 3])
-    expect(grupos[1]!.chave).toBe('#######')
+    expect(grupos[0]!.linhas).toEqual([2, 3, 4]) // "" + ####### num só card
+    expect(grupos[0]!.correcao).toEqual({ kind: 'data' })
   })
 
   // Por que data NÃO tem troca em massa (revisão adversarial da F7B, 17/07/2026).
@@ -698,6 +698,38 @@ describe('agruparErros', () => {
       expect(r.plano).toBeNull() // categoria_desconhecida bloqueia
       // a linha boa segue candidata: sem isso a action não teria o que perguntar
       expect(r.candidatos).toEqual([{ linha: 3, patrimonio: 'WAP0002222', serviceTag: null }])
+    })
+  })
+
+  // F7E (OS §2.5) — um card por tipo: patrimonio_invalido/sem_data_entrada/patrimonio_vazio
+  // deixam de fragmentar por valor cru.
+  describe('F7E — card único por tipo', () => {
+    it('N patrimonio_invalido de valores distintos → 1 grupo (chave "")', () => {
+      const r = validar([
+        rowMatriz({ 'Patrimônio': 'ABC' }),
+        rowMatriz({ 'Patrimônio': '12345' }),
+        rowMatriz({ 'Patrimônio': '99999' }),
+      ])
+      const grupos = r.grupos.filter((g) => g.tipo === 'patrimonio_invalido')
+      expect(grupos).toHaveLength(1)
+      expect(grupos[0]!.chave).toBe('')
+      expect(grupos[0]!.linhas).toEqual([2, 3, 4])
+      expect(grupos[0]!.correcao).toEqual({ kind: 'patrimonio' })
+    })
+
+    it('patrimonio_vazio (aviso) → 1 card com kind patrimonio_vazio; NÃO bloqueia', () => {
+      const r = validar([
+        rowMatriz({ 'Patrimônio': '' }),
+        rowMatriz({ 'Patrimônio': 'n/a', 'Service Tag': 'A' }),
+        rowMatriz({ 'Patrimônio': 'SEM PATRIMONIO', 'Service Tag': 'B' }),
+      ])
+      const grupos = r.grupos.filter((g) => g.tipo === 'patrimonio_vazio')
+      expect(grupos).toHaveLength(1)
+      expect(grupos[0]!.chave).toBe('')
+      expect(grupos[0]!.linhas).toEqual([2, 3, 4])
+      expect(grupos[0]!.correcao).toEqual({ kind: 'patrimonio_vazio' })
+      expect(r.bloqueantes).toHaveLength(0)
+      expect(r.plano).not.toBeNull()
     })
   })
 
@@ -1028,7 +1060,7 @@ describe('retrocompatibilidade F7 — sem correções, nada muda', () => {
     expect(r.grupos).toHaveLength(0)
     expect(r.contexto).toEqual({})
     expect(r.plano!.ativos).toHaveLength(1)
-    expect(r.resumo).toEqual({ criar: 1, semData: 0, layout: 'matriz', linhasRemovidas: 0 })
+    expect(r.resumo).toEqual({ criar: 1, semData: 0, semPatrimonio: 0, layout: 'matriz', linhasRemovidas: 0 })
   })
 
   it('CSV vazio (0 linhas de dados) sem correções: comportamento da F7 preservado', () => {

@@ -41,7 +41,8 @@ export function TermosDaFicha({
   devolTipo,
 }: {
   ativoId: string
-  patrimonio: string
+  // null = ativo sem patrimônio físico (F7E) — o rótulo do termo mostra "sem patrimônio".
+  patrimonio: string | null
   categoria: CategoriaAtivo
   termoAssinado: TermoStatus | null
   termoData: string | null
@@ -53,6 +54,8 @@ export function TermosDaFicha({
   const router = useRouter()
   const [baixando, setBaixando] = useState<string | null>(null)
   const refresh = () => router.refresh()
+  // Rótulo do termo quando o ativo não tem plaqueta (F7E).
+  const rotuloPatrimonio = patrimonio ?? 'sem patrimônio'
 
   // Já existe termo cobrindo ESTA movimentação? Se sim, esconde o botão de GERAR
   // (a regeração é pelo "Editar" da lista, que reabre o termo real — inclusive o
@@ -97,7 +100,7 @@ export function TermosDaFicha({
               familia="responsabilidade"
               categoria={categoria}
               movimentacaoIds={[respMovId]}
-              rotulo={`${patrimonio} · ${rotuloCategoria(categoria)}`}
+              rotulo={`${rotuloPatrimonio} · ${rotuloCategoria(categoria)}`}
               onGerado={refresh}
               trigger={
                 <Button variant="outline" size="sm" className="gap-2">
@@ -112,7 +115,7 @@ export function TermosDaFicha({
               familia="devolucao"
               tipoDevolucao={devolTipo}
               movimentacaoIds={[devolMovId]}
-              rotulo={patrimonio}
+              rotulo={rotuloPatrimonio}
               onGerado={refresh}
               trigger={
                 <Button variant="outline" size="sm" className="gap-2">
@@ -174,7 +177,7 @@ export function TermosDaFicha({
                     categoria={categoria}
                     tipoInicial={t.tipo}
                     movimentacaoIds={t.movimentacao_ids}
-                    rotulo={patrimonio}
+                    rotulo={rotuloPatrimonio}
                     onGerado={refresh}
                     trigger={
                       <Button variant="ghost" size="sm" className="h-8 gap-1.5">

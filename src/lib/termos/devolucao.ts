@@ -16,17 +16,26 @@ const ORDEM_CATEGORIA: Record<CategoriaAtivo, number> = {
 
 export type EquipamentoDevolucao = {
   categoria: CategoriaAtivo
-  patrimonio: string
+  // null = ativo sem patrimônio físico (F7E) — ordena por ÚLTIMO e imprime
+  // "sem patrimônio" no termo.
+  patrimonio: string | null
   service_tag: string | null
   marca: string | null
   modelo: string | null
 }
+
+// Texto impresso no lugar do número quando o ativo não tem plaqueta (F7E).
+export const PATRIMONIO_AUSENTE_TERMO = 'sem patrimônio'
 
 export function ordenarEquipamentos<T extends EquipamentoDevolucao>(itens: T[]): T[] {
   return [...itens].sort((a, b) => {
     const oa = ORDEM_CATEGORIA[a.categoria] ?? 99
     const ob = ORDEM_CATEGORIA[b.categoria] ?? 99
     if (oa !== ob) return oa - ob
+    // Empate de categoria: patrimônio nulo (sem plaqueta) vai por último.
+    if (a.patrimonio === null && b.patrimonio === null) return 0
+    if (a.patrimonio === null) return 1
+    if (b.patrimonio === null) return -1
     return a.patrimonio.localeCompare(b.patrimonio)
   })
 }
@@ -38,7 +47,10 @@ export function ordenarEquipamentos<T extends EquipamentoDevolucao>(itens: T[]):
 export function concatenarEquipamentos(itensOrdenados: EquipamentoDevolucao[]) {
   return {
     series: itensOrdenados.map((i) => i.service_tag ?? '').join(', '),
-    patrimonios: itensOrdenados.map((i) => i.patrimonio).join(', '),
+    // Patrimônio nulo (F7E) imprime "sem patrimônio" no lugar do número.
+    patrimonios: itensOrdenados
+      .map((i) => i.patrimonio ?? PATRIMONIO_AUSENTE_TERMO)
+      .join(', '),
     marcas_modelos: itensOrdenados
       .map((i) => [i.marca, i.modelo].filter(Boolean).join(' '))
       .join(' / '),

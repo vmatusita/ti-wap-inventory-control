@@ -160,6 +160,41 @@ describe('patrimônio (pontual) — TODAS as linhas preenchidas para o lote', ()
   })
 })
 
+describe('patrimonio_vazio (aviso, F7E) — opcional, fora do lote, só as preenchidas', () => {
+  // Linhas "vazio-na-prática": importam sem patrimônio (pendência). Preencher é
+  // opcional — o card fica fora do botão de seção e do lote global (grupoPronto = false).
+  const contexto = {
+    2: reg(2, { patrimonio: '', serviceTag: 'ST-A' }),
+    3: reg(3, { patrimonio: 'SEM PATRIMONIO', serviceTag: 'ST-B' }),
+  }
+  const g = grupo({
+    tipo: 'patrimonio_vazio',
+    chave: '',
+    linhas: [2, 3],
+    correcao: { kind: 'patrimonio_vazio' },
+  })
+
+  it('nunca fica pronto (preencher é opcional) e faltam = 0', () => {
+    expect(grupoPronto(g, {}, contexto)).toBe(false)
+    expect(faltamNoGrupo(g, {}, contexto)).toBe(0)
+    expect(opsDoGrupo(g, {}, contexto, FILIAL)).toEqual([])
+  })
+
+  it('emite editar só das linhas preenchidas com patrimônio canônico', () => {
+    // linha 2 preenchida (canoniza → WAP0001234); linha 3 fica em branco.
+    const r: Rascunho = { [chaveLinha(2, 'patrimonio')]: 'wap 1234' }
+    expect(grupoPronto(g, r, contexto)).toBe(false)
+    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([
+      { op: 'editar', linha: 2, campo: 'patrimonio', para: 'wap 1234' },
+    ])
+  })
+
+  it('valor preenchido que não canoniza não é emitido', () => {
+    const r: Rascunho = { [chaveLinha(2, 'patrimonio')]: 'lixo' }
+    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([])
+  })
+})
+
 describe('data (pontual) — futura/inválida não deixa pronto', () => {
   const contexto = { 2: reg(2, { patrimonio: 'WAP0001234', dataInclusao: '' }) }
   const g = grupo({ tipo: 'sem_data_entrada', chave: '', linhas: [2], correcao: { kind: 'data' } })

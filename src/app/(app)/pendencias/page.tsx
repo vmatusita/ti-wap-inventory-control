@@ -33,12 +33,13 @@ function primeiro(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : Array.isArray(v) ? v[0] : undefined
 }
 
-const TIPOS_VALIDOS: TipoPendencia[] = ['termo', 'itens', 'triagem', 'outras']
+const TIPOS_VALIDOS: TipoPendencia[] = ['termo', 'itens', 'triagem', 'patrimonio', 'outras']
 
 const BADGE_TIPO: Record<TipoPendencia, { rotulo: string; classe: string }> = {
   termo: { rotulo: 'Termo', classe: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
   itens: { rotulo: 'Itens faltantes', classe: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
   triagem: { rotulo: 'Triagem', classe: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' },
+  patrimonio: { rotulo: 'Patrimônio', classe: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' },
   outras: { rotulo: 'Outra', classe: 'bg-muted text-muted-foreground' },
 }
 

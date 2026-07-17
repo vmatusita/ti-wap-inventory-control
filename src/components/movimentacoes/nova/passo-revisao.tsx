@@ -40,7 +40,7 @@ export function PassoRevisao({
             {itens.map((a) => (
               <tr key={a.id}>
                 <td className="p-2.5 font-medium tabular-nums">
-                  {a.patrimonio}
+                  {a.patrimonio ?? 'sem patrimônio'}
                 </td>
                 <td className="p-2.5">
                   {config.tipo && rotuloTipo(config.tipo)}

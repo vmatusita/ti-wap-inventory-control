@@ -16,6 +16,8 @@ import {
   normalizarTexto,
   parseColaboradorInventario,
   parseData,
+  patrimonioVazio,
+  resolverDataEntrega,
 } from './deparas'
 import type { CategoriaAtivo, StatusAtivo } from './tipos'
 
@@ -181,6 +183,102 @@ describe('parseData (espelho F4: só dd/mm/aaaa; futura sinalizada)', () => {
     expect(parseData('31/02/2025', hoje).invalida).toBe(true) // 31 de fev
     expect(parseData('01/set', hoje).invalida).toBe(true)
     expect(parseData('15/12/25', hoje).invalida).toBe(true) // dd/MM/yy NÃO aceito (espelho F4)
+  })
+})
+
+// F7E (OS §2.1) — Data de Entrega no formato dd/MMM, ano puxado da inclusão.
+describe('resolverDataEntrega (F7E — dd/MMM com ano da inclusão)', () => {
+  const hoje = '2026-07-16'
+
+  it('dd/MMM usa o ano da inclusão (mesmo ano)', () => {
+    expect(resolverDataEntrega('18/nov', '2024-11-01', hoje)).toEqual({
+      iso: '2024-11-18',
+      invalida: false,
+      futura: false,
+    })
+  })
+
+  it('virada de ano: entrega antes da inclusão no calendário → ano + 1', () => {
+    // entrega 21/jan, inclusão 18/12/2024 → 21/01/2025
+    expect(resolverDataEntrega('21/jan', '2024-12-18', hoje)).toEqual({
+      iso: '2025-01-21',
+      invalida: false,
+      futura: false,
+    })
+  })
+
+  it('mesmo mês, dia da entrega < dia da inclusão → ano + 1', () => {
+    expect(resolverDataEntrega('05/nov', '2024-11-20', hoje).iso).toBe('2025-11-05')
+  })
+
+  it('mesmo dia/mês da inclusão (limite): NÃO vira o ano', () => {
+    expect(resolverDataEntrega('01/nov', '2024-11-01', hoje).iso).toBe('2024-11-01')
+  })
+
+  it('resultado no futuro → futura true', () => {
+    const r = resolverDataEntrega('20/dez', '2026-07-01', hoje) // 2026-12-20 > hoje
+    expect(r.iso).toBe('2026-12-20')
+    expect(r.futura).toBe(true)
+  })
+
+  it('inclusão nula (sem âncora de ano) → inválida', () => {
+    expect(resolverDataEntrega('18/nov', null, hoje)).toEqual({
+      iso: null,
+      invalida: true,
+      futura: false,
+    })
+  })
+
+  it('31/fev (dia/mês irreal) → inválida', () => {
+    expect(resolverDataEntrega('31/fev', '2024-02-01', hoje).invalida).toBe(true)
+  })
+
+  it('bissexto 29/fev vale em ano bissexto (2024)', () => {
+    expect(resolverDataEntrega('29/fev', '2024-02-01', hoje).iso).toBe('2024-02-29')
+    // 2025 não é bissexto → 29/fev inválida
+    expect(resolverDataEntrega('29/fev', '2025-02-01', hoje).invalida).toBe(true)
+  })
+
+  it('mês abreviado com ponto e caixa qualquer (Nov., JAN, Dez.)', () => {
+    expect(resolverDataEntrega('18/Nov.', '2024-11-01', hoje).iso).toBe('2024-11-18')
+    expect(resolverDataEntrega('03/JAN', '2024-01-01', hoje).iso).toBe('2024-01-03')
+    expect(resolverDataEntrega('10/Dez.', '2024-12-01', hoje).iso).toBe('2024-12-10')
+  })
+
+  it('vazio-na-prática → sem data, não é erro', () => {
+    expect(resolverDataEntrega('', '2024-01-01', hoje)).toEqual({ iso: null, invalida: false, futura: false })
+    expect(resolverDataEntrega('-', '2024-01-01', hoje)).toEqual({ iso: null, invalida: false, futura: false })
+    expect(resolverDataEntrega('N/A', '2024-01-01', hoje)).toEqual({ iso: null, invalida: false, futura: false })
+  })
+
+  it('dd/MM/aaaa completa passa direto (delega a parseData; inclusão irrelevante)', () => {
+    expect(resolverDataEntrega('10/01/2025', null, hoje)).toEqual(parseData('10/01/2025', hoje))
+    expect(resolverDataEntrega('31/02/2025', null, hoje).invalida).toBe(true) // 31 de fev
+    expect(resolverDataEntrega('01/09/2099', null, hoje).futura).toBe(true)
+  })
+
+  it('mês abreviado desconhecido / lixo → inválida', () => {
+    expect(resolverDataEntrega('18/xyz', '2024-01-01', hoje).invalida).toBe(true)
+    expect(resolverDataEntrega('#######', '2024-01-01', hoje).invalida).toBe(true)
+    expect(resolverDataEntrega('18/11', '2024-01-01', hoje).invalida).toBe(true) // dd/MM (sem ano nem mês por extenso)
+    expect(resolverDataEntrega('nov/2024', '2024-01-01', hoje).invalida).toBe(true)
+  })
+})
+
+// F7E (OS §2.2) — patrimônio "vazio na prática" (importa nulo, não bloqueia).
+describe('patrimonioVazio (F7E)', () => {
+  it('vazios/placeholders → true', () => {
+    for (const v of ['', '-', 'n/a', 'N/A', 'x', '0', 'SEM PATRIMONIO', 'sem patrimônio', 'Sem Patrimônio']) {
+      expect(patrimonioVazio(v), `"${v}" deveria ser vazio-na-prática`).toBe(true)
+    }
+    expect(patrimonioVazio(null)).toBe(true)
+    expect(patrimonioVazio(undefined)).toBe(true)
+  })
+  it('patrimônio canônico ou só-números NÃO é vazio', () => {
+    expect(patrimonioVazio('WAP0001234')).toBe(false)
+    expect(patrimonioVazio('WAP4491')).toBe(false)
+    expect(patrimonioVazio('12345')).toBe(false)
+    expect(patrimonioVazio('ABC')).toBe(false)
   })
 })
 

@@ -75,7 +75,7 @@ export type Database = {
           modelo: string | null
           observacoes: string | null
           origem: string
-          patrimonio: string
+          patrimonio: string | null
           patrimonio_original: string | null
           pendencia: string | null
           processador: string | null
@@ -100,7 +100,7 @@ export type Database = {
           modelo?: string | null
           observacoes?: string | null
           origem?: string
-          patrimonio: string
+          patrimonio?: string | null
           patrimonio_original?: string | null
           pendencia?: string | null
           processador?: string | null
@@ -125,7 +125,7 @@ export type Database = {
           modelo?: string | null
           observacoes?: string | null
           origem?: string
-          patrimonio?: string
+          patrimonio?: string | null
           patrimonio_original?: string | null
           pendencia?: string | null
           processador?: string | null

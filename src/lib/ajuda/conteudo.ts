@@ -431,6 +431,7 @@ export const SECOES: Secao[] = [
           'Na ficha, use "Corrigir patrimônio". Digite o novo número — o sistema mostra o formato canônico (ex.: WAP0001234).',
           'A service tag é imutável: ela identifica o equipamento e nunca muda. Só o patrimônio se corrige.',
           'A correção fica registrada na linha do tempo (de → para, quem, quando). A busca passa a encontrar o ativo pelo novo patrimônio.',
+          'Alguns ativos nascem sem patrimônio (equipamento sem plaqueta trazido pelo import de startup): aparecem como "Sem patrimônio", com pendência na lista e em /pendencias. Dar o número aqui encerra essa pendência.',
         ],
       },
       {

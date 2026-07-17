@@ -28,13 +28,18 @@ export function CorrigirPatrimonioDialog({
   serviceTag,
 }: {
   ativoId: string
-  patrimonioAtual: string
+  // null = ativo importado SEM patrimônio (F7E) — o diálogo abre a partir do nulo
+  // e o rótulo vira "Definir patrimônio" (rastro "de sem patrimônio para WAP…").
+  patrimonioAtual: string | null
   serviceTag: string | null
 }) {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [novo, setNovo] = useState('')
   const [enviando, setEnviando] = useState(false)
+
+  const semPatrimonio = patrimonioAtual === null
+  const rotulo = semPatrimonio ? 'Definir patrimônio' : 'Corrigir patrimônio'
 
   // Preview ao vivo da canonicalização (mesma função pura do servidor).
   const preview = novo.trim() ? validarCorrecaoPatrimonio(patrimonioAtual, novo) : null
@@ -48,7 +53,7 @@ export function CorrigirPatrimonioDialog({
       toast.error(res.erro ?? 'Não foi possível corrigir o patrimônio.')
       return
     }
-    toast.success('Patrimônio corrigido.')
+    toast.success(semPatrimonio ? 'Patrimônio definido.' : 'Patrimônio corrigido.')
     setAberto(false)
     setNovo('')
     router.refresh()
@@ -65,22 +70,29 @@ export function CorrigirPatrimonioDialog({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-10 gap-2 sm:h-8">
           <Tag className="size-4" />
-          Corrigir patrimônio
+          {rotulo}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Corrigir patrimônio</DialogTitle>
+          <DialogTitle>{rotulo}</DialogTitle>
           <DialogDescription>
-            Corrija apenas o número de patrimônio. A correção fica registrada na
-            linha do tempo (de → para), com seu nome e a data.
+            {semPatrimonio
+              ? 'Informe o número de patrimônio deste ativo (importado sem plaqueta). A definição fica registrada na linha do tempo (de → para), com seu nome e a data, e encerra a pendência "sem patrimônio físico".'
+              : 'Corrija apenas o número de patrimônio. A correção fica registrada na linha do tempo (de → para), com seu nome e a data.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Patrimônio atual</Label>
-            <p className="text-sm font-medium tabular-nums">{patrimonioAtual}</p>
+            <p className="text-sm font-medium tabular-nums">
+              {patrimonioAtual ?? (
+                <span className="text-muted-foreground italic tabular-nums">
+                  Sem patrimônio
+                </span>
+              )}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -126,7 +138,7 @@ export function CorrigirPatrimonioDialog({
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={!podeSalvar}>
-            {enviando ? 'Corrigindo…' : 'Corrigir patrimônio'}
+            {enviando ? 'Salvando…' : rotulo}
           </Button>
         </DialogFooter>
       </DialogContent>

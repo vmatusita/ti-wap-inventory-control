@@ -41,7 +41,9 @@ export function PassoAtivos({
               key={a.id}
               className="flex flex-wrap items-center gap-2 rounded-lg border p-2.5"
             >
-              <span className="font-medium tabular-nums">{a.patrimonio}</span>
+              <span className="font-medium tabular-nums">
+                {a.patrimonio ?? 'sem patrimônio'}
+              </span>
               {a.patrimonio_duplicado && (
                 <span className="rounded bg-amber-100 px-1.5 text-xs tabular-nums text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                   ST {a.service_tag ?? '—'}
@@ -60,7 +62,7 @@ export function PassoAtivos({
                 <button
                   type="button"
                   onClick={() => onRemover(a.id)}
-                  aria-label={`Remover ${a.patrimonio}`}
+                  aria-label={`Remover ${a.patrimonio ?? 'ativo sem patrimônio'}`}
                   className="-my-1 -mr-1 rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <X className="size-4" />
