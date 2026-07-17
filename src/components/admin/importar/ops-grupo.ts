@@ -196,12 +196,15 @@ export function opsDoGrupo(
 }
 
 /**
- * O card está pronto para aplicar TUDO de uma vez?
+ * O card tem algo pronto para aplicar (entra no botão de seção e no lote global)?
  * - massa (categoria/estado): tem valor escolhido/sugerido válido;
  * - ação fixa (site desconhecido, remoções): sempre;
- * - pontual (patrimônio/colaborador/data): TODAS as linhas preenchidas e válidas
- *   (decisão do Johnny — não é "aplica o que estiver preenchido");
- * - duplicata/nenhuma: nunca entra no lote.
+ * - pontual (patrimônio/colaborador/data): HÁ ≥1 linha preenchida e válida
+ *   (F7F — antes era tudo-ou-nada `.every`; agora as PARCIAIS também entram: o
+ *   botão aplica as linhas prontas e `faltamNoGrupo` conta as que faltam).
+ *   `opsDoGrupo` já emite só as linhas válidas, então o lote nunca leva lixo;
+ * - patrimonio_vazio/duplicata/nenhuma: nunca entra no lote (preencher vazio é
+ *   opcional, duplicata é decisão humana).
  */
 export function grupoPronto(grupo: GrupoErro, rascunho: Rascunho, contexto: Contexto): boolean {
   const c = grupo.correcao
@@ -215,11 +218,11 @@ export function grupoPronto(grupo: GrupoErro, rascunho: Rascunho, contexto: Cont
     case 'existe_em_outra_filial':
       return true
     case 'patrimonio':
-      return grupo.linhas.every((l) => linhaOk('patrimonio', l, rascunho, contexto))
+      return grupo.linhas.some((l) => linhaOk('patrimonio', l, rascunho, contexto))
     case 'colaborador':
-      return grupo.linhas.every((l) => linhaOk('colaborador', l, rascunho, contexto))
+      return grupo.linhas.some((l) => linhaOk('colaborador', l, rascunho, contexto))
     case 'data':
-      return grupo.linhas.every((l) => linhaOk('data', l, rascunho, contexto))
+      return grupo.linhas.some((l) => linhaOk('data', l, rascunho, contexto))
     // patrimonio_vazio nunca entra no lote/global (preencher é opcional — a
     // pendência é legítima). Comportamento final, não bridge.
     case 'patrimonio_vazio':

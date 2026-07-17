@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 // VALOR só dos módulos-folha PUROS do motor: o barrel `@/lib/import` re-exporta
 // `plano.ts`, que importa node:crypto — ele não pode entrar no bundle do cliente.
 // Os TIPOS vêm do barrel normalmente (são apagados no build).
-import { SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
+import { extrairPatrimonioDoHostname, SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 import type {
   CategoriaAtivo,
@@ -151,7 +151,9 @@ function CardGrupo({
     <div className="space-y-3 rounded-lg border p-4">
       <div className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={bloqueante ? 'destructive' : 'secondary'}>
+          {/* F7F — três vias: bloqueante = vermelho; aviso = ÂMBAR (não cinza);
+              secondary fica reservado a neutro (na prática todo card é um ou outro). */}
+          <Badge variant={bloqueante ? 'destructive' : 'warning'}>
             {rotuloTipoErro(grupo.tipo)}
           </Badge>
           {chave.trim() !== '' && (
@@ -208,18 +210,28 @@ function CardGrupo({
 }
 
 /** Preview ao vivo da canonicalização do patrimônio: verde = como vai ficar,
- *  vermelho = ainda inválido (OS-F7B §7). */
-function PreviewPatrimonio({ valor }: { valor: string }) {
+ *  vermelho = ainda inválido (OS-F7B §7). F7F — `opcional` (card de patrimônio
+ *  vazio, aviso): o estado VAZIO é âmbar/discreto ("preencha se souber"), NUNCA
+ *  vermelho — ali o campo pode legitimamente ficar em branco. Só valor DIGITADO
+ *  fora do formato segue vermelho (é feedback do que a pessoa escreveu). */
+function PreviewPatrimonio({ valor, opcional = false }: { valor: string; opcional?: boolean }) {
   const canonico = canonicalizarPatrimonio(valor)
+  const vazio = valor.trim() === ''
   return (
     <span
       className={cn(
         'font-mono text-xs',
-        canonico ? 'text-green-600 dark:text-green-400' : 'text-destructive',
+        canonico
+          ? 'text-green-600 dark:text-green-400'
+          : vazio && opcional
+            ? 'text-warning'
+            : 'text-destructive',
       )}
     >
-      {valor.trim() === ''
-        ? 'informe o patrimônio'
+      {vazio
+        ? opcional
+          ? 'opcional — preencha se souber'
+          : 'informe o patrimônio'
         : canonico
           ? `→ ${canonico}`
           : 'ainda fora do formato (ex.: WAP0004491)'}
@@ -405,8 +417,9 @@ function CardExisteEmOutraFilial({
 }
 
 // ---------------------------------------------------------------------------
-// Botão "corrigir a seção inteira" — só habilita quando TODAS as linhas do card
-// estão preenchidas e válidas (decisão do Johnny, F7D). Uma reanálise só.
+// Botão "corrigir a seção" — F7F: habilita com ≥1 linha pronta e aplica as
+// PRONTAS (as que faltam continuam no card). Antes exigia todas (F7D). Uma
+// reanálise só.
 
 function BotaoSecao({
   n,
@@ -421,6 +434,7 @@ function BotaoSecao({
   pendente: boolean
   onClick: () => void
 }) {
+  const prontas = n - faltam
   return (
     <div className="flex flex-wrap items-center gap-2 border-t pt-2">
       <Button
@@ -431,11 +445,16 @@ function BotaoSecao({
         onClick={onClick}
       >
         <CheckCheck className="size-3.5" />
-        Corrigir {n === 1 ? 'a linha' : `todas as ${n} linhas`}
+        {!pronto
+          ? `Corrigir ${n === 1 ? 'a linha' : `as ${n} linhas`}`
+          : faltam === 0
+            ? `Corrigir ${n === 1 ? 'a linha' : `todas as ${n} linhas`}`
+            : `Corrigir ${prontas} ${plural(prontas, 'linha pronta', 'linhas prontas')}`}
       </Button>
-      {!pronto && faltam > 0 && (
+      {faltam > 0 && (
         <span className="text-xs text-muted-foreground tabular-nums">
-          {faltam === 1 ? 'falta 1 linha' : `faltam ${faltam} linhas`} para corrigir de uma vez
+          {faltam === 1 ? 'falta 1 linha' : `faltam ${faltam} linhas`}
+          {pronto ? ' (aplica as prontas agora)' : ' para habilitar'}
         </span>
       )}
     </div>
@@ -453,6 +472,7 @@ function LinhaPatrimonio({
   onCorrigir,
   rascunho,
   setCampo,
+  opcional = false,
 }: {
   linha: number
   reg: RegistroImport | undefined
@@ -460,16 +480,21 @@ function LinhaPatrimonio({
   onCorrigir: CorrigirFn
   rascunho: Rascunho
   setCampo: (chave: string, valor: string) => void
+  opcional?: boolean
 }) {
   const original = reg?.patrimonio ?? ''
   const chave = chaveLinha(linha, 'patrimonio')
   const valor = rascunho[chave] ?? original
   const canonico = canonicalizarPatrimonio(valor)
-  // F7E — sugestão de 1 clique: quando o Hostname da linha canonicaliza (padrão real
-  // patrimônio `1234` / hostname `WAP0001234`), oferece preencher o rascunho com ele.
-  // NÃO aplica sozinho — só preenche o input; o "Corrigir" (por linha / seção / global)
-  // é que aplica. A não-inferência automática de 16/07 vale para o motor, não para a UI.
-  const hostnameCanonico = canonicalizarPatrimonio(reg?.hostname ?? '')
+  // Sugestão de 1 clique: quando o Hostname traz um patrimônio canônico embutido
+  // (padrão real `NB-WAP0001234` → `WAP0001234`), oferece preencher o rascunho com ele.
+  // F7F — usa `extrairPatrimonioDoHostname` (a MESMA régua do motor, folha client-safe),
+  // não `canonicalizarPatrimonio` direto: este devolvia null p/ hostnames prefixados e o
+  // botão nunca aparecia no padrão real. NÃO aplica sozinho — só preenche o input; o
+  // "Corrigir" (por linha / seção / global) é que aplica. No card de patrimônio vazio o
+  // motor já auto-preenche quando o hostname resolve, então aqui o botão só aparece no
+  // card de patrimônio INVÁLIDO (valor errado + hostname bom), que o motor não sobrescreve.
+  const hostnamePatrimonio = extrairPatrimonioDoHostname(reg?.hostname)
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border p-2.5">
@@ -484,18 +509,18 @@ function LinhaPatrimonio({
         className="w-44 font-mono"
         autoComplete="off"
       />
-      <PreviewPatrimonio valor={valor} />
-      {hostnameCanonico && hostnameCanonico !== valor.trim() && (
+      <PreviewPatrimonio valor={valor} opcional={opcional} />
+      {hostnamePatrimonio && hostnamePatrimonio !== valor.trim() && (
         <Button
           type="button"
           size="sm"
           variant="outline"
           className="gap-1 font-mono"
           disabled={pendente}
-          onClick={() => setCampo(chave, hostnameCanonico)}
+          onClick={() => setCampo(chave, hostnamePatrimonio)}
         >
           <Wand2 className="size-3.5" />
-          usar {hostnameCanonico}
+          usar {hostnamePatrimonio}
         </Button>
       )}
       <div className="ml-auto flex items-center gap-1">
@@ -577,6 +602,7 @@ function CardPatrimonioVazio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErr
             onCorrigir={onCorrigir}
             rascunho={rascunho}
             setCampo={setCampo}
+            opcional
           />
         ))}
       </div>
@@ -950,9 +976,9 @@ export function GruposErros({
   const setCampo = (chave: string, valor: string) =>
     setRascunho((r) => ({ ...r, [chave]: valor }))
 
-  // O que o botão global aplicaria: as ops de TODOS os cards prontos (massa +
-  // pontual completo + remoções). Derivado do MESMO módulo puro que os botões dos
-  // cards — a régua não se duplica.
+  // O que o botão global aplicaria: as ops de TODOS os cards com ≥1 linha pronta
+  // (massa + pontual, inclusive PARCIAL desde a F7F + remoções). Derivado do MESMO
+  // módulo puro que os botões dos cards — a régua não se duplica.
   const opsGlobais = useMemo(
     () =>
       grupos
@@ -961,6 +987,13 @@ export function GruposErros({
     [grupos, rascunho, contexto, filialNome],
   )
   const resumoGlobal = resumoOps(opsGlobais)
+  // F7F — quantas linhas dos cards corrigíveis ainda faltam preencher (o botão
+  // global agora inclui PARCIAIS): `faltamNoGrupo` já devolve 0 para
+  // patrimonio_vazio/duplicata/nenhuma, então M conta só o que falta no que dá.
+  const faltamGlobal = useMemo(
+    () => grupos.reduce((acc, g) => acc + faltamNoGrupo(g, rascunho, contexto), 0),
+    [grupos, rascunho, contexto],
+  )
 
   if (grupos.length === 0) return null
 
@@ -970,7 +1003,18 @@ export function GruposErros({
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
           <div className="min-w-0">
             <p className="text-sm font-medium">Aplicar tudo o que está pronto</p>
-            <p className="text-xs text-muted-foreground">{resumoGlobal}</p>
+            <p className="text-xs text-muted-foreground">
+              {resumoGlobal}
+              {faltamGlobal > 0 && (
+                <>
+                  {resumoGlobal !== '' && ' · '}
+                  <span className="text-warning">
+                    faltam {faltamGlobal.toLocaleString('pt-BR')}{' '}
+                    {plural(faltamGlobal, 'linha', 'linhas')} para incluir tudo
+                  </span>
+                </>
+              )}
+            </p>
           </div>
           <Button
             type="button"

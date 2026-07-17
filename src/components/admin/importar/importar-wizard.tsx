@@ -11,6 +11,7 @@ import {
   Download,
   FileWarning,
   Upload,
+  Wand2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -27,7 +28,14 @@ import {
 import { cn } from '@/lib/utils'
 import type { Filial } from '@/lib/queries/filiais'
 import type { CustoSubstituir, TermoMultiFilial } from '@/lib/queries/import-logs'
-import type { CorrecaoImport, ErroImport, PlanoImport, ValidacaoImport } from '@/lib/import'
+import type {
+  CorrecaoImport,
+  ErroImport,
+  PlanoImport,
+  RegistroImport,
+  ValidacaoImport,
+} from '@/lib/import'
+import { extrairPatrimonioDoHostname } from '@/lib/import/deparas'
 import { TabelaErros } from '@/components/admin/importar/tabela-erros'
 import { GruposErros } from '@/components/admin/importar/grupos-erros'
 import { CorrecoesAplicadas } from '@/components/admin/importar/correcoes-aplicadas'
@@ -82,7 +90,7 @@ function NumeroGrande({
 }: {
   valor: number
   rotulo: string
-  tom?: 'neutro' | 'destrutivo' | 'positivo'
+  tom?: 'neutro' | 'destrutivo' | 'positivo' | 'aviso'
 }) {
   return (
     <div className="rounded-lg border p-4">
@@ -91,11 +99,66 @@ function NumeroGrande({
           'text-3xl font-semibold tabular-nums',
           tom === 'destrutivo' && 'text-destructive',
           tom === 'positivo' && 'text-green-600 dark:text-green-400',
+          tom === 'aviso' && 'text-warning',
         )}
       >
         {valor.toLocaleString('pt-BR')}
       </div>
       <div className="mt-1 text-sm text-muted-foreground">{rotulo}</div>
+    </div>
+  )
+}
+
+// F7F — painel âmbar INFORMATIVO dos patrimônios que o motor auto-preencheu pelo
+// hostname (aviso `patrimonio_do_hostname`). Auditoria, não erro: fica FORA dos
+// cards de correção. O valor é derivado com `extrairPatrimonioDoHostname` — a MESMA
+// régua do motor — sobre o hostname do contexto, então UI e motor nunca divergem.
+function PainelHostname({
+  avisos,
+  contexto,
+}: {
+  avisos: ErroImport[]
+  contexto: Record<number, RegistroImport>
+}) {
+  const doHostname = avisos.filter((a) => a.tipo === 'patrimonio_do_hostname')
+  if (doHostname.length === 0) return null
+  const n = doHostname.length
+  return (
+    <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-4">
+      <div className="flex items-center gap-2 font-medium text-warning">
+        <Wand2 className="size-4" />
+        {n.toLocaleString('pt-BR')} {n === 1 ? 'patrimônio preenchido' : 'patrimônios preenchidos'}{' '}
+        pelo hostname — confira
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Estas linhas estavam sem patrimônio, mas o hostname trazia um número no formato
+        canônico. Foram preenchidas automaticamente e importam normalmente — confira se batem
+        com o aparelho físico. É auditoria, não erro: nada a corrigir aqui.
+      </p>
+      <div className="overflow-x-auto rounded-md border bg-background">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/50 text-muted-foreground">
+            <tr>
+              <th className="p-2 text-left font-medium">Linha</th>
+              <th className="p-2 text-left font-medium">Hostname</th>
+              <th className="p-2 text-left font-medium">Patrimônio preenchido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {doHostname.map((a) => {
+              const hostname = contexto[a.linha]?.hostname ?? ''
+              const preenchido = extrairPatrimonioDoHostname(hostname)
+              return (
+                <tr key={a.linha} className="border-t">
+                  <td className="p-2 tabular-nums text-muted-foreground">{a.linha}</td>
+                  <td className="p-2 font-mono">{hostname || '—'}</td>
+                  <td className="p-2 font-mono text-warning">{preenchido ?? '—'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -227,23 +290,33 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     fd.set('correcoes', JSON.stringify(lista))
     setErroAcao(null)
     startAnalise(async () => {
-      const res = await validarImport(fd)
-      if (!res.ok) {
-        toast.error(res.erro)
-        setErroAcao(res.erro)
-        return
+      // F7F — try/catch: sem ele, um throw (payload/serialização/413/rede) some
+      // dentro do startTransition e o operador fica sem feedback. O erro
+      // ESPECÍFICO do motor/action (retorno `{ok:false,erro}`) continua tratado
+      // logo abaixo; o catch cobre o throw cru.
+      try {
+        const res = await validarImport(fd)
+        if (!res.ok) {
+          toast.error(res.erro)
+          setErroAcao(res.erro)
+          return
+        }
+        // A lista só vira estado quando a análise volta OK: `porOp` é posicional e
+        // precisa casar com as correções exibidas no painel.
+        setCorrecoes(lista)
+        setPrevia({
+          filial: res.filial,
+          validacao: res.validacao,
+          custo: res.custo,
+          termosMultiFilial: res.termosMultiFilial,
+        })
+        setConfirmacao('')
+        if (irParaPreview) setPasso(3)
+      } catch {
+        const msg = 'Falha ao analisar o CSV (rede ou arquivo grande demais). Tente novamente.'
+        toast.error(msg)
+        setErroAcao(msg)
       }
-      // A lista só vira estado quando a análise volta OK: `porOp` é posicional e
-      // precisa casar com as correções exibidas no painel.
-      setCorrecoes(lista)
-      setPrevia({
-        filial: res.filial,
-        validacao: res.validacao,
-        custo: res.custo,
-        termosMultiFilial: res.termosMultiFilial,
-      })
-      setConfirmacao('')
-      if (irParaPreview) setPasso(3)
     })
   }
 
@@ -303,24 +376,33 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     if (confirmacao !== previa.filial.nome) return
     setErroAcao(null)
     startAplicar(async () => {
-      const res = await aplicarImport({
-        plano,
-        confirmacaoTexto: confirmacao,
-        custoPreview: previa.custo,
-        correcoes,
-      })
-      if (!res.ok) {
-        toast.error(res.erro)
-        setErroAcao(res.erro)
-        return
+      // F7F — try/catch: o throw cru (payload grande, serialização, 413, rede)
+      // era engolido pelo startTransition e não virava toast. O erro específico
+      // do W2 (`{ok:false,erro}` — timeout 57014, índice, P0001) segue tratado abaixo.
+      try {
+        const res = await aplicarImport({
+          plano,
+          confirmacaoTexto: confirmacao,
+          custoPreview: previa.custo,
+          correcoes,
+        })
+        if (!res.ok) {
+          toast.error(res.erro)
+          setErroAcao(res.erro)
+          return
+        }
+        setResultado({
+          resultado: res.resultado,
+          backupPath: res.backupPath,
+          filial: previa.filial,
+        })
+        setPasso(5)
+        router.refresh()
+      } catch {
+        const msg = 'Falha ao aplicar o import (rede ou arquivo grande demais). Tente novamente.'
+        toast.error(msg)
+        setErroAcao(msg)
       }
-      setResultado({
-        resultado: res.resultado,
-        backupPath: res.backupPath,
-        filial: previa.filial,
-      })
-      setPasso(5)
-      router.refresh()
     })
   }
 
@@ -474,7 +556,11 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 {previa.validacao.bloqueantes.length.toLocaleString('pt-BR')} bloqueantes
               </span>
               <span className="text-muted-foreground">·</span>
-              <span className="text-muted-foreground">
+              <span
+                className={cn(
+                  previa.validacao.avisos.length > 0 ? 'text-warning' : 'text-muted-foreground',
+                )}
+              >
                 {previa.validacao.avisos.length.toLocaleString('pt-BR')} avisos
               </span>
               <span className="text-muted-foreground">·</span>
@@ -514,12 +600,21 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                     rotulo="sem data de entrada"
                   />
                   {/* F7E — quantos ativos nascem sem patrimônio (pendência "sem
-                      patrimônio físico"). `patrimonio_vazio` já cai como aviso via
-                      `tiposAviso` (derivado de `avisos`), então nada a fixar aqui. */}
+                      patrimônio físico"). F7F: tom âmbar (aviso ≠ cromo neutro). */}
                   <NumeroGrande
                     valor={previa.validacao.resumo.semPatrimonio}
                     rotulo="sem patrimônio (importam com pendência)"
+                    tom="aviso"
                   />
+                  {/* F7F — quantos tiveram o patrimônio ausente preenchido pelo
+                      hostname (auto-preenchimento do motor). Só aparece quando há. */}
+                  {previa.validacao.resumo.patrimonioDoHostname > 0 && (
+                    <NumeroGrande
+                      valor={previa.validacao.resumo.patrimonioDoHostname}
+                      rotulo="preenchidos pelo hostname"
+                      tom="aviso"
+                    />
+                  )}
                   <NumeroGrande
                     valor={previa.custo.ativos}
                     rotulo="ativos a apagar"
@@ -574,6 +669,13 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               </div>
             )}
 
+            {/* F7F — auditoria dos patrimônios auto-preenchidos pelo hostname (âmbar
+                informativo, fora dos cards de correção). */}
+            <PainelHostname
+              avisos={previa.validacao.avisos}
+              contexto={previa.validacao.contexto}
+            />
+
             {/* Cards acionáveis: um por grupo de erro/aviso (F7B) */}
             <GruposErros
               // F7D — remonta (zera o rascunho) ao trocar arquivo ou filial (§3.8);
@@ -592,6 +694,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               porOp={previa.validacao.correcoes.porOp}
               pendente={analisando}
               onDesfazer={desfazer}
+              patrimonioDoHostname={previa.validacao.resumo.patrimonioDoHostname}
             />
 
             <div className="flex flex-wrap gap-2">
