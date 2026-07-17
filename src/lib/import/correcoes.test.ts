@@ -196,24 +196,32 @@ describe('aplicarCorrecoes — cada op aplica e conta certo', () => {
 })
 
 describe('aplicarCorrecoes — ordem determinística (§3.1)', () => {
+  // Veículo: `tipo`. (Estes testes usavam `editar`+`site`, que a régua da decisão
+  // 4 passou a recusar — a ordem é o que importa aqui, não o campo.)
   it('editar → substituir: a substituição enxerga a célula já editada', () => {
-    const texto = montar(H_MATRIZ, [rowMatriz({ Site: 'Matrix' }), rowMatriz({ Site: 'Matriz SM', 'Patrimônio': 'WAP0002222' })])
-    const r = aplicar(texto, [
-      { op: 'editar', linha: 2, campo: 'site', para: 'Matriz SM' },
-      { op: 'substituir', campo: 'site', de: 'Matriz SM', para: 'Matriz' },
+    const texto = montar(H_MATRIZ, [
+      rowMatriz({ Tipo: 'Notbok' }),
+      rowMatriz({ Tipo: 'Notbook', 'Patrimônio': 'WAP0002222' }),
     ])
-    expect(r.porOp).toEqual([1, 2])
-    expect(r.registros.map((x) => x.site)).toEqual(['Matriz', 'Matriz'])
+    const r = aplicar(texto, [
+      { op: 'editar', linha: 2, campo: 'tipo', para: 'Notbook' },
+      { op: 'substituir', campo: 'tipo', de: 'Notbook', para: 'Notebook' },
+    ])
+    expect(r.porOp).toEqual([1, 2]) // o editar fez a linha 2 casar com a massa
+    expect(r.registros.map((x) => x.tipo)).toEqual(['Notebook', 'Notebook'])
   })
 
   it('substituir → editar: a ordem inversa dá resultado diferente (nada de reordenar)', () => {
-    const texto = montar(H_MATRIZ, [rowMatriz({ Site: 'Matrix' }), rowMatriz({ Site: 'Matriz SM', 'Patrimônio': 'WAP0002222' })])
-    const r = aplicar(texto, [
-      { op: 'substituir', campo: 'site', de: 'Matriz SM', para: 'Matriz' },
-      { op: 'editar', linha: 2, campo: 'site', para: 'Matriz SM' },
+    const texto = montar(H_MATRIZ, [
+      rowMatriz({ Tipo: 'Notbok' }),
+      rowMatriz({ Tipo: 'Notbook', 'Patrimônio': 'WAP0002222' }),
     ])
-    expect(r.porOp).toEqual([1, 1])
-    expect(r.registros.map((x) => x.site)).toEqual(['Matriz SM', 'Matriz'])
+    const r = aplicar(texto, [
+      { op: 'substituir', campo: 'tipo', de: 'Notbook', para: 'Notebook' },
+      { op: 'editar', linha: 2, campo: 'tipo', para: 'Notbook' },
+    ])
+    expect(r.porOp).toEqual([1, 1]) // a massa passou antes de a linha 2 casar
+    expect(r.registros.map((x) => x.tipo)).toEqual(['Notbook', 'Notebook'])
   })
 
   it('editar e depois remover a mesma linha: as duas valem (§8.3)', () => {
@@ -273,11 +281,8 @@ describe('aplicarCorrecoes — no-ops (§8.2/§8.3, §3.7, §3.9): contagem 0, N
     const texto = montar(H_CD, [
       { Site: 'Matriz', Tipo: 'Notebook', 'Patrimônio': 'WAP0001234', Status: 'Estoque' },
     ])
-    const r = aplicar(texto, [
-      { op: 'editar', linha: 2, campo: 'dataEntrega', para: '01/02/2025' },
-      { op: 'substituir', campo: 'dataEntrega', de: '', para: '01/02/2025' },
-    ])
-    expect(r.porOp).toEqual([0, 0])
+    const r = aplicar(texto, [{ op: 'editar', linha: 2, campo: 'dataEntrega', para: '01/02/2025' }])
+    expect(r.porOp).toEqual([0])
     expect(r.invalidas).toHaveLength(0)
   })
 
@@ -520,26 +525,104 @@ describe('agruparErros', () => {
     expect(grupos[1]!.chave).toBe('#######')
   })
 
-  // ATENÇÃO W3/W4 — comportamento PINADO, não acidente: `substituir` é global por
-  // construção (todas as linhas cuja célula casa o valor cru). Para data, o valor
-  // cru costuma ser '' — e "Data de Inclusão vazia" também ocorre em linhas SEM
-  // aviso (as que têm Data de Entrega válida). A massa alcança essas linhas
-  // também: se a data nova for mais ANTIGA que a Entrega, muda a dataEntrada
-  // delas. `porOp` denuncia (afetadas > linhas do grupo) e o Desfazer reverte,
-  // mas a UI deveria preferir o pontual quando a chave do grupo é ''.
-  it('substituir data com valor cru "" alcança linhas sem aviso (porOp denuncia)', () => {
+  // Por que data NÃO tem troca em massa (revisão adversarial da F7B, 17/07/2026).
+  // `substituir` é global por construção: alcança toda linha cuja célula casa o
+  // valor cru. Em Tipo/Site isso é exato — toda célula que casa é, por si, errada.
+  // Em data NÃO: `sem_data_entrada` só é aviso quando Inclusão E Entrega falham,
+  // então a linha 3 abaixo (Inclusão vazia, Entrega válida) NÃO está no grupo e
+  // mesmo assim casaria com `de: ''` — e como dataEntrada é a mais ANTIGA válida,
+  // uma data nova mais antiga que a Entrega mudaria a dataEntrada dela em
+  // silêncio. Por isso a op é recusada no motor e no Zod, e a UI emite um `editar`
+  // por linha do grupo. Este teste guarda a régua contra um chamador fora do TS.
+  it('substituir em data é recusada: alcançaria linha sem aviso (correcao_invalida)', () => {
     const r = validar(
       [
         rowMatriz({ 'Data de Inclusão': '', 'Data de Entrega': '' }), // com aviso
         rowMatriz({ 'Data de Inclusão': '', 'Data de Entrega': '10/06/2025', 'Patrimônio': 'WAP0002222' }), // sem aviso
       ],
-      [{ op: 'substituir', campo: 'dataInclusao', de: '', para: '01/03/2025' }],
+      // cast: o tipo já barra: isto é um chamador fora do TS (JSON da action)
+      [{ op: 'substituir', campo: 'dataInclusao', de: '', para: '01/03/2025' } as unknown as CorrecaoImport],
     )
-    expect(r.grupos).toHaveLength(0)
-    expect(r.correcoes.porOp).toEqual([2]) // 2 afetadas para um grupo de 1 linha
+    expect(r.correcoes.porOp).toEqual([0]) // não aplicada
+    const invalida = r.bloqueantes.find((e) => e.tipo === 'correcao_invalida')
+    expect(invalida?.mensagem).toContain('linha a linha')
+    // a linha SEM aviso ficou intacta — é isto que a régua protege
+    expect(r.plano).toBeNull() // correcao_invalida é bloqueante
+  })
+
+  // O caminho legítimo da UI: uma op `editar` por linha do grupo. A linha 3 (sem
+  // aviso) não é tocada — o oposto exato do vazamento do teste acima.
+  it('data por `editar` linha a linha atinge só as linhas do grupo', () => {
+    const r = validar(
+      [
+        rowMatriz({ 'Data de Inclusão': '', 'Data de Entrega': '' }), // com aviso — linha 2
+        rowMatriz({ 'Data de Inclusão': '', 'Data de Entrega': '10/06/2025', 'Patrimônio': 'WAP0002222' }), // sem aviso — linha 3
+      ],
+      [{ op: 'editar', linha: 2, campo: 'dataInclusao', para: '01/03/2025' }],
+    )
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.correcoes.porOp).toEqual([1])
     expect(r.plano!.ativos[0]!.dataEntrada).toBe('2025-03-01')
-    // a linha sem aviso teve a dataEntrada puxada para a data nova (mais antiga)
-    expect(r.plano!.ativos[1]!.dataEntrada).toBe('2025-03-01')
+    // intacta: continua a Entrega dela, não a data digitada no grupo
+    expect(r.plano!.ativos[1]!.dataEntrada).toBe('2025-06-10')
+  })
+
+  // Achados da revisão adversarial da F7B (17/07/2026) — regressão.
+  describe('decisão 4 do Johnny: nenhuma via escreve o Site de outra filial', () => {
+    // A régua nascera só no ramo `substituir`; pela via pontual o ativo da Serra
+    // entrava como acervo da Matriz — a transferência mascarada que a decisão 4
+    // proíbe. O servidor é a primeira linha, não a UI (OS-F7B §8.8).
+    it('editar Site de linha que já é de outra filial conhecida → correcao_invalida', () => {
+      const r = validar(
+        [rowMatriz(), rowMatriz({ Site: 'Serra', 'Patrimônio': 'WAP0002222' })],
+        [{ op: 'editar', linha: 3, campo: 'site', para: 'Matriz' }],
+      )
+      const invalida = r.bloqueantes.find((e) => e.tipo === 'correcao_invalida')
+      expect(invalida?.mensagem).toContain('Serra')
+      expect(r.correcoes.porOp).toEqual([0]) // não aplicada
+      expect(r.plano).toBeNull()
+    })
+
+    it('editar Site para uma filial que NÃO é a selecionada → correcao_invalida', () => {
+      const r = validar(
+        [rowMatriz({ Site: 'Matrz' })],
+        [{ op: 'editar', linha: 2, campo: 'site', para: 'Serra' }],
+      )
+      expect(r.bloqueantes.some((e) => e.tipo === 'correcao_invalida')).toBe(true)
+      expect(r.correcoes.porOp).toEqual([0])
+    })
+
+    it('editar Site desconhecido (typo) para a filial selecionada CONTINUA valendo', () => {
+      const r = validar(
+        [rowMatriz({ Site: 'Matrz' })],
+        [{ op: 'editar', linha: 2, campo: 'site', para: 'Matriz' }],
+      )
+      expect(r.bloqueantes).toHaveLength(0)
+      expect(r.correcoes.porOp).toEqual([1])
+      expect(r.plano!.ativos).toHaveLength(1)
+    })
+  })
+
+  it('filial fora do De→Para: o grupo de Site não promete correção (kind nenhuma)', () => {
+    // Uma filial nova cadastrada em admin/filiais não está no De→Para da spec §5:
+    // `filialAlvo` é null, TODO Site diverge e nenhuma correção de Site fecha o
+    // erro. O card tem de ser informativo — antes oferecia "Definir como {filial}",
+    // um botão que aplicava (porOp 1) e deixava o mesmo bloqueante de pé.
+    const nova: FilialSelecionada = { id: 9, slug: 'filial-teste', nome: 'Filial Teste' }
+    const r = validar([rowMatriz({ Site: 'Filial Teste' })], [], nova)
+    const grupo = r.grupos.find((g) => g.tipo === 'site_divergente')
+    expect(grupo?.correcao.kind).toBe('nenhuma')
+  })
+
+  it('csvCorrigido com a filial NÃO aplica op que o preview recusou', () => {
+    // Sem `filialNome` a fachada não rodava a metade "para = a filial selecionada"
+    // e o artefato baixado saía com uma transformação que o motor recusou —
+    // caminho de lavagem (baixa com Site=Serra, reenvia escolhendo Serra).
+    const texto = montar(H_MATRIZ, [rowMatriz({ Site: 'Matriz SM' })])
+    const ops: CorrecaoImport[] = [{ op: 'substituir', campo: 'site', de: 'Matriz SM', para: 'Serra' }]
+    expect(validarCsvImport(buf(texto), MATRIZ, HOJE, ops).plano).toBeNull() // preview recusa
+    expect(csvCorrigido(buf(texto), ops, MATRIZ.nome)).toContain('Matriz SM') // artefato espelha o preview
+    expect(csvCorrigido(buf(texto), ops, MATRIZ.nome)).not.toContain('Serra')
   })
 
   it('linha_sem_chave: um card só, sem ação (§3.9)', () => {
@@ -724,7 +807,7 @@ describe('validarCsvImport com correções — o ciclo do preview', () => {
       [rowMatriz({ Status: 'Saída', 'Data de Inclusão': '' })],
       [
         { op: 'editar', linha: 2, campo: 'colaborador', para: 'Fulano de Tal / TI' },
-        { op: 'substituir', campo: 'dataInclusao', de: '', para: '10/01/2025' },
+        { op: 'editar', linha: 2, campo: 'dataInclusao', para: '10/01/2025' },
       ],
     )
     expect(r.bloqueantes).toHaveLength(0)
@@ -741,14 +824,14 @@ describe('validarCsvImport com correções — o ciclo do preview', () => {
     // A validade da data é do Zod do W3 (contrato §1.5); se algo escapar, o motor
     // simplesmente não a reconhece — nunca vira dataEntrada.
     const invalida = validar([rowMatriz({ 'Data de Inclusão': '' })], [
-      { op: 'substituir', campo: 'dataInclusao', de: '', para: '31/02/2025' },
+      { op: 'editar', linha: 2, campo: 'dataInclusao', para: '31/02/2025' },
     ])
     expect(invalida.correcoes.porOp).toEqual([1])
     expect(invalida.plano!.ativos[0]!.dataEntrada).toBeNull()
     expect(invalida.avisos.some((e) => e.tipo === 'sem_data_entrada')).toBe(true)
 
     const futura = validar([rowMatriz({ 'Data de Inclusão': '' })], [
-      { op: 'substituir', campo: 'dataInclusao', de: '', para: '01/01/2099' },
+      { op: 'editar', linha: 2, campo: 'dataInclusao', para: '01/01/2099' },
     ])
     expect(futura.plano!.ativos[0]!.dataEntrada).toBeNull()
     expect(futura.avisos.some((e) => e.tipo === 'sem_data_entrada')).toBe(true)

@@ -102,19 +102,32 @@ function validarSemantica(op: CorrecaoImport, filialNome?: string): string | nul
     if (campo === 'patrimonio' || campo === 'serviceTag') {
       return 'Patrimônio e service tag só podem ser corrigidos linha a linha — a troca em massa criaria pares duplicados.'
     }
-    if (op.campo === 'site') {
-      const de = mapearUnidade(op.de)
-      if (de !== null) {
-        return `Site "${op.de}" já corresponde à filial ${de} — ativo de outra filial não entra por aqui (remova as linhas; transferência é operação do sistema).`
-      }
-      if (filialNome !== undefined) {
-        const alvo = mapearUnidade(filialNome)
-        const para = mapearUnidade(op.para)
-        const casa = alvo === null ? op.para.trim() === filialNome.trim() : para === alvo
-        if (!casa) {
-          return `O Site só pode ser corrigido para a filial selecionada (${filialNome}) — o import não transfere ativo entre filiais.`
-        }
-      }
+    // Idem para data: em massa ela alcançaria linhas SEM aviso (Inclusão vazia +
+    // Entrega válida não está no grupo) e mudaria a dataEntrada delas em silêncio.
+    if (campo === 'dataInclusao' || campo === 'dataEntrega') {
+      return 'Datas só podem ser corrigidas linha a linha — a troca em massa alcançaria linhas sem erro e mudaria a data de entrada delas.'
+    }
+  }
+
+  // Regra do Site (decisão 4 do Johnny) — vale para QUALQUER op que escreva na
+  // coluna Site, não só a de massa: pela via pontual (`editar`) o ativo de outra
+  // filial entraria como acervo da filial do import, que é a transferência
+  // mascarada que a decisão proíbe. A metade que depende da linha (o Site ATUAL
+  // da célula) é checada em `aplicarCorrecoes`, que tem a linha em mãos.
+  if (op.op === 'substituir' && op.campo === 'site') {
+    const de = mapearUnidade(op.de)
+    if (de !== null) {
+      return `Site "${op.de}" já corresponde à filial ${de} — ativo de outra filial não entra por aqui (remova as linhas; transferência é operação do sistema).`
+    }
+  }
+  const paraSite =
+    (op.op === 'substituir' || op.op === 'editar') && op.campo === 'site' ? op.para : null
+  if (paraSite !== null && filialNome !== undefined) {
+    const alvo = mapearUnidade(filialNome)
+    const para = mapearUnidade(paraSite)
+    const casa = alvo === null ? paraSite.trim() === filialNome.trim() : para === alvo
+    if (!casa) {
+      return `O Site só pode ser corrigido para a filial selecionada (${filialNome}) — o import não transfere ativo entre filiais.`
     }
   }
 
@@ -242,6 +255,25 @@ export function aplicarCorrecoes(
           porOp.push(0)
           break
         }
+        // Decisão 4 (metade que depende da linha): editar o Site de uma linha cujo
+        // Site JÁ resolve para uma filial conhecida é transferência mascarada — o
+        // ativo daquela filial entraria como acervo da filial do import. Só o Site
+        // desconhecido (typo) é corrigível; o de outra filial só se remove.
+        if (op.campo === 'site') {
+          const atual = celula(l, i).trim()
+          const unidade = mapearUnidade(atual)
+          if (unidade !== null) {
+            invalidas.push({
+              linha: op.linha,
+              coluna: COLUNA_POR_CAMPO.site,
+              valor: descreverOp(op),
+              tipo: 'correcao_invalida',
+              mensagem: `Site "${atual}" já corresponde à filial ${unidade} — ativo de outra filial não entra por aqui (remova a linha; transferência é operação do sistema).`,
+            })
+            porOp.push(0)
+            break
+          }
+        }
         escrever(l.celulas, i, op.para)
         porOp.push(1)
         break
@@ -312,14 +344,23 @@ export function csvCorrigidoParaTexto(csv: CsvCru): string {
   return linhas.map((celulas) => celulas.map(escaparCelula).join(';')).join('\r\n')
 }
 
-/** Fachada do contrato §1.5: decodificar → parseCsv → aplicarCorrecoes → reserializar. */
+/**
+ * Fachada do contrato §1.5: decodificar → parseCsv → aplicarCorrecoes → reserializar.
+ *
+ * `filialNome` importa: sem ele, a metade "para = a filial selecionada" da regra
+ * §3.3 não roda e o artefato baixado poderia conter uma transformação que o
+ * preview RECUSOU (revisão adversarial da F7B, 17/07/2026). O CSV corrigido é o
+ * artefato do que foi importado — tem de aplicar exatamente as mesmas ops que o
+ * preview aplicou, nem uma a mais. A action sempre passa a filial.
+ */
 export function csvCorrigido(
   conteudo: ArrayBuffer | Uint8Array,
   correcoes: CorrecaoImport[],
+  filialNome?: string,
 ): string {
   const { texto } = decodificarCsv(conteudo)
   const csv = parseCsv(texto)
-  const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header))
+  const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), filialNome)
   return csvCorrigidoParaTexto(corrigido)
 }
 
@@ -393,14 +434,19 @@ function chaveDoGrupo(erro: ErroImport, reg: RegistroImport | undefined): string
 function correcaoDoGrupo(tipo: string, chave: string, filialNome: string): GrupoErro['correcao'] {
   switch (tipo) {
     case 'site_divergente': {
-      const unidade = mapearUnidade(chave)
       const alvo = mapearUnidade(filialNome)
+      // Borda: a filial SELECIONADA não está no De→Para da spec §5 (ex.: uma
+      // filial nova cadastrada em admin/filiais). `montarPlanoImport` compara
+      // contra `filialAlvo` null, então TODO Site diverge e nenhuma correção de
+      // Site fecha o erro. Oferecer "Definir como {filial}" seria um botão que o
+      // operador clica para sempre (revisão adversarial da F7B, 17/07/2026): o
+      // card vira informativo. O conserto é cadastrar a unidade no De→Para.
+      if (alvo === null) return { kind: 'nenhuma' }
+      const unidade = mapearUnidade(chave)
       // Site desconhecido (typo) → corrigível para a filial selecionada.
       // Site de OUTRA filial conhecida → só remover (decisão 4 do Johnny: forçar
       // a filial do import mascararia uma transferência).
-      // Caso de borda: a filial selecionada não está no De→Para (filialAlvo null
-      // no plano.ts) — aí o site que aponta para ela não é "outra filial".
-      return unidade === null || (alvo !== null && unidade === alvo)
+      return unidade === null || unidade === alvo
         ? { kind: 'site_desconhecido' }
         : { kind: 'site_outra_filial' }
     }

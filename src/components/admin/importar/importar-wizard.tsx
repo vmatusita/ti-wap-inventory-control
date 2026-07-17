@@ -173,8 +173,18 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     [filiais, filialId],
   )
 
+  // `criar > 0` fecha um beco sem saída achado na revisão adversarial da F7B: um
+  // CSV com header válido e nenhuma linha aproveitável (só cabeçalho, ou só
+  // sobras de edição sem Site e sem patrimônio) não gera bloqueante — o motor
+  // devolve plano com 0 ativos e a tela dizia "Pronto para aplicar". O operador
+  // gastava o backup, digitava o nome da filial e só então o Zod recusava com
+  // "gere o preview novamente" — que devolveria exatamente o mesmo estado. A
+  // régua do plano_vazio no motor só cobre o caso de REMOÇÃO (retrocompat da F7);
+  // aqui a UI avisa antes, como manda a OS-F7B §8.4.
   const aplicavel =
-    !!previa?.validacao.plano && previa.termosMultiFilial.length === 0
+    !!previa?.validacao.plano &&
+    previa.validacao.resumo.criar > 0 &&
+    previa.termosMultiFilial.length === 0
 
   // Tipos que o motor classificou como AVISO nesta análise — decide a cor do
   // badge do card (bloqueante × aviso) sem depender de identidade de objeto (o
@@ -249,7 +259,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     if (ops.length === 0 || analisando) return
     if (correcoes.length + ops.length > MAX_CORRECOES) {
       toast.error(
-        `São no máximo ${MAX_CORRECOES} correções por import. Corrija o CSV na origem e reenvie.`,
+        `São no máximo ${MAX_CORRECOES} correções por import — acima disso o arquivo precisa ser revisto na origem.`,
       )
       return
     }
@@ -541,7 +551,9 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 <p className="mt-2 text-sm text-muted-foreground">
                   {previa.validacao.bloqueantes.length > 0
                     ? 'Corrija os erros abaixo — em massa ou linha a linha. O arquivo enviado não é alterado: a análise refaz sozinha a cada correção.'
-                    : 'Há termo(s) que misturam esta filial com outra. Resolva os termos antes de substituir.'}
+                    : previa.termosMultiFilial.length > 0
+                      ? 'Há termo(s) que misturam esta filial com outra. Resolva os termos antes de substituir.'
+                      : 'Nenhum ativo a criar: o arquivo não tem nenhuma linha aproveitável. O import de startup precisa de ao menos 1 ativo — confira se o CSV é o da filial certa.'}
                 </p>
               </div>
             )}

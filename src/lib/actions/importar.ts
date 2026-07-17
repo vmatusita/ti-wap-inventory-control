@@ -442,7 +442,10 @@ export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvC
   try {
     const buffer = await arqRes.arquivo.arrayBuffer()
     // Sem BOM — quem baixa põe o BOM (padrão de export do projeto).
-    const conteudo = csvCorrigido(buffer, corrRes.correcoes)
+    // A filial vai junto: sem ela o motor não roda a metade "para = a filial
+    // selecionada" da regra do Site e o artefato sairia com uma op que o preview
+    // recusou (revisão adversarial da F7B) — o baixado tem de espelhar o preview.
+    const conteudo = csvCorrigido(buffer, corrRes.correcoes, filial.nome)
     return { ok: true, nome: `import-corrigido-${filial.slug}.csv`, conteudo }
   } catch {
     return { ok: false, erro: 'Não foi possível gerar o CSV corrigido. Refaça a análise.' }

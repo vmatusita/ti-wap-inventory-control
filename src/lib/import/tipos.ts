@@ -103,8 +103,15 @@ export type CampoEditavel =
   | 'dataEntrega'
 
 export type CorrecaoImport =
-  /** Em massa: troca o valor cru `de` por `para` em TODAS as linhas onde a célula (aparada) casa exato. */
-  | { op: 'substituir'; campo: 'site' | 'tipo' | 'dataInclusao' | 'dataEntrega'; de: string; para: string }
+  /** Em massa: troca o valor cru `de` por `para` em TODAS as linhas onde a célula (aparada) casa exato.
+   *  SÓ `site` e `tipo` (revisão adversarial da F7B, 17/07/2026 — a OS §3 previa data aqui):
+   *  a troca em massa só é exata quando toda célula que casa com o valor cru é, por si, errada.
+   *  Vale para Tipo (categoria fora do vocabulário) e Site (unidade fora do De→Para). NÃO vale
+   *  para data: `sem_data_entrada` só é aviso quando Inclusão E Entrega falham, então uma linha
+   *  com Inclusão vazia e Entrega válida NÃO está no grupo e mesmo assim casaria com `de: ''` —
+   *  a troca mudaria a `dataEntrada` dela em silêncio (dataEntrada = mais antiga válida). Data se
+   *  corrige por `editar` linha a linha (a UI emite uma op por linha do grupo). */
+  | { op: 'substituir'; campo: 'site' | 'tipo'; de: string; para: string }
   /** Em massa: linhas cujo par cru (Status, Situação) casa exato recebem `para` na coluna Situação
    *  (a precedência Situação>Status resolve o estado). `para` = termo do vocabulário ESTADOS. */
   | { op: 'substituir_estado'; statusDe: string; situacaoDe: string; para: string }

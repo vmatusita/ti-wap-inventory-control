@@ -33,9 +33,9 @@ describe('parseCorrecoes — o que passa', () => {
     expect(parseCorrecoes([{ op: 'substituir', campo: 'site', de: '', para: 'Matriz' }]).ok).toBe(true)
   })
 
-  it('aceita data válida e passada em substituir e editar', () => {
+  it('aceita data válida e passada em editar (data é sempre linha a linha)', () => {
     expect(
-      parseCorrecoes([{ op: 'substituir', campo: 'dataInclusao', de: '', para: '05/03/2020' }]).ok,
+      parseCorrecoes([{ op: 'editar', linha: 2, campo: 'dataInclusao', para: '05/03/2020' }]).ok,
     ).toBe(true)
     expect(
       parseCorrecoes([{ op: 'editar', linha: 2, campo: 'dataEntrega', para: '05/03/2020' }]).ok,
@@ -47,6 +47,17 @@ describe('parseCorrecoes — o que o servidor barra', () => {
   it('recusa `substituir` de patrimônio/service tag (nunca em massa — §3.2)', () => {
     for (const campo of ['patrimonio', 'serviceTag']) {
       const r = parseCorrecoes([{ op: 'substituir', campo, de: 'WAP0001234', para: 'WAP0009999' }])
+      expect(r.ok).toBe(false)
+      expect(r.ok === false && r.erro).toContain('linha a linha')
+    }
+  })
+
+  it('recusa `substituir` de data (revisão adversarial da F7B — alcançaria linha sem erro)', () => {
+    // A troca em massa só é exata quando toda célula que casa é errada. Em data
+    // não é: linha com Inclusão vazia + Entrega válida não tem aviso e casaria
+    // com `de: ''`, tendo a dataEntrada mudada em silêncio. Só `editar`.
+    for (const campo of ['dataInclusao', 'dataEntrega']) {
+      const r = parseCorrecoes([{ op: 'substituir', campo, de: '', para: '05/03/2020' }])
       expect(r.ok).toBe(false)
       expect(r.ok === false && r.erro).toContain('linha a linha')
     }

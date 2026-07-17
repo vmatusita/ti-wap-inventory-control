@@ -42,14 +42,14 @@ const CAMPOS_EDITAVEIS = [
   'dataEntrega',
 ] as const satisfies readonly CampoEditavel[]
 
-/** Campos que aceitam troca EM MASSA. Patrimônio e service tag ficam de fora de
- *  propósito (OS-F7B §3.2): o mesmo valor em N linhas criaria pares duplicados. */
-const CAMPOS_SUBSTITUIVEIS = [
-  'site',
-  'tipo',
-  'dataInclusao',
-  'dataEntrega',
-] as const satisfies readonly CampoEditavel[]
+/** Campos que aceitam troca EM MASSA — só aqueles em que TODA célula que casa com
+ *  o valor cru é, por si, errada. Ficam de fora de propósito:
+ *  · patrimônio e service tag (OS-F7B §3.2) — o mesmo valor em N linhas criaria pares duplicados;
+ *  · datas (revisão adversarial da F7B, 17/07/2026) — `sem_data_entrada` só é aviso quando
+ *    Inclusão E Entrega falham, então uma linha com Inclusão vazia e Entrega válida NÃO está no
+ *    grupo e mesmo assim casaria com `de: ''`: a troca mudaria a `dataEntrada` dela em silêncio.
+ *    Data se corrige por `editar` (a UI emite uma op por linha do grupo). */
+const CAMPOS_SUBSTITUIVEIS = ['site', 'tipo'] as const satisfies readonly CampoEditavel[]
 
 const CAMPOS_DATA: ReadonlySet<CampoEditavel> = new Set(['dataInclusao', 'dataEntrega'])
 
@@ -77,7 +77,7 @@ const substituirSchema = z.object({
   op: z.literal('substituir'),
   campo: z.enum(CAMPOS_SUBSTITUIVEIS, {
     error:
-      'Campo inválido para correção em massa (só Site, Tipo e datas) — patrimônio e service tag se corrigem linha a linha.',
+      'Campo inválido para correção em massa (só Site e Tipo) — patrimônio, service tag e datas se corrigem linha a linha.',
   }),
   de: valorCru,
   para,
