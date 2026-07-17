@@ -176,6 +176,9 @@ export function opsDoGrupo(
         }))
     // duplicata: resolvida linha a linha no próprio card (grupos pequenos, dois
     // campos por linha); nenhuma: sem ação. Fora do lote/global.
+    // patrimonio_vazio: F7E-bridge (onda 1) — o W3 emite as linhas preenchidas na
+    // onda 2 (espelhando 'patrimonio'); por ora fica fora do lote/global.
+    case 'patrimonio_vazio':
     case 'duplicata':
     case 'nenhuma':
       return []
@@ -207,6 +210,9 @@ export function grupoPronto(grupo: GrupoErro, rascunho: Rascunho, contexto: Cont
       return grupo.linhas.every((l) => linhaOk('colaborador', l, rascunho, contexto))
     case 'data':
       return grupo.linhas.every((l) => linhaOk('data', l, rascunho, contexto))
+    // patrimonio_vazio nunca entra no lote/global (preencher é opcional — a
+    // pendência é legítima). Comportamento final, não bridge.
+    case 'patrimonio_vazio':
     case 'duplicata':
     case 'nenhuma':
       return false

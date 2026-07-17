@@ -216,10 +216,15 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   // o banco diz quais colidem, e a 2ª passada devolve o veredito COM os bloqueantes
   // (o motor continua o único juiz). Sem colisão, a 2ª passada nem roda.
   try {
+    // F7E-bridge (onda 1): `candidatos.patrimonio` virou `string | null` no motor.
+    // Aqui só os com patrimônio são conferidos (comportamento F7C atual). O W3 amplia
+    // na onda 2 para consultar também os nulos-com-tag por service tag (contrato §1.5).
     const emOutras = await paresEmOutrasFiliais(
       client,
       filial.id,
-      validacao.candidatos.map((c) => c.patrimonio),
+      validacao.candidatos
+        .map((c) => c.patrimonio)
+        .filter((p): p is string => p !== null),
     )
     if (emOutras.size > 0) {
       validacao = validarCsvImport(buffer, filialSel, undefined, corrRes.correcoes, emOutras)
