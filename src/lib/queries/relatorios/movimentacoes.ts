@@ -215,10 +215,12 @@ export async function getUltimasMovimentacoes(
     // F6A-A1: exclui as compras sintéticas de abertura da carga go-live. .neq
     // sozinho descartaria observacao IS NULL (PostgREST) — .or null-safe preserva.
     .or(`observacao.is.null,observacao.neq."${OBS_CARGA_GOLIVE}"`)
-    // F7: exclui também a carga de startup por CSV (compra + ajuste de abertura).
-    // A observação é `import startup dd/MM/yyyy` (data variável) → filtro por
-    // PREFIXO com not.like (wildcard `*` do PostgREST). Segundo .or() é ANDado no
-    // topo com o de cima → (null OU ≠golive) AND (null OU NÃO começa com o marcador).
+    // F7/F7H: exclui os startups que NÃO são entrada real do período — o AJUSTE de
+    // reconciliação (sempre marcado) e a COMPRA SEM data (saldo de abertura). Desde a
+    // F7H (migration 0035) a compra COM data real entra sem marcador (observação NULL)
+    // e APARECE aqui, no período da data. A observação do marcador é `import startup
+    // dd/MM/yyyy` (data variável) → filtro por PREFIXO com not.like (wildcard `*`).
+    // Segundo .or() é ANDado no topo → (null OU ≠golive) AND (null OU NÃO começa com o marcador).
     .or(`observacao.is.null,observacao.not.like."${OBS_IMPORT_STARTUP}*"`)
   if (filialId) q = q.eq('filial_id', filialId)
   q = q
@@ -269,10 +271,11 @@ async function buscarLinhasPeriodo(
         // texto exato. .or null-safe preserva linhas com observacao IS NULL;
         // fica ANDado com o .or() de origem/destino da transferência abaixo.
         .or(`observacao.is.null,observacao.neq."${OBS_CARGA_GOLIVE}"`)
-        // F7: exclui também a carga de startup por CSV (compra + ajuste de
-        // abertura). Observação `import startup dd/MM/yyyy` → filtro por PREFIXO
-        // (not.like, wildcard `*`). Cada .or() é ANDado no topo → preserva a
-        // null-safety e o .or() de origem/destino da transferência abaixo.
+        // F7/F7H: exclui os startups que não são entrada real — o AJUSTE (sempre
+        // marcado) e a COMPRA SEM data. Desde a F7H (0035) a compra COM data real
+        // entra sem marcador e aparece nas Entradas no período da data. Observação
+        // `import startup dd/MM/yyyy` → filtro por PREFIXO (not.like, wildcard `*`).
+        // Cada .or() é ANDado no topo → preserva a null-safety e o .or() de origem/destino.
         .or(`observacao.is.null,observacao.not.like."${OBS_IMPORT_STARTUP}*"`)
       if (filialId) {
         // Transferência aparece nas DUAS filiais (regra 5): origem OU destino.

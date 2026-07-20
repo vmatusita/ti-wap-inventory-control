@@ -841,3 +841,29 @@ O classificador do modo automático **bloqueou a aplicação da `0033` em produ�
 *Pendências / próximos passos (não feitos — exigem o Johnny):* (1) **deploy** (merge + Vercel); (2) depois do deploy, **reimportar a Matriz a partir do `.xlsx`** (Substituir tudo) para consertar as ~355 datas — é destrutivo e precisa do arquivo real do Johnny, então fica com ele; (3) **template `.xlsx`** opcional (Patrimônio/Service Tag como TEXTO — evita o Excel virar `7,90E+07` em número — e dropdowns de Site/Tipo/Situação) **não** foi feito; fica no backlog.
 
 *Documentos emendados:* `CLAUDE.md` (stack — ExcelJS aprovado), `docs/ESPECIFICACAO.md` §10.2 (Emenda F7G), `src/lib/ajuda/conteudo.ts` (import aceita .xlsx), e esta entrada.
+
+---
+
+## 2026-07-20 · F7H · Compra do import COM data real vira Entrada no relatório (Opção A do Johnny)
+
+*Contexto:* depois de reimportar a Matriz pelo `.xlsx` (F7G), as datas ficaram corretas (ex.: 73 notebooks em 08/07), mas os equipamentos NOVOS não apareciam nas **Entradas** do relatório. Diagnóstico (código + banco PROD `pbtjcalbmepmrqzprusb`): TODA compra/ajuste do import leva a observação `import startup`, e o relatório exclui por prefixo (decisão do go-live, para não inundar). O import não distingue "compra nova" de "saldo de abertura". No banco: **809 compras COM data real** (2024→19/07) e **290 SEM data** (todas em 20/07, o dia do import = fallback); zero futuras.
+
+*Decisão (Johnny, 20/07/2026, Opção A):* compra COM data real do arquivo aparece nas Entradas no período da data; a compra SEM data (saldo de abertura de data desconhecida) e os ajustes de estado ficam fora. Reverte PARCIALMENTE a §10.2 ("startup não conta como entrada").
+
+*Sinal exato de "sem data" (sem chute):* o fallback data a compra em `current_date` (dia do import) → `data = created_at::date`; a compra com data real tem `data < created_at::date`. Nenhuma data hard-coded.
+
+*Implementação:*
+- **Migration 0035** (`create or replace` PURO, 4 args, SEM drop — como a 0034): ÚNICA emenda no passo 4b da RPC `importar_ativos_substituir` — a observação-marcadora na COMPRA vira condicional (`case when nullif(dataEntrada,'') is not null then null else v_obs_marcador end`). O AJUSTE segue sempre marcado. Corpo restante VERBATIM (base = `pg_get_functiondef` do DEV). **Testada no DEV** (`sgmvldiizsrjbxzzpmhh`): smoke com 2 ativos → WAP0001234 (data 01/07) compra `observacao NULL`; WAP0005678 (sem data) compra `data=dia do import` + `observacao='import startup…'`, ajuste marcado. **DEV limpo depois** (0 filiais `zz-smoke%`).
+- **Relatório: NENHUMA mudança de código** — o filtro `.or(observacao.is.null, not.like 'import startup*')` já inclui as compras de observação NULL. Só comentários atualizados (`dominio.ts` OBS_IMPORT_STARTUP; `relatorios/movimentacoes.ts` 2 blocos).
+- **Dados atuais (Matriz):** UPDATE pontual — strip do marcador nas **809** compras com data real (`data < created_at::date`). Backup em scratchpad (`f7h-backup-marcador-compras-matriz.md`; reversão determinística por predicado). Correção one-time (só a Matriz tem `import startup`); imports futuros já nascem certos pela 0035.
+
+*Passos de produção (GATE — o Johnny roda no SQL Editor; o classificador barrou tanto o UPDATE quanto o `pg_get_functiondef` em PROD via MCP porque o corpo/tabela toca `movimentacoes`):*
+1. **UPDATE** dos dados atuais (strip do marcador nas 809 compras com data real);
+2. **migration 0035** (RPC).
+A ordem entre os dois é indiferente; mas **NÃO reimporte a Matriz antes da 0035**, senão o marcador volta em todas as compras. Após: `notify pgrst, 'reload schema';` (barato; a assinatura da RPC não mudou). **Nenhum deploy é necessário para o efeito** — o relatório lê dados vivos e o código dele não mudou; o commit/deploy carrega só os comentários, docs e a migration versionada.
+
+*Reversível?* sim — UPDATE reverso (marcador de volta, predicado no backup) + `create or replace` da RPC da 0034 (no histórico).
+
+*Verificação:* `npm run lint`/`npx tsc --noEmit`/`npm run test`/`npm run build` verdes (no código só mudaram comentários; a migração foi testada no DEV).
+
+*Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7H), `src/lib/dominio.ts` + `src/lib/queries/relatorios/movimentacoes.ts` (comentários), e esta entrada.

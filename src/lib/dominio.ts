@@ -265,16 +265,22 @@ export const OBS_CARGA_GOLIVE = 'carga go-live'
 export const OBS_SALDO_INICIAL = 'saldo inicial (go-live)'
 
 // ---------- MARCADOR DA CARGA DE STARTUP POR CSV (F7 — import "Substituir tudo") ----------
-// O import de startup por filial (RPC importar_ativos_substituir, migration 0032)
-// grava, para cada ativo do plano, uma COMPRA de abertura e — quando o estado-alvo
-// não é 'em_estoque' — um AJUSTE de reconciliação, AMBOS com esta observação
-// prefixada pela data: `import startup dd/MM/yyyy` (ex.: 'import startup 16/07/2026').
-// Não é evento do período: as leituras do relatório excluem por PREFIXO
-// (src/lib/queries/relatorios/movimentacoes.ts — `not.like 'import startup*'`).
-// Diferente do OBS_CARGA_GOLIVE (igualdade exata), aqui o filtro é por PREFIXO
-// porque a observação carrega a data variável do import. É a FONTE ÚNICA do literal
-// do PREFIXO (a RPC grava `import startup dd/MM/yyyy`; o filtro importa daqui) —
-// mantenha em sincronia com a string hard-coded na migration 0032.
+// O import de startup por filial (RPC importar_ativos_substituir) grava, por ativo,
+// uma COMPRA de abertura e — quando o estado-alvo não é 'em_estoque' — um AJUSTE de
+// reconciliação. Esta observação, prefixada pela data (`import startup dd/MM/yyyy`),
+// ESCONDE a movimentação das tabelas/série do relatório (leitura por PREFIXO em
+// src/lib/queries/relatorios/movimentacoes.ts — `not.like 'import startup*'`).
+//
+// F7H (migration 0035, decisão do Johnny 20/07/2026): na COMPRA o marcador é
+// CONDICIONAL — vai SÓ na compra SEM data real (a que cai na data do import: saldo de
+// abertura de data desconhecida). A compra COM data real do arquivo entra com
+// observação NULL → APARECE nas Entradas do relatório no período da data (como uma
+// compra manual). O AJUSTE segue SEMPRE com o marcador (reconciliação de estado, não
+// é entrada/saída real). Ver ESPECIFICACAO §10.2 (Emenda F7H).
+//
+// Diferente do OBS_CARGA_GOLIVE (igualdade exata), aqui o filtro é por PREFIXO porque
+// a observação carrega a data variável do import. É a FONTE ÚNICA do literal do
+// PREFIXO — mantenha em sincronia com a string hard-coded nas migrations 0032→0035.
 export const OBS_IMPORT_STARTUP = 'import startup'
 
 // ---------- PENDÊNCIA DE PATRIMÔNIO NULO (F7E — import sem plaqueta) ----------
