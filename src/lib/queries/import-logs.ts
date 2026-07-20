@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { chavePatrimonio } from '@/lib/patrimonio'
+import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import type { Database } from '@/lib/types/database'
 
 // Leituras da tela admin/importar (OS-F7 / W3): custo da substituição por filial,
@@ -48,12 +49,17 @@ function emLotes<T>(itens: T[], n = LOTE): T[][] {
 }
 
 async function idsDaFilial(client: DbClient, filialId: number): Promise<string[]> {
-  const { data, error } = await client
-    .from('ativos')
-    .select('id')
-    .eq('filial_id', filialId)
-  if (error) throw new Error(`Falha ao listar ativos da filial: ${error.message}`)
-  return (data ?? []).map((r) => r.id)
+  // PostgREST corta cada select em 1.000 linhas (ver `paginarTodos`). SEM paginação,
+  // a Matriz (1.217 ativos) devolvia só 1.000 ids — e, sem ORDER BY, um subconjunto
+  // que VARIAVA entre chamadas: isso tornava o custo do preview não-determinístico
+  // (falso "O estado da filial mudou desde o preview") e deixava o BACKUP incompleto.
+  // Paginado + `order('id')` estável resolve os dois (a RPC já contava certo por SQL).
+  const rows = await paginarTodos<{ id: string }>(
+    'Falha ao listar ativos da filial',
+    (from, to) =>
+      client.from('ativos').select('id').eq('filial_id', filialId).order('id').range(from, to),
+  )
+  return rows.map((r) => r.id)
 }
 
 async function contarMovs(client: DbClient, ids: string[]): Promise<number> {
@@ -171,18 +177,25 @@ export async function custoSubstituir(
   const ids = await idsDaFilial(client, filialId)
   const filialSet = new Set(ids)
 
-  const [movimentacoes, anotacoes, termosRes] = await Promise.all([
+  const [movimentacoes, anotacoes, termosData] = await Promise.all([
     contarMovs(client, ids),
     contarAnotacoes(client, ids),
-    client.from('termos_gerados').select('id, tipo, colaborador, ativo_ids'),
+    // Paginado: um projeto com > 1.000 termos gerados teria a classificação
+    // multi-filial silenciosamente incompleta (o mesmo corte de 1.000 do PostgREST).
+    paginarTodos<{ id: string; tipo: string; colaborador: string | null; ativo_ids: string[] }>(
+      'Falha ao ler termos gerados',
+      (from, to) =>
+        client
+          .from('termos_gerados')
+          .select('id, tipo, colaborador, ativo_ids')
+          .order('id')
+          .range(from, to),
+    ),
   ])
-  if (termosRes.error) {
-    throw new Error(`Falha ao ler termos gerados: ${termosRes.error.message}`)
-  }
 
   let termos = 0
   const termosMultiFilial: TermoMultiFilial[] = []
-  for (const t of termosRes.data ?? []) {
+  for (const t of termosData) {
     const tocaEsta = t.ativo_ids.some((a) => filialSet.has(a))
     if (!tocaEsta) continue
     const tocaOutra = t.ativo_ids.some((a) => !filialSet.has(a))
@@ -218,41 +231,41 @@ export async function exportarAcervoFilial(
   const ids = await idsDaFilial(client, filialId)
   const filialSet = new Set(ids)
 
-  const { data: ativos, error: ativosErr } = await client
-    .from('ativos')
-    .select('*')
-    .eq('filial_id', filialId)
-  if (ativosErr) throw new Error(`Falha ao exportar ativos: ${ativosErr.message}`)
+  // Todas as leituras do backup são paginadas: o corte de 1.000 do PostgREST deixaria
+  // o backup INCOMPLETO na Matriz (1.217 ativos) — e um backup que não bate com o que
+  // será apagado é pior que não ter backup. `order('id')` estável entre as páginas.
+  const ativos = await paginarTodos<Row<'ativos'>>(
+    'Falha ao exportar ativos',
+    (from, to) => client.from('ativos').select('*').eq('filial_id', filialId).order('id').range(from, to),
+  )
 
   const movimentacoes: Row<'movimentacoes'>[] = []
   for (const lote of emLotes(ids)) {
-    const { data, error } = await client
-      .from('movimentacoes')
-      .select('*')
-      .in('ativo_id', lote)
-    if (error) throw new Error(`Falha ao exportar movimentações: ${error.message}`)
-    if (data) movimentacoes.push(...data)
+    const parte = await paginarTodos<Row<'movimentacoes'>>(
+      'Falha ao exportar movimentações',
+      (from, to) => client.from('movimentacoes').select('*').in('ativo_id', lote).order('id').range(from, to),
+    )
+    movimentacoes.push(...parte)
   }
 
   const anotacoes: Row<'anotacoes'>[] = []
   for (const lote of emLotes(ids)) {
-    const { data, error } = await client
-      .from('anotacoes')
-      .select('*')
-      .in('ativo_id', lote)
-    if (error) throw new Error(`Falha ao exportar anotações: ${error.message}`)
-    if (data) anotacoes.push(...data)
+    const parte = await paginarTodos<Row<'anotacoes'>>(
+      'Falha ao exportar anotações',
+      (from, to) => client.from('anotacoes').select('*').in('ativo_id', lote).order('id').range(from, to),
+    )
+    anotacoes.push(...parte)
   }
 
-  const { data: todosTermos, error: termosErr } = await client
-    .from('termos_gerados')
-    .select('*')
-  if (termosErr) throw new Error(`Falha ao exportar termos: ${termosErr.message}`)
-  const termos_gerados = (todosTermos ?? []).filter((t) =>
+  const todosTermos = await paginarTodos<Row<'termos_gerados'>>(
+    'Falha ao exportar termos',
+    (from, to) => client.from('termos_gerados').select('*').order('id').range(from, to),
+  )
+  const termos_gerados = todosTermos.filter((t) =>
     t.ativo_ids.some((a) => filialSet.has(a)),
   )
 
-  return { ativos: ativos ?? [], movimentacoes, anotacoes, termos_gerados }
+  return { ativos, movimentacoes, anotacoes, termos_gerados }
 }
 
 // ---------------------------------------------------------------------------

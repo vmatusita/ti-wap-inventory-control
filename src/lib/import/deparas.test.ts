@@ -281,6 +281,28 @@ describe('patrimonioVazio (F7E)', () => {
     expect(patrimonioVazio('12345')).toBe(false)
     expect(patrimonioVazio('ABC')).toBe(false)
   })
+
+  // F7F+ (Johnny, 20/07/2026): família textual "sem patrimônio" da WAP → vazio.
+  it('família textual "sem patrimônio" (SEMPAT, sem pat, s/pat, sem plaqueta…) → true', () => {
+    for (const v of [
+      'SEMPAT', 'sempat', 'SemPat',
+      'SEM PAT', 'sem pat', 'sem patr', 'SEM PATRIMÔNIO FÍSICO', 'sem patrimonio fisico',
+      'S/PAT', 's/ pat', 's/patrimonio',
+      'sem plaqueta', 'SEM PLACA', 'sem etiqueta', 'sem número', 'sem num', 'sem identificação',
+    ]) {
+      expect(patrimonioVazio(v), `"${v}" deveria ser vazio-na-prática (F7F)`).toBe(true)
+    }
+  })
+
+  it('a guarda não deixa um patrimônio VÁLIDO virar vazio, nem solta lixo/só-números', () => {
+    // Prefixos que "parecem" a família mas canonicalizam → seguem patrimônio válido.
+    expect(patrimonioVazio('SEM0001234')).toBe(false) // SEM + 7 dígitos = canônico
+    expect(patrimonioVazio('SEMP0001234')).toBe(false) // SEMP + 7 dígitos = canônico
+    // Lixo sem declaração de ausência e só-números seguem bloqueando (decisão 5).
+    expect(patrimonioVazio('WAPalmaq-teste')).toBe(false)
+    expect(patrimonioVazio('semaforo')).toBe(false) // "sem" no início, mas não é "sem pat…"
+    expect(patrimonioVazio('3652')).toBe(false)
+  })
 })
 
 // F7F (OS §1) — extrai do HOSTNAME o patrimônio canônico embutido. É a MESMA régua

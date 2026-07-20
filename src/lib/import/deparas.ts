@@ -56,9 +56,26 @@ export function limparCampo(raw: string | undefined | null): string | null {
 // ([A-Z]{2,4}\d{7}) está neste conjunto, então nada real vira nulo por engano.
 const PATRIMONIO_VAZIO = new Set<string>([...VAZIOS, 'sem patrimonio'])
 
-/** Patrimônio "vazio na prática" (F7E)? true → importa nulo (pendência), não bloqueia. */
+// F7F+ (Johnny, 20/07/2026): variantes textuais de "sem patrimônio" da WAP que NÃO
+// batiam no conjunto exato acima e por isso caíam como `patrimonio_invalido`
+// (bloqueante), travando o import. O caso real mais comum no go-live é `SEMPAT`;
+// além dele, as famílias `sem pat…` / `s/pat…` / `sem plaqueta|placa|etiqueta|número|
+// identificação`. Todas DECLARAM ausência de plaqueta → importam VAZIO (pendência),
+// não bloqueiam. O que NÃO muda (decisão 5, régua da F7): só-números e códigos COM
+// dígito (`12345`, `3652`) e lixo sem declaração de ausência (`ABC`, `WAPalmaq-teste`)
+// SEGUEM BLOQUEANDO — podem ser patrimônio mistypado e o operador tem de ver.
+const FAMILIA_SEM_PATRIMONIO =
+  /^(sem\s*pat|s\/\s*pat|sem\s*plaqueta|sem\s*placa|sem\s*etiqueta|sem\s*numero|sem\s*num\b|sem\s*identificacao)/
+
+/** Patrimônio "vazio na prática" (F7E; família textual ampliada na F7F)? true →
+ *  importa nulo (pendência), não bloqueia. Reconhece o conjunto exato + a família
+ *  "sem patrimônio". A guarda `canonicalizarPatrimonio(...) === null` blinda contra
+ *  tratar um patrimônio VÁLIDO como vazio (nenhum canônico casa a família, mas é
+ *  defesa em profundidade: um `SEM0001234` legítimo segue sendo patrimônio). */
 export function patrimonioVazio(raw: string | null | undefined): boolean {
-  return PATRIMONIO_VAZIO.has(normalizarTexto(raw ?? ''))
+  const norm = normalizarTexto(raw ?? '')
+  if (PATRIMONIO_VAZIO.has(norm)) return true
+  return FAMILIA_SEM_PATRIMONIO.test(norm) && canonicalizarPatrimonio(raw ?? '') === null
 }
 
 // F7F (decisão do Johnny, 17/07/2026 — REVOGA a não-inferência por hostname de 16/07):
