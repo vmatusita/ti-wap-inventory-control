@@ -271,16 +271,18 @@ export const OBS_SALDO_INICIAL = 'saldo inicial (go-live)'
 // ESCONDE a movimentação das tabelas/série do relatório (leitura por PREFIXO em
 // src/lib/queries/relatorios/movimentacoes.ts — `not.like 'import startup*'`).
 //
-// F7H (migration 0035, decisão do Johnny 20/07/2026): na COMPRA o marcador é
-// CONDICIONAL — vai SÓ na compra SEM data real (a que cai na data do import: saldo de
-// abertura de data desconhecida). A compra COM data real do arquivo entra com
-// observação NULL → APARECE nas Entradas do relatório no período da data (como uma
-// compra manual). O AJUSTE segue SEMPRE com o marcador (reconciliação de estado, não
-// é entrada/saída real). Ver ESPECIFICACAO §10.2 (Emenda F7H).
+// F8 (migration 0036, decisão do Johnny 20/07/2026): a COMPRA de abertura volta a levar
+// SEMPRE o marcador — com OU sem data real —, escondida do relatório do período; a data
+// real segue na própria compra (histórico as-of / ficha do ativo). Reverte a F7H (0035),
+// que deixava a compra COM data escapar do marcador e aparecer nas Entradas: a planilha
+// de startup não distingue "compra nova" de "saldo de abertura" (toda linha tem data).
+// Compra "de verdade" é a LANÇADA MANUALMENTE no sistema pós-go-live (sem marcador →
+// aparece nas Entradas). O AJUSTE segue SEMPRE com o marcador. Ver ESPECIFICACAO §10.2
+// (Emenda F8).
 //
 // Diferente do OBS_CARGA_GOLIVE (igualdade exata), aqui o filtro é por PREFIXO porque
 // a observação carrega a data variável do import. É a FONTE ÚNICA do literal do
-// PREFIXO — mantenha em sincronia com a string hard-coded nas migrations 0032→0035.
+// PREFIXO — mantenha em sincronia com a string hard-coded nas migrations 0032→0036.
 export const OBS_IMPORT_STARTUP = 'import startup'
 
 // ---------- PENDÊNCIA DE PATRIMÔNIO NULO (F7E — import sem plaqueta) ----------

@@ -6,6 +6,7 @@ import {
   rotuloCategoria,
   rotuloAcessorio,
   OBS_CARGA_GOLIVE,
+  OBS_IMPORT_STARTUP,
   TERMO_META,
   STATUS_META,
   STATUS_ORDEM,
@@ -56,6 +57,19 @@ describe('OBS_CARGA_GOLIVE (marcador da carga go-live — F6A-A1)', () => {
   // carga inicial no relatório. É a fonte única — plano.ts importa daqui.
   it('é a string exata gravada pela carga F4', () => {
     expect(OBS_CARGA_GOLIVE).toBe('carga go-live')
+  })
+})
+
+describe('OBS_IMPORT_STARTUP (marcador do import de startup — F7 → baseline F8)', () => {
+  // Trava o PREFIXO do marcador que a RPC importar_ativos_substituir grava (`import
+  // startup dd/MM/yyyy`) e que o relatório usa para ESCONDER as movimentações do import
+  // do período (queries/relatorios/movimentacoes.ts — `not.like 'import startup*'`).
+  // A partir da F8 (migration 0036) a COMPRA de abertura volta a levar SEMPRE este
+  // marcador (com ou sem data) — baseline; então nenhuma compra de abertura aparece nas
+  // Entradas. Mudar o literal aqui sem mudar o hard-code do SQL vazaria o acervo de
+  // abertura no relatório. Fonte única do prefixo (as migrations o replicam à mão).
+  it('é o prefixo exato gravado pela RPC de import', () => {
+    expect(OBS_IMPORT_STARTUP).toBe('import startup')
   })
 })
 
