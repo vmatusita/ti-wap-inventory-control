@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
-  csvCorrigido,
-  validarCsvImport,
+  csvCorrigidoDeArquivo,
+  validarArquivoImport,
   type CorrecaoImport,
   type PlanoImport,
   type ValidacaoImport,
@@ -34,9 +34,11 @@ import type { Json } from '@/lib/types/database'
 // trilha de auditoria no aplicar (`import_logs.correcoes`) — o arquivo enviado
 // continua imutável e o `arquivoHash` continua sendo o do arquivo ORIGINAL.
 
-// DECISÃO (W3): limite de 5 MB para o CSV de import. O maior inventário real das 5
-// filiais fica na casa de dezenas de KB; 5 MB cobre folgadamente e barra upload
-// acidental de arquivo errado (ex.: um .xlsx renomeado, um dump gigante).
+// DECISÃO (W3): limite de 5 MB para o arquivo de import (CSV ou XLSX — F7G). O maior
+// inventário real das 5 filiais fica na casa de dezenas/centenas de KB; 5 MB cobre
+// folgadamente e barra upload acidental de arquivo errado (um dump gigante). O .xlsx
+// é comprimido, então 5 MB brutos já são muitíssimas linhas; o leitor tem tetos
+// próprios de linhas/colunas (src/lib/import/xlsx.ts) contra planilha absurda.
 const TAMANHO_MAX = 5 * 1024 * 1024
 
 // ---- schemas -------------------------------------------------------------
@@ -138,13 +140,16 @@ export type BaixarCsvCorrigidoResult =
 // ---- helpers -------------------------------------------------------------
 
 // Guardas do arquivo enviado (extensão/vazio/tamanho) — as MESMAS em toda action
-// que recebe o CSV. Extraídas na F7B para que `baixarCsvCorrigido` não afrouxe
-// nada por descuido; a régua da F7 é a de sempre.
-function lerArquivoCsv(formData: FormData): { ok: true; arquivo: File } | { ok: false; erro: string } {
+// que recebe o arquivo. Extraídas na F7B para que `baixarCsvCorrigido` não afrouxe
+// nada por descuido. F7G — aceita .csv E .xlsx; o ROTEAMENTO entre os dois é por
+// CONTEÚDO (assinatura ZIP) dentro do motor, então um arquivo com a extensão trocada
+// ainda cai no leitor certo.
+function lerArquivoImport(formData: FormData): { ok: true; arquivo: File } | { ok: false; erro: string } {
   const arquivo = formData.get('arquivo')
-  if (!(arquivo instanceof File)) return { ok: false, erro: 'Envie um arquivo CSV.' }
-  if (!arquivo.name.toLowerCase().endsWith('.csv')) {
-    return { ok: false, erro: 'O arquivo precisa ter extensão .csv.' }
+  if (!(arquivo instanceof File)) return { ok: false, erro: 'Envie um arquivo CSV ou Excel (.xlsx).' }
+  const nome = arquivo.name.toLowerCase()
+  if (!nome.endsWith('.csv') && !nome.endsWith('.xlsx')) {
+    return { ok: false, erro: 'O arquivo precisa ter extensão .csv ou .xlsx.' }
   }
   if (arquivo.size === 0) return { ok: false, erro: 'O arquivo está vazio.' }
   if (arquivo.size > TAMANHO_MAX) {
@@ -194,7 +199,7 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
 
   const idRes = lerFilialId(formData)
   if (!idRes.ok) return idRes
-  const arqRes = lerArquivoCsv(formData)
+  const arqRes = lerArquivoImport(formData)
   if (!arqRes.ok) return arqRes
 
   // F7B — correções da tela (ausente = []). Estrutura/whitelist/cap/datas aqui; o
@@ -211,9 +216,9 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   let buffer: ArrayBuffer
   try {
     buffer = await arqRes.arquivo.arrayBuffer()
-    validacao = validarCsvImport(buffer, filialSel, undefined, corrRes.correcoes)
+    validacao = await validarArquivoImport(buffer, filialSel, undefined, corrRes.correcoes)
   } catch {
-    return { ok: false, erro: 'Não foi possível ler o CSV. Confira o arquivo e tente de novo.' }
+    return { ok: false, erro: 'Não foi possível ler o arquivo. Confira o CSV/Excel e tente de novo.' }
   }
 
   // F7C — o motor é PURO (não fala com o banco), mas o índice único do banco é
@@ -239,7 +244,7 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
     )
     const emOutras = await paresEmOutrasFiliais(client, filial.id, patrimonios, tagsSemPatrimonio)
     if (emOutras.size > 0) {
-      validacao = validarCsvImport(buffer, filialSel, undefined, corrRes.correcoes, emOutras)
+      validacao = await validarArquivoImport(buffer, filialSel, undefined, corrRes.correcoes, emOutras)
     }
   } catch {
     return {
@@ -478,7 +483,7 @@ export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvC
 
   const idRes = lerFilialId(formData)
   if (!idRes.ok) return idRes
-  const arqRes = lerArquivoCsv(formData)
+  const arqRes = lerArquivoImport(formData)
   if (!arqRes.ok) return arqRes
 
   const corrRes = parseCorrecoesJson(formData.get('correcoes'))
@@ -493,9 +498,11 @@ export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvC
     // A filial vai junto: sem ela o motor não roda a metade "para = a filial
     // selecionada" da regra do Site e o artefato sairia com uma op que o preview
     // recusou (revisão adversarial da F7B) — o baixado tem de espelhar o preview.
-    const conteudo = csvCorrigido(buffer, corrRes.correcoes, filial.nome)
+    // F7G — se a entrada foi .xlsx, o artefato sai como CSV corrigido reimportável
+    // (datas já normalizadas em dd/MM/aaaa).
+    const conteudo = await csvCorrigidoDeArquivo(buffer, corrRes.correcoes, filial.nome)
     return { ok: true, nome: `import-corrigido-${filial.slug}.csv`, conteudo }
   } catch {
-    return { ok: false, erro: 'Não foi possível gerar o CSV corrigido. Refaça a análise.' }
+    return { ok: false, erro: 'Não foi possível gerar o arquivo corrigido. Refaça a análise.' }
   }
 }

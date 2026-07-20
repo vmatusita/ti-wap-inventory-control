@@ -2,9 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // docxtemplater/pizzip são libs CJS de Node (usadas só server-side em
-  // src/lib/actions/termos.ts). Mantê-las externas evita que o bundler quebre
-  // seus require dinâmicos.
-  serverExternalPackages: ["docxtemplater", "pizzip"],
+  // src/lib/actions/termos.ts). exceljs é lib de Node (zip/zlib) usada só
+  // server-side no leitor de .xlsx do import (src/lib/import/xlsx.ts, F7G).
+  // Mantê-las externas evita que o bundler quebre seus require dinâmicos.
+  serverExternalPackages: ["docxtemplater", "pizzip", "exceljs"],
   // F7F — o "Substituir tudo" (admin/importar) envia o plano JÁ serializado à
   // Server Action `aplicarImport`. Um plano de ~1.200 ativos (maior filial real)
   // serializa em ~0,7 MB (plano + correções, medido) — abaixo, mas perto do teto

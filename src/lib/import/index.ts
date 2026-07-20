@@ -1,6 +1,15 @@
 // Superfície pública do motor de import de startup (OS-F7 / W1, ampliada pela
-// OS-F7B). O W3 importa daqui: `import { validarCsvImport } from '@/lib/import'`.
-export { validarCsvImport, montarPlanoImport, hashConteudo } from './plano'
+// OS-F7B). O W3 importa daqui: `import { validarArquivoImport } from '@/lib/import'`.
+// F7G — `validarArquivoImport` (async) é a entrada única CSV/XLSX; `validarCsvImport`
+// (sync) segue exportada para a suíte de testes da F7/F7B/F7E. `csvCorrigidoDeArquivo`
+// gera o "baixar corrigido" para os dois formatos.
+export {
+  validarArquivoImport,
+  validarCsvImport,
+  csvCorrigidoDeArquivo,
+  montarPlanoImport,
+  hashConteudo,
+} from './plano'
 
 // F7B — motor de correções. `csvCorrigido` é a fachada do contrato §1.5
 // (decodificar → parseCsv → aplicarCorrecoes → reserializar, SEM BOM — quem

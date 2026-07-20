@@ -23,7 +23,12 @@
 
 import { createHash } from 'node:crypto'
 import { canonicalizarPatrimonio, chavePatrimonio } from '@/lib/patrimonio'
-import { agruparErros, aplicarCorrecoes } from './correcoes'
+import {
+  agruparErros,
+  aplicarCorrecoes,
+  csvCorrigido,
+  csvCorrigidoParaTexto,
+} from './correcoes'
 import {
   chaveServiceTag,
   estadoPlanilha,
@@ -45,8 +50,10 @@ import {
   extrairRegistros,
   mapaColunas,
   parseCsv,
+  type CsvCru,
   type RegistroImport,
 } from './parse'
+import { lerXlsx, pareceXlsx } from './xlsx'
 import type {
   AtivoPlano,
   CorrecaoImport,
@@ -273,36 +280,24 @@ export function montarPlanoImport(
 // ---------------------------------------------------------------------------
 
 /**
- * Função pública do motor. Recebe o buffer bruto do arquivo (o W3 faz
- * `File.arrayBuffer()`), a filial escolhida e — F7B — as correções declaradas na
- * tela; devolve bloqueantes/avisos (agrupados para correção), o plano aplicável
- * (null se houver bloqueante) e o resumo do preview.
+ * Núcleo do motor (OS-F7 / W1, extraído na F7G). Trabalha sobre o `CsvCru` já
+ * pronto — venha ele do PapaParse (CSV) ou do leitor de xlsx — mais o
+ * `arquivoHash` do arquivo original. Acumula bloqueantes/avisos (agrupados para
+ * correção), monta o plano aplicável (null se houver bloqueante) e o resumo.
  *
- * `hoje` é injetável (default = hoje) só para tornar os testes determinísticos
- * na detecção de data futura — o contrato de 2 argumentos é preservado.
- *
- * `correcoes` (F7B) é opcional: sem ela, o resultado é o da F7. Com ela, o ciclo
- * é sempre validação DO ZERO sobre as células corrigidas — nunca patch
- * incremental do resultado anterior (OS-F7B §8.1).
+ * `existentesEmOutraFilial` (F7C): chave `chavePatrimonio(patrimonio, serviceTag)`
+ * (ou `∅::<tag>` sem patrimônio) → nome da filial onde o ativo JÁ está cadastrado.
+ * Vazio = comportamento anterior, byte a byte. `correcoes` (F7B): validação DO ZERO
+ * sobre as células corrigidas, nunca patch incremental (OS-F7B §8.1).
  */
-export function validarCsvImport(
-  conteudo: ArrayBuffer | Uint8Array,
+function analisar(
+  csvOriginal: CsvCru,
+  arquivoHash: string,
   filial: FilialSelecionada,
-  hoje: string = hojeIso(),
-  correcoes: CorrecaoImport[] = [],
-  /**
-   * F7C — chave `chavePatrimonio(patrimonio, serviceTag)` → nome da filial onde o
-   * ativo JÁ está cadastrado, para os pares que existem em OUTRA filial. Quem
-   * chama pergunta ao banco (o motor é puro) usando `candidatos` do retorno.
-   * Ausente/vazio = comportamento anterior, byte a byte.
-   */
-  existentesEmOutraFilial: ReadonlyMap<string, string> = new Map(),
+  hoje: string,
+  correcoes: CorrecaoImport[],
+  existentesEmOutraFilial: ReadonlyMap<string, string>,
 ): ValidacaoImport {
-  // sha-256 do buffer ORIGINAL — as correções NÃO alteram o arquivo enviado
-  // (invariante da F7: auditoria = arquivo + correções → plano).
-  const arquivoHash = hashConteudo(conteudo)
-  const { texto } = decodificarCsv(conteudo)
-  const csvOriginal = parseCsv(texto)
   const det = detectarLayout(csvOriginal.header)
 
   const bloqueantes: ErroImport[] = []
@@ -524,6 +519,72 @@ export function validarCsvImport(
     plano,
     resumo,
   }
+}
+
+/**
+ * Função pública do motor (CSV). Recebe o buffer bruto do arquivo, a filial e as
+ * correções da tela; devolve o preview + o plano aplicável (null se houver
+ * bloqueante). SÍNCRONA — o caminho CSV não tem I/O assíncrono. `hoje` é injetável
+ * só para os testes (detecção de data futura determinística); o contrato de 2 args
+ * é preservado, então toda a suíte da F7/F7B/F7E continua chamando igual.
+ */
+export function validarCsvImport(
+  conteudo: ArrayBuffer | Uint8Array,
+  filial: FilialSelecionada,
+  hoje: string = hojeIso(),
+  correcoes: CorrecaoImport[] = [],
+  existentesEmOutraFilial: ReadonlyMap<string, string> = new Map(),
+): ValidacaoImport {
+  // sha-256 do buffer ORIGINAL — as correções NÃO alteram o arquivo enviado
+  // (invariante da F7: auditoria = arquivo + correções → plano).
+  const arquivoHash = hashConteudo(conteudo)
+  const { texto } = decodificarCsv(conteudo)
+  const csvOriginal = parseCsv(texto)
+  return analisar(csvOriginal, arquivoHash, filial, hoje, correcoes, existentesEmOutraFilial)
+}
+
+/**
+ * F7G — entrada única para QUALQUER arquivo de import (CSV ou XLSX). Roteia pelo
+ * CONTEÚDO (assinatura ZIP), não pela extensão: xlsx → `lerXlsx` (datas já em
+ * `dd/MM/aaaa` com ano real, texto UTF-8, sem `#######`); senão → o caminho CSV,
+ * byte a byte igual ao de sempre. ASSÍNCRONA porque `lerXlsx` (ExcelJS) é assíncrono.
+ * Depois de virar `CsvCru`, o resto do motor é EXATAMENTE o mesmo — inclusive as
+ * correções (que endereçam a linha física, preservada pelo leitor) e o `arquivoHash`
+ * (do arquivo original enviado, seja CSV ou XLSX).
+ */
+export async function validarArquivoImport(
+  conteudo: ArrayBuffer | Uint8Array,
+  filial: FilialSelecionada,
+  hoje: string = hojeIso(),
+  correcoes: CorrecaoImport[] = [],
+  existentesEmOutraFilial: ReadonlyMap<string, string> = new Map(),
+): Promise<ValidacaoImport> {
+  if (pareceXlsx(conteudo)) {
+    const arquivoHash = hashConteudo(conteudo)
+    const csvOriginal = await lerXlsx(conteudo)
+    return analisar(csvOriginal, arquivoHash, filial, hoje, correcoes, existentesEmOutraFilial)
+  }
+  return validarCsvImport(conteudo, filial, hoje, correcoes, existentesEmOutraFilial)
+}
+
+/**
+ * F7G — "Baixar arquivo corrigido" para QUALQUER entrada. xlsx → lê a planilha e
+ * reserializa as células JÁ normalizadas (datas em `dd/MM/aaaa`) como CSV corrigido;
+ * CSV → o `csvCorrigido` de sempre. O artefato baixado é sempre um CSV reimportável —
+ * o retrato do que entrou no plano. Async por causa do `lerXlsx`. Fica aqui (server-
+ * only) e não em correcoes.ts, que é folha client-safe (a UI a usa no preview ao vivo).
+ */
+export async function csvCorrigidoDeArquivo(
+  conteudo: ArrayBuffer | Uint8Array,
+  correcoes: CorrecaoImport[],
+  filialNome?: string,
+): Promise<string> {
+  if (pareceXlsx(conteudo)) {
+    const csv = await lerXlsx(conteudo)
+    const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), filialNome)
+    return csvCorrigidoParaTexto(corrigido)
+  }
+  return csvCorrigido(conteudo, correcoes, filialNome)
 }
 
 // Re-export do tipo de estado para consumidores que só importam daqui.

@@ -268,8 +268,9 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     setErroUpload(null)
     setErroAcao(null)
     if (f) {
-      if (!f.name.toLowerCase().endsWith('.csv')) {
-        setErroUpload('O arquivo precisa ter extensão .csv.')
+      const nome = f.name.toLowerCase()
+      if (!nome.endsWith('.csv') && !nome.endsWith('.xlsx')) {
+        setErroUpload('O arquivo precisa ter extensão .csv ou .xlsx.')
       } else if (f.size > TAMANHO_MAX) {
         setErroUpload(
           `O arquivo tem ${(f.size / 1024 / 1024).toFixed(1)} MB — o limite é 5 MB.`,
@@ -313,7 +314,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
         setConfirmacao('')
         if (irParaPreview) setPasso(3)
       } catch {
-        const msg = 'Falha ao analisar o CSV (rede ou arquivo grande demais). Tente novamente.'
+        const msg = 'Falha ao analisar o arquivo (rede ou arquivo grande demais). Tente novamente.'
         toast.error(msg)
         setErroAcao(msg)
       }
@@ -446,7 +447,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
   return (
     <Card>
       <CardHeader className="gap-3">
-        <CardTitle className="text-base">Importar acervo por CSV</CardTitle>
+        <CardTitle className="text-base">Importar acervo por arquivo</CardTitle>
         <Stepper passo={passo} />
       </CardHeader>
       <CardContent className="space-y-5">
@@ -477,7 +478,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               <p className="mt-2 text-sm text-muted-foreground">
                 Este é o único modo de import. Ele{' '}
                 <strong>apaga o acervo atual da filial</strong> (ativos, linha do
-                tempo, termos e anotações) e recria tudo a partir do CSV. Snapshots
+                tempo, termos e anotações) e recria tudo a partir do arquivo. Snapshots
                 de relatório já congelados permanecem. Use apenas na virada
                 (go-live) de uma filial — não é uma atualização incremental.
               </p>
@@ -500,15 +501,17 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
         {passo === 2 && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Filial selecionada: <strong>{filialSel?.nome}</strong>. Envie o CSV do
-              inventário (máx. 5 MB).
+              Filial selecionada: <strong>{filialSel?.nome}</strong>. Envie o CSV ou
+              o Excel (.xlsx) do inventário (máx. 5 MB). O <strong>.xlsx</strong> é o
+              recomendado: preserva as datas (sem <code>#######</code> nem mês
+              abreviado sem ano) e os acentos.
             </p>
             <div className="space-y-2">
-              <Label htmlFor="import-arquivo">Arquivo CSV</Label>
+              <Label htmlFor="import-arquivo">Arquivo (CSV ou Excel .xlsx)</Label>
               <Input
                 id="import-arquivo"
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={(e) => mudarArquivo(e.target.files?.[0] ?? null)}
               />
               {arquivo && !erroUpload && (
@@ -535,7 +538,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 onClick={analisar}
               >
                 <Upload className="size-4" />
-                {analisando ? 'Analisando…' : 'Analisar CSV'}
+                {analisando ? 'Analisando…' : 'Analisar arquivo'}
               </Button>
             </div>
           </div>
