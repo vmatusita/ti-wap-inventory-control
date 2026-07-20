@@ -298,10 +298,36 @@ describe('patrimonioVazio (F7E)', () => {
     // Prefixos que "parecem" a família mas canonicalizam → seguem patrimônio válido.
     expect(patrimonioVazio('SEM0001234')).toBe(false) // SEM + 7 dígitos = canônico
     expect(patrimonioVazio('SEMP0001234')).toBe(false) // SEMP + 7 dígitos = canônico
+    expect(patrimonioVazio('SEM-0001234')).toBe(false) // canonicaliza (tira o '-')
     // Lixo sem declaração de ausência e só-números seguem bloqueando (decisão 5).
     expect(patrimonioVazio('WAPalmaq-teste')).toBe(false)
     expect(patrimonioVazio('semaforo')).toBe(false) // "sem" no início, mas não é "sem pat…"
+    expect(patrimonioVazio('semana')).toBe(false)
+    expect(patrimonioVazio('nadador')).toBe(false) // "nada" no início, mas é palavra, não ausência
     expect(patrimonioVazio('3652')).toBe(false)
+    expect(patrimonioVazio('12345')).toBe(false)
+    expect(patrimonioVazio('ABC')).toBe(false)
+  })
+
+  // F7-pós (Johnny, 20/07/2026): AMPLIA a família — tudo que DECLARE ausência importa
+  // vazio, para não mais cair na mensagem "fora do formato (ex.: WAP0004491)".
+  it('declarações de ausência ampliadas (não possui, s/n, n/i, sem serial/tag, símbolos…) → true', () => {
+    for (const v of [
+      // frases de negação
+      'não possui', 'nao possui', 'NÃO TEM', 'nao tem', 'não consta', 'nao informado',
+      'não identificado', 'nao localizado', 'não há', 'não existe',
+      // abreviações
+      's/n', 'S/N', 's/ n', 'n/i', 'N/I', 'n/t', 's/pat', 's/serie', 's/serial',
+      // "sem <algo>" produtivo (fora da lista fixa antiga)
+      'sem serial', 'SEM TAG', 'sem série', 'sem registro', 'sem tombamento',
+      'sem numero de serie', 'sem info', 'sem informação', 'sem dados',
+      // palavras isoladas de ausência
+      'nenhum', 'nenhuma', 'nada', 'inexistente', 'ausente', 'indefinido', 'vazio', 'em branco',
+      // só símbolos/pontuação
+      '--', '---', '...', '???', '//', '*', '- - -',
+    ]) {
+      expect(patrimonioVazio(v), `"${v}" deveria ser vazio-na-prática (F7-pós)`).toBe(true)
+    }
   })
 })
 

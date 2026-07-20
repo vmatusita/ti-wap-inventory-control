@@ -54,27 +54,64 @@ export function limparCampo(raw: string | undefined | null): string | null {
 // caixa alta) cai na mesma chave `sem patrimonio`; `""`, `-`, `n/a`, `0`, `x`… vêm
 // de `VAZIOS`. NÃO mexe em `canonicalizarPatrimonio` — nenhum patrimônio canônico
 // ([A-Z]{2,4}\d{7}) está neste conjunto, então nada real vira nulo por engano.
-const PATRIMONIO_VAZIO = new Set<string>([...VAZIOS, 'sem patrimonio'])
+const PATRIMONIO_VAZIO = new Set<string>([
+  ...VAZIOS,
+  'sem patrimonio',
+  // F7-pós (Johnny, 20/07/2026): mais dizeres exatos de ausência de plaqueta que
+  // apareceram na planilha real — abreviações e frases curtas. Redundam com a
+  // FAMILIA_SEM_PATRIMONIO abaixo (defesa em profundidade + documentam a intenção).
+  's/n', 's/pat', 'sn', 'n/i', 'n/t', 'ni', 'nt', 'nd',
+  'nao possui', 'nao tem', 'nao ha', 'nao informado', 'nao consta',
+  'nao aplica', 'nao aplicavel', 'nao identificado', 'nao localizado',
+  'nenhum', 'nenhuma', 'nada', 'inexistente', 'ausente',
+  'vazio', 'em branco', 'branco', 'indefinido', 'sem info', 'sem informacao',
+])
 
-// F7F+ (Johnny, 20/07/2026): variantes textuais de "sem patrimônio" da WAP que NÃO
-// batiam no conjunto exato acima e por isso caíam como `patrimonio_invalido`
-// (bloqueante), travando o import. O caso real mais comum no go-live é `SEMPAT`;
-// além dele, as famílias `sem pat…` / `s/pat…` / `sem plaqueta|placa|etiqueta|número|
-// identificação`. Todas DECLARAM ausência de plaqueta → importam VAZIO (pendência),
-// não bloqueiam. O que NÃO muda (decisão 5, régua da F7): só-números e códigos COM
-// dígito (`12345`, `3652`) e lixo sem declaração de ausência (`ABC`, `WAPalmaq-teste`)
-// SEGUEM BLOQUEANDO — podem ser patrimônio mistypado e o operador tem de ver.
-const FAMILIA_SEM_PATRIMONIO =
-  /^(sem\s*pat|s\/\s*pat|sem\s*plaqueta|sem\s*placa|sem\s*etiqueta|sem\s*numero|sem\s*num\b|sem\s*identificacao)/
+// F7F+ (Johnny, 20/07/2026) e F7-pós (Johnny, 20/07/2026 — AMPLIADO): variantes
+// textuais de "sem patrimônio" que caíam como `patrimonio_invalido` (bloqueante,
+// mensagem "fora do formato canônico (ex.: WAP0004491)"), travando o import. O Johnny
+// pediu: TUDO que DECLARE ausência de plaqueta importa VAZIO (pendência), não bloqueia
+// nem exibe a mensagem de formato. Cobre as formas PRODUTIVAS (não só uma lista fixa):
+//   · "sem <algo>" com separador (sem plaqueta/serial/tag/número de série…) e a forma
+//     colada `sempat`/`semplaqueta`… (lista fechada p/ NÃO pegar "semaforo"/"semana");
+//   · "s/<algo>" abreviado (s/pat, s/n, s/série…), "n/i"/"n/t" (não informado/tem);
+//   · "não <possui|tem|consta|informado|localizado|identificado|existe|aplica…>";
+//   · palavras de ausência isoladas (nenhum, nada, inexistente, ausente, indefinido…).
+// O que NÃO muda (decisão 5, régua da F7): só-números e códigos COM dígito (`12345`,
+// `3652`) e lixo SEM declaração de ausência (`ABC`, `WAPalmaq-teste`, `semaforo`) SEGUEM
+// BLOQUEANDO — podem ser patrimônio mistypado e o operador tem de ver.
+const FAMILIA_SEM_PATRIMONIO = new RegExp(
+  '^(?:' +
+    // "sem <algo>" com separador (espaço, ., /, -): sem plaqueta/serial/tag/numero…
+    'sem[\\s./-]+\\S' +
+    // "sem<algo>" colado — lista FECHADA p/ não pegar "semaforo"/"semana"/"semear".
+    '|sem(?:pat|plaqueta|placa|etiqueta|numero|num|nro|serie|serial|tag|registro|tombo|tombamento|identif|info|dado|nada)' +
+    // "s/<algo>" abreviado. Palavras longas casam por PREFIXO (s/patrimonio → s/pat);
+    // as curtas/ambíguas (n, nr, nro) exigem \b p/ não engolir "s/nome" etc.
+    '|s[./]\\s*(?:pat|plaqueta|placa|etiqueta|numero|serie|serial|registro|tag|info|dado|num|n\\b|nr\\b|nro\\b)' +
+    // "n/i", "n.t"… (não informado / não tem).
+    '|n[./][it]\\b' +
+    // "nao <possui|tem|consta|informado|localizado|identificado|existe|aplica…>".
+    '|nao\\s*(?:possui|tem|ha|houve|informad|consta|identific|localiz|existe|contem|aplica|encontrad)' +
+    // palavras de ausência isoladas.
+    '|(?:nenhum|nada|inexistente|indefinid|indeterminad|desconhecid|ausente)\\b' +
+    ')',
+)
 
-/** Patrimônio "vazio na prática" (F7E; família textual ampliada na F7F)? true →
- *  importa nulo (pendência), não bloqueia. Reconhece o conjunto exato + a família
- *  "sem patrimônio". A guarda `canonicalizarPatrimonio(...) === null` blinda contra
- *  tratar um patrimônio VÁLIDO como vazio (nenhum canônico casa a família, mas é
- *  defesa em profundidade: um `SEM0001234` legítimo segue sendo patrimônio). */
+// Só símbolos/pontuação (após normalizar → sem letra a-z nem dígito): `--`, `...`,
+// `???`, `//`, `*`… — indicam "sem valor". Vazio-real ('') já cai em VAZIOS.
+const PATRIMONIO_SO_SIMBOLOS = /^[^a-z0-9]+$/
+
+/** Patrimônio "vazio na prática" (F7E; família ampliada na F7F e na F7-pós)? true →
+ *  importa nulo (pendência), não bloqueia nem mostra "fora do formato". Reconhece o
+ *  conjunto exato + só-símbolos + a família produtiva de "declaração de ausência". A
+ *  guarda `canonicalizarPatrimonio(...) === null` blinda contra tratar um patrimônio
+ *  VÁLIDO como vazio (ex.: `SEM0001234`, `SEM-0001234` → seguem patrimônio). */
 export function patrimonioVazio(raw: string | null | undefined): boolean {
   const norm = normalizarTexto(raw ?? '')
-  if (PATRIMONIO_VAZIO.has(norm)) return true
+  if (norm === '' || PATRIMONIO_VAZIO.has(norm) || PATRIMONIO_SO_SIMBOLOS.test(norm)) {
+    return true
+  }
   return FAMILIA_SEM_PATRIMONIO.test(norm) && canonicalizarPatrimonio(raw ?? '') === null
 }
 

@@ -894,3 +894,24 @@ A ordem entre os dois é indiferente; mas **NÃO reimporte a Matriz antes da 003
 *Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F8 + F7H marcada como superada), `src/lib/dominio.ts` + `src/lib/queries/relatorios/movimentacoes.ts` (comentários), `src/lib/dominio.test.ts` (novo teste), `README.md`, e esta entrada.
 
 *Decisão de escopo (fechada):* **import de histórico saída/devolução NÃO será construído.** Traria as saídas/devoluções reais (de um arquivo global de eventos, não da planilha de startup) como movimentações do período; o Johnny decidiu não seguir com isso (20/07/2026). Não é pendência aberta — está descartado. Se um dia mudar, é uma OS nova a ser especificada do zero.
+
+---
+
+## 2026-07-20 · F7-pós (2ª leva) · Patrimônio ausente no import: hostname vira correção automática (silencioso) + ausência textual ampliada
+
+*Contexto (2 pedidos do Johnny no uso da tela `admin/importar`):*
+1. **Auto-preenchimento pelo hostname aparecia como AVISO.** A F7F já auto-preenche o patrimônio ausente pelo patrimônio embutido no hostname (`NB-WAP0001234` → `WAP0001234`), mas isso vinha rotulado como aviso âmbar (`patrimonio_do_hostname`): entrava na contagem de "avisos", na tabela de avisos, na "lista de erros" e num painel âmbar. Lia-se como "algo a conferir/corrigir".
+2. **Dizeres de ausência caíam em `patrimonio_invalido` (bloqueante).** Valores que declaram "não tem plaqueta" fora do conjunto reconhecido (`não possui`, `s/n`, `n/i`, `sem serial/tag`, `--`, …) batiam na régua de formato e mostravam **"Patrimônio … fora do formato canônico (ex.: WAP0004491)"** — travando o import.
+
+*Decisão (Johnny, 20/07/2026):*
+1. O auto-preenchimento pelo hostname **é correção automática, não aviso** — some das superfícies de aviso (contagem, tabela, "lista de erros") e do fluxo de correção; fica só num **painel neutro de auditoria** ("N patrimônios preenchidos automaticamente pelo hostname — nada a fazer") + contador neutro + rodapé de "correções aplicadas". A régua não muda: patrimônio COM valor inválido nunca é sobrescrito; duplicata reaparece bloqueante na reanálise.
+2. **Tudo que DECLARE ausência de plaqueta importa VAZIO** (patrimônio nulo + pendência "sem patrimônio físico"), sem a mensagem de formato. `patrimonioVazio` (`src/lib/import/deparas.ts`) foi ampliado das formas fixas para as **produtivas**: `sem <algo>` (com separador ou colado numa lista fechada p/ não pegar "semaforo"), `s/<algo>`, `n/i`/`n/t`, `não <possui|tem|consta|informado|localizado|identificado|existe|aplica…>`, palavras isoladas (`nenhum`, `nada`, `inexistente`, `ausente`, `indefinido`) e strings **só de símbolos** (`--`, `...`, `??`). **Decisão 5 intacta:** só-números (`12345`, `3652`) e lixo SEM declaração de ausência (`ABC`, `WAPalmaq-teste`, `semaforo`) **seguem bloqueando** — podem ser patrimônio mistypado. A guarda `canonicalizarPatrimonio(...) === null` blinda um patrimônio válido (`SEM0001234`, `SEM-0001234`) de virar nulo.
+
+*Implementação (deploy-only, SEM migration — só TypeScript/UI; a régua de bloqueio e as salvaguardas seguem intactas):*
+- `src/lib/import/deparas.ts`: `PATRIMONIO_VAZIO` (conjunto exato ampliado), `FAMILIA_SEM_PATRIMONIO` (regex produtiva) e `PATRIMONIO_SO_SIMBOLOS` novos; `patrimonioVazio` reescrito. Sem ReDoS (sem quantificador aninhado). `plano.ts` NÃO muda de lógica (já roteava `patrimonioVazio` → nulo/hostname); só a mensagem do aviso perdeu o "; confira".
+- `src/components/admin/importar/importar-wizard.tsx`: `avisosParaCorrigir` = avisos sem `patrimonio_do_hostname`, usado na contagem/tabela/"lista de erros"; `PainelHostname` retonado de âmbar p/ neutro ("correção automática"); NumeroGrande "preenchidos pelo hostname (automático)" sem tom âmbar. `correcoes-aplicadas.tsx`: rodapé do hostname neutro.
+- Testes: `deparas.test.ts` +bloco "declarações de ausência ampliadas" e casos de guarda (semaforo/nadador/só-números seguem `false`). `lint`+`test`(549)+`build` verdes.
+
+*Reversível?* sim — mudança de código pura, sem banco. **Nada a rodar em produção** além do deploy (merge + Vercel). Não toca dados existentes (só afeta imports futuros).
+
+*Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7-pós), `README.md`, e esta entrada.

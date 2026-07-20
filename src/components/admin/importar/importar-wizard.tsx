@@ -109,10 +109,11 @@ function NumeroGrande({
   )
 }
 
-// F7F — painel âmbar INFORMATIVO dos patrimônios que o motor auto-preencheu pelo
-// hostname (aviso `patrimonio_do_hostname`). Auditoria, não erro: fica FORA dos
-// cards de correção. O valor é derivado com `extrairPatrimonioDoHostname` — a MESMA
-// régua do motor — sobre o hostname do contexto, então UI e motor nunca divergem.
+// F7F/F7-pós — painel NEUTRO de auditoria dos patrimônios que o motor preencheu
+// sozinho pelo hostname. É uma CORREÇÃO AUTOMÁTICA (F7-pós, Johnny 20/07/2026), não um
+// aviso: fica fora dos cards de correção E das superfícies de "aviso" (contagem, tabela,
+// lista de erros). O valor é derivado com `extrairPatrimonioDoHostname` — a MESMA régua
+// do motor — sobre o hostname do contexto, então UI e motor nunca divergem.
 function PainelHostname({
   avisos,
   contexto,
@@ -124,16 +125,17 @@ function PainelHostname({
   if (doHostname.length === 0) return null
   const n = doHostname.length
   return (
-    <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-4">
-      <div className="flex items-center gap-2 font-medium text-warning">
-        <Wand2 className="size-4" />
+    <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+      <div className="flex items-center gap-2 font-medium">
+        <Wand2 className="size-4 text-muted-foreground" />
         {n.toLocaleString('pt-BR')} {n === 1 ? 'patrimônio preenchido' : 'patrimônios preenchidos'}{' '}
-        pelo hostname — confira
+        automaticamente pelo hostname
       </div>
       <p className="text-sm text-muted-foreground">
         Estas linhas estavam sem patrimônio, mas o hostname trazia um número no formato
-        canônico. Foram preenchidas automaticamente e importam normalmente — confira se batem
-        com o aparelho físico. É auditoria, não erro: nada a corrigir aqui.
+        canônico — foram preenchidas <strong>automaticamente</strong> e importam normalmente.
+        É uma correção automática, não um aviso: nada a fazer aqui. A lista abaixo é só para
+        conferência (se quiser, confira se batem com o aparelho físico).
       </p>
       <div className="overflow-x-auto rounded-md border bg-background">
         <table className="w-full text-xs">
@@ -152,7 +154,7 @@ function PainelHostname({
                 <tr key={a.linha} className="border-t">
                   <td className="p-2 tabular-nums text-muted-foreground">{a.linha}</td>
                   <td className="p-2 font-mono">{hostname || '—'}</td>
-                  <td className="p-2 font-mono text-warning">{preenchido ?? '—'}</td>
+                  <td className="p-2 font-mono">{preenchido ?? '—'}</td>
                 </tr>
               )
             })}
@@ -250,6 +252,19 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
   // retorno da Server Action é serializado: as referências não sobrevivem).
   const tiposAviso = useMemo(
     () => new Set((previa?.validacao.avisos ?? []).map((e) => e.tipo)),
+    [previa],
+  )
+
+  // F7-pós (Johnny, 20/07/2026): o auto-preenchimento do patrimônio pelo hostname
+  // NÃO é um aviso a corrigir — é uma CORREÇÃO AUTOMÁTICA. Sai da contagem de avisos,
+  // da tabela de avisos e do "baixar lista de erros"; segue só no painel de auditoria
+  // (neutro) e no contador "preenchidos pelo hostname". `patrimonio_do_hostname` já
+  // ficava fora dos cards (agruparErros); aqui sai também das superfícies de "aviso".
+  const avisosParaCorrigir = useMemo(
+    () =>
+      (previa?.validacao.avisos ?? []).filter(
+        (e) => e.tipo !== 'patrimonio_do_hostname',
+      ),
     [previa],
   )
 
@@ -561,10 +576,10 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               <span className="text-muted-foreground">·</span>
               <span
                 className={cn(
-                  previa.validacao.avisos.length > 0 ? 'text-warning' : 'text-muted-foreground',
+                  avisosParaCorrigir.length > 0 ? 'text-warning' : 'text-muted-foreground',
                 )}
               >
-                {previa.validacao.avisos.length.toLocaleString('pt-BR')} avisos
+                {avisosParaCorrigir.length.toLocaleString('pt-BR')} avisos
               </span>
               <span className="text-muted-foreground">·</span>
               <span className="text-muted-foreground">
@@ -609,13 +624,12 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                     rotulo="sem patrimônio (importam com pendência)"
                     tom="aviso"
                   />
-                  {/* F7F — quantos tiveram o patrimônio ausente preenchido pelo
-                      hostname (auto-preenchimento do motor). Só aparece quando há. */}
+                  {/* F7F/F7-pós — quantos tiveram o patrimônio ausente preenchido pelo
+                      hostname. É correção AUTOMÁTICA (não aviso): tom neutro. */}
                   {previa.validacao.resumo.patrimonioDoHostname > 0 && (
                     <NumeroGrande
                       valor={previa.validacao.resumo.patrimonioDoHostname}
-                      rotulo="preenchidos pelo hostname"
-                      tom="aviso"
+                      rotulo="preenchidos pelo hostname (automático)"
                     />
                   )}
                   <NumeroGrande
@@ -712,7 +726,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 {baixandoCsv ? 'Gerando…' : 'Baixar CSV corrigido'}
               </Button>
               {(previa.validacao.bloqueantes.length > 0 ||
-                previa.validacao.avisos.length > 0) && (
+                avisosParaCorrigir.length > 0) && (
                 <>
                   <Button
                     variant="outline"
@@ -720,7 +734,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                     className="gap-2"
                     onClick={() =>
                       baixarCsvErros(
-                        [...previa.validacao.bloqueantes, ...previa.validacao.avisos],
+                        [...previa.validacao.bloqueantes, ...avisosParaCorrigir],
                         previa.filial.slug,
                       )
                     }
@@ -750,12 +764,12 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                   </div>
                 )}
 
-                {previa.validacao.avisos.length > 0 && (
+                {avisosParaCorrigir.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold">
-                      Avisos ({previa.validacao.avisos.length})
+                      Avisos ({avisosParaCorrigir.length})
                     </h3>
-                    <TabelaErros erros={previa.validacao.avisos} />
+                    <TabelaErros erros={avisosParaCorrigir} />
                   </div>
                 )}
               </div>

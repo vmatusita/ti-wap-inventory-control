@@ -72,10 +72,10 @@ export function CorrecoesAplicadas({
         })}
       </ul>
       {patrimonioDoHostname > 0 && (
-        <p className="text-xs text-warning">
+        <p className="text-xs text-muted-foreground">
           + {patrimonioDoHostname.toLocaleString('pt-BR')}{' '}
           {patrimonioDoHostname === 1 ? 'patrimônio veio' : 'patrimônios vieram'} do hostname
-          (preenchimento automático do motor, não conta como correção).
+          (correção automática do motor).
         </p>
       )}
       <p className="text-xs text-muted-foreground">

@@ -143,7 +143,7 @@ export function montarPlanoImport(
           coluna: 'Patrimônio',
           valor: reg.patrimonio,
           tipo: 'patrimonio_do_hostname',
-          mensagem: `patrimônio ausente — preenchido pelo hostname (${doHostname}); confira`,
+          mensagem: `patrimônio ausente — preenchido automaticamente pelo hostname (${doHostname})`,
         })
       } else {
         avisos.push({
