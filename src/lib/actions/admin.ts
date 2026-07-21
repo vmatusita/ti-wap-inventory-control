@@ -20,36 +20,109 @@ async function exigirOperador(): Promise<ActionResult | null> {
   return uid ? null : { ok: false, erro: MSG_SESSAO_EXPIRADA }
 }
 
+// Origin da requisição para montar o link de convite. Em produção (Vercel) o
+// header `origin` costuma vir vazio na Server Action same-origin — caímos no
+// `host`. localhost/127.* usam http (dev); o resto, https.
+function origemDaRequisicao(h: Headers): string | null {
+  const origin = h.get('origin')
+  if (origin) return origin
+  const host = h.get('host')
+  if (!host) return null
+  const proto = host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https'
+  return `${proto}://${host}`
+}
+
+// Monta o link que o admin envia manualmente. Aponta para a rota /auth/confirm
+// (que já faz verifyOtp com token_hash) — NÃO usa o action_link do Supabase, então
+// independe da allowlist de Redirect URLs. `type` invite/recovery cai em
+// /auth/definir-senha (ver src/app/auth/confirm/route.ts).
+function linkConfirmacao(
+  origem: string,
+  hashedToken: string,
+  tipo: 'invite' | 'recovery',
+): string {
+  const url = new URL('/auth/confirm', origem)
+  url.searchParams.set('token_hash', hashedToken)
+  url.searchParams.set('type', tipo)
+  return url.toString()
+}
+
 // ---- Convite de operador (só @wap.ind.br — validação client E server) ----
+// Gera um LINK em vez de mandar e-mail pelo Supabase. O e-mail embutido do
+// Supabase é limitado a ~2/hora e "só para testes"; subir esse teto exigiria
+// SMTP próprio (⇒ domínio verificado, que não temos). `generateLink` cria o
+// usuário e devolve o token SEM disparar e-mail — o admin copia o link e envia
+// por WhatsApp/Teams/e-mail. Sem limite, sem domínio, sem serviço novo (custo R$ 0).
+//
+// `type` NÃO exportado de propósito: arquivo 'use server' só pode EXPORTAR funções
+// async (regra do Next). O dialog infere o retorno via ReturnType — não importa o tipo.
+type ConviteResult =
+  | { ok: true; link: string; reenvio: boolean }
+  | { ok: false; erro: string }
+
 export async function convidarUsuario(input: {
   email: string
-}): Promise<ActionResult> {
+}): Promise<ConviteResult> {
   const bloqueio = await exigirOperador()
-  if (bloqueio) return bloqueio
+  if (bloqueio) return { ok: false, erro: bloqueio.erro ?? MSG_SESSAO_EXPIRADA }
 
   const parsed = conviteSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'E-mail inválido.' }
   }
+  const email = parsed.data.email
 
-  const h = await headers()
-  const host = h.get('host')
-  const origin = h.get('origin') ?? (host ? `https://${host}` : undefined)
-
-  const admin = createAdminClient()
-  const { error } = await admin.auth.admin.inviteUserByEmail(parsed.data.email, {
-    redirectTo: origin ? `${origin}/auth/confirm` : undefined,
-  })
-  if (error) {
-    const m = error.message.toLowerCase()
-    if (m.includes('already') || m.includes('registered') || m.includes('exists')) {
-      return { ok: false, erro: 'Esse e-mail já foi convidado ou já tem conta.' }
-    }
-    return { ok: false, erro: 'Não foi possível enviar o convite.' }
+  const origem = origemDaRequisicao(await headers())
+  if (!origem) {
+    return { ok: false, erro: 'Não foi possível montar o link (endereço do site ausente).' }
   }
 
-  revalidatePath('/admin/usuarios')
-  return { ok: true }
+  const admin = createAdminClient()
+
+  // 1) Novo operador → convite. Cria a conta em auth.users; o trigger
+  //    handle_new_user (migration 0001) barra e-mail fora de @wap.ind.br no banco.
+  const convite = await admin.auth.admin.generateLink({
+    type: 'invite',
+    email,
+    options: { redirectTo: `${origem}/auth/confirm` },
+  })
+
+  if (!convite.error && convite.data.properties) {
+    revalidatePath('/admin/usuarios')
+    return {
+      ok: true,
+      reenvio: false,
+      link: linkConfirmacao(origem, convite.data.properties.hashed_token, 'invite'),
+    }
+  }
+
+  // 2) Já existe conta → link de RECUPERAÇÃO (mesma tela de definir senha).
+  //    Cobre "já convidei mas a pessoa não terminou" e "quero reenviar o acesso".
+  const jaExiste =
+    !!convite.error && /already|registered|exists|been registered/i.test(convite.error.message)
+
+  if (jaExiste) {
+    const recovery = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: `${origem}/auth/confirm` },
+    })
+    if (!recovery.error && recovery.data.properties) {
+      revalidatePath('/admin/usuarios')
+      return {
+        ok: true,
+        reenvio: true,
+        link: linkConfirmacao(origem, recovery.data.properties.hashed_token, 'recovery'),
+      }
+    }
+  }
+
+  // 3) Erro real. O trigger do banco barra e-mail fora do domínio (defesa final).
+  const msg = (convite.error?.message ?? '').toLowerCase()
+  if (msg.includes('wap.ind.br') || msg.includes('restrito')) {
+    return { ok: false, erro: 'Só e-mails @wap.ind.br podem ser convidados.' }
+  }
+  return { ok: false, erro: 'Não foi possível gerar o link de convite. Tente de novo.' }
 }
 
 // ---- Filiais ----

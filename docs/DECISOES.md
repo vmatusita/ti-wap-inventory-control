@@ -1026,3 +1026,21 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 *Implementação (deploy-only, sem banco):* removido o `useEffect` de debounce dos três filtros; input envolvido em `<form onSubmit>` + `<Button type="submit">Pesquisar</Button>`. `src/components/ativos/ativos-filtros.tsx`, `src/components/itens/itens-filtros.tsx`, `src/components/pendencias/pendencias-filtros.tsx`. Os `<Select>` (filial/categoria/grupo/status) e o botão **Limpar** seguem aplicando na hora (não é digitação, não tem o bug). Fora do escopo (mantidos live): a busca do manual `ajuda-busca` (filtro client-side instantâneo, não navega) e os comboboxes de autocomplete (Enter seleciona). `lint`+`build`+`test`(567) verdes.
 
 *Reversível?* sim — recolocar o `useEffect` de debounce e desfazer o `<form>`.
+
+---
+
+## 2026-07-21 · infra · Convite de operador: link gerado no app (sem e-mail do Supabase)
+
+*Contexto (Johnny, na conversa):* o convite (`inviteUserByEmail`) dependia do e-mail EMBUTIDO do Supabase — limitado a ~2/hora e "só para testes" (falhava/atrasava). Subir o teto exigiria SMTP próprio, que pede domínio verificado (não temos). Restrições do projeto: custo R$ 0, sem serviço novo, sem domínio.
+
+*Decisão (Johnny, 21/07/2026):* trocar o e-mail automático por um LINK gerado no app e enviado manualmente pelo admin (WhatsApp/Teams/e-mail corporativo) — mesmo padrão da senha de acesso (mostra → copia → entrega). Sem limite, sem domínio, sem serviço externo, sem dependência nova.
+
+*Implementação (deploy-only, SEM migration):*
+- `src/lib/actions/admin.ts`: `convidarUsuario` passa a usar `admin.auth.admin.generateLink` (supabase-js 2.110.2) — cria o usuário em `auth.users` e devolve `hashed_token` SEM disparar e-mail. Monta `origin/auth/confirm?token_hash=…&type=invite`. Se o e-mail já tem conta ("already registered"), gera `type=recovery` (reenvio/redefinição de senha). Independe da allowlist de Redirect URLs — usamos nossa rota `/auth/confirm`, não o `action_link` do Supabase. `ConviteResult` é tipo LOCAL (arquivo 'use server' só pode exportar funções async).
+- `src/components/admin/convidar-usuario-dialog.tsx`: dialog em 2 etapas (form → resultado), exibe o link com botão Copiar (texto do botão vira "Gerar link"). `/auth/confirm` e `/auth/definir-senha` NÃO mudaram — já tratavam `invite`/`recovery`.
+
+*Verificação:* type-check escopado (os 2 arquivos + todo o subgrafo de imports) verde, 0 erros; assinatura e retorno de `generateLink` (`data.properties.hashed_token`) conferidos direto nos tipos do pacote instalado. `npm run lint`/`build` completos NÃO rodaram nesta sessão (bridge Cowork-nuvem tem teto de 45s por comando; tsc/eslint do projeto inteiro estouram) — rodar no ambiente normal antes do deploy (o `next build` da Vercel valida no deploy).
+
+*Reversível?* sim — voltar `convidarUsuario` para `inviteUserByEmail` e o dialog para o toast simples. Nenhum dado tocado; sem banco.
+
+*Observação:* se um dia quiser e-mail automático de verdade, a opção levantada e descartada agora foi SMTP externo grátis (Brevo, remetente único, sem domínio) — não implementada por ser "serviço novo" (regra de custo/stack).
