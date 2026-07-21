@@ -1111,3 +1111,26 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 4. **L — fatiar `termos.ts` (604): DEFERIDO (com re-avaliação).** O domínio JÁ está fatorado em `lib/termos/` (tipos, datas, devolução — importados por `actions/termos.ts`); o que resta em `actions/termos.ts` é **orquestração de Server Action** coesa (auth + render docx + Storage + flag + anotação + revalidate) inerente à feature. Fatiar mais adicionaria indireção sem ganho claro, num módulo **sem testes** e crítico (documentos legais). Finding menos severo que o estimado — deferido.
 
 *Verificação:* `lint` limpo, **587** testes (+9 do `resolver-patrimonio.test.ts`), `build` verde. Revisão: os testes do motor cobrem a preservação.
+
+### Faixa 4 — estratégico (itens Q, P, M)
+1. **Q — varredura de dependências: FEITA (parcial já existia).** O `.github/dependabot.yml` **já cobria npm** (a auditoria superestimou a lacuna). Adicionado o ecossistema **`github-actions`** — passa a vigiar as actions do próprio CI (`actions/checkout`, `setup-node`, `supabase/setup-cli`), das quais o job `banco` depende. Custo R$ 0 (nativo do GitHub).
+2. **M — RLS por filial: AVALIADA (ADR-001).** Novo `docs/ADR-001-rls-por-filial.md`: decisão de **manter o modelo atual** (policies `USING(true)` para o operador de nível único — RLS por filial não teria a quem restringir, já que todo operador `@wap.ind.br` opera as 5 filiais; a integridade crítica é dos triggers) e apontar o endurecimento do **caminho do visualizador** (service_role que bypassa RLS — o real ponto de concentração) como o trabalho de segurança que move o ponteiro (backlog, não urgente). O advisor `rls_policy_always_true` fica documentado como **por-design**.
+3. **P — documentação: MAJORITARIAMENTE FEITA.** O **runbook** (a peça central do item P) foi entregue na Faixa 1 (`docs/RUNBOOK-BANCO.md`); o `schema.sql` **já tinha** banner de depreciação forte no topo (não é o "trap" que a auditoria supôs). Resta a **parede-changelog do README** → mover para um `CHANGELOG.md`: **deferido** para não conflitar com edições do README em curso (o Johnny estava mexendo no repo em paralelo). Recomendação: quando o tree estabilizar, mover o histórico F0–F7K para `CHANGELOG.md` e deixar no README um resumo compacto + ponteiros para `CHANGELOG.md`, `DECISOES.md`, `DIVIDA-TECNICA.md`, `RUNBOOK-BANCO.md`.
+
+*Verificação:* mudanças só de config/doc (dependabot, ADR) — sem impacto em `lint`/`test`/`build`.
+
+---
+
+## Resumo da iniciativa de dívida técnica (21/07/2026)
+
+| Faixa | Itens | Entregue | Deferido (com justificativa) |
+|---|---|---|---|
+| 0 · higiene | J, I, H, B | dedup (fonte única), remoção de morto, teste de sincronia TS↔SQL, migration 0039 (drop backups, p/ Johnny) | — |
+| 1 · fonte da verdade | D, N, A | select termo_status derivado do enum, migration 0040 (hardening RPCs, p/ Johnny), runbook de banco | — |
+| 2 · testes + tipos | O, C, G | propaga SQLSTATE (23 sites), **CI de banco (migrations + máquina de estados)** | **G** (tipos: workaround documentado do supabase-js; type-only) |
+| 3 · hotspot import | F, E, K, L | escada de patrimônio extraída + testada | **E, K, L** (UI/forms/módulo sem testes; audit: "não big-bang") |
+| 4 · estratégico | Q, P, M | dependabot github-actions, ADR de RLS, runbook (em F1) | **P** parcial (README→CHANGELOG, p/ evitar conflito de edição) |
+
+**Handoff aberto ao Johnny** (DDL destrutiva, mesmo caminho de sempre): `scratchpad/f0-drop-backups-producao.sql` (migration 0039) e `scratchpad/f1-hardening-rpcs-producao.sql` (migration 0040). Ambos com bloco de conferência/verificação pós-apply. As duas migrations foram provadas: a 0039/0040 **aplicam limpo** no job `banco` do CI, e a 0040 é byte-idêntica às fontes 0024/0037 + só as edições pretendidas.
+
+**Deferidos com plano** (não são lacunas silenciosas): **G** (adotar `QueryData` num upgrade do supabase-js), **E/K/L** (refatorar incremental ao tocar o import, com rede de teste de UI antes), **P** (README→CHANGELOG quando o tree estabilizar).

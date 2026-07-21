@@ -20,3 +20,16 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # Dívida técnica (item Q, 21/07/2026): faltava vigiar as ACTIONS do próprio CI
+  # (actions/checkout, setup-node, supabase/setup-cli) — o job `banco` depende delas.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencias"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
