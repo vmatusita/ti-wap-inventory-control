@@ -1152,3 +1152,12 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 **Pendência de config (não bloqueia):** se os links ficarem parados um tempo antes de a pessoa abrir, aumentar **Email OTP Expiration** em Supabase → Authentication → Providers/Email (padrão pode ser curto; pode ir até 24 h) — R$ 0, só painel.
 
 *Verificação:* `lint` limpo, `build` verde (`/auth/confirm` agora `ƒ` dinâmica). Nenhum teste/código dependia do antigo route handler.
+
+### Faixa 2 (item C) — roteiro de itens religado no CI (21/07/2026)
+Quando o job `banco` entrou (Faixa 2), `supabase/tests/itens_quantidade.sql` estava **defasado** e ficou **excluído** do loop — o roteiro fora escrito na F3B (0015) sobre `rel_saldo_itens().saldo`, coluna renomeada para `estoque` pela **0027** (F6A), que também mudou a doutrina (atrelar/liberar **descontam** o estoque; entrada/ajuste mexem no Total). Rodar como estava dava `column "saldo" does not exist`.
+
+- **Reescrito** para a semântica Total/Estoque, com os valores esperados **re-derivados** contra `rel_saldo_itens` v3 e o trigger `valida_lancamento_item` v2 (ambos da 0027). 12 cenários: entrada+atrelar (total 40 / estoque 28 / atrelados 12), saída não consome a reserva (ciclos independentes), devolução desatrela, **`retorno`** (tipo novo da 0027) repõe a prateleira, `falta` fica 0 mesmo com atrelados > estoque (correção da doutrina — a fórmula antiga `max(0, atrelados − estoque)` acenderia "falta" falso), estoque negativo bloqueado, ajuste sem observação rejeitado, devolução/retorno além do aberto rejeitados, as-of de itens, **estorno = ajuste negativo** (inverso da entrada; saída não baixa o Total na 0027), e o as-of de ativos com estorno no meio do período.
+- **Cenário 12 (as-of de ativos):** precisou de uma `compra` de baseline — sem ela, anulado o par saída+estorno o ativo não tem movimentação efetiva e `rel_estoque_asof` (0022) o trata como inexistente as-of (voltava NULL, não `em_estoque`). `created_at` explícito e crescente nas 3 movs (o guard de estorno ordena por `(created_at, id)` e numa transação `now()` é constante — mesma disciplina de `maquina_estados.sql`).
+- Removidos o banner **⚠️ DEFASADO** do topo do arquivo e a exclusão de `itens_quantidade.sql` no loop do `.github/workflows/ci.yml`.
+
+*Verificação:* rodei o job `banco` do CI (PR #10). Os 12 cenários marcam **✓** (14 checagens com 12a/b/c), nenhum ✗; job `banco` e run **verdes**. Fecha a dívida do item C (o CI agora exercita de fato os saldos de itens, não só a máquina de estados). Ref.: `docs/DIVIDA-TECNICA.md` item C.
