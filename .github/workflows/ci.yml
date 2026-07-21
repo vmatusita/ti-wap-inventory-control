@@ -71,13 +71,6 @@ jobs:
           psql "$DBURL" -v ON_ERROR_STOP=1 -c "insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at) values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'ci@wap.ind.br', '', now(), now(), now());"
           fail=0
           for f in supabase/tests/*.sql; do
-            case "$f" in
-              *itens_quantidade.sql)
-                # DEFASADO: referencia rel_saldo_itens().saldo, renomeado p/ estoque na
-                # 0027 (semântica Total/Estoque, F6A). Precisa de reescrita dos valores
-                # esperados — ver docs/DECISOES.md (Faixa 3). Fora do CI até lá.
-                echo ":: pulando $f (roteiro defasado — reescrita pendente)"; continue ;;
-            esac
             echo "==== $f ===="
             if ! out=$(psql "$DBURL" -v ON_ERROR_STOP=1 -f "$f" 2>&1); then
               echo "$out"; echo "::error::erro de psql em $f"; fail=1; continue
