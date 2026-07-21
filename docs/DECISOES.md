@@ -915,3 +915,23 @@ A ordem entre os dois é indiferente; mas **NÃO reimporte a Matriz antes da 003
 *Reversível?* sim — mudança de código pura, sem banco. **Nada a rodar em produção** além do deploy (merge + Vercel). Não toca dados existentes (só afeta imports futuros).
 
 *Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7-pós), `README.md`, e esta entrada.
+
+---
+
+## 2026-07-20 · F7-pós (3ª leva) · Patrimônio FORA DE FORMATO também é substituído pelo hostname (revoga a invariante F7F)
+
+*Contexto (Johnny, na tela):* a substituição pelo hostname só acontecia com patrimônio **vazio/ausência**; um patrimônio **fora de formato** (ex.: `12345`, `ABC`, `WAP12`) com um hostname que traz um número canônico (`NB-WAP0009999`) continuava caindo em `patrimonio_invalido` (bloqueante). O Johnny pediu: **fora de formato também é substituído automaticamente pelo hostname dentro do formato.** (Segundo pedido — "campo que indica que não tem patrimônio fica vazio automaticamente" — já entregue na 2ª leva; segue valendo sob o novo fluxo.)
+
+*Decisão (Johnny, 20/07/2026) — REVOGA a invariante F7F "patrimônio COM valor inválido NUNCA é sobrescrito pelo hostname".* Nova **prioridade** do patrimônio (`src/lib/import/plano.ts`, passo 2):
+1. valor da **célula que canonicaliza** → usa (a célula vence; **nunca** sobrescrita pelo hostname);
+2. senão, **hostname** com patrimônio no formato canônico → **substitui automático** (silencioso, `patrimonio_do_hostname`), tanto p/ célula **vazia/ausência** quanto p/ **fora de formato**;
+3. senão, célula que **declara ausência** (`patrimonioVazio`) → **nulo + pendência** "sem patrimônio físico";
+4. senão (fora de formato **sem** hostname aproveitável) → **bloqueante** `patrimonio_invalido` (decisão 5: pode ser patrimônio mistypado, o operador vê).
+
+*Por que é seguro reverter a invariante:* o valor cru fica em `patrimonioOriginal` (auditável na ficha) e o **painel de auditoria** do preview ganhou a coluna **"Valor original"** — o operador vê exatamente o que foi trocado (`12345 → WAP0009999`). A reanálise segue juíza: se a substituição colidir com outro par, a duplicata reaparece bloqueante. Decisão 5 preservada quando **não há** hostname aproveitável.
+
+*Implementação (deploy-only, sem migration):* `plano.ts` (fluxo do passo 2 reescrito por prioridade; mensagem do aviso distingue "ausente" de "fora do formato"); `importar-wizard.tsx` (coluna "Valor original" no `PainelHostname` + texto). Testes `plano.test.ts`: (d) reescrito (fora de formato + hostname → substitui), (d2) fora de formato **sem** hostname → segue bloqueante, (d3) célula válida vence o hostname. `lint`+`test`(551)+`build` verdes.
+
+*Reversível?* sim — código puro, sem banco; nada a rodar em produção além do deploy.
+
+*Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7-pós ampliada), `README.md`, e esta entrada.

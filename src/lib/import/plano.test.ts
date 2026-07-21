@@ -431,10 +431,34 @@ describe('F7F — auto-preenchimento do patrimônio pelo hostname', () => {
     expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_duplicado_sem_service_tag')).toHaveLength(2)
   })
 
-  it('(d) patrimônio COM valor só-números (12345) + hostname válido → patrimonio_invalido, NÃO sobrescreve', () => {
+  it('(d) F7-pós: patrimônio FORA DE FORMATO + hostname válido → substitui pelo hostname (REVOGA a invariante F7F)', () => {
     const r = validarMatriz([rowMatriz({ 'Patrimônio': '12345', Hostname: 'NB-WAP0009999' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    const a = r.plano!.ativos[0]!
+    expect(a.patrimonio).toBe('WAP0009999') // veio do hostname
+    expect(a.patrimonioOriginal).toBe('12345') // o cru fica auditável
+    expect(r.avisos.filter((e) => e.tipo === 'patrimonio_do_hostname')).toHaveLength(1)
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_invalido')).toBe(false)
+    // lixo não-numérico fora de formato também é substituído
+    const r2 = validarMatriz([rowMatriz({ 'Patrimônio': 'ABC', Hostname: 'DESKTOP-WAP0004491' })])
+    expect(r2.plano!.ativos[0]!.patrimonio).toBe('WAP0004491')
+    expect(r2.plano!.ativos[0]!.patrimonioOriginal).toBe('ABC')
+  })
+
+  it('(d2) F7-pós: patrimônio FORA DE FORMATO SEM hostname aproveitável → segue BLOQUEANTE (decisão 5)', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': '12345', Hostname: 'DESKTOP-SALA' })])
     expect(r.plano).toBeNull()
     expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_invalido')).toHaveLength(1)
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(false)
+    const r2 = validarMatriz([rowMatriz({ 'Patrimônio': 'ABC', Hostname: '' })])
+    expect(r2.plano).toBeNull()
+    expect(r2.bloqueantes.filter((e) => e.tipo === 'patrimonio_invalido')).toHaveLength(1)
+  })
+
+  it('(d3) patrimônio VÁLIDO na célula vence o hostname (nunca é sobrescrito)', () => {
+    const r = validarMatriz([rowMatriz({ 'Patrimônio': 'WAP0001111', Hostname: 'NB-WAP0009999' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano!.ativos[0]!.patrimonio).toBe('WAP0001111') // a célula vence o hostname
     expect(r.avisos.some((e) => e.tipo === 'patrimonio_do_hostname')).toBe(false)
   })
 

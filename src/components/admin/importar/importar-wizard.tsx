@@ -132,16 +132,18 @@ function PainelHostname({
         automaticamente pelo hostname
       </div>
       <p className="text-sm text-muted-foreground">
-        Estas linhas estavam sem patrimônio, mas o hostname trazia um número no formato
-        canônico — foram preenchidas <strong>automaticamente</strong> e importam normalmente.
-        É uma correção automática, não um aviso: nada a fazer aqui. A lista abaixo é só para
-        conferência (se quiser, confira se batem com o aparelho físico).
+        Estas linhas estavam <strong>sem patrimônio</strong> ou com um valor{' '}
+        <strong>fora do formato</strong>, mas o hostname trazia um número no formato canônico —
+        foram preenchidas <strong>automaticamente</strong> e importam normalmente. É uma
+        correção automática, não um aviso: nada a fazer aqui. A lista abaixo (com o valor
+        original) é só para conferência — confira se o número bate com o aparelho físico.
       </p>
       <div className="overflow-x-auto rounded-md border bg-background">
         <table className="w-full text-xs">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
               <th className="p-2 text-left font-medium">Linha</th>
+              <th className="p-2 text-left font-medium">Valor original</th>
               <th className="p-2 text-left font-medium">Hostname</th>
               <th className="p-2 text-left font-medium">Patrimônio preenchido</th>
             </tr>
@@ -150,9 +152,11 @@ function PainelHostname({
             {doHostname.map((a) => {
               const hostname = contexto[a.linha]?.hostname ?? ''
               const preenchido = extrairPatrimonioDoHostname(hostname)
+              const original = a.valor?.trim() ? a.valor.trim() : '(vazio)'
               return (
                 <tr key={a.linha} className="border-t">
                   <td className="p-2 tabular-nums text-muted-foreground">{a.linha}</td>
+                  <td className="p-2 font-mono text-muted-foreground">{original}</td>
                   <td className="p-2 font-mono">{hostname || '—'}</td>
                   <td className="p-2 font-mono">{preenchido ?? '—'}</td>
                 </tr>

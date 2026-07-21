@@ -125,16 +125,22 @@ export function montarPlanoImport(
       )
     }
 
-    // 2) Patrimônio. F7F (decisão do Johnny, 17/07/2026 — REVOGA a não-inferência por
-    //    hostname de 16/07): vazio-na-prática (`""`, `n/a`, `SEM PATRIMONIO`, `0`…) tenta
-    //    PRIMEIRO o patrimônio embutido no hostname. Achou → auto-preenche + aviso
-    //    informativo `patrimonio_do_hostname` (a linha entra na dedupe e no plano com esse
-    //    valor, como qualquer ativo; se colidir, a reanálise a devolve bloqueante). Não achou
-    //    → F7E intacto: importa NULO + aviso `patrimonio_vazio` (a RPC grava a pendência
-    //    "sem patrimônio físico"). Patrimônio COM valor que não canonicaliza segue
-    //    BLOQUEANTE (como a F7) — NUNCA é sobrescrito pelo hostname (o ramo `else` é idêntico).
-    let patrimonio: string | null = null
-    if (patrimonioVazio(reg.patrimonio)) {
+    // 2) Patrimônio — prioridade (F7-pós, decisão do Johnny 20/07/2026):
+    //    (1) valor da CÉLULA que canonicaliza → usa (nunca sobrescrito pelo hostname);
+    //    (2) senão, patrimônio embutido no HOSTNAME (formato canônico) → substitui
+    //        AUTOMÁTICO (silencioso, aviso `patrimonio_do_hostname`), tanto para célula
+    //        VAZIA/que declara ausência QUANTO para célula FORA DE FORMATO. Isto REVOGA a
+    //        invariante F7F "patrimônio inválido NUNCA é sobrescrito pelo hostname": o
+    //        Johnny pediu que fora-de-formato com hostname dentro do formato vire o
+    //        hostname. O cru fica em `patrimonioOriginal` (auditável na ficha + painel);
+    //    (3) senão, célula que DECLARA ausência (`patrimonioVazio`) → NULO + pendência
+    //        "sem patrimônio físico" (aviso `patrimonio_vazio`);
+    //    (4) senão (fora de formato SEM hostname aproveitável) → BLOQUEANTE
+    //        `patrimonio_invalido` (decisão 5: pode ser patrimônio mistypado, o operador vê).
+    //    A dedupe/plano usam o valor final; colisão pós-substituição reaparece bloqueante.
+    const eraVazio = patrimonioVazio(reg.patrimonio)
+    let patrimonio: string | null = eraVazio ? null : canonicalizarPatrimonio(reg.patrimonio)
+    if (!patrimonio) {
       const doHostname = extrairPatrimonioDoHostname(reg.hostname)
       if (doHostname) {
         patrimonio = doHostname
@@ -143,9 +149,11 @@ export function montarPlanoImport(
           coluna: 'Patrimônio',
           valor: reg.patrimonio,
           tipo: 'patrimonio_do_hostname',
-          mensagem: `patrimônio ausente — preenchido automaticamente pelo hostname (${doHostname})`,
+          mensagem: eraVazio
+            ? `patrimônio ausente — preenchido automaticamente pelo hostname (${doHostname})`
+            : `patrimônio "${reg.patrimonio.trim()}" fora do formato — substituído automaticamente pelo hostname (${doHostname})`,
         })
-      } else {
+      } else if (eraVazio) {
         avisos.push({
           linha: reg.linha,
           coluna: 'Patrimônio',
@@ -154,15 +162,12 @@ export function montarPlanoImport(
           mensagem:
             'sem patrimônio — importa com pendência "sem patrimônio físico"; preencha na tela se souber o número',
         })
-      }
-    } else {
-      patrimonio = canonicalizarPatrimonio(reg.patrimonio)
-      if (!patrimonio) {
+      } else {
         bloq(
           'Patrimônio',
           reg.patrimonio,
           'patrimonio_invalido',
-          `Patrimônio "${reg.patrimonio}" fora do formato canônico (ex.: WAP0004491)`,
+          `Patrimônio "${reg.patrimonio}" fora do formato canônico (ex.: WAP0004491) e sem hostname aproveitável`,
         )
       }
     }
