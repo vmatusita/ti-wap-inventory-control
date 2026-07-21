@@ -69,6 +69,14 @@ const para = z
   .min(1, 'Informe o valor da correção.')
   .max(MAX_PARA, `O valor da correção passa de ${MAX_PARA} caracteres.`)
 
+// F7J (Johnny 20/07/2026): o `editar` do PATRIMÔNIO aceita VAZIO (limpar o patrimônio
+// → importa como pendência "sem patrimônio físico"). Por isso o editar usa um `para` SEM
+// `min(1)`; a exigência de valor para os DEMAIS campos volta no superRefine da união.
+const paraEditar = z
+  .string()
+  .trim()
+  .max(MAX_PARA, `O valor da correção passa de ${MAX_PARA} caracteres.`)
+
 /** Linha física do arquivo, 1-based com o cabeçalho na linha 1 (OS-F7B §3.6). */
 const linha = z
   .number()
@@ -96,11 +104,18 @@ const editarSchema = z.object({
   op: z.literal('editar'),
   linha,
   campo: z.enum(CAMPOS_EDITAVEIS, { error: 'Campo não corrigível pela tela de import.' }),
-  para,
+  para: paraEditar,
 })
 
 const removerLinhaSchema = z.object({
   op: z.literal('remover_linha'),
+  linha,
+})
+
+// F7J: forçar o patrimônio cru da linha como válido fora do padrão canônico. Sem
+// `para` — o valor forçado é o que estiver na célula (após edições). Só a linha.
+const forcarPatrimonioSchema = z.object({
+  op: z.literal('forcar_patrimonio'),
   linha,
 })
 
@@ -110,8 +125,15 @@ export const correcaoSchema = z
     substituirEstadoSchema,
     editarSchema,
     removerLinhaSchema,
+    forcarPatrimonioSchema,
   ])
   .superRefine((op, ctx) => {
+    // F7J: `editar` do patrimônio pode ser VAZIO (limpar → pendência); os demais campos
+    // exigem valor. `substituir`/`substituir_estado` já garantem `para` não-vazio no schema.
+    if (op.op === 'editar' && op.campo !== 'patrimonio' && op.para.length === 0) {
+      ctx.addIssue({ code: 'custom', path: ['para'], message: 'Informe o valor da correção.' })
+      return
+    }
     // Datas (OS-F7B §3.5): o valor tem de passar na MESMA régua do CSV —
     // dd/MM/aaaa válida e não futura. Vale para `substituir` e `editar`.
     if (op.op !== 'substituir' && op.op !== 'editar') return

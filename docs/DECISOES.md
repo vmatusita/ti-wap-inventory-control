@@ -952,3 +952,29 @@ A ordem entre os dois é indiferente; mas **NÃO reimporte a Matriz antes da 003
 *Reversível?* sim — código puro, sem banco. **Nada a rodar em produção** além do deploy; só afeta imports futuros (ativos já importados com `patrimonio_original = 'n/a'` só limpam num novo Substituir tudo — não é regressão, é cosmético na ficha).
 
 *Documentos emendados:* `README.md` e esta entrada.
+
+---
+
+## 2026-07-20 · F7J · Import: hostname com patrimônio curto + forçar fora do padrão + limpar patrimônio
+
+Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fechadas — ver abaixo). Deploy-only para o app; **uma migration** (0037) para o banco parar de rejeitar o patrimônio forçado.
+
+*Decisões travadas (Johnny, 20/07/2026, via AskUserQuestion):*
+1. **Hostname com patrimônio de <7 dígitos** (`PRO3694`) → reconhece e completa com zeros (`PRO0003694`), MAS só se o **prefixo for de patrimônio conhecido** — para não transformar `PC-01`/`SALA-5`/`NB-2` em patrimônio.
+2. **Forçar fora do padrão** (`LEA7LYHQH4`, `STF003LOC`) → **vira patrimônio de verdade** (não-canônico), não pendência. Exige relaxar a validação do banco (migration).
+3. **Lista oficial de prefixos:** `WAP, PRO, LEA, TEC, STF, PAT, NOO` (confirmada).
+4. **Limpar patrimônio na correção:** botão dedicado **"Sem patrimônio"** (não habilitar o "Corrigir" com campo vazio).
+
+*Implementação:*
+- **(1) Hostname** — `src/lib/import/deparas.ts`: `PREFIXOS_PATRIMONIO` (set dos 7 prefixos) + `extrairPatrimonioDoHostname` reescrito — token = prefixo (2–4 letras) + **1–7 dígitos** (antes exatamente 7), delimitado, ≤7 dígitos (8+ = ambíguo → ignora), com **`matchAll`** para pular prefixo desconhecido e achar o 1º conhecido (`PC01-WAP0001234` → `WAP0001234`); canonicaliza (completa zeros). Sem ReDoS.
+- **(2) Forçar** — nova op de correção `{op:'forcar_patrimonio', linha}` (`tipos.ts`, Zod em `validators/importar.ts`, dispatch em `correcoes.ts` — não muda célula, só marca a linha; `rotulos.ts` p/ o painel). No motor (`plano.ts` passo 2, nova **prioridade**): célula canônica > **forçado (cru, vence o hostname)** > hostname > ausência-nula > bloqueante. O cru fica em `patrimonioOriginal`; busca por `patrimonio.ilike.%…%` já casa não-canônico. **Migration `0037`** relaxa o passo 1d da RPC (era `^[A-Z]{2,4}\d{7}$`; agora só sanidade: não-nulo → não-vazio e ≤60 chars) — a régua de FORMATO virou responsabilidade do motor/UI. Diff `0037` vs `0036` = só o passo 1d. **Aplicada e testada no DEV** (smoke: `LEA7LYHQH4` importa como patrimônio, sem pendência).
+- **(3) Limpar** — `editar` do patrimônio passa a aceitar `para` VAZIO (Zod: `paraEditar` sem `min(1)`; superRefine exige valor só nos DEMAIS campos). UI (`grupos-erros.tsx`, card de patrimônio inválido): botões **"Usar mesmo assim"** (força; emite `editar`+`forcar_patrimonio`) e **"Sem patrimônio"** (emite `editar` para ''). No card de patrimônio VAZIO nada muda.
+- Testes: `deparas.test.ts` (hostname curto/prefixo desconhecido), `plano.test.ts` (forçar/limpar), `importar.test.ts` (Zod editar-vazio e forcar). `lint`+`test`(561)+`build` verdes.
+
+*Segurança da reversão da régua canônica:* o motor continua o juiz (forçar é escolha explícita do operador, auditada em `import_logs.correcoes`); a dedupe/índice único operam por string exata (colisão reaparece bloqueante); a busca é substring; o valor cru fica em `patrimonio_original`. O banco mantém a sanidade (não-vazio, ≤60).
+
+*Produção (GATE):* SQL em `scratchpad/f7j-sql-producao.sql` — só a `0037` (função + grants) + `notify pgrst`. **Nenhum UPDATE, nenhum dado tocado.** O Johnny roda no SQL Editor (o classificador barra a DDL da função destrutiva, como na 0034–0036). O deploy do app (merge + Vercel) carrega o resto.
+
+*Reversível?* sim — `create or replace` da RPC da 0036 (formato canônico de volta) + reverter o código. Nenhum dado a desfazer.
+
+*Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7J), `README.md`, e esta entrada.

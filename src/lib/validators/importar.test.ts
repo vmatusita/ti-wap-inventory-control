@@ -41,6 +41,15 @@ describe('parseCorrecoes — o que passa', () => {
       parseCorrecoes([{ op: 'editar', linha: 2, campo: 'dataEntrega', para: '05/03/2020' }]).ok,
     ).toBe(true)
   })
+
+  it('F7-pós: editar do PATRIMÔNIO aceita vazio (limpar → pendência)', () => {
+    expect(parseCorrecoes([{ op: 'editar', linha: 2, campo: 'patrimonio', para: '' }]).ok).toBe(true)
+    expect(parseCorrecoes([{ op: 'editar', linha: 2, campo: 'patrimonio', para: '   ' }]).ok).toBe(true)
+  })
+
+  it('F7-pós: forcar_patrimonio é aceito', () => {
+    expect(parseCorrecoes([{ op: 'forcar_patrimonio', linha: 5 }]).ok).toBe(true)
+  })
 })
 
 describe('parseCorrecoes — o que o servidor barra', () => {
@@ -80,6 +89,16 @@ describe('parseCorrecoes — o que o servidor barra', () => {
     const futura = parseCorrecoes([{ op: 'editar', linha: 2, campo: 'dataInclusao', para: '01/01/2099' }])
     expect(futura.ok).toBe(false)
     expect(futura.ok === false && futura.erro).toContain('futura')
+  })
+
+  it('F7-pós: editar de campo NÃO-patrimônio segue exigindo valor (vazio barra)', () => {
+    expect(parseCorrecoes([{ op: 'editar', linha: 2, campo: 'tipo', para: '' }]).ok).toBe(false)
+    expect(parseCorrecoes([{ op: 'editar', linha: 2, campo: 'situacao', para: '  ' }]).ok).toBe(false)
+  })
+
+  it('F7-pós: forcar_patrimonio com linha inválida barra', () => {
+    expect(parseCorrecoes([{ op: 'forcar_patrimonio', linha: 1 }]).ok).toBe(false) // linha 1 = cabeçalho
+    expect(parseCorrecoes([{ op: 'forcar_patrimonio', linha: 2.5 }]).ok).toBe(false)
   })
 
   it('recusa `para` vazio ou só espaços', () => {

@@ -115,21 +115,34 @@ export function patrimonioVazio(raw: string | null | undefined): boolean {
   return FAMILIA_SEM_PATRIMONIO.test(norm) && canonicalizarPatrimonio(raw ?? '') === null
 }
 
-// F7F (decisão do Johnny, 17/07/2026 — REVOGA a não-inferência por hostname de 16/07):
-// procura no HOSTNAME um patrimônio JÁ no formato canônico ([A-Z]{2,4} + 7 dígitos)
-// embutido — ex.: `NB-WAP0001234`/`DESKTOP-WAP0004491` → `WAP0001234`/`WAP0004491`. Exige
-// o token canônico COMPLETO (7 dígitos) delimitado: `PC-01` (número curto) e `DESKTOP-SALA`
-// (sem número) NÃO preenchem — caem no F7E (nulo + pendência). O token achado ainda passa por
-// `canonicalizarPatrimonio`, o juiz final do valor (contrato §1.5), que NÃO muda. NOTA: chamar
-// `canonicalizarPatrimonio(hostname)` direto não serve — ele apaga separadores e ou falha em
-// `NB-WAP…` (5 letras coladas) ou aceita lixo (`PC-01`→`PC0000001`); por isso a extração aqui.
-// Fica em deparas.ts (folha client-safe) para o motor (plano.ts) E a UI (botão 1-clique do W3)
-// usarem EXATAMENTE a mesma régua — sem duplicar o extrator.
-const PATRIMONIO_EMBUTIDO_RE = /(?:^|[^A-Z0-9])([A-Z]{2,4}\d{7})(?![0-9])/
+// Prefixos OFICIAIS de patrimônio da WAP (spec §5; confirmados pelo Johnny 20/07/2026).
+// SÓ estes valem no reconhecimento do HOSTNAME — é o que impede transformar nome de
+// máquina (`PC-01`, `NB-2`, `SALA-5`) em patrimônio: `PC`/`NB`/`SALA` não são prefixos de
+// patrimônio. Se a WAP passar a usar um prefixo novo, adicione-o aqui.
+export const PREFIXOS_PATRIMONIO = new Set(['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'])
+
+// F7F (decisão do Johnny, 17/07/2026 — REVOGA a não-inferência por hostname de 16/07) +
+// F7-pós (Johnny 20/07/2026): procura no HOSTNAME um patrimônio embutido — ex.:
+// `NB-WAP0001234` → `WAP0001234`, `NB-PRO3694` → `PRO0003694`. O token é PREFIXO (2–4
+// letras) + 1–7 DÍGITOS, delimitado e NÃO seguido de dígito (8+ dígitos = ambíguo →
+// ignora). Duas travas contra falso positivo: (1) o prefixo tem de estar em
+// PREFIXOS_PATRIMONIO (senão `PC-01`/`SALA-5` virariam patrimônio); (2) o token passa por
+// `canonicalizarPatrimonio`, que completa os zeros (`PRO3694`→`PRO0003694`) — o juiz final
+// do valor (contrato §1.5), que NÃO muda. `matchAll` (flag `g`) pula tokens de prefixo
+// DESCONHECIDO e acha o 1º com prefixo de patrimônio (ex.: `PC01-WAP0001234` → `WAP0001234`).
+// Antes exigia EXATAMENTE 7 dígitos e QUALQUER prefixo; a mudança é aceitar <7 dígitos e
+// travar por prefixo conhecido. Fica em deparas.ts (folha client-safe) p/ o motor
+// (plano.ts) E a UI usarem a MESMA régua — sem duplicar o extrator.
+const PATRIMONIO_EMBUTIDO_RE = /(?:^|[^A-Z0-9])([A-Z]{2,4})(\d{1,7})(?![0-9])/g
 
 export function extrairPatrimonioDoHostname(hostname: string | null | undefined): string | null {
-  const m = (hostname ?? '').toUpperCase().match(PATRIMONIO_EMBUTIDO_RE)
-  return m ? canonicalizarPatrimonio(m[1]!) : null
+  const h = (hostname ?? '').toUpperCase()
+  for (const m of h.matchAll(PATRIMONIO_EMBUTIDO_RE)) {
+    if (PREFIXOS_PATRIMONIO.has(m[1]!)) {
+      return canonicalizarPatrimonio(m[1]! + m[2]!)
+    }
+  }
+  return null
 }
 
 // ---------------------------------------------------------------------------

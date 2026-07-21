@@ -498,6 +498,74 @@ describe('F7F — auto-preenchimento do patrimônio pelo hostname', () => {
   })
 })
 
+// F7-pós (Johnny 20/07/2026) — FORÇAR patrimônio fora do padrão (op forcar_patrimonio) e
+// LIMPAR patrimônio (editar → vazio). A linha de dados é a linha 2 (linha 1 = cabeçalho).
+describe('F7-pós — forçar patrimônio fora do padrão e limpar', () => {
+  const csv = (over: Record<string, string>) => buf(montar(H_MATRIZ, [rowMatriz(over)]))
+
+  it('sem forçar: valor fora de formato (LEA7LYHQH4) → bloqueante patrimonio_invalido', () => {
+    const r = validarCsvImport(csv({ 'Patrimônio': 'LEA7LYHQH4', Hostname: 'DESKTOP-SALA' }), MATRIZ, HOJE)
+    expect(r.plano).toBeNull()
+    expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_invalido')).toHaveLength(1)
+  })
+
+  it('forçando (forcar_patrimonio) → aceita o cru como patrimônio, sem bloquear', () => {
+    const r = validarCsvImport(
+      csv({ 'Patrimônio': 'LEA7LYHQH4', Hostname: 'DESKTOP-SALA' }),
+      MATRIZ,
+      HOJE,
+      [{ op: 'forcar_patrimonio', linha: 2 }],
+    )
+    expect(r.bloqueantes).toHaveLength(0)
+    const a = r.plano!.ativos[0]!
+    expect(a.patrimonio).toBe('LEA7LYHQH4') // cru, fora do padrão
+    expect(a.patrimonioOriginal).toBe('LEA7LYHQH4')
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_invalido')).toBe(false)
+  })
+
+  it('forçar VENCE o hostname (o operador escolheu o valor cru)', () => {
+    const r = validarCsvImport(
+      csv({ 'Patrimônio': 'STF003LOC', Hostname: 'NB-WAP0001234' }),
+      MATRIZ,
+      HOJE,
+      [{ op: 'forcar_patrimonio', linha: 2 }],
+    )
+    expect(r.plano!.ativos[0]!.patrimonio).toBe('STF003LOC') // não o WAP0001234 do hostname
+  })
+
+  it('forçar em cima de valor de AUSÊNCIA (n/a) não inventa patrimônio → segue pendência', () => {
+    const r = validarCsvImport(
+      csv({ 'Patrimônio': 'n/a', Hostname: 'DESKTOP-SALA' }),
+      MATRIZ,
+      HOJE,
+      [{ op: 'forcar_patrimonio', linha: 2 }],
+    )
+    expect(r.plano!.ativos[0]!.patrimonio).toBeNull()
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_vazio')).toBe(true)
+  })
+
+  it('limpar patrimônio (editar → vazio) num inválido → pendência (sem bloqueante)', () => {
+    const r = validarCsvImport(
+      csv({ 'Patrimônio': 'LEA7LYHQH4', Hostname: 'DESKTOP-SALA' }),
+      MATRIZ,
+      HOJE,
+      [{ op: 'editar', linha: 2, campo: 'patrimonio', para: '' }],
+    )
+    expect(r.bloqueantes).toHaveLength(0)
+    expect(r.plano!.ativos[0]!.patrimonio).toBeNull()
+    expect(r.avisos.some((e) => e.tipo === 'patrimonio_vazio')).toBe(true)
+  })
+
+  it('forçar valor LONGO demais (>60 chars) → bloqueante no preview (espelha a sanidade da RPC)', () => {
+    const longo = 'X'.repeat(61)
+    const r = validarCsvImport(csv({ 'Patrimônio': longo, Hostname: 'DESKTOP-SALA' }), MATRIZ, HOJE, [
+      { op: 'forcar_patrimonio', linha: 2 },
+    ])
+    expect(r.plano).toBeNull() // não passa pro apply (a RPC também recusaria)
+    expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_invalido')).toHaveLength(1)
+  })
+})
+
 describe('linhas vazias / sem chave / cadastrais', () => {
   it('linha 100% vazia pulada; linha sem Site e sem patrimônio → aviso linha_sem_chave', () => {
     // 2ª linha só com Tipo/Service Tag preenchidos (sem Site, sem patrimônio)

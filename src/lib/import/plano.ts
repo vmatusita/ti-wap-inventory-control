@@ -100,6 +100,8 @@ export function montarPlanoImport(
   filialAlvo: ReturnType<typeof filialPorSlug>,
   filialNome: string,
   hoje: string,
+  // F7J: linhas que o operador mandou FORÇAR o patrimônio cru (op `forcar_patrimonio`).
+  forcados: ReadonlySet<number> = new Set(),
 ): { candidatos: Candidato[]; bloqueantes: ErroImport[]; avisos: ErroImport[] } {
   const bloqueantes: ErroImport[] = []
   const avisos: ErroImport[] = []
@@ -125,22 +127,41 @@ export function montarPlanoImport(
       )
     }
 
-    // 2) Patrimônio — prioridade (F7-pós, decisão do Johnny 20/07/2026):
+    // 2) Patrimônio — prioridade (F7-pós/F7J, decisão do Johnny 20/07/2026):
     //    (1) valor da CÉLULA que canonicaliza → usa (nunca sobrescrito pelo hostname);
-    //    (2) senão, patrimônio embutido no HOSTNAME (formato canônico) → substitui
-    //        AUTOMÁTICO (silencioso, aviso `patrimonio_do_hostname`), tanto para célula
-    //        VAZIA/que declara ausência QUANTO para célula FORA DE FORMATO. Isto REVOGA a
-    //        invariante F7F "patrimônio inválido NUNCA é sobrescrito pelo hostname": o
-    //        Johnny pediu que fora-de-formato com hostname dentro do formato vire o
-    //        hostname. O cru fica em `patrimonioOriginal` (auditável na ficha + painel);
-    //    (3) senão, célula que DECLARA ausência (`patrimonioVazio`) → NULO + pendência
+    //    (2) senão, linha FORÇADA (`forcar_patrimonio`, F7J) com valor fora de formato →
+    //        aceita o CRU como patrimônio NÃO-canônico ("usar mesmo assim"; vence o hostname),
+    //        DESDE que ≤ 60 caracteres — a MESMA sanidade da RPC (migration 0037). Longo
+    //        demais → BLOQUEANTE aqui no preview (a RPC recusaria; o preview tem de capturar
+    //        tudo que ela recusa, senão o erro só apareceria pós-backup — anti-padrão F7C);
+    //    (3) senão, patrimônio embutido no HOSTNAME (prefixo conhecido + dígitos) →
+    //        substitui AUTOMÁTICO (silencioso, `patrimonio_do_hostname`), para célula
+    //        VAZIA/que declara ausência E para FORA DE FORMATO (REVOGA a invariante F7F);
+    //    (4) senão, célula que DECLARA ausência (`patrimonioVazio`) → NULO + pendência
     //        "sem patrimônio físico" (aviso `patrimonio_vazio`);
-    //    (4) senão (fora de formato SEM hostname aproveitável) → BLOQUEANTE
+    //    (5) senão (fora de formato, SEM hostname, NÃO forçado) → BLOQUEANTE
     //        `patrimonio_invalido` (decisão 5: pode ser patrimônio mistypado, o operador vê).
-    //    A dedupe/plano usam o valor final; colisão pós-substituição reaparece bloqueante.
+    //    O cru fica em `patrimonioOriginal`; a dedupe usa o valor final (colisão reaparece).
     const eraVazio = patrimonioVazio(reg.patrimonio)
-    let patrimonio: string | null = eraVazio ? null : canonicalizarPatrimonio(reg.patrimonio)
-    if (!patrimonio) {
+    const canon = eraVazio ? null : canonicalizarPatrimonio(reg.patrimonio)
+    let patrimonio: string | null = null
+    if (canon) {
+      patrimonio = canon
+    } else if (!eraVazio && forcados.has(reg.linha)) {
+      // (2) forçado: aceita o CRU, com a MESMA sanidade da RPC (≤ 60 chars). Sem aviso — a
+      //     op `forcar_patrimonio` já é auditada em "correções aplicadas".
+      const cru = reg.patrimonio.trim()
+      if (cru.length > 60) {
+        bloq(
+          'Patrimônio',
+          reg.patrimonio,
+          'patrimonio_invalido',
+          `Patrimônio longo demais para forçar (${cru.length} caracteres; máximo 60).`,
+        )
+      } else {
+        patrimonio = cru
+      }
+    } else {
       const doHostname = extrairPatrimonioDoHostname(reg.hostname)
       if (doHostname) {
         patrimonio = doHostname
@@ -365,11 +386,16 @@ function analisar(
   }
 
   const filialAlvo = filialPorSlug(filial.slug) ?? mapearUnidade(filial.nome)
+  // F7J: linhas que o operador mandou FORÇAR o patrimônio cru (op `forcar_patrimonio`).
+  const forcados = new Set(
+    correcoes.filter((c) => c.op === 'forcar_patrimonio').map((c) => c.linha),
+  )
   const { candidatos, bloqueantes: bloqLinha, avisos: avisoLinha } = montarPlanoImport(
     registros,
     filialAlvo,
     filial.nome,
     hoje,
+    forcados,
   )
   bloqueantes.push(...bloqLinha)
   avisos.push(...avisoLinha)

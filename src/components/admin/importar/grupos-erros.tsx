@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCheck, ChevronDown, ChevronRight, Trash2, Wand2 } from 'lucide-react'
+import { CheckCheck, ChevronDown, ChevronRight, Eraser, Trash2, Wand2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -528,7 +528,45 @@ function LinhaPatrimonio({
           usar {hostnamePatrimonio}
         </Button>
       )}
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex flex-wrap items-center gap-1">
+        {/* F7J: no card de patrimônio INVÁLIDO (não opcional), duas saídas além de
+            corrigir: FORÇAR o valor fora do padrão (só quando há valor não-canônico) e
+            deixar SEM patrimônio (pendência). No card vazio (opcional) não fazem sentido. */}
+        {!opcional && valor.trim() !== '' && !canonico && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={pendente}
+            title="Usar este valor como patrimônio mesmo fora do padrão canônico"
+            onClick={() =>
+              onCorrigir(
+                valor.trim() === original.trim()
+                  ? [{ op: 'forcar_patrimonio', linha }]
+                  : [
+                      { op: 'editar', linha, campo: 'patrimonio', para: valor },
+                      { op: 'forcar_patrimonio', linha },
+                    ],
+              )
+            }
+          >
+            Usar mesmo assim
+          </Button>
+        )}
+        {!opcional && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            disabled={pendente}
+            title="Importar esta linha SEM patrimônio (vira pendência 'sem patrimônio físico')"
+            onClick={() => onCorrigir([{ op: 'editar', linha, campo: 'patrimonio', para: '' }])}
+          >
+            <Eraser className="size-3.5" />
+            Sem patrimônio
+          </Button>
+        )}
         <Button
           type="button"
           size="sm"

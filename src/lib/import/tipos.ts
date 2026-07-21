@@ -133,10 +133,17 @@ export type CorrecaoImport =
   /** Em massa: linhas cujo par cru (Status, Situação) casa exato recebem `para` na coluna Situação
    *  (a precedência Situação>Status resolve o estado). `para` = termo do vocabulário ESTADOS. */
   | { op: 'substituir_estado'; statusDe: string; situacaoDe: string; para: string }
-  /** Pontual: escreve `para` na célula (linha física do arquivo, campo whitelisted). */
+  /** Pontual: escreve `para` na célula (linha física do arquivo, campo whitelisted).
+   *  Patrimônio aceita `para` VAZIO (F7J): limpar o patrimônio → importa como pendência. */
   | { op: 'editar'; linha: number; campo: CampoEditavel; para: string }
   /** Remove a linha do import (não entra no plano; não gera erro nem aviso). */
   | { op: 'remover_linha'; linha: number }
+  /** F7J (Johnny 20/07/2026): FORÇAR o patrimônio cru da linha como válido mesmo
+   *  FORA do formato canônico (`LEA7LYHQH4`, `STF003LOC`…). O motor aceita o valor cru
+   *  como patrimônio; a régua de formato é revogada só para esta linha. Não muda célula
+   *  (o valor forçado é o que estiver na célula, após edições). Se colidir, a reanálise
+   *  devolve a duplicata bloqueante (o force não fura o índice único). */
+  | { op: 'forcar_patrimonio'; linha: number }
 
 /**
  * Erros/avisos idênticos agrupados para correção (tipo + valor cru). O `correcao`

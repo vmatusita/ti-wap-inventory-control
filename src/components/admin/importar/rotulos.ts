@@ -60,5 +60,7 @@ export function descreverCorrecao(op: CorrecaoImport): string {
       return `Linha ${op.linha} · ${ROTULO_CAMPO[op.campo]} → ${comAspas(op.para)}`
     case 'remover_linha':
       return `Remover a linha ${op.linha}`
+    case 'forcar_patrimonio':
+      return `Linha ${op.linha} · usar patrimônio fora do padrão`
   }
 }

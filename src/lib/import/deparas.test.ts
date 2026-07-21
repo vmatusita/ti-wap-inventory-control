@@ -341,16 +341,29 @@ describe('extrairPatrimonioDoHostname (F7F)', () => {
     expect(extrairPatrimonioDoHostname('LEA0000057-PC')).toBe('LEA0000057') // token no início
   })
 
-  it('sem token canônico completo → null (F7E intacto: nulo + pendência)', () => {
+  // F7-pós (Johnny 20/07/2026): prefixo de patrimônio conhecido + MENOS de 7 dígitos é
+  // aceito e completado com zeros (PRO3694 → PRO0003694).
+  it('prefixo conhecido + <7 dígitos → completa os zeros', () => {
+    expect(extrairPatrimonioDoHostname('NB-PRO3694')).toBe('PRO0003694')
+    expect(extrairPatrimonioDoHostname('PRO3694')).toBe('PRO0003694')
+    expect(extrairPatrimonioDoHostname('NB-WAP001')).toBe('WAP0000001') // 3 dígitos agora resolvem
+    expect(extrairPatrimonioDoHostname('DESKTOP-PAT000376')).toBe('PAT0000376')
+    expect(extrairPatrimonioDoHostname('STF42-PC')).toBe('STF0000042')
+  })
+
+  it('prefixo DESCONHECIDO no hostname → null (não vira patrimônio, mesmo com dígitos)', () => {
+    expect(extrairPatrimonioDoHostname('PC-01')).toBeNull() // PC não é prefixo de patrimônio
+    expect(extrairPatrimonioDoHostname('SALA-5')).toBeNull()
+    expect(extrairPatrimonioDoHostname('NB-2')).toBeNull()
     expect(extrairPatrimonioDoHostname('DESKTOP-SALA')).toBeNull() // sem número
-    expect(extrairPatrimonioDoHostname('PC-01')).toBeNull() // número curto
-    expect(extrairPatrimonioDoHostname('NB-WAP001')).toBeNull() // só 3 dígitos
+    // pula o prefixo desconhecido e acha o conhecido depois
+    expect(extrairPatrimonioDoHostname('PC01-WAP0001234')).toBe('WAP0001234')
     expect(extrairPatrimonioDoHostname('')).toBeNull()
     expect(extrairPatrimonioDoHostname(null)).toBeNull()
     expect(extrairPatrimonioDoHostname(undefined)).toBeNull()
   })
 
-  it('não confunde número de 8+ dígitos com o token de 7 (exige token delimitado)', () => {
+  it('não confunde número de 8+ dígitos com o token (exige token delimitado, ≤7 dígitos)', () => {
     expect(extrairPatrimonioDoHostname('NB-WAP00012345')).toBeNull() // 8 dígitos, ambíguo
     expect(extrairPatrimonioDoHostname('SERIAL12345678')).toBeNull()
   })

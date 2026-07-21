@@ -67,6 +67,8 @@ export function campoDaOp(op: CorrecaoImport): CampoEditavel | null {
       return op.campo
     case 'remover_linha':
       return null
+    case 'forcar_patrimonio':
+      return 'patrimonio'
   }
 }
 
@@ -81,6 +83,8 @@ function descreverOp(op: CorrecaoImport): string {
       return `linha ${op.linha} · ${op.campo} → "${op.para}"`
     case 'remover_linha':
       return `linha ${op.linha}`
+    case 'forcar_patrimonio':
+      return `linha ${op.linha} · forçar patrimônio`
   }
 }
 
@@ -246,6 +250,14 @@ export function aplicarCorrecoes(
         }
         removidas.add(l.linha)
         porOp.push(1)
+        break
+      }
+      case 'forcar_patrimonio': {
+        // F7J: não muda célula — apenas marca a linha (a aceitação do valor cru como
+        // patrimônio acontece em montarPlanoImport). Conta como aplicada se a linha existe
+        // e é alcançável; o efeito real (deixar de ser bloqueante) aparece na reanálise.
+        const l = porNumero.get(op.linha)
+        porOp.push(l && alcancavel(l) ? 1 : 0)
         break
       }
       case 'editar': {
