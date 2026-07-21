@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -49,33 +49,43 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
     startTransition(() => router.push(`${pathname}?${novo.toString()}`))
   }
 
-  useEffect(() => {
-    if (busca === qAtual) return
-    const t = setTimeout(() => {
-      const novo = new URLSearchParams(window.location.search)
-      if (busca) novo.set('q', busca)
-      else novo.delete('q')
-      novo.delete('page')
-      startTransition(() => router.push(`${pathname}?${novo.toString()}`))
-    }, 300)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busca])
+  // A busca só é aplicada ao SUBMETER (Enter ou botão "Pesquisar") — nunca a cada
+  // tecla (buscar durante a digitação fazia o campo "voltar" ao estado anterior ao
+  // resincronizar com a URL). Lê a URL fresca p/ preservar filtros trocados junto.
+  function submeterBusca() {
+    const novo = new URLSearchParams(window.location.search)
+    const termo = busca.trim()
+    if (termo) novo.set('q', termo)
+    else novo.delete('q')
+    novo.delete('page')
+    startTransition(() => router.push(`${pathname}?${novo.toString()}`))
+  }
 
   const temFiltro = !!qAtual || !!filialAtual || !!grupoAtual
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative min-w-0 flex-1 sm:max-w-xs">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar item…"
-          className="pl-8"
-          aria-label="Buscar itens"
-        />
-      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          submeterBusca()
+        }}
+        className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md"
+      >
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar item…"
+            className="pl-8"
+            aria-label="Buscar itens"
+          />
+        </div>
+        <Button type="submit" variant="secondary" className="shrink-0">
+          Pesquisar
+        </Button>
+      </form>
 
       <Select
         value={filialAtual || TODAS}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Search, SlidersHorizontal, Tag, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -75,21 +75,18 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
     })
   }
 
-  // Debounce da busca livre (300ms). Lê a URL FRESCA em window.location no
-  // disparo (não o `params` capturado no render) — senão um filtro alterado por
-  // outro controle nesses 300ms seria descartado ao aplicar a busca.
-  useEffect(() => {
-    if (busca === qAtual) return
-    const t = setTimeout(() => {
-      const novo = new URLSearchParams(window.location.search)
-      if (busca) novo.set('q', busca)
-      else novo.delete('q')
-      novo.delete('page')
-      startTransition(() => router.push(`${pathname}?${novo.toString()}`))
-    }, 300)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busca])
+  // A busca livre só é aplicada ao SUBMETER (Enter no campo ou botão "Pesquisar") —
+  // nunca a cada tecla. Buscar durante a digitação fazia a navegação resincronizar
+  // o campo com a URL e "voltar" o texto para o estado anterior. Lê a URL FRESCA em
+  // window.location (não o `params` do render) p/ preservar outros filtros trocados.
+  function submeterBusca() {
+    const novo = new URLSearchParams(window.location.search)
+    const termo = busca.trim()
+    if (termo) novo.set('q', termo)
+    else novo.delete('q')
+    novo.delete('page') // nova busca volta p/ a página 1
+    startTransition(() => router.push(`${pathname}?${novo.toString()}`))
+  }
 
   function toggleStatus(valor: string, marcado: boolean) {
     const set = new Set(statusAtual)
@@ -113,16 +110,27 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
         isPending && 'opacity-70',
       )}
     >
-      <div className="relative min-w-0 flex-1 sm:max-w-xs">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar patrimônio, colaborador, marca ou modelo…"
-          className="pl-8"
-          aria-label="Buscar ativos"
-        />
-      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          submeterBusca()
+        }}
+        className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md"
+      >
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar patrimônio, colaborador, marca ou modelo…"
+            className="pl-8"
+            aria-label="Buscar ativos"
+          />
+        </div>
+        <Button type="submit" variant="secondary" className="shrink-0">
+          Pesquisar
+        </Button>
+      </form>
 
       <Select
         value={filialAtual || TODAS}
