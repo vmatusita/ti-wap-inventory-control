@@ -1179,3 +1179,11 @@ Quando o job `banco` entrou (Faixa 2), `supabase/tests/itens_quantidade.sql` est
   8. Worktree obsoleto `.claude/worktrees/sweet-ramanujan-c330d8` de-registrado do git (`worktree remove` + `prune`); o diretório residual ficou travado por lock (OneDrive) — é gitignored e inócuo, cai quando o lock soltar.
 - **Motivo:** alinhado ao pedido e à própria auditoria de dívida (`DIVIDA-TECNICA.md` item I "aposentar schema.sql", item P "README→CHANGELOG + runbook consolidado"). **Não** apaguei planos/prompts/análises porque a verificação de referências cruzadas provou que **seguem em uso** — apagá-los quebraria links e apagaria o rationale de design, contra o critério do pedido e o ethos de rastro de auditoria do projeto.
 - **Reversível?** Sim, tudo no git (o `schema.sql` fica recuperável no histórico; os docs revertem por `git checkout`/`reset`). Nada de banco nem de produção foi tocado.
+
+---
+
+## 2026-07-21 · Documentação · Baixa do RELATORIO-V2-PARA-APROVACAO (a pedido do Johnny)
+
+- **Contexto:** na ata anterior mantive `docs/RELATORIO-V2-PARA-APROVACAO.md` com banner de histórico. O Johnny pediu para apagá-lo de vez e dar push.
+- **Decisão:** `git rm docs/RELATORIO-V2-PARA-APROVACAO.md` — era o doc one-shot de aprovação da F3B pelo analista; o conteúdo (o que o relatório precisa mostrar) está preservado em `docs/PLANO-RELATORIOS-V2.md` + spec §7. Ajustei as 2 menções vivas em `docs/prompts/F3B-relatorios-v2.md` (linhas 7 e 113) para registrar a baixa em vez de deixar link morto. A menção na ata anterior (append-only) fica como registro do estado de então.
+- **Reversível?** Sim — recuperável no histórico do git. Push feito na `main`.

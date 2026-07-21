@@ -4,7 +4,7 @@ Executor desta ordem no repositório `ti-wap-inventory-control`. Siga na ordem. 
 
 ## 0. Antes de qualquer coisa (obrigatório)
 
-1. Leia `CLAUDE.md`, **`docs/PLANO-RELATORIOS-V2.md` (é o contrato desta ordem — decisões do Johnny de 14/07/2026, todas fechadas)**, `docs/RELATORIO-V2-PARA-APROVACAO.md` (a promessa aprovada pelo analista — o relatório final tem que cumprir o que esse papel mostra), spec §4/§5/§7/§8 e as entradas da F3 em `docs/DECISOES.md` (padrões já estabelecidos: RPCs de agregação da migration 0011, compat de snapshot no `CorpoRelatorio`, fuso `America/Sao_Paulo` em `src/lib/format.ts`, revelação progressiva de colunas no mobile).
+1. Leia `CLAUDE.md`, **`docs/PLANO-RELATORIOS-V2.md` (é o contrato desta ordem — decisões do Johnny de 14/07/2026, todas fechadas; incorpora a promessa aprovada pelo analista, cujo doc de aprovação foi aposentado em 21/07/2026)**, spec §4/§5/§7/§8 e as entradas da F3 em `docs/DECISOES.md` (padrões já estabelecidos: RPCs de agregação da migration 0011, compat de snapshot no `CorpoRelatorio`, fuso `America/Sao_Paulo` em `src/lib/format.ts`, revelação progressiva de colunas no mobile).
 2. Consulte a doc atual (Context7/MCP) antes de codar: componente `chart` do shadcn (Recharts v3 — barras empilhadas horizontais, barras divergentes com valores negativos, `LabelList`), Supabase (RPC, Realtime publication, RLS).
 3. Pré-requisitos (falhou → pare e reporte): F3 na `main` (`/relatorios/[filial]`, `/relatorios/gerados` funcionando); migrations 0001–0013 aplicadas (confira a última — as novas começam na próxima livre, indicada abaixo como 0014+); seed do dev populado; `npm run lint` e `npm run build` limpos ANTES de começar (linha de base).
 4. Migrations desta ordem são **aditivas** (nenhuma altera/apaga dado). Aplique no dev primeiro, produção depois de `lint`+`build` limpos. Não reedite migration aplicada.
@@ -110,7 +110,7 @@ Remover botão e código de export CSV da página ao vivo, do snapshot e de qual
 3. `CLAUDE.md`: estrutura de pastas prescrita ganha `itens/page.tsx`, `admin/itens/page.tsx`, `lib/queries/itens.ts`.
 4. `docs/prompts/F4-importador-golive.md`: adicionar a tarefa de **carga dos saldos iniciais de itens** a partir do export da planilha de gestão online (4ª fonte da carga única; dry-run + conferência de contagens; plano B manual — plano §3.11).
 5. `README.md`: status F3B + próximo passo; `docs/DECISOES.md`: entrada da fase com as decisões tomadas.
-6. `docs/PLANO-RELATORIOS-V2.md` e `docs/RELATORIO-V2-PARA-APROVACAO.md` ficam **intocados** (histórico da decisão).
+6. `docs/PLANO-RELATORIOS-V2.md` fica **intocado** (histórico da decisão; o doc de aprovação `RELATORIO-V2-PARA-APROVACAO.md` foi aposentado em 21/07/2026).
 
 ### B2 · 3.12 Verificação final
 
