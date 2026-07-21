@@ -38,3 +38,49 @@ jobs:
         run: npm run test
       - name: Build (inclui type-check do TypeScript)
         run: npm run build
+
+  # Dívida técnica (item C): rede de teste do BANCO. Antes o CI só validava
+  # TypeScript — as migrations, a máquina de estados (trigger) e os saldos de
+  # itens não tinham nenhuma verificação automática. Este job sobe um Postgres
+  # REAL pelo Supabase CLI, aplica TODAS as migrations em ordem (0001→0040 —
+  # prova que aplicam limpo, inclusive as recriações de RPC que só rodavam à mão
+  # em produção) e roda os roteiros de teste SQL de comportamento, falhando o CI
+  # quando algum cenário marca ✗.
+  banco:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Garantir psql (cliente Postgres)
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Inicializar config do Supabase (gera config.toml da versão da CLI)
+        run: printf 'n\nn\n' | supabase init
+      - name: Subir Postgres local + aplicar TODAS as migrations
+        # Stack completo (sem -x): nomes de serviço variam entre versões da CLI e um
+        # nome inválido derruba o start. Confiabilidade > velocidade (poucos minutos).
+        run: supabase start
+      - name: Rodar os roteiros de teste SQL (falha o CI em ✗)
+        run: |
+          set -euo pipefail
+          DBURL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+          # Operador de teste (@wap.ind.br): o trigger handle_new_user cria o profile
+          # que os roteiros usam como `criado_por`.
+          psql "$DBURL" -v ON_ERROR_STOP=1 -c "insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at) values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'ci@wap.ind.br', '', now(), now(), now());"
+          fail=0
+          for f in supabase/tests/*.sql; do
+            echo "==== $f ===="
+            if ! out=$(psql "$DBURL" -v ON_ERROR_STOP=1 -f "$f" 2>&1); then
+              echo "$out"; echo "::error::erro de psql em $f"; fail=1; continue
+            fi
+            echo "$out"
+            if echo "$out" | grep -q '✗'; then
+              echo "::error::roteiro $f marcou ✗ (cenário falhou)"; fail=1
+            fi
+          done
+          exit $fail
+      - name: Derrubar o stack local
+        if: always()
+        run: supabase stop || true

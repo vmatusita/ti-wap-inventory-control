@@ -42,7 +42,7 @@ export async function anotarAtivo(input: {
     texto: parsed.data.texto,
     criado_por: uid,
   })
-  if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   revalidatePath(`/ativos/${parsed.data.ativo_id}`)
   revalidatePath('/relatorios', 'layout')
@@ -88,7 +88,7 @@ export async function atualizarDadosCadastrais(input: {
     })
     .eq('id', id)
 
-  if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${id}`)
@@ -123,7 +123,7 @@ export async function corrigirPatrimonio(input: {
     .select('patrimonio, pendencia')
     .eq('id', ativo_id)
     .maybeSingle()
-  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message) }
+  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message, eLer.code) }
   if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
 
   const validacao = validarCorrecaoPatrimonio(ativo.patrimonio, parsed.data.patrimonio_novo)
@@ -145,7 +145,7 @@ export async function corrigirPatrimonio(input: {
     .update(patch)
     .eq('id', ativo_id)
   // Violação do par único patrimônio + service tag → mensagem amigável (erros.ts).
-  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message) }
+  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
 
   // "de" nulo (ativo sem patrimônio) → registra "de sem patrimônio para WAP…".
   const { error: eNota } = await supabase.from('anotacoes').insert({
@@ -153,7 +153,7 @@ export async function corrigirPatrimonio(input: {
     texto: `Patrimônio corrigido de ${antigo ?? 'sem patrimônio'} para ${novo}.`,
     criado_por: uid,
   })
-  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message) }
+  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${ativo_id}`)

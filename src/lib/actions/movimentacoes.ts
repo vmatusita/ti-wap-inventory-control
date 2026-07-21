@@ -115,7 +115,7 @@ async function processarItemLote(
         index,
         ativo_id: item.ativo_id,
         ok: false,
-        erro: traduzErroBanco(insertErr.message),
+        erro: traduzErroBanco(insertErr.message, insertErr.code),
       },
       interromper: true,
     }
@@ -186,7 +186,7 @@ export async function registrarMovimentacoes(input: {
       ok: false,
       criadas: 0,
       resultados: [],
-      erroGeral: traduzErroBanco(ativosErr.message),
+      erroGeral: traduzErroBanco(ativosErr.message, ativosErr.code),
     }
   }
   const ativoPorId = new Map<string, AtivoBasico>(
@@ -265,7 +265,7 @@ export async function estornarMovimentacao(input: {
     .select('id, ativo_id, tipo')
     .eq('id', parsed.data.movimentacao_id)
     .maybeSingle()
-  if (movErr) return { ok: false, erro: traduzErroBanco(movErr.message) }
+  if (movErr) return { ok: false, erro: traduzErroBanco(movErr.message, movErr.code) }
   if (!mov) return { ok: false, erro: 'Movimentação não encontrada.' }
 
   const { data: ativo, error: ativoErr } = await supabase
@@ -273,7 +273,7 @@ export async function estornarMovimentacao(input: {
     .select('id, filial_id')
     .eq('id', mov.ativo_id)
     .single()
-  if (ativoErr) return { ok: false, erro: traduzErroBanco(ativoErr.message) }
+  if (ativoErr) return { ok: false, erro: traduzErroBanco(ativoErr.message, ativoErr.code) }
 
   const { error: insertErr } = await supabase.from('movimentacoes').insert({
     ativo_id: mov.ativo_id,
@@ -285,7 +285,7 @@ export async function estornarMovimentacao(input: {
     criado_por: uid,
   })
 
-  if (insertErr) return { ok: false, erro: traduzErroBanco(insertErr.message) }
+  if (insertErr) return { ok: false, erro: traduzErroBanco(insertErr.message, insertErr.code) }
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${mov.ativo_id}`)

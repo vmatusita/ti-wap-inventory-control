@@ -119,7 +119,7 @@ export async function gerarRelatorio(input: {
     .single()
 
   if (error || !inserido) {
-    return { ok: false, erro: traduzErroBanco(error?.message) }
+    return { ok: false, erro: traduzErroBanco(error?.message, error?.code) }
   }
 
   revalidatePath('/relatorios/gerados')

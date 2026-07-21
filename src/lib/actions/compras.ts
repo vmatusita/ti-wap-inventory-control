@@ -59,7 +59,7 @@ export async function registrarCompra(
     .select('patrimonio, service_tag')
     .in('patrimonio', patrimonios)
   if (exErr) {
-    return { ok: false, criados: [], erroGeral: traduzErroBanco(exErr.message) }
+    return { ok: false, criados: [], erroGeral: traduzErroBanco(exErr.message, exErr.code) }
   }
   // Um lote de compra sempre tem patrimônio canônico; ativos existentes sem
   // patrimônio (F7E) nunca colidem com ele — filtra os nulos antes da chave.
@@ -105,7 +105,7 @@ export async function registrarCompra(
   })
 
   if (error) {
-    return { ok: false, criados: [], erroGeral: traduzErroBanco(error.message) }
+    return { ok: false, criados: [], erroGeral: traduzErroBanco(error.message, error.code) }
   }
 
   revalidatePath('/ativos')

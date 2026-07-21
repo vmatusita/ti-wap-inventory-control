@@ -143,7 +143,7 @@ export async function criarFilial(input: {
     if (error.message.toLowerCase().includes('duplicate')) {
       return { ok: false, erro: 'Já existe uma filial com esse slug.' }
     }
-    return { ok: false, erro: traduzErroBanco(error.message) }
+    return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
   revalidatePath('/admin/filiais')
   return { ok: true }
@@ -187,7 +187,7 @@ export async function atualizarFilial(input: {
     if (error.message.toLowerCase().includes('duplicate')) {
       return { ok: false, erro: 'Já existe uma filial com esse slug.' }
     }
-    return { ok: false, erro: traduzErroBanco(error.message) }
+    return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
   revalidatePath('/admin/filiais')
   return { ok: true }
@@ -212,7 +212,7 @@ export async function criarMotivo(input: {
     if (error.message.toLowerCase().includes('duplicate')) {
       return { ok: false, erro: 'Já existe um motivo com esse código.' }
     }
-    return { ok: false, erro: traduzErroBanco(error.message) }
+    return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
   revalidatePath('/admin/motivos')
   return { ok: true }
@@ -238,7 +238,7 @@ export async function atualizarMotivo(input: {
     .from('motivos')
     .update({ rotulo, aplica_a, ativo })
     .eq('codigo', codigo)
-  if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   revalidatePath('/admin/motivos')
   return { ok: true }
 }

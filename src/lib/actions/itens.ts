@@ -45,7 +45,7 @@ export async function lancarItem(input: LancamentoItemInput): Promise<ActionResu
     observacao: v.observacao ?? null,
     criado_por: uid,
   })
-  if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   revalidatePath('/itens')
   revalidatePath('/relatorios', 'layout')
@@ -69,7 +69,7 @@ export async function estornarLancamento(input: {
     .select('id, item_id, filial_id, tipo, quantidade, chamado, observacao, estorna_id')
     .eq('id', parsed.data.lancamento_id)
     .maybeSingle()
-  if (e1) return { ok: false, erro: traduzErroBanco(e1.message) }
+  if (e1) return { ok: false, erro: traduzErroBanco(e1.message, e1.code) }
   if (!orig) return { ok: false, erro: 'Lançamento não encontrado.' }
   if (orig.estorna_id) {
     return { ok: false, erro: 'Um estorno não pode ser estornado.' }
@@ -101,7 +101,7 @@ export async function estornarLancamento(input: {
     criado_por: uid,
     estorna_id: orig.id,
   })
-  if (e2) return { ok: false, erro: traduzErroBanco(e2.message) }
+  if (e2) return { ok: false, erro: traduzErroBanco(e2.message, e2.code) }
 
   revalidatePath('/itens')
   revalidatePath('/relatorios', 'layout')
@@ -128,7 +128,7 @@ export async function criarItem(input: {
     if (error.message.toLowerCase().includes('duplicate') || error.message.includes('itens_nome_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
     }
-    return { ok: false, erro: traduzErroBanco(error.message) }
+    return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
   revalidatePath('/admin/itens')
   revalidatePath('/itens')
@@ -161,7 +161,7 @@ export async function atualizarItem(input: {
     if (error.message.toLowerCase().includes('duplicate') || error.message.includes('itens_nome_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
     }
-    return { ok: false, erro: traduzErroBanco(error.message) }
+    return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
   revalidatePath('/admin/itens')
   revalidatePath('/itens')
@@ -189,7 +189,7 @@ export async function excluirItem(input: { id: number }): Promise<ActionResult> 
   }
 
   const { error } = await supabase.from('itens').delete().eq('id', id)
-  if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   revalidatePath('/admin/itens')
   revalidatePath('/itens')
   return { ok: true }
