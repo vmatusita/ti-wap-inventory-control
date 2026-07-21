@@ -978,3 +978,20 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 *Reversível?* sim — `create or replace` da RPC da 0036 (formato canônico de volta) + reverter o código. Nenhum dado a desfazer.
 
 *Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7J), `README.md`, e esta entrada.
+
+---
+
+## 2026-07-20 · F7K · Import: modelo que repete a marca é auto-corrigido (não duplica no rótulo)
+
+*Contexto (Johnny, na tela):* alguns modelos trazem a marca repetida no início — marca `HP` + modelo `HP Pro SFF 280 G9` → o rótulo marca+modelo (`modeloDe` / lista / ficha, que só concatenam) saía **"HP HP Pro SFF 280 G9"**. Conferido no banco PROD: o padrão é SEMPRE modelo começando com a marca (HP 36×, Iphone, Dell, Motorola…); a marca nunca vem duplicada nela mesma, nem o modelo tem "HP HP" sozinho. Distribuição: Matriz 68, Linhares 3, CD 2, Serra 2.
+
+*Decisão (Johnny, 20/07/2026):* corrigir **automaticamente no import** — o modelo perde a marca-prefixo (palavra INTEIRA, caixa-insensível) quando repete a marca. Corrige na FONTE: com o `modelo` limpo no banco, TODOS os pontos que exibem marca+modelo (relatório `modeloDe`, lista `ativos-table`, ficha, termos, combobox) saem certos sem tocar em cada display.
+
+*Implementação (deploy-only, SEM migration):*
+- `src/lib/import/deparas.ts`: `modeloSemMarca(marca, modelo)` — folha pura/client-safe. Só toca o INÍCIO (nunca o meio); modelo = só a marca → null; whole-word (`HPX 200` NÃO é tocado por marca `HP`). `src/lib/import/plano.ts`: o ativo do plano usa `modeloSemMarca(marca, limparCampo(modelo))`.
+- Testes `deparas.test.ts` (HP/Iphone/Dell/whole-word/só-marca) + `plano.test.ts` (integração). `lint`+`test`(567)+`build` verdes.
+- **Dados JÁ existentes:** a re-importação da Matriz limpa os 68 dela; para os 7 das outras filiais (não reimportadas) há um **UPDATE opcional** entregue em `scratchpad/f7k-limpeza-modelo-existente.sql` (backup + UPDATE idempotente + conferência). **Não roda automático** — filiais fora do pedido; decisão do Johnny.
+
+*Reversível?* sim — código puro, sem banco (o UPDATE opcional tem backup próprio). Só afeta imports futuros.
+
+*Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7K), `README.md`, e esta entrada.

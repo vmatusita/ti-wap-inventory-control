@@ -594,3 +594,18 @@ describe('hash', () => {
     expect(h1).not.toBe(h3)
   })
 })
+
+// F7K (Johnny 20/07/2026) — modelo que repete a marca é auto-corrigido no import.
+describe('F7K — modelo sem marca duplicada', () => {
+  it('marca "HP" + modelo "HP Pro SFF 280 G9" → plano guarda modelo "Pro SFF 280 G9"', () => {
+    const r = validarMatriz([rowMatriz({ Marca: 'HP', Modelo: 'HP Pro SFF 280 G9' })])
+    expect(r.bloqueantes).toHaveLength(0)
+    const a = r.plano!.ativos[0]!
+    expect(a.marca).toBe('HP')
+    expect(a.modelo).toBe('Pro SFF 280 G9') // sem o "HP" repetido → rótulo "HP Pro SFF 280 G9"
+  })
+  it('modelo que não repete a marca é preservado', () => {
+    const r = validarMatriz([rowMatriz({ Marca: 'Dell', Modelo: 'Latitude 5490' })])
+    expect(r.plano!.ativos[0]!.modelo).toBe('Latitude 5490')
+  })
+})

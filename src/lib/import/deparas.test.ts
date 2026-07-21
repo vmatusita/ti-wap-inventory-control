@@ -12,6 +12,7 @@ import {
   limparCampo,
   mapearCategoria,
   mapearUnidade,
+  modeloSemMarca,
   normalizarHeader,
   normalizarServiceTag,
   normalizarTexto,
@@ -416,5 +417,29 @@ describe('parseColaboradorInventario', () => {
     })
     expect(parseColaboradorInventario('Ciclano')).toEqual({ colaborador: 'Ciclano', setor: null })
     expect(parseColaboradorInventario('-')).toEqual({ colaborador: null, setor: null })
+  })
+})
+
+// F7K (Johnny 20/07/2026) — modelo que repete a marca no início vira só o resto.
+describe('modeloSemMarca (F7K — não duplica a marca no modelo)', () => {
+  it('modelo que começa com a marca → tira a marca-prefixo (whole word, caixa-insensível)', () => {
+    expect(modeloSemMarca('HP', 'HP Pro SFF 280 G9')).toBe('Pro SFF 280 G9')
+    expect(modeloSemMarca('Iphone', 'Iphone 15 Pro')).toBe('15 Pro')
+    expect(modeloSemMarca('DELL', 'Dell E2222HS')).toBe('E2222HS')
+    expect(modeloSemMarca('Motorola', 'Motorola G60')).toBe('G60')
+  })
+  it('não toca modelo que NÃO começa com a marca (ou sem marca)', () => {
+    expect(modeloSemMarca('HP', 'Pro SFF 280 G9')).toBe('Pro SFF 280 G9')
+    expect(modeloSemMarca('HP', 'HPX 200')).toBe('HPX 200') // não é palavra inteira
+    expect(modeloSemMarca(null, 'HP Pro')).toBe('HP Pro')
+    expect(modeloSemMarca('', 'HP Pro')).toBe('HP Pro')
+    expect(modeloSemMarca(undefined, 'HP Pro')).toBe('HP Pro')
+  })
+  it('modelo que é SÓ a marca → null; vazio → null', () => {
+    expect(modeloSemMarca('HP', 'HP')).toBeNull()
+    expect(modeloSemMarca('HP', 'hp')).toBeNull()
+    expect(modeloSemMarca('HP', '  HP  ')).toBeNull()
+    expect(modeloSemMarca('HP', '')).toBeNull()
+    expect(modeloSemMarca('HP', null)).toBeNull()
   })
 })

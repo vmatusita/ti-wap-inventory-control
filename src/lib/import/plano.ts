@@ -36,6 +36,7 @@ import {
   extrairPatrimonioDoHostname,
   filialPorSlug,
   limparCampo,
+  modeloSemMarca,
   mapearCategoria,
   mapearUnidade,
   normalizarServiceTag,
@@ -262,6 +263,9 @@ export function montarPlanoImport(
       })
     }
 
+    // F7K: modelo que repete a marca no início ("HP" + "HP Pro …") é auto-corrigido para
+    // não duplicar no rótulo marca+modelo ("HP HP …" → "HP Pro …").
+    const marca = limparCampo(reg.marca)
     const ativo: AtivoPlano = {
       patrimonio,
       // F7-pós: marcador de ausência (`n/a`, `SEM PATRIMONIO`…) NÃO é preservado no
@@ -271,8 +275,8 @@ export function montarPlanoImport(
       patrimonioOriginal: eraVazio ? '' : reg.patrimonio.trim(),
       serviceTag,
       categoria,
-      marca: limparCampo(reg.marca),
-      modelo: limparCampo(reg.modelo),
+      marca,
+      modelo: modeloSemMarca(marca, limparCampo(reg.modelo)),
       fornecedor: limparCampo(reg.fornecedor),
       memoria: limparCampo(reg.memoria),
       armazenamento: limparCampo(reg.armazenamento),

@@ -47,6 +47,27 @@ export function limparCampo(raw: string | undefined | null): string | null {
   return t
 }
 
+// F7K (Johnny 20/07/2026): o modelo às vezes REPETE a marca no início (`marca=HP`,
+// `modelo=HP Pro SFF 280 G9`) → o rótulo marca+modelo saía "HP HP Pro SFF 280 G9". Aqui
+// o modelo perde a marca-prefixo (palavra INTEIRA, caixa-insensível) → "Pro SFF 280 G9",
+// e o rótulo vira "HP Pro SFF 280 G9". Casos reais: HP/Iphone/Dell/Motorola. Nunca toca
+// o meio do texto (só o início) nem inventa nada; se o modelo é SÓ a marca, vira null.
+/** Modelo sem a marca repetida no início (evita "HP HP …"). null se sobrar vazio. */
+export function modeloSemMarca(
+  marca: string | null | undefined,
+  modelo: string | null | undefined,
+): string | null {
+  const mod = (modelo ?? '').replace(/\s+/g, ' ').trim()
+  const mar = (marca ?? '').replace(/\s+/g, ' ').trim()
+  if (mod === '') return null
+  if (mar === '') return mod
+  const modL = mod.toLowerCase()
+  const marL = mar.toLowerCase()
+  if (modL === marL) return null // o modelo é só a marca
+  if (modL.startsWith(marL + ' ')) return mod.slice(mar.length).trim() || null
+  return mod
+}
+
 // F7E (OS §2.2) — patrimônio "vazio na prática". Amplia `VAZIOS` com os dizeres
 // explícitos "sem patrimônio". Diferente da F7: aqui o vazio NÃO bloqueia — o ativo
 // importa com patrimônio NULO e pendência "sem patrimônio físico" (spec §10.2). A
