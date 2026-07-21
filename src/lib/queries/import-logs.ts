@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { chavePatrimonio } from '@/lib/patrimonio'
+import { chavePatrimonio, SEM_PATRIMONIO } from '@/lib/patrimonio'
 import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import type { Database } from '@/lib/types/database'
 
@@ -88,12 +88,10 @@ async function contarAnotacoes(client: DbClient, ids: string[]): Promise<number>
   return total
 }
 
-// F7E — sentinela do espaço de chaves dos ativos SEM patrimônio: `∅` (U+2205). TEM
-// de ser idêntico ao `SEM_PATRIMONIO` de `src/lib/import/plano.ts`: a chave que esta
-// query devolve para os nulos-com-tag (`∅::<service_tag>`) é a MESMA que o motor monta
-// na 2ª passada de `validarCsvImport` (`existentesEmOutraFilial.get(chaveBanco)`).
-// Mudar aqui sem mudar lá quebra silenciosamente a detecção — sincronia é contrato.
-const SEM_PATRIMONIO = '∅'
+// F7E — a chave que esta query devolve para os nulos-com-tag (`∅::<service_tag>`) é a
+// MESMA que o motor monta na 2ª passada de `validarCsvImport`
+// (`existentesEmOutraFilial.get(chaveBanco)`); por isso `SEM_PATRIMONIO` é importado de
+// @/lib/patrimonio (fonte única) — antes era duplicado aqui e em plano.ts.
 
 /**
  * F7C — quais das linhas do CSV já existem no banco em OUTRA filial. Devolve uma
@@ -210,15 +208,6 @@ export async function custoSubstituir(
     custo: { ativos: ids.length, movimentacoes, anotacoes, termos },
     termosMultiFilial,
   }
-}
-
-// Só as 4 contagens — para comparar o estado da filial entre o preview e o aplicar
-// (se mudou, o aplicar aborta e pede para regerar o preview).
-export async function contagensParaRevalidar(
-  client: DbClient,
-  filialId: number,
-): Promise<CustoSubstituir> {
-  return (await custoSubstituir(client, filialId)).custo
 }
 
 // Exporta o acervo da filial para o backup (JSON) gravado antes da RPC. Espelha o

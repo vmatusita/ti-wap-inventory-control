@@ -318,6 +318,15 @@ export const SITUACAO_CANONICA: Record<Exclude<StatusAtivo, 'descartado'>, strin
 
 export type ParseDataResult = { iso: string | null; invalida: boolean; futura: boolean }
 
+/** Hoje (data LOCAL) no formato `yyyy-MM-dd` que `parseData` compara para "não futura".
+ *  FONTE ÚNICA (era duplicado byte a byte no motor `plano.ts`, no Zod `validators/
+ *  importar.ts` e no cérebro dos botões `ops-grupo.ts`): a régua "data não futura"
+ *  depende de os chamadores concordarem sobre "hoje". */
+export function hojeIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const DATA_VAZIA = new Set(['', '-', 'n/a', 'na'])
 
 export function parseData(raw: string | null | undefined, hoje: string): ParseDataResult {

@@ -13,6 +13,7 @@ import {
   type ValidacaoImport,
 } from '@/lib/import'
 import { correcoesSchema, parseCorrecoesJson } from '@/lib/validators/importar'
+import { TAMANHO_MAX_ARQUIVO, TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
 import {
   custoSubstituir,
   exportarAcervoFilial,
@@ -34,12 +35,8 @@ import type { Json } from '@/lib/types/database'
 // trilha de auditoria no aplicar (`import_logs.correcoes`) — o arquivo enviado
 // continua imutável e o `arquivoHash` continua sendo o do arquivo ORIGINAL.
 
-// DECISÃO (W3): limite de 5 MB para o arquivo de import (CSV ou XLSX — F7G). O maior
-// inventário real das 5 filiais fica na casa de dezenas/centenas de KB; 5 MB cobre
-// folgadamente e barra upload acidental de arquivo errado (um dump gigante). O .xlsx
-// é comprimido, então 5 MB brutos já são muitíssimas linhas; o leitor tem tetos
-// próprios de linhas/colunas (src/lib/import/xlsx.ts) contra planilha absurda.
-const TAMANHO_MAX = 5 * 1024 * 1024
+// Limite de tamanho do arquivo: `TAMANHO_MAX_ARQUIVO` (fonte única em
+// `@/lib/import/limites`, compartilhada com o wizard).
 
 // ---- schemas -------------------------------------------------------------
 
@@ -152,10 +149,10 @@ function lerArquivoImport(formData: FormData): { ok: true; arquivo: File } | { o
     return { ok: false, erro: 'O arquivo precisa ter extensão .csv ou .xlsx.' }
   }
   if (arquivo.size === 0) return { ok: false, erro: 'O arquivo está vazio.' }
-  if (arquivo.size > TAMANHO_MAX) {
+  if (arquivo.size > TAMANHO_MAX_ARQUIVO) {
     return {
       ok: false,
-      erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB — o limite é 5 MB.`,
+      erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB — o limite é ${TAMANHO_MAX_ROTULO}.`,
     }
   }
   return { ok: true, arquivo }

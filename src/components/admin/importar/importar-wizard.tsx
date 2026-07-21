@@ -36,6 +36,7 @@ import type {
   ValidacaoImport,
 } from '@/lib/import'
 import { extrairPatrimonioDoHostname } from '@/lib/import/deparas'
+import { TAMANHO_MAX_ARQUIVO, TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
 import { TabelaErros } from '@/components/admin/importar/tabela-erros'
 import { GruposErros } from '@/components/admin/importar/grupos-erros'
 import { CorrecoesAplicadas } from '@/components/admin/importar/correcoes-aplicadas'
@@ -47,9 +48,21 @@ import {
   type ResultadoImport,
 } from '@/lib/actions/importar'
 
-const TAMANHO_MAX = 5 * 1024 * 1024
-
 const PASSOS = ['Configurar', 'Upload', 'Preview', 'Confirmar', 'Resultado'] as const
+
+// Dispara o download de um Blob no navegador (âncora temporária). FONTE ÚNICA — era
+// repetido em 3 lugares (erros, CSV corrigido, backup) com o mesmo boilerplate
+// createObjectURL → <a download> → click → revokeObjectURL.
+function baixarBlob(blob: Blob, nome: string) {
+  const u = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = u
+  a.download = nome
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(u)
+}
 
 type Previa = {
   filial: Filial
@@ -73,14 +86,7 @@ function baixarCsvErros(erros: ErroImport[], nomeBase: string) {
   ]
   const conteudo = '﻿' + linhas.join('\r\n')
   const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8' })
-  const u = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = u
-  a.download = `erros-import-${nomeBase}.csv`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(u)
+  baixarBlob(blob, `erros-import-${nomeBase}.csv`)
 }
 
 function NumeroGrande({
@@ -290,9 +296,9 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
       const nome = f.name.toLowerCase()
       if (!nome.endsWith('.csv') && !nome.endsWith('.xlsx')) {
         setErroUpload('O arquivo precisa ter extensão .csv ou .xlsx.')
-      } else if (f.size > TAMANHO_MAX) {
+      } else if (f.size > TAMANHO_MAX_ARQUIVO) {
         setErroUpload(
-          `O arquivo tem ${(f.size / 1024 / 1024).toFixed(1)} MB — o limite é 5 MB.`,
+          `O arquivo tem ${(f.size / 1024 / 1024).toFixed(1)} MB — o limite é ${TAMANHO_MAX_ROTULO}.`,
         )
       } else if (f.size === 0) {
         setErroUpload('O arquivo está vazio.')
@@ -375,14 +381,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
       }
       // BOM na hora de baixar (padrão de export do projeto: abre direto no Excel).
       const blob = new Blob(['﻿' + res.conteudo], { type: 'text/csv;charset=utf-8' })
-      const u = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = u
-      a.download = res.nome
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(u)
+      baixarBlob(blob, res.nome)
     } catch {
       toast.error('Falha ao gerar o CSV corrigido.')
     } finally {
@@ -439,14 +438,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
       // .blob() salvaria o corpo de erro como um .json de backup corrompido.
       if (!r.ok) throw new Error(`download falhou: ${r.status}`)
       const b = await r.blob()
-      const u = URL.createObjectURL(b)
-      const a = document.createElement('a')
-      a.href = u
-      a.download = `backup-${slug}.json`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(u)
+      baixarBlob(b, `backup-${slug}.json`)
     } catch {
       toast.error('Falha ao baixar o backup.')
     } finally {

@@ -1068,3 +1068,20 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 - **(opcional, escala atual não exige)** índices de FK sem cobertura, `(select auth.uid())` na policy `atualiza proprio perfil`, dropar índice `rel_gerados_periodo_idx` não usado.
 
 *Por-design (NÃO são achados):* as policies `rls_policy_always_true` (`operador escreve/insere/…` com `USING/CHECK true`) refletem o modelo de acesso do projeto — todo operador autenticado é `@wap.ind.br` de nível único (spec §3); as regras de negócio vivem nos triggers, não na RLS. `importar_ativos_substituir` executável por `authenticated` é intencional (é a RPC do import de startup do operador).
+
+---
+
+## 2026-07-21 · dívida técnica · Auditoria + remediação em faixas (skill tech-debt, autônoma)
+
+*Contexto:* o Johnny pediu a skill `tech-debt` no projeto inteiro e, na sequência, autorizou executar **todas as faixas** do plano de forma autônoma (commits e push para `main`). A auditoria completa está em `docs/DIVIDA-TECNICA.md` (17 itens pontuados por `(Impacto+Risco)×(6−Esforço)`, plano em 5 faixas). A base é madura (TS strict, zero `any`, quase nenhum marcador de dívida); a dívida real é **acoplamento por convenção/comentário** (mesmo fato em 2–3 camadas sincronizadas à mão) + processo de banco frágil (gate → migrations destrutivas à mão em prod).
+
+*Disciplina de execução:* baseline verde antes de tocar em nada; `lint`+`test`+`build` verdes ao fim de cada faixa; **revisão adversarial multi-agente** de cada diff antes do commit; DDL destrutiva (bate no gate) vira migration + SQL de handoff para o Johnny, nunca aplicada às cegas.
+
+### Faixa 0 — higiene imediata (itens B, H, I, J) — FEITA
+*Decisão (aplicada, deploy-only, sem mudança de comportamento — revisão adversarial de 3 lentes: 0 achados):*
+1. **J — dedup de utilitários (fonte única):** `hojeIso()` (3 cópias byte-idênticas → export em `import/deparas.ts`); `SEM_PATRIMONIO` `'∅'` (2 cópias → export em `lib/patrimonio.ts`); `TAMANHO_MAX` 5 MB (2 cópias → novo leaf `import/limites.ts`, com o rótulo e a relação com o `bodySizeLimit` de 8 MB documentados); os 3 blocos de download-blob do wizard → 1 helper `baixarBlob`.
+2. **I — código morto:** removida a função exportada `contagensParaRevalidar` (0 chamadores no repo, confirmado). **NÃO removido** (a auditoria superestimou o escopo — verificação antes de limpar): o enum `'outro'` de `CategoriaAtivo` é **valor REAL** do enum `categoria_ativo` no banco (migration 0002, rótulo no seed 0007) — removê-lo criaria a divergência TS↔banco que a própria auditoria condena; e o `schema.sql` **já tem** banner de depreciação forte no topo, então o "trap" não existe. As migrations `0035` (superada pela 0036) e o gap `0029` são histórico imutável — ficam.
+3. **H — sincronia de contrato TS↔SQL:** novo teste `src/lib/marcadores-sql.test.ts` trava o marcador `OBS_IMPORT_STARTUP` contra o literal hard-coded nas migrations da RPC de import (`'import startup ' || to_char`) — um rename silencioso de um lado reexporia ~1.576 linhas de abertura nas Entradas do relatório de prod. O `OBS_CARGA_GOLIVE` já era fonte única (o script F4 importa a constante de `dominio.ts`) — o teste também trava isso.
+4. **B — backups órfãos (preparado p/ o Johnny, DESTRUTIVO):** confirmado em prod (read-only) que F8 aterrissou (1.213 compras `import startup%` na Matriz) e F7K concluiu → os backups `_f8_backup_matriz_compras` (809) e `_f7k_backup_modelo` (75) são rede de rollback já dispensável. Migration `0039_drop_backups_orfaos.sql` (`drop table if exists`, idempotente em ensaio/fresh) + `scratchpad/f0-drop-backups-producao.sql` (com bloco de conferência antes do DROP). **`_bkp_relatorios_gerados_f6a` fica de fora** — atrelado à decisão pendente dos 2 snapshots de go-live (chip). A `0039` e o SQL de prod ficam para o Johnny rodar no SQL Editor (mesmo caminho das DDLs destrutivas anteriores).
+
+*Verificação:* `lint` limpo, **575** testes (era 567; +8 do teste de sincronia), `build` verde.

@@ -76,6 +76,13 @@ export function chavePatrimonio(patrimonio: string, serviceTag?: string | null):
   return `${patrimonio}::${serviceTag ?? ''}`
 }
 
+// F7E — sentinela do espaço de chaves dos ativos SEM patrimônio: `∅` (U+2205).
+// U+2205 nunca ocorre num patrimônio canônico ([A-Z]{2,4}\d{7}), então convive sem
+// colisão com as chaves dos ativos com patrimônio. FONTE ÚNICA (era duplicado em
+// plano.ts e import-logs.ts): o motor (plano.ts), a query F7C (import-logs.ts) e a
+// RPC do banco montam a MESMA chave `∅::<...>` — mudar aqui muda os três de uma vez.
+export const SEM_PATRIMONIO = '∅'
+
 // Quais patrimônios da lista aparecem em MAIS DE UM item — a duplicidade legítima
 // do §5 (mesmo patrimônio em ativos distintos), usada para sinalizar/desambiguar
 // na UI. Conta pelo patrimônio SOZINHO (≠ chavePatrimonio, que é o par único).

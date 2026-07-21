@@ -12,7 +12,7 @@
 //
 // VALOR só dos módulos-folha PUROS do motor (o barrel `@/lib/import` re-exporta
 // `plano.ts`, que puxa node:crypto e é server-only); daqui só TIPO.
-import { parseData, SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
+import { hojeIso, parseData, SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 import type {
   CampoEditavel,
@@ -36,11 +36,6 @@ export function chaveMassa(grupo: GrupoErro): string {
 /** Chave do valor PONTUAL de uma célula (patrimônio/colaborador/data/service tag). */
 export function chaveLinha(linha: number, campo: CampoEditavel): string {
   return `l|${linha}|${campo}`
-}
-
-function hojeIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** dd/MM/aaaa válida e não futura — espelha a régua do motor (`parseData`). */

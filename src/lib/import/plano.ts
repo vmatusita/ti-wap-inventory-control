@@ -22,7 +22,7 @@
 // continua sendo o sha-256 do buffer ORIGINAL, nunca do corrigido.
 
 import { createHash } from 'node:crypto'
-import { canonicalizarPatrimonio, chavePatrimonio } from '@/lib/patrimonio'
+import { canonicalizarPatrimonio, chavePatrimonio, SEM_PATRIMONIO } from '@/lib/patrimonio'
 import {
   agruparErros,
   aplicarCorrecoes,
@@ -35,6 +35,7 @@ import {
   extrairChamado,
   extrairPatrimonioDoHostname,
   filialPorSlug,
+  hojeIso,
   limparCampo,
   modeloSemMarca,
   mapearCategoria,
@@ -67,19 +68,11 @@ import type {
 
 // ---------------------------------------------------------------------------
 
-function hojeIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// F7E — sentinela do espaço de chaves para ativos SEM patrimônio. U+2205 (∅) nunca
-// ocorre num patrimônio canônico ([A-Z]{2,4}\d{7}), então convive sem colisão com
-// as chaves dos ativos com patrimônio. ATENÇÃO: há DOIS espaços de chave distintos
-// e propositais (§ contrato) — o DEDUPE (linhas repetidas no MESMO CSV) usa a tag
-// UPPERCASED via `chaveServiceTag` (espelha coalesce(service_tag,'') do índice); a
-// F7C (lookup em OUTRA filial) usa a tag RAW/exata (espelha o índice parcial do
-// banco). É o mesmo padrão pré-existente dos com-patrimônio, replicado para os nulos.
-const SEM_PATRIMONIO = '∅'
+// ATENÇÃO — `SEM_PATRIMONIO` (importado de @/lib/patrimonio) tem DOIS espaços de
+// chave distintos e propositais (§ contrato): o DEDUPE (linhas repetidas no MESMO
+// CSV) usa a tag UPPERCASED via `chaveServiceTag` (espelha coalesce(service_tag,'')
+// do índice); a F7C (lookup em OUTRA filial) usa a tag RAW/exata (espelha o índice
+// parcial do banco). Mesmo padrão dos com-patrimônio, replicado para os nulos.
 
 /** sha-256 (hex) do conteúdo bruto do arquivo — estável entre reexecuções. */
 export function hashConteudo(input: ArrayBuffer | Uint8Array): string {

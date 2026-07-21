@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { parseData } from '@/lib/import'
+import { hojeIso } from '@/lib/import/deparas'
 import type { CampoEditavel, CorrecaoImport } from '@/lib/import'
 
 // Schema das CORREÇÕES do import de startup (OS-F7B / W3). Único lugar do schema:
@@ -54,12 +55,6 @@ const CAMPOS_EDITAVEIS = [
 const CAMPOS_SUBSTITUIVEIS = ['site', 'tipo'] as const satisfies readonly CampoEditavel[]
 
 const CAMPOS_DATA: ReadonlySet<CampoEditavel> = new Set(['dataInclusao', 'dataEntrega'])
-
-/** Hoje (data local) no formato de `parseData` — espelha o `hojeIso` do motor. */
-function hojeIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 const valorCru = z.string().max(MAX_CRU, 'Valor do CSV longo demais para uma correção.').trim()
 
