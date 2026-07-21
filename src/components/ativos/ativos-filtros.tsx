@@ -118,7 +118,7 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
         <Input
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar patrimônio, colaborador ou modelo…"
+          placeholder="Buscar patrimônio, colaborador, marca ou modelo…"
           className="pl-8"
           aria-label="Buscar ativos"
         />

@@ -69,9 +69,12 @@ export async function listarAtivos(
 
   const termo = params.q ? sanitizeTerm(params.q) : ''
   if (termo) {
-    // Busca livre: patrimonio OU colaborador OU modelo (spec §6.3 / OS-F2 3.1.2).
+    // Busca livre: patrimonio OU colaborador OU marca OU modelo (spec §6 tela 3 /
+    // OS-F2 3.1.2). `marca` entrou na F7K: antes a marca era pesquisável só por
+    // acidente (vinha duplicada no `modelo`); ao limpar o modelo na fonte, a busca
+    // por marca sumiu — agora ela é um campo de busca de verdade.
     query = query.or(
-      `patrimonio.ilike.%${termo}%,colaborador_atual.ilike.%${termo}%,modelo.ilike.%${termo}%`,
+      `patrimonio.ilike.%${termo}%,colaborador_atual.ilike.%${termo}%,marca.ilike.%${termo}%,modelo.ilike.%${termo}%`,
     )
   }
   if (params.filialId) query = query.eq('filial_id', params.filialId)
@@ -240,11 +243,12 @@ async function patrimoniosDuplicados(
   )
 }
 
-// Busca do combobox (OS-F2 3.5.1): por patrimônio OU modelo OU service tag OU
-// hostname (F7E — o ativo sem patrimônio precisa ser encontrável no fluxo de
-// movimentação; a plaqueta pode não existir, mas a tag/hostname identificam). Até
-// 12 resultados. Ordena null-last (patrimônio nulo cai no fim; NULLS FIRST é o
-// default do PostgREST em asc, então força nullsFirst:false).
+// Busca do combobox (OS-F2 3.5.1): por patrimônio OU marca OU modelo OU service
+// tag OU hostname (F7E — o ativo sem patrimônio precisa ser encontrável no fluxo
+// de movimentação; a plaqueta pode não existir, mas a tag/hostname identificam;
+// `marca` entrou na F7K junto com a lista, ver `listarAtivos`). Até 12 resultados.
+// Ordena null-last (patrimônio nulo cai no fim; NULLS FIRST é o default do
+// PostgREST em asc, então força nullsFirst:false).
 export async function buscarAtivosParaCombobox(
   term: string,
 ): Promise<AtivoResumo[]> {
@@ -256,7 +260,7 @@ export async function buscarAtivosParaCombobox(
     .from('ativos')
     .select(RESUMO_SELECT)
     .or(
-      `patrimonio.ilike.%${termo}%,modelo.ilike.%${termo}%,service_tag.ilike.%${termo}%,hostname.ilike.%${termo}%`,
+      `patrimonio.ilike.%${termo}%,marca.ilike.%${termo}%,modelo.ilike.%${termo}%,service_tag.ilike.%${termo}%,hostname.ilike.%${termo}%`,
     )
     .order('patrimonio', { ascending: true, nullsFirst: false })
     .limit(12)

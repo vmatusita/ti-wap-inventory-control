@@ -995,3 +995,20 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 *Reversível?* sim — código puro, sem banco (o UPDATE opcional tem backup próprio). Só afeta imports futuros.
 
 *Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7K), `README.md`, e esta entrada.
+
+---
+
+## 2026-07-21 · F7K-fix · Busca de ativos por MARCA (regressão da F7K)
+
+*Contexto (Johnny, na conversa):* depois da F7K ("modelo que repete a marca é auto-corrigido"), **deixou de ser possível pesquisar ativo por marca** na lista `/ativos`.
+
+*Causa raiz:* a busca livre de ativos (`listarAtivos` em `src/lib/queries/ativos.ts`) sempre filtrou só por `patrimonio`, `colaborador_atual` e `modelo` — **nunca** pela coluna `marca` (a spec §6, tela 3, dizia "patrimônio/colaborador/modelo"). Pesquisar por marca "funcionava por acidente" porque a marca vinha **duplicada no início do `modelo`** (`modelo = "HP Pro SFF 280 G9"`), então `modelo.ilike.%HP%` casava. A F7K limpou a marca-prefixo do modelo na fonte (`modelo = "Pro SFF 280 G9"`) — corrigiu o rótulo, mas eliminou essa busca lateral, que nunca foi intencional na query. O mesmo valia para o autocomplete de "nova movimentação" (`buscarAtivosParaCombobox`).
+
+*Decisão:* tornar a **marca um campo de busca de verdade** (por intenção, não por acidente) — coerente com o fato de a lista/ficha/relatórios já exibirem marca+modelo juntos. Adiciona `marca.ilike.%termo%` ao `.or()` das duas buscas de ativo.
+
+*Implementação (deploy-only, SEM migration — só query + textos):*
+- `src/lib/queries/ativos.ts`: `.or()` de `listarAtivos` e de `buscarAtivosParaCombobox` passam a incluir `marca`. `sanitizeTerm` já protege o parser do `.or()`.
+- Placeholders atualizados: `ativos-filtros.tsx` ("…colaborador, marca ou modelo…") e `ativo-combobox.tsx` ("Buscar patrimônio, marca ou modelo…").
+- `docs/ESPECIFICACAO.md` §6 tela 3: busca por "patrimônio/colaborador/marca/modelo".
+
+*Reversível?* sim — remover `marca.ilike` dos dois `.or()`. Nenhum dado tocado; sem banco.

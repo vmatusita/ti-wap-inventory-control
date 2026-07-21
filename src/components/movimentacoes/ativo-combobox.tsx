@@ -67,7 +67,7 @@ export function AtivoCombobox({
           value={query}
           onValueChange={setQuery}
           autoFocus={autoFocus}
-          placeholder="Buscar patrimônio ou modelo… (mín. 2 caracteres)"
+          placeholder="Buscar patrimônio, marca ou modelo… (mín. 2 caracteres)"
         />
         <CommandList>
           {carregando && (
