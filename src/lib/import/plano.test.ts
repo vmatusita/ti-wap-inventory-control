@@ -274,8 +274,9 @@ describe('F7E — patrimônio vazio → nulo + aviso patrimonio_vazio', () => {
     expect(r.bloqueantes).toHaveLength(0)
     expect(r.plano).not.toBeNull()
     expect(r.plano!.ativos.every((a) => a.patrimonio === null)).toBe(true)
-    // patrimonioOriginal guarda o cru mesmo com patrimônio nulo
-    expect(r.plano!.ativos.map((a) => a.patrimonioOriginal)).toEqual(['', 'n/a', 'SEM PATRIMONIO', '-'])
+    // F7-pós: marcador de ausência NÃO fica no patrimonioOriginal (vazio → RPC nula →
+    // ficha mostra "—"). Só valor com conteúdo real (fora de formato) é preservado.
+    expect(r.plano!.ativos.map((a) => a.patrimonioOriginal)).toEqual(['', '', '', ''])
     expect(r.avisos.filter((e) => e.tipo === 'patrimonio_vazio')).toHaveLength(4)
     expect(r.resumo.semPatrimonio).toBe(4)
   })
@@ -401,7 +402,7 @@ describe('F7F — auto-preenchimento do patrimônio pelo hostname', () => {
       expect(r.bloqueantes).toHaveLength(0)
       const a = r.plano!.ativos[0]!
       expect(a.patrimonio).toBe('WAP0001234')
-      expect(a.patrimonioOriginal).toBe(vazio) // guarda o cru mesmo auto-preenchido
+      expect(a.patrimonioOriginal).toBe('') // F7-pós: marcador de ausência não é preservado
       expect(r.avisos.filter((e) => e.tipo === 'patrimonio_do_hostname')).toHaveLength(1)
       expect(r.avisos.some((e) => e.tipo === 'patrimonio_vazio')).toBe(false)
       expect(r.resumo.patrimonioDoHostname).toBe(1)

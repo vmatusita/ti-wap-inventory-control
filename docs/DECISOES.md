@@ -935,3 +935,20 @@ A ordem entre os dois é indiferente; mas **NÃO reimporte a Matriz antes da 003
 *Reversível?* sim — código puro, sem banco; nada a rodar em produção além do deploy.
 
 *Documentos emendados:* `docs/ESPECIFICACAO.md` §10.2 (Emenda F7-pós ampliada), `README.md`, e esta entrada.
+
+---
+
+## 2026-07-20 · F7-pós (4ª leva) · Campo de patrimônio do grupo "sem patrimônio" nasce EM BRANCO
+
+*Contexto (Johnny, na tela):* no card **"sem patrimônio"** do preview, o campo de patrimônio vinha **pré-preenchido com o marcador cru** (`n/a`, `sem patrimonio`, `SEM PATRIMONIO`, `Sem Patrimônio`…). Como esse texto não é canônico nem vazio, o preview ao vivo (`PreviewPatrimonio`) mostrava **"ainda fora do formato (ex.: WAP0004491)" em VERMELHO** — parecia erro, embora a linha vá importar SEM patrimônio (com pendência). O Johnny: "esses entram no grupo sem patrimônio mas não ficam com o campo vazio; preciso que fique".
+
+*Decisão (Johnny, 20/07/2026):* no card de patrimônio **vazio** (`opcional`), o campo **nasce em branco** — o marcador de ausência não é mostrado. Aí o preview vira o âmbar discreto **"opcional — preencha se souber"** (não o vermelho). Preencher segue opcional; digitar um patrimônio válido reabilita o "Corrigir". No card de patrimônio **inválido** (não opcional) o cru **continua aparecendo** — é o valor que o operador precisa ver e corrigir.
+
+*Implementação (deploy-only, sem migration):*
+- `src/components/admin/importar/grupos-erros.tsx` (`LinhaPatrimonio`): `const original = opcional ? '' : (reg?.patrimonio ?? '')` — o card vazio ignora o marcador cru.
+- `src/lib/import/plano.ts`: `patrimonioOriginal` do ativo passa a ser **`''` quando é marcador de ausência** (`eraVazio`) → a RPC faz `nullif('')→NULL` → a **ficha** mostra "Patrimônio original: —" em vez de `n/a`. Valor com conteúdo real (fora de formato, ex.: `12345`) **segue preservado** (auditoria/correção).
+- Testes `plano.test.ts`: `patrimonioOriginal` dos vazios agora `['', '', '', '']`; caso vazio+hostname agora `''`. `lint`+`test`(551)+`build` verdes.
+
+*Reversível?* sim — código puro, sem banco. **Nada a rodar em produção** além do deploy; só afeta imports futuros (ativos já importados com `patrimonio_original = 'n/a'` só limpam num novo Substituir tudo — não é regressão, é cosmético na ficha).
+
+*Documentos emendados:* `README.md` e esta entrada.

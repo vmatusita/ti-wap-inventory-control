@@ -243,7 +243,11 @@ export function montarPlanoImport(
 
     const ativo: AtivoPlano = {
       patrimonio,
-      patrimonioOriginal: reg.patrimonio.trim(),
+      // F7-pós: marcador de ausência (`n/a`, `SEM PATRIMONIO`…) NÃO é preservado no
+      // `patrimonio_original` — é ruído que apareceria como se fosse o patrimônio (RPC
+      // faz nullif('') → NULL; a ficha mostra "—"). Valor com conteúdo real (fora de
+      // formato, ex.: `12345`) SEGUE preservado p/ auditoria/correção.
+      patrimonioOriginal: eraVazio ? '' : reg.patrimonio.trim(),
       serviceTag,
       categoria,
       marca: limparCampo(reg.marca),

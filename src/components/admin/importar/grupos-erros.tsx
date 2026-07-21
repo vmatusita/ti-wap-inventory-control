@@ -482,7 +482,12 @@ function LinhaPatrimonio({
   setCampo: (chave: string, valor: string) => void
   opcional?: boolean
 }) {
-  const original = reg?.patrimonio ?? ''
+  // F7-pós (Johnny, 20/07/2026): no card de patrimônio VAZIO (`opcional`), o valor cru
+  // é um marcador de ausência (`n/a`, `SEM PATRIMONIO`…) que importa NULO — o campo tem
+  // de nascer EM BRANCO (senão o preview mostraria "ainda fora do formato" em vermelho e
+  // pareceria erro). Preencher segue opcional. No card de patrimônio INVÁLIDO (não
+  // opcional) o cru continua aparecendo — é o valor que o operador precisa ver/corrigir.
+  const original = opcional ? '' : (reg?.patrimonio ?? '')
   const chave = chaveLinha(linha, 'patrimonio')
   const valor = rascunho[chave] ?? original
   const canonico = canonicalizarPatrimonio(valor)
