@@ -22,7 +22,8 @@
 // continua sendo o sha-256 do buffer ORIGINAL, nunca do corrigido.
 
 import { createHash } from 'node:crypto'
-import { canonicalizarPatrimonio, chavePatrimonio, SEM_PATRIMONIO } from '@/lib/patrimonio'
+import { chavePatrimonio, SEM_PATRIMONIO } from '@/lib/patrimonio'
+import { resolverPatrimonio } from './resolver-patrimonio'
 import {
   agruparErros,
   aplicarCorrecoes,
@@ -33,7 +34,6 @@ import {
   chaveServiceTag,
   estadoPlanilha,
   extrairChamado,
-  extrairPatrimonioDoHostname,
   filialPorSlug,
   hojeIso,
   limparCampo,
@@ -121,69 +121,26 @@ export function montarPlanoImport(
       )
     }
 
-    // 2) Patrimônio — prioridade (F7-pós/F7J, decisão do Johnny 20/07/2026):
-    //    (1) valor da CÉLULA que canonicaliza → usa (nunca sobrescrito pelo hostname);
-    //    (2) senão, linha FORÇADA (`forcar_patrimonio`, F7J) com valor fora de formato →
-    //        aceita o CRU como patrimônio NÃO-canônico ("usar mesmo assim"; vence o hostname),
-    //        DESDE que ≤ 60 caracteres — a MESMA sanidade da RPC (migration 0037). Longo
-    //        demais → BLOQUEANTE aqui no preview (a RPC recusaria; o preview tem de capturar
-    //        tudo que ela recusa, senão o erro só apareceria pós-backup — anti-padrão F7C);
-    //    (3) senão, patrimônio embutido no HOSTNAME (prefixo conhecido + dígitos) →
-    //        substitui AUTOMÁTICO (silencioso, `patrimonio_do_hostname`), para célula
-    //        VAZIA/que declara ausência E para FORA DE FORMATO (REVOGA a invariante F7F);
-    //    (4) senão, célula que DECLARA ausência (`patrimonioVazio`) → NULO + pendência
-    //        "sem patrimônio físico" (aviso `patrimonio_vazio`);
-    //    (5) senão (fora de formato, SEM hostname, NÃO forçado) → BLOQUEANTE
-    //        `patrimonio_invalido` (decisão 5: pode ser patrimônio mistypado, o operador vê).
-    //    O cru fica em `patrimonioOriginal`; a dedupe usa o valor final (colisão reaparece).
+    // 2) Patrimônio — a escada de precedência (F7-pós/F7J, decisão do Johnny 20/07/2026)
+    //    vive em `resolverPatrimonio` (resolver-patrimonio.ts, PURO e testado). `eraVazio`
+    //    fica aqui porque também decide o `patrimonio_original` mais abaixo. As mensagens
+    //    de aviso/bloqueante são as MESMAS de antes; o cru fica em `patrimonioOriginal` e a
+    //    dedupe usa o valor final (colisão reaparece).
     const eraVazio = patrimonioVazio(reg.patrimonio)
-    const canon = eraVazio ? null : canonicalizarPatrimonio(reg.patrimonio)
+    const resPatr = resolverPatrimonio(reg.patrimonio, eraVazio, reg.hostname, forcados.has(reg.linha))
     let patrimonio: string | null = null
-    if (canon) {
-      patrimonio = canon
-    } else if (!eraVazio && forcados.has(reg.linha)) {
-      // (2) forçado: aceita o CRU, com a MESMA sanidade da RPC (≤ 60 chars). Sem aviso — a
-      //     op `forcar_patrimonio` já é auditada em "correções aplicadas".
-      const cru = reg.patrimonio.trim()
-      if (cru.length > 60) {
-        bloq(
-          'Patrimônio',
-          reg.patrimonio,
-          'patrimonio_invalido',
-          `Patrimônio longo demais para forçar (${cru.length} caracteres; máximo 60).`,
-        )
-      } else {
-        patrimonio = cru
-      }
+    if ('bloqueante' in resPatr) {
+      bloq('Patrimônio', reg.patrimonio, resPatr.bloqueante.tipo, resPatr.bloqueante.mensagem)
     } else {
-      const doHostname = extrairPatrimonioDoHostname(reg.hostname)
-      if (doHostname) {
-        patrimonio = doHostname
+      patrimonio = resPatr.patrimonio
+      if (resPatr.aviso) {
         avisos.push({
           linha: reg.linha,
           coluna: 'Patrimônio',
           valor: reg.patrimonio,
-          tipo: 'patrimonio_do_hostname',
-          mensagem: eraVazio
-            ? `patrimônio ausente — preenchido automaticamente pelo hostname (${doHostname})`
-            : `patrimônio "${reg.patrimonio.trim()}" fora do formato — substituído automaticamente pelo hostname (${doHostname})`,
+          tipo: resPatr.aviso.tipo,
+          mensagem: resPatr.aviso.mensagem,
         })
-      } else if (eraVazio) {
-        avisos.push({
-          linha: reg.linha,
-          coluna: 'Patrimônio',
-          valor: reg.patrimonio,
-          tipo: 'patrimonio_vazio',
-          mensagem:
-            'sem patrimônio — importa com pendência "sem patrimônio físico"; preencha na tela se souber o número',
-        })
-      } else {
-        bloq(
-          'Patrimônio',
-          reg.patrimonio,
-          'patrimonio_invalido',
-          `Patrimônio "${reg.patrimonio}" fora do formato canônico (ex.: WAP0004491) e sem hostname aproveitável`,
-        )
       }
     }
 
