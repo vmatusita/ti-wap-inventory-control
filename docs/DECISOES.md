@@ -1012,3 +1012,5 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 - `docs/ESPECIFICACAO.md` §6 tela 3: busca por "patrimônio/colaborador/marca/modelo".
 
 *Reversível?* sim — remover `marca.ilike` dos dois `.or()`. Nenhum dado tocado; sem banco.
+
+*Refinamento (mesmo dia, pedido do Johnny):* só adicionar `marca` como campo isolado não bastava — "dell latitude" não achava nada, porque marca (`Dell`) e modelo (`Latitude 5420`) são campos separados e o termo inteiro não cabe em nenhum sozinho. A busca vira **"campo único"**: o termo é quebrado em **palavras** (`palavrasDaBusca`, teto de 10) e **cada palavra** precisa casar em ALGUM campo (patrimônio, colaborador, marca, modelo — no combobox + service tag/hostname). Como o PostgREST combina múltiplos `.or()` com **AND**, aplica-se um `.or()` por palavra: E entre palavras, OU entre campos. Assim marca+modelo se comportam como um texto único, em qualquer ordem e cruzando com patrimônio/colaborador. Verificado no banco PROD (read-only): termo inteiro `dell latitude` → **0**; campo único → **426** (todos Dell Latitude reais, sem falso-positivo). `lint`+`build`+`test`(567) verdes.

@@ -49,6 +49,23 @@ function sanitizeTerm(term: string): string {
   return term.replace(/[,()%*\\]/g, ' ').trim()
 }
 
+// Teto de palavras por busca — cada palavra vira um grupo `.or()`, então limita o
+// tamanho da query (e é mais que suficiente p/ "marca modelo patrimônio").
+const MAX_PALAVRAS_BUSCA = 10
+
+// Quebra o termo em palavras já saneadas. A busca é "campo único": CADA palavra
+// precisa casar em ALGUM dos campos varridos (E entre palavras, OU entre campos),
+// então "dell latitude" casa marca "Dell" + modelo "Latitude 5420" como se
+// marca+modelo fossem um campo só — em qualquer ordem, e cruzando com patrimônio/
+// colaborador. Cada palavra é aplicada como um `.or()` separado (o PostgREST
+// combina múltiplos `.or()` com AND). Ver `listarAtivos`/`buscarAtivosParaCombobox`.
+function palavrasDaBusca(term: string): string[] {
+  return sanitizeTerm(term)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, MAX_PALAVRAS_BUSCA)
+}
+
 type FilialEmbed = { slug: string; nome: string } | null
 
 // Lista paginada, filtrada e ordenada por "atualizado em" desc (OS-F2 3.1.2).
@@ -67,14 +84,12 @@ export async function listarAtivos(
       { count: 'exact' },
     )
 
-  const termo = params.q ? sanitizeTerm(params.q) : ''
-  if (termo) {
-    // Busca livre: patrimonio OU colaborador OU marca OU modelo (spec §6 tela 3 /
-    // OS-F2 3.1.2). `marca` entrou na F7K: antes a marca era pesquisável só por
-    // acidente (vinha duplicada no `modelo`); ao limpar o modelo na fonte, a busca
-    // por marca sumiu — agora ela é um campo de busca de verdade.
+  // Busca livre "campo único" (spec §6 tela 3 / OS-F2 3.1.2): cada palavra do termo
+  // precisa casar em patrimonio OU colaborador OU marca OU modelo. Trata marca+modelo
+  // como um texto só ("dell latitude" acha marca "Dell" + modelo "Latitude 5420").
+  for (const palavra of params.q ? palavrasDaBusca(params.q) : []) {
     query = query.or(
-      `patrimonio.ilike.%${termo}%,colaborador_atual.ilike.%${termo}%,marca.ilike.%${termo}%,modelo.ilike.%${termo}%`,
+      `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%`,
     )
   }
   if (params.filialId) query = query.eq('filial_id', params.filialId)
@@ -243,25 +258,29 @@ async function patrimoniosDuplicados(
   )
 }
 
-// Busca do combobox (OS-F2 3.5.1): por patrimônio OU marca OU modelo OU service
-// tag OU hostname (F7E — o ativo sem patrimônio precisa ser encontrável no fluxo
-// de movimentação; a plaqueta pode não existir, mas a tag/hostname identificam;
-// `marca` entrou na F7K junto com a lista, ver `listarAtivos`). Até 12 resultados.
-// Ordena null-last (patrimônio nulo cai no fim; NULLS FIRST é o default do
-// PostgREST em asc, então força nullsFirst:false).
+// Busca do combobox (OS-F2 3.5.1): "campo único" por patrimônio OU marca OU modelo
+// OU service tag OU hostname (F7E — o ativo sem patrimônio precisa ser encontrável
+// no fluxo de movimentação; a plaqueta pode não existir, mas a tag/hostname
+// identificam). Cada palavra do termo casa em algum campo ("dell latitude" acha
+// marca "Dell" + modelo "Latitude 5420"). Até 12 resultados. Ordena null-last
+// (patrimônio nulo cai no fim; NULLS FIRST é o default do PostgREST em asc, então
+// força nullsFirst:false).
 export async function buscarAtivosParaCombobox(
   term: string,
 ): Promise<AtivoResumo[]> {
-  const termo = sanitizeTerm(term)
-  if (termo.length < 2) return []
+  const palavras = palavrasDaBusca(term)
+  // Guarda de 2 chars: evita varrer a base com termo curtíssimo (era `termo.length < 2`).
+  if (palavras.join('').length < 2) return []
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('ativos')
-    .select(RESUMO_SELECT)
-    .or(
-      `patrimonio.ilike.%${termo}%,marca.ilike.%${termo}%,modelo.ilike.%${termo}%,service_tag.ilike.%${termo}%,hostname.ilike.%${termo}%`,
+  let query = supabase.from('ativos').select(RESUMO_SELECT)
+  for (const palavra of palavras) {
+    query = query.or(
+      `patrimonio.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%,service_tag.ilike.%${palavra}%,hostname.ilike.%${palavra}%`,
     )
+  }
+
+  const { data, error } = await query
     .order('patrimonio', { ascending: true, nullsFirst: false })
     .limit(12)
 
