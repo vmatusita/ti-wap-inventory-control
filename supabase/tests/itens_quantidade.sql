@@ -204,8 +204,17 @@ begin
   -- CENARIO 12 — AS-OF de ATIVOS com estorno no meio do período.
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('TESTEASOF001', 'notebook', v_matriz) returning id into v_ativo;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, criado_por)
-    values (v_ativo, 'saida', '2026-06-10', v_matriz, 'Fulano Teste', v_prof) returning id into v_saida;
+  -- A compra estabelece a existência/baseline (todo ativo nasce por compra). Sem ela,
+  -- as-of DEPOIS do estorno o par saída+estorno se anula e o ativo "não existe" as-of
+  -- (rel_estoque_asof 0022 só reconstrói quem teve mov. efetiva <= a data → NULL).
+  -- created_at explícito e crescente: numa transação now() é constante e o guard de
+  -- estorno ordena por (created_at, id) — sem isso o desempate por id (uuid) é aleatório
+  -- e o estorno da saída poderia ser recusado como "não-última".
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
+    values (v_ativo, 'compra', '2026-06-05', v_matriz, v_prof, timestamptz '2026-06-05 10:00:00+00');
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, criado_por, created_at)
+    values (v_ativo, 'saida', '2026-06-10', v_matriz, 'Fulano Teste', v_prof, timestamptz '2026-06-10 10:00:00+00')
+    returning id into v_saida;
   -- as-of 12/06 (depois da saída, antes do estorno) → em_uso
   select status into r from public.rel_estoque_asof(v_matriz, '2026-06-12') where ativo_id = v_ativo;
   if r.status = 'em_uso' then
@@ -214,12 +223,12 @@ begin
     raise warning '✗ 12a: esperava em_uso, veio %', r.status;
   end if;
   -- estorno da saída em 20/06
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, estorno_de, criado_por)
-    values (v_ativo, 'estorno', '2026-06-20', v_matriz, v_saida, v_prof);
-  -- as-of 30/06 (após o estorno): o par saída+estorno se anula → em_estoque
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
+    values (v_ativo, 'estorno', '2026-06-20', v_matriz, v_saida, v_prof, timestamptz '2026-06-20 10:00:00+00');
+  -- as-of 30/06 (após o estorno): saída+estorno se anulam; sobra a compra → em_estoque
   select status into r from public.rel_estoque_asof(v_matriz, '2026-06-30') where ativo_id = v_ativo;
   if r.status = 'em_estoque' then
-    raise notice '✓ 12b: as-of 30/06 (após estorno) → o par se anula, volta em_estoque';
+    raise notice '✓ 12b: as-of 30/06 (após estorno) → o par se anula, sobra a compra → em_estoque';
   else
     raise warning '✗ 12b: esperava em_estoque, veio %', r.status;
   end if;
