@@ -1,5 +1,7 @@
 # Análise de alinhamento — planilha real × ordem F4 (pré-execução)
 
+> **Status: histórico — pré-execução da F4 (go-live ✅ 15/07/2026).** Mantido como referência dos vocabulários/agregados da planilha; ainda citado pela F4/F6C e por `scripts/import/`. Histórico das fases em [`../CHANGELOG.md`](../CHANGELOG.md).
+
 **Data:** 15/07/2026 · **Fonte:** `Reserva Técnica - WAP #ESTOQUE #SAIDA.xlsx` (15 abas), analisada ANTES de executar a OS-F4, a pedido do Johnny.
 **Regra seguida:** este documento traz só agregados e vocabulários (mesmo padrão da spec §5/§10) — sem nomes de colaborador, sem service tags.
 

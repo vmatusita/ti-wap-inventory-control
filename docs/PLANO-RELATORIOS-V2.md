@@ -1,5 +1,7 @@
 # Plano — Relatórios v2: o formato do e-mail, melhorado
 
+> **Status: histórico — ✅ implementado na F3B (14/07/2026).** Mantido como referência de design (itens por quantidade, os 3 grupos) e ainda citado pelas ordens F6A/F6B/F6C. Histórico das fases em [`../CHANGELOG.md`](../CHANGELOG.md).
+
 **Proposta para validação · 14/07/2026 · sessão de planejamento (Johnny + Claude, Cowork)**
 
 Origem: os dois e-mails semanais reais (22–26/06 com errata e 29/06–03/07, PDFs analisados na sessão) + spec §7 + relatório entregue na F3. Nesta sessão **nenhum código foi alterado** — este documento é o plano. Depois do OK do Johnny ele vira uma ordem de serviço (`docs/prompts/F3B-relatorios-v2.md`) e as atualizações de spec/planejamento descritas na §9.

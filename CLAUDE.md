@@ -2,13 +2,13 @@
 
 Sistema interno de controle de ativos de TI da WAP (notebooks, celulares, monitores, desktops, tablets de 5 filiais). Substitui 3 planilhas desconectadas + relatório semanal por e-mail. Conceito central: **a movimentação é a fonte da verdade** — registra-se o evento uma vez e o estado do ativo, o estoque e os relatórios derivam por trigger no banco.
 
-Cada fase do projeto é executada como uma **ordem de serviço** em `docs/prompts/` (F0 a F5). Execute somente a ordem que o Johnny colar na conversa. O status das fases está no `README.md`.
+Cada fase do projeto é executada como uma **ordem de serviço** em `docs/prompts/` (F0 em diante). Execute somente a ordem que o Johnny colar na conversa. O status das fases está no `README.md` e no `CHANGELOG.md`.
 
 ## Documentos-fonte (ordem de autoridade)
 
 1. `docs/ESPECIFICACAO.md` — **o quê** construir: modelo de dados, máquina de estados (§4), vocabulários De→Para (§5), telas (§6), relatórios (§7), regras de negócio (§8).
 2. `docs/PLANEJAMENTO.md` — **como**: stack fechada (§2), estratégia de dados (§3), fases (§4), definição de pronto (§6).
-3. `supabase/schema.sql` — rascunho do banco. Na F1 ele vira migrations; **a partir daí, as migrations mandam** e o schema.sql passa a ser histórico.
+3. `supabase/migrations/` — **fonte da verdade do banco** desde a F1: cada alteração vira uma nova migration numerada (nunca editar uma já aplicada). O rascunho original `supabase/schema.sql` foi **aposentado em 21/07/2026** (histórico no git; decisão em `docs/DECISOES.md`).
 
 Se o código existente, a ordem de serviço e os documentos se contradisserem: resolva pela hierarquia acima (a spec manda), **registre a decisão em `docs/DECISOES.md`** e siga — não trave.
 
@@ -59,14 +59,18 @@ src/
   app/
     login/page.tsx                  # público — operadores (@wap.ind.br)
     auth/confirm/page.tsx           # convite/senha — intersticial anti-prefetch (verifyOtp só no clique)
+    auth/definir-senha/page.tsx     # operador define a senha após aceitar o convite
     relatorios/acesso/page.tsx      # público — entrada por SENHA de acesso (F3)
     (app)/                          # protegido: sessão (rotas de relatório também aceitam cookie de visualização — F3)
       layout.tsx                    # sidebar + header
       page.tsx                      # dashboard home
       ativos/page.tsx               # lista
       ativos/[id]/page.tsx          # ficha + linha do tempo
+      ativos/novo/page.tsx          # cadastro de equipamento novo (compra — single/lote)
       movimentacoes/nova/page.tsx   # fluxo de nova movimentação (lote)
       itens/page.tsx                # itens por quantidade: saldos + lançamento + histórico (F3B)
+      pendencias/page.tsx           # ativos com pendência (sem patrimônio/termo) — só operador (F6A/F7E)
+      ajuda/page.tsx                # ajuda derivada de dominio.ts (F6B)
       relatorios/[filial]/page.tsx  # relatório AO VIVO por filial ('geral' = consolidado)
       relatorios/gerados/page.tsx        # histórico de snapshots semanais
       relatorios/gerados/[id]/page.tsx   # snapshot congelado e interativo (spec §7.1)

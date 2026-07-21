@@ -1,0 +1,108 @@
+# Arquitetura — Estoque TI WAP
+
+Como o sistema está construído hoje e **onde mora cada regra** — o ponto de partida para quem chega ao código. Este documento **não duplica** a especificação: o *o quê* está em [`ESPECIFICACAO.md`](ESPECIFICACAO.md), o *como/quando* em [`PLANEJAMENTO.md`](PLANEJAMENTO.md) e o histórico em [`../CHANGELOG.md`](../CHANGELOG.md). Aqui está o *como está montado*.
+
+## 1. Conceito central: a movimentação é a fonte da verdade
+
+Registra-se **um evento** — a movimentação (saída, devolução, compra, transferência, ajuste…). O resto é **derivado por trigger no Postgres**, nunca digitado duas vezes:
+
+```mermaid
+flowchart LR
+    M[movimentacao<br/>evento registrado 1x] -->|trigger| A[ativo.status<br/>colaborador, setor, filial]
+    M -->|deriva| E[estoque por filial<br/>categoria e status]
+    M -->|deriva| R[relatorio ao vivo<br/>+ snapshot semanal]
+    L[lancamento_item] -->|trigger de saldo| S[saldo do item<br/>atrelados, falta]
+```
+
+Consequências que orientam todo o resto:
+
+- **A UI é a segunda linha, nunca a única.** As regras críticas (máquina de estados, saldos de itens, permissões) vivem no banco (triggers/RPCs). Se a interface tiver bug, o dado não corrompe.
+- **Histórico é imutável.** Uma movimentação não se apaga — **estorna-se** (tipo `estorno`, que devolve o ativo ao estado anterior). Toda linha tem autor e data.
+- **Leitura é sempre fresca.** Server Components leem o estado derivado a cada request; não há cache de estado de negócio a invalidar.
+
+## 2. Modelo de dados (resumo)
+
+Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migrations/` (fonte da verdade). Tabelas principais:
+
+| Tabela | Papel |
+|---|---|
+| `ativos` | Um por equipamento com patrimônio. Patrimônio normalizado (`WAP0004491`) + original; **status derivado**; colaborador/setor/filial atuais (derivados); pendência (sem patrimônio/termo). |
+| `movimentacoes` | O evento — a fonte da verdade. Tipo, ativo, filial(is), motivo, autor, data, observação. |
+| `motivos` · `filiais` | Cadastros de referência (De→Para de vocabulário; 5 filiais oficiais). |
+| `itens` · `lancamentos_item` | Acessórios/periféricos/componentes **por quantidade** (sem patrimônio, sem máquina de estados). Saldo/atrelados/falta derivados por trigger. |
+| `relatorios_gerados` | Snapshots semanais **imutáveis** (jsonb congelado). "Fim da errata." |
+| `senhas_acesso` | Senhas de visualização dos relatórios (hash scrypt; rótulo; revogáveis). |
+| `termos_gerados` | Snapshot jsonb + ponteiro para o `.docx` no Storage privado. |
+| `anotacoes` | Notas livres na linha do tempo do ativo. |
+| `import_logs` | Auditoria do import de startup (arquivo, hash, correções, contagens). |
+| `profiles` | Operadores (`@wap.ind.br`; nível único, sem papéis). |
+
+## 3. Máquina de estados
+
+13 tipos de movimentação; a tabela de transições permitidas é aplicada pelo **trigger** da migration [`0004_maquina_estados.sql`](../supabase/migrations/0004_maquina_estados.sql). Espelho em TypeScript (para o formulário validar antes de bater no banco) em [`src/lib/dominio.ts`](../src/lib/dominio.ts). A tabela canônica está na spec [§4](ESPECIFICACAO.md).
+
+> **Dívida conhecida:** a máquina de estados e os vocabulários estão codificados **em duas camadas** (TS ↔ Postgres) mantidas em sincronia manual — ver [`DIVIDA-TECNICA.md`](DIVIDA-TECNICA.md) item D. Ao mudar uma transição, mude nos dois lados.
+
+## 4. Modelo de acesso: duas portas
+
+Decisão e trade-offs em [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md); regra na spec [§3](ESPECIFICACAO.md).
+
+1. **Operador** — login Supabase restrito a `@wap.ind.br` (trava no trigger da `0001`), **nível único** (todo logado é admin; não há papéis). As policies RLS das tabelas de negócio são `USING (true)` — o operador legitimamente opera todas as filiais; a integridade fica nos triggers, não na RLS.
+2. **Visualizador** — sem conta: **senha de acesso** → cookie httpOnly assinado (HMAC), válido só em `/relatorios/**`. As leituras do relatório para o visualizador são servidas pelo cliente administrativo (service_role) — ver `src/lib/auth/acesso.ts`. A revogação de senha tem efeito no request seguinte.
+
+Peças em `src/lib/`:
+- `supabase/client.ts` (browser) · `supabase/server.ts` (Server Components/Actions, respeita RLS) · `supabase/admin.ts` (service_role — só server-side; ignora RLS) · `supabase/proxy.ts` (middleware de sessão).
+- `auth/otp.ts`, `auth/senha-sessao.ts`, `auth/view-cookie.ts`, `auth/acesso.ts` — fluxo de convite/senha e a sessão de visualização.
+
+## 5. Camadas do código (App Router)
+
+```
+Server Component (page.tsx)  ── lê ──▶  src/lib/queries/**      ── SELECT ──▶  Postgres (RLS)
+        │                                                                          ▲
+        └── form ('use client') ── Server Action ──▶ src/lib/actions/** ── valida com ──┐
+                                                          │  src/lib/validators/** (Zod)  │
+                                                          └────────── INSERT/RPC ─────────┘ (trigger aplica a regra)
+```
+
+- **Server Components por padrão.** `'use client'` só onde precisa (forms, charts, realtime).
+- **Leituras** → funções tipadas em [`src/lib/queries/`](../src/lib/queries/) (ex.: `ativos.ts`, `movimentacoes.ts`, `itens.ts`, `relatorios/*`, `pendencias-detalhe.ts`).
+- **Escritas** → **sempre** via Server Actions em [`src/lib/actions/`](../src/lib/actions/) (ex.: `movimentacoes.ts`, `ativos.ts`, `compras.ts`, `itens.ts`, `importar.ts`, `termos.ts`, `senhas.ts`, `admin.ts`), com validação Zod em [`src/lib/validators/`](../src/lib/validators/).
+- **Regras de negócio** compartilhadas (rótulos, transições, De→Para, formatação) em `src/lib/dominio.ts`, `src/lib/format.ts`, `src/lib/patrimonio.ts`.
+
+## 6. Import de startup por filial (`admin/importar`)
+
+O caminho mais complexo do sistema — go-live novo de uma filial, só modo *Substituir tudo*. Motor puro em [`src/lib/import/`](../src/lib/import/) (parse CSV/`.xlsx` → `deparas.ts` → `resolver-patrimonio.ts` → `plano.ts` → `correcoes.ts`), Server Action em `src/lib/actions/importar.ts`, RPC transacional destrutiva `importar_ativos_substituir` no banco.
+
+Salvaguardas (invariantes que **nunca** afrouxam): backup automático, confirmação pelo nome da filial, preview tudo-ou-nada com erros linha a linha, re-checagem de contagens sob advisory lock (TOCTOU), `arquivoHash` do CSV original imutável. As correções de erro se fazem **no próprio preview** (agrupadas/em massa), auditadas em `import_logs.correcoes`.
+
+> A RPC destrutiva **bate no "gate"** do modo autônomo (contém `delete from public.ativos`): suas migrations são aplicadas à mão pelo Johnny no SQL Editor. **Todo o procedimento** (aplicar, conferir assinatura, recarregar o PostgREST, smoke) está em [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md).
+
+## 7. Termos gerados (`.docx`)
+
+Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater` + `pizzip` preenchem os 7 templates de `src/templates/termos/*.docx` (server-side; `serverExternalPackages` no `next.config.ts`); `docx-preview` mostra o arquivo real no navegador antes do download. Lógica em [`src/lib/termos/`](../src/lib/termos/) e `src/lib/actions/termos.ts`. Plano de origem: [`PLANO-TERMOS.md`](PLANO-TERMOS.md).
+
+## 8. Relatórios
+
+- **Ao vivo** (`/relatorios/[filial]`, `geral` = consolidado) — derivado a cada request; KPIs, gráficos Recharts (via `chart` do shadcn), 3 grupos no formato do e-mail. Queries em `src/lib/queries/relatorios/`; lógica de série/período/resumo em `src/lib/relatorios/`.
+- **Snapshot semanal** (`/relatorios/gerados`) — congela o estado num jsonb imutável.
+- **Acesso por senha** — as rotas de relatório também aceitam o cookie de visualização (ver §4).
+
+## 9. Banco, migrations e CI
+
+- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0040`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026).
+- **Tipos** gerados do schema em `src/lib/types/database.ts` (`npm run db:types`) — não editar à mão.
+- **CI** (`.github/workflows/ci.yml`): job `verificar` (`lint` + `test` + `build`) e job `banco` (sobe Postgres, aplica `0001→0040` em ordem e roda os roteiros de `supabase/tests/`).
+- **Deploy/migrations em produção:** [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) (topologia prod/ensaio, o gate, apply manual, armadilhas conhecidas).
+
+## 10. "Quero mudar X → mexo em Y"
+
+| Quero… | Mexo em… |
+|---|---|
+| uma transição de estado nova/diferente | `src/lib/dominio.ts` **e** uma nova migration do trigger (`0004` é a base) — os dois lados |
+| um vocabulário De→Para (motivo, unidade) | `src/lib/dominio.ts` / `src/lib/import/deparas.ts`; cadastro em `admin/motivos` ou `admin/filiais` |
+| uma validação de formulário | o schema Zod em `src/lib/validators/**` (vale no cliente e no servidor) |
+| uma nova leitura para uma tela | uma função em `src/lib/queries/**`, consumida pelo Server Component |
+| uma nova escrita | uma Server Action em `src/lib/actions/**` + o validator Zod |
+| o comportamento do import | o motor em `src/lib/import/**` (puro, testável) e/ou a RPC (migration + runbook) |
+| um template de termo | `src/templates/termos/*.docx` + mapa em `src/lib/termos/` |
+| o schema do banco | **nova** migration em `supabase/migrations/` + `npm run db:types` |

@@ -1,5 +1,7 @@
 # Novo relatório de estoque TI — o que vai aparecer
 
+> **Status: histórico — documento de aprovação da F3B (✅ implementado em 14/07/2026).** Descrevia o relatório para o analista de suporte aprovar antes da construção; preservado como registro da decisão (citado pela ordem `prompts/F3B-relatorios-v2.md`).
+
 **Para aprovação do analista de suporte · 14/07/2026**
 
 O relatório semanal que hoje é montado e enviado por e-mail vai passar a ser uma **página na internet, com senha**: sempre atualizada, uma por filial (+ uma geral). Toda sexta, um clique gera o **relatório da semana**, que fica guardado e não muda mais — se algo for corrigido depois, sai uma versão nova (acabou o e-mail de errata).

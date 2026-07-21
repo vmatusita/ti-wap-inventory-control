@@ -99,7 +99,7 @@ Ciclo típico: compra → em estoque → saída → em uso → devolução → t
 | `defasado` | **Reserva técnica** ("RT WAP" nas planilhas): funciona, mas está abaixo do padrão atual; guardado para reposição emergencial ou peças | RT Wap / Posse Wap / Defasada |
 | `descartado` | Baixa definitiva | Descarte |
 
-### Transições (a tabela que o banco aplica — fonte: `schema.sql`)
+### Transições (a tabela que o banco aplica — fonte: migration `0004_maquina_estados.sql`)
 
 | Movimentação | Permitida quando o ativo está… | Estado resultante |
 |---|---|---|
@@ -121,7 +121,7 @@ São 13 tipos no total — `ajuste` e `estorno` são as válvulas de escape admi
 
 ## 5. Modelo de dados
 
-Schema completo em [`supabase/schema.sql`](../supabase/schema.sql). Resumo:
+Schema completo nas migrations em [`supabase/migrations/`](../supabase/migrations/) (fonte da verdade desde a F1). Resumo:
 
 - **`filiais`** — id, nome, slug (`matriz`, `cd-afonso-pena`, `linhares`, …), ativo. Cadastro gerenciável pelo admin (resolve a dúvida CE Serra/Serra Park/Eusébio sem travar o desenvolvimento).
 - **`ativos`** — patrimônio normalizado (único), patrimônio original (como veio da planilha), categoria, marca, modelo, service_tag, hostname, memória, armazenamento, processador, fornecedor, filial atual, **status** (derivado), colaborador/setor atual (derivados), termo_assinado, observações.
@@ -330,4 +330,4 @@ Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados r
 
 ---
 
-*Anexos: [`supabase/schema.sql`](../supabase/schema.sql) (rascunho do banco) · [`mockups/dashboard-relatorio.html`](../mockups/dashboard-relatorio.html) (mockup do relatório com os dados reais) · planilhas analisadas em 09/07/2026.*
+*Anexos: [`supabase/migrations/`](../supabase/migrations/) (banco — fonte da verdade desde a F1) · [`mockups/dashboard-relatorio.html`](../mockups/dashboard-relatorio.html) (mockup do relatório com os dados reais) · planilhas analisadas em 09/07/2026.*

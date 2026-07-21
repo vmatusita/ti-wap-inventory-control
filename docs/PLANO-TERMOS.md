@@ -1,5 +1,7 @@
 # Plano — Termos de responsabilidade e devolução gerados pelo sistema
 
+> **Status: histórico — ✅ implementado na F5A (14/07/2026).** Foi a autoridade da ordem `prompts/F5A-termos.md`; ainda citado por `src/lib/termos/` e pelas migrations 0020–0021. Histórico das fases em [`../CHANGELOG.md`](../CHANGELOG.md).
+
 **Proposta para validação · 14/07/2026 · sessão de planejamento (Johnny + Claude, Cowork)**
 
 Origem: os 10 arquivos Word reais anexados na sessão (5 modelos de termo de responsabilidade, 2 de devolução e 3 exemplos preenchidos), a spec (§5, §8 regra 4, §13 pergunta 5) e o item 5.5 da F5. Nesta sessão **nenhum código foi alterado** — este documento é o plano. Depois do OK do Johnny ele vira uma ordem de serviço (`docs/prompts/F5A-termos.md`) e as atualizações de spec/`CLAUDE.md` descritas na §11.

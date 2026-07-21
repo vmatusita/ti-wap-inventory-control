@@ -1161,3 +1161,21 @@ Quando o job `banco` entrou (Faixa 2), `supabase/tests/itens_quantidade.sql` est
 - Removidos o banner **⚠️ DEFASADO** do topo do arquivo e a exclusão de `itens_quantidade.sql` no loop do `.github/workflows/ci.yml`.
 
 *Verificação:* rodei o job `banco` do CI (PR #10). Os 12 cenários marcam **✓** (14 checagens com 12a/b/c), nenhum ✗; job `banco` e run **verdes**. Fecha a dívida do item C (o CI agora exercita de fato os saldos de itens, não só a máquina de estados). Ref.: `docs/DIVIDA-TECNICA.md` item C.
+
+---
+
+## 2026-07-21 · Documentação · Higiene geral: aposentar schema.sql, enxugar README, criar CHANGELOG e ARQUITETURA
+
+- **Contexto:** pedido do Johnny (`/engineering:documentation`, modo autônomo) — apagar documentação defasada/não usada e atualizar/melhorar/criar do projeto inteiro, em pt-BR.
+- **Levantamento:** mapeei todos os `.md` + a estrutura real (21 páginas, 0 route handlers, 12 actions, 39 migrations `0001→0040` sem a `0029`, CI com job de banco que aplica tudo e roda `supabase/tests/`). **Achado central:** a maioria dos docs "históricos" (planos, análises, os 24 prompts) **continua referenciada** — a F6C ainda não rodou e lê `PLANO-RELATORIOS-V2`/`ANALISE-PLANILHA-F4`; `PLANO-TERMOS` é citado por `src/lib/termos/` e pelas migrations 0020–0021; a spec linka os planos. Logo, pelo critério do pedido ("não usadas **ou** defasadas"), esses **ficam**. O único artefato genuinamente **defasado** é `supabase/schema.sql` (congelado no rascunho da F1; o próprio banner diz "0001..0007" contra a realidade `0040`; não usado por CI nem por código) — somado ao "Status" do README, que virou parede-changelog.
+- **Decisão (o que foi feito):**
+  1. **Apagado** `supabase/schema.sql` (`git rm`). Refs vivas repontadas para `supabase/migrations/`: spec §4 (fonte da máquina de estados → `0004_maquina_estados.sql`), §5 (schema completo → migrations), anexos; `README` (mapa do repo); `CLAUDE.md` item 3 da hierarquia de autoridade. Migrations e prompts históricos ficam **intocados** (os comentários "Origem: schema.sql" são proveniência de época, e o CLAUDE.md proíbe editar migration já aplicada).
+  2. **Criado** `CHANGELOG.md` — histórico F0→F7K extraído da parede do README, conciso, com link para esta ata no detalhe.
+  3. **Reescrito** `README.md` (26 KB → 7,5 KB): o quê / stack / acesso / mapa do repo corrigido / dev local / status compacto (prod + pendências) / como as fases rodam. "F0–F5" → "F0 em diante".
+  4. **Criado** `docs/ARQUITETURA.md` — modelo mental (movimentação = fonte da verdade), fluxo de dados, camadas do código (queries/actions/validators/dominio; regras no Postgres), pipeline do import, termos, relatórios, banco/CI, e índice "quero mudar X → mexo em Y". Linka, não duplica.
+  5. **Banners de status** ("histórico — implementado na F3B/F5A/F4") em `PLANO-RELATORIOS-V2`, `PLANO-TERMOS`, `ANALISE-PLANILHA-F4`, `RELATORIO-V2-PARA-APROVACAO` — **mantidos** (todos ainda referenciados); só sinalizados para não serem lidos como plano atual.
+  6. `docs/prompts/README.md` — índice completado (faltavam F5A e F8; nota sobre as levas deploy-only F7G/F7-pós/F7J/F7K, sem OS própria) e marcadores ✅/🚧 por fase.
+  7. `CLAUDE.md` — item 3 da hierarquia (schema.sql → migrations) + rotas reais que faltavam no bloco de estrutura (`ativos/novo`, `pendencias`, `ajuda`, `auth/definir-senha`).
+  8. Worktree obsoleto `.claude/worktrees/sweet-ramanujan-c330d8` de-registrado do git (`worktree remove` + `prune`); o diretório residual ficou travado por lock (OneDrive) — é gitignored e inócuo, cai quando o lock soltar.
+- **Motivo:** alinhado ao pedido e à própria auditoria de dívida (`DIVIDA-TECNICA.md` item I "aposentar schema.sql", item P "README→CHANGELOG + runbook consolidado"). **Não** apaguei planos/prompts/análises porque a verificação de referências cruzadas provou que **seguem em uso** — apagá-los quebraria links e apagaria o rationale de design, contra o critério do pedido e o ethos de rastro de auditoria do projeto.
+- **Reversível?** Sim, tudo no git (o `schema.sql` fica recuperável no histórico; os docs revertem por `git checkout`/`reset`). Nada de banco nem de produção foi tocado.
