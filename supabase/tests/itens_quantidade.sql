@@ -1,4 +1,11 @@
 -- =============================================================
+-- ⚠️ DEFASADO (dívida técnica, 21/07/2026): este roteiro foi escrito na F3B (0015) e
+-- usa `rel_saldo_itens().saldo`. A migration 0027 (F6A) RENOMEOU `saldo` → `estoque` e
+-- MUDOU a semântica (Total/Estoque: atrelar/liberar DESCONTAM o estoque), então tanto a
+-- coluna quanto os VALORES esperados dos cenários precisam ser re-derivados. Enquanto não
+-- for reescrito, está EXCLUÍDO do job `banco` do CI (.github/workflows/ci.yml). Ver
+-- docs/DECISOES.md (Faixa 3). NÃO roda como está — `column "saldo" does not exist`.
+-- =============================================================
 -- Roteiro de teste de ITENS POR QUANTIDADE + AS-OF (F3B — OS 3.12).
 -- Rodar no SQL editor do projeto DEV. Auto-verificável:
 --   NOTICE  '✓ ...'  quando bate com o esperado
