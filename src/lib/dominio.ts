@@ -219,6 +219,14 @@ export function rotuloTermo(t: TermoStatus | null | undefined): string {
   return TERMO_META[t]?.rotulo ?? t
 }
 
+// Ordem de exibição dos status de termo no <Select> da nova movimentação (espelha
+// STATUS_ORDEM). FONTE ÚNICA da lista de opções — antes os 4 valores estavam
+// hard-coded no JSX (passo-movimentacao.tsx), soltos do enum. Um teste
+// (dominio.test.ts) trava que esta lista é uma permutação exata de
+// `Constants.public.Enums.termo_status`: se um valor entrar/sair do enum do banco,
+// o teste quebra e o select não fica mudo.
+export const TERMO_STATUS_ORDEM: TermoStatus[] = ['sim', 'enviado', 'gerado', 'nao']
+
 // ---------- ITENS DA DEVOLUCAO (checklist — OS-F2 3.5.2) ----------
 // Acessorios conferidos na devolucao. Um item marcado = FALTANTE (vira pendencia).
 export const ACESSORIOS_DEVOLUCAO = [

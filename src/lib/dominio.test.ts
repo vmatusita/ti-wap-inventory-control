@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { Constants } from '@/lib/types/database'
 import {
   rotuloTermo,
   rotuloStatus,
@@ -8,6 +9,7 @@ import {
   OBS_CARGA_GOLIVE,
   OBS_IMPORT_STARTUP,
   TERMO_META,
+  TERMO_STATUS_ORDEM,
   STATUS_META,
   STATUS_ORDEM,
   CATEGORIA_META,
@@ -32,6 +34,22 @@ describe('rotuloTermo', () => {
 
   it('cobre exatamente os quatro status do enum', () => {
     expect(Object.keys(TERMO_META).sort()).toEqual(['enviado', 'gerado', 'nao', 'sim'])
+  })
+})
+
+describe('TERMO_STATUS_ORDEM (fonte única das opções do <Select> de termo)', () => {
+  // Dívida técnica — item D (21/07/2026): o select de termo_status era hard-coded no
+  // JSX. Agora deriva desta lista. Este teste amarra a lista ao ENUM GERADO do banco:
+  // se um valor entrar/sair de termo_status no Postgres (+ db:types), a permutação
+  // deixa de bater e o teste quebra — o select nunca fica mudo ou órfão.
+  it('é uma permutação exata do enum termo_status gerado', () => {
+    expect([...TERMO_STATUS_ORDEM].sort()).toEqual([...Constants.public.Enums.termo_status].sort())
+  })
+
+  it('cada valor tem rótulo próprio (não cai no passthrough)', () => {
+    for (const t of TERMO_STATUS_ORDEM) {
+      expect(rotuloTermo(t)).not.toBe(t)
+    }
   })
 })
 

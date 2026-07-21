@@ -21,8 +21,10 @@ import {
 import {
   ACESSORIOS_DEVOLUCAO,
   STATUS_ORDEM,
+  TERMO_STATUS_ORDEM,
   rotuloAcessorio,
   rotuloStatus,
+  rotuloTermo,
   rotuloTipo,
   type TermoStatus,
   type TipoMovimentacao,
@@ -212,12 +214,11 @@ export function PassoMovimentacao({
                     <SelectValue placeholder="Não informado" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sim">Assinado</SelectItem>
-                    <SelectItem value="enviado">
-                      Enviado (sem assinatura)
-                    </SelectItem>
-                    <SelectItem value="gerado">Gerado</SelectItem>
-                    <SelectItem value="nao">Não gerado</SelectItem>
+                    {TERMO_STATUS_ORDEM.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {rotuloTermo(t)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
