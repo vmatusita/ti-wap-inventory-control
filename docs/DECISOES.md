@@ -1044,3 +1044,27 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 *Reversível?* sim — voltar `convidarUsuario` para `inviteUserByEmail` e o dialog para o toast simples. Nenhum dado tocado; sem banco.
 
 *Observação:* se um dia quiser e-mail automático de verdade, a opção levantada e descartada agora foi SMTP externo grátis (Brevo, remetente único, sem domínio) — não implementada por ser "serviço novo" (regra de custo/stack).
+
+---
+
+## 2026-07-21 · segurança · Revisão de código do projeto inteiro — endurecimento do banco (migration 0038 + stopgap RLS)
+
+*Contexto (revisão autônoma pedida pelo Johnny):* varredura de segurança/correção/performance do projeto todo (código + banco de prod/ensaio via advisors do Supabase). A base está muito sólida (defesa em profundidade real, RLS em 100% das tabelas, todas as `SECURITY DEFINER` com `search_path` fixo, zero SQL dinâmico, validação Zod consistente nas Server Actions, sanitização anti-open-redirect em duas camadas). Os achados foram de endurecimento, exceto **um vazamento real**: tabelas de backup manuais deixadas em PRODUÇÃO (`_f8_backup_matriz_compras` 809 linhas, `_f7k_backup_modelo` 75 linhas) estavam **sem RLS** e, portanto, legíveis pela API pública (PostgREST) com a anon key — 884 linhas de dados reais da WAP expostas (advisor `rls_disabled_in_public`, nível ERROR). Não existem no ensaio (só artefatos de ops manuais de prod).
+
+*Decisão (aplicada de forma autônoma — aditiva e reversível):*
+1. **Migration `0038_revoke_execute_funcoes_gatilho.sql`** — revoga `EXECUTE` de `public, anon, authenticated` nas funções-GATILHO `handle_new_user` (0001) e `aplicar_movimentacao` (0004→0023). São `returns trigger`: disparam só por trigger (contexto em que o Postgres não checa o EXECUTE do chamador) e o app nunca as chama por RPC (grep confirma). Fecha os 4 WARN de `*_security_definer_function_executable`. Aplicada em **prod E ensaio** via MCP. Mesmo idioma da 0025.
+2. **Stopgap em produção (via `execute_sql`, fora das migrations por serem tabelas ad-hoc):** `alter table … enable row level security` nas duas tabelas de backup expostas. Com RLS ligada e sem policy, só o `service_role` (server-side / SQL Editor) lê — a exposição pela anon key fecha no ato. Confirmado pelo advisor pós-fix: os 2 ERROS sumiram (viraram INFO `rls_enabled_no_policy`, o mesmo estado seguro de `senhas_acesso`).
+3. **Correção de código (deploy-only):** os 4 pontos que faziam `.blob()` de uma signed URL sem checar `response.ok` (backup do import ×2, termo ×2) passam a `throw` em 4xx/5xx — sem isso uma URL expirada salvava o corpo de erro como `.docx`/`.json` corrompido. `src/components/ativos/termos-da-ficha.tsx`, `admin/importar/baixar-backup-button.tsx`, `admin/importar/importar-wizard.tsx`, `movimentacoes/gerar-termo-dialog.tsx`.
+
+*Verificação:* `npm run lint` + `npm run build` + `npm test` (567) verdes; advisor de segurança de prod re-rodado (2 ERROS e 4 WARN eliminados).
+
+*Reversível?* sim — `revoke` volta com `grant`; RLS com `disable row level security`; edições de `.blob()` são triviais de reverter.
+
+### Pendências entregues ao Johnny (fora do meu envelope — destrutivo / muda corpo de RPC destrutiva / dashboard)
+- **DROP das 3 tabelas de backup** (`_f8_backup_matriz_compras`, `_f7k_backup_modelo`, `_bkp_relatorios_gerados_f6a`) quando não forem mais rede de segurança do F8/F7K/F6A. São a resolução DEFINITIVA (o stopgap RLS só tapa a exposição). Deleção de dado em prod → Johnny roda no SQL Editor.
+- **`importar_ativos_substituir`: tornar `p_contagens` obrigatório** (rejeitar `null` com `raise`). Hoje a revalidação de contagens sob advisory lock (defesa central anti-lost-update entre backup e delete) é `if p_contagens is not null` — bypassável por um cliente que passe `null`. Muda o corpo da RPC destrutiva → Johnny.
+- **`criar_compra_lote`: usar `auth.uid()` em vez do `p_criado_por` do cliente** (spoof de autoria; a RPC de import já faz o certo). Baixa severidade (operadores confiáveis, nível único).
+- **Auth → habilitar "Leaked Password Protection"** (HaveIBeenPwned) no dashboard do Supabase. Config, não SQL.
+- **(opcional, escala atual não exige)** índices de FK sem cobertura, `(select auth.uid())` na policy `atualiza proprio perfil`, dropar índice `rel_gerados_periodo_idx` não usado.
+
+*Por-design (NÃO são achados):* as policies `rls_policy_always_true` (`operador escreve/insere/…` com `USING/CHECK true`) refletem o modelo de acesso do projeto — todo operador autenticado é `@wap.ind.br` de nível único (spec §3); as regras de negócio vivem nos triggers, não na RLS. `importar_ativos_substituir` executável por `authenticated` é intencional (é a RPC do import de startup do operador).

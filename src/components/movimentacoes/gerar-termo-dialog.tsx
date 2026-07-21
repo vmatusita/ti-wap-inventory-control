@@ -173,6 +173,9 @@ export function GerarTermoDialog({
         return
       }
       const resp = await fetch(res.url)
+      // Signed URL expirada/erro devolve 4xx — sem esta checagem o preview e o
+      // download usariam um corpo de erro como se fosse o .docx do termo.
+      if (!resp.ok) throw new Error(`download falhou: ${resp.status}`)
       const b = await resp.blob()
       setBlob(b)
       setNomeArquivo(res.nomeArquivo ?? 'termo.docx')

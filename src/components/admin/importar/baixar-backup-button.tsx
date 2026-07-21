@@ -25,6 +25,9 @@ export function BaixarBackupButton({
         return
       }
       const r = await fetch(res.url)
+      // A signed URL vive 60s; expirada/erro devolve 4xx com corpo de erro — sem
+      // esta checagem o .blob() salvaria esse corpo como um .json corrompido.
+      if (!r.ok) throw new Error(`download falhou: ${r.status}`)
       const b = await r.blob()
       const u = URL.createObjectURL(b)
       const a = document.createElement('a')

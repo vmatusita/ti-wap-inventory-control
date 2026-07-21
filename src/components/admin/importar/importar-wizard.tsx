@@ -435,6 +435,9 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
         return
       }
       const r = await fetch(res.url)
+      // Signed URL de 60s: expirada/erro devolve 4xx — sem esta checagem o
+      // .blob() salvaria o corpo de erro como um .json de backup corrompido.
+      if (!r.ok) throw new Error(`download falhou: ${r.status}`)
       const b = await r.blob()
       const u = URL.createObjectURL(b)
       const a = document.createElement('a')
