@@ -58,7 +58,7 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 src/
   app/
     login/page.tsx                  # público — operadores (@wap.ind.br)
-    auth/confirm/route.ts           # callback de convite/senha
+    auth/confirm/page.tsx           # convite/senha — intersticial anti-prefetch (verifyOtp só no clique)
     relatorios/acesso/page.tsx      # público — entrada por SENHA de acesso (F3)
     (app)/                          # protegido: sessão (rotas de relatório também aceitam cookie de visualização — F3)
       layout.tsx                    # sidebar + header

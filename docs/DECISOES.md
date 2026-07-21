@@ -1134,3 +1134,21 @@ Três pedidos do Johnny na tela `admin/importar` (respondidos por 4 perguntas fe
 **Handoff aberto ao Johnny** (DDL destrutiva, mesmo caminho de sempre): `scratchpad/f0-drop-backups-producao.sql` (migration 0039) e `scratchpad/f1-hardening-rpcs-producao.sql` (migration 0040). Ambos com bloco de conferência/verificação pós-apply. As duas migrations foram provadas: a 0039/0040 **aplicam limpo** no job `banco` do CI, e a 0040 é byte-idêntica às fontes 0024/0037 + só as edições pretendidas.
 
 **Deferidos com plano** (não são lacunas silenciosas): **G** (adotar `QueryData` num upgrade do supabase-js), **E/K/L** (refatorar incremental ao tocar o import, com rede de teste de UI antes), **P** (README→CHANGELOG quando o tree estabilizar).
+
+---
+
+## Link de convite/recuperação intersticial — anti-prefetch (21/07/2026)
+
+**Contexto:** o admin gera um link de convite/recuperação em `admin/usuarios` e o envia por WhatsApp/Teams/e-mail. Sintoma relatado pelo Johnny: o link funciona **uma vez** e só no PC de quem abre primeiro; ao **compartilhar** com o destinatário, ou ao **reabrir**, dá "problema no link".
+
+**Diagnóstico:** `/auth/confirm` era um **Route Handler GET** (`route.ts`) que chamava `verifyOtp(token_hash)` **no carregamento da URL**. O token do Supabase é de **uso único**, então o primeiro GET a chegar o consome. A causa nº 1 disso é **email/link prefetching** (doc oficial Supabase, "OTP Verification Failures / Email prefetching"): as **prévias de link** do WhatsApp/Teams/Outlook/Gmail e scanners de segurança abrem a URL com um GET para montar o cartão de prévia e **queimam o token antes** de a pessoa clicar. NÃO era problema de PKCE/cross-device (o fluxo `token_hash` é stateless e já estava correto).
+
+**Escolha:** transformar `/auth/confirm` numa **página intersticial** (`page.tsx`). A página **não verifica ao carregar** — mostra um botão "Ativar meu acesso"; o `verifyOtp` só roda no **clique** (POST → Server Action `confirmarAcesso` em `lib/actions/auth.ts`). Bots de prévia fazem GET e não submetem formulário → o token sobrevive até o clique humano. É exatamente a mitigação recomendada pela Supabase ("invalidar o token só quando o usuário ENVIA, não ao acessar a URL").
+
+**Motivo:** resolve os três sintomas de uma vez (compartilhar, reabrir para testar, prévia de mensageiro) sem custo novo (R$ 0), mantendo o fluxo `token_hash` (independe da allowlist de Redirect URLs).
+
+**Arquivos:** removido `src/app/auth/confirm/route.ts`; criados `src/app/auth/confirm/page.tsx` (intersticial), `src/app/auth/confirm/botao-ativar.tsx` (submit com `useFormStatus`), `src/lib/auth/otp.ts` (helpers `TIPOS_OTP`/`tipoOtpValido`/`destinoSeguro` compartilhados — fora de módulo `'use server'`); `confirmarAcesso` adicionada a `src/lib/actions/auth.ts`; cópia do `convidar-usuario-dialog.tsx` atualizada para instruir o clique em "Ativar". Falha do `verifyOtp` (expirado/já usado) volta para `/auth/confirm?erro=1` com erro inline, em vez de `/login`.
+
+**Pendência de config (não bloqueia):** se os links ficarem parados um tempo antes de a pessoa abrir, aumentar **Email OTP Expiration** em Supabase → Authentication → Providers/Email (padrão pode ser curto; pode ir até 24 h) — R$ 0, só painel.
+
+*Verificação:* `lint` limpo, `build` verde (`/auth/confirm` agora `ƒ` dinâmica). Nenhum teste/código dependia do antigo route handler.

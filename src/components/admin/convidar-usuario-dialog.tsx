@@ -88,9 +88,11 @@ export function ConvidarUsuarioDialog() {
               </DialogTitle>
               <DialogDescription>
                 {gerado.reenvio
-                  ? 'Esse e-mail já tinha conta. Envie este link para a pessoa definir uma nova senha e entrar.'
-                  : 'Envie este link para a pessoa (WhatsApp, Teams, e-mail). Ele leva direto à tela de definir a senha.'}{' '}
-                Vale por tempo limitado — se expirar, é só gerar outro.
+                  ? 'Esse e-mail já tinha conta. Envie este link para a pessoa; ao abrir, ela clica em "Continuar" e define uma nova senha para entrar.'
+                  : 'Envie este link para a pessoa (WhatsApp, Teams, e-mail). Ao abrir, ela clica em "Ativar meu acesso" e define a senha.'}{' '}
+                Vale por tempo limitado — se expirar, é só gerar outro. Só o clique
+                em ativar consome o link, então uma prévia no WhatsApp/Teams não o
+                invalida.
               </DialogDescription>
             </DialogHeader>
             <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3">

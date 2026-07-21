@@ -32,10 +32,11 @@ function origemDaRequisicao(h: Headers): string | null {
   return `${proto}://${host}`
 }
 
-// Monta o link que o admin envia manualmente. Aponta para a rota /auth/confirm
-// (que já faz verifyOtp com token_hash) — NÃO usa o action_link do Supabase, então
-// independe da allowlist de Redirect URLs. `type` invite/recovery cai em
-// /auth/definir-senha (ver src/app/auth/confirm/route.ts).
+// Monta o link que o admin envia manualmente. Aponta para a página /auth/confirm
+// (intersticial: só faz verifyOtp no CLIQUE do usuário, nunca no GET — protege o
+// token de uso único contra prefetch de link do WhatsApp/Teams/Outlook). NÃO usa o
+// action_link do Supabase, então independe da allowlist de Redirect URLs. `type`
+// invite/recovery cai em /auth/definir-senha (ver src/app/auth/confirm/page.tsx).
 function linkConfirmacao(
   origem: string,
   hashedToken: string,
