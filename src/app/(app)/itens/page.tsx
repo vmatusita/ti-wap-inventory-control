@@ -24,6 +24,11 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
+import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
+import {
+  exportarItensHistoricoCSV,
+  exportarItensSaldosCSV,
+} from '@/lib/actions/exportar'
 import { ItensFiltros } from '@/components/itens/itens-filtros'
 import { HistoricoFiltros } from '@/components/itens/historico-filtros'
 import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
@@ -134,8 +139,13 @@ export default async function ItensPage({
             Acessórios, periféricos e componentes — total, estoque, atrelados e falta por filial.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <RealtimeRefresh />
+          <ExportarCsvButton
+            acao={exportarItensSaldosCSV}
+            rotulo="Exportar saldos"
+            descricao="dos itens filtrados"
+          />
           <LancarItemDialog itens={itensAtivos} filiais={filiais} ultimo={ultimo} />
         </div>
       </div>
@@ -226,7 +236,15 @@ export default async function ItensPage({
 
       {/* Histórico de lançamentos */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">Histórico de lançamentos</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold tracking-tight">Histórico de lançamentos</h2>
+          <ExportarCsvButton
+            acao={exportarItensHistoricoCSV}
+            rotulo="Exportar histórico"
+            descricao="dos lançamentos filtrados"
+            size="sm"
+          />
+        </div>
         <HistoricoFiltros itens={itensAtivos} />
         <HistoricoLancamentos rows={historico.rows} />
         {historico.total > historico.pageSize && (

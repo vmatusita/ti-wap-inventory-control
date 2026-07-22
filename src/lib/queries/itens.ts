@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { hojeISO } from '@/lib/format'
+import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 
 // Leituras da operação de itens por quantidade (F3B / OS 3.3.4). Rota só do
@@ -136,38 +137,74 @@ const LANC_SELECT =
   'item:itens!lancamentos_item_item_id_fkey(nome, grupo), ' +
   'filial:filiais!lancamentos_item_filial_id_fkey(nome)'
 
-// Histórico paginado (mais recente primeiro), com sinalização de estorno.
-// Filtros (F9 · I3): filial, item, tipo e período. O período é sobre a coluna
-// `data` — a MESMA exibida na tabela do histórico; `created_at` divergiria do que
-// o operador vê (um lançamento de ontem registrado hoje).
-export async function getHistoricoLancamentos(opts: {
+// Filtros do histórico (F9 · I3), sem paginação — compartilhados pela tabela da
+// tela e pelo export CSV (F10 · T5), para o arquivo sair com EXATAMENTE as
+// linhas do filtro visível.
+export type FiltrosHistorico = {
   filialId?: number | null
   itemId?: number | null
   tipo?: TipoLancamento | null
   de?: string | null
   ate?: string | null
-  page?: number
-  pageSize?: number
-}): Promise<{ rows: LancamentoHistorico[]; total: number; page: number; pageSize: number }> {
-  const supabase = await createClient()
-  const page = Math.max(1, opts.page ?? 1)
-  const pageSize = opts.pageSize ?? 20
-  const from = (page - 1) * pageSize
+}
 
-  let q = supabase
-    .from('lancamentos_item')
-    .select(LANC_SELECT, { count: 'exact' })
+// Query base (filtros + ordem, sem faixa). O período é sobre a coluna `data` — a
+// MESMA exibida na tabela do histórico; `created_at` divergiria do que o
+// operador vê (um lançamento de ontem registrado hoje). Devolve uma query NOVA a
+// cada chamada: o builder do postgrest-js é mutável e não se reexecuta com
+// segurança.
+function queryHistorico(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  opts: FiltrosHistorico,
+) {
+  let q = supabase.from('lancamentos_item').select(LANC_SELECT, { count: 'exact' })
   if (opts.filialId) q = q.eq('filial_id', opts.filialId)
   if (opts.itemId) q = q.eq('item_id', opts.itemId)
   if (opts.tipo) q = q.eq('tipo', opts.tipo)
   if (opts.de) q = q.gte('data', opts.de)
   if (opts.ate) q = q.lte('data', opts.ate)
-  q = q
+  return q
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
-    .range(from, from + pageSize - 1)
+}
 
-  const { data, error, count } = await q
+// Linha do CSV do histórico (F10 · T5). É o histórico da tela MENOS `estornado`:
+// saber se uma linha JÁ FOI estornada exige a 2ª consulta com todos os ids, que
+// num export de milhares de linhas estouraria o limite de tamanho da URL. O CSV
+// reporta só `ehEstorno` (derivado de `estorna_id`, que vem na própria linha).
+export type LinhaExportHistorico = Omit<LancamentoHistorico, 'estornado'>
+
+function mapearLancamento(r: RawLancRow): LinhaExportHistorico {
+  return {
+    id: r.id,
+    data: r.data,
+    tipo: r.tipo,
+    quantidade: r.quantidade,
+    item: r.item?.nome ?? '—',
+    grupo: r.item?.grupo ?? 'acessorio',
+    filial: r.filial?.nome ?? '—',
+    chamado: r.chamado,
+    colaborador: r.colaborador,
+    observacao: r.observacao,
+    ehEstorno: r.estorna_id != null,
+    created_at: r.created_at,
+  }
+}
+
+// Histórico paginado (mais recente primeiro), com sinalização de estorno.
+// Filtros (F9 · I3): filial, item, tipo e período.
+export async function getHistoricoLancamentos(
+  opts: FiltrosHistorico & { page?: number; pageSize?: number },
+): Promise<{ rows: LancamentoHistorico[]; total: number; page: number; pageSize: number }> {
+  const supabase = await createClient()
+  const page = Math.max(1, opts.page ?? 1)
+  const pageSize = opts.pageSize ?? 20
+  const from = (page - 1) * pageSize
+
+  const { data, error, count } = await queryHistorico(supabase, opts).range(
+    from,
+    from + pageSize - 1,
+  )
   if (error) throw new Error(`Falha ao listar lançamentos: ${error.message}`)
   const rows = (data ?? []) as unknown as RawLancRow[]
 
@@ -184,24 +221,45 @@ export async function getHistoricoLancamentos(opts: {
 
   return {
     rows: rows.map((r) => ({
-      id: r.id,
-      data: r.data,
-      tipo: r.tipo,
-      quantidade: r.quantidade,
-      item: r.item?.nome ?? '—',
-      grupo: r.item?.grupo ?? 'acessorio',
-      filial: r.filial?.nome ?? '—',
-      chamado: r.chamado,
-      colaborador: r.colaborador,
-      observacao: r.observacao,
-      ehEstorno: r.estorna_id != null,
+      ...mapearLancamento(r),
       estornado: estornadas.has(r.id),
-      created_at: r.created_at,
     })),
     total: count ?? 0,
     page,
     pageSize,
   }
+}
+
+// Leitura em BLOCOS do histórico para o export CSV (F10 · T5): mesmos filtros e
+// mesma ordem da tela, sem a paginação de 20. Cada volta pede uma faixa nova a
+// partir do que JÁ chegou — nunca de um múltiplo fixo —, porque o Max Rows do
+// PostgREST (padrão 1.000 no Supabase) corta o request maior EM SILÊNCIO e
+// devolve menos linhas do que o pedido; avançar pelo recebido mantém o export
+// correto seja qual for esse teto. Não faz o lookup de "já estornada" (ver
+// `LinhaExportHistorico`). Quem decide "truncado" é a camada de cima, comparando
+// `linhas.length < total`.
+export async function listarHistoricoParaExport(
+  opts: FiltrosHistorico,
+  cap = CAP_EXPORT,
+): Promise<{ linhas: LinhaExportHistorico[]; total: number }> {
+  const supabase = await createClient()
+  const linhas: LinhaExportHistorico[] = []
+  let total = 0
+
+  for (let volta = 0; volta < MAX_BLOCOS_EXPORT && linhas.length < cap; volta++) {
+    const tamanho = Math.min(BLOCO_EXPORT, cap - linhas.length)
+    const { data, error, count } = await queryHistorico(supabase, opts).range(
+      linhas.length,
+      linhas.length + tamanho - 1,
+    )
+    if (error) throw new Error(`Falha ao exportar lançamentos: ${error.message}`)
+    total = count ?? total
+    const recebidas = (data ?? []) as unknown as RawLancRow[]
+    for (const r of recebidas) linhas.push(mapearLancamento(r))
+    if (recebidas.length === 0 || linhas.length >= total) break
+  }
+
+  return { linhas, total }
 }
 
 // Último lançamento do operador (para "repetir último" — pré-preenche tudo menos
