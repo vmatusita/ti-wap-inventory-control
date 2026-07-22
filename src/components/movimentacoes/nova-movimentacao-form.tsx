@@ -96,6 +96,11 @@ export function NovaMovimentacaoForm({
   const [rascunhoPendente, setRascunhoPendente] = useState<Rascunho | null>(null)
   const [hidratado, setHidratado] = useState(false)
   const [restaurando, setRestaurando] = useState(false)
+  // O rascunho só é SOBRESCRITO depois que o operador mexe NESTA montagem.
+  // Sem isso, chegar por `?ativo=`/`?duplicar=` (link da ficha, "Duplicar")
+  // gravava o estado do link por cima do lote em andamento e os 12 ativos que o
+  // operador tinha montado viravam 1, sem aviso.
+  const [podeSalvar, setPodeSalvar] = useState(false)
 
   const comandoRef = useRef<HTMLDivElement>(null)
   // Trava de reentrância: bloqueia um 2º envio (ex.: Enter apertado 2x rápido no
@@ -120,13 +125,24 @@ export function NovaMovimentacaoForm({
     [config.tipo, motivos],
   )
 
+  // Primeira alteração REAL do operador nesta montagem. Libera a persistência
+  // (F10/M6) e, se o banner estiver aberto, vale como decisão implícita de
+  // "começar um lote novo": quem ignora o banner e monta outro lote por cima
+  // não pode ficar sem rede até se lembrar de clicar em Descartar.
+  function marcarAlteracao() {
+    setPodeSalvar(true)
+    setRascunhoPendente(null)
+  }
+
   function set<K extends keyof Config>(chave: K, valor: Config[K]) {
+    marcarAlteracao()
     setConfig((c) => ({ ...c, [chave]: valor }))
   }
 
   // Trocar o tipo limpa os campos específicos do tipo anterior — senão um motivo
   // (ou filial destino / itens) de um tipo vaza para outro sem o usuário ver.
   function trocarTipo(tipo: TipoMovimentacao) {
+    marcarAlteracao()
     setConfig((c) => ({
       ...c,
       tipo,
@@ -162,7 +178,9 @@ export function NovaMovimentacaoForm({
     }
   }
   function adicionar(a: AtivoResumo) {
-    const next = itens.some((p) => p.id === a.id) ? itens : [...itens, a]
+    if (itens.some((p) => p.id === a.id)) return
+    const next = [...itens, a]
+    marcarAlteracao()
     setItens(next)
     ajustarTipoPara(next, [a])
   }
@@ -175,6 +193,7 @@ export function NovaMovimentacaoForm({
   function adicionarVarios(novos: AtivoResumo[]) {
     const r = mesclarAtivosNoLote(itens, novos)
     if (r.adicionados.length > 0) {
+      marcarAlteracao()
       setItens(r.lote)
       ajustarTipoPara(r.lote, r.adicionados)
       const extra =
@@ -193,6 +212,8 @@ export function NovaMovimentacaoForm({
   }
   function remover(id: string) {
     const next = itens.filter((p) => p.id !== id)
+    if (next.length === itens.length) return
+    marcarAlteracao()
     setItens(next)
     ajustarTipoPara(next)
   }
@@ -213,11 +234,14 @@ export function NovaMovimentacaoForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Salva o esqueleto do lote a cada mudanca (debounce). Enquanto o banner esta
-  // aberto NAO grava: o formulario ainda esta vazio e sobrescreveria o rascunho
-  // que o operador ainda vai decidir se restaura.
+  // Salva o esqueleto do lote a cada mudanca (debounce). SO depois da primeira
+  // alteracao do operador (`podeSalvar`): montagem semeada por link
+  // (`?ativo=`/`?duplicar=`) ou montagem intocada nao pode sobrescrever — nem
+  // apagar — o lote que ficou de outra visita. Enquanto o banner esta aberto
+  // tambem nao grava; a primeira alteracao real o fecha (`marcarAlteracao`) e
+  // libera a gravacao no mesmo gesto.
   useEffect(() => {
-    if (!hidratado || rascunhoPendente || sucesso) return
+    if (!hidratado || !podeSalvar || rascunhoPendente || sucesso) return
     const t = setTimeout(() => {
       if (itens.length === 0) {
         limparRascunho()
@@ -231,7 +255,16 @@ export function NovaMovimentacaoForm({
       })
     }, 400)
     return () => clearTimeout(t)
-  }, [hidratado, rascunhoPendente, sucesso, itens, config, statusResultante, passo])
+  }, [
+    hidratado,
+    podeSalvar,
+    rascunhoPendente,
+    sucesso,
+    itens,
+    config,
+    statusResultante,
+    passo,
+  ])
 
   async function restaurarRascunho() {
     const r = rascunhoPendente
@@ -239,12 +272,15 @@ export function NovaMovimentacaoForm({
     setRestaurando(true)
     try {
       const ativos = await buscarResumoDeAtivosPorIds(r.ids)
+      // Lista VAZIA com `r.ids` não-vazio (invariante do rascunho: sem ids ele
+      // nem existe) é ambígua: o proxy degrada a falha de rede para `[]`, então
+      // "a consulta caiu" é indistinguível de "os ativos sumiram". Apagar o
+      // rascunho aqui destruiria o lote por causa de uma falha transitória — o
+      // banner fica de pé e o operador tenta de novo (ou Descarta, se quiser).
       if (ativos.length === 0) {
         toast.error(
-          'Os ativos do rascunho não estão mais disponíveis. Comece um lote novo.',
+          'Não foi possível carregar os ativos do rascunho agora. Tente restaurar de novo.',
         )
-        limparRascunho()
-        setRascunhoPendente(null)
         return
       }
 
@@ -273,6 +309,9 @@ export function NovaMovimentacaoForm({
       // Sem tipo nao ha o que revisar: volta para o passo 2.
       setPasso(cfg.tipo ? r.passo : Math.min(r.passo, 2))
       setRascunhoPendente(null)
+      // O lote restaurado volta a ser salvo a cada mudanca (inclusive o que a
+      // re-checagem de interseção acabou de ajustar).
+      setPodeSalvar(true)
       toast.success(
         `Rascunho restaurado — ${ativos.length} ${ativos.length === 1 ? 'ativo' : 'ativos'} no lote.`,
       )
@@ -288,6 +327,7 @@ export function NovaMovimentacaoForm({
 
   function repetirUltima() {
     if (!ultimaMov) return
+    marcarAlteracao()
     const tipoValido = tiposValidos.includes(ultimaMov.tipo)
     setConfig((c) => ({
       ...c,
@@ -444,6 +484,8 @@ export function NovaMovimentacaoForm({
     setPasso(1)
     setSucesso(null)
     limparRascunho()
+    // Form zerado = montagem intocada de novo (não regrava o que acabou de sair).
+    setPodeSalvar(false)
   }
 
   // Enter avança entre os passos (OS-F2 3.7.1) — exceto em textarea, botões e
@@ -578,7 +620,10 @@ export function NovaMovimentacaoForm({
           ultimaMov={ultimaMov}
           onTrocarTipo={trocarTipo}
           onSet={set}
-          onSetStatusResultante={setStatusResultante}
+          onSetStatusResultante={(v) => {
+            marcarAlteracao()
+            setStatusResultante(v)
+          }}
           onRepetirUltima={repetirUltima}
           onVoltar={() => setPasso(1)}
           onRevisar={avancarParaRevisao}

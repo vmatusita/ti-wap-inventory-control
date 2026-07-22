@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   ClipboardList,
   Check,
@@ -133,6 +133,12 @@ export function ColarListaDialog({
   const [res, setRes] = useState<ResultadoResolucaoLote | null>(null)
   // patrimônio ambíguo -> id do candidato escolhido pelo operador.
   const [escolhas, setEscolhas] = useState<Record<string, string>>({})
+  // Token da conferência corrente. O componente NÃO é desmontado ao fechar o
+  // diálogo, então uma resposta em voo depois de fechar (ou depois de uma nova
+  // conferência) repovoava o resultado: reabrir mostrava "Encontrados (12)" de
+  // uma lista CANCELADA, com o botão primário habilitado — um clique injetava
+  // ativos errados no lote. Só aplica `setRes` quem ainda for o token corrente.
+  const requisicao = useRef(0)
 
   const idsNoLote = new Set(lote.map((a) => a.id))
   const encontrados = res?.encontrados ?? []
@@ -160,13 +166,15 @@ export function ColarListaDialog({
   const foraPeloTeto = previa.excedentes.length
 
   async function conferir() {
+    const meu = ++requisicao.current
     setCarregando(true)
     setEscolhas({})
     try {
       const r = await resolverPatrimoniosParaLote(texto)
+      if (meu !== requisicao.current) return
       setRes(r)
     } finally {
-      setCarregando(false)
+      if (meu === requisicao.current) setCarregando(false)
     }
   }
 
@@ -182,6 +190,9 @@ export function ColarListaDialog({
   function fechar(v: boolean) {
     setAberto(v)
     if (!v) {
+      // Invalida a conferência em voo: o resultado que chegar depois é de uma
+      // lista que o operador CANCELOU.
+      requisicao.current += 1
       setTexto('')
       setRes(null)
       setEscolhas({})
@@ -240,7 +251,10 @@ export function ColarListaDialog({
               placeholder={
                 'WAP0001234\nWAP0001235\tST-ABC123\nWAP0001236; ST-DEF456'
               }
-              className="font-mono text-sm"
+              // `text-sm` puro (14px) dispara o zoom automático do iOS a cada
+              // foco — e esta é justamente a caixa de quem cola/bipa do celular.
+              // `text-base md:text-sm` é o padrão do próprio ui/textarea.
+              className="font-mono text-base md:text-sm"
             />
             <p className="mt-2 text-xs text-muted-foreground">
               Dá para colar duas colunas do Excel direto (o TAB entre elas vira o
