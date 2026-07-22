@@ -68,6 +68,39 @@ function palavrasDaBusca(term: string): string[] {
 
 type FilialEmbed = { slug: string; nome: string } | null
 
+// Superfície mínima de um builder de `from('ativos')` para aplicar os filtros da
+// lista. A lista paginada e o export (F10/T5) usam SELECTs diferentes — logo,
+// tipos de builder diferentes —, e os filtros precisam ser os MESMOS nos dois
+// (senão o CSV não bate com a tela). O cast estrutural fica contido em
+// `aplicarFiltrosAtivos`; os nomes de coluna são conferidos pelo banco em
+// runtime, como já acontece nos selects em string deste arquivo.
+type BuilderAtivos = {
+  or(filtro: string): BuilderAtivos
+  eq(coluna: string, valor: string | number): BuilderAtivos
+  in(coluna: string, valores: readonly string[]): BuilderAtivos
+  is(coluna: string, valor: null): BuilderAtivos
+}
+
+// Filtros da lista de ativos — FONTE ÚNICA (tela + export).
+// Busca livre "campo único" (spec §6 tela 3 / OS-F2 3.1.2): cada palavra do termo
+// precisa casar em patrimonio OU colaborador OU marca OU modelo. Trata marca+modelo
+// como um texto só ("dell latitude" acha marca "Dell" + modelo "Latitude 5420").
+function aplicarFiltrosAtivos<T>(query: T, params: ListarAtivosParams): T {
+  let q = query as unknown as BuilderAtivos
+  for (const palavra of params.q ? palavrasDaBusca(params.q) : []) {
+    q = q.or(
+      `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%`,
+    )
+  }
+  if (params.filialId) q = q.eq('filial_id', params.filialId)
+  if (params.categoria) q = q.eq('categoria', params.categoria)
+  if (params.status && params.status.length > 0) {
+    q = q.in('status', params.status)
+  }
+  if (params.semPatrimonio) q = q.is('patrimonio', null)
+  return q as unknown as T
+}
+
 // Lista paginada, filtrada e ordenada por "atualizado em" desc (OS-F2 3.1.2).
 export async function listarAtivos(
   params: ListarAtivosParams,
@@ -84,21 +117,7 @@ export async function listarAtivos(
       { count: 'exact' },
     )
 
-  // Busca livre "campo único" (spec §6 tela 3 / OS-F2 3.1.2): cada palavra do termo
-  // precisa casar em patrimonio OU colaborador OU marca OU modelo. Trata marca+modelo
-  // como um texto só ("dell latitude" acha marca "Dell" + modelo "Latitude 5420").
-  for (const palavra of params.q ? palavrasDaBusca(params.q) : []) {
-    query = query.or(
-      `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%`,
-    )
-  }
-  if (params.filialId) query = query.eq('filial_id', params.filialId)
-  if (params.categoria) query = query.eq('categoria', params.categoria)
-  if (params.status && params.status.length > 0) {
-    query = query.in('status', params.status)
-  }
-  if (params.semPatrimonio) query = query.is('patrimonio', null)
-
+  query = aplicarFiltrosAtivos(query, params)
   query = query.order('updated_at', { ascending: false }).range(from, to)
 
   const { data, error, count } = await query
@@ -211,7 +230,26 @@ export type AtivoResumo = {
   patrimonio_duplicado: boolean
 }
 
-function resumoDe(
+// Linha crua aceita por `resumoDe` — exportada junto com o mapeador porque
+// `queries/movimentacoes.ts` monta o mesmo resumo a partir de um EMBED
+// (`ativos(<RESUMO_SELECT>)`) e precisa tipar a linha antes do cast (F10/M3).
+export type RawAtivoResumo = {
+  id: string
+  patrimonio: string | null
+  service_tag: string | null
+  categoria: CategoriaAtivo
+  marca: string | null
+  modelo: string | null
+  status: StatusAtivo
+  colaborador_atual: string | null
+  filial_id: number
+  termo_assinado: TermoStatus | null
+  filiais: FilialEmbed
+}
+
+// Exportado na F10: `queries/movimentacoes.ts` (recentes do operador) reusa o
+// MESMO mapeamento — resumo divergente entre combobox e sugestões viraria bug.
+export function resumoDe(
   r: {
     id: string
     patrimonio: string | null
@@ -243,11 +281,15 @@ function resumoDe(
   }
 }
 
-const RESUMO_SELECT =
+// Exportado na F10: usado como EMBED em `queries/movimentacoes.ts`
+// (`ativos(${RESUMO_SELECT})`) — uma lista de colunas só.
+export const RESUMO_SELECT =
   'id, patrimonio, service_tag, categoria, marca, modelo, status, colaborador_atual, filial_id, termo_assinado, filiais(slug, nome)'
 
 // Quais desses patrimonios existem em mais de um ativo (duplicidade legitima §5).
-async function patrimoniosDuplicados(
+// Exportado na F10 pelo mesmo motivo de `resumoDe`: as queries novas também
+// precisam preencher `AtivoResumo.patrimonio_duplicado`.
+export async function patrimoniosDuplicados(
   supabase: Awaited<ReturnType<typeof createClient>>,
   patrimonios: string[],
 ): Promise<Set<string>> {
@@ -317,21 +359,151 @@ export type LinhaExportAtivo = {
   setor_atual: string | null
 }
 
+const EXPORT_SELECT =
+  'patrimonio, service_tag, hostname, categoria, marca, modelo, status, colaborador_atual, setor_atual, filiais(slug, nome)'
+
+// Tamanho do bloco de leitura. O Max Rows do PostgREST (default 1.000 no
+// Supabase) corta requests maiores EM SILÊNCIO — pedir 5.000 de uma vez devolve
+// 1.000 sem erro nenhum. Verificado em DEV: nenhum `pgrst.db_max_rows` nos
+// papéis (`pg_db_role_setting`), ou seja, vale o default do serviço.
+const BLOCO_EXPORT = 1000
+
+type RawExportRow = {
+  patrimonio: string | null
+  service_tag: string | null
+  hostname: string | null
+  categoria: CategoriaAtivo
+  marca: string | null
+  modelo: string | null
+  status: StatusAtivo
+  colaborador_atual: string | null
+  setor_atual: string | null
+  filiais: FilialEmbed
+}
+
 // Leitura em blocos p/ o export CSV (F10/T5). Mesmos filtros e ordem de
-// `listarAtivos`, sem paginação de tela: acumula em blocos de `.range()` porque o
-// Max Rows do PostgREST corta requests grandes EM SILÊNCIO. `total` vem de
-// count 'exact'; quem decide "truncado" é a camada de cima, por
-// `linhas.length < total`.
+// `listarAtivos` (`aplicarFiltrosAtivos` é a fonte única dos filtros), sem
+// paginação de tela: acumula em blocos de `.range()` porque o Max Rows do
+// PostgREST corta requests grandes EM SILÊNCIO. `total` vem de count 'exact';
+// quem decide "truncado" é a camada de cima, por `linhas.length < total`.
+//
+// `params.page` é IGNORADO de propósito — o export é da consulta inteira, não
+// da página aberta.
 export async function listarAtivosParaExport(
   params: ListarAtivosParams,
   cap = 5000,
 ): Promise<{ linhas: LinhaExportAtivo[]; total: number }> {
-  // F10-STUB-W1: implementação é entrega 7 do subagente W1 (dono deste arquivo).
-  // Este corpo existe só para fixar a assinatura do CONTRATO §1.5 e destravar o
-  // W4 em paralelo — TEM de ser substituído antes do merge na main.
-  void params
-  void cap
-  throw new Error('F10-STUB-W1: listarAtivosParaExport ainda não implementada')
+  const supabase = await createClient()
+  // Cap abaixo de 1 não faz sentido (e devolveria `total: 0`, quebrando o cálculo
+  // de "truncado" de quem chamou) — clampa em 1 bloco mínimo de 1 linha.
+  const teto = Math.max(1, Math.trunc(cap))
+  const linhas: LinhaExportAtivo[] = []
+  let total = 0
+  let offset = 0
+
+  while (offset < teto) {
+    const ate = Math.min(offset + BLOCO_EXPORT, teto) - 1
+    // `count: 'exact'` só no 1º bloco: o total não muda entre os blocos e a
+    // contagem exata custa uma varredura a cada request.
+    let query = supabase
+      .from('ativos')
+      .select(EXPORT_SELECT, offset === 0 ? { count: 'exact' } : undefined)
+    query = aplicarFiltrosAtivos(query, params)
+    // `updated_at` sozinho não é único: sem desempate estável, o bloco 2 pode
+    // repetir/pular linhas do bloco 1. `id` é a chave primária — refina a ordem
+    // da tela sem mudá-la.
+    const { data, error, count } = await query
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(offset, ate)
+
+    if (error) throw new Error(`Falha ao exportar ativos: ${error.message}`)
+    total = count ?? total
+
+    const bloco = (data ?? []) as unknown as RawExportRow[]
+    for (const r of bloco) {
+      linhas.push({
+        patrimonio: r.patrimonio,
+        service_tag: r.service_tag,
+        hostname: r.hostname,
+        categoria: r.categoria,
+        marca: r.marca,
+        modelo: r.modelo,
+        filial_nome: r.filiais?.nome ?? '—',
+        status: r.status,
+        colaborador_atual: r.colaborador_atual,
+        setor_atual: r.setor_atual,
+      })
+    }
+
+    // Bloco incompleto = acabou (inclui o caso "Max Rows menor que o bloco").
+    if (bloco.length < ate - offset + 1) break
+    offset = ate + 1
+    if (offset >= total) break
+  }
+
+  return { linhas, total }
+}
+
+// M6 (rascunho) — resumos por id PRESERVANDO a ordem pedida. Ids inexistentes
+// simplesmente não voltam: quem chamou descobre pela diferença de tamanho (é
+// assim que a UI avisa "1 ativo do rascunho não existe mais").
+export async function buscarAtivosResumoPorIds(
+  ids: string[],
+): Promise<AtivoResumo[]> {
+  const unicos = [...new Set(ids)]
+  if (unicos.length === 0) return []
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('ativos')
+    .select(RESUMO_SELECT)
+    .in('id', unicos)
+  if (error) throw new Error(`Falha ao buscar ativos: ${error.message}`)
+
+  const rows = (data ?? []) as unknown as RawAtivoResumo[]
+  const dups = await patrimoniosDuplicados(
+    supabase,
+    rows.map((r) => r.patrimonio).filter((p): p is string => p !== null),
+  )
+  const porId = new Map(
+    rows.map((r) => [
+      r.id,
+      resumoDe(r, r.patrimonio !== null && dups.has(r.patrimonio)),
+    ]),
+  )
+  // Ordem = a pedida (a do rascunho), não a que o Postgres devolveu.
+  return unicos
+    .map((id) => porId.get(id))
+    .filter((a): a is AtivoResumo => a !== undefined)
+}
+
+// M1 (colar lista) — todos os ativos cujos patrimônios estão na lista. Devolve
+// TODOS os candidatos de cada patrimônio: a duplicidade legítima (§5) é
+// resolvida por quem chamou (service tag da linha ou escolha do operador),
+// nunca aqui.
+export async function buscarAtivosPorPatrimonios(
+  patrimonios: string[],
+): Promise<AtivoResumo[]> {
+  const unicos = [...new Set(patrimonios)]
+  if (unicos.length === 0) return []
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('ativos')
+    .select(RESUMO_SELECT)
+    .in('patrimonio', unicos)
+    .order('patrimonio', { ascending: true, nullsFirst: false })
+  if (error) throw new Error(`Falha ao buscar ativos: ${error.message}`)
+
+  const rows = (data ?? []) as unknown as RawAtivoResumo[]
+  // Duplicidade calculada sobre o próprio resultado: aqui vieram TODOS os
+  // ativos de cada patrimônio pedido, então repetição no resultado == patrimônio
+  // duplicado no acervo (sem uma 2ª ida ao banco).
+  const dups = patrimoniosRepetidos(
+    rows.map((r) => r.patrimonio).filter((p): p is string => p !== null),
+  )
+  return rows.map((r) =>
+    resumoDe(r, r.patrimonio !== null && dups.has(r.patrimonio)),
+  )
 }
 
 // Resumo de um ativo por id (preselecao vinda da ficha / duplicar).
