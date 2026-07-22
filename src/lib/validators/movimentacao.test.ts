@@ -200,6 +200,14 @@ describe('parsearLoteColado (M1)', () => {
     expect(r.itens[0].service_tag).toBe('ST-ABC123')
   })
 
+  // Leitura POSICIONAL: 2ª coluna vazia = sem service tag. A 3ª coluna não
+  // "sobe" para o lugar da ST (senão o modelo viraria service tag).
+  it('2ª coluna vazia não vira service tag', () => {
+    const r = parsearLoteColado('WAP0001234\t\tNotebook fictício')
+    expect(r.itens).toHaveLength(1)
+    expect(r.itens[0].service_tag).toBeUndefined()
+  })
+
   it('separador solto na ponta não vira coluna vazia', () => {
     const r = parsearLoteColado('  WAP0001234\t  \n;WAP0001235;')
     expect(r.itens.map((i) => i.patrimonio)).toEqual(['WAP0001234', 'WAP0001235'])
