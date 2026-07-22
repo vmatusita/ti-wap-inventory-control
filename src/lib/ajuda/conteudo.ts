@@ -296,7 +296,7 @@ export const SECOES: Secao[] = [
           'Total — tudo que a TI possui daquele item (o patrimônio do almoxarifado).',
           'Estoque — o que está fisicamente disponível na prateleira agora.',
           'Atrelados — unidades vinculadas a um ativo/chamado, que devem retornar.',
-          'Falta — quanto falta para o estoque mínimo configurado (sinaliza reposição).',
+          'Falta — déficit real: acende quando o que está atrelado somado ao que está com as pessoas passa do Total — máx(0, atrelados + liberados − total). Na operação normal fica sempre em zero; se acender, algum lançamento não fecha e vale conferir o histórico. Não é aviso de reposição: o sistema não guarda nível de reposição por item.',
         ],
       },
       {
@@ -346,7 +346,7 @@ export const SECOES: Secao[] = [
       {
         tipo: 'nota',
         texto:
-          'As pendências são só para o operador — o visualizador não as vê. Na linha de um termo você confirma a assinatura ali mesmo, sem abrir a ficha.',
+          'As pendências são só para o operador — o visualizador não as vê. Na linha de um termo você confirma a assinatura ali mesmo, sem abrir a ficha. No menu lateral, o item "Pendências" traz um selo âmbar com quantas estão abertas (a contagem se atualiza a cada navegação; zerou, o selo some).',
       },
     ],
   },
@@ -385,9 +385,9 @@ export const SECOES: Secao[] = [
         titulo: 'Registrar uma nova movimentação (em lote)',
         itens: [
           'Abra Movimentações › Nova (atalho: tecla N em qualquer tela).',
-          'Selecione um ou mais ativos (o lote aceita até 10 de uma vez).',
-          'Escolha o tipo — só aparecem os tipos válidos para o estado de TODOS os ativos escolhidos.',
-          'Preencha os campos pedidos (os obrigatórios variam por tipo) e confirme.',
+          'Selecione um ou mais ativos (o lote aceita até 10 de uma vez). A busca acha por patrimônio, service tag, hostname, marca, modelo ou pelo nome do colaborador — digitar "Fulano da Silva" traz os equipamentos que estão com ele, e o nome aparece na linha do resultado.',
+          'Escolha o tipo — só aparecem os tipos válidos para o estado de TODOS os ativos escolhidos. Se um ativo adicionado depois estreitar as opções, o sistema avisa qual ativo limpou o tipo.',
+          'Preencha os campos pedidos (os obrigatórios variam por tipo) e confirme. Nos campos de data (da movimentação e do termo) há os atalhos "Hoje" e "Ontem" — um clique preenche.',
         ],
       },
       {
@@ -396,7 +396,19 @@ export const SECOES: Secao[] = [
         itens: [
           'Use o fluxo de compra para cadastrar ativos novos: um por vez, colando uma lista, ou por faixa de patrimônio.',
           `A faixa e a lista aceitam no máximo ${MAX_LOTE_COMPRA} unidades por vez.`,
+          'Na aba "Colar lista" você pode colar duas colunas direto do Excel (patrimônio e service tag): o separador pode ser TAB, ponto-e-vírgula ou vírgula. O preview aponta linha por linha o que está errado — inclusive patrimônio repetido dentro da própria lista.',
+          'Filial e categoria voltam preenchidas com as da última compra feita naquele navegador — confira antes de cadastrar.',
           'Cada ativo entra como Em estoque.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Cadastrando com leitor de código de barras',
+        itens: [
+          'O leitor USB funciona como um teclado: ele digita o que leu e dá Enter. Não é preciso configurar nada.',
+          'Clique no campo "Colar lista" do fluxo de compra e bipe as etiquetas em sequência — cada bipada cai numa linha.',
+          'Quer também a service tag? Bipe o patrimônio, digite TAB (ou ponto-e-vírgula) e bipe a service tag na mesma linha.',
+          'Confira o preview antes de cadastrar: ele mostra quantos ativos entrarão e destaca erros e repetições.',
         ],
       },
       {
@@ -457,8 +469,17 @@ export const SECOES: Secao[] = [
         titulo: 'Lançar um item por quantidade',
         itens: [
           'Abra Itens (atalho: tecla L) e lance uma movimentação de item.',
+          'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item e a filial preenchidos e o cursor na quantidade.',
           'Escolha o tipo (Entrada, Liberação, Atrelar, Devolução, Retorno ou Ajuste) — cada um afeta Total/Estoque de um jeito.',
           'Informe a quantidade e, quando fizer sentido, a pessoa/chamado. O Ajuste pede justificativa.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Achar um lançamento no histórico de itens',
+        itens: [
+          'Na página Itens, o histórico filtra por item, por tipo de lançamento e por período (De / Até), além da filial.',
+          'Os filtros ficam na URL: o link já vem filtrado ao ser compartilhado, e voltar/avançar do navegador funciona. Trocar um filtro volta para a primeira página.',
         ],
       },
       {
@@ -491,10 +512,10 @@ export const SECOES: Secao[] = [
         tipo: 'lista',
         itens: [
           'Usuários — convites de novos operadores. Só e-mails @wap.ind.br podem ser convidados.',
-          'Senhas de acesso — senhas que dão ao visualizador acesso só aos relatórios. Revogar uma senha tem efeito imediato, no request seguinte.',
+          'Senhas de acesso — senhas que dão ao visualizador acesso só aos relatórios. Revogar pede confirmação e tem efeito imediato, no request seguinte; a senha revogada pode ser reativada na mesma lista.',
           'Filiais — cadastro das filiais.',
           'Motivos — o vocabulário de motivos oferecido na tela de movimentação.',
-          'Itens — o catálogo de itens por quantidade (nome, grupo, estoque mínimo).',
+          'Itens — o catálogo de itens por quantidade (nome, grupo, ordem).',
           'Importar — import de startup de uma filial por arquivo (CSV ou Excel .xlsx), para o go-live dela no sistema.',
         ],
       },
@@ -523,7 +544,7 @@ export const SECOES: Secao[] = [
       {
         tipo: 'paragrafo',
         texto:
-          'Identidade do equipamento: a chave de um ativo é o PAR patrimônio + service tag. O patrimônio pode repetir em casos raros, por isso a busca desambigua pela service tag. O formato canônico do patrimônio é PREFIXO + 7 dígitos (ex.: WAP0004491). A service tag nunca muda; o patrimônio pode ser corrigido.',
+          'Identidade do equipamento: a chave de um ativo é o PAR patrimônio + service tag. O patrimônio pode repetir em casos raros, por isso a busca desambigua pela service tag. O formato canônico do patrimônio é PREFIXO + 7 dígitos (ex.: WAP0004491). A service tag nunca muda; o patrimônio pode ser corrigido. Na lista de ativos e na ficha há um botão de copiar ao lado do número: um clique põe o patrimônio (ou a service tag) na área de transferência, para colar no chamado ou no e-mail.',
       },
       {
         tipo: 'nota',

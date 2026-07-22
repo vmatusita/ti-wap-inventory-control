@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { StatusBadge } from '@/components/ativos/status-badge'
+import { CopiarPatrimonio } from '@/components/ativos/copiar-patrimonio'
 import { formatDate, ouTraco } from '@/lib/format'
 import { rotuloCategoria } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
@@ -53,20 +54,27 @@ export function AtivosTable({
         accessorKey: 'patrimonio',
         header: 'Patrimônio',
         cell: ({ row }) => (
-          <Link
-            href={`/ativos/${row.original.id}`}
-            className="font-medium tabular-nums underline-offset-4 hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {row.original.patrimonio ?? (
-              <Badge
-                variant="outline"
-                className="font-normal text-muted-foreground"
-              >
-                sem patrimônio
-              </Badge>
+          <span className="flex items-center gap-0.5">
+            <Link
+              href={`/ativos/${row.original.id}`}
+              className="font-medium tabular-nums underline-offset-4 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {row.original.patrimonio ?? (
+                <Badge
+                  variant="outline"
+                  className="font-normal text-muted-foreground"
+                >
+                  sem patrimônio
+                </Badge>
+              )}
+            </Link>
+            {/* Ativo sem patrimônio (F7E) não tem o que copiar. O botão para a
+                propagação do clique — a LINHA navega por onClick. */}
+            {row.original.patrimonio && (
+              <CopiarPatrimonio valor={row.original.patrimonio} />
             )}
-          </Link>
+          </span>
         ),
       },
     ]
