@@ -149,10 +149,10 @@ Relatório ao vivo abre dom–sáb (decisão B2); o dialog de gerar snapshot sug
 | Onda | Tema | Itens | Observação |
 |---|---|---|---|
 | ~~**1 — Quick wins**~~ ✅ **CONCLUÍDA em 22/07/2026 (F9)** | Polimento de alto retorno | M2, M7, M10, A1, A3, A5, A7, I3, I6, T2, T4, T6, T8 + correção da ajuda (I5a) | Entregues os 14 pela `docs/prompts/F9-ultracode.md`, zero migration e zero dependência nova. Ata em `docs/DECISOES.md` (2026-07-22 · F9) |
-| **2 — Operação em massa** | Lote e memória | M1, M3, M4, M5, M6, M9, M11, A2, A4, A6, I1, I2, T5 | M5 é regra prometida pela spec §8.7; M11 pede só decisão do teto |
-| **3 — Navegação e estrutura** | Busca e auditoria | T1, T3, T7, T9, T10, M8, I4 | T1 e M8 são os de maior impacto percebido |
+| ~~**2 — Operação em massa**~~ ✅ **CONCLUÍDA em 22/07/2026 (F10)** | Lote e memória | M1, M3, M4, M5, M6, M9, M11, A2, A4, A6, I1, I2, T5 | Entregues os 13 pela `docs/prompts/F10-ultracode.md`, zero migration e zero dependência nova. M5 (a regra prometida pela spec §8.7) saiu como **aviso âmbar não-bloqueante**; o teto do M11 fechou em **30** (`MAX_LOTE_MOVIMENTACAO`). Ata em `docs/DECISOES.md` (2026-07-22 · F10); roteiro E2E em `docs/E2E-F10.md` |
+| **3 — Navegação e estrutura** | Busca e auditoria | T1, T3, T7, T9, T10, M8, I4 | T1 e M8 são os de maior impacto percebido — **próxima onda** |
 | **Já previstos (F5/F6C)** | — | M12 (kits), I5 (estoque mínimo), carga F6C | Priorizar dentro da F5 quando ela abrir |
-| **Exigem decisão antes** | — | A8, M11, T11, T12 | Registrar em DECISOES.md ao decidir |
+| **Exigem decisão antes** | — | A8, ~~M11~~ (decidido: 30, na F10), T11, T12 | Registrar em DECISOES.md ao decidir |
 
 ## 6. Não sugerido de propósito (decisões vigentes respeitadas)
 
