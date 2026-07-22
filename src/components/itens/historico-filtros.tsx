@@ -24,6 +24,7 @@ import {
   type TipoLancamento,
 } from '@/lib/dominio'
 import type { ItemCatalogo } from '@/lib/queries/itens'
+import { baseFiltrosItens, registrarFiltrosEnviados } from './url-filtros'
 
 const TODOS_ITENS = '__todos_itens'
 const TODOS_TIPOS = '__todos_tipos'
@@ -58,13 +59,19 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
   }
 
   function aplicar(mudancas: Record<string, string | null>) {
-    const novo = new URLSearchParams(params.toString())
+    // Base vem de `baseFiltrosItens`, não de `params`: durante uma navegação
+    // pendente o snapshot da URL ainda é o antigo e a segunda troca de filtro
+    // apagaria a primeira (ver o comentário longo em `url-filtros.ts`).
+    const commitada = params.toString()
+    const novo = baseFiltrosItens(commitada)
     for (const [chave, valor] of Object.entries(mudancas)) {
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
     }
     novo.delete('page')
-    startTransition(() => router.push(`${pathname}?${novo.toString()}`))
+    const query = novo.toString()
+    registrarFiltrosEnviados(commitada, query)
+    startTransition(() => router.push(`${pathname}?${query}`))
   }
 
   const temFiltro = !!itemAtual || !!tipoAtual || !!deAtual || !!ateAtual

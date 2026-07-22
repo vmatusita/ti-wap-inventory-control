@@ -40,8 +40,16 @@ function primeiro(v: string | string[] | undefined): string | undefined {
 
 // Params do histórico (F9 · I3) são validados aqui: qualquer valor fora do
 // formato é IGNORADO (nunca derruba a página nem vira filtro inválido no banco).
+// A FAIXA importa tanto quanto o formato: `item_id` e `filial_id` são `smallint`
+// (migration 0015), então `?item=99999` — formato válido — faria o Postgres
+// recusar o literal (22003) e a leitura lançaria no Server Component, derrubando
+// a página. Achado da revisão adversarial da F9.
+const MAX_SMALLINT = 32767
+
 function idNumerico(v: string | undefined): number | null {
-  return v && /^\d+$/.test(v) ? Number(v) : null
+  if (!v || !/^\d+$/.test(v)) return null
+  const n = Number(v)
+  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_SMALLINT ? n : null
 }
 
 // Lista explícita (não `in TIPO_LANCAMENTO_META`, que aceitaria chaves herdadas

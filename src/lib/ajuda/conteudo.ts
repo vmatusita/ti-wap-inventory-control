@@ -407,7 +407,7 @@ export const SECOES: Secao[] = [
         itens: [
           'O leitor USB funciona como um teclado: ele digita o que leu e dá Enter. Não é preciso configurar nada.',
           'Clique no campo "Colar lista" do fluxo de compra e bipe as etiquetas em sequência — cada bipada cai numa linha.',
-          'Quer também a service tag? Bipe o patrimônio, digite TAB (ou ponto-e-vírgula) e bipe a service tag na mesma linha.',
+          'Quer também a service tag? Bipe o patrimônio, digite ponto e vírgula (;) e bipe a service tag na mesma linha. Não use TAB para separar: dentro do campo, a tecla Tab pula para o controle seguinte — o TAB só vale quando a lista vem colada do Excel.',
           'Confira o preview antes de cadastrar: ele mostra quantos ativos entrarão e destaca erros e repetições.',
         ],
       },

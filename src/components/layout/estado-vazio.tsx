@@ -31,7 +31,9 @@ export function EstadoVazio({
         <Icone className="size-4 shrink-0" aria-hidden />
         <span>
           {titulo}
-          {descricao ? <span className="text-muted-foreground/80"> — {descricao}</span> : null}
+          {/* `text-muted-foreground` puro: a 80% o contraste cai para 3,23:1 no
+              tema claro e reprova AA em texto de 14px (revisão adversarial F9). */}
+          {descricao ? <span> — {descricao}</span> : null}
         </span>
         {acao ? (
           <Link

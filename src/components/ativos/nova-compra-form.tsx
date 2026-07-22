@@ -59,6 +59,7 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
     { id: string; patrimonio: string }[] | null
   >(null)
   const enviandoRef = useRef(false)
+  const jaFocouLista = useRef(false)
 
   // A5 — pré-preenche categoria/filial com o que foi usado na última compra
   // NESTE dispositivo. Pós-mount (nunca no `useState` inicial: o servidor não
@@ -276,7 +277,16 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
             </Label>
             <Textarea
               id="lista"
-              autoFocus
+              // Foco só na PRIMEIRA montagem. `autoFocus` puro reagia toda vez que
+              // a aba "Colar lista" era remontada (o Radix Tabs desmonta a aba
+              // inativa), roubando o foco de quem navegava entre as abas pelo
+              // teclado. `preventScroll` mantém o topo da página à vista.
+              ref={(el) => {
+                if (el && !jaFocouLista.current) {
+                  jaFocouLista.current = true
+                  el.focus({ preventScroll: true })
+                }
+              }}
               rows={6}
               value={textoLista}
               onChange={(e) => setTextoLista(e.target.value)}

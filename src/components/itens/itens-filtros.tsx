@@ -15,6 +15,7 @@ import {
 import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM } from '@/lib/dominio'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 import type { Filial } from '@/lib/queries/filiais'
+import { baseFiltrosItens, registrarFiltrosEnviados } from './url-filtros'
 
 const TODAS = '__todas'
 const TODOS = '__todos'
@@ -39,26 +40,36 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
     setBusca(qAtual)
   }
 
+  // Empurra preservando o que já foi trocado nesta janela de navegação — inclusive
+  // o que o bloco de filtros do histórico empurrou, já que os dois escrevem na
+  // mesma URL. Ver `url-filtros.ts`.
+  function empurrar(novo: URLSearchParams, commitada: string) {
+    novo.delete('page')
+    const query = novo.toString()
+    registrarFiltrosEnviados(commitada, query)
+    startTransition(() => router.push(`${pathname}?${query}`))
+  }
+
   function aplicar(mudancas: Record<string, string | null>) {
-    const novo = new URLSearchParams(params.toString())
+    const commitada = params.toString()
+    const novo = baseFiltrosItens(commitada)
     for (const [chave, valor] of Object.entries(mudancas)) {
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
     }
-    novo.delete('page')
-    startTransition(() => router.push(`${pathname}?${novo.toString()}`))
+    empurrar(novo, commitada)
   }
 
   // A busca só é aplicada ao SUBMETER (Enter ou botão "Pesquisar") — nunca a cada
   // tecla (buscar durante a digitação fazia o campo "voltar" ao estado anterior ao
-  // resincronizar com a URL). Lê a URL fresca p/ preservar filtros trocados junto.
+  // resincronizar com a URL).
   function submeterBusca() {
-    const novo = new URLSearchParams(window.location.search)
+    const commitada = params.toString()
+    const novo = baseFiltrosItens(commitada)
     const termo = busca.trim()
     if (termo) novo.set('q', termo)
     else novo.delete('q')
-    novo.delete('page')
-    startTransition(() => router.push(`${pathname}?${novo.toString()}`))
+    empurrar(novo, commitada)
   }
 
   const temFiltro = !!qAtual || !!filialAtual || !!grupoAtual
