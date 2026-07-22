@@ -1,6 +1,8 @@
 # Backlog de melhorias — UX e facilitadores de operação
 
-> Análise de 22/07/2026 sobre o working tree (F0–F8 concluídas e em produção; pendentes F6C e itens de F5). Este documento é **insumo de backlog** — nada aqui foi implementado; cada item só vira trabalho quando entrar numa ordem de serviço. Nenhuma sugestão exige dependência fora da stack fechada (as duas únicas ressalvas estão marcadas), nenhuma cria custo, nenhuma mexe no modelo de acesso de nível único e nenhuma reabre decisões registradas (modo *Atualizar* do import, roles, dark mode, upload de PDF assinado).
+> Análise de 22/07/2026 sobre o working tree (F0–F8 concluídas e em produção; pendentes F6C e itens de F5). Este documento é **insumo de backlog** — cada item só vira trabalho quando entrar numa ordem de serviço.
+>
+> **Estado (22/07/2026):** a **Onda 1 (§5) foi executada pela F9** — os 14 itens estão em produção; os textos abaixo descrevem o problema *como era antes* da correção e ficam como registro do diagnóstico. As Ondas 2 e 3 continuam abertas. Nenhuma sugestão exige dependência fora da stack fechada (as duas únicas ressalvas estão marcadas), nenhuma cria custo, nenhuma mexe no modelo de acesso de nível único e nenhuma reabre decisões registradas (modo *Atualizar* do import, roles, dark mode, upload de PDF assinado).
 
 **Legenda de esforço:** P ≈ até meio dia · M ≈ 1–2 dias · G ≈ 3+ dias. Quando o item exige migration nova ou decisão do Johnny, está indicado em "requer".
 
@@ -146,7 +148,7 @@ Relatório ao vivo abre dom–sáb (decisão B2); o dialog de gerar snapshot sug
 
 | Onda | Tema | Itens | Observação |
 |---|---|---|---|
-| **1 — Quick wins** (1 ordem curta) | Polimento de alto retorno | M2, M7, M10, A1, A3, A5, A7, I3, I6, T2, T4, T6, T8 + correção da ajuda (I5) | Todos P/P-M, zero migration, zero decisão pendente |
+| ~~**1 — Quick wins**~~ ✅ **CONCLUÍDA em 22/07/2026 (F9)** | Polimento de alto retorno | M2, M7, M10, A1, A3, A5, A7, I3, I6, T2, T4, T6, T8 + correção da ajuda (I5a) | Entregues os 14 pela `docs/prompts/F9-ultracode.md`, zero migration e zero dependência nova. Ata em `docs/DECISOES.md` (2026-07-22 · F9) |
 | **2 — Operação em massa** | Lote e memória | M1, M3, M4, M5, M6, M9, M11, A2, A4, A6, I1, I2, T5 | M5 é regra prometida pela spec §8.7; M11 pede só decisão do teto |
 | **3 — Navegação e estrutura** | Busca e auditoria | T1, T3, T7, T9, T10, M8, I4 | T1 e M8 são os de maior impacto percebido |
 | **Já previstos (F5/F6C)** | — | M12 (kits), I5 (estoque mínimo), carga F6C | Priorizar dentro da F5 quando ela abrir |

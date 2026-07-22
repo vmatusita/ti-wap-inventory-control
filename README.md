@@ -58,12 +58,13 @@ O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: 
 
 ## Status
 
-**Em produção (F0 → F7K):** operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo + snapshots semanais com acesso por senha, termos gerados em `.docx`, e o **import de startup por filial** (`admin/importar`, só *Substituir tudo*). O histórico fase a fase está em [`CHANGELOG.md`](CHANGELOG.md); a ata detalhada de cada decisão, em [`docs/DECISOES.md`](docs/DECISOES.md).
+**Em produção (F0 → F9):** operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo + snapshots semanais com acesso por senha, termos gerados em `.docx`, o **import de startup por filial** (`admin/importar`, só *Substituir tudo*) e os **quick wins de UX da F9** (busca por colaborador, colar do Excel, filtros do histórico de itens, badge de pendências). O histórico fase a fase está em [`CHANGELOG.md`](CHANGELOG.md); a ata detalhada de cada decisão, em [`docs/DECISOES.md`](docs/DECISOES.md).
 
 **Pendências:**
 
 - **F6C — carga dos saldos de itens** ([`docs/prompts/F6C-carga-saldos-itens.md`](docs/prompts/F6C-carga-saldos-itens.md)) — **próximo passo**, mas **por último na fila** (decisão de 16/07/2026: melhorias primeiro, cargas depois). É o único item que **depende de insumo do Johnny** (o export dos saldos da planilha de gestão online). Até lá, o catálogo de `itens` segue vazio e essa seção do relatório só aparece quando houver lançamentos.
 - **F5 — refino** — alertas, e-mail, estoque mínimo por item, upload do PDF assinado (item 5.5).
+- **Ondas 2 e 3 do backlog de UX** ([`docs/BACKLOG-UX.md`](docs/BACKLOG-UX.md)) — a Onda 1 saiu na F9; ficam a operação em massa (colar lista na movimentação, autocomplete, alerta de duplicata, multi-item, export CSV) e a navegação/estrutura (busca global, lista de movimentações, ordenação de colunas).
 - **Banco** — aplicar as migrations `0039` (drop dos backups órfãos) e `0040` (hardening das RPCs) em produção (gate; ver [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md)).
 
 Pendências não bloqueantes: perguntas 4, 5, 6 e 7 da spec §13. As filiais oficiais foram definidas em 15/07/2026: **Matriz, CD-Afonso Pena, Linhares, Eusébio e Serra** (Serra Park é filial própria; Filial-CE = Eusébio).
