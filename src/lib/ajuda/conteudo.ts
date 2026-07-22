@@ -8,6 +8,12 @@
 // Sem JSX de proposito: este modulo e importavel no ambiente `node` do Vitest
 // (funcoes puras) e nao arrasta React. A renderizacao (badges reais, cards) vive
 // na camada de componentes (src/components/ajuda/*). Exemplos SEMPRE ficticios.
+//
+// So SERVIDOR: os tetos citados no manual vem das constantes reais
+// (MAX_LOTE_MOVIMENTACAO, MAX_LINHAS_LOTE_ITEM, CAP_EXPORT) — e `@/lib/csv`
+// arrasta o PapaParse. A pagina /ajuda e Server Component e o unico consumidor
+// de UI (`bloco-ajuda.tsx`) so importa TIPOS daqui; se algum dia um Client
+// Component precisar do conteudo, receba-o por prop em vez de importar.
 import {
   STATUS_META,
   STATUS_ORDEM,
@@ -27,9 +33,12 @@ import {
 } from '@/lib/dominio'
 import {
   CAMPOS_POR_TIPO,
+  MAX_LOTE_MOVIMENTACAO,
   type CampoMovimentacao,
   type RegraCampo,
 } from '@/lib/validators/movimentacao'
+import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import { CAP_EXPORT } from '@/lib/csv'
 import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { normalizarBusca } from '@/lib/ajuda/busca'
@@ -258,6 +267,11 @@ export const SECOES: Secao[] = [
           'O Motivo (quando aparece) vem do catálogo de motivos, mantido em Administração › Motivos.',
         ],
       },
+      {
+        tipo: 'nota',
+        texto:
+          'Possível duplicata: no passo de Revisão, se algum ativo do lote JÁ tiver uma movimentação do mesmo tipo registrada hoje, aparece um aviso âmbar ("WAP0001234 já teve “Saída” hoje — confira antes de registrar"). É só um alerta: registrar continua permitido, porque às vezes o mesmo evento acontece mesmo duas vezes no dia. Movimentação que foi estornada NÃO conta como duplicata.',
+      },
     ],
   },
   {
@@ -386,9 +400,46 @@ export const SECOES: Secao[] = [
         titulo: 'Registrar uma nova movimentação (em lote)',
         itens: [
           'Abra Movimentações › Nova (atalho: tecla N em qualquer tela).',
-          'Selecione um ou mais ativos (o lote aceita até 10 de uma vez). A busca acha por patrimônio, service tag, hostname, marca, modelo ou pelo nome do colaborador — digitar "Fulano da Silva" traz os equipamentos que estão com ele, e o nome aparece na linha do resultado.',
+          `Selecione um ou mais ativos (o lote aceita até ${MAX_LOTE_MOVIMENTACAO} de uma vez). A busca acha por patrimônio, service tag, hostname, marca, modelo ou pelo nome do colaborador — digitar "Fulano da Silva" traz os equipamentos que estão com ele, e o nome aparece na linha do resultado.`,
+          'Com o campo de busca ainda vazio, a lista já sugere "Movimentados recentemente" — os últimos ativos que VOCÊ movimentou, que quase sempre são o próximo do dia. Quem já está no lote não aparece na sugestão.',
+          'Muitos ativos de uma vez? Use "Colar lista" ao lado da busca (passo a passo abaixo) em vez de adicionar um a um.',
           'Escolha o tipo — só aparecem os tipos válidos para o estado de TODOS os ativos escolhidos. Se um ativo adicionado depois estreitar as opções, o sistema avisa qual ativo limpou o tipo.',
-          'Preencha os campos pedidos (os obrigatórios variam por tipo) e confirme. Nos campos de data (da movimentação e do termo) há os atalhos "Hoje" e "Ontem" — um clique preenche.',
+          'Preencha os campos pedidos (os obrigatórios variam por tipo) e confirme. Nos campos de data (da movimentação e do termo) há os atalhos "Hoje" e "Ontem" — um clique preenche. Colaborador e Setor sugerem o que já existe no sistema depois de 2 letras (a lista é só atalho: nome novo continua sendo digitado normalmente).',
+          'Na Revisão, confira o aviso âmbar de possível duplicata, se aparecer, antes de registrar.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Colar a lista de patrimônios no lote (movimentação)',
+        itens: [
+          'No passo 1 (Ativos), clique em "Colar lista".',
+          'Cole um patrimônio por linha. A service tag é opcional e vem depois de vírgula, ponto e vírgula ou TAB — dá para colar duas colunas direto do Excel (o TAB entre elas já é o separador). Colunas extras são ignoradas.',
+          'O leitor de código de barras também serve aqui: cada bipada cai numa linha nova (o leitor digita e dá Enter).',
+          'Clique em "Conferir lista". O resultado vem em blocos: Encontrados (entram no lote), patrimônio duplicado (você escolhe qual), Não encontrados e Linhas inválidas — os dois últimos com botão de copiar, para levar de volta à planilha.',
+          'Patrimônio que repete em dois ativos e veio SEM service tag na linha não entra sozinho: o sistema mostra os candidatos com service tag, filial e status para você marcar qual é. Nada entra por adivinhação.',
+          `Ativo que já está no lote aparece marcado como "já no lote" e não entra duas vezes. Se a lista passar de ${MAX_LOTE_MOVIMENTACAO} linhas, o diálogo avisa e não consulta nada — divida em dois lotes.`,
+          'Confirme com "Adicionar ao lote" — o botão diz quantos vão entrar e como fica o total.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Retomar um lote que ficou pela metade (rascunho)',
+        itens: [
+          'Enquanto você monta o lote, a aba guarda um rascunho sozinha: os ativos escolhidos, a configuração e em que passo você parou.',
+          'Saiu da tela (inclusive pelo atalho N) ou recarregou a página? Ao voltar aparece o aviso "Você tem um lote não registrado", com Restaurar e Descartar.',
+          'Restaurar re-busca cada ativo no banco na hora — se alguém movimentou um deles nesse meio-tempo, o status vem atualizado e os tipos oferecidos se ajustam; ativo que sumiu do sistema fica de fora, com aviso de quantos ficaram.',
+          'O rascunho é só desta aba do navegador e some quando você fecha o navegador. Registrar (mesmo em parte) ou Descartar também o apagam.',
+          'Abrir a tela por um link com ativo já escolhido (pela ficha ou por "Duplicar") tem prioridade: nesses casos o rascunho não é oferecido.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Depois de registrar: termos em sequência e sucesso parcial',
+        itens: [
+          'Registrou uma saída ou empréstimo com vários ativos? A tela de sucesso lista os termos elegíveis com o estado de cada um (pendente / gerado / pulado).',
+          'O botão em destaque é sempre o do PRÓXIMO termo pendente: gerou um, o destaque anda sozinho para o seguinte — dá para emitir a sequência inteira sem procurar botão. Pular é permitido e não gera nada.',
+          'Esqueceu ou pulou? O termo continua disponível na ficha do ativo e na página Pendências.',
+          'Se parte do lote falhar, o formulário volta com as falhas para corrigir — e agora mostra também os chips "Já registrados", com link para a ficha de cada ativo que entrou. O que foi registrado está registrado: não repita esses.',
         ],
       },
       {
@@ -398,8 +449,20 @@ export const SECOES: Secao[] = [
           'Use o fluxo de compra para cadastrar ativos novos: um por vez, colando uma lista, ou por faixa de patrimônio.',
           `A faixa e a lista aceitam no máximo ${MAX_LOTE_COMPRA} unidades por vez.`,
           'Na aba "Colar lista" você pode colar duas colunas direto do Excel (patrimônio e service tag): o separador pode ser TAB, ponto-e-vírgula ou vírgula. O preview aponta linha por linha o que está errado — inclusive patrimônio repetido dentro da própria lista.',
+          'Na aba "Faixa" há um campo opcional de service tags: uma por linha, NA MESMA ORDEM da faixa. Deixe vazio e a faixa entra sem service tag, como antes; preencheu, o preview mostra os pares (WAP0001234 · ST-ABC123). Se a contagem não bater ("5 patrimônios × 3 service tags"), o erro aparece e o cadastro fica bloqueado até acertar — o mesmo vale para service tag repetida na lista.',
+          'Marca, Modelo e Fornecedor sugerem o que já existe no acervo depois de 2 letras (Modelo filtra pela marca já escolhida). É só atalho contra "Dell" virar "DELL" na próxima compra: digitar um valor novo continua normal e nada é bloqueado.',
           'Filial e categoria voltam preenchidas com as da última compra feita naquele navegador — confira antes de cadastrar.',
           'Cada ativo entra como Em estoque.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Comprar outro igual (sem redigitar a ficha)',
+        itens: [
+          'Na ficha de um ativo, use "Comprar outro igual": abre a compra com categoria, marca, modelo, memória, armazenamento, processador, fornecedor e filial já preenchidos.',
+          'No próprio formulário de compra há o botão "Repetir última compra", que preenche os mesmos campos com a última compra que VOCÊ registrou.',
+          'Patrimônio e service tag NUNCA vêm preenchidos — são de cada equipamento e continuam sendo digitados, colados ou bipados.',
+          'Quem manda quando há mais de uma fonte: o link "Comprar outro igual" vence o botão "Repetir última compra", que vence a memória de filial/categoria do navegador. Confira os campos antes de cadastrar — a nota fiscal é que decide.',
         ],
       },
       {
@@ -408,6 +471,7 @@ export const SECOES: Secao[] = [
         itens: [
           'O leitor USB funciona como um teclado: ele digita o que leu e dá Enter. Não é preciso configurar nada.',
           'Clique no campo "Colar lista" do fluxo de compra e bipe as etiquetas em sequência — cada bipada cai numa linha.',
+          'O mesmo vale no "Colar lista" da nova movimentação: bipe os equipamentos em sequência e depois clique em "Conferir lista".',
           'Quer também a service tag? Bipe o patrimônio, digite ponto e vírgula (;) e bipe a service tag na mesma linha. Não use TAB para separar: dentro do campo, a tecla Tab pula para o controle seguinte — o TAB só vale quando a lista vem colada do Excel.',
           'Confira o preview antes de cadastrar: ele mostra quantos ativos entrarão e destaca erros e repetições.',
         ],
@@ -473,6 +537,41 @@ export const SECOES: Secao[] = [
           'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item e a filial preenchidos e o cursor na quantidade.',
           'Escolha o tipo (Entrada, Liberação, Atrelar, Devolução, Retorno ou Ajuste) — cada um afeta Total/Estoque de um jeito.',
           'Informe a quantidade e, quando fizer sentido, a pessoa/chamado. O Ajuste pede justificativa.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Lançar vários itens da mesma nota (carrinho)',
+        itens: [
+          'Uma nota com 5 itens é UM lançamento com 5 linhas — não é preciso abrir o formulário cinco vezes.',
+          `Use "Adicionar item" para incluir uma linha (item + quantidade). O contador ao lado de "Itens" mostra quanto já foi usado do limite de ${MAX_LINHAS_LOTE_ITEM} linhas por lançamento.`,
+          'Filial, tipo, data, chamado, colaborador e observação são COMUNS a todas as linhas — preencha uma vez. As regras do tipo (chamado obrigatório em Atrelar/Liberação, justificativa no Ajuste) valem para o lançamento inteiro.',
+          'O mesmo item não pode aparecer duas vezes no carrinho: some as quantidades numa linha só.',
+          'Cada linha é lançada por conta própria: se uma falhar (saldo insuficiente, por exemplo), as outras entram do mesmo jeito. O aviso diz "X de Y linhas lançadas" e o formulário fica só com as que falharam, com o motivo em cada linha — corrija e mande de novo, sem redigitar o resto.',
+          '"Repetir último" e o botão de lançar da linha do saldo preenchem a PRIMEIRA linha do carrinho (e os campos comuns).',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Criar um item que não está no catálogo (sem sair do lançamento)',
+        itens: [
+          'Na lista de itens do carrinho, digite o nome do item novo (a partir de 2 letras).',
+          'Não achou? Aparece a opção "Criar item «…»" na própria lista — alcançável pelas setas do teclado.',
+          'Confirme o nome e escolha o grupo (Acessório ou Componente). A posição do item na tabela é calculada pelo sistema.',
+          'O item entra criado e já selecionado naquela linha do carrinho — o lançamento segue sem interrupção. Ele passa a valer para todo mundo (é o mesmo catálogo de Administração › Itens).',
+          'Nome que já existe no catálogo não é criado de novo: o sistema avisa "Já existe um item com esse nome." — procure-o na lista.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Exportar uma lista para o Excel (CSV)',
+        itens: [
+          'Ativos, Pendências e Itens têm o botão "Exportar CSV" no cabeçalho. Em Itens são dois: "Exportar saldos" (no topo) e "Exportar histórico" (no cabeçalho do histórico de lançamentos).',
+          'O arquivo sai exatamente com o que está filtrado na tela — mudou o filtro, mudou o arquivo. A paginação não conta: o export leva todas as linhas do filtro, não só a página aberta.',
+          `Cada arquivo leva no máximo ${CAP_EXPORT.toLocaleString('pt-BR')} linhas. Se o filtro tiver mais, o aviso diz quantas de quantas saíram ("Exportadas ${CAP_EXPORT.toLocaleString('pt-BR')} de N — refine os filtros") — nunca corta em silêncio.`,
+          'Filtro sem nenhuma linha gera mesmo assim um arquivo, só com o cabeçalho (o aviso avisa).',
+          'O arquivo abre direto no Excel em português: separador ponto e vírgula, acentuação certa e datas em dd/MM/aaaa. O nome traz a data do dia (ex.: ativos-2026-07-22.csv).',
+          'A exportação é do operador: quem entra só com a senha de acesso dos relatórios não alcança essas telas nem o arquivo.',
         ],
       },
       {
