@@ -4,6 +4,7 @@
 import { hojeISO } from '@/lib/format'
 import {
   CAMPOS_POR_TIPO,
+  MAX_LOTE_MOVIMENTACAO,
   campoObrigatorio,
   type CampoMovimentacao,
 } from '@/lib/validators/movimentacao'
@@ -50,6 +51,47 @@ export function configPadrao(inicial?: ConfigInicial | null): Config {
     filialDestinoId: inicial?.filialDestinoId || '',
     itensFaltantes: inicial?.itensFaltantes || [],
   }
+}
+
+// Entrada em MASSA no lote (F10/M1 — "Colar lista"): o resolver do W1 devolve
+// tudo o que achou, sem olhar o lote atual nem o teto (CONTRATO §1.5). Quem
+// corta e avisa e a UI — e a regra vive aqui, pura e testavel, para o dialog do
+// colar-lista e o combobox usarem a MESMA aritmetica.
+export type MesclagemLote = {
+  // Lote resultante (atual + os que couberam), na ordem de chegada.
+  lote: AtivoResumo[]
+  adicionados: AtivoResumo[]
+  // Ja estavam no lote (ou repetidos na propria entrada) — ignorados em silencio.
+  jaNoLote: AtivoResumo[]
+  // Ficaram de fora por causa do teto — a UI avisa quantos.
+  excedentes: AtivoResumo[]
+}
+
+export function mesclarAtivosNoLote(
+  atual: AtivoResumo[],
+  entrantes: AtivoResumo[],
+  max: number = MAX_LOTE_MOVIMENTACAO,
+): MesclagemLote {
+  const vistos = new Set(atual.map((a) => a.id))
+  const adicionados: AtivoResumo[] = []
+  const jaNoLote: AtivoResumo[] = []
+  const excedentes: AtivoResumo[] = []
+
+  for (const a of entrantes) {
+    if (vistos.has(a.id)) {
+      jaNoLote.push(a)
+      continue
+    }
+    // O teto conta o lote INTEIRO (o que ja estava + o que entrou agora).
+    if (atual.length + adicionados.length >= max) {
+      excedentes.push(a)
+      continue
+    }
+    vistos.add(a.id)
+    adicionados.push(a)
+  }
+
+  return { lote: [...atual, ...adicionados], adicionados, jaNoLote, excedentes }
 }
 
 // Resultado do envio, alimenta o PainelSucesso (fichas + diálogos de termo).
