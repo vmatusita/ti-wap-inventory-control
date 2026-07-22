@@ -81,22 +81,40 @@ function chaveNormalizada(v: string): string {
 // acervo ("Dell" × "DELL", §2: nenhuma normalização retroativa) vence a MAIS
 // FREQUENTE: sugerir a grafia dominante é o que faz o acervo convergir sozinho.
 // Empate: a primeira em ordem alfabética. Devolve as `MAX_SUGESTOES` primeiras.
-function dedupPorFrequencia(valores: (string | null)[]): string[] {
-  const porChave = new Map<string, { valor: string; n: number }>()
+//
+// Exportada por causa do teste (é a regra que dá sentido ao A4): a contagem é
+// por GRAFIA EXATA e só depois se agrupa pela chave normalizada — contar no
+// grupo e escolher o representante pelo alfabeto (como antes) fazia 900 "Dell"
+// perderem para 12 "DELL", espalhando a divergência com a chancela do sistema.
+export function dedupPorFrequencia(valores: (string | null)[]): string[] {
+  const porVariante = new Map<string, number>()
   for (const bruto of valores) {
     const v = (bruto ?? '').trim()
     if (!v) continue
-    const k = chaveNormalizada(v)
+    porVariante.set(v, (porVariante.get(v) ?? 0) + 1)
+  }
+
+  // `total` = tamanho do grupo (ordena as sugestões entre si);
+  // `n` = quantas vezes a grafia ESCOLHIDA aparece (elege o representante).
+  const porChave = new Map<string, { valor: string; n: number; total: number }>()
+  for (const [valor, n] of porVariante) {
+    const k = chaveNormalizada(valor)
     const atual = porChave.get(k)
     if (!atual) {
-      porChave.set(k, { valor: v, n: 1 })
+      porChave.set(k, { valor, n, total: n })
       continue
     }
-    atual.n += 1
-    if (v.localeCompare(atual.valor, 'pt-BR') < 0) atual.valor = v
+    atual.total += n
+    const vence =
+      n > atual.n || (n === atual.n && valor.localeCompare(atual.valor, 'pt-BR') < 0)
+    if (vence) {
+      atual.valor = valor
+      atual.n = n
+    }
   }
+
   return [...porChave.values()]
-    .sort((a, b) => b.n - a.n || a.valor.localeCompare(b.valor, 'pt-BR'))
+    .sort((a, b) => b.total - a.total || a.valor.localeCompare(b.valor, 'pt-BR'))
     .slice(0, MAX_SUGESTOES)
     .map((s) => s.valor)
 }
