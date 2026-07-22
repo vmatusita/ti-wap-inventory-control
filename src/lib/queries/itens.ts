@@ -137,9 +137,15 @@ const LANC_SELECT =
   'filial:filiais!lancamentos_item_filial_id_fkey(nome)'
 
 // Histórico paginado (mais recente primeiro), com sinalização de estorno.
+// Filtros (F9 · I3): filial, item, tipo e período. O período é sobre a coluna
+// `data` — a MESMA exibida na tabela do histórico; `created_at` divergiria do que
+// o operador vê (um lançamento de ontem registrado hoje).
 export async function getHistoricoLancamentos(opts: {
   filialId?: number | null
   itemId?: number | null
+  tipo?: TipoLancamento | null
+  de?: string | null
+  ate?: string | null
   page?: number
   pageSize?: number
 }): Promise<{ rows: LancamentoHistorico[]; total: number; page: number; pageSize: number }> {
@@ -153,6 +159,9 @@ export async function getHistoricoLancamentos(opts: {
     .select(LANC_SELECT, { count: 'exact' })
   if (opts.filialId) q = q.eq('filial_id', opts.filialId)
   if (opts.itemId) q = q.eq('item_id', opts.itemId)
+  if (opts.tipo) q = q.eq('tipo', opts.tipo)
+  if (opts.de) q = q.gte('data', opts.de)
+  if (opts.ate) q = q.lte('data', opts.ate)
   q = q
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
