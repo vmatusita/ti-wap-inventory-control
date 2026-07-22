@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -38,6 +38,11 @@ export function CampoComSugestoes({
 }) {
   const [sugestoes, setSugestoes] = useState<string[]>([])
   const listaId = `${id}-sugestoes`
+  // `true` só enquanto a ÚLTIMA alteração do campo tiver vindo do datalist (o
+  // navegador reporta `inputType: 'insertReplacementText'` ao aceitar uma opção).
+  // É o que separa "aceitei a sugestão com Enter" de "terminei de digitar e
+  // quero avançar" — ver o onKeyDown abaixo.
+  const veioDoDatalist = useRef(false)
 
   useEffect(() => {
     const q = valor.trim()
@@ -65,14 +70,27 @@ export function CampoComSugestoes({
         list={listaId}
         autoComplete="off"
         value={valor}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const nativo = e.nativeEvent as Partial<InputEvent>
+          veioDoDatalist.current = nativo.inputType === 'insertReplacementText'
+          onChange(e.target.value)
+        }}
         // O wizard avanca de passo no Enter (handler no <div> do form). No
         // Chrome, escolher uma opcao do `datalist` com Enter TAMBEM dispara o
         // keydown na pagina — sem isto, aceitar a sugestao pularia direto para a
-        // Revisao. Com a lista vazia (colaborador novo, que nao esta no acervo)
-        // o Enter continua avancando, como na F9.
+        // Revisao.
+        //
+        // A condicao NAO pode ser `sugestoes.length > 0`: as sugestoes ficam no
+        // estado por 300ms de debounce e SOBRAM depois de aceitar uma opcao, o
+        // que deixava o Enter inerte quase sempre e obrigava a clicar em
+        // "Revisar" (regressao da F10 sobre o comportamento da F9). Engole so o
+        // Enter que de fato fecha o popup: aquele em que a ultima alteracao veio
+        // do proprio datalist — e uma unica vez, para o Enter seguinte avancar.
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && sugestoes.length > 0) e.stopPropagation()
+          if (e.key !== 'Enter') return
+          if (!veioDoDatalist.current) return
+          veioDoDatalist.current = false
+          e.stopPropagation()
         }}
         placeholder={placeholder}
       />

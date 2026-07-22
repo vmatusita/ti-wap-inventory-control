@@ -373,14 +373,24 @@ export async function resolverPatrimoniosParaLote(
 
   try {
     const candidatosPorPatrimonio = new Map<string, AtivoResumo[]>()
-    const ativos = await buscarAtivosPorPatrimonios(
-      parse.itens.map((i) => i.patrimonio),
-    )
+    // Patrimonio nao-canonico (F7J) e buscado nas DUAS formas — normalizada e
+    // exatamente como o operador colou: o `in` do PostgREST e case-sensitive e o
+    // acervo tem patrimonio gravado fora do padrao, inclusive em minusculas. Nos
+    // itens canonicos as duas formas coincidem e o Set colapsa.
+    const chavesBusca = new Set<string>()
+    for (const i of parse.itens) {
+      chavesBusca.add(i.patrimonio)
+      if (i.patrimonioComoColado) chavesBusca.add(i.patrimonioComoColado)
+    }
+    const ativos = await buscarAtivosPorPatrimonios([...chavesBusca])
     for (const a of ativos) {
       if (a.patrimonio === null) continue
-      const lista = candidatosPorPatrimonio.get(a.patrimonio)
+      // Chave em MAIUSCULAS dos dois lados: o item ja vem normalizado e assim a
+      // grafia gravada no banco nao decide se o ativo aparece ou nao.
+      const chave = a.patrimonio.toUpperCase()
+      const lista = candidatosPorPatrimonio.get(chave)
       if (lista) lista.push(a)
-      else candidatosPorPatrimonio.set(a.patrimonio, [a])
+      else candidatosPorPatrimonio.set(chave, [a])
     }
 
     const encontrados: AtivoResumo[] = []

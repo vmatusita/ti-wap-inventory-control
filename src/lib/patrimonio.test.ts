@@ -253,6 +253,36 @@ describe('parearFaixaComServiceTags (A2 — service tags no modo Faixa)', () => 
     expect(r.erro).toContain('1 patrimônio ×')
     expect(r.erro).toContain('2 service tags')
   })
+
+  // Colar DUAS colunas do Excel na caixa de service tags gravaria o texto
+  // inteiro (com o TAB no meio) como service tag — e service tag é IMUTÁVEL
+  // depois que o ativo nasce. Recusar a linha é a única correção possível.
+  it('recusa linha com separador embutido (duas colunas coladas)', () => {
+    const r = parearFaixaComServiceTags(
+      faixa,
+      'ST-ABC123\nWAP0001235\tST-DEF456\nST-GHI789',
+    )
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toContain('linha 2')
+    expect(r.erro).toMatch(/vírgula, ponto e vírgula ou TAB/i)
+  })
+
+  it('recusa também vírgula e ponto e vírgula na service tag', () => {
+    expect(
+      parearFaixaComServiceTags(faixa, 'A,B\nST-DEF456\nST-GHI789').erro,
+    ).toBeDefined()
+    expect(
+      parearFaixaComServiceTags(faixa, 'ST-ABC123\nA;B\nST-GHI789').erro,
+    ).toBeDefined()
+  })
+
+  // O separador é diagnóstico melhor que a contagem: com duas colunas coladas a
+  // contagem BATE (uma linha por patrimônio) e nenhum erro apareceria.
+  it('o erro do separador vem antes do erro de contagem', () => {
+    const r = parearFaixaComServiceTags(faixa, 'WAP0001234\tST-ABC123')
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toMatch(/vírgula, ponto e vírgula ou TAB/i)
+  })
 })
 
 describe('chavePatrimonio (par único §5)', () => {

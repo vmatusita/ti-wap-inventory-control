@@ -21,6 +21,19 @@ function texto(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined
 }
 
+// `filial_id` é smallint (migration 0015): validar só o FORMATO deixa passar
+// `?filial=99999`, que o Postgres recusa (22003) e derruba o Server Component —
+// a mesma classe de bug que a F9 corrigiu em /itens. Guarda idêntica à do
+// parser de filtros do export (`lib/actions/exportar.ts`), que é quem monta o
+// CSV desta mesma tela: página e botão não podem discordar.
+const MAX_SMALLINT = 32767
+
+function idNumerico(v: string | undefined): number | undefined {
+  if (!v || !/^\d+$/.test(v)) return undefined
+  const n = Number(v)
+  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_SMALLINT ? n : undefined
+}
+
 export default async function AtivosPage({
   searchParams,
 }: {
@@ -29,8 +42,7 @@ export default async function AtivosPage({
   const sp = await searchParams
 
   const q = texto(sp.q)
-  const filialRaw = texto(sp.filial)
-  const filialId = filialRaw && /^\d+$/.test(filialRaw) ? Number(filialRaw) : undefined
+  const filialId = idNumerico(texto(sp.filial))
 
   const categoriaRaw = texto(sp.categoria)
   const categoria = CATEGORIA_ORDEM.includes(categoriaRaw as CategoriaAtivo)

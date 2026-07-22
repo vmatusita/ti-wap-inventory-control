@@ -110,7 +110,10 @@ export function ItemCombobox({
           <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+      {/* Tailwind v4: variável CSS em utilitário arbitrário é `w-(--var)`. Na
+          forma v3 (`w-[--var]`) a classe não gera utilitário nenhum e o popover
+          fica sem largura. */}
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
         {criando ? (
           <div className="space-y-3 p-3">
             <div className="space-y-1.5">

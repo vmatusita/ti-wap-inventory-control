@@ -220,10 +220,48 @@ describe('parsearLoteColado (M1)', () => {
     expect(r.linhasNaoVazias).toBe(2)
   })
 
-  it('linha que não canonicaliza vai para invalidos com o texto cru', () => {
-    const r = parsearLoteColado('WAP0001234\n12345\nFulano da Silva')
+  // Patrimônio NÃO-CANÔNICO é legítimo (spec §5 + decisão F7J: a operação
+  // FORÇAR criou patrimônios de verdade fora do padrão, e a carga do go-live
+  // trouxe outros — ~5,6% do acervo do ensaio). O combobox acha esses ativos;
+  // o Colar lista tem de achar também, em vez de acusar a linha do operador.
+  it('mantém como candidato o token que não canonicaliza mas parece patrimônio', () => {
+    const r = parsearLoteColado('WAP0001234\nTEC1ABC234\nABCDEF\n1234\nABC-1234-XY')
+    expect(r.invalidos).toEqual([])
+    expect(r.itens.map((i) => i.patrimonio)).toEqual([
+      'WAP0001234',
+      'TEC1ABC234',
+      'ABCDEF',
+      '1234',
+      'ABC-1234-XY',
+    ])
+  })
+
+  it('normaliza o token cru (trim + maiúsculas) e guarda a forma como foi colada', () => {
+    const r = parsearLoteColado('  tec1abc234  ')
+    expect(r.itens[0].patrimonio).toBe('TEC1ABC234')
+    // A busca leva as DUAS formas: o `in` do PostgREST é case-sensitive e o
+    // acervo tem patrimônio gravado em minúsculas.
+    expect(r.itens[0].patrimonioComoColado).toBe('tec1abc234')
+  })
+
+  it('não marca patrimonioComoColado quando a linha canonicaliza', () => {
+    const r = parsearLoteColado('wap1234')
+    expect(r.itens[0].patrimonio).toBe('WAP0001234')
+    expect(r.itens[0].patrimonioComoColado).toBeUndefined()
+  })
+
+  it('só o que nem parece patrimônio vai para invalidos', () => {
+    const r = parsearLoteColado('WAP0001234\nabc\nFulano da Silva\n???\nlinha com espaço')
     expect(r.itens).toHaveLength(1)
-    expect(r.invalidos).toEqual(['12345', 'Fulano da Silva'])
+    expect(r.invalidos).toEqual(['abc', 'Fulano da Silva', '???', 'linha com espaço'])
+  })
+
+  it('service tag continua sendo lida na linha do token cru', () => {
+    const r = parsearLoteColado('TEC1ABC234\tST-ABC123')
+    expect(r.itens[0]).toMatchObject({
+      patrimonio: 'TEC1ABC234',
+      service_tag: 'ST-ABC123',
+    })
   })
 
   it('deduplica pela chave §5 (patrimônio + service tag), 1ª ocorrência vence', () => {

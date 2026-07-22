@@ -7,6 +7,7 @@ import {
   buscarPossiveisDuplicatasDoDia,
   type PossivelDuplicataDia,
 } from '@/lib/actions/movimentacoes'
+import { formatDate, hojeISO } from '@/lib/format'
 import { rotuloTipo } from '@/lib/dominio'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
@@ -39,6 +40,11 @@ export function PassoRevisao({
 
   const tipo = config.tipo
   const data = config.data
+  // A consulta sempre usou `config.data` — só o TEXTO dizia "hoje". Desde os
+  // chips Hoje/Ontem da F9, lançar com a data de ontem é rotina, e o aviso
+  // afirmava um dia que não era o da movimentação. Derivado da própria data
+  // (`formatDate` trata data pura sem risco de fuso).
+  const quando = data === hojeISO() ? 'hoje' : `em ${formatDate(data)}`
   // Chave estável: o efeito só refaz a consulta quando o lote/tipo/data mudam
   // de verdade (o array `itens` é recriado a cada render do pai).
   const chaveLote = itens.map((a) => a.id).join(',')
@@ -72,8 +78,8 @@ export function PassoRevisao({
                 <span className="font-medium tabular-nums">
                   {d.patrimonio ?? 'sem patrimônio'}
                 </span>{' '}
-                já teve &quot;{rotuloTipo(d.tipo)}&quot; hoje — confira antes de
-                registrar.
+                já teve &quot;{rotuloTipo(d.tipo)}&quot; {quando} — confira antes
+                de registrar.
               </li>
             ))}
           </ul>

@@ -354,8 +354,26 @@ export const estornoActionSchema = z.object({
 // (virgula, ponto e virgula, TAB: colar duas colunas do Excel gera TAB).
 const SEPARADOR_LOTE = /[,;\t]/
 
+// Token que NAO canonicaliza mas ainda assim PARECE patrimonio, e por isso vale
+// uma ida ao banco. Patrimonio nao-canonico e legitimo no acervo (spec §5 +
+// decisao F7J: a operacao FORCAR criou patrimonios de verdade fora do padrao, e
+// a carga do go-live trouxe outros — ~5,6% do acervo do ensaio, 89 de 1.596:
+// so-letras, so-digitos, alfanumericos e com hifen). O combobox acha esses
+// ativos (busca `ilike` no termo cru); descartar a linha aqui acusaria de
+// invalida a linha CERTA do operador — inclusive a que ele acabou de exportar
+// da propria tela de Ativos. Charset e comprimento do acervo (o passo 1d da RPC
+// do import, migration 0037, so exige sanidade ate 60 caracteres); abaixo de 4
+// caracteres ("abc") nao vale nem a consulta.
+const TOKEN_CRU_RE = /^[A-Z0-9][A-Z0-9-]{3,59}$/
+
 export type ItemLoteColado = {
+  // Canonico (§5) quando a linha canonicaliza; senao o token cru normalizado
+  // (trim + maiusculas) — ver TOKEN_CRU_RE.
   patrimonio: string
+  // So nas linhas NAO-canonicas: o token exatamente como foi colado (so trim).
+  // A busca leva as duas formas porque o `in` do PostgREST e case-sensitive e o
+  // acervo tem patrimonio gravado em minusculas.
+  patrimonioComoColado?: string
   service_tag?: string
   // Numero da linha ORIGINAL do texto colado (1-based) — a UI aponta o erro.
   linha: number
@@ -366,7 +384,9 @@ export type LoteColado = {
   // que consultar; os demais campos vem vazios.
   erro?: string
   itens: ItemLoteColado[]
-  // Linhas cruas que nem canonicalizam ("12345", "ABC", "Fulano da Silva").
+  // Linhas cruas que nem PARECEM patrimonio ("abc", "Fulano da Silva", "???").
+  // Quem canonicaliza — ou passa no TOKEN_CRU_RE — vira candidato e, se nao
+  // existir no acervo, sai como `naoEncontrados` (o resolver e quem decide).
   invalidos: string[]
   // Linhas nao vazias do texto (a base do teto) — inclui as invalidas.
   linhasNaoVazias: number
@@ -379,7 +399,8 @@ export type LoteColado = {
 //  - colunas extras sao IGNORADAS (colar 3+ colunas do Excel e comum; a 2a
 //    continua sendo a service tag e a service tag so DESEMPATA patrimonio
 //    duplicado, entao uma coluna a mais nunca escolhe ativo errado);
-//  - linha que nao canonicaliza vai para `invalidos` com o texto cru;
+//  - linha que nao canonicaliza mas parece patrimonio (TOKEN_CRU_RE) entra como
+//    candidato CRU (F7J); so o que nem parece vai para `invalidos`;
 //  - dedup INTERNO do texto pela chave §5 (patrimonio + service tag), 1a
 //    ocorrencia vence — o dedup contra o lote ja montado e o teto ao adicionar
 //    sao da UI;
@@ -411,7 +432,10 @@ export function parsearLoteColado(texto: string): LoteColado {
 
   for (const { linha, texto: t } of naoVazias) {
     const corte = t.search(SEPARADOR_LOTE)
-    const patrimonio = canonicalizarPatrimonio(corte === -1 ? t : t.slice(0, corte))
+    const bruto = (corte === -1 ? t : t.slice(0, corte)).trim()
+    const canonico = canonicalizarPatrimonio(bruto)
+    const cru = canonico ? '' : bruto.toUpperCase()
+    const patrimonio = canonico ?? (TOKEN_CRU_RE.test(cru) ? cru : '')
     if (!patrimonio) {
       invalidos.push(t)
       continue
@@ -424,7 +448,13 @@ export function parsearLoteColado(texto: string): LoteColado {
     const chave = chavePatrimonio(patrimonio, service_tag)
     if (vistos.has(chave)) continue
     vistos.add(chave)
-    itens.push({ patrimonio, service_tag, linha })
+    itens.push({
+      patrimonio,
+      // So quando difere: nao poluir o item canonico (nem a busca) a toa.
+      ...(canonico || bruto === patrimonio ? {} : { patrimonioComoColado: bruto }),
+      service_tag,
+      linha,
+    })
   }
 
   return { itens, invalidos, linhasNaoVazias: naoVazias.length }

@@ -156,6 +156,19 @@ export function parearFaixaComServiceTags(
     return { itens: patrimonios.map((p) => ({ patrimonio: p })) }
   }
 
+  // Duas colunas do Excel coladas AQUI (patrimônio + service tag) gravariam o
+  // texto inteiro, com o separador no meio, como service tag — e service tag é
+  // IMUTÁVEL depois que o ativo nasce (só o patrimônio se corrige). A contagem
+  // não pega esse caso (uma linha por patrimônio bate certinho), então a recusa
+  // é por linha e vem ANTES do erro de contagem, que seria o diagnóstico errado.
+  for (const t of tags) {
+    if (SEPARADOR_LISTA.test(t.valor)) {
+      return {
+        erro: `Service tag com separador na linha ${t.linha}: "${t.valor}" — esta caixa aceita só a coluna das service tags (uma por linha, sem vírgula, ponto e vírgula ou TAB).`,
+      }
+    }
+  }
+
   if (tags.length !== patrimonios.length) {
     const p = `${patrimonios.length} ${patrimonios.length === 1 ? 'patrimônio' : 'patrimônios'}`
     const s = `${tags.length} service ${tags.length === 1 ? 'tag' : 'tags'}`

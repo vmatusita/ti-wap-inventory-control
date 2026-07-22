@@ -580,7 +580,10 @@ export function NovaCompraForm({
               placeholder={
                 'WAP0006026\nWAP0006027\tST-ABC123\nWAP0006028; ST-DEF456'
               }
-              className="font-mono text-sm"
+              // `text-sm` puro (14px) dispara o zoom automático do iOS a cada
+              // foco — e esta é a caixa de quem cola/bipa do celular.
+              // `text-base md:text-sm` é o padrão do próprio ui/textarea.
+              className="font-mono text-base md:text-sm"
             />
             <p className="mt-2 text-xs text-muted-foreground">
               Dá para colar direto duas colunas do Excel (patrimônio e service
@@ -624,7 +627,8 @@ export function NovaCompraForm({
                 value={faixaSts}
                 onChange={(e) => setFaixaSts(e.target.value)}
                 placeholder={'ST-ABC123\nST-DEF456\nST-GHI789'}
-                className="font-mono text-sm"
+                // Idem: 14px no celular = zoom automático do iOS a cada foco.
+                className="font-mono text-base md:text-sm"
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 Dá para colar a coluna do Excel. Vazio = faixa sem service tag.
