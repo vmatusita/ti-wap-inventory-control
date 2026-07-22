@@ -1,12 +1,17 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import {
   formatDate,
   formatDateTime,
   ouTraco,
   hojeISO,
+  ontemISO,
   dataEmSP,
   fimDoDiaSP,
 } from '@/lib/format'
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('formatDate', () => {
   it('formata data pura yyyy-MM-dd como dd/MM/yyyy', () => {
@@ -56,6 +61,43 @@ describe('dataEmSP', () => {
 describe('hojeISO', () => {
   it('devolve uma data pura yyyy-MM-dd', () => {
     expect(hojeISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('usa o fuso de SP, não o UTC, depois das 21:00 BRT', () => {
+    // 2026-07-15T00:30:00Z = 21:30 de 14/07 em São Paulo. Em UTC já é dia 15 —
+    // `toISOString().slice(0,10)` erraria o dia; `hojeISO` tem de dizer 14.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-15T00:30:00Z'))
+    expect(hojeISO()).toBe('2026-07-14')
+  })
+})
+
+describe('ontemISO', () => {
+  it('devolve uma data pura yyyy-MM-dd', () => {
+    expect(ontemISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('é exatamente um dia antes de hojeISO', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-14T15:00:00Z')) // 12:00 em SP
+    expect(hojeISO()).toBe('2026-07-14')
+    expect(ontemISO()).toBe('2026-07-13')
+  })
+
+  it('respeita o fuso de SP na virada do dia UTC (21:00 BRT)', () => {
+    // 21:30 BRT de 14/07 (00:30Z de 15/07): hoje = 14, ontem = 13. Um cálculo
+    // em UTC devolveria 15 e 14.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-15T00:30:00Z'))
+    expect(hojeISO()).toBe('2026-07-14')
+    expect(ontemISO()).toBe('2026-07-13')
+  })
+
+  it('atravessa a virada de mês sem quebrar', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T12:00:00Z')) // 09:00 de 01/08 em SP
+    expect(hojeISO()).toBe('2026-08-01')
+    expect(ontemISO()).toBe('2026-07-31')
   })
 })
 

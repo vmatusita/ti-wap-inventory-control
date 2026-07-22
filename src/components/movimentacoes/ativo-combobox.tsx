@@ -15,8 +15,9 @@ import { buscarAtivosParaMovimentacao } from '@/lib/actions/movimentacoes'
 import { rotuloCategoria } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 
-// Busca de ativo por patrimonio/modelo (OS-F2 3.5.1): server, debounce 300ms,
-// min. 2 caracteres. Patrimonio duplicado exibe a service tag + aviso.
+// Busca de ativo por patrimonio/service tag/hostname/marca/modelo/colaborador
+// (OS-F2 3.5.1 + F9/M2): server, debounce 300ms, min. 2 caracteres. Patrimonio
+// duplicado exibe a service tag + aviso.
 export function AtivoCombobox({
   onSelecionar,
   jaAdicionados,
@@ -67,7 +68,7 @@ export function AtivoCombobox({
           value={query}
           onValueChange={setQuery}
           autoFocus={autoFocus}
-          placeholder="Buscar patrimônio, marca ou modelo… (mín. 2 caracteres)"
+          placeholder="Buscar patrimônio, service tag, hostname, marca, modelo ou colaborador… (mín. 2 caracteres)"
         />
         <CommandList>
           {carregando && (
@@ -103,11 +104,18 @@ export function AtivoCombobox({
                     <span className="font-medium tabular-nums">
                       {r.patrimonio ?? 'sem patrimônio'}
                     </span>
-                    <span className="truncate text-muted-foreground">
+                    <span className="min-w-0 truncate text-muted-foreground">
                       {[rotuloCategoria(r.categoria), r.modelo]
                         .filter(Boolean)
                         .join(' · ')}
                     </span>
+                    {/* Quem está com o ativo (F9/M2) — buscar "Fulano" só ajuda
+                        se der para ver qual notebook é de qual Fulano. */}
+                    {r.colaborador_atual && (
+                      <span className="min-w-0 max-w-[12rem] truncate text-xs text-muted-foreground">
+                        com {r.colaborador_atual}
+                      </span>
+                    )}
                     {r.patrimonio_duplicado && (
                       <span className="rounded bg-amber-100 px-1.5 text-xs tabular-nums text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                         ST {r.service_tag ?? '—'}

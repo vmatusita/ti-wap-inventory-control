@@ -29,12 +29,47 @@ import {
   type TermoStatus,
   type TipoMovimentacao,
 } from '@/lib/dominio'
-import { hojeISO } from '@/lib/format'
+import { hojeISO, ontemISO } from '@/lib/format'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Motivo } from '@/lib/queries/motivos'
 import type { UltimaMovimentacaoUsuario } from '@/lib/queries/movimentacoes'
+
+// Atalhos "Hoje/Ontem" ao lado dos campos de data (F9/M10) — a data quase sempre
+// e uma dessas duas e digitar dd/mm/aaaa no celular e o gargalo. As datas saem de
+// `hojeISO`/`ontemISO` (fuso America/Sao_Paulo), entao nunca estouram o
+// `max={hojeISO()}` do input. `type="button"`: nao submete nem interfere no Enter
+// que avanca o passo (o handler do form ignora BUTTON). O `after:` estica a area
+// de toque para ~44px no mobile sem crescer o botao (alinhado a altura do input).
+function ChipsData({
+  campo,
+  onEscolher,
+}: {
+  campo: string
+  onEscolher: (iso: string) => void
+}) {
+  const opcoes = [
+    { rotulo: 'Hoje', valor: hojeISO },
+    { rotulo: 'Ontem', valor: ontemISO },
+  ]
+  return (
+    <div className="flex shrink-0 gap-1">
+      {opcoes.map((o) => (
+        <Button
+          key={o.rotulo}
+          type="button"
+          variant="outline"
+          onClick={() => onEscolher(o.valor())}
+          aria-label={`Preencher ${campo} com ${o.rotulo.toLowerCase()}`}
+          className="relative px-3 after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
+        >
+          {o.rotulo}
+        </Button>
+      ))}
+    </div>
+  )
+}
 
 // Passo 2 — os campos da movimentacao. Quais inputs aparecem e quais levam "*"
 // derivam de CAMPOS_POR_TIPO (predicados campoAplica/campoObrigatorio), nao mais
@@ -224,13 +259,19 @@ export function PassoMovimentacao({
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="termo-data">Data do termo</Label>
-                <Input
-                  id="termo-data"
-                  type="date"
-                  max={hojeISO()}
-                  value={config.termoData}
-                  onChange={(e) => onSet('termoData', e.target.value)}
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="termo-data"
+                    type="date"
+                    max={hojeISO()}
+                    value={config.termoData}
+                    onChange={(e) => onSet('termoData', e.target.value)}
+                  />
+                  <ChipsData
+                    campo="a data do termo"
+                    onEscolher={(iso) => onSet('termoData', iso)}
+                  />
+                </div>
               </div>
             </>
           )}
@@ -286,13 +327,19 @@ export function PassoMovimentacao({
           {/* Data */}
           <div className="grid gap-2">
             <Label htmlFor="data">Data</Label>
-            <Input
-              id="data"
-              type="date"
-              max={hojeISO()}
-              value={config.data}
-              onChange={(e) => onSet('data', e.target.value)}
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="data"
+                type="date"
+                max={hojeISO()}
+                value={config.data}
+                onChange={(e) => onSet('data', e.target.value)}
+              />
+              <ChipsData
+                campo="a data da movimentação"
+                onEscolher={(iso) => onSet('data', iso)}
+              />
+            </div>
           </div>
         </div>
       )}
