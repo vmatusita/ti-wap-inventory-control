@@ -51,3 +51,6 @@ next-env.d.ts
 # F4 — relatórios da carga única (contêm dados reais; nunca commitar)
 carga-*.csv
 carga-*.json
+
+# scratchpad de sessão (SQL avulso, rascunhos) — nunca versionar
+/scratchpad/

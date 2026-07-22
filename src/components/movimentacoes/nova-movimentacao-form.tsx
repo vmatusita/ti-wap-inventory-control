@@ -1,22 +1,34 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { TriangleAlert } from 'lucide-react'
+import { FileClock, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { PainelSucesso } from '@/components/movimentacoes/nova/painel-sucesso'
 import { PassoAtivos } from '@/components/movimentacoes/nova/passo-ativos'
 import { PassoMovimentacao } from '@/components/movimentacoes/nova/passo-movimentacao'
 import { PassoRevisao } from '@/components/movimentacoes/nova/passo-revisao'
 import {
   configPadrao,
+  mesclarAtivosNoLote,
   montarItensInput,
   type Config,
   type ConfigInicial,
   type SucessoLote,
 } from '@/components/movimentacoes/nova/config'
-import { registrarMovimentacoes } from '@/lib/actions/movimentacoes'
 import {
+  lerRascunho,
+  limparRascunho,
+  salvarRascunho,
+  type Rascunho,
+} from '@/components/movimentacoes/nova/rascunho'
+import {
+  buscarResumoDeAtivosPorIds,
+  registrarMovimentacoes,
+} from '@/lib/actions/movimentacoes'
+import {
+  MAX_LOTE_MOVIMENTACAO,
   loteMovimentacaoSchema,
   tiposComunsPara,
 } from '@/lib/validators/movimentacao'
@@ -78,6 +90,17 @@ export function NovaMovimentacaoForm({
   const [errosPorAtivo, setErrosPorAtivo] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
   const [sucesso, setSucesso] = useState<SucessoLote | null>(null)
+  // F10/M9 — o que ENTROU num envio parcial (o lote guarda só as falhas).
+  const [jaRegistrados, setJaRegistrados] = useState<SucessoLote['ativos']>([])
+  // F10/M6 — rascunho: `null` = nada a oferecer; preenchido = banner aberto.
+  const [rascunhoPendente, setRascunhoPendente] = useState<Rascunho | null>(null)
+  const [hidratado, setHidratado] = useState(false)
+  const [restaurando, setRestaurando] = useState(false)
+  // O rascunho só é SOBRESCRITO depois que o operador mexe NESTA montagem.
+  // Sem isso, chegar por `?ativo=`/`?duplicar=` (link da ficha, "Duplicar")
+  // gravava o estado do link por cima do lote em andamento e os 12 ativos que o
+  // operador tinha montado viravam 1, sem aviso.
+  const [podeSalvar, setPodeSalvar] = useState(false)
 
   const comandoRef = useRef<HTMLDivElement>(null)
   // Trava de reentrância: bloqueia um 2º envio (ex.: Enter apertado 2x rápido no
@@ -102,13 +125,24 @@ export function NovaMovimentacaoForm({
     [config.tipo, motivos],
   )
 
+  // Primeira alteração REAL do operador nesta montagem. Libera a persistência
+  // (F10/M6) e, se o banner estiver aberto, vale como decisão implícita de
+  // "começar um lote novo": quem ignora o banner e monta outro lote por cima
+  // não pode ficar sem rede até se lembrar de clicar em Descartar.
+  function marcarAlteracao() {
+    setPodeSalvar(true)
+    setRascunhoPendente(null)
+  }
+
   function set<K extends keyof Config>(chave: K, valor: Config[K]) {
+    marcarAlteracao()
     setConfig((c) => ({ ...c, [chave]: valor }))
   }
 
   // Trocar o tipo limpa os campos específicos do tipo anterior — senão um motivo
   // (ou filial destino / itens) de um tipo vaza para outro sem o usuário ver.
   function trocarTipo(tipo: TipoMovimentacao) {
+    marcarAlteracao()
     setConfig((c) => ({
       ...c,
       tipo,
@@ -144,18 +178,156 @@ export function NovaMovimentacaoForm({
     }
   }
   function adicionar(a: AtivoResumo) {
-    const next = itens.some((p) => p.id === a.id) ? itens : [...itens, a]
+    if (itens.some((p) => p.id === a.id)) return
+    const next = [...itens, a]
+    marcarAlteracao()
     setItens(next)
     ajustarTipoPara(next, [a])
   }
+
+  // F10/M1 — entrada em massa (colar lista). O resolver do W1 devolve tudo o que
+  // achou: o teto e o dedup contra o lote atual sao AQUI (funcao pura
+  // compartilhada com o dialog), e o que ficou de fora e dito em voz alta.
+  // A intersecao de tipos e reaplicada com os entrantes — exatamente como no
+  // `adicionar` um a um (o resolver nao filtra por estado, de proposito).
+  function adicionarVarios(novos: AtivoResumo[]) {
+    const r = mesclarAtivosNoLote(itens, novos)
+    if (r.adicionados.length > 0) {
+      marcarAlteracao()
+      setItens(r.lote)
+      ajustarTipoPara(r.lote, r.adicionados)
+      const extra =
+        r.jaNoLote.length > 0 ? ` (${r.jaNoLote.length} já estavam no lote)` : ''
+      toast.success(
+        `${r.adicionados.length} ${r.adicionados.length === 1 ? 'ativo adicionado' : 'ativos adicionados'} ao lote${extra}.`,
+      )
+    } else if (r.jaNoLote.length > 0 && r.excedentes.length === 0) {
+      toast.info('Todos os ativos da lista já estavam no lote.')
+    }
+    if (r.excedentes.length > 0) {
+      toast.warning(
+        `${r.excedentes.length} ${r.excedentes.length === 1 ? 'ativo ficou' : 'ativos ficaram'} de fora: o lote aceita ${MAX_LOTE_MOVIMENTACAO}. Registre o resto em outro lote.`,
+      )
+    }
+  }
   function remover(id: string) {
     const next = itens.filter((p) => p.id !== id)
+    if (next.length === itens.length) return
+    marcarAlteracao()
     setItens(next)
     ajustarTipoPara(next)
   }
 
+  // --- F10/M6 — rascunho persistente (sessionStorage, por aba) --------------
+  // Leitura SO dentro de efeito (ler storage no corpo do componente quebraria a
+  // hidratacao do Next) e SO na montagem. `?ativo=`/`?duplicar=` tem precedencia
+  // (decisao §2): quem chegou por um link explicito nao ve o banner.
+  useEffect(() => {
+    const veioDeLink = Boolean(ativoInicial || configInicial)
+    // Estado alterado dentro do callback (react-hooks/set-state-in-effect).
+    const t = setTimeout(() => {
+      if (!veioDeLink) setRascunhoPendente(lerRascunho())
+      setHidratado(true)
+    }, 0)
+    return () => clearTimeout(t)
+    // Montagem apenas: as props de link so mudam com nova navegacao (nova pagina).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Salva o esqueleto do lote a cada mudanca (debounce). SO depois da primeira
+  // alteracao do operador (`podeSalvar`): montagem semeada por link
+  // (`?ativo=`/`?duplicar=`) ou montagem intocada nao pode sobrescrever — nem
+  // apagar — o lote que ficou de outra visita. Enquanto o banner esta aberto
+  // tambem nao grava; a primeira alteracao real o fecha (`marcarAlteracao`) e
+  // libera a gravacao no mesmo gesto.
+  useEffect(() => {
+    if (!hidratado || !podeSalvar || rascunhoPendente || sucesso) return
+    const t = setTimeout(() => {
+      if (itens.length === 0) {
+        limparRascunho()
+        return
+      }
+      salvarRascunho({
+        ids: itens.map((a) => a.id),
+        config,
+        statusResultante,
+        passo,
+      })
+    }, 400)
+    return () => clearTimeout(t)
+  }, [
+    hidratado,
+    podeSalvar,
+    rascunhoPendente,
+    sucesso,
+    itens,
+    config,
+    statusResultante,
+    passo,
+  ])
+
+  async function restaurarRascunho() {
+    const r = rascunhoPendente
+    if (!r || restaurando) return
+    setRestaurando(true)
+    try {
+      const ativos = await buscarResumoDeAtivosPorIds(r.ids)
+      // Lista VAZIA com `r.ids` não-vazio (invariante do rascunho: sem ids ele
+      // nem existe) é ambígua: o proxy degrada a falha de rede para `[]`, então
+      // "a consulta caiu" é indistinguível de "os ativos sumiram". Apagar o
+      // rascunho aqui destruiria o lote por causa de uma falha transitória — o
+      // banner fica de pé e o operador tenta de novo (ou Descarta, se quiser).
+      if (ativos.length === 0) {
+        toast.error(
+          'Não foi possível carregar os ativos do rascunho agora. Tente restaurar de novo.',
+        )
+        return
+      }
+
+      // Estados podem ter mudado enquanto o rascunho dormia (outro operador
+      // movimentou o ativo): a intersecao de tipos e REFEITA e o tipo salvo cai
+      // se nao valer mais para o lote inteiro.
+      const validos = tiposDoLote(ativos.map((a) => a.status))
+      let cfg = r.config
+      if (cfg.tipo && !validos.includes(cfg.tipo)) {
+        toast.warning(
+          `O tipo "${rotuloTipo(cfg.tipo)}" não vale mais para estes ativos — escolha outro.`,
+        )
+        cfg = { ...cfg, tipo: '' }
+      }
+
+      const ausentes = r.ids.length - ativos.length
+      if (ausentes > 0) {
+        toast.warning(
+          `${ausentes} ${ausentes === 1 ? 'ativo do rascunho não foi encontrado' : 'ativos do rascunho não foram encontrados'} e ficaram de fora.`,
+        )
+      }
+
+      setItens(ativos)
+      setConfig(cfg)
+      setStatusResultante(r.statusResultante)
+      // Sem tipo nao ha o que revisar: volta para o passo 2.
+      setPasso(cfg.tipo ? r.passo : Math.min(r.passo, 2))
+      setRascunhoPendente(null)
+      // O lote restaurado volta a ser salvo a cada mudanca (inclusive o que a
+      // re-checagem de interseção acabou de ajustar).
+      setPodeSalvar(true)
+      toast.success(
+        `Rascunho restaurado — ${ativos.length} ${ativos.length === 1 ? 'ativo' : 'ativos'} no lote.`,
+      )
+    } finally {
+      setRestaurando(false)
+    }
+  }
+
+  function descartarRascunho() {
+    limparRascunho()
+    setRascunhoPendente(null)
+  }
+
   function repetirUltima() {
     if (!ultimaMov) return
+    marcarAlteracao()
     const tipoValido = tiposValidos.includes(ultimaMov.tipo)
     setConfig((c) => ({
       ...c,
@@ -235,6 +407,12 @@ export function NovaMovimentacaoForm({
 
     const falhaIds = res.resultados.filter((r) => !r.ok).map((r) => r.ativo_id)
 
+    if (res.criadas > 0) {
+      // Sucesso (total ou parcial) fecha o rascunho: o que entrou nao pode ser
+      // reoferecido como "lote não registrado" na proxima visita (M6).
+      limparRascunho()
+    }
+
     if (res.ok) {
       const movPorAtivo = new Map(
         res.resultados
@@ -262,6 +440,28 @@ export function NovaMovimentacaoForm({
       if (!r.ok && r.erro) novosErros[r.ativo_id] = r.erro
     }
     setErrosPorAtivo(novosErros)
+
+    // F10/M9 — quem ENTROU some do lote, mas nao da tela: vira chip com link
+    // para a ficha no passo 2 (a informacao ja vinha no resultado da action e
+    // era jogada fora). Acumula entre tentativas do mesmo lote.
+    const porId = new Map(submetidos.map((a) => [a.id, a]))
+    const entraram = res.resultados
+      .filter((r) => r.ok)
+      .map((r) => {
+        const a = porId.get(r.ativo_id)
+        return {
+          id: r.ativo_id,
+          patrimonio: a?.patrimonio ?? null,
+          categoria: a?.categoria as SucessoLote['ativos'][number]['categoria'],
+          movimentacaoId: r.movimentacao_id ?? '',
+        }
+      })
+    if (entraram.length > 0) {
+      setJaRegistrados((prev) => [
+        ...prev.filter((p) => !entraram.some((e) => e.id === p.id)),
+        ...entraram,
+      ])
+    }
     setItens(submetidos.filter((a) => falhaIds.includes(a.id)))
     setPasso(2)
     if (res.criadas > 0) {
@@ -280,8 +480,12 @@ export function NovaMovimentacaoForm({
     setStatusResultante('')
     setErros([])
     setErrosPorAtivo({})
+    setJaRegistrados([])
     setPasso(1)
     setSucesso(null)
+    limparRascunho()
+    // Form zerado = montagem intocada de novo (não regrava o que acabou de sair).
+    setPodeSalvar(false)
   }
 
   // Enter avança entre os passos (OS-F2 3.7.1) — exceto em textarea, botões e
@@ -310,6 +514,37 @@ export function NovaMovimentacaoForm({
 
   return (
     <div onKeyDown={onKeyDown} className="space-y-6">
+      {/* F10/M6 — lote não registrado desta aba (sessionStorage) */}
+      {rascunhoPendente && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <FileClock className="size-4 shrink-0" />
+          <p className="min-w-0 flex-1">
+            Você tem um lote não registrado —{' '}
+            <span className="font-medium tabular-nums">
+              {rascunhoPendente.ids.length}
+            </span>{' '}
+            {rascunhoPendente.ids.length === 1 ? 'ativo' : 'ativos'}.
+          </p>
+          <span className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={descartarRascunho}
+              disabled={restaurando}
+            >
+              Descartar
+            </Button>
+            <Button
+              type="button"
+              onClick={restaurarRascunho}
+              disabled={restaurando}
+            >
+              {restaurando ? 'Restaurando…' : 'Restaurar'}
+            </Button>
+          </span>
+        </div>
+      )}
+
       {/* Stepper */}
       <ol className="flex flex-wrap items-center gap-2 text-sm">
         {PASSOS.map((rotulo, i) => {
@@ -365,6 +600,7 @@ export function NovaMovimentacaoForm({
           jaAdicionados={jaAdicionados}
           comandoRef={comandoRef}
           onAdicionar={adicionar}
+          onAdicionarVarios={adicionarVarios}
           onRemover={remover}
           onAvancar={() => setPasso(2)}
         />
@@ -379,11 +615,15 @@ export function NovaMovimentacaoForm({
           estadosMistos={estadosMistos}
           motivosAplicaveis={motivosAplicaveis}
           errosPorAtivo={errosPorAtivo}
+          jaRegistrados={jaRegistrados}
           filiais={filiais}
           ultimaMov={ultimaMov}
           onTrocarTipo={trocarTipo}
           onSet={set}
-          onSetStatusResultante={setStatusResultante}
+          onSetStatusResultante={(v) => {
+            marcarAlteracao()
+            setStatusResultante(v)
+          }}
           onRepetirUltima={repetirUltima}
           onVoltar={() => setPasso(1)}
           onRevisar={avancarParaRevisao}

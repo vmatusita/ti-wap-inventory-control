@@ -2,6 +2,17 @@ import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
 import { dataNaoFuturaSchema, dataOpcionalSchema } from '@/lib/validators/data'
 import type { StatusAtivo, TipoMovimentacao } from '@/lib/dominio'
+import { canonicalizarPatrimonio, chavePatrimonio } from '@/lib/patrimonio'
+
+// ---------------------------------------------------------------------------
+// TETO DO LOTE DE MOVIMENTACAO (F10/M11) — FONTE UNICA. Era 10 (OS-F2 3.4.1);
+// 15 monitores obrigavam duas rodadas. A compra tem teto proprio e maior
+// (MAX_LOTE_COMPRA = 200, em patrimonio.ts): ali cada linha e um INSERT de ativo
+// novo; aqui cada linha e uma movimentacao com trigger de maquina de estados.
+// Toda mensagem que cita o limite (schema, resolver do colar-lista, UI) deriva
+// desta constante — nao escreva o numero a mao.
+// ---------------------------------------------------------------------------
+export const MAX_LOTE_MOVIMENTACAO = 30
 
 // ---------------------------------------------------------------------------
 // TRANSICOES — copia EXATA da tabela da spec §4 (0004 no banco), invertida por
@@ -308,12 +319,16 @@ export const movimentacaoSchema = z
 
 export type MovimentacaoInput = z.infer<typeof movimentacaoSchema>
 
-// Lote de 1 a 10 movimentacoes (OS-F2 3.4.1).
+// Lote de 1 a MAX_LOTE_MOVIMENTACAO movimentacoes (OS-F2 3.4.1; teto ampliado na
+// F10/M11). O mesmo schema roda no cliente e na Server Action — o teto e unico.
 export const loteMovimentacaoSchema = z.object({
   itens: z
     .array(movimentacaoSchema)
     .min(1, 'Adicione ao menos um item ao lote')
-    .max(10, 'O lote aceita no máximo 10 itens'),
+    .max(
+      MAX_LOTE_MOVIMENTACAO,
+      `O lote aceita no máximo ${MAX_LOTE_MOVIMENTACAO} itens`,
+    ),
 })
 
 export type LoteMovimentacaoInput = z.infer<typeof loteMovimentacaoSchema>
@@ -323,3 +338,133 @@ export const estornoActionSchema = z.object({
   movimentacao_id: z.string().uuid('Movimentação inválida'),
   observacao: observacaoOpcional,
 })
+
+// ---------------------------------------------------------------------------
+// M1 — COLAR LISTA NO LOTE DE MOVIMENTACAO (funcoes PURAS)
+//
+// Por que nao reusar `parsearLista` (patrimonio.ts, da compra): la a linha
+// invalida vira `ErroLinha` com mensagem por linha (o form da compra lista os
+// erros e BARRA o envio) e "mais de 2 colunas" e erro duro. Aqui a semantica e
+// outra — o resolver devolve BALDES (encontrados/ambiguos/naoEncontrados/
+// invalidos) e o operador segue com o que deu certo. Alem disso `patrimonio.ts`
+// e do W2 nesta OS (mapa §1.3), entao a logica propria mora aqui.
+// ---------------------------------------------------------------------------
+
+// Separadores entre patrimonio e service tag — os MESMOS da compra pos-F9
+// (virgula, ponto e virgula, TAB: colar duas colunas do Excel gera TAB).
+const SEPARADOR_LOTE = /[,;\t]/
+
+// Token que NAO canonicaliza mas ainda assim PARECE patrimonio, e por isso vale
+// uma ida ao banco. Patrimonio nao-canonico e legitimo no acervo (spec §5 +
+// decisao F7J: a operacao FORCAR criou patrimonios de verdade fora do padrao, e
+// a carga do go-live trouxe outros — ~5,6% do acervo do ensaio, 89 de 1.596:
+// so-letras, so-digitos, alfanumericos e com hifen). O combobox acha esses
+// ativos (busca `ilike` no termo cru); descartar a linha aqui acusaria de
+// invalida a linha CERTA do operador — inclusive a que ele acabou de exportar
+// da propria tela de Ativos. Charset e comprimento do acervo (o passo 1d da RPC
+// do import, migration 0037, so exige sanidade ate 60 caracteres); abaixo de 4
+// caracteres ("abc") nao vale nem a consulta.
+const TOKEN_CRU_RE = /^[A-Z0-9][A-Z0-9-]{3,59}$/
+
+export type ItemLoteColado = {
+  // Canonico (§5) quando a linha canonicaliza; senao o token cru normalizado
+  // (trim + maiusculas) — ver TOKEN_CRU_RE.
+  patrimonio: string
+  // So nas linhas NAO-canonicas: o token exatamente como foi colado (so trim).
+  // A busca leva as duas formas porque o `in` do PostgREST e case-sensitive e o
+  // acervo tem patrimonio gravado em minusculas.
+  patrimonioComoColado?: string
+  service_tag?: string
+  // Numero da linha ORIGINAL do texto colado (1-based) — a UI aponta o erro.
+  linha: number
+}
+
+export type LoteColado = {
+  // Canal de erro do lote inteiro (ex.: acima do teto). Preenchido = nao ha o
+  // que consultar; os demais campos vem vazios.
+  erro?: string
+  itens: ItemLoteColado[]
+  // Linhas cruas que nem PARECEM patrimonio ("abc", "Fulano da Silva", "???").
+  // Quem canonicaliza — ou passa no TOKEN_CRU_RE — vira candidato e, se nao
+  // existir no acervo, sai como `naoEncontrados` (o resolver e quem decide).
+  invalidos: string[]
+  // Linhas nao vazias do texto (a base do teto) — inclui as invalidas.
+  linhasNaoVazias: number
+}
+
+// Quebra o texto colado em itens `{patrimonio, service_tag?}`.
+//
+// Regras (CONTRATO §1.5 da OS-F10):
+//  - uma linha = `PATRIMONIO` ou `PATRIMONIO<sep>SERVICE_TAG`;
+//  - colunas extras sao IGNORADAS (colar 3+ colunas do Excel e comum; a 2a
+//    continua sendo a service tag e a service tag so DESEMPATA patrimonio
+//    duplicado, entao uma coluna a mais nunca escolhe ativo errado);
+//  - linha que nao canonicaliza mas parece patrimonio (TOKEN_CRU_RE) entra como
+//    candidato CRU (F7J); so o que nem parece vai para `invalidos`;
+//  - dedup INTERNO do texto pela chave §5 (patrimonio + service tag), 1a
+//    ocorrencia vence — o dedup contra o lote ja montado e o teto ao adicionar
+//    sao da UI;
+//  - mais de MAX_LOTE_MOVIMENTACAO linhas nao vazias => `erro`, sem consultar
+//    o banco.
+export function parsearLoteColado(texto: string): LoteColado {
+  const brutas = texto.split('\n')
+  const naoVazias: { linha: number; texto: string }[] = []
+
+  brutas.forEach((bruto, i) => {
+    // Tira espacos e separadores soltos das pontas (`WAP0001234⇥` colado do
+    // Excel e 1 coluna, nao 2).
+    const t = bruto.replace(/^[\s,;]+/, '').replace(/[\s,;]+$/, '')
+    if (t) naoVazias.push({ linha: i + 1, texto: t })
+  })
+
+  if (naoVazias.length > MAX_LOTE_MOVIMENTACAO) {
+    return {
+      erro: `A lista tem ${naoVazias.length} linhas; o lote aceita no máximo ${MAX_LOTE_MOVIMENTACAO}. Registre em lotes separados.`,
+      itens: [],
+      invalidos: [],
+      linhasNaoVazias: naoVazias.length,
+    }
+  }
+
+  const itens: ItemLoteColado[] = []
+  const invalidos: string[] = []
+  const vistos = new Set<string>()
+
+  for (const { linha, texto: t } of naoVazias) {
+    const corte = t.search(SEPARADOR_LOTE)
+    const bruto = (corte === -1 ? t : t.slice(0, corte)).trim()
+    const canonico = canonicalizarPatrimonio(bruto)
+    const cru = canonico ? '' : bruto.toUpperCase()
+    const patrimonio = canonico ?? (TOKEN_CRU_RE.test(cru) ? cru : '')
+    if (!patrimonio) {
+      invalidos.push(t)
+      continue
+    }
+    // 2a coluna = service tag; da 3a em diante, descartadas.
+    const resto = corte === -1 ? '' : t.slice(corte + 1)
+    const service_tag =
+      resto.split(SEPARADOR_LOTE)[0]?.trim() || undefined
+
+    const chave = chavePatrimonio(patrimonio, service_tag)
+    if (vistos.has(chave)) continue
+    vistos.add(chave)
+    itens.push({
+      patrimonio,
+      // So quando difere: nao poluir o item canonico (nem a busca) a toa.
+      ...(canonico || bruto === patrimonio ? {} : { patrimonioComoColado: bruto }),
+      service_tag,
+      linha,
+    })
+  }
+
+  return { itens, invalidos, linhasNaoVazias: naoVazias.length }
+}
+
+// Comparacao de service tag para desempatar patrimonio duplicado (§5):
+// case-insensitive e sem espacos nas pontas. Nao normaliza hifens/pontos — a ST
+// e transcrita da etiqueta, e "adivinhar" formato aqui escolheria ativo errado.
+export function mesmaServiceTag(a: string | null | undefined, b: string | null | undefined): boolean {
+  const na = a?.trim().toUpperCase() ?? ''
+  const nb = b?.trim().toUpperCase() ?? ''
+  return na !== '' && na === nb
+}

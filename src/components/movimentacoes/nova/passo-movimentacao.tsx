@@ -1,9 +1,11 @@
 'use client'
 
-import { RotateCcw, TriangleAlert } from 'lucide-react'
+import Link from 'next/link'
+import { Check, RotateCcw, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerido'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -30,7 +32,10 @@ import {
   type TipoMovimentacao,
 } from '@/lib/dominio'
 import { hojeISO, ontemISO } from '@/lib/format'
-import type { Config } from '@/components/movimentacoes/nova/config'
+import type {
+  Config,
+  SucessoLote,
+} from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Motivo } from '@/lib/queries/motivos'
@@ -82,6 +87,7 @@ export function PassoMovimentacao({
   estadosMistos,
   motivosAplicaveis,
   errosPorAtivo,
+  jaRegistrados,
   filiais,
   ultimaMov,
   onTrocarTipo,
@@ -98,6 +104,8 @@ export function PassoMovimentacao({
   estadosMistos: boolean
   motivosAplicaveis: Motivo[]
   errosPorAtivo: Record<string, string>
+  // F10/M9 — o que ENTROU no envio parcial (some do lote, mas não da tela).
+  jaRegistrados: SucessoLote['ativos']
   filiais: Filial[]
   ultimaMov?: UltimaMovimentacaoUsuario | null
   onTrocarTipo: (tipo: TipoMovimentacao) => void
@@ -109,6 +117,27 @@ export function PassoMovimentacao({
 }) {
   return (
     <div className="space-y-5">
+      {/* F10/M9 — sucesso PARCIAL: o lote volta com só as falhas, e antes disso
+          quem entrou sumia da tela sem deixar rastro. Agora fica o chip com o
+          link da ficha (a informação já vinha no resultado da action). */}
+      {jaRegistrados.length > 0 && (
+        <div className="rounded-lg border border-green-600/40 bg-green-50 p-3 text-sm dark:bg-green-950/40">
+          <p className="flex items-center gap-1.5 font-medium text-green-800 dark:text-green-300">
+            <Check className="size-4" />
+            Já registrados ({jaRegistrados.length}):
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {jaRegistrados.map((a) => (
+              <Button key={a.id} asChild variant="outline" size="sm">
+                <Link href={`/ativos/${a.id}`} className="tabular-nums">
+                  {a.patrimonio ?? 'sem patrimônio'}
+                </Link>
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {Object.keys(errosPorAtivo).length > 0 && (
         <div className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
           <p className="font-medium text-destructive">
@@ -201,24 +230,22 @@ export function PassoMovimentacao({
           {/* Colaborador / Setor */}
           {campoAplica(config.tipo, 'colaborador') && (
             <>
-              <div className="grid gap-2">
-                <Label htmlFor="colaborador">Colaborador</Label>
-                <Input
-                  id="colaborador"
-                  value={config.colaborador}
-                  onChange={(e) => onSet('colaborador', e.target.value)}
-                  placeholder="Nome do colaborador"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="setor">Setor</Label>
-                <Input
-                  id="setor"
-                  value={config.setor}
-                  onChange={(e) => onSet('setor', e.target.value)}
-                  placeholder="Setor de destino"
-                />
-              </div>
+              <CampoComSugestoes
+                id="colaborador"
+                rotulo="Colaborador"
+                campo="colaborador"
+                valor={config.colaborador}
+                onChange={(v) => onSet('colaborador', v)}
+                placeholder="Nome do colaborador"
+              />
+              <CampoComSugestoes
+                id="setor"
+                rotulo="Setor"
+                campo="setor"
+                valor={config.setor}
+                onChange={(v) => onSet('setor', v)}
+                placeholder="Setor de destino"
+              />
             </>
           )}
 

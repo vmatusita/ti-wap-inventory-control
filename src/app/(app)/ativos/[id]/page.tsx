@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Plus, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Copy, Plus, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
@@ -110,6 +110,14 @@ export default async function AtivoFichaPage({
             <Link href={`/movimentacoes/nova?ativo=${ativo.id}`}>
               <Plus className="size-4" />
               Nova movimentação
+            </Link>
+          </Button>
+          {/* A6 (F10) — comprar outra unidade do mesmo modelo sem redigitar os
+              dados cadastrais. Patrimônio e service tag NUNCA vão junto. */}
+          <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
+            <Link href={`/ativos/novo?duplicar=${ativo.id}`}>
+              <Copy className="size-4" />
+              Comprar outro igual
             </Link>
           </Button>
           <AnotarDialog ativoId={ativo.id} />

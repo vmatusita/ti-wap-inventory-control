@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
   construirItem,
+  mesclarAtivosNoLote,
   montarItensInput,
   type Config,
 } from '@/components/movimentacoes/nova/config'
 import {
+  MAX_LOTE_MOVIMENTACAO,
   loteMovimentacaoSchema,
   movimentacaoSchema,
 } from '@/lib/validators/movimentacao'
@@ -137,6 +139,53 @@ describe('montarItensInput', () => {
     expect(out).toHaveLength(2)
     expect(out[0].ativo_id).toBe(UUID)
     expect(out[1].ativo_id).toBe(a2.id)
+  })
+})
+
+// F10/M1 — o resolver do W1 devolve TUDO o que achou (sem teto, sem olhar o
+// lote atual): quem corta e avisa é esta função.
+describe('mesclarAtivosNoLote — teto e dedup ao colar em massa', () => {
+  const ativos = (n: number, prefixo = 'a') =>
+    Array.from(
+      { length: n },
+      (_, i) => ({ id: `${prefixo}${i}` }) as unknown as AtivoResumo,
+    )
+
+  it('lote vazio recebe todos quando cabem', () => {
+    const r = mesclarAtivosNoLote([], ativos(3))
+    expect(r.lote.map((a) => a.id)).toEqual(['a0', 'a1', 'a2'])
+    expect(r.adicionados).toHaveLength(3)
+    expect(r.jaNoLote).toHaveLength(0)
+    expect(r.excedentes).toHaveLength(0)
+  })
+
+  it('quem já está no lote não entra de novo (nem duplica)', () => {
+    const atual = ativos(2)
+    const r = mesclarAtivosNoLote(atual, [...ativos(2), ...ativos(1, 'b')])
+    expect(r.lote.map((a) => a.id)).toEqual(['a0', 'a1', 'b0'])
+    expect(r.jaNoLote.map((a) => a.id)).toEqual(['a0', 'a1'])
+    expect(r.adicionados.map((a) => a.id)).toEqual(['b0'])
+  })
+
+  it('repetido dentro da própria entrada entra uma vez só', () => {
+    const r = mesclarAtivosNoLote([], [...ativos(1), ...ativos(1)])
+    expect(r.adicionados.map((a) => a.id)).toEqual(['a0'])
+    expect(r.jaNoLote.map((a) => a.id)).toEqual(['a0'])
+  })
+
+  it('o teto conta o lote inteiro — o excedente sai listado, não em silêncio', () => {
+    const atual = ativos(MAX_LOTE_MOVIMENTACAO - 2)
+    const r = mesclarAtivosNoLote(atual, ativos(5, 'b'))
+    expect(r.lote).toHaveLength(MAX_LOTE_MOVIMENTACAO)
+    expect(r.adicionados.map((a) => a.id)).toEqual(['b0', 'b1'])
+    expect(r.excedentes.map((a) => a.id)).toEqual(['b2', 'b3', 'b4'])
+  })
+
+  it('lote cheio: ninguém entra e todos viram excedente', () => {
+    const r = mesclarAtivosNoLote(ativos(MAX_LOTE_MOVIMENTACAO), ativos(2, 'b'))
+    expect(r.adicionados).toHaveLength(0)
+    expect(r.excedentes).toHaveLength(2)
+    expect(r.lote).toHaveLength(MAX_LOTE_MOVIMENTACAO)
   })
 })
 

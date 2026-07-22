@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ChevronsUpDown, Plus, RotateCcw } from 'lucide-react'
+import { Plus, RotateCcw, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,35 +24,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { lancarItens } from '@/lib/actions/itens'
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { lancarItem } from '@/lib/actions/itens'
-import { lancamentoItemSchema } from '@/lib/validators/item'
+  MAX_LINHAS_LOTE_ITEM,
+  errosPorLinhaDoLote,
+  loteLancamentoItemSchema,
+} from '@/lib/validators/item'
 import { hojeISO } from '@/lib/format'
 import {
-  GRUPO_ITEM_META,
-  GRUPO_ITEM_ORDEM,
   TIPO_LANCAMENTO_META,
   descricaoTipoLancamento,
   type TipoLancamento,
 } from '@/lib/dominio'
-import { cn } from '@/lib/utils'
 import { EVENTO_LANCAR_ITEM } from './lancar-item-evento'
+import { ItemCombobox } from './item-combobox'
 import type { ItemCatalogo, UltimoLancamento } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 
 const TIPOS: TipoLancamento[] = ['entrada', 'saida', 'reserva', 'liberacao', 'retorno', 'ajuste']
 
-// Lançamento de quantidade (OS 3.3.2): dialog enxuto, meta ≤15s. "Repetir último"
-// pré-preenche tudo menos a quantidade. Atalho `L` abre de qualquer lugar de
-// /itens (o `N` já é da movimentação de ativos — decisão registrada em DECISOES).
+// Uma linha do carrinho (F10 · I1). `uid` é só a chave estável do React — o
+// índice não serve, porque remover uma linha do meio remontaria as seguintes.
+type LinhaCarrinho = { uid: number; itemId: number | null; quantidade: string; erro?: string }
+
+// Lançamento de quantidade (OS 3.3.2 · F10 I1/I2): dialog enxuto, meta ≤15s.
+// A NF com 5 itens vira UM lançamento com 5 linhas sobre os campos comuns
+// (filial, tipo, data, chamado, colaborador, observação) — antes eram 5 idas ao
+// dialog. "Repetir último" pré-preenche tudo menos a quantidade. Atalho `L` abre
+// de qualquer lugar de /itens (o `N` já é da movimentação de ativos — decisão
+// registrada em DECISOES).
 export function LancarItemDialog({
   itens,
   filiais,
@@ -64,20 +64,35 @@ export function LancarItemDialog({
 }) {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
-  const [comboAberto, setComboAberto] = useState(false)
-  const [itemId, setItemId] = useState<number | null>(null)
+  const [linhas, setLinhas] = useState<LinhaCarrinho[]>([
+    { uid: 1, itemId: null, quantidade: '' },
+  ])
   const [filialId, setFilialId] = useState<number | null>(filiais[0]?.id ?? null)
   const [tipo, setTipo] = useState<TipoLancamento>('entrada')
-  const [quantidade, setQuantidade] = useState('')
   const [chamado, setChamado] = useState('')
   const [colaborador, setColaborador] = useState('')
   const [data, setData] = useState(hojeISO())
   const [observacao, setObservacao] = useState('')
+  // Itens criados inline nesta sessão do dialog: o `router.refresh()` só repassa
+  // a prop no próximo render do servidor, e o operador precisa ver o item AGORA.
+  const [criadosLocal, setCriadosLocal] = useState<ItemCatalogo[]>([])
   const [enviando, start] = useTransition()
+  const proximoUid = useRef(1)
   const qtdRef = useRef<HTMLInputElement>(null)
   // Preset vindo da linha do saldo (I6): quando o dialog abre por causa dele, o
   // foco inicial vai para a quantidade em vez do primeiro campo.
   const focarQtdAoAbrir = useRef(false)
+
+  const catalogo = useMemo(() => {
+    if (!criadosLocal.length) return itens
+    const ids = new Set(itens.map((i) => i.id))
+    return [...itens, ...criadosLocal.filter((c) => !ids.has(c.id))]
+  }, [itens, criadosLocal])
+
+  function novaLinha(itemId: number | null = null): LinhaCarrinho {
+    proximoUid.current += 1
+    return { uid: proximoUid.current, itemId, quantidade: '' }
+  }
 
   // Atalho `L` — abre o dialog quando o foco não está num campo de texto.
   useEffect(() => {
@@ -97,19 +112,20 @@ export function LancarItemDialog({
   }, [aberto])
 
   // "Lançar da linha" (I6) — o botão de cada linha da tabela de saldos dispara o
-  // CustomEvent; aqui o dialog abre já com item + filial preenchidos. O preset
-  // vence o estado anterior do form (os demais campos voltam ao padrão); o
-  // atalho `L` e o "Repetir último" seguem intactos (só reagem a ação do usuário).
+  // CustomEvent; aqui o dialog abre já com item + filial preenchidos (na PRIMEIRA
+  // linha do carrinho). O preset vence o estado anterior do form (os demais
+  // campos voltam ao padrão); o atalho `L` e o "Repetir último" seguem intactos
+  // (só reagem a ação do usuário).
   useEffect(() => {
     function onLancarItem(e: WindowEventMap[typeof EVENTO_LANCAR_ITEM]) {
       const { itemId: presetItem, filialId: presetFilial } = e.detail
       if (!Number.isFinite(presetItem)) return
-      setItemId(presetItem)
+      proximoUid.current += 1
+      setLinhas([{ uid: proximoUid.current, itemId: presetItem, quantidade: '' }])
       if (typeof presetFilial === 'number' && Number.isFinite(presetFilial)) {
         setFilialId(presetFilial)
       }
       setTipo('entrada')
-      setQuantidade('')
       setChamado('')
       setColaborador('')
       setData(hojeISO())
@@ -126,9 +142,8 @@ export function LancarItemDialog({
   }, [aberto])
 
   function limpar() {
-    setItemId(null)
+    setLinhas([novaLinha()])
     setTipo('entrada')
-    setQuantidade('')
     setChamado('')
     setColaborador('')
     setData(hojeISO())
@@ -137,47 +152,92 @@ export function LancarItemDialog({
 
   function repetirUltimo() {
     if (!ultimo) return
-    setItemId(ultimo.item_id)
+    setLinhas([novaLinha(ultimo.item_id)])
     setFilialId(ultimo.filial_id)
     setTipo(ultimo.tipo)
     setChamado(ultimo.chamado ?? '')
     setColaborador(ultimo.colaborador ?? '')
-    setQuantidade('')
     setData(hojeISO())
     setObservacao('')
     setTimeout(() => qtdRef.current?.focus(), 0)
   }
 
+  function atualizarLinha(uid: number, campos: Partial<LinhaCarrinho>) {
+    setLinhas((ls) => ls.map((l) => (l.uid === uid ? { ...l, ...campos, erro: undefined } : l)))
+  }
+
+  function adicionarLinha() {
+    setLinhas((ls) => (ls.length >= MAX_LINHAS_LOTE_ITEM ? ls : [...ls, novaLinha()]))
+  }
+
+  function removerLinha(uid: number) {
+    setLinhas((ls) => (ls.length <= 1 ? ls : ls.filter((l) => l.uid !== uid)))
+  }
+
+  function itemCriado(item: ItemCatalogo) {
+    setCriadosLocal((c) => (c.some((i) => i.id === item.id) ? c : [...c, item]))
+    router.refresh()
+  }
+
   const exigeChamado = tipo === 'reserva' || tipo === 'liberacao'
   const exigeObs = tipo === 'ajuste'
-  const itemSelecionado = itens.find((i) => i.id === itemId)
 
   function salvar() {
     const input = {
-      item_id: itemId ?? 0,
       filial_id: filialId ?? 0,
       tipo,
-      quantidade: quantidade === '' ? NaN : Number(quantidade),
+      linhas: linhas.map((l) => ({
+        item_id: l.itemId ?? 0,
+        quantidade: l.quantidade === '' ? NaN : Number(l.quantidade),
+      })),
       chamado: chamado || undefined,
       colaborador: colaborador || undefined,
       data,
       observacao: observacao || undefined,
     }
-    const parsed = lancamentoItemSchema.safeParse(input)
+    const parsed = loteLancamentoItemSchema.safeParse(input)
     if (!parsed.success) {
+      const porLinha = errosPorLinhaDoLote(parsed.error.issues)
+      setLinhas((ls) => ls.map((l, i) => ({ ...l, erro: porLinha.get(i) })))
       toast.error(parsed.error.issues[0]?.message ?? 'Revise os campos.')
       return
     }
+    const enviadas = linhas
     start(async () => {
-      const res = await lancarItem(parsed.data)
-      if (!res.ok) {
-        toast.error(res.erro)
+      const res = await lancarItens(parsed.data)
+      if (res.erroGeral) {
+        toast.error(res.erroGeral)
         return
       }
-      toast.success('Lançamento registrado.')
-      limpar()
-      setAberto(false)
-      router.refresh()
+      if (res.ok) {
+        toast.success(
+          res.resultados.length > 1
+            ? `${res.resultados.length} lançamentos registrados.`
+            : 'Lançamento registrado.',
+        )
+        limpar()
+        setAberto(false)
+        router.refresh()
+        return
+      }
+      // Sucesso parcial: cada linha é independente (o trigger de saldo julga uma
+      // a uma). Mantém no carrinho SÓ as que falharam, com o erro na própria
+      // linha — espelho do lote de ativos.
+      const falhas = enviadas
+        .map((l, i) => ({ linha: l, resultado: res.resultados[i] }))
+        .filter((p) => !p.resultado || !p.resultado.ok)
+      const registradas = res.resultados.filter((r) => r.ok).length
+      if (falhas.length) {
+        setLinhas(falhas.map((p) => ({ ...p.linha, erro: p.resultado?.erro })))
+      }
+      if (registradas > 0) {
+        toast.warning(
+          `${registradas} de ${res.resultados.length} linhas lançadas. Corrija o que falhou.`,
+        )
+        router.refresh()
+      } else {
+        toast.error(falhas[0]?.resultado?.erro ?? 'Nenhuma linha foi lançada.')
+      }
     })
   }
 
@@ -193,7 +253,7 @@ export function LancarItemDialog({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-lg"
+        className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl"
         onOpenAutoFocus={(e) => {
           if (!focarQtdAoAbrir.current) return
           focarQtdAoAbrir.current = false
@@ -204,7 +264,8 @@ export function LancarItemDialog({
         <DialogHeader>
           <DialogTitle>Lançar quantidade</DialogTitle>
           <DialogDescription>
-            Entrada, liberação, atrelar, devolução, retorno ou ajuste de um item.
+            Entrada, liberação, atrelar, devolução, retorno ou ajuste — vários itens no mesmo
+            lançamento.
           </DialogDescription>
         </DialogHeader>
 
@@ -223,55 +284,71 @@ export function LancarItemDialog({
         )}
 
         <div className="space-y-3">
-          {/* Item (combobox com busca) */}
-          <div className="space-y-1.5">
-            <Label>Item</Label>
-            <Popover open={comboAberto} onOpenChange={setComboAberto}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={comboAberto}
-                  className="w-full justify-between font-normal"
-                >
-                  <span className={cn(!itemSelecionado && 'text-muted-foreground')}>
-                    {itemSelecionado ? itemSelecionado.nome : 'Escolha o item…'}
-                  </span>
-                  <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Buscar item…" autoFocus />
-                  <CommandList>
-                    <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                    {GRUPO_ITEM_ORDEM.map((g) => {
-                      const doGrupo = itens.filter((i) => i.grupo === g)
-                      if (!doGrupo.length) return null
-                      return (
-                        <CommandGroup key={g} heading={GRUPO_ITEM_META[g].titulo}>
-                          {doGrupo.map((i) => (
-                            <CommandItem
-                              key={i.id}
-                              value={i.nome}
-                              onSelect={() => {
-                                setItemId(i.id)
-                                setComboAberto(false)
-                              }}
-                            >
-                              <Check
-                                className={cn('mr-2 size-4', itemId === i.id ? 'opacity-100' : 'opacity-0')}
-                              />
-                              {i.nome}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      )
-                    })}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+          {/* Carrinho: uma linha por item (mesma filial/tipo/data/chamado) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Itens</Label>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {linhas.length}/{MAX_LINHAS_LOTE_ITEM}
+              </span>
+            </div>
+            {linhas.map((l, i) => (
+              <div key={l.uid} className="space-y-1">
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <ItemCombobox
+                      itens={catalogo}
+                      valor={l.itemId}
+                      onSelecionar={(id) => atualizarLinha(l.uid, { itemId: id })}
+                      onItemCriado={itemCriado}
+                      desabilitado={enviando}
+                      descricaoAcessivel={`Item ${i + 1} do lançamento`}
+                    />
+                  </div>
+                  <Input
+                    ref={i === 0 ? qtdRef : undefined}
+                    type="number"
+                    inputMode="numeric"
+                    aria-label={`Quantidade do item ${i + 1}`}
+                    className="min-h-10 w-24 shrink-0"
+                    value={l.quantidade}
+                    onChange={(e) => atualizarLinha(l.uid, { quantidade: e.target.value })}
+                    placeholder={exigeObs ? '-3' : '10'}
+                    disabled={enviando}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remover o item ${i + 1} do lançamento`}
+                    className="size-10 shrink-0"
+                    onClick={() => removerLinha(l.uid)}
+                    disabled={enviando || linhas.length <= 1}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+                {l.erro && (
+                  <p className="pl-1 text-xs text-red-600 dark:text-red-400">{l.erro}</p>
+                )}
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 gap-1.5 sm:min-h-0"
+                onClick={adicionarLinha}
+                disabled={enviando || linhas.length >= MAX_LINHAS_LOTE_ITEM}
+              >
+                <Plus className="size-3.5" />
+                Adicionar item
+              </Button>
+              {exigeObs && (
+                <span className="text-xs text-muted-foreground">quantidade negativa = baixa</span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -315,25 +392,6 @@ export function LancarItemDialog({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="lanc-qtd">
-                Quantidade
-                {exigeObs && (
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    (negativa = baixa)
-                  </span>
-                )}
-              </Label>
-              <Input
-                id="lanc-qtd"
-                ref={qtdRef}
-                type="number"
-                inputMode="numeric"
-                value={quantidade}
-                onChange={(e) => setQuantidade(e.target.value)}
-                placeholder={exigeObs ? 'ex.: -3' : 'ex.: 10'}
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label htmlFor="lanc-chamado">
                 Chamado{exigeChamado ? '' : ' (opcional)'}
               </Label>
@@ -343,18 +401,6 @@ export function LancarItemDialog({
                 value={chamado}
                 onChange={(e) => setChamado(e.target.value)}
                 placeholder="nº do chamado"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="lanc-colab">Colaborador (opcional)</Label>
-              <Input
-                id="lanc-colab"
-                value={colaborador}
-                onChange={(e) => setColaborador(e.target.value)}
-                placeholder="a quem se destina"
               />
             </div>
             <div className="space-y-1.5">
@@ -367,6 +413,16 @@ export function LancarItemDialog({
                 onChange={(e) => setData(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="lanc-colab">Colaborador (opcional)</Label>
+            <Input
+              id="lanc-colab"
+              value={colaborador}
+              onChange={(e) => setColaborador(e.target.value)}
+              placeholder="a quem se destina"
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -388,7 +444,11 @@ export function LancarItemDialog({
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={enviando}>
-            {enviando ? 'Salvando…' : 'Lançar'}
+            {enviando
+              ? 'Salvando…'
+              : linhas.length > 1
+                ? `Lançar ${linhas.length} itens`
+                : 'Lançar'}
           </Button>
         </DialogFooter>
       </DialogContent>

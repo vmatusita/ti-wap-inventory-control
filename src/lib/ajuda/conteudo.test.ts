@@ -15,6 +15,10 @@ import {
   TERMO_META,
   GRUPO_ITEM_ORDEM,
 } from '@/lib/dominio'
+import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
+import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import { CAP_EXPORT } from '@/lib/csv'
+import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 
 type BlocoGlossario = Extract<Bloco, { tipo: 'glossario' }>
 type BlocoMovimentacoes = Extract<Bloco, { tipo: 'movimentacoes' }>
@@ -158,6 +162,100 @@ describe('facilitadores documentados (OS-F9)', () => {
     for (const m of tudo.matchAll(/wap\d{7}/g)) {
       expect(['wap0001234', 'wap0004491']).toContain(m[0])
     }
+  })
+})
+
+describe('operação em massa documentada (OS-F10 · Onda 2)', () => {
+  function titulosDePassos(idSecao: string): string[] {
+    return secao(idSecao)
+      .blocos.filter((b): b is Extract<Bloco, { tipo: 'passos' }> => b.tipo === 'passos')
+      .map((b) => b.titulo ?? '')
+  }
+
+  it('cita o teto do lote de movimentação pela constante (M11), nunca o antigo 10', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca(`até ${MAX_LOTE_MOVIMENTACAO} de uma vez`))
+    // O teto antigo (OS-F2) não pode sobreviver em lugar nenhum do manual.
+    const tudo = SECOES.map(textoDaSecao).join(' ')
+    expect(tudo).not.toContain(normalizarBusca('lote aceita até 10'))
+    expect(tudo).not.toContain(normalizarBusca('até 10 de uma vez'))
+  })
+
+  it('os tetos citados vêm das constantes reais (compra, item, export)', () => {
+    const comoFazer = textoDaSecao(secao('como-fazer'))
+    expect(comoFazer).toContain(normalizarBusca(`máximo ${MAX_LOTE_COMPRA} unidades`))
+    expect(comoFazer).toContain(normalizarBusca(`${MAX_LINHAS_LOTE_ITEM} linhas por lançamento`))
+    expect(comoFazer).toContain(
+      normalizarBusca(`${CAP_EXPORT.toLocaleString('pt-BR')} linhas`),
+    )
+  })
+
+  it('tem o passo a passo de cada item novo da Onda 2', () => {
+    const titulos = titulosDePassos('como-fazer')
+    for (const t of [
+      // M1 · bipagem
+      'Colar a lista de patrimônios no lote (movimentação)',
+      // M6
+      'Retomar um lote que ficou pela metade (rascunho)',
+      // M9
+      'Depois de registrar: termos em sequência e sucesso parcial',
+      // A6 (+ A2/A4 ficam no passo da compra)
+      'Comprar outro igual (sem redigitar a ficha)',
+      // I1
+      'Lançar vários itens da mesma nota (carrinho)',
+      // I2
+      'Criar um item que não está no catálogo (sem sair do lançamento)',
+      // T5
+      'Exportar uma lista para o Excel (CSV)',
+    ]) {
+      expect(titulos).toContain(t)
+    }
+  })
+
+  it('explica o colar-lista: separadores, bipagem e patrimônio duplicado (M1)', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('um patrimônio por linha'))
+    expect(texto).toContain(normalizarBusca('vírgula, ponto e vírgula ou TAB'))
+    expect(texto).toContain(normalizarBusca('cada bipada cai numa linha nova'))
+    expect(texto).toContain(normalizarBusca('SEM service tag'))
+  })
+
+  it('descreve as sugestões de recentes e de colaborador/setor (M3 · M4)', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('Movimentados recentemente'))
+    expect(texto).toContain(normalizarBusca('sugerem o que já existe no sistema depois de 2 letras'))
+  })
+
+  it('descreve a memória do acervo e as service tags da faixa na compra (A4 · A2)', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('NA MESMA ORDEM da faixa'))
+    expect(texto).toContain(normalizarBusca('Marca, Modelo e Fornecedor sugerem'))
+  })
+
+  it('diz que patrimônio/service tag nunca vêm preenchidos no duplicar (A6)', () => {
+    expect(textoDaSecao(secao('como-fazer'))).toContain(
+      normalizarBusca('Patrimônio e service tag NUNCA vêm preenchidos'),
+    )
+  })
+
+  it('o aviso de duplicata (spec §8.7) é descrito como aviso, não como trava (M5)', () => {
+    const texto = textoDaSecao(secao('movimentacoes'))
+    expect(texto).toContain(normalizarBusca('Possível duplicata'))
+    expect(texto).toContain(normalizarBusca('registrar continua permitido'))
+    expect(texto).toContain(normalizarBusca('estornada NÃO conta'))
+  })
+
+  it('o export CSV não promete truncar em silêncio nem esconder o filtro (T5)', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('exatamente com o que está filtrado'))
+    expect(texto).toContain(normalizarBusca('refine os filtros'))
+    expect(texto).toContain(normalizarBusca('só com o cabeçalho'))
+  })
+
+  it('o rascunho é descrito com o escopo real (aba, some ao fechar o navegador) — M6', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('só desta aba do navegador'))
+    expect(texto).toContain(normalizarBusca('some quando você fecha o navegador'))
   })
 })
 

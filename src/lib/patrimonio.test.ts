@@ -4,6 +4,7 @@ import {
   parsearLista,
   duplicatasDaLista,
   expandirFaixa,
+  parearFaixaComServiceTags,
   chavePatrimonio,
   patrimoniosRepetidos,
   MAX_LOTE_COMPRA,
@@ -198,6 +199,89 @@ describe('expandirFaixa', () => {
   it('recusa patrimônio inicial/final inválido', () => {
     expect(expandirFaixa('lixo', 'WAP3').erro).toMatch(/inicial/i)
     expect(expandirFaixa('WAP1', 'lixo').erro).toMatch(/final/i)
+  })
+})
+
+describe('parearFaixaComServiceTags (A2 — service tags no modo Faixa)', () => {
+  const faixa = expandirFaixa('WAP1234', 'WAP1236').itens ?? []
+
+  it('pareia patrimônio e service tag na ordem da faixa', () => {
+    const r = parearFaixaComServiceTags(faixa, 'ST-ABC123\nST-DEF456\nST-GHI789')
+    expect(r.erro).toBeUndefined()
+    expect(r.itens).toEqual([
+      { patrimonio: 'WAP0001234', service_tag: 'ST-ABC123' },
+      { patrimonio: 'WAP0001235', service_tag: 'ST-DEF456' },
+      { patrimonio: 'WAP0001236', service_tag: 'ST-GHI789' },
+    ])
+  })
+
+  it('texto vazio (ou só espaços) = faixa sem service tags, como antes da F10', () => {
+    expect(parearFaixaComServiceTags(faixa, '').itens).toEqual([
+      { patrimonio: 'WAP0001234' },
+      { patrimonio: 'WAP0001235' },
+      { patrimonio: 'WAP0001236' },
+    ])
+    expect(parearFaixaComServiceTags(faixa, '  \n \n').itens).toHaveLength(3)
+  })
+
+  it('acusa contagem diferente citando os dois números', () => {
+    const r = parearFaixaComServiceTags(faixa, 'ST-ABC123\nST-DEF456')
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toContain('3 patrimônios')
+    expect(r.erro).toContain('2 service tags')
+  })
+
+  it('ignora linhas em branco no meio e apara espaços da service tag', () => {
+    const r = parearFaixaComServiceTags(faixa, '  ST-ABC123  \n\nST-DEF456\n \nST-GHI789\n')
+    expect(r.erro).toBeUndefined()
+    expect(r.itens?.map((i) => i.service_tag)).toEqual([
+      'ST-ABC123',
+      'ST-DEF456',
+      'ST-GHI789',
+    ])
+  })
+
+  it('recusa service tag repetida (o índice único do banco não pegaria)', () => {
+    const r = parearFaixaComServiceTags(faixa, 'ST-ABC123\nST-DEF456\nst-abc123')
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toMatch(/repetida/i)
+    expect(r.erro).toContain('linhas 1 e 3')
+  })
+
+  it('singulariza a mensagem com um patrimônio só', () => {
+    const r = parearFaixaComServiceTags(['WAP0001234'], 'ST-ABC123\nST-DEF456')
+    expect(r.erro).toContain('1 patrimônio ×')
+    expect(r.erro).toContain('2 service tags')
+  })
+
+  // Colar DUAS colunas do Excel na caixa de service tags gravaria o texto
+  // inteiro (com o TAB no meio) como service tag — e service tag é IMUTÁVEL
+  // depois que o ativo nasce. Recusar a linha é a única correção possível.
+  it('recusa linha com separador embutido (duas colunas coladas)', () => {
+    const r = parearFaixaComServiceTags(
+      faixa,
+      'ST-ABC123\nWAP0001235\tST-DEF456\nST-GHI789',
+    )
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toContain('linha 2')
+    expect(r.erro).toMatch(/vírgula, ponto e vírgula ou TAB/i)
+  })
+
+  it('recusa também vírgula e ponto e vírgula na service tag', () => {
+    expect(
+      parearFaixaComServiceTags(faixa, 'A,B\nST-DEF456\nST-GHI789').erro,
+    ).toBeDefined()
+    expect(
+      parearFaixaComServiceTags(faixa, 'ST-ABC123\nA;B\nST-GHI789').erro,
+    ).toBeDefined()
+  })
+
+  // O separador é diagnóstico melhor que a contagem: com duas colunas coladas a
+  // contagem BATE (uma linha por patrimônio) e nenhum erro apareceria.
+  it('o erro do separador vem antes do erro de contagem', () => {
+    const r = parearFaixaComServiceTags(faixa, 'WAP0001234\tST-ABC123')
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toMatch(/vírgula, ponto e vírgula ou TAB/i)
   })
 })
 

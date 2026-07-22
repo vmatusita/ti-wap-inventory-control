@@ -29,8 +29,8 @@ O sistema está **em produção desde o go-live de 15/07/2026** (1.596 ativos, 5
 | [`docs/DECISOES.md`](docs/DECISOES.md) | Rastro de auditoria das decisões autônomas (append-only) |
 | [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md) | Procedimento de migrations/deploy de banco (o "gate", apply manual, armadilhas) |
 | [`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md) | Auditoria de dívida técnica (diagnóstico priorizado) |
-| [`CHANGELOG.md`](CHANGELOG.md) | Histórico das fases entregues (F0→F7K) |
-| `supabase/migrations/` | **Fonte da verdade do banco** desde a F1 (0001→0040; a `0029` não existe) |
+| [`CHANGELOG.md`](CHANGELOG.md) | Histórico das fases entregues (F0→F10) |
+| `supabase/migrations/` | **Fonte da verdade do banco** desde a F1 (0001→0041; a `0029` não existe) |
 | [`mockups/dashboard-relatorio.html`](mockups/dashboard-relatorio.html) | Mockup navegável do relatório por filial |
 
 ## Desenvolvimento local
@@ -54,17 +54,17 @@ Variáveis de ambiente (todas em `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `N
 | `npm run db:types` | Regenera `src/lib/types/database.ts` a partir do schema |
 | `npm run carga` | Carga única do go-live (`scripts/import/`; guardas `CARGA_*`) — ferramenta, não feature |
 
-O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: um job de `lint + test + build` e um job de **banco** que sobe um Postgres, aplica todas as migrations (`0001→0040`) e roda os roteiros de `supabase/tests/`.
+O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: um job de `lint + test + build` e um job de **banco** que sobe um Postgres, aplica todas as migrations (`0001→0041`) e roda os roteiros de `supabase/tests/`.
 
 ## Status
 
-**Em produção (F0 → F9):** operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo + snapshots semanais com acesso por senha, termos gerados em `.docx`, o **import de startup por filial** (`admin/importar`, só *Substituir tudo*) e os **quick wins de UX da F9** (busca por colaborador, colar do Excel, filtros do histórico de itens, badge de pendências). O histórico fase a fase está em [`CHANGELOG.md`](CHANGELOG.md); a ata detalhada de cada decisão, em [`docs/DECISOES.md`](docs/DECISOES.md).
+**Em produção (F0 → F10):** operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo + snapshots semanais com acesso por senha, termos gerados em `.docx`, o **import de startup por filial** (`admin/importar`, só *Substituir tudo*), os **quick wins de UX da F9** (busca por colaborador, colar do Excel, filtros do histórico de itens, badge de pendências) e a **operação em massa da F10**: colar/bipar a lista de patrimônios no lote de movimentação (agora até **30** ativos), sugestões de recentes e de colaborador/setor, aviso de possível duplicata, rascunho do lote que sobrevive à navegação, termos em sequência depois do registro, service tags na faixa da compra, "Comprar outro igual", carrinho multi-item nos lançamentos com criação de item inline e **export CSV** em Ativos, Pendências e Itens. O histórico fase a fase está em [`CHANGELOG.md`](CHANGELOG.md); a ata detalhada de cada decisão, em [`docs/DECISOES.md`](docs/DECISOES.md).
 
 **Pendências:**
 
 - **F6C — carga dos saldos de itens** ([`docs/prompts/F6C-carga-saldos-itens.md`](docs/prompts/F6C-carga-saldos-itens.md)) — **próximo passo**, mas **por último na fila** (decisão de 16/07/2026: melhorias primeiro, cargas depois). É o único item que **depende de insumo do Johnny** (o export dos saldos da planilha de gestão online). Até lá, o catálogo de `itens` segue vazio e essa seção do relatório só aparece quando houver lançamentos.
 - **F5 — refino** — alertas, e-mail, estoque mínimo por item, upload do PDF assinado (item 5.5).
-- **Ondas 2 e 3 do backlog de UX** ([`docs/BACKLOG-UX.md`](docs/BACKLOG-UX.md)) — a Onda 1 saiu na F9; ficam a operação em massa (colar lista na movimentação, autocomplete, alerta de duplicata, multi-item, export CSV) e a navegação/estrutura (busca global, lista de movimentações, ordenação de colunas).
+- **Onda 3 do backlog de UX** ([`docs/BACKLOG-UX.md`](docs/BACKLOG-UX.md)) — a Onda 1 saiu na F9 e a Onda 2 (operação em massa) na F10; fica a navegação/estrutura: busca global (T1), lista de `/movimentacoes` (M8), ordenação de colunas (T7), saldos multi-filial (I4) e os demais itens T3/T9/T10.
 - **Banco** — aplicar as migrations `0039` (drop dos backups órfãos) e `0040` (hardening das RPCs) em produção (gate; ver [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md)).
 
 Pendências não bloqueantes: perguntas 4, 5, 6 e 7 da spec §13. As filiais oficiais foram definidas em 15/07/2026: **Matriz, CD-Afonso Pena, Linhares, Eusébio e Serra** (Serra Park é filial própria; Filial-CE = Eusébio).

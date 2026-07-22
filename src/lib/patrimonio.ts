@@ -135,6 +135,71 @@ export function expandirFaixa(
   return { itens }
 }
 
+// A2 (F10) — pareia a faixa JÁ expandida com uma lista OPCIONAL de service tags
+// (uma por linha, na ordem da faixa). Antes da F10 a faixa só gerava patrimônios
+// e quem tinha service tag por unidade era obrigado a montar a lista à mão.
+// Texto vazio = faixa sem service tags (comportamento idêntico ao anterior).
+// Pura: o form usa no preview; o servidor (`actions/compras.ts` + índice único
+// do banco) continua sendo o juiz.
+export function parearFaixaComServiceTags(
+  patrimonios: string[],
+  stsTexto: string,
+): { itens: ItemPatrimonio[]; erro?: undefined } | { itens?: undefined; erro: string } {
+  // Linhas em branco não contam (colar do Excel costuma trazer linha final vazia).
+  const tags: { valor: string; linha: number }[] = []
+  stsTexto.split('\n').forEach((bruto, i) => {
+    const t = bruto.trim()
+    if (t) tags.push({ valor: t, linha: i + 1 })
+  })
+
+  if (tags.length === 0) {
+    return { itens: patrimonios.map((p) => ({ patrimonio: p })) }
+  }
+
+  // Duas colunas do Excel coladas AQUI (patrimônio + service tag) gravariam o
+  // texto inteiro, com o separador no meio, como service tag — e service tag é
+  // IMUTÁVEL depois que o ativo nasce (só o patrimônio se corrige). A contagem
+  // não pega esse caso (uma linha por patrimônio bate certinho), então a recusa
+  // é por linha e vem ANTES do erro de contagem, que seria o diagnóstico errado.
+  for (const t of tags) {
+    if (SEPARADOR_LISTA.test(t.valor)) {
+      return {
+        erro: `Service tag com separador na linha ${t.linha}: "${t.valor}" — esta caixa aceita só a coluna das service tags (uma por linha, sem vírgula, ponto e vírgula ou TAB).`,
+      }
+    }
+  }
+
+  if (tags.length !== patrimonios.length) {
+    const p = `${patrimonios.length} ${patrimonios.length === 1 ? 'patrimônio' : 'patrimônios'}`
+    const s = `${tags.length} service ${tags.length === 1 ? 'tag' : 'tags'}`
+    return {
+      erro: `Contagem diferente: ${p} × ${s} — informe uma service tag por patrimônio (na ordem da faixa) ou deixe o campo vazio.`,
+    }
+  }
+
+  // Service tag repetida na faixa é sempre erro de digitação: o índice único do
+  // banco é (patrimônio + service tag), então dois patrimônios distintos com a
+  // MESMA tag passariam batido e o acervo ficaria errado em silêncio.
+  const vistas = new Map<string, number>()
+  for (const t of tags) {
+    const k = t.valor.toUpperCase()
+    const anterior = vistas.get(k)
+    if (anterior !== undefined) {
+      return {
+        erro: `Service tag repetida: ${t.valor} nas linhas ${anterior} e ${t.linha}.`,
+      }
+    }
+    vistas.set(k, t.linha)
+  }
+
+  return {
+    itens: patrimonios.map((p, i) => ({
+      patrimonio: p,
+      service_tag: tags[i].valor,
+    })),
+  }
+}
+
 // Chave de unicidade do ativo (§5): o PAR patrimônio + service tag é único — o
 // patrimônio sozinho repete em casos raros. Espelha o índice do banco, que usa
 // coalesce(service_tag, ''). Usada para dedupe/conflito no lote de compra.
