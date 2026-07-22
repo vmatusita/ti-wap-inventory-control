@@ -52,8 +52,8 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 
 | Perfil | Quem é | Como entra | O que pode |
 |---|---|---|---|
-| **Operador** | A pessoa da Matriz que controla o estoque hoje + quem o admin incluir | **Login com conta WAP** — convite por e-mail, obrigatoriamente `@wap.ind.br` | Tudo: ativos, movimentações, snapshots, senhas de acesso, filiais, motivos, convites. **Todos os logados têm o mesmo nível** — não há hierarquia entre operadores |
-| **Visualizador** | Filiais, gestores, suporte terceirizado (Stefanini) — quem só consulta | **Senha de acesso** no link dos relatórios — sem conta, sem cadastro | Somente as rotas de relatório (ao vivo, snapshots, histórico). Nada de operação |
+| **Operador** | A pessoa da Matriz que controla o estoque hoje + quem o admin incluir (inclusive a equipe terceirizada da Stefanini) | **Login com conta corporativa** — convite por e-mail, obrigatoriamente `@wap.ind.br`, `@stefanini.com` ou `@latam.stefanini.com` | Tudo: ativos, movimentações, snapshots, senhas de acesso, filiais, motivos, convites. **Todos os logados têm o mesmo nível** — não há hierarquia entre operadores |
+| **Visualizador** | Filiais, gestores — quem só consulta | **Senha de acesso** no link dos relatórios — sem conta, sem cadastro | Somente as rotas de relatório (ao vivo, snapshots, histórico). Nada de operação |
 
 Neste documento, **"admin" e "operador" são sinônimos** — todo usuário logado é admin (nível único).
 
@@ -61,7 +61,7 @@ Decisões **atualizadas em 09/07/2026** (substituem a versão anterior "login pa
 
 - **Relatórios: senha, não login.** O link de visualização pede uma senha de acesso; quem tem a senha vê os relatórios. Todas as senhas dão o **mesmo nível** de acesso (todas as filiais, sem escopo).
 - **Senhas gerenciadas pelo admin:** cria quantas quiser, cada uma com **rótulo** ("Filial Linhares", "Stefanini"…), e **revoga individualmente** — se uma vazar, mata só ela sem trocar as outras.
-- **Operação: login restrito a `@wap.ind.br`**, validado no convite e no banco. Sem auto-cadastro; o admin convida ("incluir novas pessoas").
+- **Operação: login restrito aos domínios corporativos**, validado no convite e no banco. Sem auto-cadastro; o admin convida ("incluir novas pessoas"). *(Emenda de 22/07/2026: além de `@wap.ind.br`, entram `@stefanini.com` e `@latam.stefanini.com` — a equipe terceirizada da Stefanini passou a **operar**, não só consultar. Nível único inalterado: quem entra por convite é operador pleno. Lista única em `src/lib/auth/dominios-email.ts`, trava no banco pela migration `0041`; revoga a resposta 3 da §13.)*
 - Implementação: Supabase Auth só para operadores; o acesso por senha é camada da aplicação — cookie httpOnly assinado após validar contra `senhas_acesso` (hash scrypt), com queries rodando no servidor. **Visualizador nunca recebe credencial do banco.**
 
 ## 4. Conceito central: a movimentação é a fonte da verdade
@@ -154,13 +154,13 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 
 ## 6. Módulos e telas
 
-1. **Login (operação)** — e-mail `@wap.ind.br` + senha, via convite (Supabase Auth). Sem cadastro aberto. Quem só visualiza relatórios **não loga**: entra pela senha de acesso (item 5 e §3).
+1. **Login (operação)** — e-mail de domínio corporativo (§3) + senha, via convite (Supabase Auth). Sem cadastro aberto. Quem só visualiza relatórios **não loga**: entra pela senha de acesso (item 5 e §3).
 2. **Dashboard (home)** — visão geral do operador: KPIs do estoque, movimentações recentes, pendências, atalhos de ação. (Quem entra por senha não vê esta tela — vai direto aos relatórios.)
 3. **Ativos** — lista com busca por patrimônio/colaborador/marca/modelo e filtros (filial, categoria, status). Detalhe do ativo = ficha + **linha do tempo de movimentações**. Admin: criar/editar. Criar = fluxo **"Novo equipamento"**: cadastro + movimentação `compra` num único submit (regra 8), com **entrada em lote por lista ou faixa de patrimônios** — compra chega em série (caso real nos dados: 10 celulares WAP0006026–0006035 numa única entrada).
 4. **Nova movimentação** — a tela mais usada; otimizada para ser mais rápida que a planilha: buscar ativo por patrimônio (autocomplete; se o patrimônio tiver duplicata, mostra as opções com service tag e modelo para escolher) → escolher tipo → o form só pede o que aquele tipo exige → salvar. Validações de transição de estado (seção 8). Suporta lote (ex.: notebook + monitor + celular para o mesmo colaborador num único fluxo, como no chamado 5065 dos dados).
    **Facilitadores para vencer o Excel** (decisão de 09/07/2026 — sem importação depois do go-live, a operação manual é a única entrada): data de hoje já preenchida, foco automático no campo de busca ao abrir, atalho de teclado `N` abre "nova movimentação" de qualquer tela, **"repetir última"** (pré-preenche tudo da movimentação anterior, menos o ativo) e **"duplicar"** a partir de qualquer linha da linha do tempo. Kits de lote salvos ("Kit novo colaborador") ficam na F5.
 5. **Relatórios** — página ao vivo por filial (`/relatorios/[filial]`) + **geração do relatório da semana** (snapshot interativo versionado) com histórico em `/relatorios/gerados` — detalhes na seção 7.
-6. **Administração** — convidar/gerenciar usuários (só `@wap.ind.br`), **senhas de acesso dos relatórios** (criar com rótulo, ver último uso, revogar), filiais, ajustes de vocabulário (motivos), exportar backup CSV.
+6. **Administração** — convidar/gerenciar usuários (só os domínios da §3), **senhas de acesso dos relatórios** (criar com rótulo, ver último uso, revogar), filiais, ajustes de vocabulário (motivos), exportar backup CSV.
 
 > **Import de startup por filial (emenda F7, 16/07/2026).** A regra original (09/07/2026) era "não existe tela de importação"; a carga do go-live rodava só por scripts (seção 10). A F7 abriu uma **tela `admin/importar`** para o *import de startup* — o go-live novo de **uma filial**, no modo **Substituir tudo** (apaga o acervo da filial e recria a partir do CSV), com preview do custo, backup automático e confirmação pelo nome da filial (§10.2). A entrada de dados **do dia a dia** continua sendo a operação manual do item 4 — vencê-la do Excel segue sendo requisito. Sincronização recorrente e o modo *Atualizar* continuam fora de escopo.
 
@@ -239,7 +239,7 @@ Confirmada em 09/07/2026:
 
 Arquitetura em uma linha: **Next.js fala com o Supabase; leituras via Server Components (+ Realtime no cliente para logados), escritas via Server Actions; RLS garante no banco que só operador logado lê/escreve — o visualizador por senha nem credencial de banco tem (as páginas de relatório dele são servidas pelo servidor).**
 
-Padrões de segurança: RLS em todas as tabelas (`authenticated` = operador: tudo; `anon`: nada), acesso por senha 100% no servidor (hash scrypt, cookie httpOnly assinado, revogação com efeito imediato, escopo restrito às rotas de relatório), service key só no servidor, convites com expiração e restritos a `@wap.ind.br` (validação na aplicação **e** no banco).
+Padrões de segurança: RLS em todas as tabelas (`authenticated` = operador: tudo; `anon`: nada), acesso por senha 100% no servidor (hash scrypt, cookie httpOnly assinado, revogação com efeito imediato, escopo restrito às rotas de relatório), service key só no servidor, convites com expiração e restritos aos domínios corporativos da §3 (validação na aplicação **e** no banco).
 
 Custo para a WAP: **R$ 0**. Supabase no plano Free; deploy na conta **Vercel Pro que o Johnny já paga** — o Hobby gratuito da Vercel é restrito por fair use a uso pessoal não-comercial e não serve para sistema de empresa. Limites do free tier no risco 5 (seção 12).
 
@@ -310,7 +310,7 @@ Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados r
 
 1. ~~Filiais oficiais~~ — **respondida em 15/07/2026 (pré-F4):** Serra Park é **filial própria** ("Serra", com estoque — a planilha tem aba própria com 63 ativos) e **Filial-CE = Eusébio**. Filiais oficiais: **Matriz, CD-Afonso Pena, Linhares, Eusébio e Serra**. De→Para de unidades ampliado na §5; análise em `docs/ANALISE-PLANILHA-F4.md`.
 2. ~~Escopo do visualizador~~ — **respondida em 09/07/2026:** acesso por senha tem nível único; toda senha vê todos os relatórios de todas as filiais.
-3. ~~Convites restritos a domínio?~~ — **respondida em 09/07/2026:** login (operação) só com `@wap.ind.br`; terceirizados (Stefanini) e filiais consultam pelos relatórios **com senha de acesso, sem conta**.
+3. ~~Convites restritos a domínio?~~ — **respondida em 09/07/2026:** login (operação) só com `@wap.ind.br`; terceirizados (Stefanini) e filiais consultam pelos relatórios **com senha de acesso, sem conta**. **Emendada em 22/07/2026:** a parte da Stefanini foi revogada — `@stefanini.com` e `@latam.stefanini.com` passam a logar como **operador** (mesmo nível dos demais); filiais e gestores seguem só na senha de acesso. Ver §3 e a migration `0041`.
 4. **Nº do chamado:** só guardar o número ou linkar para o sistema de chamados? Qual sistema é?
 5. **Termo de responsabilidade:** ~~anexar o PDF assinado no sistema (F5) ou basta a flag + cobrança?~~ **Parcialmente respondida (F5A, 14/07/2026):** o sistema **gera** o `.docx` preenchido (§8.1) e a flag `gerado` mantém a cobrança. Falta decidir o **upload do PDF assinado** (fluxo gerar → enviar → assinar → anexar) — segue como item 5.5 da F5.
 6. **Acessórios** (mochila, mouse, teclado): confirma que na v1 ficam só como checklist da devolução, sem patrimônio próprio?

@@ -17,15 +17,18 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { convidarUsuario } from '@/lib/actions/admin'
-
-const DOMINIO = '@wap.ind.br'
+import {
+  DOMINIOS_OPERADOR,
+  DOMINIOS_TEXTO,
+  emailDeOperador,
+} from '@/lib/auth/dominios-email'
 
 type Gerado = { link: string; reenvio: boolean }
 
 // Convite de operador — gera um LINK (sem depender do e-mail do Supabase, que
 // tem limite ~2/h). O admin copia o link e envia por WhatsApp/Teams/e-mail. Mesmo
 // padrão da senha de acesso (criar-senha-dialog): mostra → copia → entrega manual.
-// Só e-mails @wap.ind.br, validado no client E no server (OS-F3 3.7.1).
+// Só os domínios da spec §3, validado no client E no server (OS-F3 3.7.1).
 export function ConvidarUsuarioDialog() {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
@@ -34,7 +37,7 @@ export function ConvidarUsuarioDialog() {
   const [copiado, setCopiado] = useState(false)
   const [enviando, start] = useTransition()
 
-  const valido = email.trim().toLowerCase().endsWith(DOMINIO)
+  const valido = emailDeOperador(email)
   const erroDominio = email.length > 0 && !valido
 
   function fechar(open: boolean) {
@@ -119,8 +122,8 @@ export function ConvidarUsuarioDialog() {
               <DialogTitle>Convidar operador</DialogTitle>
               <DialogDescription>
                 Gera um <strong>link de convite</strong> para você enviar à pessoa
-                (sem e-mail automático). Só e-mails <strong>{DOMINIO}</strong> são
-                aceitos. Todo operador tem o mesmo nível de acesso.
+                (sem e-mail automático). Só e-mails <strong>{DOMINIOS_TEXTO}</strong>{' '}
+                são aceitos. Todo operador tem o mesmo nível de acesso.
               </DialogDescription>
             </DialogHeader>
 
@@ -129,7 +132,7 @@ export function ConvidarUsuarioDialog() {
               <Input
                 id="convite-email"
                 type="email"
-                placeholder={`nome${DOMINIO}`}
+                placeholder={`nome${DOMINIOS_OPERADOR[0]}`}
                 value={email}
                 autoComplete="off"
                 onChange={(e) => setEmail(e.target.value)}
@@ -138,7 +141,7 @@ export function ConvidarUsuarioDialog() {
               />
               {erroDominio && (
                 <p className="text-xs text-destructive">
-                  O e-mail precisa terminar com {DOMINIO}.
+                  O e-mail precisa terminar com {DOMINIOS_TEXTO}.
                 </p>
               )}
             </div>

@@ -31,6 +31,7 @@ import {
   type RegraCampo,
 } from '@/lib/validators/movimentacao'
 import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
+import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { normalizarBusca } from '@/lib/ajuda/busca'
 
 // ---------------------------------------------------------------------------
@@ -511,7 +512,7 @@ export const SECOES: Secao[] = [
       {
         tipo: 'lista',
         itens: [
-          'Usuários — convites de novos operadores. Só e-mails @wap.ind.br podem ser convidados.',
+          `Usuários — convites de novos operadores. Só e-mails ${DOMINIOS_TEXTO} podem ser convidados.`,
           'Senhas de acesso — senhas que dão ao visualizador acesso só aos relatórios. Revogar pede confirmação e tem efeito imediato, no request seguinte; a senha revogada pode ser reativada na mesma lista.',
           'Filiais — cadastro das filiais.',
           'Motivos — o vocabulário de motivos oferecido na tela de movimentação.',
@@ -537,7 +538,7 @@ export const SECOES: Secao[] = [
       {
         tipo: 'lista',
         itens: [
-          'Operador — login com e-mail @wap.ind.br. Vê e opera tudo. Nível único (não há papéis nem hierarquia de operador).',
+          `Operador — login com e-mail ${DOMINIOS_TEXTO}. Vê e opera tudo. Nível único (não há papéis nem hierarquia de operador).`,
           'Visualizador — entra por uma senha de acesso e só enxerga os relatórios (/relatorios). Não vê ativos, pendências, esta ajuda nem a operação.',
         ],
       },

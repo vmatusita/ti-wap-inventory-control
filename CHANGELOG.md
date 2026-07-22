@@ -6,6 +6,11 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 22/07/2026 — Acesso: login de operador para a Stefanini
+
+- ✅ 🔒 **Domínios de login ampliados** — além de `@wap.ind.br`, passam a logar como **operador** os e-mails `@stefanini.com` e `@latam.stefanini.com` (pedido do Johnny). Migration **`0041`** (`create or replace` do trigger `handle_new_user`, não toca dado) aplicada em **produção e ensaio**; a lista virou uma constante única em `src/lib/auth/dominios-email.ts`, consumida pelo Zod, pelo dialog de convite, pela Server Action e pela `/ajuda` — antes o domínio estava escrito à mão em 4 lugares. Casamento por sufixo exato com `@` (recusa `fake-stefanini.com`, `stefanini.com.br`, `br.stefanini.com`). Cobertura nova: `dominios-email.test.ts` (Vitest) e `supabase/tests/dominios_login.sql` (roteiro do CI, contra o trigger real).
+- 📌 **Emenda de spec** — revoga a resposta 3 da §13 ("terceirizados consultam só por senha de acesso"); §3 atualizada. **Nível único inalterado**: conta convidada da Stefanini é operador pleno (mesmos poderes, inclusive `admin/importar`) — consequência registrada em `docs/DECISOES.md` e no `ADR-001`.
+
 ## 22/07/2026 — F9: quick wins de UX da operação
 
 - ✅ **F9** (execução multi-agente: 5 frentes paralelas → integração → revisão adversarial de 9 dimensões) — os **14 itens da Onda 1** do novo [`docs/BACKLOG-UX.md`](docs/BACKLOG-UX.md), **sem migration e sem dependência nova**:

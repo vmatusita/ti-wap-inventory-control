@@ -1,18 +1,21 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
+import { DOMINIOS_TEXTO, emailDeOperador } from '@/lib/auth/dominios-email'
 
 // Schemas de administração (convites, filiais, motivos) — antes definidos inline
 // em actions/admin.ts. Espelham as regras de negócio da spec §3/§6.
 
-// ---- Convite de operador (só @wap.ind.br — validação client E server) ----
-const DOMINIO = '@wap.ind.br'
+// ---- Convite de operador (domínios da spec §3 — validação client E server) ----
 export const conviteSchema = z.object({
   email: z
     .string()
     .trim()
     .toLowerCase()
     .email('E-mail inválido')
-    .refine((e) => e.endsWith(DOMINIO), `O e-mail precisa terminar com ${DOMINIO}`),
+    .refine(
+      (e) => emailDeOperador(e),
+      `O e-mail precisa terminar com ${DOMINIOS_TEXTO}`,
+    ),
 })
 
 // ---- Filiais ----

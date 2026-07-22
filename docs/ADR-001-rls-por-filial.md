@@ -7,7 +7,7 @@
 
 O modelo de acesso (spec §3) tem **duas portas**:
 
-1. **Operador** — login Supabase restrito a `@wap.ind.br`, **nível único** (todo logado é admin; não há papéis). As policies RLS das tabelas de negócio são `USING (true) / WITH CHECK (true)` para o papel `authenticated` — ou seja, **todo operador lê e escreve tudo** (todas as filiais). As regras de negócio críticas (máquina de estados, saldos de itens) vivem em **triggers** no Postgres, não na RLS; a defesa por-linha do banco é intencionalmente "aberta".
+1. **Operador** — login Supabase restrito aos domínios corporativos da spec §3 (`@wap.ind.br`, `@stefanini.com`, `@latam.stefanini.com` — trigger `0001`→`0041`), **nível único** (todo logado é admin; não há papéis). As policies RLS das tabelas de negócio são `USING (true) / WITH CHECK (true)` para o papel `authenticated` — ou seja, **todo operador lê e escreve tudo** (todas as filiais). As regras de negócio críticas (máquina de estados, saldos de itens) vivem em **triggers** no Postgres, não na RLS; a defesa por-linha do banco é intencionalmente "aberta".
 2. **Visualizador** — sem conta: entra por **senha de acesso** → cookie httpOnly assinado, válido só em `/relatorios/**`. As queries do relatório para o visualizador são servidas pelo **`createAdminClient()` (service_role)**, que **ignora a RLS** (o visualizador não tem sessão Supabase).
 
 O advisor `rls_policy_always_true` (WARN) aponta as policies `USING(true)`; a auditoria (item M) observa que **um bug de escopo por filial numa query de relatório superexporia dados entre filiais sem rede do banco** — especialmente no caminho do visualizador (service_role).
@@ -17,7 +17,8 @@ O advisor `rls_policy_always_true` (WARN) aponta as policies `USING(true)`; a au
 **Manter o modelo atual para o OPERADOR** e **não** migrar para RLS por filial nas tabelas de negócio. Registrar o endurecimento do caminho do VISUALIZADOR como o trabalho de segurança que de fato move o ponteiro (item separado, não urgente).
 
 ### Por quê (operador)
-- **O operador legitimamente vê todas as filiais.** O sistema é de TI central da WAP (5 filiais, uma equipe). Não há requisito de isolar filial-por-operador — todo operador `@wap.ind.br` opera o acervo inteiro (transferências entre filiais, relatório consolidado `geral`, import de startup por filial). RLS por filial **não teria a quem restringir**.
+- **O operador legitimamente vê todas as filiais.** O sistema é de TI central da WAP (5 filiais, uma equipe). Não há requisito de isolar filial-por-operador — todo operador opera o acervo inteiro (transferências entre filiais, relatório consolidado `geral`, import de startup por filial). RLS por filial **não teria a quem restringir**.
+  *(Emenda 22/07/2026 — abertura para `@stefanini.com`/`@latam.stefanini.com`: a equipe terceirizada entrou como operador pleno, e a conclusão acima **não muda** — o recorte que faria sentido para terceirizado seria por papel, não por filial. Quem entra continua sendo escolhido um a um por convite; se um dia surgir a necessidade de um operador com poderes menores, isso é um ADR novo sobre **papéis**, que a spec §3 hoje proíbe.)*
 - **Custo alto, benefício ~nulo.** RLS por filial exigiria um conceito de "filial do operador" (inexistente no domínio), policies por tabela e por operação, e complicaria transferência/consolidado. Introduz superfície de bug **onde hoje não há requisito**.
 - **A defesa real já está no lugar certo.** A integridade (o que pode virar o quê) é dos **triggers** (máquina de estados, saldos) — que a RLS aberta não afrouxa. A RLS "true" reflete o modelo de nível único da spec, não um descuido.
 

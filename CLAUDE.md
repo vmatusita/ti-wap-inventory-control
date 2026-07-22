@@ -50,14 +50,14 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 - **shadcn:** componentes gerados ficam em `src/components/ui/` e não se editam sem motivo documentado.
 - **Datas** exibidas `dd/MM/yyyy`; números em tabelas com `tabular-nums`. Patrimônio exibido sempre no formato canônico (`WAP0004491`).
 - **Patrimônio repete em casos raros** — o par patrimônio + service tag é a chave (spec §5). Toda busca de ativo por patrimônio precisa tratar o caso de múltiplos resultados.
-- **Modelo de acesso (spec §3):** duas portas. **Operador** = login Supabase restrito a `@wap.ind.br`, **nível único** ("admin" e "operador" são sinônimos; NUNCA criar roles/papéis). **Visualizador** = senha de acesso gerida em `admin/senhas` (hash `crypto.scrypt` nativo — proibido lib de hash) → cookie httpOnly assinado, válido só nas rotas `/relatorios/**`, queries servidas pelo servidor. Nunca expor o client administrativo ou a anon key para sessões por senha; revogação de senha tem efeito no request seguinte.
+- **Modelo de acesso (spec §3):** duas portas. **Operador** = login Supabase restrito aos domínios corporativos — `@wap.ind.br`, `@stefanini.com`, `@latam.stefanini.com` (lista única em `src/lib/auth/dominios-email.ts`; trava no trigger `handle_new_user`, migration `0041`) —, **nível único** ("admin" e "operador" são sinônimos; NUNCA criar roles/papéis). **Visualizador** = senha de acesso gerida em `admin/senhas` (hash `crypto.scrypt` nativo — proibido lib de hash) → cookie httpOnly assinado, válido só nas rotas `/relatorios/**`, queries servidas pelo servidor. Nunca expor o client administrativo ou a anon key para sessões por senha; revogação de senha tem efeito no request seguinte.
 
 ## Estrutura de pastas (prescrita — criada progressivamente pelas fases)
 
 ```
 src/
   app/
-    login/page.tsx                  # público — operadores (@wap.ind.br)
+    login/page.tsx                  # público — operadores (domínios corporativos)
     auth/confirm/page.tsx           # convite/senha — intersticial anti-prefetch (verifyOtp só no clique)
     auth/definir-senha/page.tsx     # operador define a senha após aceitar o convite
     relatorios/acesso/page.tsx      # público — entrada por SENHA de acesso (F3)
@@ -74,7 +74,7 @@ src/
       relatorios/[filial]/page.tsx  # relatório AO VIVO por filial ('geral' = consolidado)
       relatorios/gerados/page.tsx        # histórico de snapshots semanais
       relatorios/gerados/[id]/page.tsx   # snapshot congelado e interativo (spec §7.1)
-      admin/usuarios/page.tsx       # convites — só @wap.ind.br
+      admin/usuarios/page.tsx       # convites — só domínios corporativos
       admin/senhas/page.tsx         # senhas de acesso dos relatórios (F3)
       admin/filiais/page.tsx
       admin/motivos/page.tsx

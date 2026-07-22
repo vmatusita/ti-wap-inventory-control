@@ -35,7 +35,7 @@ Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migr
 | `termos_gerados` | Snapshot jsonb + ponteiro para o `.docx` no Storage privado. |
 | `anotacoes` | Notas livres na linha do tempo do ativo. |
 | `import_logs` | Auditoria do import de startup (arquivo, hash, correções, contagens). |
-| `profiles` | Operadores (`@wap.ind.br`; nível único, sem papéis). |
+| `profiles` | Operadores (domínios corporativos da spec §3; nível único, sem papéis). |
 
 ## 3. Máquina de estados
 
@@ -47,7 +47,7 @@ Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migr
 
 Decisão e trade-offs em [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md); regra na spec [§3](ESPECIFICACAO.md).
 
-1. **Operador** — login Supabase restrito a `@wap.ind.br` (trava no trigger da `0001`), **nível único** (todo logado é admin; não há papéis). As policies RLS das tabelas de negócio são `USING (true)` — o operador legitimamente opera todas as filiais; a integridade fica nos triggers, não na RLS.
+1. **Operador** — login Supabase restrito a `@wap.ind.br`, `@stefanini.com` e `@latam.stefanini.com` (trava no trigger da `0001`, ampliado pela `0041`; lista única em `src/lib/auth/dominios-email.ts`), **nível único** (todo logado é admin; não há papéis). As policies RLS das tabelas de negócio são `USING (true)` — o operador legitimamente opera todas as filiais; a integridade fica nos triggers, não na RLS.
 2. **Visualizador** — sem conta: **senha de acesso** → cookie httpOnly assinado (HMAC), válido só em `/relatorios/**`. As leituras do relatório para o visualizador são servidas pelo cliente administrativo (service_role) — ver `src/lib/auth/acesso.ts`. A revogação de senha tem efeito no request seguinte.
 
 Peças em `src/lib/`:

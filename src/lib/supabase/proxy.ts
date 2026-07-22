@@ -4,7 +4,7 @@ import { type Database } from '@/lib/types/database'
 import { VIEW_COOKIE_NAME } from '@/lib/auth/view-cookie'
 
 // Mantém a sessão do Supabase viva e faz o roteamento de acesso (spec §3):
-//  - Operador logado (@wap.ind.br): acessa tudo.
+//  - Operador logado (domínios de lib/auth/dominios-email): acessa tudo.
 //  - Sem operador: só as rotas de RELATÓRIO (/relatorios/**), e apenas se
 //    portar o cookie de visualização — a verificação REAL (assinatura + senha
 //    ativa) roda no servidor Node (lib/auth/acesso.ts), não aqui (Edge, sem

@@ -15,7 +15,7 @@ O sistema está **em produção desde o go-live de 15/07/2026** (1.596 ativos, 5
 
 **Regra de patrimônio:** o patrimônio identifica o equipamento, mas repete em casos raros — quem é único é o par **patrimônio + service tag** (spec §5, regra 1). Toda busca por patrimônio trata o caso de múltiplos resultados.
 
-**Modelo de acesso (duas portas):** operar = login com conta WAP (só `@wap.ind.br`, nível único — todo logado é admin); visualizar relatórios = **senha de acesso, sem conta** (senhas com rótulo, criadas e revogadas individualmente pelo admin). Detalhes na spec §3 e em [`docs/ADR-001-rls-por-filial.md`](docs/ADR-001-rls-por-filial.md).
+**Modelo de acesso (duas portas):** operar = login com conta corporativa (`@wap.ind.br`, `@stefanini.com` ou `@latam.stefanini.com` — nível único, todo logado é admin); visualizar relatórios = **senha de acesso, sem conta** (senhas com rótulo, criadas e revogadas individualmente pelo admin). Detalhes na spec §3 e em [`docs/ADR-001-rls-por-filial.md`](docs/ADR-001-rls-por-filial.md).
 
 ## Estrutura deste repositório
 

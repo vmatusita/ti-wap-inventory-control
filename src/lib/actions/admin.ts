@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { DOMINIOS_OPERADOR, DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import {
   conviteSchema,
   filialSchema,
@@ -48,7 +49,7 @@ function linkConfirmacao(
   return url.toString()
 }
 
-// ---- Convite de operador (só @wap.ind.br — validação client E server) ----
+// ---- Convite de operador (domínios da spec §3 — validação client E server) ----
 // Gera um LINK em vez de mandar e-mail pelo Supabase. O e-mail embutido do
 // Supabase é limitado a ~2/hora e "só para testes"; subir esse teto exigiria
 // SMTP próprio (⇒ domínio verificado, que não temos). `generateLink` cria o
@@ -81,7 +82,8 @@ export async function convidarUsuario(input: {
   const admin = createAdminClient()
 
   // 1) Novo operador → convite. Cria a conta em auth.users; o trigger
-  //    handle_new_user (migration 0001) barra e-mail fora de @wap.ind.br no banco.
+  //    handle_new_user (migrations 0001 → 0041) barra e-mail fora dos domínios
+  //    permitidos no banco.
   const convite = await admin.auth.admin.generateLink({
     type: 'invite',
     email,
@@ -120,8 +122,9 @@ export async function convidarUsuario(input: {
 
   // 3) Erro real. O trigger do banco barra e-mail fora do domínio (defesa final).
   const msg = (convite.error?.message ?? '').toLowerCase()
-  if (msg.includes('wap.ind.br') || msg.includes('restrito')) {
-    return { ok: false, erro: 'Só e-mails @wap.ind.br podem ser convidados.' }
+  const citaDominio = DOMINIOS_OPERADOR.some((d) => msg.includes(d.slice(1)))
+  if (citaDominio || msg.includes('restrito')) {
+    return { ok: false, erro: `Só e-mails ${DOMINIOS_TEXTO} podem ser convidados.` }
   }
   return { ok: false, erro: 'Não foi possível gerar o link de convite. Tente de novo.' }
 }
