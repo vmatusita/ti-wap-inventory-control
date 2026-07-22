@@ -303,6 +303,37 @@ export async function buscarAtivosParaCombobox(
   )
 }
 
+// Linha do export CSV de ativos (F10/T5 — CONTRATO §1.5 da OS-F10).
+export type LinhaExportAtivo = {
+  patrimonio: string | null
+  service_tag: string | null
+  hostname: string | null
+  categoria: CategoriaAtivo
+  marca: string | null
+  modelo: string | null
+  filial_nome: string
+  status: StatusAtivo
+  colaborador_atual: string | null
+  setor_atual: string | null
+}
+
+// Leitura em blocos p/ o export CSV (F10/T5). Mesmos filtros e ordem de
+// `listarAtivos`, sem paginação de tela: acumula em blocos de `.range()` porque o
+// Max Rows do PostgREST corta requests grandes EM SILÊNCIO. `total` vem de
+// count 'exact'; quem decide "truncado" é a camada de cima, por
+// `linhas.length < total`.
+export async function listarAtivosParaExport(
+  params: ListarAtivosParams,
+  cap = 5000,
+): Promise<{ linhas: LinhaExportAtivo[]; total: number }> {
+  // F10-STUB-W1: implementação é entrega 7 do subagente W1 (dono deste arquivo).
+  // Este corpo existe só para fixar a assinatura do CONTRATO §1.5 e destravar o
+  // W4 em paralelo — TEM de ser substituído antes do merge na main.
+  void params
+  void cap
+  throw new Error('F10-STUB-W1: listarAtivosParaExport ainda não implementada')
+}
+
 // Resumo de um ativo por id (preselecao vinda da ficha / duplicar).
 export async function buscarAtivoResumo(id: string): Promise<AtivoResumo | null> {
   const supabase = await createClient()
