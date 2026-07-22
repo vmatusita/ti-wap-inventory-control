@@ -52,6 +52,7 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
 - **0031, 0032, 0033, 0034, 0035, 0036, 0037** — as migrations do import de startup (F7…F8).
 - `0029` **não existe** (gap real na numeração; nunca foi criada).
 - `0039` (drop dos backups) e `0040` (hardening das RPCs) — pendentes de apply pelo Johnny.
+- **`0041`** (domínios de login: `@stefanini.com` + `@latam.stefanini.com`, 22/07/2026) — **aplicada por MCP em prod E ensaio**, e no ledger dos dois. Não bate no gate (é `create or replace` de trigger, sem `delete from`).
 
 ### Reconciliação (opcional — decisão do Johnny)
 Registrar no ledger as migrations já aplicadas, para o histórico bater com produção. **Metadados apenas** (não recria nada — só insere linhas). Rodar no SQL Editor de produção:
