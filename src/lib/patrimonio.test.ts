@@ -4,6 +4,7 @@ import {
   parsearLista,
   duplicatasDaLista,
   expandirFaixa,
+  parearFaixaComServiceTags,
   chavePatrimonio,
   patrimoniosRepetidos,
   MAX_LOTE_COMPRA,
@@ -198,6 +199,59 @@ describe('expandirFaixa', () => {
   it('recusa patrimônio inicial/final inválido', () => {
     expect(expandirFaixa('lixo', 'WAP3').erro).toMatch(/inicial/i)
     expect(expandirFaixa('WAP1', 'lixo').erro).toMatch(/final/i)
+  })
+})
+
+describe('parearFaixaComServiceTags (A2 — service tags no modo Faixa)', () => {
+  const faixa = expandirFaixa('WAP1234', 'WAP1236').itens ?? []
+
+  it('pareia patrimônio e service tag na ordem da faixa', () => {
+    const r = parearFaixaComServiceTags(faixa, 'ST-ABC123\nST-DEF456\nST-GHI789')
+    expect(r.erro).toBeUndefined()
+    expect(r.itens).toEqual([
+      { patrimonio: 'WAP0001234', service_tag: 'ST-ABC123' },
+      { patrimonio: 'WAP0001235', service_tag: 'ST-DEF456' },
+      { patrimonio: 'WAP0001236', service_tag: 'ST-GHI789' },
+    ])
+  })
+
+  it('texto vazio (ou só espaços) = faixa sem service tags, como antes da F10', () => {
+    expect(parearFaixaComServiceTags(faixa, '').itens).toEqual([
+      { patrimonio: 'WAP0001234' },
+      { patrimonio: 'WAP0001235' },
+      { patrimonio: 'WAP0001236' },
+    ])
+    expect(parearFaixaComServiceTags(faixa, '  \n \n').itens).toHaveLength(3)
+  })
+
+  it('acusa contagem diferente citando os dois números', () => {
+    const r = parearFaixaComServiceTags(faixa, 'ST-ABC123\nST-DEF456')
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toContain('3 patrimônios')
+    expect(r.erro).toContain('2 service tags')
+  })
+
+  it('ignora linhas em branco no meio e apara espaços da service tag', () => {
+    const r = parearFaixaComServiceTags(faixa, '  ST-ABC123  \n\nST-DEF456\n \nST-GHI789\n')
+    expect(r.erro).toBeUndefined()
+    expect(r.itens?.map((i) => i.service_tag)).toEqual([
+      'ST-ABC123',
+      'ST-DEF456',
+      'ST-GHI789',
+    ])
+  })
+
+  it('recusa service tag repetida (o índice único do banco não pegaria)', () => {
+    const r = parearFaixaComServiceTags(faixa, 'ST-ABC123\nST-DEF456\nst-abc123')
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toMatch(/repetida/i)
+    expect(r.erro).toContain('linhas 1 e 3')
+  })
+
+  it('singulariza a mensagem com um patrimônio só', () => {
+    const r = parearFaixaComServiceTags(['WAP0001234'], 'ST-ABC123\nST-DEF456')
+    expect(r.erro).toContain('1 patrimônio ×')
+    expect(r.erro).toContain('2 service tags')
   })
 })
 
