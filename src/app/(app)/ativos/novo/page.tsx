@@ -2,9 +2,35 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { NovaCompraForm } from '@/components/ativos/nova-compra-form'
 import { listarFiliais } from '@/lib/queries/filiais'
+import {
+  dadosParaDuplicarCompra,
+  ultimaCompraDoOperador,
+  type DadosCompraInicial,
+} from '@/lib/queries/compras'
+import { getPerfilAtual } from '@/lib/queries/profile'
 
-export default async function NovoEquipamentoPage() {
-  const filiais = await listarFiliais()
+type SearchParams = { [key: string]: string | string[] | undefined }
+
+function texto(v: string | string[] | undefined): string | undefined {
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined
+}
+
+export default async function NovoEquipamentoPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  const sp = await searchParams
+  // A6 — "Comprar outro igual" na ficha manda `?duplicar=<id do ativo>`.
+  // Id fora do formato uuid devolve null (não derruba a página).
+  const duplicarParam = texto(sp.duplicar)
+
+  const [filiais, perfil] = await Promise.all([listarFiliais(), getPerfilAtual()])
+
+  const [inicial, ultimaCompra] = await Promise.all<DadosCompraInicial | null>([
+    duplicarParam ? dadosParaDuplicarCompra(duplicarParam) : Promise.resolve(null),
+    perfil ? ultimaCompraDoOperador(perfil.id) : Promise.resolve(null),
+  ])
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -25,7 +51,11 @@ export default async function NovoEquipamentoPage() {
         </p>
       </div>
 
-      <NovaCompraForm filiais={filiais} />
+      <NovaCompraForm
+        filiais={filiais}
+        inicial={inicial}
+        ultimaCompra={ultimaCompra}
+      />
     </div>
   )
 }
