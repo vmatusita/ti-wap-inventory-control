@@ -59,6 +59,25 @@ export function classificarPendencia(pendencia: string | null): TipoPendencia {
   return 'outras'
 }
 
+// Contagem de pendências abertas para o badge da sidebar (OS-F9 / T2). Usa a
+// MESMA fonte da página /pendencias (a view v_pendencias, sem filtro nenhum):
+// o badge conta exatamente o que `listarPendencias` lista quando não há filtro.
+// `head: true` não traz linha nenhuma — só o count. Roda sob o client do operador
+// (RLS); por isso o layout só chama depois de confirmar o operador.
+// Falha de leitura NÃO derruba o shell: devolve 0 (sem badge) e registra no log.
+export async function contarPendenciasAbertas(): Promise<number> {
+  const client = await createClient()
+  const { count, error } = await client
+    .from('v_pendencias')
+    .select('id', { count: 'exact', head: true })
+
+  if (error) {
+    console.error(`Falha ao contar pendências: ${error.message}`)
+    return 0
+  }
+  return count ?? 0
+}
+
 export async function listarPendencias(opts: {
   filialSlug?: string | null
   tipo?: TipoPendencia | null

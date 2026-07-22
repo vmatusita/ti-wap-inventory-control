@@ -13,6 +13,7 @@ import {
   Settings,
   type LucideIcon,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 type NavItem = {
@@ -40,12 +41,16 @@ function ativa(pathname: string, item: NavItem): boolean {
 }
 
 // Navegacao lateral. Nivel unico: todo operador ve os mesmos itens.
+// `pendencias` (OS-F9 / T2): contagem vinda do layout do operador (server-side, a
+// cada navegacao — sem realtime). Zero ou ausente = sem badge.
 export function SidebarNav({
   className,
   onNavigate,
+  pendencias,
 }: {
   className?: string
   onNavigate?: () => void
+  pendencias?: number
 }) {
   const pathname = usePathname()
 
@@ -70,12 +75,19 @@ export function SidebarNav({
         }
 
         const atual = ativa(pathname, item)
+        const contagem =
+          item.href === '/pendencias' && pendencias && pendencias > 0 ? pendencias : null
         return (
           <Link
             key={item.rotulo}
             href={item.href}
             onClick={onNavigate}
             aria-current={atual ? 'page' : undefined}
+            aria-label={
+              contagem
+                ? `${item.rotulo} — ${contagem} ${contagem === 1 ? 'aberta' : 'abertas'}`
+                : undefined
+            }
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               atual
@@ -85,6 +97,11 @@ export function SidebarNav({
           >
             <item.icone className="size-4 shrink-0" aria-hidden />
             {item.rotulo}
+            {contagem ? (
+              <Badge variant="warning" aria-hidden className="ml-auto tabular-nums">
+                {contagem.toLocaleString('pt-BR')}
+              </Badge>
+            ) : null}
           </Link>
         )
       })}
