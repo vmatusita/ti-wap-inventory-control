@@ -4,16 +4,20 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { AtivoCombobox } from '@/components/movimentacoes/ativo-combobox'
+import { ColarListaDialog } from '@/components/movimentacoes/nova/colar-lista-dialog'
+import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import { rotuloCategoria } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 
-// Passo 1 — monta o lote (busca + lista de ativos). O `comandoRef` fica no
-// combobox para o Enter-avanca (no mae) ignorar o Enter que seleciona resultado.
+// Passo 1 — monta o lote (busca + colar lista + lista de ativos). O `comandoRef`
+// fica no combobox para o Enter-avanca (no mae) ignorar o Enter que seleciona
+// resultado. O teto vem de MAX_LOTE_MOVIMENTACAO (F10/M11) — nenhum literal.
 export function PassoAtivos({
   itens,
   jaAdicionados,
   comandoRef,
   onAdicionar,
+  onAdicionarVarios,
   onRemover,
   onAvancar,
 }: {
@@ -21,18 +25,37 @@ export function PassoAtivos({
   jaAdicionados: Set<string>
   comandoRef: React.RefObject<HTMLDivElement | null>
   onAdicionar: (ativo: AtivoResumo) => void
+  onAdicionarVarios: (ativos: AtivoResumo[]) => void
   onRemover: (id: string) => void
   onAvancar: () => void
 }) {
+  const restante = MAX_LOTE_MOVIMENTACAO - itens.length
+  const cheio = restante <= 0
+
   return (
     <div className="space-y-4">
-      <div ref={comandoRef}>
-        <AtivoCombobox onSelecionar={onAdicionar} jaAdicionados={jaAdicionados} />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+        <div ref={comandoRef} className="min-w-0 flex-1">
+          <AtivoCombobox
+            onSelecionar={onAdicionar}
+            jaAdicionados={jaAdicionados}
+            mostrarRecentes={!cheio}
+          />
+        </div>
+        <ColarListaDialog lote={itens} onAdicionar={onAdicionarVarios} />
       </div>
+
+      {cheio && (
+        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+          O lote está no limite de {MAX_LOTE_MOVIMENTACAO} ativos. Remova algum
+          para trocar, ou registre este lote e comece outro.
+        </p>
+      )}
 
       {itens.length === 0 ? (
         <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
-          Nenhum ativo no lote ainda. Busque e adicione um ou mais ativos.
+          Nenhum ativo no lote ainda. Busque e adicione um ou mais ativos — ou
+          cole a lista de patrimônios.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -73,7 +96,12 @@ export function PassoAtivos({
         </ul>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {itens.length > 0 && (
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {itens.length} de {MAX_LOTE_MOVIMENTACAO} no lote
+          </span>
+        )}
         <Button onClick={onAvancar} disabled={itens.length === 0}>
           Avançar ({itens.length} {itens.length === 1 ? 'ativo' : 'ativos'})
         </Button>

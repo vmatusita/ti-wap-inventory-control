@@ -1,6 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  buscarPossiveisDuplicatasDoDia,
+  type PossivelDuplicataDia,
+} from '@/lib/actions/movimentacoes'
 import { rotuloTipo } from '@/lib/dominio'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
@@ -25,8 +31,55 @@ export function PassoRevisao({
   onVoltar: () => void
   onRegistrar: () => void
 }) {
+  // F10/M5 — regra 7 da spec §8 ("alerta de possível duplicata: mesmo ativo +
+  // mesmo tipo + mesmo dia"). AVISO âmbar, não trava (decisão §2 da OS-F10): o
+  // registro segue permitido e o servidor não ganhou gate novo. Falha de
+  // consulta degrada para "nenhuma duplicata" — o proxy do W1 já trata.
+  const [duplicatas, setDuplicatas] = useState<PossivelDuplicataDia[]>([])
+
+  const tipo = config.tipo
+  const data = config.data
+  // Chave estável: o efeito só refaz a consulta quando o lote/tipo/data mudam
+  // de verdade (o array `itens` é recriado a cada render do pai).
+  const chaveLote = itens.map((a) => a.id).join(',')
+
+  useEffect(() => {
+    if (!tipo || !data || chaveLote === '') return
+    let vivo = true
+    // Estado alterado SO dentro do callback assincrono (react-hooks/set-state-in-effect).
+    void (async () => {
+      const res = await buscarPossiveisDuplicatasDoDia(
+        chaveLote.split(',').map((ativoId) => ({ ativoId, tipo, data })),
+      )
+      if (vivo) setDuplicatas(res)
+    })()
+    return () => {
+      vivo = false
+    }
+  }, [chaveLote, tipo, data])
+
   return (
     <div className="space-y-4">
+      {duplicatas.length > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="flex items-center gap-1.5 font-medium">
+            <TriangleAlert className="size-4" />
+            Possível duplicata
+          </p>
+          <ul className="mt-1 list-inside list-disc space-y-0.5">
+            {duplicatas.map((d) => (
+              <li key={`${d.ativoId}-${d.tipo}`}>
+                <span className="font-medium tabular-nums">
+                  {d.patrimonio ?? 'sem patrimônio'}
+                </span>{' '}
+                já teve &quot;{rotuloTipo(d.tipo)}&quot; hoje — confira antes de
+                registrar.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50 text-left text-muted-foreground">
