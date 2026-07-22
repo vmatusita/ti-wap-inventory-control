@@ -8,13 +8,31 @@ import { hojeISO } from '@/lib/format'
 import {
   loteMovimentacaoSchema,
   estornoActionSchema,
+  mesmaServiceTag,
+  parsearLoteColado,
   type MovimentacaoInput,
 } from '@/lib/validators/movimentacao'
 import {
   buscarAtivosParaCombobox,
+  buscarAtivosPorPatrimonios,
+  buscarAtivosResumoPorIds,
   type AtivoResumo,
 } from '@/lib/queries/ativos'
+import {
+  possiveisDuplicatasDoDia,
+  sugestoesColaboradores,
+  sugestoesSetores,
+  ultimosAtivosMovimentadosDoOperador,
+  type ParMovimentacaoDia,
+  type PossivelDuplicataDia,
+} from '@/lib/queries/movimentacoes'
 import type { StatusAtivo } from '@/lib/dominio'
+
+// Re-export dos tipos do CONTRATO §1.5 (OS-F10): o fluxo de movimentação roda em
+// Client Component e só pode importar deste módulo — `src/lib/queries/**` é
+// server-only. `export type` é apagado na compilação, então convive com o
+// 'use server' (que exige exports async) — mesmo padrão de `ItemResultado`.
+export type { ParMovimentacaoDia, PossivelDuplicataDia }
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -132,7 +150,8 @@ async function processarItemLote(
   }
 }
 
-// Registra um LOTE de 1..10 movimentacoes, inserindo uma a uma em ordem. Se o
+// Registra um LOTE de 1..MAX_LOTE_MOVIMENTACAO movimentacoes (o teto e do
+// `loteMovimentacaoSchema`, re-validado aqui), inserindo uma a uma em ordem. Se o
 // banco rejeitar alguma (transicao invalida), interrompe e devolve o que entrou
 // mais o item que falhou (as anteriores ja estao commitadas — cada insert e uma
 // transacao). OS-F2 3.4.1.
@@ -307,6 +326,177 @@ export async function buscarAtivosParaMovimentacao(
     // o fluxo por um hiccup transitorio), mas NAO silencia: registra no log do
     // servidor para que uma falha sistematica (RLS/config/rede) seja visivel.
     console.error('[buscarAtivosParaMovimentacao] falha na busca de ativos:', err)
+    return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// F10 — PROXIES client→server do CONTRATO §1.5. Todas as leituras novas do fluxo
+// de movimentacao passam por aqui: os passos do wizard sao Client Components e
+// NAO podem importar `src/lib/queries/**` (server-only). Mesmo padrao (e mesma
+// degradacao com log) de `buscarAtivosParaMovimentacao`.
+// ---------------------------------------------------------------------------
+
+// M1 — resultado do "Colar lista" no passo Ativos.
+export type ResultadoResolucaoLote = {
+  // Canal de erro do lote inteiro (ex.: acima do teto, falha de consulta). O
+  // dialog exibe — nada de excecao atravessando a fronteira da action.
+  erro?: string
+  encontrados: AtivoResumo[]
+  // Patrimonio duplicado (§5) colado SEM service tag: o operador escolhe. Nunca
+  // ha escolha silenciosa.
+  ambiguos: { patrimonio: string; candidatos: AtivoResumo[] }[]
+  naoEncontrados: string[]
+  invalidos: string[]
+}
+
+// Fabrica (nao constante): devolver a MESMA referencia de array em toda chamada
+// deixaria o estado vazar entre requests se alguem mutasse o resultado.
+function resolucaoVazia(): ResultadoResolucaoLote {
+  return { encontrados: [], ambiguos: [], naoEncontrados: [], invalidos: [] }
+}
+
+// M1 — texto colado (um patrimonio por linha, service tag opcional apos
+// virgula/`;`/TAB) => 4 baldes. NAO filtra por estado do ativo: a intersecao de
+// tipos do wizard continua sendo o guarda. Dedup interno do texto e feito no
+// parser; o dedup contra o lote ja montado e o teto ao adicionar sao da UI.
+export async function resolverPatrimoniosParaLote(
+  texto: string,
+): Promise<ResultadoResolucaoLote> {
+  const parse = parsearLoteColado(texto)
+  if (parse.erro) {
+    return { ...resolucaoVazia(), erro: parse.erro, invalidos: parse.invalidos }
+  }
+  if (parse.itens.length === 0) {
+    return { ...resolucaoVazia(), invalidos: parse.invalidos }
+  }
+
+  try {
+    const candidatosPorPatrimonio = new Map<string, AtivoResumo[]>()
+    const ativos = await buscarAtivosPorPatrimonios(
+      parse.itens.map((i) => i.patrimonio),
+    )
+    for (const a of ativos) {
+      if (a.patrimonio === null) continue
+      const lista = candidatosPorPatrimonio.get(a.patrimonio)
+      if (lista) lista.push(a)
+      else candidatosPorPatrimonio.set(a.patrimonio, [a])
+    }
+
+    const encontrados: AtivoResumo[] = []
+    const idsEncontrados = new Set<string>()
+    const ambiguos = new Map<string, { patrimonio: string; candidatos: AtivoResumo[] }>()
+    const naoEncontrados = new Set<string>()
+
+    for (const item of parse.itens) {
+      const candidatos = candidatosPorPatrimonio.get(item.patrimonio) ?? []
+      if (candidatos.length === 0) {
+        naoEncontrados.add(item.patrimonio)
+        continue
+      }
+
+      let escolhido = candidatos.length === 1 ? candidatos[0] : undefined
+      if (!escolhido && item.service_tag) {
+        // Patrimonio duplicado COM service tag na linha: desempata direto.
+        const casam = candidatos.filter((c) =>
+          mesmaServiceTag(c.service_tag, item.service_tag),
+        )
+        if (casam.length === 1) escolhido = casam[0]
+      }
+      if (!escolhido) {
+        if (!ambiguos.has(item.patrimonio)) {
+          ambiguos.set(item.patrimonio, { patrimonio: item.patrimonio, candidatos })
+        }
+        continue
+      }
+
+      // Duas linhas podem apontar o MESMO ativo (uma com ST, outra sem) — o
+      // lote nao aceita ativo repetido (a Server Action de escrita barra).
+      if (idsEncontrados.has(escolhido.id)) continue
+      idsEncontrados.add(escolhido.id)
+      encontrados.push(escolhido)
+    }
+
+    return {
+      encontrados,
+      ambiguos: [...ambiguos.values()],
+      naoEncontrados: [...naoEncontrados],
+      invalidos: parse.invalidos,
+    }
+  } catch (err) {
+    console.error('[resolverPatrimoniosParaLote] falha ao resolver o lote:', err)
+    return {
+      ...resolucaoVazia(),
+      erro: 'Não foi possível consultar os ativos agora. Tente de novo.',
+      invalidos: parse.invalidos,
+    }
+  }
+}
+
+// M3 — "Movimentados recentemente" no combobox (operador = o da sessao; o
+// cliente nao escolhe de quem sao os recentes).
+export async function buscarAtivosRecentesDoOperador(
+  limite?: number,
+): Promise<AtivoResumo[]> {
+  try {
+    const supabase = await createClient()
+    const uid = await idOperador(supabase)
+    if (!uid) return []
+    return await ultimosAtivosMovimentadosDoOperador(uid, limite ?? 8)
+  } catch (err) {
+    console.error('[buscarAtivosRecentesDoOperador] falha ao carregar recentes:', err)
+    return []
+  }
+}
+
+// M4 — sugestoes de colaborador. Guarda de 2 chars TAMBEM aqui: nao bater no
+// banco por uma letra (a query repete a guarda; esta e a barata).
+export async function buscarSugestoesColaboradores(
+  prefixo: string,
+): Promise<string[]> {
+  if (prefixo.trim().length < 2) return []
+  try {
+    return await sugestoesColaboradores(prefixo)
+  } catch (err) {
+    console.error('[buscarSugestoesColaboradores] falha nas sugestões:', err)
+    return []
+  }
+}
+
+// M4 — sugestoes de setor.
+export async function buscarSugestoesSetores(prefixo: string): Promise<string[]> {
+  if (prefixo.trim().length < 2) return []
+  try {
+    return await sugestoesSetores(prefixo)
+  } catch (err) {
+    console.error('[buscarSugestoesSetores] falha nas sugestões:', err)
+    return []
+  }
+}
+
+// M5 — aviso de possivel duplicata (spec §8 regra 7) no passo Revisao. AVISO,
+// nao trava: falha de consulta degrada para "nenhuma duplicata" e o registro
+// segue permitido.
+export async function buscarPossiveisDuplicatasDoDia(
+  pares: ParMovimentacaoDia[],
+): Promise<PossivelDuplicataDia[]> {
+  try {
+    return await possiveisDuplicatasDoDia(pares)
+  } catch (err) {
+    console.error('[buscarPossiveisDuplicatasDoDia] falha ao checar duplicatas:', err)
+    return []
+  }
+}
+
+// M6 — restauracao do rascunho: resumos por id, NA ORDEM pedida. Ids que sumiram
+// (ativo excluido) simplesmente nao voltam — a UI compara e avisa.
+export async function buscarResumoDeAtivosPorIds(
+  ids: string[],
+): Promise<AtivoResumo[]> {
+  try {
+    return await buscarAtivosResumoPorIds(ids)
+  } catch (err) {
+    console.error('[buscarResumoDeAtivosPorIds] falha ao restaurar o rascunho:', err)
     return []
   }
 }
