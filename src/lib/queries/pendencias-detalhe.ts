@@ -1,6 +1,8 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { PENDENCIA_SEM_PATRIMONIO, type CategoriaAtivo } from '@/lib/dominio'
+import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
+import type { DbClient } from '@/lib/auth/acesso'
 
 // Prefixo do texto de pendência de patrimônio NÃO CANÔNICO gravado pelo go-live
 // F4 (literal completo: 'patrimônio não canônico (importado como veio da
@@ -38,6 +40,24 @@ export type ListaPendencias = {
   total: number
   page: number
   pageSize: number
+}
+
+// Filtros da tela (sem paginação) — compartilhados pela lista e pelo export CSV
+// (OS-F10 · T5), para que o arquivo saia com EXATAMENTE as linhas visíveis.
+export type FiltrosPendencias = {
+  filialSlug?: string | null
+  tipo?: TipoPendencia | null
+  q?: string | null
+}
+
+// Rótulo do tipo de pendência. Fonte única: a tabela da tela e o CSV usam o
+// mesmo texto (a tela acrescenta só a cor do badge).
+export const ROTULO_TIPO_PENDENCIA: Record<TipoPendencia, string> = {
+  termo: 'Termo',
+  itens: 'Itens faltantes',
+  triagem: 'Triagem',
+  patrimonio: 'Patrimônio',
+  outras: 'Outra',
 }
 
 // Deriva o bucket a partir do texto canônico da view (mesmos rótulos de getPendencias).
@@ -78,25 +98,54 @@ export async function contarPendenciasAbertas(): Promise<number> {
   return count ?? 0
 }
 
-export async function listarPendencias(opts: {
-  filialSlug?: string | null
-  tipo?: TipoPendencia | null
-  q?: string | null
-  page?: number
-}): Promise<ListaPendencias> {
-  const client = await createClient()
-  const page = Math.max(1, opts.page ?? 1)
-  const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
+const PENDENCIA_SELECT =
+  'id, patrimonio, categoria, filial, filial_nome, pendencia, colaborador_atual, setor_atual, marca, modelo, desde'
 
+type RowPendencia = {
+  id: string | null
+  patrimonio: string | null
+  categoria: CategoriaAtivo | null
+  filial: string | null
+  filial_nome: string | null
+  pendencia: string | null
+  colaborador_atual: string | null
+  setor_atual: string | null
+  marca: string | null
+  modelo: string | null
+  desde: string | null
+}
+
+function mapearPendencia(r: RowPendencia): PendenciaDetalhe {
+  return {
+    id: r.id as string,
+    patrimonio: r.patrimonio,
+    categoria: r.categoria,
+    filialSlug: r.filial,
+    filialNome: r.filial_nome,
+    pendencia: r.pendencia,
+    colaborador: r.colaborador_atual,
+    setor: r.setor_atual,
+    marca: r.marca,
+    modelo: r.modelo,
+    tipo: classificarPendencia(r.pendencia),
+    desde: r.desde,
+  }
+}
+
+// Query base (filtros + ordem, sem faixa). Fonte única da semântica de filtro:
+// a lista paginada e o export CSV (F10 · T5) partem daqui, então o arquivo nunca
+// diverge da tela. Devolve uma query NOVA a cada chamada — o builder do
+// postgrest-js é mutável e não se reexecuta com segurança.
+function queryPendencias(client: DbClient, opts: FiltrosPendencias) {
   let query = client
     .from('v_pendencias')
-    .select(
-      'id, patrimonio, categoria, filial, filial_nome, pendencia, colaborador_atual, setor_atual, marca, modelo, desde',
-      { count: 'exact' },
-    )
+    .select(PENDENCIA_SELECT, { count: 'exact' })
     .order('desde', { ascending: true, nullsFirst: false })
-    .range(from, to)
+    // Desempate por id (F10 · T5): `desde` empata (medido no ensaio: até 2 linhas
+    // no mesmo instante) e ordenação sem critério único NÃO é estável entre
+    // requests — com faixas (a paginação da tela e os blocos do export) isso
+    // duplica uma linha num bloco e some com ela no outro. Só afeta empates.
+    .order('id', { ascending: true })
 
   if (opts.filialSlug) query = query.eq('filial', opts.filialSlug)
 
@@ -124,23 +173,52 @@ export async function listarPendencias(opts: {
     query = query.or(`patrimonio.ilike.%${esc}%,colaborador_atual.ilike.%${esc}%`)
   }
 
-  const { data, error, count } = await query
+  return query
+}
+
+export async function listarPendencias(
+  opts: FiltrosPendencias & { page?: number },
+): Promise<ListaPendencias> {
+  const client = await createClient()
+  const page = Math.max(1, opts.page ?? 1)
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
+  const { data, error, count } = await queryPendencias(client, opts).range(from, to)
   if (error) throw new Error(`Falha ao listar pendências: ${error.message}`)
 
-  const rows: PendenciaDetalhe[] = (data ?? []).map((r) => ({
-    id: r.id as string,
-    patrimonio: r.patrimonio,
-    categoria: r.categoria,
-    filialSlug: r.filial,
-    filialNome: r.filial_nome,
-    pendencia: r.pendencia,
-    colaborador: r.colaborador_atual,
-    setor: r.setor_atual,
-    marca: r.marca,
-    modelo: r.modelo,
-    tipo: classificarPendencia(r.pendencia),
-    desde: r.desde,
-  }))
+  const rows = (data ?? []).map(mapearPendencia)
 
   return { rows, total: count ?? 0, page, pageSize: PAGE_SIZE }
+}
+
+// Leitura em BLOCOS para o export CSV (F10 · T5): mesmos filtros e mesma ordem
+// da tela, sem a paginação de 30. Cada volta pede uma faixa nova a partir do que
+// JÁ chegou — nunca de um múltiplo fixo —, porque o Max Rows do PostgREST
+// (padrão 1.000 no Supabase) corta o request maior EM SILÊNCIO e devolveria um
+// bloco menor que o pedido; avançar pelo recebido mantém o export correto seja
+// qual for esse teto. Quem decide "truncado" é a camada de cima, comparando
+// `linhas.length < total`.
+export async function listarPendenciasParaExport(
+  opts: FiltrosPendencias,
+  cap = CAP_EXPORT,
+): Promise<{ linhas: PendenciaDetalhe[]; total: number }> {
+  const client = await createClient()
+  const linhas: PendenciaDetalhe[] = []
+  let total = 0
+
+  for (let volta = 0; volta < MAX_BLOCOS_EXPORT && linhas.length < cap; volta++) {
+    const tamanho = Math.min(BLOCO_EXPORT, cap - linhas.length)
+    const { data, error, count } = await queryPendencias(client, opts).range(
+      linhas.length,
+      linhas.length + tamanho - 1,
+    )
+    if (error) throw new Error(`Falha ao exportar pendências: ${error.message}`)
+    total = count ?? total
+    const recebidas = data ?? []
+    for (const r of recebidas) linhas.push(mapearPendencia(r))
+    if (recebidas.length === 0 || linhas.length >= total) break
+  }
+
+  return { linhas, total }
 }

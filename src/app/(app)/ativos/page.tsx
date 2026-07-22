@@ -11,6 +11,8 @@ import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
 import { AtivosTable } from '@/components/ativos/ativos-table'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { Button } from '@/components/ui/button'
+import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
+import { exportarAtivosCSV } from '@/lib/actions/exportar'
 import { PackageOpen, PackagePlus } from 'lucide-react'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
@@ -59,12 +61,18 @@ export default async function AtivosPage({
             {resultado.total.toLocaleString('pt-BR')} ativos cadastrados
           </p>
         </div>
-        <Button asChild variant="outline" className="gap-2">
-          <Link href="/ativos/novo">
-            <PackagePlus className="size-4" />
-            Novo equipamento
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportarCsvButton
+            acao={exportarAtivosCSV}
+            descricao="dos ativos filtrados"
+          />
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/ativos/novo">
+              <PackagePlus className="size-4" />
+              Novo equipamento
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <AtivosFiltros filiais={filiais} />

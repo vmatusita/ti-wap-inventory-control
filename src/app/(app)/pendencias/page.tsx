@@ -7,6 +7,7 @@ import { getPendencias } from '@/lib/queries/relatorios'
 import { listarFiliais } from '@/lib/queries/filiais'
 import {
   listarPendencias,
+  ROTULO_TIPO_PENDENCIA,
   type TipoPendencia,
 } from '@/lib/queries/pendencias-detalhe'
 import { rotuloCategoria } from '@/lib/dominio'
@@ -23,6 +24,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ClipboardCheck, Filter, PenLine } from 'lucide-react'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
+import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
+import { exportarPendenciasCSV } from '@/lib/actions/exportar'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { PendenciasFiltros } from '@/components/pendencias/pendencias-filtros'
@@ -36,12 +39,13 @@ function primeiro(v: string | string[] | undefined): string | undefined {
 
 const TIPOS_VALIDOS: TipoPendencia[] = ['termo', 'itens', 'triagem', 'patrimonio', 'outras']
 
-const BADGE_TIPO: Record<TipoPendencia, { rotulo: string; classe: string }> = {
-  termo: { rotulo: 'Termo', classe: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
-  itens: { rotulo: 'Itens faltantes', classe: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
-  triagem: { rotulo: 'Triagem', classe: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' },
-  patrimonio: { rotulo: 'Patrimônio', classe: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' },
-  outras: { rotulo: 'Outra', classe: 'bg-muted text-muted-foreground' },
+// Só a COR mora aqui: o rótulo é o mesmo do CSV (ROTULO_TIPO_PENDENCIA, F10/T5).
+const CLASSE_TIPO: Record<TipoPendencia, string> = {
+  termo: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  itens: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  triagem: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
+  patrimonio: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  outras: 'bg-muted text-muted-foreground',
 }
 
 function haQuantosDias(iso: string | null): string {
@@ -80,12 +84,18 @@ export default async function PendenciasPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Pendências</h1>
-        <p className="text-sm text-muted-foreground">
-          Ativos que precisam de ação — termos, devoluções com itens faltantes e
-          triagem parada. Uso interno da TI.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Pendências</h1>
+          <p className="text-sm text-muted-foreground">
+            Ativos que precisam de ação — termos, devoluções com itens faltantes e
+            triagem parada. Uso interno da TI.
+          </p>
+        </div>
+        <ExportarCsvButton
+          acao={exportarPendenciasCSV}
+          descricao="das pendências filtradas"
+        />
       </div>
 
       {/* KPI-chips (reuso de getPendencias — total por bucket) */}
@@ -129,12 +139,11 @@ export default async function PendenciasPage({
             </TableHeader>
             <TableBody>
               {lista.rows.map((p) => {
-                const badge = BADGE_TIPO[p.tipo]
                 return (
                   <TableRow key={p.id}>
                     <TableCell>
-                      <Badge className={`border-transparent ${badge.classe}`}>
-                        {badge.rotulo}
+                      <Badge className={`border-transparent ${CLASSE_TIPO[p.tipo]}`}>
+                        {ROTULO_TIPO_PENDENCIA[p.tipo]}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium tabular-nums">
