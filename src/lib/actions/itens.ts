@@ -6,11 +6,14 @@ import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import {
-  lancamentoItemSchema,
   estornoLancamentoSchema,
+  explodirLoteLancamentoItem,
   itemCatalogoSchema,
+  itemInlineSchema,
   atualizarItemSchema,
-  type LancamentoItemInput,
+  loteLancamentoItemSchema,
+  proximaOrdemDoGrupo,
+  type LoteLancamentoItemInput,
 } from '@/lib/validators/item'
 import type { TipoLancamento } from '@/lib/dominio'
 import { planejarEstorno } from '@/lib/itens/estorno'
@@ -20,36 +23,73 @@ async function operadorId(): Promise<string | null> {
   return idOperador(supabase)
 }
 
-// Lança uma movimentação de quantidade (entrada/saida/reserva/liberacao/ajuste).
-// A regra crítica (saldo/atrelados nunca negativos) é do trigger 0015 — aqui é a
-// segunda linha. O erro do banco é traduzido para pt-BR amigável.
-export async function lancarItem(input: LancamentoItemInput): Promise<ActionResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+// Resultado POR LINHA do carrinho (F10 · I1). Espelha o lote de movimentações da
+// F2 — com uma diferença INTENCIONAL: lá a primeira falha interrompe o resto;
+// aqui cada linha é independente (um item sem saldo não impede os outros).
+export type ResultadoLinhaLancamento = {
+  itemId: number
+  ok: boolean
+  erro?: string
+}
 
-  const parsed = lancamentoItemSchema.safeParse(input)
+export type LancarItensResult = {
+  ok: boolean
+  resultados: ResultadoLinhaLancamento[]
+  /** Falha ANTES de tocar o banco (sessão expirada, payload inválido). */
+  erroGeral?: string
+}
+
+// Lança um CARRINHO de itens (1..MAX_LINHAS_LOTE_ITEM) sobre os mesmos campos
+// comuns (filial, tipo, data, chamado, colaborador, observação): um insert por
+// linha, sequencial, em ordem. A regra crítica (saldo/atrelados nunca negativos)
+// é do trigger 0015/0027 — aqui é a segunda linha; o erro do banco vira pt-BR
+// amigável e fica preso à SUA linha, sem derrubar as demais.
+export async function lancarItens(input: LoteLancamentoItemInput): Promise<LancarItensResult> {
+  const uid = await operadorId()
+  if (!uid) return { ok: false, resultados: [], erroGeral: MSG_SESSAO_EXPIRADA }
+
+  const parsed = loteLancamentoItemSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+    return {
+      ok: false,
+      resultados: [],
+      erroGeral: parsed.error.issues[0]?.message ?? 'Dados inválidos.',
+    }
   }
-  const v = parsed.data
 
   const supabase = await createClient()
-  const { error } = await supabase.from('lancamentos_item').insert({
-    item_id: v.item_id,
-    filial_id: v.filial_id,
-    tipo: v.tipo,
-    quantidade: v.quantidade,
-    chamado: v.chamado ?? null,
-    colaborador: v.colaborador ?? null,
-    data: v.data,
-    observacao: v.observacao ?? null,
-    criado_por: uid,
-  })
-  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
+  const resultados: ResultadoLinhaLancamento[] = []
+  let criados = 0
 
-  revalidatePath('/itens')
-  revalidatePath('/relatorios', 'layout')
-  return { ok: true }
+  for (const v of explodirLoteLancamentoItem(parsed.data)) {
+    const { error } = await supabase.from('lancamentos_item').insert({
+      item_id: v.item_id,
+      filial_id: v.filial_id,
+      tipo: v.tipo,
+      quantidade: v.quantidade,
+      chamado: v.chamado ?? null,
+      colaborador: v.colaborador ?? null,
+      data: v.data,
+      observacao: v.observacao ?? null,
+      criado_por: uid,
+    })
+    if (error) {
+      resultados.push({
+        itemId: v.item_id,
+        ok: false,
+        erro: traduzErroBanco(error.message, error.code),
+      })
+      continue
+    }
+    criados++
+    resultados.push({ itemId: v.item_id, ok: true })
+  }
+
+  if (criados > 0) {
+    revalidatePath('/itens')
+    revalidatePath('/relatorios', 'layout')
+  }
+  return { ok: resultados.every((r) => r.ok), resultados }
 }
 
 // Estorna um lançamento criando o INVERSO com estorna_id. Nada se apaga. O banco
@@ -110,11 +150,16 @@ export async function estornarLancamento(input: {
 
 // ---- Catálogo (admin/itens — padrão de admin/motivos) ----
 
+// O `id` só volta em sucesso — o criar inline (F10 · I2) precisa dele para já
+// deixar o item novo SELECIONADO na linha do carrinho. Quem só lê `ok` (o dialog
+// de admin/itens) continua compatível.
+export type CriarItemResult = ActionResult & { id?: number }
+
 export async function criarItem(input: {
   nome: string
   grupo: string
   ordem: number
-}): Promise<ActionResult> {
+}): Promise<CriarItemResult> {
   const uid = await operadorId()
   if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
   const parsed = itemCatalogoSchema.safeParse(input)
@@ -123,7 +168,11 @@ export async function criarItem(input: {
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.from('itens').insert(parsed.data)
+  const { data, error } = await supabase
+    .from('itens')
+    .insert(parsed.data)
+    .select('id')
+    .single()
   if (error) {
     if (error.message.toLowerCase().includes('duplicate') || error.message.includes('itens_nome_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
@@ -132,7 +181,40 @@ export async function criarItem(input: {
   }
   revalidatePath('/admin/itens')
   revalidatePath('/itens')
-  return { ok: true }
+  return { ok: true, id: data?.id }
+}
+
+// Criação INLINE no meio do lançamento (F10 · I2): o operador informa só nome e
+// grupo; a `ordem` é decidida AQUI (maior do grupo + 10) — o combobox do
+// lançamento nem carrega essa coluna. Reusa `criarItem` (mesma validação, mesma
+// tradução de nome duplicado, mesmos revalidatePath). Todo operador é admin
+// (nível único, CLAUDE.md) — não há gate de permissão a checar.
+export async function criarItemInline(input: {
+  nome: string
+  grupo: string
+}): Promise<CriarItemResult> {
+  const uid = await operadorId()
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const parsed = itemInlineSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+
+  const supabase = await createClient()
+  const { data: maior, error } = await supabase
+    .from('itens')
+    .select('ordem')
+    .eq('grupo', parsed.data.grupo)
+    .order('ordem', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
+
+  return criarItem({
+    nome: parsed.data.nome,
+    grupo: parsed.data.grupo,
+    ordem: proximaOrdemDoGrupo(maior?.ordem ?? null),
+  })
 }
 
 // Item nunca é excluído quando tem lançamentos (o histórico referencia) — só
