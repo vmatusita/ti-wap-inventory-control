@@ -6,6 +6,12 @@ import { traduzErroBanco } from '@/lib/actions/erros'
 import { compraLoteSchema, type CompraLoteInput } from '@/lib/validators/compra'
 import { chavePatrimonio } from '@/lib/patrimonio'
 import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import {
+  sugestoesMarcas,
+  sugestoesModelos,
+  sugestoesFornecedores,
+  MIN_CHARS_SUGESTAO,
+} from '@/lib/queries/compras'
 import type { Json } from '@/lib/types/database'
 
 export type CompraResult = {
@@ -115,4 +121,43 @@ export async function registrarCompra(
     ok: true,
     criados: (criados ?? []).map((c) => ({ id: c.ativo_id, patrimonio: c.patrimonio })),
   }
+}
+
+// ---------------------------------------------------------------------------
+// A4 (F10) — proxies client→server das sugestões do acervo. Mesmo padrão de
+// `buscarAtivosParaMovimentacao`: o form roda em Client Component e NÃO pode
+// importar `src/lib/queries/`. Degradam para lista vazia (sugestão é conforto,
+// não pode derrubar o cadastro) mas registram no log do servidor — falha
+// sistemática de RLS/rede tem de ser visível.
+// ---------------------------------------------------------------------------
+
+async function sugerir(
+  rotulo: string,
+  prefixo: string,
+  consultar: () => Promise<string[]>,
+): Promise<string[]> {
+  if (prefixo.trim().length < MIN_CHARS_SUGESTAO) return []
+  try {
+    return await consultar()
+  } catch (err) {
+    console.error(`[sugestoes] falha ao sugerir ${rotulo}:`, err)
+    return []
+  }
+}
+
+export async function buscarSugestoesMarca(prefixo: string): Promise<string[]> {
+  return sugerir('marcas', prefixo, () => sugestoesMarcas(prefixo))
+}
+
+export async function buscarSugestoesModelo(
+  marca: string | null,
+  prefixo: string,
+): Promise<string[]> {
+  return sugerir('modelos', prefixo, () => sugestoesModelos(marca, prefixo))
+}
+
+export async function buscarSugestoesFornecedor(
+  prefixo: string,
+): Promise<string[]> {
+  return sugerir('fornecedores', prefixo, () => sugestoesFornecedores(prefixo))
 }
