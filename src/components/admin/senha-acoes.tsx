@@ -1,16 +1,37 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { definirStatusSenha } from '@/lib/actions/senhas'
 
 // Revogar / reativar uma senha de acesso (OS-F3 3.7.4). Revogar mata o acesso no
-// request seguinte (o layout de relatório reconfere a senha ativa a cada request).
-export function SenhaAcoes({ id, ativa }: { id: string; ativa: boolean }) {
+// request seguinte (o layout de relatório reconfere a senha ativa a cada request)
+// — por ser destrutivo, confirma num Dialog (OS-F9 T4). Reativar continua em um
+// clique: só o caminho destrutivo pede confirmação.
+export function SenhaAcoes({
+  id,
+  ativa,
+  rotulo,
+}: {
+  id: string
+  ativa: boolean
+  rotulo: string
+}) {
   const router = useRouter()
   const [pending, start] = useTransition()
+  const [aberto, setAberto] = useState(false)
+  const cancelarRef = useRef<HTMLButtonElement>(null)
 
   function alternar() {
     start(async () => {
@@ -20,19 +41,68 @@ export function SenhaAcoes({ id, ativa }: { id: string; ativa: boolean }) {
         return
       }
       toast.success(ativa ? 'Senha revogada.' : 'Senha reativada.')
+      setAberto(false)
       router.refresh()
     })
   }
 
+  if (!ativa) {
+    return (
+      <Button
+        variant="secondary"
+        size="sm"
+        className="min-h-10 sm:min-h-0"
+        onClick={alternar}
+        disabled={pending}
+      >
+        Reativar
+      </Button>
+    )
+  }
+
   return (
-    <Button
-      variant={ativa ? 'outline' : 'secondary'}
-      size="sm"
-      className="min-h-10 sm:min-h-0"
-      onClick={alternar}
-      disabled={pending}
-    >
-      {ativa ? 'Revogar' : 'Reativar'}
-    </Button>
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="min-h-10 sm:min-h-0">
+          Revogar
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        className="sm:max-w-md"
+        // Foco inicial no Cancelar: a ação destrutiva nunca fica sob o Enter.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          cancelarRef.current?.focus()
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Revogar senha de acesso?</DialogTitle>
+          <DialogDescription>
+            A senha <span className="font-medium text-foreground">{rotulo}</span>{' '}
+            deixa de valer. Quem usa esta senha perde o acesso aos relatórios no
+            próximo carregamento. Você pode reativá-la depois, na mesma lista.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            ref={cancelarRef}
+            type="button"
+            variant="ghost"
+            onClick={() => setAberto(false)}
+            disabled={pending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={alternar}
+            disabled={pending}
+          >
+            {pending ? 'Revogando…' : 'Revogar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

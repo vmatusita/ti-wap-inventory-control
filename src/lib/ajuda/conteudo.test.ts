@@ -103,6 +103,64 @@ describe('cobertura do glossario (derivada de dominio.ts)', () => {
   })
 })
 
+describe('honestidade do manual (OS-F9 I5a)', () => {
+  it('não promete estoque mínimo — campo que o sistema não tem (é F5)', () => {
+    const tudo = SECOES.map(textoDaSecao).join(' ')
+    expect(tudo).not.toContain(normalizarBusca('estoque mínimo'))
+    expect(tudo).not.toContain(normalizarBusca('nível de estoque configurado'))
+  })
+
+  it('explica Falta pela semântica real da 0027 (déficit, não reposição)', () => {
+    const texto = textoDaSecao(secao('itens'))
+    expect(texto).toContain(normalizarBusca('atrelados + liberados − total'))
+    expect(texto).toContain(normalizarBusca('déficit'))
+  })
+
+  it('descreve o catálogo de itens com os campos que existem', () => {
+    expect(textoDaSecao(secao('admin'))).toContain(
+      normalizarBusca('(nome, grupo, ordem)'),
+    )
+  })
+})
+
+describe('facilitadores documentados (OS-F9)', () => {
+  function titulosDePassos(idSecao: string): string[] {
+    return secao(idSecao)
+      .blocos.filter((b): b is Extract<Bloco, { tipo: 'passos' }> => b.tipo === 'passos')
+      .map((b) => b.titulo ?? '')
+  }
+
+  it('tem o passo a passo da bipagem por leitor de código de barras (A7)', () => {
+    expect(titulosDePassos('como-fazer')).toContain(
+      'Cadastrando com leitor de código de barras',
+    )
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('leitor USB'))
+    expect(texto).toContain(normalizarBusca('colar lista'))
+  })
+
+  it('cita os facilitadores novos nas seções correspondentes', () => {
+    const comoFazer = textoDaSecao(secao('como-fazer'))
+    // M2 (busca por colaborador) · M10 (chips de data) · A1 (colar do Excel)
+    expect(comoFazer).toContain(normalizarBusca('nome do colaborador'))
+    expect(comoFazer).toContain(normalizarBusca('"Hoje" e "Ontem"'))
+    expect(comoFazer).toContain(normalizarBusca('duas colunas direto do Excel'))
+    // I6 (lançar da linha do saldo) · I3 (filtros do histórico)
+    expect(comoFazer).toContain(normalizarBusca('lançar da própria linha'))
+    expect(comoFazer).toContain(normalizarBusca('por período (De / Até)'))
+    // T2 (badge de pendências) · T6 (copiar patrimônio)
+    expect(textoDaSecao(secao('pendencias'))).toContain(normalizarBusca('selo âmbar'))
+    expect(textoDaSecao(secao('acesso'))).toContain(normalizarBusca('botão de copiar'))
+  })
+
+  it('os exemplos continuam fictícios (nenhum dado real)', () => {
+    const tudo = SECOES.map(textoDaSecao).join(' ')
+    for (const m of tudo.matchAll(/wap\d{7}/g)) {
+      expect(['wap0001234', 'wap0004491']).toContain(m[0])
+    }
+  })
+})
+
 describe('filtrarSecoes', () => {
   it('consulta vazia devolve todas as seções', () => {
     expect(filtrarSecoes(SECOES, '')).toHaveLength(SECOES.length)

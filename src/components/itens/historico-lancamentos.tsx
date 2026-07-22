@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Undo2 } from 'lucide-react'
+import { ClipboardList, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Table,
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
 import { estornarLancamento } from '@/lib/actions/itens'
 import { formatDate } from '@/lib/format'
@@ -51,9 +52,13 @@ export function HistoricoLancamentos({ rows }: { rows: LancamentoHistorico[] }) 
 
   if (rows.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        Nenhum lançamento no filtro atual.
-      </p>
+      <EstadoVazio
+        variante="inline"
+        icone={ClipboardList}
+        titulo="Nenhum lançamento no filtro atual"
+        descricao="ajuste o item, o tipo ou o período acima"
+        className="justify-center py-8"
+      />
     )
   }
 

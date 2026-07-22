@@ -60,7 +60,7 @@ export default async function AdminSenhasPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <SenhaAcoes id={s.id} ativa={s.ativa} />
+                    <SenhaAcoes id={s.id} ativa={s.ativa} rotulo={s.rotulo} />
                   </TableCell>
                 </TableRow>
               ))}

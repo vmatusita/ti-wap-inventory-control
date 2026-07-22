@@ -21,7 +21,8 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { PenLine } from 'lucide-react'
+import { ClipboardCheck, Filter, PenLine } from 'lucide-react'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { PendenciasFiltros } from '@/components/pendencias/pendencias-filtros'
@@ -67,6 +68,8 @@ export default async function PendenciasPage({
     : null
   const q = (primeiro(sp.q) ?? '').trim() || null
   const page = Math.max(1, Number(primeiro(sp.page) ?? '1') || 1)
+  // Diferencia "não há pendência nenhuma" de "nada neste filtro" no estado vazio.
+  const temFiltro = Boolean(filialSlug || tipo || q)
 
   const client = await createClient()
   const [filiais, chips, lista] = await Promise.all([
@@ -92,9 +95,24 @@ export default async function PendenciasPage({
 
       <div className="rounded-xl border bg-card">
         {lista.rows.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            Nenhuma pendência no filtro atual.
-          </p>
+          // "Não há pendência nenhuma" (comemorar) x "nada neste filtro" (ajustar).
+          // `lista.total` cobre também a página fora de faixa (?page=9 sem filtro).
+          !temFiltro && lista.total === 0 ? (
+            <EstadoVazio
+              icone={ClipboardCheck}
+              titulo="Nenhuma pendência aberta 🎉"
+              descricao="Nenhum ativo com termo pendente, triagem parada, itens faltantes ou patrimônio a acertar."
+              className="border-0"
+            />
+          ) : (
+            <EstadoVazio
+              icone={Filter}
+              titulo="Nenhuma pendência neste filtro"
+              descricao="Nada nesta combinação de filtros — o que não quer dizer que não haja pendências. Ajuste ou limpe os filtros para ver todas."
+              acao={{ href: '/pendencias', rotulo: 'Limpar filtros' }}
+              className="border-0"
+            />
+          )
         ) : (
           <Table>
             <TableHeader>

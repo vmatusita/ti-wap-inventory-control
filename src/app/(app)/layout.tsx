@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getOperador, getViewerSession } from '@/lib/auth/acesso'
+import { contarPendenciasAbertas } from '@/lib/queries/pendencias-detalhe'
 import { AppHeader } from '@/components/layout/app-header'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { ViewerHeader } from '@/components/layout/viewer-header'
@@ -31,16 +32,21 @@ export default async function AppLayout({
 
   const operador = await getOperador()
   if (operador) {
+    // Badge de pendências (OS-F9 / T2): contagem só DEPOIS de confirmar o
+    // operador — a v_pendencias é negada pela RLS na sessão de visualizador por
+    // senha, e antecipar a chamada derrubaria o shell dos relatórios. Sem
+    // realtime: atualiza a cada navegação.
+    const pendencias = await contarPendenciasAbertas()
     return (
       <TooltipProvider delayDuration={300}>
         <ProgressoNavegacaoProvider>
           <BarraProgressoNavegacao />
           <AtalhoGlobalNovaMovimentacao />
           <div className="flex min-h-svh flex-col">
-            <AppHeader nome={operador.nome} />
+            <AppHeader nome={operador.nome} pendencias={pendencias} />
             <div className="flex flex-1">
               <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
-                <SidebarNav />
+                <SidebarNav pendencias={pendencias} />
               </aside>
               <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
             </div>

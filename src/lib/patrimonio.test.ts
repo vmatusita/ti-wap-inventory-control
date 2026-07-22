@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   canonicalizarPatrimonio,
   parsearLista,
+  duplicatasDaLista,
   expandirFaixa,
   chavePatrimonio,
   patrimoniosRepetidos,
@@ -65,8 +66,8 @@ describe('parsearLista', () => {
     const { itens, erros } = parsearLista('WAP4491\nWAP4492, ST9')
     expect(erros).toEqual([])
     expect(itens).toEqual([
-      { patrimonio: 'WAP0004491', service_tag: undefined },
-      { patrimonio: 'WAP0004492', service_tag: 'ST9' },
+      { patrimonio: 'WAP0004491', service_tag: undefined, linha: 1 },
+      { patrimonio: 'WAP0004492', service_tag: 'ST9', linha: 2 },
     ])
   })
 
@@ -76,6 +77,97 @@ describe('parsearLista', () => {
     expect(erros).toHaveLength(1)
     expect(erros[0].linha).toBe(3)
     expect(erros[0].texto).toBe('lixo')
+  })
+
+  it('aceita ponto e vírgula como separador da service tag', () => {
+    const { itens, erros } = parsearLista('WAP0001234;ST-ABC123')
+    expect(erros).toEqual([])
+    expect(itens).toEqual([
+      { patrimonio: 'WAP0001234', service_tag: 'ST-ABC123', linha: 1 },
+    ])
+  })
+
+  it('aceita TAB como separador (colar duas colunas do Excel)', () => {
+    const { itens, erros } = parsearLista(
+      'WAP0001234\tST-ABC123\nWAP0001235\tST-DEF456',
+    )
+    expect(erros).toEqual([])
+    expect(itens).toEqual([
+      { patrimonio: 'WAP0001234', service_tag: 'ST-ABC123', linha: 1 },
+      { patrimonio: 'WAP0001235', service_tag: 'ST-DEF456', linha: 2 },
+    ])
+  })
+
+  it('tolera espaços em volta do TAB', () => {
+    const { itens, erros } = parsearLista('  WAP0001234 \t  ST-ABC123  ')
+    expect(erros).toEqual([])
+    expect(itens).toEqual([
+      { patrimonio: 'WAP0001234', service_tag: 'ST-ABC123', linha: 1 },
+    ])
+  })
+
+  it('acusa erro na linha com mais de 2 colunas (nada é descartado em silêncio)', () => {
+    const { itens, erros } = parsearLista(
+      'WAP0001234\tST-ABC123\tNotebook do Fulano',
+    )
+    expect(itens).toEqual([])
+    expect(erros).toHaveLength(1)
+    expect(erros[0].linha).toBe(1)
+    expect(erros[0].msg).toMatch(/mais de 2 colunas/i)
+  })
+
+  it('ignora separador solto no fim da linha (coluna vazia do Excel)', () => {
+    const { itens, erros } = parsearLista('WAP0001234\t\nWAP0001235,')
+    expect(erros).toEqual([])
+    expect(itens).toEqual([
+      { patrimonio: 'WAP0001234', service_tag: undefined, linha: 1 },
+      { patrimonio: 'WAP0001235', service_tag: undefined, linha: 2 },
+    ])
+  })
+
+  it('aceita linha só com o patrimônio', () => {
+    const { itens, erros } = parsearLista('WAP0001234')
+    expect(erros).toEqual([])
+    expect(itens).toEqual([
+      { patrimonio: 'WAP0001234', service_tag: undefined, linha: 1 },
+    ])
+  })
+})
+
+describe('duplicatasDaLista (A3 — duplicidade dentro da lista colada)', () => {
+  it('acusa as DUAS ocorrências com o número de linha original', () => {
+    // Linha 2 em branco e linha 3 inválida NÃO podem deslocar a numeração.
+    const { itens } = parsearLista(
+      'WAP0001234\n\nlixo\nWAP0001235\nWAP0001234',
+    )
+    const dups = duplicatasDaLista(itens)
+    expect(dups).toHaveLength(1)
+    expect(dups[0].patrimonio).toBe('WAP0001234')
+    expect(dups[0].chave).toBe(chavePatrimonio('WAP0001234'))
+    expect(dups[0].linhas).toEqual([1, 5])
+  })
+
+  it('acusa a repetição do PAR patrimônio + service tag', () => {
+    const { itens } = parsearLista(
+      'WAP0001234\tST-ABC123\nWAP0001234\tST-ABC123',
+    )
+    const dups = duplicatasDaLista(itens)
+    expect(dups).toHaveLength(1)
+    expect(dups[0].service_tag).toBe('ST-ABC123')
+    expect(dups[0].linhas).toEqual([1, 2])
+  })
+
+  it('não acusa o mesmo patrimônio com service tags diferentes (§5)', () => {
+    const { itens } = parsearLista(
+      'WAP0001234\tST-ABC123\nWAP0001234\tST-DEF456',
+    )
+    expect(duplicatasDaLista(itens)).toEqual([])
+  })
+
+  it('devolve vazio para lista limpa ou vazia', () => {
+    const { itens } = parsearLista('WAP0001234\nWAP0001235')
+    expect(duplicatasDaLista(itens)).toEqual([])
+    expect(duplicatasDaLista([])).toEqual([])
   })
 })
 

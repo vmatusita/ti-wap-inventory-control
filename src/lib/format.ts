@@ -88,6 +88,17 @@ export function hojeISO(): string {
   }).format(new Date())
 }
 
+// Data de ontem em 'yyyy-MM-dd' no fuso de São Paulo — atalho "Ontem" dos campos
+// de data do fluxo de movimentação (F9/M10). Mesma mecânica de `hojeISO`: o
+// instante é 24h atrás e a formatação acontece NO FUSO DE SP. Usar
+// `toISOString()` cru devolveria a data em UTC e viraria o dia entre 21:00 e
+// 23:59 BRT (quando em UTC já é o dia seguinte).
+export function ontemISO(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: FUSO,
+  }).format(new Date(Date.now() - 86_400_000))
+}
+
 // Data (yyyy-MM-dd) de um instante (timestamptz) já no fuso de São Paulo. Usado
 // para comparar `created_at` (UTC) com colunas `date` de negócio (que já estão
 // em SP) sem o erro de fuso de `iso.slice(0,10)` — que devolveria a data UTC.

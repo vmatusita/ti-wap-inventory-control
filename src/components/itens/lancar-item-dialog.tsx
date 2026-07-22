@@ -44,6 +44,7 @@ import {
   type TipoLancamento,
 } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
+import { EVENTO_LANCAR_ITEM } from './lancar-item-evento'
 import type { ItemCatalogo, UltimoLancamento } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 
@@ -74,6 +75,9 @@ export function LancarItemDialog({
   const [observacao, setObservacao] = useState('')
   const [enviando, start] = useTransition()
   const qtdRef = useRef<HTMLInputElement>(null)
+  // Preset vindo da linha do saldo (I6): quando o dialog abre por causa dele, o
+  // foco inicial vai para a quantidade em vez do primeiro campo.
+  const focarQtdAoAbrir = useRef(false)
 
   // Atalho `L` — abre o dialog quando o foco não está num campo de texto.
   useEffect(() => {
@@ -90,6 +94,35 @@ export function LancarItemDialog({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [aberto])
+
+  // "Lançar da linha" (I6) — o botão de cada linha da tabela de saldos dispara o
+  // CustomEvent; aqui o dialog abre já com item + filial preenchidos. O preset
+  // vence o estado anterior do form (os demais campos voltam ao padrão); o
+  // atalho `L` e o "Repetir último" seguem intactos (só reagem a ação do usuário).
+  useEffect(() => {
+    function onLancarItem(e: WindowEventMap[typeof EVENTO_LANCAR_ITEM]) {
+      const { itemId: presetItem, filialId: presetFilial } = e.detail
+      if (!Number.isFinite(presetItem)) return
+      setItemId(presetItem)
+      if (typeof presetFilial === 'number' && Number.isFinite(presetFilial)) {
+        setFilialId(presetFilial)
+      }
+      setTipo('entrada')
+      setQuantidade('')
+      setChamado('')
+      setColaborador('')
+      setData(hojeISO())
+      setObservacao('')
+      if (aberto) {
+        setTimeout(() => qtdRef.current?.focus(), 0)
+      } else {
+        focarQtdAoAbrir.current = true
+        setAberto(true)
+      }
+    }
+    window.addEventListener(EVENTO_LANCAR_ITEM, onLancarItem)
+    return () => window.removeEventListener(EVENTO_LANCAR_ITEM, onLancarItem)
   }, [aberto])
 
   function limpar() {
@@ -159,7 +192,15 @@ export function LancarItemDialog({
           </kbd>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-lg"
+        onOpenAutoFocus={(e) => {
+          if (!focarQtdAoAbrir.current) return
+          focarQtdAoAbrir.current = false
+          e.preventDefault()
+          requestAnimationFrame(() => qtdRef.current?.focus())
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Lançar quantidade</DialogTitle>
           <DialogDescription>

@@ -202,6 +202,9 @@ export type AtivoResumo = {
   marca: string | null
   modelo: string | null
   status: StatusAtivo
+  // Quem está com o ativo hoje (F9/M2): a busca do combobox varre este campo e o
+  // dropdown mostra o nome — "qual notebook é de qual Fulano".
+  colaborador_atual: string | null
   filial_id: number
   filial_nome: string
   termo_assinado: TermoStatus | null
@@ -217,6 +220,7 @@ function resumoDe(
     marca: string | null
     modelo: string | null
     status: StatusAtivo
+    colaborador_atual: string | null
     filial_id: number
     termo_assinado: TermoStatus | null
     filiais: FilialEmbed
@@ -231,6 +235,7 @@ function resumoDe(
     marca: r.marca,
     modelo: r.modelo,
     status: r.status,
+    colaborador_atual: r.colaborador_atual,
     filial_id: r.filial_id,
     filial_nome: r.filiais?.nome ?? '—',
     termo_assinado: r.termo_assinado,
@@ -239,7 +244,7 @@ function resumoDe(
 }
 
 const RESUMO_SELECT =
-  'id, patrimonio, service_tag, categoria, marca, modelo, status, filial_id, termo_assinado, filiais(slug, nome)'
+  'id, patrimonio, service_tag, categoria, marca, modelo, status, colaborador_atual, filial_id, termo_assinado, filiais(slug, nome)'
 
 // Quais desses patrimonios existem em mais de um ativo (duplicidade legitima §5).
 async function patrimoniosDuplicados(
@@ -261,7 +266,10 @@ async function patrimoniosDuplicados(
 // Busca do combobox (OS-F2 3.5.1): "campo único" por patrimônio OU marca OU modelo
 // OU service tag OU hostname (F7E — o ativo sem patrimônio precisa ser encontrável
 // no fluxo de movimentação; a plaqueta pode não existir, mas a tag/hostname
-// identificam). Cada palavra do termo casa em algum campo ("dell latitude" acha
+// identificam) OU colaborador atual (F9/M2 — a lista `/ativos` já buscava por
+// colaborador e o combobox não; quem sabe o nome do colaborador não precisa mais
+// descobrir o patrimônio antes de movimentar).
+// Cada palavra do termo casa em algum campo ("dell latitude" acha
 // marca "Dell" + modelo "Latitude 5420"). Até 12 resultados. Ordena null-last
 // (patrimônio nulo cai no fim; NULLS FIRST é o default do PostgREST em asc, então
 // força nullsFirst:false).
@@ -276,7 +284,7 @@ export async function buscarAtivosParaCombobox(
   let query = supabase.from('ativos').select(RESUMO_SELECT)
   for (const palavra of palavras) {
     query = query.or(
-      `patrimonio.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%,service_tag.ilike.%${palavra}%,hostname.ilike.%${palavra}%`,
+      `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%,service_tag.ilike.%${palavra}%,hostname.ilike.%${palavra}%`,
     )
   }
 

@@ -21,6 +21,7 @@ import {
   tiposComunsPara,
 } from '@/lib/validators/movimentacao'
 import {
+  rotuloStatus,
   rotuloTipo,
   type StatusAtivo,
   type TipoMovimentacao,
@@ -119,16 +120,33 @@ export function NovaMovimentacaoForm({
   }
 
   // Ao mudar o lote, se o tipo escolhido deixar de ser valido para todos, limpa.
-  function ajustarTipoPara(lista: AtivoResumo[]) {
+  // `entrantes` sao os ativos que acabaram de entrar no lote (na pratica um so —
+  // eles entram um a um pelo combobox): quando a limpeza acontece por causa
+  // deles, o toast nomeia o culpado com os rotulos do dominio, em vez do reset
+  // mudo de antes (F9/M7). Remocao nunca estreita a intersecao, entao so
+  // `adicionar` passa entrantes.
+  function ajustarTipoPara(lista: AtivoResumo[], entrantes: AtivoResumo[] = []) {
+    const tipoAtual = config.tipo
     const validos = tiposDoLote(lista.map((i) => i.status))
+    if (!tipoAtual || validos.includes(tipoAtual)) return
     setConfig((c) =>
       c.tipo && !validos.includes(c.tipo) ? { ...c, tipo: '' } : c,
     )
+    // Toast fora do updater do setState (o updater pode rodar duas vezes em
+    // StrictMode) e fora do render — este e um handler de evento.
+    const culpado = entrantes.find(
+      (a) => !tiposDoLote([a.status]).includes(tipoAtual),
+    )
+    if (culpado) {
+      toast.warning(
+        `${culpado.patrimonio ?? 'sem patrimônio'} (${rotuloStatus(culpado.status)}) não permite "${rotuloTipo(tipoAtual)}" — o tipo foi limpo.`,
+      )
+    }
   }
   function adicionar(a: AtivoResumo) {
     const next = itens.some((p) => p.id === a.id) ? itens : [...itens, a]
     setItens(next)
-    ajustarTipoPara(next)
+    ajustarTipoPara(next, [a])
   }
   function remover(id: string) {
     const next = itens.filter((p) => p.id !== id)

@@ -18,29 +18,95 @@ export function canonicalizarPatrimonio(raw: string): string | null {
   return `${prefixo}${significativos.padStart(7, '0')}`
 }
 
-export type ItemPatrimonio = { patrimonio: string; service_tag?: string }
+// `linha` = número da linha ORIGINAL do texto colado (1-based). Linhas em branco
+// ou inválidas não deslocam a numeração — a linha 3 do textarea é sempre 3.
+export type ItemPatrimonio = { patrimonio: string; service_tag?: string; linha?: number }
 export type ErroLinha = { linha: number; texto: string; msg: string }
 
-// Lista colada: um patrimônio por linha, service tag opcional após vírgula.
+// Separadores aceitos entre patrimônio e service tag: vírgula, ponto e vírgula e
+// TAB (A1 — colar duas colunas direto do Excel gera TAB).
+const SEPARADOR_LISTA = /[,;\t]/
+
+// Lista colada: um patrimônio por linha, service tag opcional após o separador.
 export function parsearLista(texto: string): {
   itens: ItemPatrimonio[]
   erros: ErroLinha[]
 } {
   const itens: ItemPatrimonio[] = []
   const erros: ErroLinha[] = []
-  texto.split('\n').forEach((linha, i) => {
-    const t = linha.trim()
+  texto.split('\n').forEach((bruto, i) => {
+    const linha = i + 1
+    // Normaliza: tira espaços e separadores vazios sobrando nas pontas
+    // (`WAP0001234⇥` colado do Excel não é "2 colunas", é 1).
+    const t = bruto.replace(/^[\s,;]+/, '').replace(/[\s,;]+$/, '')
     if (!t) return
-    const partes = t.split(',').map((s) => s.trim())
-    const patrimonio = canonicalizarPatrimonio(partes[0] ?? '')
-    if (!patrimonio) {
-      erros.push({ linha: i + 1, texto: t, msg: 'patrimônio fora do formato (ex.: WAP0006026)' })
+
+    const campos = t.split(SEPARADOR_LISTA).map((s) => s.trim()).filter(Boolean)
+    if (campos.length > 2) {
+      erros.push({
+        linha,
+        texto: t,
+        msg: 'mais de 2 colunas — cole só patrimônio e service tag',
+      })
       return
     }
-    const service_tag = partes[1] ? partes[1] : undefined
-    itens.push({ patrimonio, service_tag })
+
+    // Divide no PRIMEIRO separador; o resto (limpo) é a service tag.
+    const corte = t.search(SEPARADOR_LISTA)
+    const patrimonioBruto = corte === -1 ? t : t.slice(0, corte)
+    const patrimonio = canonicalizarPatrimonio(patrimonioBruto)
+    if (!patrimonio) {
+      erros.push({
+        linha,
+        texto: t,
+        msg: `"${t}" não está no formato de patrimônio (ex.: WAP0006026)`,
+      })
+      return
+    }
+    const resto =
+      corte === -1 ? '' : t.slice(corte + 1).replace(/^[\s,;]+/, '').trim()
+    const service_tag = resto ? resto : undefined
+    itens.push({ patrimonio, service_tag, linha })
   })
   return { itens, erros }
+}
+
+// A3 — duplicidade DENTRO da lista colada (mesma chave §5 = patrimônio + service
+// tag). Pura: o form usa para marcar os chips e barrar o envio; o servidor
+// (`actions/compras.ts`) continua sendo o juiz final.
+export type DuplicataLista = {
+  chave: string
+  patrimonio: string
+  service_tag?: string
+  linhas: number[]
+}
+
+export function duplicatasDaLista(itens: ItemPatrimonio[]): DuplicataLista[] {
+  const porChave = new Map<string, DuplicataLista & { ocorrencias: number }>()
+  for (const item of itens) {
+    const chave = chavePatrimonio(item.patrimonio, item.service_tag)
+    const atual = porChave.get(chave)
+    if (atual) {
+      atual.ocorrencias += 1
+      if (item.linha !== undefined) atual.linhas.push(item.linha)
+    } else {
+      porChave.set(chave, {
+        chave,
+        patrimonio: item.patrimonio,
+        service_tag: item.service_tag,
+        linhas: item.linha !== undefined ? [item.linha] : [],
+        ocorrencias: 1,
+      })
+    }
+  }
+  return [...porChave.values()]
+    .filter((d) => d.ocorrencias > 1)
+    .map(({ chave, patrimonio, service_tag, linhas }) => ({
+      chave,
+      patrimonio,
+      service_tag,
+      linhas: [...linhas].sort((a, b) => a - b),
+    }))
 }
 
 // Faixa: mesmo prefixo, do inicial ao final (inclusive). N unidades do mesmo modelo.

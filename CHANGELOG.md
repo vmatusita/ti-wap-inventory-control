@@ -6,6 +6,16 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 22/07/2026 — F9: quick wins de UX da operação
+
+- ✅ **F9** (execução multi-agente: 5 frentes paralelas → integração → revisão adversarial de 9 dimensões) — os **14 itens da Onda 1** do novo [`docs/BACKLOG-UX.md`](docs/BACKLOG-UX.md), **sem migration e sem dependência nova**:
+  - **Movimentação** — o combobox passa a achar ativo pelo **nome do colaborador** (M2); adicionar ativo que estreita a interseção de estados deixa de limpar o tipo em silêncio e **diz qual ativo causou** (M7); chips **Hoje/Ontem** nos dois campos de data (M10).
+  - **Compra** — o colar-lista aceita **TAB e ponto e vírgula** além da vírgula, então duas colunas do Excel entram direto (A1); **duplicata é acusada no preview**, com o número da linha, antes do envio (A3); autofoco no campo e **memória de filial/categoria** por dispositivo (A5); a ajuda documenta a **bipagem por leitor USB**, que já funcionava e ninguém sabia (A7).
+  - **Itens** — histórico filtra por **item, tipo e período** com estado na URL (I3); botão na linha do saldo abre o lançamento **já preenchido** (I6).
+  - **Transversal** — **badge de contagem** em Pendências na sidebar e KPIs do dashboard **linkando** para as listas filtradas (T2); **confirmação ao revogar senha** de acesso, o último destrutivo sem diálogo (T4); **copiar patrimônio** com um clique na ficha e na lista (T6); componente `EstadoVazio` padronizando os vazios de Pendências, Itens, Import e dashboard (T8).
+  - **Correção da ajuda (I5a)** — a `/ajuda` prometia "estoque mínimo configurado", campo que **não existe** (é F5). Passa a descrever a semântica real de *Falta* da migration `0027`; a fórmula escrita na própria ordem de serviço foi descartada porque a `0027` a rejeita por escrito.
+- ✅ **Revisão adversarial** — 32 achados brutos, cada um julgado por 3 céticos com lentes distintas; **8 sobreviveram** e foram corrigidos, com destaque para: perda de filtro quando dois filtros de `/itens` são trocados na mesma janela de navegação (o `window.location` "fresco" que o repo usava era placebo — o Next só escreve a history no commit); `?item=` fora da faixa do `smallint` derrubando a página; e o bloco novo da ajuda mandando "digitar TAB" num campo onde Tab move o foco.
+
 ## 21/07/2026 — Manutenção: dívida técnica, segurança e documentação
 
 - ✅ **Revisão de código + segurança** — migration `0038` (revoke execute nas funções de gatilho), RLS nas tabelas de backup expostas, correções de `.blob()`. Backlog para o Johnny: DROP dos backups órfãos (`0039`), hardening das RPCs (`0040`). Ata em `docs/DECISOES.md`.

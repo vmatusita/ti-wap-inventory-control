@@ -10,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { History } from 'lucide-react'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { ImportarWizard } from '@/components/admin/importar/importar-wizard'
 import { BaixarBackupButton } from '@/components/admin/importar/baixar-backup-button'
 
@@ -36,7 +38,11 @@ export default async function AdminImportarPage() {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Histórico de imports</h2>
         {logs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum import realizado ainda.</p>
+          <EstadoVazio
+            icone={History}
+            titulo="Nenhum import realizado ainda"
+            descricao="Quando um import rodar, ele aparece aqui com o backup do acervo substituído e as contagens de linhas, criados, correções e apagados."
+          />
         ) : (
           <div className="overflow-x-auto rounded-lg border">
             <Table>

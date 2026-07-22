@@ -15,7 +15,15 @@ import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { UserMenu } from '@/components/layout/user-menu'
 import { Marca } from '@/components/layout/marca'
 
-export function AppHeader({ nome }: { nome: string }) {
+// `pendencias` (OS-F9 / T2): contagem do layout do operador, repassada ao
+// SidebarNav de dentro do Sheet mobile — o mesmo badge do desktop.
+export function AppHeader({
+  nome,
+  pendencias,
+}: {
+  nome: string
+  pendencias?: number
+}) {
   const [aberto, setAberto] = useState(false)
 
   return (
@@ -38,7 +46,7 @@ export function AppHeader({ nome }: { nome: string }) {
             </SheetTitle>
           </SheetHeader>
           <div className="px-3 pt-1 pb-3">
-            <SidebarNav onNavigate={() => setAberto(false)} />
+            <SidebarNav onNavigate={() => setAberto(false)} pendencias={pendencias} />
           </div>
         </SheetContent>
       </Sheet>

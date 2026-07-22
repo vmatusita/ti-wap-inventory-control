@@ -1,6 +1,12 @@
+import Link from 'next/link'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { KpisRelatorio } from '@/lib/relatorios/tipos'
+
+// Destinos opcionais por tile (OS-F9 / T2). Só o dashboard passa: nos relatórios
+// (ao vivo e snapshot) a prop não vem e o tile continua sendo uma <div> — mesmo
+// visual, mesmo comportamento de antes.
+export type LinksKpi = Partial<Record<keyof KpisRelatorio, string>>
 
 // KPI tiles (spec §7 / mockup + OS-F3 3.3.1). Reconcilia a lista da spec §7
 // (inclui "em triagem") com o mockup (inclui "reserva técnica"): mostra os dois.
@@ -39,25 +45,26 @@ export function DeltaKpi({ delta }: { delta: number }) {
 export function KpiTiles({
   kpis,
   anterior,
+  links,
 }: {
   kpis: KpisRelatorio
   anterior?: KpisRelatorio
+  links?: LinksKpi
 }) {
   return (
     <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-7">
       {TILES.map((t) => {
         const valor = kpis[t.chave] ?? 0
         const delta = anterior ? valor - (anterior[t.chave] ?? 0) : null
-        return (
-          <div
-            key={t.chave}
-            className={cn(
-              'rounded-xl border bg-card px-3.5 py-3',
-              // 7 tiles (nº primo) deixariam um órfão em quase todo breakpoint;
-              // "Total de ativos" ocupa a linha cheia (menos no xl, onde os 7 cabem).
-              t.chave === 'total' && 'col-span-2 sm:col-span-3 xl:col-span-1',
-            )}
-          >
+        const href = links?.[t.chave]
+        const classe = cn(
+          'rounded-xl border bg-card px-3.5 py-3',
+          // 7 tiles (nº primo) deixariam um órfão em quase todo breakpoint;
+          // "Total de ativos" ocupa a linha cheia (menos no xl, onde os 7 cabem).
+          t.chave === 'total' && 'col-span-2 sm:col-span-3 xl:col-span-1',
+        )
+        const conteudo = (
+          <>
             <div className="text-xs font-semibold text-foreground/80">{t.rotulo}</div>
             <div className="mt-0.5 flex items-baseline gap-1.5">
               <span className="text-2xl font-bold tabular-nums">
@@ -66,6 +73,25 @@ export function KpiTiles({
               {delta != null && <DeltaKpi delta={delta} />}
             </div>
             <div className="text-[11px] text-muted-foreground">{t.sub}</div>
+          </>
+        )
+
+        // Sem `links` (relatórios): exatamente a <div> de sempre. Com link
+        // (dashboard): mesmas classes + hover discreto e foco visível.
+        return href ? (
+          <Link
+            key={t.chave}
+            href={href}
+            className={cn(
+              classe,
+              'block transition-colors hover:border-primary/40 hover:bg-accent/40 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            )}
+          >
+            {conteudo}
+          </Link>
+        ) : (
+          <div key={t.chave} className={classe}>
+            {conteudo}
           </div>
         )
       })}

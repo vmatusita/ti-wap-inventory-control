@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { EditarAtivoDialog } from '@/components/ativos/editar-ativo-dialog'
 import { CorrigirPatrimonioDialog } from '@/components/ativos/corrigir-patrimonio-dialog'
+import { CopiarPatrimonio } from '@/components/ativos/copiar-patrimonio'
 import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
 import { TermosDaFicha } from '@/components/ativos/termos-da-ficha'
@@ -85,16 +86,21 @@ export default async function AtivoFichaPage({
                 <span className="text-muted-foreground italic">Sem patrimônio</span>
               )}
             </h1>
+            {ativo.patrimonio && <CopiarPatrimonio valor={ativo.patrimonio} />}
             <StatusBadge status={ativo.status} />
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
             {rotuloCategoria(ativo.categoria)}
             {ativo.service_tag && (
               <>
-                {' · '}
+                <span>·</span>
                 <span className="tabular-nums">
                   Service Tag {ativo.service_tag}
                 </span>
+                <CopiarPatrimonio
+                  valor={ativo.service_tag}
+                  rotulo="Service tag"
+                />
               </>
             )}
           </p>

@@ -1,12 +1,19 @@
 import Link from 'next/link'
-import { ArrowLeftRight, BarChart3, Package, PackagePlus } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  BarChart3,
+  ClipboardCheck,
+  Package,
+  PackagePlus,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
 import { hojeISO, formatDate } from '@/lib/format'
 import { rotuloCategoria, pillTipo, rotuloTipo } from '@/lib/dominio'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import { Card, CardContent } from '@/components/ui/card'
-import { KpiTiles } from '@/components/relatorios/kpi-tiles'
+import { KpiTiles, type LinksKpi } from '@/components/relatorios/kpi-tiles'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { cn } from '@/lib/utils'
 
 const ACOES = [
@@ -35,6 +42,22 @@ const ACOES = [
     descricao: 'Consultar, filtrar e abrir a ficha de um ativo.',
   },
 ]
+
+// Destino de cada KPI (OS-F9 / T2) — só no dashboard. Os valores são os do enum
+// `status_ativo` (STATUS_ORDEM em dominio.ts), que é o que /ativos aceita em
+// `status` (CSV). "Total de ativos" lista os 7 status que o KPI soma — `kpisDeEstado`
+// pula `descartado` (estoque.ts), e apontar para /ativos sem filtro faria a lista
+// mostrar um número maior que o do tile clicado (achado da revisão adversarial).
+const LINKS_KPI: LinksKpi = {
+  total:
+    '/ativos?status=em_estoque,reservado,em_uso,emprestado,em_triagem,em_manutencao,defasado',
+  em_uso: '/ativos?status=em_uso',
+  em_estoque: '/ativos?status=em_estoque',
+  reservado: '/ativos?status=reservado',
+  em_triagem: '/ativos?status=em_triagem',
+  em_manutencao: '/ativos?status=em_manutencao',
+  defasado: '/ativos?status=defasado',
+}
 
 type PendenciaHome = {
   id: string | null
@@ -67,7 +90,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <KpiTiles kpis={kpis} />
+      <KpiTiles kpis={kpis} links={LINKS_KPI} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -82,9 +105,12 @@ export default async function DashboardPage() {
               </Link>
             </div>
             {pendencias.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                Nenhuma pendência aberta. 🎉
-              </p>
+              <EstadoVazio
+                variante="inline"
+                icone={ClipboardCheck}
+                titulo="Nenhuma pendência aberta. 🎉"
+                descricao="nada a resolver por aqui"
+              />
             ) : (
               <ul className="divide-y">
                 {pendencias.map((p) => (
@@ -120,9 +146,12 @@ export default async function DashboardPage() {
               </Link>
             </div>
             {ultimas.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                Sem movimentações ainda.
-              </p>
+              <EstadoVazio
+                variante="inline"
+                icone={ArrowLeftRight}
+                titulo="Sem movimentações ainda."
+                acao={{ href: '/movimentacoes/nova', rotulo: 'Registrar a primeira' }}
+              />
             ) : (
               <ul className="divide-y">
                 {ultimas.map((m) => (

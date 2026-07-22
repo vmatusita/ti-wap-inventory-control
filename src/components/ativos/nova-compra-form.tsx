@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Check, TriangleAlert } from 'lucide-react'
@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select'
 import { registrarCompra } from '@/lib/actions/compras'
 import {
+  chavePatrimonio,
+  duplicatasDaLista,
   expandirFaixa,
   parsearLista,
   MAX_LOTE_COMPRA,
@@ -28,6 +30,10 @@ import { CATEGORIA_ORDEM, rotuloCategoria, type CategoriaAtivo } from '@/lib/dom
 import { hojeISO } from '@/lib/format'
 import type { CompraLoteInput } from '@/lib/validators/compra'
 import type { Filial } from '@/lib/queries/filiais'
+
+// A5 — memória dos defaults da compra, POR DISPOSITIVO (decisão da OS-F9: sem
+// coluna nova em `profiles`, sem migration). Outro navegador simplesmente não lembra.
+const CHAVE_DEFAULTS = 'wap:compra:defaults'
 
 export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
   const router = useRouter()
@@ -53,20 +59,78 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
     { id: string; patrimonio: string }[] | null
   >(null)
   const enviandoRef = useRef(false)
+  const jaFocouLista = useRef(false)
 
-  // Preview do lote (patrimônios canonicalizados + erros de parse).
-  const preview = useMemo<{ itens: ItemPatrimonio[]; erros: string[] }>(() => {
+  // A5 — pré-preenche categoria/filial com o que foi usado na última compra
+  // NESTE dispositivo. Pós-mount (nunca no `useState` inicial: o servidor não
+  // enxerga o localStorage e a hidratação quebraria) e só quando o campo está
+  // vazio. Qualquer coisa estranha no storage é ignorada em silêncio.
+  // O `set-state-in-effect` é justamente o ponto: sincronizar um sistema externo
+  // (localStorage) com o React uma única vez, no mount — exceção pontual,
+  // no precedente de `ativos-table.tsx`.
+  useEffect(() => {
+    try {
+      const bruto = window.localStorage.getItem(CHAVE_DEFAULTS)
+      if (!bruto) return
+      const salvo = JSON.parse(bruto) as {
+        categoria?: unknown
+        filialId?: unknown
+      }
+      const cat = salvo?.categoria
+      if (
+        typeof cat === 'string' &&
+        (CATEGORIA_ORDEM as readonly string[]).includes(cat)
+      ) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setCategoria((atual) => atual || (cat as CategoriaAtivo))
+      }
+      const fil = salvo?.filialId
+      if (typeof fil === 'string' && filiais.some((f) => String(f.id) === fil)) {
+        setFilialId((atual) => atual || fil)
+      }
+    } catch {
+      // localStorage indisponível ou JSON corrompido: segue com os campos vazios.
+    }
+  }, [filiais])
+
+  // Preview do lote (patrimônios canonicalizados + erros de parse + duplicidade
+  // dentro da própria lista colada — A3). O servidor continua sendo o juiz.
+  const preview = useMemo<{
+    itens: ItemPatrimonio[]
+    erros: string[]
+    duplicadas: Set<string>
+  }>(() => {
     if (modo === 'lista') {
       const { itens, erros } = parsearLista(textoLista)
+      const mensagens = erros.map((e) => ({
+        linha: e.linha,
+        texto: `Linha ${e.linha}: ${e.msg}`,
+      }))
+      const duplicatas = duplicatasDaLista(itens)
+      for (const d of duplicatas) {
+        // A primeira ocorrência é a "boa"; acusa-se cada repetição seguinte.
+        for (const linha of d.linhas.slice(1)) {
+          mensagens.push({
+            linha,
+            texto: `Linha ${linha}: ${d.patrimonio} repetido na lista.`,
+          })
+        }
+      }
+      mensagens.sort((a, b) => a.linha - b.linha)
       return {
         itens,
-        erros: erros.map((e) => `Linha ${e.linha} ("${e.texto}"): ${e.msg}`),
+        erros: mensagens.map((m) => m.texto),
+        duplicadas: new Set(duplicatas.map((d) => d.chave)),
       }
     }
-    if (!faixaInicio.trim() || !faixaFim.trim()) return { itens: [], erros: [] }
+    const vazio = { itens: [], erros: [], duplicadas: new Set<string>() }
+    if (!faixaInicio.trim() || !faixaFim.trim()) return vazio
     const r = expandirFaixa(faixaInicio, faixaFim)
-    if (r.erro) return { itens: [], erros: [r.erro] }
-    return { itens: (r.itens ?? []).map((p) => ({ patrimonio: p })), erros: [] }
+    if (r.erro) return { ...vazio, erros: [r.erro] }
+    return {
+      ...vazio,
+      itens: (r.itens ?? []).map((p) => ({ patrimonio: p })),
+    }
   }, [modo, textoLista, faixaInicio, faixaFim])
 
   async function enviar() {
@@ -125,6 +189,15 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
       setErrosServidor(res.erros ?? ['Não foi possível cadastrar.'])
       toast.error('Nada foi cadastrado — veja os erros abaixo.')
       return
+    }
+    try {
+      window.localStorage.setItem(
+        CHAVE_DEFAULTS,
+        JSON.stringify({ categoria, filialId }),
+      )
+    } catch {
+      // Sem localStorage (modo privado, storage cheio): a compra já foi feita,
+      // só não haverá memória de defaults.
     }
     setResultado(res.criados)
     toast.success(
@@ -199,16 +272,33 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
           </TabsList>
           <TabsContent value="lista" className="mt-3">
             <Label htmlFor="lista" className="mb-2">
-              Um por linha — service tag opcional após vírgula
+              Um por linha — service tag opcional após vírgula, ponto e vírgula
+              ou TAB
             </Label>
             <Textarea
               id="lista"
+              // Foco só na PRIMEIRA montagem. `autoFocus` puro reagia toda vez que
+              // a aba "Colar lista" era remontada (o Radix Tabs desmonta a aba
+              // inativa), roubando o foco de quem navegava entre as abas pelo
+              // teclado. `preventScroll` mantém o topo da página à vista.
+              ref={(el) => {
+                if (el && !jaFocouLista.current) {
+                  jaFocouLista.current = true
+                  el.focus({ preventScroll: true })
+                }
+              }}
               rows={6}
               value={textoLista}
               onChange={(e) => setTextoLista(e.target.value)}
-              placeholder={'WAP0006026\nWAP0006027, ST-ABC123\nWAP0006028'}
+              placeholder={
+                'WAP0006026\nWAP0006027\tST-ABC123\nWAP0006028; ST-DEF456'
+              }
               className="font-mono text-sm"
             />
+            <p className="mt-2 text-xs text-muted-foreground">
+              Dá para colar direto duas colunas do Excel (patrimônio e service
+              tag).
+            </p>
           </TabsContent>
           <TabsContent value="faixa" className="mt-3">
             <div className="flex flex-wrap items-end gap-3">
@@ -261,15 +351,25 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
               cadastrar
             </p>
             <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
-              {preview.itens.map((i, idx) => (
-                <span
-                  key={`${i.patrimonio}-${idx}`}
-                  className="rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums"
-                >
-                  {i.patrimonio}
-                  {i.service_tag ? ` · ${i.service_tag}` : ''}
-                </span>
-              ))}
+              {preview.itens.map((i, idx) => {
+                const repetido = preview.duplicadas.has(
+                  chavePatrimonio(i.patrimonio, i.service_tag),
+                )
+                return (
+                  <span
+                    key={`${i.patrimonio}-${idx}`}
+                    title={repetido ? 'Repetido na lista' : undefined}
+                    className={
+                      repetido
+                        ? 'rounded border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-xs tabular-nums text-destructive'
+                        : 'rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums'
+                    }
+                  >
+                    {i.patrimonio}
+                    {i.service_tag ? ` · ${i.service_tag}` : ''}
+                  </span>
+                )
+              })}
             </div>
           </div>
         )}
@@ -419,7 +519,9 @@ export function NovaCompraForm({ filiais }: { filiais: Filial[] }) {
         </Button>
         <Button
           onClick={enviar}
-          disabled={enviando || preview.itens.length === 0}
+          disabled={
+            enviando || preview.itens.length === 0 || preview.erros.length > 0
+          }
         >
           {enviando
             ? 'Cadastrando…'
