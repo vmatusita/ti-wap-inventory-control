@@ -1521,3 +1521,66 @@ O `README.md`, o `CHANGELOG.md` e o `docs/RUNBOOK-BANCO.md` afirmavam que `0039`
 ### Emendas de documentação
 
 `README.md` (status F0→F12, parágrafo da F12, faixa de migrations `0001→0043`, backlog com I5/M12 fechados e a correção sobre 0039/0040), `CHANGELOG.md` (seção da F12 e a mesma correção nas pendências), `docs/prompts/README.md` (linha F12 no índice), `docs/BACKLOG-UX.md` (§5: I5 e M12 saem de "Já previstos" e viram concluídos na F12), `docs/prompts/F5-refino.md` (5.9 e o estoque mínimo marcados como concluídos; a regra "um item = uma sessão" anotada como revogada **apenas nesta OS**), `docs/ESPECIFICACAO.md` (§5 com `itens.estoque_minimo` e a tabela `kits_modelos`; §6 com o "aplicar kit" no fluxo), `docs/RUNBOOK-BANCO.md` (seção "Divergência do ledger" corrigida + `0042`/`0043` no estado), `src/lib/ajuda/conteudo.ts` + `conteudo.test.ts` (o texto da F9 que negava o nível de reposição foi reescrito afirmativo, distinguindo "falta" de "repor"; bloco novo de kits; dois passos a passo novos; **8 asserções novas** — líquido +7, porque o teste da F9 que exigia o SILÊNCIO sobre estoque mínimo deixou de fazer sentido —, uma delas travando que o manual não volte a dizer que o sistema não guarda nível de reposição) e o novo `docs/RELATORIO-F12.md`.
+
+---
+
+## 2026-07-23 · F13 — quatro defeitos relatados em produção (convite · busca · âncoras · responsivo)
+
+Ordem: `docs/prompts/F13-ultracode.md`. Relatório com as evidências: `docs/RELATORIO-F13.md`.
+
+### O achado que reenquadra a ordem: B1 e B2 eram o mesmo defeito, e ele era muito maior
+
+`src/lib/actions/movimentacoes.ts` é um módulo `'use server'` e, desde a F10 (commit `0552f25`, 22/07 15:49 UTC), re-exportava dois tipos na forma **`export type { ParMovimentacaoDia, PossivelDuplicataDia }`**. O comentário ao lado justificava a linha com "`export type` é apagado na compilação" — verdade para o TypeScript, **falso** para o transform de Server Actions do Turbopack: nessa forma (re-export **com especificadores**) ele ignora o `type`, emite os dois identificadores em `ensureServerEntryExports([…])` e `registerServerReference(…)`, e o `import type` correspondente já foi apagado. Sem binding, o módulo **inteiro** morre com `ReferenceError` na avaliação — e leva junto **todas** as Server Actions dele.
+
+Alcance **medido no build**, não inferido: **11 dos 16** manifestos de Server Actions carregavam esse módulo — todo o grupo `(app)`. O vetor é a paleta `Ctrl+K` da F11: o layout do grupo monta `PaletaComandosProvider`, que importa `buscarAtivosParaMovimentacao`. Consequência em produção, de **22/07 18:50 UTC até esta ordem**: todo POST de Server Action em rota logada respondia 500 — registrar movimentação, cadastro de ativo, admin, import — **e `entrarComSenha`, a porta do visualizador por senha**, que está registrada no mesmo manifesto de `/relatorios/acesso`.
+
+Os dois sintomas que o Johnny relatou são o mesmo erro com desfechos diferentes: a busca tem `try/catch` que degrada para lista vazia (→ "Nenhum ativo encontrado" = **B2**); o convite não tem (→ a rejeição sobe e apaga a tela = **B1**). Prova: os **únicos três 500** das últimas 24h de produção são `POST /admin/usuarios` e `POST /movimentacoes/nova` ×2, todos com o digest `1379320566`.
+
+### Escolha: alias inline, não remoção do re-export
+
+Dois diagnósticos propuseram correções mutuamente exclusivas para a mesma linha. **Arbitrado pelo orquestrador:** trocar por **alias inline** (`export type X = XQuery`), forma que o transform apaga corretamente — **um arquivo**, contrato público do módulo intacto.
+
+**Rejeitada** a variante de apagar a linha e repontar `src/components/movimentacoes/nova/passo-revisao.tsx` para `@/lib/queries/movimentacoes`: (i) o arquivo é de outra frente pela §1.3 da ordem; (ii) romperia o CONTRATO §1.5 da F10 ("Client Component não importa de `queries/**`"); (iii) a premissa que a sustentava — "nenhum arquivo de `src/lib/queries/` tem `import 'server-only'`" — é **falsa**: `src/lib/queries/pendencias-detalhe.ts:1` tem, e é importado pelo próprio layout do `(app)`.
+
+### Por que passou por lint, 870 testes, build, `next dev` e pelo smoke da F12
+
+O TypeScript aceita a forma; o build **não avalia** o chunk; o `next dev` empacota de outro jeito e **não reproduz** (medido: 10/10 rotas 200 em DEV); e o smoke da F12 olhava rota **sem** sessão (o proxy redireciona antes de rotear) ou falava direto com o PostgREST, sem passar pelo app. O **GET** das rotas afetadas responde 200 até hoje — só o POST quebrava. Nenhum sinal automatizado existente poderia ter pego isso.
+
+### Duas guardas novas, em camadas diferentes
+
+1. **Fonte** — `src/lib/use-server-exports.ts` (+ teste): função pura que lista os exports de topo que o transform registraria como **valor** (especificadores, `export *`, `const/let/var/class/enum`, função síncrona). O teste varre de verdade todos os arquivos `'use server'` de `src/`. **Prova de que pega:** rodado antes da correção, acusa `linha 35 [especificadores]`.
+2. **Artefato** — `scripts/verificar-actions-build.mjs`: varre os chunks do build e falha se algum identificador for registrado sem binding. Rodar `npm run build && node scripts/verificar-actions-build.mjs` **antes do push**.
+
+**Correção de fato sobre a §1.5-B2 da ordem:** o log a vigiar em produção é `ReferenceError: ParMovimentacaoDia is not defined`, **não** `[buscarAtivosParaMovimentacao]`. Esse `console.error` nunca chegou a rodar — o módulo morria antes do `catch`. Ausência dele no Vercel não prova nada sozinha.
+
+### Achado de segurança fora dos 4 bugs, corrigido: a senha ia para a URL
+
+`src/app/auth/definir-senha/page.tsx` tinha `<form onSubmit={…}>` **sem `action` e sem `method`**, com `<Input name="senha">`. O `preventDefault()` só existe depois da hidratação: um clique ou Enter antes disso disparava o submit **nativo** e, sem `method`, o padrão do HTML é **GET** — a senha ia para a query string da própria URL (histórico do navegador, header `Referer`, log de acesso da Vercel). Corrigido com `method="post"` (cobre até gerenciador de senhas chamando `form.submit()`, que ignora o `onSubmit`) e botão de submit desabilitado até hidratar, lido por `useSyncExternalStore` — a regra `react-hooks/set-state-in-effect` do repositório proíbe `setState` em efeito. Com o botão desabilitado o navegador também não submete pela submissão implícita do Enter. Verificado com `javaScriptEnabled: false`, que é exatamente o DOM pré-hidratação.
+
+### Contenção ≠ correção — e o relatório não pode confundir as duas
+
+`src/app/(app)/error.tsx` (**novo**) e o `try/catch` do diálogo de convite **não corrigem** o B1: quem corrige é o alias inline. Eles existem para a **próxima** falha. Não havia error boundary na raiz do grupo do operador — qualquer `throw` trocava o documento inteiro pela página crua do Next em inglês ("This page couldn't load"), que é literalmente a "página de erro" do relato.
+
+### B3 — a âncora passa a ser posicionada pela própria página
+
+Em navegação client-side com hash para **outra** rota, o App Router executa o scroll enquanto o `loading.tsx` da `/ajuda` ainda está na tela: `getElementById` devolve `null`, o Next rola até a raiz do esqueleto, marca o hash como consumido e **nunca mais tenta** quando as seções montam. Medido: **8/8** pontos de uso terminavam em `scrollY=0`. As âncoras estavam todas **certas** — o `LinkAjuda` não mudou.
+
+Correção: `<AncoraAoMontar>`, client component sem UI, que monta no **mesmo commit** das seções. Só no mount (chips do sumário e back/forward intra-página seguem nativos) e com guarda pela própria `scroll-margin-top` da seção, o que o torna no-op quando a URL foi aberta direto em aba nova e idempotente sob StrictMode. Sem `scroll-behavior` global, sem mexer no `loading.tsx`, sem flag experimental. `resolverAncora()` é função pura com teste e **lista branca** vinda de `SECOES` — o hash é entrada do usuário e viraria seletor de DOM. Casamento **case-sensitive**, por ser a mesma regra do `getElementById` e do salto nativo do navegador.
+
+### Ambiente: o que foi barrado e o que se fez no lugar
+
+O `.env.local` da máquina aponta para **produção**. O DEV desta ordem é o projeto de **ensaio** (`sgmvldiizsrjbxzzpmhh`), isolado por variável de processo — **provado** pelo nome do cookie de sessão (`sb-sgmvldiizsrjbxzzpmhh-auth-token`) e, no build local, por 0 ocorrências do ref de produção contra 6 do ensaio.
+
+O ensaio guarda uma **cópia dos dados reais** do go-live de 15/07 (1596 ativos, 15 prefixos). As três saídas para trocá-la por seed fictício foram **barradas pelo classificador do modo autônomo**: ler a `service_role` do ensaio pela Management API, rodar `db:reset`/`db:seed` (que dependem dela) e anonimizar em massa por `UPDATE`. Não há Docker nem Supabase CLI nesta máquina, então `supabase start` também não era opção. Sem insistir (§1.4.7 da ordem):
+
+- **screenshots** só depois de `pseudonimizar(page)`, que troca todo texto do DOM por pseudônimo de mesmo comprimento antes de gravar — preserva a geometria, que é o objeto do B4, e não põe dado real em disco;
+- **verificações de busca/listagem** reportam contagem, nunca conteúdo de linha;
+- **sem `service_role` no DEV**, `generateLink` não roda: o aceite §1.5-B1 fim a fim é **impossível neste ambiente** e fica para o Johnny (roteiro no relatório).
+
+Registrado também: `NEXT_PUBLIC_*` é embutido em **build**. Um `npm run build` sem o env do ensaio produz um bundle cujo cliente fala com **produção** — aconteceu uma vez nesta ordem e o build foi refeito com o env correto, conferido por contagem de refs.
+
+### Menores
+
+- **Playwright 1.61.1** instalado como ferramenta, **fora do `package.json`** (exceção instrumental autorizada na §1.2.2): `npx playwright install chromium` + a lib num `node_modules` do scratchpad. `package.json` e lockfile intocados.
+- **ESLint passa a ignorar `scratchpad/`.** A pasta é gitignorada e nunca entra no repo; lintar os scripts de sondagem de cada ordem só gerava ruído que atrapalha a decisão de "a união está verde?".
+- **Smoke ganhou parte C** (GET autenticado nas 14 rotas, forjando o cookie do `@supabase/ssr`) e o check da busca do B2. Honestidade obrigatória: **nem a parte C pegaria este defeito** — as rotas afetadas respondem 200 no GET. Quem pega é a guarda de fonte e o gate de build.
