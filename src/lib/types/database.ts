@@ -82,6 +82,7 @@ export type Database = {
           service_tag: string | null
           setor_atual: string | null
           status: Database["public"]["Enums"]["status_ativo"]
+          substitui_ativo_id: string | null
           termo_assinado: Database["public"]["Enums"]["termo_status"] | null
           termo_data: string | null
           updated_at: string
@@ -107,6 +108,7 @@ export type Database = {
           service_tag?: string | null
           setor_atual?: string | null
           status?: Database["public"]["Enums"]["status_ativo"]
+          substitui_ativo_id?: string | null
           termo_assinado?: Database["public"]["Enums"]["termo_status"] | null
           termo_data?: string | null
           updated_at?: string
@@ -132,6 +134,7 @@ export type Database = {
           service_tag?: string | null
           setor_atual?: string | null
           status?: Database["public"]["Enums"]["status_ativo"]
+          substitui_ativo_id?: string | null
           termo_assinado?: Database["public"]["Enums"]["termo_status"] | null
           termo_data?: string | null
           updated_at?: string
@@ -142,6 +145,20 @@ export type Database = {
             columns: ["filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ativos_substitui_ativo_id_fkey"
+            columns: ["substitui_ativo_id"]
+            isOneToOne: false
+            referencedRelation: "ativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ativos_substitui_ativo_id_fkey"
+            columns: ["substitui_ativo_id"]
+            isOneToOne: false
+            referencedRelation: "v_pendencias"
             referencedColumns: ["id"]
           },
         ]
@@ -397,6 +414,7 @@ export type Database = {
         Row: {
           ativo_id: string
           chamado: string | null
+          chamado_fornecedor: string | null
           colaborador: string | null
           created_at: string
           criado_por: string
@@ -419,6 +437,7 @@ export type Database = {
         Insert: {
           ativo_id: string
           chamado?: string | null
+          chamado_fornecedor?: string | null
           colaborador?: string | null
           created_at?: string
           criado_por: string
@@ -441,6 +460,7 @@ export type Database = {
         Update: {
           ativo_id?: string
           chamado?: string | null
+          chamado_fornecedor?: string | null
           colaborador?: string | null
           created_at?: string
           criado_por?: string
@@ -742,6 +762,19 @@ export type Database = {
           patrimonio: string
         }[]
       }
+      devolver_ao_fornecedor: {
+        Args: {
+          p_ativo_id: string
+          p_criado_por: string
+          p_mov: Json
+          p_substituto: Json
+        }
+        Returns: {
+          mov_id: string
+          substituto_id: string
+          substituto_mov_id: string
+        }[]
+      }
       importar_ativos_substituir: {
         Args: {
           p_backup_path: string
@@ -852,6 +885,7 @@ export type Database = {
         | "em_manutencao"
         | "defasado"
         | "descartado"
+        | "devolvido_fornecedor"
       termo_status: "sim" | "nao" | "enviado" | "gerado"
       tipo_lancamento:
         | "entrada"
@@ -874,6 +908,7 @@ export type Database = {
         | "transferencia"
         | "ajuste"
         | "estorno"
+        | "devolucao_fornecedor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1019,6 +1054,7 @@ export const Constants = {
         "em_manutencao",
         "defasado",
         "descartado",
+        "devolvido_fornecedor",
       ],
       termo_status: ["sim", "nao", "enviado", "gerado"],
       tipo_lancamento: [
@@ -1043,6 +1079,7 @@ export const Constants = {
         "transferencia",
         "ajuste",
         "estorno",
+        "devolucao_fornecedor",
       ],
     },
   },

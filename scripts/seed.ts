@@ -636,6 +636,10 @@ async function inserirMovimentacoes(
 ): Promise<number> {
   let total = 0
   let done = 0
+  // F14: o envio_manutencao passa a EXIGIR chamado_fornecedor (check da migration 0045).
+  // Valor ficticio e deterministico por ORDEM de insercao (nao consome a rng — nao
+  // desloca a sequencia deterministica do resto do seed).
+  let fornSeq = 0
   for (const a of ativos) {
     let filialCorrente = a.filial_id // inicial
     for (const s of a._steps) {
@@ -650,6 +654,10 @@ async function inserirMovimentacoes(
         colaborador: s.colaborador ?? null,
         setor: s.setor ?? null,
         chamado: s.chamado ?? null,
+        chamado_fornecedor:
+          s.tipo === 'envio_manutencao'
+            ? `OS-FORN-${String(++fornSeq).padStart(5, '0')}`
+            : null,
         termo_assinado: s.termo ?? null,
         // termo_data acompanha o termo quando ele foi gerado/assinado (spec 5)
         termo_data: s.termo === 'sim' || s.termo === 'enviado' ? s.data : null,
@@ -689,6 +697,59 @@ async function reforcarPendenciaSemPatrimonio(
     .in('id', ids)
   if (error) throw new Error(`Falha ao reforcar pendencia sem-patrimonio: ${error.message}`)
   console.log(`[seed] pendencia "sem patrimônio físico" reaplicada em ${ids.length} ativos.`)
+}
+
+// ============================ DEVOLUCAO AO FORNECEDOR (F14) =============================
+// 2 casos ficticios do fluxo novo (para o relatorio e a ficha renderizarem o caminho):
+//   * 1 devolvido ao fornecedor SEM substituto (fornecedor nao repos — credito);
+//   * 1 devolvido COM substituto vinculado (substitui_ativo_id + fornecedor herdado).
+// Patrimonios fora da faixa da geracao principal (8000-9999) para nao colidir. Ids
+// gerados pelo banco (sem consumir a rng). Cada movimentacao passa pelo trigger da
+// maquina de estados (valida a transicao). Datas dentro da janela do seed (jun-jul).
+async function inserirCasosDevolucaoFornecedor(
+  db: ReturnType<typeof createAdminClient>,
+  filialIdBySlug: Map<string, number>,
+  criadoPor: string,
+) {
+  const matriz = filialIdBySlug.get('matriz')!
+  const insAtivo = async (row: Record<string, unknown>): Promise<string> => {
+    const { data, error } = await db.from('ativos').insert(row).select('id').single()
+    if (error) throw new Error(`F14 seed (ativo): ${error.message}`)
+    return (data as { id: string }).id
+  }
+  const insMov = async (row: Record<string, unknown>) => {
+    const { error } = await db.from('movimentacoes').insert(row)
+    if (error) throw new Error(`F14 seed (mov ${String(row.tipo)}): ${error.message}`)
+  }
+
+  // Caso 1 — devolvido ao fornecedor SEM substituto (fornecedor nao repos).
+  const a1 = await insAtivo({
+    patrimonio: 'WAP0001401', patrimonio_original: 'WAP0001401', categoria: 'notebook',
+    marca: 'Dell', modelo: 'Latitude 5440', service_tag: 'F14A1', hostname: 'WAP-NB-1401',
+    memoria: '16 GB', armazenamento: '512 GB SSD', processador: 'Intel i7',
+    fornecedor: 'TechSupply', filial_id: matriz, origem: 'cadastro',
+  })
+  await insMov({ ativo_id: a1, tipo: 'compra', data: '2026-06-05', filial_id: matriz, criado_por: criadoPor, created_at: '2026-06-05T12:00:00Z' })
+  await insMov({ ativo_id: a1, tipo: 'envio_manutencao', data: '2026-06-20', filial_id: matriz, chamado: '77401', chamado_fornecedor: 'OS-FORN-4401', criado_por: criadoPor, created_at: '2026-06-20T12:00:00Z' })
+  await insMov({ ativo_id: a1, tipo: 'devolucao_fornecedor', data: '2026-07-01', filial_id: matriz, chamado: '77401', chamado_fornecedor: 'OS-FORN-4401', observacao: 'Sem conserto — fornecedor não repôs (crédito).', criado_por: criadoPor, created_at: '2026-07-01T12:00:00Z' })
+
+  // Caso 2 — devolvido COM substituto vinculado (fornecedor do substituto = do antigo).
+  const a2 = await insAtivo({
+    patrimonio: 'WAP0001402', patrimonio_original: 'WAP0001402', categoria: 'celular',
+    marca: 'Samsung', modelo: 'Galaxy A55', service_tag: 'F14A2',
+    fornecedor: 'Proprinter', filial_id: matriz, origem: 'cadastro',
+  })
+  await insMov({ ativo_id: a2, tipo: 'compra', data: '2026-06-06', filial_id: matriz, criado_por: criadoPor, created_at: '2026-06-06T12:00:00Z' })
+  await insMov({ ativo_id: a2, tipo: 'envio_manutencao', data: '2026-06-22', filial_id: matriz, chamado: '77402', chamado_fornecedor: 'OS-FORN-4402', criado_por: criadoPor, created_at: '2026-06-22T12:00:00Z' })
+  await insMov({ ativo_id: a2, tipo: 'devolucao_fornecedor', data: '2026-07-02', filial_id: matriz, chamado: '77402', chamado_fornecedor: 'OS-FORN-4402', observacao: 'Sem conserto — trocado por equipamento novo.', criado_por: criadoPor, created_at: '2026-07-02T12:00:00Z' })
+  const sub = await insAtivo({
+    patrimonio: 'WAP0001502', patrimonio_original: 'WAP0001502', categoria: 'celular',
+    marca: 'Samsung', modelo: 'Galaxy A55', service_tag: 'F14S2',
+    fornecedor: 'Proprinter', filial_id: matriz, origem: 'cadastro', substitui_ativo_id: a2,
+  })
+  await insMov({ ativo_id: sub, tipo: 'compra', data: '2026-07-02', filial_id: matriz, observacao: 'Substituto de WAP0001402 (devolvido ao fornecedor).', criado_por: criadoPor, created_at: '2026-07-02T12:00:00Z' })
+
+  console.log('[seed] 2 casos de devolucao ao fornecedor (1 sem substituto, 1 com substituto vinculado).')
 }
 
 // ============================ ITENS POR QUANTIDADE (F3B) =============================
@@ -1088,6 +1149,7 @@ async function main() {
   await inserirAtivos(db, ativos)
   const totalMov = await inserirMovimentacoes(db, ativos, criadoPor)
   await reforcarPendenciaSemPatrimonio(db, ativos)
+  await inserirCasosDevolucaoFornecedor(db, filialIdBySlug, criadoPor)
 
   // F3B: catalogo de itens + lancamentos de quantidade + anotacoes de manutencao.
   const itens = await inserirItens(db)
