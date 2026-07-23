@@ -115,23 +115,19 @@ function aplicarFiltrosAtivos<T>(query: T, params: ListarAtivosParams): T {
   return q as unknown as T
 }
 
-// Lista paginada e filtrada. Sem `params.ordenacao`, ordena por "atualizado em"
-// desc (default histórico da tela — OS-F2 3.1.2); com ela, ordena pela coluna
-// pedida na URL (F11/T7).
-export async function listarAtivos(
+// Query base da lista (select + filtros + ordem, SEM faixa). Devolve uma query
+// NOVA a cada chamada: o builder do postgrest-js é mutável e não se reexecuta
+// com segurança (mesma nota de `queryLista` em queries/movimentacoes.ts).
+function queryLista(
+  supabase: Awaited<ReturnType<typeof createClient>>,
   params: ListarAtivosParams,
-): Promise<ListarAtivosResult> {
-  const supabase = await createClient()
-  const page = Math.max(1, params.page ?? 1)
-  const pageSize = ehTamanhoPagina(params.pageSize) ? params.pageSize : PAGE_SIZE
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-
+  head = false,
+) {
   let query = supabase
     .from('ativos')
     .select(
       'id, patrimonio, service_tag, categoria, marca, modelo, status, colaborador_atual, updated_at, filiais(slug, nome)',
-      { count: 'exact' },
+      { count: 'exact', head },
     )
 
   query = aplicarFiltrosAtivos(query, params)
@@ -150,9 +146,47 @@ export async function listarAtivos(
   } else {
     query = query.order('updated_at', { ascending: false })
   }
-  query = query.range(from, to)
+  return query
+}
 
-  const { data, error, count } = await query
+// Faixa pedida além do fim do resultado. O PostgREST responde 416 com este
+// código em vez de uma lista vazia (mesmo comportamento medido em
+// `listarMovimentacoes`, que usa `count: 'exact'` como esta query).
+const RANGE_INVALIDO = 'PGRST103'
+
+// Lista paginada e filtrada. Sem `params.ordenacao`, ordena por "atualizado em"
+// desc (default histórico da tela — OS-F2 3.1.2); com ela, ordena pela coluna
+// pedida na URL (F11/T7).
+export async function listarAtivos(
+  params: ListarAtivosParams,
+): Promise<ListarAtivosResult> {
+  const supabase = await createClient()
+  const pageSize = ehTamanhoPagina(params.pageSize) ? params.pageSize : PAGE_SIZE
+  const faixa = (p: number) =>
+    queryLista(supabase, params).range(
+      (p - 1) * pageSize,
+      (p - 1) * pageSize + pageSize - 1,
+    )
+
+  let page = Math.max(1, params.page ?? 1)
+  let { data, error, count } = await faixa(page)
+
+  // `?page=999` (favorito de página profunda, filtro que encolheu o resultado,
+  // URL digitada) não pode derrubar o Server Component: descobrimos o total e
+  // mostramos a ÚLTIMA página que existe — a `AtivosPaginacao` já desenha o
+  // "X de Y" com o `page` devolvido aqui. Uma tentativa só, sem laço; mesmo
+  // tratamento de `listarMovimentacoes`.
+  if (error?.code === RANGE_INVALIDO) {
+    const { count: total, error: erroTotal } = await queryLista(
+      supabase,
+      params,
+      true,
+    )
+    if (erroTotal) throw new Error(`Falha ao listar ativos: ${erroTotal.message}`)
+    page = Math.max(1, Math.ceil((total ?? 0) / pageSize))
+    ;({ data, error, count } = await faixa(page))
+  }
+
   if (error) throw new Error(`Falha ao listar ativos: ${error.message}`)
 
   const rows: AtivoLista[] = (data ?? []).map((r) => {

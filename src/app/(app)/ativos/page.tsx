@@ -60,8 +60,13 @@ export default async function AtivosPage({
     .map((s) => s.trim())
     .filter((s): s is StatusAtivo => STATUS_ORDEM.includes(s as StatusAtivo))
 
+  // Teto de 7 dígitos (cobre qualquer acervo plausível): validar só o formato
+  // deixaria passar `?page=99999999999999999999`, que vira 1e20 e faz o `offset`
+  // do PostgREST sair em notação científica ("3e+21") — descartado em silêncio
+  // pelo servidor, então a página nunca recebe o PGRST103 que `listarAtivos`
+  // sabe tratar e a paginação trava. Acima do teto, volta à página 1.
   const pageRaw = texto(sp.page)
-  const page = pageRaw && /^\d+$/.test(pageRaw) ? Number(pageRaw) : 1
+  const page = pageRaw && /^\d{1,7}$/.test(pageRaw) ? Number(pageRaw) : 1
 
   const semPatrimonio = texto(sp.semPatrimonio) === '1'
 

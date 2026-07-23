@@ -62,6 +62,11 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
     }
+    // Na visão "Por filial" não existe recorte de filial. O select só some
+    // quando a URL commita — durante a navegação pendente ele ainda está na
+    // tela, e o clique nele gravaria `filial` numa URL que não tem como exibir
+    // esse filtro. Quem decide é a base FRESCA (mesma disciplina de `trocarVisao`).
+    if (novo.get('visao') === 'filiais') novo.delete('filial')
     empurrar(novo, commitada)
   }
 
@@ -98,12 +103,16 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
   }
 
   // "Limpar" zera os filtros mas mantém a visão escolhida (trocar de visão é
-  // navegação, não filtro).
+  // navegação, não filtro). A visão sai da base FRESCA, não de `visaoFiliais`
+  // (a URL já commitada): clicar "Por filial" e, com a navegação ainda pendente,
+  // "Limpar" devolvia o operador ao Consolidado — desfazendo justamente a visão
+  // que ele acabou de escolher.
   function limpar() {
     setBusca('')
     const commitada = params.toString()
+    const base = baseFiltrosItens(commitada)
     const novo = new URLSearchParams()
-    if (visaoFiliais) novo.set('visao', 'filiais')
+    if (base.get('visao') === 'filiais') novo.set('visao', 'filiais')
     empurrar(novo, commitada)
   }
 

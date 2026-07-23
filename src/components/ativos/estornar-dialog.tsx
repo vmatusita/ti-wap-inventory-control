@@ -71,9 +71,13 @@ export function EstornarDialog({
         className="max-h-[90svh] overflow-y-auto sm:max-w-md"
         // Foco inicial no Cancelar: a ação destrutiva nunca fica sob o Enter
         // (mesmo padrão de "revogar senha" da F9).
+        // `preventScroll`: este DialogContent é o próprio container de rolagem
+        // (`max-h-[90svh] overflow-y-auto`) e o Cancelar fica no rodapé — sem
+        // isso, em tela baixa (paisagem, zoom 200%) o diálogo abriria já rolado
+        // até embaixo, escondendo o título e o resumo do que será desfeito.
         onOpenAutoFocus={(e) => {
           e.preventDefault()
-          cancelarRef.current?.focus()
+          cancelarRef.current?.focus({ preventScroll: true })
         }}
       >
         <DialogHeader>

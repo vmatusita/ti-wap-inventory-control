@@ -32,14 +32,35 @@ function idNumerico(v: string | undefined): number | undefined {
   return Number.isSafeInteger(n) && n >= 1 && n <= MAX_SMALLINT ? n : undefined
 }
 
+// Faixa sã de datas. O round-trip do `Date` NÃO basta: o JS tem ano 0 e aceita
+// `0000-01-01`, mas o Postgres não (22008) — a query lançaria e derrubaria a
+// página. Comparação de string funciona porque o formato é fixo `yyyy-MM-dd`.
+const DATA_MIN = '1900-01-01'
+const DATA_MAX = '2999-12-31'
+
 // Data pura `yyyy-MM-dd`. Descarta data inexistente (2026-02-31, que o `Date`
-// "rolaria" para março) — mesmo parser de /itens.
+// "rolaria" para março) e data fora da faixa sã — mesmo parser de /itens.
 function dataISO(v: string | undefined): string | undefined {
   if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return undefined
+  if (v < DATA_MIN || v > DATA_MAX) return undefined
   const d = new Date(`${v}T00:00:00.000Z`)
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v
     ? v
     : undefined
+}
+
+// Página: validar só o FORMATO deixaria passar `?page=99999999999999999999`, que
+// vira 1e20 — o `from` do `range()` estoura o inteiro exato, o postgrest-js
+// serializa `offset=3e+21` e o PostgREST DESCARTA o offset ilegível (200, sem
+// PGRST103, então o fallback de "última página" não roda). A tela trava: rodapé
+// com notação científica e "Anterior" que reenvia a MESMA URL. Sete dígitos
+// cobrem qualquer acervo plausível e mantêm o caminho PGRST103 intacto.
+const MAX_PAGE = 9_999_999
+
+function paginaNumerica(v: string | undefined): number {
+  if (!v || !/^\d+$/.test(v)) return 1
+  const n = Number(v)
+  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_PAGE ? n : 1
 }
 
 // `hasOwnProperty` e não `in`: `?tipo=constructor` passaria pelo `in` (chave
@@ -68,8 +89,7 @@ export default async function MovimentacoesPage({
   const ate = dataISO(texto(sp.ate))
   const tipo = tipoValido(texto(sp.tipo))
   const filialId = idNumerico(texto(sp.filial))
-  const pageRaw = texto(sp.page)
-  const page = pageRaw && /^\d+$/.test(pageRaw) ? Number(pageRaw) : 1
+  const page = paginaNumerica(texto(sp.page))
 
   const [filiais, resultado] = await Promise.all([
     listarFiliais(),

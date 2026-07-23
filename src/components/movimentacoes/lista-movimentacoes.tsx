@@ -111,6 +111,15 @@ export function ListaMovimentacoes({
                     </Badge>
                   )}
                 </Link>
+                {/* Patrimônio repete em casos raros (spec §5): buscar um deles
+                    traz o histórico de DOIS ativos intercalado. A service tag
+                    desempata na própria linha — mesmo chip da paleta de comandos
+                    e da coluna Service Tag de /ativos. */}
+                {m.patrimonio_duplicado && (
+                  <span className="ml-1.5 rounded bg-amber-100 px-1.5 text-[11px] tabular-nums text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    ST {m.service_tag ?? '—'}
+                  </span>
+                )}
               </TableCell>
 
               <TableCell className={cn('whitespace-nowrap', COL_COLABORADOR)}>

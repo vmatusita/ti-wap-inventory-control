@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { combinarSaldosPorFilial, type SaldoItem } from '@/lib/queries/itens'
+import {
+  combinarSaldosPorFilial,
+  estoqueForaDasColunas,
+  type SaldoItem,
+} from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 
 // I4 (F11) — a tabela lado a lado é montada por ESTA função pura a partir de
@@ -105,5 +109,67 @@ describe('combinarSaldosPorFilial', () => {
     expect(itens).toHaveLength(1)
     expect(itens[0].porFilial).toEqual({})
     expect(itens[0].consolidado.estoque).toBe(4)
+  })
+})
+
+// A6 (revisão adversarial da F11) — as colunas são só as filiais ATIVAS, o Total
+// é a RPC consolidada (que soma até filial desativada). Quando a linha não fecha,
+// a tela precisa dizer quanto ficou de fora.
+describe('estoqueForaDasColunas', () => {
+  it('devolve zero quando as colunas somam o Total (o caso normal)', () => {
+    const [linha] = combinarSaldosPorFilial(
+      FILIAIS,
+      [saldo(10, 'Mouse', { estoque: 9 })],
+      [
+        [saldo(10, 'Mouse', { estoque: 7 })],
+        [saldo(10, 'Mouse', { estoque: 2 })],
+        [],
+      ],
+    )
+
+    expect(estoqueForaDasColunas(linha, FILIAIS)).toBe(0)
+  })
+
+  it('devolve o estoque da filial que saiu das colunas (desativada)', () => {
+    // "Filial Antiga" foi desativada: some de `listarFiliais`, mas os 15 mouses
+    // dela continuam somando no consolidado.
+    const [linha] = combinarSaldosPorFilial(
+      FILIAIS,
+      [saldo(10, 'Mouse', { estoque: 25 })],
+      [
+        [saldo(10, 'Mouse', { estoque: 6 })],
+        [saldo(10, 'Mouse', { estoque: 3 })],
+        [saldo(10, 'Mouse', { estoque: 1 })],
+      ],
+    )
+
+    expect(estoqueForaDasColunas(linha, FILIAIS)).toBe(15)
+  })
+
+  it('não devolve negativo quando o Total é menor que as colunas', () => {
+    // Não deveria acontecer (a RPC é aditiva por filial); se acontecer, a tela
+    // não pode anunciar um "inclui -N".
+    const [linha] = combinarSaldosPorFilial(
+      FILIAIS,
+      [saldo(10, 'Mouse', { estoque: 1 })],
+      [[saldo(10, 'Mouse', { estoque: 4 })], [], []],
+    )
+
+    expect(estoqueForaDasColunas(linha, FILIAIS)).toBe(0)
+  })
+
+  it('conta como fora a filial que não está na lista de colunas', () => {
+    const [linha] = combinarSaldosPorFilial(
+      FILIAIS,
+      [saldo(10, 'Mouse', { estoque: 9 })],
+      [
+        [saldo(10, 'Mouse', { estoque: 7 })],
+        [saldo(10, 'Mouse', { estoque: 2 })],
+        [],
+      ],
+    )
+
+    // A tabela renderizada tem só a Alfa: os 2 da Beta ficam fora das colunas.
+    expect(estoqueForaDasColunas(linha, [FILIAIS[0]])).toBe(2)
   })
 })

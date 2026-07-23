@@ -5,7 +5,7 @@ import type {
   TermoStatus,
   TipoMovimentacao,
 } from '@/lib/dominio'
-import { canonicalizarPatrimonio } from '@/lib/patrimonio'
+import { canonicalizarPatrimonio, patrimoniosRepetidos } from '@/lib/patrimonio'
 import {
   patrimoniosDuplicados,
   RESUMO_SELECT,
@@ -411,6 +411,10 @@ export type MovimentacaoLista = {
   ativo_id: string
   // null = ativo sem patrimônio físico (import F7E) — a UI mostra "sem patrimônio".
   patrimonio: string | null
+  service_tag: string | null
+  // Este patrimônio pertence a MAIS DE UM ativo entre as linhas desta página
+  // (duplicidade legítima da spec §5): a tabela mostra a service tag p/ desempatar.
+  patrimonio_duplicado: boolean
   categoria: CategoriaAtivo | null
   marca: string | null
   modelo: string | null
@@ -473,6 +477,23 @@ export function interpretarBuscaMovimentacao(
   return { campo: 'colaborador', valor: limpo }
 }
 
+// Patrimônio repete em casos raros — a chave é o PAR patrimônio + service tag
+// (spec §5). Buscar `WAP0001234` aqui traz o histórico dos DOIS ativos
+// intercalado por data, e sem desempate a lista se lê como a linha do tempo de
+// UMA máquina. Conta por ATIVO DISTINTO: a mesma máquina aparece em várias
+// linhas do histórico e isso não é duplicidade. Escopo = a página, como em
+// `listarAtivos`. Pura — testada em `movimentacoes.test.ts`.
+export function patrimoniosAmbiguosNaPagina(
+  linhas: { ativo_id: string; patrimonio: string | null }[],
+): Set<string> {
+  const porAtivo = new Map<string, string>()
+  for (const l of linhas) {
+    if (l.patrimonio && !porAtivo.has(l.ativo_id))
+      porAtivo.set(l.ativo_id, l.patrimonio)
+  }
+  return patrimoniosRepetidos([...porAtivo.values()])
+}
+
 type RawListaRow = {
   id: string
   tipo: TipoMovimentacao
@@ -484,6 +505,7 @@ type RawListaRow = {
   ativo_id: string
   ativos: {
     patrimonio: string | null
+    service_tag: string | null
     categoria: CategoriaAtivo
     marca: string | null
     modelo: string | null
@@ -504,7 +526,7 @@ const LISTA_COLUNAS =
 function listaSelect(inner: boolean): string {
   return (
     `${LISTA_COLUNAS}, ` +
-    `ativos${inner ? '!inner' : ''}(patrimonio, categoria, marca, modelo), ` +
+    `ativos${inner ? '!inner' : ''}(patrimonio, service_tag, categoria, marca, modelo), ` +
     'autor:profiles!movimentacoes_criado_por_fkey(nome), ' +
     'filial:filiais!movimentacoes_filial_id_fkey(nome)'
   )
@@ -609,6 +631,14 @@ export async function listarMovimentacoes(
     for (const e of estornos ?? []) if (e.estorno_de) estornadas.add(e.estorno_de)
   }
 
+  // Sem consulta extra: os patrimônios da página já vieram no embed.
+  const ambiguos = patrimoniosAmbiguosNaPagina(
+    rows.map((r) => ({
+      ativo_id: r.ativo_id,
+      patrimonio: r.ativos?.patrimonio ?? null,
+    })),
+  )
+
   return {
     rows: rows.map((r) => ({
       id: r.id,
@@ -620,6 +650,10 @@ export async function listarMovimentacoes(
       observacao: r.observacao,
       ativo_id: r.ativo_id,
       patrimonio: r.ativos?.patrimonio ?? null,
+      service_tag: r.ativos?.service_tag ?? null,
+      patrimonio_duplicado: r.ativos?.patrimonio
+        ? ambiguos.has(r.ativos.patrimonio)
+        : false,
       categoria: r.ativos?.categoria ?? null,
       marca: r.ativos?.marca ?? null,
       modelo: r.ativos?.modelo ?? null,

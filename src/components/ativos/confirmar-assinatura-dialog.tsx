@@ -140,9 +140,11 @@ export function DesfazerAssinaturaDialog({ ativoId }: { ativoId: string }) {
         className="sm:max-w-sm"
         // Foco inicial no Cancelar: a ação destrutiva nunca fica sob o Enter
         // (mesmo padrão de "revogar senha" da F9).
+        // `preventScroll` por consistência com o diálogo de estorno: o foco não
+        // arrasta a rolagem do diálogo (nem a da página) para o rodapé.
         onOpenAutoFocus={(e) => {
           e.preventDefault()
-          cancelarRef.current?.focus()
+          cancelarRef.current?.focus({ preventScroll: true })
         }}
       >
         <DialogHeader>

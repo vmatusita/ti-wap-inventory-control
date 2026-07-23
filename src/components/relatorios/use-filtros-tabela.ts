@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   CATEGORIA_ORDEM,
@@ -19,6 +19,10 @@ import {
 // F11/T10 — o estado dos filtros MORA NA URL (antes era `useState`, sumia no F5
 // e não dava para compartilhar por link). Mesmo padrão do resto do app, onde o
 // período do relatório (`preset`/`de`/`ate`) já vive nos searchParams.
+//
+// Duas disciplinas vieram da revisão adversarial da F11 e não se pode perder de
+// vista: o descarte de valor inválido é PEGAJOSO (`decidirFiltros`) e a
+// gravação na URL é ADIADA enquanto houver navegação em voo (`navegacaoEmVoo`).
 
 // Sentinela do "todos" no Radix Select (valor vazio não é permitido pelo componente).
 export const TODOS = '__todos'
@@ -252,6 +256,52 @@ export function sanitizarFiltros(
   return limpos
 }
 
+// Decisão de quais valores da URL PODEM filtrar, tomada quando o param aparece
+// (F11 — revisão adversarial).
+//
+// `sanitizarFiltros` sozinha só zera o ESTADO: o param descartado continua na
+// URL — e isso é de propósito, porque as abas de filial preservam a query
+// inteira (`filial-tabs.tsx`), então purgá-lo destruiria o filtro ao passar por
+// uma filial que não tem aquele motivo. O defeito era outro: o valor descartado
+// voltava a valer SOZINHO. As opções derivam de `rows`, e `rows` se renova sem
+// ação do usuário (`router.refresh()` do realtime, auto-refresh de 60 s do
+// visualizador); assim que uma linha com aquele motivo entrava no período, a
+// mesma memo passava a considerar o valor válido e a tabela encolhia sem
+// ninguém ter escolhido nada.
+//
+// Aqui a decisão fica presa ao param: enquanto `<prefixo>.<campo>` não mudar, o
+// que foi descartado continua descartado. Param novo (link, aba de filial,
+// período trocado) ou escolha no `<Select>` refazem a decisão.
+export type DecisaoFiltros = {
+  // Último valor VISTO na URL por campo — só serve para detectar que o param
+  // mudou (não é o que filtra).
+  url: Record<CampoFiltro, string>
+  // O que de fato filtra: o valor que existia entre as opções quando o param
+  // apareceu (ou o que o usuário escolheu depois).
+  aceito: Record<CampoFiltro, string>
+}
+
+export function decidirFiltros(
+  anterior: DecisaoFiltros | null,
+  daUrl: Record<CampoFiltro, string>,
+  opcoes: Partial<Record<CampoFiltro, Opcao[]>>,
+  camposAtivos: readonly CampoFiltro[],
+): DecisaoFiltros {
+  // Nenhum param mudou → devolve a MESMA referência (o hook usa a identidade
+  // para não reajustar estado no render e entrar em laço).
+  if (anterior && TODOS_CAMPOS.every((c) => anterior.url[c] === daUrl[c])) return anterior
+
+  const validos = sanitizarFiltros(daUrl, opcoes, camposAtivos)
+  const url = { ...FILTROS_VAZIOS }
+  const aceito = { ...FILTROS_VAZIOS }
+  for (const campo of TODOS_CAMPOS) {
+    url[campo] = daUrl[campo]
+    aceito[campo] =
+      anterior && anterior.url[campo] === daUrl[campo] ? anterior.aceito[campo] : validos[campo]
+  }
+  return { url, aceito }
+}
+
 // ---------- hook ----------
 
 // Grava a query na URL SEM navegar: `history.replaceState` nativo é o shallow
@@ -261,8 +311,34 @@ export function sanitizarFiltros(
 // no histórico (Voltar sai da página, como o usuário espera) e o estado continua
 // no F5 e no link colado. O hash (#saidas/#entradas) é preservado.
 function gravarQueryNaUrl(query: string): void {
-  const { pathname, hash } = window.location
+  const { pathname, hash, search } = window.location
+  // Query idêntica → não grava. Cada `replaceState` faz o Next despachar um
+  // ACTION_RESTORE (ver `navegacaoEmVoo`); não vale pagar esse risco à toa.
+  if (search.replace(/^\?/, '') === query) return
   window.history.replaceState(null, '', `${pathname}${query ? `?${query}` : ''}${hash}`)
+}
+
+// Há navegação em voo? (F11 — revisão adversarial)
+//
+// Trocar período (`periodo-filtro.tsx`) navega com `router.push` dentro de um
+// `startTransition`. Navegação só por searchParam na MESMA rota não monta o
+// `loading.tsx`, então a tela antiga fica montada e interativa durante todo o
+// round-trip do RSC — e o Next só escreve a history no commit, ou seja,
+// `window.location` E `useSearchParams()` ainda apontam para a URL VELHA.
+// Gravar a URL nesse intervalo é destrutivo: o patch do Next em
+// `history.replaceState` despacha um ACTION_RESTORE, e um ACTION_RESTORE que
+// chega com um ACTION_NAVIGATE pendente marca a navegação como `discarded`
+// (node_modules/next/dist/client/components/app-router-instance.js) — o clique
+// no período se perde em silêncio e a URL volta para o período anterior.
+//
+// Não existe API pública para "navegação pendente" fora de um `<Link>`, mas o
+// repo tem uma convenção: quem navega marca `aria-busy` no próprio bloco
+// enquanto o `isPending` do `useTransition` estiver ligado (periodo-filtro,
+// ativos-filtros, lista-filtros). É esse o sinal usado aqui. Se ele falhar para
+// mais ou para menos, nada se perde: a escolha do filtro já vale na hora pelo
+// estado do hook — só a gravação na URL é adiada.
+function navegacaoEmVoo(): boolean {
+  return document.querySelector('[aria-busy="true"]') !== null
 }
 
 export function useFiltrosTabela<T extends LinhaFiltravel>(rows: T[], config: ConfigFiltros<T>) {
@@ -278,11 +354,24 @@ export function useFiltrosTabela<T extends LinhaFiltravel>(rows: T[], config: Co
     return acc
   }, [rows, camposAtivos])
 
+  const daUrl = useMemo(() => lerFiltrosDaQuery(query, prefixo), [query, prefixo])
+
   // O estado É a URL (T10): F5, back/forward e `router.refresh()` do realtime /
-  // do auto-refresh do visualizador preservam o filtro de graça.
+  // do auto-refresh do visualizador preservam o filtro de graça. O que fica em
+  // estado é só a DECISÃO sobre cada param (ver `decidirFiltros`) — ajuste de
+  // estado no render, padrão "You Might Not Need an Effect" já usado no repo
+  // (periodo-filtro, lista-filtros, progresso-navegacao).
+  const [decisao, setDecisao] = useState<DecisaoFiltros>(() =>
+    decidirFiltros(null, daUrl, opcoes, camposAtivos),
+  )
+  const decisaoAtual = decidirFiltros(decisao, daUrl, opcoes, camposAtivos)
+  if (decisaoAtual !== decisao) setDecisao(decisaoAtual)
+
+  // Revalida a cada render: valor que DEIXOU de existir entre as opções para de
+  // filtrar na hora (senão o `<Select>` ficaria em branco filtrando escondido).
   const filtros = useMemo(
-    () => sanitizarFiltros(lerFiltrosDaQuery(query, prefixo), opcoes, camposAtivos),
-    [query, prefixo, opcoes, camposAtivos],
+    () => sanitizarFiltros(decisaoAtual.aceito, opcoes, camposAtivos),
+    [decisaoAtual, opcoes, camposAtivos],
   )
 
   const filtradas = useMemo(
@@ -300,19 +389,52 @@ export function useFiltrosTabela<T extends LinhaFiltravel>(rows: T[], config: Co
     return agregarResumo(filtradas, (r) => resumoChave(r, !!ehGeral))
   }, [filtradas, resumoChave, ehGeral])
 
-  // A base da próxima URL é `window.location.search` (fresco), não o `query` do
-  // render: `replaceState` atualiza `window.location` na hora, então duas trocas
-  // seguidas — inclusive de tabelas diferentes — se compõem em vez de se apagar.
+  // Gravação adiada enquanto houver navegação em voo (ver `navegacaoEmVoo`).
+  // Guarda a TRANSFORMAÇÃO da query, não a query pronta: as trocas feitas nesse
+  // intervalo se compõem e são aplicadas depois sobre a URL nova, sem desfazer
+  // a troca de período que estava a caminho.
+  const adiado = useRef<((q: string) => string) | null>(null)
+
+  const gravar = useCallback((transformar: (q: string) => string) => {
+    if (navegacaoEmVoo()) {
+      const anterior = adiado.current
+      adiado.current = anterior ? (q) => transformar(anterior(q)) : transformar
+      return
+    }
+    // Base = `window.location.search` (fresco), não o `query` do render:
+    // `replaceState` atualiza `window.location` na hora, então duas trocas
+    // seguidas — inclusive de tabelas diferentes — se compõem em vez de se
+    // apagar.
+    gravarQueryNaUrl(transformar(window.location.search))
+  }, [])
+
+  // `query` é a URL COMMITADA: ela só muda quando a navegação em voo termina.
+  // É esse o gatilho para gravar o que ficou adiado, já sobre a URL nova.
+  useEffect(() => {
+    const transformar = adiado.current
+    if (!transformar) return
+    adiado.current = null
+    gravarQueryNaUrl(transformar(window.location.search))
+  }, [query])
+
   const setFiltro = useCallback(
     (campo: CampoFiltro, valor: string) => {
-      gravarQueryNaUrl(escreverFiltrosNaQuery(window.location.search, prefixo, { [campo]: valor }))
+      // A escolha vale na hora, chegue quando chegar a gravação na URL — e é
+      // ela que desfaz um descarte anterior do mesmo param (ver
+      // `decidirFiltros`), já que escolher o mesmo valor não mudaria a query.
+      // Só `aceito` muda: `url` continua sendo o que a URL COMMITADA diz, senão
+      // o próximo render leria "o param mudou" e refaria a decisão em cima do
+      // valor velho, apagando a escolha.
+      setDecisao((prev) => ({ ...prev, aceito: { ...prev.aceito, [campo]: valor } }))
+      gravar((q) => escreverFiltrosNaQuery(q, prefixo, { [campo]: valor }))
     },
-    [prefixo],
+    [gravar, prefixo],
   )
 
   const limpar = useCallback(() => {
-    gravarQueryNaUrl(limparFiltrosNaQuery(window.location.search, prefixo))
-  }, [prefixo])
+    setDecisao((prev) => ({ ...prev, aceito: { ...FILTROS_VAZIOS } }))
+    gravar((q) => limparFiltrosNaQuery(q, prefixo))
+  }, [gravar, prefixo])
 
   return { filtradas, temFiltro, resumo, filtros, opcoes, camposAtivos, setFiltro, limpar }
 }

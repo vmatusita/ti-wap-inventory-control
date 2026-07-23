@@ -32,7 +32,7 @@ import {
   CommandShortcut,
 } from '@/components/ui/command'
 import { StatusBadge } from '@/components/ativos/status-badge'
-import { editando } from '@/components/movimentacoes/atalho-global'
+import { editando, modalAberto } from '@/components/movimentacoes/atalho-global'
 import { buscarAtivosParaMovimentacao } from '@/lib/actions/movimentacoes'
 import { normalizarBusca } from '@/lib/ajuda/busca'
 import { rotuloCategoria } from '@/lib/dominio'
@@ -149,6 +149,10 @@ export function PaletaComandosProvider({
     function onKey(e: KeyboardEvent) {
       if (e.defaultPrevented || e.repeat) return
       if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+        // Com OUTRO modal aberto (estorno, lancamento de item…) a paleta nao
+        // empilha por cima: so responde quando e ela mesma o modal aberto,
+        // para fechar. `aberto` desempata — a paleta tambem e um dialogo.
+        if (!aberto && modalAberto()) return
         e.preventDefault()
         if (aberto) setAberto(false)
         else abrir()
@@ -157,6 +161,10 @@ export function PaletaComandosProvider({
       if (e.ctrlKey || e.metaKey || e.altKey) return
       if (e.key !== '/') return
       if (editando(e.target)) return
+      // Mesma guarda do `N`/`?`: nada de abrir a paleta por cima de outro
+      // modal — e, se a paleta ja e o modal aberto (foco fora do campo),
+      // reabrir zeraria a consulta que o operador acabou de digitar.
+      if (modalAberto()) return
       e.preventDefault()
       abrir()
     }
@@ -220,8 +228,17 @@ export function PaletaComandosProvider({
         {/* O `CommandDialog` deste projeto NAO embrulha os filhos num `Command`
             (versao do shadcn instalada) — a raiz do cmdk vem daqui. Filtro
             desligado: os ativos ja chegam filtrados do servidor e os grupos
-            estaticos usam `casa()`. */}
-        <Command shouldFilter={false} label="Busca e comandos">
+            estaticos usam `casa()`.
+
+            `vimBindings={false}`: o cmdk liga por padrao os atalhos vim
+            Ctrl+N/P/J/K e o ramo do Ctrl+K comeca com `preventDefault()`. Como
+            o dialogo e portalizado em `document.body` e o React escuta no
+            `document`, esse handler roda ANTES do listener de `window` e o
+            Ctrl+K chegava la ja com `defaultPrevented` — no Windows (todo o
+            parque) a paleta nao fechava e a selecao andava uma linha em
+            silencio. Nada se perde: o rodape anuncia so ↑↓/Enter/Esc, que
+            continuam funcionando. */}
+        <Command shouldFilter={false} vimBindings={false} label="Busca e comandos">
           <CommandInput
             value={query}
             onValueChange={setQuery}
@@ -319,7 +336,11 @@ export function PaletaComandosProvider({
               </CommandGroup>
             )}
 
-            {semNada && (
+            {/* `buscou` na guarda: com 1 caractere nenhuma consulta chegou ao
+                servidor, então "Nada encontrado" seria mentira — e apareceria
+                junto com a dica "Digite ao menos 2 caracteres" logo abaixo.
+                Nesse estado quem orienta é só o rodapé. */}
+            {semNada && buscou && (
               <CommandEmpty>
                 Nada encontrado. Tente o patrimônio, a service tag ou o nome do
                 colaborador.

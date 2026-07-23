@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { interpretarBuscaMovimentacao } from '@/lib/queries/movimentacoes'
+import {
+  interpretarBuscaMovimentacao,
+  patrimoniosAmbiguosNaPagina,
+} from '@/lib/queries/movimentacoes'
 
 // F11/M8 — a busca da lista de movimentações é de CAMPO ÚNICO (decisão do
 // Johnny): o PostgREST não faz `OR` entre a tabela e um embed, então o termo
@@ -69,5 +72,44 @@ describe('interpretarBuscaMovimentacao', () => {
       campo: 'colaborador',
       valor: 'WAP12345678',
     })
+  })
+})
+
+// Patrimônio repete em casos raros (spec §5): buscar `WAP0001234` na lista traz
+// o histórico dos DOIS ativos intercalado, e a tabela precisa marcar quais
+// linhas exigem a service tag para desempatar.
+// Dados 100% fictícios (CLAUDE.md regra 2).
+describe('patrimoniosAmbiguosNaPagina', () => {
+  it('página sem linhas não tem ambiguidade', () => {
+    expect(patrimoniosAmbiguosNaPagina([])).toEqual(new Set())
+  })
+
+  it('o MESMO ativo em várias linhas NÃO é duplicidade', () => {
+    const linhas = [
+      { ativo_id: 'a1', patrimonio: 'WAP0001234' },
+      { ativo_id: 'a1', patrimonio: 'WAP0001234' },
+      { ativo_id: 'a1', patrimonio: 'WAP0001234' },
+    ]
+    expect(patrimoniosAmbiguosNaPagina(linhas)).toEqual(new Set())
+  })
+
+  it('dois ATIVOS distintos com o mesmo patrimônio marcam o patrimônio', () => {
+    const linhas = [
+      { ativo_id: 'a1', patrimonio: 'WAP0001234' },
+      { ativo_id: 'a2', patrimonio: 'WAP0001234' },
+      { ativo_id: 'a3', patrimonio: 'WAP0005678' },
+    ]
+    expect(patrimoniosAmbiguosNaPagina(linhas)).toEqual(
+      new Set(['WAP0001234']),
+    )
+  })
+
+  it('ativos sem patrimônio (F7E) não contam como duplicidade entre si', () => {
+    const linhas = [
+      { ativo_id: 'a1', patrimonio: null },
+      { ativo_id: 'a2', patrimonio: null },
+      { ativo_id: 'a3', patrimonio: 'WAP0001234' },
+    ]
+    expect(patrimoniosAmbiguosNaPagina(linhas)).toEqual(new Set())
   })
 })

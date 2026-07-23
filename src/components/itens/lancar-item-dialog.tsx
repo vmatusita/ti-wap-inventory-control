@@ -122,9 +122,17 @@ export function LancarItemDialog({
       if (!Number.isFinite(presetItem)) return
       proximoUid.current += 1
       setLinhas([{ uid: proximoUid.current, itemId: presetItem, quantidade: '' }])
-      if (typeof presetFilial === 'number' && Number.isFinite(presetFilial)) {
-        setFilialId(presetFilial)
-      }
+      // Preset SEM filial (visão por filial, ou consolidado sem recorte): o
+      // campo fica VAZIO, nunca herdando a primeira filial da lista nem a do
+      // lançamento anterior. O "+" é da LINHA, não da célula — escolher uma
+      // filial por conta própria grava no lugar errado em silêncio, e o foco
+      // pula direto para a quantidade (abaixo), então ninguém confere o campo.
+      // Sem filial o Zod barra o envio ("Escolha a filial") em vez de gravar.
+      setFilialId(
+        typeof presetFilial === 'number' && Number.isFinite(presetFilial)
+          ? presetFilial
+          : null,
+      )
       setTipo('entrada')
       setChamado('')
       setColaborador('')

@@ -10,6 +10,7 @@ import {
   escreverFiltrosNaQuery,
   limparFiltrosNaQuery,
   sanitizarFiltros,
+  decidirFiltros,
   PREFIXO_FILTROS,
   type CampoFiltro,
 } from '@/components/relatorios/use-filtros-tabela'
@@ -328,5 +329,90 @@ describe('sanitizarFiltros', () => {
       ['motivo'],
     )
     expect(out.motivo).toBe('')
+  })
+})
+
+// ---------- F11 (revisão adversarial): descarte que não reativa sozinho ----------
+
+describe('decidirFiltros', () => {
+  const ATIVOS: CampoFiltro[] = ['categoria', 'motivo']
+  const semTroca = {
+    categoria: [{ valor: 'celular', rotulo: 'Celular' }],
+    motivo: [{ valor: 'Avaria', rotulo: 'Avaria' }],
+  }
+  const comTroca = {
+    categoria: [{ valor: 'celular', rotulo: 'Celular' }],
+    motivo: [
+      { valor: 'Avaria', rotulo: 'Avaria' },
+      { valor: 'Troca', rotulo: 'Troca' },
+    ],
+  }
+  const url = (p: Partial<Record<CampoFiltro, string>>): Record<CampoFiltro, string> => ({
+    filial: '',
+    categoria: '',
+    motivo: '',
+    tipo: '',
+    ...p,
+  })
+
+  it('primeira decisão aceita o que existe entre as opções', () => {
+    const d = decidirFiltros(null, url({ categoria: 'celular', motivo: 'Avaria' }), semTroca, ATIVOS)
+    expect(d.aceito.categoria).toBe('celular')
+    expect(d.aceito.motivo).toBe('Avaria')
+  })
+
+  it('primeira decisão descarta o valor ausente, mas lembra o que a URL dizia', () => {
+    const d = decidirFiltros(null, url({ motivo: 'Troca' }), semTroca, ATIVOS)
+    expect(d.aceito.motivo).toBe('')
+    expect(d.url.motivo).toBe('Troca')
+  })
+
+  it('param inalterado devolve a MESMA referência (não reajusta estado no render)', () => {
+    const antes = decidirFiltros(null, url({ motivo: 'Avaria' }), semTroca, ATIVOS)
+    expect(decidirFiltros(antes, url({ motivo: 'Avaria' }), semTroca, ATIVOS)).toBe(antes)
+  })
+
+  it('descarte é pegajoso: o valor reaparecer nas opções NÃO reativa o filtro', () => {
+    // Cenário do achado: link colado com `sd.motivo=Troca` num período sem
+    // "Troca"; depois o realtime/auto-refresh traz uma saída com esse motivo.
+    const antes = decidirFiltros(null, url({ motivo: 'Troca' }), semTroca, ATIVOS)
+    const depois = decidirFiltros(antes, url({ motivo: 'Troca' }), comTroca, ATIVOS)
+    expect(depois.aceito.motivo).toBe('')
+  })
+
+  it('descarte de um campo sobrevive à mudança de OUTRO param', () => {
+    const antes = decidirFiltros(null, url({ motivo: 'Troca' }), semTroca, ATIVOS)
+    const depois = decidirFiltros(
+      antes,
+      url({ motivo: 'Troca', categoria: 'celular' }),
+      comTroca,
+      ATIVOS,
+    )
+    expect(depois.aceito.categoria).toBe('celular')
+    expect(depois.aceito.motivo).toBe('')
+  })
+
+  it('param novo refaz a decisão (link, aba de filial, período trocado)', () => {
+    const antes = decidirFiltros(null, url({ motivo: 'Troca' }), semTroca, ATIVOS)
+    const depois = decidirFiltros(antes, url({ motivo: 'Avaria' }), semTroca, ATIVOS)
+    expect(depois.aceito.motivo).toBe('Avaria')
+  })
+
+  it('param que some da URL zera o campo', () => {
+    const antes = decidirFiltros(null, url({ motivo: 'Avaria' }), semTroca, ATIVOS)
+    const depois = decidirFiltros(antes, url({}), semTroca, ATIVOS)
+    expect(depois.aceito.motivo).toBe('')
+    expect(depois.url.motivo).toBe('')
+  })
+
+  it('campo fora dos ativos nunca é aceito (ex.: filial fora do consolidado)', () => {
+    const d = decidirFiltros(
+      null,
+      url({ filial: 'Matriz' }),
+      { ...semTroca, filial: [{ valor: 'Matriz', rotulo: 'Matriz' }] },
+      ATIVOS,
+    )
+    expect(d.aceito.filial).toBe('')
+    expect(d.url.filial).toBe('Matriz')
   })
 })

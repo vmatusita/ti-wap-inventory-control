@@ -221,6 +221,26 @@ export function combinarSaldosPorFilial(
   return [...linhas.values()]
 }
 
+// Quanto do estoque do Total NÃO está em nenhuma das colunas da tabela (F11).
+// As colunas vêm de `listarFiliais()`, que só devolve filial ATIVA; o Total vem
+// da mesma RPC com `p_filial null`, que soma os lançamentos de QUALQUER filial —
+// inclusive uma desativada com saldo (o guarda de admin/filiais só conta ativos
+// patrimoniados, então isso é alcançável). Como as fórmulas da RPC são aditivas
+// por filial (o trigger 0027 garante saldo ≥ 0 em cada uma), a diferença é
+// exatamente o estoque que ficou fora das colunas — e a linha deixa de fechar
+// sem nada na tela explicando por quê. Zero é o caso normal. Função pura.
+export function estoqueForaDasColunas(
+  linha: SaldoItemFiliais,
+  filiais: Filial[],
+): number {
+  const soma = filiais.reduce(
+    (acc, f) => acc + (linha.porFilial[f.id]?.estoque ?? 0),
+    0,
+  )
+  const fora = linha.consolidado.estoque - soma
+  return fora > 0 ? fora : 0
+}
+
 // Saldo de TODAS as filiais (as-of hoje) + o consolidado, prontos para a tabela
 // lado a lado de /itens?visao=filiais. `filiaisConhecidas` evita reconsultar a
 // lista quando a página já a carregou.

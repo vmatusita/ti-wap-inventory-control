@@ -25,6 +25,29 @@ export function editando(alvo: EventTarget | null): boolean {
   return false
 }
 
+// Segunda guarda, no ESTADO da tela em vez do elemento focado. `editando` so
+// olha `e.target`, entao bastava o foco cair num botao (o "Cancelar" que o
+// estorno foca de proposito), no container do dialogo ou no body para o `N`/`?`
+// dispararem POR TRAS de um modal aberto — o dialogo desmontava e o texto ja
+// digitado se perdia. O Radix portaliza o conteudo em `document.body` e so
+// intercepta Escape, entao o keydown chega a `window` normalmente; quem precisa
+// se calar e o atalho.
+//
+// Deteccao: o Radix marca o conteudo com `data-state="open"` e o desmonta ao
+// fechar, entao o seletor nao pega dialogo fechado nem sobra durante a animacao
+// de saida. Os `data-slot` sao os das duas familias de overlay MODAL do projeto
+// (`ui/dialog.tsx` e `ui/sheet.tsx`); popover/dropdown ficam de fora de
+// proposito — nao cobrem a tela, nao seguram trabalho em andamento e seus
+// campos de texto ja caem na guarda `editando`.
+export function modalAberto(): boolean {
+  if (typeof document === 'undefined') return false
+  return (
+    document.querySelector(
+      '[data-slot="dialog-content"][data-state="open"],[data-slot="sheet-content"][data-state="open"]',
+    ) !== null
+  )
+}
+
 export function AtalhosGlobais() {
   const router = useRouter()
 
@@ -37,6 +60,9 @@ export function AtalhosGlobais() {
       // produzido) e nunca `e.code` (a tecla fisica, que muda de layout).
       if (e.ctrlKey || e.metaKey || e.altKey) return
       if (editando(e.target)) return
+      // Modal aberto = o operador esta no meio de outra tarefa: navegar para
+      // fora por causa de uma tecla solta destroi o que ele digitou.
+      if (modalAberto()) return
 
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault()

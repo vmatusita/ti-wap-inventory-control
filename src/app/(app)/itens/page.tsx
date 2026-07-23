@@ -101,7 +101,12 @@ function dataISO(v: string | undefined): string | null {
   if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
   const d = new Date(`${v}T00:00:00.000Z`)
   // Descarta data inexistente (ex.: 2026-02-31, que o Date "rolaria" para março).
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : null
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return null
+  // E data fora de faixa sã: o JS TEM ano zero, o Postgres NÃO. `?de=0000-01-01`
+  // passa no round-trip acima, chega ao banco como literal de `date` e volta
+  // 22008 — a leitura lança e derruba a página. Fora da faixa o param é
+  // ignorado, como qualquer outro lixo de URL. (Revisão adversarial da F11.)
+  return v >= '1900-01-01' && v <= '2999-12-31' ? v : null
 }
 
 export default async function ItensPage({
@@ -113,14 +118,21 @@ export default async function ItensPage({
   if (!operador) redirect('/login')
 
   const sp = await searchParams
-  const filialId = idNumerico(primeiro(sp.filial))
-  const grupoFiltro = primeiro(sp.grupo) as GrupoItem | undefined
-  const q = (primeiro(sp.q) ?? '').trim().toLowerCase()
-  const page = Math.max(1, Number(primeiro(sp.page) ?? '1') || 1)
 
   // Visão dos saldos (F11 · I4): 'filiais' = as filiais lado a lado; QUALQUER
   // outro valor (inclusive lixo na URL) cai no consolidado, que é o default.
   const visaoFiliais = primeiro(sp.visao) === 'filiais'
+
+  // Na visão por filial NÃO existe recorte de filial: a tabela mostra todas e o
+  // select nem é renderizado. O param é neutralizado aqui, no PARSE — não só no
+  // alternador de visão —, porque uma URL `?visao=filiais&filial=N` (clique no
+  // select durante a navegação pendente, link colado) recortaria o histórico, o
+  // CSV de saldos e o pré-preenchimento do lançamento sem nenhum controle
+  // visível na tela para ver ou desfazer o filtro.
+  const filialId = visaoFiliais ? null : idNumerico(primeiro(sp.filial))
+  const grupoFiltro = primeiro(sp.grupo) as GrupoItem | undefined
+  const q = (primeiro(sp.q) ?? '').trim().toLowerCase()
+  const page = Math.max(1, Number(primeiro(sp.page) ?? '1') || 1)
 
   // Filtros só do histórico (a filial vale para os dois blocos).
   const itemFiltro = idNumerico(primeiro(sp.item))
@@ -154,8 +166,8 @@ export default async function ItensPage({
   const porGrupoFiliais = agruparSaldos(saldosFiliais?.itens ?? [], q, grupoFiltro)
 
   const blocosVazios = (visaoFiliais ? porGrupoFiliais : porGrupo).length === 0
-  // Na visão por filial o recorte de filial não existe (todas estão na tabela).
-  const temFiltroSaldos = Boolean(q || grupoFiltro || (!visaoFiliais && filialId))
+  // `filialId` já é nulo na visão por filial (ver o parse acima).
+  const temFiltroSaldos = Boolean(q || grupoFiltro || filialId)
 
   return (
     <div className="space-y-4">
@@ -222,7 +234,6 @@ export default async function ItensPage({
                 <SaldosFiliaisTabela
                   filiais={saldosFiliais.filiais}
                   itens={bloco.itens}
-                  filialId={filialId}
                 />
               </div>
             </section>
