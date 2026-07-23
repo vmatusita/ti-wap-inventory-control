@@ -85,9 +85,16 @@ export function ItemCombobox({
       // `estoque_minimo: 0` espelha o que `criarItemInline` gravou (default da
       // coluna 0042 = sem alerta de reposição) — o objeto local tem que bater
       // com a linha do banco, senão a lista da tela mentiria até o refresh.
+      // Item REATIVADO (F12-W4-06) é a exceção: ele já existia e pode ter um
+      // mínimo configurado. Não inventamos um valor — a próxima carga da tela
+      // traz o real; até lá o combobox só precisa do id e do nome.
       onItemCriado({ id: res.id, nome, grupo: grupoNovo, estoque_minimo: 0 })
       onSelecionar(res.id)
-      toast.success(`Item “${nome}” criado.`)
+      toast.success(
+        res.reativado
+          ? `Item “${nome}” já existia desativado e foi reativado.`
+          : `Item “${nome}” criado.`,
+      )
       fechar(false)
     })
   }

@@ -68,6 +68,13 @@ export function decidirAplicacaoKit({
       // escreve '' quando a última movimentação não tinha o campo).
       motivo: motivoAplicavel ? motivoDoKit : '',
       termo: payload.termo ?? '',
+      // A DATA do termo anda junto com o status (`serializarCampo('termo')`
+      // grava `termo_assinado` e `termo_data` no mesmo lance) e o kit nunca a
+      // carrega — guardar uma data num preset a congelaria no passado. Sem esta
+      // limpeza, aplicar um kit depois de "Repetir última" mantinha a data do
+      // termo da OUTRA movimentação, e um kit sem termo deixava `termo_data`
+      // preenchida com `termo_assinado` vazio. (Revisão adversarial da F12.)
+      termoData: '',
       observacao: payload.observacao ?? '',
       // Campos condicionais do tipo ANTERIOR: some com eles quando o tipo muda
       // (mesma limpeza do `trocarTipo` — senão a filial de destino de uma

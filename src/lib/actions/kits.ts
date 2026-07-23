@@ -4,12 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
-import {
-  atualizarKitSchema,
-  desativarKitSchema,
-  kitCatalogoSchema,
-} from '@/lib/validators/kit'
-import { listarKitsAtivos, type Kit } from '@/lib/queries/kits'
+import { atualizarKitSchema, kitCatalogoSchema } from '@/lib/validators/kit'
 import type { Json } from '@/lib/types/database'
 
 // Escritas dos KITS DE MOVIMENTAÇÃO (F12 · M12 / F5 §5.9) — padrão do CRUD de
@@ -117,38 +112,14 @@ export async function atualizarKit(input: {
 
 // Kit NUNCA é excluído — só desativado (padrão do catálogo de itens). Some do
 // fluxo e continua no admin. Nada referencia o kit depois de aplicado (o payload
-// é copiado para o formulário), então desativar não altera nenhuma movimentação
-// já registrada.
-export async function desativarKit(input: { id: string }): Promise<ActionResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
-  const parsed = desativarKitSchema.safeParse(input)
-  if (!parsed.success) return { ok: false, erro: 'Kit inválido.' }
-
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('kits_modelos')
-    .update({ ativo: false })
-    .eq('id', parsed.data.id)
-  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
-  revalidarKits()
-  return { ok: true }
-}
-
-// ---------------------------------------------------------------------------
-// PROXY client→server (padrão de `buscarAtivosParaMovimentacao`)
-// ---------------------------------------------------------------------------
-// O passo 2 da nova movimentação é Client Component e NÃO pode importar
-// `src/lib/queries/**` (server-only). Degrada para lista vazia — um hiccup no
-// catálogo de kits não pode derrubar o fluxo de registrar movimentação —, mas
-// NÃO silencia: a falha vai para o log do servidor.
-export async function buscarKitsAtivos(): Promise<Kit[]> {
-  const uid = await operadorId()
-  if (!uid) return []
-  try {
-    return await listarKitsAtivos()
-  } catch (err) {
-    console.error('[buscarKitsAtivos] falha ao listar kits:', err)
-    return []
-  }
-}
+// é COPIADO para o formulário e a movimentação gravada não guarda kit_id),
+// então desativar não altera nenhuma movimentação já registrada.
+//
+// A desativação é o checkbox "Kit ativo" do `kit-dialog` → `atualizarKit`, e não
+// uma action própria. O contrato §1.5 da OS-F12 previa um `desativarKit`; ele
+// nasceu SEM CHAMADOR e foi removido na revisão adversarial da F12 (W6A):
+// em um arquivo `'use server'` cada export é um endpoint de escrita alcançável
+// pela rede, e um segundo caminho para o mesmo `update` só cria divergência.
+// Mesmo motivo para o proxy `buscarKitsAtivos`, também sem chamador: quem lê os
+// kits do fluxo é o Server Component `/movimentacoes/nova/page.tsx`, que já
+// chama `listarKitsAtivos()` com `.catch` e passa a lista por prop.

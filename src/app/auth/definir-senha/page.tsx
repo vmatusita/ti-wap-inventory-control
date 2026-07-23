@@ -36,7 +36,7 @@ export default function DefinirSenhaPage() {
     setPending(false)
 
     if (error) {
-      toast.error('Nao foi possivel definir a senha. Tente novamente.')
+      toast.error('Não foi possível definir a senha. Tente novamente.')
       return
     }
 

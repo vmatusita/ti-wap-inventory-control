@@ -23,6 +23,17 @@ async function operadorId(): Promise<string | null> {
   return idOperador(supabase)
 }
 
+// Rotas que leem catálogo OU saldo de item. O DASHBOARD entra na lista desde a
+// F12: o card "Itens para repor" cruza `listarItensAtivos()` com a RPC de saldos,
+// então tanto mexer no `estoque_minimo` quanto lançar quantidade mudam o que ele
+// mostra — sem revalidar `/`, o card ficava velho até o próximo deploy (achado
+// da revisão adversarial da F12, item 11).
+function revalidarItens() {
+  revalidatePath('/admin/itens')
+  revalidatePath('/itens')
+  revalidatePath('/')
+}
+
 // Resultado POR LINHA do carrinho (F10 · I1). Espelha o lote de movimentações da
 // F2 — com uma diferença INTENCIONAL: lá a primeira falha interrompe o resto;
 // aqui cada linha é independente (um item sem saldo não impede os outros).
@@ -86,7 +97,7 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
   }
 
   if (criados > 0) {
-    revalidatePath('/itens')
+    revalidarItens()
     revalidatePath('/relatorios', 'layout')
   }
   return { ok: resultados.every((r) => r.ok), resultados }
@@ -143,7 +154,7 @@ export async function estornarLancamento(input: {
   })
   if (e2) return { ok: false, erro: traduzErroBanco(e2.message, e2.code) }
 
-  revalidatePath('/itens')
+  revalidarItens()
   revalidatePath('/relatorios', 'layout')
   return { ok: true }
 }
@@ -153,7 +164,11 @@ export async function estornarLancamento(input: {
 // O `id` só volta em sucesso — o criar inline (F10 · I2) precisa dele para já
 // deixar o item novo SELECIONADO na linha do carrinho. Quem só lê `ok` (o dialog
 // de admin/itens) continua compatível.
-export type CriarItemResult = ActionResult & { id?: number }
+//
+// `reativado` (F12 · W6A): o item não foi criado agora — ele já existia
+// DESATIVADO e voltou ao catálogo. A UI precisa saber para dizer a verdade no
+// toast; ver `criarItemInline`.
+export type CriarItemResult = ActionResult & { id?: number; reativado?: boolean }
 
 export async function criarItem(input: {
   nome: string
@@ -183,8 +198,7 @@ export async function criarItem(input: {
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
-  revalidatePath('/admin/itens')
-  revalidatePath('/itens')
+  revalidarItens()
   return { ok: true, id: data?.id }
 }
 
@@ -193,6 +207,15 @@ export async function criarItem(input: {
 // lançamento nem carrega essa coluna. Reusa `criarItem` (mesma validação, mesma
 // tradução de nome duplicado, mesmos revalidatePath). Todo operador é admin
 // (nível único, CLAUDE.md) — não há gate de permissão a checar.
+//
+// BECO SEM SAÍDA que esta action fecha (achado F12-W4-06): o combobox é
+// alimentado por `listarItensAtivos()` (só item ATIVO), mas o índice único
+// `itens_nome_uidx` é sobre TODOS os itens. Com um homônimo DESATIVADO o
+// operador não via o item na lista, tentava criar e recebia "Já existe um item
+// com esse nome." — para um item que a tela dizia não existir, sem nenhuma saída
+// dentro do diálogo e com o carrinho já montado. Agora o item desativado é
+// REATIVADO e devolvido selecionado: é o que o operador quer (usar o item), é
+// reversível em Administração → Itens e preserva todo o histórico dele.
 export async function criarItemInline(input: {
   nome: string
   grupo: string
@@ -205,6 +228,35 @@ export async function criarItemInline(input: {
   }
 
   const supabase = await createClient()
+
+  // Catálogo INTEIRO (ativos e inativos) para achar o homônimo. Comparação em
+  // JS e não `ilike` no banco: o nome é texto livre e um `%` ou `_` digitado
+  // pelo operador viraria curinga no padrão. O catálogo é curado e minúsculo —
+  // `listarItensAdmin` já o lê inteiro a cada carga de /admin/itens.
+  const { data: catalogo, error: erroCatalogo } = await supabase
+    .from('itens')
+    .select('id, nome, ativo')
+  if (erroCatalogo) {
+    return { ok: false, erro: traduzErroBanco(erroCatalogo.message, erroCatalogo.code) }
+  }
+  // Mesma chave do índice único `itens_nome_uidx` (0014): `lower(nome)`.
+  const alvo = parsed.data.nome.toLowerCase()
+  const homonimo = (catalogo ?? []).find((i) => i.nome.trim().toLowerCase() === alvo)
+  if (homonimo && !homonimo.ativo) {
+    const { error: erroReativar } = await supabase
+      .from('itens')
+      .update({ ativo: true })
+      .eq('id', homonimo.id)
+    if (erroReativar) {
+      return {
+        ok: false,
+        erro: 'Já existe um item com esse nome, mas ele está desativado e não foi possível reativá-lo. Reative-o em Administração → Itens.',
+      }
+    }
+    revalidarItens()
+    return { ok: true, id: homonimo.id, reativado: true }
+  }
+
   const { data: maior, error } = await supabase
     .from('itens')
     .select('ordem')
@@ -257,8 +309,7 @@ export async function atualizarItem(input: {
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
-  revalidatePath('/admin/itens')
-  revalidatePath('/itens')
+  revalidarItens()
   return { ok: true }
 }
 
@@ -284,7 +335,6 @@ export async function excluirItem(input: { id: number }): Promise<ActionResult> 
 
   const { error } = await supabase.from('itens').delete().eq('id', id)
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
-  revalidatePath('/admin/itens')
-  revalidatePath('/itens')
+  revalidarItens()
   return { ok: true }
 }

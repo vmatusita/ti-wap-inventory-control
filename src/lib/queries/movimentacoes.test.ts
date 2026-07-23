@@ -16,21 +16,50 @@ describe('interpretarBuscaMovimentacao', () => {
     expect(interpretarBuscaMovimentacao(undefined)).toBeNull()
   })
 
-  it('texto que canonicaliza vira busca por PATRIMÔNIO (igualdade)', () => {
+  it('texto que canonicaliza vira busca por PATRIMÔNIO (canônica + crua)', () => {
     expect(interpretarBuscaMovimentacao('WAP0001234')).toEqual({
       campo: 'patrimonio',
       valor: 'WAP0001234',
+      canonico: 'WAP0001234',
+      cru: 'WAP0001234',
     })
   })
 
-  it('canonicaliza as grafias soltas do dia a dia', () => {
+  it('canonicaliza as grafias soltas do dia a dia (e guarda a forma crua)', () => {
     // espaço, minúscula, hífen e zeros à esquerda ausentes
-    for (const bruto of ['wap 4491', 'WAP4491', 'wap-4491', 'Wap0004491']) {
+    const crus: Record<string, string> = {
+      'wap 4491': 'WAP4491',
+      WAP4491: 'WAP4491',
+      'wap-4491': 'WAP-4491',
+      Wap0004491: 'WAP0004491',
+    }
+    for (const [bruto, cru] of Object.entries(crus)) {
       expect(interpretarBuscaMovimentacao(bruto)).toEqual({
         campo: 'patrimonio',
         valor: 'WAP0004491',
+        canonico: 'WAP0004491',
+        cru,
       })
     }
+  })
+
+  // F12-W4-02: 29 ativos em produção têm patrimônio fora do formato canônico
+  // (a F7J deixou entrar valores assim) e NENHUM canoniza. Antes, todos caíam no
+  // ramo colaborador e devolviam zero linhas — o histórico era inalcançável.
+  it('patrimônio FORA do padrão canônico ainda é buscado como patrimônio', () => {
+    expect(interpretarBuscaMovimentacao('LEA7LYHQH4')).toEqual({
+      campo: 'patrimonio',
+      valor: 'LEA7LYHQH4',
+      canonico: null,
+      cru: 'LEA7LYHQH4',
+    })
+    // Minúsculas: o `.ilike` ignora a caixa, mas a legenda mostra em maiúsculas.
+    expect(interpretarBuscaMovimentacao(' lea7lyhqh4 ')).toEqual({
+      campo: 'patrimonio',
+      valor: 'LEA7LYHQH4',
+      canonico: null,
+      cru: 'LEA7LYHQH4',
+    })
   })
 
   it('nome de pessoa cai na busca por COLABORADOR', () => {
@@ -40,10 +69,45 @@ describe('interpretarBuscaMovimentacao', () => {
     })
   })
 
-  it('número solto não é patrimônio (falta o prefixo) — vai para colaborador', () => {
-    expect(interpretarBuscaMovimentacao('4491')).toEqual({
+  // A forma de plaqueta é testada sobre o termo ORIGINAL, nunca sobre o `cru`:
+  // o `cru` junta as palavras (para "wap 4491" achar "WAP4491") e, se ele
+  // decidisse o ramo, "Fulano 12" viraria "FULANO12" e seria lido como plaqueta.
+  // (Termo com espaço que CANONIZA — "wap 4491" — segue no ramo patrimônio: é a
+  // grafia solta que a F11 já aceitava de propósito.)
+  it('nome com número (mais de uma palavra) continua em COLABORADOR', () => {
+    expect(interpretarBuscaMovimentacao('Fulano 12')).toEqual({
       campo: 'colaborador',
+      valor: 'Fulano 12',
+    })
+    expect(interpretarBuscaMovimentacao('Beltrano 2024')).toEqual({
+      campo: 'colaborador',
+      valor: 'Beltrano 2024',
+    })
+  })
+
+  // Palavra só de letras não distingue plaqueta de nome — fica em colaborador.
+  it('palavra só de letras (sem dígito) continua em COLABORADOR', () => {
+    expect(interpretarBuscaMovimentacao('Fulano')).toEqual({
+      campo: 'colaborador',
+      valor: 'Fulano',
+    })
+  })
+
+  // MUDANÇA DELIBERADA da F12 (antes ia para colaborador): o acervo tem
+  // patrimônio não-canônico só de dígitos, e nenhum colaborador se chama "4491".
+  it('número solto de 4+ dígitos é lido como patrimônio cru', () => {
+    expect(interpretarBuscaMovimentacao('4491')).toEqual({
+      campo: 'patrimonio',
       valor: '4491',
+      canonico: null,
+      cru: '4491',
+    })
+  })
+
+  it('termo curto demais para plaqueta (< 4) fica em colaborador', () => {
+    expect(interpretarBuscaMovimentacao('A1')).toEqual({
+      campo: 'colaborador',
+      valor: 'A1',
     })
   })
 
@@ -67,11 +131,32 @@ describe('interpretarBuscaMovimentacao', () => {
     expect(interpretarBuscaMovimentacao('*')).toBeNull()
   })
 
-  it('mais de 7 dígitos significativos não é patrimônio válido', () => {
+  // Mais de 7 dígitos significativos NÃO canoniza (`canonicalizarPatrimonio`
+  // devolve null) — mas ainda tem a forma de plaqueta, então é procurado cru.
+  it('mais de 7 dígitos significativos vira patrimônio CRU, não colaborador', () => {
     expect(interpretarBuscaMovimentacao('WAP12345678')).toEqual({
-      campo: 'colaborador',
+      campo: 'patrimonio',
       valor: 'WAP12345678',
+      canonico: null,
+      cru: 'WAP12345678',
     })
+  })
+
+  // O `cru` e o `canonico` entram numa string `.or()` do PostgREST; qualquer
+  // metacaractere (`,` `(` `)` `.` `%` `_` `*`) ali quebraria o parser ou viraria
+  // curinga. O charset da forma de plaqueta é a defesa — este teste a tranca.
+  it('nenhum metacaractere do PostgREST escapa pelo ramo patrimônio', () => {
+    for (const sujo of [
+      'WAP,0001234',
+      'WAP(0001234)',
+      'WAP%1234',
+      'WAP_1234',
+      'WAP*1234',
+      'WAP.1234',
+    ]) {
+      const b = interpretarBuscaMovimentacao(sujo)
+      expect(b?.campo).toBe('colaborador')
+    }
   })
 })
 

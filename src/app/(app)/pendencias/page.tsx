@@ -11,6 +11,7 @@ import {
   type TipoPendencia,
 } from '@/lib/queries/pendencias-detalhe'
 import { rotuloCategoria } from '@/lib/dominio'
+import { paginaNumerica } from '@/lib/url-params'
 import { formatDate } from '@/lib/format'
 import {
   Table,
@@ -72,7 +73,11 @@ export default async function PendenciasPage({
     ? (tipoRaw as TipoPendencia)
     : null
   const q = (primeiro(sp.q) ?? '').trim() || null
-  const page = Math.max(1, Number(primeiro(sp.page) ?? '1') || 1)
+  // Teto de página (F12-W4-01): sem ele `?page=99999999999999999999` vira 1e20,
+  // o postgrest-js serializa `offset=3e+21`, o PostgREST descarta o offset EM
+  // SILÊNCIO (200, sem PGRST103) e a paginação trava com notação científica no
+  // rodapé. Página válida mas além do fim cai no fallback PGRST103 da query.
+  const page = paginaNumerica(primeiro(sp.page))
   // Diferencia "não há pendência nenhuma" de "nada neste filtro" no estado vazio.
   const temFiltro = Boolean(filialSlug || tipo || q)
 

@@ -136,10 +136,10 @@ function mapearPendencia(r: RowPendencia): PendenciaDetalhe {
 // a lista paginada e o export CSV (F10 · T5) partem daqui, então o arquivo nunca
 // diverge da tela. Devolve uma query NOVA a cada chamada — o builder do
 // postgrest-js é mutável e não se reexecuta com segurança.
-function queryPendencias(client: DbClient, opts: FiltrosPendencias) {
+function queryPendencias(client: DbClient, opts: FiltrosPendencias, head = false) {
   let query = client
     .from('v_pendencias')
-    .select(PENDENCIA_SELECT, { count: 'exact' })
+    .select(PENDENCIA_SELECT, { count: 'exact', head })
     .order('desde', { ascending: true, nullsFirst: false })
     // Desempate por id (F10 · T5): `desde` empata (medido no ensaio: até 2 linhas
     // no mesmo instante) e ordenação sem critério único NÃO é estável entre
@@ -176,15 +176,34 @@ function queryPendencias(client: DbClient, opts: FiltrosPendencias) {
   return query
 }
 
+// Faixa pedida além do fim do resultado. O PostgREST responde 416 com este
+// código em vez de uma lista vazia — mesma constante e mesmo tratamento de
+// `listarMovimentacoes`.
+const RANGE_INVALIDO = 'PGRST103'
+
 export async function listarPendencias(
   opts: FiltrosPendencias & { page?: number },
 ): Promise<ListaPendencias> {
   const client = await createClient()
-  const page = Math.max(1, opts.page ?? 1)
-  const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
+  const faixa = (p: number) =>
+    queryPendencias(client, opts).range((p - 1) * PAGE_SIZE, (p - 1) * PAGE_SIZE + PAGE_SIZE - 1)
 
-  const { data, error, count } = await queryPendencias(client, opts).range(from, to)
+  let page = Math.max(1, opts.page ?? 1)
+  let { data, error, count } = await faixa(page)
+
+  // Produção tem 1.165 pendências = 39 páginas: `/pendencias?page=39` num
+  // favorito, ou um filtro que encolheu o resultado, devolve 416 PGRST103 — e o
+  // throw derrubava o SHELL INTEIRO (não havia error.tsx neste segmento), com um
+  // "Tentar novamente" que refalha para sempre porque a URL não muda.
+  // Descobrimos o total e mostramos a ÚLTIMA página que existe. Uma tentativa
+  // só — sem laço.
+  if (error?.code === RANGE_INVALIDO) {
+    const { count: total, error: erroTotal } = await queryPendencias(client, opts, true)
+    if (erroTotal) throw new Error(`Falha ao listar pendências: ${erroTotal.message}`)
+    page = Math.max(1, Math.ceil((total ?? 0) / PAGE_SIZE))
+    ;({ data, error, count } = await faixa(page))
+  }
+
   if (error) throw new Error(`Falha ao listar pendências: ${error.message}`)
 
   const rows = (data ?? []).map(mapearPendencia)

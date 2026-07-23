@@ -47,9 +47,9 @@ export default async function ConfirmarPage({
             <div className="space-y-4 text-center">
               <p className="text-sm text-muted-foreground">
                 {houveErro
-                  ? 'Nao foi possivel ativar o acesso. Este link pode ter expirado ou ja ter sido usado.'
-                  : 'Link invalido ou incompleto.'}{' '}
-                Peca um novo link ao administrador.
+                  ? 'Não foi possível ativar o acesso. Este link pode ter expirado ou já ter sido usado.'
+                  : 'Link inválido ou incompleto.'}{' '}
+                Peça um novo link ao administrador.
               </p>
               <Button asChild variant="outline" className="w-full">
                 <Link href="/login">Ir para o login</Link>

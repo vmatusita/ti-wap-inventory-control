@@ -57,13 +57,25 @@ export function LancarItemDialog({
   itens,
   filiais,
   ultimo,
+  abrirAoMontar = false,
 }: {
   itens: ItemCatalogo[]
   filiais: Filial[]
   ultimo: UltimoLancamento | null
+  // `?lancar=1` na URL (F12-W4-08): a paleta de comandos anuncia "Lançar item"
+  // no grupo AÇÕES, mas só navegava para /itens — o operador caía na tela igual
+  // à navegação normal e ia procurar o botão, que é justamente o gesto que a
+  // paleta existe para poupar. O param é lido no Server Component (que já
+  // valida searchParams) e chega aqui como flag: nada de `useSearchParams`.
+  abrirAoMontar?: boolean
 }) {
   const router = useRouter()
-  const [aberto, setAberto] = useState(false)
+  // `abrirAoMontar` entra no ESTADO INICIAL, não num efeito: a paleta navega
+  // para /itens?lancar=1 vinda de outra tela, então o dialog sempre monta do
+  // zero neste caminho. (Já estando em /itens, a paleta dispara o CustomEvent —
+  // ver `paleta-comandos.tsx` —, que é o canal de "sistema externo" que o
+  // dialog já escutava desde a F9.)
+  const [aberto, setAberto] = useState(abrirAoMontar)
   const [linhas, setLinhas] = useState<LinhaCarrinho[]>([
     { uid: 1, itemId: null, quantidade: '' },
   ])
@@ -119,9 +131,12 @@ export function LancarItemDialog({
   useEffect(() => {
     function onLancarItem(e: WindowEventMap[typeof EVENTO_LANCAR_ITEM]) {
       const { itemId: presetItem, filialId: presetFilial } = e.detail
-      if (!Number.isFinite(presetItem)) return
+      // `null` = abrir VAZIO (paleta de comandos, F12-W4-08). Qualquer outro
+      // valor não-finito continua sendo lixo e é ignorado.
+      const semPreset = presetItem === null
+      if (!semPreset && !Number.isFinite(presetItem)) return
       proximoUid.current += 1
-      setLinhas([{ uid: proximoUid.current, itemId: presetItem, quantidade: '' }])
+      setLinhas([{ uid: proximoUid.current, itemId: semPreset ? null : presetItem, quantidade: '' }])
       // Preset SEM filial (visão por filial, ou consolidado sem recorte): o
       // campo fica VAZIO, nunca herdando a primeira filial da lista nem a do
       // lançamento anterior. O "+" é da LINHA, não da célula — escolher uma
@@ -138,6 +153,12 @@ export function LancarItemDialog({
       setColaborador('')
       setData(hojeISO())
       setObservacao('')
+      // Sem preset não há quantidade a digitar ainda: o foco fica no começo do
+      // formulário (o item é o primeiro campo), como no botão "Lançar" e no `L`.
+      if (semPreset) {
+        setAberto(true)
+        return
+      }
       if (aberto) {
         setTimeout(() => qtdRef.current?.focus(), 0)
       } else {
@@ -148,6 +169,20 @@ export function LancarItemDialog({
     window.addEventListener(EVENTO_LANCAR_ITEM, onLancarItem)
     return () => window.removeEventListener(EVENTO_LANCAR_ITEM, onLancarItem)
   }, [aberto])
+
+  // `?lancar=1` (F12-W4-08) já abriu o dialog no estado inicial; aqui só some
+  // com o gatilho da URL, para um F5 (ou o botão voltar) não reabrir o dialog
+  // sem ninguém pedir. `history.replaceState` e não `router.replace`: aquele
+  // refaria a leitura do servidor inteira só para limpar um param, e este
+  // preserva os demais filtros do endereço. Nenhum `setState` aqui — o efeito
+  // só fala com o histórico do navegador, que é o sistema externo.
+  useEffect(() => {
+    if (!abrirAoMontar) return
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has('lancar')) return
+    url.searchParams.delete('lancar')
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  }, [abrirAoMontar])
 
   function limpar() {
     setLinhas([novaLinha()])

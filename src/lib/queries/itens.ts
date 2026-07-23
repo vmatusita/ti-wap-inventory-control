@@ -304,8 +304,9 @@ export type FiltrosHistorico = {
 function queryHistorico(
   supabase: Awaited<ReturnType<typeof createClient>>,
   opts: FiltrosHistorico,
+  head = false,
 ) {
-  let q = supabase.from('lancamentos_item').select(LANC_SELECT, { count: 'exact' })
+  let q = supabase.from('lancamentos_item').select(LANC_SELECT, { count: 'exact', head })
   if (opts.filialId) q = q.eq('filial_id', opts.filialId)
   if (opts.itemId) q = q.eq('item_id', opts.itemId)
   if (opts.tipo) q = q.eq('tipo', opts.tipo)
@@ -339,22 +340,36 @@ function mapearLancamento(r: RawLancRow): LinhaExportHistorico {
   }
 }
 
+// Faixa pedida além do fim do resultado: o PostgREST responde 416 com este
+// código em vez de uma lista vazia. Mesma constante de `listarMovimentacoes`.
+const RANGE_INVALIDO = 'PGRST103'
+
 // Histórico paginado (mais recente primeiro), com sinalização de estorno.
 // Filtros (F9 · I3): filial, item, tipo e período.
 export async function getHistoricoLancamentos(
   opts: FiltrosHistorico & { page?: number; pageSize?: number },
 ): Promise<{ rows: LancamentoHistorico[]; total: number; page: number; pageSize: number }> {
   const supabase = await createClient()
-  const page = Math.max(1, opts.page ?? 1)
   const pageSize = opts.pageSize ?? 20
-  const from = (page - 1) * pageSize
+  const faixa = (p: number) =>
+    queryHistorico(supabase, opts).range((p - 1) * pageSize, (p - 1) * pageSize + pageSize - 1)
 
-  const { data, error, count } = await queryHistorico(supabase, opts).range(
-    from,
-    from + pageSize - 1,
-  )
+  let page = Math.max(1, opts.page ?? 1)
+  let { data: bruto, error, count } = await faixa(page)
+
+  // `?page=300` (favorito profundo, filtro que encolheu o resultado) não pode
+  // derrubar o painel de /itens: descobrimos o total e mostramos a ÚLTIMA página
+  // que existe, em vez de deixar o "Tentar novamente" do error.tsx refalhar para
+  // sempre sobre a mesma URL. Uma tentativa só — sem laço. (F12-W4-05.)
+  if (error?.code === RANGE_INVALIDO) {
+    const { count: total, error: erroTotal } = await queryHistorico(supabase, opts, true)
+    if (erroTotal) throw new Error(`Falha ao listar lançamentos: ${erroTotal.message}`)
+    page = Math.max(1, Math.ceil((total ?? 0) / pageSize))
+    ;({ data: bruto, error, count } = await faixa(page))
+  }
+
   if (error) throw new Error(`Falha ao listar lançamentos: ${error.message}`)
-  const rows = (data ?? []) as unknown as RawLancRow[]
+  const rows = (bruto ?? []) as unknown as RawLancRow[]
 
   // Quais destas linhas já foram estornadas (algum lançamento aponta-as)?
   const ids = rows.map((r) => r.id)

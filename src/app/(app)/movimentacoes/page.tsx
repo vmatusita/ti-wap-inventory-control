@@ -6,6 +6,7 @@ import {
   MOV_PAGE_SIZE,
 } from '@/lib/queries/movimentacoes'
 import { listarFiliais } from '@/lib/queries/filiais'
+import { dataISO, idNumerico, paginaNumerica } from '@/lib/url-params'
 import { TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
 import { Button } from '@/components/ui/button'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
@@ -20,48 +21,11 @@ function texto(v: string | string[] | undefined): string | undefined {
   return s && s.trim() ? s.trim() : undefined
 }
 
-// `filial_id` é smallint (migration 0015): validar só o FORMATO deixaria passar
-// `?filial=99999`, que o Postgres recusa (22003) e derruba o Server Component —
-// a mesma classe de bug que a F9 corrigiu em /itens. Guarda idêntica à de
-// /ativos e /itens.
-const MAX_SMALLINT = 32767
-
-function idNumerico(v: string | undefined): number | undefined {
-  if (!v || !/^\d+$/.test(v)) return undefined
-  const n = Number(v)
-  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_SMALLINT ? n : undefined
-}
-
-// Faixa sã de datas. O round-trip do `Date` NÃO basta: o JS tem ano 0 e aceita
-// `0000-01-01`, mas o Postgres não (22008) — a query lançaria e derrubaria a
-// página. Comparação de string funciona porque o formato é fixo `yyyy-MM-dd`.
-const DATA_MIN = '1900-01-01'
-const DATA_MAX = '2999-12-31'
-
-// Data pura `yyyy-MM-dd`. Descarta data inexistente (2026-02-31, que o `Date`
-// "rolaria" para março) e data fora da faixa sã — mesmo parser de /itens.
-function dataISO(v: string | undefined): string | undefined {
-  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return undefined
-  if (v < DATA_MIN || v > DATA_MAX) return undefined
-  const d = new Date(`${v}T00:00:00.000Z`)
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v
-    ? v
-    : undefined
-}
-
-// Página: validar só o FORMATO deixaria passar `?page=99999999999999999999`, que
-// vira 1e20 — o `from` do `range()` estoura o inteiro exato, o postgrest-js
-// serializa `offset=3e+21` e o PostgREST DESCARTA o offset ilegível (200, sem
-// PGRST103, então o fallback de "última página" não roda). A tela trava: rodapé
-// com notação científica e "Anterior" que reenvia a MESMA URL. Sete dígitos
-// cobrem qualquer acervo plausível e mantêm o caminho PGRST103 intacto.
-const MAX_PAGE = 9_999_999
-
-function paginaNumerica(v: string | undefined): number {
-  if (!v || !/^\d+$/.test(v)) return 1
-  const n = Number(v)
-  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_PAGE ? n : 1
-}
+// `idNumerico`/`dataISO`/`paginaNumerica` moram em `@/lib/url-params` desde a
+// F12 (W6A): eram três cópias divergentes (aqui, /itens e actions/exportar) e a
+// divergência entre elas produziu quatro achados da auditoria da F12.
+// `?param` inválido continua sendo IGNORADO; o módulo devolve `null` e aqui
+// convertemos para `undefined`, que é o que `ListarMovimentacoesParams` espera.
 
 // `hasOwnProperty` e não `in`: `?tipo=constructor` passaria pelo `in` (chave
 // herdada do prototype) e viraria um cast inválido de enum no banco.
@@ -85,10 +49,10 @@ export default async function MovimentacoesPage({
 
   // Param inválido é IGNORADO (nunca derruba a página nem vira filtro no banco).
   const q = texto(sp.q)
-  const de = dataISO(texto(sp.de))
-  const ate = dataISO(texto(sp.ate))
+  const de = dataISO(texto(sp.de)) ?? undefined
+  const ate = dataISO(texto(sp.ate)) ?? undefined
   const tipo = tipoValido(texto(sp.tipo))
-  const filialId = idNumerico(texto(sp.filial))
+  const filialId = idNumerico(texto(sp.filial)) ?? undefined
   const page = paginaNumerica(texto(sp.page))
 
   const [filiais, resultado] = await Promise.all([
@@ -144,7 +108,10 @@ export default async function MovimentacoesPage({
               <span className="font-medium tabular-nums text-foreground">
                 {busca.valor}
               </span>
-              .
+              {/* Patrimônio fora do padrão (F7J) é procurado EXATAMENTE como
+                  está gravado: dizer isso evita o operador concluir que "não
+                  existe" quando errou um caractere. */}
+              {busca.canonico ? '.' : ' — exatamente como você digitou.'}
             </>
           ) : (
             <>
@@ -152,7 +119,8 @@ export default async function MovimentacoesPage({
               <span className="font-medium text-foreground">
                 “{busca.valor}”
               </span>
-              . Para buscar por patrimônio, digite-o por inteiro (ex.: WAP0001234).
+              . Para buscar por patrimônio, digite-o por inteiro (ex.: WAP0001234
+              ou a plaqueta fora do padrão, como está na ficha do ativo).
             </>
           )}
         </p>

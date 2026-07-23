@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
   BarChart3,
@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/command'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { editando, modalAberto } from '@/components/movimentacoes/atalho-global'
+import { dispararLancarItem } from '@/components/itens/lancar-item-evento'
 import { buscarAtivosParaMovimentacao } from '@/lib/actions/movimentacoes'
 import { normalizarBusca } from '@/lib/ajuda/busca'
 import { rotuloCategoria } from '@/lib/dominio'
@@ -58,6 +59,9 @@ type ItemNavegacao = {
   // Termos extras que tambem devem casar (sinonimos do dia a dia).
   apelidos?: string[]
   atalho?: string
+  // Rota em que a AÇÃO ja pode ser disparada sem navegar (o dialog dela ja esta
+  // montado). Fora dela, o `href` leva ate a tela com o gatilho na URL.
+  disparaEm?: string
 }
 
 // Espelha o `sidebar-nav.tsx`. Se a sidebar ganhar/perder item, esta lista
@@ -80,7 +84,9 @@ const ROTAS: ItemNavegacao[] = [
     rotulo: 'Administração',
     href: '/admin/usuarios',
     icone: Settings,
-    apelidos: ['usuarios', 'senhas', 'filiais', 'motivos', 'importar'],
+    // 'kits' entra com a F12/M12 (/admin/kits): sem o apelido, Ctrl+K → "kit"
+    // não achava nada e a tela nova ficava sem porta de entrada pelo teclado.
+    apelidos: ['usuarios', 'senhas', 'filiais', 'motivos', 'importar', 'kits'],
   },
   { rotulo: 'Ajuda', href: '/ajuda', icone: CircleHelp, atalho: '?' },
 ]
@@ -94,10 +100,17 @@ const ACOES: ItemNavegacao[] = [
     atalho: 'N',
   },
   {
+    // AÇÃO, e não navegação: `?lancar=1` faz /itens abrir o dialog de lançamento
+    // já na montagem (LancarItemDialog limpa o param em seguida). Antes este
+    // item só navegava — o operador caía na tela e ia procurar o botão, que é o
+    // gesto que a paleta existe para poupar (achado F12-W4-08). O atalho `L` é o
+    // mesmo que o dialog já escutava desde a F9.
     rotulo: 'Lançar item',
-    href: '/itens',
+    href: '/itens?lancar=1',
     icone: Boxes,
-    apelidos: ['consumivel', 'saldo', 'estoque'],
+    apelidos: ['consumivel', 'saldo', 'estoque', 'quantidade'],
+    atalho: 'L',
+    disparaEm: '/itens',
   },
 ]
 
@@ -126,6 +139,7 @@ export function PaletaComandosProvider({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [aberto, setAberto] = useState(false)
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<AtivoResumo[]>([])
@@ -206,6 +220,21 @@ export function PaletaComandosProvider({
   function irPara(href: string) {
     setAberto(false)
     router.push(href)
+  }
+
+  // AÇÕES do grupo "Ações" precisam DISPARAR, não só navegar — a promessa do
+  // rótulo (achado F12-W4-08). Quando o operador já está na tela dona do dialog,
+  // navegar de novo não remontaria nada e o `?lancar=1` seria ignorado; ali o
+  // caminho é o CustomEvent que o dialog já escuta desde a F9. Fora dela, o
+  // `href` leva até a tela com o gatilho na URL, que o Server Component lê e
+  // repassa como prop.
+  function executarAcao(a: ItemNavegacao) {
+    if (a.disparaEm && pathname === a.disparaEm) {
+      setAberto(false)
+      dispararLancarItem({ itemId: null, filialId: null })
+      return
+    }
+    irPara(a.href)
   }
 
   const termo = normalizarBusca(query)
@@ -324,7 +353,7 @@ export function PaletaComandosProvider({
                   <CommandItem
                     key={a.rotulo}
                     value={`acao:${a.href}:${a.rotulo}`}
-                    onSelect={() => irPara(a.href)}
+                    onSelect={() => executarAcao(a)}
                   >
                     <a.icone className="size-4 shrink-0" aria-hidden />
                     {a.rotulo}

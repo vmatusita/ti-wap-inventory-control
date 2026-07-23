@@ -18,7 +18,10 @@ import { KitDialog } from '@/components/admin/kit-dialog'
 // operador (o layout de /admin já exige sessão de operador; o visualizador por
 // senha só alcança /relatorios/**).
 export default async function AdminKitsPage() {
-  const [kits, motivos] = await Promise.all([listarKitsAdmin(), listarMotivos()])
+  const [{ kits, invalidos }, motivos] = await Promise.all([
+    listarKitsAdmin(),
+    listarMotivos(),
+  ])
 
   // `listarMotivos` traz só os ATIVOS: um kit salvo com motivo desativado depois
   // cai no fallback e mostra o código cru — sinal visível de que aquele preset
@@ -35,6 +38,25 @@ export default async function AdminKitsPage() {
         </p>
         <KitDialog motivos={motivos} />
       </div>
+
+      {/* Kit cujo `payload` jsonb não passa no contrato é descartado na leitura
+          (queries/kits.ts). Sem esta linha ele SUMIA da tela sem explicação — e
+          o nome dele continua no índice único, então recriá-lo com o mesmo nome
+          falha com "Já existe um kit com esse nome.". Dizer que existe já
+          resolve o beco: o operador usa outro nome ou pede a correção do
+          registro. (Revisão adversarial da F12.) */}
+      {invalidos > 0 && (
+        <p
+          role="status"
+          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+          {invalidos === 1
+            ? '1 kit não pôde ser lido (configuração fora do formato esperado) e não aparece na lista.'
+            : `${invalidos.toLocaleString('pt-BR')} kits não puderam ser lidos (configuração fora do formato esperado) e não aparecem na lista.`}{' '}
+          O nome deles continua reservado — para reaproveitá-lo, crie o kit com
+          outro nome ou peça a correção do registro no banco.
+        </p>
+      )}
 
       {kits.length === 0 ? (
         <EstadoVazio

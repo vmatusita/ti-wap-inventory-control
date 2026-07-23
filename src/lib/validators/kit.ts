@@ -112,9 +112,8 @@ export const atualizarKitSchema = kitCatalogoSchema.extend({
 
 // Kit nunca é excluído — só desativado (padrão do catálogo de itens; um kit
 // desativado some do fluxo sem afetar nada do que já foi registrado com ele).
-export const desativarKitSchema = z.object({
-  id: z.string().uuid('Kit inválido'),
-})
+// A desativação passa pelo `ativo` do `atualizarKitSchema` (checkbox do dialog);
+// não existe schema/action separado — ver a nota em `actions/kits.ts`.
 
 export type KitCatalogoInput = z.infer<typeof kitCatalogoSchema>
 export type AtualizarKitInput = z.infer<typeof atualizarKitSchema>

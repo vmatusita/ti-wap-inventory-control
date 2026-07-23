@@ -40,6 +40,7 @@ import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { SaldosFiliaisTabela } from '@/components/itens/saldos-filiais'
 import { BadgeRepor } from '@/components/itens/badge-repor'
 import { estoquePorItem, minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
+import { dataISO, idNumerico, paginaNumerica } from '@/lib/url-params'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 
@@ -49,19 +50,11 @@ function primeiro(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : Array.isArray(v) ? v[0] : undefined
 }
 
-// Params do histórico (F9 · I3) são validados aqui: qualquer valor fora do
-// formato é IGNORADO (nunca derruba a página nem vira filtro inválido no banco).
-// A FAIXA importa tanto quanto o formato: `item_id` e `filial_id` são `smallint`
-// (migration 0015), então `?item=99999` — formato válido — faria o Postgres
-// recusar o literal (22003) e a leitura lançaria no Server Component, derrubando
-// a página. Achado da revisão adversarial da F9.
-const MAX_SMALLINT = 32767
-
-function idNumerico(v: string | undefined): number | null {
-  if (!v || !/^\d+$/.test(v)) return null
-  const n = Number(v)
-  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_SMALLINT ? n : null
-}
+// Params do histórico (F9 · I3) são validados em `@/lib/url-params` — fonte
+// única desde a F12 (W6A), depois de a auditoria provar que as cópias em
+// /itens, /movimentacoes e actions/exportar tinham divergido. Valor fora do
+// formato OU DA FAIXA é IGNORADO (nunca derruba a página nem vira filtro
+// inválido no banco).
 
 // Lista explícita (não `in TIPO_LANCAMENTO_META`, que aceitaria chaves herdadas
 // do prototype — `?tipo=constructor` viraria um cast inválido de enum no banco).
@@ -99,18 +92,6 @@ function agruparSaldos<T extends LinhaSaldo>(
   })).filter((bloco) => bloco.itens.length > 0)
 }
 
-function dataISO(v: string | undefined): string | null {
-  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
-  const d = new Date(`${v}T00:00:00.000Z`)
-  // Descarta data inexistente (ex.: 2026-02-31, que o Date "rolaria" para março).
-  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return null
-  // E data fora de faixa sã: o JS TEM ano zero, o Postgres NÃO. `?de=0000-01-01`
-  // passa no round-trip acima, chega ao banco como literal de `date` e volta
-  // 22008 — a leitura lança e derruba a página. Fora da faixa o param é
-  // ignorado, como qualquer outro lixo de URL. (Revisão adversarial da F11.)
-  return v >= '1900-01-01' && v <= '2999-12-31' ? v : null
-}
-
 export default async function ItensPage({
   searchParams,
 }: {
@@ -134,7 +115,11 @@ export default async function ItensPage({
   const filialId = visaoFiliais ? null : idNumerico(primeiro(sp.filial))
   const grupoFiltro = primeiro(sp.grupo) as GrupoItem | undefined
   const q = (primeiro(sp.q) ?? '').trim().toLowerCase()
-  const page = Math.max(1, Number(primeiro(sp.page) ?? '1') || 1)
+  // Teto de página (F12-W4-05): `Math.max(1, Number(...))` deixava passar
+  // `?page=99999999999999999999`, que vira 1e20 e faz o postgrest-js serializar
+  // `offset=2e+21` — descartado EM SILÊNCIO pelo servidor (200, sem PGRST103),
+  // com o rodapé anunciando a página 1e+20 e um "Anterior" idempotente.
+  const page = paginaNumerica(primeiro(sp.page))
 
   // Filtros só do histórico (a filial vale para os dois blocos).
   const itemFiltro = idNumerico(primeiro(sp.item))
@@ -209,7 +194,15 @@ export default async function ItensPage({
             rotulo="Exportar saldos"
             descricao="dos itens filtrados"
           />
-          <LancarItemDialog itens={itensAtivos} filiais={filiais} ultimo={ultimo} />
+          {/* `?lancar=1` chega da paleta de comandos (Ctrl+K → "Lançar item"):
+              o item vive no grupo AÇÕES e agora dispara mesmo a ação, em vez de
+              só navegar até aqui (achado F12-W4-08). */}
+          <LancarItemDialog
+            itens={itensAtivos}
+            filiais={filiais}
+            ultimo={ultimo}
+            abrirAoMontar={primeiro(sp.lancar) === '1'}
+          />
         </div>
       </div>
 
@@ -311,7 +304,14 @@ export default async function ItensPage({
                         </TableCell>
                         <TableCell className="text-right">
                           {s.falta > 0 ? (
-                            <Badge className="border-transparent bg-red-100 text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">
+                            // O `title` faz par com o do badge "repor": os dois
+                            // convivem na mesma linha, em cores diferentes, e
+                            // significam coisas diferentes — sem a explicação,
+                            // distingui-los depende de já saber a fórmula.
+                            <Badge
+                              className="border-transparent bg-red-100 text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300"
+                              title={`Compromisso já assumido: ${s.atrelados.toLocaleString('pt-BR')} atrelado(s) a equipamentos e só ${s.estoque.toLocaleString('pt-BR')} em estoque`}
+                            >
                               faltam {s.falta.toLocaleString('pt-BR')}
                             </Badge>
                           ) : (

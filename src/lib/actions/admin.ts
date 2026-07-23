@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { DOMINIOS_OPERADOR, DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
+import { getSaldosItens } from '@/lib/queries/itens'
 import {
   conviteSchema,
   filialSchema,
@@ -169,16 +170,37 @@ export async function atualizarFilial(input: {
 
   const client = await createClient()
 
-  // Bloquear desativar filial com ativos (OS-F3 3.7.2).
+  // Bloquear desativar filial com ativos (OS-F3 3.7.2) OU com saldo de itens por
+  // quantidade (F12-W4-07). As DUAS checagens são independentes, e não uma só,
+  // para a mensagem dizer qual delas barrou.
+  //
+  // Por que a segunda: `listarFiliais()` filtra `ativo = true`, então desativar
+  // uma filial tira a coluna dela de /itens?visao=filiais e a opção do select do
+  // lançamento — mas a RPC `rel_saldo_itens` NÃO junta com `filiais` e continua
+  // somando aquele estoque no Total. Resultado: N mouses que ninguém consegue
+  // movimentar, com uma linha cinza "inclui N de filial desativada" como única
+  // pista. O guarda só contava `ativos`, então isso passava.
+  //
+  // A conta é sobre o SALDO (a mesma RPC da tela), não sobre a contagem de
+  // lançamentos: uma filial com entrada 5 + saída 5 tem histórico e estoque
+  // zero, e não há por que travar a desativação dela — lançamento não se apaga.
   if (!ativo) {
-    const { count } = await client
-      .from('ativos')
-      .select('*', { count: 'exact', head: true })
-      .eq('filial_id', id)
+    const [{ count }, saldos] = await Promise.all([
+      client.from('ativos').select('*', { count: 'exact', head: true }).eq('filial_id', id),
+      getSaldosItens(id),
+    ])
     if ((count ?? 0) > 0) {
       return {
         ok: false,
         erro: `Não é possível desativar: há ${count} ativo(s) nesta filial. Transfira-os antes.`,
+      }
+    }
+    const comSaldo = saldos.filter((s) => s.estoque > 0)
+    if (comSaldo.length > 0) {
+      const unidades = comSaldo.reduce((acc, s) => acc + s.estoque, 0)
+      return {
+        ok: false,
+        erro: `Não é possível desativar: há ${comSaldo.length} item(ns) com saldo nesta filial (${unidades} unidade(s) em estoque). Zere o estoque antes, em Itens por quantidade.`,
       }
     }
   }
@@ -194,6 +216,9 @@ export async function atualizarFilial(input: {
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
   revalidatePath('/admin/filiais')
+  // A lista de filiais é coluna em /itens?visao=filiais, opção do select de
+  // lançamento e filtro das listas — sem isto a tela fica com a filial velha.
+  revalidatePath('/itens')
   return { ok: true }
 }
 

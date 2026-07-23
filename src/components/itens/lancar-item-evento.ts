@@ -5,7 +5,10 @@
 export const EVENTO_LANCAR_ITEM = 'wap:lancar-item'
 
 export type LancarItemDetalhe = {
-  itemId: number
+  /** Item a pré-selecionar. `null` = ABRIR VAZIO — é o caminho da paleta de
+   *  comandos (F12-W4-08) quando o operador já está em /itens: não há linha da
+   *  tabela por trás, então o carrinho começa em branco. */
+  itemId: number | null
   /** Filial do filtro atual; null no consolidado (o dialog mantém a que está). */
   filialId: number | null
 }

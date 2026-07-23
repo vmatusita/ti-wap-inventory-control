@@ -446,7 +446,18 @@ export type ListarMovimentacoesResult = {
 // Como o termo de busca foi interpretado (a UI explica ao operador em qual campo
 // procurou). UM CAMPO SÓ — o PostgREST não faz `OR` entre a tabela e um embed.
 export type BuscaMovimentacao =
-  | { campo: 'patrimonio'; valor: string }
+  | {
+      campo: 'patrimonio'
+      /** O que a legenda mostra: a forma canônica quando o termo canoniza,
+       *  senão o termo exatamente como o operador digitou (em maiúsculas). */
+      valor: string
+      /** Forma canônica para o `.eq` — `null` quando o termo não canoniza. */
+      canonico: string | null
+      /** Termo em maiúsculas e sem espaços, para o `.ilike` (que ignora caixa):
+       *  o acervo tem patrimônio gravado fora do padrão, inclusive em
+       *  minúsculas. Mesma doutrina de `resolverPatrimoniosParaLote` (F10). */
+      cru: string
+    }
   | { campo: 'colaborador'; valor: string }
   | null
 
@@ -458,9 +469,29 @@ function termoIlikeSeguro(termo: string): string {
   return termo.replace(/[%_*(),\\]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
+// FORMA de um patrimônio gravado fora do padrão canônico. A F7J deixou entrar
+// valores como o fictício `LEA7LYHQH4`, que `canonicalizarPatrimonio` NÃO
+// canoniza — e que, até a F12, caíam no ramo colaborador e devolviam zero linhas
+// com uma legenda mandando o operador "digitar o patrimônio por inteiro", que é
+// exatamente o que ele acabara de fazer (achado F12-W4-02).
+//
+// Critério: UMA palavra só (sem espaço), alfanumérica com hífen, ao menos 4
+// caracteres e com ao menos UM DÍGITO — nome de colaborador não tem essa forma.
+// A restrição de charset também é a defesa: nada aqui é metacaractere do
+// PostgREST (`,` `(` `)` `.` `%` `_` `*`), então o valor entra no `.or()` sem
+// escape possível.
+//
+// LIMITE CONHECIDO E ACEITO: patrimônio não-canônico SEM nenhum dígito é
+// indistinguível de um nome de pessoa e continua no ramo colaborador. Medido no
+// ensaio (cópia do acervo, 23/07/2026): dos 89 patrimônios não-canônicos, 52
+// entram por aqui; os 37 restantes são um único valor-sentinela repetido, não
+// uma plaqueta que alguém procure.
+const FORMA_PATRIMONIO_CRU = /^[A-Za-z0-9-]{4,}$/
+
 // Decisão do Johnny (F11): a busca da lista é de CAMPO ÚNICO.
 //  - Se o texto canonicaliza como patrimônio ("wap 4491" → WAP0004491), procura
-//    por IGUALDADE no patrimônio do ativo (embed `!inner`).
+//    no patrimônio do ativo (embed `!inner`) pelas DUAS formas — canônica e crua.
+//  - Se tem a FORMA de um patrimônio fora do padrão, procura pela forma crua.
 //  - Senão, procura por trecho no colaborador da própria movimentação.
 // Pura — testada em `movimentacoes.test.ts`.
 export function interpretarBuscaMovimentacao(
@@ -468,8 +499,15 @@ export function interpretarBuscaMovimentacao(
 ): BuscaMovimentacao {
   const termo = (q ?? '').trim()
   if (!termo) return null
-  const patrimonio = canonicalizarPatrimonio(termo)
-  if (patrimonio) return { campo: 'patrimonio', valor: patrimonio }
+  // Espaço só é removido para o `.ilike`: o operador cola "wap 4491" e o banco
+  // guarda "WAP4491". Para DECIDIR o ramo vale o termo original — senão
+  // "Ana 12" viraria "ANA12" e seria lido como patrimônio.
+  const cru = termo.toUpperCase().replace(/\s+/g, '')
+  const canonico = canonicalizarPatrimonio(termo)
+  if (canonico) return { campo: 'patrimonio', valor: canonico, canonico, cru }
+  if (FORMA_PATRIMONIO_CRU.test(termo) && /\d/.test(termo)) {
+    return { campo: 'patrimonio', valor: cru, canonico: null, cru }
+  }
   const limpo = termoIlikeSeguro(termo)
   // Sobrou só curinga (o operador digitou "%%%"): sem filtro, e não uma busca
   // por `%%` — que esconderia em silêncio toda linha sem colaborador.
@@ -562,7 +600,15 @@ function queryLista(
   // a linha aparece no filtro da origem — é onde o evento foi registrado.
   if (params.filialId) q = q.eq('filial_id', params.filialId)
   if (busca?.campo === 'patrimonio') {
-    q = q.eq('ativos.patrimonio', busca.valor)
+    // DUAS formas, como `resolverPatrimoniosParaLote` (F10) já fazia no colar-
+    // lista: `.eq` na canônica e `.ilike` (sem curinga = igualdade que ignora a
+    // caixa) na crua. Só o `.eq` deixava 29 ativos de patrimônio não-canônico
+    // inalcançáveis por esta tela (F12-W4-02). `referencedTable` põe o filtro
+    // sobre o embed — que é `!inner` justamente por causa deste filtro.
+    const formas = busca.canonico
+      ? `patrimonio.eq.${busca.canonico},patrimonio.ilike.${busca.cru}`
+      : `patrimonio.ilike.${busca.cru}`
+    q = q.or(formas, { referencedTable: 'ativos' })
   } else if (busca?.campo === 'colaborador') {
     q = q.ilike('colaborador', `%${busca.valor}%`)
   }

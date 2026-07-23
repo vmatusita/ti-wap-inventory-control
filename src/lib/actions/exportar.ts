@@ -24,6 +24,7 @@ import {
   type SaldoItem,
 } from '@/lib/queries/itens'
 import { listarFiliais } from '@/lib/queries/filiais'
+import { dataISO, idNumerico } from '@/lib/url-params'
 import {
   CATEGORIA_ORDEM,
   GRUPO_ITEM_ORDEM,
@@ -89,26 +90,24 @@ async function semOperador(): Promise<boolean> {
 // Parsers dos filtros — espelham os Server Components das telas.
 // ---------------------------------------------------------------------------
 
-// `item_id`/`filial_id` são smallint (migration 0015): validar só o FORMATO
-// deixaria passar `?filial=99999`, que o Postgres recusa (22003) e derrubaria a
-// leitura. Achado da revisão adversarial da F9 — vale igual aqui.
-const MAX_SMALLINT = 32767
+// `idNumerico` e `dataISO` vêm de `@/lib/url-params` desde a F12 (W6A). Antes
+// eram cópias locais — e esta era a única do projeto SEM a faixa sã de datas
+// (achado F12-W4-04): `?de=0000-01-01` passava, o Postgres devolvia 22008 e o
+// toast dizia "Tente novamente" para um problema que estava na URL.
 
 function texto(p: URLSearchParams, chave: string): string | undefined {
   const v = p.get(chave)
   return v && v.trim() ? v.trim() : undefined
 }
 
-function idNumerico(v: string | undefined): number | null {
-  if (!v || !/^\d+$/.test(v)) return null
-  const n = Number(v)
-  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_SMALLINT ? n : null
-}
-
-function dataISO(v: string | undefined): string | null {
-  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
-  const d = new Date(`${v}T00:00:00.000Z`)
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : null
+// A visão por filial de /itens NÃO tem recorte de filial: a tabela mostra todas
+// e o select nem é renderizado. O Server Component neutraliza `?filial` no parse
+// desde a F11 (achado A14) e o export precisa fazer o MESMO — senão uma URL
+// `/itens?visao=filiais&filial=3` (link colado, botão voltar, favorito antigo)
+// produz um CSV só da filial 3 que o operador lê como o consolidado que estava
+// vendo na tela (achado F12-W4-03). Vale para os DOIS exports de /itens.
+function filialDeItens(p: URLSearchParams): number | null {
+  return texto(p, 'visao') === 'filiais' ? null : idNumerico(texto(p, 'filial'))
 }
 
 const TIPOS_PENDENCIA: readonly TipoPendencia[] = [
@@ -165,7 +164,7 @@ function filtrosPendencias(p: URLSearchParams): FiltrosPendencias {
 function filtrosHistorico(p: URLSearchParams): FiltrosHistorico {
   const tipoRaw = texto(p, 'tipo')
   return {
-    filialId: idNumerico(texto(p, 'filial')),
+    filialId: filialDeItens(p),
     itemId: idNumerico(texto(p, 'item')),
     tipo: TIPOS_LANCAMENTO.includes(tipoRaw as TipoLancamento)
       ? (tipoRaw as TipoLancamento)
@@ -279,7 +278,9 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
   if (await semOperador()) return falha(MSG_SESSAO_EXPIRADA)
   try {
     const p = new URLSearchParams(filtros)
-    const filialId = idNumerico(texto(p, 'filial'))
+    // Neutraliza `?filial` na visão por filial — sem isso o `rotuloFilial` do
+    // arquivo mente ("Matriz" onde a tela dizia o consolidado).
+    const filialId = filialDeItens(p)
     const grupoRaw = texto(p, 'grupo')
     const grupo = GRUPO_ITEM_ORDEM.includes(grupoRaw as GrupoItem)
       ? (grupoRaw as GrupoItem)

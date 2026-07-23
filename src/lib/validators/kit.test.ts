@@ -6,7 +6,6 @@ import {
   TIPOS_KIT,
   atualizarKitSchema,
   checklistCategoriasDoKit,
-  desativarKitSchema,
   faltaCategoriaDoKit,
   kitCatalogoSchema,
   kitPayloadSchema,
@@ -123,7 +122,7 @@ describe('kitPayloadSchema', () => {
   })
 })
 
-describe('kitCatalogoSchema / atualizarKitSchema / desativarKitSchema', () => {
+describe('kitCatalogoSchema / atualizarKitSchema', () => {
   it('exige nome com 2+ caracteres', () => {
     expect(kitCatalogoSchema.safeParse({ nome: 'K', payload: payloadBase() }).success).toBe(false)
     const r = kitCatalogoSchema.safeParse({ nome: '  Kit fictício  ', payload: payloadBase() })
@@ -154,11 +153,6 @@ describe('kitCatalogoSchema / atualizarKitSchema / desativarKitSchema', () => {
     })
     expect(semUuid.success).toBe(false)
     expect(semUuid.error?.issues[0]?.message).toBe('Kit inválido')
-  })
-
-  it('desativar só precisa do id', () => {
-    expect(desativarKitSchema.safeParse({ id: UUID_FICTICIO }).success).toBe(true)
-    expect(desativarKitSchema.safeParse({ id: 'nao-e-uuid' }).success).toBe(false)
   })
 })
 

@@ -77,7 +77,11 @@ describe('decidirAplicacaoKit — aplicação normal', () => {
     expect(d.motivoDescartado).toBe(false)
   })
 
-  it('preserva os campos que o kit não define (colaborador, setor, chamado, datas)', () => {
+  // Quem o kit NÃO define fica de pé: colaborador, setor, chamado e a data da
+  // movimentação. `termoData` NÃO entra nesta lista — ela viaja com o status do
+  // termo, que o kit sobrescreve, e por isso é limpa junto (ver os dois testes
+  // no fim do arquivo; a asserção original guardava justamente o bug).
+  it('preserva os campos que o kit não define (colaborador, setor, chamado, data)', () => {
     const d = decidirAplicacaoKit({
       payload: KIT_SAIDA,
       config: cfg({
@@ -95,7 +99,7 @@ describe('decidirAplicacaoKit — aplicação normal', () => {
     expect(d.config.setor).toBe('TI')
     expect(d.config.chamado).toBe('12345')
     expect(d.config.data).toBe('2026-07-20')
-    expect(d.config.termoData).toBe('2026-07-19')
+    expect(d.config.termoData).toBe('')
   })
 })
 
@@ -153,6 +157,36 @@ describe('decidirAplicacaoKit — campos condicionais do tipo anterior', () => {
     if (!d.aplicar) throw new Error('deveria aplicar')
     expect(d.trocouTipo).toBe(false)
     expect(d.config.filialDestinoId).toBe('3')
+  })
+
+  // A data do termo viaja com o status do termo (`serializarCampo`) e o kit não
+  // a carrega: aplicar um kit depois de "Repetir última" não pode herdar a data
+  // do termo da OUTRA movimentação. (Revisão adversarial da F12.)
+  it('limpa a DATA do termo, mesmo quando o kit traz um status de termo', () => {
+    const d = decidirAplicacaoKit({
+      payload: KIT_SAIDA,
+      config: cfg({ tipo: 'saida', termo: 'sim', termoData: '2026-07-01' }),
+      tiposValidos: ['saida'],
+      motivosDoTipo: ['novo_colaborador'],
+    })
+    expect(d.aplicar).toBe(true)
+    if (!d.aplicar) return
+    expect(d.config.termo).toBe('gerado')
+    expect(d.config.termoData).toBe('')
+  })
+
+  it('kit SEM termo não deixa data de termo órfã para trás', () => {
+    const semTermo: KitPayload = { tipo: 'saida', categorias: ['notebook'] }
+    const d = decidirAplicacaoKit({
+      payload: semTermo,
+      config: cfg({ tipo: 'saida', termo: 'sim', termoData: '2026-07-01' }),
+      tiposValidos: ['saida'],
+      motivosDoTipo: [],
+    })
+    expect(d.aplicar).toBe(true)
+    if (!d.aplicar) return
+    expect(d.config.termo).toBe('')
+    expect(d.config.termoData).toBe('')
   })
 
   it('não muta a Config recebida', () => {

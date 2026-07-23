@@ -18,7 +18,7 @@ export async function signIn(
   })
 
   if (!parsed.success) {
-    return { erro: 'E-mail ou senha invalidos' }
+    return { erro: 'E-mail ou senha inválidos' }
   }
 
   const supabase = await createClient()
@@ -28,7 +28,7 @@ export async function signIn(
   })
 
   if (error) {
-    return { erro: 'E-mail ou senha invalidos' }
+    return { erro: 'E-mail ou senha inválidos' }
   }
 
   redirect('/')

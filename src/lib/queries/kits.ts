@@ -58,6 +58,14 @@ function mapearKits(rows: RawKitRow[]): Kit[] {
   return rows.map(parseKit).filter((k): k is Kit => k !== null)
 }
 
+// Catálogo do admin + QUANTOS kits foram descartados por payload fora do
+// contrato. Descartar em silêncio faz o kit sumir da tela do admin sem nenhuma
+// explicação — e, como o nome continua no índice único, recriá-lo com o mesmo
+// nome falha com "Já existe um kit com esse nome.": o mesmo beco sem saída do
+// achado F12-W4-06, uma tela adiante. Com a contagem, /admin/kits diz que há
+// kit ilegível e para onde ir. (Revisão adversarial da F12.)
+export type ListaKitsAdmin = { kits: Kit[]; invalidos: number }
+
 // Kits ATIVOS, para o "Aplicar kit" do passo 2 da nova movimentação (catálogo
 // pequeno e curado — sem paginação, como o de motivos/itens).
 export async function listarKitsAtivos(): Promise<Kit[]> {
@@ -72,12 +80,14 @@ export async function listarKitsAtivos(): Promise<Kit[]> {
 }
 
 // Catálogo completo (ativos e inativos) para /admin/kits.
-export async function listarKitsAdmin(): Promise<Kit[]> {
+export async function listarKitsAdmin(): Promise<ListaKitsAdmin> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('kits_modelos')
     .select(KIT_SELECT)
     .order('nome', { ascending: true })
   if (error) throw new Error(`Falha ao listar kits: ${error.message}`)
-  return mapearKits((data ?? []) as RawKitRow[])
+  const rows = (data ?? []) as RawKitRow[]
+  const kits = mapearKits(rows)
+  return { kits, invalidos: rows.length - kits.length }
 }

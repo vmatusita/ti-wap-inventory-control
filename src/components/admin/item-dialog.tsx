@@ -167,11 +167,16 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
               filial que o operador tem na cabeça. */}
           <div className="space-y-2">
             <Label htmlFor="item-estoque-minimo">Estoque mínimo</Label>
+            {/* `max`/`step` espelham o Zod (`int().min(0).max(9999)`): sem eles
+                o campo aceitava `1e5` e `2.5` sem nenhum aviso até o toast de
+                erro da action. A validação de verdade continua no servidor. */}
             <Input
               id="item-estoque-minimo"
               type="number"
               inputMode="numeric"
               min={0}
+              max={9999}
+              step={1}
               value={estoqueMinimo}
               onChange={(e) => setEstoqueMinimo(e.target.value)}
               aria-describedby="item-estoque-minimo-ajuda"
