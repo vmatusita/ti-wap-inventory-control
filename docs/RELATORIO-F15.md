@@ -56,6 +56,7 @@ Executado em DEV numa transação com rollback: **`ROTEIRO_TROCA_RESULT: TODOS O
 - DB: 1596 ativos (= baseline, sem perda); enum com `troca`; `troca` total = 2; `compra` de substituto restante = **0** (retroativo completo); `devolvido_fornecedor` = 2; ativos com pendência `'sem service tag'` em produção = 0 (esperado — nenhum import com ST vazia rodou em produção ainda; não retroage).
 - Runtime: `get_runtime_errors` (última 1h, cobrindo o novo deploy) = **0 erros**.
 - HTTP: `/login` → 200, `/relatorios/acesso` → 200 (rotas públicas servem; sem 500 na borda).
+- Função (as-of): `rel_estoque_asof(1, hoje)` reconstrói os 2 substitutos nascidos por `troca` (WAP0005656/WAP0005657) como `em_estoque` na matriz — a reconstrução do estoque com `troca` no `coalesce` da filial está íntegra em produção.
 
 Exit do smoke pós-deploy: **0** (sem incidente).
 
