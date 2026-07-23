@@ -1660,3 +1660,44 @@ O gerador do MCP produz `p_filial: number` para as RPCs `rel_*`; o `npm run db:t
   pós-apply + smoke read-only. Smoke `.mjs` ausente (gitignorado) → smoke por contagens via MCP. CI
   (job `banco`) disparado no push; componentes verificados em ensaio; status do run a conferir no
   GitHub Actions. Detalhes em [`RELATORIO-F14.md`](RELATORIO-F14.md).
+
+## 2026-07-23 · F15 — Correções do primeiro uso real da F14 (service tag obrigatória · painel de sucesso · tipo `troca`)
+
+Três defeitos/ajustes relatados pelo Johnny ao exercitar de verdade, pela primeira vez, a devolução ao fornecedor entregue na F14 — exatamente o cenário que o `RELATORIO-F14.md` §5 avisou que nenhum E2E autenticado havia provado.
+
+### REVOGA a decisão F14 "a compra do substituto aparece nas Entradas"
+A F14 registrou que o substituto nasce por `compra` e aparece nas Entradas do relatório. A F15 **mantém** que ele aparece nas Entradas, mas **como `troca`** (rótulo "Troca", pílula teal), NUNCA como compra — o equipamento chegou por substituição do fornecedor, não por compra. Emenda à ata da F14 (não se apaga o histórico): onde a F14 dizia "a compra do substituto aparece nas Entradas", leia-se "a **troca** do substituto aparece nas Entradas".
+
+### C1 — service tag obrigatória só em Zod+Action, SEM check no banco
+- Contexto: a doutrina do CLAUDE.md prefere a regra crítica no Postgres. Avaliou-se um `check (origem <> 'cadastro' or service_tag is not null) not valid` em `ativos` (padrão do MN1 da F14).
+- Achado (teste empírico em DEV): um `check ... NOT VALID` é **re-avaliado no UPDATE** de QUALQUER coluna da linha — não só quando a coluna do check muda. Prova: numa linha legada sem ST, `update _t set id=2 where id=1` (coluna não-relacionada) dispara `check_violation`. Como TODA movimentação faz `update ativos set status=...`, o check quebraria toda movimentação futura dos ~1.600 ativos legados sem ST e do seed (~50% dos `cadastro` têm ST nula).
+- Decisão: a obrigatoriedade vive em **Zod + Server Action** (compraItemSchema, substitutoSchema, `parsearLista` por linha, `parearFaixaComServiceTags` pareamento completo + pré-validação do form). `service_tag` segue **nullable** no banco (o import exige aceitar vazio → pendência). A ordem sanciona isto explicitamente ("se o check ficar frágil, Zod+action bastam"). É a opção mais simples e reversível, e não regride legado nem import.
+
+### C1 — import RPC recriada em migration própria (`0048`), separada da `0047`
+A recriação de `importar_ativos_substituir` (C1: pendência `'sem service tag'`) NÃO usa o enum `troca` (C3) — concerns independentes. `0046` (enum), `0047` (usos de troca nas 4 funções), `0048` (import). Cada migration com um propósito coeso e diff mínimo; a `0048` tem `delete` no corpo → vai pelo caminho separado do SQL Editor (classificador barra `apply` direto em produção), enquanto `0046`/`0047` são caminho A aditivo.
+
+### C1 — pendência `'sem service tag'` no bucket "outras" (sem bucket dedicado)
+`v_pendencias` (0028) exibe qualquer `pendencia` livre → o trecho aparece automaticamente em /pendencias e na lista, sem alterar a view. `classificarPendencia` (pendencias-detalhe.ts) coloca `'sem service tag'` puro em **'outras'** e o combinado `'sem patrimônio físico; sem service tag'` em **'patrimonio'** (contém o literal). Optou-se por NÃO criar um bucket/filtro `'service_tag'` dedicado: a ordem só pede que a pendência APAREÇA e seja resolvível (via "Definir service tag" na ficha), e um bucket novo traria ambiguidade de classificação do caso combinado sem ganho pedido. Resolução em dois passos funciona (definir patrimônio → sobra 'sem service tag' → definir service tag → sem pendência).
+
+### C1 — `db:types` por edição cirúrgica do enum
+CLI `supabase gen types --linked` não roda neste ambiente (projeto não linkado) e o gerador do MCP perde a nullabilidade de `p_filial` (memória mcp-db-types-nullability). A ÚNICA mudança de tipo das migrations F15 é o valor de enum `troca` (assinaturas das funções idênticas — verificado 1 assinatura cada; corpos não afetam tipos). Adicionou-se `troca` à mão nos 2 pontos do `database.ts` (union + Constants array), na ordem real do enum do DEV. Exceção pontual ao "não editar à mão", registrada.
+
+### C2 — causa raiz da devolução engolida pelo guard
+`devolucao-fornecedor-form.tsx` fazia `setSucesso(...)` e em seguida `router.refresh()`. O refresh re-renderiza o Server Component `page.tsx` com o MESMO `?ativo=`; o guard `ativo.status !== 'em_manutencao'` — agora verdadeiro (o ativo virou `devolvido_fornecedor`) — substituía a página inteira (form + painel) pelo aviso âmbar. A RPC sempre funcionou; era a navegação pós-sucesso. Fix: **remover o `router.refresh()`** (e o `useRouter` que virou morto). Os `revalidatePath` da action já cobrem `/ativos`, as duas fichas e `/relatorios` — nenhum revalida a rota da devolução, então o painel (estado do cliente) permanece. O guard CONTINUA valendo para acesso direto / F5 depois do sucesso (comportamento aceitável, registrado). O caso sem substituto persiste igual.
+
+### C3 — `troca` espelha `compra`; retroativo toca 2 linhas
+`troca` é gravada SÓ pela RPC `devolver_ao_fornecedor`. Espelha `compra` na máquina de estados (nascimento em_estoque→em_estoque, fixação de filial) e como ENTRADA do período; difere no rótulo/cor e não entra em nenhuma leitura "de compras". Fora do fluxo manual, dos kits (TIPOS_EXCLUIDOS_DO_KIT) e do "duplicar" — como a `compra` e a `devolucao_fornecedor`. Retroativo (produção): `update movimentacoes set tipo='troca' where tipo='compra' and ativo_id in (select id from ativos where substitui_ativo_id is not null)` — contagem medida no gate: **2** linhas (um substituto tem exatamente 1 movimentação de nascimento; o predicado não pega compras legítimas). Caminho B (backup antes, contagem antes=depois, `status_resultante`/snapshots intactos).
+
+### Backlog / pendências
+- Editar service tag JÁ preenchida continua proibido (imutável — identidade). Não foi tocado.
+- Inconsistência pré-existente da F14 (fora do escopo F15): `devolucao_fornecedor` NÃO está nas exclusões `.neq` de `ultimaMovimentacaoDoUsuario`/`ultimosAtivosMovimentadosDoOperador` (a F15 acrescentou `troca`, espelho de `compra`, mas não corrigiu o legado da F14). Anotado para uma ordem futura.
+
+### Rollout (produção, ata)
+- **Smoke baseline** (read-only): 1596 ativos; enum 14 valores (sem `troca`); 2 substitutos; 2 `compra` de substituto (tamanho do retroativo); 2 `devolvido_fornecedor`; 1 assinatura por função.
+- **Apply `0046` → `0047` → `0048`** por MCP. Verificação pós-apply: enum 15/`troca` no fim; 1 assinatura por função + grants (as duas RPCs de escrita: `authenticated`=true, `anon`/`service_role`=false; `rel_estoque_asof` idêntica à 0045); casos novos por `pg_get_functiondef` (máquina de estados, filial `in ('compra','troca')`, insert `'troca'`, pendência `'sem service tag'`); `get_advisors(security)` 0 achados NOVOS; `notify pgrst`.
+- **Retroativo C3** (caminho B): backup das 2 linhas (WAP0005656/WAP0005657, nascimento `em_estoque`→`em_estoque`); UPDATE `compra`→`troca` (classificador NÃO barrou 2 linhas); antes=depois (`compra` de substituto 2→0, `troca` 0→2; `troca` total 2); substitutos seguem `em_estoque`, `status_resultante` intacto (mesma transição da compra).
+- **Push único** (`dc62c67..c11fb66`) → deploy `dpl_8wxLXV4sqYaBtvHHRNeFuF1DsFTy` **READY**. Smoke pós-deploy: DB 1596/`troca`=2/`compra`-substituto=0; `get_runtime_errors` (1h) 0 erros; `/login` e `/relatorios/acesso` 200.
+- **Reversível:** migrations aditivas (rollback lógico = `create or replace` das funções para os corpos 0045/0040 + `drop` opcional; enum `add value` inócuo se não usado). Retroativo reversível: `update movimentacoes set tipo='compra' where id in (…)` (ids no backup). Deploy: promover `dc62c67` no painel Vercel.
+
+### Limites (o que NÃO foi provado)
+Sem E2E autenticado em navegador (login wall — limite desde F11/F12): a prova do motor é o roteiro SQL (DEV) + Vitest (947); a do banco em produção é a verificação pós-apply + retroativo conferido + smoke read-only + `get_runtime_errors`. O aviso âmbar do import foi provado no motor (Vitest), não em navegador. CI (job `banco`) disparado no push; status do run confere no GitHub Actions. Detalhes e o roteiro de conferência do Johnny em [`RELATORIO-F15.md`](RELATORIO-F15.md).
