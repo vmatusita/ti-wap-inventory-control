@@ -357,6 +357,13 @@ O aviso (1) é o de sempre: a RLS de `kits_modelos` não é "comprovável" com a
 
 A parte C nova faz **GET** autenticado. O defeito B1/B2 estava no **POST** de Server Action, e as rotas afetadas respondem 200 no GET (medido). Então nem a parte C teria pego este incidente. Quem pega é a guarda de fonte (`use-server-exports`) e o gate de build. A parte C ainda vale: pega uma rota logada que quebre no render (outra classe de defeito).
 
+### 7.4 Rollout — deploy e smoke pós-deploy
+
+- **Push único** na `main` (commit `e41dbe8`) → deploy `dpl_2Xo2KGADKZHJaeUqsBXAstAX1pm1` **READY**, apontado pelo alias de produção.
+- **Smoke pós-deploy** (`--exigir-f12`): **50 OK · 1 aviso · 0 falha · exit 0** — idêntico ao baseline, com o check da busca do B2 verde e as 14 rotas logadas em 200.
+- **Prova de que o apagão acabou** (o defeito era POST-only, invisível ao GET): os **logs de runtime do novo deploy** registram **30× 200, 14× 307, 1× 404** (o 404 é uma sonda minha com o id de action do build local, que difere por build) e **zero 500**; e `get_runtime_errors` do projeto na última hora retorna **"No runtime errors found"** — o cluster `ReferenceError: ParMovimentacaoDia` (33 ocorrências, última às 14:51) **não teve nenhuma ocorrência nova** após o deploy. Somado ao gate de build (0 bindings fantasma) e à prova funcional local no `next start` (§3.8), o defeito está estruturalmente eliminado.
+- **Por que não forcei um POST de action contra produção:** o id de Server Action muda por build (o do build local deu 404 em produção) e brute-forçar todos os ids do manifesto arriscaria disparar uma **escrita** — a ordem manda produção só-leitura. A confirmação direta do POST fica com o clique do Johnny (§8) e com o próprio tráfego de operação, que a partir de agora exercita os POSTs sob o log vigiado.
+
 ---
 
 ## 8. O que o Johnny precisa fazer depois do deploy
