@@ -747,9 +747,21 @@ async function inserirCasosDevolucaoFornecedor(
     marca: 'Samsung', modelo: 'Galaxy A55', service_tag: 'F14S2',
     fornecedor: 'Proprinter', filial_id: matriz, origem: 'cadastro', substitui_ativo_id: a2,
   })
-  await insMov({ ativo_id: sub, tipo: 'compra', data: '2026-07-02', filial_id: matriz, observacao: 'Substituto de WAP0001402 (devolvido ao fornecedor).', criado_por: criadoPor, created_at: '2026-07-02T12:00:00Z' })
+  // F15: o substituto NASCE por `troca` (não `compra`) — aparece nas Entradas rotulado "Troca".
+  await insMov({ ativo_id: sub, tipo: 'troca', data: '2026-07-02', filial_id: matriz, observacao: 'Substituto de WAP0001402 (devolvido ao fornecedor).', criado_por: criadoPor, created_at: '2026-07-02T12:00:00Z' })
 
-  console.log('[seed] 2 casos de devolucao ao fornecedor (1 sem substituto, 1 com substituto vinculado).')
+  // F15 (C1) — 1 ativo IMPORTADO sem service tag: nasce com a pendência 'sem service tag'
+  // (espelho da F7E do patrimônio). Serve p/ /pendencias, a lista e o dialog "Definir service
+  // tag" renderizarem em DEV. origem 'importacao' + compra de abertura marcada (fora das Entradas).
+  const semTag = await insAtivo({
+    patrimonio: 'WAP0001403', patrimonio_original: 'WAP0001403', categoria: 'notebook',
+    marca: 'Lenovo', modelo: 'ThinkPad E14', service_tag: null,
+    fornecedor: 'TechSupply', filial_id: matriz, origem: 'importacao',
+    pendencia: 'sem service tag',
+  })
+  await insMov({ ativo_id: semTag, tipo: 'compra', data: '2026-07-03', filial_id: matriz, observacao: 'import startup 03/07/2026', criado_por: criadoPor, created_at: '2026-07-03T12:00:00Z' })
+
+  console.log('[seed] 2 casos de devolucao ao fornecedor (1 sem substituto, 1 com substituto por troca) + 1 importado sem service tag.')
 }
 
 // ============================ ITENS POR QUANTIDADE (F3B) =============================
