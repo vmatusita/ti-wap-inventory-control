@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, useSyncExternalStore, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -11,9 +11,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Marca } from '@/components/layout/marca'
 
+// SEGURANCA (F13/A1): sinal de "ja hidratou". Antes da hidratacao o React ainda
+// nao ligou o onSubmit (que faz preventDefault), entao um clique/Enter
+// dispararia o submit NATIVO do formulario e a senha viajaria na URL —
+// historico do celular, `Referer` e log de acesso da Vercel. Com o botao padrao
+// desabilitado o navegador nao submete nem pela submissao implicita do Enter.
+// useSyncExternalStore (e nao setState em efeito) e a forma sancionada de ler
+// esse sinal: devolve `false` no HTML do servidor e na hidratacao, `true` depois.
+const semAssinatura = () => () => {}
+const noCliente = () => true
+const noServidor = () => false
+
 export default function DefinirSenhaPage() {
   const router = useRouter()
   const [pending, setPending] = useState(false)
+  const hidratado = useSyncExternalStore(semAssinatura, noCliente, noServidor)
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -53,7 +65,7 @@ export default function DefinirSenhaPage() {
         </div>
 
         <div className="px-6 py-6">
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} method="post" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="senha">Nova senha</Label>
               <Input
@@ -75,7 +87,11 @@ export default function DefinirSenhaPage() {
                 required
               />
             </div>
-            <Button type="submit" className="h-11 w-full" disabled={pending}>
+            <Button
+              type="submit"
+              className="h-11 w-full"
+              disabled={pending || !hidratado}
+            >
               {pending ? 'Salvando…' : 'Definir senha'}
             </Button>
           </form>

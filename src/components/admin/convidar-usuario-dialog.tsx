@@ -54,13 +54,23 @@ export function ConvidarUsuarioDialog() {
     // botão desabilitado — sem a guarda, dois Enters = dois convites.
     if (!valido || enviando) return
     start(async () => {
-      const res = await convidarUsuario({ email: email.trim() })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // try/catch (F13/B1): `convidarUsuario` trata os erros que ela conhece e
+      // devolve `{ ok: false }`. Se a chamada REJEITAR (rede caindo, servidor
+      // 500, módulo de action que não avalia), a rejeição sobe pelo
+      // startTransition até o boundary mais próximo e apaga a tela inteira. Aqui
+      // ela vira toast, no mesmo padrão do `copiar()` abaixo, e o diálogo
+      // continua aberto com o e-mail digitado.
+      try {
+        const res = await convidarUsuario({ email: email.trim() })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        setGerado({ link: res.link, reenvio: res.reenvio })
+        router.refresh()
+      } catch {
+        toast.error('Não foi possível gerar o link agora. Tente de novo.')
       }
-      setGerado({ link: res.link, reenvio: res.reenvio })
-      router.refresh()
     })
   }
 
