@@ -633,6 +633,16 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                     rotulo="sem patrimônio (importam com pendência)"
                     tom="aviso"
                   />
+                  {/* F15 — quantos ativos importam sem service tag (pendência "sem
+                      service tag"). Só INFORMA, não bloqueia; tom âmbar (F7F). Aparece
+                      só quando há linhas sem service tag. */}
+                  {previa.validacao.resumo.semServiceTag > 0 && (
+                    <NumeroGrande
+                      valor={previa.validacao.resumo.semServiceTag}
+                      rotulo="sem service tag (importam com pendência)"
+                      tom="aviso"
+                    />
+                  )}
                   {/* F7F/F7-pós — quantos tiveram o patrimônio ausente preenchido pelo
                       hostname. É correção AUTOMÁTICA (não aviso): tom neutro. */}
                   {previa.validacao.resumo.patrimonioDoHostname > 0 && (

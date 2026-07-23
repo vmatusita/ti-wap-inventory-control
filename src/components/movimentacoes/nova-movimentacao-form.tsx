@@ -32,7 +32,7 @@ import {
 import {
   MAX_LOTE_MOVIMENTACAO,
   loteMovimentacaoSchema,
-  tiposComunsPara,
+  tiposManuaisPara,
 } from '@/lib/validators/movimentacao'
 import {
   rotuloStatus,
@@ -52,15 +52,12 @@ export type { ConfigInicial }
 
 const PASSOS = ['Ativos', 'Movimentação', 'Revisão'] as const
 
-// `compra` sai do fluxo de movimentação: a entrada de equipamento novo tem tela
-// própria (/ativos/novo, que cria o ativo + a movimentação de compra atômica).
-// `devolucao_fornecedor` (F14) também sai: tem fluxo PRÓPRIO (lote sempre 1 +
-// cadastro do substituto no mesmo submit), acessível pela ficha do ativo em
-// manutenção. TRANSICOES continua sendo a cópia exata da spec §4; aqui só a UI.
+// Tipos oferecidos no SELECT do passo 2 — a interseção das transições válidas MENOS
+// os de fluxo próprio (compra /ativos/novo · troca e devolucao_fornecedor pela RPC).
+// A régua é FONTE ÚNICA em `tiposManuaisPara`/`TIPOS_FORA_DO_LOTE_MANUAL`
+// (validators/movimentacao.ts), com teste — aqui só a UI consome.
 function tiposDoLote(status: StatusAtivo[]): TipoMovimentacao[] {
-  return tiposComunsPara(status).filter(
-    (t) => t !== 'compra' && t !== 'devolucao_fornecedor',
-  )
+  return tiposManuaisPara(status)
 }
 
 // F12/M12 — que kit foi aplicado nesta montagem. Guardamos a IDENTIDADE do kit

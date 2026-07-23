@@ -320,6 +320,19 @@ describe('F7E — dedupe dos sem-patrimônio (índice parcial de service tag)', 
   })
 })
 
+describe('F15 — service tag vazia importa (aviso, não bloqueia) e conta em resumo.semServiceTag', () => {
+  it('importa sem service tag e conta as linhas em resumo.semServiceTag', () => {
+    const r = validarMatriz([
+      rowMatriz({ 'Patrimônio': 'WAP0001111', 'Service Tag': 'ST-A' }), // com tag
+      rowMatriz({ 'Patrimônio': 'WAP0002222' }), // sem tag
+      rowMatriz({ 'Patrimônio': 'WAP0003333', 'Service Tag': '  ' }), // só espaços → vazia
+    ])
+    expect(r.bloqueantes).toHaveLength(0) // ST vazia NUNCA bloqueia (só o cadastro manual exige)
+    expect(r.plano!.ativos).toHaveLength(3)
+    expect(r.resumo.semServiceTag).toBe(2)
+  })
+})
+
 describe('F7E — dataAjuste (ajuste de reconciliação) nas 3 quedas', () => {
   it('queda 1: entrega dd/MMM resolvida → dataAjuste = entrega; dataEntrada = inclusão (mais antiga)', () => {
     const r = validarMatriz([rowMatriz({ 'Data de Inclusão': '18/12/2024', 'Data de Entrega': '21/jan' })])

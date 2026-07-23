@@ -312,7 +312,7 @@ function analisar(
       correcoes: { aplicadas: 0, porOp: correcoes.map(() => 0) },
       candidatos: [],
       plano: null,
-      resumo: { criar: 0, semData: 0, semPatrimonio: 0, patrimonioDoHostname: 0, layout: det.maisProximo, linhasRemovidas: 0 },
+      resumo: { criar: 0, semData: 0, semPatrimonio: 0, semServiceTag: 0, patrimonioDoHostname: 0, layout: det.maisProximo, linhasRemovidas: 0 },
     }
   }
   const layout: LayoutImport = det.layout
@@ -456,10 +456,14 @@ function analisar(
 
   const semData = ativos.filter((a) => a.dataEntrada === null).length
   const semPatrimonio = ativos.filter((a) => a.patrimonio === null).length
+  // F15 — nº de ativos do plano SEM service tag (importam com pendência 'sem service
+  // tag'; a régua de obrigatoriedade vale só no cadastro manual, nunca no import).
+  // Deriva do resultado final, como semData/semPatrimonio — só informa (aviso âmbar).
+  const semServiceTag = ativos.filter((a) => a.serviceTag === null).length
   // F7F — nº de linhas auto-preenchidas pelo hostname. Deriva do resultado final (os
   // avisos), como semData/semPatrimonio, e não de estado intermediário do loop.
   const patrimonioDoHostname = avisos.filter((a) => a.tipo === 'patrimonio_do_hostname').length
-  const resumo = { criar: ativos.length, semData, semPatrimonio, patrimonioDoHostname, layout, linhasRemovidas }
+  const resumo = { criar: ativos.length, semData, semPatrimonio, semServiceTag, patrimonioDoHostname, layout, linhasRemovidas }
 
   // F7B — agrupamento + contexto das linhas com erro/aviso (a tela corrige a
   // linha inteira, não a célula solta). `registros` já vem CORRIGIDO.

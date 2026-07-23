@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   tiposComunsPara,
+  tiposManuaisPara,
+  TIPOS_FORA_DO_LOTE_MANUAL,
   movimentacaoSchema,
   loteMovimentacaoSchema,
   CAMPOS_POR_TIPO,
@@ -15,6 +17,31 @@ import { Constants } from '@/lib/types/database'
 
 const UUID = '123e4567-e89b-12d3-a456-426614174000'
 const DATA_OK = '2020-01-01' // passada — nunca futura
+
+// F15 — trava do PAR obrigatório: `troca` (e `compra`, `devolucao_fornecedor`) constam
+// em TRANSICOES (cópia fiel da spec §4) mas NUNCA podem ser selecionáveis no formulário
+// manual de nova movimentação (têm fluxo próprio/RPC). Regressão real corrigida na F15:
+// `troca` entrou em TRANSICOES.em_estoque mas o filtro do form não a excluía.
+describe('tiposManuaisPara (fluxo próprio nunca vaza para o select manual)', () => {
+  it('nenhum status oferece compra, troca ou devolucao_fornecedor', () => {
+    for (const status of Constants.public.Enums.status_ativo) {
+      const tipos = tiposManuaisPara([status])
+      for (const fora of TIPOS_FORA_DO_LOTE_MANUAL) {
+        expect(tipos).not.toContain(fora)
+      }
+    }
+  })
+
+  it('em_estoque: a interseção CRUA tem troca/compra, mas o manual as exclui', () => {
+    // Prova que a exclusão está fazendo trabalho (senão o teste acima passaria à toa).
+    expect(tiposComunsPara(['em_estoque'])).toContain('troca')
+    expect(tiposComunsPara(['em_estoque'])).toContain('compra')
+    expect(tiposManuaisPara(['em_estoque'])).not.toContain('troca')
+    expect(tiposManuaisPara(['em_estoque'])).not.toContain('compra')
+    // ...e continua oferecendo os tipos legítimos do dia a dia.
+    expect(tiposManuaisPara(['em_estoque'])).toContain('saida')
+  })
+})
 
 // Itens válidos e DISTINTOS para exercitar o teto do lote (dados fictícios).
 function loteDeCompras(n: number) {

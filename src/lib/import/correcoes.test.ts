@@ -1060,7 +1060,7 @@ describe('retrocompatibilidade F7 — sem correções, nada muda', () => {
     expect(r.grupos).toHaveLength(0)
     expect(r.contexto).toEqual({})
     expect(r.plano!.ativos).toHaveLength(1)
-    expect(r.resumo).toEqual({ criar: 1, semData: 0, semPatrimonio: 0, patrimonioDoHostname: 0, layout: 'matriz', linhasRemovidas: 0 })
+    expect(r.resumo).toEqual({ criar: 1, semData: 0, semPatrimonio: 0, semServiceTag: 1, patrimonioDoHostname: 0, layout: 'matriz', linhasRemovidas: 0 })
   })
 
   it('CSV vazio (0 linhas de dados) sem correções: comportamento da F7 preservado', () => {

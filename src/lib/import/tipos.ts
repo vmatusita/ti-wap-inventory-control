@@ -203,6 +203,9 @@ export type ValidacaoImport = {
     criar: number
     semData: number
     semPatrimonio: number
+    // F15 — nº de ativos que importam SEM service tag (nascem com pendência 'sem service
+    // tag'); só informa no preview (aviso âmbar), nunca bloqueia.
+    semServiceTag: number
     patrimonioDoHostname: number
     layout: LayoutImport
     linhasRemovidas: number

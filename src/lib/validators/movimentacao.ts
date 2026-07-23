@@ -73,6 +73,28 @@ export function tiposComunsPara(status: StatusAtivo[]): TipoMovimentacao[] {
   return [...primeiro].filter((t) => resto.every((s) => s.has(t)))
 }
 
+// Tipos com FLUXO PRÓPRIO — nunca selecionáveis no formulário manual de nova
+// movimentação, mesmo constando em TRANSICOES (a cópia fiel da spec §4):
+//   `compra`               → tela própria /ativos/novo;
+//   `troca` (F15)          → nascimento do substituto, só pela RPC devolver_ao_fornecedor;
+//   `devolucao_fornecedor` → fluxo dedicado (lote 1 + substituto no mesmo submit).
+// Espelha o que também fica FORA de movimentacaoSchema. Um teste trava a exclusão
+// (par obrigatório da entrada de `compra`/`troca` em TRANSICOES.em_estoque).
+export const TIPOS_FORA_DO_LOTE_MANUAL: readonly TipoMovimentacao[] = [
+  'compra',
+  'troca',
+  'devolucao_fornecedor',
+]
+
+// Tipos oferecidos no SELECT do formulário manual para um conjunto de status: a
+// interseção das transições válidas MENOS os de fluxo próprio. FONTE ÚNICA (a UI
+// não redefine a régua) — testável sem montar o Client Component.
+export function tiposManuaisPara(status: StatusAtivo[]): TipoMovimentacao[] {
+  return tiposComunsPara(status).filter(
+    (t) => !TIPOS_FORA_DO_LOTE_MANUAL.includes(t),
+  )
+}
+
 // ---------------------------------------------------------------------------
 // CAMPOS_POR_TIPO — a matriz "tipo × campos" do formulario de nova movimentacao
 // em UM lugar so. Antes ela estava espalhada como arrays de string repetidos no
