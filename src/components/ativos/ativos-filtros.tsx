@@ -95,6 +95,21 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
     aplicar({ status: [...set].join(',') || null })
   }
 
+  // "Limpar" apaga FILTROS, não a forma de ver a lista: ordenação (`ord`) e
+  // tamanho de página (`pp`) sobrevivem — quem ordenou por patrimônio e limpou
+  // a busca não espera a lista voltar sozinha para "atualizado em" (F11/T7).
+  function limpar() {
+    const antigo = new URLSearchParams(params.toString())
+    const novo = new URLSearchParams()
+    for (const chave of ['ord', 'pp']) {
+      const valor = antigo.get(chave)
+      if (valor) novo.set(chave, valor)
+    }
+    setBusca('')
+    const qs = novo.toString()
+    startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname))
+  }
+
   const temFiltro =
     !!qAtual ||
     !!filialAtual ||
@@ -215,10 +230,7 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
       {temFiltro && (
         <Button
           variant="ghost"
-          onClick={() => {
-            setBusca('')
-            startTransition(() => router.push(pathname))
-          }}
+          onClick={limpar}
           className="gap-1 text-muted-foreground"
         >
           <X className="size-4" />

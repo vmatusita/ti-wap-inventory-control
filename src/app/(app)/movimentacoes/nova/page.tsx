@@ -11,6 +11,7 @@ import {
   type UltimaMovimentacaoUsuario,
 } from '@/lib/queries/movimentacoes'
 import { getPerfilAtual } from '@/lib/queries/profile'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -66,9 +67,12 @@ export default async function NovaMovimentacaoPage({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Nova movimentação
-        </h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Nova movimentação
+          </h1>
+          <LinkAjuda ancora="movimentacoes" rotulo="Ajuda sobre movimentações" />
+        </div>
         <p className="text-sm text-muted-foreground">
           Registre uma movimentação — ou um lote (kit) de vários ativos de uma
           vez.

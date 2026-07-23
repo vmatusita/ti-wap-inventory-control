@@ -1,5 +1,26 @@
 "use client"
 
+// Componente gerado pela CLI do shadcn. Editado com MOTIVO DOCUMENTADO
+// (CLAUDE.md — "não se editam sem motivo documentado"), revisão adversarial da
+// OS-F11 / A16:
+//
+// O `CommandDialog` montava o `<DialogHeader className="sr-only">` como irmão
+// ANTERIOR ao `<DialogContent>` — é assim também no upstream do shadcn
+// (conferido em 22/07/2026), que assume o diálogo montado sob demanda. Só que o
+// `Dialog` do Radix renderiza os filhos INCONDICIONALMENTE (apenas o
+// `DialogContent` é portalizado/condicional) e a paleta de comandos fica
+// montada permanentemente no shell do operador (`(app)/layout.tsx`). Resultado:
+// um `<h2>Busca e comandos</h2>` + `<p>` sr-only presos ao DOM de TODA página,
+// com a paleta fechada — a navegação por cabeçalhos do leitor de tela caía num
+// cabeçalho fantasma que não leva a lugar nenhum.
+//
+// Correção: o header passou para DENTRO do `DialogContent`, então título e
+// descrição só existem enquanto o diálogo está aberto. O
+// `aria-labelledby`/`aria-describedby` do Radix continua resolvendo pelos
+// mesmos ids, e o `sr-only` é `position:absolute` (fora do fluxo), então não
+// vira faixa do grid do content. É divergência deliberada do upstream: ao
+// atualizar este componente pela CLI, reaplicar.
+
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
 
@@ -48,10 +69,6 @@ function CommandDialog({
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn(
           "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
@@ -59,6 +76,10 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
         {children}
       </DialogContent>
     </Dialog>

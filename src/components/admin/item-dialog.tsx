@@ -117,9 +117,9 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Grupo</Label>
+              <Label htmlFor="item-grupo">Grupo</Label>
               <Select value={grupo} onValueChange={(v) => setGrupo(v as GrupoItem)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="item-grupo" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

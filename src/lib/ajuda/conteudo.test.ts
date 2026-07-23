@@ -259,6 +259,71 @@ describe('operação em massa documentada (OS-F10 · Onda 2)', () => {
   })
 })
 
+describe('navegação e estrutura documentadas (OS-F11 · Onda 3)', () => {
+  function titulosDePassos(idSecao: string): string[] {
+    return secao(idSecao)
+      .blocos.filter((b): b is Extract<Bloco, { tipo: 'passos' }> => b.tipo === 'passos')
+      .map((b) => b.titulo ?? '')
+  }
+
+  it('tem o passo a passo de cada item novo da Onda 3', () => {
+    const titulos = titulosDePassos('como-fazer')
+    for (const t of [
+      // T1 · T3 — busca global, atalhos e ajuda contextual
+      'Achar qualquer coisa pelo teclado (busca global e atalhos)',
+      // M8 — a lista de movimentações
+      'Achar uma movimentação já registrada (lista de movimentações)',
+      // T7 — ordenação por coluna e tamanho de página
+      'Ordenar a lista de ativos e mudar o tamanho da página',
+    ]) {
+      expect(titulos).toContain(t)
+    }
+  })
+
+  it('descreve os três atalhos globais e o Ctrl+K (T1 · T3)', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('Ctrl+K'))
+    expect(texto).toContain(normalizarBusca('A barra "/" também abre'))
+    expect(texto).toContain(normalizarBusca('N abre uma nova movimentação'))
+    expect(texto).toContain(normalizarBusca('? abre esta ajuda'))
+    // A guarda que impede o atalho de disparar dentro de campo/diálogo é
+    // comportamento prometido ao operador — se sair do código, sai daqui.
+    expect(texto).toContain(normalizarBusca('enquanto você digita num campo'))
+  })
+
+  it('diz que a lista de movimentações NÃO substitui o caminho de registrar (M8)', () => {
+    const comoFazer = textoDaSecao(secao('como-fazer'))
+    expect(comoFazer).toContain(normalizarBusca('do mais recente para o mais antigo'))
+    expect(comoFazer).toContain(normalizarBusca('a tecla N'))
+    // A seção de tipos de movimentação aponta para a lista nova.
+    expect(textoDaSecao(secao('movimentacoes'))).toContain(
+      normalizarBusca('LISTA de movimentações'),
+    )
+  })
+
+  it('descreve a ordenação com os cortes reais e os tamanhos de página (T7)', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('25, 50 ou 100 por página'))
+    expect(texto).toContain(normalizarBusca('o padrão continua 50'))
+    // Marca e Filial ficaram FORA da whitelist — o manual não pode prometê-las.
+    expect(texto).toContain(normalizarBusca('Duas colunas não ordenam'))
+  })
+
+  it('descreve a visão de saldos por filial, inclusive o que ela esconde (I4)', () => {
+    const texto = textoDaSecao(secao('itens'))
+    expect(texto).toContain(normalizarBusca('Por filial põe uma coluna de estoque para CADA filial'))
+    expect(texto).toContain(normalizarBusca('faltam N'))
+    expect(texto).toContain(normalizarBusca('o filtro de filial some da barra'))
+    expect(texto).toContain(normalizarBusca('inclui N de filial desativada'))
+  })
+
+  it('diz que os filtros das tabelas do relatório ficam no link (T10)', () => {
+    const texto = textoDaSecao(secao('relatorios'))
+    expect(texto).toContain(normalizarBusca('viajam no link'))
+    expect(texto).toContain(normalizarBusca('senha de acesso'))
+  })
+})
+
 describe('filtrarSecoes', () => {
   it('consulta vazia devolve todas as seções', () => {
     expect(filtrarSecoes(SECOES, '')).toHaveLength(SECOES.length)

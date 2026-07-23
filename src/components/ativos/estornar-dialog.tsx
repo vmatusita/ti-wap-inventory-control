@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -37,23 +37,26 @@ export function EstornarDialog({
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [observacao, setObservacao] = useState('')
-  const [enviando, setEnviando] = useState(false)
+  // Loading via useTransition (padrão único dos diálogos — OS-F11 T9): `enviando`
+  // continua desabilitando os dois botões, então o duplo-submit segue impossível.
+  const [enviando, start] = useTransition()
+  const cancelarRef = useRef<HTMLButtonElement>(null)
 
-  async function confirmar() {
-    setEnviando(true)
-    const res = await estornarMovimentacao({
-      movimentacao_id: movimentacaoId,
-      observacao: observacao.trim() || undefined,
+  function confirmar() {
+    start(async () => {
+      const res = await estornarMovimentacao({
+        movimentacao_id: movimentacaoId,
+        observacao: observacao.trim() || undefined,
+      })
+      if (!res.ok) {
+        toast.error(res.erro ?? 'Não foi possível estornar a movimentação.')
+        return
+      }
+      toast.success('Movimentação estornada.')
+      setAberto(false)
+      setObservacao('')
+      router.refresh()
     })
-    setEnviando(false)
-    if (!res.ok) {
-      toast.error(res.erro ?? 'Não foi possível estornar a movimentação.')
-      return
-    }
-    toast.success('Movimentação estornada.')
-    setAberto(false)
-    setObservacao('')
-    router.refresh()
   }
 
   return (
@@ -64,7 +67,19 @@ export function EstornarDialog({
           Estornar
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-md">
+      <DialogContent
+        className="max-h-[90svh] overflow-y-auto sm:max-w-md"
+        // Foco inicial no Cancelar: a ação destrutiva nunca fica sob o Enter
+        // (mesmo padrão de "revogar senha" da F9).
+        // `preventScroll`: este DialogContent é o próprio container de rolagem
+        // (`max-h-[90svh] overflow-y-auto`) e o Cancelar fica no rodapé — sem
+        // isso, em tela baixa (paisagem, zoom 200%) o diálogo abriria já rolado
+        // até embaixo, escondendo o título e o resumo do que será desfeito.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          cancelarRef.current?.focus({ preventScroll: true })
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Estornar última movimentação</DialogTitle>
           <DialogDescription>
@@ -116,6 +131,7 @@ export function EstornarDialog({
 
         <DialogFooter>
           <Button
+            ref={cancelarRef}
             type="button"
             variant="ghost"
             onClick={() => setAberto(false)}

@@ -26,7 +26,10 @@ type NavItem = {
 const ITENS: NavItem[] = [
   { rotulo: 'Dashboard', icone: LayoutDashboard, href: '/' },
   { rotulo: 'Ativos', icone: Package, href: '/ativos' },
-  { rotulo: 'Movimentações', icone: ArrowLeftRight, href: '/movimentacoes/nova' },
+  // F11/M8: a sidebar leva à LISTA (o histórico que nunca existiu); registrar
+  // continua a um clique — pelo botão do header, pelo atalho `N` e pelo card do
+  // dashboard, todos direto em /movimentacoes/nova.
+  { rotulo: 'Movimentações', icone: ArrowLeftRight, href: '/movimentacoes' },
   { rotulo: 'Itens', icone: Boxes, href: '/itens' },
   { rotulo: 'Pendências', icone: ClipboardList, href: '/pendencias' },
   { rotulo: 'Relatórios', icone: BarChart3, href: '/relatorios/geral', match: '/relatorios' },

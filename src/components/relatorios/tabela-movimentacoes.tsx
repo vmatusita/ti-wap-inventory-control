@@ -15,7 +15,11 @@ import {
   PilulaTipo,
 } from '@/components/relatorios/celulas'
 import { FiltrosTabela } from '@/components/relatorios/filtros-tabela'
-import { useFiltrosTabela, type CampoFiltro } from '@/components/relatorios/use-filtros-tabela'
+import {
+  useFiltrosTabela,
+  PREFIXO_FILTROS,
+  type CampoFiltro,
+} from '@/components/relatorios/use-filtros-tabela'
 import type { MovimentacaoRelatorio } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'tipo']
@@ -23,8 +27,9 @@ const SEM_CAMPOS: CampoFiltro[] = []
 
 // Tabela "Últimas movimentações" — usada só na grade v1 (snapshots antigos que
 // continuam abrindo). Filtros internos client-side (categoria, tipo, e filial no
-// consolidado) via os compartilhados (OS tech-debt 3.2). Sem `filtrosInternos`, a
-// barra some e todas as linhas são mostradas. Sem export CSV (removido na v2 —
+// consolidado) via os compartilhados (OS tech-debt 3.2), persistidos na URL sob o
+// prefixo `mv.` (F11/T10). Sem `filtrosInternos`, a barra some, todas as linhas
+// são mostradas e nada é escrito na URL. Sem export CSV (removido na v2 —
 // decisão do plano §3.9): quem precisar de arquivo usa a impressão limpa.
 export function TabelaMovimentacoes({
   rows,
@@ -36,7 +41,11 @@ export function TabelaMovimentacoes({
   ehGeral?: boolean
 }) {
   const { filtradas, temFiltro, filtros, opcoes, camposAtivos, setFiltro, limpar } =
-    useFiltrosTabela(rows, { campos: filtrosInternos ? CAMPOS : SEM_CAMPOS, ehGeral })
+    useFiltrosTabela(rows, {
+      campos: filtrosInternos ? CAMPOS : SEM_CAMPOS,
+      prefixo: PREFIXO_FILTROS.movimentacoes,
+      ehGeral,
+    })
 
   return (
     <div>

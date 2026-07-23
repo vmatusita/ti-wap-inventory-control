@@ -5,6 +5,13 @@ import {
   filtrarLinhas,
   agregarResumo,
   chaveResumoMotivo,
+  nomeParamFiltro,
+  lerFiltrosDaQuery,
+  escreverFiltrosNaQuery,
+  limparFiltrosNaQuery,
+  sanitizarFiltros,
+  decidirFiltros,
+  PREFIXO_FILTROS,
   type CampoFiltro,
 } from '@/components/relatorios/use-filtros-tabela'
 
@@ -12,6 +19,8 @@ import {
 // verificação de Ut/UX é visual (/verify), mas estas funções carregam a lógica
 // que precisa continuar idêntica: derivação de opções (ordem!), filtragem e o
 // resumo top-12. Testes deterministas, sem React.
+// F11/T10: somam-se os casos da (de)serialização dos filtros na URL — o estado
+// saiu do `useState` e passou a morar nos searchParams, com prefixo por tabela.
 
 type Linha = {
   filial: string
@@ -181,5 +190,229 @@ describe('chaveResumoMotivo', () => {
     expect(chaveResumoMotivo({ filial: 'Matriz', motivo: 'Troca' }, true)).toBe('Matriz · Troca')
     expect(chaveResumoMotivo({ filial: 'Matriz', motivo: 'Troca' }, false)).toBe('Troca')
     expect(chaveResumoMotivo({ filial: 'Matriz', motivo: null }, true)).toBe('Matriz · Outro')
+  })
+})
+
+// ---------- F11/T10: filtros na URL ----------
+
+const SD = PREFIXO_FILTROS.saidas
+const EN = PREFIXO_FILTROS.entradas
+
+describe('PREFIXO_FILTROS', () => {
+  it('não repete prefixo entre tabelas (senão duas colidiriam na mesma URL)', () => {
+    const valores = Object.values(PREFIXO_FILTROS)
+    expect(new Set(valores).size).toBe(valores.length)
+  })
+})
+
+describe('nomeParamFiltro', () => {
+  it('monta `<prefixo>.<campo>`', () => {
+    expect(nomeParamFiltro(SD, 'motivo')).toBe('sd.motivo')
+    expect(nomeParamFiltro(EN, 'categoria')).toBe('en.categoria')
+  })
+})
+
+describe('lerFiltrosDaQuery', () => {
+  it('query vazia = tudo vazio ("todas")', () => {
+    expect(lerFiltrosDaQuery('', SD)).toEqual({ filial: '', categoria: '', motivo: '', tipo: '' })
+  })
+
+  it('lê só os params do próprio prefixo', () => {
+    const query = 'preset=mes&sd.motivo=Troca&en.motivo=Avaria&mv.tipo=compra'
+    expect(lerFiltrosDaQuery(query, SD)).toEqual({
+      filial: '',
+      categoria: '',
+      motivo: 'Troca',
+      tipo: '',
+    })
+    expect(lerFiltrosDaQuery(query, EN).motivo).toBe('Avaria')
+  })
+
+  it('aceita a query com o "?" na frente (window.location.search)', () => {
+    expect(lerFiltrosDaQuery('?sd.categoria=celular', SD).categoria).toBe('celular')
+  })
+
+  it('decodifica valor com espaço e acento', () => {
+    const query = escreverFiltrosNaQuery('', SD, { motivo: 'Novo colaborador', filial: 'Araucária' })
+    expect(lerFiltrosDaQuery(query, SD).motivo).toBe('Novo colaborador')
+    expect(lerFiltrosDaQuery(query, SD).filial).toBe('Araucária')
+  })
+
+  it('param vazio equivale a ausente', () => {
+    expect(lerFiltrosDaQuery('sd.motivo=', SD).motivo).toBe('')
+  })
+})
+
+describe('escreverFiltrosNaQuery', () => {
+  it('grava o param do campo trocado', () => {
+    expect(escreverFiltrosNaQuery('', SD, { motivo: 'Troca' })).toBe('sd.motivo=Troca')
+  })
+
+  it('preserva o período e os params da outra tabela', () => {
+    const out = escreverFiltrosNaQuery('preset=mes&en.motivo=Avaria', SD, { categoria: 'celular' })
+    const params = new URLSearchParams(out)
+    expect(params.get('preset')).toBe('mes')
+    expect(params.get('en.motivo')).toBe('Avaria')
+    expect(params.get('sd.categoria')).toBe('celular')
+  })
+
+  it('valor vazio REMOVE o param (nada de "sd.motivo=" pendurado)', () => {
+    expect(escreverFiltrosNaQuery('preset=mes&sd.motivo=Troca', SD, { motivo: '' })).toBe(
+      'preset=mes',
+    )
+  })
+
+  it('campo ausente de `mudancas` fica intacto', () => {
+    const out = escreverFiltrosNaQuery('sd.motivo=Troca', SD, { categoria: 'notebook' })
+    expect(new URLSearchParams(out).get('sd.motivo')).toBe('Troca')
+  })
+
+  it('trocas sucessivas se compõem (duas tabelas na mesma URL)', () => {
+    let query = escreverFiltrosNaQuery('preset=mes', SD, { motivo: 'Troca' })
+    query = escreverFiltrosNaQuery(query, EN, { categoria: 'celular' })
+    const params = new URLSearchParams(query)
+    expect(params.get('sd.motivo')).toBe('Troca')
+    expect(params.get('en.categoria')).toBe('celular')
+    expect(params.get('preset')).toBe('mes')
+  })
+})
+
+describe('limparFiltrosNaQuery', () => {
+  it('tira todos os params da tabela e não toca no resto', () => {
+    const query = 'preset=mes&sd.filial=Matriz&sd.motivo=Troca&en.motivo=Avaria'
+    expect(limparFiltrosNaQuery(query, SD)).toBe('preset=mes&en.motivo=Avaria')
+  })
+
+  it('query só com os filtros da tabela fica vazia', () => {
+    expect(limparFiltrosNaQuery('sd.motivo=Troca&sd.tipo=saida', SD)).toBe('')
+  })
+})
+
+describe('sanitizarFiltros', () => {
+  const opcoes = {
+    categoria: [{ valor: 'celular', rotulo: 'Celular' }],
+    motivo: [{ valor: 'Troca', rotulo: 'Troca' }],
+  }
+
+  it('mantém o valor que existe entre as opções', () => {
+    const out = sanitizarFiltros(
+      { filial: '', categoria: 'celular', motivo: 'Troca', tipo: '' },
+      opcoes,
+      ['categoria', 'motivo'],
+    )
+    expect(out).toEqual({ filial: '', categoria: 'celular', motivo: 'Troca', tipo: '' })
+  })
+
+  it('descarta valor que não existe mais (link antigo, período trocado)', () => {
+    const out = sanitizarFiltros(
+      { filial: '', categoria: 'celular', motivo: 'Sumiu', tipo: '' },
+      opcoes,
+      ['categoria', 'motivo'],
+    )
+    expect(out.motivo).toBe('')
+    expect(out.categoria).toBe('celular')
+  })
+
+  it('ignora campo fora dos ativos (ex.: filial fora do consolidado)', () => {
+    const out = sanitizarFiltros(
+      { filial: 'Matriz', categoria: '', motivo: 'Troca', tipo: '' },
+      { ...opcoes, filial: [{ valor: 'Matriz', rotulo: 'Matriz' }] },
+      ['categoria', 'motivo'],
+    )
+    expect(out.filial).toBe('')
+  })
+
+  it('campo sem opções derivadas não filtra nada', () => {
+    const out = sanitizarFiltros(
+      { filial: '', categoria: '', motivo: 'Troca', tipo: '' },
+      {},
+      ['motivo'],
+    )
+    expect(out.motivo).toBe('')
+  })
+})
+
+// ---------- F11 (revisão adversarial): descarte que não reativa sozinho ----------
+
+describe('decidirFiltros', () => {
+  const ATIVOS: CampoFiltro[] = ['categoria', 'motivo']
+  const semTroca = {
+    categoria: [{ valor: 'celular', rotulo: 'Celular' }],
+    motivo: [{ valor: 'Avaria', rotulo: 'Avaria' }],
+  }
+  const comTroca = {
+    categoria: [{ valor: 'celular', rotulo: 'Celular' }],
+    motivo: [
+      { valor: 'Avaria', rotulo: 'Avaria' },
+      { valor: 'Troca', rotulo: 'Troca' },
+    ],
+  }
+  const url = (p: Partial<Record<CampoFiltro, string>>): Record<CampoFiltro, string> => ({
+    filial: '',
+    categoria: '',
+    motivo: '',
+    tipo: '',
+    ...p,
+  })
+
+  it('primeira decisão aceita o que existe entre as opções', () => {
+    const d = decidirFiltros(null, url({ categoria: 'celular', motivo: 'Avaria' }), semTroca, ATIVOS)
+    expect(d.aceito.categoria).toBe('celular')
+    expect(d.aceito.motivo).toBe('Avaria')
+  })
+
+  it('primeira decisão descarta o valor ausente, mas lembra o que a URL dizia', () => {
+    const d = decidirFiltros(null, url({ motivo: 'Troca' }), semTroca, ATIVOS)
+    expect(d.aceito.motivo).toBe('')
+    expect(d.url.motivo).toBe('Troca')
+  })
+
+  it('param inalterado devolve a MESMA referência (não reajusta estado no render)', () => {
+    const antes = decidirFiltros(null, url({ motivo: 'Avaria' }), semTroca, ATIVOS)
+    expect(decidirFiltros(antes, url({ motivo: 'Avaria' }), semTroca, ATIVOS)).toBe(antes)
+  })
+
+  it('descarte é pegajoso: o valor reaparecer nas opções NÃO reativa o filtro', () => {
+    // Cenário do achado: link colado com `sd.motivo=Troca` num período sem
+    // "Troca"; depois o realtime/auto-refresh traz uma saída com esse motivo.
+    const antes = decidirFiltros(null, url({ motivo: 'Troca' }), semTroca, ATIVOS)
+    const depois = decidirFiltros(antes, url({ motivo: 'Troca' }), comTroca, ATIVOS)
+    expect(depois.aceito.motivo).toBe('')
+  })
+
+  it('descarte de um campo sobrevive à mudança de OUTRO param', () => {
+    const antes = decidirFiltros(null, url({ motivo: 'Troca' }), semTroca, ATIVOS)
+    const depois = decidirFiltros(
+      antes,
+      url({ motivo: 'Troca', categoria: 'celular' }),
+      comTroca,
+      ATIVOS,
+    )
+    expect(depois.aceito.categoria).toBe('celular')
+    expect(depois.aceito.motivo).toBe('')
+  })
+
+  it('param novo refaz a decisão (link, aba de filial, período trocado)', () => {
+    const antes = decidirFiltros(null, url({ motivo: 'Troca' }), semTroca, ATIVOS)
+    const depois = decidirFiltros(antes, url({ motivo: 'Avaria' }), semTroca, ATIVOS)
+    expect(depois.aceito.motivo).toBe('Avaria')
+  })
+
+  it('param que some da URL zera o campo', () => {
+    const antes = decidirFiltros(null, url({ motivo: 'Avaria' }), semTroca, ATIVOS)
+    const depois = decidirFiltros(antes, url({}), semTroca, ATIVOS)
+    expect(depois.aceito.motivo).toBe('')
+    expect(depois.url.motivo).toBe('')
+  })
+
+  it('campo fora dos ativos nunca é aceito (ex.: filial fora do consolidado)', () => {
+    const d = decidirFiltros(
+      null,
+      url({ filial: 'Matriz' }),
+      { ...semTroca, filial: [{ valor: 'Matriz', rotulo: 'Matriz' }] },
+      ATIVOS,
+    )
+    expect(d.aceito.filial).toBe('')
+    expect(d.url.filial).toBe('Matriz')
   })
 })

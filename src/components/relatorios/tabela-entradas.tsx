@@ -18,6 +18,7 @@ import { FiltrosTabela, ChipsResumo } from '@/components/relatorios/filtros-tabe
 import {
   useFiltrosTabela,
   chaveResumoMotivo,
+  PREFIXO_FILTROS,
   type CampoFiltro,
 } from '@/components/relatorios/use-filtros-tabela'
 import { rotuloAcessorio, rotuloCategoria } from '@/lib/dominio'
@@ -28,7 +29,8 @@ const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
 // Entradas do período (§4.4): tipos devolucao + compra. Colunas: Data · Filial ·
 // Categoria · Marca/Modelo · Patrimônio · Tipo (Devolução/Compra) · Motivo ·
 // Colaborador · Setor · Itens faltantes · Obs. Filtros/resumo/células via os
-// compartilhados (OS tech-debt 3.2).
+// compartilhados (OS tech-debt 3.2). Filtros na URL sob o prefixo `en.` (F11/T10)
+// — não colidem com os `sd.` das saídas na mesma página.
 export function TabelaEntradas({
   rows,
   ehGeral,
@@ -37,7 +39,12 @@ export function TabelaEntradas({
   ehGeral: boolean
 }) {
   const { filtradas, temFiltro, resumo, filtros, opcoes, camposAtivos, setFiltro, limpar } =
-    useFiltrosTabela(rows, { campos: CAMPOS, ehGeral, resumoChave: chaveResumoMotivo })
+    useFiltrosTabela(rows, {
+      campos: CAMPOS,
+      prefixo: PREFIXO_FILTROS.entradas,
+      ehGeral,
+      resumoChave: chaveResumoMotivo,
+    })
 
   return (
     <section id="entradas" className="scroll-mt-16 space-y-3 break-before-page">

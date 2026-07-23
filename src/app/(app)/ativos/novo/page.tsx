@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { NovaCompraForm } from '@/components/ativos/nova-compra-form'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { listarFiliais } from '@/lib/queries/filiais'
 import {
   dadosParaDuplicarCompra,
@@ -43,7 +44,12 @@ export default async function NovoEquipamentoPage({
       </Link>
 
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Novo equipamento</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Novo equipamento
+          </h1>
+          <LinkAjuda ancora="como-fazer" rotulo="Ajuda: como cadastrar um equipamento" />
+        </div>
         <p className="text-sm text-muted-foreground">
           Entrada por compra — os equipamentos nascem em estoque na filial que
           recebeu, com uma movimentação de compra na linha do tempo. Compra em

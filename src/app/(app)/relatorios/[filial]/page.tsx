@@ -17,6 +17,7 @@ import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 import { ViewerAutoRefresh } from '@/components/relatorios/viewer-auto-refresh'
 import { GerarRelatorioDialog } from '@/components/relatorios/gerar-relatorio-dialog'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -69,9 +70,17 @@ export default async function RelatorioFilialPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Relatório — {snapshot.meta.filialNome}
-          </h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Relatório — {snapshot.meta.filialNome}
+            </h1>
+            {/* Só para o operador: o visualizador por senha não passa do
+                /relatorios/** (o proxy manda o resto para /login) — um "?" que
+                desloga o gestor seria pior que "?" nenhum. */}
+            {ehOperador && (
+              <LinkAjuda ancora="relatorios" rotulo="Ajuda sobre os relatórios" />
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">
             {periodo.rotulo} · {formatDate(periodo.de)} a {formatDate(periodo.ate)}
           </p>

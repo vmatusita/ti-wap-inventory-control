@@ -135,8 +135,14 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
         </div>
 
         <div className="space-y-2">
-          <Label>Aplica-se a</Label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {/* Grupo de checkboxes: sem control único, o rótulo se liga por
+              `role="group"` + `aria-labelledby` (um <label> solto não nomeia nada). */}
+          <Label id="motivo-aplica-a">Aplica-se a</Label>
+          <div
+            role="group"
+            aria-labelledby="motivo-aplica-a"
+            className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+          >
             {TIPOS.map((t) => (
               <label key={t} className="flex items-center gap-2 text-sm">
                 <Checkbox

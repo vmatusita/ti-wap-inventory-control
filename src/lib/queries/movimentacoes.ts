@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import type {
+  CategoriaAtivo,
   StatusAtivo,
   TermoStatus,
   TipoMovimentacao,
 } from '@/lib/dominio'
+import { canonicalizarPatrimonio, patrimoniosRepetidos } from '@/lib/patrimonio'
 import {
   patrimoniosDuplicados,
   RESUMO_SELECT,
@@ -380,4 +382,288 @@ export async function possiveisDuplicatasDoDia(
     })
   }
   return [...porChave.values()]
+}
+
+// ---------------------------------------------------------------------------
+// F11/M8 — LISTA de movimentações (`/movimentacoes`).
+//
+// Até aqui o ÚNICO histórico do sistema era a linha do tempo POR ATIVO: não
+// existia tela que respondesse "o que foi registrado hoje?". Esta query é a
+// leitura dessa tela — 100% server-side (filtros na URL, paginação por `range`).
+// ---------------------------------------------------------------------------
+
+// Página da lista. 30 cabe numa tela sem virar rolagem infinita e mantém a 2ª
+// consulta de estorno (`.in`) com uma URL curta.
+export const MOV_PAGE_SIZE = 30
+
+// Teto defensivo: `pageSize` vem de quem chama, não da URL, mas um valor absurdo
+// aqui viraria um `range` gigante no PostgREST.
+const MOV_PAGE_SIZE_MAX = 100
+
+export type MovimentacaoLista = {
+  id: string
+  tipo: TipoMovimentacao
+  data: string
+  created_at: string
+  colaborador: string | null
+  setor: string | null
+  observacao: string | null
+  ativo_id: string
+  // null = ativo sem patrimônio físico (import F7E) — a UI mostra "sem patrimônio".
+  patrimonio: string | null
+  service_tag: string | null
+  // Este patrimônio pertence a MAIS DE UM ativo entre as linhas desta página
+  // (duplicidade legítima da spec §5): a tabela mostra a service tag p/ desempatar.
+  patrimonio_duplicado: boolean
+  categoria: CategoriaAtivo | null
+  marca: string | null
+  modelo: string | null
+  filial_nome: string | null
+  autor_nome: string | null
+  // `tipo === 'estorno'`: esta linha DESFEZ outra.
+  ehEstorno: boolean
+  // Alguma outra movimentação aponta para esta em `estorno_de` (2ª consulta).
+  estornada: boolean
+}
+
+export type ListarMovimentacoesParams = {
+  de?: string
+  ate?: string
+  tipo?: TipoMovimentacao
+  filialId?: number
+  q?: string
+  page?: number
+  pageSize?: number
+}
+
+export type ListarMovimentacoesResult = {
+  rows: MovimentacaoLista[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+// Como o termo de busca foi interpretado (a UI explica ao operador em qual campo
+// procurou). UM CAMPO SÓ — o PostgREST não faz `OR` entre a tabela e um embed.
+export type BuscaMovimentacao =
+  | { campo: 'patrimonio'; valor: string }
+  | { campo: 'colaborador'; valor: string }
+  | null
+
+// Neutraliza os curingas do ILIKE (`%`, `_` e o `*` que o PostgREST traduz para
+// `%`) e o que quebra o parser da querystring — mesma defesa de `prefixoSeguro`.
+// Aqui os caracteres viram ESPAÇO (não somem): "Fulano%Silva" precisa continuar
+// achando "Fulano Silva"; remover colaria as palavras e não casaria nada.
+function termoIlikeSeguro(termo: string): string {
+  return termo.replace(/[%_*(),\\]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+// Decisão do Johnny (F11): a busca da lista é de CAMPO ÚNICO.
+//  - Se o texto canonicaliza como patrimônio ("wap 4491" → WAP0004491), procura
+//    por IGUALDADE no patrimônio do ativo (embed `!inner`).
+//  - Senão, procura por trecho no colaborador da própria movimentação.
+// Pura — testada em `movimentacoes.test.ts`.
+export function interpretarBuscaMovimentacao(
+  q: string | null | undefined,
+): BuscaMovimentacao {
+  const termo = (q ?? '').trim()
+  if (!termo) return null
+  const patrimonio = canonicalizarPatrimonio(termo)
+  if (patrimonio) return { campo: 'patrimonio', valor: patrimonio }
+  const limpo = termoIlikeSeguro(termo)
+  // Sobrou só curinga (o operador digitou "%%%"): sem filtro, e não uma busca
+  // por `%%` — que esconderia em silêncio toda linha sem colaborador.
+  if (!limpo) return null
+  return { campo: 'colaborador', valor: limpo }
+}
+
+// Patrimônio repete em casos raros — a chave é o PAR patrimônio + service tag
+// (spec §5). Buscar `WAP0001234` aqui traz o histórico dos DOIS ativos
+// intercalado por data, e sem desempate a lista se lê como a linha do tempo de
+// UMA máquina. Conta por ATIVO DISTINTO: a mesma máquina aparece em várias
+// linhas do histórico e isso não é duplicidade. Escopo = a página, como em
+// `listarAtivos`. Pura — testada em `movimentacoes.test.ts`.
+export function patrimoniosAmbiguosNaPagina(
+  linhas: { ativo_id: string; patrimonio: string | null }[],
+): Set<string> {
+  const porAtivo = new Map<string, string>()
+  for (const l of linhas) {
+    if (l.patrimonio && !porAtivo.has(l.ativo_id))
+      porAtivo.set(l.ativo_id, l.patrimonio)
+  }
+  return patrimoniosRepetidos([...porAtivo.values()])
+}
+
+type RawListaRow = {
+  id: string
+  tipo: TipoMovimentacao
+  data: string
+  created_at: string
+  colaborador: string | null
+  setor: string | null
+  observacao: string | null
+  ativo_id: string
+  ativos: {
+    patrimonio: string | null
+    service_tag: string | null
+    categoria: CategoriaAtivo
+    marca: string | null
+    modelo: string | null
+  } | null
+  autor: AutorEmbed
+  filial: FilialEmbed
+}
+
+const LISTA_COLUNAS =
+  'id, tipo, data, created_at, colaborador, setor, observacao, ativo_id'
+
+// `!inner` transforma o embed do ativo em INNER JOIN. É PRECISO quando há filtro
+// por patrimônio: sem ele o embed é LEFT JOIN e o `.eq('ativos.patrimonio', …)`
+// apenas ZERA o objeto embutido — as linhas continuam todas na resposta. Medido
+// no Supabase de DEV (22/07/2026): com `!inner`, count = 5; sem `!inner`, mesmo
+// filtro, count = 3.066 (= a base inteira). Primeiro uso de `!inner` no projeto.
+// Sem filtro, mantemos o LEFT JOIN (nenhuma movimentação some por causa do join).
+function listaSelect(inner: boolean): string {
+  return (
+    `${LISTA_COLUNAS}, ` +
+    `ativos${inner ? '!inner' : ''}(patrimonio, service_tag, categoria, marca, modelo), ` +
+    'autor:profiles!movimentacoes_criado_por_fkey(nome), ' +
+    'filial:filiais!movimentacoes_filial_id_fkey(nome)'
+  )
+}
+
+// Query base (select + filtros + ordem, SEM faixa). Devolve uma query NOVA a
+// cada chamada: o builder do postgrest-js é mutável e não se reexecuta com
+// segurança (mesma nota de `queryHistorico` em queries/itens.ts).
+//
+// O período (`de`/`ate`) é sobre a coluna `data` — a MESMA exibida na tabela —,
+// pela mesma razão do histórico de itens: filtrar por `created_at` divergiria do
+// que o operador vê (uma movimentação de ontem registrada hoje). A ordem segue
+// `data` primeiro, para a coluna visível não aparecer fora de sequência;
+// `created_at` e `id` desempatam e deixam a paginação determinística (conferido
+// no DEV: zero linhas repetidas entre a página 1 e a 2).
+function queryLista(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  params: ListarMovimentacoesParams,
+  busca: BuscaMovimentacao,
+  head = false,
+) {
+  let q = supabase
+    .from('movimentacoes')
+    .select(listaSelect(busca?.campo === 'patrimonio'), {
+      count: 'exact',
+      head,
+    })
+
+  if (params.de) q = q.gte('data', params.de)
+  if (params.ate) q = q.lte('data', params.ate)
+  if (params.tipo) q = q.eq('tipo', params.tipo)
+  // Filial DE ORIGEM (a coluna `filial_id` da movimentação). Numa transferência,
+  // a linha aparece no filtro da origem — é onde o evento foi registrado.
+  if (params.filialId) q = q.eq('filial_id', params.filialId)
+  if (busca?.campo === 'patrimonio') {
+    q = q.eq('ativos.patrimonio', busca.valor)
+  } else if (busca?.campo === 'colaborador') {
+    q = q.ilike('colaborador', `%${busca.valor}%`)
+  }
+
+  return q
+    .order('data', { ascending: false })
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+}
+
+// Faixa pedida além do fim do resultado. O PostgREST responde 416 com este
+// código em vez de uma lista vazia (conferido no DEV: `?page=3000` num acervo de
+// ~3 mil linhas).
+const RANGE_INVALIDO = 'PGRST103'
+
+// Lista paginada, da mais recente para a mais antiga.
+export async function listarMovimentacoes(
+  params: ListarMovimentacoesParams,
+): Promise<ListarMovimentacoesResult> {
+  const supabase = await createClient()
+  const pageSize = Math.min(
+    MOV_PAGE_SIZE_MAX,
+    Math.max(1, params.pageSize ?? MOV_PAGE_SIZE),
+  )
+  const busca = interpretarBuscaMovimentacao(params.q)
+  const faixa = (p: number) =>
+    queryLista(supabase, params, busca).range(
+      (p - 1) * pageSize,
+      (p - 1) * pageSize + pageSize - 1,
+    )
+
+  let page = Math.max(1, params.page ?? 1)
+  let { data, error, count } = await faixa(page)
+
+  // `?page=3000` (link velho, filtro que encolheu o resultado, digitação) não
+  // pode derrubar o Server Component: descobrimos o total e mostramos a ÚLTIMA
+  // página que existe. Uma tentativa só — sem laço.
+  if (error?.code === RANGE_INVALIDO) {
+    const { count: total, error: erroTotal } = await queryLista(
+      supabase,
+      params,
+      busca,
+      true,
+    )
+    if (erroTotal)
+      throw new Error(`Falha ao listar movimentações: ${erroTotal.message}`)
+    page = Math.max(1, Math.ceil((total ?? 0) / pageSize))
+    ;({ data, error, count } = await faixa(page))
+  }
+
+  if (error)
+    throw new Error(`Falha ao listar movimentações: ${error.message}`)
+
+  const rows = (data ?? []) as unknown as RawListaRow[]
+
+  // 2ª consulta FIXA (nunca N+1) — espelha `getHistoricoLancamentos`: quais
+  // destas linhas já foram estornadas? Não existe coluna `estornada`; o estorno é
+  // OUTRA movimentação apontando a original em `estorno_de`.
+  const ids = rows.map((r) => r.id)
+  const estornadas = new Set<string>()
+  if (ids.length) {
+    const { data: estornos } = await supabase
+      .from('movimentacoes')
+      .select('estorno_de')
+      .in('estorno_de', ids)
+    for (const e of estornos ?? []) if (e.estorno_de) estornadas.add(e.estorno_de)
+  }
+
+  // Sem consulta extra: os patrimônios da página já vieram no embed.
+  const ambiguos = patrimoniosAmbiguosNaPagina(
+    rows.map((r) => ({
+      ativo_id: r.ativo_id,
+      patrimonio: r.ativos?.patrimonio ?? null,
+    })),
+  )
+
+  return {
+    rows: rows.map((r) => ({
+      id: r.id,
+      tipo: r.tipo,
+      data: r.data,
+      created_at: r.created_at,
+      colaborador: r.colaborador,
+      setor: r.setor,
+      observacao: r.observacao,
+      ativo_id: r.ativo_id,
+      patrimonio: r.ativos?.patrimonio ?? null,
+      service_tag: r.ativos?.service_tag ?? null,
+      patrimonio_duplicado: r.ativos?.patrimonio
+        ? ambiguos.has(r.ativos.patrimonio)
+        : false,
+      categoria: r.ativos?.categoria ?? null,
+      marca: r.ativos?.marca ?? null,
+      modelo: r.ativos?.modelo ?? null,
+      filial_nome: r.filial?.nome ?? null,
+      autor_nome: r.autor?.nome ?? null,
+      ehEstorno: r.tipo === 'estorno',
+      estornada: estornadas.has(r.id),
+    })),
+    total: count ?? 0,
+    page,
+    pageSize,
+  }
 }
