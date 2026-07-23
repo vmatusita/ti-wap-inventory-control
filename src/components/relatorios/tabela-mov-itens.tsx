@@ -40,7 +40,7 @@ export function TabelaMovItens({
 }) {
   if (!rows || rows.length === 0) return null
   return (
-    <section id="mov-itens" className="scroll-mt-16 space-y-3 break-before-page">
+    <section id="mov-itens" className="scroll-mt-28 space-y-3 break-before-page">
       <CabecalhoDetalhe titulo="Movimentações de itens" total={rows.length} />
       <div className="overflow-hidden rounded-lg border">
         <Table>

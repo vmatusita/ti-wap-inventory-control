@@ -26,7 +26,13 @@ export function CardRelatorio({
   return (
     <section
       className={cn(
-        'rounded-xl border bg-card p-4 md:p-5',
+        // `min-w-0`: item de grid tem `min-width:auto`, que resolve para o
+        // min-content do conteúdo. Com as tabelas de item (`th/td` em
+        // `whitespace-nowrap`) isso inflava a trilha `1fr` para além do
+        // contêiner e o DOCUMENTO ganhava scroll horizontal (F13/B4-R2). Com
+        // min-w-0 a trilha volta a caber e a rolagem cai no contêiner certo — o
+        // `overflow-x-auto` que a própria Table já tem.
+        'min-w-0 rounded-xl border bg-card p-4 md:p-5',
         wide && 'md:col-span-2',
         'break-inside-avoid',
         className,

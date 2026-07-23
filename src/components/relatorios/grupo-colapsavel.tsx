@@ -27,18 +27,21 @@ export function GrupoColapsavel({
   const conteudoId = `${id}-conteudo`
 
   return (
-    <section id={id} className="scroll-mt-16 break-before-page space-y-3">
+    <section id={id} className="scroll-mt-28 break-before-page space-y-3">
       <div className="flex w-full items-center gap-2">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold tracking-tight">{titulo}</h2>
           {descricao && <p className="text-xs text-muted-foreground">{descricao}</p>}
         </div>
+        {/* O controle mais tocado do relatório no celular tinha 28px. `size-10`
+            (40px) é o alvo mínimo; como o botão é `md:hidden`, o desktop não
+            muda em nada (F13/B4-R4). */}
         <button
           type="button"
           onClick={() => setAberto((v) => !v)}
           aria-expanded={aberto}
           aria-controls={conteudoId}
-          className="ml-auto shrink-0 rounded-md p-1 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+          className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
           aria-label={aberto ? `Recolher ${titulo}` : `Expandir ${titulo}`}
         >
           <ChevronDown className={cn('size-5 transition-transform', aberto && 'rotate-180')} />

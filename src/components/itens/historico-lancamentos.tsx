@@ -133,7 +133,7 @@ export function HistoricoLancamentos({ rows }: { rows: LancamentoHistorico[] }) 
       </div>
 
       <Dialog open={!!alvo} onOpenChange={(o) => !o && setAlvo(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Estornar lançamento</DialogTitle>
             <DialogDescription>

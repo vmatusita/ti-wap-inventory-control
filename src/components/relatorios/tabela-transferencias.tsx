@@ -23,7 +23,7 @@ import type { LinhaTransferencia } from '@/lib/relatorios/tipos'
 export function TabelaTransferencias({ rows }: { rows: LinhaTransferencia[] }) {
   if (rows.length === 0) return null
   return (
-    <section id="transferencias" className="scroll-mt-16 space-y-3 break-before-page">
+    <section id="transferencias" className="scroll-mt-28 space-y-3 break-before-page">
       <CabecalhoDetalhe titulo="Transferências" total={rows.length} />
       <div className="overflow-hidden rounded-lg border">
         <Table>

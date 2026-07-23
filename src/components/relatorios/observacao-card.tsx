@@ -9,7 +9,7 @@ export function ObservacaoCard({ texto }: { texto: string | null | undefined }) 
   return (
     <section
       id="observacao"
-      className="scroll-mt-16 break-inside-avoid rounded-lg border border-l-4 border-brand-amarelo bg-brand-amarelo/5 p-4"
+      className="scroll-mt-28 break-inside-avoid rounded-lg border border-l-4 border-brand-amarelo bg-brand-amarelo/5 p-4"
     >
       <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
         <MessageSquareText className="size-4 text-brand-amarelo" />

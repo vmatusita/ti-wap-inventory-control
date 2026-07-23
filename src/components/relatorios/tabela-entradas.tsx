@@ -47,7 +47,7 @@ export function TabelaEntradas({
     })
 
   return (
-    <section id="entradas" className="scroll-mt-16 space-y-3 break-before-page">
+    <section id="entradas" className="scroll-mt-28 space-y-3 break-before-page">
       <CabecalhoDetalhe
         titulo="Entradas"
         total={rows.length}

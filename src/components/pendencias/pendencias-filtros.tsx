@@ -103,12 +103,14 @@ export function PendenciasFiltros({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* Linha própria para a busca até 1279px — ver ativos-filtros.tsx
+            (F13/B4-R1: com `flex-1` o campo colapsava para 44px). */}
         <form
           onSubmit={(e) => {
             e.preventDefault()
             submeterBusca()
           }}
-          className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md"
+          className="flex min-w-0 grow basis-full items-center gap-2 sm:max-w-md xl:basis-0"
         >
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />

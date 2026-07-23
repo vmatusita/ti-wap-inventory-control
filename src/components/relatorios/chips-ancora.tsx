@@ -1,6 +1,13 @@
 // Chips-âncora fixos no topo ao rolar (§4): o relatório fica longo com 3 grupos.
 // Links de âncora (as seções têm scroll-mt); sticky via CSS, sem JS. Ocultos na
 // impressão. `temTransferencias` acrescenta a âncora condicional.
+//
+// `min-h-10 sm:min-h-0` no chip: no celular ele é alvo de toque e tinha 26px;
+// do `sm` para cima volta ao tamanho de hoje (F13/B4-R3). A pilha sticky
+// (header 56px + esta nav) passa a 110px no celular — por isso as seções-alvo
+// usam `scroll-mt-28` (112px) em vez de `scroll-mt-16`: com 64px o h2 da âncora
+// parava ATRÁS desta barra (defeito já existente em todas as larguras, medido
+// em scratchpad/f13/c4-chips-antes.txt).
 const BASE: { href: string; rotulo: string }[] = [
   { href: '#principais', rotulo: 'Principais' },
   { href: '#acessorios', rotulo: 'Acessórios' },
@@ -25,7 +32,7 @@ export function ChipsAncora({
         <a
           key={c.href}
           href={c.href}
-          className="shrink-0 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-amarelo hover:text-foreground"
+          className="flex min-h-10 shrink-0 items-center rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-amarelo hover:text-foreground sm:min-h-0"
         >
           {c.rotulo}
         </a>

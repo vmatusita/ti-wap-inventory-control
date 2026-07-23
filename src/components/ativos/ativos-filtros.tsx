@@ -125,12 +125,19 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
         isPending && 'opacity-70',
       )}
     >
+      {/* `basis-full xl:basis-0` dá à busca uma LINHA PRÓPRIA no flex-wrap até
+          1279px. Com `flex-1` (= flex:1 1 0%) o basis 0 não reservava espaço: a
+          busca era empacotada junto dos selects de largura fixa, o espaço livre
+          ficava negativo e o campo colapsava para 44px — desenhado POR CIMA do
+          vizinho (F13/B4-R1). `grow` no lugar de `flex-1` porque o atalho
+          reescreveria o basis: no CSS do Tailwind o shorthand `flex` vem DEPOIS
+          de `basis-*`, então `basis-full flex-1` seria um no-op (medido). */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
           submeterBusca()
         }}
-        className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md"
+        className="flex min-w-0 grow basis-full items-center gap-2 sm:max-w-md xl:basis-0"
       >
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />

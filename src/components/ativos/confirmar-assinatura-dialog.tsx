@@ -68,7 +68,7 @@ export function ConfirmarAssinaturaDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Confirmar assinatura do termo</DialogTitle>
           <DialogDescription>

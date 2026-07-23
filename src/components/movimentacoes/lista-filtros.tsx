@@ -124,12 +124,14 @@ export function ListaFiltros({ filiais }: { filiais: Filial[] }) {
         isPending && 'opacity-70',
       )}
     >
+      {/* Linha própria para a busca até 1279px — ver ativos-filtros.tsx
+          (F13/B4-R1: com `flex-1` o campo colapsava para 44px). */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
           submeterBusca()
         }}
-        className="flex min-w-0 flex-1 items-end gap-2 sm:max-w-sm"
+        className="flex min-w-0 grow basis-full items-end gap-2 sm:max-w-sm xl:basis-0"
       >
         <div className="min-w-0 flex-1 space-y-1.5">
           <Label htmlFor="mov-q" className="text-xs text-muted-foreground">
