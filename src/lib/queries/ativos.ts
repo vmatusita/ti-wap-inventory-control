@@ -4,10 +4,17 @@ import type {
   StatusAtivo,
   TermoStatus,
 } from '@/lib/dominio'
+import {
+  TAMANHO_PAGINA_PADRAO,
+  ehTamanhoPagina,
+  type Ordenacao,
+} from '@/lib/ativos/lista'
 import { patrimoniosRepetidos } from '@/lib/patrimonio'
 import type { Tables } from '@/lib/types/database'
 
-export const PAGE_SIZE = 50
+// Tamanho de página padrão da lista. Desde a F11/T7 o operador pode trocar por
+// `?pp=` (25/50/100) — este continua sendo o valor de quem não mexe em nada.
+export const PAGE_SIZE = TAMANHO_PAGINA_PADRAO
 
 // Linha da LISTA de ativos (OS-F2 3.1).
 export type AtivoLista = {
@@ -32,6 +39,13 @@ export type ListarAtivosParams = {
   // Só ativos sem patrimônio físico (pendência 'sem patrimônio físico' — F7E).
   semPatrimonio?: boolean
   page?: number
+  // F11/T7 — 25/50/100. Valor fora da lista cai no `PAGE_SIZE` (a validação é
+  // aqui de propósito: a query é a última linha antes do `range()`).
+  pageSize?: number
+  // F11/T7 — ordenação por coluna vinda da URL (`?ord=`). `null`/ausente
+  // mantém o default histórico da tela (`updated_at desc`).
+  // IGNORADA por `listarAtivosParaExport`, como já acontece com `page`.
+  ordenacao?: Ordenacao | null
 }
 
 export type ListarAtivosResult = {
@@ -101,14 +115,17 @@ function aplicarFiltrosAtivos<T>(query: T, params: ListarAtivosParams): T {
   return q as unknown as T
 }
 
-// Lista paginada, filtrada e ordenada por "atualizado em" desc (OS-F2 3.1.2).
+// Lista paginada e filtrada. Sem `params.ordenacao`, ordena por "atualizado em"
+// desc (default histórico da tela — OS-F2 3.1.2); com ela, ordena pela coluna
+// pedida na URL (F11/T7).
 export async function listarAtivos(
   params: ListarAtivosParams,
 ): Promise<ListarAtivosResult> {
   const supabase = await createClient()
   const page = Math.max(1, params.page ?? 1)
-  const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
+  const pageSize = ehTamanhoPagina(params.pageSize) ? params.pageSize : PAGE_SIZE
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
 
   let query = supabase
     .from('ativos')
@@ -118,7 +135,22 @@ export async function listarAtivos(
     )
 
   query = aplicarFiltrosAtivos(query, params)
-  query = query.order('updated_at', { ascending: false }).range(from, to)
+  if (params.ordenacao) {
+    // `nullsFirst: false` espelha `buscarAtivosParaCombobox`: NULLS FIRST é o
+    // default do PostgREST em asc, e "sem patrimônio"/"sem colaborador" no topo
+    // da lista é ruído — vazio vai para o fim nas DUAS direções.
+    // Desempate por `id`: `categoria`/`status` empatam aos milhares e, sem uma
+    // ordem total, a página 2 repetiria/pularia linhas da página 1.
+    query = query
+      .order(params.ordenacao.coluna, {
+        ascending: params.ordenacao.direcao === 'asc',
+        nullsFirst: false,
+      })
+      .order('id', { ascending: true })
+  } else {
+    query = query.order('updated_at', { ascending: false })
+  }
+  query = query.range(from, to)
 
   const { data, error, count } = await query
   if (error) throw new Error(`Falha ao listar ativos: ${error.message}`)
@@ -148,7 +180,9 @@ export async function listarAtivos(
     rows,
     total: count ?? 0,
     page,
-    pageSize: PAGE_SIZE,
+    // O tamanho EFETIVAMENTE usado (não o pedido): a paginação da tela precisa
+    // calcular "X de Y" com o mesmo número que foi para o `range()`.
+    pageSize,
     patrimoniosDuplicados,
   }
 }
@@ -387,8 +421,9 @@ type RawExportRow = {
 // PostgREST corta requests grandes EM SILÊNCIO. `total` vem de count 'exact';
 // quem decide "truncado" é a camada de cima, por `linhas.length < total`.
 //
-// `params.page` é IGNORADO de propósito — o export é da consulta inteira, não
-// da página aberta.
+// `params.page`, `params.pageSize` e `params.ordenacao` são IGNORADOS de
+// propósito — o export é da consulta inteira, não da página aberta, e a ordem
+// dele precisa ser estável em blocos (`updated_at desc, id asc`).
 export async function listarAtivosParaExport(
   params: ListarAtivosParams,
   cap = 5000,

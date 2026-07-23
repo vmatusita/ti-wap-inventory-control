@@ -6,12 +6,18 @@ import {
   type CategoriaAtivo,
   type StatusAtivo,
 } from '@/lib/dominio'
+import {
+  TAMANHOS_PAGINA,
+  parseOrdenacao,
+  parseTamanhoPagina,
+} from '@/lib/ativos/lista'
 import Link from 'next/link'
 import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
 import { AtivosTable } from '@/components/ativos/ativos-table'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { Button } from '@/components/ui/button'
 import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { exportarAtivosCSV } from '@/lib/actions/exportar'
 import { PackageOpen, PackagePlus } from 'lucide-react'
 
@@ -59,16 +65,33 @@ export default async function AtivosPage({
 
   const semPatrimonio = texto(sp.semPatrimonio) === '1'
 
+  // F11/T7 — ordenação e tamanho de página vêm da URL. Param torto é IGNORADO
+  // (cai no default `updated_at desc` / 50 por página), nunca derruba a tela.
+  const ordenacao = parseOrdenacao(sp.ord)
+  const pageSize = parseTamanhoPagina(sp.pp) ?? undefined
+
   const [filiais, resultado] = await Promise.all([
     listarFiliais(),
-    listarAtivos({ q, filialId, categoria, status, semPatrimonio, page }),
+    listarAtivos({
+      q,
+      filialId,
+      categoria,
+      status,
+      semPatrimonio,
+      page,
+      pageSize,
+      ordenacao,
+    }),
   ])
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Ativos</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-semibold tracking-tight">Ativos</h1>
+            <LinkAjuda ancora="status" rotulo="Ajuda: o que cada status significa" />
+          </div>
           <p className="text-sm text-muted-foreground">
             {resultado.total.toLocaleString('pt-BR')} ativos cadastrados
           </p>
@@ -107,6 +130,8 @@ export default async function AtivosPage({
             page={resultado.page}
             pageSize={resultado.pageSize}
             total={resultado.total}
+            saltoPagina
+            tamanhos={TAMANHOS_PAGINA}
           />
         </>
       )}
