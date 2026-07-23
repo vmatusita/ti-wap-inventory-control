@@ -258,6 +258,30 @@ begin
     raise notice '✓ 6 sem substituto: so a devolucao entra (substituto null)';
   else raise warning '✗ 6 esperado devolvido_fornecedor + substituto null, obtido %/sub=%', v_status, v_subid; end if;
 
+  -- ---------------------------------------------------------------
+  -- CENARIO 7 (achado da revisão adversarial) — devolucao_fornecedor ZERA o
+  --   detentor (espelho de descartado). Ativo chega a em_manutencao por AJUSTE
+  --   (que PRESERVA colaborador/setor); a devolução deve limpar os dois.
+  -- ---------------------------------------------------------------
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('TESTEF14007', 'notebook', v_matriz);
+  select id into a from public.ativos where patrimonio = 'TESTEF14007';
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
+    values (a, 'compra', v_matriz, v_prof);
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (a, 'saida', 'Fulano Fic', 'TI', v_matriz, v_prof);   -- em_uso (detentor setado)
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
+    values (a, 'ajuste', v_matriz, 'em_manutencao', 'forcar manutencao (teste F14)', v_prof); -- preserva detentor
+  select colaborador_atual into v_cf from public.ativos where id = a;
+  if v_cf is not null then raise notice '✓ 7a ajuste preserva o detentor antes da devolucao';
+  else raise warning '✗ 7a ajuste deveria preservar o detentor (precondicao)'; end if;
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+    values (a, 'devolucao_fornecedor', v_matriz, 'OS-FORN-7', v_prof);
+  select colaborador_atual, setor_atual into v_cf, v_forn from public.ativos where id = a;
+  if v_cf is null and v_forn is null then
+    raise notice '✓ 7b devolucao_fornecedor zera colaborador/setor (espelho de descartado)';
+  else raise warning '✗ 7b detentor nao zerado apos devolucao: %/%', v_cf, v_forn; end if;
+
   raise notice '=== fim do roteiro manutencao_fornecedor (procure por ✗ acima; nenhum = tudo passou) ===';
 end $$;
 
