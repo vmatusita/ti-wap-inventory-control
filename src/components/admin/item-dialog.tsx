@@ -33,9 +33,7 @@ type ItemEdit = {
   grupo: GrupoItem
   ordem: number
   ativo: boolean
-  // F12 · I5 (W1): chega de `ItemAdmin`. Ainda SEM campo na tela — o dialog só
-  // repassa o valor atual para não zerá-lo ao salvar. O input "Estoque mínimo" é
-  // entrega do W2.
+  // Ponto de reposição (F12 · I5): chega de `ItemAdmin` e volta pela action.
   estoque_minimo: number
   lancamentos: number
 }
@@ -49,6 +47,7 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
   const [nome, setNome] = useState(item?.nome ?? '')
   const [grupo, setGrupo] = useState<GrupoItem>(item?.grupo ?? 'acessorio')
   const [ordem, setOrdem] = useState(String(item?.ordem ?? 0))
+  const [estoqueMinimo, setEstoqueMinimo] = useState(String(item?.estoque_minimo ?? 0))
   const [ativo, setAtivo] = useState(item?.ativo ?? true)
   const [enviando, start] = useTransition()
 
@@ -58,6 +57,9 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
   function salvar() {
     if (!valido) return
     const ordemNum = Number(ordem) || 0
+    // Mesma conversão do `ordem`: campo apagado ou lixo digitado vira 0 (= sem
+    // alerta), nunca `NaN`. Negativo e acima de 9999 morrem no Zod da action.
+    const minimoNum = Number(estoqueMinimo) || 0
     start(async () => {
       const res = edicao
         ? await atualizarItem({
@@ -66,12 +68,14 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
             grupo,
             ordem: ordemNum,
             ativo,
-            // Preserva o mínimo já configurado (a lista de `update` da action é
-            // explícita: omitir aqui zeraria o valor em silêncio). W2 troca por
-            // estado do formulário quando o campo existir na tela.
-            estoque_minimo: item.estoque_minimo,
+            estoque_minimo: minimoNum,
           })
-        : await criarItem({ nome: nome.trim(), grupo, ordem: ordemNum, estoque_minimo: 0 })
+        : await criarItem({
+            nome: nome.trim(),
+            grupo,
+            ordem: ordemNum,
+            estoque_minimo: minimoNum,
+          })
       if (!res.ok) {
         toast.error(res.erro)
         return
@@ -155,6 +159,28 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
                 onChange={(e) => setOrdem(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* Ponto de reposição (F12 · I5). Fora da grade de duas colunas porque
+              o texto de apoio precisa da linha inteira — é ele que explica que a
+              comparação é com o estoque SOMADO das filiais, e não com o da
+              filial que o operador tem na cabeça. */}
+          <div className="space-y-2">
+            <Label htmlFor="item-estoque-minimo">Estoque mínimo</Label>
+            <Input
+              id="item-estoque-minimo"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={estoqueMinimo}
+              onChange={(e) => setEstoqueMinimo(e.target.value)}
+              aria-describedby="item-estoque-minimo-ajuda"
+            />
+            <p id="item-estoque-minimo-ajuda" className="text-xs text-muted-foreground">
+              0 = sem alerta de reposição. Acima de 0, o item aparece com o aviso
+              “repor” em Itens por quantidade quando o estoque somado de todas as
+              filiais ficar abaixo deste número.
+            </p>
           </div>
 
           {edicao && (

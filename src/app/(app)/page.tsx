@@ -4,10 +4,13 @@ import {
   BarChart3,
   ClipboardCheck,
   Package,
+  PackageMinus,
   PackagePlus,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
+import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
+import { itensParaRepor, minimosDoCatalogo } from '@/lib/itens/repor'
 import { hojeISO, formatDate } from '@/lib/format'
 import { rotuloCategoria, pillTipo, rotuloTipo } from '@/lib/dominio'
 import type { CategoriaAtivo } from '@/lib/dominio'
@@ -71,15 +74,26 @@ export default async function DashboardPage() {
   const client = await createClient()
   const hoje = hojeISO()
 
-  const [kpis, pendenciasRes, ultimas] = await Promise.all([
+  // As duas leituras do ponto de reposição (F12 · I5) entram no MESMO
+  // `Promise.all` das outras — nada de cascata sequencial na home. `null` em
+  // `getSaldosItens` é o consolidado de todas as filiais, que é justamente com
+  // quem o mínimo compara (decisão do Johnny 22/07/2026).
+  const [kpis, pendenciasRes, ultimas, saldosItens, catalogoItens] = await Promise.all([
     getKpis(client, null),
     client
       .from('v_pendencias')
       .select('id, patrimonio, categoria, filial, pendencia')
       .limit(5),
     getUltimasMovimentacoes(client, null, { de: '2000-01-01', ate: hoje }, 5),
+    getSaldosItens(null),
+    listarItensAtivos(),
   ])
   const pendencias = (pendenciasRes.data ?? []) as PendenciaHome[]
+
+  // Item DESATIVADO que ainda tem saldo aparece na RPC e não no catálogo ativo:
+  // fica sem mínimo no mapa e nunca alerta (repor.ts). O card só existe quando
+  // há o que repor — ver o comentário na renderização.
+  const repor = itensParaRepor(saldosItens, minimosDoCatalogo(catalogoItens))
 
   return (
     <div className="space-y-6">
@@ -91,6 +105,67 @@ export default async function DashboardPage() {
       </div>
 
       <KpiTiles kpis={kpis} links={LINKS_KPI} />
+
+      {/* Itens para repor (F12 · I5) — card INLINE, não tile do KpiTiles: os
+          tiles contam ativos patrimoniados por status, e um nono tile contando
+          outra coisa (itens por quantidade) leria como se fosse da mesma soma.
+          Some por completo quando não há nada a repor: é um alerta de exceção,
+          sem tela própria para onde levar, e um "0 itens para repor" permanente
+          só somaria ruído a um dashboard que já tem 8 tiles, 2 cards e 4 atalhos
+          — a ausência do card é a boa notícia. (Pendências, que é fixture com
+          rota própria, continua mostrando o estado vazio comemorativo.) */}
+      {repor.length > 0 && (
+        <Card className="border-amber-300 dark:border-amber-900">
+          <CardContent className="py-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <PackageMinus className="size-4 text-amber-700 dark:text-amber-400" aria-hidden />
+                Itens para repor
+                <span className="rounded bg-amber-100 px-1.5 text-xs tabular-nums text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  {repor.length.toLocaleString('pt-BR')}
+                </span>
+              </h2>
+              <Link
+                href="/itens"
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+              >
+                ver em Itens
+              </Link>
+            </div>
+            <ul className="divide-y">
+              {repor.slice(0, 5).map((r) => (
+                <li key={r.item_id} className="flex items-baseline gap-3 py-2 text-sm">
+                  {/* O nome leva à busca JÁ FILTRADA em /itens (o mesmo param `q`
+                      da caixa de busca da tela) — o operador chega no item, não
+                      numa lista para procurar de novo. */}
+                  <Link
+                    href={`/itens?q=${encodeURIComponent(r.item)}`}
+                    className="min-w-0 flex-1 truncate font-medium underline-offset-2 hover:underline"
+                  >
+                    {r.item}
+                  </Link>
+                  <span className="hidden shrink-0 tabular-nums text-muted-foreground sm:inline">
+                    estoque {r.estoque.toLocaleString('pt-BR')} · mínimo{' '}
+                    {r.minimo.toLocaleString('pt-BR')}
+                  </span>
+                  {/* "repor N", nunca "faltam N": "faltam" já é o vocabulário do
+                      déficit de atrelados em /itens (spec §7) e reusar a palavra
+                      aqui misturaria dois números que não se somam. */}
+                  <span className="min-w-24 shrink-0 text-right tabular-nums text-amber-800 dark:text-amber-300">
+                    repor {r.abaixo.toLocaleString('pt-BR')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {repor.length > 5 && (
+              <p className="pt-2 text-xs text-muted-foreground">
+                e mais {(repor.length - 5).toLocaleString('pt-BR')} item(ns) abaixo do
+                mínimo.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

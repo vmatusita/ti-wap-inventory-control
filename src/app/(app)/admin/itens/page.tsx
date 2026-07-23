@@ -30,6 +30,10 @@ export default async function AdminItensPage() {
               <TableHead>Nome</TableHead>
               <TableHead>Grupo</TableHead>
               <TableHead className="hidden text-right md:table-cell">Ordem</TableHead>
+              {/* Mínimo aparece antes de Ordem no corte de tela (`sm`, não `md`):
+                  é regra de operação — decide o aviso "repor" em /itens —,
+                  enquanto Ordem só governa a posição no combobox. */}
+              <TableHead className="hidden text-right sm:table-cell">Mínimo</TableHead>
               <TableHead className="hidden text-right sm:table-cell">Lançamentos</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -46,6 +50,19 @@ export default async function AdminItensPage() {
                 </TableCell>
                 <TableCell className="hidden text-right tabular-nums text-muted-foreground md:table-cell">
                   {it.ordem}
+                </TableCell>
+                {/* Mínimo 0 sai como travessão, não como "0": zero não é um piso
+                    de estoque, é a AUSÊNCIA de acompanhamento — um 0 numa coluna
+                    de limites se lê como "alerta quando ficar abaixo de zero".
+                    Mesma convenção do travessão de Atrelados/Falta em /itens. */}
+                <TableCell className="hidden text-right tabular-nums text-muted-foreground sm:table-cell">
+                  {it.estoque_minimo > 0 ? (
+                    <span className="font-medium text-foreground">
+                      {it.estoque_minimo.toLocaleString('pt-BR')}
+                    </span>
+                  ) : (
+                    <span title="Sem alerta de reposição">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="hidden text-right tabular-nums text-muted-foreground sm:table-cell">
                   {it.lancamentos.toLocaleString('pt-BR')}

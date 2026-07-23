@@ -38,6 +38,8 @@ import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
 import { LancarItemLinha } from '@/components/itens/lancar-item-linha'
 import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { SaldosFiliaisTabela } from '@/components/itens/saldos-filiais'
+import { BadgeRepor } from '@/components/itens/badge-repor'
+import { estoquePorItem, minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 
@@ -140,23 +142,34 @@ export default async function ItensPage({
   const deFiltro = dataISO(primeiro(sp.de))
   const ateFiltro = dataISO(primeiro(sp.ate))
 
-  const [filiais, itensAtivos, saldos, ultimo, historico] = await Promise.all([
-    listarFiliais(),
-    listarItensAtivos(),
-    // Na visão por filial esta leitura não é usada (a de baixo traz o
-    // consolidado junto) — não se gasta a chamada à toa.
-    visaoFiliais ? Promise.resolve<SaldoItem[]>([]) : getSaldosItens(filialId),
-    getUltimoLancamento(operador.id),
-    getHistoricoLancamentos({
-      filialId,
-      itemId: itemFiltro,
-      tipo: tipoFiltro,
-      de: deFiltro,
-      ate: ateFiltro,
-      page,
-      pageSize: 20,
-    }),
-  ])
+  // Ponto de reposição (F12 · I5): o aviso "repor" compara SEMPRE com o estoque
+  // CONSOLIDADO (decisão do Johnny 22/07/2026 — o mínimo é do item, não da
+  // filial). Na visão consolidada sem recorte, `saldos` já É o consolidado; com
+  // `?filial=N` os números da tabela são daquela filial e o consolidado precisa
+  // de uma leitura própria (mesma RPC, em paralelo com as outras) — sem ela o
+  // badge julgaria por um saldo parcial e apareceria em item que tem sobra nas
+  // outras filiais. Na visão por filial o consolidado já vem em cada linha.
+  const consolidadoAparte = !visaoFiliais && filialId !== null
+
+  const [filiais, itensAtivos, saldos, ultimo, historico, saldosConsolidados] =
+    await Promise.all([
+      listarFiliais(),
+      listarItensAtivos(),
+      // Na visão por filial esta leitura não é usada (a de baixo traz o
+      // consolidado junto) — não se gasta a chamada à toa.
+      visaoFiliais ? Promise.resolve<SaldoItem[]>([]) : getSaldosItens(filialId),
+      getUltimoLancamento(operador.id),
+      getHistoricoLancamentos({
+        filialId,
+        itemId: itemFiltro,
+        tipo: tipoFiltro,
+        de: deFiltro,
+        ate: ateFiltro,
+        page,
+        pageSize: 20,
+      }),
+      consolidadoAparte ? getSaldosItens(null) : Promise.resolve<SaldoItem[]>([]),
+    ])
 
   // Leitura extra SÓ da visão por filial: nº de filiais + 1 chamada da mesma RPC
   // dos saldos. A visão consolidada (default) continua com as leituras de antes.
@@ -164,6 +177,14 @@ export default async function ItensPage({
 
   const porGrupo = agruparSaldos(saldos, q, grupoFiltro)
   const porGrupoFiliais = agruparSaldos(saldosFiliais?.itens ?? [], q, grupoFiltro)
+
+  // Cruzamento catálogo × saldo do aviso "repor". `listarItensAtivos` só traz
+  // item ATIVO e a RPC traz ativo OU com lançamento: item desativado que ainda
+  // tem saldo fica de fora do mapa e vale mínimo 0 — nunca alerta (repor.ts).
+  const minimos = minimosDoCatalogo(itensAtivos)
+  const estoqueConsolidado = estoquePorItem(
+    consolidadoAparte ? saldosConsolidados : saldos,
+  )
 
   const blocosVazios = (visaoFiliais ? porGrupoFiliais : porGrupo).length === 0
   // `filialId` já é nulo na visão por filial (ver o parse acima).
@@ -234,6 +255,7 @@ export default async function ItensPage({
                 <SaldosFiliaisTabela
                   filiais={saldosFiliais.filiais}
                   itens={bloco.itens}
+                  minimos={minimos}
                 />
               </div>
             </section>
@@ -263,7 +285,21 @@ export default async function ItensPage({
                   <TableBody>
                     {bloco.itens.map((s) => (
                       <TableRow key={s.item_id}>
-                        <TableCell className="font-medium">{s.item}</TableCell>
+                        {/* "repor" fica junto do NOME, não na coluna Falta: os
+                            dois avisos convivem na mesma linha e significam
+                            coisas diferentes ("faltam N" = atrelados − estoque,
+                            compromisso já assumido; "repor" = previsão de
+                            compra). Empilhados na mesma célula estreita, um
+                            passaria por qualificador do outro. */}
+                        <TableCell className="font-medium">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            {s.item}
+                            <BadgeRepor
+                              estoqueConsolidado={estoqueConsolidado[s.item_id] ?? null}
+                              estoqueMinimo={minimoDoItem(minimos, s.item_id)}
+                            />
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">
                           {s.total.toLocaleString('pt-BR')}
                         </TableCell>

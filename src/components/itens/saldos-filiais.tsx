@@ -8,12 +8,14 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { LancarItemLinha } from '@/components/itens/lancar-item-linha'
+import { BadgeRepor } from '@/components/itens/badge-repor'
 import { cn } from '@/lib/utils'
 import {
   estoqueForaDasColunas,
   type CelulaSaldo,
   type SaldoItemFiliais,
 } from '@/lib/queries/itens'
+import { minimoDoItem, type MinimosPorItem } from '@/lib/itens/repor'
 import type { Filial } from '@/lib/queries/filiais'
 
 // Saldos das filiais LADO A LADO (F11 · I4): uma coluna por filial + Total.
@@ -46,9 +48,14 @@ function detalhe(c: CelulaSaldo, filial: string): string {
 export function SaldosFiliaisTabela({
   filiais,
   itens,
+  minimos,
 }: {
   filiais: Filial[]
   itens: SaldoItemFiliais[]
+  // Estoque mínimo por item (F12 · I5), cruzado na PÁGINA a partir do catálogo:
+  // `SaldoItemFiliais` vem da RPC de saldo e não carrega essa coluna. Item que
+  // esteja na tabela e não no mapa (desativado com saldo) vale 0 = sem alerta.
+  minimos: MinimosPorItem
 }) {
   return (
     <Table>
@@ -97,16 +104,27 @@ export function SaldosFiliaisTabela({
                   </TableCell>
                 )
               })}
+              {/* O aviso "repor" mora AQUI, no Total, e nunca nas colunas de
+                  filial: o estoque mínimo é do ITEM e compara com o consolidado
+                  (decisão do Johnny 22/07/2026). Ao lado de um número de filial
+                  ele diria "compre mouse para a Matriz" com 30 mouses parados em
+                  outra filial. */}
               <TableCell
                 className="text-right font-semibold tabular-nums"
                 title={detalhe(linha.consolidado, 'Todas as filiais')}
               >
-                {linha.consolidado.estoque.toLocaleString('pt-BR')}
-                {fora > 0 && (
-                  <span className="block text-xs font-normal text-muted-foreground">
-                    inclui {fora.toLocaleString('pt-BR')} de filial desativada
-                  </span>
-                )}
+                <div className="flex flex-col items-end gap-0.5">
+                  <span>{linha.consolidado.estoque.toLocaleString('pt-BR')}</span>
+                  <BadgeRepor
+                    estoqueConsolidado={linha.consolidado.estoque}
+                    estoqueMinimo={minimoDoItem(minimos, linha.item_id)}
+                  />
+                  {fora > 0 && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      inclui {fora.toLocaleString('pt-BR')} de filial desativada
+                    </span>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="py-1 text-right">
                 {/* Sem filial no preset: o "+" é da LINHA, não da célula, e a
