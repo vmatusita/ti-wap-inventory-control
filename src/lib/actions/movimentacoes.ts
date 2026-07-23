@@ -23,16 +23,29 @@ import {
   sugestoesColaboradores,
   sugestoesSetores,
   ultimosAtivosMovimentadosDoOperador,
-  type ParMovimentacaoDia,
-  type PossivelDuplicataDia,
+  type ParMovimentacaoDia as ParMovimentacaoDiaQuery,
+  type PossivelDuplicataDia as PossivelDuplicataDiaQuery,
 } from '@/lib/queries/movimentacoes'
 import type { StatusAtivo } from '@/lib/dominio'
 
 // Re-export dos tipos do CONTRATO §1.5 (OS-F10): o fluxo de movimentação roda em
 // Client Component e só pode importar deste módulo — `src/lib/queries/**` é
-// server-only. `export type` é apagado na compilação, então convive com o
-// 'use server' (que exige exports async) — mesmo padrão de `ItemResultado`.
-export type { ParMovimentacaoDia, PossivelDuplicataDia }
+// server-only.
+//
+// A FORMA IMPORTA — não troque por `export type { … }` (F13/B2).
+// `export type { A, B }` é um re-export COM ESPECIFICADORES, e o transform de
+// Server Actions do Next/Turbopack ignora o `type` nessa forma: emite `A` e `B`
+// em `ensureServerEntryExports([…])` e `registerServerReference(…)` — enquanto o
+// `import type` correspondente já foi apagado. Sem binding nenhum, o módulo
+// INTEIRO morre com `ReferenceError: A is not defined` na avaliação, levando
+// junto todas as Server Actions daqui (e, porque o layout do grupo `(app)` puxa
+// uma delas, as de toda rota logada). Foi o defeito B1+B2 da F13, ~20h em
+// produção sem falhar build, lint nem teste.
+// O ALIAS INLINE abaixo (`export type X = Y`) é apagado corretamente — é a
+// forma segura, e a única aceita aqui.
+// Guarda automática: `src/lib/use-server-exports.ts` (+ teste).
+export type ParMovimentacaoDia = ParMovimentacaoDiaQuery
+export type PossivelDuplicataDia = PossivelDuplicataDiaQuery
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
