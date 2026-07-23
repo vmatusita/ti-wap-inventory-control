@@ -282,6 +282,11 @@ export const SECOES: Secao[] = [
         texto:
           'Tudo que foi registrado fica na LISTA de movimentações: o item "Movimentações" do menu lateral abre essa lista (com período, tipo, filial e busca), e é ali que se responde "o que foi registrado hoje?". Para registrar, use o botão "Nova movimentação" ou a tecla N — os dois continuam indo direto ao formulário, sem passar pela lista.',
       },
+      {
+        tipo: 'nota',
+        texto:
+          'Kits de movimentação: um kit é um MODELO salvo do passo 2 (tipo, motivo, termo e observação padrão) mais a lista de categorias que costumam ir juntas — por exemplo "Kit novo colaborador" = Saída · Novo colaborador · termo Gerado, esperando Notebook, Monitor e Celular. Os kits são criados e editados em Administração › Kits e aplicados no passo 2 pelo botão "Aplicar kit", ao lado de "Repetir última" (o botão só existe quando há kit ativo). Aplicar SUBSTITUI os quatro campos, inclusive apagando o que o kit não define — o aviso na tela diz isso. A lista de categorias é só um CHECKLIST informativo: ele mostra o que falta no lote, some sozinho quando você acrescenta o que faltava e NUNCA impede registrar. Kit é cópia: desativar ou editar um kit não altera nenhuma movimentação já registrada, e o kit não fica gravado na movimentação.',
+      },
     ],
   },
   {
@@ -321,8 +326,13 @@ export const SECOES: Secao[] = [
           'Total — tudo que a TI possui daquele item (o patrimônio do almoxarifado).',
           'Estoque — o que está fisicamente disponível na prateleira agora.',
           'Atrelados — unidades vinculadas a um ativo/chamado, que devem retornar.',
-          'Falta — déficit real: acende quando o que está atrelado somado ao que está com as pessoas passa do Total — máx(0, atrelados + liberados − total). Na operação normal fica sempre em zero; se acender, algum lançamento não fecha e vale conferir o histórico. Não é aviso de reposição: o sistema não guarda nível de reposição por item.',
+          'Falta — déficit real: acende quando o que está atrelado somado ao que está com as pessoas passa do Total — máx(0, atrelados + liberados − total). Na operação normal fica sempre em zero; se acender, algum lançamento não fecha e vale conferir o histórico. É compromisso JÁ assumido, e aparece como selo vermelho "faltam N" — não é o mesmo que o aviso "repor" (abaixo).',
         ],
+      },
+      {
+        tipo: 'nota',
+        texto:
+          'Falta e repor são dois avisos DIFERENTES e podem aparecer na mesma linha. Falta (selo vermelho "faltam N") é déficit real — máx(0, atrelados + liberados − total) —, ou seja, compromisso já assumido sem lastro. Repor (selo âmbar "repor") é ponto de reposição: acende quando o estoque somado de TODAS as filiais fica abaixo do estoque mínimo configurado para aquele item em Administração › Itens. Mínimo 0 = item sem acompanhamento, nunca acende. Estoque IGUAL ao mínimo também não acende: o mínimo é o piso aceitável, não o gatilho. O aviso é sempre do consolidado, nunca do saldo de uma filial — julgar pelo recorte mandaria comprar o que está sobrando na filial ao lado; por isso, na visão Por filial, o selo "repor" fica embaixo da coluna Total e nunca numa coluna de filial. O painel inicial repete a mesma conta no card "Itens para repor", que só aparece quando há algo a repor.',
       },
       {
         tipo: 'paragrafo',
@@ -503,6 +513,19 @@ export const SECOES: Secao[] = [
       },
       {
         tipo: 'passos',
+        titulo: 'Criar e aplicar um kit de movimentação',
+        itens: [
+          'Para criar: Administração › Kits › "Novo kit". Dê um nome ("Kit novo colaborador"), escolha o tipo (compra e estorno não entram), o motivo, o termo e uma observação padrão — e marque as categorias que costumam ir juntas (Notebook, Monitor, Celular…). Ao menos uma categoria é obrigatória.',
+          'Trocar o tipo dentro do kit limpa o motivo que não vale para o tipo novo e o termo, quando o tipo novo não pede termo: o modelo não pode nascer inaplicável. Kit não se exclui — desmarque "Kit ativo" para tirá-lo do fluxo.',
+          'Para aplicar: no passo 2 da nova movimentação, clique em "Aplicar kit" (ao lado de "Repetir última") e escolha o kit. O botão só aparece quando existe kit ativo.',
+          'Aplicar SUBSTITUI tipo, motivo, termo e observação — inclusive apagando o que o kit não define. O aviso na tela diz que os campos foram substituídos; aplicar o mesmo kit duas vezes dá sempre o mesmo resultado.',
+          'Kit de um tipo que não vale para os ativos do lote NÃO é aplicado pela metade: nada muda e o aviso explica por quê. (É diferente de "Repetir última", que aplica o que der.) Se o motivo salvo no kit tiver sido desativado depois, o resto é aplicado e o campo Motivo fica vazio, com aviso.',
+          'O bloco âmbar com as categorias esperadas é só um CHECKLIST: mostra o que ainda não está no lote, some sozinho quando você volta ao passo 1 e acrescenta o que faltava, e nunca impede registrar. "Dispensar" fecha o bloco sem mexer nos campos.',
+          'Kit é cópia: o que já foi registrado não guarda vínculo com o kit — desativar ou editar um modelo depois não altera nenhuma movimentação passada.',
+        ],
+      },
+      {
+        tipo: 'passos',
         titulo: 'Dar entrada de ativos por compra',
         itens: [
           'Use o fluxo de compra para cadastrar ativos novos: um por vez, colando uma lista, ou por faixa de patrimônio.',
@@ -618,7 +641,18 @@ export const SECOES: Secao[] = [
           'Não achou? Aparece a opção "Criar item «…»" na própria lista — alcançável pelas setas do teclado.',
           'Confirme o nome e escolha o grupo (Acessório ou Componente). A posição do item na tabela é calculada pelo sistema.',
           'O item entra criado e já selecionado naquela linha do carrinho — o lançamento segue sem interrupção. Ele passa a valer para todo mundo (é o mesmo catálogo de Administração › Itens).',
-          'Nome que já existe no catálogo não é criado de novo: o sistema avisa "Já existe um item com esse nome." — procure-o na lista.',
+          'Nome que já existe no catálogo não é criado de novo: o sistema avisa "Já existe um item com esse nome." — procure-o na lista. Se o homônimo estiver DESATIVADO, ele é reativado e já entra na linha, com aviso dizendo isso.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Definir o estoque mínimo de um item',
+        itens: [
+          'Vá a Administração › Itens e edite o item. O campo "Estoque mínimo" é o ponto de reposição daquele item, contado sobre o estoque de TODAS as filiais somadas.',
+          'Deixe 0 (o padrão, exibido como travessão na coluna Mínimo) para não acompanhar aquele item — nenhum aviso será emitido.',
+          'A partir de 1, sempre que o estoque consolidado ficar ABAIXO do mínimo o item ganha o selo âmbar "repor" na página Itens, nas duas visões. Estoque igual ao mínimo ainda não acende: o mínimo é o piso aceitável.',
+          'O painel inicial mostra o card "Itens para repor" com os mais críticos primeiro (quem está mais longe do mínimo), o quanto falta para voltar ao mínimo e um link direto para o item. Sem nada a repor, o card não aparece.',
+          'Passar o mouse no selo mostra o mínimo e o estoque somado das filiais. O aviso é sempre do consolidado: filtrar a página por uma filial não muda quem acende.',
         ],
       },
       {
@@ -674,7 +708,8 @@ export const SECOES: Secao[] = [
           'Senhas de acesso — senhas que dão ao visualizador acesso só aos relatórios. Revogar pede confirmação e tem efeito imediato, no request seguinte; a senha revogada pode ser reativada na mesma lista.',
           'Filiais — cadastro das filiais.',
           'Motivos — o vocabulário de motivos oferecido na tela de movimentação.',
-          'Itens — o catálogo de itens por quantidade (nome, grupo, ordem).',
+          'Kits — os modelos do passo 2 da movimentação (tipo, motivo, termo, observação padrão e as categorias esperadas), aplicados com um clique em Nova movimentação.',
+          'Itens — o catálogo de itens por quantidade (nome, grupo, ordem, estoque mínimo).',
           'Importar — import de startup de uma filial por arquivo (CSV ou Excel .xlsx), para o go-live dela no sistema.',
         ],
       },

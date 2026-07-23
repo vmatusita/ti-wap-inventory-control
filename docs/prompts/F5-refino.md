@@ -28,11 +28,16 @@ Botão "Baixar HTML" no snapshot (spec §7.1): gera arquivo único com CSS/JS in
 ### 5.8 ECharts em gráfico específico (só se pedirem)
 Se as filiais pedirem zoom/brush/drill-down de verdade em algum gráfico, trocar SOMENTE aquele gráfico por Apache ECharts (grátis), mantendo o resto em Recharts. Gatilho: pedido real, não antecipação.
 
-### 5.9 Kits de movimentação salvos
+### 5.9 Kits de movimentação salvos — ✅ **CONCLUÍDO em 23/07/2026 (F12)**
 Complemento dos facilitadores da F2: salvar um lote como modelo nomeado ("Kit novo colaborador" = notebook + monitor + celular com motivo novo_colaborador) e aplicá-lo na tela de nova movimentação escolhendo só os ativos. Tabela `kits_modelos (id, nome, payload jsonb, criado_por)` + gestão simples em admin. Aceite: registrar um kit de 3 itens em menos de 60 segundos usando o modelo.
+
+> **Entregue pela `F12-ultracode.md`** (migration `0043`, com o shape prometido acima): CRUD em `/admin/kits` e botão "Aplicar kit" no passo 2 da nova movimentação, sobrescrevendo tipo/motivo/termo/observação de uma vez; as categorias esperadas viram **checklist âmbar informativo** (avisa o que falta, nunca bloqueia o registro) e o kit é **cópia** — nada liga uma movimentação ao kit, então desativar ou editar um modelo não altera nenhum registro passado. Kit de tipo incompatível com o lote **não é aplicado pela metade**. **O aceite dos 60 segundos NÃO foi cronometrado** (o roteiro cronometrável está em `docs/RELATORIO-F12.md`; o E2E visual logado ficou por executar — motivo registrado em `docs/DECISOES.md`, 2026-07-23 · F12).
+
+### 5.x Estoque mínimo por item — ✅ **CONCLUÍDO em 23/07/2026 (F12)**
+Item que estava nesta fase pela linha "estoque mínimo por item" do roadmap (e como **I5** no `docs/BACKLOG-UX.md`). **Entregue pela `F12-ultracode.md`** (migration `0042`): coluna `itens.estoque_minimo` (default 0), campo no catálogo de `admin/itens`, coluna "Mínimo" na lista, selo âmbar **"repor"** nas duas visões de `/itens` e card "Itens para repor" no painel inicial. Régua: `minimo > 0 && consolidado < minimo`, sempre contra o estoque **consolidado de todas as filiais**; `0` = sem alerta; estoque **igual** ao mínimo não repõe.
 
 ## Regras permanentes do backlog
 
-- Um item = um branch = uma sessão. Nada de "aproveitar e fazer o próximo".
+- Um item = um branch = uma sessão. Nada de "aproveitar e fazer o próximo". **Revogado apenas para a OS-F12 (23/07/2026), por decisão do Johnny** (§2.2 daquela ordem): ela agrupou 5.9 + estoque mínimo + auditoria + smoke numa sessão só, direto na `main`, porque os itens são disjuntos em arquivos e rodaram em frentes paralelas. **A regra continua valendo** para os demais itens desta fase — a revogação foi pontual e está registrada em `docs/DECISOES.md` (2026-07-23 · F12).
 - Custo R$ 0 continua valendo (atenção especial ao 5.3).
 - Cada item novo que surgir do uso real entra aqui com uma linha de contexto + critério de aceite, antes de virar código.

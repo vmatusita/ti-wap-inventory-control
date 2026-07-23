@@ -47,21 +47,39 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
 6. **Recarregar o cache do PostgREST**: `notify pgrst, 'reload schema';` (senão a API não enxerga a nova assinatura).
 7. **Smoke só-leitura de produção** (ver o padrão nas atas de F7* em `docs/DECISOES.md`).
 
-## Divergência do ledger (estado em 21/07/2026)
+## Divergência do ledger (estado em 23/07/2026)
 
-`list_migrations` de produção mostra `0001`–`0030` + `rate_limit_senha` (0025) + `0038`. **Faltam no ledger** (aplicadas à mão pelo gate, mas os objetos EXISTEM em produção — `import_logs`, a RPC de 4 args etc.):
+`list_migrations` de produção mostra `0001`–`0030` + `rate_limit_senha` (0025) + `0038` + `0041`. **Faltam no ledger** (aplicadas à mão pelo gate, mas os objetos EXISTEM em produção — `import_logs`, a RPC de 4 args etc.):
 
 - **0031, 0032, 0033, 0034, 0035, 0036, 0037** — as migrations do import de startup (F7…F8).
 - `0029` **não existe** (gap real na numeração; nunca foi criada).
-- `0039` (drop dos backups) e `0040` (hardening das RPCs) — pendentes de apply pelo Johnny.
+- **`0039` (drop dos backups) e `0040` (hardening das RPCs) — JÁ APLICADAS, só fora do ledger.** *Correção de 23/07/2026 (F12).* Até esta data o runbook, o `README.md` e o `CHANGELOG.md` diziam que as duas estavam **pendentes de apply**. **Medição direta no banco de produção desmente:** não existe **nenhuma** tabela `backup%` (é exatamente o efeito da `0039`) e o corpo de `importar_ativos_substituir` **contém** a guarda `p_contagens is null` (efeito da `0040`). O que falta é o **registro**, não o efeito — elas entram na reconciliação abaixo, junto com as `0031`–`0037`. **Conferir antes de reconciliar** (ver os dois SELECTs em "Como conferir o efeito", logo abaixo): registrar no ledger uma migration que não esteja aplicada é pior que a divergência.
 - **`0041`** (domínios de login: `@stefanini.com` + `@latam.stefanini.com`, 22/07/2026) — **aplicada por MCP em prod E ensaio**, e no ledger dos dois. Não bate no gate (é `create or replace` de trigger, sem `delete from`).
+- **`0042`** (`itens.estoque_minimo` — F12, 23/07/2026) e **`0043`** (`kits_modelos` — F12, 23/07/2026) — as duas **aditivas** (coluna com default `0` + tabela nova com RLS), sem `delete from`, então **não batem no gate**: aplicadas por MCP em **ensaio primeiro** e depois em produção, e registradas no ledger dos dois normalmente. Rollback documentado no backup lógico da ordem: são aditivas, o `drop` não perde nenhum dado do acervo.
+
+### Como conferir o efeito (sem depender do ledger)
+
+```sql
+-- 0039 aplicada? Nenhuma tabela de backup órfã deve sobrar.
+select count(*) as tabelas_backup
+from pg_tables where schemaname = 'public' and tablename like 'backup%';
+-- esperado: 0
+
+-- 0040 aplicada? A guarda de contagens tem de estar no corpo da RPC.
+select pg_get_functiondef(p.oid) like '%p_contagens is null%' as tem_guarda
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname = 'importar_ativos_substituir';
+-- esperado: true (exatamente 1 linha)
+```
 
 ### Reconciliação (opcional — decisão do Johnny)
 Registrar no ledger as migrations já aplicadas, para o histórico bater com produção. **Metadados apenas** (não recria nada — só insere linhas). Rodar no SQL Editor de produção:
 
 ```sql
--- Registra 0031–0037 como já aplicadas (idempotente por 'on conflict').
+-- Registra 0031–0037, 0039 e 0040 como já aplicadas (idempotente por 'on conflict').
 -- version = prefixo do nome do arquivo (mesmo padrão das 0001–0007 no ledger).
+-- RODE ANTES os dois SELECTs de "Como conferir o efeito": 0039/0040 entram aqui
+-- porque a medição de 23/07/2026 provou que os EFEITOS delas estão em produção.
 insert into supabase_migrations.schema_migrations (version, name)
 values
   ('0031','import_logs'),
@@ -70,9 +88,13 @@ values
   ('0034','import_melhorias'),
   ('0035','import_compra_data_real_no_relatorio'),
   ('0036','reverter_compra_abertura_baseline'),
-  ('0037','import_patrimonio_forcado')
+  ('0037','import_patrimonio_forcado'),
+  ('0039','drop_backups_orfaos'),
+  ('0040','hardening_rpcs')
 on conflict (version) do nothing;
 ```
+
+> **Confira o `name` real dos arquivos** em `supabase/migrations/` antes de rodar (o `version` é que importa para o `on conflict`; o `name` é só rótulo).
 Conferir antes: `select version, name from supabase_migrations.schema_migrations order by version;`. Reversível (`delete` das mesmas `version`). Como o apply de produção é manual (gate), esta reconciliação é para **fidelidade do histórico**, não muda o funcionamento.
 
 ## Armadilhas conhecidas (todas já aconteceram)

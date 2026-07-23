@@ -107,13 +107,7 @@ describe('cobertura do glossario (derivada de dominio.ts)', () => {
   })
 })
 
-describe('honestidade do manual (OS-F9 I5a)', () => {
-  it('não promete estoque mínimo — campo que o sistema não tem (é F5)', () => {
-    const tudo = SECOES.map(textoDaSecao).join(' ')
-    expect(tudo).not.toContain(normalizarBusca('estoque mínimo'))
-    expect(tudo).not.toContain(normalizarBusca('nível de estoque configurado'))
-  })
-
+describe('honestidade do manual (OS-F9 I5a, revisto pela OS-F12)', () => {
   it('explica Falta pela semântica real da 0027 (déficit, não reposição)', () => {
     const texto = textoDaSecao(secao('itens'))
     expect(texto).toContain(normalizarBusca('atrelados + liberados − total'))
@@ -121,8 +115,10 @@ describe('honestidade do manual (OS-F9 I5a)', () => {
   })
 
   it('descreve o catálogo de itens com os campos que existem', () => {
+    // A F12 (migration 0042) acrescentou `estoque_minimo` ao catálogo — a lista
+    // de campos aqui tem de acompanhar o dialog de Administração › Itens.
     expect(textoDaSecao(secao('admin'))).toContain(
-      normalizarBusca('(nome, grupo, ordem)'),
+      normalizarBusca('(nome, grupo, ordem, estoque mínimo)'),
     )
   })
 })
@@ -321,6 +317,87 @@ describe('navegação e estrutura documentadas (OS-F11 · Onda 3)', () => {
     const texto = textoDaSecao(secao('relatorios'))
     expect(texto).toContain(normalizarBusca('viajam no link'))
     expect(texto).toContain(normalizarBusca('senha de acesso'))
+  })
+})
+
+describe('estoque mínimo e kits documentados (OS-F12)', () => {
+  function titulosDePassos(idSecao: string): string[] {
+    return secao(idSecao)
+      .blocos.filter((b): b is Extract<Bloco, { tipo: 'passos' }> => b.tipo === 'passos')
+      .map((b) => b.titulo ?? '')
+  }
+
+  it('NÃO volta a dizer que o sistema não guarda nível de reposição (I5 existe desde a F12)', () => {
+    // A frase abaixo foi a correção honesta da F9 (I5a), quando o campo não
+    // existia. A migration 0042 criou `itens.estoque_minimo`: se ela reaparecer,
+    // o manual volta a mentir — agora na direção contrária.
+    const tudo = SECOES.map(textoDaSecao).join(' ')
+    expect(tudo).not.toContain(normalizarBusca('não guarda nível de reposição'))
+    expect(tudo).not.toContain(normalizarBusca('não é aviso de reposição'))
+    // e o conceito tem de estar escrito em algum lugar do manual
+    expect(tudo).toContain(normalizarBusca('estoque mínimo'))
+    expect(tudo).toContain(normalizarBusca('ponto de reposição'))
+  })
+
+  it('separa "falta" (déficit vermelho) de "repor" (âmbar, ponto de reposição)', () => {
+    const texto = textoDaSecao(secao('itens'))
+    expect(texto).toContain(normalizarBusca('Falta e repor são dois avisos DIFERENTES'))
+    expect(texto).toContain(normalizarBusca('máx(0, atrelados + liberados − total)'))
+    expect(texto).toContain(normalizarBusca('selo vermelho "faltam N"'))
+    expect(texto).toContain(normalizarBusca('selo âmbar "repor"'))
+  })
+
+  it('descreve a regra exata do mínimo: consolidado, 0 não alerta, igual não acende', () => {
+    const texto = textoDaSecao(secao('itens'))
+    expect(texto).toContain(normalizarBusca('estoque somado de TODAS as filiais'))
+    expect(texto).toContain(normalizarBusca('Mínimo 0 = item sem acompanhamento, nunca acende'))
+    expect(texto).toContain(normalizarBusca('Estoque IGUAL ao mínimo também não acende'))
+    expect(texto).toContain(normalizarBusca('nunca do saldo de uma filial'))
+    expect(texto).toContain(normalizarBusca('card "Itens para repor"'))
+  })
+
+  it('descreve o kit: onde se cria, que sobrescreve, que o checklist não bloqueia e que é cópia', () => {
+    const texto = textoDaSecao(secao('movimentacoes'))
+    expect(texto).toContain(normalizarBusca('um kit é um MODELO salvo do passo 2'))
+    expect(texto).toContain(normalizarBusca('Administração › Kits'))
+    expect(texto).toContain(normalizarBusca('"Aplicar kit"'))
+    expect(texto).toContain(normalizarBusca('CHECKLIST informativo'))
+    expect(texto).toContain(normalizarBusca('NUNCA impede registrar'))
+    expect(texto).toContain(normalizarBusca('Kit é cópia'))
+    expect(texto).toContain(
+      normalizarBusca('não altera nenhuma movimentação já registrada'),
+    )
+  })
+
+  it('tem o passo a passo dos dois itens da F12', () => {
+    const titulos = titulosDePassos('como-fazer')
+    for (const t of [
+      'Definir o estoque mínimo de um item',
+      'Criar e aplicar um kit de movimentação',
+    ]) {
+      expect(titulos).toContain(t)
+    }
+  })
+
+  it('o passo do kit registra a divergência deliberada com "Repetir última"', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    // Kit de tipo incompatível não aplica NADA (decisão do W3, OS-F12 §W3.2) —
+    // é o oposto do repetirUltima, e o manual promete exatamente isso.
+    expect(texto).toContain(normalizarBusca('NÃO é aplicado pela metade'))
+    expect(texto).toContain(normalizarBusca('É diferente de "Repetir última"'))
+    expect(texto).toContain(normalizarBusca('Administração › Kits › "Novo kit"'))
+  })
+
+  it('o passo do mínimo cita o travessão do 0 e a ordem do card do painel', () => {
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('exibido como travessão na coluna Mínimo'))
+    expect(texto).toContain(normalizarBusca('mais críticos primeiro'))
+  })
+
+  it('a Administração lista Kits e o catálogo de itens inclui o mínimo', () => {
+    const texto = textoDaSecao(secao('admin'))
+    expect(texto).toContain(normalizarBusca('Kits — os modelos do passo 2'))
+    expect(texto).toContain(normalizarBusca('estoque mínimo)'))
   })
 })
 

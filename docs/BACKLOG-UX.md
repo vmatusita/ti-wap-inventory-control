@@ -2,7 +2,7 @@
 
 > Análise de 22/07/2026 sobre o working tree (F0–F8 concluídas e em produção; pendentes F6C e itens de F5). Este documento é **insumo de backlog** — cada item só vira trabalho quando entrar numa ordem de serviço.
 >
-> **Estado (22/07/2026):** as **três ondas do §5 foram executadas** — Onda 1 pela **F9**, Onda 2 pela **F10** e Onda 3 pela **F11**; os textos abaixo descrevem o problema *como era antes* da correção e ficam como registro do diagnóstico. Continuam abertos só os itens já previstos em outra fase (M12, I5, carga F6C) e os que exigem decisão do Johnny (A8, T11, T12). Nenhuma sugestão exige dependência fora da stack fechada (as duas únicas ressalvas estão marcadas), nenhuma cria custo, nenhuma mexe no modelo de acesso de nível único e nenhuma reabre decisões registradas (modo *Atualizar* do import, roles, dark mode, upload de PDF assinado).
+> **Estado (23/07/2026):** as **três ondas do §5 foram executadas** — Onda 1 pela **F9**, Onda 2 pela **F10** e Onda 3 pela **F11** — e a **F12** fechou os dois itens que ainda pertenciam à F5 (**M12** kits e **I5** estoque mínimo); os textos abaixo descrevem o problema *como era antes* da correção e ficam como registro do diagnóstico. Continuam abertos só a carga da F6C e os itens que exigem decisão do Johnny (A8, T11, T12). Nenhuma sugestão exige dependência fora da stack fechada (as duas únicas ressalvas estão marcadas), nenhuma cria custo, nenhuma mexe no modelo de acesso de nível único e nenhuma reabre decisões registradas (modo *Atualizar* do import, roles, dark mode, upload de PDF assinado).
 
 **Legenda de esforço:** P ≈ até meio dia · M ≈ 1–2 dias · G ≈ 3+ dias. Quando o item exige migration nova ou decisão do Johnny, está indicado em "requer".
 
@@ -49,8 +49,8 @@ Data da movimentação e data do termo são sempre `type="date"` manual (`passo-
 **M11 · Rever o teto do lote (10 → 30?) — P · requer: decisão**
 Movimentação aceita 10 (`validators/movimentacao.ts:316`) e compra aceita 200 (`MAX_LOTE_COMPRA`, `patrimonio.ts:8`). Um lote real de 15 monitores exige duas rodadas. O banco valida transição por transição de qualquer forma; subir a constante é barato — decidir o número e registrar em DECISOES.md.
 
-**M12 · Kits salvos ("Kit novo colaborador") — G · já previsto (spec §6.4, adiado para F5)**
-Único facilitador "anti-Excel" da spec ainda ausente. Preset nomeado de config (tipo, motivo, termo, checklist de categorias) que o operador aplica ao lote. Registrado aqui só para priorização — pertence à F5.
+**M12 · Kits salvos ("Kit novo colaborador") — G · já previsto (spec §6.4, adiado para F5) — ✅ CONCLUÍDO na F12 (23/07/2026)**
+Único facilitador "anti-Excel" da spec ainda ausente. Preset nomeado de config (tipo, motivo, termo, checklist de categorias) que o operador aplica ao lote. Registrado aqui só para priorização — pertence à F5. *Entregue pela `docs/prompts/F12-ultracode.md` (migration `0043`, tabela `kits_modelos` com `payload jsonb`): CRUD em `/admin/kits` e "Aplicar kit" no passo 2, sobrescrevendo tipo/motivo/termo/observação; o checklist de categorias **avisa e nunca bloqueia**, e o kit é **cópia** — desativá-lo não altera nada já registrado.*
 
 ---
 
@@ -96,8 +96,8 @@ O histórico só filtra por filial (`itens/page.tsx:51-55`), embora a query já 
 **I4 · Saldos das 5 filiais lado a lado — M**
 `rel_saldo_itens` retorna uma filial por vez ou o consolidado; a tabela não tem coluna de filial (`itens/page.tsx:102-106`). Um toggle "por filial" com as 5 colunas (ou linha expansível com a distribuição) responde "onde tem mouse sobrando?" numa olhada, sem trocar filtro 5 vezes.
 
-**I5 · Estoque mínimo por item — M · requer: migration (já previsto na F5) + correção imediata na ajuda — P**
-Ponto de reposição não existe (catálogo é só nome/grupo/ordem/ativo), mas **a ajuda afirma que existe** — "Falta = quanto falta para o estoque mínimo configurado" (`src/lib/ajuda/conteudo.ts:299`) e "catálogo (nome, grupo, estoque mínimo)" (`conteudo.ts:497`). Duas ações: corrigir a ajuda **agora** (P, ela induz o operador a procurar configuração inexistente) e, na F5, campo `estoque_minimo` no catálogo + badge "repor" nos saldos + card no dashboard.
+**I5 · Estoque mínimo por item — M · requer: migration (já previsto na F5) + correção imediata na ajuda — P — ✅ CONCLUÍDO (ajuda na F9; recurso na F12, 23/07/2026)**
+Ponto de reposição não existe (catálogo é só nome/grupo/ordem/ativo), mas **a ajuda afirma que existe** — "Falta = quanto falta para o estoque mínimo configurado" (`src/lib/ajuda/conteudo.ts:299`) e "catálogo (nome, grupo, estoque mínimo)" (`conteudo.ts:497`). Duas ações: corrigir a ajuda **agora** (P, ela induz o operador a procurar configuração inexistente) e, na F5, campo `estoque_minimo` no catálogo + badge "repor" nos saldos + card no dashboard. *A ajuda foi corrigida na F9 (I5a) e o recurso saiu na F12 (migration `0042`): as três peças previstas existem, com a régua sempre contra o estoque **consolidado**, `0` = sem alerta e estoque igual ao mínimo **não** repõe. A ajuda foi reescrita de novo — agora afirmativa — distinguindo "falta" (déficit vermelho) de "repor" (âmbar).*
 
 **I6 · Lançar a partir da linha do saldo — P**
 Botão discreto na linha da tabela de saldos abrindo o dialog já com item+filial preenchidos (hoje o caminho é Lançar → procurar o item de novo no combobox).
@@ -151,10 +151,10 @@ Relatório ao vivo abre dom–sáb (decisão B2); o dialog de gerar snapshot sug
 | ~~**1 — Quick wins**~~ ✅ **CONCLUÍDA em 22/07/2026 (F9)** | Polimento de alto retorno | M2, M7, M10, A1, A3, A5, A7, I3, I6, T2, T4, T6, T8 + correção da ajuda (I5a) | Entregues os 14 pela `docs/prompts/F9-ultracode.md`, zero migration e zero dependência nova. Ata em `docs/DECISOES.md` (2026-07-22 · F9) |
 | ~~**2 — Operação em massa**~~ ✅ **CONCLUÍDA em 22/07/2026 (F10)** | Lote e memória | M1, M3, M4, M5, M6, M9, M11, A2, A4, A6, I1, I2, T5 | Entregues os 13 pela `docs/prompts/F10-ultracode.md`, zero migration e zero dependência nova. M5 (a regra prometida pela spec §8.7) saiu como **aviso âmbar não-bloqueante**; o teto do M11 fechou em **30** (`MAX_LOTE_MOVIMENTACAO`). Ata em `docs/DECISOES.md` (2026-07-22 · F10); roteiro E2E em `docs/E2E-F10.md` |
 | ~~**3 — Navegação e estrutura**~~ ✅ **CONCLUÍDA em 22/07/2026 (F11)** | Busca e auditoria | T1, T3, T7, T9, T10, M8, I4 | Entregues os 7 pela `docs/prompts/F11-ultracode.md`, zero migration e zero dependência nova. M8 nasceu com a sidebar apontando para a **lista** (`N`/header/dashboard seguem no formulário); T9 saiu **sem** migração para react-hook-form (dívida K permanece aberta, por decisão). Ata em `docs/DECISOES.md` (2026-07-22 · F11); evidências, roteiro E2E e pendências em `docs/RELATORIO-F11.md` |
-| **Já previstos (F5/F6C)** | — | M12 (kits), I5 (estoque mínimo), carga F6C | **Aberto** — priorizar dentro da F5 quando ela abrir |
+| **Já previstos (F5/F6C)** | — | ~~M12 (kits)~~ ✅ **F12** · ~~I5 (estoque mínimo)~~ ✅ **F12** · carga F6C | **M12 e I5 CONCLUÍDOS em 23/07/2026** pela `docs/prompts/F12-ultracode.md` (migrations `0043` e `0042`, aditivas). I5: `itens.estoque_minimo`, coluna "Mínimo" em `admin/itens`, selo âmbar "repor" nas duas visões de `/itens` e card "Itens para repor" no painel — sempre contra o estoque **consolidado**, `0` = sem alerta, igual ao mínimo **não** repõe. M12: `/admin/kits` + "Aplicar kit" no passo 2, com checklist de categorias **informativo** (nunca bloqueia) e kit como **cópia** (desativar não altera movimentação passada). Ata em `docs/DECISOES.md` (2026-07-23 · F12); evidências em `docs/RELATORIO-F12.md`. **Continua aberta** só a carga da F6C |
 | **Exigem decisão antes** | — | A8, ~~M11~~ (decidido: 30, na F10), T11, T12 | **Aberto** — registrar em DECISOES.md ao decidir |
 
-> **As três ondas de UX fecham aqui (22/07/2026).** Onda 1 → F9 · Onda 2 → F10 · Onda 3 → F11. Sobram apenas as duas últimas linhas da tabela: o que já pertencia a outra fase (M12, I5, carga F6C) e o que **exige decisão do Johnny** (A8, T11, T12). Não há Onda 4 — ideia nova entra por ordem de serviço nova, não por este documento.
+> **As três ondas de UX fecharam em 22/07/2026** (Onda 1 → F9 · Onda 2 → F10 · Onda 3 → F11) e, em **23/07/2026**, a **F12** fechou os dois itens que ainda pertenciam a outra fase: **M12** (kits) e **I5** (estoque mínimo), os dois da F5. Deste documento sobram apenas a **carga da F6C** (depende de insumo do Johnny) e o que **exige decisão do Johnny** (A8, T11, T12). Não há Onda 4 — ideia nova entra por ordem de serviço nova, não por este documento.
 
 ## 6. Não sugerido de propósito (decisões vigentes respeitadas)
 
