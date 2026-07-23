@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { hojeISO } from '@/lib/format'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
+import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 
 // Leituras da operação de itens por quantidade (F3B / OS 3.3.4). Rota só do
@@ -116,6 +117,122 @@ export async function getSaldosItens(filialId: number | null): Promise<SaldoItem
     atrelados: Number(r.atrelados),
     falta: Number(r.falta),
   }))
+}
+
+// ---------------------------------------------------------------------------
+// Saldos das filiais LADO A LADO (F11 · I4)
+// ---------------------------------------------------------------------------
+// "Onde tem mouse sobrando?" exigia trocar o filtro de filial uma vez por
+// filial. Aqui a leitura é FIXA: 1 chamada por filial + 1 consolidada — nunca
+// uma por item, e sem view/RPC nova (reusa `rel_saldo_itens`, migration 0027).
+
+// Os quatro números que a RPC devolve para um item numa filial (ou consolidado).
+export type CelulaSaldo = {
+  total: number
+  estoque: number
+  atrelados: number
+  falta: number
+}
+
+export type SaldoItemFiliais = {
+  item_id: number
+  item: string
+  grupo: GrupoItem
+  ordem: number
+  // Saldo em cada filial, indexado por `filial.id`. Filial sem nenhum lançamento
+  // do item não vem na RPC — a tabela mostra zero, não buraco.
+  porFilial: Record<number, CelulaSaldo>
+  // A MESMA RPC com `p_filial null`: é a coluna "Total" da tabela.
+  consolidado: CelulaSaldo
+}
+
+export type SaldosPorFilial = {
+  filiais: Filial[]
+  itens: SaldoItemFiliais[]
+}
+
+export const CELULA_SALDO_ZERO: CelulaSaldo = {
+  total: 0,
+  estoque: 0,
+  atrelados: 0,
+  falta: 0,
+}
+
+function celula(s: SaldoItem): CelulaSaldo {
+  return { total: s.total, estoque: s.estoque, atrelados: s.atrelados, falta: s.falta }
+}
+
+function somar(a: CelulaSaldo, b: CelulaSaldo): CelulaSaldo {
+  return {
+    total: a.total + b.total,
+    estoque: a.estoque + b.estoque,
+    atrelados: a.atrelados + b.atrelados,
+    falta: a.falta + b.falta,
+  }
+}
+
+// Junta as N+1 leituras numa linha por item (pura — testada em itens.test.ts).
+// A ORDEM e o conjunto de itens saem da leitura consolidada, que é superconjunto
+// das por filial: a RPC devolve `i.ativo = true OR tem lançamento no recorte`, e
+// "lançamento nesta filial" ⊂ "lançamento em qualquer filial". Item que apareça
+// só numa filial (defesa, não deveria acontecer) entra no fim, com o consolidado
+// somado das filiais em vez de sumir da tela.
+export function combinarSaldosPorFilial(
+  filiais: Filial[],
+  consolidado: SaldoItem[],
+  porFilial: SaldoItem[][],
+): SaldoItemFiliais[] {
+  const linhas = new Map<number, SaldoItemFiliais>()
+  const semConsolidado = new Set<number>()
+
+  for (const s of consolidado) {
+    linhas.set(s.item_id, {
+      item_id: s.item_id,
+      item: s.item,
+      grupo: s.grupo,
+      ordem: s.ordem,
+      porFilial: {},
+      consolidado: celula(s),
+    })
+  }
+
+  filiais.forEach((f, i) => {
+    for (const s of porFilial[i] ?? []) {
+      let linha = linhas.get(s.item_id)
+      if (!linha) {
+        linha = {
+          item_id: s.item_id,
+          item: s.item,
+          grupo: s.grupo,
+          ordem: s.ordem,
+          porFilial: {},
+          consolidado: { ...CELULA_SALDO_ZERO },
+        }
+        linhas.set(s.item_id, linha)
+        semConsolidado.add(s.item_id)
+      }
+      linha.porFilial[f.id] = celula(s)
+      if (semConsolidado.has(s.item_id)) {
+        linha.consolidado = somar(linha.consolidado, celula(s))
+      }
+    }
+  })
+
+  return [...linhas.values()]
+}
+
+// Saldo de TODAS as filiais (as-of hoje) + o consolidado, prontos para a tabela
+// lado a lado de /itens?visao=filiais. `filiaisConhecidas` evita reconsultar a
+// lista quando a página já a carregou.
+export async function getSaldosPorFilial(
+  filiaisConhecidas?: Filial[],
+): Promise<SaldosPorFilial> {
+  const filiais = filiaisConhecidas ?? (await listarFiliais())
+  const [consolidado, ...porFilial] = await Promise.all([
+    getSaldosItens(null),
+    ...filiais.map((f) => getSaldosItens(f.id)),
+  ])
+  return { filiais, itens: combinarSaldosPorFilial(filiais, consolidado, porFilial) }
 }
 
 type RawLancRow = {

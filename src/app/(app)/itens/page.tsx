@@ -5,8 +5,10 @@ import { listarFiliais } from '@/lib/queries/filiais'
 import {
   getHistoricoLancamentos,
   getSaldosItens,
+  getSaldosPorFilial,
   getUltimoLancamento,
   listarItensAtivos,
+  type SaldoItem,
 } from '@/lib/queries/itens'
 import {
   GRUPO_ITEM_META,
@@ -24,6 +26,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
 import {
   exportarItensHistoricoCSV,
@@ -34,6 +37,7 @@ import { HistoricoFiltros } from '@/components/itens/historico-filtros'
 import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
 import { LancarItemLinha } from '@/components/itens/lancar-item-linha'
 import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
+import { SaldosFiliaisTabela } from '@/components/itens/saldos-filiais'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 
@@ -74,6 +78,25 @@ function tipoValido(v: string | undefined): TipoLancamento | null {
     : null
 }
 
+// Agrupa os saldos por grupo aplicando os filtros de tela (`q` e `grupo`), que
+// são client-side (a lista de itens é curta). Uma função só para as DUAS visões
+// — consolidada e por filial — filtrarem exatamente igual (F11 · I4).
+type LinhaSaldo = { item: string; grupo: GrupoItem }
+
+function agruparSaldos<T extends LinhaSaldo>(
+  linhas: T[],
+  q: string,
+  grupo: GrupoItem | undefined,
+): { grupo: GrupoItem; itens: T[] }[] {
+  const filtradas = linhas.filter(
+    (l) => (!grupo || l.grupo === grupo) && (!q || l.item.toLowerCase().includes(q)),
+  )
+  return GRUPO_ITEM_ORDEM.map((g) => ({
+    grupo: g,
+    itens: filtradas.filter((l) => l.grupo === g),
+  })).filter((bloco) => bloco.itens.length > 0)
+}
+
 function dataISO(v: string | undefined): string | null {
   if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
   const d = new Date(`${v}T00:00:00.000Z`)
@@ -95,6 +118,10 @@ export default async function ItensPage({
   const q = (primeiro(sp.q) ?? '').trim().toLowerCase()
   const page = Math.max(1, Number(primeiro(sp.page) ?? '1') || 1)
 
+  // Visão dos saldos (F11 · I4): 'filiais' = as filiais lado a lado; QUALQUER
+  // outro valor (inclusive lixo na URL) cai no consolidado, que é o default.
+  const visaoFiliais = primeiro(sp.visao) === 'filiais'
+
   // Filtros só do histórico (a filial vale para os dois blocos).
   const itemFiltro = idNumerico(primeiro(sp.item))
   const tipoFiltro = tipoValido(primeiro(sp.tipo))
@@ -104,7 +131,9 @@ export default async function ItensPage({
   const [filiais, itensAtivos, saldos, ultimo, historico] = await Promise.all([
     listarFiliais(),
     listarItensAtivos(),
-    getSaldosItens(filialId),
+    // Na visão por filial esta leitura não é usada (a de baixo traz o
+    // consolidado junto) — não se gasta a chamada à toa.
+    visaoFiliais ? Promise.resolve<SaldoItem[]>([]) : getSaldosItens(filialId),
     getUltimoLancamento(operador.id),
     getHistoricoLancamentos({
       filialId,
@@ -117,24 +146,25 @@ export default async function ItensPage({
     }),
   ])
 
-  const saldosFiltrados = saldos.filter(
-    (s) =>
-      (!grupoFiltro || s.grupo === grupoFiltro) &&
-      (!q || s.item.toLowerCase().includes(q)),
-  )
+  // Leitura extra SÓ da visão por filial: nº de filiais + 1 chamada da mesma RPC
+  // dos saldos. A visão consolidada (default) continua com as leituras de antes.
+  const saldosFiliais = visaoFiliais ? await getSaldosPorFilial(filiais) : null
 
-  const porGrupo = GRUPO_ITEM_ORDEM.map((g) => ({
-    grupo: g,
-    itens: saldosFiltrados.filter((s) => s.grupo === g),
-  })).filter((bloco) => bloco.itens.length > 0)
+  const porGrupo = agruparSaldos(saldos, q, grupoFiltro)
+  const porGrupoFiliais = agruparSaldos(saldosFiliais?.itens ?? [], q, grupoFiltro)
 
-  const temFiltroSaldos = Boolean(q || grupoFiltro || filialId)
+  const blocosVazios = (visaoFiliais ? porGrupoFiliais : porGrupo).length === 0
+  // Na visão por filial o recorte de filial não existe (todas estão na tabela).
+  const temFiltroSaldos = Boolean(q || grupoFiltro || (!visaoFiliais && filialId))
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Itens por quantidade</h1>
+          <div className="flex items-center gap-0.5">
+            <h1 className="text-2xl font-semibold tracking-tight">Itens por quantidade</h1>
+            <LinkAjuda ancora="itens" rotulo="Ajuda sobre itens por quantidade" />
+          </div>
           <p className="text-sm text-muted-foreground">
             Acessórios, periféricos e componentes — total, estoque, atrelados e falta por filial.
           </p>
@@ -153,7 +183,7 @@ export default async function ItensPage({
       <ItensFiltros filiais={filiais} />
 
       {/* Saldos por item */}
-      {porGrupo.length === 0 ? (
+      {blocosVazios ? (
         itensAtivos.length === 0 ? (
           <EstadoVazio
             icone={PackagePlus}
@@ -165,7 +195,11 @@ export default async function ItensPage({
           <EstadoVazio
             icone={PackageOpen}
             titulo="Nenhum item com esses filtros"
-            descricao="Ajuste a busca, o grupo ou a filial para ver os saldos."
+            descricao={
+              visaoFiliais
+                ? 'Ajuste a busca ou o grupo para ver os saldos.'
+                : 'Ajuste a busca, o grupo ou a filial para ver os saldos.'
+            }
           />
         ) : (
           <EstadoVazio
@@ -174,6 +208,26 @@ export default async function ItensPage({
             descricao="Os saldos aparecem aqui assim que houver o primeiro lançamento."
           />
         )
+      ) : visaoFiliais && saldosFiliais ? (
+        <div className="space-y-4">
+          {porGrupoFiliais.map((bloco) => (
+            <section key={bloco.grupo} className="rounded-xl border bg-card">
+              <h2 className="flex flex-wrap items-baseline justify-between gap-x-3 border-b px-4 py-2.5 text-sm font-semibold">
+                {GRUPO_ITEM_META[bloco.grupo].titulo}
+                <span className="text-xs font-normal text-muted-foreground">
+                  estoque na prateleira de cada filial
+                </span>
+              </h2>
+              <div className="overflow-hidden">
+                <SaldosFiliaisTabela
+                  filiais={saldosFiliais.filiais}
+                  itens={bloco.itens}
+                  filialId={filialId}
+                />
+              </div>
+            </section>
+          ))}
+        </div>
       ) : (
         <div className="space-y-4">
           {porGrupo.map((bloco) => (
