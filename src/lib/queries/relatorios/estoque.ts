@@ -58,7 +58,8 @@ export async function lerEstadoAtivos(
         let q = client
           .from('ativos')
           .select('id, categoria, marca, modelo, filial_id, status, colaborador_atual, setor_atual')
-          .neq('status', 'descartado')
+          // F14: exclui as DUAS baixas terminais (descartado e devolvido ao fornecedor).
+          .not('status', 'in', '("descartado","devolvido_fornecedor")')
         if (filialId) q = q.eq('filial_id', filialId)
         return q.order('id', { ascending: true }).range(from, to)
       },
@@ -104,7 +105,7 @@ export function kpisDeEstado(estado: EstadoAtivo[]): KpisRelatorio {
     emprestado: 0,
   }
   for (const a of estado) {
-    if (a.status === 'descartado') continue
+    if (a.status === 'descartado' || a.status === 'devolvido_fornecedor') continue
     k.total++
     if (a.status === 'em_uso') k.em_uso++
     else if (a.status === 'em_estoque') k.em_estoque++
@@ -131,7 +132,7 @@ export async function getKpis(
 export function categoriaDeEstado(estado: EstadoAtivo[]): ContagemCategoria[] {
   const map = new Map<CategoriaAtivo, number>()
   for (const a of estado) {
-    if (a.status === 'descartado') continue
+    if (a.status === 'descartado' || a.status === 'devolvido_fornecedor') continue
     map.set(a.categoria, (map.get(a.categoria) ?? 0) + 1)
   }
   return CATEGORIA_ORDEM.filter((c) => map.has(c)).map((categoria) => ({
@@ -143,16 +144,16 @@ export function categoriaDeEstado(estado: EstadoAtivo[]): ContagemCategoria[] {
 export function estoqueCatStatusDeEstado(estado: EstadoAtivo[]): EstoqueCatStatus[] {
   const map = new Map<CategoriaAtivo, Map<StatusAtivo, number>>()
   for (const a of estado) {
-    if (a.status === 'descartado') continue
+    if (a.status === 'descartado' || a.status === 'devolvido_fornecedor') continue
     if (!map.has(a.categoria)) map.set(a.categoria, new Map())
     const m = map.get(a.categoria)!
     m.set(a.status, (m.get(a.status) ?? 0) + 1)
   }
   return CATEGORIA_ORDEM.filter((c) => map.has(c)).map((categoria) => {
     const m = map.get(categoria)!
-    const segmentos = STATUS_ORDEM.filter((s) => s !== 'descartado' && m.has(s)).map(
-      (status) => ({ status, total: m.get(status) ?? 0 }),
-    )
+    const segmentos = STATUS_ORDEM.filter(
+      (s) => s !== 'descartado' && s !== 'devolvido_fornecedor' && m.has(s),
+    ).map((status) => ({ status, total: m.get(status) ?? 0 }))
     return { categoria, segmentos, total: segmentos.reduce((s, x) => s + x.total, 0) }
   })
 }
@@ -280,14 +281,36 @@ export async function manutencaoDeEstado(
     (r) => ({ data: r.data, obs: r.observacao }),
   )
 
-  const ids = [...new Set([...emManutencao, ...retornoPorAtivo.keys()])]
+  // F14/§0 — quem foi DEVOLVIDO AO FORNECEDOR no período (outro desfecho do caso,
+  // com badge própria; o ativo saiu do inventário, como no descarte).
+  let devQ = client
+    .from('movimentacoes')
+    .select('ativo_id, data, observacao')
+    .eq('tipo', 'devolucao_fornecedor')
+    .gte('data', periodo.de)
+    .lte('data', periodo.ate)
+  if (filialId) devQ = devQ.eq('filial_id', filialId)
+  const { data: devolucoes } = await devQ.order('created_at', { ascending: false })
+  const devolucaoPorAtivo = ultimoPorAtivo(
+    devolucoes ?? [],
+    (r) => r.ativo_id,
+    (r) => ({ data: r.data, obs: r.observacao }),
+  )
+
+  const ids = [
+    ...new Set([
+      ...emManutencao,
+      ...retornoPorAtivo.keys(),
+      ...devolucaoPorAtivo.keys(),
+    ]),
+  ]
   if (ids.length === 0) return []
 
   const [dados, enviosRaw, anotacoesRaw] = await Promise.all([
     dadosAtivos(client, ids),
     client
       .from('movimentacoes')
-      .select('ativo_id, data, observacao, chamado, created_at')
+      .select('ativo_id, data, observacao, chamado, chamado_fornecedor, created_at')
       .in('ativo_id', ids)
       .eq('tipo', 'envio_manutencao')
       .lte('data', periodo.ate)
@@ -305,7 +328,12 @@ export async function manutencaoDeEstado(
   const envioPorAtivo = ultimoPorAtivo(
     enviosRaw.data ?? [],
     (e) => e.ativo_id,
-    (e) => ({ data: e.data, obs: e.observacao, chamado: e.chamado }),
+    (e) => ({
+      data: e.data,
+      obs: e.observacao,
+      chamado: e.chamado,
+      chamadoFornecedor: e.chamado_fornecedor,
+    }),
   )
   type AnotRow = { ativo_id: string; texto: string; created_at: string; autor: { nome: string | null } | null }
   const anotacoesPorAtivo = new Map<string, { texto: string; autor: string | null; em: string }[]>()
@@ -320,8 +348,28 @@ export async function manutencaoDeEstado(
     const d = dados.get(id)
     const envio = envioPorAtivo.get(id) ?? null
     const retorno = retornoPorAtivo.get(id) ?? null
-    const fechado = !!retorno
-    const fim = retorno ? retorno.data : periodo.ate
+    const devolucao = devolucaoPorAtivo.get(id) ?? null
+    // Desfecho do caso: retorno (voltou) OU devolvido ao fornecedor. Se os dois
+    // ocorreram no período (episódios distintos), vence o mais recente por data.
+    let desfecho: 'retorno' | 'devolvido_fornecedor' | undefined
+    let encerramento: { data: string; obs: string | null } | null = null
+    if (retorno && devolucao) {
+      if (devolucao.data >= retorno.data) {
+        desfecho = 'devolvido_fornecedor'
+        encerramento = devolucao
+      } else {
+        desfecho = 'retorno'
+        encerramento = retorno
+      }
+    } else if (devolucao) {
+      desfecho = 'devolvido_fornecedor'
+      encerramento = devolucao
+    } else if (retorno) {
+      desfecho = 'retorno'
+      encerramento = retorno
+    }
+    const fechado = !!encerramento
+    const fim = encerramento ? encerramento.data : periodo.ate
     const dias =
       envio?.data != null
         ? Math.max(0, differenceInCalendarDays(parseISO(fim), parseISO(envio.data)))
@@ -339,13 +387,15 @@ export async function manutencaoDeEstado(
       // após o retorno no período), cai no filial_id atual (dadosAtivos).
       filial: filiaisNome.get(est?.filial_id ?? d?.filial_id ?? -1) ?? '—',
       chamado: envio?.chamado ?? null,
+      chamadoFornecedor: envio?.chamadoFornecedor ?? null,
       dataEnvio: envio?.data ?? null,
       diasEmManutencao: dias,
       obsEnvio: envio?.obs ?? null,
       anotacoes,
-      retornoData: retorno?.data ?? null,
-      retornoObs: retorno?.obs ?? null,
+      retornoData: encerramento?.data ?? null,
+      retornoObs: encerramento?.obs ?? null,
       fechado,
+      desfecho,
     }
   })
 

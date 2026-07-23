@@ -247,6 +247,40 @@ export async function buscarAtivoPorId(id: string): Promise<AtivoFicha | null> {
   }
 }
 
+// F14/MN4 — vínculo de sucessão (devolução ao fornecedor). Dados mínimos p/ o
+// link cruzado na ficha (patrimônio + id), sem carregar a ficha inteira.
+export type VinculoAtivo = { id: string; patrimonio: string | null }
+
+// O ativo ANTIGO (que ESTE substitui) — resolve `ativos.substitui_ativo_id`.
+export async function buscarVinculoAtivo(
+  ativoId: string,
+): Promise<VinculoAtivo | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('ativos')
+    .select('id, patrimonio')
+    .eq('id', ativoId)
+    .maybeSingle()
+  if (error) throw new Error(`Falha ao buscar ativo vinculado: ${error.message}`)
+  return (data as VinculoAtivo | null) ?? null
+}
+
+// Quem SUBSTITUIU este ativo (o novo aponta para ESTE via substitui_ativo_id).
+export async function buscarSubstitutoDe(
+  ativoId: string,
+): Promise<VinculoAtivo | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('ativos')
+    .select('id, patrimonio')
+    .eq('substitui_ativo_id', ativoId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(`Falha ao buscar substituto: ${error.message}`)
+  return (data as VinculoAtivo | null) ?? null
+}
+
 // Anotação avulsa na linha do tempo (F3B). Imutável, com autor + data/hora.
 export type AnotacaoTimeline = {
   id: string

@@ -38,10 +38,15 @@ export function LinhaDoTempo({
   movimentacoes,
   anotacoes = [],
   motivos,
+  // F14/MN4 — reuso somente-leitura (seção "Histórico do ativo substituído" na
+  // ficha do substituto): esconde as ações (Estornar/Duplicar), que agiriam sobre
+  // o ativo ANTIGO. Na ficha própria do ativo segue `false` (ações visíveis).
+  somenteLeitura = false,
 }: {
   movimentacoes: MovimentacaoTimeline[]
   anotacoes?: AnotacaoTimeline[]
   motivos: Record<string, string>
+  somenteLeitura?: boolean
 }) {
   const eventos: Evento[] = [
     ...movimentacoes.map((m) => ({ at: m.created_at, kind: 'mov' as const, mov: m })),
@@ -134,27 +139,29 @@ export function LinhaDoTempo({
                     estornada
                   </a>
                 )}
-                <div className="ml-auto flex items-center gap-1">
-                  {podeEstornar && (
-                    <EstornarDialog
-                      movimentacaoId={m.id}
-                      restauraStatus={m.status_anterior}
-                      restauraColaborador={m.snapshot_anterior?.colaborador ?? null}
-                      restauraSetor={m.snapshot_anterior?.setor ?? null}
-                      filialAnteriorNome={
-                        m.tipo === 'transferencia' ? m.filial_origem_nome : null
-                      }
-                    />
-                  )}
-                  {m.tipo !== 'estorno' && (
-                    <Button asChild variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
-                      <Link href={`/movimentacoes/nova?duplicar=${m.id}`}>
-                        <Copy className="size-3.5" />
-                        Duplicar
-                      </Link>
-                    </Button>
-                  )}
-                </div>
+                {!somenteLeitura && (
+                  <div className="ml-auto flex items-center gap-1">
+                    {podeEstornar && (
+                      <EstornarDialog
+                        movimentacaoId={m.id}
+                        restauraStatus={m.status_anterior}
+                        restauraColaborador={m.snapshot_anterior?.colaborador ?? null}
+                        restauraSetor={m.snapshot_anterior?.setor ?? null}
+                        filialAnteriorNome={
+                          m.tipo === 'transferencia' ? m.filial_origem_nome : null
+                        }
+                      />
+                    )}
+                    {m.tipo !== 'estorno' && (
+                      <Button asChild variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
+                        <Link href={`/movimentacoes/nova?duplicar=${m.id}`}>
+                          <Copy className="size-3.5" />
+                          Duplicar
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div
@@ -167,7 +174,11 @@ export function LinhaDoTempo({
                   <LinhaEstado de={m.status_anterior} para={m.status_resultante} />
                 </div>
 
-                {(motivoRotulo || m.colaborador || m.setor || m.chamado) && (
+                {(motivoRotulo ||
+                  m.colaborador ||
+                  m.setor ||
+                  m.chamado ||
+                  m.chamado_fornecedor) && (
                   <p className="flex flex-wrap gap-x-3 gap-y-0.5">
                     {motivoRotulo && (
                       <span>
@@ -183,6 +194,13 @@ export function LinhaDoTempo({
                     {m.chamado && (
                       <span className="tabular-nums">
                         <span className="text-muted-foreground">Chamado:</span> #{m.chamado}
+                      </span>
+                    )}
+                    {/* F14/MN1 — chamado do fornecedor (só nas movs de manutenção). */}
+                    {m.chamado_fornecedor && (
+                      <span>
+                        <span className="text-muted-foreground">Chamado do fornecedor:</span>{' '}
+                        {m.chamado_fornecedor}
                       </span>
                     )}
                   </p>

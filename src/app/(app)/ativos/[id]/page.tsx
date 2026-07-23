@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Copy, Plus, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Copy, PackageX, Plus, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
@@ -10,7 +10,12 @@ import { CopiarPatrimonio } from '@/components/ativos/copiar-patrimonio'
 import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
 import { TermosDaFicha } from '@/components/ativos/termos-da-ficha'
-import { buscarAtivoPorId, listarAnotacoesDoAtivo } from '@/lib/queries/ativos'
+import {
+  buscarAtivoPorId,
+  buscarSubstitutoDe,
+  buscarVinculoAtivo,
+  listarAnotacoesDoAtivo,
+} from '@/lib/queries/ativos'
 import { listarMovimentacoesDoAtivo } from '@/lib/queries/movimentacoes'
 import { listarMotivos } from '@/lib/queries/motivos'
 import { listarTermosDoAtivo } from '@/lib/queries/termos'
@@ -50,6 +55,20 @@ export default async function AtivoFichaPage({
     listarTermosDoAtivo(id),
   ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
+
+  // F14/MN4 — vínculo de sucessão (devolução ao fornecedor). `ativoAntigo` = o que
+  // ESTE substitui (quando é um substituto); `substitutoDeste` = quem substituiu ESTE.
+  const [substitutoDeste, ativoAntigo] = await Promise.all([
+    buscarSubstitutoDe(ativo.id),
+    ativo.substitui_ativo_id
+      ? buscarVinculoAtivo(ativo.substitui_ativo_id)
+      : Promise.resolve(null),
+  ])
+  // Linha do tempo do ativo antigo — renderizada SOMENTE-LEITURA na ficha do
+  // substituto (histórico por VÍNCULO, sem copiar movimentações).
+  const timelineAntigo = ativo.substitui_ativo_id
+    ? await listarMovimentacoesDoAtivo(ativo.substitui_ativo_id)
+    : []
 
   // Movimentações elegíveis a termo (mais recentes; a linha do tempo vem desc):
   // responsabilidade (saída/empréstimo) e devolução — para geração retroativa.
@@ -112,6 +131,15 @@ export default async function AtivoFichaPage({
               Nova movimentação
             </Link>
           </Button>
+          {/* F14/MN3 — atalho para o fluxo dedicado (só em manutenção) */}
+          {ativo.status === 'em_manutencao' && (
+            <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
+              <Link href={`/movimentacoes/devolucao-fornecedor?ativo=${ativo.id}`}>
+                <PackageX className="size-4" />
+                Devolver ao fornecedor
+              </Link>
+            </Button>
+          )}
           {/* A6 (F10) — comprar outra unidade do mesmo modelo sem redigitar os
               dados cadastrais. Patrimônio e service tag NUNCA vão junto. */}
           <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
@@ -129,6 +157,36 @@ export default async function AtivoFichaPage({
           <EditarAtivoDialog ativo={ativo} />
         </div>
       </div>
+
+      {/* F14/MN4 — vínculo de sucessão (nos dois sentidos) */}
+      {(ativoAntigo || substitutoDeste) && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border bg-muted/30 p-3 text-sm">
+          {ativoAntigo && (
+            <span className="inline-flex items-center gap-1.5">
+              <PackageX className="size-4 text-muted-foreground" />
+              Substitui{' '}
+              <Link
+                href={`/ativos/${ativoAntigo.id}`}
+                className="font-medium tabular-nums underline-offset-2 hover:underline"
+              >
+                {ativoAntigo.patrimonio ?? 'sem patrimônio'}
+              </Link>{' '}
+              <span className="text-muted-foreground">(devolvido ao fornecedor)</span>
+            </span>
+          )}
+          {substitutoDeste && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="text-muted-foreground">Substituído por</span>{' '}
+              <Link
+                href={`/ativos/${substitutoDeste.id}`}
+                className="font-medium tabular-nums underline-offset-2 hover:underline"
+              >
+                {substitutoDeste.patrimonio ?? 'sem patrimônio'}
+              </Link>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Pendencia em destaque */}
       {ativo.pendencia && (
@@ -204,6 +262,33 @@ export default async function AtivoFichaPage({
           motivos={motivos}
         />
       </div>
+
+      {/* F14/MN4 — histórico do ativo SUBSTITUÍDO (por vínculo, sem copiar movs) */}
+      {ativo.substitui_ativo_id && ativoAntigo && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Histórico do ativo substituído —{' '}
+            <span className="tabular-nums">
+              {ativoAntigo.patrimonio ?? 'sem patrimônio'}
+            </span>
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            As movimentações abaixo pertencem ao ativo devolvido ao fornecedor (
+            <Link
+              href={`/ativos/${ativoAntigo.id}`}
+              className="underline-offset-2 hover:underline"
+            >
+              ver ficha
+            </Link>
+            ) — mostradas aqui só para consulta.
+          </p>
+          <LinhaDoTempo
+            movimentacoes={timelineAntigo}
+            motivos={motivos}
+            somenteLeitura
+          />
+        </div>
+      )}
     </div>
   )
 }

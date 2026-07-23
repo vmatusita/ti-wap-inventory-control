@@ -133,7 +133,9 @@ export function opsDoGrupo(
           op: 'substituir_estado',
           statusDe: c.statusDe,
           situacaoDe: c.situacaoDe,
-          para: SITUACAO_CANONICA[est as Exclude<StatusAtivo, 'descartado'>],
+          para: SITUACAO_CANONICA[
+            est as Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>
+          ],
         },
       ]
     }

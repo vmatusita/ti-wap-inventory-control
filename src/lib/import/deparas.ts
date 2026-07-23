@@ -302,7 +302,12 @@ export const ESTADOS_CORRIGIVEIS: readonly string[] = Object.entries(ESTADOS)
  * Status. `descartado` não tem entrada — de propósito (ver ESTADOS_CORRIGIVEIS).
  * O teste de ciclo garante `estadoPlanilha(_, SITUACAO_CANONICA[e]) === e`.
  */
-export const SITUACAO_CANONICA: Record<Exclude<StatusAtivo, 'descartado'>, string> = {
+// F14: `devolvido_fornecedor` também fica de fora (baixa terminal, como descartado):
+// não é um estado da planilha legada de startup — o import nunca o tem como alvo.
+export const SITUACAO_CANONICA: Record<
+  Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>,
+  string
+> = {
   em_estoque: 'Estoque',
   em_uso: 'Saída',
   reservado: 'Reservado',

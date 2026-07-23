@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, StickyNote } from 'lucide-react'
+import { CheckCircle2, Clock, PackageX, StickyNote } from 'lucide-react'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import type { ManutencaoCaso } from '@/lib/relatorios/tipos'
 
@@ -16,7 +16,13 @@ export function ManutencaoCasos({ casos }: { casos: ManutencaoCaso[] }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold tabular-nums">{c.patrimonio}</span>
             <span className="min-w-0 truncate text-sm text-muted-foreground">{c.modelo}</span>
-            {c.fechado ? (
+            {c.desfecho === 'devolvido_fornecedor' ? (
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <PackageX className="size-3" />
+                devolvido ao fornecedor{' '}
+                {c.retornoData ? `em ${formatDate(c.retornoData)}` : ''}
+              </span>
+            ) : c.fechado ? (
               <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
                 <CheckCircle2 className="size-3" />
                 voltou {c.retornoData ? `em ${formatDate(c.retornoData)}` : ''}
@@ -34,6 +40,7 @@ export function ManutencaoCasos({ casos }: { casos: ManutencaoCaso[] }) {
           <p className="mt-1 text-xs text-muted-foreground">
             {c.filial}
             {c.chamado ? ` · #${c.chamado}` : ''}
+            {c.chamadoFornecedor ? ` · fornecedor ${c.chamadoFornecedor}` : ''}
             {c.dataEnvio ? ` · envio ${formatDate(c.dataEnvio)}` : ''}
           </p>
 
@@ -58,7 +65,13 @@ export function ManutencaoCasos({ casos }: { casos: ManutencaoCaso[] }) {
             ))}
             {c.retornoData && (
               <li>
-                <span className="text-green-600 dark:text-green-400">Retorno:</span>{' '}
+                {c.desfecho === 'devolvido_fornecedor' ? (
+                  <span className="text-slate-600 dark:text-slate-300">
+                    Devolvido ao fornecedor:
+                  </span>
+                ) : (
+                  <span className="text-green-600 dark:text-green-400">Retorno:</span>
+                )}{' '}
                 {formatDate(c.retornoData)}
                 {c.retornoObs ? <span className="italic"> — “{c.retornoObs}”</span> : ''}
               </li>

@@ -84,6 +84,8 @@ const DESC_STATUS: Record<StatusAtivo, string> = {
   em_manutencao: 'Em conserto ou assistência técnica.',
   defasado: 'Obsoleto / fim de vida útil — não deve mais ser distribuído.',
   descartado: 'Baixado em definitivo. Estado final, não retorna.',
+  devolvido_fornecedor:
+    'O fornecedor ficou com o equipamento (a manutenção não teve conserto) e o trocou. Baixa terminal — sai do inventário, como o Descartado.',
 }
 
 const DESC_TERMO: Record<TermoStatus, string> = {
@@ -109,6 +111,8 @@ const EFEITO_MOVIMENTACAO: Record<TipoMovimentacao, string> = {
   retorno_manutencao: 'Voltou do conserto e está apto. Resultado: Em estoque.',
   marcar_defasado: 'Marca o ativo como obsoleto (fim de vida útil). Resultado: Defasado.',
   descarte: 'Baixa definitiva do ativo. Resultado: Descartado.',
+  devolucao_fornecedor:
+    'A manutenção não teve conserto: o fornecedor fica com o equipamento e o troca. Registra a baixa e, no mesmo passo, pode cadastrar o substituto (vinculado ao antigo). Só a partir de Em manutenção. Resultado: Devolvido ao fornecedor.',
   transferencia: 'Muda o ativo de filial. Mantém o status atual — só troca a filial.',
   ajuste:
     'Válvula de escape: corrige o status manualmente quando a realidade fugiu do fluxo. Exige o novo status e uma justificativa (mínimo 10 caracteres).',
@@ -123,6 +127,7 @@ const ROTULO_CAMPO: Record<CampoMovimentacao, string> = {
   colaborador: 'Colaborador',
   setor: 'Setor',
   chamado: 'Chamado',
+  chamado_fornecedor: 'Chamado do fornecedor',
   termo: 'Termo',
   filial_destino: 'Filial de destino',
   status_resultante: 'Novo status',

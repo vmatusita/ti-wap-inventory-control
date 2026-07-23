@@ -24,7 +24,10 @@ function rotuloSegmento(v: unknown): string {
 export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
   // Status presentes em qualquer categoria (na ordem canônica), p/ as séries.
   const presentes = STATUS_ORDEM.filter(
-    (s) => s !== 'descartado' && dados.some((d) => d.segmentos.some((seg) => seg.status === s && seg.total > 0)),
+    (s) =>
+      s !== 'descartado' &&
+      s !== 'devolvido_fornecedor' &&
+      dados.some((d) => d.segmentos.some((seg) => seg.status === s && seg.total > 0)),
   )
 
   const data = dados.map((d) => {

@@ -49,8 +49,9 @@ const ACOES = [
 // Destino de cada KPI (OS-F9 / T2) — só no dashboard. Os valores são os do enum
 // `status_ativo` (STATUS_ORDEM em dominio.ts), que é o que /ativos aceita em
 // `status` (CSV). "Total de ativos" lista os 7 status que o KPI soma — `kpisDeEstado`
-// pula `descartado` (estoque.ts), e apontar para /ativos sem filtro faria a lista
-// mostrar um número maior que o do tile clicado (achado da revisão adversarial).
+// pula as baixas `descartado` e `devolvido_fornecedor` (estoque.ts), e apontar para
+// /ativos sem filtro faria a lista mostrar um número maior que o do tile clicado
+// (achado da revisão adversarial). O estado terminal novo (F14) fica FORA por isso.
 const LINKS_KPI: LinksKpi = {
   total:
     '/ativos?status=em_estoque,reservado,em_uso,emprestado,em_triagem,em_manutencao,defasado',

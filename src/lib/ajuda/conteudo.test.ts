@@ -47,21 +47,23 @@ describe('normalizarBusca', () => {
 })
 
 describe('cobertura do glossario (derivada de dominio.ts)', () => {
-  it('cobre os 8 status de ativo, na ordem canônica', () => {
+  it('cobre os 9 status de ativo, na ordem canônica', () => {
     const bloco = glossarioPor('status')[0]
     expect(bloco).toBeDefined()
     expect(bloco.itens.map((v) => v.chave)).toEqual(STATUS_ORDEM)
-    expect(bloco.itens).toHaveLength(8)
+    // F14 acrescentou devolvido_fornecedor (baixa terminal) → 9.
+    expect(bloco.itens).toHaveLength(9)
   })
 
-  it('cobre os 13 tipos de movimentação', () => {
+  it('cobre os 14 tipos de movimentação', () => {
     const bloco = todosOsBlocos().find(
       (b): b is BlocoMovimentacoes => b.tipo === 'movimentacoes',
     )
     expect(bloco).toBeDefined()
     const chaves = bloco!.itens.map((v) => v.chave).sort()
     expect(chaves).toEqual(Object.keys(TIPO_META).sort())
-    expect(bloco!.itens).toHaveLength(13)
+    // F14 acrescentou devolucao_fornecedor → 14.
+    expect(bloco!.itens).toHaveLength(14)
   })
 
   it('cobre os 6 tipos de lançamento de item, com a descrição de dominio.ts', () => {

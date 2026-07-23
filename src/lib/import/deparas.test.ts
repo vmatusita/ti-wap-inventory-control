@@ -103,7 +103,10 @@ describe('estadoPlanilha (precedência Situação > Status — DECISOES 15/07)',
 // F7B — tabelas canônicas reversas: o que a tela GRAVA na célula tem que voltar
 // ao estado/categoria pretendido pelo mesmo De→Para que valida o CSV.
 describe('SITUACAO_CANONICA (F7B §3.4) — ciclo fechado com estadoPlanilha', () => {
-  const ESPERADOS: Exclude<StatusAtivo, 'descartado'>[] = [
+  const ESPERADOS: Exclude<
+    StatusAtivo,
+    'descartado' | 'devolvido_fornecedor'
+  >[] = [
     'em_estoque',
     'em_uso',
     'reservado',
@@ -113,7 +116,7 @@ describe('SITUACAO_CANONICA (F7B §3.4) — ciclo fechado com estadoPlanilha', (
     'defasado',
   ]
 
-  it('cobre os 7 estados (descartado fica de fora — continua bloqueante)', () => {
+  it('cobre os 7 estados (descartado e devolvido ao fornecedor ficam de fora — baixa)', () => {
     expect(Object.keys(SITUACAO_CANONICA).sort()).toEqual([...ESPERADOS].sort())
     expect(Object.keys(SITUACAO_CANONICA)).not.toContain('descartado')
   })

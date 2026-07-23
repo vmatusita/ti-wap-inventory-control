@@ -32,6 +32,8 @@ export type MovimentacaoTimeline = {
   colaborador: string | null
   setor: string | null
   chamado: string | null
+  // F14/MN1 — chamado do fornecedor (só nas movimentações de manutenção).
+  chamado_fornecedor: string | null
   status_anterior: StatusAtivo | null
   status_resultante: StatusAtivo | null
   itens_faltantes: string[] | null
@@ -58,6 +60,7 @@ type RawTimelineRow = {
   colaborador: string | null
   setor: string | null
   chamado: string | null
+  chamado_fornecedor: string | null
   status_anterior: StatusAtivo | null
   status_resultante: StatusAtivo | null
   itens_faltantes: string[] | null
@@ -71,7 +74,7 @@ type RawTimelineRow = {
 }
 
 const TIMELINE_SELECT =
-  'id, tipo, motivo, data, colaborador, setor, chamado, status_anterior, status_resultante, itens_faltantes, observacao, estorno_de, snapshot_anterior, created_at, ' +
+  'id, tipo, motivo, data, colaborador, setor, chamado, chamado_fornecedor, status_anterior, status_resultante, itens_faltantes, observacao, estorno_de, snapshot_anterior, created_at, ' +
   'autor:profiles!movimentacoes_criado_por_fkey(nome), ' +
   'origem:filiais!movimentacoes_filial_id_fkey(nome), ' +
   'destino:filiais!movimentacoes_filial_destino_id_fkey(nome)'
@@ -105,6 +108,7 @@ export async function listarMovimentacoesDoAtivo(
       colaborador: r.colaborador,
       setor: r.setor,
       chamado: r.chamado,
+      chamado_fornecedor: r.chamado_fornecedor,
       status_anterior: r.status_anterior,
       status_resultante: r.status_resultante,
       itens_faltantes: r.itens_faltantes,
@@ -117,6 +121,34 @@ export async function listarMovimentacoesDoAtivo(
       filial_destino_nome: destino?.nome ?? null,
     }
   })
+}
+
+// F14/MN4 — chamado INTERNO + chamado do FORNECEDOR do ÚLTIMO envio_manutencao do
+// ativo. A devolução ao fornecedor herda os dois (read-only no form; gravados na
+// movimentação `devolucao_fornecedor`). Pode devolver `{ chamado: null,
+// chamado_fornecedor: null }` para ativos que foram para manutenção ANTES da F14
+// (envio sem o campo) ou que chegaram a em_manutencao por ajuste — nesse caso a
+// devolução grava chamados nulos (a check da 0045 só vale para envio_manutencao).
+export type ChamadosManutencao = {
+  chamado: string | null
+  chamado_fornecedor: string | null
+}
+
+export async function ultimoEnvioManutencao(
+  ativoId: string,
+): Promise<ChamadosManutencao | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('movimentacoes')
+    .select('chamado, chamado_fornecedor')
+    .eq('ativo_id', ativoId)
+    .eq('tipo', 'envio_manutencao')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error)
+    throw new Error(`Falha ao buscar o envio de manutenção: ${error.message}`)
+  return (data as ChamadosManutencao | null) ?? null
 }
 
 // "Repetir ultima" (OS-F2 3.7.3): pre-preenche tipo/motivo/colaborador/setor/

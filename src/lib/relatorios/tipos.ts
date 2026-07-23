@@ -128,13 +128,18 @@ export type ManutencaoCaso = {
   modelo: string
   filial: string
   chamado: string | null
+  // F14/MN1 — chamado do FORNECEDOR do envio (opcional: snapshots pré-F14 não o têm).
+  chamadoFornecedor?: string | null
   dataEnvio: string | null
   diasEmManutencao: number | null
   obsEnvio: string | null
   anotacoes: AnotacaoManutencao[]
   retornoData: string | null
   retornoObs: string | null
-  fechado: boolean // true = voltou de manutenção dentro do período
+  fechado: boolean // true = caso encerrado no período (retorno OU devolvido)
+  // F14/§0 — como o caso foi encerrado. Ausente/`'retorno'` = voltou (verde);
+  // `'devolvido_fornecedor'` = badge própria neutra. Opcional p/ snapshots antigos.
+  desfecho?: 'retorno' | 'devolvido_fornecedor'
 }
 
 // Linha de item nos grupos 2–3 (acessórios / componentes).

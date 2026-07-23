@@ -63,7 +63,10 @@ type CtrlProps = {
 }
 
 const CATEGORIAS = Object.entries(TIPO_CANONICO) as [Exclude<CategoriaAtivo, 'outro'>, string][]
-const ESTADOS = Object.entries(SITUACAO_CANONICA) as [Exclude<StatusAtivo, 'descartado'>, string][]
+const ESTADOS = Object.entries(SITUACAO_CANONICA) as [
+  Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>,
+  string,
+][]
 
 function plural(n: number, singular: string, pluralTxt: string): string {
   return n === 1 ? singular : pluralTxt
@@ -315,7 +318,7 @@ function CardEstado({
   grupo: GrupoErro
   statusDe: string
   situacaoDe: string
-  sugestao: Exclude<StatusAtivo, 'descartado'> | null
+  sugestao: Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'> | null
 }) {
   const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
   const estado = massaEfetiva(grupo, rascunho)
