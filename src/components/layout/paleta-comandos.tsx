@@ -60,16 +60,18 @@ type ItemNavegacao = {
   atalho?: string
 }
 
-// Espelha o `sidebar-nav.tsx` (que e do W1 nesta OS — nao editar la). Se a
-// sidebar ganhar/perder item, esta lista precisa acompanhar.
+// Espelha o `sidebar-nav.tsx`. Se a sidebar ganhar/perder item, esta lista
+// precisa acompanhar — o grupo "Ir para" e a leitura da navegacao pelo teclado.
 const ROTAS: ItemNavegacao[] = [
   { rotulo: 'Dashboard', href: '/', icone: LayoutDashboard, apelidos: ['inicio', 'home'] },
   { rotulo: 'Ativos', href: '/ativos', icone: Package, apelidos: ['equipamentos'] },
   {
+    // Integracao F11: a sidebar passou a apontar para a LISTA (M8). O caminho
+    // para registrar continua a um gesto — atalho `N` e o grupo Acoes, abaixo.
     rotulo: 'Movimentações',
-    href: '/movimentacoes/nova',
+    href: '/movimentacoes',
     icone: ArrowLeftRight,
-    apelidos: ['entrega', 'devolucao', 'saida', 'entrada'],
+    apelidos: ['historico', 'lista', 'entrega', 'devolucao', 'saida', 'entrada'],
   },
   { rotulo: 'Itens', href: '/itens', icone: Boxes, apelidos: ['consumiveis', 'quantidade'] },
   { rotulo: 'Pendências', href: '/pendencias', icone: ClipboardList, apelidos: ['termo'] },
