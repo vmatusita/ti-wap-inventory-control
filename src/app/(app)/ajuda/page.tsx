@@ -3,6 +3,7 @@ import { getOperador } from '@/lib/auth/acesso'
 import { SECOES, textoDaSecao } from '@/lib/ajuda/conteudo'
 import { BlocoAjuda } from '@/components/ajuda/bloco-ajuda'
 import { AjudaBusca } from '@/components/ajuda/ajuda-busca'
+import { AncoraAoMontar } from '@/components/ajuda/ancora-ao-montar'
 
 // Manual do operador (/ajuda — B9). So operador: o viewer ja e barrado pelo proxy
 // (so acessa /relatorios/**), e aqui reforcamos com getOperador() + redirect.
@@ -65,6 +66,10 @@ export default async function AjudaPage() {
             Nenhum resultado para a busca.
           </p>
         </div>
+
+        {/* B3: posiciona na seção do hash quando as seções montam — o App Router
+            tenta rolar enquanto o loading.tsx ainda está na tela e desiste. */}
+        <AncoraAoMontar ids={SECOES.map((s) => s.id)} />
       </AjudaBusca>
     </div>
   )
