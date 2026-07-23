@@ -98,6 +98,7 @@ Ciclo típico: compra → em estoque → saída → em uso → devolução → t
 | `em_manutencao` | Em conserto (interno ou assistência) | Manutenção |
 | `defasado` | **Reserva técnica** ("RT WAP" nas planilhas): funciona, mas está abaixo do padrão atual; guardado para reposição emergencial ou peças | RT Wap / Posse Wap / Defasada |
 | `descartado` | Baixa definitiva | Descarte |
+| `devolvido_fornecedor` | **(Emenda F14)** Baixa terminal — a manutenção não teve conserto e o fornecedor ficou com o equipamento (e o trocou). Sai do inventário como o `descartado` | — (novo no sistema) |
 
 ### Transições (a tabela que o banco aplica — fonte: migration `0004_maquina_estados.sql`)
 
@@ -113,19 +114,22 @@ Ciclo típico: compra → em estoque → saída → em uso → devolução → t
 | `retorno_manutencao` | `em_manutencao` | `em_estoque` |
 | `marcar_defasado` | `em_estoque`, `em_triagem`, `em_manutencao` | `defasado` |
 | `descarte` | `em_estoque`, `em_triagem`, `em_manutencao`, `defasado` | `descartado` |
-| `transferencia` | qualquer estado, exceto `descartado` | mantém o estado; muda a filial |
+| `devolucao_fornecedor` | **(Emenda F14)** `em_manutencao` | `devolvido_fornecedor` — baixa terminal; zera o detentor como o `descarte` |
+| `transferencia` | qualquer estado, exceto `descartado` **e `devolvido_fornecedor`** (Emenda F14) | mantém o estado; muda a filial |
 | `ajuste` | qualquer | o estado informado — exige justificativa (regra 6) |
 | `estorno` | só a última movimentação efetiva do ativo | devolve o ativo ao estado (status, colaborador, setor, filial) anterior à movimentação estornada |
 
-São 13 tipos no total — `ajuste` e `estorno` são as válvulas de escape administrativas; os outros 11 são o dia a dia.
+São **14** tipos no total (Emenda F14: +`devolucao_fornecedor`) — `ajuste` e `estorno` são as válvulas de escape administrativas; os outros 12 são o dia a dia.
+
+> **Emenda F14 (23/07/2026) — manutenção com fornecedor.** Toda manutenção vai para o fornecedor, que abre um chamado próprio. O `envio_manutencao` passa a gravar o **chamado do fornecedor** (`movimentacoes.chamado_fornecedor`, texto livre, **obrigatório**), de baixa visibilidade — só nos contextos de manutenção (passo 2 do envio, linha do tempo da ficha, card de manutenção do relatório). O ciclo ganha o desfecho **`devolucao_fornecedor` → `devolvido_fornecedor`** (não teve conserto), terminal como `descartado`. Nesse desfecho o operador cadastra o **substituto no mesmo submit** (RPC atômica `devolver_ao_fornecedor`, lote sempre 1): o ativo novo nasce `em_estoque` com `ativos.substitui_ativo_id` apontando para o antigo (herda o fornecedor do antigo; os chamados vêm do último envio). Fonte: migrations `0044`/`0045`. Ver §5 (colunas) e §7 (relatório).
 
 ## 5. Modelo de dados
 
 Schema completo nas migrations em [`supabase/migrations/`](../supabase/migrations/) (fonte da verdade desde a F1). Resumo:
 
 - **`filiais`** — id, nome, slug (`matriz`, `cd-afonso-pena`, `linhares`, …), ativo. Cadastro gerenciável pelo admin (resolve a dúvida CE Serra/Serra Park/Eusébio sem travar o desenvolvimento).
-- **`ativos`** — patrimônio normalizado (único), patrimônio original (como veio da planilha), categoria, marca, modelo, service_tag, hostname, memória, armazenamento, processador, fornecedor, filial atual, **status** (derivado), colaborador/setor atual (derivados), termo_assinado, observações.
-- **`movimentacoes`** — ativo, tipo, motivo, data, filial, colaborador, setor, nº do chamado, termo_assinado, itens_faltantes, observação, **criado_por**, created_at. Imutável: correção é estorno + novo lançamento.
+- **`ativos`** — patrimônio normalizado (único), patrimônio original (como veio da planilha), categoria, marca, modelo, service_tag, hostname, memória, armazenamento, processador, fornecedor, filial atual, **status** (derivado), colaborador/setor atual (derivados), termo_assinado, observações e, desde a **F14**, **`substitui_ativo_id`** (`uuid → ativos.id`, migration `0045`): quando o ativo é o **substituto** de um equipamento devolvido ao fornecedor, aponta para o antigo — `NULL` para todos os demais (vínculo de sucessão, §4 Emenda F14).
+- **`movimentacoes`** — ativo, tipo, motivo, data, filial, colaborador, setor, nº do chamado (interno), termo_assinado, itens_faltantes, observação, **criado_por**, created_at e, desde a **F14**, **`chamado_fornecedor`** (texto livre, migration `0045`): o chamado ABERTO PELO FORNECEDOR na manutenção — obrigatório no `envio_manutencao` (check `NOT VALID`, preserva o histórico), distinto do `chamado` interno (numérico). Imutável: correção é estorno + novo lançamento.
 - **`profiles`** — espelho de `auth.users` com nome. Todo usuário logado é operador — nível único (decisão de 09/07/2026); não existe papel "viewer" com conta.
 - **`senhas_acesso`** — senhas de visualização dos relatórios: rótulo, hash (scrypt), ativa, criado_por, último uso. Validadas exclusivamente no servidor; revogação individual tem efeito imediato.
 - **`relatorios_gerados`** — snapshots da semana (§7.1): período, filial (null = geral), versão, `dados` (jsonb congelado — `schema: 2` na F3B), gerado_por, gerado_em. Imutável — regerar o período cria versão nova.
@@ -179,7 +183,7 @@ Dois modos complementares substituem o e-mail semanal (decisão de 09/07/2026):
 Estrutura de `/relatorios/[filial]` (e a visão consolidada `/relatorios/geral`) — **o formato do e-mail semanal, reorganizado por grupo de equipamento** (v2, F3B). Chips-âncora fixos no topo (Principais · Acessórios · Componentes · Saídas · Entradas) para navegar o relatório longo; no mobile os grupos são recolhíveis (o primeiro fica aberto); a impressão quebra página por grupo.
 
 1. **KPIs gerais** — total de ativos, em uso, em estoque, reservados, em triagem, em manutenção, reserva técnica — cada um com **Δ vs período anterior** (setinha ▲▼) — + gráfico de saídas × entradas do período (granularidade adaptativa dia/semana/mês).
-2. **Grupo — Equipamentos principais** (notebooks, desktops, monitores, celulares, tablets): KPIs do grupo (guardados · reservados · em manutenção · emprestados, com Δ) → **estoque no último dia por categoria × status** (barras horizontais empilhadas com rótulo por segmento + total) → **disponíveis por modelo** (bar list agrupada por categoria — a lista que abre o e-mail) → **reservados com nº do chamado** → **em manutenção, caso a caso** (um card por ativo: patrimônio, modelo, chamado, "há N dias", e a mini-linha do tempo obs do envio → **anotações** (autor+data) → retorno; inclui quem voltou de manutenção no período) → saídas e entradas por motivo.
+2. **Grupo — Equipamentos principais** (notebooks, desktops, monitores, celulares, tablets): KPIs do grupo (guardados · reservados · em manutenção · emprestados, com Δ) → **estoque no último dia por categoria × status** (barras horizontais empilhadas com rótulo por segmento + total) → **disponíveis por modelo** (bar list agrupada por categoria — a lista que abre o e-mail) → **reservados com nº do chamado** → **em manutenção, caso a caso** (um card por ativo: patrimônio, modelo, chamado, "há N dias", e a mini-linha do tempo obs do envio → **anotações** (autor+data) → retorno; inclui quem voltou de manutenção no período). **(Emenda F14)** o card mostra também o **chamado do fornecedor** do envio; o caso encerrado por **devolução ao fornecedor** (não teve conserto) ganha badge própria neutra "devolvido ao fornecedor" no lugar do "voltou" verde. A compra do **substituto** (se houver) entra normalmente nas Entradas do período (é entrada real). → saídas e entradas por motivo.
 3. **Grupo — Acessórios e periféricos** — tabela por item (saldo · atrelados · Δ período · **falta** · obs) + barras divergentes da movimentação por item + carimbo "último lançamento em dd/MM".
 4. **Grupo — Componentes** — idem, filtrando o catálogo por `grupo = componente` (SSD, memórias por DDR e tamanho).
 5. **Pendências** — termos não assinados, devoluções com itens faltantes, ativos parados em triagem.

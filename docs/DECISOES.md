@@ -1584,3 +1584,79 @@ Registrado também: `NEXT_PUBLIC_*` é embutido em **build**. Um `npm run build`
 - **Playwright 1.61.1** instalado como ferramenta, **fora do `package.json`** (exceção instrumental autorizada na §1.2.2): `npx playwright install chromium` + a lib num `node_modules` do scratchpad. `package.json` e lockfile intocados.
 - **ESLint passa a ignorar `scratchpad/`.** A pasta é gitignorada e nunca entra no repo; lintar os scripts de sondagem de cada ordem só gerava ruído que atrapalha a decisão de "a união está verde?".
 - **Smoke ganhou parte C** (GET autenticado nas 14 rotas, forjando o cookie do `@supabase/ssr`) e o check da busca do B2. Honestidade obrigatória: **nem a parte C pegaria este defeito** — as rotas afetadas respondem 200 no GET. Quem pega é a guarda de fonte e o gate de build.
+
+## 2026-07-23 · F14 · Manutenção com fornecedor (chamado, estado terminal, substituto)
+
+Ciclo de manutenção ganha: chamado do fornecedor no envio (MN1), estado terminal **Devolvido ao
+fornecedor** (MN2) e cadastro do **substituto vinculado** no mesmo submit (MN3/MN4). Migrations
+`0044` (enums) + `0045` (colunas, check, funções, RPC), aditivas, aplicadas em produção pelo
+caminho A. Nomes fixados: `devolucao_fornecedor` (tipo), `devolvido_fornecedor` (estado),
+`movimentacoes.chamado_fornecedor`, `ativos.substitui_ativo_id`, RPC `devolver_ao_fornecedor`.
+
+### Organização: um contexto, não três frentes paralelas
+- Contexto: a ordem previa W1→(W2∥W3) em agentes paralelos.
+- Decisão: executei as três frentes num único contexto, em sequência.
+- Motivo: os conjuntos de arquivos têm quebras de TS cruzadas que não particionam limpo (`kit.ts`,
+  `SITUACAO_CANONICA` `Exclude`, `TIPOS_EXIBICAO`, `ROTULO_CAMPO`) — coerência num contexto só reduz
+  risco de integração. O paralelismo foi preservado onde mais rende: a **revisão adversarial** (5
+  lentes) e a varredura §0. Aceites §1.5 idênticos.
+
+### Chamados e fornecedor do substituto resolvidos NO SERVIDOR
+- Decisão: a Server Action busca `chamado`/`chamado_fornecedor` do último `envio_manutencao`
+  (`ultimoEnvioManutencao`) e a RPC copia `fornecedor` do ativo antigo — nada disso vem do payload.
+- Motivo: autoridade (não confiar no cliente) e trata ativos LEGADOS que foram para manutenção antes
+  da F14 (envio sem o campo) — a devolução grava chamados nulos (a check da 0045 só vale para
+  `envio_manutencao`, não para `devolucao_fornecedor`).
+
+### `devolucao_fornecedor` FORA do fluxo de lote genérico
+- Decisão: o tipo NÃO entra em `movimentacaoSchema` nem no dropdown do lote (`tiposDoLote` filtra,
+  como já filtra `compra`); tem action + validator dedicados e rota própria.
+- Motivo: "lote sempre 1" + cadastro do substituto no mesmo submit não cabe no lote. Payload forjado
+  de lote com o tipo é recusado pelo Zod (barreira natural). `TIPOS_EXCLUIDOS_DO_KIT` também o exclui.
+- Reversível: sim (remover o valor do filtro/exclusão — mas seria regressão).
+
+### `rel_estoque_asof` e a série do relatório
+- `rel_estoque_asof` (0045): diff vs 0022 = só o WHERE (`not in ('descartado','devolvido_fornecedor')`).
+  As listas de zeramento de colaborador/setor não mudam (estado excluído no WHERE → sem efeito).
+- **A série/tabelas de movimentação do relatório NÃO somam `descarte`** (filtro `in ('saida','devolucao')`),
+  então `devolucao_fornecedor` fica de fora por OMISSÃO (paridade). Corrige a premissa da ordem §0.
+  Exceção: a **compra do substituto** (sem marcador de import) aparece nas Entradas normalmente.
+
+### Import não muda: `SITUACAO_CANONICA` exclui `devolvido_fornecedor`
+`Record<Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>>` — o import de startup nunca tem
+o estado terminal novo como alvo (não existe na planilha legada). Invariante §1.2.6.
+
+### Emenda da revisão adversarial: trigger `aplicar_movimentacao` RECRIADO
+- Contexto: a decisão inicial foi NÃO recriar o trigger ("colaborador já nulo em em_manutencao").
+- Achado (revisão, severidade média): a premissa é incompleta — pelo caminho `ajuste → em_manutencao`
+  (que PRESERVA o detentor) e depois devolução, um ativo baixado ficaria com "colaborador fantasma"
+  visível na ficha e na busca por colaborador — divergência do espelho `descartado` (que zera).
+- Decisão: recriar `aplicar_movimentacao` na 0045 acrescentando `devolucao_fornecedor` às duas listas
+  de zeramento (junto de `descarte`). Diff vs 0023 = só essas 2 listas; estorno/snapshot/ajuste
+  intactos. Provado por asserção em ensaio (`GHOST_FIX_OK`) e roteiro (cenário 7). Re-revisão: LIMPO.
+
+### `db:types` por MCP × CLI (nullabilidade de `p_filial`)
+O gerador do MCP produz `p_filial: number` para as RPCs `rel_*`; o `npm run db:types` (CLI) produz
+`number | null` (o tipo real — as funções tratam `p_filial is null`). Ajustado à mão para `number | null`
+(7 funções), preservando a convenção do CLI e sem regredir o código chamador.
+
+### Rollout (produção, ata)
+- Smoke baseline: acervo 1593, 0 `envio_manutencao`, enums/colunas ausentes, corpos vigentes = base
+  0022/0023/0024 (sem drift — verificado antes de recriar as funções).
+- Apply `0044` + `0045` por MCP (caminho A). Verificação pós-apply: enums 9/14, colunas/check/índice,
+  RPC 1 assinatura + grants (authenticated=true, anon/service_role=false), diffs corretos das 3 funções,
+  acervo inalterado (1593). `get_advisors(security)`: 0 achados NOVOS (a RPC é SECURITY INVOKER).
+  `notify pgrst, 'reload schema'`.
+- Push único (`05c5575..e05856e`) → deploy `dpl_9atsjaFy6fyYnVhMJXa1MJyMUSBG` READY. Smoke pós-deploy:
+  acervo 1593, 0 devoluções, enums 9/14, 0 erros de runtime.
+- Reversível: as migrations são aditivas; rollback lógico = `drop` das colunas/índice/RPC + `create or
+  replace` das 3 funções para os corpos 0022/0023/0024 (nenhum dado do acervo se perde). Enum `add
+  value` não se remove trivialmente — mas um valor de enum não usado é inócuo.
+
+### Limites (o que NÃO foi provado)
+- O fluxo real em produção só será exercido na próxima manutenção de verdade (acervo tem 0
+  `envio_manutencao` hoje). Sem E2E autenticado em navegador (login wall — limitação desde F11/F12):
+  a prova do motor é o roteiro SQL (7 cenários) + Vitest; a do banco em produção é a verificação
+  pós-apply + smoke read-only. Smoke `.mjs` ausente (gitignorado) → smoke por contagens via MCP. CI
+  (job `banco`) disparado no push; componentes verificados em ensaio; status do run a conferir no
+  GitHub Actions. Detalhes em [`RELATORIO-F14.md`](RELATORIO-F14.md).
