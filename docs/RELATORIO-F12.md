@@ -294,9 +294,65 @@ Conferências do próprio mecanismo, na mesma rodada: com `--exigir-f12` os 3 `n
 
 ### 5.2 Smoke pós-deploy
 
-> **Estado: PENDENTE no momento em que este relatório foi escrito.** Rode **com `--exigir-f12`** — sem a flag, os três checks da F12 marcam "n/a" e um deploy que esqueceu a migration passaria verde.
+**Executado em 23/07/2026, depois do deploy `dpl_oYhh4czhjtcziH35xtbDHKFtBeNL` ficar READY.**
+Comando: `node scripts/smoke/smoke-prod.mjs --exigir-f12` (com a flag — sem ela os três checks da F12 marcariam "n/a" e um deploy que esquecesse a migration passaria verde).
 
-<!-- ORQUESTRADOR: colar aqui a saída de `node scripts/smoke/smoke-prod.mjs --exigir-f12` depois do deploy -->
+```
+Smoke do Estoque TI WAP — OS-F12 §W5
+  app.......: https://ti-wap-inventory-control.vercel.app
+  supabase..: https://pbtjcalbmepmrqzprusb.supabase.co
+  credenciais: presentes (mascaradas)
+  .env.local: 9 variável(is) carregada(s)
+  modo......: exigindo F12 (n/a vira falha)
+
+PARTE A — sem sessão
+  [OK   ] /login — HTTP 200 (pública)
+  [OK   ] /relatorios/acesso — HTTP 200 (pública)
+  [OK   ] / · /ativos · /ativos/novo · /itens · /movimentacoes · /movimentacoes/nova
+          /pendencias · /ajuda · /admin/itens · /admin/motivos · /admin/usuarios
+          /admin/importar — HTTP 307 → /login  (12 rotas)
+  [OK   ] /relatorios/geral · /relatorios/gerados — HTTP 307 → /relatorios/acesso
+
+PARTE B — logado
+  [OK   ] sessão · login — sessão de operador aberta (conta mascarada)
+  [OK   ] ativos · contagem — 1593 ativos
+  [OK   ] ativos · shape da lista — 11 colunas conferidas (join de filiais ok)
+  [OK   ] movimentacoes · 1 página (30) — 3066 no total · 30 linhas na página · shape ok
+  [OK   ] v_pendencias · contagem (dashboard e badge) — 1165 pendências abertas
+  [OK   ] v_pendencias · shape — 11 colunas conferidas
+  [OK   ] filiais · ativas — 5 filiais ativas
+  [OK   ] itens · catálogo ativo — 2 itens ativos
+  [OK   ] rpc rel_saldo_itens · consolidado — 2 itens no saldo consolidado · shape ok
+  [OK   ] rpc rel_saldo_itens · por filial — 2 linhas para 1 filial
+  [OK   ] rpc rel_resumo · últimos 30 dias — respondeu (8 linha(s))
+  [OK   ] rpc rel_mov_por_mes · 12 meses — 12 linhas (mês × tipo)
+  [OK   ] v_estoque_atual · por filial — 59 linhas
+  [OK   ] lancamentos_item · contagem — 7 lançamentos
+  [OK   ] termos_gerados · contagem — 2 termos gerados
+  [OK   ] relatorios_gerados · contagem — 8 snapshots
+  [OK   ] profiles · operadores — 6 operadores
+  [OK   ] itens.estoque_minimo (I5) — coluna estoque_minimo legível
+  [OK   ] kits_modelos (M12) · leitura autenticada — 0 kits (leitura de operador ok)
+  [AVISO] kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit
+          cadastrado — RLS não comprovada
+  sessão encerrada (signOut).
+
+========================================================================
+RESUMO · 35 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+========================================================================
+EXIT=0
+```
+
+**Os três checks que eram `n/a` no baseline agora passam** — é a prova de que as migrations `0042` e `0043` estão de pé em produção e que a API as enxerga (o cache do PostgREST foi recarregado com `notify pgrst, 'reload schema'`, passo 6 do runbook).
+
+**Sobre o único AVISO:** o check "anon NÃO lê" só afirma OK quando o operador enxerga ≥ 1 kit e o anon enxerga 0 — com a tabela vazia, "0 linhas para o anon" seria o mesmo resultado *sem* RLS nenhuma, então o script se recusa a dar um verde que não mediu nada. Não é falha, e é por desenho. A RLS **foi** comprovada, no ensaio, por caminho independente: `set local role anon; select count(*) from kits_modelos` devolveu 0 e o INSERT como `anon` foi negado (W6A · ADV-08). Em produção, o aviso vira OK assim que o primeiro kit for cadastrado.
+
+#### Conferências adicionais do rollout
+
+- **Ledger de produção:** `list_migrations` agora traz `0042_estoque_minimo` e `0043_kits_modelos` registradas (ao contrário de 0031–0037/0039/0040, aplicadas à mão pelo gate e ausentes do ledger).
+- **Conferência entre as migrations** (§1.4.4), feita uma a uma: depois da `0042` — coluna `estoque_minimo` com `column_default = 0`, `is_nullable = NO`, `CHECK ((estoque_minimo >= 0))` presente, e **0 itens fora do default** (nenhum item existente passou a alertar); depois da `0043` — tabela **vazia**, `relrowsecurity = true`, exatamente **2 políticas**, ambas `{authenticated}`, **nenhuma** para `anon`, e o índice `kits_modelos_nome_uidx` sobre `lower(nome)`.
+- **Build implantado:** os logs de build da Vercel do deploy de produção listam **23 rotas, com `/admin/kits` entre elas**, e o TypeScript passou no ambiente da Vercel (`Finished TypeScript in 11.9s`). É a prova de que a rota nova saiu no artefato — o smoke HTTP sozinho não distinguiria uma rota nova de uma inexistente, porque o proxy roda antes do roteamento e as duas devolveriam 307.
+- **Navegador (sem sessão):** `/login` renderiza no deploy novo ("WAP · Estoque TI · E-mail · Senha · Entrar") e `/admin/kits` redireciona para o login. Console sem nenhum erro.
 
 ---
 
@@ -406,7 +462,7 @@ Nada aqui bloqueia o merge. Tudo está registrado para a próxima ordem.
 
 - **Rodar o E2E visual logado** (§7.1, §7.2, §7.3) e o **roteiro de 12 passos** de `scripts/smoke/README.md`. É o item mais importante desta lista — foi exatamente o silêncio sobre isso, na F11, que produziu esta auditoria.
 - **Cronometrar o aceite da F5 §5.9** (§7.2, passos 3 a 6).
-- **Rodar o smoke pós-deploy com `--exigir-f12`** e colar a saída na §5.2.
+- ~~Rodar o smoke pós-deploy~~ — **feito pelo orquestrador**, com `--exigir-f12`, depois de o deploy ficar READY: **35 OK · 1 aviso · 0 falha · exit 0** (saída completa na §5.2). Reexecute quando quiser: `node scripts/smoke/smoke-prod.mjs --exigir-f12`.
 - **Reconciliar o ledger de migrations.** As `0039` e `0040` **já estão aplicadas** em produção — medido direto no banco (nenhuma tabela `backup%`; a guarda `p_contagens is null` está no corpo da RPC). O que falta é o **registro**, junto com as `0031`–`0037`. O SQL (só metadados, idempotente) e os dois SELECTs de conferência estão em [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md). A documentação vinha repetindo "pendentes de apply" desde 21/07 — corrigido nesta ordem.
 - **O `.env.local` desta máquina aponta para PRODUÇÃO.** Pendência herdada da F11: o `scripts/env-guard.ts` tranca `db:seed`/`db:reset` contra refs de produção, mas o certo é o arquivo apontar para o ensaio (`sgmvldiizsrjbxzzpmhh`).
 - **A conta de smoke não existe no projeto de ensaio** (lá há um único `auth.user`), então a parte logada do smoke só roda contra produção. Criá-la exigiria escrever a senha em SQL — não foi feito. Basta convidar a mesma conta no ensaio; o script funciona sem nenhuma alteração.
@@ -425,4 +481,5 @@ Nada aqui bloqueia o merge. Tudo está registrado para a próxima ordem.
 
 - **Ensaio (`sgmvldiizsrjbxzzpmhh`):** `0042` e `0043` aplicadas e conferidas (coluna com default 0 e `check`; tabela com RLS e índice único case-insensitive).
 - **Produção (`pbtjcalbmepmrqzprusb`):** as duas aplicadas pelo orquestrador na janela de rollout, precedidas de **backup lógico** (`scratchpad/backups/f12-2026-07-23/`, coberto pelo `.gitignore`) com as contagens de `itens` e `lancamentos_item`, o conteúdo da tabela `itens` e o SQL de rollback. **As duas migrations são aditivas: o rollback não perde nenhum dado do acervo.**
-- **Ledger:** antes desta ordem, `0001`–`0030` + `rate_limit_senha` + `0038` + `0041`. Continuam fora dele, **embora aplicadas**, as `0031`–`0037`, `0039` e `0040`; a `0029` nunca existiu. Ver a reconciliação no `RUNBOOK-BANCO.md`.
+- **Ledger:** antes desta ordem, `0001`–`0030` + `rate_limit_senha` + `0038` + `0041`. As `0042` e `0043` **foram registradas** (aplicadas por MCP, caminho A do runbook — não batem no gate destrutivo). Continuam fora do ledger, **embora aplicadas**, as `0031`–`0037`, `0039` e `0040`; a `0029` nunca existiu. Ver a reconciliação no `RUNBOOK-BANCO.md`.
+- **Ordem do rollout:** migrations **antes** do deploy, como manda o runbook — as duas são aditivas e retrocompatíveis, então o app que estava no ar simplesmente ignorou a coluna e a tabela novas até o push. O smoke rodado nessa janela intermediária (produção com o banco novo e o código velho) saiu **35 OK · 0 falha**, confirmando a retrocompatibilidade na prática.
