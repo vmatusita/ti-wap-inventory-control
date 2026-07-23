@@ -9,7 +9,8 @@ import {
   BarraProgressoNavegacao,
   ProgressoNavegacaoProvider,
 } from '@/components/layout/progresso-navegacao'
-import { AtalhoGlobalNovaMovimentacao } from '@/components/movimentacoes/atalho-global'
+import { AtalhosGlobais } from '@/components/movimentacoes/atalho-global'
+import { PaletaComandosProvider } from '@/components/layout/paleta-comandos'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 // Shell do grupo (app). Três modos (spec §3 / OS-F3 3.9.4):
@@ -41,16 +42,21 @@ export default async function AppLayout({
       <TooltipProvider delayDuration={300}>
         <ProgressoNavegacaoProvider>
           <BarraProgressoNavegacao />
-          <AtalhoGlobalNovaMovimentacao />
-          <div className="flex min-h-svh flex-col">
-            <AppHeader nome={operador.nome} pendencias={pendencias} />
-            <div className="flex flex-1">
-              <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
-                <SidebarNav pendencias={pendencias} />
-              </aside>
-              <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+          {/* Atalhos `N` e `?` + paleta Ctrl+K / "/" — SÓ neste ramo (operador).
+              O ramo do visualizador por senha, mais abaixo, não monta nenhum dos
+              dois: ele só enxerga /relatorios/** e não tem para onde navegar. */}
+          <AtalhosGlobais />
+          <PaletaComandosProvider>
+            <div className="flex min-h-svh flex-col">
+              <AppHeader nome={operador.nome} pendencias={pendencias} />
+              <div className="flex flex-1">
+                <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
+                  <SidebarNav pendencias={pendencias} />
+                </aside>
+                <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+              </div>
             </div>
-          </div>
+          </PaletaComandosProvider>
         </ProgressoNavegacaoProvider>
       </TooltipProvider>
     )

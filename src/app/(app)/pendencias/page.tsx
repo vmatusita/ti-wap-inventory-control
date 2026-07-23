@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ClipboardCheck, Filter, PenLine } from 'lucide-react'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
 import { exportarPendenciasCSV } from '@/lib/actions/exportar'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
@@ -86,7 +87,10 @@ export default async function PendenciasPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Pendências</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-semibold tracking-tight">Pendências</h1>
+            <LinkAjuda ancora="pendencias" rotulo="Ajuda sobre pendências" />
+          </div>
           <p className="text-sm text-muted-foreground">
             Ativos que precisam de ação — termos, devoluções com itens faltantes e
             triagem parada. Uso interno da TI.

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table'
 import { History } from 'lucide-react'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { ImportarWizard } from '@/components/admin/importar/importar-wizard'
 import { BaixarBackupButton } from '@/components/admin/importar/baixar-backup-button'
 
@@ -27,11 +28,17 @@ export default async function AdminImportarPage() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Importe o acervo de uma filial a partir do CSV de inventário. O modo é
-        sempre <strong>Substituir tudo</strong> (go-live): apaga o acervo atual da
-        filial e recria a partir do arquivo.
-      </p>
+      {/* O <h1> desta tela é o "Administração" do `admin/layout.tsx` (arquivo de
+          outra frente): o LinkAjuda acompanha o texto de abertura do import e
+          aponta para #admin — não existe seção "importar" na /ajuda. */}
+      <div className="flex items-start gap-1">
+        <p className="text-sm text-muted-foreground">
+          Importe o acervo de uma filial a partir do CSV de inventário. O modo é
+          sempre <strong>Substituir tudo</strong> (go-live): apaga o acervo atual da
+          filial e recria a partir do arquivo.
+        </p>
+        <LinkAjuda ancora="admin" rotulo="Ajuda sobre a administração e o import" />
+      </div>
 
       <ImportarWizard filiais={filiais} />
 

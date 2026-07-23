@@ -3,10 +3,18 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-// Atalho global `N` (OS-F2 3.7.2): abre "nova movimentação" de qualquer tela
-// autenticada, desde que o foco NAO esteja num campo de texto. Nivel unico —
-// todo operador logado pode usar.
-function editando(alvo: EventTarget | null): boolean {
+// Atalhos globais de teclado do shell do OPERADOR (montados so no ramo do
+// operador do `(app)/layout.tsx` — o visualizador por senha nao tem atalho
+// nenhum):
+//   `N` -> nova movimentacao (OS-F2 3.7.2)
+//   `?` -> /ajuda            (OS-F11 / T3 — fecha o backlog da F6B)
+// Ambos so disparam com o foco FORA de um campo de texto. Nivel unico: todo
+// operador logado pode usar.
+//
+// A guarda `editando` e exportada porque a paleta de comandos (Ctrl+K e "/")
+// precisa exatamente da mesma nocao de "o usuario esta digitando" — duas
+// definicoes divergentes seria bug na certa.
+export function editando(alvo: EventTarget | null): boolean {
   const el = alvo as HTMLElement | null
   if (!el) return false
   if (el.isContentEditable) return true
@@ -17,17 +25,28 @@ function editando(alvo: EventTarget | null): boolean {
   return false
 }
 
-export function AtalhoGlobalNovaMovimentacao() {
+export function AtalhosGlobais() {
   const router = useRouter()
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.defaultPrevented || e.repeat) return
+      // Só Ctrl/Meta/Alt desqualificam. Shift NAO entra na guarda: na maioria
+      // dos layouts o `?` so existe com Shift pressionado — barrar shiftKey
+      // mataria o atalho. Por isso tambem se compara `e.key` (o caractere
+      // produzido) e nunca `e.code` (a tecla fisica, que muda de layout).
       if (e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key !== 'n' && e.key !== 'N') return
       if (editando(e.target)) return
-      e.preventDefault()
-      router.push('/movimentacoes/nova')
+
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault()
+        router.push('/movimentacoes/nova')
+        return
+      }
+      if (e.key === '?') {
+        e.preventDefault()
+        router.push('/ajuda')
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, Plus } from 'lucide-react'
+import { Menu, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -14,6 +14,7 @@ import {
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { UserMenu } from '@/components/layout/user-menu'
 import { Marca } from '@/components/layout/marca'
+import { useAbrirPaleta } from '@/components/layout/paleta-comandos'
 
 // `pendencias` (OS-F9 / T2): contagem do layout do operador, repassada ao
 // SidebarNav de dentro do Sheet mobile — o mesmo badge do desktop.
@@ -25,6 +26,9 @@ export function AppHeader({
   pendencias?: number
 }) {
   const [aberto, setAberto] = useState(false)
+  // Gatilho da paleta global (OS-F11 / T1). `null` fora do provider — nesse caso
+  // a lupa nem aparece, em vez de virar um botão morto.
+  const abrirPaleta = useAbrirPaleta()
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-brand-dark px-4 text-white md:px-6 print:hidden">
@@ -54,6 +58,25 @@ export function AppHeader({
       <Marca />
 
       <div className="ml-auto flex items-center gap-3">
+        {/* Descoberta da paleta para quem não vive de atalho: lupa sempre, o
+            "Ctrl K" só no desktop (no mobile não há teclado para a dica). */}
+        {abrirPaleta && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={abrirPaleta}
+            aria-label="Buscar ativos e comandos (Ctrl K)"
+            className="size-10 justify-center px-0 text-white hover:bg-white/10 hover:text-white sm:h-7 sm:w-auto sm:gap-1.5 sm:px-2"
+          >
+            <Search className="size-5 sm:size-4" />
+            <kbd
+              aria-hidden
+              className="hidden rounded border border-white/25 bg-white/10 px-1 text-[10px] font-semibold sm:inline"
+            >
+              Ctrl K
+            </kbd>
+          </Button>
+        )}
         <Button
           asChild
           size="sm"
