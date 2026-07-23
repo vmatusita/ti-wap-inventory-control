@@ -45,6 +45,15 @@ function refFromUrl(url: string): string | null {
   }
 }
 
+// Refs de PRODUCAO — o seed/reset ficticio nunca roda neles, aconteca o que
+// acontecer com o .env.local (CLAUDE.md regra 2 e 5; topologia em
+// docs/RUNBOOK-BANCO.md). Descoberto na F11 (22/07/2026): as guardas abaixo so
+// comparavam SEED_PROJECT_REF com a URL — um teste de CONSISTENCIA, nao de
+// IDENTIDADE. Com os dois apontando para producao (que era o estado do
+// .env.local naquele dia) as tres guardas passavam e `npm run db:reset`
+// zeraria o acervo real. Esta lista e a trava que faltava.
+const REFS_DE_PRODUCAO = ['pbtjcalbmepmrqzprusb'] as const
+
 // Valida as guardas e devolve a config. Lanca com mensagem clara se algo falhar
 // — o script NUNCA prossegue sem passar por aqui.
 export function assertGuardsAndGetConfig(): GuardedConfig {
@@ -77,6 +86,18 @@ export function assertGuardsAndGetConfig(): GuardedConfig {
       `Ref do projeto NAO confere: a URL aponta para "${actualRef}", mas SEED_PROJECT_REF="${expectedRef}". ` +
         'Abortado por seguranca (pode ser producao).',
     )
+  }
+  // Trava final: nem SEED_CONFIRM=sim nem SEED_PROJECT_REF batendo com a URL
+  // liberam um ref conhecido de producao. Apontar o .env.local para o projeto
+  // de ensaio e a unica saida — e e a saida certa.
+  for (const ref of [actualRef, expectedRef]) {
+    if (ref && (REFS_DE_PRODUCAO as readonly string[]).includes(ref)) {
+      errs.push(
+        `O ref "${ref}" e PRODUCAO (docs/RUNBOOK-BANCO.md). Dados ficticios nunca entram nela. ` +
+          'Aponte NEXT_PUBLIC_SUPABASE_URL e SEED_PROJECT_REF para o projeto de ensaio antes de rodar seed/reset.',
+      )
+      break
+    }
   }
 
   if (errs.length > 0) {
