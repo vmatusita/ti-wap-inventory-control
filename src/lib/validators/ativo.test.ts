@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validarCorrecaoPatrimonio } from '@/lib/validators/ativo'
+import { definirServiceTagSchema, validarCorrecaoPatrimonio } from '@/lib/validators/ativo'
 
 // Função pura da correção de patrimônio (B7, F6B): canonicaliza o novo valor e
 // detecta no-op contra o atual. Só testa lógica pura — nada de banco/servidor.
@@ -46,5 +46,31 @@ describe('validarCorrecaoPatrimonio', () => {
   it('aceita "de" nulo (F7E — ativo importado sem patrimônio) e nunca marca noop', () => {
     const r = validarCorrecaoPatrimonio(null, 'WAP4491')
     expect(r).toEqual({ ok: true, patrimonio: 'WAP0004491', noop: false })
+  })
+})
+
+// F15/C1 — schema de DEFINIR service tag (a ST é transcrita literal, sem canonicalização).
+describe('definirServiceTagSchema', () => {
+  const UUID = '11111111-2222-4333-8444-555555555555'
+
+  it('aceita service tag não-vazia e apara espaços', () => {
+    const r = definirServiceTagSchema.safeParse({ ativo_id: UUID, service_tag: '  ST-ABC  ' })
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.service_tag).toBe('ST-ABC')
+  })
+
+  it('recusa service tag vazia ou só espaços', () => {
+    expect(definirServiceTagSchema.safeParse({ ativo_id: UUID, service_tag: '' }).success).toBe(false)
+    expect(definirServiceTagSchema.safeParse({ ativo_id: UUID, service_tag: '   ' }).success).toBe(false)
+  })
+
+  it('recusa ativo_id fora de UUID', () => {
+    expect(definirServiceTagSchema.safeParse({ ativo_id: 'x', service_tag: 'ST1' }).success).toBe(false)
+  })
+
+  it('não canonicaliza — preserva o valor literal da etiqueta', () => {
+    const r = definirServiceTagSchema.safeParse({ ativo_id: UUID, service_tag: 'abc-123' })
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.service_tag).toBe('abc-123')
   })
 })

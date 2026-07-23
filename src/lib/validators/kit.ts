@@ -27,8 +27,9 @@ import {
 // num formulário: nasce do botão "Estornar" de uma movimentação existente e
 // precisa apontar a origem. `devolucao_fornecedor` (F14) fica de fora porque tem
 // FLUXO PRÓPRIO (lote sempre 1 + cadastro do substituto no mesmo submit), também
-// filtrado do lote genérico — um kit dela seria inaplicável. Um kit de qualquer
-// um dos três seria inaplicável.
+// filtrado do lote genérico. `troca` (F15) fica de fora pelo mesmo motivo: é o
+// nascimento do substituto, gravado só pela RPC devolver_ao_fornecedor, nunca
+// selecionável no formulário. Um kit de qualquer um dos quatro seria inaplicável.
 //
 // Lista LITERAL (o `z.enum` precisa de tupla, não de `TipoMovimentacao[]`), com
 // um teste que trava a equivalência com `Constants.public.Enums.tipo_movimentacao`
@@ -38,6 +39,7 @@ export const TIPOS_EXCLUIDOS_DO_KIT = [
   'compra',
   'estorno',
   'devolucao_fornecedor',
+  'troca',
 ] as const
 
 export const TIPOS_KIT = [

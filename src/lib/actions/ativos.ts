@@ -7,21 +7,26 @@ import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   anotacaoSchema,
   corrigirPatrimonioSchema,
+  definirServiceTagSchema,
   editarAtivoSchema,
   validarCorrecaoPatrimonio,
 } from '@/lib/validators/ativo'
-import { PENDENCIA_SEM_PATRIMONIO } from '@/lib/dominio'
+import { PENDENCIA_SEM_PATRIMONIO, PENDENCIA_SEM_SERVICE_TAG } from '@/lib/dominio'
 
-// Remove o trecho 'sem patrimônio físico' de uma pendência `;`-joinable,
+// Remove UM trecho de uma pendência `;`-joinable (comparação case-insensitive),
 // preservando os demais (ex.: 'sem patrimônio físico; termo pendente' → 'termo
 // pendente'). String vazia após a limpeza vira null (sem pendência). PURA.
-function limparPendenciaSemPatrimonio(pendencia: string | null): string | null {
+function limparTrechoPendencia(pendencia: string | null, trecho: string): string | null {
   if (!pendencia) return pendencia
   const restantes = pendencia
     .split(';')
     .map((t) => t.trim())
-    .filter((t) => t !== '' && t.toLowerCase() !== PENDENCIA_SEM_PATRIMONIO.toLowerCase())
+    .filter((t) => t !== '' && t.toLowerCase() !== trecho.toLowerCase())
   return restantes.length > 0 ? restantes.join('; ') : null
+}
+
+function limparPendenciaSemPatrimonio(pendencia: string | null): string | null {
+  return limparTrechoPendencia(pendencia, PENDENCIA_SEM_PATRIMONIO)
 }
 
 export async function anotarAtivo(input: {
@@ -158,6 +163,69 @@ export async function corrigirPatrimonio(input: {
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${ativo_id}`)
   // A pendência 'sem patrimônio físico' pode ter sido encerrada — atualiza a fila.
+  revalidatePath('/pendencias')
+  revalidatePath('/relatorios', 'layout')
+  return { ok: true }
+}
+
+// ---------------------------------------------------------------------------
+// definirServiceTag (F15/C1) — espelho do corrigirPatrimonio, mas para a service
+// tag e SÓ quando ela está VAZIA (ativo importado sem tag). Editar uma ST já
+// preenchida continua PROIBIDO (imutável — identidade do equipamento): a action
+// recusa. Ao definir, remove só o trecho 'sem service tag' da pendência
+// (preservando os demais). Rastro "de → para" na `anotacoes` (imutável). A colisão
+// do par patrimônio + service tag (§5, índice único) vira mensagem amigável (erros.ts).
+// ---------------------------------------------------------------------------
+export async function definirServiceTag(input: {
+  ativo_id: string
+  service_tag: string
+}): Promise<ActionResult> {
+  const parsed = definirServiceTagSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+
+  const supabase = await createClient()
+  const uid = await idOperador(supabase)
+  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+
+  const { ativo_id, service_tag } = parsed.data
+
+  const { data: ativo, error: eLer } = await supabase
+    .from('ativos')
+    .select('service_tag, pendencia')
+    .eq('id', ativo_id)
+    .maybeSingle()
+  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message, eLer.code) }
+  if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+
+  // Imutabilidade: só DEFINE quando está vazia; ST já preenchida nunca muda.
+  if (ativo.service_tag != null && ativo.service_tag.trim() !== '') {
+    return {
+      ok: false,
+      erro: 'Este ativo já tem service tag — ela é imutável (identidade do equipamento).',
+    }
+  }
+
+  // Encerra só o trecho 'sem service tag' da pendência (preserva os demais).
+  const pendenciaLimpa = limparTrechoPendencia(ativo.pendencia, PENDENCIA_SEM_SERVICE_TAG)
+  const patch: { service_tag: string; pendencia?: string | null } = { service_tag }
+  if (pendenciaLimpa !== ativo.pendencia) patch.pendencia = pendenciaLimpa
+
+  const { error: eUpd } = await supabase.from('ativos').update(patch).eq('id', ativo_id)
+  // Violação do par único patrimônio + service tag → mensagem amigável (erros.ts).
+  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
+
+  const { error: eNota } = await supabase.from('anotacoes').insert({
+    ativo_id,
+    texto: `Service tag definida: ${service_tag}.`,
+    criado_por: uid,
+  })
+  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
+
+  revalidatePath('/ativos')
+  revalidatePath(`/ativos/${ativo_id}`)
+  // A pendência 'sem service tag' pode ter sido encerrada — atualiza a fila.
   revalidatePath('/pendencias')
   revalidatePath('/relatorios', 'layout')
   return { ok: true }

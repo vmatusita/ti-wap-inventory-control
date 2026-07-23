@@ -131,7 +131,7 @@ export async function devolverAoFornecedor(
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${dados.ativo_id}`)
   if (linha?.substituto_id) revalidatePath(`/ativos/${linha.substituto_id}`)
-  // A compra do substituto entra nas Entradas do relatório ao vivo.
+  // F15: a `troca` do substituto entra nas Entradas do relatório ao vivo (rotulada "Troca").
   revalidatePath('/relatorios', 'layout')
 
   return {

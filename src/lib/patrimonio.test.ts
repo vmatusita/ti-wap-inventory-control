@@ -63,17 +63,18 @@ describe('PATRIMONIO_CANONICAL_RE', () => {
 })
 
 describe('parsearLista', () => {
-  it('lê patrimônios e service tag opcional após a vírgula', () => {
+  it('lê patrimônio + service tag; linha sem service tag é recusada (F15/C1)', () => {
     const { itens, erros } = parsearLista('WAP4491\nWAP4492, ST9')
-    expect(erros).toEqual([])
     expect(itens).toEqual([
-      { patrimonio: 'WAP0004491', service_tag: undefined, linha: 1 },
       { patrimonio: 'WAP0004492', service_tag: 'ST9', linha: 2 },
     ])
+    expect(erros).toHaveLength(1)
+    expect(erros[0].linha).toBe(1)
+    expect(erros[0].msg).toMatch(/sem service tag/i)
   })
 
   it('ignora linhas em branco e reporta as inválidas com o número da linha', () => {
-    const { itens, erros } = parsearLista('WAP4491\n\nlixo')
+    const { itens, erros } = parsearLista('WAP4491,ST1\n\nlixo')
     expect(itens).toHaveLength(1)
     expect(erros).toHaveLength(1)
     expect(erros[0].linha).toBe(3)
@@ -117,21 +118,19 @@ describe('parsearLista', () => {
     expect(erros[0].msg).toMatch(/mais de 2 colunas/i)
   })
 
-  it('ignora separador solto no fim da linha (coluna vazia do Excel)', () => {
+  it('separador solto no fim vira erro de service tag ausente, não de 2+ colunas', () => {
     const { itens, erros } = parsearLista('WAP0001234\t\nWAP0001235,')
-    expect(erros).toEqual([])
-    expect(itens).toEqual([
-      { patrimonio: 'WAP0001234', service_tag: undefined, linha: 1 },
-      { patrimonio: 'WAP0001235', service_tag: undefined, linha: 2 },
-    ])
+    expect(itens).toEqual([])
+    expect(erros).toHaveLength(2)
+    expect(erros.every((e) => /sem service tag/i.test(e.msg))).toBe(true)
   })
 
-  it('aceita linha só com o patrimônio', () => {
+  it('recusa linha só com o patrimônio (service tag obrigatória — F15/C1)', () => {
     const { itens, erros } = parsearLista('WAP0001234')
-    expect(erros).toEqual([])
-    expect(itens).toEqual([
-      { patrimonio: 'WAP0001234', service_tag: undefined, linha: 1 },
-    ])
+    expect(itens).toEqual([])
+    expect(erros).toHaveLength(1)
+    expect(erros[0].linha).toBe(1)
+    expect(erros[0].msg).toMatch(/sem service tag/i)
   })
 })
 
@@ -139,12 +138,12 @@ describe('duplicatasDaLista (A3 — duplicidade dentro da lista colada)', () => 
   it('acusa as DUAS ocorrências com o número de linha original', () => {
     // Linha 2 em branco e linha 3 inválida NÃO podem deslocar a numeração.
     const { itens } = parsearLista(
-      'WAP0001234\n\nlixo\nWAP0001235\nWAP0001234',
+      'WAP0001234,ST1\n\nlixo\nWAP0001235,ST2\nWAP0001234,ST1',
     )
     const dups = duplicatasDaLista(itens)
     expect(dups).toHaveLength(1)
     expect(dups[0].patrimonio).toBe('WAP0001234')
-    expect(dups[0].chave).toBe(chavePatrimonio('WAP0001234'))
+    expect(dups[0].chave).toBe(chavePatrimonio('WAP0001234', 'ST1'))
     expect(dups[0].linhas).toEqual([1, 5])
   })
 
@@ -166,7 +165,7 @@ describe('duplicatasDaLista (A3 — duplicidade dentro da lista colada)', () => 
   })
 
   it('devolve vazio para lista limpa ou vazia', () => {
-    const { itens } = parsearLista('WAP0001234\nWAP0001235')
+    const { itens } = parsearLista('WAP0001234,ST1\nWAP0001235,ST2')
     expect(duplicatasDaLista(itens)).toEqual([])
     expect(duplicatasDaLista([])).toEqual([])
   })
@@ -215,13 +214,11 @@ describe('parearFaixaComServiceTags (A2 — service tags no modo Faixa)', () => 
     ])
   })
 
-  it('texto vazio (ou só espaços) = faixa sem service tags, como antes da F10', () => {
-    expect(parearFaixaComServiceTags(faixa, '').itens).toEqual([
-      { patrimonio: 'WAP0001234' },
-      { patrimonio: 'WAP0001235' },
-      { patrimonio: 'WAP0001236' },
-    ])
-    expect(parearFaixaComServiceTags(faixa, '  \n \n').itens).toHaveLength(3)
+  it('texto vazio (ou só espaços) é recusado — service tag obrigatória (F15/C1)', () => {
+    const r = parearFaixaComServiceTags(faixa, '')
+    expect(r.itens).toBeUndefined()
+    expect(r.erro).toMatch(/service tag/i)
+    expect(parearFaixaComServiceTags(faixa, '  \n \n').itens).toBeUndefined()
   })
 
   it('acusa contagem diferente citando os dois números', () => {

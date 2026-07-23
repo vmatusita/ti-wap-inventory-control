@@ -31,9 +31,10 @@ describe('TIPOS_KIT', () => {
     expect([...TIPOS_KIT]).toEqual(esperado)
   })
 
-  it('não contém compra nem estorno', () => {
+  it('não contém compra, estorno nem troca', () => {
     expect(TIPOS_KIT).not.toContain('compra')
     expect(TIPOS_KIT).not.toContain('estorno')
+    expect(TIPOS_KIT).not.toContain('troca')
   })
 })
 
@@ -57,7 +58,7 @@ describe('kitPayloadSchema', () => {
     expect(r.data?.termo).toBe('gerado')
   })
 
-  it('recusa todo tipo excluído do kit (compra, estorno, devolução ao fornecedor)', () => {
+  it('recusa todo tipo excluído do kit (compra, estorno, devolução ao fornecedor, troca)', () => {
     for (const tipo of TIPOS_EXCLUIDOS_DO_KIT) {
       const r = kitPayloadSchema.safeParse(payloadBase({ tipo }))
       expect(r.success).toBe(false)

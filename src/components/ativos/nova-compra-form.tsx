@@ -421,9 +421,12 @@ export function NovaCompraForm({
     }
 
     const input: CompraLoteInput = {
+      // F15/C1 — service tag obrigatória: o preview só produz itens COM service tag
+      // (parsearLista/parearFaixaComServiceTags acusam a ausência e barram o envio).
+      // O `?? ''` só satisfaz o tipo; o Zod da action rejeitaria uma tag vazia.
       itens: preview.itens.map((i) => ({
         patrimonio: i.patrimonio,
-        service_tag: i.service_tag,
+        service_tag: i.service_tag ?? '',
       })),
       categoria: categoria as CategoriaAtivo,
       marca,
@@ -559,8 +562,8 @@ export function NovaCompraForm({
           </TabsList>
           <TabsContent value="lista" className="mt-3">
             <Label htmlFor="lista" className="mb-2">
-              Um por linha — service tag opcional após vírgula, ponto e vírgula
-              ou TAB
+              Um por linha — patrimônio <strong>e service tag</strong> (obrigatória),
+              separados por vírgula, ponto e vírgula ou TAB
             </Label>
             <Textarea
               id="lista"
@@ -578,7 +581,7 @@ export function NovaCompraForm({
               value={textoLista}
               onChange={(e) => setTextoLista(e.target.value)}
               placeholder={
-                'WAP0006026\nWAP0006027\tST-ABC123\nWAP0006028; ST-DEF456'
+                'WAP0006026, ST-AAA111\nWAP0006027\tST-ABC123\nWAP0006028; ST-DEF456'
               }
               // `text-sm` puro (14px) dispara o zoom automático do iOS a cada
               // foco — e esta é a caixa de quem cola/bipa do celular.
@@ -619,7 +622,8 @@ export function NovaCompraForm({
             {/* A2 — service tags por unidade sem precisar montar a lista à mão */}
             <div>
               <Label htmlFor="faixa-sts" className="mb-2">
-                Service tags (opcional) — uma por linha, na ordem da faixa
+                Service tags <span className="text-destructive">*</span> — uma por
+                linha, na ordem da faixa (uma para cada patrimônio)
               </Label>
               <Textarea
                 id="faixa-sts"
@@ -631,7 +635,8 @@ export function NovaCompraForm({
                 className="font-mono text-base md:text-sm"
               />
               <p className="mt-2 text-xs text-muted-foreground">
-                Dá para colar a coluna do Excel. Vazio = faixa sem service tag.
+                Dá para colar a coluna do Excel — uma service tag para cada
+                patrimônio da faixa (obrigatória).
               </p>
             </div>
           </TabsContent>

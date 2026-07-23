@@ -88,6 +88,7 @@ export const STATUS_CHART_COLOR: Record<StatusAtivo, string> = {
 // ---------- TIPO DE MOVIMENTACAO ----------
 export const TIPO_META: Record<TipoMovimentacao, { rotulo: string }> = {
   compra: { rotulo: 'Compra' },
+  troca: { rotulo: 'Troca' },
   saida: { rotulo: 'Saída' },
   emprestimo: { rotulo: 'Empréstimo' },
   reserva: { rotulo: 'Reserva' },
@@ -108,11 +109,14 @@ export function rotuloTipo(t: TipoMovimentacao): string {
 }
 
 // Pílula colorida da coluna Tipo nas tabelas de relatório (OS-F3 3.3.5):
-// saída amarela, devolução azul, compra verde; os demais tipos, neutro.
+// saída amarela, devolução azul, compra verde, troca teal; os demais tipos, neutro.
+// F15: `troca` (nascimento do substituto) é distinta da `compra` (verde) — teal, com
+// variante escura (AA claro/escuro, precedente F7F; mesmo teal de TIPO_LANC_PILL.retorno).
 const TIPO_PILL: Partial<Record<TipoMovimentacao, string>> = {
   saida: 'bg-amber-100 text-amber-800',
   devolucao: 'bg-blue-100 text-blue-700',
   compra: 'bg-green-100 text-green-700',
+  troca: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
 }
 
 export function pillTipo(t: TipoMovimentacao): string {
@@ -312,3 +316,13 @@ export const OBS_IMPORT_STARTUP = 'import startup'
 // `;`-joinable (ex.: 'sem patrimônio físico; termo pendente'): ao corrigir o
 // patrimônio na ficha, remove-se só ESTE trecho, preservando os demais.
 export const PENDENCIA_SEM_PATRIMONIO = 'sem patrimônio físico'
+
+// ---------- PENDÊNCIA DE SERVICE TAG NULA (F15 C1 — import/cadastro sem tag) ----------
+// Irmã de PENDENCIA_SEM_PATRIMONIO. Ativo IMPORTADO sem service tag nasce com
+// `ativos.pendencia` contendo ESTE trecho (o cadastro MANUAL passa a EXIGIR a tag —
+// Zod+action —, então só o import a produz). MESMO literal que a RPC
+// importar_ativos_substituir (migration 0048) hard-coda — mantenha em SINCRONIA com
+// aquele SQL (precedente PENDENCIA_SEM_PATRIMONIO / 0034). A pendência é `;`-joinable
+// (ex.: 'sem patrimônio físico; sem service tag'): ao definir a service tag na ficha,
+// remove-se só ESTE trecho, preservando os demais.
+export const PENDENCIA_SEM_SERVICE_TAG = 'sem service tag'

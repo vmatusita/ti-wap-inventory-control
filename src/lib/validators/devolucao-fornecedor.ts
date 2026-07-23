@@ -33,7 +33,11 @@ export const substitutoSchema = z.object({
       PATRIMONIO_CANONICAL_RE,
       'Patrimônio fora do formato canônico (ex.: WAP0006026)',
     ),
-  service_tag: opcional,
+  // F15/C1 — service tag OBRIGATÓRIA no cadastro do substituto (espelho da compra).
+  service_tag: z.preprocess(
+    (v) => (v === '' || v == null ? undefined : v),
+    z.string({ message: 'Informe a service tag' }).trim().min(1, 'Informe a service tag'),
+  ),
   categoria: z.enum(Constants.public.Enums.categoria_ativo, {
     message: 'Escolha a categoria',
   }),
@@ -45,7 +49,7 @@ export const substitutoSchema = z.object({
   hostname: opcional,
   filial_id: z.number().int().positive('Escolha a filial'),
   observacoes: textoMax500, // cadastro do ativo
-  observacao: textoMax500, // vai na movimentação `compra` do substituto
+  observacao: textoMax500, // F15: vai na movimentação `troca` do substituto (não `compra`)
   data: dataNaoFuturaSchema,
 })
 

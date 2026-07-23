@@ -66,13 +66,27 @@ export const desfazerAssinaturaSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
-// B7 (F6B) — corrigir patrimônio. Service tag é IMUTÁVEL (identidade do
-// equipamento) e não entra em nenhum schema de edição; só o patrimônio é
-// corrigível, sempre canonicalizado (spec §5, WAP0004491).
+// B7 (F6B) — corrigir patrimônio. Service tag PREENCHIDA é IMUTÁVEL (identidade do
+// equipamento) e nunca é editável; só o patrimônio é corrigível, sempre
+// canonicalizado (spec §5, WAP0004491). F15/C1 abre UMA exceção: uma service tag
+// VAZIA (ativo importado sem tag) pode ser DEFINIDA — ver definirServiceTagSchema.
 // ---------------------------------------------------------------------------
 export const corrigirPatrimonioSchema = z.object({
   ativo_id: z.string().uuid('Ativo inválido'),
   patrimonio_novo: z.string().trim().min(1, 'Informe o novo patrimônio'),
+})
+
+// ---------------------------------------------------------------------------
+// F15/C1 — DEFINIR service tag. Espelho do corrigir-patrimônio, mas SÓ quando a ST
+// está VAZIA (a action recusa se já houver ST — imutável). Transcrita LITERAL da
+// etiqueta (spec §5): sem canonicalização, ao contrário do patrimônio. A colisão do
+// par patrimônio + service tag (§5, índice único coalesce(service_tag,'')) é
+// traduzida por erros.ts. Ao definir, remove-se só o trecho 'sem service tag' da
+// pendência (preservando os demais).
+// ---------------------------------------------------------------------------
+export const definirServiceTagSchema = z.object({
+  ativo_id: z.string().uuid('Ativo inválido'),
+  service_tag: z.string().trim().min(1, 'Informe a service tag').max(100, 'Service tag longa demais'),
 })
 
 export type CorrecaoPatrimonio =

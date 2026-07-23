@@ -25,6 +25,10 @@ export const MAX_LOTE_MOVIMENTACAO = 30
 export const TRANSICOES: Record<StatusAtivo, TipoMovimentacao[]> = {
   em_estoque: [
     'compra',
+    // F15: `troca` (nascimento do substituto, espelho da compra) — como a compra,
+    // consta aqui pela fidelidade à máquina de estados, mas é EXCLUÍDA do select
+    // manual em `tiposDoLote` (nova-movimentacao-form.tsx). Gravada só pela RPC.
+    'troca',
     'saida',
     'emprestimo',
     'reserva',
@@ -142,6 +146,10 @@ const CAMPOS_ENVIO_MANUTENCAO: MetaTipoMovimentacao = {
 
 export const CAMPOS_POR_TIPO: Record<TipoMovimentacao, MetaTipoMovimentacao> = {
   compra: CAMPOS_SIMPLES,
+  // F15/C3 — `troca` (nascimento do substituto) espelha a `compra` (simples). FLUXO
+  // PRÓPRIO: gravada só pela RPC devolver_ao_fornecedor, NUNCA pelo formulário de lote
+  // (excluída em tiposDoLote). A entrada existe só para a matriz cobrir os tipos do enum.
+  troca: CAMPOS_SIMPLES,
   saida: CAMPOS_SAIDA_EMPRESTIMO,
   emprestimo: CAMPOS_SAIDA_EMPRESTIMO,
   reserva: {
@@ -323,6 +331,9 @@ const envioManutencaoSchema = base.extend({
   chamado_fornecedor: chamadoFornecedorObrig,
 })
 
+// A união NÃO inclui `devolucao_fornecedor` nem `troca` (F14/F15): ambos têm fluxo
+// próprio e são gravados só por RPC (devolver_ao_fornecedor), nunca submetidos pelo
+// formulário de lote. Não há teste de exaustividade sobre a união — a ausência é segura.
 export const movimentacaoSchema = z
   .discriminatedUnion('tipo', [
     saidaSchema,

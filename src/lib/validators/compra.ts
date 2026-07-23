@@ -15,7 +15,13 @@ export const compraItemSchema = z.object({
   patrimonio: z
     .string()
     .regex(PATRIMONIO_CANONICAL_RE, 'Patrimônio fora do formato canônico (ex.: WAP0006026)'),
-  service_tag: opcional,
+  // F15/C1 — service tag OBRIGATÓRIA no cadastro manual (todas as categorias). O import
+  // segue aceitando vazia (nasce com pendência 'sem service tag') — a regra vale só dentro
+  // do sistema. Mensagem em pt-BR também no caso ausente (preprocess '' → undefined).
+  service_tag: z.preprocess(
+    (v) => (v === '' || v == null ? undefined : v),
+    z.string({ message: 'Informe a service tag' }).trim().min(1, 'Informe a service tag'),
+  ),
 })
 
 export const compraLoteSchema = z.object({

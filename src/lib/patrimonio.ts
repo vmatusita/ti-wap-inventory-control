@@ -27,7 +27,9 @@ export type ErroLinha = { linha: number; texto: string; msg: string }
 // TAB (A1 — colar duas colunas direto do Excel gera TAB).
 const SEPARADOR_LISTA = /[,;\t]/
 
-// Lista colada: um patrimônio por linha, service tag opcional após o separador.
+// Lista colada: um patrimônio por linha + a service tag após o separador. F15/C1: a
+// service tag é OBRIGATÓRIA no cadastro manual — cada linha precisa de patrimônio E
+// service tag; a linha sem tag vira ErroLinha (o form barra o envio e aponta a linha).
 export function parsearLista(texto: string): {
   itens: ItemPatrimonio[]
   erros: ErroLinha[]
@@ -66,6 +68,15 @@ export function parsearLista(texto: string): {
     const resto =
       corte === -1 ? '' : t.slice(corte + 1).replace(/^[\s,;]+/, '').trim()
     const service_tag = resto ? resto : undefined
+    // F15/C1 — service tag obrigatória: linha só com patrimônio é recusada.
+    if (!service_tag) {
+      erros.push({
+        linha,
+        texto: t,
+        msg: `${patrimonio} sem service tag — informe a service tag após a vírgula (obrigatória).`,
+      })
+      return
+    }
     itens.push({ patrimonio, service_tag, linha })
   })
   return { itens, erros }
@@ -135,12 +146,11 @@ export function expandirFaixa(
   return { itens }
 }
 
-// A2 (F10) — pareia a faixa JÁ expandida com uma lista OPCIONAL de service tags
-// (uma por linha, na ordem da faixa). Antes da F10 a faixa só gerava patrimônios
-// e quem tinha service tag por unidade era obrigado a montar a lista à mão.
-// Texto vazio = faixa sem service tags (comportamento idêntico ao anterior).
-// Pura: o form usa no preview; o servidor (`actions/compras.ts` + índice único
-// do banco) continua sendo o juiz.
+// A2 (F10) — pareia a faixa JÁ expandida com a lista de service tags (uma por
+// linha, na ordem da faixa). F15/C1: a service tag é OBRIGATÓRIA no cadastro manual,
+// então o pareamento tem de ser COMPLETO — uma tag por patrimônio, sem campo vazio
+// (antes da F15 vazio = faixa sem service tags). Pura: o form usa no preview; o
+// servidor (`actions/compras.ts` + índice único do banco) continua sendo o juiz.
 export function parearFaixaComServiceTags(
   patrimonios: string[],
   stsTexto: string,
@@ -152,8 +162,11 @@ export function parearFaixaComServiceTags(
     if (t) tags.push({ valor: t, linha: i + 1 })
   })
 
+  // F15/C1 — service tag obrigatória: a faixa exige uma tag por patrimônio.
   if (tags.length === 0) {
-    return { itens: patrimonios.map((p) => ({ patrimonio: p })) }
+    return {
+      erro: `Informe a service tag de cada patrimônio (uma por linha, na ordem da faixa) — a service tag é obrigatória.`,
+    }
   }
 
   // Duas colunas do Excel coladas AQUI (patrimônio + service tag) gravariam o
@@ -173,7 +186,7 @@ export function parearFaixaComServiceTags(
     const p = `${patrimonios.length} ${patrimonios.length === 1 ? 'patrimônio' : 'patrimônios'}`
     const s = `${tags.length} service ${tags.length === 1 ? 'tag' : 'tags'}`
     return {
-      erro: `Contagem diferente: ${p} × ${s} — informe uma service tag por patrimônio (na ordem da faixa) ou deixe o campo vazio.`,
+      erro: `Contagem diferente: ${p} × ${s} — informe uma service tag por patrimônio, na ordem da faixa.`,
     }
   }
 

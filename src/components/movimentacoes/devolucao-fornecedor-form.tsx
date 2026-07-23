@@ -2,7 +2,6 @@
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { ArrowRight, Check, PackageX, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -45,8 +44,6 @@ export function DevolucaoFornecedorForm({
   chamadoFornecedorHerdado: string | null
   filiais: Filial[]
 }) {
-  const router = useRouter()
-
   const [comSubstituto, setComSubstituto] = useState(true)
   const [dataDevolucao, setDataDevolucao] = useState(hojeISO())
   const [obsDevolucao, setObsDevolucao] = useState('')
@@ -80,6 +77,8 @@ export function DevolucaoFornecedorForm({
     if (comSubstituto) {
       const faltando: string[] = []
       if (!patrimonio.trim()) faltando.push('patrimônio')
+      // F15/C1 — service tag obrigatória no cadastro do substituto.
+      if (!serviceTag.trim()) faltando.push('service tag')
       if (!categoria) faltando.push('categoria')
       if (!marca.trim()) faltando.push('marca')
       if (!modelo.trim()) faltando.push('modelo')
@@ -135,7 +134,12 @@ export function DevolucaoFornecedorForm({
     }
     setSucesso({ antigo: res.antigo!, substituto: res.substituto })
     toast.success('Devolução ao fornecedor registrada.')
-    router.refresh()
+    // F15/C2 — NÃO chamar router.refresh() aqui: o refresh re-renderiza o Server
+    // Component da página com o MESMO ?ativo=, cujo guard (status !== 'em_manutencao')
+    // agora é verdadeiro (o ativo virou 'devolvido_fornecedor') e SUBSTITUÍA a página
+    // inteira — form e painel de sucesso — pelo aviso âmbar. As mudanças em outras
+    // telas já estão cobertas pelos revalidatePath da action (/ativos, as duas fichas
+    // e /relatorios). O painel de sucesso (estado do cliente) permanece na tela.
   }
 
   // ---------- Painel de sucesso ----------
@@ -279,7 +283,9 @@ export function DevolucaoFornecedorForm({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="sub-st">Service tag (opcional)</Label>
+              <Label htmlFor="sub-st">
+                Service tag<span className="text-destructive"> *</span>
+              </Label>
               <Input
                 id="sub-st"
                 value={serviceTag}
