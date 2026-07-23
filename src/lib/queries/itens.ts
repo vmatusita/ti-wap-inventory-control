@@ -10,7 +10,15 @@ import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 // RELATÓRIO (grupos 2–3) vivem em src/lib/queries/relatorios.ts (recebem o
 // client resolvido, pois servem também a sessão por senha).
 
-export type ItemCatalogo = { id: number; nome: string; grupo: GrupoItem }
+// `estoque_minimo` (F12 · I5) viaja no catálogo — e não no saldo — de propósito:
+// é dado do ITEM, não do recorte de filial/data. Quem alerta é `precisaRepor`
+// (validators/item.ts), cruzando este número com o estoque CONSOLIDADO da RPC.
+export type ItemCatalogo = {
+  id: number
+  nome: string
+  grupo: GrupoItem
+  estoque_minimo: number
+}
 
 export type ItemAdmin = {
   id: number
@@ -18,6 +26,7 @@ export type ItemAdmin = {
   grupo: GrupoItem
   ordem: number
   ativo: boolean
+  estoque_minimo: number
   lancamentos: number
 }
 
@@ -61,7 +70,7 @@ export async function listarItensAtivos(): Promise<ItemCatalogo[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('itens')
-    .select('id, nome, grupo')
+    .select('id, nome, grupo, estoque_minimo')
     .eq('ativo', true)
     .order('grupo', { ascending: true })
     .order('ordem', { ascending: true })
@@ -75,7 +84,7 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('itens')
-    .select('id, nome, grupo, ordem, ativo, lancamentos_item(count)')
+    .select('id, nome, grupo, ordem, ativo, estoque_minimo, lancamentos_item(count)')
     .order('grupo', { ascending: true })
     .order('ordem', { ascending: true })
     .order('nome', { ascending: true })
@@ -86,6 +95,7 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
     grupo: GrupoItem
     ordem: number
     ativo: boolean
+    estoque_minimo: number
     lancamentos_item: { count: number }[]
   }
   return ((data ?? []) as Row[]).map((r) => ({
@@ -94,6 +104,7 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
     grupo: r.grupo,
     ordem: r.ordem,
     ativo: r.ativo,
+    estoque_minimo: r.estoque_minimo,
     lancamentos: r.lancamentos_item?.[0]?.count ?? 0,
   }))
 }

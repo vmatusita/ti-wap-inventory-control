@@ -237,6 +237,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
+          estoque_minimo: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           id: number
           nome: string
@@ -245,6 +246,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          estoque_minimo?: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           id?: never
           nome: string
@@ -253,12 +255,48 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          estoque_minimo?: number
           grupo?: Database["public"]["Enums"]["grupo_item"]
           id?: never
           nome?: string
           ordem?: number
         }
         Relationships: []
+      }
+      kits_modelos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string
+          id: string
+          nome: string
+          payload: Json
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por: string
+          id?: string
+          nome: string
+          payload: Json
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string
+          id?: string
+          nome?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kits_modelos_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lancamentos_item: {
         Row: {

@@ -33,6 +33,10 @@ type ItemEdit = {
   grupo: GrupoItem
   ordem: number
   ativo: boolean
+  // F12 · I5 (W1): chega de `ItemAdmin`. Ainda SEM campo na tela — o dialog só
+  // repassa o valor atual para não zerá-lo ao salvar. O input "Estoque mínimo" é
+  // entrega do W2.
+  estoque_minimo: number
   lancamentos: number
 }
 
@@ -56,8 +60,18 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
     const ordemNum = Number(ordem) || 0
     start(async () => {
       const res = edicao
-        ? await atualizarItem({ id: item.id, nome: nome.trim(), grupo, ordem: ordemNum, ativo })
-        : await criarItem({ nome: nome.trim(), grupo, ordem: ordemNum })
+        ? await atualizarItem({
+            id: item.id,
+            nome: nome.trim(),
+            grupo,
+            ordem: ordemNum,
+            ativo,
+            // Preserva o mínimo já configurado (a lista de `update` da action é
+            // explícita: omitir aqui zeraria o valor em silêncio). W2 troca por
+            // estado do formulário quando o campo existir na tela.
+            estoque_minimo: item.estoque_minimo,
+          })
+        : await criarItem({ nome: nome.trim(), grupo, ordem: ordemNum, estoque_minimo: 0 })
       if (!res.ok) {
         toast.error(res.erro)
         return

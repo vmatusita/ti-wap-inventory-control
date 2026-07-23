@@ -2,15 +2,18 @@ import { describe, it, expect } from 'vitest'
 import {
   MAX_LINHAS_LOTE_ITEM,
   MSG_ITEM_REPETIDO,
+  atualizarItemSchema,
   errosPorLinhaDoLote,
   erroQuantidadeLancamento,
   exigeChamado,
   explodirLoteLancamentoItem,
   faltaJustificativaAjuste,
   indicesDeItemRepetido,
+  itemCatalogoSchema,
   itemInlineSchema,
   lancamentoItemSchema,
   loteLancamentoItemSchema,
+  precisaRepor,
   proximaOrdemDoGrupo,
 } from '@/lib/validators/item'
 
@@ -269,5 +272,76 @@ describe('criar item inline (I2)', () => {
   it('proximaOrdemDoGrupo respeita o teto 999 do schema', () => {
     expect(proximaOrdemDoGrupo(995)).toBe(999)
     expect(proximaOrdemDoGrupo(999)).toBe(999)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Estoque mínimo / ponto de reposição (F12 · I5)
+// ---------------------------------------------------------------------------
+
+describe('precisaRepor', () => {
+  it('mínimo 0 NUNCA repõe — nem com estoque zerado ou negativo', () => {
+    expect(precisaRepor(0, 0)).toBe(false)
+    expect(precisaRepor(10, 0)).toBe(false)
+    expect(precisaRepor(-3, 0)).toBe(false)
+  })
+
+  it('estoque abaixo do mínimo repõe', () => {
+    expect(precisaRepor(3, 5)).toBe(true)
+    expect(precisaRepor(0, 1)).toBe(true)
+  })
+
+  it('estoque IGUAL ao mínimo não repõe (o mínimo é o piso aceitável)', () => {
+    expect(precisaRepor(5, 5)).toBe(false)
+    expect(precisaRepor(1, 1)).toBe(false)
+  })
+
+  it('estoque acima do mínimo não repõe', () => {
+    expect(precisaRepor(6, 5)).toBe(false)
+    expect(precisaRepor(999, 5)).toBe(false)
+  })
+
+  it('mínimo negativo (impossível pelo check da 0042) desliga o alerta', () => {
+    expect(precisaRepor(0, -1)).toBe(false)
+    expect(precisaRepor(-5, -1)).toBe(false)
+  })
+})
+
+describe('estoque_minimo no schema do catálogo', () => {
+  const base = { nome: 'Mouse fictício', grupo: 'acessorio' as const, ordem: 0 }
+
+  it('ausente vira 0 (default = sem alerta, igual à coluna)', () => {
+    const r = itemCatalogoSchema.safeParse(base)
+    expect(r.success).toBe(true)
+    expect(r.data?.estoque_minimo).toBe(0)
+  })
+
+  it('aceita inteiro ≥ 0 e coage o texto do input numérico', () => {
+    expect(itemCatalogoSchema.safeParse({ ...base, estoque_minimo: 5 }).data?.estoque_minimo).toBe(5)
+    expect(itemCatalogoSchema.safeParse({ ...base, estoque_minimo: '12' }).data?.estoque_minimo).toBe(12)
+  })
+
+  it('recusa negativo com mensagem em pt-BR', () => {
+    const r = itemCatalogoSchema.safeParse({ ...base, estoque_minimo: -1 })
+    expect(r.success).toBe(false)
+    expect(r.error?.issues[0]?.message).toBe('O estoque mínimo não pode ser negativo')
+  })
+
+  it('recusa quebrado e acima do teto', () => {
+    expect(itemCatalogoSchema.safeParse({ ...base, estoque_minimo: 1.5 }).success).toBe(false)
+    expect(itemCatalogoSchema.safeParse({ ...base, estoque_minimo: 10000 }).success).toBe(false)
+  })
+
+  it('atualizarItemSchema herda o campo', () => {
+    const r = atualizarItemSchema.safeParse({ ...base, id: 1, ativo: true, estoque_minimo: 7 })
+    expect(r.success).toBe(true)
+    expect(r.data?.estoque_minimo).toBe(7)
+  })
+
+  it('itemInlineSchema (criar no meio do lançamento) NÃO pede o mínimo', () => {
+    const r = itemInlineSchema.safeParse({ nome: 'Cabo fictício', grupo: 'acessorio' })
+    expect(r.success).toBe(true)
+    expect('estoque_minimo' in (r.data ?? {})).toBe(false)
+    expect('ordem' in (r.data ?? {})).toBe(false)
   })
 })

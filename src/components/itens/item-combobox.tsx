@@ -82,7 +82,10 @@ export function ItemCombobox({
         toast.error(res.erro ?? 'Não foi possível criar o item.')
         return
       }
-      onItemCriado({ id: res.id, nome, grupo: grupoNovo })
+      // `estoque_minimo: 0` espelha o que `criarItemInline` gravou (default da
+      // coluna 0042 = sem alerta de reposição) — o objeto local tem que bater
+      // com a linha do banco, senão a lista da tela mentiria até o refresh.
+      onItemCriado({ id: res.id, nome, grupo: grupoNovo, estoque_minimo: 0 })
       onSelecionar(res.id)
       toast.success(`Item “${nome}” criado.`)
       fechar(false)

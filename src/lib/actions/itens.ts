@@ -159,6 +159,7 @@ export async function criarItem(input: {
   nome: string
   grupo: string
   ordem: number
+  estoque_minimo: number
 }): Promise<CriarItemResult> {
   const uid = await operadorId()
   if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
@@ -168,6 +169,9 @@ export async function criarItem(input: {
   }
 
   const supabase = await createClient()
+  // Insere `parsed.data` INTEIRO (não uma lista de colunas): campo novo do schema
+  // — como `estoque_minimo` (F12 · I5) — entra sozinho. É o contrário do
+  // `atualizarItem` logo abaixo, cuja lista explícita precisa ser mantida à mão.
   const { data, error } = await supabase
     .from('itens')
     .insert(parsed.data)
@@ -210,10 +214,14 @@ export async function criarItemInline(input: {
     .maybeSingle()
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
+  // `estoque_minimo: 0` explícito = o default da coluna (0042) e "sem alerta de
+  // reposição": quem está no meio de um lançamento não define ponto de reposição
+  // (o `itemInlineSchema` nem tem o campo). Ajusta-se depois em admin/itens.
   return criarItem({
     nome: parsed.data.nome,
     grupo: parsed.data.grupo,
     ordem: proximaOrdemDoGrupo(maior?.ordem ?? null),
+    estoque_minimo: 0,
   })
 }
 
@@ -225,6 +233,7 @@ export async function atualizarItem(input: {
   grupo: string
   ordem: number
   ativo: boolean
+  estoque_minimo: number
 }): Promise<ActionResult> {
   const uid = await operadorId()
   if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
@@ -232,12 +241,15 @@ export async function atualizarItem(input: {
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
-  const { id, nome, grupo, ordem, ativo } = parsed.data
+  const { id, nome, grupo, ordem, ativo, estoque_minimo } = parsed.data
 
   const supabase = await createClient()
+  // ATENÇÃO: a lista de colunas é EXPLÍCITA — campo que não estiver aqui é
+  // descartado EM SILÊNCIO (o schema valida, a action ignora e a tela mostra
+  // "salvo"). Campo novo em `atualizarItemSchema` entra também nesta lista.
   const { error } = await supabase
     .from('itens')
-    .update({ nome, grupo, ordem, ativo })
+    .update({ nome, grupo, ordem, ativo, estoque_minimo })
     .eq('id', id)
   if (error) {
     if (error.message.toLowerCase().includes('duplicate') || error.message.includes('itens_nome_uidx')) {

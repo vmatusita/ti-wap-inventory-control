@@ -202,6 +202,14 @@ export const itemCatalogoSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome').max(80),
   grupo: z.enum(Constants.public.Enums.grupo_item, { message: 'Escolha o grupo' }),
   ordem: z.coerce.number().int('Ordem inteira').min(0).max(999).default(0),
+  // Ponto de reposição (F12 · I5). Espelha a coluna `itens.estoque_minimo`
+  // (migration 0042: int not null default 0 check >= 0). 0 = SEM alerta.
+  estoque_minimo: z.coerce
+    .number()
+    .int('Estoque mínimo inteiro')
+    .min(0, 'O estoque mínimo não pode ser negativo')
+    .max(9999, 'Estoque mínimo: no máximo 9999')
+    .default(0),
 })
 
 export const atualizarItemSchema = itemCatalogoSchema.extend({
@@ -210,12 +218,37 @@ export const atualizarItemSchema = itemCatalogoSchema.extend({
 })
 
 // Criação INLINE no meio do lançamento (F10 · I2): o operador só informa nome e
-// grupo — a ordem é calculada no servidor (o combobox nem carrega essa coluna).
-export const itemInlineSchema = itemCatalogoSchema.omit({ ordem: true })
+// grupo — a ordem é calculada no servidor (o combobox nem carrega essa coluna) e
+// o estoque mínimo nasce no default 0 do banco (quem define ponto de reposição é
+// o admin em admin/itens, com o saldo na frente — não quem está no meio de um
+// lançamento).
+export const itemInlineSchema = itemCatalogoSchema.omit({
+  ordem: true,
+  estoque_minimo: true,
+})
 
 /** Próxima `ordem` do grupo: 10 acima da maior existente (deixa espaço para
  *  reordenar à mão em admin/itens), 0 no grupo vazio, teto 999 do schema. */
 export function proximaOrdemDoGrupo(maiorOrdem: number | null | undefined): number {
   if (maiorOrdem == null || !Number.isFinite(maiorOrdem)) return 0
   return Math.min(999, Math.max(0, Math.trunc(maiorOrdem) + 10))
+}
+
+// ---- Ponto de reposição (F12 · I5) ----
+
+/** O item precisa ser reposto? Regra ÚNICA do alerta "repor" — usada pelo badge
+ *  de /itens e pelo card do dashboard, para os dois nunca discordarem.
+ *
+ *  `estoqueMinimo <= 0` desliga o alerta (0 é o default da coluna e significa
+ *  "não acompanho este item"; negativo é impossível pelo check da 0042, mas aqui
+ *  também desliga em vez de alertar por acidente).
+ *
+ *  A comparação é com o estoque CONSOLIDADO (todas as filiais somadas — decisão
+ *  do Johnny 22/07/2026), nunca com o saldo de uma filial. Estoque IGUAL ao
+ *  mínimo NÃO repõe: o mínimo é o piso aceitável, não o gatilho.
+ *
+ *  Não confundir com "faltam N" (spec §7), que é `atrelados − estoque`: aquilo é
+ *  compromisso já assumido; isto é previsão de compra. */
+export function precisaRepor(estoqueConsolidado: number, estoqueMinimo: number): boolean {
+  return estoqueMinimo > 0 && estoqueConsolidado < estoqueMinimo
 }
