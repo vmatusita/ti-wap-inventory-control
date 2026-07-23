@@ -706,11 +706,22 @@ const CHECKS = [
 // ---------------------------------------------------------------------------
 // PARTE C — rotas do app COM sessão (OS-F13)
 // ---------------------------------------------------------------------------
-// Por que esta parte existe: o defeito B1/B2 da F13 matava o módulo de Server
-// Actions na AVALIAÇÃO — as rotas respondiam 500 para quem estava LOGADO. Nem a
-// parte A (sem sessão o proxy redireciona antes de rotear) nem a parte B (fala
-// direto com o PostgREST, sem passar pelo app) enxergavam isso. Só um GET
-// autenticado contra o app enxerga.
+// O QUE ESTA PARTE PEGA — e o que NÃO pega. Importante não vender demais:
+//
+// O defeito B1/B2 da F13 (o `export type { … }` que matava o módulo de Server
+// Actions na avaliação) era **POST-only**: o manifesto de actions só é avaliado
+// quando uma Server Action é invocada, e isso é um POST. As rotas afetadas
+// respondiam **200 no GET** o tempo todo (medido — ver docs/RELATORIO-F13.md
+// §3.6/§7.3). Logo, esta parte C, que faz **GET**, NÃO teria pego o B1/B2, e o
+// check "busca do combobox" da parte B fala direto com o PostgREST, sem passar
+// pelo app. Quem barra a recorrência do B1/B2 é a guarda de FONTE
+// (`src/lib/use-server-exports.ts`, roda no `npm test`) e o gate de build
+// (`scripts/verificar-actions-build.mjs`) — não este smoke.
+//
+// O que a parte C PEGA, e por isso vale: uma rota logada que quebre no RENDER
+// (throw no Server Component da página, no layout, numa query de leitura) —
+// classe que as partes A (sem sessão, redireciona antes de rotear) e B (fala
+// direto com o PostgREST) não enxergam.
 //
 // A sessão é forjada a partir do token que a parte B já abriu: o @supabase/ssr
 // guarda a sessão no cookie `sb-<ref>-auth-token` como `base64-` + base64url do
