@@ -29,7 +29,7 @@ O sistema está **em produção desde o go-live de 15/07/2026** (1.596 ativos, 5
 | [`docs/DECISOES.md`](docs/DECISOES.md) | Rastro de auditoria das decisões autônomas (append-only) |
 | [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md) | Procedimento de migrations/deploy de banco (o "gate", apply manual, armadilhas) |
 | [`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md) | Auditoria de dívida técnica (diagnóstico priorizado) |
-| [`CHANGELOG.md`](CHANGELOG.md) | Histórico das fases entregues (F0→F10) |
+| [`CHANGELOG.md`](CHANGELOG.md) | Histórico das fases entregues (F0→F11) |
 | `supabase/migrations/` | **Fonte da verdade do banco** desde a F1 (0001→0041; a `0029` não existe) |
 | [`mockups/dashboard-relatorio.html`](mockups/dashboard-relatorio.html) | Mockup navegável do relatório por filial |
 
@@ -58,14 +58,16 @@ O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: 
 
 ## Status
 
-**Em produção (F0 → F10):** operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo + snapshots semanais com acesso por senha, termos gerados em `.docx`, o **import de startup por filial** (`admin/importar`, só *Substituir tudo*), os **quick wins de UX da F9** (busca por colaborador, colar do Excel, filtros do histórico de itens, badge de pendências) e a **operação em massa da F10**: colar/bipar a lista de patrimônios no lote de movimentação (agora até **30** ativos), sugestões de recentes e de colaborador/setor, aviso de possível duplicata, rascunho do lote que sobrevive à navegação, termos em sequência depois do registro, service tags na faixa da compra, "Comprar outro igual", carrinho multi-item nos lançamentos com criação de item inline e **export CSV** em Ativos, Pendências e Itens. O histórico fase a fase está em [`CHANGELOG.md`](CHANGELOG.md); a ata detalhada de cada decisão, em [`docs/DECISOES.md`](docs/DECISOES.md).
+**Entregue (F0 → F11; a F11 sai no deploy desta ordem):** operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo + snapshots semanais com acesso por senha, termos gerados em `.docx`, o **import de startup por filial** (`admin/importar`, só *Substituir tudo*), os **quick wins de UX da F9** (busca por colaborador, colar do Excel, filtros do histórico de itens, badge de pendências), a **operação em massa da F10** (colar/bipar a lista de patrimônios no lote — agora até **30** ativos —, sugestões de recentes e de colaborador/setor, aviso de possível duplicata, rascunho do lote que sobrevive à navegação, termos em sequência depois do registro, service tags na faixa da compra, "Comprar outro igual", carrinho multi-item nos lançamentos com criação de item inline e **export CSV** em Ativos, Pendências e Itens) e a **navegação e estrutura da F11**: a **lista de movimentações** (`/movimentacoes`) que nunca existiu, com filtros na URL e paginação; **busca global** por `Ctrl+K` / `/` com atalho `?` para a ajuda e ícone "?" contextual em 8 telas; **ordenação por coluna** e tamanho de página (25/50/100) em Ativos; saldos de itens das filiais **lado a lado** (`/itens?visao=filiais`); filtros das tabelas do relatório **no link**; e a11y dos diálogos (`useTransition`, `aria-invalid`/`aria-describedby`, foco no Cancelar). O histórico fase a fase está em [`CHANGELOG.md`](CHANGELOG.md); a ata detalhada de cada decisão, em [`docs/DECISOES.md`](docs/DECISOES.md).
 
 **Pendências:**
 
 - **F6C — carga dos saldos de itens** ([`docs/prompts/F6C-carga-saldos-itens.md`](docs/prompts/F6C-carga-saldos-itens.md)) — **próximo passo**, mas **por último na fila** (decisão de 16/07/2026: melhorias primeiro, cargas depois). É o único item que **depende de insumo do Johnny** (o export dos saldos da planilha de gestão online). Até lá, o catálogo de `itens` segue vazio e essa seção do relatório só aparece quando houver lançamentos.
 - **F5 — refino** — alertas, e-mail, estoque mínimo por item, upload do PDF assinado (item 5.5).
-- **Onda 3 do backlog de UX** ([`docs/BACKLOG-UX.md`](docs/BACKLOG-UX.md)) — a Onda 1 saiu na F9 e a Onda 2 (operação em massa) na F10; fica a navegação/estrutura: busca global (T1), lista de `/movimentacoes` (M8), ordenação de colunas (T7), saldos multi-filial (I4) e os demais itens T3/T9/T10.
 - **Banco** — aplicar as migrations `0039` (drop dos backups órfãos) e `0040` (hardening das RPCs) em produção (gate; ver [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md)).
+- **`.env.local` desta máquina aponta para PRODUÇÃO** (`NEXT_PUBLIC_SUPABASE_URL` e `SEED_PROJECT_REF` com o ref de produção). A F11 trancou o seed/reset contra refs de produção (`scripts/env-guard.ts`), mas o certo é o arquivo apontar para o projeto de **ensaio** — ação do Johnny.
+
+O **backlog de UX fechou**: a Onda 1 saiu na F9, a Onda 2 (operação em massa) na F10 e a Onda 3 (navegação e estrutura) na F11. Continuam abertos apenas os itens que já pertenciam a outra fase (M12/kits e I5/estoque mínimo, na F5; a carga da F6C) e os que **exigem decisão do Johnny**: A8 (compra com patrimônio pendente), T11 (as duas definições de "semana") e T12 (remover `next-themes`).
 
 Pendências não bloqueantes: perguntas 4, 5, 6 e 7 da spec §13. As filiais oficiais foram definidas em 15/07/2026: **Matriz, CD-Afonso Pena, Linhares, Eusébio e Serra** (Serra Park é filial própria; Filial-CE = Eusébio).
 

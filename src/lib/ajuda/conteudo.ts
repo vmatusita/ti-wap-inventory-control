@@ -243,6 +243,11 @@ export const SECOES: Secao[] = [
         texto: 'Cada ativo também pertence a uma categoria:',
       },
       { tipo: 'glossario', badge: 'neutro', itens: verbetesCategoria() },
+      {
+        tipo: 'nota',
+        texto:
+          'Na lista de Ativos os cabeçalhos de Patrimônio, Categoria, Marca / Modelo, Status e Colaborador ordenam a tabela, e o rodapé deixa escolher quantas linhas aparecem por página e pular direto para uma delas. Ordem, tamanho e página ficam no endereço, junto dos filtros — o passo a passo está em "Ordenar a lista de ativos e mudar o tamanho da página".',
+      },
     ],
   },
   {
@@ -271,6 +276,11 @@ export const SECOES: Secao[] = [
         tipo: 'nota',
         texto:
           'Possível duplicata: no passo de Revisão, se algum ativo do lote JÁ tiver uma movimentação do mesmo tipo registrada hoje, aparece um aviso âmbar ("WAP0001234 já teve “Saída” hoje — confira antes de registrar"). É só um alerta: registrar continua permitido, porque às vezes o mesmo evento acontece mesmo duas vezes no dia. Movimentação que foi estornada NÃO conta como duplicata.',
+      },
+      {
+        tipo: 'nota',
+        texto:
+          'Tudo que foi registrado fica na LISTA de movimentações: o item "Movimentações" do menu lateral abre essa lista (com período, tipo, filial e busca), e é ali que se responde "o que foi registrado hoje?". Para registrar, use o botão "Nova movimentação" ou a tecla N — os dois continuam indo direto ao formulário, sem passar pela lista.',
       },
     ],
   },
@@ -319,6 +329,16 @@ export const SECOES: Secao[] = [
         texto: 'Os lançamentos de item têm seis tipos, cada um com um efeito no saldo:',
       },
       { tipo: 'glossario', badge: 'tipoLanc', itens: verbetesTipoLancamento() },
+      {
+        tipo: 'nota',
+        texto:
+          'A página Itens tem duas visões, no botão do topo. Consolidado (como a tela abre) soma todas as filiais — ou só a filial escolhida no filtro. Por filial põe uma coluna de estoque para CADA filial, lado a lado, mais a coluna Total: é a resposta rápida para "onde tem mouse sobrando?", sem trocar o filtro cinco vezes. O selo "faltam N" aparece na coluna da filial onde está o déficit.',
+      },
+      {
+        tipo: 'nota',
+        texto:
+          'Na visão Por filial o filtro de filial some da barra (as filiais já estão todas na tela, uma por coluna) e o recorte por filial deixa de valer também para o histórico de lançamentos logo abaixo. A busca por nome e o filtro de grupo continuam valendo nas duas visões, e a visão escolhida fica no endereço da página — o link abre do mesmo jeito para quem receber. Se a coluna Total for maior que a soma das colunas, ela mesma explica por quê ("inclui N de filial desativada") — filial desativada não ganha coluna, mas o saldo que ficou nela continua contando no Total.',
+      },
     ],
   },
   {
@@ -389,12 +409,51 @@ export const SECOES: Secao[] = [
         texto:
           'O relatório também traz uma seção própria com as movimentações de itens por quantidade do período (item, quantidade, tipo, filial, pessoa/chamado, data), separada das tabelas de ativos.',
       },
+      {
+        tipo: 'nota',
+        texto:
+          'Os filtros das tabelas do relatório (Saídas, Entradas e movimentações de itens) agora viajam no link, como o período já fazia: atualizar a página não perde o filtro, voltar/avançar do navegador funciona e quem receber o endereço abre exatamente o mesmo recorte. Cada tabela tem os seus, sem uma atrapalhar a outra, e "Limpar" tira só os daquela tabela. Vale igual para quem entra pela senha de acesso.',
+      },
     ],
   },
   {
     id: 'como-fazer',
     titulo: 'Como fazer (passo a passo)',
     blocos: [
+      {
+        tipo: 'passos',
+        titulo: 'Achar qualquer coisa pelo teclado (busca global e atalhos)',
+        itens: [
+          'Ctrl+K (ou ⌘K no Mac) abre a busca global em qualquer tela — a mesma caixa que a lupa do cabeçalho abre. A barra "/" também abre, desde que o cursor não esteja dentro de um campo de texto.',
+          'Digite a partir de 2 letras: a busca acha o ativo por patrimônio, service tag, hostname, marca, modelo ou nome do colaborador. As setas ↑ ↓ andam pela lista, Enter abre a ficha do ativo escolhido e Esc fecha. Quando o patrimônio repete em dois equipamentos, a service tag aparece na linha para desempatar.',
+          'A mesma caixa também leva para as telas ("Ir para Pendências") e dispara ações ("Nova movimentação", "Lançar item") — tudo sem tirar a mão do teclado.',
+          'Os atalhos globais são três: N abre uma nova movimentação, ? abre esta ajuda e, na página Itens, L abre o lançamento. Nenhum deles dispara enquanto você digita num campo nem com uma janela de confirmação aberta.',
+          'O ícone "?" ao lado do título de cada tela abre esta ajuda já na seção daquela tela.',
+          'Nada disso existe para quem entra só com a senha de acesso dos relatórios — busca e atalhos são do operador.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Achar uma movimentação já registrada (lista de movimentações)',
+        itens: [
+          'Abra Movimentações no menu lateral: a lista mostra tudo que já foi registrado, do mais recente para o mais antigo.',
+          'Filtre por período (De / Até), por tipo e por filial. A busca é de um campo só: digite um patrimônio (WAP0001234 — "wap 1234" também serve, o sistema completa o formato) e vêm as movimentações daquele equipamento; digite um nome ("Fulano") e vêm as do colaborador.',
+          'Cada linha traz data, tipo, patrimônio (link para a ficha), colaborador, filial, quem registrou e a observação. Estorno vem marcado como "estorno" e a movimentação desfeita, como "estornada" — nada é apagado do histórico.',
+          'Os filtros ficam no endereço da página: o link já vai filtrado quando compartilhado, voltar/avançar do navegador funciona e trocar um filtro volta para a primeira página.',
+          'Para REGISTRAR, continue usando "Nova movimentação" (botão do topo, card do painel inicial ou a tecla N) — todos vão direto ao formulário.',
+        ],
+      },
+      {
+        tipo: 'passos',
+        titulo: 'Ordenar a lista de ativos e mudar o tamanho da página',
+        itens: [
+          'Clique no cabeçalho da coluna para ordenar por ela: Patrimônio, Categoria, Marca / Modelo, Status ou Colaborador. O primeiro clique ordena crescente, o segundo inverte e o terceiro volta ao padrão da tela (os alterados mais recentemente em cima). A seta no cabeçalho mostra em que estado está.',
+          'Ativos sem patrimônio ou sem colaborador vão para o fim da lista nos dois sentidos — o vazio nunca ocupa o topo.',
+          'No rodapé dá para escolher 25, 50 ou 100 por página (o padrão continua 50) e pular direto para uma página no campo "Página __ de N".',
+          'Ordem, tamanho e página ficam no endereço junto dos filtros: o link copiado reproduz a tela inteira. Mudar filtro, ordem ou tamanho volta para a primeira página.',
+          'Duas colunas não ordenam: Marca (o cabeçalho "Marca / Modelo" é um só e ordena por modelo) e Filial (o dado vem de outra tabela). Endereço com ordenação inválida é simplesmente ignorado — a lista abre no padrão.',
+        ],
+      },
       {
         tipo: 'passos',
         titulo: 'Registrar uma nova movimentação (em lote)',
@@ -534,7 +593,7 @@ export const SECOES: Secao[] = [
         titulo: 'Lançar um item por quantidade',
         itens: [
           'Abra Itens (atalho: tecla L) e lance uma movimentação de item.',
-          'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item e a filial preenchidos e o cursor na quantidade.',
+          'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item preenchido e o cursor na quantidade. A filial vem junto quando a tela está filtrada por uma filial; na visão Por filial ela abre em branco (a linha vale para todas) — escolha a filial antes de salvar.',
           'Escolha o tipo (Entrada, Liberação, Atrelar, Devolução, Retorno ou Ajuste) — cada um afeta Total/Estoque de um jeito.',
           'Informe a quantidade e, quando fizer sentido, a pessoa/chamado. O Ajuste pede justificativa.',
         ],

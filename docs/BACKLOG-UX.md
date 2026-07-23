@@ -2,7 +2,7 @@
 
 > Análise de 22/07/2026 sobre o working tree (F0–F8 concluídas e em produção; pendentes F6C e itens de F5). Este documento é **insumo de backlog** — cada item só vira trabalho quando entrar numa ordem de serviço.
 >
-> **Estado (22/07/2026):** a **Onda 1 (§5) foi executada pela F9** — os 14 itens estão em produção; os textos abaixo descrevem o problema *como era antes* da correção e ficam como registro do diagnóstico. As Ondas 2 e 3 continuam abertas. Nenhuma sugestão exige dependência fora da stack fechada (as duas únicas ressalvas estão marcadas), nenhuma cria custo, nenhuma mexe no modelo de acesso de nível único e nenhuma reabre decisões registradas (modo *Atualizar* do import, roles, dark mode, upload de PDF assinado).
+> **Estado (22/07/2026):** as **três ondas do §5 foram executadas** — Onda 1 pela **F9**, Onda 2 pela **F10** e Onda 3 pela **F11**; os textos abaixo descrevem o problema *como era antes* da correção e ficam como registro do diagnóstico. Continuam abertos só os itens já previstos em outra fase (M12, I5, carga F6C) e os que exigem decisão do Johnny (A8, T11, T12). Nenhuma sugestão exige dependência fora da stack fechada (as duas únicas ressalvas estão marcadas), nenhuma cria custo, nenhuma mexe no modelo de acesso de nível único e nenhuma reabre decisões registradas (modo *Atualizar* do import, roles, dark mode, upload de PDF assinado).
 
 **Legenda de esforço:** P ≈ até meio dia · M ≈ 1–2 dias · G ≈ 3+ dias. Quando o item exige migration nova ou decisão do Johnny, está indicado em "requer".
 
@@ -150,9 +150,11 @@ Relatório ao vivo abre dom–sáb (decisão B2); o dialog de gerar snapshot sug
 |---|---|---|---|
 | ~~**1 — Quick wins**~~ ✅ **CONCLUÍDA em 22/07/2026 (F9)** | Polimento de alto retorno | M2, M7, M10, A1, A3, A5, A7, I3, I6, T2, T4, T6, T8 + correção da ajuda (I5a) | Entregues os 14 pela `docs/prompts/F9-ultracode.md`, zero migration e zero dependência nova. Ata em `docs/DECISOES.md` (2026-07-22 · F9) |
 | ~~**2 — Operação em massa**~~ ✅ **CONCLUÍDA em 22/07/2026 (F10)** | Lote e memória | M1, M3, M4, M5, M6, M9, M11, A2, A4, A6, I1, I2, T5 | Entregues os 13 pela `docs/prompts/F10-ultracode.md`, zero migration e zero dependência nova. M5 (a regra prometida pela spec §8.7) saiu como **aviso âmbar não-bloqueante**; o teto do M11 fechou em **30** (`MAX_LOTE_MOVIMENTACAO`). Ata em `docs/DECISOES.md` (2026-07-22 · F10); roteiro E2E em `docs/E2E-F10.md` |
-| **3 — Navegação e estrutura** | Busca e auditoria | T1, T3, T7, T9, T10, M8, I4 | T1 e M8 são os de maior impacto percebido — **próxima onda** |
-| **Já previstos (F5/F6C)** | — | M12 (kits), I5 (estoque mínimo), carga F6C | Priorizar dentro da F5 quando ela abrir |
-| **Exigem decisão antes** | — | A8, ~~M11~~ (decidido: 30, na F10), T11, T12 | Registrar em DECISOES.md ao decidir |
+| ~~**3 — Navegação e estrutura**~~ ✅ **CONCLUÍDA em 22/07/2026 (F11)** | Busca e auditoria | T1, T3, T7, T9, T10, M8, I4 | Entregues os 7 pela `docs/prompts/F11-ultracode.md`, zero migration e zero dependência nova. M8 nasceu com a sidebar apontando para a **lista** (`N`/header/dashboard seguem no formulário); T9 saiu **sem** migração para react-hook-form (dívida K permanece aberta, por decisão). Ata em `docs/DECISOES.md` (2026-07-22 · F11); evidências, roteiro E2E e pendências em `docs/RELATORIO-F11.md` |
+| **Já previstos (F5/F6C)** | — | M12 (kits), I5 (estoque mínimo), carga F6C | **Aberto** — priorizar dentro da F5 quando ela abrir |
+| **Exigem decisão antes** | — | A8, ~~M11~~ (decidido: 30, na F10), T11, T12 | **Aberto** — registrar em DECISOES.md ao decidir |
+
+> **As três ondas de UX fecham aqui (22/07/2026).** Onda 1 → F9 · Onda 2 → F10 · Onda 3 → F11. Sobram apenas as duas últimas linhas da tabela: o que já pertencia a outra fase (M12, I5, carga F6C) e o que **exige decisão do Johnny** (A8, T11, T12). Não há Onda 4 — ideia nova entra por ordem de serviço nova, não por este documento.
 
 ## 6. Não sugerido de propósito (decisões vigentes respeitadas)
 
