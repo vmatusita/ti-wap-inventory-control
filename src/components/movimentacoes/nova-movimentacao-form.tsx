@@ -23,6 +23,8 @@ import {
   salvarRascunho,
   type Rascunho,
 } from '@/components/movimentacoes/nova/rascunho'
+import { decidirAplicacaoKit } from '@/components/movimentacoes/nova/aplicar-kit'
+import { checklistCategoriasDoKit } from '@/lib/validators/kit'
 import {
   buscarResumoDeAtivosPorIds,
   registrarMovimentacoes,
@@ -35,12 +37,14 @@ import {
 import {
   rotuloStatus,
   rotuloTipo,
+  type CategoriaAtivo,
   type StatusAtivo,
   type TipoMovimentacao,
   type TermoStatus,
 } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
+import type { Kit } from '@/lib/queries/kits'
 import type { Motivo } from '@/lib/queries/motivos'
 import type { UltimaMovimentacaoUsuario } from '@/lib/queries/movimentacoes'
 
@@ -55,15 +59,29 @@ function tiposDoLote(status: StatusAtivo[]): TipoMovimentacao[] {
   return tiposComunsPara(status).filter((t) => t !== 'compra')
 }
 
+// F12/M12 — que kit foi aplicado nesta montagem. Guardamos a IDENTIDADE do kit
+// (nome + categorias esperadas), nunca o resultado do checklist: o lote muda
+// (o operador volta ao passo 1 e adiciona o monitor que faltava) e o checklist
+// tem de acompanhar. Congelá-lo aqui daria um aviso mentiroso.
+type KitAplicado = {
+  id: string
+  nome: string
+  categorias: CategoriaAtivo[]
+}
+
 export function NovaMovimentacaoForm({
   filiais,
   motivos,
+  kits = [],
   ativoInicial,
   configInicial,
   ultimaMov,
 }: {
   filiais: Filial[]
   motivos: Motivo[]
+  // Kits ATIVOS (F12/M12). Lista vazia = o controle "Aplicar kit" nem aparece,
+  // igual ao "Repetir última" sem última movimentação.
+  kits?: Kit[]
   ativoInicial?: AtivoResumo | null
   configInicial?: ConfigInicial | null
   ultimaMov?: UltimaMovimentacaoUsuario | null
@@ -96,6 +114,8 @@ export function NovaMovimentacaoForm({
   const [rascunhoPendente, setRascunhoPendente] = useState<Rascunho | null>(null)
   const [hidratado, setHidratado] = useState(false)
   const [restaurando, setRestaurando] = useState(false)
+  // F12/M12 — kit aplicado nesta montagem (só a identidade; ver KitAplicado).
+  const [kitAplicado, setKitAplicado] = useState<KitAplicado | null>(null)
   // O rascunho só é SOBRESCRITO depois que o operador mexe NESTA montagem.
   // Sem isso, chegar por `?ativo=`/`?duplicar=` (link da ficha, "Duplicar")
   // gravava o estado do link por cima do lote em andamento e os 12 ativos que o
@@ -123,6 +143,19 @@ export function NovaMovimentacaoForm({
         ? motivos.filter((m) => m.aplica_a.includes(config.tipo as TipoMovimentacao))
         : [],
     [config.tipo, motivos],
+  )
+
+  // Checklist do kit (F12/M12) DERIVADO do lote atual — nunca congelado no
+  // momento de aplicar. Informativo: nada aqui bloqueia o botão "Revisar".
+  const checklistKit = useMemo(
+    () =>
+      kitAplicado
+        ? checklistCategoriasDoKit(
+            kitAplicado.categorias,
+            itens.map((i) => i.categoria),
+          )
+        : [],
+    [kitAplicado, itens],
   )
 
   // Primeira alteração REAL do operador nesta montagem. Libera a persistência
@@ -347,6 +380,49 @@ export function NovaMovimentacaoForm({
     }
   }
 
+  // F12/M12 — aplicar um KIT salvo: mesmo mecanismo do `repetirUltima`
+  // (sobrescreve a config e avisa), com uma diferença deliberada: tipo do kit
+  // fora da interseção do lote NÃO aplica nada (OS-F12 §W3.2), enquanto o
+  // "Repetir última" aplica o resto e só não troca o tipo. Motivo: o kit é um
+  // conjunto nomeado — meio kit aplicado engana quem confiou no preset.
+  // Aplicar É alteração do operador (`marcarAlteracao`): libera o rascunho e
+  // fecha o banner de lote pendente.
+  function aplicarKit(kit: Kit) {
+    const decisao = decidirAplicacaoKit({
+      payload: kit.payload,
+      config,
+      tiposValidos,
+      motivosDoTipo: motivos
+        .filter((m) => m.aplica_a.includes(kit.payload.tipo))
+        .map((m) => m.codigo),
+    })
+
+    if (!decisao.aplicar) {
+      toast.warning(
+        `O kit "${kit.nome}" é de "${rotuloTipo(decisao.tipoKit)}", que não vale para os ativos deste lote — nada foi alterado.`,
+      )
+      return
+    }
+
+    marcarAlteracao()
+    setConfig(decisao.config)
+    // Status resultante vive fora da Config: some junto com o tipo antigo.
+    if (decisao.trocouTipo) setStatusResultante('')
+    setKitAplicado({
+      id: kit.id,
+      nome: kit.nome,
+      categorias: kit.payload.categorias,
+    })
+    toast.success(
+      `Kit "${kit.nome}" aplicado — os campos da movimentação foram substituídos.`,
+    )
+    if (decisao.motivoDescartado) {
+      toast.warning(
+        `O motivo salvo no kit "${kit.nome}" não está mais disponível para "${rotuloTipo(kit.payload.tipo)}" — escolha o motivo.`,
+      )
+    }
+  }
+
   // Monta e valida o lote. Retorna as mensagens de erro (vazio = ok).
   function validarLote(): string[] {
     const itensInput = montarItensInput(itens, config, statusResultante)
@@ -481,6 +557,7 @@ export function NovaMovimentacaoForm({
     setErros([])
     setErrosPorAtivo({})
     setJaRegistrados([])
+    setKitAplicado(null)
     setPasso(1)
     setSucesso(null)
     limparRascunho()
@@ -495,6 +572,11 @@ export function NovaMovimentacaoForm({
     const el = e.target as HTMLElement
     if (el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON') return
     if (el.getAttribute('role') === 'combobox') return
+    // Item de menu (o "Aplicar kit", F12/M12): o Radix trata o Enter no item —
+    // `preventDefault` sim, `stopPropagation` NÃO —, então o evento chegaria
+    // aqui e o mesmo Enter que aplicou o kit também avançaria de passo. O item é
+    // um <div role="menuitem">, não um BUTTON: precisa da guarda própria.
+    if (el.getAttribute('role') === 'menuitem') return
     if (comandoRef.current?.contains(el)) return
     e.preventDefault()
     if (passo === 1 && itens.length > 0) setPasso(2)
@@ -618,6 +700,11 @@ export function NovaMovimentacaoForm({
           jaRegistrados={jaRegistrados}
           filiais={filiais}
           ultimaMov={ultimaMov}
+          kits={kits}
+          kitAplicado={kitAplicado}
+          checklistKit={checklistKit}
+          onAplicarKit={aplicarKit}
+          onLimparKit={() => setKitAplicado(null)}
           onTrocarTipo={trocarTipo}
           onSet={set}
           onSetStatusResultante={(v) => {

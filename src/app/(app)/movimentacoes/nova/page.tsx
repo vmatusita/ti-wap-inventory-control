@@ -4,6 +4,7 @@ import {
 } from '@/components/movimentacoes/nova-movimentacao-form'
 import { buscarAtivoResumo, type AtivoResumo } from '@/lib/queries/ativos'
 import { listarFiliais } from '@/lib/queries/filiais'
+import { listarKitsAtivos, type Kit } from '@/lib/queries/kits'
 import { listarMotivos } from '@/lib/queries/motivos'
 import {
   buscarMovimentacaoParaDuplicar,
@@ -28,10 +29,20 @@ export default async function NovaMovimentacaoPage({
   const ativoParam = texto(sp.ativo)
   const duplicarParam = texto(sp.duplicar)
 
-  const [filiais, motivos, perfil] = await Promise.all([
+  const [filiais, motivos, perfil, kits] = await Promise.all([
     listarFiliais(),
     listarMotivos(),
     getPerfilAtual(),
+    // Kits (F12 · M12) são um FACILITADOR do passo 2: uma falha ao ler o
+    // catálogo não pode derrubar a tela de registrar movimentação — degrada para
+    // lista vazia (o botão "Aplicar kit" some) e a causa vai para o log do
+    // servidor. Leitura no servidor, e não pelo proxy no cliente: é uma consulta
+    // só, sem round-trip extra, e o `revalidatePath('/movimentacoes/nova')` das
+    // actions de kit já mantém a lista fresca.
+    listarKitsAtivos().catch((err): Kit[] => {
+      console.error('[movimentacoes/nova] falha ao listar kits:', err)
+      return []
+    }),
   ])
 
   let ativoInicial: AtivoResumo | null = null
@@ -82,6 +93,7 @@ export default async function NovaMovimentacaoPage({
       <NovaMovimentacaoForm
         filiais={filiais}
         motivos={motivos}
+        kits={kits}
         ativoInicial={ativoInicial}
         configInicial={configInicial}
         ultimaMov={ultimaMov}

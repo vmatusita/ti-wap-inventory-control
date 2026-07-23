@@ -1,13 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import { Check, RotateCcw, TriangleAlert } from 'lucide-react'
+import { Check, ChevronDown, Layers, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerido'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Select,
   SelectContent,
@@ -21,23 +29,31 @@ import {
   observacaoObrigatoria,
 } from '@/lib/validators/movimentacao'
 import {
+  faltaCategoriaDoKit,
+  type ItemChecklistKit,
+} from '@/lib/validators/kit'
+import {
   ACESSORIOS_DEVOLUCAO,
   STATUS_ORDEM,
   TERMO_STATUS_ORDEM,
   rotuloAcessorio,
+  rotuloCategoria,
   rotuloStatus,
   rotuloTermo,
   rotuloTipo,
+  type CategoriaAtivo,
   type TermoStatus,
   type TipoMovimentacao,
 } from '@/lib/dominio'
 import { hojeISO, ontemISO } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import type {
   Config,
   SucessoLote,
 } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
+import type { Kit } from '@/lib/queries/kits'
 import type { Motivo } from '@/lib/queries/motivos'
 import type { UltimaMovimentacaoUsuario } from '@/lib/queries/movimentacoes'
 
@@ -76,6 +92,69 @@ function ChipsData({
   )
 }
 
+// F12/M12 — uma categoria do checklist do kit. O ✓/✗ é decorativo (`aria-hidden`):
+// quem usa leitor de tela ouve "Notebook (no lote)" / "Monitor (faltando)", não
+// um ícone mudo. Falta vem em negrito — é o que o operador precisa ver primeiro.
+function CategoriaDoKit({ item }: { item: ItemChecklistKit }) {
+  const Icone = item.presente ? Check : X
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 whitespace-nowrap',
+        !item.presente && 'font-semibold',
+      )}
+    >
+      <Icone className="size-3.5" aria-hidden />
+      {rotuloCategoria(item.categoria)}
+      <span className="sr-only">
+        {item.presente ? ' (no lote)' : ' (faltando)'}
+      </span>
+    </span>
+  )
+}
+
+// F12/M12 — "Aplicar kit": preenche o passo 2 com um modelo salvo em
+// Administração → Kits. Só aparece quando existe kit ativo (mesma regra do
+// "Repetir última", que só aparece com última movimentação).
+function MenuKits({
+  kits,
+  onAplicarKit,
+}: {
+  kits: Kit[]
+  onAplicarKit: (kit: Kit) => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" className="gap-2">
+          <Layers className="size-4" />
+          Aplicar kit
+          <ChevronDown className="size-4 opacity-60" aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-80 w-72 overflow-y-auto">
+        <DropdownMenuLabel>Kits salvos</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {kits.map((k) => (
+          <DropdownMenuItem
+            key={k.id}
+            onSelect={() => onAplicarKit(k)}
+            className="flex-col items-start gap-0.5"
+          >
+            <span className="font-medium">{k.nome}</span>
+            <span className="text-xs text-muted-foreground">
+              {rotuloTipo(k.payload.tipo)} ·{' '}
+              {k.payload.categorias
+                .map((c: CategoriaAtivo) => rotuloCategoria(c))
+                .join(', ')}
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 // Passo 2 — os campos da movimentacao. Quais inputs aparecem e quais levam "*"
 // derivam de CAMPOS_POR_TIPO (predicados campoAplica/campoObrigatorio), nao mais
 // de arrays de string inline.
@@ -90,6 +169,11 @@ export function PassoMovimentacao({
   jaRegistrados,
   filiais,
   ultimaMov,
+  kits,
+  kitAplicado,
+  checklistKit,
+  onAplicarKit,
+  onLimparKit,
   onTrocarTipo,
   onSet,
   onSetStatusResultante,
@@ -108,6 +192,13 @@ export function PassoMovimentacao({
   jaRegistrados: SucessoLote['ativos']
   filiais: Filial[]
   ultimaMov?: UltimaMovimentacaoUsuario | null
+  // F12/M12 — kits ativos, o kit aplicado nesta montagem e o checklist DERIVADO
+  // do lote atual (o form recalcula a cada mudança; aqui só se desenha).
+  kits: Kit[]
+  kitAplicado: { id: string; nome: string; categorias: CategoriaAtivo[] } | null
+  checklistKit: ItemChecklistKit[]
+  onAplicarKit: (kit: Kit) => void
+  onLimparKit: () => void
   onTrocarTipo: (tipo: TipoMovimentacao) => void
   onSet: <K extends keyof Config>(chave: K, valor: Config[K]) => void
   onSetStatusResultante: (valor: string) => void
@@ -185,18 +276,58 @@ export function PassoMovimentacao({
           </Select>
         </div>
 
-        {ultimaMov && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onRepetirUltima}
-            className="gap-2"
-          >
-            <RotateCcw className="size-4" />
-            Repetir última
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {kits.length > 0 && (
+            <MenuKits kits={kits} onAplicarKit={onAplicarKit} />
+          )}
+          {ultimaMov && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onRepetirUltima}
+              className="gap-2"
+            >
+              <RotateCcw className="size-4" />
+              Repetir última
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* F12/M12 — checklist das categorias esperadas pelo kit. INFORMATIVO:
+          nunca desabilita "Revisar" (decisão §2.5 da OS-F12). Reage ao lote —
+          adicionar o monitor que faltava apaga o aviso sozinho. */}
+      {kitAplicado &&
+        (faltaCategoriaDoKit(checklistKit) ? (
+          <div className="flex flex-wrap items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <p className="min-w-0 flex-1">
+              <span className="font-medium">{kitAplicado.nome}</span> espera:{' '}
+              {checklistKit.map((c, i) => (
+                <span key={c.categoria}>
+                  {i > 0 && <span aria-hidden> · </span>}
+                  <CategoriaDoKit item={c} />
+                </span>
+              ))}{' '}
+              — adicione os que faltam no passo 1 ou registre assim mesmo.
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onLimparKit}
+              className="shrink-0 text-amber-900 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/40"
+            >
+              Dispensar
+            </Button>
+          </div>
+        ) : (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Check className="size-3.5 text-green-600 dark:text-green-400" aria-hidden />
+            Kit <span className="font-medium">{kitAplicado.nome}</span> completo —
+            todas as categorias esperadas estão no lote.
+          </p>
+        ))}
 
       {config.tipo && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

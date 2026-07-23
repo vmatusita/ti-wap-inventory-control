@@ -9,6 +9,9 @@ const ITENS = [
   { href: '/admin/senhas', rotulo: 'Senhas de acesso' },
   { href: '/admin/filiais', rotulo: 'Filiais' },
   { href: '/admin/motivos', rotulo: 'Motivos' },
+  // Vocabulários do fluxo ficam juntos: Motivos (o que se escolhe no passo 2),
+  // Kits (o preset do passo 2 inteiro — F12/M12) e Itens (catálogo por quantidade).
+  { href: '/admin/kits', rotulo: 'Kits' },
   { href: '/admin/itens', rotulo: 'Itens' },
   { href: '/admin/importar', rotulo: 'Importar' },
 ]
