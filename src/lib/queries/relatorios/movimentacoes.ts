@@ -303,7 +303,11 @@ export async function getTabelasFinais(
 ): Promise<{ saidas: LinhaSaida[]; entradas: LinhaEntrada[]; transferencias: LinhaTransferencia[] }> {
   const [saidasRaw, entradasRaw, transfRaw] = await Promise.all([
     buscarLinhasPeriodo(client, filialId, periodo, ['saida', 'emprestimo']),
-    buscarLinhasPeriodo(client, filialId, periodo, ['devolucao', 'compra']),
+    // F15: `troca` (nascimento do substituto) é ENTRADA real do período, como a compra
+    // e a devolução — aparece nas Entradas rotulada "Troca" (nunca contada como compra).
+    // Os filtros de observação acima não a derrubam: a RPC devolver_ao_fornecedor grava
+    // observação própria (nunca os marcadores de go-live/import) e o import não gera troca.
+    buscarLinhasPeriodo(client, filialId, periodo, ['devolucao', 'compra', 'troca']),
     buscarLinhasPeriodo(client, filialId, periodo, ['transferencia'], true),
   ])
 

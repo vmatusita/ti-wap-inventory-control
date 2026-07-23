@@ -26,9 +26,10 @@ import type { LinhaEntrada } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
 
-// Entradas do período (§4.4): tipos devolucao + compra. Colunas: Data · Filial ·
-// Categoria · Marca/Modelo · Patrimônio · Tipo (Devolução/Compra) · Motivo ·
-// Colaborador · Setor · Itens faltantes · Obs. Filtros/resumo/células via os
+// Entradas do período (§4.4): tipos devolucao + compra + troca (F15). Colunas: Data ·
+// Filial · Categoria · Marca/Modelo · Patrimônio · Tipo (Devolução/Compra/Troca) ·
+// Motivo · Colaborador · Setor · Itens faltantes · Obs. A pílula/rótulo do tipo vem de
+// pillTipo/rotuloTipo (dominio.ts) — "Troca" em teal. Filtros/resumo/células via os
 // compartilhados (OS tech-debt 3.2). Filtros na URL sob o prefixo `en.` (F11/T10)
 // — não colidem com os `sd.` das saídas na mesma página.
 export function TabelaEntradas({

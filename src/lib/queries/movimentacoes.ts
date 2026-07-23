@@ -153,9 +153,10 @@ export async function ultimoEnvioManutencao(
 
 // "Repetir ultima" (OS-F2 3.7.3): pre-preenche tipo/motivo/colaborador/setor/
 // chamado/termo da ultima movimentacao registrada pelo usuario logado (menos o
-// ativo). Estorno e compra NAO entram — o wizard nao oferece nenhum dos dois
-// (compra tem tela propria, /ativos/novo), entao repetir um deles so limparia os
-// campos ja digitados sem preencher nada util.
+// ativo). Estorno, compra e troca (F15) NAO entram — o wizard nao oferece nenhum
+// dos tres (compra tem tela propria /ativos/novo; troca so nasce pela RPC da
+// devolucao ao fornecedor), entao repetir um deles so limparia os campos ja
+// digitados sem preencher nada util.
 export type UltimaMovimentacaoUsuario = {
   tipo: TipoMovimentacao
   motivo: string | null
@@ -176,6 +177,7 @@ export async function ultimaMovimentacaoDoUsuario(
     .eq('criado_por', userId)
     .neq('tipo', 'estorno')
     .neq('tipo', 'compra')
+    .neq('tipo', 'troca')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -227,9 +229,10 @@ export async function buscarMovimentacaoParaDuplicar(
 // mexeu 5× no mesmo ativo ainda deixa sugestões variadas na lista.
 const JANELA_RECENTES = 30
 
-// Exclui `compra` e `estorno` pelo mesmo motivo de `ultimaMovimentacaoDoUsuario`:
-// o wizard não oferece nenhum dos dois. Dedup POR ATIVO em código — o PostgREST
-// não tem DISTINCT ON.
+// Exclui `compra`, `troca` (F15) e `estorno` pelo mesmo motivo de
+// `ultimaMovimentacaoDoUsuario`: o wizard não oferece nenhum dos três, e o nascimento
+// (compra/troca) não é um ativo "movimentado" no sentido operacional. Dedup POR ATIVO
+// em código — o PostgREST não tem DISTINCT ON.
 export async function ultimosAtivosMovimentadosDoOperador(
   operadorId: string,
   limite = 8,
@@ -242,6 +245,7 @@ export async function ultimosAtivosMovimentadosDoOperador(
     .eq('criado_por', operadorId)
     .neq('tipo', 'estorno')
     .neq('tipo', 'compra')
+    .neq('tipo', 'troca')
     .order('created_at', { ascending: false })
     .limit(JANELA_RECENTES)
 

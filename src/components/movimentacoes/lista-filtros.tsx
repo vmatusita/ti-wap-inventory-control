@@ -32,6 +32,7 @@ const TIPOS_EXIBICAO: TipoMovimentacao[] = [
   'reserva',
   'transferencia',
   'compra',
+  'troca',
   'envio_manutencao',
   'retorno_manutencao',
   'devolucao_fornecedor',

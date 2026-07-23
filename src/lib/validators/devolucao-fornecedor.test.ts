@@ -8,15 +8,17 @@ import {
 // tag, espelho da compra. "Sem substituto" (null) segue válido. Data fixa no passado
 // para nunca esbarrar na regra "não-futura" (dataNaoFuturaSchema).
 const UUID = '11111111-2222-4333-8444-555555555555'
-const substitutoBase = {
+// Base SEM service tag (para os casos que a omitem) e a versão COM tag derivada dela —
+// evita destructuring de descarte (`{ service_tag: _omit, ...rest }`, que o lint acusa).
+const substitutoSemTag = {
   patrimonio: 'WAP0001234',
-  service_tag: 'ST1',
   categoria: 'notebook',
   marca: 'Dell',
   modelo: 'Latitude 5440',
   filial_id: 1,
   data: '2020-01-01',
 }
+const substitutoBase = { ...substitutoSemTag, service_tag: 'ST1' }
 
 describe('substitutoSchema (F15/C1 — service tag obrigatória)', () => {
   it('aceita substituto com service tag', () => {
@@ -24,8 +26,7 @@ describe('substitutoSchema (F15/C1 — service tag obrigatória)', () => {
   })
 
   it('recusa substituto sem service tag (ausente)', () => {
-    const { service_tag: _omit, ...semTag } = substitutoBase
-    const r = substitutoSchema.safeParse(semTag)
+    const r = substitutoSchema.safeParse(substitutoSemTag)
     expect(r.success).toBe(false)
     if (!r.success) {
       expect(r.error.issues.some((i) => /service tag/i.test(i.message))).toBe(true)
@@ -49,11 +50,10 @@ describe('devolverFornecedorSchema', () => {
   })
 
   it('exige service tag quando há substituto', () => {
-    const { service_tag: _omit, ...semTag } = substitutoBase
     const r = devolverFornecedorSchema.safeParse({
       ativo_id: UUID,
       data: '2020-01-01',
-      substituto: semTag,
+      substituto: substitutoSemTag,
     })
     expect(r.success).toBe(false)
   })

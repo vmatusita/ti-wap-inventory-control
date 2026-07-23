@@ -100,7 +100,9 @@ const DESC_TERMO: Record<TermoStatus, string> = {
 // Efeito de cada tipo de movimentacao na maquina de estados (0004 no banco). O
 // rotulo vem de TIPO_META; aqui so o que o evento PROVOCA e a que estado leva.
 const EFEITO_MOVIMENTACAO: Record<TipoMovimentacao, string> = {
-  compra: 'Entrada de um ativo novo. Resultado: Em estoque.',
+  compra: 'Entrada de um ativo novo COMPRADO. Resultado: Em estoque.',
+  troca:
+    'Entrada do equipamento SUBSTITUTO que o fornecedor mandou no lugar do devolvido (nascimento do ativo, como a compra). Registrada só pela devolução ao fornecedor — nunca pelo formulário de nova movimentação. Aparece nas Entradas do relatório rotulada "Troca", nunca contada como compra (não foi comprado). Resultado: Em estoque.',
   saida: 'Entrega definitiva a um colaborador ou setor. Resultado: Em uso.',
   emprestimo: 'Entrega temporária, com devolução esperada. Resultado: Emprestado.',
   reserva: 'Separa o ativo para alguém sem entregar ainda. Resultado: Reservado.',
@@ -389,7 +391,8 @@ export const SECOES: Secao[] = [
           {
             chave: 'outras',
             rotulo: 'Outras',
-            descricao: 'Demais situações que a TI precisa acompanhar.',
+            descricao:
+              'Demais situações que a TI precisa acompanhar — por exemplo, ativos importados sem patrimônio físico ou sem service tag. Defina o valor na ficha ("Definir patrimônio" / "Definir service tag") para encerrar cada uma.',
           },
         ],
       },
@@ -535,8 +538,8 @@ export const SECOES: Secao[] = [
         itens: [
           'Use o fluxo de compra para cadastrar ativos novos: um por vez, colando uma lista, ou por faixa de patrimônio.',
           `A faixa e a lista aceitam no máximo ${MAX_LOTE_COMPRA} unidades por vez.`,
-          'Na aba "Colar lista" você pode colar duas colunas direto do Excel (patrimônio e service tag): o separador pode ser TAB, ponto-e-vírgula ou vírgula. O preview aponta linha por linha o que está errado — inclusive patrimônio repetido dentro da própria lista.',
-          'Na aba "Faixa" há um campo opcional de service tags: uma por linha, NA MESMA ORDEM da faixa. Deixe vazio e a faixa entra sem service tag, como antes; preencheu, o preview mostra os pares (WAP0001234 · ST-ABC123). Se a contagem não bater ("5 patrimônios × 3 service tags"), o erro aparece e o cadastro fica bloqueado até acertar — o mesmo vale para service tag repetida na lista.',
+          'Na aba "Colar lista" cada linha precisa do patrimônio E da service tag (a service tag é obrigatória): o separador pode ser TAB, ponto-e-vírgula ou vírgula, e dá para colar as duas colunas direto do Excel. O preview aponta linha por linha o que está errado — patrimônio sem service tag, fora do formato ou repetido dentro da própria lista.',
+          'Na aba "Faixa" informe as service tags (obrigatórias): uma por linha, NA MESMA ORDEM da faixa — uma para cada patrimônio. O preview mostra os pares (WAP0001234 · ST-ABC123). Se a contagem não bater ("5 patrimônios × 3 service tags") ou faltar alguma, o erro aparece e o cadastro fica bloqueado até acertar — o mesmo vale para service tag repetida na lista.',
           'Marca, Modelo e Fornecedor sugerem o que já existe no acervo depois de 2 letras (Modelo filtra pela marca já escolhida). É só atalho contra "Dell" virar "DELL" na próxima compra: digitar um valor novo continua normal e nada é bloqueado.',
           'Filial e categoria voltam preenchidas com as da última compra feita naquele navegador — confira antes de cadastrar.',
           'Cada ativo entra como Em estoque.',
@@ -559,7 +562,7 @@ export const SECOES: Secao[] = [
           'O leitor USB funciona como um teclado: ele digita o que leu e dá Enter. Não é preciso configurar nada.',
           'Clique no campo "Colar lista" do fluxo de compra e bipe as etiquetas em sequência — cada bipada cai numa linha.',
           'O mesmo vale no "Colar lista" da nova movimentação: bipe os equipamentos em sequência e depois clique em "Conferir lista".',
-          'Quer também a service tag? Bipe o patrimônio, digite ponto e vírgula (;) e bipe a service tag na mesma linha. Não use TAB para separar: dentro do campo, a tecla Tab pula para o controle seguinte — o TAB só vale quando a lista vem colada do Excel.',
+          'A service tag é obrigatória: bipe o patrimônio, digite ponto e vírgula (;) e bipe a service tag na mesma linha. Não use TAB para separar: dentro do campo, a tecla Tab pula para o controle seguinte — o TAB só vale quando a lista vem colada do Excel.',
           'Confira o preview antes de cadastrar: ele mostra quantos ativos entrarão e destaca erros e repetições.',
         ],
       },
@@ -593,9 +596,10 @@ export const SECOES: Secao[] = [
         titulo: 'Corrigir o patrimônio',
         itens: [
           'Na ficha, use "Corrigir patrimônio". Digite o novo número — o sistema mostra o formato canônico (ex.: WAP0001234).',
-          'A service tag é imutável: ela identifica o equipamento e nunca muda. Só o patrimônio se corrige.',
+          'A service tag é imutável DEPOIS de preenchida: ela identifica o equipamento e nunca muda. Só o patrimônio se corrige. (Exceção: um ativo importado SEM service tag pode receber a tag uma vez — veja abaixo.)',
           'A correção fica registrada na linha do tempo (de → para, quem, quando). A busca passa a encontrar o ativo pelo novo patrimônio.',
           'Alguns ativos nascem sem patrimônio (equipamento sem plaqueta trazido pelo import de startup): aparecem como "Sem patrimônio", com pendência na lista e em /pendencias. Dar o número aqui encerra essa pendência.',
+          'No cadastro manual (novo equipamento ou substituto da devolução ao fornecedor) a service tag é OBRIGATÓRIA. Só o import de startup aceita entrar sem ela: esses ativos nascem com a pendência "sem service tag" — use "Definir service tag" na ficha para informá-la (transcrita como está na etiqueta). Uma vez definida, ela vira imutável.',
           'No import de startup, quando o hostname já traz o patrimônio (ex.: NB-WAP0001234), o preview preenche o número sozinho — é um aviso, não um erro, e não impede a importação. Só confira se está certo.',
         ],
       },

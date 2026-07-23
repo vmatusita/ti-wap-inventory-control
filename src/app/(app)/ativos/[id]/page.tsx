@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { EditarAtivoDialog } from '@/components/ativos/editar-ativo-dialog'
 import { CorrigirPatrimonioDialog } from '@/components/ativos/corrigir-patrimonio-dialog'
+import { DefinirServiceTagDialog } from '@/components/ativos/definir-service-tag-dialog'
 import { CopiarPatrimonio } from '@/components/ativos/copiar-patrimonio'
 import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
@@ -154,6 +155,14 @@ export default async function AtivoFichaPage({
             patrimonioAtual={ativo.patrimonio}
             serviceTag={ativo.service_tag}
           />
+          {/* F15/C1 — só quando a service tag está vazia (ativo importado sem tag).
+              Preenchida, a tag é imutável e a action recusa redefinir. */}
+          {!ativo.service_tag && (
+            <DefinirServiceTagDialog
+              ativoId={ativo.id}
+              patrimonio={ativo.patrimonio}
+            />
+          )}
           <EditarAtivoDialog ativo={ativo} />
         </div>
       </div>
