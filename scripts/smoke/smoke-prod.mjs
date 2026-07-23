@@ -650,7 +650,160 @@ const CHECKS = [
       return { status: OK, detalhe: `operador vê ${ctx.kits} kit(s), anon vê 0` }
     },
   },
+  {
+    // OS-F13 §1.4.4 — o B2 ("a busca do fluxo de movimentação nunca acha nada").
+    // Replica a MESMA forma de query de `buscarAtivosParaCombobox`
+    // (src/lib/queries/ativos.ts): mesmo select, mesmo `.or` por palavra, mesma
+    // ordenação null-last, mesmo teto de 12. Reporta CONTAGEM — nunca conteúdo.
+    //
+    // O termo é derivado do próprio acervo em tempo de execução (um pedaço de um
+    // patrimônio que existe) e NUNCA é impresso: assim o check vale em qualquer
+    // ambiente sem embutir dado real no script.
+    nome: 'busca do combobox (B2) · devolve resultado',
+    area: 'movimentações · busca de ativos',
+    async executar(db) {
+      const { data: amostra, error: erroAmostra } = await db
+        .from('ativos')
+        .select('patrimonio')
+        .not('patrimonio', 'is', null)
+        .order('patrimonio', { ascending: true })
+        .limit(1)
+      if (erroAmostra) throw erroAmostra
+      const patrimonio = amostra?.[0]?.patrimonio
+      if (!patrimonio) {
+        return { status: AVISO, detalhe: 'nenhum ativo com patrimônio para derivar o termo' }
+      }
+      // Fragmento de 4 caracteres — o mesmo tipo de busca parcial que o operador faz.
+      const termo = String(patrimonio).slice(-4)
+      if (termo.length < 2) return { status: AVISO, detalhe: 'patrimônio curto demais para o teste' }
+
+      const { data, error } = await db
+        .from('ativos')
+        .select(
+          'id, patrimonio, service_tag, categoria, marca, modelo, status, colaborador_atual, filial_id, termo_assinado, filiais(slug, nome)',
+        )
+        .or(
+          `patrimonio.ilike.%${termo}%,colaborador_atual.ilike.%${termo}%,marca.ilike.%${termo}%,` +
+            `modelo.ilike.%${termo}%,service_tag.ilike.%${termo}%,hostname.ilike.%${termo}%`,
+        )
+        .order('patrimonio', { ascending: true, nullsFirst: false })
+        .limit(12)
+      if (error) throw error
+
+      const linhas = data?.length ?? 0
+      if (linhas === 0) {
+        return { status: FALHA, detalhe: 'busca devolveu 0 resultados para um termo que existe no acervo' }
+      }
+      const { faltando } = conferirColunas(data[0], ['id', 'patrimonio', 'status', 'filiais'])
+      if (faltando.length) {
+        return { status: FALHA, detalhe: `shape da busca sem: ${faltando.join(', ')}` }
+      }
+      return { status: OK, detalhe: `${linhas} resultado(s) (teto 12) · shape ok` }
+    },
+  },
 ]
+
+// ---------------------------------------------------------------------------
+// PARTE C — rotas do app COM sessão (OS-F13)
+// ---------------------------------------------------------------------------
+// Por que esta parte existe: o defeito B1/B2 da F13 matava o módulo de Server
+// Actions na AVALIAÇÃO — as rotas respondiam 500 para quem estava LOGADO. Nem a
+// parte A (sem sessão o proxy redireciona antes de rotear) nem a parte B (fala
+// direto com o PostgREST, sem passar pelo app) enxergavam isso. Só um GET
+// autenticado contra o app enxerga.
+//
+// A sessão é forjada a partir do token que a parte B já abriu: o @supabase/ssr
+// guarda a sessão no cookie `sb-<ref>-auth-token` como `base64-` + base64url do
+// JSON. Nada é escrito: são GETs.
+const ROTAS_LOGADO = [
+  { rota: '/', area: 'dashboard' },
+  { rota: '/ativos', area: 'ativos · lista' },
+  { rota: '/ativos/novo', area: 'ativos · cadastro de compra' },
+  { rota: '/itens', area: 'itens por quantidade' },
+  { rota: '/movimentacoes', area: 'movimentações · lista' },
+  { rota: '/movimentacoes/nova', area: 'movimentações · fluxo (B2)' },
+  { rota: '/pendencias', area: 'pendências' },
+  { rota: '/ajuda', area: 'ajuda (B3)' },
+  { rota: '/admin/usuarios', area: 'admin · usuários (B1)' },
+  { rota: '/admin/itens', area: 'admin · catálogo de itens' },
+  { rota: '/admin/kits', area: 'admin · kits (M12)' },
+  { rota: '/admin/importar', area: 'admin · import de startup' },
+  { rota: '/relatorios/geral', area: 'relatório ao vivo' },
+  { rota: '/relatorios/gerados', area: 'relatórios gerados' },
+]
+
+// Marcadores de "a página renderizou, mas quebrada". O Next serve a página de
+// erro com 200 em alguns caminhos de streaming — por isso não basta o status.
+const MARCADORES_ERRO = [
+  'is not defined',
+  'Application error',
+  'Internal Server Error',
+  'digest&quot;:&quot;',
+]
+
+// Renderizar uma página logada inteira é bem mais caro que o redirect da parte A
+// (cold start da lambda + as leituras da própria página), então esta parte usa um
+// teto próprio, maior.
+const TIMEOUT_LOGADO_MS = 60_000
+
+function cookieDaSessao(sessao) {
+  const ref = new URL(urlSupabase).hostname.split('.')[0]
+  const valor = 'base64-' + Buffer.from(JSON.stringify(sessao), 'utf8').toString('base64url')
+  return `sb-${ref}-auth-token=${valor}`
+}
+
+async function parteC(sessao) {
+  log('')
+  log(`PARTE C — rotas do app COM sessão · ${urlApp}`)
+
+  let cookie
+  try {
+    cookie = cookieDaSessao(sessao)
+  } catch (erro) {
+    registrar('C', 'sessão · cookie', 'auth', FALHA, `não montei o cookie: ${descreverErro(erro)}`)
+    return
+  }
+
+  for (const entrada of ROTAS_LOGADO) {
+    const alvo = `${urlApp}${entrada.rota}`
+    let status = FALHA
+    let detalhe = ''
+    try {
+      const resposta = await fetch(alvo, {
+        redirect: 'manual',
+        headers: { cookie, 'user-agent': 'smoke-estoque-ti-wap' },
+        signal: AbortSignal.timeout(TIMEOUT_LOGADO_MS),
+      })
+      const codigo = resposta.status
+      if (codigo >= 500) {
+        resposta.body?.cancel().catch(() => {})
+        detalhe = `HTTP ${codigo} — a rota quebrou COM sessão`
+      } else if (codigo >= 300 && codigo < 400) {
+        resposta.body?.cancel().catch(() => {})
+        const destino = resposta.headers.get('location') || '(sem location)'
+        // Redirect para /login = a sessão forjada não foi aceita: é limitação do
+        // smoke, não defeito da aplicação. Não derruba o exit code.
+        status = AVISO
+        detalhe = `HTTP ${codigo} → ${destino} (sessão não aceita — check inconclusivo)`
+      } else if (codigo !== 200) {
+        resposta.body?.cancel().catch(() => {})
+        detalhe = `HTTP ${codigo} — esperado 200`
+      } else {
+        const corpo = await resposta.text()
+        const achados = MARCADORES_ERRO.filter((m) => corpo.includes(m))
+        if (achados.length) {
+          detalhe = `HTTP 200 mas a página é de erro (marcadores: ${achados.join(', ')})`
+        } else {
+          status = OK
+          detalhe = `HTTP 200 (${corpo.length} bytes)`
+        }
+      }
+    } catch (erro) {
+      detalhe = `sem resposta (${descreverErro(erro)})`
+    }
+    registrar('C', entrada.rota, entrada.area, status, detalhe)
+  }
+}
 
 async function parteB() {
   log('')
@@ -715,6 +868,9 @@ async function parteB() {
       }
       registrar('B', check.nome, check.area, status, detalhe)
     }
+
+    // Parte C usa a MESMA sessão — precisa rodar antes do signOut do finally.
+    await parteC(data.session)
   } finally {
     // signOut SEMPRE — inclusive se algum check explodir no meio.
     try {
@@ -765,7 +921,7 @@ function resumo() {
 
 async function main() {
   log('')
-  log('Smoke do Estoque TI WAP — OS-F12 §W5')
+  log('Smoke do Estoque TI WAP — OS-F12 §W5 + OS-F13 §1.4.4 (parte C)')
   log(`  app.......: ${urlApp}`)
   log(`  supabase..: ${urlSupabase || '(não configurado)'}`)
   log(`  credenciais: ${email && senha ? 'presentes (mascaradas)' : 'ausentes'}`)
