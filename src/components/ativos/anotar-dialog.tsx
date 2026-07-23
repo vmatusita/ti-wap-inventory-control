@@ -60,12 +60,15 @@ export function AnotarDialog({ ativoId }: { ativoId: string }) {
             Fica registrada com seu nome e a data.
           </DialogDescription>
         </DialogHeader>
+        {/* Sem rótulo visível (o título do diálogo já diz o que é) — o
+            `aria-label` dá o nome acessível que o placeholder não garante. */}
         <Textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           rows={4}
           maxLength={2000}
           autoFocus
+          aria-label="Anotação"
           placeholder="Escreva a anotação…"
         />
         <DialogFooter>

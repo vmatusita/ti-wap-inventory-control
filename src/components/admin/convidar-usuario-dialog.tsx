@@ -50,7 +50,9 @@ export function ConvidarUsuarioDialog() {
   }
 
   function convidar() {
-    if (!valido) return
+    // `enviando` também aqui: o Enter do campo aciona esta função sem passar pelo
+    // botão desabilitado — sem a guarda, dois Enters = dois convites.
+    if (!valido || enviando) return
     start(async () => {
       const res = await convidarUsuario({ email: email.trim() })
       if (!res.ok) {
@@ -138,9 +140,10 @@ export function ConvidarUsuarioDialog() {
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && convidar()}
                 aria-invalid={erroDominio}
+                aria-describedby={erroDominio ? 'convite-email-erro' : undefined}
               />
               {erroDominio && (
-                <p className="text-xs text-destructive">
+                <p id="convite-email-erro" className="text-xs text-destructive">
                   O e-mail precisa terminar com {DOMINIOS_TEXTO}.
                 </p>
               )}

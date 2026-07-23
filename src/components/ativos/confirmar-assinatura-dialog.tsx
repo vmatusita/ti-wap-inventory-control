@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { PenLine, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -35,19 +35,21 @@ export function ConfirmarAssinaturaDialog({
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [data, setData] = useState(hojeISO())
-  const [enviando, setEnviando] = useState(false)
+  // Loading via useTransition (padrão único dos diálogos — OS-F11 T9): `enviando`
+  // continua desabilitando os dois botões, então o duplo-submit segue impossível.
+  const [enviando, start] = useTransition()
 
-  async function confirmar() {
-    setEnviando(true)
-    const res = await confirmarAssinaturaTermo({ ativo_id: ativoId, data })
-    setEnviando(false)
-    if (!res.ok) {
-      toast.error(res.erro ?? 'Não foi possível confirmar a assinatura.')
-      return
-    }
-    toast.success('Assinatura confirmada.')
-    setAberto(false)
-    router.refresh()
+  function confirmar() {
+    start(async () => {
+      const res = await confirmarAssinaturaTermo({ ativo_id: ativoId, data })
+      if (!res.ok) {
+        toast.error(res.erro ?? 'Não foi possível confirmar a assinatura.')
+        return
+      }
+      toast.success('Assinatura confirmada.')
+      setAberto(false)
+      router.refresh()
+    })
   }
 
   return (
@@ -104,19 +106,22 @@ export function ConfirmarAssinaturaDialog({
 export function DesfazerAssinaturaDialog({ ativoId }: { ativoId: string }) {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
-  const [enviando, setEnviando] = useState(false)
+  // Loading via useTransition (padrão único dos diálogos — OS-F11 T9): `enviando`
+  // continua desabilitando os dois botões, então o duplo-submit segue impossível.
+  const [enviando, start] = useTransition()
+  const cancelarRef = useRef<HTMLButtonElement>(null)
 
-  async function desfazer() {
-    setEnviando(true)
-    const res = await desfazerConfirmacaoTermo({ ativo_id: ativoId })
-    setEnviando(false)
-    if (!res.ok) {
-      toast.error(res.erro ?? 'Não foi possível desfazer a confirmação.')
-      return
-    }
-    toast.success('Confirmação desfeita.')
-    setAberto(false)
-    router.refresh()
+  function desfazer() {
+    start(async () => {
+      const res = await desfazerConfirmacaoTermo({ ativo_id: ativoId })
+      if (!res.ok) {
+        toast.error(res.erro ?? 'Não foi possível desfazer a confirmação.')
+        return
+      }
+      toast.success('Confirmação desfeita.')
+      setAberto(false)
+      router.refresh()
+    })
   }
 
   return (
@@ -131,7 +136,15 @@ export function DesfazerAssinaturaDialog({ ativoId }: { ativoId: string }) {
           Desfazer
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent
+        className="sm:max-w-sm"
+        // Foco inicial no Cancelar: a ação destrutiva nunca fica sob o Enter
+        // (mesmo padrão de "revogar senha" da F9).
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          cancelarRef.current?.focus()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Desfazer confirmação de assinatura</DialogTitle>
           <DialogDescription>
@@ -140,7 +153,12 @@ export function DesfazerAssinaturaDialog({ ativoId }: { ativoId: string }) {
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+          <Button
+            ref={cancelarRef}
+            variant="ghost"
+            onClick={() => setAberto(false)}
+            disabled={enviando}
+          >
             Cancelar
           </Button>
           <Button variant="destructive" onClick={desfazer} disabled={enviando}>

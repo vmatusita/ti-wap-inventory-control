@@ -527,6 +527,8 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 type="file"
                 accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={(e) => mudarArquivo(e.target.files?.[0] ?? null)}
+                aria-invalid={!!erroUpload}
+                aria-describedby={erroUpload ? 'import-arquivo-erro' : undefined}
               />
               {arquivo && !erroUpload && (
                 <p className="text-xs text-muted-foreground">
@@ -536,10 +538,18 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                   KB
                 </p>
               )}
-              {erroUpload && <p className="text-sm text-destructive">{erroUpload}</p>}
+              {erroUpload && (
+                <p id="import-arquivo-erro" role="alert" className="text-sm text-destructive">
+                  {erroUpload}
+                </p>
+              )}
             </div>
 
-            {erroAcao && <p className="text-sm text-destructive">{erroAcao}</p>}
+            {erroAcao && (
+              <p role="alert" className="text-sm text-destructive">
+                {erroAcao}
+              </p>
+            )}
 
             <div className="flex items-center justify-between">
               <Button variant="ghost" className="gap-2" onClick={() => setPasso(1)}>
@@ -847,7 +857,11 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               />
             </div>
 
-            {erroAcao && <p className="text-sm text-destructive">{erroAcao}</p>}
+            {erroAcao && (
+              <p role="alert" className="text-sm text-destructive">
+                {erroAcao}
+              </p>
+            )}
 
             <div className="flex items-center justify-between border-t pt-4">
               <Button

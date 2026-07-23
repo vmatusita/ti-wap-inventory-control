@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tag } from 'lucide-react'
 import { toast } from 'sonner'
@@ -36,7 +36,9 @@ export function CorrigirPatrimonioDialog({
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [novo, setNovo] = useState('')
-  const [enviando, setEnviando] = useState(false)
+  // Loading via useTransition (padrão único dos diálogos — OS-F11 T9): `enviando`
+  // continua desabilitando os dois botões, então o duplo-submit segue impossível.
+  const [enviando, start] = useTransition()
 
   const semPatrimonio = patrimonioAtual === null
   const rotulo = semPatrimonio ? 'Definir patrimônio' : 'Corrigir patrimônio'
@@ -45,18 +47,18 @@ export function CorrigirPatrimonioDialog({
   const preview = novo.trim() ? validarCorrecaoPatrimonio(patrimonioAtual, novo) : null
   const podeSalvar = !!preview && preview.ok && !preview.noop && !enviando
 
-  async function salvar() {
-    setEnviando(true)
-    const res = await corrigirPatrimonio({ ativo_id: ativoId, patrimonio_novo: novo })
-    setEnviando(false)
-    if (!res.ok) {
-      toast.error(res.erro ?? 'Não foi possível corrigir o patrimônio.')
-      return
-    }
-    toast.success(semPatrimonio ? 'Patrimônio definido.' : 'Patrimônio corrigido.')
-    setAberto(false)
-    setNovo('')
-    router.refresh()
+  function salvar() {
+    start(async () => {
+      const res = await corrigirPatrimonio({ ativo_id: ativoId, patrimonio_novo: novo })
+      if (!res.ok) {
+        toast.error(res.erro ?? 'Não foi possível corrigir o patrimônio.')
+        return
+      }
+      toast.success(semPatrimonio ? 'Patrimônio definido.' : 'Patrimônio corrigido.')
+      setAberto(false)
+      setNovo('')
+      router.refresh()
+    })
   }
 
   return (
@@ -97,6 +99,9 @@ export function CorrigirPatrimonioDialog({
 
           <div className="space-y-2">
             <Label htmlFor="patrimonio-novo">Novo patrimônio</Label>
+            {/* Os três parágrafos abaixo são mutuamente exclusivos — só um existe
+                no DOM por vez, então compartilham o MESMO id e o `aria-describedby`
+                aponta sempre para a mensagem que está na tela. */}
             <Input
               id="patrimonio-novo"
               value={novo}
@@ -105,9 +110,11 @@ export function CorrigirPatrimonioDialog({
               autoComplete="off"
               autoFocus
               className="tabular-nums"
+              aria-invalid={!!preview && !preview.ok}
+              aria-describedby={preview ? 'patrimonio-novo-ajuda' : undefined}
             />
             {preview && preview.ok && !preview.noop && (
-              <p className="text-xs text-muted-foreground">
+              <p id="patrimonio-novo-ajuda" className="text-xs text-muted-foreground">
                 Será gravado como{' '}
                 <span className="font-medium tabular-nums text-foreground">
                   {preview.patrimonio}
@@ -115,12 +122,14 @@ export function CorrigirPatrimonioDialog({
               </p>
             )}
             {preview && preview.ok && preview.noop && (
-              <p className="text-xs text-muted-foreground">
+              <p id="patrimonio-novo-ajuda" className="text-xs text-muted-foreground">
                 Já é o patrimônio atual — nada a corrigir.
               </p>
             )}
             {preview && !preview.ok && (
-              <p className="text-xs text-destructive">{preview.erro}</p>
+              <p id="patrimonio-novo-ajuda" className="text-xs text-destructive">
+                {preview.erro}
+              </p>
             )}
           </div>
 

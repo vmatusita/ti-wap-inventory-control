@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { CheckCheck, ChevronDown, ChevronRight, Eraser, Trash2, Wand2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -214,11 +214,22 @@ function CardGrupo({
  *  vazio, aviso): o estado VAZIO é âmbar/discreto ("preencha se souber"), NUNCA
  *  vermelho — ali o campo pode legitimamente ficar em branco. Só valor DIGITADO
  *  fora do formato segue vermelho (é feedback do que a pessoa escreveu). */
-function PreviewPatrimonio({ valor, opcional = false }: { valor: string; opcional?: boolean }) {
+// `id` opcional: quem tem um input ao lado liga o `aria-describedby` nele, para o
+// leitor de tela anunciar a mesma dica que a tela mostra (OS-F11 T9).
+function PreviewPatrimonio({
+  valor,
+  opcional = false,
+  id,
+}: {
+  valor: string
+  opcional?: boolean
+  id?: string
+}) {
   const canonico = canonicalizarPatrimonio(valor)
   const vazio = valor.trim() === ''
   return (
     <span
+      id={id}
       className={cn(
         'font-mono text-xs',
         canonico
@@ -513,8 +524,12 @@ function LinhaPatrimonio({
         aria-label={`Patrimônio da linha ${linha}`}
         className="w-44 font-mono"
         autoComplete="off"
+        // Só `aria-describedby` (sem `aria-invalid`): neste cartão TODA linha nasce
+        // inválida por definição, e o anel vermelho do `aria-invalid` pintaria a
+        // tela inteira de erro. A dica ao lado já carrega o estado, agora lida.
+        aria-describedby={`prev-pat-${linha}`}
       />
-      <PreviewPatrimonio valor={valor} opcional={opcional} />
+      <PreviewPatrimonio valor={valor} opcional={opcional} id={`prev-pat-${linha}`} />
       {hostnamePatrimonio && hostnamePatrimonio !== valor.trim() && (
         <Button
           type="button"
@@ -726,8 +741,11 @@ function LinhaDuplicata({
             onChange={(e) => setPatrimonio(e.target.value)}
             className="font-mono"
             autoComplete="off"
+            aria-describedby={mudouPatrimonio ? `dup-pat-prev-${linha}` : undefined}
           />
-          {mudouPatrimonio && <PreviewPatrimonio valor={patrimonio} />}
+          {mudouPatrimonio && (
+            <PreviewPatrimonio valor={patrimonio} id={`dup-pat-prev-${linha}`} />
+          )}
         </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground" htmlFor={`dup-tag-${linha}`}>
@@ -793,6 +811,8 @@ function CardData({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
   const [massa, setMassa] = useState('')
   const n = grupo.linhas.length
   const massaOk = dataValida(massa)
+  // Pode haver mais de um grupo 'data' na tela — o id da dica tem de ser único.
+  const ajudaId = useId()
 
   // Digitar aqui preenche o rascunho de TODAS as linhas — o botão da seção (e o
   // global) enxergam; cada linha ainda pode ser ajustada individualmente depois.
@@ -812,8 +832,10 @@ function CardData({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
             aria-label="Data de inclusão para todas as linhas do grupo"
             className="w-36 tabular-nums"
             autoComplete="off"
+            aria-describedby={ajudaId}
           />
           <span
+            id={ajudaId}
             className={cn(
               'text-xs',
               massa.trim() === ''
