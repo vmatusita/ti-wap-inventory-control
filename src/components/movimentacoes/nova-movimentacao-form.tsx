@@ -54,9 +54,13 @@ const PASSOS = ['Ativos', 'Movimentação', 'Revisão'] as const
 
 // `compra` sai do fluxo de movimentação: a entrada de equipamento novo tem tela
 // própria (/ativos/novo, que cria o ativo + a movimentação de compra atômica).
-// TRANSICOES continua sendo a cópia exata da spec §4; aqui só filtramos a UI.
+// `devolucao_fornecedor` (F14) também sai: tem fluxo PRÓPRIO (lote sempre 1 +
+// cadastro do substituto no mesmo submit), acessível pela ficha do ativo em
+// manutenção. TRANSICOES continua sendo a cópia exata da spec §4; aqui só a UI.
 function tiposDoLote(status: StatusAtivo[]): TipoMovimentacao[] {
-  return tiposComunsPara(status).filter((t) => t !== 'compra')
+  return tiposComunsPara(status).filter(
+    (t) => t !== 'compra' && t !== 'devolucao_fornecedor',
+  )
 }
 
 // F12/M12 — que kit foi aplicado nesta montagem. Guardamos a IDENTIDADE do kit
@@ -180,6 +184,7 @@ export function NovaMovimentacaoForm({
       ...c,
       tipo,
       motivo: '',
+      chamadoFornecedor: '',
       filialDestinoId: '',
       itensFaltantes: [],
     }))

@@ -34,6 +34,14 @@ describe('tiposComunsPara (interseção de transições do lote)', () => {
     expect(tiposComunsPara(['descartado'])).toEqual(['ajuste'])
   })
 
+  it('devolvido_fornecedor só admite ajuste (terminal, F14)', () => {
+    expect(tiposComunsPara(['devolvido_fornecedor'])).toEqual(['ajuste'])
+  })
+
+  it('em_manutencao permite devolucao_fornecedor (F14)', () => {
+    expect(tiposComunsPara(['em_manutencao'])).toContain('devolucao_fornecedor')
+  })
+
   it('interseção de em_uso + emprestado exclui envio_manutencao', () => {
     expect(tiposComunsPara(['em_uso', 'emprestado'])).toEqual([
       'devolucao',
@@ -328,7 +336,7 @@ describe('mesmaServiceTag (desempate de patrimônio duplicado §5)', () => {
 })
 
 describe('CAMPOS_POR_TIPO (matriz tipo × campos)', () => {
-  it('cobre EXATAMENTE os 13 tipos do enum, sem faltar nem sobrar', () => {
+  it('cobre EXATAMENTE os tipos do enum, sem faltar nem sobrar', () => {
     expect(Object.keys(CAMPOS_POR_TIPO).sort()).toEqual(
       [...Constants.public.Enums.tipo_movimentacao].sort(),
     )

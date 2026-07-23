@@ -55,6 +55,7 @@ function sanearConfig(bruto: unknown): Config {
     colaborador: texto(c.colaborador),
     setor: texto(c.setor),
     chamado: texto(c.chamado),
+    chamadoFornecedor: texto(c.chamadoFornecedor),
     termo: (TERMO_STATUS_ORDEM as string[]).includes(termo)
       ? (termo as TermoStatus)
       : '',

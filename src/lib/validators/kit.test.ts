@@ -24,7 +24,7 @@ function payloadBase(over: Record<string, unknown> = {}) {
 }
 
 describe('TIPOS_KIT', () => {
-  it('é exatamente o enum do banco MENOS compra e estorno', () => {
+  it('é exatamente o enum do banco MENOS os tipos excluídos do kit', () => {
     const esperado = Constants.public.Enums.tipo_movimentacao.filter(
       (t) => !(TIPOS_EXCLUIDOS_DO_KIT as readonly string[]).includes(t),
     )
@@ -57,7 +57,7 @@ describe('kitPayloadSchema', () => {
     expect(r.data?.termo).toBe('gerado')
   })
 
-  it('recusa tipo compra e tipo estorno', () => {
+  it('recusa todo tipo excluído do kit (compra, estorno, devolução ao fornecedor)', () => {
     for (const tipo of TIPOS_EXCLUIDOS_DO_KIT) {
       const r = kitPayloadSchema.safeParse(payloadBase({ tipo }))
       expect(r.success).toBe(false)

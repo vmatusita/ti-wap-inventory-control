@@ -28,6 +28,7 @@ function cfg(over: Partial<Config>): Config {
     colaborador: 'Fulano',
     setor: 'TI',
     chamado: '123',
+    chamadoFornecedor: 'OS-FORN-1',
     termo: 'sim',
     termoData: DATA_OK,
     observacao: 'Justificativa mais que suficiente do ajuste',
@@ -105,7 +106,7 @@ describe('construirItem — serialização derivada de CAMPOS_POR_TIPO', () => {
     })
   })
 
-  it('tipo simples (envio_manutencao): comuns + motivo opcional', () => {
+  it('envio_manutencao (F14): comuns + motivo opcional + chamado do fornecedor', () => {
     expect(construirItem(ativo, cfg({ tipo: 'envio_manutencao' }))).toEqual({
       ativo_id: UUID,
       tipo: 'envio_manutencao',
@@ -113,7 +114,15 @@ describe('construirItem — serialização derivada de CAMPOS_POR_TIPO', () => {
       chamado: '123',
       observacao: 'Justificativa mais que suficiente do ajuste',
       motivo: 'desligamento',
+      chamado_fornecedor: 'OS-FORN-1',
     })
+  })
+
+  it('envio_manutencao sem chamado do fornecedor vira "" (dispara o Zod)', () => {
+    expect(
+      construirItem(ativo, cfg({ tipo: 'envio_manutencao', chamadoFornecedor: '' }))
+        .chamado_fornecedor,
+    ).toBe('')
   })
 
   it('motivo obrigatório vira "" quando vazio (dispara o Zod); opcional vira undefined', () => {
@@ -225,6 +234,8 @@ describe('CAMPOS_POR_TIPO ↔ movimentacaoSchema (consistência)', () => {
     expect(rejeita(cfg({ tipo: 'emprestimo', motivo: '' }))).toBe(true)
     expect(rejeita(cfg({ tipo: 'devolucao', motivo: '' }))).toBe(true)
     expect(rejeita(cfg({ tipo: 'transferencia', filialDestinoId: '' }))).toBe(true)
+    // F14/MN1: envio_manutencao exige o chamado do fornecedor.
+    expect(rejeita(cfg({ tipo: 'envio_manutencao', chamadoFornecedor: '' }))).toBe(true)
     expect(rejeita(cfg({ tipo: 'ajuste' }), '')).toBe(true) // sem status_resultante
     expect(rejeita(cfg({ tipo: 'ajuste', observacao: '' }), 'em_estoque')).toBe(true)
   })

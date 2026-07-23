@@ -34,6 +34,7 @@ const TIPOS_EXIBICAO: TipoMovimentacao[] = [
   'compra',
   'envio_manutencao',
   'retorno_manutencao',
+  'devolucao_fornecedor',
   'triagem_ok',
   'marcar_defasado',
   'descarte',

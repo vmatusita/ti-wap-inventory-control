@@ -25,6 +25,8 @@ export type Config = {
   colaborador: string
   setor: string
   chamado: string
+  // F14/MN1 — chamado do fornecedor (texto livre), coletado no envio_manutencao.
+  chamadoFornecedor: string
   termo: '' | TermoStatus
   termoData: string
   observacao: string
@@ -45,6 +47,7 @@ export function configPadrao(inicial?: ConfigInicial | null): Config {
     colaborador: inicial?.colaborador || '',
     setor: inicial?.setor || '',
     chamado: inicial?.chamado || '',
+    chamadoFornecedor: inicial?.chamadoFornecedor || '',
     termo: (inicial?.termo as TermoStatus) || '',
     termoData: inicial?.termoData || '',
     observacao: inicial?.observacao || '',
@@ -129,6 +132,13 @@ function serializarCampo(
       break
     case 'setor':
       obj.setor = c.setor || undefined
+      break
+    case 'chamado_fornecedor':
+      // Obrigatório no envio_manutencao: '' presente dispara o min(1) do Zod
+      // (msg pt-BR); opcional viraria undefined (nenhum tipo o tem como opcional).
+      obj.chamado_fornecedor = campoObrigatorio(c.tipo, 'chamado_fornecedor')
+        ? c.chamadoFornecedor || ''
+        : c.chamadoFornecedor || undefined
       break
     case 'termo':
       obj.termo_assinado = c.termo || undefined

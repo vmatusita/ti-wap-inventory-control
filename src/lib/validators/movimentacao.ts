@@ -48,6 +48,7 @@ export const TRANSICOES: Record<StatusAtivo, TipoMovimentacao[]> = {
   ],
   em_manutencao: [
     'retorno_manutencao',
+    'devolucao_fornecedor',
     'marcar_defasado',
     'descarte',
     'transferencia',
@@ -55,6 +56,8 @@ export const TRANSICOES: Record<StatusAtivo, TipoMovimentacao[]> = {
   ],
   defasado: ['envio_manutencao', 'descarte', 'transferencia', 'ajuste'],
   descartado: ['ajuste'],
+  // F14: baixa terminal como descartado — só a válvula de escape sai dela.
+  devolvido_fornecedor: ['ajuste'],
 }
 
 // Tipos validos para TODOS os itens de um lote (intersecao). Usado no fluxo em
@@ -96,6 +99,7 @@ export type CampoMovimentacao =
   | 'colaborador'
   | 'setor'
   | 'chamado'
+  | 'chamado_fornecedor'
   | 'termo'
   | 'filial_destino'
   | 'status_resultante'
@@ -128,6 +132,14 @@ const CAMPOS_SAIDA_EMPRESTIMO: MetaTipoMovimentacao = {
 // vida). Espelham o `simples(...)` do schema.
 const CAMPOS_SIMPLES: MetaTipoMovimentacao = { campos: { motivo: 'opcional' } }
 
+// F14/MN1 — envio_manutencao deixa de ser "simples": alem do motivo opcional,
+// passa a coletar o `chamado` interno (opcional; antes a matriz nem o exibia
+// neste tipo) e o `chamado_fornecedor` OBRIGATORIO (o fornecedor abre um chamado
+// proprio na manutencao). O banco reforca com a check da 0045.
+const CAMPOS_ENVIO_MANUTENCAO: MetaTipoMovimentacao = {
+  campos: { motivo: 'opcional', chamado: 'opcional', chamado_fornecedor: 'obrigatorio' },
+}
+
 export const CAMPOS_POR_TIPO: Record<TipoMovimentacao, MetaTipoMovimentacao> = {
   compra: CAMPOS_SIMPLES,
   saida: CAMPOS_SAIDA_EMPRESTIMO,
@@ -142,7 +154,7 @@ export const CAMPOS_POR_TIPO: Record<TipoMovimentacao, MetaTipoMovimentacao> = {
   },
   devolucao: { campos: { motivo: 'obrigatorio', itens_faltantes: 'opcional' } },
   triagem_ok: CAMPOS_SIMPLES,
-  envio_manutencao: CAMPOS_SIMPLES,
+  envio_manutencao: CAMPOS_ENVIO_MANUTENCAO,
   retorno_manutencao: CAMPOS_SIMPLES,
   marcar_defasado: CAMPOS_SIMPLES,
   descarte: CAMPOS_SIMPLES,
@@ -152,6 +164,13 @@ export const CAMPOS_POR_TIPO: Record<TipoMovimentacao, MetaTipoMovimentacao> = {
     observacaoObrigatoria: true,
   },
   estorno: { campos: { estorno_de: 'obrigatorio' } },
+  // F14/MN3 — a devolução ao fornecedor tem FLUXO PRÓPRIO (action dedicada, lote
+  // sempre 1); NÃO é criada pelo formulário de lote genérico. A entrada existe só
+  // para a matriz cobrir os tipos do enum. Os chamados são herdados do último
+  // envio_manutencao (read-only no form da devolução), por isso obrigatórios.
+  devolucao_fornecedor: {
+    campos: { chamado: 'opcional', chamado_fornecedor: 'obrigatorio' },
+  },
 }
 
 // ----- Predicados derivados da tabela (consumidos pela UI e pelo construirItem) -----
@@ -208,6 +227,15 @@ const observacaoOpcional = z.preprocess(
   (v) => (v === '' || v == null ? undefined : v),
   z.string().trim().max(500, 'Observação: no máximo 500 caracteres').optional(),
 )
+
+// F14/MN1 — chamado do FORNECEDOR: texto LIVRE, sem máscara nem validação de
+// formato (o formato do fornecedor é desconhecido). Obrigatório no envio_manutencao
+// e na devolução ao fornecedor. Mensagem pt-BR também no caso ausente (undefined).
+const chamadoFornecedorObrig = z
+  .string({ message: 'Informe o chamado do fornecedor' })
+  .trim()
+  .min(1, 'Informe o chamado do fornecedor')
+  .max(200, 'Chamado do fornecedor: no máximo 200 caracteres')
 
 // Campos comuns a toda movimentacao.
 const base = z.object({
@@ -287,6 +315,14 @@ function simples<T extends TipoMovimentacao>(tipo: T) {
   })
 }
 
+// F14/MN1 — envio_manutencao: como "simples" (motivo opcional) + o chamado do
+// fornecedor OBRIGATÓRIO. O `chamado` interno (numérico) já vem do base.
+const envioManutencaoSchema = base.extend({
+  tipo: z.literal('envio_manutencao'),
+  motivo: textoOpcional,
+  chamado_fornecedor: chamadoFornecedorObrig,
+})
+
 export const movimentacaoSchema = z
   .discriminatedUnion('tipo', [
     saidaSchema,
@@ -298,7 +334,7 @@ export const movimentacaoSchema = z
     estornoSchema,
     simples('compra'),
     simples('triagem_ok'),
-    simples('envio_manutencao'),
+    envioManutencaoSchema,
     simples('retorno_manutencao'),
     simples('marcar_defasado'),
     simples('descarte'),

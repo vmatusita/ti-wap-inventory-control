@@ -56,6 +56,13 @@ export const STATUS_META: Record<
     badge:
       'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-transparent',
   },
+  // F14: baixa terminal — o fornecedor ficou com o equipamento (não teve conserto).
+  // Cinza-neutra de baixa, distinta do descartado (slate vs gray).
+  devolvido_fornecedor: {
+    rotulo: 'Devolvido ao fornecedor',
+    badge:
+      'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-transparent',
+  },
 }
 
 export function rotuloStatus(s: StatusAtivo): string {
@@ -75,6 +82,7 @@ export const STATUS_CHART_COLOR: Record<StatusAtivo, string> = {
   em_manutencao: '#d97706',
   defasado: '#9ca3af',
   descartado: '#6b7280',
+  devolvido_fornecedor: '#64748b',
 }
 
 // ---------- TIPO DE MOVIMENTACAO ----------
@@ -92,6 +100,7 @@ export const TIPO_META: Record<TipoMovimentacao, { rotulo: string }> = {
   transferencia: { rotulo: 'Transferência' },
   ajuste: { rotulo: 'Ajuste' },
   estorno: { rotulo: 'Estorno' },
+  devolucao_fornecedor: { rotulo: 'Devolução ao fornecedor' },
 }
 
 export function rotuloTipo(t: TipoMovimentacao): string {
@@ -134,6 +143,7 @@ export const STATUS_ORDEM: StatusAtivo[] = [
   'em_manutencao',
   'defasado',
   'descartado',
+  'devolvido_fornecedor',
 ]
 
 export const CATEGORIA_ORDEM: CategoriaAtivo[] = [

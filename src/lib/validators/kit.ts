@@ -25,13 +25,20 @@ import {
 // (/ativos/novo) e já sai filtrada do fluxo (`tiposDoLote` em
 // nova-movimentacao-form.tsx). `estorno` fica de fora porque nunca é escolhido
 // num formulário: nasce do botão "Estornar" de uma movimentação existente e
-// precisa apontar a origem. Um kit de qualquer um dos dois seria inaplicável.
+// precisa apontar a origem. `devolucao_fornecedor` (F14) fica de fora porque tem
+// FLUXO PRÓPRIO (lote sempre 1 + cadastro do substituto no mesmo submit), também
+// filtrado do lote genérico — um kit dela seria inaplicável. Um kit de qualquer
+// um dos três seria inaplicável.
 //
 // Lista LITERAL (o `z.enum` precisa de tupla, não de `TipoMovimentacao[]`), com
 // um teste que trava a equivalência com `Constants.public.Enums.tipo_movimentacao`
-// menos os dois excluídos — mesma doutrina do `TERMO_STATUS_ORDEM` (dominio.ts):
-// se o enum do banco mudar, o teste quebra em vez de o select ficar mudo.
-export const TIPOS_EXCLUIDOS_DO_KIT = ['compra', 'estorno'] as const
+// menos os excluídos — mesma doutrina do `TERMO_STATUS_ORDEM` (dominio.ts): se o
+// enum do banco mudar, o teste quebra em vez de o select ficar mudo.
+export const TIPOS_EXCLUIDOS_DO_KIT = [
+  'compra',
+  'estorno',
+  'devolucao_fornecedor',
+] as const
 
 export const TIPOS_KIT = [
   'saida',

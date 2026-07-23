@@ -85,6 +85,9 @@ function montarRow(item: MovimentacaoInput, ativo: AtivoBasico, uid: string) {
     colaborador: ('colaborador' in item ? item.colaborador : undefined) ?? null,
     setor: ('setor' in item ? item.setor : undefined) ?? null,
     chamado: item.chamado ?? null,
+    // F14/MN1: chamado do fornecedor — só o envio_manutencao o carrega (narrowing).
+    chamado_fornecedor:
+      ('chamado_fornecedor' in item ? item.chamado_fornecedor : undefined) ?? null,
     termo_assinado: item.termo_assinado ?? null,
     termo_data: item.termo_data ?? null,
     itens_faltantes:

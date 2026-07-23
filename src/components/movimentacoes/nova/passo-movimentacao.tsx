@@ -394,6 +394,25 @@ export function PassoMovimentacao({
             </div>
           )}
 
+          {/* Chamado do fornecedor (envio_manutencao — F14/MN1) */}
+          {campoAplica(config.tipo, 'chamado_fornecedor') && (
+            <div className="grid gap-2">
+              <Label htmlFor="chamado-fornecedor">
+                Chamado do fornecedor
+                {campoObrigatorio(config.tipo, 'chamado_fornecedor') && (
+                  <span className="text-destructive"> *</span>
+                )}
+              </Label>
+              <Input
+                id="chamado-fornecedor"
+                value={config.chamadoFornecedor}
+                onChange={(e) => onSet('chamadoFornecedor', e.target.value)}
+                placeholder="Chamado aberto pelo fornecedor"
+                maxLength={200}
+              />
+            </div>
+          )}
+
           {/* Termo */}
           {campoAplica(config.tipo, 'termo') && (
             <>
