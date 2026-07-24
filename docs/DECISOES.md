@@ -1748,3 +1748,30 @@ Sem E2E autenticado em navegador (login wall — limite desde F11/F12): a prova 
 - **Frente A** (`4c74c38`): push sozinho; **CI verde** (run 30089531148, job `banco` incluso). A Vercel republicou sem mudança funcional (Frente A não toca o app).
 - **Frente B** (`c1194c6`, marco final): deploy `dpl_8chhNmaxajG7P3BjKdFouZ7EQqtR` **READY** (target production); `get_runtime_errors` do projeto (1h) sem nada; **CI verde** (run 30091743320, jobs `banco` + `verificar` success). Smoke pós-deploy `scripts/smoke/smoke-prod.mjs`: **50 OK · 1 aviso (de desenho — `kits_modelos anon NÃO lê` não se prova com a tabela de kits vazia) · 0 falha** (Partes A/B/C, com a conta de smoke presente no `.env.local`). A **Parte C carregou `/relatorios/geral` e `/relatorios/gerados` a HTTP 200** com sessão de operador — o relatório serve 200 com as legendas novas, sem quebra de SSR (1596 ativos / 3075 movimentações / 8 snapshots legíveis).
 - **Reversível:** tudo render-only, sem migration e sem dado tocado; rollback = promover `4c74c38` (ou `da45284`) no painel Vercel.
+
+---
+
+## 2026-07-24 · Ajuste pós-F17 · Ativos importados NÃO exigem termo de responsabilidade (v_pendencias · 0049)
+
+*Pedido do Johnny (24/07/2026, chat):* "mudança pequena para todos os ativos que entrarem via import (apenas via import) não exigirem termo, pq é um controle que não tinha certo na planilha antes do sistema." O controle de termo de responsabilidade não existia direito na planilha pré-sistema; o acervo legado que entrou pela carga/import não deve ser cobrado por termo.
+
+### Diagnóstico — a cobrança de termo vive só na view
+- O nag "termo pendente" é calculado em UM lugar: a view `public.v_pendencias` (definição vigente = migration 0028). TODOS os consumidores leem o texto já calculado da view: a página `/pendencias` + o badge da sidebar + o export (`pendencias-detalhe.ts`), os chips do relatório (`relatorios/pendencias.ts` → `getPendencias` → snapshot → corpo) e o card do painel. Mudar a view propaga para todas as superfícies de uma vez.
+- A ficha (`termos-da-ficha.tsx`) NÃO calcula requisito nenhum — só exibe o `termo_assinado` real e oferece gerar/assinar. Fica intacta: "não EXIGIR" ≠ "não PERMITIR" — o operador ainda pode gerar um termo de um ativo importado se quiser.
+- Ativos do import nascem com `origem='importacao'` (0034+); `termo_assinado` fica null. Em posse (`em_uso`/`emprestado`) a view os classificava como "termo pendente".
+
+### Medição em produção (pbtjcalbmepmrqzprusb, 24/07/2026, ANTES)
+- `v_pendencias` total = **1.163**; "termo pendente" = **1.142**, dos quais **1.140 são `origem='importacao'`** (só **2** não-import). A lista de pendências e o relatório estavam afogados no acervo legado.
+
+### Decisão e mudança
+- **Migration 0049** (`create or replace view v_pendencias`, NÃO-destrutiva): acrescenta `and a.origem is distinct from 'importacao'` em TRÊS pontos — o ramo 'termo pendente' do CASE de `pendencia`, o MESMO ramo no CASE de `desde` (o reclassificado herda o `desde` da pendência livre, não a data do termo) e a condição de termo no WHERE. Diff vs 0028 = SÓ isso; 14 colunas idênticas (requisito do create-or-replace). `is distinct from` (não `<>`): só o valor EXATO 'importacao' é dispensado; a coluna é NOT NULL default 'cadastro', mas o predicado fica defensivo. Escopo = "apenas via import": `cadastro` e `inferido` continuam exigindo termo.
+- **Efeito medido (DEPOIS):** total **1.163 → 60**, "termo pendente" **1.142 → 2** (só os não-import). Invariante forte conferida: `import_ainda_termo = 0`; nenhuma linha com `pendencia` nula na view. Dos 1.140, **1.103 saíram** de v_pendencias (o termo era a ÚNICA pendência) e **37 reclassificaram** para a pendência REAL que também carregavam ('sem patrimônio físico' etc.) — continuam na view, em outro balde (a soma bate: 21 não-termo pré-existentes + 37 + 2 = 60).
+
+### Verificação
+- **Ensaio primeiro** (caminho A do `docs/RUNBOOK-BANCO.md`): 0049 aplicada por MCP no ensaio, provada com 5 fixtures fictícias (importado em_uso sem termo → fora da view; cadastro → "termo pendente"; import c/ pendência livre → reclassifica p/ 'sem patrimônio físico'; inferido → "termo pendente"; import assinado → fora), removidas ao fim (delete). Depois PRODUÇÃO (contagens acima).
+- **`get_advisors(security)` de produção:** 0 achados NOVOS (só os pré-existentes de backlog — RLS dos backups, policies permissivas do nível único, RPC do import, leaked-password); nenhum flag sobre `v_pendencias` (security_invoker=true preservado).
+- **Roteiro de CI novo:** `supabase/tests/pendencias_import_termo.sql` (P1–P5) trava a regra E o escopo no job `banco` (aplica 0001→0049 + roda o roteiro; convenção ✓ notice / ✗ warning). Nenhum roteiro existente quebra (os demais inserem `origem='cadastro'` ou o default).
+- **Ledger:** 0049 registrada por MCP em ensaio E produção (version timestamp, name `0049_pendencia_termo_dispensa_import`).
+
+### Sem deploy de app
+- A mudança é 100% no banco (a view). O app já lê a view; as 14 colunas não mudaram, então o cache do PostgREST não precisa de reload e a Vercel não precisa republicar — o efeito é imediato em produção. Reversível: `create or replace` de volta ao corpo 0028.

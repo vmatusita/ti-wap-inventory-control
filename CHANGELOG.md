@@ -6,6 +6,13 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 24/07/2026 — Ajuste: ativos importados não exigem termo de responsabilidade (migration 0049) 🔒
+
+- ✅ **Import dispensa "termo pendente"** (pedido do Johnny, 24/07): ativos que entraram pelo **import de startup** (`origem='importacao'`) deixaram de ser cobrados por **termo de responsabilidade** — o controle não existia direito na planilha antes do sistema, e o acervo legado afogava `/pendencias`, o badge da sidebar e o relatório. A obrigatoriedade **continua** para tudo que não é import (cadastro manual e `inferido`): o escopo é "apenas via import". A ficha segue permitindo gerar/assinar um termo de um importado (não EXIGIR ≠ não PERMITIR).
+- 📌 **Migration `0049`** (`create or replace view v_pendencias`, **não-destrutiva**, caminho A do runbook): só acrescenta `and a.origem is distinct from 'importacao'` ao ramo de termo (o CASE de `pendencia`, o CASE de `desde` e o WHERE); as 14 colunas ficam idênticas à `0028`. Aplicada por MCP em **ensaio → produção**. **Efeito medido em produção:** `v_pendencias` **1.163 → 60** e "termo pendente" **1.142 → 2** (só os 2 não-import); **1.103** saíram da view e **37** reclassificaram para a pendência real que também carregavam. `get_advisors(security)` sem achado novo; novo roteiro de CI `supabase/tests/pendencias_import_termo.sql` (P1–P5). **Sem deploy de app** — a mudança é na view e as colunas não mudaram. Ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-07-24 · Ajuste pós-F17).
+
+---
+
 ## 24/07/2026 — F17: CI de banco verde de novo + legendas explicativas no relatório
 
 - ✅ **Frente A — CI de banco de volta ao verde** (só roteiro de teste + docs; pushada sozinha, precedente do preâmbulo da ordem). O job `banco` do CI (GitHub Actions) estava **vermelho desde o push da F15**: a `0047` fez o substituto de `devolver_ao_fornecedor` nascer por **`troca`** (não `compra`), mas o cenário **4d** de `supabase/tests/manutencao_fornecedor.sql` (F14) continuou exigindo `compra` — os dois roteiros pediam comportamentos opostos da mesma RPC. Alinhado ao comportamento **vigente** (`troca`), **provado no projeto de ENSAIO** por bloco `begin…rollback` que devolve linhas (substituto: `compra`=0, `troca`=1; antigo→`devolvido_fornecedor`; herança do fornecedor). Nenhum cenário deletado/pulado/enfraquecido; os outros 4 roteiros varridos contra `0044`–`0048` (nada mais defasado). **CI verde** (run `30089531148` — job `banco` success, incluído o passo "Rodar os roteiros de teste SQL"). Prevenção nova no [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md): mudou função/trigger/RPC → rode TODOS os roteiros antes do push (o `lint`/`test`/`build` não executa SQL; só o job `banco` executa — foi o furo da F15).
