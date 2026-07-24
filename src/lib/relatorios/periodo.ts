@@ -7,7 +7,7 @@ import {
   startOfYear,
 } from 'date-fns'
 import { hojeISO } from '@/lib/format'
-import { DATA_RE } from '@/lib/validators/data'
+import { dataISO } from '@/lib/url-params'
 
 // Período do relatório (spec §7 / OS-F3 3.2.1). Datas puras 'yyyy-MM-dd',
 // intervalo INCLUSIVO [de, ate]. Os presets são resolvidos a partir de
@@ -67,14 +67,22 @@ export type PeriodoResolvido = {
 
 // Resolve o período a partir dos searchParams (?preset= / ?de=&ate=). Custom só
 // vale se de/ate forem datas válidas e de <= ate; senão cai no preset padrão.
+//
+// A validação é `dataISO` (@/lib/url-params), não o regex de FORMATO: uma data
+// que só case `^\d{4}-\d{2}-\d{2}$` pode não existir (`2026-02-30`) ou estar fora
+// da faixa que o Postgres aceita (`0000-01-01`), e o período segue direto para a
+// RPC `rel_estoque_asof` e para os `.gte('data', …)` — o banco devolve 22008 e a
+// página inteira do relatório cai no error boundary, para o operador E para o
+// visualizador por senha. É a mesma classe do achado F12-W4-04, que já havia sido
+// encerrada em /ativos, /itens, /movimentacoes e nos exports; faltava aqui.
 export function resolverPeriodo(
   sp: { preset?: string; de?: string; ate?: string },
   hoje: string = hojeISO(),
 ): PeriodoResolvido {
-  const de = sp.de
-  const ate = sp.ate
-  if (sp.preset === 'custom' || (de && ate)) {
-    if (de && ate && DATA_RE.test(de) && DATA_RE.test(ate) && de <= ate) {
+  const de = dataISO(sp.de)
+  const ate = dataISO(sp.ate)
+  if (sp.preset === 'custom' || (sp.de && sp.ate)) {
+    if (de && ate && de <= ate) {
       return { de, ate, preset: 'custom', rotulo: 'Período personalizado' }
     }
   }

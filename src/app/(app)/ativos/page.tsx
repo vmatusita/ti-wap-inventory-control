@@ -11,6 +11,14 @@ import {
   parseOrdenacao,
   parseTamanhoPagina,
 } from '@/lib/ativos/lista'
+// Parsers de parâmetro de URL: FONTE ÚNICA em `@/lib/url-params` (F12 · W6A).
+// `idNumerico` (smallint — sem ele `?filial=99999` derruba o Server Component com
+// 22003) e `paginaNumerica` (teto de 7 dígitos — sem ele `?page=1e20` faz o offset
+// do PostgREST sair em notação científica, ser descartado em silêncio e a
+// paginação travar) viviam COPIADOS aqui. As cópias eram exatamente a família que
+// produziu os achados F12-W4-01/-03/-04/-05: /itens, /movimentacoes, /pendencias e
+// as actions de export já usam o módulo; /ativos era a última fora.
+import { idNumerico, paginaNumerica } from '@/lib/url-params'
 import Link from 'next/link'
 import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
 import { AtivosTable } from '@/components/ativos/ativos-table'
@@ -27,19 +35,6 @@ function texto(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined
 }
 
-// `filial_id` é smallint (migration 0015): validar só o FORMATO deixa passar
-// `?filial=99999`, que o Postgres recusa (22003) e derruba o Server Component —
-// a mesma classe de bug que a F9 corrigiu em /itens. Guarda idêntica à do
-// parser de filtros do export (`lib/actions/exportar.ts`), que é quem monta o
-// CSV desta mesma tela: página e botão não podem discordar.
-const MAX_SMALLINT = 32767
-
-function idNumerico(v: string | undefined): number | undefined {
-  if (!v || !/^\d+$/.test(v)) return undefined
-  const n = Number(v)
-  return Number.isSafeInteger(n) && n >= 1 && n <= MAX_SMALLINT ? n : undefined
-}
-
 export default async function AtivosPage({
   searchParams,
 }: {
@@ -48,7 +43,7 @@ export default async function AtivosPage({
   const sp = await searchParams
 
   const q = texto(sp.q)
-  const filialId = idNumerico(texto(sp.filial))
+  const filialId = idNumerico(texto(sp.filial)) ?? undefined
 
   const categoriaRaw = texto(sp.categoria)
   const categoria = CATEGORIA_ORDEM.includes(categoriaRaw as CategoriaAtivo)
@@ -60,13 +55,7 @@ export default async function AtivosPage({
     .map((s) => s.trim())
     .filter((s): s is StatusAtivo => STATUS_ORDEM.includes(s as StatusAtivo))
 
-  // Teto de 7 dígitos (cobre qualquer acervo plausível): validar só o formato
-  // deixaria passar `?page=99999999999999999999`, que vira 1e20 e faz o `offset`
-  // do PostgREST sair em notação científica ("3e+21") — descartado em silêncio
-  // pelo servidor, então a página nunca recebe o PGRST103 que `listarAtivos`
-  // sabe tratar e a paginação trava. Acima do teto, volta à página 1.
-  const pageRaw = texto(sp.page)
-  const page = pageRaw && /^\d{1,7}$/.test(pageRaw) ? Number(pageRaw) : 1
+  const page = paginaNumerica(texto(sp.page))
 
   const semPatrimonio = texto(sp.semPatrimonio) === '1'
 

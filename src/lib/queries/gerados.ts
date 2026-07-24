@@ -1,5 +1,6 @@
 import type { DbClient } from '@/lib/queries/relatorios'
 import type { AnySnapshot } from '@/lib/relatorios/tipos'
+import { ehUuid } from '@/lib/url-params'
 
 // Histórico e leitura dos relatórios GERADOS (snapshots — spec §7.1 / OS-F3 3.8).
 // Recebe o client resolvido (operador OU visualizador por senha) — ambos leem.
@@ -92,6 +93,12 @@ export async function buscarRelatorioGerado(
   client: DbClient,
   id: string,
 ): Promise<RelatorioGeradoDetalhe | null> {
+  // `id` vem cru do path (`/relatorios/gerados/[id]`). Sem esta guarda um valor
+  // fora do formato uuid vira 22P02 no PostgREST, a função LANÇA e a rota cai no
+  // error boundary genérico — quando o certo é o mesmo 404 que um uuid válido
+  // inexistente já recebe (`notFound()` na página). `null` = não existe.
+  if (!ehUuid(id)) return null
+
   const { data, error } = await client
     .from('relatorios_gerados')
     .select(

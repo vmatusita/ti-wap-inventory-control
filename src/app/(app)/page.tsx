@@ -6,6 +6,7 @@ import {
   Package,
   PackageMinus,
   PackagePlus,
+  TriangleAlert,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
@@ -100,6 +101,15 @@ export default async function DashboardPage() {
     getSaldosItens(null),
     listarItensAtivos(),
   ])
+  // A falha de leitura NÃO pode virar lista vazia: o estado vazio deste card é o
+  // comemorativo ("Nenhuma pendência aberta 🎉"), então um erro em
+  // `v_fila_pendencias` (RLS, view recriada, timeout) afirmaria ao operador
+  // exatamente o contrário da verdade. Registra no servidor e a UI diz que não
+  // conseguiu ler — o resto do dashboard continua de pé.
+  const pendenciasErro = pendenciasRes.error
+  if (pendenciasErro) {
+    console.error('[dashboard] falha ao ler v_fila_pendencias:', pendenciasErro.message)
+  }
   const pendencias = (pendenciasRes.data ?? []) as PendenciaHome[]
 
   // Item DESATIVADO que ainda tem saldo aparece na RPC e não no catálogo ativo:
@@ -191,7 +201,14 @@ export default async function DashboardPage() {
                 ver todas
               </Link>
             </div>
-            {pendencias.length === 0 ? (
+            {pendenciasErro ? (
+              <EstadoVazio
+                variante="inline"
+                icone={TriangleAlert}
+                titulo="Não foi possível ler as pendências."
+                descricao="a lista pode estar desatualizada — abra Pendências para conferir"
+              />
+            ) : pendencias.length === 0 ? (
               <EstadoVazio
                 variante="inline"
                 icone={ClipboardCheck}

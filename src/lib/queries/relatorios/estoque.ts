@@ -274,7 +274,15 @@ export async function manutencaoDeEstado(
     .gte('data', periodo.de)
     .lte('data', periodo.ate)
   if (filialId) retQ = retQ.eq('filial_id', filialId)
-  const { data: retornos } = await retQ.order('created_at', { ascending: false })
+  const { data: retornos, error: retErr } = await retQ.order('created_at', {
+    ascending: false,
+  })
+  // As leituras desta função LANÇAM em erro, como todas as irmãs do módulo
+  // (`dadosAtivos`, `chamadoAteData`, `lerEstadoAtivos`). Antes o canal `error`
+  // era descartado e um `data` nulo virava "ninguém voltou da manutenção": a
+  // seção saía incompleta sem nenhum sinal — e `gerarRelatorio` CONGELAVA esse
+  // resultado errado num snapshot imutável. Falhar alto é a única saída honesta.
+  if (retErr) throw new Error(`Falha ao ler retornos de manutenção: ${retErr.message}`)
   const retornoPorAtivo = ultimoPorAtivo(
     retornos ?? [],
     (r) => r.ativo_id,
@@ -290,7 +298,11 @@ export async function manutencaoDeEstado(
     .gte('data', periodo.de)
     .lte('data', periodo.ate)
   if (filialId) devQ = devQ.eq('filial_id', filialId)
-  const { data: devolucoes } = await devQ.order('created_at', { ascending: false })
+  const { data: devolucoes, error: devErr } = await devQ.order('created_at', {
+    ascending: false,
+  })
+  if (devErr)
+    throw new Error(`Falha ao ler devoluções ao fornecedor: ${devErr.message}`)
   const devolucaoPorAtivo = ultimoPorAtivo(
     devolucoes ?? [],
     (r) => r.ativo_id,
@@ -324,6 +336,15 @@ export async function manutencaoDeEstado(
       .lte('created_at', fimDoDiaSP(periodo.ate))
       .order('created_at', { ascending: true }),
   ])
+
+  // Mesmo motivo do `throw` acima: sem envio não há data, dias em manutenção nem
+  // chamado do fornecedor, e o card sairia mudo em vez de acusar a falha.
+  if (enviosRaw.error)
+    throw new Error(`Falha ao ler envios de manutenção: ${enviosRaw.error.message}`)
+  if (anotacoesRaw.error)
+    throw new Error(
+      `Falha ao ler anotações da manutenção: ${anotacoesRaw.error.message}`,
+    )
 
   const envioPorAtivo = ultimoPorAtivo(
     enviosRaw.data ?? [],

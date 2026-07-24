@@ -45,6 +45,19 @@ export function dataISO(v: string | null | undefined): string | null {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : null
 }
 
+// `id` de ativo/movimentação/termo/snapshot é `uuid` no banco: um valor fora do
+// formato faz o Postgres devolver 22P02 e a leitura LANÇA — o Server Component cai
+// no error boundary genérico ("algo deu errado") onde o certo seria um 404. Mesma
+// doutrina dos parsers acima: valor inválido é IGNORADO, quem chama decide o que
+// fazer (`notFound()`, `null`, mensagem de "registro inválido").
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** O valor tem a forma de um uuid? (aceita espaços nas pontas) */
+export function ehUuid(v: string | null | undefined): boolean {
+  return !!v && UUID_RE.test(v.trim())
+}
+
 /** Página da lista. Fora da faixa (lixo, 0, negativo, absurdo) volta para 1 —
  *  nunca `NaN`, nunca notação científica no `range()`. */
 export function paginaNumerica(v: string | null | undefined): number {

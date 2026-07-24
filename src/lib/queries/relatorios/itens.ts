@@ -36,6 +36,13 @@ export async function getGruposItens(
   ])
   if (saldos.error) throw new Error(`Falha nos saldos de itens: ${saldos.error.message}`)
   if (movs.error) throw new Error(`Falha na movimentação de itens: ${movs.error.message}`)
+  // As outras duas leituras também LANÇAM: um `data` nulo silencioso faria o
+  // relatório afirmar "nenhum lançamento no grupo" (frescor) e apagar a última
+  // observação de cada item — e a geração de snapshot congelaria a afirmação.
+  if (frescor.error)
+    throw new Error(`Falha no frescor dos itens: ${frescor.error.message}`)
+  if (obsRows.error)
+    throw new Error(`Falha nas observações dos itens: ${obsRows.error.message}`)
 
   const movPorItem = new Map<number, { entradas: number; saidas: number }>()
   for (const m of movs.data ?? []) {

@@ -97,6 +97,13 @@ export async function atualizarDadosCadastrais(input: {
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${id}`)
+  // Este update grava `termo_assinado`/`termo_data` — as MESMAS colunas que a
+  // pendência 'termo pendente' (v_pendencias) e a coluna Termo do relatório leem.
+  // Toda outra action que as toca (confirmarAssinaturaTermo, desfazerConfirmacao,
+  // gerarTermo) revalida as duas rotas; só esta não revalidava, deixando a fila e
+  // o relatório servido ao visualizador por senha divergentes da ficha.
+  revalidatePath('/pendencias')
+  revalidatePath('/relatorios', 'layout')
   return { ok: true }
 }
 

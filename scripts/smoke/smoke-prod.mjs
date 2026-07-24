@@ -418,8 +418,59 @@ const CHECKS = [
       return { status: OK, detalhe: `${count} no total · ${data.length} linhas na página · shape ok` }
     },
   },
+  // F18 — a FONTE das telas é `v_fila_pendencias` (dashboard, selo da sidebar,
+  // /pendencias e os chips do relatório). `v_pendencias` virou só a metade
+  // NÃO-item da união; conferir apenas ela deixaria a view que as telas realmente
+  // consultam sem cobertura nenhuma — e o smoke ficaria verde justamente no
+  // cenário em que o dashboard mostra o estado vazio comemorativo por erro.
   {
-    nome: 'v_pendencias · contagem (dashboard e badge)',
+    nome: 'v_fila_pendencias · contagem (dashboard, selo e /pendencias)',
+    area: 'pendências',
+    async executar(db, ctx) {
+      const { count, erro } = lerContagem(
+        await consultaContagem(db, 'v_fila_pendencias'),
+      )
+      if (erro) throw erro
+      ctx.filaPendencias = count
+      return { status: OK, detalhe: `${count} linhas na fila (não-item + itens abertos)` }
+    },
+  },
+  {
+    nome: 'v_fila_pendencias · shape',
+    area: 'pendências',
+    async executar(db) {
+      // As colunas que /pendencias e o dashboard leem de fato (0052): `ordem` é a
+      // chave única por linha (paginação/CSV estáveis), `pendencia_item_id` é o
+      // alvo do botão Resolver e `item` é o que a linha de item mostra.
+      const colunas = [
+        'id',
+        'ordem',
+        'pendencia_item_id',
+        'item',
+        'patrimonio',
+        'categoria',
+        'filial',
+        'filial_nome',
+        'pendencia',
+        'colaborador_atual',
+        'setor_atual',
+        'marca',
+        'modelo',
+        'desde',
+      ]
+      const { data, error } = await db
+        .from('v_fila_pendencias')
+        .select(colunas.join(', '))
+        .limit(1)
+      if (error) throw error
+      if (!data?.length) return { status: AVISO, detalhe: 'fila vazia — shape não conferido' }
+      const { faltando } = conferirColunas(data[0], colunas)
+      if (faltando.length) return { status: FALHA, detalhe: `colunas faltando: ${faltando.join(', ')}` }
+      return { status: OK, detalhe: `${colunas.length} colunas conferidas` }
+    },
+  },
+  {
+    nome: 'v_pendencias · contagem (base não-item da fila)',
     area: 'pendências',
     async executar(db, ctx) {
       const { count, erro } = lerContagem(await consultaContagem(db, 'v_pendencias'))

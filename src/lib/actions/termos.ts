@@ -124,7 +124,7 @@ export async function prepararTermo(input: {
     .from('movimentacoes')
     .select(MOV_SELECT)
     .in('id', movimentacaoIds)
-  if (error) return falhaPrep(traduzErroBanco(error.message))
+  if (error) return falhaPrep(traduzErroBanco(error.message, error.code))
   const movs = (data ?? []) as unknown as MovRow[]
   if (movs.length === 0) return falhaPrep('Movimentação não encontrada.')
 
@@ -341,7 +341,7 @@ async function persistirTermo(
       .from('termos_gerados')
       .update({ ...linha, atualizado_em: new Date().toISOString(), atualizado_por: uid })
       .eq('id', id)
-    if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+    if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   } else {
     const { error } = await supabase
       .from('termos_gerados')
@@ -350,7 +350,7 @@ async function persistirTermo(
       // Insert falhou (ex.: corrida no unique tipo+movimentações) — remove o .docx
       // recém-enviado para não deixar objeto órfão no bucket.
       await supabase.storage.from('termos').remove([arquivoPath])
-      return { ok: false, erro: traduzErroBanco(error.message) }
+      return { ok: false, erro: traduzErroBanco(error.message, error.code) }
     }
   }
 
@@ -394,7 +394,7 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
     .from('movimentacoes')
     .select('ativo_id')
     .in('id', movimentacaoIds)
-  if (movErr) return { ok: false, erro: traduzErroBanco(movErr.message) }
+  if (movErr) return { ok: false, erro: traduzErroBanco(movErr.message, movErr.code) }
   const ativoIds = [...new Set((movAtivos ?? []).map((m) => m.ativo_id))]
   if (ativoIds.length === 0) return { ok: false, erro: 'Movimentação não encontrada.' }
 
@@ -457,7 +457,7 @@ export async function urlTermo(input: {
     .select('arquivo_path, tipo, colaborador')
     .eq('id', input.id)
     .maybeSingle()
-  if (error) return { ok: false, erro: traduzErroBanco(error.message) }
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   if (!row) return { ok: false, erro: 'Termo não encontrado.' }
 
   const { data: signed, error: sErr } = await supabase.storage
@@ -500,7 +500,7 @@ export async function confirmarAssinaturaTermo(input: {
     .select('termo_assinado')
     .eq('id', ativo_id)
     .maybeSingle()
-  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message) }
+  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message, eLer.code) }
   if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
   if (ativo.termo_assinado === 'sim') {
     return { ok: false, erro: 'Este termo já consta como assinado.' }
@@ -510,7 +510,7 @@ export async function confirmarAssinaturaTermo(input: {
     .from('ativos')
     .update({ termo_assinado: 'sim', termo_data: dataAssinatura })
     .eq('id', ativo_id)
-  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message) }
+  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
 
   // Rastro imutável na linha do tempo (autor + created_at vêm das colunas).
   const { error: eNota } = await supabase.from('anotacoes').insert({
@@ -518,7 +518,7 @@ export async function confirmarAssinaturaTermo(input: {
     texto: `Termo confirmado como assinado (data da assinatura: ${formatDate(dataAssinatura)}).`,
     criado_por: uid,
   })
-  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message) }
+  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
 
   revalidatePath(`/ativos/${ativo_id}`)
   revalidatePath('/pendencias')
@@ -553,7 +553,7 @@ export async function desfazerConfirmacaoTermo(input: {
     .select('termo_assinado')
     .eq('id', ativo_id)
     .maybeSingle()
-  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message) }
+  if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message, eLer.code) }
   if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
   if (ativo.termo_assinado !== 'sim') {
     return { ok: false, erro: 'Só é possível desfazer um termo confirmado como assinado.' }
@@ -566,14 +566,14 @@ export async function desfazerConfirmacaoTermo(input: {
     .select('id')
     .contains('ativo_ids', [ativo_id])
     .limit(1)
-  if (eGer) return { ok: false, erro: traduzErroBanco(eGer.message) }
+  if (eGer) return { ok: false, erro: traduzErroBanco(eGer.message, eGer.code) }
   const destino: 'gerado' | 'nao' = gerados && gerados.length > 0 ? 'gerado' : 'nao'
 
   const { error: eUpd } = await supabase
     .from('ativos')
     .update({ termo_assinado: destino, termo_data: null })
     .eq('id', ativo_id)
-  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message) }
+  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
 
   const texto =
     destino === 'gerado'
@@ -584,7 +584,7 @@ export async function desfazerConfirmacaoTermo(input: {
     texto,
     criado_por: uid,
   })
-  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message) }
+  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
 
   revalidatePath(`/ativos/${ativo_id}`)
   revalidatePath('/pendencias')

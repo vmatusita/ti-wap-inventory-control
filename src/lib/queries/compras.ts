@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import type { CategoriaAtivo } from '@/lib/dominio'
+import { ehUuid } from '@/lib/url-params'
 
 // Leituras da COMPRA (F10 — A4 memória do acervo, A6 duplicar/repetir).
 // Nada aqui escreve: a entrada de equipamento continua sendo `registrarCompra`.
@@ -246,16 +247,13 @@ function montarInicial(
 const CAMPOS_DO_ATIVO =
   'categoria, marca, modelo, memoria, armazenamento, processador, fornecedor'
 
-// `id` é uuid no banco: um parâmetro fora do formato faria o Postgres devolver
-// 22P02 e derrubaria o Server Component. Vale para tudo que chega por URL.
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 // A6 — dados do ativo de referência para "Comprar outro igual" (`?duplicar=`).
+// A guarda de uuid vem de `@/lib/url-params` (`ehUuid`) — mesma família de
+// parsers de parâmetro de URL, uma fonte só.
 export async function dadosParaDuplicarCompra(
   ativoId: string,
 ): Promise<DadosCompraInicial | null> {
-  if (!UUID_RE.test(ativoId.trim())) return null
+  if (!ehUuid(ativoId)) return null
   const supabase = await createClient()
 
   const { data, error } = await supabase

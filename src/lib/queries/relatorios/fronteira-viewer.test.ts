@@ -18,12 +18,21 @@ import { dirname, join } from 'node:path'
 const DIR = dirname(fileURLToPath(import.meta.url))
 
 // Superfície alcançada pelo client do viewer: os módulos desta pasta
-// (queries/relatorios/*) + o histórico de gerados (queries/gerados.ts).
+// (queries/relatorios/*) + o histórico de gerados (queries/gerados.ts) + a lista
+// de filiais (queries/filiais.ts). Esta última entra porque `listarFiliais` ACEITA
+// um client resolvido e as DUAS páginas de relatório a chamam com `acesso.client`
+// (relatorios/[filial]/page.tsx e relatorios/gerados/page.tsx) — para o viewer,
+// isso é o client service_role. Ficava fora do tripwire, que é justamente o
+// arquivo onde um join novo passaria despercebido.
 function arquivosDaSuperficie(): string[] {
   const modulos = readdirSync(DIR)
     .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
     .map((f) => join(DIR, f))
-  return [...modulos, join(DIR, '..', 'gerados.ts')]
+  return [
+    ...modulos,
+    join(DIR, '..', 'gerados.ts'),
+    join(DIR, '..', 'filiais.ts'),
+  ]
 }
 
 // O que o viewer JAMAIS pode ler:

@@ -72,6 +72,33 @@ describe('resolverPeriodo', () => {
     expect(r.preset).toBe('semana')
   })
 
+  // O regex de FORMATO não basta: estas datas o satisfazem, passam no `de <= ate`
+  // e seguem direto para a RPC `rel_estoque_asof` e para os `.gte('data', …)`. O
+  // Postgres devolve 22008 e a página INTEIRA do relatório cai no error boundary
+  // — para o operador e para o visualizador por senha. Mesma classe do achado
+  // F12-W4-04, que já havia sido encerrada em /ativos, /itens e nos exports.
+  it('descarta custom com data INEXISTENTE e cai no padrão (semana)', () => {
+    expect(resolverPeriodo({ de: '2026-02-30', ate: '2026-03-01' }, hoje).preset).toBe('semana')
+    expect(resolverPeriodo({ de: '2026-01-01', ate: '2026-04-31' }, hoje).preset).toBe('semana')
+    expect(resolverPeriodo({ de: '2026-13-01', ate: '2026-13-05' }, hoje).preset).toBe('semana')
+  })
+
+  it('descarta custom fora da faixa sã do Postgres e cai no padrão (semana)', () => {
+    expect(resolverPeriodo({ de: '0000-01-01', ate: '2026-07-01' }, hoje).preset).toBe('semana')
+    expect(resolverPeriodo({ de: '1899-12-31', ate: '2026-07-01' }, hoje).preset).toBe('semana')
+    expect(resolverPeriodo({ de: '2026-07-01', ate: '3000-01-01' }, hoje).preset).toBe('semana')
+  })
+
+  it('descarta custom quando SÓ uma das pontas é inválida', () => {
+    expect(resolverPeriodo({ preset: 'custom', de: '2026-02-30' }, hoje).preset).toBe('semana')
+    expect(resolverPeriodo({ preset: 'custom', ate: '2026-02-30' }, hoje).preset).toBe('semana')
+  })
+
+  it('29 de fevereiro só passa em ano bissexto', () => {
+    expect(resolverPeriodo({ de: '2024-02-29', ate: '2024-03-01' }, hoje).preset).toBe('custom')
+    expect(resolverPeriodo({ de: '2026-02-29', ate: '2026-03-01' }, hoje).preset).toBe('semana')
+  })
+
   it('resolve preset "30dias" (inclusive, 30 dias contando hoje)', () => {
     const r = resolverPeriodo({ preset: '30dias' }, hoje)
     expect(r).toMatchObject({ de: '2026-06-15', ate: hoje, preset: '30dias' })

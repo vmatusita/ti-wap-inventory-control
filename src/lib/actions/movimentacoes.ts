@@ -265,6 +265,12 @@ export async function registrarMovimentacoes(input: {
     revalidatePath('/ativos')
     revalidatePath('/movimentacoes/nova')
     for (const id of rotasAtivos) revalidatePath(`/ativos/${id}`)
+    // A movimentacao MEXE na fila de pendencias: `devolucao` com itens_faltantes
+    // abre uma linha por item em pendencias_item (trigger 0051) e `triagem_ok`
+    // limpa a pendencia do ativo. Sem esta linha /pendencias era a unica tela
+    // afetada que nao revalidava — ao contrario de corrigirPatrimonio,
+    // definirServiceTag, confirmarAssinaturaTermo e resolverPendenciaItem.
+    revalidatePath('/pendencias')
     // Saidas, devolucoes, transferencias etc. alimentam os relatorios ao vivo e
     // v_pendencias — revalida como fazem itens.ts/ativos.ts (senao o link do
     // relatorio serve dado obsoleto ao visualizador por senha).
@@ -324,6 +330,9 @@ export async function estornarMovimentacao(input: {
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${mov.ativo_id}`)
+  // O estorno RESTAURA pendencia/termo_assinado/termo_data do snapshot_anterior
+  // (trigger, migration 0047) — ou seja, mexe direto no que a fila mostra.
+  revalidatePath('/pendencias')
   revalidatePath('/relatorios', 'layout')
   return { ok: true }
 }

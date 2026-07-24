@@ -40,8 +40,9 @@ produção contém dado real.
 
 **Parte B — logado** (só roda se as credenciais estiverem no ambiente): abre uma
 sessão de operador e repete as leituras que o próprio app faz — contagem de
-ativos, uma página de movimentações, a view `v_pendencias` (a mesma do dashboard
-e do badge da sidebar), a RPC `rel_saldo_itens` (consolidada e por filial), as
+ativos, uma página de movimentações, a view `v_fila_pendencias` (a fonte do
+dashboard, do badge da sidebar e de `/pendencias` desde a F18) e a `v_pendencias`
+que a alimenta, a RPC `rel_saldo_itens` (consolidada e por filial), as
 RPCs do relatório ao vivo, o catálogo de itens, termos e snapshots gerados. De
 cada uma valida **status, formato (nomes de coluna) e contagem**.
 
@@ -163,7 +164,7 @@ pessoa logada** confere depois de um deploy grande. Faça numa **janela anônima
 2. Entrar com a conta de smoke. O dashboard carrega sem erro.
 3. **Dashboard:** os KPIs vêm preenchidos; o card **"Itens para repor"** aparece
    (ou some, se nada está abaixo do mínimo); o badge de Pendências na sidebar
-   bate com o número que o script imprimiu em `v_pendencias · contagem`.
+   bate com o número que o script imprimiu em `v_fila_pendencias · contagem`.
 4. **Paleta de busca** (`Ctrl+K`): buscar "movimenta" e navegar pelo resultado.
    Atalho `?` abre a ajuda de atalhos.
 5. **`/ativos`:** a lista carrega; ordenar por uma coluna e paginar; abrir uma

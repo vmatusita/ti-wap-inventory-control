@@ -539,9 +539,13 @@ export async function listarAtivosParaExport(
       })
     }
 
-    // Bloco incompleto = acabou (inclui o caso "Max Rows menor que o bloco").
-    if (bloco.length < ate - offset + 1) break
-    offset = ate + 1
+    // Avança pelo que REALMENTE chegou, nunca pelo que foi pedido: o Max Rows do
+    // PostgREST corta o request maior EM SILÊNCIO, e um passo fixo (`ate + 1`)
+    // fazia o laço parar no primeiro bloco truncado — o CSV saía com o teto do
+    // serviço em vez do cap de 5.000. Mesma disciplina de
+    // `listarHistoricoParaExport` e `listarPendenciasParaExport`.
+    if (bloco.length === 0) break
+    offset += bloco.length
     if (offset >= total) break
   }
 

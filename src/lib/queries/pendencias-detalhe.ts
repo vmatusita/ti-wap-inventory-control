@@ -180,8 +180,12 @@ function queryPendencias(client: DbClient, opts: FiltrosPendencias, head = false
 
   const termo = opts.q?.trim()
   if (termo) {
-    // Sanitiza os metacaracteres do PostgREST/ILIKE antes de interpolar no .or()
-    const esc = termo.replace(/[%,()]/g, ' ')
+    // Sanitiza os metacaracteres do PostgREST/ILIKE antes de interpolar no .or().
+    // O `*` entra na lista porque o PostgREST o TRADUZ para `%` no ilike: sem ele,
+    // `?q=*` virava `%%%` e devolvia a fila inteira como se fosse o resultado do
+    // filtro. Mesma cobertura de `sanitizeTerm` (queries/ativos.ts) e de
+    // `prefixoSeguro`/`termoIlikeSeguro` (queries/movimentacoes.ts).
+    const esc = termo.replace(/[%_*,()\\]/g, ' ')
     query = query.or(`patrimonio.ilike.%${esc}%,colaborador_atual.ilike.%${esc}%`)
   }
 

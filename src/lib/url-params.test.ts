@@ -5,6 +5,7 @@ import {
   MAX_PAGE,
   MAX_SMALLINT,
   dataISO,
+  ehUuid,
   idNumerico,
   paginaNumerica,
 } from '@/lib/url-params'
@@ -94,5 +95,34 @@ describe('paginaNumerica', () => {
     expect(paginaNumerica('99999999999999999999')).toBe(1)
     expect(paginaNumerica(String(MAX_PAGE + 1))).toBe(1)
     expect(paginaNumerica('9007199254740993')).toBe(1)
+  })
+})
+
+// Id de tabela com PK uuid (ativos, movimentacoes, termos_gerados,
+// relatorios_gerados) que chega pelo PATH. Sem a guarda, um valor fora do formato
+// vira 22P02 ("invalid input syntax for type uuid"), a leitura LANÇA e a rota cai
+// no error boundary genérico — onde o certo é o 404 que um uuid válido
+// inexistente já recebe.
+describe('ehUuid', () => {
+  it('aceita uuid canônico em qualquer caixa e com espaços nas pontas', () => {
+    expect(ehUuid('3e9376ee-6350-4f80-a3b5-6dd989b2ac77')).toBe(true)
+    expect(ehUuid('3E9376EE-6350-4F80-A3B5-6DD989B2AC77')).toBe(true)
+    expect(ehUuid('  3e9376ee-6350-4f80-a3b5-6dd989b2ac77  ')).toBe(true)
+  })
+
+  it('recusa ausente, vazio e texto qualquer', () => {
+    expect(ehUuid(undefined)).toBe(false)
+    expect(ehUuid(null)).toBe(false)
+    expect(ehUuid('')).toBe(false)
+    expect(ehUuid('   ')).toBe(false)
+    expect(ehUuid('teste')).toBe(false)
+    expect(ehUuid('WAP0004491')).toBe(false)
+  })
+
+  it('recusa uuid truncado, longo demais ou com caractere fora do hex', () => {
+    expect(ehUuid('3e9376ee-6350-4f80-a3b5-6dd989b2ac7')).toBe(false)
+    expect(ehUuid('3e9376ee-6350-4f80-a3b5-6dd989b2ac777')).toBe(false)
+    expect(ehUuid('3e9376ee63504f80a3b56dd989b2ac77')).toBe(false)
+    expect(ehUuid('3e9376ez-6350-4f80-a3b5-6dd989b2ac77')).toBe(false)
   })
 })

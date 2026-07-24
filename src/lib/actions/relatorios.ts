@@ -11,13 +11,16 @@ import {
   getSnapshotRelatorioV2,
   resolverFilialPorSlug,
 } from '@/lib/queries/relatorios'
-import { DATA_RE } from '@/lib/validators/data'
+import { dataRealSchema } from '@/lib/validators/data'
 import type { Json } from '@/lib/types/database'
 
 const periodoSchema = z.object({
   filialSlug: z.string().min(1),
-  de: z.string().regex(DATA_RE, 'Data inicial inválida'),
-  ate: z.string().regex(DATA_RE, 'Data final inválida'),
+  // `dataRealSchema` e não só o regex de formato: `2026-02-30` casa o regex, passa
+  // no teto (`ate <= hoje`) e só quebra lá dentro, na RPC as-of, virando "Falha ao
+  // montar o relatório" em vez de "Período inválido para a geração".
+  de: dataRealSchema('Data inicial inválida'),
+  ate: dataRealSchema('Data final inválida'),
   // B4 (F6B): observação da semana — texto livre opcional definido no ato de gerar.
   observacao: z.string().trim().max(2000, 'Observação: no máximo 2000 caracteres').optional(),
 })
