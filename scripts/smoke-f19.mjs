@@ -219,9 +219,12 @@ checar(
   'a classe .dark CONTINUA no <html> (o tema da TELA não é desfeito)',
 )
 for (const k of TOKENS) {
+  // O `!== ''` não é decoração: se a página falhar em carregar, `getComputedStyle`
+  // devolve string vazia para TODO token e a igualdade passaria comparando nada com
+  // nada — um verde mentiroso. Já aconteceu num ensaio deste script.
   checar(
-    tokensImpressos[k] === tokensClaros[k],
-    `${k} imprime com o valor CLARO (${tokensImpressos[k]})`,
+    tokensImpressos[k] !== '' && tokensImpressos[k] === tokensClaros[k],
+    `${k} imprime com o valor CLARO (${tokensImpressos[k] || 'VAZIO — página não carregou'})`,
   )
 }
 checar(
