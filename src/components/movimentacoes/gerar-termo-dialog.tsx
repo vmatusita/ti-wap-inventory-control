@@ -31,6 +31,7 @@ import {
   type TermoTipo,
 } from '@/lib/termos/tipos'
 import { hojeISO } from '@/lib/format'
+import { baixarBlob } from '@/lib/download'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import type { CamposTermo } from '@/lib/validators/termo'
 
@@ -190,14 +191,7 @@ export function GerarTermoDialog({
 
   function baixar() {
     if (!blob) return
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = nomeArquivo
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    baixarBlob(blob, nomeArquivo)
   }
 
   function aoMudarAberto(v: boolean) {

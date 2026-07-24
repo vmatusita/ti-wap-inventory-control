@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { baixarBlob } from '@/lib/download'
 import type { Filial } from '@/lib/queries/filiais'
 import type { CustoSubstituir, TermoMultiFilial } from '@/lib/queries/import-logs'
 import type {
@@ -49,20 +50,6 @@ import {
 } from '@/lib/actions/importar'
 
 const PASSOS = ['Configurar', 'Upload', 'Preview', 'Confirmar', 'Resultado'] as const
-
-// Dispara o download de um Blob no navegador (âncora temporária). FONTE ÚNICA — era
-// repetido em 3 lugares (erros, CSV corrigido, backup) com o mesmo boilerplate
-// createObjectURL → <a download> → click → revokeObjectURL.
-function baixarBlob(blob: Blob, nome: string) {
-  const u = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = u
-  a.download = nome
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(u)
-}
 
 type Previa = {
   filial: Filial

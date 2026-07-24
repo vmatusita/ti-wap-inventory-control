@@ -26,6 +26,7 @@ import {
   type TermoStatus,
 } from '@/lib/dominio'
 import type { TermoGerado } from '@/lib/queries/termos'
+import { baixarDeUrl } from '@/lib/download'
 
 // Seção "Termos" da ficha (F5A §5): histórico dos termos gerados (download +
 // editar) e geração retroativa a partir das movimentações elegíveis do ativo.
@@ -73,19 +74,10 @@ export function TermosDaFicha({
         toast.error(res.erro ?? 'Falha ao baixar o termo.')
         return
       }
-      const r = await fetch(res.url)
-      // A signed URL vive 600s; expirada/erro devolve 4xx com corpo de erro —
-      // sem esta checagem o .blob() salvaria esse corpo como um .docx corrompido.
-      if (!r.ok) throw new Error(`download falhou: ${r.status}`)
-      const b = await r.blob()
-      const u = URL.createObjectURL(b)
-      const a = document.createElement('a')
-      a.href = u
-      a.download = res.nomeArquivo ?? 'termo.docx'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(u)
+      // A signed URL vive 600s; expirada/erro devolve 4xx com corpo de erro — o
+      // `baixarDeUrl` checa o status antes do .blob() (senão salvaria esse corpo
+      // como um .docx corrompido) e lança para o catch abaixo.
+      await baixarDeUrl(res.url, res.nomeArquivo ?? 'termo.docx')
     } catch {
       toast.error('Falha ao baixar o termo.')
     } finally {

@@ -6,6 +6,7 @@ import { Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import type { ResultadoExportCsv } from '@/lib/actions/exportar'
+import { baixarTexto } from '@/lib/download'
 
 // Botão genérico de export CSV das listas (OS-F10 · T5). Recebe a Server Action
 // de export e manda os filtros ATUAIS da URL; o servidor devolve o arquivo
@@ -84,13 +85,5 @@ export function ExportarCsvButton({
 
 // O conteúdo já vem com BOM UTF-8 (`@/lib/csv`); o Blob só o serializa em UTF-8.
 function baixar(nome: string, conteudo: string): void {
-  const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = nome
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  baixarTexto(conteudo, nome, 'text/csv;charset=utf-8;')
 }

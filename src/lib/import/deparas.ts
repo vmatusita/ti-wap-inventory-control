@@ -13,6 +13,7 @@
 // Os scripts da F4 permanecem intocados (ferramenta histórica do go-live).
 
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
+import { hojeISO } from '@/lib/format'
 import type { CategoriaAtivo, FilialOficial, StatusAtivo } from './tipos'
 
 // ---------------------------------------------------------------------------
@@ -323,13 +324,21 @@ export const SITUACAO_CANONICA: Record<
 
 export type ParseDataResult = { iso: string | null; invalida: boolean; futura: boolean }
 
-/** Hoje (data LOCAL) no formato `yyyy-MM-dd` que `parseData` compara para "não futura".
+/** Hoje no formato `yyyy-MM-dd` que `parseData` compara para "não futura".
  *  FONTE ÚNICA (era duplicado byte a byte no motor `plano.ts`, no Zod `validators/
  *  importar.ts` e no cérebro dos botões `ops-grupo.ts`): a régua "data não futura"
- *  depende de os chamadores concordarem sobre "hoje". */
+ *  depende de os chamadores concordarem sobre "hoje".
+ *
+ *  NO FUSO DE SÃO PAULO, delegando ao `hojeISO` de `@/lib/format` (dívida técnica,
+ *  item J — 24/07/2026). Antes montava a data com `new Date()` + getFullYear/Month/
+ *  Date, ou seja, o fuso LOCAL DE QUEM EXECUTA — e os dois lados desta mesma régua
+ *  executam em fusos diferentes: `ops-grupo.ts` e o wizard rodam no NAVEGADOR (BRT),
+ *  enquanto `validators/importar.ts` roda como Server Action na Vercel (UTC). Entre
+ *  21:00 e 23:59 BRT o servidor já está no dia seguinte: a mesma planilha, com uma
+ *  data de amanhã, era barrada como "data futura" no preview e ACEITA na gravação.
+ *  Um só relógio — o do negócio — resolve os dois lados. */
 export function hojeIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return hojeISO()
 }
 
 const DATA_VAZIA = new Set(['', '-', 'n/a', 'na'])

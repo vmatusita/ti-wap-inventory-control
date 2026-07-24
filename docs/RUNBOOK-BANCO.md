@@ -47,7 +47,7 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
 6. **Recarregar o cache do PostgREST**: `notify pgrst, 'reload schema';` (senão a API não enxerga a nova assinatura).
 7. **Smoke só-leitura de produção** (ver o padrão nas atas de F7* em `docs/DECISOES.md`).
 
-## Divergência do ledger (estado em 23/07/2026)
+## Divergência do ledger (estado em 23/07/2026 — ver a medição de 24/07 mais abaixo)
 
 `list_migrations` de produção mostra `0001`–`0030` + `rate_limit_senha` (0025) + `0038` + `0041`. **Faltam no ledger** (aplicadas à mão pelo gate, mas os objetos EXISTEM em produção — `import_logs`, a RPC de 4 args etc.):
 
@@ -76,8 +76,23 @@ where n.nspname = 'public' and p.proname = 'importar_ativos_substituir';
 -- esperado: true (exatamente 1 linha)
 ```
 
-### Reconciliação (opcional — decisão do Johnny)
-Registrar no ledger as migrations já aplicadas, para o histórico bater com produção. **Metadados apenas** (não recria nada — só insere linhas). Rodar no SQL Editor de produção:
+### ⚠️ O ledger NÃO é o controle de integridade (medição de 24/07/2026)
+
+**Nunca rode `supabase db push` contra produção a partir deste repo.** A reauditoria de dívida técnica (24/07) mediu o ledger e achou uma incompatibilidade **estrutural**, não uma simples defasagem:
+
+- As `version` do ledger são **timestamps de 14 dígitos gerados pelo MCP no ato do apply** (`20260722145340` → `0041_dominios_login`); os arquivos do repo usam prefixo sequencial (`0041_…sql`). A doc do Supabase confirma que a CLI identifica migration **pelo timestamp do nome do arquivo** ("a new row will be inserted into the migration history table with timestamp as its unique id").
+- Portanto os dois esquemas **não casam para praticamente nenhuma migration** — não só para as faltantes. Um `db push` tentaria reaplicar migrations já aplicadas.
+- **O dano concreto:** a RPC do import é redefinida em cadeia (`0032`→`0037`→**`0048`**). Reaplicar `0031`–`0037` **regrediria** o corpo vivo para o da `0037`, desfazendo a `0048`.
+
+**O controle que funciona (e que já se usa):**
+1. **Sonda de efeito** — conferir o objeto no banco (`pg_get_functiondef`, `information_schema`, `has_function_privilege`), não o ledger. É o método de fingerprint que a F19 usou para provar paridade ensaio×produção.
+2. **Job `banco` do CI** — prova que as 55 migrations aplicam limpo e em ordem num Postgres novo.
+3. **Verificação pós-apply** do passo 5 acima.
+
+**Estado medido em 24/07/2026:** 55 migrations no repo, **45 no ledger**. As 10 ausentes (`0031`–`0037`, `0039`, `0040`, `0056`) foram **todas sondadas e estão aplicadas** — inclusive a **`0056`** (as sete RPCs `rel_*` já estão com `anon` sem `execute`), que o `CHANGELOG` ainda dava como pendente de handoff.
+
+### Reconciliação (opcional — decisão do Johnny; **cosmética**)
+Registrar no ledger as migrations já aplicadas, para o histórico bater com produção. **Metadados apenas** (não recria nada — só insere linhas) e, pelo que está acima, **não torna o repo pushável**: serve para leitura humana do histórico, não como garantia. Rodar no SQL Editor de produção:
 
 ```sql
 -- Registra 0031–0037, 0039 e 0040 como já aplicadas (idempotente por 'on conflict').
@@ -94,7 +109,8 @@ values
   ('0036','reverter_compra_abertura_baseline'),
   ('0037','import_patrimonio_forcado'),
   ('0039','drop_backups_orfaos'),
-  ('0040','hardening_rpcs')
+  ('0040','hardening_rpcs'),
+  ('0056','rel_rpcs_revoke_anon')   -- aplicada (medido 24/07: anon sem execute nas 7 rel_*)
 on conflict (version) do nothing;
 ```
 

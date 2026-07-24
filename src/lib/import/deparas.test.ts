@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { hojeISO } from '@/lib/format'
 import {
   CATEGORIAS_TERMOS,
   ESTADOS_CORRIGIVEIS,
@@ -8,6 +9,7 @@ import {
   estadoPlanilha,
   extrairChamado,
   extrairPatrimonioDoHostname,
+  hojeIso,
   filialPorSlug,
   limparCampo,
   mapearCategoria,
@@ -444,5 +446,34 @@ describe('modeloSemMarca (F7K — não duplica a marca no modelo)', () => {
     expect(modeloSemMarca('HP', '  HP  ')).toBeNull()
     expect(modeloSemMarca('HP', '')).toBeNull()
     expect(modeloSemMarca('HP', null)).toBeNull()
+  })
+})
+
+describe('hojeIso (régua "data não futura" — fuso do NEGÓCIO, não de quem executa)', () => {
+  // Dívida técnica item J (24/07/2026): esta função montava a data com `new Date()` +
+  // getFullYear/getMonth/getDate, isto é, o fuso LOCAL DE QUEM EXECUTA. Os dois lados
+  // da MESMA régua rodam em fusos diferentes — `ops-grupo.ts`/wizard no navegador
+  // (BRT) e `validators/importar.ts` como Server Action na Vercel (UTC) —, então entre
+  // 21:00 e 23:59 BRT o servidor já virava o dia e a mesma planilha era barrada no
+  // preview e aceita na gravação. Estes testes travam o alinhamento com `hojeISO`.
+
+  it('devolve a MESMA data que hojeISO (@/lib/format — fuso America/Sao_Paulo)', () => {
+    expect(hojeIso()).toBe(hojeISO())
+  })
+
+  it('tem o formato yyyy-MM-dd que parseData compara', () => {
+    expect(hojeIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('NÃO usa o fuso do processo: às 23:00 BRT (02:00 UTC do dia seguinte) segue no dia de SP', () => {
+    // 2026-07-25T02:00:00Z = 24/07 às 23:00 em São Paulo. A implementação antiga,
+    // sob TZ=UTC (a da Vercel), devolveria 2026-07-25 — um dia à frente do negócio.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-25T02:00:00Z'))
+    try {
+      expect(hojeIso()).toBe('2026-07-24')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

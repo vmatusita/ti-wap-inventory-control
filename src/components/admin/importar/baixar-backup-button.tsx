@@ -5,6 +5,7 @@ import { Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { urlBackup } from '@/lib/actions/importar'
+import { baixarDeUrl } from '@/lib/download'
 
 // Baixa o backup (JSON) de um import do histórico via signed URL curta (60s).
 export function BaixarBackupButton({
@@ -24,19 +25,10 @@ export function BaixarBackupButton({
         toast.error(res.erro)
         return
       }
-      const r = await fetch(res.url)
-      // A signed URL vive 60s; expirada/erro devolve 4xx com corpo de erro — sem
-      // esta checagem o .blob() salvaria esse corpo como um .json corrompido.
-      if (!r.ok) throw new Error(`download falhou: ${r.status}`)
-      const b = await r.blob()
-      const u = URL.createObjectURL(b)
-      const a = document.createElement('a')
-      a.href = u
-      a.download = nomeArquivo
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(u)
+      // A signed URL vive 60s; expirada/erro devolve 4xx com corpo de erro — o
+      // `baixarDeUrl` checa o status antes do .blob() (senão salvaria esse corpo
+      // como um .json corrompido) e lança para o catch abaixo.
+      await baixarDeUrl(res.url, nomeArquivo)
     } catch {
       toast.error('Falha ao baixar o backup.')
     } finally {
