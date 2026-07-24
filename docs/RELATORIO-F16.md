@@ -135,12 +135,19 @@ Além disso, o chip "Manutenção parada" é gateado **duas vezes**: no builder 
 
 ## 7. Deploy e smoke
 
-<!-- PREENCHER após merge -->
+- **Merge:** `f16-relatorio-ux` → `main` por **fast-forward** (main não tinha andado desde o branch), 8 commits (`fcc0805`→`9d34d2c`). `git push origin main` OK (`84e4f7f..9d34d2c`).
+- **Deploy:** a Vercel publicou a `main` — deploy **`dpl_BEiyBVfeRtDdcejDvpvzYJToTWiH`**, commit `9d34d2c`, target **production**, estado **READY**.
+- **Runtime errors (última hora, cobre o deploy):** `get_runtime_errors` do projeto → **nenhum**.
+- **Smoke autenticado** (`scripts/smoke/smoke-prod.mjs`, contra `https://ti-wap-inventory-control.vercel.app`):
+  - **Parte A (sem sessão): 16 OK · 0 aviso · 0 falha** — as 2 rotas públicas respondem 200 e as 14 protegidas redirecionam (307 → `/login` ou `/relatorios/acesso`). Zero 500 na camada de rota (o app sobe e serve).
+  - **Parte B (leituras logadas): NÃO executada** — `SMOKE_EMAIL`/`SMOKE_SENHA` **não estão** no `.env.local` desta máquina (o script carregou 7 variáveis, nenhuma delas as credenciais do smoke). É o caso previsto pela ordem ("sem credencial disponível, registre a pendência"). Ver §8.
+- **Limite do smoke para a F16:** a Parte A **não exercita** a UI da F16 — as tabelas do relatório só renderizam **depois** do login, e a Parte A para no portão de auth (307). O smoke confirma que o deploy é saudável (rotas + zero 500 + zero runtime error), mas o comportamento novo (estorno sinalizado, busca, tiles, mobile, badge de 30 dias) **não foi exercitado ao vivo em produção** — mesma barreira de login da §9.
 
 ---
 
 ## 8. Pendências (backlog desta ordem)
 
+- **Smoke logado (Parte B) não rodou:** `SMOKE_EMAIL`/`SMOKE_SENHA` ausentes do `.env.local` desta máquina. Para exercitar as leituras autenticadas (e, indiretamente, o render das tabelas do relatório em produção), definir as duas variáveis e rodar `node scripts/smoke/smoke-prod.mjs` de novo (ver `scripts/smoke/README.md`). A Parte A já passou (16 OK · 0 falha) e não há runtime error no deploy.
 - **Contagens de movimentação × estornadas** (achado do T1, §3): decisão do Johnny para uma fase futura.
 - **Empty state "no período" com busca ativa:** nas Saídas/Entradas, quando a busca/filtro reduz a zero, a mensagem ainda diz "Nenhuma saída/entrada no período" (comportamento **pré-F16**; Transferências e mov-itens já dizem "encontrada"). Fora do escopo declarado; anotado.
 - **Itens explicitamente adiados** (não implementados, por ordem): selo "repor" no relatório, snapshot automático da sexta, motivo da regeração, T11 (definições de semana), export/HTML autocontido.
