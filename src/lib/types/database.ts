@@ -532,6 +532,87 @@ export type Database = {
           },
         ]
       }
+      pendencias_item: {
+        Row: {
+          ativo_id: string
+          colaborador: string | null
+          created_at: string
+          desfecho: string | null
+          filial_id: number
+          id: string
+          item: string
+          movimentacao_id: string
+          observacao: string | null
+          resolvida_em: string | null
+          resolvida_por: string | null
+          status: string
+        }
+        Insert: {
+          ativo_id: string
+          colaborador?: string | null
+          created_at?: string
+          desfecho?: string | null
+          filial_id: number
+          id?: string
+          item: string
+          movimentacao_id: string
+          observacao?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          status?: string
+        }
+        Update: {
+          ativo_id?: string
+          colaborador?: string | null
+          created_at?: string
+          desfecho?: string | null
+          filial_id?: number
+          id?: string
+          item?: string
+          movimentacao_id?: string
+          observacao?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pendencias_item_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "ativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "v_pendencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_movimentacao_id_fkey"
+            columns: ["movimentacao_id"]
+            isOneToOne: false
+            referencedRelation: "movimentacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_resolvida_por_fkey"
+            columns: ["resolvida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -725,6 +806,26 @@ export type Database = {
         }
         Relationships: []
       }
+      v_fila_pendencias: {
+        Row: {
+          ativo_id: string | null
+          categoria: Database["public"]["Enums"]["categoria_ativo"] | null
+          colaborador_atual: string | null
+          desde: string | null
+          filial: string | null
+          filial_nome: string | null
+          id: string | null
+          item: string | null
+          marca: string | null
+          modelo: string | null
+          ordem: string | null
+          patrimonio: string | null
+          pendencia: string | null
+          pendencia_item_id: string | null
+          setor_atual: string | null
+        }
+        Relationships: []
+      }
       v_movimentacoes_mes: {
         Row: {
           filial: string | null
@@ -752,6 +853,67 @@ export type Database = {
           updated_at: string | null
         }
         Relationships: []
+      }
+      v_pendencias_item: {
+        Row: {
+          ativo_id: string | null
+          categoria: Database["public"]["Enums"]["categoria_ativo"] | null
+          colaborador: string | null
+          created_at: string | null
+          desde: string | null
+          desfecho: string | null
+          filial: string | null
+          filial_id: number | null
+          filial_nome: string | null
+          id: string | null
+          item: string | null
+          marca: string | null
+          modelo: string | null
+          movimentacao_id: string | null
+          observacao: string | null
+          patrimonio: string | null
+          resolvida_em: string | null
+          resolvida_por: string | null
+          resolvida_por_nome: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pendencias_item_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "ativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "v_pendencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_movimentacao_id_fkey"
+            columns: ["movimentacao_id"]
+            isOneToOne: false
+            referencedRelation: "movimentacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_resolvida_por_fkey"
+            columns: ["resolvida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {

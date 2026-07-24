@@ -177,7 +177,12 @@ begin
   end;
 
   -- ---------------------------------------------------------------
-  -- CENARIO 5 — devolucao com itens_faltantes preenche pendencia; triagem_ok limpa
+  -- CENARIO 5 — F18 (24/07/2026): a devolucao com itens_faltantes NAO grava mais em
+  -- ativos.pendencia (o texto virou linha em pendencias_item — roteiro proprio
+  -- pendencias_item.sql) e triagem_ok NAO zera mais o campo. ANTES da F18: 5a exigia
+  -- pendencia = 'itens faltantes: carregador, mochila' e 5b exigia null apos
+  -- triagem_ok; a OS-F18 inverteu os dois (§A5). O 5c prova o bug §0.1b corrigido:
+  -- triagem_ok preserva um trecho alheio (nao apaga o campo inteiro).
   -- ---------------------------------------------------------------
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('TESTE0000005', 'notebook', v_matriz);
@@ -187,14 +192,19 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por)
     values (e, 'devolucao', v_matriz, array['carregador','mochila'], v_prof);
   select pendencia into v_pend from public.ativos where id = e;
-  if v_pend = 'itens faltantes: carregador, mochila' then
-    raise notice '✓ 5a devolucao com itens_faltantes -> pendencia: %', v_pend;
-  else raise warning '✗ 5a pendencia: esperado "itens faltantes: carregador, mochila", obtido %', v_pend; end if;
+  if v_pend is null then
+    raise notice '✓ 5a devolucao com itens_faltantes NAO toca ativos.pendencia (F18)';
+  else raise warning '✗ 5a pendencia: esperado null (F18), obtido %', v_pend; end if;
+  select count(*) into v_cnt from public.pendencias_item where ativo_id = e and status = 'aberta';
+  if v_cnt = 2 then raise notice '✓ 5b devolucao criou 2 pendencias_item abertas (F18)';
+  else raise warning '✗ 5b esperado 2 pendencias_item abertas, obtido %', v_cnt; end if;
+  update public.ativos set pendencia = 'sem patrimônio físico' where id = e;  -- trecho alheio
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (e, 'triagem_ok', v_matriz, v_prof);
   select pendencia into v_pend from public.ativos where id = e;
-  if v_pend is null then raise notice '✓ 5b triagem_ok limpou a pendencia';
-  else raise warning '✗ 5b pendencia: esperado null, obtido %', v_pend; end if;
+  if v_pend = 'sem patrimônio físico' then
+    raise notice '✓ 5c triagem_ok preserva o trecho alheio de pendencia (F18, bug §0.1b)';
+  else raise warning '✗ 5c pendencia: esperado "sem patrimônio físico" (F18), obtido %', coalesce(v_pend,'(null)'); end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 6 — transferencia muda filial_id e conta nas DUAS filiais

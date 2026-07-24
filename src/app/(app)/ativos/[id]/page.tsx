@@ -11,6 +11,7 @@ import { CopiarPatrimonio } from '@/components/ativos/copiar-patrimonio'
 import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
 import { TermosDaFicha } from '@/components/ativos/termos-da-ficha'
+import { PendenciasItemFicha } from '@/components/ativos/pendencias-item-ficha'
 import {
   buscarAtivoPorId,
   buscarSubstitutoDe,
@@ -20,6 +21,7 @@ import {
 import { listarMovimentacoesDoAtivo } from '@/lib/queries/movimentacoes'
 import { listarMotivos } from '@/lib/queries/motivos'
 import { listarTermosDoAtivo } from '@/lib/queries/termos'
+import { listarPendenciasItemDoAtivo } from '@/lib/queries/pendencias-item'
 import type { TermoTipo } from '@/lib/termos/tipos'
 import { rotuloCategoria, rotuloTermo } from '@/lib/dominio'
 import { formatDate, ouTraco } from '@/lib/format'
@@ -49,11 +51,12 @@ export default async function AtivoFichaPage({
   const ativo = await buscarAtivoPorId(id)
   if (!ativo) notFound()
 
-  const [movimentacoes, anotacoes, motivosLista, termos] = await Promise.all([
+  const [movimentacoes, anotacoes, motivosLista, termos, pendenciasItem] = await Promise.all([
     listarMovimentacoesDoAtivo(id),
     listarAnotacoesDoAtivo(id),
     listarMotivos(),
     listarTermosDoAtivo(id),
+    listarPendenciasItemDoAtivo(id),
   ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
 
@@ -206,6 +209,10 @@ export default async function AtivoFichaPage({
           </span>
         </div>
       )}
+
+      {/* F18 — pendências de item faltante (abertas em destaque + resolvidas como
+          auditoria). Não gruda mais no campo livre acima; ciclo próprio. */}
+      <PendenciasItemFicha patrimonio={ativo.patrimonio} pendencias={pendenciasItem} />
 
       {/* Grid de dados */}
       <Card>

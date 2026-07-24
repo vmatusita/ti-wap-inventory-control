@@ -267,6 +267,25 @@ export function rotuloAcessorio(codigo: string): string {
   return ACESSORIO_ROTULO[codigo] ?? codigo
 }
 
+// ---------- DESFECHO DA PENDÊNCIA DE ITEM (F18 §B5) ----------
+// Uma pendência de item faltante (tabela pendencias_item) encerra por ação MANUAL
+// com um destes desfechos. Fonte única do vocabulário De→Para: o validator Zod
+// (src/lib/validators/pendencia-item.ts) importa DESFECHOS_PENDENCIA_ITEM daqui, e
+// a UI/CSV usa os rótulos abaixo. 'recuperado' = o item voltou; 'baixa' = não vai
+// voltar (a mochila de desligamento que a empresa não cobra formalmente).
+export const DESFECHOS_PENDENCIA_ITEM = ['recuperado', 'baixa'] as const
+export type DesfechoPendenciaItem = (typeof DESFECHOS_PENDENCIA_ITEM)[number]
+
+export const DESFECHO_PENDENCIA_ITEM_ROTULO: Record<DesfechoPendenciaItem, string> = {
+  recuperado: 'Item recuperado',
+  baixa: 'Baixa — não vai voltar',
+}
+
+export function rotuloDesfechoPendenciaItem(desfecho: string | null | undefined): string {
+  if (!desfecho) return ''
+  return DESFECHO_PENDENCIA_ITEM_ROTULO[desfecho as DesfechoPendenciaItem] ?? desfecho
+}
+
 // ---------- MARCADOR DA CARGA ÚNICA DE GO-LIVE (F4 → filtro F6A-A1) ----------
 // A carga inicial (scripts/import/plano.ts, papel 'compra_inicial') gravou, para
 // cada ativo, uma COMPRA sintética de abertura com esta observação EXATA. Não é

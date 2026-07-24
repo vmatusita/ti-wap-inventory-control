@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PENDENCIA_SEM_PATRIMONIO, type CategoriaAtivo } from '@/lib/dominio'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import type { DbClient } from '@/lib/auth/acesso'
+import { ROTULO_TIPO_PENDENCIA, type TipoPendencia } from '@/lib/pendencias/rotulos'
 
 // Prefixo do texto de pendência de patrimônio NÃO CANÔNICO gravado pelo go-live
 // F4 (literal completo: 'patrimônio não canônico (importado como veio da
@@ -18,10 +19,22 @@ const PENDENCIA_PATRIMONIO_NAO_CANONICO = 'patrimônio não canônico'
 
 const PAGE_SIZE = 30
 
-export type TipoPendencia = 'termo' | 'itens' | 'triagem' | 'patrimonio' | 'outras'
+// TipoPendencia, ROTULO_TIPO_PENDENCIA e as cores vivem em @/lib/pendencias/rotulos
+// (client-safe — a fila virou Client Component na F18). Re-exportados para os
+// consumidores server (esta camada e o export CSV) manterem o mesmo import.
+export { ROTULO_TIPO_PENDENCIA }
+export type { TipoPendencia }
 
 export type PendenciaDetalhe = {
   id: string
+  // Chave ÚNICA por LINHA da fila (F18): id do ativo nos não-item; id da pendência
+  // de item nos de item — um mesmo ativo pode ter termo pendente E itens abertos.
+  // É a React key e o desempate estável da paginação/CSV.
+  ordem: string
+  // Só nas linhas de item (a ação "Resolver" mira este id); null nas demais.
+  pendenciaItemId: string | null
+  // O item faltante (só nas linhas de item); null nas demais.
+  item: string | null
   patrimonio: string | null
   categoria: CategoriaAtivo | null
   filialSlug: string | null
@@ -50,16 +63,6 @@ export type FiltrosPendencias = {
   q?: string | null
 }
 
-// Rótulo do tipo de pendência. Fonte única: a tabela da tela e o CSV usam o
-// mesmo texto (a tela acrescenta só a cor do badge).
-export const ROTULO_TIPO_PENDENCIA: Record<TipoPendencia, string> = {
-  termo: 'Termo',
-  itens: 'Itens faltantes',
-  triagem: 'Triagem',
-  patrimonio: 'Patrimônio',
-  outras: 'Outra',
-}
-
 // Deriva o bucket a partir do texto canônico da view (mesmos rótulos de getPendencias).
 // O bucket 'patrimonio' (F7E) casa quando a pendência CONTÉM 'sem patrimônio físico'
 // (importados sem plaqueta) OU 'patrimônio não canônico' (os 61 do go-live F4). A
@@ -80,15 +83,16 @@ export function classificarPendencia(pendencia: string | null): TipoPendencia {
 }
 
 // Contagem de pendências abertas para o badge da sidebar (OS-F9 / T2). Usa a
-// MESMA fonte da página /pendencias (a view v_pendencias, sem filtro nenhum):
-// o badge conta exatamente o que `listarPendencias` lista quando não há filtro.
-// `head: true` não traz linha nenhuma — só o count. Roda sob o client do operador
-// (RLS); por isso o layout só chama depois de confirmar o operador.
+// MESMA fonte da página /pendencias (a view v_fila_pendencias, sem filtro nenhum):
+// o badge conta exatamente o que `listarPendencias` lista quando não há filtro —
+// inclui, desde a F18, uma linha por ITEM faltante aberto (não mais o texto no
+// campo livre). `head: true` não traz linha nenhuma — só o count. Roda sob o client
+// do operador (RLS); por isso o layout só chama depois de confirmar o operador.
 // Falha de leitura NÃO derruba o shell: devolve 0 (sem badge) e registra no log.
 export async function contarPendenciasAbertas(): Promise<number> {
   const client = await createClient()
   const { count, error } = await client
-    .from('v_pendencias')
+    .from('v_fila_pendencias')
     .select('id', { count: 'exact', head: true })
 
   if (error) {
@@ -99,10 +103,13 @@ export async function contarPendenciasAbertas(): Promise<number> {
 }
 
 const PENDENCIA_SELECT =
-  'id, patrimonio, categoria, filial, filial_nome, pendencia, colaborador_atual, setor_atual, marca, modelo, desde'
+  'id, ordem, pendencia_item_id, item, patrimonio, categoria, filial, filial_nome, pendencia, colaborador_atual, setor_atual, marca, modelo, desde'
 
 type RowPendencia = {
   id: string | null
+  ordem: string | null
+  pendencia_item_id: string | null
+  item: string | null
   patrimonio: string | null
   categoria: CategoriaAtivo | null
   filial: string | null
@@ -118,6 +125,9 @@ type RowPendencia = {
 function mapearPendencia(r: RowPendencia): PendenciaDetalhe {
   return {
     id: r.id as string,
+    ordem: (r.ordem ?? r.id) as string,
+    pendenciaItemId: r.pendencia_item_id,
+    item: r.item,
     patrimonio: r.patrimonio,
     categoria: r.categoria,
     filialSlug: r.filial,
@@ -138,14 +148,16 @@ function mapearPendencia(r: RowPendencia): PendenciaDetalhe {
 // postgrest-js é mutável e não se reexecuta com segurança.
 function queryPendencias(client: DbClient, opts: FiltrosPendencias, head = false) {
   let query = client
-    .from('v_pendencias')
+    .from('v_fila_pendencias')
     .select(PENDENCIA_SELECT, { count: 'exact', head })
     .order('desde', { ascending: true, nullsFirst: false })
-    // Desempate por id (F10 · T5): `desde` empata (medido no ensaio: até 2 linhas
-    // no mesmo instante) e ordenação sem critério único NÃO é estável entre
-    // requests — com faixas (a paginação da tela e os blocos do export) isso
-    // duplica uma linha num bloco e some com ela no outro. Só afeta empates.
-    .order('id', { ascending: true })
+    // Desempate por `ordem` (F10 · T5 → F18): `desde` empata (medido no ensaio: até
+    // 2 linhas no mesmo instante) e ordenação sem critério único NÃO é estável entre
+    // requests — com faixas (a paginação da tela e os blocos do export) isso duplica
+    // uma linha num bloco e some com ela no outro. `ordem` é único por LINHA (id do
+    // ativo nos não-item, id da pendência de item nos de item), ao contrário de `id`,
+    // que repete quando um ativo tem termo pendente E itens abertos. Só afeta empates.
+    .order('ordem', { ascending: true })
 
   if (opts.filialSlug) query = query.eq('filial', opts.filialSlug)
 

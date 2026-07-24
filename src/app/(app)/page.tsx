@@ -65,6 +65,7 @@ const LINKS_KPI: LinksKpi = {
 
 type PendenciaHome = {
   id: string | null
+  ordem: string | null
   patrimonio: string | null
   categoria: CategoriaAtivo | null
   filial: string | null
@@ -81,9 +82,19 @@ export default async function DashboardPage() {
   // quem o mínimo compara (decisão do Johnny 22/07/2026).
   const [kpis, pendenciasRes, ultimas, saldosItens, catalogoItens] = await Promise.all([
     getKpis(client, null),
+    // F18: a MESMA fonte do selo da sidebar e de /pendencias (v_fila_pendencias) —
+    // inclui as pendências de item faltante (uma linha por item). Ler v_pendencias
+    // aqui esconderia os itens (o backfill 0053 tirou o texto do campo livre) e a
+    // prévia divergiria do selo. `ordem` é a chave única por linha (o mesmo ativo
+    // pode ter mais de uma linha).
     client
-      .from('v_pendencias')
-      .select('id, patrimonio, categoria, filial, pendencia')
+      .from('v_fila_pendencias')
+      .select('id, ordem, patrimonio, categoria, filial, pendencia')
+      // As 5 mais ANTIGAS abertas (as que mais pedem ação), determinístico e na
+      // MESMA ordem da fila (desde asc, desempate por `ordem`) — antes o limit(5)
+      // sem order devolvia 5 arbitrários/instáveis (achado da revisão).
+      .order('desde', { ascending: true, nullsFirst: false })
+      .order('ordem', { ascending: true })
       .limit(5),
     getUltimasMovimentacoes(client, null, { de: '2000-01-01', ate: hoje }, 5),
     getSaldosItens(null),
@@ -190,7 +201,7 @@ export default async function DashboardPage() {
             ) : (
               <ul className="divide-y">
                 {pendencias.map((p) => (
-                  <li key={p.id} className="flex items-baseline gap-3 py-2 text-sm">
+                  <li key={p.ordem ?? p.id} className="flex items-baseline gap-3 py-2 text-sm">
                     <Link
                       href={`/ativos/${p.id}`}
                       className="w-24 shrink-0 font-medium tabular-nums underline-offset-2 hover:underline"

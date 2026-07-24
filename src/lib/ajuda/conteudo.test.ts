@@ -422,6 +422,44 @@ describe('estoque mínimo e kits documentados (OS-F12)', () => {
   })
 })
 
+describe('pendência de item faltante por movimentação (OS-F18)', () => {
+  function titulosDePassos(idSecao: string): string[] {
+    return secao(idSecao)
+      .blocos.filter((b): b is Extract<Bloco, { tipo: 'passos' }> => b.tipo === 'passos')
+      .map((b) => b.titulo ?? '')
+  }
+
+  it('o verbete de itens faltantes descreve o registro por movimentação, não o campo livre', () => {
+    // F18: a pendência de item deixa de ser texto colado no ativo e vira registro
+    // próprio, preso à devolução e ao colaborador da época (nunca ao dono atual).
+    const texto = textoDaSecao(secao('pendencias'))
+    expect(texto).toContain(normalizarBusca('colaborador da época'))
+    // Encerramento manual com desfecho, individual ou em lote.
+    expect(texto).toContain(normalizarBusca('item recuperado'))
+    expect(texto).toContain(normalizarBusca('não vai voltar'))
+    expect(texto).toContain(normalizarBusca('em lote'))
+    // Import dispensado (mesmo racional do termo, migration 0049) e permanência
+    // na ficha para auditoria depois de resolvida.
+    expect(texto).toContain(normalizarBusca('import de startup'))
+    expect(texto).toContain(normalizarBusca('fica na ficha'))
+  })
+
+  it('a Triagem OK deixa de apagar a pendência de itens (bug antigo corrigido)', () => {
+    expect(textoDaSecao(secao('movimentacoes'))).toContain(
+      normalizarBusca('Triagem OK NÃO apaga'),
+    )
+  })
+
+  it('tem o passo a passo de resolver uma pendência de item faltante', () => {
+    expect(titulosDePassos('como-fazer')).toContain(
+      'Resolver uma pendência de item faltante',
+    )
+    const texto = textoDaSecao(secao('como-fazer'))
+    expect(texto).toContain(normalizarBusca('resolva em lote'))
+    expect(texto).toContain(normalizarBusca('definitivo nesta fase'))
+  })
+})
+
 describe('filtrarSecoes', () => {
   it('consulta vazia devolve todas as seções', () => {
     expect(filtrarSecoes(SECOES, '')).toHaveLength(SECOES.length)

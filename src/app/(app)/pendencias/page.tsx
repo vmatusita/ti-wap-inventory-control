@@ -1,29 +1,13 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { differenceInCalendarDays } from 'date-fns'
 import { getOperador } from '@/lib/auth/acesso'
 import { createClient } from '@/lib/supabase/server'
 import { getPendencias } from '@/lib/queries/relatorios'
 import { listarFiliais } from '@/lib/queries/filiais'
-import {
-  listarPendencias,
-  ROTULO_TIPO_PENDENCIA,
-  type TipoPendencia,
-} from '@/lib/queries/pendencias-detalhe'
-import { rotuloCategoria } from '@/lib/dominio'
+import { listarPendencias, type TipoPendencia } from '@/lib/queries/pendencias-detalhe'
 import { paginaNumerica } from '@/lib/url-params'
 import { formatDate } from '@/lib/format'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { ClipboardCheck, Filter, PenLine } from 'lucide-react'
+import { ClipboardCheck, Filter } from 'lucide-react'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
@@ -31,7 +15,10 @@ import { exportarPendenciasCSV } from '@/lib/actions/exportar'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { PendenciasFiltros } from '@/components/pendencias/pendencias-filtros'
-import { ConfirmarAssinaturaDialog } from '@/components/ativos/confirmar-assinatura-dialog'
+import {
+  FilaPendenciasTabela,
+  type LinhaFila,
+} from '@/components/pendencias/fila-pendencias-tabela'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -40,15 +27,6 @@ function primeiro(v: string | string[] | undefined): string | undefined {
 }
 
 const TIPOS_VALIDOS: TipoPendencia[] = ['termo', 'itens', 'triagem', 'patrimonio', 'outras']
-
-// Só a COR mora aqui: o rótulo é o mesmo do CSV (ROTULO_TIPO_PENDENCIA, F10/T5).
-const CLASSE_TIPO: Record<TipoPendencia, string> = {
-  termo: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  itens: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
-  triagem: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
-  patrimonio: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
-  outras: 'bg-muted text-muted-foreground',
-}
 
 function haQuantosDias(iso: string | null): string {
   if (!iso) return ''
@@ -87,6 +65,15 @@ export default async function PendenciasPage({
     getPendencias(client, filialSlug),
     listarPendencias({ filialSlug, tipo, q, page }),
   ])
+
+  // "Desde" formatado no SERVIDOR (formatDate + "há N dias") — a tabela é Client
+  // Component (seleção/resolução em lote) e não deve recalcular datas no cliente
+  // (mismatch de hidratação na virada do dia).
+  const linhas: LinhaFila[] = lista.rows.map((r) => ({
+    ...r,
+    desdeFmt: formatDate(r.desde),
+    desdeRel: haQuantosDias(r.desde),
+  }))
 
   return (
     <div className="space-y-4">
@@ -133,69 +120,7 @@ export default async function PendenciasPage({
             />
           )
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Patrimônio</TableHead>
-                <TableHead>Modelo</TableHead>
-                <TableHead>Colaborador</TableHead>
-                <TableHead>Setor</TableHead>
-                <TableHead>Filial</TableHead>
-                <TableHead className="text-right">Desde</TableHead>
-                <TableHead className="text-right">Ação</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lista.rows.map((p) => {
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell>
-                      <Badge className={`border-transparent ${CLASSE_TIPO[p.tipo]}`}>
-                        {ROTULO_TIPO_PENDENCIA[p.tipo]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium tabular-nums">
-                      <Link
-                        href={`/ativos/${p.id}`}
-                        className="underline-offset-2 hover:underline"
-                      >
-                        {p.patrimonio ?? '—'}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {[p.marca, p.modelo].filter(Boolean).join(' ') ||
-                        (p.categoria ? rotuloCategoria(p.categoria) : '—')}
-                    </TableCell>
-                    <TableCell>{p.colaborador ?? '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">{p.setor ?? '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {p.filialNome ?? p.filialSlug ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span>{formatDate(p.desde)}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {haQuantosDias(p.desde)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {p.tipo === 'termo' && (
-                        <ConfirmarAssinaturaDialog
-                          ativoId={p.id}
-                          trigger={
-                            <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                              <PenLine className="size-3.5" />
-                              Confirmar assinatura
-                            </Button>
-                          }
-                        />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+          <FilaPendenciasTabela rows={linhas} />
         )}
       </div>
 

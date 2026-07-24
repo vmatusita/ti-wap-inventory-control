@@ -1,8 +1,12 @@
 import type { ChipPendencia } from '@/lib/relatorios/tipos'
 import type { DbClient } from './comum'
 
-// Pendências (contagens agregadas via v_pendencias — OS-F3 3.6). Recebe o slug
-// da filial (null = consolidado). Devolve só os chips com total > 0.
+// Pendências (contagens agregadas via v_fila_pendencias — OS-F3 3.6 → F18). Recebe
+// o slug da filial (null = consolidado). Devolve só os chips com total > 0. Desde a
+// F18 o bucket 'itens' conta uma linha por ITEM faltante ABERTO (modelo próprio
+// pendencias_item), não mais o texto no campo livre do ativo; os demais buckets são
+// idênticos. Usado no AO VIVO (relatório/dashboard) e congelado na GERAÇÃO de
+// snapshot — snapshots antigos não retroagem (o jsonb é estático).
 
 type FiltroPendencia = null | 'termo' | 'itens' | 'triagem'
 
@@ -12,7 +16,7 @@ async function contarPendencia(
   filtro: FiltroPendencia,
 ): Promise<number> {
   let query = client
-    .from('v_pendencias')
+    .from('v_fila_pendencias')
     .select('*', { count: 'exact', head: true })
   if (filialSlug) query = query.eq('filial', filialSlug)
   if (filtro === 'termo') query = query.eq('pendencia', 'termo pendente')
@@ -37,7 +41,7 @@ export async function getPendencias(
 
   const chips: ChipPendencia[] = [
     { chave: 'termo', rotulo: 'termos de responsabilidade pendentes', total: termo },
-    { chave: 'itens', rotulo: 'devoluções com itens faltantes', total: itens },
+    { chave: 'itens', rotulo: 'itens faltantes de devoluções', total: itens },
     { chave: 'triagem', rotulo: 'ativos aguardando triagem', total: triagem },
     { chave: 'outras', rotulo: 'outras pendências', total: outras },
   ]

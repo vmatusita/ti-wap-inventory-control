@@ -6,6 +6,9 @@ import {
   rotuloTipo,
   rotuloCategoria,
   rotuloAcessorio,
+  rotuloDesfechoPendenciaItem,
+  DESFECHOS_PENDENCIA_ITEM,
+  DESFECHO_PENDENCIA_ITEM_ROTULO,
   OBS_CARGA_GOLIVE,
   OBS_IMPORT_STARTUP,
   TERMO_META,
@@ -65,6 +68,27 @@ describe('rótulos de domínio', () => {
   it('rotuloAcessorio faz passthrough de código desconhecido', () => {
     expect(rotuloAcessorio('mouse')).toBe('Mouse')
     expect(rotuloAcessorio('inexistente')).toBe('inexistente')
+  })
+})
+
+describe('DESFECHO_PENDENCIA_ITEM (F18 — encerramento da pendência de item)', () => {
+  it('mapeia recuperado/baixa para o rótulo em pt-BR', () => {
+    expect(rotuloDesfechoPendenciaItem('recuperado')).toBe('Item recuperado')
+    expect(rotuloDesfechoPendenciaItem('baixa')).toBe('Baixa — não vai voltar')
+  })
+  it('null/undefined viram string vazia (pendência ainda aberta)', () => {
+    expect(rotuloDesfechoPendenciaItem(null)).toBe('')
+    expect(rotuloDesfechoPendenciaItem(undefined)).toBe('')
+  })
+  it('desfecho desconhecido faz passthrough (não quebra a UI)', () => {
+    expect(rotuloDesfechoPendenciaItem('outro')).toBe('outro')
+  })
+  it('vocabulário e rótulos cobrem exatamente recuperado e baixa', () => {
+    expect([...DESFECHOS_PENDENCIA_ITEM]).toEqual(['recuperado', 'baixa'])
+    expect(Object.keys(DESFECHO_PENDENCIA_ITEM_ROTULO).sort()).toEqual([
+      'baixa',
+      'recuperado',
+    ])
   })
 })
 
