@@ -28,33 +28,62 @@ import type { LinhaEntrada } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
 
+// Campos textuais da busca livre (F16/T3) — refs de MÓDULO (estáveis).
+const BUSCA_TEXTO = (r: LinhaEntrada) => [
+  r.filial,
+  rotuloCategoria(r.categoria),
+  r.modelo,
+  r.patrimonio,
+  r.motivo,
+  r.colaborador,
+  r.setor,
+  ...(r.itensFaltantes ?? []).map(rotuloAcessorio),
+  r.obs,
+]
+const BUSCA_PATRIMONIO = (r: LinhaEntrada) => r.patrimonio
+
 // Entradas do período (§4.4): tipos devolucao + compra + troca (F15). Colunas: Data ·
 // Filial · Categoria · Marca/Modelo · Patrimônio · Tipo (Devolução/Compra/Troca) ·
 // Motivo · Colaborador · Setor · Itens faltantes · Obs. A pílula/rótulo do tipo vem de
 // pillTipo/rotuloTipo (dominio.ts) — "Troca" em teal. Filtros/resumo/células via os
-// compartilhados (OS tech-debt 3.2). Filtros na URL sob o prefixo `en.` (F11/T10)
-// — não colidem com os `sd.` das saídas na mesma página.
+// compartilhados (OS tech-debt 3.2). Filtros e busca (F16/T3) na URL sob o prefixo
+// `en.` (F11/T10) — não colidem com os `sd.` das saídas na mesma página.
 export function TabelaEntradas({
   rows,
   ehGeral,
+  ehOperador,
 }: {
   rows: LinhaEntrada[]
   ehGeral: boolean
+  ehOperador?: boolean
 }) {
-  const { filtradas, temFiltro, resumo, filtros, opcoes, camposAtivos, setFiltro, limpar } =
-    useFiltrosTabela(rows, {
-      campos: CAMPOS,
-      prefixo: PREFIXO_FILTROS.entradas,
-      ehGeral,
-      resumoChave: chaveResumoMotivo,
-    })
+  const {
+    filtradas,
+    temFiltro,
+    temRecorte,
+    resumo,
+    filtros,
+    opcoes,
+    camposAtivos,
+    busca,
+    setFiltro,
+    setBusca,
+    limpar,
+  } = useFiltrosTabela(rows, {
+    campos: CAMPOS,
+    prefixo: PREFIXO_FILTROS.entradas,
+    ehGeral,
+    resumoChave: chaveResumoMotivo,
+    buscaTexto: BUSCA_TEXTO,
+    buscaPatrimonio: BUSCA_PATRIMONIO,
+  })
 
   return (
     <section id="entradas" className="scroll-mt-28 space-y-3 break-before-page">
       <CabecalhoDetalhe
         titulo="Entradas"
         total={rows.length}
-        exibidas={temFiltro ? filtradas.length : undefined}
+        exibidas={temRecorte ? filtradas.length : undefined}
       />
       <ChipsResumo resumo={resumo} />
       <FiltrosTabela
@@ -64,6 +93,8 @@ export function TabelaEntradas({
         temFiltro={temFiltro}
         setFiltro={setFiltro}
         limpar={limpar}
+        busca={busca}
+        setBusca={setBusca}
       />
 
       {filtradas.length === 0 ? (
@@ -102,6 +133,8 @@ export function TabelaEntradas({
                   <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
                   <CelulaPatrimonio
                     patrimonio={r.patrimonio}
+                    ativoId={r.ativoId}
+                    ehOperador={ehOperador}
                     estornada={r.estornada}
                     estornoData={r.estornoData}
                   />

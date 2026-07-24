@@ -9,6 +9,7 @@ import {
   resolverFilialPorSlug,
 } from '@/lib/queries/relatorios'
 import { resolverPeriodo, semanaUtilCorrente } from '@/lib/relatorios/periodo'
+import { linksKpiAtivos } from '@/lib/relatorios/kpi-links'
 import { formatDate, hojeISO } from '@/lib/format'
 import { FilialTabs } from '@/components/relatorios/filial-tabs'
 import { PeriodoFiltro } from '@/components/relatorios/periodo-filtro'
@@ -44,12 +45,20 @@ export default async function RelatorioFilialPage({
     ate: primeiro(sp.ate),
   })
 
+  // F16/T4 — o id numérico da filial (o filtro de /ativos é por id, não pelo slug)
+  // para os KPI tiles clicáveis do operador. `geral` → null (sem filtro de filial).
+  let filialId: number | null = null
   if (filialSlug !== 'geral') {
     const f = await resolverFilialPorSlug(acesso.client, filialSlug)
     if (!f) notFound()
+    filialId = f.id
   }
 
   const ehOperador = acesso.modo === 'operador'
+  // Tiles clicáveis SÓ no ao vivo e SÓ para o operador (o viewer não sai de
+  // /relatorios/**). O snapshot congelado nunca recebe `links` (aponta p/ o
+  // inventário de hoje, não o do período).
+  const links = ehOperador ? linksKpiAtivos(filialId) : undefined
 
   const [filiais, snapshot] = await Promise.all([
     listarFiliais(acesso.client),
@@ -112,7 +121,7 @@ export default async function RelatorioFilialPage({
         <PeriodoFiltro preset={periodo.preset} de={periodo.de} ate={periodo.ate} />
       </div>
 
-      <CorpoRelatorio snapshot={snapshot} ehOperador={ehOperador} />
+      <CorpoRelatorio snapshot={snapshot} ehOperador={ehOperador} links={links} />
     </div>
   )
 }

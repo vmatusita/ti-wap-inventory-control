@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -7,8 +7,11 @@ import {
   rotuloCategoria,
   rotuloTipo,
   type CategoriaAtivo,
+  type TipoLancamento,
   type TipoMovimentacao,
 } from '@/lib/dominio'
+import { normalizarBusca } from '@/lib/ajuda/busca'
+import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 
 // Núcleo compartilhado dos filtros das tabelas de relatório (OS tech-debt 3.2).
 // Antes cada tabela (entradas/saídas/movimentações) reescrevia `const TODOS`, os
@@ -57,11 +60,15 @@ const TODOS_CAMPOS: readonly CampoFiltro[] = ['filial', 'categoria', 'motivo', '
 // Todas as linhas filtráveis compartilham estes nomes de campo; cada tabela
 // declara só os que usa. `motivo`/`tipo` são opcionais porque as movimentações
 // não têm `motivo` e as entradas/saídas filtram por `motivo` (não por `tipo`).
+// F16/T3 — `tipo` aceita também `TipoLancamento`: a tabela de movimentações de
+// itens (linhas com tipo de LANÇAMENTO) usa o hook só para a busca livre (campos:
+// []), então nunca ativa o filtro de `tipo`; o alargamento só a deixa satisfazer a
+// restrição genérica. O filtro `tipo` (grade v1) segue recebendo TipoMovimentacao.
 export type LinhaFiltravel = {
   filial?: string
   categoria?: CategoriaAtivo
   motivo?: string | null
-  tipo?: TipoMovimentacao
+  tipo?: TipoMovimentacao | TipoLancamento
 }
 
 export type Opcao = { valor: string; rotulo: string }
@@ -77,6 +84,13 @@ export type ConfigFiltros<T extends LinhaFiltravel> = {
   // Quando presente, o hook devolve `resumo` (chips por chave). A chave já
   // decide como o `ehGeral` participa (ex.: `filial · motivo` vs só `motivo`).
   resumoChave?: (row: T, ehGeral: boolean) => string
+  // F16/T3 — busca livre. Presente `buscaTexto` → habilita o campo de busca; a
+  // função devolve os campos textuais da linha (patrimônio, modelo, motivo, obs…).
+  // `buscaPatrimonio` (opcional) devolve o patrimônio canônico da linha, para casar
+  // termos fora do formato ("wap 1234" → WAP0001234). DEFINA-AS EM ESCOPO DE MÓDULO
+  // (ref estável) — senão o `useMemo` da filtragem re-roda a cada render.
+  buscaTexto?: (row: T) => (string | null | undefined)[]
+  buscaPatrimonio?: (row: T) => string | null | undefined
 }
 
 // Metadados de apresentação por campo (rótulos pt-BR, larguras e aria-label da
@@ -239,8 +253,61 @@ export function escreverFiltrosNaQuery(
 
 // "Limpar": tira todos os params desta tabela, inclusive os de campos que não
 // estão visíveis agora (ex.: `sd.filial` sobrando de um link do consolidado).
+// Inclui o param de busca (F16/T3): "Limpar" zera filtros E busca.
 export function limparFiltrosNaQuery(query: string, prefixo: string): string {
-  return escreverFiltrosNaQuery(query, prefixo, FILTROS_VAZIOS)
+  return escreverBuscaNaQuery(escreverFiltrosNaQuery(query, prefixo, FILTROS_VAZIOS), prefixo, '')
+}
+
+// ---------- busca livre na URL (F16/T3 — também pura) ----------
+
+// Nome do param de busca livre: `<prefixo>.q`. Sufixo `q` distinto dos CampoFiltro
+// (filial/categoria/motivo/tipo), então não colide.
+export function nomeParamBusca(prefixo: string): string {
+  return `${prefixo}.q`
+}
+
+// URL → termo de busca. Param ausente/vazio = "" (sem busca).
+export function lerBuscaDaQuery(query: string, prefixo: string): string {
+  return new URLSearchParams(query).get(nomeParamBusca(prefixo)) ?? ''
+}
+
+// Termo → URL. Só mexe no param `<prefixo>.q` (o período, os filtros e a outra
+// tabela passam intactos); termo vazio REMOVE o param — nada de `?sd.q=` pendurado.
+export function escreverBuscaNaQuery(query: string, prefixo: string, termo: string): string {
+  const params = new URLSearchParams(query)
+  const nome = nomeParamBusca(prefixo)
+  if (termo) params.set(nome, termo)
+  else params.delete(nome)
+  return params.toString()
+}
+
+// Sentinela entre campos: impede que um termo case atravessando dois campos (ex.:
+// "wap0001234 fone" não deve casar juntando o patrimônio de um campo com o item de
+// outro). U+0001 nunca ocorre em texto de dados.
+const SEP_BUSCA = String.fromCharCode(1)
+
+// Casa uma linha com o termo de busca (F16/T3). Sem sensibilidade a caixa/acento
+// (via `normalizarBusca`). `campos` = todos os textos da linha (patrimônio incluso).
+// `patrimonio` = o patrimônio CANÔNICO da linha: quando o termo canoniza ("wap 1234"
+// → WAP0001234), casa mesmo digitado fora do formato — o caminho de substring puro
+// não pegaria "wap 1234" contra "wap0001234". Termo vazio casa tudo.
+export function casaBusca(
+  campos: (string | null | undefined)[],
+  patrimonio: string | null | undefined,
+  termo: string,
+): boolean {
+  const q = normalizarBusca(termo)
+  if (!q) return true
+  const alvo = campos
+    .filter((c): c is string => typeof c === 'string' && c.length > 0)
+    .map((c) => normalizarBusca(c))
+    .join(SEP_BUSCA)
+  if (alvo.includes(q)) return true
+  if (patrimonio) {
+    const canon = canonicalizarPatrimonio(termo)
+    if (canon && normalizarBusca(patrimonio).includes(normalizarBusca(canon))) return true
+  }
+  return false
 }
 
 // Descarta valor que não existe mais entre as opções (link antigo, período
@@ -346,7 +413,8 @@ function navegacaoEmVoo(): boolean {
 }
 
 export function useFiltrosTabela<T extends LinhaFiltravel>(rows: T[], config: ConfigFiltros<T>) {
-  const { campos, ehGeral, resumoChave, prefixo } = config
+  const { campos, ehGeral, resumoChave, prefixo, buscaTexto, buscaPatrimonio } = config
+  const buscaHabilitada = !!buscaTexto
   const searchParams = useSearchParams()
   const query = searchParams.toString()
 
@@ -378,15 +446,39 @@ export function useFiltrosTabela<T extends LinhaFiltravel>(rows: T[], config: Co
     [decisaoAtual, opcoes, camposAtivos],
   )
 
-  const filtradas = useMemo(
-    () => filtrarLinhas(rows, camposAtivos, filtros),
-    [rows, camposAtivos, filtros],
+  // Busca livre (F16/T3). O termo VIVE NA URL (`<prefixo>.q`), como os filtros —
+  // sobrevive a F5/link/back. Mas um `<input>` de texto precisa responder à tecla
+  // ANTES do round-trip da URL: por isso um espelho local, ressincronizado quando a
+  // URL muda por fora (back/forward, aba de filial, auto-refresh). Mesmo padrão de
+  // "ajuste de estado no render" já usado para a `decisao`.
+  const buscaUrl = useMemo(
+    () => (buscaHabilitada ? lerBuscaDaQuery(query, prefixo) : ''),
+    [buscaHabilitada, query, prefixo],
   )
+  const [buscaState, setBuscaState] = useState(buscaUrl)
+  const [buscaUrlVista, setBuscaUrlVista] = useState(buscaUrl)
+  if (buscaUrl !== buscaUrlVista) {
+    setBuscaUrlVista(buscaUrl)
+    setBuscaState(buscaUrl)
+  }
+  const busca = buscaState
+
+  const filtradas = useMemo(() => {
+    const base = filtrarLinhas(rows, camposAtivos, filtros)
+    const termo = busca.trim()
+    if (!buscaTexto || !termo) return base
+    return base.filter((r) =>
+      casaBusca(buscaTexto(r), buscaPatrimonio ? buscaPatrimonio(r) : null, termo),
+    )
+  }, [rows, camposAtivos, filtros, busca, buscaTexto, buscaPatrimonio])
 
   const temFiltro = useMemo(
     () => camposAtivos.some((c) => !!filtros[c]),
     [camposAtivos, filtros],
   )
+  const temBusca = buscaHabilitada && busca.trim() !== ''
+  // "Recorte" = filtro OU busca ativa. Governa o "M exibida(s)" e o botão "Limpar".
+  const temRecorte = temFiltro || temBusca
 
   const resumo = useMemo<[string, number][]>(() => {
     if (!resumoChave) return []
@@ -435,10 +527,35 @@ export function useFiltrosTabela<T extends LinhaFiltravel>(rows: T[], config: Co
     [gravar, prefixo],
   )
 
+  const setBusca = useCallback(
+    (valor: string) => {
+      // Vale na hora (estado local), grave quando gravar; a base do write é sempre
+      // a URL fresca (window.location) via `gravar`, então compõe com os filtros.
+      setBuscaState(valor)
+      gravar((q) => escreverBuscaNaQuery(q, prefixo, valor))
+    },
+    [gravar, prefixo],
+  )
+
   const limpar = useCallback(() => {
     setDecisao((prev) => ({ ...prev, aceito: { ...FILTROS_VAZIOS } }))
+    setBuscaState('')
+    // `limparFiltrosNaQuery` já tira o param de busca também (ver a função).
     gravar((q) => limparFiltrosNaQuery(q, prefixo))
   }, [gravar, prefixo])
 
-  return { filtradas, temFiltro, resumo, filtros, opcoes, camposAtivos, setFiltro, limpar }
+  return {
+    filtradas,
+    temFiltro,
+    temBusca,
+    temRecorte,
+    resumo,
+    filtros,
+    opcoes,
+    camposAtivos,
+    busca,
+    setFiltro,
+    setBusca,
+    limpar,
+  }
 }

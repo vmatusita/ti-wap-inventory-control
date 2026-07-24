@@ -7,7 +7,7 @@ import type {
 } from '@/lib/relatorios/tipos'
 import { ehSnapshotV2 } from '@/lib/relatorios/tipos'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
-import { KpiTiles } from '@/components/relatorios/kpi-tiles'
+import { KpiTiles, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
 import { GraficoMovSerie } from '@/components/relatorios/grafico-mov-serie'
 import { BarrasHorizontais } from '@/components/relatorios/barras-horizontais'
@@ -56,15 +56,20 @@ function serieDoSnapshot(s: SnapshotRelatorio): SerieMovimentacoes {
 // `ehOperador` (default seguro `false`): pendência é assunto interno da TI — o
 // viewer por senha não vê a seção Pendências em lugar nenhum (A5/F6A). Quem
 // esquecer de passar a flag ESCONDE, não vaza.
+// F16/T4 — `links` (destinos dos KPI tiles) só chega no relatório AO VIVO para o
+// operador; o snapshot congelado e o viewer não recebem (a página não os monta). V1
+// (snapshots antigos) NÃO repassa `links` — segue sem tiles clicáveis.
 export function CorpoRelatorio({
   snapshot,
   ehOperador = false,
+  links,
 }: {
   snapshot: AnySnapshot
   ehOperador?: boolean
+  links?: LinksKpi
 }) {
   if (ehSnapshotV2(snapshot)) {
-    return <CorpoRelatorioV2 snapshot={snapshot} ehOperador={ehOperador} />
+    return <CorpoRelatorioV2 snapshot={snapshot} ehOperador={ehOperador} links={links} />
   }
   return <CorpoRelatorioV1 snapshot={snapshot} ehOperador={ehOperador} />
 }

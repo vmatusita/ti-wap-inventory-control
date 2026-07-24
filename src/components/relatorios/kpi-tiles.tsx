@@ -113,17 +113,21 @@ const GRUPO_TILES: { chave: keyof KpisRelatorio; rotulo: string }[] = [
 export function GrupoKpis({
   kpis,
   anterior,
+  links,
 }: {
   kpis: KpisRelatorio
   anterior?: KpisRelatorio
+  links?: LinksKpi
 }) {
   return (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
       {GRUPO_TILES.map((t) => {
         const valor = kpis[t.chave] ?? 0
         const delta = anterior ? valor - (anterior[t.chave] ?? 0) : null
-        return (
-          <div key={t.chave} className="rounded-lg border bg-card px-3 py-2.5">
+        const href = links?.[t.chave]
+        const classe = 'rounded-lg border bg-card px-3 py-2.5'
+        const conteudo = (
+          <>
             <div className="text-xs font-medium text-muted-foreground">{t.rotulo}</div>
             <div className="mt-0.5 flex items-baseline gap-1.5">
               <span className="text-xl font-bold tabular-nums">
@@ -131,6 +135,24 @@ export function GrupoKpis({
               </span>
               {delta != null && <DeltaKpi delta={delta} chave={t.chave} />}
             </div>
+          </>
+        )
+        // Sem `links` (snapshot/viewer): a <div> de sempre. Com link (ao vivo,
+        // operador): mesmas classes + hover/foco discretos.
+        return href ? (
+          <Link
+            key={t.chave}
+            href={href}
+            className={cn(
+              classe,
+              'block transition-colors hover:border-primary/40 hover:bg-accent/40 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            )}
+          >
+            {conteudo}
+          </Link>
+        ) : (
+          <div key={t.chave} className={classe}>
+            {conteudo}
           </div>
         )
       })}

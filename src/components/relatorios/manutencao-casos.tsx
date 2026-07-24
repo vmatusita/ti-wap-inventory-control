@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { CheckCircle2, Clock, PackageX, StickyNote } from 'lucide-react'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import type { ManutencaoCaso } from '@/lib/relatorios/tipos'
@@ -5,7 +6,15 @@ import type { ManutencaoCaso } from '@/lib/relatorios/tipos'
 // Manutenção caso a caso (§4.1): um card por ativo — patrimônio, modelo, chamado,
 // badge "há N dias" (ou "voltou em dd/MM"), mini-linha do tempo: obs do envio →
 // anotações (autor+data) → retorno. Inclui quem voltou de manutenção no período.
-export function ManutencaoCasos({ casos }: { casos: ManutencaoCaso[] }) {
+// F16/T3 — para o operador, o patrimônio vira link p/ a ficha (viewer → texto puro;
+// snapshots antigos sem `ativoId` → texto puro).
+export function ManutencaoCasos({
+  casos,
+  ehOperador,
+}: {
+  casos: ManutencaoCaso[]
+  ehOperador?: boolean
+}) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {casos.map((c, i) => (
@@ -14,7 +23,16 @@ export function ManutencaoCasos({ casos }: { casos: ManutencaoCaso[] }) {
           className="break-inside-avoid rounded-lg border bg-card p-3"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold tabular-nums">{c.patrimonio}</span>
+            {ehOperador && c.ativoId ? (
+              <Link
+                href={`/ativos/${c.ativoId}`}
+                className="font-semibold tabular-nums underline-offset-2 outline-none hover:underline focus-visible:underline"
+              >
+                {c.patrimonio}
+              </Link>
+            ) : (
+              <span className="font-semibold tabular-nums">{c.patrimonio}</span>
+            )}
             <span className="min-w-0 truncate text-sm text-muted-foreground">{c.modelo}</span>
             {c.desfecho === 'devolvido_fornecedor' ? (
               <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">

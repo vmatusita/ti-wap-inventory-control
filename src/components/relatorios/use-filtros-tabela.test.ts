@@ -11,6 +11,10 @@ import {
   limparFiltrosNaQuery,
   sanitizarFiltros,
   decidirFiltros,
+  nomeParamBusca,
+  lerBuscaDaQuery,
+  escreverBuscaNaQuery,
+  casaBusca,
   PREFIXO_FILTROS,
   type CampoFiltro,
 } from '@/components/relatorios/use-filtros-tabela'
@@ -285,6 +289,99 @@ describe('limparFiltrosNaQuery', () => {
 
   it('query só com os filtros da tabela fica vazia', () => {
     expect(limparFiltrosNaQuery('sd.motivo=Troca&sd.tipo=saida', SD)).toBe('')
+  })
+
+  it('F16/T3 — limpa também a busca da própria tabela, preserva a da outra', () => {
+    const query = 'sd.motivo=Troca&sd.q=wap0001234&en.q=fone'
+    expect(limparFiltrosNaQuery(query, SD)).toBe('en.q=fone')
+  })
+})
+
+// ---------- busca livre na URL (F16/T3) ----------
+
+describe('nomeParamBusca', () => {
+  it('monta `<prefixo>.q`', () => {
+    expect(nomeParamBusca(SD)).toBe('sd.q')
+    expect(nomeParamBusca(PREFIXO_FILTROS.transferencias)).toBe('tr.q')
+  })
+})
+
+describe('lerBuscaDaQuery', () => {
+  it('param ausente = string vazia', () => {
+    expect(lerBuscaDaQuery('preset=mes', SD)).toBe('')
+  })
+
+  it('lê só o param do próprio prefixo', () => {
+    const query = 'sd.q=wap0001234&en.q=fone'
+    expect(lerBuscaDaQuery(query, SD)).toBe('wap0001234')
+    expect(lerBuscaDaQuery(query, EN)).toBe('fone')
+  })
+
+  it('decodifica espaço e acento', () => {
+    const query = escreverBuscaNaQuery('', SD, 'wap 1234 avariá')
+    expect(lerBuscaDaQuery(query, SD)).toBe('wap 1234 avariá')
+  })
+})
+
+describe('escreverBuscaNaQuery', () => {
+  it('grava o termo e preserva período/filtros/outra tabela', () => {
+    const out = escreverBuscaNaQuery('preset=mes&sd.motivo=Troca&en.q=fone', SD, 'wap0001234')
+    const p = new URLSearchParams(out)
+    expect(p.get('sd.q')).toBe('wap0001234')
+    expect(p.get('sd.motivo')).toBe('Troca')
+    expect(p.get('en.q')).toBe('fone')
+    expect(p.get('preset')).toBe('mes')
+  })
+
+  it('termo vazio REMOVE o param (nada de "sd.q=" pendurado)', () => {
+    expect(escreverBuscaNaQuery('preset=mes&sd.q=x', SD, '')).toBe('preset=mes')
+  })
+})
+
+describe('casaBusca', () => {
+  const campos = ['Matriz', 'Notebook', 'Dell Latitude', 'WAP0001234', 'Avaria']
+
+  it('termo vazio casa tudo', () => {
+    expect(casaBusca(campos, 'WAP0001234', '')).toBe(true)
+    expect(casaBusca(campos, 'WAP0001234', '   ')).toBe(true)
+  })
+
+  it('substring em qualquer campo, sem sensibilidade a caixa/acento', () => {
+    expect(casaBusca(campos, 'WAP0001234', 'dell')).toBe(true)
+    expect(casaBusca(campos, 'WAP0001234', 'AVARIA')).toBe(true)
+    expect(casaBusca(campos, 'WAP0001234', 'avariá')).toBe(true)
+    expect(casaBusca(campos, 'WAP0001234', 'matriz')).toBe(true)
+  })
+
+  it('não casa termo ausente', () => {
+    expect(casaBusca(campos, 'WAP0001234', 'lenovo')).toBe(false)
+  })
+
+  it('patrimônio no formato canônico casa por substring', () => {
+    expect(casaBusca(campos, 'WAP0001234', 'wap0001234')).toBe(true)
+    expect(casaBusca(campos, 'WAP0001234', '1234')).toBe(true)
+  })
+
+  it('patrimônio FORA do formato canônico casa (canoniza o termo)', () => {
+    // "wap 1234" e "wap-1234" → WAP0001234
+    expect(casaBusca(campos, 'WAP0001234', 'wap 1234')).toBe(true)
+    expect(casaBusca(campos, 'WAP0001234', 'WAP-1234')).toBe(true)
+    expect(casaBusca(campos, 'WAP0001234', 'wap0001234')).toBe(true)
+  })
+
+  it('sem patrimônio (itens), só o caminho de substring', () => {
+    const campit = ['Matriz', 'Mouse USB', 'Acessório', 'Liberação']
+    expect(casaBusca(campit, null, 'mouse')).toBe(true)
+    expect(casaBusca(campit, null, 'wap0001234')).toBe(false)
+  })
+
+  it('não casa atravessando dois campos (sentinela)', () => {
+    // "notebookdell" não deve casar juntando o fim de "Notebook" com "Dell..."
+    expect(casaBusca(campos, 'WAP0001234', 'notebookdell')).toBe(false)
+  })
+
+  it('ignora campos nulos/vazios sem quebrar', () => {
+    expect(casaBusca(['Matriz', null, undefined, ''], null, 'matriz')).toBe(true)
   })
 })
 

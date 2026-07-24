@@ -1,7 +1,8 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -18,9 +19,10 @@ import {
 } from '@/components/relatorios/use-filtros-tabela'
 
 // Barra de filtros compartilhada das tabelas de relatório (OS tech-debt 3.2):
-// N `<Select>` (dirigidos por `campos`) + botão "Limpar". Puramente controlada —
-// o estado/opções vêm do `useFiltrosTabela`. Sem campos → não renderiza nada
-// (ex.: a tabela de movimentações sem `filtrosInternos`). `print:hidden` mantido.
+// campo de busca livre (F16/T3, quando `setBusca`) + N `<Select>` (dirigidos por
+// `campos`) + botão "Limpar". Puramente controlada — o estado/opções vêm do
+// `useFiltrosTabela`. Sem campos E sem busca → não renderiza nada (ex.: a tabela de
+// movimentações v1 sem `filtrosInternos`). `print:hidden` mantido.
 export function FiltrosTabela({
   campos,
   filtros,
@@ -29,6 +31,8 @@ export function FiltrosTabela({
   setFiltro,
   limpar,
   className,
+  busca,
+  setBusca,
 }: {
   campos: CampoFiltro[]
   filtros: Record<CampoFiltro, string>
@@ -37,11 +41,33 @@ export function FiltrosTabela({
   setFiltro: (campo: CampoFiltro, valor: string) => void
   limpar: () => void
   className?: string
+  // F16/T3 — busca livre. Presentes → renderiza o campo de busca; ausentes → barra
+  // só com selects (tabelas antigas). Transferências/mov-itens usam SÓ a busca.
+  busca?: string
+  setBusca?: (valor: string) => void
 }) {
-  if (campos.length === 0) return null
+  if (campos.length === 0 && !setBusca) return null
+
+  const mostrarLimpar = temFiltro || (busca ?? '').trim() !== ''
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2 print:hidden', className)}>
+      {setBusca && (
+        <div className="relative w-full sm:w-[220px]">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            value={busca ?? ''}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar nesta tabela…"
+            aria-label="Buscar nesta tabela"
+            className="h-8 pl-7 text-sm"
+          />
+        </div>
+      )}
       {campos.map((campo) => {
         const meta = CAMPO_FILTRO_META[campo]
         return (
@@ -64,7 +90,7 @@ export function FiltrosTabela({
           </Select>
         )
       })}
-      {temFiltro && (
+      {mostrarLimpar && (
         <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={limpar}>
           <X className="size-4" />
           Limpar

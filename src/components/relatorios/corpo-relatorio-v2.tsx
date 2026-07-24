@@ -2,7 +2,7 @@ import { GRUPO_ITEM_META } from '@/lib/dominio'
 import { formatDate } from '@/lib/format'
 import type { GranularidadeSerie, SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
-import { KpiTiles, GrupoKpis } from '@/components/relatorios/kpi-tiles'
+import { KpiTiles, GrupoKpis, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { GraficoMovSerie } from '@/components/relatorios/grafico-mov-serie'
 import { BarrasHorizontais } from '@/components/relatorios/barras-horizontais'
 import { BarrasEmpilhadas } from '@/components/relatorios/barras-empilhadas'
@@ -40,9 +40,11 @@ function Frescor({ data }: { data: string | null }) {
 export function CorpoRelatorioV2({
   snapshot,
   ehOperador = false,
+  links,
 }: {
   snapshot: SnapshotRelatorioV2
   ehOperador?: boolean
+  links?: LinksKpi
 }) {
   const s = snapshot
   const serie = s.serieMovimentacoes
@@ -58,7 +60,7 @@ export function CorpoRelatorioV2({
       />
 
       {/* 1. KPIs gerais + série */}
-      <KpiTiles kpis={s.kpis} anterior={s.kpisAnterior} />
+      <KpiTiles kpis={s.kpis} anterior={s.kpisAnterior} links={links} />
 
       <CardRelatorio
         wide
@@ -76,7 +78,7 @@ export function CorpoRelatorioV2({
         descricao="notebooks, desktops, monitores, celulares, tablets"
         sempreAberto
       >
-        <GrupoKpis kpis={s.kpis} anterior={s.kpisAnterior} />
+        <GrupoKpis kpis={s.kpis} anterior={s.kpisAnterior} links={links} />
 
         <div className="rel-print-cols grid gap-3.5 md:grid-cols-2">
           <CardRelatorio
@@ -132,7 +134,7 @@ export function CorpoRelatorioV2({
             subtitulo={`${s.manutencao.length.toLocaleString('pt-BR')} caso(s) — envio, anotações e retorno`}
             vazio={s.manutencao.length === 0}
           >
-            <ManutencaoCasos casos={s.manutencao} />
+            <ManutencaoCasos casos={s.manutencao} ehOperador={ehOperador} />
           </CardRelatorio>
         </div>
       </GrupoColapsavel>
@@ -184,9 +186,9 @@ export function CorpoRelatorioV2({
       )}
 
       {/* 6–7. Tabelas detalhadas */}
-      <TabelaSaidas rows={s.saidas} ehGeral={s.meta.ehGeral} />
-      <TabelaEntradas rows={s.entradas} ehGeral={s.meta.ehGeral} />
-      <TabelaTransferencias rows={s.transferencias} />
+      <TabelaSaidas rows={s.saidas} ehGeral={s.meta.ehGeral} ehOperador={ehOperador} />
+      <TabelaEntradas rows={s.entradas} ehGeral={s.meta.ehGeral} ehOperador={ehOperador} />
+      <TabelaTransferencias rows={s.transferencias} ehOperador={ehOperador} />
 
       {/* 8. Movimentações de itens por quantidade (B5 — seção própria) */}
       <TabelaMovItens rows={s.movimentacoesItens} ehGeral={s.meta.ehGeral} />
