@@ -63,7 +63,7 @@ export default async function ConfirmarPage({
               <p className="text-sm text-muted-foreground">
                 {recuperacao
                   ? 'Clique abaixo para continuar e definir uma nova senha.'
-                  : 'Bem-vindo(a)! Clique abaixo para ativar seu acesso e definir sua senha.'}
+                  : 'Bem-vindo(a)! Clique abaixo para ativar seu acesso e informar seu nome, sobrenome e senha.'}
               </p>
               <BotaoAtivar>
                 {recuperacao ? 'Continuar' : 'Ativar meu acesso'}

@@ -35,7 +35,7 @@ Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migr
 | `termos_gerados` | Snapshot jsonb + ponteiro para o `.docx` no Storage privado. |
 | `anotacoes` | Notas livres na linha do tempo do ativo. |
 | `import_logs` | Auditoria do import de startup (arquivo, hash, correções, contagens). |
-| `profiles` | Operadores (domínios corporativos da spec §3; nível único, sem papéis). |
+| `profiles` | Operadores (domínios corporativos da spec §3; nível único, sem papéis). `primeiro_nome` + `sobrenome` vêm da própria pessoa ao aceitar o convite; **`nome` é coluna GERADA** com os dois juntos (`0057`) — é ela que todo o app lê para exibir autoria. |
 
 ## 3. Máquina de estados
 
@@ -89,7 +89,7 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 
 ## 9. Banco, migrations e CI
 
-- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0055`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026). *(Emenda F19: o intervalo estava congelado em `0040`.)*
+- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0057`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026). *(Emenda F19: o intervalo estava congelado em `0040`.)*
 - **Tipos** gerados do schema em `src/lib/types/database.ts` (`npm run db:types`) — não editar à mão.
 - **CI** (`.github/workflows/ci.yml`): job `verificar` (`lint` + `test` + `build`) e job `banco` (sobe Postgres, aplica `0001`→última migration em ordem e roda os roteiros de `supabase/tests/`).
 - **Deploy/migrations em produção:** [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) (topologia prod/ensaio, o gate, apply manual, armadilhas conhecidas).

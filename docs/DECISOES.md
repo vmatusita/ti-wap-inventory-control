@@ -2017,3 +2017,60 @@ Base sólida: das **209 regras** mapeadas na `docs/MATRIZ-REGRAS.md` (7 áreas),
     procura a causa.
   - Lição geral: **teste que falha sem dizer por quê custa mais que teste que não existe** — o
     diagnóstico consumiu mais tempo que a correção.
+
+## 2026-07-24 · Convite · Nome e sobrenome informados pela própria pessoa (migration `0057`)
+
+- **Contexto:** pedido do Johnny — ao aceitar o convite, além de definir a senha o novo operador
+  informa **nome e sobrenome**, em **dois campos separados**. Até aqui nome de gente nunca era
+  coletado: o trigger `handle_new_user` (0001 → 0041) gravava o **e-mail** em `profiles.nome`, e era
+  esse e-mail que aparecia como autor de movimentação, anotação, termo, import e snapshot, no
+  cabeçalho do app, em `/admin/usuarios` e no campo `tecnico` dos termos `.docx`.
+- **Decisão (desenho de dados):** `profiles.nome` é lida como "o nome que se exibe" em ~10 pontos do
+  código. Se ela passasse a guardar só o primeiro nome, todos esses lugares mostrariam meio nome.
+  Então a `0057` **renomeou** a coluna existente para `primeiro_nome`, acrescentou `sobrenome` e
+  **devolveu `nome` como coluna GERADA** (`nullif(btrim(primeiro_nome || ' ' || sobrenome), '')`).
+  Resultado: **nenhum consumidor de leitura mudou** — `nome` continua sendo a coluna de exibição,
+  agora derivada e impossível de dessincronizar (`generated always`: o banco recusa escrita direta,
+  e o `database.ts` reflete isso tirando `nome` de `Insert`/`Update`). O `nullif` preserva a
+  semântica de hoje (perfil sem nome devolve **NULL**, não `''`, que é o que `ouTraco` espera).
+- **Motivo de não ser o admin quem digita o nome no convite:** o pedido é explícito ("além **dele**
+  definir senha"), e é a própria pessoa quem sabe como o nome dela se escreve. O diálogo de convite
+  segue pedindo só o e-mail.
+- **Efeito nas linhas antigas:** `sobrenome` nulo e `nome` = `primeiro_nome`, ou seja, **exatamente o
+  valor de antes** — a exibição não mudou para ninguém. Quem já tem conta preenche os dois campos na
+  próxima vez que usar um link de acesso (a mesma tela atende convite e recuperação, com os campos
+  **pré-preenchidos** pela regra pura de `src/lib/auth/nome-pessoa.ts`, testada: sobrenome gravado →
+  usa como está; valor com `@` → **não** pré-preenche, para o fallback de e-mail do banco não vazar
+  para dentro do dado de verdade; nome completo antigo → parte no primeiro espaço).
+- **Escrita virou Server Action** (`definirAcesso`, em `src/lib/actions/auth.ts`): a tela fazia
+  `supabase.auth.updateUser` **no navegador**, sem Zod do lado do servidor. Agora nome e senha vão
+  na mesma chamada, validados por Zod no servidor (convenção do CLAUDE.md). **Ordem proposital:
+  perfil antes da senha** — se a segunda etapa falhar, o pior caso é perfil nomeado sem senha nova
+  (a pessoa reabre o link); o inverso perderia o nome calado. O `update` volta com `.select('id')`
+  de propósito: sem ele, um update que casa **zero** linhas devolveria sucesso. Mantidos intactos os
+  dois endurecimentos que a tela já tinha (F13/A1 — botão desabilitado até hidratar, para o submit
+  nativo nunca levar a senha na URL; F13/B1 — `try/catch` em volta da chamada da action).
+- **Rollout (caminho A do `docs/RUNBOOK-BANCO.md` — aditiva, sem `delete from`):** aplicada por MCP
+  em **ensaio primeiro**, conferida lá com um `DO` block que gravou/leu/reverteu (rollback por
+  `raise exception`), depois em **produção**; registrada no ledger dos dois. Dependências levantadas
+  ANTES: única view que referencia colunas de `profiles` é `v_pendencias_item` (0052) — recriada por
+  `create or replace` com a **mesma lista de colunas** (então `v_fila_pendencias`, que lê dela, não
+  precisou ser tocada); única função que cita `profiles` é `handle_new_user` — recriada preservando
+  **intacta** a trava de domínio da 0041. Nenhum código do app ou de `scripts/` escreve em
+  `profiles`. Contagens produção **antes = depois**: 9 perfis (9 com nome), 1.597 ativos,
+  `v_fila_pendencias` 58, `v_pendencias_item` 3; `anon` segue sem `execute` no trigger. Cache do
+  PostgREST recarregado nos dois projetos.
+- **Verificação:** `lint` limpo · `build` 24 rotas · `vitest` **1125** testes (6 novos da regra de
+  prefill) · `smoke-prod.mjs` **52 OK · 0 falha** rodado DEPOIS da migration contra o app em
+  produção (que ainda roda o código anterior) — prova que a coluna gerada não quebrou nenhuma
+  leitura já no ar, inclusive `/admin/usuarios` · GET autenticado local de `/auth/definir-senha`
+  (cookie forjado no padrão da parte C do smoke, só leitura) devolvendo **200** com os quatro campos
+  `nome`/`sobrenome`/`senha`/`confirmacao` e os `autoComplete` corretos.
+- **Reversível?** sim, e sem perda: `alter table public.profiles drop column nome;` →
+  `alter table public.profiles rename column primeiro_nome to nome;` →
+  `alter table public.profiles drop column sobrenome;` → `create or replace` da `v_pendencias_item`
+  e do `handle_new_user` com os corpos da `0052`/`0041`. O conteúdo do `nome` original nunca saiu de
+  `primeiro_nome`.
+- **`db:types` continua sem CLI nesta máquina** (`supabase gen types --linked` sai 1 — o projeto não
+  está linkado aqui), então o bloco `profiles` de `src/lib/types/database.ts` foi editado à mão, no
+  formato que o gerador produz para coluna gerada (presente em `Row`, ausente de `Insert`/`Update`).

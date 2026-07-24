@@ -618,16 +618,20 @@ export type Database = {
           created_at: string
           id: string
           nome: string | null
+          primeiro_nome: string | null
+          sobrenome: string | null
         }
         Insert: {
           created_at?: string
           id: string
-          nome?: string | null
+          primeiro_nome?: string | null
+          sobrenome?: string | null
         }
         Update: {
           created_at?: string
           id?: string
-          nome?: string | null
+          primeiro_nome?: string | null
+          sobrenome?: string | null
         }
         Relationships: []
       }
