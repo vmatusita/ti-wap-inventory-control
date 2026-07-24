@@ -155,7 +155,7 @@ export function DevolucaoFornecedorForm({
   if (sucesso) {
     return (
       <div className="rounded-lg border bg-card p-6">
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">
+        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
           <Check className="size-6" />
         </div>
         <h2 className="text-center text-lg font-semibold">

@@ -1981,3 +1981,39 @@ Base sólida: das **209 regras** mapeadas na `docs/MATRIZ-REGRAS.md` (7 áreas),
 - **Smoke logado não executado — `.env.smoke` não existe nesta máquina.** Degradado para smoke
   público (build + start + curl) mais verificação do tema por script, sem credencial. Registrado
   como pendência no relatório, com checklist manual de 2 minutos para o Johnny.
+
+## 2026-07-24 · F19-UX (pós-fecho) · Par verde AA, smoke logado e screenshot de tela logada
+
+- **Par verde `green-700`/`green-100` fechado a pedido do Johnny.** Media 4,4996:1 — reprovava AA
+  por 0,0004 em 12 pontos de 10 arquivos. Decisão: `text-green-800` (6,45:1). **Antes de trocar,
+  medi a família inteira** e só o verde reprovava (violeta 6,13 · azul 5,59 · teal 4,79 · ciano 4,71
+  · laranja 4,56 · âmbar 6,41 · cinza 6,11 · slate 8,40), então só ele desceu um degrau. Motivo de
+  não uniformizar todos em `-800`: seria escurecer 7 matizes sem ganho de acessibilidade. A
+  divergência aparente (verde 800, irmãos 700) está explicada em comentário no próprio
+  `dominio.ts`, no ponto onde alguém iria "consertá-la". Reversível? sim — é troca de classe.
+
+- **Screenshot de tela LOGADA nunca entra no repositório.**
+  - Contexto: com o `.env.smoke` disponível, o smoke passou a capturar dashboard, `/ativos` e
+    `/movimentacoes/nova`. O `.env.local` desta máquina aponta para **produção**: os PNGs saíram com
+    patrimônio, nome de colaborador e filial REAIS. Eu os gravei em `docs/f19-evidencias/` —
+    violação direta da regra 2 do CLAUDE.md.
+  - Contenção: apagados **antes de qualquer commit**; conferido por `git ls-files` que nunca
+    entraram no índice (versionados são só os 3 de login, que mostram formulário vazio).
+  - Decisão: as telas logadas passam a ser gravadas no **temp do sistema operacional**
+    (`os.tmpdir()/smoke-f19-logado`), fora do alcance de `git add -A`, com o caminho impresso ao
+    final da execução. Quem roda o smoke vê as imagens; o repositório não.
+  - Motivo de não usar `.gitignore`: um caminho ignorado ainda mora dentro do repo e reaparece em
+    `git add -f`, em zip do diretório e em backup. Gravar fora é a garantia estrutural.
+
+- **Dois defeitos do próprio script de smoke, corrigidos** (valem como lição de instrumentação):
+  - O parser do `.env` não removia **aspas** em volta do valor. O e-mail com a aspa era recusado
+    pela validação **nativa** do `<input type="email">` — o navegador nem submetia. Sem submit não
+    há navegação, toast nem erro inline, e o smoke traduzia isso como "login recusado" com mensagem
+    VAZIA. Agora tira aspas e `\r`, e **confere `checkValidity()` antes de clicar**, nomeando o
+    campo culpado (nunca o valor).
+  - A espera do login era um `Promise.race` entre "navegou" e "apareceu erro". Durante a navegação o
+    `waitForSelector` resolvia primeiro, contra o documento NOVO, devolvendo texto vazio — falso
+    negativo com o login funcionando. Agora é sequencial: espera a navegação e, só se ela não vier,
+    procura a causa.
+  - Lição geral: **teste que falha sem dizer por quê custa mais que teste que não existe** — o
+    diagnóstico consumiu mais tempo que a correção.

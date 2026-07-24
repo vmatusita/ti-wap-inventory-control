@@ -13,6 +13,14 @@ export type TermoStatus = Enums<'termo_status'>
 // Cores por grupo (spec §6.3 / OS-F2 3.1.1): em_uso azul-claro, em_estoque
 // verde-claro, manutencao ambar, descartado cinza, defasado neutro. Os demais
 // (reservado, emprestado, em_triagem) recebem cores distintas coerentes.
+//
+// F19-pós — POR QUE o VERDE usa `text-*-800` e os irmãos usam `text-*-700`:
+// medido, `green-700` sobre `green-100` da o par mais fraco da familia inteira,
+// 4,4996:1 — reprova AA por 0,0004 nos 11px do badge. Os demais passam
+// (violeta 6,13 · azul 5,59 · teal 4,79 · ciano 4,71 · laranja 4,56 · ambar 6,41
+// no 800 · cinza 6,11 · slate 8,40), entao so o verde desceu um degrau, para
+// `green-800` (6,45:1). Nao e inconsistencia: e o mesmo ALVO de contraste com a
+// tinta que cada matiz exige. Confira com `node scripts/contraste.mjs`.
 export const STATUS_META: Record<
   StatusAtivo,
   { rotulo: string; badge: string }
@@ -20,7 +28,7 @@ export const STATUS_META: Record<
   em_estoque: {
     rotulo: 'Em estoque',
     badge:
-      'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 border-transparent',
+      'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 border-transparent',
   },
   reservado: {
     rotulo: 'Reservado',
@@ -117,10 +125,11 @@ export function rotuloTipo(t: TipoMovimentacao): string {
 // tema escuro ligado isso vira texto escuro sobre pílula clara cravada no card
 // escuro. Pares idênticos aos de STATUS_META e TIPO_LANC_PILL, logo abaixo:
 // bg-*-100 → dark:bg-*-950 · text-*-700|800 → dark:text-*-300.
+// (O `compra` usa 800 pelo mesmo motivo medido do `em_estoque` — ver STATUS_META.)
 const TIPO_PILL: Partial<Record<TipoMovimentacao, string>> = {
   saida: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   devolucao: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  compra: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
+  compra: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
   troca: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
 }
 
@@ -221,7 +230,7 @@ const TIPO_LANC_PILL: Record<TipoLancamento, string> = {
   entrada: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
   saida: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   reserva: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
-  liberacao: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
+  liberacao: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
   retorno: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
   // F19 — mesmo neutro AA do `pillTipo` (ver PILL_NEUTRA).
   ajuste: PILL_NEUTRA,

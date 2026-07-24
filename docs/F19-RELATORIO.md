@@ -18,12 +18,12 @@ ligado como **opt-in**. 100% camada de UI/client — **zero migration, zero depe
 | Chamadas client de action sem `catch` | **28** | **0** | ✅ |
 | `<Label>` de Select sem nome acessível | **12** | **0** | ✅ |
 | Cores claras fixas sem par `dark:` | **21** | **0** | ✅ |
-| Smoke (rotas, tema, impressão, console) | — | **24 checagens, 0 falha** | ✅ |
+| Smoke (rotas, tema, impressão, console) | — | **28 checagens, 0 falha** — inclui o passo LOGADO | ✅ |
 | Migrations | 0 | **0** | — |
 | Dependências novas | 0 | **0** | — |
 
 **Veredito:** entregue por inteiro. O tema claro continua sendo o padrão — quem nunca tocar no
-toggle não vê diferença nenhuma. Empurrado para `origin/main` com todos os critérios verdes; o que resta é o smoke logado (sem credencial nesta máquina) e o checklist manual de 2 minutos do §10.
+toggle não vê diferença nenhuma. Empurrado para `origin/main` com todos os critérios verdes. O smoke **logado** rodou depois, com o `.env.smoke` que o Johnny criou, e o par de contraste que ficara no backlog foi fechado (§3) — os dois numa segunda leva de commits.
 
 ---
 
@@ -231,9 +231,18 @@ revisão de 24/07 apurou à mão (3,22 · 4,34 · 6,11 · 2,54).
 | dark: | pílula Saída (escuro, NOVO) | escuro | `amber-300` | `amber-950` | 10.37:1 | 4.5:1 | ✅ AAA |
 | dark: | pílula Devolução (claro, inalterado) | claro | `blue-700` | `blue-100` | 5.59:1 | 4.5:1 | ✅ AA |
 | dark: | pílula Devolução (escuro, NOVO) | escuro | `blue-300` | `blue-950` | 8.13:1 | 4.5:1 | ✅ AAA |
-| dark: | pílula Compra (claro, PRÉ-EXISTENTE) | claro | `green-700` | `green-100` | 4.50:1 | 4.5:1 | ❌ reprova (pré-existente — backlog) |
+| verde | badge/pílula verde — ANTES | claro | `green-700` | `green-100` | 4.50:1 | 4.5:1 | ❌ reprova |
+| verde | badge/pílula verde — DEPOIS | claro | `green-800` | `green-100` | 6.45:1 | 4.5:1 | ✅ AA |
+| verde | badge/pílula verde — escuro (inalterado) | escuro | `green-300` | `green-950` | 10.67:1 | 4.5:1 | ✅ AAA |
+| família | Reservado (violeta) | claro | `violet-700` | `violet-100` | 6.13:1 | 4.5:1 | ✅ AA |
+| família | Em uso (azul) | claro | `blue-700` | `blue-100` | 5.59:1 | 4.5:1 | ✅ AA |
+| família | Emprestado (ciano) | claro | `cyan-700` | `cyan-100` | 4.71:1 | 4.5:1 | ✅ AA |
+| família | Em triagem (laranja) | claro | `orange-700` | `orange-100` | 4.56:1 | 4.5:1 | ✅ AA |
+| família | Em manutenção (âmbar) | claro | `amber-800` | `amber-100` | 6.41:1 | 4.5:1 | ✅ AA |
+| família | Descartado (cinza) | claro | `gray-600` | `gray-200` | 6.11:1 | 4.5:1 | ✅ AA |
+| família | Devolvido ao fornecedor (slate) | claro | `slate-700` | `slate-200` | 8.40:1 | 4.5:1 | ✅ AAA |
+| família | Troca (teal) | claro | `teal-700` | `teal-100` | 4.79:1 | 4.5:1 | ✅ AA |
 | dark: | pílula Compra (escuro, NOVO) | escuro | `green-300` | `green-950` | 10.67:1 | 4.5:1 | ✅ AAA |
-| dark: | badge Ativo admin (claro, PRÉ-EXISTENTE) | claro | `green-700` | `green-100` | 4.50:1 | 4.5:1 | ❌ reprova (pré-existente — backlog) |
 | dark: | badge Ativo admin (escuro, NOVO) | escuro | `green-300` | `green-950` | 10.67:1 | 4.5:1 | ✅ AAA |
 | dark: | pendência dashboard (claro, inalterado) | claro | `amber-800` | `card` | 7.13:1 | 4.5:1 | ✅ AAA |
 | dark: | pendência dashboard (escuro, NOVO) | escuro | `amber-300` | `card` | 12.39:1 | 4.5:1 | ✅ AAA |
@@ -253,20 +262,30 @@ revisão de 24/07 apurou à mão (3,22 · 4,34 · 6,11 · 2,54).
 | P2-7 | rótulo Em manutenção — DEPOIS (preto) | claro | `black` | `#d97706` | 6.59:1 | 4.5:1 | ✅ AA |
 | P2-7 | rótulo Defasado — ANTES (branco) | claro | `white` | `#9ca3af` | 2.54:1 | 4.5:1 | ❌ reprova |
 | P2-7 | rótulo Defasado — DEPOIS (preto) | claro | `black` | `#9ca3af` | 8.27:1 | 4.5:1 | ✅ AAA |
+| P2-12c | anel :target — ANTES (amber-400) | claro | `amber-400` | `card` | 1.72:1 | 3:1 | ❌ reprova |
+| P2-12c | anel :target — DEPOIS (token warning) | claro | `warning` | `card` | 5.65:1 | 3:1 | ✅ AA |
+| P2-12c | anel :target — DEPOIS (escuro) | escuro | `warning` | `card` | 9.47:1 | 3:1 | ✅ AAA |
 | marca | azul WAP sobre card escuro | escuro | `#2a78d6` | `card` | 4.06:1 | 3:1 | ✅ AA |
 | marca | amarelo WAP sobre card escuro | escuro | `#eda100` | `card` | 8.27:1 | 3:1 | ✅ AAA |
 
-**Como ler:** as linhas "ANTES" são o registro do defeito e reprovam de propósito. Todo par que a
-F19 **alterou** passa AA (≥4,5:1 para texto; ≥3:1 para elemento gráfico) **nos dois temas**.
+### O par verde — achado do medidor, e agora fechado
 
-### Achado NOVO do medidor — fora do escopo, para o backlog
+`text-green-700` sobre `bg-green-100` media **4,4996:1** — reprovava AA por **0,0004**. Era par
+**pré-existente** (não introduzido pela F19), em **12 pontos de 10 arquivos**: `STATUS_META.em_estoque`,
+`TIPO_PILL.compra`, `TIPO_LANC_PILL.liberacao`, os 5 badges "Ativo/Ativa" do admin, os 3 círculos de
+ícone de sucesso e a pílula "voltou" de manutenção. Ficou registrado como backlog no primeiro fecho e
+foi **corrigido a pedido do Johnny**: `text-green-800`, **6,45:1**.
 
-`text-green-700` sobre `bg-green-100` mede **4,4996:1** — reprova por **0,0004**. É par
-**pré-existente**, não algo que a F19 introduziu, e aparece em **13 pontos de 11 arquivos**
-(`STATUS_META.em_estoque`, `TIPO_PILL.compra`, os 5 badges de admin, `legendas.ts`, `painel-sucesso`,
-`manutencao-casos`, `nova-compra-form`, `devolucao-fornecedor-form`). Trocá-lo é varredura de outra
-ordem — foi **medido e marcado como tal** no script (a tabela mostra o ❌ verdadeiro, mas ele não
-trava o código de saída). **Correção sugerida:** `text-green-800` → **6,45:1**, uma linha por ponto.
+Antes de trocar, medi a **família inteira** para não sair mexendo em tinta sem necessidade — e só o
+verde reprovava (violeta 6,13 · azul 5,59 · teal 4,79 · ciano 4,71 · laranja 4,56 · âmbar 6,41 ·
+cinza 6,11 · slate 8,40). Por isso **só o verde** desceu um degrau; os irmãos ficaram como estavam.
+Não é inconsistência de paleta: é o alvo de contraste que cada matiz exige com a mesma tinta. O
+comentário em `dominio.ts` explica isso no lugar em que alguém iria "consertar" a divergência.
+
+Conferi também os `text-green-700` sobre **outros** fundos, que não entram nessa troca porque passam:
+sobre `green-50` (callout do import) **4,72:1** e sobre o card (painel de sucesso, Δ dos KPIs)
+**4,94:1**. E o swatch de `legendas.ts` só tem fundo, sem texto.
+
 
 ---
 
@@ -336,8 +355,8 @@ sem entrar no `package.json`.
   OK   /relatorios/acesso → 200
 
 [2] Tema: a classe entra e sai do <html>, e o token acompanha
-  OK   padrão de fábrica é CLARO (class="… h-full antialiased light")
-  OK   tema Escuro aplica a classe (class="… h-full antialiased dark")
+  OK   padrão de fábrica é CLARO (class="… light")
+  OK   tema Escuro aplica a classe (class="… dark")
   OK   o fundo do body MUDOU (lab(100 0 0) → lab(2.75381 0 0))
   OK   tema Claro remove a classe
   OK   o fundo volta ao valor do tema claro
@@ -345,7 +364,7 @@ sem entrar no `package.json`.
   OK   Sistema + SO claro → sem classe dark
 
 [3] Sem flash de tema errado (o script do next-themes roda antes da pintura)
-  OK   a classe já está no <html> no DOMContentLoaded (class="… antialiased dark")
+  OK   a classe já está no <html> no DOMContentLoaded (class="… dark")
 
 [4] Impressão sai CLARA mesmo com o tema escuro ativo
   OK   na TELA, com tema escuro, os tokens são os escuros (controle do teste)
@@ -360,16 +379,20 @@ sem entrar no `package.json`.
   OK   na IMPRESSÃO nenhuma variante dark: casa (probe = rgba(0, 0, 0, 0))
 
 [5] Telas logadas
-  PULADO — não há .env.smoke com SMOKE_EMAIL/SMOKE_SENHA nesta máquina.
-           (as rotas protegidas redirecionam para /login sem sessão)
-  OK   / sem sessão → redireciona para /login
-  OK   /ativos sem sessão → redireciona para /login
-  OK   /movimentacoes/nova sem sessão → redireciona para /login
+  OK   login concluído → /
+  OK   / (light) → 200
+  OK   /ativos (light) → 200
+  OK   /movimentacoes/nova (light) → 200
+  OK   / (dark) → 200
+  OK   /ativos (dark) → 200
+  OK   /movimentacoes/nova (dark) → 200
 
 [6] Console do navegador
   OK   sem erro de console (0 relevante(s))
 
 === RESULTADO: TUDO OK ===
+Evidências públicas em docs/f19-evidencias/
+Evidências das telas LOGADAS (fora do repo, têm dado real): C:\Users\yukig\AppData\Local\Temp\smoke-f19-logado
 ```
 
 **O passo [4] é a prova completa da impressão clara**, e tem os dois lados: com `.dark` ainda no
@@ -384,6 +407,15 @@ que descarta a hipótese de o teste estar medindo nada.
 | `docs/f19-evidencias/login-claro.png` | tema claro (padrão de fábrica) |
 | `docs/f19-evidencias/login-escuro.png` | tema escuro — note o lockup da marca **preservado** (amarelo sobre escuro) |
 | `docs/f19-evidencias/login-impressao-com-tema-escuro.png` | mídia `print` emulada **com o tema escuro ativo** — sai claro |
+
+> **Por que não há screenshot de tela logada aqui.** Regra 2 do CLAUDE.md: nada de patrimônio real,
+> nome de colaborador real ou linha das planilhas em screenshot — e o `.env.local` desta máquina
+> aponta para **produção**, então o dashboard traz tudo isso na tela. Na primeira execução do smoke
+> logado os 6 PNGs foram gravados em `docs/f19-evidencias/` por descuido meu; foram **apagados
+> antes de qualquer commit** (conferido: nunca entraram no índice do git — só os 3 de login, que
+> mostram formulário vazio, estão versionados). O script agora grava as telas logadas no **temp do
+> sistema operacional**, fora do alcance de `git add`, e diz o caminho ao final. Quem rodar o smoke
+> vê as imagens; o repositório não.
 
 ---
 
@@ -476,8 +508,8 @@ nenhuma variante `dark:` existente removida; nenhum dado real em código, teste 
 | # | Pendência | O que falta |
 |---|---|---|
 | 1 | ~~`git push origin main`~~ ✅ **feito** | `37774eb..127bdf7 main -> main`, com todos os critérios verdes. **Não verifiquei o build na Vercel** — sem o team ID nesta máquina o MCP não lista os deployments. O push dispara o deploy; conferir em vercel.com. |
-| 2 | Smoke logado | Criar `.env.smoke` com `SMOKE_EMAIL`/`SMOKE_SENHA` e rodar `node scripts/smoke-f19.mjs` — o script já tem o passo pronto e captura screenshots das 3 telas nos 2 temas. |
-| 3 | Backlog: `text-green-700`/`bg-green-100` a 4,4996:1 | 13 pontos em 11 arquivos → `text-green-800` (6,45:1). Ver §3. |
+| 2 | ~~Smoke logado~~ ✅ **feito** | O Johnny criou o `.env.smoke`; o passo [5] rodou e passou: login, dashboard, `/ativos` e `/movimentacoes/nova` nos **dois temas**, todos 200 e sem erro de console. Ver §5. |
+| 3 | ~~Backlog: `text-green-700`/`bg-green-100` a 4,4996:1~~ ✅ **feito** | 12 ocorrências em 10 arquivos → `text-green-800` (**4,4996 → 6,45:1**). Ver §3. |
 | 4 | Backlog: `<Label>Itens faltantes na devolução</Label>` | Rotula um GRUPO de checkboxes; o certo é `<fieldset>/<legend>`, não `htmlFor`. Mudança estrutural, maior que esta varredura. |
 | 5 | Backlog: chip "em breve" da sidebar é **código morto** | O ramo placeholder de `sidebar-nav.tsx` nunca renderiza (todos os 8 itens têm `href`). O ajuste de 10 → 11px foi feito assim mesmo, mas o bloco é candidato a remoção. |
 

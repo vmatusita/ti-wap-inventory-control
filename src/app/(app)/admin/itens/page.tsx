@@ -69,7 +69,7 @@ export default async function AdminItensPage() {
                 </TableCell>
                 <TableCell>
                   {it.ativo ? (
-                    <Badge className="border-transparent bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">
+                    <Badge className="border-transparent bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
                       Ativo
                     </Badge>
                   ) : (

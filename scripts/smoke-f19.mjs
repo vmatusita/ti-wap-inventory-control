@@ -21,6 +21,7 @@
 
 import { mkdirSync, existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 
 // Resolve o Playwright SEM instalá-lo no projeto: ele é uma ferramenta avulsa
@@ -57,8 +58,20 @@ const base =
     ? process.argv[process.argv.indexOf('--base') + 1]
     : 'http://localhost:3000'
 
+// Evidências das telas PÚBLICAS (login, impressão): entram no repositório — não
+// há dado de ninguém ali, só o formulário vazio.
 const EVID = 'docs/f19-evidencias'
 mkdirSync(EVID, { recursive: true })
+
+// Evidências das telas LOGADAS: vão para FORA do repositório, sempre.
+//
+// Regra 2 do CLAUDE.md: nenhum patrimônio real, nome de colaborador real ou linha
+// das planilhas da WAP em screenshot. E o `.env.local` desta máquina aponta para
+// PRODUÇÃO — um screenshot do dashboard traz patrimônio, colaborador e filial
+// reais na tela. Já aconteceu de gravarem aqui dentro por engano: o caminho agora
+// é o temp do sistema operacional, onde `git add -A` não alcança.
+const EVID_LOGADO = join(tmpdir(), 'smoke-f19-logado')
+mkdirSync(EVID_LOGADO, { recursive: true })
 
 let falhas = 0
 const linhas = []
@@ -78,10 +91,24 @@ function checar(cond, msg) {
 }
 
 // Credenciais opcionais — NUNCA logadas. Só a presença é reportada.
+//
+// O `.trim()` sozinho NÃO basta: é comum escrever `.env` com o valor entre aspas
+// (`SMOKE_EMAIL="fulano@wap.ind.br"`), e a aspa sobrevivente entrava no campo. O
+// `<Input type="email" required>` então recusava o formulário na validação NATIVA
+// do navegador — sem submit, sem navegação, sem toast e sem erro inline. O smoke
+// ficava esperando uma navegação que nunca vinha e acusava "login recusado" sem
+// mensagem. Tirar as aspas e o `\r` de arquivo salvo em CRLF resolve na origem.
 function lerEnvSmoke() {
   if (!existsSync('.env.smoke')) return null
   const txt = readFileSync('.env.smoke', 'utf8')
-  const pega = (k) => txt.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1]?.trim()
+  const pega = (k) => {
+    const bruto = txt.match(new RegExp(`^\\s*${k}\\s*=(.*)$`, 'm'))?.[1]
+    if (bruto === undefined) return undefined
+    return bruto
+      .trim()
+      .replace(/\r$/, '')
+      .replace(/^(['"])([\s\S]*)\1$/, '$2') // aspas simples OU duplas em volta
+  }
   const email = pega('SMOKE_EMAIL')
   const senha = pega('SMOKE_SENHA')
   return email && senha ? { email, senha } : null
@@ -252,11 +279,56 @@ if (!cred) {
   await pagina.goto(base + '/login', { waitUntil: 'networkidle' })
   await pagina.fill('#email', cred.email)
   await pagina.fill('#senha', cred.senha)
-  await Promise.all([
-    pagina.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30000 }),
-    pagina.click('button[type=submit]'),
-  ])
-  ok('login concluído')
+
+  // Antes de clicar: o formulário passaria na validação NATIVA do navegador? Se
+  // não, o clique não submete nada e o app nunca é chamado — o que já se
+  // confundiu com "credencial recusada". Reportar o campo culpado (sem o valor).
+  const invalidos = await pagina.evaluate(() =>
+    [...document.querySelectorAll('input')]
+      .filter((i) => !i.checkValidity())
+      .map((i) => `#${i.id} (${i.validationMessage})`),
+  )
+  if (invalidos.length > 0) {
+    falha(
+      `o formulário não passa na validação do navegador: ${invalidos.join(', ')} — ` +
+        'confira o formato dos valores em .env.smoke (aspas em volta? espaço sobrando?)',
+    )
+  }
+
+  await pagina.click('button[type=submit]')
+
+  // SEQUENCIAL, não `Promise.race`. A primeira versão corria a navegação contra o
+  // seletor de erro e dava falso NEGATIVO: durante a navegação o `waitForSelector`
+  // resolvia primeiro, contra o documento novo, devolvendo texto vazio — e o smoke
+  // dizia "login recusado" com mensagem em branco enquanto o login tinha
+  // funcionado. Agora: espera a navegação; SÓ se ela não vier é que procura a
+  // causa (o `<p role="alert">` que a própria F19 acrescentou, ou o toast).
+  const navegou = await pagina
+    .waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 40000 })
+    .then(() => true)
+    .catch(() => false)
+
+  if (navegou) {
+    ok(`login concluído → ${new URL(pagina.url()).pathname}`)
+  } else {
+    // NUNCA logamos e-mail nem senha — só a mensagem que o app devolveu.
+    const motivo = await pagina.evaluate(() => {
+      const alerta = document.querySelector('[role=alert]')?.textContent?.trim()
+      const toast = document.querySelector('[data-sonner-toast]')?.textContent?.trim()
+      return alerta || toast || ''
+    })
+    falha(
+      motivo
+        ? `login recusado pelo app → "${motivo}"`
+        : `login não concluiu em 40s e o app não deu mensagem (URL: ${new URL(pagina.url()).pathname})`,
+    )
+    // Fora do repo: o campo de e-mail está preenchido na tela.
+    await pagina.screenshot({ path: join(EVID_LOGADO, 'login-falhou.png') })
+    console.log(`  (screenshot em ${EVID_LOGADO})`)
+  }
+}
+
+if (cred && (await pagina.evaluate(() => !location.pathname.startsWith('/login')))) {
 
   for (const tema of ['light', 'dark']) {
     await definirTema(tema)
@@ -267,7 +339,7 @@ if (!cred) {
     ]) {
       const r = await pagina.goto(base + rota, { waitUntil: 'networkidle' })
       checar(r?.status() === 200, `${rota} (${tema}) → ${r?.status()}`)
-      await pagina.screenshot({ path: join(EVID, `${nome}-${tema}.png`), fullPage: true })
+      await pagina.screenshot({ path: join(EVID_LOGADO, `${nome}-${tema}.png`), fullPage: true })
     }
   }
 }
@@ -283,5 +355,6 @@ for (const e of relevantes.slice(0, 10)) console.log(`         ↳ ${e}`)
 await navegador.close()
 
 console.log(`\n=== RESULTADO: ${falhas === 0 ? 'TUDO OK' : falhas + ' FALHA(S)'} ===`)
-console.log(`Evidências em ${EVID}/`)
+console.log(`Evidências públicas em ${EVID}/`)
+if (cred) console.log(`Evidências das telas LOGADAS (fora do repo, têm dado real): ${EVID_LOGADO}`)
 process.exit(falhas === 0 ? 0 : 1)

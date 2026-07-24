@@ -223,17 +223,27 @@ const PARES = [
   { item: 'dark:', onde: 'pílula Saída (escuro, NOVO)', texto: 'amber-300', fundo: 'amber-950', px: 11, tema: 'escuro', exigir: true },
   { item: 'dark:', onde: 'pílula Devolução (claro, inalterado)', texto: 'blue-700', fundo: 'blue-100', px: 11, exigir: true },
   { item: 'dark:', onde: 'pílula Devolução (escuro, NOVO)', texto: 'blue-300', fundo: 'blue-950', px: 11, tema: 'escuro', exigir: true },
-  // PRÉ-EXISTENTE, medido e NÃO alterado pela F19: `green-700` sobre `green-100`
-  // dá 4,4996:1 — reprova por 0,0004. O par é do tema claro, existe desde antes
-  // desta ordem em 13 pontos de 11 arquivos (STATUS_META, TIPO_PILL.compra, os 5
-  // badges de admin, legendas…) e trocá-lo é varredura de outra ordem. Fica aqui
-  // MEDIDO (a tabela mostra o ❌ verdadeiro) mas fora do `exigir`, para o código de
-  // saída refletir só o que a F19 assumiu. Correção sugerida: text-green-800 (6,45:1).
-  { item: 'dark:', onde: 'pílula Compra (claro, PRÉ-EXISTENTE)', texto: 'green-700', fundo: 'green-100', px: 11, preexistente: true },
+  // F19-pós — o par verde era o mais fraco da família: `green-700` sobre
+  // `green-100` dá 4,4996:1, reprovando AA por 0,0004. Era PRÉ-EXISTENTE (12
+  // pontos em 10 arquivos) e ficou fora do escopo da F19 até o Johnny pedir. Só o
+  // verde desceu para `-800`: os irmãos foram medidos e passam (ver a família logo
+  // abaixo), então mexer neles seria trocar tinta sem ganho.
+  { item: 'verde', onde: 'badge/pílula verde — ANTES', texto: 'green-700', fundo: 'green-100', px: 11, antes: true },
+  { item: 'verde', onde: 'badge/pílula verde — DEPOIS', texto: 'green-800', fundo: 'green-100', px: 11, exigir: true },
+  { item: 'verde', onde: 'badge/pílula verde — escuro (inalterado)', texto: 'green-300', fundo: 'green-950', px: 11, tema: 'escuro', exigir: true },
+
+  // A FAMÍLIA inteira, medida para provar que só o verde precisava mudar.
+  { item: 'família', onde: 'Reservado (violeta)', texto: 'violet-700', fundo: 'violet-100', px: 11, exigir: true },
+  { item: 'família', onde: 'Em uso (azul)', texto: 'blue-700', fundo: 'blue-100', px: 11, exigir: true },
+  { item: 'família', onde: 'Emprestado (ciano)', texto: 'cyan-700', fundo: 'cyan-100', px: 11, exigir: true },
+  { item: 'família', onde: 'Em triagem (laranja)', texto: 'orange-700', fundo: 'orange-100', px: 11, exigir: true },
+  { item: 'família', onde: 'Em manutenção (âmbar)', texto: 'amber-800', fundo: 'amber-100', px: 11, exigir: true },
+  { item: 'família', onde: 'Descartado (cinza)', texto: 'gray-600', fundo: 'gray-200', px: 11, exigir: true },
+  { item: 'família', onde: 'Devolvido ao fornecedor (slate)', texto: 'slate-700', fundo: 'slate-200', px: 11, exigir: true },
+  { item: 'família', onde: 'Troca (teal)', texto: 'teal-700', fundo: 'teal-100', px: 11, exigir: true },
   { item: 'dark:', onde: 'pílula Compra (escuro, NOVO)', texto: 'green-300', fundo: 'green-950', px: 11, tema: 'escuro', exigir: true },
 
   // ---- Varredura dark: · badge "Ativo/Ativa" das 5 telas de admin ------------
-  { item: 'dark:', onde: 'badge Ativo admin (claro, PRÉ-EXISTENTE)', texto: 'green-700', fundo: 'green-100', px: 12, preexistente: true },
   { item: 'dark:', onde: 'badge Ativo admin (escuro, NOVO)', texto: 'green-300', fundo: 'green-950', px: 12, tema: 'escuro', exigir: true },
 
   // ---- Varredura dark: · texto de pendência no dashboard --------------------

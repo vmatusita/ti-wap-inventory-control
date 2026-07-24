@@ -43,7 +43,7 @@ export function ManutencaoCasos({
                 {c.retornoData ? `em ${formatDate(c.retornoData)}` : ''}
               </span>
             ) : c.fechado ? (
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
                 <CheckCircle2 className="size-3" />
                 voltou {c.retornoData ? `em ${formatDate(c.retornoData)}` : ''}
               </span>
