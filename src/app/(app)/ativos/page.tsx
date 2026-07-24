@@ -20,7 +20,9 @@ import {
 // as actions de export já usam o módulo; /ativos era a última fora.
 import { idNumerico, paginaNumerica } from '@/lib/url-params'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
+import { LembrarLista } from '@/components/ativos/lembrar-lista'
 import { AtivosTable } from '@/components/ativos/ativos-table'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { Button } from '@/components/ui/button'
@@ -111,6 +113,12 @@ export default async function AtivosPage({
           </Button>
         </div>
       </div>
+
+      {/* F19 (P2-12a) — grava a URL filtrada desta lista para o "Voltar para
+          ativos" da ficha voltar ao filtro. Não renderiza nada. */}
+      <Suspense fallback={null}>
+        <LembrarLista />
+      </Suspense>
 
       <AtivosFiltros filiais={filiais} />
 

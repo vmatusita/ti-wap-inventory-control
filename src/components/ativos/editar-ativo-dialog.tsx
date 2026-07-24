@@ -78,14 +78,25 @@ export function EditarAtivoDialog({ ativo }: { ativo: AtivoEditavel }) {
   const form = useForm<FormValues>({ values: valores })
 
   async function onSubmit(values: FormValues) {
-    const res = await atualizarDadosCadastrais({ id: ativo.id, ...values })
-    if (!res.ok) {
-      toast.error(res.erro ?? 'Não foi possível salvar as alterações.')
-      return
+    // F19 — este é o único ponto de escrita do app que não passa por
+    // `startTransition`: quem chama é o `handleSubmit` do react-hook-form. Sem o
+    // catch, um throw de transporte (rede, sessão morta, payload) não vira toast
+    // nenhum e o diálogo fica aberto como se nada tivesse acontecido. O erro de
+    // NEGÓCIO (`{ok:false,erro}`) segue tratado logo abaixo, sem alteração.
+    try {
+      const res = await atualizarDadosCadastrais({ id: ativo.id, ...values })
+      if (!res.ok) {
+        toast.error(res.erro ?? 'Não foi possível salvar as alterações.')
+        return
+      }
+      toast.success('Dados cadastrais atualizados.')
+      setAberto(false)
+      router.refresh()
+    } catch {
+      toast.error(
+        'Não foi possível salvar as alterações. Verifique sua conexão e tente de novo.',
+      )
     }
-    toast.success('Dados cadastrais atualizados.')
-    setAberto(false)
-    router.refresh()
   }
 
   return (

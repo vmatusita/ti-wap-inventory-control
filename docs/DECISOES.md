@@ -1898,9 +1898,29 @@ Base sólida: das **209 regras** mapeadas na `docs/MATRIZ-REGRAS.md` (7 áreas),
 
 - **Visualizador por senha NÃO ganha toggle de tema.**
   - Decisão/motivo: sai de graça pela arquitetura — o `UserMenu` (onde o toggle mora) só é montado
-    em `app-header.tsx`, do ramo do operador; o visualizador usa `viewer-header.tsx`. O shell dele
-    segue claro, que é o tema do relatório na spec ("Referência visual"). Não foi escrito código
-    para excluí-lo: ele simplesmente não renderiza o menu.
+    em `app-header.tsx`, do ramo do operador; o visualizador usa `viewer-header.tsx`. Não foi
+    escrito código para excluí-lo: ele simplesmente não renderiza o menu.
+  - **Precisão (achado da revisão adversarial):** dizer que "o shell dele segue claro" seria
+    impreciso. O `ThemeProvider` mora no layout RAIZ e cobre `/relatorios/**` também, então um
+    navegador que JÁ tenha `theme=dark` no `localStorage` (o caso do operador que também abre o
+    relatório por senha na mesma máquina) renderiza o shell do visualizador escuro. O que a decisão
+    garante é que **ele não tem como mudar o tema** — e, no caso normal (visualizador externo, outro
+    navegador, sem preferência gravada), o `defaultTheme="light"` entrega claro.
+  - Não foi usado `forcedTheme` para travar `/relatorios/**` no claro **de propósito**: isso
+    afetaria também o OPERADOR, que escolheu o tema escuro e para quem o relatório é parte do mesmo
+    app. E a impressão já sai clara para todo mundo, independentemente do tema.
+
+- **Arquivo NOVO em `src/components/ui/`: `dica.tsx` (exceção registrada).**
+  - Contexto: o P2-10 pede trocar `title=` por Tooltip em 4 pontos. Três deles
+    (`itens/saldos-filiais.tsx`, `itens/badge-repor.tsx`, `relatorios/celulas.tsx`) são **Server
+    Components**, e o Tooltip do Radix é client.
+  - Decisão: criar um componente client MÍNIMO em `src/components/ui/dica.tsx` em vez de pôr
+    `'use client'` nos três — isso arrastaria as tabelas inteiras para o cliente.
+  - Motivo/precedente: `src/components/relatorios/obs-tooltip.tsx` já é exatamente esse padrão. A
+    pasta `ui/` é dos componentes gerados pelo shadcn; este é escrito à mão, mas mora ali porque é
+    primitivo de UI genérico e sem regra de domínio. Alternativa considerada e descartada:
+    `src/components/layout/dica.tsx` — ficaria longe dos irmãos (`tooltip.tsx`) que ele embrulha.
+  - Reversível? sim — é um arquivo isolado, consumido por 4 pontos.
 
 - **Edição de `src/components/ui/*` (exceção registrada, como manda a ordem).**
   - `ui/dialog.tsx` e `ui/sheet.tsx`: o scrim dos modais é `bg-black/10`. Sobre um fundo já quase
@@ -1917,6 +1937,29 @@ Base sólida: das **209 regras** mapeadas na `docs/MATRIZ-REGRAS.md` (7 áreas),
   - Pelo mesmo motivo, `editar-ativo-dialog.tsx` **não foi tocado**: ele usa `<FormLabel>`+
     `<FormControl>`, e `ui/form.tsx` já injeta `htmlFor`/`id` por `Slot` — pôr `id` à mão
     **quebraria** a injeção. Já estava correto.
+
+- **Desvio da ordem, por ela não funcionar: "Voltar para ativos" NÃO usa `document.referrer`.**
+  - Contexto: a ordem prescreve "client link que usa `history.back()` quando o referrer é a própria
+    lista, com fallback /ativos". Implementado assim na primeira volta — e a revisão adversarial
+    mostrou que **não funciona**: no App Router a navegação de `/ativos` para `/ativos/[id]` é
+    SOFT (`history.pushState`), e `pushState` **não atualiza** `document.referrer`, que fica
+    congelado no último carregamento real de documento. No fluxo normal a checagem daria `false`,
+    o `back()` nunca dispararia e o link se comportaria como o `<Link href="/ativos">` fixo de
+    antes — em silêncio, com o item parecendo entregue.
+  - Decisão: trocar o SINAL, mantendo o objetivo. A própria lista grava sua URL completa
+    (`pathname + search`) em `sessionStorage` (`components/ativos/lembrar-lista.tsx`), e o link da
+    ficha lê essa URL **no clique** (nunca no render — quebraria a hidratação) e faz `router.push`.
+    O `href="/ativos"` real continua por baixo: sem JS, "abrir em nova aba" e clique do meio seguem
+    funcionando.
+  - Motivo: preservar o filtro é o REQUISITO; `history.back()` era só o meio sugerido. O meio novo
+    é determinístico (não depende de quantas fichas o operador abriu no caminho) e elimina o
+    "clique morto" que o `back()` produziria quando já se está na entrada mais antiga do histórico.
+  - Segurança: o valor lido do storage passa por `ehUrlDaListaDeAtivos` antes de virar destino —
+    só caminho relativo cujo pathname é exatamente `/ativos` (barra `//host`, `https://`,
+    `javascript:` e as fichas `/ativos/<id>`). Travado por 6 testes em `lista-visitada.test.ts`.
+    O storage é escrito pelo nosso código, mas validar na leitura é barato e fecha a porta para um
+    valor adulterado pelo console virar open redirect.
+  - Reversível? sim — o componente `LembrarLista` é um `return null` numa linha da página.
 
 - **Destaque da âncora `#mov-…` — variante `target:` do Tailwind, sem JS.**
   - O `id` está no `<li>` mas o cartão visível é o `<div>` filho, então a regra parte do `li` e

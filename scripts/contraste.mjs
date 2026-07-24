@@ -263,6 +263,14 @@ const PARES = [
   { item: 'P2-7', onde: 'rótulo Defasado — ANTES (branco)', texto: 'white', fundo: '#9ca3af', px: 10, antes: true },
   { item: 'P2-7', onde: 'rótulo Defasado — DEPOIS (preto)', texto: 'black', fundo: '#9ca3af', px: 11, exigir: true },
 
+  // ---- P2-12c · anel do destaque `:target` na linha do tempo ----------------
+  // Elemento gráfico (anel, não texto) → limiar 3:1. O `amber-400` da 1ª versão
+  // sumia no tema CLARO, que é o padrão do app; o token semântico `--warning`
+  // passa nos dois E clareia sozinho no `.dark` (dispensa variante `dark:`).
+  { item: 'P2-12c', onde: 'anel :target — ANTES (amber-400)', texto: 'amber-400', fundo: 'card', px: 12, grafico: true, antes: true },
+  { item: 'P2-12c', onde: 'anel :target — DEPOIS (token warning)', texto: 'warning', fundo: 'card', px: 12, grafico: true, exigir: true },
+  { item: 'P2-12c', onde: 'anel :target — DEPOIS (escuro)', texto: 'warning', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
+
   // ---- Cor de marca sobre o card ESCURO (não mudou; conferência pedida) -----
   // São séries de gráfico = elemento gráfico → limiar 3:1, não 4,5:1.
   { item: 'marca', onde: 'azul WAP sobre card escuro', texto: '#2a78d6', fundo: 'card', tema: 'escuro', px: 12, grafico: true, exigir: true },

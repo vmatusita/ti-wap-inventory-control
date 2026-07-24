@@ -121,12 +121,18 @@ export function LinhaDoTempo({
         // F19 — quem chega por `#mov-<id>` (link "estornada", QR, e-mail) rolava
         // até aqui sem saber qual linha era a sua. O `id` está no <li>, mas o
         // cartão visível é o <div> filho: por isso a variante `target:` parte do
-        // <li> e mira o filho. Anel âmbar = vocabulário de atenção do app.
+        // <li> e mira o filho.
+        //
+        // O anel usa o TOKEN `--warning` (o tier âmbar da F7F), não uma cor fixa:
+        // `ring-amber-400` media 1,72:1 sobre o card claro — invisível justamente
+        // no tema padrão do app, e abaixo até dos 3:1 de elemento gráfico. O token
+        // dá 5,65:1 no claro e 9,47:1 no escuro e, por ser semântico, CLAREIA
+        // sozinho no `.dark` — dispensa variante `dark:` para acompanhar o tema.
         return (
           <li
             key={m.id}
             id={`mov-${m.id}`}
-            className="relative scroll-mt-20 pl-6 target:[&>div]:ring-2 target:[&>div]:ring-amber-400 dark:target:[&>div]:ring-amber-500"
+            className="relative scroll-mt-20 pl-6 target:[&>div]:ring-2 target:[&>div]:ring-warning"
           >
             {trilho('bg-primary')}
 

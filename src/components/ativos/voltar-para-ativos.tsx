@@ -2,51 +2,41 @@
 
 import type { MouseEvent } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
+import { lerListaDeAtivos } from '@/components/ativos/lista-visitada'
 
-// F19 — "Voltar para ativos" preservando os filtros da lista (P2-12a). A ficha é
-// Server Component e NÃO recebe os searchParams de /ativos, então a única pista de
-// onde o operador veio está no histórico do navegador: quando ele veio da lista,
-// `router.back()` devolve filtro, ordenação, scroll e paginação intactos.
+// F19 (P2-12a) — "Voltar para ativos" devolvendo o operador ao filtro que ele
+// montou. Quem filtrou "notebooks da Matriz em manutenção", abriu uma ficha e
+// voltou, refazia o filtro inteiro.
 //
-// SEGURANÇA: o referrer só DECIDE entre `back()` e /ativos — nunca vira destino de
-// navegação (isso seria open redirect). O href real continua sendo /ativos, então
-// "abrir em nova aba", clique do meio e navegação sem JS seguem funcionando.
-function veioDaListaDeAtivos(pathnameAtual: string) {
-  const referrer = document.referrer
-  if (!referrer) return false
-  // Aba nova (ctrl/clique do meio na lista) tem referrer da lista mas nenhuma
-  // entrada anterior: `back()` sairia do app ou não faria nada.
-  if (window.history.length <= 1) return false
-  try {
-    const origem = new URL(referrer)
-    if (origem.origin !== window.location.origin) return false
-    // Recarregar a própria ficha mantém o referrer original — não é "voltar".
-    if (origem.pathname === pathnameAtual) return false
-    // Caminho EXATO, não `startsWith`: `/ativos/<outro-id>` é outra FICHA, e voltar
-    // para ela contradiria o rótulo do link ("Voltar para ativos"). A querystring
-    // fica fora do `pathname`, então `/ativos?filial=2&status=…` casa normalmente —
-    // que é justamente o caso que este componente existe para preservar.
-    return origem.pathname === '/ativos'
-  } catch {
-    // Referrer malformado: cai no caminho seguro (/ativos).
-    return false
-  }
-}
-
+// A ficha é Server Component e NÃO recebe os searchParams da lista, então a URL
+// filtrada precisa vir de outro lugar. O primeiro desenho usava
+// `document.referrer` + `router.back()`, como a ordem sugeria — mas isso NÃO
+// funciona: no App Router a navegação da lista para a ficha é soft
+// (`history.pushState`), e `pushState` não atualiza o `document.referrer`. A
+// checagem daria `false` no fluxo normal e o botão viraria o link fixo de antes,
+// em silêncio. Achado da revisão adversarial; ver docs/DECISOES.md.
+//
+// Agora a própria lista grava sua URL em `sessionStorage` (`LembrarLista`) e aqui
+// nós a lemos NO CLIQUE — nunca no render, que quebraria a hidratação. O
+// `href="/ativos"` real continua por baixo: sem JS, com "abrir em nova aba" ou
+// sem nada gravado, o comportamento é o de sempre.
 export function VoltarParaAtivos() {
   const router = useRouter()
-  const pathname = usePathname()
 
   function aoClicar(e: MouseEvent<HTMLAnchorElement>) {
-    // Deixa o navegador cuidar de "abrir em nova aba/janela" (modificadores) —
-    // nesses casos o href /ativos é o comportamento certo.
+    // Modificadores e clique não-primário são do navegador (nova aba/janela) —
+    // nesses casos o href /ativos é exatamente o certo.
     if (e.defaultPrevented || e.button !== 0) return
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-    if (!veioDaListaDeAtivos(pathname)) return
+
+    // `lerListaDeAtivos` já valida que é caminho relativo da própria lista.
+    const destino = lerListaDeAtivos()
+    if (!destino || destino === '/ativos') return
+
     e.preventDefault()
-    router.back()
+    router.push(destino)
   }
 
   return (
