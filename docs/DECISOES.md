@@ -1743,3 +1743,8 @@ Sem E2E autenticado em navegador (login wall — limite desde F11/F12): a prova 
 ### Frente B — transversais e revisão
 - Ajuda do operador (`conteudo.ts`, seção "Relatórios") ganhou uma nota dizendo que as explicações agora aparecem DENTRO do relatório (para o viewer, que não abre `/ajuda`). Spec §7 ganhou a "(Emenda F17)".
 - **Revisão adversarial (5 lentes, refutação por padrão):** lentes 1 (fidelidade SQL), 2 (viewer/RLS), 3 (compat v1/v2) e 5 (contagens/regressão) LIMPAS; lente 4 (mobile/impressão) achou o gatilho da nota de estorno de itens (acima), corrigido no gatilho. Re-verificação `lint`+`test`+`build` verde. Nenhum re-abrir de lente após o fix (mudança localizada de gatilho, estritamente mais abrangente).
+
+### Rollout (produção, ata)
+- **Frente A** (`4c74c38`): push sozinho; **CI verde** (run 30089531148, job `banco` incluso). A Vercel republicou sem mudança funcional (Frente A não toca o app).
+- **Frente B** (`c1194c6`, marco final): deploy `dpl_8chhNmaxajG7P3BjKdFouZ7EQqtR` **READY** (target production); `get_runtime_errors` do projeto (1h) sem nada; **CI verde** (run 30091743320, jobs `banco` + `verificar` success). Smoke pós-deploy `scripts/smoke/smoke-prod.mjs`: **50 OK · 1 aviso (de desenho — `kits_modelos anon NÃO lê` não se prova com a tabela de kits vazia) · 0 falha** (Partes A/B/C, com a conta de smoke presente no `.env.local`). A **Parte C carregou `/relatorios/geral` e `/relatorios/gerados` a HTTP 200** com sessão de operador — o relatório serve 200 com as legendas novas, sem quebra de SSR (1596 ativos / 3075 movimentações / 8 snapshots legíveis).
+- **Reversível:** tudo render-only, sem migration e sem dado tocado; rollback = promover `4c74c38` (ou `da45284`) no painel Vercel.

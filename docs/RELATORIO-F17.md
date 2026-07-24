@@ -103,13 +103,13 @@ Arquivos novos: `src/lib/relatorios/legendas.ts` (+ `legendas.test.ts`), `src/co
 
 ## Rollout
 
-_(Frente A já em produção via o push `4c74c38`; a Vercel republicou sem mudança funcional — a Frente A não toca o app. A verificação de deploy READY + smoke pós-deploy da Frente B é anexada abaixo após o push do marco final.)_
-
-<!-- ROLLOUT-B -->
+- **Frente A** (`4c74c38`): pushada sozinha; a Vercel republicou sem mudança funcional (não toca o app). **CI verde** (run `30089531148`).
+- **Frente B** (`c1194c6`, marco final): push → deploy **`dpl_8chhNmaxajG7P3BjKdFouZ7EQqtR`** (target production) **READY**. `get_runtime_errors` do projeto na última hora: **nenhum**. **CI verde** (run `30091743320` — jobs `banco` e `verificar` success, incluído o passo "Rodar os roteiros de teste SQL").
+- **Smoke pós-deploy** (`scripts/smoke/smoke-prod.mjs`; a conta de smoke estava no `.env.local` desta vez, então rodaram as Partes A pública + B autenticada + C rotas logadas): **50 OK · 1 aviso · 0 falha** (exit 0). O único aviso é o de desenho já conhecido (F12): `kits_modelos · anon NÃO lê` não se comprova com a tabela de kits vazia. A **Parte C carregou `/relatorios/geral` (HTTP 200, ~340 KB)**, `/relatorios/gerados` (200) e `/ajuda` (200) com sessão de operador — ou seja, o relatório com as legendas novas **serve 200 em produção, sem quebra de SSR**, e os 1596 ativos / 3075 movimentações / 8 snapshots seguem legíveis.
 
 ---
 
 ## O que este relatório NÃO prova
 
-- **Sem E2E visual autenticado do relatório.** As legendas moram nas telas de relatório, atrás do login de operador (ou da senha de acesso do viewer). O agente não digita senha em formulário e o bypass de autenticação é corretamente barrado (limite herdado das F11–F16). A prova é por: leitura de código, **17 testes de função pura** (cobertura do glossário, espelho das cores de manutenção, sincronia do limiar de 30 dias, textos das legendas), build tipado, a **revisão adversarial de 5 lentes** (incluindo mobile/impressão por análise de código) e, na Frente B, a compatibilidade v1/v2 conferida por tipos. O render real das legendas a 375px e na impressão não foi visto num navegador logado.
+- **Sem E2E VISUAL autenticado do relatório.** O smoke pós-deploy provou que `/relatorios/geral` e `/relatorios/gerados` **respondem 200 em produção** com o código novo (sem quebra de SSR) — mas isso é o servidor entregando o HTML, **não** a confirmação visual de que as legendas aparecem corretas a 375px e na impressão. O agente não digita senha num navegador nem tira screenshot logado (o bypass de autenticação é corretamente barrado — limite herdado das F11–F16). A prova do render é por: leitura de código, **17 testes de função pura** (cobertura do glossário travada em `STATUS_ORDEM`, espelho das cores de manutenção, sincronia do limiar de 30 dias, textos das legendas), build tipado, a **revisão adversarial de 5 lentes** (incluindo mobile/impressão por análise de código) e a compatibilidade v1/v2 conferida por tipos. O aspecto final das legendas a 375px e na impressão não foi visto num navegador logado.
 - **Frente A:** a prova "os 5 roteiros sem ✗" é o **job `banco` verde no GitHub** (run 30089531148) + a reprodução do cenário 4 no ENSAIO. Não se rodou psql localmente (indisponível no ambiente).
