@@ -1,3 +1,6 @@
+'use client'
+
+import { Fragment } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import {
   Table,
@@ -8,13 +11,20 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
+import {
+  BotaoExpandir,
+  LinhaDetalhe,
+  useExpandidas,
+  type CampoDetalhe,
+} from '@/components/relatorios/linha-expansivel'
 import { cn } from '@/lib/utils'
 import type { SaldoItemPeriodo } from '@/lib/relatorios/tipos'
 
 // Tabela dos grupos 2–3 (§4.2). F6A: mostra Total + Estoque quando o snapshot tem
 // os campos novos; snapshots antigos (só `saldo`) caem no layout legado (1 coluna
 // "Saldo"), sem quebrar. Estoque em destaque (tabular-nums); Δ verde/vermelho;
-// falta = chip vermelho "faltam N". Coluna atrelados só se houver.
+// falta = chip vermelho "faltam N". Coluna atrelados só se houver. F16/T5: a Obs
+// (única coluna que some no mobile, < lg) é revelada por toque via a linha de detalhe.
 export function TabelaItensGrupo({
   itens,
   mostrarAtrelados,
@@ -22,6 +32,7 @@ export function TabelaItensGrupo({
   itens: SaldoItemPeriodo[]
   mostrarAtrelados: boolean
 }) {
+  const { estaAberta, alternar } = useExpandidas()
   if (itens.length === 0) {
     return (
       <p className="py-6 text-center text-sm text-muted-foreground">
@@ -36,6 +47,7 @@ export function TabelaItensGrupo({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-10 p-0 lg:hidden" aria-hidden />
             <TableHead>Item</TableHead>
             {temTotalEstoque ? (
               <>
@@ -55,61 +67,76 @@ export function TabelaItensGrupo({
           {itens.map((i) => {
             const estoque = i.estoque ?? i.saldo ?? 0
             const total = i.total ?? estoque
+            const detalhe: CampoDetalhe[] = [
+              { rotulo: 'Obs.', valor: i.obs ?? '—', revelar: 'lg:hidden' },
+            ]
             return (
-              <TableRow key={i.item}>
-                <TableCell className="font-medium">{i.item}</TableCell>
-                {temTotalEstoque ? (
-                  <>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {total.toLocaleString('pt-BR')}
-                    </TableCell>
+              <Fragment key={i.item}>
+                <TableRow>
+                  <TableCell className="w-10 p-0 pl-1 lg:hidden">
+                    <BotaoExpandir
+                      aberta={estaAberta(i.item)}
+                      onClick={() => alternar(i.item)}
+                      rotulo={`Detalhes de ${i.item}`}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{i.item}</TableCell>
+                  {temTotalEstoque ? (
+                    <>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {total.toLocaleString('pt-BR')}
+                      </TableCell>
+                      <TableCell className="text-right text-base font-semibold tabular-nums">
+                        {estoque.toLocaleString('pt-BR')}
+                      </TableCell>
+                    </>
+                  ) : (
                     <TableCell className="text-right text-base font-semibold tabular-nums">
                       {estoque.toLocaleString('pt-BR')}
                     </TableCell>
-                  </>
-                ) : (
-                  <TableCell className="text-right text-base font-semibold tabular-nums">
-                    {estoque.toLocaleString('pt-BR')}
-                  </TableCell>
-                )}
-                {mostrarAtrelados && (
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {i.atrelados > 0 ? i.atrelados.toLocaleString('pt-BR') : '—'}
-                  </TableCell>
-                )}
-                <TableCell className="text-right">
-                  {i.delta === 0 ? (
-                    <span className="text-muted-foreground">—</span>
-                  ) : (
-                    <span
-                      className={cn(
-                        'inline-flex items-center justify-end gap-0.5 tabular-nums',
-                        i.delta > 0
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400',
-                      )}
-                    >
-                      {i.delta > 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
-                      {i.delta > 0 ? '+' : ''}
-                      {i.delta.toLocaleString('pt-BR')}
-                    </span>
                   )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {i.falta > 0 ? (
-                    <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">
-                      faltam {i.falta.toLocaleString('pt-BR')}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
+                  {mostrarAtrelados && (
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {i.atrelados > 0 ? i.atrelados.toLocaleString('pt-BR') : '—'}
+                    </TableCell>
                   )}
-                </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  <div className="max-w-[220px]">
-                    <ObsTooltip texto={i.obs} className="w-full text-xs" />
-                  </div>
-                </TableCell>
-              </TableRow>
+                  <TableCell className="text-right">
+                    {i.delta === 0 ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <span
+                        className={cn(
+                          'inline-flex items-center justify-end gap-0.5 tabular-nums',
+                          i.delta > 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400',
+                        )}
+                      >
+                        {i.delta > 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+                        {i.delta > 0 ? '+' : ''}
+                        {i.delta.toLocaleString('pt-BR')}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {i.falta > 0 ? (
+                      <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">
+                        faltam {i.falta.toLocaleString('pt-BR')}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <div className="max-w-[220px]">
+                      <ObsTooltip texto={i.obs} className="w-full text-xs" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+                {estaAberta(i.item) && (
+                  <LinhaDetalhe colSpan={8} campos={detalhe} className="lg:hidden" />
+                )}
+              </Fragment>
             )
           })}
         </TableBody>

@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react'
 import { ArrowRight } from 'lucide-react'
 import {
   Table,
@@ -17,6 +18,12 @@ import {
   CelulaPatrimonio,
 } from '@/components/relatorios/celulas'
 import { FiltrosTabela } from '@/components/relatorios/filtros-tabela'
+import {
+  BotaoExpandir,
+  LinhaDetalhe,
+  useExpandidas,
+  type CampoDetalhe,
+} from '@/components/relatorios/linha-expansivel'
 import { useFiltrosTabela, PREFIXO_FILTROS } from '@/components/relatorios/use-filtros-tabela'
 import { rotuloCategoria } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
@@ -63,6 +70,7 @@ export function TabelaTransferencias({
     buscaTexto: BUSCA_TEXTO,
     buscaPatrimonio: BUSCA_PATRIMONIO,
   })
+  const { estaAberta, alternar } = useExpandidas()
 
   if (rows.length === 0) return null
 
@@ -93,6 +101,7 @@ export function TabelaTransferencias({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10 p-0 lg:hidden" aria-hidden />
                 <TableHead>Data</TableHead>
                 <TableHead>De → Para</TableHead>
                 <TableHead className="hidden sm:table-cell">Categoria</TableHead>
@@ -103,32 +112,49 @@ export function TabelaTransferencias({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtradas.map((r) => (
-                <TableRow
-                  key={r.id}
-                  className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}
-                >
-                  <CelulaData data={r.data} />
-                  <TableCell className="whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1.5">
-                      {r.de}
-                      <ArrowRight className="size-3 text-muted-foreground" />
-                      {r.para}
-                    </span>
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
-                  <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
-                  <CelulaPatrimonio
-                    patrimonio={r.patrimonio}
-                    ativoId={r.ativoId}
-                    ehOperador={ehOperador}
-                    estornada={r.estornada}
-                    estornoData={r.estornoData}
-                  />
-                  <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
-                  <CelulaObs texto={r.obs} className="hidden lg:table-cell" />
-                </TableRow>
-              ))}
+              {filtradas.map((r) => {
+                const detalhe: CampoDetalhe[] = [
+                  { rotulo: 'Categoria', valor: rotuloCategoria(r.categoria), revelar: 'sm:hidden' },
+                  { rotulo: 'Marca/Modelo', valor: r.modelo, revelar: 'lg:hidden' },
+                  { rotulo: 'Chamado', valor: r.chamado ? `#${r.chamado}` : '—', revelar: 'md:hidden' },
+                  { rotulo: 'Obs.', valor: r.obs ?? '—', revelar: 'lg:hidden' },
+                ]
+                return (
+                  <Fragment key={r.id}>
+                    <TableRow className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}>
+                      <TableCell className="w-10 p-0 pl-1 lg:hidden">
+                        <BotaoExpandir
+                          aberta={estaAberta(r.id)}
+                          onClick={() => alternar(r.id)}
+                          rotulo={`Detalhes de ${r.patrimonio}`}
+                        />
+                      </TableCell>
+                      <CelulaData data={r.data} />
+                      <TableCell className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5">
+                          {r.de}
+                          <ArrowRight className="size-3 text-muted-foreground" />
+                          {r.para}
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
+                      <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
+                      <CelulaPatrimonio
+                        patrimonio={r.patrimonio}
+                        ativoId={r.ativoId}
+                        ehOperador={ehOperador}
+                        estornada={r.estornada}
+                        estornoData={r.estornoData}
+                      />
+                      <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
+                      <CelulaObs texto={r.obs} className="hidden lg:table-cell" />
+                    </TableRow>
+                    {estaAberta(r.id) && (
+                      <LinhaDetalhe colSpan={8} campos={detalhe} className="lg:hidden" />
+                    )}
+                  </Fragment>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

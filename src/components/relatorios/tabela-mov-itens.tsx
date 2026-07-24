@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react'
 import {
   Table,
   TableBody,
@@ -16,6 +17,12 @@ import {
   CelulaObs,
 } from '@/components/relatorios/celulas'
 import { FiltrosTabela } from '@/components/relatorios/filtros-tabela'
+import {
+  BotaoExpandir,
+  LinhaDetalhe,
+  useExpandidas,
+  type CampoDetalhe,
+} from '@/components/relatorios/linha-expansivel'
 import { useFiltrosTabela, PREFIXO_FILTROS } from '@/components/relatorios/use-filtros-tabela'
 import {
   pillTipoLancamento,
@@ -70,6 +77,7 @@ export function TabelaMovItens({
     prefixo: PREFIXO_FILTROS.movItens,
     buscaTexto: BUSCA_TEXTO,
   })
+  const { estaAberta, alternar } = useExpandidas()
 
   if (!rows || rows.length === 0) return null
 
@@ -100,6 +108,7 @@ export function TabelaMovItens({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10 p-0 lg:hidden" aria-hidden />
                 <TableHead>Data</TableHead>
                 {ehGeral && <TableHead className="hidden sm:table-cell">Filial</TableHead>}
                 <TableHead>Item</TableHead>
@@ -112,47 +121,67 @@ export function TabelaMovItens({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtradas.map((r) => (
-                <TableRow
-                  key={r.id}
-                  className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}
-                >
-                  <CelulaData data={r.data} />
-                  {ehGeral && (
-                    <TableCell className="hidden whitespace-nowrap sm:table-cell">{r.filial}</TableCell>
-                  )}
-                  <TableCell className="font-medium">
-                    <span className="inline-flex items-center gap-1.5">
-                      {r.item}
-                      {r.estornada && <BadgeEstornada data={r.estornoData} />}
-                    </span>
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground md:table-cell">
-                    {rotuloGrupoItem(r.grupo)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <span
-                      className={cn(
-                        'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                        pillTipoLancamento(r.tipo),
+              {filtradas.map((r) => {
+                const detalhe: CampoDetalhe[] = [
+                  ...(ehGeral
+                    ? [{ rotulo: 'Filial', valor: r.filial, revelar: 'sm:hidden' }]
+                    : []),
+                  { rotulo: 'Grupo', valor: rotuloGrupoItem(r.grupo), revelar: 'md:hidden' },
+                  { rotulo: 'Chamado', valor: r.chamado ? `#${r.chamado}` : '—', revelar: 'md:hidden' },
+                  { rotulo: 'Colaborador', valor: r.colaborador ?? '—', revelar: 'lg:hidden' },
+                  { rotulo: 'Obs.', valor: r.obs ?? '—', revelar: 'lg:hidden' },
+                ]
+                return (
+                  <Fragment key={r.id}>
+                    <TableRow className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}>
+                      <TableCell className="w-10 p-0 pl-1 lg:hidden">
+                        <BotaoExpandir
+                          aberta={estaAberta(r.id)}
+                          onClick={() => alternar(r.id)}
+                          rotulo={`Detalhes de ${r.item}`}
+                        />
+                      </TableCell>
+                      <CelulaData data={r.data} />
+                      {ehGeral && (
+                        <TableCell className="hidden whitespace-nowrap sm:table-cell">{r.filial}</TableCell>
                       )}
-                    >
-                      {rotuloTipoLancamento(r.tipo)}
-                    </span>
-                    {r.ehEstorno && (
-                      <span className="ml-1 text-[10px] text-muted-foreground">(estorno)</span>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-1.5">
+                          {r.item}
+                          {r.estornada && <BadgeEstornada data={r.estornoData} />}
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">
+                        {rotuloGrupoItem(r.grupo)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span
+                          className={cn(
+                            'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                            pillTipoLancamento(r.tipo),
+                          )}
+                        >
+                          {rotuloTipoLancamento(r.tipo)}
+                        </span>
+                        {r.ehEstorno && (
+                          <span className="ml-1 text-[10px] text-muted-foreground">(estorno)</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {formatQtd(r.quantidade)}
+                      </TableCell>
+                      <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
+                      <TableCell className="hidden whitespace-nowrap text-muted-foreground lg:table-cell">
+                        {r.colaborador ?? '—'}
+                      </TableCell>
+                      <CelulaObs texto={r.obs} className="hidden lg:table-cell" />
+                    </TableRow>
+                    {estaAberta(r.id) && (
+                      <LinhaDetalhe colSpan={10} campos={detalhe} className="lg:hidden" />
                     )}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    {formatQtd(r.quantidade)}
-                  </TableCell>
-                  <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
-                  <TableCell className="hidden whitespace-nowrap text-muted-foreground lg:table-cell">
-                    {r.colaborador ?? '—'}
-                  </TableCell>
-                  <CelulaObs texto={r.obs} className="hidden lg:table-cell" />
-                </TableRow>
-              ))}
+                  </Fragment>
+                )
+              })}
             </TableBody>
           </Table>
         </div>
