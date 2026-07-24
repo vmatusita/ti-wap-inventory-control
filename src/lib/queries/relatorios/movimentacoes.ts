@@ -23,6 +23,7 @@ import type {
   ResumoTipo,
   SerieMovimentacoes,
 } from '@/lib/relatorios/tipos'
+import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { modeloDe, paginarTodos, type DbClient } from './comum'
 
 // Agregações sobre a tabela `movimentacoes` no período (OS-F3 3.6): a série
@@ -158,8 +159,11 @@ export async function getResumoPeriodo(
 // diretas + os embeds de ativo/filial; TAB_SELECT acrescenta motivo/termo/itens
 // faltantes + destino + rótulo do motivo. Fonte única para não divergirem.
 const MOV_COLS = 'id, data, tipo, chamado, observacao, colaborador, setor'
+// F16/T3: `id` do ativo entra no embed para o patrimônio da tabela virar link p/
+// a ficha (`/ativos/[id]`). Inócuo para as "últimas movimentações" (v1), que
+// ignoram o campo em `mapMovRows`.
 const ATIVO_EMBED =
-  'ativo:ativos!movimentacoes_ativo_id_fkey(patrimonio, marca, modelo, categoria)'
+  'ativo:ativos!movimentacoes_ativo_id_fkey(id, patrimonio, marca, modelo, categoria)'
 const FILIAL_EMBED = 'filial:filiais!movimentacoes_filial_id_fkey(nome)'
 
 type RawMovBase = {
@@ -171,6 +175,7 @@ type RawMovBase = {
   colaborador: string | null
   setor: string | null
   ativo: {
+    id: string
     patrimonio: string
     marca: string | null
     modelo: string | null
@@ -296,12 +301,41 @@ async function buscarLinhasPeriodo(
   )
 }
 
+// F16/T1 — quais movimentações do período FORAM estornadas, e quando. Sem coluna
+// "estornada": o estorno é OUTRA linha (`tipo='estorno'` + `estorno_de`→id da
+// original), como a ficha (linha-do-tempo.tsx) já infere. Aqui a mesma doutrina no
+// relatório: um Map `estorno_de → data do estorno`. Bounded por `ate` (as-of): um
+// snapshot congelado não passa a exibir um estorno feito DEPOIS de gerado; e o par
+// mov+estorno é coerente com a reconstrução as-of do estado. Sem filtro de filial —
+// o estorno de um ativo transferido pode ter filial diferente da original, e o
+// volume de estornos (válvula administrativa rara) é pequeno; a interseção é por id.
+async function buscarEstornosAteData(
+  client: DbClient,
+  ate: string,
+): Promise<Map<string, string>> {
+  const rows = await paginarTodos<{ estorno_de: string | null; data: string }>(
+    'Falha ao ler estornos',
+    (from, to) =>
+      client
+        .from('movimentacoes')
+        .select('estorno_de, data')
+        .eq('tipo', 'estorno')
+        .not('estorno_de', 'is', null)
+        .lte('data', ate)
+        .order('id', { ascending: true })
+        .range(from, to),
+  )
+  const map = new Map<string, string>()
+  for (const r of rows) if (r.estorno_de && !map.has(r.estorno_de)) map.set(r.estorno_de, r.data)
+  return map
+}
+
 export async function getTabelasFinais(
   client: DbClient,
   filialId: number | null,
   periodo: Periodo,
 ): Promise<{ saidas: LinhaSaida[]; entradas: LinhaEntrada[]; transferencias: LinhaTransferencia[] }> {
-  const [saidasRaw, entradasRaw, transfRaw] = await Promise.all([
+  const [saidasRaw, entradasRaw, transfRaw, estornos] = await Promise.all([
     buscarLinhasPeriodo(client, filialId, periodo, ['saida', 'emprestimo']),
     // F15: `troca` (nascimento do substituto) é ENTRADA real do período, como a compra
     // e a devolução — aparece nas Entradas rotulada "Troca" (nunca contada como compra).
@@ -309,6 +343,7 @@ export async function getTabelasFinais(
     // observação própria (nunca os marcadores de go-live/import) e o import não gera troca.
     buscarLinhasPeriodo(client, filialId, periodo, ['devolucao', 'compra', 'troca']),
     buscarLinhasPeriodo(client, filialId, periodo, ['transferencia'], true),
+    buscarEstornosAteData(client, periodo.ate),
   ])
 
   const modeloRow = (r: RawTabelaRow) =>
@@ -327,6 +362,8 @@ export async function getTabelasFinais(
     colaboradorSetor: r.colaborador || r.setor || null,
     termo: r.termo_assinado ? rotuloTermo(r.termo_assinado) : null,
     obs: r.observacao,
+    ativoId: r.ativo?.id,
+    ...marcaEstorno(estornos.get(r.id)),
   }))
 
   const entradas: LinhaEntrada[] = entradasRaw.map((r) => ({
@@ -342,6 +379,8 @@ export async function getTabelasFinais(
     setor: r.setor,
     itensFaltantes: r.itens_faltantes,
     obs: r.observacao,
+    ativoId: r.ativo?.id,
+    ...marcaEstorno(estornos.get(r.id)),
   }))
 
   const transferencias: LinhaTransferencia[] = transfRaw.map((r) => ({
@@ -354,6 +393,8 @@ export async function getTabelasFinais(
     patrimonio: r.ativo?.patrimonio ?? '—',
     chamado: r.chamado,
     obs: r.observacao,
+    ativoId: r.ativo?.id,
+    ...marcaEstorno(estornos.get(r.id)),
   }))
 
   return { saidas, entradas, transferencias }

@@ -12,8 +12,10 @@ import {
   CelulaChamado,
   CelulaData,
   CelulaObs,
+  CelulaPatrimonio,
 } from '@/components/relatorios/celulas'
 import { rotuloCategoria } from '@/lib/dominio'
+import { cn } from '@/lib/utils'
 import type { LinhaTransferencia } from '@/lib/relatorios/tipos'
 
 // Transferências do período (§4.4) — bloco condicional (só quando houver). Sem
@@ -40,7 +42,10 @@ export function TabelaTransferencias({ rows }: { rows: LinhaTransferencia[] }) {
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow
+                key={r.id}
+                className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}
+              >
                 <CelulaData data={r.data} />
                 <TableCell className="whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5">
@@ -51,7 +56,11 @@ export function TabelaTransferencias({ rows }: { rows: LinhaTransferencia[] }) {
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
                 <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
-                <TableCell className="whitespace-nowrap font-medium tabular-nums">{r.patrimonio}</TableCell>
+                <CelulaPatrimonio
+                  patrimonio={r.patrimonio}
+                  estornada={r.estornada}
+                  estornoData={r.estornoData}
+                />
                 <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
                 <CelulaObs texto={r.obs} className="hidden lg:table-cell" />
               </TableRow>

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { TableCell } from '@/components/ui/table'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
 import { formatDate } from '@/lib/format'
@@ -60,6 +61,59 @@ export function PilulaTipo({ tipo }: { tipo: TipoMovimentacao }) {
     >
       {rotuloTipo(tipo)}
     </span>
+  )
+}
+
+// Badge discreta "estornada" (F16/T1). A cor de alerta (destructive) espelha o link
+// "estornada" da linha do tempo da ficha. `title` traz a data no hover; o texto
+// "estornada" é o sinal que sobrevive à IMPRESSÃO (sem `print:hidden`). Não é link.
+export function BadgeEstornada({ data }: { data?: string }) {
+  return (
+    <span
+      title={data ? `Estornada em ${formatDate(data)}` : 'Movimentação estornada'}
+      className="inline-flex items-center rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
+    >
+      estornada
+    </span>
+  )
+}
+
+// Célula de patrimônio (F16/T1+T3). Para o OPERADOR com `ativoId`, o patrimônio vira
+// link para a ficha (`/ativos/[id]`); viewer por senha e snapshots antigos (sem
+// `ativoId`) ficam em texto puro. Acompanha a badge "estornada" quando a
+// movimentação foi desfeita. Sempre a mesma tipografia (font-medium tabular-nums).
+export function CelulaPatrimonio({
+  patrimonio,
+  ativoId,
+  ehOperador,
+  estornada,
+  estornoData,
+  className,
+}: {
+  patrimonio: string
+  ativoId?: string
+  ehOperador?: boolean
+  estornada?: boolean
+  estornoData?: string
+  className?: string
+}) {
+  const linkavel = ehOperador && ativoId
+  return (
+    <TableCell className={cn('whitespace-nowrap font-medium tabular-nums', className)}>
+      <span className="inline-flex items-center gap-1.5">
+        {linkavel ? (
+          <Link
+            href={`/ativos/${ativoId}`}
+            className="underline-offset-2 outline-none hover:underline focus-visible:underline"
+          >
+            {patrimonio}
+          </Link>
+        ) : (
+          patrimonio
+        )}
+        {estornada && <BadgeEstornada data={estornoData} />}
+      </span>
+    </TableCell>
   )
 }
 

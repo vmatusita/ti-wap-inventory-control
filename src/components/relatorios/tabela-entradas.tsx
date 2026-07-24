@@ -12,6 +12,7 @@ import {
   CabecalhoDetalhe,
   CelulaData,
   CelulaObs,
+  CelulaPatrimonio,
   PilulaTipo,
 } from '@/components/relatorios/celulas'
 import { FiltrosTabela, ChipsResumo } from '@/components/relatorios/filtros-tabela'
@@ -22,6 +23,7 @@ import {
   type CampoFiltro,
 } from '@/components/relatorios/use-filtros-tabela'
 import { rotuloAcessorio, rotuloCategoria } from '@/lib/dominio'
+import { cn } from '@/lib/utils'
 import type { LinhaEntrada } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
@@ -88,14 +90,21 @@ export function TabelaEntradas({
             </TableHeader>
             <TableBody>
               {filtradas.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow
+                  key={r.id}
+                  className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}
+                >
                   <CelulaData data={r.data} />
                   {ehGeral && (
                     <TableCell className="hidden whitespace-nowrap md:table-cell">{r.filial}</TableCell>
                   )}
                   <TableCell className="hidden sm:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
                   <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
-                  <TableCell className="whitespace-nowrap font-medium tabular-nums">{r.patrimonio}</TableCell>
+                  <CelulaPatrimonio
+                    patrimonio={r.patrimonio}
+                    estornada={r.estornada}
+                    estornoData={r.estornoData}
+                  />
                   <TableCell>
                     <PilulaTipo tipo={r.tipo} />
                   </TableCell>

@@ -6,6 +6,7 @@ import type {
   LinhaLancamentoItem,
   SaldoItemPeriodo,
 } from '@/lib/relatorios/tipos'
+import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { paginarTodos, type DbClient } from './comum'
 
 // Itens por quantidade nos grupos 2–3 do relatório v2 (acessórios/componentes —
@@ -145,6 +146,31 @@ export function mapLancamentoItemRow(r: RawMovItemRow): LinhaLancamentoItem {
   }
 }
 
+// F16/T1 — quais lançamentos do período FORAM estornados, e quando. Simetria com
+// `ehEstorno` (que marca o lançamento inverso): aqui um lançamento normal é
+// "estornado" quando existe OUTRO com `estorna_id` apontando para ele (índice único
+// `lanc_item_estorna_uidx` garante no máximo um). Map `estorna_id → data`, as-of
+// `ate` (um estorno posterior ao fim do período não retroage ao snapshot congelado).
+async function buscarLancEstornadosAteData(
+  client: DbClient,
+  ate: string,
+): Promise<Map<string, string>> {
+  const rows = await paginarTodos<{ estorna_id: string | null; data: string }>(
+    'Falha ao ler estornos de itens',
+    (from, to) =>
+      client
+        .from('lancamentos_item')
+        .select('estorna_id, data')
+        .not('estorna_id', 'is', null)
+        .lte('data', ate)
+        .order('id', { ascending: true })
+        .range(from, to),
+  )
+  const map = new Map<string, string>()
+  for (const r of rows) if (r.estorna_id && !map.has(r.estorna_id)) map.set(r.estorna_id, r.data)
+  return map
+}
+
 export async function getLancamentosItensPeriodo(
   client: DbClient,
   filialId: number | null,
@@ -152,26 +178,31 @@ export async function getLancamentosItensPeriodo(
 ): Promise<LinhaLancamentoItem[]> {
   // Período COMPLETO, paginado como buscarLinhasPeriodo (Saídas/Entradas/Transf.):
   // sem teto próprio que truncaria em silêncio e enganaria o contador da seção.
-  const rows = await paginarTodos<RawMovItemRow>(
-    'Falha ao listar movimentações de itens',
-    (from, to) => {
-      let q = client
-        .from('lancamentos_item')
-        .select(MOV_ITENS_SELECT)
-        .gte('data', periodo.de)
-        .lte('data', periodo.ate)
-        // F6C: exclui os lançamentos de saldo inicial da carga (não são do período).
-        // `.neq` sozinho descartaria observacao IS NULL (PostgREST) — o `.or` null-safe
-        // preserva as linhas sem observação. Mesmo padrão do filtro da carga em A1.
-        .or(`observacao.is.null,observacao.neq."${OBS_SALDO_INICIAL}"`)
-      if (filialId) q = q.eq('filial_id', filialId)
-      return q
-        .order('data', { ascending: false })
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: false })
-        .range(from, to)
-    },
-  )
+  const [rows, estornados] = await Promise.all([
+    paginarTodos<RawMovItemRow>(
+      'Falha ao listar movimentações de itens',
+      (from, to) => {
+        let q = client
+          .from('lancamentos_item')
+          .select(MOV_ITENS_SELECT)
+          .gte('data', periodo.de)
+          .lte('data', periodo.ate)
+          // F6C: exclui os lançamentos de saldo inicial da carga (não são do período).
+          // `.neq` sozinho descartaria observacao IS NULL (PostgREST) — o `.or` null-safe
+          // preserva as linhas sem observação. Mesmo padrão do filtro da carga em A1.
+          .or(`observacao.is.null,observacao.neq."${OBS_SALDO_INICIAL}"`)
+        if (filialId) q = q.eq('filial_id', filialId)
+        return q
+          .order('data', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      },
+    ),
+    buscarLancEstornadosAteData(client, periodo.ate),
+  ])
   // Backstop em JS do filtro da carga (defesa em profundidade — testado).
-  return rows.filter((r) => !ehSaldoInicialGoLive(r.observacao)).map(mapLancamentoItemRow)
+  return rows
+    .filter((r) => !ehSaldoInicialGoLive(r.observacao))
+    .map((r) => ({ ...mapLancamentoItemRow(r), ...marcaEstorno(estornados.get(r.id)) }))
 }

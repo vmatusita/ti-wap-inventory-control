@@ -381,6 +381,8 @@ export async function manutencaoDeEstado(
       ? todas.filter((n) => dataEmSP(n.em) >= envio.data)
       : todas
     return {
+      // F16/T3 — id do ativo para o patrimônio do card virar link p/ a ficha (operador).
+      ativoId: id,
       patrimonio: d?.patrimonio ?? '—',
       modelo: modeloDe(d?.marca ?? est?.marca ?? null, d?.modelo ?? est?.modelo ?? null),
       // filial as-of; se o ativo saiu do estado da filial (transferido/descartado

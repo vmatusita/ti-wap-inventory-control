@@ -140,6 +140,9 @@ export type ManutencaoCaso = {
   // F14/§0 — como o caso foi encerrado. Ausente/`'retorno'` = voltou (verde);
   // `'devolvido_fornecedor'` = badge própria neutra. Opcional p/ snapshots antigos.
   desfecho?: 'retorno' | 'devolvido_fornecedor'
+  // F16/T3 — id do ativo, para o patrimônio do card virar link p/ a ficha (só
+  // operador). OPCIONAL: snapshots pré-F16 não têm → texto puro, sem erro.
+  ativoId?: string
 }
 
 // Linha de item nos grupos 2–3 (acessórios / componentes).
@@ -165,6 +168,12 @@ export type GrupoRelatorio = {
 }
 
 // Tabelas detalhadas do período (o fecho do e-mail).
+//
+// F16: três campos OPCIONAIS novos (mantêm `schema:2`; snapshots pré-F16 não os têm):
+//   · `estornada?`/`estornoData?` (T1) — a movimentação foi desfeita por um estorno
+//     (inferido, sem coluna flag — ver lib/relatorios/estorno.ts); data as-of `ate`.
+//   · `ativoId?` (T3) — id do ativo, para o patrimônio virar link p/ a ficha (só
+//     operador no ao vivo; snapshots antigos sem o campo → texto puro, sem erro).
 export type LinhaSaida = {
   id: string
   data: string
@@ -178,6 +187,9 @@ export type LinhaSaida = {
   colaboradorSetor: string | null
   termo: string | null
   obs: string | null
+  ativoId?: string
+  estornada?: true
+  estornoData?: string
 }
 export type LinhaEntrada = {
   id: string
@@ -192,6 +204,9 @@ export type LinhaEntrada = {
   setor: string | null
   itensFaltantes: string[] | null
   obs: string | null
+  ativoId?: string
+  estornada?: true
+  estornoData?: string
 }
 export type LinhaTransferencia = {
   id: string
@@ -203,6 +218,9 @@ export type LinhaTransferencia = {
   patrimonio: string
   chamado: string | null
   obs: string | null
+  ativoId?: string
+  estornada?: true
+  estornoData?: string
 }
 
 // B5 (F6B): uma linha da tabela de movimentações de ITENS por quantidade no
@@ -220,6 +238,10 @@ export type LinhaLancamentoItem = {
   colaborador: string | null
   obs: string | null
   ehEstorno: boolean // estorna_id não nulo (o lançamento é o inverso de outro)
+  // F16/T1 — o lançamento FOI estornado por outro (o inverso de `ehEstorno`).
+  // OPCIONAL: snapshots pré-F16 não têm; a data é as-of o fim do período.
+  estornada?: true
+  estornoData?: string
 }
 
 export type SnapshotRelatorio = {

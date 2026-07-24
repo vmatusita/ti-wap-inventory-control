@@ -7,6 +7,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  BadgeEstornada,
   CabecalhoDetalhe,
   CelulaChamado,
   CelulaData,
@@ -59,12 +60,20 @@ export function TabelaMovItens({
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow
+                key={r.id}
+                className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}
+              >
                 <CelulaData data={r.data} />
                 {ehGeral && (
                   <TableCell className="hidden whitespace-nowrap sm:table-cell">{r.filial}</TableCell>
                 )}
-                <TableCell className="font-medium">{r.item}</TableCell>
+                <TableCell className="font-medium">
+                  <span className="inline-flex items-center gap-1.5">
+                    {r.item}
+                    {r.estornada && <BadgeEstornada data={r.estornoData} />}
+                  </span>
+                </TableCell>
                 <TableCell className="hidden text-muted-foreground md:table-cell">
                   {rotuloGrupoItem(r.grupo)}
                 </TableCell>
