@@ -2,7 +2,19 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* F19 — a variante `dark:` NÃO vale na impressão. Junto com o bloco `.dark`
+   (mais abaixo, embrulhado em `@media not print`), é o que faz o relatório sair
+   SEMPRE claro no Ctrl+P mesmo com o tema escuro ativo: na mídia print o `.dark`
+   não declara token nenhum — tudo cai no `:root` claro por cascata — e nenhuma
+   variante `dark:` (badges, pílulas, bordas) chega a casar. CSS puro, sem JS,
+   sem flash e sem duplicar a paleta clara. Decisão em docs/DECISOES.md. */
+@custom-variant dark {
+  @media not print {
+    &:is(.dark *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -105,43 +117,49 @@
   --brand-azul: #2a78d6;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  /* F7F — âmbar claro (AA sobre o card escuro: ~9.5:1; ~6.2:1 no badge/20). */
-  --warning: oklch(0.8 0.13 80);
-  --warning-foreground: oklch(0.205 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  /* Espelha --primary do dark (neutro). Antes era um roxo herdado do preset
+/* `@media not print` (F19): na impressão este bloco inteiro deixa de existir e o
+   `.dark` — que é o MESMO elemento `<html>` do `:root`, com a mesma
+   especificidade — para de sobrescrever os tokens claros. Resultado: papel
+   sempre claro, sem duplicar a paleta e sem mexer no tema da tela. */
+@media not print {
+  .dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    /* F7F — âmbar claro (AA sobre o card escuro: ~9.5:1; ~6.2:1 no badge/20). */
+    --warning: oklch(0.8 0.13 80);
+    --warning-foreground: oklch(0.205 0 0);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    /* Espelha --primary do dark (neutro). Antes era um roxo herdado do preset
      padrão do shadcn, estranho à marca — corrigido na revisão de design. */
-  --sidebar-primary: oklch(0.922 0 0);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+    --sidebar-primary: oklch(0.922 0 0);
+    --sidebar-primary-foreground: oklch(0.205 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+  }
 }
 
 @layer base {
