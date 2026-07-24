@@ -135,19 +135,27 @@ export function KitDialog({
       categorias: CATEGORIA_ORDEM.filter((c) => categorias.has(c)),
     }
     start(async () => {
-      const res = edicao
-        ? await atualizarKit({ id: kit.id, nome: nome.trim(), payload, ativo })
-        : await criarKit({ nome: nome.trim(), payload })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition
+      // (apaga a tela no error boundary) e o operador fica sem feedback.
+      try {
+        const res = edicao
+          ? await atualizarKit({ id: kit.id, nome: nome.trim(), payload, ativo })
+          : await criarKit({ nome: nome.trim(), payload })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success(edicao ? 'Kit atualizado.' : 'Kit criado.')
+        setAberto(false)
+        // Formulário de CRIAÇÃO fica montado depois de salvar: sem a limpeza, o
+        // próximo "Novo kit" abriria com o kit anterior inteiro preenchido.
+        if (!edicao) limpar()
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível salvar o kit. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success(edicao ? 'Kit atualizado.' : 'Kit criado.')
-      setAberto(false)
-      // Formulário de CRIAÇÃO fica montado depois de salvar: sem a limpeza, o
-      // próximo "Novo kit" abriria com o kit anterior inteiro preenchido.
-      if (!edicao) limpar()
-      router.refresh()
     })
   }
 

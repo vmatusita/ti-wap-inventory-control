@@ -32,15 +32,24 @@ export function AnotarDialog({ ativoId }: { ativoId: string }) {
       return
     }
     start(async () => {
-      const res = await anotarAtivo({ ativo_id: ativoId, texto: t })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback. O erro de negócio (`{ok:false,erro}`) segue
+      // tratado logo abaixo; o catch cobre só o throw cru.
+      try {
+        const res = await anotarAtivo({ ativo_id: ativoId, texto: t })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success('Anotação registrada.')
+        setTexto('')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível salvar a anotação. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success('Anotação registrada.')
-      setTexto('')
-      setAberto(false)
-      router.refresh()
     })
   }
 

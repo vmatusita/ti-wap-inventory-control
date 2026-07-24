@@ -41,8 +41,14 @@ export function corDelta(chave: keyof KpisRelatorio, delta: number): CorDelta {
 
 // Classe Tailwind de cor por veredito (claro/escuro). Fonte única — o componente
 // só escolhe pelo retorno de `corDelta`.
+//
+// F19 — o verde claro era `text-green-600`, que mede 3,22:1 sobre o card branco:
+// reprova AA (o Δ é renderizado a 11px, e texto normal exige 4,5:1). `green-700`
+// sobe para 4,94:1 sem mudar o matiz. O vermelho `red-600` já passava (4,76:1) e
+// fica como está — trocar por simetria escureceria o alerta sem ganho. Medido por
+// `node scripts/contraste.mjs`; os dois `dark:` seguem intactos (10,09:1 e 6,19:1).
 export const CLASSE_COR_DELTA: Record<CorDelta, string> = {
-  verde: 'text-green-600 dark:text-green-400',
+  verde: 'text-green-700 dark:text-green-400',
   vermelho: 'text-red-600 dark:text-red-400',
   neutro: 'text-muted-foreground',
 }

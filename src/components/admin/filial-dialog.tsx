@@ -59,16 +59,24 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
   function salvar() {
     if (!valido) return
     start(async () => {
-      const res = edicao
-        ? await atualizarFilial({ id: filial.id, nome: nome.trim(), slug, ativo })
-        : await criarFilial({ nome: nome.trim(), slug })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition
+      // (apaga a tela no error boundary) e o operador fica sem feedback.
+      try {
+        const res = edicao
+          ? await atualizarFilial({ id: filial.id, nome: nome.trim(), slug, ativo })
+          : await criarFilial({ nome: nome.trim(), slug })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success(edicao ? 'Filial atualizada.' : 'Filial criada.')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível salvar a filial. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success(edicao ? 'Filial atualizada.' : 'Filial criada.')
-      setAberto(false)
-      router.refresh()
     })
   }
 

@@ -173,6 +173,20 @@ export function ColarListaDialog({
       const r = await resolverPatrimoniosParaLote(texto)
       if (meu !== requisicao.current) return
       setRes(r)
+    } catch {
+      // F19 — a action ja converte o que conhece em `erro` (nada de excecao
+      // atravessando a fronteira), mas o TRANSPORTE ainda pode rejeitar (rede,
+      // sessao morta). Sem o catch nao aparece nada: o botao volta ao normal e a
+      // lista colada fica sem resposta. Vai pelo mesmo canal inline do arquivo —
+      // e so para a conferencia corrente (uma resposta cancelada nao repovoa).
+      if (meu !== requisicao.current) return
+      setRes({
+        erro: 'Não foi possível conferir a lista. Verifique sua conexão e tente de novo.',
+        encontrados: [],
+        ambiguos: [],
+        naoEncontrados: [],
+        invalidos: [],
+      })
     } finally {
       if (meu === requisicao.current) setCarregando(false)
     }

@@ -54,10 +54,17 @@ export function PassoRevisao({
     let vivo = true
     // Estado alterado SO dentro do callback assincrono (react-hooks/set-state-in-effect).
     void (async () => {
-      const res = await buscarPossiveisDuplicatasDoDia(
-        chaveLote.split(',').map((ativoId) => ({ ativoId, tipo, data })),
-      )
-      if (vivo) setDuplicatas(res)
+      try {
+        const res = await buscarPossiveisDuplicatasDoDia(
+          chaveLote.split(',').map((ativoId) => ({ ativoId, tipo, data })),
+        )
+        if (vivo) setDuplicatas(res)
+      } catch {
+        // F19 — o proxy só degrada o erro de NEGÓCIO; um throw de transporte
+        // (rede caída, sessão morta) escapava como unhandled rejection. Sem
+        // toast: o aviso é auxiliar e nunca travou o registro — fica em
+        // "nenhuma duplicata", que já é o comportamento previsto na falha.
+      }
     })()
     return () => {
       vivo = false

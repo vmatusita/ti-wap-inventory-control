@@ -112,15 +112,27 @@ export function rotuloTipo(t: TipoMovimentacao): string {
 // saída amarela, devolução azul, compra verde, troca teal; os demais tipos, neutro.
 // F15: `troca` (nascimento do substituto) é distinta da `compra` (verde) — teal, com
 // variante escura (AA claro/escuro, precedente F7F; mesmo teal de TIPO_LANC_PILL.retorno).
+//
+// F19 — saida/devolucao/compra nasceram sem par `dark:` (só `troca` tinha). Com o
+// tema escuro ligado isso vira texto escuro sobre pílula clara cravada no card
+// escuro. Pares idênticos aos de STATUS_META e TIPO_LANC_PILL, logo abaixo:
+// bg-*-100 → dark:bg-*-950 · text-*-700|800 → dark:text-*-300.
 const TIPO_PILL: Partial<Record<TipoMovimentacao, string>> = {
-  saida: 'bg-amber-100 text-amber-800',
-  devolucao: 'bg-blue-100 text-blue-700',
-  compra: 'bg-green-100 text-green-700',
+  saida: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  devolucao: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  compra: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
   troca: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
 }
 
+// Neutro dos tipos sem cor própria. F19 — era `bg-muted text-muted-foreground`,
+// que mede 4,34:1 e reprova AA nos 11px em que a pílula é renderizada. O par
+// `gray-200/gray-600` (6,11:1 claro · 5,64:1 escuro) é o MESMO já usado pelo badge
+// "descartado" de STATUS_META — reaproveitar mantém a família visual do neutro.
+const PILL_NEUTRA =
+  'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+
 export function pillTipo(t: TipoMovimentacao): string {
-  return TIPO_PILL[t] ?? 'bg-muted text-muted-foreground'
+  return TIPO_PILL[t] ?? PILL_NEUTRA
 }
 
 // ---------- CATEGORIA ----------
@@ -211,11 +223,12 @@ const TIPO_LANC_PILL: Record<TipoLancamento, string> = {
   reserva: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
   liberacao: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
   retorno: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
-  ajuste: 'bg-muted text-muted-foreground',
+  // F19 — mesmo neutro AA do `pillTipo` (ver PILL_NEUTRA).
+  ajuste: PILL_NEUTRA,
 }
 
 export function pillTipoLancamento(t: TipoLancamento): string {
-  return TIPO_LANC_PILL[t] ?? 'bg-muted text-muted-foreground'
+  return TIPO_LANC_PILL[t] ?? PILL_NEUTRA
 }
 
 // ---------- TERMO ----------

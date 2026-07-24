@@ -44,18 +44,27 @@ export function EstornarDialog({
 
   function confirmar() {
     start(async () => {
-      const res = await estornarMovimentacao({
-        movimentacao_id: movimentacaoId,
-        observacao: observacao.trim() || undefined,
-      })
-      if (!res.ok) {
-        toast.error(res.erro ?? 'Não foi possível estornar a movimentação.')
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback. Como é ação destrutiva, a mensagem diz que
+      // nada foi estornado — senão ele não sabe se deve tentar de novo.
+      try {
+        const res = await estornarMovimentacao({
+          movimentacao_id: movimentacaoId,
+          observacao: observacao.trim() || undefined,
+        })
+        if (!res.ok) {
+          toast.error(res.erro ?? 'Não foi possível estornar a movimentação.')
+          return
+        }
+        toast.success('Movimentação estornada.')
+        setAberto(false)
+        setObservacao('')
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível estornar a movimentação — nada foi estornado. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success('Movimentação estornada.')
-      setAberto(false)
-      setObservacao('')
-      router.refresh()
     })
   }
 

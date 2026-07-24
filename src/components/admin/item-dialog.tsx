@@ -61,42 +61,59 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
     // alerta), nunca `NaN`. Negativo e acima de 9999 morrem no Zod da action.
     const minimoNum = Number(estoqueMinimo) || 0
     start(async () => {
-      const res = edicao
-        ? await atualizarItem({
-            id: item.id,
-            nome: nome.trim(),
-            grupo,
-            ordem: ordemNum,
-            ativo,
-            estoque_minimo: minimoNum,
-          })
-        : await criarItem({
-            nome: nome.trim(),
-            grupo,
-            ordem: ordemNum,
-            estoque_minimo: minimoNum,
-          })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition
+      // (apaga a tela no error boundary) e o operador fica sem feedback.
+      try {
+        const res = edicao
+          ? await atualizarItem({
+              id: item.id,
+              nome: nome.trim(),
+              grupo,
+              ordem: ordemNum,
+              ativo,
+              estoque_minimo: minimoNum,
+            })
+          : await criarItem({
+              nome: nome.trim(),
+              grupo,
+              ordem: ordemNum,
+              estoque_minimo: minimoNum,
+            })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success(edicao ? 'Item atualizado.' : 'Item criado.')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível salvar o item. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success(edicao ? 'Item atualizado.' : 'Item criado.')
-      setAberto(false)
-      router.refresh()
     })
   }
 
   function remover() {
     if (!edicao) return
     start(async () => {
-      const res = await excluirItem({ id: item.id })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem saber se o item foi ou não excluído. A mensagem diz
+      // explicitamente que nada foi excluído para ninguém "conferir" na dúvida.
+      try {
+        const res = await excluirItem({ id: item.id })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success('Item excluído.')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível excluir o item — nada foi excluído. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success('Item excluído.')
-      setAberto(false)
-      router.refresh()
     })
   }
 

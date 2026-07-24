@@ -192,4 +192,11 @@
   body {
     background: #fff;
   }
+  /* F19 — com `enableSystem`, o next-themes escreve `color-scheme` INLINE no
+     <html>; estilo inline vence CSS sem `!important`. Sem esta linha o papel
+     herdaria os defaults escuros do navegador (scrollbar, controles de forma).
+     As cores do app não dependem disto — vêm dos tokens —, é só o cinto extra. */
+  html {
+    color-scheme: light !important;
+  }
 }

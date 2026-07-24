@@ -205,6 +205,12 @@ export function PaletaComandosProvider({
         try {
           const res = await buscarAtivosParaMovimentacao(q)
           if (vivo) setResultados(res)
+        } catch {
+          // F19 — sem o catch, uma queda de rede vira unhandled rejection a cada
+          // tecla digitada. Aqui a falha degrada CALADA para a lista vazia (nada
+          // de toast: um por tecla seria pior que o silêncio) — a paleta segue
+          // usável para "Ir para" e "Ações", que são locais.
+          if (vivo) setResultados([])
         } finally {
           if (vivo) setCarregando(false)
         }

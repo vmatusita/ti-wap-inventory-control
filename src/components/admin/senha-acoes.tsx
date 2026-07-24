@@ -35,14 +35,25 @@ export function SenhaAcoes({
 
   function alternar() {
     start(async () => {
-      const res = await definirStatusSenha(id, !ativa)
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador não sabe se a senha mudou de estado. A mensagem diz em que
+      // estado a senha continua, para ninguém revogar/reativar "por garantia".
+      try {
+        const res = await definirStatusSenha(id, !ativa)
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success(ativa ? 'Senha revogada.' : 'Senha reativada.')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          ativa
+            ? 'Não foi possível revogar a senha — ela continua ativa. Verifique sua conexão e tente de novo.'
+            : 'Não foi possível reativar a senha — ela continua revogada. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success(ativa ? 'Senha revogada.' : 'Senha reativada.')
-      setAberto(false)
-      router.refresh()
     })
   }
 

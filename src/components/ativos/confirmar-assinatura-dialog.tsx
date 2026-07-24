@@ -41,14 +41,23 @@ export function ConfirmarAssinaturaDialog({
 
   function confirmar() {
     start(async () => {
-      const res = await confirmarAssinaturaTermo({ ativo_id: ativoId, data })
-      if (!res.ok) {
-        toast.error(res.erro ?? 'Não foi possível confirmar a assinatura.')
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback. O erro de negócio (`{ok:false,erro}`) segue
+      // tratado logo abaixo; o catch cobre só o throw cru.
+      try {
+        const res = await confirmarAssinaturaTermo({ ativo_id: ativoId, data })
+        if (!res.ok) {
+          toast.error(res.erro ?? 'Não foi possível confirmar a assinatura.')
+          return
+        }
+        toast.success('Assinatura confirmada.')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível confirmar a assinatura. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success('Assinatura confirmada.')
-      setAberto(false)
-      router.refresh()
     })
   }
 
@@ -113,14 +122,23 @@ export function DesfazerAssinaturaDialog({ ativoId }: { ativoId: string }) {
 
   function desfazer() {
     start(async () => {
-      const res = await desfazerConfirmacaoTermo({ ativo_id: ativoId })
-      if (!res.ok) {
-        toast.error(res.erro ?? 'Não foi possível desfazer a confirmação.')
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback. Como a ação desfaz um registro, a mensagem
+      // diz que nada mudou — senão ele não sabe se deve tentar de novo.
+      try {
+        const res = await desfazerConfirmacaoTermo({ ativo_id: ativoId })
+        if (!res.ok) {
+          toast.error(res.erro ?? 'Não foi possível desfazer a confirmação.')
+          return
+        }
+        toast.success('Confirmação desfeita.')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível desfazer a confirmação — nada foi alterado. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success('Confirmação desfeita.')
-      setAberto(false)
-      router.refresh()
     })
   }
 

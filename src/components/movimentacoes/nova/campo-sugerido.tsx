@@ -53,8 +53,16 @@ export function CampoComSugestoes({
         if (vivo) setSugestoes([])
         return
       }
-      const res = await BUSCA[campo](q)
-      if (vivo) setSugestoes(res)
+      try {
+        const res = await BUSCA[campo](q)
+        if (vivo) setSugestoes(res)
+      } catch {
+        // F19 — sem o catch, uma queda de rede vira unhandled rejection a cada
+        // tecla digitada. Aqui a falha degrada CALADA para o datalist vazio
+        // (nada de toast: um por tecla seria pior que o silêncio) — o campo é
+        // texto livre e continua aceitando o que for digitado.
+        if (vivo) setSugestoes([])
+      }
     }, q.length < 2 ? 0 : 300)
     return () => {
       vivo = false

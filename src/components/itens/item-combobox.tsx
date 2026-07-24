@@ -77,25 +77,33 @@ export function ItemCombobox({
       return
     }
     start(async () => {
-      const res = await criarItemInline({ nome, grupo: grupoNovo })
-      if (!res.ok || !res.id) {
-        toast.error(res.erro ?? 'Não foi possível criar o item.')
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback: o painel de criação continua aberto, sem
+      // toast nenhum. O erro de negócio (`!res.ok || !res.id`) segue tratado logo
+      // abaixo.
+      try {
+        const res = await criarItemInline({ nome, grupo: grupoNovo })
+        if (!res.ok || !res.id) {
+          toast.error(res.erro ?? 'Não foi possível criar o item.')
+          return
+        }
+        // `estoque_minimo: 0` espelha o que `criarItemInline` gravou (default da
+        // coluna 0042 = sem alerta de reposição) — o objeto local tem que bater
+        // com a linha do banco, senão a lista da tela mentiria até o refresh.
+        // Item REATIVADO (F12-W4-06) é a exceção: ele já existia e pode ter um
+        // mínimo configurado. Não inventamos um valor — a próxima carga da tela
+        // traz o real; até lá o combobox só precisa do id e do nome.
+        onItemCriado({ id: res.id, nome, grupo: grupoNovo, estoque_minimo: 0 })
+        onSelecionar(res.id)
+        toast.success(
+          res.reativado
+            ? `Item “${nome}” já existia desativado e foi reativado.`
+            : `Item “${nome}” criado.`,
+        )
+        fechar(false)
+      } catch {
+        toast.error('Não foi possível criar o item. Verifique sua conexão e tente de novo.')
       }
-      // `estoque_minimo: 0` espelha o que `criarItemInline` gravou (default da
-      // coluna 0042 = sem alerta de reposição) — o objeto local tem que bater
-      // com a linha do banco, senão a lista da tela mentiria até o refresh.
-      // Item REATIVADO (F12-W4-06) é a exceção: ele já existia e pode ter um
-      // mínimo configurado. Não inventamos um valor — a próxima carga da tela
-      // traz o real; até lá o combobox só precisa do id e do nome.
-      onItemCriado({ id: res.id, nome, grupo: grupoNovo, estoque_minimo: 0 })
-      onSelecionar(res.id)
-      toast.success(
-        res.reativado
-          ? `Item “${nome}” já existia desativado e foi reativado.`
-          : `Item “${nome}” criado.`,
-      )
-      fechar(false)
     })
   }
 

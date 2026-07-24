@@ -109,6 +109,12 @@ export function AtivoCombobox({
       try {
         const res = await buscarAtivosParaMovimentacao(q)
         if (ativo) setResultados(res)
+      } catch {
+        // F19 — sem o catch, uma queda de rede vira unhandled rejection a cada
+        // tecla digitada. Aqui a falha degrada CALADA para a lista vazia (nada
+        // de toast: um por tecla seria pior que o silêncio), que é o mesmo
+        // "Nenhum ativo encontrado" que o operador já sabe ler.
+        if (ativo) setResultados([])
       } finally {
         if (ativo) setCarregando(false)
       }
@@ -124,8 +130,15 @@ export function AtivoCombobox({
   useEffect(() => {
     let vivo = true
     void (async () => {
-      const res = await buscarAtivosRecentesDoOperador()
-      if (vivo) setRecentes(res)
+      try {
+        const res = await buscarAtivosRecentesDoOperador()
+        if (vivo) setRecentes(res)
+      } catch {
+        // F19 — o proxy so degrada o erro de NEGOCIO; um throw de transporte
+        // (rede caida, sessao morta) escapava como unhandled rejection. Sem
+        // toast: e sugestao de conveniencia que ninguem pediu — fica sem
+        // recentes, exatamente como quando nao ha nenhum.
+      }
     })()
     return () => {
       vivo = false

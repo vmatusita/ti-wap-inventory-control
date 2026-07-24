@@ -78,16 +78,24 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
     if (!valido) return
     const aplica_a = [...aplicaA]
     start(async () => {
-      const res = edicao
-        ? await atualizarMotivo({ codigo: motivo.codigo, rotulo: rotulo.trim(), aplica_a, ativo })
-        : await criarMotivo({ codigo, rotulo: rotulo.trim(), aplica_a })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition
+      // (apaga a tela no error boundary) e o operador fica sem feedback.
+      try {
+        const res = edicao
+          ? await atualizarMotivo({ codigo: motivo.codigo, rotulo: rotulo.trim(), aplica_a, ativo })
+          : await criarMotivo({ codigo, rotulo: rotulo.trim(), aplica_a })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success(edicao ? 'Motivo atualizado.' : 'Motivo criado.')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível salvar o motivo. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success(edicao ? 'Motivo atualizado.' : 'Motivo criado.')
-      setAberto(false)
-      router.refresh()
     })
   }
 

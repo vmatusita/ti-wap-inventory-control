@@ -114,11 +114,21 @@ function CampoComSugestoes({
         }
         return
       }
-      const res = await consultarAcervo(campo, prefixo, marca)
-      if (!vivo) return
-      setSugestoes(res)
-      setIndice(-1)
-      setAberto(res.length > 0)
+      try {
+        const res = await consultarAcervo(campo, prefixo, marca)
+        if (!vivo) return
+        setSugestoes(res)
+        setIndice(-1)
+        setAberto(res.length > 0)
+      } catch {
+        // F19 — sem o catch, uma queda de rede vira unhandled rejection a cada
+        // tecla digitada. Aqui a falha degrada CALADA para a lista fechada
+        // (nada de toast: um por tecla seria pior que o silêncio) — o campo é
+        // texto livre e continua aceitando o que for digitado.
+        if (!vivo) return
+        setSugestoes([])
+        setAberto(false)
+      }
     }, DEBOUNCE_SUGESTAO)
     return () => {
       vivo = false
@@ -446,6 +456,16 @@ export function NovaCompraForm({
     let res
     try {
       res = await registrarCompra(input)
+    } catch {
+      // F19 — throw de transporte (rede, sessao morta) nao e erro de negocio: sem
+      // o catch some como unhandled rejection e o operador clica de novo sem
+      // nenhum sinal. O `return` e obrigatorio — sem ele o codigo abaixo leria
+      // `res` indefinido. O formulario continua preenchido.
+      const msg =
+        'Não foi possível cadastrar agora. Os dados continuam preenchidos — verifique sua conexão e tente de novo.'
+      setErrosServidor([msg])
+      toast.error(msg)
+      return
     } finally {
       setEnviando(false)
       enviandoRef.current = false

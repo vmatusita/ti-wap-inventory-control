@@ -39,14 +39,24 @@ export function HistoricoLancamentos({ rows }: { rows: LancamentoHistorico[] }) 
   function confirmar() {
     if (!alvo) return
     start(async () => {
-      const res = await estornarLancamento({ lancamento_id: alvo.id })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition: o
+      // dialog fica aberto sem toast e o operador clica de novo, achando que o
+      // estorno não saiu (ou saiu duas vezes). O erro de negócio (`!res.ok`)
+      // segue tratado abaixo.
+      try {
+        const res = await estornarLancamento({ lancamento_id: alvo.id })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success('Lançamento estornado (inverso criado).')
+        setAlvo(null)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível estornar — o lançamento continua como estava. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success('Lançamento estornado (inverso criado).')
-      setAlvo(null)
-      router.refresh()
     })
   }
 

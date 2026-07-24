@@ -49,14 +49,24 @@ export function ResolverPendenciaItemDialog({
   function resolver() {
     if (!desfecho) return
     start(async () => {
-      const res = await resolverPendenciaItem({ ids, desfecho, observacao: obs })
-      if (!res.ok) {
-        toast.error(res.erro ?? 'Não foi possível resolver a pendência.')
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition: o
+      // dialog fica aberto sem toast e o operador clica de novo. O erro de
+      // negócio (`!res.ok`) segue tratado abaixo.
+      try {
+        const res = await resolverPendenciaItem({ ids, desfecho, observacao: obs })
+        if (!res.ok) {
+          toast.error(res.erro ?? 'Não foi possível resolver a pendência.')
+          return
+        }
+        toast.success(n > 1 ? `${n} pendências resolvidas.` : 'Pendência resolvida.')
+        setAberto(false)
+        router.refresh()
+      } catch {
+        // O lote é tudo-ou-nada no servidor: se a chamada nem chegou, nada mudou.
+        toast.error(
+          'Não foi possível resolver — nenhuma pendência foi resolvida. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success(n > 1 ? `${n} pendências resolvidas.` : 'Pendência resolvida.')
-      setAberto(false)
-      router.refresh()
     })
   }
 

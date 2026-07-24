@@ -118,6 +118,15 @@ export function DevolucaoFornecedorForm({
     let res
     try {
       res = await devolverAoFornecedor(input)
+    } catch {
+      // F19 — throw de transporte (rede, sessao morta) nao e erro de negocio: sem
+      // o catch some como unhandled rejection e o operador fica sem sinal nenhum.
+      // O `return` e obrigatorio — sem ele o codigo abaixo leria `res` indefinido.
+      const msg =
+        'Não foi possível registrar a devolução. Verifique sua conexão e tente de novo.'
+      setErros([msg])
+      toast.error(msg)
+      return
     } finally {
       setEnviando(false)
       enviandoRef.current = false

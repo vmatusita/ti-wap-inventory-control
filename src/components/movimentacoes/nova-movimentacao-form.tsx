@@ -350,6 +350,13 @@ export function NovaMovimentacaoForm({
       toast.success(
         `Rascunho restaurado — ${ativos.length} ${ativos.length === 1 ? 'ativo' : 'ativos'} no lote.`,
       )
+    } catch {
+      // F19 — a restauracao parte de um CLIQUE: se a chamada rejeitar, sem o
+      // catch nada aparece na tela. Mesma regra da lista vazia acima: o rascunho
+      // NAO e apagado, o banner continua de pe e o operador tenta de novo.
+      toast.error(
+        'Não foi possível restaurar o rascunho agora. Verifique sua conexão e tente de novo.',
+      )
     } finally {
       setRestaurando(false)
     }
@@ -473,6 +480,15 @@ export function NovaMovimentacaoForm({
         // itensInput ja no formato de MovimentacaoInput (validado no servidor)
         itens: itensInput as never,
       })
+    } catch {
+      // F19 — sem o catch, o throw de transporte (rede caindo, sessao morta,
+      // payload) vira unhandled rejection: NADA acontece na tela e o operador
+      // clica de novo. O `return` e obrigatorio — sem ele o codigo abaixo leria
+      // `res` indefinido. O lote continua montado na tela.
+      toast.error(
+        'Não foi possível registrar agora. Seu lote continua aqui — verifique sua conexão e tente de novo.',
+      )
+      return
     } finally {
       setEnviando(false)
       enviandoRef.current = false

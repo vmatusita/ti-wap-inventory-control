@@ -54,19 +54,28 @@ export function GerarRelatorioDialog({
   function gerar() {
     if (!periodoValido) return
     start(async () => {
-      const res = await gerarRelatorio({
-        filialSlug: slugAlvo,
-        de,
-        ate,
-        observacao: observacao.trim() || undefined,
-      })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback nenhum. O erro de negócio (`!res.ok`) segue
+      // tratado abaixo, com o mesmo narrowing da união.
+      try {
+        const res = await gerarRelatorio({
+          filialSlug: slugAlvo,
+          de,
+          ate,
+          observacao: observacao.trim() || undefined,
+        })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        toast.success(`Relatório gerado (versão ${res.versao}).`)
+        setAberto(false)
+        router.push(`/relatorios/gerados/${res.id}`)
+      } catch {
+        toast.error(
+          'Não foi possível gerar o relatório. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success(`Relatório gerado (versão ${res.versao}).`)
-      setAberto(false)
-      router.push(`/relatorios/gerados/${res.id}`)
     })
   }
 

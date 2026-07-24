@@ -53,13 +53,22 @@ export function CriarSenhaDialog() {
   function salvar() {
     if (!valido) return
     start(async () => {
-      const res = await criarSenhaAcesso({ rotulo: rotulo.trim(), senha })
-      if (!res.ok) {
-        toast.error(res.erro)
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition
+      // (apaga a tela no error boundary) e o operador fica sem feedback. O
+      // diálogo continua aberto com o rótulo e a senha digitados.
+      try {
+        const res = await criarSenhaAcesso({ rotulo: rotulo.trim(), senha })
+        if (!res.ok) {
+          toast.error(res.erro)
+          return
+        }
+        setCriada(senha) // exibe UMA vez (já temos o texto no client)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível criar a senha. Verifique sua conexão e tente de novo.',
+        )
       }
-      setCriada(senha) // exibe UMA vez (já temos o texto no client)
-      router.refresh()
     })
   }
 

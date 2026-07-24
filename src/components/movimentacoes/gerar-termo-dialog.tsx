@@ -107,30 +107,41 @@ export function GerarTermoDialog({
     setCarregando(true)
     setBlob(null)
     setGerou(false)
-    const res = await prepararTermo({ movimentacaoIds, familia })
-    setCarregando(false)
-    if (!res.ok) {
-      toast.error(res.erro ?? 'Não foi possível preparar o termo.')
+    // F19 — mesmo formato do `gerar` abaixo (try/catch/finally): sem o catch, um
+    // throw de transporte deixava o diálogo aberto travado em "Carregando…",
+    // sem mensagem nenhuma.
+    try {
+      const res = await prepararTermo({ movimentacaoIds, familia })
+      if (!res.ok) {
+        toast.error(res.erro ?? 'Não foi possível preparar o termo.')
+        setAberto(false)
+        return
+      }
+      setPrep(res)
+      // Tipo inicial: explícito > variante já gerada > devolução fixa > 1ª opção.
+      const jaGerado = res.existentes[0]?.tipo
+      const inicial =
+        tipoInicial ??
+        jaGerado ??
+        tipoDevolucao ??
+        (familia === 'responsabilidade' && categoria ? tiposRespPara(categoria)[0] : undefined)
+      setTipo(inicial ?? '')
+      const existente = inicial ? res.existentes.find((e) => e.tipo === inicial) : undefined
+      if (existente) {
+        const { data: d, ...rest } = existente.dados
+        setCampos(rest)
+        setData(d ?? res.data)
+      } else {
+        setCampos(res.campos)
+        setData(res.data)
+      }
+    } catch {
+      toast.error(
+        'Não foi possível preparar o termo. Verifique sua conexão e tente de novo.',
+      )
       setAberto(false)
-      return
-    }
-    setPrep(res)
-    // Tipo inicial: explícito > variante já gerada > devolução fixa > 1ª opção.
-    const jaGerado = res.existentes[0]?.tipo
-    const inicial =
-      tipoInicial ??
-      jaGerado ??
-      tipoDevolucao ??
-      (familia === 'responsabilidade' && categoria ? tiposRespPara(categoria)[0] : undefined)
-    setTipo(inicial ?? '')
-    const existente = inicial ? res.existentes.find((e) => e.tipo === inicial) : undefined
-    if (existente) {
-      const { data: d, ...rest } = existente.dados
-      setCampos(rest)
-      setData(d ?? res.data)
-    } else {
-      setCampos(res.campos)
-      setData(res.data)
+    } finally {
+      setCarregando(false)
     }
   }
 

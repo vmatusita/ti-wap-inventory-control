@@ -247,39 +247,50 @@ export function LancarItemDialog({
     }
     const enviadas = linhas
     start(async () => {
-      const res = await lancarItens(parsed.data)
-      if (res.erroGeral) {
-        toast.error(res.erroGeral)
-        return
-      }
-      if (res.ok) {
-        toast.success(
-          res.resultados.length > 1
-            ? `${res.resultados.length} lançamentos registrados.`
-            : 'Lançamento registrado.',
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback (ou a tela toda é apagada pelo boundary). Os
+      // erros de negócio (`erroGeral` e o resultado por linha) seguem intactos
+      // abaixo; o catch cobre só o throw cru.
+      try {
+        const res = await lancarItens(parsed.data)
+        if (res.erroGeral) {
+          toast.error(res.erroGeral)
+          return
+        }
+        if (res.ok) {
+          toast.success(
+            res.resultados.length > 1
+              ? `${res.resultados.length} lançamentos registrados.`
+              : 'Lançamento registrado.',
+          )
+          limpar()
+          setAberto(false)
+          router.refresh()
+          return
+        }
+        // Sucesso parcial: cada linha é independente (o trigger de saldo julga uma
+        // a uma). Mantém no carrinho SÓ as que falharam, com o erro na própria
+        // linha — espelho do lote de ativos.
+        const falhas = enviadas
+          .map((l, i) => ({ linha: l, resultado: res.resultados[i] }))
+          .filter((p) => !p.resultado || !p.resultado.ok)
+        const registradas = res.resultados.filter((r) => r.ok).length
+        if (falhas.length) {
+          setLinhas(falhas.map((p) => ({ ...p.linha, erro: p.resultado?.erro })))
+        }
+        if (registradas > 0) {
+          toast.warning(
+            `${registradas} de ${res.resultados.length} linhas lançadas. Corrija o que falhou.`,
+          )
+          router.refresh()
+        } else {
+          toast.error(falhas[0]?.resultado?.erro ?? 'Nenhuma linha foi lançada.')
+        }
+      } catch {
+        // O carrinho inteiro se perdeu no caminho: nenhuma linha chegou ao banco.
+        toast.error(
+          'Não foi possível lançar — nenhum lançamento foi registrado. Verifique sua conexão e tente de novo.',
         )
-        limpar()
-        setAberto(false)
-        router.refresh()
-        return
-      }
-      // Sucesso parcial: cada linha é independente (o trigger de saldo julga uma
-      // a uma). Mantém no carrinho SÓ as que falharam, com o erro na própria
-      // linha — espelho do lote de ativos.
-      const falhas = enviadas
-        .map((l, i) => ({ linha: l, resultado: res.resultados[i] }))
-        .filter((p) => !p.resultado || !p.resultado.ok)
-      const registradas = res.resultados.filter((r) => r.ok).length
-      if (falhas.length) {
-        setLinhas(falhas.map((p) => ({ ...p.linha, erro: p.resultado?.erro })))
-      }
-      if (registradas > 0) {
-        toast.warning(
-          `${registradas} de ${res.resultados.length} linhas lançadas. Corrija o que falhou.`,
-        )
-        router.refresh()
-      } else {
-        toast.error(falhas[0]?.resultado?.erro ?? 'Nenhuma linha foi lançada.')
       }
     })
   }

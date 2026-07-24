@@ -41,15 +41,24 @@ export function DefinirServiceTagDialog({
 
   function salvar() {
     start(async () => {
-      const res = await definirServiceTag({ ativo_id: ativoId, service_tag: valor.trim() })
-      if (!res.ok) {
-        toast.error(res.erro ?? 'Não foi possível definir a service tag.')
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback. O erro de negócio (`{ok:false,erro}`) segue
+      // tratado logo abaixo; o catch cobre só o throw cru.
+      try {
+        const res = await definirServiceTag({ ativo_id: ativoId, service_tag: valor.trim() })
+        if (!res.ok) {
+          toast.error(res.erro ?? 'Não foi possível definir a service tag.')
+          return
+        }
+        toast.success('Service tag definida.')
+        setAberto(false)
+        setValor('')
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível definir a service tag. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success('Service tag definida.')
-      setAberto(false)
-      setValor('')
-      router.refresh()
     })
   }
 

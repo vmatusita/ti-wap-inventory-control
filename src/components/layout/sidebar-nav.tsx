@@ -70,7 +70,10 @@ export function SidebarNav({
             >
               <item.icone className="size-4 shrink-0" aria-hidden />
               {item.rotulo}
-              <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+              {/* F19 — 10px era pequeno demais para um rótulo de texto; 11px é o
+                  mínimo usado no resto do app (pílulas das tabelas). Ramo hoje
+                  inalcançável: todos os itens de ITENS têm `href`. */}
+              <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
                 em breve
               </span>
             </span>

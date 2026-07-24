@@ -49,15 +49,26 @@ export function CorrigirPatrimonioDialog({
 
   function salvar() {
     start(async () => {
-      const res = await corrigirPatrimonio({ ativo_id: ativoId, patrimonio_novo: novo })
-      if (!res.ok) {
-        toast.error(res.erro ?? 'Não foi possível corrigir o patrimônio.')
-        return
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback. O erro de negócio (`{ok:false,erro}`) segue
+      // tratado logo abaixo; o catch cobre só o throw cru.
+      try {
+        const res = await corrigirPatrimonio({ ativo_id: ativoId, patrimonio_novo: novo })
+        if (!res.ok) {
+          toast.error(res.erro ?? 'Não foi possível corrigir o patrimônio.')
+          return
+        }
+        toast.success(semPatrimonio ? 'Patrimônio definido.' : 'Patrimônio corrigido.')
+        setAberto(false)
+        setNovo('')
+        router.refresh()
+      } catch {
+        toast.error(
+          semPatrimonio
+            ? 'Não foi possível definir o patrimônio. Verifique sua conexão e tente de novo.'
+            : 'Não foi possível corrigir o patrimônio. Verifique sua conexão e tente de novo.',
+        )
       }
-      toast.success(semPatrimonio ? 'Patrimônio definido.' : 'Patrimônio corrigido.')
-      setAberto(false)
-      setNovo('')
-      router.refresh()
     })
   }
 
