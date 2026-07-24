@@ -35,6 +35,12 @@ function LoginForm() {
     if (msg) toast.error(msg)
   }, [searchParams])
 
+  // F19 — o toast some sozinho: quem errou a senha e olhou para o teclado ficava
+  // sem nenhum sinal na tela. A mensagem também fica PERSISTENTE sob o formulário
+  // (o toast continua, para quem está olhando na hora). O erro do SUBMIT tem
+  // precedência sobre o de query: é o mais recente e o que descreve esta tentativa.
+  const mensagemErro = state.erro ?? ERRO_QUERY[searchParams.get('erro') ?? '']
+
   return (
     <form action={formAction} className="space-y-4">
       <div className="space-y-2">
@@ -46,6 +52,7 @@ function LoginForm() {
           autoComplete="email"
           placeholder="voce@wap.ind.br"
           required
+          aria-describedby={mensagemErro ? 'login-erro' : undefined}
         />
       </div>
       <div className="space-y-2">
@@ -56,11 +63,17 @@ function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
+          aria-describedby={mensagemErro ? 'login-erro' : undefined}
         />
       </div>
       <Button type="submit" className="h-11 w-full" disabled={pending}>
         {pending ? 'Entrando…' : 'Entrar'}
       </Button>
+      {mensagemErro && (
+        <p id="login-erro" role="alert" className="text-sm text-destructive">
+          {mensagemErro}
+        </p>
+      )}
       <p className="text-center text-xs text-muted-foreground">
         Esqueceu a senha? Peça a um administrador para reenviar o convite.
       </p>

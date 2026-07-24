@@ -185,7 +185,9 @@ export function TabelaEntradas({
                             {r.itensFaltantes.map((it) => (
                               <span
                                 key={it}
-                                className="rounded border border-amber-300 bg-amber-50 px-1.5 text-[11px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                // F19 — a borda tinha ficado sem par no escuro:
+                                // amber-300 acendia sobre o fundo amber-950.
+                                className="rounded border border-amber-300 bg-amber-50 px-1.5 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
                               >
                                 {rotuloAcessorio(it)}
                               </span>

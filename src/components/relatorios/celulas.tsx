@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { TableCell } from '@/components/ui/table'
+import { Dica } from '@/components/ui/dica'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
 import { formatDate } from '@/lib/format'
 import { pillTipo, rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
@@ -10,7 +11,7 @@ import { cn } from '@/lib/utils'
 // observação com tooltip. Módulo sem `'use client'` de propósito: é renderável
 // tanto pelas tabelas client (entradas/saídas/movimentações) quanto pela tabela
 // server (transferências); `ObsTooltip` é o único trecho client, atrás da sua
-// própria fronteira.
+// própria fronteira. F19 — o mesmo vale para o `Dica` da badge "estornada".
 
 // Largura máxima PADRONIZADA da coluna de observação. Antes variava sem critério
 // (160/200/220/240) — unificada em 220px (decisão registrada em DECISOES).
@@ -67,14 +68,16 @@ export function PilulaTipo({ tipo }: { tipo: TipoMovimentacao }) {
 // Badge discreta "estornada" (F16/T1). A cor de alerta (destructive) espelha o link
 // "estornada" da linha do tempo da ficha. `title` traz a data no hover; o texto
 // "estornada" é o sinal que sobrevive à IMPRESSÃO (sem `print:hidden`). Não é link.
+// F19 — o `title` virou dica (P2-10): a data do estorno era invisível para quem
+// navega por teclado. O texto impresso continua sendo o mesmo.
 export function BadgeEstornada({ data }: { data?: string }) {
   return (
-    <span
-      title={data ? `Estornada em ${formatDate(data)}` : 'Movimentação estornada'}
+    <Dica
+      texto={data ? `Estornada em ${formatDate(data)}` : 'Movimentação estornada'}
       className="inline-flex items-center rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
     >
       estornada
-    </span>
+    </Dica>
   )
 }
 

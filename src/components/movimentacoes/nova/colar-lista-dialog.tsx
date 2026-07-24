@@ -285,7 +285,10 @@ export function ColarListaDialog({
           >
             {carregando ? (
               <>
-                <Loader2 className="size-4 animate-spin" /> Conferindo…
+                {/* F19 — sem giro para quem pediu menos movimento: o rótulo
+                    "Conferindo…" ao lado já diz que a ação está em curso. */}
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />{' '}
+                Conferindo…
               </>
             ) : (
               'Conferir lista'
@@ -349,7 +352,7 @@ export function ColarListaDialog({
                           onChange={() =>
                             setEscolhas((e) => ({ ...e, [g.patrimonio]: c.id }))
                           }
-                          className="mt-1 size-4 shrink-0 accent-amber-600"
+                          className="mt-1 size-4 shrink-0 accent-amber-600 dark:accent-amber-500"
                         />
                         <span className="min-w-0 flex-1">
                           <LinhaAtivo a={c} />

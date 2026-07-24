@@ -50,7 +50,7 @@ export default async function RelatorioGeradoPage({
       {detalhe.versaoMaisNova && (
         <Link
           href={`/relatorios/gerados/${detalhe.versaoMaisNova.id}`}
-          className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 hover:bg-amber-100 print:hidden"
+          className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60 print:hidden"
         >
           <TriangleAlert className="size-4 shrink-0" />
           Existe a versão {detalhe.versaoMaisNova.versao} deste relatório — abrir a

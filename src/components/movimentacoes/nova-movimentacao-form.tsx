@@ -645,8 +645,9 @@ export function NovaMovimentacaoForm({
         </div>
       )}
 
-      {/* Stepper */}
-      <ol className="flex flex-wrap items-center gap-2 text-sm">
+      {/* Stepper — F19: a lista se nomeia ("Etapas") e o passo corrente sai no
+          <button>, que é o elemento interativo que o leitor de tela anuncia. */}
+      <ol aria-label="Etapas" className="flex flex-wrap items-center gap-2 text-sm">
         {PASSOS.map((rotulo, i) => {
           const n = i + 1
           const ativo = passo === n
@@ -657,6 +658,7 @@ export function NovaMovimentacaoForm({
                 type="button"
                 onClick={() => n < passo && setPasso(n)}
                 disabled={n > passo}
+                aria-current={ativo ? 'step' : undefined}
                 className={
                   'flex items-center gap-2 rounded-full px-2.5 py-1 font-medium transition-colors ' +
                   (ativo
@@ -679,9 +681,14 @@ export function NovaMovimentacaoForm({
         })}
       </ol>
 
-      {/* Erros de validacao */}
+      {/* Erros de validacao — F19: `role="alert"` porque o bloco só nasce depois
+          de "Revisar"/"Registrar"; sem ele o clique parece não ter efeito para
+          quem não vê a tela. */}
       {erros.length > 0 && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+        >
           <p className="mb-1 flex items-center gap-1.5 font-medium">
             <TriangleAlert className="size-4" />
             Revise antes de continuar:

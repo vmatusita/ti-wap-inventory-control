@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { Dica } from '@/components/ui/dica'
 import { precisaRepor } from '@/lib/validators/item'
 
 // Aviso "repor" do ponto de reposição (F12 · I5). Server Component, sem estado.
@@ -24,12 +25,18 @@ export function BadgeRepor({
 }) {
   if (estoqueConsolidado === null) return null
   if (!precisaRepor(estoqueConsolidado, estoqueMinimo)) return null
+  // F19 — o porquê do aviso (mínimo × consolidado) só existia no `title=`
+  // nativo, invisível para teclado e para parte dos leitores de tela (P2-10).
+  // `inline-flex` no gatilho para ele abraçar a badge e continuar do mesmo
+  // tamanho de antes nos dois lugares que a usam (tabela consolidada e por filial).
   return (
-    <Badge
-      className="border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-      title={`Abaixo do ponto de reposição — mínimo: ${estoqueMinimo.toLocaleString('pt-BR')} · estoque de todas as filiais: ${estoqueConsolidado.toLocaleString('pt-BR')}`}
+    <Dica
+      texto={`Abaixo do ponto de reposição — mínimo: ${estoqueMinimo.toLocaleString('pt-BR')} · estoque de todas as filiais: ${estoqueConsolidado.toLocaleString('pt-BR')}`}
+      className="inline-flex"
     >
-      repor
-    </Badge>
+      <Badge className="border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+        repor
+      </Badge>
+    </Dica>
   )
 }

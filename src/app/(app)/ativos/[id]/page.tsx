@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Copy, PackageX, Plus, TriangleAlert } from 'lucide-react'
+import { Copy, PackageX, Plus, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { EditarAtivoDialog } from '@/components/ativos/editar-ativo-dialog'
-import { CorrigirPatrimonioDialog } from '@/components/ativos/corrigir-patrimonio-dialog'
-import { DefinirServiceTagDialog } from '@/components/ativos/definir-service-tag-dialog'
+import { AcoesExcecaoFicha } from '@/components/ativos/acoes-excecao-ficha'
+import { VoltarParaAtivos } from '@/components/ativos/voltar-para-ativos'
 import { CopiarPatrimonio } from '@/components/ativos/copiar-patrimonio'
 import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
@@ -92,13 +92,7 @@ export default async function AtivoFichaPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/ativos"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Voltar para ativos
-      </Link>
+      <VoltarParaAtivos />
 
       {/* Cabecalho */}
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -153,20 +147,15 @@ export default async function AtivoFichaPage({
             </Link>
           </Button>
           <AnotarDialog ativoId={ativo.id} />
-          <CorrigirPatrimonioDialog
+          <EditarAtivoDialog ativo={ativo} />
+          {/* F19 — as ações de EXCEÇÃO (corrigir/definir patrimônio, definir service
+              tag) saem da barra para o menu "⋯": eram 6 controles lado a lado
+              disputando atenção com o CTA "Nova movimentação". */}
+          <AcoesExcecaoFicha
             ativoId={ativo.id}
-            patrimonioAtual={ativo.patrimonio}
+            patrimonio={ativo.patrimonio}
             serviceTag={ativo.service_tag}
           />
-          {/* F15/C1 — só quando a service tag está vazia (ativo importado sem tag).
-              Preenchida, a tag é imutável e a action recusa redefinir. */}
-          {!ativo.service_tag && (
-            <DefinirServiceTagDialog
-              ativoId={ativo.id}
-              patrimonio={ativo.patrimonio}
-            />
-          )}
-          <EditarAtivoDialog ativo={ativo} />
         </div>
       </div>
 
@@ -202,7 +191,7 @@ export default async function AtivoFichaPage({
 
       {/* Pendencia em destaque */}
       {ativo.pendencia && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             <span className="font-medium">Pendência:</span> {ativo.pendencia}

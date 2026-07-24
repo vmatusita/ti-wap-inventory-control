@@ -228,7 +228,7 @@ export default async function DashboardPage() {
                     <span className="shrink-0 text-muted-foreground">
                       {p.categoria ? rotuloCategoria(p.categoria) : ''} · {p.filial}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-amber-800">
+                    <span className="min-w-0 flex-1 truncate text-amber-800 dark:text-amber-300">
                       {p.pendencia}
                     </span>
                   </li>

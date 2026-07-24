@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { exportarAtivosCSV } from '@/lib/actions/exportar'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { PackageOpen, PackagePlus } from 'lucide-react'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
@@ -63,6 +64,13 @@ export default async function AtivosPage({
   // (cai no default `updated_at desc` / 50 por página), nunca derruba a tela.
   const ordenacao = parseOrdenacao(sp.ord)
   const pageSize = parseTamanhoPagina(sp.pp) ?? undefined
+
+  // F19 — diferencia "não há ativo nenhum" de "nada nesta busca" no estado vazio
+  // (mesma forma de /pendencias e /movimentacoes). `ord`, `pp` e `page` ficam de
+  // fora: são apresentação, não recorte. `status` é ARRAY — `Boolean([])` é true.
+  const temFiltro = Boolean(
+    q || filialId || categoria || status.length > 0 || semPatrimonio,
+  )
 
   const [filiais, resultado] = await Promise.all([
     listarFiliais(),
@@ -107,13 +115,22 @@ export default async function AtivosPage({
       <AtivosFiltros filiais={filiais} />
 
       {resultado.rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-16 text-center">
-          <PackageOpen className="size-8 text-muted-foreground" />
-          <p className="font-medium">Nenhum ativo encontrado com esses filtros</p>
-          <p className="text-sm text-muted-foreground">
-            Ajuste a busca ou limpe os filtros para ver todos os ativos.
-          </p>
-        </div>
+        // F19 — `resultado.total === 0` além do `!temFiltro` porque `?page=9` sem
+        // filtro traz zero linhas com base cheia e cairia no texto errado.
+        !temFiltro && resultado.total === 0 ? (
+          <EstadoVazio
+            titulo="Nenhum ativo cadastrado ainda"
+            descricao="Cadastre o primeiro equipamento para começar a controlar o estoque."
+            acao={{ href: '/ativos/novo', rotulo: 'Cadastrar o primeiro' }}
+          />
+        ) : (
+          <EstadoVazio
+            icone={PackageOpen}
+            titulo="Nenhum ativo com esses filtros"
+            descricao="Ajuste a busca ou limpe os filtros para ver todos os ativos."
+            acao={{ href: '/ativos', rotulo: 'Limpar filtros' }}
+          />
+        )
       ) : (
         <>
           <AtivosTable

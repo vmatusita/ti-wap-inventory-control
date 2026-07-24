@@ -83,7 +83,9 @@ export function ManutencaoCasos({
             )}
             {c.anotacoes.map((n, k) => (
               <li key={k} className="flex items-start gap-1.5">
-                <StickyNote className="mt-0.5 size-3 shrink-0 text-amber-500" />
+                {/* F19 — âmbar com par no escuro (mesmo do ativo-combobox):
+                    o 500 sumia no fundo escuro. */}
+                <StickyNote className="mt-0.5 size-3 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>
                   {n.texto}
                   <span className="ml-1 text-xs text-muted-foreground">

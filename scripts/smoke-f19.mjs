@@ -73,7 +73,8 @@ function falha(msg) {
   console.log(`  FALHA ${msg}`)
 }
 function checar(cond, msg) {
-  cond ? ok(msg) : falha(msg)
+  if (cond) ok(msg)
+  else falha(msg)
 }
 
 // Credenciais opcionais — NUNCA logadas. Só a presença é reportada.

@@ -9,6 +9,7 @@ import {
   rotuloStatus,
   type StatusAtivo,
 } from '@/lib/dominio'
+import { fillRotuloSegmento } from '@/lib/relatorios/rotulo-grafico'
 import type { EstoqueCatStatus } from '@/lib/relatorios/tipos'
 
 // Estoque no último dia por categoria × status (§4.1): barras horizontais
@@ -78,11 +79,16 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
               fill={STATUS_CHART_COLOR[s as StatusAtivo]}
               radius={s === ultimo ? [0, 4, 4, 0] : 0}
             >
+              {/* F19 — o rótulo era branco fixo a 10px e reprovava o mínimo de
+                  4,5:1 em quase todo segmento. Agora sai branco ou preto, o que
+                  contrastar mais com a cor daquela barra (rotulo-grafico.ts);
+                  como as cores de status são hex fixos, o resultado vale igual
+                  no tema claro e no escuro. */}
               <LabelList
                 dataKey={s}
                 position="center"
-                className="fill-white"
-                fontSize={10}
+                className={fillRotuloSegmento(STATUS_CHART_COLOR[s])}
+                fontSize={11}
                 formatter={rotuloSegmento}
               />
               {s === ultimo && (

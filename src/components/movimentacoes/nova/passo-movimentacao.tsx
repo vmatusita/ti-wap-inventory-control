@@ -212,7 +212,7 @@ export function PassoMovimentacao({
           quem entrou sumia da tela sem deixar rastro. Agora fica o chip com o
           link da ficha (a informação já vinha no resultado da action). */}
       {jaRegistrados.length > 0 && (
-        <div className="rounded-lg border border-green-600/40 bg-green-50 p-3 text-sm dark:bg-green-950/40">
+        <div className="rounded-lg border border-green-600/40 bg-green-50 p-3 text-sm dark:border-green-400/30 dark:bg-green-950/40">
           <p className="flex items-center gap-1.5 font-medium text-green-800 dark:text-green-300">
             <Check className="size-4" />
             Já registrados ({jaRegistrados.length}):
@@ -229,8 +229,13 @@ export function PassoMovimentacao({
         </div>
       )}
 
+      {/* F19 — `role="alert"` porque o box só existe DEPOIS do envio: quem usa
+          leitor de tela precisa ouvir quais itens falharam sem sair caçando. */}
       {Object.keys(errosPorAtivo).length > 0 && (
-        <div className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+        <div
+          role="alert"
+          className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm"
+        >
           <p className="font-medium text-destructive">
             Itens que falharam no último envio:
           </p>
@@ -257,13 +262,16 @@ export function PassoMovimentacao({
       )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
+        {/* F19 — os ids levam o prefixo `passo-` porque `mov-tipo`/`mov-filial`
+            já são dos filtros da lista de movimentações: mesmo sem as telas
+            coexistirem, o prefixo tira a ambiguidade de quem procura o id. */}
         <div className="grid gap-2">
-          <Label>Tipo de movimentação</Label>
+          <Label htmlFor="passo-tipo">Tipo de movimentação</Label>
           <Select
             value={config.tipo || undefined}
             onValueChange={(v) => onTrocarTipo(v as TipoMovimentacao)}
           >
-            <SelectTrigger className="w-full sm:w-[240px]">
+            <SelectTrigger id="passo-tipo" className="w-full sm:w-[240px]">
               <SelectValue placeholder="Escolha o tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -334,7 +342,7 @@ export function PassoMovimentacao({
           {/* Motivo */}
           {motivosAplicaveis.length > 0 && (
             <div className="grid gap-2">
-              <Label>
+              <Label htmlFor="passo-motivo">
                 Motivo
                 {campoObrigatorio(config.tipo, 'motivo') && (
                   <span className="text-destructive"> *</span>
@@ -344,7 +352,7 @@ export function PassoMovimentacao({
                 value={config.motivo || undefined}
                 onValueChange={(v) => onSet('motivo', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="passo-motivo">
                   <SelectValue placeholder="Selecione o motivo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -417,12 +425,12 @@ export function PassoMovimentacao({
           {campoAplica(config.tipo, 'termo') && (
             <>
               <div className="grid gap-2">
-                <Label>Termo de responsabilidade</Label>
+                <Label htmlFor="passo-termo">Termo de responsabilidade</Label>
                 <Select
                   value={config.termo || undefined}
                   onValueChange={(v) => onSet('termo', v as TermoStatus)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="passo-termo">
                     <SelectValue placeholder="Não informado" />
                   </SelectTrigger>
                   <SelectContent>
@@ -456,14 +464,14 @@ export function PassoMovimentacao({
           {/* Filial destino (transferencia) */}
           {campoAplica(config.tipo, 'filial_destino') && (
             <div className="grid gap-2">
-              <Label>
+              <Label htmlFor="passo-filial-destino">
                 Filial de destino<span className="text-destructive"> *</span>
               </Label>
               <Select
                 value={config.filialDestinoId || undefined}
                 onValueChange={(v) => onSet('filialDestinoId', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="passo-filial-destino">
                   <SelectValue placeholder="Selecione a filial" />
                 </SelectTrigger>
                 <SelectContent>
@@ -480,14 +488,14 @@ export function PassoMovimentacao({
           {/* Status resultante (ajuste) */}
           {campoAplica(config.tipo, 'status_resultante') && (
             <div className="grid gap-2">
-              <Label>
+              <Label htmlFor="passo-status">
                 Novo status<span className="text-destructive"> *</span>
               </Label>
               <Select
                 value={statusResultante || undefined}
                 onValueChange={onSetStatusResultante}
               >
-                <SelectTrigger>
+                <SelectTrigger id="passo-status">
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>

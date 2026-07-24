@@ -102,7 +102,7 @@ export default async function AdminKitsPage() {
                   </TableCell>
                   <TableCell>
                     {k.ativo ? (
-                      <Badge className="border-transparent bg-green-100 text-green-700">
+                      <Badge className="border-transparent bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">
                         Ativo
                       </Badge>
                     ) : (

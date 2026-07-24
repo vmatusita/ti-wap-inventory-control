@@ -14,7 +14,10 @@ function IndicadorTab() {
   const { pending } = useLinkStatus()
   useReportarNavegacao(pending)
   if (!pending) return null
-  return <Loader2 className="ml-1.5 size-3 animate-spin" aria-hidden />
+  // F19 — spinner parado quando o sistema pede menos movimento. É o único sem
+  // texto ao lado, mas a navegação pendente continua anunciada pela barra de
+  // progresso do topo e pelo estado do próprio link.
+  return <Loader2 className="ml-1.5 size-3 animate-spin motion-reduce:animate-none" aria-hidden />
 }
 
 // Tabs de filial (mockup): filiais ativas + "Consolidado" (slug 'geral'). Tab

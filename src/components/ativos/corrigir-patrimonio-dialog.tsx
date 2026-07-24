@@ -26,15 +26,24 @@ export function CorrigirPatrimonioDialog({
   ativoId,
   patrimonioAtual,
   serviceTag,
+  open,
+  onOpenChange,
 }: {
   ativoId: string
   // null = ativo importado SEM patrimônio (F7E) — o diálogo abre a partir do nulo
   // e o rótulo vira "Definir patrimônio" (rastro "de sem patrimônio para WAP…").
   patrimonioAtual: string | null
   serviceTag: string | null
+  // F19 — par opcional (padrão Radix): com ele o diálogo opera CONTROLADO e sem
+  // gatilho próprio, para ser aberto pelo menu "⋯" da ficha; sem ele segue
+  // não-controlado, com o botão de sempre.
+  open?: boolean
+  onOpenChange?: (o: boolean) => void
 }) {
   const router = useRouter()
-  const [aberto, setAberto] = useState(false)
+  const controlado = open !== undefined
+  const [abertoInterno, setAbertoInterno] = useState(false)
+  const aberto = open ?? abertoInterno
   const [novo, setNovo] = useState('')
   // Loading via useTransition (padrão único dos diálogos — OS-F11 T9): `enviando`
   // continua desabilitando os dois botões, então o duplo-submit segue impossível.
@@ -42,6 +51,14 @@ export function CorrigirPatrimonioDialog({
 
   const semPatrimonio = patrimonioAtual === null
   const rotulo = semPatrimonio ? 'Definir patrimônio' : 'Corrigir patrimônio'
+
+  // F19 — ponto único de abertura/fechamento: a limpeza do campo ao fechar precisa
+  // rodar nos DOIS modos (controlado e não-controlado).
+  function mudarAberto(o: boolean) {
+    if (!controlado) setAbertoInterno(o)
+    if (!o) setNovo('')
+    onOpenChange?.(o)
+  }
 
   // Preview ao vivo da canonicalização (mesma função pura do servidor).
   const preview = novo.trim() ? validarCorrecaoPatrimonio(patrimonioAtual, novo) : null
@@ -59,8 +76,9 @@ export function CorrigirPatrimonioDialog({
           return
         }
         toast.success(semPatrimonio ? 'Patrimônio definido.' : 'Patrimônio corrigido.')
-        setAberto(false)
-        setNovo('')
+        // `mudarAberto` (e não `setAberto` + `setNovo`): é o ponto único que fecha
+        // E limpa o campo nos dois modos, controlado e não-controlado.
+        mudarAberto(false)
         router.refresh()
       } catch {
         toast.error(
@@ -73,19 +91,17 @@ export function CorrigirPatrimonioDialog({
   }
 
   return (
-    <Dialog
-      open={aberto}
-      onOpenChange={(o) => {
-        setAberto(o)
-        if (!o) setNovo('')
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-10 gap-2 sm:h-8">
-          <Tag className="size-4" />
-          {rotulo}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
+      {/* F19 — no modo controlado quem abre é o menu "⋯" da ficha; renderizar o
+          gatilho aqui duplicaria a ação na barra. */}
+      {!controlado && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="h-10 gap-2 sm:h-8">
+            <Tag className="size-4" />
+            {rotulo}
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{rotulo}</DialogTitle>
@@ -154,7 +170,7 @@ export function CorrigirPatrimonioDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+          <Button variant="ghost" onClick={() => mudarAberto(false)} disabled={enviando}>
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={!podeSalvar}>

@@ -407,12 +407,14 @@ export function LancarItemDialog({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Filial</Label>
+              {/* F19 — o rótulo se liga ao gatilho por htmlFor/id (P1-2): sem
+                  isso o Select só se anunciava pelo valor corrente. */}
+              <Label htmlFor="lanc-filial">Filial</Label>
               <Select
                 value={filialId ? String(filialId) : ''}
                 onValueChange={(v) => setFilialId(Number(v))}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="lanc-filial" className="w-full">
                   <SelectValue placeholder="Filial" />
                 </SelectTrigger>
                 <SelectContent>
@@ -425,10 +427,14 @@ export function LancarItemDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Tipo</Label>
+              <Label htmlFor="lanc-tipo">Tipo</Label>
               <Select value={tipo} onValueChange={(v) => setTipo(v as TipoLancamento)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
+                <SelectTrigger id="lanc-tipo" className="w-full">
+                  {/* F19 — placeholder por simetria com a Filial: o tipo sempre
+                      tem valor ('entrada' de partida), então ele nunca aparece
+                      na tela; existe para o campo não ficar mudo se um dia o
+                      estado inicial virar vazio. */}
+                  <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
                   {TIPOS.map((t) => (

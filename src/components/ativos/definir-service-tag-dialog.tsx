@@ -26,18 +26,35 @@ import { definirServiceTag } from '@/lib/actions/ativos'
 export function DefinirServiceTagDialog({
   ativoId,
   patrimonio,
+  open,
+  onOpenChange,
 }: {
   ativoId: string
   // Só contexto (leitura) — ajuda o operador a confirmar de qual ativo se trata.
   patrimonio: string | null
+  // F19 — par opcional (padrão Radix): com ele o diálogo opera CONTROLADO e sem
+  // gatilho próprio, para ser aberto pelo menu "⋯" da ficha; sem ele segue
+  // não-controlado, com o botão de sempre.
+  open?: boolean
+  onOpenChange?: (o: boolean) => void
 }) {
   const router = useRouter()
-  const [aberto, setAberto] = useState(false)
+  const controlado = open !== undefined
+  const [abertoInterno, setAbertoInterno] = useState(false)
+  const aberto = open ?? abertoInterno
   const [valor, setValor] = useState('')
   // Loading via useTransition (padrão único dos diálogos — OS-F11 T9).
   const [enviando, start] = useTransition()
 
   const podeSalvar = valor.trim().length > 0 && !enviando
+
+  // F19 — ponto único de abertura/fechamento: a limpeza do campo ao fechar precisa
+  // rodar nos DOIS modos (controlado e não-controlado).
+  function mudarAberto(o: boolean) {
+    if (!controlado) setAbertoInterno(o)
+    if (!o) setValor('')
+    onOpenChange?.(o)
+  }
 
   function salvar() {
     start(async () => {
@@ -51,8 +68,9 @@ export function DefinirServiceTagDialog({
           return
         }
         toast.success('Service tag definida.')
-        setAberto(false)
-        setValor('')
+        // `mudarAberto` (e não `setAberto` + `setValor`): é o ponto único que fecha
+        // E limpa o campo nos dois modos, controlado e não-controlado.
+        mudarAberto(false)
         router.refresh()
       } catch {
         toast.error(
@@ -63,19 +81,17 @@ export function DefinirServiceTagDialog({
   }
 
   return (
-    <Dialog
-      open={aberto}
-      onOpenChange={(o) => {
-        setAberto(o)
-        if (!o) setValor('')
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-10 gap-2 sm:h-8">
-          <Tag className="size-4" />
-          Definir service tag
-        </Button>
-      </DialogTrigger>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
+      {/* F19 — no modo controlado quem abre é o menu "⋯" da ficha; renderizar o
+          gatilho aqui duplicaria a ação na barra. */}
+      {!controlado && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="h-10 gap-2 sm:h-8">
+            <Tag className="size-4" />
+            Definir service tag
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Definir service tag</DialogTitle>
@@ -113,7 +129,7 @@ export function DefinirServiceTagDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+          <Button variant="ghost" onClick={() => mudarAberto(false)} disabled={enviando}>
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={!podeSalvar}>

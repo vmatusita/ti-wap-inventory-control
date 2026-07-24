@@ -107,10 +107,13 @@ export function BarraProgressoNavegacao() {
 
   if (fase === 'oculto') return null
 
+  // F19 — `motion-reduce:hidden` no wrapper: a barra anima sem parar, e quem pediu
+  // `prefers-reduced-motion` não deve vê-la. O feedback de navegação continua pelo
+  // `loading.tsx` e pelos estados `aria-busy`/opacidade de quem navega.
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[3px] overflow-hidden print:hidden"
+      className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[3px] overflow-hidden motion-reduce:hidden print:hidden"
     >
       <div
         className={cn(

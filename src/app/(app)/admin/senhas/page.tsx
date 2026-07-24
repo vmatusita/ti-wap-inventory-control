@@ -52,7 +52,7 @@ export default async function AdminSenhasPage() {
                   </TableCell>
                   <TableCell>
                     {s.ativa ? (
-                      <Badge className="border-transparent bg-green-100 text-green-700">
+                      <Badge className="border-transparent bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">
                         Ativa
                       </Badge>
                     ) : (

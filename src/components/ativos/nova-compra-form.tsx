@@ -739,14 +739,14 @@ export function NovaCompraForm({
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label>
+            <Label htmlFor="compra-categoria">
               Categoria<span className="text-destructive"> *</span>
             </Label>
             <Select
               value={categoria || undefined}
               onValueChange={(v) => setCategoria(v as CategoriaAtivo)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="compra-categoria">
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
@@ -759,14 +759,14 @@ export function NovaCompraForm({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>
+            <Label htmlFor="compra-filial">
               Filial que recebeu<span className="text-destructive"> *</span>
             </Label>
             <Select
               value={filialId || undefined}
               onValueChange={setFilialId}
             >
-              <SelectTrigger>
+              <SelectTrigger id="compra-filial">
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>

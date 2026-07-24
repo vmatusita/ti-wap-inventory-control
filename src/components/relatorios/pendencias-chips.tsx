@@ -12,9 +12,11 @@ export function PendenciasChips({ pendencias }: { pendencias: ChipPendencia[] })
   return (
     <div className="flex flex-wrap gap-2">
       {pendencias.map((p) => (
+        // F19 — o chip nascera só com o tema claro: no escuro era fundo quase
+        // branco com texto quase preto, o único bloco a estourar a tela.
         <span
           key={p.chave}
-          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-900"
+          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
         >
           <span className="font-bold tabular-nums">
             {p.total.toLocaleString('pt-BR')}

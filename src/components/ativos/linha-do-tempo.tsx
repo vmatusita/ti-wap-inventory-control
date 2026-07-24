@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { EstornarDialog } from '@/components/ativos/estornar-dialog'
+import { cn } from '@/lib/utils'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { rotuloTipo, rotuloAcessorio } from '@/lib/dominio'
 import type { MovimentacaoTimeline } from '@/lib/queries/movimentacoes'
@@ -117,11 +118,19 @@ export function LinhaDoTempo({
         const podeEstornar = m.id === topoMovId && m.tipo !== 'estorno'
         const motivoRotulo = m.motivo ? (motivos[m.motivo] ?? m.motivo) : null
 
+        // F19 — quem chega por `#mov-<id>` (link "estornada", QR, e-mail) rolava
+        // até aqui sem saber qual linha era a sua. O `id` está no <li>, mas o
+        // cartão visível é o <div> filho: por isso a variante `target:` parte do
+        // <li> e mira o filho. Anel âmbar = vocabulário de atenção do app.
         return (
-          <li key={m.id} id={`mov-${m.id}`} className="relative scroll-mt-20 pl-6">
+          <li
+            key={m.id}
+            id={`mov-${m.id}`}
+            className="relative scroll-mt-20 pl-6 target:[&>div]:ring-2 target:[&>div]:ring-amber-400 dark:target:[&>div]:ring-amber-500"
+          >
             {trilho('bg-primary')}
 
-            <div className={'rounded-lg border p-3 ' + (estornada ? 'bg-muted/30' : 'bg-card')}>
+            <div className={cn('rounded-lg border p-3', estornada ? 'bg-muted/30' : 'bg-card')}>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="font-medium">
                   {rotuloTipo(m.tipo)}
@@ -223,7 +232,7 @@ export function LinhaDoTempo({
                       <Badge
                         key={it}
                         variant="outline"
-                        className="border-amber-300 bg-amber-50 text-xs font-normal text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                        className="border-amber-300 bg-amber-50 text-xs font-normal text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
                       >
                         {rotuloAcessorio(it)}
                       </Badge>

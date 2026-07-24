@@ -7,6 +7,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Dica } from '@/components/ui/dica'
 import { LancarItemLinha } from '@/components/itens/lancar-item-linha'
 import { BadgeRepor } from '@/components/itens/badge-repor'
 import { cn } from '@/lib/utils'
@@ -85,8 +86,15 @@ export function SaldosFiliaisTabela({
               {filiais.map((f) => {
                 const c = linha.porFilial[f.id] ?? ZERO
                 return (
-                  <TableCell key={f.id} className="text-right" title={detalhe(c, f.nome)}>
-                    <div className="flex flex-col items-end gap-0.5">
+                  <TableCell key={f.id} className="text-right">
+                    {/* F19 — total/atrelados saíram do `title=` para uma dica de
+                        verdade (P2-10): o atributo nativo não abre por foco de
+                        teclado. A dica cobre a célula inteira, como o title
+                        cobria — nada aqui dentro tem dica própria. */}
+                    <Dica
+                      texto={detalhe(c, f.nome)}
+                      className="flex flex-col items-end gap-0.5"
+                    >
                       <span
                         className={cn(
                           'tabular-nums',
@@ -100,7 +108,7 @@ export function SaldosFiliaisTabela({
                           faltam {c.falta.toLocaleString('pt-BR')}
                         </Badge>
                       )}
-                    </div>
+                    </Dica>
                   </TableCell>
                 )
               })}
@@ -109,12 +117,15 @@ export function SaldosFiliaisTabela({
                   (decisão do Johnny 22/07/2026). Ao lado de um número de filial
                   ele diria "compre mouse para a Matriz" com 30 mouses parados em
                   outra filial. */}
-              <TableCell
-                className="text-right font-semibold tabular-nums"
-                title={detalhe(linha.consolidado, 'Todas as filiais')}
-              >
+              <TableCell className="text-right font-semibold tabular-nums">
                 <div className="flex flex-col items-end gap-0.5">
-                  <span>{linha.consolidado.estoque.toLocaleString('pt-BR')}</span>
+                  {/* F19 — aqui a dica fica SÓ no número, e não na célula
+                      inteira como na coluna de filial: a badge "repor" tem
+                      dica própria e um gatilho dentro do outro abriria as duas
+                      ao mesmo tempo no hover. */}
+                  <Dica texto={detalhe(linha.consolidado, 'Todas as filiais')}>
+                    {linha.consolidado.estoque.toLocaleString('pt-BR')}
+                  </Dica>
                   <BadgeRepor
                     estoqueConsolidado={linha.consolidado.estoque}
                     estoqueMinimo={minimoDoItem(minimos, linha.item_id)}

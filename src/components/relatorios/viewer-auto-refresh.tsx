@@ -26,7 +26,11 @@ export function ViewerAutoRefresh() {
       disabled={pending}
       title="Atualiza sozinho a cada 60 segundos"
     >
-      <RefreshCw className={pending ? 'size-4 animate-spin' : 'size-4'} />
+      {/* F19 — quem pediu menos movimento no sistema não gira o ícone; o texto
+          "Atualizando…" ao lado já é o estado, então nada se perde. */}
+      <RefreshCw
+        className={pending ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'}
+      />
       {pending ? 'Atualizando…' : 'Atualizar'}
     </Button>
   )

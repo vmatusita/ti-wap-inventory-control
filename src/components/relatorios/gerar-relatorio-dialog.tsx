@@ -113,8 +113,13 @@ export function GerarRelatorioDialog({
 
         {!ehGeral && (
           <div className="space-y-1.5">
-            <Label>Escopo</Label>
-            <div className="flex gap-2">
+            {/* F19 — a ordem pedia `htmlFor` aqui tratando o Escopo como um
+                Select; ele é um par de <Button> de alternância, e `htmlFor`
+                só aponta para UM controle — nomearia metade do grupo. Vale o
+                mesmo padrão do motivo-dialog/kit-dialog: `role="group"` +
+                `aria-labelledby` no rótulo. */}
+            <Label id="ger-escopo">Escopo</Label>
+            <div role="group" aria-labelledby="ger-escopo" className="flex gap-2">
               <Button
                 type="button"
                 variant={escopo === 'atual' ? 'default' : 'outline'}

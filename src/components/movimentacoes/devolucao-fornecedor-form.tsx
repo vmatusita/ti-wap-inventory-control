@@ -303,14 +303,14 @@ export function DevolucaoFornecedorForm({
               />
             </div>
             <div className="grid gap-2">
-              <Label>
+              <Label htmlFor="sub-categoria">
                 Categoria<span className="text-destructive"> *</span>
               </Label>
               <Select
                 value={categoria || undefined}
                 onValueChange={(v) => setCategoria(v as CategoriaAtivo)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="sub-categoria">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,11 +323,11 @@ export function DevolucaoFornecedorForm({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>
+              <Label htmlFor="sub-filial">
                 Filial<span className="text-destructive"> *</span>
               </Label>
               <Select value={filialId || undefined} onValueChange={setFilialId}>
-                <SelectTrigger>
+                <SelectTrigger id="sub-filial">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>

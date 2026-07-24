@@ -237,7 +237,8 @@ export function GerarTermoDialog({
         <div className="max-h-[64vh] overflow-y-auto p-4">
           {carregando ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Carregando dados do termo…
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> Carregando
+              dados do termo…
             </div>
           ) : blob ? (
             <div className="overflow-x-auto rounded-lg border bg-muted/30 p-3">
@@ -248,9 +249,9 @@ export function GerarTermoDialog({
               {/* Variante do monitor (§3.5) */}
               {variantes.length > 1 && (
                 <div className="grid gap-2">
-                  <Label>Modelo do termo</Label>
+                  <Label htmlFor="termo-modelo">Modelo do termo</Label>
                   <Select value={tipo || undefined} onValueChange={(v) => setTipo(v as TermoTipo)}>
-                    <SelectTrigger>
+                    <SelectTrigger id="termo-modelo">
                       <SelectValue placeholder="Escolha o modelo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -267,7 +268,7 @@ export function GerarTermoDialog({
               {prep?.avisos.map((a) => (
                 <p
                   key={a}
-                  className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                  className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
                 >
                   <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                   {a}
@@ -330,7 +331,7 @@ export function GerarTermoDialog({
               <Button onClick={gerar} disabled={gerando || carregando || !tipo} className="gap-2">
                 {gerando ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" /> Gerando…
+                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> Gerando…
                   </>
                 ) : (
                   <>
