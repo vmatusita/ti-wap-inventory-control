@@ -536,9 +536,13 @@ nenhuma variante `dark:` existente removida; nenhum dado real em código, teste 
 
 ## 11. Git
 
-Oito commits acima de `37774eb`, **já empurrados** para `origin/main` (`37774eb..127bdf7`):
+11 commits acima de `37774eb`. Os 10 primeiros já estão em `origin/main`; os
+últimos são a leva pós-fecho (par verde + smoke logado):
 
 ```
+cb2aa62 fix(f19): fecha o par verde AA (4,4996 -> 6,45:1) e roda o smoke logado
+7284836 docs(f19): registra que o push saiu (o relatorio ainda o listava como pendencia)
+127bdf7 docs(f19): secao Git do relatorio com os 8 commits e o shortstat real
 caeeb62 docs(f19): CHANGELOG descrevia o mecanismo REJEITADO do "Voltar" (achado da re-revisao)
 ee875c0 docs(f19): corrige numeros do relatorio e do CHANGELOG conferindo a saida real
 ad78eef fix(f19): 3 achados da revisao adversarial + CHANGELOG e relatorio
@@ -549,5 +553,5 @@ ad78eef fix(f19): 3 achados da revisao adversarial + CHANGELOG e relatorio
 03c9271 feat(f19): liga o modo escuro (opt-in) + PLAN.md, baseline e script de contraste
 ```
 
-79 arquivos, 3239 inserções, 430 remoções. O `PLAN.md` na raiz é o gabarito antifuga usado pelas
+80 arquivos, 3411 inserções, 436 remoções. O `PLAN.md` na raiz é o gabarito antifuga usado pelas
 duas rodadas de revisão — pode ser apagado a qualquer momento.
