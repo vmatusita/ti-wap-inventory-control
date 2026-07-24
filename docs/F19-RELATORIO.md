@@ -18,7 +18,7 @@ ligado como **opt-in**. 100% camada de UI/client — **zero migration, zero depe
 | Chamadas client de action sem `catch` | **28** | **0** | ✅ |
 | `<Label>` de Select sem nome acessível | **12** | **0** | ✅ |
 | Cores claras fixas sem par `dark:` | **21** | **0** | ✅ |
-| Smoke (rotas, tema, impressão, console) | — | **28 checagens, 0 falha** | ✅ |
+| Smoke (rotas, tema, impressão, console) | — | **24 checagens, 0 falha** | ✅ |
 | Migrations | 0 | **0** | — |
 | Dependências novas | 0 | **0** | — |
 
@@ -403,7 +403,7 @@ presente nos **dois** ramos do `(app)/layout.tsx` — necessário porque o `ui/t
 não auto-embrulha o Provider.
 
 **Após as correções:** `lint` limpo · `build` 24 rotas · `vitest` **58 arquivos / 1119 testes**
-(+6 da validação do destino do "Voltar") · smoke 28/28.
+(+6 da validação do destino do "Voltar") · smoke **24/24**.
 
 ---
 
