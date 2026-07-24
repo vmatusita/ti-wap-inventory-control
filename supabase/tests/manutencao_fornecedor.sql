@@ -199,9 +199,14 @@ begin
   else raise warning '✗ 4b substituto esperado em_estoque/vinculo=antigo, obtido %/%', v_status, c; end if;
   if v_forn = 'Proprinter Fic' then raise notice '✓ 4c fornecedor do substituto HERDADO do antigo (%).', v_forn;
   else raise warning '✗ 4c fornecedor esperado herdado "Proprinter Fic", obtido %', v_forn; end if;
-  select count(*) into v_cnt from public.movimentacoes where id = v_submov and ativo_id = v_subid and tipo = 'compra';
-  if v_cnt = 1 then raise notice '✓ 4d compra do substituto registrada (aparece nas Entradas)';
-  else raise warning '✗ 4d compra do substituto ausente'; end if;
+  -- 4d: F15/0047 — o substituto nasce por `troca`, NÃO por `compra` (o equipamento chegou
+  -- por substituição do fornecedor, não por compra). A movimentação existe e aparece nas
+  -- Entradas do relatório, rotulada "Troca". Espelho da asserção C3.1 de troca.sql (que
+  -- também exige count(`compra`)=0 para o substituto). Antes da F15 nascia `compra`; a 0047
+  -- trocou o `tipo` na RPC devolver_ao_fornecedor e este roteiro (F14) ficou para trás.
+  select count(*) into v_cnt from public.movimentacoes where id = v_submov and ativo_id = v_subid and tipo = 'troca';
+  if v_cnt = 1 then raise notice '✓ 4d troca do substituto registrada (aparece nas Entradas como "Troca")';
+  else raise warning '✗ 4d troca do substituto ausente (esperado tipo `troca` — F15/0047)'; end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 5 (MN3) — colisao patrimonio+service_tag do substituto: ROLLBACK TOTAL
