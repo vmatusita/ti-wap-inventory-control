@@ -216,6 +216,57 @@ const PARES = [
   { item: 'P2-8', onde: 'pílula fallback — ANTES', texto: 'muted-foreground', fundo: 'muted', px: 11, antes: true },
   { item: 'P2-8', onde: 'pílula fallback — DEPOIS', texto: 'gray-600', fundo: 'gray-200', px: 11, exigir: true },
   { item: 'P2-8', onde: 'pílula fallback — DEPOIS (escuro)', texto: 'gray-400', fundo: 'gray-800', px: 11, tema: 'escuro', exigir: true },
+
+  // ---- Varredura dark: · TIPO_PILL ganhou par escuro (dominio.ts) -----------
+  // O tema CLARO não mudou (as três já eram AA); o que passou a existir é o escuro.
+  { item: 'dark:', onde: 'pílula Saída (claro, inalterado)', texto: 'amber-800', fundo: 'amber-100', px: 11, exigir: true },
+  { item: 'dark:', onde: 'pílula Saída (escuro, NOVO)', texto: 'amber-300', fundo: 'amber-950', px: 11, tema: 'escuro', exigir: true },
+  { item: 'dark:', onde: 'pílula Devolução (claro, inalterado)', texto: 'blue-700', fundo: 'blue-100', px: 11, exigir: true },
+  { item: 'dark:', onde: 'pílula Devolução (escuro, NOVO)', texto: 'blue-300', fundo: 'blue-950', px: 11, tema: 'escuro', exigir: true },
+  // PRÉ-EXISTENTE, medido e NÃO alterado pela F19: `green-700` sobre `green-100`
+  // dá 4,4996:1 — reprova por 0,0004. O par é do tema claro, existe desde antes
+  // desta ordem em 13 pontos de 11 arquivos (STATUS_META, TIPO_PILL.compra, os 5
+  // badges de admin, legendas…) e trocá-lo é varredura de outra ordem. Fica aqui
+  // MEDIDO (a tabela mostra o ❌ verdadeiro) mas fora do `exigir`, para o código de
+  // saída refletir só o que a F19 assumiu. Correção sugerida: text-green-800 (6,45:1).
+  { item: 'dark:', onde: 'pílula Compra (claro, PRÉ-EXISTENTE)', texto: 'green-700', fundo: 'green-100', px: 11, preexistente: true },
+  { item: 'dark:', onde: 'pílula Compra (escuro, NOVO)', texto: 'green-300', fundo: 'green-950', px: 11, tema: 'escuro', exigir: true },
+
+  // ---- Varredura dark: · badge "Ativo/Ativa" das 5 telas de admin ------------
+  { item: 'dark:', onde: 'badge Ativo admin (claro, PRÉ-EXISTENTE)', texto: 'green-700', fundo: 'green-100', px: 12, preexistente: true },
+  { item: 'dark:', onde: 'badge Ativo admin (escuro, NOVO)', texto: 'green-300', fundo: 'green-950', px: 12, tema: 'escuro', exigir: true },
+
+  // ---- Varredura dark: · texto de pendência no dashboard --------------------
+  { item: 'dark:', onde: 'pendência dashboard (claro, inalterado)', texto: 'amber-800', fundo: 'card', px: 14, exigir: true },
+  { item: 'dark:', onde: 'pendência dashboard (escuro, NOVO)', texto: 'amber-300', fundo: 'card', px: 14, tema: 'escuro', exigir: true },
+
+  // ---- Varredura dark: · callout âmbar (chips do relatório, banner de versão) -
+  // No escuro o fundo é `amber-950/40` — translúcido sobre o card. O script compõe.
+  { item: 'dark:', onde: 'callout âmbar (claro, inalterado)', texto: 'amber-900', fundo: 'amber-50', px: 12, exigir: true },
+  { item: 'dark:', onde: 'callout âmbar (escuro, NOVO)', texto: 'amber-200', fundo: 'amber-950/40', sob: ['card', 'background'], px: 12, tema: 'escuro', exigir: true },
+
+  // ---- P2-7 · rótulo interno do gráfico empilhado ---------------------------
+  // As cores das barras são hex FIXOS (STATUS_CHART_COLOR) — valem igual nos dois
+  // temas. `antes` = o `fill-white` de 10px que a revisão reprovou.
+  { item: 'P2-7', onde: 'rótulo Em estoque — ANTES (branco)', texto: 'white', fundo: '#16a34a', px: 10, antes: true },
+  { item: 'P2-7', onde: 'rótulo Em estoque — DEPOIS (preto)', texto: 'black', fundo: '#16a34a', px: 11, exigir: true },
+  { item: 'P2-7', onde: 'rótulo Reservado — ANTES (branco)', texto: 'white', fundo: '#7c3aed', px: 10 },
+  { item: 'P2-7', onde: 'rótulo Reservado — DEPOIS (branco, mantido)', texto: 'white', fundo: '#7c3aed', px: 11, exigir: true },
+  { item: 'P2-7', onde: 'rótulo Em uso — ANTES (branco)', texto: 'white', fundo: '#2a78d6', px: 10, antes: true },
+  { item: 'P2-7', onde: 'rótulo Em uso — DEPOIS (preto)', texto: 'black', fundo: '#2a78d6', px: 11, exigir: true },
+  { item: 'P2-7', onde: 'rótulo Emprestado — ANTES (branco)', texto: 'white', fundo: '#0891b2', px: 10, antes: true },
+  { item: 'P2-7', onde: 'rótulo Emprestado — DEPOIS (preto)', texto: 'black', fundo: '#0891b2', px: 11, exigir: true },
+  { item: 'P2-7', onde: 'rótulo Em triagem — ANTES (branco)', texto: 'white', fundo: '#ea580c', px: 10, antes: true },
+  { item: 'P2-7', onde: 'rótulo Em triagem — DEPOIS (preto)', texto: 'black', fundo: '#ea580c', px: 11, exigir: true },
+  { item: 'P2-7', onde: 'rótulo Em manutenção — ANTES (branco)', texto: 'white', fundo: '#d97706', px: 10, antes: true },
+  { item: 'P2-7', onde: 'rótulo Em manutenção — DEPOIS (preto)', texto: 'black', fundo: '#d97706', px: 11, exigir: true },
+  { item: 'P2-7', onde: 'rótulo Defasado — ANTES (branco)', texto: 'white', fundo: '#9ca3af', px: 10, antes: true },
+  { item: 'P2-7', onde: 'rótulo Defasado — DEPOIS (preto)', texto: 'black', fundo: '#9ca3af', px: 11, exigir: true },
+
+  // ---- Cor de marca sobre o card ESCURO (não mudou; conferência pedida) -----
+  // São séries de gráfico = elemento gráfico → limiar 3:1, não 4,5:1.
+  { item: 'marca', onde: 'azul WAP sobre card escuro', texto: '#2a78d6', fundo: 'card', tema: 'escuro', px: 12, grafico: true, exigir: true },
+  { item: 'marca', onde: 'amarelo WAP sobre card escuro', texto: '#eda100', fundo: 'card', tema: 'escuro', px: 12, grafico: true, exigir: true },
 ]
 
 // ---------------------------------------------------------------------------
@@ -282,7 +333,13 @@ function main() {
     console.log('| Item | Par | Tema | Texto | Fundo | Razão | Exigido | Veredito |')
     console.log('|---|---|---|---|---|---:|---:|---|')
     for (const l of linhas) {
-      const veredito = l.passa ? (l.nivel === 'AAA' ? '✅ AAA' : '✅ AA') : '❌ reprova'
+      const veredito = l.passa
+        ? l.nivel === 'AAA'
+          ? '✅ AAA'
+          : '✅ AA'
+        : l.preexistente
+          ? '❌ reprova (pré-existente — backlog)'
+          : '❌ reprova'
       console.log(
         `| ${l.item} | ${l.onde} | ${l.tema} | \`${l.texto}\` | \`${l.fundo}\` | ${l.razao.toFixed(2)}:1 | ${l.exigido}:1 | ${veredito} |`,
       )

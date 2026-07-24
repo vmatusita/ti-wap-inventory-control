@@ -1835,3 +1835,106 @@ Base sólida: das **209 regras** mapeadas na `docs/MATRIZ-REGRAS.md` (7 áreas),
 - **Não feito de propósito (registrado como oportunístico, não como omissão):** **E** (componentes de import, 1.173 + 959 linhas) — refatorar ~2.100 linhas sem teste de componente trocaria dívida conhecida por risco de regressão no fluxo destrutivo; fazer junto da próxima mudança no import. **G** (~20 `as unknown as Row` em `queries/`) e **N** (`p_contagens` opcional, que bate no gate) entram na Faixa 1/2 do plano.
 - **Achado de infra recorrente:** `_f18_backup_pendencia` é a terceira tabela de backup ad-hoc criada em produção (depois de F7K e F8) — padrão que se repete a cada fase. Proposta registrada no plano: **todo backup de operação nasce com uma migration de DROP datada**.
 - Aceite: `lint` limpo · `test` **1092** (+16: 13 da trava de transições, 3 do fuso do import) · `build` limpo. Nenhum comportamento de negócio mudou, exceto a correção do fuso no import (que alinha preview e gravação).
+
+---
+
+## 2026-07-24 · F19-UX · Correções da revisão de UX/UI + modo escuro LIGADO (opt-in)
+
+> **Colisão de nome:** já existe uma fase F19 (auditoria de regras de negócio, ata acima,
+> `docs/RELATORIO-F19.md`). Esta ordem é outra, entregue no mesmo dia; o relatório dela mora em
+> `docs/F19-RELATORIO.md`. Nada foi sobrescrito.
+
+- **[REVOGA a decisão de 2026-07-21 registrada na linha "Dark mode — app é tema claro por design"]**
+  - Contexto: aquela decisão dizia que o toggle "exigiria `next-themes` (fora da stack fechada)". A
+    premissa estava **errada**: `next-themes ^0.4.6` já estava no `package.json`, os tokens `.dark`
+    já estavam completos em `globals.css` e havia dezenas de variantes `dark:` espalhadas — o que
+    faltava era só o `ThemeProvider`. Ligar o tema **não adicionou dependência nenhuma**.
+  - Decisão: modo escuro LIGADO como **opt-in**. `defaultTheme="light"` — quem não mexer no toggle
+    não vê diferença alguma; a escolha (Claro/Escuro/Sistema) fica no menu do usuário e é gravada no
+    navegador de quem escolheu.
+  - Consequência documental: o item **T12 do backlog ("remover `next-themes`, dependência morta")
+    deixa de fazer sentido** e foi retirado de `docs/BACKLOG-UX.md` e do `README.md`.
+  - Reversível? sim — tirar o `<ThemeProvider>` de `src/app/layout.tsx` devolve o app ao tema claro
+    fixo; nada mais depende dele.
+
+- **Helper de action × try/catch inline (P1-1) — escolhido o INLINE.**
+  - Contexto: 27 chamadas client de Server Action sem `catch`. A ordem permitia extrair um helper
+    (`safe-action-call.ts`) ou replicar o padrão que o repo já usa.
+  - Decisão: `try/catch` **inline**, replicando `importar-wizard.tsx` (F7F) e
+    `convidar-usuario-dialog.tsx` (F13/B1).
+  - Motivo: convivem **seis** formatos de retorno (`{ok,erro}`, união discriminada
+    `{ok:true,…}|{ok:false,erro}`, `{ok,resultados,erroGeral}`, `{ok,criados,erros}`, objetos **sem**
+    `ok`, e array puro sem canal de erro). Vários sítios checam campos ALÉM do `ok`
+    (`!res.ok || !res.id`). Um helper genérico viraria `unknown` + casts, e ainda forçaria uma
+    mensagem única onde cada botão precisa da sua ("nada foi estornado" ≠ "a senha continua ativa").
+    O ganho de 3 linhas por sítio não paga isso.
+  - Sub-decisão: **leituras por digitação** (combobox de ativos, sugestões, paleta de comandos)
+    degradam **caladas**, sem toast — um toast por tecla seria pior que o silêncio. O `catch` ali
+    existe só para não deixar *unhandled rejection*.
+  - Ressalva honesta registrada no código: um throw de transporte pode ocorrer **depois** de o
+    servidor ter commitado (resposta perdida na volta). As mensagens do tipo "nada foi estornado"
+    são a leitura correta na esmagadora maioria dos casos (rede caída, 413, sessão morta), e o
+    efeito real continua visível na linha do tempo.
+
+- **Impressão sempre clara com tema escuro ativo — solução CSS-only, sem JS.**
+  - Contexto: o `@media print` já forçava `body { background:#fff }`, mas com `.dark` no `<html>` o
+    `--foreground` fica quase branco e o `--border` quase transparente: sairia texto branco em papel
+    branco e cards sem moldura. Pior, o variant `dark:` compilava para `&:is(.dark *)` e continuava
+    casando na impressão — badges e pílulas sairiam com texto claro no papel.
+  - Alternativas consideradas: (a) duplicar os 38 tokens claros dentro de `@media print`;
+    (b) acrescentar variantes `print:` nos ~8 pontos de paleta literal dentro do relatório;
+    (c) remover a classe `.dark` do `<html>` num listener de `beforeprint`.
+  - Decisão: **duas linhas de CSS, nenhuma delas as acima.** O bloco `.dark { … }` passou a viver
+    dentro de `@media not print` — na impressão ele não declara token nenhum e tudo cai no `:root`
+    claro por cascata (`.dark` é o MESMO `<html>` do `:root`, mesma especificidade) —, e o
+    `@custom-variant dark` ganhou `@media not print`, de modo que **nenhum** utilitário `dark:` casa
+    ao imprimir. Mais uma linha de `color-scheme: light !important` (o `next-themes` escreve
+    `color-scheme` **inline**, e inline vence CSS sem `!important`).
+  - Motivo: zero duplicação de paleta (nada para sair de sincronia na próxima manutenção), zero JS,
+    zero flash, e funciona também na emulação de mídia do DevTools. Cobre 100% dos `dark:`, atuais e
+    futuros — inclusive os de componentes que ainda nem existem.
+  - Verificado no CSS **compilado**: todos os `.dark\:*` saem dentro de `@media not print`.
+  - Reversível? sim — tirar os dois `@media not print` volta ao comportamento anterior.
+
+- **Visualizador por senha NÃO ganha toggle de tema.**
+  - Decisão/motivo: sai de graça pela arquitetura — o `UserMenu` (onde o toggle mora) só é montado
+    em `app-header.tsx`, do ramo do operador; o visualizador usa `viewer-header.tsx`. O shell dele
+    segue claro, que é o tema do relatório na spec ("Referência visual"). Não foi escrito código
+    para excluí-lo: ele simplesmente não renderiza o menu.
+
+- **Edição de `src/components/ui/*` (exceção registrada, como manda a ordem).**
+  - `ui/dialog.tsx` e `ui/sheet.tsx`: o scrim dos modais é `bg-black/10`. Sobre um fundo já quase
+    preto isso é invisível — ligar o tema escuro **criaria** um defeito (o modal perde a separação
+    do que está atrás). Acrescentado `dark:bg-black/50` nos dois, e **nada mais**.
+  - `ui/sonner.tsx`: **não foi tocado**, como a ordem pediu. O `useTheme()` dele caía em `"system"`
+    por falta de provider; montar o `<Toaster/>` DENTRO do `ThemeProvider` conserta na raiz.
+
+- **Desvio da ordem, por engano dela: "Escopo" em `gerar-relatorio-dialog.tsx` não é um Select.**
+  - A ordem mandava dar `htmlFor` ao `<Label>` "Escopo". Na leitura do código, esse label rotula
+    **dois `<Button>` de alternância**, não um `<Select>` — `htmlFor` apontaria para um controle só e
+    seria enganoso. Aplicado o padrão que o repo já usa para grupo rotulado (`role="group"` +
+    `aria-labelledby`, precedente em `motivo-dialog.tsx` e `kit-dialog.tsx`).
+  - Pelo mesmo motivo, `editar-ativo-dialog.tsx` **não foi tocado**: ele usa `<FormLabel>`+
+    `<FormControl>`, e `ui/form.tsx` já injeta `htmlFor`/`id` por `Slot` — pôr `id` à mão
+    **quebraria** a injeção. Já estava correto.
+
+- **Destaque da âncora `#mov-…` — variante `target:` do Tailwind, sem JS.**
+  - O `id` está no `<li>` mas o cartão visível é o `<div>` filho, então a regra parte do `li` e
+    atinge o filho. Sem listener de `hashchange`: CSS puro cobre o primeiro carregamento e as
+    navegações por âncora igualmente.
+
+- **Rótulo do gráfico empilhado — cor escolhida por LUMINÂNCIA, com teste.**
+  - `fill-white` a 10px reprovava em 6 dos 7 segmentos (o pior, `defasado #9ca3af`, media 2,54:1).
+    Escolhendo entre branco e preto o de maior contraste, **os 7 passam ≥4,5:1** — e como
+    `STATUS_CHART_COLOR` é hex FIXO, o veredito vale igual nos dois temas. A regra virou função pura
+    testada (`src/lib/relatorios/rotulo-grafico.ts`), com um teste que lê `globals.css` e trava o
+    valor de `--brand-azul`: se o token mudar, o teste quebra em vez de o gráfico apodrecer calado.
+
+- **Ferramenta nova, sem dependência: `scripts/contraste.mjs`.** Node puro; lê a paleta real do
+  Tailwind v4 (`node_modules/tailwindcss/theme.css`) e os tokens do app (`globals.css`), ambos em
+  oklch — nada hard-coded. Valida-se sozinho: reproduz exatamente os números da revisão de 24/07
+  (3,22 · 4,34 · 6,11 · 2,54). É ferramenta de dev, não toca banco, não lê `.env`.
+
+- **Smoke logado não executado — `.env.smoke` não existe nesta máquina.** Degradado para smoke
+  público (build + start + curl) mais verificação do tema por script, sem credencial. Registrado
+  como pendência no relatório, com checklist manual de 2 minutos para o Johnny.
