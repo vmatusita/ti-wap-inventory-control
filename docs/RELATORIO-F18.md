@@ -46,11 +46,24 @@ Trigger/migrations, backfill, RLS/viewer, UI, regressão. **2 achados reais** (o
 2. **(médio) card do dashboard home lia `v_pendencias`** (não `v_fila`) → item sumia da prévia e divergia do selo → **corrigido** (lê `v_fila_pendencias`, key por `ordem`) + build verde.
 Re-revisão focada dos 2 fixes. Segurança: `get_advisors(security)` no ENSAIO só acusa o WARN `rls_policy_always_true` da UPDATE de `pendencias_item` — **idêntico a toda tabela de operador** (doutrina de nível único `authenticated USING true`); as views novas **não** aparecem como `security_definer_view` (confirma `security_invoker`).
 
-## §R — Rollout produção
+## §R — Rollout produção (24/07/2026)
 
-_(preenchido no rollout — backup, migrations 0050–0053, smoke antes/depois colado, deploy Vercel READY, CI `banco` verde, smoke leve)_
+Migrations **0050–0053 aplicadas por MCP** em produção (`pbtjcalbmepmrqzprusb`), registradas no ledger — o `delete from public.pendencias_item` da 0051 **não bate no gate** (não é `ativos`/`movimentacoes`). **Backup** dos ativos afetados em `public._f18_backup_pendencia` (RLS on, sem policy, 2 linhas) ANTES do backfill.
 
-Predição medida em PROD (`pbtjcalbmepmrqzprusb`, 24/07): 2 ativos com `itens faltantes` (ambos SISTEMA, 0 órfão/import) → **3 abertas**; baseline `v_pendencias` total 60 (termo 2/triagem 0/itens 2/patrimonio 56); esperado depois: total 58, itens 0, demais idênticos; `v_fila` 61.
+**Smoke antes→depois (colado):**
+
+| métrica | antes | depois |
+|---|---|---|
+| `ativos` com `%itens faltantes%` | 2 | **0** |
+| `pendencias_item` abertas | — | **3** (colaborador nunca nulo) |
+| `v_pendencias` total | 60 | **58** |
+| termo / triagem / patrimônio | 2 / 0 / 56 | **2 / 0 / 56** (idênticos) |
+| `v_pendencias` itens | 2 | **0** |
+| `v_fila_pendencias` total / itens | — | **61 / 3** |
+
+`notify pgrst, 'reload schema'` executado. **Deploy Vercel READY** (`dpl_13hdHaw78EtaCtLPvzFNNSXcWYAe`, commit `134cb00`, target production); `get_runtime_errors` (última hora): **nenhum**. Smoke leve de produção (`ti-wap-inventory-control.vercel.app`): `/login` renderiza (WAP · Estoque TI · Entrar); `/pendencias` redireciona ao login (auth-gated, sem 500); console sem erro. **CI VERDE** (run **30106994348**, ambos os jobs `completed/success`): `banco` aplicou `0001→0053` num Postgres novo e rodou TODOS os roteiros SQL — o `pendencias_item.sql` (8 cenários) e o `maquina_estados.sql` CENARIO 5 atualizado — **sem nenhum ✗**; `verificar` = lint/test(1018)/build.
+
+**Limite §R.5:** o smoke LOGADO de `/pendencias` (as contagens na tela) não roda — a UI é auth-gated e o agente não digita senha; as contagens foram provadas no banco (acima) e a fila lê exatamente `v_fila_pendencias`.
 
 ## O que este relatório NÃO prova
 
