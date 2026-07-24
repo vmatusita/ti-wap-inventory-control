@@ -30,6 +30,7 @@ import {
   rotuloTipoLancamento,
 } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
+import { LegendaEstorno } from '@/components/relatorios/legendas'
 import type { LinhaLancamentoItem } from '@/lib/relatorios/tipos'
 
 // B5 (F6B) — movimentações de ITENS por quantidade no período (seção própria; os
@@ -186,6 +187,11 @@ export function TabelaMovItens({
           </Table>
         </div>
       )}
+      {/* A legenda explica OS DOIS marcadores desta tabela: a linha esmaecida
+          ("estornada", r.estornada) e o "(estorno)" (r.ehEstorno, o lançamento que
+          desfez outro). O inverso pode cair no período com o original fora dele —
+          então dispara por qualquer um dos dois (achado da revisão adversarial F17). */}
+      {filtradas.some((r) => r.estornada || r.ehEstorno) && <LegendaEstorno itens />}
     </section>
   )
 }

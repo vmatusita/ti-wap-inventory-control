@@ -32,6 +32,7 @@ import {
 } from '@/components/relatorios/use-filtros-tabela'
 import { rotuloCategoria } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
+import { LegendaEstorno } from '@/components/relatorios/legendas'
 import type { LinhaSaida } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
@@ -111,7 +112,9 @@ export function TabelaSaidas({
 
       {filtradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          Nenhuma saída no período.
+          {temRecorte
+            ? 'Nenhuma saída encontrada com os filtros atuais.'
+            : 'Nenhuma saída no período.'}
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
@@ -191,6 +194,7 @@ export function TabelaSaidas({
           </Table>
         </div>
       )}
+      {filtradas.some((r) => r.estornada) && <LegendaEstorno />}
     </section>
   )
 }

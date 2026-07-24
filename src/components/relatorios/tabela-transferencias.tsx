@@ -27,6 +27,7 @@ import {
 import { useFiltrosTabela, PREFIXO_FILTROS } from '@/components/relatorios/use-filtros-tabela'
 import { rotuloCategoria } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
+import { LegendaEstorno } from '@/components/relatorios/legendas'
 import type { LinhaTransferencia } from '@/lib/relatorios/tipos'
 
 // Campos textuais da busca livre (F16/T3) — refs de MÓDULO (estáveis).
@@ -159,6 +160,7 @@ export function TabelaTransferencias({
           </Table>
         </div>
       )}
+      {filtradas.some((r) => r.estornada) && <LegendaEstorno />}
     </section>
   )
 }

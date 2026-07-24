@@ -102,12 +102,14 @@ export function KpiTiles({
 }
 
 // KPIs do grupo "Equipamentos principais" (guardados · reservados · em manutenção
-// · emprestados), cada um com Δ. Derivados dos mesmos KPIs de estado.
-const GRUPO_TILES: { chave: keyof KpisRelatorio; rotulo: string }[] = [
-  { chave: 'em_estoque', rotulo: 'Guardados' },
-  { chave: 'reservado', rotulo: 'Reservados' },
-  { chave: 'em_manutencao', rotulo: 'Em manutenção' },
-  { chave: 'emprestado', rotulo: 'Emprestados' },
+// · emprestados), cada um com Δ. Derivados dos mesmos KPIs de estado. F17/B5 — cada
+// tile ganhou um `sub` (os tiles principais já tinham): "Guardados" explica na hora
+// que é o MESMO número de "Em estoque" (o mesmo dado com dois nomes).
+const GRUPO_TILES: { chave: keyof KpisRelatorio; rotulo: string; sub: string }[] = [
+  { chave: 'em_estoque', rotulo: 'Guardados', sub: '= Em estoque' },
+  { chave: 'reservado', rotulo: 'Reservados', sub: 'aguardando entrega' },
+  { chave: 'em_manutencao', rotulo: 'Em manutenção', sub: 'conserto/assistência' },
+  { chave: 'emprestado', rotulo: 'Emprestados', sub: 'cedidos, com retorno' },
 ]
 
 export function GrupoKpis({
@@ -135,6 +137,7 @@ export function GrupoKpis({
               </span>
               {delta != null && <DeltaKpi delta={delta} chave={t.chave} />}
             </div>
+            <div className="text-[11px] text-muted-foreground">{t.sub}</div>
           </>
         )
         // Sem `links` (snapshot/viewer): a <div> de sempre. Com link (ao vivo,

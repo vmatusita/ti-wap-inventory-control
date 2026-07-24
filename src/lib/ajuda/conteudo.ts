@@ -462,6 +462,11 @@ export const SECOES: Secao[] = [
         texto:
           'No celular, onde a tabela precisa esconder colunas, cada linha tem uma setinha (chevron) que abre os campos ocultos — Observação, Termo, Colaborador, Chamado, Modelo — como pares rótulo:valor. No computador e na impressão nada muda: as colunas já cabem.',
       },
+      {
+        tipo: 'nota',
+        texto:
+          'Essas explicações agora também aparecem DENTRO do próprio relatório, em legendas curtas ao lado de cada elemento (o Δ dos KPIs, a linha estornada, as quatro cores dos badges de manutenção, a pílula "Troca" das Entradas) e numa seção recolhível "Como ler este relatório" no fim, com o glossário dos termos e a nota "Guardados = Em estoque". É a mesma informação desta ajuda, visível também para quem entra só pela senha de acesso — que não abre esta página.',
+      },
     ],
   },
   {

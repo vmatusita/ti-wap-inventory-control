@@ -26,6 +26,10 @@ export function ChipsAncora({
   const chips = [...BASE]
   if (temTransferencias) chips.push({ href: '#transferencias', rotulo: 'Transferências' })
   if (temMovItens) chips.push({ href: '#mov-itens', rotulo: 'Itens' })
+  // F17/B4 — âncora do glossário "Como ler este relatório" (sempre presente no corpo
+  // v2, único que renderiza estes chips). Fragmento na MESMA página → seguro para o
+  // visualizador por senha (nenhum href para fora de /relatorios).
+  chips.push({ href: '#como-ler', rotulo: 'Como ler' })
   return (
     <nav className="sticky top-14 z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-lg border bg-background/95 px-1 py-1.5 backdrop-blur [scrollbar-width:none] print:hidden [&::-webkit-scrollbar]:hidden">
       {chips.map((c) => (

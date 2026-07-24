@@ -20,6 +20,11 @@ import { ResumoPeriodoCard } from '@/components/relatorios/resumo-periodo'
 import { ObservacaoCard } from '@/components/relatorios/observacao-card'
 import { ChipsAncora } from '@/components/relatorios/chips-ancora'
 import { GrupoColapsavel } from '@/components/relatorios/grupo-colapsavel'
+import {
+  GlossarioRelatorio,
+  LegendaDelta,
+  LegendaManutencao,
+} from '@/components/relatorios/legendas'
 
 const SUBTITULO_SERIE: Record<GranularidadeSerie, string> = {
   dia: 'saídas × devoluções por dia',
@@ -61,6 +66,10 @@ export function CorpoRelatorioV2({
 
       {/* 1. KPIs gerais + série */}
       <KpiTiles kpis={s.kpis} anterior={s.kpisAnterior} links={links} />
+      {/* B1/F17 — o snapshot v2 sempre tem kpisAnterior, então o Δ (e sua legenda)
+          sempre aparecem aqui; o dashboard e os snapshots v1 usam KpiTiles sem
+          `anterior` (sem Δ) e não passam por este corpo. */}
+      <LegendaDelta />
 
       <CardRelatorio
         wide
@@ -135,6 +144,7 @@ export function CorpoRelatorioV2({
             vazio={s.manutencao.length === 0}
           >
             <ManutencaoCasos casos={s.manutencao} ehOperador={ehOperador} />
+            <LegendaManutencao casos={s.manutencao} />
           </CardRelatorio>
         </div>
       </GrupoColapsavel>
@@ -200,6 +210,10 @@ export function CorpoRelatorioV2({
 
       {/* 10. Observação da semana (B4 — só quando gravada no ato de gerar) */}
       <ObservacaoCard texto={s.meta.observacao} />
+
+      {/* 11. Como ler este relatório (F17/B4 — glossário; apêndice de referência,
+          visível para operador E visualizador, no ao vivo e nos snapshots v2). */}
+      <GlossarioRelatorio />
     </div>
   )
 }

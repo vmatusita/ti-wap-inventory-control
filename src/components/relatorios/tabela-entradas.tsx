@@ -31,6 +31,7 @@ import {
 } from '@/components/relatorios/use-filtros-tabela'
 import { rotuloAcessorio, rotuloCategoria } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
+import { LegendaEstorno, LegendaTroca } from '@/components/relatorios/legendas'
 import type { LinhaEntrada } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
@@ -107,7 +108,9 @@ export function TabelaEntradas({
 
       {filtradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          Nenhuma entrada no período.
+          {temRecorte
+            ? 'Nenhuma entrada encontrada com os filtros atuais.'
+            : 'Nenhuma entrada no período.'}
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
@@ -204,6 +207,8 @@ export function TabelaEntradas({
           </Table>
         </div>
       )}
+      {filtradas.some((r) => r.estornada) && <LegendaEstorno />}
+      {filtradas.some((r) => r.tipo === 'troca') && <LegendaTroca />}
     </section>
   )
 }

@@ -6,6 +6,20 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 24/07/2026 — F17: CI de banco verde de novo + legendas explicativas no relatório
+
+- ✅ **Frente A — CI de banco de volta ao verde** (só roteiro de teste + docs; pushada sozinha, precedente do preâmbulo da ordem). O job `banco` do CI (GitHub Actions) estava **vermelho desde o push da F15**: a `0047` fez o substituto de `devolver_ao_fornecedor` nascer por **`troca`** (não `compra`), mas o cenário **4d** de `supabase/tests/manutencao_fornecedor.sql` (F14) continuou exigindo `compra` — os dois roteiros pediam comportamentos opostos da mesma RPC. Alinhado ao comportamento **vigente** (`troca`), **provado no projeto de ENSAIO** por bloco `begin…rollback` que devolve linhas (substituto: `compra`=0, `troca`=1; antigo→`devolvido_fornecedor`; herança do fornecedor). Nenhum cenário deletado/pulado/enfraquecido; os outros 4 roteiros varridos contra `0044`–`0048` (nada mais defasado). **CI verde** (run `30089531148` — job `banco` success, incluído o passo "Rodar os roteiros de teste SQL"). Prevenção nova no [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md): mudou função/trigger/RPC → rode TODOS os roteiros antes do push (o `lint`/`test`/`build` não executa SQL; só o job `banco` executa — foi o furo da F15).
+- ✅ **Frente B — o relatório que se explica sozinho** (render-only, **zero migration, zero dependência nova**). Legendas explicativas DENTRO do relatório, para o operador **e** o visualizador por senha (que não abre `/ajuda`), no ao vivo **e** nos snapshots v2 (inclusive antigos — legenda é render, não dado; degradam sozinhas em campo ausente):
+  - **B1 — legenda do Δ** sob os KPIs: a seta ▲▼ dá a direção, a cor dá o juízo **por indicador** (verde=melhora, vermelho=piora, cinza=neutro).
+  - **B2 — nota de estorno** nas 4 tabelas onde há linha estornada visível ("linha esmaecida = estornada depois; a contagem continua incluindo a original"); na de itens, dispara também pelo marcador "(estorno)".
+  - **B3 — legenda dos badges de manutenção** (âmbar = em andamento · vermelho = parado 30+ dias · verde = voltou · cinza = devolvido ao fornecedor), mostrando só as cores presentes nos casos exibidos.
+  - **B4 — "Como ler este relatório"**: seção recolhível ao fim (glossário: os 7 KPIs, "Guardados = Em estoque", "Reserva técnica", Saída/Entrada/Transferência, estoque as-of, estorno §8/6), com chip-âncora; teste trava a cobertura de `STATUS_ORDEM`.
+  - **B5 — leitura:** empty-state das buscas diz "nenhuma … encontrada" quando há filtro (não "no período"); subtítulo nos tiles do grupo ("Guardados = Em estoque" inline); nota da pílula "Troca"; chip "Como ler".
+- ✅ **Revisão adversarial de 5 lentes** (fidelidade SQL · viewer/RLS · compat v1/v2 · mobile/impressão · contagens/regressão): **quatro limpas**; a de mobile/impressão achou **1 defeito (média)** — o gatilho da nota de estorno de itens ignorava o marcador "(estorno)" (fica órfão quando o lançamento-inverso cai no período com o original fora dele) —, **corrigido no gatilho** (`estornada || ehEstorno`). Legendas são **texto puro sem href** (o viewer nunca ganha atalho para fora de `/relatorios`); **nenhuma contagem muda**; dashboard e corpo v1 intactos.
+- 📌 **Zero migration, zero dependência nova.** `lint` limpo · **1010 testes** (era 993, +17 de função pura; nenhum deletado/enfraquecido) · `build` verde. **Limite: sem E2E visual autenticado** do relatório (login wall) — verificação por leitura de código, testes puros, build tipado, revisão de 5 lentes e, na Frente A, **CI verde real**. Ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-07-24 · F17); evidências em [`docs/RELATORIO-F17.md`](docs/RELATORIO-F17.md).
+
+---
+
 ## 23/07/2026 — F16: melhorias de leitura e navegação no relatório (UX)
 
 - ✅ **F16** (branch `f16-relatorio-ux`, commit por tarefa com gates verdes → revisão adversarial de **5 lentes** → correção → merge) — **seis melhorias de leitura/navegação no relatório** (ao vivo e snapshots), com **zero migration, zero RPC nova/alterada, zero dependência nova** e compatibilidade total com snapshots já gerados:
