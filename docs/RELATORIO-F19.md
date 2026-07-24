@@ -65,9 +65,9 @@ Todos os checks fecharam limpos exceto os dois achados acima. Baseline: 1597 ati
   - `criar_compra_lote` grants: anon **true → false**, service_role **true → false**, authenticated = true ✓
   - acervo intacto: **1597** ativos, **3077** movimentações (idênticos ao antes)
   - `get_advisors(security)`: logicamente inalterado (0054 = `create or replace` de função SQL; 0055 = aperto de grant — nenhum adiciona achado); PostgREST recarregado (`notify pgrst`).
-- **CI (GitHub Actions):** jobs `verificar` (lint+test 1059+build) e `banco` (aplica 0001→0055 + roda os 12 roteiros, incluindo os 5 novos) — <!-- run + conclusão preenchidos no push -->.
-- **Deploy Vercel:** <!-- READY + get_runtime_errors preenchidos no push -->.
-- **Smoke pós-deploy:** <!-- reexecução preenchida no push -->.
+- **Deploy Vercel:** commit `dd02622` → deploy `dpl_Gt35N…` **READY** (produção); `get_runtime_errors` (última hora): **nenhum**. O bundle é efetivamente o mesmo (F19 não mudou código de app — só migrations, roteiros e docs).
+- **Smoke pós-deploy:** `scripts/smoke/smoke-prod.mjs --exigir-f12` → **50 OK · 1 aviso · 0 falha** (o aviso é de desenho — RLS de kits não provada com a tabela vazia). `/relatorios/geral` e `/relatorios/gerados` a HTTP 200 com sessão de operador.
+- **CI (GitHub Actions) VERDE:** run `30114646306` — job `verificar` **success** (lint + 1059 testes + build) e job `banco` **success** (subiu Postgres, aplicou `0001→0055` em ordem — prova que as duas migrations novas aplicam limpo — e rodou os **12** roteiros SQL, incluindo os 5 novos, com **zero `✗`**). Esta é a prova ✓/✗ canônica dos roteiros.
 
 ## Backlog (handoff ao Johnny)
 - **Config de Auth (não-SQL, não-versionada):** habilitar Leaked Password Protection (R-ACC-22) e confirmar "signups disabled" (R-ACC-18) no dashboard.
