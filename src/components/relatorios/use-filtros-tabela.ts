@@ -36,12 +36,16 @@ export type CampoFiltro = 'filial' | 'categoria' | 'motivo' | 'tipo'
 // (duas filtradas ao mesmo tempo não se atropelam) nem com os params da página
 // (`preset`/`de`/`ate`). Param final: `<prefixo>.<campo>`, valor = `Opcao.valor`;
 // param ausente = "todas". Ex.: `?preset=mes&sd.motivo=Troca&en.categoria=celular`.
+// A busca livre (F16/T3) usa o mesmo prefixo com o sufixo `.q`: `?sd.q=wap0001234`.
 //   sd = Saídas · en = Entradas · mv = Últimas movimentações (grade v1)
+//   tr = Transferências · mi = Movimentações de itens (F16/T3 — busca livre)
 // NÃO renomeie: link antigo colado por aí deixaria de reproduzir o filtro.
 export const PREFIXO_FILTROS = {
   saidas: 'sd',
   entradas: 'en',
   movimentacoes: 'mv',
+  transferencias: 'tr',
+  movItens: 'mi',
 } as const
 
 export type PrefixoFiltros = (typeof PREFIXO_FILTROS)[keyof typeof PREFIXO_FILTROS]

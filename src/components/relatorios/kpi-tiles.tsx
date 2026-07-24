@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { KpisRelatorio } from '@/lib/relatorios/tipos'
+import { CLASSE_COR_DELTA, corDelta } from '@/lib/relatorios/delta-kpi'
 
 // Destinos opcionais por tile (OS-F9 / T2). Só o dashboard passa: nos relatórios
 // (ao vivo e snapshot) a prop não vem e o tile continua sendo uma <div> — mesmo
@@ -21,9 +22,10 @@ const TILES: { chave: keyof KpisRelatorio; rotulo: string; sub: string }[] = [
   { chave: 'defasado', rotulo: 'Reserva técnica', sub: 'defasados / posse WAP' },
 ]
 
-// Δ vs período anterior: seta + valor. ▲ verde (aumento), ▼ vermelho (queda).
-// Direcional (não julga se aumentar é "bom" para cada KPI).
-export function DeltaKpi({ delta }: { delta: number }) {
+// Δ vs período anterior: seta + valor. F16/T2 — a COR carrega a semântica por
+// indicador (verde=bom, vermelho=ruim, cinza=neutro), via `corDelta(chave, delta)`;
+// a SETA ▲▼ permanece (a cor nunca é o único canal). Δ zero é neutro.
+export function DeltaKpi({ delta, chave }: { delta: number; chave: keyof KpisRelatorio }) {
   if (delta === 0) {
     return <span className="text-[11px] text-muted-foreground tabular-nums">→ 0</span>
   }
@@ -32,7 +34,7 @@ export function DeltaKpi({ delta }: { delta: number }) {
     <span
       className={cn(
         'inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums',
-        positivo ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+        CLASSE_COR_DELTA[corDelta(chave, delta)],
       )}
     >
       {positivo ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
@@ -70,7 +72,7 @@ export function KpiTiles({
               <span className="text-2xl font-bold tabular-nums">
                 {valor.toLocaleString('pt-BR')}
               </span>
-              {delta != null && <DeltaKpi delta={delta} />}
+              {delta != null && <DeltaKpi delta={delta} chave={t.chave} />}
             </div>
             <div className="text-[11px] text-muted-foreground">{t.sub}</div>
           </>
@@ -127,7 +129,7 @@ export function GrupoKpis({
               <span className="text-xl font-bold tabular-nums">
                 {valor.toLocaleString('pt-BR')}
               </span>
-              {delta != null && <DeltaKpi delta={delta} />}
+              {delta != null && <DeltaKpi delta={delta} chave={t.chave} />}
             </div>
           </div>
         )
