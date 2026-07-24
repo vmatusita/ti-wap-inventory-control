@@ -504,9 +504,12 @@ nenhuma variante `dark:` existente removida; nenhum dado real em código, teste 
 
 ## 11. Git
 
-Cinco commits em `main` local, acima de `37774eb`:
+Oito commits em `main` local, acima de `37774eb` — nenhum empurrado ainda:
 
 ```
+caeeb62 docs(f19): CHANGELOG descrevia o mecanismo REJEITADO do "Voltar" (achado da re-revisao)
+ee875c0 docs(f19): corrige numeros do relatorio e do CHANGELOG conferindo a saida real
+ad78eef fix(f19): 3 achados da revisao adversarial + CHANGELOG e relatorio
 1de39fa fix(f19): smoke nao pode dar verde comparando vazio com vazio
 1a3ba37 feat(f19): selects com nome acessivel, varredura dark: e polimentos de UX (P1-2, P2)
 947dc68 feat(f19): toggle de tema, contrastes medidos e smoke do modo escuro
@@ -514,5 +517,5 @@ Cinco commits em `main` local, acima de `37774eb`:
 03c9271 feat(f19): liga o modo escuro (opt-in) + PLAN.md, baseline e script de contraste
 ```
 
-**73 arquivos, +2.526 −423.** O `PLAN.md` na raiz é o gabarito antifuga usado pela revisão final —
-pode ser apagado a qualquer momento.
+79 arquivos, 3239 inserções, 430 remoções. O `PLAN.md` na raiz é o gabarito antifuga usado pelas
+duas rodadas de revisão — pode ser apagado a qualquer momento.
