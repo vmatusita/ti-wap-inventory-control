@@ -39,7 +39,7 @@ Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migr
 
 ## 3. Máquina de estados
 
-13 tipos de movimentação; a tabela de transições permitidas é aplicada pelo **trigger** da migration [`0004_maquina_estados.sql`](../supabase/migrations/0004_maquina_estados.sql). Espelho em TypeScript (para o formulário validar antes de bater no banco) em [`src/lib/dominio.ts`](../src/lib/dominio.ts). A tabela canônica está na spec [§4](ESPECIFICACAO.md).
+15 tipos de movimentação (as 13 originais + `devolucao_fornecedor` da F14 e `troca` da F15); a tabela de transições permitidas é aplicada pelo **trigger** `aplicar_movimentacao` + a função `status_apos_movimentacao`, cuja **definição vigente vem de recriações sucessivas, por função** — `status_apos_movimentacao`: [`0004`](../supabase/migrations/0004_maquina_estados.sql)→`0024`→`0045`→`0047` (última = `0047`); `aplicar_movimentacao`: `0004`→`0023`→`0038`→`0045`→`0047`→`0051` (última = `0051`). Parta sempre da última de **cada uma**. Espelho em TypeScript (para o formulário validar antes de bater no banco) na const `TRANSICOES` de [`src/lib/validators/movimentacao.ts`](../src/lib/validators/movimentacao.ts). A tabela canônica está na spec [§4](ESPECIFICACAO.md). *(Emenda F19, 24/07/2026: 13→15 tipos; a localização do espelho — antes apontada para `dominio.ts` — corrigida para `validators/movimentacao.ts`.)*
 
 > **Dívida conhecida:** a máquina de estados e os vocabulários estão codificados **em duas camadas** (TS ↔ Postgres) mantidas em sincronia manual — ver [`DIVIDA-TECNICA.md`](DIVIDA-TECNICA.md) item D. Ao mudar uma transição, mude nos dois lados.
 
@@ -89,9 +89,9 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 
 ## 9. Banco, migrations e CI
 
-- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0040`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026).
+- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0055`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026). *(Emenda F19: o intervalo estava congelado em `0040`.)*
 - **Tipos** gerados do schema em `src/lib/types/database.ts` (`npm run db:types`) — não editar à mão.
-- **CI** (`.github/workflows/ci.yml`): job `verificar` (`lint` + `test` + `build`) e job `banco` (sobe Postgres, aplica `0001→0040` em ordem e roda os roteiros de `supabase/tests/`).
+- **CI** (`.github/workflows/ci.yml`): job `verificar` (`lint` + `test` + `build`) e job `banco` (sobe Postgres, aplica `0001`→última migration em ordem e roda os roteiros de `supabase/tests/`).
 - **Deploy/migrations em produção:** [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) (topologia prod/ensaio, o gate, apply manual, armadilhas conhecidas).
 
 ## 10. "Quero mudar X → mexo em Y"
