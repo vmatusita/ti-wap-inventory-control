@@ -47,7 +47,7 @@ export function TabelaItensGrupo({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-10 p-0 lg:hidden" aria-hidden />
+            <TableHead className="w-10 p-0 lg:hidden print:hidden" aria-hidden />
             <TableHead>Item</TableHead>
             {temTotalEstoque ? (
               <>
@@ -73,7 +73,7 @@ export function TabelaItensGrupo({
             return (
               <Fragment key={i.item}>
                 <TableRow>
-                  <TableCell className="w-10 p-0 pl-1 lg:hidden">
+                  <TableCell className="w-10 p-0 pl-1 lg:hidden print:hidden">
                     <BotaoExpandir
                       aberta={estaAberta(i.item)}
                       onClick={() => alternar(i.item)}

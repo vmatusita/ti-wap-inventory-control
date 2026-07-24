@@ -118,7 +118,7 @@ export function TabelaSaidas({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10 p-0 xl:hidden" aria-hidden />
+                <TableHead className="w-10 p-0 xl:hidden print:hidden" aria-hidden />
                 <TableHead>Data</TableHead>
                 {ehGeral && <TableHead className="hidden md:table-cell">Filial</TableHead>}
                 <TableHead className="hidden sm:table-cell">Categoria</TableHead>
@@ -150,7 +150,7 @@ export function TabelaSaidas({
                 return (
                   <Fragment key={r.id}>
                     <TableRow className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}>
-                      <TableCell className="w-10 p-0 pl-1 xl:hidden">
+                      <TableCell className="w-10 p-0 pl-1 xl:hidden print:hidden">
                         <BotaoExpandir
                           aberta={estaAberta(r.id)}
                           onClick={() => alternar(r.id)}

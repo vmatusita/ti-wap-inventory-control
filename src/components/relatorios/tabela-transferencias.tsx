@@ -101,7 +101,7 @@ export function TabelaTransferencias({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10 p-0 lg:hidden" aria-hidden />
+                <TableHead className="w-10 p-0 lg:hidden print:hidden" aria-hidden />
                 <TableHead>Data</TableHead>
                 <TableHead>De → Para</TableHead>
                 <TableHead className="hidden sm:table-cell">Categoria</TableHead>
@@ -122,7 +122,7 @@ export function TabelaTransferencias({
                 return (
                   <Fragment key={r.id}>
                     <TableRow className={cn(r.estornada && 'bg-muted/40 text-muted-foreground')}>
-                      <TableCell className="w-10 p-0 pl-1 lg:hidden">
+                      <TableCell className="w-10 p-0 pl-1 lg:hidden print:hidden">
                         <BotaoExpandir
                           aberta={estaAberta(r.id)}
                           onClick={() => alternar(r.id)}
