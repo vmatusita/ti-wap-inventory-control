@@ -23,7 +23,7 @@ ligado como **opt-in**. 100% camada de UI/client — **zero migration, zero depe
 | Dependências novas | 0 | **0** | — |
 
 **Veredito:** entregue por inteiro. O tema claro continua sendo o padrão — quem nunca tocar no
-toggle não vê diferença nenhuma. A pendência única é o **`git push`** (ver §9).
+toggle não vê diferença nenhuma. Empurrado para `origin/main` com todos os critérios verdes; o que resta é o smoke logado (sem credencial nesta máquina) e o checklist manual de 2 minutos do §10.
 
 ---
 
@@ -475,7 +475,7 @@ nenhuma variante `dark:` existente removida; nenhum dado real em código, teste 
 
 | # | Pendência | O que falta |
 |---|---|---|
-| 1 | **`git push origin main`** | Ver §11. É o último ato e dispara o deploy na Vercel. |
+| 1 | ~~`git push origin main`~~ ✅ **feito** | `37774eb..127bdf7 main -> main`, com todos os critérios verdes. **Não verifiquei o build na Vercel** — sem o team ID nesta máquina o MCP não lista os deployments. O push dispara o deploy; conferir em vercel.com. |
 | 2 | Smoke logado | Criar `.env.smoke` com `SMOKE_EMAIL`/`SMOKE_SENHA` e rodar `node scripts/smoke-f19.mjs` — o script já tem o passo pronto e captura screenshots das 3 telas nos 2 temas. |
 | 3 | Backlog: `text-green-700`/`bg-green-100` a 4,4996:1 | 13 pontos em 11 arquivos → `text-green-800` (6,45:1). Ver §3. |
 | 4 | Backlog: `<Label>Itens faltantes na devolução</Label>` | Rotula um GRUPO de checkboxes; o certo é `<fieldset>/<legend>`, não `htmlFor`. Mudança estrutural, maior que esta varredura. |
@@ -504,7 +504,7 @@ nenhuma variante `dark:` existente removida; nenhum dado real em código, teste 
 
 ## 11. Git
 
-Oito commits em `main` local, acima de `37774eb` — nenhum empurrado ainda:
+Oito commits acima de `37774eb`, **já empurrados** para `origin/main` (`37774eb..127bdf7`):
 
 ```
 caeeb62 docs(f19): CHANGELOG descrevia o mecanismo REJEITADO do "Voltar" (achado da re-revisao)
