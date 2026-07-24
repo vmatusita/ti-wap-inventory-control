@@ -172,7 +172,18 @@ seguem funcionando.
 **Segurança:** o valor lido do storage passa por `ehUrlDaListaDeAtivos` antes de virar destino — só
 caminho relativo cujo pathname é **exatamente** `/ativos`, barrando `//host`, `https://`,
 `javascript:` e as próprias fichas `/ativos/<id>`. Travado por **6 testes**
-(`lista-visitada.test.ts`).
+(`lista-visitada.test.ts`). A re-revisão tentou furar com **30 entradas** (incluindo `%2f%2fevil`,
+`\t/ativos`, `/ativos\\evil`, `/ATIVOS`, `/ativos#/x`) e **nenhuma passou** — o
+`split('?')[0] === '/ativos'` é fail-closed.
+
+**Comportamento a saber (é desenho, não defeito):** a memória é da **última lista visitada na aba**,
+não de "de onde eu vim". Se o operador filtrar `/ativos`, sair para `/pendencias` e abrir uma ficha
+por lá, o "Voltar para ativos" o leva à lista filtrada anterior — que pode não conter aquele ativo.
+O desenho por referrer levaria à lista limpa nesse caso, mas não funcionava em caso nenhum. Fica
+registrado para o Johnny decidir se algum dia incomoda.
+
+**O que não volta:** a posição de scroll (o `back()` restauraria; o `push` não). Nem o `PLAN.md` nem
+a ordem prometiam scroll — o requisito é o filtro, e esse volta inteiro, com ordenação e página.
 
 ---
 
@@ -395,8 +406,9 @@ atual). Achados, deduplicados:
 | **baixa** | A ata dizia que o shell do viewer "segue claro" — impreciso | ✅ **Texto corrigido.** O `ThemeProvider` é do layout raiz e cobre `/relatorios/**`: um navegador com `theme=dark` gravado renderiza o viewer escuro. O que a decisão garante é que **ele não tem como trocar**; no caso normal (visualizador externo, sem preferência gravada) o `defaultTheme="light"` entrega claro. `forcedTheme` foi descartado de propósito — travaria também o operador, que escolheu o escuro. |
 | **baixa** | Login anuncia o erro **duas vezes** ao leitor de tela (toast + `role="alert"`) | ⚠️ **Mantido.** É trade-off explícito da ordem ("**além do toast**, mostre o erro inline persistente (`<p role="alert">`)"). Registrado aqui como conhecido. Se um dia incomodar, o mínimo é trocar o `role="alert"` por `role="status"`/`aria-live="off"` no `<p>` (que continua visível e persistente) e deixar o anúncio só com o toast. |
 
-Confirmações úteis que as lentes trouxeram, por medição própria: **108** usos do seletor `.dark` no
-CSS compilado, **100% dentro de `@media not print`**; os 12 ids de Select conferidos **par a par,
+Confirmações úteis, por medição própria (a do CSS compilado eu refiz por conta, contando os
+seletores e as faixas de `@media` no arquivo gerado): **105** seletores `:is(.dark *)`, **100% dentro
+de `@media not print`** — a prova estrutural de que nenhuma variante `dark:` chega ao papel; os 12 ids de Select conferidos **par a par,
 string por string**, sem typo; `target:[&>div]:ring-2` compila para
 `.target\:\[\&\>div\]\:ring-2:target>div`, mirando o `<div>` filho como exigido; e o `TooltipProvider`
 presente nos **dois** ramos do `(app)/layout.tsx` — necessário porque o `ui/tooltip.tsx` deste repo
@@ -404,6 +416,22 @@ não auto-embrulha o Provider.
 
 **Após as correções:** `lint` limpo · `build` 24 rotas · `vitest` **58 arquivos / 1119 testes**
 (+6 da validação do destino do "Voltar") · smoke **24/24**.
+
+### Segunda rodada (re-revisão das correções)
+
+Três lentes novas, também em contexto fresco, com a pergunta invertida: *as correções resolvem mesmo,
+e quebraram alguma coisa?* **Duas voltaram limpas** — a do `try/catch` + anel `:target` e a de
+integridade geral. A terceira confirmou que o "Voltar" funciona (chegou a ler o código do `Link` do
+Next para provar que não há navegação dupla, e rodou as 30 entradas de segurança) e achou **um único
+defeito, de documentação**: o `CHANGELOG.md` ainda descrevia o mecanismo **rejeitado**
+(`history.back()` + referrer) na mesma entrada em que explicava por que ele não funciona.
+✅ **Corrigido.** Nenhum achado de código nesta rodada.
+
+Duas confirmações que a re-revisão trouxe e que valem registro: o `isSubmitting` do react-hook-form
+**não** fica preso com o `catch` novo (o reset acontece antes do rethrow, então resolver em vez de
+rejeitar dá o mesmo resultado — nenhum botão travado em "Salvando…"), e o `try/catch` de
+`lista-visitada.ts` envolve o **próprio acesso** a `sessionStorage`, não só a chamada — então até o
+`SecurityError` de modo privado/iframe particionado é capturado e o link degrada para `/ativos`.
 
 ---
 
