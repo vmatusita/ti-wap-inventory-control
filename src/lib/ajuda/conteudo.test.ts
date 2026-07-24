@@ -320,6 +320,25 @@ describe('navegação e estrutura documentadas (OS-F11 · Onda 3)', () => {
     expect(texto).toContain(normalizarBusca('viajam no link'))
     expect(texto).toContain(normalizarBusca('senha de acesso'))
   })
+
+  it('documenta as melhorias de leitura da F16', () => {
+    const texto = textoDaSecao(secao('relatorios'))
+    // Busca livre (T3) — patrimônio fora do formato, com exemplo fictício.
+    expect(texto).toContain(normalizarBusca('campo de busca livre'))
+    expect(texto).toContain(normalizarBusca('wap 1234'))
+    // Patrimônio→ficha + tiles clicáveis (T3/T4), só operador.
+    expect(texto).toContain(normalizarBusca('link direto para a ficha'))
+    // Δ com semântica (T2).
+    expect(texto).toContain(normalizarBusca('subir é bom'))
+    expect(texto).toContain(normalizarBusca('subir é ruim'))
+    // Estorno sinalizado (T1) — sem mexer em contagem.
+    expect(texto).toContain(normalizarBusca('estornada'))
+    expect(texto).toContain(normalizarBusca('não altera nenhuma contagem'))
+    // Manutenção 30+ dias (T6).
+    expect(texto).toContain(normalizarBusca('30 dias ou mais'))
+    // Mobile expansível (T5).
+    expect(texto).toContain(normalizarBusca('esconder colunas'))
+  })
 })
 
 describe('estoque mínimo e kits documentados (OS-F12)', () => {
