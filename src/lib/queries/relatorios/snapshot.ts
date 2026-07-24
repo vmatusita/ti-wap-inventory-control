@@ -20,6 +20,7 @@ import {
 } from './movimentacoes'
 import { getGruposItens, getLancamentosItensPeriodo } from './itens'
 import { getPendencias } from './pendencias'
+import { chipManutencaoParada } from '@/lib/relatorios/manutencao-alerta'
 
 // ===========================================================================
 // RELATÓRIO v2 (formato do e-mail — F3B). Estado reconstruído AS-OF no fim do
@@ -77,6 +78,12 @@ export async function getSnapshotRelatorioV2(
     manutencaoDeEstado(client, estado, filialId, periodo, filiaisNome),
   ])
 
+  // F16/T6 — chip "Manutenção parada (30+ dias)" derivado do próprio array de
+  // manutenção (sem tocar v_pendencias). Só para o operador (incluirPendencias):
+  // Pendências é assunto interno da TI; o viewer por senha não vê a seção. A5/F6A.
+  const chipManutParada = incluirPendencias ? chipManutencaoParada(manutencao) : null
+  const pendenciasFinais = chipManutParada ? [...pendencias, chipManutParada] : pendencias
+
   return {
     meta: {
       filialSlug,
@@ -97,7 +104,7 @@ export async function getSnapshotRelatorioV2(
     serieMovimentacoes: serie,
     porMotivo,
     grupos,
-    pendencias,
+    pendencias: pendenciasFinais,
     saidas: tabelas.saidas,
     entradas: tabelas.entradas,
     transferencias: tabelas.transferencias,

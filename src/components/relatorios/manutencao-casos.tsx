@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { CheckCircle2, Clock, PackageX, StickyNote } from 'lucide-react'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
+import { manutencaoEmAlerta } from '@/lib/relatorios/manutencao-alerta'
+import { cn } from '@/lib/utils'
 import type { ManutencaoCaso } from '@/lib/relatorios/tipos'
 
 // Manutenção caso a caso (§4.1): um card por ativo — patrimônio, modelo, chamado,
@@ -47,7 +49,16 @@ export function ManutencaoCasos({
               </span>
             ) : (
               c.diasEmManutencao != null && (
-                <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                // F16/T6 — passa de âmbar (rotina) para vermelho (alerta) aos 30+
+                // dias parado. Badge é público: viewer também vê. `Clock` mantido.
+                <span
+                  className={cn(
+                    'ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                    manutencaoEmAlerta(c)
+                      ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+                  )}
+                >
                   <Clock className="size-3" />
                   há {c.diasEmManutencao.toLocaleString('pt-BR')}{' '}
                   {c.diasEmManutencao === 1 ? 'dia' : 'dias'}
