@@ -6,6 +6,20 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 23/07/2026 — F16: melhorias de leitura e navegação no relatório (UX)
+
+- ✅ **F16** (branch `f16-relatorio-ux`, commit por tarefa com gates verdes → revisão adversarial de **5 lentes** → correção → merge) — **seis melhorias de leitura/navegação no relatório** (ao vivo e snapshots), com **zero migration, zero RPC nova/alterada, zero dependência nova** e compatibilidade total com snapshots já gerados:
+  - **T1 — estornos sinalizados nas tabelas.** Toda linha do período cuja movimentação foi estornada nasce **esmaecida** + marca **"estornada"** (data no hover), para operador **e** visualizador, **na impressão inclusive**; nas 3 tabelas de ativos e na de itens (onde, além do lançamento *de* estorno, marca também o *estornado*). Inferido do mecanismo real (`movimentacoes.estorno_de` / `lancamentos_item.estorna_id`), **as-of `periodo.ate`**. **Nenhuma contagem mudou** — e a investigação achou que as agregações de movimentação (título, chips, série, por motivo, resumo) **contam a original mesmo estornada**; só o estado as-of desconta. Pergunta aberta ao Johnny (DECISOES).
+  - **T2 — Δ dos KPIs com semântica.** A cor do Δ passou a ter sentido (verde=bom, vermelho=ruim, cinza=neutro) por indicador; a seta ▲▼ permanece. Vale em `KpiTiles` e `GrupoKpis`. Dashboard e snapshots v1 (sem `kpisAnterior`) seguem sem Δ.
+  - **T3 — busca livre + patrimônio→ficha.** Cada tabela detalhada ganhou busca livre (patrimônio inclusive fora do formato, ex.: "wap 1234"), sem caixa/acento, **no link** (`sd.q`/`en.q`/`tr.q`/`mi.q`), composta com os filtros. Para o operador, patrimônio (tabelas + cards de manutenção) vira link para `/ativos/[id]`; viewer e snapshots antigos: texto puro.
+  - **T4 — KPI tiles clicáveis no ao vivo.** Para o operador, os tiles linkam para `/ativos` filtrado por status (+ filial quando não é o consolidado). Snapshot e viewer: sem links. Dashboard intacto.
+  - **T5 — conteúdo escondido no mobile.** Onde a tabela esconde colunas, cada linha ganha um chevron (aria-expanded, alvo ≥ 40px) que revela os campos ocultos como rótulo:valor — 4 tabelas + a Obs do saldo por item. Desktop e **impressão** não mudam.
+  - **T6 — manutenção parada escala aos 30 dias.** Caso aberto ≥ 30 dias: badge âmbar → **vermelho** (operador e viewer); e chip **"Manutenção parada (30+ dias)"** em Pendências (só operador), sem tocar `v_pendencias`.
+- ✅ **Revisão adversarial de 5 lentes** (as-of/contagens · RLS/viewer · compat v1/v2 · mobile/impressão · testes/regressão): **quatro limpas**; a de mobile/impressão achou **1 defeito (média)** — a coluna do chevron sem `print:hidden` (imprimiria coluna vazia) —, **já corrigido por conta própria** antes do fim da revisão (a lente confirmou de forma independente); re-verificação por `grep` limpa.
+- 📌 **Zero migration, zero dependência nova.** `lint` limpo · **993 testes** (era 947, +46 de função pura; nenhum deletado/pulado) · `build` verde. Todas as funções puras da ordem (mapa do Δ, predicado da busca, limiar da manutenção, marcação de estorno, links dos tiles) foram extraídas e testadas. **Limite: sem E2E autenticado** das tabelas (login wall) — verificação por leitura de código, testes puros, build tipado e render das páginas públicas a 375px. Ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-07-23 · F16); evidências, o achado do T1, o resultado das lentes e "o que este relatório NÃO prova" em [`docs/RELATORIO-F16.md`](docs/RELATORIO-F16.md).
+
+---
+
 ## 23/07/2026 — F15: correções do primeiro uso real da F14 (service tag obrigatória · painel de sucesso · tipo `troca`) 🔒
 
 - ✅ **F15** (fases sequenciais na mesma árvore — precedente F14 —, direto na `main`: gate + varredura §0 → W1 banco → W2 motor/forms → W3 leituras/relatório/ajuda/ficha → integração → revisão adversarial de **5 lentes com refutação por padrão** → emendas → re-revisão → rollout). Três defeitos/ajustes que o Johnny relatou ao exercitar **de verdade, pela primeira vez**, a devolução ao fornecedor da F14:
