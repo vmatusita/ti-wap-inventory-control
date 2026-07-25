@@ -106,3 +106,55 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 | o comportamento do import | o motor em `src/lib/import/**` (puro, testável) e/ou a RPC (migration + runbook) |
 | um template de termo | `src/templates/termos/*.docx` + mapa em `src/lib/termos/` |
 | o schema do banco | **nova** migration em `supabase/migrations/` + `npm run db:types` |
+| **o que o operador vê numa tela** | a tela **e** a página correspondente da documentação (§11) |
+
+## 11. Documentação do operador (`/ajuda`) — e como mantê-la
+
+Mapa vivo, sitemap e matriz de cobertura: [`PLANO-AJUDA.md`](PLANO-AJUDA.md).
+
+Nasceu na F6B como **uma página** e virou, na **F20**, uma seção multi-página organizada por
+intenção — **Comece aqui · Como fazer · Consultar · Resolver** —, no mesmo repositório e dentro do
+app. Motivo de não ser site/repo separado: a **regra de ouro** (rótulo e vocabulário **derivados**,
+nunca copiados) só funciona no mesmo build.
+
+```
+src/lib/ajuda/
+  tipos.ts       # blocos + PaginaAjuda — único módulo SEM import server-only
+  derivacao.ts   # a regra de ouro: verbetes vindos de dominio.ts/validators
+  conteudo/*.ts  # uma página por arquivo (prosa + derivação, sem JSX)
+  registry.ts    # PAGINAS/CATEGORIAS — fonte única de rotas, índice, busca e testes
+  indice.ts      # busca (funções puras) + projeção leve para a paleta Ctrl+K
+  legado.ts      # âncoras antigas + visão de compatibilidade (ver abaixo)
+```
+
+Rotas: `/ajuda` (índice + busca), `/ajuda/[slug]` (`generateStaticParams` do registry) e
+`/ajuda/manual` (tudo numa página, para ler e imprimir).
+
+**Três invariantes que não afrouxam:**
+
+1. **Só-servidor.** `registry.ts` e os módulos de conteúdo arrastam as constantes reais e o
+   PapaParse. Client Component **nunca** importa o conteúdo — recebe por prop o que o servidor
+   serializar (`indicePaleta()`, usado pela paleta `Ctrl+K` no `(app)/layout.tsx`). Para tipos, use
+   `tipos.ts`.
+2. **Nada se perde.** Cada página declara `legado: [...]` com as seções da ajuda antiga que herdou;
+   `legado.ts` remonta aquelas 10 seções e o **`conteudo.test.ts` original (F9→F18) roda sobre elas
+   sem uma linha alterada**. Apagar uma frase do manual antigo quebra o build de testes.
+3. **Nenhum endereço antigo quebra.** `DESTINO_LEGADO` mapeia todo `/ajuda#<id>` para o destino
+   novo (lista branca, resolvida no cliente — hash não chega ao servidor). **Linha nunca se remove
+   desse mapa**; slug que mudar ganha entrada nova.
+
+**Regra permanente — toda ordem que mudar comportamento visível ao operador atualiza a página
+correspondente na mesma entrega.** O que o build cobra sozinho:
+
+- valor novo num enum (status, tipo, grupo, campo) → o `Record<Enum, string>` de prosa **não
+  compila** sem o texto;
+- teto/limite/rótulo → é derivado; não há o que digitar;
+- **rota nova** sem linha na matriz de cobertura → `registry.test.ts` falha (ou exige uma isenção
+  **com motivo escrito**);
+- `LinkAjuda` apontando para página inexistente, referência cruzada quebrada, âncora duplicada,
+  página fora do índice de busca, jargão de dev, promessa de futuro ou patrimônio não fictício no
+  texto → teste falha;
+- página nova sem entrada no `smoke-prod.mjs` → `smoke-ajuda.test.ts` falha.
+
+O que **não** é automático e continua sendo trabalho de quem entrega a fase: a **prosa** do fluxo
+novo, os rótulos citados entre aspas e a decisão de qual página recebe a matéria.

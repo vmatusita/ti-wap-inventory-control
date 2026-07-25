@@ -456,7 +456,12 @@ describe('pendência de item faltante por movimentação (OS-F18)', () => {
     )
     const texto = textoDaSecao(secao('como-fazer'))
     expect(texto).toContain(normalizarBusca('resolva em lote'))
-    expect(texto).toContain(normalizarBusca('definitivo nesta fase'))
+    // F20: era `definitivo nesta fase`. "Nesta fase" é vocabulário do PROJETO,
+    // não do operador — e insinuava que um dia reabriria (a documentação não
+    // promete futuro). A asserção ficou mais forte, não mais fraca: agora exige
+    // as duas metades da regra, o "definitivo" E o "não há reabrir".
+    expect(texto).toContain(normalizarBusca('definitivo'))
+    expect(texto).toContain(normalizarBusca('não há reabrir'))
   })
 })
 

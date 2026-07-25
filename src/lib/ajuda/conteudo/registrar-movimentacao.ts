@@ -1,14 +1,32 @@
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
+import { TIPO_META } from '@/lib/dominio'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
+
+// REGRA DE OURO: o teto vem da constante real e os rotulos de tipo, de TIPO_META.
+const T = TIPO_META
 
 export const registrarMovimentacao: PaginaAjuda = {
   slug: 'registrar-movimentacao',
   titulo: 'Registrar uma movimentação',
   resumo: 'O fluxo em três passos, do lote até a revisão.',
   categoria: 'fazer',
-  termos: ['nova movimentacao', 'lote', 'registrar', 'rascunho', 'duplicata'],
+  termos: ['nova movimentacao', 'lote', 'registrar', 'rascunho', 'duplicata', 'wizard'],
   legado: ['como-fazer', 'movimentacoes'],
   blocos: [
+    {
+      tipo: 'paragrafo',
+      texto:
+        'Este é o caminho de quase tudo que acontece com um equipamento: entregar, emprestar, reservar, receber de volta, aprovar a triagem, mandar consertar, trazer de volta do conserto, transferir de filial, marcar como defasado, descartar e ajustar. A tela é a mesma para um equipamento ou para trinta — e a movimentação é o registro do EVENTO: você conta o que aconteceu, e o estado do ativo, o estoque e o relatório se atualizam sozinhos a partir dela.',
+    },
+    {
+      tipo: 'lista',
+      itens: [
+        'Antes de começar: o equipamento precisa estar cadastrado. Equipamento novo entra por compra, em "Novo equipamento" — não é aqui.',
+        'O tipo que você quer precisa ser válido para o estado ATUAL de todos os ativos do lote. Estados diferentes no mesmo lote encolhem a lista de tipos.',
+        'Motivos, filiais e kits vêm dos cadastros de Administração — se faltar uma opção na tela, é lá que ela se cria.',
+      ],
+    },
+    { tipo: 'titulo', id: 'registrar-fluxo', texto: 'Os três passos' },
     {
       tipo: 'passos',
       titulo: 'Registrar uma nova movimentação (em lote)',
@@ -20,7 +38,18 @@ export const registrarMovimentacao: PaginaAjuda = {
         'Escolha o tipo — só aparecem os tipos válidos para o estado de TODOS os ativos escolhidos. Se um ativo adicionado depois estreitar as opções, o sistema avisa qual ativo limpou o tipo.',
         'Preencha os campos pedidos (os obrigatórios variam por tipo) e confirme. Nos campos de data (da movimentação e do termo) há os atalhos "Hoje" e "Ontem" — um clique preenche. Colaborador e Setor sugerem o que já existe no sistema depois de 2 letras (a lista é só atalho: nome novo continua sendo digitado normalmente).',
         'Na Revisão, confira o aviso âmbar de possível duplicata, se aparecer, antes de registrar.',
+        'A tabela da Revisão mostra "Patrimônio", "Movimentação" e "Destino / Motivo" de cada linha — é a última conferência antes de "Registrar {n} movimentações".',
+        'Com o teclado dá para andar mais rápido: Enter avança do passo 1 para o 2, valida o 2 e registra no 3. Dentro de uma caixa de texto ou de uma lista de opções o Enter não avança — ele faz o que a caixa espera.',
       ],
+    },
+    {
+      tipo: 'titulo',
+      id: 'registrar-fora-do-lote',
+      texto: 'Os três tipos que NÃO estão no seletor',
+    },
+    {
+      tipo: 'nota',
+      texto: `O seletor "Tipo de movimentação" mostra só os tipos válidos para o lote — e, mesmo válidos, três nunca aparecem ali, porque têm caminho próprio. "${T.compra.rotulo}": a entrada de equipamento novo é feita em "Novo equipamento" (Ativos › Novo equipamento). "${T.devolucao_fornecedor.rotulo}": tem tela dedicada, aberta pelo botão "Devolver ao fornecedor" da ficha, porque no mesmo passo se cadastra o substituto. "${T.troca.rotulo}": é o nascimento desse substituto e só existe como parte da devolução ao fornecedor. Se você procurou um desses três na lista e não achou, não é falha da tela — é o caminho que é outro. O "${T.estorno.rotulo}" também não está no seletor: ele se dispara pelo botão "Estornar" da linha do tempo.`,
     },
     { tipo: 'titulo', id: 'rascunho', texto: 'Se você sair no meio' },
     {
@@ -43,6 +72,49 @@ export const registrarMovimentacao: PaginaAjuda = {
         'O botão em destaque é sempre o do PRÓXIMO termo pendente: gerou um, o destaque anda sozinho para o seguinte — dá para emitir a sequência inteira sem procurar botão. Pular é permitido e não gera nada.',
         'Esqueceu ou pulou? O termo continua disponível na ficha do ativo e na página Pendências.',
         'Se parte do lote falhar, o formulário volta com as falhas para corrigir — e agora mostra também os chips "Já registrados", com link para a ficha de cada ativo que entrou. O que foi registrado está registrado: não repita esses.',
+        'O botão "Registrar outra movimentação" limpa a tela e recomeça do passo 1, sem perder o que já foi gravado.',
+      ],
+    },
+    { tipo: 'titulo', id: 'registrar-bastidores', texto: 'O que acontece por trás' },
+    {
+      tipo: 'lista',
+      itens: [
+        'Cada linha do lote vira UMA movimentação, com data, tipo, operador e os campos que você preencheu. É ela que muda o estado do ativo — não existe caminho de edição direta do status.',
+        'A ficha do ativo recebe a linha nova na "Linha do tempo", com os selos de → para, e o card "Dados do ativo" já mostra o colaborador, o setor e a filial resultantes.',
+        'A movimentação aparece na hora na lista de Movimentações e nos KPIs. No relatório do período, as tabelas detalhadas são por assunto: "Saídas" mostra as entregas e os empréstimos, "Entradas" mostra devoluções, compras e trocas, "Transferências" mostra as mudanças de filial. Os demais tipos não têm tabela própria — eles aparecem nos cards do grupo (o envio e o retorno de manutenção, por exemplo, no card "Em manutenção, caso a caso") e sempre na linha do tempo da ficha.',
+        'Pendências entram e saem sozinhas: entrega abre a pendência de termo; devolução com acessório faltando abre uma pendência por item; triagem parada há mais de 7 dias vira pendência também.',
+        'O lote é registrado item a item: se um falhar, os outros continuam valendo — por isso existe a caixa "Já registrados" com o que entrou.',
+      ],
+    },
+    { tipo: 'titulo', id: 'registrar-erros', texto: 'Erros comuns e como sair' },
+    {
+      tipo: 'tabela',
+      colunas: ['O que aparece na tela', 'O que fazer'],
+      linhas: [
+        [
+          '"Revise antes de continuar:" com uma lista',
+          'São as validações do passo 2. Cada linha da lista aponta um campo que falta ou está fora do formato.',
+        ],
+        [
+          `"O lote aceita no máximo ${MAX_LOTE_MOVIMENTACAO} itens"`,
+          'Tire ativos do lote e registre o resto em um segundo lote — a movimentação em lote tem esse teto.',
+        ],
+        [
+          '"O lote não pode repetir o mesmo ativo. Registre em lotes separados."',
+          'O mesmo equipamento aparece duas vezes. Remova a repetição no passo "Ativos".',
+        ],
+        [
+          '"{n} registrada(s); {m} falhou(aram). Revise os itens restantes."',
+          'Sucesso parcial. O que entrou está nos chips "Já registrados"; corrija só o que ficou na caixa "Itens que falharam no último envio:".',
+        ],
+        [
+          '"Não foi possível registrar agora. Seu lote continua aqui — verifique sua conexão e tente de novo."',
+          'Falha de rede: nada foi registrado e o lote continua montado na tela. Repita quando a conexão voltar.',
+        ],
+        [
+          '"Transição inválida: o ativo não aceita essa movimentação no estado atual."',
+          'O estado do ativo mudou depois que você montou o lote. Recarregue a tela e refaça a partir do estado real.',
+        ],
       ],
     },
     {
@@ -52,6 +124,8 @@ export const registrarMovimentacao: PaginaAjuda = {
         { slug: 'kits-de-movimentacao' },
         { slug: 'tipos-de-movimentacao' },
         { slug: 'termos-de-responsabilidade' },
+        { slug: 'entregar-emprestar-reservar' },
+        { slug: 'corrigir-estorno-ajuste' },
       ],
     },
   ],

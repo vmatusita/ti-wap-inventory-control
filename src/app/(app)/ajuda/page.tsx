@@ -101,9 +101,12 @@ export default async function AjudaPage() {
           </p>
         </div>
 
+        {/* Sem "em qualquer tela": o "?" existe nas telas de operação, não em
+            todas (achado da revisão da F20 — a ajuda antiga prometia demais). */}
         <p className="pt-2 text-xs text-muted-foreground print:hidden">
-          {PAGINAS.length} páginas. Em qualquer tela, o ícone “?” ao lado do título
-          abre direto a página daquela tela, e a tecla <kbd>?</kbd> traz você para cá.
+          {PAGINAS.length} páginas. Nas telas de operação, o ícone “?” ao lado do
+          título abre a página desta documentação que fala daquela tela; a tecla{' '}
+          <kbd>?</kbd> traz você para cá.
         </p>
       </AjudaBusca>
 

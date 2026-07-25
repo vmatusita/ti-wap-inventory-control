@@ -1,11 +1,29 @@
+import { STATUS_META } from '@/lib/dominio'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
+// O mapa da casa: menu, cabecalho, painel inicial, o "?" de cada tela, a propria
+// documentacao, teclado, tema, carregamento e acessibilidade. Os nomes de status
+// citados na tabela dos KPIs vem de STATUS_META (regra de ouro) — o rotulo do
+// TILE e outra coisa e por isso aparece literal, como esta na tela.
 export const mapaDasTelas: PaginaAjuda = {
   slug: 'mapa-das-telas',
   titulo: 'Mapa das telas e navegação',
   resumo: 'Onde fica cada coisa, os atalhos de teclado e o modo escuro.',
   categoria: 'comecar',
-  termos: ['menu', 'sidebar', 'navegacao', 'atalho', 'teclado', 'tema', 'escuro', 'dashboard'],
+  termos: [
+    'menu',
+    'sidebar',
+    'navegacao',
+    'atalho',
+    'teclado',
+    'tema',
+    'escuro',
+    'dashboard',
+    'painel inicial',
+    'acessibilidade',
+    'celular',
+    'carregando',
+  ],
   legado: ['como-fazer'],
   blocos: [
     {
@@ -27,6 +45,70 @@ export const mapaDasTelas: PaginaAjuda = {
         ['Ajuda', 'Esta documentação.'],
       ],
     },
+    { tipo: 'titulo', id: 'mapa-cabecalho', texto: 'A barra de cima' },
+    {
+      tipo: 'lista',
+      itens: [
+        'A lupa "Buscar ativos e comandos (Ctrl K)" abre a busca global — a mesma coisa que o Ctrl+K faz.',
+        'O botão amarelo "Nova movimentação" está em toda tela, com a dica da tecla N ao lado. No celular ele fica só com o sinal de mais.',
+        'O avatar, no canto direito, abre o menu do usuário: o seu nome, o seletor "Tema" e o "Sair".',
+        'No celular não há menu lateral fixo: o botão "Abrir menu", à esquerda, traz o mesmo menu numa gaveta.',
+        'O item "Pendências" do menu carrega um selo âmbar com quantas estão abertas. A contagem se refaz a cada navegação e o selo some quando zera.',
+      ],
+    },
+    { tipo: 'titulo', id: 'mapa-painel', texto: 'O painel inicial' },
+    {
+      tipo: 'paragrafo',
+      texto:
+        'O "Dashboard" é a tela que abre quando você entra, e o subtítulo diz o recorte: "Visão geral do estoque de TI — todas as filiais". Ele não é só decoração — cada número dele é um atalho para a lista que o originou.',
+    },
+    {
+      tipo: 'tabela',
+      colunas: ['Tile', 'A lista que ele abre quando você clica'],
+      linhas: [
+        [
+          'Total de ativos',
+          'Todos os ativos do inventário — exatamente os sete estados que o tile soma. Descartados e devolvidos ao fornecedor ficam de fora, para o número da lista bater com o do tile.',
+        ],
+        ['Em uso', `Ativos no estado ${STATUS_META.em_uso.rotulo} — os que estão com um colaborador ou setor.`],
+        ['Em estoque', `Ativos no estado ${STATUS_META.em_estoque.rotulo} — disponíveis para entrega.`],
+        ['Reservados', `Ativos no estado ${STATUS_META.reservado.rotulo} — separados, aguardando a entrega.`],
+        ['Em triagem', `Ativos no estado ${STATUS_META.em_triagem.rotulo} — devolvidos, ainda em conferência.`],
+        ['Em manutenção', `Ativos no estado ${STATUS_META.em_manutencao.rotulo} — em conserto ou assistência.`],
+        [
+          'Reserva técnica',
+          `Ativos no estado ${STATUS_META.defasado.rotulo} — os que a WAP mantém em posse, fora do uso corrente.`,
+        ],
+      ],
+      legenda:
+        'Os tiles do painel inicial são clicáveis: clicar equivale a abrir Ativos e aplicar aquele filtro de status.',
+    },
+    {
+      tipo: 'lista',
+      itens: [
+        'Card "Itens para repor": aparece SÓ quando há item abaixo do estoque mínimo. Cada linha traz o estoque e o mínimo daquele item, o quanto falta repor e um link para ele; "ver em Itens" leva à tela completa. Sem nada a repor, o card não existe — a ausência é a boa notícia.',
+        'Card "Pendências": as cinco mais antigas da fila, com "ver todas" para a tela inteira. Sem nenhuma, ele comemora; se a leitura falhar, ele diz "Não foi possível ler as pendências." em vez de fingir que a fila está vazia.',
+        'Card "Últimas movimentações": as cinco últimas registradas, com data, tipo, patrimônio e destino, e "ver todas" para o relatório.',
+        'No rodapé, quatro cartões de atalho: "Nova movimentação", "Novo equipamento", "Relatórios" e "Ativos".',
+      ],
+    },
+    { tipo: 'titulo', id: 'mapa-ajuda', texto: 'O "?" das telas e esta documentação' },
+    {
+      tipo: 'paragrafo',
+      texto:
+        'O ícone "?" ao lado do título de uma tela abre direto a página desta documentação que descreve aquela tela — não o índice, e sim a página certa. Ele existe no painel inicial, em Ativos, na ficha de um ativo, em "Novo equipamento", em Movimentações, em "Nova movimentação", em "Devolução ao fornecedor", em Itens, em Pendências, no relatório ao vivo, em "Relatórios gerados" e no cabeçalho de Administração, que vale para as sete abas — o import traz um segundo, ao lado do texto de abertura. Não há "?" na tela de um relatório já congelado nem nas telas públicas (login e entrada por senha), e no relatório ao vivo ele só aparece para quem entrou como operador.',
+    },
+    {
+      tipo: 'lista',
+      itens: [
+        'A documentação é dividida em quatro categorias, por intenção: "Comece aqui" (entender o sistema), "Como fazer" (o passo a passo de cada tarefa), "Consultar" (glossários, limites e o significado de cada coisa) e "Resolver" (sintoma, causa e saída quando algo não funciona).',
+        'No índice, a caixa "Buscar na documentação…" filtra os cartões enquanto você digita e mostra quantos resultados sobraram. Sem nenhum, ela avisa: "Nenhum resultado para a busca."',
+        'Dentro de uma página, o bloco "Nesta página" lista os trechos (quando há mais de um) e o rodapé leva à anterior e à próxima da mesma categoria.',
+        'O link "Manual completo (para imprimir)" junta todas as páginas numa só, na ordem do índice: é onde o Ctrl+F do navegador acha qualquer palavra, e é a versão que sai na impressora.',
+        'Na busca global (Ctrl+K), a partir de duas letras aparece também um grupo "Ajuda" com as páginas desta documentação.',
+        'Endereços antigos continuam valendo: um link para a ajuda de antes, colado num chamado, abre a página nova correspondente.',
+      ],
+    },
     { tipo: 'titulo', id: 'teclado', texto: 'Achar tudo pelo teclado' },
     {
       tipo: 'passos',
@@ -36,8 +118,49 @@ export const mapaDasTelas: PaginaAjuda = {
         'Digite a partir de 2 letras: a busca acha o ativo por patrimônio, service tag, hostname, marca, modelo ou nome do colaborador. As setas ↑ ↓ andam pela lista, Enter abre a ficha do ativo escolhido e Esc fecha. Quando o patrimônio repete em dois equipamentos, a service tag aparece na linha para desempatar.',
         'A mesma caixa também leva para as telas ("Ir para Pendências") e dispara ações ("Nova movimentação", "Lançar item") — tudo sem tirar a mão do teclado.',
         'Os atalhos globais são três: N abre uma nova movimentação, ? abre esta ajuda e, na página Itens, L abre o lançamento. Nenhum deles dispara enquanto você digita num campo nem com uma janela de confirmação aberta.',
-        'O ícone "?" ao lado do título de cada tela abre esta documentação já na página daquela tela.',
+        'O ícone "?" ao lado do título da tela abre a página desta documentação que fala daquela tela; a tecla ? leva ao índice.',
         'Nada disso existe para quem entra só com a senha de acesso dos relatórios — busca e atalhos são do operador.',
+      ],
+    },
+    { tipo: 'titulo', id: 'mapa-tema', texto: 'Claro, escuro ou igual ao sistema' },
+    {
+      tipo: 'passos',
+      titulo: 'Trocar o tema da interface',
+      itens: [
+        'Clique no seu avatar, no canto direito do cabeçalho ("Abrir menu do usuário").',
+        'Logo abaixo do seu nome está o seletor "Tema", com três opções: "Claro", "Escuro" e "Sistema". A opção em uso leva um ✓ — o estado nunca depende só da cor.',
+        '"Claro" é o padrão do sistema: quem nunca abrir esse menu continua vendo tudo claro. "Escuro" troca na hora, sem recarregar a tela. "Sistema" acompanha a preferência do Windows.',
+        'A escolha fica gravada NAQUELE navegador, não na sua conta: entrar de outra máquina, de outro navegador ou de uma janela anônima começa de novo no claro.',
+        'Os avisos que aparecem no alto da tela seguem o tema escolhido aqui, e não o do Windows — nada de aviso escuro num app claro.',
+      ],
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Quem entra só com a senha de acesso dos relatórios não tem esse menu: o cabeçalho reduzido dele não traz o seletor de tema, então ele vê o tema padrão daquele navegador.',
+    },
+    { tipo: 'titulo', id: 'mapa-carregando', texto: 'Enquanto a tela carrega' },
+    {
+      tipo: 'lista',
+      itens: [
+        'Ir para outra tela mostra primeiro um esqueleto cinza, no formato do conteúdo que está chegando — o título, os tiles, as linhas da tabela. Clique nenhum fica sem resposta.',
+        'Trocar um filtro, uma aba, o período ou a página de uma lista acende uma barra fina amarela no alto da janela: a tela atual continua na frente enquanto os números novos vêm.',
+        'Quem pediu ao computador para reduzir animações não vê a barra; o esqueleto continua avisando.',
+        'Se algo falhar de verdade, o conteúdo é trocado por "Algo deu errado nesta tela", com os botões "Tentar de novo" e "Ir para o início" — o cabeçalho e o menu continuam de pé, e você não perde a navegação.',
+      ],
+    },
+    { tipo: 'titulo', id: 'mapa-acessibilidade', texto: 'Sem mouse, com leitor de tela e no celular' },
+    {
+      tipo: 'lista',
+      itens: [
+        'Dá para operar tudo sem mouse: Tab e Shift+Tab andam pelos campos e botões, Enter aciona, Esc fecha o que estiver aberto, e o elemento em foco fica com um anel visível.',
+        'Clicar no rótulo de um campo põe o cursor nele — inclusive nas listas de escolha (filial, tipo, motivo, categoria).',
+        'Campo com erro fica marcado e o texto do erro é lido junto com o campo; nos formulários em lote, a caixa de erros é anunciada assim que aparece.',
+        'Nas confirmações que desfazem ou apagam (estornar, revogar senha, desfazer assinatura), o foco começa no "Cancelar": um Enter distraído não confirma nada.',
+        'As etapas de um fluxo — "Ativos", "Movimentação", "Revisão" — dizem em qual você está, e não apenas com cor.',
+        'A cor nunca é o único sinal: a variação dos indicadores vem com a seta ▲▼, a opção de tema escolhida vem com ✓, e todo selo carrega o texto junto.',
+        'Dicas que antes só apareciam com o mouse — a do selo "repor", a dos saldos por filial e as das células do relatório — também abrem pelo teclado, ao focar o número.',
+        'No celular nada rola para o lado: a busca ocupa a largura toda e as colunas que não cabem nas tabelas do relatório abrem dentro da própria linha, pela setinha à direita. Os alvos de toque foram dimensionados para o dedo.',
       ],
     },
     {
@@ -45,6 +168,9 @@ export const mapaDasTelas: PaginaAjuda = {
       itens: [
         { slug: 'limites-e-atalhos', texto: 'A tabela completa de atalhos' },
         { slug: 'comece-aqui' },
+        { slug: 'lista-de-ativos', texto: 'A lista que os tiles do painel abrem' },
+        { slug: 'resolver-pendencias', texto: 'A fila por trás do selo âmbar' },
+        { slug: 'acesso-e-sessoes', texto: 'O que muda para quem entra por senha' },
       ],
     },
   ],

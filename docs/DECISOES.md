@@ -2074,3 +2074,60 @@ Base sólida: das **209 regras** mapeadas na `docs/MATRIZ-REGRAS.md` (7 áreas),
 - **`db:types` continua sem CLI nesta máquina** (`supabase gen types --linked` sai 1 — o projeto não
   está linkado aqui), então o bloco `profiles` de `src/lib/types/database.ts` foi editado à mão, no
   formato que o gerador produz para coluna gerada (presente em `Row`, ausente de `Insert`/`Update`).
+
+## 2026-07-24 · F20 · A `/ajuda` vira documentação multi-página
+
+- **Contexto:** o manual do operador nasceu na F6B como **uma página** — 10 seções num scroll só,
+  busca por filtro de seção, âncoras e o "?" contextual em 8 telas. Da F9 à F19-UX o sistema
+  ganhou lote de 30 com colar/bipar, kits, estoque mínimo, lista `/movimentacoes`, paleta `Ctrl+K`,
+  export CSV, manutenção com fornecedor, pendência de item com desfecho, legendas do relatório,
+  import com correções em massa e modo escuro. O manual chegou a **56 KB** e, medido no inventário
+  da Onda 0, **1 em cada 3 capacidades do operador estava ausente ou desatualizada** (103
+  capacidades: 67 ok, 11 desatualizadas, 25 ausentes).
+- **Decisão 1 — mesmo repositório, dentro do app.** Site/repo separado (Docusaurus, wiki, Notion)
+  foi considerado e descartado: custo R$ 0 é regra do projeto, o login já existe e — decisivo — a
+  **regra de ouro** (rótulo e teto **derivados** de `dominio.ts`/validators, nunca copiados) só
+  funciona no mesmo build. Documentação fora do repositório não importa `STATUS_META` nem
+  `MAX_LOTE_MOVIMENTACAO` e voltaria a divergir em uma fase.
+- **Decisão 2 — sem MDX, sem pipeline de markdown, sem dependência nova.** O conteúdo segue
+  **TypeScript tipado** (união discriminada de blocos + `Record`s por enum). É o que permite os
+  testes de completude: com markdown o compilador não teria como exigir que um status novo apareça.
+- **Decisão 3 — arquitetura da informação por INTENÇÃO** (adaptação de Diátaxis, sem o vocabulário
+  de dev): **Comece aqui · Como fazer · Consultar · Resolver**, 33 páginas curtas, uma tarefa por
+  página, referência nunca misturada com tutorial. Sitemap e matriz em `docs/PLANO-AJUDA.md`.
+- **Decisão 4 — slugs estáveis em pt-BR sem acento**, no padrão dos identificadores de domínio.
+  Slug é endereço: uma vez publicado, só muda com entrada no mapa de compatibilidade.
+  `manual`/`indice`/`busca` são reservados (rotas do motor) e travados por teste.
+- **Decisão 5 — sem screenshot, sem imagem.** Print envelhece a cada fase e é vetor de vazamento de
+  dado real (a máquina de desenvolvimento aponta para o banco de produção). O texto cita os
+  **rótulos exatos da UI** entre aspas, levantados no código.
+- **Decisão 6 — o guarda-corpo do "nada se perdeu".** Cada página declara `legado: [...]` com as
+  seções da ajuda antiga que herdou; `src/lib/ajuda/legado.ts` remonta as 10 seções originais e o
+  **`conteudo.test.ts` (46 asserções acumuladas da F9 à F18) continua rodando sobre elas, byte a
+  byte como estava**. Reorganizar ≠ apagar deixou de ser promessa e virou build: apagar uma frase do
+  manual antigo quebra o teste, sem ninguém precisar lembrar dela.
+  Alternativa descartada: reescrever `conteudo.test.ts` para a estrutura nova — perderia justamente
+  a prova de continuidade, que é o único motivo de o arquivo existir.
+- **Decisão 7 — compatibilidade de endereço.** `DESTINO_LEGADO` mapeia os 10 ids antigos
+  (`#conceito`, `#status`, `#movimentacoes`, `#termos`, `#itens`, `#pendencias`, `#relatorios`,
+  `#como-fazer`, `#admin`, `#acesso`) para o destino novo. O hash **não chega ao servidor**, então o
+  índice redireciona no cliente por **lista branca** (mesma disciplina de `resolverAncora`, F13-B3):
+  id desconhecido não redireciona nada. `#como-fazer` virou uma categoria inteira e por isso aponta
+  para `/ajuda#fazer`, a lista dos guias — não para um guia escolhido a dedo. **Linha nunca se
+  remove desse mapa.**
+- **Decisão 8 — o TRAP do só-servidor, respeitado e ampliado.** O conteúdo arrasta `CAP_EXPORT` →
+  PapaParse; a paleta `Ctrl+K` é Client Component. O grupo "Ajuda" da paleta é servido por
+  `indicePaleta()`, uma projeção **leve** (slug, título, categoria e uma chave normalizada de
+  busca) montada **no servidor** em `(app)/layout.tsx` e passada por prop — o cliente nunca importa
+  o registry. Sem isso, 56 KB de manual entrariam no bundle de toda tela do app.
+- **Decisão 9 — o visualizador por senha não ganha nada.** Nenhuma rota, link ou dado novo; o proxy
+  não muda. As legendas dele continuam vivendo dentro do próprio relatório (decisão F17, mantida) —
+  ele não abre `/ajuda`.
+- **Verificação:** `lint` limpo · `build` **26 rotas** (24 + `/ajuda/[slug]` + `/ajuda/manual`) ·
+  `vitest` subiu de **1125** para **1169+** testes · `smoke-prod.mjs` estendido para conferir cada
+  página por HTTP 200 **e** marcador de conteúdo (rodado contra o dev local com sessão real:
+  **86 OK · 0 falha**) · âncoras antigas conferidas no navegador (`/ajuda#movimentacoes` →
+  `/ajuda/tipos-de-movimentacao`; `/ajuda#como-fazer` → `/ajuda#fazer`) · 375 px sem rolagem lateral
+  (tabela rola no próprio contêiner) · tema escuro ok e impressão sempre clara (invariante F19).
+- **Reversível?** sim: a F20 é 100% camada de app e conteúdo — **zero migration, zero script de
+  banco, zero operação destrutiva**. Reverter é `git revert` do intervalo.
