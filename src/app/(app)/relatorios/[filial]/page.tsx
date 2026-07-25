@@ -20,6 +20,19 @@ import { GerarRelatorioDialog } from '@/components/relatorios/gerar-relatorio-di
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 
+// Teto de execução da rota (route segment config do Next 16 — vale para page,
+// layout e route). Sem ele a rota herda o teto da Vercel, 300 s: em 24/07/2026 um
+// request de /relatorios/[filial] travou e consumiu os 300 s inteiros (1 ocorrência,
+// `get_runtime_errors`). O caminho foi medido e NÃO é lentidão de dados — a RPC mais
+// pesada (rel_estoque_asof consolidada, 1.573 linhas) roda em 233 ms e a página
+// dispara as leituras em Promise.all. Ou seja: 300 s só acontece se algo PENDURAR
+// (conexão do Supabase), e aí 5 min de spinner é o pior desfecho possível — ainda mais
+// para o gestor, que entra por senha e não tem como diagnosticar. 60 s dá ~30× de folga
+// sobre o pior caso medido e troca o pendurado por um erro rápido.
+// NÃO se aplica globalmente de propósito: o "Substituir tudo" (admin/importar) é uma
+// Server Action legitimamente longa e um teto curto o quebraria.
+export const maxDuration = 60
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 function primeiro(v: string | string[] | undefined): string | undefined {

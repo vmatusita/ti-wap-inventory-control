@@ -2277,3 +2277,69 @@ próprio achado propunha.**
 BACKLOG que saiu daqui: promover o checklist de acessórios de `devolucao-e-triagem` de bloco `lista`
 para `glossario` — assim 'mouse', 'cabo', 'fone', 'mochila' e 'carregador' entram na chave por
 derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
+
+---
+
+## 2026-07-25 · diagnóstico de projeto · o ensaio está MENOS restrito que produção
+
+- **Contexto.** Diagnóstico do projeto inteiro pedido pelo Johnny. Lint, `tsc --noEmit`, 1.448 testes
+  e `build` já estavam limpos, e a dívida técnica de 24/07 é de ontem — então o valor estava no que
+  ela não mediu. Sondei os DOIS projetos Supabase, não só produção.
+- **Achado (novo).** A `0056` (revoke de `anon` nas sete RPCs `rel_*`) está aplicada em **produção**
+  (`has_function_privilege('anon', …) = false` nas sete) e **NÃO** está no **ensaio**
+  (`sgmvldiizsrjbxzzpmhh`), onde as sete seguem executáveis por `anon`. O cabeçalho da própria
+  migration afirmava "não aplicada nem no ensaio nem em produção" — a metade sobre produção era
+  falsa. Junto veio um segundo desvio: `criar_compra_lote` tem corpo DIFERENTE nos dois bancos
+  (fingerprint `pg_get_functiondef` 956e40… em prod vs ea605a… no ensaio) — a `0055`/`0040` não
+  chegaram no ensaio. As outras 14 funções batem.
+- **Por que isso importa mais do que a exposição em si.** O risco direto é baixo (as sete são
+  SECURITY INVOKER e a RLS não concede nada a `anon`). O problema é que **inverte a premissa do
+  `RUNBOOK-BANCO.md`**: o caminho é ensaio → produção, e um ensaio menos restrito e com função
+  divergente não prova o que se supõe que prove. A F19 declarou paridade ensaio×produção; ela não
+  vale mais.
+- **Decisão.** Corrigir o cabeçalho da `0056` com o estado medido de cada banco e apontar que o apply
+  agora é NO ENSAIO (em produção é idempotente). Não "reconciliar" o ledger — item A da dívida
+  técnica já mostrou que isso é cosmético.
+- **Reversível?** Só documentação e migrations versionadas; nada foi aplicado.
+
+## 2026-07-25 · diagnóstico de projeto · `maxDuration` na rota de relatório
+
+- **Contexto.** `get_runtime_errors` da Vercel (7 dias) traz **1** erro em produção: `Vercel Runtime
+  Timeout Error: Task timed out after 300 seconds` em `/relatorios/[filial].rsc`, 24/07 12:13 UTC.
+  Não estava catalogado em lugar nenhum.
+- **O que a medição descarta.** Não é volume nem lentidão: a maior tabela tem 3.077 linhas
+  (`movimentacoes`), a RPC mais pesada (`rel_estoque_asof` consolidada, 1.573 linhas) roda em
+  **233 ms** sob `explain analyze`, a página dispara as leituras em `Promise.all` e o `paginarTodos`
+  tem teto (`CAP_PAGINACAO`) — não há laço infinito. Ou seja: o código está sadio e o 300 s é
+  pendura de infraestrutura (conexão), não custo de trabalho.
+- **Decisão.** `export const maxDuration = 60` **só** em `src/app/(app)/relatorios/[filial]/page.tsx`.
+  O projeto não definia `maxDuration` em rota nenhuma, então tudo herdava o teto de 300 s da Vercel.
+- **Motivo.** 60 s dá ~30× de folga sobre o pior caso medido e troca "5 minutos de spinner" por um
+  erro rápido — o afetado é o gestor, que entra por senha e não tem como diagnosticar nada.
+- **Por que NÃO global.** Um teto curto no layout quebraria o "Substituir tudo" do `admin/importar`,
+  que é uma Server Action legitimamente longa. O escopo é a rota que falhou.
+- **Reversível?** Apagar a linha.
+
+## 2026-07-25 · diagnóstico de projeto · `apply_migration` barrado de novo — 0058 e 0059 em handoff
+
+- **Contexto.** Escritas duas migrations a partir dos advisors: `0058_drop_backup_f18.sql` (item B da
+  dívida técnica — DROP da última tabela de backup órfã, `_f18_backup_pendencia`, 2 linhas) e
+  `0059_advisors_rls_perf.sql` (dois lints de performance: `auth.uid()` → `(select auth.uid())` na
+  policy de UPDATE de `profiles`, e DROP de 6 policies de SELECT redundantes).
+- **Decisão.** As duas ficam **versionadas e não aplicadas** — o `apply_migration` do MCP foi barrado
+  pelo classificador do harness, como na revisão de 24/07. Seguido o mesmo caminho de então:
+  versionar e fazer handoff, **sem contornar** por `execute_sql` (usar outra ferramenta para o mesmo
+  DDL seria burlar a intenção do bloqueio, não uma alternativa legítima).
+- **Sobre o BLOCO 2 da 0059, que mexe em RLS.** Não altera o modelo de acesso (item M, que exige
+  ADR). Em Postgres uma policy `FOR ALL` cobre SELECT, e as duas policies são `using (true)`: com
+  `true OR true`, derrubar a de SELECT é no-op semântico. O alvo são as EXATAS 6 tabelas que têm as
+  duas (`ativos`, `filiais`, `itens`, `kits_modelos`, `motivos`, `termos_gerados`) — as outras 6 com
+  `leitura operador` têm escrita `FOR INSERT`/`FOR UPDATE`, onde a policy de SELECT é a única porta
+  de leitura e derrubá-la cegaria o app.
+- **Decisão de NÃO fazer: os 14 `unindexed_foreign_keys`.** Ficam sem índice, com o motivo escrito na
+  própria migration. Em tabelas de 3.077 e 1.597 linhas o planner faz seq scan e ganha; criar os 14
+  índices satisfaria o linter e cobraria escrita e espaço por zero ganho. Revisitar acima de ~100 mil
+  linhas.
+- **Reversível?** Nada aplicado. A 0059 traz o `create policy` de volta no cabeçalho; a 0058 exige
+  exportar as 2 linhas antes (CLAUDE.md — operação destrutiva em produção), e o export fica FORA do
+  repositório.

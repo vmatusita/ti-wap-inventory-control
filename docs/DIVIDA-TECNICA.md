@@ -27,6 +27,7 @@ Prioriza pela fórmula da skill: `Prioridade = (Impacto + Risco) × (6 − Esfor
 
 | # | Item | Categoria | Impacto | Risco | Esforço | **Prioridade** |
 |---|---|---|:-:|:-:|:-:|:-:|
+| R | **Ensaio divergente de produção — e MENOS restrito** *(novo, 25/07)* | Infra/Seg | 3 | 4 | 1 | **35** |
 | A | Ledger de produção incompatível com o repo por construção | Infra | 4 | 4 | 3 | **24** |
 | G | Tipos descartados na fronteira Supabase (`as unknown as Row`) | Código/Arq | 3 | 4 | 3 | **21** |
 | E | Componentes gigantes do import (`grupos-erros` 1173 + `wizard` 959) | Código | 4 | 3 | 3 | **21** |
@@ -70,6 +71,35 @@ Duas frentes:
 
 ## Detalhamento dos itens em aberto
 
+### R — O ensaio divergiu de produção, e para o lado errado `[Prio 35]` *(novo — 25/07/2026)*
+
+A auditoria de 24/07 sondou **só produção** e concluiu "advisors sem surpresa". O diagnóstico de
+25/07 sondou **os dois** projetos e achou o que faltava — o desvio não está em produção, está no
+**ensaio** (`sgmvldiizsrjbxzzpmhh`):
+
+| Objeto | Produção | Ensaio |
+|---|---|---|
+| 7 RPCs `rel_*` — `has_function_privilege('anon', …, 'execute')` | `false` (0056 aplicada) | **`true`** (0056 ausente) |
+| `criar_compra_lote` — `md5(pg_get_functiondef(…))` | `956e40…` | **`ea605a…`** (0055/0040 ausentes) |
+| As outras 14 funções | — | idênticas |
+
+**O risco direto é baixo e vale dizer por quê:** as sete RPCs são `SECURITY INVOKER`, então um `anon`
+que as chamasse leria as tabelas *como* `anon`, e a RLS (que não concede nada a `anon`) devolveria
+vazio. Não é vazamento de dado.
+
+**O risco de processo é que pesa.** O `RUNBOOK-BANCO.md` define o caminho **ensaio → produção**: valida
+lá, aplica aqui. Com o ensaio *menos* restrito e com uma função de corpo diferente, um teste feito
+nele **não prova o que se supõe que prove** — e a paridade que a F19 declarou não vale mais. Some-se a
+isso que o cabeçalho da própria `0056` afirmava "não aplicada nem no ensaio nem em produção", metade
+falsa: quem lesse o arquivo concluiria o oposto do estado real dos dois bancos.
+
+**Correção:** aplicar `0056` no ensaio (em produção o apply é idempotente e só fecha a diferença) e
+verificar `criar_compra_lote`. Esforço 1 — é um handoff, não um projeto. O cabeçalho da `0056` já foi
+corrigido com o estado medido de cada banco.
+
+**Regra que fica:** toda sonda de paridade roda nos **dois** projetos. Sondar só produção foi o que
+deixou este item passar.
+
 ### A — O ledger de produção é incompatível com o repo **por construção** `[Prio 24]`
 
 A auditoria de 21/07 descreveu o sintoma ("migrations aplicadas à mão não constam no ledger") e propôs reconciliar inserindo as linhas faltantes. **A medição de hoje mostra que o diagnóstico era incompleto e que a reconciliação proposta não resolveria** — pode até dar falsa confiança.
@@ -103,7 +133,7 @@ Consequência prática, e é ela que importa:
 A `0039` foi aplicada: `_f8_backup_matriz_compras` (809 linhas) e `_f7k_backup_modelo` (75) **não existem mais**. Restam duas, ambas com RLS on e sem policy (aparecem no advisor como `rls_enabled_no_policy`):
 
 - `_bkp_relatorios_gerados_f6a` (2 linhas) — retida **de propósito**, atrelada a decisão em aberto do Johnny sobre os 2 snapshots de go-live.
-- `_f18_backup_pendencia` (2 linhas: id + texto de pendência) — backup do backfill da F18, já catalogado no backlog de DROP.
+- `_f18_backup_pendencia` (2 linhas: id + texto de pendência) — backup do backfill da F18. **Migration `0058_drop_backup_f18.sql` escrita em 25/07**, com o export prévio e a verificação pós-apply no cabeçalho; não aplicada (classificador do harness barrou o `apply_migration`) — está em handoff.
 
 **Negócio:** risco baixo hoje (poucas linhas, sem dado pessoal sensível, anon sem acesso), mas é o **padrão que se repete a cada fase** — F7K, F8, F18 criaram a mesma classe de tabela ad-hoc. Vale a regra: todo backup de operação nasce com uma migration de DROP datada.
 
@@ -133,7 +163,9 @@ A revalidação de contagens sob advisory lock — defesa central contra apagar 
 Itens **D** e **J**. `npm run lint` limpo · **1.092 testes** verdes (+16) · `npm run build` limpo.
 
 ### Faixa 1 — Fechar as pontas de banco `(~1 dia, junto do próximo deploy)`
-- **B:** migration de DROP para `_f18_backup_pendencia` (o `_bkp_relatorios_gerados_f6a` espera a decisão do Johnny). Adotar a regra "backup de operação nasce com DROP datado".
+- **R (primeiro da fila):** aplicar a `0056` **no ensaio** e conferir `criar_compra_lote` nos dois bancos. É o mais barato e o que restaura a validade do caminho ensaio → produção — sem isso, tudo o mais nesta faixa é validado contra uma base que não espelha produção.
+- **B:** migration de DROP para `_f18_backup_pendencia` — **`0058` já escrita**, em handoff (o `_bkp_relatorios_gerados_f6a` espera a decisão do Johnny). Adotar a regra "backup de operação nasce com DROP datado".
+- **Advisors de performance:** **`0059` já escrita**, em handoff — `auth.uid()` → `(select auth.uid())` em `profiles` e DROP de 6 policies de SELECT redundantes. Nenhum dos dois muda o modelo de acesso (item M).
 - **N:** `create or replace` tornando `p_contagens` obrigatório — caminho B do runbook (bate no gate).
 - **A:** já documentado no runbook; a decisão pendente é de **método** (seguir com apply por MCP + sonda, que funciona, ou renomear as migrations para o padrão timestamp e adotar a CLI de verdade). Registrar em ADR.
 
@@ -153,5 +185,5 @@ Item **M**: avaliar RLS real por filial — ADR antes de qualquer mudança.
 - **CI com banco real** — sobe Postgres, aplica as 55 migrations em ordem e roda os roteiros SQL. Era a lacuna nº 1 da rodada anterior.
 - **1.092 testes** de funções puras, verdes, rodando em ~10s.
 - **Duas travas TS↔SQL** ativas (`marcadores-sql.test.ts` e o novo `transicoes-sql.test.ts`) — o padrão certo para o acoplamento que este projeto tem por natureza.
-- **Advisors sem surpresa:** todo achado de segurança em produção já está catalogado (RLS por design, backups no backlog, leaked-password em handoff). Nada novo.
+- **Advisors sem surpresa *em produção*:** todo achado de segurança lá já está catalogado (RLS por design, backups no backlog, leaked-password em handoff). ⚠️ *Ressalva de 25/07: esta linha valia porque a sonda só rodou em produção. Rodada nos dois projetos, ela achou o item **R** — o ensaio está atrás. Paridade se mede nos dois bancos.*
 - **Rastro de decisões** (`docs/DECISOES.md`) exemplar — a dívida de infra aparece lá como pendência conhecida, não como surpresa.

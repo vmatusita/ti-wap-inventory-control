@@ -1,0 +1,41 @@
+-- Migration 0058 — DROP da última tabela de backup órfã do backfill da F18
+-- (dívida técnica, item B — diagnóstico de projeto de 25/07/2026).
+--
+-- ⚠ NÃO APLICADA ainda (nem no ensaio, nem em produção): o `apply_migration` do MCP foi
+-- barrado pelo classificador de permissões do harness em 25/07/2026, como já havia
+-- acontecido com a 0056. O arquivo fica versionado e o apply é handoff para o Johnny.
+-- Ver docs/DECISOES.md, entrada de 25/07/2026.
+--
+-- CONTEXTO. `_f18_backup_pendencia` nasceu de um `create table ... as select` ad-hoc no
+-- SQL Editor, durante o backfill de pendências da F18 — nunca entrou no repositório. É a
+-- ÚLTIMA sobrevivente da classe que a 0039 já limpou (`_f8_backup_matriz_compras` e
+-- `_f7k_backup_modelo`, ambas confirmadas inexistentes em 25/07). Guarda 2 linhas
+-- (id do ativo + texto da pendência) de uma operação concluída e verificada.
+--
+-- A tabela tem RLS ligada e ZERO policy (stopgap da 0038): na prática nem `anon` nem
+-- `authenticated` leem — só `service_role`. Por isso o risco de exposição é baixo; o que
+-- ela produz hoje é ruído permanente no advisor (`rls_enabled_no_policy` +
+-- `no_primary_key`) e dado real parado sem dono.
+--
+-- A OUTRA backup, `_bkp_relatorios_gerados_f6a` (2 linhas), NÃO é tocada aqui de
+-- propósito: está atrelada a uma decisão em aberto do Johnny sobre os 2 snapshots de
+-- go-live. Quando ele decidir, ela ganha a própria migration de DROP.
+--
+-- REGRA que este item deixa (F7K, F8 e F18 criaram a mesma classe de tabela ad-hoc):
+-- todo backup de operação nasce junto com uma migration de DROP datada.
+--
+-- ---------------------------------------------------------------------------
+-- ANTES DE APLICAR — exportar as 2 linhas (CLAUDE.md: operação destrutiva em
+-- produção é precedida de backup). Rode e guarde o resultado FORA do repositório
+-- (o repo não recebe dado real — CLAUDE.md regra 2):
+--
+--   select * from public._f18_backup_pendencia;
+--
+-- VERIFICAÇÃO PÓS-APPLY:
+--
+--   select to_regclass('public._f18_backup_pendencia');   -- esperado: NULL
+--
+-- Idempotente (`if exists`). Não altera nenhuma tabela viva.
+-- ---------------------------------------------------------------------------
+
+drop table if exists public._f18_backup_pendencia;
