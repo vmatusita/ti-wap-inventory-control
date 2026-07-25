@@ -290,4 +290,50 @@ Nada disto bloqueia a fase; tudo saiu do caminho como observação.
 
 ## 9. Rollout
 
-_(preenchido na execução do §R)_
+**Push:** `b9a68ad..193c829` → `origin/main` (5 commits + o do gabarito; árvore limpa, `0 0` de
+divergência com o remoto).
+
+**Deploy:** `dpl_FzAgVmaSPK1LYJ71EASkSq5RMjHp` (commit `193c829`) → **READY**, alias
+`ti-wap-inventory-control.vercel.app`, região `iad1`.
+`get_runtime_errors` do projeto (janela de 2 h): **nenhum erro**.
+
+### Smoke de produção — `scripts/smoke/smoke-prod.mjs`, sessão de operador real
+
+```
+PARTE A — sem sessão
+  [OK] /ajuda — HTTP 307 → /login          (continua barrada sem sessão)
+
+PARTE C — rotas do app COM sessão
+  [OK] /ajuda           — HTTP 200 (550.775 bytes)
+  [OK] /ajuda/manual    — HTTP 200 (1.156.034 bytes)
+  [OK] as 33 páginas    — HTTP 200 + marcador de conteúdo, uma a uma
+
+RESUMO · 86 OK · 1 aviso · 0 n/a · 0 falha
+```
+
+O aviso é pré-existente e não é desta fase (RLS de `kits_modelos` não comprovada porque não há kit
+cadastrado em produção).
+
+### Compatibilidade e invariantes, conferidos no ar
+
+| Verificação | Resultado |
+|---|---|
+| `/ajuda#movimentacoes` (favorito antigo) | → `/ajuda/tipos-de-movimentacao` ✔ |
+| `/ajuda#como-fazer` (favorito antigo) | → `/ajuda#fazer`, rolando até "Como fazer" (topo em 112 px) ✔ |
+| Índice | **33 páginas visíveis**, 4 categorias ✔ |
+| `/relatorios/acesso` (porta do visualizador) | HTTP **200** — inalterada ✔ |
+| `/relatorios/geral` e `/relatorios/gerados` sem sessão | HTTP **307** → `/login` — inalteradas ✔ |
+| `/ajuda/*` sem sessão | HTTP **307** → `/login` — o visualizador não ganhou nada ✔ |
+
+### Pendências do rollout
+
+1. **CI não conferido.** Não há `gh` nesta máquina, então o resultado do GitHub Actions (jobs
+   `verificar` e `banco`) ficou por verificar. `lint`, `test` (1.446) e `build` rodaram local e estão
+   verdes, e a fase **não tocou em `supabase/`** — o job `banco` não tinha o que quebrar. Conferir em
+   <https://github.com/vmatusita/ti-wap-inventory-control/actions>.
+2. **`/ajuda/<slug-inexistente>` responde HTTP 200, não 404.** O operador **vê** a tela de "não
+   encontrado" (conferido: o corpo traz *"This page could not be found"*), mas o status sai 200
+   porque o `loading.tsx` da rota faz o Next transmitir o esqueleto antes de a página resolver o
+   `notFound()`. É comportamento conhecido do App Router com fronteira de carregamento, não regressão
+   desta fase, e sem efeito prático num app interno atrás de login. Remover o `loading.tsx` daria o
+   404 correto ao custo de a navegação herdar o esqueleto do dashboard — não vale a troca.
