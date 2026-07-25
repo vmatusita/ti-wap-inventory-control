@@ -81,7 +81,7 @@ export const mapaDasTelas: PaginaAjuda = {
         ],
       ],
       legenda:
-        'Os tiles do painel inicial são clicáveis: clicar equivale a abrir Ativos e aplicar aquele filtro de status.',
+        `Os tiles do painel inicial são clicáveis: clicar equivale a abrir Ativos e aplicar aquele filtro de status. "Total de ativos" conta também os equipamentos no estado ${STATUS_META.emprestado.rotulo}, que não tem tile próprio aqui — por isso os seis tiles de estado somam menos que ele. O número dos emprestados aparece no relatório, no grupo "Equipamentos principais".`,
     },
     {
       tipo: 'lista',
@@ -96,7 +96,7 @@ export const mapaDasTelas: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'O ícone "?" ao lado do título de uma tela abre direto a página desta documentação que descreve aquela tela — não o índice, e sim a página certa. Ele existe no painel inicial, em Ativos, na ficha de um ativo, em "Novo equipamento", em Movimentações, em "Nova movimentação", em "Devolução ao fornecedor", em Itens, em Pendências, no relatório ao vivo, em "Relatórios gerados" e no cabeçalho de Administração, que vale para as sete abas — o import traz um segundo, ao lado do texto de abertura. Não há "?" na tela de um relatório já congelado nem nas telas públicas (login e entrada por senha), e no relatório ao vivo ele só aparece para quem entrou como operador.',
+        'O ícone "?" ao lado do título de uma tela abre direto a página desta documentação que descreve aquela tela — não o índice, e sim a página certa. Ele existe no painel inicial, em Ativos, na ficha de um ativo, em "Novo equipamento", em Movimentações, em "Nova movimentação", em "Devolução ao fornecedor", em Itens, em Pendências, no relatório ao vivo, em "Relatórios gerados" e no cabeçalho de Administração, que vale para as sete abas — as abas com matéria própria (Usuários, Senhas de acesso, Kits e Importar) trazem um segundo, ao lado do texto de abertura. Não há "?" na tela de um relatório já congelado nem nas telas públicas (login e entrada por senha). E nas duas telas de relatório que o visualizador por senha também abre — o relatório ao vivo e "Relatórios gerados" — ele só aparece para quem entrou como operador: esta documentação é do operador, e quem estivesse ali com uma senha de acesso cairia na tela de login.',
     },
     {
       tipo: 'lista',

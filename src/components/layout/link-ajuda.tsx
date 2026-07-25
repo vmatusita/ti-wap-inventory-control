@@ -9,8 +9,9 @@ import { cn } from '@/lib/utils'
 //
 // `pagina` e um SLUG do registry (`src/lib/ajuda/registry.ts`) — ate a F19 era o
 // id de uma secao da ajuda de pagina unica. O mapa tela -> pagina esta em
-// docs/PLANO-AJUDA.md §3, e um teste (`link-ajuda.test.ts`) trava que todo alvo
-// usado no app existe no registry: link de ajuda quebrado nao chega a producao.
+// docs/PLANO-AJUDA.md §3, e o describe "LinkAjuda nas telas" de
+// `src/lib/ajuda/registry.test.ts` trava que todo alvo usado no app existe no
+// registry: link de ajuda quebrado nao chega a producao.
 //
 // O componente NAO importa o registry de proposito: ele e montado em telas do
 // operador que nada tem a ver com a documentacao, e o registry e so-servidor

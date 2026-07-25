@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { PAGINAS, ancorasDaPagina, paginaPorSlug } from '@/lib/ajuda/registry'
 import { textoDaPagina } from '@/lib/ajuda/indice'
@@ -11,8 +13,12 @@ import {
   TIPO_LANCAMENTO_META,
   TIPO_META,
 } from '@/lib/dominio'
-import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
+import {
+  MAX_LOTE_MOVIMENTACAO,
+  TIPOS_FORA_DO_LOTE_MANUAL,
+} from '@/lib/validators/movimentacao'
 import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import { MOV_PAGE_SIZE } from '@/lib/queries/movimentacoes'
 import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 import { CAP_EXPORT } from '@/lib/csv'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
@@ -65,6 +71,39 @@ function blocos<T extends Bloco['tipo']>(
     (b): b is Extract<Bloco, { tipo: T }> => b.tipo === tipo,
   )
 }
+
+/** Rótulos de um array `const X = [...]` de um componente REAL, na ordem da tela.
+ *  Mesmo helper de `comecar.test.ts`: comparar a documentação com um literal
+ *  repetido aqui deixaria os dois envelhecendo juntos — este lê o arquivo-fonte. */
+function rotulosDe(arquivo: string, constante: string): string[] {
+  const src = readFileSync(join(process.cwd(), ...arquivo.split('/')), 'utf8')
+  const bloco = src.match(new RegExp(`const ${constante}[\\s\\S]*?= \\[([\\s\\S]*?)\\n\\]`))
+  if (!bloco) throw new Error(`${constante} não encontrado em ${arquivo}`)
+  return [...bloco[1].matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1])
+}
+
+/** Código-fonte de um módulo de conteúdo desta frente (para provar que um valor
+ *  é DERIVADO, e não um literal que por acaso coincide com a constante hoje). */
+function fonteDoConteudo(arquivo: string): string {
+  return readFileSync(
+    join(process.cwd(), 'src', 'lib', 'ajuda', 'conteudo', arquivo),
+    'utf8',
+  )
+}
+
+/** Contagem por extenso, para travar o numeral escrito na prosa contra a fonte. */
+const POR_EXTENSO = [
+  'zero',
+  'um',
+  'dois',
+  'três',
+  'quatro',
+  'cinco',
+  'seis',
+  'sete',
+  'oito',
+  'nove',
+]
 
 // ---------------------------------------------------------------------------
 // As 9 páginas existem, na categoria certa e herdando o legado certo.
@@ -165,6 +204,11 @@ describe('status-do-ativo — glossário completo e com contexto', () => {
     expect(t).toContain(normalizarBusca('mudam apenas por movimentação'))
     expect(t).toContain(normalizarBusca('Descartado e Devolvido ao fornecedor'))
   })
+
+  it('a contagem de estados do resumo vem de STATUS_ORDEM, não escrita à mão', () => {
+    expect(pagina('status-do-ativo').resumo).toContain(`Os ${STATUS_ORDEM.length} estados`)
+    expect(fonteDoConteudo('status-do-ativo.ts')).toContain('STATUS_ORDEM.length')
+  })
 })
 
 describe('tipos-de-movimentacao — os 15 tipos e o que não está no formulário', () => {
@@ -178,13 +222,49 @@ describe('tipos-de-movimentacao — os 15 tipos e o que não está no formulári
     }
   })
 
-  it('nomeia os quatro tipos que têm caminho próprio, com o botão real de cada um', () => {
+  it('nomeia os tipos que têm caminho próprio, com o botão real de cada um', () => {
     const c = cru('tipos-de-movimentacao')
     expect(c).toContain('Devolver ao fornecedor')
     expect(c).toContain('Estornar')
     expect(c).toContain('Tipo de movimentação')
     const t = normal('tipos-de-movimentacao')
     expect(t).toContain(normalizarBusca('só aparecem as movimentações válidas para todos eles'))
+    // Cada tipo que o formulário não oferece é NOMEADO pelo rótulo real: um novo
+    // tipo de fluxo próprio muda a contagem e este teste cobra a prosa.
+    const foraDoFormulario = [...TIPOS_FORA_DO_LOTE_MANUAL, 'estorno' as const]
+    for (const tipo of foraDoFormulario) {
+      expect(c, `tipo de fluxo próprio não citado: ${tipo}`).toContain(
+        TIPO_META[tipo].rotulo,
+      )
+    }
+    expect(c).toContain(`${foraDoFormulario.length} nunca aparecem na lista`)
+  })
+
+  it('as contagens de tipos vêm de TIPO_META, não escritas à mão', () => {
+    const total = Object.keys(TIPO_META).length
+    expect(pagina('tipos-de-movimentacao').resumo).toContain(`Os ${total} tipos`)
+    expect(cru('tipos-de-movimentacao')).toContain(`Destes ${total} tipos`)
+    expect(fonteDoConteudo('tipos-de-movimentacao.ts')).toContain(
+      'Object.keys(TIPO_META).length',
+    )
+  })
+
+  it('o efeito de cada tipo nomeia o estado por STATUS_META (nada digitado à mão)', () => {
+    const src = fonteDoConteudo('tipos-de-movimentacao.ts')
+    expect(src).toContain('STATUS_META')
+    for (const s of STATUS_ORDEM) {
+      expect(src, `rótulo de status digitado à mão: ${s}`).not.toContain(
+        `Resultado: ${STATUS_META[s].rotulo}`,
+      )
+    }
+    // …e o texto renderizado continua trazendo o rótulo real de cada destino:
+    // todo estado do domínio é o resultado de algum tipo.
+    const c = cru('tipos-de-movimentacao')
+    for (const s of STATUS_ORDEM) {
+      expect(c, `estado ausente da prosa: ${s}`).toContain(
+        `Resultado: ${STATUS_META[s].rotulo}`,
+      )
+    }
   })
 })
 
@@ -224,6 +304,11 @@ describe('limites-e-atalhos — tetos derivados e guardas reais', () => {
     expect(t).toContain(normalizarBusca(TAMANHO_MAX_ROTULO))
   })
 
+  it('o tamanho de página das movimentações é lido de MOV_PAGE_SIZE', () => {
+    expect(cru('limites-e-atalhos')).toContain(`${MOV_PAGE_SIZE}, fixo`)
+    expect(fonteDoConteudo('limites-e-atalhos.ts')).toContain('MOV_PAGE_SIZE')
+  })
+
   it('descreve as seis teclas e o Enter do fluxo de movimentação', () => {
     const b = blocos('limites-e-atalhos', 'atalhos')[0]
     expect(b).toBeDefined()
@@ -241,6 +326,21 @@ describe('limites-e-atalhos — tetos derivados e guardas reais', () => {
   it('mantém a guarda global e a busca por "teclado"', () => {
     expect(t).toContain(normalizarBusca('enquanto você digita num campo'))
     expect(t).toContain(normalizarBusca('teclado'))
+  })
+
+  it('promete a guarda de janela aberta só para os atalhos que a cumprem', () => {
+    // `atalho-global.tsx` chama `modalAberto()` antes de tratar N e ?; o handler
+    // do L (lancar-item-dialog.tsx) NÃO chama — e /itens tem a confirmação
+    // "Estornar lançamento". A nota de fecho não pode prometer pelos três.
+    expect(t).not.toContain(
+      normalizarBusca(
+        'Nenhum atalho de letra dispara enquanto você digita num campo nem com uma janela de confirmação aberta',
+      ),
+    )
+    const l = blocos('limites-e-atalhos', 'atalhos')[0].itens.find((a) => a.teclas === 'L')
+    expect(l?.observacao, 'o L precisa dizer que a guarda de modal não vale para ele').toContain(
+      'Estornar lançamento',
+    )
   })
 })
 
@@ -330,6 +430,16 @@ describe('mensagens-de-erro — catálogo com o texto exato da tela', () => {
   it('traduz o par "Reserva e liberação" para os rótulos que a tela mostra', () => {
     const t = normal('mensagens-de-erro')
     expect(t).toContain(normalizarBusca('"Atrelar" e "Devolução"'))
+  })
+
+  it('não cobra destino da reserva (a regra é só de saída e empréstimo)', () => {
+    // `movimentacaoSchema`: o superRefine que emite "Informe o colaborador ou o
+    // setor de destino" só roda para `saida` e `emprestimo`; `reserva` tem os
+    // dois campos como opcionais.
+    expect(c).toContain('Saída e empréstimo precisam de um destino')
+    expect(normal('mensagens-de-erro')).not.toContain(
+      normalizarBusca('Saída, empréstimo e reserva precisam'),
+    )
   })
 })
 
@@ -492,19 +602,26 @@ describe('relatorio-ao-vivo — leitura, filtros e impressão', () => {
     }
   })
 
-  it('lista os sete indicadores do topo com o rótulo real', () => {
+  it('lista os indicadores do topo com o rótulo real do componente, e na conta certa', () => {
     const c = cru('relatorio-ao-vivo')
-    for (const rotulo of [
-      'Total de ativos',
-      'Em uso',
-      'Em estoque',
-      'Reservados',
-      'Em triagem',
-      'Em manutenção',
-      'Reserva técnica',
-    ]) {
+    // A lista vem do COMPONENTE que desenha os tiles, não de literais repetidos
+    // aqui: um tile novo (ou renomeado) em kpi-tiles.tsx derruba este teste.
+    const rotulos = rotulosDe('src/components/relatorios/kpi-tiles.tsx', 'TILES')
+    expect(rotulos.length, 'nenhum tile lido do componente').toBeGreaterThan(0)
+    for (const rotulo of rotulos) {
       expect(c, `KPI ausente: ${rotulo}`).toContain(rotulo)
     }
+    // E o numeral escrito na prosa acompanha a contagem real.
+    expect(c, 'a contagem por extenso não bate com os tiles reais').toContain(
+      `Os ${POR_EXTENSO[rotulos.length]} indicadores do topo`,
+    )
+  })
+
+  it('diz que a semana abre até HOJE, nunca até o sábado que não chegou', () => {
+    // periodo.ts: `case 'semana': { de: domingo, ate: hoje }` — o intervalo NUNCA
+    // termina no sábado, e o subtítulo da tela mostra `de a ate`.
+    expect(t).toContain(normalizarBusca('até HOJE'))
+    expect(t).not.toContain(normalizarBusca('de domingo a sábado'))
   })
 })
 
@@ -584,6 +701,13 @@ describe('linguagem das páginas desta frente', () => {
       'Supabase',
     ]) {
       expect(texto.includes(termo), `jargão: "${termo}"`).toBe(false)
+    }
+  })
+
+  it('não chama de "bucket"/"balde" o que a tela chama de bloco, tipo ou aba', () => {
+    const n = normalizarBusca(texto)
+    for (const termo of ['bucket', 'balde']) {
+      expect(n.includes(termo), `palavra de desenvolvedor: "${termo}"`).toBe(false)
     }
   })
 

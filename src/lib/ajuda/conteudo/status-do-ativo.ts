@@ -1,6 +1,6 @@
 import { verbetesCategoria, verbetesStatus } from '@/lib/ajuda/derivacao'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
-import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
+import { STATUS_ORDEM, type CategoriaAtivo, type StatusAtivo } from '@/lib/dominio'
 
 // PROSA por enum: sem um texto para cada status, o TypeScript nao compila.
 const DESC_STATUS: Record<StatusAtivo, string> = {
@@ -38,7 +38,7 @@ const DESC_CATEGORIA: Record<CategoriaAtivo, string> = {
 export const statusDoAtivo: PaginaAjuda = {
   slug: 'status-do-ativo',
   titulo: 'Status e categorias do ativo',
-  resumo: 'Os nove estados, com o selo real de cada um.',
+  resumo: `Os ${STATUS_ORDEM.length} estados, com o selo real de cada um.`,
   categoria: 'consultar',
   termos: [
     'status',
@@ -74,7 +74,7 @@ export const statusDoAtivo: PaginaAjuda = {
     {
       tipo: 'glossario',
       badge: 'neutro',
-      itens: verbetesCategoria(DESC_CATEGORIA, 'Categoria de ativo controlado individualmente.'),
+      itens: verbetesCategoria(DESC_CATEGORIA),
     },
     {
       tipo: 'nota',

@@ -19,7 +19,8 @@ export default async function AdminLayout({
           <h1 className="text-2xl font-semibold tracking-tight">Administração</h1>
           {/* F20: as telas de admin compartilham este cabeçalho, então o "?"
               aponta para a página que cobre os cadastros de apoio. As telas com
-              matéria própria (o import) trazem o seu ao lado do texto de abertura. */}
+              matéria própria (Usuários, Senhas de acesso, Kits e Importar) trazem o
+              seu ao lado do texto de abertura. */}
           <LinkAjuda pagina="administracao" rotulo="Ajuda sobre a administração" />
         </div>
         {/* O subtítulo lista o que as abas do AdminNav cobrem — quando uma aba

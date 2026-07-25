@@ -9,6 +9,13 @@ const TIPOS_LANCAMENTO_TEXTO = (Object.keys(TIPO_LANCAMENTO_META) as TipoLancame
   .map((t) => TIPO_LANCAMENTO_META[t].rotulo)
   .join(', ')
 
+// Os dois tipos que exigem o numero do chamado sao 'reserva' e 'liberacao'
+// (`exigeChamado`, em validators/item.ts). Na TELA eles se chamam "Atrelar" e
+// "Devolucao" — e "Liberacao" e o rotulo de OUTRO tipo ('saida'), que nao pede
+// chamado nenhum. Por isso os nomes saem daqui, nao da memoria de quem escreve.
+const ATRELAR = TIPO_LANCAMENTO_META.reserva.rotulo
+const DEVOLUCAO = TIPO_LANCAMENTO_META.liberacao.rotulo
+
 export const lancarItens: PaginaAjuda = {
   slug: 'lancar-itens',
   titulo: 'Lançar itens por quantidade',
@@ -39,14 +46,15 @@ export const lancarItens: PaginaAjuda = {
         'Pré-condição: escolha a filial certa. O saldo é por filial, e o lançamento não se transfere depois: erro de filial se corrige estornando e lançando de novo.',
       ],
     },
+    { tipo: 'titulo', id: 'lancar-basico', texto: 'O lançamento do dia a dia' },
     {
       tipo: 'passos',
       titulo: 'Lançar um item por quantidade',
       itens: [
-        'Abra Itens (atalho: tecla L) e use "Lançar" — o diálogo se chama "Lançar quantidade".',
+        'Abra Itens pelo menu lateral e use "Lançar" — o diálogo se chama "Lançar quantidade". Dentro da página Itens, a tecla L abre esse mesmo diálogo; fora dela a tecla não faz nada (ela não navega até Itens).',
         'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item preenchido e o cursor na quantidade. A filial vem junto quando a tela está filtrada por uma filial; na visão Por filial ela abre em branco (a linha vale para todas) — escolha a filial antes de salvar.',
         `Escolha o tipo (${TIPOS_LANCAMENTO_TEXTO}) — cada um afeta Total/Estoque de um jeito, e a descrição do escolhido aparece logo abaixo do campo.`,
-        'Informe a quantidade e, quando fizer sentido, a pessoa/chamado. Atrelar e Devolução exigem o número do chamado; o Ajuste pede justificativa em "Observação (justificativa do ajuste)" e aceita quantidade negativa (a nota ao lado lembra: "quantidade negativa = baixa").',
+        `Informe a quantidade e, quando fizer sentido, a pessoa/chamado. ${ATRELAR} e ${DEVOLUCAO} exigem o número do chamado; o Ajuste pede justificativa em "Observação (justificativa do ajuste)" e aceita quantidade negativa (a nota ao lado lembra: "quantidade negativa = baixa").`,
         'Confirme em "Lançar". O aviso "Lançamento registrado." confirma; o saldo da tela se atualiza sozinho.',
         '"Repetir último" traz de volta os campos do seu último lançamento — útil para uma sequência de entradas parecidas.',
       ],
@@ -59,7 +67,7 @@ export const lancarItens: PaginaAjuda = {
       itens: [
         'Uma nota com 5 itens é UM lançamento com 5 linhas — não é preciso abrir o formulário cinco vezes.',
         `Use "Adicionar item" para incluir uma linha (item + quantidade). O contador ao lado de "Itens" mostra quanto já foi usado do limite de ${MAX_LINHAS_LOTE_ITEM} linhas por lançamento.`,
-        'Filial, tipo, data, chamado, colaborador e observação são COMUNS a todas as linhas — preencha uma vez. As regras do tipo (chamado obrigatório em Atrelar/Liberação, justificativa no Ajuste) valem para o lançamento inteiro.',
+        `Filial, tipo, data, chamado, colaborador e observação são COMUNS a todas as linhas — preencha uma vez. As regras do tipo (chamado obrigatório em ${ATRELAR}/${DEVOLUCAO}, justificativa no Ajuste) valem para o lançamento inteiro.`,
         'O mesmo item não pode aparecer duas vezes no carrinho: some as quantidades numa linha só.',
         'Cada linha é lançada por conta própria: se uma falhar (saldo insuficiente, por exemplo), as outras entram do mesmo jeito. O aviso diz "X de Y linhas lançadas" e o formulário fica só com as que falharam, com o motivo em cada linha — corrija e mande de novo, sem redigitar o resto.',
         '"Repetir último" e o botão de lançar da linha do saldo preenchem a PRIMEIRA linha do carrinho (e os campos comuns).',
@@ -122,7 +130,7 @@ export const lancarItens: PaginaAjuda = {
         ],
         [
           'Reserva e liberação exigem o número do chamado.',
-          'O tipo escolhido precisa do chamado e ele ficou em branco.',
+          `O tipo escolhido precisa do chamado e ele ficou em branco. Na tela esses dois tipos se chamam "${ATRELAR}" e "${DEVOLUCAO}" — a mensagem usa os nomes internos.`,
           'Preencha "Chamado" antes de lançar.',
         ],
         [

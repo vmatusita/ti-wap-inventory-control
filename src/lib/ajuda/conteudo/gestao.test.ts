@@ -4,7 +4,12 @@ import { textoDaPagina } from '@/lib/ajuda/indice'
 import { normalizarBusca } from '@/lib/ajuda/busca'
 import type { Bloco, PaginaAjuda } from '@/lib/ajuda/tipos'
 import { ROTULO_TIPO_PENDENCIA, type TipoPendencia } from '@/lib/pendencias/rotulos'
-import { TIPO_LANCAMENTO_META, type TipoLancamento } from '@/lib/dominio'
+import {
+  DESFECHOS_PENDENCIA_ITEM,
+  DESFECHO_PENDENCIA_ITEM_ROTULO,
+  TIPO_LANCAMENTO_META,
+  type TipoLancamento,
+} from '@/lib/dominio'
 import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
 import { CAP_EXPORT } from '@/lib/csv'
 import { TAMANHOS_PAGINA, TAMANHO_PAGINA_PADRAO } from '@/lib/ativos/lista'
@@ -89,6 +94,23 @@ describe('as nove páginas da frente existem e estão inteiras', () => {
     }
   })
 
+  it('nenhuma página emite um título de passos (h3) antes do primeiro título (h2)', () => {
+    // /ajuda/<slug>: o h1 é o título da página, bloco 'titulo' vira h2 e o título
+    // de 'passos' vira h3 (bloco-ajuda.tsx). Um passo antes do primeiro 'titulo'
+    // produzia h1 → h3 → h2 e deixava a seção fora do sumário "Nesta página".
+    for (const slug of SLUGS_C3) {
+      const blocos = pagina(slug).blocos
+      const primeiroTitulo = blocos.findIndex((b) => b.tipo === 'titulo')
+      const primeiroPasso = blocos.findIndex((b) => b.tipo === 'passos' && !!b.titulo)
+      if (primeiroPasso === -1) continue
+      expect(primeiroTitulo, `${slug} não tem bloco 'titulo'`).toBeGreaterThanOrEqual(0)
+      expect(
+        primeiroTitulo,
+        `${slug}: passos com título antes do primeiro 'titulo' (h3 antes de h2)`,
+      ).toBeLessThan(primeiroPasso)
+    }
+  })
+
   it('as âncoras destas páginas são únicas no projeto inteiro', () => {
     const minhas = SLUGS_C3.flatMap((s) => ancorasDaPagina(pagina(s)).map((a) => a.id))
     const outras = PAGINAS.filter(
@@ -128,6 +150,25 @@ describe('derivação (nenhum rótulo nem teto digitado à mão)', () => {
   it('os seis tipos de lançamento vêm de dominio.ts', () => {
     for (const t of Object.keys(TIPO_LANCAMENTO_META) as TipoLancamento[]) {
       contem('lancar-itens', TIPO_LANCAMENTO_META[t].rotulo)
+    }
+  })
+
+  it('o par que exige chamado é Atrelar/Devolução — nunca "Liberação"', () => {
+    // `exigeChamado` (validators/item.ts) = 'reserva' + 'liberacao', que na TELA
+    // se chamam "Atrelar" e "Devolução". "Liberação" é o rótulo de 'saida', que
+    // não pede chamado nenhum — citá-lo aqui mandava o operador ao campo errado.
+    const atrelar = TIPO_LANCAMENTO_META.reserva.rotulo
+    const devolucao = TIPO_LANCAMENTO_META.liberacao.rotulo
+    contem('lancar-itens', `${atrelar}/${devolucao}`)
+    contem('lancar-itens', `${atrelar} e ${devolucao} exigem o número do chamado`)
+    expect(texto('lancar-itens')).not.toContain(
+      normalizarBusca(`${atrelar}/${TIPO_LANCAMENTO_META.saida.rotulo}`),
+    )
+  })
+
+  it('os dois desfechos de item faltante vêm de DESFECHO_PENDENCIA_ITEM_ROTULO', () => {
+    for (const d of DESFECHOS_PENDENCIA_ITEM) {
+      contem('resolver-pendencias', DESFECHO_PENDENCIA_ITEM_ROTULO[d])
     }
   })
 
@@ -194,6 +235,24 @@ describe('ficha do ativo', () => {
   it('mantém a regra da service tag imutável e do ativo sem plaqueta', () => {
     contem('ficha-do-ativo', 'imutável')
     contem('ficha-do-ativo', 'Sem patrimônio')
+  })
+
+  it('"Voltar para ativos" é a ÚLTIMA lista da aba, não "a lista de onde veio"', () => {
+    // voltar-para-ativos.tsx lê a URL gravada em sessionStorage pela própria
+    // lista (`document.referrer` + `router.back()` não funciona no App Router):
+    // o destino é o último recorte visitado, que pode nem conter este ativo.
+    contem('ficha-do-ativo', 'ÚLTIMA lista de Ativos que você visitou naquela aba')
+    expect(texto('ficha-do-ativo')).not.toContain(normalizarBusca('lista de onde veio'))
+  })
+
+  it('o patrimônio vindo do hostname é correção automática, não aviso', () => {
+    // importar-wizard.tsx filtra 'patrimonio_do_hostname' da contagem de avisos,
+    // da tabela de avisos e do CSV de erros: quem procurar entre os avisos não acha.
+    contem('ficha-do-ativo', 'correção automática')
+    contem('ficha-do-ativo', 'preenchidos automaticamente pelo hostname')
+    expect(texto('ficha-do-ativo')).not.toContain(
+      normalizarBusca('é um aviso, não um erro'),
+    )
   })
 })
 
@@ -312,6 +371,23 @@ describe('pendências', () => {
   it('diz que triagem parada tem prazo, e qual é', () => {
     contem('resolver-pendencias', 'mais de 7 dias')
   })
+
+  it('os chips do topo são quatro — não há chip de patrimônio', () => {
+    // getPendencias (queries/relatorios/pendencias.ts) monta termo/itens/triagem
+    // e calcula "outras" = total − os três: patrimônio e service tag caem ali.
+    for (const rotulo of [
+      'termos de responsabilidade pendentes',
+      'itens faltantes de devoluções',
+      'ativos aguardando triagem',
+      'outras pendências',
+    ]) {
+      contem('resolver-pendencias', rotulo)
+    }
+    contem('resolver-pendencias', 'Não existe chip de patrimônio')
+    expect(texto('resolver-pendencias')).not.toContain(
+      normalizarBusca('Os chips do topo contam cada'),
+    )
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -384,6 +460,24 @@ describe('operadores e senhas de acesso', () => {
   it('não inventa auto-cadastro: só os domínios corporativos entram', () => {
     contem('usuarios-e-senhas', DOMINIOS_TEXTO)
     contem('usuarios-e-senhas', 'mesmo nível de acesso')
+  })
+
+  it('a pessoa entra na tabela de Usuários no CONVITE, não na ativação', () => {
+    // `generateLink({type:'invite'})` já cria a conta em auth.users; o trigger
+    // handle_new_user insere o perfil na hora com o e-mail no lugar do nome, e
+    // listarUsuarios() não filtra por ativação — a linha e o total nascem ali.
+    contem('usuarios-e-senhas', 'assim que o link é gerado')
+    contem('usuarios-e-senhas', 'a coluna "Nome" mostra o e-mail dela')
+    expect(texto('usuarios-e-senhas')).not.toContain(
+      normalizarBusca('só aparece na tabela de Usuários depois de ativar'),
+    )
+  })
+
+  it('não reproduz o nome de uma filial real no exemplo do rótulo da senha', () => {
+    // O placeholder da tela cita uma filial real; a documentação descreve o campo
+    // sem copiá-lo (CLAUDE.md: nenhum dado real da WAP na documentação).
+    expect(texto('usuarios-e-senhas')).not.toContain(normalizarBusca('Linhares'))
+    contem('usuarios-e-senhas', 'o nome da filial ou do parceiro que vai usar a senha')
   })
 })
 
@@ -477,6 +571,24 @@ describe('voz e honestidade destas páginas', () => {
         expect(t.includes(proibido), `${slug} promete futuro: "${proibido}"`).toBe(false)
       }
     }
+  })
+
+  it('nenhuma usa jargão de desenvolvedor no texto do operador', () => {
+    // "bucket"/"balde" não são rótulo de tela em lugar nenhum do app: só existem
+    // em comentário de código. Na tela o operador lê "tipo" (e "aba", no filtro).
+    for (const slug of SLUGS_C3) {
+      const t = texto(slug)
+      for (const proibido of ['bucket', 'balde', 'endpoint', 'payload', 'deploy']) {
+        expect(t.includes(proibido), `${slug} usa jargão: "${proibido}"`).toBe(false)
+      }
+    }
+  })
+
+  it('a tecla L abre o diálogo DENTRO de Itens — não é atalho de navegação', () => {
+    // atalho-global.tsx só trata N e ?; o listener do L vive no LancarItemDialog,
+    // montado apenas em /itens.
+    contem('lancar-itens', 'Dentro da página Itens, a tecla L')
+    expect(texto('lancar-itens')).not.toContain(normalizarBusca('atalho: tecla L'))
   })
 
   it('nenhum patrimônio de exemplo é real', () => {

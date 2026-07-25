@@ -1,34 +1,36 @@
 import { verbetesMovimentacao } from '@/lib/ajuda/derivacao'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
-import type { TipoMovimentacao } from '@/lib/dominio'
-import type { CampoMovimentacao } from '@/lib/validators/movimentacao'
+import { STATUS_META, TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
+import {
+  TIPOS_FORA_DO_LOTE_MANUAL,
+  type CampoMovimentacao,
+} from '@/lib/validators/movimentacao'
 
-// Efeito de cada tipo de movimentacao na maquina de estados. O ROTULO vem de
-// TIPO_META; aqui so o que o evento PROVOCA e a que estado leva.
+// Os tipos que o seletor "Tipo de movimentação" NUNCA oferece: os de fluxo
+// proprio (TIPOS_FORA_DO_LOTE_MANUAL) mais o `estorno`, que so existe pelo botao
+// da linha do tempo e sequer entra no schema do formulario. A contagem desta
+// pagina sai daqui — um tipo novo com caminho proprio muda o numero sozinho.
+const FORA_DO_FORMULARIO: TipoMovimentacao[] = [...TIPOS_FORA_DO_LOTE_MANUAL, 'estorno']
+
+// Efeito de cada tipo de movimentacao na maquina de estados. O ROTULO do tipo
+// vem de TIPO_META e o do ESTADO de destino, de STATUS_META — aqui so o que o
+// evento PROVOCA. Renomear um estado em dominio.ts reescreve esta pagina no
+// mesmo build, em vez de deixar a doc falando de um estado que a tela nao tem.
+const S = STATUS_META
+
 const EFEITO_MOVIMENTACAO: Record<TipoMovimentacao, string> = {
-  compra:
-    'Entrada de um ativo novo COMPRADO. Resultado: Em estoque. Não se registra por este formulário: é o cadastro de equipamento novo que a grava sozinha, na linha do tempo do ativo recém-criado.',
-  troca:
-    'Entrada do equipamento SUBSTITUTO que o fornecedor mandou no lugar do devolvido (nascimento do ativo, como a compra). Registrada só pela devolução ao fornecedor — nunca pelo formulário de nova movimentação. Aparece nas Entradas do relatório rotulada "Troca", nunca contada como compra (não foi comprado). Resultado: Em estoque.',
-  saida:
-    'Entrega definitiva a um colaborador ou setor. Resultado: Em uso. É a movimentação que abre a cobrança do termo de responsabilidade.',
-  emprestimo:
-    'Entrega temporária, com devolução esperada. Resultado: Emprestado. Use quando o equipamento vai voltar — o relatório separa emprestados de "Em uso" justamente por isso.',
-  reserva:
-    'Separa o ativo para alguém sem entregar ainda. Resultado: Reservado. O equipamento continua com a TI, mas sai da conta de disponíveis.',
-  devolucao:
-    'O ativo volta da mão do colaborador para a TI. Resultado: Em triagem (aguarda conferência). É aqui que se marca o checklist do que NÃO voltou.',
-  triagem_ok:
-    'Conferência aprovada — o ativo volta a ficar disponível. Resultado: Em estoque.',
-  envio_manutencao:
-    'Enviado para conserto ou assistência. Resultado: Em manutenção. Exige o número do chamado aberto pelo FORNECEDOR (campo "Chamado do fornecedor"), que é o que permite cobrar o conserto depois.',
-  retorno_manutencao:
-    'Voltou do conserto e está apto. Resultado: Em estoque.',
-  marcar_defasado:
-    'Marca o ativo como obsoleto (fim de vida útil). Resultado: Defasado. Ele continua em posse da WAP e aparece no relatório como "Reserva técnica".',
-  descarte: 'Baixa definitiva do ativo. Resultado: Descartado. Estado final, sem volta.',
-  devolucao_fornecedor:
-    'A manutenção não teve conserto: o fornecedor fica com o equipamento e o troca. Registra a baixa e, no mesmo passo, pode cadastrar o substituto (vinculado ao antigo). Só a partir de Em manutenção. Resultado: Devolvido ao fornecedor. Tem tela própria — o botão "Devolver ao fornecedor" na ficha do ativo.',
+  compra: `Entrada de um ativo novo COMPRADO. Resultado: ${S.em_estoque.rotulo}. Não se registra por este formulário: é o cadastro de equipamento novo que a grava sozinha, na linha do tempo do ativo recém-criado.`,
+  troca: `Entrada do equipamento SUBSTITUTO que o fornecedor mandou no lugar do devolvido (nascimento do ativo, como a compra). Registrada só pela devolução ao fornecedor — nunca pelo formulário de nova movimentação. Aparece nas Entradas do relatório rotulada "${TIPO_META.troca.rotulo}", nunca contada como compra (não foi comprado). Resultado: ${S.em_estoque.rotulo}.`,
+  saida: `Entrega definitiva a um colaborador ou setor. Resultado: ${S.em_uso.rotulo}. É a movimentação que abre a cobrança do termo de responsabilidade.`,
+  emprestimo: `Entrega temporária, com devolução esperada. Resultado: ${S.emprestado.rotulo}. Use quando o equipamento vai voltar — o relatório separa emprestados de "${S.em_uso.rotulo}" justamente por isso.`,
+  reserva: `Separa o ativo para alguém sem entregar ainda. Resultado: ${S.reservado.rotulo}. O equipamento continua com a TI, mas sai da conta de disponíveis.`,
+  devolucao: `O ativo volta da mão do colaborador para a TI. Resultado: ${S.em_triagem.rotulo} (aguarda conferência). É aqui que se marca o checklist do que NÃO voltou.`,
+  triagem_ok: `Conferência aprovada — o ativo volta a ficar disponível. Resultado: ${S.em_estoque.rotulo}.`,
+  envio_manutencao: `Enviado para conserto ou assistência. Resultado: ${S.em_manutencao.rotulo}. Exige o número do chamado aberto pelo FORNECEDOR (campo "Chamado do fornecedor"), que é o que permite cobrar o conserto depois.`,
+  retorno_manutencao: `Voltou do conserto e está apto. Resultado: ${S.em_estoque.rotulo}.`,
+  marcar_defasado: `Marca o ativo como obsoleto (fim de vida útil). Resultado: ${S.defasado.rotulo}. Ele continua em posse da WAP e aparece no relatório como "Reserva técnica".`,
+  descarte: `Baixa definitiva do ativo. Resultado: ${S.descartado.rotulo}. Estado final, sem volta.`,
+  devolucao_fornecedor: `A manutenção não teve conserto: o fornecedor fica com o equipamento e o troca. Registra a baixa e, no mesmo passo, pode cadastrar o substituto (vinculado ao antigo). Só a partir de ${S.em_manutencao.rotulo}. Resultado: ${S.devolvido_fornecedor.rotulo}. Tem tela própria — o botão "Devolver ao fornecedor" na ficha do ativo.`,
   transferencia:
     'Muda o ativo de filial. Mantém o status atual — só troca a filial. A filial de destino tem de ser diferente da atual.',
   ajuste:
@@ -55,7 +57,7 @@ const ROTULO_CAMPO: Record<CampoMovimentacao, string> = {
 export const tiposDeMovimentacao: PaginaAjuda = {
   slug: 'tipos-de-movimentacao',
   titulo: 'Tipos de movimentação',
-  resumo: 'Os 15 tipos: o que cada um provoca e que campos pede.',
+  resumo: `Os ${Object.keys(TIPO_META).length} tipos: o que cada um provoca e que campos pede.`,
   categoria: 'consultar',
   termos: [
     'tipo',
@@ -81,8 +83,7 @@ export const tiposDeMovimentacao: PaginaAjuda = {
     { tipo: 'titulo', id: 'tipos-fora-do-formulario', texto: 'Os tipos que não estão no formulário' },
     {
       tipo: 'nota',
-      texto:
-        'Quatro dos quinze tipos nunca aparecem na lista "Tipo de movimentação" da nova movimentação, porque têm caminho próprio: Compra é gravada pelo cadastro de equipamento novo; Estorno, pelo botão "Estornar" da linha do tempo da ficha; Devolução ao fornecedor, pelo botão "Devolver ao fornecedor" (que só existe enquanto o ativo está em manutenção); e Troca, pela mesma tela de devolução ao fornecedor, quando você cadastra o substituto. Se você procurou um deles no formulário e não achou, é isto — não é falha de permissão.',
+      texto: `Destes ${Object.keys(TIPO_META).length} tipos, ${FORA_DO_FORMULARIO.length} nunca aparecem na lista "Tipo de movimentação" da nova movimentação, porque têm caminho próprio: ${TIPO_META.compra.rotulo} é gravada pelo cadastro de equipamento novo; ${TIPO_META.estorno.rotulo}, pelo botão "Estornar" da linha do tempo da ficha; ${TIPO_META.devolucao_fornecedor.rotulo}, pelo botão "Devolver ao fornecedor" (que só existe enquanto o ativo está no estado "${S.em_manutencao.rotulo}"); e ${TIPO_META.troca.rotulo}, pela mesma tela de devolução ao fornecedor, quando você cadastra o substituto. Se você procurou um deles no formulário e não achou, é isto — não é falha de permissão.`,
     },
     {
       tipo: 'nota',

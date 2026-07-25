@@ -19,6 +19,8 @@ import {
   GRUPO_ITEM_ORDEM,
   ACESSORIOS_DEVOLUCAO,
   ACESSORIO_ROTULO,
+  TERMO_STATUS_ORDEM,
+  type CategoriaAtivo,
   type StatusAtivo,
   type TipoMovimentacao,
   type TipoLancamento,
@@ -39,17 +41,23 @@ export function verbetesStatus(descricoes: Record<StatusAtivo, string>): Verbete
   }))
 }
 
-export function verbetesCategoria(descricoes: Record<string, string>, padrao: string): Verbete[] {
+// Tipada pelo enum, como as irmãs: `Record<string, string>` + `?? padrao` fazia
+// uma categoria nova passar despercebida — exatamente a frouxidão que o
+// cabeçalho deste módulo diz não existir. Achado da revisão adversarial da F20.
+export function verbetesCategoria(descricoes: Record<CategoriaAtivo, string>): Verbete[] {
   return CATEGORIA_ORDEM.map((c) => ({
     chave: c,
     rotulo: CATEGORIA_META[c].rotulo,
-    descricao: descricoes[c] ?? padrao,
+    descricao: descricoes[c],
   }))
 }
 
 export function verbetesTermo(descricoes: Record<TermoStatus, string>): Verbete[] {
-  // Ordem do fluxo do papel: nao -> gerado -> enviado -> sim.
-  const ordem: TermoStatus[] = ['nao', 'gerado', 'enviado', 'sim']
+  // Ordem do fluxo do PAPEL (nao -> gerado -> enviado -> sim), que é o inverso
+  // da ordem de cobrança de `TERMO_STATUS_ORDEM`. Derivada da constante, e não
+  // redigitada: status de termo novo entra aqui sozinho (achado da revisão da
+  // F20 — era a única função de derivação com a lista à mão).
+  const ordem = [...TERMO_STATUS_ORDEM].reverse()
   return ordem.map((t) => ({
     chave: t,
     rotulo: TERMO_META[t].rotulo,

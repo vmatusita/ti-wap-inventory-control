@@ -2,16 +2,22 @@ import {
   ROTULO_TIPO_PENDENCIA,
   type TipoPendencia,
 } from '@/lib/pendencias/rotulos'
+import { DESFECHO_PENDENCIA_ITEM_ROTULO } from '@/lib/dominio'
 import type { PaginaAjuda, Verbete } from '@/lib/ajuda/tipos'
 
-// REGRA DE OURO: os rotulos dos buckets NAO sao digitados aqui — saem de
-// `ROTULO_TIPO_PENDENCIA`, a mesma fonte do selo da tabela e do arquivo CSV. A
-// PROSA mora aqui, num `Record` por tipo: bucket novo nao compila sem texto.
+// REGRA DE OURO: os rotulos dos tipos de pendencia NAO sao digitados aqui — saem
+// de `ROTULO_TIPO_PENDENCIA`, a mesma fonte do selo da tabela e do arquivo CSV, e
+// os dois desfechos do item faltante saem de `DESFECHO_PENDENCIA_ITEM_ROTULO`
+// (dominio.ts, fonte unica do vocabulario De→Para). A PROSA mora aqui, num
+// `Record` por tipo: tipo novo nao compila sem texto.
+const DESFECHO_RECUPERADO = DESFECHO_PENDENCIA_ITEM_ROTULO.recuperado
+const DESFECHO_BAIXA = DESFECHO_PENDENCIA_ITEM_ROTULO.baixa
+
 const DESC_PENDENCIA: Record<TipoPendencia, string> = {
   termo:
     'Ativo entregue cujo termo ainda não foi confirmado como assinado (status diferente de "Assinado"). Resolve-se confirmando a assinatura. EXCEÇÃO: ativo que veio do import de startup NÃO é cobrado por termo — o acervo herdado da planilha não entra nesta fila. A cobrança continua valendo para tudo que foi cadastrado no sistema, e gerar o termo de um ativo importado continua permitido; só não é exigido.',
   itens:
-    'Um acessório que não voltou numa devolução (mochila, carregador…). Cada item marcado no checklist da devolução vira uma linha própria, presa àquela devolução e ao COLABORADOR DA ÉPOCA (quem devia devolver) — não ao dono atual do ativo, que segue circulando livre: se o ativo sair para outra pessoa, a pendência continua apontando quem devia. Encerra-se aqui mesmo, por ação manual com desfecho ("Item recuperado" ou "Baixa — não vai voltar", observação opcional), uma de cada vez ou em lote com uma justificativa só. Resolver é definitivo (não há reabrir); a linha resolvida sai da fila mas fica na ficha do ativo, para auditoria (desfecho, quem e quando). Ativos vindos do import de startup NÃO abrem essa pendência — mesmo critério do termo de responsabilidade (o legado da planilha não inunda a fila).',
+    `Um acessório que não voltou numa devolução (mochila, carregador…). Cada item marcado no checklist da devolução vira uma linha própria, presa àquela devolução e ao COLABORADOR DA ÉPOCA (quem devia devolver) — não ao dono atual do ativo, que segue circulando livre: se o ativo sair para outra pessoa, a pendência continua apontando quem devia. Encerra-se aqui mesmo, por ação manual com desfecho ("${DESFECHO_RECUPERADO}" ou "${DESFECHO_BAIXA}", observação opcional), uma de cada vez ou em lote com uma justificativa só. Resolver é definitivo (não há reabrir); a linha resolvida sai da fila mas fica na ficha do ativo, para auditoria (desfecho, quem e quando). Ativos vindos do import de startup NÃO abrem essa pendência — mesmo critério do termo de responsabilidade (o legado da planilha não inunda a fila).`,
   triagem:
     'Ativo devolvido parado em triagem há mais de 7 dias, aguardando a conferência. Resolve-se registrando a movimentação de triagem (Triagem OK) depois de conferir os acessórios.',
   patrimonio:
@@ -63,10 +69,10 @@ export const resolverPendencias: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        'Os chips do topo contam cada bucket que tem alguma coisa em aberto; sem nada, a tela diz "Nenhuma pendência aberta. 🎉".',
-        'As abas filtram por tipo: "Todas", "Termos", "Itens faltantes", "Triagem", "Patrimônio" e "Outras". Ao lado, a busca por patrimônio ou colaborador e o seletor de filial; "Limpar" desfaz tudo.',
+        'Os chips do topo são QUATRO, e cada um só aparece quando tem alguma coisa em aberto: "termos de responsabilidade pendentes", "itens faltantes de devoluções", "ativos aguardando triagem" e "outras pendências". Não existe chip de patrimônio: as pendências de plaqueta e as de service tag são contadas dentro de "outras pendências". Sem nada aberto, a tela diz "Nenhuma pendência aberta. 🎉".',
+        'São as abas, logo abaixo dos chips, que separam "Patrimônio" de "Outras". Elas filtram por tipo: "Todas", "Termos", "Itens faltantes", "Triagem", "Patrimônio" e "Outras". Ao lado, a busca por patrimônio ou colaborador e o seletor de filial; "Limpar" desfaz tudo.',
         'A tabela traz "Tipo", "Patrimônio", "Modelo", "Colaborador", "Setor", "Filial", "Desde" e "Ação". A coluna "Desde" mostra a data e há quanto tempo aquilo está aberto ("hoje", "há 1 dia", "há N dias").',
-        'A ação da linha depende do tipo: "Confirmar assinatura" nos termos, "Resolver" nos itens faltantes. Os outros buckets se resolvem na ficha do ativo.',
+        'A ação da linha depende do tipo: "Confirmar assinatura" nos termos, "Resolver" nos itens faltantes. Os outros tipos se resolvem na ficha do ativo.',
         '"Exportar CSV" leva para o Excel exatamente as pendências que estão filtradas na tela.',
         'A tela vazia distingue os casos: sem nada aberto, "Nenhuma pendência aberta 🎉"; com filtro, "Nenhuma pendência neste filtro" — e o texto avisa que isso não quer dizer que não haja pendências, é só a combinação de filtros.',
       ],
@@ -90,7 +96,7 @@ export const resolverPendencias: PaginaAjuda = {
       titulo: 'Resolver uma pendência de item faltante',
       itens: [
         'Abra Pendências e vá ao bloco "Itens faltantes": cada linha é UM item que não voltou, com o patrimônio do ativo, o colaborador da época (o da devolução, não o dono atual) e desde quando está aberta.',
-        'Na linha, use "Resolver" e escolha o desfecho: "Item recuperado" (o acessório apareceu) ou "Baixa — não vai voltar" (encerrar sem retorno). A observação é opcional.',
+        `Na linha, use "Resolver" e escolha o desfecho: "${DESFECHO_RECUPERADO}" (o acessório apareceu) ou "${DESFECHO_BAIXA}" (encerrar sem retorno). A observação é opcional.`,
         'Para limpar a fila herdada de uma vez, marque várias linhas nas caixas de seleção e resolva em lote — uma justificativa vale para todas as marcadas. A barra que aparece mostra quantos itens estão selecionados e traz "Resolver selecionados".',
         'Resolver é definitivo: não há reabrir. A linha sai da fila, do selo do menu e do CSV, mas continua na ficha do ativo com o desfecho, quem resolveu e quando — é o rastro de auditoria.',
         'A pendência é sempre do colaborador daquela devolução: se o ativo já saiu para outra pessoa, resolver aqui não mexe no novo dono nem faz surgir "dívida" para ele.',

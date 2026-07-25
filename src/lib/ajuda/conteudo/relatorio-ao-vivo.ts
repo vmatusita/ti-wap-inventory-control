@@ -1,3 +1,4 @@
+import { MANUTENCAO_ALERTA_DIAS } from '@/lib/relatorios/manutencao-alerta'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 export const relatorioAoVivo: PaginaAjuda = {
@@ -24,7 +25,7 @@ export const relatorioAoVivo: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'O relatório AO VIVO (por filial ou consolidado "geral") reflete o banco no instante em que você abre — inclusive em tempo real. Ao abrir sem escolher período, ele já vem na semana atual, de domingo a sábado. Os demais períodos continuam disponíveis nos botões.',
+        'O relatório AO VIVO (por filial ou consolidado "geral") reflete o banco no instante em que você abre — inclusive em tempo real. Ao abrir sem escolher período, ele já vem na semana atual: do domingo desta semana até HOJE, nunca até o sábado que ainda não chegou. Numa quarta-feira, por exemplo, o subtítulo mostra o domingo e a própria quarta — não faltam dias, eles só não aconteceram ainda. Os demais períodos continuam disponíveis nos botões.',
     },
     {
       tipo: 'paragrafo',
@@ -94,7 +95,7 @@ export const relatorioAoVivo: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Um caso de manutenção parado há 30 dias ou mais (ainda em aberto) sobe de tom: o "há N dias" passa de âmbar para vermelho, para o operador e para o visualizador. Para o operador, aparece também um chip "Manutenção parada (30+ dias)" em Pendências, com a contagem.',
+        `Um caso de manutenção parado há ${MANUTENCAO_ALERTA_DIAS} dias ou mais (ainda em aberto) sobe de tom: o "há N dias" passa de âmbar para vermelho, para o operador e para o visualizador. Para o operador, a seção "Pendências" DESTE relatório ganha também um chip "Manutenção parada (${MANUTENCAO_ALERTA_DIAS}+ dias)" com a contagem — ele vive aqui, no relatório, e não na página Pendências.`,
     },
     {
       tipo: 'nota',

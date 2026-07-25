@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table'
 import { CriarSenhaDialog } from '@/components/admin/criar-senha-dialog'
 import { SenhaAcoes } from '@/components/admin/senha-acoes'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 export default async function AdminSenhasPage() {
   const senhas = await listarSenhasAcesso()
@@ -21,6 +22,7 @@ export default async function AdminSenhasPage() {
         <p className="text-sm text-muted-foreground">
           Senhas de visualização dos relatórios — sem conta, revogáveis uma a uma.
         </p>
+        <LinkAjuda pagina="usuarios-e-senhas" rotulo="Ajuda sobre as senhas de acesso" className="-ml-2 sm:ml-0" />
         <CriarSenhaDialog />
       </div>
 

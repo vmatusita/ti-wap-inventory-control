@@ -1,7 +1,16 @@
 import { TIPO_META } from '@/lib/dominio'
+import { TIPOS_EXCLUIDOS_DO_KIT } from '@/lib/validators/kit'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 const T = TIPO_META
+
+// REGRA DE OURO: a lista dos tipos que NAO entram no seletor do kit vem de
+// TIPOS_EXCLUIDOS_DO_KIT — se um tipo entrar ou sair da exclusao, o texto muda no
+// mesmo build. Sao quatro hoje, nao dois.
+const ROTULOS_EXCLUIDOS = TIPOS_EXCLUIDOS_DO_KIT.map((t) => `"${T[t].rotulo}"`)
+const EXCLUIDOS_DO_KIT = `${ROTULOS_EXCLUIDOS.slice(0, -1).join(', ')} e ${
+  ROTULOS_EXCLUIDOS[ROTULOS_EXCLUIDOS.length - 1]
+}`
 
 export const kitsDeMovimentacao: PaginaAjuda = {
   slug: 'kits-de-movimentacao',
@@ -26,7 +35,7 @@ export const kitsDeMovimentacao: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Criar e aplicar um kit de movimentação',
       itens: [
-        'Para criar: Administração › Kits › "Novo kit". Dê um nome ("Kit novo colaborador"), escolha o tipo (compra e estorno não entram), o motivo, o termo e uma observação padrão — e marque as categorias que costumam ir juntas (Notebook, Monitor, Celular…). Ao menos uma categoria é obrigatória.',
+        `Para criar: Administração › Kits › "Novo kit". Dê um nome ("Kit novo colaborador"), escolha o tipo (${EXCLUIDOS_DO_KIT} não entram na lista), o motivo, o termo e uma observação padrão — e marque as categorias que costumam ir juntas (Notebook, Monitor, Celular…). Ao menos uma categoria é obrigatória.`,
         'Trocar o tipo dentro do kit limpa o motivo que não vale para o tipo novo e o termo, quando o tipo novo não pede termo: o modelo não pode nascer inaplicável. Kit não se exclui — desmarque "Kit ativo" para tirá-lo do fluxo.',
         'Para aplicar: no passo 2 da nova movimentação, clique em "Aplicar kit" (ao lado de "Repetir última") e escolha o kit. O botão só aparece quando existe kit ativo.',
         'Aplicar SUBSTITUI tipo, motivo, termo e observação — inclusive apagando o que o kit não define. O aviso na tela diz que os campos foram substituídos; aplicar o mesmo kit duas vezes dá sempre o mesmo resultado.',
@@ -43,7 +52,7 @@ export const kitsDeMovimentacao: PaginaAjuda = {
         ['"Nome"', 'como o kit aparece no menu "Kits salvos" (até 80 caracteres)', 'Sim'],
         [
           '"Tipo de movimentação"',
-          `o tipo que será preenchido no passo 2 — "${T.compra.rotulo}" e "${T.estorno.rotulo}" não entram, porque têm caminho próprio`,
+          `o tipo que será preenchido no passo 2 — ${EXCLUIDOS_DO_KIT} não entram, porque têm caminho próprio (tela de compra, botão "Estornar" e a tela de devolução ao fornecedor, que também é quem cria a troca)`,
           'Sim',
         ],
         ['"Motivo (opcional)"', 'o motivo do catálogo; "Sem motivo" deixa o campo vazio', 'Não'],

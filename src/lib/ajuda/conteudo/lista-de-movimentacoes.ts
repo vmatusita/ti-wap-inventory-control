@@ -27,6 +27,7 @@ export const listaDeMovimentacoes: PaginaAjuda = {
       texto:
         'Use esta lista para conferir o dia, achar quem registrou alguma coisa ou reconstruir o que aconteceu num período. Para o histórico de UM equipamento, prefira a linha do tempo da ficha: ela traz também as anotações e as ações de estorno.',
     },
+    { tipo: 'titulo', id: 'movs-lista', texto: 'Abrir e filtrar a lista' },
     {
       tipo: 'passos',
       titulo: 'Achar uma movimentação já registrada (lista de movimentações)',

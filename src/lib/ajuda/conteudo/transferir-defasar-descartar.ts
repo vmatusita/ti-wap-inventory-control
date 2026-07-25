@@ -24,7 +24,7 @@ export const transferirDefasarDescartar: PaginaAjuda = {
   blocos: [
     {
       tipo: 'paragrafo',
-      texto: `Transferência muda o equipamento de filial sem mexer no estado dele. Defasado e Descarte encerram a vida útil — o primeiro sinaliza, o segundo dá baixa. Use "${T.marcar_defasado.rotulo}" quando o equipamento ainda está com a WAP mas não deve mais ser distribuído; use "${T.descarte.rotulo}" só quando ele saiu de vez do patrimônio. Equipamento com defeito não vai para nenhum dos dois de cara: vai para "${T.envio_manutencao.rotulo}" primeiro.`,
+      texto: `${T.transferencia.rotulo} muda o equipamento de filial sem mexer no estado dele. ${T.marcar_defasado.rotulo} e ${T.descarte.rotulo} encerram a vida útil — o primeiro sinaliza, o segundo dá baixa. Use "${T.marcar_defasado.rotulo}" quando o equipamento ainda está com a WAP mas não deve mais ser distribuído; use "${T.descarte.rotulo}" só quando ele saiu de vez do patrimônio. Equipamento com defeito não vai para nenhum dos dois de cara: vai para "${T.envio_manutencao.rotulo}" primeiro.`,
     },
     {
       tipo: 'tabela',
@@ -122,8 +122,7 @@ export const transferirDefasarDescartar: PaginaAjuda = {
           `estorne, se for a última movimentação; senão, "${T.ajuste.rotulo}" com justificativa`,
         ],
       ],
-      legenda:
-        'A mesma regra vale para o estado "Devolvido ao fornecedor": ele é baixa terminal e só sai por ajuste.',
+      legenda: `A mesma regra vale para o estado "${S.devolvido_fornecedor.rotulo}": ele é baixa terminal e só sai por ${T.ajuste.rotulo}.`,
     },
     { tipo: 'titulo', id: 'tdd-erros', texto: 'Erros comuns e como sair' },
     {

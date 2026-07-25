@@ -9,6 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ConvidarUsuarioDialog } from '@/components/admin/convidar-usuario-dialog'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 export default async function AdminUsuariosPage() {
   const usuarios = await listarUsuarios()
@@ -19,6 +20,7 @@ export default async function AdminUsuariosPage() {
         <p className="text-sm text-muted-foreground">
           {usuarios.length} operador(es) com acesso ao sistema.
         </p>
+        <LinkAjuda pagina="usuarios-e-senhas" rotulo="Ajuda sobre operadores e senhas de acesso" className="-ml-2 sm:ml-0" />
         <ConvidarUsuarioDialog />
       </div>
 

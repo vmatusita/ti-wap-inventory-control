@@ -1,7 +1,10 @@
 import { STATUS_META, TIPO_META } from '@/lib/dominio'
+import { MANUTENCAO_ALERTA_DIAS } from '@/lib/relatorios/manutencao-alerta'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 // REGRA DE OURO: rotulos de tipo e de status vem de dominio.ts, nunca digitados.
+// O limiar do alerta de manutencao parada vem de MANUTENCAO_ALERTA_DIAS — a mesma
+// constante que monta o rotulo do chip no relatorio.
 const T = TIPO_META
 const S = STATUS_META
 
@@ -57,7 +60,7 @@ export const manutencao: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'São dois chamados diferentes, e a tela pede os dois separados de propósito. "Chamado (opcional)" é o chamado INTERNO — o número do atendimento aberto aqui na WAP, por isso só aceita dígitos. "Chamado do fornecedor" é o número que a ASSISTÊNCIA abriu do lado dela: ordem de serviço, protocolo de garantia, número de RMA — o que o fornecedor mandar. Como cada fornecedor usa um formato, o campo é texto livre e não valida nada: transcreva exatamente o que veio. É esse número que você vai citar ao cobrar o conserto, e sem ele o envio não pode ser registrado ("Informe o chamado do fornecedor"). Fornecedor que não dá número? Escreva o que identifica o atendimento — por exemplo "OS por e-mail em 24/07/2026" ou o nome de quem atendeu. O campo aceita até 200 caracteres ("Chamado do fornecedor: no máximo 200 caracteres").',
+        'São dois chamados diferentes, e a tela pede os dois separados de propósito. "Chamado (opcional)" é o chamado INTERNO — o número do atendimento aberto aqui na WAP, por isso só aceita dígitos. "Chamado do fornecedor" é o número que a ASSISTÊNCIA abriu do lado dela: ordem de serviço, protocolo de garantia, número de RMA — o que o fornecedor mandar. Como cada fornecedor usa um formato, o campo é texto livre e não valida nada: transcreva exatamente o que veio. É esse número que você vai citar ao cobrar o conserto, e sem ele o envio não pode ser registrado ("Informe o chamado do fornecedor"). Fornecedor que não dá número? Escreva o que identifica o atendimento — por exemplo "OS por e-mail em dd/MM/aaaa" (com a data do e-mail) ou o nome de quem atendeu. O campo aceita até 200 caracteres ("Chamado do fornecedor: no máximo 200 caracteres").',
     },
     {
       tipo: 'nota',
@@ -68,9 +71,9 @@ export const manutencao: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        `Enquanto está "${S.em_manutencao.rotulo}", o ativo sai do estoque disponível e conta no KPI "Em manutenção" ("conserto/assistência"). O envio também limpa o Colaborador e o Setor da ficha — quem estava com o equipamento não está mais.`,
-        'O relatório mostra cada caso no card "Em manutenção, caso a caso" ("{n} caso(s) — envio, anotações e retorno"), com a observação do envio, as anotações e o retorno em ordem.',
-        'O selo "há N dias" começa âmbar e vira VERMELHO a partir de 30 dias parado — a mesma contagem alimenta o chip "Manutenção parada (30+ dias)" da página Pendências.',
+        `Enquanto está "${S.em_manutencao.rotulo}", o ativo sai do estoque disponível e conta no KPI "${S.em_manutencao.rotulo}" ("conserto/assistência"). O envio também limpa o Colaborador e o Setor da ficha — quem estava com o equipamento não está mais.`,
+        `O relatório mostra cada caso no card "${S.em_manutencao.rotulo}, caso a caso" ("{n} caso(s) — envio, anotações e retorno"), com a observação do envio, as anotações e o retorno em ordem.`,
+        `O selo "há N dias" começa âmbar e vira VERMELHO a partir de ${MANUTENCAO_ALERTA_DIAS} dias parado — a mesma contagem alimenta o chip "Manutenção parada (${MANUTENCAO_ALERTA_DIAS}+ dias)". Para achar esse chip, abra o relatório da filial (ou o consolidado) e olhe a seção "Pendências" DO RELATÓRIO — é só lá que ele aparece, e só para quem entra com login. Ele NÃO está na página Pendências: aquela tela conta termos pendentes, itens faltantes, ativos aguardando triagem e outras pendências, nunca a manutenção parada.`,
         'Novidade do fornecedor no meio do caminho (previsão, peça sem estoque)? Use "Anotar" na ficha: a anotação entra na linha do tempo com seu nome e a data e aparece no card de manutenção do relatório.',
       ],
     },
@@ -99,16 +102,20 @@ export const manutencao: PaginaAjuda = {
       titulo: 'Devolver ao fornecedor e cadastrar o substituto',
       itens: [
         `Abra a ficha do equipamento. O botão "Devolver ao fornecedor" só aparece na barra de ações quando o ativo está "${S.em_manutencao.rotulo}" — se não estiver lá, é porque o estado é outro.`,
-        'A tela "Devolução ao fornecedor" abre com UM ativo só, sempre: não existe devolução ao fornecedor em lote. O subtítulo resume a regra: "O fornecedor ficou com o equipamento (não teve conserto). Registre a baixa e, se houver, cadastre o substituto no mesmo passo."',
+        `A tela "${T.devolucao_fornecedor.rotulo}" abre com UM ativo só, sempre: não existe devolução ao fornecedor em lote. O subtítulo resume a regra: "O fornecedor ficou com o equipamento (não teve conserto). Registre a baixa e, se houver, cadastre o substituto no mesmo passo."`,
         'No alto, um bloco cinza mostra "Fornecedor", "Chamado interno" e "Chamado do fornecedor" já preenchidos e sem edição, com a nota "Fornecedor e chamados são herdados do envio à manutenção — não se redigitam". Os dois chamados vêm do último envio para manutenção deste equipamento, e o fornecedor vem da ficha. Traço no lugar do valor significa que aquele dado não existe: o chamado interno é opcional, e um equipamento que chegou à manutenção por ajuste (em vez de envio) não tem envio de onde herdar.',
         'Preencha "Data da devolução" e, se quiser, "Observação (opcional)" ("sem conserto, crédito em garantia…").',
         'O campo "Cadastrar o equipamento substituto" já vem marcado. Deixe marcado quando o fornecedor mandou outro aparelho; DESMARQUE quando ele não repôs — a explicação está na própria linha: "Desmarque se o fornecedor não repôs (crédito/estorno) — só a devolução é registrada".',
         'Com o substituto marcado, preencha o bloco "Equipamento substituto": "Patrimônio *", "Service tag *", "Categoria *", "Filial *", "Marca *" e "Modelo *" são obrigatórios; "Memória", "Armazenamento", "Processador", "Hostname", "Observações do cadastro" e "Observação da entrada (nº da nota etc.)" são opcionais. Categoria, marca, modelo e filial já vêm copiados do equipamento antigo — confira, porque o substituto costuma ser outro modelo.',
         'Clique em "Registrar devolução". É tudo ou nada: se o cadastro do substituto falhar, nem a devolução entra, e a caixa "Nada foi registrado:" lista o motivo.',
-        'A tela de sucesso mostra "Devolução ao fornecedor registrada" com dois cartões — "Devolvido ao fornecedor" e "Substituto em estoque" (ou "Sem substituto (fornecedor não repôs)") —, cada um com link para a ficha correspondente.',
+        `A tela de sucesso mostra "${T.devolucao_fornecedor.rotulo} registrada" com dois cartões — "${S.devolvido_fornecedor.rotulo}" e "Substituto em estoque" (ou "Sem substituto (fornecedor não repôs)") —, cada um com link para a ficha correspondente.`,
       ],
     },
-    { tipo: 'titulo', id: 'manutencao-substituto', texto: 'O substituto entra como Troca' },
+    {
+      tipo: 'titulo',
+      id: 'manutencao-substituto',
+      texto: `O substituto entra como ${T.troca.rotulo}`,
+    },
     {
       tipo: 'nota',
       texto: `O equipamento que o fornecedor mandou no lugar nasce "${S.em_estoque.rotulo}", com uma movimentação de tipo "${T.troca.rotulo}" na linha do tempo — nunca "${T.compra.rotulo}", porque ele não foi comprado. É por isso que "${T.troca.rotulo}" também não aparece no seletor de tipo da nova movimentação: a única forma de gerá-la é esta tela. Na prática: o substituto aparece nas "Entradas" do relatório com a pílula "${T.troca.rotulo}", e NENHUMA contagem de compras o inclui. O fornecedor é copiado do equipamento antigo automaticamente; a data da entrada é a mesma data da devolução.`,

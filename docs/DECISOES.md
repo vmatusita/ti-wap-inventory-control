@@ -2103,8 +2103,10 @@ Base sólida: das **209 regras** mapeadas na `docs/MATRIZ-REGRAS.md` (7 áreas),
   **rótulos exatos da UI** entre aspas, levantados no código.
 - **Decisão 6 — o guarda-corpo do "nada se perdeu".** Cada página declara `legado: [...]` com as
   seções da ajuda antiga que herdou; `src/lib/ajuda/legado.ts` remonta as 10 seções originais e o
-  **`conteudo.test.ts` (46 asserções acumuladas da F9 à F18) continua rodando sobre elas, byte a
-  byte como estava**. Reorganizar ≠ apagar deixou de ser promessa e virou build: apagar uma frase do
+  **`conteudo.test.ts` (46 asserções acumuladas da F9 à F18) continua rodando sobre elas**, com
+  **uma única linha alterada** na fase inteira — e para mais forte: `definitivo nesta fase` virou
+  `definitivo` **+** `não há reabrir` (uma asserção trocada por duas mais específicas), porque
+  "nesta fase" é vocabulário do projeto e insinuava um futuro que a documentação não promete. Reorganizar ≠ apagar deixou de ser promessa e virou build: apagar uma frase do
   manual antigo quebra o teste, sem ninguém precisar lembrar dela.
   Alternativa descartada: reescrever `conteudo.test.ts` para a estrutura nova — perderia justamente
   a prova de continuidade, que é o único motivo de o arquivo existir.

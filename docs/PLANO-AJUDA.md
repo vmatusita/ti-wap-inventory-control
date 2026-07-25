@@ -113,7 +113,7 @@ Coluna **frente** = quem escreve na Onda 2.
 |---|---|---|---|---|
 | 25 | `relatorio-ao-vivo` | Ler o relatório ao vivo | O que cada grupo, KPI e cor querem dizer. | `relatorios` |
 | 26 | `relatorios-gerados` | Os relatórios gerados da semana | Gerar o snapshot congelado e achar os anteriores. | `relatorios`, `como-fazer` |
-| 27 | `status-do-ativo` | Status e categorias do ativo | Os nove estados, com o selo real de cada um. | `status` |
+| 27 | `status-do-ativo` | Status e categorias do ativo | Os nove estados, com o selo real de cada um (a contagem vem de `STATUS_ORDEM`). | `status` |
 | 28 | `tipos-de-movimentacao` | Tipos de movimentação | Os 15 tipos: o que cada um provoca e que campos pede. | `movimentacoes` |
 | 29 | `itens-por-quantidade` | Itens por quantidade | Os grupos, os quatro números e os seis tipos de lançamento. | `itens` |
 | 30 | `limites-e-atalhos` | Limites, tetos e atalhos | Quanto cabe em cada lote e o que cada tecla faz. | `como-fazer` |
@@ -136,8 +136,15 @@ slug de página. Teste trava isso.
 
 ## 3. Matriz de cobertura — rota do app × página que a documenta
 
-Célula vazia = lacuna. **Todas as 21 rotas do grupo `(app)` estão cobertas**; as isenções são
+Célula vazia = lacuna. **Todas as rotas do grupo `(app)` estão cobertas**; as isenções são
 justificadas no próprio teste estrutural.
+
+> **Esta tabela é uma cópia legível — a versão que MANDA é executável**, na constante `COBERTURA` de
+> [`src/lib/ajuda/registry.test.ts`](../src/lib/ajuda/registry.test.ts). Lá, três testes cobram: toda
+> rota do grupo `(app)` tem linha; a linha aponta para uma página que existe; e **a tela realmente
+> renderiza o `?` para aquela página** (achado da revisão adversarial da F20 — antes a matriz só
+> provava que o slug existia, e três abas de administração apontavam para outro lugar sem ninguém
+> perceber). Se as duas divergirem, corrija esta.
 
 | Rota | H1 real | Página que documenta | `?` contextual (LinkAjuda) |
 |---|---|---|---|
@@ -150,10 +157,12 @@ justificadas no próprio teste estrutural.
 | `/movimentacoes/devolucao-fornecedor` | `Devolução ao fornecedor` | `manutencao` | **novo** → `manutencao` |
 | `/itens` | `Itens por quantidade` | `itens-por-quantidade` + `lancar-itens` + `saldos-e-estoque-minimo` | `itens-por-quantidade` |
 | `/pendencias` | `Pendências` | `resolver-pendencias` | `resolver-pendencias` |
-| `/ajuda` | `Ajuda` | — (é a própria documentação) | — |
+| `/ajuda` | `Ajuda` | — (é o índice da própria documentação) | — |
+| `/ajuda/[slug]` | título da página | — (é a rota que **renderiza** cada página do registry) | — |
+| `/ajuda/manual` | `Manual do operador` | — (a mesma documentação agregada, para ler e imprimir) | — |
 | `/relatorios/[filial]` | `Relatório — {filial}` | `relatorio-ao-vivo` | `relatorio-ao-vivo` (**só operador**) |
-| `/relatorios/gerados` | `Relatórios gerados` | `relatorios-gerados` | **novo** → `relatorios-gerados` |
-| `/relatorios/gerados/[id]` | `Relatório — {filial}` | `relatorios-gerados` | — (herda o snapshot; sem cabeçalho próprio) |
+| `/relatorios/gerados` | `Relatórios gerados` | `relatorios-gerados` | **novo** → `relatorios-gerados` (**só operador**) |
+| `/relatorios/gerados/[id]` | `Relatório — {filial}` | `relatorios-gerados` | — (rota compartilhada com o visualizador por senha: um `?` o mandaria para `/login`) |
 | `/relatorios/acesso` | — (entrada por senha) | `acesso-e-sessoes` | — (rota pública, **nunca** ganha link) |
 | `/admin/usuarios` | `Administração` | `usuarios-e-senhas` | **novo** → `usuarios-e-senhas` |
 | `/admin/senhas` | `Administração` | `usuarios-e-senhas` | **novo** → `usuarios-e-senhas` |
@@ -333,8 +342,11 @@ src/components/ajuda/
 
 ## 8. O guarda-corpo: como o motor prova que nada se perdeu
 
-O arquivo `src/lib/ajuda/conteudo.test.ts` (22 KB, ~40 asserções acumuladas da F9 à F18)
-**permanece byte a byte como está**. Ele continua importando `SECOES` de
+O arquivo `src/lib/ajuda/conteudo.test.ts` (22 KB, 46 asserções acumuladas da F9 à F18) atravessa a
+fase **praticamente intocado — uma única linha mudou**, e para mais forte: a asserção
+`'definitivo nesta fase'` virou `'definitivo'` **+** `'não há reabrir'`, porque *"nesta fase"* é
+vocabulário do projeto, não do operador, e insinuava um futuro que a documentação não promete
+(uma asserção substituída por duas mais específicas). Fora isso, ele continua importando `SECOES` de
 `@/lib/ajuda/conteudo` — só que agora `SECOES` é uma **visão de compatibilidade** montada a partir
 do registry: cada página declara `legado: string[]`, e a visão coloca os blocos da página **dentro
 de cada seção antiga que ela herdou**.

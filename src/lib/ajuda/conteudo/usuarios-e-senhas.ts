@@ -59,7 +59,7 @@ export const usuariosESenhas: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'O que acontece por trás: NENHUM e-mail é enviado pelo sistema — o link nasce na própria tela e a entrega é sua. Ele vale por tempo limitado; se expirar, é só gerar outro pelo mesmo caminho, quantas vezes precisar. Só o clique em ativar consome o link, então a prévia que o WhatsApp ou o Teams geram ao colar o endereço NÃO o invalida. A pessoa só aparece na tabela de Usuários depois de ativar o acesso.',
+        'O que acontece por trás: NENHUM e-mail é enviado pelo sistema — o link nasce na própria tela e a entrega é sua. Ele vale por tempo limitado; se expirar, é só gerar outro pelo mesmo caminho, quantas vezes precisar. Só o clique em ativar consome o link, então a prévia que o WhatsApp ou o Teams geram ao colar o endereço NÃO o invalida. A pessoa entra na tabela de Usuários assim que o link é gerado — e já é contada no total de operadores do topo. Enquanto ela não ativar o acesso, a coluna "Nome" mostra o e-mail dela; é o primeiro acesso que troca isso pelo nome e sobrenome que ela informar.',
     },
 
     {
@@ -110,7 +110,7 @@ export const usuariosESenhas: PaginaAjuda = {
       titulo: 'Criar uma senha de acesso aos relatórios',
       itens: [
         'Vá a Administração › Senhas de acesso. A tabela traz "Rótulo", "Criada em", "Último uso", "Status" e "Ações"; sem nenhuma criada, a tela diz "Nenhuma senha de acesso criada ainda."',
-        'Use "Nova senha". No diálogo "Nova senha de acesso", preencha o "Rótulo" — é o nome que identifica quem vai usar aquela senha (o campo sugere algo como "Filial Linhares, Stefanini…") e é por ele que você a revoga depois.',
+        'Use "Nova senha". No diálogo "Nova senha de acesso", preencha o "Rótulo" — é o nome que identifica quem vai usar aquela senha. O campo mostra um exemplo em cinza, só como sugestão de formato: escreva ali o nome da filial ou do parceiro que vai usar a senha, porque é por esse rótulo que você a revoga depois.',
         'Digite a "Senha" (mínimo 8 caracteres) ou use o botão "Gerar", que monta uma senha forte sem caracteres ambíguos.',
         'Use "Criar senha". A tela vira "Senha criada — copie agora": esta é a ÚNICA vez que a senha aparece. Use "Copiar" e guarde-a antes de fechar com "Concluir".',
         'Entregue à pessoa duas coisas: o endereço do relatório e a senha. Ela entra pela página de acesso por senha, digita a senha em "Senha de acesso" e usa "Entrar".',

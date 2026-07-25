@@ -44,7 +44,13 @@ export default async function RelatoriosGeradosPage({
             <h1 className="text-2xl font-semibold tracking-tight">
               Relatórios gerados
             </h1>
-            <LinkAjuda pagina="relatorios-gerados" rotulo="Ajuda sobre os relatórios gerados" />
+            {/* Só para o OPERADOR. Esta rota também é do visualizador por
+                senha, e a documentação não é dele: o "?" o mandaria para
+                /login. Mesma guarda (e mesmo motivo) da tela do relatório ao
+                vivo. Achado da revisão adversarial da F20. */}
+            {acesso.modo === 'operador' && (
+              <LinkAjuda pagina="relatorios-gerados" rotulo="Ajuda sobre os relatórios gerados" />
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
             O arquivo semanal — snapshots congelados e versionados.

@@ -69,7 +69,7 @@ export const mensagensDeErro: PaginaAjuda = {
         ],
         [
           'Informe o colaborador ou o setor de destino',
-          'Saída, empréstimo e reserva precisam de um destino: uma pessoa ou um setor.',
+          'Saída e empréstimo precisam de um destino: uma pessoa ou um setor (a reserva não exige nenhum dos dois — nela só a "Data" é obrigatória).',
           'Preencha "Colaborador" ou "Setor" — um dos dois basta.',
         ],
         [

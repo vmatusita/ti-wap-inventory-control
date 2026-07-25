@@ -209,6 +209,57 @@ describe('matriz de cobertura (rota × página)', () => {
       if ('isento' in alvo) expect(alvo.isento.length).toBeGreaterThan(20)
     }
   })
+
+  // Achado da revisão adversarial da F20: até aqui a matriz só provava que o
+  // SLUG existia — não que a tela levasse até ele. Três rotas de admin estavam
+  // fora do que o gabarito prometia e nenhum teste acusou. Agora a matriz é
+  // executável: a tela precisa RENDERIZAR o "?" para a página declarada.
+  const SEM_LINK_PROPRIO: Record<string, string> = {
+    '/relatorios/gerados/[id]':
+      'rota compartilhada com o visualizador por senha — um "?" o levaria para /login',
+  }
+
+  function slugsRenderizadosEm(rota: string): string[] {
+    const base = join(RAIZ, 'src', 'app', '(app)')
+    const segmentos = rota === '/' ? [] : rota.slice(1).split('/')
+    const slugs: string[] = []
+    // A própria página e todos os layouts do caminho (o "?" de /admin/* mora no
+    // layout compartilhado, e vale para as abas que não têm um próprio).
+    for (let i = 0; i <= segmentos.length; i += 1) {
+      const dir = join(base, ...segmentos.slice(0, i))
+      for (const nome of i === segmentos.length ? ['layout.tsx', 'page.tsx'] : ['layout.tsx']) {
+        const caminho = join(dir, nome)
+        let fonte: string
+        try {
+          fonte = readFileSync(caminho, 'utf8')
+        } catch {
+          continue
+        }
+        for (const m of fonte.matchAll(/<LinkAjuda[^>]*\bpagina="([^"]+)"/g)) slugs.push(m[1])
+      }
+    }
+    return slugs
+  }
+
+  it('a tela leva ao "?" declarado na matriz', () => {
+    for (const [rota, alvo] of Object.entries(COBERTURA)) {
+      if (!('pagina' in alvo)) continue
+      if (SEM_LINK_PROPRIO[rota]) continue
+      const renderizados = slugsRenderizadosEm(rota)
+      expect(
+        renderizados,
+        `${rota} deveria ter um "?" para ${alvo.pagina}; renderiza ${JSON.stringify(renderizados)}`,
+      ).toContain(alvo.pagina)
+    }
+  })
+
+  it('toda rota sem "?" próprio tem o motivo escrito', () => {
+    for (const [rota, motivo] of Object.entries(SEM_LINK_PROPRIO)) {
+      expect(COBERTURA[rota], `${rota} não está na matriz`).toBeDefined()
+      expect(motivo.length).toBeGreaterThan(20)
+      expect(slugsRenderizadosEm(rota)).toHaveLength(0)
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

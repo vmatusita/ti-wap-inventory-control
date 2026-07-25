@@ -26,7 +26,7 @@ export const fichaDoAtivo: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'O título da ficha é o próprio patrimônio; quando o equipamento não tem plaqueta, o título é "Sem patrimônio", em itálico. Ao lado ficam o selo do status atual, o botão de copiar o número e, quando existe, a service tag com o seu próprio botão de copiar. No alto da página, "Voltar para ativos" devolve você à lista de onde veio, com os filtros que você tinha montado.',
+        'O título da ficha é o próprio patrimônio; quando o equipamento não tem plaqueta, o título é "Sem patrimônio", em itálico. Ao lado ficam o selo do status atual, o botão de copiar o número e, quando existe, a service tag com o seu próprio botão de copiar. No alto da página, "Voltar para ativos" devolve você à ÚLTIMA lista de Ativos que você visitou naquela aba do navegador, com os filtros que ela tinha — não necessariamente o recorte por onde você chegou até aqui.',
     },
 
     { tipo: 'titulo', id: 'ficha-acoes', texto: 'A barra de ações' },
@@ -71,7 +71,7 @@ export const fichaDoAtivo: PaginaAjuda = {
         'A correção fica registrada na linha do tempo (de → para, quem, quando). A busca passa a encontrar o ativo pelo novo patrimônio.',
         'Alguns ativos nascem sem patrimônio (equipamento sem plaqueta trazido pelo import de startup): aparecem como "Sem patrimônio", com pendência na lista e em /pendencias. Dar o número aqui encerra essa pendência.',
         'No cadastro manual (novo equipamento ou substituto da devolução ao fornecedor) a service tag é OBRIGATÓRIA. Só o import de startup aceita entrar sem ela: esses ativos nascem com a pendência "sem service tag" — use "Definir service tag", também no menu "⋯", para informá-la (transcrita exatamente como está na etiqueta). Uma vez definida, ela vira imutável, e o item some do menu.',
-        'No import de startup, quando o hostname já traz o patrimônio (ex.: NB-WAP0001234), o preview preenche o número sozinho — é um aviso, não um erro, e não impede a importação. Só confira se está certo.',
+        'No import de startup, quando o hostname já traz o patrimônio (ex.: NB-WAP0001234), o preview preenche o número sozinho — é uma correção automática: não conta como aviso nem como erro e não impede a importação. Não procure essas linhas entre os avisos: elas ficam no painel "N patrimônios preenchidos automaticamente pelo hostname", só para conferência. Confira se o número bate com o aparelho físico.',
       ],
     },
 

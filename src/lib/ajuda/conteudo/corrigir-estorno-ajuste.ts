@@ -73,7 +73,7 @@ export const corrigirEstornoAjuste: PaginaAjuda = {
         'O diálogo "Estornar última movimentação" mostra, em "O ativo volta a ser:", o "Status:", o "Colaborador:" e o "Setor:" que serão restaurados — e, quando o que se estorna é uma transferência, também a "Filial:" de origem. Confira essa caixa antes de confirmar: é ela que diz o que vai acontecer.',
         '"Observação (opcional)" guarda o motivo do estorno; o foco já começa em "Cancelar", de propósito, para ninguém confirmar sem ler.',
         'Confirme em "Confirmar estorno". O sistema avisa "Movimentação estornada.".',
-        'Precisa desfazer algo do meio do histórico? Use um Ajuste (com justificativa) em vez de estorno.',
+        `Precisa desfazer algo do meio do histórico? Use um ${T.ajuste.rotulo} (com justificativa) em vez de estorno.`,
       ],
     },
     {
@@ -93,7 +93,7 @@ export const corrigirEstornoAjuste: PaginaAjuda = {
         `O "${T.ajuste.rotulo}" é a válvula de escape: ele aparece no seletor "Tipo de movimentação" para QUALQUER estado, inclusive "${S.descartado.rotulo}" e "${S.devolvido_fornecedor.rotulo}", de onde nenhum outro tipo sai.`,
         `Abra "Nova movimentação", adicione o ativo e escolha "${T.ajuste.rotulo}".`,
         'Preencha "Novo status *" com o estado que o equipamento realmente tem hoje.',
-        'Preencha "Observação * (justificativa)" — é obrigatória e precisa de ao menos 10 caracteres. Escreva o que aconteceu de verdade ("saída lançada na filial errada em 20/07/2026, corrigida por acerto de inventário"): essa frase é o que vai explicar o pulo na linha do tempo daqui a seis meses.',
+        'Preencha "Observação * (justificativa)" — é obrigatória e precisa de ao menos 10 caracteres. Escreva o que aconteceu de verdade ("saída lançada na filial errada na semana passada, corrigida por acerto de inventário"): essa frase é o que vai explicar o pulo na linha do tempo daqui a seis meses.',
         'Registre. A linha do tempo mostra o pulo de estado com o rótulo do ajuste, seu nome e a data — o histórico anterior fica intacto.',
         'Use o ajuste também para acertar um lote inteiro que entrou errado e já tem movimentações posteriores: estornar não resolve esses casos, porque o estorno só alcança a última linha.',
       ],

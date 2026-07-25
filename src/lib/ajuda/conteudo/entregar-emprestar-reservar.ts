@@ -45,8 +45,7 @@ export const entregarEmprestarReservar: PaginaAjuda = {
           'Não',
         ],
       ],
-      legenda:
-        'Um ativo reservado ainda pode virar entrega: dele saem a Saída e o Empréstimo, sem passar de novo pelo estoque.',
+      legenda: `Um ativo reservado ainda pode virar entrega: dele saem a ${T.saida.rotulo} e o ${T.emprestimo.rotulo}, sem passar de novo pelo estoque.`,
     },
     { tipo: 'titulo', id: 'eer-precondicoes', texto: 'Antes de começar' },
     {
@@ -54,10 +53,14 @@ export const entregarEmprestarReservar: PaginaAjuda = {
       itens: [
         `O ativo precisa estar em um estado que aceite o tipo (a tabela acima). Um equipamento que já está "${S.em_uso.rotulo}" não aceita outra "${T.saida.rotulo}" — ele precisa voltar por "${T.devolucao.rotulo}" antes.`,
         'O catálogo de motivos precisa ter ao menos um motivo aplicável ao tipo escolhido — os motivos são mantidos em Administração › Motivos. Sem nenhum motivo cadastrado para o tipo, o campo "Motivo" nem aparece na tela.',
-        'Tenha em mãos o nome do colaborador ou o setor de destino: um dos dois é obrigatório na Saída e no Empréstimo.',
+        `Tenha em mãos o nome do colaborador ou o setor de destino: um dos dois é obrigatório na ${T.saida.rotulo} e no ${T.emprestimo.rotulo}.`,
       ],
     },
-    { tipo: 'titulo', id: 'eer-entregar', texto: 'Entregar (Saída) ou emprestar' },
+    {
+      tipo: 'titulo',
+      id: 'eer-entregar',
+      texto: `Entregar (${T.saida.rotulo}) ou emprestar`,
+    },
     {
       tipo: 'passos',
       titulo: 'Entregar ou emprestar um equipamento',
@@ -80,7 +83,7 @@ export const entregarEmprestarReservar: PaginaAjuda = {
       itens: [
         `Reserve quando o equipamento já tem dono definido mas ainda não saiu da TI — máquina separada para quem começa na semana que vem, por exemplo. O ativo precisa estar "${S.em_estoque.rotulo}".`,
         `No passo "Movimentação", escolha "${T.reserva.rotulo}". Nenhum campo além da "Data" é obrigatório, mas preencha "Colaborador" (ou "Setor") e "Chamado (opcional)": é o que aparece no card "Reservados" do relatório, na linha "patrimônio · modelo · nº do chamado".`,
-        `Registrado, o ativo fica "${S.reservado.rotulo}" e some do que está disponível para entrega — o KPI "Reservados" ("aguardando entrega") sobe e o "Em estoque" desce.`,
+        `Registrado, o ativo fica "${S.reservado.rotulo}" e some do que está disponível para entrega — o KPI "Reservados" ("aguardando entrega") sobe e o "${S.em_estoque.rotulo}" desce.`,
         `Quando a pessoa retirar o equipamento, registre a "${T.saida.rotulo}" (ou o "${T.emprestimo.rotulo}") normalmente: o ativo reservado aceita os dois direto, sem voltar ao estoque. É aí que o termo é oferecido.`,
         `A reserva não tem um tipo próprio de cancelamento. Desistiu? Se a reserva for a última movimentação do ativo, use "Estornar" na linha do tempo da ficha; se já houver movimentação depois dela, use "${T.ajuste.rotulo}" com justificativa.`,
       ],
@@ -89,7 +92,7 @@ export const entregarEmprestarReservar: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        `Saída deixa o ativo "${S.em_uso.rotulo}"; Empréstimo, "${S.emprestado.rotulo}"; Reserva, "${S.reservado.rotulo}". O estado novo aparece na hora na ficha, na lista de ativos e nos KPIs.`,
+        `${T.saida.rotulo} deixa o ativo "${S.em_uso.rotulo}"; ${T.emprestimo.rotulo}, "${S.emprestado.rotulo}"; ${T.reserva.rotulo}, "${S.reservado.rotulo}". O estado novo aparece na hora na ficha, na lista de ativos e nos KPIs.`,
         'Os três gravam o Colaborador e o Setor informados na ficha do ativo, nos campos "Colaborador" e "Setor" do card "Dados do ativo".',
         `No relatório, a tabela "Saídas" mostra as movimentações de "${T.saida.rotulo}" e de "${T.emprestimo.rotulo}" do período, com as colunas "Motivo", "Chamado", "Colab./Setor" e "Termo". A "${T.reserva.rotulo}" NÃO entra nessa tabela — ela aparece no KPI "Reservados" e no card "Reservados" ("patrimônio · modelo · nº do chamado"), que é a lista de quem está separado esperando entrega.`,
         `Pendência de termo: um ativo entregue abre a pendência "termo" enquanto a assinatura não for confirmada — e isso vale só para quem ficou "${S.em_uso.rotulo}" ou "${S.emprestado.rotulo}". Ativo apenas "${S.reservado.rotulo}" não é cobrado por termo, e ativo que veio do import de startup também não.`,
@@ -104,7 +107,7 @@ export const entregarEmprestarReservar: PaginaAjuda = {
       linhas: [
         [
           '"Informe o colaborador ou o setor de destino"',
-          'Saída e Empréstimo exigem um dos dois. Preencha "Colaborador", "Setor", ou os dois.',
+          `${T.saida.rotulo} e ${T.emprestimo.rotulo} exigem um dos dois. Preencha "Colaborador", "Setor", ou os dois.`,
         ],
         [
           '"Informe o motivo"',

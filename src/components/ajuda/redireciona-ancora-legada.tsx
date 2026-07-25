@@ -2,39 +2,32 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { resolverDestinoLegado } from '@/lib/ajuda/ancora'
 
 // Compatibilidade das ancoras da ajuda de pagina unica (F6B→F19). Um favorito
 // como /ajuda#movimentacoes precisa continuar levando o operador ao lugar certo
 // depois da F20 — e o hash NAO chega ao servidor, entao quem redireciona e o
 // indice, no cliente, no primeiro mount.
 //
-// O MAPA vem por prop porque `legado.ts` importa o registry (so-servidor, arrasta
-// PapaParse) — mesmo motivo pelo qual `AncoraAoMontar` recebe os ids por prop.
-// E ele e a LISTA BRANCA: hash desconhecido nao redireciona nada, e o operador
-// simplesmente fica no indice.
+// A resolucao NAO e reimplementada aqui: chama `resolverDestinoLegado`, a mesma
+// funcao pura testada em `ancora.test.ts`/`legado.test.ts`. (Na primeira versao
+// desta fase o componente refazia o lookup a mao e o mapa era passado por prop;
+// a revisao adversarial mostrou que a lista branca REALMENTE executada no
+// navegador nao era a que os testes cobriam — e que `destinos['toString']`
+// escapava dela. Um lugar so, e e o lugar testado.)
+//
+// `ancora.ts` e modulo PURO, sem import de servidor: por isso o cliente pode
+// importa-lo, ao contrario de `registry.ts`/`legado.ts`.
 //
 // `router.replace`: o endereco antigo nao fica no historico, senao o botao
 // Voltar entraria em pingue-pongue entre /ajuda#x e /ajuda/y.
-export function RedirecionaAncoraLegada({
-  destinos,
-}: {
-  destinos: Readonly<Record<string, string>>
-}) {
+export function RedirecionaAncoraLegada() {
   const router = useRouter()
   const jaFoi = useRef(false)
 
   useEffect(() => {
     if (jaFoi.current) return
-    const hash = window.location.hash
-    if (!hash) return
-    const cru = hash.slice(1)
-    let alvo = cru
-    try {
-      alvo = decodeURIComponent(cru)
-    } catch {
-      alvo = cru
-    }
-    const destino = destinos[alvo]
+    const destino = resolverDestinoLegado(window.location.hash)
     if (!destino) return
     jaFoi.current = true
 
@@ -48,7 +41,7 @@ export function RedirecionaAncoraLegada({
       return
     }
     router.replace(destino)
-  }, [destinos, router])
+  }, [router])
 
   return null
 }

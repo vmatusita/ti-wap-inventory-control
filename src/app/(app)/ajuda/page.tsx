@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation'
 import { getOperador } from '@/lib/auth/acesso'
 import { CATEGORIAS, PAGINAS, paginasDaCategoria } from '@/lib/ajuda/registry'
 import { textoDaPagina } from '@/lib/ajuda/indice'
-import { DESTINO_LEGADO } from '@/lib/ajuda/legado'
 import { AjudaBusca } from '@/components/ajuda/ajuda-busca'
 import { RedirecionaAncoraLegada } from '@/components/ajuda/redireciona-ancora-legada'
 
@@ -112,7 +111,7 @@ export default async function AjudaPage() {
 
       {/* Favoritos antigos (/ajuda#status, #como-fazer…) continuam funcionando:
           o hash não chega ao servidor, então o redirecionamento é no cliente. */}
-      <RedirecionaAncoraLegada destinos={DESTINO_LEGADO} />
+      <RedirecionaAncoraLegada />
     </div>
   )
 }

@@ -328,6 +328,28 @@ describe('acesso-e-sessoes', () => {
   it('mantém a regra do que é congelado', () => {
     cita('acesso-e-sessoes', 'guardam o texto da época')
   })
+
+  it('lista os TRÊS cortes do relatório de quem entra por senha', () => {
+    cita(
+      'acesso-e-sessoes',
+      'três cortes',
+      'a seção de pendências não aparece',
+      'o patrimônio é texto puro',
+      'os indicadores do topo não são clicáveis',
+    )
+    // Corte 1: o snapshot do viewer nasce sem pendências, e a seção é do operador.
+    expect(fonte('src', 'components', 'relatorios', 'corpo-relatorio-v2.tsx')).toContain(
+      '{ehOperador && s.pendencias.length > 0 && (',
+    )
+    // Corte 2: sem `ehOperador` a célula não vira <Link> (vale tabelas e manutenção).
+    expect(fonte('src', 'components', 'relatorios', 'celulas.tsx')).toContain(
+      'const linkavel = ehOperador && ativoId',
+    )
+    // Corte 3: sem `links` o tile continua sendo uma <div> (kpi-tiles.tsx).
+    expect(
+      fonte('src', 'app', '(app)', 'relatorios', '[filial]', 'page.tsx'),
+    ).toContain('const links = ehOperador ? linksKpiAtivos(filialId) : undefined')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -363,6 +385,24 @@ describe('mapa-das-telas', () => {
       `'${STATUS_META.defasado.rotulo}'`,
     )
     expect(src).toContain('STATUS_META.defasado.rotulo')
+  })
+
+  it('avisa que o total inclui os emprestados, que não têm tile no painel', () => {
+    // "Total de ativos" soma SETE estados (kpisDeEstado só pula as duas baixas),
+    // mas o painel só mostra seis deles: sem este aviso a conta não fecha para
+    // quem confere tile a tile.
+    expect(
+      rotulosDe('src/components/relatorios/kpi-tiles.tsx', 'TILES'),
+      'o painel ganhou um tile de emprestados — a legenda precisa mudar',
+    ).not.toContain('Emprestados')
+    expect(fonte('src', 'lib', 'queries', 'relatorios', 'estoque.ts')).toContain(
+      'k.emprestado++',
+    )
+    // …e o número deles existe: no grupo "Equipamentos principais" do relatório.
+    expect(rotulosDe('src/components/relatorios/kpi-tiles.tsx', 'GRUPO_TILES')).toContain(
+      'Emprestados',
+    )
+    cita('mapa-das-telas', STATUS_META.emprestado.rotulo, 'Equipamentos principais')
   })
 
   it('descreve os cards do painel inicial, inclusive a falha de leitura', () => {
@@ -405,6 +445,24 @@ describe('mapa-das-telas', () => {
     expect(fonte('src', 'app', '(app)', 'page.tsx')).toContain(
       '<LinkAjuda pagina="mapa-das-telas"',
     )
+  })
+
+  it('o "?" das telas de relatório existe SÓ atrás da guarda de operador', () => {
+    // As duas rotas de relatório também são do visualizador por senha, e a
+    // documentação não é dele: um "?" sem guarda o mandaria para /login — pior
+    // que "?" nenhum. (Achado da revisão adversarial da F20.)
+    for (const arquivo of [
+      'src/app/(app)/relatorios/[filial]/page.tsx',
+      'src/app/(app)/relatorios/gerados/page.tsx',
+    ]) {
+      const src = fonte(...arquivo.split('/'))
+      const i = src.indexOf('<LinkAjuda')
+      expect(i, `${arquivo} perdeu o "?" do operador`).toBeGreaterThan(-1)
+      expect(
+        src.slice(Math.max(0, i - 200), i),
+        `${arquivo}: o "?" ficou sem guarda de operador`,
+      ).toMatch(/(ehOperador|acesso\.modo === 'operador') && \(\s*$/)
+    }
   })
 
   it('documenta a própria documentação: as quatro categorias, a busca e o manual (CAP-08)', () => {

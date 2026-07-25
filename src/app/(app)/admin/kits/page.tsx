@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { KitDialog } from '@/components/admin/kit-dialog'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 // Catálogo de KITS DE MOVIMENTAÇÃO (F12 · M12 — promessa da F5 §5.9). Rota de
 // operador (o layout de /admin já exige sessão de operador; o visualizador por
@@ -36,6 +37,7 @@ export default async function AdminKitsPage() {
           Modelos salvos do passo 2 da movimentação — aplicados com um clique em
           Nova movimentação.
         </p>
+        <LinkAjuda pagina="kits-de-movimentacao" rotulo="Ajuda sobre os kits de movimentação" className="-ml-2 sm:ml-0" />
         <KitDialog motivos={motivos} />
       </div>
 

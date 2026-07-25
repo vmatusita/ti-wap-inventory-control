@@ -5,10 +5,15 @@ import { CAP_EXPORT } from '@/lib/csv'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
 import { TAMANHOS_PAGINA, TAMANHO_PAGINA_PADRAO } from '@/lib/ativos/lista'
+import { MOV_PAGE_SIZE } from '@/lib/queries/movimentacoes'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
-// Todo numero desta pagina vem da CONSTANTE real (regra de ouro): mudar o teto
-// no codigo muda a documentacao no mesmo build.
+// Todo teto desta pagina que EXISTE como constante exportada e lido da
+// constante (regra de ouro): mudar o numero no codigo muda a documentacao no
+// mesmo build. Os que ainda nao tem constante nomeada — os limites de
+// caractere, que vivem como `.max()` inline nos schemas Zod, o tamanho de
+// pagina de /pendencias e o do historico de itens — sao espelhos digitados; se
+// um deles virar constante exportada, troque o literal pela constante aqui.
 export const limitesEAtalhos: PaginaAjuda = {
   slug: 'limites-e-atalhos',
   titulo: 'Limites, tetos e atalhos',
@@ -50,7 +55,7 @@ export const limitesEAtalhos: PaginaAjuda = {
           'Ativos por página',
           `${TAMANHOS_PAGINA.join(', ')} — à sua escolha; o padrão é ${TAMANHO_PAGINA_PADRAO}`,
         ],
-        ['Movimentações por página', '30, fixo'],
+        ['Movimentações por página', `${MOV_PAGE_SIZE}, fixo`],
         ['Pendências por página', '30, fixo'],
         ['Histórico de lançamentos de itens', '20 por página, fixo'],
         ['Mínimo para uma busca por digitação procurar', '2 caracteres'],
@@ -89,7 +94,7 @@ export const limitesEAtalhos: PaginaAjuda = {
           teclas: 'L',
           acao: 'Abre o lançamento de item.',
           observacao:
-            'Só na página Itens. Não dispara com o cursor num campo nem com o lançamento já aberto.',
+            'Só na página Itens. Não dispara com o cursor num campo nem com o lançamento já aberto — mas, ao contrário do N e do "?", ele ainda responde com a janela "Estornar lançamento" aberta.',
         },
         {
           teclas: '?',
@@ -112,7 +117,7 @@ export const limitesEAtalhos: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Nenhum atalho de letra dispara enquanto você digita num campo nem com uma janela de confirmação aberta — e nenhum deles existe para quem entra só com a senha de acesso dos relatórios. Segurar a tecla também não repete a ação: o atalho responde a um toque, não à repetição automática.',
+        'Nenhum atalho de letra dispara enquanto você digita num campo; o N e o "?" também ficam calados com uma janela de confirmação aberta (o L é a exceção, e está dito na linha dele). Nenhum deles existe para quem entra só com a senha de acesso dos relatórios. Segurar a tecla também não repete a ação: o atalho responde a um toque, não à repetição automática.',
     },
     {
       tipo: 'links',

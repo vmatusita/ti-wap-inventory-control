@@ -19,21 +19,11 @@ import { textoDoBloco } from '@/lib/ajuda/indice'
 import { normalizarBusca } from '@/lib/ajuda/busca'
 import type { Secao, SecaoLegada } from '@/lib/ajuda/tipos'
 
-/** Destino de cada âncora da ajuda antiga. Linha nunca se remove daqui. */
-export const DESTINO_LEGADO: Readonly<Record<SecaoLegada, string>> = {
-  conceito: '/ajuda/conceito-movimentacao',
-  status: '/ajuda/status-do-ativo',
-  movimentacoes: '/ajuda/tipos-de-movimentacao',
-  termos: '/ajuda/termos-de-responsabilidade',
-  itens: '/ajuda/itens-por-quantidade',
-  pendencias: '/ajuda/resolver-pendencias',
-  relatorios: '/ajuda/relatorio-ao-vivo',
-  // A seção "Como fazer" virou uma CATEGORIA inteira: o destino honesto é a
-  // lista dos guias no índice, não um guia escolhido a dedo.
-  'como-fazer': '/ajuda#fazer',
-  admin: '/ajuda/administracao',
-  acesso: '/ajuda/acesso-e-sessoes',
-}
+// O MAPA e a função de resolução moram em `ancora.ts`, que é PURO. Motivo de
+// arquitetura: quem redireciona é o CLIENTE (o hash nunca chega ao servidor) e
+// este arquivo importa o registry, que é só-servidor. Reexportados aqui porque
+// é este o módulo do "legado" — e para nada quebrar de quem já importava daqui.
+export { DESTINO_LEGADO, resolverDestinoLegado } from '@/lib/ajuda/ancora'
 
 const TITULO_LEGADO: Readonly<Record<SecaoLegada, string>> = {
   conceito: 'Conceito: a movimentação é a fonte da verdade',
@@ -48,25 +38,7 @@ const TITULO_LEGADO: Readonly<Record<SecaoLegada, string>> = {
   acesso: 'Acesso e sessões',
 }
 
-export const IDS_LEGADOS = Object.keys(DESTINO_LEGADO) as SecaoLegada[]
-
-/**
- * Resolve o hash de uma URL antiga para o endereço novo. PURA e com LISTA
- * BRANCA: hash desconhecido devolve `null` (= não redireciona nada), que é o
- * comportamento seguro. Casamento case-sensitive de propósito, igual ao salto
- * nativo de âncora do navegador (decisão F13, mantida).
- */
-export function resolverDestinoLegado(hash: string): string | null {
-  const cru = hash.startsWith('#') ? hash.slice(1) : hash
-  if (!cru) return null
-  let alvo = cru
-  try {
-    alvo = decodeURIComponent(cru)
-  } catch {
-    alvo = cru
-  }
-  return (DESTINO_LEGADO as Record<string, string>)[alvo] ?? null
-}
+export const IDS_LEGADOS = Object.keys(TITULO_LEGADO) as SecaoLegada[]
 
 /** A visão de compatibilidade: as 10 seções do manual antigo, remontadas. */
 export const SECOES: Secao[] = IDS_LEGADOS.map((id) => ({

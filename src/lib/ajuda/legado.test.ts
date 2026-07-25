@@ -70,6 +70,32 @@ describe('compatibilidade das âncoras antigas (/ajuda#<id>)', () => {
     expect(resolverDestinoLegado('#%E2')).toBeNull() // hash malformado não estoura
     expect(resolverDestinoLegado('#javascript:alert(1)')).toBeNull()
   })
+
+  it('não entrega nada herdado do Object.prototype', () => {
+    // Achado da revisão adversarial da F20: com `mapa[alvo]`, `#toString`
+    // devolvia a FUNÇÃO nativa (truthy) e o `.split('#')` seguinte derrubava o
+    // índice da ajuda. A chave tem de ser PRÓPRIA do mapa.
+    for (const veneno of [
+      '#toString',
+      '#constructor',
+      '#valueOf',
+      '#__proto__',
+      '#hasOwnProperty',
+      '#isPrototypeOf',
+      '#propertyIsEnumerable',
+      '#__defineGetter__',
+    ]) {
+      expect(resolverDestinoLegado(veneno), veneno).toBeNull()
+    }
+  })
+
+  it('todo destino é uma string de rota — nunca uma função', () => {
+    for (const id of IDS_DA_AJUDA_ANTIGA) {
+      const destino = resolverDestinoLegado(`#${id}`)
+      expect(typeof destino).toBe('string')
+      expect(destino!.startsWith('/ajuda')).toBe(true)
+    }
+  })
 })
 
 describe('visão de compatibilidade (o guarda-corpo do "nada se perdeu")', () => {

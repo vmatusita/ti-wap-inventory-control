@@ -16,6 +16,8 @@ import {
   MAX_LOTE_MOVIMENTACAO,
   TIPOS_FORA_DO_LOTE_MANUAL,
 } from '@/lib/validators/movimentacao'
+import { TIPOS_EXCLUIDOS_DO_KIT } from '@/lib/validators/kit'
+import { MANUTENCAO_ALERTA_DIAS } from '@/lib/relatorios/manutencao-alerta'
 import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 import { TERMO_TIPOS, TERMO_ROTULO } from '@/lib/termos/tipos'
 import type { Bloco, PaginaAjuda } from '@/lib/ajuda/tipos'
@@ -67,6 +69,18 @@ function textoDaFrente(): string {
 
 function fonte(slug: string): string {
   return readFileSync(join(DIR, `${slug}.ts`), 'utf8')
+}
+
+/**
+ * O que sobra do fonte quando se apaga toda interpolação `${…}`: exatamente o
+ * texto que alguém DIGITOU. É sobre isso que a varredura de rótulo roda.
+ */
+function fonteDigitada(slug: string): string {
+  return fonte(slug).replace(/\$\{[^}]*\}/g, '§')
+}
+
+function escaparRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function blocosDe(slug: string): Bloco[] {
@@ -198,14 +212,60 @@ describe('derivação (os tetos e os rótulos vêm do código)', () => {
     }
   })
 
-  it('os rótulos de tipo/status não são digitados à mão nos guias novos', () => {
-    // Os quatro guias reescritos na F20 derivam TUDO de dominio.ts.
-    for (const slug of [
-      'entregar-emprestar-reservar',
-      'manutencao',
-      'transferir-defasar-descartar',
-      'corrigir-estorno-ajuste',
-    ]) {
+  // Os quatro guias reescritos na F20 derivam TUDO de dominio.ts. A versão
+  // anterior deste bloco só conferia que a string `from '@/lib/dominio'` existia
+  // no arquivo — passava verde com rótulo digitado à mão logo abaixo (era o caso
+  // da legenda de transferir-defasar-descartar, com "Devolvido ao fornecedor"
+  // cravado na mesma página que interpolava o rótulo três linhas acima). As duas
+  // varreduras a seguir leem a PROSA.
+  const GUIAS_DERIVADOS = [
+    'entregar-emprestar-reservar',
+    'manutencao',
+    'transferir-defasar-descartar',
+    'corrigir-estorno-ajuste',
+  ] as const
+
+  const ROTULOS_DE_DOMINIO = [
+    ...(STATUS_ORDEM as StatusAtivo[]).map((s) => STATUS_META[s].rotulo),
+    ...(Object.keys(TIPO_META) as TipoMovimentacao[]).map((t) => TIPO_META[t].rotulo),
+  ]
+
+  it('nenhum rótulo de status/tipo é digitado à mão como rótulo de tela', () => {
+    // Convenção da documentação (PLANO-AJUDA §6): rótulo de tela vai entre aspas
+    // duplas. Se o texto entre aspas É um rótulo de status ou de tipo, ele tem de
+    // vir de STATUS_META/TIPO_META — senão renomear em dominio.ts deixa a página
+    // mentindo com o teste verde.
+    for (const slug of GUIAS_DERIVADOS) {
+      const digitado = fonteDigitada(slug)
+      for (const rotulo of ROTULOS_DE_DOMINIO) {
+        expect(
+          digitado.includes(`"${rotulo}"`),
+          `${slug} digitou o rótulo de tela "${rotulo}" à mão — interpole de dominio.ts`,
+        ).toBe(false)
+      }
+    }
+  })
+
+  it('nenhum rótulo de status/tipo é digitado à mão na prosa corrida', () => {
+    // Fora das aspas também conta ("Saída e Empréstimo exigem um dos dois").
+    // Antes de varrer, apagam-se os trechos entre aspas: rótulo de tela COMPOSTO
+    // que só começa com um rótulo de domínio ("Reserva técnica", "Em manutenção,
+    // caso a caso") tem outra fonte e não é assunto deste teste — o bloco acima
+    // já cobre o caso em que o rótulo entre aspas é exatamente o de domínio.
+    for (const slug of GUIAS_DERIVADOS) {
+      const prosa = fonteDigitada(slug).replace(/"[^"]*"/g, '«»')
+      for (const rotulo of ROTULOS_DE_DOMINIO) {
+        const re = new RegExp(`(?<!\\p{L})${escaparRegex(rotulo)}(?!\\p{L})`, 'u')
+        expect(
+          re.test(prosa),
+          `${slug} escreveu "${rotulo}" à mão na prosa — interpole de dominio.ts`,
+        ).toBe(false)
+      }
+    }
+  })
+
+  it('e os quatro guias importam mesmo o vocabulário de dominio.ts', () => {
+    for (const slug of GUIAS_DERIVADOS) {
       expect(fonte(slug), slug).toContain("from '@/lib/dominio'")
     }
   })
@@ -278,6 +338,35 @@ describe('CAP-70 — o chamado do fornecedor na linha do tempo e no relatório',
     const t = normalizarBusca(texto('manutencao'))
     expect(t).toContain(normalizarBusca('NÃO tem coluna própria'))
     expect(t).toContain(normalizarBusca('não sai no CSV exportado'))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 4b. O chip "Manutenção parada" mora no RELATÓRIO, não na página Pendências
+// ---------------------------------------------------------------------------
+
+describe('onde o operador acha o alerta de manutenção parada', () => {
+  const t = () => texto('manutencao')
+
+  it('manda para a seção Pendências DO RELATÓRIO, e diz que é só do operador', () => {
+    expect(t()).toContain('seção "Pendências" DO RELATÓRIO')
+    expect(t()).toContain('só para quem entra com login')
+  })
+
+  it('avisa explicitamente que o chip NÃO está na página Pendências', () => {
+    // `getPendencias` (o que alimenta /pendencias) devolve só quatro buckets;
+    // `chipManutencaoParada` é concatenado no snapshot do relatório. Mandar o
+    // operador para /pendencias era procurar o que não está lá.
+    expect(normalizarBusca(t())).toContain(
+      normalizarBusca('NÃO está na página Pendências'),
+    )
+  })
+
+  it('o limiar de dias vem de MANUTENCAO_ALERTA_DIAS, não digitado', () => {
+    expect(t()).toContain(`a partir de ${MANUTENCAO_ALERTA_DIAS} dias parado`)
+    expect(t()).toContain(`Manutenção parada (${MANUTENCAO_ALERTA_DIAS}+ dias)`)
+    // O rótulo do chip é gerado da mesma constante em manutencao-alerta.ts.
+    expect(fonteDigitada('manutencao').includes('30')).toBe(false)
   })
 })
 
@@ -586,6 +675,21 @@ describe('rótulos reais citados nos demais guias', () => {
     ]) {
       expect(t, rotulo).toContain(rotulo)
     }
+  })
+
+  it('kits nomeia TODOS os tipos que ficam fora do seletor, derivados do validator', () => {
+    // São quatro (compra, estorno, devolução ao fornecedor e troca), não dois: a
+    // página dizia só "compra e estorno". A lista vem de TIPOS_EXCLUIDOS_DO_KIT.
+    const t = texto('kits-de-movimentacao')
+    expect(TIPOS_EXCLUIDOS_DO_KIT.length).toBeGreaterThan(2)
+    for (const tipo of TIPOS_EXCLUIDOS_DO_KIT) {
+      expect(t, `tipo excluído do kit não citado: ${tipo}`).toContain(
+        `"${TIPO_META[tipo].rotulo}"`,
+      )
+    }
+    // …nas DUAS passagens que falam da exclusão (o passo e a tabela de campos).
+    const ocorrencias = t.split(TIPO_META.devolucao_fornecedor.rotulo).length - 1
+    expect(ocorrencias).toBeGreaterThanOrEqual(2)
   })
 
   it('a compra cita as duas abas e os obrigatórios do modelo', () => {
