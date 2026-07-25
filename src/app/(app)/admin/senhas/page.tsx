@@ -19,10 +19,12 @@ export default async function AdminSenhasPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          Senhas de visualização dos relatórios — sem conta, revogáveis uma a uma.
-        </p>
-        <LinkAjuda pagina="usuarios-e-senhas" rotulo="Ajuda sobre as senhas de acesso" className="-ml-2 sm:ml-0" />
+        <div className="flex items-start gap-1">
+          <p className="text-sm text-muted-foreground">
+            Senhas de visualização dos relatórios — sem conta, revogáveis uma a uma.
+          </p>
+          <LinkAjuda pagina="usuarios-e-senhas" rotulo="Ajuda sobre as senhas de acesso" />
+        </div>
         <CriarSenhaDialog />
       </div>
 

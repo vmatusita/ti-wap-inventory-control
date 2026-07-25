@@ -144,7 +144,7 @@ describe('derivação (nenhum rótulo nem teto digitado à mão)', () => {
 
   it('o bucket "Patrimônio" deixou de faltar (a fila tem cinco abas, não quatro)', () => {
     contem('resolver-pendencias', ROTULO_TIPO_PENDENCIA.patrimonio)
-    contem('resolver-pendencias', 'Cinco tipos')
+    contem('resolver-pendencias', `${['zero','um','dois','três','quatro','Cinco'][Object.keys(ROTULO_TIPO_PENDENCIA).length]} tipos`)
   })
 
   it('os seis tipos de lançamento vêm de dominio.ts', () => {

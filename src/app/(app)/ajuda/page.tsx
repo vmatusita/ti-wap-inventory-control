@@ -3,8 +3,9 @@ import { Printer } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { getOperador } from '@/lib/auth/acesso'
 import { CATEGORIAS, PAGINAS, paginasDaCategoria } from '@/lib/ajuda/registry'
-import { textoDaPagina } from '@/lib/ajuda/indice'
+import { construirIndice } from '@/lib/ajuda/indice'
 import { AjudaBusca } from '@/components/ajuda/ajuda-busca'
+import { AncoraAoMontar } from '@/components/ajuda/ancora-ao-montar'
 import { RedirecionaAncoraLegada } from '@/components/ajuda/redireciona-ancora-legada'
 
 // Indice da documentacao do operador (F20). So operador: o visualizador por
@@ -18,6 +19,11 @@ export const metadata = {
 export default async function AjudaPage() {
   const operador = await getOperador()
   if (!operador) redirect('/login')
+
+  // O índice de busca é montado UMA vez, aqui no servidor, e o texto pesquisável
+  // de cada página desce no `data-ajuda-texto` do card — é sobre esses atributos
+  // que `AjudaBusca` filtra, no cliente, sem baixar o conteúdo.
+  const textoPorSlug = new Map(construirIndice().map((e) => [e.slug, e.texto]))
 
   return (
     <div className="space-y-6">
@@ -72,7 +78,7 @@ export default async function AjudaPage() {
                   <li
                     key={p.slug}
                     data-ajuda-item
-                    data-ajuda-texto={textoDaPagina(p)}
+                    data-ajuda-texto={textoPorSlug.get(p.slug)}
                     className="h-full"
                   >
                     <Link
@@ -112,6 +118,13 @@ export default async function AjudaPage() {
       {/* Favoritos antigos (/ajuda#status, #como-fazer…) continuam funcionando:
           o hash não chega ao servidor, então o redirecionamento é no cliente. */}
       <RedirecionaAncoraLegada />
+
+      {/* B3 (F13), agora também aqui: a trilha de TODA página aponta para
+          /ajuda#<categoria> — navegação client-side com hash para outra rota,
+          exatamente o caso em que o App Router rola sob o loading.tsx, não acha
+          o alvo e desiste. Sem isto, o operador que clica em "Como fazer" na
+          trilha de um guia cai no topo do índice. Achado da re-revisão da F20. */}
+      <AncoraAoMontar ids={CATEGORIAS.map((c) => c.chave)} />
     </div>
   )
 }

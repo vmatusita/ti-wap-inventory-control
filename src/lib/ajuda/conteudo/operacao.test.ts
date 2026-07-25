@@ -464,7 +464,7 @@ describe('CAP-69 — o vínculo de sucessão na ficha', () => {
 describe('divergência O1 — tipos com caminho próprio', () => {
   it('o guia de registrar diz que os três tipos não estão no seletor', () => {
     const t = texto('registrar-movimentacao')
-    expect(t).toContain('Os três tipos que NÃO estão no seletor')
+    expect(t).toContain(`Os ${['zero','um','dois','três','quatro','cinco'][TIPOS_FORA_DO_LOTE_MANUAL.length]} tipos que NÃO estão no seletor`)
     for (const tipo of TIPOS_FORA_DO_LOTE_MANUAL) {
       expect(t, `tipo fora do lote não citado: ${tipo}`).toContain(TIPO_META[tipo].rotulo)
     }

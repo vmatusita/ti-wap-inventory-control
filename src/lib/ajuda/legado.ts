@@ -1,17 +1,18 @@
 // Compatibilidade com a ajuda de PAGINA UNICA (F6B → F19). Duas coisas moram
 // aqui, e as duas são contrato externo:
 //
-// 1. DESTINO_LEGADO — para onde vai cada `/ajuda#<id-antigo>` que ainda existe
-//    em favorito, histórico do navegador e link colado em chamado. O hash NÃO
-//    chega ao servidor: quem redireciona é o índice, no cliente, usando a lista
-//    branca daqui (a mesma disciplina de `resolverAncora` — hash é entrada do
-//    usuário e nunca vira seletor arbitrário).
+// 1. `DESTINO_LEGADO` e `resolverDestinoLegado` — para onde vai cada
+//    `/ajuda#<id-antigo>` que ainda existe em favorito, histórico do navegador e
+//    link colado em chamado. Eles MORAM em `ancora.ts` (puro, porque quem
+//    redireciona é o cliente) e aqui são apenas REEXPORTADOS, já que este é o
+//    módulo do "legado".
 //
 // 2. SECOES — a VISÃO DE COMPATIBILIDADE. Cada página declara `legado: [...]`
 //    com as seções antigas cujo conteúdo ela herdou; aqui as páginas são
 //    remontadas naquelas 10 seções. Serve a um propósito só, e é o guarda-corpo
 //    da F20: `conteudo.test.ts` (22 KB de asserções acumuladas da F9 à F18)
-//    continua rodando SEM UMA LINHA ALTERADA sobre esta visão. Se uma frase do
+//    continua rodando sobre esta visão com UMA linha alterada na fase inteira
+//    (e para mais forte: uma asserção virou duas — ver o commit). Se uma frase do
 //    manual antigo desaparecer na reorganização, aquele teste falha — ninguém
 //    precisa lembrar dela. Reorganizar ≠ apagar, provado pelo build.
 import { PAGINAS } from '@/lib/ajuda/registry'

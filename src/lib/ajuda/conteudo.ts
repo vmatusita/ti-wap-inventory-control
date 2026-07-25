@@ -4,10 +4,11 @@
 // `SECOES`, `textoDaSecao`, `filtrarSecoes` e os tipos — servida agora pela
 // visao de compatibilidade de `legado.ts`.
 //
-// POR QUE MANTER: `conteudo.test.ts` (F9→F18) roda sobre esta superficie sem
-// uma linha alterada. Enquanto ele passar, esta provado que nenhuma frase do
-// manual antigo se perdeu na reorganizacao. Codigo NOVO deve importar de
-// `registry.ts` / `indice.ts` / `tipos.ts` — este arquivo e ponte, nao porta.
+// POR QUE MANTER: `conteudo.test.ts` (F9→F18) roda sobre esta superficie com UMA
+// linha alterada na F20 inteira — e para mais forte (uma asserção virou duas).
+// Enquanto ele passar, esta provado que nenhuma frase do manual antigo se
+// perdeu na reorganizacao. Codigo NOVO deve importar de `registry.ts` /
+// `indice.ts` / `tipos.ts` — este arquivo e ponte, nao porta.
 //
 // Continua SO-SERVIDOR (o conteudo arrasta as constantes reais e o PapaParse).
 export { SECOES, textoDaSecao, filtrarSecoes } from '@/lib/ajuda/legado'

@@ -117,7 +117,7 @@ export const mapaDasTelas: PaginaAjuda = {
         'Ctrl+K (ou ⌘K no Mac) abre a busca global em qualquer tela — a mesma caixa que a lupa do cabeçalho abre. A barra "/" também abre, desde que o cursor não esteja dentro de um campo de texto.',
         'Digite a partir de 2 letras: a busca acha o ativo por patrimônio, service tag, hostname, marca, modelo ou nome do colaborador. As setas ↑ ↓ andam pela lista, Enter abre a ficha do ativo escolhido e Esc fecha. Quando o patrimônio repete em dois equipamentos, a service tag aparece na linha para desempatar.',
         'A mesma caixa também leva para as telas ("Ir para Pendências") e dispara ações ("Nova movimentação", "Lançar item") — tudo sem tirar a mão do teclado.',
-        'Os atalhos globais são três: N abre uma nova movimentação, ? abre esta ajuda e, na página Itens, L abre o lançamento. Nenhum deles dispara enquanto você digita num campo nem com uma janela de confirmação aberta.',
+        'Os atalhos globais são três: N abre uma nova movimentação, ? abre esta ajuda e, na página Itens, L abre o lançamento. Nenhum deles dispara enquanto você digita num campo; o N e o "?" também ficam calados com uma janela de confirmação aberta — o L é a exceção, ele responde mesmo com uma confirmação na tela.',
         'O ícone "?" ao lado do título da tela abre a página desta documentação que fala daquela tela; a tecla ? leva ao índice.',
         'Nada disso existe para quem entra só com a senha de acesso dos relatórios — busca e atalhos são do operador.',
       ],

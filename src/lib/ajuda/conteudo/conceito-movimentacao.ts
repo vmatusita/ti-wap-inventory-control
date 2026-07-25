@@ -1,3 +1,4 @@
+import { TIPO_META } from '@/lib/dominio'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 export const conceitoMovimentacao: PaginaAjuda = {
@@ -98,7 +99,7 @@ export const conceitoMovimentacao: PaginaAjuda = {
     {
       tipo: 'links',
       itens: [
-        { slug: 'tipos-de-movimentacao', texto: 'Os 15 tipos e o que cada um provoca' },
+        { slug: 'tipos-de-movimentacao', texto: `Os ${Object.keys(TIPO_META).length} tipos e o que cada um provoca` },
         { slug: 'status-do-ativo' },
         { slug: 'corrigir-estorno-ajuste' },
         { slug: 'registrar-movimentacao' },

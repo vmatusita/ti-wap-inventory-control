@@ -212,8 +212,14 @@ describe('matriz de cobertura (rota × página)', () => {
 
   // Achado da revisão adversarial da F20: até aqui a matriz só provava que o
   // SLUG existia — não que a tela levasse até ele. Três rotas de admin estavam
-  // fora do que o gabarito prometia e nenhum teste acusou. Agora a matriz é
-  // executável: a tela precisa RENDERIZAR o "?" para a página declarada.
+  // fora do que o gabarito prometia e nenhum teste acusou.
+  //
+  // O que este teste faz, com honestidade: lê a FONTE da tela (a `page.tsx` e os
+  // `layout.tsx` do caminho) e exige que o `<LinkAjuda>` declarado na matriz
+  // esteja escrito ali. Ele NÃO renderiza a árvore — logo não distingue um `?`
+  // sob condição verdadeira de um sob condição falsa. Para a guarda de operador
+  // dos relatórios, quem cobra a condição é `conteudo/comecar.test.ts`, que casa
+  // o `{ehOperador && (` / `{acesso.modo === 'operador' && (` imediatamente antes.
   const SEM_LINK_PROPRIO: Record<string, string> = {
     '/relatorios/gerados/[id]':
       'rota compartilhada com o visualizador por senha — um "?" o levaria para /login',

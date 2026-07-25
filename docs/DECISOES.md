@@ -2133,3 +2133,43 @@ Base sólida: das **209 regras** mapeadas na `docs/MATRIZ-REGRAS.md` (7 áreas),
   (tabela rola no próprio contêiner) · tema escuro ok e impressão sempre clara (invariante F19).
 - **Reversível?** sim: a F20 é 100% camada de app e conteúdo — **zero migration, zero script de
   banco, zero operação destrutiva**. Reverter é `git revert` do intervalo.
+
+## 2026-07-24 · F20 · Emendas da revisão adversarial (2 rodadas)
+
+Cinco lentes independentes em contexto fresco produziram **37 achados com prova no código** (3
+graves); as emendas fecharam todos e uma **re-revisão de 3 lentes** confirmou os graves fechados,
+levantando 14 achados menores — também fechados. Duas decisões saíram daí:
+
+- **Nome de filial não conta como "dado real proibido".** A regra 2 do `CLAUDE.md` proíbe **nome de
+  colaborador, patrimônio e linha das planilhas** — não o cadastro de filiais, que aparece em toda
+  tela do sistema e está na própria spec (§ filiais oficiais). Mesmo assim, o texto da documentação
+  **não reproduz** o exemplo do campo "Rótulo" de `admin/senhas` (`placeholder="Filial Linhares,
+  Stefanini…"`): descreve o campo e manda escrever "o nome da filial ou do parceiro". É exceção
+  deliberada ao §1.4 do `PLANO-AJUDA` (citar o rótulo exato), porque reproduzir um exemplo com nome
+  de filial e da parceira não acrescenta nada ao operador. O placeholder da tela **fica como está**.
+- **O TRAP do só-servidor virou TESTE, não comentário.** A re-revisão apontou que o invariante mais
+  caro do motor (o conteúdo nunca ir para o bundle do cliente) era sustentado só por um comentário:
+  um `import { PAGINAS }` num Client Component compilava, passava no lint e nos testes, e arrastava
+  as 33 páginas e o PapaParse para toda tela do app. Agora `src/lib/ajuda/so-servidor.test.ts` varre
+  todo arquivo `'use client'` e falha se algum importar **valor** de `registry`/`conteudo`/
+  `derivacao`/`legado`/`indice`/`conteudo/*` (`import type` continua permitido), e confere que
+  `ancora.ts`, `busca.ts` e `tipos.ts` seguem puros. Provado nos dois sentidos: passa na árvore
+  limpa e falha quando um Client Component importa o registry.
+  *(O primeiro rascunho desse teste deu falso positivo — o regex atravessava linhas e atribuía um
+  `import` multilinha de React ao módulo seguinte. Corrigido antes de valer; fica o registro de que
+  guarda nova também precisa ser provada nos dois sentidos.)*
+
+Dois defeitos de **código** (não de texto) saíram da revisão e estão corrigidos:
+
+1. `/relatorios/gerados` renderizava o "?" **sem guarda de operador**, numa rota que o visualizador
+   por senha alcança — o clique o expulsava para `/login`. Ganhou a mesma guarda da tela irmã.
+2. A lista branca das âncoras antigas era `mapa[hash]`, que **herda o `Object.prototype`**:
+   `/ajuda#toString` devolvia uma função (truthy) e o `.split('#')` seguinte derrubava o índice.
+   Passa por `hasOwnProperty`; a função pura migrou para o módulo puro `ancora.ts` e o componente
+   **chama** a função testada em vez de reimplementá-la — a lista branca executada no navegador
+   passou a ser a mesma que os testes cobrem.
+
+E a **matriz de cobertura virou executável**: o teste deixou de só conferir que o slug existe e
+passou a exigir que a tela **cite** o `?` da página declarada (lendo `page.tsx` + os `layout.tsx` do
+caminho). Foi isso que revelou três abas de administração apontando para o lugar errado —
+`/admin/usuarios`, `/admin/senhas` e `/admin/kits` ganharam o `?` próprio que o gabarito prometia.

@@ -163,7 +163,7 @@ justificadas no próprio teste estrutural.
 | `/relatorios/[filial]` | `Relatório — {filial}` | `relatorio-ao-vivo` | `relatorio-ao-vivo` (**só operador**) |
 | `/relatorios/gerados` | `Relatórios gerados` | `relatorios-gerados` | **novo** → `relatorios-gerados` (**só operador**) |
 | `/relatorios/gerados/[id]` | `Relatório — {filial}` | `relatorios-gerados` | — (rota compartilhada com o visualizador por senha: um `?` o mandaria para `/login`) |
-| `/relatorios/acesso` | — (entrada por senha) | `acesso-e-sessoes` | — (rota pública, **nunca** ganha link) |
+| `/relatorios/acesso` | — (entrada por senha) | — (**isenta**: porta pública do visualizador; quem chega aqui não é operador) | — (rota pública, **nunca** ganha link) |
 | `/admin/usuarios` | `Administração` | `usuarios-e-senhas` | **novo** → `usuarios-e-senhas` |
 | `/admin/senhas` | `Administração` | `usuarios-e-senhas` | **novo** → `usuarios-e-senhas` |
 | `/admin/filiais` | `Administração` | `administracao` | **novo** → `administracao` |

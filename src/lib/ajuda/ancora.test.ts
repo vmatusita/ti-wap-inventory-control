@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { resolverAncora } from '@/lib/ajuda/ancora'
 import { SECOES } from '@/lib/ajuda/conteudo'
 
-// Lista branca real da pagina /ajuda — a mesma que o componente recebe por prop.
+// Os 10 ids da ajuda de pagina unica (F6B→F19), pela visao de compatibilidade.
+// Desde a F20 quem passa `ids` para `AncoraAoMontar` e `ancorasDaPagina(pagina)`
+// (registry.ts) — os ids legados nunca chegam la; eles vivem no redirecionador.
 const IDS = SECOES.map((s) => s.id)
 
 describe('resolverAncora', () => {
@@ -66,19 +68,14 @@ describe('resolverAncora', () => {
     expect(IDS).toHaveLength(10)
   })
 
-  it('cobre as âncoras usadas hoje pelo LinkAjuda das telas', () => {
-    // Mapa tela -> âncora fixado pela F11 (comentário de link-ajuda.tsx).
-    const usadas = [
-      'movimentacoes',
-      'pendencias',
-      'relatorios',
-      'itens',
-      'status',
-      'como-fazer',
-      'admin',
-    ]
-    for (const a of usadas) {
-      expect(resolverAncora(`#${a}`, IDS)).toBe(a)
+  // F20: este teste dizia "cobre as âncoras usadas hoje pelo LinkAjuda das
+  // telas". Desde a F20 NENHUM `LinkAjuda` usa âncora — ele aponta para uma
+  // PÁGINA (`registry.test.ts` falha se alguém voltar a usar `ancora=`). O que
+  // continua verdadeiro, e vale travar, é que os 10 ids antigos seguem
+  // resolvendo na lista branca; o destino de cada um é coisa de `legado.test.ts`.
+  it('os 10 ids da ajuda de página única continuam resolvendo', () => {
+    for (const id of IDS) {
+      expect(resolverAncora(`#${id}`, IDS)).toBe(id)
     }
   })
 })

@@ -34,6 +34,11 @@ const VERBETES_PENDENCIA: Verbete[] = (
   descricao: DESC_PENDENCIA[t],
 }))
 
+// O numeral por extenso — como o operador lê — DERIVADO do tamanho da
+// constante: um tipo de pendência novo muda a palavra sozinho.
+const POR_EXTENSO = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez']
+const QUANTOS_TIPOS = POR_EXTENSO[Object.keys(ROTULO_TIPO_PENDENCIA).length]
+
 export const resolverPendencias: PaginaAjuda = {
   slug: 'resolver-pendencias',
   titulo: 'Resolver as pendências',
@@ -56,7 +61,7 @@ export const resolverPendencias: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'A página Pendências reúne, para uso interno da TI, tudo que precisa de ação. Termo, Triagem, Patrimônio e Outras são calculadas ao vivo — resolveu, saem da lista no próximo carregamento. Itens faltantes têm registro próprio, encerrado por ação manual com desfecho (item recuperado ou baixa). Cinco tipos:',
+        `A página Pendências reúne, para uso interno da TI, tudo que precisa de ação. Termo, Triagem, Patrimônio e Outras são calculadas ao vivo — resolveu, saem da lista no próximo carregamento. Itens faltantes têm registro próprio, encerrado por ação manual com desfecho (item recuperado ou baixa). ${QUANTOS_TIPOS[0].toUpperCase()}${QUANTOS_TIPOS.slice(1)} tipos:`,
     },
     { tipo: 'glossario', badge: 'neutro', itens: VERBETES_PENDENCIA },
     {

@@ -17,6 +17,8 @@
 // nao acha a secao 'itens' no browser, e aqui tambem nao acha — a alternativa
 // (normalizar caixa) inventaria um comportamento que a URL escrita a mao nao tem
 // quando aberta em aba nova. Decisao registrada em docs/DECISOES.md (23/07/2026).
+import type { SecaoLegada } from '@/lib/ajuda/tipos'
+
 export function resolverAncora(hash: string, ids: readonly string[]): string | null {
   const alvo = decodificarHash(hash)
   return alvo !== null && ids.includes(alvo) ? alvo : null
@@ -44,7 +46,7 @@ function decodificarHash(hash: string): string | null {
 //
 // LINHA NUNCA SE REMOVE DESTE MAPA: cada id e um endereco que ainda existe em
 // favorito, historico de navegador e link colado em chamado.
-export const DESTINO_LEGADO: Readonly<Record<string, string>> = {
+export const DESTINO_LEGADO: Readonly<Record<SecaoLegada, string>> = {
   conceito: '/ajuda/conceito-movimentacao',
   status: '/ajuda/status-do-ativo',
   movimentacoes: '/ajuda/tipos-de-movimentacao',
@@ -72,8 +74,12 @@ export const DESTINO_LEGADO: Readonly<Record<string, string>> = {
  */
 export function resolverDestinoLegado(hash: string): string | null {
   const alvo = decodificarHash(hash)
-  if (alvo === null) return null
+  if (alvo === null || !ehIdLegado(alvo)) return null
+  return DESTINO_LEGADO[alvo]
+}
+
+// A checagem de chave PRÓPRIA e o estreitamento de tipo, no mesmo lugar: o
+// TypeScript passa a exigir que o `DESTINO_LEGADO[alvo]` seja precedido por ela.
+function ehIdLegado(alvo: string): alvo is SecaoLegada {
   return Object.prototype.hasOwnProperty.call(DESTINO_LEGADO, alvo)
-    ? DESTINO_LEGADO[alvo]
-    : null
 }

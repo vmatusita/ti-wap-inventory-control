@@ -1,9 +1,15 @@
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import { TIPO_META } from '@/lib/dominio'
+import { TIPOS_FORA_DO_LOTE_MANUAL } from '@/lib/validators/movimentacao'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 // REGRA DE OURO: o teto vem da constante real e os rotulos de tipo, de TIPO_META.
 const T = TIPO_META
+
+// O numeral escrito por extenso — que é como o operador lê — mas DERIVADO do
+// tamanho da constante: um caminho próprio novo muda a palavra sozinho.
+const POR_EXTENSO = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez']
+const FORA = POR_EXTENSO[TIPOS_FORA_DO_LOTE_MANUAL.length]
 
 export const registrarMovimentacao: PaginaAjuda = {
   slug: 'registrar-movimentacao',
@@ -45,7 +51,7 @@ export const registrarMovimentacao: PaginaAjuda = {
     {
       tipo: 'titulo',
       id: 'registrar-fora-do-lote',
-      texto: 'Os três tipos que NÃO estão no seletor',
+      texto: `Os ${FORA} tipos que NÃO estão no seletor`,
     },
     {
       tipo: 'nota',

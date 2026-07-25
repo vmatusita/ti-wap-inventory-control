@@ -54,7 +54,7 @@ export const acessoESessoes: PaginaAjuda = {
         'A tela dele é reduzida: a marca "Estoque TI · Relatórios", os dois destinos "Ao vivo" e "Gerados", a pílula "Visualização" com o rótulo da senha usada e o botão "Sair".',
         'Não há menu lateral, busca global, atalhos de teclado nem o ícone "?": o visualizador NUNCA alcança esta documentação. As explicações de que ele precisa vivem dentro do próprio relatório, na seção "Como ler este relatório" e nas legendas de cada bloco.',
         'O relatório dele se atualiza sozinho a cada 60 segundos e traz um botão "Atualizar" para forçar antes disso.',
-        'Ele vê os mesmos números, com três cortes: a seção de pendências não aparece; o patrimônio é texto puro em todo o relatório — nas tabelas e nos cartões de manutenção —, sem link para a ficha do ativo; e os indicadores do topo não são clicáveis, enquanto para o operador cada um deles abre a lista de Ativos já filtrada.',
+        'Ele vê os mesmos números, com três cortes: a seção de pendências não aparece; o patrimônio é texto puro em todo o relatório — nas tabelas e nos cartões de manutenção —, sem link para a ficha do ativo; e, no relatório AO VIVO, os indicadores do topo não são clicáveis para ele, enquanto para o operador cada um abre a lista de Ativos já filtrada (num relatório congelado eles não são clicáveis para ninguém).',
         'Ele não tem controle de tema. O seletor "Tema" mora no menu do usuário, que o cabeçalho reduzido não tem — o visualizador vê o tema padrão daquele navegador, que é o claro.',
         'O rodapé da tela de senha tem a saída para quem errou de porta: "É operador da WAP? Entrar com sua conta".',
       ],

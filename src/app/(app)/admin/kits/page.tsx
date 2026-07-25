@@ -33,11 +33,13 @@ export default async function AdminKitsPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          Modelos salvos do passo 2 da movimentação — aplicados com um clique em
-          Nova movimentação.
-        </p>
-        <LinkAjuda pagina="kits-de-movimentacao" rotulo="Ajuda sobre os kits de movimentação" className="-ml-2 sm:ml-0" />
+        <div className="flex items-start gap-1">
+          <p className="text-sm text-muted-foreground">
+            Modelos salvos do passo 2 da movimentação — aplicados com um clique em
+            Nova movimentação.
+          </p>
+          <LinkAjuda pagina="kits-de-movimentacao" rotulo="Ajuda sobre os kits de movimentação" />
+        </div>
         <KitDialog motivos={motivos} />
       </div>
 
