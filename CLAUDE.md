@@ -68,9 +68,13 @@ src/
       ativos/[id]/page.tsx          # ficha + linha do tempo
       ativos/novo/page.tsx          # cadastro de equipamento novo (compra — single/lote)
       movimentacoes/nova/page.tsx   # fluxo de nova movimentação (lote)
+      movimentacoes/page.tsx        # lista/histórico de movimentações (F11 · M8)
+      movimentacoes/devolucao-fornecedor/page.tsx  # baixa + substituto no mesmo passo (F8)
       itens/page.tsx                # itens por quantidade: saldos + lançamento + histórico (F3B)
       pendencias/page.tsx           # ativos com pendência (sem patrimônio/termo) — só operador (F6A/F7E)
-      ajuda/page.tsx                # ajuda derivada de dominio.ts (F6B)
+      ajuda/page.tsx                # ÍNDICE da documentação + busca (F20)
+      ajuda/[slug]/page.tsx         # uma página da documentação — rota dinâmica do registry (F20)
+      ajuda/manual/page.tsx         # manual completo numa página só, para ler e imprimir (F20)
       relatorios/[filial]/page.tsx  # relatório AO VIVO por filial ('geral' = consolidado)
       relatorios/gerados/page.tsx        # histórico de snapshots semanais
       relatorios/gerados/[id]/page.tsx   # snapshot congelado e interativo (spec §7.1)
@@ -79,24 +83,33 @@ src/
       admin/filiais/page.tsx
       admin/motivos/page.tsx
       admin/itens/page.tsx          # catálogo de itens por quantidade (F3B)
+      admin/kits/page.tsx           # catálogo de kits de movimentação (F12 · M12)
       admin/importar/page.tsx      # import de startup por filial (F7 — Substituir tudo; spec §10.2)
   components/
     ui/            # shadcn (CLI)
-    layout/  ativos/  movimentacoes/  relatorios/  admin/
+    layout/  ativos/  movimentacoes/  itens/  pendencias/  relatorios/  admin/  ajuda/
   lib/
     supabase/      # client.ts, server.ts, middleware de sessão
     actions/       # Server Actions (Zod dentro) — inclui termos.ts (F5A)
     queries/       # leituras tipadas (ativos, movimentacoes, relatorios, itens, termos…)
     validators/    # schemas Zod compartilhados
     termos/        # tipos, mapa motivo→Descrição, ordenação do lote, datas (F5A)
+    ajuda/         # documentação do operador (F20) — SÓ-SERVIDOR, exceto tipos.ts/busca.ts/ancora.ts
+      registry.ts    # A lista ordenada das páginas = sitemap, índice, manual e testes
+      conteudo/      # uma página por arquivo (o texto)
+      derivacao.ts   # rótulos e vocabulário DERIVADOS de dominio.ts/validators
+      indice.ts  legado.ts  tipos.ts  busca.ts  ancora.ts
+    auth/  ativos/  itens/  pendencias/  relatorios/  import/
     types/database.ts   # GERADO — não editar à mão
   templates/
     termos/*.docx  # 7 modelos de termo tagueados e sanitizados (F5A) — lidos em runtime
 supabase/
   migrations/      # fonte da verdade do banco a partir da F1
+  tests/           # roteiros SQL auto-verificáveis (domínios de login, RLS)
 scripts/
   seed.ts  reset.ts     # dados fictícios (guardas anti-produção obrigatórias)
   import/               # carga ÚNICA do go-live (F4) — ferramenta, não feature do app
+  smoke/                # smoke reexecutável contra produção (F12 §W5)
 docs/  mockups/
 ```
 

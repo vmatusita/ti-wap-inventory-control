@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight, ChevronRight } from 'lucide-react'
 import { getOperador } from '@/lib/auth/acesso'
 import {
   CATEGORIAS,
-  PAGINAS,
   ancorasDaPagina,
   paginaPorSlug,
   vizinhas,
@@ -14,10 +13,11 @@ import { AncoraAoMontar } from '@/components/ajuda/ancora-ao-montar'
 
 // Uma pagina da documentacao (F20). Server Component, como o resto da ajuda —
 // os badges do glossario sao os componentes REAIS do sistema.
-export function generateStaticParams() {
-  return PAGINAS.map((p) => ({ slug: p.slug }))
-}
-
+//
+// SEM `generateStaticParams`: a pagina chama `getOperador()` -> `cookies()`, o
+// que a torna dinamica (o build confirma: `ƒ /ajuda/[slug]`). A lista de slugs
+// que existia aqui nao pre-renderizava nada e ainda sugeria o contrario a quem
+// fosse decidir cache (achado da revisao dos 8 commits da F20).
 export async function generateMetadata({
   params,
 }: {
@@ -55,17 +55,19 @@ export default async function PaginaAjudaRoute({
             </Link>
           </li>
           {categoria && (
-            <>
+            // O separador vai DENTRO do <li>: `<ol>` só admite `<li>` como
+            // filho, e um <svg> solto ali deixava a lista com um filho que não
+            // é `listitem` na árvore de acessibilidade (achado da revisão dos 8
+            // commits da F20).
+            <li className="flex items-center gap-1">
               <ChevronRight className="size-3" aria-hidden />
-              <li>
-                <Link
-                  href={`/ajuda#${categoria.chave}`}
-                  className="underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  {categoria.rotulo}
-                </Link>
-              </li>
-            </>
+              <Link
+                href={`/ajuda#${categoria.chave}`}
+                className="underline-offset-4 hover:text-foreground hover:underline"
+              >
+                {categoria.rotulo}
+              </Link>
+            </li>
           )}
         </ol>
       </nav>

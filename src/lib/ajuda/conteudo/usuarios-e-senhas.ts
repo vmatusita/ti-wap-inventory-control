@@ -95,8 +95,8 @@ export const usuariosESenhas: PaginaAjuda = {
       itens: [
         'Não há tela de "esqueci minha senha" para o operador: a tela de login diz "Esqueceu a senha? Peça a um administrador para reenviar o convite."',
         'Qualquer operador resolve isso: em Administração › Usuários, use "Convidar usuário" e informe o MESMO e-mail da pessoa.',
-        'O sistema reconhece que a conta já existe e a tela troca para "Link de acesso gerado", explicando que ao abrir o link a pessoa clica em "Continuar", confere nome e sobrenome e define uma nova senha.',
-        'Copie o link e entregue como no convite normal. Nome e sobrenome já vêm preenchidos com o que estava salvo — ela só confere.',
+        'O sistema reconhece que a conta já existe e a tela troca para "Link de acesso gerado", explicando que ao abrir o link a pessoa clica em "Continuar", informa nome e sobrenome e define uma nova senha.',
+        'Copie o link e entregue como no convite normal. Na tela seguinte, quem JÁ tinha informado nome e sobrenome os encontra preenchidos e só confere; quem nunca informou (a coluna "Nome" ainda mostra o e-mail dela) encontra os dois campos VAZIOS e precisa preenchê-los para concluir — é o caso de todo mundo que já usava o sistema antes de os dois campos existirem.',
       ],
     },
 

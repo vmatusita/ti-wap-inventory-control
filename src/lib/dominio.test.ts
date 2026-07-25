@@ -6,6 +6,7 @@ import {
   rotuloTipo,
   rotuloCategoria,
   rotuloAcessorio,
+  ACESSORIOS_DEVOLUCAO,
   rotuloDesfechoPendenciaItem,
   DESFECHOS_PENDENCIA_ITEM,
   DESFECHO_PENDENCIA_ITEM_ROTULO,
@@ -124,5 +125,16 @@ describe('ordens canônicas', () => {
   it('CATEGORIA_ORDEM cobre todas as categorias sem duplicar', () => {
     expect([...CATEGORIA_ORDEM].sort()).toEqual(Object.keys(CATEGORIA_META).sort())
     expect(new Set(CATEGORIA_ORDEM).size).toBe(CATEGORIA_ORDEM.length)
+  })
+
+  // `ACESSORIO_ROTULO` é `Record<string, string>` e `rotuloAcessorio` devolve o
+  // próprio código quando não acha — fallback certo para um valor vindo do banco,
+  // frouxo demais para a LISTA canônica do checklist: um acessório novo sem
+  // rótulo passaria despercebido e sairia com o código cru no checklist da
+  // devolução e na documentação (`rotulosAcessorios`, lib/ajuda/derivacao.ts).
+  it('todo acessório do checklist de devolução tem rótulo próprio', () => {
+    for (const codigo of ACESSORIOS_DEVOLUCAO) {
+      expect(rotuloAcessorio(codigo), `acessório sem rótulo: ${codigo}`).not.toBe(codigo)
+    }
   })
 })

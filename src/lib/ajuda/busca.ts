@@ -10,3 +10,21 @@ const DIACRITICOS = new RegExp('[\\u0300-\\u036f]', 'g')
 export function normalizarBusca(texto: string): string {
   return texto.normalize('NFD').replace(DIACRITICOS, '').toLowerCase().trim()
 }
+
+/**
+ * O PREDICADO da busca da documentação — um só, para os dois lados.
+ *
+ * Mora aqui, e não em `indice.ts`, porque `indice.ts` é só-servidor e quem
+ * filtra de verdade é o CLIENTE (`AjudaBusca`, sobre o `data-ajuda-texto` que o
+ * servidor gravou no DOM). Antes a regra estava escrita duas vezes — a versão
+ * pura, coberta por `indice.test.ts`, e a versão do DOM, que é a que roda no
+ * navegador e não era testada. É a mesma armadilha que a revisão da F20 já
+ * pegou em `resolverDestinoLegado`: um lugar só, e é o lugar testado.
+ *
+ * `textoIndexado` chega JÁ normalizado (é o que o servidor gravou); a consulta
+ * é normalizada aqui. Consulta vazia casa com tudo.
+ */
+export function casaBusca(textoIndexado: string, consulta: string): boolean {
+  const q = normalizarBusca(consulta)
+  return q === '' || textoIndexado.includes(q)
+}

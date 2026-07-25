@@ -51,8 +51,11 @@ function BadgeVerbete({
 //  - 'pagina' (/ajuda/<slug>): h1 e o titulo da pagina -> 'titulo' vira h2 COM id
 //    (e o alvo do sumario e do "?" contextual) e o titulo de 'passos' vira h3.
 //  - 'manual' (/ajuda/manual): a pagina ja e um h3 dentro da categoria -> desce
-//    um nivel e OMITE o id, senao duas paginas com a mesma ancora ('teclado')
-//    criariam id repetido no documento agregado.
+//    um nivel, MAS mantem o id. O medo do id repetido no documento agregado nao
+//    se realiza: `registry.test.ts` exige que as ancoras sejam unicas no
+//    documento INTEIRO, justamente porque o manual agrega todas. Omitir o id
+//    so custava — nenhum trecho do manual era enderecavel (achado da revisao
+//    dos 8 commits da F20).
 export function BlocoAjuda({
   bloco,
   contexto = 'pagina',
@@ -80,7 +83,9 @@ export function BlocoAjuda({
     case 'titulo': {
       const classe = 'scroll-mt-24 pt-2 text-base font-semibold tracking-tight text-foreground'
       return noManual ? (
-        <h4 className={classe}>{bloco.texto}</h4>
+        <h4 id={bloco.id} className={classe}>
+          {bloco.texto}
+        </h4>
       ) : (
         <h2 id={bloco.id} className={classe}>
           {bloco.texto}

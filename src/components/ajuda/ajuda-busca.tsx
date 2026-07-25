@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
-import { normalizarBusca } from '@/lib/ajuda/busca'
+import { casaBusca, normalizarBusca } from '@/lib/ajuda/busca'
 
 // Busca da documentacao (sem lib, sem indice no bundle): o SERVIDOR ja gravou o
 // texto pesquisavel — normalizado — no atributo `data-ajuda-texto` de cada
@@ -10,18 +10,17 @@ import { normalizarBusca } from '@/lib/ajuda/busca'
 // continua server-rendered (badges reais) e nenhum byte do manual entra no
 // bundle do cliente: e o que respeita o TRAP do registry (so-servidor).
 //
+// A REGRA de casamento nao mora aqui: e `casaBusca` (busca.ts), a MESMA que
+// `filtrarIndice` usa do lado do servidor. Antes esta linha reimplementava o
+// `includes` a mao e os testes cobriam a outra copia — a que ninguem executa
+// (achado da revisao dos 8 commits da F20).
+//
 // Tres niveis de visibilidade, para a tela nunca ficar com um titulo de
 // categoria orfao em cima do nada:
-//   [data-ajuda-item]  -> um resultado (card de pagina, ou secao no manual)
+//   [data-ajuda-item]  -> um resultado (card de pagina no indice)
 //   [data-ajuda-grupo] -> some quando nenhum item seu sobreviveu
 //   [data-ajuda-chip]  -> o chip do sumario que aponta para aquele grupo
-export function AjudaBusca({
-  children,
-  placeholder = 'Buscar na documentação (ex.: manutenção, termo, atrelar)…',
-}: {
-  children: React.ReactNode
-  placeholder?: string
-}) {
+export function AjudaBusca({ children }: { children: React.ReactNode }) {
   const [consulta, setConsulta] = useState('')
   const [achados, setAchados] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -29,12 +28,14 @@ export function AjudaBusca({
   useEffect(() => {
     const root = containerRef.current
     if (!root) return
+    // Normaliza UMA vez: `casaBusca` normaliza de novo, e a normalizacao e
+    // idempotente — o `alvo` serve para distinguir "consulta vazia" do resto.
     const alvo = normalizarBusca(consulta)
     let visiveis = 0
 
     root.querySelectorAll<HTMLElement>('[data-ajuda-item]').forEach((item) => {
       const texto = item.getAttribute('data-ajuda-texto') ?? ''
-      const bate = alvo === '' || texto.includes(alvo)
+      const bate = casaBusca(texto, alvo)
       item.classList.toggle('ajuda-oculto', !bate)
       if (bate) visiveis += 1
     })
@@ -67,7 +68,7 @@ export function AjudaBusca({
             type="search"
             value={consulta}
             onChange={(e) => setConsulta(e.target.value)}
-            placeholder={placeholder}
+            placeholder="Buscar na documentação (ex.: manutenção, termo, atrelar)…"
             aria-label="Buscar na documentação"
             className="h-9 w-full rounded-md border bg-background pr-3 pl-9 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />

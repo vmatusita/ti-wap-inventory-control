@@ -119,8 +119,14 @@ export const CATEGORIAS: readonly {
   },
 ]
 
-/** Slugs que o motor usa como rota própria — nenhuma página pode reivindicá-los. */
-export const SLUGS_RESERVADOS: readonly string[] = ['manual', 'indice', 'busca']
+/**
+ * Slugs que o motor usa como rota própria — nenhuma página pode reivindicá-los.
+ * Só entra aqui o que EXISTE como rota estática sob /ajuda: hoje, `manual`
+ * (`src/app/(app)/ajuda/manual/page.tsx`). `indice` e `busca` estavam na lista
+ * sem rota nenhuma por trás, barrando dois nomes legítimos de página em nome de
+ * uma colisão impossível (achado da revisão dos 8 commits da F20).
+ */
+export const SLUGS_RESERVADOS: readonly string[] = ['manual']
 
 export function paginaPorSlug(slug: string): PaginaAjuda | undefined {
   return PAGINAS.find((p) => p.slug === slug)

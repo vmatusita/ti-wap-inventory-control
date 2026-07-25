@@ -7,9 +7,13 @@
 //  - o grupo "Ajuda" da paleta Ctrl+K, que é CLIENT e por isso recebe a versao
 //    LEVE (`indicePaleta`) por prop — sem corpo de texto, para não empurrar 56 KB
 //    de conteúdo para dentro do bundle de toda tela do app.
-import { normalizarBusca } from '@/lib/ajuda/busca'
+import { casaBusca, normalizarBusca } from '@/lib/ajuda/busca'
 import { PAGINAS } from '@/lib/ajuda/registry'
-import type { Bloco, CategoriaAjuda, PaginaAjuda } from '@/lib/ajuda/tipos'
+import type { Bloco, CategoriaAjuda, EntradaPaleta, PaginaAjuda } from '@/lib/ajuda/tipos'
+
+// O tipo mora em `tipos.ts` (puro), que e o que a paleta importa; reexportado
+// aqui porque e daqui que sai o valor.
+export type { EntradaPaleta }
 
 export function textoDoBloco(bloco: Bloco): string {
   switch (bloco.tipo) {
@@ -76,28 +80,25 @@ export function construirIndice(paginas: readonly PaginaAjuda[] = PAGINAS): Entr
   }))
 }
 
-/** Consulta vazia devolve tudo (mesma semântica de `filtrarSecoes`, da F6B). */
+/**
+ * Consulta vazia devolve tudo (mesma semântica de `filtrarSecoes`, da F6B).
+ * O casamento é `casaBusca` (busca.ts) — a MESMA função que `AjudaBusca` roda
+ * sobre o `data-ajuda-texto` no navegador. Enquanto for uma só, testar esta é
+ * testar aquela.
+ */
 export function filtrarIndice(
   indice: readonly EntradaIndice[],
   consulta: string,
 ): EntradaIndice[] {
-  const q = normalizarBusca(consulta)
-  if (!q) return [...indice]
-  return indice.filter((e) => e.texto.includes(q))
+  return indice.filter((e) => casaBusca(e.texto, consulta))
 }
 
 /**
  * Projeção LEVE para o cliente (paleta Ctrl+K). Sem o corpo do texto: o que a
  * paleta precisa achar é a PÁGINA certa, e o operador continua a busca dentro
- * dela. `chave` já vem normalizada — o cliente só compara.
+ * dela. `chave` já vem normalizada — o cliente só compara. O TIPO mora em
+ * `tipos.ts`, o único módulo daqui que um Client Component pode importar.
  */
-export type EntradaPaleta = {
-  slug: string
-  titulo: string
-  categoria: CategoriaAjuda
-  chave: string
-}
-
 export function indicePaleta(paginas: readonly PaginaAjuda[] = PAGINAS): EntradaPaleta[] {
   return paginas.map((p) => ({
     slug: p.slug,
@@ -106,3 +107,11 @@ export function indicePaleta(paginas: readonly PaginaAjuda[] = PAGINAS): Entrada
     chave: normalizarBusca([p.titulo, p.resumo, ...(p.termos ?? [])].join(' ')),
   }))
 }
+
+/**
+ * O índice da paleta computado UMA vez por instância do servidor. O
+ * `(app)/layout.tsx` é o shell de TODAS as rotas do app: chamar `indicePaleta()`
+ * ali normalizava as 33 páginas a cada request de cada tela, para um valor que
+ * nunca muda entre deploys (achado da revisão dos 8 commits da F20).
+ */
+export const INDICE_PALETA: readonly EntradaPaleta[] = indicePaleta()

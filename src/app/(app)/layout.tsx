@@ -11,7 +11,7 @@ import {
 } from '@/components/layout/progresso-navegacao'
 import { AtalhosGlobais } from '@/components/movimentacoes/atalho-global'
 import { PaletaComandosProvider } from '@/components/layout/paleta-comandos'
-import { indicePaleta } from '@/lib/ajuda/indice'
+import { INDICE_PALETA } from '@/lib/ajuda/indice'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 // Shell do grupo (app). Três modos (spec §3 / OS-F3 3.9.4):
@@ -49,8 +49,11 @@ export default async function AppLayout({
           <AtalhosGlobais />
           {/* F20: o índice da documentação é montado NO SERVIDOR e desce por
               prop. O registry é só-servidor (arrasta as constantes reais e o
-              PapaParse); a paleta é Client Component e nunca pode importá-lo. */}
-          <PaletaComandosProvider paginasAjuda={indicePaleta()}>
+              PapaParse); a paleta é Client Component e nunca pode importá-lo.
+              Constante de módulo, e não chamada de função: este layout é o shell
+              de TODAS as rotas do app e recomputá-lo a cada request seria
+              normalizar as 33 páginas em toda tela. */}
+          <PaletaComandosProvider paginasAjuda={INDICE_PALETA}>
             <div className="flex min-h-svh flex-col">
               <AppHeader nome={operador.nome} pendencias={pendencias} />
               <div className="flex flex-1">

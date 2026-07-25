@@ -86,3 +86,22 @@ export type PaginaAjuda = {
 
 // Compat com a ajuda de pagina unica: a forma que `conteudo.test.ts` conhece.
 export type Secao = { id: string; titulo: string; blocos: Bloco[] }
+
+/**
+ * Projecao LEVE do indice, serializada pelo SERVIDOR e recebida por prop pela
+ * paleta Ctrl+K (Client Component). Sem o corpo do texto: o que a paleta precisa
+ * achar e a PAGINA certa, e o operador continua a busca dentro dela.
+ *
+ * Mora AQUI, e nao em `indice.ts`, pelo motivo do cabecalho deste arquivo: e o
+ * unico modulo de `lib/ajuda` que um Client Component pode tocar. Deixar o tipo
+ * no `indice.ts` (so-servidor) funcionava so enquanto o import fosse
+ * `import type` — no dia em que alguem precisasse de um valor junto e tirasse o
+ * `type`, o bundle de toda tela do app levaria as 33 paginas e o PapaParse.
+ */
+export type EntradaPaleta = {
+  slug: string
+  titulo: string
+  categoria: CategoriaAjuda
+  /** Titulo + resumo + sinonimos, ja normalizado — o cliente so compara. */
+  chave: string
+}

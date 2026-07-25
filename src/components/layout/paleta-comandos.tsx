@@ -38,7 +38,7 @@ import { buscarAtivosParaMovimentacao } from '@/lib/actions/movimentacoes'
 import { normalizarBusca } from '@/lib/ajuda/busca'
 import { rotuloCategoria } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
-import type { EntradaPaleta } from '@/lib/ajuda/indice'
+import type { EntradaPaleta } from '@/lib/ajuda/tipos'
 
 // Paleta de comandos global (OS-F11 / T1). Um unico ponto de entrada para
 // "achar um ativo" e "ir para uma tela", no lugar da busca isolada de cada lista.
@@ -145,9 +145,11 @@ export function PaletaComandosProvider({
 }: {
   children: React.ReactNode
   /**
-   * Índice LEVE da documentação, serializado pelo SERVIDOR (`indicePaleta()`).
+   * Índice LEVE da documentação, serializado pelo SERVIDOR (`INDICE_PALETA`).
    * Vem por prop porque o registry é só-servidor: importá-lo aqui arrastaria o
-   * conteúdo inteiro (e o PapaParse) para o bundle de toda tela do app.
+   * conteúdo inteiro (e o PapaParse) para o bundle de toda tela do app — por
+   * isso até o TIPO vem de `@/lib/ajuda/tipos`, o módulo puro, e não de
+   * `indice.ts`, que é só-servidor.
    */
   paginasAjuda?: readonly EntradaPaleta[]
 }) {

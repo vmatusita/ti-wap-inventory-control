@@ -2173,3 +2173,53 @@ E a **matriz de cobertura virou executável**: o teste deixou de só conferir qu
 passou a exigir que a tela **cite** o `?` da página declarada (lendo `page.tsx` + os `layout.tsx` do
 caminho). Foi isso que revelou três abas de administração apontando para o lugar errado —
 `/admin/usuarios`, `/admin/senhas` e `/admin/kits` ganharam o `?` próprio que o gabarito prometia.
+
+## 2026-07-24 · Revisão dos 8 commits da F20 (`/code-review`, xhigh) — 12 achados, 11 fechados
+
+Revisão de recall sobre `git diff HEAD~8...HEAD` (99 arquivos, +11.140 linhas): 10 lentes inline,
+dedup e uma varredura final. Nenhum defeito **grave** de código sobreviveu ao que as duas rodadas
+adversariais da F20 já haviam fechado — os 12 achados são um defeito de conteúdo com consequência
+real para o operador, duas contas de custo e nove itens de arquitetura/limpeza. Onze foram
+corrigidos na hora; um foi **deixado em aberto de propósito**, com o motivo abaixo.
+
+Decisões que saíram da revisão:
+
+- **A documentação prometia campo pré-preenchido onde ele vem vazio.** `usuarios-e-senhas` (e
+  `problemas-import-e-acesso`, e o diálogo de convite) diziam, sem ressalva, que no reenvio de
+  acesso a pessoa "só confere" nome e sobrenome. `separarNomeSalvo` devolve os **dois campos
+  vazios** quando `primeiro_nome` guarda o e-mail — que é o estado de **toda conta anterior à
+  0057**, como o próprio `lib/auth/nome-pessoa.ts` diz ("o caso da esmagadora maioria"). Os três
+  textos passaram a descrever os dois casos. Lição: o conteúdo da F20 foi escrito depois da 0057,
+  mas descreveu a *intenção* da tela, não o que ela faz para os dados que existem hoje.
+- **Um predicado de busca, não dois.** `filtrarIndice` (puro, testado) e o filtro de DOM de
+  `AjudaBusca` (o que roda no navegador) reimplementavam a mesma regra; os testes cobriam o lado que
+  ninguém executa. É a mesma armadilha do `resolverDestinoLegado`, e a saída foi a mesma: `casaBusca`
+  agora mora em `busca.ts` — o módulo puro que já era o ponto compartilhado servidor↔cliente — e os
+  dois lados o chamam.
+- **O índice da paleta virou constante de módulo.** `(app)/layout.tsx` é o shell de TODAS as rotas;
+  `indicePaleta()` ali normalizava as 33 páginas a cada request de cada tela, para um valor que só
+  muda entre deploys. Virou `INDICE_PALETA`, avaliado uma vez por instância.
+- **O tipo `EntradaPaleta` mudou de casa.** Ele vivia em `indice.ts` (só-servidor) e era importado
+  pela paleta, que é Client Component: funcionava só porque `import type` some na compilação. Foi
+  para `tipos.ts`, que o cabeçalho do próprio arquivo define como "o único arquivo de `lib/ajuda`
+  que um Client Component pode tocar". `indice.ts` o reexporta.
+- **PENDÊNCIA ACEITA — o índice `/ajuda` carrega o manual inteiro.** Medido: `construirIndice()`
+  produz **207.928 caracteres**, que descem no `data-ajuda-texto` dos 33 cards (e voltam no payload
+  RSC da navegação client-side) numa tela que mostra só títulos e resumos. Indexar apenas
+  `titulo + resumo + termos` cortaria isso em ~95%, **mas** tiraria do operador a busca por palavra
+  do corpo ("atrelar" acha *itens por quantidade*) — que é metade do valor do índice. Trocar
+  alcance de busca por bytes é decisão do Johnny, não do agente: **fica como está** e entra no
+  backlog com as duas opções medidas (indexar só o cabeçalho, ou servir o índice por uma rota
+  própria em vez de embutir no HTML).
+
+Menores, corrigidos sem cerimônia: `<ChevronRight>` era filho direto de `<ol>` na trilha (só `<li>`
+é permitido); `generateStaticParams` em `/ajuda/[slug]` era código morto (a página chama `cookies()`
+e o build confirma `ƒ`); o manual omitia os `id` dos subtítulos por medo de colisão que
+`registry.test.ts` já torna impossível — nenhum trecho do manual era endereçável; `SLUGS_RESERVADOS`
+barrava `indice` e `busca` sem rota por trás; `rotulosAcessorios` reimplementava `rotuloAcessorio` e
+mantinha o `?? codigo` que o cabeçalho do próprio módulo condena (agora reusa a função, e
+`dominio.test.ts` falha se um acessório do checklist ficar sem rótulo); `AjudaBusca` ganhara uma
+prop `placeholder` e suporte a "seção no manual" sem nenhum chamador; e o bloco "Estrutura de pastas
+(prescrita)" do `CLAUDE.md` foi atualizado — estava sem `/movimentacoes`, `/movimentacoes/
+devolucao-fornecedor`, `/admin/kits`, as três rotas de ajuda da F20 e `src/lib/ajuda/`, e a regra
+daquele bloco manda **PARAR e reportar** quando a estrutura real diverge.

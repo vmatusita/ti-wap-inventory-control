@@ -18,7 +18,7 @@ import {
   GRUPO_ITEM_META,
   GRUPO_ITEM_ORDEM,
   ACESSORIOS_DEVOLUCAO,
-  ACESSORIO_ROTULO,
+  rotuloAcessorio,
   TERMO_STATUS_ORDEM,
   type CategoriaAtivo,
   type StatusAtivo,
@@ -108,7 +108,14 @@ export function verbetesMovimentacao(
   }))
 }
 
-/** Checklist de devolucao (acessorios conferidos) — derivado de dominio.ts. */
+/**
+ * Checklist de devolucao (acessorios conferidos) — derivado de dominio.ts.
+ * Usa `rotuloAcessorio`, que ja e a UNICA implementacao do "codigo -> rotulo"
+ * do projeto; a copia inline do `?? codigo` que existia aqui era uma segunda
+ * (achado da revisao dos 8 commits da F20). Que nenhum acessorio caia no
+ * fallback e travado por `dominio.test.ts`: sem isso, um acessorio novo sem
+ * rotulo apareceria na documentacao com o codigo cru.
+ */
 export function rotulosAcessorios(): string[] {
-  return ACESSORIOS_DEVOLUCAO.map((a) => ACESSORIO_ROTULO[a] ?? a)
+  return ACESSORIOS_DEVOLUCAO.map((a) => rotuloAcessorio(a))
 }

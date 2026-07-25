@@ -93,7 +93,7 @@ export const problemasImportEAcesso: PaginaAjuda = {
           saida: [
             'Em Administração › Usuários, "Convidar usuário": informe o e-mail e clique em "Gerar link".',
             'A tela "Convite gerado — copie o link" traz o botão "Copiar". Mande o link pelo WhatsApp, Teams ou e-mail seu.',
-            'A pessoa abre o link e clica em "Ativar meu acesso"; em seguida informa nome, sobrenome e a senha. Quem já tinha conta vê "Continuar" e confere o nome antes de definir a nova senha.',
+            'A pessoa abre o link e clica em "Ativar meu acesso"; em seguida informa nome, sobrenome e a senha. Quem já tinha conta vê "Continuar" e cai na mesma tela: se já tinha informado nome e sobrenome, eles vêm preenchidos e ela só confere; se ainda não (a coluna "Nome" mostra o e-mail dela), os dois campos vêm vazios e precisam ser preenchidos.',
             'O link vale por tempo limitado. Se expirar, gere outro — nada do que a pessoa já fez se perde. Uma prévia do link no WhatsApp ou no Teams não o invalida: só o clique em ativar consome o link.',
             `Se o botão não habilitar, é o domínio: só e-mails ${DOMINIOS_TEXTO} são aceitos.`,
           ],
