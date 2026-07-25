@@ -316,10 +316,10 @@ src/lib/ajuda/
   derivacao.ts      # verbetesStatus/Tipos/Termo/Item… — a REGRA DE OURO (server-only)
   conteudo/<slug>.ts# uma página por arquivo (33) — prosa + derivação
   registry.ts       # PAGINAS, CATEGORIAS, porSlug, ancorasDaPagina, paginasDaCategoria
-  indice.ts         # construirIndice / filtrarIndice / indicePaleta — funções puras
+  indice.ts         # indicePaleta / INDICE_PALETA / textoDaPagina / textoDoBloco — puras
   legado.ts         # SECOES compat + DESTINO_LEGADO + resolverDestinoLegado (pura)
   conteudo.ts       # compat: reexporta SECOES/textoDaSecao/filtrarSecoes/tipos
-  busca.ts          # normalizarBusca (inalterado)
+  busca.ts          # normalizarBusca + casaBusca (o predicado, um só para os dois lados)
   ancora.ts         # resolverAncora (inalterado)
 src/app/(app)/ajuda/
   page.tsx          # índice: busca global + categorias + redirecionador de âncora antiga
@@ -412,7 +412,12 @@ Funções puras, ambiente `node`:
    índice).
 4. **`LinkAjuda`**: todo alvo usado no app existe no registry.
 5. **busca**: o índice cobre **todas** as páginas; consulta vazia devolve tudo; termo ausente devolve
-   nada.
+   nada. Desde 25/07/2026 a chave pesquisável é **título + resumo + `termos` + vocabulário derivado**
+   (rótulos de `glossario`/`movimentacoes`/`atalhos` e as linhas de `sintoma`) — **não** o corpo do
+   texto: com o corpo, a mediana de uma consulta era 6 das 33 páginas. Frase literal de mensagem de
+   erro sai do índice e é trabalho do `/ajuda/manual` + Ctrl+F, e a tela diz isso no estado vazio.
+   Dois testes protegem: a trava de classe (todo rótulo de status/categoria/tipo acha alguma página)
+   e o teto de bytes com guarda semântica contra prosa. Ver `docs/DECISOES.md`.
 6. **links cruzados**: todo `links`/`slug` citado em qualquer bloco existe.
 7. **derivação**: os `Record`s por enum seguem completos (os testes existentes continuam valendo e
    passam a valer também para os módulos novos).

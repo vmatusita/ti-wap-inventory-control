@@ -6,7 +6,16 @@ export const colarEBiparLote: PaginaAjuda = {
   titulo: 'Colar ou bipar uma lista de patrimônios',
   resumo: 'Muitos equipamentos de uma vez, sem adicionar um a um.',
   categoria: 'fazer',
-  termos: ['colar', 'bipar', 'leitor', 'codigo de barras', 'excel', 'lista', 'lote'],
+  termos: [
+    'colar',
+    'bipar',
+    'leitor',
+    'codigo de barras',
+    'excel',
+    'lista',
+    'lote',
+    'colar lista',
+  ],
   legado: ['como-fazer'],
   blocos: [
     {

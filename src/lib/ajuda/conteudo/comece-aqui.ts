@@ -17,6 +17,7 @@ export const comeceAqui: PaginaAjuda = {
     'visao geral',
     'vocabulario',
     'o que e',
+    'inventario',
   ],
   legado: ['conceito'],
   blocos: [

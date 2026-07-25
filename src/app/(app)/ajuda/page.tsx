@@ -3,7 +3,7 @@ import { Printer } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { getOperador } from '@/lib/auth/acesso'
 import { CATEGORIAS, PAGINAS, paginasDaCategoria } from '@/lib/ajuda/registry'
-import { construirIndice } from '@/lib/ajuda/indice'
+import { INDICE_PALETA } from '@/lib/ajuda/indice'
 import { AjudaBusca } from '@/components/ajuda/ajuda-busca'
 import { AncoraAoMontar } from '@/components/ajuda/ancora-ao-montar'
 import { RedirecionaAncoraLegada } from '@/components/ajuda/redireciona-ancora-legada'
@@ -20,10 +20,18 @@ export default async function AjudaPage() {
   const operador = await getOperador()
   if (!operador) redirect('/login')
 
-  // O índice de busca é montado UMA vez, aqui no servidor, e o texto pesquisável
-  // de cada página desce no `data-ajuda-texto` do card — é sobre esses atributos
-  // que `AjudaBusca` filtra, no cliente, sem baixar o conteúdo.
-  const textoPorSlug = new Map(construirIndice().map((e) => [e.slug, e.texto]))
+  // A CHAVE pesquisável de cada página desce no `data-ajuda-texto` do card — é
+  // sobre esses atributos que `AjudaBusca` filtra, no cliente. A chave é título,
+  // resumo, os sinônimos curados e o vocabulário derivado do domínio (rótulos de
+  // status, tipo, campo, tecla e as linhas de sintoma); o CORPO da documentação
+  // não sai do servidor. Até 25/07/2026 descia o texto inteiro — 208.525
+  // caracteres por request, e uma busca que devolvia 6 das 33 páginas na
+  // mediana. Motivos e números em docs/DECISOES.md.
+  //
+  // `INDICE_PALETA`, e não `indicePaleta()`: a constante é computada uma vez por
+  // instância do servidor e é o MESMO valor que a paleta Ctrl+K recebe e que
+  // `indice.test.ts` filtra.
+  const chavePorSlug = new Map(INDICE_PALETA.map((e) => [e.slug, e.chave]))
 
   return (
     <div className="space-y-6">
@@ -78,7 +86,7 @@ export default async function AjudaPage() {
                   <li
                     key={p.slug}
                     data-ajuda-item
-                    data-ajuda-texto={textoPorSlug.get(p.slug)}
+                    data-ajuda-texto={chavePorSlug.get(p.slug)}
                     className="h-full"
                   >
                     <Link
@@ -101,8 +109,10 @@ export default async function AjudaPage() {
             hidden
             className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
           >
-            Nenhum resultado para a busca. Tente outra palavra — ou abra o manual
-            completo e use a busca do navegador.
+            Nenhum resultado. A busca do índice olha o título, o resumo e os
+            termos de cada página. Para procurar uma frase dentro do texto — a
+            mensagem de erro exata, por exemplo — abra o manual completo e use a
+            busca do navegador (Ctrl+F).
           </p>
         </div>
 

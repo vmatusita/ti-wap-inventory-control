@@ -24,6 +24,7 @@ export const usuariosESenhas: PaginaAjuda = {
     'primeiro acesso',
     'nome',
     'sobrenome',
+    'usuarios',
   ],
   legado: ['admin', 'acesso'],
   blocos: [

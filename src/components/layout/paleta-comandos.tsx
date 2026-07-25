@@ -35,7 +35,7 @@ import { StatusBadge } from '@/components/ativos/status-badge'
 import { editando, modalAberto } from '@/components/movimentacoes/atalho-global'
 import { dispararLancarItem } from '@/components/itens/lancar-item-evento'
 import { buscarAtivosParaMovimentacao } from '@/lib/actions/movimentacoes'
-import { normalizarBusca } from '@/lib/ajuda/busca'
+import { casaBusca, normalizarBusca } from '@/lib/ajuda/busca'
 import { rotuloCategoria } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { EntradaPaleta } from '@/lib/ajuda/tipos'
@@ -267,7 +267,11 @@ export function PaletaComandosProvider({
   const ajuda = useMemo(
     () =>
       termo
-        ? paginasAjuda.filter((p) => p.chave.includes(termo)).slice(0, MAX_AJUDA_NA_PALETA)
+        ? // `casaBusca`, e nao `p.chave.includes(termo)`: o predicado da busca da
+          // documentação é UM só, e esta era a segunda cópia escrita à mão. A
+          // guarda `termo ? … : []` acima já impede que a semântica "consulta
+          // vazia casa com tudo" chegue aqui.
+          paginasAjuda.filter((p) => casaBusca(p.chave, termo)).slice(0, MAX_AJUDA_NA_PALETA)
         : [],
     [termo, paginasAjuda],
   )

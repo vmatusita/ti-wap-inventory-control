@@ -18,6 +18,7 @@ export const acessoESessoes: PaginaAjuda = {
     'permissao',
     'gestor',
     'acesso aos relatorios',
+    'entrar',
   ],
   legado: ['acesso'],
   blocos: [

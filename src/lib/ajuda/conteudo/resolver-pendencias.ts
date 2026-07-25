@@ -55,6 +55,8 @@ export const resolverPendencias: PaginaAjuda = {
     'patrimonio',
     'service tag',
     'lote',
+    'sem service tag',
+    'faltando',
   ],
   legado: ['pendencias', 'como-fazer'],
   blocos: [

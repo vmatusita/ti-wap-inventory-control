@@ -15,6 +15,7 @@ export const fichaDoAtivo: PaginaAjuda = {
     'service tag',
     'mais acoes',
     'substituto',
+    'anotacao',
   ],
   legado: ['como-fazer'],
   blocos: [

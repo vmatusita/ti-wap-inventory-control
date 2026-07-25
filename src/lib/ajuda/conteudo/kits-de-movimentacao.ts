@@ -17,7 +17,14 @@ export const kitsDeMovimentacao: PaginaAjuda = {
   titulo: 'Criar e aplicar um kit',
   resumo: 'Modelos do passo 2 para o que se repete toda semana.',
   categoria: 'fazer',
-  termos: ['kit', 'modelo', 'novo colaborador', 'checklist', 'categorias esperadas'],
+  termos: [
+    'kit',
+    'modelo',
+    'novo colaborador',
+    'checklist',
+    'categorias esperadas',
+    'repetir ultima',
+  ],
   legado: ['como-fazer', 'movimentacoes'],
   blocos: [
     {

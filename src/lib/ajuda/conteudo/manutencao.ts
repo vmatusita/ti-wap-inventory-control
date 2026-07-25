@@ -25,6 +25,7 @@ export const manutencao: PaginaAjuda = {
     'assistencia',
     'rma',
     'sucessao',
+    'consertar',
   ],
   legado: ['movimentacoes'],
   blocos: [

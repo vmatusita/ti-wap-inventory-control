@@ -1,90 +1,146 @@
 import { describe, it, expect } from 'vitest'
-import {
-  construirIndice,
-  filtrarIndice,
-  indicePaleta,
-  textoDaPagina,
-  textoDoBloco,
-} from '@/lib/ajuda/indice'
+import { INDICE_PALETA, indicePaleta, textoDaPagina, textoDoBloco } from '@/lib/ajuda/indice'
 import { PAGINAS, paginaPorSlug } from '@/lib/ajuda/registry'
-import { normalizarBusca } from '@/lib/ajuda/busca'
+import { casaBusca, normalizarBusca } from '@/lib/ajuda/busca'
+import {
+  STATUS_ORDEM,
+  STATUS_META,
+  CATEGORIA_ORDEM,
+  CATEGORIA_META,
+  TIPO_META,
+  type TipoMovimentacao,
+} from '@/lib/dominio'
+
+// A busca da documentacao tem UMA chave e UM predicado. Este helper NAO e um
+// segundo predicado: e o mesmo `casaBusca` que roda no navegador, aplicado a
+// mesma constante que a /ajuda emite no `data-ajuda-texto` de cada card.
+// Testar isto e testar o que o operador executa.
+const acha = (consulta: string) =>
+  INDICE_PALETA.filter((e) => casaBusca(e.chave, consulta)).map((e) => e.slug)
 
 describe('índice de busca da documentação', () => {
-  const indice = construirIndice()
-
   it('cobre TODAS as páginas — uma página fora do índice é invisível', () => {
-    expect(indice).toHaveLength(PAGINAS.length)
-    expect(indice.map((e) => e.slug).sort()).toEqual(PAGINAS.map((p) => p.slug).sort())
+    expect(INDICE_PALETA).toHaveLength(PAGINAS.length)
+    expect(INDICE_PALETA.map((e) => e.slug).sort()).toEqual(PAGINAS.map((p) => p.slug).sort())
   })
 
-  it('nenhuma entrada tem texto pesquisável vazio', () => {
-    for (const e of indice) expect(e.texto.length).toBeGreaterThan(0)
+  it('nenhuma entrada tem chave vazia', () => {
+    for (const e of INDICE_PALETA) expect(e.chave.length).toBeGreaterThan(0)
   })
 
-  it('o texto indexado já vem normalizado (o cliente só compara)', () => {
-    for (const e of indice) expect(e.texto).toBe(normalizarBusca(e.texto))
+  it('a chave já vem normalizada (o cliente só compara)', () => {
+    for (const e of INDICE_PALETA) expect(e.chave).toBe(normalizarBusca(e.chave))
   })
 
   it('consulta vazia devolve tudo', () => {
-    expect(filtrarIndice(indice, '')).toHaveLength(PAGINAS.length)
-    expect(filtrarIndice(indice, '   ')).toHaveLength(PAGINAS.length)
+    expect(acha('')).toHaveLength(PAGINAS.length)
+    expect(acha('   ')).toHaveLength(PAGINAS.length)
   })
 
   it('termo ausente não devolve nada', () => {
-    expect(filtrarIndice(indice, 'xpto-inexistente-123')).toHaveLength(0)
+    expect(acha('xpto-inexistente-123')).toHaveLength(0)
   })
 
   it('acha sem acento e sem caixa', () => {
-    expect(filtrarIndice(indice, 'MANUTENCAO').length).toBeGreaterThan(0)
-    expect(filtrarIndice(indice, 'manutenção').length).toBeGreaterThan(0)
+    expect(acha('MANUTENCAO').length).toBeGreaterThan(0)
+    expect(acha('manutenção').length).toBeGreaterThan(0)
   })
 
   it('acha pelas palavras que o operador usa no dia a dia (os sinônimos)', () => {
     // Os `termos` de cada página existem justamente para isto: quem procura
-    // "consumível" tem de achar a página de itens por quantidade.
+    // "consumível" tem de achar a página de itens por quantidade. Cada linha
+    // aqui exige o sinônimo correspondente no `termos` da página — nenhuma
+    // delas é rótulo de enum, que entra por derivação e é proibido copiar.
     for (const [consulta, slug] of [
       ['consumivel', 'itens-por-quantidade'],
       ['plaqueta', 'identidade-do-equipamento'],
       ['teclado', 'limites-e-atalhos'],
       ['escuro', 'mapa-das-telas'],
       ['errei', 'corrigir-estorno-ajuste'],
+      // Verbos como o operador os diz.
+      ['devolver', 'devolucao-e-triagem'],
+      ['consertar', 'manutencao'],
+      ['trocar', 'tipos-de-movimentacao'],
+      ['ajustar', 'corrigir-estorno-ajuste'],
+      ['cadastrar', 'cadastrar-compra'],
+      ['entrar', 'acesso-e-sessoes'],
+      // Formas derivadas que o casamento por substring não alcança sozinho.
+      ['usuarios', 'usuarios-e-senhas'],
+      ['termo de responsabilidade', 'termos-de-responsabilidade'],
+      ['anotacao', 'ficha-do-ativo'],
+      // Nomes de botão e de ação.
+      ['cancelar', 'corrigir-estorno-ajuste'],
+      ['excluir', 'administracao'],
+      ['apagar', 'administracao'],
+      ['colar lista', 'colar-e-bipar-lote'],
+      ['repetir ultima', 'kits-de-movimentacao'],
+      ['gerar termo', 'termos-de-responsabilidade'],
+      ['inventario', 'comece-aqui'],
+      ['sem service tag', 'resolver-pendencias'],
+      ['faltando', 'resolver-pendencias'],
     ] as const) {
-      const achados = filtrarIndice(indice, consulta).map((e) => e.slug)
-      expect(achados, `busca "${consulta}"`).toContain(slug)
+      expect(acha(consulta), `busca "${consulta}"`).toContain(slug)
     }
   })
 
-  it('acha uma página pelo conteúdo do corpo, não só pelo título', () => {
-    expect(filtrarIndice(indice, 'atrelar').map((e) => e.slug)).toContain(
-      'itens-por-quantidade',
-    )
+  // Antes de 25/07/2026 este teste se chamava "acha uma página pelo conteúdo do
+  // corpo": a chave era o texto inteiro. Continua verde por outro motivo, e é o
+  // motivo que importa — "Atrelar" é `TIPO_LANCAMENTO_META.reserva.rotulo`,
+  // derivado de dominio.ts e servido num bloco `glossario`. Asserimos o
+  // MECANISMO, não só o resultado: se alguém tirar os rótulos de `glossario` da
+  // chave, este teste falha pelo motivo certo.
+  it('acha pelo vocabulário DERIVADO do domínio, não só por título e resumo', () => {
+    const p = paginaPorSlug('itens-por-quantidade')!
+    const soCabecalho = normalizarBusca([p.titulo, p.resumo, ...(p.termos ?? [])].join(' '))
+    expect(soCabecalho).not.toContain('atrelar')
+    expect(acha('atrelar')).toContain('itens-por-quantidade')
   })
-})
 
-describe('índice leve da paleta (Ctrl+K)', () => {
-  const leve = indicePaleta()
-
-  it('cobre todas as páginas', () => {
-    expect(leve).toHaveLength(PAGINAS.length)
-  })
-
-  it('não carrega o corpo do texto — é isso que mantém o bundle pequeno', () => {
-    const cheio = construirIndice()
-    for (const e of leve) {
-      const gordo = cheio.find((c) => c.slug === e.slug)!
-      expect(e.chave.length).toBeLessThan(gordo.texto.length)
-      // sem `texto`: a projeção leve é um contrato, não um detalhe
-      expect(e).not.toHaveProperty('texto')
+  // A trava de CLASSE: um status, categoria ou tipo novo não pode nascer
+  // invisível na busca. Como os rótulos entram por derivação (nunca copiados à
+  // mão), esta asserção acompanha `dominio.ts` sozinha.
+  it('todo rótulo de status, categoria e tipo acha ao menos uma página', () => {
+    for (const s of STATUS_ORDEM) {
+      expect(acha(STATUS_META[s].rotulo), `status "${s}"`).not.toHaveLength(0)
+    }
+    for (const c of CATEGORIA_ORDEM) {
+      expect(acha(CATEGORIA_META[c].rotulo), `categoria "${c}"`).not.toHaveLength(0)
+    }
+    for (const t of Object.keys(TIPO_META) as TipoMovimentacao[]) {
+      expect(acha(TIPO_META[t].rotulo), `tipo "${t}"`).not.toHaveLength(0)
     }
   })
 
-  it('a chave já vem normalizada e acha por título, resumo e sinônimo', () => {
-    for (const e of leve) expect(e.chave).toBe(normalizarBusca(e.chave))
-    const acha = (q: string) =>
-      leve.filter((e) => e.chave.includes(normalizarBusca(q))).map((e) => e.slug)
-    expect(acha('pendencia')).toContain('resolver-pendencias')
-    expect(acha('kit')).toContain('kits-de-movimentacao')
-    expect(acha('csv')).toContain('lista-de-ativos')
+  // O teto que impede a chave de virar corpo de novo. A folga é de propósito: o
+  // teste é contra REINFLAR (a chave somava 7.810 caracteres em 25/07/2026, e o
+  // corpo inteiro, 208.525), não contra crescer devagar.
+  it('a chave é vocabulário, não o corpo do texto', () => {
+    const total = INDICE_PALETA.reduce((s, e) => s + e.chave.length, 0)
+    expect(total).toBeLessThan(20_000)
+
+    for (const e of INDICE_PALETA) {
+      const pagina = paginaPorSlug(e.slug)!
+      expect(e.chave.length, `chave de ${e.slug}`).toBeLessThan(textoDaPagina(pagina).length)
+    }
+
+    // A guarda SEMÂNTICA, que é a que pega o caso real: prosa de `paragrafo`
+    // nunca entra. Falha no dia em que alguém acrescentar `descricao` (ou
+    // `efeito`, ou `causa`) a `vocabularioDoBloco`.
+    const conceito = paginaPorSlug('conceito-movimentacao')!
+    const paragrafo = conceito.blocos.find((b) => b.tipo === 'paragrafo')!
+    const frase = normalizarBusca(textoDoBloco(paragrafo)).slice(0, 60)
+    expect(frase.length).toBeGreaterThan(20)
+    const entrada = INDICE_PALETA.find((e) => e.slug === conceito.slug)!
+    expect(entrada.chave).not.toContain(frase)
+  })
+
+  it('não carrega o corpo do texto — é isso que mantém o payload pequeno', () => {
+    // sem `texto`: a projeção leve é um contrato, não um detalhe
+    for (const e of INDICE_PALETA) expect(e).not.toHaveProperty('texto')
+  })
+
+  it('indicePaleta() calcula o mesmo que a constante INDICE_PALETA', () => {
+    expect(indicePaleta()).toEqual([...INDICE_PALETA])
   })
 })
 

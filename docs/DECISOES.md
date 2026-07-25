@@ -2223,3 +2223,57 @@ prop `placeholder` e suporte a "seção no manual" sem nenhum chamador; e o bloc
 (prescrita)" do `CLAUDE.md` foi atualizado — estava sem `/movimentacoes`, `/movimentacoes/
 devolucao-fornecedor`, `/admin/kits`, as três rotas de ajuda da F20 e `src/lib/ajuda/`, e a regra
 daquele bloco manda **PARAR e reportar** quando a estrutura real diverge.
+
+## 2026-07-25 · A chave de busca da /ajuda deixa de ser o corpo do texto
+
+Última pendência aberta da revisão dos 8 commits da F20 (achado #3: o índice descia 208 KB de
+texto pesquisável). Foi decidida por medição, não por gosto: uma rodada de sete agentes mediu a
+perda de recall, contou bytes e consumidores, desenhou as alternativas e três lentes independentes
+(operador · arquitetura · custo) votaram. **Unanimidade — e nenhuma delas escolheu o conserto que o
+próprio achado propunha.**
+
+- **Contexto.** `construirIndice()` produzia o texto completo das 33 páginas e a /ajuda o gravava no
+  `data-ajuda-texto` de cada card. A proposta do achado era indexar só título + resumo + `termos`.
+  Medido: isso zera **22,8% das consultas** (88 de 386), e **84% das sondas de texto literal** de
+  mensagem de erro — justamente as páginas que existem para serem achadas colando o que o sistema
+  disse. A proposta original foi **descartada pela medição**.
+- **O que motiva mexer não é byte, é RUÍDO.** Com o corpo indexado, 111 de 274 consultas devolviam
+  8+ das 33 páginas e a mediana era 6: o operador digitava e voltava a ler a lista inteira. Medido
+  aqui: `ativo` 32→6, `movimentacao` 28→6, `emprestado` 9→1, `em manutencao` 10→1, `notebook` 8→1.
+  Consultas ruidosas: **111 → 0**.
+- **Escolha.** A chave passa a ser título + resumo + `termos` + **vocabulário DERIVADO** dos blocos:
+  rótulo de `glossario`, rótulo e nome de campo de `movimentacoes`, teclas e ação de `atalhos`, e a
+  linha de `sintoma`. Prosa fica de fora (descrição, efeito, observação, causa/saída, parágrafo,
+  lista, passos, título de bloco, tabela). O ganho de classe vem de graça e não apodrece: todo
+  rótulo de status, categoria e tipo entra por derivação de `dominio.ts`, nunca copiado à mão.
+- **Números medidos na árvore final.** 208.525 → **7.810** caracteres (−96,3%); gzip 63.399 →
+  **3.102** bytes (−95,1%), por request, numa rota dinâmica (`getOperador()` lê cookie, então o
+  índice é remontado e reenviado no HTML e no payload RSC de cada navegação).
+- **Custo assumido, e é o ponto em que a mudança é PIOR que antes.** Busca por frase literal de
+  mensagem de erro sai do índice. Mitigação: as linhas de `sintoma` entram na chave (recuperam a voz
+  literal do operador em `problemas-comuns` e `problemas-import-e-acesso`), e o resto é
+  `/ajuda/manual` + Ctrl+F — que devolve a frase COM o parágrafo em volta, mais do que a busca por
+  corpo entregava. Mas é uma segunda tentativa: ele digita, não acha, lê o estado vazio e recomeça.
+  O estado vazio e o placeholder foram reescritos para dizer o que a busca faz — regra do projeto de
+  não prometer o que não entrega.
+- **Descartadas (b) mover o filtro para o servidor e (c) híbrido.** O precedente da paleta Ctrl+K não
+  transfere: ela vai ao servidor porque milhares de ativos não cabem no cliente; aqui o dataset
+  inteiro são 7,8 KB que já desceram com a página. Trocar um filtro local por POST + proxy +
+  `auth.getUser()` remoto seria regressão de latência de ordens de grandeza, e plantaria um modo de
+  falha de rede na tela para a qual o operador corre quando algo já deu errado.
+- **O achado #6 fecha junto, não reabre.** `construirIndice`, `EntradaIndice` e `filtrarIndice` foram
+  APAGADOS — `filtrarIndice` já não tinha consumidor de produção. O teste passa a filtrar
+  `INDICE_PALETA`, a constante literalmente emitida no `data-ajuda-texto`, com `casaBusca`, que
+  continua sendo o predicado único (a paleta também passou a chamá-lo, no lugar de um `.includes`
+  escrito à mão). `textoDaPagina` fica sem consumidor de produção de propósito, com o motivo escrito
+  no cabeçalho: é o veículo de asserção de quatro suítes de conteúdo.
+- **GATILHO DE REVERSÃO.** Se aparecer evidência de que o operador cola frase de erro na busca com
+  frequência, a resposta NÃO é (b) nem (c): é reindexar o corpo **só** das três páginas de problema
+  (`mensagens-de-erro`, `problemas-comuns`, `problemas-import-e-acesso`), opt-in por página — teto
+  medido de ~10-15 KB gzip em vez de 63,4.
+- **Limitação honesta dos números.** Nenhuma medição vem de uso real: não há telemetria nem log de
+  busca. São consultas sintéticas escritas por quem escreve o código.
+
+BACKLOG que saiu daqui: promover o checklist de acessórios de `devolucao-e-triagem` de bloco `lista`
+para `glossario` — assim 'mouse', 'cabo', 'fone', 'mochila' e 'carregador' entram na chave por
+derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.

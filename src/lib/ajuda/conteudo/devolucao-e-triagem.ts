@@ -20,6 +20,7 @@ export const devolucaoETriagem: PaginaAjuda = {
     'faltante',
     'carregador',
     'desligamento',
+    'devolver',
   ],
   legado: ['movimentacoes'],
   blocos: [

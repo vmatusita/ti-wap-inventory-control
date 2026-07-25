@@ -68,6 +68,7 @@ export const tiposDeMovimentacao: PaginaAjuda = {
     'glossario',
     'obrigatorio',
     'duplicata',
+    'trocar',
   ],
   legado: ['movimentacoes'],
   blocos: [

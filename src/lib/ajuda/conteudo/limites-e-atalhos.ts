@@ -29,6 +29,7 @@ export const limitesEAtalhos: PaginaAjuda = {
     'pagina',
     'caracteres',
     'enter',
+    'teclado',
   ],
   legado: ['como-fazer'],
   blocos: [

@@ -19,6 +19,8 @@ export const corrigirEstornoAjuste: PaginaAjuda = {
     'justificativa',
     'estornar',
     'reverter',
+    'ajustar',
+    'cancelar',
   ],
   legado: ['como-fazer'],
   blocos: [

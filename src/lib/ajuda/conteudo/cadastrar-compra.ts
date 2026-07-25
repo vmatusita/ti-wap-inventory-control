@@ -11,7 +11,15 @@ export const cadastrarCompra: PaginaAjuda = {
   titulo: 'Dar entrada de equipamentos novos',
   resumo: 'Compra avulsa, colada, por faixa — e "comprar outro igual".',
   categoria: 'fazer',
-  termos: ['compra', 'novo equipamento', 'cadastro', 'faixa', 'nota fiscal', 'leitor'],
+  termos: [
+    'compra',
+    'novo equipamento',
+    'cadastro',
+    'faixa',
+    'nota fiscal',
+    'leitor',
+    'cadastrar',
+  ],
   legado: ['como-fazer'],
   blocos: [
     {

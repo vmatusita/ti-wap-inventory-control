@@ -29,7 +29,16 @@ export const termosDeResponsabilidade: PaginaAjuda = {
   titulo: 'Termos de responsabilidade',
   resumo: 'Gerar o .docx, confirmar a assinatura e desfazer.',
   categoria: 'fazer',
-  termos: ['termo', 'assinatura', 'docx', 'responsabilidade', 'documento', 'devolucao'],
+  termos: [
+    'termo',
+    'assinatura',
+    'docx',
+    'responsabilidade',
+    'documento',
+    'devolucao',
+    'termo de responsabilidade',
+    'gerar termo',
+  ],
   legado: ['como-fazer', 'termos'],
   blocos: [
     {

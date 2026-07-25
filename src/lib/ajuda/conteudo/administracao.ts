@@ -15,6 +15,8 @@ export const administracao: PaginaAjuda = {
     'vocabulario',
     'desativar',
     'slug',
+    'excluir',
+    'apagar',
   ],
   legado: ['admin'],
   blocos: [
