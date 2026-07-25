@@ -82,7 +82,7 @@ export default async function MovimentacoesPage({
             <h1 className="text-2xl font-semibold tracking-tight">
               Movimentações
             </h1>
-            <LinkAjuda ancora="movimentacoes" rotulo="Ajuda sobre movimentações" />
+            <LinkAjuda pagina="lista-de-movimentacoes" rotulo="Ajuda sobre a lista de movimentações" />
           </div>
           <p className="text-sm text-muted-foreground">
             {resultado.total.toLocaleString('pt-BR')}{' '}

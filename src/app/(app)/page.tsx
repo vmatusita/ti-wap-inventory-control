@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { KpiTiles, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { cn } from '@/lib/utils'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 const ACOES = [
   {
@@ -120,7 +121,10 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <div className="flex flex-wrap items-center gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <LinkAjuda pagina="mapa-das-telas" rotulo="Ajuda: o mapa das telas" />
+        </div>
         <p className="text-sm text-muted-foreground">
           Visão geral do estoque de TI — todas as filiais.
         </p>

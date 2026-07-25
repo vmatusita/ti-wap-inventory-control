@@ -181,7 +181,7 @@ export default async function ItensPage({
         <div>
           <div className="flex items-center gap-0.5">
             <h1 className="text-2xl font-semibold tracking-tight">Itens por quantidade</h1>
-            <LinkAjuda ancora="itens" rotulo="Ajuda sobre itens por quantidade" />
+            <LinkAjuda pagina="itens-por-quantidade" rotulo="Ajuda sobre itens por quantidade" />
           </div>
           <p className="text-sm text-muted-foreground">
             Acessórios, periféricos e componentes — total, estoque, atrelados e falta por filial.

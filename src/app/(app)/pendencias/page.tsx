@@ -81,7 +81,7 @@ export default async function PendenciasPage({
         <div>
           <div className="flex items-center gap-1">
             <h1 className="text-2xl font-semibold tracking-tight">Pendências</h1>
-            <LinkAjuda ancora="pendencias" rotulo="Ajuda sobre pendências" />
+            <LinkAjuda pagina="resolver-pendencias" rotulo="Ajuda sobre pendências" />
           </div>
           <p className="text-sm text-muted-foreground">
             Ativos que precisam de ação — termos, devoluções com itens faltantes e

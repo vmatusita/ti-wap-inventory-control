@@ -48,7 +48,7 @@ export default async function NovoEquipamentoPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             Novo equipamento
           </h1>
-          <LinkAjuda ancora="como-fazer" rotulo="Ajuda: como cadastrar um equipamento" />
+          <LinkAjuda pagina="cadastrar-compra" rotulo="Ajuda: como cadastrar um equipamento" />
         </div>
         <p className="text-sm text-muted-foreground">
           Entrada por compra — os equipamentos nascem em estoque na filial que

@@ -82,7 +82,7 @@ export default async function NovaMovimentacaoPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             Nova movimentação
           </h1>
-          <LinkAjuda ancora="movimentacoes" rotulo="Ajuda sobre movimentações" />
+          <LinkAjuda pagina="registrar-movimentacao" rotulo="Ajuda: como registrar uma movimentação" />
         </div>
         <p className="text-sm text-muted-foreground">
           Registre uma movimentação — ou um lote (kit) de vários ativos de uma

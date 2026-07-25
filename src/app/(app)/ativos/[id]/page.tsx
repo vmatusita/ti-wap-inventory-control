@@ -25,6 +25,7 @@ import { listarPendenciasItemDoAtivo } from '@/lib/queries/pendencias-item'
 import type { TermoTipo } from '@/lib/termos/tipos'
 import { rotuloCategoria, rotuloTermo } from '@/lib/dominio'
 import { formatDate, ouTraco } from '@/lib/format'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 function Dado({
   label,
@@ -105,6 +106,7 @@ export default async function AtivoFichaPage({
             </h1>
             {ativo.patrimonio && <CopiarPatrimonio valor={ativo.patrimonio} />}
             <StatusBadge status={ativo.status} />
+            <LinkAjuda pagina="ficha-do-ativo" rotulo="Ajuda sobre a ficha do ativo" />
           </div>
           <p className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
             {rotuloCategoria(ativo.categoria)}

@@ -28,16 +28,16 @@ export default async function AdminImportarPage() {
 
   return (
     <div className="space-y-6">
-      {/* O <h1> desta tela é o "Administração" do `admin/layout.tsx` (arquivo de
-          outra frente): o LinkAjuda acompanha o texto de abertura do import e
-          aponta para #admin — não existe seção "importar" na /ajuda. */}
+      {/* O <h1> desta tela é o "Administração" do `admin/layout.tsx`: o "?" de lá
+          cobre os cadastros de apoio; este acompanha o texto de abertura do
+          import e aponta para a página própria do import (F20). */}
       <div className="flex items-start gap-1">
         <p className="text-sm text-muted-foreground">
           Importe o acervo de uma filial a partir do CSV de inventário. O modo é
           sempre <strong>Substituir tudo</strong> (go-live): apaga o acervo atual da
           filial e recria a partir do arquivo.
         </p>
-        <LinkAjuda ancora="admin" rotulo="Ajuda sobre a administração e o import" />
+        <LinkAjuda pagina="import-de-startup" rotulo="Ajuda sobre o import de startup" />
       </div>
 
       <ImportarWizard filiais={filiais} />

@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { GeradosFiltroFilial } from '@/components/relatorios/gerados-filtro'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -39,9 +40,12 @@ export default async function RelatoriosGeradosPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Relatórios gerados
-          </h1>
+          <div className="flex flex-wrap items-center gap-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Relatórios gerados
+            </h1>
+            <LinkAjuda pagina="relatorios-gerados" rotulo="Ajuda sobre os relatórios gerados" />
+          </div>
           <p className="text-sm text-muted-foreground">
             O arquivo semanal — snapshots congelados e versionados.
           </p>

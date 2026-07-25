@@ -1,15 +1,20 @@
+import Link from 'next/link'
+import { Printer } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { getOperador } from '@/lib/auth/acesso'
-import { SECOES, textoDaSecao } from '@/lib/ajuda/conteudo'
-import { BlocoAjuda } from '@/components/ajuda/bloco-ajuda'
+import { CATEGORIAS, PAGINAS, paginasDaCategoria } from '@/lib/ajuda/registry'
+import { textoDaPagina } from '@/lib/ajuda/indice'
+import { DESTINO_LEGADO } from '@/lib/ajuda/legado'
 import { AjudaBusca } from '@/components/ajuda/ajuda-busca'
-import { AncoraAoMontar } from '@/components/ajuda/ancora-ao-montar'
+import { RedirecionaAncoraLegada } from '@/components/ajuda/redireciona-ancora-legada'
 
-// Manual do operador (/ajuda — B9). So operador: o viewer ja e barrado pelo proxy
-// (so acessa /relatorios/**), e aqui reforcamos com getOperador() + redirect.
-// Conteudo/estrutura moram em src/lib/ajuda/conteudo.ts — o glossario e derivado
-// de dominio.ts, entao o manual nunca diverge do sistema.
-export const metadata = { title: 'Ajuda' }
+// Indice da documentacao do operador (F20). So operador: o visualizador por
+// senha ja e barrado pelo proxy (so acessa /relatorios/**), e aqui reforcamos
+// com getOperador() + redirect — mesma dupla trava da F6B.
+export const metadata = {
+  title: 'Ajuda',
+  description: 'Documentação do operador do Estoque TI WAP.',
+}
 
 export default async function AjudaPage() {
   const operador = await getOperador()
@@ -17,44 +22,72 @@ export default async function AjudaPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Ajuda</h1>
-        <p className="text-sm text-muted-foreground">
-          Manual do operador: o que cada status e cada tipo significam, e o passo a
-          passo de cada ação. Uso interno da TI.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Ajuda</h1>
+          <p className="text-sm text-muted-foreground">
+            A documentação de quem opera o sistema: o que cada coisa significa e o
+            passo a passo de cada tarefa. Uso interno da TI.
+          </p>
+        </div>
+        <Link
+          href="/ajuda/manual"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-amarelo hover:text-foreground print:hidden"
+        >
+          <Printer className="size-3.5" aria-hidden />
+          Manual completo (para imprimir)
+        </Link>
       </div>
 
       <AjudaBusca>
         <nav
-          aria-label="Sumário"
+          aria-label="Categorias"
           className="sticky top-14 z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-lg border bg-background/95 px-2 py-2 backdrop-blur [scrollbar-width:none] print:hidden [&::-webkit-scrollbar]:hidden"
         >
-          {SECOES.map((s) => (
+          {CATEGORIAS.map((c) => (
             <a
-              key={s.id}
-              href={`#${s.id}`}
-              data-ajuda-chip={s.id}
+              key={c.chave}
+              href={`#${c.chave}`}
+              data-ajuda-chip={c.chave}
               className="shrink-0 whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-brand-amarelo hover:text-foreground"
             >
-              {s.titulo}
+              {c.rotulo}
             </a>
           ))}
         </nav>
 
         <div className="mt-6 space-y-10">
-          {SECOES.map((s) => (
+          {CATEGORIAS.map((c) => (
             <section
-              key={s.id}
-              id={s.id}
-              data-ajuda-secao
-              data-ajuda-texto={textoDaSecao(s)}
-              className="scroll-mt-28 space-y-4"
+              key={c.chave}
+              id={c.chave}
+              data-ajuda-grupo={c.chave}
+              className="scroll-mt-28 space-y-3"
             >
-              <h2 className="text-lg font-semibold tracking-tight">{s.titulo}</h2>
-              {s.blocos.map((b, i) => (
-                <BlocoAjuda key={i} bloco={b} />
-              ))}
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">{c.rotulo}</h2>
+                <p className="text-sm text-muted-foreground">{c.descricao}</p>
+              </div>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {paginasDaCategoria(c.chave).map((p) => (
+                  <li
+                    key={p.slug}
+                    data-ajuda-item
+                    data-ajuda-texto={textoDaPagina(p)}
+                    className="h-full"
+                  >
+                    <Link
+                      href={`/ajuda/${p.slug}`}
+                      className="flex h-full flex-col gap-1 rounded-lg border bg-card p-3 transition-colors hover:border-brand-amarelo"
+                    >
+                      <span className="text-sm font-medium text-foreground">{p.titulo}</span>
+                      <span className="text-xs leading-relaxed text-muted-foreground">
+                        {p.resumo}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </section>
           ))}
 
@@ -63,14 +96,20 @@ export default async function AjudaPage() {
             hidden
             className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
           >
-            Nenhum resultado para a busca.
+            Nenhum resultado para a busca. Tente outra palavra — ou abra o manual
+            completo e use a busca do navegador.
           </p>
         </div>
 
-        {/* B3: posiciona na seção do hash quando as seções montam — o App Router
-            tenta rolar enquanto o loading.tsx ainda está na tela e desiste. */}
-        <AncoraAoMontar ids={SECOES.map((s) => s.id)} />
+        <p className="pt-2 text-xs text-muted-foreground print:hidden">
+          {PAGINAS.length} páginas. Em qualquer tela, o ícone “?” ao lado do título
+          abre direto a página daquela tela, e a tecla <kbd>?</kbd> traz você para cá.
+        </p>
       </AjudaBusca>
+
+      {/* Favoritos antigos (/ajuda#status, #como-fazer…) continuam funcionando:
+          o hash não chega ao servidor, então o redirecionamento é no cliente. */}
+      <RedirecionaAncoraLegada destinos={DESTINO_LEGADO} />
     </div>
   )
 }

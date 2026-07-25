@@ -2,30 +2,30 @@ import Link from 'next/link'
 import { CircleHelp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Ajuda contextual (OS-F11 §1.5, item T3). Server Component, sem estado.
-// Um "?" discreto ao lado do titulo da tela, linkando a secao correspondente
-// de /ajuda. Alvo >= 40px (mobile) e nome acessivel sempre presente.
+// Ajuda contextual (OS-F11 §1.5 / T3, reapontada na F20). Server Component, sem
+// estado. Um "?" discreto ao lado do titulo da tela, linkando a PAGINA da
+// documentacao que descreve aquela tela. Alvo >= 40px (mobile) e nome acessivel
+// sempre presente.
 //
-// ANCORAS VALIDAS — sao os ids reais das secoes de `src/lib/ajuda/conteudo.ts`
-// (conferidos na fase 0 da F11, 22/07/2026). Nao existe outra:
-//   conceito · status · movimentacoes · termos · itens · pendencias ·
-//   relatorios · como-fazer · admin · acesso
+// `pagina` e um SLUG do registry (`src/lib/ajuda/registry.ts`) — ate a F19 era o
+// id de uma secao da ajuda de pagina unica. O mapa tela -> pagina esta em
+// docs/PLANO-AJUDA.md §3, e um teste (`link-ajuda.test.ts`) trava que todo alvo
+// usado no app existe no registry: link de ajuda quebrado nao chega a producao.
 //
-// Mapa tela -> ancora fixado pela OS:
-//   /movimentacoes e /movimentacoes/nova -> movimentacoes
-//   /pendencias -> pendencias · /relatorios/[filial] -> relatorios
-//   /itens -> itens · /ativos -> status · /ativos/novo -> como-fazer
-//   /admin/importar -> admin (o import e nota dentro de Administracao)
+// O componente NAO importa o registry de proposito: ele e montado em telas do
+// operador que nada tem a ver com a documentacao, e o registry e so-servidor
+// (arrasta as constantes reais e o PapaParse). A validacao mora no teste.
 type LinkAjudaProps = {
-  ancora: string
+  pagina: string
+  ancora?: string
   rotulo?: string
   className?: string
 }
 
-export function LinkAjuda({ ancora, rotulo, className }: LinkAjudaProps) {
+export function LinkAjuda({ pagina, ancora, rotulo, className }: LinkAjudaProps) {
   return (
     <Link
-      href={`/ajuda#${ancora}`}
+      href={`/ajuda/${pagina}${ancora ? `#${ancora}` : ''}`}
       aria-label={rotulo ?? 'Ajuda sobre esta tela'}
       title={rotulo ?? 'Ajuda sobre esta tela'}
       className={cn(

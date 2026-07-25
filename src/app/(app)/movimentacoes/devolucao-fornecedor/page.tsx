@@ -8,6 +8,7 @@ import { buscarAtivoPorId } from '@/lib/queries/ativos'
 import { ultimoEnvioManutencao } from '@/lib/queries/movimentacoes'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { rotuloStatus } from '@/lib/dominio'
+import { LinkAjuda } from '@/components/layout/link-ajuda'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -74,9 +75,12 @@ export default async function DevolucaoFornecedorPage({
     <div className="mx-auto max-w-3xl space-y-6">
       {voltar}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Devolução ao fornecedor
-        </h1>
+        <div className="flex flex-wrap items-center gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Devolução ao fornecedor
+          </h1>
+          <LinkAjuda pagina="manutencao" rotulo="Ajuda sobre manutenção e devolução ao fornecedor" />
+        </div>
         <p className="text-sm text-muted-foreground">
           O fornecedor ficou com o equipamento (não teve conserto). Registre a
           baixa e, se houver, cadastre o substituto no mesmo passo.

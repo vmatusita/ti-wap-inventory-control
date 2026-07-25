@@ -38,6 +38,7 @@ import { buscarAtivosParaMovimentacao } from '@/lib/actions/movimentacoes'
 import { normalizarBusca } from '@/lib/ajuda/busca'
 import { rotuloCategoria } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
+import type { EntradaPaleta } from '@/lib/ajuda/indice'
 
 // Paleta de comandos global (OS-F11 / T1). Um unico ponto de entrada para
 // "achar um ativo" e "ir para uma tela", no lugar da busca isolada de cada lista.
@@ -133,10 +134,22 @@ export function useAbrirPaleta(): (() => void) | null {
   return useContext(AbrirPaletaContext)
 }
 
+// Quantas páginas da documentação a paleta mostra por busca. A lista inteira
+// (dezenas) afogaria os ativos e as ações, que são o uso principal; quem quer
+// varrer a documentação usa a busca da própria /ajuda.
+const MAX_AJUDA_NA_PALETA = 5
+
 export function PaletaComandosProvider({
   children,
+  paginasAjuda = [],
 }: {
   children: React.ReactNode
+  /**
+   * Índice LEVE da documentação, serializado pelo SERVIDOR (`indicePaleta()`).
+   * Vem por prop porque o registry é só-servidor: importá-lo aqui arrastaria o
+   * conteúdo inteiro (e o PapaParse) para o bundle de toda tela do app.
+   */
+  paginasAjuda?: readonly EntradaPaleta[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -247,8 +260,21 @@ export function PaletaComandosProvider({
   const buscou = query.trim().length >= 2
   const rotas = useMemo(() => ROTAS.filter((r) => casa(r, termo)), [termo])
   const acoes = useMemo(() => ACOES.filter((a) => casa(a, termo)), [termo])
+  // Documentação só entra quando há termo: sem busca, a paleta abre com "Ir
+  // para" e "Ações", que é o que o operador quer em 9 de 10 aberturas.
+  const ajuda = useMemo(
+    () =>
+      termo
+        ? paginasAjuda.filter((p) => p.chave.includes(termo)).slice(0, MAX_AJUDA_NA_PALETA)
+        : [],
+    [termo, paginasAjuda],
+  )
   const semNada =
-    !carregando && resultados.length === 0 && rotas.length === 0 && acoes.length === 0
+    !carregando &&
+    resultados.length === 0 &&
+    rotas.length === 0 &&
+    acoes.length === 0 &&
+    ajuda.length === 0
 
   return (
     <AbrirPaletaContext.Provider value={abrir}>
@@ -366,6 +392,21 @@ export function PaletaComandosProvider({
                     {a.atalho && (
                       <CommandShortcut aria-hidden>{a.atalho}</CommandShortcut>
                     )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {ajuda.length > 0 && (
+              <CommandGroup heading="Ajuda">
+                {ajuda.map((p) => (
+                  <CommandItem
+                    key={p.slug}
+                    value={`ajuda:${p.slug}`}
+                    onSelect={() => irPara(`/ajuda/${p.slug}`)}
+                  >
+                    <CircleHelp className="size-4 shrink-0" aria-hidden />
+                    {p.titulo}
                   </CommandItem>
                 ))}
               </CommandGroup>

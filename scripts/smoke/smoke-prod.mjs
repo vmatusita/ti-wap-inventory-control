@@ -792,7 +792,60 @@ const ROTAS_LOGADO = [
   { rota: '/admin/importar', area: 'admin · import de startup' },
   { rota: '/relatorios/geral', area: 'relatório ao vivo' },
   { rota: '/relatorios/gerados', area: 'relatórios gerados' },
+  { rota: '/ajuda/manual', area: 'ajuda · manual completo (F20)' },
 ]
+
+// F20 — as páginas da documentação. Além do 200, cada uma exige o MARCADOR:
+// slug que existe mas cai numa página vazia (ou na de outra) devolveria 200
+// alegremente. O marcador é o título da página, o mesmo que o <h1> renderiza.
+//
+// Esta lista é ESPELHO de `src/lib/ajuda/registry.ts` — um script .mjs não
+// importa TypeScript. Quem garante que ela não envelhece é o teste
+// `src/lib/ajuda/smoke-ajuda.test.ts`, que lê ESTE arquivo e compara com o
+// registry: página nova sem entrada aqui quebra o `npm run test`.
+const PAGINAS_AJUDA = [
+  ['comece-aqui', 'Comece aqui'],
+  ['conceito-movimentacao', 'A movimentação é a fonte da verdade'],
+  ['identidade-do-equipamento', 'Patrimônio, service tag e o par que identifica'],
+  ['acesso-e-sessoes', 'Quem acessa o quê'],
+  ['mapa-das-telas', 'Mapa das telas e navegação'],
+  ['registrar-movimentacao', 'Registrar uma movimentação'],
+  ['colar-e-bipar-lote', 'Colar ou bipar uma lista de patrimônios'],
+  ['kits-de-movimentacao', 'Criar e aplicar um kit'],
+  ['entregar-emprestar-reservar', 'Entregar, emprestar e reservar'],
+  ['devolucao-e-triagem', 'Receber de volta: devolução e triagem'],
+  ['manutencao', 'Manutenção, do envio à troca'],
+  ['transferir-defasar-descartar', 'Transferir, marcar defasado e descartar'],
+  ['corrigir-estorno-ajuste', 'Corrigir o que ficou errado'],
+  ['cadastrar-compra', 'Dar entrada de equipamentos novos'],
+  ['termos-de-responsabilidade', 'Termos de responsabilidade'],
+  ['ficha-do-ativo', 'A ficha do ativo'],
+  ['lista-de-ativos', 'Encontrar e exportar ativos'],
+  ['lista-de-movimentacoes', 'Achar uma movimentação já registrada'],
+  ['lancar-itens', 'Lançar itens por quantidade'],
+  ['saldos-e-estoque-minimo', 'Ler os saldos e o estoque mínimo'],
+  ['resolver-pendencias', 'Resolver as pendências'],
+  ['administracao', 'Administração: os cadastros de apoio'],
+  ['usuarios-e-senhas', 'Operadores e senhas de acesso'],
+  ['import-de-startup', 'Import de startup de uma filial'],
+  ['relatorio-ao-vivo', 'Ler o relatório ao vivo'],
+  ['relatorios-gerados', 'Os relatórios gerados da semana'],
+  ['status-do-ativo', 'Status e categorias do ativo'],
+  ['tipos-de-movimentacao', 'Tipos de movimentação'],
+  ['itens-por-quantidade', 'Itens por quantidade'],
+  ['limites-e-atalhos', 'Limites, tetos e atalhos'],
+  ['mensagens-de-erro', 'Mensagens de erro'],
+  ['problemas-comuns', 'Problemas comuns'],
+  ['problemas-import-e-acesso', 'Problemas de import e de acesso'],
+]
+
+for (const [slug, titulo] of PAGINAS_AJUDA) {
+  ROTAS_LOGADO.push({
+    rota: `/ajuda/${slug}`,
+    area: 'ajuda · página (F20)',
+    marcador: titulo,
+  })
+}
 
 // Marcadores de "a página renderizou, mas quebrada". O Next serve a página de
 // erro com 200 em alguns caminhos de streaming — por isso não basta o status.
@@ -855,6 +908,10 @@ async function parteC(sessao) {
         const achados = MARCADORES_ERRO.filter((m) => corpo.includes(m))
         if (achados.length) {
           detalhe = `HTTP 200 mas a página é de erro (marcadores: ${achados.join(', ')})`
+        } else if (entrada.marcador && !corpo.includes(entrada.marcador)) {
+          // F20: a rota respondeu, mas não é a página que deveria ser (slug
+          // órfão, conteúdo vazio, registry fora de sincronia com o deploy).
+          detalhe = `HTTP 200 sem o conteúdo esperado ("${entrada.marcador}")`
         } else {
           status = OK
           detalhe = `HTTP 200 (${corpo.length} bytes)`

@@ -94,7 +94,7 @@ export default async function AtivosPage({
         <div>
           <div className="flex items-center gap-1">
             <h1 className="text-2xl font-semibold tracking-tight">Ativos</h1>
-            <LinkAjuda ancora="status" rotulo="Ajuda: o que cada status significa" />
+            <LinkAjuda pagina="lista-de-ativos" rotulo="Ajuda sobre a lista de ativos" />
           </div>
           <p className="text-sm text-muted-foreground">
             {resultado.total.toLocaleString('pt-BR')} ativos cadastrados

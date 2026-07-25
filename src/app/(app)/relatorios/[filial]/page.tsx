@@ -87,7 +87,7 @@ export default async function RelatorioFilialPage({
                 /relatorios/** (o proxy manda o resto para /login) — um "?" que
                 desloga o gestor seria pior que "?" nenhum. */}
             {ehOperador && (
-              <LinkAjuda ancora="relatorios" rotulo="Ajuda sobre os relatórios" />
+              <LinkAjuda pagina="relatorio-ao-vivo" rotulo="Ajuda: como ler o relatório" />
             )}
           </div>
           <p className="text-sm text-muted-foreground">
