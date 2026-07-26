@@ -86,9 +86,81 @@ where n.nspname = 'public' and p.proname = 'importar_ativos_substituir';
 - **O dano concreto:** a RPC do import é redefinida em cadeia (`0032`→`0037`→**`0048`**). Reaplicar `0031`–`0037` **regrediria** o corpo vivo para o da `0037`, desfazendo a `0048`.
 
 **O controle que funciona (e que já se usa):**
-1. **Sonda de efeito** — conferir o objeto no banco (`pg_get_functiondef`, `information_schema`, `has_function_privilege`), não o ledger. É o método de fingerprint que a F19 usou para provar paridade ensaio×produção.
+1. **Sonda de efeito** — conferir o objeto no banco (`pg_get_functiondef`, `information_schema`, `has_function_privilege`), não o ledger. É o método de fingerprint que a F19 usou para provar paridade ensaio×produção. ⚠ **Mas a forma CRUA do fingerprint tem um falso-positivo — use a sonda normalizada da seção abaixo.**
 2. **Job `banco` do CI** — prova que as 56 migrations aplicam limpo e em ordem num Postgres novo.
 3. **Verificação pós-apply** do passo 5 acima.
+
+### Sonda de paridade ensaio × produção (use ESTA — a crua engana)
+
+⚠ **`md5(pg_get_functiondef(oid))` cru NÃO serve para comparar ambientes.** Em 25/07/2026 ele
+apontou `criar_compra_lote` como divergente entre ensaio e produção, e a conclusão ("a `0055`/`0040`
+não chegaram ao ensaio") era **falsa**: a diferença era só o **fim de linha** — produção guarda o
+corpo com CRLF e o ensaio com LF (1.664 vs 1.617 bytes, exatamente os 47 `\r`). O fim de linha
+depende de **como** o SQL foi aplicado (SQL Editor no Windows vs MCP), não do que ele faz.
+**Normalize sempre**, e ao achar divergência **abra a diferença antes de reportá-la**.
+
+Rode o bloco abaixo nos DOIS projetos e compare linha a linha (10 classes de objeto). O filtro
+`not like '\_%'` exclui as tabelas de backup ad-hoc, que existem só em produção por construção.
+
+```sql
+with
+funcs as (
+  select 'func' classe, p.proname||'('||pg_get_function_identity_arguments(p.oid)||')' obj,
+         md5(regexp_replace(pg_get_functiondef(p.oid),'\s+',' ','g')||p.prosecdef::text||p.provolatile::text) fp
+  from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace where ns.nspname='public'),
+cols as (
+  select 'coluna', c.table_name||'.'||c.column_name,
+         md5(c.data_type||c.is_nullable||coalesce(regexp_replace(c.column_default,'\s+',' ','g'),'-')||coalesce(c.character_maximum_length::text,'-'))
+  from information_schema.columns c where c.table_schema='public' and c.table_name not like '\_%'),
+cons as (
+  select 'constraint', conrelid::regclass::text||'.'||conname,
+         md5(regexp_replace(pg_get_constraintdef(oid),'\s+',' ','g'))
+  from pg_constraint where connamespace='public'::regnamespace),
+idx as (
+  select 'indice', indexname, md5(regexp_replace(indexdef,'\s+',' ','g'))
+  from pg_indexes where schemaname='public'),
+pol as (
+  select 'policy', tablename||'.'||policyname,
+         md5(cmd||roles::text||coalesce(regexp_replace(qual,'\s+',' ','g'),'-')||coalesce(regexp_replace(with_check,'\s+',' ','g'),'-')||permissive::text)
+  from pg_policies where schemaname='public'),
+vws as (
+  select 'view', c.relname,
+         md5(regexp_replace(pg_get_viewdef(c.oid,true),'\s+',' ','g')||coalesce(c.reloptions::text,'-'))
+  from pg_class c join pg_namespace ns on ns.oid=c.relnamespace where ns.nspname='public' and c.relkind='v'),
+enums as (
+  select 'enum', t.typname, md5(string_agg(e.enumlabel, ',' order by e.enumsortorder))
+  from pg_type t join pg_enum e on e.enumtypid=t.oid
+  join pg_namespace ns on ns.oid=t.typnamespace where ns.nspname='public' group by t.typname),
+trg as (
+  select 'trigger', c.relname||'.'||t.tgname, md5(regexp_replace(pg_get_triggerdef(t.oid),'\s+',' ','g'))
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace ns on ns.oid=c.relnamespace where ns.nspname='public' and not t.tgisinternal),
+rls as (
+  select 'rls_flag', c.relname, md5(c.relrowsecurity::text||c.relforcerowsecurity::text)
+  from pg_class c join pg_namespace ns on ns.oid=c.relnamespace
+  where ns.nspname='public' and c.relkind='r' and c.relname not like '\_%'),
+grants as (
+  select 'grant_func', p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',
+         md5(has_function_privilege('anon',p.oid,'execute')::text
+           ||has_function_privilege('authenticated',p.oid,'execute')::text
+           ||has_function_privilege('service_role',p.oid,'execute')::text)
+  from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace where ns.nspname='public'),
+tudo as (
+  select * from funcs union all select * from cols union all select * from cons
+  union all select * from idx union all select * from pol union all select * from vws
+  union all select * from enums union all select * from trg union all select * from rls
+  union all select * from grants)
+select classe, count(*) as objetos, md5(string_agg(obj||'='||fp,'|' order by obj)) as fp_classe
+from tudo group by classe order by classe;
+```
+
+Classe que divergir → repita só aquela classe **sem** o `group by`, e faça o `except` dos dois
+resultados para achar o objeto exato.
+
+**Resultado de 25/07/2026 (depois do rollout de `0056`/`0058`/`0059`/`0060`):** as **10 classes
+batem** entre ensaio e produção — 15 funções, 15 grants, 201 colunas, 56 constraints, 47 índices,
+20 policies, 5 views, 6 enums, 2 triggers, 15 flags de RLS. Paridade completa; a única diferença
+fora do filtro é `_bkp_relatorios_gerados_f6a`, retida em produção de propósito.
 
 **Estado medido em 24/07/2026:** 56 migrations no repo, **46 no ledger** *(a `0057` entrou no mesmo dia, por caminho A, no ledger de ensaio e produção)*. As 10 ausentes (`0031`–`0037`, `0039`, `0040`, `0056`) foram **todas sondadas e estão aplicadas** — inclusive a **`0056`** (as sete RPCs `rel_*` já estão com `anon` sem `execute`), que o `CHANGELOG` ainda dava como pendente de handoff.
 

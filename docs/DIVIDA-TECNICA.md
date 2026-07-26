@@ -91,8 +91,15 @@ Duas frentes:
 > **Lição de método, que vale mais que o achado:** `md5(pg_get_functiondef())` **não** é
 > fingerprint de paridade confiável entre ambientes — ele tem um modo de falso-positivo que
 > depende de COMO o SQL foi aplicado (SQL Editor no Windows vs MCP). A sonda de paridade
-> tem de normalizar: `md5(regexp_replace(pg_get_functiondef(oid), '\s+', ' ', 'g'))`. A F19
-> usou a forma crua, então a paridade que ela declarou merece ser refeita com a normalizada.
+> tem de normalizar: `md5(regexp_replace(pg_get_functiondef(oid), '\s+', ' ', 'g'))`.
+>
+> ✅ **A paridade foi REFEITA com a sonda corrigida em 25/07**, cobrindo 10 classes de objeto —
+> e o resultado é **paridade COMPLETA**: 15 funções · 15 grants · 201 colunas · 56 constraints ·
+> 47 índices · 20 policies · 5 views · 6 enums · 2 triggers · 15 flags de RLS, todos com
+> fingerprint idêntico nos dois bancos. A única diferença é `_bkp_relatorios_gerados_f6a`,
+> que existe só em produção **de propósito** (decisão pendente do Johnny) e responde sozinha
+> pelas duas divergências brutas que a sonda acusou antes do filtro (1 tabela + 8 colunas).
+> A sonda está versionada em `docs/RUNBOOK-BANCO.md`, com o aviso do falso-positivo.
 
 A parte REAL e confirmada deste item era a exposição do `anon` — essa existia e foi fechada:
 

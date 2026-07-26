@@ -2511,3 +2511,28 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   garantia.
 - **O que do item R era REAL:** a exposição do `anon` nas sete RPCs do ensaio. Essa existia,
   foi medida, e foi fechada hoje.
+
+## 2026-07-25 · paridade ensaio × produção REFEITA com a sonda corrigida
+
+- **Contexto.** Corrigir o erro do fingerprint não é só consertar o texto: enquanto a sonda estava
+  errada, **eu não sabia de verdade se os dois bancos estavam em paridade**. Refiz a medição.
+- **Método.** Sonda normalizada (`regexp_replace(..., '\s+', ' ', 'g')`) sobre **10 classes de
+  objeto** — função (com `prosecdef`/`provolatile`), grants de função (anon/authenticated/
+  service_role), coluna (tipo, nulidade, default, tamanho), constraint, índice, policy (cmd, roles,
+  qual, with_check, permissive), view (definição + `reloptions`, que carrega o `security_invoker`),
+  enum (rótulos em ordem), trigger e flag de RLS. Um fingerprint agregado por classe, rodado nos
+  DOIS projetos e comparado.
+- **Resultado: paridade COMPLETA.** As 10 classes batem — 15 funções · 15 grants · 201 colunas ·
+  56 constraints · 47 índices · 20 policies · 5 views · 6 enums · 2 triggers · 15 flags de RLS.
+- **As duas divergências brutas tinham uma causa só, e conferida em vez de suposta.** A primeira
+  passada acusou `coluna` 209×201 e `rls_flag` 16×15. A hipótese era a backup retida — e eu a
+  TESTEI em vez de assumir (foi supor que me derrubou antes): refiltrando com
+  `table_name not like '\_%'`, os dois bancos passam a dar exatamente `201 / 6edd95a0` e
+  `15 / 2f2ace39`. `_bkp_relatorios_gerados_f6a` tem 1 tabela + 8 colunas e responde sozinha pelas
+  duas diferenças. Ela existe só em produção **de propósito**.
+- **Decisão.** A sonda vira parte do runbook (`docs/RUNBOOK-BANCO.md`), com o aviso do
+  falso-positivo de CRLF e o procedimento de drill-down (`except` por classe) para quando algo
+  divergir. Deixa de ser conhecimento de uma sessão e vira ferramenta do projeto.
+- **Consequência para o item A da dívida:** reforça o que ele já dizia — a garantia real vem da
+  SONDA e do CI, não do ledger. Agora a sonda é confiável, o que ela não era.
+- **Reversível?** Só documentação.
