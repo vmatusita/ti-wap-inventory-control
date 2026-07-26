@@ -28,6 +28,9 @@ Prioriza pela fórmula da skill: `Prioridade = (Impacto + Risco) × (6 − Esfor
 | # | Item | Categoria | Impacto | Risco | Esforço | **Prioridade** |
 |---|---|---|:-:|:-:|:-:|:-:|
 | R | **Ensaio divergente de produção — e MENOS restrito** *(novo, 25/07)* | Infra/Seg | 3 | 4 | 1 | **35** |
+| S | **`current_date` na RPC do import — metade SQL do bug de fuso do item J** *(novo, 25/07)* | Infra | 2 | 3 | 2 | **20** |
+| T | **`.xlsx` acima de 20.000 linhas truncado em SILÊNCIO no import destrutivo** *(novo, 25/07)* | Código | 3 | 3 | 1 | **30** |
+| U | **Escrita em duas etapas sem transação (termo/patrimônio/service tag)** *(novo, 25/07)* | Arq | 2 | 2 | 3 | **12** |
 | A | Ledger de produção incompatível com o repo por construção | Infra | 4 | 4 | 3 | **24** |
 | G | Tipos descartados na fronteira Supabase (`as unknown as Row`) | Código/Arq | 3 | 4 | 3 | **21** |
 | E | Componentes gigantes do import (`grupos-erros` 1173 + `wizard` 959) | Código | 4 | 3 | 3 | **21** |
@@ -99,6 +102,58 @@ corrigido com o estado medido de cada banco.
 
 **Regra que fica:** toda sonda de paridade roda nos **dois** projetos. Sondar só produção foi o que
 deixou este item passar.
+
+### T — `.xlsx` grande é truncado em silêncio antes de uma operação destrutiva `[Prio 30]` *(novo — 25/07/2026)*
+
+`lerXlsx` corta em `Math.min(ws.rowCount, MAX_LINHAS + 1)` com `MAX_LINHAS = 20_000`
+(`src/lib/import/xlsx.ts:117` e `:31`) — **sem `throw`, sem aviso, sem marca no resultado**. Pior:
+`totalLinhasDados` é contado sobre o CSV já truncado (`parse.ts`), e é esse número que vai para o
+plano e para `import_logs` — ou seja, nada a jusante denuncia o corte. O mesmo vale para a largura
+(`MAX_COLUNAS = 40`, `:106`).
+
+A guarda de tamanho não cobre: `TAMANHO_MAX_ARQUIVO` é 5 MB e `.xlsx` é ZIP — 20 mil linhas de
+inventário comprimem muito abaixo disso. E há assimetria: o caminho **CSV não tem teto nenhum**,
+então o mesmo conteúdo entra inteiro em CSV e cortado em `.xlsx`.
+
+**Negócio:** a operação seguinte é `importar_ativos_substituir`, que **apaga o acervo da filial** e
+recria a partir do plano. Truncar em silêncio não é "faltou linha na tela" — é ativo que deixa de
+existir no sistema, sem nenhum sinal. É cauda (a maior filial real tem ~1.200 linhas), daí o
+impacto 3 e não 5, mas o defeito é a trava **cortar em vez de recusar**.
+
+**Correção (1 linha):** trocar o `Math.min` por um `throw` que nomeia o número de linhas e o teto —
+o wizard já trata exceção de análise como erro de arquivo.
+
+### S — `current_date` na RPC do import: a metade SQL do bug de fuso `[Prio 20]` *(novo — 25/07/2026)*
+
+O item **J** (fechado em 24/07) corrigiu a régua "data não futura" do lado TypeScript, fazendo os
+dois lados usarem `hojeISO()` em `America/Sao_Paulo`. **A mesma régua tem um lado SQL que ficou
+para trás:** `importar_ativos_substituir` usa `v_data_import date := current_date`
+(`0048:37-38`), e a sessão do Postgres no Supabase é UTC.
+
+Esses valores viram a DATA das movimentações do import (compra de abertura e ajuste). Como
+`rel_estoque_asof` só considera existente o ativo com movimentação `m.data <= p_data`, um import
+rodado entre **21:00 e 23:59 BRT** grava os ativos sem data na planilha com a data de *amanhã* —
+e eles **somem dos relatórios as-of do próprio dia do go-live**, enquanto os que tinham data na
+planilha aparecem.
+
+**Correção:** `v_data_import date := (now() at time zone 'America/Sao_Paulo')::date;`. **Não foi
+escrita como migration de propósito** — exige `create or replace` de uma função de ~300 linhas que
+contém `delete from ativos` (bate no gate, caminho B do runbook) e que não haveria como testar
+antes de entregar. Autorar um substituto não testado da função mais destrutiva do sistema é pior
+que documentar a emenda exata.
+
+### U — Escrita em duas etapas sem transação `[Prio 12]` *(novo — 25/07/2026)*
+
+Em `actions/termos.ts:516` (e o mesmo padrão em `actions/ativos.ts`, em `corrigirPatrimonio` e
+`definirServiceTag`), o `update` no ativo **já commitou** quando o `insert` na `anotacoes` é
+avaliado; se o segundo falha, a action retorna "não foi possível" para algo que em parte deu certo,
+e a retentativa esbarra no guarda de idempotência com outra mensagem. O que se perde não é
+cosmético: o comentário do próprio arquivo explica que a autoria do ato mora em `anotacoes` porque
+`ativos` não tem coluna de autor — e `anotacoes` é imutável.
+
+**Correção definitiva:** RPC transacional, como já se faz em `criar_compra_lote` /
+`devolver_ao_fornecedor`. Paliativo barato: inverter a ordem (anotação primeiro), já que anotação
+órfã é inócua e o update é o que muda o estado visível.
 
 ### A — O ledger de produção é incompatível com o repo **por construção** `[Prio 24]`
 
