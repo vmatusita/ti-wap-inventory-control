@@ -1,15 +1,12 @@
 import { z } from 'zod'
-import { isValid, parseISO } from 'date-fns'
+import { dataRealSchema } from '@/lib/validators/data'
 import { TERMO_TIPOS } from '@/lib/termos/tipos'
 
-const DATA_RE = /^\d{4}-\d{2}-\d{2}$/
-
-// Data pura válida no calendário (o regex sozinho aceitaria '2026-02-30', que faz
-// date-fns lançar RangeError ao formatar por extenso).
-const dataValida = z
-  .string()
-  .regex(DATA_RE, 'Data inválida')
-  .refine((d) => isValid(parseISO(d)), 'Data inválida')
+// A régua de data pura vem de `@/lib/validators/data` (fonte única do projeto).
+// `dataRealSchema` = regex + `dataReal`, que faz round-trip por `dataISO` e barra
+// também a faixa insana ('0000-01-01') que o `isValid(parseISO)` daqui deixava
+// passar até o Postgres (22008). SEM regra de futuro, de propósito: `termo_data`
+// não tem teto por decisão registrada (ver o comentário de `dataOpcionalSchema`).
 
 // Todos os placeholders editáveis do dialog (§3.9: todo campo é editável). São
 // apenas TEXTO do documento — não alteram o cadastro do ativo nem a movimentação.
@@ -49,7 +46,7 @@ export const gerarTermoSchema = z.object({
   movimentacaoIds: z.array(z.string().uuid()).min(1).max(20),
   ativoIds: z.array(z.string().uuid()).min(1).max(20),
   // Data de geração/edição (yyyy-MM-dd). Alimenta as datas por extenso e termo_data.
-  data: dataValida,
+  data: dataRealSchema('Data inválida'),
   campos: camposTermoSchema,
 })
 

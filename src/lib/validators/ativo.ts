@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
-import { DATA_RE } from '@/lib/validators/data'
+import { DATA_RE, dataOpcionalSchema } from '@/lib/validators/data'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 
 // Edicao de dados CADASTRAIS do ativo (OS-F2 3.2.4). SO campos NAO derivados:
@@ -54,11 +54,11 @@ export const anotacaoSchema = z.object({
 // ---------------------------------------------------------------------------
 export const confirmarAssinaturaSchema = z.object({
   ativo_id: z.string().uuid('Ativo inválido'),
-  // Data da assinatura (pura, não-futura). Ausente = hoje (resolvido no servidor).
-  data: z
-    .string()
-    .regex(DATA_RE, 'Data inválida')
-    .optional(),
+  // Data da assinatura (pura). Ausente = hoje (resolvido no servidor). `termo_data`
+  // NÃO tem teto de futuro — decisão registrada, fixada por teste em
+  // `data.test.ts`; o comentário anterior dizia "não-futura" e induzia a erro.
+  // `dataOpcionalSchema` é exatamente esta régua (regex + data real, sem futuro).
+  data: dataOpcionalSchema,
 })
 
 export const desfazerAssinaturaSchema = z.object({

@@ -41,12 +41,20 @@ export async function listarRelatoriosGerados(
   if (filialSlug === 'geral') {
     q = q.is('filial_id', null)
   } else if (filialSlug) {
-    const { data: f } = await client
+    const { data: f, error: eFilial } = await client
       .from('filiais')
       .select('id')
       .eq('slug', filialSlug)
       .maybeSingle()
-    if (f) q = q.eq('filial_id', f.id)
+    if (eFilial)
+      throw new Error(`Falha ao resolver a filial do filtro: ${eFilial.message}`)
+    // Filtro que não pôde ser resolvido tem de devolver VAZIO, nunca o conjunto
+    // completo: antes, um slug inexistente (favorito de filial renomeada, URL
+    // digitada à mão) simplesmente pulava o `.eq()` e a tela listava os snapshots
+    // de TODAS as filiais — com o seletor mostrando só o placeholder, ou seja, sem
+    // nada que denunciasse que o filtro tinha sido ignorado.
+    if (!f) return []
+    q = q.eq('filial_id', f.id)
   }
   q = q.order('gerado_em', { ascending: false })
 
@@ -123,10 +131,15 @@ export async function buscarRelatorioGerado(
     r.filial_id === null
       ? versaoQuery.is('filial_id', null)
       : versaoQuery.eq('filial_id', r.filial_id)
-  const { data: novas } = await versaoQuery
+  const { data: novas, error: eVersao } = await versaoQuery
     .order('versao', { ascending: false })
     .limit(1)
     .maybeSingle()
+  // Falhar aqui em silêncio some com o aviso de errata e deixa no ar só o selo
+  // "dados congelados" — o leitor imprime/decide por um snapshot já superado
+  // achando que é o vigente. As duas leituras vizinhas deste arquivo propagam.
+  if (eVersao)
+    throw new Error(`Falha ao conferir versões do relatório: ${eVersao.message}`)
 
   return {
     id: r.id,

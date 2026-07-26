@@ -1,16 +1,13 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import { PENDENCIA_SEM_PATRIMONIO, type CategoriaAtivo } from '@/lib/dominio'
+import {
+  PENDENCIA_PATRIMONIO_NAO_CANONICO,
+  PENDENCIA_SEM_PATRIMONIO,
+  type CategoriaAtivo,
+} from '@/lib/dominio'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import type { DbClient } from '@/lib/auth/acesso'
 import { ROTULO_TIPO_PENDENCIA, type TipoPendencia } from '@/lib/pendencias/rotulos'
-
-// Prefixo do texto de pendência de patrimônio NÃO CANÔNICO gravado pelo go-live
-// F4 (literal completo: 'patrimônio não canônico (importado como veio da
-// planilha)'). Usamos só o PREFIXO — o filtro `.or()` do PostgREST parte a vírgula
-// como separador de condições e trata parênteses como agrupamento, então NUNCA
-// incluir a parte "(importado…)". `%prefixo%` casa o literal completo.
-const PENDENCIA_PATRIMONIO_NAO_CANONICO = 'patrimônio não canônico'
 
 // Lista detalhada de pendências para a página interna /pendencias (só operador —
 // F6A/A5). Lê a v_pendencias ESTENDIDA (0028). Roda sob o client do operador

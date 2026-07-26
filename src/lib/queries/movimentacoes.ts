@@ -706,10 +706,17 @@ export async function listarMovimentacoes(
   const ids = rows.map((r) => r.id)
   const estornadas = new Set<string>()
   if (ids.length) {
-    const { data: estornos } = await supabase
+    // O `error` desta 2ª consulta NÃO pode ser descartado: ela é a única fonte do
+    // sinal "estornada" (não existe coluna no banco), então uma falha marcaria a
+    // página INTEIRA como não-estornada e o histórico passaria a mentir — uma
+    // movimentação anulada apareceria como válida. Falhar fechado, como a consulta
+    // principal logo acima.
+    const { data: estornos, error: eEstornos } = await supabase
       .from('movimentacoes')
       .select('estorno_de')
       .in('estorno_de', ids)
+    if (eEstornos)
+      throw new Error(`Falha ao conferir estornos: ${eEstornos.message}`)
     for (const e of estornos ?? []) if (e.estorno_de) estornadas.add(e.estorno_de)
   }
 

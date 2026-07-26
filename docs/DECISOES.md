@@ -2343,3 +2343,124 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
 - **Reversível?** Nada aplicado. A 0059 traz o `create policy` de volta no cabeçalho; a 0058 exige
   exportar as 2 linhas antes (CLAUDE.md — operação destrutiva em produção), e o export fica FORA do
   repositório.
+
+## 2026-07-25 · auditoria de `src/` · 7 lentes + refutação adversarial
+
+- **Contexto.** O diagnóstico da manhã fechou banco e infraestrutura, mas apoiou a qualidade de
+  `src/` em procuração — "lint/tsc/1.448 testes/build limpos + a revisão xhigh de 24/07". 401
+  arquivos não auditados de fato. Esta rodada fechou o flanco: 7 lentes independentes (fronteira do
+  visualizador · Server Actions/authz · escopo por filial · import destrutivo · datas e fuso ·
+  fronteira cliente/servidor · erros e estados vazios), cada achado depois submetido a um refutador
+  instruído a derrubá-lo, com "na dúvida, refute".
+- **Resultado: 25 achados brutos → 16 confirmados, 8 refutados, 1 contestado.** A taxa de refutação
+  de ~1/3 é o valor do passo adversarial: entre os derrubados estavam um "bypass de layout" que
+  dependia de rota que não existe, e um "dedupe de service tag divergente do índice" que é
+  divergência DELIBERADA e documentada.
+- **Decisão sobre o contestado (datas de termo).** Dois verificadores meus se contradisseram: um
+  confirmou "falta a régua não-futura em `termo_data`", outro refutou apontando decisão registrada.
+  Fui ao código: `validators/data.ts:33` diz literalmente "Data pura opcional, **sem regra de
+  futuro** (ex.: termo_data)", e `data.test.ts` fixa que 2027 passa. **O refutador estava certo** —
+  NÃO se aplicou teto de futuro. Aplicou-se só a parte não-contestada: os validators de termo usavam
+  um `dataValida` local (regex + `isValid`) em vez da fonte única, deixando passar faixa insana
+  ('0000-01-01') até o Postgres (22008). Agora usam `dataRealSchema`/`dataOpcionalSchema`.
+- **Decisão de método: uma lente ficou sem refutação e eu a verifiquei à mão.** O agente
+  `refutar:escopo-filial-queries` morreu com erro de conexão. Em vez de descartar ou de aceitar os 6
+  achados crus, li eu mesmo cada arquivo citado e medi em produção. Todos os 6 se sustentaram — dois
+  deles com número: 1.209 dos 1.597 ativos compartilham o mesmo `updated_at`, e a fila de pendências
+  é 56 patrimônio de um total de 58.
+- **Reversível?** Cada correção é local e comentada no ponto; as de banco (0060) não foram aplicadas.
+
+## 2026-07-25 · auditoria de `src/` · a ordenação padrão de /ativos não tinha desempate
+
+- **Contexto.** `queryLista` (src/lib/queries/ativos.ts) tem três caminhos. O ramo com `?ord=` e o
+  `listarAtivosParaExport` acrescentam `.order('id')` **e cada um explica no comentário por quê** —
+  "sem uma ordem total, a página 2 repetiria/pularia linhas da página 1". O ramo DEFAULT, que é o
+  que todo operador vê ao abrir /ativos sem clicar em nada, ordenava só por `updated_at desc`.
+- **Por que não era teórico.** A RPC do import grava o acervo inteiro da filial numa transação só,
+  então `now()` é constante para todas as linhas. Medido em produção em 25/07: **1.209 dos 1.597
+  ativos (76%) compartilham o mesmo `updated_at` ao microssegundo**. Com página de 50, são ~24
+  páginas dentro de um único grupo de empate sem ordem definida — `.range()` sobre isso repete e
+  pula linhas entre requests.
+- **Decisão.** Acrescentado `.order('id', { ascending: true })` ao ramo default, idêntico ao que os
+  dois irmãos já faziam. Uma linha.
+- **Consequência para o negócio:** o operador que confere inventário pela lista podia contar a mesma
+  máquina duas vezes e não ver outra nenhuma — sem erro, sem aviso, e com o total do rodapé não
+  batendo com a soma das páginas.
+- **Reversível?** Remover o `.order('id')`.
+
+## 2026-07-25 · auditoria de `src/` · o chip "outras pendências" mentia o lote de trabalho
+
+- **Contexto.** `/pendencias` mostra chips de contagem e abas de filtro. As abas
+  (`pendencias-filtros.tsx`) e a classificação da lista (`classificarPendencia`) têm **5** baldes,
+  incluindo `patrimonio`. Os chips (`queries/relatorios/pendencias.ts`) tinham **4**, e jogavam todo
+  o resto em `outras` por subtração — enquanto o filtro "Outra" EXCLUI explicitamente os textos de
+  patrimônio.
+- **Medido em produção (25/07):** total 58 = 2 termo + 0 itens + 0 triagem + **56 patrimônio**. O
+  chip anunciava "56 outras pendências"; clicar em "Outra" devolvia **zero linhas** com "Nenhuma
+  pendência neste filtro". Descasamento de 100% no balde dominante.
+- **Decisão.** `getPendencias` ganhou o 5º balde, com o MESMO predicado de `queryPendencias`. Os
+  chips passam a bater com as abas que já existiam.
+- **Efeito colateral aceito:** o literal `PENDENCIA_PATRIMONIO_NAO_CANONICO` era const local de
+  `queries/pendencias-detalhe.ts`; subiu para `lib/dominio.ts`, ao lado da irmã
+  `PENDENCIA_SEM_PATRIMONIO`. Duas cópias do literal era exatamente o caminho para os dois lados da
+  tela discordarem de novo.
+- **Nota:** snapshots antigos não retroagem (o jsonb é estático) — só relatórios gerados a partir de
+  agora trazem o chip novo. É o comportamento já documentado da geração.
+- **Reversível?** Remover o balde e voltar a subtração para 4 termos.
+
+## 2026-07-25 · auditoria de `src/` · quatro erros engolidos que viravam afirmação falsa
+
+- **Contexto.** O projeto já tinha corrigido essa classe em outros pontos ("a falha de leitura NÃO
+  pode virar lista vazia"). A auditoria achou quatro sobreviventes, todos com o mesmo formato: o
+  `error` do PostgREST descartado no destructuring, e a ausência de dado interpretada como fato.
+- **Decisão — os quatro passam a falhar FECHADO:**
+  - `queries/ativos.ts` `patrimoniosDuplicados`: `if (error) return new Set()` virava "nenhum
+    patrimônio é duplicado" e apagava o badge de service tag do combobox — os dois ativos de mesmo
+    patrimônio ficavam visualmente IDÊNTICOS e a movimentação ia para a máquina errada. Agora lança.
+  - `queries/movimentacoes.ts`: a 2ª consulta (quais linhas foram estornadas) é a única fonte do
+    sinal — não existe coluna `estornada`. Em falha, a página inteira aparecia como não-estornada e
+    o histórico mentia. Agora lança.
+  - `queries/gerados.ts` (2 pontos): o filtro de filial falhava ABERTO — slug irresolvível pulava o
+    `.eq()` e listava os snapshots de TODAS as filiais, com o seletor mostrando só o placeholder;
+    e o erro da consulta de versão sumia com o aviso de errata, deixando no ar só o selo "dados
+    congelados" sobre um snapshot superado. Agora devolve vazio / lança.
+  - `actions/admin.ts`: o guarda "não desativar filial com ativos" falhava ABERTO — em erro o
+    PostgREST devolve `count: null`, `(null ?? 0) > 0` é falso e a desativação passava. A outra
+    metade do mesmo `Promise.all` já falhava fechado, por `throw`.
+- **Também criado:** `src/app/(app)/not-found.tsx`. Não existia `not-found.tsx` nenhum, então todo
+  `notFound()` caía na página padrão do Next — em inglês, no layout RAIZ, fora do shell, sem link de
+  volta. Pior para o visualizador por senha, que não pode sair de `/relatorios/**` e ficava em beco
+  sem saída. É a metade que faltava do par que o `error.tsx` irmão já cobria.
+- **Reversível?** Cada ponto é uma condição isolada; o `not-found.tsx` é um arquivo novo.
+
+## 2026-07-25 · auditoria de `src/` · o que NÃO foi corrigido, e por quê
+
+- **`desde` das pendências exibia um dia a menos** — `date::timestamptz` é lido no fuso da SESSÃO
+  (UTC no Supabase), então vira meia-noite UTC e o `formatDate` em America/Sao_Paulo devolve o dia
+  anterior. Medido em produção: `"2026-02-27T00:00:00+00:00"` → a tela mostra 26/02. Atinge toda
+  linha de `/pendencias`, o export CSV e a ficha. Correção escrita na **`0060`** (cast
+  `at time zone 'America/Sao_Paulo'` nas duas views, escopo estreito: só os casts de data PURA, sem
+  tocar nos `updated_at`, que são instantes reais e estão certos). **Não aplicada** — handoff.
+- **`current_date` na RPC do import** (`0048:37-38`) usa o dia UTC, enquanto o preview usa
+  `hojeISO()` em São Paulo. É o MESMO bug de fuso do item J da dívida técnica, que consertou só o
+  lado TypeScript e deixou o lado SQL. Entre 21:00 e 23:59 BRT, ativos sem data na planilha nascem
+  datados de amanhã e somem dos relatórios as-of do próprio dia do go-live. **Deliberadamente NÃO
+  escrita como migration:** exige `create or replace` de uma função de ~300 linhas que contém
+  `delete from ativos` (bate no gate, caminho B do runbook) e que eu não teria como testar antes de
+  entregar. Autorar um substituto não testado da função mais destrutiva do sistema é pior que
+  documentar com precisão. Correção pontual: `v_data_import date := (now() at time zone
+  'America/Sao_Paulo')::date;`.
+- **`.xlsx` acima de 20.000 linhas é truncado em silêncio** (`import/xlsx.ts:117`, `Math.min`) — sem
+  throw, sem aviso, e `totalLinhasDados` é contado sobre o já-truncado, então nada denuncia. Como a
+  operação seguinte apaga o acervo da filial, truncar em silêncio é ausência definitiva. Não
+  corrigido nesta rodada por ser cauda (a maior filial real tem ~1.200 linhas) e por o import estar
+  em faixa oportunística na dívida técnica — mas o certo é RECUSAR em vez de cortar.
+- **Escrita em duas etapas sem transação** (`actions/termos.ts:516` e dois pontos de
+  `actions/ativos.ts`): o update no ativo já commitou quando o insert da anotação falha, e a action
+  responde "não deu certo" para algo que em parte deu. Perde-se o registro de autoria do ato. A
+  forma definitiva é RPC transacional — fora do escopo de um diagnóstico.
+- **KPI tile do relatório ao vivo com período PASSADO aponta para o inventário de HOJE.** O
+  `kpi-links.ts` documenta exatamente esse perigo e o trata só para o snapshot congelado; o ao vivo
+  com `?de/?ate` no passado cai no mesmo caso e não foi coberto. Correção seria condicionar `links`
+  a `ate >= hojeISO()`. Baixa severidade, deixada como backlog por ser mudança de comportamento de
+  UI que merece decisão do Johnny.

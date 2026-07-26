@@ -358,6 +358,17 @@ export const OBS_IMPORT_STARTUP = 'import startup'
 // patrimônio na ficha, remove-se só ESTE trecho, preservando os demais.
 export const PENDENCIA_SEM_PATRIMONIO = 'sem patrimônio físico'
 
+// Irmã da anterior, gravada pelo go-live F4 quando o patrimônio veio fora do formato
+// canônico (literal completo: 'patrimônio não canônico (importado como veio da
+// planilha)'). É a FONTE ÚNICA do PREFIXO — e só o prefixo: o `.or()` do PostgREST
+// parte vírgula como separador de condições e trata parênteses como agrupamento,
+// então a parte "(importado…)" NUNCA entra num filtro. `%prefixo%` casa o completo.
+// Vivia como const local de `queries/pendencias-detalhe.ts`; subiu para cá quando o
+// bucket de patrimônio passou a ser contado também nos chips (`queries/relatorios/
+// pendencias.ts`) — duas cópias do literal era o caminho para os dois lados da tela
+// discordarem de novo.
+export const PENDENCIA_PATRIMONIO_NAO_CANONICO = 'patrimônio não canônico'
+
 // ---------- PENDÊNCIA DE SERVICE TAG NULA (F15 C1 — import/cadastro sem tag) ----------
 // Irmã de PENDENCIA_SEM_PATRIMONIO. Ativo IMPORTADO sem service tag nasce com
 // `ativos.pendencia` contendo ESTE trecho (o cadastro MANUAL passa a EXIGIR a tag —

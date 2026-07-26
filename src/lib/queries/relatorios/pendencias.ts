@@ -1,3 +1,7 @@
+import {
+  PENDENCIA_PATRIMONIO_NAO_CANONICO,
+  PENDENCIA_SEM_PATRIMONIO,
+} from '@/lib/dominio'
 import type { ChipPendencia } from '@/lib/relatorios/tipos'
 import type { DbClient } from './comum'
 
@@ -8,7 +12,7 @@ import type { DbClient } from './comum'
 // idênticos. Usado no AO VIVO (relatório/dashboard) e congelado na GERAÇÃO de
 // snapshot — snapshots antigos não retroagem (o jsonb é estático).
 
-type FiltroPendencia = null | 'termo' | 'itens' | 'triagem'
+type FiltroPendencia = null | 'termo' | 'itens' | 'triagem' | 'patrimonio'
 
 async function contarPendencia(
   client: DbClient,
@@ -22,6 +26,13 @@ async function contarPendencia(
   if (filtro === 'termo') query = query.eq('pendencia', 'termo pendente')
   else if (filtro === 'itens') query = query.ilike('pendencia', 'itens faltantes%')
   else if (filtro === 'triagem') query = query.eq('pendencia', 'triagem parada')
+  else if (filtro === 'patrimonio')
+    // MESMO predicado de `queryPendencias` (queries/pendencias-detalhe.ts): sem
+    // plaqueta (F7E) OU não canônico (go-live F4). Literais sem vírgula/parênteses
+    // — footgun do `.or()` do PostgREST.
+    query = query.or(
+      `pendencia.ilike.%${PENDENCIA_SEM_PATRIMONIO}%,pendencia.ilike.%${PENDENCIA_PATRIMONIO_NAO_CANONICO}%`,
+    )
   const { count, error } = await query
   if (error) throw new Error(`Falha ao contar pendências: ${error.message}`)
   return count ?? 0
@@ -31,18 +42,27 @@ export async function getPendencias(
   client: DbClient,
   filialSlug: string | null,
 ): Promise<ChipPendencia[]> {
-  const [total, termo, itens, triagem] = await Promise.all([
+  const [total, termo, itens, triagem, patrimonio] = await Promise.all([
     contarPendencia(client, filialSlug, null),
     contarPendencia(client, filialSlug, 'termo'),
     contarPendencia(client, filialSlug, 'itens'),
     contarPendencia(client, filialSlug, 'triagem'),
+    contarPendencia(client, filialSlug, 'patrimonio'),
   ])
-  const outras = Math.max(0, total - termo - itens - triagem)
+  // `patrimonio` PRECISA entrar na subtração: sem ele, a fila de patrimônio caía
+  // toda dentro de "outras" — e o filtro "Outra" da mesma tela EXCLUI esses textos
+  // (queryPendencias), então o chip prometia um lote que a aba não entregava.
+  // Medido em produção em 25/07/2026: total 58 = 2 termo + 0 itens + 0 triagem +
+  // 56 patrimônio, ou seja, o chip anunciava "56 outras" e a aba "Outra" devolvia
+  // ZERO. Os 5 baldes daqui passam a ser os mesmos 5 de `classificarPendencia` e as
+  // mesmas 5 abas de `pendencias-filtros.tsx`.
+  const outras = Math.max(0, total - termo - itens - triagem - patrimonio)
 
   const chips: ChipPendencia[] = [
     { chave: 'termo', rotulo: 'termos de responsabilidade pendentes', total: termo },
     { chave: 'itens', rotulo: 'itens faltantes de devoluções', total: itens },
     { chave: 'triagem', rotulo: 'ativos aguardando triagem', total: triagem },
+    { chave: 'patrimonio', rotulo: 'patrimônios a acertar', total: patrimonio },
     { chave: 'outras', rotulo: 'outras pendências', total: outras },
   ]
   return chips.filter((c) => c.total > 0)

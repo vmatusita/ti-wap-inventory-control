@@ -144,7 +144,15 @@ function queryLista(
       })
       .order('id', { ascending: true })
   } else {
-    query = query.order('updated_at', { ascending: false })
+    // MESMO desempate do ramo acima e de `listarAtivosParaExport`: `updated_at`
+    // não é único, e aqui os empates são a REGRA, não a exceção — a RPC do import
+    // grava o acervo inteiro da filial numa transação só, então o `now()` é
+    // constante para todas as linhas (medido em produção em 25/07/2026: 1.209 dos
+    // 1.597 ativos compartilham o mesmo `updated_at` ao microssegundo). Sem ordem
+    // total, `.range()` sobre esse bloco repete e pula linhas entre as páginas.
+    query = query
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true })
   }
   return query
 }
@@ -401,7 +409,14 @@ export async function patrimoniosDuplicados(
     .from('ativos')
     .select('patrimonio')
     .in('patrimonio', unicos)
-  if (error) return new Set()
+  // Falha de leitura NÃO pode virar "nenhum patrimônio é duplicado": esta é a
+  // única fonte de `AtivoResumo.patrimonio_duplicado`, e é essa flag que faz a UI
+  // mostrar a service tag — o desempate do par patrimônio+tag (spec §5). Sem ela,
+  // dois ativos legítimos de mesmo patrimônio aparecem IDÊNTICOS no combobox e a
+  // movimentação vai para a máquina errada. Todas as leituras irmãs deste arquivo
+  // já propagam o erro; esta era a exceção.
+  if (error)
+    throw new Error(`Falha ao verificar patrimônios duplicados: ${error.message}`)
   return patrimoniosRepetidos(
     (data ?? []).map((r) => r.patrimonio).filter((p): p is string => p !== null),
   )

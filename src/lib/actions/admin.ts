@@ -185,10 +185,20 @@ export async function atualizarFilial(input: {
   // lançamentos: uma filial com entrada 5 + saída 5 tem histórico e estoque
   // zero, e não há por que travar a desativação dela — lançamento não se apaga.
   if (!ativo) {
-    const [{ count }, saldos] = await Promise.all([
+    const [{ count, error: eContagem }, saldos] = await Promise.all([
       client.from('ativos').select('*', { count: 'exact', head: true }).eq('filial_id', id),
       getSaldosItens(id),
     ])
+    // Sem isto o guarda falha ABERTO: em erro o PostgREST devolve `count: null`,
+    // `(null ?? 0) > 0` é falso e a desativação passa como se a filial estivesse
+    // vazia. A outra metade do mesmo Promise.all (`getSaldosItens`) já falha
+    // fechado, por `throw` — aqui o canal de erro estava sendo descartado.
+    if (eContagem) {
+      return {
+        ok: false,
+        erro: traduzErroBanco(eContagem.message, eContagem.code),
+      }
+    }
     if ((count ?? 0) > 0) {
       return {
         ok: false,
