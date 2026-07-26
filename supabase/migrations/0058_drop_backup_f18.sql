@@ -1,10 +1,18 @@
 -- Migration 0058 — DROP da última tabela de backup órfã do backfill da F18
 -- (dívida técnica, item B — diagnóstico de projeto de 25/07/2026).
 --
--- ⚠ NÃO APLICADA ainda (nem no ensaio, nem em produção): o `apply_migration` do MCP foi
--- barrado pelo classificador de permissões do harness em 25/07/2026, como já havia
--- acontecido com a 0056. O arquivo fica versionado e o apply é handoff para o Johnny.
--- Ver docs/DECISOES.md, entrada de 25/07/2026.
+-- ✅ APLICADA EM 25/07/2026 (produção + ensaio, onde é no-op — a tabela nunca existiu lá).
+--
+-- Backup das 2 linhas exportado ANTES do drop, guardado FORA do repositório (CLAUDE.md
+-- regra 2 — dado real não entra no repo). E, antes de apagar, conferido que o backfill
+-- da F18 aterrissou: os 3 itens do texto livre ('Carregador' · 'Mochila' · 'mouse pad')
+-- existem como linhas em `pendencias_item`, TODAS com status 'resolvida', e o
+-- `ativos.pendencia` dos dois ativos está NULL. Ou seja: a tabela era redundante de fato,
+-- não por suposição.
+--
+-- Verificação pós-apply: `to_regclass('public._f18_backup_pendencia')` = NULL; contagens
+-- de produção intactas (1.597 ativos · 3.077 movimentações · fila 58); o advisor
+-- `rls_enabled_no_policy` caiu de 4 para 3 tabelas.
 --
 -- CONTEXTO. `_f18_backup_pendencia` nasceu de um `create table ... as select` ad-hoc no
 -- SQL Editor, durante o backfill de pendências da F18 — nunca entrou no repositório. É a

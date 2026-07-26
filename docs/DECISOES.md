@@ -2464,3 +2464,50 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   com `?de/?ate` no passado cai no mesmo caso e não foi coberto. Correção seria condicionar `links`
   a `ate >= hojeISO()`. Baixa severidade, deixada como backlog por ser mudança de comportamento de
   UI que merece decisão do Johnny.
+
+## 2026-07-25 · rollout · as 4 migrations aplicadas (o Johnny liberou a permissão)
+
+- **Contexto.** O `apply_migration` vinha sendo barrado pelo classificador do harness desde 24/07,
+  e as migrations acumulavam como handoff. O Johnny autorizou explicitamente nesta sessão.
+- **Ordem, deliberada: risco crescente, com verificação entre cada uma.** `0056` (só grants) →
+  `0060` (views, sem tocar dado) → `0059` (superfície de acesso) → `0058` (destrutiva). Cada uma
+  aplicada **no ensaio primeiro**, como manda o caminho A do `RUNBOOK-BANCO.md` — o que só voltou a
+  fazer sentido depois que a própria `0056` restaurou a paridade.
+- **`0056`** — ensaio e produção. Pós-apply nos dois: `anon`=false · `authenticated`=true ·
+  `service_role`=true nas sete RPCs de relatório.
+- **`0060`** — antes do apply, conferido que as definições das duas views eram IDÊNTICAS nos dois
+  bancos (md5 de `pg_get_viewdef` batendo), para o ensaio provar mesmo o que se queria. Pós-apply em
+  produção: `desde` passou de `2026-02-27T00:00:00+00` para `T03:00:00+00` — a tela mostra 27/02 no
+  lugar de 26/02. Fila inalterada em 58, `security_invoker` preservado.
+- **`0059`** — a guarda foi conferida ANTES nos dois bancos (as 6 tabelas têm mesmo a policy
+  `operador escreve` FOR ALL). Pós-apply, a prova que importa não é `pg_policies` e sim leitura de
+  operador de verdade: `smoke-prod.mjs --exigir-f12` deu **86 OK · 1 aviso · 0 falha**, com 1.597
+  ativos, catálogo, termos e as duas views de pendência legíveis. Os advisors `auth_rls_initplan` e
+  `multiple_permissive_policies` sumiram.
+- **`0058`** (destrutiva) — backup das 2 linhas exportado para fora do repositório ANTES, e
+  conferido que o backfill da F18 aterrissou: os 3 itens do texto livre existem em
+  `pendencias_item`, todos `resolvida`, com `ativos.pendencia` nulo. Só então o DROP. Pós-apply:
+  `to_regclass` = NULL, contagens intactas (1.597 · 3.077 · 58), advisor `rls_enabled_no_policy` de
+  4 para 3 tabelas. `_bkp_relatorios_gerados_f6a` mantida de propósito (decisão pendente do Johnny).
+- **Reversível?** `0056`/`0059` por `create policy`/`grant` (SQL no cabeçalho de cada uma);
+  `0060` reaplicando a 0057 e a 0049; `0058` recriando a tabela a partir do export no scratchpad.
+
+## 2026-07-25 · CORREÇÃO · metade do item R era falso alarme (CRLF vs LF)
+
+- **O que eu afirmei e estava errado.** Nas entradas de hoje e no commit `f3b394c` escrevi que
+  `criar_compra_lote` tinha "corpo DIFERENTE" nos dois bancos e que a `0055`/`0040` "não chegaram ao
+  ensaio". **Falso.** Medido depois do rollout: os dois têm `anon`=false, `service_role`=false e
+  `auth.uid()` no corpo — a substância das duas migrations está nos DOIS bancos.
+- **Causa do erro.** Comparei `md5(pg_get_functiondef(oid))` CRU. Produção guarda o corpo com
+  **CRLF** e o ensaio com **LF** (1.664 vs 1.617 bytes — exatamente os 47 `\r`), o que muda o hash
+  sem mudar uma vírgula do código. Normalizando o espaço em branco
+  (`regexp_replace(..., '\s+', ' ', 'g')`), o fingerprint é **idêntico**: `56358b49…` nos dois.
+- **Por que o erro passou.** Eu tratei fingerprint como prova e não abri a diferença. A lição não é
+  "conferir mais" — é que **`md5` cru de `pg_get_functiondef` não serve como sonda de paridade entre
+  ambientes**: ele tem um modo de falso-positivo que depende de COMO o SQL foi aplicado (SQL Editor
+  no Windows vs MCP), não do que o SQL faz.
+- **Decisão.** A sonda de paridade do projeto passa a ser a **normalizada**. E fica o registro de
+  que a paridade declarada pela F19 usou a forma crua — merece ser refeita antes de ser citada como
+  garantia.
+- **O que do item R era REAL:** a exposição do `anon` nas sete RPCs do ensaio. Essa existia,
+  foi medida, e foi fechada hoje.

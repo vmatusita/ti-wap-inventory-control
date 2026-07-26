@@ -19,7 +19,17 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
-## 25/07/2026 — Diagnóstico de projeto: o ensaio estava menos restrito que produção 🚧
+## 25/07/2026 — Rollout: as 4 migrations aplicadas nos dois bancos 🔒
+
+- 🗄️ **`0056` · `0058` · `0059` · `0060` aplicadas** (o Johnny liberou a permissão que o classificador do harness vinha barrando). Ordem deliberada de **risco crescente**, com verificação entre cada uma, e **cada uma no ensaio antes de produção** — caminho A do runbook, que só voltou a fazer sentido depois que a própria `0056` restaurou a paridade.
+- ✅ **`0056`** — `anon` sem EXECUTE nas sete RPCs de relatório nos dois bancos. **`0060`** — `desde` das pendências passou de `T00:00:00+00` para `T03:00:00+00`: a tela mostra **27/02 no lugar de 26/02**, corrigindo o dia a menos em toda a fila. **`0059`** — advisors `auth_rls_initplan` e `multiple_permissive_policies` sumiram. **`0058`** — backup órfã da F18 removida, com export prévio fora do repo e prova de que o backfill aterrissou (os 3 itens existem em `pendencias_item`, todos resolvidos).
+- 🔍 **A prova da `0059` não foi `pg_policies`, foi leitura de operador de verdade:** `smoke-prod.mjs --exigir-f12` contra produção deu **86 OK · 1 aviso · 0 falha**, com 1.597 ativos, catálogo, termos e as duas views de pendência legíveis depois de derrubar as policies de SELECT. Contagens de produção intactas (1.597 · 3.077 · fila 58).
+- ⚠️ **CORREÇÃO de um achado do próprio diagnóstico da manhã.** Eu havia afirmado que `criar_compra_lote` tinha corpo diferente nos dois bancos e que a `0055`/`0040` não tinham chegado ao ensaio. **Era falso alarme:** os dois têm `anon`=false, `service_role`=false e `auth.uid()`. O `md5(pg_get_functiondef())` diferia por **fim de linha** — produção CRLF, ensaio LF (1.664 vs 1.617 bytes, exatamente os 47 `\r`). Normalizado, o fingerprint é idêntico nos dois. **A lição vale mais que o achado:** `md5` cru de `pg_get_functiondef` não serve como sonda de paridade entre ambientes; a sonda do projeto passa a normalizar o espaço em branco. A paridade declarada pela F19 usou a forma crua e merece ser refeita.
+- **A parte REAL do achado — a exposição do `anon` no ensaio — existia, foi medida e está fechada.**
+
+---
+
+## 25/07/2026 — Diagnóstico de projeto: o ensaio estava menos restrito que produção 🔒
 
 - 🔎 **Diagnóstico do projeto inteiro** (fora de fase, a pedido do Johnny). As verificações de sempre já estavam limpas — `lint`, `tsc --noEmit`, **1.448 testes** e `build` — então a varredura foi para onde a dívida técnica de 24/07 não olhou: os **dois** projetos Supabase, os advisors e o erro de runtime da Vercel.
 - ⚠️ **Achado principal — a paridade ensaio×produção não existe mais.** A `0056` (revoke de `anon` nas sete RPCs `rel_*`) está aplicada em **produção** e **não** no **ensaio**, onde as sete continuam executáveis por `anon`; e `criar_compra_lote` tem **corpo diferente** nos dois bancos (a `0055`/`0040` não chegaram ao ensaio). O cabeçalho da própria `0056` afirmava "não aplicada nem no ensaio nem em produção" — a metade sobre produção era falsa, e foi corrigida com o estado medido de cada banco. Isso **inverte a premissa do `RUNBOOK-BANCO.md`**: o caminho de validação é ensaio → produção, e hoje o ensaio é o banco *menos* restrito. Risco direto baixo (RPCs `SECURITY INVOKER`, RLS não concede nada a `anon`), risco de processo alto.

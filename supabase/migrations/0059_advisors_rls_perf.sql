@@ -1,8 +1,18 @@
 -- Migration 0059 — dois achados de PERFORMANCE do advisor, ambos sem mudança de
 -- comportamento (diagnóstico de projeto de 25/07/2026).
 --
--- ⚠ NÃO APLICADA ainda (nem no ensaio, nem em produção): `apply_migration` barrado pelo
--- classificador do harness em 25/07/2026. Versionada, apply é handoff. Ver docs/DECISOES.md.
+-- ✅ APLICADA EM 25/07/2026 — ensaio primeiro, produção depois (caminho A do runbook).
+--
+-- Guarda conferida ANTES do apply, nos DOIS bancos: as 6 tabelas têm mesmo a policy
+-- "operador escreve" FOR ALL to authenticated com `qual` e `with_check` verdadeiros —
+-- sem isso, derrubar a de SELECT cegaria o app.
+--
+-- Verificação pós-apply: as 6 ficaram só com a FOR ALL; a policy de `profiles` passou a
+-- `(id = ( SELECT auth.uid() AS uid))`; os advisors `auth_rls_initplan` e
+-- `multiple_permissive_policies` SUMIRAM. E a prova que importa, com leitura de operador
+-- de verdade: `scripts/smoke/smoke-prod.mjs --exigir-f12` contra produção deu
+-- **86 OK · 1 aviso · 0 falha** — 1.597 ativos, catálogo de itens, termos e as duas views
+-- de pendência todos legíveis depois do drop.
 --
 -- NENHUM dos dois blocos muda QUEM enxerga O QUÊ. O modelo de acesso da spec §3 (nível
 -- único de operador, RLS "sempre true" — item M da dívida técnica) fica EXATAMENTE como

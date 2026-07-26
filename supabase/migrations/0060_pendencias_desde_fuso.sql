@@ -1,9 +1,19 @@
 -- Migration 0060 — `desde` das pendências: cast no FUSO DO NEGÓCIO, não no da sessão
 -- (auditoria de src/ de 25/07/2026, lente de datas/fuso).
 --
--- ⚠ NÃO APLICADA ainda (nem no ensaio, nem em produção): `apply_migration` barrado pelo
--- classificador do harness em 25/07/2026, como a 0056/0058/0059. Versionada, apply é
--- handoff. Ver docs/DECISOES.md, entrada de 25/07/2026.
+-- ✅ APLICADA EM 25/07/2026 — ensaio primeiro, produção depois (caminho A do runbook).
+--
+-- Conferido ANTES do apply que as definições das duas views eram IDÊNTICAS nos dois
+-- bancos (md5 de `pg_get_viewdef` batendo), então o ensaio provava mesmo o que se
+-- queria provar.
+--
+-- Verificação pós-apply:
+--   · ensaio  — `desde` passou de "…T00:00:00+00:00" para "2026-02-11T03:00:00+00:00";
+--     fila inalterada em 127.
+--   · produção — `desde` passou de "2026-02-27T00:00:00+00:00" para
+--     "2026-02-27T03:00:00+00:00" (03:00Z = meia-noite em São Paulo), ou seja a tela
+--     passa a exibir 27/02 no lugar de 26/02; fila inalterada em 58; `security_invoker`
+--     preservado nas duas views. Smoke de produção: 86 OK · 0 falha.
 --
 -- ACHADO. Uma DATA PURA convertida para timestamptz é interpretada no fuso da SESSÃO.
 -- A sessão do Postgres no Supabase é UTC (medido: `current_setting('TimeZone')` = 'UTC',

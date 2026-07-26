@@ -1,24 +1,23 @@
 -- Migration 0056 — RPCs de RELATÓRIO: revoke de `anon` (revisão de projeto, 24/07/2026).
 --
--- ⚠ ESTADO REAL, MEDIDO EM 25/07/2026 (o aviso original desta migration dizia "não
--- aplicada nem no ensaio nem em produção" — a segunda metade é FALSA e por isso foi
--- corrigida aqui):
+-- ✅ APLICADA EM 25/07/2026 NOS DOIS BANCOS (o Johnny liberou a permissão que o
+-- classificador do harness vinha barrando desde 24/07).
 --
---   · PRODUÇÃO (pbtjcalbmepmrqzprusb) — JÁ APLICADA. has_function_privilege('anon', …)
---     = false nas SETE RPCs. A dívida técnica de 24/07 mediu o mesmo. O efeito está no
---     banco, mas NÃO há linha no ledger (é o item A: o histórico não reflete o repo).
---   · ENSAIO (sgmvldiizsrjbxzzpmhh) — **NÃO APLICADA**. As sete seguem com
---     EXECUTE para `anon`. É a exposição que resta, e ela inverte a premissa do
---     runbook: o caminho de validação é ensaio → produção, então hoje o ensaio é
---     MENOS restrito que produção e um teste feito nele não prova o que prova em prod.
+-- Histórico do achado, que vale registrar porque quase passou batido: o aviso original
+-- desta migration dizia "não aplicada nem no ensaio nem em produção". A medição de
+-- 25/07 mostrou que a segunda metade era FALSA e, pior, que o desvio real estava do
+-- outro lado:
+--   · PRODUÇÃO (pbtjcalbmepmrqzprusb) — o efeito JÁ estava lá (aplicado por fora, sem
+--     linha no ledger — é o item A da dívida). O apply de 25/07 foi idempotente e serviu
+--     para o histórico passar a refletir a migration.
+--   · ENSAIO (sgmvldiizsrjbxzzpmhh) — era o banco EXPOSTO: as sete RPCs seguiam com
+--     EXECUTE para `anon`. Isso invertia a premissa do runbook (o caminho de validação é
+--     ensaio → produção), então o ensaio era MENOS restrito que produção e um teste feito
+--     nele não provava o que prova em prod.
 --
--- Ou seja: quem for aplicar, aplique NO ENSAIO. Em produção o apply é idempotente
--- (revoke do que já está revogado) e serve só para fechar a diferença.
---
--- O `apply_migration` foi barrado pelo classificador de permissões do harness na revisão
--- de 24/07 e DE NOVO no diagnóstico de 25/07; o arquivo fica versionado e o apply é
--- handoff para o Johnny (caminho A do docs/RUNBOOK-BANCO.md). Ver docs/DECISOES.md,
--- entradas de 24/07/2026 "Revisão de código do projeto inteiro" e 25/07/2026.
+-- Verificação pós-apply nos dois (25/07): anon=false · authenticated=true ·
+-- service_role=true nas SETE. Ver docs/DECISOES.md, entradas de 24/07 "Revisão de código
+-- do projeto inteiro" e 25/07 (diagnóstico + rollout).
 --
 -- Achado: a 0055 corrigiu `criar_compra_lote`, mas a MESMA causa-raiz continua nas sete
 -- RPCs de leitura de relatório. Todas fazem apenas

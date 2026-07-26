@@ -27,14 +27,13 @@ Prioriza pela fórmula da skill: `Prioridade = (Impacto + Risco) × (6 − Esfor
 
 | # | Item | Categoria | Impacto | Risco | Esforço | **Prioridade** |
 |---|---|---|:-:|:-:|:-:|:-:|
-| R | **Ensaio divergente de produção — e MENOS restrito** *(novo, 25/07)* | Infra/Seg | 3 | 4 | 1 | **35** |
 | S | **`current_date` na RPC do import — metade SQL do bug de fuso do item J** *(novo, 25/07)* | Infra | 2 | 3 | 2 | **20** |
 | T | **`.xlsx` acima de 20.000 linhas truncado em SILÊNCIO no import destrutivo** *(novo, 25/07)* | Código | 3 | 3 | 1 | **30** |
 | U | **Escrita em duas etapas sem transação (termo/patrimônio/service tag)** *(novo, 25/07)* | Arq | 2 | 2 | 3 | **12** |
 | A | Ledger de produção incompatível com o repo por construção | Infra | 4 | 4 | 3 | **24** |
 | G | Tipos descartados na fronteira Supabase (`as unknown as Row`) | Código/Arq | 3 | 4 | 3 | **21** |
 | E | Componentes gigantes do import (`grupos-erros` 1173 + `wizard` 959) | Código | 4 | 3 | 3 | **21** |
-| B | Backups órfãos restantes (2 tabelas, dado real) | Infra/Seg | 2 | 3 | 1 | **25** |
+| B | Backups órfãos — resta **1**, retida por decisão pendente do Johnny | Infra/Seg | 1 | 2 | 1 | **15** |
 | N | `p_contagens` opcional na RPC destrutiva (TOCTOU burlável) | Infra/Seg | 1 | 3 | 2 | **16** |
 | I | Enum-fantasma `'outro'` carregado por `Exclude<…>` em ~5 lugares | Código | 2 | 2 | 2 | **16** |
 | K | Forms centrais com `useState` manual vs. `react-hook-form` | Código | 2 | 2 | 3 | **12** |
@@ -74,17 +73,39 @@ Duas frentes:
 
 ## Detalhamento dos itens em aberto
 
-### R — O ensaio divergiu de produção, e para o lado errado `[Prio 35]` *(novo — 25/07/2026)*
+### R — O ensaio divergiu de produção, e para o lado errado ✅ *(aberto e FECHADO em 25/07/2026)*
+
+> **Fechado no mesmo dia.** A `0056` foi aplicada no ensaio (e, idempotente, em produção) na
+> tarde de 25/07, com o Johnny liberando a permissão que o classificador vinha barrando.
+> Pós-apply nos dois bancos: `anon`=false · `authenticated`=true · `service_role`=true nas sete
+> RPCs.
+>
+> ⚠ **CORREÇÃO — metade deste achado era FALSO ALARME.** A tabela abaixo dava
+> `criar_compra_lote` como tendo "corpo diferente" nos dois bancos, e daí se concluiu que a
+> `0055`/`0040` não teriam chegado ao ensaio. **Não é verdade.** Medido em 25/07 depois do
+> rollout: os dois bancos têm `anon`=false, `service_role`=false e `auth.uid()` no corpo — a
+> substância das duas migrations está nos DOIS. O `md5(pg_get_functiondef(...))` diferia por
+> **fim de linha**: produção CRLF, ensaio LF (1.664 vs 1.617 bytes = exatamente os 47 `\r`).
+> Normalizando o espaço em branco, o fingerprint é **idêntico**: `56358b49…` nos dois.
+>
+> **Lição de método, que vale mais que o achado:** `md5(pg_get_functiondef())` **não** é
+> fingerprint de paridade confiável entre ambientes — ele tem um modo de falso-positivo que
+> depende de COMO o SQL foi aplicado (SQL Editor no Windows vs MCP). A sonda de paridade
+> tem de normalizar: `md5(regexp_replace(pg_get_functiondef(oid), '\s+', ' ', 'g'))`. A F19
+> usou a forma crua, então a paridade que ela declarou merece ser refeita com a normalizada.
+
+A parte REAL e confirmada deste item era a exposição do `anon` — essa existia e foi fechada:
 
 A auditoria de 24/07 sondou **só produção** e concluiu "advisors sem surpresa". O diagnóstico de
 25/07 sondou **os dois** projetos e achou o que faltava — o desvio não está em produção, está no
 **ensaio** (`sgmvldiizsrjbxzzpmhh`):
 
-| Objeto | Produção | Ensaio |
-|---|---|---|
-| 7 RPCs `rel_*` — `has_function_privilege('anon', …, 'execute')` | `false` (0056 aplicada) | **`true`** (0056 ausente) |
-| `criar_compra_lote` — `md5(pg_get_functiondef(…))` | `956e40…` | **`ea605a…`** (0055/0040 ausentes) |
-| As outras 14 funções | — | idênticas |
+| Objeto | Produção | Ensaio | Veredito |
+|---|---|---|---|
+| 7 RPCs `rel_*` — `has_function_privilege('anon', …, 'execute')` | `false` (0056 aplicada) | **`true`** (0056 ausente) | **REAL** — fechado em 25/07 |
+| `criar_compra_lote` — `md5` CRU de `pg_get_functiondef` | `956e40…` | `ea605a…` | **FALSO ALARME** — só CRLF vs LF |
+| `criar_compra_lote` — `md5` NORMALIZADO (`\s+` → ` `) | `56358b49…` | `56358b49…` | idênticos |
+| As outras 14 funções | — | idênticas | — |
 
 **O risco direto é baixo e vale dizer por quê:** as sete RPCs são `SECURITY INVOKER`, então um `anon`
 que as chamasse leria as tabelas *como* `anon`, e a RLS (que não concede nada a `anon`) devolveria
