@@ -49,6 +49,23 @@ jobs:
   banco:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # TELEMETRIA DESLIGADA (25/07/2026). O job quebrou com o `supabase init` saindo 1
+    # DEPOIS de ter feito o trabalho:
+    #     Finished supabase init.
+    #     Timeout while shutting down PostHog. Some events may not have been sent.
+    #     Error: Process completed with exit code 1
+    # Ou seja: o init deu certo e o CLI ainda assim retornou erro, porque o envio de
+    # telemetria ao PostHog não conseguiu fechar a tempo no runner. Com `bash -e`, o
+    # exit 1 derruba o passo — um CI que quebra por rede de terceiro, não por defeito
+    # do repositório (mesma classe do rate limit que fixou a versão do CLI acima).
+    #
+    # As duas variáveis são as documentadas pelo Supabase (guides/local-development/
+    # cli/getting-started §Telemetry): a específica e a convenção ampla `DO_NOT_TRACK`.
+    # Com elas o CLI nem tenta falar com o PostHog, então não há flush para estourar.
+    # Vale para TODOS os passos do job (init, start, stop) por estar no nível do job.
+    env:
+      SUPABASE_TELEMETRY_DISABLED: 1
+      DO_NOT_TRACK: 1
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
