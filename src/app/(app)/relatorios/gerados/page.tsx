@@ -67,13 +67,36 @@ export default async function RelatoriosGeradosPage({
         </div>
       </div>
 
+      {/* Vazio COM filtro ≠ vazio sem filtro. `listarRelatoriosGerados` devolve []
+          quando o slug do `?filial=` não resolve (favorito de filial renomeada, URL
+          digitada) — e afirmar "Nenhum relatório gerado ainda" nesse caso diz que o
+          arquivo semanal INTEIRO está vazio quando ele tem dezenas de snapshots. Era
+          a mesma queixa do filtro ignorado, do outro lado: nada denunciava o filtro.
+          Vale também para o filtro legítimo que simplesmente não tem snapshot. */}
       {gerados.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-16 text-center">
           <FileClock className="size-8 text-muted-foreground" />
-          <p className="font-medium">Nenhum relatório gerado ainda</p>
-          <p className="text-sm text-muted-foreground">
-            Gere o relatório da semana na página ao vivo — ele fica arquivado aqui.
-          </p>
+          {filialFiltro ? (
+            <>
+              <p className="font-medium">Nenhum relatório para este filtro</p>
+              <p className="max-w-md text-sm text-muted-foreground">
+                Não há snapshot arquivado para{' '}
+                <span className="font-medium">{filialFiltro}</span>. Pode ser um
+                filtro antigo, ou uma filial que mudou de endereço — o arquivo das
+                outras filiais continua aqui.
+              </p>
+              <Button asChild variant="outline" size="sm" className="mt-1">
+                <Link href="/relatorios/gerados">Ver todas as filiais</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="font-medium">Nenhum relatório gerado ainda</p>
+              <p className="text-sm text-muted-foreground">
+                Gere o relatório da semana na página ao vivo — ele fica arquivado aqui.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border">

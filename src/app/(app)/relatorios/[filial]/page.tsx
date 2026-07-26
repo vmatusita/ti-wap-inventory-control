@@ -31,6 +31,15 @@ import { LinkAjuda } from '@/components/layout/link-ajuda'
 // sobre o pior caso medido e troca o pendurado por um erro rápido.
 // NÃO se aplica globalmente de propósito: o "Substituir tudo" (admin/importar) é uma
 // Server Action legitimamente longa e um teto curto o quebraria.
+//
+// VALE TAMBÉM PARA AS SERVER ACTIONS DESTA PÁGINA — a doc do Next é literal
+// (node_modules/next/dist/docs/.../route-segment-config/maxDuration.md: "set the
+// maxDuration at the page level to change the default timeout of all Server Actions
+// used on the page"). Aqui isso significa `gerarRelatorio`, do GerarRelatorioDialog
+// abaixo. O orçamento cobre: a action roda o MESMO `getSnapshotRelatorioV2` que esta
+// página monta no render, mais um insert de jsonb — não é um caminho novo, é o mesmo
+// mais uma escrita. Quem for mexer no número mexe nos dois: o pior desfecho de baixar
+// demais não é um spinner, é o snapshot da semana morrendo no meio.
 export const maxDuration = 60
 
 type SearchParams = { [key: string]: string | string[] | undefined }

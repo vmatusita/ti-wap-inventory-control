@@ -42,10 +42,12 @@ jobs:
   # Dívida técnica (item C): rede de teste do BANCO. Antes o CI só validava
   # TypeScript — as migrations, a máquina de estados (trigger) e os saldos de
   # itens não tinham nenhuma verificação automática. Este job sobe um Postgres
-  # REAL pelo Supabase CLI, aplica TODAS as migrations em ordem (0001→0040 —
-  # prova que aplicam limpo, inclusive as recriações de RPC que só rodavam à mão
-  # em produção) e roda os roteiros de teste SQL de comportamento, falhando o CI
-  # quando algum cenário marca ✗.
+  # REAL pelo Supabase CLI, aplica TODAS as migrations de supabase/migrations/ em
+  # ordem — a pasta INTEIRA, sem recorte, seja qual for a última (prova que aplicam
+  # limpo, inclusive as recriações de RPC que só rodavam à mão em produção) — e roda
+  # os roteiros de teste SQL de comportamento, falhando o CI quando algum cenário
+  # marca ✗. (Aqui havia "0001→0040" escrito à mão; a faixa envelheceu no primeiro
+  # lote de migrations novas e sugeria um recorte que nunca existiu.)
   banco:
     runs-on: ubuntu-latest
     timeout-minutes: 15

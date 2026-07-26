@@ -78,6 +78,13 @@ describe('índice de busca da documentação', () => {
       ['inventario', 'comece-aqui'],
       ['sem service tag', 'resolver-pendencias'],
       ['faltando', 'resolver-pendencias'],
+      // Reintegradas em 25/07/2026: viviam no describe da paleta, que foi fundido
+      // neste, e saíram sem substituto. São as consultas de UMA palavra que o
+      // operador mais digita — a rede tem de continuar aqui agora que a chave
+      // deixou de ser o corpo do texto e passou a depender de `termos` curados.
+      ['pendencia', 'resolver-pendencias'],
+      ['kit', 'kits-de-movimentacao'],
+      ['csv', 'lista-de-ativos'],
     ] as const) {
       expect(acha(consulta), `busca "${consulta}"`).toContain(slug)
     }

@@ -1,13 +1,17 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import {
-  PENDENCIA_PATRIMONIO_NAO_CANONICO,
-  PENDENCIA_SEM_PATRIMONIO,
-  type CategoriaAtivo,
-} from '@/lib/dominio'
+import { type CategoriaAtivo } from '@/lib/dominio'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import type { DbClient } from '@/lib/auth/acesso'
 import { ROTULO_TIPO_PENDENCIA, type TipoPendencia } from '@/lib/pendencias/rotulos'
+import {
+  ILIKE_ITENS_FALTANTES,
+  OR_PATRIMONIO,
+  PREFIXO_ITENS_FALTANTES,
+  TEXTOS_PATRIMONIO,
+  TEXTO_TERMO_PENDENTE,
+  TEXTO_TRIAGEM_PARADA,
+} from '@/lib/pendencias/filtro'
 
 // Lista detalhada de pendências para a página interna /pendencias (só operador —
 // F6A/A5). Lê a v_pendencias ESTENDIDA (0028). Roda sob o client do operador
@@ -65,17 +69,17 @@ export type FiltrosPendencias = {
 // (importados sem plaqueta) OU 'patrimônio não canônico' (os 61 do go-live F4). A
 // pendência é `;`-joinable, então usamos `includes` (não igualdade) — coerente com
 // o filtro SQL de `listarPendencias` (ilike %...%). Precede o fallback 'outras'.
+//
+// Os textos vêm de `@/lib/pendencias/filtro` — o MESMO módulo de onde saem os
+// predicados PostgREST de `queryPendencias` e de `contarPendencia` (os chips). Esta
+// função é a leitura em TypeScript da mesma regra; escrever os literais aqui de novo
+// era o caminho para o badge da linha e a aba discordarem.
 export function classificarPendencia(pendencia: string | null): TipoPendencia {
-  if (pendencia === 'termo pendente') return 'termo'
-  if (pendencia === 'triagem parada') return 'triagem'
+  if (pendencia === TEXTO_TERMO_PENDENTE) return 'termo'
+  if (pendencia === TEXTO_TRIAGEM_PARADA) return 'triagem'
   const p = pendencia?.toLowerCase() ?? ''
-  if (p.startsWith('itens faltantes')) return 'itens'
-  if (
-    p.includes(PENDENCIA_SEM_PATRIMONIO.toLowerCase()) ||
-    p.includes(PENDENCIA_PATRIMONIO_NAO_CANONICO.toLowerCase())
-  ) {
-    return 'patrimonio'
-  }
+  if (p.startsWith(PREFIXO_ITENS_FALTANTES)) return 'itens'
+  if (TEXTOS_PATRIMONIO.some((t) => p.includes(t.toLowerCase()))) return 'patrimonio'
   return 'outras'
 }
 
@@ -158,22 +162,21 @@ function queryPendencias(client: DbClient, opts: FiltrosPendencias, head = false
 
   if (opts.filialSlug) query = query.eq('filial', opts.filialSlug)
 
-  if (opts.tipo === 'termo') query = query.eq('pendencia', 'termo pendente')
-  else if (opts.tipo === 'triagem') query = query.eq('pendencia', 'triagem parada')
-  else if (opts.tipo === 'itens') query = query.ilike('pendencia', 'itens faltantes%')
-  else if (opts.tipo === 'patrimonio')
-    // Sem plaqueta (F7E) OU não canônico (go-live F4). Literais SEM vírgula/parênteses
-    // (footgun do `.or()` do PostgREST) — só os prefixos.
-    query = query.or(
-      `pendencia.ilike.%${PENDENCIA_SEM_PATRIMONIO}%,pendencia.ilike.%${PENDENCIA_PATRIMONIO_NAO_CANONICO}%`,
-    )
-  else if (opts.tipo === 'outras')
+  // Predicados de `@/lib/pendencias/filtro` (fonte única — os chips do relatório usam
+  // os MESMOS). 'outras' é a negação dos quatro, na mesma ordem.
+  if (opts.tipo === 'termo') query = query.eq('pendencia', TEXTO_TERMO_PENDENTE)
+  else if (opts.tipo === 'triagem') query = query.eq('pendencia', TEXTO_TRIAGEM_PARADA)
+  else if (opts.tipo === 'itens') query = query.ilike('pendencia', ILIKE_ITENS_FALTANTES)
+  else if (opts.tipo === 'patrimonio') query = query.or(OR_PATRIMONIO)
+  else if (opts.tipo === 'outras') {
     query = query
-      .not('pendencia', 'eq', 'termo pendente')
-      .not('pendencia', 'eq', 'triagem parada')
-      .not('pendencia', 'ilike', 'itens faltantes%')
-      .not('pendencia', 'ilike', `%${PENDENCIA_SEM_PATRIMONIO}%`)
-      .not('pendencia', 'ilike', `%${PENDENCIA_PATRIMONIO_NAO_CANONICO}%`)
+      .not('pendencia', 'eq', TEXTO_TERMO_PENDENTE)
+      .not('pendencia', 'eq', TEXTO_TRIAGEM_PARADA)
+      .not('pendencia', 'ilike', ILIKE_ITENS_FALTANTES)
+    for (const texto of TEXTOS_PATRIMONIO) {
+      query = query.not('pendencia', 'ilike', `%${texto}%`)
+    }
+  }
 
   const termo = opts.q?.trim()
   if (termo) {

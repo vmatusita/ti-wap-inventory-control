@@ -2536,3 +2536,79 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
 - **Consequência para o item A da dívida:** reforça o que ele já dizia — a garantia real vem da
   SONDA e do CI, não do ledger. Agora a sonda é confiável, o que ela não era.
 - **Reversível?** Só documentação.
+
+## 2026-07-25 · revisão dos 8 commits de hoje · 10 achados, 9 corrigidos
+
+- **Contexto.** Revisão de recall (10 lentes) sobre `HEAD~8...HEAD` — os 8 commits de 25/07: o
+  redimensionamento da chave de busca da /ajuda, as 8 correções da auditoria de `src/`, as 4
+  migrations, o teto de execução do relatório e os dois consertos de CI. Alvo: o que os próprios
+  commits deixaram pela metade.
+- **Achado 1 (o mais concreto): o `(app)/not-found.tsx` novo NÃO cobria URL digitada errado.** O
+  cabeçalho dele diz ter fechado o sintoma "página padrão do Next, em inglês, fora do shell". Cobriu
+  metade: pelo contrato do Next (doc do próprio pacote,
+  `.../file-conventions/not-found.md`), um `not-found.tsx` de grupo atende `notFound()` chamado ali
+  dentro, e **só o `app/not-found.tsx` da RAIZ atende URL que não casa com rota nenhuma**. A prova
+  estava no `next build`: `/_not-found` saía **STATIC**, o que não pode ser o do grupo (esse é
+  dinâmico, porque `(app)/layout.tsx` usa `headers()`). Criado `src/app/not-found.tsx`; reconferido
+  no build — o `_not-found` prerenderizado passou a conter "Não encontramos esta página" e **zero**
+  ocorrência do texto em inglês. Sem shell ali, e não por esquecimento: a raiz não tem sessão
+  resolvida, então o que o arquivo pode dar é português e um caminho de volta.
+- **Achado 2: o `return []` dos relatórios gerados trocou uma mentira por outra.** O commit
+  consertou o vazamento (slug inválido listava TODAS as filiais), mas a tela então afirma "Nenhum
+  relatório gerado ainda / Gere o relatório da semana" — ou seja, diz que o arquivo semanal inteiro
+  está vazio quando ele tem dezenas de snapshots. E continuava valendo a queixa original do
+  comentário: nada denunciava o filtro. **A camada de dados estava certa** (vazio é a resposta
+  verdadeira para um filtro que não resolve); o defeito era a tela. Estado vazio virou
+  filtro-consciente, com "Ver todas as filiais". Não usei `notFound()` de propósito: `listarFiliais`
+  filtra `ativo = true`, então desativar uma filial passaria a 404 o arquivo dela, que existe e é
+  legítimo.
+- **Achado 3: a consolidação da régua de data pulou o irmão no mesmo arquivo.**
+  `confirmarAssinaturaSchema.data` ganhou `dataOpcionalSchema` (regex + `dataReal`), e
+  `editarAtivoSchema.termo_data` — **mesmo arquivo, MESMA coluna `ativos.termo_data`** — ficou com
+  regex puro. `2026-02-30` e `0000-01-01` passavam e só o Postgres reclamava (22008), que na tela é
+  o genérico "Não foi possível concluir a operação" em vez de erro no campo. Passou a
+  `dataRealSchema('Data inválida').nullable()`.
+- **Achado 4 + 5 (o mesmo defeito, dois sintomas): o chip de patrimônio foi consertado por CÓPIA.**
+  A correção restaurou a concordância copiando o predicado de patrimônio para um quarto lugar. Os 5
+  baldes viviam definidos em três: SQL em `contarPendencia`, SQL em `queryPendencias`, TypeScript em
+  `classificarPendencia` — e foi justamente dois deles discordarem que produziu o chip anunciando
+  "56 outras" para uma aba que devolvia ZERO.
+  - **Decisão: os predicados ganham dono.** Novo `src/lib/pendencias/filtro.ts` (client-safe, como
+    `rotulos.ts` ao lado) com os textos e a expressão `.or()`; os três consumidores importam de lá.
+  - **E ganham TRAVA DE TIPO.** `getPendencias` passou a derivar os chips de um
+    `Record<Exclude<TipoPendencia,'outras'>, {rotulo, filtrar}>`: um `TipoPendencia` novo em
+    `rotulos.ts` **não compila** até ganhar predicado e rótulo, e entra na subtração de "outras"
+    sozinho. Era exatamente o elo que faltou quando 'patrimonio' passou a existir na aba e ninguém o
+    levou aos chips.
+  - **`Math.max(0, …)` engolia o sinal.** O clamp fica (chip não mostra negativo), mas resto
+    negativo agora deixa rastro (`console.error`): resto < 0 significa dois baldes contando a MESMA
+    linha, o que a pendência `;`-joinable permite — e clampar calado esconderia justamente o sintoma
+    do bug recém-consertado.
+  - **Novo `filtro.test.ts` (9 casos)** trava as duas coisas que romperam: a FORMA dos literais
+    (nada de vírgula/parêntese — footgun do `.or()`) e o **ACORDO** entre o predicado SQL e
+    `classificarPendencia`, caso a caso. Comportamento inalterado: as strings PostgREST geradas são
+    idênticas às de antes, e os 1.448 testes que já existiam seguem verdes.
+- **Achado 6: três asserções de regressão saíram sem substituto.** Ao fundir o `describe` da paleta
+  no da /ajuda, `'pendencia'`, `'kit'` e `'csv'` (as consultas de UMA palavra mais digitadas) foram
+  apagadas. Continuam achando hoje — `'csv'` é termo curado de `lista-de-ativos` —, mas nada mais as
+  protegia, e isso no commit que mudou a FONTE da chave: o momento em que a rede era mais
+  necessária. Reintegradas à tabela de sinônimos.
+- **Achados 7–9 (documentação que envelheceu no próprio commit).** (a) `EntradaPaleta.chave` em
+  `tipos.ts` ainda dizia "Titulo + resumo + sinonimos" — o arquivo que DEFINE o tipo, e o único de
+  `lib/ajuda` que um Client Component pode tocar, era o único cujo comentário não foi atualizado.
+  (b) O `maxDuration = 60` raciocina sobre a Server Action longa de `admin/importar` e não registra
+  que o teto **também vale para as Server Actions desta página** — isto é, `gerarRelatorio` (doc do
+  Next: "change the default timeout of all Server Actions used on the page"). **O orçamento cobre**,
+  e por um motivo específico: a action roda o MESMO `getSnapshotRelatorioV2` que a página monta no
+  render, mais um insert. Registrado no comentário, porque quem baixar o número precisa saber que o
+  pior desfecho não é um spinner, é o snapshot da semana morrendo no meio. (c) O comentário do job
+  `banco` do CI dizia "aplica TODAS as migrations (0001→0040)" — a faixa envelheceu no primeiro lote
+  novo e sugeria um recorte que nunca existiu.
+- **Achado 10: o Map da /ajuda contradizia o princípio do próprio commit.** `chavePorSlug` era
+  remontado a cada request a partir de `INDICE_PALETA`, que é imutável entre deploys — o mesmo
+  desperdício que o commit acabou de tirar do `(app)/layout.tsx`. Subiu para escopo de módulo.
+- **Portão.** `npm run lint` limpo · `npm run test` **1.457 passando (69 arquivos)** · `npm run
+  build` + TypeScript limpos. Nenhuma migration, nenhuma mudança de banco — a revisão foi de `src/`,
+  CI e documentação.
+- **Reversível?** Tudo. Um arquivo novo de rota (`app/not-found.tsx`), um módulo novo de constantes
+  com teste, e edições localizadas; nada de esquema nem de dado.

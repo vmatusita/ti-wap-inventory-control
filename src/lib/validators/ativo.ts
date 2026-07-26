@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
-import { DATA_RE, dataOpcionalSchema } from '@/lib/validators/data'
+import { dataOpcionalSchema, dataRealSchema } from '@/lib/validators/data'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 
 // Edicao de dados CADASTRAIS do ativo (OS-F2 3.2.4). SO campos NAO derivados:
@@ -26,12 +26,15 @@ export const editarAtivoSchema = z.object({
     (v) => (v === '' || v == null ? null : v),
     z.enum(Constants.public.Enums.termo_status).nullable(),
   ),
+  // MESMA régua do `data` de `confirmarAssinaturaSchema` logo abaixo — os dois
+  // caminhos gravam a MESMA coluna `ativos.termo_data`. Com regex puro, '2026-02-30'
+  // e '0000-01-01' passavam e só o Postgres reclamava (22008), o que na tela vira
+  // "Não foi possível concluir a operação" em vez de um erro no campo.
+  // `dataRealSchema` = regex + round-trip por `dataISO`; SEM teto de futuro, de
+  // propósito (decisão registrada: `termo_data` não tem teto).
   termo_data: z.preprocess(
     (v) => (v === '' || v == null ? null : v),
-    z
-      .string()
-      .regex(DATA_RE, 'Data inválida')
-      .nullable(),
+    dataRealSchema('Data inválida').nullable(),
   ),
 })
 

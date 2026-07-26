@@ -16,22 +16,24 @@ export const metadata = {
   description: 'Documentação do operador do Estoque TI WAP.',
 }
 
+// A CHAVE pesquisável de cada página desce no `data-ajuda-texto` do card — é
+// sobre esses atributos que `AjudaBusca` filtra, no cliente. A chave é título,
+// resumo, os sinônimos curados e o vocabulário derivado do domínio (rótulos de
+// status, tipo, campo, tecla e as linhas de sintoma); o CORPO da documentação
+// não sai do servidor. Até 25/07/2026 descia o texto inteiro — 208.525
+// caracteres por request, e uma busca que devolvia 6 das 33 páginas na
+// mediana. Motivos e números em docs/DECISOES.md.
+//
+// `INDICE_PALETA`, e não `indicePaleta()`: a constante é computada uma vez por
+// instância do servidor e é o MESMO valor que a paleta Ctrl+K recebe e que
+// `indice.test.ts` filtra. E o Map também mora FORA do componente, pelo mesmo
+// motivo: deriva de um valor imutável entre deploys, então remontá-lo a cada
+// request seria o desperdício que a constante acabou de tirar do `(app)/layout.tsx`.
+const CHAVE_POR_SLUG = new Map(INDICE_PALETA.map((e) => [e.slug, e.chave]))
+
 export default async function AjudaPage() {
   const operador = await getOperador()
   if (!operador) redirect('/login')
-
-  // A CHAVE pesquisável de cada página desce no `data-ajuda-texto` do card — é
-  // sobre esses atributos que `AjudaBusca` filtra, no cliente. A chave é título,
-  // resumo, os sinônimos curados e o vocabulário derivado do domínio (rótulos de
-  // status, tipo, campo, tecla e as linhas de sintoma); o CORPO da documentação
-  // não sai do servidor. Até 25/07/2026 descia o texto inteiro — 208.525
-  // caracteres por request, e uma busca que devolvia 6 das 33 páginas na
-  // mediana. Motivos e números em docs/DECISOES.md.
-  //
-  // `INDICE_PALETA`, e não `indicePaleta()`: a constante é computada uma vez por
-  // instância do servidor e é o MESMO valor que a paleta Ctrl+K recebe e que
-  // `indice.test.ts` filtra.
-  const chavePorSlug = new Map(INDICE_PALETA.map((e) => [e.slug, e.chave]))
 
   return (
     <div className="space-y-6">
@@ -86,7 +88,7 @@ export default async function AjudaPage() {
                   <li
                     key={p.slug}
                     data-ajuda-item
-                    data-ajuda-texto={chavePorSlug.get(p.slug)}
+                    data-ajuda-texto={CHAVE_POR_SLUG.get(p.slug)}
                     className="h-full"
                   >
                     <Link
