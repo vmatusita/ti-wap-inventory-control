@@ -138,6 +138,19 @@ describe('nomeArquivoTermo — segmento dos patrimônios', () => {
     ).toBe('Termo de Responsabilidade Notebook - WAP0001234 - Fulano de Tal.docx')
   })
 
+  // A vírgula só é separador na DEVOLUÇÃO. Na responsabilidade o campo é UM ativo
+  // e é editável — dividir ali inventaria um patrimônio que não existe.
+  it('vírgula no campo da responsabilidade é TEXTO, não separador', () => {
+    expect(
+      nomeArquivoTermo('responsabilidade_notebook', {
+        colaborador: 'Fulano de Tal',
+        patrimonio: 'WAP0001234, com carregador',
+      }),
+    ).toBe(
+      'Termo de Responsabilidade Notebook - WAP0001234, com carregador - Fulano de Tal.docx',
+    )
+  })
+
   it('devolução lê `patrimonios` e ignora `patrimonio`', () => {
     expect(
       nomeArquivoTermo('devolucao_equipamento', {
@@ -225,6 +238,52 @@ describe('nomeArquivoTermo — sanitização', () => {
     })
     expect(nome).toBe('Termo de Responsabilidade Notebook - WAP0001234 - Fulano de Tal.docx')
     expect([...nome].some((c) => (c.codePointAt(0) ?? 0) < 32)).toBe(false)
+  })
+})
+
+describe('nomeArquivoTermo — caracteres invisíveis e pontas', () => {
+  // U+202E inverte a exibição do nome no gerenciador de downloads (truque de
+  // disfarçar extensão); U+200B produz nomes idênticos aos olhos e distintos para
+  // a busca. Tudo isso chega colado de e-mail/planilha no campo, que é texto livre.
+  it('remove marcas de direção, largura zero e BOM', () => {
+    const rlo = String.fromCodePoint(0x202e)
+    const zwsp = String.fromCodePoint(0x200b)
+    const bom = String.fromCodePoint(0xfeff)
+    const nome = nomeArquivoTermo('responsabilidade_notebook', {
+      colaborador: `${rlo}Fulano${zwsp} de Tal${bom}`,
+      patrimonio: `WAP${zwsp}0001234`,
+    })
+    expect(nome).toBe('Termo de Responsabilidade Notebook - WAP0001234 - Fulano de Tal.docx')
+  })
+
+  it('remove os controles C1 (U+0080–U+009F)', () => {
+    const c1 = String.fromCodePoint(0x9b)
+    expect(
+      nomeArquivoTermo('responsabilidade_notebook', {
+        colaborador: `Fulano${c1} de Tal`,
+        patrimonio: 'WAP0001234',
+      }),
+    ).toBe('Termo de Responsabilidade Notebook - WAP0001234 - Fulano de Tal.docx')
+  })
+
+  // O `nomeDownload` antigo aparava as pontas de graça; sem isso o nome sai com
+  // separador duplicado e traço solto antes da extensão.
+  it('apara traço e espaço sobrando nas pontas de cada segmento', () => {
+    expect(
+      nomeArquivoTermo('responsabilidade_notebook', {
+        colaborador: '- Fulano de Tal -',
+        patrimonio: ' -WAP0001234- ',
+      }),
+    ).toBe('Termo de Responsabilidade Notebook - WAP0001234 - Fulano de Tal.docx')
+  })
+
+  it('traço no MEIO do nome é preservado', () => {
+    expect(
+      nomeArquivoTermo('responsabilidade_notebook', {
+        colaborador: 'Ana-Maria de Tal',
+        patrimonio: 'WAP-0001234',
+      }),
+    ).toBe('Termo de Responsabilidade Notebook - WAP-0001234 - Ana-Maria de Tal.docx')
   })
 })
 

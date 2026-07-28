@@ -28,7 +28,7 @@ com espaços normais.
 O que foi feito:
 
 - Nasceu a função pura **`nomeArquivoTermo(tipo, campos)`** em
-  [`src/lib/termos/nome-arquivo.ts`](../src/lib/termos/nome-arquivo.ts), com **34 testes**.
+  [`src/lib/termos/nome-arquivo.ts`](../src/lib/termos/nome-arquivo.ts), com **39 testes**.
   Ela tinha de sair da action: `src/lib/actions/termos.ts` é `'use server'`, e a varredura de
   `use-server-exports.test.ts` só admite `export async function` / `export type` — a lógica não
   podia nascer nem ser reexportada de lá, e sem sair de lá não teria teste.
@@ -114,7 +114,8 @@ Ata completa em [`DECISOES.md`](DECISOES.md) (2026-07-28 · F20B). Em resumo:
 
 ### 3.1 Portão — saídas reais
 
-Contagem de testes: **1457 → 1491** (+34), **69 → 70** arquivos. Disco e git conferidos batendo
+Contagem de testes ao fim da fase: **1457 → 1491** (+34), **69 → 70** arquivos — e **1496**
+depois da rodada de revisão de código da §3.6. Disco e git conferidos batendo
 (`find` = `git ls-files` = 70), porque durante a revisão um subagente chegou a deixar um arquivo
 de teste temporário na árvore — ele foi removido e a contagem foi remedida depois.
 
@@ -283,6 +284,41 @@ do colaborador usava `slice()`, que conta unidades de código UTF-16 e **partia 
 ao meio** (emoji colado no campo, que é texto livre de até 200 caracteres), deixando meio
 caractere inválido no nome. Corrigido cortando por code point, com teste que varre a faixa de
 cortes que reproduzia a falha.
+
+### 3.6 Rodada de revisão de código (pós-fase, 28/07)
+
+Depois do deploy, os 4 commits passaram por uma revisão de **10 ângulos** (5 de corretude, 3 de
+limpeza, 1 de altitude, 1 de conformidade com o `CLAUDE.md`) mais uma varredura de lacunas:
+**12 achados**, nenhum deles crash. Sete foram corrigidos na hora:
+
+| Achado | Correção |
+|---|---|
+| A vírgula era tratada como separador **também** no campo de responsabilidade | A vírgula só separa na devolução; na responsabilidade o campo é um ativo só e o texto vai inteiro |
+| `folga` do corte derivava de `montar()`, que tem caso especial | O orçamento passou a ser contado direto, sem herdar o literal |
+| Só controles C0 e DEL eram descartados | Somados C1, largura zero e marcas de direção (o U+202E inverte o nome no gerenciador de downloads) |
+| O `nomeDownload` antigo aparava traço/espaço das pontas; a função nova não | `sanitizar` voltou a aparar as pontas de cada segmento |
+| Os 5 boundaries repetiam byte a byte o mesmo painel | Extraído `PainelErro` (irmão de `EstadoVazio`); os boundaries só passam título, mensagem e CTAs |
+| `disabled` durante a tentativa tira o foco do teclado e o leitor de tela fica mudo | Região viva `role="status"` anunciando "Tentando novamente…", fora do botão |
+| Boundaries declaravam `unstable_retry` obrigatória; o componente a trata como opcional | Opcional nos dois lados |
+
+Fora do diff, uma correção de mesma natureza: `src/lib/import/deparas.ts` tinha a faixa de
+diacríticos escrita com **caracteres crus** numa regex literal — a armadilha de encoding que esta
+fase documentou. Passou a usar `RegExp(string)`, como `lib/ajuda/busca.ts` já fazia.
+
+Cinco achados foram registrados e **não** corrigidos, com motivo: a duplicação da normalização de
+acentos (5 cópias no repositório — é refatoração de escopo próprio); o ramo `NOME_MINIMO`
+inalcançável (defesa deliberada); o fallback do `unstable_retry` (generalidade especulativa
+assumida de propósito); a ausência de teste de componente (a stack não tem jsdom); e a
+não-canonicalização do patrimônio no nome — que ganhou comentário explicando por que é exceção
+consciente à convenção do `CLAUDE.md`.
+
+**Reverificação:** a refatoração mexeu justamente no caminho já provado, então o A/B foi refeito
+no navegador. Painel com estrutura idêntica (`flex column`, `items-center`, `gap 12px`, filhos
+`svg · p · p · div`, mesmo texto); a região viva nova é `position: absolute` com 1px, logo **não
+vira item do flex** e não altera o layout; o retry recuperou de novo **sem F5** (50 linhas,
+variável de documento preservada). Um `MutationObserver` capturou o estado pendente em **4 ms** —
+rótulo "Tentando…", `disabled`, `aria-busy="true"` e a região viva anunciando — e, com a causa
+persistindo, o boundary remonta e o botão volta habilitado (não trava).
 
 ---
 

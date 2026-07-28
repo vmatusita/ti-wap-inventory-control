@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { TentarNovamente } from '@/components/layout/tentar-novamente'
+import { PainelErro } from '@/components/layout/painel-erro'
 
 // Boundary do segmento (espelha `itens/error.tsx` e `ativos/error.tsx`).
 // /pendencias faz três leituras (filiais, chips e a lista da v_pendencias) e
@@ -21,30 +20,26 @@ export default function Error({
 }: {
   error: Error & { digest?: string }
   reset: () => void
-  unstable_retry: () => void
+  unstable_retry?: () => void
 }) {
   useEffect(() => {
     console.error(error)
   }, [error])
 
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-center">
-      <AlertTriangle className="size-8 text-destructive" />
-      <p className="font-medium">Não foi possível carregar as pendências</p>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        Ocorreu um erro ao buscar a lista. Tente novamente ou limpe os filtros da
-        busca.
-      </p>
-      <div className="flex flex-wrap justify-center gap-2">
-        <TentarNovamente aoTentar={unstable_retry} reset={reset} />
-        {/* `<a>` e não `<Link>`: o boundary precisa de uma navegação que TROQUE
-            a URL. O "Tentar novamente" refaz as leituras, mas com os MESMOS
-            searchParams — se o erro veio de um param da URL, ele refalha
-            sempre, por mais que o operador clique. Esta é a saída que funciona. */}
-        <Button asChild variant="ghost">
-          <a href="/pendencias">Limpar filtros</a>
-        </Button>
-      </div>
-    </div>
+    <PainelErro
+      titulo="Não foi possível carregar as pendências"
+      mensagem="Ocorreu um erro ao buscar a lista. Tente novamente ou limpe os filtros da busca."
+      aoTentar={unstable_retry}
+      reset={reset}
+    >
+      {/* `<a>` e não `<Link>`: o boundary precisa de uma navegação que TROQUE a
+          URL. O "Tentar novamente" refaz as leituras, mas com os MESMOS
+          searchParams — se o erro veio de um param da URL, ele refalha sempre,
+          por mais que o operador clique. Esta é a saída que funciona. */}
+      <Button asChild variant="ghost">
+        <a href="/pendencias">Limpar filtros</a>
+      </Button>
+    </PainelErro>
   )
 }

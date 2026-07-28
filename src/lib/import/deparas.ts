@@ -19,11 +19,19 @@ import type { CategoriaAtivo, FilialOficial, StatusAtivo } from './tipos'
 // ---------------------------------------------------------------------------
 // Texto
 
+const DIACRITICOS = new RegExp('[\\u0300-\\u036f]', 'g')
+
 /** minúsculas, sem acento, sem `:` final, espaços colapsados — base do De→Para. */
 export function normalizarTexto(raw: string): string {
   return raw
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    // Faixa U+0300–U+036F (marcas diacríticas combinantes). Construída por
+    // RegExp(string), como em `lib/ajuda/busca.ts`, para não depender de bytes
+    // literais no fonte: a faixa escrita crua numa regex literal é invisível no
+    // diff e já virou mojibake neste projeto quando o arquivo passou por
+    // ferramenta que não preservou UTF-8 — e o estrago só apareceria em texto
+    // acentuado, longe daqui.
+    .replace(DIACRITICOS, '')
     .toLowerCase()
     .replace(/:$/, '')
     .replace(/\s+/g, ' ')

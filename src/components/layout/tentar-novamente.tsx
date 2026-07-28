@@ -55,23 +55,33 @@ export function TentarNovamente({
   }
 
   return (
-    <Button
-      onClick={tentar}
-      disabled={pendente}
-      aria-busy={pendente}
-      variant="outline"
-      className="gap-2"
-    >
-      {pendente ? (
-        <>
-          {/* Spinner parado para quem pede menos movimento (convenção F19): quem
-              carrega o estado nesse caso é o texto ao lado. */}
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
-          Tentando…
-        </>
-      ) : (
-        rotulo
-      )}
-    </Button>
+    <>
+      <Button
+        onClick={tentar}
+        disabled={pendente}
+        aria-busy={pendente}
+        variant="outline"
+        className="gap-2"
+      >
+        {pendente ? (
+          <>
+            {/* Spinner parado para quem pede menos movimento (convenção F19): quem
+                carrega o estado nesse caso é o texto ao lado. */}
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
+            Tentando…
+          </>
+        ) : (
+          rotulo
+        )}
+      </Button>
+      {/* FORA do botão de propósito: quando o `disabled` entra, o navegador joga o
+          foco para o <body> e o leitor de tela perde o elemento — o `aria-busy`
+          passa a estar num nó que ninguém está lendo. Esta região viva anuncia o
+          estado independentemente do foco. `sr-only` é `position: absolute`, logo
+          não vira item do flex e não mexe no layout do painel. */}
+      <span className="sr-only" role="status">
+        {pendente ? 'Tentando novamente…' : ''}
+      </span>
+    </>
   )
 }

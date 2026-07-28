@@ -2,9 +2,8 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
-import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { TentarNovamente } from '@/components/layout/tentar-novamente'
+import { PainelErro } from '@/components/layout/painel-erro'
 
 // Boundary da RAIZ do grupo (app) — a rede de segurança que faltava (F13/A2).
 // Existiam boundaries em ativos/, itens/, movimentacoes/ e pendencias/, mas não
@@ -30,31 +29,27 @@ export default function Error({
 }: {
   error: Error & { digest?: string }
   reset: () => void
-  unstable_retry: () => void
+  unstable_retry?: () => void
 }) {
   useEffect(() => {
     console.error(error)
   }, [error])
 
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-center">
-      <AlertTriangle className="size-8 text-destructive" />
-      <p className="font-medium">Algo deu errado nesta tela</p>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        A operação não foi concluída. Tente de novo; se continuar, avise o
-        administrador do sistema.
-      </p>
-      <div className="flex flex-wrap justify-center gap-2">
-        <TentarNovamente aoTentar={unstable_retry} reset={reset} rotulo="Tentar de novo" />
-        {/* Saída que TROCA a URL: o retry refaz as leituras, mas do mesmo
-            segmento e com os mesmos searchParams — quando a causa está na
-            própria rota, ele refalha sempre (mesmo motivo documentado em
-            pendencias/error.tsx). Aqui é `Link` porque o destino é outra rota —
-            sem o recarregamento inteiro. */}
-        <Button asChild variant="ghost">
-          <Link href="/">Ir para o início</Link>
-        </Button>
-      </div>
-    </div>
+    <PainelErro
+      titulo="Algo deu errado nesta tela"
+      mensagem="A operação não foi concluída. Tente de novo; se continuar, avise o administrador do sistema."
+      aoTentar={unstable_retry}
+      reset={reset}
+      rotuloTentar="Tentar de novo"
+    >
+      {/* Saída que TROCA a URL: o retry refaz as leituras, mas do mesmo segmento
+          e com os mesmos searchParams — quando a causa está na própria rota, ele
+          refalha sempre (mesmo motivo documentado em pendencias/error.tsx). Aqui
+          é `Link` porque o destino é outra rota — sem o recarregamento inteiro. */}
+      <Button asChild variant="ghost">
+        <Link href="/">Ir para o início</Link>
+      </Button>
+    </PainelErro>
   )
 }

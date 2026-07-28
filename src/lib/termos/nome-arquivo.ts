@@ -36,6 +36,12 @@ export const NOME_ARQUIVO_MAX = 150
 
 const ESPACOS = /\s+/g
 
+// Espaço e traço sobrando nas PONTAS de um segmento. O `nomeDownload` antigo
+// aparava isso de graça (ele trocava tudo que não fosse alfanumérico por hífen e
+// depois apava as pontas); sem isso, um "- Fulano -" colado de planilha vira
+// `Prefixo - - Fulano -.docx`, com separador duplicado e traço solto.
+const PONTAS = /^[\s-]+|[\s-]+$/g
+
 // Os que o Windows não aceita em nome de arquivo. Escritos como STRING comum (e os
 // de controle testados por código, logo abaixo) de propósito: faixa de controle ou
 // de combinantes escrita direto numa regex literal já virou mojibake silencioso
@@ -45,8 +51,21 @@ const PROIBIDOS_WINDOWS = '\\/:*?"<>|'
 
 function ehDescartavel(caractere: string): boolean {
   const codigo = caractere.codePointAt(0) ?? 0
-  // Controle C0 (0–31) e DEL (127), mais os proibidos do Windows.
-  return codigo < 32 || codigo === 127 || PROIBIDOS_WINDOWS.includes(caractere)
+  return (
+    codigo < 32 || // controles C0
+    (codigo >= 0x7f && codigo <= 0x9f) || // DEL + controles C1
+    // Largura zero e marcas de direção. Não são "invisíveis inofensivos" num nome
+    // de arquivo: U+202E (sobrescrita da direita para a esquerda) faz o
+    // gerenciador de downloads mostrar o nome invertido — o truque clássico de
+    // disfarçar extensão —, e o U+200B produz nomes idênticos aos olhos e
+    // distintos para a busca da pasta de rede. O campo é texto livre colado de
+    // e-mail e planilha, então isso chega aqui de graça.
+    (codigo >= 0x200b && codigo <= 0x200f) ||
+    (codigo >= 0x202a && codigo <= 0x202e) ||
+    (codigo >= 0x2066 && codigo <= 0x2069) ||
+    codigo === 0xfeff ||
+    PROIBIDOS_WINDOWS.includes(caractere)
+  )
 }
 
 // Limpa um segmento. O espaço em branco de qualquer tipo (tabulação, quebra de
@@ -57,7 +76,7 @@ function sanitizar(texto: string): string {
     .filter((c) => !ehDescartavel(c))
     .join('')
     .replace(ESPACOS, ' ')
-    .trim()
+    .replace(PONTAS, '')
 }
 
 // Chave de comparação tolerante (sem acento, sem caixa, sem espaço sobrando). O
@@ -79,16 +98,28 @@ function chaveComparacao(texto: string): string {
 const CHAVE_AUSENTE = chaveComparacao(PATRIMONIO_AUSENTE_TERMO)
 
 // Patrimônios que entram no nome, NA ORDEM em que estão no documento.
-// Responsabilidade lê `patrimonio` (um ativo); devolução lê `patrimonios`, a string
-// "A, B, C" que `concatenarEquipamentos` já montou na ordem do termo (notebook →
-// monitor → celular → demais). Os dois são texto editável, então passam pelo mesmo
-// pipeline: separa por vírgula, limpa, e descarta o que não identifica nada —
-// partes vazias e o "sem patrimônio" dos ativos sem plaqueta (F7E).
+//
+// A vírgula só é separador na DEVOLUÇÃO: `patrimonios` é a string "A, B, C" que
+// `concatenarEquipamentos` montou na ordem do termo (notebook → monitor → celular
+// → demais). Na RESPONSABILIDADE o campo é `patrimonio` — UM ativo —, e como ele
+// é editável (spec §3.9), uma vírgula ali é parte do que o operador escreveu
+// ("WAP0001234, com carregador"), não separador: dividir inventaria um segundo
+// patrimônio que não existe.
+//
+// O texto entra como está: NÃO passa por `canonicalizarPatrimonio`, de propósito.
+// O nome do arquivo tem de espelhar o patrimônio IMPRESSO no documento, e o .docx
+// também usa o campo cru — canonicalizar só aqui faria o nome divergir do papel.
+// (É a exceção consciente à convenção "patrimônio sempre no formato canônico" do
+// CLAUDE.md, que vale para as telas de consulta.)
+//
+// Descartado o que não identifica nada: partes vazias e o "sem patrimônio" dos
+// ativos sem plaqueta (F7E).
 function listaPatrimonios(tipo: TermoTipo, campos: CamposTermo): string[] {
-  const bruto =
-    (familiaDoTipo(tipo) === 'devolucao' ? campos.patrimonios : campos.patrimonio) ?? ''
-  return bruto
-    .split(',')
+  const brutos =
+    familiaDoTipo(tipo) === 'devolucao'
+      ? (campos.patrimonios ?? '').split(',')
+      : [campos.patrimonio ?? '']
+  return brutos
     .map(sanitizar)
     .filter((p) => p !== '' && chaveComparacao(p) !== CHAVE_AUSENTE)
 }
@@ -134,9 +165,12 @@ export function nomeArquivoTermo(tipo: TermoTipo, campos: CamposTermo): string {
   if (nome.length <= NOME_ARQUIVO_MAX) return nome
 
   // Sobrou só prefixo + colaborador e ainda estourou (o Zod aceita 200 caracteres
-  // de colaborador): o único segmento que pode ceder é o nome. Corta no limite
-  // exato e apara o rabo de espaço.
-  const folga = NOME_ARQUIVO_MAX - montar(prefixo, [], '').length - SEPARADOR.length
-  const cortado = cortarSemPartirCaractere(colaborador, Math.max(0, folga)).trim()
+  // de colaborador): o único segmento que pode ceder é o nome. O orçamento é
+  // contado aqui, e NÃO derivado de `montar()` — aquela função tem um caso
+  // especial (NOME_MINIMO) que faria a conta herdar um literal sem relação.
+  const ocupado =
+    (prefixo === '' ? 0 : prefixo.length + SEPARADOR.length) + EXTENSAO.length
+  const folga = Math.max(0, NOME_ARQUIVO_MAX - ocupado)
+  const cortado = sanitizar(cortarSemPartirCaractere(colaborador, folga))
   return montar(prefixo, [], cortado)
 }

@@ -2636,7 +2636,7 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
 - **Decisão 2 — função pura em `src/lib/termos/`, não helper na action.** `src/lib/actions/termos.ts`
   é `'use server'`, e a varredura de `use-server-exports.test.ts` só admite `export async function` /
   `export type` — a lógica **não podia** nascer nem ser reexportada de lá, e sem sair de lá não teria
-  teste. Virou `nomeArquivoTermo(tipo, campos)`, coberta por **34 testes** de Vitest.
+  teste. Virou `nomeArquivoTermo(tipo, campos)`, coberta por **39 testes** de Vitest.
 - **Decisão 3 — teto de 150 caracteres, cortando a lista de patrimônios do fim para o começo.** Só
   em separador inteiro (nunca no meio de um código); os primeiros ficam porque são a ordem do próprio
   documento (notebook → monitor → celular → demais). Esgotados os patrimônios, quem cede é o nome do
@@ -2675,8 +2675,56 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   **dois** projetos Supabase: em produção, as 6 linhas de `termos_gerados` têm todas a chave que a
   função lê (`patrimonios` nas devoluções, `patrimonio` nas responsabilidades) e **zero divergência**
   entre o jsonb e a coluna `colaborador`; o ensaio não tem termos. Portão: `lint` limpo · `test`
-  **1.491 passando (70 arquivos)**, eram 1.457 · `build` + TypeScript limpos.
+  **1.496 passando (70 arquivos)**, eram 1.457 · `build` + TypeScript limpos.
 - **Reversível?** Sim, inteiramente. **Zero migration, zero escrita em banco, zero mudança no
   Storage** (o objeto continua `${id}.docx`; muda só o nome de download, calculado na hora) e zero
   dependência nova. Reverter é `git revert` do intervalo — inclusive o nome dos downloads volta ao
   formato antigo sozinho, porque nada foi persistido.
+
+## 2026-07-28 · F20B · revisão de código dos 4 commits — 12 achados, 7 corrigidos
+
+- **Contexto:** com a fase já em produção, os 4 commits passaram por revisão de **10 ângulos**
+  (5 de corretude, 3 de limpeza, 1 de altitude, 1 de conformidade com o `CLAUDE.md`) mais uma
+  varredura de lacunas. Nenhum achado era crash; sete valiam correção.
+- **Corrigido 1 — a vírgula só separa na DEVOLUÇÃO.** O pipeline era único para as duas famílias,
+  então o campo `patrimonio` da responsabilidade (UM ativo, editável) também era dividido: "WAP0001234,
+  com carregador" virava dois segmentos e o nome inventava um patrimônio que não existe. A ordem
+  define a vírgula como separador só para `patrimonios` (devolução).
+- **Corrigido 2 — caracteres invisíveis não entram mais no nome.** Só C0 e DEL eram descartados.
+  Somados os controles C1, os de largura zero e as marcas de direção — o **U+202E** faz o
+  gerenciador de downloads exibir o nome invertido (o truque de disfarçar extensão), e o campo é
+  texto livre colado de e-mail e planilha.
+- **Corrigido 3 — pontas aparadas de novo.** O `nomeDownload` antigo tirava traço das pontas de
+  graça; sem isso, "- Fulano -" saía como `Prefixo - - Fulano -.docx`.
+- **Corrigido 4 — `folga` do teto parou de derivar de `montar()`,** que tem um caso especial
+  (`NOME_MINIMO`) e fazia a conta herdar um literal sem relação.
+- **Corrigido 5 — `PainelErro`.** A F20B extraiu só o botão; os 5 `error.tsx` seguiam repetindo
+  byte a byte contêiner, ícone e os dois parágrafos. Virou componente em `components/layout/`,
+  irmão semântico de `EstadoVazio`; cada boundary passa título, mensagem e CTAs extras.
+- **Corrigido 6 — região viva no botão.** O `disabled` durante a tentativa (exigido pela ordem)
+  tira o botão da ordem de foco: o leitor de tela perde o elemento e o `aria-busy` fica num nó que
+  ninguém lê. Um `role="status"` **fora** do botão anuncia "Tentando novamente…" independentemente
+  do foco. `sr-only` é `position: absolute`, então não vira item do flex — layout intacto,
+  conferido no navegador.
+- **Corrigido 7 — `unstable_retry` opcional nos dois lados.** Os boundaries a declaravam
+  obrigatória enquanto o componente a tratava como opcional.
+- **Fora do diff, mesma família de defeito:** `src/lib/import/deparas.ts` tinha a faixa de
+  diacríticos escrita com **caracteres crus** numa regex literal — exatamente a armadilha de
+  encoding que esta fase documentou e evitou. Passou a `RegExp(string)`, como `lib/ajuda/busca.ts`
+  já fazia. É preventivo: hoje o arquivo está íntegro.
+- **NÃO corrigido, com motivo:** (a) a normalização de acentos tem **5 cópias** no repositório
+  (`ajuda/busca.ts`, `import/deparas.ts`, dois diálogos de admin, `scripts/import/normalizar.ts`) e
+  esta fase acrescentou a 6ª — unificar é refatoração de escopo próprio, vai para o backlog;
+  (b) o ramo `NOME_MINIMO` é inalcançável (Record total + CHECK no banco), mas é defesa barata e
+  fica; (c) o fallback do `unstable_retry` é generalidade especulativa assumida de propósito — sem
+  ele um rename ressuscita o bug em silêncio; (d) não há teste de componente (a stack é fechada,
+  sem jsdom); (e) o patrimônio no nome **não** passa por `canonicalizarPatrimonio`, divergindo da
+  convenção do `CLAUDE.md` — é exceção consciente (o nome tem de espelhar o que está impresso no
+  documento), agora registrada em comentário no código, que era o que faltava.
+- **Verificação:** a refatoração mexeu no caminho já provado, então o A/B do boundary foi
+  **refeito** no navegador: painel com estrutura idêntica, recuperação sem F5 (50 linhas, variável
+  de documento preservada) e um `MutationObserver` capturando o estado pendente em **4 ms**
+  (rótulo, `disabled`, `aria-busy`, região viva) — com a causa persistindo, o boundary remonta e o
+  botão volta habilitado, não trava. Portão: `lint` limpo · `test` **1.496 passando (70 arquivos)**,
+  eram 1.491 · `build` + TypeScript limpos.
+- **Reversível?** Sim — tudo camada de app, zero migration e zero banco.
