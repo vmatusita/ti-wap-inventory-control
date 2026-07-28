@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TentarNovamente } from '@/components/layout/tentar-novamente'
 
 // Boundary da RAIZ do grupo (app) — a rede de segurança que faltava (F13/A2).
 // Existiam boundaries em ativos/, itens/, movimentacoes/ e pendencias/, mas não
@@ -15,7 +16,9 @@ import { Button } from '@/components/ui/button'
 // o operador tem "Tentar de novo" e um caminho de volta.
 //
 // ISTO É CONTENÇÃO, NÃO CORREÇÃO: não conserta a causa de falha nenhuma — só
-// impede que a próxima apague a tela.
+// impede que a próxima apague a tela. O que a F20B mudou é que o "Tentar de
+// novo" agora REFAZ as leituras do segmento (`unstable_retry`, Next ≥ 16.2);
+// antes chamava `reset()` puro e o clique não fazia nada.
 //
 // Nada de stack, mensagem crua ou digest na UI (pode conter detalhe de
 // infraestrutura); o objeto vai para o console do navegador, como nos boundaries
@@ -23,9 +26,11 @@ import { Button } from '@/components/ui/button'
 export default function Error({
   error,
   reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string }
   reset: () => void
+  unstable_retry: () => void
 }) {
   useEffect(() => {
     console.error(error)
@@ -40,13 +45,12 @@ export default function Error({
         administrador do sistema.
       </p>
       <div className="flex flex-wrap justify-center gap-2">
-        <Button onClick={reset} variant="outline">
-          Tentar de novo
-        </Button>
-        {/* Saída que TROCA a URL: o reset repete o mesmo segmento, com os mesmos
-            searchParams, e refalha para sempre quando a causa está na própria
-            rota (mesmo motivo documentado em pendencias/error.tsx). Aqui é
-            `Link` porque o destino é outra rota — sem o recarregamento inteiro. */}
+        <TentarNovamente aoTentar={unstable_retry} reset={reset} rotulo="Tentar de novo" />
+        {/* Saída que TROCA a URL: o retry refaz as leituras, mas do mesmo
+            segmento e com os mesmos searchParams — quando a causa está na
+            própria rota, ele refalha sempre (mesmo motivo documentado em
+            pendencias/error.tsx). Aqui é `Link` porque o destino é outra rota —
+            sem o recarregamento inteiro. */}
         <Button asChild variant="ghost">
           <Link href="/">Ir para o início</Link>
         </Button>

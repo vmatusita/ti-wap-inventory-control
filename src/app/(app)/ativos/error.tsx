@@ -2,14 +2,20 @@
 
 import { useEffect } from 'react'
 import { AlertTriangle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { TentarNovamente } from '@/components/layout/tentar-novamente'
 
+// O "Tentar novamente" refaz DE VERDADE as leituras deste segmento — usa a prop
+// `unstable_retry` (Next ≥ 16.2). Antes chamava `reset()` puro, que só limpava o
+// estado de erro sem refazer as leituras de Server Component: o operador clicava
+// e nada acontecia (F20B). A mecânica mora em `TentarNovamente`.
 export default function Error({
   error,
   reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string }
   reset: () => void
+  unstable_retry: () => void
 }) {
   useEffect(() => {
     console.error(error)
@@ -22,9 +28,7 @@ export default function Error({
       <p className="max-w-sm text-sm text-muted-foreground">
         Ocorreu um erro ao buscar os dados. Tente novamente.
       </p>
-      <Button onClick={reset} variant="outline">
-        Tentar novamente
-      </Button>
+      <TentarNovamente aoTentar={unstable_retry} reset={reset} />
     </div>
   )
 }
