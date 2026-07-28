@@ -1,180 +1,215 @@
-# PLAN — F19 (UX/a11y + modo escuro)
+# PLAN — F20B (nome oficial do arquivo dos termos + "Tentar novamente" que funciona)
 
-Ordem: `docs/prompts/F19-correcoes-ux-dark-mode.md`. Trabalho direto na `main` local.
-Este arquivo é o **gabarito antifuga**: a revisão final confere o diff contra ele.
+Ordem: `docs/prompts/F20B-ultracode.md` (28/07/2026). Trabalho direto na `main`.
+Este arquivo é o **gabarito antifuga**: a revisão adversarial confere o diff contra ele.
 
-> Colisão de nome: já existe uma fase F19 (auditoria de regras, `docs/RELATORIO-F19.md`).
-> Esta ordem pede o relatório em `docs/F19-RELATORIO.md` — nomes distintos, nada é sobrescrito.
+> **Colisão de nome (duas).** Já existe uma fase F20 — a `/ajuda` multi-página, concluída
+> em 24/07/2026 — e ela já ocupa `docs/RELATORIO-F20.md` **e** `docs/prompts/F20-ultracode.md`.
+> Seguir a ordem ao pé da letra (§R.2, "`docs/RELATORIO-F20.md`") **sobrescreveria** o
+> relatório da fase anterior. **Decisão:** esta ordem é a **F20B** — relatório em
+> `docs/RELATORIO-F20B.md`, ordem arquivada em `docs/prompts/F20B-ultracode.md`, e é assim
+> que ela aparece nos docs de status. Mesmo precedente da F19 ("nomes distintos, nada é
+> sobrescrito"). Registrado em `docs/DECISOES.md`.
 
-## Baseline (medida ANTES de qualquer mudança, commit `37774eb`)
+## Baseline (medida ANTES de qualquer mudança, commit `4ecb6bc`)
 
 | Comando | Resultado |
 |---|---|
-| `npm run lint` | ✅ limpo (nenhuma saída além do cabeçalho do script) |
-| `npm run build` | ✅ `Compiled successfully in 8.0s`, 24 rotas, 0 erro |
-| `npx vitest run` | ✅ **56 arquivos / 1092 testes**, 0 falha |
+| `npm run lint` | limpo (nenhuma saída) |
+| `npm run test` | **69 arquivos · 1457 testes** passando |
+| `npm run build` | ✓ compilado, Next.js 16.2.10 (Turbopack), 26 rotas |
 
-Nada estava vermelho. A régua de pronto é: continuar verde **e** 1092 testes no mínimo.
+> A ordem cita "1.018 na entrada da F19" como referência — está desatualizada em três
+> saltos. O número real de hoje é **1457**, e só pode subir.
 
-## Descobertas da exploração que corrigem a ordem
+## Escopo fechado (§1.2)
 
-1. `gerar-relatorio-dialog.tsx:107` ("Escopo") **não rotula um Select** — rotula dois `<Button>` de
-   alternância. Correção certa é `role="group"` + `aria-labelledby`, não `htmlFor`.
-2. `editar-ativo-dialog.tsx:180` **já está correto**: usa `<FormLabel>`+`<FormControl>`, e
-   `ui/form.tsx` injeta `htmlFor`/`id` por `Slot`. Pôr `id` à mão QUEBRARIA a injeção. **Não tocar.**
-3. `sidebar-nav.tsx:73` (chip "em breve") é **código morto** — os 8 itens de `ITENS` têm `href`,
-   o ramo placeholder nunca renderiza. Ajuste feito assim mesmo (1 caractere), registrado como tal.
-4. Pontos sem `catch` **além** dos listados na ordem: `criar-senha-dialog`, `item-combobox`,
-   `historico-lancamentos`, `nova-compra-form`, `colar-lista-dialog`, `gerar-termo-dialog`.
-   Mesma classe de defeito → entram.
-5. `README.md` e `docs/BACKLOG-UX.md` listam **T12 "remover next-themes (dependência morta)"** e
-   `docs/DECISOES.md:289` fixa "tema claro por design, toggle não adicionado". A F19 revoga os dois.
+**Dentro:** `src/lib/termos/nome-arquivo.ts` (novo) + teste, `src/lib/actions/termos.ts`
+(troca do helper + select de `urlTermo`), `src/components/layout/tentar-novamente.tsx`
+(novo), os 5 `error.tsx`, docs de status.
 
-## Incremento 1 — P1-1: rede muda em mutação (try/catch)
+**Fora:** templates `.docx`, Storage/`arquivo_path`, banco (**zero migration**), schema de
+`termos_gerados`, `TERMO_ROTULO`, UI da ficha/dialog, `src/components/ui/**`, qualquer
+melhoria não pedida. Zero dependência nova. `package.json` byte a byte igual.
 
-**Decisão:** `try/catch` **inline**, replicando o padrão que o repo já usa duas vezes
-(`importar-wizard.tsx` F7F, `convidar-usuario-dialog.tsx` F13/B1) — **sem helper**. Motivo: 6 formatos
-de retorno diferentes convivem (`{ok,erro}`, união discriminada, `{ok,resultados,erroGeral}`,
-`{ok,criados,erros}`, sem `ok`, array puro) e cada sítio precisa de mensagem **específica** em pt-BR;
-um helper genérico viraria `unknown` + casts. Registrado em `DECISOES.md`.
+---
 
-Mensagem-molde: `Não foi possível <ação>. Verifique sua conexão e tente de novo.`
+## Frente A — nome de arquivo no padrão oficial
 
-### Mutações com `startTransition` (toast no catch)
-- [ ] `src/components/ativos/anotar-dialog.tsx` (`salvar`)
-- [ ] `src/components/ativos/estornar-dialog.tsx` (`confirmar`)
-- [ ] `src/components/ativos/corrigir-patrimonio-dialog.tsx` (`salvar`)
-- [ ] `src/components/ativos/definir-service-tag-dialog.tsx` (`salvar`)
-- [ ] `src/components/ativos/confirmar-assinatura-dialog.tsx` (`confirmar` **e** `desfazer` — 2)
-- [ ] `src/components/admin/filial-dialog.tsx` (`salvar`)
-- [ ] `src/components/admin/item-dialog.tsx` (`salvar` **e** `remover` — 2)
-- [ ] `src/components/admin/kit-dialog.tsx` (`salvar`)
-- [ ] `src/components/admin/motivo-dialog.tsx` (`salvar`)
-- [ ] `src/components/admin/senha-acoes.tsx` (`alternar`)
-- [ ] `src/components/admin/criar-senha-dialog.tsx` (`salvar`) — extra
-- [ ] `src/components/itens/lancar-item-dialog.tsx` (`salvar`)
-- [ ] `src/components/itens/item-combobox.tsx` (`criar`) — extra
-- [ ] `src/components/itens/historico-lancamentos.tsx` (`confirmar`) — extra
-- [ ] `src/components/relatorios/gerar-relatorio-dialog.tsx` (`gerar`)
-- [ ] `src/components/pendencias/resolver-pendencia-item-dialog.tsx` (`resolver`)
+### A1. `src/lib/termos/nome-arquivo.ts` (novo, módulo comum — **sem** `'use server'`)
 
-### Handlers `async` com `try/finally` sem `catch`
-- [ ] `src/components/movimentacoes/nova-movimentacao-form.tsx` — `registrar` (**a mensagem tem de
-      dizer que o lote NÃO se perdeu**) e `restaurarRascunho`
-- [ ] `src/components/movimentacoes/devolucao-fornecedor-form.tsx` (`enviar`)
-- [ ] `src/components/ativos/nova-compra-form.tsx` (`enviar`) — extra
-- [ ] `src/components/movimentacoes/nova/colar-lista-dialog.tsx` (`conferir`) — extra
-- [ ] `src/components/movimentacoes/gerar-termo-dialog.tsx` (`preparar` — sem try nenhum) — extra
+```ts
+export const TERMO_NOME_PREFIXO: Record<TermoTipo, string>
+export function nomeArquivoTermo(tipo: TermoTipo, campos: CamposTermo): string
+```
 
-### Leituras de digitação (degradar **calado**, sem toast — evita toast por tecla)
-- [ ] `src/components/movimentacoes/ativo-combobox.tsx` (2 efeitos)
-- [ ] `src/components/layout/paleta-comandos.tsx`
-- [ ] `src/components/movimentacoes/nova/campo-sugerido.tsx`
-- [ ] `src/components/movimentacoes/nova/passo-revisao.tsx`
-- [ ] `src/components/ativos/nova-compra-form.tsx` (efeito de sugestões)
+Formato: `<prefixo> - <patrimônios> - <colaborador>.docx` — segmentos vazios são
+**omitidos** (some junto o ` - ` correspondente).
 
-## Incremento 2 — P1-2: `<Label>` sem nome acessível no Select
+Mapa tipo → prefixo (strings exatas da ordem; "monitor" minúsculo é o padrão do Johnny):
 
-Padrão: `<Label htmlFor="X">` + `<SelectTrigger id="X">`. **Sem** `aria-label` junto (sobrescreveria
-o label visível). Prefixo `passo-` no wizard para não ambiguar com `mov-*` de `lista-filtros`.
+| tipo | prefixo |
+|---|---|
+| `devolucao_desligamento` | `Termo de devolução - DESLIGAMENTO` |
+| `devolucao_equipamento` | `Termo de devolução equipamentos` |
+| `responsabilidade_notebook` | `Termo de Responsabilidade Notebook` |
+| `responsabilidade_desktop` | `Termo de Responsabilidade Desktop` |
+| `responsabilidade_celular` | `Termo de Responsabilidade Celular` |
+| `responsabilidade_monitor_interno` | `Termo de Responsabilidade monitor` |
+| `responsabilidade_monitor_homeoffice` | `Termo de Responsabilidade monitor` |
 
-- [ ] `src/components/movimentacoes/nova/passo-movimentacao.tsx` — 5: `passo-tipo`, `passo-motivo`,
-      `passo-termo`, `passo-filial-destino`, `passo-status`
-- [ ] `src/components/itens/lancar-item-dialog.tsx` — 2: `lanc-filial`, `lanc-tipo`
-- [ ] `src/components/ativos/nova-compra-form.tsx` — 2: `compra-categoria`, `compra-filial`
-- [ ] `src/components/movimentacoes/devolucao-fornecedor-form.tsx` — 2: `sub-categoria`, `sub-filial`
-- [ ] `src/components/movimentacoes/gerar-termo-dialog.tsx` — 1: `termo-modelo` (extra)
-- [ ] `src/components/relatorios/gerar-relatorio-dialog.tsx` — "Escopo" → `role="group"` +
-      `aria-labelledby` (**não** é Select)
-- [ ] `src/components/ativos/editar-ativo-dialog.tsx` — **NÃO TOCAR** (já correto por `FormControl`)
+**Patrimônios:** responsabilidade → `campos.patrimonio`; devolução → `campos.patrimonios`.
+Pipeline ÚNICO para os dois (o campo é texto livre editável nos dois casos): split por
+vírgula → trim de cada parte → descarta vazias e `"sem patrimônio"`
+(`PATRIMONIO_AUSENTE_TERMO`, comparação sem acento e sem caixa) → **preserva a ordem** (é
+a ordem do documento, vinda de `ordenarEquipamentos`) → une por ` - `.
 
-## Incremento 3 — P1-3 + P2-8: contrastes medidos
+**Colaborador:** `campos.colaborador` como está salvo — **espaços e acentos preservados**
+(chega de hífens); trim; vazio → segmento omitido.
 
-- [ ] `src/lib/relatorios/delta-kpi.ts` — `text-green-600` → `text-green-700` (3,22 → **4,94:1**)
-- [ ] `src/lib/dominio.ts` — fallback de `pillTipo`/`pillTipoLancamento`: `bg-muted text-muted-foreground`
-      (4,34:1) → `bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400` (**6,11** / **5,64:1**)
-- [ ] `src/components/layout/sidebar-nav.tsx` — chip "em breve" `text-[10px]` → `text-[11px]`
-- [ ] `scripts/contraste.mjs` — mede tudo, nos DOIS temas (já escrito e conferido contra a revisão:
-      reproduz 3,22 · 4,34 · 6,11 · 2,54)
+**Sanitização (por segmento):** remove `\ / : * ? " < > |` e caracteres de controle;
+colapsa espaços repetidos; trim. Escrever as regex com **escapes `\uXXXX`**, nunca com o
+caractere cru (armadilha de encoding que já mordeu o projeto).
 
-## Incremento 4 — núcleo do modo escuro
+**Teto de 150 caracteres** (nome completo, com `.docx`), nesta ordem:
+1. descarta patrimônios **do fim para o começo**, em separador inteiro (nunca no meio de
+   um código), até caber;
+2. se ainda não couber (o Zod aceita colaborador de 200 chars), **trunca o colaborador** no
+   limite exato, com trim do rabo;
+3. o prefixo nunca é cortado (o maior tem 34 chars).
 
-- [x] `src/app/globals.css` — `@custom-variant dark` com `@media not print` **e** bloco `.dark`
-      dentro de `@media not print`. Isso, sozinho, faz a **impressão sair sempre clara**: na mídia
-      print o `.dark` não declara token (cai no `:root` claro) e **nenhum** `dark:` casa.
-      CSS puro — sem JS, sem flash, sem duplicar paleta. *(Provado no CSS compilado.)*
-- [ ] `src/app/globals.css` — `color-scheme: light !important` no `@media print` (o next-themes
-      escreve `color-scheme` **inline** com `enableSystem`; inline vence CSS sem `!important`)
-- [x] `src/components/layout/theme-provider.tsx` — fronteira client do next-themes
-- [x] `src/app/layout.tsx` — `suppressHydrationWarning` + provider envolvendo `{children}` **e**
-      `<Toaster/>` (é o que conserta o P1-4 sem tocar em `ui/sonner.tsx`)
-- [ ] `src/components/layout/user-menu.tsx` — toggle Claro/Escuro/Sistema
-      (`DropdownMenuRadioGroup`, ícones, marcação **não só por cor**, rótulos pt-BR)
-- [ ] Viewer por senha **não** ganha toggle: `UserMenu` só é montado em `app-header.tsx`, e o viewer
-      usa `viewer-header.tsx`. Sai de graça — registrar em `DECISOES.md`.
+### A2. `src/lib/actions/termos.ts`
 
-## Incremento 5 — varredura de pares `dark:` faltantes (21 achados)
+- **remove** `nomeDownload` (fim do arquivo) e o import de `TERMO_ROTULO` se ficar órfão;
+- `gerarTermo` (linha ~439): `nomeArquivoTermo(tipo, campos)`;
+- `urlTermo`: acrescenta `dados` ao select (hoje `arquivo_path, tipo, colaborador`), com o
+  cast do padrão de `src/lib/queries/termos.ts` (`as unknown as`), e chama
+  `nomeArquivoTermo(tipo, dados)`. Fallback do colaborador na coluna quando o jsonb não
+  tiver — linha antiga/parcial degrada omitindo segmento, nunca quebra.
 
-Mapa canônico do repo: `bg-*-100`→`dark:bg-*-950` · `text-*-700|800`→`dark:text-*-300` ·
-`text-*-600`→`dark:text-*-400` · callout âmbar → `dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200`.
+**Guarda:** `src/lib/actions/termos.ts` é `'use server'` — a varredura de
+`use-server-exports.test.ts` só admite `export async function` / `export type X = …`. A
+função pura **não pode** nascer nem ser re-exportada de lá; só importada.
 
-- [ ] `src/lib/dominio.ts` — `TIPO_PILL`: `saida`, `devolucao`, `compra` (3)
-- [ ] `src/app/(app)/page.tsx:231` — `text-amber-800` → `+ dark:text-amber-300`
-- [ ] `src/app/(app)/relatorios/gerados/[id]/page.tsx:53` — banner "versão mais nova" (zero `dark:`)
-- [ ] `src/components/relatorios/pendencias-chips.tsx:17` — chip (zero `dark:`)
-- [ ] `src/app/(app)/admin/{filiais,itens,kits,motivos,senhas}/page.tsx` — badge verde "Ativo/Ativa" (5)
-- [ ] `border-amber-300` sem par (5): `(app)/ativos/[id]/page.tsx:205`,
-      `ativos/pendencias-item-ficha.tsx:33`, `movimentacoes/gerar-termo-dialog.tsx:259`,
-      `ativos/linha-do-tempo.tsx:226`, `relatorios/tabela-entradas.tsx:188`
-- [ ] `movimentacoes/nova/passo-movimentacao.tsx:215` — `border-green-600/40` sem par
-- [ ] `relatorios/manutencao-casos.tsx:86` — ícone `text-amber-500`
-- [ ] `movimentacoes/nova/colar-lista-dialog.tsx:338` — `accent-amber-600`
-- [ ] `src/components/ui/dialog.tsx:42` + `src/components/ui/sheet.tsx:40` — scrim `bg-black/10`
-      some no escuro. **É `ui/*`** → registrar o motivo em `DECISOES.md` (defeito criado por ligar o tema)
+### A3. `src/lib/termos/nome-arquivo.test.ts` (Vitest, `describe`/`it` em pt-BR)
 
-**Não tocar** (falsos positivos conferidos): `barras-empilhadas` `fill-white` (sobre hex fixo),
-`realtime-refresh` `bg-green-500`, `linha-do-tempo:95` trilho, `ui/chart.tsx` (seletores),
-`observacao-card` (tokens de marca), e todo o chrome `bg-brand-dark`/`bg-brand-amarelo`.
+Casos mínimos:
+1. um por tipo — 7 casos (as duas variantes de monitor caem no mesmo prefixo);
+2. devolução multi-patrimônio **preservando a ordem** do documento;
+3. `"sem patrimônio"` descartado (e variações de caixa/acento);
+4. partes vazias e vírgulas sobrando descartadas;
+5. nenhum patrimônio útil → `prefixo - colaborador.docx`;
+6. colaborador vazio → `prefixo - patrimônios.docx`;
+7. tudo vazio / `{}` → `prefixo.docx` (o schema é `.partial()`: toda chave é opcional);
+8. colaborador com acento → **preservado** ("João Conceição");
+9. caractere proibido do Windows → removido (nos dois segmentos);
+10. `patrimonios` editado sem vírgula → o texto inteiro vira um patrimônio;
+11. teto de 150: corta patrimônio inteiro, nunca no meio; e o caso do colaborador longo;
+12. varredura de `TERMO_TIPOS` inteiro: todo tipo tem prefixo não-vazio e produz nome
+    válido — pega o modelo novo que alguém acrescente sem atualizar o mapa.
 
-## Incremento 6 — P2 restantes
+Dados **100% fictícios** (`WAP0001234`, `LEA0000001`, "Fulano de Tal") — regra 2.
 
-- [ ] **P2-5** `src/app/(app)/ativos/page.tsx` — `EstadoVazio` + `temFiltro`.
-      `temFiltro = Boolean(q || filialId || categoria || status.length > 0 || semPatrimonio)`
-      (⚠ `status` é array: `Boolean([])` é `true`); `ord`/`pp`/`page` **fora**; "banco vazio" exige
-      `resultado.total === 0`. Tirar `PackageOpen` do import **sem** levar `PackagePlus`.
-- [ ] **P2-6** `role="alert"`: `nova-movimentacao-form.tsx` ("Revise antes de continuar") e
-      `nova/passo-movimentacao.tsx` ("Itens que falharam"); `login/page.tsx` ganha `<p role="alert">`
-      persistente (mantendo o toast, como a ordem pede)
-- [ ] **P2-7** `src/components/relatorios/barras-empilhadas.tsx` — cor do rótulo por **luminância**
-      do segmento (branco só onde ≥4,5:1 — medido: só o violeta), fonte 10 → 11px
-- [ ] **P2-9** `nova-movimentacao-form.tsx` — `aria-label="Etapas"` na `<ol>` + `aria-current="step"`
-- [ ] **P2-10** `title=` → `Tooltip`: `itens/saldos-filiais.tsx` (2), `itens/badge-repor.tsx`,
-      `relatorios/celulas.tsx` (`BadgeEstornada`). ⚠ `saldos-filiais` e `badge-repor` são **Server
-      Components** — o Tooltip do Radix é client; envolver só o trecho necessário
-- [ ] **P2-11** `layout/progresso-navegacao.tsx` — `motion-reduce:hidden`; `motion-reduce:animate-none`
-      nos `animate-spin` com texto: `gerar-termo-dialog` (2), `colar-lista-dialog`,
-      `viewer-auto-refresh`, `filial-tabs`
-- [ ] **P2-12a** `(app)/ativos/[id]/page.tsx` — "Voltar para ativos" vira client link:
-      `history.back()` **só** se `document.referrer` for mesma origem e `/ativos`; senão `/ativos`.
-      ⚠ nunca navegar *para* o referrer (open redirect)
-- [ ] **P2-12b** mesma ficha — "Corrigir patrimônio" + "Definir service tag" num `⋯`.
-      ⚠ os 2 dialogs têm `open` **interno** e trigger acoplado → precisam de `open`/`onOpenChange`
-      opcionais; dialogs como **irmãos** do menu (não dentro); `onSelect` com `preventDefault()`
-- [ ] **P2-12c** `ativos/linha-do-tempo.tsx` — destaque `:target`. ⚠ o `id` está no `<li>` mas o
-      cartão é o `<div>` filho → mirar o filho
+### Aceitação A
 
-## Incremento 7 — docs, verificação e fecho
+- Download do dialog (termo novo) e da ficha (termo antigo) saem no padrão — **inclusive
+  termos gerados antes desta ordem** (o nome é calculado na hora; banco e Storage intocados).
+- `TERMO_ROTULO` e a UI intocados; Storage continua `${id}.docx`.
+- Nenhum uso remanescente de `nomeDownload` (grep).
 
-- [ ] `docs/DECISOES.md` — try/catch inline vs helper · impressão CSS-only · viewer sem toggle ·
-      `:target` · edição de `ui/dialog|sheet` · revogação do T12/linha 289
-- [ ] `README.md` + `docs/BACKLOG-UX.md` — tirar T12 ("remover next-themes")
-- [ ] `CHANGELOG.md` — entrada no formato existente
-- [ ] `docs/F19-RELATORIO.md` — checklist, tabela de contrastes, saídas reais, smoke, checklist de 2 min
-- [ ] Smoke público (`build` + `start` + curl) · smoke logado degradado (**não há `.env.smoke`**)
-- [ ] Revisão em contexto fresco contra este PLAN + critérios; corrigir e re-revisar
-- [ ] `git push origin main` — **último ato**, só com tudo verde
+---
 
-## Fora de escopo (backlog, não tocar nesta ordem)
+## Frente B — "Tentar novamente" que funciona
 
-Banco/migrations · Server Actions e regras de negócio · dependência nova · templates/scripts/mockups ·
-`db:reset`/`db:seed` · remover variantes `dark:` existentes.
+### B0. O que a doc oficial manda HOJE (confirmado, regra 6)
+
+A hipótese da ordem (`startTransition(() => { router.refresh(); reset() })`) está
+**mecanicamente certa**, mas desde o **Next 16.2.0** isso virou prop de primeira classe:
+`unstable_retry`. O repo está no **16.2.10** (pinado, sem `^`), então a prop já existe aqui.
+
+Verificado no pacote instalado — `node_modules/next/dist/client/components/error-boundary.js`:
+
+```js
+this.unstable_retry = () => {
+  startTransition(() => {
+    this.context?.refresh()
+    this.reset()
+  })
+}
+```
+
+…e o tipo público é `ErrorInfo = { error; reset; unstable_retry }`. A doc
+(`nextjs.org/docs/app/api-reference/file-conventions/error`, seção `#reset`) diz: "In most
+cases, you should use `unstable_retry()` instead."
+
+**Decisão:** usar `unstable_retry` — é a doc vigente, e é literalmente a mecânica que a
+ordem esperava. Registrar em `docs/DECISOES.md`.
+
+### B1. `src/components/layout/tentar-novamente.tsx` (novo, `'use client'`)
+
+```tsx
+export function TentarNovamente(props: {
+  aoTentar?: () => void   // o `unstable_retry` do boundary
+  reset: () => void       // rede de segurança (ver abaixo)
+  rotulo?: string         // default 'Tentar novamente'
+})
+```
+
+- `useTransition` local só para ter o `pending` do botão (`unstable_retry` não devolve
+  estado): `disabled={pending}`, `aria-busy`, `Loader2 size-4 animate-spin
+  motion-reduce:animate-none` + rótulo "Tentando…" (padrão do repo: o texto carrega o
+  estado quando a animação está desligada). Clique repetido não empilha;
+- **fallback:** se `aoTentar` vier `undefined` (rename futuro da API `unstable_`), faz
+  `router.refresh(); reset()` — mesma mecânica, mesma ordem. Sem isso, um rename silencioso
+  ressuscita exatamente o bug que esta ordem corrige;
+- serve só a boundary **de segmento** (usa `useRouter`, que exige o AppRouterContext);
+  documentado em comentário — o repo não tem `global-error.tsx`.
+
+### B2. Os 5 boundaries
+
+`src/app/(app)/error.tsx` · `ativos/` · `itens/` · `movimentacoes/` · `pendencias/`
+(grep confirma que não há outro `error.tsx` nem `global-error.tsx` no repositório).
+
+Cada um: declara `unstable_retry` nas props e troca o `<Button onClick={reset}>` por
+`<TentarNovamente aoTentar={unstable_retry} reset={reset} />`. **Preserva** título,
+mensagem, ícone e CTAs extras ("Ir para o início" na raiz; "Limpar filtros" em pendências)
+— e **preserva o rótulo divergente da raiz** ("Tentar de novo"), via prop `rotulo`, porque
+a aceitação diz "nenhum outro comportamento/texto muda".
+
+Comentários: os atuais documentam a semântica ANTIGA do `reset()` — atualizar. A ressalva
+continua verdadeira e continua registrada: **erro causado por searchParams refalha mesmo
+com o retry** (ele refaz a leitura, mas com os mesmos params), então as saídas que TROCAM a
+URL seguem sendo a única saída real nesse caso.
+
+**Proibido:** chamar o retry em `useEffect` ou com auto-retry/backoff — vira martelada
+infinita no Supabase quando a causa é determinística.
+
+### Aceitação B
+
+- Os 5 boundaries usam o mecanismo novo; nenhum outro comportamento/texto muda.
+- Clicar com a causa resolvida recarrega os dados do segmento **sem F5**; com a causa
+  persistindo, o boundary re-renderiza (sem tela branca, sem loop).
+- Conformidade com a doc oficial vigente, citada no relatório.
+
+---
+
+## §V — Verificação
+
+A cada incremento: `npm run lint && npm run test && npm run build`, corrigindo a causa
+raiz. Nunca suprimir erro nem enfraquecer teste.
+
+**Limite declarado:** o clique real no boundary e o download real no navegador não são
+automatizáveis aqui (login wall). A prova da Frente B é doc oficial + revisão adversarial +
+roteiro manual de 2 minutos no relatório. O que só o clique humano prova vai para "o que
+este relatório NÃO prova".
+
+**Revisão adversarial** em contexto fresco contra este PLAN e os critérios das duas
+frentes. Atenção: ordem dos patrimônios preservada; nenhum uso remanescente de
+`nomeDownload`; a transição do retry não engole erros nem quebra os CTAs extras.
+
+## §R — Encerramento
+
+`CHANGELOG.md` (topo) · `docs/prompts/README.md` (linha após a F20, sem linha em branco) ·
+`README.md` (parágrafo antes de `**Pendências:**`, + as duas faixas vencidas `F0→F19`) ·
+`docs/DECISOES.md` (append no fim) · `docs/RELATORIO-F20B.md`. Push = deploy Vercel, só
+com o §V inteiro verde.

@@ -18,11 +18,11 @@ import { formatDate, hojeISO } from '@/lib/format'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import {
   TERMO_ARQUIVO,
-  TERMO_ROTULO,
   familiaDoTipo,
   type FamiliaTermo,
   type TermoTipo,
 } from '@/lib/termos/tipos'
+import { nomeArquivoTermo } from '@/lib/termos/nome-arquivo'
 import { dataPorExtenso, mesAnoPorExtenso } from '@/lib/termos/datas'
 import {
   concatenarEquipamentos,
@@ -436,7 +436,8 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
   // coluna "Termo" do relatorio e as pendencias leem: revalida o relatorio.
   revalidatePath('/relatorios', 'layout')
 
-  const nomeArquivo = nomeDownload(tipo, campos.colaborador ?? '')
+  // Nome amigável do download (o objeto no Storage continua `${id}.docx`).
+  const nomeArquivo = nomeArquivoTermo(tipo, campos)
   return { ok: true, id, url: signed?.signedUrl, nomeArquivo }
 }
 
@@ -452,13 +453,22 @@ export async function urlTermo(input: {
     return { ok: false, erro: 'Termo inválido.' }
   }
 
-  const { data: row, error } = await supabase
+  // `dados` (jsonb com os CamposTermo salvos na geração) entra no select porque é
+  // dele que saem os patrimônios do nome do arquivo.
+  const { data: linha, error } = await supabase
     .from('termos_gerados')
-    .select('arquivo_path, tipo, colaborador')
+    .select('arquivo_path, tipo, colaborador, dados')
     .eq('id', input.id)
     .maybeSingle()
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
-  if (!row) return { ok: false, erro: 'Termo não encontrado.' }
+  if (!linha) return { ok: false, erro: 'Termo não encontrado.' }
+  // O gerador tipa jsonb como `Json` — mesmo cast de `src/lib/queries/termos.ts`.
+  const row = linha as unknown as {
+    arquivo_path: string
+    tipo: TermoTipo
+    colaborador: string | null
+    dados: (CamposTermo & { data?: string }) | null
+  }
 
   const { data: signed, error: sErr } = await supabase.storage
     .from('termos')
@@ -468,7 +478,14 @@ export async function urlTermo(input: {
   return {
     ok: true,
     url: signed.signedUrl,
-    nomeArquivo: nomeDownload(row.tipo as TermoTipo, row.colaborador ?? ''),
+    // O nome é calculado AGORA, a partir do que foi salvo na geração — por isso
+    // termo antigo também passa a baixar no padrão novo, sem tocar banco nem
+    // Storage. A coluna `colaborador` é a rede de segurança de uma linha cujo
+    // jsonb não trouxe o nome (a função degrada omitindo o segmento).
+    nomeArquivo: nomeArquivoTermo(row.tipo, {
+      ...row.dados,
+      colaborador: row.dados?.colaborador ?? row.colaborador ?? undefined,
+    }),
   }
 }
 
@@ -592,13 +609,3 @@ export async function desfazerConfirmacaoTermo(input: {
   return { ok: true }
 }
 
-// Nome amigável para o download (o arquivo no Storage é `${id}.docx`).
-function nomeDownload(tipo: TermoTipo, colaborador: string): string {
-  const base = TERMO_ROTULO[tipo].replace(/[—:]/g, '').replace(/\s+/g, ' ').trim()
-  const quem = colaborador
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return `${base}${quem ? ' - ' + quem : ''}.docx`.replace(/\s+/g, ' ')
-}
