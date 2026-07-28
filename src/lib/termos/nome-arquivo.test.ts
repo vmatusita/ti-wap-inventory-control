@@ -273,6 +273,23 @@ describe('nomeArquivoTermo — teto de comprimento', () => {
     expect(nome.endsWith('.docx')).toBe(true)
   })
 
+  // Achado da revisão adversarial: `slice()` conta unidades de código e partia um
+  // par surrogate ao meio, deixando meio caractere inválido no nome do arquivo.
+  it('o corte do colaborador não parte um caractere ao meio (par surrogate)', () => {
+    const emoji = String.fromCodePoint(0x1f600)
+    for (let n = 100; n <= 112; n++) {
+      const nome = nomeArquivoTermo('responsabilidade_notebook', {
+        colaborador: 'A'.repeat(n) + emoji.repeat(10),
+      })
+      const soltos = [...nome].filter((c) => {
+        const cp = c.codePointAt(0) ?? 0
+        return cp >= 0xd800 && cp <= 0xdfff
+      })
+      expect(soltos, `surrogate solto com colaborador de ${n} letras: ${nome}`).toEqual([])
+      expect(nome.length).toBeLessThanOrEqual(NOME_ARQUIVO_MAX)
+    }
+  })
+
   it('respeita o teto mesmo com colaborador E patrimônios estourando juntos', () => {
     const nome = nomeArquivoTermo('devolucao_desligamento', {
       colaborador: 'B'.repeat(200),

@@ -93,6 +93,20 @@ function listaPatrimonios(tipo: TermoTipo, campos: CamposTermo): string[] {
     .filter((p) => p !== '' && chaveComparacao(p) !== CHAVE_AUSENTE)
 }
 
+// Corta `texto` para caber em `limite` unidades de código, SEM partir caractere.
+// `slice()` cru contaria certo e ainda assim quebraria um par surrogate ao meio
+// (emoji, por exemplo), deixando meio caractere inválido no nome do arquivo — o
+// iterador de string anda por code point, então isso não acontece aqui.
+function cortarSemPartirCaractere(texto: string, limite: number): string {
+  if (texto.length <= limite) return texto
+  let saida = ''
+  for (const caractere of texto) {
+    if (saida.length + caractere.length > limite) break
+    saida += caractere
+  }
+  return saida
+}
+
 // Junta os três segmentos, omitindo os vazios (some junto o " - " correspondente).
 function montar(prefixo: string, patrimonios: string[], colaborador: string): string {
   const nome = [prefixo, patrimonios.join(SEPARADOR), colaborador]
@@ -123,5 +137,6 @@ export function nomeArquivoTermo(tipo: TermoTipo, campos: CamposTermo): string {
   // de colaborador): o único segmento que pode ceder é o nome. Corta no limite
   // exato e apara o rabo de espaço.
   const folga = NOME_ARQUIVO_MAX - montar(prefixo, [], '').length - SEPARADOR.length
-  return montar(prefixo, [], colaborador.slice(0, Math.max(0, folga)).trim())
+  const cortado = cortarSemPartirCaractere(colaborador, Math.max(0, folga)).trim()
+  return montar(prefixo, [], cortado)
 }
