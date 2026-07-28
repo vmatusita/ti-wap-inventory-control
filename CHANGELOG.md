@@ -6,6 +6,17 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 28/07/2026 — Nome oficial do arquivo dos termos + o "Tentar novamente" que não tentava (F20B) 🔒
+
+- 📄 **O `.docx` do termo passou a baixar com o nome que o Johnny usava à mão:** `<tipo> - <patrimônio(s)> - <colaborador>.docx`. Antes saía `Responsabilidade Notebook - Fulano-de-Tal.docx` — **sem patrimônio nenhum** e com o nome do colaborador **hifenizado e sem acento**. Agora o patrimônio está lá (vários, na ordem do documento, na devolução em lote), e o nome sai com **espaços e acentos preservados**.
+- ⏪ **Termo gerado ANTES desta mudança também baixa com o nome novo** — o nome é calculado na hora do download, a partir do que já estava salvo. **Zero migration, zero re-upload, nada tocado no Storage** (o objeto continua `${id}.docx`).
+- 🔁 **"Tentar novamente" voltou a tentar.** Quando uma tela falhava, o botão dos 5 boundaries de erro chamava `reset()` puro — que no App Router **só limpa o estado de erro e não refaz as leituras** que falharam. O operador clicava e nada acontecia; só sair-e-voltar ou F5 recuperava. Passou a usar a prop **`unstable_retry`** (Next ≥ 16.2), que a doc oficial manda usar no lugar do reset sozinho. Durante a tentativa o botão desabilita e mostra "Tentando…", então clique repetido não empilha.
+- 🧪 **O limite que a ordem dava como intransponível caiu:** o clique foi provado **num navegador de verdade, na tela logada**, em A/B controlado — com o boundary novo e a causa resolvida, a tela volta **sem F5**; com o boundary antigo, nas mesmas condições, 15 s de cliques não recuperam nada. O nome do arquivo foi conferido **em termos reais de 27–28/07**, interceptando o download sem baixá-lo e sem expor dado nenhum.
+- 🛡️ Um achado da revisão adversarial entrou junto: no teto de 150 caracteres, o corte do nome partia **um par surrogate ao meio** (emoji colado no campo), deixando meio caractere inválido no arquivo.
+- **Zero migration, zero escrita em banco, zero dependência nova.** `lint` limpo · **1.491 testes** (eram 1.457) · build limpo. Ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-07-28 · F20B); evidências e "o que este relatório NÃO prova" em [`docs/RELATORIO-F20B.md`](docs/RELATORIO-F20B.md).
+
+---
+
 ## 25/07/2026 — Auditoria de `src/`: 7 lentes + refutação adversarial 🔒
 
 - 🔬 **O diagnóstico da manhã fechou banco e infraestrutura, mas apoiou a qualidade de `src/` em procuração** ("lint/tsc/1.448 testes/build limpos + a revisão xhigh de ontem"). Esta rodada auditou os 401 arquivos de verdade: 7 lentes independentes, cada achado submetido a um refutador instruído a derrubá-lo. **25 achados brutos → 16 confirmados, 8 refutados, 1 contestado.** A refutação de ~1/3 é o que o passo adversarial comprou: caíram um "bypass de layout" que dependia de rota inexistente e um "dedupe divergente do índice" que é divergência deliberada e documentada.

@@ -37,7 +37,7 @@ Prioriza pela fórmula da skill: `Prioridade = (Impacto + Risco) × (6 − Esfor
 | N | `p_contagens` opcional na RPC destrutiva (TOCTOU burlável) | Infra/Seg | 1 | 3 | 2 | **16** |
 | I | Enum-fantasma `'outro'` carregado por `Exclude<…>` em ~5 lugares | Código | 2 | 2 | 2 | **16** |
 | K | Forms centrais com `useState` manual vs. `react-hook-form` | Código | 2 | 2 | 3 | **12** |
-| L | `termos.ts` (604) — responsabilidades misturadas | Código | 2 | 2 | 3 | **12** |
+| L | `termos.ts` (611) — responsabilidades misturadas (1ª fatia saiu na F20B) | Código | 2 | 2 | 3 | **12** |
 | M | RLS "sempre true" + visualizador em `service_role` | Arq/Seg | 2 | 4 | 4 | **12** |
 
 ## Resolvidos desde a auditoria anterior
@@ -172,7 +172,7 @@ que documentar a emenda exata.
 
 ### U — Escrita em duas etapas sem transação `[Prio 12]` *(novo — 25/07/2026)*
 
-Em `actions/termos.ts:516` (e o mesmo padrão em `actions/ativos.ts`, em `corrigirPatrimonio` e
+Em `actions/termos.ts:533` (e o mesmo padrão em `actions/ativos.ts`, em `corrigirPatrimonio` e
 `definirServiceTag`), o `update` no ativo **já commitou** quando o `insert` na `anotacoes` é
 avaliado; se o segundo falha, a action retorna "não foi possível" para algo que em parte deu certo,
 e a retentativa esbarra no guarda de idempotência com outra mensagem. O que se perde não é
@@ -232,7 +232,7 @@ A revalidação de contagens sob advisory lock — defesa central contra apagar 
 
 ### K / L — Convenção e coesão `[Prio 12]`
 
-`nova-compra-form.tsx` (23 `useState`), `nova-movimentacao-form.tsx` (15) e `lancar-item-dialog.tsx` (10) usam estado manual + validação na mão, contra a convenção `react-hook-form` do `CLAUDE.md` (hoje só `editar-ativo-dialog.tsx` a segue). `termos.ts` (604) mistura render de `.docx`, Storage, regra de flag, anotações e formatação de nome.
+`nova-compra-form.tsx` (23 `useState`), `nova-movimentacao-form.tsx` (15) e `lancar-item-dialog.tsx` (10) usam estado manual + validação na mão, contra a convenção `react-hook-form` do `CLAUDE.md` (hoje só `editar-ativo-dialog.tsx` a segue). `termos.ts` (611) mistura render de `.docx`, Storage, regra de flag e anotações — a **formatação de nome saiu na F20B** para `src/lib/termos/nome-arquivo.ts` (função pura, com teste), primeira fatia desse item.
 
 ### M — RLS "sempre true" + visualizador em service-role `[Prio 12]`
 

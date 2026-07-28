@@ -2612,3 +2612,71 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   CI e documentação.
 - **Reversível?** Tudo. Um arquivo novo de rota (`app/not-found.tsx`), um módulo novo de constantes
   com teste, e edições localizadas; nada de esquema nem de dado.
+
+## 2026-07-28 · F20B · nome oficial do arquivo dos termos + "Tentar novamente" que funciona
+
+- **Contexto:** duas queixas do Johnny no mesmo dia. (1) O `.docx` baixado saía como
+  `Responsabilidade Notebook - Fulano-de-Tal.docx` — **sem patrimônio** e com o nome do colaborador
+  **hifenizado e sem acento** —, longe do padrão dos arquivos que ele nomeava à mão. (2) Quando uma
+  tela falhava ao carregar, clicar em **"Tentar novamente" não fazia nada**: só sair-e-voltar ou F5
+  recuperava.
+- **Decisão 0 — esta ordem é a F20B, não a F20.** A ordem se autointitula F20 e manda escrever
+  `docs/RELATORIO-F20.md`, mas **a F20 já existe** (a `/ajuda` multi-página, 24/07/2026) e já ocupa
+  esse arquivo **e** `docs/prompts/F20-ultracode.md`. Seguir ao pé da letra sobrescreveria o
+  relatório da fase anterior. Adotado o sufixo **B** (mesmo precedente da F19, que teve a mesma
+  colisão): `docs/RELATORIO-F20B.md` e `docs/prompts/F20B-ultracode.md`. Nada foi sobrescrito.
+- **Decisão 1 — o nome do arquivo ganhou mapa PRÓPRIO, separado de `TERMO_ROTULO`.** O padrão é
+  `<prefixo do tipo> - <patrimônio(s)> - <colaborador>.docx`. O helper antigo derivava a base de
+  `TERMO_ROTULO`, que é **rótulo de UI** (ficha, seletor de variante) e alimenta também a tabela de
+  modelos da ajuda: com isso, mexer num rótulo de tela renomeava os downloads em silêncio. O novo
+  `TERMO_NOME_PREFIXO` (em `src/lib/termos/nome-arquivo.ts`) desacopla os dois. As duas variantes de
+  monitor caem no mesmo prefixo, e o "monitor" minúsculo é intencional — é o padrão do Johnny.
+  *Alternativa descartada:* derivar o prefixo de `TERMO_ROTULO` com sanitização mais esperta — mais
+  curto, mas mantinha o acoplamento invisível que já é a causa do problema.
+- **Decisão 2 — função pura em `src/lib/termos/`, não helper na action.** `src/lib/actions/termos.ts`
+  é `'use server'`, e a varredura de `use-server-exports.test.ts` só admite `export async function` /
+  `export type` — a lógica **não podia** nascer nem ser reexportada de lá, e sem sair de lá não teria
+  teste. Virou `nomeArquivoTermo(tipo, campos)`, coberta por **34 testes** de Vitest.
+- **Decisão 3 — teto de 150 caracteres, cortando a lista de patrimônios do fim para o começo.** Só
+  em separador inteiro (nunca no meio de um código); os primeiros ficam porque são a ordem do próprio
+  documento (notebook → monitor → celular → demais). Esgotados os patrimônios, quem cede é o nome do
+  colaborador (o Zod aceita 200 caracteres), cortado **por code point** — `slice()` cru parte um par
+  surrogate ao meio e deixa meio caractere inválido no nome (achado da revisão adversarial, corrigido
+  com teste).
+- **Decisão 4 — `unstable_retry`, e não `router.refresh()` + `reset()` escritos à mão.** A ordem
+  previa o segundo (`startTransition(() => { router.refresh(); reset() })`). A regra 6 do `CLAUDE.md`
+  mandou conferir a doc vigente, e ela mudou: desde o **Next 16.2.0** o boundary recebe a prop
+  `unstable_retry`, e a doc oficial diz — em `#reset` — *"In most cases, you should use
+  `unstable_retry()` instead."* O repo está no **16.2.10**, então a prop já existe. Conferido no
+  pacote instalado: a implementação é **literalmente** o que a ordem esperava, com o `refresh()`
+  **antes** do `reset()` na mesma transição. Seguimos a doc.
+- **Decisão 5 — o botão aceita `aoTentar` opcional, com fallback.** A API ainda é `unstable_` e pode
+  ser renomeada num minor. Se a prop sumir, `TentarNovamente` cai para `router.refresh(); reset()`,
+  na mesma ordem. Sem esse fallback, um rename futuro **ressuscitaria em silêncio exatamente o bug
+  desta ordem** — um botão que não faz nada. Custo: 4 linhas e a restrição de o componente só servir
+  a boundary de **segmento** (usa `useRouter`), documentada no arquivo; o repo não tem
+  `global-error.tsx`.
+- **Decisão 6 — o rótulo divergente da raiz foi PRESERVADO.** Quatro boundaries dizem "Tentar
+  novamente" e o da raiz diz "Tentar de novo". Unificar seria tentador, mas a ordem exige "nenhum
+  outro comportamento/texto muda" — o componente recebe `rotulo` e a divergência continua. Fica no
+  backlog como decisão de produto.
+- **Verificação (o limite declarado pela ordem não se sustentou — foi possível provar no navegador).**
+  A ordem dizia que o clique real no boundary e o download real "não são automatizáveis aqui (login
+  wall)". Usando o proxy de sessão da F20 (login por script + cookie entregue à aba), rodou-se um
+  **A/B controlado** em `/ativos` com o dev server: com o boundary **novo** e a causa da falha
+  resolvida, o clique recuperou a tela **sem F5** (tabela de volta, 50 linhas, variável de documento
+  preservada = não houve recarregamento); com o boundary **antigo** restaurado e nas **mesmas
+  condições**, 15 s de clique não recuperaram nada, e só o F5 trouxe a tela — o sintoma do Johnny,
+  reproduzido e depois eliminado. Com a causa **persistindo**, o novo re-renderiza limpo (sem tela
+  branca, sem travar desabilitado, sem loop). A frente A foi provada ponta a ponta contra **termos
+  reais gerados em 27–28/07, antes desta ordem**: o `a.download` foi interceptado (sem baixar) e
+  conferido só na estrutura — prefixo correto, patrimônio presente (antes não havia nenhum),
+  hifenização ausente, dentro do teto, sem caractere proibido pelo Windows. Sonda read-only nos
+  **dois** projetos Supabase: em produção, as 6 linhas de `termos_gerados` têm todas a chave que a
+  função lê (`patrimonios` nas devoluções, `patrimonio` nas responsabilidades) e **zero divergência**
+  entre o jsonb e a coluna `colaborador`; o ensaio não tem termos. Portão: `lint` limpo · `test`
+  **1.491 passando (70 arquivos)**, eram 1.457 · `build` + TypeScript limpos.
+- **Reversível?** Sim, inteiramente. **Zero migration, zero escrita em banco, zero mudança no
+  Storage** (o objeto continua `${id}.docx`; muda só o nome de download, calculado na hora) e zero
+  dependência nova. Reverter é `git revert` do intervalo — inclusive o nome dos downloads volta ao
+  formato antigo sozinho, porque nada foi persistido.
