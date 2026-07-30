@@ -586,6 +586,30 @@ from tudo group by classe order by classe;
 Classe que divergir → repita só aquela classe **sem** o `group by`, e faça o `except` dos dois
 resultados para achar o objeto exato.
 
+⚠ **SEGUNDO FALSO-POSITIVO CONHECIDO, e ele derrota até a sonda normalizada: COMENTÁRIO.**
+(F23, 30/07/2026.) Quando uma função grande é recriada **colando o SQL à mão em cada banco**
+— que é o que o apply por MCP obriga —, é fácil reescrever levemente um comentário interno
+entre uma colagem e outra. O corpo passa a diferir em bytes e no md5 normalizado, e o
+comportamento é **idêntico**. Aconteceu com `apagar_ativo` (5580 × 5529 bytes) e `apagar_item`
+(2567 × 2563). Antes de concluir "os bancos divergiram", refaça o hash **sem as linhas de
+comentário** — se bater, a divergência é redacional:
+
+```sql
+with d as (
+  select p.proname, string_agg(l, ' ' order by ord) as codigo
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
+         lateral regexp_split_to_table(pg_get_functiondef(p.oid), e'\n') with ordinality as t(l, ord)
+   where n.nspname='public' and p.proname = :nome
+     and btrim(l) not like '--%' and btrim(l) <> ''
+   group by p.proname)
+select proname, md5(regexp_replace(codigo, '\s+', ' ', 'g')) as fp_codigo, length(codigo)
+  from d;
+```
+
+A lição operacional: **o que precisa ser idêntico é o CÓDIGO**; comentário divergente é dívida
+de redação, não de comportamento — mas vale corrigir na próxima recriação daquela função, para
+a sonda agregada voltar a ser um sinal limpo.
+
 **Resultado de 25/07/2026 (depois do rollout de `0056`/`0058`/`0059`/`0060`):** as **10 classes
 batem** entre ensaio e produção — 15 funções, 15 grants, 201 colunas, 56 constraints, 47 índices,
 20 policies, 5 views, 6 enums, 2 triggers, 15 flags de RLS. Paridade completa; a única diferença

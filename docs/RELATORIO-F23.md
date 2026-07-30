@@ -252,6 +252,27 @@ A recusa é **estreita**: só dispara quando existe outra movimentação do mesm
 
 ---
 
+### 3.11 Paridade ensaio × produção das 14 funções da fase — e um falso-positivo instrutivo
+
+O fingerprint agregado das 14 funções **divergiu** entre os bancos
+(`e2b629fa…` × `a8b79ace…`). O runbook manda **abrir a diferença antes de reportá-la**, e foi
+o que aconteceu: das 14, **12 batem byte a byte**; `apagar_ativo` (5580 × 5529) e `apagar_item`
+(2567 × 2563) diferiam.
+
+Removendo as **linhas de comentário** do corpo e refazendo o hash:
+
+```
+                 ENSAIO                             PRODUÇÃO
+apagar_ativo     22538e43d784799062cd7c1e895cc312   22538e43d784799062cd7c1e895cc312   (4492 B)
+apagar_item      258c32ea5f325ae6ec6a254149fea3a1   258c32ea5f325ae6ec6a254149fea3a1   (2075 B)
+```
+
+**O CÓDIGO é idêntico.** A diferença inteira é prosa de comentário interno, que eu reescrevi
+levemente entre a colagem no ensaio e a colagem em produção. Nenhuma divergência de
+comportamento — e é exatamente a armadilha que o runbook documenta para o fingerprint cru
+(lá era CRLF × LF; aqui é comentário), agora com um segundo exemplar: **normalizar espaço não
+basta quando a recriação é manual; é preciso comparar o código sem comentário.**
+
 ## 4-bis. A revisão adversarial, e o que ela derrubou
 
 Sete lentes em contexto fresco, com refutação por padrão (§V da ordem). Ela **não** voltou
