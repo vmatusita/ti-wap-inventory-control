@@ -14,39 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _bkp_relatorios_gerados_f6a: {
-        Row: {
-          dados: Json | null
-          filial_id: number | null
-          gerado_em: string | null
-          gerado_por: string | null
-          id: string | null
-          periodo_ate: string | null
-          periodo_de: string | null
-          versao: number | null
-        }
-        Insert: {
-          dados?: Json | null
-          filial_id?: number | null
-          gerado_em?: string | null
-          gerado_por?: string | null
-          id?: string | null
-          periodo_ate?: string | null
-          periodo_de?: string | null
-          versao?: number | null
-        }
-        Update: {
-          dados?: Json | null
-          filial_id?: number | null
-          gerado_em?: string | null
-          gerado_por?: string | null
-          id?: string | null
-          periodo_ate?: string | null
-          periodo_de?: string | null
-          versao?: number | null
-        }
-        Relationships: []
-      }
       anotacoes: {
         Row: {
           ativo_id: string
@@ -392,6 +359,7 @@ export type Database = {
           data: string
           estorna_id: string | null
           filial_id: number
+          forcado: boolean
           id: string
           item_id: number
           observacao: string | null
@@ -406,6 +374,7 @@ export type Database = {
           data?: string
           estorna_id?: string | null
           filial_id: number
+          forcado?: boolean
           id?: string
           item_id: number
           observacao?: string | null
@@ -420,6 +389,7 @@ export type Database = {
           data?: string
           estorna_id?: string | null
           filial_id?: number
+          forcado?: boolean
           id?: string
           item_id?: number
           observacao?: string | null
@@ -490,6 +460,7 @@ export type Database = {
           estorno_de: string | null
           filial_destino_id: number | null
           filial_id: number
+          forcado: boolean
           id: string
           itens_faltantes: string[] | null
           motivo: string | null
@@ -513,6 +484,7 @@ export type Database = {
           estorno_de?: string | null
           filial_destino_id?: number | null
           filial_id: number
+          forcado?: boolean
           id?: string
           itens_faltantes?: string[] | null
           motivo?: string | null
@@ -536,6 +508,7 @@ export type Database = {
           estorno_de?: string | null
           filial_destino_id?: number | null
           filial_id?: number
+          forcado?: boolean
           id?: string
           itens_faltantes?: string[] | null
           motivo?: string | null
@@ -1033,6 +1006,22 @@ export type Database = {
       }
     }
     Functions: {
+      apagar_ativo: {
+        Args: {
+          p_ativo: string
+          p_confirmacao: string
+          p_justificativa: string
+        }
+        Returns: Json
+      }
+      apagar_item: {
+        Args: { p_confirmacao: string; p_item: number; p_justificativa: string }
+        Returns: Json
+      }
+      apagar_movimentacao: {
+        Args: { p_confirmacao: string; p_justificativa: string; p_mov: string }
+        Returns: Json
+      }
       apagar_usuario: { Args: { p_alvo: string }; Returns: undefined }
       criar_compra_lote: {
         Args: { p_criado_por: string; p_itens: Json }
@@ -1084,6 +1073,10 @@ export type Database = {
         Args: { p_estorna_id: string; p_filial: number; p_item: number }
         Returns: boolean
       }
+      exigir_dev_para_destruir: {
+        Args: { p_justificativa: string }
+        Returns: undefined
+      }
       exigir_gestao_de: {
         Args: {
           p_alvo: string
@@ -1094,6 +1087,23 @@ export type Database = {
       existe_outro_admin_ativo: {
         Args: { p_excluindo: string }
         Returns: boolean
+      }
+      forcar_estado_ativo: {
+        Args: {
+          p_ativo: string
+          p_justificativa: string
+          p_status: Database["public"]["Enums"]["status_ativo"]
+        }
+        Returns: Json
+      }
+      forcar_saldo_item: {
+        Args: {
+          p_filial: number
+          p_item: number
+          p_justificativa: string
+          p_saldo_alvo: number
+        }
+        Returns: Json
       }
       importar_ativos_substituir: {
         Args: {
@@ -1190,6 +1200,31 @@ export type Database = {
           total: number
         }[]
       }
+      resetar_acervo: {
+        Args: {
+          p_backup_path: string
+          p_confirmacao: string
+          p_contagens: Json
+          p_filial: number
+          p_justificativa: string
+        }
+        Returns: Json
+      }
+      resetar_dados_ficticios: {
+        Args: { p_confirmacao: string }
+        Returns: Json
+      }
+      resetar_itens: {
+        Args: {
+          p_backup_path: string
+          p_confirmacao: string
+          p_contagens: Json
+          p_filial: number
+          p_justificativa: string
+        }
+        Returns: Json
+      }
+      rotulo_alcance_reset: { Args: { p_filial: number }; Returns: string }
       status_apos_movimentacao: {
         Args: {
           p_status: Database["public"]["Enums"]["status_ativo"]
