@@ -785,6 +785,20 @@ const ROTAS_LOGADO = [
   { rota: '/movimentacoes', area: 'movimentações · lista' },
   { rota: '/movimentacoes/nova', area: 'movimentações · fluxo (B2)' },
   { rota: '/pendencias', area: 'pendências' },
+  // F24 — a mesa de conflitos entre filiais. Conferência SÓ-LEITURA: a aba tem de abrir e
+  // se identificar pelo conteúdo, não só devolver 200.
+  //
+  // ⚠ O marcador é o ESTADO VAZIO de propósito. Em produção há (e deve haver) ZERO grupos
+  // de conflito — o índice global os impediu até a `0091`, e a fase não abriu nenhum. Um
+  // marcador que exigisse um conflito na tela só ficaria verde se alguém tivesse importado
+  // um duplicado, o que é o contrário do que se quer. Se um dia houver conflito real em
+  // produção, esta entrada passa a falhar — e isso é informação, não defeito: quer dizer
+  // que há trabalho esperando na mesa.
+  {
+    rota: '/pendencias?tipo=conflito',
+    area: 'pendências · conflitos entre filiais (F24)',
+    marcador: 'Nenhum conflito entre filiais',
+  },
   { rota: '/ajuda', area: 'ajuda (B3)' },
   { rota: '/admin/usuarios', area: 'admin · usuários (B1)' },
   { rota: '/admin/itens', area: 'admin · catálogo de itens' },
