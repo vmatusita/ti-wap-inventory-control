@@ -160,6 +160,54 @@ export async function idsDeAdminsAtivos(): Promise<string[]> {
   return (data ?? []).map((p) => p.id)
 }
 
+// O caminho INVERSO: dado um e-mail, quem é ele no sistema. Devolve null quando não existe
+// conta com esse endereço (ou quando o Auth não respondeu — ver o `throw` abaixo).
+//
+// ⚠ POR QUE ISTO EXISTE (achado da revisão adversarial, 30/07). `convidarUsuario` gera um link
+// de RECUPERAÇÃO quando o e-mail já tem conta — e quem abre esse link define a senha. Sem
+// saber DE QUEM é o e-mail antes de gerar, um administrador digitaria o endereço de um
+// desenvolvedor, receberia um link válido e assumiria a conta dele: a proteção do cargo dev
+// seria contornada inteira sem nunca tocar em `profiles`, que é onde todas as travas moram.
+//
+// FALHA FECHADA (throw): se o Auth não responder, o chamador recusa em vez de supor que o
+// e-mail é de um desconhecido — supor seria exatamente o caso perigoso.
+//
+// O `listUsers` não filtra por e-mail, então pagina-se como em `lerContasAuth`. São dezenas de
+// contas; o custo é irrelevante e acontece só ao convidar.
+export async function perfilPorEmail(
+  email: string,
+): Promise<{ id: string; papel: PapelUsuario; ativo: boolean } | null> {
+  const admin = createAdminClient()
+  const alvo = email.trim().toLowerCase()
+
+  let id: string | null = null
+  for (let pagina = 1; pagina <= AUTH_PAGINAS_MAX; pagina++) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page: pagina,
+      perPage: AUTH_POR_PAGINA,
+    })
+    if (error) throw new Error(`Falha ao consultar as contas de acesso: ${error.message}`)
+    const achado = data.users.find((u) => (u.email ?? '').toLowerCase() === alvo)
+    if (achado) {
+      id = achado.id
+      break
+    }
+    if (data.users.length < AUTH_POR_PAGINA) break
+  }
+  if (!id) return null
+
+  const { data: perfil, error: erroPerfil } = await admin
+    .from('profiles')
+    .select('id, papel, ativo')
+    .eq('id', id)
+    .maybeSingle()
+  if (erroPerfil) throw new Error(`Falha ao ler o perfil: ${erroPerfil.message}`)
+  // Conta sem perfil não deveria existir (o trigger cria). Se acontecer, devolver null diria
+  // "não há conta", que é falso — o cargo é desconhecido, e o chamador tem de tratar isso.
+  if (!perfil) throw new Error('Conta de acesso sem perfil no sistema.')
+  return { id: perfil.id, papel: perfil.papel, ativo: perfil.ativo }
+}
+
 // E-mail de login de uma conta, ou null se o Auth não respondeu / a conta não existe mais.
 // Usado pela confirmação digitada do "apagar" (validarExclusaoDeUsuario) — que compara
 // contra o e-mail REAL, e por isso precisa distinguir "não sei" de "é este".

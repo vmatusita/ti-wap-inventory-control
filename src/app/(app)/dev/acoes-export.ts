@@ -12,6 +12,7 @@ import {
   type ColunaCsv,
 } from '@/lib/csv'
 import { eAcaoAdmin, rotuloAcao } from '@/lib/auditoria'
+import type { FiltrosEventos } from '@/lib/queries/eventos-admin'
 import { descreverDetalhe } from '@/components/admin/usuarios/detalhe-evento'
 import { listarFiliaisParaVinculo } from '@/lib/queries/admin'
 import type { ResultadoExportCsv } from '@/lib/actions/exportar'
@@ -37,6 +38,15 @@ import type { Json } from '@/lib/types/database'
 
 /** Prefixo do arquivo: `auditoria-2026-07-30.csv`. */
 const PREFIXO = 'auditoria'
+
+// `quando` é timestamptz e o filtro é por DIA: o fim tem de cobrir o dia inteiro, daí
+// `< dia seguinte` em vez de `<= dia` (que cortaria tudo depois de 00:00:00 do último dia).
+// Mesma conta de `src/lib/queries/eventos-admin.ts`.
+function diaSeguinte(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
 
 type LinhaAuditoria = {
   quando: string
@@ -90,7 +100,7 @@ function colunas(nomeFilial: (id: number) => string): ColunaCsv<LinhaAuditoria>[
 // truncado. Mesma disciplina de `listarAtivosParaExport`.
 async function lerTrilha(
   supabase: DbClient,
-  acao: string | null,
+  f: FiltrosEventos,
 ): Promise<{ linhas: LinhaAuditoria[]; total: number }> {
   const linhas: LinhaAuditoria[] = []
   let total = 0
@@ -106,7 +116,14 @@ async function lerTrilha(
         'id, quando, acao, alvo, detalhe, autor:profiles!eventos_admin_autor_fkey(nome)',
         volta === 0 ? { count: 'exact' } : undefined,
       )
-    if (acao) q = q.eq('acao', acao)
+    // Os MESMOS recortes da tela — se o arquivo trouxesse outro conjunto de linhas, o
+    // export deixaria de ser "o que estou vendo" e viraria uma segunda verdade.
+    if (f.acao) q = q.eq('acao', f.acao)
+    if (f.autor) q = q.eq('autor', f.autor)
+    if (f.de) q = q.gte('quando', `${f.de}T00:00:00`)
+    if (f.ate) q = q.lt('quando', `${diaSeguinte(f.ate)}T00:00:00`)
+    // `%` e `_` são curingas do LIKE: escapados para uma busca por "a_b" não virar "a<algo>b".
+    if (f.alvo) q = q.ilike('alvo', `%${f.alvo.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
 
     // `id` desempata: dois eventos podem cair no mesmo microssegundo (convite + auditoria em
     // lote) e, sem ordem total, o bloco seguinte repetiria/pularia linhas.
@@ -147,11 +164,23 @@ export async function exportarAuditoriaCSV(filtros: string): Promise<ResultadoEx
   if (!aut.ok) return falha(aut.erro)
 
   try {
-    const bruto = new URLSearchParams(filtros).get('acao')
-    const acao = bruto && eAcaoAdmin(bruto) ? bruto : null
+    const p = new URLSearchParams(filtros)
+    const bruto = p.get('acao')
+    const texto = (v: string | null) => {
+      const t = (v ?? '').trim()
+      return t.length > 0 && t.length <= 120 ? t : null
+    }
+    const data = (v: string | null) => (v && /^d{4}-d{2}-d{2}$/.test(v) ? v : null)
+    const recorte: FiltrosEventos = {
+      acao: bruto && eAcaoAdmin(bruto) ? bruto : null,
+      autor: texto(p.get('autor')),
+      de: data(p.get('de')),
+      ate: data(p.get('ate')),
+      alvo: texto(p.get('alvo')),
+    }
 
     const [{ linhas, total }, filiais] = await Promise.all([
-      lerTrilha(supabase, acao),
+      lerTrilha(supabase, recorte),
       listarFiliaisParaVinculo(),
     ])
     const nomeFilial = (id: number) =>

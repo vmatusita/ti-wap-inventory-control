@@ -217,7 +217,31 @@ perfis por papel            operador=2, consulta=4, admin=4
 arquivados                  0
 ```
 
-### 3.8 Advisors de segurança (produção, depois do apply)
+### 3.8 Portões, no fim da fase
+
+```
+$ npm run lint
+> eslint
+(sem nenhuma saída — limpo)
+
+$ npm run test
+ Test Files  76 passed (76)
+      Tests  1647 passed (1647)
+   (baseline era 75 arquivos / 1593 testes — +1 arquivo, +54 testes)
+
+$ npm run build
+(exit 0 — a rota ƒ /dev aparece na listagem)
+
+$ node scripts/verificar-actions-build.mjs
+[gate] chunks com Server Actions varridos: 32
+[gate] VERDE — nenhum identificador registrado sem binding.
+```
+
+O último é o gate de artefato do incidente F13 (um `export type {}` num módulo `'use server'`
+que matou toda a escrita em produção). A fase criou **dois** módulos `'use server'` novos
+(`src/lib/actions/dev.ts` e `src/app/(app)/dev/acoes-export.ts`), então ele era obrigatório.
+
+### 3.9 Advisors de segurança (produção, depois do apply)
 
 **Nenhum WARN novo de RLS.** As entradas de RLS são `INFO` `rls_enabled_no_policy` em
 `senhas_acesso`, `senha_tentativas` e `_bkp_relatorios_gerados_f6a` — todas **pré-existentes e
@@ -259,7 +283,44 @@ Todas em [`DECISOES.md`](DECISOES.md) (30/07/2026), com contexto e motivo. Em re
 
 ---
 
-## 5. O que este relatório NÃO prova
+## 5. Roteiro manual de 5 minutos (para o Victor)
+
+O que está automatizado é a camada de dados e autorização. O que só um par de olhos confere é
+a **tela**. Sugestão de ordem — os dois primeiros passos usam uma conta de **administrador**
+(qualquer uma que não seja sua), os demais a sua, já promovida a Desenvolvedor.
+
+**Como administrador (2 min) — o dev tem de ser intocável:**
+
+1. Abra `/admin/usuarios`. A sua linha aparece com o badge **Desenvolvedor** e os botões
+   **Editar** e **Desativar** vêm **desabilitados**; passe o mouse (ou dê Tab até eles) e a
+   explicação "Gerido por desenvolvedor" aparece.
+2. No convite (**Convidar usuário**) e na edição de qualquer outra pessoa, o cargo
+   **Desenvolvedor não aparece** na lista.
+3. Digite `/dev` na barra de endereço. Você é mandado para o painel — sem mensagem de erro
+   feia, sem piscar a tela da área técnica.
+
+**Como Desenvolvedor (3 min):**
+
+4. O item **Desenvolvedor** aparece no menu lateral. Abra `/dev`.
+5. **Diagnóstico**: confira commit/branch/ambiente e a tabela de contagens. A última migration
+   do repositório e a versão registrada no banco aparecem lado a lado (numerações diferentes,
+   de propósito — não se comparam).
+6. **Integridade**: clique em **Rodar checagens**. As sete devem voltar **ok** (zero achados).
+   Se alguma vier em âmbar, o número e a amostra dizem onde olhar.
+7. **Auditoria**: filtre por uma ação e clique em **Exportar CSV** — o arquivo tem de sair com
+   as mesmas linhas da tela.
+8. Volte a `/admin/usuarios` e, no menu **⋯** de um usuário **fictício de teste**:
+   - **Alterar e-mail de login** para outro endereço corporativo; confira que a lista atualiza
+     e que apareceu `E-mail alterado` na aba Auditoria.
+   - **Encerrar sessões abertas** — leia o aviso do limite de ~1h.
+   - **Apagar conta**: o diálogo exige digitar o e-mail. Depois de apagar, a pessoa **some da
+     lista** — e, na ficha de um ativo que ela tenha movimentado, o **nome dela continua** em
+     "Quem fez". É esse o par que prova a fase inteira.
+
+> ⚠ Use uma conta **fictícia** no passo 8. Apagar é irreversível, e o perfil arquivado não
+> volta a ser um usuário — o e-mail é que fica livre para um convite novo.
+
+## 6. O que este relatório NÃO prova
 
 Honestidade sobre os limites do que foi medido:
 

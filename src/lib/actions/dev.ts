@@ -172,10 +172,25 @@ export async function apagarUsuario(input: {
 
   if (!contaRemovida) {
     console.error('[dev] perfil arquivado, mas a conta do Auth não foi removida', del.error)
+
+    // ⚠ ACHADO DA REVISÃO ADVERSARIAL (30/07): "tente apagar de novo" era um conselho que
+    // NÃO SE PODE SEGUIR. O perfil já saiu da lista (arquivado), então não há mais linha nem
+    // menu por onde repetir a ação — e a conta ficaria em auth.users VIVA e NÃO BANIDA. Como
+    // o login não passa mais por `papel_atual()` para autenticar (só para autorizar), a pessoa
+    // continuaria conseguindo ENTRAR, ainda que sem ler nem escrever nada.
+    //
+    // O remédio é banir aqui, na mesma sequência: o ban é o que impede o login, e ele não
+    // depende do perfil. Assim o estado degradado ainda NEGA acesso por completo, e o que
+    // sobra pendente é só a liberação do e-mail — que a checagem "perfil sem conta" da /dev
+    // não pega (o caso é o inverso), então o aviso precisa dizer o que fazer à mão.
+    const ban = await admin.auth.admin.updateUserById(usuarioId, { ban_duration: '876000h' })
+    if (ban.error) console.error('[dev] e o ban de emergência também falhou', ban.error)
+
     return {
       ok: true,
-      aviso:
-        'O acesso desta pessoa já foi cortado (ela não lê nem registra mais nada), mas a conta de login não pôde ser removida — e por isso o e-mail dela ainda não está livre para um convite novo. Tente apagar de novo.',
+      aviso: ban.error
+        ? 'O acesso desta pessoa foi cortado no sistema, mas NÃO foi possível remover nem bloquear a conta de login. Bloqueie a conta pelo painel do Supabase (Authentication › Users) antes de sair desta tela.'
+        : 'O acesso foi cortado e a conta de login está BLOQUEADA, mas ela não pôde ser removida — o e-mail continua preso e não pode ser convidado de novo. Remova a conta pelo painel do Supabase (Authentication › Users) para liberar o endereço.',
     }
   }
   return { ok: true }
@@ -250,12 +265,18 @@ export async function rodarChecagensIntegridade(): Promise<
 //
 // A lista é FECHADA: um `revalidatePath(qualquerCoisa)` vindo do cliente seria uma primitiva
 // de invalidação arbitrária, e não há razão para oferecê-la.
-const GRUPOS_REVALIDACAO: Record<string, string[]> = {
+//
+// ⚠ `Object.create(null)` e não um objeto literal — achado da revisão adversarial (30/07).
+// Num literal, `GRUPOS_REVALIDACAO['toString']` devolve a função herdada de Object.prototype,
+// que é TRUTHY: o `if (!rotas)` não pegaria, e o `for…of` logo abaixo estouraria com
+// "rotas is not iterable", trocando uma recusa limpa por um erro 500 sem tratamento. Vale para
+// 'constructor', 'valueOf', '__proto__' e companhia. Sem protótipo, só existe o que se põe.
+const GRUPOS_REVALIDACAO: Record<string, string[]> = Object.assign(Object.create(null), {
   acervo: ['/', '/ativos', '/movimentacoes', '/pendencias'],
   itens: ['/itens'],
   relatorios: ['/relatorios/geral', '/relatorios/gerados'],
   admin: ['/admin/usuarios', '/admin/filiais', '/admin/motivos', '/admin/itens', '/admin/kits'],
-}
+})
 
 export async function revalidarGrupo(input: { grupo: string }): Promise<DevResult> {
   const supabase = await createClient()
@@ -263,7 +284,7 @@ export async function revalidarGrupo(input: { grupo: string }): Promise<DevResul
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const rotas = GRUPOS_REVALIDACAO[input.grupo]
-  if (!rotas) return { ok: false, erro: 'Grupo desconhecido.' }
+  if (!Array.isArray(rotas)) return { ok: false, erro: 'Grupo desconhecido.' }
   for (const rota of rotas) revalidatePath(rota)
   return { ok: true, aviso: `${rotas.length} rota(s) do grupo "${input.grupo}" revalidada(s).` }
 }

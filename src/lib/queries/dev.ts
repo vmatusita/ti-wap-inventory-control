@@ -1,7 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirDev } from '@/lib/auth/acesso'
+import type { DbClient } from '@/lib/auth/acesso'
 
 // Leituras da área /dev (F22) — TODAS guardadas por `exigirDev()`.
 //
@@ -18,10 +18,25 @@ import { exigirDev } from '@/lib/auth/acesso'
 
 class SemPermissao extends Error {}
 
-async function guardaDev(): Promise<void> {
+// Confere o cargo e DEVOLVE o client de sessão — as duas coisas juntas de propósito.
+//
+// ⚠ ARMADILHA QUE JÁ MORDEU (achado da revisão adversarial, 30/07): as RPCs da 0077
+// (`ultima_migracao_aplicada` e `dev_checagens_integridade`) têm guarda interna `e_dev()`, que
+// lê `papel_atual()` → `auth.uid()`. O SERVICE ROLE não carrega identidade: `auth.uid()` é
+// NULL, `e_dev()` devolve false e a chamada volta 42501 — SEMPRE. A primeira versão deste
+// arquivo chamava as duas com `createAdminClient()`, e o resultado era que o bloco Integridade
+// pintava as sete checagens como "não executadas" e a versão do banco saía "indisponível", em
+// toda visita, sem nada na tela dizendo por quê.
+//
+// Regra deste arquivo: **RPC guardada por cargo vai pelo client de SESSÃO**. O service role só
+// entra onde o dado está fora do alcance da sessão — e, para o cargo dev, isso é lugar nenhum
+// nas contagens (ele lê tudo: o piso da 0070 é `papel_atual() is not null`, e `eventos_admin`
+// pede `e_admin()`, que o dev atende).
+async function sessaoDeDev(): Promise<DbClient> {
   const supabase = await createClient()
   const aut = await exigirDev(supabase)
   if (!aut.ok) throw new SemPermissao(aut.erro)
+  return supabase
 }
 
 // Mascara o ref do projeto: `pbtjcalbmepmrqzprusb` → `pbtj…rusb`. O ref não é segredo (ele
@@ -63,15 +78,14 @@ const TABELAS_DIAGNOSTICO = [
 ] as const
 
 export async function getDiagnostico(migracaoNoRepo: string): Promise<Diagnostico> {
-  await guardaDev()
-  const admin = createAdminClient()
+  const supabase = await sessaoDeDev()
 
   const contagens = await Promise.all(
     TABELAS_DIAGNOSTICO.map(async (tabela) => {
       // `head: true` daria falso verde contra relação inexistente (o PostgREST devolve 204,
       // count null e erro null) — a mesma armadilha que o README do smoke documenta. Por isso
       // se pede uma coluna e se trata o erro.
-      const { count, error } = await admin
+      const { count, error } = await supabase
         .from(tabela)
         .select('*', { count: 'exact', head: true })
       return { tabela, linhas: error ? null : (count ?? null) }
@@ -79,9 +93,11 @@ export async function getDiagnostico(migracaoNoRepo: string): Promise<Diagnostic
   )
 
   // A última migration REGISTRADA no banco. Vive no schema `supabase_migrations`, fora do
-  // alcance do PostgREST — daí a RPC dedicada (0077).
+  // alcance do PostgREST — daí a RPC dedicada (0077). Pelo client de SESSÃO: a guarda interna
+  // dela é `e_dev()`, que o service role nunca satisfaz (ver `sessaoDeDev`).
   let migracaoNoBanco = 'indisponível'
-  const { data, error } = await admin.rpc('ultima_migracao_aplicada')
+  const { data, error } = await supabase.rpc('ultima_migracao_aplicada')
+  if (error) console.error('[dev] falha ao ler a última migration aplicada', error)
   if (!error && typeof data === 'string' && data.length > 0) migracaoNoBanco = data
 
   return {
@@ -184,11 +200,13 @@ export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
 export const TOTAL_CHECAGENS = CHECAGENS.length
 
 export async function rodarChecagens(): Promise<Checagem[]> {
-  await guardaDev()
-  const admin = createAdminClient()
+  // Client de SESSÃO: a RPC exige `e_dev()` por dentro, e o service role nunca a satisfaz
+  // (ver `sessaoDeDev`). Com o client errado, as sete voltavam "não executadas" para sempre.
+  const supabase = await sessaoDeDev()
 
-  const { data, error } = await admin.rpc('dev_checagens_integridade')
+  const { data, error } = await supabase.rpc('dev_checagens_integridade')
   if (error) {
+    console.error('[dev] falha ao rodar as checagens de integridade', error)
     return CHECAGENS.map((c) => ({ ...c, achados: null, amostra: [], erro: error.message }))
   }
 

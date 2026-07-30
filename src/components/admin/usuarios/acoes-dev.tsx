@@ -77,7 +77,14 @@ export function AcoesDev({
             <Mail className="size-4" />
             Alterar e-mail de login…
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={abrir('sessoes')}>
+          {/* Desabilitado na PRÓPRIA linha, como "Apagar conta". A guarda `exigir_gestao_de`
+              (migration 0074) recusa toda ação sobre o próprio acesso, então oferecer o item
+              aqui só produzia um caminho que SEMPRE termina em erro: a pessoa abria o diálogo,
+              lia o aviso do limite de ~1h, confirmava — e levava "Você não pode fazer isso com
+              o seu próprio acesso". Achado da revisão adversarial (30/07).
+              "Alterar e-mail de login" continua liberado de propósito: ela não passa por essa
+              guarda, é autosserviço legítimo e não tira acesso de ninguém. */}
+          <DropdownMenuItem disabled={eVoceMesmo} onSelect={abrir('sessoes')}>
             <LogOut className="size-4" />
             Encerrar sessões abertas…
           </DropdownMenuItem>

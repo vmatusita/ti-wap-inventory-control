@@ -12,7 +12,7 @@ import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { DOMINIOS_OPERADOR, DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { getSaldosItens } from '@/lib/queries/itens'
-import { getEstadoUsuario, idsDeAdminsAtivos } from '@/lib/queries/admin'
+import { getEstadoUsuario, idsDeAdminsAtivos, perfilPorEmail } from '@/lib/queries/admin'
 import type { EstadoUsuario } from '@/lib/queries/admin'
 import {
   convidarUsuarioSchema,
@@ -106,6 +106,35 @@ export async function convidarUsuario(input: {
   // no Auth e o admin receberia um link válido com um aviso confuso. Recusar ANTES é o certo.
   if (eDev(papel) && !eDev(aut.papel)) {
     return { ok: false, erro: MSG_SO_DEV_GERE_DEV }
+  }
+
+  // ⚠ O OUTRO LADO DO MESMO FURO, e o mais perigoso — achado da revisão adversarial (30/07).
+  // Quando o e-mail JÁ TEM CONTA, esta action gera um link de RECUPERAÇÃO (ramo 2, abaixo), e
+  // quem abre esse link DEFINE A SENHA daquela conta. Um administrador que digitasse o e-mail
+  // de um desenvolvedor — endereço que ele lê na própria coluna "E-mail" da lista — receberia
+  // um link válido e assumiria a conta: cargo dev, área /dev, apagar usuários, tudo. A
+  // proteção inteira da fase seria contornada SEM NUNCA TOCAR EM `profiles`, que é onde o
+  // trigger e as RPCs vigiam.
+  //
+  // Por isso a checagem vem AQUI, antes de qualquer `generateLink`: gerar o link primeiro e
+  // recusar depois já teria emitido um token de recuperação válido para a conta alheia.
+  //
+  // Falha FECHADA: se não der para saber de quem é o e-mail, recusa. Supor que é de um
+  // desconhecido é exatamente o caso que se quer impedir.
+  if (!eDev(aut.papel)) {
+    let alvo
+    try {
+      alvo = await perfilPorEmail(email)
+    } catch (err) {
+      console.error('[admin/usuarios] falha ao conferir de quem é o e-mail do convite', err)
+      return {
+        ok: false,
+        erro: 'Não foi possível conferir esse e-mail agora. Tente de novo em instantes.',
+      }
+    }
+    if (alvo && eDev(alvo.papel)) {
+      return { ok: false, erro: MSG_SO_DEV_GERE_DEV }
+    }
   }
 
   const origem = origemDaRequisicao(await headers())

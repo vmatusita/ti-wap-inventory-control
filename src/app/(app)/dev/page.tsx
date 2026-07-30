@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/card'
 import { getDiagnostico, CHECAGENS } from '@/lib/queries/dev'
 import { listarFiliaisParaVinculo } from '@/lib/queries/admin'
-import { listarEventosAdmin } from '@/lib/queries/eventos-admin'
+import { listarAutoresDaAuditoria, listarEventosAdmin } from '@/lib/queries/eventos-admin'
 import { paginaNumerica } from '@/lib/url-params'
 import { DiagnosticoPainel } from '@/components/dev/diagnostico-painel'
 import { IntegridadePainel } from '@/components/dev/integridade-painel'
@@ -65,13 +65,21 @@ export default async function DevPage({
   searchParams: Promise<SearchParams>
 }) {
   const sp = await searchParams
+  // Os quatro recortes da trilha (ordem F22 §4). Todos são SANEADOS no servidor
+  // (`listarEventosAdmin`): valor estranho na URL é ignorado, nunca vira lista vazia sem
+  // explicação — a mesma regra que o vocabulário de `acao` já seguia.
   const acao = primeiro(sp.acao) ?? null
+  const autor = primeiro(sp.autor) ?? null
+  const de = primeiro(sp.de) ?? null
+  const ate = primeiro(sp.ate) ?? null
+  const alvo = primeiro(sp.alvo) ?? null
   const page = paginaNumerica(primeiro(sp.page))
 
-  const [diagnostico, eventos, filiais] = await Promise.all([
+  const [diagnostico, eventos, filiais, autores] = await Promise.all([
     getDiagnostico(ultimaMigrationDoRepo()),
-    listarEventosAdmin({ acao, page, pageSize: DEV_PAGE_SIZE }),
+    listarEventosAdmin({ acao, autor, de, ate, alvo, page, pageSize: DEV_PAGE_SIZE }),
     listarFiliaisParaVinculo(),
+    listarAutoresDaAuditoria(),
   ])
 
   return (
@@ -112,6 +120,11 @@ export default async function DevPage({
             eventos={eventos}
             filiais={filiais}
             acao={acao}
+            autor={autor}
+            de={de}
+            ate={ate}
+            alvo={alvo}
+            autores={autores}
             acaoExport={exportarAuditoriaCSV}
           />
         </CardContent>
