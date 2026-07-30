@@ -113,7 +113,26 @@ A linha **2e** é o critério 6 provado **por consulta**, não por raciocínio: 
 _dev_destrutivo_resumo → [{"ok":103,"falhas":0,"detalhe":null}]
 ```
 
-**103 asserções, 0 falhas** no ensaio. Cobre: exclusividade (3 cargos × 7 RPCs + service role + request forjado), imutabilidade (5 casos `authenticated`, 5 como DONO, 2 de marca mentida, 2 pares positivos), apagar ativo/movimentação/item, reset por filial e global, recusas, forçar estado e saldo, **estorno comum intacto**, confirmação/justificativa e o fecho da janela em erro.
+**103 asserções, 0 falhas** no ensaio — ⚠ **esta saída é da versão do roteiro anterior às
+migrations `0089`/`0090`**. Depois delas o arquivo ganhou asserções novas (`4e-bis` invertida,
+`4e-ter`, o backup fora do prefixo e o TRUNCATE revogado), então o contador final é MAIOR.
+O comportamento novo foi verificado por **medição independente** no ensaio (§3.12); o número
+consolidado do roteiro é re-rodado no fecho da fase e o CI (`job banco`) é a prova permanente.
+
+### 3.12 Medição independente do comportamento pós-`0089`/`0090` (ensaio, transação revertida)
+
+```
+caso                                     veredito    detalhe
+1 apagar ESTORNO                         RECUSADO    42501 · mensagem própria
+2 reset com backup fora do prefixo       RECUSADO    22023 · mensagem própria
+3 truncate movimentacoes (authenticated) RECUSADO    42501
+4 estado intacto apos as recusas         INTACTO     antes=em_estoque|<nulo>|3  depois=idem
+5 marcador de ambiente no ENSAIO         PRESENTE    1        (produção: 0 — é a trava)
+```
+
+O caso **4** é o que dá sentido aos três primeiros: uma recusa que já tivesse mexido no ativo
+antes de recusar seria pior que a operação. E ele também corrigiu um erro meu — eu havia
+escrito a `4e-ter` afirmando `em_triagem` de cor; o estado real é `em_estoque`. Cobre: exclusividade (3 cargos × 7 RPCs + service role + request forjado), imutabilidade (5 casos `authenticated`, 5 como DONO, 2 de marca mentida, 2 pares positivos), apagar ativo/movimentação/item, reset por filial e global, recusas, forçar estado e saldo, **estorno comum intacto**, confirmação/justificativa e o fecho da janela em erro.
 
 **Roteiros vizinhos, todos no ensaio, todos com 0 falhas** — nenhum quebrou por causa da F23:
 `itens_extra.sql` · `maquina_estados.sql` · `itens_quantidade.sql` · `pendencias_item.sql` · `troca.sql` · `manutencao_fornecedor.sql` · `import_substituir.sql`
