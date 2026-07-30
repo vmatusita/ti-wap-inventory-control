@@ -239,6 +239,26 @@ RESUMO · 86 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
 
 O único aviso é **pré-existente** e da mesma família que esta fase corrigiu no roteiro SQL: *"kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não comprovada"* — o smoke não consegue provar RLS numa tabela vazia. Não foi introduzido pela F21.
 
+### 6.7 Deploy e smoke PÓS-deploy
+
+`main` mergeada (merge commit `9bcc875`, sem fast-forward) e empurrada — a Vercel deploya no push.
+
+**Confirmação de que o código NOVO está no ar** (e não a versão anterior): o chunk
+`/_next/static/chunks/0hj8a4rw5uzmv.js` servido por produção contém a string
+`Seu acesso foi desativado`, que **só existe a partir desta fase** (`src/app/login/page.tsx`).
+Marcador escolhido de propósito numa rota PÚBLICA — as páginas de ajuda exigem sessão, e um
+`curl` nelas mede o redirect para o login, não o conteúdo.
+
+**Smoke depois do deploy:**
+
+```
+RESUMO · 86 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+```
+
+Mesmo resultado do smoke de antes do deploy (§6.6) — o que era o objetivo: com o backfill, o app
+novo sobre o banco novo se comporta como o app antigo se comportava. O aviso é o mesmo
+pré-existente de `kits_modelos`.
+
 ---
 
 ## 7. Checklist da ordem, autoverificado
