@@ -57,6 +57,19 @@ begin
     raise exception 'PRE-REQUISITO: crie ao menos 1 operador (profile) antes de rodar este roteiro';
   end if;
 
+  -- F21: o import passou a exigir ADMIN (guarda `e_admin()` no corpo da RPC, migration 0064).
+  -- Este roteiro roda como `postgres`, mas a RPC lê o cargo do PERFIL apontado por
+  -- `auth.uid()` — e num Postgres novo do CI o perfil de teste nasce com o default
+  -- `'operador'` (a 0061 só faz backfill dos perfis que JÁ existiam quando ela rodou; o
+  -- `ci@wap.ind.br` é criado depois). Sem esta linha o roteiro morre com "Apenas
+  -- administradores podem executar o import de startup." — foi o que derrubou o job `banco`
+  -- no primeiro push da F21.
+  --
+  -- Promover o perfil de teste é o certo, e não afrouxar a guarda: o import É operação de
+  -- administrador desde a F21, então o roteiro tem de rodar como um. Dentro de
+  -- `begin; … rollback;` — nada sobra.
+  update public.profiles set papel = 'admin' where id = v_prof;
+
   -- contexto de operador (auth.uid() lê request.jwt.claims->>'sub')
   perform set_config('request.jwt.claims', json_build_object('sub', v_prof)::text, true);
   if auth.uid() is null then

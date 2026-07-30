@@ -38,6 +38,15 @@ begin
   if v_prof is null then
     raise exception 'PRE-REQUISITO: crie ao menos 1 operador (profile) antes de rodar este roteiro';
   end if;
+
+  -- F21: o cenário 5 deste roteiro chama `importar_ativos_substituir`, que passou a exigir
+  -- ADMIN (guarda `e_admin()`, migration 0064). Num Postgres novo do CI o perfil de teste
+  -- nasce `'operador'` (o backfill da 0061 só alcança quem já existia), então sem esta linha
+  -- o roteiro morre com "Apenas administradores podem executar o import de startup."
+  -- Promover o perfil é o certo — o import É operação de administrador agora. Dentro de
+  -- `begin; … rollback;`, nada sobra.
+  update public.profiles set papel = 'admin' where id = v_prof;
+
   select id into v_matriz from public.filiais where slug = 'matriz';
   if v_matriz is null then
     raise exception 'PRE-REQUISITO: aplique a migration 0007 (filial matriz)';

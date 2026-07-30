@@ -2954,3 +2954,58 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   `filial_id` é objeto e quando é rótulo, e a pergunta a fazer antes da próxima policy. A lição
   vale mais que a correção pontual.
 - **Reversível?** Sim: a `0068` tem o rollback no rodapé; as outras duas são texto e um `if`.
+
+## 2026-07-30 · F21 · O CI pegou três falhas que os dois bancos hospedados não pegariam
+
+- **Contexto:** o relatório da F21 fechou declarando o CI como "por verificar" (não há `gh` nesta
+  máquina). O job `banco` do primeiro push voltou **vermelho**, com **3 roteiros** quebrados —
+  todos por causa da fase, e **nenhum** deles reproduzível nos bancos hospedados. É o caso de
+  livro do porquê o job existe.
+- **Falha 1 e 2 — a guarda de admin do import derrubou dois roteiros pré-existentes**
+  (`import_substituir.sql`, `troca.sql`): `ERROR: Apenas administradores podem executar o import
+  de startup.` Os dois montam o contexto com `select id into v_prof from public.profiles limit 1`
+  + `set_config('request.jwt.claims', …)`, e a RPC lê o cargo do PERFIL apontado por
+  `auth.uid()`. Num Postgres **novo** do CI, o perfil de teste (`ci@wap.ind.br`) é criado
+  **depois** das migrations, então nasce com o default `'operador'` — o backfill da `0061` só
+  alcança quem já existia quando ela rodou. Nos dois bancos hospedados o perfil é `admin` (pelo
+  backfill), e por isso ensaio e produção **não** acusariam nunca.
+  - **Decisão:** promover o perfil de teste a `admin` dentro do próprio roteiro
+    (`update public.profiles set papel='admin' where id = v_prof`), não afrouxar a guarda. O
+    import **é** operação de administrador desde a F21; o roteiro tem de rodar como um.
+    Está dentro do `begin; … rollback;` de cada roteiro — nada sobra.
+  - **Provado no ensaio simulando a condição do CI** (perfil forçado a `'operador'`): sem
+    promover → `Apenas administradores podem executar o import…`; promovendo →
+    `Plano de import vazio: ao menos 1 ativo é obrigatório` — ou seja, o gargalo saiu da guarda
+    de cargo e voltou para a validação normal do plano.
+  - **Lição de processo:** a regra do runbook ("rode TODOS os roteiros ao mexer em
+    função/trigger/RPC") existe exatamente para isto, e eu **não podia** cumpri-la aqui — não há
+    psql nem Docker nesta máquina, e o MCP não roda arquivo. O que faltou foi **raciocinar** sobre
+    ela: uma guarda nova numa RPC que 2 dos 13 roteiros chamam era previsível sem executar nada.
+- **Falha 3 — `papeis_rls.sql`: `permission denied for table ativos`.** Achado que vale além da
+  F21: **nenhuma das 68 migrations concede privilégio de TABELA** a `anon`/`authenticated` (é
+  ambiente — um projeto Supabase hospedado concede por *default privilege*). O Postgres novo do
+  `supabase start` **não reproduz** esses defaults, então lá `authenticated` não tem nem SELECT em
+  `public.ativos`. Os outros 12 roteiros nunca tropeçaram porque rodam como `postgres`
+  (superusuário, ignora RLS) — `papeis_rls.sql` é o **primeiro** a fazer
+  `set local role authenticated`. (`itens_extra.sql` troca de papel em duas asserções, mas trata
+  "permission denied" como rejeição válida — comentário na linha 97 dele —, então passa nos dois
+  mundos, e é justamente essa ambiguidade que aqui não serve.)
+  - **Decisão:** um bloco de `grant` explícito no topo do roteiro, dentro do `begin; … rollback;`.
+    Ele mede **policy**, não privilégio — quem mede privilégio é `seguranca_catalogo.sql` —, e
+    falhar por grant ausente é dar a resposta certa para a pergunta errada. Num banco hospedado o
+    bloco é no-op.
+  - **⚠ A armadilha do fecho, e a razão de o grant ser coluna por coluna em `profiles`:** um
+    `grant update on all tables in schema public` devolveria o UPDATE completo que a `0063`
+    revogou e faria a asserção **3g (escalada de privilégio) passar por engano** — o operador
+    conseguiria se promover a admin e o roteiro diria que estava tudo bem. O bloco espelha o grant
+    da migration (`grant update (primeiro_nome, sobrenome)`). **Conferido no ensaio depois de
+    aplicar o bloco:** escalada segue `barrada (42501)`, nome próprio segue editável,
+    `senhas_acesso` segue com **0 linhas visíveis** apesar do grant de tabela (é a RLS deny-all
+    fazendo o trabalho), e `ativos` legível.
+- **Pendência que este achado abre (backlog, não desta fase):** o repo depende de privilégio
+  AMBIENTE. Um projeto Supabase hospedado **novo**, criado só a partir destas migrations, teria o
+  app quebrado (nenhum privilégio de tabela para `authenticated`) — e o CI nunca acusaria, porque
+  não sobe o app. O fecho seria uma migration que concede os privilégios explicitamente,
+  espelhando o default do Supabase e respeitando o grant de coluna de `profiles`. Não entra agora:
+  é mudança de postura de privilégio global no fim de uma fase, e os dois bancos vivos já os têm.
+- **Reversível?** Sim: são três roteiros de teste, nenhuma mudança de banco nem de app.

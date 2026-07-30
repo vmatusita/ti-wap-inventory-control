@@ -38,6 +38,42 @@ begin;
 
 create temp table _papeis_resumo (ok int, falhas int, detalhe text);
 
+-- ---------------------------------------------------------------------------
+-- PRIVILÉGIOS DE TABELA — por que este bloco existe
+-- ---------------------------------------------------------------------------
+-- Um projeto Supabase HOSPEDADO concede a `anon`/`authenticated` os privilégios de TABELA do
+-- schema public por *default privilege*, e nenhuma migration deste repo os concede à mão
+-- (conferido: `grep` por `grant ... on table` nas 68 migrations não acha nada). O Postgres NOVO
+-- que o job `banco` do CI sobe com `supabase start` **não** reproduz esses defaults, então lá
+-- `authenticated` não tem nem SELECT em `public.ativos`.
+--
+-- Isso derrubou este roteiro no primeiro push da F21, com
+--   ERROR: permission denied for table ativos
+--   HINT: GRANT SELECT ON public.ativos TO authenticated;
+-- que é uma resposta CERTA para a pergunta ERRADA: aqui se mede **policy (RLS)**, não
+-- privilégio. Quem mede privilégio é `seguranca_catalogo.sql`. Os demais roteiros nunca
+-- tropeçaram nisto porque rodam como `postgres` (superusuário, ignora RLS) — este é o único
+-- que faz `set local role authenticated`. `itens_extra.sql` faz a troca de papel em duas
+-- asserções, mas trata "permission denied" como rejeição válida (comentário na linha 97 dele),
+-- então passa nos dois mundos — e é justamente essa ambiguidade que aqui não serve.
+--
+-- ⚠ O `profiles` é concedido À MÃO, coluna por coluna, e NÃO por `all tables`: um
+-- `grant update on all tables` devolveria o UPDATE completo que a `0063` revogou e faria a
+-- asserção 3g (escalada de privilégio) passar por engano — o operador conseguiria se promover
+-- a admin e o roteiro diria que está tudo bem. É o espelho exato do grant da migration.
+--
+-- Tudo dentro do `begin; … rollback;` — nada persiste. Num banco hospedado estes grants já
+-- existem, então o bloco é no-op lá.
+grant select on all tables in schema public to authenticated;
+grant insert, update, delete on
+  public.ativos, public.movimentacoes, public.lancamentos_item, public.anotacoes,
+  public.relatorios_gerados, public.termos_gerados, public.pendencias_item,
+  public.filiais, public.motivos, public.itens, public.kits_modelos,
+  public.import_logs, public.eventos_admin, public.senhas_acesso, public.operador_filiais
+  to authenticated;
+grant update (primeiro_nome, sobrenome) on public.profiles to authenticated;
+grant select, insert, update, delete on storage.objects to authenticated;
+
 do $$
 declare
   -- identidades fictícias (uuid fixo, hex válido — o prefixo f21a marca a fase)
