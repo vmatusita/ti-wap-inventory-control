@@ -41,6 +41,8 @@ export type MovimentacaoTimeline = {
   estorno_de: string | null
   snapshot_anterior: SnapshotAnterior | null
   created_at: string
+  /** F23: correção técnica do desenvolvedor (ferramenta "Forçar estado" da /dev). */
+  forcado: boolean
   autor_nome: string | null
   filial_origem_nome: string | null
   filial_destino_nome: string | null
@@ -68,13 +70,14 @@ type RawTimelineRow = {
   estorno_de: string | null
   snapshot_anterior: SnapshotAnterior | null
   created_at: string
+  forcado: boolean
   autor: AutorEmbed
   origem: FilialEmbed
   destino: FilialEmbed
 }
 
 const TIMELINE_SELECT =
-  'id, tipo, motivo, data, colaborador, setor, chamado, chamado_fornecedor, status_anterior, status_resultante, itens_faltantes, observacao, estorno_de, snapshot_anterior, created_at, ' +
+  'id, tipo, motivo, data, colaborador, setor, chamado, chamado_fornecedor, status_anterior, status_resultante, itens_faltantes, observacao, estorno_de, snapshot_anterior, created_at, forcado, ' +
   'autor:profiles!movimentacoes_criado_por_fkey(nome), ' +
   'origem:filiais!movimentacoes_filial_id_fkey(nome), ' +
   'destino:filiais!movimentacoes_filial_destino_id_fkey(nome)'
@@ -116,6 +119,7 @@ export async function listarMovimentacoesDoAtivo(
       estorno_de: r.estorno_de,
       snapshot_anterior: (r.snapshot_anterior as SnapshotAnterior | null) ?? null,
       created_at: r.created_at,
+      forcado: r.forcado === true,
       autor_nome: autor?.nome ?? null,
       filial_origem_nome: origem?.nome ?? null,
       filial_destino_nome: destino?.nome ?? null,

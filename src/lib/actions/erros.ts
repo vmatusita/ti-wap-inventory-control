@@ -168,6 +168,14 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   // 40001, que não têm ramo nenhum — cairiam no fallback genérico e a pessoa não saberia o que
   // digitou de errado. Cada linha cobre a frase COM e SEM acento, pelo motivo já documentado
   // acima (a mensagem viaja RPC → PostgREST → supabase-js).
+  // ⚠ ESTE RAMO É O MAIS PROVÁVEL DE TODOS OS DA F23, e ele quase ficou de fora: a recusa de
+  // EMPATE (0087) dispara para todo ativo que veio do import de startup — 1111 dos 1232 do
+  // acervo de produção. Sem tradução, ela cairia no genérico de 42501 logo abaixo e diria a um
+  // Desenvolvedor que "seu cargo ou suas filiais de escrita não permitem", que é falso e manda
+  // investigar a coisa errada. Vem ANTES dos demais porque é o caso comum.
+  if (m.includes('gravadas no mesmo instante') || m.includes('mesmo instante')) {
+    return 'Este ativo tem movimentações gravadas no mesmo instante (é o caso dos que vieram do import de startup), então não dá para dizer com segurança qual é a última. Para desmontá-lo, use "Apagar ativo", que leva o rastro inteiro.'
+  }
   if (m.includes('só a última movimentação') || m.includes('so a ultima movimentacao')) {
     return 'Só a última movimentação do ativo pode ser apagada — esta tem outras depois dela. Apague as posteriores primeiro, da mais nova para a mais antiga.'
   }

@@ -29,6 +29,12 @@ export async function getGruposItens(
         .from('lancamentos_item')
         .select('item_id, observacao, data, created_at')
         .not('observacao', 'is', null)
+        // F23: a correção de saldo do dev tem `observacao` NÃO-NULA por construção (é ali que
+        // mora a justificativa obrigatória), então esta leitura — que existe justamente para
+        // exibir observações no relatório — publicaria o texto que o desenvolvedor escreveu
+        // para si mesmo. Segundo dos dois pontos do lado dos ITENS que a revisão adversarial
+        // encontrou depois que a varredura da fase parou em `movimentacoes`.
+        .eq('forcado', false)
         .gte('data', periodo.de)
         .lte('data', periodo.ate)
       if (filialId) q = q.eq('filial_id', filialId)
@@ -199,6 +205,20 @@ export async function getLancamentosItensPeriodo(
           // `.neq` sozinho descartaria observacao IS NULL (PostgREST) — o `.or` null-safe
           // preserva as linhas sem observação. Mesmo padrão do filtro da carga em A1.
           .or(`observacao.is.null,observacao.neq."${OBS_SALDO_INICIAL}"`)
+          // F23: a CORREÇÃO DE SALDO do desenvolvedor (ferramenta "Forçar saldo" da /dev) não
+          // é lançamento do período.
+          //
+          // ⚠ Achado da revisão adversarial da F23, e vale registrar o erro: a varredura que
+          // concluiu "só o card de últimas movimentações precisa de filtro" percorreu os
+          // consumidores de `movimentacoes` e PAROU ALI — o lado dos ITENS tem a sua própria
+          // tabela detalhada de relatório, e esta é a única leitura dela sem allow-list de
+          // tipo. Sem esta linha, a correção-dev entrava na tabela do relatório do período
+          // COM a justificativa escrita pelo dev impressa e exportada no CSV.
+          //
+          // O saldo em si CONTINUA contando com o ajuste (é o ponto de forçar o saldo): quem
+          // soma é `rel_saldo_itens`, que não passa por aqui. O que se exclui é a linha do
+          // relatório de MOVIMENTO do período, não o efeito no estoque.
+          .eq('forcado', false)
         if (filialId) q = q.eq('filial_id', filialId)
         return q
           .order('data', { ascending: false })

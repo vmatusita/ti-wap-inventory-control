@@ -59,33 +59,57 @@ function revalidar(rotas: readonly string[]): void {
   revalidatePath('/dev/destrutivo')
 }
 
+/** Teto por chamada de `remove()`. A API de Storage aceita até 1000 chaves por requisição. */
+const LOTE_REMOCAO = 500
+
 /**
  * Remove os `.docx` do bucket `termos` DEPOIS do commit da RPC.
  *
  * ⚠ Por que não é a RPC que faz isto: `storage.objects` tem o trigger
  * `protect_objects_delete` (BEFORE DELETE FOR EACH STATEMENT), que recusa TODA exclusão de
- * objeto por SQL. O caminho é a API de Storage, daqui — e com o client ADMINISTRATIVO, porque
- * assim que a LINHA de `termos_gerados` some, o predicado da policy do bucket deixa de ter
- * âncora e não vale a pena depender dele para a limpeza.
+ * objeto por SQL. O caminho é a API de Storage, daqui.
+ *
+ * ⚠ Usa o client ADMINISTRATIVO por CONSERVADORISMO, não por necessidade — e a distinção
+ * importa porque a primeira versão deste comentário afirmava o contrário. A sessão do dev
+ * também conseguiria: as policies do bucket (0069) usam `pode_escrever_arquivo_termo`, cujo
+ * `coalesce(…, true)` libera justamente o nome que NENHUMA linha referencia, que é o caso
+ * aqui (a RPC já apagou a linha). Depender desse fallback deixaria a limpeza refém de um
+ * detalhe de predicado que existe por outro motivo; o client admin não depende de nada.
  *
  * ⚠ FALHA AQUI NÃO PODE SER SILENCIOSA. A linha já morreu; se o arquivo ficar, ele vira órfão
  * invisível. Devolve a mensagem para a action avisar na tela, e a 8ª checagem de integridade
  * da /dev (`arquivo_termo_orfao`, migration 0085) passa a contá-lo.
+ *
+ * ⚠ O RETORNO `data` de `remove()` É CONFERIDO, e não só o `error`: a API responde 200 com a
+ * lista do que REALMENTE saiu, então uma remoção PARCIAL (chave inexistente, corrida com
+ * outra limpeza) não levanta erro nenhum. Sem esta conferência, um reset que removesse metade
+ * dos arquivos reportaria sucesso limpo.
  */
 async function limparArquivosDeTermo(caminhos: string[]): Promise<string | null> {
   if (caminhos.length === 0) return null
-  try {
-    const admin = createAdminClient()
-    const { error } = await admin.storage.from('termos').remove(caminhos)
-    if (error) throw new Error(error.message)
-    return null
-  } catch (err) {
-    console.error('[dev-destrutivo] falha ao remover .docx do bucket termos', {
-      caminhos,
-      erro: err instanceof Error ? err.message : String(err),
-    })
-    return `O registro foi apagado, mas ${caminhos.length} arquivo(s) .docx não puderam ser removidos do armazenamento. Eles ficaram órfãos — a checagem "arquivo de termo órfão" da /dev vai contá-los, e a remoção precisa ser feita pelo painel do Supabase.`
+
+  const admin = createAdminClient()
+  const naoRemovidos: string[] = []
+
+  for (let i = 0; i < caminhos.length; i += LOTE_REMOCAO) {
+    const lote = caminhos.slice(i, i + LOTE_REMOCAO)
+    try {
+      const { data, error } = await admin.storage.from('termos').remove(lote)
+      if (error) throw new Error(error.message)
+      const saiu = new Set((data ?? []).map((o) => o.name))
+      naoRemovidos.push(...lote.filter((c) => !saiu.has(c)))
+    } catch (err) {
+      console.error('[dev-destrutivo] falha ao remover .docx do bucket termos', {
+        lote: lote.length,
+        erro: err instanceof Error ? err.message : String(err),
+      })
+      naoRemovidos.push(...lote)
+    }
   }
+
+  if (naoRemovidos.length === 0) return null
+  console.error('[dev-destrutivo] .docx que ficaram órfãos no bucket', { naoRemovidos })
+  return `O registro foi apagado, mas ${naoRemovidos.length} de ${caminhos.length} arquivo(s) .docx não saíram do armazenamento. Eles ficaram órfãos — a checagem "arquivo de termo órfão" da /dev vai contá-los, e a remoção precisa ser feita pelo painel do Supabase.`
 }
 
 // ---------------------------------------------------------------------------

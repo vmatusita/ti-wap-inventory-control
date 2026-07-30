@@ -115,7 +115,13 @@ export function LinhaDoTempo({
 
         const m = ev.mov
         const estornada = estornoDe.has(m.id)
-        const podeEstornar = m.id === topoMovId && m.tipo !== 'estorno'
+        // ⚠ F23 — CORREÇÃO TÉCNICA NÃO SE ESTORNA PELA FICHA. Ela é uma movimentação de
+        // `ajuste` marcada `forcado`, criada pela Zona destrutiva da /dev para acertar um
+        // estado que a máquina não alcançaria. Deixar o botão "Estornar" em cima dela poria
+        // um OPERADOR desfazendo a correção do desenvolvedor — e o estorno restauraria o
+        // `snapshot_anterior`, isto é, exatamente o estado errado que a correção veio consertar.
+        // Quem desfaz uma correção-dev é outra correção-dev, com justificativa e trilha.
+        const podeEstornar = m.id === topoMovId && m.tipo !== 'estorno' && !m.forcado
         const motivoRotulo = m.motivo ? (motivos[m.motivo] ?? m.motivo) : null
 
         // F19 — quem chega por `#mov-<id>` (link "estornada", QR, e-mail) rolava
@@ -141,6 +147,20 @@ export function LinhaDoTempo({
                 <Badge variant="secondary" className="font-medium">
                   {rotuloTipo(m.tipo)}
                 </Badge>
+                {/* F23 §4.1 — a marca de "forçado" VISÍVEL NA FICHA. Sem ela, uma correção
+                    técnica do desenvolvedor apareceria na linha do tempo como um ajuste
+                    comum, e quem lesse o histórico meses depois não teria como saber que
+                    aquele estado foi posto à mão em vez de derivar de uma operação real. A
+                    justificativa vem logo abaixo, no campo de observação da própria linha. */}
+                {m.forcado && (
+                  <Badge
+                    variant="outline"
+                    className="border-destructive/50 text-destructive"
+                    title="Correção técnica registrada pelo Desenvolvedor: este estado foi forçado, ignorando as transições normais. O motivo está na observação."
+                  >
+                    forçada
+                  </Badge>
+                )}
                 <span
                   className={'text-sm tabular-nums ' + (estornada ? 'text-muted-foreground' : '')}
                 >

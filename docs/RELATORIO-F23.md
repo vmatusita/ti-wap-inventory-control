@@ -1,8 +1,8 @@
 # Relatório da F23 — Ferramentas destrutivas do cargo dev
 
 **Ordem:** `docs/prompts/F23-dev-destrutivo-ultracode.md` (30/07/2026)
-**Execução:** 30/07/2026, modo autônomo · **Migrations `0079`–`0088`, aplicadas em ensaio e em produção**
-**Emenda de arquitetura:** §14 da `docs/ADR-002-papeis-e-permissoes.md` · **15 atas** em `docs/DECISOES.md`
+**Execução:** 30/07/2026, modo autônomo · **Migrations `0079`–`0090`, aplicadas em ensaio e em produção**
+**Emenda de arquitetura:** §14 da `docs/ADR-002-papeis-e-permissoes.md` · **21 atas** em `docs/DECISOES.md`
 
 ---
 
@@ -110,10 +110,10 @@ A linha **2e** é o critério 6 provado **por consulta**, não por raciocínio: 
 ### 3.4 Roteiro SQL — `supabase/tests/dev_destrutivo.sql`
 
 ```
-_dev_destrutivo_resumo → [{"ok":98,"falhas":0,"detalhe":null}]
+_dev_destrutivo_resumo → [{"ok":103,"falhas":0,"detalhe":null}]
 ```
 
-**98 asserções, 0 falhas** no ensaio. Cobre: exclusividade (3 cargos × 7 RPCs + service role + request forjado), imutabilidade (5 casos `authenticated`, 5 como DONO, 2 de marca mentida, 2 pares positivos), apagar ativo/movimentação/item, reset por filial e global, recusas, forçar estado e saldo, **estorno comum intacto**, confirmação/justificativa e o fecho da janela em erro.
+**103 asserções, 0 falhas** no ensaio. Cobre: exclusividade (3 cargos × 7 RPCs + service role + request forjado), imutabilidade (5 casos `authenticated`, 5 como DONO, 2 de marca mentida, 2 pares positivos), apagar ativo/movimentação/item, reset por filial e global, recusas, forçar estado e saldo, **estorno comum intacto**, confirmação/justificativa e o fecho da janela em erro.
 
 **Roteiros vizinhos, todos no ensaio, todos com 0 falhas** — nenhum quebrou por causa da F23:
 `itens_extra.sql` · `maquina_estados.sql` · `itens_quantidade.sql` · `pendencias_item.sql` · `troca.sql` · `manutencao_fornecedor.sql` · `import_substituir.sql`
@@ -252,6 +252,39 @@ A recusa é **estreita**: só dispara quando existe outra movimentação do mesm
 
 ---
 
+## 4-bis. A revisão adversarial, e o que ela derrubou
+
+Sete lentes em contexto fresco, com refutação por padrão (§V da ordem). Ela **não** voltou
+limpa — e os achados que sobreviveram viraram as migrations `0089` e `0090` e quatro correções
+de app. Os principais:
+
+| # | Achado | Gravidade | O que virou |
+|---|---|---|---|
+| 1 | **A varredura de relatórios parou em `movimentacoes`.** O lado dos ITENS tem duas leituras sem allow-list de tipo, e a correção-dev entrava nas duas — com a justificativa escrita pelo dev **impressa e exportada no CSV** | ALTA | `.eq('forcado', false)` em `getLancamentosItensPeriodo` e na leitura de observações (`relatorios/itens.ts`) |
+| 2 | **A marca `forcado` não era lida por NENHUMA tela fora da /dev** — a ficha do ativo não a mostrava, e o botão "Estornar" ficava em cima da correção-dev para qualquer operador | ALTA | `forcado` entrou no `TIMELINE_SELECT`, virou selo "forçada" na linha do tempo, e `podeEstornar` passou a excluí-la |
+| 3 | **`resetar_dados_ficticios` deixava o service role zerar a PRODUÇÃO com uma chamada** — sem cargo, backup, contagens ou trilha; a defesa era só o `env-guard` do lado do script | ALTA | `0090`: trava de ambiente **dentro do banco** (`public.ambiente`), vazia em produção |
+| 4 | **TRUNCATE passava por cima da guarda** — trigger `for each row` não vê TRUNCATE, e a RLS não o cobre; `anon`/`authenticated`/`service_role` tinham o privilégio | BAIXA→real | `0090`: `revoke truncate` nas seis tabelas do acervo |
+| 5 | **Apagar um ESTORNO não devolvia as `pendencias_item`** que o estorno-strip removeu — o ativo voltava a um estado que a fila de pendências não reflete | MEDIA | `0090`: recusa apagar movimentação de tipo `estorno` |
+| 6 | **A guarda de backup do reset só conferia que EXISTE um objeto com aquele nome** — nada o amarrava ao recorte que ia morrer | MEDIA | `0089`: o caminho tem de estar sob `reset/<bloco>/<alcance>/` |
+| 7 | **A recusa mais frequente da fase (empate, ~90% do acervo) chegava como "seu cargo não permite"** — eu adicionei os ramos de tradução ANTES de escrever a `0087` | MEDIA | ramo próprio em `traduzErroBanco`, antes do genérico de 42501 |
+| 8 | `remove()` do Storage mandava tudo numa chamada (teto de 1000) e ignorava o `data` de remoção **parcial** | MEDIA | lotes de 500 + conferência do que realmente saiu |
+| 9 | O comentário que justificava o client admin na limpeza do bucket era **factualmente falso** | BAIXA | reescrito: é conservadorismo, não necessidade |
+| 10 | Arquivo vazio `import-novo.sql` commitado na raiz (resto de um redirect meu que falhou) | BAIXA | removido |
+
+**E uma crítica de MÉTODO que merece registro**, porque é a mais útil das dez: a única asserção
+de janela do roteiro era **tautológica** — media o GUC depois de um ERRO, e o rollback ao
+savepoint já reverteria o GUC de qualquer jeito. O caso que pode falhar de verdade é o
+**caminho de SUCESSO** (a lição da F22: `set_config(…, true)` é local à TRANSAÇÃO, não à
+chamada). Medido explicitamente, no ensaio, numa transação só:
+
+```
+caso                                  veredito     detalhe
+1 GUC apos RPC bem-sucedida           FECHADO      off
+2 delete direto na mesma transacao    RECUSADO     42501
+3 GUC apos RPC que estourou           FECHADO      off
+4 delete de ativo apos o erro         RECUSADO     42501
+```
+
 ## 5. Checklist da ordem, item a item
 
 | # | Critério | Situação |
@@ -269,7 +302,7 @@ A recusa é **estreita**: só dispara quando existe outra movimentação do mesm
 
 ---
 
-## 6. Decisões (as 15 atas estão em `docs/DECISOES.md`)
+## 6. Decisões (as 17 atas estão em `docs/DECISOES.md`)
 
 As de maior consequência:
 
@@ -323,12 +356,12 @@ Ciclo completo **em produção, sem encostar em dado real** — cria um ativo fi
 
 ## 10. Arquivos
 
-**Migrations:** `0079_forcado_marca` · `0080_import_abre_janela` · `0081_guarda_acervo` · `0082_dev_apagar` · `0083_dev_resetar` · `0084_dev_forcar` · `0085_dev_vocabulario_e_checagem` · `0086_dev_previa_reset` · `0087_dev_correcoes_revisao` · `0088_dev_superficie_rpc`
+**Migrations:** `0079_forcado_marca` · `0080_import_abre_janela` · `0081_guarda_acervo` · `0082_dev_apagar` · `0083_dev_resetar` · `0084_dev_forcar` · `0085_dev_vocabulario_e_checagem` · `0086_dev_previa_reset` · `0087_dev_correcoes_revisao` · `0088_dev_superficie_rpc` · `0089_reset_backup_do_recorte` · `0090_guarda_furos_revisao`
 
 **App:** `src/lib/validators/dev-destrutivo.ts` (+ teste) · `src/lib/queries/dev-destrutivo.ts` · `src/lib/actions/dev-destrutivo.ts` · `src/app/(app)/dev/destrutivo/page.tsx` · `src/components/dev/destrutivo/{dialogo-destrutivo,painel-ativo,painel-itens,painel-reset}.tsx`
 
 **Tocados:** `src/lib/auditoria.ts` · `src/components/admin/usuarios/detalhe-evento.ts` · `src/lib/actions/erros.ts` · `src/lib/queries/relatorios/movimentacoes.ts` · `scripts/reset.ts` · `scripts/smoke/smoke-prod.mjs` · `src/app/(app)/dev/page.tsx` · `src/lib/ajuda/registry.test.ts`
 
-**Prova:** `supabase/tests/dev_destrutivo.sql` (98 asserções)
+**Prova:** `supabase/tests/dev_destrutivo.sql` (103 asserções)
 
-**Documentação:** `CLAUDE.md` §Modelo de acesso · `docs/ESPECIFICACAO.md` §3 · `docs/ADR-002-papeis-e-permissoes.md` §14 · `docs/DECISOES.md` (15 atas) · `docs/RUNBOOK-BANCO.md` (ata de rollout)
+**Documentação:** `CLAUDE.md` §Modelo de acesso · `docs/ESPECIFICACAO.md` §3 · `docs/ADR-002-papeis-e-permissoes.md` §14 · `docs/DECISOES.md` (17 atas) · `docs/RUNBOOK-BANCO.md` (ata de rollout)
