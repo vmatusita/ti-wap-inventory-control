@@ -42,7 +42,7 @@ export const importDeStartup: PaginaAjuda = {
       itens: [
         'Não atualiza nem completa um acervo existente: o único modo é "Substituir tudo", que apaga o acervo atual da filial (ativos, linha do tempo, termos e anotações) e recria tudo a partir do arquivo.',
         'Não roda em duas filiais de uma vez: um import é sempre de UMA filial, escolhida no passo 1. Linha do arquivo que aponta para outra filial não entra.',
-        'Não move equipamento de filial: o par patrimônio + service tag é único no sistema inteiro, então linha de ativo que já existe em outra filial fica de fora. Mudança de filial é uma transferência registrada pelo sistema, que preserva o histórico.',
+        'Não move equipamento de filial. Se uma linha traz um aparelho que já tem cadastro em OUTRA filial, ela importa mesmo assim — e os dois cadastros passam a existir, com um aviso âmbar no preview e um "conflito entre filiais" esperando em Pendências, onde os dois aparecem lado a lado para alguém decidir qual é o certo. Mudança real de filial é uma transferência registrada pelo sistema, que preserva o histórico.',
         'Não é rotina: não há agendamento nem sincronização recorrente com planilha.',
         'Não apaga relatório: snapshots de relatório já congelados permanecem como estão.',
         `Não é de todo mundo: importar é a ação mais destrutiva do sistema, e só os cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev} a alcançam — a aba, a confirmação e a própria gravação recusam quem tem outro cargo, com "Esta ação é restrita a administradores.". Quem rodou cada import fica registrado.`,
@@ -57,7 +57,7 @@ export const importDeStartup: PaginaAjuda = {
         'Vá a Administração › Importar. O cartão "Importar acervo por arquivo" mostra os cinco passos no topo: "Configurar" › "Upload" › "Preview" › "Confirmar" › "Resultado".',
         'Passo "Configurar": escolha a "Filial". A caixa "Substituir tudo — go-live da filial" repete o que vai acontecer. Use "Avançar".',
         `Passo "Upload": o campo é "Arquivo (CSV ou Excel .xlsx)" e o limite é ${TAMANHO_MAX_ROTULO}. Prefira o .xlsx. Use "Analisar arquivo" — o botão vira "Analisando…" enquanto o sistema lê tudo.`,
-        'Passo "Preview": leia a barra do topo — "{n} bloqueantes · {n} avisos · {n} linhas removidas · {n} correções" — e corrija o que estiver vermelho (abaixo). Nada foi alterado ainda.',
+        'Passo "Preview": leia a barra do topo — "{n} bloqueantes · {n} avisos · {n} linhas removidas · {n} correções", mais "{n} conflitos entre filiais" quando houver — e corrija o que estiver vermelho (abaixo). Nada foi alterado ainda.',
         'Ainda no preview, confira o CUSTO: os números grandes dizem quantos "ativos a criar" e, em vermelho, quantos "ativos a apagar", "movimentações a apagar", "anotações a apagar" e "termos a apagar". Esse é o preço da substituição.',
         'Com a faixa verde "Pronto para aplicar" na tela, use "Avançar". Se quiser trocar de arquivo, "Trocar arquivo" volta ao upload.',
         'Passo "Confirmar": a faixa "Esta ação é irreversível" repete as contagens e avisa que um backup do acervo é gravado antes. Digite o nome da filial no campo "Digite {nome da filial} para confirmar" — tem de ser exatamente igual — e use "Substituir tudo".',
@@ -96,9 +96,9 @@ export const importDeStartup: PaginaAjuda = {
           'Remova as linhas: forçar o Site mascararia uma transferência. Registre a transferência pelo sistema depois.',
         ],
         [
-          'Cartão "Já existe em outra filial"',
-          'bloqueante',
-          'Remova as linhas. O import desta filial não apaga o acervo da outra, e a identidade patrimônio + service tag é única.',
+          'Cartão "Conflito entre filiais"',
+          'aviso',
+          'Nada a fazer para seguir: as linhas importam e cada uma abre um conflito, que se resolve depois em Pendências, com os dois cadastros lado a lado. Remover as linhas continua sendo uma saída, agora opcional.',
         ],
         [
           'Cartão "Patrimônio" (valor fora do formato)',
@@ -185,9 +185,9 @@ export const importDeStartup: PaginaAjuda = {
       tipo: 'lista',
       itens: [
         'Os ativos da filial passam a existir com origem "importacao", já no estado que o arquivo declarava, e cada um nasce com a sua movimentação na linha do tempo.',
-        'Ativo vindo do import NÃO abre pendência de termo de responsabilidade nem de item faltante — o acervo herdado da planilha não inunda a fila. As pendências que ele pode abrir são as de identificação: "sem patrimônio físico" e "sem service tag".',
+        'Ativo vindo do import NÃO abre pendência de termo de responsabilidade nem de item faltante — o acervo herdado da planilha não inunda a fila. As pendências que ele pode abrir são as de identificação — "sem patrimônio físico" e "sem service tag" — e a de "conflito entre filiais", quando a linha traz um aparelho que já tem cadastro em outra unidade.',
         'O acervo anterior daquela filial deixa de existir: ativos, movimentações, anotações e termos são apagados, nas contagens que o passo "Confirmar" mostrou. O backup gravado antes fica disponível para baixar no resultado e no "Histórico de imports".',
-        'O histórico do rodapé da tela guarda cada import com "Quando", "Quem", "Filial", "Linhas", "Criados", "Correções", "Apagados" e o "Backup" — é o rastro de auditoria da virada.',
+        'O histórico do rodapé da tela guarda cada import com "Quando", "Quem", "Filial", "Linhas", "Criados", "Correções", "Conflitos", "Apagados" e o "Backup" — é o rastro de auditoria da virada.',
         'Os saldos de itens por quantidade não entram por aqui: o import é só de equipamentos com patrimônio.',
       ],
     },

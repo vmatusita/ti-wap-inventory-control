@@ -44,6 +44,17 @@ export const problemasImportEAcesso: PaginaAjuda = {
           ],
         },
         {
+          sintoma: 'Importei e apareceram dois cadastros do mesmo equipamento.',
+          causa:
+            'O arquivo trouxe um aparelho que já tinha cadastro em outra unidade. O import não descarta a linha nem move o aparelho de lugar: ele deixa os dois cadastros de pé e abre um "conflito entre filiais", porque quem sabe qual dos dois está certo é uma pessoa, não o arquivo. O preview avisa isso em âmbar antes de aplicar, e o resultado mostra quantos conflitos ficaram abertos.',
+          saida: [
+            'Abra Pendências e vá à aba "Conflitos entre filiais": cada bloco traz os dois cadastros lado a lado, com os campos que diferem realçados e o resumo de histórico de cada um.',
+            'Compare pelo histórico. O lado que tem movimentação além da carga do import — saída, devolução, termo — é quase sempre o cadastro em uso; o outro costuma ser o que o arquivo acabou de criar.',
+            'Decidido qual é o errado, apague-o ali mesmo. É preciso ser administrador, e o sistema pede uma justificativa e a confirmação da quantidade antes de apagar.',
+            'Se o aparelho realmente mudou de unidade, não é conflito: apague o cadastro duplicado e registre a transferência pelo fluxo normal de movimentação, que preserva o histórico.',
+          ],
+        },
+        {
           sintoma: 'O preview mostra "Import bloqueado" e o botão não avança.',
           causa:
             'Bloqueante (vermelho) impede aplicar; aviso (âmbar) não impede. O arquivo enviado nunca é alterado — a correção acontece na tela e a análise se refaz sozinha a cada mudança.',

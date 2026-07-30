@@ -131,6 +131,36 @@ export const resolverPendencias: PaginaAjuda = {
     },
 
     {
+      tipo: 'titulo',
+      id: 'pendencias-conflito',
+      texto: 'Resolver um conflito entre filiais',
+    },
+    {
+      tipo: 'paragrafo',
+      texto:
+        'Um conflito é o MESMO equipamento cadastrado em duas unidades ao mesmo tempo. Ele sempre nasce de um import de startup que trouxe uma máquina que já existia em outra filial — o import deixa os dois cadastros de pé de propósito, porque quem sabe qual está certo é uma pessoa, não a planilha. Cada conflito conta como UMA pendência no selo do menu, mesmo tendo dois cadastros: é uma decisão só a tomar.',
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Decidir qual cadastro fica',
+      itens: [
+        'Abra Pendências e vá à aba "Conflitos entre filiais". Em vez de uma lista de linhas, ela mostra um bloco por conflito, com os cadastros LADO A LADO.',
+        'Os campos que DIFEREM entre os dois vêm realçados — estado, colaborador, modelo, hostname, data de entrada. O que é igual fica sem destaque, para o olho ir direto ao que importa.',
+        'Embaixo de cada lado vem o resumo de histórico: quantas movimentações, quantos termos e qual foi a última movimentação. O lado que tem movimentação ALÉM da carga do import ganha um alerta próprio — é quase sempre o cadastro em uso.',
+        'Use "Ficha" para abrir qualquer um dos dois e conferir a linha do tempo inteira antes de decidir.',
+        'Decidido, marque a caixa do cadastro errado e use "Apagar selecionados". Para tocar o conflito inteiro de uma vez existe "Apagar ambos"; e dá para marcar cadastros de conflitos diferentes e apagar todos numa operação só.',
+        'O sistema pede uma justificativa e a confirmação da QUANTIDADE ("APAGAR 2", por exemplo) — o número está ali para obrigar a conferir quantos vão embora. Se algum dos marcados tiver histórico próprio, um aviso destacado diz quanto se perde antes de você confirmar.',
+        'Apagar é definitivo e leva junto o histórico daquele cadastro. Fica registrado na trilha de auditoria, com quem apagou, quando, a justificativa e uma cópia do que foi apagado.',
+        'Resolvido, o bloco some da aba sozinho — o conflito não é um registro que se encerra, é uma situação que deixa de existir.',
+      ],
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Só quem é administrador vê as caixas de seleção e os botões de apagar. Todo mundo enxerga a aba, os dois lados e as diferenças — acompanhar o problema é de todos; desfazer é de quem responde por isso. E se o aparelho de fato mudou de unidade, o caminho não é este: apague o cadastro duplicado e registre a transferência pelo fluxo normal, que preserva o histórico. Aliás, enquanto o conflito existir, transferir um dos dois para a unidade do outro é recusado — os dois não podem ficar na mesma filial.',
+    },
+
+    {
       tipo: 'links',
       itens: [
         { slug: 'termos-de-responsabilidade' },
