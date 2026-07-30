@@ -257,7 +257,128 @@ interna. A `0078` removeu da API as **duas** que não se encaixavam em nenhum do
 
 ---
 
-## 4. Decisões registradas
+### 3.10 Revisão adversarial (contexto fresco, 6 lentes, refutação por padrão)
+
+15 achados brutos → 11 confirmados → **6 defeitos únicos** (as lentes se sobrepõem). Dois
+derrubavam promessas da fase e **as 46 asserções SQL não os pegavam**, porque nenhum dos dois
+passa pelo Postgres:
+
+| # | Achado | Por que escapou dos testes |
+|---|---|---|
+| 1 | **[ALTA]** Um admin tomava a conta de um dev pelo "Convidar usuário": e-mail já cadastrado → link de **recuperação** → quem abre define a senha. Cargo dev, `/dev`, apagar contas — tudo, **sem tocar em `profiles`**. | O roteiro é 100% SQL; este caminho escreve um token no schema `auth` pela Auth Admin API. |
+| 2 | **[ALTA]** A `/dev` **nunca funcionou**: as duas RPCs da `0077` eram chamadas com o **service role**, que não tem identidade — `auth.uid()` é NULL, `e_dev()` é false, 42501 sempre. | O roteiro prova a RPC com papel simulado; o defeito estava em QUEM a chamava, no TypeScript. |
+| 3 | **[MEDIA]** Auditoria só tinha filtro de ação (a ordem §4 pede ação, autor, período, alvo). | Lacuna de requisito, não de correção. |
+| 4 | **[MEDIA]** "Encerrar sessões" era oferecido na própria linha e **sempre falhava**. | Comportamento de UI; o banco recusa corretamente. |
+| 5 | **[MEDIA]** Se o `deleteUser` falhasse, a conta ficava **viva e não banida** — e ainda conseguia LOGAR —, sem caminho de repetição (a linha já sumira da lista). | Caminho de erro do Auth, fora do SQL. |
+| 6 | **[BAIXA]** `revalidarGrupo({grupo:'toString'})` pegava a função herdada de `Object.prototype` e estourava no `for…of`. | — |
+
+Todos corrigidos no commit `be0fd82`. As 4 "refutações" foram achados que os refutadores
+encontraram **já consertados** — a revisão rodou enquanto eu corrigia.
+
+### 3.11 Deploy, promoção e smoke pós-deploy
+
+```
+deploy Vercel  dpl_HAv15MDEpnbpFnK9Kxc2XEW96qGC · state READY · target production
+               commit "fix(f22): 6 achados da revisão adversarial…"
+```
+
+Promoção (`0076`) aplicada **depois** do deploy, de propósito: entre a promoção e o código
+novo no ar existiria uma janela em que o Victor seria `dev` para um app que ainda comparava
+`papel === 'admin'` — ele perderia `/admin` sem entender por quê.
+
+```
+-- verificação pós-apply (0076)
+email                          papel  ativo  excluido_em
+victor.matusita@wap.ind.br     dev    true   null
+vymatusita@stefanini.com       dev    true   null
+
+-- só as linhas certas mudaram (diff contra o backup tirado antes)
+linhas com papel diferente do backup   1
+quais mudaram                          admin->dev
+arquivados                             0
+distribuição agora                     dev=2, admin=3, operador=3, consulta=3
+```
+
+> A conta `vymatusita@stefanini.com` **não existia** em `auth.users`. Conforme
+> `CONTA_FALTANDO = convidar` do §0, ela foi criada por convite (mesma mecânica de
+> `convidarUsuario`: `generateLink`, sem disparar e-mail — o projeto não tem SMTP próprio) e
+> promovida pela `0076`. **O link de uso único foi entregue na resposta da execução, e não
+> colado aqui**: este arquivo é versionado, e token de acesso em histórico de git é permanente.
+> Se expirar, `/admin/usuarios` › "Convidar usuário" com o mesmo e-mail gera outro (o cargo
+> `dev` já está gravado e o reenvio não o altera).
+
+**A prova que só era possível depois da promoção** — sessão de um administrador REAL, em
+produção, contra um dev REAL:
+
+```
+sessao: admin | alvo dev: 0a323d01…
+
+OK recusado  | rebaixar o dev           | 42501: Só um desenvolvedor pode gerir o cargo Desenvolvedor.
+OK recusado  | desativar o dev          | 42501: Só um desenvolvedor pode gerir o cargo Desenvolvedor.
+OK recusado  | apagar o dev             | 42501: Só um desenvolvedor pode gerir o cargo Desenvolvedor.
+OK recusado  | encerrar sessoes dele    | 42501: Só um desenvolvedor pode gerir o cargo Desenvolvedor.
+OK recusado  | mexer nos vinculos       | 42501: Só um desenvolvedor pode gerir o cargo Desenvolvedor.
+OK recusado  | ler as checagens /dev    | 42501: Esta consulta é restrita ao cargo Desenvolvedor.
+OK recusado  | UPDATE direto no papel   | 42501: permission denied for table profiles
+
+estado do dev DEPOIS de tudo: {"papel":"dev","ativo":true}
+```
+
+Smoke pós-deploy (`scripts/smoke/smoke-prod.mjs`), exit 0:
+
+```
+[OK   ] /dev — HTTP 200 (67921 bytes)
+RESUMO · 87 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+```
+
+O único aviso é **pré-existente** e não tem relação com a fase: `kits_modelos · anon NÃO lê
+(RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não comprovada`.
+
+> ⚠ O `[OK] /dev — HTTP 200` merece explicação, porque a primeira versão deste check estava
+> **errada**. Eu a escrevi exigindo um 3xx e tratando 200 como vazamento. Medido contra a
+> produção, o `redirect('/')` do `dev/layout.tsx` é resolvido pelo Next **no servidor** e a
+> resposta volta **200 com o HTML do painel**. O gate funciona; o critério é que estava
+> errado. Agora o check assere o **conteúdo** (`marcadorProibido`), que é o que de fato prova
+> ausência de vazamento — e foi assim que se confirmou que o corpo não traz nada da `/dev`.
+
+## 4. Checklist da ordem, item a item
+
+| # | Critério | Situação | Onde está a prova |
+|---|---|---|---|
+| 1 | **Hierarquia** — dev alcança e opera tudo que admin alcança; nenhuma comparação literal sobrou | ✅ | `cargo_dev.sql` 1z–1h (catálogo, auditoria, import_logs, RPC de import, escrita nas duas filiais, anotação, snapshot, `.docx`); §3.7 mostra `literal cargo em policy = ZERO` |
+| 2 | **Intocável** — admin não edita/rebaixa/desativa/apaga um dev nem concede o cargo; recusado na UI/action **e** no banco em request forjado, service role incluso | ✅ | `cargo_dev.sql` 2a–2j-bis (14 asserções) + §3.3 (service role) + **§3.11, contra um dev real em produção** |
+| 3 | **E-mail** — dev troca o e-mail; domínio validado; em-uso recusado; admin não tem o caminho; evento na trilha | ✅ | `alterarEmailUsuario` (`alterarEmailUsuarioSchema` reusa `dominios-email`); `exigirDev`; evento `email_alterado` |
+| 4 | **Apagar** — não loga mais, some das telas, histórico com autoria original, e-mail reutilizável, alvo dev recusado, evento na trilha | ✅ | `cargo_dev.sql` 6a–6h + §3.5 (prova ponta a ponta com dado fictício) |
+| 5 | **Sessões** — derruba o refresh token; limite honesto (~1h) escrito na tela; evento na trilha | ✅ | RPC `encerrar_sessoes_usuario` (cascade `refresh_tokens → sessions`); texto no diálogo e na ajuda; evento `sessoes_encerradas` |
+| 6 | **/dev** — só dev; admin em URL direta recusado sem vazamento; os 4 blocos funcionam; nenhum segredo; checagens read-only | ✅ | §3.11 (smoke por conteúdo + RPC recusada a admin); `0077` sem verbo de escrita; sem segredo (só envs `VERCEL_*` e a URL pública mascarada) |
+| 7 | **Promoção** — contas de `EMAILS_DEV` com papel dev em produção | ✅ | §3.11, verificação pós-apply colada |
+| 8 | **Sem regressão** — operador/consulta/visualizador idênticos; autoproteções da F21 intactas; nenhum WARN novo de RLS | ✅ | §3.4 (nos dois bancos) + §3.9 (advisors) + smoke 87 OK |
+| 9 | **Portões** — lint, test, build limpos; roteiros verdes nos dois bancos; `database.ts` regenerado; deploy READY + smoke OK | ✅ | §3.8, §3.2, §3.11 |
+
+## 5. Pendências
+
+Nenhuma bloqueia o uso da fase. Em ordem de importância:
+
+1. **Persona dev do seed exige um passo manual no ensaio.** O seed não consegue gravar o cargo
+   `dev` — o trigger da `0073` recusa a concessão para qualquer caminho sem identidade, e o
+   service role não tem nenhuma. A persona nasce `admin` com `papelManual: 'dev'`, e o próprio
+   seed imprime o SQL da promoção ao terminar. **Isso é a proteção funcionando**, não um
+   defeito; resolvê-lo "de dentro" exigiria afrouxá-la.
+2. **`.env.local` aponta para PRODUÇÃO**, então `npm run db:seed`/`db:reset` estão bloqueados
+   pela guarda anti-produção (comportamento correto). Repontar para o ensaio antes de usá-los.
+3. **`scripts/seed.ts` não exercita as três ações novas da trilha** (`email_alterado`,
+   `usuario_apagado`, `sessoes_encerradas`) — a aba Auditoria do ensaio não as mostra. E o
+   `type AcaoSeed` continua sendo união redigitada (o mesmo ponto cego que a fase caçou no
+   app). Backlog: derivar de `ACOES_ADMIN`.
+4. **`_bkp_relatorios_gerados_f6a`** (2 linhas) segue em produção desde a F6A. Conferi que está
+   **fechada** (RLS ligada, zero policies → deny-all) — não é vazamento —, mas aparece nos
+   tipos gerados. Apagá-la é destrutivo e fora do escopo desta ordem.
+5. **Sem página de ajuda para `/dev`**, por decisão da ordem (é área técnica). A rota está
+   ISENTA na matriz de cobertura, com motivo escrito.
+6. **`auth_leaked_password_protection`** continua desligada (WARN de advisor pré-existente,
+   já no backlog do projeto). É configuração de painel, não código.
+
+## 6. Decisões registradas
 
 Todas em [`DECISOES.md`](DECISOES.md) (30/07/2026), com contexto e motivo. Em resumo:
 
@@ -283,7 +404,7 @@ Todas em [`DECISOES.md`](DECISOES.md) (30/07/2026), com contexto e motivo. Em re
 
 ---
 
-## 5. Roteiro manual de 5 minutos (para o Victor)
+## 7. Roteiro manual de 5 minutos (para o Victor)
 
 O que está automatizado é a camada de dados e autorização. O que só um par de olhos confere é
 a **tela**. Sugestão de ordem — os dois primeiros passos usam uma conta de **administrador**
@@ -320,7 +441,7 @@ a **tela**. Sugestão de ordem — os dois primeiros passos usam uma conta de **
 > ⚠ Use uma conta **fictícia** no passo 8. Apagar é irreversível, e o perfil arquivado não
 > volta a ser um usuário — o e-mail é que fica livre para um convite novo.
 
-## 6. O que este relatório NÃO prova
+## 8. O que este relatório NÃO prova
 
 Honestidade sobre os limites do que foi medido:
 
