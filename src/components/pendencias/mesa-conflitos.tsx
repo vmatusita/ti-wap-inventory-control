@@ -164,8 +164,11 @@ export function MesaConflitos({
                   Conflito entre filiais
                 </Badge>
                 <span className="font-mono font-semibold tabular-nums">{g.rotulo}</span>
+                {/* Um grupo tem no máximo UM lado por filial — é o que o índice único
+                    por filial (0091) garante —, então "N cadastros" e "N filiais" são
+                    sempre o mesmo número. Dizer uma vez basta. */}
                 <span className="text-sm text-muted-foreground">
-                  {g.lados.length} cadastros em {g.lados.length} filiais
+                  {g.lados.length} cadastros, um em cada filial
                 </span>
               </div>
               {podeApagar && (
