@@ -191,6 +191,55 @@ export async function carregarFichaDestrutiva(
   }
 }
 
+/**
+ * O identificador que confirma o apagamento de UMA movimentação: o rótulo do ativo dela.
+ *
+ * ⚠ Existe para a action poder conferir a confirmação digitada ANTES de chamar a RPC — o §1.3
+ * da ordem exige a validação nas DUAS camadas. A RPC continua sendo a trava (ela compara com o
+ * que lê na própria transação); esta leitura é o que permite dar a mensagem em pt-BR certa em
+ * vez de deixar o SQLSTATE subir.
+ */
+export async function alvoDaMovimentacao(
+  movimentacaoId: string,
+): Promise<{ ativoId: string; rotulo: string } | null> {
+  const supabase = await sessaoDeDev()
+
+  // ⚠ DUAS consultas simples em vez de um embed `ativos!inner(...)`, de propósito. O embed do
+  // PostgREST devolve OBJETO ou ARRAY conforme ele infere a cardinalidade, e aqui o preço de
+  // errar essa inferência seria silencioso e grave: o rótulo cairia para o `id` do ativo, a
+  // confirmação digitada NUNCA bateria, e a ferramenta recusaria tudo sem explicar por quê.
+  // Duas leituras de chave primária custam nada e não dependem de inferência nenhuma.
+  const { data: mov, error: eMov } = await supabase
+    .from('movimentacoes')
+    .select('ativo_id')
+    .eq('id', movimentacaoId)
+    .maybeSingle()
+  if (eMov) throw new Error(`Falha ao carregar a movimentação: ${eMov.message}`)
+  if (!mov) return null
+
+  const { data: ativo, error: eAtivo } = await supabase
+    .from('ativos')
+    .select('id, patrimonio, service_tag')
+    .eq('id', mov.ativo_id)
+    .maybeSingle()
+  if (eAtivo) throw new Error(`Falha ao carregar o ativo: ${eAtivo.message}`)
+  if (!ativo) return null
+
+  return { ativoId: ativo.id, rotulo: rotuloDoAtivo(ativo) }
+}
+
+/** O nome do item — a confirmação digitada do `apagar_item`. Mesma razão de `alvoDaMovimentacao`. */
+export async function nomeDoItem(itemId: number): Promise<string | null> {
+  const supabase = await sessaoDeDev()
+  const { data, error } = await supabase
+    .from('itens')
+    .select('nome')
+    .eq('id', itemId)
+    .maybeSingle()
+  if (error) throw new Error(`Falha ao carregar o item: ${error.message}`)
+  return data?.nome ?? null
+}
+
 // ---------------------------------------------------------------------------
 // 3. Itens do catálogo
 // ---------------------------------------------------------------------------

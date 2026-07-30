@@ -6,9 +6,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirDev } from '@/lib/auth/acesso'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
+  alvoDaMovimentacao,
   buscarAtivosDestrutivo,
   carregarFichaDestrutiva,
   montarBackupDoReset,
+  nomeDoItem,
   previaDoReset,
 } from '@/lib/queries/dev-destrutivo'
 // `import type` é permitido num módulo 'use server' — a regra da F13 proíbe EXPORTAR o que não
@@ -211,12 +213,20 @@ export async function apagarMovimentacao(input: {
   }
   const { movimentacaoId, confirmacao, justificativa } = parsed.data
 
-  // A justificativa é conferida aqui; a confirmação (o patrimônio do ativo) a RPC compara com
-  // o que ela mesma lê — não se adianta a leitura aqui só para repetir a comparação, porque
-  // entre uma e outra o dado poderia mudar. O schema já garantiu o formato.
-  if (justificativa.trim().length < 10) {
-    return { ok: false, erro: 'Escreva uma justificativa de pelo menos 10 caracteres.' }
+  // §1.3 da ordem: a confirmação é validada NA ACTION **E** NA RPC. Aqui para dar a mensagem
+  // certa em pt-BR (dizendo QUAL identificador se espera); lá para que forjar o request não
+  // contorne nada — a RPC compara com o que ela mesma lê na própria transação.
+  const alvo = await alvoDaMovimentacao(movimentacaoId)
+  if (!alvo) {
+    return { ok: false, erro: 'Movimentação não encontrada. Atualize a página e tente de novo.' }
   }
+  const recusa = validarOperacaoDestrutiva({
+    confirmacao,
+    esperado: alvo.rotulo,
+    justificativa,
+    alvo: 'esta movimentação',
+  })
+  if (recusa) return { ok: false, erro: recusa }
 
   const { data, error } = await supabase.rpc('apagar_movimentacao', {
     p_mov: movimentacaoId,
@@ -247,6 +257,19 @@ export async function apagarItem(input: {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
   const { itemId, confirmacao, justificativa } = parsed.data
+
+  // §1.3: validada nas DUAS camadas (ver o comentário em `apagarMovimentacao`).
+  const nome = await nomeDoItem(itemId)
+  if (!nome) {
+    return { ok: false, erro: 'Item não encontrado. Atualize a página e tente de novo.' }
+  }
+  const recusa = validarOperacaoDestrutiva({
+    confirmacao,
+    esperado: nome,
+    justificativa,
+    alvo: 'este item',
+  })
+  if (recusa) return { ok: false, erro: recusa }
 
   const { data, error } = await supabase.rpc('apagar_item', {
     p_item: itemId,
