@@ -241,6 +241,18 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (m.includes('nenhum ativo selecionado')) {
     return 'Nenhum cadastro selecionado para apagar.'
   }
+  // §5.1 — mover o ativo para a filial onde o gêmeo já está (transferência, ou estorno de
+  // uma transferência antiga). A recusa vem da guarda da migration 0097, e não do 23505
+  // cru: sem este ramo ela cairia no genérico de 42501 e diria "seu cargo não permite",
+  // que é falso. Texto próprio, e não o do banco — a regra da casa é que mensagem crua do
+  // Postgres não vai para a tela (a da RPC nomeia a filial, mas cita "patrimônio +
+  // service tag" em vocabulário de banco).
+  if (
+    m.includes('os dois cadastros não podem ficar na mesma filial') ||
+    m.includes('os dois cadastros nao podem ficar na mesma filial')
+  ) {
+    return 'A filial de destino já tem um cadastro deste mesmo equipamento (mesmo patrimônio e mesma service tag). Resolva o conflito entre filiais na aba "Conflitos entre filiais" de Pendências antes de mover o ativo.'
+  }
 
   // 42501 = insufficient_privilege: cobre tanto "new row violates row-level security
   // policy" (WITH CHECK reprovado) quanto "permission denied for table/column" (o grant de
