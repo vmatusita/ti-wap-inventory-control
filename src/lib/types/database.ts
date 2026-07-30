@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      ambiente: {
+        Row: {
+          criado_em: string
+          observacao: string | null
+          rotulo: string
+        }
+        Insert: {
+          criado_em?: string
+          observacao?: string | null
+          rotulo: string
+        }
+        Update: {
+          criado_em?: string
+          observacao?: string | null
+          rotulo?: string
+        }
+        Relationships: []
+      }
       anotacoes: {
         Row: {
           ativo_id: string
@@ -43,6 +61,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ativos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anotacoes_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "v_conflitos_filiais"
+            referencedColumns: ["ativo_id"]
           },
           {
             foreignKeyName: "anotacoes_ativo_id_fkey"
@@ -158,6 +183,13 @@ export type Database = {
             foreignKeyName: "ativos_substitui_ativo_id_fkey"
             columns: ["substitui_ativo_id"]
             isOneToOne: false
+            referencedRelation: "v_conflitos_filiais"
+            referencedColumns: ["ativo_id"]
+          },
+          {
+            foreignKeyName: "ativos_substitui_ativo_id_fkey"
+            columns: ["substitui_ativo_id"]
+            isOneToOne: false
             referencedRelation: "v_pendencias"
             referencedColumns: ["id"]
           },
@@ -228,6 +260,7 @@ export type Database = {
           arquivo_hash: string
           ativos_criados: number
           backup_path: string
+          conflitos_abertos: number
           correcoes: Json
           created_at: string
           criado_por: string
@@ -243,6 +276,7 @@ export type Database = {
           arquivo_hash: string
           ativos_criados: number
           backup_path: string
+          conflitos_abertos?: number
           correcoes?: Json
           created_at?: string
           criado_por: string
@@ -258,6 +292,7 @@ export type Database = {
           arquivo_hash?: string
           ativos_criados?: number
           backup_path?: string
+          conflitos_abertos?: number
           correcoes?: Json
           created_at?: string
           criado_por?: string
@@ -533,6 +568,13 @@ export type Database = {
             foreignKeyName: "movimentacoes_ativo_id_fkey"
             columns: ["ativo_id"]
             isOneToOne: false
+            referencedRelation: "v_conflitos_filiais"
+            referencedColumns: ["ativo_id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
             referencedRelation: "v_pendencias"
             referencedColumns: ["id"]
           },
@@ -656,6 +698,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ativos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "v_conflitos_filiais"
+            referencedColumns: ["ativo_id"]
           },
           {
             foreignKeyName: "pendencias_item_ativo_id_fkey"
@@ -886,6 +935,58 @@ export type Database = {
       }
     }
     Views: {
+      v_conflitos_filiais: {
+        Row: {
+          ativo_id: string | null
+          categoria: Database["public"]["Enums"]["categoria_ativo"] | null
+          chave: string | null
+          colaborador_atual: string | null
+          created_at: string | null
+          filial: string | null
+          filial_id: number | null
+          filial_nome: string | null
+          hostname: string | null
+          marca: string | null
+          modelo: string | null
+          movimentacoes: number | null
+          movimentacoes_reais: number | null
+          origem: string | null
+          patrimonio: string | null
+          patrimonio_original: string | null
+          pendencia: string | null
+          service_tag: string | null
+          setor_atual: string | null
+          status: Database["public"]["Enums"]["status_ativo"] | null
+          tem_historico_real: boolean | null
+          termos: number | null
+          ultima_mov_data: string | null
+          ultima_mov_tipo: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ativos_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_conflitos_filiais_grupos: {
+        Row: {
+          algum_com_historico_real: boolean | null
+          ativos: number | null
+          chave: string | null
+          filiais: number | null
+          filiais_nomes: string | null
+          patrimonio: string | null
+          rotulo: string | null
+          service_tag: string | null
+          visto_em: string | null
+        }
+        Relationships: []
+      }
       v_estoque_atual: {
         Row: {
           categoria: Database["public"]["Enums"]["categoria_ativo"] | null
@@ -978,6 +1079,13 @@ export type Database = {
             foreignKeyName: "pendencias_item_ativo_id_fkey"
             columns: ["ativo_id"]
             isOneToOne: false
+            referencedRelation: "v_conflitos_filiais"
+            referencedColumns: ["ativo_id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
             referencedRelation: "v_pendencias"
             referencedColumns: ["id"]
           },
@@ -1014,6 +1122,15 @@ export type Database = {
         }
         Returns: Json
       }
+      apagar_ativos_conflito_filiais: {
+        Args: {
+          p_ativos: string[]
+          p_backup_path?: string
+          p_confirmacao: string
+          p_justificativa: string
+        }
+        Returns: Json
+      }
       apagar_item: {
         Args: { p_confirmacao: string; p_item: number; p_justificativa: string }
         Returns: Json
@@ -1023,6 +1140,10 @@ export type Database = {
         Returns: Json
       }
       apagar_usuario: { Args: { p_alvo: string }; Returns: undefined }
+      chave_identidade_ativo: {
+        Args: { p_patrimonio: string; p_service_tag: string }
+        Returns: string
+      }
       criar_compra_lote: {
         Args: { p_criado_por: string; p_itens: Json }
         Returns: {
@@ -1114,6 +1235,7 @@ export type Database = {
         }
         Returns: Json
       }
+      mov_da_carga_import: { Args: { p_observacao: string }; Returns: boolean }
       papel_atual: {
         Args: never
         Returns: Database["public"]["Enums"]["papel_usuario"]
@@ -1125,6 +1247,11 @@ export type Database = {
       }
       pode_escrever_filial: { Args: { fid: number }; Returns: boolean }
       pode_escrever_termo: { Args: { p_ativo_ids: string[] }; Returns: boolean }
+      prefixo_backup_conflito: { Args: never; Returns: string }
+      prefixo_backup_reset: {
+        Args: { p_bloco: string; p_filial: number }
+        Returns: string
+      }
       previa_reset: {
         Args: { p_bloco: string; p_filial: number }
         Returns: Json
