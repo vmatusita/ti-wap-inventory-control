@@ -793,6 +793,15 @@ const ROTAS_LOGADO = [
   { rota: '/relatorios/geral', area: 'relatório ao vivo' },
   { rota: '/relatorios/gerados', area: 'relatórios gerados' },
   { rota: '/ajuda/manual', area: 'ajuda · manual completo (F20)' },
+  // F22 — a /dev é a ÚNICA rota que a conta do smoke NÃO pode abrir: ela é de um
+  // ADMINISTRADOR, e a área é exclusiva do cargo Desenvolvedor. `recusaEsperada` inverte o
+  // critério: aqui um HTTP 200 é FALHA (é vazamento da área técnica para o cargo errado) e o
+  // redirect para o painel é o resultado certo.
+  //
+  // ⚠ Sem esta inversão a entrada seria inútil: o ramo comum trata QUALQUER 3xx como
+  // "sessão não aceita — check inconclusivo" (AVISO), e a recusa correta ficaria
+  // indistinguível de uma limitação do próprio smoke.
+  { rota: '/dev', area: 'dev · área técnica (F22)', recusaEsperada: '/' },
 ]
 
 // F20 — as páginas da documentação. Além do 200, cada uma exige o MARCADOR:
@@ -896,10 +905,27 @@ async function parteC(sessao) {
       } else if (codigo >= 300 && codigo < 400) {
         resposta.body?.cancel().catch(() => {})
         const destino = resposta.headers.get('location') || '(sem location)'
-        // Redirect para /login = a sessão forjada não foi aceita: é limitação do
-        // smoke, não defeito da aplicação. Não derruba o exit code.
-        status = AVISO
-        detalhe = `HTTP ${codigo} → ${destino} (sessão não aceita — check inconclusivo)`
+        if (entrada.recusaEsperada) {
+          // F22: rota que esta conta NÃO deve abrir. Redirect para o destino esperado é o
+          // acerto; para /login é a mesma limitação de sempre (sessão forjada não aceita).
+          if (destino.includes('/login')) {
+            status = AVISO
+            detalhe = `HTTP ${codigo} → ${destino} (sessão não aceita — check inconclusivo)`
+          } else if (destino.endsWith(entrada.recusaEsperada) || destino === entrada.recusaEsperada) {
+            status = OK
+            detalhe = `HTTP ${codigo} → ${destino} — recusada para este cargo, como deve ser`
+          } else {
+            detalhe = `HTTP ${codigo} → ${destino} — recusou, mas para um destino inesperado (esperado ${entrada.recusaEsperada})`
+          }
+        } else {
+          // Redirect para /login = a sessão forjada não foi aceita: é limitação do
+          // smoke, não defeito da aplicação. Não derruba o exit code.
+          status = AVISO
+          detalhe = `HTTP ${codigo} → ${destino} (sessão não aceita — check inconclusivo)`
+        }
+      } else if (entrada.recusaEsperada && codigo === 200) {
+        resposta.body?.cancel().catch(() => {})
+        detalhe = `HTTP 200 — VAZAMENTO: esta conta abriu uma área que não é do cargo dela`
       } else if (codigo !== 200) {
         resposta.body?.cancel().catch(() => {})
         detalhe = `HTTP ${codigo} — esperado 200`
