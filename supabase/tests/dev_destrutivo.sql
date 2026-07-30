@@ -73,7 +73,21 @@
 -- resultado pelo MCP, que engole NOTICE/WARNING.
 --
 -- EXECUÇÃO DE REFERÊNCIA (ensaio sgmvldiizsrjbxzzpmhh, 30/07/2026, com a 0087→0090 aplicadas):
--- ok = 108, falhas = 0.
+-- ok = 108, falhas = 0. A prova PERMANENTE é o job `banco` do CI, que sobe um Postgres NOVO,
+-- aplica 0001→0090 em ordem e roda este arquivo — não o run no ensaio.
+--
+-- ⚠ FRAQUEZA CONHECIDA DA §6, registrada aqui porque ela NÃO grita sozinha.
+-- As asserções **6c** ("o reset da filial 1 não apagou ativo nenhum da filial 2") e **6e**
+-- ("movimentação registrada na filial resetada, de ativo que migrou, sobreviveu") são
+-- afirmações sobre o que NÃO mudou — e por isso passam **trivialmente** se o reset da 6a nem
+-- tiver acontecido. Foi exatamente o que ocorreu na rodada em que a migration 0089 (prefixo do
+-- backup) derrubou a 6a: 6c e 6e ficaram VERDES enquanto dez irmãs falhavam.
+--
+-- Hoje isso é tolerável porque a 6a falha ALTO e o `detalhe` do resumo nomeia a falha, então
+-- ninguém lê 6c/6e verdes como aprovação do recorte. Mas quem for reforçar este roteiro deve
+-- fazê-las depender do sucesso da 6a (ex.: pular com aviso, ou assertar contra um contador
+-- gravado logo depois do reset) — asserção de "nada mudou" precisa provar que a operação
+-- ACONTECEU antes de afirmar que ela foi cirúrgica.
 -- =============================================================
 
 begin;
