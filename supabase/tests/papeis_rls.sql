@@ -105,6 +105,26 @@ begin
     values ('Item ficticio F21', 'acessorio') returning id into v_item;
   end if;
 
+  -- FIXTURES DAS TABELAS FECHADAS. Sem elas, as asserções "não vê nada" (3d/3e/3f/6b)
+  -- passariam de graça num banco NOVO — e o CI roda exatamente num Postgres novo, onde
+  -- `senhas_acesso`, `import_logs`, `eventos_admin` e o bucket de backup nascem VAZIOS.
+  -- "Ver 0 linhas de uma tabela vazia" não prova policy nenhuma. Com uma linha plantada
+  -- aqui (como postgres, que ignora RLS), o 0 passa a significar "a policy escondeu".
+  insert into public.senhas_acesso (rotulo, hash, criado_por)
+  values ('Senha ficticia F21', 'hash-ficticio-nao-e-senha-real', k_admin);
+
+  insert into public.import_logs (
+    filial_id, modo, arquivo_hash, total_linhas,
+    ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
+    backup_path, correcoes, criado_por
+  ) values (v_f1, 'substituir', 'hash-f21', 0, 0, 0, 0, 0, 'f21/backup.csv', '[]'::jsonb, k_admin);
+
+  insert into public.eventos_admin (acao, autor, alvo, detalhe)
+  values ('papel_alterado', k_admin, 'f21.operador@wap.ind.br', '{"de":"consulta","para":"operador"}'::jsonb);
+
+  insert into storage.objects (bucket_id, name, owner)
+  values ('backups-import', 'f21/fixture-backup.csv', k_admin);
+
   -- =========================================================================
   -- 1 — CONSULTA: lê tudo, não escreve nada
   -- =========================================================================
@@ -304,28 +324,29 @@ begin
     v_ok := v_ok + 1; raise notice '✓ 3c operador recusado ao criar item (%)', sqlstate;
   end;
 
-  -- 3d. senhas_acesso: ilegível para QUALQUER papel (0012 — service role apenas)
+  -- 3d. senhas_acesso: ilegível para QUALQUER papel (0012 — service role apenas).
+  --     Existe 1 linha plantada nas fixtures: ver 0 é a policy trabalhando, não tabela vazia.
   select count(*) into v_n from public.senhas_acesso;
   if v_n = 0 then
-    v_ok := v_ok + 1; raise notice '✓ 3d operador NÃO lê senhas_acesso (0 linhas visíveis)';
+    v_ok := v_ok + 1; raise notice '✓ 3d operador NÃO lê senhas_acesso (existe 1 linha, viu 0)';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3d; ';
-    raise warning '✗ 3d operador LEU % linha(s) de senhas_acesso', v_n;
+    raise warning '✗ 3d operador LEU % linha(s) de senhas_acesso — o hash está exposto', v_n;
   end if;
 
-  -- 3e. import_logs: leitura só de admin (0063)
+  -- 3e. import_logs: leitura só de admin (0063). Idem — há 1 linha nas fixtures.
   select count(*) into v_n from public.import_logs;
   if v_n = 0 then
-    v_ok := v_ok + 1; raise notice '✓ 3e operador NÃO lê import_logs';
+    v_ok := v_ok + 1; raise notice '✓ 3e operador NÃO lê import_logs (existe 1 linha, viu 0)';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3e; ';
     raise warning '✗ 3e operador LEU % linha(s) de import_logs', v_n;
   end if;
 
-  -- 3f. eventos_admin: leitura só de admin (0065)
+  -- 3f. eventos_admin: leitura só de admin (0065). Idem — há 1 linha nas fixtures.
   select count(*) into v_n from public.eventos_admin;
   if v_n = 0 then
-    v_ok := v_ok + 1; raise notice '✓ 3f operador NÃO lê eventos_admin';
+    v_ok := v_ok + 1; raise notice '✓ 3f operador NÃO lê eventos_admin (existe 1 linha, viu 0)';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3f; ';
     raise warning '✗ 3f operador LEU % linha(s) de eventos_admin', v_n;
@@ -442,19 +463,31 @@ begin
     raise warning '✗ 5d admin recusado na f%: % %', v_f2, sqlstate, sqlerrm;
   end;
 
-  -- 5e. admin LÊ a auditoria e o histórico de import
-  begin
-    select count(*) into v_n from public.eventos_admin;
-    v_ok := v_ok + 1; raise notice '✓ 5e admin lê eventos_admin (% linhas)', v_n;
-  exception when others then
+  -- 5e. admin LÊ a auditoria — e tem de ver a linha das fixtures (o outro lado do 3f:
+  --     sem isto, uma policy que escondesse de TODOS passaria os dois testes).
+  select count(*) into v_n from public.eventos_admin;
+  if v_n >= 1 then
+    v_ok := v_ok + 1; raise notice '✓ 5e admin LÊ eventos_admin (% linha(s))', v_n;
+  else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5e; ';
-    raise warning '✗ 5e admin recusado ao ler eventos_admin: %', sqlstate;
-  end;
+    raise warning '✗ 5e admin não viu a auditoria (existe 1 linha, viu %) — a aba viria vazia', v_n;
+  end if;
 
-  -- 5f. mas NEM O ADMIN lê senhas_acesso pelo client de sessão (0012 — hash protegido)
+  -- 5e-bis. o mesmo par para import_logs: admin VÊ o histórico que o operador não vê.
+  select count(*) into v_n from public.import_logs;
+  if v_n >= 1 then
+    v_ok := v_ok + 1; raise notice '✓ 5e-bis admin LÊ import_logs (% linha(s))', v_n;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '5e-bis; ';
+    raise warning '✗ 5e-bis admin não viu import_logs — /admin/importar perderia o histórico';
+  end if;
+
+  -- 5f. mas NEM O ADMIN lê senhas_acesso pelo client de sessão (0012 — hash protegido).
+  --     Esta é a asserção que trava a decisão 2 da F21: a tentação de "abrir para admin
+  --     por consistência" reabriria o brute-force offline do hash.
   select count(*) into v_n from public.senhas_acesso;
   if v_n = 0 then
-    v_ok := v_ok + 1; raise notice '✓ 5f nem o admin lê senhas_acesso por sessão (service role apenas)';
+    v_ok := v_ok + 1; raise notice '✓ 5f nem o admin lê senhas_acesso por sessão (existe 1 linha, viu 0)';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5f; ';
     raise warning '✗ 5f admin leu % linha(s) de senhas_acesso — o hash voltou a ficar exposto', v_n;
@@ -486,9 +519,10 @@ begin
     v_ok := v_ok + 1; raise notice '✓ 6a consulta recusada ao subir no bucket termos (%)', sqlstate;
   end;
 
+  -- Há 1 objeto plantado nas fixtures: ver 0 é a policy da 0066, não bucket vazio.
   select count(*) into v_n from storage.objects where bucket_id = 'backups-import';
   if v_n = 0 then
-    v_ok := v_ok + 1; raise notice '✓ 6b consulta não lê o bucket backups-import';
+    v_ok := v_ok + 1; raise notice '✓ 6b consulta não lê o bucket backups-import (existe 1, viu 0)';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6b; ';
     raise warning '✗ 6b consulta leu % objeto(s) de backups-import', v_n;
@@ -515,6 +549,30 @@ begin
   exception when others then
     v_ok := v_ok + 1; raise notice '✓ 6d operador recusado no bucket backups-import (%)', sqlstate;
   end;
+
+  -- 6e. o operador também não LISTA os backups. É o furo que a 0063 sozinha deixaria: sem a
+  --     0066, esconder `import_logs.backup_path` dele e deixar o bucket aberto seria fechar a
+  --     porta e deixar a chave na fechadura.
+  select count(*) into v_n from storage.objects where bucket_id = 'backups-import';
+  if v_n = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 6e operador não LISTA backups-import (existe 1, viu 0)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '6e; ';
+    raise warning '✗ 6e operador listou % objeto(s) de backups-import', v_n;
+  end if;
+  reset role;
+
+  -- 6f. e o ADMIN continua vendo — senão /admin/importar perderia o download do backup.
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
+  select count(*) into v_n from storage.objects where bucket_id = 'backups-import';
+  if v_n >= 1 then
+    v_ok := v_ok + 1; raise notice '✓ 6f admin LÊ backups-import (% objeto(s))', v_n;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '6f; ';
+    raise warning '✗ 6f admin não viu o backup — o botão de download quebraria';
+  end if;
   reset role;
 
   -- =========================================================================

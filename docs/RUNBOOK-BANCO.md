@@ -108,8 +108,11 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
   ensaio): a diferença são exatamente as **16** linhas de `_bkp_relatorios_gerados_f6a`, a
   tabela de backup retida só em produção de propósito (`0039`/`0058`).
 
-  **Roteiro `supabase/tests/papeis_rls.sql`** rodado nos **dois** bancos: **38 asserções,
-  0 falha** em cada. Ele cria as próprias fixtures (4 identidades fictícias `f21.*@wap.ind.br`,
+  **Roteiro `supabase/tests/papeis_rls.sql`** rodado nos **dois** bancos: **41 asserções,
+  0 falha** em cada. Ele planta 1 linha em `senhas_acesso`, `import_logs`, `eventos_admin` e no
+  bucket `backups-import` ANTES de trocar de papel — sem isso, as asserções "não vê nada"
+  passariam de graça no Postgres NOVO do CI, onde essas tabelas nascem vazias; e checa o outro
+  lado (o admin VÊ), para uma policy que escondesse de todos não passar nos dois testes. Ele cria as próprias fixtures (4 identidades fictícias `f21.*@wap.ind.br`,
   2 ativos `WAP000900x`) dentro de `begin; … rollback;` — conferido depois em produção que
   **nada sobrou** (0 usuários residuais, 0 ativos de teste, contagens de volta ao baseline).
   Antes de rodar em produção foi conferido que **nenhuma** das chaves fictícias colidia com
