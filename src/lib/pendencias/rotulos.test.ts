@@ -116,6 +116,9 @@ describe('ROTULO_TIPO_PENDENCIA / CLASSE_TIPO_PENDENCIA (rotulos.ts) — afins',
       itens: 'Itens faltantes',
       triagem: 'Triagem',
       patrimonio: 'Patrimônio',
+      // F24 — o único tipo que não vem de `v_fila_pendencias`: ele é derivado das views
+      // de conflito e vive na mesa própria de /pendencias.
+      conflito: 'Conflito entre filiais',
       outras: 'Outra',
     })
   })

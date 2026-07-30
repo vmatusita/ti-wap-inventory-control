@@ -225,8 +225,8 @@ export const mensagensDeErro: PaginaAjuda = {
       colunas: COLUNAS,
       linhas: [
         [
-          'Já existe um ativo com esse patrimônio e service tag.',
-          'A identidade do equipamento é o PAR patrimônio + service tag, e esse par já está cadastrado. Patrimônio repetido sozinho é permitido; o par, não.',
+          'Já existe um ativo com esse patrimônio e service tag nesta filial.',
+          'A identidade do equipamento é o PAR patrimônio + service tag, e esse par já está cadastrado nesta filial. Patrimônio repetido sozinho é permitido; o par, não. Em OUTRA filial o mesmo par pode existir — quando isso acontece, os dois cadastros aparecem juntos na aba "Conflitos entre filiais" de Pendências.',
           'Procure o equipamento pela service tag na busca global (Ctrl+K). Se for outra máquina, confira a etiqueta: quase sempre a service tag foi digitada com o valor da anterior.',
         ],
         [
@@ -317,8 +317,8 @@ export const mensagensDeErro: PaginaAjuda = {
           'A lista "Termos multi-filial" no preview mostra quais são. Trate esses termos antes de substituir.',
         ],
         [
-          'Há dois ativos sem patrimônio com a mesma service tag no plano — a service tag é a identidade quando não há patrimônio. Corrija o CSV e gere o preview novamente.',
-          'Duas linhas sem plaqueta trazem a mesma service tag; sem patrimônio, é ela que identifica a máquina.',
+          'Já existe um ativo sem patrimônio com essa service tag nesta filial — a service tag é a identidade quando não há patrimônio.',
+          'Sem plaqueta, é a service tag que identifica a máquina — e ela já está em uso por outro cadastro desta filial.',
           'Ache as duas linhas na planilha, corrija a que está errada (ou preencha o patrimônio de uma delas) e reanalise.',
         ],
         [

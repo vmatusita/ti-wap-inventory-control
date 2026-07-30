@@ -40,17 +40,26 @@ describe('timeout de statement (SQLSTATE 57014)', () => {
   })
 })
 
+// F24 — os NOMES dos dois índices foram preservados pela migration 0091 justamente para
+// estes ramos continuarem casando (nenhum teste ligava o nome no SQL ao nome aqui, então a
+// renomeação teria matado a tradução em SILÊNCIO). O que mudou é o ALCANCE: desde a 0091 a
+// identidade é por filial, então a colisão significa "já existe NESTA FILIAL" — e o texto
+// tem de dizer isso, senão manda procurar duplicata onde não há.
 describe('índice parcial do import (23505 — service tag sem patrimônio)', () => {
   it('mapeia pela constraint específica (ativos_service_tag_sem_patrimonio_uidx)', () => {
     const msg =
       'duplicate key value violates unique constraint "ativos_service_tag_sem_patrimonio_uidx"'
-    expect(traduzErroBanco(msg, '23505')).toContain('dois ativos sem patrimônio com a mesma service tag')
+    const t = traduzErroBanco(msg, '23505')
+    expect(t).toContain('sem patrimônio com essa service tag')
+    expect(t).toContain('nesta filial')
   })
 
   it('não colide com o índice composto de patrimônio', () => {
     const msg =
       'duplicate key value violates unique constraint "ativos_patrimonio_service_tag_uidx"'
-    expect(traduzErroBanco(msg, '23505')).toBe('Já existe um ativo com esse patrimônio e service tag.')
+    expect(traduzErroBanco(msg, '23505')).toBe(
+      'Já existe um ativo com esse patrimônio e service tag nesta filial.',
+    )
   })
 })
 

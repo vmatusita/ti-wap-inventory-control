@@ -22,6 +22,8 @@ const DESC_PENDENCIA: Record<TipoPendencia, string> = {
     'Ativo devolvido parado em triagem há mais de 7 dias, aguardando a conferência. Resolve-se registrando a movimentação de triagem (Triagem OK) depois de conferir os acessórios.',
   patrimonio:
     'Equipamento cuja PLAQUETA não está resolvida: importado sem patrimônio físico, ou com patrimônio fora do padrão da casa (herdado da planilha). Resolve-se na ficha do ativo, pelo menu "⋯" ("Mais ações"), com "Definir patrimônio" / "Corrigir patrimônio".',
+  conflito:
+    'O MESMO equipamento aparece cadastrado em duas filiais ao mesmo tempo — sempre nasce de um import de startup que trouxe uma máquina que já existia em outra unidade. Os dois cadastros ficam de pé, e a aba "Conflitos entre filiais" mostra os dois lado a lado, com as diferenças realçadas e o histórico de cada um (quantas movimentações, quantos termos, qual foi a última). Resolve-se decidindo qual é o cadastro certo e apagando o outro ali mesmo — só quem é administrador vê os botões. Apagar é definitivo e leva junto o histórico daquele cadastro, então a decisão é do administrador que olhou os dois lados.',
   outras:
     'Demais situações que a TI anotou no próprio ativo e precisa acompanhar — entre elas o "sem service tag" de um equipamento que veio do import com plaqueta mas sem a etiqueta do fabricante. (Quando falta também o patrimônio, a linha aparece na aba "Patrimônio", que vem primeiro.) A service tag se informa na ficha, pelo menu "⋯", em "Definir service tag"; as demais se encerram quando o texto da pendência é resolvido no ativo.',
 }
@@ -76,8 +78,9 @@ export const resolverPendencias: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        'Os chips do topo são QUATRO, e cada um só aparece quando tem alguma coisa em aberto: "termos de responsabilidade pendentes", "itens faltantes de devoluções", "ativos aguardando triagem" e "outras pendências". Não existe chip de patrimônio: as pendências de plaqueta e as de service tag são contadas dentro de "outras pendências". Sem nada aberto, a tela diz "Nenhuma pendência aberta. 🎉".',
-        'São as abas, logo abaixo dos chips, que separam "Patrimônio" de "Outras". Elas filtram por tipo: "Todas", "Termos", "Itens faltantes", "Triagem", "Patrimônio" e "Outras". Ao lado, a busca por patrimônio ou colaborador e o seletor de filial; "Limpar" desfaz tudo.',
+        'Os chips do topo mostram a contagem por tipo, e cada um só aparece quando tem alguma coisa em aberto: "termos de responsabilidade pendentes", "itens faltantes de devoluções", "ativos aguardando triagem", "patrimônios a acertar", "conflitos entre filiais" e "outras pendências". Sem nada aberto, a tela diz "Nenhuma pendência aberta. 🎉".',
+        'As abas, logo abaixo dos chips, filtram por tipo: "Todas", "Termos", "Itens faltantes", "Triagem", "Patrimônio", "Conflitos entre filiais" e "Outras". Ao lado, a busca por patrimônio ou colaborador e o seletor de filial; "Limpar" desfaz tudo.',
+        'A aba "Conflitos entre filiais" é diferente das outras: em vez de uma lista de linhas, ela mostra os cadastros do mesmo equipamento LADO A LADO, um bloco por conflito. As demais abas nunca trazem essas linhas — o conflito tem casa própria e não aparece duas vezes.',
         'A tabela traz "Tipo", "Patrimônio", "Modelo", "Colaborador", "Setor", "Filial", "Desde" e "Ação". A coluna "Desde" mostra a data e há quanto tempo aquilo está aberto ("hoje", "há 1 dia", "há N dias").',
         'A ação da linha depende do tipo: "Confirmar assinatura" nos termos, "Resolver" nos itens faltantes. Os outros tipos se resolvem na ficha do ativo.',
         '"Exportar CSV" leva para o Excel exatamente as pendências que estão filtradas na tela.',

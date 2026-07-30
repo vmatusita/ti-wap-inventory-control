@@ -151,9 +151,14 @@ describe('derivação (nenhum rótulo nem teto digitado à mão)', () => {
     }
   })
 
-  it('o bucket "Patrimônio" deixou de faltar (a fila tem cinco abas, não quatro)', () => {
+  // ⚠ O array de numerais AQUI é o espelho do `POR_EXTENSO` da página, e precisa acompanhar
+  // cada tipo novo: com 6 tipos, um array de 6 posições devolve `undefined` no índice 6 e a
+  // asserção passa a procurar a string literal "undefined tipos". A página se vira sozinha
+  // (o POR_EXTENSO dela vai até "dez"); quem não se vira é este teste.
+  it('o glossário nomeia todos os tipos e o numeral da prosa acompanha (F24: seis)', () => {
     contem('resolver-pendencias', ROTULO_TIPO_PENDENCIA.patrimonio)
-    contem('resolver-pendencias', `${['zero','um','dois','três','quatro','Cinco'][Object.keys(ROTULO_TIPO_PENDENCIA).length]} tipos`)
+    contem('resolver-pendencias', ROTULO_TIPO_PENDENCIA.conflito)
+    contem('resolver-pendencias', `${['zero','um','dois','três','quatro','Cinco','Seis','Sete','Oito','Nove','Dez'][Object.keys(ROTULO_TIPO_PENDENCIA).length]} tipos`)
   })
 
   it('os seis tipos de lançamento vêm de dominio.ts', () => {
@@ -381,20 +386,28 @@ describe('pendências', () => {
     contem('resolver-pendencias', 'mais de 7 dias')
   })
 
-  it('os chips do topo são quatro — não há chip de patrimônio', () => {
-    // getPendencias (queries/relatorios/pendencias.ts) monta termo/itens/triagem
-    // e calcula "outras" = total − os três: patrimônio e service tag caem ali.
+  // ⚠ Esta asserção JÁ NASCEU protegendo uma inverdade, e por isso mudou duas vezes.
+  // O texto original ("os chips do topo são quatro / não existe chip de patrimônio")
+  // descrevia o `getPendencias` de antes de 25/07/2026, quando 'patrimonio' virou balde
+  // próprio; o teste continuou verde porque cobrava exatamente a frase errada. A F24
+  // acrescenta 'conflitos entre filiais' e a frase erraria de novo.
+  //
+  // Agora ela cobra os rótulos REAIS de `BALDES` (queries/relatorios/pendencias.ts) mais o
+  // chip de conflito, que é contado à parte. Se um balde novo aparecer sem prosa, cai aqui.
+  it('a prosa dos chips nomeia todos os baldes, com o rótulo real', () => {
     for (const rotulo of [
       'termos de responsabilidade pendentes',
       'itens faltantes de devoluções',
       'ativos aguardando triagem',
+      'patrimônios a acertar',
+      'conflitos entre filiais',
       'outras pendências',
     ]) {
       contem('resolver-pendencias', rotulo)
     }
-    contem('resolver-pendencias', 'Não existe chip de patrimônio')
+    // A frase que afirmava o contrário não pode voltar.
     expect(texto('resolver-pendencias')).not.toContain(
-      normalizarBusca('Os chips do topo contam cada'),
+      normalizarBusca('Não existe chip de patrimônio'),
     )
   })
 })

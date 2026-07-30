@@ -370,12 +370,15 @@ const MENSAGENS_OBRIGATORIAS = [
   'Este lançamento já foi estornado.',
   'Um estorno não pode ser estornado.',
   // Identidade e duplicidade
-  'Já existe um ativo com esse patrimônio e service tag.',
+  // F24 — os dois textos de duplicidade de identidade ganharam "nesta filial": desde a
+  // migration 0091 a identidade é POR FILIAL, e a colisão deixou de significar "existe em
+  // algum lugar do sistema". O par em outra filial passou a ser possível — e vira conflito.
+  'Já existe um ativo com esse patrimônio e service tag nesta filial.',
   'Este ativo já tem service tag — ela é imutável (identidade do equipamento).',
   'Já existe um registro com esses dados. Atualize a página e tente de novo.',
   'Um dos valores informados (motivo ou filial) não existe mais.',
   // Import de startup
-  'Há dois ativos sem patrimônio com a mesma service tag no plano — a service tag é a identidade quando não há patrimônio. Corrija o CSV e gere o preview novamente.',
+  'Já existe um ativo sem patrimônio com essa service tag nesta filial — a service tag é a identidade quando não há patrimônio.',
   'O plano tem ativos com identidade repetida (patrimônio + service tag). Corrija o CSV e gere o preview novamente.',
   'A importação demorou demais e foi cancelada — tente novamente ou avise o TI.',
   'O estado da filial mudou desde o preview. Gere o preview novamente antes de aplicar.',

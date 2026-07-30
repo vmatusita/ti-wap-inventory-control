@@ -87,14 +87,17 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   // Import de startup (F7E): índice parcial da service tag quando NÃO há patrimônio.
   // Dois ativos sem patrimônio com a MESMA service tag colidem neste índice (23505).
   // Trata ANTES do ramo genérico de duplicidade e do composto de patrimônio.
+  // ⚠ F24: os NOMES dos dois índices foram PRESERVADOS na migration 0091 justamente para
+  // estes dois ramos continuarem casando — o que mudou foi o alcance (agora por filial),
+  // e portanto o TEXTO. Renomear os índices mataria a tradução em silêncio.
   if (m.includes('ativos_service_tag_sem_patrimonio_uidx')) {
-    return 'Há dois ativos sem patrimônio com a mesma service tag no plano — a service tag é a identidade quando não há patrimônio. Corrija o CSV e gere o preview novamente.'
+    return 'Já existe um ativo sem patrimônio com essa service tag nesta filial — a service tag é a identidade quando não há patrimônio.'
   }
   // Constraint de unicidade patrimonio + service tag (§5). SÓ a constraint
   // específica — não presumir que todo "duplicate key" é de patrimônio (há
   // uniques em relatorios_gerados, termos_gerados, filiais, motivos, itens).
   if (m.includes('ativos_patrimonio_service_tag')) {
-    return 'Já existe um ativo com esse patrimônio e service tag.'
+    return 'Já existe um ativo com esse patrimônio e service tag nesta filial.'
   }
   // Demais violações de unicidade (corrida de versão de relatório, termo já
   // gerado para o mesmo conjunto etc.): mensagem genérica de recarregar.
@@ -211,6 +214,32 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   }
   if (m.includes('saldo alvo precisa ser')) {
     return 'O saldo alvo precisa ser zero ou maior.'
+  }
+
+  // ---- F24: as recusas da MESA DE CONFLITOS entre filiais (migration 0093) ----
+  // Mesma armadilha dos ramos da F23 logo acima: a RPC recusa com 42501, mas o motivo não é
+  // o cargo de quem chamou. Sem estes ramos, um administrador leria "seu cargo ou suas
+  // filiais de escrita não permitem" — falso, e mandaria investigar a coisa errada.
+  if (m.includes('só apaga ativo que esteja em conflito') || m.includes('so apaga ativo que esteja em conflito')) {
+    return 'Esta ferramenta só apaga cadastro que esteja em conflito entre filiais. Algum dos selecionados não está (mais) — nada foi apagado. Recarregue a mesa de conflitos e refaça a seleção.'
+  }
+  if (m.includes('podem resolver conflitos entre filiais')) {
+    return 'Resolver conflitos entre filiais é restrito a administradores.'
+  }
+  if (m.includes('termo que também cobre ativos fora desta seleção') || m.includes('termo que tambem cobre ativos fora desta selecao')) {
+    return 'Um dos selecionados está num termo que também cobre cadastros fora desta seleção: apagá-lo destruiria um documento que não é só dele. Inclua na seleção os outros cadastros do mesmo termo, ou apague o termo antes.'
+  }
+  if (m.includes('exige backup em arquivo')) {
+    return 'Seleção grande demais para o backup automático. Nada foi apagado — apague em levas menores.'
+  }
+  if (m.includes('não é o backup desta operação') || m.includes('nao e o backup desta operacao')) {
+    return 'O backup informado não é o backup desta operação. Nada foi apagado — refaça a seleção.'
+  }
+  if (m.includes('seleção grande demais') || m.includes('selecao grande demais')) {
+    return 'Seleção grande demais para uma operação só. Apague em levas menores.'
+  }
+  if (m.includes('nenhum ativo selecionado')) {
+    return 'Nenhum cadastro selecionado para apagar.'
   }
 
   // 42501 = insufficient_privilege: cobre tanto "new row violates row-level security

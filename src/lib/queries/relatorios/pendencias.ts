@@ -25,8 +25,18 @@ function queryBase(client: DbClient, filialSlug: string | null) {
 
 type QueryFila = ReturnType<typeof queryBase>
 
-// Balde = todo TipoPendencia MENOS 'outras', que é resto e não predicado.
-type BaldeChip = Exclude<TipoPendencia, 'outras'>
+// Balde = todo TipoPendencia MENOS 'outras' (que é resto, não predicado) e MENOS
+// 'conflito'.
+//
+// F24 — 'conflito' fica de fora por uma razão aritmética, não por preguiça: os baldes são
+// predicados sobre `v_fila_pendencias`, e "outras" é `total(fila) − soma(baldes)`. As
+// linhas de conflito NÃO estão na fila (elas vêm das views de conflito e têm casa própria
+// na mesa de /pendencias — decisão registrada em docs/DECISOES.md). Um balde 'conflito'
+// sobre a fila devolveria SEMPRE zero, e o chip mentiria; pior, se um dia passasse a somar
+// algo, subtrairia de "outras" um número que a fila nunca teve. O chip de conflito existe,
+// mas é contado à parte, por `contarGruposConflito` (queries/conflitos.ts) — e conta
+// GRUPOS, não ativos, porque cada grupo é UMA decisão a tomar.
+type BaldeChip = Exclude<TipoPendencia, 'outras' | 'conflito'>
 
 // A TRAVA que faltava. `Record<BaldeChip, …>` é exaustivo: um `TipoPendencia` novo em
 // `pendencias/rotulos.ts` NÃO compila até ganhar predicado e rótulo aqui, e entra na

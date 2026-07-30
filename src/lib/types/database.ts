@@ -942,6 +942,7 @@ export type Database = {
           chave: string | null
           colaborador_atual: string | null
           created_at: string | null
+          entrada_em: string | null
           filial: string | null
           filial_id: number | null
           filial_nome: string | null
