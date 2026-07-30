@@ -179,12 +179,19 @@ export async function definirStatusSenha(
     .select('rotulo')
     .maybeSingle()
   if (error) return { ok: false, erro: 'Não foi possível atualizar a senha.' }
+  // Nenhuma linha casou: `error` é null (o PostgREST não trata "0 linhas" como erro), então
+  // sem esta guarda a action diria "Senha revogada" sobre uma senha que não existe E gravaria
+  // uma linha `senha_revogada` na trilha apontando um id inexistente. Auditoria com revogação
+  // que nunca aconteceu é pior que auditoria faltando — e o admin ficaria achando que cortou
+  // um acesso que segue ativo sob outro id.
+  if (!data) {
+    return { ok: false, erro: 'Senha não encontrada. Atualize a página e tente de novo.' }
+  }
 
   await registrarEventoAdmin({
     acao: ativa ? 'senha_reativada' : 'senha_revogada',
     autor: aut.uid,
-    // Sem rótulo (linha inexistente), o id é melhor que nada: a trilha nunca perde a linha.
-    alvo: data?.rotulo ?? id,
+    alvo: data.rotulo,
   })
 
   revalidatePath('/admin/senhas')

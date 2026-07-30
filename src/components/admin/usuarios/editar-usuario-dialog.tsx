@@ -56,8 +56,12 @@ export function EditarUsuarioDialog({
   // linhas em `operador_filiais` de um admin são dado MORTO (`pode_escrever_filial` devolve
   // true para admin sem consultá-las) — logo o certo é ignorá-las, não exibi-las.
   //
-  // Só os vínculos que ainda existem como filial ATIVA entram: mandar de volta o id de uma
-  // filial desativada gravaria um vínculo que a tela não mostra como opção.
+  // Os vínculos entram TODOS, inclusive os que apontam para filial desativada — a lista
+  // `filiais` que a tabela manda já inclui as inativas deste usuário, marcadas "(inativa)".
+  // Antes filtrava-se pelas ativas, e como a action apaga-e-regrava os vínculos, abrir o
+  // diálogo e salvar (mesmo sem mexer nesse campo) APAGAVA em silêncio o vínculo da filial
+  // desativada: ninguém descobria até a filial ser reativada e o operador perder a permissão.
+  // O `some` continua ali só para não devolver id que não é opção nenhuma (filial excluída).
   const vinculosIniciais = useCallback(
     (p: PapelUsuario) =>
       p === papelAtual && exigeVinculoDeFilial(p)

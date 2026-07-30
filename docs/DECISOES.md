@@ -3009,3 +3009,161 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   espelhando o default do Supabase e respeitando o grant de coluna de `profiles`. Não entra agora:
   é mudança de postura de privilégio global no fim de uma fase, e os dois bancos vivos já os têm.
 - **Reversível?** Sim: são três roteiros de teste, nenhuma mudança de banco nem de app.
+
+## 2026-07-30 · F21 · Terceira volta: o TERMO é matéria de filial, e a desativação passa a fechar a LEITURA
+
+**Contexto.** Revisão de código dos 10 commits da F21 (10 lentes, xhigh), com refutação adversarial
+de 3 lentes independentes por achado de risco. Catorze achados; nove eram de app e se resolveram no
+próprio código. Os cinco que mexem em doutrina estão aqui, na ordem em que doem.
+
+**1. `termos_gerados` e o bucket `termos` eram gateados só por CARGO — migration `0069`.**
+A `0063` registrou a escolha no próprio corpo: *"sem filial própria (guarda `ativo_ids[]`), então o
+predicado é o cargo. O recorte por filial deste fluxo vive na action"*. "Vive na action" é
+exatamente o que o CLAUDE.md proíbe como ÚNICA linha, e aqui a action não é atravessada:
+`authenticated` tem privilégio de tabela em `termos_gerados` e em `storage.objects`, e a anon key
+está no bundle. Um operador vinculado só à filial 1 apagava a LINHA e DESTRUÍA o `.docx` assinado
+de um termo da filial 5 por `curl` — e o ativo continuava com `termo_assinado = 'sim'`, sem arquivo,
+sem nada no sistema saber da perda. É a terceira aparição do padrão que a `0067` (movimentações) e a
+`0068` (estorno de item) fecharam, e a pior das três: as outras duas corrompiam número; esta destrói
+documento.
+
+- **Decisão:** `pode_escrever_termo(ativo_ids)` — a filial LIDA de `ativos`, não declarada pelo
+  cliente — nas 3 policies de escrita da tabela; `pode_escrever_arquivo_termo(name)` nas 3 do
+  bucket. Mais dois invariantes **só nas WITH CHECK**: `termo_ancora_coerente(movimentacao_ids,
+  ativo_ids)` e `arquivo_path = id‖'.docx'`.
+- **Por que os dois invariantes, e não só a filial:** sem a âncora, gatear `ativo_ids` é parede de
+  papel no INSERT — o atacante declara os ativos DELE, passa o gate e **queima a vaga** da chave
+  única `(tipo, movimentacao_ids)` da outra filial, que nunca mais gera aquele termo. É
+  literalmente o dano da `0068`, em documento. Sem o path canônico, ele aponta a própria linha
+  para o `.docx` alheio e, pelo `bool_and` do predicado de storage, **bloqueia** a regeneração
+  legítima da outra filial — um DoS de brinde ao fechar o furo.
+- **Por que a ordem do `persistirTermo` decidiu o desenho do storage:** ele sobe o objeto ANTES
+  de gravar a linha, então uma policy que exigisse linha correspondente quebraria TODA geração de
+  termo. Daí o `coalesce(..., true)` para nome que nenhuma linha referencia — e é seguro, porque
+  para destruir o `.docx` da f5 o nome ESTÁ referenciado pela linha da f5.
+- **⚠ O defeito que três refutadores independentes acharam no desenho, antes do apply:**
+  a primeira versão punha `e_admin()` DENTRO do `and` com a exigência de array não-vazio. Para
+  `ativo_ids = '{}'` isso é `false` para todo mundo, admin incluído — a linha viraria lixo
+  IMORTAL (nem UPDATE nem DELETE por sessão nenhuma), o `.docx` dela indestrutível, e a vaga da
+  chave única queimada para sempre. Estado representável hoje (não há CHECK sobre `ativo_ids`), e
+  exatamente o resíduo que um atacante deixaria. Corrigido: `e_admin()` é a PRIMEIRA condição da
+  disjunção, e quem barra a CRIAÇÃO de linha vazia são as WITH CHECK. A asserção `5h` do roteiro
+  existe só para travar isso.
+
+**2. A desativação fechava só a ESCRITA — migration `0070`.**
+A `0061` escreveu, e a `0063` repetiu como "REGRA DE OURO", que `profiles.ativo = false` vale "no
+request seguinte". Vale — para escrita. Toda policy de SELECT seguia `using (true)`, e o
+`authenticated` de quem foi desligado continua sendo `authenticated` enquanto o access token não
+expira (~1h): nesse intervalo o acervo inteiro saía por `GET /rest/v1/ativos?select=*` com a anon
+key do bundle, inclusive colaborador, setor e patrimônio. As 5 views (`security_invoker = true`) e
+as 7 RPCs `rel_*` (invoker) derivavam o mesmo vazamento. A própria fase reconheceu o problema — foi
+por isso que `exportar.ts` trocou `idOperador` por `exigirPapel('consulta')` —, mas remendou a
+Server Action em vez do predicado.
+
+- **Decisão:** piso de leitura = **perfil ATIVO**. `(select public.papel_atual()) is not null` nas
+  13 policies de SELECT de `public` e no SELECT do bucket `termos`. Não é recorte por filial nem
+  por cargo: `consulta` segue lendo o app inteiro, `operador` segue lendo as cinco filiais. Para
+  todo perfil ativo o resultado é idêntico ao de antes, linha por linha.
+- **É EMENDA a uma invariante escrita em quatro lugares** ("todo logado LÊ tudo"): `CLAUDE.md`,
+  ADR-002 §3, o cabeçalho da `0063` e `MATRIZ-REGRAS`. Os quatro foram emendados no mesmo commit
+  — deixar a lei dizendo o contrário do banco é como se produz o próximo furo: o próximo agente
+  "corrige a regressão" e reabre isto.
+- **Recursão em `profiles`?** Não. A policy de SELECT de `profiles` passa a chamar `papel_atual()`,
+  que lê `profiles`, mas a função é `security definer` com `proowner = postgres`, e a tabela tem
+  `relowner = postgres` + `relforcerowsecurity = false` — dentro da função o dono ignora a RLS da
+  própria tabela. Medido nos dois bancos, e o roteiro provoca o caminho de propósito (`1b-bis`):
+  se a premissa cair, o Postgres erra ALTO (`42P17`), não em silêncio.
+- **Custo:** `papel_atual()` não tem argumento, logo `(select ...)` vira **InitPlan** — avaliado
+  uma vez por statement, e não por linha. Isso importa porque são as policies que varrem 1.600
+  ativos. O parêntese que ATRAPALHA é o de função com argumento de coluna
+  (`pode_escrever_filial(filial_id)`), e essa continua chamada direto, como a `0063` explica.
+
+**3. "O banco não respondeu" era reportado como "você foi desligado" — app.**
+`papelAtual()` e `podeEscreverFilial()` engoliam o erro do RPC e devolviam `null`/`false`, e
+`getOperador()` nem lia o `error` do select em `profiles`. Um blip de rede durante um submit dizia a
+um admin ATIVO *"Seu acesso foi desativado. Fale com um administrador."*, e uma queda do banco
+apareceria como revogação em massa — sem rastro nenhum.
+
+- **Decisão:** as leituras cruas passam a distinguir "não tem papel" de "não deu para saber"
+  (`lerPapel`/`lerVinculo`, internas), e as guardas ganham `MSG_FALHA_AO_CONFERIR`. A recusa
+  continua acontecendo (falha fechada); só o TEXTO muda, e agora o erro é logado alto. As
+  assinaturas públicas de `papelAtual`/`podeEscreverFilial` ficam como estavam.
+
+**4. Sessão e cargo passam a ser resolvidos UMA vez por requisição — `cache()` do React.**
+A F21 acrescentou `getOperador()` a ~8 páginas que já rodam sob `(app)/layout.tsx`, que também a
+chama; em `/admin/usuarios` são TRÊS chamadas no mesmo render para a MESMA pergunta, cada uma
+custando 1 `auth.getUser()` + 3 selects. E as 12 actions de escrita chamam DUAS guardas, cada uma
+refazendo `getUser` + `papel_atual`.
+
+- **Decisão:** `cache()` do React em `getOperador` e na resolução de cargo (`cargoDoRequest`).
+  O cache é **por requisição** — a doc do React é explícita ("React will invalidate the cache for
+  all memoized functions for each server request") —, nunca global: `"use cache"`/`unstable_cache`
+  estão PROIBIDOS aqui, porque vazariam o cargo de um usuário para outro.
+- **O que NÃO é memoizado, e não pode ser:** o VÍNCULO. `pode_escrever_filial` é lido ao vivo em
+  toda verificação, e ele reconfere `papel_atual()` por dentro (`0062`) — então sessão, cargo e
+  `ativo` continuam validados NO BANCO a cada checagem de vínculo. É isso que torna o
+  reaproveitamento do cargo inócuo em substância, e não a memoização em si.
+- **Isto revisa o parágrafo do ADR-002 §4** que dizia que o preço de ler o papel do banco (em vez
+  de custom claim no JWT) era "irrelevante na escala de ~dezena de usuários". Continua sendo — só
+  é menor agora. A escolha de fundo (papel em `profiles`, não no token) fica **intacta**, e é ela
+  que sustenta a revogação no request seguinte.
+- **⚠ Emenda que a refutação forçou:** o atalho `if (papel === 'admin') return ok` de
+  `exigirEscritaEm` passava a devolver `ok` **sem tocar o banco nenhuma vez** com o cargo
+  memoizado. Isso importa porque o RLS não grita nesse caminho — o `USING` de uma policy de UPDATE
+  é FILTRO DE LINHA, não erro —, então um admin desligado no meio do request receberia `ok`, o
+  UPDATE afetaria 0 linhas SEM SQLSTATE e `resolverPendenciaItem` devolveria **sucesso** com a
+  fila intacta. Agora o atalho faz UMA leitura viva (`ids[0]`) antes de liberar: para admin ativo
+  é sempre `true`, para desligado é `false`. Nenhuma guarda de escrita devolve `ok` sem ao menos
+  uma leitura viva.
+
+**5. A trava do "último admin ativo" é inalcançável em produção — documentada, não removida.**
+`editarUsuario`/`definirStatusUsuario` passam por `exigirAdmin` ANTES de ler `idsDeAdminsAtivos()`,
+então o autor está SEMPRE na lista; e o ramo só é avaliado quando o alvo não é o autor. Logo
+`existeOutroAdminAtivo` encontra sempre pelo menos o autor, e `MSG_ULTIMO_ADMIN` nunca dispara por
+esse caminho. Quem de fato protege a invariante é o bloqueio de **autoedição**.
+
+- **Decisão:** a trava **fica**, como defesa em profundidade para um chamador futuro que não
+  esteja atrás de `exigirAdmin` (a leitura é uma linha indexada). O que muda é a honestidade: o
+  comentário diz que é inalcançável hoje, e os dois testes que a exercitavam passaram a declarar
+  que o fixture (`autorId` fora de `adminsAtivosIds`) é um estado **que a action não produz** —
+  com um teste novo ao lado provando o caso REAL. Ler aquele teste como prova de que a invariante
+  está protegida era confiança falsa.
+
+**Como foi provado.** `supabase/tests/papeis_rls.sql` foi de 47 para **64 asserções** e roda
+**64/0 nos DOIS bancos**. As legítimas entram em par com as de ataque de propósito — sem elas, a
+`0069` poderia ter fechado o furo quebrando a geração de termo, que é o que toda ficha faz. Antes do
+apply em produção: os 5 contadores de pré-aplicação (6 termos, `path_fora_do_padrao` 0,
+`com_ativo_morto` 0, `ativo_ids_vazio` 0, `incoerente` 0) e a junção `arquivo_path × storage.objects`
+(6/6 casando) — nenhuma linha legada vira matéria de admin, e a metade de storage protege todas as 6.
+Depois: acervo idêntico (1230 ativos / 2363 movs / 10 perfis / 6 termos / 9 objetos), `0` policies de
+SELECT e `0` de escrita com predicado `true`, e o roteiro sem resíduo.
+
+**Reversível?** Sim, e as reversões são independentes de propósito: a `0069` e a `0070` fecham furos
+diferentes, então derrubar o gate de leitura não pode reabrir o do termo. Rollback no rodapé de cada
+migration; o app é `cache()` + mensagens (reverter é tirar o wrapper).
+
+**Descoberta lateral que vale registrar:** `storage.objects` tem um trigger
+`protect_objects_delete` (`BEFORE DELETE FOR EACH STATEMENT`) que barra **toda** exclusão direta por
+SQL. A policy de DELETE do bucket só é exercitada pela API de Storage — então a asserção do roteiro
+prova o INSERT sobre o path alheio, que usa o mesmo predicado. Quem for testar exclusão de objeto por
+`psql` vai bater nesse trigger, não na policy.
+
+**Pendências que estes achados abrem (backlog, não desta volta):**
+
+- `auth.admin.signOut(userId, 'global')` ao lado do `ban_duration` em `definirStatusUsuario`: a
+  `0070` mata o que o token ALCANÇA, não o token. Uma linha, de app.
+- `estorno_item_coerente` (`0068`) é `security definer` executável por `authenticated` e sem guarda
+  interna — segue respondendo como oráculo booleano sobre `lancamentos_item` ao token de um
+  desligado. Estreito, mas contradiz "o desativado não lê" em termos absolutos.
+- `anotacoes` continua gateada só por CARGO (folga que a própria `0063` registrou como aceita). Com
+  o idioma da `0069`, fechar é uma função.
+- A `0069` fecha a ESCRITA do termo por filial, não a LEITURA: um operador da f1 continua BAIXANDO
+  o `.docx` da f5 pela signed URL (decisão da `0066`/ADR-001 — fechar exigiria decidir se
+  `consulta` perde o termo).
+- Falso sucesso em UPDATE de 0 linhas (`resolverPendenciaItem`, `atualizarDadosCadastrais`,
+  `confirmarAssinaturaTermo`, `desfazerConfirmacaoTermo`): pré-existente, e é o que transforma
+  qualquer recusa por `USING` em "salvo com sucesso". A emenda do item 4 reduz a exposição; não
+  conserta a classe.
+- ⚠ **Operacional:** a conta de `SMOKE_EMAIL` tem de estar ATIVA em `profiles`. O smoke é o único
+  consumidor que roda sob SESSÃO (anon key + `signInWithPassword`), e com a `0070` um perfil
+  desligado passa a falhar nas leituras — por desenho.

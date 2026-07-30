@@ -34,7 +34,12 @@ export function CargoEFiliais({
   onPapelChange: (p: PapelUsuario) => void
   filiais: number[]
   onFiliaisChange: (ids: number[]) => void
-  /** Filiais ATIVAS (as inativas não são oferecidas — ninguém movimenta nelas). */
+  /**
+   * As filiais que este formulário pode oferecer. No CONVITE são só as ativas (ninguém
+   * movimenta em filial desativada). Na EDIÇÃO, a tabela acrescenta as inativas em que o
+   * usuário JÁ tem vínculo, com o sufixo "(inativa)" no nome — senão salvar apagaria esse
+   * vínculo em silêncio, porque a action apaga-e-regrava a lista recebida.
+   */
   opcoes: readonly FilialOpcao[]
   desabilitado?: boolean
   /** Mensagem de erro do formulário (a regra do cargo × filiais). */

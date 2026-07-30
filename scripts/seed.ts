@@ -1071,18 +1071,41 @@ type AcaoSeed =
 
 // A trilha e insert-only e sem update/delete no banco: o app so acrescenta linhas.
 // `detalhe` NUNCA guarda segredo (nem hash, nem token) — regra do comment da coluna.
+//
+// ⚠ CADA `detalhe` AQUI TEM DE TER A MESMA FORMA QUE A ACTION GRAVA. O seed e o insumo para
+// conferir a aba "Auditoria" na tela, entao uma fixture fora de forma valida o caminho errado:
+// `descreverDetalhe` (src/components/admin/usuarios/detalhe-evento.ts) le `filiais` como array
+// de IDS NUMERICOS — com slugs (`['linhares','serra']`, que era o que estava aqui) ele filtrava
+// tudo e a celula mostrava "Filiais: nenhuma", o oposto do que a linha quer demonstrar. Por isso
+// os slugs vao em `filiaisSlugs` e sao resolvidos para id no insert.
 const EVENTOS_SEED: {
   acao: AcaoSeed
   alvo: string
   detalhe: Record<string, unknown> | null
+  /** Slugs que viram `detalhe.filiais` como IDS, resolvidos em `inserirEventosAdmin`. */
+  filiaisSlugs?: string[]
   data: string
 }[] = [
   { acao: 'convite_gerado', alvo: 'seed.consulta@wap.ind.br', detalhe: { papel: 'consulta' }, data: '2026-06-10' },
   { acao: 'papel_alterado', alvo: 'seed.operador.matriz@wap.ind.br', detalhe: { de: 'admin', para: 'operador' }, data: '2026-06-18' },
-  { acao: 'vinculos_alterados', alvo: 'seed.operador.duas@wap.ind.br', detalhe: { filiais: ['linhares', 'serra'] }, data: '2026-06-25' },
+  // `editarUsuario` grava { filiais: number[], de: number[] } — a lista NOVA e a ANTERIOR.
+  { acao: 'vinculos_alterados', alvo: 'seed.operador.duas@wap.ind.br', detalhe: {}, filiaisSlugs: ['linhares', 'serra'], data: '2026-06-25' },
   { acao: 'senha_criada', alvo: 'Parceiro (ficticio)', detalhe: null, data: '2026-07-01' },
-  { acao: 'usuario_desativado', alvo: 'seed.desativado@wap.ind.br', detalhe: { motivo: 'saiu da equipe (ficticio)' }, data: '2026-07-02' },
-  { acao: 'import_executado', alvo: 'matriz', detalhe: { criados: 809, apagados: 0 }, data: '2026-07-03' },
+  // `definirStatusUsuario` grava { papel, login_no_auth } — nao "motivo" (nao existe campo).
+  { acao: 'usuario_desativado', alvo: 'seed.desativado@wap.ind.br', detalhe: { papel: 'operador', login_no_auth: 'ok' }, data: '2026-07-02' },
+  // `aplicarImport` grava as contagens do que entrou e do que foi APAGADO (a filial vai no alvo).
+  {
+    acao: 'import_executado',
+    alvo: 'matriz',
+    detalhe: {
+      ativos_criados: 809,
+      movs_apagadas: 0,
+      anotacoes_apagadas: 0,
+      termos_apagados: 0,
+      correcoes: 0,
+    },
+    data: '2026-07-03',
+  },
 ]
 
 // Cria (ou reaproveita) as contas, reescreve papel/nome/ativo e refaz os vinculos.
@@ -1091,12 +1114,27 @@ async function garantirPerfisSeed(
   db: ReturnType<typeof createAdminClient>,
   filialIdBySlug: Map<string, number>,
 ): Promise<PerfilCriado[]> {
-  // Uma leitura so: a lista de contas do projeto de ensaio e minuscula.
-  const { data: lista, error: listErr } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 })
-  if (listErr) throw new Error(`Nao consegui listar as contas do Auth: ${listErr.message}`)
+  // Percorre TODAS as paginas de auth.users, no mesmo idioma de `lerContasAuth`
+  // (src/lib/queries/admin.ts): 200 por pagina, com um teto de paginas que existe so para o
+  // laco nao ficar infinito se a API mudar de contrato. Um `perPage: 1000` de uma leitura so
+  // — que era o que estava aqui — e um teto FIXO SEM paginacao: silenciosamente correto hoje e
+  // silenciosamente errado no dia em que passar, porque a conta ja existente da pagina 2+
+  // sumiria do mapa, o seed cairia no ramo de criacao e `createUser` morreria com
+  // "email already registered" (mensagem que nao aponta a causa).
+  const AUTH_PAGINAS_MAX = 50
+  const AUTH_POR_PAGINA = 200
   const idPorEmail = new Map<string, string>()
-  for (const u of lista?.users ?? []) {
-    if (u.email) idPorEmail.set(u.email.toLowerCase(), u.id)
+  for (let pagina = 1; pagina <= AUTH_PAGINAS_MAX; pagina++) {
+    const { data: lista, error: listErr } = await db.auth.admin.listUsers({
+      page: pagina,
+      perPage: AUTH_POR_PAGINA,
+    })
+    if (listErr) throw new Error(`Nao consegui listar as contas do Auth: ${listErr.message}`)
+    const users = lista?.users ?? []
+    for (const u of users) {
+      if (u.email) idPorEmail.set(u.email.toLowerCase(), u.id)
+    }
+    if (users.length < AUTH_POR_PAGINA) break
   }
 
   const criados: PerfilCriado[] = []
@@ -1178,14 +1216,23 @@ async function garantirPerfisSeed(
 async function inserirEventosAdmin(
   db: ReturnType<typeof createAdminClient>,
   autorId: string,
+  filialIdBySlug: Map<string, number>,
 ): Promise<number> {
-  const rows = EVENTOS_SEED.map((e, i) => ({
-    quando: `${e.data}T13:${String(10 + i).padStart(2, '0')}:00Z`,
-    autor: e.acao === 'import_executado' ? null : autorId, // 1 linha sem autor
-    acao: e.acao,
-    alvo: e.alvo,
-    detalhe: e.detalhe,
-  }))
+  const rows = EVENTOS_SEED.map((e, i) => {
+    // Slug -> id, para o `detalhe` ficar na MESMA forma que `editarUsuario` grava.
+    const filiais = (e.filiaisSlugs ?? []).map((slug) => {
+      const id = filialIdBySlug.get(slug)
+      if (id === undefined) throw new Error(`Filial "${slug}" ausente (evento de auditoria).`)
+      return id
+    })
+    return {
+      quando: `${e.data}T13:${String(10 + i).padStart(2, '0')}:00Z`,
+      autor: e.acao === 'import_executado' ? null : autorId, // 1 linha sem autor
+      acao: e.acao,
+      alvo: e.alvo,
+      detalhe: e.filiaisSlugs ? { ...(e.detalhe ?? {}), filiais } : e.detalhe,
+    }
+  })
   const { error } = await db.from('eventos_admin').insert(rows)
   if (error) throw new Error(`Insert de eventos_admin falhou: ${error.message}`)
   console.log(`[seed] ${rows.length} eventos de auditoria ficticios inseridos.`)
@@ -1428,7 +1475,7 @@ async function main() {
   const totalAnot = await inserirAnotacoes(db, criadoPor)
 
   // F21: trilha de auditoria ficticia (a aba "Auditoria" de /admin/usuarios).
-  await inserirEventosAdmin(db, criadoPor)
+  await inserirEventosAdmin(db, criadoPor, filialIdBySlug)
 
   await sumario(db, slugById, totalMov, itens.length, totalLanc, totalAnot)
   sumarioPerfis(perfis)

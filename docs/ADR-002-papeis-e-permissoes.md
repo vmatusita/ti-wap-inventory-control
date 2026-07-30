@@ -43,7 +43,9 @@ Três cargos, hierarquia estrita, e um vínculo de escrita por filial:
 
 O **vínculo de filiais** vale só para escrita e só para o cargo Operador: todo operador tem no mínimo uma filial vinculada (a UI impede salvar com zero; no banco, zero vínculo simplesmente fecha toda escrita — **falha segura**). Admin escreve em todas sem precisar de vínculo; Consulta não escreve em lugar nenhum. Na transferência entre filiais, o operador precisa de vínculo na filial de **origem**; o destino é livre (enviar para outra filial é o fluxo normal — quem recebe é outro operador), conforme o parâmetro §10.2.
 
-O que **não muda**: leitura ampla para todo logado (é o que a ADR-001 sustentou — o recorte que faz sentido aqui é por papel na *escrita*, não por filial na *leitura*), o visualizador por senha dos relatórios (fica exatamente como está), a imutabilidade de movimentações e lançamentos, os domínios de login e o convite como único caminho de entrada.
+O que **não muda**: leitura ampla para todo logado **ATIVO** (é o que a ADR-001 sustentou — o recorte que faz sentido aqui é por papel na *escrita*, não por filial na *leitura*), o visualizador por senha dos relatórios (fica exatamente como está), a imutabilidade de movimentações e lançamentos, os domínios de login e o convite como único caminho de entrada.
+
+> ⚠ **Emenda de 30/07/2026 (migration `0070`).** A leitura segue ampla *por cargo* e *por filial* — `consulta` lê o app inteiro, `operador` lê as cinco filiais —, mas ganhou um **piso**: perfil desativado não lê mais nada. O texto original dizia "todo logado LÊ tudo", e isso era literalmente verdade demais: `ativo = false` fechava só a ESCRITA, e o access token de quem foi desligado continua valendo ~1h, tempo em que o acervo inteiro saía por `GET /rest/v1/ativos?select=*` com a anon key do bundle. As 5 views (`security_invoker = true`) e as 7 RPCs `rel_*` (invoker) derivavam o mesmo vazamento. O piso é `papel_atual() is not null` nas 13 policies de SELECT de `public` e no SELECT do bucket `termos`. Ver `docs/DECISOES.md` (2026-07-30).
 
 ## 4. Como funciona por baixo (arquitetura)
 
@@ -62,16 +64,18 @@ As policies novas substituem as `using (true)` — sempre com a função embrulh
 
 | Tabela | Leitura | Escrita |
 |---|---|---|
-| `ativos` | logado | insert/update: `pode_escrever_filial(filial_id)` |
-| `movimentacoes` | logado | ⚠ insert: `pode_escrever_filial(filial_id)` **E** `pode_escrever_filial(snapshot_anterior->>'filial_id')` — ver §4.4 (imutável como hoje) |
-| `lancamentos_item` | logado | ⚠ insert: `pode_escrever_filial(filial_id)` **E** `estorno_item_coerente(estorna_id, filial_id, item_id)` — ver §4.4 (imutável como hoje) |
-| `pendencias_item` | logado | update (resolver): `pode_escrever_filial(filial_id)` |
-| `anotacoes`, `termos_gerados`, `relatorios_gerados` | logado | papel ∈ {admin, operador} |
-| `filiais`, `motivos`, `itens` (catálogo), `kits_modelos` | logado | `e_admin()` |
+| `ativos` | logado ativo | insert/update: `pode_escrever_filial(filial_id)` |
+| `movimentacoes` | logado ativo | ⚠ insert: `pode_escrever_filial(filial_id)` **E** `pode_escrever_filial(snapshot_anterior->>'filial_id')` — ver §4.4 (imutável como hoje) |
+| `lancamentos_item` | logado ativo | ⚠ insert: `pode_escrever_filial(filial_id)` **E** `estorno_item_coerente(estorna_id, filial_id, item_id)` — ver §4.4 (imutável como hoje) |
+| `pendencias_item` | logado ativo | update (resolver): `pode_escrever_filial(filial_id)` |
+| `anotacoes`, `relatorios_gerados` | logado ativo | papel ∈ {admin, operador} |
+| `termos_gerados` | logado ativo | ⚠ `pode_escrever_termo(ativo_ids)` (a filial dos ativos, LIDA do banco) **E**, só na WITH CHECK, `termo_ancora_coerente(movimentacao_ids, ativo_ids)` + `arquivo_path = id‖'.docx'` — ver §4.4 (`0069`) |
+| `storage.objects` bucket `termos` | logado ativo | ⚠ cargo ∈ {admin, operador} **E** `pode_escrever_arquivo_termo(name)` (`0069`) |
+| `filiais`, `motivos`, `itens` (catálogo), `kits_modelos` | logado ativo | `e_admin()` |
 | `senhas_acesso` | ⚠ **service role apenas** (ver §4.1) | ⚠ **service role apenas** |
 | `import_logs` | `e_admin()` (condição da ordem verificada — ver §4.2) | como está (RPCs) |
-| `profiles` | logado | update do próprio: **só colunas `primeiro_nome`/`sobrenome`** via grant de coluna; `papel`/`ativo` só pelo service role |
-| `operador_filiais` | logado | nenhuma policy (só service role, pelas actions de admin) |
+| `profiles` | logado ativo | update do próprio: **só colunas `primeiro_nome`/`sobrenome`** via grant de coluna; `papel`/`ativo` só pelo service role |
+| `operador_filiais` | logado ativo | nenhuma policy (só service role, pelas actions de admin) |
 | `eventos_admin` (nova) | `e_admin()` | nenhuma policy (só service role) |
 
 ### 4.1 ⚠ `senhas_acesso`: já fechada, e mais do que o pedido

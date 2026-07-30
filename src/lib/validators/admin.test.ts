@@ -67,7 +67,13 @@ describe('validarTrocaDePapel — ninguém mexe no próprio cargo', () => {
 })
 
 describe('validarTrocaDePapel — o sistema nunca fica sem admin ativo', () => {
-  it('recusa rebaixar o ÚLTIMO admin ativo', () => {
+  // ⚠ ESTE FIXTURE NÃO É ALCANÇÁVEL PELA ACTION. `editarUsuario` chama `exigirAdmin` (papel
+  // admin + ativo) ANTES de `idsDeAdminsAtivos()`, então o autor está SEMPRE na lista — e o
+  // ramo só é avaliado quando o alvo não é o autor. O teste prova o predicado da função pura
+  // para um chamador FUTURO que não passe por `exigirAdmin` (é para isso que a trava fica),
+  // não que a invariante dependa dela hoje. Quem a protege hoje é o bloqueio de autoedição —
+  // ver "o caso REAL da action" logo abaixo.
+  it('recusa rebaixar o ÚLTIMO admin ativo (chamador sem exigirAdmin — defesa em profundidade)', () => {
     expect(
       validarTrocaDePapel({
         autorId: EU,
@@ -76,6 +82,48 @@ describe('validarTrocaDePapel — o sistema nunca fica sem admin ativo', () => {
         adminsAtivosIds: [OUTRO],
       }),
     ).toBe(MSG_ULTIMO_ADMIN)
+  })
+
+  it('o caso REAL da action: com o autor na lista, rebaixar OUTRO admin sempre passa', () => {
+    // É a situação de produção — `exigirAdmin` garante que EU seja admin ativo, logo EU estou
+    // em `adminsAtivosIds`. A invariante continua de pé porque quem rebaixa continua admin;
+    // não é a trava do último admin que a segura. Se este teste um dia virar MSG_ULTIMO_ADMIN,
+    // é sinal de que o predicado passou a barrar operação legítima.
+    expect(
+      validarTrocaDePapel({
+        autorId: EU,
+        alvo: alvo({ id: OUTRO, papel: 'admin' }),
+        novoPapel: 'consulta',
+        adminsAtivosIds: [EU, OUTRO],
+      }),
+    ).toBeNull()
+    expect(
+      validarStatusDeUsuario({
+        autorId: EU,
+        alvo: alvo({ id: OUTRO, papel: 'admin' }),
+        novoAtivo: false,
+        adminsAtivosIds: [EU, OUTRO],
+      }),
+    ).toBeNull()
+  })
+
+  it('e o autor NÃO consegue se rebaixar — a trava que de fato guarda a invariante', () => {
+    expect(
+      validarTrocaDePapel({
+        autorId: EU,
+        alvo: alvo({ id: EU, papel: 'admin' }),
+        novoPapel: 'consulta',
+        adminsAtivosIds: [EU],
+      }),
+    ).toBe(MSG_AUTO_REBAIXAMENTO)
+    expect(
+      validarStatusDeUsuario({
+        autorId: EU,
+        alvo: alvo({ id: EU, papel: 'admin' }),
+        novoAtivo: false,
+        adminsAtivosIds: [EU],
+      }),
+    ).toBe(MSG_AUTO_DESATIVACAO)
   })
 
   it('permite rebaixar um admin quando sobra outro ATIVO', () => {
@@ -137,7 +185,9 @@ describe('validarStatusDeUsuario', () => {
     ).toBe(MSG_AUTO_DESATIVACAO)
   })
 
-  it('recusa desativar o ÚLTIMO admin ativo', () => {
+  // Mesma ressalva do bloco de cima: fixture não alcançável pela action (o autor está sempre
+  // em `adminsAtivosIds`). Prova o predicado, não a invariante em produção.
+  it('recusa desativar o ÚLTIMO admin ativo (chamador sem exigirAdmin)', () => {
     expect(
       validarStatusDeUsuario({
         autorId: EU,

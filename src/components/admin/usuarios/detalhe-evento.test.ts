@@ -38,6 +38,44 @@ describe('descreverDetalhe — formas conhecidas', () => {
       'Filiais: filial 9',
     )
   })
+
+  // O evento mais consequente da trilha. O `detalhe` real de `aplicarImport` tem 11 chaves e
+  // passa de 140 caracteres: sem ramo próprio ele caía no JSON cru TRUNCADO, escondendo
+  // justamente quantos ativos entraram e quanto foi apagado.
+  it('import_executado diz a filial, o que entrou e o que foi APAGADO', () => {
+    const detalhe = {
+      filial_id: 1,
+      filial_nome: 'Filial Alfa',
+      log_id: '00000000-0000-4000-8000-000000000001',
+      arquivo_hash: 'a'.repeat(64),
+      total_linhas: 812,
+      ativos_criados: 809,
+      movs_apagadas: 1520,
+      anotacoes_apagadas: 12,
+      termos_apagados: 3,
+      correcoes: 2,
+      backup_path: 'backups-import/alfa-2026.csv',
+    }
+    expect(descreverDetalhe('import_executado', detalhe, nomeFilial)).toBe(
+      'Filial: Filial Alfa · 809 ativo(s) criado(s) · apagados: 1520 mov., 12 anot., 3 termo(s) · 2 correção(ões)',
+    )
+  })
+
+  it('import_executado sem correção não inventa o segmento de correções', () => {
+    expect(
+      descreverDetalhe(
+        'import_executado',
+        { filial_nome: 'Filial Gama', ativos_criados: 4, movs_apagadas: 0, anotacoes_apagadas: 0, termos_apagados: 0, correcoes: 0 },
+        nomeFilial,
+      ),
+    ).toBe('Filial: Filial Gama · 4 ativo(s) criado(s) · apagados: 0 mov., 0 anot., 0 termo(s)')
+  })
+
+  it('convite_reenviado para conta desligada diz isso em vez de mostrar o jsonb', () => {
+    expect(
+      descreverDetalhe('convite_reenviado', { conta_desativada: true }, nomeFilial),
+    ).toBe('a conta estava DESATIVADA')
+  })
 })
 
 describe('descreverDetalhe — gravação parcial (o que mais importa na trilha)', () => {

@@ -75,6 +75,21 @@ export const definirStatusUsuarioSchema = z.object({
 // imediatamente antes da gravação. Numa corrida (dois admins se rebaixando no mesmo
 // instante) o banco não impede — é aceito e registrado; a janela é de milissegundos numa
 // equipe de dezenas de pessoas, e o remédio (promover alguém por SQL) existe.
+//
+// ⚠⚠ QUEM DE FATO PROTEGE A INVARIANTE "sempre sobra 1 admin ativo" É A PRIMEIRA TRAVA, NÃO A
+// SEGUNDA. Pelos chamadores de hoje (`editarUsuario`/`definirStatusUsuario`, que passam por
+// `exigirAdmin` antes de ler `idsDeAdminsAtivos()`), o AUTOR está sempre na lista de admins
+// ativos — e o ramo do último admin só é avaliado quando o alvo NÃO é o autor. Logo
+// `existeOutroAdminAtivo` encontra sempre pelo menos o autor, e MSG_ULTIMO_ADMIN é
+// **inalcançável por esse caminho**: rebaixar outra pessoa nunca pode zerar os admins, porque
+// quem rebaixa é um deles.
+//
+// A trava fica de propósito, como defesa em profundidade para um chamador FUTURO que não
+// esteja atrás de `exigirAdmin` (script de manutenção, action nova, tarefa agendada) — a
+// leitura é uma linha indexada e barata. O que NÃO se deve fazer é ler o teste dela como prova
+// de que a invariante está protegida hoje: ele monta um estado (`autorId` fora de
+// `adminsAtivosIds`) que a action não consegue produzir. Ver o teste
+// "o caso REAL da action" em admin.test.ts.
 
 export type AlvoUsuario = {
   id: string
@@ -109,8 +124,10 @@ export function validarTrocaDePapel(args: {
   adminsAtivosIds: readonly string[]
 }): string | null {
   const { autorId, alvo, novoPapel, adminsAtivosIds } = args
-  // Cargo igual não é mudança: deixar passar mantém o botão "Salvar" idempotente quando o
-  // admin só ajusta as filiais de escrita dele mesmo (que é permitido).
+  // Cargo igual não é mudança: quem edita só as FILIAIS não deve tropeçar na trava de cargo.
+  // (Para o alvo = o próprio autor isto vale apenas no papel: a lista de usuários desabilita o
+  // botão "Editar" da própria linha, então o único efeito alcançável seria limpar os vínculos
+  // mortos do backfill — e nem esse a UI oferece hoje.)
   if (novoPapel === alvo.papel) return null
   if (alvo.id === autorId) return MSG_AUTO_REBAIXAMENTO
   if (

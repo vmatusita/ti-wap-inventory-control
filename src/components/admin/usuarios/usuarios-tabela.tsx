@@ -44,6 +44,21 @@ function textoFiliais(
   return { texto: nomes.join(', '), alerta: false }
 }
 
+// Opções do formulário de edição DESTE usuário: as filiais ativas + as INATIVAS em que ele
+// ainda tem vínculo. As inativas entram marcadas com o sufixo, e não escondidas, porque o
+// diálogo devolve à action a lista COMPLETA e a action apaga-e-regrava: uma filial desativada
+// que não aparecesse como opção sairia do payload e o vínculo seria apagado em silêncio —
+// invisível até alguém reativar a filial e o operador descobrir que perdeu a permissão.
+// Aparecendo, o admin ou mantém (default, já marcada) ou desmarca de propósito.
+function opcoesDoUsuario(
+  vinculos: readonly number[],
+  filiais: readonly FilialParaVinculo[],
+): { id: number; nome: string }[] {
+  return filiais
+    .filter((f) => f.ativo || vinculos.includes(f.id))
+    .map((f) => ({ id: f.id, nome: f.ativo ? f.nome : `${f.nome} (inativa)` }))
+}
+
 export function UsuariosTabela({
   usuarios,
   filiais,
@@ -54,7 +69,6 @@ export function UsuariosTabela({
   /** Id do admin logado — as travas de autoproteção também desabilitam os botões dele. */
   euId: string
 }) {
-  const filiaisAtivas = filiais.filter((f) => f.ativo).map((f) => ({ id: f.id, nome: f.nome }))
 
   return (
     <div className="overflow-x-auto rounded-lg border">
@@ -130,7 +144,7 @@ export function UsuariosTabela({
                       nome={nome}
                       papelAtual={u.papel}
                       vinculosAtuais={u.vinculos}
-                      filiais={filiaisAtivas}
+                      filiais={opcoesDoUsuario(u.vinculos, filiais)}
                       eVoceMesmo={eVoceMesmo}
                     />
                     <StatusUsuarioAcoes

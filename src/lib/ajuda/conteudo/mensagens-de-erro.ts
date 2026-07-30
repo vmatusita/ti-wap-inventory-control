@@ -383,6 +383,11 @@ export const mensagensDeErro: PaginaAjuda = {
           'Se foi engano, um administrador reativa a conta e o acesso volta no carregamento seguinte — o cargo e as filiais continuam os mesmos.',
         ],
         [
+          'Não foi possível conferir seu acesso agora. Tente de novo em instantes.',
+          'O sistema não conseguiu LER do banco qual é o seu cargo ou em que filiais você escreve — não é o mesmo que o seu acesso ter mudado. Costuma ser oscilação de rede ou um instante de lentidão do banco. Nada foi gravado.',
+          'Tente de novo em alguns segundos. Se a mensagem insistir, avise o TI: é sinal de indisponibilidade, não de permissão — não adianta relogar nem procurar um administrador.',
+        ],
+        [
           'Sua sessão expirou. Faça login novamente.',
           'A sessão do operador vale 24 horas contadas do login.',
           'Refaça o login. Nada do que já estava registrado se perde.',

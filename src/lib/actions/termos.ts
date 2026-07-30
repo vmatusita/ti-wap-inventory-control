@@ -8,13 +8,7 @@ import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import {
-  exigirEscrita,
-  exigirEscritaEm,
-  exigirPapel,
-  idOperador,
-  MSG_SESSAO_EXPIRADA,
-} from '@/lib/auth/acesso'
+import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   confirmarAssinaturaSchema,
@@ -121,11 +115,17 @@ export async function prepararTermo(input: {
   if (!parsed.success) return falhaPrep('Dados inválidos para preparar o termo.')
 
   const supabase = await createClient()
-  // LEITURA (monta o pré-preenchimento do diálogo): sem guarda de cargo, por
+  // LEITURA (monta o pré-preenchimento do diálogo): sem recorte de cargo além do PISO, por
   // determinação da F21 — quem lê a ficha do ativo já vê estes mesmos dados. Quem
   // ESCREVE é `gerarTermo`, e é lá que o cargo e o vínculo são exigidos.
-  const uid = await idOperador(supabase)
-  if (!uid) return falhaPrep(MSG_SESSAO_EXPIRADA)
+  //
+  // Mas o piso é `exigirPapel('consulta')`, e não `idOperador`: os três cargos atendem por
+  // igual, e quem NÃO atende é o perfil DESATIVADO (`papel_atual()` devolve NULL para
+  // `ativo = false`). Sem isso, um desligado que ainda tem token vivo continuaria lendo por
+  // request direto — a mesma razão registrada em `exportar.ts`.
+  const aut = await exigirPapel(supabase, 'consulta')
+  if (!aut.ok) return falhaPrep(aut.erro)
+  const uid = aut.uid
 
   const { movimentacaoIds, familia } = parsed.data
 
@@ -472,8 +472,11 @@ export async function urlTermo(input: {
   id: string
 }): Promise<{ ok: boolean; url?: string; nomeArquivo?: string; erro?: string }> {
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  // Baixar termo é LEITURA (os três cargos baixam), mas a signed URL de 600s expõe o .docx
+  // com nome do colaborador, setor e patrimônios: o piso é o perfil ATIVO, não só "existe
+  // sessão". `exigirPapel('consulta')` fecha o desligado no request seguinte.
+  const aut = await exigirPapel(supabase, 'consulta')
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   if (!z.string().uuid().safeParse(input.id).success) {
     return { ok: false, erro: 'Termo inválido.' }

@@ -30,6 +30,14 @@ function nomesDeFiliais(
   return nomes.length > 0 ? nomes.join(', ') : 'nenhuma'
 }
 
+function texto(v: Json | undefined): string | null {
+  return typeof v === 'string' && v.trim() !== '' ? v : null
+}
+
+function numero(v: Json | undefined): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
 /** Limite da célula: `detalhe` desconhecido não pode esticar a tabela indefinidamente. */
 const MAX_CRU = 140
 
@@ -53,6 +61,26 @@ export function descreverDetalhe(
     const antes = nomesDeFiliais(o.de, nomeFilial)
     if (agora) partes.push(`Filiais: ${agora}`)
     if (antes) partes.push(`antes: ${antes}`)
+  } else if (acao === 'import_executado') {
+    // O evento mais consequente da trilha, e o único cujo `detalhe` não fala de cargo nem de
+    // vínculo: sem ramo próprio ele caía no `else`, não achava `papel`/`filiais` e virava JSON
+    // cru truncado em 140 caracteres — cortado justamente no meio dos números que importam
+    // (quantos ativos entraram e quanto foi APAGADO). Ver `aplicarImport` em
+    // src/lib/actions/importar.ts para a forma gravada.
+    const nome = texto(o.filial_nome)
+    if (nome) partes.push(`Filial: ${nome}`)
+    const criados = numero(o.ativos_criados)
+    if (criados !== null) partes.push(`${criados} ativo(s) criado(s)`)
+    const movs = numero(o.movs_apagadas)
+    const anot = numero(o.anotacoes_apagadas)
+    const termos = numero(o.termos_apagados)
+    if (movs !== null || anot !== null || termos !== null) {
+      partes.push(
+        `apagados: ${movs ?? 0} mov., ${anot ?? 0} anot., ${termos ?? 0} termo(s)`,
+      )
+    }
+    const correcoes = numero(o.correcoes)
+    if (correcoes) partes.push(`${correcoes} correção(ões)`)
   } else {
     const papel = rotuloDePapel(o.papel)
     if (papel) partes.push(`Cargo: ${papel}`)
@@ -65,6 +93,9 @@ export function descreverDetalhe(
   if (o.cargo_gravado === false) partes.push('cargo NÃO gravado')
   if (o.vinculos_gravados === false) partes.push('filiais NÃO gravadas')
   if (o.login_no_auth === 'falhou') partes.push('bloqueio de login no Auth falhou')
+  // Reenvio de link para conta DESLIGADA (`convidarUsuario`): sem isto o único detalhe do
+  // evento virava `{"conta_desativada":true}` cru na célula.
+  if (o.conta_desativada === true) partes.push('a conta estava DESATIVADA')
 
   return partes.length > 0 ? partes.join(' · ') : JSON.stringify(detalhe).slice(0, MAX_CRU)
 }

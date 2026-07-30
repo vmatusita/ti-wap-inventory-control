@@ -2,12 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import {
-  exigirEscrita,
-  exigirEscritaEm,
-  exigirPapel,
-  idOperador,
-} from '@/lib/auth/acesso'
+import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import {
@@ -506,9 +501,12 @@ export async function buscarAtivosRecentesDoOperador(
 ): Promise<AtivoResumo[]> {
   try {
     const supabase = await createClient()
-    const uid = await idOperador(supabase)
-    if (!uid) return []
-    return await ultimosAtivosMovimentadosDoOperador(uid, limite ?? 8)
+    // Piso da hierarquia, e nao `idOperador`: os tres cargos atendem por igual, e quem NAO
+    // atende e o perfil DESATIVADO (papel_atual() devolve NULL) — que nao deve continuar
+    // lendo o acervo por request direto ate o token expirar (mesma razao de `exportar.ts`).
+    const aut = await exigirPapel(supabase, 'consulta')
+    if (!aut.ok) return []
+    return await ultimosAtivosMovimentadosDoOperador(aut.uid, limite ?? 8)
   } catch (err) {
     console.error('[buscarAtivosRecentesDoOperador] falha ao carregar recentes:', err)
     return []

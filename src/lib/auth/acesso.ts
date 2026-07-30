@@ -1,4 +1,5 @@
 import 'server-only'
+import { cache } from 'react'
 import { cookies } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
@@ -17,7 +18,12 @@ export type Operador = {
   id: string
   nome: string
   papel: PapelUsuario
-  filiaisEscrita: number[]
+  // `readonly` porque, com `getOperador` memoizada por request, este array é COMPARTILHADO
+  // por referência entre o layout do grupo, o admin/layout e a página do mesmo render: um
+  // `.sort()`/`.push()` em qualquer um deles reescreveria em silêncio a lista de permissão de
+  // ESCRITA que os outros leem. Alinha com `Permissoes.filiaisEscrita`
+  // (components/layout/permissoes.ts), que já era readonly.
+  filiaisEscrita: readonly number[]
 }
 
 // Mensagem única de "sessão expirada" — antes escrita em 4 variações espalhadas
@@ -32,6 +38,14 @@ export const MSG_SOMENTE_LEITURA =
   'Seu cargo é de consulta (somente leitura): você pode consultar tudo, mas não registrar alterações.'
 export const MSG_SO_ADMIN =
   'Esta ação é restrita a administradores.'
+// "O banco não respondeu" NÃO é "você foi desligado". Antes desta mensagem, qualquer erro
+// transitório na leitura do cargo ou do vínculo (blip de rede, `statement_timeout`) caía em
+// MSG_USUARIO_DESATIVADO ou em "sem permissão nesta filial" — a fase investiu em distinguir
+// "sessão expirada" de "desativado" e então dizia a um admin ativo que o acesso dele tinha sido
+// cortado. Além de mandar a pessoa abrir chamado errado, isso MASCARA indisponibilidade: uma
+// queda do banco apareceria como revogação em massa.
+export const MSG_FALHA_AO_CONFERIR =
+  'Não foi possível conferir seu acesso agora. Tente de novo em instantes.'
 
 export function msgSemEscritaNaFilial(filial?: string | null): string {
   return filial
@@ -64,10 +78,30 @@ export async function idOperador(supabase: DbClient): Promise<string | null> {
 // Por que via RPC e não por um `select papel from profiles`: assim a action e a policy
 // consultam a MESMA fonte. Se um dia a regra do papel mudar no banco, as duas mudam juntas
 // e não há como divergirem (o §4 da ordem F21 exige que concordem).
+// ⚠ NÃO memoizar esta nem `podeEscreverFilial` com `cache()`. Quem é memoizado por request é a
+// resolução de CARGO (`cargoDoRequest`, abaixo), e só ela: memoizar o VÍNCULO mataria a
+// revogação no request seguinte, que é a razão de ser da doutrina (ADR-002 §4). Memoizar
+// `papelAtual` isolada seria pior: ela devolve null em qualquer erro transitório, e o cache
+// fixaria esse null pelo request inteiro.
 export async function papelAtual(supabase: DbClient): Promise<PapelUsuario | null> {
+  const r = await lerPapel(supabase)
+  return r.ok ? r.papel : null
+}
+
+// A leitura CRUA, que distingue "não tem papel" de "não deu para saber". `papelAtual` acima
+// mantém a assinatura antiga (null nos dois casos) para os chamadores que só querem o cargo;
+// quem monta MENSAGEM usa esta, porque a diferença muda o texto (ver MSG_FALHA_AO_CONFERIR).
+type LeituraPapel = { ok: true; papel: PapelUsuario | null } | { ok: false }
+
+async function lerPapel(supabase: DbClient): Promise<LeituraPapel> {
   const { data, error } = await supabase.rpc('papel_atual')
-  if (error) return null
-  return (data as PapelUsuario | null) ?? null
+  if (error) {
+    // Logado ALTO: é assim que se descobre que o banco caiu, em vez de ler o sintoma como
+    // "todo mundo foi desativado".
+    console.error('[acesso] falha ao ler papel_atual()', error)
+    return { ok: false }
+  }
+  return { ok: true, papel: (data as PapelUsuario | null) ?? null }
 }
 
 // Espelho de `pode_escrever_filial(fid)` do banco (migration 0062). Mesma razão de cima:
@@ -76,29 +110,71 @@ export async function podeEscreverFilial(
   supabase: DbClient,
   filialId: number,
 ): Promise<boolean> {
+  const r = await lerVinculo(supabase, filialId)
+  return r.ok ? r.pode : false
+}
+
+// Mesma divisão de `lerPapel`: falha de leitura ≠ ausência de vínculo. As guardas usam esta
+// para não dizer "você não tem permissão nesta filial" quando a verdade é "o banco não
+// respondeu" — a recusa continua acontecendo (falha fechada), só o TEXTO muda.
+type LeituraVinculo = { ok: true; pode: boolean } | { ok: false }
+
+async function lerVinculo(
+  supabase: DbClient,
+  filialId: number,
+): Promise<LeituraVinculo> {
   const { data, error } = await supabase.rpc('pode_escrever_filial', { fid: filialId })
-  if (error) return false
-  return data === true
+  if (error) {
+    console.error('[acesso] falha ao ler pode_escrever_filial()', { filialId, error })
+    return { ok: false }
+  }
+  return { ok: true, pode: data === true }
 }
 
 // Operador logado (Supabase Auth) COM cargo e filiais de escrita. null quando não há
 // sessão OU o perfil está desativado — nesse segundo caso o efeito é o mesmo de estar
 // deslogado, e é intencional: o layout redireciona para o login.
-export async function getOperador(): Promise<Operador | null> {
+//
+// MEMOIZADA POR REQUISIÇÃO (`cache()` do React). A F21 acrescentou esta chamada a ~8 páginas
+// que JÁ rodam sob `(app)/layout.tsx`, que também a chama; em /admin/usuarios são TRÊS no mesmo
+// render (layout do grupo + admin/layout + a page) para responder à MESMA pergunta, cada uma
+// custando 1 `auth.getUser()` + 3 selects. De quebra fecha uma janela de INCONSISTÊNCIA: as
+// três leituras podiam discordar entre si, e agora o render decide com UM estado só.
+//
+// ⚠ O cache é POR REQUISIÇÃO, NÃO GLOBAL — e a diferença aqui é entre uma otimização e o pior
+// bug possível, porque o que esta função devolve é a IDENTIDADE e o CARGO de quem pede. A doc
+// do React é explícita: "React will invalidate the cache for all memoized functions for each
+// server request". Nada é compartilhado entre requisições nem entre usuários.
+// ⚠ NUNCA trocar por `"use cache"` / `unstable_cache` / `cacheComponents`: essas são cache
+// PERSISTENTE entre requisições e vazariam o cargo de um usuário para outro.
+// ⚠ `cache()` em escopo de MÓDULO porque tem de ser: chamá-lo dentro de componente cria um
+// cache novo por render e não memoiza nada. Daí `export const` em vez de `export async
+// function` — assinatura, retorno e corpo são os mesmos, e nenhum ponto de chamada muda.
+export const getOperador = cache(async (): Promise<Operador | null> => {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: perfil } = await supabase
+  const { data: perfil, error: erroPerfil } = await supabase
     .from('profiles')
     .select('nome, papel, ativo')
     .eq('id', user.id)
     .maybeSingle()
 
+  // O `error` era DESCARTADO aqui, e falha de leitura virava indistinguível de "desativado":
+  // o layout mandava a pessoa para `/login?erro=acesso-desativado` e uma queda do banco
+  // apareceria como revogação em massa, sem rastro. Continua fechando (é o lado seguro), mas
+  // agora deixa rastro. O texto que o usuário vê neste caminho não dá para consertar sem mudar
+  // a assinatura desta função (~17 chamadores): quem monta mensagem são as GUARDAS, que já
+  // distinguem por MSG_FALHA_AO_CONFERIR.
+  if (erroPerfil) {
+    console.error('[acesso] falha ao ler o perfil do operador', erroPerfil)
+    return null
+  }
+
   // Sem perfil (não deveria acontecer — o trigger cria) ou DESATIVADO: fecha.
-  // Fecha também quando o perfil não pôde ser lido, em vez de assumir um cargo.
   if (!perfil || !perfil.ativo) return null
 
   const papel = perfil.papel as PapelUsuario
@@ -123,7 +199,7 @@ export async function getOperador(): Promise<Operador | null> {
     papel,
     filiaisEscrita,
   }
-}
+})
 
 // ---------------------------------------------------------------------------
 // Guardas das Server Actions
@@ -142,17 +218,39 @@ export type Autorizacao =
   | { ok: true; uid: string; papel: PapelUsuario }
   | { ok: false; erro: string }
 
-// Resolve sessão + cargo de uma vez, distinguindo "sem sessão" de "desativado" para a
-// mensagem sair certa (dizer "faça login" a quem foi desligado manda a pessoa girar em
-// falso na tela de login).
-async function resolverCargo(
-  supabase: DbClient,
-): Promise<{ uid: string; papel: PapelUsuario } | { erro: string }> {
+type Cargo = { uid: string; papel: PapelUsuario } | { erro: string }
+
+// Resolve sessão + cargo de uma vez, distinguindo "sem sessão" de "desativado" (e dos dois,
+// "não deu para conferir") para a mensagem sair certa — dizer "faça login" a quem foi desligado
+// manda a pessoa girar em falso na tela de login.
+//
+// MEMOIZADA POR REQUISIÇÃO, pelo mesmo mecanismo de `getOperador` e pelo mesmo motivo: 12
+// actions de escrita chamam DUAS guardas (`exigirPapel` para o cargo, `exigirEscrita*` para o
+// vínculo — ver o comentário longo em actions/ativos.ts), e cada uma refazia `getUser` +
+// `papel_atual`. Agora a segunda reaproveita a resolução da primeira: 2 idas ao banco a menos
+// por escrita, sem tocar assinatura nem call site nenhum.
+//
+// A CHAVE É O CLIENT, de propósito. `cache()` memoiza por identidade dos argumentos, e as duas
+// guardas de uma action recebem a MESMA instância (todas fazem um `createClient()` só). Se
+// alguém passar um client diferente, o memo simplesmente ERRA e a resolução acontece de novo, ao
+// vivo: degrada para o comportamento de antes — o lado SEGURO, nunca o permissivo.
+//
+// ⚠ O QUE ISTO NÃO MEMOIZA, e não pode: o VÍNCULO. `lerVinculo` é chamado na hora, toda vez, e é
+// ele que faz a revogação valer no request seguinte (ADR-002 §4). Além disso
+// `pode_escrever_filial()` reconfere `papel_atual()` POR DENTRO (migration 0062), de modo que
+// sessão, cargo e `ativo` continuam validados NO BANCO a cada verificação de vínculo — é isso
+// que torna o reaproveitamento do cargo inócuo em substância, e não a memoização em si.
+const cargoDoRequest = cache(async (supabase: DbClient): Promise<Cargo> => {
   const uid = await idOperador(supabase)
   if (!uid) return { erro: MSG_SESSAO_EXPIRADA }
-  const papel = await papelAtual(supabase)
-  if (!papel) return { erro: MSG_USUARIO_DESATIVADO }
-  return { uid, papel }
+  const r = await lerPapel(supabase)
+  if (!r.ok) return { erro: MSG_FALHA_AO_CONFERIR }
+  if (!r.papel) return { erro: MSG_USUARIO_DESATIVADO }
+  return { uid, papel: r.papel }
+})
+
+async function resolverCargo(supabase: DbClient): Promise<Cargo> {
+  return cargoDoRequest(supabase)
 }
 
 // Exige um cargo MÍNIMO na hierarquia admin ⊃ operador ⊃ consulta.
@@ -196,9 +294,9 @@ export async function exigirEscrita(
   if (filialId == null) {
     return { ok: false, erro: 'Filial não informada para esta operação.' }
   }
-  if (!(await podeEscreverFilial(supabase, filialId))) {
-    return { ok: false, erro: msgSemEscritaNaFilial(filialNome) }
-  }
+  const v = await lerVinculo(supabase, filialId)
+  if (!v.ok) return { ok: false, erro: MSG_FALHA_AO_CONFERIR }
+  if (!v.pode) return { ok: false, erro: msgSemEscritaNaFilial(filialNome) }
   return { ok: true, uid: r.uid, papel: r.papel }
 }
 
@@ -219,11 +317,29 @@ export async function exigirEscritaEm(
   if (ids.length === 0) {
     return { ok: false, erro: 'Filial não informada para esta operação.' }
   }
-  // Admin passa direto sem N chamadas ao banco.
-  if (r.papel === 'admin') return { ok: true, uid: r.uid, papel: r.papel }
+  // Admin escreve em qualquer filial e não precisa das N chamadas — mas esta guarda NÃO devolve
+  // `ok` sem UMA leitura viva, e o motivo é concreto. Nos outros ramos o `lerVinculo` abaixo é
+  // sempre executado, e ele reconfere `papel_atual()` por dentro (0062): sessão, cargo e `ativo`
+  // seguem validados no banco a cada verificação. Neste atalho não havia nada — e com o cargo
+  // memoizado por request ele passaria a responder `ok` sem tocar o banco NENHUMA vez.
+  // Isso importa porque o RLS não grita neste caminho: o USING de uma policy de UPDATE é FILTRO
+  // DE LINHA, não erro (`ativos` "operador atualiza", `pendencias_item` "operador resolve"), então
+  // um admin desligado no meio do request receberia `ok` aqui, o UPDATE afetaria 0 linhas SEM
+  // SQLSTATE e `resolverPendenciaItem` devolveria SUCESSO com a fila intacta — falso sucesso.
+  // Uma chamada basta: para admin ATIVO `pode_escrever_filial` é true em qualquer filial (0062)
+  // e `ids[0]` é garantidamente não-nulo, logo não há recusa falsa; para admin DESATIVADO é
+  // false, que é exatamente a recusa desejada.
+  if (r.papel === 'admin') {
+    const v = await lerVinculo(supabase, ids[0])
+    if (!v.ok) return { ok: false, erro: MSG_FALHA_AO_CONFERIR }
+    if (!v.pode) return { ok: false, erro: MSG_USUARIO_DESATIVADO }
+    return { ok: true, uid: r.uid, papel: r.papel }
+  }
 
   for (const id of ids) {
-    if (!(await podeEscreverFilial(supabase, id))) {
+    const v = await lerVinculo(supabase, id)
+    if (!v.ok) return { ok: false, erro: MSG_FALHA_AO_CONFERIR }
+    if (!v.pode) {
       return {
         ok: false,
         erro:

@@ -237,6 +237,186 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
   **Rollback:**
   `alter policy "operador lanca" on public.lancamentos_item with check (public.pode_escrever_filial(filial_id));`
   `drop function public.estorno_item_coerente(uuid, smallint, smallint);`
+- **`0069`** (F21 — o TERMO, a linha E o `.docx`, também é matéria de FILIAL; achado pela
+  **TERCEIRA volta** da revisão adversarial da fase; 30/07/2026) — **aditiva** (3 funções novas,
+  1 índice, 6 `alter policy`; nenhuma linha e nenhum objeto de Storage tocado), caminho **A**,
+  aplicada por MCP em **ensaio primeiro** e depois em produção, no ledger dos dois.
+
+  **O furo.** A `0063` gateou `termos_gerados` e o bucket `termos` **só pelo CARGO**, com a
+  justificativa escrita no próprio corpo: *"sem filial própria (guarda `ativo_ids[]`), então o
+  predicado é o cargo. O recorte por filial deste fluxo vive na action."* "Vive na action" é
+  exatamente o que o CLAUDE.md proíbe como ÚNICA linha — e aqui a action não é atravessada:
+  `authenticated` tem privilégio de tabela em `termos_gerados` e em `storage.objects`, e a anon key
+  está no bundle do navegador. Um operador vinculado só à filial 1 apagava a LINHA e **DESTRUÍA o
+  `.docx` assinado** de um termo da filial 5 por `curl`, e o ativo continuava com
+  `termo_assinado = 'sim'` — sem arquivo, sem nada no sistema saber da perda. Terceira aparição do
+  padrão que a `0067` e a `0068` fecharam, e a pior das três: aquelas corrompiam número, esta
+  destrói documento.
+
+  **A correção — três predicados que se sustentam um no outro.** `pode_escrever_termo(uuid[])` (a
+  filial de cada ativo, **LIDA de `ativos`** numa função `security definer`, nunca declarada pelo
+  cliente) nas 3 policies de escrita da tabela; `pode_escrever_arquivo_termo(text)` nas 3 do bucket
+  (`bool_and` de `pode_escrever_termo` sobre as linhas cujo `arquivo_path` bate com o nome do
+  objeto, com `coalesce(…, true)` para nome que NENHUMA linha referencia); e dois invariantes **só
+  nas WITH CHECK** — `termo_ancora_coerente(uuid[], uuid[])` (`ativo_ids` tem de ser o conjunto
+  derivado das movimentações citadas) e `arquivo_path = id::text || '.docx'`. Mais o índice
+  `termos_gerados_arquivo_path_idx`, que serve o predicado de storage.
+  - **Por que os dois invariantes, e não só a filial:** sem a âncora, gatear `ativo_ids` é parede de
+    papel no INSERT — o atacante declara os ativos DELE, passa o gate e **queima a vaga** da chave
+    única `(tipo, movimentacao_ids)` da outra filial, que nunca mais gera aquele termo (é
+    literalmente o dano da `0068`, em documento). Sem o path canônico, ele aponta a própria linha
+    para o `.docx` alheio e, pelo `bool_and`, passa a **BLOQUEAR** a regeneração legítima da outra
+    filial — um DoS de brinde ao fechar o furo.
+  - **Por que o `coalesce(…, true)` no storage:** `persistirTermo` sobe o objeto **ANTES** de gravar
+    a linha, então uma policy que exigisse linha correspondente quebraria TODA geração de termo. E
+    não abre nada: para destruir o `.docx` da f5, o nome **ESTÁ** referenciado pela linha da f5.
+  - **As USING ficam só com a filial**, de propósito: é isso que deixa o admin APAGAR linha legada
+    ou degenerada. Quem barra a CRIAÇÃO de linha inválida são as WITH CHECK.
+  - ⚠ **Consequência para código novo:** quem inserir em `termos_gerados` tem de **mandar o `id`** e
+    derivar o path dele. Deixar o default `gen_random_uuid()` gerar o id e mandar um path qualquer
+    passa a ser recusado.
+
+  **⚠ A consulta de PRÉ-APLICAÇÃO é OBRIGATÓRIA — e a que importa é a última.** Nenhum contador
+  impede o apply (a migration é aditiva e as USING não exigem coerência), mas cada um muda **quem
+  alcança** as linhas que já existem; e a junção `arquivo_path × storage.objects.name` é a única que
+  diz se a metade de **STORAGE é no-op**: os dois lados casam por **igualdade de string**, e nada no
+  banco garante essa igualdade — só o código. Se `path_sem_objeto > 0`, o nome daquela linha é
+  "não referenciado" pelo lado de storage, o `coalesce(…, true)` vale, e o **DELETE do `.docx` dela
+  continua aberto** — com todas as verificações pós-apply verdes. Normalize o path (ou renomeie o
+  objeto) antes de confiar na metade de storage para aquelas linhas. Os 5 contadores
+  (`total`, `path_fora_do_padrao`, `com_ativo_morto`, `ativo_ids_vazio`, `incoerente`) e as duas
+  junções estão no cabeçalho da migration, prontos para colar. A que faltava, e que não pode faltar
+  de novo:
+
+  ```sql
+  -- a metade de STORAGE é no-op para toda linha em que path_sem_objeto contar
+  select count(*) filter (where o.name is null)     as path_sem_objeto,
+         count(*) filter (where o.name is not null) as path_casa_objeto
+    from public.termos_gerados t
+    left join storage.objects o
+           on o.bucket_id = 'termos' and o.name = t.arquivo_path;
+  ```
+
+  **Medido em produção ANTES do apply:** **6** termos · `path_fora_do_padrao` **0** ·
+  `com_ativo_morto` **0** · `ativo_ids_vazio` **0** · `incoerente` **0** · junção
+  `arquivo_path × storage.objects.name` **6/6 casando** (nenhuma linha legada vira matéria de admin,
+  e a metade de storage protege todas as 6) · **3** objetos do bucket `termos` não referenciados por
+  linha nenhuma (9 objetos, 6 linhas — resíduo de regeneração, que o fallback deixa livre por
+  desenho).
+
+  **⚠ `e_admin()` é a PRIMEIRA condição de `pode_escrever_termo`, FORA do `and`.** A primeira
+  escrita da migration tinha `coalesce(array_length(p_ativo_ids,1),0) > 0 and (e_admin() or not
+  exists (…))`, e **três refutadores independentes** acharam o mesmo defeito: para
+  `ativo_ids = '{}'` isso é FALSE para todo mundo, admin incluído — nas 3 policies da tabela E no
+  predicado de storage (`bool_and(false)`). A linha viraria lixo **IMORTAL** (nem UPDATE nem DELETE
+  por sessão nenhuma), o `.docx` dela indestrutível e insobrescrevível, e a vaga
+  `(tipo, movimentacao_ids)` queimada **para sempre** — exatamente o dano que a migration existe
+  para fechar, criado por ela. O estado é representável hoje (não há CHECK sobre `ativo_ids`) e é o
+  resíduo que um atacante deixaria. A asserção `5h` do roteiro existe **só** para travar essa ordem;
+  quem mexer no predicado e a vir falhar não deve "consertar o teste".
+
+  **⚠ O exploit NÃO foi reproduzido** (ao contrário da `0067`/`0068`): a revisão foi read-only e
+  `termos_gerados` tem ZERO linhas no ensaio, então não havia vítima sem plantar fixture. A prova é
+  o roteiro, rodado **ANTES** do apply (os `2i-bis` devem FALHAR, provando o furo aberto) e
+  **DEPOIS** (todos verdes).
+
+  **Verificação pós-apply nos dois bancos:** as 3 funções com `prosecdef = true`, `anon` sem execute
+  e `authenticated` com execute; as 3 policies da tabela citando `pode_escrever_termo` e as 3 do
+  bucket citando `pode_escrever_arquivo_termo`; `policies_public` **39** e `policies_storage` **8**
+  — **inalterados**, porque são `alter policy` e não policy nova; acervo **idêntico ao pré**
+  (ativos 1230, movs 2363, perfis 10, termos 6, objetos `termos` 9).
+  **Advisor:** `authenticated_security_definer_function_executable` **cresce em 3** — inerente ao
+  desenho, porque a expressão de policy é avaliada com os privilégios de quem consulta e portanto
+  `authenticated` precisa de EXECUTE; as três respondem só sobre o próprio chamador. Precedente
+  aceito na `0062` (as três da fase) e na `0068` (`estorno_item_coerente`).
+  **Descoberta lateral que economiza uma hora:** `storage.objects` tem um trigger
+  `protect_objects_delete` (`BEFORE DELETE FOR EACH STATEMENT`) que barra **toda** exclusão direta
+  por SQL — a policy de DELETE do bucket só é exercitada pela API de Storage. Quem for testar
+  exclusão de objeto por `psql`/MCP bate no trigger, não na policy; por isso a asserção prova o
+  INSERT sobre o path alheio, que usa o mesmo predicado.
+
+  **Rollback** (reabre o furo — só faz sentido junto de um rollback completo da F21): as 6
+  `alter policy` de volta a `(select public.papel_atual()) in ('admin','operador')` (as 3 de storage
+  com o `bucket_id = 'termos' and` na frente), `drop index public.termos_gerados_arquivo_path_idx` e
+  `drop function` das três. Lista literal no rodapé do cabeçalho da migration.
+- **`0070`** (F21 — a desativação passa a fechar a **LEITURA**; mesma revisão da `0069`;
+  30/07/2026) — **aditiva**: **14 `alter policy`, zero objeto novo, zero dado tocado**. Caminho
+  **A**, ensaio primeiro e depois produção, no ledger dos dois.
+
+  **O furo.** A `0061` escreveu, e a `0063` repetiu como "REGRA DE OURO", que `profiles.ativo =
+  false` vale "no request seguinte". Vale — **para escrita**. Toda policy de SELECT seguia
+  `using (true)`, e o `authenticated` de quem foi desligado continua sendo `authenticated` enquanto
+  o access token dele não expira (~1h). Nesse intervalo o acervo inteiro saía por
+  `GET /rest/v1/ativos?select=*` com a anon key do bundle — colaborador, setor, filial e patrimônio
+  —, e o mesmo valia para `movimentacoes` (quem levou o quê), `termos_gerados`, `anotacoes` e
+  `profiles` (a equipe toda). As **5 views** (`security_invoker = true`) e as **7 RPCs `rel_*`**
+  (INVOKER) **derivavam** o mesmo vazamento. O ban do Auth (`ban_duration`) impede login NOVO; não
+  invalida o token que a pessoa já tem na mão. A UI mandava o desligado para
+  `/login?erro=acesso-desativado`, mas a UI nunca foi a defesa.
+
+  **A correção.** Um predicado só — `using ((select public.papel_atual()) is not null)` — nas **13**
+  policies de SELECT de `public` (`ativos`, `movimentacoes`, `anotacoes`, `lancamentos_item`,
+  `termos_gerados`, `relatorios_gerados`, `filiais`, `motivos`, `itens`, `kits_modelos`, `profiles`,
+  `operador_filiais`, `pendencias_item`) **+ 1** no SELECT do bucket `termos`. `papel_atual()` é NULL
+  em três situações equivalentes a "não é mais gente daqui": sem sessão, sem linha em `profiles`,
+  perfil desativado. **Não é recorte por cargo nem por filial** — `consulta` segue lendo o app
+  inteiro e `operador` segue lendo todas as filiais; para todo perfil ATIVO o resultado é idêntico
+  ao de antes, linha por linha. As views e as RPCs `rel_*` herdam **sem DDL**: é o mesmo
+  `security_invoker`/INVOKER que fazia o vazamento derivar. Ficam de fora por já satisfazerem a
+  invariante: `import_logs`/`eventos_admin` (SELECT já é `(select e_admin())`),
+  `senhas_acesso`/`senha_tentativas` (RLS ligada e ZERO policy) e o bucket `backups-import` (as 4
+  policies já são `e_admin()`, `0066`). O `(select …)` é obrigatório e não estético: sem argumento de
+  coluna a expressão vira **InitPlan**, avaliada uma vez por statement e não por linha — e são estas
+  as policies que varrem o acervo.
+
+  **⚠ Isto é EMENDA a uma invariante escrita em quatro lugares** ("todo logado LÊ tudo"):
+  `CLAUDE.md`, ADR-002 §3, o cabeçalho da `0063` e `docs/MATRIZ-REGRAS.md` (R-ACC-02 / C7 /
+  R-ACC-21). Os quatro são emendados no MESMO commit. Deixar a lei escrita dizendo o contrário do
+  banco é como se produz o próximo furo: o próximo agente "corrige a regressão" e reabre isto.
+
+  **⚠ A ausência de recursão em `profiles` é PREMISSA DE CATÁLOGO, não intuição.** A policy de
+  SELECT de `profiles` passa a chamar `papel_atual()`, que LÊ `profiles`. Não recursa porque
+  `papel_atual()` tem `prosecdef = true` com `proowner = postgres` (o `prosecdef` também impede o
+  inlining da função SQL, o outro caminho de auto-referência) **e** `public.profiles` tem
+  `relowner = postgres` + `relforcerowsecurity = false` — dentro da função `current_user` é o dono
+  da tabela, e dono ignora RLS na própria tabela salvo `FORCE ROW LEVEL SECURITY`. **Confira os três
+  antes de aplicar em banco novo** (`pg_class.relowner`/`relforcerowsecurity` + `pg_proc.prosecdef`/
+  `proowner`); se algum cair, o erro é `42P17 "infinite recursion detected in policy for relation"`
+  — ruidoso e imediato, não silencioso. O roteiro provoca esse caminho de propósito (`1b-bis`).
+
+  **⚠ Operacional: a conta de `SMOKE_EMAIL` tem de estar ATIVA em `profiles`.**
+  `scripts/smoke/smoke-prod.mjs` é o **único** consumidor que roda sob SESSÃO — anon key +
+  `signInWithPassword`, e não service role —, então com a `0070` um perfil desligado passa a falhar
+  **em massa** nas leituras (`v_fila_pendencias`, `v_pendencias`, `rel_saldo_itens` ×2, `rel_resumo`,
+  `rel_mov_por_mes`, `v_estoque_atual`). Falhar aí é **por desenho**, não regressão: quem desativar
+  a conta do smoke em `/admin/usuarios` derruba o smoke, não o app. **O outro ponto que quebra se
+  alguém mexer num default:** `definirAcesso` (`actions/auth.ts`) faz
+  `update profiles … .select('id')`, e o `.select()` depois de um UPDATE do PostgREST **exige** a
+  policy de SELECT. Hoje funciona porque `handle_new_user` insere só (id, primeiro_nome, sobrenome) e
+  `papel`/`ativo` assumem os defaults da `0061` (`'operador'`, `true`), então `papel_atual()` já é
+  não-nulo no primeiro request de quem aceitou o convite. Quem mudar o default de `profiles.ativo`
+  para `false` ("conta pendente até aceitar") mata o convite na última tela, sem erro no banco.
+
+  **Verificação pós-apply nos dois bancos:** **0** policies de SELECT com `qual = 'true'` e **0** de
+  escrita com predicado `true`; `policies_public` **39** e `policies_storage` **8** (inalterados —
+  são `alter policy`); acervo **idêntico ao pré** (ativos 1230, movs 2363, perfis 10, termos 6,
+  objetos `termos` 9). Advisor **sem mudança nenhuma** (`rls_policy_always_true` não aponta policy de
+  SELECT). O visualizador por senha fica **intocado**: ele é `anon` e é servido pelo client de
+  service role (`rolbypassrls = true`), então estas policies nunca foram a porta dele — e é por isso
+  que a `0070` também **não fecha nada** do lado do viewer, onde o mecanismo continua sendo a
+  revogação da senha.
+
+  **Roteiro `supabase/tests/papeis_rls.sql`** (cobrindo as duas migrations): **47 → 64 asserções**,
+  **64 OK / 0 falhas nos DOIS bancos**, sem resíduo (conferido depois em produção:
+  `residuo_ativos` 0, `residuo_contas` 0). As de ataque entram **em par** com as legítimas, de
+  propósito: `4d`/`4e`/`4f`/`4g` (o desligado não lê `ativos`, `profiles`, os `.docx` do bucket nem a
+  view) ao lado de `1b-bis`/`1b-ter` (o cargo mais fraco, ATIVO, continua lendo `profiles` e
+  `v_estoque_atual`) — sem esse par, um gate que **cegasse o app** passaria verde.
+
+  **Rollback:** as 13 `alter policy` de volta a `using (true)` e a de storage a
+  `using (bucket_id = 'termos')` — lista literal no rodapé do cabeçalho da migration. As reversões
+  da `0069` e da `0070` são **independentes de propósito**: derrubar o gate de leitura não pode
+  reabrir o furo do termo.
 - **Retroativo C3 (F15 — toca dado, caminho B).** UPDATE de **2 linhas** de `movimentacoes` (`tipo 'compra'→'troca'` no nascimento dos substitutos já registrados, `ativo_id in (select id from ativos where substitui_ativo_id is not null)`). O classificador **não barrou** um UPDATE de 2 linhas via `execute_sql`. Backup das linhas em `scratchpad/f15/retroativo-backup.md` (WAP0005656/WAP0005657); antes=depois conferido (`compra` de substituto 2→0, `troca` 0→2); `status_resultante`/estado dos ativos intactos (a transição de `troca` é a mesma da `compra`). Rollback: `update movimentacoes set tipo='compra' where id in ('5cc393bc-…','95d3d096-…')`.
 
 ### Como conferir o efeito (sem depender do ledger)
@@ -381,3 +561,4 @@ Como rodar sem Docker/psql local (este ambiente): prove os roteiros no projeto d
 - **Overload de função** — recriar com assinatura diferente (ou pular a ordem das migrations que fazem `drop`+`create`) deixa duas versões coexistindo → PostgREST não resolve a chamada. Mitigação: sempre `create or replace` puro com assinatura idêntica; verificação do passo 5.
 - **Ordem migration → deploy** — se a migration muda a assinatura/colunas que o código novo usa, aplicar o SQL ANTES do deploy da Vercel.
 - **Roteiro de teste defasado após mudar função/trigger** — a F15 mudou a RPC mas só atualizou o roteiro novo; o roteiro antigo (`manutencao_fornecedor.sql` 4d) ficou exigindo o comportamento velho (`compra`) e derrubou o job `banco` silenciosamente (lint/test/build locais não rodam SQL). Mitigação: a regra "rode TODOS os roteiros" da seção acima.
+- **Asserção nova do `papeis_rls.sql` sobre relação FORA do bloco de grants → `42501` só no CI, e leva o arquivo inteiro.** O roteiro é o único que faz `set local role authenticated`, e um projeto Supabase **hospedado** concede a `anon`/`authenticated` os privilégios de TABELA de `public` por *default privilege*. O Postgres NOVO que o job `banco` sobe **não** reproduz esses defaults. Então uma asserção que faça `select … from X` (ou escreva em X) sem X no bloco de grants explícito do topo do roteiro dá `ERROR: permission denied for table X` (`42501`), **aborta o `do $$` inteiro** — levando com ele todas as seções seguintes, que nem chegam a rodar — e **passa VERDE no ensaio**. É uma resposta certa para a pergunta errada: ali se mede *policy (RLS)*, não privilégio; quem mede privilégio é `seguranca_catalogo.sql`. **Inclusive VIEW:** `v_estoque_atual` precisou de `grant` próprio, porque o atalho `grant … on all tables in schema public` cobria views e o bloco explícito não — e o atalho está barrado no próprio roteiro: a variante de UPDATE cai no bloco `do $trava$` (devolveria o UPDATE de TABELA em `profiles` que a `0063` revogou, e a asserção `3g`, de escalada de privilégio, passaria por engano), e a de SELECT foi proibida pela regra escrita ali ("só entra a tabela/verbo que uma asserção realmente usa"), porque `on all tables` mascararia qualquer REVOKE futuro. Aconteceu com `ativos` no primeiro push da F21 e de novo com `v_estoque_atual` na revisão da `0070`. Mitigação: toda asserção nova entra **junto** com a sua relação/verbo no bloco de grants, com o comentário dizendo qual asserção a usa — e a prova é o job `banco` verde, não o run no ensaio.
