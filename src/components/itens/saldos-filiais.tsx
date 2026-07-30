@@ -50,6 +50,7 @@ export function SaldosFiliaisTabela({
   filiais,
   itens,
   minimos,
+  podeLancar = false,
 }: {
   filiais: Filial[]
   itens: SaldoItemFiliais[]
@@ -57,6 +58,9 @@ export function SaldosFiliaisTabela({
   // `SaldoItemFiliais` vem da RPC de saldo e não carrega essa coluna. Item que
   // esteja na tabela e não no mapa (desativado com saldo) vale 0 = sem alerta.
   minimos: MinimosPorItem
+  // F21 — cargo ≥ operador. As COLUNAS de filial continuam todas visíveis (os
+  // saldos são leitura, ampla para todo cargo); só a coluna de ação sai.
+  podeLancar?: boolean
 }) {
   return (
     <Table>
@@ -69,9 +73,11 @@ export function SaldosFiliaisTabela({
             </TableHead>
           ))}
           <TableHead className="text-right">Total</TableHead>
-          <TableHead className="w-px text-right">
-            <span className="sr-only">Ações</span>
-          </TableHead>
+          {podeLancar && (
+            <TableHead className="w-px text-right">
+              <span className="sr-only">Ações</span>
+            </TableHead>
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -137,12 +143,14 @@ export function SaldosFiliaisTabela({
                   )}
                 </div>
               </TableCell>
-              <TableCell className="py-1 text-right">
-                {/* Sem filial no preset: o "+" é da LINHA, não da célula, e a
-                    visão não tem recorte de filial. O dialog abre com o campo
-                    Filial vazio para o operador escolher (lancar-item-dialog). */}
-                <LancarItemLinha itemId={linha.item_id} item={linha.item} filialId={null} />
-              </TableCell>
+              {podeLancar && (
+                <TableCell className="py-1 text-right">
+                  {/* Sem filial no preset: o "+" é da LINHA, não da célula, e a
+                      visão não tem recorte de filial. O dialog abre com o campo
+                      Filial vazio para o operador escolher (lancar-item-dialog). */}
+                  <LancarItemLinha itemId={linha.item_id} item={linha.item} filialId={null} />
+                </TableCell>
+              )}
             </TableRow>
           )
         })}

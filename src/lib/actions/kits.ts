@@ -2,23 +2,20 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirAdmin } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { atualizarKitSchema, kitCatalogoSchema } from '@/lib/validators/kit'
 import type { Json } from '@/lib/types/database'
 
 // Escritas dos KITS DE MOVIMENTAÇÃO (F12 · M12 / F5 §5.9) — padrão do CRUD de
-// catálogo de itens (actions/itens.ts): exige operador, re-valida com Zod no
-// servidor (o schema do cliente é a primeira linha, não a única), traduz o erro
-// do banco para pt-BR e revalida as rotas que leem a tabela.
+// catálogo de itens (actions/itens.ts): re-valida com Zod no servidor (o schema do
+// cliente é a primeira linha, não a única), traduz o erro do banco para pt-BR e
+// revalida as rotas que leem a tabela.
 //
-// Todo operador é admin (nível único, CLAUDE.md): não há gate de permissão além
-// de "tem sessão".
-
-async function operadorId(): Promise<string | null> {
-  const supabase = await createClient()
-  return idOperador(supabase)
-}
+// F21 — o kit é CATÁLOGO global (não tem filial) e mora em /admin/kits: as duas
+// escritas exigem ADMIN, igual a filiais/motivos/itens. Bate com a policy da migration
+// 0063 (`kits_modelos` escreve com `e_admin()`). O Operador continua APLICANDO kits no
+// fluxo de movimentação — aplicar é leitura do payload, não escrita na tabela.
 
 // Entrada CRUA do formulário: strings, como em `criarItem` (`grupo: string`).
 // Quem decide o que é válido é o Zod — o tipo aqui só guia quem chama.
@@ -53,14 +50,15 @@ export async function criarKit(input: {
   nome: string
   payload: KitPayloadEntrada
 }): Promise<CriarKitResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   const parsed = kitCatalogoSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
-  const supabase = await createClient()
   const { data, error } = await supabase
     .from('kits_modelos')
     .insert({
@@ -68,7 +66,7 @@ export async function criarKit(input: {
       // Grava o payload JÁ NORMALIZADO pelo Zod (campos vazios viram ausentes,
       // texto trimado) — nunca o objeto cru do formulário.
       payload: parsed.data.payload as unknown as Json,
-      criado_por: uid,
+      criado_por: aut.uid,
     })
     .select('id')
     .single()
@@ -86,15 +84,16 @@ export async function atualizarKit(input: {
   payload: KitPayloadEntrada
   ativo: boolean
 }): Promise<ActionResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   const parsed = atualizarKitSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
   const { id, nome, payload, ativo } = parsed.data
 
-  const supabase = await createClient()
   // Lista de colunas EXPLÍCITA: campo novo do schema entra também aqui, senão é
   // descartado em silêncio (a mesma armadilha do `atualizarItem`). `criado_por`
   // NÃO se atualiza — é o autor original.

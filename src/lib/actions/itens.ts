@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirAdmin, exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import {
@@ -18,10 +18,14 @@ import {
 import type { TipoLancamento } from '@/lib/dominio'
 import { planejarEstorno } from '@/lib/itens/estorno'
 
-async function operadorId(): Promise<string | null> {
-  const supabase = await createClient()
-  return idOperador(supabase)
-}
+// F21 — este arquivo tem DOIS regimes de permissão, e é de propósito:
+//   · LANÇAMENTOS (`lancarItens`, `estornarLancamento`) mexem no saldo de uma FILIAL →
+//     `exigirEscrita(filial do lançamento)`, como qualquer escrita de acervo;
+//   · CATÁLOGO (`criarItem`, `criarItemInline`, `atualizarItem`, `excluirItem`) é GLOBAL
+//     (a tabela `itens` não tem filial) e vive em /admin/itens → `exigirAdmin()`, igual a
+//     filiais/motivos/kits. As policies da migration 0063 dizem o mesmo: `itens` escreve
+//     com `e_admin()`, `lancamentos_item` com `pode_escrever_filial(filial_id)`.
+// Ver ADR-002 §3/§4.
 
 // Rotas que leem catálogo OU saldo de item. O DASHBOARD entra na lista desde a
 // F12: o card "Itens para repor" cruza `listarItensAtivos()` com a RPC de saldos,
@@ -56,9 +60,6 @@ export type LancarItensResult = {
 // é do trigger 0015/0027 — aqui é a segunda linha; o erro do banco vira pt-BR
 // amigável e fica preso à SUA linha, sem derrubar as demais.
 export async function lancarItens(input: LoteLancamentoItemInput): Promise<LancarItensResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, resultados: [], erroGeral: MSG_SESSAO_EXPIRADA }
-
   const parsed = loteLancamentoItemSchema.safeParse(input)
   if (!parsed.success) {
     return {
@@ -69,6 +70,15 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
   }
 
   const supabase = await createClient()
+  // Uma filial por carrinho (campo compartilhado do lote — `explodirLoteLancamentoItem`
+  // copia `filial_id` para todas as linhas), e ela já vem no payload: uma chamada resolve
+  // sessão, cargo e vínculo antes do primeiro insert. A guarda precisou vir DEPOIS do
+  // safeParse (é dele que sai a filial), então payload inválido agora é reportado como
+  // tal mesmo sem sessão — nada é lido nem escrito nesse caminho.
+  const aut = await exigirEscrita(supabase, parsed.data.filial_id)
+  if (!aut.ok) return { ok: false, resultados: [], erroGeral: aut.erro }
+  const uid = aut.uid
+
   const resultados: ResultadoLinhaLancamento[] = []
   let criados = 0
 
@@ -108,13 +118,16 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
 export async function estornarLancamento(input: {
   lancamento_id: string
 }): Promise<ActionResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
-
   const parsed = estornoLancamentoSchema.safeParse(input)
   if (!parsed.success) return { ok: false, erro: 'Lançamento inválido.' }
 
   const supabase = await createClient()
+  // Cargo antes da leitura, vínculo depois (a filial é a do lançamento original) — o
+  // mesmo desdobramento explicado em actions/ativos.ts. ESTORNO_OPERADOR = sim: operador
+  // estorna nas filiais vinculadas; não é privilégio de admin.
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
+
   const { data: orig, error: e1 } = await supabase
     .from('lancamentos_item')
     .select('id, item_id, filial_id, tipo, quantidade, chamado, observacao, estorna_id')
@@ -125,6 +138,10 @@ export async function estornarLancamento(input: {
   if (orig.estorna_id) {
     return { ok: false, erro: 'Um estorno não pode ser estornado.' }
   }
+
+  // O select acima já traz `filial_id` — o inverso nasce na MESMA filial do original.
+  const aut = await exigirEscrita(supabase, orig.filial_id)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   // Já estornado? (o índice único protege da corrida; aqui é a mensagem amigável)
   const { data: jaEstorno } = await supabase
@@ -149,7 +166,7 @@ export async function estornarLancamento(input: {
     colaborador: null,
     data: hojeISO(),
     observacao: plano.observacao,
-    criado_por: uid,
+    criado_por: aut.uid,
     estorna_id: orig.id,
   })
   if (e2) return { ok: false, erro: traduzErroBanco(e2.message, e2.code) }
@@ -176,14 +193,15 @@ export async function criarItem(input: {
   ordem: number
   estoque_minimo: number
 }): Promise<CriarItemResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   const parsed = itemCatalogoSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
-  const supabase = await createClient()
   // Insere `parsed.data` INTEIRO (não uma lista de colunas): campo novo do schema
   // — como `estoque_minimo` (F12 · I5) — entra sozinho. É o contrário do
   // `atualizarItem` logo abaixo, cuja lista explícita precisa ser mantida à mão.
@@ -205,8 +223,13 @@ export async function criarItem(input: {
 // Criação INLINE no meio do lançamento (F10 · I2): o operador informa só nome e
 // grupo; a `ordem` é decidida AQUI (maior do grupo + 10) — o combobox do
 // lançamento nem carrega essa coluna. Reusa `criarItem` (mesma validação, mesma
-// tradução de nome duplicado, mesmos revalidatePath). Todo operador é admin
-// (nível único, CLAUDE.md) — não há gate de permissão a checar.
+// tradução de nome duplicado, mesmos revalidatePath).
+//
+// F21 — é CATÁLOGO, logo exige ADMIN, mesmo nascendo no meio de um lançamento: a
+// tabela `itens` é global e a policy da 0063 é `e_admin()`. Consequência prática que a
+// UI tem de respeitar: para o cargo Operador o botão "criar item aqui" não se aplica —
+// ele lança sobre o catálogo curado, não o edita. (`criarItem`, chamada no fim, reconfere
+// admin: cada export deste módulo é um endpoint alcançável pela rede por si só.)
 //
 // BECO SEM SAÍDA que esta action fecha (achado F12-W4-06): o combobox é
 // alimentado por `listarItensAtivos()` (só item ATIVO), mas o índice único
@@ -220,14 +243,14 @@ export async function criarItemInline(input: {
   nome: string
   grupo: string
 }): Promise<CriarItemResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   const parsed = itemInlineSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
-
-  const supabase = await createClient()
 
   // Catálogo INTEIRO (ativos e inativos) para achar o homônimo. Comparação em
   // JS e não `ilike` no banco: o nome é texto livre e um `%` ou `_` digitado
@@ -287,15 +310,16 @@ export async function atualizarItem(input: {
   ativo: boolean
   estoque_minimo: number
 }): Promise<ActionResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   const parsed = atualizarItemSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
   const { id, nome, grupo, ordem, ativo, estoque_minimo } = parsed.data
 
-  const supabase = await createClient()
   // ATENÇÃO: a lista de colunas é EXPLÍCITA — campo que não estiver aqui é
   // descartado EM SILÊNCIO (o schema valida, a action ignora e a tela mostra
   // "salvo"). Campo novo em `atualizarItemSchema` entra também nesta lista.
@@ -316,12 +340,13 @@ export async function atualizarItem(input: {
 // Exclusão só quando NÃO houver lançamentos (senão o histórico ficaria órfão);
 // caso contrário, a tela oferece desativar.
 export async function excluirItem(input: { id: number }): Promise<ActionResult> {
-  const uid = await operadorId()
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   const id = Number(input.id)
   if (!Number.isInteger(id) || id <= 0) return { ok: false, erro: 'Item inválido.' }
 
-  const supabase = await createClient()
   const { count } = await supabase
     .from('lancamentos_item')
     .select('*', { count: 'exact', head: true })

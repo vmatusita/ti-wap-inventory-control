@@ -1,4 +1,5 @@
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
+import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 // Porta de entrada da documentacao: o operador novo tem de sair daqui sabendo o
@@ -37,7 +38,7 @@ export const comeceAqui: PaginaAjuda = {
       itens: [
         'A movimentação é a fonte da verdade — você registra o evento uma vez e o estado se atualiza sozinho. Nunca se edita o status à mão.',
         'O equipamento é identificado pelo PAR patrimônio + service tag — o patrimônio pode repetir em casos raros; a service tag desempata.',
-        'Existem duas portas de acesso — o operador entra com login corporativo e opera tudo; quem só precisa acompanhar entra com uma senha de acesso e vê apenas os relatórios.',
+        'Existem duas portas de acesso — quem tem login entra com a conta corporativa e recebe um cargo, que decide o que pode registrar (todos os cargos leem tudo); quem só precisa acompanhar de fora entra com uma senha de acesso e vê apenas os relatórios.',
         'Pendências é a esteira de regularização — o que ficou faltando (termo sem assinatura, acessório que não voltou, ativo sem patrimônio) fica visível numa fila até alguém resolver.',
       ],
     },
@@ -85,6 +86,10 @@ export const comeceAqui: PaginaAjuda = {
         [
           'Relatório gerado',
           'Uma foto congelada do relatório de um período. Depois de gerada, não muda mais — nem quando o dado muda.',
+        ],
+        [
+          'Cargo',
+          `O que a sua conta pode fazer: ${PAPEL_ROTULO.admin}, ${PAPEL_ROTULO.operador} ou ${PAPEL_ROTULO.consulta}. Os três leem o sistema inteiro; o cargo decide o que você REGISTRA (e, no caso do operador, em quais filiais).`,
         ],
       ],
       legenda:

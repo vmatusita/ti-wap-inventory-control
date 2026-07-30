@@ -1,5 +1,6 @@
 import { TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
+import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 export const problemasImportEAcesso: PaginaAjuda = {
@@ -20,6 +21,10 @@ export const problemasImportEAcesso: PaginaAjuda = {
     'importar',
     'csv',
     'xlsx',
+    'cargo',
+    'sem permissao',
+    'desativado',
+    'sumiu o botao',
   ],
   blocos: [
     { tipo: 'titulo', id: 'problemas-import', texto: 'O import de startup' },
@@ -91,7 +96,7 @@ export const problemasImportEAcesso: PaginaAjuda = {
           causa:
             'O convite NÃO sai por e-mail. O sistema gera um link na própria tela para você entregar pelo canal que quiser — é assim por desenho, não é falha de envio.',
           saida: [
-            'Em Administração › Usuários, "Convidar usuário": informe o e-mail e clique em "Gerar link".',
+            `Em Administração › Usuários, "Convidar usuário": informe o e-mail, escolha o cargo (e as filiais de escrita, no caso do cargo ${PAPEL_ROTULO.operador}) e clique em "Gerar link".`,
             'A tela "Convite gerado — copie o link" traz o botão "Copiar". Mande o link pelo WhatsApp, Teams ou e-mail seu.',
             'A pessoa abre o link e clica em "Ativar meu acesso"; em seguida informa nome, sobrenome e a senha. Quem já tinha conta vê "Continuar" e cai na mesma tela: se já tinha informado nome e sobrenome, eles vêm preenchidos e ela só confere; se ainda não (a coluna "Nome" mostra o e-mail dela), os dois campos vêm vazios e precisam ser preenchidos.',
             'O link vale por tempo limitado. Se expirar, gere outro — nada do que a pessoa já fez se perde. Uma prévia do link no WhatsApp ou no Teams não o invalida: só o clique em ativar consome o link.',
@@ -122,10 +127,53 @@ export const problemasImportEAcesso: PaginaAjuda = {
         },
       ],
     },
+    { tipo: 'titulo', id: 'problemas-cargo', texto: 'Cargo, filiais e acesso desativado' },
+    {
+      tipo: 'sintomas',
+      itens: [
+        {
+          sintoma: 'A Administração desapareceu do meu menu.',
+          causa: `O item "Administração" existe só para o cargo ${PAPEL_ROTULO.admin}. Se ele sumiu, o seu cargo foi mudado — nada quebrou, e o resto do sistema continua igual.`,
+          saida: [
+            `Confirme com quem administra: talvez a sua função tenha mudado para ${PAPEL_ROTULO.operador} de propósito.`,
+            `Se você precisa mesmo dos cadastros de apoio, das contas ou do import, peça a um ${PAPEL_ROTULO.admin} para devolver o seu cargo — ou para fazer aquela mudança por você.`,
+            'Abrir o endereço da Administração na mão não contorna: a tela devolve ao início.',
+          ],
+        },
+        {
+          sintoma: 'Os botões de registrar desapareceram de todas as telas.',
+          causa: `É o cargo ${PAPEL_ROTULO.consulta}: ele consulta o sistema inteiro — listas, fichas, saldos, relatórios, esta documentação — e não registra nada. Por isso não há botão amarelo no cabeçalho, nem "Anotar", "Estornar", "Lançar item" ou "Resolver".`,
+          saida: [
+            'Se o seu trabalho é só acompanhar, está tudo no lugar: navegue e exporte as listas normalmente.',
+            `Se você precisa registrar, peça a um ${PAPEL_ROTULO.admin} para mudar o seu cargo — o novo vale no próximo carregamento de tela, sem sair e entrar de novo.`,
+            'Se abrir o endereço de um formulário direto, a gravação é recusada com "Seu cargo é de consulta (somente leitura): você pode consultar tudo, mas não registrar alterações." e nada é gravado.',
+          ],
+        },
+        {
+          sintoma: 'A filial que eu preciso não aparece quando vou registrar.',
+          causa: `Quem tem o cargo ${PAPEL_ROTULO.operador} registra só nas filiais vinculadas a ele, e as telas de registro oferecem apenas essas. Nos filtros de consulta e nos relatórios as cinco continuam aparecendo — a diferença é entre ver e gravar.`,
+          saida: [
+            `Peça a um ${PAPEL_ROTULO.admin} para incluir a filial na sua lista, em Administração › Usuários.`,
+            'Se tentar mesmo assim (por um endereço colado, por exemplo), a resposta é "Você não tem permissão de escrita nesta filial. Fale com um administrador." e nada é gravado.',
+            'Num lote com equipamentos de mais de uma filial, basta uma filial fora da sua lista para o lote inteiro ser recusado: tire o que não é seu e registre o resto.',
+            'Transferência é diferente: você só precisa da filial de ORIGEM. Mandar para outra filial é o fluxo normal.',
+          ],
+        },
+        {
+          sintoma: 'Fui devolvido ao login e minha senha não entra mais.',
+          causa: 'O acesso foi desativado na tela de usuários — é o caminho para quem saiu da equipe ou trocou de função. O efeito vale no carregamento seguinte de tela, mesmo com o sistema aberto, e o login passa a recusar a senha.',
+          saida: [
+            'Se tentou gravar algo antes de cair no login, a mensagem foi "Seu acesso foi desativado. Fale com um administrador." — nada foi gravado.',
+            `Se foi engano, um ${PAPEL_ROTULO.admin} reativa a conta em Administração › Usuários e o acesso volta no carregamento seguinte, com o mesmo cargo e as mesmas filiais.`,
+            'Nada do que você registrou se perde ao desativar: o histórico é imutável e continua com o seu nome.',
+          ],
+        },
+      ],
+    },
     {
       tipo: 'links',
       itens: [
-        { slug: 'acesso-e-sessoes' },
+        { slug: 'acesso-e-sessoes', ancora: 'acesso-cargos' },
         { slug: 'import-de-startup' },
         { slug: 'usuarios-e-senhas' },
         { slug: 'mensagens-de-erro' },

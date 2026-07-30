@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { resolverPendenciaItemSchema } from '@/lib/validators/pendencia-item'
 
@@ -23,10 +23,29 @@ export async function resolverPendenciaItem(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
   const { ids, desfecho, observacao } = parsed.data
+
+  // O lote pode misturar filiais (`pendencias_item.filial_id` vem do trigger 0051, que
+  // copia a da movimentação): lê as filiais alvo ANTES e exige escrita em todas —
+  // resolver só a parte permitida deixaria a fila meio zerada, em silêncio, com UMA
+  // justificativa cobrindo o que não foi resolvido.
+  const { data: alvos, error: eFiliais } = await supabase
+    .from('pendencias_item')
+    .select('filial_id')
+    .in('id', ids)
+  if (eFiliais) return { ok: false, erro: traduzErroBanco(eFiliais.message, eFiliais.code) }
+
+  // Nenhum alvo (ids inexistentes) não é erro — esta action é idempotente de propósito
+  // e o update abaixo simplesmente não acha linha. Mas o cargo de escrita continua
+  // exigido: a action é um endpoint alcançável pela rede por si só.
+  const aut =
+    alvos && alvos.length > 0
+      ? await exigirEscritaEm(supabase, alvos.map((p) => p.filial_id))
+      : cargo
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const { data, error } = await supabase
     .from('pendencias_item')
@@ -35,7 +54,7 @@ export async function resolverPendenciaItem(input: {
       desfecho,
       observacao: observacao ?? null,
       resolvida_em: new Date().toISOString(),
-      resolvida_por: uid,
+      resolvida_por: aut.uid,
     })
     .in('id', ids)
     .eq('status', 'aberta')

@@ -4,6 +4,19 @@
 // filiais, motivos e profiles (dados de
 // referencia / contas). O catalogo de itens (F3B) e dado de DEV recriado pelo
 // seed, entao tambem e limpo aqui. Mesmas guardas anti-acidente do seed.
+//
+// F21 (29/07/2026) — as duas tabelas novas do modelo de cargos, e por que cada
+// uma cai de um lado da linha. A regra desta ferramenta e "apaga o ACERVO, preserva
+// as CONTAS":
+//   * `operador_filiais` (vinculo de escrita do operador) e PRESERVADA, junto de
+//     `profiles`: e configuracao de CONTA, nao dado de acervo. Apaga-la deixaria as
+//     contas do banco de ensaio sem escrever em lugar nenhum ate o proximo seed —
+//     um efeito colateral que ninguem espera de um "reset dos dados". O seed
+//     reescreve os vinculos das contas ficticias a cada rodada, de todo modo.
+//   * `eventos_admin` (trilha de auditoria) e LIMPA, porque o seed insere linhas
+//     ficticias nela: nao limpar duplicaria a trilha a cada rodada. Este e o UNICO
+//     lugar do projeto que apaga a trilha, e so aqui faz sentido — o app nao tem
+//     caminho de update/delete nela (migration 0065), de proposito.
 // Uso: `npm run db:reset`.
 import {
   assertGuardsAndGetConfig,
@@ -65,12 +78,22 @@ async function main() {
     .gte('created_at', EPOCH)
   if (itemErr) throw new Error(`Falha ao apagar itens: ${itemErr.message}`)
 
+  // eventos_admin (F21): a trilha de auditoria ficticia que o seed insere. Filtro
+  // por `quando` (coluna NOT NULL com default now()), no mesmo idioma dos demais.
+  const { count: eventoCount, error: eventoErr } = await db
+    .from('eventos_admin')
+    .delete({ count: 'exact' })
+    .gte('quando', EPOCH)
+  if (eventoErr) throw new Error(`Falha ao apagar eventos_admin: ${eventoErr.message}`)
+
   console.log(
     `[reset] apagados: ${anotCount ?? 0} anotacoes, ${lancCount ?? 0} lancamentos_item, ` +
       `${termoCount ?? 0} termos_gerados, ${movCount ?? 0} movimentacoes, ` +
-      `${ativoCount ?? 0} ativos, ${itemCount ?? 0} itens.`,
+      `${ativoCount ?? 0} ativos, ${itemCount ?? 0} itens, ${eventoCount ?? 0} eventos_admin.`,
   )
-  console.log('[reset] preservados: filiais, motivos, profiles.')
+  console.log(
+    '[reset] preservados: filiais, motivos, profiles (contas, com cargo) e operador_filiais (vinculos de escrita).',
+  )
 }
 
 main().catch((err) => {

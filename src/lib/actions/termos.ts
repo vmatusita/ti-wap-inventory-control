@@ -8,7 +8,13 @@ import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import {
+  exigirEscrita,
+  exigirEscritaEm,
+  exigirPapel,
+  idOperador,
+  MSG_SESSAO_EXPIRADA,
+} from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   confirmarAssinaturaSchema,
@@ -115,6 +121,9 @@ export async function prepararTermo(input: {
   if (!parsed.success) return falhaPrep('Dados inválidos para preparar o termo.')
 
   const supabase = await createClient()
+  // LEITURA (monta o pré-preenchimento do diálogo): sem guarda de cargo, por
+  // determinação da F21 — quem lê a ficha do ativo já vê estes mesmos dados. Quem
+  // ESCREVE é `gerarTermo`, e é lá que o cargo e o vínculo são exigidos.
   const uid = await idOperador(supabase)
   if (!uid) return falhaPrep(MSG_SESSAO_EXPIRADA)
 
@@ -385,8 +394,10 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
   const { tipo, movimentacaoIds, data, campos } = parsed.data
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  // Cargo antes das leituras, vínculo depois (a filial sai dos ativos) — ver o
+  // comentário longo em actions/ativos.ts.
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
   // `ativo_ids` e a flag derivam das MOVIMENTAÇÕES no servidor (a movimentação é a
   // fonte da verdade) — não confia no ativoIds vindo do cliente.
@@ -397,6 +408,21 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
   if (movErr) return { ok: false, erro: traduzErroBanco(movErr.message, movErr.code) }
   const ativoIds = [...new Set((movAtivos ?? []).map((m) => m.ativo_id))]
   if (ativoIds.length === 0) return { ok: false, erro: 'Movimentação não encontrada.' }
+
+  // Um termo de lote pode cobrir ativos de MAIS DE UMA filial (o precedente existe: o
+  // import recusa termo multi-filial justamente por isso). A filial que vale é a
+  // CORRENTE de cada ativo — é ela que a policy de update de `ativos` avalia quando
+  // `aplicarFlagTermo` grava `termo_assinado`; a filial gravada na movimentação pode
+  // estar velha. Exige escrita em todas: gerar um documento único que declara
+  // responsabilidade sobre ativo de filial alheia é exatamente o que o vínculo impede.
+  const { data: ativosFiliais, error: eFiliais } = await supabase
+    .from('ativos')
+    .select('filial_id')
+    .in('id', ativoIds)
+  if (eFiliais) return { ok: false, erro: traduzErroBanco(eFiliais.message, eFiliais.code) }
+  const aut = await exigirEscritaEm(supabase, (ativosFiliais ?? []).map((a) => a.filial_id))
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+  const uid = aut.uid
 
   const dados: DadosTermo = {
     ...campos,
@@ -505,20 +531,25 @@ export async function confirmarAssinaturaTermo(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
   const { ativo_id } = parsed.data
   const dataAssinatura = parsed.data.data ?? hojeISO()
 
   // Guard: só age se ainda não estiver 'sim' (idempotente; evita anotação boba).
+  // `filial_id` entra no select que já existia — é o insumo do vínculo de escrita.
   const { data: ativo, error: eLer } = await supabase
     .from('ativos')
-    .select('termo_assinado')
+    .select('termo_assinado, filial_id')
     .eq('id', ativo_id)
     .maybeSingle()
   if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message, eLer.code) }
   if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+
+  const aut = await exigirEscrita(supabase, ativo.filial_id)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   if (ativo.termo_assinado === 'sim') {
     return { ok: false, erro: 'Este termo já consta como assinado.' }
   }
@@ -533,7 +564,7 @@ export async function confirmarAssinaturaTermo(input: {
   const { error: eNota } = await supabase.from('anotacoes').insert({
     ativo_id,
     texto: `Termo confirmado como assinado (data da assinatura: ${formatDate(dataAssinatura)}).`,
-    criado_por: uid,
+    criado_por: aut.uid,
   })
   if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
 
@@ -560,18 +591,22 @@ export async function desfazerConfirmacaoTermo(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
   const { ativo_id } = parsed.data
 
   const { data: ativo, error: eLer } = await supabase
     .from('ativos')
-    .select('termo_assinado')
+    .select('termo_assinado, filial_id')
     .eq('id', ativo_id)
     .maybeSingle()
   if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message, eLer.code) }
   if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+
+  const aut = await exigirEscrita(supabase, ativo.filial_id)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   if (ativo.termo_assinado !== 'sim') {
     return { ok: false, erro: 'Só é possível desfazer um termo confirmado como assinado.' }
   }
@@ -599,7 +634,7 @@ export async function desfazerConfirmacaoTermo(input: {
   const { error: eNota } = await supabase.from('anotacoes').insert({
     ativo_id,
     texto,
-    criado_por: uid,
+    criado_por: aut.uid,
   })
   if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
 

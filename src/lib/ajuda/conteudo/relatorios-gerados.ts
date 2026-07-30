@@ -1,3 +1,4 @@
+import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 export const relatoriosGerados: PaginaAjuda = {
@@ -38,7 +39,7 @@ export const relatoriosGerados: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'Pré-condições: estar logado como operador (quem entra pela senha de acesso lê os snapshots, mas não gera nenhum) e estar na tela do relatório ao vivo da filial que quer congelar — o botão não existe em outro lugar.',
+        `Pré-condições: ter login com o cargo ${PAPEL_ROTULO.operador} ou ${PAPEL_ROTULO.admin} (quem entra pela senha de acesso lê os snapshots, mas não gera nenhum; o cargo ${PAPEL_ROTULO.consulta} também lê e não gera) e estar na tela do relatório ao vivo da filial que quer congelar — o botão não existe em outro lugar. Congelar qualquer filial não depende da lista de filiais de escrita: quem pode gerar, gera de todas.`,
     },
     {
       tipo: 'passos',

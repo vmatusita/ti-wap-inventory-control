@@ -1,7 +1,9 @@
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Eye } from 'lucide-react'
 import { NovaCompraForm } from '@/components/ativos/nova-compra-form'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
+import { filiaisParaEscrita } from '@/components/layout/permissoes'
 import { listarFiliais } from '@/lib/queries/filiais'
 import {
   dadosParaDuplicarCompra,
@@ -9,6 +11,8 @@ import {
   type DadosCompraInicial,
 } from '@/lib/queries/compras'
 import { getPerfilAtual } from '@/lib/queries/profile'
+import { getOperador, MSG_SOMENTE_LEITURA } from '@/lib/auth/acesso'
+import { podeEscrever } from '@/lib/auth/papeis'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -26,7 +30,16 @@ export default async function NovoEquipamentoPage({
   // Id fora do formato uuid devolve null (não derruba a página).
   const duplicarParam = texto(sp.duplicar)
 
-  const [filiais, perfil] = await Promise.all([listarFiliais(), getPerfilAtual()])
+  const [filiais, perfil, operador] = await Promise.all([
+    listarFiliais(),
+    getPerfilAtual(),
+    getOperador(),
+  ])
+
+  // F21 — a filial que RECEBE a compra é escrita: o select oferece só as filiais
+  // vinculadas (admin → todas as ativas). A lista de leitura desta tela não
+  // existe, então aqui não há duas listas para conciliar.
+  const filiaisEscrita = filiaisParaEscrita(operador, filiais)
 
   const [inicial, ultimaCompra] = await Promise.all<DadosCompraInicial | null>([
     duplicarParam ? dadosParaDuplicarCompra(duplicarParam) : Promise.resolve(null),
@@ -57,11 +70,23 @@ export default async function NovoEquipamentoPage({
         </p>
       </div>
 
-      <NovaCompraForm
-        filiais={filiais}
-        inicial={inicial}
-        ultimaCompra={ultimaCompra}
-      />
+      {/* Cargo Consulta abriu a URL direto (nenhum caminho da UI leva até aqui):
+          diz o motivo em vez de oferecer um formulário que a action recusaria.
+          Isto é reforço, não a trava — `registrarCompra` recusa no servidor. */}
+      {podeEscrever(operador?.papel) ? (
+        <NovaCompraForm
+          filiais={filiaisEscrita}
+          inicial={inicial}
+          ultimaCompra={ultimaCompra}
+        />
+      ) : (
+        <EstadoVazio
+          icone={Eye}
+          titulo="Esta tela registra uma compra"
+          descricao={MSG_SOMENTE_LEITURA}
+          acao={{ href: '/ativos', rotulo: 'Voltar para ativos' }}
+        />
+      )}
     </div>
   )
 }

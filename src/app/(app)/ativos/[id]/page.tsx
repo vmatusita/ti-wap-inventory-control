@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Copy, PackageX, Plus, TriangleAlert } from 'lucide-react'
+import { Copy, Eye, PackageX, Plus, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
@@ -26,6 +26,12 @@ import type { TermoTipo } from '@/lib/termos/tipos'
 import { rotuloCategoria, rotuloTermo } from '@/lib/dominio'
 import { formatDate, ouTraco } from '@/lib/format'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
+import {
+  getOperador,
+  MSG_SOMENTE_LEITURA,
+  msgSemEscritaNaFilial,
+} from '@/lib/auth/acesso'
+import { podeEscreverNaFilial } from '@/components/layout/permissoes'
 
 function Dado({
   label,
@@ -52,14 +58,30 @@ export default async function AtivoFichaPage({
   const ativo = await buscarAtivoPorId(id)
   if (!ativo) notFound()
 
-  const [movimentacoes, anotacoes, motivosLista, termos, pendenciasItem] = await Promise.all([
-    listarMovimentacoesDoAtivo(id),
-    listarAnotacoesDoAtivo(id),
-    listarMotivos(),
-    listarTermosDoAtivo(id),
-    listarPendenciasItemDoAtivo(id),
-  ])
+  const [movimentacoes, anotacoes, motivosLista, termos, pendenciasItem, operador] =
+    await Promise.all([
+      listarMovimentacoesDoAtivo(id),
+      listarAnotacoesDoAtivo(id),
+      listarMotivos(),
+      listarTermosDoAtivo(id),
+      listarPendenciasItemDoAtivo(id),
+      getOperador(),
+    ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
+
+  // F21 — esta ficha é de UM ativo, que mora em UMA filial: dá para responder
+  // exatamente se quem abriu pode agir sobre ele. Toda a escrita da tela
+  // (movimentar, devolver ao fornecedor, anotar, editar, corrigir patrimônio,
+  // definir service tag, gerar/editar termo, confirmar assinatura, estornar,
+  // resolver pendência de item) é da filial DESTE ativo, então uma decisão só
+  // governa a página inteira. Quando fecha, a ficha diz POR QUÊ — com a mesma
+  // frase que a action devolveria, para não haver duas versões da regra.
+  const podeEscreverNesta = podeEscreverNaFilial(operador, ativo.filial_id)
+  const motivoSemEscrita = podeEscreverNesta
+    ? null
+    : operador?.papel === 'consulta'
+      ? MSG_SOMENTE_LEITURA
+      : msgSemEscritaNaFilial(ativo.filial_nome)
 
   // F14/MN4 — vínculo de sucessão (devolução ao fornecedor). `ativoAntigo` = o que
   // ESTE substitui (quando é um substituto); `substitutoDeste` = quem substituiu ESTE.
@@ -124,41 +146,48 @@ export default async function AtivoFichaPage({
             )}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild size="sm" className="h-10 gap-2 sm:h-8">
-            <Link href={`/movimentacoes/nova?ativo=${ativo.id}`}>
-              <Plus className="size-4" />
-              Nova movimentação
-            </Link>
-          </Button>
-          {/* F14/MN3 — atalho para o fluxo dedicado (só em manutenção) */}
-          {ativo.status === 'em_manutencao' && (
-            <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
-              <Link href={`/movimentacoes/devolucao-fornecedor?ativo=${ativo.id}`}>
-                <PackageX className="size-4" />
-                Devolver ao fornecedor
+        {podeEscreverNesta ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="sm" className="h-10 gap-2 sm:h-8">
+              <Link href={`/movimentacoes/nova?ativo=${ativo.id}`}>
+                <Plus className="size-4" />
+                Nova movimentação
               </Link>
             </Button>
-          )}
-          {/* A6 (F10) — comprar outra unidade do mesmo modelo sem redigitar os
-              dados cadastrais. Patrimônio e service tag NUNCA vão junto. */}
-          <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
-            <Link href={`/ativos/novo?duplicar=${ativo.id}`}>
-              <Copy className="size-4" />
-              Comprar outro igual
-            </Link>
-          </Button>
-          <AnotarDialog ativoId={ativo.id} />
-          <EditarAtivoDialog ativo={ativo} />
-          {/* F19 — as ações de EXCEÇÃO (corrigir/definir patrimônio, definir service
-              tag) saem da barra para o menu "⋯": eram 6 controles lado a lado
-              disputando atenção com o CTA "Nova movimentação". */}
-          <AcoesExcecaoFicha
-            ativoId={ativo.id}
-            patrimonio={ativo.patrimonio}
-            serviceTag={ativo.service_tag}
-          />
-        </div>
+            {/* F14/MN3 — atalho para o fluxo dedicado (só em manutenção) */}
+            {ativo.status === 'em_manutencao' && (
+              <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
+                <Link href={`/movimentacoes/devolucao-fornecedor?ativo=${ativo.id}`}>
+                  <PackageX className="size-4" />
+                  Devolver ao fornecedor
+                </Link>
+              </Button>
+            )}
+            {/* A6 (F10) — comprar outra unidade do mesmo modelo sem redigitar os
+                dados cadastrais. Patrimônio e service tag NUNCA vão junto. */}
+            <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
+              <Link href={`/ativos/novo?duplicar=${ativo.id}`}>
+                <Copy className="size-4" />
+                Comprar outro igual
+              </Link>
+            </Button>
+            <AnotarDialog ativoId={ativo.id} />
+            <EditarAtivoDialog ativo={ativo} />
+            {/* F19 — as ações de EXCEÇÃO (corrigir/definir patrimônio, definir service
+                tag) saem da barra para o menu "⋯": eram 6 controles lado a lado
+                disputando atenção com o CTA "Nova movimentação". */}
+            <AcoesExcecaoFicha
+              ativoId={ativo.id}
+              patrimonio={ativo.patrimonio}
+              serviceTag={ativo.service_tag}
+            />
+          </div>
+        ) : (
+          <p className="flex max-w-sm items-start gap-2 rounded-lg border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+            <Eye className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            <span>{motivoSemEscrita}</span>
+          </p>
+        )}
       </div>
 
       {/* F14/MN4 — vínculo de sucessão (nos dois sentidos) */}
@@ -203,7 +232,11 @@ export default async function AtivoFichaPage({
 
       {/* F18 — pendências de item faltante (abertas em destaque + resolvidas como
           auditoria). Não gruda mais no campo livre acima; ciclo próprio. */}
-      <PendenciasItemFicha patrimonio={ativo.patrimonio} pendencias={pendenciasItem} />
+      <PendenciasItemFicha
+        patrimonio={ativo.patrimonio}
+        pendencias={pendenciasItem}
+        podeResolver={podeEscreverNesta}
+      />
 
       {/* Grid de dados */}
       <Card>
@@ -258,15 +291,20 @@ export default async function AtivoFichaPage({
         respMovId={respMov?.id ?? null}
         devolMovId={devolMov?.id ?? null}
         devolTipo={devolTipo}
+        podeEscrever={podeEscreverNesta}
       />
 
       {/* Linha do tempo */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Linha do tempo</h2>
+        {/* `somenteLeitura` já existia para o histórico do ativo substituído
+            (F14/MN4); a F21 passa a usá-lo também quando o CARGO não escreve
+            nesta filial — Estornar e Duplicar levam a escrita. */}
         <LinhaDoTempo
           movimentacoes={movimentacoes}
           anotacoes={anotacoes}
           motivos={motivos}
+          somenteLeitura={!podeEscreverNesta}
         />
       </div>
 

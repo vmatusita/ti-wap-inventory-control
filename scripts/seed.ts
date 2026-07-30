@@ -15,6 +15,12 @@
 // ativos, ja que o status e 100% derivado das movimentacoes. As demais metas
 // (categoria, filial, status, forma mensal) sao respeitadas.
 //
+// F21 (29/07/2026): o seed passou a garantir tambem as CONTAS ficticias dos tres
+// cargos (admin / operador / consulta), com vinculos de filial variados, e algumas
+// linhas ficticias na trilha de auditoria. Sem isso o DEV so tem a conta admin do
+// backfill e nao ha como ver o modelo de acesso funcionando na tela. Essa parte e
+// IDEMPOTENTE (conta existente e reaproveitada), porque `reset` preserva contas.
+//
 // Uso: `npm run db:seed` (exige as guardas do .env.local — ver scripts/env-guard.ts).
 import { fakerPT_BR as faker } from '@faker-js/faker'
 import seedrandom from 'seedrandom'
@@ -953,6 +959,239 @@ async function inserirAnotacoes(
   return total
 }
 
+// ============================ PERFIS FICTICIOS / CARGOS (F21) =============================
+// A F21 criou tres CARGOS (admin > operador > consulta) e o VINCULO DE FILIAIS de
+// escrita do operador (docs/ADR-002-papeis-e-permissoes.md · spec §3.1). Sem contas
+// nos tres cargos, o DEV nao tem como exercitar nada disso: a unica conta do banco
+// de ensaio e admin (backfill da migration 0061) e todo botao aparece para ela.
+//
+// Este bloco garante SEIS contas ficticias — uma por caso que a fase precisa
+// mostrar — e e IDEMPOTENTE: conta que ja existe e reaproveitada (o `reset` preserva
+// contas, como sempre preservou `profiles`), e papel/nome/vinculos sao reescritos a
+// cada rodada, para o estado ser o mesmo depois de qualquer sequencia de comandos.
+//
+// Os literais de cargo abaixo espelham o enum `papel_usuario` do banco e
+// `src/lib/auth/papeis.ts`; ficam repetidos aqui pela mesma razao que `Categoria` e
+// `Status` no topo deste arquivo — o script nao importa a camada de dominio do app.
+//
+// REGRA 2 DO CLAUDE.md: tudo ficticio. Os e-mails levam o prefixo `seed.` de
+// proposito, para nunca colidirem com o endereco de uma pessoa real; os nomes dizem
+// "Ficticio(a)" na cara. O dominio TEM de ser corporativo — o trigger
+// `handle_new_user` (migration 0041) recusa qualquer outro.
+
+type PapelSeed = 'admin' | 'operador' | 'consulta'
+
+// Senha ficticia, unica e igual para todas as contas do seed: elas existem so no
+// projeto de ENSAIO (as guardas de env-guard.ts recusam producao) e servem para o
+// Johnny logar como cada cargo e ver a diferenca na tela.
+const SENHA_PERFIS_SEED = 'estoque-dev-2026'
+
+type PerfilSeed = {
+  email: string
+  primeiro_nome: string
+  sobrenome: string
+  papel: PapelSeed
+  ativo: boolean
+  /** Slugs das filiais de escrita. Vazio = sem vinculo (falha segura no banco). */
+  filiais: string[]
+  /** Por que esta conta existe no seed — sai no sumario. */
+  para: string
+}
+
+const PERFIS_SEED: PerfilSeed[] = [
+  {
+    email: 'seed.admin@wap.ind.br',
+    primeiro_nome: 'Ana',
+    sobrenome: 'Ficticia',
+    papel: 'admin',
+    ativo: true,
+    filiais: [], // admin escreve em todas sem precisar de vinculo
+    para: 'admin: ve /admin, importa, escreve em todas as filiais',
+  },
+  {
+    email: 'seed.operador.matriz@wap.ind.br',
+    primeiro_nome: 'Bruno',
+    sobrenome: 'Ficticio',
+    papel: 'operador',
+    ativo: true,
+    filiais: ['matriz'],
+    para: 'operador de UMA filial: escreve na matriz e e recusado nas outras',
+  },
+  {
+    email: 'seed.operador.duas@wap.ind.br',
+    primeiro_nome: 'Carla',
+    sobrenome: 'Ficticia',
+    papel: 'operador',
+    ativo: true,
+    filiais: ['linhares', 'serra'],
+    para: 'operador de DUAS filiais: seletor de filial com duas opcoes',
+  },
+  {
+    email: 'seed.operador.sem.filial@wap.ind.br',
+    primeiro_nome: 'Dario',
+    sobrenome: 'Ficticio',
+    papel: 'operador',
+    ativo: true,
+    filiais: [],
+    para: 'operador SEM vinculo: le tudo e nao escreve em lugar nenhum (falha segura)',
+  },
+  {
+    email: 'seed.consulta@wap.ind.br',
+    primeiro_nome: 'Elisa',
+    sobrenome: 'Ficticia',
+    papel: 'consulta',
+    ativo: true,
+    filiais: [],
+    para: 'consulta: nenhum botao de escrita em tela nenhuma',
+  },
+  {
+    email: 'seed.desativado@wap.ind.br',
+    primeiro_nome: 'Fabio',
+    sobrenome: 'Ficticio',
+    papel: 'operador',
+    ativo: false,
+    filiais: ['matriz'],
+    para: 'DESATIVADO (ativo=false): cai no login no request seguinte, mesmo com vinculo',
+  },
+]
+
+type PerfilCriado = { email: string; id: string; perfil: PerfilSeed; novo: boolean }
+
+// Acoes de auditoria (`eventos_admin`, migration 0065). Vocabulario fechado em
+// `src/lib/auditoria.ts` — repetido aqui pelo mesmo motivo dos cargos. Estas linhas
+// dao conteudo a aba "Auditoria" de /admin/usuarios em DEV; o `reset` as apaga,
+// porque e o seed quem as cria.
+type AcaoSeed =
+  | 'convite_gerado'
+  | 'papel_alterado'
+  | 'vinculos_alterados'
+  | 'usuario_desativado'
+  | 'senha_criada'
+  | 'import_executado'
+
+// A trilha e insert-only e sem update/delete no banco: o app so acrescenta linhas.
+// `detalhe` NUNCA guarda segredo (nem hash, nem token) — regra do comment da coluna.
+const EVENTOS_SEED: {
+  acao: AcaoSeed
+  alvo: string
+  detalhe: Record<string, unknown> | null
+  data: string
+}[] = [
+  { acao: 'convite_gerado', alvo: 'seed.consulta@wap.ind.br', detalhe: { papel: 'consulta' }, data: '2026-06-10' },
+  { acao: 'papel_alterado', alvo: 'seed.operador.matriz@wap.ind.br', detalhe: { de: 'admin', para: 'operador' }, data: '2026-06-18' },
+  { acao: 'vinculos_alterados', alvo: 'seed.operador.duas@wap.ind.br', detalhe: { filiais: ['linhares', 'serra'] }, data: '2026-06-25' },
+  { acao: 'senha_criada', alvo: 'Parceiro (ficticio)', detalhe: null, data: '2026-07-01' },
+  { acao: 'usuario_desativado', alvo: 'seed.desativado@wap.ind.br', detalhe: { motivo: 'saiu da equipe (ficticio)' }, data: '2026-07-02' },
+  { acao: 'import_executado', alvo: 'matriz', detalhe: { criados: 809, apagados: 0 }, data: '2026-07-03' },
+]
+
+// Cria (ou reaproveita) as contas, reescreve papel/nome/ativo e refaz os vinculos.
+// Devolve a lista, para o sumario e para escolher o autor das movimentacoes.
+async function garantirPerfisSeed(
+  db: ReturnType<typeof createAdminClient>,
+  filialIdBySlug: Map<string, number>,
+): Promise<PerfilCriado[]> {
+  // Uma leitura so: a lista de contas do projeto de ensaio e minuscula.
+  const { data: lista, error: listErr } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  if (listErr) throw new Error(`Nao consegui listar as contas do Auth: ${listErr.message}`)
+  const idPorEmail = new Map<string, string>()
+  for (const u of lista?.users ?? []) {
+    if (u.email) idPorEmail.set(u.email.toLowerCase(), u.id)
+  }
+
+  const criados: PerfilCriado[] = []
+  for (const p of PERFIS_SEED) {
+    const jaExiste = idPorEmail.get(p.email.toLowerCase())
+    let id = jaExiste
+    if (!id) {
+      // `email_confirm: true` evita o passo de confirmacao por e-mail (que este
+      // projeto nao usa: a entrada e por link de convite). O trigger
+      // `handle_new_user` cria o profile e aplica a trava de dominio.
+      const { data, error } = await db.auth.admin.createUser({
+        email: p.email,
+        password: SENHA_PERFIS_SEED,
+        email_confirm: true,
+        user_metadata: { nome: p.primeiro_nome, sobrenome: p.sobrenome },
+      })
+      if (error || !data?.user) {
+        throw new Error(
+          `Nao consegui criar a conta ficticia ${p.email}: ${error?.message ?? 'resposta vazia'}. ` +
+            'Crie 1 conta @wap.ind.br a mao no projeto de ensaio e rode de novo.',
+        )
+      }
+      id = data.user.id
+    }
+
+    // `nome` e coluna GERADA (migration 0057) — escrever nela e erro; grava-se
+    // primeiro_nome/sobrenome. `papel`/`ativo` so o service role escreve (0063).
+    // O `.select()` no fim nao e enfeite: sem ele, um UPDATE que nao casa linha
+    // nenhuma (conta no Auth sem profile — nao deveria acontecer, o trigger cria)
+    // passaria em silencio e a conta ficaria com o cargo default 'operador'.
+    const { data: perfilGravado, error: upErr } = await db
+      .from('profiles')
+      .update({
+        primeiro_nome: p.primeiro_nome,
+        sobrenome: p.sobrenome,
+        papel: p.papel,
+        ativo: p.ativo,
+      })
+      .eq('id', id)
+      .select('id')
+    if (upErr) throw new Error(`Falha ao gravar o perfil de ${p.email}: ${upErr.message}`)
+    if (!perfilGravado || perfilGravado.length === 0) {
+      throw new Error(
+        `A conta ${p.email} existe no Auth mas nao tem perfil em profiles — nada foi gravado. ` +
+          'Confira o trigger handle_new_user no banco de ensaio.',
+      )
+    }
+
+    // Vinculos: apaga e reinsere, para o estado final nao depender do que havia
+    // antes (o backfill da 0061 pode ter vinculado a conta a TODAS as filiais).
+    const { error: delErr } = await db.from('operador_filiais').delete().eq('usuario_id', id)
+    if (delErr) throw new Error(`Falha ao limpar vinculos de ${p.email}: ${delErr.message}`)
+    if (p.filiais.length > 0) {
+      const rows = p.filiais.map((slug) => {
+        const filialId = filialIdBySlug.get(slug)
+        if (filialId === undefined) throw new Error(`Filial "${slug}" ausente (vinculo de ${p.email}).`)
+        return { usuario_id: id, filial_id: filialId }
+      })
+      const { error: insErr } = await db.from('operador_filiais').insert(rows)
+      if (insErr) throw new Error(`Falha ao vincular filiais de ${p.email}: ${insErr.message}`)
+    }
+
+    criados.push({ email: p.email, id: id!, perfil: p, novo: !jaExiste })
+  }
+
+  console.log(`[seed] perfis ficticios garantidos: ${criados.length} (senha: ${SENHA_PERFIS_SEED})`)
+  for (const c of criados) {
+    const filiais = c.perfil.filiais.length > 0 ? c.perfil.filiais.join('+') : '—'
+    console.log(
+      `        ${c.novo ? 'criado ' : 'reusado'}  ${c.perfil.papel.padEnd(9)} ${c.perfil.ativo ? 'ativo     ' : 'DESATIVADO'} ${filiais.padEnd(18)} ${c.email}`,
+    )
+  }
+  return criados
+}
+
+// Linhas ficticias na trilha de auditoria, para a aba "Auditoria" renderizar em DEV.
+// O autor e sempre o admin do seed; uma linha fica SEM autor de proposito, que e o
+// caso "usuario removido" (a coluna e `on delete set null` justamente para isso).
+async function inserirEventosAdmin(
+  db: ReturnType<typeof createAdminClient>,
+  autorId: string,
+): Promise<number> {
+  const rows = EVENTOS_SEED.map((e, i) => ({
+    quando: `${e.data}T13:${String(10 + i).padStart(2, '0')}:00Z`,
+    autor: e.acao === 'import_executado' ? null : autorId, // 1 linha sem autor
+    acao: e.acao,
+    alvo: e.alvo,
+    detalhe: e.detalhe,
+  }))
+  const { error } = await db.from('eventos_admin').insert(rows)
+  if (error) throw new Error(`Insert de eventos_admin falhou: ${error.message}`)
+  console.log(`[seed] ${rows.length} eventos de auditoria ficticios inseridos.`)
+  return rows.length
+}
+
 // ============================ SUMARIO =============================
 
 function pct(n: number, total: number): number {
@@ -1113,6 +1352,25 @@ async function sumario(
   console.log('==================================================\n')
 }
 
+// Roteiro pronto de teste manual dos cargos — o que o Johnny precisa ter na mao
+// para conferir a F21 na tela em 5 minutos, sem procurar e-mail nem senha.
+function sumarioPerfis(perfis: PerfilCriado[]) {
+  console.log('=========== CONTAS FICTICIAS (CARGOS — F21) ===========')
+  console.log(`Senha de todas: ${SENHA_PERFIS_SEED}`)
+  for (const c of perfis) {
+    const filiais = c.perfil.filiais.length > 0 ? c.perfil.filiais.join(' + ') : 'nenhuma'
+    console.log(`  ${c.email}`)
+    console.log(
+      `      cargo ${c.perfil.papel} · ${c.perfil.ativo ? 'ativo' : 'DESATIVADO'} · filiais de escrita: ${filiais}`,
+    )
+    console.log(`      ${c.perfil.para}`)
+  }
+  console.log('Como conferir: logue com cada uma e olhe o menu (Administracao so no admin),')
+  console.log('o botao amarelo do cabecalho (nao existe para consulta) e o seletor de filial')
+  console.log('das telas de registro (so as vinculadas). O desativado cai no login.')
+  console.log('======================================================\n')
+}
+
 // ============================ MAIN =============================
 
 async function main() {
@@ -1137,23 +1395,21 @@ async function main() {
     if (!filialIdBySlug.has(slug)) throw new Error(`Filial "${slug}" ausente (esperada pela 0007).`)
   }
 
-  const { data: profs, error: pErr } = await db
-    .from('profiles')
-    .select('id')
-    .order('id', { ascending: true })
-    .limit(1)
-  if (pErr) throw new Error(`Nao consegui ler profiles: ${pErr.message}`)
-  if (!profs || profs.length === 0) {
-    throw new Error('Nenhum profile (operador). Crie 1 operador @wap.ind.br no DEV antes do seed.')
-  }
-  const criadoPor = (profs[0] as { id: string }).id
-
   // Banco precisa estar vazio (determinismo). Rode `npm run db:reset` antes.
+  // Antes de QUALQUER escrita: uma rodada acidental aborta sem criar conta nenhuma.
   const { count, error: cErr } = await db.from('ativos').select('id', { count: 'exact', head: true })
   if (cErr) throw new Error(`Nao consegui contar ativos: ${cErr.message}`)
   if ((count ?? 0) > 0) {
     throw new Error(`Ja existem ${count} ativos. Rode "npm run db:reset" antes de "npm run db:seed".`)
   }
+
+  // F21: as contas ficticias dos tres cargos (com vinculos variados). Idempotente.
+  // O AUTOR das movimentacoes e o admin do seed — antes era "o primeiro profile do
+  // banco", que dependia da ordem dos ids e podia cair numa conta real do ensaio.
+  const perfis = await garantirPerfisSeed(db, filialIdBySlug)
+  const admin = perfis.find((p) => p.perfil.papel === 'admin')
+  if (!admin) throw new Error('Nenhum perfil admin no seed (PERFIS_SEED sem cargo admin?).')
+  const criadoPor = admin.id
 
   console.log('[seed] gerando dados ficticios (deterministico)...')
   const ativos = gerarAtivos(filialIdBySlug)
@@ -1171,7 +1427,11 @@ async function main() {
   const totalLanc = await inserirLancamentos(db, lancRows, criadoPor)
   const totalAnot = await inserirAnotacoes(db, criadoPor)
 
+  // F21: trilha de auditoria ficticia (a aba "Auditoria" de /admin/usuarios).
+  await inserirEventosAdmin(db, criadoPor)
+
   await sumario(db, slugById, totalMov, itens.length, totalLanc, totalAnot)
+  sumarioPerfis(perfis)
   console.log('[seed] concluido.')
 }
 

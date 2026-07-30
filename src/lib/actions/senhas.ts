@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirAdmin } from '@/lib/auth/acesso'
+import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { type ActionResult } from '@/lib/actions/erros'
 import { criarSenhaSchema } from '@/lib/validators/senha'
 import {
@@ -113,14 +114,22 @@ export async function sairVisualizacao() {
   redirect('/relatorios/acesso')
 }
 
-// ---- Gestão das senhas (admin) ----
+// ---- Gestão das senhas (SÓ ADMIN — F21) ----
+//
+// Estas duas actions falam com `senhas_acesso` pelo client de SERVICE ROLE, e é a única
+// forma possível: a tabela está em deny-all para `anon`/`authenticated` desde a migration
+// 0012 (zero policies), justamente para a coluna `hash` nunca chegar a um client de
+// sessão — RLS é row-level, não column-level. Ou seja, o service role passa por fora de
+// qualquer policy: sem `exigirAdmin()` aqui, QUALQUER logado (inclusive o cargo consulta)
+// criaria e revogaria senhas de acesso. É a camada de action que é o controle real neste
+// caminho, não o banco (ADR-002 §4.1).
 export async function criarSenhaAcesso(input: {
   rotulo: string
   senha: string
 }): Promise<ActionResult> {
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const parsed = criarSenhaSchema.safeParse(input)
   if (!parsed.success) {
@@ -132,9 +141,17 @@ export async function criarSenhaAcesso(input: {
   const { error } = await admin.from('senhas_acesso').insert({
     rotulo: parsed.data.rotulo,
     hash,
-    criado_por: uid,
+    criado_por: aut.uid,
   })
   if (error) return { ok: false, erro: 'Não foi possível criar a senha.' }
+
+  // Trilha de auditoria: só o RÓTULO da senha. O hash (e obviamente a senha em claro)
+  // JAMAIS entram em `detalhe` — `eventos_admin` é legível por todo admin.
+  await registrarEventoAdmin({
+    acao: 'senha_criada',
+    autor: aut.uid,
+    alvo: parsed.data.rotulo,
+  })
 
   revalidatePath('/admin/senhas')
   return { ok: true }
@@ -145,18 +162,30 @@ export async function definirStatusSenha(
   ativa: boolean,
 ): Promise<ActionResult> {
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   if (!z.string().uuid().safeParse(id).success) {
     return { ok: false, erro: 'Senha inválida.' }
   }
 
   const admin = createAdminClient()
-  const { error } = await admin
+  // `.select('rotulo')` no próprio update: dá o alvo legível da trilha sem uma segunda
+  // consulta — e sem passar perto da coluna `hash`.
+  const { data, error } = await admin
     .from('senhas_acesso')
     .update({ ativa })
     .eq('id', id)
+    .select('rotulo')
+    .maybeSingle()
   if (error) return { ok: false, erro: 'Não foi possível atualizar a senha.' }
+
+  await registrarEventoAdmin({
+    acao: ativa ? 'senha_reativada' : 'senha_revogada',
+    autor: aut.uid,
+    // Sem rótulo (linha inexistente), o id é melhor que nada: a trilha nunca perde a linha.
+    alvo: data?.rotulo ?? id,
+  })
 
   revalidatePath('/admin/senhas')
   return { ok: true }

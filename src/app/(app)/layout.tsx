@@ -13,6 +13,7 @@ import { AtalhosGlobais } from '@/components/movimentacoes/atalho-global'
 import { PaletaComandosProvider } from '@/components/layout/paleta-comandos'
 import { INDICE_PALETA } from '@/lib/ajuda/indice'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { eAdmin, podeEscrever } from '@/lib/auth/papeis'
 
 // Shell do grupo (app). Três modos (spec §3 / OS-F3 3.9.4):
 //  - Público: /relatorios/acesso (entrada por senha) — sem shell.
@@ -39,26 +40,44 @@ export default async function AppLayout({
     // senha, e antecipar a chamada derrubaria o shell dos relatórios. Sem
     // realtime: atualiza a cada navegação.
     const pendencias = await contarPendenciasAbertas()
+    // F21 — o CARGO é resolvido UMA vez, aqui, e desce por prop para o shell
+    // inteiro (header, sidebar, paleta, atalhos). Nada de cada peça consultar o
+    // banco outra vez: `getOperador()` já traz papel + filiais de escrita.
+    // Os dois booleanos são o que a UI de fato pergunta — o vínculo por filial
+    // só interessa às TELAS, que resolvem o operador por conta própria.
+    const escreve = podeEscrever(operador.papel)
+    const admin = eAdmin(operador.papel)
     return (
       <TooltipProvider delayDuration={300}>
         <ProgressoNavegacaoProvider>
           <BarraProgressoNavegacao />
           {/* Atalhos `N` e `?` + paleta Ctrl+K / "/" — SÓ neste ramo (operador).
               O ramo do visualizador por senha, mais abaixo, não monta nenhum dos
-              dois: ele só enxerga /relatorios/** e não tem para onde navegar. */}
-          <AtalhosGlobais />
+              dois: ele só enxerga /relatorios/** e não tem para onde navegar.
+              `N` leva a uma tela de ESCRITA: quem não escreve fica só com o `?`. */}
+          <AtalhosGlobais novaMovimentacao={escreve} />
           {/* F20: o índice da documentação é montado NO SERVIDOR e desce por
               prop. O registry é só-servidor (arrasta as constantes reais e o
               PapaParse); a paleta é Client Component e nunca pode importá-lo.
               Constante de módulo, e não chamada de função: este layout é o shell
               de TODAS as rotas do app e recomputá-lo a cada request seria
               normalizar as 33 páginas em toda tela. */}
-          <PaletaComandosProvider paginasAjuda={INDICE_PALETA}>
+          <PaletaComandosProvider
+            paginasAjuda={INDICE_PALETA}
+            podeEscrever={escreve}
+            eAdmin={admin}
+          >
             <div className="flex min-h-svh flex-col">
-              <AppHeader nome={operador.nome} pendencias={pendencias} />
+              <AppHeader
+                nome={operador.nome}
+                papel={operador.papel}
+                pendencias={pendencias}
+                podeEscrever={escreve}
+                eAdmin={admin}
+              />
               <div className="flex flex-1">
                 <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
-                  <SidebarNav pendencias={pendencias} />
+                  <SidebarNav pendencias={pendencias} eAdmin={admin} />
                 </aside>
                 <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
               </div>

@@ -27,12 +27,16 @@ const COL_OPERADOR = 'hidden xl:table-cell'
 // Lista de movimentações (F11 · M8). Server Component: nada aqui é interativo
 // além do tooltip da observação, que tem a própria fronteira `'use client'`.
 // Uma linha por movimentação, da mais recente para a mais antiga.
+// F21 — `podeRegistrar` (cargo ≥ operador) só decide se o estado vazio oferece o
+// atalho "Registrar a primeira": a lista em si é leitura, igual para todo cargo.
 export function ListaMovimentacoes({
   rows,
   temFiltro,
+  podeRegistrar = false,
 }: {
   rows: MovimentacaoLista[]
   temFiltro: boolean
+  podeRegistrar?: boolean
 }) {
   if (rows.length === 0) {
     return temFiltro ? (
@@ -46,7 +50,11 @@ export function ListaMovimentacoes({
         icone={ArrowLeftRight}
         titulo="Nenhuma movimentação registrada ainda"
         descricao="Toda saída, devolução, transferência ou manutenção aparece aqui assim que for registrada."
-        acao={{ href: '/movimentacoes/nova', rotulo: 'Registrar a primeira' }}
+        acao={
+          podeRegistrar
+            ? { href: '/movimentacoes/nova', rotulo: 'Registrar a primeira' }
+            : undefined
+        }
       />
     )
   }

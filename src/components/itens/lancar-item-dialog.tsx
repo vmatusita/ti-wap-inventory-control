@@ -36,6 +36,7 @@ import {
   descricaoTipoLancamento,
   type TipoLancamento,
 } from '@/lib/dominio'
+import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { EVENTO_LANCAR_ITEM } from './lancar-item-evento'
 import { ItemCombobox } from './item-combobox'
 import type { ItemCatalogo, UltimoLancamento } from '@/lib/queries/itens'
@@ -58,8 +59,12 @@ export function LancarItemDialog({
   filiais,
   ultimo,
   abrirAoMontar = false,
+  podeCriarItem = false,
 }: {
   itens: ItemCatalogo[]
+  // F21 — só as filiais em que este cargo ESCREVE (recorte feito na página). Com
+  // uma única filial vinculada, ela já entra pré-selecionada pelo `useState`
+  // abaixo; com nenhuma, o campo explica em vez de abrir um select vazio.
   filiais: Filial[]
   ultimo: UltimoLancamento | null
   // `?lancar=1` na URL (F12-W4-08): a paleta de comandos anuncia "Lançar item"
@@ -68,6 +73,10 @@ export function LancarItemDialog({
   // paleta existe para poupar. O param é lido no Server Component (que já
   // valida searchParams) e chega aqui como flag: nada de `useSearchParams`.
   abrirAoMontar?: boolean
+  // F21 — criar item no catálogo sem sair do lançamento é ESCRITA DE CATÁLOGO, e
+  // catálogo é só de admin (ADR-002 §3; `criarItemInline` exige `exigirAdmin`).
+  // Para operador o combobox continua escolhendo o que já existe.
+  podeCriarItem?: boolean
 }) {
   const router = useRouter()
   // `abrirAoMontar` entra no ESTADO INICIAL, não num efeito: a paleta navega
@@ -196,7 +205,14 @@ export function LancarItemDialog({
   function repetirUltimo() {
     if (!ultimo) return
     setLinhas([novaLinha(ultimo.item_id)])
-    setFilialId(ultimo.filial_id)
+    // F21 — o último lançamento pode ter sido feito numa filial que este cargo
+    // JÁ NÃO escreve (vínculo removido depois): repetir com ela deixaria o Select
+    // sem valor visível e o Zod barraria no envio sem dizer por quê. Mantém a
+    // filial atual e o operador escolhe. Mesma guarda que a memória de defaults
+    // da compra já fazia (`nova-compra-form`).
+    if (filiais.some((f) => f.id === ultimo.filial_id)) {
+      setFilialId(ultimo.filial_id)
+    }
     setTipo(ultimo.tipo)
     setChamado(ultimo.chamado ?? '')
     setColaborador(ultimo.colaborador ?? '')
@@ -356,6 +372,7 @@ export function LancarItemDialog({
                       onSelecionar={(id) => atualizarLinha(l.uid, { itemId: id })}
                       onItemCriado={itemCriado}
                       desabilitado={enviando}
+                      podeCriarItem={podeCriarItem}
                       descricaoAcessivel={`Item ${i + 1} do lançamento`}
                     />
                   </div>
@@ -410,21 +427,25 @@ export function LancarItemDialog({
               {/* F19 — o rótulo se liga ao gatilho por htmlFor/id (P1-2): sem
                   isso o Select só se anunciava pelo valor corrente. */}
               <Label htmlFor="lanc-filial">Filial</Label>
-              <Select
-                value={filialId ? String(filialId) : ''}
-                onValueChange={(v) => setFilialId(Number(v))}
-              >
-                <SelectTrigger id="lanc-filial" className="w-full">
-                  <SelectValue placeholder="Filial" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filiais.map((f) => (
-                    <SelectItem key={f.id} value={String(f.id)}>
-                      {f.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {filiais.length === 0 ? (
+                <AvisoSemFilialDeEscrita />
+              ) : (
+                <Select
+                  value={filialId ? String(filialId) : ''}
+                  onValueChange={(v) => setFilialId(Number(v))}
+                >
+                  <SelectTrigger id="lanc-filial" className="w-full">
+                    <SelectValue placeholder="Filial" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filiais.map((f) => (
+                      <SelectItem key={f.id} value={String(f.id)}>
+                        {f.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="lanc-tipo">Tipo</Label>

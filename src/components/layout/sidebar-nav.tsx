@@ -21,6 +21,9 @@ type NavItem = {
   icone: LucideIcon
   href?: string // sem href = placeholder (fase futura)
   match?: string // prefixo p/ marcar "ativo" (default: href)
+  // F21 — item que só o cargo Admin vê. A trava real é o `admin/layout.tsx`
+  // (redireciona não-admin) + as actions e o RLS; aqui é só não oferecer.
+  soAdmin?: boolean
 }
 
 const ITENS: NavItem[] = [
@@ -33,7 +36,13 @@ const ITENS: NavItem[] = [
   { rotulo: 'Itens', icone: Boxes, href: '/itens' },
   { rotulo: 'Pendências', icone: ClipboardList, href: '/pendencias' },
   { rotulo: 'Relatórios', icone: BarChart3, href: '/relatorios/geral', match: '/relatorios' },
-  { rotulo: 'Administração', icone: Settings, href: '/admin/usuarios', match: '/admin' },
+  {
+    rotulo: 'Administração',
+    icone: Settings,
+    href: '/admin/usuarios',
+    match: '/admin',
+    soAdmin: true,
+  },
   { rotulo: 'Ajuda', icone: CircleHelp, href: '/ajuda' },
 ]
 
@@ -43,23 +52,28 @@ function ativa(pathname: string, item: NavItem): boolean {
   return pathname === alvo || pathname.startsWith(`${alvo}/`) || pathname === item.href
 }
 
-// Navegacao lateral. Nivel unico: todo operador ve os mesmos itens.
+// Navegacao lateral. F21: os itens de OPERAÇÃO são os mesmos para os três cargos
+// (todo logado LÊ tudo — ADR-001/ADR-002); só "Administração" é exclusiva do
+// Admin. `eAdmin` vem do `(app)/layout.tsx`, que resolve o cargo uma vez.
 // `pendencias` (OS-F9 / T2): contagem vinda do layout do operador (server-side, a
 // cada navegacao — sem realtime). Zero ou ausente = sem badge.
 export function SidebarNav({
   className,
   onNavigate,
   pendencias,
+  eAdmin = false,
 }: {
   className?: string
   onNavigate?: () => void
   pendencias?: number
+  eAdmin?: boolean
 }) {
   const pathname = usePathname()
+  const itens = eAdmin ? ITENS : ITENS.filter((i) => !i.soAdmin)
 
   return (
     <nav className={cn('flex flex-col gap-1', className)}>
-      {ITENS.map((item) => {
+      {itens.map((item) => {
         if (!item.href) {
           return (
             <span

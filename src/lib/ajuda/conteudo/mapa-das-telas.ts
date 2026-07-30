@@ -1,4 +1,5 @@
 import { STATUS_META } from '@/lib/dominio'
+import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 // O mapa da casa: menu, cabecalho, painel inicial, o "?" de cada tela, a propria
@@ -41,8 +42,19 @@ export const mapaDasTelas: PaginaAjuda = {
         ['Itens', 'Os saldos dos itens contados por quantidade e o histórico de lançamentos.'],
         ['Pendências', 'A fila do que precisa de ação: termo, itens faltantes, triagem e regularizações.'],
         ['Relatórios', 'O relatório ao vivo por filial e os relatórios gerados da semana.'],
-        ['Administração', 'Os cadastros de apoio: usuários, senhas de acesso, filiais, motivos, kits, itens e o import.'],
+        ['Administração', `Os cadastros de apoio: usuários, senhas de acesso, filiais, motivos, kits, itens e o import. Aparece só para o cargo ${PAPEL_ROTULO.admin}.`],
         ['Ajuda', 'Esta documentação.'],
+      ],
+    },
+    { tipo: 'titulo', id: 'mapa-cargos', texto: 'O que o seu cargo muda na tela' },
+    {
+      tipo: 'lista',
+      itens: [
+        `Todas as telas de consulta são iguais para os três cargos: as listas, as fichas, os saldos, os relatórios e esta documentação abrem para ${PAPEL_ROTULO.admin}, ${PAPEL_ROTULO.operador} e ${PAPEL_ROTULO.consulta}, nas cinco filiais.`,
+        `"Administração" no menu é o único item que some: ele existe só para ${PAPEL_ROTULO.admin}.`,
+        `${PAPEL_ROTULO.consulta} não vê botão de registrar em tela nenhuma — nem o botão amarelo do cabeçalho, nem "Novo equipamento", "Lançar item", "Anotar", "Estornar", "Resolver" ou "Gerar relatório" — e os atalhos e comandos que registram também não respondem. O que ele vê é o sistema em modo leitura.`,
+        `${PAPEL_ROTULO.operador} vê todos esses botões, e a lista de filiais das telas de registro oferece só as filiais em que ele escreve. Nos filtros de consulta, as cinco continuam lá.`,
+        'Mudou o seu cargo agora? O próximo carregamento de tela já mostra a diferença — não é preciso sair e entrar de novo.',
       ],
     },
     { tipo: 'titulo', id: 'mapa-cabecalho', texto: 'A barra de cima' },
@@ -50,7 +62,7 @@ export const mapaDasTelas: PaginaAjuda = {
       tipo: 'lista',
       itens: [
         'A lupa "Buscar ativos e comandos (Ctrl K)" abre a busca global — a mesma coisa que o Ctrl+K faz.',
-        'O botão amarelo "Nova movimentação" está em toda tela, com a dica da tecla N ao lado. No celular ele fica só com o sinal de mais.',
+        `O botão amarelo "Nova movimentação" está em toda tela de quem registra, com a dica da tecla N ao lado. No celular ele fica só com o sinal de mais. Quem tem o cargo ${PAPEL_ROTULO.consulta} não o tem.`,
         'O avatar, no canto direito, abre o menu do usuário: o seu nome, o seletor "Tema" e o "Sair".',
         'No celular não há menu lateral fixo: o botão "Abrir menu", à esquerda, traz o mesmo menu numa gaveta.',
         'O item "Pendências" do menu carrega um selo âmbar com quantas estão abertas. A contagem se refaz a cada navegação e o selo some quando zera.',
@@ -96,7 +108,7 @@ export const mapaDasTelas: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'O ícone "?" ao lado do título de uma tela abre direto a página desta documentação que descreve aquela tela — não o índice, e sim a página certa. Ele existe no painel inicial, em Ativos, na ficha de um ativo, em "Novo equipamento", em Movimentações, em "Nova movimentação", em "Devolução ao fornecedor", em Itens, em Pendências, no relatório ao vivo, em "Relatórios gerados" e no cabeçalho de Administração, que vale para as sete abas — as abas com matéria própria (Usuários, Senhas de acesso, Kits e Importar) trazem um segundo, ao lado do texto de abertura. Não há "?" na tela de um relatório já congelado nem nas telas públicas (login e entrada por senha). E nas duas telas de relatório que o visualizador por senha também abre — o relatório ao vivo e "Relatórios gerados" — ele só aparece para quem entrou como operador: esta documentação é do operador, e quem estivesse ali com uma senha de acesso cairia na tela de login.',
+        'O ícone "?" ao lado do título de uma tela abre direto a página desta documentação que descreve aquela tela — não o índice, e sim a página certa. Ele existe no painel inicial, em Ativos, na ficha de um ativo, em "Novo equipamento", em Movimentações, em "Nova movimentação", em "Devolução ao fornecedor", em Itens, em Pendências, no relatório ao vivo, em "Relatórios gerados" e no cabeçalho de Administração, que vale para as sete abas — as abas com matéria própria (Usuários, Senhas de acesso, Kits e Importar) trazem um segundo, ao lado do texto de abertura. Não há "?" na tela de um relatório já congelado nem nas telas públicas (login e entrada por senha). E nas duas telas de relatório que o visualizador por senha também abre — o relatório ao vivo e "Relatórios gerados" — ele só aparece para quem entrou como operador (isto é, com login — em qualquer cargo): esta documentação é de quem tem conta, e quem estivesse ali com uma senha de acesso cairia na tela de login.',
     },
     {
       tipo: 'lista',
@@ -118,6 +130,7 @@ export const mapaDasTelas: PaginaAjuda = {
         'Digite a partir de 2 letras: a busca acha o ativo por patrimônio, service tag, hostname, marca, modelo ou nome do colaborador. As setas ↑ ↓ andam pela lista, Enter abre a ficha do ativo escolhido e Esc fecha. Quando o patrimônio repete em dois equipamentos, a service tag aparece na linha para desempatar.',
         'A mesma caixa também leva para as telas ("Ir para Pendências") e dispara ações ("Nova movimentação", "Lançar item") — tudo sem tirar a mão do teclado.',
         'Os atalhos globais são três: N abre uma nova movimentação, ? abre esta ajuda e, na página Itens, L abre o lançamento. Nenhum deles dispara enquanto você digita num campo; o N e o "?" também ficam calados com uma janela de confirmação aberta — o L é a exceção, ele responde mesmo com uma confirmação na tela.',
+        `Os dois atalhos que REGISTRAM (o N e o L) e os comandos de ação da busca global existem só para quem pode registrar: com o cargo ${PAPEL_ROTULO.consulta} eles não respondem, e a busca continua achando ativos, telas e páginas desta documentação. O "?" é de todos os cargos.`,
         'O ícone "?" ao lado do título da tela abre a página desta documentação que fala daquela tela; a tecla ? leva ao índice.',
         'Nada disso existe para quem entra só com a senha de acesso dos relatórios — busca e atalhos são do operador.',
       ],

@@ -31,6 +31,7 @@ import {
   type CampoMovimentacao,
   type RegraCampo,
 } from '@/lib/validators/movimentacao'
+import { PAPEIS, PAPEL_DESCRICAO, PAPEL_ROTULO } from '@/lib/auth/papeis'
 import type { Verbete, VerbeteMovimentacao } from '@/lib/ajuda/tipos'
 
 export function verbetesStatus(descricoes: Record<StatusAtivo, string>): Verbete[] {
@@ -71,6 +72,21 @@ export function verbetesTipoLancamento(): Verbete[] {
     chave: t,
     rotulo: TIPO_LANCAMENTO_META[t].rotulo,
     descricao: TIPO_LANCAMENTO_META[t].descricao,
+  }))
+}
+
+// Os CARGOS (F21). Rótulo E descrição vêm de `src/lib/auth/papeis.ts` — mesma
+// exceção de `verbetesTipoLancamento`: o vocabulário de cargo já nasce escrito
+// em prosa de operador lá (é o texto que a tela de usuários mostra ao lado de
+// cada cargo), então redigitá-lo aqui criaria uma segunda versão do mesmo texto
+// para dessincronizar. A ordem é a de `PAPEIS`: do cargo mais forte ao mais
+// fraco, que é como a hierarquia se lê. Cargo novo no enum do banco aparece na
+// documentação sozinho, no mesmo build.
+export function verbetesCargo(): Verbete[] {
+  return PAPEIS.map((p) => ({
+    chave: p,
+    rotulo: PAPEL_ROTULO[p],
+    descricao: PAPEL_DESCRICAO[p],
   }))
 }
 

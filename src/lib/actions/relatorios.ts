@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { idOperador } from '@/lib/auth/acesso'
+import { exigirPapel } from '@/lib/auth/acesso'
 import { createClient } from '@/lib/supabase/server'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { formatDate, hojeISO } from '@/lib/format'
@@ -27,8 +27,8 @@ const periodoSchema = z.object({
 
 // Gera o relatório da semana (snapshot congelado — spec §7.1 / OS-F3 3.8.2 /
 // F3B 3.10.1: grava o objeto schema 2, com as-of do período).
-// SÓ operador logado. Calcula o snapshot, versiona (max+1 para o mesmo período+
-// filial) e insere. Imutável — regerar cria versão nova.
+// Cargo mínimo OPERADOR (F21). Calcula o snapshot, versiona (max+1 para o mesmo
+// período+filial) e insere. Imutável — regerar cria versão nova.
 export type GerarRelatorioResult =
   | { ok: true; id: string; versao: number }
   | { ok: false; erro: string }
@@ -59,10 +59,15 @@ export async function gerarRelatorio(input: {
   }
 
   const client = await createClient()
-  const uid = await idOperador(client)
-  if (!uid) {
-    return { ok: false, erro: 'Apenas operadores logados podem gerar relatórios.' }
-  }
+  // Cargo mínimo OPERADOR, SEM recorte de filial — inclusive para o consolidado
+  // ('geral', `filial_id` null). É o que a policy de INSERT de `relatorios_gerados`
+  // diz (`papel_atual() in ('admin','operador')`, migration 0063) e o que a ADR-002 §3
+  // prevê: congelar snapshot é registrar o que já se pode LER, e leitura é ampla para
+  // todo logado. Consulta é recusado com a mensagem única de somente-leitura, no lugar
+  // do texto próprio que esta action tinha ('Apenas operadores logados…') — era a única
+  // do repositório fora das constantes de `auth/acesso`.
+  const aut = await exigirPapel(client, 'operador')
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const filial =
     filialSlug === 'geral' ? null : await resolverFilialPorSlug(client, filialSlug)
@@ -115,7 +120,7 @@ export async function gerarRelatorio(input: {
       filial_id: filialId,
       versao,
       dados: snapshot as unknown as Json,
-      gerado_por: uid,
+      gerado_por: aut.uid,
       observacao: obs,
     })
     .select('id')

@@ -10,12 +10,18 @@ import type { PendenciaItemFicha as Pendencia } from '@/lib/queries/pendencias-i
 // destaque, com Resolver visível SEM clique; resolvidas como auditoria
 // (desfecho/quem/quando) — a resolvida NÃO some da ficha, só da fila. Server
 // Component (embute o diálogo client); não renderiza nada se não houver nenhuma.
+//
+// F21 — `podeResolver` vem da ficha (cargo × filial do ativo). Sem ele, o bloco
+// continua VISÍVEL (a pendência é informação, e todo cargo lê tudo): só o botão
+// "Resolver" sai, porque resolver é escrita.
 export function PendenciasItemFicha({
   patrimonio,
   pendencias,
+  podeResolver,
 }: {
   patrimonio: string | null
   pendencias: Pendencia[]
+  podeResolver: boolean
 }) {
   if (pendencias.length === 0) return null
   const abertas = pendencias.filter((p) => p.status === 'aberta')
@@ -42,16 +48,18 @@ export function PendenciasItemFicha({
                 </span>
               </div>
             </div>
-            <ResolverPendenciaItemDialog
-              ids={[p.id]}
-              resumo={`${rotuloAcessorio(p.item)}${patrimonio ? ' · ' + patrimonio : ''}`}
-              trigger={
-                <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                  <PackageCheck className="size-3.5" />
-                  Resolver
-                </Button>
-              }
-            />
+            {podeResolver && (
+              <ResolverPendenciaItemDialog
+                ids={[p.id]}
+                resumo={`${rotuloAcessorio(p.item)}${patrimonio ? ' · ' + patrimonio : ''}`}
+                trigger={
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                    <PackageCheck className="size-3.5" />
+                    Resolver
+                  </Button>
+                }
+              />
+            )}
           </div>
         ))}
         {resolvidas.map((p) => (

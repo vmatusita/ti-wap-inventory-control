@@ -2,6 +2,7 @@ import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
 import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
+import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import { TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
@@ -342,15 +343,44 @@ export const mensagensDeErro: PaginaAjuda = {
         ],
       ],
     },
-    { tipo: 'titulo', id: 'erros-sessao', texto: 'Sessão, login e acesso' },
+    { tipo: 'titulo', id: 'erros-sessao', texto: 'Sessão, cargo e acesso' },
+    {
+      tipo: 'nota',
+      texto: `Recusa de CARGO não se resolve entrando de novo. As quatro primeiras mensagens da tabela abaixo falam do que o seu cargo (ou a sua lista de filiais) permite: relogar não muda nada, quem muda é um ${PAPEL_ROTULO.admin} na tela de usuários. As de sessão, sim, se resolvem com um login novo. Em todos os casos nada foi gravado.`,
+    },
     {
       tipo: 'tabela',
       colunas: COLUNAS,
       linhas: [
         [
-          'Sem permissão para esta operação. Faça login novamente.',
-          'A sessão caiu ou perdeu a validade no meio da ação. A gravação não aconteceu.',
-          'Entre de novo com o seu e-mail corporativo e repita a ação. Se você tinha um lote montado, ele continua naquela aba.',
+          'Seu cargo é de consulta (somente leitura): você pode consultar tudo, mas não registrar alterações.',
+          `Você tem o cargo ${PAPEL_ROTULO.consulta} e tentou gravar algo — normalmente por um endereço aberto direto, porque a tela não mostra o botão.`,
+          `Continue consultando à vontade. Se registrar passou a ser sua função, peça a um ${PAPEL_ROTULO.admin} para mudar o seu cargo.`,
+        ],
+        [
+          'Esta ação é restrita a administradores.',
+          `A ação é da Administração (usuários, senhas de acesso, filiais, motivos, kits, catálogo de itens, import) e o seu cargo não é ${PAPEL_ROTULO.admin}.`,
+          `Peça a um ${PAPEL_ROTULO.admin}. Entrar de novo não muda o cargo.`,
+        ],
+        [
+          'Você não tem permissão de escrita nesta filial. Fale com um administrador.',
+          `Seu cargo é ${PAPEL_ROTULO.operador} e aquela filial não está na sua lista de filiais de escrita. Quando o sistema sabe o nome, ele o diz na mensagem ("na filial Matriz").`,
+          `Registre na filial em que você atua, ou peça a um ${PAPEL_ROTULO.admin} para incluir a filial na sua lista.`,
+        ],
+        [
+          'O lote inclui filial em que você não tem permissão de escrita. Fale com um administrador.',
+          'O lote juntou equipamentos de filiais diferentes e você não escreve em uma delas. O lote é recusado INTEIRO, nunca pela metade.',
+          'Tire do lote o que não é da sua filial e registre o resto; o que sobrou vai para quem opera a outra filial.',
+        ],
+        [
+          'Sem permissão para esta operação: seu cargo ou suas filiais de escrita não permitem. Se seu acesso mudou agora, recarregue a página; se não, fale com um administrador.',
+          'O próprio banco recusou a gravação por cargo ou filial — é a segunda linha de defesa, que aparece quando a tela ainda mostrava um botão que o seu acesso já não permite (por exemplo, o cargo mudou enquanto você estava com a tela aberta).',
+          'Recarregue a página: a tela volta com o que o seu acesso atual permite. Se o botão continuar lá e a recusa se repetir, avise o TI.',
+        ],
+        [
+          'Seu acesso foi desativado. Fale com um administrador.',
+          'A conta foi desativada na tela de usuários. Nada é gravado, e no carregamento seguinte de tela você cai no login.',
+          'Se foi engano, um administrador reativa a conta e o acesso volta no carregamento seguinte — o cargo e as filiais continuam os mesmos.',
         ],
         [
           'Sua sessão expirou. Faça login novamente.',
@@ -411,6 +441,7 @@ export const mensagensDeErro: PaginaAjuda = {
         { slug: 'problemas-import-e-acesso' },
         { slug: 'tipos-de-movimentacao', texto: 'Que campos cada tipo exige' },
         { slug: 'limites-e-atalhos', texto: 'Os tetos de cada lote' },
+        { slug: 'acesso-e-sessoes', ancora: 'acesso-cargos', texto: 'O que cada cargo pode registrar' },
       ],
     },
   ],

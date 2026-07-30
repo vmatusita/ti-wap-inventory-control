@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { PAGINAS, ancorasDaPagina, paginaPorSlug } from '@/lib/ajuda/registry'
 import { textoDaPagina } from '@/lib/ajuda/indice'
@@ -14,6 +16,13 @@ import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
 import { CAP_EXPORT } from '@/lib/csv'
 import { TAMANHOS_PAGINA, TAMANHO_PAGINA_PADRAO } from '@/lib/ativos/lista'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
+import {
+  PAPEIS,
+  PAPEL_DESCRICAO,
+  PAPEL_ROTULO,
+  type PapelUsuario,
+} from '@/lib/auth/papeis'
+import { ACOES_ADMIN, ACAO_ROTULO } from '@/lib/auditoria'
 import { TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
 
 // Testes de COMPLETUDE da frente "consultas, itens, pendências e administração"
@@ -459,7 +468,76 @@ describe('operadores e senhas de acesso', () => {
 
   it('não inventa auto-cadastro: só os domínios corporativos entram', () => {
     contem('usuarios-e-senhas', DOMINIOS_TEXTO)
-    contem('usuarios-e-senhas', 'mesmo nível de acesso')
+  })
+
+  // F21 — o convite deixou de ser "dar acesso a tudo": ele carrega CARGO e, no
+  // caso do operador, as filiais de escrita. As quatro asserções abaixo
+  // substituem a antiga "mesmo nível de acesso" (que a spec §3.1 revogou) e
+  // cobram mais: o vocabulário derivado, o mínimo de uma filial, o efeito da
+  // desativação e a trilha de auditoria.
+  it('o convite carrega cargo e filiais, com o rótulo derivado de papeis.ts', () => {
+    for (const p of PAPEIS) contem('usuarios-e-senhas', PAPEL_ROTULO[p])
+    const g = pagina('usuarios-e-senhas').blocos.find(
+      (b): b is Extract<Bloco, { tipo: 'glossario' }> => b.tipo === 'glossario',
+    )
+    expect(g, 'o glossário de cargos sumiu da tela de usuários').toBeDefined()
+    expect(g!.itens.map((v) => v.chave)).toEqual([...PAPEIS])
+    for (const v of g!.itens) {
+      expect(v.rotulo).toBe(PAPEL_ROTULO[v.chave as PapelUsuario])
+      expect(v.descricao).toBe(PAPEL_DESCRICAO[v.chave as PapelUsuario])
+    }
+    const src = readFileSync(
+      join(process.cwd(), 'src', 'lib', 'ajuda', 'conteudo', 'usuarios-e-senhas.ts'),
+      'utf8',
+    )
+    expect(src).toContain('verbetesCargo')
+    expect(src, 'rótulo de cargo digitado à mão').not.toContain(`'${PAPEL_ROTULO.admin}'`)
+    // A afirmação do modelo antigo não volta por descuido.
+    expect(texto('usuarios-e-senhas')).not.toContain(normalizarBusca('mesmo nível de acesso'))
+  })
+
+  it('exige ao menos uma filial para o cargo operador (o mesmo que o Zod cobra)', () => {
+    contem('usuarios-e-senhas', 'sem nenhuma marcada o convite não é aceito')
+    contem('usuarios-e-senhas', 'ao menos uma filial de escrita')
+  })
+
+  it('documenta editar cargo, desativar/reativar e as travas de autoproteção', () => {
+    const titulos = titulosDePassos('usuarios-e-senhas')
+    expect(titulos).toContain('Mudar o cargo ou as filiais de escrita')
+    expect(titulos).toContain('Desativar o acesso de alguém que saiu')
+    // Rótulos reais da tela de usuários (`components/admin/usuarios/**`): se um
+    // deles mudar lá, este assert cai e o guia é reescrito no mesmo commit.
+    for (const rotulo of [
+      'Editar',
+      'Cargo e filiais de escrita',
+      'Filiais de escrita',
+      'Desativar',
+      'Reativar',
+      'Auditoria',
+    ]) {
+      contem('usuarios-e-senhas', rotulo)
+    }
+    contem('usuarios-e-senhas', 'Você não muda o SEU próprio cargo')
+    contem('usuarios-e-senhas', 'último administrador ativo')
+    contem('usuarios-e-senhas', 'Seu acesso foi desativado. Fale com um administrador.')
+    // Desativar não apaga: a autoria do que a pessoa registrou continua legível.
+    contem('usuarios-e-senhas', 'não apague a conta')
+    contem('usuarios-e-senhas', 'não apaga nada do histórico')
+  })
+
+  it('documenta a trilha de auditoria com o vocabulário real das ações', () => {
+    // Os verbos são fechados em `src/lib/auditoria.ts`; a página fala deles em
+    // prosa de operador. Rótulo novo lá sem prosa aqui derruba este teste.
+    for (const a of ACOES_ADMIN) {
+      const rotulo = ACAO_ROTULO[a]
+      // "Cargo alterado" → a página diz "cargo alterado"; comparamos normalizado.
+      expect(
+        texto('usuarios-e-senhas'),
+        `a aba de auditoria não menciona "${rotulo}"`,
+      ).toContain(normalizarBusca(rotulo))
+    }
+    contem('usuarios-e-senhas', 'filtro por tipo de ação')
+    contem('usuarios-e-senhas', 'só recebe linhas novas')
   })
 
   it('a pessoa entra na tabela de Usuários no CONVITE, não na ativação', () => {

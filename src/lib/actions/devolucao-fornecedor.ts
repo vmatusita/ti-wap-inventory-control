@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
   devolverFornecedorSchema,
@@ -38,8 +38,8 @@ export async function devolverAoFornecedor(
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erroGeral: MSG_SESSAO_EXPIRADA }
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erroGeral: cargo.erro }
 
   const dados = parsed.data
 
@@ -47,6 +47,15 @@ export async function devolverAoFornecedor(
   // juiz final — transição inválida faz rollback total.)
   const ativo = await buscarAtivoResumo(dados.ativo_id)
   if (!ativo) return { ok: false, erroGeral: 'Ativo não encontrado.' }
+
+  // DUAS filiais podem ser escritas num submit só: a do ativo devolvido (baixa) e a do
+  // substituto que nasce (parâmetro do formulário — nada obriga que sejam a mesma).
+  // A RPC é SECURITY INVOKER, então as policies da 0063 já exigem o vínculo nas duas;
+  // aqui a recusa vem antes, com mensagem em pt-BR, e é do LOTE INTEIRO — meia
+  // devolução (baixa sem substituto, ou vice-versa) seria pior que a recusa.
+  const aut = await exigirEscritaEm(supabase, [ativo.filial_id, dados.substituto?.filial_id])
+  if (!aut.ok) return { ok: false, erroGeral: aut.erro }
+
   if (ativo.status !== 'em_manutencao') {
     return {
       ok: false,
@@ -117,7 +126,7 @@ export async function devolverAoFornecedor(
     p_ativo_id: dados.ativo_id,
     p_mov: p_mov as unknown as Json,
     p_substituto: p_substituto as unknown as Json,
-    p_criado_por: uid,
+    p_criado_por: aut.uid,
   })
 
   if (error) {

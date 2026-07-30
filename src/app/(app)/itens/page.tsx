@@ -1,6 +1,11 @@
 import { redirect } from 'next/navigation'
 import { PackageOpen, PackagePlus } from 'lucide-react'
 import { getOperador } from '@/lib/auth/acesso'
+import { eAdmin, podeEscrever } from '@/lib/auth/papeis'
+import {
+  filiaisParaEscrita,
+  podeEscreverNaFilial,
+} from '@/components/layout/permissoes'
 import { listarFiliais } from '@/lib/queries/filiais'
 import {
   getHistoricoLancamentos,
@@ -163,6 +168,20 @@ export default async function ItensPage({
   const porGrupo = agruparSaldos(saldos, q, grupoFiltro)
   const porGrupoFiliais = agruparSaldos(saldosFiliais?.itens ?? [], q, grupoFiltro)
 
+  // F21 — três decisões de cargo nesta tela:
+  //  · `escreve` (≥ operador): lançar e estornar. Consulta lê saldos e histórico.
+  //  · `admin`: criar item no catálogo pelo combobox do lançamento — o atalho que
+  //    contorna /admin/itens, e `criarItemInline` agora exige admin.
+  //  · `filiaisEscrita`: a filial do LANÇAMENTO (escrita). Os filtros e as
+  //    colunas por filial continuam com a lista inteira — leitura é ampla.
+  const escreve = podeEscrever(operador.papel)
+  const admin = eAdmin(operador.papel)
+  const filiaisEscrita = filiaisParaEscrita(operador, filiais)
+  // O `?filial=N` da tela é um filtro de LEITURA: só vale como pré-seleção do
+  // lançamento se for uma filial em que este cargo escreve — senão o dialog
+  // abriria com um valor fora das opções.
+  const filialPreset = podeEscreverNaFilial(operador, filialId) ? filialId : null
+
   // Cruzamento catálogo × saldo do aviso "repor". `listarItensAtivos` só traz
   // item ATIVO e a RPC traz ativo OU com lançamento: item desativado que ainda
   // tem saldo fica de fora do mapa e vale mínimo 0 — nunca alerta (repor.ts).
@@ -196,13 +215,18 @@ export default async function ItensPage({
           />
           {/* `?lancar=1` chega da paleta de comandos (Ctrl+K → "Lançar item"):
               o item vive no grupo AÇÕES e agora dispara mesmo a ação, em vez de
-              só navegar até aqui (achado F12-W4-08). */}
-          <LancarItemDialog
-            itens={itensAtivos}
-            filiais={filiais}
-            ultimo={ultimo}
-            abrirAoMontar={primeiro(sp.lancar) === '1'}
-          />
+              só navegar até aqui (achado F12-W4-08). Fora do dialog não fica
+              nada de lançamento montado: o atalho `L` mora DENTRO dele, então
+              para o cargo Consulta a tecla também deixa de existir. */}
+          {escreve && (
+            <LancarItemDialog
+              itens={itensAtivos}
+              filiais={filiaisEscrita}
+              ultimo={ultimo}
+              abrirAoMontar={primeiro(sp.lancar) === '1'}
+              podeCriarItem={admin}
+            />
+          )}
         </div>
       </div>
 
@@ -214,8 +238,16 @@ export default async function ItensPage({
           <EstadoVazio
             icone={PackagePlus}
             titulo="Nenhum item no catálogo"
-            descricao="Cadastre o catálogo em Administração → Itens para começar a lançar quantidades."
-            acao={{ href: '/admin/itens', rotulo: 'Ir para Administração → Itens' }}
+            descricao={
+              admin
+                ? 'Cadastre o catálogo em Administração → Itens para começar a lançar quantidades.'
+                : 'O catálogo de itens é cadastrado por um administrador (Administração → Itens).'
+            }
+            acao={
+              admin
+                ? { href: '/admin/itens', rotulo: 'Ir para Administração → Itens' }
+                : undefined
+            }
           />
         ) : temFiltroSaldos ? (
           <EstadoVazio
@@ -249,6 +281,7 @@ export default async function ItensPage({
                   filiais={saldosFiliais.filiais}
                   itens={bloco.itens}
                   minimos={minimos}
+                  podeLancar={escreve}
                 />
               </div>
             </section>
@@ -270,9 +303,13 @@ export default async function ItensPage({
                       <TableHead className="text-right">Estoque</TableHead>
                       <TableHead className="text-right">Atrelados</TableHead>
                       <TableHead className="text-right">Falta</TableHead>
-                      <TableHead className="w-px text-right">
-                        <span className="sr-only">Ações</span>
-                      </TableHead>
+                      {/* Coluna de AÇÃO: some inteira para quem não lança, em vez
+                          de sobrar uma coluna vazia em todas as linhas. */}
+                      {escreve && (
+                        <TableHead className="w-px text-right">
+                          <span className="sr-only">Ações</span>
+                        </TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -318,13 +355,15 @@ export default async function ItensPage({
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="py-1 text-right">
-                          <LancarItemLinha
-                            itemId={s.item_id}
-                            item={s.item}
-                            filialId={filialId}
-                          />
-                        </TableCell>
+                        {escreve && (
+                          <TableCell className="py-1 text-right">
+                            <LancarItemLinha
+                              itemId={s.item_id}
+                              item={s.item}
+                              filialId={filialPreset}
+                            />
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -347,7 +386,7 @@ export default async function ItensPage({
           />
         </div>
         <HistoricoFiltros itens={itensAtivos} />
-        <HistoricoLancamentos rows={historico.rows} />
+        <HistoricoLancamentos rows={historico.rows} podeEstornar={escreve} />
         {historico.total > historico.pageSize && (
           <AtivosPaginacao
             page={historico.page}

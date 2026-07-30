@@ -15,15 +15,27 @@ import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { UserMenu } from '@/components/layout/user-menu'
 import { Marca } from '@/components/layout/marca'
 import { useAbrirPaleta } from '@/components/layout/paleta-comandos'
+import type { PapelUsuario } from '@/lib/auth/papeis'
 
 // `pendencias` (OS-F9 / T2): contagem do layout do operador, repassada ao
 // SidebarNav de dentro do Sheet mobile — o mesmo badge do desktop.
+//
+// F21 — `papel`/`podeEscrever`/`eAdmin` vêm resolvidos do `(app)/layout.tsx`:
+// o CTA "Nova movimentação" (a única escrita do header) só existe para quem
+// escreve, e o menu lateral do mobile esconde "Administração" para não-admin
+// exatamente como o do desktop.
 export function AppHeader({
   nome,
+  papel,
   pendencias,
+  podeEscrever = false,
+  eAdmin = false,
 }: {
   nome: string
+  papel?: PapelUsuario
   pendencias?: number
+  podeEscrever?: boolean
+  eAdmin?: boolean
 }) {
   const [aberto, setAberto] = useState(false)
   // Gatilho da paleta global (OS-F11 / T1). `null` fora do provider — nesse caso
@@ -50,7 +62,11 @@ export function AppHeader({
             </SheetTitle>
           </SheetHeader>
           <div className="px-3 pt-1 pb-3">
-            <SidebarNav onNavigate={() => setAberto(false)} pendencias={pendencias} />
+            <SidebarNav
+              onNavigate={() => setAberto(false)}
+              pendencias={pendencias}
+              eAdmin={eAdmin}
+            />
           </div>
         </SheetContent>
       </Sheet>
@@ -77,23 +93,25 @@ export function AppHeader({
             </kbd>
           </Button>
         )}
-        <Button
-          asChild
-          size="sm"
-          className="h-10 bg-brand-amarelo text-black hover:bg-brand-amarelo/90 sm:h-7"
-        >
-          <Link href="/movimentacoes/nova">
-            <Plus className="size-4" />
-            <span className="hidden sm:inline">Nova movimentação</span>
-            <span
-              aria-hidden
-              className="ml-1 hidden rounded border border-black/20 bg-black/10 px-1 text-[10px] font-semibold sm:inline"
-            >
-              N
-            </span>
-          </Link>
-        </Button>
-        <UserMenu nome={nome} />
+        {podeEscrever && (
+          <Button
+            asChild
+            size="sm"
+            className="h-10 bg-brand-amarelo text-black hover:bg-brand-amarelo/90 sm:h-7"
+          >
+            <Link href="/movimentacoes/nova">
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">Nova movimentação</span>
+              <span
+                aria-hidden
+                className="ml-1 hidden rounded border border-black/20 bg-black/10 px-1 text-[10px] font-semibold sm:inline"
+              >
+                N
+              </span>
+            </Link>
+          </Button>
+        )}
+        <UserMenu nome={nome} papel={papel} />
       </div>
     </header>
   )

@@ -50,19 +50,46 @@ São ~100 movimentações por mês. Os problemas concretos que o sistema resolve
 
 ## 3. Usuários e perfis
 
+São **duas portas de entrada**, e elas não se confundem: **login** (conta Supabase, com um **cargo**) e **senha de acesso** (sem conta, só relatórios).
+
 | Perfil | Quem é | Como entra | O que pode |
 |---|---|---|---|
-| **Operador** | A pessoa da Matriz que controla o estoque hoje + quem o admin incluir (inclusive a equipe terceirizada da Stefanini) | **Login com conta corporativa** — convite por e-mail, obrigatoriamente `@wap.ind.br`, `@stefanini.com` ou `@latam.stefanini.com` | Tudo: ativos, movimentações, snapshots, senhas de acesso, filiais, motivos, convites. **Todos os logados têm o mesmo nível** — não há hierarquia entre operadores |
+| **Usuário logado** — três cargos | A pessoa da Matriz que controla o estoque hoje + quem um administrador incluir (inclusive a equipe terceirizada da Stefanini) | **Login com conta corporativa** — convite por e-mail, obrigatoriamente `@wap.ind.br`, `@stefanini.com` ou `@latam.stefanini.com` | **Ler, todos leem tudo**; **escrever** depende do cargo e do vínculo de filiais (§3.1) |
 | **Visualizador** | Filiais, gestores — quem só consulta | **Senha de acesso** no link dos relatórios — sem conta, sem cadastro | Somente as rotas de relatório (ao vivo, snapshots, histórico). Nada de operação |
-
-Neste documento, **"admin" e "operador" são sinônimos** — todo usuário logado é admin (nível único).
 
 Decisões **atualizadas em 09/07/2026** (substituem a versão anterior "login para todos"):
 
 - **Relatórios: senha, não login.** O link de visualização pede uma senha de acesso; quem tem a senha vê os relatórios. Todas as senhas dão o **mesmo nível** de acesso (todas as filiais, sem escopo).
-- **Senhas gerenciadas pelo admin:** cria quantas quiser, cada uma com **rótulo** ("Filial Linhares", "Stefanini"…), e **revoga individualmente** — se uma vazar, mata só ela sem trocar as outras.
-- **Operação: login restrito aos domínios corporativos**, validado no convite e no banco. Sem auto-cadastro; o admin convida ("incluir novas pessoas"). *(Emenda de 22/07/2026: além de `@wap.ind.br`, entram `@stefanini.com` e `@latam.stefanini.com` — a equipe terceirizada da Stefanini passou a **operar**, não só consultar. Nível único inalterado: quem entra por convite é operador pleno. Lista única em `src/lib/auth/dominios-email.ts`, trava no banco pela migration `0041`; revoga a resposta 3 da §13.)*
-- Implementação: Supabase Auth só para operadores; o acesso por senha é camada da aplicação — cookie httpOnly assinado após validar contra `senhas_acesso` (hash scrypt), com queries rodando no servidor. **Visualizador nunca recebe credencial do banco.**
+- **Senhas gerenciadas por administrador:** cria quantas quiser, cada uma com **rótulo** (o nome da filial ou do parceiro que vai usá-la), e **revoga individualmente** — se uma vazar, mata só ela sem trocar as outras.
+- **Operação: login restrito aos domínios corporativos**, validado no convite e no banco. Sem auto-cadastro; o convite é gerado por um administrador ("incluir novas pessoas"). *(Emenda de 22/07/2026: além de `@wap.ind.br`, entram `@stefanini.com` e `@latam.stefanini.com` — a equipe terceirizada da Stefanini passou a **operar**, não só consultar. Lista única em `src/lib/auth/dominios-email.ts`, trava no banco pela migration `0041`; revoga a resposta 3 da §13. O que **mudou** desde então: o cargo, na emenda F21 abaixo — o domínio decide **se** a pessoa entra, o cargo decide **o que** ela faz.)*
+- Implementação: Supabase Auth só para os logados; o acesso por senha é camada da aplicação — cookie httpOnly assinado após validar contra `senhas_acesso` (hash scrypt), com queries rodando no servidor. **Visualizador nunca recebe credencial do banco.**
+
+### 3.1 Os três cargos e o vínculo de filiais (Emenda F21 — 29/07/2026)
+
+**Esta seção revoga o "nível único" de 09/07/2026** (a redação anterior dizia que "admin" e "operador" eram sinônimos e que NUNCA se criariam papéis). Motivo: com todo logado podendo tudo, qualquer pessoa convidada convidava outras, revogava senha de relatório, desativava filial e rodava o import "Substituir tudo" — e **não havia como desligar um usuário**. Decisão do Johnny, desenho em [`ADR-002-papeis-e-permissoes.md`](./ADR-002-papeis-e-permissoes.md), execução na ordem `docs/prompts/F21-papeis-ultracode.md`. A [`ADR-001`](./ADR-001-rls-por-filial.md) previu exatamente este caminho ("um ADR novo sobre papéis") e **continua valendo no que decidiu sobre leitura**.
+
+Hierarquia estrita — **admin ⊃ operador ⊃ consulta**:
+
+| Capacidade | Administrador | Operador | Consulta |
+|---|---|---|---|
+| Ver todas as telas e todas as filiais (listas, fichas, relatórios, dashboards, esta documentação) | ✓ | ✓ | ✓ |
+| Exportar CSV | ✓ | ✓ | ✓ |
+| Movimentações, compras, devolução a fornecedor, trocas, edição de ativo, anotação | todas as filiais | **só nas filiais vinculadas** | — |
+| Lançar itens por quantidade · resolver pendências · gerar termo | todas as filiais | **só nas filiais vinculadas** | — |
+| Estornar (ativos e itens) | ✓ | nas filiais vinculadas | — |
+| Gerar/congelar snapshot de relatório | ✓ | ✓ | — |
+| Administração: usuários, senhas de acesso, filiais, motivos, catálogo de itens, kits | ✓ | — | — |
+| Import de startup ("Substituir tudo") | ✓ | — | — |
+
+- **Leitura é ampla para os três cargos.** O vínculo de filiais restringe **só escrita** — nenhum recorte de leitura foi criado (o relatório consolidado depende disso; ADR-001).
+- **O vínculo de filiais vale só para o cargo Operador.** Administrador escreve em todas as filiais sem precisar de vínculo; Consulta não escreve em nenhuma. A UI exige **no mínimo uma filial** ao salvar um operador; no banco, zero vínculo simplesmente fecha toda escrita — **falha segura**.
+- **Transferência entre filiais:** basta o vínculo na filial de **origem**. Enviar para outra filial é o fluxo normal, e quem recebe é outro operador.
+- **Desativar um usuário tem efeito no request seguinte** (`profiles.ativo = false` + ban no Supabase Auth): quem estiver com a tela aberta perde a escrita e é devolvido ao login na próxima requisição — a mesma doutrina de revogação da senha de acesso. Reativar devolve o acesso.
+- **Autoproteção:** ninguém rebaixa nem desativa a si mesmo, e o sistema nunca fica sem administrador ativo.
+- **Auditoria:** convite gerado/reenviado, cargo alterado, vínculos alterados, usuário desativado/reativado, senha de acesso criada/revogada/reativada e import executado ficam registrados em `eventos_admin` (insert-only; leitura só para administrador).
+- **"Consulta" não é "visualizador".** Consulta é um **cargo com login** que navega o sistema inteiro em modo leitura; visualizador **não tem conta** e alcança apenas `/relatorios/**` por senha. Os dois continuam existindo, e o caminho do visualizador **não muda** nesta emenda.
+- **Onde a regra mora:** no Postgres (enum `papel_usuario`, `profiles.papel`/`profiles.ativo`, tabela `operador_filiais`, funções `papel_atual()` / `e_admin()` / `pode_escrever_filial()` e as policies de escrita — migrations `0061`→`0066`), com guarda interna nas RPCs `security definer` que escrevem. As Server Actions repetem a checagem só para dar a **mensagem em pt-BR** antes de o banco recusar, e a UI esconde o que o cargo não pode fazer. Banco é a trava; action e UI são conveniência.
+- **Backfill do deploy:** todos os usuários existentes viraram **administrador com vínculo em todas as filiais ativas** — no dia da subida nada mudou de comportamento para ninguém; o rebaixamento é feito depois, um a um, na tela de usuários.
 
 ## 4. Conceito central: a movimentação é a fonte da verdade
 
@@ -133,7 +160,7 @@ Schema completo nas migrations em [`supabase/migrations/`](../supabase/migration
 - **`filiais`** — id, nome, slug (`matriz`, `cd-afonso-pena`, `linhares`, …), ativo. Cadastro gerenciável pelo admin (resolve a dúvida CE Serra/Serra Park/Eusébio sem travar o desenvolvimento).
 - **`ativos`** — patrimônio normalizado (único), patrimônio original (como veio da planilha), categoria, marca, modelo, service_tag, hostname, memória, armazenamento, processador, fornecedor, filial atual, **status** (derivado), colaborador/setor atual (derivados), termo_assinado, observações e, desde a **F14**, **`substitui_ativo_id`** (`uuid → ativos.id`, migration `0045`): quando o ativo é o **substituto** de um equipamento devolvido ao fornecedor, aponta para o antigo — `NULL` para todos os demais (vínculo de sucessão, §4 Emenda F14).
 - **`movimentacoes`** — ativo, tipo, motivo, data, filial, colaborador, setor, nº do chamado (interno), termo_assinado, itens_faltantes, observação, **criado_por**, created_at e, desde a **F14**, **`chamado_fornecedor`** (texto livre, migration `0045`): o chamado ABERTO PELO FORNECEDOR na manutenção — obrigatório no `envio_manutencao` (check `NOT VALID`, preserva o histórico), distinto do `chamado` interno (numérico). Imutável: correção é estorno + novo lançamento.
-- **`profiles`** — espelho de `auth.users` com nome. Todo usuário logado é operador — nível único (decisão de 09/07/2026); não existe papel "viewer" com conta. *(Emenda de 24/07/2026, migration `0057`: o nome passa a ser informado pela **própria pessoa** ao aceitar o convite, em **dois campos** — `primeiro_nome` e `sobrenome`. A coluna `nome`, lida por todo o app para exibir autoria, virou **GERADA** com os dois juntos; enquanto ninguém informa nada, o trigger mantém o e-mail em `primeiro_nome` como fallback.)*
+- **`profiles`** — espelho de `auth.users` com nome, **cargo** (`papel`) e **habilitação** (`ativo`) — §3.1, migration `0061`. O vínculo de filiais de escrita do cargo Operador vive em `operador_filiais`; as ações administrativas ficam registradas em `eventos_admin`. Não existe conta de "viewer": o visualizador entra por senha, sem conta. *(Emenda de 24/07/2026, migration `0057`: o nome passa a ser informado pela **própria pessoa** ao aceitar o convite, em **dois campos** — `primeiro_nome` e `sobrenome`. A coluna `nome`, lida por todo o app para exibir autoria, virou **GERADA** com os dois juntos; enquanto ninguém informa nada, o trigger mantém o e-mail em `primeiro_nome` como fallback.)*
 - **`senhas_acesso`** — senhas de visualização dos relatórios: rótulo, hash (scrypt), ativa, criado_por, último uso. Validadas exclusivamente no servidor; revogação individual tem efeito imediato.
 - **`relatorios_gerados`** — snapshots da semana (§7.1): período, filial (null = geral), versão, `dados` (jsonb congelado — `schema: 2` na F3B), gerado_por, gerado_em. Imutável — regerar o período cria versão nova.
 - **`itens`** (F3B) — catálogo de acessórios/periféricos/componentes controlados por **quantidade**: nome (único, case-insensitive), `grupo` (`acessorio` | `componente`), ativo, ordem e, desde a F12, **`estoque_minimo`** (`smallint`, default `0`, `>= 0` — migration `0042`). Sem patrimônio, sem service tag, sem máquina de estados (quantidade pura). Gerenciado em `admin/itens`. Granularidade: memórias separadas por DDR e tamanho; "kit teclado+mouse" é item próprio. **`estoque_minimo` é o ponto de reposição do item**, comparado com o estoque **consolidado de todas as filiais** (nunca com o saldo de uma filial): `0` = item sem acompanhamento (nenhum alerta) e estoque **igual** ao mínimo ainda não alerta — a tela acende o selo âmbar "repor" só quando o consolidado fica **abaixo** do mínimo. Não confundir com o **"faltam N"** (`máx(0, atrelados + liberados − total)`, migration `0027`), que é déficit já assumido: os dois avisos convivem e significam coisas diferentes.
@@ -166,7 +193,7 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 
 1. **Login (operação)** — e-mail de domínio corporativo (§3) + senha, via convite (Supabase Auth). Sem cadastro aberto. Quem só visualiza relatórios **não loga**: entra pela senha de acesso (item 5 e §3).
 2. **Dashboard (home)** — visão geral do operador: KPIs do estoque, movimentações recentes, pendências, atalhos de ação. (Quem entra por senha não vê esta tela — vai direto aos relatórios.)
-3. **Ativos** — lista com busca por patrimônio/colaborador/marca/modelo e filtros (filial, categoria, status). Detalhe do ativo = ficha + **linha do tempo de movimentações**. Admin: criar/editar. Criar = fluxo **"Novo equipamento"**: cadastro + movimentação `compra` num único submit (regra 8), com **entrada em lote por lista ou faixa de patrimônios** — compra chega em série (caso real nos dados: 10 celulares WAP0006026–0006035 numa única entrada).
+3. **Ativos** — lista com busca por patrimônio/colaborador/marca/modelo e filtros (filial, categoria, status). Detalhe do ativo = ficha + **linha do tempo de movimentações**. Criar/editar: quem pode escrever naquela filial (§3.1). Criar = fluxo **"Novo equipamento"**: cadastro + movimentação `compra` num único submit (regra 8), com **entrada em lote por lista ou faixa de patrimônios** — compra chega em série (caso real nos dados: 10 celulares WAP0006026–0006035 numa única entrada).
 4. **Nova movimentação** — a tela mais usada; otimizada para ser mais rápida que a planilha: buscar ativo por patrimônio (autocomplete; se o patrimônio tiver duplicata, mostra as opções com service tag e modelo para escolher) → escolher tipo → o form só pede o que aquele tipo exige → salvar. Validações de transição de estado (seção 8). Suporta lote (ex.: notebook + monitor + celular para o mesmo colaborador num único fluxo, como no chamado 5065 dos dados).
    **Facilitadores para vencer o Excel** (decisão de 09/07/2026 — sem importação depois do go-live, a operação manual é a única entrada): data de hoje já preenchida, foco automático no campo de busca ao abrir, atalho de teclado `N` abre "nova movimentação" de qualquer tela, **"repetir última"** (pré-preenche tudo da movimentação anterior, menos o ativo) e **"duplicar"** a partir de qualquer linha da linha do tempo. **Desde a F12, também "aplicar kit"**: no passo 2, ao lado de "repetir última", o operador escolhe um modelo salvo em `admin/kits` e os quatro campos (tipo, motivo, termo, observação) são preenchidos de uma vez — **substituindo sempre**, inclusive limpando o que o modelo não define, para que aplicar duas vezes dê o mesmo resultado. As categorias esperadas do kit aparecem como **checklist informativo** (mostra o que ainda não está no lote, reage a mudanças no passo 1 e **nunca impede registrar** — quem decide o que pode ser gravado é a máquina de estados, §4); kit cujo tipo não vale para os ativos do lote **não é aplicado nem em parte**, com aviso explicando. **A lista de movimentações (`/movimentacoes`) é a porta desta tela desde a F11** — ver a emenda ao fim desta seção.
 5. **Relatórios** — página ao vivo por filial (`/relatorios/[filial]`) + **geração do relatório da semana** (snapshot interativo versionado) com histórico em `/relatorios/gerados` — detalhes na seção 7.
@@ -211,7 +238,7 @@ Tempo real, em duas camadas: Server Components buscam dados frescos a cada acess
 
 O equivalente moderno do e-mail de sexta-feira — pedido do Johnny em 09/07/2026:
 
-- **Gerar:** botão "Gerar relatório" (só admin) com período padrão **segunda a sexta da semana corrente** (mesmo recorte dos e-mails reais, ex.: "22/06 até 26/06"), ajustável; escopo por filial ou geral.
+- **Gerar:** botão "Gerar relatório" (cargo Operador ou Administrador — §3.1; Consulta não gera) com período padrão **segunda a sexta da semana corrente** (mesmo recorte dos e-mails reais, ex.: "22/06 até 26/06"), ajustável; escopo por filial ou geral.
 - **Snapshot congelado:** os dados do período são calculados na hora e gravados em `relatorios_gerados` (jsonb). O relatório **não muda mais** — mesmo que depois haja estorno ou correção, o que foi apresentado na sexta continua auditável. Quem corrige gera nova versão.
 - **Versionado — o fim da ERRATA:** regerar o mesmo período cria a **versão 2**; a versão 1 continua acessível com um aviso "existe versão mais recente". Ninguém reenvia nada: o link aponta para a versão atual.
 - **Interativo:** a página `/relatorios/gerados/[id]` renderiza o snapshot com os mesmos componentes do relatório ao vivo (v2: 3 grupos + tabelas detalhadas) — gráficos com tooltip, tabelas filtráveis, resumo no formato do e-mail com "copiar texto" e impressão limpa. Não é um PDF morto. Snapshots gerados antes da F3B (formato v1) continuam abrindo (o leitor normaliza pelo carimbo de schema).
@@ -286,6 +313,7 @@ Enquanto o importador não roda com os dados reais, um script de seed povoa o ba
 
 Emenda à regra "não existe tela de importação". Decisão do Johnny (16/07/2026, registrada em `docs/DECISOES.md`): além da carga única por scripts do go-live global (F4), existe uma tela **`admin/importar`** para o **go-live novo de cada filial** — quando uma filial passa a ser controlada pelo sistema e seu inventário chega como CSV (mesmo layout da planilha, 3 variantes por nome de coluna).
 
+- **Só Administrador importa** (Emenda F21, §3.1): a tela, a Server Action e a própria função do banco (`importar_ativos_substituir`) recusam quem não é administrador — é a operação mais destrutiva do sistema.
 - **Só o modo *Substituir tudo*** (import de startup): apaga fisicamente o acervo atual **daquela filial** (ativos + movimentações + anotações + termos gerados que só a referenciam, com os `.docx` do bucket) e recria a partir do CSV. O modo *Atualizar* (upsert incremental) foi **adiado** — correção do dia a dia é manual, no próprio sistema, linha por linha.
 - **A entrada de cada ativo usa a data real do CSV** (a mais antiga válida entre Inclusão/Entrega), gravada como `compra` de abertura com o marcador `import startup dd/MM/yyyy`; um `ajuste` leva ao estado da planilha (precedência Situação>Status). Linha sem data válida entra "sem data", **fora dos relatórios do período** (mesmo tratamento da carga go-live). Startup não conta como entrada do período — o marcador exclui compras e ajustes do import das tabelas/série do relatório; a data real vale para o histórico de estoque (as-of) e para a ficha.
 - **Tudo-ou-nada, com erros linha a linha:** qualquer linha inválida (patrimônio inválido, par patrimônio+service tag duplicado, `Site`≠filial, categoria/estado fora do De→Para, ativo descartado) **bloqueia** o import inteiro. Zero bloqueante para aplicar.
@@ -340,7 +368,9 @@ Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados r
 
 ## Glossário rápido (para quem chegar depois)
 
-- **RLS (Row Level Security)** — regras de permissão dentro do próprio Postgres: mesmo que a interface falhe, o banco recusa escrita de quem não é admin.
+- **RLS (Row Level Security)** — regras de permissão dentro do próprio Postgres: mesmo que a interface falhe, o banco recusa a escrita de quem não tem o cargo (ou o vínculo de filial) necessário — §3.1.
+- **Cargo** — administrador, operador ou consulta (§3.1). Decide o que a pessoa **escreve**; ler, todos leem tudo.
+- **Vínculo de filiais** — as filiais em que um **operador** pode escrever (`operador_filiais`). Não restringe leitura.
 - **Server Component / Server Action** — padrões do Next.js App Router: página montada no servidor com dados frescos / função de escrita executada no servidor.
 - **Realtime** — canal do Supabase que avisa o navegador quando uma tabela muda (é o que atualiza o relatório sem F5).
 - **Cutover** — a data marcada em que as planilhas viram só-leitura e o sistema passa a ser o único lugar de registro (fim da F4, logo depois da importação dos dados reais).
