@@ -223,8 +223,21 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (m.includes('só apaga ativo que esteja em conflito') || m.includes('so apaga ativo que esteja em conflito')) {
     return 'Esta ferramenta só apaga cadastro que esteja em conflito entre filiais. Algum dos selecionados não está (mais) — nada foi apagado. Recarregue a mesa de conflitos e refaça a seleção.'
   }
-  if (m.includes('podem resolver conflitos entre filiais')) {
-    return 'Resolver conflitos entre filiais é restrito a administradores.'
+  // (a recusa de CARGO da mesa — "Apenas administradores podem resolver conflitos entre
+  //  filiais" — NÃO tem ramo próprio de propósito: ela contém "apenas administradores" e é
+  //  capturada pelo ramo da F21 mais abaixo, que já responde "Esta ação é restrita a
+  //  administradores." Um ramo aqui seria código morto — a revisão adversarial pegou.)
+  //
+  // O ativo sumiu entre a leitura da mesa e o clique — típico de duas pessoas resolvendo o
+  // mesmo conflito. Sem este ramo, o P0002 cairia no fallback genérico.
+  if (m.includes('ativo(s) não encontrado') || m.includes('ativo(s) nao encontrado')) {
+    return 'Um dos cadastros selecionados já não existe — alguém resolveu este conflito enquanto a sua página estava aberta. Nada foi apagado: recarregue a mesa.'
+  }
+  // ⚠ Vem ANTES do ramo de backup do RESET (F23), que casa "backup informado não existe" e
+  // responde com instruções de OUTRA ferramenta ("gere a prévia novamente" — a mesa não tem
+  // prévia). Por isso a mensagem da RPC da mesa diz "backup dos conflitos".
+  if (m.includes('backup dos conflitos não existe') || m.includes('backup dos conflitos nao existe')) {
+    return 'O backup desta exclusão não foi encontrado no armazenamento. NADA foi apagado — refaça a seleção e tente de novo.'
   }
   if (m.includes('termo que também cobre ativos fora desta seleção') || m.includes('termo que tambem cobre ativos fora desta selecao')) {
     return 'Um dos selecionados está num termo que também cobre cadastros fora desta seleção: apagá-lo destruiria um documento que não é só dele. Inclua na seleção os outros cadastros do mesmo termo, ou apague o termo antes.'

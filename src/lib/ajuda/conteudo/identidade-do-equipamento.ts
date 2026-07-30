@@ -48,7 +48,7 @@ export const identidadeDoEquipamento: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'Duas plaquetas com o mesmo número existem no acervo real. Como o par patrimônio + service tag é único, o sistema nunca escolhe por você — ele mostra a service tag e espera a sua decisão:',
+        'Duas plaquetas com o mesmo número existem no acervo real. Como o par patrimônio + service tag é único dentro de cada filial, o sistema nunca escolhe por você — ele mostra a service tag e espera a sua decisão:',
     },
     {
       tipo: 'lista',
@@ -62,7 +62,7 @@ export const identidadeDoEquipamento: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'A saída definitiva para o duplicado é colar as duas colunas juntas: patrimônio e service tag na mesma linha, separados por vírgula, ponto e vírgula ou TAB. Aí o sistema resolve sozinho, sem perguntar.',
+        'A saída para o duplicado é colar as duas colunas juntas: patrimônio e service tag na mesma linha, separados por vírgula, ponto e vírgula ou TAB. Aí o sistema resolve sozinho, sem perguntar. A exceção é o CONFLITO ENTRE FILIAIS — dois cadastros com o MESMO patrimônio e a MESMA service tag, em unidades diferentes: aí nem o par desempata, e o sistema continua perguntando qual dos dois você quer, com a filial ao lado. Isso é sinal de que há trabalho na aba "Conflitos entre filiais" de Pendências: resolvido o conflito, a ambiguidade some com ele.',
     },
     { tipo: 'titulo', id: 'identidade-copiar', texto: 'Copiar o número sem digitar' },
     {

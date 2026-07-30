@@ -20,6 +20,12 @@ import type { GrupoConflito, LadoConflito } from '@/lib/pendencias/conflitos'
 
 const PAGE_SIZE = 20
 
+/**
+ * Faixa pedida além do fim do resultado. O PostgREST responde 416 com este código em vez de
+ * uma lista vazia — mesma constante e mesmo tratamento de `listarPendencias`.
+ */
+const RANGE_INVALIDO = 'PGRST103'
+
 export type PaginaConflitos = {
   grupos: GrupoConflito[]
   total: number
@@ -164,6 +170,41 @@ export async function contarConflitosAbertos(): Promise<number> {
 }
 
 /**
+ * As chaves cujo GRUPO tem algum lado casando com a busca da barra de filtros.
+ *
+ * Sem isto, digitar um patrimônio na aba de conflitos não fazia nada: a caixa de busca
+ * continuava na tela, o `?q=` continuava na URL, e a mesa devolvia tudo como se nenhum
+ * filtro tivesse sido pedido. Filtro que a tela oferece e ignora é pior do que filtro que
+ * não existe.
+ *
+ * ⚠ Basta UM lado casar para o grupo inteiro ficar — cortar o lado que não casa desfaria
+ * justamente a comparação que a mesa existe para permitir.
+ *
+ * A sanitização dos metacaracteres é a mesma de `queryPendencias`: o `*` entra na lista
+ * porque o PostgREST o TRADUZ para `%` no ilike, e sem ele `?q=*` viraria `%%%`, devolvendo
+ * a mesa inteira como se fosse o resultado da busca.
+ */
+async function chavesPorBusca(client: DbClient, termo: string): Promise<Set<string>> {
+  const esc = termo.replace(/[%_*,()\\]/g, ' ').trim()
+  if (esc === '') return new Set()
+
+  const rows = await paginarTodos<{ chave: string | null }>(
+    'Falha ao buscar conflitos',
+    (from, to) =>
+      client
+        .from('v_conflitos_filiais')
+        .select('chave')
+        .or(
+          `patrimonio.ilike.%${esc}%,service_tag.ilike.%${esc}%,` +
+            `colaborador_atual.ilike.%${esc}%,hostname.ilike.%${esc}%,modelo.ilike.%${esc}%`,
+        )
+        .order('chave')
+        .range(from, to),
+  )
+  return new Set(chavesNaoNulas(rows))
+}
+
+/**
  * Uma página de GRUPOS, com todos os lados de cada um.
  *
  * Passo 1 — os grupos da página, ordenados pelo rótulo (estável e legível: o patrimônio,
@@ -173,31 +214,61 @@ export async function contarConflitosAbertos(): Promise<number> {
  * fonte derivada.
  */
 export async function listarConflitos(
-  opts: { filialSlug?: string | null; page?: number } = {},
+  opts: { filialSlug?: string | null; q?: string | null; page?: number } = {},
 ): Promise<PaginaConflitos> {
   const client = await createClient()
-  const page = Math.max(1, opts.page ?? 1)
+  let page = Math.max(1, opts.page ?? 1)
   const filialSlug = opts.filialSlug?.trim() || null
+  const termo = opts.q?.trim() || null
 
-  // Com filtro de filial, as chaves visíveis saem dos lados daquela filial; sem filtro,
-  // saem direto da view agregada (que já é uma linha por grupo).
+  // ---- o UNIVERSO de chaves visíveis, ANTES de paginar ----
+  // ⚠ Filtrar depois de paginar seria o defeito clássico: a página 1 traria 20 grupos, o
+  // filtro cortaria 18 e a tela mostraria 2 dizendo "de 47" — com páginas seguintes vazias.
+  // Por isso os dois filtros (filial e busca) restringem o universo primeiro; a paginação
+  // vem depois, sobre o que sobrou.
+  let universo: string[] | null = null
+
+  if (filialSlug) universo = await chavesDaFilial(client, filialSlug)
+
+  if (termo) {
+    const porBusca = await chavesPorBusca(client, termo)
+    universo = universo ? universo.filter((c) => porBusca.has(c)) : [...porBusca]
+  }
+
   let chaves: string[]
   let total: number
 
-  if (filialSlug) {
-    // Paginado na origem (ver `chavesDaFilial`); a fatia da página sai daqui.
-    const todas = (await chavesDaFilial(client, filialSlug)).sort((a, b) =>
-      a.localeCompare(b, 'pt-BR'),
-    )
+  if (universo !== null) {
+    const todas = universo.sort((a, b) => a.localeCompare(b, 'pt-BR'))
     total = todas.length
+    // Este caminho fatia em memória, então uma página além do fim devolve lista vazia em
+    // vez de 416 — mas devolveria a página PEDIDA no rodapé, e o operador veria "página 3"
+    // sobre uma mesa vazia. Clampa para a última que existe, como o outro caminho faz.
+    page = Math.min(page, Math.max(1, Math.ceil(total / PAGE_SIZE)))
     chaves = todas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   } else {
-    const { data, error, count } = await client
-      .from('v_conflitos_filiais_grupos')
-      .select('chave, rotulo', { count: 'exact' })
-      .order('rotulo', { ascending: true })
-      .order('chave', { ascending: true })
-      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
+    const pagina = (p: number) =>
+      client
+        .from('v_conflitos_filiais_grupos')
+        .select('chave, rotulo', { count: 'exact' })
+        .order('rotulo', { ascending: true })
+        .order('chave', { ascending: true })
+        .range((p - 1) * PAGE_SIZE, p * PAGE_SIZE - 1)
+
+    let { data, error, count } = await pagina(page)
+
+    // Faixa além do fim → o PostgREST responde 416 com PGRST103, não uma lista vazia.
+    // Sem este clamp, um `?page=3` de favorito — ou a própria página em que a pessoa
+    // estava quando apagou o ÚLTIMO conflito dela — derrubaria a tela com erro, e o
+    // "Tentar novamente" refalharia para sempre porque a URL não muda. Mesmo tratamento
+    // (e mesma constante) de `listarPendencias`. Uma tentativa só, sem laço.
+    if (error?.code === RANGE_INVALIDO) {
+      const { count: total2, error: erroTotal } = await pagina(1)
+      if (erroTotal) throw new Error(`Falha ao listar conflitos: ${erroTotal.message}`)
+      page = Math.max(1, Math.ceil((total2 ?? 0) / PAGE_SIZE))
+      ;({ data, error, count } = await pagina(page))
+    }
+
     if (error) throw new Error(`Falha ao listar conflitos: ${error.message}`)
     total = count ?? 0
     chaves = chavesNaoNulas(data)
@@ -255,19 +326,26 @@ export async function listarConflitos(
  * filial: os dois lados do mesmo conflito saem lado a lado, como na tela.
  */
 export async function listarConflitosParaExport(
-  opts: { filialSlug?: string | null } = {},
+  opts: { filialSlug?: string | null; q?: string | null } = {},
 ): Promise<{ chave: string; lado: LadoConflito }[]> {
   const client = await createClient()
   const filialSlug = opts.filialSlug?.trim() || null
+  const termo = opts.q?.trim() || null
 
-  // Recorte por filial: as CHAVES cujo lado está nesta filial — e depois TODOS os lados
-  // dessas chaves. Filtrar direto por `filial` traria só metade de cada conflito, e um
-  // conflito com um lado só não é um conflito: é uma linha sem sentido no arquivo.
+  // Recorte por filial e/ou busca: as CHAVES que sobrevivem aos filtros — e depois TODOS os
+  // lados dessas chaves. Filtrar direto por `filial` (ou pelo texto) traria só metade de
+  // cada conflito, e um conflito com um lado só não é um conflito: é uma linha sem sentido
+  // no arquivo.
+  //
+  // ⚠ Os MESMOS filtros da tela, pela mesma razão do invariante da F10 §T5: o arquivo tem
+  // de sair com exatamente as linhas que estavam visíveis.
   let chaves: string[] | null = null
-  if (filialSlug) {
-    chaves = await chavesDaFilial(client, filialSlug)
-    if (chaves.length === 0) return []
+  if (filialSlug) chaves = await chavesDaFilial(client, filialSlug)
+  if (termo) {
+    const porBusca = await chavesPorBusca(client, termo)
+    chaves = chaves ? chaves.filter((c) => porBusca.has(c)) : [...porBusca]
   }
+  if (chaves !== null && chaves.length === 0) return []
 
   // Paginado: o export não tem teto de tela, e um import errado pode ter aberto centenas
   // de conflitos de uma vez. O corte de 1.000 do PostgREST sairia como arquivo incompleto
@@ -284,6 +362,60 @@ export async function listarConflitosParaExport(
   })
 
   return lados.map((r) => ({ chave: r.chave, lado: mapearLado(r) }))
+}
+
+/**
+ * O ACERVO COMPLETO dos ativos que vão ser apagados — para o backup em ARQUIVO.
+ *
+ * ⚠ Não confunda com `ladosDosAtivos`: aquele devolve o RESUMO da view (o que a tela
+ * mostra); este devolve as LINHAS, com todo o rastro. A distinção é a diferença entre um
+ * backup que restaura e um backup que só descreve.
+ *
+ * Abaixo do cap, quem monta o backup é a própria RPC, em jsonb, dentro da transação — e é
+ * melhor assim. Acima do cap o jsonb sairia do razoável, então o backup vira arquivo, e o
+ * arquivo tem de conter exatamente o que o jsonb conteria: ativo, movimentações, termos,
+ * anotações e pendências de item. Espelha o `jsonb_build_object` da migration 0093.
+ */
+export async function acervoDosAtivos(
+  client: DbClient,
+  ativoIds: string[],
+): Promise<{
+  ativos: unknown[]
+  movimentacoes: unknown[]
+  termos_gerados: unknown[]
+  anotacoes: unknown[]
+  pendencias_item: unknown[]
+}> {
+  if (ativoIds.length === 0) {
+    return { ativos: [], movimentacoes: [], termos_gerados: [], anotacoes: [], pendencias_item: [] }
+  }
+
+  const tabela = async (nome: 'ativos' | 'movimentacoes' | 'anotacoes' | 'pendencias_item') =>
+    paginarTodos<unknown>(`Falha ao exportar ${nome} do backup`, (from, to) =>
+      client
+        .from(nome)
+        .select('*')
+        .in(nome === 'ativos' ? 'id' : 'ativo_id', ativoIds)
+        .order('id')
+        .range(from, to),
+    )
+
+  const [ativos, movimentacoes, anotacoes, pendencias_item, todosTermos] = await Promise.all([
+    tabela('ativos'),
+    tabela('movimentacoes'),
+    tabela('anotacoes'),
+    tabela('pendencias_item'),
+    // `termos_gerados.ativo_ids` é array de uuid (sem FK), então o recorte é em memória —
+    // mesmo caminho de `exportarAcervoFilial`.
+    paginarTodos<{ ativo_ids: string[] }>('Falha ao exportar termos do backup', (from, to) =>
+      client.from('termos_gerados').select('*').order('id').range(from, to),
+    ),
+  ])
+
+  const alvo = new Set(ativoIds)
+  const termos_gerados = todosTermos.filter((t) => t.ativo_ids.some((a) => alvo.has(a)))
+
+  return { ativos, movimentacoes, anotacoes, pendencias_item, termos_gerados }
 }
 
 /**

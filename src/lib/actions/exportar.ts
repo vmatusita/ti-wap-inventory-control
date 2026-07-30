@@ -307,7 +307,10 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
     // silenciosa que a exclusão de 'conflito' de `FiltrosPendencias.tipo` já evita no
     // caminho da tela.
     if (texto(p, 'tipo') === 'conflito') {
-      const todos = await listarConflitosParaExport({ filialSlug: texto(p, 'filial') ?? null })
+      const todos = await listarConflitosParaExport({
+        filialSlug: texto(p, 'filial') ?? null,
+        q: texto(p, 'q') ?? null,
+      })
       const linhas = todos.slice(0, CAP_EXPORT)
       return {
         nome: nomeArquivoCsv('conflitos-entre-filiais', hojeISO()),

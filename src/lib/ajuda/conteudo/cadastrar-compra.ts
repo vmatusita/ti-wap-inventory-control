@@ -103,7 +103,7 @@ export const cadastrarCompra: PaginaAjuda = {
           'Quebre a faixa em blocos menores e cadastre em duas rodadas.',
         ],
         [
-          '"Já existe um ativo com esse patrimônio e service tag."',
+          '"Já existe um ativo com esse patrimônio e service tag nesta filial."',
           'O equipamento já está cadastrado. Procure-o na lista de ativos antes de cadastrar de novo.',
         ],
         [

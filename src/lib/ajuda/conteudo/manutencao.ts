@@ -173,7 +173,7 @@ export const manutencao: PaginaAjuda = {
           'Falta um dos obrigatórios do bloco "Equipamento substituto". Se o fornecedor não repôs nada, desmarque "Cadastrar o equipamento substituto" em vez de inventar dados.',
         ],
         [
-          '"Já existe um ativo com esse patrimônio e service tag."',
+          '"Já existe um ativo com esse patrimônio e service tag nesta filial."',
           'O substituto colide com um equipamento que já está cadastrado. Nada foi registrado — confira a etiqueta e o número antes de repetir.',
         ],
         [

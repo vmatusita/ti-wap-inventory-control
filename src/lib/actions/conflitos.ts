@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { traduzErroBanco } from '@/lib/actions/erros'
-import { ladosDosAtivos } from '@/lib/queries/conflitos'
+import { acervoDosAtivos, ladosDosAtivos } from '@/lib/queries/conflitos'
 // `import type` é permitido num módulo 'use server' — a regra da F13 proíbe EXPORTAR o que
 // não é função async, não importar. O que nunca pode aparecer aqui é um `export type`.
 import type { LadoConflito } from '@/lib/pendencias/conflitos'
@@ -187,7 +187,16 @@ export async function apagarConflito(input: {
   let backupPath: string | null = null
   if (exigeBackupEmArquivo(ativoIds.length)) {
     try {
-      const lados = await ladosDosAtivos(supabase, ativoIds)
+      // ⚠ O arquivo guarda as LINHAS, não o resumo da view. Abaixo do cap quem monta o
+      // backup é a RPC, em jsonb, com ativo + movimentações + termos + anotações +
+      // pendências de item; acima do cap a RPC pula esse trecho (o jsonb sairia do
+      // razoável) e passa a exigir este arquivo — que portanto precisa conter o MESMO.
+      // Guardar só o resumo daria um "backup" que descreve o que sumiu e não restaura
+      // nada, que é a pior espécie: o defeito só aparece na hora de usar.
+      const [acervo, lados] = await Promise.all([
+        acervoDosAtivos(supabase, ativoIds),
+        ladosDosAtivos(supabase, ativoIds),
+      ])
       const corpo = new Blob(
         [
           JSON.stringify({
@@ -195,7 +204,10 @@ export async function apagarConflito(input: {
             exportadoEm: new Date().toISOString(),
             motivo: 'exclusão de conflito entre filiais',
             ativoIds,
+            // o retrato legível (o que a mesa mostrava) …
             lados,
+            // … e as linhas de verdade, que é o que restaura.
+            ...acervo,
           }),
         ],
         { type: 'application/json' },

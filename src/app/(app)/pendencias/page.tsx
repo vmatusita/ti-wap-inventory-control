@@ -90,7 +90,7 @@ export default async function PendenciasPage({
     naMesa
       ? Promise.resolve({ rows: [], total: 0, page: 1, pageSize: 30 })
       : listarPendencias({ filialSlug, tipo: tipoDaFila, q, page }),
-    naMesa ? listarConflitos({ filialSlug, page }) : Promise.resolve(null),
+    naMesa ? listarConflitos({ filialSlug, q, page }) : Promise.resolve(null),
     // O chip de conflito é contado SEMPRE (ele aparece em qualquer aba, como os demais).
     contarGruposConflito(client, filialSlug),
   ])
@@ -159,12 +159,25 @@ export default async function PendenciasPage({
       {naMesa ? (
         gruposFmt.length === 0 ? (
           <div className="rounded-xl border bg-card">
-            <EstadoVazio
-              icone={ClipboardCheck}
-              titulo="Nenhum conflito entre filiais 🎉"
-              descricao="Nenhum equipamento está cadastrado em duas filiais ao mesmo tempo. Quando um import de startup trouxer uma máquina que já existe em outra unidade, os dois cadastros aparecem aqui, lado a lado."
-              className="border-0"
-            />
+            {/* Distingue "não há conflito nenhum" (comemorar) de "nada NESTE filtro"
+                (ajustar) — mesma doutrina do estado vazio da fila. Afirmar a verdade
+                global com um filtro aplicado seria mentir por omissão. */}
+            {filialSlug || q ? (
+              <EstadoVazio
+                icone={Filter}
+                titulo="Nenhum conflito neste filtro"
+                descricao="Nada nesta combinação de filtros — o que não quer dizer que não haja conflitos. Ajuste ou limpe os filtros para ver todos."
+                acao={{ href: '/pendencias?tipo=conflito', rotulo: 'Limpar filtros' }}
+                className="border-0"
+              />
+            ) : (
+              <EstadoVazio
+                icone={ClipboardCheck}
+                titulo="Nenhum conflito entre filiais 🎉"
+                descricao="Nenhum equipamento está cadastrado em duas filiais ao mesmo tempo. Quando um import de startup trouxer uma máquina que já existe em outra unidade, os dois cadastros aparecem aqui, lado a lado."
+                className="border-0"
+              />
+            )}
           </div>
         ) : (
           // A mesa NÃO usa a moldura da tabela: cada conflito é um bloco próprio.

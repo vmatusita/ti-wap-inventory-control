@@ -127,9 +127,9 @@ export const fichaDoAtivo: PaginaAjuda = {
           'Recarregue a ficha: o valor gravado é o que está na tela.',
         ],
         [
-          '"Já existe um ativo com esse patrimônio e service tag."',
+          '"Já existe um ativo com esse patrimônio e service tag nesta filial."',
           'O par que você digitou já identifica outro equipamento.',
-          'Confira a etiqueta física; o par patrimônio + service tag é único no sistema inteiro.',
+          'Confira a etiqueta física; o par patrimônio + service tag é único DENTRO de cada filial. Corrigir para um valor que já existe em outra unidade também é recusado — a mensagem diz em qual —, porque dois cadastros do mesmo equipamento só nascem pelo import de startup, e aí eles aparecem na aba "Conflitos entre filiais" de Pendências.',
         ],
         [
           'O botão "Estornar" não aparece na movimentação que eu quero desfazer.',

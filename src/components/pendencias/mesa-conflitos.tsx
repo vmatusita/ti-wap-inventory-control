@@ -34,7 +34,7 @@ import {
   confirmacaoConflitoConfere,
   textoConfirmacaoConflito,
 } from '@/lib/validators/conflitos'
-import { apagarConflito } from '@/lib/actions/conflitos'
+import { apagarConflito, resumoExclusaoConflito } from '@/lib/actions/conflitos'
 
 // A MESA DE CONFLITOS (F24) — a seção própria de /pendencias.
 //
@@ -77,7 +77,14 @@ export function MesaConflitos({
   podeApagar?: boolean
 }) {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
-  const [dialogo, setDialogo] = useState<LadoFmt[] | null>(null)
+  // O que o diálogo mostra vem do SERVIDOR, lido no clique — ver `abrirDialogo`.
+  const [dialogo, setDialogo] = useState<{
+    ids: string[]
+    lados: LadoConflito[]
+    resumo: ReturnType<typeof resumoDaExclusao>
+    faltando: number
+  } | null>(null)
+  const [abrindo, iniciarAbertura] = useTransition()
 
   // Ids VISÍVEIS nesta página. A seleção some ao paginar/filtrar — mesma decisão da fila da
   // F18: cada página resolve a sua, sem a surpresa de "apaguei o que não estava vendo".
@@ -85,12 +92,8 @@ export function MesaConflitos({
     () => grupos.flatMap((g) => g.lados.map((l) => l.ativoId)),
     [grupos],
   )
-  const porId = useMemo(() => {
-    const m = new Map<string, LadoFmt>()
-    for (const g of grupos) for (const l of g.lados) m.set(l.ativoId, l)
-    return m
-  }, [grupos])
-
+  // (não há mais índice id→lado aqui: o diálogo lê os lados do SERVIDOR no clique, e não
+  // do que veio com a página — ver `abrirDialogo`.)
   const selecionadosVisiveis = useMemo(
     () => idsVisiveis.filter((id) => selecionados.has(id)),
     [idsVisiveis, selecionados],
@@ -107,9 +110,42 @@ export function MesaConflitos({
     })
   }
 
+  /**
+   * Abre o diálogo com o resumo REAL, lido do servidor NO CLIQUE (ordem §4.3).
+   *
+   * ⚠ Não usa os números que vieram com a página: entre o carregamento e o clique, outra
+   * pessoa pode ter registrado uma movimentação, gerado um termo, ou resolvido o conflito
+   * inteiro. Um diálogo que diz "3 movimentações somem junto" com base em dado velho é
+   * exatamente o tipo de número que ninguém confere depois.
+   *
+   * `faltando` > 0 significa que algum selecionado já NÃO está mais em conflito — a RPC
+   * recusaria a operação inteira por causa dele, e é melhor dizer isso antes.
+   */
   function abrirDialogo(ids: string[]) {
-    const lados = ids.map((id) => porId.get(id)).filter((l): l is LadoFmt => l !== undefined)
-    if (lados.length > 0) setDialogo(lados)
+    if (ids.length === 0) return
+    iniciarAbertura(async () => {
+      try {
+        const res = await resumoExclusaoConflito({ ativoIds: ids })
+        if (!res.ok) {
+          toast.error(res.erro, { duration: 10000 })
+          return
+        }
+        const d = res.dados
+        if (!d || d.lados.length === 0) {
+          toast.warning(
+            'Estes cadastros já não estão em conflito — alguém resolveu enquanto esta página estava aberta. Recarregue a mesa.',
+            { duration: 12000 },
+          )
+          return
+        }
+        setDialogo({ ids, lados: d.lados, resumo: d.resumo, faltando: d.faltando })
+      } catch {
+        toast.error(
+          'Não foi possível ler o estado atual destes cadastros. Nada foi apagado — confira a conexão e tente de novo.',
+          { duration: 10000 },
+        )
+      }
+    })
   }
 
   return (
@@ -131,6 +167,7 @@ export function MesaConflitos({
               variant="destructive"
               size="sm"
               className="gap-2"
+              disabled={abrindo}
               onClick={() => abrirDialogo(selecionadosVisiveis)}
             >
               <Trash2 className="size-4" />
@@ -176,6 +213,7 @@ export function MesaConflitos({
                   variant="outline"
                   size="sm"
                   className="gap-2 text-destructive hover:text-destructive"
+                  disabled={abrindo}
                   onClick={() => abrirDialogo(idsDoGrupo)}
                 >
                   <Trash2 className="size-4" />
@@ -275,7 +313,10 @@ export function MesaConflitos({
 
       {dialogo && (
         <DialogoApagarConflito
-          lados={dialogo}
+          ids={dialogo.ids}
+          lados={dialogo.lados}
+          resumo={dialogo.resumo}
+          faltando={dialogo.faltando}
           onFechar={() => setDialogo(null)}
           onApagado={() => {
             setSelecionados(new Set())
@@ -297,11 +338,20 @@ export function MesaConflitos({
 // nenhum submit por Enter, porque há um textarea logo abaixo do campo de confirmação.
 
 function DialogoApagarConflito({
+  ids,
   lados,
+  resumo,
+  faltando,
   onFechar,
   onApagado,
 }: {
-  lados: LadoFmt[]
+  /** Os ids PEDIDOS — é o que vai para a RPC, e é sobre eles que a confirmação conta. */
+  ids: string[]
+  /** Os lados que o servidor devolveu AGORA (pode ser menos que `ids`, se algum saiu). */
+  lados: LadoConflito[]
+  resumo: ReturnType<typeof resumoDaExclusao>
+  /** Quantos dos pedidos já NÃO estão em conflito. > 0 = a RPC vai recusar tudo. */
+  faltando: number
   onFechar: () => void
   onApagado: () => void
 }) {
@@ -311,9 +361,10 @@ function DialogoApagarConflito({
   const [executando, start] = useTransition()
   const cancelarRef = useRef<HTMLButtonElement>(null)
 
-  const resumo = useMemo(() => resumoDaExclusao(lados), [lados])
-  const esperado = textoConfirmacaoConflito(lados.length)
-  const confere = confirmacaoConflitoConfere(confirmacao, lados.length)
+  // A confirmação conta os ids PEDIDOS (o que a RPC vai receber e deduplicar), não os lados
+  // devolvidos — senão o texto pediria um número e a RPC esperaria outro.
+  const esperado = textoConfirmacaoConflito(ids.length)
+  const confere = confirmacaoConflitoConfere(confirmacao, ids.length)
   const justificativaOk = justificativa.trim().length >= MIN_JUSTIFICATIVA_CONFLITO
   const pronto = confere && justificativaOk && !executando
   const faltam = MIN_JUSTIFICATIVA_CONFLITO - justificativa.trim().length
@@ -336,9 +387,9 @@ function DialogoApagarConflito({
         if (res.aviso) toast.warning(res.aviso, { duration: 15000 })
         else {
           toast.success(
-            lados.length === 1
+            ids.length === 1
               ? 'Cadastro apagado. O conflito foi resolvido.'
-              : `${lados.length} cadastros apagados.`,
+              : `${ids.length} cadastros apagados.`,
           )
         }
         onApagado()
@@ -365,9 +416,9 @@ function DialogoApagarConflito({
       >
         <DialogHeader>
           <DialogTitle>
-            {lados.length === 1
+            {ids.length === 1
               ? 'Apagar este cadastro?'
-              : `Apagar ${lados.length} cadastros?`}
+              : `Apagar ${ids.length} cadastros?`}
           </DialogTitle>
           <DialogDescription>
             Esta ação <strong>não tem volta</strong>. O histórico do cadastro apagado vai
@@ -395,6 +446,25 @@ function DialogoApagarConflito({
             <span>{resumo.termos}</span>
           </div>
         </div>
+
+        {/* Algum selecionado já saiu do conflito enquanto esta página estava aberta. A RPC
+            recusaria a operação INTEIRA por causa dele (all-or-nothing) — dizer antes evita
+            o clique que vai falhar. */}
+        {faltando > 0 && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm">
+            <div className="flex items-center gap-2 font-medium text-destructive">
+              <AlertTriangle className="size-4" />
+              {faltando === 1
+                ? 'Um dos selecionados já não está em conflito'
+                : `${faltando} dos selecionados já não estão em conflito`}
+            </div>
+            <p className="mt-1 text-muted-foreground">
+              Alguém resolveu enquanto esta página estava aberta. Esta ferramenta só apaga
+              cadastro em conflito, e recusa a operação inteira por causa dele — recarregue a
+              mesa e refaça a seleção.
+            </p>
+          </div>
+        )}
 
         {/* O AVISO DESTACADO (§4.3): apagar cadastro com vida própria é PERMITIDO — o
             Johnny decidiu assim —, mas nunca em silêncio. */}
@@ -468,9 +538,9 @@ function DialogoApagarConflito({
           <Button type="button" variant="destructive" disabled={!pronto} onClick={executar}>
             {executando
               ? 'Apagando…'
-              : lados.length === 1
+              : ids.length === 1
                 ? 'Apagar cadastro'
-                : `Apagar ${lados.length} cadastros`}
+                : `Apagar ${ids.length} cadastros`}
           </Button>
         </DialogFooter>
       </DialogContent>
