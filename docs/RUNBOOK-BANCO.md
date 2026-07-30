@@ -417,6 +417,78 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
   `using (bucket_id = 'termos')` — lista literal no rodapé do cabeçalho da migration. As reversões
   da `0069` e da `0070` são **independentes de propósito**: derrubar o gate de leitura não pode
   reabrir o furo do termo.
+- **`0079`–`0088`** (F23 — as ferramentas destrutivas do cargo dev; 30/07/2026) — **dez
+  migrations, aplicadas por MCP em ensaio primeiro e depois em produção**, todas no ledger dos
+  dois. Nenhuma linha de acervo foi tocada em produção: contagens antes = depois (ativos 1232,
+  movimentações 2377, lançamentos 9, termos 7), e `movimentacoes.forcado` segue **0** — a fase
+  INSTALA as ferramentas, usá-las é decisão do dev, depois.
+
+  **⚠ O GATE NÃO BARROU — de novo, e vale registrar o precedente.** Três destas migrations
+  (`0080`, `0082`, `0083`, `0087`) contêm `delete from public.ativos` / `delete from
+  public.movimentacoes` no corpo, e o `apply_migration` do MCP **aceitou as quatro**. Mesmo
+  motivo da `0048` e da `0064`: em `create or replace` o corpo é redefinido, não executado.
+  O caminho **B** ficou preparado mas não foi preciso.
+
+  **⚠ ORDEM DE APPLY OBRIGATÓRIA — `0080` ANTES da `0081`.** A `0081` instala o trigger
+  `guarda_acervo`, que recusa exclusão de acervo fora da janela `estoque.dev_destrutivo`; a
+  `0080` é que ensina a RPC de import a abrir essa janela. Na ordem inversa, o "Substituir
+  tudo" fica QUEBRADO na janela entre as duas.
+
+  **O que cada uma faz:** `0079` a coluna `forcado` (a marca); `0080` o import abre a janela;
+  `0081` a guarda (função + 3 triggers); `0082` apagar ativo/movimentação/item; `0083` resetar
+  acervo/itens + o caminho nomeado do `db:reset`; `0084` forçar estado/saldo; `0085`
+  vocabulário da trilha + a 8ª checagem; `0086` a prévia do reset; `0087` correções da prova;
+  `0088` superfície de RPC.
+
+  **A prova de que a `0080` é diff mínimo** (o método é reaproveitável para qualquer recriação
+  de função grande): o corpo vivo era idêntico nos dois bancos
+  (`md5(regexp_replace(pg_get_functiondef(oid),'\s+',' ','g'))` = `d533780c5084f907c27d29d8f4af5642`,
+  17.486 bytes). **Depois** do apply, remove-se do corpo vivo só as linhas marcadas `F23` e
+  recalcula-se o md5 — ele volta a ser `d533780c…`. Isso prova, em cada banco, que a
+  recriação não introduziu NENHUMA outra diferença — inclusive contra erro de transcrição, que
+  é o risco real quando se cola 19 KB de função à mão.
+
+  ```sql
+  with viva as (
+    select pg_get_functiondef('public.importar_ativos_substituir(jsonb,text,jsonb,jsonb)'::regprocedure) as d),
+  sem_f23 as (
+    select string_agg(l, e'\n' order by ord) as d
+      from viva, regexp_split_to_table(viva.d, e'\n') with ordinality as t(l, ord)
+     where l !~ 'F23' and l !~ 'dev_destrutivo' and l !~ 'guarda_acervo'
+       and l !~ 'sem este fecho' and l !~ 'correriam com a guarda')
+  select md5(regexp_replace((select d from sem_f23),'\s+',' ','g')) = 'd533780c5084f907c27d29d8f4af5642' as fiel;
+  ```
+
+  **Verificação pós-apply nos dois bancos:** 12 funções novas, todas `definer`, com
+  `anon = false`; `authenticated = true` nas oito ferramentas + `previa_reset`, e **invertido**
+  em `resetar_dados_ficticios` (`authenticated = false`, `service_role = true`) e **fechado**
+  em `guarda_acervo` (ninguém); `abre = fecha − 1` em toda RPC que abre a janela (o `−1` é o
+  fecho do bloco `exception`); os 3 triggers com os eventos certos (`ativos` **só DELETE**);
+  `notify pgrst, 'reload schema'` nos dois.
+
+  **A guarda MORDE — provado em PRODUÇÃO, dentro de `begin; … rollback;`** (para que nem uma
+  falha da guarda pudesse tocar dado real): como **service role**, `delete` e `update` em
+  `movimentacoes`, `delete` em `ativos` e em `lancamentos_item`, `insert` com `forcado = true`,
+  e as RPCs `apagar_ativo`/`previa_reset` → **todos 42501**; e o INSERT legítimo de
+  movimentação **continua passando**. Era a garantia que o critério 7 pedia e que **não
+  existia**: antes da `0081`, a imutabilidade era a AUSÊNCIA de policy de UPDATE/DELETE, que
+  não segura quem tem `rolbypassrls`.
+
+  **Advisors (produção, antes → depois):** `rls_enabled_no_policy` 3 → 3 (as mesmas
+  pré-existentes); `authenticated_security_definer_function_executable` 17 → 26 (+9 líquido,
+  depois da `0088` devolver duas). São da mesma classe inerente que a `0062`/`0069` já
+  aceitaram: função chamada com o client de sessão precisa de `execute` para `authenticated`, e
+  cada uma tem guarda interna. **Nenhum WARN novo de RLS.**
+
+  **⚠ Efeito colateral que muda uma ferramenta de desenvolvimento:** `scripts/reset.ts` NÃO
+  apaga mais por `.delete()` — a guarda recusaria o service role. Ele passou a chamar
+  `resetar_dados_ficticios('RESETAR DADOS FICTICIOS')`. A proteção contra rodar em produção
+  continua sendo `scripts/env-guard.ts` (`REFS_DE_PRODUCAO`), do lado do script.
+
+  **Rollback lógico** (reabre o acervo para o service role — só faz sentido junto de um
+  rollback completo da F23): `drop trigger` nos três + `drop function public.guarda_acervo()`;
+  `drop function` das ferramentas; reaplicar o corpo da `0064` no import; `drop column forcado`
+  nas duas tabelas. **Nenhum dado do acervo se perde em nenhum passo.**
 - **Retroativo C3 (F15 — toca dado, caminho B).** UPDATE de **2 linhas** de `movimentacoes` (`tipo 'compra'→'troca'` no nascimento dos substitutos já registrados, `ativo_id in (select id from ativos where substitui_ativo_id is not null)`). O classificador **não barrou** um UPDATE de 2 linhas via `execute_sql`. Backup das linhas em `scratchpad/f15/retroativo-backup.md` (WAP0005656/WAP0005657); antes=depois conferido (`compra` de substituto 2→0, `troca` 0→2); `status_resultante`/estado dos ativos intactos (a transição de `troca` é a mesma da `compra`). Rollback: `update movimentacoes set tipo='compra' where id in ('5cc393bc-…','95d3d096-…')`.
 
 ### Como conferir o efeito (sem depender do ledger)
