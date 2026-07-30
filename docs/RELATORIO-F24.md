@@ -147,6 +147,16 @@ residuo_ativos  grupos  residuo_perfis  residuo_eventos  total_ativos
 0               0       0               0                1596
 ```
 
+### 5.2-bis Roteiro vizinho mais exposto — `maquina_estados.sql`
+
+A `0097` reescreve `aplicar_movimentacao`, o trigger central da máquina de estados. A regra do runbook ("mexeu em função/trigger/RPC, rode os roteiros") manda conferir. O mais exposto é este, rodado no ensaio depois do apply:
+
+```
+ERROR: P0001: MAQUINA DE ESTADOS pos-0097 >> ok=13 falhas=0 | falhou: []
+```
+
+**13 asserções, 0 falhas** — inclusive os dois cenários que a guarda nova toca: o **cenário 3** (estorno de uma transferência restaura status/colaborador/setor/**filial**) e o **cenário 6** (transferência muda `filial_id` e aparece nas duas filiais em `v_movimentacoes_mes`).
+
 ### 5.3 Verificação pós-apply — PRODUÇÃO
 
 ```
@@ -216,6 +226,12 @@ A ordem previa o caminho B (handoff) para as migrations com exclusão de acervo.
 O que **foi** respeitado do §6: o roteiro `conflito_filiais.sql` não contém literais de exclusão de acervo (conferido por grep) — a prova comportamental de que `guarda_acervo` recusa DELETE direto continua confinada a `dev_destrutivo.sql` §2, e o roteiro novo prova o que lhe cabe (a guarda **instalada** nas três tabelas, e a janela **fechando** em erro).
 
 ---
+
+## 6-bis. O que a autorrevisão encontrou (antes da revisão adversarial)
+
+Um defeito real, achado ao perguntar "a fonte derivada escala no volume real?" (§V):
+
+**A mesa e o export de conflitos não paginavam.** O PostgREST corta todo select em **1.000 linhas em silêncio**, e o volume de conflitos **não é necessariamente pequeno** — o cenário que o torna grande é justamente o que esta fase destravou: importar o CSV de uma filial escolhendo **outra** na tela abre um conflito por linha do arquivo, centenas de uma vez. A mesa mostraria os 1.000 primeiros e esconderia o resto sem avisar; o CSV sairia incompleto sem erro. Os três selects expostos passaram a usar `paginarTodos`, o mesmo helper que o backup do import adota desde que a Matriz com 1.217 ativos revelou o mesmo problema.
 
 ## 7. Decisões registradas
 
