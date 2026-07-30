@@ -13,7 +13,7 @@ import { AtalhosGlobais } from '@/components/movimentacoes/atalho-global'
 import { PaletaComandosProvider } from '@/components/layout/paleta-comandos'
 import { INDICE_PALETA } from '@/lib/ajuda/indice'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { eAdmin, podeEscrever } from '@/lib/auth/papeis'
+import { eAdmin, eDev, podeEscrever } from '@/lib/auth/papeis'
 
 // Shell do grupo (app). Três modos (spec §3 / OS-F3 3.9.4):
 //  - Público: /relatorios/acesso (entrada por senha) — sem shell.
@@ -47,6 +47,10 @@ export default async function AppLayout({
     // só interessa às TELAS, que resolvem o operador por conta própria.
     const escreve = podeEscrever(operador.papel)
     const admin = eAdmin(operador.papel)
+  // F22 — o cargo dev NAO cabe no booleano `eAdmin`: ele e um nivel ACIMA, e o unico que
+  // enxerga a area /dev. Resolvido aqui, junto dos outros, para nenhuma peca consultar o
+  // banco de novo (o mesmo motivo do comentario acima).
+  const dev = eDev(operador.papel)
     return (
       <TooltipProvider delayDuration={300}>
         <ProgressoNavegacaoProvider>
@@ -66,6 +70,7 @@ export default async function AppLayout({
             paginasAjuda={INDICE_PALETA}
             podeEscrever={escreve}
             eAdmin={admin}
+            eDev={dev}
           >
             <div className="flex min-h-svh flex-col">
               <AppHeader
@@ -74,10 +79,11 @@ export default async function AppLayout({
                 pendencias={pendencias}
                 podeEscrever={escreve}
                 eAdmin={admin}
+                eDev={dev}
               />
               <div className="flex flex-1">
                 <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
-                  <SidebarNav pendencias={pendencias} eAdmin={admin} />
+                  <SidebarNav pendencias={pendencias} eAdmin={admin} eDev={dev} />
                 </aside>
                 <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
               </div>

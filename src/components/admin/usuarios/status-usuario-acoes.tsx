@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Dica } from '@/components/ui/dica'
 import { definirStatusUsuario } from '@/lib/actions/admin'
 
 // Desativar / reativar o acesso de um usuário (F21). Mesmo desenho do `SenhaAcoes` das
@@ -28,11 +29,19 @@ export function StatusUsuarioAcoes({
   nome,
   ativo,
   eVoceMesmo,
+  bloqueio,
 }: {
   usuarioId: string
   nome: string
   ativo: boolean
   eVoceMesmo: boolean
+  /**
+   * F22 — motivo pelo qual quem está logado não mexe na situação desta conta (hoje: a
+   * linha é de um Desenvolvedor e o autor não é dev). Vale para os DOIS sentidos: reativar
+   * um dev também é privativo do dev. A recusa de verdade vem do banco (`exigir_gestao_de`,
+   * migration 0074, e a rede `profiles_guarda_dev` da 0073); isto é ergonomia.
+   */
+  bloqueio?: string | null
 }) {
   const router = useRouter()
   const [pending, start] = useTransition()
@@ -61,6 +70,25 @@ export function StatusUsuarioAcoes({
         )
       }
     })
+  }
+
+  // F22 — conta de Desenvolvedor vista por quem não é dev: o botão vem desabilitado com a
+  // explicação, nos dois sentidos (desativar E reativar). `Dica` em vez de `title` porque o
+  // atributo nativo não abre por foco de teclado e o botão desabilitado não recebe evento de
+  // mouse (`disabled:pointer-events-none`) — a explicação não existiria.
+  if (bloqueio) {
+    return (
+      <Dica texto={bloqueio} className="inline-flex">
+        <Button
+          variant={ativo ? 'outline' : 'secondary'}
+          size="sm"
+          className="min-h-10 sm:min-h-0"
+          disabled
+        >
+          {ativo ? 'Desativar' : 'Reativar'}
+        </Button>
+      </Dica>
+    )
   }
 
   if (!ativo) {

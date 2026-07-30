@@ -10,7 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PAPEIS, PAPEL_DESCRICAO, PAPEL_ROTULO, exigeVinculoDeFilial } from '@/lib/auth/papeis'
+import {
+  PAPEIS,
+  PAPEL_DESCRICAO,
+  PAPEL_ROTULO,
+  eDev,
+  exigeVinculoDeFilial,
+} from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 
 export type FilialOpcao = { id: number; nome: string }
@@ -27,6 +33,7 @@ export function CargoEFiliais({
   filiais,
   onFiliaisChange,
   opcoes,
+  autorEDev,
   desabilitado,
   erro,
 }: {
@@ -41,12 +48,28 @@ export function CargoEFiliais({
    * vínculo em silêncio, porque a action apaga-e-regrava a lista recebida.
    */
   opcoes: readonly FilialOpcao[]
+  /**
+   * F22 — quem está preenchendo este formulário tem o cargo Desenvolvedor?
+   *
+   * Só um dev concede o cargo dev (é a guarda `exigir_gestao_de()` da RPC 0074 e a
+   * `validarTrocaDePapel` do servidor). Um Administrador que visse "Desenvolvedor" na lista
+   * escolheria a opção, mandaria o formulário e levaria uma recusa que a tela não explica —
+   * então a opção simplesmente não existe para ele.
+   */
+  autorEDev: boolean
   desabilitado?: boolean
   /** Mensagem de erro do formulário (a regra do cargo × filiais). */
   erro?: string | null
 }) {
   const idCargo = useId()
   const mostrarFiliais = exigeVinculoDeFilial(papel)
+
+  // `p === papel` mantém na lista o cargo que já está selecionado: sem essa ressalva, um
+  // formulário aberto sobre uma conta dev por quem não é dev exibiria o <Select> VAZIO (valor
+  // sem item correspondente) — e a tela mentiria dizendo que a pessoa não tem cargo. Hoje a
+  // lista de usuários não deixa esse caso acontecer (o botão Editar da linha dev vem
+  // desabilitado), e este ramo existe para que continuar assim não dependa disso.
+  const cargosOferecidos = PAPEIS.filter((p) => autorEDev || !eDev(p) || p === papel)
 
   function alternar(id: number, marcado: boolean) {
     onFiliaisChange(
@@ -67,7 +90,7 @@ export function CargoEFiliais({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {PAPEIS.map((p) => (
+            {cargosOferecidos.map((p) => (
               <SelectItem key={p} value={p}>
                 {PAPEL_ROTULO[p]}
               </SelectItem>

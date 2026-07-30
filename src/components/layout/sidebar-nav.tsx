@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Package,
   Settings,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -21,9 +22,13 @@ type NavItem = {
   icone: LucideIcon
   href?: string // sem href = placeholder (fase futura)
   match?: string // prefixo p/ marcar "ativo" (default: href)
-  // F21 — item que só o cargo Admin vê. A trava real é o `admin/layout.tsx`
-  // (redireciona não-admin) + as actions e o RLS; aqui é só não oferecer.
+  // F21 — item que só o NÍVEL administrador vê (admin ou dev, via `eAdmin`). A trava real é
+  // o `admin/layout.tsx` (redireciona quem não é) + as actions e o RLS; aqui é só não oferecer.
   soAdmin?: boolean
+  // F22 — item que só o cargo dev vê. Flag PRÓPRIA, e não `soAdmin`, porque as duas
+  // perguntas são diferentes: `eAdmin` é NÍVEL (admin ⊂ dev) e responde "true" para o dev,
+  // então marcar /dev como `soAdmin` a mostraria para todo administrador.
+  soDev?: boolean
 }
 
 const ITENS: NavItem[] = [
@@ -43,6 +48,15 @@ const ITENS: NavItem[] = [
     match: '/admin',
     soAdmin: true,
   },
+  // F22 — a área técnica do 4º cargo. Fica DEPOIS de Administração e ANTES de Ajuda: é o
+  // item mais raro do menu e não pode empurrar o "?" para o meio da lista.
+  {
+    rotulo: 'Desenvolvedor',
+    icone: Wrench,
+    href: '/dev',
+    match: '/dev',
+    soDev: true,
+  },
   { rotulo: 'Ajuda', icone: CircleHelp, href: '/ajuda' },
 ]
 
@@ -52,9 +66,10 @@ function ativa(pathname: string, item: NavItem): boolean {
   return pathname === alvo || pathname.startsWith(`${alvo}/`) || pathname === item.href
 }
 
-// Navegacao lateral. F21: os itens de OPERAÇÃO são os mesmos para os três cargos
-// (todo logado LÊ tudo — ADR-001/ADR-002); só "Administração" é exclusiva do
-// Admin. `eAdmin` vem do `(app)/layout.tsx`, que resolve o cargo uma vez.
+// Navegacao lateral. F21: os itens de OPERAÇÃO são os mesmos para todos os cargos
+// (todo logado LÊ tudo — ADR-001/ADR-002); só "Administração" é do nível admin.
+// F22: "Desenvolvedor" é do cargo dev, e por isso são DUAS flags, não uma.
+// `eAdmin`/`eDev` vêm do `(app)/layout.tsx`, que resolve o cargo uma vez.
 // `pendencias` (OS-F9 / T2): contagem vinda do layout do operador (server-side, a
 // cada navegacao — sem realtime). Zero ou ausente = sem badge.
 export function SidebarNav({
@@ -62,14 +77,21 @@ export function SidebarNav({
   onNavigate,
   pendencias,
   eAdmin = false,
+  eDev = false,
 }: {
   className?: string
   onNavigate?: () => void
   pendencias?: number
   eAdmin?: boolean
+  // Default `false` de propósito: enquanto o `(app)/layout.tsx` não passar a prop, o item
+  // /dev simplesmente não aparece — a rota continua protegida pelo `dev/layout.tsx`, então
+  // o pior caso de esquecer a prop é um menu incompleto, nunca um vazamento.
+  eDev?: boolean
 }) {
   const pathname = usePathname()
-  const itens = eAdmin ? ITENS : ITENS.filter((i) => !i.soAdmin)
+  // As duas flags são independentes: `eAdmin` é NÍVEL (o dev também o atende) e `eDev` é o
+  // cargo exato. Um item marcado com as duas exigiria as duas.
+  const itens = ITENS.filter((i) => (eAdmin || !i.soAdmin) && (eDev || !i.soDev))
 
   return (
     <nav className={cn('flex flex-col gap-1', className)}>

@@ -19,6 +19,7 @@ import {
   Package,
   Plus,
   Settings,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -63,8 +64,11 @@ type ItemNavegacao = {
   // Rota em que a AÇÃO ja pode ser disparada sem navegar (o dialog dela ja esta
   // montado). Fora dela, o `href` leva ate a tela com o gatilho na URL.
   disparaEm?: string
-  // F21 — entrada só do cargo Admin (espelha `soAdmin` do sidebar-nav).
+  // F21 — entrada só do NÍVEL administrador (espelha `soAdmin` do sidebar-nav).
   soAdmin?: boolean
+  // F22 — entrada só do cargo dev (espelha `soDev` do sidebar-nav). Flag separada porque
+  // `eAdmin` é NÍVEL e o dev o atende: reusar `soAdmin` mostraria /dev a todo administrador.
+  soDev?: boolean
 }
 
 // Espelha o `sidebar-nav.tsx`. Se a sidebar ganhar/perder item, esta lista
@@ -91,6 +95,24 @@ const ROTAS: ItemNavegacao[] = [
     // não achava nada e a tela nova ficava sem porta de entrada pelo teclado.
     apelidos: ['usuarios', 'senhas', 'filiais', 'motivos', 'importar', 'kits'],
     soAdmin: true,
+  },
+  {
+    // F22 — a área técnica. Os apelidos são os nomes dos QUATRO blocos da tela: sem eles,
+    // Ctrl+K → "auditoria" ou "cache" não acharia a única tela que os oferece.
+    rotulo: 'Desenvolvedor',
+    href: '/dev',
+    icone: Wrench,
+    apelidos: [
+      'dev',
+      'diagnostico',
+      'integridade',
+      'checagens',
+      'auditoria',
+      'trilha',
+      'manutencao',
+      'cache',
+    ],
+    soDev: true,
   },
   { rotulo: 'Ajuda', href: '/ajuda', icone: CircleHelp, atalho: '?' },
 ]
@@ -151,6 +173,7 @@ export function PaletaComandosProvider({
   paginasAjuda = [],
   podeEscrever = false,
   eAdmin = false,
+  eDev = false,
 }: {
   children: React.ReactNode
   /**
@@ -166,9 +189,14 @@ export function PaletaComandosProvider({
    * `podeEscrever` (≥ operador) governa o grupo "Ações"; `eAdmin`, a entrada
    * "Administração" do grupo "Ir para". A paleta é um atalho para o que a tela
    * já oferece: se o botão não existe, o comando também não pode existir.
+   *
+   * F22 — `eDev` (cargo EXATO) governa a entrada "Desenvolvedor". Default `false`: enquanto
+   * o `(app)/layout.tsx` não passar a prop, o comando não existe; a rota segue protegida
+   * pelo `dev/layout.tsx`, então esquecer a prop dá menu incompleto, nunca vazamento.
    */
   podeEscrever?: boolean
   eAdmin?: boolean
+  eDev?: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -278,8 +306,11 @@ export function PaletaComandosProvider({
   const termo = normalizarBusca(query)
   const buscou = query.trim().length >= 2
   const rotas = useMemo(
-    () => ROTAS.filter((r) => (eAdmin || !r.soAdmin) && casa(r, termo)),
-    [termo, eAdmin],
+    () =>
+      ROTAS.filter(
+        (r) => (eAdmin || !r.soAdmin) && (eDev || !r.soDev) && casa(r, termo),
+      ),
+    [termo, eAdmin, eDev],
   )
   const acoes = useMemo(
     () => (podeEscrever ? ACOES.filter((a) => casa(a, termo)) : []),

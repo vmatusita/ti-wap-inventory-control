@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getOperador } from '@/lib/auth/acesso'
+import type { PapelUsuario } from '@/lib/auth/papeis'
 import { listarFiliaisParaVinculo, listarUsuarios } from '@/lib/queries/admin'
 import { EVENTOS_PAGE_SIZE, listarEventosAdmin } from '@/lib/queries/eventos-admin'
 import { paginaNumerica } from '@/lib/url-params'
@@ -54,13 +55,18 @@ export default async function AdminUsuariosPage({
       {aba === 'auditoria' ? (
         <SecaoAuditoria acao={primeiro(sp.acao) ?? null} page={paginaNumerica(primeiro(sp.page))} />
       ) : (
-        <SecaoUsuarios euId={eu.id} />
+        <SecaoUsuarios euId={eu.id} euPapel={eu.papel} />
       )}
     </div>
   )
 }
 
-async function SecaoUsuarios({ euId }: { euId: string }) {
+// F22 — o CARGO do autor desce junto com o id. Sem ele a árvore não distingue um
+// Administrador de um Desenvolvedor: ofereceria ao admin o cargo "Desenvolvedor" no convite e
+// os botões de uma linha dev (que o banco recusa), e esconderia do dev a gestão avançada que
+// só ele tem. `getOperador()` é memoizado por request, então o cargo não custa uma consulta a
+// mais — ele já foi lido ali em cima.
+async function SecaoUsuarios({ euId, euPapel }: { euId: string; euPapel: PapelUsuario }) {
   const [{ usuarios, avisoAuth }, filiais] = await Promise.all([
     listarUsuarios(),
     listarFiliaisParaVinculo(),
@@ -74,7 +80,10 @@ async function SecaoUsuarios({ euId }: { euId: string }) {
           {ativos} com acesso ativo
           {usuarios.length > ativos && ` · ${usuarios.length - ativos} desativado(s)`}
         </p>
-        <ConvidarUsuarioDialog filiais={filiais.filter((f) => f.ativo)} />
+        <ConvidarUsuarioDialog
+          filiais={filiais.filter((f) => f.ativo)}
+          euPapel={euPapel}
+        />
       </div>
 
       {/* O `catch {}` vazio de antes escondia a falha do Auth e mostrava e-mail em branco
@@ -86,7 +95,12 @@ async function SecaoUsuarios({ euId }: { euId: string }) {
         </p>
       )}
 
-      <UsuariosTabela usuarios={usuarios} filiais={filiais} euId={euId} />
+      <UsuariosTabela
+        usuarios={usuarios}
+        filiais={filiais}
+        euId={euId}
+        euPapel={euPapel}
+      />
     </div>
   )
 }

@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Dica } from '@/components/ui/dica'
 import { editarUsuario } from '@/lib/actions/admin'
 import { exigeVinculoDeFilial, validarVinculosDoPapel } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
@@ -34,6 +35,8 @@ export function EditarUsuarioDialog({
   vinculosAtuais,
   filiais,
   eVoceMesmo,
+  autorEDev,
+  bloqueio,
 }: {
   usuarioId: string
   nome: string
@@ -41,6 +44,15 @@ export function EditarUsuarioDialog({
   vinculosAtuais: readonly number[]
   filiais: readonly FilialOpcao[]
   eVoceMesmo: boolean
+  /** F22 — só um dev vê (e concede) o cargo Desenvolvedor no <Select> de cargo. */
+  autorEDev: boolean
+  /**
+   * F22 — motivo pelo qual esta linha NÃO pode ser editada por quem está logado (hoje:
+   * a linha é de um Desenvolvedor e o autor não é dev). Preenchido, o botão vem
+   * desabilitado com a explicação; o diálogo nem chega a existir. É ergonomia — quem
+   * recusa de verdade é a RPC (`exigir_gestao_de`, 0074) e a rede `profiles_guarda_dev`.
+   */
+  bloqueio?: string | null
 }) {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
@@ -74,6 +86,21 @@ export function EditarUsuarioDialog({
   const [salvando, start] = useTransition()
 
   const erroCargo = validarVinculosDoPapel(papel, escolhidas)
+
+  // F22 — linha bloqueada (conta de Desenvolvedor vista por quem não é dev): nem o diálogo
+  // se monta. O `title` nativo não serve aqui — ele não abre por foco de teclado e o botão
+  // desabilitado não recebe evento de mouse (`disabled:pointer-events-none`), então a
+  // explicação simplesmente não existiria. `Dica` põe a mesma frase num alvo focável.
+  if (bloqueio) {
+    return (
+      <Dica texto={bloqueio} className="inline-flex">
+        <Button variant="outline" size="sm" className="min-h-10 gap-1.5 sm:min-h-0" disabled>
+          <Pencil className="size-3.5" />
+          Editar
+        </Button>
+      </Dica>
+    )
+  }
 
   function abrir(open: boolean) {
     setAberto(open)
@@ -144,6 +171,7 @@ export function EditarUsuarioDialog({
           filiais={escolhidas}
           onFiliaisChange={setEscolhidas}
           opcoes={filiais}
+          autorEDev={autorEDev}
           desabilitado={salvando}
           erro={erroCargo}
         />

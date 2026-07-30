@@ -30,12 +30,15 @@ export function AppHeader({
   pendencias,
   podeEscrever = false,
   eAdmin = false,
+  eDev = false,
 }: {
   nome: string
   papel?: PapelUsuario
   pendencias?: number
   podeEscrever?: boolean
   eAdmin?: boolean
+  /** F22 — cargo Desenvolvedor: o item /dev do menu so aparece para ele. */
+  eDev?: boolean
 }) {
   const [aberto, setAberto] = useState(false)
   // Gatilho da paleta global (OS-F11 / T1). `null` fora do provider — nesse caso
@@ -66,6 +69,7 @@ export function AppHeader({
               onNavigate={() => setAberto(false)}
               pendencias={pendencias}
               eAdmin={eAdmin}
+              eDev={eDev}
             />
           </div>
         </SheetContent>

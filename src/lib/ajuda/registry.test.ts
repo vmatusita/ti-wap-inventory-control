@@ -166,6 +166,10 @@ const COBERTURA: Record<string, { pagina: string } | { isento: string }> = {
   '/admin/itens': { pagina: 'administracao' },
   '/admin/importar': { pagina: 'import-de-startup' },
   // Isenções — cada uma com o motivo, para ninguém "isentar por preguiça".
+  '/dev': {
+    isento:
+      'é a área técnica de manutenção, exclusiva do cargo Desenvolvedor (diagnóstico do que está no ar, checagens de integridade do banco, trilha completa de auditoria e limpeza de cache) — a documentação do sistema é escrita para o OPERADOR, e nada nesta tela pertence ao dia a dia dele',
+  },
   '/ajuda': { isento: 'é o índice da própria documentação — documentar-se a si mesma seria circular' },
   '/ajuda/[slug]': { isento: 'é a rota que RENDERIZA cada página do registry; a cobertura dela é o registry inteiro' },
   '/ajuda/manual': { isento: 'é a mesma documentação agregada numa página só, para leitura corrida e impressão' },

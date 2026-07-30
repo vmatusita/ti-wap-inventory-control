@@ -22,7 +22,7 @@ import {
   DOMINIOS_TEXTO,
   emailDeOperador,
 } from '@/lib/auth/dominios-email'
-import { validarVinculosDoPapel } from '@/lib/auth/papeis'
+import { eDev, validarVinculosDoPapel } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import { CargoEFiliais, type FilialOpcao } from '@/components/admin/usuarios/cargo-e-filiais'
 
@@ -36,7 +36,18 @@ type Gerado = { link: string; reenvio: boolean }
 // F21: o convite passou a escolher CARGO e FILIAIS DE ESCRITA. O cargo é gravado pela mesma
 // action, via service role, logo depois de a conta nascer — nunca por `raw_user_meta_data`,
 // que o próprio usuário consegue editar (ADR-002 §5).
-export function ConvidarUsuarioDialog({ filiais }: { filiais: readonly FilialOpcao[] }) {
+//
+// F22: a opção "Desenvolvedor" só aparece para quem JÁ é dev — mesma regra da edição. Um
+// Administrador que a visse no convite geraria um link que a action recusa (`exigir_gestao_de`
+// da RPC 0074), e o erro chegaria depois de a pessoa já ter combinado o acesso.
+export function ConvidarUsuarioDialog({
+  filiais,
+  euPapel,
+}: {
+  filiais: readonly FilialOpcao[]
+  /** Cargo de quem está convidando — vem de `getOperador()` na página. */
+  euPapel: PapelUsuario
+}) {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [email, setEmail] = useState('')
@@ -49,6 +60,7 @@ export function ConvidarUsuarioDialog({ filiais }: { filiais: readonly FilialOpc
   const [copiado, setCopiado] = useState(false)
   const [enviando, start] = useTransition()
 
+  const souDev = eDev(euPapel)
   const erroCargo = validarVinculosDoPapel(papel, filiaisEscolhidas)
   const emailValido = emailDeOperador(email)
   const valido = emailValido && !erroCargo
@@ -206,6 +218,7 @@ export function ConvidarUsuarioDialog({ filiais }: { filiais: readonly FilialOpc
               filiais={filiaisEscolhidas}
               onFiliaisChange={setFiliaisEscolhidas}
               opcoes={filiais}
+              autorEDev={souDev}
               desabilitado={enviando}
               // Só reclama depois de o admin ter mexido em algo: abrir o diálogo já
               // vermelho ("escolha ao menos uma filial") acusa antes de a pessoa agir.

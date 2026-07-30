@@ -24,6 +24,13 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/movimentacoes/nova": ["./src/templates/termos/**"],
     "/ativos/[id]": ["./src/templates/termos/**"],
+    // F22 — o bloco Diagnóstico da /dev lê `supabase/migrations` do disco em runtime para
+    // mostrar a última migration ESCRITA no repositório ao lado da versão REGISTRADA no
+    // banco. O caminho é montado em runtime, então o rastreamento de arquivos do Next não o
+    // enxerga e a pasta não iria no pacote serverless. Sem esta linha a tela não quebra (a
+    // leitura está em try/catch e a versão do banco continua aparecendo), mas o campo sai
+    // como "indisponível" — que é exatamente o sintoma que ele existe para desmentir.
+    "/dev": ["./supabase/migrations/**"],
   },
 };
 
