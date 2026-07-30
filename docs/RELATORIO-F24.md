@@ -2,7 +2,8 @@
 
 **Ordem:** `docs/prompts/F24-import-conflito-filiais-ultracode.md` (Johnny, 30/07/2026)
 **Execução:** 30/07/2026, modo autônomo · commit direto na `main`
-**Migrations:** `0091`–`0097` (sete), aplicadas em **ensaio** e **produção**
+**Migrations:** `0091`–`0098` (oito — a última nasceu da revisão adversarial), aplicadas em **ensaio** e **produção**
+**Deploy:** commit `a65ddad` · Vercel **READY** · smoke pós-deploy **89 OK · 0 falha**
 **Bancos:** ensaio `sgmvldiizsrjbxzzpmhh` · produção `pbtjcalbmepmrqzprusb`
 
 ---
@@ -205,6 +206,24 @@ O par em duas filiais entra e vira grupo; o par na **mesma** filial continua rec
 ### 5.5 Advisors (produção, depois do apply)
 
 `get_advisors(security)` traz **um WARN novo**, e é preciso ser exato sobre ele: a RPC `apagar_ativos_conflito_filiais` aparece no lint `authenticated_security_definer_function_executable` — **o mesmo lint que as outras 20 RPCs do projeto já disparam** (`apagar_ativo`, `resetar_acervo`, `importar_ativos_substituir`, `e_admin`, …). Não é uma **categoria** nova de aviso: é mais uma linha da categoria que existe por desenho, porque a RPC **tem** de ser chamável por `authenticated` e a autorização mora **dentro** dela. As duas funções auxiliares da fase (`prefixo_backup_conflito`, `exigir_identidade_livre_na_filial`) **não aparecem** — confirmando o `revoke` (precedente `0088`). Nenhum WARN de RLS, policy ou índice.
+
+### 5.5-bis Deploy e smoke pós-deploy
+
+Deploy da Vercel no commit `a65ddad`: **READY** (`ti-wap-inventory-control.vercel.app`, target production, pronto em ~43 s).
+
+```
+========================================================================
+RESUMO · 89 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+========================================================================
+```
+
+Inclusive a conferência nova da mesa:
+
+```
+  [OK   ] /pendencias?tipo=conflito — HTTP 200 (101418 bytes)
+```
+
+O único aviso é **pré-existente e alheio à fase**: `kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não comprovada`. Ele diz que a asserção não pôde ser provada por falta de dado, não que algo falhou.
 
 ### 5.6 `database.ts` regenerado
 
