@@ -42,11 +42,28 @@ function abortar(msg: string, detalhe?: string): never {
  * geraria tipos do banco errado sem ninguem notar. Quem quer o caminho novo diz qual ref.
  */
 const REF = (process.env.DB_TYPES_PROJECT_REF ?? '').trim()
-const args = REF
-  ? ['supabase', 'gen', 'types', 'typescript', '--project-id', REF]
-  : ['supabase', 'gen', 'types', 'typescript', '--linked']
 
-console.log(`[db:types] gerando por ${REF ? `--project-id ${REF}` : '--linked'}`)
+/**
+ * F22 (30/07/2026): a CLI e FIXADA, e tem de ser.
+ *
+ * Antes daqui saia `npx supabase ...`, que resolve para a versao MAIS NOVA a cada execucao.
+ * Na F22 isso apareceu: a 2.110.0 gerou `p_filial: number` onde a 2.109.1 gerava
+ * `p_filial: number | null` nas sete RPCs `rel_*` — e o app passa `null` de proposito no
+ * relatorio consolidado ("geral"). Resultado: sete erros de tipo em arquivos que a fase nem
+ * tocou, num diff que deveria conter so o cargo novo. Pior, o conserto "obvio" seria mexer no
+ * APP para agradar um tipo errado.
+ *
+ * 2.109.1 e a MESMA versao fixada no job `banco` do .github/workflows/ci.yml (linha 88).
+ * Mexeu la, mexa aqui — senao os tipos do repositorio param de bater com os do CI.
+ */
+const VERSAO_CLI = '2.109.1'
+const args = REF
+  ? [`supabase@${VERSAO_CLI}`, 'gen', 'types', 'typescript', '--project-id', REF]
+  : [`supabase@${VERSAO_CLI}`, 'gen', 'types', 'typescript', '--linked']
+
+console.log(
+  `[db:types] gerando por ${REF ? `--project-id ${REF}` : '--linked'} (CLI ${VERSAO_CLI})`,
+)
 
 const r = spawnSync('npx', args, {
   encoding: 'utf8',

@@ -1,0 +1,47 @@
+-- Migration 0078 — F22: tira da API pública as duas funções auxiliares que nunca precisaram
+-- estar lá.
+--
+-- Depende da 0074, que as criou.
+--
+-- POR QUÊ. A leitura dos advisors depois do apply da F22 mostrou onze funções novas no lint
+-- `authenticated_security_definer_function_executable`. Para NOVE delas isso é inevitável e
+-- já era doutrina desde a 0062: ou são chamadas dentro de expressão de policy (que roda com
+-- os privilégios de quem consulta), ou são as RPCs de gestão que a Server Action invoca com o
+-- client de SESSÃO — é o desenho da fase, e cada uma tem guarda interna.
+--
+-- DUAS não são nenhum dos dois casos:
+--   · `exigir_gestao_de(uuid, papel_usuario)` — só é chamada por `perform` DE DENTRO das cinco
+--     RPCs de gestão;
+--   · `existe_outro_admin_ativo(uuid)` — idem, e o app usa `idsDeAdminsAtivos()` (service role)
+--     quando precisa da contagem na tela.
+-- E funções `security definer` executam como o DONO (postgres): quem precisa de EXECUTE nelas
+-- é o dono, não `authenticated`. Mantê-las expostas em `/rest/v1/rpc/` era superfície de graça.
+--
+-- Nenhuma delas vazava algo grave — `exigir_gestao_de` só levanta ou não levanta, e
+-- `existe_outro_admin_ativo` devolve um booleano derivável da tela de usuários, que todo
+-- logado lê. Mas "não vaza nada grave" é um argumento pior do que "não está exposta".
+--
+-- ⚠ EFEITO NO ROTEIRO DE TESTE: `supabase/tests/cargo_dev.sql` chamava
+-- `existe_outro_admin_ativo` com papel simulado (asserção 5d). Depois desta migration essa
+-- chamada tem de ser feita como `postgres` — o roteiro foi ajustado junto.
+--
+-- ADITIVA quanto a dados; só mexe em privilégio. Caminho **A** do docs/RUNBOOK-BANCO.md.
+-- REVERSÃO: `grant execute on function public.exigir_gestao_de(uuid, public.papel_usuario),
+--            public.existe_outro_admin_ativo(uuid) to authenticated;`
+
+revoke execute on function public.exigir_gestao_de(uuid, public.papel_usuario) from authenticated;
+revoke execute on function public.existe_outro_admin_ativo(uuid) from authenticated;
+
+-- ---------- VERIFICAÇÃO PÓS-APPLY ----------
+--   select p.proname,
+--          has_function_privilege('authenticated', p.oid, 'execute') as auth_executa
+--     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--    where n.nspname = 'public'
+--      and p.proname in ('exigir_gestao_de','existe_outro_admin_ativo',
+--                        'definir_papel_usuario','definir_status_usuario',
+--                        'definir_vinculos_usuario','apagar_usuario','encerrar_sessoes_usuario')
+--    order by p.proname;
+--   -- esperado: false nas DUAS primeiras · true nas cinco RPCs de gestão (o app as chama)
+--
+--   -- e as cinco RPCs continuam funcionando (a chamada interna roda como o dono):
+--   -- prova viva em supabase/tests/cargo_dev.sql (asserções 2a..2f, 3a..3d)

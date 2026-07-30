@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      _bkp_relatorios_gerados_f6a: {
+        Row: {
+          dados: Json | null
+          filial_id: number | null
+          gerado_em: string | null
+          gerado_por: string | null
+          id: string | null
+          periodo_ate: string | null
+          periodo_de: string | null
+          versao: number | null
+        }
+        Insert: {
+          dados?: Json | null
+          filial_id?: number | null
+          gerado_em?: string | null
+          gerado_por?: string | null
+          id?: string | null
+          periodo_ate?: string | null
+          periodo_de?: string | null
+          versao?: number | null
+        }
+        Update: {
+          dados?: Json | null
+          filial_id?: number | null
+          gerado_em?: string | null
+          gerado_por?: string | null
+          id?: string | null
+          periodo_ate?: string | null
+          periodo_de?: string | null
+          versao?: number | null
+        }
+        Relationships: []
+      }
       anotacoes: {
         Row: {
           ativo_id: string
@@ -685,6 +718,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
+          excluido_em: string | null
           id: string
           nome: string | null
           papel: Database["public"]["Enums"]["papel_usuario"]
@@ -694,7 +728,9 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          excluido_em?: string | null
           id: string
+          nome?: string | null
           papel?: Database["public"]["Enums"]["papel_usuario"]
           primeiro_nome?: string | null
           sobrenome?: string | null
@@ -702,7 +738,9 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          excluido_em?: string | null
           id?: string
+          nome?: string | null
           papel?: Database["public"]["Enums"]["papel_usuario"]
           primeiro_nome?: string | null
           sobrenome?: string | null
@@ -995,11 +1033,35 @@ export type Database = {
       }
     }
     Functions: {
+      apagar_usuario: { Args: { p_alvo: string }; Returns: undefined }
       criar_compra_lote: {
         Args: { p_criado_por: string; p_itens: Json }
         Returns: {
           ativo_id: string
           patrimonio: string
+        }[]
+      }
+      definir_papel_usuario: {
+        Args: {
+          p_alvo: string
+          p_papel: Database["public"]["Enums"]["papel_usuario"]
+        }
+        Returns: undefined
+      }
+      definir_status_usuario: {
+        Args: { p_alvo: string; p_ativo: boolean }
+        Returns: undefined
+      }
+      definir_vinculos_usuario: {
+        Args: { p_alvo: string; p_filiais: number[] }
+        Returns: undefined
+      }
+      dev_checagens_integridade: {
+        Args: never
+        Returns: {
+          amostra: string[]
+          chave: string
+          total: number
         }[]
       }
       devolver_ao_fornecedor: {
@@ -1016,6 +1078,23 @@ export type Database = {
         }[]
       }
       e_admin: { Args: never; Returns: boolean }
+      e_dev: { Args: never; Returns: boolean }
+      encerrar_sessoes_usuario: { Args: { p_alvo: string }; Returns: number }
+      estorno_item_coerente: {
+        Args: { p_estorna_id: string; p_filial: number; p_item: number }
+        Returns: boolean
+      }
+      exigir_gestao_de: {
+        Args: {
+          p_alvo: string
+          p_papel_pedido?: Database["public"]["Enums"]["papel_usuario"]
+        }
+        Returns: undefined
+      }
+      existe_outro_admin_ativo: {
+        Args: { p_excluindo: string }
+        Returns: boolean
+      }
       importar_ativos_substituir: {
         Args: {
           p_backup_path: string
@@ -1029,13 +1108,19 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["papel_usuario"]
       }
+      pode_escrever: { Args: never; Returns: boolean }
+      pode_escrever_arquivo_termo: {
+        Args: { p_nome: string }
+        Returns: boolean
+      }
       pode_escrever_filial: { Args: { fid: number }; Returns: boolean }
+      pode_escrever_termo: { Args: { p_ativo_ids: string[] }; Returns: boolean }
       registrar_tentativa_senha: {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
         Returns: boolean
       }
       rel_estoque_asof: {
-        Args: { p_data: string; p_filial: number | null }
+        Args: { p_data: string; p_filial: number }
         Returns: {
           ativo_id: string
           categoria: Database["public"]["Enums"]["categoria_ativo"]
@@ -1048,14 +1133,14 @@ export type Database = {
         }[]
       }
       rel_frescor_itens: {
-        Args: { p_ate: string; p_filial: number | null }
+        Args: { p_ate: string; p_filial: number }
         Returns: {
           grupo: Database["public"]["Enums"]["grupo_item"]
           ultima: string
         }[]
       }
       rel_mov_itens: {
-        Args: { p_ate: string; p_de: string; p_filial: number | null }
+        Args: { p_ate: string; p_de: string; p_filial: number }
         Returns: {
           entradas: number
           grupo: Database["public"]["Enums"]["grupo_item"]
@@ -1066,7 +1151,7 @@ export type Database = {
         }[]
       }
       rel_mov_por_mes: {
-        Args: { p_ate: string; p_de: string; p_filial: number | null }
+        Args: { p_ate: string; p_de: string; p_filial: number }
         Returns: {
           mes: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao"]
@@ -1074,7 +1159,7 @@ export type Database = {
         }[]
       }
       rel_por_motivo: {
-        Args: { p_ate: string; p_de: string; p_filial: number | null }
+        Args: { p_ate: string; p_de: string; p_filial: number }
         Returns: {
           motivo: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao"]
@@ -1082,7 +1167,7 @@ export type Database = {
         }[]
       }
       rel_resumo: {
-        Args: { p_ate: string; p_de: string; p_filial: number | null }
+        Args: { p_ate: string; p_de: string; p_filial: number }
         Returns: {
           categoria: Database["public"]["Enums"]["categoria_ativo"]
           filial_nome: string
@@ -1093,7 +1178,7 @@ export type Database = {
         }[]
       }
       rel_saldo_itens: {
-        Args: { p_ate: string; p_filial: number | null }
+        Args: { p_ate: string; p_filial: number }
         Returns: {
           atrelados: number
           estoque: number
@@ -1112,6 +1197,11 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["status_ativo"]
       }
+      termo_ancora_coerente: {
+        Args: { p_ativo_ids: string[]; p_movimentacao_ids: string[] }
+        Returns: boolean
+      }
+      ultima_migracao_aplicada: { Args: never; Returns: string }
     }
     Enums: {
       categoria_ativo:
@@ -1122,7 +1212,7 @@ export type Database = {
         | "tablet"
         | "outro"
       grupo_item: "acessorio" | "componente"
-      papel_usuario: "admin" | "operador" | "consulta"
+      papel_usuario: "dev" | "admin" | "operador" | "consulta"
       status_ativo:
         | "em_estoque"
         | "reservado"
@@ -1293,7 +1383,7 @@ export const Constants = {
         "outro",
       ],
       grupo_item: ["acessorio", "componente"],
-      papel_usuario: ["admin", "operador", "consulta"],
+      papel_usuario: ["dev", "admin", "operador", "consulta"],
       status_ativo: [
         "em_estoque",
         "reservado",
