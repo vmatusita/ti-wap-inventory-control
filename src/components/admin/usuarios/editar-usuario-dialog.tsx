@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useCallback, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Pencil } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { editarUsuario } from '@/lib/actions/admin'
-import { validarVinculosDoPapel } from '@/lib/auth/papeis'
+import { exigeVinculoDeFilial, validarVinculosDoPapel } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import { CargoEFiliais, type FilialOpcao } from '@/components/admin/usuarios/cargo-e-filiais'
 
@@ -45,11 +45,28 @@ export function EditarUsuarioDialog({
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [papel, setPapel] = useState<PapelUsuario>(papelAtual)
-  // Só os vínculos que ainda existem como filial ATIVA entram no formulário: mandar de volta
-  // o id de uma filial desativada gravaria um vínculo que a tela não mostra como opção.
-  const [escolhidas, setEscolhidas] = useState<number[]>(() =>
-    vinculosAtuais.filter((id) => filiais.some((f) => f.id === id)),
+
+  // Vínculo só entra no formulário para o cargo que REALMENTE o usa (Operador).
+  //
+  // Achado da revisão adversarial da F21: sem o `exigeVinculoDeFilial`, este diálogo abria
+  // com erro vermelho e "Salvar" desabilitado para **todos os usuários atuais**. O backfill
+  // da 0061 deu a TODO perfil vínculo em todas as filiais ativas (é o que faz o deploy não
+  // mudar comportamento — ADR-002 §6), então um Administrador de verdade chega aqui com a
+  // lista cheia, e `validarVinculosDoPapel('admin', [1..6])` recusa lista não vazia. As
+  // linhas em `operador_filiais` de um admin são dado MORTO (`pode_escrever_filial` devolve
+  // true para admin sem consultá-las) — logo o certo é ignorá-las, não exibi-las.
+  //
+  // Só os vínculos que ainda existem como filial ATIVA entram: mandar de volta o id de uma
+  // filial desativada gravaria um vínculo que a tela não mostra como opção.
+  const vinculosIniciais = useCallback(
+    (p: PapelUsuario) =>
+      p === papelAtual && exigeVinculoDeFilial(p)
+        ? vinculosAtuais.filter((id) => filiais.some((f) => f.id === id))
+        : [],
+    [papelAtual, vinculosAtuais, filiais],
   )
+
+  const [escolhidas, setEscolhidas] = useState<number[]>(() => vinculosIniciais(papelAtual))
   const [salvando, start] = useTransition()
 
   const erroCargo = validarVinculosDoPapel(papel, escolhidas)
@@ -59,17 +76,16 @@ export function EditarUsuarioDialog({
     // Reabrir volta ao estado do servidor — nunca ao rascunho abandonado da vez anterior.
     if (open) {
       setPapel(papelAtual)
-      setEscolhidas(vinculosAtuais.filter((id) => filiais.some((f) => f.id === id)))
+      setEscolhidas(vinculosIniciais(papelAtual))
     }
   }
 
   function trocarPapel(p: PapelUsuario) {
     setPapel(p)
-    // Voltar ao cargo original recupera os vínculos gravados; qualquer outro cargo zera
-    // (Admin/Consulta não usam vínculo, e o schema do servidor recusa lista não vazia).
-    setEscolhidas(
-      p === papelAtual ? vinculosAtuais.filter((id) => filiais.some((f) => f.id === id)) : [],
-    )
+    // Voltar ao cargo original recupera os vínculos gravados; PROMOVER/REBAIXAR para outro
+    // cargo zera — inclusive ao virar Operador, para o admin escolher as filiais de propósito
+    // em vez de herdar em silêncio a lista do backfill.
+    setEscolhidas(vinculosIniciais(p))
   }
 
   function salvar() {

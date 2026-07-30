@@ -695,7 +695,6 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           id: string
-          nome?: string | null
           papel?: Database["public"]["Enums"]["papel_usuario"]
           primeiro_nome?: string | null
           sobrenome?: string | null
@@ -704,7 +703,6 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           id?: string
-          nome?: string | null
           papel?: Database["public"]["Enums"]["papel_usuario"]
           primeiro_nome?: string | null
           sobrenome?: string | null

@@ -236,6 +236,26 @@ export async function exigirEscritaEm(
   return { ok: true, uid: r.uid, papel: r.papel }
 }
 
+// `getOperador()` devolve null em DOIS casos que, para a UI, são coisas diferentes:
+//   (a) não há sessão Supabase nenhuma;
+//   (b) há sessão VÁLIDA, mas o perfil está desativado (ou não pôde ser lido).
+//
+// Antes da F21 só (a) existia, e o shell podia tratar "sem operador" como "provavelmente é
+// um visualizador por senha". Com a desativação, (b) passou a existir e a distinção importa:
+// quem foi desligado tem cookie de sessão vivo e, sem esta função, cairia na porta PÚBLICA
+// da senha de relatório sem nunca descobrir que o acesso foi cortado (achado da revisão
+// adversarial da F21, confirmado por três lentes independentes).
+//
+// Só é chamada no caminho raro em que `getOperador()` já devolveu null — não custa nada no
+// fluxo normal.
+export async function temSessaoSupabase(): Promise<boolean> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return !!user
+}
+
 export type ViewerSession = { senhaId: string; rotulo: string }
 
 // Sessão de VISUALIZAÇÃO por senha. Faz a verificação REAL a cada request:

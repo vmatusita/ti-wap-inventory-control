@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { getOperador, getViewerSession } from '@/lib/auth/acesso'
+import { getOperador, getViewerSession, temSessaoSupabase } from '@/lib/auth/acesso'
 import { contarPendenciasAbertas } from '@/lib/queries/pendencias-detalhe'
 import { AppHeader } from '@/components/layout/app-header'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
@@ -88,7 +88,20 @@ export default async function AppLayout({
     )
   }
 
-  // Sem operador: o proxy só deixa chegar aqui em /relatorios/** com cookie de
+  // F21 — antes de tratar como visualizador, separar os dois "sem operador".
+  // `getOperador()` devolve null tanto para "não há sessão" quanto para "sessão VÁLIDA, mas
+  // perfil DESATIVADO". No segundo caso, seguir adiante mandaria quem acabou de ser desligado
+  // para a porta PÚBLICA da senha de relatório — que não explica nada e não é o que a ajuda
+  // desta fase promete. Manda para o login com o motivo, que é onde ele consegue entender o
+  // que aconteceu (o ban no Auth, gravado junto com `ativo=false`, encerra a sessão de vez
+  // quando o token vencer).
+  //
+  // Isto vem ANTES do `getViewerSession()` de propósito: o desligado não deve ser rebaixado
+  // em silêncio a visualizador. A porta do visualizador continua aberta para ele de forma
+  // EXPLÍCITA — `/relatorios/acesso` é tratado no primeiro ramo deste arquivo.
+  if (await temSessaoSupabase()) redirect('/login?erro=acesso-desativado')
+
+  // Sem operador e sem sessão: o proxy só deixa chegar aqui em /relatorios/** com cookie de
   // visualização. Confere assinatura + senha ativa (consulta ao banco).
   const viewer = await getViewerSession()
   if (!viewer) redirect('/relatorios/acesso')

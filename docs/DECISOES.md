@@ -2854,3 +2854,67 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   casos — quem é `consulta`, ou é operador sem a filial vinculada, pode relogar quantas vezes
   quiser e nada muda. Mandar a pessoa girar em falso na tela de login é pior que não dizer nada.
 - **Reversível?** Sim, camada de app.
+
+## 2026-07-29 · F21 · A revisão adversarial achou um furo de verdade — e ele era o coração da fase
+
+- **Contexto:** a revisão de encerramento (5 lentes independentes + um refutador por achado,
+  refutação como padrão) devolveu **16 achados brutos → 4 confirmados**, sendo um de gravidade
+  **alta** apontado por **duas lentes independentes** e um de gravidade média por **três**.
+- **O furo (alta).** A `0063` escreveu a policy de `movimentacoes` como a ordem manda ao pé da
+  letra — `with check (pode_escrever_filial(filial_id))` — e `movimentacoes.filial_id` é uma
+  **coluna livre do payload**. Nenhuma constraint, trigger ou policy exigia que ela batesse com
+  a filial do ativo. É o padrão do **deputado confuso**: gatear um dado que o próprio escritor
+  escolhe. Pior: `aplicar_movimentacao` é `security definer` de propósito, então o `update
+  ativos` derivado **nunca** passa pela policy "operador atualiza" — o efeito era amplificado.
+  **Reproduzido no ensaio, não teorizado:** operador vinculado só à filial 1 inseriu uma
+  `transferencia` para um ativo da filial 2 declarando `filial_id = 1`; foi aceito, e o ativo
+  **migrou para a filial 1**. A partir daí toda escrita nele era legítima para ele.
+- **Por que isso importa mais do que o rótulo "alta" sugere:** derrubava o **critério 2** da
+  própria ordem ("recusado em Y **no banco**") e a premissa do ADR-002 §4.3.1 ("gatear o INSERT
+  de `movimentacoes` basta"). O isolamento por filial dos ATIVOS existia só na Server Action —
+  isto é, a UI como única linha de defesa, exatamente o que o CLAUDE.md proíbe. A fase teria
+  entregue a aparência do controle sem o controle.
+- **Decisão:** migration **`0067`** acrescenta ao predicado a filial de **ORIGEM lida do banco**,
+  via `snapshot_anterior ->> 'filial_id'` — que o trigger preenche de um
+  `select ... from ativos ... for update` e **sobrescreve** se o cliente tentar forjar.
+  Rejeitado o `exists (select ... from ativos ...)`: naquele ponto o trigger já moveu o ativo, e
+  o `exists` recusaria a transferência legítima que o §0 autoriza. A ordem de avaliação
+  (BEFORE trigger → WITH CHECK) foi **confirmada por teste**, não por leitura de doc.
+- **Segundo achado (média), mesma migration:** `import_logs` seguia com INSERT
+  `with check (true)`. O raciocínio da `0063` ("é vestigial, quem grava é a RPC definer") estava
+  certo sobre a RPC e errado sobre o resto — `authenticated` tem privilégio de INSERT na tabela,
+  então qualquer logado, **inclusive `consulta`**, forjava a trilha do import destrutivo por
+  `POST /rest/v1/import_logs`. Agora `e_admin()`. Com isso o advisor
+  `rls_policy_always_true` foi de **12 → 0**.
+- **Terceiro achado (média, app):** `getOperador()` passou a devolver null com sessão VÁLIDA
+  (perfil desativado) — um estado que não existia antes da F21. O shell caía no ramo do
+  visualizador e mandava quem acabou de ser desligado para a porta **pública** da senha de
+  relatório, sem nunca dizer o motivo. Corrigido com `temSessaoSupabase()` em `acesso.ts` e um
+  ramo novo no `(app)/layout.tsx`: sessão viva + sem operador → `/login?erro=acesso-desativado`,
+  com mensagem própria que **não** manda relogar. Fica ANTES do `getViewerSession()` de
+  propósito — o desligado não deve ser rebaixado a visualizador em silêncio; a porta do
+  visualizador continua aberta de forma explícita.
+- **Quarto achado (média, app):** o diálogo "Editar" de `/admin/usuarios` abria com erro
+  vermelho e "Salvar" desabilitado para **todos os usuários atuais**. Causa: o backfill deu a
+  todo perfil vínculo em todas as filiais (é o que faz o deploy não mudar comportamento), então
+  um Administrador chega com a lista cheia e `validarVinculosDoPapel('admin', [1..6])` recusa
+  lista não vazia. Corrigido: o formulário só pré-preenche vínculo para o cargo que o USA
+  (`exigeVinculoDeFilial`) — para admin/consulta as linhas de `operador_filiais` são dado morto.
+- **Achado próprio, fora da revisão:** a regeneração do `database.ts` desfez em silêncio a
+  edição manual de 24/07 que tirava `nome` (coluna GERADA) de `Insert`/`Update` de `profiles`.
+  Restaurada. Nenhum código escreve nessa coluna hoje, mas a guarda de tipo existia de propósito
+  e some sem barulho — é a mesma classe de armadilha do `| null` do `p_filial`.
+- **Refutados (8, com prova):** vínculos apagados antes de reinserir; `termos_gerados` por
+  cargo (é o que a ordem determina); `lancamentos_item.estorna_id` (folga pré-existente do
+  esquema, não da fase); `getOperador()` engolir erro de leitura (é intenção declarada em
+  comentário, e fecha em vez de abrir); janela migration→deploy para conta convidada pelo app
+  antigo; "Comprar outro igual" na ficha; estado vazio de `/relatorios/gerados`; e o
+  `database.ts` como *defeito de correção* (é de type-safety — corrigido de todo modo).
+- **Lição de processo, que vale mais que os achados:** o roteiro `papeis_rls.sql` tinha 41
+  asserções verdes **com o furo aberto**. O `2c` testava "operador recusado na filial não
+  vinculada" usando ativo E `filial_id` ambos da filial alheia — o caso **cruzado** (mentir o
+  `filial_id`) não era testado, e é justamente ele que distingue "gateei o dado certo" de
+  "gateei o dado que o atacante escolhe". Teste verde não é prova de cobertura. As quatro
+  asserções novas (41 → 45) são exatamente essa lacuna.
+- **Reversível?** Sim: as duas `alter policy` da `0067` têm o rollback escrito no rodapé dela;
+  as três correções de app são camada de aplicação.

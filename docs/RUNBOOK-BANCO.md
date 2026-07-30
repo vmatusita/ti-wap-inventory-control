@@ -131,6 +131,67 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
   os corpos da `0040`/`0048` sem as guardas, e `drop` de `eventos_admin`,
   `operador_filiais`, das 3 funções, das 2 colunas de `profiles` e do enum. **Nenhum dado do
   acervo se perde em nenhum dos passos.**
+- **`0067`** (F21 — dois furos achados pela REVISÃO ADVERSARIAL da própria fase; 29/07/2026) —
+  **aditiva** (duas `alter policy`, nenhum dado tocado) → caminho **A**, aplicada por MCP em
+  **ensaio primeiro** e depois em produção, no ledger dos dois.
+
+  **1. `movimentacoes` gateava a filial que o CLIENTE DECLARA.** A `0063` seguiu a letra do §5
+  da ordem (`with check (pode_escrever_filial(filial_id))`) e `movimentacoes.filial_id` é uma
+  **coluna livre do payload** — nada no banco exigia que ela batesse com a filial do ativo.
+  Deputado confuso clássico, e com o efeito AMPLIFICADO porque `aplicar_movimentacao` é
+  `security definer`: o `update ativos` dele nunca passa pela policy "operador atualiza".
+
+  **Exploit REPRODUZIDO no ensaio antes da correção** (não é hipótese):
+  operador vinculado só à filial 1, ativo na filial 2, `pode_escrever_filial(2) = false`;
+  `insert into movimentacoes (ativo_id=<ativo da f2>, tipo='transferencia', filial_id=1,
+  filial_destino_id=1)` → **ACEITO**, e o ativo **migrou para a filial 1**. Dali em diante toda
+  escrita nele é legítima para o atacante. Variantes: `tipo='ajuste'` com
+  `status_resultante='descartado'` (o ajuste pula a máquina de estados) e `tipo='saida'`
+  (troca o detentor) — em ativo de filial alheia nos dois casos. A anon key está no bundle do
+  navegador, então o request forjado não exige nada além de `curl`.
+
+  **Correção:** gatear também a filial de **ORIGEM lida do banco** —
+  `pode_escrever_filial((snapshot_anterior ->> 'filial_id')::smallint)`. `snapshot_anterior` é
+  preenchido pelo próprio trigger, na primeira coisa que ele faz, a partir de
+  `select * into v_ativo from ativos where id = new.ativo_id for update` — logo é a filial
+  REAL, sob lock, e o trigger **sobrescreve** o que o cliente tenha mandado nesse campo.
+  Não se usou `exists (select ... from ativos ...)` porque nesse ponto o trigger JÁ moveu o
+  ativo, e o `exists` recusaria a transferência legítima que o §0 autoriza
+  (`TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao`).
+  **A ordem de avaliação (BEFORE trigger → WITH CHECK) foi confirmada por TESTE**, não por
+  leitura de doc: com a policy nova o exploit passa a 42501 e os quatro fluxos legítimos
+  seguem passando (ajuste na vinculada · transferência da vinculada para outra · admin em
+  qualquer filial · compra pela RPC, em que o ativo nasce na mesma transação).
+
+  **2. `import_logs` seguia com INSERT `with check (true)`.** A `0063` deixou como estava por
+  determinação do §5 ("escrita como está (RPCs)"), no raciocínio de que a policy é vestigial
+  porque quem grava é a RPC `security definer`. Certo quanto à RPC, **errado quanto ao resto**:
+  `authenticated` tem privilégio de INSERT na TABELA (default do Supabase; nenhuma migration o
+  revoga), então qualquer logado — **inclusive o cargo `consulta`** — gravava linhas falsas na
+  trilha do import destrutivo por `POST /rest/v1/import_logs`. Trilha que qualquer um escreve
+  não é trilha; e com a leitura agora restrita a admin, o admin veria histórico envenenado sem
+  como distinguir. Corrigido para `with check ((select e_admin()))` — a RPC não é afetada.
+
+  **Verificação pós-apply nos dois bancos:**
+  - `select count(*) from pg_policies where schemaname='public' and cmd<>'SELECT' and
+    (qual='true' or with_check='true')` → **0**. Não sobrou NENHUMA policy de escrita
+    permissiva em nenhuma tabela.
+  - a policy de `movimentacoes` cita `pode_escrever_filial(filial_id)` **e** `snapshot_anterior`.
+  - acervo inalterado: ativos 1230, movimentações 2361, senhas 4, import_logs 8, storage 27.
+  - **advisor `rls_policy_always_true`: 12 (entrada da F21) → 1 (após 0063) → 0 (após 0067).**
+
+  **Cobertura de teste:** o roteiro `supabase/tests/papeis_rls.sql` foi de 41 para **45
+  asserções**, e as quatro novas são exatamente a lacuna que deixou o furo passar —
+  `2c-bis` (o caso CRUZADO: `filial_id` mentido em ativo de filial alheia), `2c-ter` (o ativo
+  **não** migrou), `2h` (a transferência LEGÍTIMA continua passando — sem ela, a correção
+  poderia ter fechado o furo quebrando o fluxo normal) e `3f-bis` (o operador não forja a
+  trilha do import). O `2c` que já existia **não** cobria: lá o ativo e o `filial_id` são os
+  dois da filial não vinculada, então ele passaria mesmo sem a correção. **45/0 nos dois bancos.**
+
+  **Rollback:**
+  `alter policy "operador insere" on public.movimentacoes with check (public.pode_escrever_filial(filial_id));`
+  `alter policy "operador insere" on public.import_logs with check (true);`
+  (reabre os dois furos — só faz sentido junto de um rollback completo da F21).
 - **Retroativo C3 (F15 — toca dado, caminho B).** UPDATE de **2 linhas** de `movimentacoes` (`tipo 'compra'→'troca'` no nascimento dos substitutos já registrados, `ativo_id in (select id from ativos where substitui_ativo_id is not null)`). O classificador **não barrou** um UPDATE de 2 linhas via `execute_sql`. Backup das linhas em `scratchpad/f15/retroativo-backup.md` (WAP0005656/WAP0005657); antes=depois conferido (`compra` de substituto 2→0, `troca` 0→2); `status_resultante`/estado dos ativos intactos (a transição de `troca` é a mesma da `compra`). Rollback: `update movimentacoes set tipo='compra' where id in ('5cc393bc-…','95d3d096-…')`.
 
 ### Como conferir o efeito (sem depender do ledger)

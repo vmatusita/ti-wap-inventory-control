@@ -15,6 +15,10 @@ const estadoInicial: LoginState = {}
 // Mensagens dos redirects que caem em /login?erro=... (não são erros do submit).
 const ERRO_QUERY: Record<string, string> = {
   'sessao-expirada': 'Sua sessão expirou, entre novamente.',
+  // F21: cai aqui quem tem sessao viva mas o perfil foi DESATIVADO. Relogar nao resolve —
+  // a mensagem tem de mandar falar com um administrador, nao tentar de novo.
+  'acesso-desativado':
+    'Seu acesso foi desativado. Fale com um administrador.',
   confirmacao:
     'Não foi possível confirmar o link. Peça um novo convite ou link de acesso.',
 }

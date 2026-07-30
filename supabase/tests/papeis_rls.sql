@@ -254,6 +254,34 @@ begin
       v_f2, sqlstate;
   end;
 
+  -- 2c-bis. O CASO CRUZADO — a lacuna que deixou o furo da 0063 passar.
+  -- Aqui o operador MENTE o `filial_id`: declara a filial DELE (que ele pode escrever) numa
+  -- movimentação de ativo que está na filial que ele NÃO pode. Até a 0067 isto era ACEITO —
+  -- a policy só olhava a filial declarada — e o trigger `security definer` então movia o
+  -- ativo para a filial do atacante, tornando toda escrita futura nele legítima.
+  --
+  -- O 2c acima NÃO cobre este caso: lá o ativo e o `filial_id` são os dois da filial não
+  -- vinculada, então ele passaria mesmo sem a correção. É esta asserção que prova a 0067.
+  begin
+    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id,
+                                      criado_por)
+    values (v_ativo_f2, 'transferencia', current_date, v_f1, v_f1, k_operador);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2c-bis_FURO_ABERTO; ';
+    raise warning '✗ 2c-bis operador MOVIMENTOU ativo da filial não vinculada declarando a própria filial (a 0067 não está no ar)';
+  exception when others then
+    v_ok := v_ok + 1;
+    raise notice '✓ 2c-bis filial_id mentido é recusado (%) — a guarda da 0067 está no ar', sqlstate;
+  end;
+
+  -- 2c-ter. E o ativo continua onde estava (o efeito derivado do trigger não aconteceu).
+  select filial_id into v_n from public.ativos where id = v_ativo_f2;
+  if v_n = v_f2 then
+    v_ok := v_ok + 1; raise notice '✓ 2c-ter o ativo da filial não vinculada NÃO migrou';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2c-ter_ATIVO_MIGROU; ';
+    raise warning '✗ 2c-ter o ativo saiu da filial % e foi para a % — o trigger definer moveu', v_f2, v_n;
+  end if;
+
   -- 2d. lançamento de item: vinculada OK
   begin
     insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
@@ -295,6 +323,24 @@ begin
   else
     v_ok := v_ok + 1; raise notice '✓ 2g operador não alcança ativo da filial não vinculada';
   end if;
+
+  -- 2h. A transferência LEGÍTIMA (da filial dele PARA outra) tem de continuar passando: o
+  -- parâmetro §0 `TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao` exige vínculo só na ORIGEM. Sem
+  -- esta asserção, a correção da 0067 poderia ter fechado o furo do 2c-bis quebrando o fluxo
+  -- normal de enviar equipamento para outra filial — e ninguém notaria.
+  --
+  -- É a ÚLTIMA asserção da seção de propósito: ela MOVE `v_ativo_f1` para a filial 2, e
+  -- qualquer checagem posterior sobre esse ativo passaria a medir outra coisa.
+  begin
+    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id,
+                                      criado_por)
+    values (v_ativo_f1, 'transferencia', current_date, v_f1, v_f2, k_operador);
+    v_ok := v_ok + 1;
+    raise notice '✓ 2h transferência legítima f%→f% aceita (destino segue livre)', v_f1, v_f2;
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2h(' || sqlstate || '); ';
+    raise warning '✗ 2h a transferência LEGÍTIMA foi recusada (%) — a 0067 quebrou o fluxo normal', sqlstate;
+  end;
 
   -- =========================================================================
   -- 3 — OPERADOR não é admin: catálogo e leituras fechadas
@@ -351,6 +397,22 @@ begin
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3f; ';
     raise warning '✗ 3f operador LEU % linha(s) de eventos_admin', v_n;
   end if;
+
+  -- 3f-bis. E não FORJA a trilha do import (0067). Até a 0067, a policy de INSERT de
+  -- `import_logs` era `with check (true)` — e `authenticated` tem privilégio de INSERT na
+  -- tabela, então qualquer logado gravava linhas falsas no histórico do import destrutivo
+  -- via PostgREST. Trilha de auditoria que qualquer um escreve não é trilha.
+  begin
+    insert into public.import_logs (
+      filial_id, modo, arquivo_hash, total_linhas,
+      ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
+      backup_path, correcoes, criado_por
+    ) values (v_f1, 'substituir', 'forjado', 0, 0, 0, 0, 0, 'x', '[]'::jsonb, k_operador);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3f-bis_FORJOU_TRILHA; ';
+    raise warning '✗ 3f-bis operador GRAVOU na trilha do import (a 0067 não está no ar)';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 3f-bis operador não forja a trilha do import (%)', sqlstate;
+  end;
 
   -- 3g. ESCALADA DE PRIVILÉGIO: não consegue se promover (grant de coluna, 0063)
   begin
