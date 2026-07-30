@@ -109,15 +109,35 @@ A linha **2e** é o critério 6 provado **por consulta**, não por raciocínio: 
 
 ### 3.4 Roteiro SQL — `supabase/tests/dev_destrutivo.sql`
 
+A prova final é o **job `banco` do CI** — que é mais forte que qualquer rodada no ensaio, porque
+sobe um **Postgres novo**, aplica as migrations `0001`→`0090` em ordem e roda **todos** os
+roteiros, falhando em qualquer `WARNING: ✗`. No commit `b630690`:
+
 ```
-_dev_destrutivo_resumo → [{"ok":103,"falhas":0,"detalhe":null}]
+✓ main CI · 30576247828
+  ✓ verificar in 2m9s     (lint · test · build)
+  ✓ banco     in 3m34s
+
+NOTICE:  === dev_destrutivo: 108 asserções OK, 0 falhas ===
+NOTICE:  === cargo_dev:       46 asserções OK, 0 falhas ===     (F22, intacto)
+NOTICE:  === papeis_rls:      64 asserções OK, 0 falhas ===     (F21, intacto)
 ```
 
-**103 asserções, 0 falhas** no ensaio — ⚠ **esta saída é da versão do roteiro anterior às
-migrations `0089`/`0090`**. Depois delas o arquivo ganhou asserções novas (`4e-bis` invertida,
-`4e-ter`, o backup fora do prefixo e o TRUNCATE revogado), então o contador final é MAIOR.
-O comportamento novo foi verificado por **medição independente** no ensaio (§3.12); o número
-consolidado do roteiro é re-rodado no fecho da fase e o CI (`job banco`) é a prova permanente.
+**⚠ E O CI PEGOU O QUE O ENSAIO NÃO PEGOU — vale registrar, porque é a lição operacional da
+fase.** A rodada anterior (`1708872`) ficou **VERMELHA**, com 11 asserções em `✗`, e as causas
+eram todas minhas:
+
+- as `0089`/`0090` foram aplicadas **depois** da última validação do roteiro. A `0089` (prefixo
+  do backup) derrubou **nove** asserções de reset, que passavam caminhos como
+  `backups-import/f23-teste.json`; a `0090` derrubou a `4e-bis` (estorno) e a `1z`;
+- a `1z` é a mais instrutiva: `resetar_dados_ficticios` recusa em base sem a linha
+  `'desenvolvimento'` em `public.ambiente` — e **o Postgres novo do CI nunca a tem**, porque
+  ela é dado de ambiente, inserido à mão só no ensaio. O roteiro passou a plantar a linha ele
+  mesmo, dentro do `begin; … rollback;`, como qualquer outra fixture.
+
+Ou seja: rodar o roteiro só no ensaio teria deixado a fase fechar com o CI vermelho, e o
+sintoma apareceria dias depois, em outra fase — exatamente o furo que a F15 já tinha custado ao
+projeto (documentado no runbook). **O CI é a prova; o ensaio é o ensaio.**
 
 ### 3.12 Medição independente do comportamento pós-`0089`/`0090` (ensaio, transação revertida)
 
