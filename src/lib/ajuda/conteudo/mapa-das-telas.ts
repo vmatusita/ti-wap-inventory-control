@@ -24,6 +24,7 @@ export const mapaDasTelas: PaginaAjuda = {
     'acessibilidade',
     'celular',
     'carregando',
+    'desenvolvedor',
   ],
   legado: ['como-fazer'],
   blocos: [
@@ -42,7 +43,11 @@ export const mapaDasTelas: PaginaAjuda = {
         ['Itens', 'Os saldos dos itens contados por quantidade e o histórico de lançamentos.'],
         ['Pendências', 'A fila do que precisa de ação: termo, itens faltantes, triagem e regularizações.'],
         ['Relatórios', 'O relatório ao vivo por filial e os relatórios gerados da semana.'],
-        ['Administração', `Os cadastros de apoio: usuários, senhas de acesso, filiais, motivos, kits, itens e o import. Aparece só para o cargo ${PAPEL_ROTULO.admin}.`],
+        ['Administração', `Os cadastros de apoio: usuários, senhas de acesso, filiais, motivos, kits, itens e o import. Aparece para os cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}.`],
+        [
+          'Desenvolvedor',
+          `As ferramentas técnicas de quem cuida do sistema por dentro: diagnóstico, checagens de integridade, a trilha completa de auditoria e a manutenção. Aparece só para o cargo ${PAPEL_ROTULO.dev} — nenhum outro cargo enxerga esse item nem alcança a tela.`,
+        ],
         ['Ajuda', 'Esta documentação.'],
       ],
     },
@@ -50,8 +55,9 @@ export const mapaDasTelas: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        `Todas as telas de consulta são iguais para os três cargos: as listas, as fichas, os saldos, os relatórios e esta documentação abrem para ${PAPEL_ROTULO.admin}, ${PAPEL_ROTULO.operador} e ${PAPEL_ROTULO.consulta}, nas cinco filiais.`,
-        `"Administração" no menu é o único item que some: ele existe só para ${PAPEL_ROTULO.admin}.`,
+        `Todas as telas de consulta são iguais para os quatro cargos: as listas, as fichas, os saldos, os relatórios e esta documentação abrem para ${PAPEL_ROTULO.dev}, ${PAPEL_ROTULO.admin}, ${PAPEL_ROTULO.operador} e ${PAPEL_ROTULO.consulta}, nas cinco filiais.`,
+        `Dois itens do menu somem conforme o cargo: "Administração" existe para ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}, e "Desenvolvedor" existe só para ${PAPEL_ROTULO.dev}. Todo o resto do menu é igual para todo mundo.`,
+        `${PAPEL_ROTULO.dev} vê o sistema como um ${PAPEL_ROTULO.admin} vê, com dois acréscimos: o item "Desenvolvedor" no menu e, na tabela de usuários, as ações de trocar o e-mail de uma conta, apagar uma conta e encerrar as sessões de alguém.`,
         `${PAPEL_ROTULO.consulta} não vê botão de registrar em tela nenhuma — nem o botão amarelo do cabeçalho, nem "Novo equipamento", "Lançar item", "Anotar", "Estornar", "Resolver" ou "Gerar relatório" — e os atalhos e comandos que registram também não respondem. O que ele vê é o sistema em modo leitura.`,
         `${PAPEL_ROTULO.operador} vê todos esses botões, e a lista de filiais das telas de registro oferece só as filiais em que ele escreve. Nos filtros de consulta, as cinco continuam lá.`,
         'Mudou o seu cargo agora? O próximo carregamento de tela já mostra a diferença — não é preciso sair e entrar de novo.',
@@ -108,7 +114,7 @@ export const mapaDasTelas: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'O ícone "?" ao lado do título de uma tela abre direto a página desta documentação que descreve aquela tela — não o índice, e sim a página certa. Ele existe no painel inicial, em Ativos, na ficha de um ativo, em "Novo equipamento", em Movimentações, em "Nova movimentação", em "Devolução ao fornecedor", em Itens, em Pendências, no relatório ao vivo, em "Relatórios gerados" e no cabeçalho de Administração, que vale para as sete abas — as abas com matéria própria (Usuários, Senhas de acesso, Kits e Importar) trazem um segundo, ao lado do texto de abertura. Não há "?" na tela de um relatório já congelado nem nas telas públicas (login e entrada por senha). E nas duas telas de relatório que o visualizador por senha também abre — o relatório ao vivo e "Relatórios gerados" — ele só aparece para quem entrou como operador (isto é, com login — em qualquer cargo): esta documentação é de quem tem conta, e quem estivesse ali com uma senha de acesso cairia na tela de login.',
+        'O ícone "?" ao lado do título de uma tela abre direto a página desta documentação que descreve aquela tela — não o índice, e sim a página certa. Ele existe no painel inicial, em Ativos, na ficha de um ativo, em "Novo equipamento", em Movimentações, em "Nova movimentação", em "Devolução ao fornecedor", em Itens, em Pendências, no relatório ao vivo, em "Relatórios gerados" e no cabeçalho de Administração, que vale para as sete abas — as abas com matéria própria (Usuários, Senhas de acesso, Kits e Importar) trazem um segundo, ao lado do texto de abertura. Não há "?" na tela de um relatório já congelado, nas telas públicas (login e entrada por senha) nem no item "Desenvolvedor", que é ferramenta técnica e por isso não tem página aqui. E nas duas telas de relatório que o visualizador por senha também abre — o relatório ao vivo e "Relatórios gerados" — ele só aparece para quem entrou como operador (isto é, com login — em qualquer cargo): esta documentação é de quem tem conta, e quem estivesse ali com uma senha de acesso cairia na tela de login.',
     },
     {
       tipo: 'lista',

@@ -1,6 +1,7 @@
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import { ACOES_ADMIN, ACAO_ROTULO } from '@/lib/auditoria'
+import { MSG_SO_DEV_APAGA, MSG_SO_DEV_GERE_DEV } from '@/lib/validators/admin'
 import { verbetesCargo } from '@/lib/ajuda/derivacao'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
@@ -43,6 +44,11 @@ export const usuariosESenhas: PaginaAjuda = {
     'desligar',
     'filiais de escrita',
     'auditoria',
+    'desenvolvedor',
+    'apagar conta',
+    'excluir usuario',
+    'trocar e-mail',
+    'encerrar sessoes',
   ],
   legado: ['admin', 'acesso'],
   blocos: [
@@ -52,7 +58,7 @@ export const usuariosESenhas: PaginaAjuda = {
     },
     {
       tipo: 'nota',
-      texto: `Use o convite quando a pessoa é da equipe e vai USAR o sistema — registrando (cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.operador}) ou apenas consultando por dentro dele (cargo ${PAPEL_ROTULO.consulta}). Use a senha de acesso para quem é de fora da TI e só precisa acompanhar os números: ela abre os relatórios sem criar conta e é revogável uma a uma. Convidar não é mais "dar acesso a tudo": o cargo é que diz o que a pessoa faz, e você pode mudá-lo depois.`,
+      texto: `Use o convite quando a pessoa é da equipe e vai USAR o sistema — registrando (cargos ${PAPEL_ROTULO.dev}, ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.operador}) ou apenas consultando por dentro dele (cargo ${PAPEL_ROTULO.consulta}). Use a senha de acesso para quem é de fora da TI e só precisa acompanhar os números: ela abre os relatórios sem criar conta e é revogável uma a uma. Convidar não é mais "dar acesso a tudo": o cargo é que diz o que a pessoa faz, e você pode mudá-lo depois.`,
     },
     {
       tipo: 'lista',
@@ -66,7 +72,7 @@ export const usuariosESenhas: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'Os três cargos leem o sistema inteiro — as cinco filiais, as listas, as fichas, os saldos, os relatórios e esta documentação. A diferença está em registrar:',
+        'Os quatro cargos leem o sistema inteiro — as cinco filiais, as listas, as fichas, os saldos, os relatórios e esta documentação. A diferença está em registrar:',
     },
     { tipo: 'glossario', badge: 'neutro', itens: verbetesCargo() },
     {
@@ -75,7 +81,8 @@ export const usuariosESenhas: PaginaAjuda = {
         `Na dúvida entre ${PAPEL_ROTULO.operador} e ${PAPEL_ROTULO.admin}, escolha ${PAPEL_ROTULO.operador}: é o cargo de quem trabalha no estoque todo dia. ${PAPEL_ROTULO.admin} é para quem também cuida do cadastro de apoio, das contas e do import — e o sistema funciona bem com poucos.`,
         `${PAPEL_ROTULO.consulta} é para quem acompanha por dentro do sistema sem mexer em nada: gestor da área, alguém em treinamento, auditoria interna. Ele não vê botão de registrar em tela nenhuma.`,
         `${PAPEL_ROTULO.operador} precisa de ao menos uma filial de escrita — a tela não deixa salvar sem nenhuma. Marque as filiais em que a pessoa realmente atua; nas outras ela continua vendo tudo, mas não registra.`,
-        `${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.consulta} não usam a lista de filiais: um escreve em todas, o outro em nenhuma.`,
+        `${PAPEL_ROTULO.dev} é o cargo de quem cuida do sistema por dentro: no estoque ele faz tudo o que um ${PAPEL_ROTULO.admin} faz e, além disso, troca o e-mail de uma conta, apaga uma conta e encerra as sessões de alguém. Só um ${PAPEL_ROTULO.dev} concede esse cargo, e quem tem outro cargo não edita, não desativa e não apaga quem já o tem — na tabela de usuários a linha dessa pessoa aparece com as ações desligadas.`,
+        `${PAPEL_ROTULO.dev}, ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.consulta} não usam a lista de filiais: os dois primeiros escrevem em todas, o último em nenhuma.`,
         'Cargo errado não é problema permanente: mudar leva um clique na tabela de usuários e vale no carregamento seguinte de tela da pessoa.',
       ],
     },
@@ -132,9 +139,10 @@ export const usuariosESenhas: PaginaAjuda = {
       titulo: 'Mudar o cargo ou as filiais de escrita',
       itens: [
         'Em Administração › Usuários, use "Editar" na linha da pessoa. O diálogo se chama "Cargo e filiais de escrita" e não mexe em nome nem em e-mail — esses são dela.',
-        `Escolha o "Cargo". Com ${PAPEL_ROTULO.operador} aparece a lista "Filiais de escrita", e ao menos uma tem de estar marcada. ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.consulta} dispensam a lista — um passa a escrever em todas as filiais, o outro em nenhuma.`,
+        `Escolha o "Cargo". Com ${PAPEL_ROTULO.operador} aparece a lista "Filiais de escrita", e ao menos uma tem de estar marcada. ${PAPEL_ROTULO.dev}, ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.consulta} dispensam a lista — os dois primeiros passam a escrever em todas as filiais, o último em nenhuma.`,
+        `O cargo ${PAPEL_ROTULO.dev} não aparece na lista para quem não o tem, e a linha de quem já o tem vem com as ações desligadas: mexer em ${PAPEL_ROTULO.dev} é só de ${PAPEL_ROTULO.dev}. A recusa não é só da tela — abrir o endereço na mão também não passa.`,
         'A mudança vale no próximo carregamento de tela da pessoa: os botões que o cargo novo não permite desaparecem, e os que ele passa a permitir aparecem. Ninguém precisa sair e entrar de novo.',
-        'Você não muda o SEU próprio cargo, e o sistema não deixa o último administrador ativo ser rebaixado — sem essa trava um clique errado trancaria a administração para todo mundo. Nos dois casos a tela recusa e explica o motivo.',
+        `Você não muda o SEU próprio cargo, e o sistema não deixa o último administrador ativo ser rebaixado — sem essa trava um clique errado trancaria a administração para todo mundo. Contam nessa conta os dois cargos que abrem a Administração (${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}). Nos dois casos a tela recusa e explica o motivo.`,
         'Nada do que a pessoa já registrou muda de dono ou desaparece: o histórico é imutável, e o nome dela continua na linha do tempo do que fez.',
       ],
     },
@@ -155,6 +163,54 @@ export const usuariosESenhas: PaginaAjuda = {
         '"Reativar" é o mesmo caminho, na direção contrária, e é um clique só: o acesso volta no carregamento seguinte, com o cargo e as filiais que estavam gravados.',
         'Você não desativa a si mesmo (o botão fica desligado na sua própria linha), e o último administrador ativo não pode ser desativado. A tela recusa e diz por quê.',
       ],
+    },
+
+    {
+      tipo: 'titulo',
+      id: 'usuarios-dev',
+      texto: `As três ações que só o cargo ${PAPEL_ROTULO.dev} tem`,
+    },
+    {
+      tipo: 'paragrafo',
+      texto: `Na linha de cada pessoa, quem tem o cargo ${PAPEL_ROTULO.dev} vê um botão "⋯" além de "Editar" e "Desativar". Ele abre o grupo "Gestão avançada", com três ações que nenhum outro cargo enxerga: "Alterar e-mail de login…", "Encerrar sessões abertas…" e "Apagar conta…". Quem tem outro cargo não vê o botão, e abrir o endereço na mão também não passa — a resposta é "Esta ação é restrita ao cargo ${PAPEL_ROTULO.dev}." e nada é gravado.`,
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Alterar o e-mail de login de uma conta',
+      itens: [
+        'É o caminho de quem mudou de endereço corporativo (troca de sobrenome, mudança de empresa dentro do grupo) — não serve para criar uma conta nova.',
+        'Em "⋯" › "Alterar e-mail de login…", o diálogo "Alterar o e-mail de …" mostra o "E-mail de hoje" e pede o "Novo e-mail".',
+        `O e-mail novo continua tendo de ser ${DOMINIOS_TEXTO}: fora disso a tela avisa "O e-mail precisa terminar com ${DOMINIOS_TEXTO}." e o botão não conclui. E-mail já usado por outra conta também é recusado, com o motivo escrito.`,
+        'Confirme em "Alterar e-mail". A troca vale na hora: no próximo login a pessoa entra com o endereço novo, o antigo deixa de servir, ela não precisa confirmar nada por e-mail e a senha dela continua a mesma.',
+        'Cargo, filiais de escrita, nome e todo o histórico ficam como estavam. A troca entra na aba "Auditoria", com o endereço antigo e o novo.',
+      ],
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Apagar uma conta de vez',
+      itens: [
+        'Apagar não é desativar: é o caminho definitivo. A conta deixa de existir, a pessoa não entra mais e a linha some da tabela de usuários — não há "Reativar" depois.',
+        'O HISTÓRICO DELA CONTINUA NO SISTEMA, com o nome dela. Movimentações, lançamentos de item, termos e anotações que ela registrou permanecem exatamente como estão, porque o registro do que aconteceu não se apaga.',
+        'O e-mail dela fica livre: dá para convidar alguém com esse mesmo endereço outra vez, e será uma conta nova, do zero.',
+        'Em "⋯" › "Apagar conta…", o diálogo "Apagar a conta de …?" repete esses três efeitos e pede a confirmação: "Para confirmar, digite o e-mail da conta". O endereço aparece logo acima do campo; enquanto o que você digitar não bater com ele, o botão "Apagar conta" continua desligado. O foco começa em "Cancelar".',
+        'Você não apaga a sua própria conta (a opção vem desligada na sua linha), e o sistema não deixa apagar a última conta que ainda abre a Administração.',
+        'Na dúvida, DESATIVE: corta o acesso do mesmo jeito, é reversível com um clique e mantém a linha na tabela. Apagar é para conta criada por engano ou que não pode mais existir. A exclusão entra na aba "Auditoria".',
+      ],
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Encerrar as sessões abertas de alguém',
+      itens: [
+        'Serve para computador esquecido logado, aparelho perdido ou suspeita de senha vazada: a pessoa passa a precisar entrar de novo com e-mail e senha nos aparelhos em que estava conectada.',
+        'Em "⋯" › "Encerrar sessões abertas…", o diálogo "Encerrar as sessões de …?" explica o efeito e o limite. Confirme em "Encerrar sessões".',
+        'O limite está escrito na própria tela e é honesto: isto NÃO corta o acesso na hora. O que cai é a renovação — se a pessoa estiver com o sistema aberto neste momento, aquela sessão pode continuar valendo por até cerca de 1 hora.',
+        'Para cortar imediatamente, leitura e escrita, o caminho é "Desativar" o acesso dela: aí vale no carregamento seguinte de tela. Encerrar sessões não mexe no cargo, nas filiais nem no histórico.',
+        'Encerrar as sessões da sua própria conta inclui a aba em que você está: você também vai precisar entrar de novo. O encerramento entra na aba "Auditoria".',
+      ],
+    },
+    {
+      tipo: 'nota',
+      texto: `Quem tem o cargo ${PAPEL_ROTULO.dev} é intocável para os demais: para quem não tem esse cargo, "Editar" e "Desativar" na linha dele vêm desligados, com a explicação "Gerido por desenvolvedor — só outro ${PAPEL_ROTULO.dev} altera, desativa ou apaga esta conta.". Conceder o cargo é da mesma família: ele nem aparece na lista de cargos de quem não o tem, e forjar o endereço não adianta — a recusa é "${MSG_SO_DEV_GERE_DEV}", e vem antes de qualquer gravação.`,
     },
 
     {
@@ -186,7 +242,7 @@ export const usuariosESenhas: PaginaAjuda = {
         `Ficam registrados: ${ACOES_AUDITADAS}.`,
         'A lista tem filtro por tipo de ação (o seletor começa em "Todas as ações") — é por ele que se responde "quem promoveu essa pessoa a administrador?" ou "quem revogou aquela senha?".',
         'A trilha só recebe linhas novas: ninguém edita nem apaga um registro, nem quem é administrador. Um registro errado se corrige com a ação certa depois, que entra como uma linha nova.',
-        'A aba é visível só para administrador, e vale uma olhada de vez em quando — quem ainda precisa de acesso, quem virou consulta, qual senha antiga ainda circula.',
+        'A aba é visível só a quem abre a Administração, e vale uma olhada de vez em quando — quem ainda precisa de acesso, quem virou consulta, qual senha antiga ainda circula.',
       ],
     },
 
@@ -236,8 +292,18 @@ export const usuariosESenhas: PaginaAjuda = {
         ],
         [
           'Esta ação é restrita a administradores.',
-          `Você abriu um caminho da Administração com um cargo que não é ${PAPEL_ROTULO.admin} — nada foi gravado.`,
+          `Você abriu um caminho da Administração com um cargo que não a alcança — ela é dos cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}. Nada foi gravado.`,
           `Peça a um ${PAPEL_ROTULO.admin} para fazer, ou para mudar o seu cargo se essa passou a ser a sua função.`,
+        ],
+        [
+          MSG_SO_DEV_GERE_DEV,
+          `Você tentou dar o cargo ${PAPEL_ROTULO.dev} a alguém, ou mudar o cargo, desativar ou reativar quem já o tem. Nada foi gravado.`,
+          `Só um ${PAPEL_ROTULO.dev} mexe nisso. Peça a quem tem o cargo — mudar o SEU cargo não resolve, porque a recusa é da conta do outro lado.`,
+        ],
+        [
+          MSG_SO_DEV_APAGA,
+          `Apagar uma conta é privativo do cargo ${PAPEL_ROTULO.dev}. Nada foi apagado.`,
+          'Para tirar o acesso de quem saiu, use "Desativar" na linha da pessoa: corta o acesso do mesmo jeito e é reversível.',
         ],
         [
           'Não foi possível gerar o link de convite. Tente de novo.',

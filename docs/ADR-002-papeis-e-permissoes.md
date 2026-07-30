@@ -25,25 +25,30 @@ O modelo atual (spec §3) tem duas portas: **operador** (login Supabase restrito
 
 ## 3. O modelo
 
-Três cargos, hierarquia estrita, e um vínculo de escrita por filial:
+Três cargos, hierarquia estrita, e um vínculo de escrita por filial *(a F22 acrescentou um quarto cargo no topo — **Dev**, coluna da esquerda; ver §13)*:
 
-| Capacidade | Admin | Operador | Consulta |
-|---|---|---|---|
-| Ver todas as telas e todas as filiais (listas, fichas, relatórios, dashboards) | ✓ | ✓ | ✓ |
-| Exportar CSV | ✓ | ✓ | ✓ *(parâmetro §10.3 = sim)* |
-| Registrar movimentações, compras, devolução a fornecedor, trocas | todas as filiais | **filiais vinculadas** | — |
-| Lançar itens por quantidade | todas | vinculadas | — |
-| Editar ativo, corrigir patrimônio, service tag, anotar | todas | vinculadas | — |
-| Resolver pendências | todas | vinculadas | — |
-| Gerar termos de responsabilidade/devolução | todas | vinculadas | — |
-| Estornar (ativos e itens) | ✓ | vinculadas *(parâmetro §10.1 = sim)* | — |
-| Gerar/congelar snapshot de relatório | ✓ | ✓ | — |
-| Administração: usuários, senhas de acesso, filiais, motivos, catálogo de itens, kits | ✓ | — | — |
-| Import de startup ("Substituir tudo") | ✓ | — | — |
+| Capacidade | Dev | Admin | Operador | Consulta |
+|---|---|---|---|---|
+| Ver todas as telas e todas as filiais (listas, fichas, relatórios, dashboards) | ✓ | ✓ | ✓ | ✓ |
+| Exportar CSV | ✓ | ✓ | ✓ | ✓ *(parâmetro §10.3 = sim)* |
+| Registrar movimentações, compras, devolução a fornecedor, trocas | todas as filiais | todas as filiais | **filiais vinculadas** | — |
+| Lançar itens por quantidade | todas | todas | vinculadas | — |
+| Editar ativo, corrigir patrimônio, service tag, anotar | todas | todas | vinculadas | — |
+| Resolver pendências | todas | todas | vinculadas | — |
+| Gerar termos de responsabilidade/devolução | todas | todas | vinculadas | — |
+| Estornar (ativos e itens) | ✓ | ✓ | vinculadas *(parâmetro §10.1 = sim)* | — |
+| Gerar/congelar snapshot de relatório | ✓ | ✓ | ✓ | — |
+| Administração: usuários, senhas de acesso, filiais, motivos, catálogo de itens, kits | ✓ | ✓ | — | — |
+| Import de startup ("Substituir tudo") | ✓ | ✓ | — | — |
+| **Gestão de conta**: trocar e-mail, apagar conta, encerrar sessões (F22) | ✓ | — | — | — |
+| **Conceder/revogar o cargo Dev**, e agir sobre quem é Dev (F22) | ✓ | — | — | — |
+| **Área `/dev`**: diagnóstico, checagens de integridade, auditoria completa, manutenção (F22) | ✓ | — | — | — |
 
 O **vínculo de filiais** vale só para escrita e só para o cargo Operador: todo operador tem no mínimo uma filial vinculada (a UI impede salvar com zero; no banco, zero vínculo simplesmente fecha toda escrita — **falha segura**). Admin escreve em todas sem precisar de vínculo; Consulta não escreve em lugar nenhum. Na transferência entre filiais, o operador precisa de vínculo na filial de **origem**; o destino é livre (enviar para outra filial é o fluxo normal — quem recebe é outro operador), conforme o parâmetro §10.2.
 
 O que **não muda**: leitura ampla para todo logado **ATIVO** (é o que a ADR-001 sustentou — o recorte que faz sentido aqui é por papel na *escrita*, não por filial na *leitura*), o visualizador por senha dos relatórios (fica exatamente como está), a imutabilidade de movimentações e lançamentos, os domínios de login e o convite como único caminho de entrada.
+
+> ⚠ **Emenda de 30/07/2026 (F22 — o quarto cargo).** A hierarquia passou a ser **dev ⊃ admin ⊃ operador ⊃ consulta**. O dev faz tudo que o admin faz (e a maior parte disso ele herda **sem policy nova**, porque `e_admin()` passou a significar "nível administrador"), mais a gestão de conta que só existia no painel do Supabase, e é intocável por quem está abaixo dele. Nada do que este ADR decidiu para admin/operador/consulta muda. Detalhes, motivos e consequências no **§13**.
 
 > ⚠ **Emenda de 30/07/2026 (migration `0070`).** A leitura segue ampla *por cargo* e *por filial* — `consulta` lê o app inteiro, `operador` lê as cinco filiais —, mas ganhou um **piso**: perfil desativado não lê mais nada. O texto original dizia "todo logado LÊ tudo", e isso era literalmente verdade demais: `ativo = false` fechava só a ESCRITA, e o access token de quem foi desligado continua valendo ~1h, tempo em que o acervo inteiro saía por `GET /rest/v1/ativos?select=*` com a anon key do bundle. As 5 views (`security_invoker = true`) e as 7 RPCs `rel_*` (invoker) derivavam o mesmo vazamento. O piso é `papel_atual() is not null` nas 13 policies de SELECT de `public` e no SELECT do bucket `termos`. Ver `docs/DECISOES.md` (2026-07-30).
 
@@ -60,6 +65,8 @@ public.pode_escrever_filial(fid smallint)
   -- admin → true · operador → existe vínculo em operador_filiais · consulta/inativo → false
 ```
 
+> ⚠ **Emenda de 30/07/2026 (F22, migrations `0071`–`0074`).** O enum ganhou `'dev'` (`add value ... before 'admin'`, para manter "ordem dos labels = ordem de força") e as funções acima passaram a ser **quatro**: `papel_atual()` também devolve NULL para perfil **arquivado** (`excluido_em is not null`, `0073`); **`e_admin()` deixou de significar "o cargo é admin" e passou a significar "o cargo é de NÍVEL administrador"** (`in ('admin','dev')`) — é essa redefinição que faz as ~20 policies de `/admin` e a guarda da RPC do import herdarem o dev **sem serem reescritas**; entram `e_dev()` (`= 'dev'`) e `pode_escrever()` ("escreve algo no acervo", espelho de `podeEscrever()` do app); e `pode_escrever_filial()` trata dev como admin. A herança tinha **dois buracos**, tapados na `0072`: `pode_escrever_filial()` não chamava `e_admin()` (tinha o seu próprio `= 'admin'`), e **cinco** policies gateavam por lista literal `papel_atual() in ('admin','operador')` — `anotacoes`, `relatorios_gerados` e as três de escrita do bucket `termos` —, que redefinição de função nenhuma alcança; as cinco passaram a chamar `pode_escrever()`, de modo que o quinto cargo, se houver, é uma linha. Ver **§13**.
+
 As policies novas substituem as `using (true)` — sempre com a função embrulhada em `(select ...)`, o padrão initplan que a `0059` instituiu (avaliada uma vez por statement; custo ~zero na escala do banco, ~3 mil linhas na maior tabela). Mapa por tabela — os **verbos não mudam** (o que era insert-only continua insert-only), muda só o *quem*:
 
 | Tabela | Leitura | Escrita |
@@ -68,15 +75,15 @@ As policies novas substituem as `using (true)` — sempre com a função embrulh
 | `movimentacoes` | logado ativo | ⚠ insert: `pode_escrever_filial(filial_id)` **E** `pode_escrever_filial(snapshot_anterior->>'filial_id')` — ver §4.4 (imutável como hoje) |
 | `lancamentos_item` | logado ativo | ⚠ insert: `pode_escrever_filial(filial_id)` **E** `estorno_item_coerente(estorna_id, filial_id, item_id)` — ver §4.4 (imutável como hoje) |
 | `pendencias_item` | logado ativo | update (resolver): `pode_escrever_filial(filial_id)` |
-| `anotacoes`, `relatorios_gerados` | logado ativo | papel ∈ {admin, operador} |
+| `anotacoes`, `relatorios_gerados` | logado ativo | papel ∈ {admin, operador} → **`pode_escrever()`** desde a `0072` (inclui dev) |
 | `termos_gerados` | logado ativo | ⚠ `pode_escrever_termo(ativo_ids)` (a filial dos ativos, LIDA do banco) **E**, só na WITH CHECK, `termo_ancora_coerente(movimentacao_ids, ativo_ids)` + `arquivo_path = id‖'.docx'` — ver §4.4 (`0069`) |
-| `storage.objects` bucket `termos` | logado ativo | ⚠ cargo ∈ {admin, operador} **E** `pode_escrever_arquivo_termo(name)` (`0069`) |
+| `storage.objects` bucket `termos` | logado ativo | ⚠ cargo ∈ {admin, operador} → **`pode_escrever()`** (`0072`) **E** `pode_escrever_arquivo_termo(name)` (`0069`) |
 | `filiais`, `motivos`, `itens` (catálogo), `kits_modelos` | logado ativo | `e_admin()` |
 | `senhas_acesso` | ⚠ **service role apenas** (ver §4.1) | ⚠ **service role apenas** |
 | `import_logs` | `e_admin()` (condição da ordem verificada — ver §4.2) | como está (RPCs) |
-| `profiles` | logado ativo | update do próprio: **só colunas `primeiro_nome`/`sobrenome`** via grant de coluna; `papel`/`ativo` só pelo service role |
-| `operador_filiais` | logado ativo | nenhuma policy (só service role, pelas actions de admin) |
-| `eventos_admin` (nova) | `e_admin()` | nenhuma policy (só service role) |
+| `profiles` | logado ativo | update do próprio: **só colunas `primeiro_nome`/`sobrenome`** via grant de coluna; `papel`/`ativo` ⚠ **só pelas RPCs de gestão** desde a `0074` (era o service role), com o trigger `profiles_guarda_dev` (`0073`) recusando todo o resto — inclusive o service role |
+| `operador_filiais` | logado ativo | nenhuma policy — ⚠ desde a `0074`, pela RPC `definir_vinculos_usuario` (era o service role) |
+| `eventos_admin` (nova) | `e_admin()` (passou a incluir dev) | nenhuma policy (só service role) |
 
 ### 4.1 ⚠ `senhas_acesso`: já fechada, e mais do que o pedido
 
@@ -162,3 +169,50 @@ Não entram na F21 para não inchá-la, mas ficam registrados: **MFA TOTP opcion
 ## 12. Impacto em documentos
 
 Spec §3 e CLAUDE.md ("Modelo de acesso… NUNCA criar roles/papéis") reescritos para o modelo novo; este ADR-002 nasce **aceito** e a ADR-001 ganha nota de sucessão no ponto "papéis"; registro em [`DECISOES.md`](DECISOES.md); páginas de ajuda `usuarios-e-senhas`, `acesso-e-sessoes`, `administracao` e `mapa-das-telas` atualizadas (e seus testes de conteúdo, que são rigorosos); `README.md`/`CHANGELOG.md` no encerramento; `database.ts` regenerado; seeds fictícios com papéis variados; roteiro SQL novo `supabase/tests/papeis_rls.sql` no padrão auto-verificável da pasta.
+
+## 13. Emenda: Cargo dev — 30/07/2026
+
+**Status:** aceito · 30/07/2026 (decisão do Victor; executada pela ordem [`prompts/F22-cargo-dev-ultracode.md`](prompts/F22-cargo-dev-ultracode.md), migrations `0071`–`0078`). Esta seção **acrescenta** um cargo ao modelo do §3; nada do que este ADR decidiu para admin, operador e consulta é revogado. Atas em [`DECISOES.md`](DECISOES.md) (2026-07-30 · F22).
+
+### 13.1 Contexto — o que a F21 deixou aberto
+
+A F21 fechou a autorização em três cargos, mas deixou o **topo achatado**: um admin rebaixa, desativa e — com a gestão nova — apagaria **qualquer pessoa**, inclusive quem mantém o sistema. E a gestão de conta de verdade (trocar o e-mail, apagar a conta, derrubar sessão) não existia em lugar nenhum do app: só no painel do Supabase, que não tem trilha de auditoria do projeto, não valida os domínios de login e não sabe o que é `profiles`.
+
+Some-se a isso o desenho de gravação que a F21 aceitou: `profiles.papel`/`ativo` e `operador_filiais` eram escritos pelo **service role** (`aplicarCargoEVinculos`), que passa por fora de toda policy. Ou seja: a única coisa entre um admin e a gravação era o `if` de uma Server Action — o que não protege contra request forjado nem contra uma action futura que esqueça a guarda.
+
+### 13.2 Decisão
+
+Um quarto cargo, **`dev`** (rótulo de UI "Desenvolvedor"), no **topo** da hierarquia — **dev ⊃ admin ⊃ operador ⊃ consulta** — com três propriedades:
+
+1. **O dev faz tudo que o admin faz**, e a maior parte disso ele **herda sem policy nova**: `e_admin()` deixou de significar "o cargo é admin" e passou a significar "o cargo é de **nível administrador**" (`in ('admin','dev')`). As ~20 policies de `/admin`, a guarda interna da RPC do import e as guardas do app seguiram valendo, sem serem reescritas.
+2. **Ninguém abaixo de dev tem poder algum sobre um dev** — não edita, não rebaixa, não desativa, não apaga, não concede o cargo —, e a recusa vale **no Postgres**, não só na tela.
+3. **Gestão de conta e diagnóstico** que antes só existiam no painel do Supabase passam a existir no sistema, com trilha: trocar o e-mail de login, apagar uma conta, encerrar as sessões de alguém, e a área `/dev` (diagnóstico, checagens de integridade, auditoria completa com export, manutenção).
+
+### 13.3 Como funciona por baixo
+
+**Enum e funções (`0071`/`0072`).** `alter type papel_usuario add value 'dev' before 'admin'` — a posição mantém a invariante da `0061` ("a ordem dos labels = a ordem de força"), e valor novo de enum não pode ser usado na mesma transação que o cria, daí a migration ir sozinha (precedente `0044`/`0045`). Depois: `e_admin()` vira nível administrador, nascem `e_dev()` e `pode_escrever()`, e `pode_escrever_filial()` trata dev como admin. Os dois buracos que a herança **não** tapava sozinha estão descritos na emenda do §4: `pode_escrever_filial()` tinha o seu próprio `= 'admin'` (um dev perderia toda a escrita de acervo, e **em silêncio** no UPDATE, porque o `USING` de uma policy de UPDATE é filtro de linha, não erro), e cinco policies gateavam por **lista literal** de cargos, que redefinição de função nenhuma alcança.
+
+**A rede (`0073`).** Um trigger `profiles_guarda_dev` recusa **por padrão** qualquer mexida numa linha `dev` e qualquer concessão do cargo `dev` — e trigger roda para todo mundo, **inclusive o service role**, que é justamente quem policy não alcança. Como o service role não carrega identidade, o trigger não pergunta "quem é você?", e sim "você veio pelo caminho oficial?".
+
+**O caminho oficial (`0074`).** Cinco RPCs `security definer` chamadas com o **client de sessão** (nunca o service role): `definir_papel_usuario`, `definir_status_usuario`, `definir_vinculos_usuario`, `apagar_usuario`, `encerrar_sessoes_usuario`. A autorização mora na guarda interna (`exigir_gestao_de`): alvo dev **ou** cargo pedido dev → exige `e_dev()`; o resto → exige `e_admin()`. As funções puras do app (`validarTrocaDePapel`, `validarStatusDeUsuario`, `validarExclusaoDeUsuario`) continuam existindo para dar a **mensagem em pt-BR** antes do SQLSTATE — elas são conveniência, a RPC é a trava.
+
+**Apagar sem apagar a história (`0073`).** A FK `profiles.id → auth.users` foi derrubada e entrou `profiles.excluido_em`: apagar = arquivar o perfil + apagar a conta no Auth. Motivo e consequências na ata de 30/07 em `DECISOES.md` — resumidamente: dez FKs de histórico apontam para `profiles` com `NO ACTION`, então apagar a linha é impossível sem destruir o acervo, e o cascade para `auth.users` fazia `deleteUser()` **falhar**. `papel_atual()` passou a exigir `excluido_em is null`, então perfil arquivado não lê nem escreve.
+
+**Vocabulário e leituras (`0075`/`0077`).** `eventos_admin` ganhou `email_alterado`, `usuario_apagado` e `sessoes_encerradas` (comment da coluna atualizado, regra "mexeu aqui, mexa lá" da `0065`). A `/dev` lê por duas RPCs `security definer` com guarda `e_dev()`: `ultima_migracao_aplicada()` e `dev_checagens_integridade()` — ambas **só-leitura**, com o SQL **fixo dentro da função**. Uma versão anterior recebia a consulta como parâmetro a partir de uma lista fechada no TypeScript; isso é execução de SQL arbitrário com os privilégios do dono da função ("o app só manda da lista" não protege nada, porque quem tem o cargo fala com a API direto), e foi descartada — a proibição de console de SQL viraria letra morta.
+
+**Superfície de RPC (`0078`).** A leitura de advisors **depois** do apply mostrou onze funções novas no lint `authenticated_security_definer_function_executable`. Para nove delas isso é o desenho (são chamadas dentro de expressão de policy, ou são as RPCs de gestão que a Server Action invoca com o client de sessão, cada uma com guarda interna). Duas não eram nenhum dos casos — `exigir_gestao_de()` e `existe_outro_admin_ativo()`, só chamadas **por dentro** das RPCs — e perderam o `execute` de `authenticated`. Nenhuma delas vazava algo grave; "não vaza nada grave" é um argumento pior do que "não está exposta".
+
+**Promoção (`0076`).** As contas do §0 da ordem foram promovidas por **e-mail** (não por uuid: o uuid difere entre ensaio e produção, o e-mail não — é o que faz a mesma migration rodar nos dois bancos e no CI). Zero linha afetada num banco novo é resultado válido.
+
+### 13.4 Consequências
+
+- **Positivas:** o topo deixou de ser achatado — existe um nível de manutenção que um administrador comum não alcança nem apagando, e a recusa vale para request forjado; a gestão de conta saiu do painel do Supabase e entrou no sistema, **com trilha**; o service role saiu do caminho de gravação de acesso (cargo, status **e** vínculos agora são RPC, com `auth.uid()` real); e o diagnóstico do sistema (commit no ar, migrations aplicadas × repositório, contagens, sete checagens de integridade) virou tela em vez de investigação manual.
+- **Negativas / a aceitar:** (a) apagar uma conta **pelo painel do Supabase** passa a deixar perfil órfão, porque a FK saiu — o sistema não impede, ele denuncia, e isso virou checagem de integridade; (b) mais uma camada para manter em concordância (guarda pura do app ↔ guarda da RPC ↔ trigger) — divergência é bug, e `supabase/tests/cargo_dev.sql` é a rede; (c) `e_admin()` mudou de significado sem mudar de nome, o que é conveniente e perigoso ao mesmo tempo: quem ler o nome sem ler o comment vai supor "admin exato" — daí o comment do banco e este parágrafo; (d) "encerrar sessões" **não** mata o access token corrente (~1h de janela), limite declarado na própria tela.
+- **Neutro:** o **visualizador por senha** não foi tocado (continua sendo outra porta, não um cargo); a máquina de estados, a imutabilidade das movimentações e os domínios de login seguem idênticos; operador e consulta não perceberam nada.
+
+### 13.5 O que **não** foi criado, de propósito
+
+- **Trava de "último dev".** Sistema sem dev é estado legal — era o estado do projeto até 30/07/2026 — e recolocar é uma migration. Trava aqui prenderia a pessoa ao próprio cargo sem ganho.
+- **Console de SQL na `/dev`.** O lugar disso é o Supabase Studio. Ver §13.3.
+- **Correção automática nas checagens de integridade.** Elas diagnosticam e mostram amostra; corrigir é ato humano, pelo fluxo normal do sistema. Diagnóstico que conserta sozinho é como se perde a confiança no diagnóstico.
+- **ADR-003.** O volume não justificou: o modelo do §3 continua de pé, com um cargo a mais no topo — o formato correto para isso é emenda datada, como esta.

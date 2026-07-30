@@ -89,7 +89,7 @@ export const comeceAqui: PaginaAjuda = {
         ],
         [
           'Cargo',
-          `O que a sua conta pode fazer: ${PAPEL_ROTULO.admin}, ${PAPEL_ROTULO.operador} ou ${PAPEL_ROTULO.consulta}. Os três leem o sistema inteiro; o cargo decide o que você REGISTRA (e, no caso do operador, em quais filiais).`,
+          `O que a sua conta pode fazer: ${PAPEL_ROTULO.dev}, ${PAPEL_ROTULO.admin}, ${PAPEL_ROTULO.operador} ou ${PAPEL_ROTULO.consulta}. Os quatro leem o sistema inteiro; o cargo decide o que você REGISTRA (e, no caso do operador, em quais filiais).`,
         ],
       ],
       legenda:

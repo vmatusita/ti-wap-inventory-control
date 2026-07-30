@@ -20,12 +20,13 @@ export const administracao: PaginaAjuda = {
     'apagar',
     'cargo',
     'administrador',
+    'desenvolvedor',
   ],
   legado: ['admin'],
   blocos: [
     {
       tipo: 'paragrafo',
-      texto: `A área de Administração concentra os cadastros de apoio. Ela é exclusiva do cargo ${PAPEL_ROTULO.admin}: quem tem outro cargo não vê o item "Administração" no menu, e abrir o endereço na mão não contorna — a tela devolve ao início e nada aqui aceita mudança de quem não é ${PAPEL_ROTULO.admin}.`,
+      texto: `A área de Administração concentra os cadastros de apoio. Ela é dos cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev} — o segundo faz aqui tudo o que o primeiro faz, e mais um pouco na tela de usuários. Quem tem outro cargo não vê o item "Administração" no menu, e abrir o endereço na mão não contorna: a tela devolve ao início e nada aqui aceita mudança de quem não alcança a área.`,
     },
     {
       tipo: 'paragrafo',
@@ -35,7 +36,7 @@ export const administracao: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        `Usuários — as contas do sistema: convidar, definir o cargo e as filiais de escrita, desativar e reativar, e a trilha das ações administrativas. Só e-mails ${DOMINIOS_TEXTO} podem ser convidados.`,
+        `Usuários — as contas do sistema: convidar, definir o cargo e as filiais de escrita, desativar e reativar, e a trilha das ações administrativas. Só e-mails ${DOMINIOS_TEXTO} podem ser convidados. Trocar o e-mail de uma conta, apagar uma conta e encerrar as sessões de alguém são ações do cargo ${PAPEL_ROTULO.dev}, e só aparecem para ele.`,
         'Senhas de acesso — senhas que dão ao visualizador acesso só aos relatórios. Revogar pede confirmação e tem efeito imediato, no carregamento de tela seguinte; a senha revogada pode ser reativada na mesma lista.',
         'Filiais — cadastro das filiais.',
         'Motivos — o vocabulário de motivos oferecido na tela de movimentação.',
@@ -46,8 +47,7 @@ export const administracao: PaginaAjuda = {
     },
     {
       tipo: 'nota',
-      texto:
-        'Nada aqui se apaga por hábito: filial, motivo, kit, item e USUÁRIO se DESATIVAM. Desativar tira a opção das telas de operação (ou o acesso da pessoa) sem tocar em nada do que já foi registrado com ela — o histórico continua legível e a autoria continua com nome. Excluir de verdade só existe para item que nunca teve lançamento.',
+      texto: `Nada aqui se apaga por hábito: filial, motivo, kit, item e USUÁRIO se DESATIVAM. Desativar tira a opção das telas de operação (ou o acesso da pessoa) sem tocar em nada do que já foi registrado com ela — o histórico continua legível e a autoria continua com nome. Apagar de verdade existe em dois casos, e só: item que nunca teve lançamento, e conta de usuário — esta última pelas mãos do cargo ${PAPEL_ROTULO.dev}, e mesmo ela deixa o histórico da pessoa intacto.`,
     },
 
     { tipo: 'titulo', id: 'admin-filiais', texto: 'Filiais' },
@@ -88,7 +88,7 @@ export const administracao: PaginaAjuda = {
         'O campo "Estoque mínimo" é o ponto de reposição: 0 significa sem alerta, e a própria tela explica que acima de 0 o item ganha o aviso "repor" quando o estoque somado de todas as filiais ficar abaixo do número. Na coluna "Mínimo", 0 aparece como travessão.',
         'Item que já tem lançamento NÃO se exclui — a tela diz quantos existem e o caminho é desmarcar "Item ativo". Só item sem nenhum lançamento mostra o botão "Excluir".',
         'Nome repetido é recusado com "Já existe um item com esse nome." Se o homônimo estiver desativado, o caminho é reativá-lo em vez de criar outro.',
-        `Item também pode ser criado sem passar por aqui, direto no diálogo de lançamento — é o mesmo catálogo, e por isso também é do cargo ${PAPEL_ROTULO.admin}.`,
+        'Item também pode ser criado sem passar por aqui, direto no diálogo de lançamento — é o mesmo catálogo, e por isso também é da Administração.',
       ],
     },
 

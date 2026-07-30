@@ -346,7 +346,7 @@ export const mensagensDeErro: PaginaAjuda = {
     { tipo: 'titulo', id: 'erros-sessao', texto: 'Sessão, cargo e acesso' },
     {
       tipo: 'nota',
-      texto: `Recusa de CARGO não se resolve entrando de novo. As quatro primeiras mensagens da tabela abaixo falam do que o seu cargo (ou a sua lista de filiais) permite: relogar não muda nada, quem muda é um ${PAPEL_ROTULO.admin} na tela de usuários. As de sessão, sim, se resolvem com um login novo. Em todos os casos nada foi gravado.`,
+      texto: `Recusa de CARGO não se resolve entrando de novo. As cinco primeiras mensagens da tabela abaixo falam do que o seu cargo (ou a sua lista de filiais) permite: relogar não muda nada, quem muda é um ${PAPEL_ROTULO.admin} na tela de usuários. As de sessão, sim, se resolvem com um login novo. Em todos os casos nada foi gravado.`,
     },
     {
       tipo: 'tabela',
@@ -359,8 +359,13 @@ export const mensagensDeErro: PaginaAjuda = {
         ],
         [
           'Esta ação é restrita a administradores.',
-          `A ação é da Administração (usuários, senhas de acesso, filiais, motivos, kits, catálogo de itens, import) e o seu cargo não é ${PAPEL_ROTULO.admin}.`,
+          `A ação é da Administração (usuários, senhas de acesso, filiais, motivos, kits, catálogo de itens, import) e o seu cargo não a alcança — ela é dos cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}.`,
           `Peça a um ${PAPEL_ROTULO.admin}. Entrar de novo não muda o cargo.`,
+        ],
+        [
+          'Esta ação é restrita ao cargo Desenvolvedor.',
+          `A ação é privativa do cargo ${PAPEL_ROTULO.dev}: trocar o e-mail de uma conta, apagar uma conta, encerrar as sessões de alguém, mexer em quem tem esse cargo e a área técnica dele. Nem o cargo ${PAPEL_ROTULO.admin} a alcança.`,
+          `Peça a um ${PAPEL_ROTULO.dev}. Entrar de novo não muda o cargo, e nada foi gravado.`,
         ],
         [
           'Você não tem permissão de escrita nesta filial. Fale com um administrador.',

@@ -21,6 +21,13 @@
 // backfill e nao ha como ver o modelo de acesso funcionando na tela. Essa parte e
 // IDEMPOTENTE (conta existente e reaproveitada), porque `reset` preserva contas.
 //
+// F22 (30/07/2026): entrou o QUARTO cargo, `dev`. Duas consequencias aqui: (1) o tipo do
+// cargo das personas deixou de ser redigitado a mao e passou a derivar do enum do banco;
+// (2) existe uma persona `seed.dev@wap.ind.br` — mas o seed NAO consegue conceder o cargo
+// dev sozinho (trigger `profiles_guarda_dev`, migration 0073), entao ele grava um cargo de
+// fallback, PRESERVA o dev se a conta ja tiver sido promovida, e imprime no fim o SQL da
+// promocao manual. O porque completo esta no bloco "PROMOCAO A DEV", mais abaixo.
+//
 // Uso: `npm run db:seed` (exige as guardas do .env.local — ver scripts/env-guard.ts).
 import { fakerPT_BR as faker } from '@faker-js/faker'
 import seedrandom from 'seedrandom'
@@ -30,6 +37,11 @@ import {
   loadEnvLocal,
   type GuardedConfig,
 } from './env-guard'
+// O cargo das personas ficticias NAO e redigitado neste arquivo (ver "PERFIS FICTICIOS").
+// `import type` desaparece na transpilacao: o script continua sem carregar a camada de
+// dominio do app em runtime — pega so o tipo. Caminho RELATIVO (e nao o alias '@/') pelo
+// mesmo idioma de scripts/import/*.ts, que roda por `tsx`, fora do resolvedor do Next.
+import type { PapelUsuario } from '../src/lib/auth/papeis'
 
 // ============================ CONFIG =============================
 
@@ -970,16 +982,26 @@ async function inserirAnotacoes(
 // contas, como sempre preservou `profiles`), e papel/nome/vinculos sao reescritos a
 // cada rodada, para o estado ser o mesmo depois de qualquer sequencia de comandos.
 //
-// Os literais de cargo abaixo espelham o enum `papel_usuario` do banco e
-// `src/lib/auth/papeis.ts`; ficam repetidos aqui pela mesma razao que `Categoria` e
-// `Status` no topo deste arquivo — o script nao importa a camada de dominio do app.
+// F22: o cargo abaixo NAO e mais redigitado. `PapelSeed` deriva de `PapelUsuario`
+// (src/lib/auth/papeis.ts, que por sua vez e `Database['public']['Enums']['papel_usuario']`,
+// GERADO do banco por `npm run db:types`) — diferente de `Categoria`/`Status` no topo deste
+// arquivo, que continuam locais porque sao vocabulario de dados, nao de PERMISSAO.
+//
+// POR QUE ISSO IMPORTA, e nao e preciosismo de tipo: a uniao que estava aqui
+// (`'admin' | 'operador' | 'consulta'`) e o retrato exato do ponto cego que a F22 teve de
+// cacar arquivo por arquivo. Quando o enum ganhou o quarto cargo, uma uniao escrita a mao
+// NAO quebra: ela compila, o compilador a considera correta, e ela simplesmente nao sabe
+// que o cargo novo existe — o seed segue gerando o mundo antigo e ninguem e avisado. Um
+// tipo derivado, ao contrario, muda sozinho no dia em que a migration entrar, e leva junto
+// todo `Record<PapelUsuario, …>` do app, que ai sim quebra o build. O alarme e de graca;
+// so e preciso nao desliga-lo redigitando a lista.
 //
 // REGRA 2 DO CLAUDE.md: tudo ficticio. Os e-mails levam o prefixo `seed.` de
 // proposito, para nunca colidirem com o endereco de uma pessoa real; os nomes dizem
 // "Ficticio(a)" na cara. O dominio TEM de ser corporativo — o trigger
 // `handle_new_user` (migration 0041) recusa qualquer outro.
 
-type PapelSeed = 'admin' | 'operador' | 'consulta'
+type PapelSeed = PapelUsuario
 
 // Senha ficticia, unica e igual para todas as contas do seed: elas existem so no
 // projeto de ENSAIO (as guardas de env-guard.ts recusam producao) e servem para o
@@ -990,7 +1012,14 @@ type PerfilSeed = {
   email: string
   primeiro_nome: string
   sobrenome: string
+  /** Cargo que o SEED consegue gravar sozinho (service role, update direto em `profiles`). */
   papel: PapelSeed
+  /**
+   * Cargo PRETENDIDO que o seed NAO tem como conceder — hoje so `dev`. Ver o bloco
+   * "PROMOCAO A DEV" logo abaixo. Presente => o seed grava `papel` como fallback, preserva
+   * o cargo se a conta ja tiver sido promovida a mao, e imprime o SQL da promocao no fim.
+   */
+  papelManual?: PapelUsuario
   ativo: boolean
   /** Slugs das filiais de escrita. Vazio = sem vinculo (falha segura no banco). */
   filiais: string[]
@@ -998,7 +1027,74 @@ type PerfilSeed = {
   para: string
 }
 
+// ---------------------------------------------------------------------------
+// PROMOCAO A DEV — por que o seed NAO grava o cargo `dev` (e por que isso esta certo)
+// ---------------------------------------------------------------------------
+// A persona `seed.dev@wap.ind.br` existe para dar cara ao 4o cargo em ensaio: a rota /dev,
+// o diagnostico e as tres acoes que so o dev alcanca (trocar e-mail, apagar conta, encerrar
+// sessoes). So que o cargo dela e o UNICO que este script nao consegue conceder — e a razao
+// e uma protecao deliberada, nao um esquecimento:
+//
+//   * `profiles.papel` so o SERVICE ROLE escreve (a 0063 revogou a coluna de `authenticated`
+//     por grant), e o service role e justamente o que o seed usa;
+//   * a 0073 pos um TRIGGER (`profiles_guarda_dev`) que roda para TODO MUNDO, service role
+//     incluso — trigger nao e policy, nao se contorna por ignorar RLS. Ele recusa conceder
+//     `dev` a menos que a transacao declare o GUC `estoque.gestao_usuarios = on`;
+//   * quem declara esse GUC sao as RPCs de gestao (0074), e `definir_papel_usuario` passa
+//     antes por `exigir_gestao_de`, que exige `e_dev()` quando o cargo pedido e dev.
+//     `e_dev()` le `papel_atual()`, que le `auth.uid()` — o token do service role nao
+//     carrega identidade nenhuma, entao ele nunca sera dev. A porta e fechada POR DESENHO;
+//   * e `set_config` nao e exposto como RPC pelo PostgREST, logo daqui tambem nao da para
+//     abrir a janela por fora.
+//
+// As tres portas estao trancadas de proposito, e a saida honesta e nao arrombar nenhuma.
+// Mexer no trigger, dar execute a mais ao service role ou plantar a linha por fora trocaria
+// a seguranca do sistema pela conveniencia de um script de dados ficticios — negocio ruim.
+//
+// ENTAO O SEED FAZ ASSIM:
+//   1. grava a persona com `papel: 'admin'` — o mais forte que ele alcanca. Ela ja exercita
+//      quase tudo, porque na F22 `e_admin()` significa "NIVEL administrador";
+//   2. avisa, alto e no fim da execucao, que falta UM passo manual, e imprime o SQL pronto
+//      para colar — o mesmo bloco da migration 0076, que abre e fecha a janela do trigger;
+//   3. se a conta JA tiver sido promovida, PRESERVA o cargo dev em vez de rebaixar. Esta e a
+//      segunda metade da armadilha, e e a que morde depois: mandar 'admin' numa linha que e
+//      'dev' cai no primeiro ramo do trigger (papel mudou numa linha dev) e derrubaria o
+//      `npm run db:seed` inteiro, na rodada seguinte, com um 42501 sem contexto.
+//
+// Nada disso chega perto de producao: as guardas de scripts/env-guard.ts recusam os refs de
+// producao antes da primeira escrita. Isto e ensaio, e so.
+
+// SQL da promocao manual: copia fiel do bloco da 0076 (mesma janela, aberta e fechada na
+// mesma transacao), so que pelo e-mail da persona ficticia. Roda no SQL Editor do projeto de
+// ENSAIO. Nao vira migration de proposito — conta ficticia nao entra no historico do banco.
+function sqlPromocaoManual(email: string, papel: PapelUsuario): string {
+  return [
+    'do $$',
+    'begin',
+    "  perform set_config('estoque.gestao_usuarios', 'on', true);",
+    '  update public.profiles p',
+    `     set papel = '${papel}'`,
+    '   where p.excluido_em is null',
+    `     and p.id in (select u.id from auth.users u where lower(u.email) = '${email}');`,
+    "  perform set_config('estoque.gestao_usuarios', 'off', true);",
+    'end $$;',
+  ].join('\n')
+}
+
 const PERFIS_SEED: PerfilSeed[] = [
+  {
+    email: 'seed.dev@wap.ind.br',
+    primeiro_nome: 'Gustavo',
+    sobrenome: 'Ficticio',
+    // ⚠ Gravado como admin. O cargo de verdade depende do passo manual acima — ver
+    // "PROMOCAO A DEV". Nao troque para 'dev' aqui achando que resolve: o trigger da 0073
+    // recusa a concessao e o seed morre no meio, sem criar o acervo.
+    papel: 'admin',
+    papelManual: 'dev',
+    ativo: true,
+    filiais: [], // dev escreve em todas, como o admin — vinculo nenhum
+    para: 'dev (apos a promocao manual): ve /dev, troca e-mail, apaga conta, encerra sessoes',
+  },
   {
     email: 'seed.admin@wap.ind.br',
     primeiro_nome: 'Ana',
@@ -1055,7 +1151,16 @@ const PERFIS_SEED: PerfilSeed[] = [
   },
 ]
 
-type PerfilCriado = { email: string; id: string; perfil: PerfilSeed; novo: boolean }
+type PerfilCriado = {
+  email: string
+  id: string
+  perfil: PerfilSeed
+  novo: boolean
+  /** Cargo que ficou GRAVADO. Difere de `perfil.papel` quando a promocao manual ja rodou. */
+  papelGravado: PapelUsuario
+  /** A persona quer `papelManual` e o banco ainda nao a promoveu — sai no aviso do sumario. */
+  promocaoPendente: boolean
+}
 
 // Acoes de auditoria (`eventos_admin`, migration 0065). Vocabulario fechado em
 // `src/lib/auditoria.ts` — repetido aqui pelo mesmo motivo dos cargos. Estas linhas
@@ -1160,6 +1265,22 @@ async function garantirPerfisSeed(
       id = data.user.id
     }
 
+    // F22 — cargo EFETIVO desta rodada. So difere de `p.papel` na persona com `papelManual`
+    // (hoje a dev): se ela JA foi promovida a mao, o seed tem de reescrever o MESMO cargo.
+    // Mandar 'admin' numa linha que e 'dev' cai no primeiro ramo do `profiles_guarda_dev`
+    // (0073: papel/ativo/excluido_em mudando numa linha dev) e derruba o seed com 42501.
+    // Reescrever igual passa limpo — o trigger so morde quando algo MUDA. Ver "PROMOCAO A DEV".
+    const { data: perfilAtual, error: leErr } = await db
+      .from('profiles')
+      .select('papel')
+      .eq('id', id)
+      .maybeSingle()
+    if (leErr) throw new Error(`Falha ao ler o cargo atual de ${p.email}: ${leErr.message}`)
+    const papelNoBanco = (perfilAtual as { papel: PapelUsuario } | null)?.papel ?? null
+    const papelGravado: PapelUsuario =
+      p.papelManual !== undefined && papelNoBanco === p.papelManual ? p.papelManual : p.papel
+    const promocaoPendente = p.papelManual !== undefined && papelGravado !== p.papelManual
+
     // `nome` e coluna GERADA (migration 0057) — escrever nela e erro; grava-se
     // primeiro_nome/sobrenome. `papel`/`ativo` so o service role escreve (0063).
     // O `.select()` no fim nao e enfeite: sem ele, um UPDATE que nao casa linha
@@ -1170,12 +1291,25 @@ async function garantirPerfisSeed(
       .update({
         primeiro_nome: p.primeiro_nome,
         sobrenome: p.sobrenome,
-        papel: p.papel,
+        papel: papelGravado,
         ativo: p.ativo,
       })
       .eq('id', id)
       .select('id')
-    if (upErr) throw new Error(`Falha ao gravar o perfil de ${p.email}: ${upErr.message}`)
+    if (upErr) {
+      // 42501 numa persona com cargo manual e quase sempre o trigger da 0073 falando. A
+      // mensagem crua ("Só um desenvolvedor pode…") nao diz o que fazer neste contexto.
+      if (p.papelManual !== undefined) {
+        throw new Error(
+          `Falha ao gravar o perfil de ${p.email}: ${upErr.message}\n` +
+            `Esta persona quer o cargo "${p.papelManual}", que o trigger profiles_guarda_dev ` +
+            '(migration 0073) NAO deixa o service role conceder — de proposito. O seed grava ' +
+            `"${p.papel}" e a promocao e manual, no SQL Editor do ENSAIO:\n` +
+            sqlPromocaoManual(p.email, p.papelManual),
+        )
+      }
+      throw new Error(`Falha ao gravar o perfil de ${p.email}: ${upErr.message}`)
+    }
     if (!perfilGravado || perfilGravado.length === 0) {
       throw new Error(
         `A conta ${p.email} existe no Auth mas nao tem perfil em profiles — nada foi gravado. ` +
@@ -1197,14 +1331,24 @@ async function garantirPerfisSeed(
       if (insErr) throw new Error(`Falha ao vincular filiais de ${p.email}: ${insErr.message}`)
     }
 
-    criados.push({ email: p.email, id: id!, perfil: p, novo: !jaExiste })
+    criados.push({
+      email: p.email,
+      id: id!,
+      perfil: p,
+      novo: !jaExiste,
+      papelGravado,
+      promocaoPendente,
+    })
   }
 
   console.log(`[seed] perfis ficticios garantidos: ${criados.length} (senha: ${SENHA_PERFIS_SEED})`)
   for (const c of criados) {
     const filiais = c.perfil.filiais.length > 0 ? c.perfil.filiais.join('+') : '—'
+    // O cargo listado e o que FICOU no banco (nao o do array), senao a linha mentiria
+    // depois da promocao manual — que e exatamente quando alguem vem conferir.
+    const pendente = c.promocaoPendente ? `  (falta promover a ${c.perfil.papelManual})` : ''
     console.log(
-      `        ${c.novo ? 'criado ' : 'reusado'}  ${c.perfil.papel.padEnd(9)} ${c.perfil.ativo ? 'ativo     ' : 'DESATIVADO'} ${filiais.padEnd(18)} ${c.email}`,
+      `        ${c.novo ? 'criado ' : 'reusado'}  ${c.papelGravado.padEnd(9)} ${c.perfil.ativo ? 'ativo     ' : 'DESATIVADO'} ${filiais.padEnd(18)} ${c.email}${pendente}`,
     )
   }
   return criados
@@ -1402,13 +1546,13 @@ async function sumario(
 // Roteiro pronto de teste manual dos cargos — o que o Johnny precisa ter na mao
 // para conferir a F21 na tela em 5 minutos, sem procurar e-mail nem senha.
 function sumarioPerfis(perfis: PerfilCriado[]) {
-  console.log('=========== CONTAS FICTICIAS (CARGOS — F21) ===========')
+  console.log('========= CONTAS FICTICIAS (CARGOS — F21/F22) =========')
   console.log(`Senha de todas: ${SENHA_PERFIS_SEED}`)
   for (const c of perfis) {
     const filiais = c.perfil.filiais.length > 0 ? c.perfil.filiais.join(' + ') : 'nenhuma'
     console.log(`  ${c.email}`)
     console.log(
-      `      cargo ${c.perfil.papel} · ${c.perfil.ativo ? 'ativo' : 'DESATIVADO'} · filiais de escrita: ${filiais}`,
+      `      cargo ${c.papelGravado} · ${c.perfil.ativo ? 'ativo' : 'DESATIVADO'} · filiais de escrita: ${filiais}`,
     )
     console.log(`      ${c.perfil.para}`)
   }
@@ -1416,6 +1560,28 @@ function sumarioPerfis(perfis: PerfilCriado[]) {
   console.log('o botao amarelo do cabecalho (nao existe para consulta) e o seletor de filial')
   console.log('das telas de registro (so as vinculadas). O desativado cai no login.')
   console.log('======================================================\n')
+
+  // F22 — o passo que o seed NAO pode dar sozinho. Vai por ULTIMO e com moldura propria de
+  // proposito: e a unica coisa que fica faltando depois de um seed bem-sucedido, e um aviso
+  // no meio de 60 linhas de sumario e um aviso que ninguem le.
+  const pendentes = perfis.filter((c) => c.promocaoPendente)
+  if (pendentes.length === 0) return
+  console.log('############ FALTA 1 PASSO MANUAL (CARGO DEV) ############')
+  console.log('O cargo `dev` NAO pode ser concedido por este script, e isso e intencional: o')
+  console.log('trigger profiles_guarda_dev (migration 0073) recusa a concessao por qualquer')
+  console.log('caminho que nao declare o contexto oficial — o service role inclusive, que e')
+  console.log('quem o seed usa. A RPC definir_papel_usuario (0074) tambem nao serve aqui:')
+  console.log('ela exige que QUEM CHAMA ja seja dev, e o service role nao tem identidade.')
+  console.log('Entao a persona ficou com o cargo de fallback e a promocao e sua, no SQL Editor')
+  console.log('do projeto de ENSAIO (mesmo bloco da migration 0076 — abre e fecha a janela):')
+  for (const c of pendentes) {
+    const alvo = c.perfil.papelManual as PapelUsuario
+    console.log(`\n-- ${c.email}: ${c.papelGravado} -> ${alvo}`)
+    console.log(sqlPromocaoManual(c.email, alvo))
+  }
+  console.log('\nDepois de rodar, `npm run db:seed` continua funcionando: o script detecta o')
+  console.log('cargo ja promovido e o PRESERVA (rebaixar seria recusado pelo mesmo trigger).')
+  console.log('##########################################################\n')
 }
 
 // ============================ MAIN =============================
@@ -1454,7 +1620,10 @@ async function main() {
   // O AUTOR das movimentacoes e o admin do seed — antes era "o primeiro profile do
   // banco", que dependia da ordem dos ids e podia cair numa conta real do ensaio.
   const perfis = await garantirPerfisSeed(db, filialIdBySlug)
-  const admin = perfis.find((p) => p.perfil.papel === 'admin')
+  // F22: o autor de ~2,4 mil movimentacoes tem de ser uma persona de cargo ESTAVEL — por isso
+  // `papelManual === undefined` exclui a persona dev, cujo cargo muda quando a promocao manual
+  // roda. A autoria e historica e nao deveria depender de um passo opcional ter sido dado.
+  const admin = perfis.find((p) => p.perfil.papel === 'admin' && p.perfil.papelManual === undefined)
   if (!admin) throw new Error('Nenhum perfil admin no seed (PERFIS_SEED sem cargo admin?).')
   const criadoPor = admin.id
 

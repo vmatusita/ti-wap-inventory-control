@@ -84,7 +84,7 @@ export const lancarItens: PaginaAjuda = {
         'Confirme o nome e escolha o grupo (Acessório ou Componente). A posição do item na tabela é calculada pelo sistema.',
         'O item entra criado e já selecionado naquela linha do carrinho — o lançamento segue sem interrupção. Ele passa a valer para todo mundo (é o mesmo catálogo de Administração › Itens).',
         'Nome que já existe no catálogo não é criado de novo: o sistema avisa "Já existe um item com esse nome." — procure-o na lista. Se o homônimo estiver DESATIVADO, ele é reativado e já entra na linha, com aviso dizendo isso.',
-        `Criar (ou reativar) um item mexe no CATÁLOGO, e catálogo é da Administração: isso é do cargo ${PAPEL_ROTULO.admin}. Com outro cargo, escolha um item que já existe e peça a inclusão do que falta — LANÇAR quantidade continua sendo do cargo ${PAPEL_ROTULO.operador}, nas filiais dele.`,
+        `Criar (ou reativar) um item mexe no CATÁLOGO, e catálogo é da Administração: isso é dos cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}. Com outro cargo, escolha um item que já existe e peça a inclusão do que falta — LANÇAR quantidade continua sendo do cargo ${PAPEL_ROTULO.operador}, nas filiais dele.`,
       ],
     },
 

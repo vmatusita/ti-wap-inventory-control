@@ -3167,3 +3167,90 @@ prova o INSERT sobre o path alheio, que usa o mesmo predicado. Quem for testar e
 - ⚠ **Operacional:** a conta de `SMOKE_EMAIL` tem de estar ATIVA em `profiles`. O smoke é o único
   consumidor que roda sob SESSÃO (anon key + `signInWithPassword`), e com a `0070` um perfil
   desligado passa a falhar nas leituras — por desenho.
+
+---
+
+## 2026-07-30 · F22 · Apagar usuário = perfil ARQUIVADO, e não conta neutralizada
+
+- Contexto: o §0 da ordem fixou `APAGAR_USUARIO = preservar-autoria` (a conta morre para sempre; o histórico continua mostrando quem fez o quê) e deixou o MECANISMO em aberto entre dois desenhos: *perfil-arquivado* (romper a FK `profiles → auth.users`, marcar o perfil como excluído e apagar só a conta do Auth) e *conta-neutralizada* (manter FK e conta, banir para sempre e trocar o e-mail por um sintético). O mapa de FKs, medido no banco antes de escrever SQL, decidiu: **dez** tabelas de histórico referenciam `profiles` com `on delete NO ACTION` — oito delas `not null` (`movimentacoes.criado_por`, `lancamentos_item.criado_por`, `anotacoes`, `termos_gerados.gerado_por`/`atualizado_por`, `pendencias_item.resolvida_por`, `kits_modelos`, `import_logs`, `relatorios_gerados`, `senhas_acesso`) —, então apagar a LINHA de `profiles` é impossível sem destruir o acervo. E `profiles.id → auth.users` era `on delete cascade` (`0001`), o que fazia o caminho ingênuo ser pior do que inútil: `auth.admin.deleteUser()` **falhava**, porque o cascade tentava levar o perfil junto e as dez FKs bloqueavam.
+- Decisão: **perfil-arquivado**. A `0073` derruba a FK `profiles.id → auth.users` e acrescenta `profiles.excluido_em`. Apagar passa a ser: arquivar o perfil (nome intacto), limpar os vínculos e apagar a conta no Auth. Resultado: a conta não loga nunca mais, **o e-mail volta a ficar livre** para um convite futuro, o perfil some de todas as telas (`listarUsuarios` e `getEstadoUsuario` filtram `excluido_em is null`) e cada linha de histórico continua exibindo o nome de quem a fez. `papel_atual()` passou a exigir `excluido_em is null`, então perfil arquivado não lê nem escreve — mesmo piso da `0070`.
+- Motivo: preservar a autoria é requisito, e a autoria mora em `profiles`; qualquer desenho que apague a linha (ou a troque por "usuário removido") mente sobre o passado do acervo. A neutralização manteria a conta viva em `auth.users` para sempre, com o e-mail preso a ela — e o pedido era o oposto: a conta morre.
+- Consequência aceita, registrada porque muda um procedimento humano: apagar uma conta pelo **painel do Supabase** passa a deixar **perfil órfão** (antes o cascade limpava). Não dá para impedir — o painel fala direto com o Auth. Virou **checagem de integridade** na `/dev` (`perfil_sem_conta` e o inverso, `conta_sem_perfil`): o sistema não bloqueia, ele denuncia.
+- Reversível? a FK pode ser recriada, desde que nenhum perfil esteja órfão; `excluido_em = null` desarquiva o perfil. A conta do Auth não volta — o caminho de volta é convite novo para o mesmo e-mail, que é justamente o que o desenho libera.
+
+## 2026-07-30 · F22 · `dev` conta como nível administrador — e NÃO existe trava de "último dev"
+
+- Contexto: o cargo novo encosta em duas invariantes. A primeira é da F21: "o sistema nunca fica sem administrador ativo" (`idsDeAdminsAtivos` no app, `existe_outro_admin_ativo` no banco). A segunda é a pergunta simétrica: deveria existir a mesma trava para o dev?
+- Decisão: (a) `dev` **conta** como nível administrador nessa invariante — as três implementações (`idsDeAdminsAtivos`, `eAdminAtivo`, `existe_outro_admin_ativo`) contam admin **e** dev; (b) **não existe** trava de "último dev" — ficar sem nenhum dev é estado legal.
+- Motivo: (a) a invariante protege contra "ninguém consegue mais administrar", não contra "o rótulo admin sumiu"; contar só `admin` faria o sistema recusar um rebaixamento perfeitamente seguro, já que um dev ativo alcança tudo que o admin alcança. (b) sistema sem dev foi o estado do projeto até 30/07/2026, e recolocar é uma migration — o mesmo SQL da `0076`. Como as duas contas de `EMAILS_DEV` são da mesma pessoa, uma trava de "último dev" prenderia a pessoa ao próprio cargo sem ganho nenhum de segurança.
+- Reversível? sim, os dois são predicados isolados — e é bom que sejam dois: o app dá a mensagem em pt-BR, o banco dá a trava.
+
+## 2026-07-30 · F22 · Ninguém age sobre o próprio acesso — inclusive "encerrar sessões"
+
+- Contexto: a F21 já proibia rebaixar e desativar a si mesmo. Com cinco RPCs de gestão novas (cargo, status, vínculos, apagar, encerrar sessões), a pergunta virou uniforme: a regra vale em todas?
+- Decisão: **nenhuma** das RPCs de gestão aceita `alvo = auth.uid()` — inclusive `encerrar_sessoes_usuario`, que à primeira vista é inofensiva.
+- Motivo: regra uniforme é a que se lembra e a que se testa ("gestão é sobre os outros; sobre você, só o Sair"). A exceção "menos encerrar sessões" custaria uma linha de código e uma frase de exceção em quatro documentos — e derrubar a própria sessão no meio de uma operação administrativa não tem caso de uso: para sair da própria conta existe o **Sair** do menu.
+- Reversível? sim, um predicado por RPC.
+
+## 2026-07-30 · F22 · Os vínculos de filial também saíram do service role
+
+- Contexto: o §2.1 da ordem mandava mover cargo e status para RPC e deixava explicitamente em aberto se `operador_filiais` continuava sendo gravado pelo **service role** (`aplicarCargoEVinculos`, herança da F21).
+- Decisão: entrou junto — `definir_vinculos_usuario`, `security definer`, chamada com o **client de sessão** como as outras quatro.
+- Motivo: vínculo é escrita de **acesso** tanto quanto cargo (zero vínculo = operador que não escreve nada; cinco vínculos = escrita no acervo inteiro). Enquanto um caminho de gravação de acesso passar pelo service role, a autorização daquele caminho mora inteira num `if` de TypeScript — que não protege contra request forjado nem contra uma action futura que esqueça a guarda. Com os cinco caminhos em RPC, a decisão "quem pode?" roda no Postgres com `auth.uid()` real e vale para qualquer chamador, e a mesma função que a UI chama é a que o roteiro SQL testa com papel simulado.
+- Reversível? sim — a action volta a escrever pelo client administrativo e a RPC fica órfã, inócua.
+
+## 2026-07-30 · F22 · Trocar o e-mail aplica DIRETO, sem link de confirmação
+
+- Contexto: o §3.1 deixava a escolha entre aplicar a troca na hora (`email_confirm: true`) ou exigir confirmação por link.
+- Decisão: aplica direto. O domínio é validado pela **mesma** lista de `src/lib/auth/dominios-email.ts` dentro da action (o trigger da `0041` só cobre INSERT, e aqui é UPDATE); e-mail já em uso é recusa clara; a troca vai para a trilha como `email_alterado`, com `{de, para}`.
+- Motivo: o projeto **não tem SMTP próprio** — foi exatamente por isso que o convite virou link copiável na F6. "Confirmação por link" significaria o dev copiar mais um link e entregá-lo pela mão, com a conta em limbo no intervalo: o e-mail antigo já não serve para logar e o novo ainda não vale. Aplicar direto é a única forma honesta de isto funcionar com o que está pago.
+- Reversível? sim, trocar de novo — e a trilha registra as duas trocas.
+
+## 2026-07-30 · F22 · Encerrar sessões é RPC apagando `auth.sessions` — a API não tem esse caminho
+
+- Contexto: a regra 6 do CLAUDE.md manda conferir a API real antes de escrever o código, e o §3.3 pedia "a revogação que a versão instalada suportar de verdade".
+- Medição: `@supabase/supabase-js` instalado é o **2.110.2** (conferido em `node_modules`), e o `admin.signOut()` dele recebe um **JWT**, não um id de usuário — ou seja, **não existe caminho pela API** para revogar a sessão de um terceiro; só a própria, de posse do token dela.
+- Decisão: a revogação é uma RPC (`encerrar_sessoes_usuario`) que apaga as linhas de `auth.sessions` do alvo, sob a mesma guarda das outras. E o limite fica **declarado na tela**, não escondido: o access token corrente do alvo continua valendo até ~1h — a mesma janela da desativação da F21.
+- Motivo: prometer "derrubei agora" quando o token ainda abre requisições é a pior forma de erro — quem administra confia numa proteção que não existe. Dizer o número é o que torna a ferramenta útil: para o caso urgente, o par certo é desativar **e** encerrar sessões.
+- Reversível? sim — a RPC é aditiva; o usuário simplesmente loga de novo.
+
+## 2026-07-30 · F22 · A rede da `0073` usa GUC local à TRANSAÇÃO — medido antes de escrever a migration
+
+- Contexto: o trigger `profiles_guarda_dev` recusa **por padrão** qualquer mexida numa linha `dev` (e qualquer concessão do cargo `dev`), e as RPCs oficiais abrem a única janela que passa. Como o service role não carrega identidade, o trigger não pergunta "quem é você?", e sim "você veio pelo caminho oficial?" — declarado por `set_config(chave, valor, true)`.
+- Medição (ensaio, 30/07/2026, **antes** de escrever a `0073`): `set_config(k, v, true)` é local à **transação**, e não à chamada de função. Na prova de conceito, depois que a função oficial retornava o GUC continuava valendo, e um UPDATE direto na MESMA transação passava batido pela rede.
+- Decisão: **toda** RPC de gestão fecha a janela ao sair (`set_config(..., 'off', true)`), deixando aberto exatamente um statement.
+- Motivo: em produção cada chamada do PostgREST é a sua própria transação, e o vazamento não se manifestaria — mas depender disso é depender de um detalhe do transporte. Um script de manutenção que chamasse duas coisas na mesma transação reabriria o furo em silêncio. A correção custa uma linha e não depende de quem chama.
+- Nota de doutrina: a rede **não** substitui a autorização. Quem decide "você pode?" são as guardas `e_dev()`/`e_admin()` dentro das RPCs; o trigger só garante que não existe atalho por fora delas. Nenhuma das duas camadas basta sozinha.
+- Reversível? sim — `drop trigger`; as RPCs continuam funcionando, só perdem a rede embaixo.
+
+## 2026-07-30 · F22 · A oitava checagem de integridade foi DESCARTADA (e por quê)
+
+- Contexto: a ordem listava candidatas para as checagens da `/dev`, entre elas "o status do ativo diverge da última movimentação" — que parece a mais valiosa de todas, já que o conceito central do sistema é o estado derivar do histórico.
+- Medição em produção: acusou **1009 de 1231** ativos, ~82% do acervo.
+- Investigação: **artefato de ordenação, não inconsistência**. A compra de abertura do import de startup entra com `created_at` posterior à história que ela precede em data, então "a última movimentação" pela ordem de inserção não é a última no tempo do negócio. É a mesma família do desempate que a `0054` corrigiu no estoque as-of.
+- Decisão: fora da lista. Ficaram **sete** checagens (patrimônio + service tag repetidos, ativo em filial desativada, termo sem o arquivo no Storage, perfil sem conta, conta sem perfil, pendência aberta de movimentação estornada, operador ativo sem nenhuma filial). A oitava vai para o backlog, com a nota de que ela precisa do desempate certo (data do negócio, com o tipo desempatando) antes de valer alguma coisa.
+- Motivo: uma checagem que acusa 82% do acervo não é diagnóstico, é ruído — e o custo real é a confiança: depois da primeira lista cheia de falso positivo, ninguém mais lê a lista.
+- Reversível? entra a qualquer momento, na mesma RPC `dev_checagens_integridade()`, quando o desempate estiver certo.
+
+## 2026-07-30 · F22 · `npm run db:types` fixado na CLI 2.109.1 — a mesma do CI
+
+- Contexto: o script chamava `npx supabase`, que resolve para a versão **mais nova** no dia em que se roda.
+- Medição: a **2.110.0** gera `p_filial: number` onde a **2.109.1** gera `number | null` nas sete RPCs `rel_*` — ou seja, regenerar os tipos produzia churn em `src/lib/types/database.ts` sobre funções que a fase nem tocou, e o diff passava a depender da data.
+- Decisão: o script fixa `supabase@2.109.1`, a mesma versão do CI.
+- Motivo: tipo gerado é artefato versionado; se a versão da ferramenta é implícita, o arquivo gerado deixa de ser função do schema e vira função do calendário. Fixar torna o `db:types` reprodutível e o diff legível — e alinhar com o CI é o que impede o "na minha máquina o tipo é outro".
+- Reversível? sim, uma linha no `package.json`; subir de versão volta a ser decisão consciente, com o churn visível no diff.
+
+## 2026-07-30 · F22 · Os e-mails das contas dev podem constar da ordem, da migration e daqui
+
+- Contexto: a `0076` promove as contas de `EMAILS_DEV` **por e-mail**, e a regra 2 do CLAUDE.md diz "NUNCA dados reais".
+- Decisão: um endereço de login administrativo do próprio sistema é **metadado de acesso**, não dado do acervo — da mesma natureza do ref do projeto Supabase ou do nome do bucket —, e por isso pode constar de ordem de serviço, migration e deste registro. A regra 2 continua **absoluta** onde ela existe para valer: seed, fixture, teste, exemplo de documentação e screenshot não recebem nome de colaborador, patrimônio real nem linha das planilhas da WAP. A persona dev dos dados fictícios é fictícia como todo o resto.
+- Motivo: a alternativa é promover por uuid — que difere entre ensaio e produção, tornaria a migration ilegível e impediria que **a mesma** migration rodasse nos dois bancos e no CI sem edição. O §5 da ordem autoriza explicitamente essa leitura; registrá-la aqui é o que impede o próximo agente de "consertar" a `0076` trocando os e-mails por uuid e quebrando a reexecução.
+- Reversível? não se aplica — é leitura de regra, não mudança de estado. Se um dia se decidir o contrário, a `0076` é substituída por uma promoção por uuid, banco a banco.
+
+## 2026-07-30 · F22 · Duas funções auxiliares saíram da API pública (migration `0078`)
+
+- Contexto: a leitura dos advisors **depois** do apply da fase mostrou onze funções novas no lint `authenticated_security_definer_function_executable`. Nove delas são o desenho e já eram doutrina desde a `0062`: ou são chamadas dentro de expressão de policy (que roda com os privilégios de quem consulta), ou são as RPCs de gestão que a Server Action invoca com o client de sessão — e cada uma tem guarda interna.
+- Decisão: as **duas** que não são nenhum dos casos perderam o `execute` de `authenticated` — `exigir_gestao_de(uuid, papel_usuario)` e `existe_outro_admin_ativo(uuid)`, ambas chamadas só por dentro das cinco RPCs de gestão (a tela usa `idsDeAdminsAtivos()` quando precisa da contagem). Função `security definer` executa como o **dono**; quem precisa de `execute` é ele, não `authenticated`.
+- Motivo: nenhuma das duas vazava algo grave — uma só levanta ou não levanta exceção, a outra devolve um booleano derivável da tela de usuários, que todo logado lê. Mas "não vaza nada grave" é um argumento pior do que "não está exposta": manter as duas em `/rest/v1/rpc/` era superfície de graça.
+- Efeito colateral tratado: o roteiro `supabase/tests/cargo_dev.sql` chamava `existe_outro_admin_ativo` com papel simulado; a chamada passou a ser feita como `postgres`.
+- Reversível? sim, o `grant execute` de volta está escrito no rodapé da própria migration.

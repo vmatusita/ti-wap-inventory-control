@@ -45,7 +45,7 @@ export const importDeStartup: PaginaAjuda = {
         'Não move equipamento de filial: o par patrimônio + service tag é único no sistema inteiro, então linha de ativo que já existe em outra filial fica de fora. Mudança de filial é uma transferência registrada pelo sistema, que preserva o histórico.',
         'Não é rotina: não há agendamento nem sincronização recorrente com planilha.',
         'Não apaga relatório: snapshots de relatório já congelados permanecem como estão.',
-        `Não é de todo mundo: importar é a ação mais destrutiva do sistema, e só o cargo ${PAPEL_ROTULO.admin} a alcança — a aba, a confirmação e a própria gravação recusam quem tem outro cargo, com "Esta ação é restrita a administradores.". Quem rodou cada import fica registrado.`,
+        `Não é de todo mundo: importar é a ação mais destrutiva do sistema, e só os cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev} a alcançam — a aba, a confirmação e a própria gravação recusam quem tem outro cargo, com "Esta ação é restrita a administradores.". Quem rodou cada import fica registrado.`,
       ],
     },
 

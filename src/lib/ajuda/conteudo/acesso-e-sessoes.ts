@@ -11,7 +11,7 @@ export const acessoESessoes: PaginaAjuda = {
   slug: 'acesso-e-sessoes',
   titulo: 'Quem acessa o quê',
   resumo:
-    'As duas portas: login corporativo com um dos três cargos e visualizador com senha de acesso.',
+    'As duas portas: login corporativo com um dos quatro cargos e visualizador com senha de acesso.',
   categoria: 'comecar',
   termos: [
     'login',
@@ -30,6 +30,7 @@ export const acessoESessoes: PaginaAjuda = {
     'vinculo',
     'desativado',
     'sem permissao',
+    'desenvolvedor',
   ],
   legado: ['acesso'],
   blocos: [
@@ -41,7 +42,7 @@ export const acessoESessoes: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        `Login — e-mail ${DOMINIOS_TEXTO} e senha própria. Quem entra por aqui LÊ o sistema inteiro, nas cinco filiais; o que varia de pessoa para pessoa é o que ela pode REGISTRAR, e isso vem do cargo (${PAPEL_ROTULO.admin}, ${PAPEL_ROTULO.operador} ou ${PAPEL_ROTULO.consulta}).`,
+        `Login — e-mail ${DOMINIOS_TEXTO} e senha própria. Quem entra por aqui LÊ o sistema inteiro, nas cinco filiais; o que varia de pessoa para pessoa é o que ela pode REGISTRAR, e isso vem do cargo (${PAPEL_ROTULO.dev}, ${PAPEL_ROTULO.admin}, ${PAPEL_ROTULO.operador} ou ${PAPEL_ROTULO.consulta}).`,
         'Visualizador — entra por uma senha de acesso e só enxerga os relatórios (/relatorios). Não vê ativos, pendências, esta documentação nem a operação.',
       ],
     },
@@ -50,16 +51,17 @@ export const acessoESessoes: PaginaAjuda = {
       texto: `Dois nomes parecidos, duas coisas diferentes: o cargo ${PAPEL_ROTULO.consulta} TEM login e navega o sistema inteiro em modo leitura; o visualizador NÃO tem conta e só abre os relatórios. Para quem é da equipe e tem e-mail corporativo, o caminho é o cargo ${PAPEL_ROTULO.consulta}; para quem é de fora da TI, a senha de acesso.`,
     },
 
-    { tipo: 'titulo', id: 'acesso-cargos', texto: 'Os três cargos' },
+    { tipo: 'titulo', id: 'acesso-cargos', texto: 'Os quatro cargos' },
     {
       tipo: 'paragrafo',
-      texto: `O cargo é escolhido por um ${PAPEL_ROTULO.admin} no convite e pode ser mudado depois, sem refazer nada. Ele não muda o que a pessoa VÊ — as cinco filiais, todas as telas fora da Administração, os relatórios e esta documentação estão abertos aos três. Ele muda o que a pessoa REGISTRA.`,
+      texto: `O cargo é escolhido no convite e pode ser mudado depois, sem refazer nada: um ${PAPEL_ROTULO.admin} cuida disso na tela de usuários, e só um ${PAPEL_ROTULO.dev} dá ou tira o cargo ${PAPEL_ROTULO.dev}. O cargo não muda o que a pessoa VÊ — as cinco filiais, todas as telas fora da Administração, os relatórios e esta documentação estão abertos aos quatro. Ele muda o que a pessoa REGISTRA.`,
     },
     { tipo: 'glossario', badge: 'neutro', itens: verbetesCargo() },
     {
       tipo: 'tabela',
       colunas: [
         'O que a pessoa quer fazer',
+        PAPEL_ROTULO.dev,
         PAPEL_ROTULO.admin,
         PAPEL_ROTULO.operador,
         PAPEL_ROTULO.consulta,
@@ -70,10 +72,12 @@ export const acessoESessoes: PaginaAjuda = {
           'Todas as filiais',
           'Todas as filiais',
           'Todas as filiais',
+          'Todas as filiais',
         ],
-        ['Exportar uma lista para o Excel (CSV)', 'Sim', 'Sim', 'Sim'],
+        ['Exportar uma lista para o Excel (CSV)', 'Sim', 'Sim', 'Sim', 'Sim'],
         [
           'Registrar movimentação, compra, devolução ao fornecedor, item, termo, anotação, estorno',
+          'Todas as filiais',
           'Todas as filiais',
           'Só nas filiais vinculadas a ela',
           'Não registra',
@@ -81,20 +85,40 @@ export const acessoESessoes: PaginaAjuda = {
         [
           'Resolver pendência (confirmar assinatura, item faltante, patrimônio, service tag)',
           'Todas as filiais',
+          'Todas as filiais',
           'Só nas filiais vinculadas a ela',
           'Não registra',
         ],
-        ['Gerar (congelar) um relatório da semana', 'Sim', 'Sim', 'Não'],
+        ['Gerar (congelar) um relatório da semana', 'Sim', 'Sim', 'Sim', 'Não'],
         [
           'Abrir a Administração: usuários, senhas de acesso, filiais, motivos, kits, catálogo de itens',
+          'Sim',
           'Sim',
           'Não',
           'Não',
         ],
-        ['Importar o inventário de uma filial ("Substituir tudo")', 'Sim', 'Não', 'Não'],
+        ['Importar o inventário de uma filial ("Substituir tudo")', 'Sim', 'Sim', 'Não', 'Não'],
+        [
+          'Trocar o e-mail de uma conta, apagar uma conta, encerrar as sessões de alguém',
+          'Sim',
+          'Não',
+          'Não',
+          'Não',
+        ],
+        [
+          `Dar ou tirar o cargo ${PAPEL_ROTULO.dev} — e mexer em quem já o tem`,
+          'Sim',
+          'Não',
+          'Não',
+          'Não',
+        ],
       ],
       legenda:
-        'Ler é igual para os três cargos; a diferença toda está em registrar. Quem não pode registrar não vê o botão — e, se abrir o endereço na mão, a gravação é recusada com um aviso que explica o motivo.',
+        'Ler é igual para os quatro cargos; a diferença toda está em registrar. Quem não pode registrar não vê o botão — e, se abrir o endereço na mão, a gravação é recusada com um aviso que explica o motivo.',
+    },
+    {
+      tipo: 'nota',
+      texto: `${PAPEL_ROTULO.dev} é o cargo de quem cuida do sistema por dentro, e as duas últimas linhas da tabela são só dele: trocar o e-mail de uma conta, apagar uma conta, encerrar as sessões de alguém e mexer no próprio cargo ${PAPEL_ROTULO.dev}. Ele também tem um item de menu que mais ninguém enxerga, com o diagnóstico e as ferramentas técnicas do sistema. No dia a dia do estoque, ele opera exatamente como um ${PAPEL_ROTULO.admin}.`,
     },
 
     {
@@ -109,7 +133,7 @@ export const acessoESessoes: PaginaAjuda = {
         `Todo ${PAPEL_ROTULO.operador} tem ao menos uma filial: a tela de usuários não deixa salvar o cargo sem nenhuma.`,
         'Nas telas de registro, a lista de filiais oferece só aquelas em que você escreve. Nos filtros de consulta e nos relatórios, as cinco continuam ali.',
         'Transferência entre filiais: basta poder escrever na filial de ORIGEM. Mandar equipamento para outra filial é o fluxo normal — quem recebe é quem opera lá.',
-        `${PAPEL_ROTULO.admin} não usa essa lista (escreve em todas as filiais) e ${PAPEL_ROTULO.consulta} também não (não escreve em nenhuma).`,
+        `${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev} não usam essa lista (escrevem em todas as filiais) e ${PAPEL_ROTULO.consulta} também não (não escreve em nenhuma).`,
         'Um lote que junta equipamentos de filiais diferentes é recusado INTEIRO quando você não escreve em uma delas — nada é gravado pela metade.',
       ],
     },
@@ -120,7 +144,7 @@ export const acessoESessoes: PaginaAjuda = {
       itens: [
         'A entrada é a tela de login, com "E-mail" e "Senha". Não existe auto-cadastro: a conta nasce de um convite gerado na Administração, e quem aceita o convite define o próprio nome, sobrenome e senha.',
         `Só os domínios corporativos entram: ${DOMINIOS_TEXTO}. Um endereço fora dessa lista é recusado no convite e no login.`,
-        'O domínio decide SE a pessoa entra; o cargo decide O QUE ela faz depois. Ninguém escolhe o próprio cargo, nem no primeiro acesso.',
+        'O domínio decide SE a pessoa entra; o cargo decide O QUE ela faz depois. Ninguém escolhe o próprio cargo, nem no primeiro acesso, e ninguém muda o próprio cargo depois.',
         'Esqueceu a senha: o rodapé do login diz "Esqueceu a senha? Peça a um administrador para reenviar o convite." — o link novo devolve o acesso, e o cargo e as filiais continuam os mesmos.',
       ],
     },

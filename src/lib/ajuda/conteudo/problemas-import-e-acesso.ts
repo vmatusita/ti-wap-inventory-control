@@ -133,7 +133,7 @@ export const problemasImportEAcesso: PaginaAjuda = {
       itens: [
         {
           sintoma: 'A Administração desapareceu do meu menu.',
-          causa: `O item "Administração" existe só para o cargo ${PAPEL_ROTULO.admin}. Se ele sumiu, o seu cargo foi mudado — nada quebrou, e o resto do sistema continua igual.`,
+          causa: `O item "Administração" existe só para os cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}. Se ele sumiu, o seu cargo foi mudado — nada quebrou, e o resto do sistema continua igual.`,
           saida: [
             `Confirme com quem administra: talvez a sua função tenha mudado para ${PAPEL_ROTULO.operador} de propósito.`,
             `Se você precisa mesmo dos cadastros de apoio, das contas ou do import, peça a um ${PAPEL_ROTULO.admin} para devolver o seu cargo — ou para fazer aquela mudança por você.`,
