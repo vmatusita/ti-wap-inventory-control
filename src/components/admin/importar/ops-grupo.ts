@@ -142,8 +142,14 @@ export function opsDoGrupo(
     case 'site_desconhecido':
       return [{ op: 'substituir', campo: 'site', de: grupo.chave, para: filialNome }]
     case 'site_outra_filial':
-    case 'existe_em_outra_filial':
       return grupo.linhas.map((linha) => ({ op: 'remover_linha', linha }))
+    // F24 — o conflito entre filiais DEIXOU de ser "só-remover". A linha importa e abre
+    // uma pendência; remover virou OPCIONAL. Por isso este kind sai do lote: quem quiser
+    // remover usa o botão do próprio card (`removivel`, herdado de CardGrupo), que emite
+    // as ops direto. Se continuasse aqui, um clique em "Aplicar todas as correções"
+    // apagaria em silêncio exatamente as linhas que a fase passou a querer importar.
+    case 'existe_em_outra_filial':
+      return []
     case 'patrimonio':
       return grupo.linhas
         .filter((l) => patrimonioLinhaOk(l, rascunho, contexto))
@@ -200,8 +206,9 @@ export function opsDoGrupo(
  *   (F7F — antes era tudo-ou-nada `.every`; agora as PARCIAIS também entram: o
  *   botão aplica as linhas prontas e `faltamNoGrupo` conta as que faltam).
  *   `opsDoGrupo` já emite só as linhas válidas, então o lote nunca leva lixo;
- * - patrimonio_vazio/duplicata/nenhuma: nunca entra no lote (preencher vazio é
- *   opcional, duplicata é decisão humana).
+ * - existe_em_outra_filial/patrimonio_vazio/duplicata/nenhuma: nunca entra no lote
+ *   (preencher vazio é opcional, duplicata e conflito entre filiais são decisão
+ *   humana — F24).
  */
 export function grupoPronto(grupo: GrupoErro, rascunho: Rascunho, contexto: Contexto): boolean {
   const c = grupo.correcao
@@ -212,7 +219,6 @@ export function grupoPronto(grupo: GrupoErro, rascunho: Rascunho, contexto: Cont
       return massaEfetiva(grupo, rascunho) in SITUACAO_CANONICA
     case 'site_desconhecido':
     case 'site_outra_filial':
-    case 'existe_em_outra_filial':
       return true
     case 'patrimonio':
       return grupo.linhas.some((l) => linhaOk('patrimonio', l, rascunho, contexto))
@@ -222,6 +228,10 @@ export function grupoPronto(grupo: GrupoErro, rascunho: Rascunho, contexto: Cont
       return grupo.linhas.some((l) => linhaOk('data', l, rascunho, contexto))
     // patrimonio_vazio nunca entra no lote/global (preencher é opcional — a
     // pendência é legítima). Comportamento final, não bridge.
+    // F24 — `existe_em_outra_filial` passou para cá pela MESMA doutrina: a linha importa
+    // e a pendência (agora "conflito entre filiais") é legítima. Remover é decisão humana,
+    // tomada no card, nunca no lote.
+    case 'existe_em_outra_filial':
     case 'patrimonio_vazio':
     case 'duplicata':
     case 'nenhuma':

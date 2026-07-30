@@ -109,19 +109,35 @@ describe('site_desconhecido / remoções — ação fixa, sempre pronta', () => 
     ])
   })
 
-  it('site de outra filial e "já existe em outra filial" só removem', () => {
-    for (const kind of ['site_outra_filial', 'existe_em_outra_filial'] as const) {
-      const correcao =
-        kind === 'existe_em_outra_filial'
-          ? ({ kind, filial: 'Linhares' } as const)
-          : ({ kind } as const)
-      const g = grupo({ tipo: 't', chave: 'Serra', linhas: [9, 11], correcao })
-      expect(grupoPronto(g, {}, {})).toBe(true)
-      expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([
-        { op: 'remover_linha', linha: 9 },
-        { op: 'remover_linha', linha: 11 },
-      ])
-    }
+  it('site de outra filial só remove (o import não transfere — decisão 4 segue de pé)', () => {
+    const g = grupo({
+      tipo: 't',
+      chave: 'Serra',
+      linhas: [9, 11],
+      correcao: { kind: 'site_outra_filial' },
+    })
+    expect(grupoPronto(g, {}, {})).toBe(true)
+    expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([
+      { op: 'remover_linha', linha: 9 },
+      { op: 'remover_linha', linha: 11 },
+    ])
+  })
+
+  // F24 — a regressão que esta asserção existe para impedir: enquanto o conflito era
+  // bloqueante e "só-remover", `grupoPronto` devolvia true e o card entrava no lote do
+  // botão GLOBAL ("Aplicar todas as correções"). Com o conflito virando aviso OPCIONAL,
+  // manter esse true faria um clique no botão global apagar em silêncio exatamente as
+  // linhas que a fase passou a querer importar. Remover continua possível — pelo botão
+  // do próprio card, que não passa por `opsDoGrupo`.
+  it('conflito entre filiais NÃO entra no lote global e não emite ops (F24)', () => {
+    const g = grupo({
+      tipo: 'patrimonio_em_outra_filial',
+      chave: 'Linhares',
+      linhas: [9, 11],
+      correcao: { kind: 'existe_em_outra_filial', filial: 'Linhares' },
+    })
+    expect(grupoPronto(g, {}, {})).toBe(false)
+    expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([])
   })
 })
 

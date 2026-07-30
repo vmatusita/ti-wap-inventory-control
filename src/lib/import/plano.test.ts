@@ -375,7 +375,10 @@ describe('F7E — dataAjuste (ajuste de reconciliação) nas 3 quedas', () => {
 describe('F7E/F7C — sem patrimônio com tag existente em OUTRA filial', () => {
   const SEM = String.fromCodePoint(0x2205) // ∅ — sentinela do espaço de chave
 
-  it('nulo-com-tag existente noutra filial → patrimonio_em_outra_filial (mensagem pela tag)', () => {
+  // F24 — o ativo SEM patrimônio também abre conflito, e pela service tag: ela é a
+  // identidade quando não há plaqueta (índice parcial da 0091). Antes isto bloqueava o
+  // import inteiro; agora a linha entra e o par vira pendência.
+  it('nulo-com-tag existente noutra filial → AVISO de conflito (mensagem pela tag)', () => {
     const r = validarCsvImport(
       buf(montar(H_MATRIZ, [rowMatriz({ 'Patrimônio': 'n/a', 'Service Tag': 'ST-X' })])),
       MATRIZ,
@@ -383,11 +386,14 @@ describe('F7E/F7C — sem patrimônio com tag existente em OUTRA filial', () => 
       [],
       new Map([[`${SEM}::ST-X`, 'Linhares']]),
     )
-    expect(r.plano).toBeNull()
-    const bloq = r.bloqueantes.find((e) => e.tipo === 'patrimonio_em_outra_filial')
-    expect(bloq).toBeDefined()
-    expect(bloq!.mensagem).toContain('Linhares')
-    expect(bloq!.mensagem).toContain('ST-X')
+    expect(r.plano).not.toBeNull()
+    expect(r.plano!.ativos).toHaveLength(1)
+    expect(r.resumo.conflitos).toBe(1)
+    expect(r.bloqueantes.find((e) => e.tipo === 'patrimonio_em_outra_filial')).toBeUndefined()
+    const aviso = r.avisos.find((e) => e.tipo === 'patrimonio_em_outra_filial')
+    expect(aviso).toBeDefined()
+    expect(aviso!.mensagem).toContain('Linhares')
+    expect(aviso!.mensagem).toContain('ST-X')
   })
 
   it('nulo-SEM-tag não é detectável (aceito): mapa realista só tem chaves de tags reais', () => {

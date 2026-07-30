@@ -109,6 +109,12 @@ const rpcRetornoSchema = z.object({
   anotacoes_apagadas: z.number(),
   termos_apagados: z.number(),
   arquivos_termos_apagados: z.array(z.string()),
+  // F24 — `.default(0)` e não obrigatório, de propósito. Este safeParse roda DEPOIS do
+  // DELETE+INSERT já commitado: se o app subisse antes da migration 0094, um campo
+  // obrigatório transformaria um deploy fora de ordem em "Import concluído, mas a
+  // resposta veio inesperada" — um falso erro pós-destrutivo, o pior momento possível
+  // para assustar quem acabou de substituir o acervo de uma filial.
+  conflitos_abertos: z.number().default(0),
 })
 
 // ---- tipos de retorno ----------------------------------------------------
@@ -132,6 +138,13 @@ export type ResultadoImport = {
   arquivosTermosRemovidos: number
   /** F7B — correções gravadas em `import_logs.correcoes` (= o que o histórico conta). */
   correcoesAplicadas: number
+  /**
+   * F24 — quantos ativos desta filial ficaram em CONFLITO ENTRE FILIAIS depois do import.
+   * Vem da RPC (contado dentro da transação, pela mesma fonte que a mesa de /pendencias
+   * lê), NÃO do preview: entre o preview e o apply o acervo de outra filial pode mudar,
+   * e o número que a tela mostra tem de ser o que ficou no banco.
+   */
+  conflitosAbertos: number
 }
 
 export type AplicarImportResult =
@@ -228,12 +241,16 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
     return { ok: false, erro: 'Não foi possível ler o arquivo. Confira o CSV/Excel e tente de novo.' }
   }
 
-  // F7C — o motor é PURO (não fala com o banco), mas o índice único do banco é
-  // GLOBAL e o Substituir tudo só apaga a filial selecionada: um ativo do CSV que
-  // já esteja cadastrado em OUTRA filial faria o insert da RPC estourar lá na
-  // frente, depois do backup e da confirmação. Então: 1ª passada dá os candidatos,
-  // o banco diz quais colidem, e a 2ª passada devolve o veredito COM os bloqueantes
-  // (o motor continua o único juiz). Sem colisão, a 2ª passada nem roda.
+  // F7C → F24 — o motor é PURO (não fala com o banco), então a régua "este par já existe
+  // em outra filial" só pode nascer aqui: 1ª passada dá os candidatos, o banco diz quais
+  // batem, e a 2ª passada devolve o veredito (o motor continua o único juiz). Sem
+  // coincidência nenhuma, a 2ª passada nem roda.
+  //
+  // A MECÂNICA é a mesma da F7C; o MOTIVO mudou. Antes existia para evitar que o insert
+  // da RPC estourasse o índice único GLOBAL lá na frente, depois do backup e da
+  // confirmação. Desde a 0091 o índice é por filial e não há colisão a evitar: a detecção
+  // continua para AVISAR, porque dois cadastros do mesmo aparelho em filiais diferentes é
+  // um conflito que alguém precisa resolver — na mesa de /pendencias, não aqui.
   try {
     // F7C ampliado (F7E, contrato §1.5): DUAS identidades a conferir em outra filial —
     // (1) os pares COM patrimônio (comportamento F7C original); (2) os SEM patrimônio
@@ -447,6 +464,8 @@ export async function aplicarImport(input: {
       anotacoes_apagadas: ret.data.anotacoes_apagadas,
       termos_apagados: ret.data.termos_apagados,
       correcoes: correcoes.length,
+      // F24 — quantos conflitos entre filiais este import deixou em aberto.
+      conflitos_abertos: ret.data.conflitos_abertos,
       backup_path: backupPath,
     },
   })
@@ -468,6 +487,7 @@ export async function aplicarImport(input: {
       termosApagados: ret.data.termos_apagados,
       arquivosTermosRemovidos,
       correcoesAplicadas: correcoes.length,
+      conflitosAbertos: ret.data.conflitos_abertos,
     },
   }
 }

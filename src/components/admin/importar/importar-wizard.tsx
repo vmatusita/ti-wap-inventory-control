@@ -586,6 +586,19 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               <span className="text-muted-foreground">
                 {correcoes.length.toLocaleString('pt-BR')} correções
               </span>
+              {/* F24 — conflitos entre filiais. Fica na BARRA (e não só no grid do
+                  resumo) de propósito: o grid só renderiza quando `aplicavel` é true, e
+                  o operador precisa ver este número mesmo quando outro bloqueante estiver
+                  segurando o import. */}
+              {previa.validacao.resumo.conflitos > 0 && (
+                <>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-warning">
+                    {previa.validacao.resumo.conflitos.toLocaleString('pt-BR')} conflitos
+                    entre filiais
+                  </span>
+                </>
+              )}
               {analisando && (
                 <span className="ml-auto text-muted-foreground">Reanalisando…</span>
               )}
@@ -627,6 +640,16 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                     <NumeroGrande
                       valor={previa.validacao.resumo.semServiceTag}
                       rotulo="sem service tag (importam com pendência)"
+                      tom="aviso"
+                    />
+                  )}
+                  {/* F24 — quantas linhas abrem conflito entre filiais (o mesmo aparelho
+                      já tem cadastro em outra filial). Elas IMPORTAM; o par vira pendência
+                      e se resolve na mesa de /pendencias. Tom âmbar, condicional. */}
+                  {previa.validacao.resumo.conflitos > 0 && (
+                    <NumeroGrande
+                      valor={previa.validacao.resumo.conflitos}
+                      rotulo="conflitos entre filiais (abrem pendência)"
                       tom="aviso"
                     />
                   )}
@@ -837,6 +860,18 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                   <strong>{previa.validacao.resumo.criar.toLocaleString('pt-BR')}</strong>{' '}
                   ativos criados a partir do CSV
                 </li>
+                {/* F24 — avisa ANTES de aplicar que este import vai deixar trabalho na
+                    fila de Pendências. Não é um impedimento: é o que vai acontecer. */}
+                {previa.validacao.resumo.conflitos > 0 && (
+                  <li className="text-warning sm:col-span-2">
+                    <strong>
+                      {previa.validacao.resumo.conflitos.toLocaleString('pt-BR')}
+                    </strong>{' '}
+                    {previa.validacao.resumo.conflitos === 1
+                      ? 'conflito entre filiais aberto, para resolver em Pendências'
+                      : 'conflitos entre filiais abertos, para resolver em Pendências'}
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -906,6 +941,29 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               <NumeroGrande valor={resultado.resultado.termosApagados} rotulo="termos apagados" />
             </div>
 
+            {/* F24 — quantos conflitos entre filiais este import deixou em aberto. O
+                número vem do SERVIDOR (contado pela RPC dentro da transação, pela mesma
+                fonte que a mesa lê), e não do preview: entre o preview e o apply o acervo
+                de outra filial pode ter mudado. */}
+            {resultado.resultado.conflitosAbertos > 0 && (
+              <div className="rounded-lg border border-warning/40 bg-warning/5 p-4">
+                <div className="flex items-center gap-2 font-medium text-warning">
+                  <AlertTriangle className="size-4" />
+                  {resultado.resultado.conflitosAbertos.toLocaleString('pt-BR')}{' '}
+                  {resultado.resultado.conflitosAbertos === 1
+                    ? 'conflito entre filiais aberto'
+                    : 'conflitos entre filiais abertos'}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {resultado.resultado.conflitosAbertos === 1
+                    ? 'Um aparelho desta filial tem cadastro também em outra.'
+                    : 'Estes aparelhos desta filial têm cadastro também em outra filial.'}{' '}
+                  Em Pendências dá para ver os cadastros lado a lado, com o histórico de
+                  cada um, e apagar o que estiver errado.
+                </p>
+              </div>
+            )}
+
             {resultado.resultado.correcoesAplicadas > 0 && (
               <p className="text-sm text-muted-foreground">
                 <strong className="tabular-nums">
@@ -934,6 +992,15 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                   Ver ativos da filial
                 </Link>
               </Button>
+              {/* F24 — atalho para a mesa. ⚠ /pendencias filtra a filial por SLUG
+                  (`sp.filial`), ao contrário de /ativos, que filtra por ID. */}
+              {resultado.resultado.conflitosAbertos > 0 && (
+                <Button asChild variant="outline" className="gap-2">
+                  <Link href={`/pendencias?tipo=conflito&filial=${resultado.filial.slug}`}>
+                    Ver conflitos ({resultado.resultado.conflitosAbertos})
+                  </Link>
+                </Button>
+              )}
               <Button variant="ghost" onClick={recomecar}>
                 Novo import
               </Button>

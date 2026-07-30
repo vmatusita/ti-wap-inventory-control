@@ -312,7 +312,7 @@ function analisar(
       correcoes: { aplicadas: 0, porOp: correcoes.map(() => 0) },
       candidatos: [],
       plano: null,
-      resumo: { criar: 0, semData: 0, semPatrimonio: 0, semServiceTag: 0, patrimonioDoHostname: 0, layout: det.maisProximo, linhasRemovidas: 0 },
+      resumo: { criar: 0, semData: 0, semPatrimonio: 0, semServiceTag: 0, patrimonioDoHostname: 0, conflitos: 0, layout: det.maisProximo, linhasRemovidas: 0 },
     }
   }
   const layout: LayoutImport = det.layout
@@ -398,16 +398,28 @@ function analisar(
     }
   }
 
-  // F7C — o par já existe no banco, em OUTRA filial. O índice único
-  // `ativos_patrimonio_service_tag_uidx` é GLOBAL (patrimonio + coalesce(service_tag,'')),
-  // mas o "Substituir tudo" só apaga o acervo da filial SELECIONADA: o ativo da outra
-  // filial sobrevive e o insert da RPC colide. Sem esta régua, a colisão só aparecia
-  // como erro cru do banco no apply — depois do backup e da confirmação, e sem que o
-  // preview jamais tivesse apontado a linha.
-  // O ativo estar num CSV de outra filial significa que ele MUDOU de filial: isso é
-  // transferência, e a decisão 4 do Johnny (17/07) já resolveu o caso — o import não
-  // transfere. Logo: bloqueia e a única ação é remover a linha (a transferência se faz
-  // pelo sistema, com movimentação e histórico).
+  // F7C → F24 — o par já existe no banco, em OUTRA filial.
+  //
+  // A régua NASCEU bloqueante (F7C, 17/07/2026) por uma razão mecânica: o índice único
+  // era GLOBAL, o "Substituir tudo" só apaga o acervo da filial SELECIONADA, e portanto
+  // o ativo da outra filial sobrevivia ao DELETE e fazia o INSERT da RPC estourar —
+  // depois do backup e da confirmação, sem que o preview tivesse apontado a linha.
+  //
+  // A F24 (decisão do Johnny, 30/07/2026) tirou essa mecânica do caminho: a identidade
+  // virou POR FILIAL (migration 0091), então os dois cadastros PODEM coexistir e não há
+  // mais colisão nenhuma a evitar. O que sobra é um problema de NEGÓCIO — dois cadastros
+  // do mesmo equipamento, e alguém precisa olhar os dois e decidir qual é o certo. Isso
+  // não é trabalho de quem está importando um CSV às pressas: é trabalho da mesa de
+  // conflitos em /pendencias, que mostra os lados juntos, com o histórico de cada um.
+  //
+  // Por isso a detecção CONTINUA IGUAL (a 2ª passada, a query, as chaves — nada mudou) e
+  // só o VEREDITO mudou: `avisos` no lugar de `bloqueantes`. Não há campo de severidade
+  // no `ErroImport`; o tier É o array em que o erro cai, e a UI o deriva daí.
+  //
+  // O que NÃO mudou: o import continua sem TRANSFERIR ativo entre filiais. Linha com
+  // Site de outra filial segue bloqueante (`site_divergente`, item 1 de
+  // `montarPlanoImport`) — transferência se faz pelo sistema, com movimentação e
+  // histórico. Aqui o Site é o desta filial; o que colide é a identidade.
   const filialPorLinha = new Map<number, string>()
   for (const c of candidatos) {
     // F7E — a chaveBanco espelha os DOIS índices do banco: com patrimônio → o par
@@ -425,7 +437,7 @@ function analisar(
     filialPorLinha.set(c.linha, filialDono)
     // Rótulo do erro: patrimônio quando há; senão a service tag (nulo-com-tag).
     const rotulo = c.ativo.patrimonio ?? `service tag ${c.ativo.serviceTag}`
-    bloqueantes.push({
+    avisos.push({
       linha: c.linha,
       coluna: 'Patrimônio',
       valor: c.ativo.patrimonio
@@ -434,7 +446,7 @@ function analisar(
           : c.ativo.patrimonio
         : `sem patrimônio + ${c.ativo.serviceTag}`,
       tipo: 'patrimonio_em_outra_filial',
-      mensagem: `${rotulo} já está cadastrado na filial ${filialDono} — o import não transfere ativo entre filiais. Remova a linha e faça a transferência pelo sistema.`,
+      mensagem: `${rotulo} também está cadastrado na filial ${filialDono} — esta linha importa e abre um conflito entre filiais para resolver em Pendências. O import não transfere ativo entre filiais; remover a linha continua sendo opcional.`,
     })
   }
 
@@ -463,7 +475,12 @@ function analisar(
   // F7F — nº de linhas auto-preenchidas pelo hostname. Deriva do resultado final (os
   // avisos), como semData/semPatrimonio, e não de estado intermediário do loop.
   const patrimonioDoHostname = avisos.filter((a) => a.tipo === 'patrimonio_do_hostname').length
-  const resumo = { criar: ativos.length, semData, semPatrimonio, semServiceTag, patrimonioDoHostname, layout, linhasRemovidas }
+  // F24 — nº de linhas que abrem conflito entre filiais. Deriva dos AVISOS (onde a régua
+  // F7C passou a cair), no mesmo padrão de `patrimonioDoHostname`, e não do
+  // `filialPorLinha`: assim o contador é sempre o que a tela mostra, e não um estado
+  // intermediário que poderia divergir se a régua mudasse de novo.
+  const conflitos = avisos.filter((a) => a.tipo === 'patrimonio_em_outra_filial').length
+  const resumo = { criar: ativos.length, semData, semPatrimonio, semServiceTag, patrimonioDoHostname, conflitos, layout, linhasRemovidas }
 
   // F7B — agrupamento + contexto das linhas com erro/aviso (a tela corrige a
   // linha inteira, não a célula solta). `registros` já vem CORRIGIDO.

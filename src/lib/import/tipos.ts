@@ -25,6 +25,15 @@
 // bloqueio é a MESMA: patrimônio COM valor inválido segue bloqueante (não é
 // sobrescrito) e a reanálise continua juíza (auto-preenchido que duplica reaparece).
 //
+// AMPLIADO PELA F24 (decisão do Johnny, 30/07/2026 — REVOGA PARCIALMENTE a decisão 4
+// da F7C, 17/07): o par que já existe em OUTRA filial DEIXA DE BLOQUEAR. A linha
+// importa, os dois cadastros coexistem (a identidade virou por filial, migration
+// 0091) e o par vira a pendência "conflito entre filiais", resolvida numa mesa em
+// /pendencias. `patrimonio_em_outra_filial` continua sendo o MESMO tipo de erro e o
+// MESMO kind de correção — o que mudou foi o ARRAY em que ele cai (`avisos` em vez de
+// `bloqueantes`), porque é o array que define o tier. Remover a linha continua sendo
+// uma saída, agora OPCIONAL. `resumo.conflitos` conta as linhas nessa situação.
+//
 // Os enums de domínio são declarados localmente (como em scripts/import/tipos.ts
 // da F4) para manter o motor autocontido e independente dos tipos GERADOS do
 // banco (src/lib/types/database.ts). Os valores coincidem 1:1 com os enums do
@@ -156,11 +165,13 @@ export type GrupoErro = {
   linhas: number[] // ordenadas
   erros: ErroImport[] // os erros individuais do grupo (para expandir)
   correcao:
-    | { kind: 'existe_em_outra_filial'; filial: string }
+    | { kind: 'existe_em_outra_filial'; filial: string } // F24: aviso — a linha importa e abre conflito
     | { kind: 'categoria'; sugestao: CategoriaAtivo | null }
     | { kind: 'estado'; statusDe: string; situacaoDe: string; sugestao: StatusAtivo | null }
     | { kind: 'site_desconhecido' } // ação única: definir como a filial selecionada
     | { kind: 'site_outra_filial' } // ação única: remover linhas (decisão 4 do Johnny)
+    // (o kind `existe_em_outra_filial`, declarado acima, deixou de ser "só-remover" na
+    //  F24: remover virou opcional — ver o bloco F24 no topo deste arquivo)
     | { kind: 'patrimonio' } // pontual por linha (input com preview da canonicalização)
     | { kind: 'patrimonio_vazio' } // F7E — aviso: importa sem patrimônio (pendência); preencher é opcional
     | { kind: 'duplicata' } // grupo lado a lado; editar patrimônio/ST ou remover sobras
@@ -207,6 +218,11 @@ export type ValidacaoImport = {
     // tag'); só informa no preview (aviso âmbar), nunca bloqueia.
     semServiceTag: number
     patrimonioDoHostname: number
+    // F24 — nº de linhas cujo par (patrimônio + service tag, ou a tag sozinha quando
+    // não há patrimônio) JÁ EXISTE em outra filial. Elas IMPORTAM: o que era bloqueante
+    // virou aviso âmbar, e cada uma abre um conflito para resolver na mesa de
+    // /pendencias. Deriva do resultado final (os avisos), como `patrimonioDoHostname`.
+    conflitos: number
     layout: LayoutImport
     linhasRemovidas: number
   }

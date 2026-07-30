@@ -273,6 +273,9 @@ export type ImportLogRow = {
   backupPath: string
   /** F7B — quantas correções foram declaradas na tela neste import (0 nos antigos). */
   correcoes: number
+  /** F24 — quantos conflitos entre filiais este import abriu (0 nos anteriores à fase:
+   *  antes da migration 0091 o índice global impedia o conflito de existir). */
+  conflitosAbertos: number
 }
 
 // Histórico de imports (auditoria). Join em filiais (nome/slug) e profiles (nome
@@ -284,7 +287,10 @@ export async function listarImportLogs(
   const { data, error } = await client
     .from('import_logs')
     .select(
-      'id, total_linhas, ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, created_at, filiais(nome, slug), profiles(nome)',
+      // ⚠ As colunas são listadas UMA A UMA e o mapeamento abaixo é manual: coluna nova
+      // que não entre nesta string simplesmente não chega ao histórico, e o TypeScript
+      // não avisa.
+      'id, total_linhas, ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, conflitos_abertos, created_at, filiais(nome, slug), profiles(nome)',
     )
     .order('created_at', { ascending: false })
     .limit(limite)
@@ -304,5 +310,7 @@ export async function listarImportLogs(
     backupPath: l.backup_path,
     // jsonb (default '[]'); imports da F7 e qualquer valor fora do formato → 0.
     correcoes: Array.isArray(l.correcoes) ? l.correcoes.length : 0,
+    // F24 — int not null default 0 (migration 0094); imports anteriores à fase → 0.
+    conflitosAbertos: l.conflitos_abertos ?? 0,
   }))
 }

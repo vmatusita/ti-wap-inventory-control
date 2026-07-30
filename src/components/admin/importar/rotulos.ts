@@ -30,7 +30,10 @@ const ROTULO_TIPO_ERRO: Record<string, string> = {
   estado_descartado: 'Descartado',
   par_duplicado: 'Duplicata',
   patrimonio_duplicado_sem_service_tag: 'Duplicata',
-  patrimonio_em_outra_filial: 'Já existe em outra filial',
+  // F24 — deixou de ser bloqueante: a linha importa e abre uma pendência de conflito.
+  // O rótulo passou de "Já existe em outra filial" (que soava a impedimento) para o nome
+  // do que efetivamente acontece — o mesmo nome que a mesa de /pendencias usa.
+  patrimonio_em_outra_filial: 'Conflito entre filiais',
   sem_data_entrada: 'Sem data',
   estado_em_uso_sem_colaborador: 'Sem colaborador',
   linha_sem_chave: 'Linha sem chave',

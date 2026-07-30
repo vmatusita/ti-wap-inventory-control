@@ -52,7 +52,7 @@ export default async function AdminImportarPage() {
           <EstadoVazio
             icone={History}
             titulo="Nenhum import realizado ainda"
-            descricao="Quando um import rodar, ele aparece aqui com o backup do acervo substituído e as contagens de linhas, criados, correções e apagados."
+            descricao="Quando um import rodar, ele aparece aqui com o backup do acervo substituído e as contagens de linhas, criados, correções, conflitos abertos e apagados."
           />
         ) : (
           <div className="overflow-x-auto rounded-lg border">
@@ -65,6 +65,7 @@ export default async function AdminImportarPage() {
                   <TableHead className="text-right">Linhas</TableHead>
                   <TableHead className="text-right">Criados</TableHead>
                   <TableHead className="text-right">Correções</TableHead>
+                  <TableHead className="text-right">Conflitos</TableHead>
                   <TableHead className="text-right">Apagados</TableHead>
                   <TableHead className="text-right">Backup</TableHead>
                 </TableRow>
@@ -85,6 +86,20 @@ export default async function AdminImportarPage() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {l.correcoes > 0 ? l.correcoes.toLocaleString('pt-BR') : '—'}
+                    </TableCell>
+                    {/* F24 — âmbar quando > 0: é trabalho que este import deixou na fila
+                        de Pendências, não um defeito. Imports anteriores à fase mostram
+                        '—' porque o conflito nem podia existir na época. */}
+                    <TableCell
+                      className={
+                        l.conflitosAbertos > 0
+                          ? 'text-right tabular-nums text-warning'
+                          : 'text-right tabular-nums text-muted-foreground'
+                      }
+                    >
+                      {l.conflitosAbertos > 0
+                        ? l.conflitosAbertos.toLocaleString('pt-BR')
+                        : '—'}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {l.movsApagadas.toLocaleString('pt-BR')} movs ·{' '}

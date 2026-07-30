@@ -636,15 +636,15 @@ describe('agruparErros', () => {
     expect(csvCorrigido(buf(texto), ops, MATRIZ.nome)).not.toContain('Serra')
   })
 
-  // F7C — o índice único do banco é GLOBAL, mas o Substituir tudo só apaga a filial
-  // selecionada: um ativo do CSV cadastrado em OUTRA filial sobrevive ao DELETE e
-  // faz o insert da RPC estourar. Antes disso, o preview passava limpo e o erro só
-  // aparecia no apply, depois do backup e da confirmação (bug real, achado no CSV da
-  // Serra em 17/07/2026: 6 ativos já estavam em Linhares/Matriz).
-  describe('ativo que já existe em OUTRA filial (F7C)', () => {
+  // F7C → F24 — a régua NASCEU bloqueante porque o índice único era GLOBAL e o insert da
+  // RPC estourava (bug real, achado no CSV da Serra em 17/07/2026: 6 ativos já estavam em
+  // Linhares/Matriz). Desde a migration 0091 a identidade é POR FILIAL: os dois cadastros
+  // coexistem, não há colisão a evitar, e o que sobra é uma decisão de negócio. Por isso
+  // a DETECÇÃO é idêntica e só o VEREDITO mudou — aviso no lugar de bloqueante.
+  describe('ativo que também existe em OUTRA filial (F7C → F24)', () => {
     const chave = (p: string, st: string | null) => `${p}::${st ?? ''}`
 
-    it('bloqueia com patrimonio_em_outra_filial e agrupa pela filial dona', () => {
+    it('AVISA com patrimonio_em_outra_filial, agrupa pela filial dona e o plano APLICA', () => {
       const r = validar(
         [
           rowMatriz(),
@@ -654,17 +654,28 @@ describe('agruparErros', () => {
         MATRIZ,
         new Map([[chave('WAP0002222', 'ST-B'), 'Linhares']]),
       )
-      const bloq = r.bloqueantes.find((e) => e.tipo === 'patrimonio_em_outra_filial')
-      expect(bloq?.linha).toBe(3)
-      expect(bloq?.mensagem).toContain('Linhares')
-      expect(r.plano).toBeNull() // não chega no insert da RPC
+      // O tier É o array: nada de bloqueante, e o mesmo erro em `avisos`.
+      expect(r.bloqueantes.find((e) => e.tipo === 'patrimonio_em_outra_filial')).toBeUndefined()
+      const aviso = r.avisos.find((e) => e.tipo === 'patrimonio_em_outra_filial')
+      expect(aviso?.linha).toBe(3)
+      expect(aviso?.mensagem).toContain('Linhares')
+      expect(aviso?.mensagem).toContain('conflito')
 
+      // O que a F24 existe para destravar: a linha IMPORTA.
+      expect(r.plano).not.toBeNull()
+      expect(r.plano!.ativos).toHaveLength(2)
+      expect(r.resumo.conflitos).toBe(1)
+
+      // O card e o agrupamento por filial dona seguem exatamente como eram.
       const grupo = r.grupos.find((g) => g.tipo === 'patrimonio_em_outra_filial')
       expect(grupo?.chave).toBe('Linhares') // agrupa por filial dona
       expect(grupo?.correcao).toEqual({ kind: 'existe_em_outra_filial', filial: 'Linhares' })
     })
 
-    it('remover a linha resolve (única ação — decisão 4: import não transfere)', () => {
+    // F24 — remover a linha continua funcionando; deixou é de ser a ÚNICA saída. Quem
+    // remove sai sem conflito nenhum (e sem o ativo); quem não remove importa e resolve
+    // na mesa. As duas saídas são legítimas — a diferença é que agora existe escolha.
+    it('remover a linha continua sendo uma saída (agora opcional)', () => {
       const r = validar(
         [rowMatriz(), rowMatriz({ 'Patrimônio': 'WAP0002222', 'Service Tag': 'ST-B' })],
         [{ op: 'remover_linha', linha: 3 }],
@@ -673,6 +684,9 @@ describe('agruparErros', () => {
       )
       expect(r.bloqueantes).toHaveLength(0)
       expect(r.plano!.ativos.map((a) => a.patrimonio)).toEqual(['WAP0001234'])
+      // removida a linha, não sobra conflito para abrir
+      expect(r.resumo.conflitos).toBe(0)
+      expect(r.avisos.find((e) => e.tipo === 'patrimonio_em_outra_filial')).toBeUndefined()
     })
 
     it('o par é EXATO: mesmo patrimônio com outra service tag não colide', () => {
@@ -1060,7 +1074,9 @@ describe('retrocompatibilidade F7 — sem correções, nada muda', () => {
     expect(r.grupos).toHaveLength(0)
     expect(r.contexto).toEqual({})
     expect(r.plano!.ativos).toHaveLength(1)
-    expect(r.resumo).toEqual({ criar: 1, semData: 0, semPatrimonio: 0, semServiceTag: 1, patrimonioDoHostname: 0, layout: 'matriz', linhasRemovidas: 0 })
+    // F24 — `conflitos: 0` é a prova de §2.2: um CSV SEM conflito sai byte a byte igual
+    // ao que saía antes da fase (mesmos erros, avisos, grupos, plano e contagens).
+    expect(r.resumo).toEqual({ conflitos: 0, criar: 1, semData: 0, semPatrimonio: 0, semServiceTag: 1, patrimonioDoHostname: 0, layout: 'matriz', linhasRemovidas: 0 })
   })
 
   it('CSV vazio (0 linhas de dados) sem correções: comportamento da F7 preservado', () => {

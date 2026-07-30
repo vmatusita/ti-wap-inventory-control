@@ -403,8 +403,11 @@ function CardSiteOutraFilial({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErr
 }
 
 // ---------------------------------------------------------------------------
-// kind: 'existe_em_outra_filial' (F7C) — o ativo JÁ está cadastrado noutra filial.
-// Mesma doutrina da decisão 4: mudar de filial é transferência, não import.
+// kind: 'existe_em_outra_filial' (F7C → F24) — o mesmo aparelho já tem cadastro noutra
+// filial. Deixou de bloquear (decisão do Johnny, 30/07/2026): a linha IMPORTA, os dois
+// cadastros coexistem e o par vira uma pendência de conflito, resolvida na mesa de
+// /pendencias — onde dá para ver os dois lados juntos e decidir qual é o certo.
+// Remover a linha continua sendo uma saída, agora OPCIONAL (o botão do rodapé fica).
 
 function CardExisteEmOutraFilial({
   grupo,
@@ -416,15 +419,15 @@ function CardExisteEmOutraFilial({
   return (
     <CardGrupo grupo={grupo} {...comuns}>
       <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
-        {n === 1 ? 'Este ativo já está' : `Estes ${n} ativos já estão`} cadastrado
-        {n === 1 ? '' : 's'} na filial <strong>{filialDona}</strong>. O import de{' '}
-        {filialNome} <strong>não apaga</strong> o acervo de {filialDona}, e o par
-        patrimônio + service tag é único no sistema inteiro — então{' '}
-        {n === 1 ? 'esta linha' : 'estas linhas'} não {n === 1 ? 'entra' : 'entram'}{' '}
-        por aqui. Se {n === 1 ? 'o aparelho mudou' : 'os aparelhos mudaram'} de filial,
-        isso é uma <strong>transferência</strong>: remova{' '}
-        {n === 1 ? 'a linha' : 'as linhas'} para seguir com o import e registre a
-        transferência pelo sistema (o histórico do ativo é preservado).
+        {n === 1 ? 'Este aparelho também tem' : `Estes ${n} aparelhos também têm`} cadastro
+        na filial <strong>{filialDona}</strong>.{' '}
+        {n === 1 ? 'A linha entra' : 'As linhas entram'} no import de {filialNome} normalmente
+        e {n === 1 ? 'abre' : 'abrem'} um <strong>conflito entre filiais</strong>, que aparece
+        em <strong>Pendências</strong> com os dois cadastros lado a lado — é lá que se decide
+        qual é o certo e se apaga o outro. O import <strong>não move</strong> aparelho de
+        filial: se {n === 1 ? 'o aparelho mudou' : 'os aparelhos mudaram'} mesmo de lugar,
+        registre a <strong>transferência</strong> pelo sistema (o histórico é preservado).
+        Remover {n === 1 ? 'a linha' : 'as linhas'} daqui continua valendo, mas é opcional.
       </p>
     </CardGrupo>
   )
