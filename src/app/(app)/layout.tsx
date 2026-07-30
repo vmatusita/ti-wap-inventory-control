@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getOperador, getViewerSession, temSessaoSupabase } from '@/lib/auth/acesso'
 import { contarPendenciasAbertas } from '@/lib/queries/pendencias-detalhe'
+import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 import { AppHeader } from '@/components/layout/app-header'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { ViewerHeader } from '@/components/layout/viewer-header'
@@ -39,7 +40,16 @@ export default async function AppLayout({
     // operador — a v_pendencias é negada pela RLS na sessão de visualizador por
     // senha, e antecipar a chamada derrubaria o shell dos relatórios. Sem
     // realtime: atualiza a cada navegação.
-    const pendencias = await contarPendenciasAbertas()
+    // F24 — o badge soma a fila E os conflitos entre filiais. Os conflitos NÃO estão em
+    // `v_fila_pendencias` (têm fonte e mesa próprias), então sem esta soma o selo diria
+    // "nenhuma pendência" com trabalho esperando na aba de conflitos. Um GRUPO conta como
+    // UMA pendência — é uma decisão a tomar, não duas. As duas contagens engolem o próprio
+    // erro e devolvem 0: falha de leitura não pode derrubar o shell.
+    const [pendenciasFila, conflitos] = await Promise.all([
+      contarPendenciasAbertas(),
+      contarConflitosAbertos(),
+    ])
+    const pendencias = pendenciasFila + conflitos
     // F21 — o CARGO é resolvido UMA vez, aqui, e desce por prop para o shell
     // inteiro (header, sidebar, paleta, atalhos). Nada de cada peça consultar o
     // banco outra vez: `getOperador()` já traz papel + filiais de escrita.

@@ -25,6 +25,9 @@ const TABS: { valor: TipoPendencia | 'todas'; rotulo: string }[] = [
   { valor: 'itens', rotulo: 'Itens faltantes' },
   { valor: 'triagem', rotulo: 'Triagem' },
   { valor: 'patrimonio', rotulo: 'Patrimônio' },
+  // F24 — a única aba cuja fonte NÃO é `v_fila_pendencias`: ela troca a tabela pela mesa,
+  // onde os cadastros do mesmo equipamento aparecem lado a lado.
+  { valor: 'conflito', rotulo: 'Conflitos entre filiais' },
   { valor: 'outras', rotulo: 'Outras' },
 ]
 

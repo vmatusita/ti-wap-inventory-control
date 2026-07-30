@@ -56,11 +56,23 @@ export type ListaPendencias = {
   pageSize: number
 }
 
+/**
+ * Os tipos que a FILA (`v_fila_pendencias`) sabe produzir.
+ *
+ * F24 — 'conflito' fica de fora, e a exclusão é no TIPO de propósito. As linhas de conflito
+ * vêm das views de conflito (0092/0096), não da fila; se `queryPendencias` recebesse
+ * `tipo: 'conflito'`, nenhum ramo do `if/else` casaria e a query sairia SEM FILTRO NENHUM —
+ * devolvendo a fila inteira como se fosse o resultado do filtro. É exatamente a classe de
+ * falha silenciosa que já mordeu esta tela em 25/07/2026. Com a exclusão no tipo, o
+ * compilador obriga cada chamador a decidir o que fazer com o conflito.
+ */
+export type TipoFila = Exclude<TipoPendencia, 'conflito'>
+
 // Filtros da tela (sem paginação) — compartilhados pela lista e pelo export CSV
 // (OS-F10 · T5), para que o arquivo saia com EXATAMENTE as linhas visíveis.
 export type FiltrosPendencias = {
   filialSlug?: string | null
-  tipo?: TipoPendencia | null
+  tipo?: TipoFila | null
   q?: string | null
 }
 

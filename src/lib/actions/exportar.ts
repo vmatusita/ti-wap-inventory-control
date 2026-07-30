@@ -14,8 +14,10 @@ import {
   ROTULO_TIPO_PENDENCIA,
   type FiltrosPendencias,
   type PendenciaDetalhe,
-  type TipoPendencia,
+  type TipoFila,
 } from '@/lib/queries/pendencias-detalhe'
+import { listarConflitosParaExport } from '@/lib/queries/conflitos'
+import type { LadoConflito } from '@/lib/pendencias/conflitos'
 import {
   getSaldosItens,
   listarHistoricoParaExport,
@@ -124,7 +126,10 @@ function filialDeItens(p: URLSearchParams): number | null {
   return texto(p, 'visao') === 'filiais' ? null : idNumerico(texto(p, 'filial'))
 }
 
-const TIPOS_PENDENCIA: readonly TipoPendencia[] = [
+// F24 — `conflito` NÃO entra aqui: ele não é um filtro da fila (as linhas de conflito vêm
+// de outra fonte) e `FiltrosPendencias.tipo` o exclui no tipo. O export da mesa tem caminho
+// próprio, decidido em `exportarPendenciasCSV` antes de chegar a estes filtros.
+const TIPOS_PENDENCIA: readonly TipoFila[] = [
   'termo',
   'itens',
   'triagem',
@@ -167,9 +172,7 @@ function filtrosPendencias(p: URLSearchParams): FiltrosPendencias {
   const tipoRaw = texto(p, 'tipo')
   return {
     filialSlug: texto(p, 'filial') ?? null,
-    tipo: TIPOS_PENDENCIA.includes(tipoRaw as TipoPendencia)
-      ? (tipoRaw as TipoPendencia)
-      : null,
+    tipo: TIPOS_PENDENCIA.includes(tipoRaw as TipoFila) ? (tipoRaw as TipoFila) : null,
     q: texto(p, 'q') ?? null,
   }
 }
@@ -217,6 +220,29 @@ const COLUNAS_PENDENCIAS: ColunaCsv<PendenciaDetalhe>[] = [
   { titulo: 'Filial', valor: (l) => l.filialNome ?? l.filialSlug },
   // `desde` é timestamptz: formatDate converte para o fuso de SP antes do dd/MM.
   { titulo: 'Desde', valor: (l) => (l.desde ? formatDate(l.desde) : '') },
+]
+
+// F24 — uma linha por CADASTRO em conflito. A chave do grupo vem primeiro para que, ao
+// ordenar no Excel, os lados do mesmo conflito fiquem adjacentes: o arquivo tem de permitir
+// a MESMA leitura que a mesa faz (comparar os dois lados), e não só listar ativos soltos.
+const COLUNAS_CONFLITOS: ColunaCsv<{ chave: string; lado: LadoConflito }>[] = [
+  { titulo: 'Conflito', valor: (l) => l.chave },
+  { titulo: 'Filial', valor: (l) => l.lado.filialNome },
+  { titulo: 'Patrimônio', valor: (l) => l.lado.patrimonio },
+  { titulo: 'Service tag', valor: (l) => l.lado.serviceTag },
+  { titulo: 'Estado', valor: (l) => rotuloStatus(l.lado.status) },
+  { titulo: 'Categoria', valor: (l) => rotuloCategoria(l.lado.categoria) },
+  { titulo: 'Marca', valor: (l) => l.lado.marca },
+  { titulo: 'Modelo', valor: (l) => l.lado.modelo },
+  { titulo: 'Hostname', valor: (l) => l.lado.hostname },
+  { titulo: 'Colaborador', valor: (l) => l.lado.colaborador },
+  { titulo: 'Setor', valor: (l) => l.lado.setor },
+  { titulo: 'Entrada', valor: (l) => (l.lado.entradaEm ? formatDate(l.lado.entradaEm) : '') },
+  { titulo: 'Movimentações', valor: (l) => l.lado.movimentacoes },
+  // A coluna que decide: movimentação que NÃO é da carga do import = vida de sistema.
+  { titulo: 'Movs. fora da carga', valor: (l) => l.lado.movimentacoesReais },
+  { titulo: 'Termos', valor: (l) => l.lado.termos },
+  { titulo: 'Tem histórico real', valor: (l) => (l.lado.temHistoricoReal ? 'sim' : 'não') },
 ]
 
 function colunasSaldos(filialRotulo: string): ColunaCsv<SaldoItem>[] {
@@ -273,7 +299,26 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
   const negado = await barrado()
   if (negado) return falha(negado)
   try {
-    const params = filtrosPendencias(new URLSearchParams(filtros))
+    const p = new URLSearchParams(filtros)
+
+    // F24 — a aba de conflitos tem fonte e colunas PRÓPRIAS (uma linha por cadastro, com a
+    // chave do grupo para os pares ficarem adjacentes no Excel). Sem este desvio, o botão
+    // "Exportar CSV" na aba de conflitos baixaria a fila inteira — o mesmo tipo de mentira
+    // silenciosa que a exclusão de 'conflito' de `FiltrosPendencias.tipo` já evita no
+    // caminho da tela.
+    if (texto(p, 'tipo') === 'conflito') {
+      const todos = await listarConflitosParaExport({ filialSlug: texto(p, 'filial') ?? null })
+      const linhas = todos.slice(0, CAP_EXPORT)
+      return {
+        nome: nomeArquivoCsv('conflitos-entre-filiais', hojeISO()),
+        conteudo: gerarCsv(COLUNAS_CONFLITOS, linhas),
+        total: todos.length,
+        exportadas: linhas.length,
+        truncado: linhas.length < todos.length,
+      }
+    }
+
+    const params = filtrosPendencias(p)
     const { linhas, total } = await listarPendenciasParaExport(params, CAP_EXPORT)
     return {
       nome: nomeArquivoCsv('pendencias', hojeISO()),

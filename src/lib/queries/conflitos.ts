@@ -225,6 +225,43 @@ export async function listarConflitos(
 }
 
 /**
+ * TODOS os lados em conflito, para o export CSV — sem a paginação da tela.
+ *
+ * Uma linha por LADO (não por grupo), com a chave do grupo em cada uma, para que o arquivo
+ * possa ser ordenado/agrupado no Excel e os pares fiquem adjacentes. Ordenado por chave e
+ * filial: os dois lados do mesmo conflito saem lado a lado, como na tela.
+ */
+export async function listarConflitosParaExport(
+  opts: { filialSlug?: string | null } = {},
+): Promise<{ chave: string; lado: LadoConflito }[]> {
+  const client = await createClient()
+  let query = client
+    .from('v_conflitos_filiais')
+    .select(LADO_SELECT)
+    .order('chave', { ascending: true })
+    .order('filial_id', { ascending: true })
+
+  const filialSlug = opts.filialSlug?.trim() || null
+  if (filialSlug) {
+    // Recorte por filial: as CHAVES cujo lado está nesta filial — e depois TODOS os lados
+    // dessas chaves. Filtrar direto por `filial` traria só metade de cada conflito, e um
+    // conflito com um lado só não é um conflito: é uma linha sem sentido no arquivo.
+    const { data, error } = await client
+      .from('v_conflitos_filiais')
+      .select('chave')
+      .eq('filial', filialSlug)
+    if (error) throw new Error(`Falha ao exportar conflitos: ${error.message}`)
+    const chaves = [...new Set(chavesNaoNulas(data))]
+    if (chaves.length === 0) return []
+    query = query.in('chave', chaves)
+  }
+
+  const { data, error } = await query
+  if (error) throw new Error(`Falha ao exportar conflitos: ${error.message}`)
+  return ((data ?? []) as RowLado[]).map((r) => ({ chave: r.chave, lado: mapearLado(r) }))
+}
+
+/**
  * Os lados de um conjunto de ativos, para o diálogo mostrar o resumo REAL lido na hora
  * (§4.3) — e não o que a tela tinha em memória quando a página carregou.
  */

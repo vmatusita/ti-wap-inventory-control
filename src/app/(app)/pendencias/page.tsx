@@ -20,6 +20,12 @@ import {
   FilaPendenciasTabela,
   type LinhaFila,
 } from '@/components/pendencias/fila-pendencias-tabela'
+import {
+  MesaConflitos,
+  type GrupoConflitoFmt,
+} from '@/components/pendencias/mesa-conflitos'
+import { contarGruposConflito, listarConflitos } from '@/lib/queries/conflitos'
+import { eAdmin } from '@/lib/auth/papeis'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -27,7 +33,16 @@ function primeiro(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : Array.isArray(v) ? v[0] : undefined
 }
 
-const TIPOS_VALIDOS: TipoPendencia[] = ['termo', 'itens', 'triagem', 'patrimonio', 'outras']
+const TIPOS_VALIDOS: TipoPendencia[] = [
+  'termo',
+  'itens',
+  'triagem',
+  'patrimonio',
+  // F24 — a aba da mesa. `?tipo=conflito` só funciona porque está AQUI: tipo desconhecido
+  // cai no fallback `null` e a tela mostraria a fila inteira como se fosse o filtro pedido.
+  'conflito',
+  'outras',
+]
 
 function haQuantosDias(iso: string | null): string {
   if (!iso) return ''
@@ -60,11 +75,24 @@ export default async function PendenciasPage({
   // Diferencia "não há pendência nenhuma" de "nada neste filtro" no estado vazio.
   const temFiltro = Boolean(filialSlug || tipo || q)
 
+  // F24 — a aba de conflitos troca a FONTE: em vez da fila (`v_fila_pendencias`), a mesa lê
+  // as views de conflito. Por isso o `tipo` que vai para `listarPendencias` é estreitado —
+  // `FiltrosPendencias.tipo` exclui 'conflito' no TIPO justamente para o compilador obrigar
+  // esta decisão (sem isso, a query sairia sem filtro nenhum e devolveria a fila inteira).
+  const naMesa = tipo === 'conflito'
+  const tipoDaFila = naMesa ? null : (tipo as Exclude<TipoPendencia, 'conflito'> | null)
+
   const client = await createClient()
-  const [filiais, chips, lista] = await Promise.all([
+  const [filiais, chips, lista, conflitos, totalConflitos] = await Promise.all([
     listarFiliais(client),
     getPendencias(client, filialSlug),
-    listarPendencias({ filialSlug, tipo, q, page }),
+    // Não vale a pena consultar a fila quando a mesa é que vai aparecer.
+    naMesa
+      ? Promise.resolve({ rows: [], total: 0, page: 1, pageSize: 30 })
+      : listarPendencias({ filialSlug, tipo: tipoDaFila, q, page }),
+    naMesa ? listarConflitos({ filialSlug, page }) : Promise.resolve(null),
+    // O chip de conflito é contado SEMPRE (ele aparece em qualquer aba, como os demais).
+    contarGruposConflito(client, filialSlug),
   ])
 
   // "Desde" formatado no SERVIDOR (formatDate + "há N dias") — a tabela é Client
@@ -75,6 +103,34 @@ export default async function PendenciasPage({
     desdeFmt: formatDate(r.desde),
     desdeRel: haQuantosDias(r.desde),
   }))
+
+  // F24 — as datas da mesa também são formatadas no SERVIDOR, pelo mesmo motivo da fila:
+  // a mesa é Client Component e não deve chamar `new Date()` (mismatch de hidratação).
+  const gruposFmt: GrupoConflitoFmt[] = (conflitos?.grupos ?? []).map((g) => ({
+    ...g,
+    lados: g.lados.map((l) => ({
+      ...l,
+      entradaFmt: l.entradaEm ? formatDate(l.entradaEm) : '—',
+      ultimaMovFmt: l.ultimaMovData
+        ? `${formatDate(l.ultimaMovData)}${l.ultimaMovTipo ? ` · ${l.ultimaMovTipo}` : ''}`
+        : '—',
+    })),
+  }))
+
+  // Chip do conflito, ao lado dos demais. Contado à parte (a fila não o produz) e por
+  // GRUPO, não por ativo: cada grupo é UMA decisão a tomar, e contar os dois lados
+  // anunciaria o dobro do trabalho que existe.
+  const chipsComConflito =
+    totalConflitos > 0
+      ? [
+          ...chips,
+          {
+            chave: 'conflito' as const,
+            rotulo: totalConflitos === 1 ? 'conflito entre filiais' : 'conflitos entre filiais',
+            total: totalConflitos,
+          },
+        ]
+      : chips
 
   return (
     <div className="space-y-4">
@@ -95,11 +151,29 @@ export default async function PendenciasPage({
         />
       </div>
 
-      {/* KPI-chips (reuso de getPendencias — total por bucket) */}
-      <PendenciasChips pendencias={chips} />
+      {/* KPI-chips (reuso de getPendencias — total por bucket) + o de conflito */}
+      <PendenciasChips pendencias={chipsComConflito} />
 
       <PendenciasFiltros filiais={filiais} filialSlug={filialSlug} tipo={tipo} q={q} />
 
+      {naMesa ? (
+        gruposFmt.length === 0 ? (
+          <div className="rounded-xl border bg-card">
+            <EstadoVazio
+              icone={ClipboardCheck}
+              titulo="Nenhum conflito entre filiais 🎉"
+              descricao="Nenhum equipamento está cadastrado em duas filiais ao mesmo tempo. Quando um import de startup trouxer uma máquina que já existe em outra unidade, os dois cadastros aparecem aqui, lado a lado."
+              className="border-0"
+            />
+          </div>
+        ) : (
+          // A mesa NÃO usa a moldura da tabela: cada conflito é um bloco próprio.
+          // `podeApagar` é o nível administrador (admin ou dev) — decisão do Johnny,
+          // 30/07/2026. Todo logado LÊ; só o administrador vê checkbox e botões. A
+          // segurança é a RPC, não esta prop.
+          <MesaConflitos grupos={gruposFmt} podeApagar={eAdmin(operador.papel)} />
+        )
+      ) : (
       <div className="rounded-xl border bg-card">
         {lista.rows.length === 0 ? (
           // "Não há pendência nenhuma" (comemorar) x "nada neste filtro" (ajustar).
@@ -129,10 +203,21 @@ export default async function PendenciasPage({
           <FilaPendenciasTabela rows={linhas} podeResolver={podeEscrever(operador.papel)} />
         )}
       </div>
-
-      {lista.total > lista.pageSize && (
-        <AtivosPaginacao page={lista.page} pageSize={lista.pageSize} total={lista.total} />
       )}
+
+      {/* A paginação segue a fonte que está na tela: a mesa pagina por GRUPO. */}
+      {naMesa
+        ? conflitos !== null &&
+          conflitos.total > conflitos.pageSize && (
+            <AtivosPaginacao
+              page={conflitos.page}
+              pageSize={conflitos.pageSize}
+              total={conflitos.total}
+            />
+          )
+        : lista.total > lista.pageSize && (
+            <AtivosPaginacao page={lista.page} pageSize={lista.pageSize} total={lista.total} />
+          )}
     </div>
   )
 }
