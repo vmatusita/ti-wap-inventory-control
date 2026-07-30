@@ -230,6 +230,20 @@ export async function getUltimasMovimentacoes(
     // `import startup dd/MM/yyyy` (data variável) → filtro por PREFIXO com not.like (`*`).
     // Segundo .or() é ANDado no topo → (null OU ≠golive) AND (null OU NÃO começa com o marcador).
     .or(`observacao.is.null,observacao.not.like."${OBS_IMPORT_STARTUP}*"`)
+    // F23: a CORREÇÃO TÉCNICA do desenvolvedor (ferramenta "Forçar estado" da /dev) não é
+    // operação do dia — e este é o ÚNICO ponto de relatório/dashboard onde ela apareceria.
+    //
+    // ⚠ Por que só AQUI, e por que isto não é uma exceção frágil. Todas as outras leituras de
+    // relatório filtram por ALLOW-LIST de tipo (`saida`/`devolucao`, ou `compra`/`troca`…), e a
+    // correção-dev é do tipo `ajuste` — já está fora de todas elas, sem precisar de nada. Esta
+    // função é a única sem allow-list de tipo: ela mostra "as últimas movimentações",
+    // quaisquer que sejam. Levantamento completo dos 20 pontos de leitura em
+    // docs/RELATORIO-F23.md.
+    //
+    // `forcado` é NOT NULL com default false (migration 0079), então `.eq(false)` não descarta
+    // linha nenhuma por nulidade — ao contrário dos dois `.or()` acima, que precisam ser
+    // null-safe porque `observacao` é anulável.
+    .eq('forcado', false)
   if (filialId) q = q.eq('filial_id', filialId)
   q = q
     .order('created_at', { ascending: false })

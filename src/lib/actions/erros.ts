@@ -156,6 +156,55 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
     return 'Este usuário é um Desenvolvedor: só outro Desenvolvedor pode alterar o cargo, desativar ou apagar esta conta.'
   }
 
+  // ---- F23: as recusas das FERRAMENTAS DESTRUTIVAS (migrations 0081→0086) ----
+  // ⚠ ESTES RAMOS PRECISAM VIR ANTES DO GENÉRICO DE 42501 LOGO ABAIXO, e a razão é a mesma
+  // que motivou o bloco da F22: as RPCs desta fase recusam com `errcode = 42501` e mensagem
+  // NOSSA, mas o motivo NÃO é o cargo de quem chamou — é a AÇÃO que não cabe (não é a última
+  // movimentação; existe um termo no caminho; é a única movimentação do ativo). Caindo no
+  // genérico, um Desenvolvedor leria "seu cargo ou suas filiais de escrita não permitem" e
+  // sairia investigando o próprio acesso, que está perfeito. Mesma armadilha, segunda vez.
+  //
+  // ⚠ E há uma segunda: as recusas de CONFIRMAÇÃO/JUSTIFICATIVA e a de contagens usam 22023 e
+  // 40001, que não têm ramo nenhum — cairiam no fallback genérico e a pessoa não saberia o que
+  // digitou de errado. Cada linha cobre a frase COM e SEM acento, pelo motivo já documentado
+  // acima (a mensagem viaja RPC → PostgREST → supabase-js).
+  if (m.includes('só a última movimentação') || m.includes('so a ultima movimentacao')) {
+    return 'Só a última movimentação do ativo pode ser apagada — esta tem outras depois dela. Apague as posteriores primeiro, da mais nova para a mais antiga.'
+  }
+  if (m.includes('única movimentação do ativo') || m.includes('unica movimentacao do ativo')) {
+    return 'Esta é a única movimentação do ativo: apagá-la deixaria um ativo sem nascimento. Use "Apagar ativo", que leva o ativo e o rastro inteiro.'
+  }
+  if (m.includes('não tem o retrato do estado anterior') || m.includes('nao tem o retrato do estado anterior')) {
+    return 'Esta movimentação não guarda o retrato do estado anterior, então não é possível recompor o ativo apagando-a. Use "Forçar estado" e mantenha o histórico.'
+  }
+  if (m.includes('termo gerado a partir desta movimentação') || m.includes('termo gerado a partir desta movimentacao')) {
+    return 'Existe um termo gerado a partir desta movimentação. Apague o termo antes, ou apague o ativo inteiro.'
+  }
+  if (m.includes('termo que também cobre outros ativos') || m.includes('termo que tambem cobre outros ativos')) {
+    return 'Este ativo está num termo que também cobre outros ativos: apagá-lo destruiria um documento que não é só dele. Apague o termo primeiro, ou apague antes os outros ativos do mesmo termo.'
+  }
+  if (m.includes('a confirmação não confere') || m.includes('a confirmacao nao confere')) {
+    // A RPC interpola o valor esperado na mensagem, e ele é justamente o que a pessoa precisa
+    // ler — mas texto cru do banco não vai para a tela (regra do fallback). A tela já mostra o
+    // identificador ao lado do campo, então basta dizer que não bateu.
+    return 'A confirmação não confere. Digite exatamente o identificador mostrado ao lado do campo — sem abreviar.'
+  }
+  if (m.includes('justificativa é obrigatória') || m.includes('justificativa e obrigatoria')) {
+    return 'A justificativa é obrigatória e precisa ter pelo menos 10 caracteres.'
+  }
+  if (m.includes('reset sem backup é proibido') || m.includes('reset sem backup e proibido')) {
+    return 'Reset sem backup é proibido. Nada foi apagado — gere o backup e tente de novo.'
+  }
+  if (m.includes('backup informado não existe') || m.includes('backup informado nao existe')) {
+    return 'O backup deste reset não foi encontrado no armazenamento. NADA foi apagado — gere a prévia e o backup novamente.'
+  }
+  if (m.includes('estado mudou desde a prévia') || m.includes('estado mudou desde a previa')) {
+    return 'O estado mudou desde a prévia/backup — alguém registrou algo enquanto você confirmava. Nada foi apagado: gere a prévia novamente.'
+  }
+  if (m.includes('saldo alvo precisa ser')) {
+    return 'O saldo alvo precisa ser zero ou maior.'
+  }
+
   // 42501 = insufficient_privilege: cobre tanto "new row violates row-level security
   // policy" (WITH CHECK reprovado) quanto "permission denied for table/column" (o grant de
   // coluna de `profiles`, migration 0063).

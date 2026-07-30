@@ -1125,6 +1125,10 @@ export type Database = {
       }
       pode_escrever_filial: { Args: { fid: number }; Returns: boolean }
       pode_escrever_termo: { Args: { p_ativo_ids: string[] }; Returns: boolean }
+      previa_reset: {
+        Args: { p_bloco: string; p_filial: number }
+        Returns: Json
+      }
       registrar_tentativa_senha: {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
         Returns: boolean

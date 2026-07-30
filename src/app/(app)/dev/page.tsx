@@ -1,5 +1,6 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import Link from 'next/link'
 import {
   Card,
   CardContent,
@@ -139,6 +140,29 @@ export default async function DevPage({
         </CardHeader>
         <CardContent>
           <ManutencaoPainel />
+        </CardContent>
+      </Card>
+
+      {/* A porta para a F23. É um LINK, e não um quinto painel embutido, de propósito: tudo
+          desta página é seguro de clicar, e lá nada é. Entrar na zona destrutiva tem de ser uma
+          decisão, com URL própria — não uma rolagem a mais. */}
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">Zona destrutiva</CardTitle>
+          <CardDescription>
+            Apagar um ativo, uma movimentação ou um item de vez; resetar o acervo ou os
+            lançamentos de uma filial (ou de tudo); forçar o estado de um ativo ou o saldo de um
+            item. Cada operação exige confirmação digitada e justificativa, guarda uma cópia do
+            que apagou e entra na trilha acima. <strong>Nada ali tem desfazer.</strong>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link
+            href="/dev/destrutivo"
+            className="inline-flex h-9 items-center rounded-md border border-destructive/50 px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            Abrir a zona destrutiva
+          </Link>
         </CardContent>
       </Card>
     </div>

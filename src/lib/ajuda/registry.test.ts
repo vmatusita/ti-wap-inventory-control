@@ -170,6 +170,10 @@ const COBERTURA: Record<string, { pagina: string } | { isento: string }> = {
     isento:
       'é a área técnica de manutenção, exclusiva do cargo Desenvolvedor (diagnóstico do que está no ar, checagens de integridade do banco, trilha completa de auditoria e limpeza de cache) — a documentação do sistema é escrita para o OPERADOR, e nada nesta tela pertence ao dia a dia dele',
   },
+  '/dev/destrutivo': {
+    isento:
+      'é a Zona destrutiva da área do Desenvolvedor (apagar ativo/movimentação/item, resetar acervo ou lançamentos, forçar estado e saldo) — mesma isenção da /dev, e reforçada: escrever manual de operação para uma ferramenta irreversível que o operador não alcança seria ensinar o que ele não deve nem tentar',
+  },
   '/ajuda': { isento: 'é o índice da própria documentação — documentar-se a si mesma seria circular' },
   '/ajuda/[slug]': { isento: 'é a rota que RENDERIZA cada página do registry; a cobertura dela é o registry inteiro' },
   '/ajuda/manual': { isento: 'é a mesma documentação agregada numa página só, para leitura corrida e impressão' },
