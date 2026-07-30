@@ -216,3 +216,48 @@ Um quarto cargo, **`dev`** (rótulo de UI "Desenvolvedor"), no **topo** da hiera
 - **Console de SQL na `/dev`.** O lugar disso é o Supabase Studio. Ver §13.3.
 - **Correção automática nas checagens de integridade.** Elas diagnosticam e mostram amostra; corrigir é ato humano, pelo fluxo normal do sistema. Diagnóstico que conserta sozinho é como se perde a confiança no diagnóstico.
 - **ADR-003.** O volume não justificou: o modelo do §3 continua de pé, com um cargo a mais no topo — o formato correto para isso é emenda datada, como esta.
+
+---
+
+## 14. Emenda — Ferramentas DESTRUTIVAS do cargo dev (F23 — 30/07/2026)
+
+Emenda ao §13. O modelo de acesso não muda: continuam os quatro cargos em hierarquia estrita, e nada aqui afrouxa nada para admin, operador ou consulta. O que muda é **o que o dev alcança** e, principalmente, **onde a imutabilidade do acervo passa a morar**.
+
+### 14.1 O achado que reorientou a fase
+
+A ordem pedia "prove que UPDATE/DELETE direto segue recusado fora das RPCs, inclusive para o service role". Medindo antes de escrever: **essa garantia não existia**. A imutabilidade de `movimentacoes` e `lancamentos_item` era a AUSÊNCIA de policy de UPDATE/DELETE — e `ativos` não tinha policy de DELETE. Isso segura `authenticated` (a RLS nega o que nenhuma policy permite) e **não segura o service role**, que tem `rolbypassrls` e recebe do Supabase os grants amplos de tabela por default. O app tem um client de service role; o caminho existia de verdade.
+
+Ou seja: o critério de aceitação pedia para *preservar* algo que era preciso *construir*.
+
+### 14.2 A guarda (`0081`) — trigger, como na `0073`
+
+Policy não serve (o service role a ignora). Trigger serve: roda para todo mundo, sempre. `guarda_acervo()` recusa por padrão e as RPCs oficiais abrem a janela `estoque.dev_destrutivo` por GUC **local à transação**, fechando-a ao sair — inclusive no ramo de erro. É o desenho da `0073` aplicado ao ACERVO em vez de a `profiles`.
+
+- `movimentacoes` e `lancamentos_item`: INSERT/UPDATE/DELETE (no INSERT recusa apenas `forcado = true`, para a marca não ser mentida por request forjado).
+- `ativos`: **só DELETE** — UPDATE ali é o estado derivado que o sistema grava o tempo todo.
+- `pendencias_item` e `anotacoes`: **fora**, e é decisão, não esquecimento — `aplicar_movimentacao` apaga `pendencias_item` no ramo do estorno, e `security definer` **não** isenta de trigger: uma guarda ali quebraria o estorno comum.
+
+Consequência assumida e registrada: a RPC de import teve de ser recriada (`0080`) para abrir a janela — ela apaga acervo e o trigger a alcançaria. O §Escopo da ordem dizia "não toque no import"; a leitura adotada foi "não mude o que o import FAZ", e o diff é provadamente de duas linhas (o `md5` normalizado do corpo, removidas só as linhas `F23`, volta ao valor de antes). Pelo mesmo motivo, `scripts/reset.ts` passou a chamar uma RPC nomeada, `resetar_dados_ficticios`, com `execute` só para `service_role`: antes o service role apagava qualquer coisa de qualquer jeito, agora alcança o acervo por uma função única e auditável.
+
+### 14.3 As sete ferramentas
+
+`apagar_ativo`, `apagar_movimentacao`, `apagar_item` (`0082`); `resetar_acervo`, `resetar_itens` (`0083`); `forcar_estado_ativo`, `forcar_saldo_item` (`0084`). Todas `security definer`, `authenticated`-only, com `exigir_dev_para_destruir()` no topo (cargo dev **e** justificativa de 10+ caracteres) e confirmação digitada validada **na action E na RPC**.
+
+Três escolhas de desenho merecem registro:
+
+- **Apagar movimentação é SÓ-A-ÚLTIMA**, pela ordenação `(created_at, id)` — a mesma do guard de estorno. `snapshot_anterior` encadeia: apagar do meio faria toda snapshot posterior descrever um passado que deixou de existir, e é dela que o estorno restaura. "Replay" seria reescrever histórico para poder apagar um registro. A invariante que sobra é forte e testável: apagar a última deixa o ativo exatamente onde um estorno o deixaria, sem o par na linha do tempo. (Medição incômoda registrada em DECISOES: existem **três** definições vivas e não equivalentes de "a última movimentação" no sistema.)
+- **Forçar não revoga a doutrina.** `ajuste` já ignora as transições válidas desde a `0004` e já exige justificativa; forçar grava uma movimentação `ajuste` marcada `forcado`, e o status segue DERIVADO pelo trigger. O que a fase acrescentou de fato foi trilha, guarda de cargo, marca e o **zeramento de detentor nos estados terminais**, que o `ajuste` sozinho não faz.
+- **A trilha é gravada dentro da RPC**, na mesma transação — mudando o padrão da F21/F22, em que a action a escrevia. `registrarEventoAdmin` não propaga erro de propósito: aceitável para "convite gerado", inaceitável para uma exclusão irreversível. Ou a trilha entra, ou nada é apagado.
+
+### 14.4 Consequências
+
+- **Positivas:** o acervo passou a ter imutabilidade de verdade (com trigger), e não por omissão de policy; o dev ganhou as correções que antes exigiam SQL no painel do Supabase — agora com confirmação, justificativa, backup e trilha; o backup do reset é **conferido** (a RPC olha se o objeto existe no bucket), endurecendo o ritual de string que o import usa.
+- **Negativas / a aceitar:** (a) mais uma camada em concordância — guarda pura ↔ RPC ↔ trigger —, com `supabase/tests/dev_destrutivo.sql` como rede; (b) toda escrita futura em `movimentacoes`/`lancamentos_item` que precise de UPDATE/DELETE terá de declarar a janela, o que é atrito **desejado**; (c) a 8ª checagem de integridade não nasce em zero (3 órfãos antigos no bucket `termos`), o que exigiu escrever o valor de partida na própria tela.
+- **Neutro:** visualizador por senha, domínios de login, máquina de estados e o alcance de admin/operador/consulta seguem idênticos.
+
+### 14.5 O que **não** foi criado, de propósito
+
+- **Console de SQL, ou função que receba SQL/tabela/coluna como parâmetro.** Continua proibido — as ferramentas são operações NOMEADAS com SQL fixo.
+- **Atalho destrutivo fora da `/dev`.** Nenhum botão "apagar de vez" na ficha, nas listas ou na paleta. Um botão desses ao lado do "estornar" seria clicado por engano algum dia.
+- **Tipo novo de enum para a correção-dev.** Custaria um ramo em `status_apos_movimentacao`, a recriação da `0054` e ~8 listas exaustivas em TS — e não compraria exclusão nenhuma, porque as allow-lists de relatório já excluem `ajuste`.
+- **Reset que recria dados.** Reset não é seed nem import: deixa o alcance vazio.

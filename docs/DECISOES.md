@@ -3254,3 +3254,121 @@ prova o INSERT sobre o path alheio, que usa o mesmo predicado. Quem for testar e
 - Motivo: nenhuma das duas vazava algo grave — uma só levanta ou não levanta exceção, a outra devolve um booleano derivável da tela de usuários, que todo logado lê. Mas "não vaza nada grave" é um argumento pior do que "não está exposta": manter as duas em `/rest/v1/rpc/` era superfície de graça.
 - Efeito colateral tratado: o roteiro `supabase/tests/cargo_dev.sql` chamava `existe_outro_admin_ativo` com papel simulado; a chamada passou a ser feita como `postgres`.
 - Reversível? sim, o `grant execute` de volta está escrito no rodapé da própria migration.
+
+## 2026-07-30 · F23 · A imutabilidade do acervo passa a ser TRIGGER, e não mais a ausência de policy
+
+- Contexto: o critério 7 da ordem exige que UPDATE/DELETE direto em `ativos`/`movimentacoes`/`lancamentos_item` siga recusado "para todo papel fora das RPCs oficiais, **service role incluso**". Medição de 30/07: essa garantia **não existia**. A "imutabilidade" era a AUSÊNCIA de policy de UPDATE/DELETE — o que segura `authenticated` (a RLS nega o que nenhuma policy permite) e não segura o service role, que tem `rolbypassrls` e cujos grants de tabela são os defaults amplos do Supabase (`DELETE,INSERT,SELECT,UPDATE` nas três). E o app tem um client de service role.
+- Decisão: migration `0081` — função `guarda_acervo()` + três triggers. `movimentacoes` e `lancamentos_item` em INSERT/UPDATE/DELETE (no INSERT recusa apenas `forcado = true`); `ativos` **só em DELETE**. Recusa por padrão; as RPCs abrem a janela `estoque.dev_destrutivo` por GUC **local à transação** e a fecham, inclusive no ramo de erro. É o padrão da `0073` (`profiles_guarda_dev`) aplicado ao acervo em vez de a `profiles`.
+- Por que `ativos` só em DELETE: UPDATE em `ativos` é operação NORMAL e constante — é o estado derivado que `aplicar_movimentacao` grava a cada movimentação, mais a edição de ficha e as flags de termo. Guardá-lo pararia o sistema. A invariante que `ativos` precisa é "não se apaga por fora".
+- Por que `pendencias_item` e `anotacoes` ficam FORA: `aplicar_movimentacao` faz `delete from public.pendencias_item` no ramo do estorno (o estorno-strip da F18) e é `security definer` — o que **não** isenta de trigger. Uma guarda ali quebraria o estorno comum, que a fase promete manter intacto.
+- Prova (ensaio, como service role, depois do apply): delete e update em `movimentacoes`, delete em `ativos`, delete em `lancamentos_item` e insert com `forcado = true` → todos `42501`. O UPDATE legítimo em `ativos` continua passando.
+- Reversível? `drop trigger` nos três + `drop function public.guarda_acervo()`. Reabre o acervo para o service role.
+
+## 2026-07-30 · F23 · A migration `0080` TOCA o import de startup — divergência consciente do §Escopo
+
+- Contexto: o §Escopo da ordem lista "o import de startup e a tela `admin/importar`" entre os itens que a fase **não toca**. Mas o trigger da `0081` roda para todo mundo, e `importar_ativos_substituir` remove o acervo da filial — ou seja, instalar a guarda que a ordem manda instalar **quebra o import**, a menos que ele saiba abrir a janela.
+- Decisão: recriar a RPC por `create or replace` puro acrescentando **duas linhas** de `perform set_config('estoque.dev_destrutivo', …)` em volta do bloco de DELETEs do passo 3. "Não toque no import" é lido como "não mude o que o import FAZ" — e é isso que se preservou.
+- Prova do diff mínimo: o corpo vivo era idêntico em ensaio e produção (`md5` normalizado `d533780c5084f907c27d29d8f4af5642`, 17.486 bytes). O corpo novo foi extraído do arquivo da `0064` por `sed` e alterado por `awk`; o `diff` acusou exatamente as duas linhas. **Depois do apply**, removendo do corpo vivo só as linhas marcadas `F23`, o `md5` normalizado volta a ser `d533780c…` — recriação provadamente fiel, sem erro de transcrição.
+- A janela é a mais estreita possível: abre na primeira linha do passo 3 e fecha antes dos INSERTs do passo 4.
+- Ordem de apply obrigatória: `0080` **antes** da `0081`. Invertida, o import fica quebrado na janela entre as duas.
+- Reversível? reaplicar o corpo da `0064`. Só faz sentido junto do rollback da `0081`.
+
+## 2026-07-30 · F23 · Apagar movimentação: SÓ-A-ÚLTIMA, pela ordenação `(created_at, id)`
+
+- Contexto: o §2.2 manda escolher entre "só-a-última" e "qualquer-uma com replay", com prova. A medição achou algo que nenhuma das duas alternativas previa: **existem TRÊS definições vivas e não equivalentes de "a última movimentação"** — `(created_at, id)` no guard de estorno de `aplicar_movimentacao`; `(data, created_at, ajuste-vence, id)` em `rel_estoque_asof` (`0054`); e `(created_at, data)` no topo da ficha, que é o que a UI chama de "estornável". Elas só concordam enquanto `created_at` é monotônico E concorda com `data`, condição que o import de startup quebra em produção (1009 de 1231 ativos, medição da F22) e que o ensaio **não** reproduz.
+- Decisão: **só-a-última**, e a régua é `(created_at, id)` — a MESMA do guard de estorno.
+- Motivo do desenho: `snapshot_anterior` ENCADEIA. Apagar uma movimentação do meio faz toda snapshot posterior descrever um passado que deixou de existir — e é de `snapshot_anterior` que o ESTORNO restaura. "Replay" exigiria reescrever as snapshots seguintes, isto é, reescrever histórico para poder apagar um registro; numa fase cujo lema é "a movimentação é a fonte da verdade", é a troca errada. Só-a-última ainda dá uma invariante forte e testável: depois de apagar, o ativo fica **exatamente** onde um estorno daquela mesma movimentação o deixaria, porque a restauração usa a mesma fonte e o mesmo caminho — só não sobra o par na linha do tempo.
+- Motivo da régua: `(created_at, id)` é a ordem em que o trigger aplicou os efeitos, é a que `ativos` reflete (last-insert-wins) e é a que decide o que é estornável hoje. Usar a do as-of faria "apagável" e "estornável" divergirem — e a fase promete o estorno intacto. A tela ordena pela MESMA régua, para não existir botão que sempre falha.
+- Recusas, todas com o caminho de saída na mensagem: não é a última; é a única do ativo (→ `apagar_ativo`); não tem `snapshot_anterior`; existe termo citando a movimentação.
+- Reversível? sim — é uma RPC; trocar a régua é um `create or replace`.
+
+## 2026-07-30 · F23 · A marca de "forçado" é COLUNA, não motivo de catálogo
+
+- Contexto: o §4.1 pede "movimentação de tipo/motivo próprio de correção técnica, com a marca de forçado visível na ficha". Havia três candidatos.
+- Medição: `status_apos_movimentacao(status,'ajuste')` devolve NULL e o ramo `ajuste` de `aplicar_movimentacao` usa `status_resultante` direto — ou seja, **o tipo `ajuste` já ignora as transições válidas desde a `0004`**, e já exige justificativa. E `rel_resumo`, `rel_mov_por_mes` e `rel_por_motivo` filtram os três `where m.tipo in ('saida','devolucao')` — `ajuste` já está fora de todos.
+- Decisão: `movimentacoes.forcado boolean not null default false` (`0079`), com `tipo = 'ajuste'` e `motivo` NULL. Espelho em `lancamentos_item.forcado`.
+- Motivo: **tipo novo de enum** custaria um ramo em `status_apos_movimentacao`, a recriação da `0054` (cujo desempate é o literal `(e.tipo = 'ajuste')`), ~8 listas exaustivas em TS e `db:types` — e não compraria exclusão nenhuma, porque todas as allow-lists já excluem `ajuste` do mesmo jeito. **Motivo de catálogo** é editável por administrador em `/admin/motivos`: uma marca que o próprio admin renomeia ou reativa não é marca — e, reativada, passaria a aparecer no seletor de um `ajuste` comum (`listarMotivos` filtra `ativo = true`), deixando um OPERADOR rotular a própria movimentação como correção técnica do dev. A **coluna** é a única das três que um request forjado não consegue mentir: a guarda da `0081` recusa INSERT com `forcado = true` fora da janela.
+- Reversível? `drop column` nas duas.
+
+## 2026-07-30 · F23 · A correção-dev vaza em UM ponto de relatório, e só nele — `getUltimasMovimentacoes`
+
+- Contexto: o critério 6 exige provar por CONSULTA que a correção-dev não é contada como operação normal.
+- Medição (varredura dos 20 consumidores de movimentação em relatório/KPI): 19 já a excluem — as três RPCs `rel_*` e as leituras de série/Entradas/Saídas/Transferências filtram por **allow-list de tipo**, e `ajuste` não está em nenhuma. O as-of e os KPIs de inventário a INCLUEM, que é o desejado (o ativo está mesmo naquele estado).
+- O único ponto sem allow-list de tipo é `getUltimasMovimentacoes` (`src/lib/queries/relatorios/movimentacoes.ts`), o card "Últimas movimentações" do dashboard: ele mostra o que houve, seja o que for.
+- Decisão: `.eq('forcado', false)` ali, e em mais lugar nenhum. `forcado` é NOT NULL com default false, então o filtro não descarta linha por nulidade — ao contrário dos dois `.or()` de marcador do import ao lado, que precisam ser null-safe.
+- Motivo: uma exceção espalhada por 20 pontos envelhece; uma que existe em 1 ponto porque os outros 19 já a excluem por construção é sustentável.
+- Reversível? remover a linha.
+
+## 2026-07-30 · F23 · A trilha dos sete verbos novos é gravada DENTRO da RPC (muda o padrão da F21/F22)
+
+- Contexto: até aqui, quem escrevia `eventos_admin` era a Server Action, por service role (`registrarEventoAdmin`).
+- Decisão: os sete eventos da F23 são inseridos pelas próprias RPCs, na MESMA transação da operação. A action não os duplica.
+- Motivo: (a) `registrarEventoAdmin` **não propaga erro** de propósito — certo para "convite gerado", errado para uma exclusão irreversível, onde a trilha é o único registro de que o dado existiu; falhar a trilha e mostrar sucesso perderia a linha E a memória dela. (b) a action não é o único caminho: as RPCs são chamáveis por qualquer sessão de dev via PostgREST. Gravando no banco, ou a trilha entra ou nada é apagado.
+- Reversível? sim, mas não deveria: é estritamente mais forte.
+
+## 2026-07-30 · F23 · Backup: jsonb no evento para registro a registro; bucket + contagens revalidadas para reset
+
+- Decisão (registro a registro): as linhas apagadas vão em `eventos_admin.detalhe`, com cap de 500 movimentações/lançamentos e a contagem real ao lado (`backup_truncado`). A tabela sobrevive a qualquer reset e já é exportável pela aba Auditoria — o backup nasce onde já se procura por ele.
+- Decisão (reset): mecânica do import — a ACTION exporta o recorte em JSON, sobe no bucket `backups-import` e passa o caminho; a RPC recusa sem ele. **Com um endurecimento**: a guarda do import é `btrim(p_backup_path) <> ''`, um ritual de string que uma chamada forjada passa mandando `"x"`; aqui a RPC faz `select 1 from storage.objects where bucket_id = 'backups-import' and name = p_backup_path` — ela **olha** se o objeto existe antes de apagar qualquer coisa.
+- Somado a isso, a revalidação obrigatória de contagens (guarda da `0040`), que fecha a janela TOCTOU entre a prévia/backup e o delete.
+- O backup do reset **pagina todas as leituras** (o corte de 1.000 do PostgREST deixaria o backup incompleto justamente nos recortes grandes) e inclui `pendencias_item`, que `exportarAcervoFilial` não conhece.
+- Reversível? sim, é código de action + guarda de RPC.
+
+## 2026-07-30 · F23 · Termo de lote: RECUSAR, sempre
+
+- Contexto: o §2.1 manda decidir o que fazer quando um termo cita o ativo a ser apagado e também outros.
+- Decisão: **recusar**, com mensagem que aponta o caminho (apague o termo antes, ou apague antes os outros ativos do mesmo termo). Vale para `apagar_ativo` (termo que cobre outros ativos), `apagar_movimentacao` (qualquer termo que cite a movimentação) e `resetar_acervo` por filial (termo misturando filiais).
+- Motivo: precedente literal do passo 2 de `importar_ativos_substituir`, que já recusa a substituição quando um termo mistura filiais. Um termo é documento assinado; destruí-lo como efeito colateral de apagar UM dos ativos que ele cobre seria destruir prova de terceiros. E as alternativas medidas são piores: deixar o uuid pendurado **congela o termo para sempre** (a policy `operador atualiza` exige `termo_ancora_coerente`, que passa a reprovar), e encolher os arrays muda a chave única e deixa o `.docx` citando equipamento apagado.
+- Reversível? sim; se um dia se quiser o botão "apagar o termo do lote junto", ele entra como segunda confirmação explícita.
+
+## 2026-07-30 · F23 · O §2.3 da ordem (kit citando item apagado) é VAZIO — kits não citam itens
+
+- Contexto: a ordem pede decidir se o kit que referencia um item apagado "limpa, avisa ou deixa".
+- Medição: `kits_modelos.payload` é `{ tipo, motivo?, termo?, observacao?, categorias: categoria_ativo[] }` — **categorias de ativo**, não itens por quantidade. Kit é preset de movimentação de ATIVO e nunca menciona item de catálogo.
+- Decisão: nada a implementar. Registrado junto o irmão disso: `pendencias_item.item` é **texto livre** do checklist de devolução, sem FK para `itens` — apagar um item do catálogo não toca pendência nenhuma.
+- Reversível? não se aplica.
+
+## 2026-07-30 · F23 · Snapshots de `relatorios_gerados` não são reescritos quando um ativo é apagado
+
+- Decisão: o patrimônio apagado pode continuar aparecendo num relatório gerado antes da exclusão, e isso fica como está.
+- Motivo: snapshot é foto congelada — é o desenho da spec §7.1. Reescrevê-lo para "corrigir" o passado destruiria a propriedade que faz dele prova.
+- Reversível? não se aplica; é leitura registrada.
+
+## 2026-07-30 · F23 · `resetar_dados_ficticios` — o caminho nomeado do `npm run db:reset`
+
+- Contexto: `scripts/reset.ts` zera o banco de desenvolvimento apagando direto por service role. A guarda da `0081` recusa exatamente isso, então o `db:reset` quebraria.
+- Decisão: RPC `resetar_dados_ficticios(text)`, `security definer`, com `execute` concedido **só ao service_role** (`authenticated` e `anon` revogados), exigindo a frase `RESETAR DADOS FICTICIOS`.
+- Motivo, e o saldo de segurança: antes, o service role apagava **qualquer coisa, de qualquer jeito**; agora alcança o acervo por **uma** função nomeada e auditável por `pg_get_functiondef`. É narrowing, não widening.
+- ⚠ A proteção contra rodar em produção **não mudou** e continua sendo `scripts/env-guard.ts` (`REFS_DE_PRODUCAO`), do lado do script: o banco não tem como saber em que ambiente está, e fingir que sabe seria pior que dizer a verdade.
+- Reversível? `drop function`; o script volta aos `.delete()` se a `0081` também cair.
+
+## 2026-07-30 · F23 · O recorte do reset por filial é PELO ATIVO — e a tela diz isso, em vez de prometer "não vaza"
+
+- Contexto: o §3.2 manda espelhar `importar_ativos_substituir`, e o critério 5 fala em "não tocar outra filial".
+- Medição do precedente: o recorte é `ativos where filial_id = X` + o rastro inteiro deles. Consequência nos dois sentidos (medido no ensaio, filial 1): **43** movimentações registradas em OUTRAS filiais são apagadas junto (são história de ativos que hoje estão aqui) e **10** movimentações registradas nesta filial NÃO são (o ativo delas migrou) — e o relatório por filial continua exibindo essas 10, porque filtra por `movimentacoes.filial_id`.
+- Decisão: seguir o precedente (é o único recorte implementável sem apagar ativo de outra filial nem deixar ativo com história pela metade), e **mudar a promessa**: a tela, o comentário da RPC e o roteiro afirmam o que é verificável — "nenhum **ativo** de outra filial é apagado" — e descrevem os dois efeitos acima em vez de escondê-los.
+- Reversível? sim; mudar o recorte é um `create or replace`.
+
+## 2026-07-30 · F23 · `previa_reset` (`0086`) existe por causa da guarda TOCTOU, não por conveniência
+
+- Contexto: as RPCs de reset recusam (`40001`) quando `p_contagens` não bate com o que elas contam no instante do apply.
+- Decisão: uma RPC só-leitura que conta o recorte com as **mesmas expressões** e devolve o objeto `contagens` já no formato exigido, para a tela não remontá-lo.
+- Motivo: se a prévia contasse por outro caminho — ainda que "equivalente" —, qualquer diferença de recorte viraria recusa **permanente**, com a mensagem apontando a causa errada ("o estado mudou"). E o recorte não é expressável em PostgREST sem N requisições, o que daria uma contagem não-atômica: exatamente o que a guarda existe para detectar.
+- Dívida assumida e marcada nos dois arquivos: as expressões são copiadas. Mexeu no recorte da `0083`, mexa na `0086`.
+- Reversível? `drop function`.
+
+## 2026-07-30 · F23 · A oitava checagem de integridade NÃO nasce em zero — e está escrito na tela
+
+- Contexto: a doutrina da `0077` é que as checagens valem porque todas devolvem zero.
+- Medição em produção, ANTES de qualquer código desta fase: bucket `termos` com **10** objetos para **7** linhas de `termos_gerados` → **3 órfãos** já existentes. Causa conhecida e benigna: `persistirTermo` sobe o `.docx` antes de gravar a linha e regenera termos com id novo em algumas variantes.
+- Decisão: a checagem `arquivo_termo_orfao` entra assim mesmo, com o valor de partida documentado no corpo da migration e no comment da função. O que se vigia é o **crescimento depois de uma exclusão**, não o valor absoluto.
+- Motivo: a F23 cria a direção contrária de órfão (a RPC apaga a linha; a action remove o objeto depois do commit) e, sem esta checagem, uma falha na segunda metade ficaria invisível para sempre.
+- Reversível? sim, é uma consulta a mais na RPC.
+
+## 2026-07-30 · F23 · BACKLOG (bug PREEXISTENTE, fora do escopo): o import não apaga `pendencias_item`
+
+- Achado: `importar_ativos_substituir` apaga `movimentacoes`, `anotacoes`, `termos_gerados` e `ativos`, e **não menciona `pendencias_item`** — tabela que nasceu depois dele (F18, `0050`–`0053`) com FKs `ativo_id` e `movimentacao_id` NO ACTION. Confirmado por `pg_get_functiondef` em ensaio e produção.
+- Consequência latente: numa filial que tenha qualquer pendência de item, o "Substituir tudo" falha com violação de FK **depois** de a action já ter subido o backup — e a mensagem que a operadora lê é a tradução genérica de FK (`traduzErroBanco` casa `foreign key` por substring e devolve "Um dos valores informados (motivo ou filial) não existe mais"), que aponta para a coisa errada.
+- Por que não foi corrigido aqui: o §Escopo da ordem F23 diz que o import "fica como está", e a `0080` já toca a RPC pelo mínimo indispensável (a janela) — misturar uma correção de comportamento nela destruiria a prova de diff mínimo que justifica aquela migration.
+- Hoje não explode porque produção tem **zero** linhas em `pendencias_item` — sorte, não desenho. As RPCs de reset **desta** fase apagam `pendencias_item` na ordem certa.
+- Encaminhamento: uma migration própria numa fase futura, acrescentando o delete e o ramo de erro correspondente.

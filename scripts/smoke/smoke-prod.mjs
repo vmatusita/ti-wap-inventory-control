@@ -806,6 +806,15 @@ const ROTAS_LOGADO = [
     area: 'dev · área técnica (F22)',
     marcadorProibido: 'Área técnica de manutenção',
   },
+  // F23 — a Zona destrutiva. Mesmo critério, e é a rota em que ele mais importa: um
+  // administrador que a alcançasse teria, de uma vez, apagar ativo, resetar filial e forçar
+  // estado. O gate é o `layout.tsx` de /dev (a subrota herda) MAIS o `exigirDev` da própria
+  // página; se os dois falhassem, o marcador apareceria aqui e o smoke ficaria vermelho.
+  {
+    rota: '/dev/destrutivo',
+    area: 'dev · zona destrutiva (F23)',
+    marcadorProibido: 'Zona destrutiva',
+  },
 ]
 
 // F20 — as páginas da documentação. Além do 200, cada uma exige o MARCADOR:
