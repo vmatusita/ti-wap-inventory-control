@@ -55,9 +55,17 @@ create temp table _conflito_resumo (ok int, falhas int, detalhe text);
 -- O Supabase hospedado concede os privilégios de TABELA a `authenticated` por default
 -- privilege; o Postgres NOVO do CI não. Sem este bloco o roteiro morreria com "permission
 -- denied for table", e as asserções de RECUSA marcariam ✓ pelo motivo ERRADO.
+-- Regra (a mesma de dev_destrutivo.sql): só entra a tabela/verbo que uma asserção deste
+-- arquivo realmente usa. `eventos_admin` está aqui porque §3c/§3d leem a TRILHA de dentro da
+-- sessão do admin (`set local role authenticated` da linha ~330 ainda vale ali) — foi o que
+-- faltou na primeira rodada e derrubou o job `banco` com "permission denied for table
+-- eventos_admin", abortando o roteiro inteiro na metade. O privilégio reproduz o hospedado:
+-- em ensaio E produção, `authenticated` tem SELECT nessa tabela (medido em
+-- information_schema.role_table_grants, 30/07/2026); quem fecha a leitura é a RLS da 0065
+-- ("admin le auditoria", `e_admin()`), não a ausência de grant.
 grant select on
   public.ativos, public.movimentacoes, public.filiais, public.termos_gerados,
-  public.v_conflitos_filiais, public.v_conflitos_filiais_grupos
+  public.v_conflitos_filiais, public.v_conflitos_filiais_grupos, public.eventos_admin
   to authenticated;
 grant insert on public.movimentacoes to authenticated;
 
