@@ -225,6 +225,19 @@ A ordem previa o caminho B (handoff) para as migrations com exclusão de acervo.
 
 O que **foi** respeitado do §6: o roteiro `conflito_filiais.sql` não contém literais de exclusão de acervo (conferido por grep) — a prova comportamental de que `guarda_acervo` recusa DELETE direto continua confinada a `dev_destrutivo.sql` §2, e o roteiro novo prova o que lhe cabe (a guarda **instalada** nas três tabelas, e a janela **fechando** em erro).
 
+**Nota sobre o ledger.** O `schema_migrations` de produção registra **seis** entradas para os **sete** arquivos:
+
+```
+20260730213211  transferencia_conflito              (0097)
+20260730213130  import_conta_conflitos              (0094)
+20260730213023  vocabulario_e_checagem_conflito     (0095)
+20260730212951  apagar_conflito_filiais             (0093)
+20260730212900  conflitos_filiais                   (0092 + 0096)
+20260730212830  identidade_por_filial               (0091)
+```
+
+A `0092` e a `0096` foram aplicadas **num só passo**, com a view já no estado final (a `0096` só acrescenta a coluna `entrada_em` ao fim do select). O resultado no banco é idêntico a aplicá-las em sequência — e é o que o CI faz, a partir dos arquivos.
+
 ---
 
 ## 6-bis. O que a autorrevisão encontrou (antes da revisão adversarial)
