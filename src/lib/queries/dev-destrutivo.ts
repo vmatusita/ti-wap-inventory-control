@@ -427,6 +427,39 @@ export async function montarBackupDoReset(
           ((t.ativo_ids as string[] | null) ?? []).some((x) => doRecorte.has(x)),
         )
 
+  // ⚠ OS PONTEIROS QUE ATRAVESSAM O RECORTE — achado da revisão adversarial da F23.
+  // `resetar_acervo` faz `update ativos set substitui_ativo_id = null where substitui_ativo_id
+  // in (<ids do recorte>)`, e esse UPDATE alcança ativos de OUTRAS filiais: o substituto (F14/
+  // F15) fica na filial dele, apontando para um ativo que vai morrer aqui. Sem esta leitura, o
+  // ponteiro se perdia em silêncio E fora do backup — o backup só trazia os ativos do recorte,
+  // então não haveria como saber depois quem apontava para quem.
+  //
+  // Guardamos a linha INTEIRA desses ativos (eles não são apagados; só perdem o ponteiro), o
+  // que basta para reconstruir a ligação à mão se for preciso.
+  const ponteiros_perdidos =
+    ids.length === 0
+      ? []
+      : await (async () => {
+          const acc: Record<string, unknown>[] = []
+          for (const lote of lotes.length > 0 ? lotes : [[]]) {
+            if (lote.length === 0) continue
+            const parte = await todas(
+              'Falha ao exportar ativos que apontam para o recorte',
+              (from, to) =>
+                supabase
+                  .from('ativos')
+                  .select('*')
+                  .in('substitui_ativo_id', lote)
+                  .order('id')
+                  .range(from, to) as unknown as PromiseLike<Pagina>,
+            )
+            acc.push(...parte)
+          }
+          // No alcance GLOBAL todo ativo está no recorte, então quem aponta já está em `ativos`
+          // — a lista sai vazia por construção, e é isso mesmo.
+          return acc.filter((a) => !doRecorte.has(String(a.id)))
+        })()
+
   return {
     bloco,
     filial_id: filialId,
@@ -436,5 +469,6 @@ export async function montarBackupDoReset(
     anotacoes,
     pendencias_item,
     termos_gerados,
+    ponteiros_perdidos,
   }
 }

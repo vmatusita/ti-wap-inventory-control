@@ -1,7 +1,8 @@
 -- =============================================================
 -- Roteiro de teste: FERRAMENTAS DESTRUTIVAS DO CARGO DEV
 -- (F23 — migrations 0079 marca `forcado`, 0081 `guarda_acervo`, 0082 APAGAR, 0083 RESETAR,
---  0084 FORÇAR, 0085 vocabulário da trilha, 0087 correções da revisão, 0088 superfície de RPC).
+--  0084 FORÇAR, 0085 vocabulário da trilha, 0087 correções da revisão, 0088 superfície de RPC,
+--  0089 backup do recorte, 0090 furos da revisão).
 --
 -- Roda no job `banco` do CI (psql, ON_ERROR_STOP=1) e é auto-verificável no SQL editor / MCP.
 -- Mesmo padrão dos demais roteiros da pasta:
@@ -46,8 +47,9 @@
 --      RPC depois da 0087/0088: as duas auxiliares fora da API, as OITO ferramentas dentro
 --   2  IMUTABILIDADE fora da janela — UPDATE/DELETE em movimentacoes e lancamentos_item e
 --      DELETE em ativos recusados para `authenticated` E para o DONO (o caso que só o trigger
---      pega); INSERT com `forcado = true` recusado; e o PAR POSITIVO obrigatório: o UPDATE
---      legítimo em ativos e o INSERT normal de movimentação continuam passando E derivando
+--      pega); INSERT com `forcado = true` recusado; TRUNCATE — o flanco que trigger de linha
+--      não vê — fechado por privilégio (0090); e o PAR POSITIVO obrigatório: o UPDATE legítimo
+--      em ativos e o INSERT normal de movimentação continuam passando E derivando
 --   3  apagar_ativo — some com o rastro (movimentações, anotação, pendência de item, termo com
 --      .docx), anula o ponteiro do substituto, LIBERA o par patrimônio+service tag, devolve os
 --      caminhos dos .docx para a action remover — e RECUSA termo de lote misto
@@ -58,8 +60,8 @@
 --   5  apagar_item — some com lançamentos e saldo (conferido por rel_saldo_itens)
 --   6  reset por filial — não vaza para outra filial, e o que o recorte REALMENTE faz
 --   7  reset global — zera acervo e itens; CADASTROS e história administrativa ficam
---   8  reset recusa sem backup existente (22023), com contagens divergentes (40001) e sem
---      contagens (22023)
+--   8  reset recusa sem backup existente (22023), com backup que existe mas é de OUTRO recorte
+--      (22023, a 0089), com contagens divergentes (40001) e sem contagens (22023)
 --   9  forçar estado — a ficha deriva, a marca nasce, o detentor zera nos terminais (e só
 --      neles), e os três relatórios devolvem OS MESMOS NÚMEROS antes e depois
 --  10  forçar saldo — chega ao alvo, para cima e para baixo, conferido por rel_saldo_itens
@@ -70,8 +72,8 @@
 -- Ao final, uma linha em `_dev_destrutivo_resumo` com os contadores — é assim que se lê o
 -- resultado pelo MCP, que engole NOTICE/WARNING.
 --
--- EXECUÇÃO DE REFERÊNCIA (ensaio sgmvldiizsrjbxzzpmhh, 30/07/2026, já com a 0087 e a 0088):
--- ok = 103, falhas = 0.
+-- EXECUÇÃO DE REFERÊNCIA (ensaio sgmvldiizsrjbxzzpmhh, 30/07/2026, com a 0087→0090 aplicadas):
+-- ok = 108, falhas = 0.
 -- =============================================================
 
 begin;
@@ -139,7 +141,16 @@ declare
   v_termo_a uuid; v_termo_cd uuid; v_termo_h uuid;
   v_path_a text;
   v_item5 smallint; v_item10 smallint; v_item13 smallint; v_item_cad smallint;
-  v_backup text := 'f23/backup-ficticio-do-roteiro.json';
+  -- ⚠ CAMINHOS DE BACKUP SOB O PREFIXO DO RECORTE (0089). A RPC não confere só que o objeto
+  -- existe no bucket: exige que ele esteja sob `reset/<bloco>/<global|filial-N>/`, senão o
+  -- backup de um import qualquer passaria por backup deste reset. São montados À MÃO, e não
+  -- por `prefixo_backup_reset()`, de propósito: se o roteiro derivasse o caminho da MESMA
+  -- função que a RPC usa para validar, os dois lados concordariam mesmo que o formato mudasse
+  -- — e o contrato deixaria de estar preso a lugar nenhum.
+  v_backup       text;   -- reset/acervo/filial-<f1>/  → o reset por filial da §6
+  v_backup_f2    text;   -- reset/acervo/filial-<f2>/  → as recusas da §8
+  v_backup_glob  text;   -- reset/acervo/global/       → o reset global da §7
+  v_backup_itens text;   -- reset/itens/global/        → o reset de itens da §7
   v_cargos_uid  uuid[];
   v_cargos_nome text[] := array['admin', 'operador', 'consulta'];
   v_rpc_nome    text[] := array['apagar_ativo', 'apagar_movimentacao', 'apagar_item',
@@ -153,7 +164,7 @@ declare
   v_de date := current_date - 3650;
   v_ate date := current_date + 365;
   v_ok int := 0; v_falhas int := 0; v_msgs text := '';
-  v_n int; v_txt text; v_bool boolean; v_j jsonb; v_st public.status_ativo; v_uuid uuid;
+  v_n int; v_txt text; v_txt2 text; v_bool boolean; v_j jsonb; v_st public.status_ativo; v_uuid uuid;
   c int; i int;
 begin
   -- =========================================================================
@@ -187,8 +198,17 @@ begin
   update public.profiles set papel = 'dev', primeiro_nome = 'Dev', sobrenome = 'de Teste' where id = k_dev;
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
-  -- O BACKUP que as RPCs de reset exigem EXISTIR no bucket privado.
-  insert into storage.objects (bucket_id, name, owner) values ('backups-import', v_backup, k_dev);
+  -- Os BACKUPS que as RPCs de reset exigem: um por recorte, cada um sob o seu prefixo, todos
+  -- existindo de verdade no bucket privado.
+  v_backup       := 'reset/acervo/filial-' || v_f1::text || '/backup-ficticio-do-roteiro.json';
+  v_backup_f2    := 'reset/acervo/filial-' || v_f2::text || '/backup-ficticio-do-roteiro.json';
+  v_backup_glob  := 'reset/acervo/global/backup-ficticio-do-roteiro.json';
+  v_backup_itens := 'reset/itens/global/backup-ficticio-do-roteiro.json';
+  insert into storage.objects (bucket_id, name, owner)
+  values ('backups-import', v_backup,       k_dev),
+         ('backups-import', v_backup_f2,    k_dev),
+         ('backups-import', v_backup_glob,  k_dev),
+         ('backups-import', v_backup_itens, k_dev);
 
   -- Um ativo, uma movimentação, um item e um lançamento genéricos: alvo das varreduras da §1 e
   -- das asserções de imutabilidade da §2.
@@ -347,20 +367,48 @@ begin
     reset role;
   end loop;
 
-  -- 1z. E o caminho nomeado do seed responde ao service role — mas só com a frase certa.
-  --     Chamada com a frase ERRADA de propósito: prova a autorização sem zerar o banco.
+  -- 1z / 1z-bis. O caminho nomeado do seed tem DUAS travas, e a ORDEM entre elas é o que
+  --     permite medir as duas com a mesma chamada: a marca de AMBIENTE (0090) é conferida
+  --     ANTES da frase de confirmação. Com a frase sempre ERRADA — de propósito, para não
+  --     zerar nada — sem a marca sai 42501, com a marca sai 22023.
+  --
+  --     ⚠ O ROTEIRO PLANTA OS DOIS ESTADOS, e isso não é capricho: `public.ambiente` nasce
+  --     VAZIA em toda base e a linha 'desenvolvimento' é inserida à mão só fora de produção.
+  --     O ensaio TEM a linha; um Postgres novo do CI NÃO tem. Sem plantar, esta asserção
+  --     mediria coisas diferentes em cada banco — e passaria num e falharia no outro.
+  delete from public.ambiente where rotulo = 'desenvolvimento';
   begin
     set local role service_role;
     perform public.resetar_dados_ficticios('frase errada');
     reset role;
-    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1z_SEM_CONFIRMACAO; ';
-    raise warning '✗ 1z resetar_dados_ficticios aceitou uma confirmação errada';
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1z_SEM_TRAVA_DE_AMBIENTE; ';
+    raise warning '✗ 1z resetar_dados_ficticios passou numa base SEM a marca de desenvolvimento';
   exception when others then
-    if sqlstate = '22023' then
-      v_ok := v_ok + 1; raise notice '✓ 1z service role ALCANÇA resetar_dados_ficticios e para na confirmação (22023)';
+    if sqlstate = '42501' then
+      v_ok := v_ok + 1; raise notice '✓ 1z sem a linha ''desenvolvimento'' em public.ambiente, o reset de dados fictícios é recusado ANTES da confirmação (42501) — é esta a trava que segura produção dentro do próprio banco';
     else
       v_falhas := v_falhas + 1; v_msgs := v_msgs || '1z_MOTIVO_ERRADO; ';
       raise warning '✗ 1z falhou por outro motivo (%): %', sqlstate, sqlerrm;
+    end if;
+  end;
+  reset role;
+
+  insert into public.ambiente (rotulo, observacao)
+  values ('desenvolvimento', 'marca ficticia do roteiro F23')
+  on conflict (rotulo) do nothing;
+
+  begin
+    set local role service_role;
+    perform public.resetar_dados_ficticios('frase errada');
+    reset role;
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1z-bis_SEM_CONFIRMACAO; ';
+    raise warning '✗ 1z-bis resetar_dados_ficticios aceitou uma confirmação errada';
+  exception when others then
+    if sqlstate = '22023' then
+      v_ok := v_ok + 1; raise notice '✓ 1z-bis com a base marcada, o service role ALCANÇA a função e é a confirmação que barra (22023)';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '1z-bis_MOTIVO_ERRADO; ';
+      raise warning '✗ 1z-bis falhou por outro motivo (%): %', sqlstate, sqlerrm;
     end if;
   end;
   reset role;
@@ -579,6 +627,45 @@ begin
       raise warning '✗ 2n recusado por outro motivo (%): %', sqlstate, sqlerrm;
     end if;
   end;
+
+  -- 2o. TRUNCATE — o FLANCO QUE O TRIGGER NÃO VÊ (0090). `truncate` não dispara trigger de
+  --     LINHA e não passa por RLS: a guarda da 0081 simplesmente não é consultada, e o acervo
+  --     inteiro sumiria sem uma linha de trilha. Quem fecha isto é o PRIVILÉGIO — por isso a
+  --     asserção olha 42501 de permissão, e não a mensagem da guarda: aqui a guarda não tem o
+  --     que dizer.
+  begin
+    set local role authenticated;
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
+    truncate public.movimentacoes;
+    reset role;
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2o_TRUNCATE_PASSOU; ';
+    raise warning '✗ 2o TRUNCATE em movimentacoes passou para authenticated — o acervo sumiria sem trigger nenhum disparar';
+  exception when others then
+    if sqlstate = '42501' then
+      v_ok := v_ok + 1; raise notice '✓ 2o TRUNCATE em movimentacoes recusado para authenticated (42501, privilégio revogado)';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '2o_MOTIVO_ERRADO; ';
+      raise warning '✗ 2o recusa por outro motivo (%): %', sqlstate, sqlerrm;
+    end if;
+  end;
+  reset role;
+
+  -- 2p. E o mesmo medido no CATÁLOGO, para as SEIS tabelas do acervo × os TRÊS papéis de API —
+  --     inclusive o `service_role`, que é o caminho que o app realmente tem. Estrutural de
+  --     propósito: provar isto por comportamento exigiria um TRUNCATE de verdade em cada uma,
+  --     e um único que passasse levaria o resto do roteiro junto.
+  select count(*) into v_n
+    from unnest(array['ativos', 'movimentacoes', 'lancamentos_item',
+                      'pendencias_item', 'anotacoes', 'termos_gerados']) as t(tab),
+         unnest(array['anon', 'authenticated', 'service_role']) as r(pap)
+   where has_table_privilege(r.pap, 'public.' || t.tab, 'truncate');
+  if v_n = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 2p nenhuma das 6 tabelas do acervo tem TRUNCATE para anon, authenticated ou service_role';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2p_TRUNCATE_CONCEDIDO; ';
+    raise warning '✗ 2p % combinação(ões) tabela × papel ainda com TRUNCATE', v_n;
+  end if;
 
   -- =========================================================================
   -- 3 — apagar_ativo: some com o rastro, libera o par, recusa termo de lote misto
@@ -850,20 +937,54 @@ begin
     end if;
   end;
 
+  -- 4e-bis — APAGAR UM ESTORNO É RECUSADO (migration 0090).
+  --
+  -- ⚠ ESTA ASSERÇÃO JÁ AFIRMOU O CONTRÁRIO, e a história importa: até a 0090 ela media
+  -- "apagar o ESTORNO desfaz o desfazer" e passava verde, conferindo status, detentor e
+  -- contagem de movimentações. A revisão adversarial da fase mostrou que ela passava
+  -- **cega para o dano**: o estorno APAGA as `pendencias_item` da movimentação original (o
+  -- estorno-strip da F18, dentro de `aplicar_movimentacao`), e apagar o estorno restaurava o
+  -- ativo para `em_triagem` com a `devolucao` viva ainda declarando `itens_faltantes` — mas
+  -- com ZERO pendências. A fila de `/pendencias` deriva o balde de itens só de
+  -- `v_pendencias_item where status = 'aberta'`, então os itens sumiam da tela e ninguém os
+  -- cobrava do colaborador. Movimentação viva dizendo "faltam itens" e estado derivado dizendo
+  -- "não falta nada" é exatamente a incoerência que a doutrina da casa proíbe.
+  --
+  -- A 0090 passou a RECUSAR, em vez de recriar as pendências: o desfecho das originais
+  -- (resolvida/desfecho/observação) foi apagado de vez pelo estorno-strip e não é
+  -- reconstruível — mesma doutrina da recusa de empate da 0087, "quando o efeito não é
+  -- reconstruível, ferramenta irreversível recusa em vez de deixar estado meio-certo".
+  -- Retrato do ativo ANTES da tentativa. A 4e-ter compara com ELE, e não com um estado que o
+  -- roteiro afirme de cor: assim a asserção continua correta se a fixture mudar, e não vira um
+  -- número mágico que alguém "conserta" no dia em que falhar.
+  select status::text || '|' || coalesce(colaborador_atual, '<nulo>') || '|' ||
+         (select count(*)::text from public.movimentacoes where ativo_id = v_at_i)
+    into v_txt from public.ativos where id = v_at_i;
+
   begin
     perform public.apagar_movimentacao(v_mov_i3, 'WAP0009405', 'justificativa ficticia do roteiro F23');
-    select status, colaborador_atual into v_st, v_txt from public.ativos where id = v_at_i;
-    select count(*) into v_n from public.movimentacoes where ativo_id = v_at_i;
-    if v_st = 'em_uso' and v_txt = 'Beltrano de Teste' and v_n = 2 then
-      v_ok := v_ok + 1; raise notice '✓ 4e-bis apagar o ESTORNO desfaz o desfazer (em_uso, com detentor)';
-    else
-      v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e2_ESTADO; ';
-      raise warning '✗ 4e-bis status=% colaborador=% movs=%', v_st, coalesce(v_txt,'<nulo>'), v_n;
-    end if;
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e2_ESTORNO_APAGADO; ';
+    raise warning '✗ 4e-bis o ESTORNO foi apagado — as pendências do estorno-strip ficariam perdidas';
   exception when others then
-    v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e2_FALHOU; ';
-    raise warning '✗ 4e-bis falhou (%): %', sqlstate, sqlerrm;
+    if sqlerrm like '%ESTORNO%' then
+      v_ok := v_ok + 1; raise notice '✓ 4e-bis apagar um ESTORNO é recusado (%) — o estorno-strip não é reversível', sqlstate;
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e2_MOTIVO_ERRADO; ';
+      raise warning '✗ 4e-bis recusa por outro motivo (%): %', sqlstate, sqlerrm;
+    end if;
   end;
+
+  -- 4e-ter — o ESTADO ficou INTACTO depois da recusa (o par positivo da 4e-bis). Sem esta,
+  -- uma implementação que recusasse DEPOIS de já ter mexido no ativo passaria verde.
+  select status::text || '|' || coalesce(colaborador_atual, '<nulo>') || '|' ||
+         (select count(*)::text from public.movimentacoes where ativo_id = v_at_i)
+    into v_txt2 from public.ativos where id = v_at_i;
+  if v_txt2 = v_txt then
+    v_ok := v_ok + 1; raise notice '✓ 4e-ter a recusa não deixou efeito colateral (%)', v_txt2;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e3_EFEITO_COLATERAL; ';
+    raise warning '✗ 4e-ter estado mudou apesar da recusa: antes=% depois=%', v_txt, v_txt2;
+  end if;
 
   -- A RPC decide por (created_at, id) — a MESMA ordem do guard de estorno, e a ordem em que o
   -- trigger aplicou os efeitos. Pela `data`, "a última" seria a COMPRA (de ontem); pelo
@@ -1198,7 +1319,7 @@ begin
   end;
 
   begin
-    perform public.resetar_acervo(v_f2, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup, '{}'::jsonb);
+    perform public.resetar_acervo(v_f2, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup_f2, '{}'::jsonb);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12d_CONFIRMACAO_RESET; ';
     raise warning '✗ 12d o reset por filial aceitou a frase do reset GLOBAL';
   exception when others then
@@ -1291,7 +1412,8 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
 
   begin
-    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', 'f23/este-backup-nao-existe.json', v_ct);
+    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23',
+                                  'reset/acervo/filial-' || v_f2::text || '/este-backup-nao-existe.json', v_ct);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8a_SEM_BACKUP; ';
     raise warning '✗ 8a o reset aceitou um backup que não existe no bucket';
   exception when others then
@@ -1312,7 +1434,7 @@ begin
 
   -- contagens divergentes → 40001: fecha a janela TOCTOU entre a prévia/backup e o delete
   begin
-    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup, jsonb_set(v_ct, '{ativos}', to_jsonb(v_c1 + 7)));
+    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup_f2, jsonb_set(v_ct, '{ativos}', to_jsonb(v_c1 + 7)));
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8b_CONTAGENS; ';
     raise warning '✗ 8b o reset aceitou contagens que não batem';
   exception when others then
@@ -1325,7 +1447,7 @@ begin
   end;
 
   begin
-    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup, null::jsonb);
+    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup_f2, null::jsonb);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8c_SEM_CONTAGENS; ';
     raise warning '✗ 8c o reset aceitou p_contagens nulo';
   exception when others then
@@ -1334,6 +1456,25 @@ begin
     else
       v_falhas := v_falhas + 1; v_msgs := v_msgs || '8c_MOTIVO_ERRADO; ';
       raise warning '✗ 8c recusa por outro motivo (%): %', sqlstate, sqlerrm;
+    end if;
+  end;
+
+  -- 8d. (0089) O BACKUP EXISTE NO BUCKET — E É DE OUTRO RECORTE. O caminho usado aqui é o
+  --     backup REAL da filial 1 (`reset/acervo/filial-<f1>/…`, plantado nas fixtures e
+  --     presente em storage.objects) numa tentativa de resetar a filial 2. É exatamente o caso
+  --     que a conferência só-por-existência deixava passar, e a versão mais afiada dele: não é
+  --     um caminho inventado, é um backup legítimo do recorte ERRADO. Sem esta asserção, a
+  --     0089 seria indistinguível da guarda que ela substituiu.
+  begin
+    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup, v_ct);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d_BACKUP_DE_OUTRO_RECORTE; ';
+    raise warning '✗ 8d o reset da filial % aceitou o backup da filial %', v_nome_f2, v_nome_f1;
+  exception when others then
+    if sqlstate = '22023' and sqlerrm like '%DESTE recorte%' then
+      v_ok := v_ok + 1; raise notice '✓ 8d reset RECUSADO: o backup existe no bucket, mas é do recorte errado (22023)';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d_MOTIVO_ERRADO; ';
+      raise warning '✗ 8d recusa por outro motivo (%): %', sqlstate, sqlerrm;
     end if;
   end;
 
@@ -1455,7 +1596,7 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
 
   begin
-    select public.resetar_acervo(null::smallint, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup, v_ct) into v_j;
+    select public.resetar_acervo(null::smallint, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup_glob, v_ct) into v_j;
     v_ok := v_ok + 1; raise notice '✓ 7a dev RESETA o acervo INTEIRO com a frase RESETAR TUDO: %', v_j::text;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '7a_FALHOU; ';
@@ -1463,7 +1604,7 @@ begin
   end;
 
   begin
-    perform public.resetar_itens(null::smallint, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup, jsonb_build_object('lancamentos', v_n));
+    perform public.resetar_itens(null::smallint, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup_itens, jsonb_build_object('lancamentos', v_n));
     v_ok := v_ok + 1; raise notice '✓ 7b dev RESETA os lançamentos de itens de todas as filiais';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '7b_FALHOU; ';
@@ -1516,11 +1657,14 @@ begin
     raise warning '✗ 7e o reset global levou história administrativa junto: %', v_txt;
   end if;
 
+  -- Cada bloco tem de ter registrado o backup DELE (a 0089 deu caminhos distintos ao acervo e
+  -- aos itens): contar as duas linhas com o mesmo caminho não provaria mais nada.
   select count(*) into v_n from public.eventos_admin
-   where acao in ('acervo_resetado', 'itens_resetados') and alvo = 'RESETAR TUDO'
-     and detalhe->>'alcance' = 'global' and detalhe->>'backup_path' = v_backup;
+   where alvo = 'RESETAR TUDO' and detalhe->>'alcance' = 'global'
+     and ((acao = 'acervo_resetado' and detalhe->>'backup_path' = v_backup_glob)
+       or (acao = 'itens_resetados' and detalhe->>'backup_path' = v_backup_itens));
   if v_n = 2 then
-    v_ok := v_ok + 1; raise notice '✓ 7f os dois resets globais deixaram trilha com o caminho do backup';
+    v_ok := v_ok + 1; raise notice '✓ 7f os dois resets globais deixaram trilha, cada um com o caminho do SEU backup';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '7f_TRILHA_RESET; ';
     raise warning '✗ 7f a trilha dos resets globais tem % linha(s) (esperado 2)', v_n;

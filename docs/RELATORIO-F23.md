@@ -291,6 +291,17 @@ de app. Os principais:
 | 8 | `remove()` do Storage mandava tudo numa chamada (teto de 1000) e ignorava o `data` de remoção **parcial** | MEDIA | lotes de 500 + conferência do que realmente saiu |
 | 9 | O comentário que justificava o client admin na limpeza do bucket era **factualmente falso** | BAIXA | reescrito: é conservadorismo, não necessidade |
 | 10 | Arquivo vazio `import-novo.sql` commitado na raiz (resto de um redirect meu que falhou) | BAIXA | removido |
+| 11 | **O reset por filial anula `substitui_ativo_id` de ativos de OUTRAS filiais** — em silêncio e **fora do backup**, porque o backup só trazia os ativos do recorte | MEDIA | `montarBackupDoReset` passou a guardar a linha inteira de quem aponta para dentro do recorte (`ponteiros_perdidos`) |
+| 12 | A asserção `4e-bis` do roteiro afirmava que apagar um ESTORNO **funciona** — com a `0090` ela passou a estar do lado errado | (efeito do #5) | reescrita para exigir a RECUSA, mais a `4e-ter` nova, que prova que a recusa **não deixou efeito colateral** comparando um retrato do ativo capturado ANTES da tentativa |
+
+**Dois achados de gravidade BAIXA ficaram deliberadamente sem correção**, e é honesto dizer
+quais: (a) apagar uma `devolucao_fornecedor` deixa o ativo substituto apontando para uma
+devolução que não existe mais — o ponteiro `substitui_ativo_id` sobrevive à exclusão da
+movimentação, e nada na ficha do substituto explica isso; (b) uma chamada DIRETA às RPCs pelo
+PostgREST (pulando a tela) não executa a limpeza do Storage, porque essa metade é da Server
+Action — o `.docx` fica órfão e só a 8ª checagem o revela. O segundo é inerente ao desenho
+(`storage.protect_objects_delete` proíbe apagar objeto por SQL) e está no §7; o primeiro é
+material para uma fase futura.
 
 **E uma crítica de MÉTODO que merece registro**, porque é a mais útil das dez: a única asserção
 de janela do roteiro era **tautológica** — media o GUC depois de um ERRO, e o rollback ao
