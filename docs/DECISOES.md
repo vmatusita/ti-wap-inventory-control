@@ -2728,3 +2728,129 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   botão volta habilitado, não trava. Portão: `lint` limpo · `test` **1.496 passando (70 arquivos)**,
   eram 1.491 · `build` + TypeScript limpos.
 - **Reversível?** Sim — tudo camada de app, zero migration e zero banco.
+
+---
+
+## 2026-07-29 · F21 · Banco dos cargos: onde a ordem foi seguida, e onde a medição a corrigiu
+
+- **Contexto:** a ordem `docs/prompts/F21-papeis-ultracode.md` manda ler
+  `docs/ADR-002-papeis-e-permissoes.md` antes de qualquer código — e o arquivo **não existia no
+  repositório** (só fora dele). Três afirmações da proposta também não sobreviveram à medição
+  direta dos dois bancos.
+- **Decisão 1 — ADR-002 materializado.** Escrito em `docs/ADR-002-papeis-e-permissoes.md` já com
+  status **aceito**, conteúdo da proposta aprovada, e uma nota de proveniência marcando as três
+  correções factuais com ⚠. A ordem continua sendo a régua em caso de conflito (é o que o próprio
+  cabeçalho dela determina).
+- **Decisão 2 — `senhas_acesso` fica SEM policy nenhuma, contra o que a ordem pedia.** A ordem e o
+  ADR §2 partiam de "hoje qualquer logado lê os hashes (`select true`)" e mandavam fechar com
+  `e_admin()`. **Falso:** a migration `0012` (achado da revisão da F3) já dropou as duas policies;
+  medido em 29/07 nos dois bancos, `senhas_acesso` tem **0 policies** e RLS ligada, isto é
+  deny-all para `anon`/`authenticated`. Criar `using (e_admin())` seria **afrouxar** — reabriria a
+  coluna `hash` para o client de sessão de um admin (RLS é row-level, não column-level: a lição
+  literal da 0012), reintroduzindo o vetor de brute-force offline. Mantido como está.
+  O critério 6 da ordem fica satisfeito *a fortiori*: ilegível para TODOS os cargos, admin
+  incluído — e `supabase/tests/papeis_rls.sql` prova isso nas asserções 3d e 5f.
+- **Decisão 3 — `import_logs` fecha para admin (a condição se cumpriu).** A ordem condicionava a
+  "SE nenhuma view/tela fora de `/admin/importar` a consome". Verificado: nenhuma view do banco
+  referencia a tabela, e os dois consumidores de leitura (`listarImportLogs` e `urlBackup`) estão
+  ambos dentro daquela tela, com client de sessão. `alter policy ... using (e_admin())`.
+- **Decisão 4 — `(select f())` só para função SEM argumento.** A ordem manda embrulhar "toda
+  chamada de função" no padrão initplan da `0059`. Aplicado a `e_admin()` e `papel_atual()`, que
+  são constantes no statement. **NÃO** aplicado a `pode_escrever_filial(filial_id)`: o argumento
+  depende da LINHA, então `(select ...)` não gera InitPlan — gera subconsulta correlacionada,
+  avaliada por linha do mesmo jeito e com overhead a mais. Custo real nulo: essas policies só
+  rodam em INSERT/UPDATE, sempre sobre uma linha ou lote pequeno; a varredura de 1.600 ativos
+  passa pela policy de SELECT `using (true)`, que não chama função.
+- **Decisão 5 — policy por VERBO, não `FOR ALL`.** Nas 6 tabelas que a `0059` deixou só com
+  `"operador escreve" FOR ALL` (`ativos`, `filiais`, `itens`, `kits_modelos`, `motivos`,
+  `termos_gerados`), essa policy virou a **única porta de LEITURA**. Um `alter policy` nela
+  cegaria o app para todo não-admin. Caminho adotado, na ordem, numa transação só: (1) criar a
+  `"leitura operador"` FOR SELECT `using (true)` que a `0059` tirou, (2) dropar a FOR ALL,
+  (3) criar uma policy por verbo de escrita. Uma policy por comando evita reacender o advisor
+  `multiple_permissive_policies` que a `0059` acabou de apagar.
+- **Decisão 6 — `ativos` perde o DELETE para `authenticated`.** É o mapa explícito da ordem
+  ("ativos: insert/update") e nenhum caminho de sessão apaga ativo (o DELETE do import é da RPC
+  `security definer`). Nas 4 tabelas de catálogo de admin o DELETE foi concedido a `e_admin()`
+  mesmo onde o app não deleta hoje: o `FOR ALL` já permitia e quem perde a capacidade é
+  justamente o não-admin.
+- **Decisão 7 — `anotacoes` gateada por CARGO, não por filial.** É o que o §5 da ordem determina
+  (a tabela não tem `filial_id`, só `ativo_id`). O recorte por filial deste fluxo fica na action.
+  **Lacuna residual assumida e registrada:** por chamada direta à API, um OPERADOR conseguiria
+  anotar ativo de filial não vinculada (`consulta` não, e nada além do texto se move). Fechar
+  exigiria `exists (select 1 from ativos a where a.id = ativo_id and pode_escrever_filial(a.filial_id))`
+  — fica no backlog do relatório, não é o que a ordem manda.
+- **Motivo (todas):** a hierarquia do CLAUDE.md manda a spec/ordem vencer, mas manda também medir
+  antes de escrever policy; onde a premissa da ordem estava desatualizada, seguir a letra
+  produziria uma regressão de segurança (decisão 2) ou um no-op custoso (decisão 4).
+- **Reversível?** Sim, e a reversão está escrita no rodapé de cada migration `0061`–`0066`.
+  Nada aqui toca dado do acervo: tudo aditivo + troca de policies.
+
+## 2026-07-29 · F21 · Achado fora do mapa da ordem: as policies de STORAGE não olhavam cargo
+
+- **Contexto:** o §5 da ordem mapeia tabela por tabela e **não menciona `storage.objects`**. A
+  varredura de descoberta encontrou o resto do buraco: os dois buckets privados tinham 4 policies
+  cada (SELECT/INSERT/UPDATE/DELETE), todas `to authenticated` com o único predicado
+  `bucket_id = '<nome>'` — nenhuma noção de papel (`0021` para `termos`, `0031` para
+  `backups-import`).
+- **Decisão:** migration `0066` acrescentada ao escopo. `termos` → leitura para todo logado,
+  escrita para `papel_atual() in ('admin','operador')`; `backups-import` → leitura **e** escrita
+  só `e_admin()`. Por `alter policy` nas 8, com `bucket_id` mantido nos dois lados dos UPDATE
+  (senão daria para MOVER um objeto entre buckets e escapar pelo lado que não checa).
+- **Motivo:** sem isso a F21 fecharia a porta e deixaria a janela aberta — o cargo `consulta`
+  subiria e apagaria `.docx` no bucket `termos` pela API de Storage (a UI não oferece o botão, mas
+  a UI nunca foi a defesa), e um não-admin continuaria listando e baixando os backups de acervo
+  mesmo depois de a `0063` esconder `import_logs.backup_path` dele. O §V da ordem pergunta
+  literalmente "alguma tabela/RPC de escrita ficou sem guarda?" — esta era a resposta.
+- **Reversível?** Sim: devolver os 8 predicados ao que a `0021`/`0031` criaram.
+
+## 2026-07-29 · F21 · Três WARN novos de advisor, aceitos e explicados
+
+- **Contexto:** o critério 8 da ordem exige "advisors do Supabase sem WARN **novo de RLS**".
+- **Medição (ensaio, antes → depois):** `rls_policy_always_true` **12 → 1**. O único que sobra é o
+  INSERT de `import_logs`, de propósito (§5 da ordem: "escrita como está (RPCs)") e vestigial —
+  quem insere é a RPC `security definer`, que não passa por policy.
+  **Nenhum WARN novo de RLS.**
+- **Decisão:** aceitar os **3 WARN novos de outra classe** —
+  `authenticated_security_definer_function_executable` em `papel_atual()`, `e_admin()` e
+  `pode_escrever_filial()` (antes o lint apontava só `importar_ativos_substituir`).
+- **Motivo:** uma expressão de policy RLS é avaliada com os privilégios de QUEM CONSULTA, então
+  `authenticated` **precisa** de EXECUTE nas três — sem isso toda query nas tabelas com policy
+  nova falha com "permission denied for function". É inócuo em substância: as três respondem
+  exclusivamente sobre o PRÓPRIO chamador (`auth.uid()`), não aceitam identidade como parâmetro e
+  não revelam nada de terceiros. `anon` e `public` ficam sem execute. Alternativa considerada e
+  rejeitada: mover as funções para um schema não exposto pelo PostgREST — resolveria o lint, mas
+  divergiria da ordem e do ADR, que as nomeiam em `public`, e quebraria `db:types`/roteiros.
+- **Reversível?** Sim (o revoke é uma linha), mas reverter quebra a RLS — não é para ser revertido.
+
+## 2026-07-29 · F21 · `npm run db:types` estava inutilizável nesta máquina
+
+- **Contexto:** regenerar `src/lib/types/database.ts` é passo obrigatório da fase. O script usava
+  `supabase gen types typescript --linked`, que depende de `supabase/.temp/linked-project.json` —
+  **inexistente nesta máquina**: falhava com `LegacyProjectNotLinkedError` e abortava sem alternativa.
+- **Decisão:** `scripts/gen-types.ts` passa a aceitar `DB_TYPES_PROJECT_REF=<ref>` e usar
+  `--project-id <ref>` (Management API, precisa só do `SUPABASE_ACCESS_TOKEN`, que já existe no
+  `.env.local`). Sem a variável, o comportamento antigo (`--linked`) é preservado.
+- **Motivo:** o ref **não** é hardcoded de propósito — apontar o gerador para produção por engano
+  geraria tipos do banco errado sem ninguém notar. Quem quer o caminho novo diz qual ref.
+- **Armadilha reconfirmada:** o gerador **remove** o `| null` de `p_filial` nas 7 RPCs `rel_*`
+  (o tipo real é `number | null` — as funções tratam `p_filial is null` = consolidado 'geral'), e
+  adotar a saída inteira **quebra o `next build`**. Já era conhecido do gerador do MCP (F14);
+  medido agora que vale para o caminho `--project-id` também — **não é defeito do MCP, é do
+  gerador**. Corrigido à mão (7 ocorrências) e conferido por `git diff --stat`: numa fase aditiva
+  o diff do `database.ts` tem de ficar **só com inserções**; qualquer remoção = nullability perdida.
+- **Reversível?** Sim, é só script de desenvolvimento.
+
+## 2026-07-29 · F21 · A mensagem de erro de RLS mentia
+
+- **Contexto:** `src/lib/actions/erros.ts` tinha um ramo único para permissão — "Sem permissão
+  para esta operação. **Faça login novamente.**"
+- **Decisão:** substituído por três ramos, do mais específico ao mais geral: as mensagens próprias
+  das guardas internas das RPCs (`apenas administradores`, `sem permissão de escrita na filial`) e,
+  por último, `42501`/`row-level security`/`permission denied` → "seu cargo ou suas filiais de
+  escrita não permitem…". O teste de `erros.test.ts` que fixava o texto antigo foi atualizado (a
+  mudança de comportamento é intencional) e ganhou 4 casos novos, inclusive o de precedência
+  (a guarda de admin vence a genérica quando as duas casariam).
+- **Motivo:** com papéis, "faça login novamente" passou a ser o conselho ERRADO na maioria dos
+  casos — quem é `consulta`, ou é operador sem a filial vinculada, pode relogar quantas vezes
+  quiser e nada muda. Mandar a pessoa girar em falso na tela de login é pior que não dizer nada.
+- **Reversível?** Sim, camada de app.
