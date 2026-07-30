@@ -118,6 +118,44 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (m.includes('sem permissao de escrita na filial') || m.includes('sem permissão de escrita na filial')) {
     return 'Você não tem permissão de escrita nesta filial. Fale com um administrador.'
   }
+  // ---- F22: negativas das RPCs de GESTÃO DE USUÁRIOS (migrations 0073/0074/0077) ----
+  // Elas levantam com errcode 42501 e mensagem NOSSA, já em pt-BR e já dirigida a quem lê.
+  // Sem estes ramos, o ramo genérico logo abaixo as engoliria e devolveria "seu cargo ou suas
+  // filiais de escrita não permitem" — que, para um ADMINISTRADOR que esbarrou na proteção do
+  // cargo Desenvolvedor, é falso (o cargo dele está certo; o que não pode é a AÇÃO) e manda a
+  // pessoa investigar a coisa errada. Vêm ANTES do genérico de propósito.
+  //
+  // O casamento é por substring minúscula, e cada linha cobre a frase SEM acento também
+  // porque as mensagens viajam por caminhos diferentes (RPC → PostgREST → supabase-js) e o
+  // projeto já teve tradução perdida por acento (ver os pares 'devolução/devolucao' acima).
+  // As cinco frases privativas do dev, distinguidas pelo VERBO — assim a tela diz qual ação
+  // foi barrada, sem devolver texto cru do banco (regra do fallback logado, no fim do arquivo).
+  if (m.includes('só um desenvolvedor') || m.includes('so um desenvolvedor')) {
+    if (m.includes('apagar uma conta')) {
+      return 'Só um Desenvolvedor pode apagar uma conta de usuário.'
+    }
+    if (m.includes('encerrar as sessões') || m.includes('encerrar as sessoes')) {
+      return 'Só um Desenvolvedor pode encerrar as sessões de um usuário.'
+    }
+    if (m.includes('apagar o perfil')) {
+      return 'Só um Desenvolvedor pode apagar o perfil de outro Desenvolvedor.'
+    }
+    // 'conceder o cargo' (rede da 0073) e 'gerir o cargo' (guarda da 0074) caem aqui.
+    return 'Só um Desenvolvedor pode conceder o cargo Desenvolvedor ou alterar quem já o tem.'
+  }
+  if (m.includes('restrita ao cargo desenvolvedor')) {
+    return 'Esta ação é restrita ao cargo Desenvolvedor.'
+  }
+  if (m.includes('seu próprio acesso') || m.includes('seu proprio acesso')) {
+    return 'Você não pode fazer isso com o seu próprio acesso. Peça a outro administrador.'
+  }
+  if (m.includes('último administrador ativo') || m.includes('ultimo administrador ativo')) {
+    return 'Este é o último administrador ativo do sistema. Promova outra pessoa antes de rebaixar, desativar ou apagar este acesso.'
+  }
+  if (m.includes('este usuário é um desenvolvedor') || m.includes('este usuario e um desenvolvedor')) {
+    return 'Este usuário é um Desenvolvedor: só outro Desenvolvedor pode alterar o cargo, desativar ou apagar esta conta.'
+  }
+
   // 42501 = insufficient_privilege: cobre tanto "new row violates row-level security
   // policy" (WITH CHECK reprovado) quanto "permission denied for table/column" (o grant de
   // coluna de `profiles`, migration 0063).

@@ -13,6 +13,7 @@ import type {
   ModelosPorCategoria,
 } from '@/lib/relatorios/tipos'
 import { modeloDe, paginarTodos, ultimoPorAtivo, type DbClient } from './comum'
+import { filialParaRpc } from '@/lib/queries/rpc-filial'
 
 // Estoque no fim do período: KPIs, categoria × status, disponíveis por modelo,
 // reservados e manutenção — TUDO derivado do estado reconstruído AS-OF (OS-F3
@@ -77,7 +78,7 @@ export async function lerEstadoAtivos(
   }
 
   const { data, error } = await client.rpc('rel_estoque_asof', {
-    p_filial: filialId,
+    p_filial: filialParaRpc(filialId),
     p_data: ate,
   })
   if (error) throw new Error(`Falha ao reconstruir o estoque as-of: ${error.message}`)

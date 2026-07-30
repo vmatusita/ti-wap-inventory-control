@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAdmin } from '@/lib/auth/acesso'
-import { PAPEL_ROTULO } from '@/lib/auth/papeis'
+import type { DbClient } from '@/lib/auth/acesso'
+import { PAPEL_ROTULO, eDev } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
@@ -23,6 +24,7 @@ import {
   atualizarMotivoSchema,
   validarStatusDeUsuario,
   validarTrocaDePapel,
+  MSG_SO_DEV_GERE_DEV,
 } from '@/lib/validators/admin'
 
 // F21 — TODA action deste arquivo exige ADMIN. Antes havia uma guarda local
@@ -97,6 +99,15 @@ export async function convidarUsuario(input: {
   }
   const { email, papel, filiais } = parsed.data
 
+  // F22 — o convite é o OUTRO caminho de concessão de cargo, e sem esta linha ele seria o
+  // furo: `editarUsuario` recusa promover a dev, mas convidar alguém JÁ como dev entraria
+  // por aqui. A RPC `definir_papel_usuario` também recusa (a guarda `exigir_gestao_de` da
+  // 0074 exige `e_dev()` quando o cargo pedido é dev) — mas aí a conta já teria sido criada
+  // no Auth e o admin receberia um link válido com um aviso confuso. Recusar ANTES é o certo.
+  if (eDev(papel) && !eDev(aut.papel)) {
+    return { ok: false, erro: MSG_SO_DEV_GERE_DEV }
+  }
+
   const origem = origemDaRequisicao(await headers())
   if (!origem) {
     return { ok: false, erro: 'Não foi possível montar o link (endereço do site ausente).' }
@@ -122,7 +133,7 @@ export async function convidarUsuario(input: {
     // do insert em auth.users. Se ainda assim a gravação falhar, a conta nasce
     // `operador` + zero vínculo (default da 0061), que NÃO escreve em lugar nenhum: falha
     // segura, e o aviso manda o admin ajustar em Editar.
-    const r = await aplicarCargoEVinculos(convite.data.user.id, papel, filiais)
+    const r = await aplicarCargoEVinculos(supabase, convite.data.user.id, papel, filiais)
     await registrarEventoAdmin({
       acao: 'convite_gerado',
       autor: aut.uid,
@@ -203,74 +214,74 @@ export async function convidarUsuario(input: {
   return { ok: false, erro: 'Não foi possível gerar o link de convite. Tente de novo.' }
 }
 
-// ---- Cargo e vínculos: a gravação (service role) ----
-// `profiles.papel` e `operador_filiais` NÃO têm policy de escrita para `authenticated`
-// (migrations 0061/0063: grant de coluna em profiles, zero policy de escrita em
-// operador_filiais). O único caminho é o client administrativo, daqui — e é por isso que a
-// guarda `exigirAdmin` acima é a única coisa entre o pedido e a gravação.
+// ---- Cargo e vínculos: a gravação (RPC, com o client de SESSÃO) ----
+//
+// ⚠ F22 — MUDANÇA DE FUNDO. Até a F21 estas duas gravações eram feitas com o SERVICE ROLE
+// (`createAdminClient`), que passa por fora de toda policy: a única coisa entre um admin e a
+// escrita era o `if` desta action. Isso é aceitável enquanto ninguém precisa ser protegido de
+// um admin — e deixou de ser quando nasceu o cargo `dev`, que por definição não pode ser
+// alterado por quem está abaixo dele.
+//
+// Agora quem grava são as RPCs `security definer` da migration 0074, chamadas com o client de
+// SESSÃO: a decisão "quem pode?" roda no Postgres, com `auth.uid()` real, e vale para
+// qualquer chamador — esta action, um script, ou um curl com o token de um admin. A rede
+// `profiles_guarda_dev` (0073) recusa qualquer caminho que não passe por elas, service role
+// incluído.
+//
+// As guardas puras (`validarTrocaDePapel`/`validarStatusDeUsuario`) continuam existindo e
+// rodando ANTES — elas dão a frase em pt-BR. As duas camadas concordam por construção porque
+// decidem pelos mesmos predicados; `supabase/tests/cargo_dev.sql` é a rede que denuncia
+// divergência.
 type GravacaoCargo = {
   erro: string | null
   papelGravado: boolean
   vinculosGravados: boolean
 }
 
+// A RPC levanta P0002 com "Usuário não encontrado" quando o perfil ainda não existe. A
+// tradução genérica não diria o que o admin precisa ouvir nesse caso específico.
+function traduzErroDeGestao(mensagem: string, codigo?: string): string {
+  if (/n[ãa]o encontrad/i.test(mensagem)) {
+    return 'Este usuário ainda não tem perfil no sistema (ele aparece depois do primeiro acesso).'
+  }
+  return traduzErroBanco(mensagem, codigo)
+}
+
 async function aplicarCargoEVinculos(
+  supabase: DbClient,
   usuarioId: string,
   papel: PapelUsuario,
   filiais: readonly number[],
 ): Promise<GravacaoCargo> {
-  const admin = createAdminClient()
-
-  const { data, error } = await admin
-    .from('profiles')
-    .update({ papel })
-    .eq('id', usuarioId)
-    .select('id')
-  if (error) {
+  const { error: erroPapel } = await supabase.rpc('definir_papel_usuario', {
+    p_alvo: usuarioId,
+    p_papel: papel,
+  })
+  if (erroPapel) {
     return {
-      erro: traduzErroBanco(error.message, error.code),
-      papelGravado: false,
-      vinculosGravados: false,
-    }
-  }
-  if (!data || data.length === 0) {
-    return {
-      erro: 'Este usuário ainda não tem perfil no sistema (ele aparece depois do primeiro acesso).',
+      erro: traduzErroDeGestao(erroPapel.message, erroPapel.code),
       papelGravado: false,
       vinculosGravados: false,
     }
   }
 
-  // Apaga e regrava em vez de calcular diferença: a tabela é minúscula (nº de operadores ×
-  // nº de filiais) e o estado final é o que a tela mostra, sem meio-caminho possível.
+  // Apaga e regrava em vez de calcular diferença (a RPC faz isso por dentro): a tabela é
+  // minúscula e o estado final é o que a tela mostra, sem meio-caminho possível.
   //
-  // Para admin e consulta `filiais` é sempre vazio (o schema recusa o contrário), então este
-  // delete LIMPA os vínculos de quem foi promovido/rebaixado. Deixá-los seria inofensivo no
-  // banco (`pode_escrever_filial` ignora vínculo de admin e fecha para consulta), mas a
+  // Para dev, admin e consulta `filiais` é sempre vazio (o schema recusa o contrário), então
+  // a RPC LIMPA os vínculos de quem foi promovido/rebaixado. Deixá-los seria inofensivo no
+  // banco (`pode_escrever_filial` ignora vínculo de nível admin e fecha para consulta), mas a
   // coluna "Filiais de escrita" passaria a exibir vínculo que não vale nada — e um dia
   // alguém acreditaria nela.
-  const { error: erroDelete } = await admin
-    .from('operador_filiais')
-    .delete()
-    .eq('usuario_id', usuarioId)
-  if (erroDelete) {
+  const { error: erroVinculos } = await supabase.rpc('definir_vinculos_usuario', {
+    p_alvo: usuarioId,
+    p_filiais: [...filiais],
+  })
+  if (erroVinculos) {
     return {
-      erro: traduzErroBanco(erroDelete.message, erroDelete.code),
+      erro: traduzErroDeGestao(erroVinculos.message, erroVinculos.code),
       papelGravado: true,
       vinculosGravados: false,
-    }
-  }
-
-  if (filiais.length > 0) {
-    const { error: erroInsert } = await admin
-      .from('operador_filiais')
-      .insert(filiais.map((filial_id) => ({ usuario_id: usuarioId, filial_id })))
-    if (erroInsert) {
-      return {
-        erro: traduzErroBanco(erroInsert.message, erroInsert.code),
-        papelGravado: true,
-        vinculosGravados: false,
-      }
     }
   }
 
@@ -340,6 +351,7 @@ export async function editarUsuario(input: {
 
   const recusa = validarTrocaDePapel({
     autorId: aut.uid,
+    autorPapel: aut.papel,
     alvo: { id: estado.id, papel: estado.papel, ativo: estado.ativo },
     novoPapel: papel,
     adminsAtivosIds,
@@ -350,7 +362,7 @@ export async function editarUsuario(input: {
   const trocouVinculos = !mesmasFiliais(filiais, estado.vinculos)
   if (!trocouPapel && !trocouVinculos) return { ok: true }
 
-  const r = await aplicarCargoEVinculos(usuarioId, papel, filiais)
+  const r = await aplicarCargoEVinculos(supabase, usuarioId, papel, filiais)
 
   // A trilha registra o que REALMENTE foi gravado — não o que foi pedido.
   const alvo = await alvoLegivel(estado)
@@ -408,6 +420,7 @@ export async function definirStatusUsuario(input: {
 
   const recusa = validarStatusDeUsuario({
     autorId: aut.uid,
+    autorPapel: aut.papel,
     alvo: { id: estado.id, papel: estado.papel, ativo: estado.ativo },
     novoAtivo: ativo,
     adminsAtivosIds,
@@ -418,16 +431,17 @@ export async function definirStatusUsuario(input: {
   const admin = createAdminClient()
 
   // `profiles.ativo` PRIMEIRO, nos dois sentidos: é o lado que tem efeito no REQUEST
-  // SEGUINTE (papel_atual() devolve NULL e toda policy de escrita fecha). O ban do Auth
-  // impede login NOVO, o que só importa depois que a sessão atual expira.
-  const { data, error } = await admin
-    .from('profiles')
-    .update({ ativo })
-    .eq('id', usuarioId)
-    .select('id')
-  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
-  if (!data || data.length === 0) {
-    return { ok: false, erro: 'Usuário não encontrado. Atualize a página e tente de novo.' }
+  // SEGUINTE (papel_atual() devolve NULL e toda policy fecha, leitura inclusa desde a 0070).
+  // O ban do Auth impede login NOVO, o que só importa depois que a sessão atual expira.
+  //
+  // F22: pela RPC (client de SESSÃO), não mais pelo service role — ver o comentário longo em
+  // `aplicarCargoEVinculos`. É o que faz a proteção do dev valer também aqui, no banco.
+  const { error: erroStatus } = await supabase.rpc('definir_status_usuario', {
+    p_alvo: usuarioId,
+    p_ativo: ativo,
+  })
+  if (erroStatus) {
+    return { ok: false, erro: traduzErroDeGestao(erroStatus.message, erroStatus.code) }
   }
 
   const ban = await admin.auth.admin.updateUserById(usuarioId, {

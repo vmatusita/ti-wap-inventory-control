@@ -91,9 +91,14 @@ async function lerContasAuth(): Promise<{
 export async function listarUsuarios(): Promise<ListaUsuarios> {
   const client = await createClient()
   const [perfisRes, vinculosRes, contas] = await Promise.all([
+    // F22: contas APAGADAS somem da tela. O perfil continua na tabela de propósito (é dele
+    // que sai a autoria de toda movimentação antiga — ver 0073), mas ele não é mais um
+    // usuário do sistema: não loga, não escreve, e listá-lo faria o admin tentar "reativar"
+    // alguém cuja conta não existe mais no Auth.
     client
       .from('profiles')
       .select('id, nome, created_at, papel, ativo')
+      .is('excluido_em', null)
       .order('created_at', { ascending: true }),
     client.from('operador_filiais').select('usuario_id, filial_id'),
     lerContasAuth(),
@@ -133,19 +138,36 @@ export async function listarUsuarios(): Promise<ListaUsuarios> {
   return { usuarios, avisoAuth: contas.aviso }
 }
 
-// Ids dos ADMINS ATIVOS — insumo das travas de autoproteção (validators/admin.ts). Lido
-// pelo SERVICE ROLE de propósito: a contagem que decide "isto deixaria o sistema sem
-// administrador?" não pode depender de policy nenhuma. E FALHA FECHADA (throw): se a
-// leitura não vier, a action recusa a gravação em vez de supor que sobra alguém.
+// Ids das contas de NÍVEL ADMINISTRADOR ativas — insumo das travas de autoproteção
+// (validators/admin.ts). Lido pelo SERVICE ROLE de propósito: a contagem que decide "isto
+// deixaria o sistema sem administrador?" não pode depender de policy nenhuma. E FALHA
+// FECHADA (throw): se a leitura não vier, a action recusa a gravação em vez de supor que
+// sobra alguém.
+//
+// ⚠ F22: era `.eq('papel','admin')`. Agora inclui `dev`, para casar com `eAdminAtivo()`
+// (validators) e com `existe_outro_admin_ativo()` (banco, 0074) — as três precisam contar o
+// MESMO conjunto, senão a invariante fica inconsistente entre camadas. E `excluido_em is
+// null` porque uma conta apagada não administra nada.
 export async function idsDeAdminsAtivos(): Promise<string[]> {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('profiles')
     .select('id')
-    .eq('papel', 'admin')
+    .in('papel', ['admin', 'dev'])
     .eq('ativo', true)
+    .is('excluido_em', null)
   if (error) throw new Error(`Falha ao conferir os administradores ativos: ${error.message}`)
   return (data ?? []).map((p) => p.id)
+}
+
+// E-mail de login de uma conta, ou null se o Auth não respondeu / a conta não existe mais.
+// Usado pela confirmação digitada do "apagar" (validarExclusaoDeUsuario) — que compara
+// contra o e-mail REAL, e por isso precisa distinguir "não sei" de "é este".
+export async function emailDoUsuario(id: string): Promise<string | null> {
+  const admin = createAdminClient()
+  const r = await admin.auth.admin.getUserById(id).catch(() => null)
+  if (!r || r.error) return null
+  return r.data.user?.email ?? null
 }
 
 // Cargo, situação e vínculos de UM usuário — o estado "antes" que as travas de
@@ -162,7 +184,15 @@ export async function getEstadoUsuario(id: string): Promise<EstadoUsuario | null
   const admin = createAdminClient()
   const [{ data: perfil, error: erroPerfil }, { data: vinculos, error: erroVinculos }] =
     await Promise.all([
-      admin.from('profiles').select('id, papel, ativo, nome').eq('id', id).maybeSingle(),
+      // F22: `excluido_em is null` — uma conta apagada não é alvo de nada (as RPCs da 0074
+      // também a recusam; aqui a recusa vira "Usuário não encontrado", que é a verdade
+      // do ponto de vista da tela).
+      admin
+        .from('profiles')
+        .select('id, papel, ativo, nome')
+        .eq('id', id)
+        .is('excluido_em', null)
+        .maybeSingle(),
       admin.from('operador_filiais').select('filial_id').eq('usuario_id', id),
     ])
   if (erroPerfil) throw new Error(`Falha ao ler o usuário: ${erroPerfil.message}`)

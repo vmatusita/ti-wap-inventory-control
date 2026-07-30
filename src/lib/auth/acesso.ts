@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { lerSessaoView, VIEW_COOKIE_NAME } from '@/lib/auth/senha-sessao'
-import { PAPEL_ROTULO, filiaisDeEscrita, papelAtende } from '@/lib/auth/papeis'
+import { PAPEL_ROTULO, eAdmin, filiaisDeEscrita, papelAtende } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import type { Database } from '@/lib/types/database'
 
@@ -38,6 +38,11 @@ export const MSG_SOMENTE_LEITURA =
   'Seu cargo é de consulta (somente leitura): você pode consultar tudo, mas não registrar alterações.'
 export const MSG_SO_ADMIN =
   'Esta ação é restrita a administradores.'
+// F22 — a negativa do 4º cargo. Texto SEPARADO de MSG_SO_ADMIN de propósito: quem esbarra
+// aqui é um administrador (que já se sabe administrador), e "restrita a administradores"
+// o faria abrir chamado dizendo que o cargo dele parou de funcionar.
+export const MSG_SO_DEV =
+  'Esta ação é restrita ao cargo Desenvolvedor.'
 // "O banco não respondeu" NÃO é "você foi desligado". Antes desta mensagem, qualquer erro
 // transitório na leitura do cargo ou do vínculo (blip de rede, `statement_timeout`) caía em
 // MSG_USUARIO_DESATIVADO ou em "sem permissão nesta filial" — a fase investiu em distinguir
@@ -159,7 +164,7 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
 
   const { data: perfil, error: erroPerfil } = await supabase
     .from('profiles')
-    .select('nome, papel, ativo')
+    .select('nome, papel, ativo, excluido_em')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -174,8 +179,12 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
     return null
   }
 
-  // Sem perfil (não deveria acontecer — o trigger cria) ou DESATIVADO: fecha.
-  if (!perfil || !perfil.ativo) return null
+  // Sem perfil (não deveria acontecer — o trigger cria), DESATIVADO ou APAGADO: fecha.
+  // F22: `apagar_usuario` (0074) grava `excluido_em` E `ativo = false`, então o segundo
+  // teste já bastaria hoje. O terceiro é cinto e suspensório para o estado híbrido —
+  // arquivado mas ainda `ativo` — que um UPDATE manual no painel produziria: `papel_atual()`
+  // no banco já o fecha (0073), e aqui a leitura é direta em `profiles`, sem passar por ela.
+  if (!perfil || !perfil.ativo || perfil.excluido_em) return null
 
   const papel = perfil.papel as PapelUsuario
 
@@ -272,12 +281,30 @@ export async function exigirPapel(
   return { ok: true, uid: r.uid, papel: r.papel }
 }
 
-// Exige ADMIN. Usada por tudo que vive em /admin/** (usuários, senhas, filiais, motivos,
-// catálogo de itens, kits) e pelo import de startup.
+// Exige NÍVEL ADMINISTRADOR (admin ou dev). Usada por tudo que vive em /admin/** (usuários,
+// senhas, filiais, motivos, catálogo de itens, kits) e pelo import de startup.
+//
+// ⚠ F22: era `r.papel !== 'admin'`. Com a igualdade, o dev seria recusado AQUI, antes de
+// tocar o Postgres — e o banco, que desde a 0072 tem `e_admin() = papel_atual() in
+// ('admin','dev')`, o aceitaria. As duas camadas divergiriam, e a mais amigável seria a que
+// nega: a pessoa veria "restrita a administradores" numa tela que o RLS lhe abriria.
 export async function exigirAdmin(supabase: DbClient): Promise<Autorizacao> {
   const r = await resolverCargo(supabase)
   if ('erro' in r) return { ok: false, erro: r.erro }
-  if (r.papel !== 'admin') return { ok: false, erro: MSG_SO_ADMIN }
+  if (!papelAtende(r.papel, 'admin')) return { ok: false, erro: MSG_SO_ADMIN }
+  return { ok: true, uid: r.uid, papel: r.papel }
+}
+
+// Exige EXATAMENTE o cargo dev. Espelha `e_dev()` (0072) e a guarda interna das RPCs de
+// gestão avançada (0074). Usada pelas actions de src/lib/actions/dev.ts (trocar e-mail,
+// apagar conta, encerrar sessões) e pelo layout de /dev.
+//
+// Igualdade é a intenção aqui, e não hierarquia: não há cargo acima de dev, e escrever
+// `papelAtende(r.papel, 'dev')` sugeriria que pode haver.
+export async function exigirDev(supabase: DbClient): Promise<Autorizacao> {
+  const r = await resolverCargo(supabase)
+  if ('erro' in r) return { ok: false, erro: r.erro }
+  if (r.papel !== 'dev') return { ok: false, erro: MSG_SO_DEV }
   return { ok: true, uid: r.uid, papel: r.papel }
 }
 
@@ -329,7 +356,10 @@ export async function exigirEscritaEm(
   // Uma chamada basta: para admin ATIVO `pode_escrever_filial` é true em qualquer filial (0062)
   // e `ids[0]` é garantidamente não-nulo, logo não há recusa falsa; para admin DESATIVADO é
   // false, que é exatamente a recusa desejada.
-  if (r.papel === 'admin') {
+  // F22: `eAdmin` (NÍVEL) e não `=== 'admin'` — o dev também escreve em toda filial
+  // (`pode_escrever_filial` da 0072), e sem isto ele cairia no laço abaixo e receberia
+  // "o lote inclui filial em que você não tem permissão" no primeiro lote multi-filial.
+  if (eAdmin(r.papel)) {
     const v = await lerVinculo(supabase, ids[0])
     if (!v.ok) return { ok: false, erro: MSG_FALHA_AO_CONFERIR }
     if (!v.pode) return { ok: false, erro: MSG_USUARIO_DESATIVADO }

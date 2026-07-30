@@ -3,6 +3,7 @@ import { hojeISO } from '@/lib/format'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
+import { filialParaRpc } from '@/lib/queries/rpc-filial'
 
 // Leituras da operação de itens por quantidade (F3B / OS 3.3.4). Rota só do
 // operador (o visualizador por senha não acessa /itens) — usam o client do
@@ -114,7 +115,7 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
 export async function getSaldosItens(filialId: number | null): Promise<SaldoItem[]> {
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('rel_saldo_itens', {
-    p_filial: filialId,
+    p_filial: filialParaRpc(filialId),
     p_ate: hojeISO(),
   })
   if (error) throw new Error(`Falha ao ler saldos: ${error.message}`)

@@ -25,6 +25,7 @@ import type {
 } from '@/lib/relatorios/tipos'
 import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { modeloDe, paginarTodos, type DbClient } from './comum'
+import { filialParaRpc } from '@/lib/queries/rpc-filial'
 
 // Agregações sobre a tabela `movimentacoes` no período (OS-F3 3.6): a série
 // adaptativa, saídas/devoluções por motivo, o resumo no formato do e-mail, as
@@ -42,7 +43,7 @@ async function serieMensal(
   periodo: Periodo,
 ): Promise<SerieMovimentacoes> {
   const { data, error } = await client.rpc('rel_mov_por_mes', {
-    p_filial: filialId,
+    p_filial: filialParaRpc(filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
@@ -94,7 +95,7 @@ export async function getPorMotivo(
   periodo: Periodo,
 ): Promise<PorMotivo> {
   const { data, error } = await client.rpc('rel_por_motivo', {
-    p_filial: filialId,
+    p_filial: filialParaRpc(filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
@@ -115,7 +116,7 @@ export async function getResumoPeriodo(
   periodo: Periodo,
 ): Promise<ResumoPeriodo> {
   const { data, error } = await client.rpc('rel_resumo', {
-    p_filial: filialId,
+    p_filial: filialParaRpc(filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })

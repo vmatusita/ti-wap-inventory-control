@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
 import { DOMINIOS_TEXTO, emailDeOperador } from '@/lib/auth/dominios-email'
-import { validarVinculosDoPapel } from '@/lib/auth/papeis'
+import { eAdmin, eDev, validarVinculosDoPapel } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 
 // Schemas de administração (convites, filiais, motivos) — antes definidos inline
@@ -60,6 +60,31 @@ export const definirStatusUsuarioSchema = z.object({
   ativo: z.boolean(),
 })
 
+// ---- F22: gestão avançada (privativa do cargo dev) ----
+// O e-mail novo passa pela MESMA lista de `dominios-email.ts` que o convite. O trigger
+// `handle_new_user` (0041) só cobre INSERT em auth.users — uma TROCA de e-mail não passa
+// por ele, então aqui é a única barreira de domínio desse caminho.
+export const alterarEmailUsuarioSchema = z.object({
+  usuarioId: z.string().uuid('Usuário inválido'),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('E-mail inválido')
+    .refine((e) => emailDeOperador(e), `O e-mail precisa terminar com ${DOMINIOS_TEXTO}`),
+})
+
+export const apagarUsuarioSchema = z.object({
+  usuarioId: z.string().uuid('Usuário inválido'),
+  // Confirmação digitada. Apagar é a única ação irreversível da tela de usuários, e o
+  // diálogo pede o e-mail de volta — o mesmo idioma do "Substituir tudo" do import.
+  confirmacao: z.string().trim(),
+})
+
+export const encerrarSessoesSchema = z.object({
+  usuarioId: z.string().uuid('Usuário inválido'),
+})
+
 // ---- F21: AUTOPROTEÇÃO da gestão de usuários ----
 // As duas travas que o critério de aceitação 4 da ordem F21 exige, escritas como funções
 // PURAS para terem teste próprio: dentro da action elas dependeriam de sessão e de banco, e
@@ -104,10 +129,30 @@ export const MSG_AUTO_DESATIVACAO =
 export const MSG_ULTIMO_ADMIN =
   'Este é o último administrador ativo do sistema. Promova outra pessoa a Administrador antes de rebaixar ou desativar este acesso.'
 
+// F22 — a negativa da proteção do 4º cargo, do lado do app. A trava de verdade é a guarda
+// `exigir_gestao_de()` das RPCs (0074) mais a rede `profiles_guarda_dev` (0073); esta função
+// existe para que a pessoa leia uma frase em pt-BR em vez de um SQLSTATE.
+export const MSG_SO_DEV_GERE_DEV =
+  'Só um Desenvolvedor pode conceder o cargo Desenvolvedor ou alterar quem já o tem.'
+export const MSG_SO_DEV_APAGA =
+  'Só um Desenvolvedor pode apagar uma conta de usuário.'
+
 // O par (cargo, status) que conta como "administrador ativo" — o mesmo predicado que
-// `papel_atual()` usa no banco para devolver 'admin'.
+// `existe_outro_admin_ativo()` usa no banco (0074).
+//
+// ⚠ F22: era `papel === 'admin' && ativo`. Agora é NÍVEL administrador, porque o dev alcança
+// tudo que o admin alcança — com a igualdade, um sistema cujo único acesso administrativo
+// fosse um dev acharia que tem ZERO administradores e a trava do último admin barraria
+// operações legítimas; e, no sentido inverso, promover alguém a dev não satisfaria a
+// invariante. Decisão registrada em docs/DECISOES.md.
 function eAdminAtivo(papel: PapelUsuario, ativo: boolean): boolean {
-  return papel === 'admin' && ativo
+  return eAdmin(papel) && ativo
+}
+
+// Quem MEXE num dev (ou concede o cargo) precisa ser dev. Espelha a guarda
+// `exigir_gestao_de()` (0074): alvo dev OU cargo pedido dev → exige e_dev().
+function tocaDev(alvoPapel: PapelUsuario, novoPapel: PapelUsuario | null): boolean {
+  return eDev(alvoPapel) || (novoPapel !== null && eDev(novoPapel))
 }
 
 // Sobra algum OUTRO admin ativo além do alvo? A lista vem do banco (ids de perfis com
@@ -119,11 +164,16 @@ function existeOutroAdminAtivo(alvoId: string, adminsAtivosIds: readonly string[
 /** Troca de cargo: devolve a mensagem que RECUSA, ou null se pode gravar. */
 export function validarTrocaDePapel(args: {
   autorId: string
+  /** F22 — cargo de QUEM está pedindo. Sem ele não há como recusar um admin que mexe em dev. */
+  autorPapel: PapelUsuario
   alvo: AlvoUsuario
   novoPapel: PapelUsuario
   adminsAtivosIds: readonly string[]
 }): string | null {
-  const { autorId, alvo, novoPapel, adminsAtivosIds } = args
+  const { autorId, autorPapel, alvo, novoPapel, adminsAtivosIds } = args
+  // F22 — a proteção do cargo dev vem ANTES de tudo: nem "cargo igual" escapa dela, porque
+  // um admin não deve sequer receber a confirmação silenciosa de uma gravação sobre um dev.
+  if (tocaDev(alvo.papel, novoPapel) && !eDev(autorPapel)) return MSG_SO_DEV_GERE_DEV
   // Cargo igual não é mudança: quem edita só as FILIAIS não deve tropeçar na trava de cargo.
   // (Para o alvo = o próprio autor isto vale apenas no papel: a lista de usuários desabilita o
   // botão "Editar" da própria linha, então o único efeito alcançável seria limpar os vínculos
@@ -143,11 +193,16 @@ export function validarTrocaDePapel(args: {
 /** Desativar/reativar: devolve a mensagem que RECUSA, ou null se pode gravar. */
 export function validarStatusDeUsuario(args: {
   autorId: string
+  /** F22 — cargo de QUEM está pedindo (ver validarTrocaDePapel). */
+  autorPapel: PapelUsuario
   alvo: AlvoUsuario
   novoAtivo: boolean
   adminsAtivosIds: readonly string[]
 }): string | null {
-  const { autorId, alvo, novoAtivo, adminsAtivosIds } = args
+  const { autorId, autorPapel, alvo, novoAtivo, adminsAtivosIds } = args
+  // F22 — desativar OU reativar um dev é privativo do dev. Vem antes do "nada mudou",
+  // pelo mesmo motivo da troca de cargo.
+  if (tocaDev(alvo.papel, null) && !eDev(autorPapel)) return MSG_SO_DEV_GERE_DEV
   if (novoAtivo === alvo.ativo) return null
   // Reativar nunca é perigoso — só o caminho que DESLIGA passa pelas travas.
   if (novoAtivo) return null
@@ -157,6 +212,42 @@ export function validarStatusDeUsuario(args: {
     !existeOutroAdminAtivo(alvo.id, adminsAtivosIds)
   ) {
     return MSG_ULTIMO_ADMIN
+  }
+  return null
+}
+
+/**
+ * F22 — APAGAR uma conta: devolve a mensagem que RECUSA, ou null se pode.
+ *
+ * Regras, na ordem em que a pessoa as encontraria: só dev apaga; ninguém apaga a si mesmo;
+ * não se apaga a última conta de nível administrador; e a confirmação digitada tem de bater
+ * com o e-mail do alvo. Espelha `apagar_usuario()` (0074) — a diferença é que lá a
+ * confirmação não existe (ela é ergonomia de UI, não autorização).
+ */
+export function validarExclusaoDeUsuario(args: {
+  autorId: string
+  autorPapel: PapelUsuario
+  alvo: AlvoUsuario
+  /** E-mail do alvo, para conferir contra o que a pessoa digitou. */
+  alvoEmail: string | null
+  confirmacao: string
+  adminsAtivosIds: readonly string[]
+}): string | null {
+  const { autorId, autorPapel, alvo, alvoEmail, confirmacao, adminsAtivosIds } = args
+  if (!eDev(autorPapel)) return MSG_SO_DEV_APAGA
+  if (alvo.id === autorId) {
+    return 'Você não pode apagar o seu próprio acesso. Peça a outro Desenvolvedor.'
+  }
+  if (eAdminAtivo(alvo.papel, alvo.ativo) && !existeOutroAdminAtivo(alvo.id, adminsAtivosIds)) {
+    return MSG_ULTIMO_ADMIN
+  }
+  // Sem e-mail conhecido (o Auth não respondeu) não dá para confirmar coisa nenhuma —
+  // recusar é melhor que apagar às cegas a conta errada.
+  if (!alvoEmail) {
+    return 'Não foi possível confirmar o e-mail desta conta agora. Tente de novo em instantes.'
+  }
+  if (confirmacao.trim().toLowerCase() !== alvoEmail.trim().toLowerCase()) {
+    return `Para apagar, digite exatamente o e-mail da conta: ${alvoEmail}`
   }
   return null
 }
