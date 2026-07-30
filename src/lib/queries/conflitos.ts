@@ -1,5 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
 import type { DbClient } from '@/lib/auth/acesso'
 import type { GrupoConflito, LadoConflito } from '@/lib/pendencias/conflitos'
@@ -67,6 +68,30 @@ function chavesNaoNulas(linhas: { chave: string | null }[] | null): string[] {
   return (linhas ?? []).map((r) => r.chave).filter((c): c is string => c !== null)
 }
 
+/**
+ * Todas as chaves de conflito que tocam uma filial — PAGINADO.
+ *
+ * ⚠ A paginação não é zelo excessivo: o PostgREST corta todo select em 1.000 linhas EM
+ * SILÊNCIO, e o volume de conflitos NÃO é necessariamente pequeno. O cenário que a própria
+ * F24 destravou é justamente o que o torna grande: importar por engano o CSV de uma filial
+ * escolhendo OUTRA filial na tela cria um conflito por linha do arquivo — centenas de uma
+ * vez. Sem paginar, a mesa mostraria os 1.000 primeiros e esconderia o resto sem avisar,
+ * que é exatamente o tipo de truncamento silencioso que este projeto não aceita.
+ */
+async function chavesDaFilial(client: DbClient, filialSlug: string): Promise<string[]> {
+  const rows = await paginarTodos<{ chave: string | null }>(
+    'Falha ao listar as chaves de conflito da filial',
+    (from, to) =>
+      client
+        .from('v_conflitos_filiais')
+        .select('chave')
+        .eq('filial', filialSlug)
+        .order('chave')
+        .range(from, to),
+  )
+  return [...new Set(chavesNaoNulas(rows))]
+}
+
 function mapearLado(r: RowLado): LadoConflito {
   return {
     ativoId: r.ativo_id,
@@ -121,12 +146,7 @@ export async function contarGruposConflito(
 
   // Com filial: a view agregada não guarda o slug (ela agrega os nomes), então a contagem
   // sai dos LADOS — chaves distintas cujo lado está nesta filial.
-  const { data, error } = await client
-    .from('v_conflitos_filiais')
-    .select('chave')
-    .eq('filial', filialSlug)
-  if (error) throw new Error(`Falha ao contar conflitos da filial: ${error.message}`)
-  return new Set(chavesNaoNulas(data)).size
+  return (await chavesDaFilial(client, filialSlug)).length
 }
 
 /**
@@ -165,14 +185,10 @@ export async function listarConflitos(
   let total: number
 
   if (filialSlug) {
-    const { data, error } = await client
-      .from('v_conflitos_filiais')
-      .select('chave')
-      .eq('filial', filialSlug)
-    if (error) throw new Error(`Falha ao listar conflitos: ${error.message}`)
-    // `chave` é nullable no tipo gerado (toda coluna de view é), mas a view FILTRA
-    // `chave is not null` — ativo sem identidade nunca entra. O guard satisfaz o tipo.
-    const todas = [...new Set(chavesNaoNulas(data))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    // Paginado na origem (ver `chavesDaFilial`); a fatia da página sai daqui.
+    const todas = (await chavesDaFilial(client, filialSlug)).sort((a, b) =>
+      a.localeCompare(b, 'pt-BR'),
+    )
     total = todas.length
     chaves = todas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   } else {
@@ -191,16 +207,23 @@ export async function listarConflitos(
     return { grupos: [], total, page, pageSize: PAGE_SIZE }
   }
 
-  const { data: lados, error: erroLados } = await client
-    .from('v_conflitos_filiais')
-    .select(LADO_SELECT)
-    .in('chave', chaves)
-    .order('chave', { ascending: true })
-    .order('filial_id', { ascending: true })
-  if (erroLados) throw new Error(`Falha ao ler os lados do conflito: ${erroLados.message}`)
+  // Os lados dos grupos VISÍVEIS. `chaves` tem no máximo PAGE_SIZE (20) itens e um grupo
+  // tem 2–3 lados, então isto cabe folgado numa página do PostgREST — mas pagina do mesmo
+  // jeito, para o teto nunca ser uma suposição.
+  const lados = await paginarTodos<RowLado>(
+    'Falha ao ler os lados do conflito',
+    (from, to) =>
+      client
+        .from('v_conflitos_filiais')
+        .select(LADO_SELECT)
+        .in('chave', chaves)
+        .order('chave', { ascending: true })
+        .order('filial_id', { ascending: true })
+        .range(from, to),
+  )
 
   const porChave = new Map<string, LadoConflito[]>()
-  for (const r of (lados ?? []) as RowLado[]) {
+  for (const r of lados) {
     const lista = porChave.get(r.chave)
     if (lista) lista.push(mapearLado(r))
     else porChave.set(r.chave, [mapearLado(r)])
@@ -235,30 +258,32 @@ export async function listarConflitosParaExport(
   opts: { filialSlug?: string | null } = {},
 ): Promise<{ chave: string; lado: LadoConflito }[]> {
   const client = await createClient()
-  let query = client
-    .from('v_conflitos_filiais')
-    .select(LADO_SELECT)
-    .order('chave', { ascending: true })
-    .order('filial_id', { ascending: true })
-
   const filialSlug = opts.filialSlug?.trim() || null
+
+  // Recorte por filial: as CHAVES cujo lado está nesta filial — e depois TODOS os lados
+  // dessas chaves. Filtrar direto por `filial` traria só metade de cada conflito, e um
+  // conflito com um lado só não é um conflito: é uma linha sem sentido no arquivo.
+  let chaves: string[] | null = null
   if (filialSlug) {
-    // Recorte por filial: as CHAVES cujo lado está nesta filial — e depois TODOS os lados
-    // dessas chaves. Filtrar direto por `filial` traria só metade de cada conflito, e um
-    // conflito com um lado só não é um conflito: é uma linha sem sentido no arquivo.
-    const { data, error } = await client
-      .from('v_conflitos_filiais')
-      .select('chave')
-      .eq('filial', filialSlug)
-    if (error) throw new Error(`Falha ao exportar conflitos: ${error.message}`)
-    const chaves = [...new Set(chavesNaoNulas(data))]
+    chaves = await chavesDaFilial(client, filialSlug)
     if (chaves.length === 0) return []
-    query = query.in('chave', chaves)
   }
 
-  const { data, error } = await query
-  if (error) throw new Error(`Falha ao exportar conflitos: ${error.message}`)
-  return ((data ?? []) as RowLado[]).map((r) => ({ chave: r.chave, lado: mapearLado(r) }))
+  // Paginado: o export não tem teto de tela, e um import errado pode ter aberto centenas
+  // de conflitos de uma vez. O corte de 1.000 do PostgREST sairia como arquivo incompleto
+  // sem nenhum aviso — e um export truncado em silêncio é pior que um export que falha.
+  const lados = await paginarTodos<RowLado>('Falha ao exportar conflitos', (from, to) => {
+    let q = client
+      .from('v_conflitos_filiais')
+      .select(LADO_SELECT)
+      .order('chave', { ascending: true })
+      .order('filial_id', { ascending: true })
+      .range(from, to)
+    if (chaves) q = q.in('chave', chaves)
+    return q
+  })
+
+  return lados.map((r) => ({ chave: r.chave, lado: mapearLado(r) }))
 }
 
 /**
