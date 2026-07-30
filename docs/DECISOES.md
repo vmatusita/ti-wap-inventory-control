@@ -3420,3 +3420,67 @@ prova o INSERT sobre o path alheio, que usa o mesmo predicado. Quem for testar e
 - Dois danos: (a) na linha do tempo, a correção técnica aparecia como um `ajuste` comum, e quem lesse o histórico meses depois não teria como saber que aquele estado foi posto à mão; (b) pior, o botão **"Estornar"** ficava disponível sobre ela para qualquer operador — e o estorno restauraria o `snapshot_anterior`, isto é, exatamente o estado errado que a correção veio consertar.
 - Decisão: `forcado` entrou no `TIMELINE_SELECT`, virou selo "forçada" na linha do tempo (com o motivo no title), e `podeEstornar` passou a excluí-la. Quem desfaz uma correção-dev é outra correção-dev, com justificativa e trilha.
 - Reversível? sim, mas não se deve: era requisito da ordem.
+
+---
+
+## 2026-07-30 · F24 · A identidade do ativo passa a ser POR FILIAL (`0091`)
+
+- Contexto: a ordem F24 revoga parcialmente a decisão 4 da F7C (17/07): o par que já existe em outra filial deixa de bloquear o import. Para os dois cadastros coexistirem, os índices únicos globais tinham de deixar de ser globais.
+- Decisão: `ativos_patrimonio_service_tag_uidx` e `ativos_service_tag_sem_patrimonio_uidx` ganharam `filial_id` na frente da chave. Os NOMES foram preservados de propósito.
+- Motivo: acrescentar coluna à esquerda de um índice único só AFROUXA a restrição — dentro da filial nada muda (duplicata segue impossível), entre filiais o par passa a poder existir, que é o estado "em conflito". Os nomes ficam porque `src/lib/actions/erros.ts` casa o 23505 pelo NOME da constraint para traduzir a violação em pt-BR; renomear mataria a tradução em silêncio, e nenhum teste ligava o nome no SQL ao nome no TS.
+- Medição antes do apply: definições idênticas nos dois bancos (lidas de `pg_indexes`, não presumidas do arquivo); produção com 1.232 ativos, 6 filiais; ZERO grupos de conflito (o índice global os impedia); 7 ativos sem identidade nenhuma (patrimônio nulo E sem tag), que já estavam fora do índice parcial e continuam fora.
+- Reversível? sim — recriar os dois índices sem o `filial_id`, o que só é possível enquanto não houver conflito aberto (com conflito, o índice global não pode mais ser criado; seria preciso resolver os conflitos antes).
+
+## 2026-07-30 · F24 · O conflito é DERIVADO, e a derivação venceu a materialização por medição (`0092`/`0096`)
+
+- Contexto: a ordem §1.2 pede fonte derivada e admite a alternativa materializada com trigger de manutenção SE a medição provar que a derivação é cara para a mesa.
+- Decisão: derivada. Uma função `chave_identidade_ativo` (fonte ÚNICA, compartilhada pela view e pela RPC de exclusão) + `v_conflitos_filiais` (uma linha por ativo) + `v_conflitos_filiais_grupos` (uma linha por grupo, que é por onde a mesa pagina).
+- Motivo: medido por `EXPLAIN (analyze, buffers)` sobre o volume real de produção (1.232 ativos): **5,2 ms a quente**, 84 ms a frio. Não há caso para materializar — e o derivado tem a propriedade que importa: o conflito SOME SOZINHO quando o grupo se desfaz, por qualquer caminho (apagou um lado, corrigiu patrimônio/service tag, transferiu), sem que nenhum desses caminhos precise saber que a mesa existe. Uma flag exigiria sincronia em cinco lugares, e o primeiro esquecido deixaria a mesa mentindo.
+- A definição do grupo mora num lugar só (`chave_identidade_ativo`) porque mesa e RPC discordarem significaria a RPC recusar o que a mesa ofereceu — ou, muito pior, aceitar o que a mesa não ofereceu.
+- Reversível? sim — as duas views e as duas funções saem com `drop` sem tocar em dado.
+
+## 2026-07-30 · F24 · Um GRUPO = uma pendência; e o conflito NÃO entra na fila genérica
+
+- Contexto: a ordem §3.3 sugere "um GRUPO = 1 pendência" e manda registrar a leitura sobre a fila.
+- Decisão: (a) o badge da sidebar e o chip contam GRUPOS, não ativos; (b) as linhas de conflito não entram em `v_fila_pendencias` — a mesa é a casa delas; (c) por consequência, `'conflito'` entra em `TipoPendencia` mas fica FORA de `BaldeChip`.
+- Motivo: (a) cada grupo é UMA decisão a tomar ("qual destes é o certo?"); contar os dois lados anunciaria o dobro do trabalho que existe. (b) duplicar na fila mostraria o mesmo problema duas vezes, em dois lugares, com ações diferentes. (c) é aritmética, não preguiça: os baldes são predicados sobre a fila e "outras" é `total(fila) − soma(baldes)`; um balde que a fila não produz devolveria sempre zero e o chip mentiria. O chip de conflito é contado à parte, por `contarGruposConflito`.
+- Efeito colateral fechado por TIPO: `FiltrosPendencias.tipo` passou a EXCLUIR `'conflito'`. Sem isso, `queryPendencias` receberia um tipo que nenhum ramo do `if/else` casa e a query sairia SEM FILTRO — devolvendo a fila inteira como se fosse o filtro pedido. É a mesma classe de falha silenciosa de 25/07/2026. O export CSV da aba ganhou fonte e colunas próprias pelo mesmo motivo.
+- Reversível? sim, é decisão de apresentação.
+
+## 2026-07-30 · F24 · O cap do backup jsonb é 25 ativos — número medido, não arbitrado (`0093`)
+
+- Contexto: a ordem §4.2 manda escolher MEDINDO onde o backup deixa de caber no evento e passa a exigir arquivo.
+- Decisão: 25 ativos. Até aí, backup jsonb no `detalhe` do evento; acima, arquivo no bucket `backups-import` sob o prefixo `conflito/`, conferido pela RPC antes de apagar.
+- Motivo: medido em produção — o jsonb de um ativo com todo o rastro tem média de **2.294 bytes**, p95 de 2.408 e máximo de **5.864** sobre os 1.232 ativos reais. 25 × o pior caso ≈ 147 KB, confortável para um campo `detalhe`; e o caso real que motivou a fase (6 ativos, Serra × Linhares/Matriz) cabe com folga. Abaixo do cap o jsonb é ESTRITAMENTE melhor que arquivo: entra na mesma transação, então não existe o estado "apagou mas o backup não subiu".
+- Reversível? sim — o número está em `c_cap_inline` (0093) e em `CAP_BACKUP_INLINE` (validators/conflitos.ts), com teste travando a paridade.
+
+## 2026-07-30 · F24 · A confirmação digitada carrega o TAMANHO (`APAGAR <N>`)
+
+- Contexto: a ordem §4.3 pede confirmação "que force a leitura do tamanho" e manda decidir e registrar.
+- Decisão: `APAGAR <N>`, onde N é a quantidade de ativos DISTINTOS na seleção. Conferida na action E na RPC.
+- Motivo: o identificador do alvo (padrão da F23) não serve aqui — a operação é em lote, e o risco não é apagar a coisa errada, é apagar MAIS do que se pensava. Com o número no texto, quem selecionou 12 sem perceber esbarra no 12 antes de destruir. A deduplicação (`array_agg(distinct …)` na RPC, `new Set` no validator) existe pelo mesmo motivo: "APAGAR 3" com o mesmo id três vezes apagaria UM ativo achando que apagou três.
+- Reversível? sim, é texto — mas mudá-lo exige mudar os dois lados juntos (há teste de paridade).
+
+## 2026-07-30 · F24 · A checagem global de identidade virou a ÚNICA linha de defesa no cadastro e na ficha (§1.4)
+
+- Contexto: a ordem §1.4 manda AUDITAR os pontos que validam o par, porque com o índice por filial a checagem em código deixa de ter a rede do banco atrás.
+- Achado da auditoria: `compras.ts` (cadastro em lote) já consultava sem filtro de filial — continua correto sozinho. Mas `corrigirPatrimonio` e `definirServiceTag` (ambos em `actions/ativos.ts`) NÃO consultavam nada: dependiam inteiramente do 23505 do índice global. Com o índice por filial, as duas passariam a ABRIR conflito em silêncio a partir da ficha — um caminho que ninguém pediu e que nem apareceria como aviso.
+- Decisão: função compartilhada `filialComMesmaIdentidade` nas duas actions, com mensagem em pt-BR nomeando a filial onde o par já existe.
+- Motivo: a decisão do Johnny é que o conflito nasce SÓ do import. Cadastro manual e edição de ficha continuam recusando par que exista em qualquer filial.
+- Limitação aceita e registrada: duas abas editando ao mesmo tempo deixam de esbarrar no banco nesse caso específico (dentro da mesma filial o índice ainda pega; entre filiais, não). É corrida estreita, o resultado dela é um conflito VISÍVEL na mesa — não corrupção — e é o mesmo modelo de outras validações da casa.
+- Reversível? sim — remover as duas chamadas volta ao comportamento anterior (que agora seria um furo).
+
+## 2026-07-30 · F24 · Transferir para a filial do gêmeo recusa de dentro do trigger (`0097`) — e o estorno também
+
+- Contexto: a ordem §5.1 manda MEDIR o efeito colateral da transferência e recusar com mensagem acionável no lugar do 23505 cru.
+- Decisão: guarda `exigir_identidade_livre_na_filial`, chamada por `aplicar_movimentacao` nos DOIS caminhos que mudam `filial_id`.
+- Motivo: a tradução genérica ("Já existe um ativo com esse patrimônio e service tag nesta filial") sairia enganosa numa transferência — quem lê está movendo PARA outra filial, e "nesta" soa como a de origem. **O segundo caminho não estava na ordem e apareceu ao mapear**: desfazer uma transferência devolve o ativo à filial de ORIGEM, que pode ter ganhado outro cadastro com a mesma chave no meio-tempo. Mais raro, efeito idêntico.
+- Não é regra nova: é a MESMA regra de sempre (dois cadastros com a mesma identidade não cabem na mesma filial), dita na hora certa. Nenhuma transferência que era possível deixou de ser — provado pela asserção 7b do roteiro.
+- Reversível? sim — `create or replace` do trigger sem as duas chamadas.
+
+## 2026-07-30 · F24 · O que a fase deliberadamente NÃO fez
+
+- **Relatórios e KPIs**: ativo em conflito conta NORMAL nos números da filial dele. Não há filtro novo, não há exclusão — são dois cadastros reais até alguém decidir. Conferido: nenhuma query de relatório agrega pela identidade, então nada muda de número por causa da fase.
+- **Buscas por par com dois resultados**: `patrimoniosDuplicados` (queries/ativos.ts) já conta por patrimônio SOZINHO e sem filtro de filial, então o par em conflito já cai no tratamento de múltiplos; e o combobox de movimentação já exibe `filial_nome` em cada resultado, que é o desempate necessário. Nada a mudar — verificado no código, não presumido.
+- **Exclusão fora da mesa**: apagar ativo que não esteja em conflito continua exclusividade do dev na Zona destrutiva (F23). O roteiro prova os dois lados: o admin usa a mesa e NÃO alcança `apagar_ativo` (asserção 6d).
+- **Modo *Atualizar* do import e transferência como "resolução"**: fora de escopo por decisão da ordem. Quem quiser transferir usa o fluxo normal de movimentação.
