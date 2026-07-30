@@ -13,6 +13,10 @@ import {
 } from '@/lib/queries/movimentacoes'
 import { getPerfilAtual } from '@/lib/queries/profile'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
+import { getOperador, MSG_SOMENTE_LEITURA } from '@/lib/auth/acesso'
+import { podeEscrever } from '@/lib/auth/papeis'
+import { Eye } from 'lucide-react'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -29,7 +33,12 @@ export default async function NovaMovimentacaoPage({
   const ativoParam = texto(sp.ativo)
   const duplicarParam = texto(sp.duplicar)
 
-  const [filiais, motivos, perfil, kits] = await Promise.all([
+  const [filiais, motivos, perfil, kits, operador] = await Promise.all([
+    // A lista NÃO é recortada por vínculo de propósito: o único select de filial
+    // deste fluxo é a filial de DESTINO da transferência, e o parâmetro §0 da
+    // ordem F21 (`TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao`) diz que o destino é
+    // livre — quem recebe é outro operador. O vínculo é conferido na filial de
+    // ORIGEM (a atual de cada ativo do lote), pela action `registrarMovimentacoes`.
     listarFiliais(),
     listarMotivos(),
     getPerfilAtual(),
@@ -43,7 +52,9 @@ export default async function NovaMovimentacaoPage({
       console.error('[movimentacoes/nova] falha ao listar kits:', err)
       return []
     }),
+    getOperador(),
   ])
+  const escreve = podeEscrever(operador?.papel)
 
   let ativoInicial: AtivoResumo | null = null
   let configInicial: ConfigInicial | null = null
@@ -90,14 +101,26 @@ export default async function NovaMovimentacaoPage({
         </p>
       </div>
 
-      <NovaMovimentacaoForm
-        filiais={filiais}
-        motivos={motivos}
-        kits={kits}
-        ativoInicial={ativoInicial}
-        configInicial={configInicial}
-        ultimaMov={ultimaMov}
-      />
+      {/* Cargo Consulta chegando pela URL (o atalho `N`, a paleta e todos os
+          botões já somem para ele): explica em vez de mostrar um formulário de 3
+          passos que a action recusaria no fim. A trava é `registrarMovimentacoes`. */}
+      {escreve ? (
+        <NovaMovimentacaoForm
+          filiais={filiais}
+          motivos={motivos}
+          kits={kits}
+          ativoInicial={ativoInicial}
+          configInicial={configInicial}
+          ultimaMov={ultimaMov}
+        />
+      ) : (
+        <EstadoVazio
+          icone={Eye}
+          titulo="Esta tela registra uma movimentação"
+          descricao={MSG_SOMENTE_LEITURA}
+          acao={{ href: '/movimentacoes', rotulo: 'Ver as movimentações registradas' }}
+        />
+      )}
     </div>
   )
 }

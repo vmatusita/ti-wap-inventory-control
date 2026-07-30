@@ -30,7 +30,17 @@ export type LinhaFila = PendenciaDetalhe & { desdeFmt: string; desdeRel: string 
 // suficiente para o resto, mas a seleção múltipla precisa de estado → Client. Os
 // demais tipos seguem com sua ação (termo → confirmar assinatura); só os itens
 // ganham checkbox + Resolver.
-export function FilaPendenciasTabela({ rows }: { rows: LinhaFila[] }) {
+//
+// F21 — `podeResolver` (cargo ≥ operador) desliga TUDO o que age: a coluna de
+// seleção, a barra de lote e as duas ações por linha. A fila continua legível
+// para o cargo Consulta, que é o público de quem só acompanha o que falta.
+export function FilaPendenciasTabela({
+  rows,
+  podeResolver = false,
+}: {
+  rows: LinhaFila[]
+  podeResolver?: boolean
+}) {
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
 
   // Ids de item VISÍVEIS nesta página (a seleção some ao paginar/filtrar — cada
@@ -74,7 +84,7 @@ export function FilaPendenciasTabela({ rows }: { rows: LinhaFila[] }) {
     <div>
       {/* Barra de lote — aparece quando há item selecionado. Resolve todos com UMA
           justificativa (o caminho para zerar a fila herdada). */}
-      {nSel > 0 && (
+      {podeResolver && nSel > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2 text-sm">
           <span className="font-medium">
             {nSel} {nSel === 1 ? 'item selecionado' : 'itens selecionados'}
@@ -106,15 +116,17 @@ export function FilaPendenciasTabela({ rows }: { rows: LinhaFila[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-8">
-              {idsItens.length > 0 && (
-                <Checkbox
-                  checked={todosMarcados}
-                  onCheckedChange={(c) => toggleTodos(c === true)}
-                  aria-label="Selecionar todos os itens faltantes desta página"
-                />
-              )}
-            </TableHead>
+            {podeResolver && (
+              <TableHead className="w-8">
+                {idsItens.length > 0 && (
+                  <Checkbox
+                    checked={todosMarcados}
+                    onCheckedChange={(c) => toggleTodos(c === true)}
+                    aria-label="Selecionar todos os itens faltantes desta página"
+                  />
+                )}
+              </TableHead>
+            )}
             <TableHead>Tipo</TableHead>
             <TableHead>Patrimônio</TableHead>
             <TableHead>Modelo</TableHead>
@@ -122,7 +134,7 @@ export function FilaPendenciasTabela({ rows }: { rows: LinhaFila[] }) {
             <TableHead>Setor</TableHead>
             <TableHead>Filial</TableHead>
             <TableHead className="text-right">Desde</TableHead>
-            <TableHead className="text-right">Ação</TableHead>
+            {podeResolver && <TableHead className="text-right">Ação</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -131,15 +143,17 @@ export function FilaPendenciasTabela({ rows }: { rows: LinhaFila[] }) {
             const itemId = p.pendenciaItemId as string
             return (
               <TableRow key={p.ordem}>
-                <TableCell>
-                  {ehItem && (
-                    <Checkbox
-                      checked={selecionadas.has(itemId)}
-                      onCheckedChange={(c) => toggle(itemId, c === true)}
-                      aria-label={`Selecionar ${rotuloAcessorio(p.item ?? 'item')}`}
-                    />
-                  )}
-                </TableCell>
+                {podeResolver && (
+                  <TableCell>
+                    {ehItem && (
+                      <Checkbox
+                        checked={selecionadas.has(itemId)}
+                        onCheckedChange={(c) => toggle(itemId, c === true)}
+                        aria-label={`Selecionar ${rotuloAcessorio(p.item ?? 'item')}`}
+                      />
+                    )}
+                  </TableCell>
+                )}
                 <TableCell>
                   <Badge className={`border-transparent ${CLASSE_TIPO_PENDENCIA[p.tipo]}`}>
                     {ROTULO_TIPO_PENDENCIA[p.tipo]}
@@ -171,33 +185,35 @@ export function FilaPendenciasTabela({ rows }: { rows: LinhaFila[] }) {
                   <span>{p.desdeFmt}</span>
                   <span className="block text-xs text-muted-foreground">{p.desdeRel}</span>
                 </TableCell>
-                <TableCell className="text-right">
-                  {p.tipo === 'termo' && (
-                    <ConfirmarAssinaturaDialog
-                      ativoId={p.id}
-                      trigger={
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                          <PenLine className="size-3.5" />
-                          Confirmar assinatura
-                        </Button>
-                      }
-                    />
-                  )}
-                  {ehItem && (
-                    <ResolverPendenciaItemDialog
-                      ids={[itemId]}
-                      resumo={`${rotuloAcessorio(p.item ?? 'item')}${
-                        p.patrimonio ? ' · ' + p.patrimonio : ''
-                      }`}
-                      trigger={
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                          <PackageCheck className="size-3.5" />
-                          Resolver
-                        </Button>
-                      }
-                    />
-                  )}
-                </TableCell>
+                {podeResolver && (
+                  <TableCell className="text-right">
+                    {p.tipo === 'termo' && (
+                      <ConfirmarAssinaturaDialog
+                        ativoId={p.id}
+                        trigger={
+                          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                            <PenLine className="size-3.5" />
+                            Confirmar assinatura
+                          </Button>
+                        }
+                      />
+                    )}
+                    {ehItem && (
+                      <ResolverPendenciaItemDialog
+                        ids={[itemId]}
+                        resumo={`${rotuloAcessorio(p.item ?? 'item')}${
+                          p.patrimonio ? ' · ' + p.patrimonio : ''
+                        }`}
+                        trigger={
+                          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                            <PackageCheck className="size-3.5" />
+                            Resolver
+                          </Button>
+                        }
+                      />
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             )
           })}

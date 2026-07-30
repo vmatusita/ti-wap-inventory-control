@@ -33,6 +33,7 @@ export function ItemCombobox({
   onSelecionar,
   onItemCriado,
   desabilitado,
+  podeCriarItem = false,
   descricaoAcessivel,
 }: {
   itens: ItemCatalogo[]
@@ -40,6 +41,12 @@ export function ItemCombobox({
   onSelecionar: (id: number) => void
   onItemCriado: (item: ItemCatalogo) => void
   desabilitado?: boolean
+  /**
+   * F21 — o catálogo de itens é escrita de ADMIN (ADR-002 §3): `criarItemInline`
+   * passou a exigir `exigirAdmin()`. Sem isto, o operador veria "Criar item
+   * “x”", clicaria e levaria uma recusa — pior que não ver a opção.
+   */
+  podeCriarItem?: boolean
   /** Ex.: "Item 2 do lançamento" — o rótulo visível é único para o bloco todo. */
   descricaoAcessivel: string
 }) {
@@ -54,7 +61,7 @@ export function ItemCombobox({
   const selecionado = itens.find((i) => i.id === valor)
   const buscaLimpa = busca.trim()
   const jaExiste = itens.some((i) => i.nome.trim().toLowerCase() === buscaLimpa.toLowerCase())
-  const podeCriar = buscaLimpa.length >= 2 && !jaExiste
+  const podeCriar = podeCriarItem && buscaLimpa.length >= 2 && !jaExiste
 
   function fechar(proximo: boolean) {
     setAberto(proximo)
@@ -193,14 +200,18 @@ export function ItemCombobox({
         ) : (
           <Command>
             <CommandInput
-              placeholder="Buscar ou criar item…"
+              placeholder={podeCriarItem ? 'Buscar ou criar item…' : 'Buscar item…'}
               autoFocus
               value={busca}
               onValueChange={setBusca}
             />
             <CommandList>
+              {/* Sem permissão de catálogo, prometer "para criar" seria mentira:
+                  a opção de criar não existe para este cargo. */}
               <CommandEmpty>
-                Nenhum item encontrado — digite ao menos 2 caracteres para criar.
+                {podeCriarItem
+                  ? 'Nenhum item encontrado — digite ao menos 2 caracteres para criar.'
+                  : 'Nenhum item encontrado no catálogo. Peça a um administrador para cadastrá-lo.'}
               </CommandEmpty>
               {GRUPO_ITEM_ORDEM.map((g) => {
                 const doGrupo = itens.filter((i) => i.grupo === g)

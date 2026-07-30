@@ -60,6 +60,183 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
 - **`0046`** (`add value 'troca'` — F15, 23/07/2026), **`0047`** (usos de `troca`: recriação de `status_apos_movimentacao`/`aplicar_movimentacao`/`rel_estoque_asof` + `devolver_ao_fornecedor` por `create or replace` puro) e **`0048`** (recriação de `importar_ativos_substituir` — só a expressão da pendência muda: service tag vazia → `'sem service tag'`) — **aditivas**, sem `delete from` de dado no ato do apply → **não batem no gate**: aplicadas por MCP em **ensaio primeiro** e depois em produção, registradas no ledger dos dois. `0046`/`0047` **separadas** de propósito (valor de enum novo não é usável na transação que o adiciona — espelho de 0044/0045). A `0048` faz `create or replace` de uma RPC que **tem** `delete from` no corpo, mas o `apply_migration` do MCP não a barrou (o corpo não é executado no apply, só redefinido). Verificação pós-apply em produção: enum 15/`troca` no fim, 1 assinatura por função + grants corretos (as 2 RPCs de escrita authenticated-only; `rel_estoque_asof` idêntica à 0045), casos novos por `pg_get_functiondef`, `get_advisors(security)` 0 achados NOVOS, acervo inalterado (1596). Rollback lógico: `create or replace` das funções de volta aos corpos 0045/0040 (o enum `add value` é inócuo se não usado).
 - **`0049`** (`create or replace view v_pendencias` — ativo `origem='importacao'` deixa de ser cobrado por "termo pendente", 24/07/2026) — **não-destrutiva** (só redefine a view; nenhum `delete from`), então **não bate no gate**: caminho **A** — aplicada por MCP em **ensaio primeiro** e depois produção, registrada no ledger dos dois (version timestamp, name `0049_pendencia_termo_dispensa_import`). Diff vs 0028 = só `and a.origem is distinct from 'importacao'` no ramo de termo (CASE `pendencia` + CASE `desde` + WHERE); 14 colunas idênticas. Verificação pós-apply em produção: `v_pendencias` 1.163→60, "termo pendente" 1.142→2, `import_ainda_termo=0`, `get_advisors(security)` 0 achado novo. **Sem passo de PostgREST/deploy** (colunas inalteradas). Rollback: `create or replace` de volta ao corpo 0028.
 - **`0057`** (nome + sobrenome do operador, 24/07/2026) — **aditiva**, sem `delete from` → **não bate no gate**: caminho **A**, aplicada por MCP em **ensaio primeiro** e depois em produção, registrada no ledger dos dois. Renomeia `profiles.nome` → `primeiro_nome`, acrescenta `sobrenome` e devolve `nome` como coluna **GERADA** (`nullif(btrim(primeiro_nome || ' ' || sobrenome), '')`), para que os ~10 pontos do app que leem `profiles.nome` continuem recebendo o nome de exibição sem uma linha de mudança. Dependências levantadas ANTES do apply (`pg_depend` + `pg_get_functiondef`): única view sobre colunas de `profiles` é `v_pendencias_item` — recriada por `create or replace` com a **mesma lista de colunas**, então `v_fila_pendencias` não precisou ser tocada; única função que cita `profiles` é `handle_new_user` — recriada com a trava de domínio da `0041` **intacta** e o `revoke` reafirmado. Verificação em ensaio antes de produção: `DO` block que gravou/leu/reverteu a coluna gerada + o roteiro `supabase/tests/dominios_login.sql` adaptado (16 asserções, 0 falha, tudo em rollback). Contagens de produção **antes = depois**: 9 perfis (9 com nome), 1.597 ativos, `v_fila_pendencias` 58, `v_pendencias_item` 3; `has_function_privilege('anon', 'handle_new_user()', 'execute')` = false. Cache do PostgREST recarregado nos dois. Smoke `smoke-prod.mjs` rodado **depois** do apply contra o app em produção (ainda com o código anterior): **52 OK · 0 falha** — prova que a coluna gerada não quebrou nenhuma leitura já no ar. Rollback sem perda: `drop column nome` → `rename primeiro_nome to nome` → `drop column sobrenome` → `create or replace` da view e do trigger com os corpos da `0052`/`0041`.
+- **`0061`–`0066`** (F21 — cargos, vínculo de filiais, RLS por papel, auditoria e storage;
+  29/07/2026) — **aditivas** (nenhum `delete from` de dado no ato do apply) → **não batem no
+  gate**: caminho **A**, aplicadas por MCP em **ensaio primeiro** e depois em produção,
+  registradas no ledger dos dois. Seis migrations, uma por assunto: `0061` enum
+  `papel_usuario` + `profiles.papel`/`ativo` + `operador_filiais` + backfill (`BACKFILL = admin`
+  do §0 da ordem); `0062` as três funções `security definer`/`stable`
+  (`papel_atual`/`e_admin`/`pode_escrever_filial`); `0063` a troca das policies de escrita +
+  o **grant de coluna** de `profiles`; `0064` as guardas internas das RPCs; `0065`
+  `eventos_admin`; `0066` as policies de `storage.objects`.
+
+  **A armadilha que a `0059` armou, e como foi desarmada.** Nas 6 tabelas em que a `0059`
+  dropou a `"leitura operador"` (`ativos`, `filiais`, `itens`, `kits_modelos`, `motivos`,
+  `termos_gerados`), a `"operador escreve" FOR ALL` virou a **única porta de LEITURA** — um
+  `alter policy` nela teria cegado o app para todo não-admin. A `0063` faz, na ordem e numa
+  transação só: (1) recria a policy de SELECT `using (true)`, (2) dropa a FOR ALL, (3) cria
+  uma policy **por verbo** de escrita (uma policy por comando, para não reacender
+  `multiple_permissive_policies`). `policies_public` foi de **20 → 39**.
+
+  **`0064` e o gate.** O corpo de `importar_ativos_substituir` contém
+  `delete from public.ativos` e `delete from public.movimentacoes`, mas o `apply_migration`
+  **não barrou** — mesmo precedente da `0048`: o corpo não é executado no apply, só
+  redefinido. Os corpos das duas RPCs foram **copiados dos arquivos** das últimas migrations
+  que as definiram (`criar_compra_lote` da `0040`, `importar_ativos_substituir` da `0048`), com
+  a única diferença sendo o bloco de guarda — **provado por `diff`** antes do apply (15 linhas
+  a mais na de import, 12 na de compra, zero outra alteração em 366 e 55 linhas).
+
+  **Verificação pós-apply em produção:**
+  - backfill — `papel admin = 9`, vínculos `esperado=54 real=54` (9 perfis × 6 filiais ativas),
+    `desativados=0`;
+  - as 3 funções — `definer=true`, `vol=s`, `anon=false`, `authenticated=true`;
+  - `fp_normalizado` (`md5(regexp_replace(prosrc,'\s+',' ','g'))`) das duas RPCs **idêntico**
+    entre **repo, ensaio e produção**: `criar_compra_lote` = `394c24d2…`,
+    `importar_ativos_substituir` = `3e3fd387…`. *(Efeito colateral bem-vindo: isso também
+    eliminou o drift de CRLF do `criar_compra_lote` que a seção "Sonda de paridade" documenta —
+    produção guardava o corpo com CRLF, agora bate com o ensaio.)*
+  - só **1** policy de escrita com predicado `true` (o INSERT de `import_logs`, por design);
+    as 6 tabelas do grupo com **exatamente 1** porta de leitura cada;
+  - grant de coluna de `profiles` = **`primeiro_nome+sobrenome`** e nada mais;
+  - acervo **inalterado**: ativos 1230, movimentações 2361, termos 6, import_logs 8,
+    lançamentos 9, `v_fila_pendencias` 55, objetos de storage 27 — antes = depois;
+  - `notify pgrst, 'reload schema'` nos dois (assinatura não mudou, mas é barato).
+
+  **Paridade ensaio × produção** (sonda normalizada, 6 classes relevantes à fase):
+  `enum` 7, `func` 18, `grant_func` 18, `policy_public` 39, `policy_storage` 8 — **fingerprint
+  idêntico nas cinco**. `grant_coluna` diverge por construção (428 em produção × 412 no
+  ensaio): a diferença são exatamente as **16** linhas de `_bkp_relatorios_gerados_f6a`, a
+  tabela de backup retida só em produção de propósito (`0039`/`0058`).
+
+  **Roteiro `supabase/tests/papeis_rls.sql`** rodado nos **dois** bancos: **41 asserções,
+  0 falha** em cada. Ele planta 1 linha em `senhas_acesso`, `import_logs`, `eventos_admin` e no
+  bucket `backups-import` ANTES de trocar de papel — sem isso, as asserções "não vê nada"
+  passariam de graça no Postgres NOVO do CI, onde essas tabelas nascem vazias; e checa o outro
+  lado (o admin VÊ), para uma policy que escondesse de todos não passar nos dois testes. Ele cria as próprias fixtures (4 identidades fictícias `f21.*@wap.ind.br`,
+  2 ativos `WAP000900x`) dentro de `begin; … rollback;` — conferido depois em produção que
+  **nada sobrou** (0 usuários residuais, 0 ativos de teste, contagens de volta ao baseline).
+  Antes de rodar em produção foi conferido que **nenhuma** das chaves fictícias colidia com
+  dado real (patrimônio, e-mail, uuid, código de motivo, slug de filial: 0 colisões).
+
+  **Advisors (ensaio, antes → depois):** `rls_policy_always_true` **12 → 1** — nenhum WARN
+  **novo de RLS**. Aparecem 3 WARN novos de **outra** classe
+  (`authenticated_security_definer_function_executable` nas três funções da `0062`): são
+  inerentes ao desenho — uma expressão de policy é avaliada com os privilégios de quem
+  consulta, então `authenticated` precisa de `EXECUTE`; as três respondem só sobre o próprio
+  chamador. Aceitos e registrados em `docs/DECISOES.md` (2026-07-29 · F21).
+
+  **Rollback lógico** (documentado no rodapé de cada migration): dropar as policies novas e
+  recriar `"operador escreve" FOR ALL using(true) with check(true)` nas 6, devolver as
+  `alter policy` a `true`, `revoke`/`grant update` de `profiles` de volta ao amplo, reaplicar
+  os corpos da `0040`/`0048` sem as guardas, e `drop` de `eventos_admin`,
+  `operador_filiais`, das 3 funções, das 2 colunas de `profiles` e do enum. **Nenhum dado do
+  acervo se perde em nenhum dos passos.**
+- **`0067`** (F21 — dois furos achados pela REVISÃO ADVERSARIAL da própria fase; 29/07/2026) —
+  **aditiva** (duas `alter policy`, nenhum dado tocado) → caminho **A**, aplicada por MCP em
+  **ensaio primeiro** e depois em produção, no ledger dos dois.
+
+  **1. `movimentacoes` gateava a filial que o CLIENTE DECLARA.** A `0063` seguiu a letra do §5
+  da ordem (`with check (pode_escrever_filial(filial_id))`) e `movimentacoes.filial_id` é uma
+  **coluna livre do payload** — nada no banco exigia que ela batesse com a filial do ativo.
+  Deputado confuso clássico, e com o efeito AMPLIFICADO porque `aplicar_movimentacao` é
+  `security definer`: o `update ativos` dele nunca passa pela policy "operador atualiza".
+
+  **Exploit REPRODUZIDO no ensaio antes da correção** (não é hipótese):
+  operador vinculado só à filial 1, ativo na filial 2, `pode_escrever_filial(2) = false`;
+  `insert into movimentacoes (ativo_id=<ativo da f2>, tipo='transferencia', filial_id=1,
+  filial_destino_id=1)` → **ACEITO**, e o ativo **migrou para a filial 1**. Dali em diante toda
+  escrita nele é legítima para o atacante. Variantes: `tipo='ajuste'` com
+  `status_resultante='descartado'` (o ajuste pula a máquina de estados) e `tipo='saida'`
+  (troca o detentor) — em ativo de filial alheia nos dois casos. A anon key está no bundle do
+  navegador, então o request forjado não exige nada além de `curl`.
+
+  **Correção:** gatear também a filial de **ORIGEM lida do banco** —
+  `pode_escrever_filial((snapshot_anterior ->> 'filial_id')::smallint)`. `snapshot_anterior` é
+  preenchido pelo próprio trigger, na primeira coisa que ele faz, a partir de
+  `select * into v_ativo from ativos where id = new.ativo_id for update` — logo é a filial
+  REAL, sob lock, e o trigger **sobrescreve** o que o cliente tenha mandado nesse campo.
+  Não se usou `exists (select ... from ativos ...)` porque nesse ponto o trigger JÁ moveu o
+  ativo, e o `exists` recusaria a transferência legítima que o §0 autoriza
+  (`TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao`).
+  **A ordem de avaliação (BEFORE trigger → WITH CHECK) foi confirmada por TESTE**, não por
+  leitura de doc: com a policy nova o exploit passa a 42501 e os quatro fluxos legítimos
+  seguem passando (ajuste na vinculada · transferência da vinculada para outra · admin em
+  qualquer filial · compra pela RPC, em que o ativo nasce na mesma transação).
+
+  **2. `import_logs` seguia com INSERT `with check (true)`.** A `0063` deixou como estava por
+  determinação do §5 ("escrita como está (RPCs)"), no raciocínio de que a policy é vestigial
+  porque quem grava é a RPC `security definer`. Certo quanto à RPC, **errado quanto ao resto**:
+  `authenticated` tem privilégio de INSERT na TABELA (default do Supabase; nenhuma migration o
+  revoga), então qualquer logado — **inclusive o cargo `consulta`** — gravava linhas falsas na
+  trilha do import destrutivo por `POST /rest/v1/import_logs`. Trilha que qualquer um escreve
+  não é trilha; e com a leitura agora restrita a admin, o admin veria histórico envenenado sem
+  como distinguir. Corrigido para `with check ((select e_admin()))` — a RPC não é afetada.
+
+  **Verificação pós-apply nos dois bancos:**
+  - `select count(*) from pg_policies where schemaname='public' and cmd<>'SELECT' and
+    (qual='true' or with_check='true')` → **0**. Não sobrou NENHUMA policy de escrita
+    permissiva em nenhuma tabela.
+  - a policy de `movimentacoes` cita `pode_escrever_filial(filial_id)` **e** `snapshot_anterior`.
+  - acervo inalterado: ativos 1230, movimentações 2361, senhas 4, import_logs 8, storage 27.
+  - **advisor `rls_policy_always_true`: 12 (entrada da F21) → 1 (após 0063) → 0 (após 0067).**
+
+  **Cobertura de teste:** o roteiro `supabase/tests/papeis_rls.sql` foi de 41 para **45
+  asserções**, e as quatro novas são exatamente a lacuna que deixou o furo passar —
+  `2c-bis` (o caso CRUZADO: `filial_id` mentido em ativo de filial alheia), `2c-ter` (o ativo
+  **não** migrou), `2h` (a transferência LEGÍTIMA continua passando — sem ela, a correção
+  poderia ter fechado o furo quebrando o fluxo normal) e `3f-bis` (o operador não forja a
+  trilha do import). O `2c` que já existia **não** cobria: lá o ativo e o `filial_id` são os
+  dois da filial não vinculada, então ele passaria mesmo sem a correção. **45/0 nos dois bancos.**
+
+  **Rollback:**
+  `alter policy "operador insere" on public.movimentacoes with check (public.pode_escrever_filial(filial_id));`
+  `alter policy "operador insere" on public.import_logs with check (true);`
+  (reabre os dois furos — só faz sentido junto de um rollback completo da F21).
+- **`0068`** (F21 — o mesmo furo da `0067` no irmão que ela não alcançou; achado pela
+  **RE-REVISÃO** das correções; 29/07/2026) — **aditiva** (uma função nova + um `alter policy`),
+  caminho **A**, aplicada por MCP em **ensaio primeiro** e depois em produção, no ledger dos dois.
+
+  **O furo.** A `0067` fechou o padrão "gatear dado que o escritor escolhe" em `movimentacoes` e
+  deixou `lancamentos_item` intacto. Ali `filial_id` **é** o objeto da escrita (o saldo daquela
+  filial), então o predicado é auto-consistente — mas a OUTRA coluna da mesma linha,
+  `estorna_id`, é ponteiro livre para qualquer linha da tabela, e nada a conferia: a FK da `0015`
+  não filtra e o trigger `valida_lancamento_item` olha saldo e reserva, sem mencioná-la.
+  Um operador da filial 1 estornava um lançamento da filial 2 declarando `filial_id: 1`. O dano
+  cai todo fora da filial dele: o lançamento alheio passa a aparecer **"estornado"** no histórico
+  e no relatório (a derivação é "existe alguém apontando para mim", **sem filtro de filial**), o
+  **saldo continua contando** — histórico e saldo se contradizem — e o índice único queima a vaga,
+  então o operador legítimo **nunca mais** consegue estorná-lo (a tabela é imutável).
+
+  **Por que a primeira revisão errou ao refutar.** Ela classificou como "folga pré-existente do
+  esquema, não da fase" — verdade quanto ao esquema (`estorna_id` é FK livre desde a `0015`), mas
+  a conclusão não segue: **foi a F21 que transformou filial em fronteira de escrita**. Antes da
+  `0063`, `with check (true)` tornava o caso irrelevante; não havia privilégio a violar.
+
+  **A armadilha do fecho, encontrada ao testar antes de aplicar.** A primeira tentativa usou um
+  `exists` inline; dentro de um subselect **na própria tabela**, a referência nua `estorna_id`
+  resolve para a coluna do ALIAS da subconsulta — a condição virava `o.id = o.estorna_id`, sempre
+  falsa, e o predicado **recusava o estorno legítimo** (medido: ataque recusado E legítimo
+  recusado). Trocado por `estorno_item_coerente(p_estorna_id, p_filial, p_item)` —
+  `security definer`, `stable`, parâmetros nomeados, sem escopo ambíguo possível.
+
+  **Provado no ensaio antes de aplicar em produção:**
+  ```
+  ATAQUE estorna_id de OUTRA filial   → RECUSADO (42501)
+  ATAQUE estorna_id de OUTRO item     → RECUSADO (23514, um check pegou antes)
+  LEGÍTIMO estorno mesma filial+item  → ACEITO
+  LEGÍTIMO lançamento sem estorno     → ACEITO
+  ```
+
+  **Verificação pós-apply nos dois bancos:** a policy `"operador lanca"` cita
+  `pode_escrever_filial` **e** `estorno_item_coerente`; `anon` sem execute e `authenticated` com
+  execute na função nova; **0** policies de escrita com predicado `true` em qualquer tabela;
+  `lancamentos_item` inalterado (9 linhas em produção), acervo intocado (1230/2361).
+  Roteiro `papeis_rls.sql`: **45 → 47 asserções** (`2e-bis` ataque, `2e-ter` legítimo),
+  **47/0 nos dois bancos**.
+
+  **Rollback:**
+  `alter policy "operador lanca" on public.lancamentos_item with check (public.pode_escrever_filial(filial_id));`
+  `drop function public.estorno_item_coerente(uuid, smallint, smallint);`
 - **Retroativo C3 (F15 — toca dado, caminho B).** UPDATE de **2 linhas** de `movimentacoes` (`tipo 'compra'→'troca'` no nascimento dos substitutos já registrados, `ativo_id in (select id from ativos where substitui_ativo_id is not null)`). O classificador **não barrou** um UPDATE de 2 linhas via `execute_sql`. Backup das linhas em `scratchpad/f15/retroativo-backup.md` (WAP0005656/WAP0005657); antes=depois conferido (`compra` de substituto 2→0, `troca` 0→2); `status_resultante`/estado dos ativos intactos (a transição de `troca` é a mesma da `compra`). Rollback: `update movimentacoes set tipo='compra' where id in ('5cc393bc-…','95d3d096-…')`.
 
 ### Como conferir o efeito (sem depender do ledger)

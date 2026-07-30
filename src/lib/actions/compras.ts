@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { compraLoteSchema, type CompraLoteInput } from '@/lib/validators/compra'
 import { chavePatrimonio } from '@/lib/patrimonio'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirEscrita } from '@/lib/auth/acesso'
 import {
   sugestoesMarcas,
   sugestoesModelos,
@@ -38,12 +38,15 @@ export async function registrarCompra(
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) {
-    return { ok: false, criados: [], erroGeral: MSG_SESSAO_EXPIRADA }
-  }
-
   const dados = parsed.data
+
+  // A filial do lote vem no próprio payload (campo compartilhado — um lote de compra
+  // entra numa filial só), então uma chamada resolve sessão, cargo e vínculo. A RPC
+  // `criar_compra_lote` reconfere por item (guarda da migration 0064) e as policies da
+  // 0063 são o juiz final; aqui é a mensagem amigável, antes de tocar o banco.
+  const aut = await exigirEscrita(supabase, dados.filial_id)
+  if (!aut.ok) return { ok: false, criados: [], erroGeral: aut.erro }
+
   const erros: string[] = []
 
   // Duplicidade DENTRO do lote.
@@ -107,7 +110,7 @@ export async function registrarCompra(
 
   const { data: criados, error } = await supabase.rpc('criar_compra_lote', {
     p_itens: p_itens as unknown as Json,
-    p_criado_por: uid,
+    p_criado_por: aut.uid,
   })
 
   if (error) {

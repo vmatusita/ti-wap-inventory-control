@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirPapel } from '@/lib/auth/acesso'
 import { formatDate, hojeISO } from '@/lib/format'
 import { CAP_EXPORT, gerarCsv, nomeArquivoCsv, type ColunaCsv } from '@/lib/csv'
 import {
@@ -78,12 +78,26 @@ function falha(erro: string): ResultadoExportCsv {
   return { ...VAZIO, erro }
 }
 
-// Toda rota de export é de OPERADOR (o visualizador por senha só alcança
-// /relatorios/**). A action é um endpoint por si só, então checa a sessão mesmo
-// que a página já tenha checado.
-async function semOperador(): Promise<boolean> {
+// Toda rota de export é de quem entrou por LOGIN (o visualizador por senha só alcança
+// /relatorios/**). A action é um endpoint por si só, então checa a sessão mesmo que a
+// página já tenha checado.
+//
+// F21 — SEM gate de cargo aqui: `CONSULTA_EXPORTA_CSV = sim` (§0 da ordem), porque
+// exportar é LEITURA e leitura é ampla para todo logado (ADR-001, mantida pela ADR-002).
+// Os três cargos exportam.
+//
+// Mas a guarda deixou de ser "existe sessão?" e passou a ser `exigirPapel('consulta')` —
+// o PISO da hierarquia, que admin, operador e consulta atendem por igual. A diferença
+// está em quem NÃO atende: o perfil DESATIVADO (`papel_atual()` devolve NULL para
+// `ativo = false`). Sem isso, um usuário desligado — que `getOperador()` já expulsa de
+// toda a UI — continuaria puxando o acervo inteiro em CSV por request direto até o token
+// dele expirar, porque as policies de SELECT seguem `using (true)` por-design. A ordem
+// dizia "só exige estar LOGADO"; a decisão registrada aqui é que "logado" pós-F21
+// significa "com perfil ativo", que é a doutrina de revogação no request seguinte.
+async function barrado(): Promise<string | null> {
   const supabase = await createClient()
-  return (await idOperador(supabase)) === null
+  const aut = await exigirPapel(supabase, 'consulta')
+  return aut.ok ? null : aut.erro
 }
 
 // ---------------------------------------------------------------------------
@@ -237,7 +251,8 @@ const COLUNAS_HISTORICO: ColunaCsv<LinhaExportHistorico>[] = [
 // ---------------------------------------------------------------------------
 
 export async function exportarAtivosCSV(filtros: string): Promise<ResultadoExportCsv> {
-  if (await semOperador()) return falha(MSG_SESSAO_EXPIRADA)
+  const negado = await barrado()
+  if (negado) return falha(negado)
   try {
     const params = filtrosAtivos(new URLSearchParams(filtros))
     const { linhas, total } = await listarAtivosParaExport(params, CAP_EXPORT)
@@ -255,7 +270,8 @@ export async function exportarAtivosCSV(filtros: string): Promise<ResultadoExpor
 }
 
 export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoExportCsv> {
-  if (await semOperador()) return falha(MSG_SESSAO_EXPIRADA)
+  const negado = await barrado()
+  if (negado) return falha(negado)
   try {
     const params = filtrosPendencias(new URLSearchParams(filtros))
     const { linhas, total } = await listarPendenciasParaExport(params, CAP_EXPORT)
@@ -275,7 +291,8 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
 // Saldos por item: reusa a RPC da tela (sem paginação) e replica em CÓDIGO os
 // filtros `grupo`/`q` — que a página também aplica em código, não no banco.
 export async function exportarItensSaldosCSV(filtros: string): Promise<ResultadoExportCsv> {
-  if (await semOperador()) return falha(MSG_SESSAO_EXPIRADA)
+  const negado = await barrado()
+  if (negado) return falha(negado)
   try {
     const p = new URLSearchParams(filtros)
     // Neutraliza `?filial` na visão por filial — sem isso o `rotuloFilial` do
@@ -316,7 +333,8 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
 export async function exportarItensHistoricoCSV(
   filtros: string,
 ): Promise<ResultadoExportCsv> {
-  if (await semOperador()) return falha(MSG_SESSAO_EXPIRADA)
+  const negado = await barrado()
+  if (negado) return falha(negado)
   try {
     const params = filtrosHistorico(new URLSearchParams(filtros))
     const { linhas, total } = await listarHistoricoParaExport(params, CAP_EXPORT)

@@ -37,6 +37,7 @@ import {
   MAX_LOTE_COMPRA,
   type ItemPatrimonio,
 } from '@/lib/patrimonio'
+import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { CATEGORIA_ORDEM, rotuloCategoria, type CategoriaAtivo } from '@/lib/dominio'
 import { hojeISO } from '@/lib/format'
 import type { CompraLoteInput } from '@/lib/validators/compra'
@@ -271,6 +272,8 @@ export function NovaCompraForm({
   inicial = null,
   ultimaCompra = null,
 }: {
+  // F21 — SÓ as filiais em que este cargo pode ESCREVER (a página recorta com
+  // `filiaisParaEscrita`): é o campo que decide onde o ativo nasce.
   filiais: Filial[]
   // A6 — `?duplicar=<id>` na URL ("Comprar outro igual" da ficha). Precedência
   // máxima (decisão §2): a memória do dispositivo nunca sobrescreve.
@@ -297,7 +300,19 @@ export function NovaCompraForm({
   )
   const [processador, setProcessador] = useState(inicial?.processador ?? '')
   const [fornecedor, setFornecedor] = useState(inicial?.fornecedor ?? '')
-  const [filialId, setFilialId] = useState(inicial?.filialId ?? '')
+  // F21 — o `?duplicar=` traz a filial do ativo copiado, que pode ser uma em que
+  // ESTE cargo não escreve: um valor fora das opções deixaria o Select mudo (nem
+  // valor, nem placeholder) e o envio cairia num "Preencha: filial" sem motivo
+  // aparente. Filtra pela lista recebida — e, quando ela tem UMA filial só (o
+  // operador de uma filial), já pré-seleciona: não há escolha a oferecer.
+  // Os outros dois caminhos de pré-preenchimento (memória do dispositivo e
+  // "Repetir última compra") já conferiam a lista antes de gravar o estado.
+  const [filialId, setFilialId] = useState(() => {
+    const doDuplicar = inicial?.filialId ?? ''
+    if (doDuplicar && filiais.some((f) => String(f.id) === doDuplicar)) return doDuplicar
+    const unica = filiais.length === 1 ? filiais[0] : null
+    return unica ? String(unica.id) : ''
+  })
   const [observacao, setObservacao] = useState('')
   const [data, setData] = useState(hojeISO())
 
@@ -762,21 +777,25 @@ export function NovaCompraForm({
             <Label htmlFor="compra-filial">
               Filial que recebeu<span className="text-destructive"> *</span>
             </Label>
-            <Select
-              value={filialId || undefined}
-              onValueChange={setFilialId}
-            >
-              <SelectTrigger id="compra-filial">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                {filiais.map((f) => (
-                  <SelectItem key={f.id} value={String(f.id)}>
-                    {f.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {filiais.length === 0 ? (
+              <AvisoSemFilialDeEscrita />
+            ) : (
+              <Select
+                value={filialId || undefined}
+                onValueChange={setFilialId}
+              >
+                <SelectTrigger id="compra-filial">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filiais.map((f) => (
+                    <SelectItem key={f.id} value={String(f.id)}>
+                      {f.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <CampoComSugestoes
             id="marca"

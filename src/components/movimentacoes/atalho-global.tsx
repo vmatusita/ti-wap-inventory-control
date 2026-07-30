@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation'
 // Atalhos globais de teclado do shell do OPERADOR (montados so no ramo do
 // operador do `(app)/layout.tsx` — o visualizador por senha nao tem atalho
 // nenhum):
-//   `N` -> nova movimentacao (OS-F2 3.7.2)
+//   `N` -> nova movimentacao (OS-F2 3.7.2) — SÓ para quem escreve (F21)
 //   `?` -> /ajuda            (OS-F11 / T3 — fecha o backlog da F6B)
-// Ambos so disparam com o foco FORA de um campo de texto. Nivel unico: todo
-// operador logado pode usar.
+// Ambos so disparam com o foco FORA de um campo de texto.
 //
 // A guarda `editando` e exportada porque a paleta de comandos (Ctrl+K e "/")
 // precisa exatamente da mesma nocao de "o usuario esta digitando" — duas
@@ -48,7 +47,14 @@ export function modalAberto(): boolean {
   )
 }
 
-export function AtalhosGlobais() {
+// F21 — `novaMovimentacao` (cargo ≥ operador, resolvido no `(app)/layout.tsx`)
+// liga/desliga o `N`. Para o cargo Consulta a tecla fica INERTE em vez de levar a
+// um formulário que a action recusaria; `?` continua valendo para todos.
+export function AtalhosGlobais({
+  novaMovimentacao = false,
+}: {
+  novaMovimentacao?: boolean
+}) {
   const router = useRouter()
 
   useEffect(() => {
@@ -65,6 +71,7 @@ export function AtalhosGlobais() {
       if (modalAberto()) return
 
       if (e.key === 'n' || e.key === 'N') {
+        if (!novaMovimentacao) return
         e.preventDefault()
         router.push('/movimentacoes/nova')
         return
@@ -76,7 +83,7 @@ export function AtalhosGlobais() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [router])
+  }, [router, novaMovimentacao])
 
   return null
 }

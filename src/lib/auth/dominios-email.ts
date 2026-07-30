@@ -3,8 +3,12 @@
 // Até 22/07/2026 era só `@wap.ind.br`. Decisão do Johnny (22/07/2026): a equipe
 // terceirizada da Stefanini passa a OPERAR o sistema — não só consultar relatório
 // por senha de acesso —, então `@stefanini.com` e `@latam.stefanini.com` também
-// entram. Nível único continua valendo: todo logado é operador, sem papéis; e o
-// convite segue sendo o único caminho (não há auto-cadastro).
+// entram. O convite segue sendo o único caminho (não há auto-cadastro).
+//
+// F21 (29/07/2026): o "nível único" que este comentário afirmava ACABOU. Quem passa por
+// esta lista ganha um CARGO (admin/operador/consulta — `src/lib/auth/papeis.ts`), e o
+// domínio decide apenas se a conta PODE existir, não o que ela pode fazer. Ver
+// docs/ADR-002-papeis-e-permissoes.md.
 //
 // Esta lista é a SEGUNDA linha de defesa. A trava real é o trigger
 // `handle_new_user` no banco (migrations 0001 → 0041): mexeu aqui, mexa lá também.

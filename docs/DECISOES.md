@@ -2728,3 +2728,229 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   botão volta habilitado, não trava. Portão: `lint` limpo · `test` **1.496 passando (70 arquivos)**,
   eram 1.491 · `build` + TypeScript limpos.
 - **Reversível?** Sim — tudo camada de app, zero migration e zero banco.
+
+---
+
+## 2026-07-29 · F21 · Banco dos cargos: onde a ordem foi seguida, e onde a medição a corrigiu
+
+- **Contexto:** a ordem `docs/prompts/F21-papeis-ultracode.md` manda ler
+  `docs/ADR-002-papeis-e-permissoes.md` antes de qualquer código — e o arquivo **não existia no
+  repositório** (só fora dele). Três afirmações da proposta também não sobreviveram à medição
+  direta dos dois bancos.
+- **Decisão 1 — ADR-002 materializado.** Escrito em `docs/ADR-002-papeis-e-permissoes.md` já com
+  status **aceito**, conteúdo da proposta aprovada, e uma nota de proveniência marcando as três
+  correções factuais com ⚠. A ordem continua sendo a régua em caso de conflito (é o que o próprio
+  cabeçalho dela determina).
+- **Decisão 2 — `senhas_acesso` fica SEM policy nenhuma, contra o que a ordem pedia.** A ordem e o
+  ADR §2 partiam de "hoje qualquer logado lê os hashes (`select true`)" e mandavam fechar com
+  `e_admin()`. **Falso:** a migration `0012` (achado da revisão da F3) já dropou as duas policies;
+  medido em 29/07 nos dois bancos, `senhas_acesso` tem **0 policies** e RLS ligada, isto é
+  deny-all para `anon`/`authenticated`. Criar `using (e_admin())` seria **afrouxar** — reabriria a
+  coluna `hash` para o client de sessão de um admin (RLS é row-level, não column-level: a lição
+  literal da 0012), reintroduzindo o vetor de brute-force offline. Mantido como está.
+  O critério 6 da ordem fica satisfeito *a fortiori*: ilegível para TODOS os cargos, admin
+  incluído — e `supabase/tests/papeis_rls.sql` prova isso nas asserções 3d e 5f.
+- **Decisão 3 — `import_logs` fecha para admin (a condição se cumpriu).** A ordem condicionava a
+  "SE nenhuma view/tela fora de `/admin/importar` a consome". Verificado: nenhuma view do banco
+  referencia a tabela, e os dois consumidores de leitura (`listarImportLogs` e `urlBackup`) estão
+  ambos dentro daquela tela, com client de sessão. `alter policy ... using (e_admin())`.
+- **Decisão 4 — `(select f())` só para função SEM argumento.** A ordem manda embrulhar "toda
+  chamada de função" no padrão initplan da `0059`. Aplicado a `e_admin()` e `papel_atual()`, que
+  são constantes no statement. **NÃO** aplicado a `pode_escrever_filial(filial_id)`: o argumento
+  depende da LINHA, então `(select ...)` não gera InitPlan — gera subconsulta correlacionada,
+  avaliada por linha do mesmo jeito e com overhead a mais. Custo real nulo: essas policies só
+  rodam em INSERT/UPDATE, sempre sobre uma linha ou lote pequeno; a varredura de 1.600 ativos
+  passa pela policy de SELECT `using (true)`, que não chama função.
+- **Decisão 5 — policy por VERBO, não `FOR ALL`.** Nas 6 tabelas que a `0059` deixou só com
+  `"operador escreve" FOR ALL` (`ativos`, `filiais`, `itens`, `kits_modelos`, `motivos`,
+  `termos_gerados`), essa policy virou a **única porta de LEITURA**. Um `alter policy` nela
+  cegaria o app para todo não-admin. Caminho adotado, na ordem, numa transação só: (1) criar a
+  `"leitura operador"` FOR SELECT `using (true)` que a `0059` tirou, (2) dropar a FOR ALL,
+  (3) criar uma policy por verbo de escrita. Uma policy por comando evita reacender o advisor
+  `multiple_permissive_policies` que a `0059` acabou de apagar.
+- **Decisão 6 — `ativos` perde o DELETE para `authenticated`.** É o mapa explícito da ordem
+  ("ativos: insert/update") e nenhum caminho de sessão apaga ativo (o DELETE do import é da RPC
+  `security definer`). Nas 4 tabelas de catálogo de admin o DELETE foi concedido a `e_admin()`
+  mesmo onde o app não deleta hoje: o `FOR ALL` já permitia e quem perde a capacidade é
+  justamente o não-admin.
+- **Decisão 7 — `anotacoes` gateada por CARGO, não por filial.** É o que o §5 da ordem determina
+  (a tabela não tem `filial_id`, só `ativo_id`). O recorte por filial deste fluxo fica na action.
+  **Lacuna residual assumida e registrada:** por chamada direta à API, um OPERADOR conseguiria
+  anotar ativo de filial não vinculada (`consulta` não, e nada além do texto se move). Fechar
+  exigiria `exists (select 1 from ativos a where a.id = ativo_id and pode_escrever_filial(a.filial_id))`
+  — fica no backlog do relatório, não é o que a ordem manda.
+- **Motivo (todas):** a hierarquia do CLAUDE.md manda a spec/ordem vencer, mas manda também medir
+  antes de escrever policy; onde a premissa da ordem estava desatualizada, seguir a letra
+  produziria uma regressão de segurança (decisão 2) ou um no-op custoso (decisão 4).
+- **Reversível?** Sim, e a reversão está escrita no rodapé de cada migration `0061`–`0066`.
+  Nada aqui toca dado do acervo: tudo aditivo + troca de policies.
+
+## 2026-07-29 · F21 · Achado fora do mapa da ordem: as policies de STORAGE não olhavam cargo
+
+- **Contexto:** o §5 da ordem mapeia tabela por tabela e **não menciona `storage.objects`**. A
+  varredura de descoberta encontrou o resto do buraco: os dois buckets privados tinham 4 policies
+  cada (SELECT/INSERT/UPDATE/DELETE), todas `to authenticated` com o único predicado
+  `bucket_id = '<nome>'` — nenhuma noção de papel (`0021` para `termos`, `0031` para
+  `backups-import`).
+- **Decisão:** migration `0066` acrescentada ao escopo. `termos` → leitura para todo logado,
+  escrita para `papel_atual() in ('admin','operador')`; `backups-import` → leitura **e** escrita
+  só `e_admin()`. Por `alter policy` nas 8, com `bucket_id` mantido nos dois lados dos UPDATE
+  (senão daria para MOVER um objeto entre buckets e escapar pelo lado que não checa).
+- **Motivo:** sem isso a F21 fecharia a porta e deixaria a janela aberta — o cargo `consulta`
+  subiria e apagaria `.docx` no bucket `termos` pela API de Storage (a UI não oferece o botão, mas
+  a UI nunca foi a defesa), e um não-admin continuaria listando e baixando os backups de acervo
+  mesmo depois de a `0063` esconder `import_logs.backup_path` dele. O §V da ordem pergunta
+  literalmente "alguma tabela/RPC de escrita ficou sem guarda?" — esta era a resposta.
+- **Reversível?** Sim: devolver os 8 predicados ao que a `0021`/`0031` criaram.
+
+## 2026-07-29 · F21 · Três WARN novos de advisor, aceitos e explicados
+
+- **Contexto:** o critério 8 da ordem exige "advisors do Supabase sem WARN **novo de RLS**".
+- **Medição (ensaio, antes → depois):** `rls_policy_always_true` **12 → 1**. O único que sobra é o
+  INSERT de `import_logs`, de propósito (§5 da ordem: "escrita como está (RPCs)") e vestigial —
+  quem insere é a RPC `security definer`, que não passa por policy.
+  **Nenhum WARN novo de RLS.**
+- **Decisão:** aceitar os **3 WARN novos de outra classe** —
+  `authenticated_security_definer_function_executable` em `papel_atual()`, `e_admin()` e
+  `pode_escrever_filial()` (antes o lint apontava só `importar_ativos_substituir`).
+- **Motivo:** uma expressão de policy RLS é avaliada com os privilégios de QUEM CONSULTA, então
+  `authenticated` **precisa** de EXECUTE nas três — sem isso toda query nas tabelas com policy
+  nova falha com "permission denied for function". É inócuo em substância: as três respondem
+  exclusivamente sobre o PRÓPRIO chamador (`auth.uid()`), não aceitam identidade como parâmetro e
+  não revelam nada de terceiros. `anon` e `public` ficam sem execute. Alternativa considerada e
+  rejeitada: mover as funções para um schema não exposto pelo PostgREST — resolveria o lint, mas
+  divergiria da ordem e do ADR, que as nomeiam em `public`, e quebraria `db:types`/roteiros.
+- **Reversível?** Sim (o revoke é uma linha), mas reverter quebra a RLS — não é para ser revertido.
+
+## 2026-07-29 · F21 · `npm run db:types` estava inutilizável nesta máquina
+
+- **Contexto:** regenerar `src/lib/types/database.ts` é passo obrigatório da fase. O script usava
+  `supabase gen types typescript --linked`, que depende de `supabase/.temp/linked-project.json` —
+  **inexistente nesta máquina**: falhava com `LegacyProjectNotLinkedError` e abortava sem alternativa.
+- **Decisão:** `scripts/gen-types.ts` passa a aceitar `DB_TYPES_PROJECT_REF=<ref>` e usar
+  `--project-id <ref>` (Management API, precisa só do `SUPABASE_ACCESS_TOKEN`, que já existe no
+  `.env.local`). Sem a variável, o comportamento antigo (`--linked`) é preservado.
+- **Motivo:** o ref **não** é hardcoded de propósito — apontar o gerador para produção por engano
+  geraria tipos do banco errado sem ninguém notar. Quem quer o caminho novo diz qual ref.
+- **Armadilha reconfirmada:** o gerador **remove** o `| null` de `p_filial` nas 7 RPCs `rel_*`
+  (o tipo real é `number | null` — as funções tratam `p_filial is null` = consolidado 'geral'), e
+  adotar a saída inteira **quebra o `next build`**. Já era conhecido do gerador do MCP (F14);
+  medido agora que vale para o caminho `--project-id` também — **não é defeito do MCP, é do
+  gerador**. Corrigido à mão (7 ocorrências) e conferido por `git diff --stat`: numa fase aditiva
+  o diff do `database.ts` tem de ficar **só com inserções**; qualquer remoção = nullability perdida.
+- **Reversível?** Sim, é só script de desenvolvimento.
+
+## 2026-07-29 · F21 · A mensagem de erro de RLS mentia
+
+- **Contexto:** `src/lib/actions/erros.ts` tinha um ramo único para permissão — "Sem permissão
+  para esta operação. **Faça login novamente.**"
+- **Decisão:** substituído por três ramos, do mais específico ao mais geral: as mensagens próprias
+  das guardas internas das RPCs (`apenas administradores`, `sem permissão de escrita na filial`) e,
+  por último, `42501`/`row-level security`/`permission denied` → "seu cargo ou suas filiais de
+  escrita não permitem…". O teste de `erros.test.ts` que fixava o texto antigo foi atualizado (a
+  mudança de comportamento é intencional) e ganhou 4 casos novos, inclusive o de precedência
+  (a guarda de admin vence a genérica quando as duas casariam).
+- **Motivo:** com papéis, "faça login novamente" passou a ser o conselho ERRADO na maioria dos
+  casos — quem é `consulta`, ou é operador sem a filial vinculada, pode relogar quantas vezes
+  quiser e nada muda. Mandar a pessoa girar em falso na tela de login é pior que não dizer nada.
+- **Reversível?** Sim, camada de app.
+
+## 2026-07-29 · F21 · A revisão adversarial achou um furo de verdade — e ele era o coração da fase
+
+- **Contexto:** a revisão de encerramento (5 lentes independentes + um refutador por achado,
+  refutação como padrão) devolveu **16 achados brutos → 4 confirmados**, sendo um de gravidade
+  **alta** apontado por **duas lentes independentes** e um de gravidade média por **três**.
+- **O furo (alta).** A `0063` escreveu a policy de `movimentacoes` como a ordem manda ao pé da
+  letra — `with check (pode_escrever_filial(filial_id))` — e `movimentacoes.filial_id` é uma
+  **coluna livre do payload**. Nenhuma constraint, trigger ou policy exigia que ela batesse com
+  a filial do ativo. É o padrão do **deputado confuso**: gatear um dado que o próprio escritor
+  escolhe. Pior: `aplicar_movimentacao` é `security definer` de propósito, então o `update
+  ativos` derivado **nunca** passa pela policy "operador atualiza" — o efeito era amplificado.
+  **Reproduzido no ensaio, não teorizado:** operador vinculado só à filial 1 inseriu uma
+  `transferencia` para um ativo da filial 2 declarando `filial_id = 1`; foi aceito, e o ativo
+  **migrou para a filial 1**. A partir daí toda escrita nele era legítima para ele.
+- **Por que isso importa mais do que o rótulo "alta" sugere:** derrubava o **critério 2** da
+  própria ordem ("recusado em Y **no banco**") e a premissa do ADR-002 §4.3.1 ("gatear o INSERT
+  de `movimentacoes` basta"). O isolamento por filial dos ATIVOS existia só na Server Action —
+  isto é, a UI como única linha de defesa, exatamente o que o CLAUDE.md proíbe. A fase teria
+  entregue a aparência do controle sem o controle.
+- **Decisão:** migration **`0067`** acrescenta ao predicado a filial de **ORIGEM lida do banco**,
+  via `snapshot_anterior ->> 'filial_id'` — que o trigger preenche de um
+  `select ... from ativos ... for update` e **sobrescreve** se o cliente tentar forjar.
+  Rejeitado o `exists (select ... from ativos ...)`: naquele ponto o trigger já moveu o ativo, e
+  o `exists` recusaria a transferência legítima que o §0 autoriza. A ordem de avaliação
+  (BEFORE trigger → WITH CHECK) foi **confirmada por teste**, não por leitura de doc.
+- **Segundo achado (média), mesma migration:** `import_logs` seguia com INSERT
+  `with check (true)`. O raciocínio da `0063` ("é vestigial, quem grava é a RPC definer") estava
+  certo sobre a RPC e errado sobre o resto — `authenticated` tem privilégio de INSERT na tabela,
+  então qualquer logado, **inclusive `consulta`**, forjava a trilha do import destrutivo por
+  `POST /rest/v1/import_logs`. Agora `e_admin()`. Com isso o advisor
+  `rls_policy_always_true` foi de **12 → 0**.
+- **Terceiro achado (média, app):** `getOperador()` passou a devolver null com sessão VÁLIDA
+  (perfil desativado) — um estado que não existia antes da F21. O shell caía no ramo do
+  visualizador e mandava quem acabou de ser desligado para a porta **pública** da senha de
+  relatório, sem nunca dizer o motivo. Corrigido com `temSessaoSupabase()` em `acesso.ts` e um
+  ramo novo no `(app)/layout.tsx`: sessão viva + sem operador → `/login?erro=acesso-desativado`,
+  com mensagem própria que **não** manda relogar. Fica ANTES do `getViewerSession()` de
+  propósito — o desligado não deve ser rebaixado a visualizador em silêncio; a porta do
+  visualizador continua aberta de forma explícita.
+- **Quarto achado (média, app):** o diálogo "Editar" de `/admin/usuarios` abria com erro
+  vermelho e "Salvar" desabilitado para **todos os usuários atuais**. Causa: o backfill deu a
+  todo perfil vínculo em todas as filiais (é o que faz o deploy não mudar comportamento), então
+  um Administrador chega com a lista cheia e `validarVinculosDoPapel('admin', [1..6])` recusa
+  lista não vazia. Corrigido: o formulário só pré-preenche vínculo para o cargo que o USA
+  (`exigeVinculoDeFilial`) — para admin/consulta as linhas de `operador_filiais` são dado morto.
+- **Achado próprio, fora da revisão:** a regeneração do `database.ts` desfez em silêncio a
+  edição manual de 24/07 que tirava `nome` (coluna GERADA) de `Insert`/`Update` de `profiles`.
+  Restaurada. Nenhum código escreve nessa coluna hoje, mas a guarda de tipo existia de propósito
+  e some sem barulho — é a mesma classe de armadilha do `| null` do `p_filial`.
+- **Refutados (8, com prova):** vínculos apagados antes de reinserir; `termos_gerados` por
+  cargo (é o que a ordem determina); `lancamentos_item.estorna_id` (folga pré-existente do
+  esquema, não da fase); `getOperador()` engolir erro de leitura (é intenção declarada em
+  comentário, e fecha em vez de abrir); janela migration→deploy para conta convidada pelo app
+  antigo; "Comprar outro igual" na ficha; estado vazio de `/relatorios/gerados`; e o
+  `database.ts` como *defeito de correção* (é de type-safety — corrigido de todo modo).
+- **Lição de processo, que vale mais que os achados:** o roteiro `papeis_rls.sql` tinha 41
+  asserções verdes **com o furo aberto**. O `2c` testava "operador recusado na filial não
+  vinculada" usando ativo E `filial_id` ambos da filial alheia — o caso **cruzado** (mentir o
+  `filial_id`) não era testado, e é justamente ele que distingue "gateei o dado certo" de
+  "gateei o dado que o atacante escolhe". Teste verde não é prova de cobertura. As quatro
+  asserções novas (41 → 45) são exatamente essa lacuna.
+- **Reversível?** Sim: as duas `alter policy` da `0067` têm o rollback escrito no rodapé dela;
+  as três correções de app são camada de aplicação.
+
+## 2026-07-29 · F21 · A re-revisão: o mesmo furo no irmão, e um comentário meu que mentia
+
+- **Contexto:** o §V da ordem manda *"corrija e re-revise até limpar"*. A re-revisão (3 lentes
+  sobre o commit de correções) devolveu **8 achados, todos confirmados**, que deduplicam em
+  **3 reais**. Nenhum era regressão introduzida pelas correções; dois eram **incompletude** e um
+  era **documentação que prescrevia o erro já corrigido**.
+- **Decisão 1 — migration `0068`.** O deputado confuso existia também em `lancamentos_item`, via
+  `estorna_id` (ponteiro livre para linha de qualquer filial). A primeira revisão havia refutado
+  isso como "folga pré-existente do esquema"; a re-revisão derrubou a refutação com o argumento
+  certo — **foi a F21 que criou a fronteira de filial nessa tabela**; antes dela não havia
+  privilégio a violar. Fechado por `estorno_item_coerente(...)`. Detalhe que só apareceu no
+  teste: o `exists` inline **recusava o estorno legítimo**, porque dentro do subselect na própria
+  tabela `estorna_id` resolve para a coluna do alias. Função com parâmetros nomeados resolve.
+- **Decisão 2 — o teste do desligado foi para depois do `getViewerSession()`.** A correção
+  anterior o pôs ANTES, e o comentário afirmava que "a porta do visualizador continua aberta de
+  forma explícita". **Não continuava:** o cookie de visualização tem `path: '/relatorios'`, ou
+  seja é entregue exatamente nas rotas que o ramo barrava. Quem foi desligado como operador mas é
+  visualizador legítimo por senha entrava em `/relatorios/acesso`, acertava a senha, recebia o
+  cookie, era redirecionado para `/relatorios/geral` — e caía no login, com senha certa na mão.
+  Agora o cookie válido ganha: a senha de acesso é porta **independente do cargo** (spec §3), e
+  perder o login de operador não pode revogar um acesso que nunca dependeu dele.
+- **Motivo desta em particular:** o comentário errado é mais perigoso que o código errado, porque
+  o próximo leitor confia nele. Ele foi reescrito para descrever o que o código faz **e** para
+  registrar o erro — é o tipo de comentário que passa em revisão de diff justamente por soar
+  plausível.
+- **Decisão 3 — o ADR ganhou a §4.4.** A `0067` mudou o predicado, mas o ADR (que a spec §3.1 e o
+  README apontam como fonte da decisão) ainda mostrava `movimentacoes | insert:
+  pode_escrever_filial(filial_id)` no mapa e ainda afirmava, em negrito, que "gatear o INSERT de
+  `movimentacoes` **basta**". O caminho de falha é o que já aconteceu: foi seguindo essa letra que
+  a `0063` escreveu o predicado furado. Agravante: o item 2 da mesma seção JÁ tinha a anotação
+  "⚠ corrigido na execução", então o item 1 sem anotação passava por válido. Corrigido, e o ADR
+  ganhou **§4.4 — "Não gateie a coluna que o escritor escolhe"**, com a tabela de quando
+  `filial_id` é objeto e quando é rótulo, e a pergunta a fazer antes da próxima policy. A lição
+  vale mais que a correção pontual.
+- **Reversível?** Sim: a `0068` tem o rollback no rodapé; as outras duas são texto e um `if`.

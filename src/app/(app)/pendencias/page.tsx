@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { differenceInCalendarDays } from 'date-fns'
 import { getOperador } from '@/lib/auth/acesso'
+import { podeEscrever } from '@/lib/auth/papeis'
 import { createClient } from '@/lib/supabase/server'
 import { getPendencias } from '@/lib/queries/relatorios'
 import { listarFiliais } from '@/lib/queries/filiais'
@@ -120,7 +121,12 @@ export default async function PendenciasPage({
             />
           )
         ) : (
-          <FilaPendenciasTabela rows={linhas} />
+          // F21 — resolver pendência é escrita (cargo ≥ operador). O recorte por
+          // FILIAL não é feito aqui: a fila mostra as 5 filiais para todo cargo
+          // (leitura ampla) e a linha só traz o slug da filial, não o id — quem
+          // recusa a filial não vinculada é a action, com a mensagem em pt-BR
+          // (critério 2 da ordem F21).
+          <FilaPendenciasTabela rows={linhas} podeResolver={podeEscrever(operador.papel)} />
         )}
       </div>
 

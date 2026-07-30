@@ -345,6 +345,17 @@ describe('linguagem da documentação', () => {
     }
   })
 
+  // F21: o modelo de "nível único" (todo logado podia tudo, sem cargos) foi
+  // REVOGADO pela spec §3.1 e pela ADR-002. As três frases abaixo ficaram
+  // espalhadas por quatro páginas até esta fase; uma delas voltar, em qualquer
+  // página, é a documentação prometendo um sistema que não existe mais.
+  it('não ressuscita o modelo de acesso revogado (nível único, sem papéis)', () => {
+    const texto = normalizarBusca(textoCru())
+    for (const revogada of ['nivel unico', 'nao ha papeis', 'mesmo nivel de acesso']) {
+      expect(texto.includes(revogada), `afirmação revogada pela F21: "${revogada}"`).toBe(false)
+    }
+  })
+
   it('todo patrimônio de exemplo é fictício', () => {
     for (const m of normalizarBusca(textoCru()).matchAll(/wap\d{7}/g)) {
       expect(['wap0001234', 'wap0004491']).toContain(m[0])

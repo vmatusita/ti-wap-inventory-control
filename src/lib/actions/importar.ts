@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirAdmin } from '@/lib/auth/acesso'
+import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
   csvCorrigidoDeArquivo,
@@ -29,6 +30,15 @@ import type { Json } from '@/lib/types/database'
 // `importar_ativos_substituir` usa auth.uid() e só concede EXECUTE ao authenticated
 // — jamais service_role). O conteúdo do CSV nunca é persistido nem logado: só o
 // hash viaja no plano.
+//
+// F21 — as QUATRO actions deste módulo exigem ADMIN, não só sessão. O import de startup
+// é a operação mais destrutiva do sistema (DELETE do acervo inteiro de uma filial) e a
+// ADR-002 §3 o reserva ao Admin — sem vínculo de filial no meio: admin escreve em todas.
+// A trava dura mora na RPC (guarda `e_admin()` interna, migration 0064, obrigatória
+// porque ela é SECURITY DEFINER e passa por fora das policies); as guardas daqui são a
+// recusa amigável e cobrem também o que a RPC não vê: o preview, o CSV corrigido e a
+// signed URL do backup (`urlBackup` lê `import_logs`, cuja LEITURA a 0063 já restringiu
+// a `e_admin()` — a guarda evita a negativa crua da RLS).
 //
 // F7B (17/07/2026): as três actions passam a receber as CORREÇÕES da tela (schema
 // em `@/lib/validators/importar`). Elas alimentam o motor no preview e viram
@@ -191,8 +201,8 @@ function timestampArquivo(): string {
 // substituição. O arquivo NÃO é persistido; as correções não saem daqui.
 export async function validarImport(formData: FormData): Promise<ValidarImportResult> {
   const client = await createClient()
-  const uid = await idOperador(client)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const aut = await exigirAdmin(client)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const idRes = lerFilialId(formData)
   if (!idRes.ok) return idRes
@@ -271,7 +281,7 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
 
 // ---- 2) aplicarImport ----------------------------------------------------
 
-// Aplica o "Substituir tudo": guarda de operador, confirmação pelo nome exato da
+// Aplica o "Substituir tudo": guarda de ADMIN, confirmação pelo nome exato da
 // filial, revalidação do estado (contagens preview × agora), backup ANTES da RPC e
 // remoção best-effort dos .docx de termo apagados.
 export async function aplicarImport(input: {
@@ -281,8 +291,8 @@ export async function aplicarImport(input: {
   correcoes: CorrecaoImport[]
 }): Promise<AplicarImportResult> {
   const client = await createClient()
-  const uid = await idOperador(client)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const aut = await exigirAdmin(client)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const parsed = aplicarSchema.safeParse(input)
   if (!parsed.success) {
@@ -417,6 +427,30 @@ export async function aplicarImport(input: {
     }
   }
 
+  // Trilha de auditoria (F21). `import_logs` já registra o import em detalhe; esta linha
+  // existe para que a aba Auditoria de /admin/usuarios conte a história administrativa
+  // completa num só lugar — quem apagou o acervo de qual filial, e quando. Nada de
+  // conteúdo do CSV: só a filial, as contagens, o hash do arquivo e o caminho do backup
+  // (o que permite auditar sem expor nome de colaborador nem patrimônio).
+  await registrarEventoAdmin({
+    acao: 'import_executado',
+    autor: aut.uid,
+    alvo: filial.slug,
+    detalhe: {
+      filial_id: filial.id,
+      filial_nome: filial.nome,
+      log_id: ret.data.log_id,
+      arquivo_hash: plano.arquivoHash,
+      total_linhas: plano.totalLinhasDados,
+      ativos_criados: ret.data.ativos_criados,
+      movs_apagadas: ret.data.movs_apagadas,
+      anotacoes_apagadas: ret.data.anotacoes_apagadas,
+      termos_apagados: ret.data.termos_apagados,
+      correcoes: correcoes.length,
+      backup_path: backupPath,
+    },
+  })
+
   revalidatePath('/ativos')
   revalidatePath('/relatorios')
   revalidatePath('/pendencias')
@@ -443,8 +477,8 @@ export async function aplicarImport(input: {
 // Signed URL curta (60s) do backup de um import, para download no histórico/result.
 export async function urlBackup(logId: string): Promise<UrlBackupResult> {
   const client = await createClient()
-  const uid = await idOperador(client)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const aut = await exigirAdmin(client)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   if (!z.string().uuid().safeParse(logId).success) {
     return { ok: false, erro: 'Import inválido.' }
@@ -471,12 +505,12 @@ export async function urlBackup(logId: string): Promise<UrlBackupResult> {
 // Aplica as correções sobre o CSV enviado e devolve o TEXTO do arquivo corrigido
 // (header/ordem originais, `;`, CRLF, sem as linhas removidas). É o artefato do
 // que foi efetivamente importado — reimportável no futuro sem correção nenhuma.
-// Mesmas guardas de operador/extensão/tamanho das demais; o arquivo original
+// Mesmas guardas de admin/extensão/tamanho das demais; o arquivo original
 // segue intocado e nada é persistido aqui.
 export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvCorrigidoResult> {
   const client = await createClient()
-  const uid = await idOperador(client)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const aut = await exigirAdmin(client)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const idRes = lerFilialId(formData)
   if (!idRes.ok) return idRes

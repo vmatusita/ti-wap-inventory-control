@@ -1,6 +1,6 @@
 # ADR-001 — Escopo de RLS: modelo atual ("USING true") vs RLS por filial
 
-**Status:** aceito (manter o modelo atual; endurecer o caminho do visualizador) · 21/07/2026
+**Status:** aceito (manter o modelo atual; endurecer o caminho do visualizador) · 21/07/2026 — **sucedida em UM ponto** (papéis / policies de escrita) por [`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md) em 29/07/2026; ver a *Nota de sucessão* no §"Por quê (operador)". Todo o resto — **leitura ampla** para todo logado e o caminho do visualizador — continua valendo.
 **Contexto do plano de dívida técnica:** item **M** de `docs/DIVIDA-TECNICA.md`.
 
 ## Contexto
@@ -19,6 +19,12 @@ O advisor `rls_policy_always_true` (WARN) aponta as policies `USING(true)`; a au
 ### Por quê (operador)
 - **O operador legitimamente vê todas as filiais.** O sistema é de TI central da WAP (5 filiais, uma equipe). Não há requisito de isolar filial-por-operador — todo operador opera o acervo inteiro (transferências entre filiais, relatório consolidado `geral`, import de startup por filial). RLS por filial **não teria a quem restringir**.
   *(Emenda 22/07/2026 — abertura para `@stefanini.com`/`@latam.stefanini.com`: a equipe terceirizada entrou como operador pleno, e a conclusão acima **não muda** — o recorte que faria sentido para terceirizado seria por papel, não por filial. Quem entra continua sendo escolhido um a um por convite; se um dia surgir a necessidade de um operador com poderes menores, isso é um ADR novo sobre **papéis**, que a spec §3 hoje proíbe.)*
+
+  > **NOTA DE SUCESSÃO — 29/07/2026 · só no ponto "papéis".** A necessidade prevista na emenda acima surgiu, e o ADR novo existe: **[`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md)** (aceito, executado pela F21) cria três cargos — `admin ⊃ operador ⊃ consulta` — e um **vínculo de filiais de escrita** por operador; a spec §3 foi reescrita e não proíbe mais papéis.
+  >
+  > O que a ADR-002 sucede, aqui, é **apenas** a frase "nível único / não há papéis" e a premissa de que **as policies de ESCRITA** podem ser `USING (true)`: elas passaram a ser por cargo/vínculo (migrations `0061`→`0066`).
+  >
+  > O que esta ADR-001 **continua decidindo, sem alteração**: (1) **leitura ampla** — todo logado, em qualquer cargo, lê as cinco filiais, e não se criou recorte de leitura por filial (o relatório consolidado e a transferência dependem disso); (2) o **WARN `rls_policy_always_true`** segue por-design, agora só nas policies de **leitura**; (3) o **caminho do visualizador por senha** e o risco real que ele concentra — o `service_role` nas leituras do relatório — continuam exatamente como descritos abaixo, **inclusive a recomendação 1 do backlog**, que a F21 não executou.
 - **Custo alto, benefício ~nulo.** RLS por filial exigiria um conceito de "filial do operador" (inexistente no domínio), policies por tabela e por operação, e complicaria transferência/consolidado. Introduz superfície de bug **onde hoje não há requisito**.
 - **A defesa real já está no lugar certo.** A integridade (o que pode virar o quê) é dos **triggers** (máquina de estados, saldos) — que a RLS aberta não afrouxa. A RLS "true" reflete o modelo de nível único da spec, não um descuido.
 

@@ -9,6 +9,8 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { getOperador } from '@/lib/auth/acesso'
+import { podeEscrever } from '@/lib/auth/papeis'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
 import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
 import { itensParaRepor, minimosDoCatalogo } from '@/lib/itens/repor'
@@ -21,18 +23,22 @@ import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { cn } from '@/lib/utils'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 
+// `escrita: true` = o atalho leva a um formulário que GRAVA — some para o cargo
+// Consulta (F21), que continua com os dois atalhos de leitura.
 const ACOES = [
   {
     href: '/movimentacoes/nova',
     icone: ArrowLeftRight,
     titulo: 'Nova movimentação',
     descricao: 'Saída, devolução, transferência… inclusive em lote.',
+    escrita: true,
   },
   {
     href: '/ativos/novo',
     icone: PackagePlus,
     titulo: 'Novo equipamento',
     descricao: 'Entrada por compra — um ou vários de uma vez.',
+    escrita: true,
   },
   {
     href: '/relatorios/geral',
@@ -77,6 +83,10 @@ type PendenciaHome = {
 export default async function DashboardPage() {
   const client = await createClient()
   const hoje = hojeISO()
+  // F21 — cargo de quem abriu o painel. Só decide o que MOSTRAR: os números
+  // abaixo são os mesmos para os três cargos (leitura ampla — ADR-001).
+  const operador = await getOperador()
+  const escreve = podeEscrever(operador?.papel)
 
   // As duas leituras do ponto de reposição (F12 · I5) entram no MESMO
   // `Promise.all` das outras — nada de cascata sequencial na home. `null` em
@@ -258,7 +268,11 @@ export default async function DashboardPage() {
                 variante="inline"
                 icone={ArrowLeftRight}
                 titulo="Sem movimentações ainda."
-                acao={{ href: '/movimentacoes/nova', rotulo: 'Registrar a primeira' }}
+                acao={
+                  escreve
+                    ? { href: '/movimentacoes/nova', rotulo: 'Registrar a primeira' }
+                    : undefined
+                }
               />
             ) : (
               <ul className="divide-y">
@@ -290,7 +304,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {ACOES.map((a) => (
+        {ACOES.filter((a) => escreve || !a.escrita).map((a) => (
           <Link key={a.href} href={a.href} className="group">
             <Card className="h-full transition-colors group-hover:border-primary/40 group-hover:bg-accent/40">
               <CardContent className="flex items-start gap-3 py-5">

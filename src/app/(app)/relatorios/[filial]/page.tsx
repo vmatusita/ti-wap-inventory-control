@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { FileClock } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
+import { podeEscrever } from '@/lib/auth/papeis'
 import { Button } from '@/components/ui/button'
 import { listarFiliais } from '@/lib/queries/filiais'
 import {
@@ -124,7 +125,12 @@ export default async function RelatorioFilialPage({
               <span className="hidden sm:inline">Relatórios gerados</span>
             </Link>
           </Button>
-          {acesso.modo === 'operador' && (
+          {/* F21 — congelar snapshot é ESCRITA (`relatorios_gerados`): cargo
+              ≥ operador, sem recorte por filial (a ordem pede
+              `exigirPapel('operador')` em `gerarRelatorio`, e o escopo "geral"
+              atravessa as 5 filiais de propósito). Consulta lê o relatório ao
+              vivo e o arquivo, mas não gera. */}
+          {acesso.modo === 'operador' && podeEscrever(acesso.operador.papel) && (
             <GerarRelatorioDialog
               filialSlug={filialSlug}
               filialNome={snapshot.meta.filialNome}

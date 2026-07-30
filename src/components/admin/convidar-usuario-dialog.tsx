@@ -22,6 +22,9 @@ import {
   DOMINIOS_TEXTO,
   emailDeOperador,
 } from '@/lib/auth/dominios-email'
+import { validarVinculosDoPapel } from '@/lib/auth/papeis'
+import type { PapelUsuario } from '@/lib/auth/papeis'
+import { CargoEFiliais, type FilialOpcao } from '@/components/admin/usuarios/cargo-e-filiais'
 
 type Gerado = { link: string; reenvio: boolean }
 
@@ -29,24 +32,45 @@ type Gerado = { link: string; reenvio: boolean }
 // tem limite ~2/h). O admin copia o link e envia por WhatsApp/Teams/e-mail. Mesmo
 // padrão da senha de acesso (criar-senha-dialog): mostra → copia → entrega manual.
 // Só os domínios da spec §3, validado no client E no server (OS-F3 3.7.1).
-export function ConvidarUsuarioDialog() {
+//
+// F21: o convite passou a escolher CARGO e FILIAIS DE ESCRITA. O cargo é gravado pela mesma
+// action, via service role, logo depois de a conta nascer — nunca por `raw_user_meta_data`,
+// que o próprio usuário consegue editar (ADR-002 §5).
+export function ConvidarUsuarioDialog({ filiais }: { filiais: readonly FilialOpcao[] }) {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [email, setEmail] = useState('')
+  // Operador é o cargo do caso comum (quem registra movimentação no dia a dia). Admin não é
+  // default de propósito: o convite mais frequente não deve entregar /admin sem alguém
+  // escolher isso explicitamente.
+  const [papel, setPapel] = useState<PapelUsuario>('operador')
+  const [filiaisEscolhidas, setFiliaisEscolhidas] = useState<number[]>([])
   const [gerado, setGerado] = useState<Gerado | null>(null)
   const [copiado, setCopiado] = useState(false)
   const [enviando, start] = useTransition()
 
-  const valido = emailDeOperador(email)
-  const erroDominio = email.length > 0 && !valido
+  const erroCargo = validarVinculosDoPapel(papel, filiaisEscolhidas)
+  const emailValido = emailDeOperador(email)
+  const valido = emailValido && !erroCargo
+  const erroDominio = email.length > 0 && !emailValido
 
   function fechar(open: boolean) {
     setAberto(open)
     if (!open) {
       setEmail('')
+      setPapel('operador')
+      setFiliaisEscolhidas([])
       setGerado(null)
       setCopiado(false)
     }
+  }
+
+  // Trocar o cargo limpa as filiais: guardá-las escondidas faria o payload de um Admin
+  // carregar vínculos que o servidor recusa (`validarVinculosDoPapel`), e o operador veria
+  // um erro que a tela não explica.
+  function trocarPapel(p: PapelUsuario) {
+    setPapel(p)
+    setFiliaisEscolhidas([])
   }
 
   function convidar() {
@@ -61,11 +85,18 @@ export function ConvidarUsuarioDialog() {
       // ela vira toast, no mesmo padrão do `copiar()` abaixo, e o diálogo
       // continua aberto com o e-mail digitado.
       try {
-        const res = await convidarUsuario({ email: email.trim() })
+        const res = await convidarUsuario({
+          email: email.trim(),
+          papel,
+          filiais: filiaisEscolhidas,
+        })
         if (!res.ok) {
           toast.error(res.erro)
           return
         }
+        // O cargo pode não ter sido gravado mesmo com a conta criada — o aviso vem da
+        // action e é ALERTA, não sucesso, para o admin não fechar a tela achando que acabou.
+        if (res.aviso) toast.warning(res.aviso, { duration: 12000 })
         setGerado({ link: res.link, reenvio: res.reenvio })
         router.refresh()
       } catch {
@@ -110,6 +141,15 @@ export function ConvidarUsuarioDialog() {
                 invalida.
               </DialogDescription>
             </DialogHeader>
+            {/* Reenvio NÃO mexe em cargo (a action recusa esse atalho de propósito: seria
+                uma forma de rebaixar alguém sem passar pelas travas de autoproteção). */}
+            {gerado.reenvio && (
+              <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                O cargo e as filiais de escrita desta conta{' '}
+                <strong>não foram alterados</strong> — este link só devolve o acesso. Para
+                mudar cargo ou filiais, use <strong>Editar</strong> na lista de usuários.
+              </p>
+            )}
             <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-xs">
                 {gerado.link}
@@ -135,7 +175,8 @@ export function ConvidarUsuarioDialog() {
               <DialogDescription>
                 Gera um <strong>link de convite</strong> para você enviar à pessoa
                 (sem e-mail automático). Só e-mails <strong>{DOMINIOS_TEXTO}</strong>{' '}
-                são aceitos. Todo operador tem o mesmo nível de acesso.
+                são aceitos. O <strong>cargo</strong> escolhido aqui vale a partir do
+                primeiro acesso.
               </DialogDescription>
             </DialogHeader>
 
@@ -158,6 +199,18 @@ export function ConvidarUsuarioDialog() {
                 </p>
               )}
             </div>
+
+            <CargoEFiliais
+              papel={papel}
+              onPapelChange={trocarPapel}
+              filiais={filiaisEscolhidas}
+              onFiliaisChange={setFiliaisEscolhidas}
+              opcoes={filiais}
+              desabilitado={enviando}
+              // Só reclama depois de o admin ter mexido em algo: abrir o diálogo já
+              // vermelho ("escolha ao menos uma filial") acusa antes de a pessoa agir.
+              erro={filiaisEscolhidas.length > 0 || email.length > 0 ? erroCargo : null}
+            />
 
             <DialogFooter>
               <Button variant="ghost" onClick={() => fechar(false)} disabled={enviando}>

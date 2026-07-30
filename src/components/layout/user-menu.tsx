@@ -14,6 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { PAPEL_ROTULO } from '@/lib/auth/papeis'
+import type { PapelUsuario } from '@/lib/auth/papeis'
 
 function iniciais(nome: string) {
   const partes = nome.trim().split(/\s+/).filter(Boolean)
@@ -31,7 +33,10 @@ const TEMAS = [
   { valor: 'system', rotulo: 'Sistema', icone: Monitor },
 ] as const
 
-export function UserMenu({ nome }: { nome: string }) {
+// F21 — o CARGO aparece embaixo do nome. Não é enfeite: é a resposta à pergunta
+// "por que eu não vejo o botão de registrar?" sem abrir chamado para a TI. Rótulo
+// vindo de `PAPEL_ROTULO` (fonte única) — nunca redigitado aqui.
+export function UserMenu({ nome, papel }: { nome: string; papel?: PapelUsuario }) {
   // Sem guarda de `montado`: o conteúdo do DropdownMenu do Radix só é montado
   // quando o menu ABRE — o servidor nunca o renderiza, então não há hidratação
   // para divergir. Quando o operador clica, o next-themes já leu o localStorage e
@@ -57,6 +62,11 @@ export function UserMenu({ nome }: { nome: string }) {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="max-w-full truncate text-sm font-medium">
           {nome}
+          {papel && (
+            <span className="block text-xs font-normal text-muted-foreground">
+              {PAPEL_ROTULO[papel]}
+            </span>
+          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 

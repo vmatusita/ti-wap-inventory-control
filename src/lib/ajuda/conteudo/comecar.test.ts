@@ -7,6 +7,12 @@ import { normalizarBusca } from '@/lib/ajuda/busca'
 import { STATUS_META } from '@/lib/dominio'
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
+import {
+  PAPEIS,
+  PAPEL_DESCRICAO,
+  PAPEL_ROTULO,
+  type PapelUsuario,
+} from '@/lib/auth/papeis'
 import type { Bloco, PaginaAjuda } from '@/lib/ajuda/tipos'
 
 // Completude da categoria "Comece aqui" (F20 · frente C1). O que esta suite trava:
@@ -292,8 +298,69 @@ describe('acesso-e-sessoes', () => {
     expect(src).not.toContain('@wap.ind.br')
   })
 
-  it('descreve as duas portas e o nível único', () => {
-    cita('acesso-e-sessoes', 'Nível único', 'Não existe auto-cadastro')
+  // F21: o "nível único" (todo logado podia tudo) foi REVOGADO pela spec §3.1 e
+  // pela ADR-002. Esta asserção substitui a antiga e é mais forte: antes cobrava
+  // uma frase; agora cobra o vocabulário DERIVADO dos três cargos, a hierarquia
+  // em prosa e a ausência das quatro afirmações que passaram a ser mentira.
+  it('descreve as duas portas e os três cargos, com o rótulo derivado de cada um', () => {
+    cita('acesso-e-sessoes', 'Não existe auto-cadastro')
+    for (const p of PAPEIS) cita('acesso-e-sessoes', PAPEL_ROTULO[p])
+
+    // O glossário de cargos vem de `papeis.ts` (via `verbetesCargo`) — rótulo E
+    // descrição. Texto de cargo redigitado na página falha aqui.
+    const g = blocos('acesso-e-sessoes', 'glossario').find((b) => b.badge === 'neutro')
+    expect(g, 'o glossário de cargos sumiu').toBeDefined()
+    expect(g!.itens.map((v) => v.chave)).toEqual([...PAPEIS])
+    for (const v of g!.itens) {
+      expect(v.rotulo).toBe(PAPEL_ROTULO[v.chave as PapelUsuario])
+      expect(v.descricao).toBe(PAPEL_DESCRICAO[v.chave as PapelUsuario])
+    }
+    const src = fonte('src', 'lib', 'ajuda', 'conteudo', 'acesso-e-sessoes.ts')
+    expect(src).toContain('verbetesCargo')
+    expect(src, 'rótulo de cargo digitado à mão').not.toContain(`'${PAPEL_ROTULO.admin}'`)
+
+    // As afirmações do modelo antigo não podem voltar por descuido.
+    const t = texto('acesso-e-sessoes')
+    for (const revogada of [
+      'nivel unico',
+      'nao ha papeis',
+      'todo operador ve e faz as mesmas coisas',
+      'usuario so de leitura',
+    ]) {
+      expect(t, `afirmação revogada pela F21: "${revogada}"`).not.toContain(revogada)
+    }
+  })
+
+  it('separa o CARGO consulta do VISUALIZADOR por senha (nomes parecidos, portas diferentes)', () => {
+    // Confundir os dois manda o operador entregar a porta errada: o cargo tem
+    // login e vê o sistema inteiro; o visualizador não tem conta e só abre
+    // /relatorios. A distinção é explícita na página, não subentendida.
+    cita(
+      'acesso-e-sessoes',
+      `o cargo ${PAPEL_ROTULO.consulta} TEM login`,
+      'O visualizador NÃO tem conta',
+    )
+  })
+
+  it('descreve o vínculo de filiais como regra de ESCRITA, nunca de leitura', () => {
+    cita(
+      'acesso-e-sessoes',
+      'Nas telas de registro, a lista de filiais oferece só aquelas em que você escreve',
+      'filial de ORIGEM',
+      'recusado INTEIRO',
+    )
+    expect(ancorasDaPagina(pagina('acesso-e-sessoes')).map((a) => a.id)).toContain(
+      'acesso-cargos',
+    )
+  })
+
+  it('diz que desativar e rebaixar valem no carregamento seguinte', () => {
+    cita(
+      'acesso-e-sessoes',
+      'Seu acesso foi desativado. Fale com um administrador.',
+      'Cargo rebaixado no meio do expediente',
+      'próximo carregamento',
+    )
   })
 
   it('descreve o shell reduzido do visualizador com os rótulos reais', () => {

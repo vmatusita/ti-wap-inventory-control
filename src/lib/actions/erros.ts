@@ -105,9 +105,24 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (m.includes('foreign key') || m.includes('violates foreign key')) {
     return 'Um dos valores informados (motivo ou filial) não existe mais.'
   }
-  // Sessao / permissao (RLS).
-  if (m.includes('row-level security') || m.includes('permission denied')) {
-    return 'Sem permissão para esta operação. Faça login novamente.'
+  // ---- F21: negativa por CARGO / VÍNCULO DE FILIAL ----
+  // Antes desta fase existia um ramo só, que devolvia "Sem permissão para esta operação.
+  // Faça login novamente." Com papéis, esse conselho passou a MENTIR na maioria dos casos:
+  // quem é `consulta`, ou é operador sem a filial vinculada, pode relogar quantas vezes
+  // quiser e nada muda — o que ele precisa é falar com um administrador. Os dois primeiros
+  // ramos reconhecem as mensagens NOSSAS das guardas internas das RPCs (migration 0064);
+  // o terceiro cobre a recusa da própria RLS.
+  if (m.includes('apenas administradores')) {
+    return 'Esta ação é restrita a administradores.'
+  }
+  if (m.includes('sem permissao de escrita na filial') || m.includes('sem permissão de escrita na filial')) {
+    return 'Você não tem permissão de escrita nesta filial. Fale com um administrador.'
+  }
+  // 42501 = insufficient_privilege: cobre tanto "new row violates row-level security
+  // policy" (WITH CHECK reprovado) quanto "permission denied for table/column" (o grant de
+  // coluna de `profiles`, migration 0063).
+  if (c === '42501' || m.includes('row-level security') || m.includes('permission denied')) {
+    return 'Sem permissão para esta operação: seu cargo ou suas filiais de escrita não permitem. Se seu acesso mudou agora, recarregue a página; se não, fale com um administrador.'
   }
 
   // ---- raises P0001 da RPC do import (importar_ativos_substituir) ----

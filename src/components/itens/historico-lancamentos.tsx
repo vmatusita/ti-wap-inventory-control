@@ -31,7 +31,19 @@ import type { LancamentoHistorico } from '@/lib/queries/itens'
 
 // Histórico de lançamentos (OS 3.3.3): mais recente primeiro, com "Estornar"
 // (cria o inverso vinculado — nada se apaga). Linha estornada/estorno sinalizadas.
-export function HistoricoLancamentos({ rows }: { rows: LancamentoHistorico[] }) {
+//
+// F21 — `podeEstornar` é o cargo (≥ operador; §0 da ordem: `ESTORNO_OPERADOR =
+// sim`), não o vínculo de filial: a linha do histórico traz o NOME da filial, não
+// o id, e casar por nome seria frágil. Um operador que estorne lançamento de
+// filial não vinculada é recusado pela action `estornarLancamento`, com mensagem
+// em pt-BR — o caminho que o critério 2 da ordem prevê.
+export function HistoricoLancamentos({
+  rows,
+  podeEstornar = false,
+}: {
+  rows: LancamentoHistorico[]
+  podeEstornar?: boolean
+}) {
   const router = useRouter()
   const [alvo, setAlvo] = useState<LancamentoHistorico | null>(null)
   const [enviando, start] = useTransition()
@@ -85,7 +97,7 @@ export function HistoricoLancamentos({ rows }: { rows: LancamentoHistorico[] }) 
               <TableHead className="hidden md:table-cell">Filial</TableHead>
               <TableHead className="hidden md:table-cell">Chamado</TableHead>
               <TableHead className="hidden lg:table-cell">Obs.</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              {podeEstornar && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -123,19 +135,21 @@ export function HistoricoLancamentos({ rows }: { rows: LancamentoHistorico[] }) 
                     <ObsTooltip texto={r.observacao} comIcone className="w-full text-xs" />
                   </div>
                 </TableCell>
-                <TableCell className="text-right">
-                  {!r.ehEstorno && !r.estornado && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1.5 text-muted-foreground"
-                      onClick={() => setAlvo(r)}
-                    >
-                      <Undo2 className="size-3.5" />
-                      <span className="hidden sm:inline">Estornar</span>
-                    </Button>
-                  )}
-                </TableCell>
+                {podeEstornar && (
+                  <TableCell className="text-right">
+                    {!r.ehEstorno && !r.estornado && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-muted-foreground"
+                        onClick={() => setAlvo(r)}
+                      >
+                        <Undo2 className="size-3.5" />
+                        <span className="hidden sm:inline">Estornar</span>
+                      </Button>
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

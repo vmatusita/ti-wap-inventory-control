@@ -1,43 +1,195 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { TipoMovimentacao } from '@/lib/dominio'
+import type { PapelUsuario } from '@/lib/auth/papeis'
 
-// Leituras das telas de administração (operador logado — as rotas /admin são
-// gated pelo shell/middleware; as escritas revalidam nas actions).
+// Leituras das telas de administração (só ADMIN a partir da F21 — o gate está em
+// admin/layout.tsx e, para cada escrita, na guarda `exigirAdmin()` da action).
 
 export type UsuarioAdmin = {
   id: string
   nome: string | null
   email: string | null
   created_at: string
+  /** F21 — cargo vigente (`profiles.papel`). */
+  papel: PapelUsuario
+  /** F21 — `profiles.ativo`: false = desativado (não escreve nada, no request seguinte). */
+  ativo: boolean
+  /** F21 — vínculos CRUS de `operador_filiais` (ids). Só o cargo Operador usa. */
+  vinculos: number[]
+  /**
+   * F21 — o usuário está banido no Supabase Auth (não consegue LOGAR de novo).
+   * `null` = não foi possível saber (o Auth não respondeu; ver `avisoAuth`).
+   * Normalmente espelha `!ativo`; divergência denuncia uma gravação que ficou pela metade.
+   */
+  banido: boolean | null
 }
 
-// Perfis + e-mail (que vive em auth.users). O e-mail vem do client
-// administrativo (auth.admin.listUsers) — server-side apenas.
-export async function listarUsuarios(): Promise<UsuarioAdmin[]> {
-  const client = await createClient()
-  const { data: perfis } = await client
-    .from('profiles')
-    .select('id, nome, created_at')
-    .order('created_at', { ascending: true })
+export type ListaUsuarios = {
+  usuarios: UsuarioAdmin[]
+  /**
+   * Aviso quando `auth.admin.listUsers` falhou: e-mail e situação de login ficam
+   * INDETERMINADOS na tela. Antes da F21 isso era um `catch {}` vazio e a tela mostrava
+   * e-mail em branco como se o usuário não tivesse e-mail — falha silenciosa que, com o
+   * cargo e o banimento vindo da mesma chamada, passaria a esconder coisa pior.
+   */
+  avisoAuth: string | null
+}
 
+// Teto de páginas de `listUsers` (200 por página, como scripts/import/guard.ts). Existe só
+// para o laço não ficar infinito se a API mudar de contrato: 50 × 200 = 10 mil contas, três
+// ordens de grandeza acima da equipe.
+const AUTH_PAGINAS_MAX = 50
+const AUTH_POR_PAGINA = 200
+
+type ContaAuth = { email: string | null; banido: boolean }
+
+// Percorre TODAS as páginas de auth.users. O `perPage: 1000` anterior era um teto fixo sem
+// paginação — silenciosamente correto hoje e silenciosamente errado no dia em que passar.
+async function lerContasAuth(): Promise<{
+  porId: Map<string, ContaAuth>
+  aviso: string | null
+}> {
   const admin = createAdminClient()
-  const emailPorId = new Map<string, string>()
+  const porId = new Map<string, ContaAuth>()
+  const agora = Date.now()
   try {
-    const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
-    for (const u of data?.users ?? []) {
-      if (u.email) emailPorId.set(u.id, u.email)
+    for (let pagina = 1; pagina <= AUTH_PAGINAS_MAX; pagina++) {
+      const { data, error } = await admin.auth.admin.listUsers({
+        page: pagina,
+        perPage: AUTH_POR_PAGINA,
+      })
+      if (error) throw new Error(error.message)
+      for (const u of data.users) {
+        // `banned_until` é uma data: banimento vencido não é banimento.
+        const ate = u.banned_until ? Date.parse(u.banned_until) : NaN
+        porId.set(u.id, {
+          email: u.email ?? null,
+          banido: Number.isFinite(ate) && ate > agora,
+        })
+      }
+      if (data.users.length < AUTH_POR_PAGINA) break
     }
-  } catch {
-    // Sem service key / falha → segue sem e-mail.
+    return { porId, aviso: null }
+  } catch (err) {
+    console.error('[admin/usuarios] falha ao listar contas do Auth', err)
+    return {
+      porId,
+      aviso:
+        'Não foi possível consultar o Supabase Auth agora: as colunas E-mail e o aviso de login bloqueado podem estar incompletos. Cargo, filiais e situação vêm do banco e estão corretos.',
+    }
+  }
+}
+
+// Perfis (cargo, situação, vínculos) + e-mail e banimento (que vivem em auth.users, lidos
+// pelo client administrativo — server-side apenas).
+//
+// A lista de PERFIS segue sem paginação, de propósito: a tela é de gestão de uma equipe de
+// dezenas de pessoas e o admin quer ver todo mundo de uma vez para comparar cargos. Se um dia
+// passar do teto de linhas do PostgREST (1000 por padrão no Supabase), aqui é o lugar de
+// paginar — e o sintoma seria a contagem do topo parar de crescer.
+export async function listarUsuarios(): Promise<ListaUsuarios> {
+  const client = await createClient()
+  const [perfisRes, vinculosRes, contas] = await Promise.all([
+    client
+      .from('profiles')
+      .select('id, nome, created_at, papel, ativo')
+      .order('created_at', { ascending: true }),
+    client.from('operador_filiais').select('usuario_id, filial_id'),
+    lerContasAuth(),
+  ])
+
+  // Estes dois erros NÃO podem degradar em silêncio: sem perfis a tela mentiria "nenhum
+  // usuário"; sem vínculos, um operador apareceria como se não escrevesse em filial nenhuma
+  // e o admin "corrigiria" gravando por cima.
+  if (perfisRes.error) {
+    throw new Error(`Falha ao listar usuários: ${perfisRes.error.message}`)
+  }
+  if (vinculosRes.error) {
+    throw new Error(`Falha ao listar as filiais de escrita: ${vinculosRes.error.message}`)
   }
 
-  return (perfis ?? []).map((p) => ({
-    id: p.id,
-    nome: p.nome,
-    email: emailPorId.get(p.id) ?? null,
-    created_at: p.created_at,
-  }))
+  const vinculosPorUsuario = new Map<string, number[]>()
+  for (const v of vinculosRes.data ?? []) {
+    const lista = vinculosPorUsuario.get(v.usuario_id)
+    if (lista) lista.push(v.filial_id)
+    else vinculosPorUsuario.set(v.usuario_id, [v.filial_id])
+  }
+
+  const usuarios = (perfisRes.data ?? []).map((p) => {
+    const conta = contas.porId.get(p.id)
+    return {
+      id: p.id,
+      nome: p.nome,
+      email: conta?.email ?? null,
+      created_at: p.created_at,
+      papel: p.papel,
+      ativo: p.ativo,
+      vinculos: (vinculosPorUsuario.get(p.id) ?? []).sort((a, b) => a - b),
+      banido: contas.aviso ? null : (conta?.banido ?? false),
+    }
+  })
+
+  return { usuarios, avisoAuth: contas.aviso }
+}
+
+// Ids dos ADMINS ATIVOS — insumo das travas de autoproteção (validators/admin.ts). Lido
+// pelo SERVICE ROLE de propósito: a contagem que decide "isto deixaria o sistema sem
+// administrador?" não pode depender de policy nenhuma. E FALHA FECHADA (throw): se a
+// leitura não vier, a action recusa a gravação em vez de supor que sobra alguém.
+export async function idsDeAdminsAtivos(): Promise<string[]> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('papel', 'admin')
+    .eq('ativo', true)
+  if (error) throw new Error(`Falha ao conferir os administradores ativos: ${error.message}`)
+  return (data ?? []).map((p) => p.id)
+}
+
+// Cargo, situação e vínculos de UM usuário — o estado "antes" que as travas de
+// autoproteção comparam com o pedido. Service role pela mesma razão de cima.
+export type EstadoUsuario = {
+  id: string
+  papel: PapelUsuario
+  ativo: boolean
+  vinculos: number[]
+  nome: string | null
+}
+
+export async function getEstadoUsuario(id: string): Promise<EstadoUsuario | null> {
+  const admin = createAdminClient()
+  const [{ data: perfil, error: erroPerfil }, { data: vinculos, error: erroVinculos }] =
+    await Promise.all([
+      admin.from('profiles').select('id, papel, ativo, nome').eq('id', id).maybeSingle(),
+      admin.from('operador_filiais').select('filial_id').eq('usuario_id', id),
+    ])
+  if (erroPerfil) throw new Error(`Falha ao ler o usuário: ${erroPerfil.message}`)
+  if (erroVinculos) throw new Error(`Falha ao ler as filiais do usuário: ${erroVinculos.message}`)
+  if (!perfil) return null
+  return {
+    id: perfil.id,
+    papel: perfil.papel,
+    ativo: perfil.ativo,
+    nome: perfil.nome,
+    vinculos: (vinculos ?? []).map((v) => v.filial_id).sort((a, b) => a - b),
+  }
+}
+
+// Filiais para a tela de usuários: TODAS (não só as ativas), porque um vínculo antigo pode
+// apontar para filial desativada e a coluna "Filiais de escrita" precisa do nome para
+// mostrá-lo em vez de um número cru. O formulário oferece apenas `ativo = true`.
+export type FilialParaVinculo = { id: number; nome: string; ativo: boolean }
+
+export async function listarFiliaisParaVinculo(): Promise<FilialParaVinculo[]> {
+  const client = await createClient()
+  const { data, error } = await client
+    .from('filiais')
+    .select('id, nome, ativo')
+    .order('nome', { ascending: true })
+  if (error) throw new Error(`Falha ao listar filiais: ${error.message}`)
+  return data ?? []
 }
 
 export type FilialAdmin = {

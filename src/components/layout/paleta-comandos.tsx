@@ -63,6 +63,8 @@ type ItemNavegacao = {
   // Rota em que a AÇÃO ja pode ser disparada sem navegar (o dialog dela ja esta
   // montado). Fora dela, o `href` leva ate a tela com o gatilho na URL.
   disparaEm?: string
+  // F21 — entrada só do cargo Admin (espelha `soAdmin` do sidebar-nav).
+  soAdmin?: boolean
 }
 
 // Espelha o `sidebar-nav.tsx`. Se a sidebar ganhar/perder item, esta lista
@@ -88,10 +90,15 @@ const ROTAS: ItemNavegacao[] = [
     // 'kits' entra com a F12/M12 (/admin/kits): sem o apelido, Ctrl+K → "kit"
     // não achava nada e a tela nova ficava sem porta de entrada pelo teclado.
     apelidos: ['usuarios', 'senhas', 'filiais', 'motivos', 'importar', 'kits'],
+    soAdmin: true,
   },
   { rotulo: 'Ajuda', href: '/ajuda', icone: CircleHelp, atalho: '?' },
 ]
 
+// TODAS as entradas deste grupo ESCREVEM — é o que "Ações" significa aqui. Por
+// isso o grupo inteiro desaparece para o cargo Consulta (F21), sem precisar de
+// marcação por item; se um dia entrar uma ação de leitura, ela precisa de flag
+// própria em vez de herdar a permissão do grupo.
 const ACOES: ItemNavegacao[] = [
   {
     rotulo: 'Nova movimentação',
@@ -142,6 +149,8 @@ const MAX_AJUDA_NA_PALETA = 5
 export function PaletaComandosProvider({
   children,
   paginasAjuda = [],
+  podeEscrever = false,
+  eAdmin = false,
 }: {
   children: React.ReactNode
   /**
@@ -152,6 +161,14 @@ export function PaletaComandosProvider({
    * `indice.ts`, que é só-servidor.
    */
   paginasAjuda?: readonly EntradaPaleta[]
+  /**
+   * F21 — cargo de quem está logado, resolvido UMA vez no `(app)/layout.tsx`.
+   * `podeEscrever` (≥ operador) governa o grupo "Ações"; `eAdmin`, a entrada
+   * "Administração" do grupo "Ir para". A paleta é um atalho para o que a tela
+   * já oferece: se o botão não existe, o comando também não pode existir.
+   */
+  podeEscrever?: boolean
+  eAdmin?: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -260,8 +277,14 @@ export function PaletaComandosProvider({
 
   const termo = normalizarBusca(query)
   const buscou = query.trim().length >= 2
-  const rotas = useMemo(() => ROTAS.filter((r) => casa(r, termo)), [termo])
-  const acoes = useMemo(() => ACOES.filter((a) => casa(a, termo)), [termo])
+  const rotas = useMemo(
+    () => ROTAS.filter((r) => (eAdmin || !r.soAdmin) && casa(r, termo)),
+    [termo, eAdmin],
+  )
+  const acoes = useMemo(
+    () => (podeEscrever ? ACOES.filter((a) => casa(a, termo)) : []),
+    [termo, podeEscrever],
+  )
   // Documentação só entra quando há termo: sem busca, a paleta abre com "Ir
   // para" e "Ações", que é o que o operador quer em 9 de 10 aberturas.
   const ajuda = useMemo(

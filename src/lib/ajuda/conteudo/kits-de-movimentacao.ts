@@ -1,5 +1,6 @@
 import { TIPO_META } from '@/lib/dominio'
 import { TIPOS_EXCLUIDOS_DO_KIT } from '@/lib/validators/kit'
+import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 const T = TIPO_META
@@ -44,6 +45,7 @@ export const kitsDeMovimentacao: PaginaAjuda = {
       itens: [
         `Para criar: Administração › Kits › "Novo kit". Dê um nome ("Kit novo colaborador"), escolha o tipo (${EXCLUIDOS_DO_KIT} não entram na lista), o motivo, o termo e uma observação padrão — e marque as categorias que costumam ir juntas (Notebook, Monitor, Celular…). Ao menos uma categoria é obrigatória.`,
         'Trocar o tipo dentro do kit limpa o motivo que não vale para o tipo novo e o termo, quando o tipo novo não pede termo: o modelo não pode nascer inaplicável. Kit não se exclui — desmarque "Kit ativo" para tirá-lo do fluxo.',
+        `Criar e editar kit é do cargo ${PAPEL_ROTULO.admin}, porque o cadastro mora na Administração. APLICAR um kit é de quem registra: o cargo ${PAPEL_ROTULO.operador} usa os kits normalmente, nas filiais dele.`,
         'Para aplicar: no passo 2 da nova movimentação, clique em "Aplicar kit" (ao lado de "Repetir última") e escolha o kit. O botão só aparece quando existe kit ativo.',
         'Aplicar SUBSTITUI tipo, motivo, termo e observação — inclusive apagando o que o kit não define. O aviso na tela diz que os campos foram substituídos; aplicar o mesmo kit duas vezes dá sempre o mesmo resultado.',
         'Kit de um tipo que não vale para os ativos do lote NÃO é aplicado pela metade: nada muda e o aviso explica por quê. (É diferente de "Repetir última", que aplica o que der.) Se o motivo salvo no kit tiver sido desativado depois, o resto é aplicado e o campo Motivo fica vazio, com aviso.',

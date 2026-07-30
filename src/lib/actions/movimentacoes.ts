@@ -2,7 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import {
+  exigirEscrita,
+  exigirEscritaEm,
+  exigirPapel,
+  idOperador,
+} from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import {
@@ -185,14 +190,12 @@ export async function registrarMovimentacoes(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) {
-    return {
-      ok: false,
-      criadas: 0,
-      resultados: [],
-      erroGeral: MSG_SESSAO_EXPIRADA,
-    }
+  // Cargo primeiro (sessão, desativação, `consulta`); o vínculo de filial só depois de
+  // ler o estado corrente dos ativos, que é de onde sai a filial de ORIGEM de cada
+  // linha — ver o comentário longo em actions/ativos.ts.
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) {
+    return { ok: false, criadas: 0, resultados: [], erroGeral: cargo.erro }
   }
 
   const itens = parsed.data.itens
@@ -227,6 +230,25 @@ export async function registrarMovimentacoes(input: {
   const ativoPorId = new Map<string, AtivoBasico>(
     (ativosData ?? []).map((a) => [a.id, a as AtivoBasico]),
   )
+
+  // Vínculo de escrita em TODAS as filiais tocadas pelo lote — `montarRow` grava
+  // `filial_id: ativo.filial_id` (a origem), e é esse valor que a policy de INSERT de
+  // `movimentacoes` avalia. O lote é recusado inteiro: gravar as linhas permitidas e
+  // recusar as outras deixaria o operador com meia transferência registrada.
+  //
+  // TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao (§0 da ordem F21): `filial_destino_id`
+  // NÃO entra no conjunto — mandar equipamento para outra filial é o fluxo normal, e
+  // quem recebe é outro operador. Se o parâmetro virar `sim`, é aqui E na policy da 0063.
+  //
+  // Lote sem nenhum ativo visível cai no cargo já resolvido: assim cada linha continua
+  // recebendo 'Ativo não encontrado.' no loop, em vez de um erroGeral sobre filial.
+  const filiaisDoLote = (ativosData ?? []).map((a) => a.filial_id)
+  const aut =
+    filiaisDoLote.length > 0 ? await exigirEscritaEm(supabase, filiaisDoLote) : cargo
+  if (!aut.ok) {
+    return { ok: false, criadas: 0, resultados: [], erroGeral: aut.erro }
+  }
+  const uid = aut.uid
 
   const resultados: ItemResultado[] = []
   const rotasAtivos = new Set<string>()
@@ -297,8 +319,11 @@ export async function estornarMovimentacao(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  // ESTORNO_OPERADOR = sim (§0 da ordem F21): estornar é a correção normal do dia a dia,
+  // já restrita à última movimentação pelo trigger — operador estorna nas filiais
+  // vinculadas, não é privilégio de admin.
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
   // Movimentacao original -> ativo (e, dele, a filial corrente p/ o insert).
   const { data: mov, error: movErr } = await supabase
@@ -316,6 +341,12 @@ export async function estornarMovimentacao(input: {
     .single()
   if (ativoErr) return { ok: false, erro: traduzErroBanco(ativoErr.message, ativoErr.code) }
 
+  // A filial do estorno é a CORRENTE do ativo (a mesma que vai no insert abaixo), não a
+  // da movimentação estornada — se o ativo foi transferido depois, é onde ele está hoje
+  // que decide quem pode mexer nele.
+  const aut = await exigirEscrita(supabase, ativo.filial_id)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
   const { error: insertErr } = await supabase.from('movimentacoes').insert({
     ativo_id: mov.ativo_id,
     tipo: 'estorno',
@@ -323,7 +354,7 @@ export async function estornarMovimentacao(input: {
     data: hojeISO(),
     filial_id: ativo.filial_id,
     observacao: parsed.data.observacao ?? null,
-    criado_por: uid,
+    criado_por: aut.uid,
   })
 
   if (insertErr) return { ok: false, erro: traduzErroBanco(insertErr.message, insertErr.code) }

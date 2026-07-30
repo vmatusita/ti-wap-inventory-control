@@ -150,7 +150,43 @@ describe('retrocompat — chamada com 1 argumento (sem code) segue funcionando',
       'Um dos valores informados (motivo ou filial) não existe mais.',
     )
     expect(traduzErroBanco('new row violates row-level security policy')).toBe(
-      'Sem permissão para esta operação. Faça login novamente.',
+      'Sem permissão para esta operação: seu cargo ou suas filiais de escrita não permitem. Se seu acesso mudou agora, recarregue a página; se não, fale com um administrador.',
     )
+  })
+
+  // F21 — negativa por CARGO/VÍNCULO. O texto antigo ("Faça login novamente") mentia para
+  // quem é `consulta` ou é operador sem a filial vinculada: relogar não muda nada.
+  describe('permissão por cargo e filial (F21)', () => {
+    it('reconhece a guarda de admin da RPC de import pela mensagem', () => {
+      expect(
+        traduzErroBanco('Apenas administradores podem executar o import de startup.'),
+      ).toBe('Esta ação é restrita a administradores.')
+    })
+
+    it('reconhece a guarda de vínculo de criar_compra_lote (com e sem acento)', () => {
+      const esperado = 'Você não tem permissão de escrita nesta filial. Fale com um administrador.'
+      expect(traduzErroBanco('Sem permissao de escrita na filial 3 (cadastro de compra).')).toBe(
+        esperado,
+      )
+      expect(traduzErroBanco('Sem permissão de escrita na filial 3 (cadastro de compra).')).toBe(
+        esperado,
+      )
+    })
+
+    it('traduz o SQLSTATE 42501 mesmo sem texto reconhecível na mensagem', () => {
+      // É o caso do grant de coluna de `profiles` ("permission denied for column papel")
+      // e de qualquer recusa de policy que venha só com o code.
+      expect(traduzErroBanco('algo cru do postgres', '42501')).toBe(
+        'Sem permissão para esta operação: seu cargo ou suas filiais de escrita não permitem. Se seu acesso mudou agora, recarregue a página; se não, fale com um administrador.',
+      )
+    })
+
+    it('a guarda mais específica ganha da genérica de 42501', () => {
+      // A RPC do import levanta 42501 COM a mensagem própria: tem de sair a mensagem de
+      // admin, não a genérica de cargo/filial.
+      expect(
+        traduzErroBanco('Apenas administradores podem executar o import de startup.', '42501'),
+      ).toBe('Esta ação é restrita a administradores.')
+    })
   })
 })

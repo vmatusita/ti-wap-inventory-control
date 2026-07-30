@@ -163,6 +163,41 @@ export type Database = {
           },
         ]
       }
+      eventos_admin: {
+        Row: {
+          acao: string
+          alvo: string | null
+          autor: string | null
+          detalhe: Json | null
+          id: string
+          quando: string
+        }
+        Insert: {
+          acao: string
+          alvo?: string | null
+          autor?: string | null
+          detalhe?: Json | null
+          id?: string
+          quando?: string
+        }
+        Update: {
+          acao?: string
+          alvo?: string | null
+          autor?: string | null
+          detalhe?: Json | null
+          id?: string
+          quando?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_admin_autor_fkey"
+            columns: ["autor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       filiais: {
         Row: {
           ativo: boolean
@@ -532,6 +567,39 @@ export type Database = {
           },
         ]
       }
+      operador_filiais: {
+        Row: {
+          created_at: string
+          filial_id: number
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          filial_id: number
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          filial_id?: number
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operador_filiais_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operador_filiais_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pendencias_item: {
         Row: {
           ativo_id: string
@@ -615,21 +683,27 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ativo: boolean
           created_at: string
           id: string
           nome: string | null
+          papel: Database["public"]["Enums"]["papel_usuario"]
           primeiro_nome: string | null
           sobrenome: string | null
         }
         Insert: {
+          ativo?: boolean
           created_at?: string
           id: string
+          papel?: Database["public"]["Enums"]["papel_usuario"]
           primeiro_nome?: string | null
           sobrenome?: string | null
         }
         Update: {
+          ativo?: boolean
           created_at?: string
           id?: string
+          papel?: Database["public"]["Enums"]["papel_usuario"]
           primeiro_nome?: string | null
           sobrenome?: string | null
         }
@@ -941,6 +1015,7 @@ export type Database = {
           substituto_mov_id: string
         }[]
       }
+      e_admin: { Args: never; Returns: boolean }
       importar_ativos_substituir: {
         Args: {
           p_backup_path: string
@@ -950,6 +1025,11 @@ export type Database = {
         }
         Returns: Json
       }
+      papel_atual: {
+        Args: never
+        Returns: Database["public"]["Enums"]["papel_usuario"]
+      }
+      pode_escrever_filial: { Args: { fid: number }; Returns: boolean }
       registrar_tentativa_senha: {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
         Returns: boolean
@@ -1042,6 +1122,7 @@ export type Database = {
         | "tablet"
         | "outro"
       grupo_item: "acessorio" | "componente"
+      papel_usuario: "admin" | "operador" | "consulta"
       status_ativo:
         | "em_estoque"
         | "reservado"
@@ -1212,6 +1293,7 @@ export const Constants = {
         "outro",
       ],
       grupo_item: ["acessorio", "componente"],
+      papel_usuario: ["admin", "operador", "consulta"],
       status_ativo: [
         "em_estoque",
         "reservado",

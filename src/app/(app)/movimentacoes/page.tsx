@@ -6,6 +6,8 @@ import {
   MOV_PAGE_SIZE,
 } from '@/lib/queries/movimentacoes'
 import { listarFiliais } from '@/lib/queries/filiais'
+import { getOperador } from '@/lib/auth/acesso'
+import { podeEscrever } from '@/lib/auth/papeis'
 import { dataISO, idNumerico, paginaNumerica } from '@/lib/url-params'
 import { TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
 import { Button } from '@/components/ui/button'
@@ -55,7 +57,10 @@ export default async function MovimentacoesPage({
   const filialId = idNumerico(texto(sp.filial)) ?? undefined
   const page = paginaNumerica(texto(sp.page))
 
-  const [filiais, resultado] = await Promise.all([
+  // F21 — o histórico é igual para os três cargos; só o CTA de registrar depende
+  // do cargo (o filtro de filial continua com a lista inteira: é leitura).
+  const [operador, filiais, resultado] = await Promise.all([
+    getOperador(),
     listarFiliais(),
     listarMovimentacoes({
       q,
@@ -68,6 +73,7 @@ export default async function MovimentacoesPage({
     }),
   ])
 
+  const escreve = podeEscrever(operador?.papel)
   const temFiltro = Boolean(q || de || ate || tipo || filialId)
 
   // A busca é de CAMPO ÚNICO (o PostgREST não faz `OR` entre tabela e embed):
@@ -90,12 +96,14 @@ export default async function MovimentacoesPage({
             {temFiltro ? ' no filtro atual' : ' registradas'}
           </p>
         </div>
-        <Button asChild className="gap-2">
-          <Link href="/movimentacoes/nova">
-            <Plus className="size-4" aria-hidden />
-            Nova movimentação
-          </Link>
-        </Button>
+        {escreve && (
+          <Button asChild className="gap-2">
+            <Link href="/movimentacoes/nova">
+              <Plus className="size-4" aria-hidden />
+              Nova movimentação
+            </Link>
+          </Button>
+        )}
       </div>
 
       <ListaFiltros filiais={filiais} />
@@ -126,7 +134,11 @@ export default async function MovimentacoesPage({
         </p>
       )}
 
-      <ListaMovimentacoes rows={resultado.rows} temFiltro={temFiltro} />
+      <ListaMovimentacoes
+        rows={resultado.rows}
+        temFiltro={temFiltro}
+        podeRegistrar={escreve}
+      />
 
       {resultado.total > resultado.pageSize && (
         <AtivosPaginacao

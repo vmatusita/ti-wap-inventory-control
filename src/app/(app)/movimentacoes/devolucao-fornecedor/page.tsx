@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Eye, TriangleAlert } from 'lucide-react'
 import {
   DevolucaoFornecedorForm,
   type AtivoEmManutencao,
@@ -9,6 +9,16 @@ import { ultimoEnvioManutencao } from '@/lib/queries/movimentacoes'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { rotuloStatus } from '@/lib/dominio'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
+import {
+  filiaisParaEscrita,
+  podeEscreverNaFilial,
+} from '@/components/layout/permissoes'
+import {
+  getOperador,
+  MSG_SOMENTE_LEITURA,
+  msgSemEscritaNaFilial,
+} from '@/lib/auth/acesso'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -55,10 +65,33 @@ export default async function DevolucaoFornecedorPage({
     )
   }
 
-  const [chamados, filiais] = await Promise.all([
+  const [chamados, filiais, operador] = await Promise.all([
     ultimoEnvioManutencao(ativo.id),
     listarFiliais(),
+    getOperador(),
   ])
+
+  // F21 — a baixa acontece na filial DESTE ativo: sem escrita nela, não há
+  // devolução a registrar (nem com substituto). Segunda linha da mesma regra que
+  // `devolverAoFornecedor` aplica no servidor — aqui só para não abrir um
+  // formulário de duas partes que terminaria em recusa.
+  if (!podeEscreverNaFilial(operador, ativo.filial_id)) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        {voltar}
+        <EstadoVazio
+          icone={Eye}
+          titulo="Esta tela registra a baixa do equipamento"
+          descricao={
+            operador?.papel === 'consulta'
+              ? MSG_SOMENTE_LEITURA
+              : msgSemEscritaNaFilial(ativo.filial_nome)
+          }
+          acao={{ href: `/ativos/${ativo.id}`, rotulo: 'Ver a ficha do ativo' }}
+        />
+      </div>
+    )
+  }
 
   const ativoProp: AtivoEmManutencao = {
     id: ativo.id,
@@ -87,11 +120,14 @@ export default async function DevolucaoFornecedorPage({
         </p>
       </div>
 
+      {/* O SUBSTITUTO é um ativo novo: a filial dele é escrita, então o select
+          oferece só as vinculadas. O default do formulário é a filial do ativo
+          antigo, que a guarda acima já provou ser uma delas. */}
       <DevolucaoFornecedorForm
         ativo={ativoProp}
         chamadoHerdado={chamados?.chamado ?? null}
         chamadoFornecedorHerdado={chamados?.chamado_fornecedor ?? null}
-        filiais={filiais}
+        filiais={filiaisParaEscrita(operador, filiais)}
       />
     </div>
   )

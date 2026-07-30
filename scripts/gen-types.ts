@@ -26,19 +26,45 @@ function abortar(msg: string, detalhe?: string): never {
   process.exit(1)
 }
 
-const r = spawnSync(
-  'npx',
-  ['supabase', 'gen', 'types', 'typescript', '--linked'],
-  {
-    encoding: 'utf8',
-    // No Windows o `npx` e um .cmd — precisa de shell para ser resolvido.
-    shell: process.platform === 'win32',
-    maxBuffer: 32 * 1024 * 1024,
-  },
-)
+/**
+ * F21 (29/07/2026): `--linked` depende de `supabase/.temp/linked-project.json`, que NAO
+ * existe em toda maquina — nesta, `gen types --linked` falha com
+ * `LegacyProjectNotLinkedError` e o script abortava sem alternativa, deixando
+ * `npm run db:types` inutilizavel (e a regeneracao de tipos e passo obrigatorio de
+ * qualquer fase que mexa no banco).
+ *
+ * Alternativa: `--project-id <ref>`, que fala com a Management API e precisa apenas do
+ * `SUPABASE_ACCESS_TOKEN` (ja presente no .env.local). Ordem de preferencia:
+ *   1. `DB_TYPES_PROJECT_REF` no ambiente  → `--project-id <ref>`  (caminho explicito)
+ *   2. sem a variavel                      → `--linked`            (comportamento antigo)
+ *
+ * O ref NAO vem hardcoded de proposito: apontar o gerador para producao por engano
+ * geraria tipos do banco errado sem ninguem notar. Quem quer o caminho novo diz qual ref.
+ */
+const REF = (process.env.DB_TYPES_PROJECT_REF ?? '').trim()
+const args = REF
+  ? ['supabase', 'gen', 'types', 'typescript', '--project-id', REF]
+  : ['supabase', 'gen', 'types', 'typescript', '--linked']
+
+console.log(`[db:types] gerando por ${REF ? `--project-id ${REF}` : '--linked'}`)
+
+const r = spawnSync('npx', args, {
+  encoding: 'utf8',
+  // No Windows o `npx` e um .cmd — precisa de shell para ser resolvido.
+  shell: process.platform === 'win32',
+  maxBuffer: 32 * 1024 * 1024,
+})
 
 if (r.error) abortar(`Nao consegui executar o supabase CLI: ${r.error.message}`)
-if (r.status !== 0) abortar(`supabase gen types falhou (exit ${r.status}).`, r.stderr)
+if (r.status !== 0) {
+  abortar(
+    `supabase gen types falhou (exit ${r.status}).` +
+      (REF
+        ? ' Confira SUPABASE_ACCESS_TOKEN e o ref em DB_TYPES_PROJECT_REF.'
+        : ' Projeto nao linkado? Rode com DB_TYPES_PROJECT_REF=<ref> (ver comentario acima).'),
+    r.stderr,
+  )
+}
 
 const saida = (r.stdout ?? '').trim()
 

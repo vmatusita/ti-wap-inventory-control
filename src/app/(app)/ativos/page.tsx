@@ -1,5 +1,7 @@
 import { listarAtivos } from '@/lib/queries/ativos'
 import { listarFiliais } from '@/lib/queries/filiais'
+import { getOperador } from '@/lib/auth/acesso'
+import { podeEscrever } from '@/lib/auth/papeis'
 import {
   CATEGORIA_ORDEM,
   STATUS_ORDEM,
@@ -74,7 +76,11 @@ export default async function AtivosPage({
     q || filialId || categoria || status.length > 0 || semPatrimonio,
   )
 
-  const [filiais, resultado] = await Promise.all([
+  // F21 — a lista é igual para os três cargos (leitura ampla); só o CTA de
+  // cadastro depende do cargo. Exportar CSV continua para todos
+  // (CONSULTA_EXPORTA_CSV = sim, §0 da ordem).
+  const [operador, filiais, resultado] = await Promise.all([
+    getOperador(),
     listarFiliais(),
     listarAtivos({
       q,
@@ -87,6 +93,7 @@ export default async function AtivosPage({
       ordenacao,
     }),
   ])
+  const escreve = podeEscrever(operador?.papel)
 
   return (
     <div className="space-y-5">
@@ -105,12 +112,14 @@ export default async function AtivosPage({
             acao={exportarAtivosCSV}
             descricao="dos ativos filtrados"
           />
-          <Button asChild variant="outline" className="gap-2">
-            <Link href="/ativos/novo">
-              <PackagePlus className="size-4" />
-              Novo equipamento
-            </Link>
-          </Button>
+          {escreve && (
+            <Button asChild variant="outline" className="gap-2">
+              <Link href="/ativos/novo">
+                <PackagePlus className="size-4" />
+                Novo equipamento
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -128,8 +137,12 @@ export default async function AtivosPage({
         !temFiltro && resultado.total === 0 ? (
           <EstadoVazio
             titulo="Nenhum ativo cadastrado ainda"
-            descricao="Cadastre o primeiro equipamento para começar a controlar o estoque."
-            acao={{ href: '/ativos/novo', rotulo: 'Cadastrar o primeiro' }}
+            descricao={
+              escreve
+                ? 'Cadastre o primeiro equipamento para começar a controlar o estoque.'
+                : 'Nada cadastrado ainda — quem registra as compras é o cargo Operador.'
+            }
+            acao={escreve ? { href: '/ativos/novo', rotulo: 'Cadastrar o primeiro' } : undefined}
           />
         ) : (
           <EstadoVazio

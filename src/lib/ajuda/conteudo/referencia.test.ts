@@ -384,7 +384,16 @@ const MENSAGENS_OBRIGATORIAS = [
   'O arquivo precisa ter extensão .csv ou .xlsx.',
   'Filial inativa: import bloqueado.',
   // Sessão e acesso
-  'Sem permissão para esta operação. Faça login novamente.',
+  // F21: a antiga "Sem permissão para esta operação. Faça login novamente." saiu
+  // do código — com cargos, mandar relogar MENTIA (quem é consulta, ou operador
+  // sem a filial, pode relogar mil vezes e nada muda). O texto novo diz o que
+  // fazer de verdade, e as negativas por cargo/vínculo entram catalogadas.
+  'Sem permissão para esta operação: seu cargo ou suas filiais de escrita não permitem. Se seu acesso mudou agora, recarregue a página; se não, fale com um administrador.',
+  'Seu cargo é de consulta (somente leitura): você pode consultar tudo, mas não registrar alterações.',
+  'Esta ação é restrita a administradores.',
+  'Você não tem permissão de escrita nesta filial. Fale com um administrador.',
+  'O lote inclui filial em que você não tem permissão de escrita. Fale com um administrador.',
+  'Seu acesso foi desativado. Fale com um administrador.',
   'Sua sessão expirou. Faça login novamente.',
   'E-mail ou senha inválidos',
   'Senha inválida.',
@@ -419,6 +428,28 @@ describe('mensagens-de-erro — catálogo com o texto exato da tela', () => {
     expect(c).toContain(`o máximo por lote é ${MAX_LOTE_COMPRA}`)
     expect(c).toContain(`o limite é ${TAMANHO_MAX_ROTULO}`)
     expect(c).toContain(DOMINIOS_TEXTO)
+  })
+
+  // A lista acima é escrita à mão de propósito (é o TEXTO EXATO da tela), então
+  // ela envelhece em silêncio quando alguém edita a mensagem no código. Para as
+  // negativas de acesso da F21 existe uma fonte única — as constantes MSG_* de
+  // `src/lib/auth/acesso.ts` —, e este teste as LÊ do arquivo e cobra cada uma
+  // aqui. Ler a fonte, e não importar o módulo: `acesso.ts` é só-servidor
+  // (`import 'server-only'`) e importá-lo derrubaria toda esta suíte.
+  it('cataloga as mensagens de acesso EXATAMENTE como acesso.ts as define', () => {
+    const fonteAcesso = readFileSync(
+      join(process.cwd(), 'src', 'lib', 'auth', 'acesso.ts'),
+      'utf8',
+    )
+    const mensagens = [...fonteAcesso.matchAll(/export const (MSG_[A-Z_]+)\s*=\s*'([^']*)'/g)]
+    // Se o casamento voltar vazio, o teste viraria fachada: quatro é o que a F21
+    // criou (sessão expirada, desativado, somente leitura, só admin).
+    expect(mensagens.length, 'nenhuma MSG_* encontrada em acesso.ts').toBeGreaterThanOrEqual(4)
+    for (const [, nome, texto] of mensagens) {
+      expect(c, `${nome} não está catalogada em mensagens-de-erro`).toContain(
+        JSON.stringify(texto).slice(1, -1),
+      )
+    }
   })
 
   it('explica que recusa não é perda (o não-efeito é afirmado)', () => {

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   anotacaoSchema,
@@ -29,6 +29,23 @@ function limparPendenciaSemPatrimonio(pendencia: string | null): string | null {
   return limparTrechoPendencia(pendencia, PENDENCIA_SEM_PATRIMONIO)
 }
 
+// ---------------------------------------------------------------------------
+// F21 — a guarda de cargo/vínculo vem em DUAS METADES, e a ordem tem motivo.
+//
+// A filial que autoriza escrever num ativo é a CORRENTE dele — exatamente a que a
+// policy `pode_escrever_filial(filial_id)` (migration 0063) avalia —, e ela só se
+// conhece depois de ler o ativo. Mas a leitura, sem sessão, volta VAZIA pela RLS: se
+// a guarda viesse só depois dela, "sessão expirada" e "usuário desativado" chegariam
+// à tela como "Ativo não encontrado", mandando a pessoa caçar um ativo que existe e
+// ela só não pode ver.
+//
+// Daí: `exigirPapel('operador')` ANTES da leitura (resolve sessão, desativação e o
+// cargo `consulta`) e `exigirEscrita(filial do ativo)` DEPOIS (resolve o vínculo).
+// São as duas metades da mesma guarda. O custo é reconferir a sessão uma vez; nesta
+// escala (dezena de usuários) é irrelevante — a própria ADR-002 §4 registra a troca
+// de latência por revogação imediata. Mesmo padrão em movimentacoes.ts e termos.ts.
+// ---------------------------------------------------------------------------
+
 export async function anotarAtivo(input: {
   ativo_id: string
   texto: string
@@ -39,13 +56,27 @@ export async function anotarAtivo(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
+
+  // `anotacoes` não tem filial (a policy dela é só por cargo), mas a anotação é um
+  // registro SOBRE o ativo: quem não escreve na filial do ativo também não anota nele
+  // (ADR-002 §3, linha "Editar ativo, corrigir patrimônio, service tag, anotar").
+  const { data: ativo, error: eFilial } = await supabase
+    .from('ativos')
+    .select('filial_id')
+    .eq('id', parsed.data.ativo_id)
+    .maybeSingle()
+  if (eFilial) return { ok: false, erro: traduzErroBanco(eFilial.message, eFilial.code) }
+  if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+
+  const aut = await exigirEscrita(supabase, ativo.filial_id)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const { error } = await supabase.from('anotacoes').insert({
     ativo_id: parsed.data.ativo_id,
     texto: parsed.data.texto,
-    criado_por: uid,
+    criado_por: aut.uid,
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
@@ -75,10 +106,23 @@ export async function atualizarDadosCadastrais(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
   const { id, ...campos } = parsed.data
+
+  // Este update é `.eq('id', id)` e não lê o ativo antes — a filial vem de um lookup
+  // próprio, porque é ela (a corrente) que o vínculo de escrita exige.
+  const { data: ativo, error: eFilial } = await supabase
+    .from('ativos')
+    .select('filial_id')
+    .eq('id', id)
+    .maybeSingle()
+  if (eFilial) return { ok: false, erro: traduzErroBanco(eFilial.message, eFilial.code) }
+  if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+
+  const aut = await exigirEscrita(supabase, ativo.filial_id)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const { error } = await supabase
     .from('ativos')
@@ -125,18 +169,23 @@ export async function corrigirPatrimonio(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
   const { ativo_id } = parsed.data
 
+  // `filial_id` entra no select que já existia (não é query nova): é o insumo do
+  // vínculo de escrita.
   const { data: ativo, error: eLer } = await supabase
     .from('ativos')
-    .select('patrimonio, pendencia')
+    .select('patrimonio, pendencia, filial_id')
     .eq('id', ativo_id)
     .maybeSingle()
   if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message, eLer.code) }
   if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+
+  const aut = await exigirEscrita(supabase, ativo.filial_id)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const validacao = validarCorrecaoPatrimonio(ativo.patrimonio, parsed.data.patrimonio_novo)
   if (!validacao.ok) return { ok: false, erro: validacao.erro }
@@ -163,7 +212,7 @@ export async function corrigirPatrimonio(input: {
   const { error: eNota } = await supabase.from('anotacoes').insert({
     ativo_id,
     texto: `Patrimônio corrigido de ${antigo ?? 'sem patrimônio'} para ${novo}.`,
-    criado_por: uid,
+    criado_por: aut.uid,
   })
   if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
 
@@ -193,18 +242,21 @@ export async function definirServiceTag(input: {
   }
 
   const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  if (!uid) return { ok: false, erro: MSG_SESSAO_EXPIRADA }
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
   const { ativo_id, service_tag } = parsed.data
 
   const { data: ativo, error: eLer } = await supabase
     .from('ativos')
-    .select('service_tag, pendencia')
+    .select('service_tag, pendencia, filial_id')
     .eq('id', ativo_id)
     .maybeSingle()
   if (eLer) return { ok: false, erro: traduzErroBanco(eLer.message, eLer.code) }
   if (!ativo) return { ok: false, erro: 'Ativo não encontrado.' }
+
+  const aut = await exigirEscrita(supabase, ativo.filial_id)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
   // Imutabilidade: só DEFINE quando está vazia; ST já preenchida nunca muda.
   if (ativo.service_tag != null && ativo.service_tag.trim() !== '') {
@@ -226,7 +278,7 @@ export async function definirServiceTag(input: {
   const { error: eNota } = await supabase.from('anotacoes').insert({
     ativo_id,
     texto: `Service tag definida: ${service_tag}.`,
-    criado_por: uid,
+    criado_por: aut.uid,
   })
   if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
 

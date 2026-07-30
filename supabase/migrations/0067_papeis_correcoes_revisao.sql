@@ -1,0 +1,115 @@
+-- Migration 0067 — F21: dois furos achados pela REVISÃO ADVERSARIAL da própria fase.
+--
+-- Contexto: revisão de 5 lentes com refutação por achado (relatório em docs/RELATORIO-F21.md).
+-- Os dois achados abaixo foram confirmados por lentes INDEPENDENTES e sobreviveram à refutação;
+-- o primeiro foi **reproduzido empiricamente** no ensaio antes de ser corrigido.
+--
+-- ===========================================================================
+-- 1) `movimentacoes`: a policy gateava a filial que o CLIENTE DECLARA
+-- ===========================================================================
+-- A 0063 escreveu, seguindo a letra do §5 da ordem:
+--     with check (public.pode_escrever_filial(filial_id))
+-- e `movimentacoes.filial_id` é uma **coluna livre do payload**. Nada no banco exigia
+-- `movimentacoes.filial_id = (select filial_id from ativos where id = ativo_id)`: não há
+-- constraint, não há check, e o trigger `aplicar_movimentacao` não compara os dois.
+--
+-- É o padrão do **deputado confuso**: gatear um dado que o próprio escritor escolhe. Pior,
+-- o efeito derivado é AMPLIFICADO — `aplicar_movimentacao` é `security definer` de propósito
+-- (comentário da 0004: "para poder atualizar ativos mesmo com RLS restrita"), então o
+-- `update ativos` que ele faz NUNCA passa pela policy "operador atualiza" da 0063.
+--
+-- EXPLOIT MEDIDO NO ENSAIO (operador vinculado só à filial 1, ativo na filial 2):
+--     pode_escrever_filial(2) = false
+--     insert into movimentacoes (ativo_id=<ativo da f2>, tipo='transferencia',
+--                                filial_id=1, filial_destino_id=1)   -- filial_id MENTIDO
+--     → ACEITO. E o ativo da filial 2 MIGROU para a filial 1.
+-- Dali em diante toda escrita nele é legítima para o atacante. Variantes com o mesmo bypass:
+-- `tipo='ajuste'` com `status_resultante='descartado'` (o ajuste pula a máquina de estados)
+-- e `tipo='saida'` (troca o detentor) — em ativo de filial alheia, nos dois casos.
+-- A anon key está no bundle do navegador e o operador conhece a própria senha, então o
+-- request forjado não exige nada além de `curl`.
+--
+-- Isso contrariava o **critério 2** da ordem ("recusado em Y **no banco**") e derrubava a
+-- premissa do ADR-002 §4.3.1 ("gatear o INSERT de `movimentacoes` basta"): o isolamento por
+-- filial dos ATIVOS existia só na Server Action — a UI como única linha, exatamente o que o
+-- CLAUDE.md proíbe.
+--
+-- CORREÇÃO. Gatear também a filial de **ORIGEM lida do banco**. A fonte confiável já existe e
+-- é gratuita: o trigger, na PRIMEIRA coisa que faz, preenche
+--     new.snapshot_anterior := jsonb_build_object(..., 'filial_id', v_ativo.filial_id, ...)
+-- a partir de `select * into v_ativo from ativos where id = new.ativo_id for update`. Ou seja,
+-- é a filial REAL do ativo, lida do banco sob lock, e o trigger **sobrescreve** o que o
+-- cliente tenha mandado em `snapshot_anterior` — não é forjável.
+--
+-- Por que isto funciona (ordem de avaliação, CONFIRMADA por teste e não por leitura de doc):
+-- num INSERT o Postgres roda os BEFORE ROW triggers ANTES de checar as WITH CHECK options, e a
+-- policy vê a linha já modificada pelo trigger. Provado no ensaio: com a policy nova, o
+-- exploit passa a ser recusado com 42501 e os quatro fluxos legítimos continuam passando.
+--
+-- Por que NÃO se usou `exists (select 1 from ativos a where a.id = ativo_id and ...)`:
+-- porque nesse ponto o trigger JÁ moveu o ativo. Numa transferência legítima do operador da
+-- filial 1 para a 2, o ativo já está na 2 quando a policy roda, e o `exists` recusaria a
+-- própria operação que a ordem autoriza (§0: `TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao`).
+-- `snapshot_anterior` é o estado ANTES — é o que queremos.
+--
+-- Fluxos conferidos no ensaio APÓS a correção (todos ACEITOS, nenhuma regressão):
+--   · ajuste do operador na filial vinculada;
+--   · transferência do operador da filial vinculada PARA outra (destino segue livre);
+--   · qualquer movimentação do admin em qualquer filial;
+--   · compra pela RPC `criar_compra_lote` (o ativo nasce na MESMA transação e o
+--     `snapshot_anterior` aponta para a filial recém-criada, já gateada pela policy de `ativos`).
+--
+-- ===========================================================================
+-- 2) `import_logs`: o INSERT continuava `with check (true)`
+-- ===========================================================================
+-- A 0063 deixou a policy de INSERT como estava, por determinação do §5 da ordem ("escrita como
+-- está (RPCs)"), sob o raciocínio de que ela é vestigial — quem grava é a RPC
+-- `security definer`, que não passa por policy. O raciocínio está certo quanto à RPC e
+-- ERRADO quanto ao resto: `authenticated` tem privilégio de INSERT na TABELA (default do
+-- Supabase; nenhuma migration o revoga), então qualquer logado — **inclusive o cargo
+-- `consulta`** — podia gravar linhas falsas na trilha do import destrutivo via PostgREST:
+--     POST /rest/v1/import_logs {"filial_id":1,"modo":"substituir",...}
+-- Trilha de auditoria que qualquer um escreve não é trilha. E, com a leitura agora restrita a
+-- admin (0063), o próprio admin veria histórico envenenado sem ter como distinguir.
+--
+-- CORREÇÃO: `with check ((select public.e_admin()))`. A RPC não é afetada (definer bypassa
+-- RLS), e isto zera o último `rls_policy_always_true` do advisor — de 12 na entrada da F21
+-- para **0**.
+--
+-- ADITIVA em dado (nenhum `delete from`, nenhuma linha tocada). Caminho A do runbook.
+-- REVERSÃO:
+--   alter policy "operador insere" on public.movimentacoes
+--     with check (public.pode_escrever_filial(filial_id));
+--   alter policy "operador insere" on public.import_logs with check (true);
+
+-- ---------------------------------------------------------------------------
+-- 1) movimentacoes — filial declarada E filial de origem real
+-- ---------------------------------------------------------------------------
+-- `pode_escrever_filial(NULL)` devolve false, então um `snapshot_anterior` ausente (impossível
+-- pelo trigger, mas defesa em profundidade) FECHA em vez de abrir.
+alter policy "operador insere" on public.movimentacoes
+  with check (
+    public.pode_escrever_filial(filial_id)
+    and public.pode_escrever_filial((snapshot_anterior ->> 'filial_id')::smallint)
+  );
+
+-- ---------------------------------------------------------------------------
+-- 2) import_logs — só admin grava a trilha
+-- ---------------------------------------------------------------------------
+alter policy "operador insere" on public.import_logs
+  with check ((select public.e_admin()));
+
+-- ---------- VERIFICAÇÃO PÓS-APPLY ----------
+--   -- 1) nenhuma policy de ESCRITA com predicado `true` sobrou, em NENHUMA tabela
+--   select tablename, policyname, cmd from pg_policies
+--    where schemaname = 'public' and cmd <> 'SELECT'
+--      and (coalesce(qual,'') = 'true' or coalesce(with_check,'') = 'true');
+--   -- esperado: 0 linhas
+--
+--   -- 2) a policy de movimentacoes olha as DUAS filiais
+--   select with_check from pg_policies
+--    where schemaname='public' and tablename='movimentacoes' and policyname='operador insere';
+--   -- esperado: contém `pode_escrever_filial(filial_id)` E `snapshot_anterior`
+--
+--   -- 3) o roteiro supabase/tests/papeis_rls.sql cobre o caso cruzado (asserção 2c-bis):
+--   --    operador tenta movimentar ativo da filial NÃO vinculada declarando a filial dele.

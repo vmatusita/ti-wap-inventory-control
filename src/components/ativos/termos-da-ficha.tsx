@@ -30,6 +30,11 @@ import { baixarDeUrl } from '@/lib/download'
 
 // Seção "Termos" da ficha (F5A §5): histórico dos termos gerados (download +
 // editar) e geração retroativa a partir das movimentações elegíveis do ativo.
+//
+// F21 — `podeEscrever` (cargo × filial do ativo, resolvido na ficha) governa
+// GERAR, EDITAR (que regera o termo) e a assinatura (confirmar/desfazer). O que
+// NÃO depende dele: a lista dos termos e o botão "Baixar" — baixar é leitura
+// (signed URL), e o cargo Consulta existe justamente para conferir documento.
 export function TermosDaFicha({
   ativoId,
   patrimonio,
@@ -40,6 +45,7 @@ export function TermosDaFicha({
   respMovId,
   devolMovId,
   devolTipo,
+  podeEscrever,
 }: {
   ativoId: string
   // null = ativo sem patrimônio físico (F7E) — o rótulo do termo mostra "sem patrimônio".
@@ -51,6 +57,7 @@ export function TermosDaFicha({
   respMovId: string | null
   devolMovId: string | null
   devolTipo: TermoTipo | null
+  podeEscrever: boolean
 }) {
   const router = useRouter()
   const [baixando, setBaixando] = useState<string | null>(null)
@@ -90,7 +97,7 @@ export function TermosDaFicha({
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-base">Termos</CardTitle>
         <div className="flex flex-wrap gap-2">
-          {respMovId && categoriaTemTermo(categoria) && !temTermoResp && (
+          {podeEscrever && respMovId && categoriaTemTermo(categoria) && !temTermoResp && (
             <GerarTermoDialog
               familia="responsabilidade"
               categoria={categoria}
@@ -105,7 +112,7 @@ export function TermosDaFicha({
               }
             />
           )}
-          {devolMovId && devolTipo && !temTermoDevol && (
+          {podeEscrever && devolMovId && devolTipo && !temTermoDevol && (
             <GerarTermoDialog
               familia="devolucao"
               tipoDevolucao={devolTipo}
@@ -137,7 +144,7 @@ export function TermosDaFicha({
                   </span>
                 )}
               </div>
-              <DesfazerAssinaturaDialog ativoId={ativoId} />
+              {podeEscrever && <DesfazerAssinaturaDialog ativoId={ativoId} />}
             </>
           ) : (
             <>
@@ -145,7 +152,7 @@ export function TermosDaFicha({
                 <span className="text-muted-foreground">Assinatura do termo: </span>
                 <span className="font-medium">{rotuloTermo(termoAssinado)}</span>
               </div>
-              <ConfirmarAssinaturaDialog ativoId={ativoId} />
+              {podeEscrever && <ConfirmarAssinaturaDialog ativoId={ativoId} />}
             </>
           )}
         </div>
@@ -167,20 +174,22 @@ export function TermosDaFicha({
                   </p>
                 </div>
                 <div className="flex gap-1">
-                  <GerarTermoDialog
-                    familia={familiaDoTipo(t.tipo)}
-                    categoria={categoria}
-                    tipoInicial={t.tipo}
-                    movimentacaoIds={t.movimentacao_ids}
-                    rotulo={rotuloPatrimonio}
-                    onGerado={refresh}
-                    trigger={
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5">
-                        <Pencil className="size-3.5" />
-                        Editar
-                      </Button>
-                    }
-                  />
+                  {podeEscrever && (
+                    <GerarTermoDialog
+                      familia={familiaDoTipo(t.tipo)}
+                      categoria={categoria}
+                      tipoInicial={t.tipo}
+                      movimentacaoIds={t.movimentacao_ids}
+                      rotulo={rotuloPatrimonio}
+                      onGerado={refresh}
+                      trigger={
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5">
+                          <Pencil className="size-3.5" />
+                          Editar
+                        </Button>
+                      }
+                    />
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"

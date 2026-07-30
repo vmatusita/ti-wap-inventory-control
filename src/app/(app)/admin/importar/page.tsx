@@ -17,8 +17,12 @@ import { ImportarWizard } from '@/components/admin/importar/importar-wizard'
 import { BaixarBackupButton } from '@/components/admin/importar/baixar-backup-button'
 
 // admin/importar (OS-F7 / W3): wizard de "Substituir tudo" + histórico de imports.
-// Só operador (rota gated pelo proxy + layout de admin). Leituras pelo client
-// autenticado (RLS 0031 dá select ao authenticated em import_logs / bucket).
+// F21 — só o cargo ADMIN: a rota é fechada pelo `admin/layout.tsx`, a action
+// `aplicarImport` exige `exigirAdmin()`, a RPC `importar_ativos_substituir` tem
+// guarda `e_admin()` e a leitura de `import_logs` passou a exigir admin no RLS
+// (migration 0063 / ADR-002 §4.2). O select de filial do wizard segue com a lista
+// inteira: admin escreve em todas.
+// Leituras pelo client autenticado (com a sessão de admin).
 export default async function AdminImportarPage() {
   const client = await createClient()
   const [filiais, logs] = await Promise.all([

@@ -4,23 +4,36 @@ import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { idOperador, MSG_SESSAO_EXPIRADA } from '@/lib/auth/acesso'
+import { exigirAdmin } from '@/lib/auth/acesso'
+import { PAPEL_ROTULO } from '@/lib/auth/papeis'
+import type { PapelUsuario } from '@/lib/auth/papeis'
+import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { DOMINIOS_OPERADOR, DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { getSaldosItens } from '@/lib/queries/itens'
+import { getEstadoUsuario, idsDeAdminsAtivos } from '@/lib/queries/admin'
+import type { EstadoUsuario } from '@/lib/queries/admin'
 import {
-  conviteSchema,
+  convidarUsuarioSchema,
+  definirStatusUsuarioSchema,
+  editarUsuarioSchema,
   filialSchema,
   atualizarFilialSchema,
   motivoSchema,
   atualizarMotivoSchema,
+  validarStatusDeUsuario,
+  validarTrocaDePapel,
 } from '@/lib/validators/admin'
 
-async function exigirOperador(): Promise<ActionResult | null> {
-  const supabase = await createClient()
-  const uid = await idOperador(supabase)
-  return uid ? null : { ok: false, erro: MSG_SESSAO_EXPIRADA }
-}
+// F21 — TODA action deste arquivo exige ADMIN. Antes havia uma guarda local
+// `exigirOperador()` que só perguntava "existe sessão?": qualquer logado convidava usuário,
+// criava filial e editava o vocabulário de motivos. A guarda agora é `exigirAdmin`
+// (src/lib/auth/acesso.ts), que lê o cargo pela MESMA função do banco que a RLS usa
+// (`papel_atual()`), então a mensagem amigável e a recusa do Postgres nunca divergem.
+//
+// ⚠ A trava de verdade são as policies `e_admin()` da migration 0063 (filiais, motivos) e o
+// service role (usuários). Se esta guarda for removida por engano, o banco continua
+// recusando — mas com SQLSTATE cru em vez de frase em pt-BR.
 
 // Origin da requisição para montar o link de convite. Em produção (Vercel) o
 // header `origin` costuma vir vazio na Server Action same-origin — caímos no
@@ -59,21 +72,30 @@ function linkConfirmacao(
 //
 // `type` NÃO exportado de propósito: arquivo 'use server' só pode EXPORTAR funções
 // async (regra do Next). O dialog infere o retorno via ReturnType — não importa o tipo.
+//
+// `aviso` (F21): o convite deu certo mas algo secundário não — a conta existe e o link vale,
+// só o cargo/os vínculos não foram gravados. Devolver `ok: false` aqui seria mentir (a conta
+// FOI criada e o admin precisa do link); esconder seria pior (usuário sem escrita nenhuma).
 type ConviteResult =
-  | { ok: true; link: string; reenvio: boolean }
+  | { ok: true; link: string; reenvio: boolean; aviso?: string }
   | { ok: false; erro: string }
 
 export async function convidarUsuario(input: {
   email: string
+  papel: PapelUsuario
+  filiais: number[]
 }): Promise<ConviteResult> {
-  const bloqueio = await exigirOperador()
-  if (bloqueio) return { ok: false, erro: bloqueio.erro ?? MSG_SESSAO_EXPIRADA }
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
 
-  const parsed = conviteSchema.safeParse(input)
+  // Mesmo schema do formulário (mínimo 1 filial para Operador vem de
+  // `validarVinculosDoPapel`): a validação do cliente é conveniência, esta é a que vale.
+  const parsed = convidarUsuarioSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'E-mail inválido.' }
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
-  const email = parsed.data.email
+  const { email, papel, filiais } = parsed.data
 
   const origem = origemDaRequisicao(await headers())
   if (!origem) {
@@ -92,11 +114,38 @@ export async function convidarUsuario(input: {
   })
 
   if (!convite.error && convite.data.properties) {
+    // O cargo é gravado AQUI, pelo service role, e NUNCA vem de `raw_user_meta_data`: o
+    // próprio usuário edita o metadata dele por `auth.updateUser`, então metadata não é
+    // canal confiável para autorização (ADR-002 §5).
+    //
+    // O perfil já existe neste ponto — o trigger `handle_new_user` roda na mesma transação
+    // do insert em auth.users. Se ainda assim a gravação falhar, a conta nasce
+    // `operador` + zero vínculo (default da 0061), que NÃO escreve em lugar nenhum: falha
+    // segura, e o aviso manda o admin ajustar em Editar.
+    const r = await aplicarCargoEVinculos(convite.data.user.id, papel, filiais)
+    await registrarEventoAdmin({
+      acao: 'convite_gerado',
+      autor: aut.uid,
+      alvo: email,
+      // A trilha guarda o que foi PEDIDO e se a gravação pegou — assim um usuário que
+      // aparecer depois com cargo diferente do convite tem explicação na própria trilha.
+      detalhe: {
+        papel,
+        filiais,
+        cargo_gravado: r.papelGravado,
+        vinculos_gravados: r.vinculosGravados,
+      },
+    })
     revalidatePath('/admin/usuarios')
     return {
       ok: true,
       reenvio: false,
       link: linkConfirmacao(origem, convite.data.properties.hashed_token, 'invite'),
+      ...(r.erro
+        ? {
+            aviso: `A conta foi criada e o link abaixo vale, mas o cargo/as filiais não foram gravados: ${r.erro} Ajuste em "Editar", na lista de usuários — até lá esta pessoa não escreve em nenhuma filial.`,
+          }
+        : {}),
     }
   }
 
@@ -112,11 +161,35 @@ export async function convidarUsuario(input: {
       options: { redirectTo: `${origem}/auth/confirm` },
     })
     if (!recovery.error && recovery.data.properties) {
+      // REENVIO NÃO MEXE EM CARGO. Deliberado: aqui a ação é "gerar outro link de acesso
+      // para uma conta que já existe", e sobrescrever o cargo de alguém por esse caminho
+      // burlaria as travas de autoproteção (bastaria "reconvidar" o último admin como
+      // consulta para trancar o sistema). Trocar cargo é a action `editarUsuario`, que
+      // confere as travas. O diálogo avisa o admin.
+      //
+      // Conta DESATIVADA é a armadilha deste caminho: o link é gerado e a pessoa até define
+      // a senha, mas o login continua barrado (ban do Auth) e ela não escreve nada
+      // (`ativo = false`). Sem este aviso, o admin entregaria o link achando que devolveu o
+      // acesso — e o suporte viraria "meu login não funciona".
+      const estado = await getEstadoUsuario(recovery.data.user.id).catch(() => null)
+      const desativado = estado ? !estado.ativo : false
+      await registrarEventoAdmin({
+        acao: 'convite_reenviado',
+        autor: aut.uid,
+        alvo: email,
+        detalhe: desativado ? { conta_desativada: true } : null,
+      })
       revalidatePath('/admin/usuarios')
       return {
         ok: true,
         reenvio: true,
         link: linkConfirmacao(origem, recovery.data.properties.hashed_token, 'recovery'),
+        ...(desativado
+          ? {
+              aviso:
+                'Atenção: o acesso desta pessoa está DESATIVADO. O link abaixo deixa ela definir uma senha, mas ela só volta a entrar depois que você clicar em "Reativar" na lista de usuários.',
+            }
+          : {}),
       }
     }
   }
@@ -130,19 +203,274 @@ export async function convidarUsuario(input: {
   return { ok: false, erro: 'Não foi possível gerar o link de convite. Tente de novo.' }
 }
 
+// ---- Cargo e vínculos: a gravação (service role) ----
+// `profiles.papel` e `operador_filiais` NÃO têm policy de escrita para `authenticated`
+// (migrations 0061/0063: grant de coluna em profiles, zero policy de escrita em
+// operador_filiais). O único caminho é o client administrativo, daqui — e é por isso que a
+// guarda `exigirAdmin` acima é a única coisa entre o pedido e a gravação.
+type GravacaoCargo = {
+  erro: string | null
+  papelGravado: boolean
+  vinculosGravados: boolean
+}
+
+async function aplicarCargoEVinculos(
+  usuarioId: string,
+  papel: PapelUsuario,
+  filiais: readonly number[],
+): Promise<GravacaoCargo> {
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('profiles')
+    .update({ papel })
+    .eq('id', usuarioId)
+    .select('id')
+  if (error) {
+    return {
+      erro: traduzErroBanco(error.message, error.code),
+      papelGravado: false,
+      vinculosGravados: false,
+    }
+  }
+  if (!data || data.length === 0) {
+    return {
+      erro: 'Este usuário ainda não tem perfil no sistema (ele aparece depois do primeiro acesso).',
+      papelGravado: false,
+      vinculosGravados: false,
+    }
+  }
+
+  // Apaga e regrava em vez de calcular diferença: a tabela é minúscula (nº de operadores ×
+  // nº de filiais) e o estado final é o que a tela mostra, sem meio-caminho possível.
+  //
+  // Para admin e consulta `filiais` é sempre vazio (o schema recusa o contrário), então este
+  // delete LIMPA os vínculos de quem foi promovido/rebaixado. Deixá-los seria inofensivo no
+  // banco (`pode_escrever_filial` ignora vínculo de admin e fecha para consulta), mas a
+  // coluna "Filiais de escrita" passaria a exibir vínculo que não vale nada — e um dia
+  // alguém acreditaria nela.
+  const { error: erroDelete } = await admin
+    .from('operador_filiais')
+    .delete()
+    .eq('usuario_id', usuarioId)
+  if (erroDelete) {
+    return {
+      erro: traduzErroBanco(erroDelete.message, erroDelete.code),
+      papelGravado: true,
+      vinculosGravados: false,
+    }
+  }
+
+  if (filiais.length > 0) {
+    const { error: erroInsert } = await admin
+      .from('operador_filiais')
+      .insert(filiais.map((filial_id) => ({ usuario_id: usuarioId, filial_id })))
+    if (erroInsert) {
+      return {
+        erro: traduzErroBanco(erroInsert.message, erroInsert.code),
+        papelGravado: true,
+        vinculosGravados: false,
+      }
+    }
+  }
+
+  return { erro: null, papelGravado: true, vinculosGravados: true }
+}
+
+// Estado ATUAL do alvo + a lista de admins ativos: os dois insumos das travas de
+// autoproteção (validators/admin.ts). Lidos juntos e sempre na hora — a decisão "isto
+// deixaria o sistema sem administrador?" não pode sair de cache nem do cliente.
+async function carregarAlvo(
+  usuarioId: string,
+): Promise<{ estado: EstadoUsuario; adminsAtivosIds: string[] } | { erro: string }> {
+  try {
+    const [estado, adminsAtivosIds] = await Promise.all([
+      getEstadoUsuario(usuarioId),
+      idsDeAdminsAtivos(),
+    ])
+    if (!estado) return { erro: 'Usuário não encontrado. Atualize a página e tente de novo.' }
+    return { estado, adminsAtivosIds }
+  } catch (err) {
+    // FALHA FECHADA: sem conseguir contar os admins ativos, recusa a gravação. O contrário
+    // (seguir e supor que sobra alguém) é justamente como se perde o último administrador.
+    console.error('[admin/usuarios] falha ao carregar o estado do usuário', err)
+    return {
+      erro: 'Não foi possível conferir a situação atual deste usuário. Tente de novo em instantes.',
+    }
+  }
+}
+
+// Nome do alvo para a trilha de auditoria: e-mail quando o Auth responde, senão o nome do
+// perfil, senão o id. `alvo` é texto LEGÍVEL (comment da coluna, migration 0065) — quem for
+// ler a trilha seis meses depois precisa reconhecer a pessoa.
+async function alvoLegivel(estado: EstadoUsuario): Promise<string> {
+  const admin = createAdminClient()
+  const r = await admin.auth.admin.getUserById(estado.id).catch(() => null)
+  const email = r && !r.error ? (r.data.user?.email ?? null) : null
+  return email ?? estado.nome?.trim() ?? estado.id
+}
+
+function mesmasFiliais(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i])
+}
+
+// ---- Editar cargo e filiais de escrita de quem já existe ----
+// `aviso` = gravou o essencial mas não tudo (ver ConviteResult). O diálogo mostra em toast
+// de alerta, e não de sucesso.
+type UsuarioResult = { ok: true; aviso?: string } | { ok: false; erro: string }
+
+export async function editarUsuario(input: {
+  usuarioId: string
+  papel: PapelUsuario
+  filiais: number[]
+}): Promise<UsuarioResult> {
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
+  const parsed = editarUsuarioSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+  const { usuarioId, papel, filiais } = parsed.data
+
+  const ctx = await carregarAlvo(usuarioId)
+  if ('erro' in ctx) return { ok: false, erro: ctx.erro }
+  const { estado, adminsAtivosIds } = ctx
+
+  const recusa = validarTrocaDePapel({
+    autorId: aut.uid,
+    alvo: { id: estado.id, papel: estado.papel, ativo: estado.ativo },
+    novoPapel: papel,
+    adminsAtivosIds,
+  })
+  if (recusa) return { ok: false, erro: recusa }
+
+  const trocouPapel = papel !== estado.papel
+  const trocouVinculos = !mesmasFiliais(filiais, estado.vinculos)
+  if (!trocouPapel && !trocouVinculos) return { ok: true }
+
+  const r = await aplicarCargoEVinculos(usuarioId, papel, filiais)
+
+  // A trilha registra o que REALMENTE foi gravado — não o que foi pedido.
+  const alvo = await alvoLegivel(estado)
+  if (trocouPapel && r.papelGravado) {
+    await registrarEventoAdmin({
+      acao: 'papel_alterado',
+      autor: aut.uid,
+      alvo,
+      detalhe: { de: estado.papel, para: papel },
+    })
+  }
+  if (r.vinculosGravados && trocouVinculos) {
+    await registrarEventoAdmin({
+      acao: 'vinculos_alterados',
+      autor: aut.uid,
+      alvo,
+      detalhe: { filiais, de: estado.vinculos },
+    })
+  }
+
+  revalidatePath('/admin/usuarios')
+  if (r.erro) {
+    return r.papelGravado
+      ? {
+          ok: true,
+          aviso: `O cargo foi alterado para ${PAPEL_ROTULO[papel]}, mas as filiais de escrita não: ${r.erro}`,
+        }
+      : { ok: false, erro: r.erro }
+  }
+  return { ok: true }
+}
+
+// ---- Desativar / reativar acesso ----
+// Ban "para sempre" — o formato aceita só ns/us/ms/s/m/h, então 876000h = 100 anos é o
+// idioma da própria documentação do Supabase ("Ban a user for 100 years"). `'none'` levanta.
+const BAN_INDEFINIDO = '876000h'
+
+export async function definirStatusUsuario(input: {
+  usuarioId: string
+  ativo: boolean
+}): Promise<UsuarioResult> {
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
+  const parsed = definirStatusUsuarioSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+  const { usuarioId, ativo } = parsed.data
+
+  const ctx = await carregarAlvo(usuarioId)
+  if ('erro' in ctx) return { ok: false, erro: ctx.erro }
+  const { estado, adminsAtivosIds } = ctx
+
+  const recusa = validarStatusDeUsuario({
+    autorId: aut.uid,
+    alvo: { id: estado.id, papel: estado.papel, ativo: estado.ativo },
+    novoAtivo: ativo,
+    adminsAtivosIds,
+  })
+  if (recusa) return { ok: false, erro: recusa }
+  if (ativo === estado.ativo) return { ok: true }
+
+  const admin = createAdminClient()
+
+  // `profiles.ativo` PRIMEIRO, nos dois sentidos: é o lado que tem efeito no REQUEST
+  // SEGUINTE (papel_atual() devolve NULL e toda policy de escrita fecha). O ban do Auth
+  // impede login NOVO, o que só importa depois que a sessão atual expira.
+  const { data, error } = await admin
+    .from('profiles')
+    .update({ ativo })
+    .eq('id', usuarioId)
+    .select('id')
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
+  if (!data || data.length === 0) {
+    return { ok: false, erro: 'Usuário não encontrado. Atualize a página e tente de novo.' }
+  }
+
+  const ban = await admin.auth.admin.updateUserById(usuarioId, {
+    ban_duration: ativo ? 'none' : BAN_INDEFINIDO,
+  })
+  const loginBloqueado = !ban.error
+
+  await registrarEventoAdmin({
+    acao: ativo ? 'usuario_reativado' : 'usuario_desativado',
+    autor: aut.uid,
+    alvo: await alvoLegivel(estado),
+    detalhe: { papel: estado.papel, login_no_auth: loginBloqueado ? 'ok' : 'falhou' },
+  })
+
+  revalidatePath('/admin/usuarios')
+
+  if (!loginBloqueado) {
+    console.error('[admin/usuarios] falha ao (des)banir no Auth', ban.error)
+    // A metade que importa já valeu; devolver `ok: false` faria o admin repetir a ação
+    // achando que nada aconteceu. O texto diz exatamente o que ficou pendente.
+    return {
+      ok: true,
+      aviso: ativo
+        ? 'O acesso foi reativado no sistema, mas o bloqueio de login no Supabase Auth pode não ter sido removido — se a pessoa não conseguir entrar, tente reativar de novo.'
+        : 'O acesso foi desativado no sistema (efeito imediato: esta pessoa não escreve mais nada), mas não foi possível bloquear o login no Supabase Auth. Tente desativar de novo.',
+    }
+  }
+  return { ok: true }
+}
+
 // ---- Filiais ----
 export async function criarFilial(input: {
   nome: string
   slug: string
 }): Promise<ActionResult> {
-  const bloqueio = await exigirOperador()
-  if (bloqueio) return bloqueio
+  const client = await createClient()
+  const aut = await exigirAdmin(client)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
   const parsed = filialSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
-  const client = await createClient()
   const { error } = await client.from('filiais').insert(parsed.data)
   if (error) {
     if (error.message.toLowerCase().includes('duplicate')) {
@@ -160,15 +488,14 @@ export async function atualizarFilial(input: {
   slug: string
   ativo: boolean
 }): Promise<ActionResult> {
-  const bloqueio = await exigirOperador()
-  if (bloqueio) return bloqueio
+  const client = await createClient()
+  const aut = await exigirAdmin(client)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
   const parsed = atualizarFilialSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
   const { id, nome, slug, ativo } = parsed.data
-
-  const client = await createClient()
 
   // Bloquear desativar filial com ativos (OS-F3 3.7.2) OU com saldo de itens por
   // quantidade (F12-W4-07). As DUAS checagens são independentes, e não uma só,
@@ -238,14 +565,14 @@ export async function criarMotivo(input: {
   rotulo: string
   aplica_a: string[]
 }): Promise<ActionResult> {
-  const bloqueio = await exigirOperador()
-  if (bloqueio) return bloqueio
+  const client = await createClient()
+  const aut = await exigirAdmin(client)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
   const parsed = motivoSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
-  const client = await createClient()
   const { error } = await client.from('motivos').insert(parsed.data)
   if (error) {
     if (error.message.toLowerCase().includes('duplicate')) {
@@ -264,15 +591,15 @@ export async function atualizarMotivo(input: {
   aplica_a: string[]
   ativo: boolean
 }): Promise<ActionResult> {
-  const bloqueio = await exigirOperador()
-  if (bloqueio) return bloqueio
+  const client = await createClient()
+  const aut = await exigirAdmin(client)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
   const parsed = atualizarMotivoSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
   const { codigo, rotulo, aplica_a, ativo } = parsed.data
 
-  const client = await createClient()
   const { error } = await client
     .from('motivos')
     .update({ rotulo, aplica_a, ativo })
