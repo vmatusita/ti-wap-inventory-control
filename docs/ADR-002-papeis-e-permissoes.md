@@ -63,8 +63,8 @@ As policies novas substituem as `using (true)` — sempre com a função embrulh
 | Tabela | Leitura | Escrita |
 |---|---|---|
 | `ativos` | logado | insert/update: `pode_escrever_filial(filial_id)` |
-| `movimentacoes` | logado | insert: `pode_escrever_filial(filial_id)` (imutável como hoje) |
-| `lancamentos_item` | logado | insert: `pode_escrever_filial(filial_id)` (imutável como hoje) |
+| `movimentacoes` | logado | ⚠ insert: `pode_escrever_filial(filial_id)` **E** `pode_escrever_filial(snapshot_anterior->>'filial_id')` — ver §4.4 (imutável como hoje) |
+| `lancamentos_item` | logado | ⚠ insert: `pode_escrever_filial(filial_id)` **E** `estorno_item_coerente(estorna_id, filial_id, item_id)` — ver §4.4 (imutável como hoje) |
 | `pendencias_item` | logado | update (resolver): `pode_escrever_filial(filial_id)` |
 | `anotacoes`, `termos_gerados`, `relatorios_gerados` | logado | papel ∈ {admin, operador} |
 | `filiais`, `motivos`, `itens` (catálogo), `kits_modelos` | logado | `e_admin()` |
@@ -91,8 +91,26 @@ Logo a leitura passa a `e_admin()`, coerente com o resto de `/admin/**`. A **esc
 
 ### 4.3 Dois pontos que uma implementação apressada erraria
 
-1. O trigger `aplicar_movimentacao` é `security definer` **de propósito** ("para poder atualizar ativos mesmo com RLS restrita" — comentário da `0004`), então **gatear o INSERT de `movimentacoes` basta**: o efeito derivado no ativo (e o INSERT em `pendencias_item` da F18) continua funcionando por dentro.
+1. ⚠ **corrigido na execução — esta era a premissa mais errada do ADR.** O texto original dizia: *"o trigger `aplicar_movimentacao` é `security definer` de propósito, então **gatear o INSERT de `movimentacoes` basta**"*. A primeira metade é verdadeira e importante (é por ela que o efeito derivado no ativo, e o INSERT em `pendencias_item` da F18, continuam funcionando com RLS restrita). A segunda **não segue dela** — e é justamente por o trigger ser `definer` que ela é perigosa. Ver **§4.4**: gatear só o INSERT de `movimentacoes` **não basta**, porque a coluna gateada é escolhida por quem escreve.
 2. As **RPCs `security definer` que escrevem** passam por fora das policies e precisam de guarda interna. ⚠ **corrigido na execução:** a auditoria de `pg_proc` nos dois bancos mostrou que, das RPCs de escrita, **`criar_compra_lote` e `devolver_ao_fornecedor` são `security INVOKER`** (`prosecdef = false`) — logo já estão sujeitas às policies novas, sem bypass. A **única** RPC `security definer` que escreve e é executável por `authenticated` é **`importar_ativos_substituir`**, que recebe a guarda `e_admin()`. As demais secdef (`aplicar_movimentacao`, `handle_new_user`, `registrar_tentativa_senha`) são triggers/internas sem `execute` para `authenticated`. A guarda em `criar_compra_lote` é acrescentada de todo modo — **cinto e suspensório**, pela mensagem de erro em pt-BR antes de o RLS recusar em SQLSTATE cru.
+
+### 4.4 ⚠ Não gateie a coluna que o escritor escolhe (a lição que custou duas migrations)
+
+Acrescentado **depois** da revisão adversarial da F21, porque o desenho original errou aqui e o erro chegou a ser aplicado em produção antes de ser encontrado.
+
+A regra que o §4 dava — *"a policy de escrita olha `pode_escrever_filial(filial_id)`"* — parece uniforme, mas **só é correta quando `filial_id` É o objeto da escrita**. Quando ele é apenas um *rótulo* que o cliente informa sobre outra entidade, gateá-lo é o padrão do **deputado confuso**: a policy confere um dado que o próprio atacante escolheu.
+
+| Tabela | `filial_id` é… | Predicado suficiente? |
+|---|---|---|
+| `lancamentos_item` | **o objeto** — o saldo daquela filial é o que muda | Sim para o saldo. **Não** para `estorna_id`, que é ponteiro livre para outra linha → `estorno_item_coerente(...)` (`0068`) |
+| `ativos` | **o objeto** — a linha gateada é a que muda | Sim (USING + WITH CHECK) |
+| `movimentacoes` | **um rótulo**: o objeto real é o ATIVO, cuja filial é outro fato do banco | **Não.** Precisa também da filial de ORIGEM lida do banco → `snapshot_anterior->>'filial_id'` (`0067`) |
+
+**O exploit, reproduzido no ensaio** (operador vinculado só à filial 1, ativo na filial 2): `insert into movimentacoes (ativo_id=<ativo da f2>, tipo='transferencia', filial_id=1, filial_destino_id=1)` foi **aceito** — e o trigger `security definer`, que por design escreve em `ativos` sem passar por policy, **moveu o ativo para a filial 1**. A partir daí toda escrita nele era legítima. Variantes: `ajuste` com `status_resultante='descartado'`, e `saida` trocando o detentor.
+
+**A fonte confiável, quando ela existe, é o que o BANCO já leu.** `aplicar_movimentacao` preenche `new.snapshot_anterior` a partir de `select * into v_ativo from ativos where id = new.ativo_id for update` — sob lock, e **sobrescrevendo** o que o cliente tenha mandado nesse campo. Usar `exists (select ... from ativos ...)` **não** serve: naquele ponto o trigger já moveu o ativo, e o `exists` recusaria a transferência legítima que o §10.2 autoriza. A ordem de avaliação (BEFORE trigger → WITH CHECK) foi confirmada por teste.
+
+**Ao escrever a próxima policy de escrita, pergunte:** *o dado que eu estou gateando é o que muda, ou é o que o escritor diz sobre outra coisa que muda?* Se for o segundo, gateie também a outra coisa — lida do banco, nunca do payload.
 
 **Por que o papel mora em `profiles` e não no JWT** (alternativa considerada e rejeitada): o caminho "custom claims no token" é mais rápido por request, mas rebaixamento/desativação só valeria no próximo refresh do token (até ~1h). O projeto tem doutrina explícita de revogação **no request seguinte** (senhas de acesso, OS-F3 3.9.3) — com o papel lido do banco via função, **rebaixar ou desativar alguém vale na próxima requisição**. Na escala de ~dezena de usuários, a diferença de performance é irrelevante.
 

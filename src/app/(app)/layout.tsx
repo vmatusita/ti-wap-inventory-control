@@ -88,23 +88,28 @@ export default async function AppLayout({
     )
   }
 
-  // F21 — antes de tratar como visualizador, separar os dois "sem operador".
-  // `getOperador()` devolve null tanto para "não há sessão" quanto para "sessão VÁLIDA, mas
-  // perfil DESATIVADO". No segundo caso, seguir adiante mandaria quem acabou de ser desligado
-  // para a porta PÚBLICA da senha de relatório — que não explica nada e não é o que a ajuda
-  // desta fase promete. Manda para o login com o motivo, que é onde ele consegue entender o
-  // que aconteceu (o ban no Auth, gravado junto com `ativo=false`, encerra a sessão de vez
-  // quando o token vencer).
-  //
-  // Isto vem ANTES do `getViewerSession()` de propósito: o desligado não deve ser rebaixado
-  // em silêncio a visualizador. A porta do visualizador continua aberta para ele de forma
-  // EXPLÍCITA — `/relatorios/acesso` é tratado no primeiro ramo deste arquivo.
-  if (await temSessaoSupabase()) redirect('/login?erro=acesso-desativado')
-
-  // Sem operador e sem sessão: o proxy só deixa chegar aqui em /relatorios/** com cookie de
+  // Sem operador: o proxy só deixa chegar aqui em /relatorios/** com cookie de
   // visualização. Confere assinatura + senha ativa (consulta ao banco).
   const viewer = await getViewerSession()
-  if (!viewer) redirect('/relatorios/acesso')
+
+  // F21 — separar os dois "sem operador", mas SÓ depois de descartar o visualizador.
+  //
+  // `getOperador()` devolve null tanto para "não há sessão" quanto para "sessão VÁLIDA, mas
+  // perfil DESATIVADO" — o segundo caso não existia antes desta fase. Mandar o desligado para
+  // a porta pública da senha de relatório não explica nada; ele vai para o login com o motivo.
+  //
+  // A ORDEM importa e a primeira versão desta correção errou: o teste vinha antes do
+  // `getViewerSession()`, e o cookie de visualização tem `path: '/relatorios'` — ou seja, é
+  // entregue exatamente nas rotas que o ramo barrava. Quem foi desligado como operador MAS é
+  // visualizador legítimo por senha entrava em `/relatorios/acesso`, acertava a senha, recebia
+  // o cookie, era redirecionado para `/relatorios/geral` e caía no login: senha certa na mão e
+  // nenhum relatório na tela. Com o teste aqui, o cookie válido ganha — a senha de acesso é
+  // uma porta INDEPENDENTE do cargo (spec §3), e perder o login de operador não pode revogar
+  // um acesso que nunca dependeu dele.
+  if (!viewer) {
+    if (await temSessaoSupabase()) redirect('/login?erro=acesso-desativado')
+    redirect('/relatorios/acesso')
+  }
 
   return (
     <TooltipProvider delayDuration={300}>

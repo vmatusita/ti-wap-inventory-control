@@ -1,5 +1,5 @@
 -- =============================================================
--- Roteiro de teste: CARGOS, VÍNCULO DE FILIAL E RLS (F21 — migrations 0061→0066).
+-- Roteiro de teste: CARGOS, VÍNCULO DE FILIAL E RLS (F21 — migrations 0061→0068).
 --
 -- Roda no job `banco` do CI (psql, ON_ERROR_STOP=1) e é auto-verificável no SQL
 -- editor / MCP do ENSAIO. Mesmo padrão dos demais roteiros da pasta:
@@ -50,6 +50,8 @@ declare
   v_ativo_f1   uuid;
   v_ativo_f2   uuid;
   v_item       smallint;
+  v_lanc_f1    uuid;
+  v_lanc_f2    uuid;
   v_ok         int  := 0;
   v_falhas     int  := 0;
   v_msgs       text := '';
@@ -124,6 +126,13 @@ begin
 
   insert into storage.objects (bucket_id, name, owner)
   values ('backups-import', 'f21/fixture-backup.csv', k_admin);
+
+  -- Um lançamento em CADA filial, criados como postgres (que ignora RLS), para os testes de
+  -- `estorna_id` cruzando filial (2e-bis / 2e-ter). Entradas de 5, para haver saldo a estornar.
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (v_item, v_f1, 'entrada', 5, current_date, k_admin) returning id into v_lanc_f1;
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (v_item, v_f2, 'entrada', 5, current_date, k_admin) returning id into v_lanc_f2;
 
   -- =========================================================================
   -- 1 — CONSULTA: lê tudo, não escreve nada
@@ -300,6 +309,36 @@ begin
     raise warning '✗ 2e operador LANÇOU item na filial NÃO vinculada';
   exception when others then
     v_ok := v_ok + 1; raise notice '✓ 2e operador recusado ao lançar na não vinculada (%)', sqlstate;
+  end;
+
+  -- 2e-bis. `estorna_id` NÃO pode apontar lançamento de filial não vinculada (0068).
+  -- O irmão do furo da 0067, na tabela em que `filial_id` é o objeto da escrita (e portanto o
+  -- predicado é auto-consistente) mas `estorna_id` é ponteiro LIVRE para outra entidade. Sem a
+  -- 0068, isto era aceito e queimava a vaga única de estorno de um lançamento da outra filial:
+  -- ele passava a aparecer "estornado" no histórico dela sem nada ter sido revertido, o saldo
+  -- continuava contando, e o operador legítimo nunca mais conseguia estorná-lo (tabela imutável).
+  begin
+    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                         criado_por, estorna_id)
+    values (v_item, v_f1, 'saida', 5, current_date, k_operador, v_lanc_f2);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2e-bis_ESTORNO_CRUZOU_FILIAL; ';
+    raise warning '✗ 2e-bis operador estornou lançamento de filial não vinculada (a 0068 não está no ar)';
+  exception when others then
+    v_ok := v_ok + 1;
+    raise notice '✓ 2e-bis estorno de item não cruza filial (%)', sqlstate;
+  end;
+
+  -- 2e-ter. E o estorno LEGÍTIMO (mesma filial, mesmo item) continua passando — senão a 0068
+  -- teria fechado o furo quebrando a correção normal do dia a dia.
+  begin
+    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                         criado_por, estorna_id)
+    values (v_item, v_f1, 'saida', 5, current_date, k_operador, v_lanc_f1);
+    v_ok := v_ok + 1;
+    raise notice '✓ 2e-ter estorno legítimo na própria filial aceito';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2e-ter(' || sqlstate || '); ';
+    raise warning '✗ 2e-ter o estorno LEGÍTIMO foi recusado (%) — a 0068 quebrou o fluxo normal', sqlstate;
   end;
 
   -- 2f. atualiza ativo da vinculada / 2g. não atualiza o da outra

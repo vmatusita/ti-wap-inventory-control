@@ -12,7 +12,7 @@ Fica no topo de propósito, para ninguém ler o resto e supor mais do que foi me
 
 1. **A UI dos cargos não foi exercitada em navegador.** Todo o gating de tela (consulta sem CTA, sidebar sem Administração, selects restritos) está provado por *código, tipos e testes*, não por clique. O motivo não é o login wall — é que **não existe usuário não-admin em nenhum dos dois bancos**: o backfill deixou os 9 perfis de produção como `admin`, e criar um `consulta` de teste em produção seria mexer em dado de acesso real sem o Johnny pedir. É exatamente o que o **roteiro manual de 5 minutos** (§8) cobre.
 2. **`npm run db:seed` não rodou.** Os perfis fictícios nos três cargos foram escritos e passam no type-check, mas o `.env.local` desta máquina aponta para **produção** e a guarda `REFS_DE_PRODUCAO` recusa — corretamente. Rodar contra o ensaio exige as credenciais do ensaio, que não estão nesta máquina. **Pendência real** (§7).
-3. **O CI não foi conferido.** Não há `gh` nesta máquina. O job `banco` (que aplica `0001`→`0067` num Postgres novo e roda os 13 roteiros SQL) só pode ser lido no GitHub após o push.
+3. **O CI não foi conferido.** Não há `gh` nesta máquina. O job `banco` (que aplica `0001`→`0068` num Postgres novo e roda os 13 roteiros SQL) só pode ser lido no GitHub após o push.
 4. **O import destrutivo não foi executado** com a guarda nova. A guarda é provada por asserção (`3i`: a RPC recusa operador com a mensagem certa), não por um import real — que apagaria acervo.
 5. **A desativação no Supabase Auth (`ban_duration`) não foi exercitada.** A metade que fecha a escrita (`profiles.ativo = false`) está provada (asserções 4a/4b/4c). A metade que impede login novo depende de uma chamada de admin API que não foi disparada aqui.
 
@@ -20,7 +20,7 @@ Fica no topo de propósito, para ninguém ler o resto e supor mais do que foi me
 
 ## 2. Arquivo a arquivo, e por quê
 
-### 2.1 Banco — 7 migrations, uma por assunto
+### 2.1 Banco — 8 migrations, uma por assunto
 
 | Migration | O que faz | Por quê |
 |---|---|---|
@@ -30,7 +30,8 @@ Fica no topo de propósito, para ninguém ler o resto e supor mais do que foi me
 | **`0064_papeis_guardas_rpcs`** | guarda `e_admin()` dentro de `importar_ativos_substituir`; guarda de vínculo em `criar_compra_lote` | Função `security definer` passa **por fora** de toda policy. A auditoria de `pg_proc` nos dois bancos mostrou que a única secdef que escreve e é executável por `authenticated` é a do import — e ela apaga o acervo de uma filial. |
 | **`0065_eventos_admin`** | tabela de auditoria: insert-only via service role, leitura `e_admin()`, **sem update/delete em lugar nenhum** | Trilha que o próprio auditado pode reescrever não é trilha. `autor` é `on delete set null` para o rastro sobreviver à exclusão da conta. |
 | **`0066_papeis_storage`** | as 8 policies dos buckets `termos` e `backups-import` passam a olhar o cargo | **Achado fora do mapa da ordem** (§3). |
-| **`0067_papeis_correcoes_revisao`** | dois furos achados pela **revisão adversarial da própria fase** | §5. O primeiro furava o critério de aceitação 2 e a premissa do ADR §4.3.1. |
+| **`0067_papeis_correcoes_revisao`** | dois furos achados pela **revisão adversarial da própria fase** | §5.1/§5.2. O primeiro furava o critério de aceitação 2 e a premissa do ADR §4.3.1. |
+| **`0068_estorno_item_mesma_filial`** | `estorno_item_coerente(...)` + a policy de `lancamentos_item` | §5.3. O MESMO furo da `0067`, no irmão que ela não alcançou — achado pela **re-revisão** das correções. |
 
 ### 2.2 A armadilha que a `0059` armou (e que quase cegou o app)
 
@@ -128,15 +129,35 @@ Isto derrubava o **critério de aceitação 2** da própria ordem ("recusado em 
 - **O desligado caía na porta do visualizador** (média, 3 lentes). A F21 criou um estado que **não existia antes**: `getOperador()` devolve null com sessão Supabase **válida** (perfil desativado). O shell caía no ramo do visualizador e mandava quem acabou de ser desligado para a tela **pública** da senha de relatório, sem nunca dizer o motivo. Corrigido com `temSessaoSupabase()` e um ramo novo no layout → `/login?erro=acesso-desativado`. Fica **antes** do `getViewerSession()` de propósito: o desligado não deve ser rebaixado a visualizador em silêncio.
 - **O diálogo "Editar" abria quebrado para TODOS** (média). O backfill deu a todo perfil vínculo em todas as filiais — e um Administrador chega ao formulário com a lista cheia, onde `validarVinculosDoPapel('admin', [1..6])` recusa lista não vazia: **erro vermelho e "Salvar" desabilitado para todos os 9 usuários de produção**. Corrigido: só pré-preenche vínculo para o cargo que o **usa**; para admin/consulta as linhas de `operador_filiais` são dado morto (`pode_escrever_filial` devolve true para admin sem consultá-las).
 
-### 5.3 Achado próprio, fora da revisão
+### 5.3 A re-revisão achou o MESMO furo no irmão — e um erro no meu próprio comentário
+
+O §V da ordem manda *"corrija e re-revise até limpar"*. A re-revisão (3 lentes sobre o commit de correções) devolveu **8 achados, todos confirmados**, que deduplicam em **3 reais**. Os dois primeiros são deste tipo desconfortável: a correção estava certa, mas incompleta ou mal documentada.
+
+**1. O mesmo deputado confuso em `lancamentos_item` (média) → migration `0068`.** A `0067` fechou `movimentacoes` e não olhou o irmão. Ali `filial_id` **é** o objeto da escrita (o saldo daquela filial), então o predicado é auto-consistente — mas a **outra** coluna da mesma linha, `estorna_id`, é ponteiro livre para uma linha de qualquer filial, e nada a conferia (a FK da `0015` não filtra; o trigger `valida_lancamento_item` olha saldo e reserva, não menciona `estorna_id`).
+
+Um operador da filial 1 podia estornar um lançamento da filial 2 declarando `filial_id: 1`. Efeito, todo fora da filial dele: o lançamento da filial 2 passa a aparecer **"estornado"** no histórico e no relatório (a derivação é "existe alguém apontando para mim", sem filtro de filial), o **saldo continua contando** — histórico e saldo se contradizem — e o índice único queima a vaga, então o operador legítimo **nunca mais** consegue estorná-lo (a tabela é imutável).
+
+A primeira revisão havia **refutado** isto como "folga pré-existente do esquema, não da fase". A re-revisão derrubou a refutação com o argumento certo: **foi a F21 que transformou filial em fronteira de escrita**. Antes da `0063`, `with check (true)` tornava o caso irrelevante — não havia privilégio a violar.
+
+E o fecho teve uma armadilha própria, encontrada ao testar antes de aplicar: a primeira tentativa usou um `exists` inline, e dentro do subselect **na própria tabela** a referência nua `estorna_id` resolve para a coluna do alias da subconsulta — a condição virava `o.id = o.estorna_id`, sempre falsa, e o predicado **recusava o estorno legítimo**. Trocado por uma função `security definer` com parâmetros nomeados, onde não há escopo ambíguo possível. Medido no ensaio: ataque cruzando filial → 42501; ataque cruzando item → 23514; estorno legítimo → aceito; lançamento sem estorno → aceito.
+
+**2. Meu comentário documentava um comportamento que o código não tinha (baixa, 3 lentes).** A correção do desligado (§5.2) colocou o teste **antes** do `getViewerSession()`, e o comentário afirmava que "a porta do visualizador continua aberta de forma explícita". Não continuava: o cookie de visualização tem `path: '/relatorios'`, ou seja é entregue exatamente nas rotas que o ramo barrava. Quem foi desligado como operador **mas é visualizador legítimo por senha** entrava em `/relatorios/acesso`, acertava a senha, recebia o cookie, era redirecionado para `/relatorios/geral` — e caía no login. Senha certa na mão, nenhum relatório na tela.
+
+Corrigido movendo o teste para **depois** do `getViewerSession()`, condicionado a `!viewer`. A senha de acesso é uma porta **independente do cargo** (spec §3), e perder o login de operador não pode revogar um acesso que nunca dependeu dele. O comentário foi reescrito para descrever o que o código faz — e para registrar o erro, porque a versão anterior é o tipo de comentário que passa em revisão de diff justamente por soar plausível.
+
+**3. O ADR continuava prescrevendo o predicado furado (média).** A `0067` mudou o predicado, mas o **documento de desenho** que a spec §3.1 e o README apontam como fonte da decisão não foi emendado: o mapa por tabela ainda mostrava `movimentacoes | insert: pode_escrever_filial(filial_id)` e o §4.3 item 1 ainda afirmava, em negrito, que *"gatear o INSERT de `movimentacoes` **basta**"* — a premissa exata que o exploit derrubou. Pior: o item 2 da mesma seção **já tinha** a anotação "⚠ corrigido na execução", então quem lesse o item 1 sem anotação o tomaria por válido. O caminho de falha é o que já aconteceu uma vez: foi seguindo essa letra que a `0063` escreveu o predicado furado.
+
+Corrigido, e mais: o ADR ganhou a seção **§4.4 — "Não gateie a coluna que o escritor escolhe"**, com a tabela de quando `filial_id` é objeto e quando é rótulo, e a pergunta a fazer antes de escrever a próxima policy. A lição valia mais que a correção.
+
+### 5.4 Achado próprio, fora da revisão
 
 A regeneração do `database.ts` **desfez em silêncio** a edição manual de 24/07 que tirava `nome` (coluna GERADA) de `Insert`/`Update` de `profiles`. Restaurada. Nenhum código escreve nessa coluna hoje, mas a guarda de tipo existia de propósito — é a mesma classe de armadilha do `| null` do `p_filial` (§6.4).
 
-### 5.4 A lição de processo, que vale mais que os achados
+### 5.5 A lição de processo, que vale mais que os achados
 
 O roteiro `papeis_rls.sql` tinha **41 asserções verdes com o furo aberto**. A asserção `2c` testava "operador recusado na filial não vinculada" usando ativo **e** `filial_id` ambos da filial alheia — o caso **cruzado** (mentir o `filial_id`) não era testado, e é justamente ele que distingue *"gateei o dado certo"* de *"gateei o dado que o atacante escolhe"*.
 
-**Teste verde não é prova de cobertura.** As quatro asserções novas (41 → 45) são exatamente essa lacuna: `2c-bis` (o caso cruzado), `2c-ter` (o ativo não migrou), `2h` (a transferência legítima **continua** passando — sem ela a correção poderia ter fechado o furo quebrando o fluxo normal, e ninguém notaria) e `3f-bis` (o operador não forja a trilha do import).
+**Teste verde não é prova de cobertura.** As seis asserções novas (41 → 47) são exatamente essa lacuna: `2c-bis` (o caso cruzado), `2c-ter` (o ativo não migrou), `2h` (a transferência legítima **continua** passando — sem ela a correção poderia ter fechado o furo quebrando o fluxo normal, e ninguém notaria), `3f-bis` (o operador não forja a trilha do import) e, da re-revisão, `2e-bis`/`2e-ter` (§5.3).
 
 Vale para as asserções de leitura também: as de "não vê nada" (`3d`/`3e`/`3f`/`6b`) passavam **de graça** num banco novo, e o CI roda exatamente num Postgres novo, onde essas tabelas nascem vazias. O roteiro agora **planta uma linha** em cada antes de trocar de papel, e checa o outro lado (o admin **vê**) — senão uma policy que escondesse de todo mundo passaria nos dois testes.
 
@@ -155,14 +176,14 @@ BUILD  npx next build        → ✓ Compiled successfully · 26 rotas
 
 Testes: **1496 (F20B) → 1588**. Sem asserção removida sem substituta mais forte.
 
-### 6.2 `supabase/tests/papeis_rls.sql` — 45 asserções, 0 falha, nos DOIS bancos
+### 6.2 `supabase/tests/papeis_rls.sql` — 47 asserções, 0 falha, nos DOIS bancos
 
 ```
-ensaio    (sgmvldiizsrjbxzzpmhh) → ok=45  falhas=0  detalhe=null
-produção  (pbtjcalbmepmrqzprusb) → ok=45  falhas=0  detalhe=null
+ensaio    (sgmvldiizsrjbxzzpmhh) → ok=47  falhas=0  detalhe=null
+produção  (pbtjcalbmepmrqzprusb) → ok=47  falhas=0  detalhe=null
 ```
 
-O que as 45 provam: consulta lê tudo e **não escreve em nada** (6 tabelas) · operador escreve na filial vinculada e **é recusado** na outra (movimentação, lançamento, update de ativo) · **não escreve declarando filial alheia** (2c-bis) e o ativo **não migra** (2c-ter) · a transferência legítima **continua passando** (2h) · não mexe em catálogo de admin · **não lê** `senhas_acesso`/`import_logs`/`eventos_admin` (com linha plantada em cada) · **não forja** a trilha do import (3f-bis) · **não se promove a admin** (3g — grant de coluna) mas ainda edita o próprio nome (3h) · a RPC de import recusa operador com a mensagem certa (3i) · **desativado com vínculo não escreve nada** (4a/4b/4c) · admin faz tudo, **vê** a auditoria e o histórico, e **nem ele** lê `senhas_acesso` (5f) nem muda papel por sessão (5g) · storage por cargo nos dois buckets, nas duas direções (6a–6f).
+O que as 47 provam: consulta lê tudo e **não escreve em nada** (6 tabelas) · operador escreve na filial vinculada e **é recusado** na outra (movimentação, lançamento, update de ativo) · **não escreve declarando filial alheia** (2c-bis) e o ativo **não migra** (2c-ter) · a transferência legítima **continua passando** (2h) · não mexe em catálogo de admin · **não lê** `senhas_acesso`/`import_logs`/`eventos_admin` (com linha plantada em cada) · **não forja** a trilha do import (3f-bis) · **não se promove a admin** (3g — grant de coluna) mas ainda edita o próprio nome (3h) · a RPC de import recusa operador com a mensagem certa (3i) · **desativado com vínculo não escreve nada** (4a/4b/4c) · admin faz tudo, **vê** a auditoria e o histórico, e **nem ele** lê `senhas_acesso` (5f) nem muda papel por sessão (5g) · **estorno de item não cruza filial** e o estorno legítimo segue passando (2e-bis/2e-ter) · storage por cargo nos dois buckets, nas duas direções (6a–6f).
 
 Fixtures 100% fictícias (`f21.*@wap.ind.br`, `WAP000900x`), dentro de `begin; … rollback;`. **Conferido em produção que nada sobrou:** 0 usuários residuais, 0 ativos de teste, 0 motivos/filiais de teste, e as contagens de volta ao baseline. Antes de rodar em produção foi conferido que **nenhuma** chave fictícia colidia com dado real (patrimônio, e-mail, uuid, código de motivo, slug: 0 colisões).
 
@@ -233,7 +254,7 @@ O único aviso é **pré-existente** e da mesma família que esta fase corrigiu 
 | 5 | `/admin/**` inteiro inacessível para não-admin (UI + actions + RLS + RPCs de import) | ✅ | `admin/layout` exige admin; todas as actions de `admin.ts`/`senhas.ts`/`kits.ts`/`importar.ts` e o catálogo de `itens.ts` com `exigirAdmin`; asserções 3a/3b/3c/3e/3f/3f-bis/3i |
 | 6 | `senhas_acesso` ilegível para não-admin; visualizador por senha segue idêntico | ✅ **e mais forte** | Ilegível para **todos** os cargos, admin incluído (3d e **5f**). Visualizador intocado — smoke 86 OK, e `/relatorios/acesso` segue no primeiro ramo do layout |
 | 7 | Pós-backfill, **nenhuma** mudança de comportamento para os usuários atuais | ✅ | 9/9 perfis `admin` com 54 vínculos; smoke do app **antigo** contra o banco **novo**: 86 OK · 0 falha |
-| 8 | `lint`, `test`, `build` limpos; `papeis_rls.sql` verde; `database.ts` regenerado; advisors sem WARN novo **de RLS** | ✅ | §6.1 · 45/0 nos dois bancos · tipos regenerados (com o `\| null` do `p_filial` e a coluna gerada restaurados à mão) · `rls_policy_always_true` 12 → **0** |
+| 8 | `lint`, `test`, `build` limpos; `papeis_rls.sql` verde; `database.ts` regenerado; advisors sem WARN novo **de RLS** | ✅ | §6.1 · 47/0 nos dois bancos · tipos regenerados (com o `\| null` do `p_filial` e a coluna gerada restaurados à mão) · `rls_policy_always_true` 12 → **0** |
 
 ### Escopo (§Escopo)
 
@@ -277,5 +298,5 @@ Ao final, devolva o usuário de teste ao cargo que ele deve ter.
 - **Política de senha mais forte** no painel de Auth (ex.: 10+ caracteres) e **proteção contra senha vazada**, que o advisor aponta como desabilitada — configuração de painel, sem código.
 - **Revisão trimestral de acessos** por `eventos_admin` + lista de usuários ativos, que a tela nova viabiliza.
 - **Tirar o `service_role` do caminho do visualizador** — o risco real que a ADR-001 apontou, independente desta fase e ainda de pé.
-- **Fechar as duas lacunas residuais por filial**, se o Johnny quiser: `anotacoes` e `termos_gerados` são gateadas por **cargo** (é o que a ordem determina, porque a primeira não tem `filial_id` e a segunda pode cruzar filiais). Um OPERADOR conseguiria, por chamada direta à API, anotar ou apagar termo de filial não vinculada — `consulta` não, e o recorte por filial existe na action. O fecho é um `exists (...)` no predicado, com o efeito colateral de proibir termo de lote multi-filial.
+- **Fechar as duas lacunas residuais por filial que restam** (a terceira, `lancamentos_item.estorna_id`, foi fechada pela `0068` — §5.3), se o Johnny quiser: `anotacoes` e `termos_gerados` são gateadas por **cargo** (é o que a ordem determina, porque a primeira não tem `filial_id` e a segunda pode cruzar filiais). Um OPERADOR conseguiria, por chamada direta à API, anotar ou apagar termo de filial não vinculada — `consulta` não, e o recorte por filial existe na action. O fecho é um `exists (...)` no predicado, com o efeito colateral de proibir termo de lote multi-filial.
 - **Unificar a normalização de acentos** (6 cópias no repositório) — dívida herdada, não desta fase.

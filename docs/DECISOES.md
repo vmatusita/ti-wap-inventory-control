@@ -2918,3 +2918,39 @@ derivação de `ACESSORIOS_DEVOLUCAO`, de graça e sem cópia à mão.
   asserções novas (41 → 45) são exatamente essa lacuna.
 - **Reversível?** Sim: as duas `alter policy` da `0067` têm o rollback escrito no rodapé dela;
   as três correções de app são camada de aplicação.
+
+## 2026-07-29 · F21 · A re-revisão: o mesmo furo no irmão, e um comentário meu que mentia
+
+- **Contexto:** o §V da ordem manda *"corrija e re-revise até limpar"*. A re-revisão (3 lentes
+  sobre o commit de correções) devolveu **8 achados, todos confirmados**, que deduplicam em
+  **3 reais**. Nenhum era regressão introduzida pelas correções; dois eram **incompletude** e um
+  era **documentação que prescrevia o erro já corrigido**.
+- **Decisão 1 — migration `0068`.** O deputado confuso existia também em `lancamentos_item`, via
+  `estorna_id` (ponteiro livre para linha de qualquer filial). A primeira revisão havia refutado
+  isso como "folga pré-existente do esquema"; a re-revisão derrubou a refutação com o argumento
+  certo — **foi a F21 que criou a fronteira de filial nessa tabela**; antes dela não havia
+  privilégio a violar. Fechado por `estorno_item_coerente(...)`. Detalhe que só apareceu no
+  teste: o `exists` inline **recusava o estorno legítimo**, porque dentro do subselect na própria
+  tabela `estorna_id` resolve para a coluna do alias. Função com parâmetros nomeados resolve.
+- **Decisão 2 — o teste do desligado foi para depois do `getViewerSession()`.** A correção
+  anterior o pôs ANTES, e o comentário afirmava que "a porta do visualizador continua aberta de
+  forma explícita". **Não continuava:** o cookie de visualização tem `path: '/relatorios'`, ou
+  seja é entregue exatamente nas rotas que o ramo barrava. Quem foi desligado como operador mas é
+  visualizador legítimo por senha entrava em `/relatorios/acesso`, acertava a senha, recebia o
+  cookie, era redirecionado para `/relatorios/geral` — e caía no login, com senha certa na mão.
+  Agora o cookie válido ganha: a senha de acesso é porta **independente do cargo** (spec §3), e
+  perder o login de operador não pode revogar um acesso que nunca dependeu dele.
+- **Motivo desta em particular:** o comentário errado é mais perigoso que o código errado, porque
+  o próximo leitor confia nele. Ele foi reescrito para descrever o que o código faz **e** para
+  registrar o erro — é o tipo de comentário que passa em revisão de diff justamente por soar
+  plausível.
+- **Decisão 3 — o ADR ganhou a §4.4.** A `0067` mudou o predicado, mas o ADR (que a spec §3.1 e o
+  README apontam como fonte da decisão) ainda mostrava `movimentacoes | insert:
+  pode_escrever_filial(filial_id)` no mapa e ainda afirmava, em negrito, que "gatear o INSERT de
+  `movimentacoes` **basta**". O caminho de falha é o que já aconteceu: foi seguindo essa letra que
+  a `0063` escreveu o predicado furado. Agravante: o item 2 da mesma seção JÁ tinha a anotação
+  "⚠ corrigido na execução", então o item 1 sem anotação passava por válido. Corrigido, e o ADR
+  ganhou **§4.4 — "Não gateie a coluna que o escritor escolhe"**, com a tabela de quando
+  `filial_id` é objeto e quando é rótulo, e a pergunta a fazer antes da próxima policy. A lição
+  vale mais que a correção pontual.
+- **Reversível?** Sim: a `0068` tem o rollback no rodapé; as outras duas são texto e um `if`.

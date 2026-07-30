@@ -192,6 +192,51 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
   `alter policy "operador insere" on public.movimentacoes with check (public.pode_escrever_filial(filial_id));`
   `alter policy "operador insere" on public.import_logs with check (true);`
   (reabre os dois furos — só faz sentido junto de um rollback completo da F21).
+- **`0068`** (F21 — o mesmo furo da `0067` no irmão que ela não alcançou; achado pela
+  **RE-REVISÃO** das correções; 29/07/2026) — **aditiva** (uma função nova + um `alter policy`),
+  caminho **A**, aplicada por MCP em **ensaio primeiro** e depois em produção, no ledger dos dois.
+
+  **O furo.** A `0067` fechou o padrão "gatear dado que o escritor escolhe" em `movimentacoes` e
+  deixou `lancamentos_item` intacto. Ali `filial_id` **é** o objeto da escrita (o saldo daquela
+  filial), então o predicado é auto-consistente — mas a OUTRA coluna da mesma linha,
+  `estorna_id`, é ponteiro livre para qualquer linha da tabela, e nada a conferia: a FK da `0015`
+  não filtra e o trigger `valida_lancamento_item` olha saldo e reserva, sem mencioná-la.
+  Um operador da filial 1 estornava um lançamento da filial 2 declarando `filial_id: 1`. O dano
+  cai todo fora da filial dele: o lançamento alheio passa a aparecer **"estornado"** no histórico
+  e no relatório (a derivação é "existe alguém apontando para mim", **sem filtro de filial**), o
+  **saldo continua contando** — histórico e saldo se contradizem — e o índice único queima a vaga,
+  então o operador legítimo **nunca mais** consegue estorná-lo (a tabela é imutável).
+
+  **Por que a primeira revisão errou ao refutar.** Ela classificou como "folga pré-existente do
+  esquema, não da fase" — verdade quanto ao esquema (`estorna_id` é FK livre desde a `0015`), mas
+  a conclusão não segue: **foi a F21 que transformou filial em fronteira de escrita**. Antes da
+  `0063`, `with check (true)` tornava o caso irrelevante; não havia privilégio a violar.
+
+  **A armadilha do fecho, encontrada ao testar antes de aplicar.** A primeira tentativa usou um
+  `exists` inline; dentro de um subselect **na própria tabela**, a referência nua `estorna_id`
+  resolve para a coluna do ALIAS da subconsulta — a condição virava `o.id = o.estorna_id`, sempre
+  falsa, e o predicado **recusava o estorno legítimo** (medido: ataque recusado E legítimo
+  recusado). Trocado por `estorno_item_coerente(p_estorna_id, p_filial, p_item)` —
+  `security definer`, `stable`, parâmetros nomeados, sem escopo ambíguo possível.
+
+  **Provado no ensaio antes de aplicar em produção:**
+  ```
+  ATAQUE estorna_id de OUTRA filial   → RECUSADO (42501)
+  ATAQUE estorna_id de OUTRO item     → RECUSADO (23514, um check pegou antes)
+  LEGÍTIMO estorno mesma filial+item  → ACEITO
+  LEGÍTIMO lançamento sem estorno     → ACEITO
+  ```
+
+  **Verificação pós-apply nos dois bancos:** a policy `"operador lanca"` cita
+  `pode_escrever_filial` **e** `estorno_item_coerente`; `anon` sem execute e `authenticated` com
+  execute na função nova; **0** policies de escrita com predicado `true` em qualquer tabela;
+  `lancamentos_item` inalterado (9 linhas em produção), acervo intocado (1230/2361).
+  Roteiro `papeis_rls.sql`: **45 → 47 asserções** (`2e-bis` ataque, `2e-ter` legítimo),
+  **47/0 nos dois bancos**.
+
+  **Rollback:**
+  `alter policy "operador lanca" on public.lancamentos_item with check (public.pode_escrever_filial(filial_id));`
+  `drop function public.estorno_item_coerente(uuid, smallint, smallint);`
 - **Retroativo C3 (F15 — toca dado, caminho B).** UPDATE de **2 linhas** de `movimentacoes` (`tipo 'compra'→'troca'` no nascimento dos substitutos já registrados, `ativo_id in (select id from ativos where substitui_ativo_id is not null)`). O classificador **não barrou** um UPDATE de 2 linhas via `execute_sql`. Backup das linhas em `scratchpad/f15/retroativo-backup.md` (WAP0005656/WAP0005657); antes=depois conferido (`compra` de substituto 2→0, `troca` 0→2); `status_resultante`/estado dos ativos intactos (a transição de `troca` é a mesma da `compra`). Rollback: `update movimentacoes set tipo='compra' where id in ('5cc393bc-…','95d3d096-…')`.
 
 ### Como conferir o efeito (sem depender do ledger)
