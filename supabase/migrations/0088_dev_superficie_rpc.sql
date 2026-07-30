@@ -1,0 +1,54 @@
+-- Migration 0088 — F23: duas funções auxiliares saem da API pública.
+--
+-- Mesmo movimento (e mesma justificativa) da `0078` na F22, feito pelo mesmo motivo: a
+-- leitura dos advisors **depois** do apply da fase.
+--
+-- O lint `authenticated_security_definer_function_executable` cresceu 10 em produção com a
+-- F23. Para OITO delas isso é o desenho — são as ferramentas que a tela chama com o client de
+-- SESSÃO, cada uma com guarda interna (`exigir_dev_para_destruir`, que exige `e_dev()`):
+-- apagar_ativo, apagar_movimentacao, apagar_item, resetar_acervo, resetar_itens,
+-- forcar_estado_ativo, forcar_saldo_item e previa_reset.
+--
+-- DUAS não são esse caso e perdem o `execute` de `authenticated`:
+--
+--   · `exigir_dev_para_destruir(text)` — é a GUARDA, chamada por `perform` de dentro das oito.
+--     Ela não faz nada útil para um chamador externo (ou levanta exceção, ou não levanta), e
+--     expô-la em `/rest/v1/rpc/` era um oráculo de graça: qualquer logado podia perguntar ao
+--     endpoint "eu sou dev?" sem passar por lugar nenhum.
+--   · `rotulo_alcance_reset(smallint)` — devolve o texto da confirmação de um reset. A tela
+--     NÃO a chama: ela recebe o rótulo pronto dentro do retorno de `previa_reset`, e o espelho
+--     em TypeScript (`rotuloAlcanceReset`, validators/dev-destrutivo.ts) é função pura.
+--
+-- Nenhuma das duas vazava algo grave — mas, como a `0078` já registrou, "não vaza nada grave"
+-- é um argumento pior do que "não está exposta". Função `security definer` executa como o
+-- DONO; quem precisa do `execute` é ele, não `authenticated`.
+--
+-- ⚠ POR QUE ISTO NÃO QUEBRA AS OITO. Elas chamam as duas de DENTRO, e dentro de uma função
+-- `security definer` o usuário efetivo é o dono (postgres), que mantém o privilégio. O
+-- roteiro `supabase/tests/dev_destrutivo.sql` continua verde porque exercita as ferramentas
+-- pelas RPCs públicas, não pelas auxiliares.
+--
+-- ADITIVA: dois `revoke`, nenhum objeto novo, nenhum dado tocado → caminho **A** do RUNBOOK.
+--
+-- REVERSÃO:
+--   grant execute on function public.exigir_dev_para_destruir(text) to authenticated;
+--   grant execute on function public.rotulo_alcance_reset(smallint) to authenticated;
+
+revoke execute on function public.exigir_dev_para_destruir(text) from authenticated;
+revoke execute on function public.rotulo_alcance_reset(smallint) from authenticated;
+
+-- ---------- VERIFICAÇÃO PÓS-APPLY ----------
+--   -- as duas auxiliares fecharam; as oito ferramentas seguem abertas para `authenticated`:
+--   select p.proname,
+--          has_function_privilege('authenticated', p.oid, 'execute') as auth
+--     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--    where n.nspname='public'
+--      and p.proname in ('exigir_dev_para_destruir','rotulo_alcance_reset',
+--                        'apagar_ativo','apagar_movimentacao','apagar_item',
+--                        'resetar_acervo','resetar_itens','forcar_estado_ativo',
+--                        'forcar_saldo_item','previa_reset')
+--    order by auth, p.proname;
+--   -- esperado: auth = false nas DUAS primeiras · auth = true nas OITO restantes
+--
+--   -- e as ferramentas continuam funcionando (a guarda roda como o dono):
+--   -- prova de comportamento em supabase/tests/dev_destrutivo.sql.
