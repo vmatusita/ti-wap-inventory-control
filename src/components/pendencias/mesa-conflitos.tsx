@@ -80,7 +80,6 @@ export function MesaConflitos({
   // O que o diálogo mostra vem do SERVIDOR, lido no clique — ver `abrirDialogo`.
   const [dialogo, setDialogo] = useState<{
     ids: string[]
-    lados: LadoConflito[]
     resumo: ReturnType<typeof resumoDaExclusao>
     faltando: number
   } | null>(null)
@@ -138,7 +137,7 @@ export function MesaConflitos({
           )
           return
         }
-        setDialogo({ ids, lados: d.lados, resumo: d.resumo, faltando: d.faltando })
+        setDialogo({ ids, resumo: d.resumo, faltando: d.faltando })
       } catch {
         toast.error(
           'Não foi possível ler o estado atual destes cadastros. Nada foi apagado — confira a conexão e tente de novo.',
@@ -192,7 +191,6 @@ export function MesaConflitos({
 
       {grupos.map((g) => {
         const divergentes = camposDivergentes(g.lados)
-        const idsDoGrupo = g.lados.map((l) => l.ativoId)
         return (
           <section key={g.chave} className="rounded-xl border bg-card">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
@@ -208,18 +206,13 @@ export function MesaConflitos({
                   {g.lados.length} cadastros, um em cada filial
                 </span>
               </div>
-              {podeApagar && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 text-destructive hover:text-destructive"
-                  disabled={abrindo}
-                  onClick={() => abrirDialogo(idsDoGrupo)}
-                >
-                  <Trash2 className="size-4" />
-                  {g.lados.length === 2 ? 'Apagar ambos' : `Apagar os ${g.lados.length}`}
-                </Button>
-              )}
+              {/* ⚠ NÃO existe botão "Apagar ambos" aqui, e a ausência é a decisão: o
+                  sentido da mesa é olhar os dois lados e apagar o ERRADO, então a ação
+                  mais proeminente do bloco não pode ser a que destrói os dois — inclusive
+                  o lado marcado com "Tem histórico próprio". Apagar um lado é a caixa de
+                  seleção ao lado dele; apagar vários é a barra de lote no topo. Quem
+                  realmente quiser levar o grupo inteiro marca todas as caixas e lê o
+                  número na confirmação. */}
             </header>
 
             {/* Os lados LADO A LADO. Em telas estreitas empilham; o realce continua. */}
@@ -314,7 +307,6 @@ export function MesaConflitos({
       {dialogo && (
         <DialogoApagarConflito
           ids={dialogo.ids}
-          lados={dialogo.lados}
           resumo={dialogo.resumo}
           faltando={dialogo.faltando}
           onFechar={() => setDialogo(null)}
@@ -339,7 +331,6 @@ export function MesaConflitos({
 
 function DialogoApagarConflito({
   ids,
-  lados,
   resumo,
   faltando,
   onFechar,
@@ -347,8 +338,6 @@ function DialogoApagarConflito({
 }: {
   /** Os ids PEDIDOS — é o que vai para a RPC, e é sobre eles que a confirmação conta. */
   ids: string[]
-  /** Os lados que o servidor devolveu AGORA (pode ser menos que `ids`, se algum saiu). */
-  lados: LadoConflito[]
   resumo: ReturnType<typeof resumoDaExclusao>
   /** Quantos dos pedidos já NÃO estão em conflito. > 0 = a RPC vai recusar tudo. */
   faltando: number
@@ -374,7 +363,13 @@ function DialogoApagarConflito({
     start(async () => {
       try {
         const res = await apagarConflito({
-          ativoIds: lados.map((l) => l.ativoId),
+          // ⚠ Os ids PEDIDOS, e não os lados que o servidor devolveu: é sobre `ids` que a
+          // confirmação acima foi contada, e mandar um conjunto MENOR faria a RPC esperar
+          // outro número ("APAGAR 2" para quem digitou "APAGAR 3") e recusar apontando o
+          // problema errado — quando o certo é a recusa all-or-nothing da própria RPC,
+          // que `traduzErroBanco` traduz para "recarregue a mesa e refaça a seleção".
+          // Enviar os lados também apagaria menos do que foi confirmado.
+          ativoIds: ids,
           confirmacao: confirmacao.trim(),
           justificativa: justificativa.trim(),
         })

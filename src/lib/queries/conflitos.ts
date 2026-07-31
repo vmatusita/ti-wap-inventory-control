@@ -93,6 +93,10 @@ async function chavesDaFilial(client: DbClient, filialSlug: string): Promise<str
         .select('chave')
         .eq('filial', filialSlug)
         .order('chave')
+        // ⚠ Desempate OBRIGATÓRIO: `chave` sozinha não é uma ordenação total, e o Postgres
+        // não promete a mesma ordem entre os dois `range()` de páginas consecutivas — um
+        // empate na fronteira das 1.000 linhas some sem aviso. `ativo_id` é único na view.
+        .order('ativo_id')
         .range(from, to),
   )
   return [...new Set(chavesNaoNulas(rows))]
@@ -151,8 +155,21 @@ export async function contarGruposConflito(
   }
 
   // Com filial: a view agregada não guarda o slug (ela agrega os nomes), então a contagem
-  // sai dos LADOS — chaves distintas cujo lado está nesta filial.
-  return (await chavesDaFilial(client, filialSlug)).length
+  // sai dos LADOS.
+  //
+  // ⚠ Contar os lados DESTA filial já É contar os grupos: um grupo tem no máximo UM lado
+  // por filial (é o que o índice único por filial da 0091 garante, e a chave de identidade
+  // é injetiva desde a 0099), logo lados-na-filial e chaves-distintas-na-filial são o mesmo
+  // número. Por isso aqui vai um `count exact / head` — uma requisição, sem trazer linha
+  // nenhuma — e não a varredura paginada de `chavesDaFilial`: esta contagem roda no
+  // carregamento de TODA aba de /pendencias (o chip aparece em qualquer uma), inclusive nas
+  // que nem mostram a mesa.
+  const { count, error } = await client
+    .from('v_conflitos_filiais')
+    .select('ativo_id', { count: 'exact', head: true })
+    .eq('filial', filialSlug)
+  if (error) throw new Error(`Falha ao contar conflitos: ${error.message}`)
+  return count ?? 0
 }
 
 /**
@@ -199,6 +216,12 @@ async function chavesPorBusca(client: DbClient, termo: string): Promise<Set<stri
             `colaborador_atual.ilike.%${esc}%,hostname.ilike.%${esc}%,modelo.ilike.%${esc}%`,
         )
         .order('chave')
+        // ⚠ Aqui o desempate não é zelo: sem recorte de filial a mesma `chave` aparece 2–3
+        // vezes (uma por lado), então ordenar só por ela deixa empates de verdade. Sem
+        // `ativo_id`, uma busca ampla que passe de 1.000 lados pode perder uma chave na
+        // virada de página e o grupo somer da mesa E do CSV — o truncamento silencioso que
+        // esta paginação existe para impedir.
+        .order('ativo_id')
         .range(from, to),
   )
   return new Set(chavesNaoNulas(rows))

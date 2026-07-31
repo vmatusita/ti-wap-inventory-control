@@ -1,5 +1,6 @@
 'use server'
 
+import { createHash } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -50,6 +51,47 @@ function revalidar(): void {
 
 /** Teto por chamada de `remove()`. A API de Storage aceita até 1000 chaves por requisição. */
 const LOTE_REMOCAO = 500
+
+/**
+ * O DIGEST da seleção — é ele que amarra o arquivo de backup a ESTES cadastros.
+ *
+ * ⚠ Espelha `digest_selecao_conflito()` (migration 0100), e existe porque conferir só o
+ * PREFIXO do caminho não é conferir o recorte: qualquer objeto sob `conflito/` passava,
+ * inclusive o backup de uma exclusão anterior ou o resto de uma tentativa recusada. Com o
+ * digest no caminho, o próprio nome do arquivo vira uma afirmação verificável sobre QUAIS
+ * ids ele cobre — a doutrina da 0089, que a 0093 dizia herdar e não herdava.
+ *
+ * Os dois lados precisam montar a MESMA string: ids únicos, em minúsculas, ordenados,
+ * unidos por vírgula. Em minúsculas porque o texto canônico de um `uuid` do Postgres é
+ * minúsculo, e ordenados por texto porque a ordem de bytes do `uuid` (que o `order by x`
+ * do SQL usa) coincide com a lexicográfica da forma canônica — os hífens ficam em posições
+ * fixas e nunca desempatam.
+ */
+function digestDaSelecao(ativoIds: string[]): string {
+  const ordenados = [...new Set(ativoIds.map((id) => id.toLowerCase()))].sort()
+  return createHash('md5').update(ordenados.join(','), 'utf8').digest('hex')
+}
+
+/**
+ * Apaga o backup que subiu para uma exclusão que a RPC recusou.
+ *
+ * Sem isto o bucket acumula `conflito/…json` que não correspondem a exclusão nenhuma — e
+ * esses órfãos são justamente o material de um replay: caminho válido, existente e sob o
+ * prefixo certo. O digest no nome já impede reusar o backup de OUTRA seleção; limpar a
+ * sobra fecha o reuso da MESMA seleção depois que o estado mudou. É melhor esforço: falhar
+ * aqui não muda o resultado (nada foi apagado), só registra no log.
+ */
+async function descartarBackupNaoUsado(caminho: string): Promise<void> {
+  try {
+    const { error } = await createAdminClient().storage.from('backups-import').remove([caminho])
+    if (error) throw new Error(error.message)
+  } catch (err) {
+    console.error('[conflitos] backup órfão no bucket (a RPC recusou e a remoção falhou)', {
+      caminho,
+      erro: err instanceof Error ? err.message : String(err),
+    })
+  }
+}
 
 /**
  * Remove os `.docx` do bucket `termos` DEPOIS do commit da RPC.
@@ -212,11 +254,12 @@ export async function apagarConflito(input: {
         ],
         { type: 'application/json' },
       )
-      // O prefixo NÃO é decorativo: a RPC exige que o caminho comece por ele (migration
-      // 0093, precedente 0089). Conferir só que "existe um objeto com esse nome" deixaria
-      // passar o backup de outra operação qualquer que por acaso esteja no bucket.
+      // O caminho NÃO é decorativo: a RPC exige o prefixo E o digest da seleção (migration
+      // 0100, precedente 0089). Conferir só que "existe um objeto sob conflito/" deixaria
+      // passar o backup de qualquer outra exclusão que por acaso esteja no bucket; com o
+      // digest, o caminho só é aceito para exatamente estes ids.
       const carimbo = new Date().toISOString().replace(/[:.]/g, '-')
-      backupPath = `${PREFIXO_BACKUP_CONFLITO}${carimbo}.json`
+      backupPath = `${PREFIXO_BACKUP_CONFLITO}${digestDaSelecao(ativoIds)}/${carimbo}.json`
       const { error: upErr } = await supabase.storage
         .from('backups-import')
         .upload(backupPath, corpo, { contentType: 'application/json', upsert: false })
@@ -248,6 +291,9 @@ export async function apagarConflito(input: {
       details: error.details,
       ativos: ativoIds.length,
     })
+    // A RPC recusou: nada foi apagado, então o backup que subiu antes dela não cobre
+    // exclusão nenhuma e não pode ficar no bucket. Ver `descartarBackupNaoUsado`.
+    if (backupPath) await descartarBackupNaoUsado(backupPath)
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
 

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -107,10 +107,27 @@ describe('cap do backup', () => {
 // migration 0093. Se um lado mudar sozinho, a tela e o banco passam a discordar sobre o que
 // confirma, o que é justificativa suficiente e quando o backup precisa virar arquivo — e o
 // sintoma seria "a confirmação nunca confere", sem ninguém saber por quê.
-describe('constantes duplicadas na migration 0093', () => {
-  const sql = readFileSync(
-    join(process.cwd(), 'supabase', 'migrations', '0093_apagar_conflito_filiais.sql'),
-    'utf8',
+// ⚠ A migration é procurada, NUNCA fixada pelo número. Fixar "0093" foi o defeito da
+// primeira versão deste bloco: a RPC já tinha sido recriada por inteiro na 0098 (e depois
+// na 0100), então o teste passou a inspecionar um arquivo que não é mais a definição viva
+// do banco. Alguém mexeria em `c_cap_inline` na migration nova, esqueceria do TypeScript, e
+// a asserção continuaria VERDE lendo a 0093 — que ainda casa com o TS. O sintoma em
+// produção seria a tela deixar de subir arquivo de backup para lotes que a RPC exige (ou o
+// contrário), e ninguém saberia por quê. Mesmo padrão de `dev-destrutivo.test.ts`.
+function sqlMaisRecenteCom(trecho: string): string {
+  const dir = join(process.cwd(), 'supabase', 'migrations')
+  const arquivo = readdirSync(dir)
+    .filter((n) => n.endsWith('.sql'))
+    .sort()
+    .reverse()
+    .find((n) => readFileSync(join(dir, n), 'utf8').includes(trecho))
+  if (!arquivo) throw new Error(`Nenhuma migration define "${trecho}"`)
+  return readFileSync(join(dir, arquivo), 'utf8')
+}
+
+describe('constantes duplicadas na migration VIVA da RPC', () => {
+  const sql = sqlMaisRecenteCom(
+    'create or replace function public.apagar_ativos_conflito_filiais',
   )
 
   it('MIN_JUSTIFICATIVA_CONFLITO bate com a guarda da RPC', () => {
@@ -132,6 +149,10 @@ describe('constantes duplicadas na migration 0093', () => {
   })
 
   it('o prefixo do backup bate com prefixo_backup_conflito()', () => {
-    expect(sql).toContain(`select '${PREFIXO_BACKUP_CONFLITO}'`)
+    // Esta função vive na sua própria migration (hoje a 0093), que não é a mesma da RPC —
+    // por isso a busca é separada, e também por marcador, nunca por número.
+    expect(
+      sqlMaisRecenteCom('create or replace function public.prefixo_backup_conflito'),
+    ).toContain(`select '${PREFIXO_BACKUP_CONFLITO}'`)
   })
 })

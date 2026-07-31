@@ -311,7 +311,23 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
         filialSlug: texto(p, 'filial') ?? null,
         q: texto(p, 'q') ?? null,
       })
-      const linhas = todos.slice(0, CAP_EXPORT)
+      // ⚠ O corte é por GRUPO, não por linha. `todos.slice(0, CAP_EXPORT)` podia cair no
+      // meio de um par e entregar um conflito com UM lado só — que, ordenado no Excel,
+      // se lê como "este aparelho está numa filial apenas", a conclusão oposta à real.
+      // `listarConflitosParaExport` já devolve ordenado por chave + filial, então basta
+      // fechar o grupo corrente antes de estourar o teto. Um grupo tem no máximo um lado
+      // por filial, então nunca há grupo maior que o teto.
+      const porGrupo = new Map<string, typeof todos>()
+      for (const l of todos) {
+        const g = porGrupo.get(l.chave)
+        if (g) g.push(l)
+        else porGrupo.set(l.chave, [l])
+      }
+      const linhas: typeof todos = []
+      for (const g of porGrupo.values()) {
+        if (linhas.length + g.length > CAP_EXPORT) break
+        linhas.push(...g)
+      }
       return {
         nome: nomeArquivoCsv('conflitos-entre-filiais', hojeISO()),
         conteudo: gerarCsv(COLUNAS_CONFLITOS, linhas),
