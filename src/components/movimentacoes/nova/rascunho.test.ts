@@ -165,7 +165,39 @@ describe('desserializarRascunho — a contrapartida (F26)', () => {
       termoData: '2026-08-04',
       itensFaltantes: [],
       deixarParaDepois: false,
+      jaRegistrada: false,
+      prefillColaborador: undefined,
     })
+  })
+
+  // Achado da SEGUNDA volta adversarial: o marcador "a outra metade já está no
+  // banco" vivia só na montagem, e o rascunho carregava o `deixarParaDepois`
+  // sem ele — restaurar numa URL limpa ressuscitava o laço do atalho.
+  it('`jaRegistrada` viaja junto com o "deixar para depois"', () => {
+    const r = desserializarRascunho(
+      comContrapartida({
+        contrapartida: { deixarParaDepois: true, jaRegistrada: true },
+      }),
+    )!
+    expect(r.contrapartida!.deixarParaDepois).toBe(true)
+    expect(r.contrapartida!.jaRegistrada).toBe(true)
+  })
+
+  it('`jaRegistrada` ausente (rascunho de antes) vira false, não undefined', () => {
+    const r = desserializarRascunho(comContrapartida())!
+    expect(r.contrapartida!.jaRegistrada).toBe(false)
+  })
+
+  it('`prefillColaborador` ausente fica undefined — o campo passa a ser do operador', () => {
+    const r = desserializarRascunho(comContrapartida())!
+    expect(r.contrapartida!.prefillColaborador).toBeUndefined()
+  })
+
+  it('`prefillColaborador` presente volta como está', () => {
+    const r = desserializarRascunho(
+      comContrapartida({ contrapartida: { prefillColaborador: 'Fulano da Silva' } }),
+    )!
+    expect(r.contrapartida!.prefillColaborador).toBe('Fulano da Silva')
   })
 
   it('"deixar para depois" só é verdadeiro quando é o booleano true', () => {

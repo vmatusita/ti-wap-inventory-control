@@ -108,7 +108,7 @@ export const registrarMovimentacao: PaginaAjuda = {
         'Quando todos os equipamentos da primeira metade estão com a MESMA pessoa, o campo Colaborador da outra metade já vem preenchido com o nome dela, e continua editável. Estando com pessoas diferentes (ou com ninguém), o campo vem vazio — o sistema não escolhe por você.',
         'Data, Chamado e Observação são os mesmos para as duas metades: um preenchimento só. O motivo da outra metade é fixo e aparece escrito na própria seção.',
         'A Revisão mostra os dois blocos separados, cada um com a sua contagem, e um clique em "Registrar" grava a troca inteira.',
-        'Não quer lançar a outra metade agora? Marque "Deixar a contrapartida para depois": só a metade que você montou é registrada, e a tela de sucesso oferece um atalho para lançar a outra em seguida, já com o tipo, o motivo e o colaborador preenchidos.',
+        'Não quer lançar a outra metade agora? Marque "Deixar a contrapartida para depois": só a metade que você montou é registrada, e a tela de sucesso oferece um atalho para lançar a outra em seguida, já com o tipo, o motivo e o colaborador preenchidos. Na tela que esse atalho abre, o aviso não se repete: ali a outra metade já foi registrada.',
         'Duas regras da troca: o mesmo equipamento não pode estar nas duas metades, e o teto do lote conta a SOMA das duas.',
         'Depois de gravadas, as duas movimentações são independentes — estornar uma delas não desfaz a outra.',
       ],

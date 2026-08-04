@@ -68,6 +68,18 @@ export type ContrapartidaTroca = {
   // Ligado: a secao recolhe e o registrar grava so a metade principal. O PADRAO
   // e a contrapartida ABERTA (decisao do Johnny, 04/08/2026).
   deixarParaDepois: boolean
+  // Esta metade JA EXISTE no banco — foi ela que abriu esta tela, pelo atalho do
+  // painel de sucesso (`?contrapartida=nao`). E propriedade do PAR, nao da
+  // montagem: por isso mora aqui e nao num estado solto do formulario. Um par
+  // NOVO montado nesta mesma tela nasce com `false` (via `contrapartidaPadrao`),
+  // e o rascunho a carrega junto — os dois casos que a 2a volta adversarial
+  // pegou quando ela era estado de montagem.
+  jaRegistrada: boolean
+  // O ULTIMO valor que o pre-preenchimento automatico escreveu em `colaborador`.
+  // Serve a uma pergunta so: "o operador digitou por cima?". Se `colaborador`
+  // ainda for igual a isto, o campo e do sistema e pode ser recalculado quando o
+  // lote principal muda; se divergir, e do operador e nao se toca.
+  prefillColaborador: string
 }
 
 export function contrapartidaPadrao(
@@ -81,6 +93,8 @@ export function contrapartidaPadrao(
     termoData: inicial?.termoData ?? '',
     itensFaltantes: inicial?.itensFaltantes ?? [],
     deixarParaDepois: inicial?.deixarParaDepois ?? false,
+    jaRegistrada: inicial?.jaRegistrada ?? false,
+    prefillColaborador: inicial?.prefillColaborador ?? '',
   }
 }
 
@@ -110,9 +124,37 @@ export function nascerContrapartida(
   lotePrincipal: AtivoResumo[],
 ): ContrapartidaTroca {
   const alvo = tipoContrapartida(config.tipo)
+  const prefill = alvo === 'saida' ? prefillContrapartida(lotePrincipal) : ''
+  // `jaRegistrada` e `deixarParaDepois` ficam no padrao (false): um par que
+  // NASCE agora e um par novo, mesmo numa tela aberta pelo atalho.
   return contrapartidaPadrao({
-    colaborador: alvo === 'saida' ? prefillContrapartida(lotePrincipal) : '',
+    colaborador: prefill,
+    prefillColaborador: prefill,
   })
+}
+
+// O pre-preenchimento acompanha o lote principal enquanto o campo for do
+// SISTEMA. Sem isto ele congelava no instante em que a secao nascia: montar a
+// devolucao de um notebook do Fulano, abrir a secao (colaborador = "Fulano") e
+// voltar ao passo 1 para juntar o notebook da Beltrana deixava "Fulano" escrito
+// num lote de detentores MISTOS — exatamente o chute silencioso que
+// `prefillContrapartida` existe para evitar.
+//
+// Digitou por cima (inclusive apagando)? O campo passa a ser do operador e nunca
+// mais e sobrescrito.
+export function sincronizarPrefill(
+  config: Config,
+  contrapartida: ContrapartidaTroca,
+  lotePrincipal: AtivoResumo[],
+): ContrapartidaTroca {
+  if (!ofereceContrapartida(config)) return contrapartida
+  if (tipoContrapartida(config.tipo) !== 'saida') return contrapartida
+  if (contrapartida.colaborador !== contrapartida.prefillColaborador) {
+    return contrapartida
+  }
+  const novo = prefillContrapartida(lotePrincipal)
+  if (novo === contrapartida.colaborador) return contrapartida
+  return { ...contrapartida, colaborador: novo, prefillColaborador: novo }
 }
 
 // A Config equivalente da metade oposta: os campos compartilhados vem da
@@ -223,19 +265,16 @@ export function validarPar(
 //
 // A resposta NAO e so "o operador marcou deixar para depois". A tela aberta pelo
 // proprio atalho chega com esse flag LIGADO (e o que o `contrapartida=nao` faz,
-// para ela nao pedir a contrapartida DA contrapartida) — e, sem esta guarda, ao
-// registrar aquela metade o painel diria de novo "falta a outra metade da
+// para ela nao pedir a contrapartida DA contrapartida) — e, sem `jaRegistrada`,
+// ao registrar aquela metade o painel diria de novo "falta a outra metade da
 // troca", apontando para a que o operador acabou de gravar. Laco, e um laco que
-// mente. `estaTelaVeioDoAtalho` some quando o operador comeca uma movimentacao
-// nova ("Registrar outra movimentacao"), porque ai a montagem ja nao e a metade
-// que faltava.
+// mente.
 export function deveOferecerAtalho(
   config: Config,
   contrapartida: ContrapartidaTroca | null,
-  estaTelaVeioDoAtalho: boolean,
 ): boolean {
-  if (estaTelaVeioDoAtalho) return false
   if (!ofereceContrapartida(config) || !contrapartida) return false
+  if (contrapartida.jaRegistrada) return false
   return contrapartida.deixarParaDepois
 }
 

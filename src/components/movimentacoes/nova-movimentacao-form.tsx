@@ -27,6 +27,7 @@ import {
   nascerContrapartida,
   ofereceContrapartida,
   prefillContrapartida,
+  sincronizarPrefill,
   tipoContrapartida,
   validarPar,
   MOTIVO_TROCA_UPGRADE,
@@ -129,15 +130,15 @@ export function NovaMovimentacaoForm({
     }
     return c
   })
-  // F26 — a metade oposta do par troca/upgrade.
+  // F26 — a metade oposta do par troca/upgrade. Chegando pelo atalho do painel
+  // (`?contrapartida=nao`), a seção nasce recolhida E marcada como `jaRegistrada`
+  // — a outra metade deste par já está no banco, foi ela que abriu esta tela.
   const [contrapartida, setContrapartida] = useState<ContrapartidaTroca>(() =>
-    contrapartidaPadrao({ deixarParaDepois: semContrapartida }),
+    contrapartidaPadrao({
+      deixarParaDepois: semContrapartida,
+      jaRegistrada: semContrapartida,
+    }),
   )
-  // Esta montagem É a metade que faltava (chegou pelo atalho do painel)? Enquanto
-  // for, o painel de sucesso NÃO oferece o atalho de novo — senão ele apontaria
-  // para a metade que o operador acabou de registrar. Some no "Registrar outra
-  // movimentação", que começa um lote do zero e volta a ser um caso comum.
-  const [veioDoAtalho, setVeioDoAtalho] = useState(semContrapartida)
   const [statusResultante, setStatusResultante] = useState<string>('')
   const [erros, setErros] = useState<string[]>([])
   const [errosPorAtivo, setErrosPorAtivo] = useState<Record<string, string>>({})
@@ -267,10 +268,15 @@ export function NovaMovimentacaoForm({
   // deles, o toast nomeia o culpado com os rotulos do dominio, em vez do reset
   // mudo de antes (F9/M7). Remocao nunca estreita a intersecao, entao so
   // `adicionar` passa entrantes.
-  function ajustarTipoPara(lista: AtivoResumo[], entrantes: AtivoResumo[] = []) {
+  // Devolve `true` quando o tipo foi limpo (e, com ele, a contrapartida) — quem
+  // chama usa isso para não re-sincronizar o prefill de um par que já morreu.
+  function ajustarTipoPara(
+    lista: AtivoResumo[],
+    entrantes: AtivoResumo[] = [],
+  ): boolean {
     const tipoAtual = config.tipo
     const validos = tiposDoLote(lista.map((i) => i.status))
-    if (!tipoAtual || validos.includes(tipoAtual)) return
+    if (!tipoAtual || validos.includes(tipoAtual)) return false
     setConfig((c) =>
       c.tipo && !validos.includes(c.tipo) ? { ...c, tipo: '' } : c,
     )
@@ -286,6 +292,7 @@ export function NovaMovimentacaoForm({
         `${nomeDe(culpado)} (${rotuloStatus(culpado.status)}) não permite "${rotuloTipo(tipoAtual)}" — o tipo foi limpo.`,
       )
     }
+    return true
   }
   function adicionar(a: AtivoResumo) {
     if (itens.some((p) => p.id === a.id)) return
@@ -306,7 +313,11 @@ export function NovaMovimentacaoForm({
     const next = [...itens, a]
     marcarAlteracao()
     setItens(next)
-    ajustarTipoPara(next, [a])
+    // F26 — o prefill acompanha o lote enquanto o campo for do sistema: juntar um
+    // notebook de OUTRO detentor tem de apagar o nome que já estava lá.
+    if (!ajustarTipoPara(next, [a])) {
+      setContrapartida((c) => sincronizarPrefill(config, c, next))
+    }
   }
 
   // F10/M1 — entrada em massa (colar lista). O resolver do W1 devolve tudo o que
@@ -319,7 +330,9 @@ export function NovaMovimentacaoForm({
     if (r.adicionados.length > 0) {
       marcarAlteracao()
       setItens(r.lote)
-      ajustarTipoPara(r.lote, r.adicionados)
+      if (!ajustarTipoPara(r.lote, r.adicionados)) {
+        setContrapartida((c) => sincronizarPrefill(config, c, r.lote))
+      }
       const extra =
         r.jaNoLote.length > 0 ? ` (${r.jaNoLote.length} já estavam no lote)` : ''
       toast.success(
@@ -339,7 +352,12 @@ export function NovaMovimentacaoForm({
     if (next.length === itens.length) return
     marcarAlteracao()
     setItens(next)
-    ajustarTipoPara(next)
+    // Remover nunca estreita a interseção, então `ajustarTipoPara` não limpa
+    // nada aqui — mas o prefill precisa acompanhar: tirar o notebook do outro
+    // detentor devolve o lote a um dono só, e o nome volta a ser honesto.
+    if (!ajustarTipoPara(next)) {
+      setContrapartida((c) => sincronizarPrefill(config, c, next))
+    }
   }
 
   // --- F26 — os ativos da metade oposta ------------------------------------
@@ -425,6 +443,8 @@ export function NovaMovimentacaoForm({
                 termoData: contrapartida.termoData,
                 itensFaltantes: contrapartida.itensFaltantes,
                 deixarParaDepois: contrapartida.deixarParaDepois,
+                jaRegistrada: contrapartida.jaRegistrada,
+                prefillColaborador: contrapartida.prefillColaborador,
               },
             }
           : {}),
@@ -516,6 +536,13 @@ export function NovaMovimentacaoForm({
           termoData: r.contrapartida.termoData,
           itensFaltantes: r.contrapartida.itensFaltantes,
           deixarParaDepois: r.contrapartida.deixarParaDepois,
+          // `jaRegistrada` volta junto: sem ela, um rascunho salvo na tela que
+          // veio do atalho ressuscitava o laço ao ser restaurado numa URL limpa.
+          jaRegistrada: r.contrapartida.jaRegistrada,
+          // Ausente no rascunho antigo => `undefined`, que difere de qualquer
+          // `colaborador` string: o campo passa a ser tratado como do operador e
+          // o prefill nunca o sobrescreve. É o lado seguro.
+          prefillColaborador: r.contrapartida.prefillColaborador,
         })
       }
 
@@ -750,7 +777,7 @@ export function NovaMovimentacaoForm({
       // fica pendente no servidor — é só navegação (decisão "só a tela"). E não
       // se oferece o atalho na tela que JÁ É a metade que faltava.
       const pendente: ContrapartidaPendente | null =
-        deveOferecerAtalho(config, contrapartida, veioDoAtalho) && alvo
+        deveOferecerAtalho(config, contrapartida) && alvo
           ? {
               tipo: alvo,
               colaborador: campoAplica(alvo, 'colaborador')
@@ -818,7 +845,6 @@ export function NovaMovimentacaoForm({
     setContrapartida(contrapartidaPadrao())
     // Lote do zero: esta montagem deixa de ser "a metade que faltava", e o
     // atalho volta a valer para uma troca nova que o operador adie.
-    setVeioDoAtalho(false)
     setStatusResultante('')
     setErros([])
     setErrosPorAtivo({})
@@ -991,7 +1017,6 @@ export function NovaMovimentacaoForm({
           kitAplicado={kitAplicado}
           checklistKit={checklistKit}
           contrapartida={contrapartida}
-          veioDoAtalho={veioDoAtalho}
           comandoContrapartidaRef={comandoContrapartidaRef}
           onAplicarKit={aplicarKit}
           onLimparKit={() => setKitAplicado(null)}

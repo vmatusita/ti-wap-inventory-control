@@ -32,6 +32,15 @@ export type RascunhoContrapartida = {
   termoData: string
   itensFaltantes: string[]
   deixarParaDepois: boolean
+  // OPCIONAIS: rascunho gravado antes destes campos existirem restaura sem erro.
+  // `jaRegistrada` PRECISA viajar junto com `deixarParaDepois` — sem ela, um
+  // rascunho salvo na tela aberta pelo atalho voltava dizendo "adiei a outra
+  // metade" quando na verdade ela ja estava gravada, e o painel reoferecia o
+  // atalho. `prefillColaborador` diz se o nome no campo e do sistema ou do
+  // operador; ausente, o campo passa a ser tratado como do operador (nunca
+  // sobrescrito), que e o lado seguro.
+  jaRegistrada?: boolean
+  prefillColaborador?: string
 }
 
 export type Rascunho = {
@@ -80,6 +89,10 @@ function sanearContrapartida(
     termoData: texto(c.termoData),
     itensFaltantes: listaDeTexto(c.itensFaltantes),
     deixarParaDepois: c.deixarParaDepois === true,
+    jaRegistrada: c.jaRegistrada === true,
+    // Ausente => `undefined`: quem restaura trata o campo como do OPERADOR.
+    prefillColaborador:
+      typeof c.prefillColaborador === 'string' ? c.prefillColaborador : undefined,
   }
 }
 

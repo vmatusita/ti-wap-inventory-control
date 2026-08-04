@@ -10,6 +10,7 @@ import {
   nascerContrapartida,
   ofereceContrapartida,
   prefillContrapartida,
+  sincronizarPrefill,
   tipoContrapartida,
   validarPar,
   type ContrapartidaTroca,
@@ -524,28 +525,101 @@ describe('linkContrapartida — o atalho do painel de sucesso', () => {
 // tela que já era a metade que faltava.
 describe('deveOferecerAtalho — o atalho não se oferece a si mesmo', () => {
   const adiada = contrapartidaPadrao({ deixarParaDepois: true })
-
-  it('contrapartida adiada numa tela comum: oferece', () => {
-    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, adiada, false)).toBe(true)
+  const jaRegistrada = contrapartidaPadrao({
+    deixarParaDepois: true,
+    jaRegistrada: true,
   })
 
-  it('a MESMA situação na tela que veio do atalho: NÃO oferece (seria laço)', () => {
-    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, adiada, true)).toBe(false)
+  it('contrapartida adiada numa tela comum: oferece', () => {
+    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, adiada)).toBe(true)
+  })
+
+  it('a MESMA situação com a outra metade JÁ registrada: NÃO oferece (seria laço)', () => {
+    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, jaRegistrada)).toBe(false)
   })
 
   it('contrapartida registrada junto (não adiada): não há o que oferecer', () => {
-    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, contrapartidaPadrao(), false)).toBe(
-      false,
-    )
+    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, contrapartidaPadrao())).toBe(false)
   })
 
   it('config que não oferece par: não oferece atalho', () => {
     expect(
-      deveOferecerAtalho(cfg({ tipo: 'devolucao', motivo: 'desligamento' }), adiada, false),
+      deveOferecerAtalho(cfg({ tipo: 'devolucao', motivo: 'desligamento' }), adiada),
     ).toBe(false)
   })
 
   it('sem contrapartida nenhuma: não oferece', () => {
-    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, null, false)).toBe(false)
+    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, null)).toBe(false)
+  })
+
+  // Achado da SEGUNDA volta adversarial: o marcador era estado da MONTAGEM, e
+  // por isso um par NOVO montado na tela do atalho o herdava — o painel escondia
+  // um atalho genuinamente pendente. Nascendo do par, `nascerContrapartida` o
+  // devolve a false por construção.
+  it('par NOVO nascido na tela do atalho volta a oferecer o atalho', () => {
+    const nova = nascerContrapartida(DEVOLUCAO_TROCA, [
+      ativo({ status: 'em_uso', colaborador_atual: 'Fulano de Tal' }),
+    ])
+    expect(nova.jaRegistrada).toBe(false)
+    expect(
+      deveOferecerAtalho(DEVOLUCAO_TROCA, { ...nova, deixarParaDepois: true }),
+    ).toBe(true)
+  })
+})
+
+// Achado da SEGUNDA volta: o pré-preenchimento congelava no instante em que a
+// seção nascia. Montar a devolução de um notebook do Fulano e depois juntar o
+// notebook da Beltrana deixava "Fulano de Tal" escrito num lote de detentores
+// MISTOS — o chute silencioso que o prefill existe para evitar.
+describe('sincronizarPrefill — o prefill acompanha o lote, o que o operador digitou não', () => {
+  const comFulano = () => ativo({ status: 'em_uso', colaborador_atual: 'Fulano de Tal' })
+  const comBeltrana = () =>
+    ativo({ status: 'em_uso', colaborador_atual: 'Beltrana de Tal' })
+
+  it('lote fica MISTO: o nome pré-preenchido é apagado', () => {
+    const c = nascerContrapartida(DEVOLUCAO_TROCA, [comFulano()])
+    expect(c.colaborador).toBe('Fulano de Tal')
+    const depois = sincronizarPrefill(DEVOLUCAO_TROCA, c, [
+      comFulano(),
+      comBeltrana(),
+    ])
+    expect(depois.colaborador).toBe('')
+    expect(depois.prefillColaborador).toBe('')
+  })
+
+  it('lote volta a ter um dono só: o nome volta', () => {
+    const c = contrapartidaPadrao()
+    const depois = sincronizarPrefill(DEVOLUCAO_TROCA, c, [comFulano()])
+    expect(depois.colaborador).toBe('Fulano de Tal')
+  })
+
+  it('o que o OPERADOR digitou nunca é sobrescrito', () => {
+    const c = contrapartidaPadrao({
+      colaborador: 'Ciclana de Tal',
+      prefillColaborador: 'Fulano de Tal',
+    })
+    expect(sincronizarPrefill(DEVOLUCAO_TROCA, c, [comBeltrana()])).toBe(c)
+  })
+
+  it('campo apagado à mão também é do operador (não repõe o nome)', () => {
+    const c = contrapartidaPadrao({
+      colaborador: '',
+      prefillColaborador: 'Fulano de Tal',
+    })
+    expect(sincronizarPrefill(DEVOLUCAO_TROCA, c, [comFulano()])).toBe(c)
+  })
+
+  it('sentido saída → devolução não tem colaborador: não mexe', () => {
+    const c = contrapartidaPadrao()
+    expect(sincronizarPrefill(SAIDA_TROCA, c, [comFulano()])).toBe(c)
+  })
+
+  it('config que não oferece par: não mexe', () => {
+    const c = contrapartidaPadrao()
+    expect(
+      sincronizarPrefill(cfg({ tipo: 'devolucao', motivo: 'desligamento' }), c, [
+        comFulano(),
+      ]),
+    ).toBe(c)
   })
 })

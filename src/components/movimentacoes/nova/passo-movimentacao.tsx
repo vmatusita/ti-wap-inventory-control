@@ -143,7 +143,6 @@ export function PassoMovimentacao({
   kitAplicado,
   checklistKit,
   contrapartida,
-  veioDoAtalho,
   comandoContrapartidaRef,
   onAplicarKit,
   onLimparKit,
@@ -176,9 +175,6 @@ export function PassoMovimentacao({
   // F26 — a metade oposta do par troca/upgrade. A seção aparece e some DERIVADA
   // de `ofereceContrapartida(config)`; o estado dela vive no formulário-mãe.
   contrapartida: ContrapartidaTroca
-  // Esta montagem chegou pelo atalho do painel de sucesso (é a metade que
-  // faltava)? Só muda o texto da seção recolhida.
-  veioDoAtalho: boolean
   comandoContrapartidaRef: React.RefObject<HTMLDivElement | null>
   onAplicarKit: (kit: Kit) => void
   onLimparKit: () => void
@@ -544,7 +540,6 @@ export function PassoMovimentacao({
           contrapartida={contrapartida}
           itensPrincipal={itens}
           rotuloMotivo={rotuloMotivoTroca}
-          veioDoAtalho={veioDoAtalho}
           comandoRef={comandoContrapartidaRef}
           onAdicionar={onAdicionarContrapartida}
           onRemover={onRemoverContrapartida}

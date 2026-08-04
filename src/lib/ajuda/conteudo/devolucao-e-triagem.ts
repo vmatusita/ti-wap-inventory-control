@@ -82,7 +82,7 @@ export const devolucaoETriagem: PaginaAjuda = {
         `Cada metade obedece às regras de sempre: o que entra precisa estar "${S.em_estoque.rotulo}", "${S.reservado.rotulo}" ou "${S.em_triagem.rotulo}"; o que volta, "${S.em_uso.rotulo}" ou "${S.emprestado.rotulo}".`,
         `O checklist de acessórios é sempre da metade que RECEBE de volta — na seção da troca ele aparece como "Itens faltantes na devolução da troca", e cada item marcado abre a mesma pendência de sempre.`,
         'A tela de sucesso traz o documento de cada metade: o termo de responsabilidade dos equipamentos entregues e o termo de devolução dos que voltaram.',
-        'Marcando "Deixar a contrapartida para depois", só a metade montada é registrada, e a tela de sucesso oferece o atalho para lançar a outra em seguida.',
+        'Marcando "Deixar a contrapartida para depois", só a metade montada é registrada, e a tela de sucesso oferece o atalho para lançar a outra em seguida — atalho que não reaparece na tela que ele mesmo abriu.',
         'As duas movimentações são independentes depois de gravadas: estornar uma delas não desfaz a outra.',
       ],
     },
