@@ -11,11 +11,10 @@
 // corpo do componente quebraria a hidratacao do Next).
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import {
-  STATUS_META,
   TERMO_STATUS_ORDEM,
-  TIPO_META,
+  ehStatusAtivo,
+  ehTipoMovimentacao,
   type TermoStatus,
-  type TipoMovimentacao,
 } from '@/lib/dominio'
 import { configPadrao, type Config } from '@/components/movimentacoes/nova/config'
 
@@ -100,7 +99,11 @@ function sanearConfig(bruto: unknown): Config {
 
   return {
     data: texto(c.data) || base.data,
-    tipo: tipo in TIPO_META ? (tipo as TipoMovimentacao) : '',
+    // `ehTipoMovimentacao`, e não `tipo in TIPO_META` (F26): o `in` enxerga as
+    // chaves herdadas de `Object.prototype`, então um sessionStorage adulterado
+    // com `tipo: "toString"` passava por tipo válido e estourava depois, em
+    // `CAMPOS_POR_TIPO[tipo].campos`. Mesma correção em `configInicialDaUrl`.
+    tipo: ehTipoMovimentacao(tipo) ? tipo : '',
     motivo: texto(c.motivo),
     colaborador: texto(c.colaborador),
     setor: texto(c.setor),
@@ -140,7 +143,7 @@ export function desserializarRascunho(bruto: string | null): Rascunho | null {
   return {
     ids,
     config: sanearConfig(r.config),
-    statusResultante: status in STATUS_META ? status : '',
+    statusResultante: ehStatusAtivo(status) ? status : '',
     passo: passoBruto >= 1 && passoBruto <= 3 ? passoBruto : 1,
     // Chave AUSENTE quando nao ha par: assim o rascunho novo de um lote simples
     // continua serializando exatamente como o antigo.

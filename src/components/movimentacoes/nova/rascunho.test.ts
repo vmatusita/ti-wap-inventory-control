@@ -68,6 +68,20 @@ describe('desserializarRascunho — entrada hostil vira estado utilizavel', () =
     )
   })
 
+  // Achado da revisão adversarial da F26 (defeito que vinha da F10): o `in`
+  // enxerga as chaves HERDADAS de Object.prototype, então um sessionStorage
+  // adulterado com `tipo: "toString"` passava por tipo válido e só estourava
+  // depois, dentro de `CAMPOS_POR_TIPO[tipo].campos`.
+  it('chave herdada de Object.prototype não passa por tipo nem por status', () => {
+    for (const lixo of ['toString', 'constructor', 'hasOwnProperty', 'valueOf']) {
+      const r = desserializarRascunho(
+        bruto({ config: { tipo: lixo }, statusResultante: lixo }),
+      )!
+      expect(r.config.tipo).toBe('')
+      expect(r.statusResultante).toBe('')
+    }
+  })
+
   it('tipo/termo/status fora do vocabulário do domínio viram vazio', () => {
     const r = desserializarRascunho(
       bruto({

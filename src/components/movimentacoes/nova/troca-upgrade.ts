@@ -219,11 +219,32 @@ export function validarPar(
   return [...new Set(msgs)]
 }
 
+// O painel de sucesso deve oferecer o atalho da metade que faltou?
+//
+// A resposta NAO e so "o operador marcou deixar para depois". A tela aberta pelo
+// proprio atalho chega com esse flag LIGADO (e o que o `contrapartida=nao` faz,
+// para ela nao pedir a contrapartida DA contrapartida) — e, sem esta guarda, ao
+// registrar aquela metade o painel diria de novo "falta a outra metade da
+// troca", apontando para a que o operador acabou de gravar. Laco, e um laco que
+// mente. `estaTelaVeioDoAtalho` some quando o operador comeca uma movimentacao
+// nova ("Registrar outra movimentacao"), porque ai a montagem ja nao e a metade
+// que faltava.
+export function deveOferecerAtalho(
+  config: Config,
+  contrapartida: ContrapartidaTroca | null,
+  estaTelaVeioDoAtalho: boolean,
+): boolean {
+  if (estaTelaVeioDoAtalho) return false
+  if (!ofereceContrapartida(config) || !contrapartida) return false
+  return contrapartida.deixarParaDepois
+}
+
 // O link que reabre `/movimentacoes/nova` na metade que ficou para depois.
-// `contrapartida=nao` e o que impede o laco: chegando por aqui, o facilitador
-// comeca RECOLHIDO — senao a tela pediria a contrapartida DA contrapartida, que
-// e justamente a que o operador acabou de registrar. Nenhuma pendencia e nenhum
-// estado no servidor: e conveniencia de navegacao (decisao "so a tela").
+// `contrapartida=nao` recolhe o facilitador na chegada; `de=` carrega a
+// movimentacao de origem e existe para a URL do atalho nunca coincidir com a URL
+// atual (link igual = navegacao que nao acontece = botao mudo). Nenhuma
+// pendencia e nenhum estado no servidor: e conveniencia de navegacao (decisao
+// "so a tela").
 export function linkContrapartida(pendente: ContrapartidaPendente): string {
   const params = new URLSearchParams({
     tipo: pendente.tipo,
@@ -231,6 +252,7 @@ export function linkContrapartida(pendente: ContrapartidaPendente): string {
     contrapartida: 'nao',
   })
   if (pendente.colaborador) params.set('colaborador', pendente.colaborador)
+  if (pendente.origemMovimentacaoId) params.set('de', pendente.origemMovimentacaoId)
   return `/movimentacoes/nova?${params.toString()}`
 }
 

@@ -47,6 +47,7 @@ export function SecaoContrapartida({
   contrapartida,
   itensPrincipal,
   rotuloMotivo,
+  veioDoAtalho,
   comandoRef,
   onAdicionar,
   onRemover,
@@ -55,6 +56,9 @@ export function SecaoContrapartida({
   config: Config
   contrapartida: ContrapartidaTroca
   itensPrincipal: AtivoResumo[]
+  // Esta tela É a metade que faltava (chegou pelo atalho do painel de sucesso)?
+  // Só muda o TEXTO da seção recolhida — o resto do comportamento é o mesmo.
+  veioDoAtalho: boolean
   // Rótulo do motivo vindo do catálogo (`admin/motivos` pode renomeá-lo) — a
   // DETECÇÃO é sempre pelo código; só o texto da tela vem daqui.
   rotuloMotivo: string
@@ -116,9 +120,12 @@ export function SecaoContrapartida({
         <p className="mt-3 flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           Só a {rotuloTipo(config.tipo || 'devolucao').toLowerCase()} vai ser
-          registrada agora. Depois de registrar, a tela de sucesso oferece o
-          atalho para lançar a {rotuloTipo(alvo).toLowerCase()} da troca já com
-          os campos preenchidos.
+          registrada agora.{' '}
+          {veioDoAtalho
+            ? // Esta tela JÁ É a metade que faltava: prometer o atalho aqui
+              // seria apontar para a metade que o operador acabou de registrar.
+              `A ${rotuloTipo(alvo).toLowerCase()} desta troca já foi registrada — foi ela que abriu esta tela.`
+            : `Depois de registrar, a tela de sucesso oferece o atalho para lançar a ${rotuloTipo(alvo).toLowerCase()} da troca já com os campos preenchidos.`}
         </p>
       ) : (
         <div className="mt-4 space-y-4">

@@ -116,6 +116,19 @@ export function rotuloTipo(t: TipoMovimentacao): string {
   return TIPO_META[t]?.rotulo ?? t
 }
 
+// Guardas de vocabulário para texto vindo DE FORA (querystring, sessionStorage).
+// `'toString' in TIPO_META` é **true** — todo objeto herda as chaves de
+// `Object.prototype` —, então o `in` deixava passar `?tipo=toString`, que depois
+// estoura em `CAMPOS_POR_TIPO[tipo].campos` e derruba o passo 2. `hasOwnProperty`
+// pergunta o que se queria perguntar. (F26; o `in` vinha da F10.)
+export function ehTipoMovimentacao(v: unknown): v is TipoMovimentacao {
+  return typeof v === 'string' && Object.prototype.hasOwnProperty.call(TIPO_META, v)
+}
+
+export function ehStatusAtivo(v: unknown): v is StatusAtivo {
+  return typeof v === 'string' && Object.prototype.hasOwnProperty.call(STATUS_META, v)
+}
+
 // Pílula colorida da coluna Tipo nas tabelas de relatório (OS-F3 3.3.5):
 // saída amarela, devolução azul, compra verde, troca teal; os demais tipos, neutro.
 // F15: `troca` (nascimento do substituto) é distinta da `compra` (verde) — teal, com

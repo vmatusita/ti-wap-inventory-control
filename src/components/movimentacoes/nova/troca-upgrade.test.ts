@@ -4,6 +4,7 @@ import {
   configDaContrapartida,
   contrapartidaAtiva,
   contrapartidaPadrao,
+  deveOferecerAtalho,
   linkContrapartida,
   montarItensDoPar,
   nascerContrapartida,
@@ -473,7 +474,11 @@ describe('montarItensDoPar — ordem e campos por metade', () => {
 
 describe('linkContrapartida — o atalho do painel de sucesso', () => {
   it('leva tipo, motivo e o marcador que impede o laço', () => {
-    const url = linkContrapartida({ tipo: 'saida', colaborador: '' })
+    const url = linkContrapartida({
+      tipo: 'saida',
+      colaborador: '',
+      origemMovimentacaoId: '',
+    })
     expect(url).toBe(
       '/movimentacoes/nova?tipo=saida&motivo=troca_upgrade&contrapartida=nao',
     )
@@ -483,13 +488,64 @@ describe('linkContrapartida — o atalho do painel de sucesso', () => {
     const url = linkContrapartida({
       tipo: 'saida',
       colaborador: 'Fulano de Tal',
+      origemMovimentacaoId: '',
     })
     expect(url).toContain('colaborador=Fulano+de+Tal')
   })
 
   it('colaborador vazio não vira param vazio', () => {
-    expect(linkContrapartida({ tipo: 'devolucao', colaborador: '' })).not.toContain(
-      'colaborador',
+    expect(
+      linkContrapartida({
+        tipo: 'devolucao',
+        colaborador: '',
+        origemMovimentacaoId: '',
+      }),
+    ).not.toContain('colaborador')
+  })
+
+  it('a origem entra como `de=` — é o que torna a URL diferente da atual', () => {
+    const a = linkContrapartida({
+      tipo: 'saida',
+      colaborador: 'Fulano de Tal',
+      origemMovimentacaoId: 'aaa',
+    })
+    const b = linkContrapartida({
+      tipo: 'saida',
+      colaborador: 'Fulano de Tal',
+      origemMovimentacaoId: 'bbb',
+    })
+    expect(a).toContain('de=aaa')
+    expect(a).not.toBe(b)
+  })
+})
+
+// O achado da revisão adversarial da fase: o `contrapartida=nao` recolhe a seção
+// na chegada, mas NÃO impedia, sozinho, o painel de oferecer o atalho de novo na
+// tela que já era a metade que faltava.
+describe('deveOferecerAtalho — o atalho não se oferece a si mesmo', () => {
+  const adiada = contrapartidaPadrao({ deixarParaDepois: true })
+
+  it('contrapartida adiada numa tela comum: oferece', () => {
+    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, adiada, false)).toBe(true)
+  })
+
+  it('a MESMA situação na tela que veio do atalho: NÃO oferece (seria laço)', () => {
+    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, adiada, true)).toBe(false)
+  })
+
+  it('contrapartida registrada junto (não adiada): não há o que oferecer', () => {
+    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, contrapartidaPadrao(), false)).toBe(
+      false,
     )
+  })
+
+  it('config que não oferece par: não oferece atalho', () => {
+    expect(
+      deveOferecerAtalho(cfg({ tipo: 'devolucao', motivo: 'desligamento' }), adiada, false),
+    ).toBe(false)
+  })
+
+  it('sem contrapartida nenhuma: não oferece', () => {
+    expect(deveOferecerAtalho(DEVOLUCAO_TROCA, null, false)).toBe(false)
   })
 })

@@ -25,6 +25,16 @@ function texto(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined
 }
 
+// F26 — serialização canônica de TODOS os searchParams, usada como `key` do
+// formulário (ver o comentário no JSX). Ordenada, para que a mesma URL escrita
+// em ordem diferente não force um remount à toa.
+function chaveDosParams(sp: SearchParams): string {
+  return Object.entries(sp)
+    .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(',') : (v ?? '')}`)
+    .sort()
+    .join('&')
+}
+
 export default async function NovaMovimentacaoPage({
   searchParams,
 }: {
@@ -131,15 +141,13 @@ export default async function NovaMovimentacaoPage({
         // reaproveita a árvore, e todo o estado inicial (que vem de
         // `useState(() => …)`) continuaria o da tela anterior — o atalho não
         // pré-preencheria nada.
+        //
+        // A chave sai de TODOS os params, e não de uma lista escolhida a dedo:
+        // param novo que semeie o formulário passa a remontar sozinho, sem
+        // ninguém lembrar de vir aqui. (É por isso que o link do atalho carrega
+        // `de=` — ele garante que a URL nova nunca seja igual à atual.)
         <NovaMovimentacaoForm
-          key={[
-            duplicarParam,
-            ativoParam,
-            tipoParam,
-            motivoParam,
-            colaboradorParam,
-            semContrapartida ? 'nao' : '',
-          ].join('|')}
+          key={chaveDosParams(sp)}
           filiais={filiais}
           motivos={motivos}
           kits={kits}

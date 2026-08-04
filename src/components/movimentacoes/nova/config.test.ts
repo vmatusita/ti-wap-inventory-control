@@ -284,6 +284,15 @@ describe('configInicialDaUrl — o atalho da contrapartida', () => {
     expect(configInicialDaUrl({ tipo: '' }, MOTIVOS)).toBeNull()
   })
 
+  // Achado da revisão adversarial da F26: `tipo in TIPO_META` enxerga as chaves
+  // HERDADAS de Object.prototype, e `?tipo=toString` passava por tipo válido —
+  // o formulário abria e o passo 2 estourava em `CAMPOS_POR_TIPO[tipo].campos`.
+  it('chave herdada de Object.prototype NÃO é tipo de movimentação', () => {
+    for (const t of ['toString', 'constructor', 'hasOwnProperty', '__proto__', 'valueOf']) {
+      expect(configInicialDaUrl({ tipo: t }, MOTIVOS)).toBeNull()
+    }
+  })
+
   it('tipo de FLUXO PRÓPRIO é recusado (não se registra por este formulário)', () => {
     for (const t of ['compra', 'troca', 'devolucao_fornecedor']) {
       expect(configInicialDaUrl({ tipo: t }, MOTIVOS)).toBeNull()

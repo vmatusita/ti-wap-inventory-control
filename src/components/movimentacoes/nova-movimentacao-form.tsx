@@ -22,6 +22,7 @@ import {
 import {
   contrapartidaAtiva,
   contrapartidaPadrao,
+  deveOferecerAtalho,
   montarItensDoPar,
   nascerContrapartida,
   ofereceContrapartida,
@@ -132,6 +133,11 @@ export function NovaMovimentacaoForm({
   const [contrapartida, setContrapartida] = useState<ContrapartidaTroca>(() =>
     contrapartidaPadrao({ deixarParaDepois: semContrapartida }),
   )
+  // Esta montagem É a metade que faltava (chegou pelo atalho do painel)? Enquanto
+  // for, o painel de sucesso NÃO oferece o atalho de novo — senão ele apontaria
+  // para a metade que o operador acabou de registrar. Some no "Registrar outra
+  // movimentação", que começa um lote do zero e volta a ser um caso comum.
+  const [veioDoAtalho, setVeioDoAtalho] = useState(semContrapartida)
   const [statusResultante, setStatusResultante] = useState<string>('')
   const [erros, setErros] = useState<string[]>([])
   const [errosPorAtivo, setErrosPorAtivo] = useState<Record<string, string>>({})
@@ -199,23 +205,33 @@ export function NovaMovimentacaoForm({
     setRascunhoPendente(null)
   }
 
-  // F26 — TODA mudança de Config passa por aqui. A seção da contrapartida é
-  // derivada (tipo + código do motivo); quando a config nova deixa de oferecê-la,
-  // o ESTADO dela morre junto — senão um lote da contrapartida sobreviveria
-  // invisível e voltaria ao aparecer de novo. Quando ela passa a ser oferecida,
-  // nasce com o prefill do colaborador (capturado do lote em memória, ANTES de
-  // qualquer insert).
-  function aplicarConfig(proxima: Config) {
-    const oferecia = ofereceContrapartida(config)
+  // F26 — o estado da contrapartida é DERIVADO da Config (tipo + código do
+  // motivo), e toda mudança de Config passa por aqui. Quando a config nova deixa
+  // de oferecer a seção, o ESTADO dela morre junto — senão um lote da
+  // contrapartida sobreviveria invisível e voltaria ao aparecer de novo. Quando
+  // ela passa a ser oferecida, nasce com o prefill do colaborador (capturado do
+  // lote em memória, ANTES de qualquer insert).
+  function sincronizarContrapartida(anterior: Config, proxima: Config) {
+    const oferecia = ofereceContrapartida(anterior)
     const oferece = ofereceContrapartida(proxima)
-    setConfig(proxima)
     if (!oferece) setContrapartida(contrapartidaPadrao())
     else if (!oferecia) setContrapartida(nascerContrapartida(proxima, itens))
   }
 
+  // Para quem já tem a Config inteira pronta (repetir última, aplicar kit).
+  function aplicarConfig(proxima: Config) {
+    setConfig(proxima)
+    sincronizarContrapartida(config, proxima)
+  }
+
   function set<K extends keyof Config>(chave: K, valor: Config[K]) {
     marcarAlteracao()
-    aplicarConfig({ ...config, [chave]: valor })
+    // O updater FUNCIONAL fica: dois `set` no mesmo handler (React agrupa) não
+    // podem perder o primeiro por causa da Config velha do closure. Só a
+    // DECISÃO sobre a contrapartida usa o valor derivado — e ela depende de um
+    // campo só (tipo ou motivo), nunca de dois ao mesmo tempo.
+    setConfig((c) => ({ ...c, [chave]: valor }))
+    sincronizarContrapartida(config, { ...config, [chave]: valor })
   }
 
   function setContrapartidaCampo<K extends keyof ContrapartidaTroca>(
@@ -231,14 +247,17 @@ export function NovaMovimentacaoForm({
   // motivo zerado já derruba a contrapartida (via `aplicarConfig`).
   function trocarTipo(tipo: TipoMovimentacao) {
     marcarAlteracao()
-    aplicarConfig({
-      ...config,
+    const limpeza = {
       tipo,
       motivo: '',
       chamadoFornecedor: '',
       filialDestinoId: '',
       itensFaltantes: [],
-    })
+    }
+    setConfig((c) => ({ ...c, ...limpeza }))
+    // `motivo: ''` já basta para a seção não ser oferecida — a sincronização
+    // apaga o estado dela junto, sem depender de mais nada da Config velha.
+    sincronizarContrapartida(config, { ...config, ...limpeza })
     setStatusResultante('')
   }
 
@@ -270,7 +289,15 @@ export function NovaMovimentacaoForm({
   }
   function adicionar(a: AtivoResumo) {
     if (itens.some((p) => p.id === a.id)) return
-    if (contrapartida.itens.some((p) => p.id === a.id)) {
+    // A recusa só vale enquanto a outra metade está ATIVA na tela. Com a seção
+    // recolhida por "deixar para depois" — ou com a config já não oferecendo o
+    // par —, ela é invisível, e recusar por causa dela seria uma mensagem sobre
+    // algo que o operador não vê. Se ele reabrir a seção com o mesmo ativo nas
+    // duas, `validarPar` barra o envio com a mensagem certa.
+    if (
+      contrapartidaAtiva(config, contrapartida) &&
+      contrapartida.itens.some((p) => p.id === a.id)
+    ) {
       toast.warning(
         `${nomeDe(a)} já está na outra metade da troca — um ativo não entra nas duas.`,
       )
@@ -456,6 +483,15 @@ export function NovaMovimentacaoForm({
 
       // F26 — a metade oposta passa pela MESMA re-checagem, com o tipo DELA.
       let contra = contrapartidaPadrao()
+      // Sem o tipo da metade principal não há par: a contrapartida salva cai
+      // inteira — mas EM VOZ ALTA. Cair calada era o defeito: o operador via só
+      // "o tipo não vale mais" e perdia os equipamentos da outra metade sem
+      // nenhum aviso de que eles existiam.
+      if (r.contrapartida && r.contrapartida.ids.length > 0 && !ofereceContrapartida(cfg)) {
+        toast.warning(
+          `A troca deste rascunho tinha ${r.contrapartida.ids.length} ${r.contrapartida.ids.length === 1 ? 'equipamento na outra metade' : 'equipamentos na outra metade'}, e eles ficaram de fora: sem o tipo e o motivo da troca não há par. Escolha o tipo e monte a troca de novo.`,
+        )
+      }
       if (r.contrapartida && ofereceContrapartida(cfg)) {
         const alvo = tipoContrapartida(cfg.tipo)
         const opostosBrutos = idsContra
@@ -711,14 +747,17 @@ export function NovaMovimentacaoForm({
         })
       }
       // Contrapartida adiada: o painel oferece o atalho pré-preenchido. Nada
-      // fica pendente no servidor — é só navegação (decisão "só a tela").
+      // fica pendente no servidor — é só navegação (decisão "só a tela"). E não
+      // se oferece o atalho na tela que JÁ É a metade que faltava.
       const pendente: ContrapartidaPendente | null =
-        ofereceContrapartida(config) && contrapartida.deixarParaDepois && alvo
+        deveOferecerAtalho(config, contrapartida, veioDoAtalho) && alvo
           ? {
               tipo: alvo,
               colaborador: campoAplica(alvo, 'colaborador')
                 ? prefillContrapartida(submetidosPrincipal)
                 : '',
+              origemMovimentacaoId:
+                grupos[0]?.ativos.find((a) => a.movimentacaoId)?.movimentacaoId ?? '',
             }
           : null
       setSucesso({ criadas: res.criadas, grupos, pendente })
@@ -777,6 +816,9 @@ export function NovaMovimentacaoForm({
     setItens([])
     setConfig(configPadrao())
     setContrapartida(contrapartidaPadrao())
+    // Lote do zero: esta montagem deixa de ser "a metade que faltava", e o
+    // atalho volta a valer para uma troca nova que o operador adie.
+    setVeioDoAtalho(false)
     setStatusResultante('')
     setErros([])
     setErrosPorAtivo({})
@@ -949,6 +991,7 @@ export function NovaMovimentacaoForm({
           kitAplicado={kitAplicado}
           checklistKit={checklistKit}
           contrapartida={contrapartida}
+          veioDoAtalho={veioDoAtalho}
           comandoContrapartidaRef={comandoContrapartidaRef}
           onAplicarKit={aplicarKit}
           onLimparKit={() => setKitAplicado(null)}

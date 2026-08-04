@@ -9,7 +9,7 @@ import {
   campoObrigatorio,
   type CampoMovimentacao,
 } from '@/lib/validators/movimentacao'
-import { TIPO_META } from '@/lib/dominio'
+import { ehTipoMovimentacao } from '@/lib/dominio'
 import type {
   CategoriaAtivo,
   TermoStatus,
@@ -85,8 +85,10 @@ export function configInicialDaUrl(
   motivosDisponiveis: readonly { codigo: string; aplica_a: string[] }[],
 ): ConfigInicial | null {
   const tipo = (params.tipo ?? '').trim()
-  if (!(tipo in TIPO_META)) return null
-  const t = tipo as TipoMovimentacao
+  // `ehTipoMovimentacao`, e não `tipo in TIPO_META`: o `in` enxerga as chaves
+  // herdadas de `Object.prototype`, e `?tipo=toString` passaria por tipo válido.
+  if (!ehTipoMovimentacao(tipo)) return null
+  const t: TipoMovimentacao = tipo
   if (TIPOS_FORA_DO_LOTE_MANUAL.includes(t)) return null
 
   const motivo = (params.motivo ?? '').trim()
@@ -172,6 +174,11 @@ export type ContrapartidaPendente = {
   tipo: TipoMovimentacao
   // Pré-preenchimento do link — '' quando o tipo alvo nem coleta colaborador.
   colaborador: string
+  // A movimentação que originou o atalho. Vai no link como `de=` e serve a UMA
+  // coisa: garantir que a URL do atalho NUNCA seja idêntica à URL atual. Link
+  // igual à URL corrente é navegação que não acontece — e, como o formulário só
+  // lê o estado inicial na montagem, o botão ficaria mudo.
+  origemMovimentacaoId: string
 }
 
 // Resultado do envio, alimenta o PainelSucesso (fichas + diálogos de termo).
