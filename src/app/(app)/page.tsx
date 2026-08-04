@@ -11,6 +11,8 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { getOperador } from '@/lib/auth/acesso'
 import { rotaRelatorioPadrao, ROTA_RELATORIO_CONSOLIDADO } from '@/lib/relatorios/rota-padrao'
+import { listarFiliais } from '@/lib/queries/filiais'
+import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
 import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
@@ -99,6 +101,21 @@ export default async function DashboardPage() {
   // `Promise.all` das outras — nada de cascata sequencial na home. `null` em
   // `getSaldosItens` é o consolidado de todas as filiais, que é justamente com
   // quem o mínimo compara (decisão do Johnny 22/07/2026).
+  // F25 — o RECORTE do card de pendências. A régua desta tela: número do ACERVO é
+  // global (os KPIs somam todas as filiais, e por isso os links deles declaram
+  // ); LISTA DE TRABALHO é recortada como a pessoa a verá. O card de
+  // pendências é lista de trabalho — cada linha leva à ficha para alguém agir —, e o
+  // comentário logo abaixo declara o invariante: MESMA fonte do selo e de /pendencias.
+  // Sem isto o operador via o selo dizer 0, o card listar 5 pendências de uma filial
+  // que não é dele e "ver todas" abrir a lista vazia: três superfícies vizinhas
+  // afirmando coisas diferentes.
+  const filiaisDoOperador = await listarFiliais()
+    .then((fs) => resolverFiliaisSlugs(undefined, operador, fs))
+    .catch(() => [] as string[])
+  const filaPendencias = client
+    .from('v_fila_pendencias')
+    .select('id, ordem, patrimonio, categoria, filial, pendencia')
+
   const [kpis, pendenciasRes, ultimas, saldosItens, catalogoItens] = await Promise.all([
     getKpis(client, null),
     // F18: a MESMA fonte do selo da sidebar e de /pendencias (v_fila_pendencias) —
@@ -106,9 +123,9 @@ export default async function DashboardPage() {
     // aqui esconderia os itens (o backfill 0053 tirou o texto do campo livre) e a
     // prévia divergiria do selo. `ordem` é a chave única por linha (o mesmo ativo
     // pode ter mais de uma linha).
-    client
-      .from('v_fila_pendencias')
-      .select('id, ordem, patrimonio, categoria, filial, pendencia')
+    (filiaisDoOperador.length > 0
+      ? filaPendencias.in('filial', filiaisDoOperador)
+      : filaPendencias)
       // As 5 mais ANTIGAS abertas (as que mais pedem ação), determinístico e na
       // MESMA ordem da fila (desde asc, desempate por `ordem`) — antes o limit(5)
       // sem order devolvia 5 arbitrários/instáveis (achado da revisão).
@@ -219,7 +236,9 @@ export default async function DashboardPage() {
                 // `filial=todas` explícito (F25): este card é GLOBAL, e a
                 // ausência do param levaria o operador à lista recortada nas
                 // filiais dele — um número aqui, outro lá.
-                href="/pendencias?filial=todas"
+                // Sem sentinela: o card já mostra o MESMO recorte com que
+                // /pendencias abre para este cargo.
+                href="/pendencias"
                 className="text-xs text-muted-foreground underline-offset-2 hover:underline"
               >
                 ver todas
