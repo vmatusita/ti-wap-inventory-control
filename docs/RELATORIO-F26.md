@@ -2,7 +2,7 @@
 
 > Ordem: [`prompts/F26-troca-upgrade-ultracode.md`](prompts/F26-troca-upgrade-ultracode.md) (04/08/2026, Johnny).
 > Execução autônoma (modo do `CLAUDE.md`), orquestração multiagente.
-> Baseline: `b50d1ea` (topo da `main` ao fim da F25) · Entrega: `8990e85`.
+> Baseline: `b50d1ea` (topo da `main` ao fim da F25) · Entrega: `c7f28e2` (o commit que fecha o código; este relatório entra logo depois).
 > **Em produção desde 04/08/2026** (deploy pela `main`, smoke pós-deploy **93 OK · 4 aviso · 0 falha**).
 
 ---
