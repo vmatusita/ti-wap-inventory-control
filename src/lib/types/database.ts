@@ -95,6 +95,7 @@ export type Database = {
           fornecedor: string | null
           hostname: string | null
           id: string
+          imei: string | null
           marca: string | null
           memoria: string | null
           modelo: string | null
@@ -104,10 +105,12 @@ export type Database = {
           patrimonio_original: string | null
           pendencia: string | null
           processador: string | null
+          pulsus: string | null
           service_tag: string | null
           setor_atual: string | null
           status: Database["public"]["Enums"]["status_ativo"]
           substitui_ativo_id: string | null
+          telefone: string | null
           termo_assinado: Database["public"]["Enums"]["termo_status"] | null
           termo_data: string | null
           updated_at: string
@@ -121,6 +124,7 @@ export type Database = {
           fornecedor?: string | null
           hostname?: string | null
           id?: string
+          imei?: string | null
           marca?: string | null
           memoria?: string | null
           modelo?: string | null
@@ -130,10 +134,12 @@ export type Database = {
           patrimonio_original?: string | null
           pendencia?: string | null
           processador?: string | null
+          pulsus?: string | null
           service_tag?: string | null
           setor_atual?: string | null
           status?: Database["public"]["Enums"]["status_ativo"]
           substitui_ativo_id?: string | null
+          telefone?: string | null
           termo_assinado?: Database["public"]["Enums"]["termo_status"] | null
           termo_data?: string | null
           updated_at?: string
@@ -147,6 +153,7 @@ export type Database = {
           fornecedor?: string | null
           hostname?: string | null
           id?: string
+          imei?: string | null
           marca?: string | null
           memoria?: string | null
           modelo?: string | null
@@ -156,10 +163,12 @@ export type Database = {
           patrimonio_original?: string | null
           pendencia?: string | null
           processador?: string | null
+          pulsus?: string | null
           service_tag?: string | null
           setor_atual?: string | null
           status?: Database["public"]["Enums"]["status_ativo"]
           substitui_ativo_id?: string | null
+          telefone?: string | null
           termo_assinado?: Database["public"]["Enums"]["termo_status"] | null
           termo_data?: string | null
           updated_at?: string
@@ -233,6 +242,7 @@ export type Database = {
       filiais: {
         Row: {
           ativo: boolean
+          cidade: string
           created_at: string
           id: number
           nome: string
@@ -240,6 +250,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          cidade?: string
           created_at?: string
           id?: never
           nome: string
@@ -247,6 +258,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          cidade?: string
           created_at?: string
           id?: never
           nome?: string
@@ -1188,6 +1200,7 @@ export type Database = {
           substituto_mov_id: string
         }[]
       }
+      digest_selecao_conflito: { Args: { p_ativos: string[] }; Returns: string }
       e_admin: { Args: never; Returns: boolean }
       e_dev: { Args: never; Returns: boolean }
       encerrar_sessoes_usuario: { Args: { p_alvo: string }; Returns: number }
@@ -1204,6 +1217,10 @@ export type Database = {
           p_alvo: string
           p_papel_pedido?: Database["public"]["Enums"]["papel_usuario"]
         }
+        Returns: undefined
+      }
+      exigir_identidade_livre_na_filial: {
+        Args: { p_acao: string; p_ativo: string; p_filial: number }
         Returns: undefined
       }
       existe_outro_admin_ativo: {
