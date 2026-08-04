@@ -43,6 +43,7 @@ import {
   STATUS_ORDEM,
   TERMO_STATUS_ORDEM,
   rotuloCategoria,
+  rotuloPatrimonio,
   rotuloStatus,
   rotuloTermo,
   rotuloTipo,
@@ -212,7 +213,7 @@ export function PassoMovimentacao({
             {jaRegistrados.map((a) => (
               <Button key={a.id} asChild variant="outline" size="sm">
                 <Link href={`/ativos/${a.id}`} className="tabular-nums">
-                  {a.patrimonio ?? 'sem patrimônio'}
+                  {rotuloPatrimonio(a.patrimonio)}
                 </Link>
               </Button>
             ))}
@@ -238,7 +239,7 @@ export function PassoMovimentacao({
               errosPorAtivo[a.id] && (
                 <p key={a.id} className="text-destructive">
                   <span className="font-medium tabular-nums">
-                    {a.patrimonio ?? 'sem patrimônio'}
+                    {rotuloPatrimonio(a.patrimonio)}
                   </span>{' '}
                   — {errosPorAtivo[a.id]}
                 </p>

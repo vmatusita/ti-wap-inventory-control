@@ -478,6 +478,7 @@ describe('linkContrapartida — o atalho do painel de sucesso', () => {
     const url = linkContrapartida({
       tipo: 'saida',
       colaborador: '',
+      setor: '',
       origemMovimentacaoId: '',
     })
     expect(url).toBe(
@@ -489,6 +490,7 @@ describe('linkContrapartida — o atalho do painel de sucesso', () => {
     const url = linkContrapartida({
       tipo: 'saida',
       colaborador: 'Fulano de Tal',
+      setor: '',
       origemMovimentacaoId: '',
     })
     expect(url).toContain('colaborador=Fulano+de+Tal')
@@ -499,6 +501,7 @@ describe('linkContrapartida — o atalho do painel de sucesso', () => {
       linkContrapartida({
         tipo: 'devolucao',
         colaborador: '',
+        setor: '',
         origemMovimentacaoId: '',
       }),
     ).not.toContain('colaborador')
@@ -508,15 +511,67 @@ describe('linkContrapartida — o atalho do painel de sucesso', () => {
     const a = linkContrapartida({
       tipo: 'saida',
       colaborador: 'Fulano de Tal',
+      setor: '',
       origemMovimentacaoId: 'aaa',
     })
     const b = linkContrapartida({
       tipo: 'saida',
       colaborador: 'Fulano de Tal',
+      setor: '',
       origemMovimentacaoId: 'bbb',
     })
     expect(a).toContain('de=aaa')
     expect(a).not.toBe(b)
+  })
+
+  // Achado da revisão de código da fase: o param `setor` existia em
+  // `configInicialDaUrl` e nunca era emitido — uma troca destinada a um SETOR
+  // (sem pessoa nomeada, que o Zod aceita) chegava do outro lado sem nada.
+  it('leva o setor quando existe, e não vira param vazio quando não existe', () => {
+    expect(
+      linkContrapartida({
+        tipo: 'saida',
+        colaborador: '',
+        setor: 'TI',
+        origemMovimentacaoId: '',
+      }),
+    ).toContain('setor=TI')
+    expect(
+      linkContrapartida({
+        tipo: 'saida',
+        colaborador: 'Fulano de Tal',
+        setor: '',
+        origemMovimentacaoId: '',
+      }),
+    ).not.toContain('setor')
+  })
+})
+
+// Achado da revisão de código da fase: `contrapartidaPadrao` fazia
+// `?? ''` no prefill, o que apagava a diferença entre "ninguém informou" e
+// "informou `undefined` de propósito" — e devolvia ao SISTEMA um campo que o
+// operador tinha apagado.
+describe('contrapartidaPadrao — `undefined` no prefill é significativo', () => {
+  it('sem informar nada o prefill nasce `` (o sistema ainda pode preencher)', () => {
+    const c = contrapartidaPadrao()
+    expect(c.prefillColaborador).toBe('')
+    expect(sincronizarPrefill(DEVOLUCAO_TROCA, c, [
+      ativo({ status: 'em_uso', colaborador_atual: 'Fulano de Tal' }),
+    ]).colaborador).toBe('Fulano de Tal')
+  })
+
+  it('`undefined` informado sobrevive e torna o campo do OPERADOR', () => {
+    const c = contrapartidaPadrao({
+      colaborador: '',
+      prefillColaborador: undefined,
+    })
+    expect(c.prefillColaborador).toBeUndefined()
+    // Rascunho antigo em que o operador APAGOU o nome: o prefill não o repõe.
+    expect(
+      sincronizarPrefill(DEVOLUCAO_TROCA, c, [
+        ativo({ status: 'em_uso', colaborador_atual: 'Fulano de Tal' }),
+      ]),
+    ).toBe(c)
   })
 })
 
@@ -552,11 +607,16 @@ describe('deveOferecerAtalho — o atalho não se oferece a si mesmo', () => {
     expect(deveOferecerAtalho(DEVOLUCAO_TROCA, null)).toBe(false)
   })
 
-  // Achado da SEGUNDA volta adversarial: o marcador era estado da MONTAGEM, e
-  // por isso um par NOVO montado na tela do atalho o herdava — o painel escondia
-  // um atalho genuinamente pendente. Nascendo do par, `nascerContrapartida` o
-  // devolve a false por construção.
-  it('par NOVO nascido na tela do atalho volta a oferecer o atalho', () => {
+  // `nascerContrapartida` nunca INVENTA o marcador: quem nasce, nasce sem ele.
+  //
+  // ⚠ Isto não descreve o app inteiro, e de propósito. Na revisão de código
+  // pós-fase ficou claro que a decisão da 2ª volta ("um par que nasce na tela do
+  // atalho volta a oferecer o atalho") deixava o laço aberto pelo caminho mais
+  // comum — limpar e reescolher o motivo, com o TIPO intacto, é a mesma troca, e
+  // o painel reoferecia o atalho para a metade recém-gravada. Quem repõe o
+  // marcador nesse caso é `sincronizarContrapartida`, no formulário, que conhece
+  // o tipo anterior; a função pura continua neutra. Ata em `docs/DECISOES.md`.
+  it('`nascerContrapartida` não inventa o marcador — nasce sem ele', () => {
     const nova = nascerContrapartida(DEVOLUCAO_TROCA, [
       ativo({ status: 'em_uso', colaborador_atual: 'Fulano de Tal' }),
     ])

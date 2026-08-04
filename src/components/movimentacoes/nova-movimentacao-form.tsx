@@ -52,6 +52,7 @@ import {
   tiposManuaisPara,
 } from '@/lib/validators/movimentacao'
 import {
+  rotuloPatrimonio,
   rotuloStatus,
   rotuloTipo,
   type CategoriaAtivo,
@@ -69,6 +70,18 @@ export type { ConfigInicial }
 
 const PASSOS = ['Ativos', 'Movimentação', 'Revisão'] as const
 
+// F26 — as chaves do item que as DUAS metades do par compartilham: um único
+// preenchimento no formulário, copiado nos dois itens por `configDaContrapartida`
+// (`ativo_id`/`tipo` estão aqui por serem internos, nunca um campo da tela). Erro
+// nelas não pertence a metade nenhuma — ver `validarLote`.
+const CAMPOS_COMPARTILHADOS = [
+  'ativo_id',
+  'tipo',
+  'data',
+  'chamado',
+  'observacao',
+]
+
 // Tipos oferecidos no SELECT do passo 2 — a interseção das transições válidas MENOS
 // os de fluxo próprio (compra /ativos/novo · troca e devolucao_fornecedor pela RPC).
 // A régua é FONTE ÚNICA em `tiposManuaisPara`/`TIPOS_FORA_DO_LOTE_MANUAL`
@@ -85,10 +98,6 @@ type KitAplicado = {
   id: string
   nome: string
   categorias: CategoriaAtivo[]
-}
-
-function nomeDe(a: AtivoResumo): string {
-  return a.patrimonio ?? 'sem patrimônio'
 }
 
 export function NovaMovimentacaoForm({
@@ -165,6 +174,10 @@ export function NovaMovimentacaoForm({
   // Trava de reentrância: bloqueia um 2º envio (ex.: Enter apertado 2x rápido no
   // passo 3) antes do estado `enviando` propagar e desabilitar o botão.
   const enviandoRef = useRef(false)
+  // Último rascunho que o debounce ainda não gravou. `null` = nada a gravar
+  // (montagem intocada, banner aberto, sucesso, lote vazio) — ver o flush de
+  // desmontagem mais abaixo.
+  const pendenteDeGravar = useRef<Rascunho | null>(null)
 
   const tiposValidos = useMemo(
     () => tiposDoLote(itens.map((i) => i.status)),
@@ -176,6 +189,19 @@ export function NovaMovimentacaoForm({
   )
 
   const jaAdicionados = useMemo(() => new Set(itens.map((i) => i.id)), [itens])
+  // F26 — os ativos da metade OPOSTA, quando ela está ativa. FONTE ÚNICA das
+  // duas contas que o passo 1 precisa fazer e não fazia: o teto é do ENVIO
+  // inteiro (a contagem, o "lote cheio" e a prévia do colar-lista contavam só o
+  // lote principal, enquanto o registrar contava a soma) e estes ativos não
+  // entram no lote principal — o `adicionar`/`adicionarVarios` os recusa, então
+  // prometê-los na prévia era prometer o que não ia acontecer.
+  const naOutraMetade = useMemo(
+    () =>
+      contrapartidaAtiva(config, contrapartida)
+        ? new Set(contrapartida.itens.map((a) => a.id))
+        : new Set<string>(),
+    [config, contrapartida],
+  )
   const motivosAplicaveis = useMemo(
     () =>
       config.tipo
@@ -215,8 +241,23 @@ export function NovaMovimentacaoForm({
   function sincronizarContrapartida(anterior: Config, proxima: Config) {
     const oferecia = ofereceContrapartida(anterior)
     const oferece = ofereceContrapartida(proxima)
-    if (!oferece) setContrapartida(contrapartidaPadrao())
-    else if (!oferecia) setContrapartida(nascerContrapartida(proxima, itens))
+    // Só a TRANSIÇÃO mexe no estado. Sem esta linha, cada tecla digitada em
+    // Observação/Chamado de uma movimentação COMUM gravava um objeto novo por
+    // caractere (React não faz bail-out por identidade): um segundo agendamento
+    // de estado e um re-render do passo 2 inteiro para reescrever o padrão.
+    if (oferece === oferecia) return
+    setContrapartida((c) => {
+      // O marcador "a outra metade já está no banco" atravessa a ida e volta
+      // pelo MOTIVO. Ele é do PAR, e limpar o motivo para reescolhê-lo (ou
+      // aplicar um kit e desfazer) não troca de par — mas zerava o marcador, e
+      // aí o painel reoferecia o atalho para a metade que o operador ACABARA de
+      // gravar. Trocar o TIPO, esse sim, é montar outro par: aí ele cai, junto
+      // com o resto do estado (é o que `trocarTipo`/`ajustarTipoPara` fazem).
+      const marcador = anterior.tipo === proxima.tipo && c.jaRegistrada
+      return oferece
+        ? { ...nascerContrapartida(proxima, itens), jaRegistrada: marcador }
+        : contrapartidaPadrao({ jaRegistrada: marcador })
+    })
   }
 
   // Para quem já tem a Config inteira pronta (repetir última, aplicar kit).
@@ -240,6 +281,32 @@ export function NovaMovimentacaoForm({
     valor: ContrapartidaTroca[K],
   ) {
     marcarAlteracao()
+    // Adiar com a seção JÁ PREENCHIDA tira aquele trabalho do envio — e recolher
+    // a seção o esconde da tela no mesmo gesto. O atalho da tela de sucesso leva
+    // tipo, motivo e destino, nunca equipamento nem termo nem checklist, então
+    // sumir em silêncio seria perder trabalho sem dizer.
+    //
+    // O colaborador só conta quando é do OPERADOR (`prefillColaborador` é o
+    // último valor automático): a seção NASCE com esse campo preenchido, e
+    // avisar por causa dele faria o toast disparar em toda contrapartida adiada.
+    if (chave === 'deixarParaDepois' && valor === true) {
+      const n = contrapartida.itens.length
+      const perdeCampos =
+        contrapartida.colaborador !== contrapartida.prefillColaborador ||
+        contrapartida.setor !== '' ||
+        contrapartida.termo !== '' ||
+        contrapartida.termoData !== '' ||
+        contrapartida.itensFaltantes.length > 0
+      if (n > 0 || perdeCampos) {
+        const oQue =
+          n > 0
+            ? `${n} ${n === 1 ? 'equipamento escolhido' : 'equipamentos escolhidos'} e o que você preencheu`
+            : 'o que você preencheu'
+        toast.warning(
+          `A outra metade fica de fora deste registro: ${oQue} na seção da troca não vai junto, e o atalho da tela de sucesso não leva isso de volta. Desmarque para registrar a troca inteira agora.`,
+        )
+      }
+    }
     setContrapartida((c) => ({ ...c, [chave]: valor }))
   }
 
@@ -289,7 +356,7 @@ export function NovaMovimentacaoForm({
     )
     if (culpado) {
       toast.warning(
-        `${nomeDe(culpado)} (${rotuloStatus(culpado.status)}) não permite "${rotuloTipo(tipoAtual)}" — o tipo foi limpo.`,
+        `${rotuloPatrimonio(culpado.patrimonio)} (${rotuloStatus(culpado.status)}) não permite "${rotuloTipo(tipoAtual)}" — o tipo foi limpo.`,
       )
     }
     return true
@@ -306,7 +373,7 @@ export function NovaMovimentacaoForm({
       contrapartida.itens.some((p) => p.id === a.id)
     ) {
       toast.warning(
-        `${nomeDe(a)} já está na outra metade da troca — um ativo não entra nas duas.`,
+        `${rotuloPatrimonio(a.patrimonio)} já está na outra metade da troca — um ativo não entra nas duas.`,
       )
       return
     }
@@ -326,7 +393,23 @@ export function NovaMovimentacaoForm({
   // A intersecao de tipos e reaplicada com os entrantes — exatamente como no
   // `adicionar` um a um (o resolver nao filtra por estado, de proposito).
   function adicionarVarios(novos: AtivoResumo[]) {
-    const r = mesclarAtivosNoLote(itens, novos)
+    // F26 — a lista COLADA passa pelas mesmas duas guardas do combobox, que até
+    // aqui só existiam no `adicionar` um a um: o ativo que está na metade oposta
+    // ATIVA não entra (seria o mesmo ativo nas duas metades) e o teto conta a
+    // SOMA das metades. Sem isso o operador só descobria no "Revisar", com o
+    // lote já montado por cima.
+    const comPar = naOutraMetade.size > 0
+    const repetidos = novos.filter((a) => naOutraMetade.has(a.id))
+    const r = mesclarAtivosNoLote(
+      itens,
+      novos.filter((a) => !naOutraMetade.has(a.id)),
+      MAX_LOTE_MOVIMENTACAO - naOutraMetade.size,
+    )
+    if (repetidos.length > 0) {
+      toast.warning(
+        `${repetidos.length} ${repetidos.length === 1 ? 'ativo já está' : 'ativos já estão'} na outra metade da troca e ${repetidos.length === 1 ? 'ficou' : 'ficaram'} de fora — um ativo não entra nas duas.`,
+      )
+    }
     if (r.adicionados.length > 0) {
       marcarAlteracao()
       setItens(r.lote)
@@ -343,7 +426,7 @@ export function NovaMovimentacaoForm({
     }
     if (r.excedentes.length > 0) {
       toast.warning(
-        `${r.excedentes.length} ${r.excedentes.length === 1 ? 'ativo ficou' : 'ativos ficaram'} de fora: o lote aceita ${MAX_LOTE_MOVIMENTACAO}. Registre o resto em outro lote.`,
+        `${r.excedentes.length} ${r.excedentes.length === 1 ? 'ativo ficou' : 'ativos ficaram'} de fora: o lote aceita ${MAX_LOTE_MOVIMENTACAO}${comPar ? ' ativos ao todo, somando as duas metades da troca' : ''}. Registre o resto em outro lote.`,
       )
     }
   }
@@ -371,7 +454,7 @@ export function NovaMovimentacaoForm({
     if (contrapartida.itens.some((p) => p.id === a.id)) return
     if (itens.some((p) => p.id === a.id)) {
       toast.warning(
-        `${nomeDe(a)} já está na outra metade da troca — um ativo não entra nas duas.`,
+        `${rotuloPatrimonio(a.patrimonio)} já está na outra metade da troca — um ativo não entra nas duas.`,
       )
       return
     }
@@ -383,7 +466,7 @@ export function NovaMovimentacaoForm({
     }
     if (!tiposManuaisPara([a.status]).includes(alvo)) {
       toast.warning(
-        `${nomeDe(a)} (${rotuloStatus(a.status)}) não permite "${rotuloTipo(alvo)}" — escolha outro equipamento para a troca.`,
+        `${rotuloPatrimonio(a.patrimonio)} (${rotuloStatus(a.status)}) não permite "${rotuloTipo(alvo)}" — escolha outro equipamento para a troca.`,
       )
       return
     }
@@ -420,36 +503,41 @@ export function NovaMovimentacaoForm({
   // tambem nao grava; a primeira alteracao real o fecha (`marcarAlteracao`) e
   // libera a gravacao no mesmo gesto.
   useEffect(() => {
-    if (!hidratado || !podeSalvar || rascunhoPendente || sucesso) return
-    const t = setTimeout(() => {
-      if (itens.length === 0) {
-        limparRascunho()
-        return
-      }
-      salvarRascunho({
-        ids: itens.map((a) => a.id),
-        config,
-        statusResultante,
-        passo,
-        // F26 — a contrapartida só vai para o storage quando a config a oferece:
-        // um lote simples continua serializando exatamente como antes.
-        ...(ofereceContrapartida(config)
-          ? {
-              contrapartida: {
-                ids: contrapartida.itens.map((a) => a.id),
-                colaborador: contrapartida.colaborador,
-                setor: contrapartida.setor,
-                termo: contrapartida.termo,
-                termoData: contrapartida.termoData,
-                itensFaltantes: contrapartida.itensFaltantes,
-                deixarParaDepois: contrapartida.deixarParaDepois,
-                jaRegistrada: contrapartida.jaRegistrada,
-                prefillColaborador: contrapartida.prefillColaborador,
-              },
-            }
-          : {}),
-      })
-    }, 400)
+    if (!hidratado || !podeSalvar || rascunhoPendente || sucesso) {
+      pendenteDeGravar.current = null
+      return
+    }
+    if (itens.length === 0) {
+      pendenteDeGravar.current = null
+      const vazio = setTimeout(() => limparRascunho(), 400)
+      return () => clearTimeout(vazio)
+    }
+    const rascunho: Rascunho = {
+      ids: itens.map((a) => a.id),
+      config,
+      statusResultante,
+      passo,
+      // F26 — a contrapartida só vai para o storage quando a config a oferece:
+      // um lote simples continua serializando exatamente como antes.
+      ...(ofereceContrapartida(config)
+        ? {
+            contrapartida: {
+              ids: contrapartida.itens.map((a) => a.id),
+              colaborador: contrapartida.colaborador,
+              setor: contrapartida.setor,
+              termo: contrapartida.termo,
+              termoData: contrapartida.termoData,
+              itensFaltantes: contrapartida.itensFaltantes,
+              deixarParaDepois: contrapartida.deixarParaDepois,
+              jaRegistrada: contrapartida.jaRegistrada,
+              prefillColaborador: contrapartida.prefillColaborador,
+            },
+          }
+        : {}),
+    }
+    // O mesmo rascunho fica à mão para o flush da desmontagem (abaixo).
+    pendenteDeGravar.current = rascunho
+    const t = setTimeout(() => salvarRascunho(rascunho), 400)
     return () => clearTimeout(t)
   }, [
     hidratado,
@@ -463,15 +551,32 @@ export function NovaMovimentacaoForm({
     passo,
   ])
 
+  // Flush na SAÍDA da montagem. A `key` por searchParams (page.tsx) remonta o
+  // formulário em qualquer navegação que mude um param — o atalho do painel, mas
+  // também voltar para `/movimentacoes/nova` limpo pelo botão do header. O lote
+  // não pode depender de os 400ms do debounce terem passado para sobreviver a
+  // isso: na desmontagem o rascunho vai para o storage na hora, e o banner o
+  // oferece de volta na tela seguinte.
+  useEffect(() => {
+    return () => {
+      const r = pendenteDeGravar.current
+      if (r) salvarRascunho(r)
+    }
+  }, [])
+
   async function restaurarRascunho() {
     const r = rascunhoPendente
     if (!r || restaurando) return
     setRestaurando(true)
     try {
       const idsContra = r.contrapartida?.ids ?? []
-      // Uma consulta só para as duas metades (ids únicos; a query preserva a
-      // ordem pedida e simplesmente não devolve quem sumiu).
-      const ativos = await buscarResumoDeAtivosPorIds([...r.ids, ...idsContra])
+      // Uma consulta só para as duas metades. Os ids são deduplicados AQUI, e
+      // não só dentro da query: um ativo pode legitimamente estar nas duas
+      // metades do rascunho (com a seção recolhida por "deixar para depois" o
+      // `adicionar` não o recusa), e contar o pedido com repetição fazia o aviso
+      // de ausentes acusar um ativo que estava lá.
+      const idsPedidos = [...new Set([...r.ids, ...idsContra])]
+      const ativos = await buscarResumoDeAtivosPorIds(idsPedidos)
       // Lista VAZIA com `r.ids` não-vazio (invariante do rascunho: sem ids ele
       // nem existe) é ambígua: o proxy degrada a falha de rede para `[]`, então
       // "a consulta caiu" é indistinguível de "os ativos sumiram". Apagar o
@@ -546,8 +651,7 @@ export function NovaMovimentacaoForm({
         })
       }
 
-      const pedidos = r.ids.length + idsContra.length
-      const ausentes = pedidos - ativos.length
+      const ausentes = idsPedidos.length - ativos.length
       if (ausentes > 0) {
         toast.warning(
           `${ausentes} ${ausentes === 1 ? 'ativo do rascunho não foi encontrado' : 'ativos do rascunho não foram encontrados'} e ficaram de fora.`,
@@ -662,7 +766,29 @@ export function NovaMovimentacaoForm({
     const msgs: string[] = []
     const parsed = loteMovimentacaoSchema.safeParse({ itens: itensInput })
     if (!parsed.success) {
-      for (const issue of parsed.error.issues) msgs.push(issue.message)
+      // F26 — o ÍNDICE do item diz de qual metade veio a mensagem: os da
+      // contrapartida vêm depois dos principais (`montarItensDoPar`). Sem o
+      // prefixo, "Informe o colaborador ou o setor de destino" aparecia numa
+      // DEVOLUÇÃO — que nem tem esses campos — e o operador procurava o erro na
+      // metade errada. As mensagens do `validarPar` já nomeiam a metade.
+      //
+      // Os campos COMPARTILHADOS ficam sem prefixo: `configDaContrapartida` copia
+      // `data`/`chamado`/`observacao` da principal, então um deles inválido falha
+      // nos DOIS itens. Prefixar o segundo mandaria procurar um campo Data dentro
+      // da seção da troca (que não tem nenhum) e, pior, quebraria o `new Set` do
+      // fim — as duas strings passariam a diferir e o mesmo erro sairia duas vezes.
+      const alvoOposto = contrapartidaAtiva(config, contrapartida)
+        ? tipoContrapartida(config.tipo)
+        : null
+      for (const issue of parsed.error.issues) {
+        const i = typeof issue.path[1] === 'number' ? issue.path[1] : -1
+        const campo = typeof issue.path[2] === 'string' ? issue.path[2] : ''
+        msgs.push(
+          alvoOposto && i >= itens.length && !CAMPOS_COMPARTILHADOS.includes(campo)
+            ? `${rotuloTipo(alvoOposto)} da troca: ${issue.message}`
+            : issue.message,
+        )
+      }
     }
     // Transferencia: destino ≠ filial atual de CADA item (o Zod nao conhece a
     // filial corrente — checagem aqui, reconferida na Server Action).
@@ -776,13 +902,27 @@ export function NovaMovimentacaoForm({
       // Contrapartida adiada: o painel oferece o atalho pré-preenchido. Nada
       // fica pendente no servidor — é só navegação (decisão "só a tela"). E não
       // se oferece o atalho na tela que JÁ É a metade que faltava.
+      const campoDoOperador =
+        contrapartida.colaborador !== contrapartida.prefillColaborador
       const pendente: ContrapartidaPendente | null =
         deveOferecerAtalho(config, contrapartida) && alvo
           ? {
               tipo: alvo,
+              // O que o operador DIGITOU na seção vem primeiro: adiar não pode
+              // jogar fora o destino que ele já tinha escrito. Quem responde
+              // "digitou?" é `prefillColaborador` — o último valor que o
+              // automático escreveu —, e NÃO "o campo está vazio": apagar o nome
+              // é a forma de dizer "não é para essa pessoa" (o equipamento novo
+              // vai para um setor), e cair no nome derivado ali ressuscitaria
+              // justamente quem o operador tirou. Só o campo INTOCADO recalcula,
+              // do lote capturado antes do insert (depois dele o trigger zera
+              // `colaborador_atual`).
               colaborador: campoAplica(alvo, 'colaborador')
-                ? prefillContrapartida(submetidosPrincipal)
+                ? campoDoOperador
+                  ? contrapartida.colaborador
+                  : prefillContrapartida(submetidosPrincipal)
                 : '',
+              setor: campoAplica(alvo, 'setor') ? contrapartida.setor : '',
               origemMovimentacaoId:
                 grupos[0]?.ativos.find((a) => a.movimentacaoId)?.movimentacaoId ?? '',
             }
@@ -992,6 +1132,7 @@ export function NovaMovimentacaoForm({
       {passo === 1 && (
         <PassoAtivos
           itens={itens}
+          naOutraMetade={naOutraMetade}
           jaAdicionados={jaAdicionados}
           comandoRef={comandoRef}
           onAdicionar={adicionar}

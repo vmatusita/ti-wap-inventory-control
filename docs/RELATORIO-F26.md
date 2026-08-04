@@ -237,7 +237,9 @@ RESUMO · 93 OK · 4 aviso · 0 n/a (pré-F12) · 0 falha
 
 Os **4 avisos são preexistentes e alheios à fase**: catálogo de itens vazio em produção (3 deles) e "RLS de `kits_modelos` não comprovada porque não há kit cadastrado".
 
-A entrada de `/movimentacoes/nova` na parte C ganhou **marcador de conteúdo** nesta fase (`Registre uma movimentação`, o subtítulo do corpo). Até aqui ela exigia só HTTP 200 — e um 200 servindo um formulário quebrado continuaria verde. O marcador **não** é `Nova movimentação`: essa string é `<h1>`, item do shell e texto do botão do header ao mesmo tempo, e passaria numa página errada.
+A entrada de `/movimentacoes/nova` na parte C ganhou **marcador de conteúdo** nesta fase. Até aqui ela exigia só HTTP 200 — e um 200 servindo um formulário quebrado continuaria verde. O marcador **não** é `Nova movimentação`: essa string é `<h1>`, item do shell e texto do botão do header ao mesmo tempo, e passaria numa página errada.
+
+> **Emenda (revisão de código pós-entrega, 04/08/2026).** O marcador entregue na fase era `Registre uma movimentação`, o **subtítulo do corpo** — e ele não provava o que este parágrafo afirmava. O `<h1>` e o subtítulo ficam **fora** do `{escreve ? <NovaMovimentacaoForm/> : <EstadoVazio/>}`, então saem no HTML igual quando o formulário não está lá (conta somente-leitura, ou a página caindo no ramo alternativo). O marcador passou a ser `Nenhum ativo no lote ainda` — o estado vazio do **passo 1**, que é filho do próprio formulário e sempre aparece na rota sem params (lote vazio, passo 1).
 
 ### 3.7 Segunda volta adversarial (contra o HEAD corrigido)
 

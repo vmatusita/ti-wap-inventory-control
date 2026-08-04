@@ -866,14 +866,16 @@ const ROTAS_LOGADO = [
   },
   { rota: '/movimentacoes', area: 'movimentações · lista' },
   // F26 — a rota do wizard passou a ter MARCADOR de conteúdo: até aqui ela só
-  // exigia 200, e um 200 com o formulário quebrado (Client Component que não
-  // monta) continuaria verde. O marcador é o subtítulo do corpo da página —
-  // "Nova movimentação" NÃO serve: é também `<h1>`, item do shell e texto do
-  // botão do header, então apareceria mesmo numa página errada.
+  // exigia 200, e um 200 sem o formulário continuaria verde. O marcador tem de
+  // vir de DENTRO do `<NovaMovimentacaoForm>`, senão não prova nada: o `<h1>` e
+  // o subtítulo ficam FORA do `{escreve ? formulário : estado vazio}` e saem no
+  // HTML igual quando o wizard não está lá. ("Nova movimentação" é pior ainda:
+  // também é item do shell e texto do botão do header.) O estado vazio do passo
+  // 1 é do próprio formulário e a rota sem params sempre abre com o lote vazio.
   {
     rota: '/movimentacoes/nova',
     area: 'movimentações · fluxo (B2)',
-    marcador: 'Registre uma movimentação',
+    marcador: 'Nenhum ativo no lote ainda',
   },
   { rota: '/pendencias', area: 'pendências' },
   // F24 — a mesa de conflitos entre filiais. Conferência SÓ-LEITURA: a aba tem de abrir e

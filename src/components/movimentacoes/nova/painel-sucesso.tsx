@@ -8,7 +8,7 @@ import { GerarTermoDialog } from '@/components/movimentacoes/gerar-termo-dialog'
 import { linkContrapartida } from '@/components/movimentacoes/nova/troca-upgrade'
 import { categoriaTemTermo } from '@/lib/termos/tipos'
 import { campoAplica } from '@/lib/validators/movimentacao'
-import { rotuloCategoria, rotuloTipo } from '@/lib/dominio'
+import { rotuloCategoria, rotuloPatrimonio, rotuloTipo } from '@/lib/dominio'
 import type {
   AtivoSucesso,
   GrupoSucesso,
@@ -58,7 +58,7 @@ function BlocoResponsabilidade({
           {elegiveis.map((a) => {
             const feito = gerados.has(a.id)
             const ehProximo = proximo?.id === a.id
-            const rotulo = `${a.patrimonio ?? 'sem patrimônio'} · ${rotuloCategoria(a.categoria)}`
+            const rotulo = `${rotuloPatrimonio(a.patrimonio)} · ${rotuloCategoria(a.categoria)}`
             return (
               <li
                 key={a.id}
@@ -68,7 +68,7 @@ function BlocoResponsabilidade({
                 }
               >
                 <span className="font-medium tabular-nums">
-                  {a.patrimonio ?? 'sem patrimônio'}
+                  {rotuloPatrimonio(a.patrimonio)}
                 </span>
                 <span className="truncate text-sm text-muted-foreground">
                   {rotuloCategoria(a.categoria)}
@@ -281,7 +281,7 @@ export function PainelSucesso({
         {todos.map((a) => (
           <Button key={a.id} asChild variant="outline" size="sm">
             <Link href={`/ativos/${a.id}`} className="tabular-nums">
-              {a.patrimonio ?? 'sem patrimônio'}
+              {rotuloPatrimonio(a.patrimonio)}
             </Link>
           </Button>
         ))}

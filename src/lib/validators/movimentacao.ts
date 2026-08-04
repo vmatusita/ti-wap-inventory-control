@@ -95,6 +95,20 @@ export function tiposManuaisPara(status: StatusAtivo[]): TipoMovimentacao[] {
   )
 }
 
+// Este tipo é montável pelo formulário manual em ALGUM estado? É a união do que
+// `tiposManuaisPara` pode devolver, e existe para a guarda do que vem de FORA (a
+// querystring do atalho da F26). `TIPOS_FORA_DO_LOTE_MANUAL` sozinho não bastava:
+// `estorno` não está nessa lista, mas também não aparece em NENHUMA entrada de
+// TRANSICOES — é o fluxo da linha do tempo, e semeá-lo no formulário abria uma
+// tela cujo select nunca oferece o tipo e cujo Zod sempre recusa o item.
+// DERIVADA das duas fontes, sem lista literal nova.
+export function ehTipoManual(t: TipoMovimentacao): boolean {
+  return (
+    !TIPOS_FORA_DO_LOTE_MANUAL.includes(t) &&
+    Object.values(TRANSICOES).some((tipos) => tipos.includes(t))
+  )
+}
+
 // ---------------------------------------------------------------------------
 // CAMPOS_POR_TIPO — a matriz "tipo × campos" do formulario de nova movimentacao
 // em UM lugar so. Antes ela estava espalhada como arrays de string repetidos no

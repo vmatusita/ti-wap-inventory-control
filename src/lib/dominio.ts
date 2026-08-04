@@ -129,6 +129,23 @@ export function ehStatusAtivo(v: unknown): v is StatusAtivo {
   return typeof v === 'string' && Object.prototype.hasOwnProperty.call(STATUS_META, v)
 }
 
+// Rótulo do ativo SEM patrimônio físico (F7E). É regra de apresentação do
+// DOMÍNIO, não de uma tela: a F26 chegou a ter duas funções homônimas (`nomeDe`)
+// em módulos diferentes, e o literal já estava copiado inline em vários arquivos
+// desde antes dela.
+//
+// O fluxo de nova movimentação (`components/movimentacoes/**`) está TODO por
+// aqui — mudar o rótulo é um gesto só nessas telas. Fora dele ainda há cópias
+// inline (ficha do ativo, paleta de comandos, termos, devolução ao fornecedor,
+// `actions/ativos.ts`): dívida conhecida, para migrar quando cada tela for
+// tocada. Cuidado ao migrar `ativos/`: dois componentes de lá já declaram um
+// `rotuloPatrimonio` local — um com esta mesma semântica, outro com semântica
+// DIFERENTE ("Definir/Corrigir patrimônio") —, e o import ficaria sombreado em
+// silêncio.
+export function rotuloPatrimonio(p: string | null | undefined): string {
+  return p ?? 'sem patrimônio'
+}
+
 // Pílula colorida da coluna Tipo nas tabelas de relatório (OS-F3 3.3.5):
 // saída amarela, devolução azul, compra verde, troca teal; os demais tipos, neutro.
 // F15: `troca` (nascimento do substituto) é distinta da `compra` (verde) — teal, com

@@ -25,14 +25,38 @@ function texto(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined
 }
 
-// F26 — serialização canônica de TODOS os searchParams, usada como `key` do
-// formulário (ver o comentário no JSX). Ordenada, para que a mesma URL escrita
-// em ordem diferente não force um remount à toa.
+// F26 — os params que SEMEIAM o formulário. Lista única: é dela que sai a `key`
+// do JSX e é por `param()` que a leitura abaixo passa — ler um param fora da
+// lista não compila, então os dois lugares não têm como divergir.
+//
+// Só estes, e não `Object.keys(sp)`: a `key` DESTRÓI o lote em montagem quando
+// muda, então um param que não semeia nada (rastreio de campanha, âncora, o que
+// um dia colarem na URL) não pode derrubar os 12 ativos que o operador acabou de
+// juntar. `de` entra sem ser lido: é justamente ele que faz a URL do atalho
+// diferir da atual (link igual = navegação que não acontece = botão mudo).
+const PARAMS_SEMEADORES = [
+  'ativo',
+  'duplicar',
+  'tipo',
+  'motivo',
+  'colaborador',
+  'setor',
+  'contrapartida',
+  'de',
+] as const
+
+type ParamSemeador = (typeof PARAMS_SEMEADORES)[number]
+
+/** Lê um param SEMEADOR (só os da lista — é o que trava a `key` no lugar). */
+function param(sp: SearchParams, k: ParamSemeador): string | undefined {
+  return texto(sp[k])
+}
+
 function chaveDosParams(sp: SearchParams): string {
-  return Object.entries(sp)
-    .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(',') : (v ?? '')}`)
-    .sort()
-    .join('&')
+  return PARAMS_SEMEADORES.map((k) => {
+    const v = sp[k]
+    return `${k}=${Array.isArray(v) ? v.join(',') : (v ?? '')}`
+  }).join('&')
 }
 
 export default async function NovaMovimentacaoPage({
@@ -41,15 +65,16 @@ export default async function NovaMovimentacaoPage({
   searchParams: Promise<SearchParams>
 }) {
   const sp = await searchParams
-  const ativoParam = texto(sp.ativo)
-  const duplicarParam = texto(sp.duplicar)
+  const ativoParam = param(sp, 'ativo')
+  const duplicarParam = param(sp, 'duplicar')
   // F26 — o ATALHO do painel de sucesso (a metade da troca que ficou para
   // depois): tipo + motivo + colaborador, sem ativo. `contrapartida=nao` diz
   // que ESTA tela já é a contrapartida — o facilitador começa recolhido.
-  const tipoParam = texto(sp.tipo)
-  const motivoParam = texto(sp.motivo)
-  const colaboradorParam = texto(sp.colaborador)
-  const semContrapartida = texto(sp.contrapartida) === 'nao'
+  const tipoParam = param(sp, 'tipo')
+  const motivoParam = param(sp, 'motivo')
+  const colaboradorParam = param(sp, 'colaborador')
+  const setorParam = param(sp, 'setor')
+  const semContrapartida = param(sp, 'contrapartida') === 'nao'
 
   const [filiais, motivos, perfil, kits, operador] = await Promise.all([
     // A lista NÃO é recortada por vínculo de propósito: o único select de filial
@@ -107,6 +132,10 @@ export default async function NovaMovimentacaoPage({
         tipo: tipoParam,
         motivo: motivoParam,
         colaborador: colaboradorParam,
+        // O destino da troca pode ser um SETOR, sem pessoa nomeada (o Zod da
+        // saída aceita um OU outro): sem ler o param, o atalho chegava vazio
+        // exatamente nesse caso.
+        setor: setorParam,
       },
       motivos,
     )
@@ -142,10 +171,9 @@ export default async function NovaMovimentacaoPage({
         // `useState(() => …)`) continuaria o da tela anterior — o atalho não
         // pré-preencheria nada.
         //
-        // A chave sai de TODOS os params, e não de uma lista escolhida a dedo:
-        // param novo que semeie o formulário passa a remontar sozinho, sem
-        // ninguém lembrar de vir aqui. (É por isso que o link do atalho carrega
-        // `de=` — ele garante que a URL nova nunca seja igual à atual.)
+        // A chave sai de `PARAMS_SEMEADORES` — a MESMA lista que a leitura acima
+        // consome —, e não de `Object.keys(sp)`: remontar destrói o lote em
+        // montagem, e só param que semeia o formulário tem esse direito.
         <NovaMovimentacaoForm
           key={chaveDosParams(sp)}
           filiais={filiais}

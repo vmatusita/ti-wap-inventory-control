@@ -6,14 +6,18 @@ import { StatusBadge } from '@/components/ativos/status-badge'
 import { AtivoCombobox } from '@/components/movimentacoes/ativo-combobox'
 import { ColarListaDialog } from '@/components/movimentacoes/nova/colar-lista-dialog'
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
-import { rotuloCategoria } from '@/lib/dominio'
+import { rotuloCategoria, rotuloPatrimonio } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
+
+// Set vazio ESTAVEL para o default da prop (ver colar-lista-dialog).
+const VAZIO: ReadonlySet<string> = new Set()
 
 // Passo 1 — monta o lote (busca + colar lista + lista de ativos). O `comandoRef`
 // fica no combobox para o Enter-avanca (no mae) ignorar o Enter que seleciona
 // resultado. O teto vem de MAX_LOTE_MOVIMENTACAO (F10/M11) — nenhum literal.
 export function PassoAtivos({
   itens,
+  naOutraMetade = VAZIO,
   jaAdicionados,
   comandoRef,
   onAdicionar,
@@ -22,6 +26,11 @@ export function PassoAtivos({
   onAvancar,
 }: {
   itens: AtivoResumo[]
+  // F26 — a metade OPOSTA do par troca/upgrade, quando a secao esta ativa. O
+  // teto e do ENVIO inteiro, entao a contagem desta tela conta a soma; e os
+  // ativos de la nao entram no lote principal (o form os recusa), entao a previa
+  // do colar-lista tem de saber deles para nao prometer o que nao vai acontecer.
+  naOutraMetade?: ReadonlySet<string>
   jaAdicionados: Set<string>
   comandoRef: React.RefObject<HTMLDivElement | null>
   onAdicionar: (ativo: AtivoResumo) => void
@@ -29,7 +38,7 @@ export function PassoAtivos({
   onRemover: (id: string) => void
   onAvancar: () => void
 }) {
-  const restante = MAX_LOTE_MOVIMENTACAO - itens.length
+  const restante = MAX_LOTE_MOVIMENTACAO - itens.length - naOutraMetade.size
   const cheio = restante <= 0
 
   return (
@@ -42,13 +51,20 @@ export function PassoAtivos({
             mostrarRecentes={!cheio}
           />
         </div>
-        <ColarListaDialog lote={itens} onAdicionar={onAdicionarVarios} />
+        <ColarListaDialog
+          lote={itens}
+          naOutraMetade={naOutraMetade}
+          onAdicionar={onAdicionarVarios}
+        />
       </div>
 
       {cheio && (
         <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-          O lote está no limite de {MAX_LOTE_MOVIMENTACAO} ativos. Remova algum
-          para trocar, ou registre este lote e comece outro.
+          O lote está no limite de {MAX_LOTE_MOVIMENTACAO} ativos
+          {naOutraMetade.size > 0
+            ? `, contando os ${naOutraMetade.size} da outra metade da troca`
+            : ''}
+          . Remova algum para trocar, ou registre este lote e comece outro.
         </p>
       )}
 
@@ -65,7 +81,7 @@ export function PassoAtivos({
               className="flex flex-wrap items-center gap-2 rounded-lg border p-2.5"
             >
               <span className="font-medium tabular-nums">
-                {a.patrimonio ?? 'sem patrimônio'}
+                {rotuloPatrimonio(a.patrimonio)}
               </span>
               {a.patrimonio_duplicado && (
                 <span className="rounded bg-amber-100 px-1.5 text-xs tabular-nums text-amber-800 dark:bg-amber-950 dark:text-amber-300">
@@ -99,7 +115,7 @@ export function PassoAtivos({
       <div className="flex flex-wrap items-center justify-end gap-3">
         {itens.length > 0 && (
           <span className="text-xs tabular-nums text-muted-foreground">
-            {itens.length} de {MAX_LOTE_MOVIMENTACAO} no lote
+            {itens.length + naOutraMetade.size} de {MAX_LOTE_MOVIMENTACAO} no lote
           </span>
         )}
         <Button onClick={onAvancar} disabled={itens.length === 0}>

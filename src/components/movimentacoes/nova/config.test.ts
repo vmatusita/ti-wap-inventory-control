@@ -299,6 +299,21 @@ describe('configInicialDaUrl — o atalho da contrapartida', () => {
     }
   })
 
+  // Achado da revisão de código da fase: `estorno` não está em
+  // TIPOS_FORA_DO_LOTE_MANUAL, mas também não aparece em NENHUMA entrada de
+  // TRANSICOES — é o fluxo da linha do tempo. Semeá-lo abria uma tela cujo select
+  // nunca oferece o tipo, cujo Zod sempre recusa o item, e que ainda suprimia o
+  // banner de rascunho (`configInicial` não-nulo = "veio de link").
+  it('`estorno` é recusado: o formulário não o monta em estado nenhum', () => {
+    expect(configInicialDaUrl({ tipo: 'estorno' }, MOTIVOS)).toBeNull()
+  })
+
+  it('os tipos que o formulário MONTA continuam passando', () => {
+    for (const t of ['saida', 'devolucao', 'emprestimo', 'transferencia', 'ajuste']) {
+      expect(configInicialDaUrl({ tipo: t }, MOTIVOS)).not.toBeNull()
+    }
+  })
+
   it('motivo inexistente, ou que não se aplica ao tipo, vira vazio', () => {
     expect(
       configInicialDaUrl({ tipo: 'saida', motivo: 'inventado' }, MOTIVOS)!.motivo,

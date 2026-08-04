@@ -14,7 +14,7 @@ import {
   type ContrapartidaTroca,
 } from '@/components/movimentacoes/nova/troca-upgrade'
 import { formatDate, hojeISO } from '@/lib/format'
-import { rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
+import { rotuloPatrimonio, rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
@@ -60,7 +60,7 @@ function BlocoRevisao({
             {itens.map((a) => (
               <tr key={a.id}>
                 <td className="p-2.5 font-medium tabular-nums">
-                  {a.patrimonio ?? 'sem patrimônio'}
+                  {rotuloPatrimonio(a.patrimonio)}
                 </td>
                 <td className="p-2.5">
                   {config.tipo && rotuloTipo(config.tipo)}
@@ -166,7 +166,7 @@ export function PassoRevisao({
             {duplicatas.map((d) => (
               <li key={`${d.ativoId}-${d.tipo}`}>
                 <span className="font-medium tabular-nums">
-                  {d.patrimonio ?? 'sem patrimônio'}
+                  {rotuloPatrimonio(d.patrimonio)}
                 </span>{' '}
                 já teve &quot;{rotuloTipo(d.tipo)}&quot; {quando} — confira antes
                 de registrar.

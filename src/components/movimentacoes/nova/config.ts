@@ -5,8 +5,8 @@ import { hojeISO } from '@/lib/format'
 import {
   CAMPOS_POR_TIPO,
   MAX_LOTE_MOVIMENTACAO,
-  TIPOS_FORA_DO_LOTE_MANUAL,
   campoObrigatorio,
+  ehTipoManual,
   type CampoMovimentacao,
 } from '@/lib/validators/movimentacao'
 import { ehTipoMovimentacao } from '@/lib/dominio'
@@ -70,9 +70,9 @@ const MAX_TEXTO_URL = 200
 //
 // PURA e defensiva, na doutrina de `lib/url-params.ts`: param inválido é
 // IGNORADO, nunca derruba a página nem vira estado inválido do formulário.
-//   - `tipo` fora do vocabulário — ou de fluxo próprio (compra/troca/devolução
-//     ao fornecedor, que não se registram por este formulário) — devolve `null`:
-//     sem tipo não há o que pré-preencher.
+//   - `tipo` fora do vocabulário — ou que este formulário não monta em estado
+//     nenhum (`ehTipoManual`: os de fluxo próprio + `estorno`, que é da linha do
+//     tempo) — devolve `null`: sem tipo não há o que pré-preencher.
 //   - `motivo` é conferido pelo CÓDIGO contra o catálogo e pelo `aplica_a`; o
 //     que não casa vira '' (o operador escolhe no select).
 export function configInicialDaUrl(
@@ -89,7 +89,7 @@ export function configInicialDaUrl(
   // herdadas de `Object.prototype`, e `?tipo=toString` passaria por tipo válido.
   if (!ehTipoMovimentacao(tipo)) return null
   const t: TipoMovimentacao = tipo
-  if (TIPOS_FORA_DO_LOTE_MANUAL.includes(t)) return null
+  if (!ehTipoManual(t)) return null
 
   const motivo = (params.motivo ?? '').trim()
   const motivoOk = motivosDisponiveis.some(
@@ -172,8 +172,12 @@ export type GrupoSucesso = {
 export type ContrapartidaPendente = {
   // O tipo da metade que FALTA registrar (o oposto do que acabou de entrar).
   tipo: TipoMovimentacao
-  // Pré-preenchimento do link — '' quando o tipo alvo nem coleta colaborador.
+  // Pré-preenchimento do link — '' quando o tipo alvo nem coleta o campo. O
+  // `setor` viaja junto com o `colaborador` porque o Zod aceita um OU outro
+  // (`exigeColaboradorOuSetor`): uma troca destinada a um SETOR, sem pessoa
+  // nomeada, perdia no atalho a única informação que ela tinha.
   colaborador: string
+  setor: string
   // A movimentação que originou o atalho. Vai no link como `de=` e serve a UMA
   // coisa: garantir que a URL do atalho NUNCA seja idêntica à URL atual. Link
   // igual à URL corrente é navegação que não acontece — e, como o formulário só

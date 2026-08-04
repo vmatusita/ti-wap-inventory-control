@@ -24,6 +24,7 @@ import { campoAplica, MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentaca
 import {
   TERMO_STATUS_ORDEM,
   rotuloCategoria,
+  rotuloPatrimonio,
   rotuloTermo,
   rotuloTipo,
   type TermoStatus,
@@ -169,7 +170,7 @@ export function SecaoContrapartida({
                   className="flex flex-wrap items-center gap-2 rounded-lg border bg-background p-2.5"
                 >
                   <span className="font-medium tabular-nums">
-                    {a.patrimonio ?? 'sem patrimônio'}
+                    {rotuloPatrimonio(a.patrimonio)}
                   </span>
                   {a.patrimonio_duplicado && (
                     <span className="rounded bg-amber-100 px-1.5 text-xs tabular-nums text-amber-800 dark:bg-amber-950 dark:text-amber-300">

@@ -27,7 +27,7 @@ import {
 } from '@/lib/actions/movimentacoes'
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import { mesclarAtivosNoLote } from '@/components/movimentacoes/nova/config'
-import { rotuloCategoria } from '@/lib/dominio'
+import { rotuloCategoria, rotuloPatrimonio } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 
 // F10/M1 — "Colar lista" no passo Ativos: acaba com o lote montado um a um no
@@ -39,11 +39,15 @@ import type { AtivoResumo } from '@/lib/queries/ativos'
 // quem acabou de entrar por outra linha, resolvido pela ST) — senao o operador
 // escolheria um ativo que ja esta la.
 
+// Set vazio ESTÁVEL para o default da prop: `new Set()` no default criaria uma
+// referência nova a cada render do passo 1.
+const VAZIO: ReadonlySet<string> = new Set()
+
 function LinhaAtivo({ a, sufixo }: { a: AtivoResumo; sufixo?: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <span className="font-medium tabular-nums">
-        {a.patrimonio ?? 'sem patrimônio'}
+        {rotuloPatrimonio(a.patrimonio)}
       </span>
       {a.service_tag && (
         <span className="rounded bg-muted px-1.5 text-xs tabular-nums text-muted-foreground">
@@ -122,9 +126,16 @@ function BlocoCopiavel({
 
 export function ColarListaDialog({
   lote,
+  naOutraMetade = VAZIO,
   onAdicionar,
 }: {
   lote: AtivoResumo[]
+  // F26 — a metade OPOSTA do par troca/upgrade, quando a seção está ativa. Ela
+  // conta duas vezes na aritmética desta prévia: ocupa lugar no teto (que é do
+  // envio inteiro) e os ativos dela NÃO podem entrar no lote principal — o form
+  // os recusa. Sem as duas contas aqui o botão prometia "Adicionar 2 ao lote
+  // (30 de 30)" e entrava 1, ou nenhum, com o texto colado já apagado pelo fechar.
+  naOutraMetade?: ReadonlySet<string>
   onAdicionar: (ativos: AtivoResumo[]) => void
 }) {
   const [aberto, setAberto] = useState(false)
@@ -140,18 +151,21 @@ export function ColarListaDialog({
   // ativos errados no lote. Só aplica `setRes` quem ainda for o token corrente.
   const requisicao = useRef(0)
 
+  // Quem não pode entrar: já está no lote OU está na outra metade da troca. A
+  // aritmética é a mesma para os dois; só o rótulo da linha muda.
   const idsNoLote = new Set(lote.map((a) => a.id))
+  const idsBloqueados = new Set([...idsNoLote, ...naOutraMetade])
   const encontrados = res?.encontrados ?? []
   // Quem ja esta no lote nao entra de novo — mas continua visivel, marcado, para
   // o operador entender por que doze linhas coladas viraram nove ativos novos.
-  const novos = encontrados.filter((a) => !idsNoLote.has(a.id))
+  const novos = encontrados.filter((a) => !idsBloqueados.has(a.id))
   const idsQueEntram = new Set(novos.map((a) => a.id))
 
   const ambiguos = (res?.ambiguos ?? [])
     .map((g) => ({
       patrimonio: g.patrimonio,
       candidatos: g.candidatos.filter(
-        (c) => !idsNoLote.has(c.id) && !idsQueEntram.has(c.id),
+        (c) => !idsBloqueados.has(c.id) && !idsQueEntram.has(c.id),
       ),
     }))
     .filter((g) => g.candidatos.length > 0)
@@ -160,8 +174,10 @@ export function ColarListaDialog({
     .map((g) => g.candidatos.find((c) => c.id === escolhas[g.patrimonio]))
     .filter((a): a is AtivoResumo => Boolean(a))
 
-  // A aritmetica do teto e a MESMA do form (funcao pura compartilhada).
-  const previa = mesclarAtivosNoLote(lote, [...novos, ...escolhidos])
+  // A aritmetica do teto e a MESMA do form (funcao pura compartilhada) — e o
+  // teto EFETIVO desconta o que a outra metade da troca já ocupa.
+  const teto = MAX_LOTE_MOVIMENTACAO - naOutraMetade.size
+  const previa = mesclarAtivosNoLote(lote, [...novos, ...escolhidos], teto)
   const cabem = previa.adicionados.length
   const foraPeloTeto = previa.excedentes.length
 
@@ -316,9 +332,11 @@ export function ColarListaDialog({
                         <LinhaAtivo
                           a={a}
                           sufixo={
-                            idsNoLote.has(a.id) ? (
+                            idsBloqueados.has(a.id) ? (
                               <span className="text-xs text-muted-foreground">
-                                já no lote
+                                {idsNoLote.has(a.id)
+                                  ? 'já no lote'
+                                  : 'já na outra metade da troca'}
                               </span>
                             ) : null
                           }
@@ -397,8 +415,11 @@ export function ColarListaDialog({
                   <TriangleAlert className="mt-0.5 size-4 shrink-0" />
                   {foraPeloTeto}{' '}
                   {foraPeloTeto === 1 ? 'ativo fica' : 'ativos ficam'} de fora: o
-                  lote aceita {MAX_LOTE_MOVIMENTACAO} e já tem {lote.length}.
-                  Registre o resto em outro lote.
+                  lote aceita {MAX_LOTE_MOVIMENTACAO} e já tem {lote.length}
+                  {naOutraMetade.size > 0
+                    ? ` — mais ${naOutraMetade.size} na outra metade da troca`
+                    : ''}
+                  . Registre o resto em outro lote.
                 </p>
               )}
             </div>
@@ -412,7 +433,9 @@ export function ColarListaDialog({
           <Button type="button" onClick={confirmar} disabled={cabem === 0}>
             {cabem === 0
               ? 'Adicionar ao lote'
-              : `Adicionar ${cabem} ao lote (${lote.length + cabem} de ${MAX_LOTE_MOVIMENTACAO})`}
+              : // A contagem inclui o que a outra metade da troca ocupa: a
+                // promessa do botão tem de bater com o que o form vai aceitar.
+                `Adicionar ${cabem} ao lote (${lote.length + naOutraMetade.size + cabem} de ${MAX_LOTE_MOVIMENTACAO})`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -15,7 +15,13 @@ import {
   MAX_LOTE_MOVIMENTACAO,
   tiposManuaisPara,
 } from '@/lib/validators/movimentacao'
-import { rotuloStatus, rotuloTipo, type TermoStatus, type TipoMovimentacao } from '@/lib/dominio'
+import {
+  rotuloPatrimonio,
+  rotuloStatus,
+  rotuloTipo,
+  type TermoStatus,
+  type TipoMovimentacao,
+} from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import {
   montarItensInput,
@@ -70,16 +76,25 @@ export type ContrapartidaTroca = {
   deixarParaDepois: boolean
   // Esta metade JA EXISTE no banco — foi ela que abriu esta tela, pelo atalho do
   // painel de sucesso (`?contrapartida=nao`). E propriedade do PAR, nao da
-  // montagem: por isso mora aqui e nao num estado solto do formulario. Um par
-  // NOVO montado nesta mesma tela nasce com `false` (via `contrapartidaPadrao`),
-  // e o rascunho a carrega junto — os dois casos que a 2a volta adversarial
-  // pegou quando ela era estado de montagem.
+  // montagem: por isso mora aqui e nao num estado solto do formulario, e o
+  // rascunho a carrega junto (2a volta adversarial da F26).
+  //
+  // Quem decide se ela SOBREVIVE a seçao sumir e voltar e o formulario, nao este
+  // modulo: `nascerContrapartida` nunca a inventa (nasce `false`), mas
+  // `sincronizarContrapartida` a repoe quando o TIPO nao mudou — ir e voltar
+  // pelo motivo e a mesma troca, e zerar ali reabria o laco do atalho (revisao
+  // de codigo pos-F26; ata em `docs/DECISOES.md`).
   jaRegistrada: boolean
   // O ULTIMO valor que o pre-preenchimento automatico escreveu em `colaborador`.
   // Serve a uma pergunta so: "o operador digitou por cima?". Se `colaborador`
   // ainda for igual a isto, o campo e do sistema e pode ser recalculado quando o
   // lote principal muda; se divergir, e do operador e nao se toca.
-  prefillColaborador: string
+  //
+  // `undefined` = NAO SE SABE (rascunho gravado antes deste campo existir). Como
+  // difere de QUALQUER string, o campo passa a ser tratado como do operador e o
+  // prefill nunca o sobrescreve — o lado seguro. E diferente de `''`, que quer
+  // dizer "o prefill ja rodou e nao tinha nome honesto para escrever".
+  prefillColaborador: string | undefined
 }
 
 export function contrapartidaPadrao(
@@ -94,7 +109,17 @@ export function contrapartidaPadrao(
     itensFaltantes: inicial?.itensFaltantes ?? [],
     deixarParaDepois: inicial?.deixarParaDepois ?? false,
     jaRegistrada: inicial?.jaRegistrada ?? false,
-    prefillColaborador: inicial?.prefillColaborador ?? '',
+    // `?? ''` NAO cabe aqui: apagaria a diferenca entre "ninguem informou o
+    // campo" (contrapartida nova => o prefill ainda pode rodar) e "informou
+    // `undefined` de proposito" (rascunho antigo => o campo e do operador).
+    // Com o `??`, o nome que o operador tinha APAGADO voltava sozinho na
+    // primeira mudanca do lote — o chute silencioso que o prefill evita.
+    prefillColaborador: Object.prototype.hasOwnProperty.call(
+      inicial ?? {},
+      'prefillColaborador',
+    )
+      ? inicial?.prefillColaborador
+      : '',
   }
 }
 
@@ -125,8 +150,10 @@ export function nascerContrapartida(
 ): ContrapartidaTroca {
   const alvo = tipoContrapartida(config.tipo)
   const prefill = alvo === 'saida' ? prefillContrapartida(lotePrincipal) : ''
-  // `jaRegistrada` e `deixarParaDepois` ficam no padrao (false): um par que
-  // NASCE agora e um par novo, mesmo numa tela aberta pelo atalho.
+  // `jaRegistrada` e `deixarParaDepois` ficam no padrao (false): esta funcao
+  // nunca INVENTA o marcador. Se ele vale para o par que esta nascendo e decisao
+  // do formulario, que conhece a tela e o tipo anterior — ver o comentario do
+  // campo, e `sincronizarContrapartida`.
   return contrapartidaPadrao({
     colaborador: prefill,
     prefillColaborador: prefill,
@@ -198,10 +225,6 @@ export function contrapartidaAtiva(
   )
 }
 
-function nomeDe(a: AtivoResumo): string {
-  return a.patrimonio ?? 'sem patrimônio'
-}
-
 // Regras que SO existem por causa do par (as de cada movimentacao continuam com
 // o Zod). Devolve as mensagens em pt-BR — vazio = ok.
 export function validarPar(
@@ -235,7 +258,7 @@ export function validarPar(
   const repetidos = contrapartida.itens.filter((a) => idsPrincipal.has(a.id))
   for (const a of repetidos) {
     msgs.push(
-      `${nomeDe(a)} está nas duas metades da troca — um ativo não pode ser devolvido e entregue no mesmo registro.`,
+      `${rotuloPatrimonio(a.patrimonio)} está nas duas metades da troca — um ativo não pode ser devolvido e entregue no mesmo registro.`,
     )
   }
 
@@ -253,7 +276,7 @@ export function validarPar(
   for (const a of contrapartida.itens) {
     if (!tiposManuaisPara([a.status]).includes(alvo)) {
       msgs.push(
-        `${nomeDe(a)} (${rotuloStatus(a.status)}) não permite "${rotuloTipo(alvo)}" — tire-o da ${rotuloTipo(alvo).toLowerCase()} da troca.`,
+        `${rotuloPatrimonio(a.patrimonio)} (${rotuloStatus(a.status)}) não permite "${rotuloTipo(alvo)}" — tire-o da ${rotuloTipo(alvo).toLowerCase()} da troca.`,
       )
     }
   }
@@ -291,6 +314,10 @@ export function linkContrapartida(pendente: ContrapartidaPendente): string {
     contrapartida: 'nao',
   })
   if (pendente.colaborador) params.set('colaborador', pendente.colaborador)
+  // O `setor` viaja junto: o Zod da saida aceita colaborador OU setor, e a troca
+  // destinada a um SETOR (sem pessoa nomeada) nao pode chegar do outro lado sem
+  // nada preenchido.
+  if (pendente.setor) params.set('setor', pendente.setor)
   if (pendente.origemMovimentacaoId) params.set('de', pendente.origemMovimentacaoId)
   return `/movimentacoes/nova?${params.toString()}`
 }
