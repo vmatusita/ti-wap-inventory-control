@@ -3650,3 +3650,78 @@ Revisão de recall sobre o diff inteiro da F24. Os achados de UI/queries foram c
   8. Descartado: estender o preset de filial do lançamento de `/itens` ao padrão do cargo — seria inerte na visão por filial (quem desenha o "+" é `SaldosFiliaisTabela`, que não recebe preset, por decisão dela) e ativo justamente em `?filial=todas`, onde o operador pediu para ver tudo.
 - **Motivo:** a regra da casa (F12 · W6A) é que a régua de um param more num módulo só; a F25 acertou isso para o PARSE e deixou escapar a leitura de "isto está filtrado?". Os itens 1–3 fecham essa segunda metade. O item 5 troca um requisito literal da ordem por aquilo que ele pretendia — e CLAUDE.md manda registrar, não travar.
 - **Reversível?** Tudo é código de aplicação, sem migration. `git revert` do commit da revisão restaura o comportamento anterior; o banco não é tocado.
+
+---
+
+## 2026-08-04 · F26 · A troca/upgrade é "só a tela": nem vínculo no banco, nem pendência automática
+
+- Contexto: o par troca/upgrade são DUAS movimentações do mundo real que sempre valeram uma operação só. Havia três desenhos possíveis: (a) vincular as duas metades no banco (uma coluna `movimentacao_par_id`), (b) abrir uma pendência automática quando só uma metade é registrada, (c) resolver na TELA, sem tocar o banco.
+- Decisão: o Johnny escolheu (c) — "só a tela" — na ordem F26 de 04/08/2026. Zero migration: o motivo `troca_upgrade` já existe para `{saida,devolucao}` desde o seed `0007`, a máquina de estados já aceita as duas metades e a Server Action de lote já processava itens heterogêneos. **Vínculo do par no banco** e **pendência de troca sem contrapartida** ficam no BACKLOG.
+- Motivo: o ganho que o operador pediu é não redigitar colaborador e contexto duas vezes — isso é um problema de formulário, não de modelo de dados. Um vínculo no banco só se paga quando alguém precisar PERGUNTAR "quais trocas ficaram pela metade?", e essa pergunta ainda não foi feita. Vale a régua (3) do CLAUDE.md: a opção mais simples e reversível.
+- Consequência ACEITA e registrada: **as duas movimentações são independentes depois de gravadas.** Estornar a devolução não desfaz a saída, e nada no sistema sabe que elas eram um par — nem o relatório, nem a linha do tempo, nem a lista de movimentações. Quem quiser reconstituir o par tem a data, o chamado e a observação, que são compartilhados.
+- Reversível? sim, e no sentido barato: acrescentar o vínculo depois é uma migration aditiva, e a UI já monta as duas metades no mesmo envio — `montarItensDoPar` seria o único lugar a mudar.
+
+---
+
+## 2026-08-04 · F26 · Data, chamado e observação são COMPARTILHADOS pelas duas metades; o motivo da contrapartida é fixo
+
+- Contexto: a metade oposta podia ter os próprios campos comuns (data própria, chamado próprio, observação própria) ou herdá-los da metade principal.
+- Decisão: `data`, `chamado` e `observacao` são um preenchimento só, da `Config` principal — a seção da contrapartida nem os mostra. O `motivo` da contrapartida é `troca_upgrade` FIXO, exibido como informação e não como select. Os campos exclusivos de cada metade (colaborador/setor/termo na saída; itens faltantes na devolução) são próprios, e quais aparecem sai de `CAMPOS_POR_TIPO`, como no resto do wizard.
+- Motivo: a troca é UM evento — a data em que ela aconteceu é uma só, e o chamado que a originou também. Campos duplicados convidariam a divergência silenciosa entre as duas linhas do mesmo fato. É a mesma doutrina do lote desde a F2 ("um preenchimento, N ativos", spec §12.2).
+- Reversível? sim — `configDaContrapartida` (`src/components/movimentacoes/nova/troca-upgrade.ts`) é o único lugar que decide o que é herdado e o que é próprio.
+
+---
+
+## 2026-08-04 · F26 · O prefill do colaborador só acontece quando é honesto — e é capturado ANTES do envio
+
+- Contexto: no sentido devolução → saída, quem recebe o equipamento novo é quase sempre quem devolveu o antigo. O nome está em `AtivoResumo.colaborador_atual`, que a busca do combobox já carrega (F9/M2).
+- Decisão: `prefillContrapartida` só devolve nome quando **TODOS** os ativos da metade principal estão com o **mesmo** detentor não-vazio. Detentores mistos, algum sem detentor, ou lote vazio devolvem `''`. O valor é lido do lote **em memória**, no momento em que a seção nasce, e o painel de sucesso o recalcula sobre o snapshot capturado ANTES da chamada à action.
+- Motivo: pré-preencher por chute entrega o notebook novo para a pessoa errada, e o operador confirma sem ler. E ler `colaborador_atual` depois do insert daria vazio sempre — o trigger `aplicar_movimentacao` zera o detentor do ativo devolvido.
+- Reversível? sim — função pura de oito linhas, com seis casos em `troca-upgrade.test.ts`.
+
+---
+
+## 2026-08-04 · F26 · A metade PRINCIPAL vai primeiro no array submetido
+
+- Contexto: `registrarMovimentacoes` insere item a item e **interrompe no primeiro erro**, marcando o resto como "não processado" (OS-F2 3.4.1). Com duas metades num envio só, a ordem do array decide quem cai junto.
+- Decisão: `montarItensDoPar` põe a metade principal primeiro e a contrapartida depois.
+- Motivo: se a metade que o operador montou falhar, a contrapartida nem chega a ser tentada — e é isso que se quer. O contrário (contrapartida primeiro) gravaria a entrega do equipamento novo e deixaria o antigo sem devolver, que é exatamente a meia-troca que este facilitador existe para evitar.
+- Reversível? sim, uma linha; há teste travando a ordem.
+
+---
+
+## 2026-08-04 · F26 · O atalho da contrapartida adiada é navegação por querystring — e carrega `contrapartida=nao` para não virar laço
+
+- Contexto: com "Deixar a contrapartida para depois", o painel de sucesso oferece um atalho para registrar a metade que faltou. A ordem §4 pede que ele reutilize o mecanismo de `ConfigInicial`, que só entendia `?duplicar=<mov>` e `?ativo=<ativo>` — nenhum dos dois serve, porque a outra metade não parte de registro nenhum.
+- Decisão: forma nova e mínima de link — `?tipo=<tipo>&motivo=troca_upgrade&contrapartida=nao[&colaborador=<nome>]`, resolvida pela função pura `configInicialDaUrl` (`nova/config.ts`). O `colaborador` só vai quando o tipo alvo o coleta (saída). O `contrapartida=nao` inicia o formulário com "deixar para depois" LIGADO.
+- Motivo do `contrapartida=nao`: sem ele, a tela aberta pelo atalho ofereceria a contrapartida DA contrapartida — pedindo justamente a metade que o operador acabou de registrar. Seria um laço, e um laço que bloqueia o registrar (contrapartida aberta e vazia é erro).
+- Armadilha medida: `/movimentacoes/nova` → `/movimentacoes/nova?tipo=…` é a **mesma rota**. No Next isso é soft navigation: o Server Component re-executa, mas o `NovaMovimentacaoForm` fica na mesma posição da árvore e **não remonta** — e todo o estado inicial vem de `useState(() => …)`, que só roda na montagem. Sem tratar, o atalho não pré-preencheria nada. A correção é uma `key` derivada dos params no `page.tsx`.
+- Consequência ACEITA: o nome do colaborador viaja na querystring, e portanto no histórico do navegador e no log de acesso da Vercel. É o mesmo nome que a tela já exibe para quem está logado, e o link só existe dentro da sessão de quem acabou de registrar.
+- Reversível? sim — o ramo novo do `page.tsx` e o `configInicialDaUrl` saem juntos; `?duplicar=`/`?ativo=` não foram tocados.
+
+---
+
+## 2026-08-04 · F26 · O prefill não vale o `setor`: `setor_atual` NÃO entra no `RESUMO_SELECT`
+
+- Contexto: a ordem deixou a escolha em aberto — acrescentar `setor_atual` ao `RESUMO_SELECT` de `AtivoResumo` (mudança aditiva de leitura, sem migration) ou pré-preencher só o colaborador.
+- Decisão: **só o colaborador.** `RESUMO_SELECT` fica byte a byte como está.
+- Motivo: `AtivoResumo` é consumido pelo combobox, pelo colar-lista, pelos recentes do operador, pelo rascunho e por `queries/movimentacoes.ts` (que o monta a partir de um embed). Alargar o tipo por um campo de conveniência aumenta o raio de alcance sem necessidade: a saída exige colaborador **OU** setor, e o colaborador pré-preenchido já satisfaz a regra. O setor continua digitável, com as sugestões M4.
+- Reversível? sim, nos dois sentidos: acrescentar a coluna depois é uma linha em `RESUMO_SELECT`, `RawAtivoResumo` e `resumoDe`.
+
+---
+
+## 2026-08-04 · F26 · A detecção é pelo CÓDIGO do motivo; motivo desativado simplesmente não dispara o facilitador
+
+- Contexto: o motivo "Troca / upgrade" é linha de banco (`motivos`, seed `0007`), e o admin pode renomear o rótulo — ou desativá-lo — em `admin/motivos`.
+- Decisão: a constante única `MOTIVO_TROCA_UPGRADE = 'troca_upgrade'` (`nova/troca-upgrade.ts`) é o ÚNICO ponto de detecção, e todo mundo importa dela. O rótulo exibido vem do catálogo. Se o admin desativar o motivo, ele some do select, ninguém consegue escolhê-lo e o facilitador não aparece — comportamento correto, sem código de exceção.
+- Motivo: detectar por rótulo quebraria no dia em que alguém trocasse "Troca / upgrade" por "Troca/Upgrade". E há uma colisão de nome perto: `troca` é um TIPO de movimentação (F15, o substituto vindo do fornecedor), coisa diferente do MOTIVO — na UI o facilitador se apresenta sempre como "Troca/upgrade", nunca "Troca" solta.
+- Reversível? não se aplica — é a forma correta; a alternativa é o defeito.
+
+---
+
+## 2026-08-04 · F26 · O ativo em estado inválido é RECUSADO na entrada da contrapartida (e não limpa o tipo, como no lote principal)
+
+- Contexto: no lote principal, adicionar um ativo cujo estado não aceita o tipo escolhido faz o sistema LIMPAR o tipo, com toast nomeando o culpado (F9/M7) — o tipo é uma escolha sobre o lote inteiro, então recuar nela é o certo.
+- Decisão: na seção da contrapartida o tipo é DERIVADO (o oposto do principal) e não pode ser "limpo". Então o ativo em estado incompatível é **recusado na entrada**, com o mesmo toast que nomeia o culpado — e `validarPar` repete a checagem no envio.
+- Motivo: a dupla checagem não é redundância. A recusa na entrada é gentileza imediata; a checagem no envio é o que segura o caso real de um **rascunho que dormiu** enquanto outro operador movimentava aquele ativo — a restauração refaz a interseção das duas metades, mas o estado pode mudar de novo entre a restauração e o registrar.
+- Reversível? sim — as duas guardas são independentes e removíveis em separado.
