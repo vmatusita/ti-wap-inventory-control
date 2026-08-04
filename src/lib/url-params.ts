@@ -162,6 +162,25 @@ export function selecaoFilialIds(v: string | null | undefined): SelecaoFilial<nu
   return selecao(v, idNumerico)
 }
 
+/**
+ * O `filial` que veio na URL é um FILTRO de verdade?
+ *
+ * ⚠ A SENTINELA `todas` NÃO É: ela declara "sem recorte". Tratá-la como filtro
+ * custou caro na revisão da F25 — o estado vazio dizia "nada com esses filtros"
+ * onde não havia filtro nenhum e, pior, "Limpar filtros" e "Ver todas as filiais"
+ * passavam a apontar UM PARA O OUTRO: o operador saía de `/ativos` para
+ * `/ativos?filial=todas`, de lá voltava para `/ativos`, e nunca alcançava o estado
+ * "não há nada cadastrado ainda" (com o CTA de cadastrar o primeiro) que ele via
+ * antes. Lixo (`?filial=abc`) e param ausente também não são filtro: caem em
+ * `padrao`, pela doutrina do módulo.
+ *
+ * Reusa o parser das telas de propósito — uma régua só. As duas famílias (id e
+ * slug) concordam aqui, porque o que se pergunta é o MODO, não os valores.
+ */
+export function ehFiltroDeFilial(v: string | null | undefined): boolean {
+  return selecaoFilialSlugs(v).modo === 'lista'
+}
+
 /** `filial` das telas que filtram por SLUG (`/pendencias`, `/relatorios/gerados`).
  *
  *  As duas famílias continuam existindo de propósito: `v_fila_pendencias.filial` e

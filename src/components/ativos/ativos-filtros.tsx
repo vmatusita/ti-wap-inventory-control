@@ -106,6 +106,19 @@ export function AtivosFiltros({
   // "Limpar" apaga FILTROS, não a forma de ver a lista: ordenação (`ord`) e
   // tamanho de página (`pp`) sobrevivem — quem ordenou por patrimônio e limpou
   // a busca não espera a lista voltar sozinha para "atualizado em" (F11/T7).
+  //
+  // ⚠ Limpar também apaga o `filial`, o que devolve o operador ao PADRÃO DO CARGO
+  // — e é o certo: o padrão é o estado de repouso da tela, não um filtro que a
+  // pessoa escolheu. O "Limpar filtros" do estado vazio faz o MESMO, `ord`/`pp`
+  // inclusive; quando não há filtro na URL ele troca de rótulo para "Ver todas as
+  // filiais" em vez de virar um link para a própria página. Os dois controles
+  // diziam a mesma coisa e faziam coisas diferentes até a revisão da F25.
+  //
+  // ⚠ Este `temFiltro` olha o `filial` CRU, e o da página usa `ehFiltroDeFilial`
+  // (que descarta a sentinela `todas`). NÃO é divergência: as perguntas são outras.
+  // Aqui é "há algo na URL que este botão possa apagar?" — e `filial=todas` há, é
+  // como o operador volta ao recorte dele. Lá é "há um filtro estreitando a lista?",
+  // e a sentinela, que significa SEM recorte, não estreita nada.
   function limpar() {
     const antigo = new URLSearchParams(params.toString())
     const novo = new URLSearchParams()

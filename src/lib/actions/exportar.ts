@@ -19,11 +19,15 @@ import {
 import { listarConflitosParaExport } from '@/lib/queries/conflitos'
 import type { LadoConflito } from '@/lib/pendencias/conflitos'
 import {
+  CELULA_SALDO_ZERO,
+  estoqueForaDasColunas,
   getSaldosItensDeFiliais,
+  getSaldosPorFilial,
   listarHistoricoParaExport,
   type FiltrosHistorico,
   type LinhaExportHistorico,
   type SaldoItem,
+  type SaldoItemFiliais,
 } from '@/lib/queries/itens'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import { getOperador } from '@/lib/auth/acesso'
@@ -144,6 +148,12 @@ async function contextoFilial(): Promise<{
 // F25 — a neutralização passou a valer POR PADRÃO, porque a visão por filial virou
 // a visão padrão de /itens: só o Consolidado (`visao=consolidado`) tem recorte.
 // A régua de qual visão está ativa é a MESMA função da tela (`ehVisaoConsolidado`).
+//
+// ⚠ F25-fix — quem depende disto agora é o export do HISTÓRICO. O de SALDOS deixou
+// de "neutralizar e mandar o consolidado" na visão por filial: ele passou a ter um
+// ramo próprio que emite uma coluna por filial, como a tabela da tela. Neutralizar
+// era o certo enquanto essa visão era exceção; virando o padrão, o arquivo tinha de
+// PASSAR A MOSTRAR o que a tela mostra, não a esconder o recorte.
 function filiaisDeItens(
   p: URLSearchParams,
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
@@ -296,6 +306,43 @@ const COLUNAS_CONFLITOS: ColunaCsv<{ chave: string; lado: LadoConflito }>[] = [
   { titulo: 'Tem histórico real', valor: (l) => (l.lado.temHistoricoReal ? 'sim' : 'não') },
 ]
 
+// F25-fix — as colunas da visão POR FILIAL (a visão PADRÃO de /itens desde a F25).
+// Espelham a tabela lado a lado de `saldos-filiais.tsx`, e nada do que a tela mostra
+// fica de fora:
+//  · uma coluna de ESTOQUE por filial (o número grande da célula);
+//  · uma de FALTA por filial — na tela é o chip vermelho "faltam N" dentro da mesma
+//    célula, e é o sinal mais visível da linha; omiti-lo seria perder na planilha
+//    exatamente o que faz alguém abrir a planilha;
+//  · o Total consolidado (a coluna "Total" da tabela) e os outros dois números do
+//    consolidado, que o CSV do Consolidado já trazia e não podem sumir só porque o
+//    default da tela mudou;
+//  · o "fora das colunas" (estoque de filial DESATIVADA que o Total inclui e nenhuma
+//    coluna mostra) — na tela é a nota "inclui N de filial desativada".
+// Os rótulos do consolidado dizem "(todas)" de propósito: sem isso o arquivo teria
+// um "Total" com sentido diferente do "Total" do CSV do Consolidado, e somar as duas
+// colunas na mesma planilha daria um número que não existe.
+function colunasSaldosPorFilial(filiais: Filial[]): ColunaCsv<SaldoItemFiliais>[] {
+  return [
+    { titulo: 'Item', valor: (l) => l.item },
+    { titulo: 'Grupo', valor: (l) => rotuloGrupoItem(l.grupo) },
+    ...filiais.flatMap((f) => [
+      {
+        titulo: f.nome,
+        valor: (l: SaldoItemFiliais) => (l.porFilial[f.id] ?? CELULA_SALDO_ZERO).estoque,
+      },
+      {
+        titulo: `${f.nome} — faltam`,
+        valor: (l: SaldoItemFiliais) => (l.porFilial[f.id] ?? CELULA_SALDO_ZERO).falta,
+      },
+    ]),
+    { titulo: 'Total', valor: (l) => l.consolidado.estoque },
+    { titulo: 'Unidades (todas)', valor: (l) => l.consolidado.total },
+    { titulo: 'Atrelados (todas)', valor: (l) => l.consolidado.atrelados },
+    { titulo: 'Faltam (todas)', valor: (l) => l.consolidado.falta },
+    { titulo: 'Fora das colunas', valor: (l) => estoqueForaDasColunas(l, filiais) },
+  ]
+}
+
 function colunasSaldos(filialRotulo: string): ColunaCsv<SaldoItem>[] {
   return [
     { titulo: 'Item', valor: (l) => l.item },
@@ -412,15 +459,39 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
   try {
     const p = new URLSearchParams(filtros)
     const ctx = await contextoFilial()
-    // Neutraliza `?filial` na visão por filial — sem isso o `rotuloFilial` do
-    // arquivo mente ("Matriz" onde a tela dizia o consolidado).
-    const filialIds = filiaisDeItens(p, ctx)
     const grupoRaw = texto(p, 'grupo')
     const grupo = GRUPO_ITEM_ORDEM.includes(grupoRaw as GrupoItem)
       ? (grupoRaw as GrupoItem)
       : undefined
     const q = (texto(p, 'q') ?? '').toLowerCase()
 
+    // ⚠ F25-fix — a visão POR FILIAL virou o PADRÃO de /itens, e até aqui o botão
+    // "Exportar saldos" dessa visão baixava o CONSOLIDADO: a tela mostrava uma
+    // coluna por filial e o arquivo trazia uma coluna só. Enquanto era o caminho
+    // raro (`?visao=filiais`) dava para conviver; virando o que todo mundo vê, é
+    // exatamente a divergência tela × arquivo do achado F12-W4-03. Agora o CSV
+    // desta visão tem as MESMAS colunas da tabela.
+    if (!ehVisaoConsolidado(texto(p, 'visao'))) {
+      const { filiais, itens } = await getSaldosPorFilial(ctx.filiais)
+      const filtrados = itens.filter(
+        (s) =>
+          (!grupo || s.grupo === grupo) && (!q || s.item.toLowerCase().includes(q)),
+      )
+      const linhas = filtrados.slice(0, CAP_EXPORT)
+      return {
+        // Nome PRÓPRIO: as duas visões do mesmo botão têm colunas diferentes, e dois
+        // arquivos de mesmo nome na pasta de downloads viram `(1)`, `(2)` — ninguém
+        // lembra qual é qual depois.
+        nome: nomeArquivoCsv('itens-saldos-por-filial', hojeISO()),
+        conteudo: gerarCsv(colunasSaldosPorFilial(filiais), linhas),
+        total: filtrados.length,
+        exportadas: linhas.length,
+        truncado: linhas.length < filtrados.length,
+      }
+    }
+
+    // Consolidado: `?filial` volta a valer (é a única visão que o renderiza).
+    const filialIds = filiaisDeItens(p, ctx)
     const saldos = await getSaldosItensDeFiliais(filialIds)
     const filtrados = saldos.filter(
       (s) =>

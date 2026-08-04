@@ -166,6 +166,23 @@ export async function contarGruposConflito(
   // na prática (282 lados / 138 grupos em produção em 04/08/2026, contra a página
   // de 1.000 de `paginarTodos`).
   if (filialSlugs.length > 1) {
+    // ⚠ CAMINHO QUENTE: o selo da sidebar chama isto no layout de TODA rota do app.
+    // A varredura de chaves é a única contagem EXATA disponível (nenhuma view expõe
+    // grupo + slug: `v_conflitos_filiais_grupos` agrega os NOMES das filiais), mas
+    // não há por que PAGAR por ela quando não há o que contar. Este `head:true` não
+    // traz linha nenhuma, custa uma requisição e resolve o caso normal — acervo sem
+    // conflito nas filiais de quem está olhando — sem varrer nada.
+    const { count, error } = await client
+      .from('v_conflitos_filiais')
+      .select('ativo_id', { count: 'exact', head: true })
+      .in('filial', filialSlugs)
+    if (error) throw new Error(`Falha ao contar conflitos: ${error.message}`)
+    const lados = count ?? 0
+    // Um grupo tem no máximo UM lado por filial, então `lados` é o TETO do número
+    // de grupos: com 0 ou 1 lado não há nada a deduplicar e a varredura seria pura
+    // perda. Acima disso a resposta pode divergir (um grupo com lados nas DUAS
+    // filiais selecionadas contaria em dobro) e só as chaves distintas resolvem.
+    if (lados <= 1) return lados
     return (await chavesDasFiliais(client, filialSlugs)).length
   }
 

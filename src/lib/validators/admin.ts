@@ -286,6 +286,12 @@ export const filialSchema = z.object({
 export const atualizarFilialSchema = filialSchema.extend({
   id: z.number().int().positive(),
   ativo: z.boolean(),
+  // ⚠ SEM o `.default('')` de `filialSchema`: aqui `undefined` precisa continuar
+  // `undefined`. No CADASTRO o default é certo (a filial nasce sem cidade); na
+  // EDIÇÃO ele transformava "não mandei o campo" em "apague a cidade" — a action
+  // grava o objeto inteiro, então Linhares perderia "Linhares" em silêncio. Com
+  // `.optional()`, quem não manda o campo não o toca.
+  cidade: z.string().trim().max(120).optional(),
 })
 
 // ---- Motivos ----

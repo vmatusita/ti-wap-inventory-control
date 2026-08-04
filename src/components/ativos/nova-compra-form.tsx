@@ -330,6 +330,9 @@ export function NovaCompraForm({
   const [resultado, setResultado] = useState<
     { id: string; patrimonio: string }[] | null
   >(null)
+  // Sucesso PARCIAL (F25): a compra entrou, os campos do celular não. Vive ao lado
+  // de `resultado` porque o painel de sucesso precisa mostrá-lo — toast some.
+  const [avisoParcial, setAvisoParcial] = useState<string | null>(null)
   const enviandoRef = useRef(false)
   const jaFocouLista = useRef(false)
 
@@ -533,6 +536,13 @@ export function NovaCompraForm({
     toast.success(
       `${res.criados.length} ${res.criados.length === 1 ? 'equipamento cadastrado' : 'equipamentos cadastrados'}.`,
     )
+    // Sucesso PARCIAL (F25): a compra entrou mas os campos do celular não. Um
+    // segundo toast, e não a substituição do de sucesso — as duas coisas são
+    // verdade, e esconder a primeira faria o operador achar que nada foi
+    // cadastrado. `duration` maior porque este pede uma AÇÃO (abrir a ficha), e o
+    // estado abaixo repete o recado no painel, que não expira.
+    setAvisoParcial(res.aviso ?? null)
+    if (res.aviso) toast.warning(res.aviso, { duration: 10_000 })
     router.refresh()
   }
 
@@ -553,6 +563,7 @@ export function NovaCompraForm({
     setObservacao('')
     setErrosServidor([])
     setResultado(null)
+    setAvisoParcial(null)
   }
 
   // ---------- Painel de sucesso ----------
@@ -569,6 +580,15 @@ export function NovaCompraForm({
             : 'equipamentos cadastrados'}{' '}
           em estoque
         </h2>
+        {/* ⚠ O aviso de sucesso PARCIAL também mora AQUI, e não só no toast: o toast
+            some em 10s e o painel é o que fica na tela. Sem esta faixa, o operador
+            que piscou vê só o verde "cadastrado" — que é exatamente a tela mentirosa
+            que o aviso existe para evitar. A ficha está a um clique, logo abaixo. */}
+        {avisoParcial && (
+          <p className="mx-auto mt-3 max-w-md rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            {avisoParcial}
+          </p>
+        )}
         <div className="mt-3 flex max-h-56 flex-wrap justify-center gap-2 overflow-y-auto">
           {resultado.map((a) => (
             <Button key={a.id} asChild variant="outline" size="sm">

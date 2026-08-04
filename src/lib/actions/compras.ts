@@ -19,6 +19,13 @@ export type CompraResult = {
   criados: { id: string; patrimonio: string }[]
   erros?: string[]
   erroGeral?: string
+  /**
+   * Sucesso PARCIAL: a compra entrou, mas algo depois dela não. Não é erro (o
+   * cadastro aconteceu e repeti-lo criaria ativo duplicado), e por isso não pode
+   * virar `ok: false` — mas também não pode sumir, senão o operador só descobre a
+   * perda na próxima geração de termo. A tela mostra como aviso.
+   */
+  aviso?: string
 }
 
 // Entrada de equipamento novo (compra), single ou lote — TUDO OU NADA (OS-F2
@@ -146,10 +153,18 @@ export async function registrarCompra(
           pulsus: dados.pulsus ?? null,
         }
       : null
+  let aviso: string | undefined
   if (extrasCelular) {
     const { error: eExtras } = await supabase.from('ativos').update(extrasCelular).in('id', ids)
     if (eExtras) {
       console.error('[registrarCompra] falha ao gravar telefone/IMEI/Pulsus', eExtras)
+      // ⚠ O erro NÃO derruba a compra (o ativo existe; repetir criaria duplicata),
+      // mas tem de chegar a quem digitou. Antes ele morria no log do servidor: a
+      // tela dava sucesso, o operador ia embora achando que o IMEI estava salvo, e
+      // a perda só aparecia na próxima geração de termo — quando ninguém mais liga
+      // uma coisa à outra. O caminho de conserto é a ficha, e o aviso diz isso.
+      aviso =
+        'O equipamento foi cadastrado, mas não foi possível gravar nº do telefone, IMEI e Pulsus. Abra a ficha do ativo e preencha esses campos.'
     }
   }
 
@@ -159,6 +174,7 @@ export async function registrarCompra(
   return {
     ok: true,
     criados: (criados ?? []).map((c) => ({ id: c.ativo_id, patrimonio: c.patrimonio })),
+    aviso,
   }
 }
 

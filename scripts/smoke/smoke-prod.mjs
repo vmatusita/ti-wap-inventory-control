@@ -839,10 +839,18 @@ const ROTAS_LOGADO = [
   // F25 — a visão PADRÃO de /itens virou "Por filial". O filtro de filial não é
   // renderizado nessa visão (as filiais já estão todas na tela, uma por coluna),
   // então a AUSÊNCIA do botão é o que prova qual visão abriu.
+  //
+  // ⚠ `marcadorAusente`, e NÃO `marcadorProibido`: são perguntas diferentes.
+  // `marcadorProibido` é CONTROLE DE ACESSO ("esta conta não pode chegar aqui") e
+  // por isso trata um redirect como aprovação — recusar por redirect também serve.
+  // Aqui a pergunta é de CONTEÚDO ("qual visão renderizou"), e um redirect é
+  // fracasso, não sucesso: com o campo errado, /itens redirecionando passaria
+  // VERDE sem nunca ter renderizado, e a mensagem de falha acusaria "VAZAMENTO
+  // para o cargo errado" numa tela que não tem cargo nenhum envolvido.
   {
     rota: '/itens',
     area: 'itens por quantidade · abre em "Por filial" (F25)',
-    marcadorProibido: 'Filtrar por filial',
+    marcadorAusente: 'Filtrar por filial',
   },
   // …e a sentinela explícita leva ao Consolidado, onde o filtro existe.
   {
@@ -854,7 +862,7 @@ const ROTAS_LOGADO = [
   {
     rota: '/itens?visao=filiais',
     area: 'itens · link antigo ainda vale (F25)',
-    marcadorProibido: 'Filtrar por filial',
+    marcadorAusente: 'Filtrar por filial',
   },
   { rota: '/movimentacoes', area: 'movimentações · lista' },
   { rota: '/movimentacoes/nova', area: 'movimentações · fluxo (B2)' },
@@ -1050,6 +1058,11 @@ async function parteC(sessao) {
           // F22: a conta do smoke é ADMIN e esta área é do cargo Desenvolvedor. Chegar aqui
           // com o conteúdo da área dentro do corpo é VAZAMENTO — o gate do layout falhou.
           detalhe = `HTTP 200 COM o conteúdo da área restrita ("${entrada.marcadorProibido}") — VAZAMENTO para o cargo errado`
+        } else if (entrada.marcadorAusente && corpo.includes(entrada.marcadorAusente)) {
+          // F25: asserção de CONTEÚDO (a rota renderizou a variante errada), nada a ver
+          // com cargo. Só existe neste ramo — para este campo um redirect é falha, e por
+          // isso ele não aparece no ramo 3xx acima.
+          detalhe = `HTTP 200 mas a página trouxe "${entrada.marcadorAusente}" — renderizou a variante errada`
         } else {
           status = OK
           detalhe = `HTTP 200 (${corpo.length} bytes)`

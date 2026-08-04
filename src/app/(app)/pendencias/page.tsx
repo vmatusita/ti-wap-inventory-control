@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getPendencias } from '@/lib/queries/relatorios'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarPendencias, type TipoPendencia } from '@/lib/queries/pendencias-detalhe'
-import { paginaNumerica } from '@/lib/url-params'
+import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
 import { formatDate } from '@/lib/format'
 import { ClipboardCheck, Filter } from 'lucide-react'
@@ -80,14 +80,70 @@ export default async function PendenciasPage({
   const filiais = await listarFiliais(client)
   const filialSlugs = resolverFiliaisSlugs(primeiro(sp.filial), operador, filiais)
 
-  // Diferencia "não há pendência nenhuma" de "nada neste filtro" no estado vazio.
-  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
-  // RESOLVIDA aqui faria `temFiltro` ser SEMPRE true para o operador (o padrão do
-  // cargo nunca é vazio): o estado vazio diria "nada com esses filtros" onde a
-  // verdade é "não há nada cadastrado", e ofereceria um "Limpar filtros" que
-  // recai no MESMO recorte — botão morto. É a mesma régua dos componentes de
-  // filtro, que já olham `params.get('filial')`.
-  const temFiltro = Boolean(primeiro(sp.filial) || tipo || q)
+  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL, e `ehFiltroDeFilial`
+  // ainda descarta a SENTINELA `todas` (que declara "sem recorte" — ver a nota da
+  // função). Usar a lista RESOLVIDA aqui faria isto ser SEMPRE true para o operador,
+  // porque o padrão do cargo nunca é vazio.
+  const temFiltro = Boolean(tipo || q) || ehFiltroDeFilial(primeiro(sp.filial))
+  // Na MESA o `tipo=conflito` é a ABA (a fonte da lista), não um filtro: quem
+  // limpa não quer sair dela. Por isso a mesa tem a sua própria conta.
+  const temFiltroMesa = Boolean(q) || ehFiltroDeFilial(primeiro(sp.filial))
+
+  // ⚠ `temFiltro` NÃO decide se a tela pode afirmar uma verdade GLOBAL: o padrão
+  // do cargo não está na URL e mesmo assim RECORTA a leitura. Sem este segundo
+  // booleano o operador de Serra, com a fila dele vazia, lia "Nenhuma pendência
+  // aberta 🎉" enquanto Linhares tinha 40 — exatamente a "mentira por omissão"
+  // que a mesa, logo abaixo, já evitava por conta própria.
+  //
+  // ⚠ `< filiais.length` importa: um operador vinculado a TODAS as filiais lê
+  // exatamente o que um admin lê. Sem esta perna a tela lhe negava a comemoração e
+  // oferecia um "Ver todas as filiais" que não alarga nada — o caminho real é a
+  // conta rebaixada de admin para operador, que a ADR-002 deixa com vínculo em
+  // todas as filiais.
+  const temRecorteFilial = filialSlugs.length > 0 && filialSlugs.length < filiais.length
+
+  // O estado vazio de filtro precisa de uma saída que MUDE alguma coisa:
+  //  · com filtro na URL, "Limpar" volta à URL de repouso da tela — o MESMO
+  //    destino do botão "Limpar" da barra de filtros (`router.push(pathname)`),
+  //    que até aqui discordava deste (um ia para o padrão do cargo, o outro para
+  //    `filial=todas`, com o mesmo rótulo);
+  //  · com só o recorte do CARGO não há filtro a limpar, e o que ajuda é ALARGAR
+  //    — daí a sentinela e um rótulo que diz a verdade;
+  //  · sem filtro NEM recorte, o que esvaziou a lista foi a PÁGINA fora de faixa
+  //    (é o caso que o `lista.total` do estado vazio já distinguia): a saída é
+  //    voltar ao começo, e não "limpar" um filtro que não existe;
+  //  · fora disso não há ação: seria um link para a própria URL.
+  function saidaDoVazio(base: string, filtroNaUrl: boolean) {
+    if (filtroNaUrl) {
+      return {
+        descricao:
+          'Nada nesta combinação de filtros — o que não quer dizer que não haja mais nada. Ajuste ou limpe os filtros para ver tudo.',
+        acao: { href: base, rotulo: 'Limpar filtros' },
+      }
+    }
+    if (temRecorteFilial) {
+      return {
+        descricao:
+          'Esta lista abre recortada nas filiais em que você opera — as outras podem ter registros.',
+        acao: {
+          href: `${base}${base.includes('?') ? '&' : '?'}filial=todas`,
+          rotulo: 'Ver todas as filiais',
+        },
+      }
+    }
+    // Rede de segurança: `?page=N` fora de faixa normalmente NÃO chega aqui (as
+    // queries têm o clamp de PGRST103 e devolvem a última página), mas se algum dia
+    // chegar, "limpar filtros" seria conselho errado — o que sobrou foi a página.
+    if (page > 1) {
+      return {
+        descricao: 'Esta página está além do fim da lista.',
+        acao: { href: base, rotulo: 'Voltar para a primeira página' },
+      }
+    }
+    return { descricao: undefined, acao: undefined }
+  }
+  const vazioFila = saidaDoVazio('/pendencias', temFiltro)
+  const vazioMesa = saidaDoVazio('/pendencias?tipo=conflito', temFiltroMesa)
 
   // F24 — a aba de conflitos troca a FONTE: em vez da fila (`v_fila_pendencias`), a mesa lê
   // as views de conflito. Por isso o `tipo` que vai para `listarPendencias` é estreitado —
@@ -164,7 +220,7 @@ export default async function PendenciasPage({
       </div>
 
       {/* KPI-chips (reuso de getPendencias — total por bucket) + o de conflito */}
-      <PendenciasChips pendencias={chipsComConflito} />
+      <PendenciasChips pendencias={chipsComConflito} recortado={temRecorteFilial} />
 
       <PendenciasFiltros
         filiais={filiais}
@@ -179,18 +235,15 @@ export default async function PendenciasPage({
             {/* Distingue "não há conflito nenhum" (comemorar) de "nada NESTE filtro"
                 (ajustar) — mesma doutrina do estado vazio da fila. Afirmar a verdade
                 global com um filtro aplicado seria mentir por omissão. */}
-            {filialSlugs.length > 0 || q ? (
+            {/* `totalConflitos > 0` cobre a página fora de faixa, como a fila já
+                fazia com `lista.total`: sem ele a mesa comemora "nenhum conflito"
+                numa `?page=9` que só ficou vazia por estar além do fim. */}
+            {temRecorteFilial || q || totalConflitos > 0 ? (
               <EstadoVazio
                 icone={Filter}
                 titulo="Nenhum conflito neste filtro"
-                descricao="Nada nesta combinação de filtros — o que não quer dizer que não haja conflitos. Ajuste ou limpe os filtros para ver todos."
-                // F25 — `filial=todas` explícito: sem ele, "Limpar filtros" só
-                // apaga o param e o operador volta ao PADRÃO DO CARGO, que é o
-                // mesmo recorte de onde ele veio — um botão sem efeito nenhum.
-                acao={{
-                  href: '/pendencias?tipo=conflito&filial=todas',
-                  rotulo: 'Limpar filtros',
-                }}
+                descricao={vazioMesa.descricao}
+                acao={vazioMesa.acao}
                 className="border-0"
               />
             ) : (
@@ -214,7 +267,9 @@ export default async function PendenciasPage({
         {lista.rows.length === 0 ? (
           // "Não há pendência nenhuma" (comemorar) x "nada neste filtro" (ajustar).
           // `lista.total` cobre também a página fora de faixa (?page=9 sem filtro).
-          !temFiltro && lista.total === 0 ? (
+          // ⚠ `!temRecorteFilial` é obrigatório: sem ele o operador comemora com a
+          // fila de OUTRA filial cheia (a leitura já vem recortada pelo cargo).
+          !temFiltro && !temRecorteFilial && lista.total === 0 ? (
             <EstadoVazio
               icone={ClipboardCheck}
               titulo="Nenhuma pendência aberta 🎉"
@@ -225,9 +280,8 @@ export default async function PendenciasPage({
             <EstadoVazio
               icone={Filter}
               titulo="Nenhuma pendência neste filtro"
-              descricao="Nada nesta combinação de filtros — o que não quer dizer que não haja pendências. Ajuste ou limpe os filtros para ver todas."
-              // F25 — ver a nota do estado vazio da mesa, logo acima.
-              acao={{ href: '/pendencias?filial=todas', rotulo: 'Limpar filtros' }}
+              descricao={vazioFila.descricao}
+              acao={vazioFila.acao}
               className="border-0"
             />
           )

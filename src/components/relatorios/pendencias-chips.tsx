@@ -1,11 +1,24 @@
 import type { ChipPendencia } from '@/lib/relatorios/tipos'
 
 // Chips de pendências (mockup + OS-F3 3.2.2). Só aparecem os buckets com total > 0.
-export function PendenciasChips({ pendencias }: { pendencias: ChipPendencia[] }) {
+export function PendenciasChips({
+  pendencias,
+  // ⚠ Os chips são contados sobre uma leitura que pode vir RECORTADA. Nos corpos de
+  // relatório o recorte é o próprio assunto da página (o relatório é DE uma filial),
+  // então a frase curta basta. Em /pendencias, não: desde a F25 o operador abre a
+  // tela já recortado nas filiais dele sem nada na URL, e a frase global aparecia
+  // 30px acima de um estado vazio que dizia justamente o contrário.
+  recortado = false,
+}: {
+  pendencias: ChipPendencia[]
+  recortado?: boolean
+}) {
   if (pendencias.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nenhuma pendência aberta. 🎉
+        {recortado
+          ? 'Nenhuma pendência nas filiais em que você opera. 🎉'
+          : 'Nenhuma pendência aberta. 🎉'}
       </p>
     )
   }

@@ -77,6 +77,20 @@ export function FiltroFilial({
     setMarcados(selecionados)
   }
 
+  // ⚠ Valor SELECIONADO que não está nas opções. Acontece de verdade:
+  // `resolverFiliaisSlugs` preserva de propósito o slug de uma filial DESATIVADA
+  // vindo de um link antigo, e `listarFiliais()` só devolve filial ativa. Sem esta
+  // linha ele não tinha caixa nenhuma na tela (mas contava no badge) e — pior — o
+  // `filter` abaixo o apagava da URL no primeiro clique em QUALQUER outra filial,
+  // mudando um filtro que a pessoa não tocou. Entra como opção de verdade: dá para
+  // ver que está lá e dá para desmarcá-lo de propósito.
+  const listadas = [
+    ...opcoes,
+    ...selecionados
+      .filter((v) => !opcoes.some((o) => o.valor === v))
+      .map((v) => ({ valor: v, rotulo: v })),
+  ]
+
   function alternar(valor: string, marcado: boolean) {
     const proximos = marcado
       ? [...marcados, valor]
@@ -84,7 +98,7 @@ export function FiltroFilial({
     setMarcados(proximos)
     // A ordem das opções manda no CSV — assim `?filial=2,3` e `?filial=3,2`
     // convergem para a mesma URL e o histórico do navegador não vira ruído.
-    const ordenados = opcoes.map((o) => o.valor).filter((v) => proximos.includes(v))
+    const ordenados = listadas.map((o) => o.valor).filter((v) => proximos.includes(v))
     aplicar(ordenados.length > 0 ? ordenados.join(',') : FILIAL_TODAS)
   }
 
@@ -106,7 +120,7 @@ export function FiltroFilial({
       <PopoverContent align="end" className="w-56">
         <p className="mb-2 text-sm font-medium">Filtrar por filial</p>
         <div className="grid gap-2">
-          {opcoes.map((o) => {
+          {listadas.map((o) => {
             const id = `${idPrefixo}-${o.valor}`
             return (
               <div key={o.valor} className="flex items-center gap-2">

@@ -46,7 +46,13 @@ import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { SaldosFiliaisTabela } from '@/components/itens/saldos-filiais'
 import { BadgeRepor } from '@/components/itens/badge-repor'
 import { estoquePorItem, minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
-import { dataISO, ehVisaoConsolidado, idNumerico, paginaNumerica } from '@/lib/url-params'
+import {
+  dataISO,
+  ehFiltroDeFilial,
+  ehVisaoConsolidado,
+  idNumerico,
+  paginaNumerica,
+} from '@/lib/url-params'
 import { resolverFiliaisIds } from '@/lib/filtros/filial'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
@@ -203,6 +209,13 @@ export default async function ItensPage({
   // F25 — com MULTI-seleção, pré-selecionar só faz sentido quando a lista efetiva
   // tem EXATAMENTE uma filial: com duas marcadas não há "a filial da tela", e
   // escolher uma delas seria adivinhar. Com 2+, o dialog abre sem preset.
+  //
+  // ⚠ E NÃO se estende ao padrão do cargo quando `filialIds` está vazio. A revisão
+  // da F25 chegou a tentar: seria inerte no caso que motivava (na visão "por filial"
+  // quem desenha o "+" é `SaldosFiliaisTabela`, que NÃO recebe preset — decisão
+  // deliberada dela, "o + é da LINHA, não da célula"), e ativo justamente no caso
+  // errado (`?filial=todas`, onde o operador acabou de pedir para ver tudo e
+  // receberia a filial dele de volta no diálogo).
   const filialUnica = filialIds.length === 1 ? filialIds[0] : null
   const filialPreset = podeEscreverNaFilial(operador, filialUnica) ? filialUnica : null
 
@@ -223,8 +236,12 @@ export default async function ItensPage({
   // filtro, que já olham `params.get('filial')`.
   // (na visão por filial o `filial` é neutralizado, então nem chega aqui)
   const temFiltroSaldos = Boolean(
-    q || grupoFiltro || (!visaoFiliais && primeiro(sp.filial)),
+    q || grupoFiltro || (!visaoFiliais && ehFiltroDeFilial(primeiro(sp.filial))),
   )
+  // ⚠ ...e, como nas outras listas, o RECORTE DO CARGO não aparece na URL mas
+  // recorta a leitura: sem isto o operador de Serra, no Consolidado, lia "Nenhum
+  // saldo ainda" — afirmação global — com as outras filiais cheias de item.
+  const temRecorteSaldos = filialIds.length > 0 && filialIds.length < filiais.length
 
   return (
     <div className="space-y-4">
@@ -290,6 +307,13 @@ export default async function ItensPage({
                 ? 'Ajuste a busca ou o grupo para ver os saldos.'
                 : 'Ajuste a busca, o grupo ou a filial para ver os saldos.'
             }
+          />
+        ) : temRecorteSaldos ? (
+          <EstadoVazio
+            icone={PackageOpen}
+            titulo="Nenhum saldo nas suas filiais"
+            descricao="Este Consolidado abre recortado nas filiais em que você opera — as outras podem ter saldo."
+            acao={{ href: '/itens?visao=consolidado&filial=todas', rotulo: 'Ver todas as filiais' }}
           />
         ) : (
           <EstadoVazio

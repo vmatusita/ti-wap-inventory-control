@@ -67,7 +67,7 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
       tipo: 'lista',
       itens: [
         '"Exportar saldos", no cabeçalho da página, gera o arquivo com os itens que estão filtrados na tela.',
-        'Duas coisas para saber antes de usar o arquivo numa reunião: na visão Por filial o export sai CONSOLIDADO (uma linha por item, não uma coluna por filial) — o próprio rótulo do arquivo diz "Consolidado"; e o estoque mínimo não vai no arquivo, ele existe só na tela.',
+        'Duas coisas para saber antes de usar o arquivo numa reunião: o export acompanha a visão em que você está — na visão Por filial o arquivo sai com uma COLUNA POR FILIAL (mais "faltam" de cada uma, o Total e os números de todas as filiais juntas) e se chama itens-saldos-por-filial; na visão Consolidado ele sai com uma linha por item e a coluna Filial dizendo o recorte ("Consolidado", ou os nomes somados). E o estoque mínimo não vai no arquivo em nenhuma das duas: ele existe só na tela.',
         '"Exportar histórico", no cabeçalho do histórico de lançamentos, é outro arquivo: leva os lançamentos filtrados, não os saldos.',
       ],
     },

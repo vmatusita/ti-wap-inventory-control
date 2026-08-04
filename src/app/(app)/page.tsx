@@ -233,11 +233,13 @@ export default async function DashboardPage() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Pendências</h2>
               <Link
-                // `filial=todas` explícito (F25): este card é GLOBAL, e a
-                // ausência do param levaria o operador à lista recortada nas
-                // filiais dele — um número aqui, outro lá.
-                // Sem sentinela: o card já mostra o MESMO recorte com que
-                // /pendencias abre para este cargo.
+                // SEM sentinela, de propósito (F25): este card já mostra o MESMO
+                // recorte com que /pendencias abre para este cargo, então "ver
+                // todas" tem de cair exatamente nessa lista. Acrescentar
+                // `?filial=todas` aqui alargaria o destino e traria de volta a
+                // divergência selo × card × lista que a fase fechou.
+                // (Os KPIs acima são o caso oposto: número GLOBAL, link com a
+                // sentinela — ver o comentário de LINKS_KPI.)
                 href="/pendencias"
                 className="text-xs text-muted-foreground underline-offset-2 hover:underline"
               >
@@ -252,11 +254,24 @@ export default async function DashboardPage() {
                 descricao="a lista pode estar desatualizada — abra Pendências para conferir"
               />
             ) : pendencias.length === 0 ? (
+              // ⚠ O card lê a fila JÁ RECORTADA nas filiais do cargo, então
+              // "nenhuma pendência aberta" seria uma afirmação global feita sobre
+              // uma leitura parcial. Quando há recorte, o texto diz de onde.
+              //
+              // ⚠ E fala de FILA, nunca de "pendências" em geral: o selo da sidebar
+              // soma fila + conflitos entre filiais, e este card lê só
+              // `v_fila_pendencias`. Um selo "2" ao lado de um 🎉 categórico seria a
+              // mesma contradição entre superfícies vizinhas que a F25 foi fechar —
+              // o conflito não some, ele está na aba da mesa.
               <EstadoVazio
                 variante="inline"
                 icone={ClipboardCheck}
-                titulo="Nenhuma pendência aberta. 🎉"
-                descricao="nada a resolver por aqui"
+                titulo={
+                  filiaisDoOperador.length > 0
+                    ? 'Nenhuma pendência na fila das suas filiais. 🎉'
+                    : 'Nenhuma pendência na fila. 🎉'
+                }
+                descricao="conflitos entre filiais, se houver, aparecem em Pendências"
               />
             ) : (
               <ul className="divide-y">

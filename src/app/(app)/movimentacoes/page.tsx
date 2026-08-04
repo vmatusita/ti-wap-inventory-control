@@ -8,7 +8,7 @@ import {
 import { listarFiliais } from '@/lib/queries/filiais'
 import { getOperador } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
-import { dataISO, paginaNumerica } from '@/lib/url-params'
+import { dataISO, ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 import { resolverFiliaisIds } from '@/lib/filtros/filial'
 import { TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
 import { Button } from '@/components/ui/button'
@@ -80,13 +80,34 @@ export default async function MovimentacoesPage({
   })
 
   const escreve = podeEscrever(operador?.papel)
-  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
-  // RESOLVIDA aqui faria `temFiltro` ser SEMPRE true para o operador (o padrão do
-  // cargo nunca é vazio): o estado vazio diria "nada com esses filtros" onde a
-  // verdade é "não há nada cadastrado", e ofereceria um "Limpar filtros" que
-  // recai no MESMO recorte — botão morto. É a mesma régua dos componentes de
-  // filtro, que já olham `params.get('filial')`.
-  const temFiltro = Boolean(q || de || ate || tipo || texto(sp.filial))
+  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL, e `ehFiltroDeFilial`
+  // ainda descarta a SENTINELA `todas` (que declara "sem recorte" — ver a nota da
+  // função). Usar a lista RESOLVIDA aqui faria isto ser SEMPRE true para o operador,
+  // porque o padrão do cargo nunca é vazio.
+  const temFiltro = Boolean(q || de || ate || tipo) || ehFiltroDeFilial(texto(sp.filial))
+
+  // ⚠ ...mas o ESTADO VAZIO precisa da outra pergunta: "esta lista está recortada?".
+  // O padrão do cargo não está na URL e mesmo assim recorta a query — sem isto o
+  // operador de uma filial sem movimentação lia "Nenhuma movimentação registrada
+  // ainda", afirmação global, com o histórico das outras filiais cheio.
+  // `< filiais.length` porque operador vinculado a TODAS lê o mesmo que um admin.
+  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+
+  // A saída do vazio, na mesma escada de /ativos e /pendencias: com filtro na URL,
+  // "Limpar" volta à URL de repouso (o destino do botão "Limpar" da barra); com só o
+  // recorte do cargo não há filtro a limpar e o que ajuda é ALARGAR. Sem os dois,
+  // nenhuma ação — o link apontaria para a própria URL.
+  const vazioFiltrado = temFiltro
+    ? {
+        descricao:
+          'Ajuste o período, o tipo, a filial ou a busca — ou limpe os filtros para ver tudo.',
+        acao: { href: '/movimentacoes', rotulo: 'Limpar filtros' },
+      }
+    : {
+        descricao:
+          'Esta lista abre recortada nas filiais em que você opera — as outras podem ter movimentações.',
+        acao: { href: '/movimentacoes?filial=todas', rotulo: 'Ver todas as filiais' },
+      }
 
   // A busca é de CAMPO ÚNICO (o PostgREST não faz `OR` entre tabela e embed):
   // dizer em qual campo procurou evita o operador achar que "não existe".
@@ -105,7 +126,14 @@ export default async function MovimentacoesPage({
           <p className="text-sm text-muted-foreground">
             {resultado.total.toLocaleString('pt-BR')}{' '}
             {resultado.total === 1 ? 'movimentação' : 'movimentações'}
-            {temFiltro ? ' no filtro atual' : ' registradas'}
+            {/* O recorte do cargo conta aqui pelo mesmo motivo do estado vazio:
+                sem ele o subtítulo dizia "N registradas" — afirmação GLOBAL —
+                sobre uma contagem que já vinha recortada nas filiais do operador. */}
+            {temFiltro
+              ? ' no filtro atual'
+              : temRecorteFilial
+                ? ' nas suas filiais'
+                : ' registradas'}
           </p>
         </div>
         {escreve && (
@@ -148,7 +176,12 @@ export default async function MovimentacoesPage({
 
       <ListaMovimentacoes
         rows={resultado.rows}
-        temFiltro={temFiltro}
+        // O recorte do cargo conta como filtro AQUI: é o que impede a lista de
+        // afirmar "nenhuma movimentação registrada ainda" sobre um histórico que
+        // existe, só não é o desta filial. E `vazio` acompanha, senão o texto manda
+        // limpar filtros que não existem, sem botão nenhum para clicar.
+        temFiltro={temFiltro || temRecorteFilial}
+        vazio={vazioFiltrado}
         podeRegistrar={escreve}
       />
 

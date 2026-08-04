@@ -587,10 +587,19 @@ export async function atualizarFilial(input: {
     }
   }
 
-  const { error } = await client
-    .from('filiais')
-    .update({ nome, slug, ativo, cidade })
-    .eq('id', id)
+  // ⚠ `cidade` só entra no UPDATE quando o caller a MANDOU. O tipo de entrada a
+  // declara opcional, e um `update({ …, cidade: undefined→'' })` apagaria a cidade
+  // de quem só quis renomear a filial ou desativá-la — perda silenciosa de dado
+  // real, descoberta só na próxima geração de termo. `atualizarFilialSchema`
+  // preserva o `undefined` justamente para este teste ser possível.
+  const patch: { nome: string; slug: string; ativo: boolean; cidade?: string } = {
+    nome,
+    slug,
+    ativo,
+  }
+  if (cidade !== undefined) patch.cidade = cidade
+
+  const { error } = await client.from('filiais').update(patch).eq('id', id)
   if (error) {
     if (error.message.toLowerCase().includes('duplicate')) {
       return { ok: false, erro: 'Já existe uma filial com esse slug.' }

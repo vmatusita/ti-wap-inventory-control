@@ -3633,3 +3633,20 @@ Revisão de recall sobre o diff inteiro da F24. Os achados de UI/queries foram c
 - Decisão/constatação: o diff de `src/lib/import/`, `scripts/import/` e `src/lib/validators/importar.ts` entre o fim da F24 (`bb426ca`) e o fim da F25 é **VAZIO**. Em `actions/importar.ts` e `importar-wizard.tsx` mudou APENAS a anotação de tipo `Filial` → `Pick<Filial, 'id'|'slug'|'nome'>`, mais comentários.
 - Motivo da mudança de tipo: a F25 acrescentou `cidade` ao tipo `Filial`, e amarrar o contrato do import ao tipo inteiro faria toda coluna nova de `filiais` vazar para aquela tela. O `Pick` congela o que o import de fato usa.
 - Por que isso É a prova: anotação de tipo do TypeScript é apagada no build (type erasure) — não existe em runtime. Nenhuma linha executável do motor, do layout do CSV ou da RPC mudou, logo contagens, erros e avisos do preview são os mesmos por construção.
+
+---
+
+## 2026-08-04 · F25 · Revisão de código da fase — 12 achados aplicados (e o que eles revogaram)
+
+- **Contexto:** a revisão adversarial da F25 (12 achados) e a verificação dos próprios fixes acharam uma família de defeitos com uma raiz só: o filtro de filial ganhou um **padrão por cargo que NÃO aparece na URL**, e várias superfícies continuaram decidindo por `params.get('filial')` — que só enxerga a URL. Daí telas afirmando verdade GLOBAL sobre leitura RECORTADA, e botões "Limpar" apontando para a própria página.
+- **Decisão:**
+  1. **Duas perguntas, dois booleanos, em todas as listas** (`/ativos`, `/movimentacoes`, `/pendencias`, `/itens`): `temFiltro` = "há filtro na URL?" (controla o botão Limpar) e `temRecorteFilial` = "a leitura está estreitada?" (controla o que a tela pode AFIRMAR). O estado comemorativo ("nada cadastrado ainda", "nenhuma pendência aberta 🎉") só sai quando os dois são falsos.
+  2. **A sentinela `filial=todas` deixa de contar como filtro** (`ehFiltroDeFilial`, em `url-params.ts`). Contá-la fechava um ciclo: "Ver todas as filiais" levava a `?filial=todas`, e de lá "Limpar filtros" voltava — o operador nunca alcançava o estado "não há nada cadastrado" nem o CTA de cadastrar o primeiro.
+  3. **`temRecorteFilial` exige `< filiais.length`**: operador vinculado a TODAS as filiais lê o mesmo que um admin (caminho real da conta rebaixada, ADR-002) e não pode receber "as outras podem ter…".
+  4. **O export de saldos de `/itens` acompanha a VISÃO** (colunas por filial na visão por filial, arquivo `itens-saldos-por-filial`), em vez de baixar sempre o Consolidado. Com o default invertido pela F25, a divergência tela × arquivo (achado F12-W4-03) tinha virado o caminho de todo mundo.
+  5. **REVOGA o §2.3 da ordem F25** — "o aviso de campos faltantes passa a cobrir telefone/IMEI/Pulsus quando a categoria é celular". A 0101 não faz backfill, então o aviso dispararia em ~100% dos termos de celular; e os três são manuais por decisão da F5A (PLANO-TERMOS §3.6), digitados no diálogo. O **pré-preenchimento pelo cadastro**, que é o ganho real do item, fica.
+  6. **`atualizarFilial` não apaga mais `cidade` quando o campo não é enviado** (`atualizarFilialSchema` perde o `.default('')` do `filialSchema`; o UPDATE monta patch parcial).
+  7. **`marcadorAusente` no smoke**, separado de `marcadorProibido`: o segundo é controle de ACESSO e trata redirect como recusa legítima (=OK), o que faria uma asserção de conteúdo passar verde numa rota que nunca renderizou.
+  8. Descartado: estender o preset de filial do lançamento de `/itens` ao padrão do cargo — seria inerte na visão por filial (quem desenha o "+" é `SaldosFiliaisTabela`, que não recebe preset, por decisão dela) e ativo justamente em `?filial=todas`, onde o operador pediu para ver tudo.
+- **Motivo:** a regra da casa (F12 · W6A) é que a régua de um param more num módulo só; a F25 acertou isso para o PARSE e deixou escapar a leitura de "isto está filtrado?". Os itens 1–3 fecham essa segunda metade. O item 5 troca um requisito literal da ordem por aquilo que ele pretendia — e CLAUDE.md manda registrar, não travar.
+- **Reversível?** Tudo é código de aplicação, sem migration. `git revert` do commit da revisão restaura o comportamento anterior; o banco não é tocado.

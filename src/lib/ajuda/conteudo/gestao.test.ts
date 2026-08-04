@@ -338,7 +338,11 @@ describe('lançar itens e ler saldos', () => {
 
   it('registra as limitações do export de saldos (estado, não promessa)', () => {
     contem('saldos-e-estoque-minimo', 'Exportar saldos')
-    contem('saldos-e-estoque-minimo', 'CONSOLIDADO')
+    // ⚠ O teste FIXAVA a palavra "CONSOLIDADO" aqui, e por isso a suíte passava
+    // verde enquanto a ajuda descrevia um comportamento que a revisão da F25 já
+    // tinha mudado — protegendo a documentação errada em vez de detectá-la. O que
+    // vale fixar é o par tela × arquivo: o export ACOMPANHA a visão.
+    contem('saldos-e-estoque-minimo', 'COLUNA POR FILIAL')
     contem('saldos-e-estoque-minimo', 'o estoque mínimo não vai no arquivo')
   })
 

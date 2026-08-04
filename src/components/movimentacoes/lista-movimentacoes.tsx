@@ -32,10 +32,17 @@ const COL_OPERADOR = 'hidden xl:table-cell'
 export function ListaMovimentacoes({
   rows,
   temFiltro,
+  // F25-fix — a saída do vazio filtrado vem PRONTA da página, porque só ela sabe
+  // distinguir "filtro na URL" (limpar) de "recorte do cargo" (alargar). Antes o
+  // texto daqui mandava "limpe os filtros" mesmo quando não havia filtro nenhum na
+  // URL — e nesse caso o botão "Limpar" da barra também não existia, então a
+  // instrução apontava para um controle invisível.
+  vazio,
   podeRegistrar = false,
 }: {
   rows: MovimentacaoLista[]
   temFiltro: boolean
+  vazio?: { descricao?: string; acao?: { href: string; rotulo: string } }
   podeRegistrar?: boolean
 }) {
   if (rows.length === 0) {
@@ -43,7 +50,11 @@ export function ListaMovimentacoes({
       <EstadoVazio
         icone={ArrowLeftRight}
         titulo="Nenhuma movimentação com esses filtros"
-        descricao="Ajuste o período, o tipo, a filial ou a busca — ou limpe os filtros para ver tudo."
+        descricao={
+          vazio?.descricao ??
+          'Ajuste o período, o tipo, a filial ou a busca — ou limpe os filtros para ver tudo.'
+        }
+        acao={vazio?.acao}
       />
     ) : (
       <EstadoVazio

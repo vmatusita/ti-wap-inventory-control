@@ -105,15 +105,17 @@ describe('camposFaltantesDoTermo', () => {
     ])
   })
 
-  it('CELULAR sem os três campos novos cobra os três', () => {
-    expect(camposFaltantesDoTermo(ativo({ categoria: 'celular' }))).toEqual([
-      'nº do telefone',
-      'IMEI',
-      'Pulsus',
-    ])
+  // ⚠ Telefone/IMEI/Pulsus NÃO são cobrados, nem no celular. A 0101 não faz
+  // backfill, então a frota inteira anterior à F25 os tem nulos: o aviso apareceria
+  // em ~100% dos termos de celular e treinaria o operador a ignorar o banner — que
+  // é o mesmo que carrega "lote de filiais divergentes" e "filial sem cidade". E a
+  // frase seria falsa: os três são campos editáveis do diálogo, digitados ali desde
+  // a F5A, então não "saem em branco" por não estarem no cadastro.
+  it('CELULAR sem os três campos novos NÃO é cobrado', () => {
+    expect(camposFaltantesDoTermo(ativo({ categoria: 'celular' }))).toEqual([])
   })
 
-  it('celular COM os três campos não cobra nada', () => {
+  it('celular COM os três campos também não cobra nada', () => {
     const cel = ativo({
       categoria: 'celular',
       telefone: '(41) 90000-0000',
@@ -121,6 +123,12 @@ describe('camposFaltantesDoTermo', () => {
       pulsus: 'PULSUS-1',
     })
     expect(camposFaltantesDoTermo(cel)).toEqual([])
+  })
+
+  it('o celular continua cobrando os campos CADASTRAIS, como toda categoria', () => {
+    expect(
+      camposFaltantesDoTermo(ativo({ categoria: 'celular', modelo: null })),
+    ).toEqual(['modelo'])
   })
 
   it('⚠ NOTEBOOK sem IMEI NÃO é cobrado — os campos não vazam para outra categoria', () => {

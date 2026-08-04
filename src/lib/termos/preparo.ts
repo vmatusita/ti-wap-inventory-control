@@ -72,19 +72,33 @@ export function cidadeDoTermo(
 /**
  * O que falta no cadastro do ativo para o termo sair completo.
  *
- * ⚠ Os três campos de celular só entram quando a categoria É celular: sem essa
- * guarda, todo termo de notebook passaria a avisar que falta IMEI.
+ * ⚠ SÓ os campos cadastrais de hardware. Telefone, IMEI e Pulsus ficaram DE FORA
+ * de propósito, apesar de a F25 tê-los trazido para o ativo:
+ *
+ *  · a migration 0101 não faz backfill (decisão registrada — mover texto livre de
+ *    `observacoes` é trabalho humano), então a frota inteira de celulares
+ *    cadastrada antes de 04/08/2026 tem os três nulos. O aviso dispararia em ~100%
+ *    dos termos de celular, e aviso que sempre aparece é aviso que ninguém lê — o
+ *    banner é o mesmo que carrega os avisos que importam (lote de filiais
+ *    divergentes, filial sem cidade cadastrada);
+ *  · e o aviso descreveria como ANOMALIA o fluxo normal deles: telefone, IMEI e
+ *    Pulsus foram MANUAIS por decisão explícita da F5A (PLANO-TERMOS §3.6) e são
+ *    digitados no diálogo desde então. Marca, modelo, service tag e patrimônio
+ *    também são editáveis ali, mas para eles o vazio é um buraco no CADASTRO — algo
+ *    a consertar na ficha. Para os três do celular, até a 0101, cadastro não havia.
+ *
+ * O pré-preenchimento pelo cadastro (o ganho real da fase) continua igual; quem
+ * não tiver o IMEI no ativo simplesmente digita, como sempre fez.
+ *
+ * ⚠ Isto REVOGA o §2.3 da ordem F25 ("o aviso passa a cobrir os 3 quando a categoria
+ * é celular"). Ata em docs/DECISOES.md (04/08/2026).
  */
 export function camposFaltantesDoTermo(a: AtivoDoTermo): string[] {
-  const ehCelular = a.categoria === 'celular'
   return [
     !a.marca && 'marca',
     !a.modelo && 'modelo',
     !a.service_tag && 'service tag',
     !a.patrimonio && 'patrimônio',
-    ehCelular && !a.telefone && 'nº do telefone',
-    ehCelular && !a.imei && 'IMEI',
-    ehCelular && !a.pulsus && 'Pulsus',
   ].filter(Boolean) as string[]
 }
 

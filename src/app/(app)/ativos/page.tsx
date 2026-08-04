@@ -20,7 +20,7 @@ import {
 // paginação travar) viviam COPIADOS aqui. As cópias eram exatamente a família que
 // produziu os achados F12-W4-01/-03/-04/-05: /itens, /movimentacoes, /pendencias e
 // as actions de export já usam o módulo; /ativos era a última fora.
-import { paginaNumerica } from '@/lib/url-params'
+import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 // F25 — o `filial` da URL virou LISTA e ganhou um padrão por CARGO. A resolução
 // mora em um módulo só porque a action de export reparseia esta MESMA querystring.
 import { resolverFiliaisIds } from '@/lib/filtros/filial'
@@ -103,15 +103,66 @@ export default async function AtivosPage({
   // (mesma forma de /pendencias e /movimentacoes). `ord`, `pp` e `page` ficam de
   // fora: são apresentação, não recorte. `status` e `filialIds` são ARRAYS —
   // `Boolean([])` é true, por isso `.length > 0`.
-  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
-  // RESOLVIDA aqui faria `temFiltro` ser SEMPRE true para o operador (o padrão do
-  // cargo nunca é vazio): o estado vazio diria "nada com esses filtros" onde a
-  // verdade é "não há nada cadastrado", e ofereceria um "Limpar filtros" que
-  // recai no MESMO recorte — botão morto. É a mesma régua dos componentes de
-  // filtro, que já olham `params.get('filial')`.
-  const temFiltro = Boolean(
-    q || texto(sp.filial) || categoria || status.length > 0 || semPatrimonio,
-  )
+  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL, e `ehFiltroDeFilial`
+  // ainda descarta a SENTINELA `todas` (que declara "sem recorte" — ver a nota da
+  // função). Usar a lista RESOLVIDA aqui faria isto ser SEMPRE true para o operador,
+  // porque o padrão do cargo nunca é vazio.
+  const temFiltro =
+    Boolean(q || categoria || status.length > 0 || semPatrimonio) ||
+    ehFiltroDeFilial(texto(sp.filial))
+
+  // ⚠ ...e por isso `temFiltro` NÃO decide se a tela pode afirmar uma verdade
+  // GLOBAL. O padrão do cargo não está na URL e mesmo assim RECORTA a leitura: sem
+  // este segundo booleano, o operador de Serra numa filial recém-criada lia
+  // "Nenhum ativo cadastrado ainda" — com um CTA de "cadastrar o primeiro" — sobre
+  // um acervo de 1.200 máquinas nas outras filiais.
+  //
+  // ⚠ `< filiais.length`: operador vinculado a TODAS as filiais lê o mesmo que um
+  // admin, e negar-lhe a comemoração (ou oferecer um "Ver todas" que não alarga
+  // nada) seria falso. O caminho real é a conta rebaixada de admin para operador,
+  // que a ADR-002 deixa vinculada a todas.
+  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+
+  // A saída do estado vazio tem de MUDAR alguma coisa: com filtro na URL, "Limpar"
+  // volta à URL de repouso (o MESMO destino do botão "Limpar" da barra de filtros,
+  // que até aqui discordava deste); com só o recorte do cargo não há filtro a
+  // limpar e o que ajuda é ALARGAR; sem nenhum dos dois não há ação — o botão
+  // apontaria para a própria URL.
+  //
+  // ⚠ `ord`/`pp` viajam junto: são APRESENTAÇÃO, não filtro (regra F11/T7), e o
+  // botão "Limpar" da barra os preserva. Descartá-los aqui fazia os dois controles
+  // de mesmo rótulo devolverem a lista em ordens e tamanhos de página diferentes.
+  const apresentacao = new URLSearchParams()
+  for (const chave of ['ord', 'pp']) {
+    const valor = texto(sp[chave])
+    if (valor) apresentacao.set(chave, valor)
+  }
+  const semFiltros = (filial?: string) => {
+    const qs = new URLSearchParams(apresentacao)
+    if (filial) qs.set('filial', filial)
+    const s = qs.toString()
+    return s ? `/ativos?${s}` : '/ativos'
+  }
+
+  const vazioFiltrado = temFiltro
+    ? {
+        descricao: 'Ajuste a busca ou limpe os filtros para ver todos os ativos.',
+        acao: { href: semFiltros(), rotulo: 'Limpar filtros' },
+      }
+    : temRecorteFilial
+      ? {
+          descricao:
+            'Esta lista abre recortada nas filiais em que você opera — as outras podem ter ativos.',
+          acao: { href: semFiltros('todas'), rotulo: 'Ver todas as filiais' },
+        }
+      : page > 1
+        ? {
+            // Rede de segurança: com o clamp de PGRST103 esta tela normalmente não
+            // é alcançável, mas se for, "limpar filtros" seria o conselho errado.
+            descricao: 'Esta página está além do fim da lista.',
+            acao: { href: semFiltros(), rotulo: 'Voltar para a primeira página' },
+          }
+        : { descricao: 'Ajuste a busca para ver todos os ativos.', acao: undefined }
 
   const resultado = await listarAtivos({
     q,
@@ -164,7 +215,10 @@ export default async function AtivosPage({
       {resultado.rows.length === 0 ? (
         // F19 — `resultado.total === 0` além do `!temFiltro` porque `?page=9` sem
         // filtro traz zero linhas com base cheia e cairia no texto errado.
-        !temFiltro && resultado.total === 0 ? (
+        // ⚠ `!temRecorteFilial` é obrigatório: sem ele o operador vê "nada
+        // cadastrado ainda" sobre um acervo que só não é dele (o recorte do cargo
+        // não aparece na URL, mas está na query).
+        !temFiltro && !temRecorteFilial && resultado.total === 0 ? (
           <EstadoVazio
             titulo="Nenhum ativo cadastrado ainda"
             descricao={
@@ -178,10 +232,8 @@ export default async function AtivosPage({
           <EstadoVazio
             icone={PackageOpen}
             titulo="Nenhum ativo com esses filtros"
-            descricao="Ajuste a busca ou limpe os filtros para ver todos os ativos."
-            // `filial=todas` explícito: sem ele o operador voltaria ao padrão do
-            // cargo, que é justamente o recorte de onde ele veio.
-            acao={{ href: '/ativos?filial=todas', rotulo: 'Limpar filtros' }}
+            descricao={vazioFiltrado.descricao}
+            acao={vazioFiltrado.acao}
           />
         )
       ) : (
