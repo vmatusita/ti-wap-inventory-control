@@ -865,7 +865,16 @@ const ROTAS_LOGADO = [
     marcadorAusente: 'Filtrar por filial',
   },
   { rota: '/movimentacoes', area: 'movimentações · lista' },
-  { rota: '/movimentacoes/nova', area: 'movimentações · fluxo (B2)' },
+  // F26 — a rota do wizard passou a ter MARCADOR de conteúdo: até aqui ela só
+  // exigia 200, e um 200 com o formulário quebrado (Client Component que não
+  // monta) continuaria verde. O marcador é o subtítulo do corpo da página —
+  // "Nova movimentação" NÃO serve: é também `<h1>`, item do shell e texto do
+  // botão do header, então apareceria mesmo numa página errada.
+  {
+    rota: '/movimentacoes/nova',
+    area: 'movimentações · fluxo (B2)',
+    marcador: 'Registre uma movimentação',
+  },
   { rota: '/pendencias', area: 'pendências' },
   // F24 — a mesa de conflitos entre filiais. Conferência SÓ-LEITURA: a aba tem de abrir e
   // se identificar pelo conteúdo, não só devolver 200.

@@ -16,7 +16,19 @@ export const registrarMovimentacao: PaginaAjuda = {
   titulo: 'Registrar uma movimentação',
   resumo: 'O fluxo em três passos, do lote até a revisão.',
   categoria: 'fazer',
-  termos: ['nova movimentacao', 'lote', 'registrar', 'rascunho', 'duplicata', 'wizard'],
+  termos: [
+    'nova movimentacao',
+    'lote',
+    'registrar',
+    'rascunho',
+    'duplicata',
+    'wizard',
+    'troca',
+    'upgrade',
+    'contrapartida',
+    'trocar equipamento',
+    'substituir equipamento',
+  ],
   legado: ['como-fazer', 'movimentacoes'],
   blocos: [
     {
@@ -81,6 +93,26 @@ export const registrarMovimentacao: PaginaAjuda = {
         'O botão "Registrar outra movimentação" limpa a tela e recomeça do passo 1, sem perder o que já foi gravado.',
       ],
     },
+    {
+      tipo: 'titulo',
+      id: 'registrar-troca-upgrade',
+      texto: 'Trocar o equipamento de alguém numa tela só',
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Registrar a troca/upgrade (as duas metades no mesmo "Registrar")',
+      itens: [
+        `Trocar o equipamento de alguém são sempre duas movimentações: a "${T.devolucao.rotulo}" do antigo e a "${T.saida.rotulo}" do novo, as duas com o motivo "Troca / upgrade" (é o rótulo padrão; Administração › Motivos pode renomeá-lo).`,
+        `Monte o lote normalmente e escolha "${T.devolucao.rotulo}" com o motivo "Troca / upgrade": a mesma tela abre a seção "${T.saida.rotulo} da troca", para você escolher o equipamento que entra no lugar.`,
+        `Vale igual no outro sentido: "${T.saida.rotulo}" com esse mesmo motivo abre a seção "${T.devolucao.rotulo} da troca". Ali a busca acha o equipamento antigo pelo nome do colaborador — é o caminho mais rápido para achar o que ele tem na mão.`,
+        'Quando todos os equipamentos da primeira metade estão com a MESMA pessoa, o campo Colaborador da outra metade já vem preenchido com o nome dela, e continua editável. Estando com pessoas diferentes (ou com ninguém), o campo vem vazio — o sistema não escolhe por você.',
+        'Data, Chamado e Observação são os mesmos para as duas metades: um preenchimento só. O motivo da outra metade é fixo e aparece escrito na própria seção.',
+        'A Revisão mostra os dois blocos separados, cada um com a sua contagem, e um clique em "Registrar" grava a troca inteira.',
+        'Não quer lançar a outra metade agora? Marque "Deixar a contrapartida para depois": só a metade que você montou é registrada, e a tela de sucesso oferece um atalho para lançar a outra em seguida, já com o tipo, o motivo e o colaborador preenchidos.',
+        'Duas regras da troca: o mesmo equipamento não pode estar nas duas metades, e o teto do lote conta a SOMA das duas.',
+        'Depois de gravadas, as duas movimentações são independentes — estornar uma delas não desfaz a outra.',
+      ],
+    },
     { tipo: 'titulo', id: 'registrar-bastidores', texto: 'O que acontece por trás' },
     {
       tipo: 'lista',
@@ -121,6 +153,22 @@ export const registrarMovimentacao: PaginaAjuda = {
           '"Transição inválida: o ativo não aceita essa movimentação no estado atual."',
           'O estado do ativo mudou depois que você montou o lote. Recarregue a tela e refaça a partir do estado real.',
         ],
+        [
+          `"Adicione o(s) equipamento(s) da ${T.saida.rotulo.toLowerCase()} da troca — ou marque 'Deixar a contrapartida para depois'."`,
+          'A seção da troca está aberta e sem nenhum equipamento. Escolha o que entra no lugar — ou diga que a outra metade fica para depois.',
+        ],
+        [
+          '"{patrimônio} está nas duas metades da troca"',
+          'O mesmo equipamento não pode ser devolvido e entregue no mesmo registro. Tire-o de uma das duas seções.',
+        ],
+        [
+          `"As duas metades somam {n} ativos e o lote aceita no máximo ${MAX_LOTE_MOVIMENTACAO}."`,
+          'O teto conta o lote inteiro, somando as duas seções. Tire ativos de uma delas e registre o resto num segundo lote.',
+        ],
+        [
+          `"{patrimônio} ({estado}) não permite \\"${T.saida.rotulo}\\" — escolha outro equipamento para a troca."`,
+          'O equipamento escolhido para a outra metade não está num estado que aceita aquela movimentação. Escolha outro, ou acerte o estado dele antes.',
+        ],
       ],
     },
     {
@@ -131,6 +179,10 @@ export const registrarMovimentacao: PaginaAjuda = {
         { slug: 'tipos-de-movimentacao' },
         { slug: 'termos-de-responsabilidade' },
         { slug: 'entregar-emprestar-reservar' },
+        {
+          slug: 'devolucao-e-triagem',
+          texto: 'A devolução, a triagem e a troca vistas do outro lado',
+        },
         { slug: 'corrigir-estorno-ajuste' },
       ],
     },

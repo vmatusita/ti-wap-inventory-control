@@ -21,6 +21,10 @@ export const devolucaoETriagem: PaginaAjuda = {
     'carregador',
     'desligamento',
     'devolver',
+    'troca',
+    'upgrade',
+    'contrapartida',
+    'trocar notebook',
   ],
   legado: ['movimentacoes'],
   blocos: [
@@ -63,6 +67,23 @@ export const devolucaoETriagem: PaginaAjuda = {
         'Na ficha do ativo elas aparecem no card "Itens faltantes da devolução", com as abertas em destaque e as resolvidas logo abaixo, como registro (desfecho, quem resolveu e quando).',
         'O desfecho é escolhido na página Pendências: "Item recuperado" ou "Baixa — não vai voltar". Dá para resolver várias de uma vez, com uma justificativa só.',
         'Aprovar a triagem não encerra essas pendências — os dois assuntos são independentes de propósito.',
+      ],
+    },
+    {
+      tipo: 'titulo',
+      id: 'devolucao-troca-upgrade',
+      texto: 'Devolução que é troca: registre a entrega junto',
+    },
+    {
+      tipo: 'lista',
+      itens: [
+        `Quando o motivo da devolução é "Troca / upgrade" (é o rótulo padrão; Administração › Motivos pode renomeá-lo), a mesma tela abre a seção "${T.saida.rotulo} da troca" para o equipamento que entra no lugar — e as duas metades entram num "Registrar" só.`,
+        `A seção aparece nos dois sentidos: começando pela "${T.saida.rotulo}" com esse mesmo motivo, quem abre é a seção "${T.devolucao.rotulo} da troca", e a busca dela acha o equipamento antigo pelo nome do colaborador.`,
+        `Cada metade obedece às regras de sempre: o que entra precisa estar "${S.em_estoque.rotulo}", "${S.reservado.rotulo}" ou "${S.em_triagem.rotulo}"; o que volta, "${S.em_uso.rotulo}" ou "${S.emprestado.rotulo}".`,
+        `O checklist de acessórios é sempre da metade que RECEBE de volta — na seção da troca ele aparece como "Itens faltantes na devolução da troca", e cada item marcado abre a mesma pendência de sempre.`,
+        'A tela de sucesso traz o documento de cada metade: o termo de responsabilidade dos equipamentos entregues e o termo de devolução dos que voltaram.',
+        'Marcando "Deixar a contrapartida para depois", só a metade montada é registrada, e a tela de sucesso oferece o atalho para lançar a outra em seguida.',
+        'As duas movimentações são independentes depois de gravadas: estornar uma delas não desfaz a outra.',
       ],
     },
     { tipo: 'titulo', id: 'devolucao-triagem', texto: 'Conferir e liberar (Triagem OK)' },
@@ -112,6 +133,10 @@ export const devolucaoETriagem: PaginaAjuda = {
         [
           `O ativo ficou "${S.em_triagem.rotulo}" e não devia`,
           `A devolução sempre leva para a triagem — é o desenho do fluxo. Para liberar, registre "${T.triagem_ok.rotulo}".`,
+        ],
+        [
+          '"{patrimônio} está nas duas metades da troca"',
+          'O mesmo equipamento não pode voltar e sair no mesmo registro. Tire-o de uma das duas seções da troca.',
         ],
       ],
     },
