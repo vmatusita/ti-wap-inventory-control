@@ -20,6 +20,11 @@ export const ROTA_RELATORIO_CONSOLIDADO = `/relatorios/${ABA_RELATORIO_CONSOLIDA
 
 export async function rotaRelatorioPadrao(operador: Operador | null): Promise<string> {
   if (!operador) return ROTA_RELATORIO_CONSOLIDADO
+  // Atalho: só o OPERADOR cai numa filial — os demais cargos vão para o
+  // Consolidado sem precisar da lista. Como isto roda no layout do grupo (ou
+  // seja, em TODA rota do app), evitar a consulta para dev/admin/consulta é o
+  // caso comum, não a exceção.
+  if (operador.papel !== 'operador') return ROTA_RELATORIO_CONSOLIDADO
   try {
     // `listarFiliais()` é memoizada por request e já vem ordenada por nome — que é
     // exatamente a ordem que a regra pede. Ordenar aqui exigiria copiar o array;

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getOperador } from '@/lib/auth/acesso'
-import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
+import { rotaRelatorioPadrao, ROTA_RELATORIO_CONSOLIDADO } from '@/lib/relatorios/rota-padrao'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
 import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
@@ -61,15 +61,19 @@ const ACOES = [
 // pula as baixas `descartado` e `devolvido_fornecedor` (estoque.ts), e apontar para
 // /ativos sem filtro faria a lista mostrar um número maior que o do tile clicado
 // (achado da revisão adversarial). O estado terminal novo (F14) fica FORA por isso.
+// F25 — o `&filial=todas` é obrigatório aqui: os KPIs deste painel são GLOBAIS, e
+// a ausência do param passou a significar "o padrão do cargo". Sem a sentinela, o
+// operador clicaria num total de todas as filiais e cairia na lista recortada nas
+// dele — o mesmo defeito que o recorte por status acima já evitava, por outra via.
 const LINKS_KPI: LinksKpi = {
   total:
-    '/ativos?status=em_estoque,reservado,em_uso,emprestado,em_triagem,em_manutencao,defasado',
-  em_uso: '/ativos?status=em_uso',
-  em_estoque: '/ativos?status=em_estoque',
-  reservado: '/ativos?status=reservado',
-  em_triagem: '/ativos?status=em_triagem',
-  em_manutencao: '/ativos?status=em_manutencao',
-  defasado: '/ativos?status=defasado',
+    '/ativos?status=em_estoque,reservado,em_uso,emprestado,em_triagem,em_manutencao,defasado&filial=todas',
+  em_uso: '/ativos?status=em_uso&filial=todas',
+  em_estoque: '/ativos?status=em_estoque&filial=todas',
+  reservado: '/ativos?status=reservado&filial=todas',
+  em_triagem: '/ativos?status=em_triagem&filial=todas',
+  em_manutencao: '/ativos?status=em_manutencao&filial=todas',
+  defasado: '/ativos?status=defasado&filial=todas',
 }
 
 type PendenciaHome = {
@@ -212,7 +216,10 @@ export default async function DashboardPage() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Pendências</h2>
               <Link
-                href="/pendencias"
+                // `filial=todas` explícito (F25): este card é GLOBAL, e a
+                // ausência do param levaria o operador à lista recortada nas
+                // filiais dele — um número aqui, outro lá.
+                href="/pendencias?filial=todas"
                 className="text-xs text-muted-foreground underline-offset-2 hover:underline"
               >
                 ver todas
@@ -260,7 +267,11 @@ export default async function DashboardPage() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Últimas movimentações</h2>
               <Link
-                href={hrefRelatorios}
+                // ⚠ NÃO usa `hrefRelatorios`: este card lista as últimas
+                // movimentações de TODAS as filiais, então o destino é o
+                // Consolidado. Mandar o operador para o relatório da filial dele
+                // aqui seria estreitar o que o card acabou de mostrar amplo.
+                href={ROTA_RELATORIO_CONSOLIDADO}
                 className="text-xs text-muted-foreground underline-offset-2 hover:underline"
               >
                 ver todas

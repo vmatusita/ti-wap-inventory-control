@@ -191,10 +191,14 @@ export async function contarGruposConflito(
  * Contagem para o badge da sidebar. Falha de leitura NÃO derruba o shell — devolve 0 e
  * registra no log, exatamente como `contarPendenciasAbertas` faz desde a F9.
  */
-export async function contarConflitosAbertos(): Promise<number> {
+export async function contarConflitosAbertos(
+  // F25 — mesmo recorte do badge de pendências: o selo tem de contar o que a mesa
+  // vai mostrar para quem está olhando.
+  filialSlugs: readonly string[] = [],
+): Promise<number> {
   try {
     const client = await createClient()
-    return await contarGruposConflito(client, [])
+    return await contarGruposConflito(client, filialSlugs)
   } catch (e) {
     console.error(`Falha ao contar conflitos entre filiais: ${(e as Error).message}`)
     return 0

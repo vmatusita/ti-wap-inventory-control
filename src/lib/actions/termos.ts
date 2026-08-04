@@ -154,10 +154,17 @@ export async function prepararTermo(input: {
 
   const { movimentacaoIds, familia } = parsed.data
 
+  // ⚠ `.order('id')`: `.in()` NÃO garante ordem, e várias decisões deste fluxo saem
+  // do PRIMEIRO elemento — a movimentação de referência da família responsabilidade
+  // (`movs[0]`) e, desde a F25, a FILIAL de onde vem a cidade da assinatura. Sem uma
+  // ordem total, o mesmo lote podia gerar o termo com a cidade de uma filial numa
+  // chamada e de outra na seguinte. É a mesma disciplina que `donos` já aplicava
+  // logo abaixo (`.sort()`), pelo mesmo motivo.
   const { data, error } = await supabase
     .from('movimentacoes')
     .select(MOV_SELECT)
     .in('id', movimentacaoIds)
+    .order('id')
   if (error) return falhaPrep(traduzErroBanco(error.message, error.code))
   const movs = (data ?? []) as unknown as MovRow[]
   if (movs.length === 0) return falhaPrep('Movimentação não encontrada.')

@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { linksKpiAtivos } from './kpi-links'
 
 describe('linksKpiAtivos', () => {
-  it('consolidado (filialId null): sem &filial em nenhum link', () => {
+  // F25 — o consolidado passou a declarar `&filial=todas` EXPLICITAMENTE. Antes
+  // ele omitia o param, e a omissão passou a significar "o padrão do CARGO": um
+  // operador clicaria num tile que soma todas as filiais e cairia numa lista
+  // recortada nas dele. A sentinela faz o destino bater com o número do tile.
+  it('consolidado (filialId null): declara &filial=todas em todos os links', () => {
     const l = linksKpiAtivos(null)
-    for (const href of Object.values(l)) expect(href).not.toContain('&filial=')
+    for (const href of Object.values(l)) expect(href).toContain('&filial=todas')
   })
 
   it('filial específica: acrescenta &filial=<id> a cada link', () => {
@@ -14,19 +18,19 @@ describe('linksKpiAtivos', () => {
 
   it('cada tile aponta para /ativos filtrado pelo status certo', () => {
     const l = linksKpiAtivos(null)
-    expect(l.em_uso).toBe('/ativos?status=em_uso')
-    expect(l.em_estoque).toBe('/ativos?status=em_estoque')
-    expect(l.reservado).toBe('/ativos?status=reservado')
-    expect(l.em_triagem).toBe('/ativos?status=em_triagem')
-    expect(l.em_manutencao).toBe('/ativos?status=em_manutencao')
-    expect(l.defasado).toBe('/ativos?status=defasado')
-    expect(l.emprestado).toBe('/ativos?status=emprestado')
+    expect(l.em_uso).toBe('/ativos?status=em_uso&filial=todas')
+    expect(l.em_estoque).toBe('/ativos?status=em_estoque&filial=todas')
+    expect(l.reservado).toBe('/ativos?status=reservado&filial=todas')
+    expect(l.em_triagem).toBe('/ativos?status=em_triagem&filial=todas')
+    expect(l.em_manutencao).toBe('/ativos?status=em_manutencao&filial=todas')
+    expect(l.defasado).toBe('/ativos?status=defasado&filial=todas')
+    expect(l.emprestado).toBe('/ativos?status=emprestado&filial=todas')
   })
 
   it('"total" lista os 7 status somados pelo KPI (exclui as baixas)', () => {
     const l = linksKpiAtivos(null)
     expect(l.total).toBe(
-      '/ativos?status=em_estoque,reservado,em_uso,emprestado,em_triagem,em_manutencao,defasado',
+      '/ativos?status=em_estoque,reservado,em_uso,emprestado,em_triagem,em_manutencao,defasado&filial=todas',
     )
     expect(l.total).not.toContain('descartado')
     expect(l.total).not.toContain('devolvido_fornecedor')

@@ -179,7 +179,13 @@ export default async function PendenciasPage({
                 icone={Filter}
                 titulo="Nenhum conflito neste filtro"
                 descricao="Nada nesta combinação de filtros — o que não quer dizer que não haja conflitos. Ajuste ou limpe os filtros para ver todos."
-                acao={{ href: '/pendencias?tipo=conflito', rotulo: 'Limpar filtros' }}
+                // F25 — `filial=todas` explícito: sem ele, "Limpar filtros" só
+                // apaga o param e o operador volta ao PADRÃO DO CARGO, que é o
+                // mesmo recorte de onde ele veio — um botão sem efeito nenhum.
+                acao={{
+                  href: '/pendencias?tipo=conflito&filial=todas',
+                  rotulo: 'Limpar filtros',
+                }}
                 className="border-0"
               />
             ) : (
@@ -215,7 +221,8 @@ export default async function PendenciasPage({
               icone={Filter}
               titulo="Nenhuma pendência neste filtro"
               descricao="Nada nesta combinação de filtros — o que não quer dizer que não haja pendências. Ajuste ou limpe os filtros para ver todas."
-              acao={{ href: '/pendencias', rotulo: 'Limpar filtros' }}
+              // F25 — ver a nota do estado vazio da mesa, logo acima.
+              acao={{ href: '/pendencias?filial=todas', rotulo: 'Limpar filtros' }}
               className="border-0"
             />
           )

@@ -143,12 +143,19 @@ Alterações pontuais: painel de sucesso do `nova-movimentacao-form`, página da
 
 Upload do PDF assinado (segue sendo o item 5.5 da F5 — complementar: gerar → enviar → assinar → anexar); envio automático por e-mail; assinatura digital/eletrônica; tela de edição de templates na UI; colunas novas no ativo (IMEI, telefone, Pulsus); termo para tablet/"outro" (§10); variação de cidade por filial (§10).
 
+> **Atualização — F25 (04/08/2026): DOIS destes itens saíram do backlog.**
+> · **"colunas novas no ativo (IMEI, telefone, Pulsus)" — ENTREGUE.** Migration `0101` acrescentou `ativos.telefone`, `ativos.imei` e `ativos.pulsus`. Eles aparecem no cadastro, na edição e na ficha **só quando a categoria é celular**, e o termo de responsabilidade de celular passa a **pré-preenchê-los do cadastro** em vez de pedi-los digitados a cada emissão (revoga a decisão §3.6 deste plano, que os fixava como manuais). Continuam 100% editáveis no diálogo, e editar o termo segue **não** alterando o cadastro (§3.9, intacta). A "Observação do aparelho" continua manual — ela é do documento, não do aparelho.
+> · **"variação de cidade por filial" — ENTREGUE.** Ver a resposta à pergunta 4 na §10.
+> Segue no backlog: upload do PDF assinado, envio por e-mail, assinatura digital, edição de templates na UI e o termo para tablet/"outro".
+
 ## 10. Pendências — insumos do Johnny
 
 1. **Reanexar os 10 arquivos Word** na execução da OS (a sessão de planejamento não os guarda) — insumo físico obrigatório.
 2. Validar o **mapa motivo→Descrição** (§4.2) — os exemplos reais usavam texto livre ("TROCA/UPDATE").
 3. **Tablet**: adaptar o modelo de notebook, criar modelo próprio ou seguir sem termo? Não bloqueia — a categoria só não oferece geração até decidir.
 4. A cidade fixa **"São José dos Pinhais"** dos modelos vale para todas as filiais (Linhares, Eusébio…)? Hoje os arquivos são assim; variar por filial = variação de template, fica fora até você pedir.
+   → **RESPONDIDA em 04/08/2026 (Johnny) e implementada na F25: NÃO — a cidade varia por filial.** `filiais` ganhou a coluna `cidade` (migration `0102`, semeada por slug: Matriz e CD Afonso Pena → São José dos Pinhais · Linhares → Linhares · Serra → Serra · Eusébio → Eusébio) e a linha da assinatura dos **7 modelos** foi retagueada de `São José dos Pinhais, {data_extenso}` para **`{cidade}, {data_extenso}`**. `prepararTermo` preenche pela filial corrente do(s) ativo(s), o campo é editável no diálogo como todos os outros, lote com filiais divergentes usa a do primeiro **e avisa**, e filial sem cidade cadastrada **avisa** em vez de deixar sair um documento começando por vírgula.
+   **A cláusula de FORO não mudou** ("Comarca de São José dos Pinhais/PR"): decisão explícita do Johnny — a linha da assinatura diz onde se assinou, o foro é escolha jurídica da sede. Não virou variação de template: é um placeholder a mais no mesmo arquivo. O retag foi feito por `scripts/termos/retaguear-cidade.mjs`, que **prova** a fidelidade — a linha é um run único nos 7 modelos, e o script confere que só `word/document.xml` diverge no pacote e que a ocorrência do foro não muda.
 5. Corrigir na sanitização as inconsistências herdadas (ano "2025" no monitor home office, caixa de meses) — presumo que sim.
 
 ## 11. Execução proposta e critérios de aceite

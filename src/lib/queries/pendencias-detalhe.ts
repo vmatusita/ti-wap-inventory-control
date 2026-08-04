@@ -104,11 +104,17 @@ export function classificarPendencia(pendencia: string | null): TipoPendencia {
 // campo livre). `head: true` não traz linha nenhuma — só o count. Roda sob o client
 // do operador (RLS); por isso o layout só chama depois de confirmar o operador.
 // Falha de leitura NÃO derruba o shell: devolve 0 (sem badge) e registra no log.
-export async function contarPendenciasAbertas(): Promise<number> {
+// F25 — o badge passou a receber as MESMAS filiais com que /pendencias abre para
+// quem está olhando (o padrão do cargo). Sem isso, o selo dizia 20 e a lista
+// mostrava 5 para o operador, quebrando em silêncio a invariante que o comentário
+// acima declara. `[]` = sem recorte, que continua sendo o caso de admin/dev/consulta.
+export async function contarPendenciasAbertas(
+  filialSlugs: readonly string[] = [],
+): Promise<number> {
   const client = await createClient()
-  const { count, error } = await client
-    .from('v_fila_pendencias')
-    .select('id', { count: 'exact', head: true })
+  let q = client.from('v_fila_pendencias').select('id', { count: 'exact', head: true })
+  if (filialSlugs.length > 0) q = q.in('filial', filialSlugs)
+  const { count, error } = await q
 
   if (error) {
     console.error(`Falha ao contar pendências: ${error.message}`)

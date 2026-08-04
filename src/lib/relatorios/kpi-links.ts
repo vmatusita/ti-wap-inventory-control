@@ -20,8 +20,14 @@ export type LinksKpi = Partial<Record<keyof KpisRelatorio, string>>
 // Os 7 status que o KPI "total" soma (mesma lista do dashboard) — exclui as baixas.
 const STATUS_TOTAL = 'em_estoque,reservado,em_uso,emprestado,em_triagem,em_manutencao,defasado'
 
+// F25 — o `filial=todas` do ramo CONSOLIDADO não é enfeite. Sem ele, o link vai
+// para /ativos SEM o param, e a ausência do param passou a significar "o padrão do
+// CARGO": um operador clicaria num tile que soma TODAS as filiais e cairia numa
+// lista recortada nas filiais dele — o número da tela deixaria de bater com o do
+// tile que ele acabou de clicar. A sentinela declara explicitamente o que o tile
+// promete.
 export function linksKpiAtivos(filialId: number | null): LinksKpi {
-  const filial = filialId != null ? `&filial=${filialId}` : ''
+  const filial = filialId != null ? `&filial=${filialId}` : '&filial=todas'
   return {
     total: `/ativos?status=${STATUS_TOTAL}${filial}`,
     em_uso: `/ativos?status=em_uso${filial}`,

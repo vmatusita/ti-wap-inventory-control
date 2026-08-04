@@ -31,6 +31,7 @@ export function AppHeader({
   podeEscrever = false,
   eAdmin = false,
   eDev = false,
+  hrefRelatorios,
 }: {
   nome: string
   papel?: PapelUsuario
@@ -39,6 +40,10 @@ export function AppHeader({
   eAdmin?: boolean
   /** F22 — cargo Desenvolvedor: o item /dev do menu so aparece para ele. */
   eDev?: boolean
+  /** F25 — destino de "Relatórios" por cargo. O menu MOBILE monta a MESMA
+   *  SidebarNav do desktop; sem repassar aqui, o operador no celular continuaria
+   *  indo para o Consolidado enquanto no desktop ia para a filial dele. */
+  hrefRelatorios?: string
 }) {
   const [aberto, setAberto] = useState(false)
   // Gatilho da paleta global (OS-F11 / T1). `null` fora do provider — nesse caso
@@ -70,6 +75,7 @@ export function AppHeader({
               pendencias={pendencias}
               eAdmin={eAdmin}
               eDev={eDev}
+              hrefRelatorios={hrefRelatorios}
             />
           </div>
         </SheetContent>

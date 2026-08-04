@@ -132,8 +132,13 @@ export async function registrarCompra(
   // Se ele falhar, o ativo existe e os três campos ficam vazios — a ficha os
   // oferece, e o operador completa. É por isso que o erro não derruba o cadastro:
   // devolver falha aqui faria o operador repetir uma compra que já aconteceu.
+  // ⚠ `ids.length === 1` é cinto E suspensório: `compraLoteSchema` já RECUSA o
+  // payload com extras num lote de 2+ (a regra "é de cada aparelho" vive lá, no
+  // servidor). Este segundo teste garante que o `.in('id', ids)` abaixo nunca possa
+  // carimbar o mesmo IMEI em vários ativos, mesmo que alguém afrouxe o validador.
   const extrasCelular =
     dados.categoria === 'celular' &&
+    ids.length === 1 &&
     (dados.telefone || dados.imei || dados.pulsus)
       ? {
           telefone: dados.telefone ?? null,
@@ -141,7 +146,7 @@ export async function registrarCompra(
           pulsus: dados.pulsus ?? null,
         }
       : null
-  if (extrasCelular && ids.length > 0) {
+  if (extrasCelular) {
     const { error: eExtras } = await supabase.from('ativos').update(extrasCelular).in('id', ids)
     if (eExtras) {
       console.error('[registrarCompra] falha ao gravar telefone/IMEI/Pulsus', eExtras)

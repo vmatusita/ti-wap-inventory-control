@@ -61,5 +61,38 @@ export const compraLoteSchema = z.object({
   ),
   data: dataNaoFuturaSchema,
 })
+  // F25 — a regra "telefone/IMEI/Pulsus são de CADA APARELHO" passa a valer no
+  // SERVIDOR, e não só no formulário.
+  //
+  // ⚠ Sem isto, a regra existia apenas na UI (o form esconde os campos quando o
+  // lote tem 2+ unidades e nem os manda). Mas `registrarCompra` grava os três com
+  // um `.in('id', ids)` sobre TODOS os ativos criados: um request forjado — ou uma
+  // mudança futura no formulário — escreveria o MESMO IMEI em vinte aparelhos, que
+  // é exatamente a corrupção silenciosa que a decisão desta fase quis evitar. A
+  // doutrina da casa é que a UI é a segunda linha, nunca a única.
+  //
+  // Recusa em vez de descartar em silêncio: nenhum caminho legítimo produz este
+  // payload, então recebê-lo significa que algo está errado — e engolir seria
+  // esconder o erro.
+  .superRefine((v, ctx) => {
+    const extras = [v.telefone, v.imei, v.pulsus].filter(Boolean)
+    if (extras.length === 0) return
+    if (v.categoria !== 'celular') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['imei'],
+        message: 'Nº do telefone, IMEI e Pulsus valem apenas para a categoria Celular.',
+      })
+      return
+    }
+    if (v.itens.length > 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['imei'],
+        message:
+          'Nº do telefone, IMEI e Pulsus são de cada aparelho — preencha-os na ficha depois de cadastrar o lote.',
+      })
+    }
+  })
 
 export type CompraLoteInput = z.infer<typeof compraLoteSchema>

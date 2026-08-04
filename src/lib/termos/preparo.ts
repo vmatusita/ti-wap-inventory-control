@@ -54,7 +54,12 @@ export function cidadeDoTermo(
       `Este lote tem equipamentos de mais de uma filial (${nomes.join(', ')}). ` +
         `A cidade da assinatura veio de ${primeira?.nome ?? 'a primeira'} — confira antes de gerar.`,
     )
-  } else if (!cidade) {
+  }
+  // ⚠ `if` SEPARADO, e não `else if`: os dois avisos podem valer ao mesmo tempo, e o
+  // caso combinado é justamente o pior — lote misto cuja PRIMEIRA filial não tem
+  // cidade cadastrada. Com `else if`, o aviso do lote engolia o da cidade vazia e o
+  // documento sairia começando por vírgula sem ninguém dizer por quê.
+  if (!cidade) {
     avisos.push(
       `A filial ${primeira?.nome ?? 'do ativo'} não tem cidade cadastrada — ` +
         `cadastre em Administração → Filiais ou preencha aqui.`,

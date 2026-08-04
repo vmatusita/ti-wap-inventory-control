@@ -64,8 +64,20 @@ describe('cidadeDoTermo', () => {
     expect(r.avisos[0]).toContain('Administração → Filiais')
   })
 
-  it('lote misto avisa do LOTE, não da cidade vazia (um aviso só, o que importa)', () => {
+  // ⚠ Os dois avisos valem AO MESMO TEMPO, e este é o pior caso: lote misto cuja
+  // PRIMEIRA filial não tem cidade. Com `else if`, o aviso do lote engolia o da
+  // cidade vazia e o documento saía começando por vírgula sem ninguém dizer por quê.
+  it('lote misto COM a primeira filial sem cidade avisa as DUAS coisas', () => {
     const r = cidadeDoTermo([{ filial_id: 9 }, { filial_id: 3 }], FILIAIS)
+    expect(r.cidade).toBe('')
+    expect(r.avisos).toHaveLength(2)
+    expect(r.avisos.some((a) => a.includes('mais de uma filial'))).toBe(true)
+    expect(r.avisos.some((a) => a.includes('não tem cidade cadastrada'))).toBe(true)
+  })
+
+  it('lote misto com a primeira filial OK avisa só do lote', () => {
+    const r = cidadeDoTermo([{ filial_id: 3 }, { filial_id: 9 }], FILIAIS)
+    expect(r.cidade).toBe('Linhares')
     expect(r.avisos).toHaveLength(1)
     expect(r.avisos[0]).toContain('mais de uma filial')
   })

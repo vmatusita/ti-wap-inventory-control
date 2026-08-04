@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { camposTermoSchema } from '@/lib/validators/termo'
 import { editarAtivoSchema } from '@/lib/validators/ativo'
 import { filialSchema } from '@/lib/validators/admin'
+import { compraLoteSchema } from '@/lib/validators/compra'
 
 // F25 — os campos novos e as réguas que eles trouxeram. Dados 100% fictícios.
 
@@ -98,5 +99,49 @@ describe('filialSchema — cidade e slugs reservados', () => {
     for (const slug of ['matriz', 'cd-afonso-pena', 'linhares', 'serra', 'eusebio']) {
       expect(filialSchema.safeParse({ nome: 'Fictícia', slug }).success).toBe(true)
     }
+  })
+})
+
+describe('compraLoteSchema — a regra "é de cada aparelho" no SERVIDOR (F25)', () => {
+  const base = {
+    itens: [{ patrimonio: 'WAP0001234', service_tag: 'ABC1234' }],
+    categoria: 'celular' as const,
+    marca: 'MarcaFic',
+    modelo: 'ModeloFic',
+    filial_id: 1,
+    data: '2026-08-04',
+  }
+
+  it('aceita os três campos num lote de UMA unidade', () => {
+    const r = compraLoteSchema.safeParse({ ...base, imei: '000000000000000' })
+    expect(r.success).toBe(true)
+  })
+
+  it('lote sem os campos passa normalmente (o caso comum)', () => {
+    const dois = [
+      { patrimonio: 'WAP0001234', service_tag: 'ABC1234' },
+      { patrimonio: 'WAP0001235', service_tag: 'ABC1235' },
+    ]
+    expect(compraLoteSchema.safeParse({ ...base, itens: dois }).success).toBe(true)
+  })
+
+  it('⚠ RECUSA os campos num lote de 2+ — senão o mesmo IMEI iria para todos', () => {
+    const dois = [
+      { patrimonio: 'WAP0001234', service_tag: 'ABC1234' },
+      { patrimonio: 'WAP0001235', service_tag: 'ABC1235' },
+    ]
+    const r = compraLoteSchema.safeParse({ ...base, itens: dois, imei: '000000000000000' })
+    expect(r.success).toBe(false)
+    if (!r.success) expect(r.error.issues[0]?.message).toContain('de cada aparelho')
+  })
+
+  it('⚠ RECUSA os campos em categoria que não é celular', () => {
+    const r = compraLoteSchema.safeParse({
+      ...base,
+      categoria: 'notebook' as const,
+      imei: '000000000000000',
+    })
+    expect(r.success).toBe(false)
+    if (!r.success) expect(r.error.issues[0]?.message).toContain('apenas para a categoria Celular')
   })
 })

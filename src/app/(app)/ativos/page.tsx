@@ -39,8 +39,18 @@ import { PackageOpen, PackagePlus } from 'lucide-react'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
+// ⚠ Param REPETIDO (`?filial=2&filial=4`) chega como ARRAY. Esta função devolvia
+// `undefined` nesse caso — ou seja, a tela DESCARTAVA o param —, enquanto a action
+// de export reparseia com `URLSearchParams.get()`, que devolve o PRIMEIRO valor.
+// Resultado: a tela mostrava um conjunto e o CSV baixava outro, calado. É a
+// divergência que a regra F12/W6A existe para impedir, e /itens e /pendencias já
+// não a tinham (as duas usam um `primeiro()` com esta mesma semântica).
+// Divergência anterior à F25, mas o padrão por cargo a piorou: sem o param, a tela
+// cai nas filiais do operador e o CSV traz a filial do primeiro valor, que pode não
+// ser nenhuma delas.
 function texto(v: string | string[] | undefined): string | undefined {
-  return typeof v === 'string' && v.trim() ? v.trim() : undefined
+  const bruto = Array.isArray(v) ? v[0] : v
+  return typeof bruto === 'string' && bruto.trim() ? bruto.trim() : undefined
 }
 
 export default async function AtivosPage({

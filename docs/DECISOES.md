@@ -3496,3 +3496,140 @@ Revisão de recall sobre o diff inteiro da F24. Os achados de UI/queries foram c
 - **O lock em dois tempos reabriu o deadlock (`0100`).** A 0098 fechou um TOCTOU real dividindo o lock em (1) trava selecionados → (2) lê chaves → (3) trava o resto. Mas era o `for update` ÚNICO da 0093 que dava a ordem TOTAL: dividido, o `order by a.id` ordena dentro de cada etapa e não entre elas, então duas sessões sobre o mesmo grupo travam as mesmas linhas em ordens opostas (X seleciona B e espera A; Y seleciona A e espera B) → 40P01, que não tem tradução em `erros.ts`. **Decisão:** serializar a ferramenta com `pg_advisory_xact_lock`, antes de qualquer lock de linha, mantendo as três etapas da 0098 intactas. Sem intercalação não há ordem para inverter. Mesma doutrina do advisory lock de `importar_ativos_substituir` (0094): operação administrativa e rara, serializar não custa nada e elimina a classe inteira em vez de remendar um caso. **Reversível?** sim.
 
 - **O backup em arquivo não provava ser DESTE lote (`0100`).** Acima de 25 ativos a RPC conferia caminho + prefixo + existência. O cabeçalho da 0093 diz herdar o endurecimento da 0089 ("conferir o nome sem conferir o RECORTE deixava passar o backup de outro import") — mas o prefixo só separa "backup de conflito" de "backup de import", não ESTA seleção das outras; e a action sobe o arquivo ANTES da RPC e deixava o órfão no bucket quando ela recusava, de modo que candidatos se acumulavam. **Decisão:** o caminho passa a carregar a identidade do lote — `conflito/<md5 dos ids únicos, minúsculos, ordenados, por vírgula>/…` —, calculado pela RPC a partir dos ids que ela RECEBEU (`digest_selecao_conflito`) e espelhado por `digestDaSelecao` na action; e a action apaga o backup quando a RPC recusa. Não é hash criptográfico e não precisa ser: o que se pede é uma amarra verificável entre arquivo e lote, no espírito do prefixo da 0089 — quem chama já conhece os próprios ids. Deploy fora de ordem falha FECHADO (banco novo + app velho recusa; app novo + banco velho segue passando pelo prefixo). **Reversível?** sim.
+
+---
+
+## 2026-08-04 · F25 · A cláusula de FORO dos termos fica intocada — só a linha da assinatura varia
+
+- Contexto: a pergunta aberta nº 4 do `PLANO-TERMOS.md` §10 ("a cidade fixa 'São José dos Pinhais' vale para todas as filiais?"). Os 7 modelos citam a cidade em DOIS lugares: a linha da assinatura e a cláusula de foro ("Fica eleito o foro da Comarca de São José dos Pinhais/PR").
+- Decisão: o Johnny respondeu em 04/08/2026 que a cidade varia por filial, **e que só a linha da assinatura muda**. O foro fica fixo, byte a byte, nos 7 modelos.
+- Motivo: a linha da assinatura diz ONDE o documento foi assinado — é fato, e varia. O foro é escolha JURÍDICA da empresa, ligada à sede, e mudá-lo por filial é decisão de advogado, não de sistema.
+- Reversível? sim — o foro está em parágrafo próprio e nunca foi tagueado; taguear depois é o mesmo processo do retag desta fase.
+- Prova: `node scripts/termos/retaguear-cidade.mjs` confere que apenas `word/document.xml` diverge no pacote e conta a ocorrência do foro antes/depois; a renderização dos 7 modelos com payload fictício confirma o foro presente nos 5 de responsabilidade e ausente nos 2 de devolução (que nunca o tiveram).
+
+---
+
+## 2026-08-04 · F25 · O padrão do operador é TODAS as filiais vinculadas, e a aba do relatório é a 1ª alfabética
+
+- Contexto: a ordem manda o filtro de filial ter padrão por cargo. Para o operador de 2+ filiais restava decidir: entra com uma? com todas?
+- Decisão: (a) nas LISTAS, o operador entra com **todas as filiais vinculadas** marcadas — decisão explícita do Johnny; (b) em `/relatorios`, onde a aba é uma só (as abas são exclusivas), ele cai na **primeira vinculada em ordem alfabética de nome**. Dev, admin e consulta entram com todas e no Consolidado.
+- Motivo: o operador de Serra+Linhares trabalha nas duas e quer vê-las juntas; o relatório ao vivo, por construção, é de uma filial por vez.
+- Reversível? sim — a regra inteira é `filtroFilialPadrao`/`abaRelatorioPadrao` em `src/lib/auth/papeis.ts`, com teste próprio. Nenhuma tela a reimplementa.
+- ⚠ A decisão olha o CARGO, nunca `filiaisEscrita.length === 0`: lista vazia significa duas coisas diferentes (consulta, que não escreve em lugar nenhum, e operador sem vínculo válido). Os dois caem em "todas", mas por caminhos distintos — decidir pela lista deixaria o operador quebrado com a tela permanentemente vazia e nenhuma pista do porquê.
+
+---
+
+## 2026-08-04 · F25 · A ausência do param `filial` passou a significar "padrão do cargo" — e por isso existe a sentinela `todas`
+
+- Contexto: com padrão por cargo, o param `filial` ganhou TRÊS estados onde antes tinha dois. Sem uma sentinela, o operador não teria como pedir "todas": a ausência já é o padrão dele.
+- Decisão: `filial` ausente = padrão do cargo · `filial=todas` = sem recorte · `filial=<lista>` = essas filiais, igual para qualquer cargo. "Limpar" REMOVE o param (volta ao padrão do cargo) e preserva `ord`/`pp`.
+- Motivo: só assim "Todas as filiais" continua alcançável para o operador e o link explícito continua compartilhável entre cargos.
+- Consequência ACEITA e registrada: **um link SEM o param muda de sentido conforme quem abre.** Para admin/consulta nada mudou (ausência sempre significou todas); para o operador, um bookmark antigo de `/ativos` passa a abrir recortado nas filiais dele. Link com `?filial=` explícito abre idêntico para todo mundo.
+- Reversível? sim — a semântica inteira está em `selecaoFilialIds`/`selecaoFilialSlugs` (`src/lib/url-params.ts`) e `resolverFiliais*` (`src/lib/filtros/filial.ts`).
+
+---
+
+## 2026-08-04 · F25 · `todas` e `geral` viraram slugs RESERVADOS de filial
+
+- Contexto: a sentinela escolhida foi a palavra `todas`, e `/pendencias` filtra filial por SLUG. Uma filial cadastrada com slug `todas` tornaria `?filial=todas` ambíguo. O `filialSchema` aceitava a palavra.
+- Decisão: `filialSchema.slug` (`src/lib/validators/admin.ts`) passou a recusar `todas` e `geral`, com mensagem em pt-BR. Nenhuma filial real usa essas palavras (conferido por SELECT nos dois bancos em 04/08/2026).
+- Motivo: `geral` já era reservado DE FATO desde a F3 (é o Consolidado de `/relatorios/[filial]` e o valor especial de `/relatorios/gerados`) — nunca esteve escrito em lugar nenhum. A F25 apenas tornou explícito o que já valia, e acrescentou o segundo.
+- Reversível? sim — é uma linha de `refine` no Zod. Alternativa considerada e descartada: usar um caractere impossível em slug (`*`) como sentinela, o que dispensaria a reserva; ficou a palavra por ser legível em pt-BR num link compartilhado, que é o que o resto do sistema faz.
+
+---
+
+## 2026-08-04 · F25 · `/relatorios/gerados` NÃO recebe o padrão por cargo
+
+- Contexto: a ordem (§4.7) manda a exceção; esta ata a registra.
+- Decisão: o histórico de snapshots ganha a multi-seleção, mas o padrão continua "todas" para TODOS os cargos, inclusive o operador. Função separada (`resolverFiliaisSlugsSemPadrao`).
+- Motivo: o arquivo é global e boa parte dele é de relatório CONSOLIDADO (`filial_id is null`), que não pertence a filial nenhuma. Recortar por padrão esconderia justamente esses — o operador abriria o histórico e concluiria que os consolidados sumiram.
+- Reversível? sim — trocar a chamada por `resolverFiliaisSlugs` na page.
+
+---
+
+## 2026-08-04 · F25 · As observações existentes NÃO foram migradas para os campos novos do celular
+
+- Contexto: telefone, IMEI e Pulsus viviam soltos em `ativos.observacoes`, em texto livre. Com as colunas novas (migration `0101`), a tentação é varrer e preencher.
+- Decisão: **nenhum backfill.** O texto fica onde está; o operador move quando tocar na ficha. A ordem já proibia; a ata registra a leitura.
+- Motivo: é dado REAL de produção sem formato garantido. Adivinhar qual pedaço é IMEI e qual é telefone é heurística que erra em silêncio sobre dado que ninguém confere — e o erro só apareceria num termo já assinado.
+- Verificação pós-apply: `select count(*) from ativos where telefone is not null or imei is not null or pulsus is not null` = **0** nos dois bancos.
+- Reversível? não se aplica (nada foi tocado).
+
+---
+
+## 2026-08-04 · F25 · Sem CHECK por categoria nas colunas do celular
+
+- Contexto: `telefone`/`imei`/`pulsus` só fazem sentido em celular. Um CHECK garantiria isso no banco, que é a doutrina da casa ("regra de negócio mora no Postgres").
+- Decisão: `text null` sem CHECK, como a ordem (§1.1) determina. A exibição condicional é da UI.
+- Motivo: (a) um CHECK transformaria detalhe de tela em invariante do banco, e a primeira consequência seria um SQLSTATE feio no lugar de um campo escondido; (b) o acervo real tem número de telefone anotado em `observacoes` de ativo que NÃO é celular (chip de tablet, ramal), e um CHECK fecharia a porta para quem um dia quiser mover um desses à mão.
+- ⚠ Consequência registrada, porque é o oposto da doutrina: o import, o service role e qualquer escrita futura podem gravar IMEI num monitor sem erro. Hoje nenhum caminho da UI faz isso (o formulário só oferece os campos para celular, e a categoria é imutável na vida do ativo).
+- Reversível? sim — o CHECK cabe numa migration aditiva, se um dia se quiser.
+
+---
+
+## 2026-08-04 · F25 · Campos do celular só no cadastro de UNIDADE ÚNICA (lote preenche pela ficha)
+
+- Contexto: a ordem (§2.1) manda decidir pelo que a UI de lote comporta. Não existe formulário "single" neste app: todo cadastro é lote, e os campos de "Dados do modelo" são COMPARTILHADOS por todas as unidades.
+- Decisão: os três campos aparecem quando `categoria === 'celular'` **e** o lote tem no máximo uma unidade. Com 2+, somem e a tela explica que se preenche na ficha.
+- Motivo: telefone, IMEI e Pulsus são do APARELHO, não do modelo — um campo compartilhado gravaria o mesmo IMEI em vinte celulares, corrupção silenciosa de dado. O único mecanismo por-unidade que existe é coluna de texto (o precedente das service tags da faixa), e generalizá-lo custaria três textareas novas mais a reescrita de `parearFaixaComServiceTags` e do parser de lista (que recusa explicitamente mais de 2 colunas), com 41 testes em volta.
+- Reversível? sim, e o caminho está mapeado acima.
+- Registrado junto: os três campos NÃO são copiados por "Comprar outro igual"/"Repetir última compra" — `DadosCompraInicial` já exclui patrimônio e service tag pela mesma razão (identificam a unidade), e o banner do formulário promete isso ao operador.
+
+---
+
+## 2026-08-04 · F25 · Os campos do celular são gravados por UPDATE pós-RPC, não dentro de `criar_compra_lote`
+
+- Contexto: quem faz o INSERT da compra é a RPC `criar_compra_lote` (migration `0064`), que lê chaves NOMINAIS do jsonb `p_itens`.
+- Decisão: `registrarCompra` grava os três campos num `UPDATE` sobre os ids que a RPC devolve, depois dela.
+- Motivo: acrescentar as chaves a `p_itens` sem recriar a função seria um **no-op silencioso** — a tela "funcionaria" e o aparelho nasceria sem IMEI. Recriar a RPC dispararia a regra F17 do runbook (rodar TODOS os roteiros SQL) e contraria o §1.3 da própria ordem ("nenhuma RPC muda nesta fase").
+- Preço aceito: o UPDATE está FORA da transação da compra. Se ele falhar, o ativo existe e os três campos ficam vazios — a ficha os oferece e o operador completa. O erro é logado e NÃO derruba o cadastro, porque devolver falha faria o operador repetir uma compra que já aconteceu.
+- Reversível? sim — recriar a RPC com as três colunas é o caminho "certo" quando houver janela para rodar os roteiros.
+
+---
+
+## 2026-08-04 · F25 · Saldos de `/itens` com 2+ filiais são somados em memória
+
+- Contexto: `rel_saldo_itens` (migration `0016`) recebe UMA filial ou NULL (consolidado). Não há `p_filiais`.
+- Decisão: 2+ filiais viram N leituras da mesma RPC, somadas por `somarSaldosDeFiliais` (função pura, testada). Nenhuma RPC muda.
+- Motivo: §1.3 da ordem. São 5 filiais na vida real e o molde já existia (`getSaldosPorFilial` faz 1+N desde a F11).
+- ⚠ Leitura registrada: somar `falta` entre filiais é o que esta casa JÁ faz — `combinarSaldosPorFilial` soma no ramo do item sem consolidado, e o comentário de `estoqueForaDasColunas` registra que as fórmulas da RPC são aditivas por filial. Faltar 2 na Serra e 1 em Linhares é faltar 3 nas duas; o que a coluna NÃO diz é "falta 3 num lugar só".
+- Reversível? sim — uma RPC `rel_saldo_itens_filiais(p_filiais smallint[])` substituiria a soma em memória sem tocar a UI.
+
+---
+
+## 2026-08-04 · F25 · A contagem de conflitos abandona o `count/head` quando há 2+ filiais
+
+- Contexto: `contarGruposConflito` contava LADOS com `count/head` apoiada num invariante da F24: "um grupo tem no máximo UM lado por filial".
+- Decisão: com 1 filial o atalho barato continua; com **2+**, a contagem passa a varrer as chaves e contar as DISTINTAS.
+- Motivo: o invariante vale POR FILIAL. Com duas filiais selecionadas, um grupo cujos dois lados estão nas duas seria contado DUAS vezes, e o chip anunciaria o dobro do trabalho — violando a decisão da F24 de que um GRUPO é uma pendência.
+- Custo medido: 282 lados / 138 grupos em produção (04/08/2026), contra a página de 1.000 de `paginarTodos` — uma requisição na prática.
+- Reversível? sim — o ramo é isolado por `filialSlugs.length > 1`.
+
+---
+
+## 2026-08-04 · F25 · O default de `/itens` inverteu: a tela abre "Por filial"
+
+- Contexto: a ordem (§4.6) manda. Esta ata registra as consequências medidas.
+- Decisão: ausência de `visao` = lado a lado; o Consolidado virou a sentinela `visao=consolidado`. `?visao=filiais` (favorito antigo) continua significando lado a lado.
+- ⚠ Consequência: a neutralização do `filial` na visão por filial passou a valer POR PADRÃO. Um favorito antigo `/itens?filial=3` **deixa de recortar** até o usuário ir ao Consolidado. É mudança de sentido de URL antiga, aceita: a neutralização existe porque um recorte invisível agiria sobre o histórico, o CSV e o preset do lançamento sem controle nenhum na tela para desfazê-lo (achado F11-A14 + F12-W4-03).
+- ⚠ Custo: a visão por filial faz 1+N chamadas de RPC (6 hoje) contra 1 do consolidado. Como ela virou o caminho PADRÃO, `getSaldosPorFilial` foi movida para dentro do `Promise.all` da página — antes rodava em `await` sequencial, e virar o default sem isso poria 6 RPCs em série na tela mais usada.
+- Reversível? sim — inverter os três pontos que chamam `ehVisaoConsolidado`.
+
+---
+
+## 2026-08-04 · F25 · `listarFiliais` virou memoizada por requisição
+
+- Contexto: o layout do grupo `(app)` passou a precisar da lista de filiais (é dela que sai o slug da aba padrão do operador). Sem memo, TODA rota do app pagaria um select a mais, já que as páginas também a chamam.
+- Decisão: `cache()` do React em `src/lib/queries/filiais.ts`, no mesmo desenho de `getOperador()`.
+- Motivo: custo zero e uma leitura só por request.
+- ⚠ A chave do memo é o ARGUMENTO: quem passa o client administrativo (a sessão por SENHA) tem entrada própria e não compartilha resultado com a sessão com RLS — que é o desejado, porque as duas enxergam coisas diferentes. NUNCA trocar por `"use cache"`/`unstable_cache`: são cache PERSISTENTE entre requisições.
+- Reversível? sim — remover o `cache()`.
+
+---
+
+## 2026-08-04 · F25 · O import ficou intocado — e a prova é o tipo, não a promessa
+
+- Contexto: a ordem exclui o import do escopo e manda provar por preview antes/depois.
+- Decisão/constatação: o diff de `src/lib/import/`, `scripts/import/` e `src/lib/validators/importar.ts` entre o fim da F24 (`bb426ca`) e o fim da F25 é **VAZIO**. Em `actions/importar.ts` e `importar-wizard.tsx` mudou APENAS a anotação de tipo `Filial` → `Pick<Filial, 'id'|'slug'|'nome'>`, mais comentários.
+- Motivo da mudança de tipo: a F25 acrescentou `cidade` ao tipo `Filial`, e amarrar o contrato do import ao tipo inteiro faria toda coluna nova de `filiais` vazar para aquela tela. O `Pick` congela o que o import de fato usa.
+- Por que isso É a prova: anotação de tipo do TypeScript é apagada no build (type erasure) — não existe em runtime. Nenhuma linha executável do motor, do layout do CSV ou da RPC mudou, logo contagens, erros e avisos do preview são os mesmos por construção.

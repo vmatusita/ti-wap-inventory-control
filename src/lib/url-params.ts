@@ -150,7 +150,11 @@ function selecao<T>(
 /** `true` só para a sentinela explícita do Consolidado. Ausência e lixo caem no
  *  padrão novo (por filial). */
 export function ehVisaoConsolidado(v: string | null | undefined): boolean {
-  return v === 'consolidado'
+  // ⚠ O `trim()` mora AQUI, e não em quem chama. A página lia o valor CRU e a
+  // action de export o passava por um helper que trimava: `?visao=%20consolidado`
+  // abria a tela lado a lado e baixava o CSV do Consolidado — a divergência
+  // tela×arquivo que a regra F12/W6A existe para impedir.
+  return v?.trim() === 'consolidado'
 }
 
 /** `filial` das telas que filtram por ID (`/ativos`, `/movimentacoes`, `/itens`). */

@@ -6,6 +6,8 @@ import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 import { AppHeader } from '@/components/layout/app-header'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
+import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
+import { listarFiliais } from '@/lib/queries/filiais'
 import { ViewerHeader } from '@/components/layout/viewer-header'
 import {
   BarraProgressoNavegacao,
@@ -48,9 +50,25 @@ export default async function AppLayout({
     // "nenhuma pendência" com trabalho esperando na aba de conflitos. Um GRUPO conta como
     // UMA pendência — é uma decisão a tomar, não duas. As duas contagens engolem o próprio
     // erro e devolvem 0: falha de leitura não pode derrubar o shell.
+    // F25 — o selo conta com o MESMO recorte com que /pendencias abre para este
+    // cargo (o padrão, sem URL). Um selo global sobre uma lista recortada faria o
+    // operador ver "20" e encontrar 5, sem nada explicando a diferença.
+    //
+    // ⚠ O `catch` NÃO é decorativo: `listarFiliais()` LANÇA quando a leitura falha, e
+    // este é o layout de TODAS as rotas do app — sem a guarda, um blip no banco
+    // derrubaria o shell inteiro por causa de um SELO. É a mesma disciplina que as
+    // duas contagens abaixo já seguiam ("falha de leitura não pode derrubar o
+    // shell"); degradar para o selo GLOBAL é o pior caso aceitável, e é o
+    // comportamento de antes desta fase.
+    const filiaisDoSelo = await listarFiliais()
+      .then((fs) => resolverFiliaisSlugs(undefined, operador, fs))
+      .catch((e) => {
+        console.error('[layout] falha ao recortar o selo de pendências por filial', e)
+        return [] as string[]
+      })
     const [pendenciasFila, conflitos] = await Promise.all([
-      contarPendenciasAbertas(),
-      contarConflitosAbertos(),
+      contarPendenciasAbertas(filiaisDoSelo),
+      contarConflitosAbertos(filiaisDoSelo),
     ])
     const pendencias = pendenciasFila + conflitos
     // F21 — o CARGO é resolvido UMA vez, aqui, e desce por prop para o shell
@@ -98,6 +116,7 @@ export default async function AppLayout({
                 podeEscrever={escreve}
                 eAdmin={admin}
                 eDev={dev}
+                hrefRelatorios={hrefRelatorios}
               />
               <div className="flex flex-1">
                 <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
