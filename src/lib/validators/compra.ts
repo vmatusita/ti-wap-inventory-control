@@ -11,6 +11,12 @@ const opcional = z.preprocess(
   z.string().trim().optional(),
 )
 
+// F25 — mesma régua, com o teto de 60 dos campos de celular do termo.
+const opcionalCurto = z.preprocess(
+  (v) => (v === '' || v == null ? undefined : v),
+  z.string().trim().max(60, 'No máximo 60 caracteres').optional(),
+)
+
 export const compraItemSchema = z.object({
   patrimonio: z
     .string()
@@ -39,6 +45,14 @@ export const compraLoteSchema = z.object({
   armazenamento: opcional,
   processador: opcional,
   fornecedor: opcional,
+  // F25 — campos próprios do CELULAR (migration 0101). Opcionais e sem máscara:
+  // o legado vem sujo e o resto da casa é texto livre. O `max(60)` espelha o
+  // `camposTermoSchema`, que é para onde eles vão no termo.
+  // ⚠ São por UNIDADE por natureza (dois aparelhos nunca têm o mesmo IMEI), e o
+  // form só os oferece quando o lote tem UMA unidade — ver nova-compra-form.tsx.
+  telefone: opcionalCurto,
+  imei: opcionalCurto,
+  pulsus: opcionalCurto,
   filial_id: z.number().int().positive('Escolha a filial que recebeu'),
   // Observação da compra (nº da nota fiscal etc.) — vai na movimentação `compra`.
   observacao: z.preprocess(

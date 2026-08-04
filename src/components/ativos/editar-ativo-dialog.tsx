@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/select'
 import { atualizarDadosCadastrais } from '@/lib/actions/ativos'
 import { hojeISO } from '@/lib/format'
-import type { TermoStatus } from '@/lib/dominio'
+import type { CategoriaAtivo, TermoStatus } from '@/lib/dominio'
 
 const TERMO_NULO = '__nulo'
 
@@ -42,6 +42,14 @@ type FormValues = {
   armazenamento: string
   processador: string
   hostname: string
+  // F25 — campos do celular. Entram SEMPRE no formulário, mesmo em ativo de outra
+  // categoria; só o RENDER é condicional. O update cadastral grava TODAS as
+  // colunas a cada save, então um campo fora do payload viraria NULL — e o IMEI
+  // de um celular sumiria em silêncio. Mesma razão do `values` vs `defaultValues`
+  // explicada abaixo.
+  telefone: string
+  imei: string
+  pulsus: string
   observacoes: string
   termo_assinado: string
   termo_data: string
@@ -49,10 +57,16 @@ type FormValues = {
 
 export type AtivoEditavel = {
   id: string
+  // F25 — insumo do render condicional dos campos de celular. A categoria NÃO é
+  // editável (o ativo nasce com ela), então não vai para o FormValues.
+  categoria: CategoriaAtivo
   memoria: string | null
   armazenamento: string | null
   processador: string | null
   hostname: string | null
+  telefone: string | null
+  imei: string | null
+  pulsus: string | null
   observacoes: string | null
   termo_assinado: TermoStatus | null
   termo_data: string | null
@@ -71,6 +85,9 @@ export function EditarAtivoDialog({ ativo }: { ativo: AtivoEditavel }) {
     armazenamento: ativo.armazenamento ?? '',
     processador: ativo.processador ?? '',
     hostname: ativo.hostname ?? '',
+    telefone: ativo.telefone ?? '',
+    imei: ativo.imei ?? '',
+    pulsus: ativo.pulsus ?? '',
     observacoes: ativo.observacoes ?? '',
     termo_assinado: ativo.termo_assinado ?? '',
     termo_data: ativo.termo_data ?? '',
@@ -175,6 +192,49 @@ export function EditarAtivoDialog({ ativo }: { ativo: AtivoEditavel }) {
                 )}
               />
             </div>
+
+            {/* F25 — só o CELULAR mostra estes três. A categoria é imutável na
+                vida do ativo, então não há `watch`: o teste é direto na prop. */}
+            {ativo.categoria === 'celular' && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="telefone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nº do telefone</FormLabel>
+                      <FormControl>
+                        <Input placeholder="(41) 90000-0000" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="imei"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IMEI</FormLabel>
+                      <FormControl>
+                        <Input placeholder="000000000000000" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pulsus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pulsus</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Identificação no Pulsus" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField

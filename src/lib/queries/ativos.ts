@@ -477,6 +477,12 @@ export type LinhaExportAtivo = {
   categoria: CategoriaAtivo
   marca: string | null
   modelo: string | null
+  // F25 — campos do celular. Saem preenchidos só nos celulares; nas demais
+  // categorias a coluna fica vazia (decisão registrada: uma coluna vazia é mais
+  // barata que um segundo arquivo de export).
+  telefone: string | null
+  imei: string | null
+  pulsus: string | null
   filial_nome: string
   status: StatusAtivo
   colaborador_atual: string | null
@@ -484,7 +490,7 @@ export type LinhaExportAtivo = {
 }
 
 const EXPORT_SELECT =
-  'patrimonio, service_tag, hostname, categoria, marca, modelo, status, colaborador_atual, setor_atual, filiais(slug, nome)'
+  'patrimonio, service_tag, hostname, categoria, marca, modelo, telefone, imei, pulsus, status, colaborador_atual, setor_atual, filiais(slug, nome)'
 
 // Tamanho do bloco de leitura. O Max Rows do PostgREST (default 1.000 no
 // Supabase) corta requests maiores EM SILÊNCIO — pedir 5.000 de uma vez devolve
@@ -499,6 +505,9 @@ type RawExportRow = {
   categoria: CategoriaAtivo
   marca: string | null
   modelo: string | null
+  telefone: string | null
+  imei: string | null
+  pulsus: string | null
   status: StatusAtivo
   colaborador_atual: string | null
   setor_atual: string | null
@@ -554,6 +563,9 @@ export async function listarAtivosParaExport(
         categoria: r.categoria,
         marca: r.marca,
         modelo: r.modelo,
+        telefone: r.telefone,
+        imei: r.imei,
+        pulsus: r.pulsus,
         filial_nome: r.filiais?.nome ?? '—',
         status: r.status,
         colaborador_atual: r.colaborador_atual,

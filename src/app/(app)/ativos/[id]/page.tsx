@@ -251,6 +251,15 @@ export default async function AtivoFichaPage({
             </Dado>
             <Dado label="Specs">{ouTraco(specs)}</Dado>
             <Dado label="Hostname">{ouTraco(ativo.hostname)}</Dado>
+            {/* F25 — só o CELULAR (a categoria é imutável na vida do ativo). Fora
+                de "Specs", que é a linha de hardware. */}
+            {ativo.categoria === 'celular' && (
+              <>
+                <Dado label="Nº do telefone">{ouTraco(ativo.telefone)}</Dado>
+                <Dado label="IMEI">{ouTraco(ativo.imei)}</Dado>
+                <Dado label="Pulsus">{ouTraco(ativo.pulsus)}</Dado>
+              </>
+            )}
             <Dado label="Fornecedor">{ouTraco(ativo.fornecedor)}</Dado>
             <Dado label="Filial">{ativo.filial_nome}</Dado>
             <Dado label="Colaborador">{ouTraco(ativo.colaborador_atual)}</Dado>

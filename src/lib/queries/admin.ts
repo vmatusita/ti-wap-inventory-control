@@ -275,13 +275,15 @@ export type FilialAdmin = {
   slug: string
   nome: string
   ativo: boolean
+  /** F25 — cidade que assina o termo. '' = ainda não cadastrada. */
+  cidade: string
   totalAtivos: number
 }
 
 export async function listarFiliaisAdmin(): Promise<FilialAdmin[]> {
   const client = await createClient()
   const [{ data: filiais }, { data: estoque }] = await Promise.all([
-    client.from('filiais').select('id, slug, nome, ativo').order('nome'),
+    client.from('filiais').select('id, slug, nome, ativo, cidade').order('nome'),
     client.from('v_estoque_atual').select('filial, total'),
   ])
 
@@ -295,6 +297,7 @@ export async function listarFiliaisAdmin(): Promise<FilialAdmin[]> {
     slug: f.slug,
     nome: f.nome,
     ativo: f.ativo,
+    cidade: f.cidade,
     totalAtivos: totalPorSlug.get(f.slug) ?? 0,
   }))
 }

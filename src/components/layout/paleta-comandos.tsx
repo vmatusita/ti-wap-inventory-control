@@ -86,7 +86,16 @@ const ROTAS: ItemNavegacao[] = [
   },
   { rotulo: 'Itens', href: '/itens', icone: Boxes, apelidos: ['consumiveis', 'quantidade'] },
   { rotulo: 'Pendências', href: '/pendencias', icone: ClipboardList, apelidos: ['termo'] },
-  { rotulo: 'Relatórios', href: '/relatorios/geral', icone: BarChart3 },
+  // F25 — o href é substituído por `hrefRelatorios` (resolvido por cargo no layout,
+  // igual à sidebar que esta lista espelha). Os apelidos passaram a existir porque o
+  // href deixou de conter a palavra 'geral': sem eles, Ctrl+K → "geral" ou
+  // "consolidado" pararia de achar a entrada para o operador.
+  {
+    rotulo: 'Relatórios',
+    href: '/relatorios/geral',
+    icone: BarChart3,
+    apelidos: ['relatorio', 'consolidado', 'geral'],
+  },
   {
     rotulo: 'Administração',
     href: '/admin/usuarios',
@@ -174,8 +183,11 @@ export function PaletaComandosProvider({
   podeEscrever = false,
   eAdmin = false,
   eDev = false,
+  hrefRelatorios,
 }: {
   children: React.ReactNode
+  /** F25 — destino de "Relatórios" resolvido por cargo (espelha a sidebar). */
+  hrefRelatorios?: string
   /**
    * Índice LEVE da documentação, serializado pelo SERVIDOR (`INDICE_PALETA`).
    * Vem por prop porque o registry é só-servidor: importá-lo aqui arrastaria o
@@ -309,8 +321,12 @@ export function PaletaComandosProvider({
     () =>
       ROTAS.filter(
         (r) => (eAdmin || !r.soAdmin) && (eDev || !r.soDev) && casa(r, termo),
+      ).map((r) =>
+        r.href === '/relatorios/geral' && hrefRelatorios
+          ? { ...r, href: hrefRelatorios }
+          : r,
       ),
-    [termo, eAdmin, eDev],
+    [termo, eAdmin, eDev, hrefRelatorios],
   )
   const acoes = useMemo(
     () => (podeEscrever ? ACOES.filter((a) => casa(a, termo)) : []),

@@ -505,6 +505,7 @@ export async function definirStatusUsuario(input: {
 export async function criarFilial(input: {
   nome: string
   slug: string
+  cidade?: string
 }): Promise<ActionResult> {
   const client = await createClient()
   const aut = await exigirAdmin(client)
@@ -530,6 +531,7 @@ export async function atualizarFilial(input: {
   nome: string
   slug: string
   ativo: boolean
+  cidade?: string
 }): Promise<ActionResult> {
   const client = await createClient()
   const aut = await exigirAdmin(client)
@@ -538,7 +540,7 @@ export async function atualizarFilial(input: {
   if (!parsed.success) {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
-  const { id, nome, slug, ativo } = parsed.data
+  const { id, nome, slug, ativo, cidade } = parsed.data
 
   // Bloquear desativar filial com ativos (OS-F3 3.7.2) OU com saldo de itens por
   // quantidade (F12-W4-07). As DUAS checagens são independentes, e não uma só,
@@ -587,7 +589,7 @@ export async function atualizarFilial(input: {
 
   const { error } = await client
     .from('filiais')
-    .update({ nome, slug, ativo })
+    .update({ nome, slug, ativo, cidade })
     .eq('id', id)
   if (error) {
     if (error.message.toLowerCase().includes('duplicate')) {

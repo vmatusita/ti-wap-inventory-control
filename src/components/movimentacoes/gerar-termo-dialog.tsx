@@ -44,6 +44,8 @@ const CAMPOS_RESP: CampoDef[] = [
   { chave: 'service_tag', rotulo: 'Service Tag' },
   { chave: 'patrimonio', rotulo: 'Patrimônio' },
   { chave: 'chamado', rotulo: 'Chamado' },
+  // F25 — a cidade da linha da assinatura, pré-preenchida pela filial do ativo.
+  { chave: 'cidade', rotulo: 'Cidade da assinatura' },
 ]
 const CAMPOS_CELULAR: CampoDef[] = [
   { chave: 'telefone', rotulo: 'Nº do telefone' },
@@ -60,6 +62,9 @@ const CAMPOS_DEVOL: CampoDef[] = [
   { chave: 'outros_componentes', rotulo: 'Outros componentes', multi: true },
   { chave: 'observacao', rotulo: 'Observação', multi: true },
   { chave: 'tecnico', rotulo: 'Responsável de TI (recebeu)' },
+  // F25 — os 7 modelos têm a linha da assinatura, então a cidade vale nas DUAS
+  // famílias (o de devolução também a imprime).
+  { chave: 'cidade', rotulo: 'Cidade da assinatura' },
 ]
 
 export function GerarTermoDialog({
@@ -129,7 +134,12 @@ export function GerarTermoDialog({
       const existente = inicial ? res.existentes.find((e) => e.tipo === inicial) : undefined
       if (existente) {
         const { data: d, ...rest } = existente.dados
-        setCampos(rest)
+        // F25 — o snapshot MANDA, mas só nas chaves que ele tem. Todo termo salvo
+        // antes desta fase não tem `cidade`, e sem este merge o campo abriria
+        // VAZIO — e `nullGetter: () => ''` faria o documento sair começando por
+        // vírgula. Chave presente-mas-vazia no snapshot continua vencendo: ela é
+        // uma edição deliberada de quem gerou.
+        setCampos({ ...res.campos, ...rest })
         setData(d ?? res.data)
       } else {
         setCampos(res.campos)

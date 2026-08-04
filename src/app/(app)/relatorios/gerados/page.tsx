@@ -5,6 +5,7 @@ import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
 import { resolverFiliaisSlugsSemPadrao } from '@/lib/filtros/filial'
+import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +37,13 @@ export default async function RelatoriosGeradosPage({
   // também a única tela cujo filtro aceita o valor especial 'geral'.
   const filialFiltro = resolverFiliaisSlugsSemPadrao(
     typeof sp.filial === 'string' ? sp.filial : undefined,
+  )
+
+  // F25 — 'Ver ao vivo' leva ao mesmo destino por cargo da sidebar. No modo
+  // VISUALIZADOR não há operador (nem cargo), e a função devolve o Consolidado —
+  // que é exatamente o comportamento de antes para essa porta.
+  const hrefAoVivo = await rotaRelatorioPadrao(
+    acesso.modo === 'operador' ? acesso.operador : null,
   )
 
   const [filiais, gerados] = await Promise.all([
@@ -75,7 +83,7 @@ export default async function RelatoriosGeradosPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline" size="sm" className="gap-1.5">
-            <Link href="/relatorios/geral">
+            <Link href={hrefAoVivo}>
               <BarChart3 className="size-4" />
               Ver ao vivo
             </Link>

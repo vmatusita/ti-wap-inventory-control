@@ -11,12 +11,26 @@ const opcional = z.preprocess(
   z.string().trim().optional(),
 )
 
+// F25 — campos do celular: mesma régua, com o teto de 60 do `camposTermoSchema`.
+const opcionalCurto = z.preprocess(
+  (v) => (v === '' || v == null ? undefined : v),
+  z.string().trim().max(60, 'No máximo 60 caracteres').optional(),
+)
+
 export const editarAtivoSchema = z.object({
   id: z.string().uuid(),
   memoria: opcional,
   armazenamento: opcional,
   processador: opcional,
   hostname: opcional,
+  // F25 — campos próprios do celular. Entram SEMPRE no schema (e no formulário),
+  // mesmo para outras categorias: só o RENDER é condicional. A action reescreve
+  // todas as colunas a cada save, então um campo ausente do payload viraria NULL
+  // — é assim que se apagaria em silêncio o IMEI de um celular salvo por um
+  // caminho que não populasse o campo.
+  telefone: opcionalCurto,
+  imei: opcionalCurto,
+  pulsus: opcionalCurto,
   observacoes: z.preprocess(
     (v) => (v === '' || v == null ? undefined : v),
     z.string().trim().max(2000, 'Observações: no máximo 2000 caracteres').optional(),

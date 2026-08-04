@@ -254,13 +254,33 @@ export function validarExclusaoDeUsuario(args: {
 
 // ---- Filiais ----
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+// F25 — SLUGS RESERVADOS. Duas palavras não podem virar slug de filial porque já
+// significam outra coisa nas URLs do sistema:
+//   'todas' — a sentinela de "sem recorte" do filtro de filial (url-params.ts).
+//             Em /pendencias o filtro é POR SLUG, então uma filial 'todas'
+//             tornaria `?filial=todas` ambíguo.
+//   'geral' — o Consolidado de /relatorios/[filial] e o valor especial do filtro
+//             de /relatorios/gerados (`filial_id is null`). Já era reservado de
+//             fato desde a F3; nunca esteve escrito.
+// Nenhuma filial real usa essas palavras (conferido nos dois bancos em 04/08/2026).
+const SLUGS_RESERVADOS = ['todas', 'geral'] as const
+
 export const filialSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome').max(80),
   slug: z
     .string()
     .trim()
     .toLowerCase()
-    .regex(SLUG_RE, 'Slug: só letras minúsculas, números e hífens'),
+    .regex(SLUG_RE, 'Slug: só letras minúsculas, números e hífens')
+    .refine(
+      (s) => !(SLUGS_RESERVADOS as readonly string[]).includes(s),
+      'Este slug é reservado pelo sistema. Escolha outro.',
+    ),
+  // F25 — a cidade que assina o TERMO (migration 0102). Opcional: filial nova
+  // nasce sem, e quem avisa é a geração do termo. Não confundir com a cláusula
+  // de foro, que é fixa.
+  cidade: z.string().trim().max(120).default(''),
 })
 
 export const atualizarFilialSchema = filialSchema.extend({

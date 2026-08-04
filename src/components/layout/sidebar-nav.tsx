@@ -40,6 +40,10 @@ const ITENS: NavItem[] = [
   { rotulo: 'Movimentações', icone: ArrowLeftRight, href: '/movimentacoes' },
   { rotulo: 'Itens', icone: Boxes, href: '/itens' },
   { rotulo: 'Pendências', icone: ClipboardList, href: '/pendencias' },
+  // F25 — este href é o PADRÃO/fallback: o layout do grupo manda `hrefRelatorios`
+  // resolvido POR CARGO (o operador cai na aba da filial dele) e ele substitui este
+  // valor no render. Esquecer a prop degrada para o comportamento antigo, nunca para
+  // um item sem link. O realce independe do href (usa `match`).
   { rotulo: 'Relatórios', icone: BarChart3, href: '/relatorios/geral', match: '/relatorios' },
   {
     rotulo: 'Administração',
@@ -78,10 +82,13 @@ export function SidebarNav({
   pendencias,
   eAdmin = false,
   eDev = false,
+  hrefRelatorios,
 }: {
   className?: string
   onNavigate?: () => void
   pendencias?: number
+  /** F25 — destino de "Relatórios" resolvido por cargo no servidor. */
+  hrefRelatorios?: string
   eAdmin?: boolean
   // Default `false` de propósito: enquanto o `(app)/layout.tsx` não passar a prop, o item
   // /dev simplesmente não aparece — a rota continua protegida pelo `dev/layout.tsx`, então
@@ -117,12 +124,14 @@ export function SidebarNav({
         }
 
         const atual = ativa(pathname, item)
+        const href =
+          item.match === '/relatorios' && hrefRelatorios ? hrefRelatorios : item.href
         const contagem =
           item.href === '/pendencias' && pendencias && pendencias > 0 ? pendencias : null
         return (
           <Link
             key={item.rotulo}
-            href={item.href}
+            href={href}
             onClick={onNavigate}
             aria-current={atual ? 'page' : undefined}
             aria-label={

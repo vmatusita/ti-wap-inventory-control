@@ -83,14 +83,38 @@ type MovRow = {
     service_tag: string | null
     patrimonio: string | null
     colaborador_atual: string | null
+    // F25 — campos próprios do celular (migration 0101): pré-preenchem o termo.
+    telefone: string | null
+    imei: string | null
+    pulsus: string | null
+    // F25 — a filial CORRENTE do ativo é de onde sai a cidade da assinatura.
+    filial_id: number
   } | null
   motivo_rel: { rotulo: string } | null
 }
 
 const MOV_SELECT =
   'id, tipo, motivo, colaborador, chamado, itens_faltantes, snapshot_anterior, ' +
-  'ativo:ativos!movimentacoes_ativo_id_fkey(id, categoria, marca, modelo, service_tag, patrimonio, colaborador_atual), ' +
+  'ativo:ativos!movimentacoes_ativo_id_fkey(id, categoria, marca, modelo, service_tag, patrimonio, colaborador_atual, telefone, imei, pulsus, filial_id), ' +
   'motivo_rel:motivos!movimentacoes_motivo_fkey(rotulo)'
+
+// A cidade que assina, pela filial CORRENTE do ativo (F25 · migration 0102).
+//
+// Leitura à parte, e não um embed `filiais(...)` dentro do embed do ativo: a
+// consulta é uma só para o lote inteiro, e ler `filiais` direto (em vez de
+// `listarFiliais()`) cobre também a filial DESATIVADA — que `listarFiliais` filtra
+// e que um ativo antigo pode perfeitamente ter.
+type CidadeDaFilial = { id: number; nome: string; cidade: string }
+
+async function cidadesDasFiliais(
+  supabase: ServerClient,
+  filialIds: readonly number[],
+): Promise<Map<number, CidadeDaFilial>> {
+  const ids = [...new Set(filialIds)]
+  if (ids.length === 0) return new Map()
+  const { data } = await supabase.from('filiais').select('id, nome, cidade').in('id', ids)
+  return new Map(((data ?? []) as CidadeDaFilial[]).map((f) => [f.id, f]))
+}
 
 function falhaPrep(erro: string): PreparacaoTermo {
   return {
@@ -154,16 +178,44 @@ export async function prepararTermo(input: {
 
   const avisos: string[] = []
 
+  // ---- F25: a cidade da linha da assinatura --------------------------------
+  // Sai da filial CORRENTE dos ativos. Lote com filiais divergentes usa a do
+  // PRIMEIRO e avisa — mesmo padrão do aviso de "vários donos" da devolução:
+  // o termo é um documento único e alguém precisa conferir qual cidade vale.
+  const cidades = await cidadesDasFiliais(supabase, ativos.map((a) => a.filial_id))
+  const filiaisDoLote = [...new Set(ativos.map((a) => a.filial_id))]
+  const filialDoTermo = cidades.get(ativos[0]?.filial_id ?? -1)
+  const cidade = filialDoTermo?.cidade ?? ''
+  if (filiaisDoLote.length > 1) {
+    const nomes = filiaisDoLote.map((id) => cidades.get(id)?.nome ?? `#${id}`)
+    avisos.push(
+      `Este lote tem equipamentos de mais de uma filial (${nomes.join(', ')}). ` +
+        `A cidade da assinatura veio de ${filialDoTermo?.nome ?? 'a primeira'} — confira antes de gerar.`,
+    )
+  } else if (!cidade) {
+    avisos.push(
+      `A filial ${filialDoTermo?.nome ?? 'do ativo'} não tem cidade cadastrada — ` +
+        `cadastre em Administração → Filiais ou preencha aqui.`,
+    )
+  }
+
   if (familia === 'responsabilidade') {
     const mov = movs[0]
     const a = mov.ativo
     if (!a) return falhaPrep('Ativo não encontrado.')
     const colaborador = mov.colaborador ?? a.colaborador_atual ?? ''
+    // F25 — os três campos do celular entram no aviso de faltantes, mas SÓ quando
+    // a categoria é celular: sem essa guarda, todo termo de notebook passaria a
+    // avisar que falta IMEI.
+    const ehCelular = a.categoria === 'celular'
     const faltando = [
       !a.marca && 'marca',
       !a.modelo && 'modelo',
       !a.service_tag && 'service tag',
       !a.patrimonio && 'patrimônio',
+      ehCelular && !a.telefone && 'nº do telefone',
+      ehCelular && !a.imei && 'IMEI',
+      ehCelular && !a.pulsus && 'Pulsus',
     ].filter(Boolean) as string[]
     if (faltando.length > 0) {
       avisos.push(`O ativo não tem ${faltando.join(', ')} cadastrado(s) — o campo sai em branco.`)
@@ -175,11 +227,17 @@ export async function prepararTermo(input: {
       service_tag: a.service_tag ?? '',
       patrimonio: a.patrimonio ?? '',
       chamado: mov.chamado ?? '',
-      // extras do celular — vazios (manuais, §4.1)
-      telefone: '',
-      imei: '',
-      pulsus: '',
+      // F25 — vêm do CADASTRO do ativo (migration 0101). Antes saíam '' fixos
+      // ("manuais, §4.1" do PLANO-TERMOS) e alguém redigitava o mesmo IMEI a cada
+      // termo. Continuam 100% editáveis aqui, e editar NÃO grava de volta no
+      // ativo — a regra do §3.9 do plano não muda.
+      telefone: a.telefone ?? '',
+      imei: a.imei ?? '',
+      pulsus: a.pulsus ?? '',
+      // `obs` é do DOCUMENTO (uma observação daquela entrega), não do aparelho:
+      // segue manual e sem coluna.
       obs: '',
+      cidade,
     }
     return {
       ok: true,
@@ -240,6 +298,7 @@ export async function prepararTermo(input: {
     outros_componentes: '',
     observacao: observacaoSugestao(itensFaltantes),
     tecnico: perfil?.nome ?? '',
+    cidade,
   }
   return {
     ok: true,

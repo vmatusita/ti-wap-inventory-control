@@ -143,6 +143,10 @@ export async function atualizarDadosCadastrais(input: {
   armazenamento?: string
   processador?: string
   hostname?: string
+  // F25 — campos do celular (migration 0101).
+  telefone?: string
+  imei?: string
+  pulsus?: string
   observacoes?: string
   termo_assinado?: string | null
   termo_data?: string | null
@@ -181,6 +185,13 @@ export async function atualizarDadosCadastrais(input: {
       armazenamento: campos.armazenamento ?? null,
       processador: campos.processador ?? null,
       hostname: campos.hostname ?? null,
+      // ⚠ Este update é OVERWRITE TOTAL: campo ausente do payload vira NULL. Por
+      // isso os três entram SEMPRE (o formulário os mantém no estado mesmo
+      // quando não os desenha) — do contrário, salvar a ficha de um celular por
+      // um caminho que não populasse os campos apagaria o IMEI em silêncio.
+      telefone: campos.telefone ?? null,
+      imei: campos.imei ?? null,
+      pulsus: campos.pulsus ?? null,
       observacoes: campos.observacoes ?? null,
       termo_assinado: campos.termo_assinado,
       termo_data: campos.termo_data,

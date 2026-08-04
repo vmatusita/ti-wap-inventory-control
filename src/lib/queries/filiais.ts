@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/types/database'
@@ -13,7 +14,19 @@ export type Filial = { id: number; slug: string; nome: string; cidade: string }
 // (default), mas a SESSÃO POR SENHA precisa passar o client administrativo —
 // senão a RLS (anon = nada) devolve lista vazia e as tabs/filtro de filial
 // somem para o visualizador (achado da revisão da F3).
-export async function listarFiliais(
+// MEMOIZADA POR REQUISIÇÃO (`cache()` do React), como `getOperador()`. A F25 fez o
+// LAYOUT do grupo (app) precisar da lista — é dela que sai a aba padrão de
+// /relatorios do operador (slug + ordem alfabética de nome) —, e sem o memo toda
+// rota do app pagaria um select a mais, já que as páginas também a chamam.
+//
+// ⚠ O cache é POR REQUISIÇÃO, nunca global (mesma nota de `getOperador`): esta
+// lista não é segredo, mas `"use cache"`/`unstable_cache` guardariam entre
+// requisições e uma filial recém-desativada continuaria aparecendo.
+//
+// A chave do memo é o ARGUMENTO: quem passa o client administrativo (a sessão por
+// SENHA) tem entrada própria e não compartilha resultado com a sessão com RLS —
+// que é exatamente o desejado, porque as duas enxergam coisas diferentes.
+export const listarFiliais = cache(async function listarFiliais(
   client?: SupabaseClient<Database>,
 ): Promise<Filial[]> {
   const supabase = client ?? (await createClient())
@@ -25,4 +38,4 @@ export async function listarFiliais(
 
   if (error) throw new Error(`Falha ao listar filiais: ${error.message}`)
   return data ?? []
-}
+})

@@ -34,6 +34,7 @@ type FilialEdit = {
   nome: string
   slug: string
   ativo: boolean
+  cidade: string
   totalAtivos: number
 }
 
@@ -47,6 +48,8 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
   const [slug, setSlug] = useState(filial?.slug ?? '')
   const [slugTocado, setSlugTocado] = useState(edicao)
   const [ativo, setAtivo] = useState(filial?.ativo ?? true)
+  // F25 — a cidade que assina o TERMO desta filial.
+  const [cidade, setCidade] = useState(filial?.cidade ?? '')
   const [enviando, start] = useTransition()
 
   function mudarNome(v: string) {
@@ -63,8 +66,14 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
       // (apaga a tela no error boundary) e o operador fica sem feedback.
       try {
         const res = edicao
-          ? await atualizarFilial({ id: filial.id, nome: nome.trim(), slug, ativo })
-          : await criarFilial({ nome: nome.trim(), slug })
+          ? await atualizarFilial({
+              id: filial.id,
+              nome: nome.trim(),
+              slug,
+              ativo,
+              cidade: cidade.trim(),
+            })
+          : await criarFilial({ nome: nome.trim(), slug, cidade: cidade.trim() })
         if (!res.ok) {
           toast.error(res.erro)
           return
@@ -117,6 +126,21 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
               setSlug(slugify(e.target.value))
             }}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="filial-cidade">Cidade</Label>
+          <Input
+            id="filial-cidade"
+            value={cidade}
+            onChange={(e) => setCidade(e.target.value)}
+            placeholder="Ex.: Linhares"
+          />
+          <p className="text-xs text-muted-foreground">
+            Entra na linha da assinatura dos termos desta filial (por exemplo:
+            Linhares, 4 de agosto de 2026). Deixar em branco faz o termo avisar na
+            hora de gerar.
+          </p>
         </div>
 
         {edicao && (

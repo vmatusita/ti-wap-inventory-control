@@ -292,6 +292,15 @@ export function NovaCompraForm({
   const [categoria, setCategoria] = useState<CategoriaAtivo | ''>(
     inicial?.categoria ?? '',
   )
+  // F25 — campos próprios do CELULAR. NÃO saem de `inicial` ("Comprar outro
+  // igual" / "Repetir última compra"): IMEI e nº de linha identificam a UNIDADE,
+  // exatamente como patrimônio e service tag, que `DadosCompraInicial` já exclui
+  // pelo mesmo motivo. Copiá-los faria o aparelho novo nascer com o IMEI do
+  // antigo — e o banner do formulário promete que o que identifica não é copiado.
+  const [telefone, setTelefone] = useState('')
+  const [imei, setImei] = useState('')
+  const [pulsus, setPulsus] = useState('')
+
   const [marca, setMarca] = useState(inicial?.marca ?? '')
   const [modelo, setModelo] = useState(inicial?.modelo ?? '')
   const [memoria, setMemoria] = useState(inicial?.memoria ?? '')
@@ -425,6 +434,18 @@ export function NovaCompraForm({
     return { ...vazio, itens: pareado.itens ?? [] }
   }, [modo, textoLista, faixaInicio, faixaFim, faixaSts])
 
+  // F25 — os campos do celular aparecem só quando a categoria é CELULAR e o lote
+  // tem no máximo UMA unidade.
+  //
+  // Por que o teto de uma unidade: não existe formulário "single" neste app — todo
+  // cadastro é lote, e os campos de "Dados do modelo" são COMPARTILHADOS por todas
+  // as unidades. Telefone, IMEI e Pulsus não são do modelo, são do APARELHO: um
+  // campo compartilhado gravaria o mesmo IMEI em vinte celulares, que é corrupção
+  // silenciosa de dado. Fazê-los por unidade custaria três textareas novas e a
+  // generalização do pareamento por índice (`parearFaixaComServiceTags`) — caro
+  // para o ganho, e em lote se preenche pela ficha depois. Decisão registrada.
+  const mostrarCamposCelular = categoria === 'celular' && preview.itens.length <= 1
+
   async function enviar() {
     if (enviandoRef.current) return
     if (preview.erros.length > 0) {
@@ -456,6 +477,10 @@ export function NovaCompraForm({
       categoria: categoria as CategoriaAtivo,
       marca,
       modelo,
+      // F25 — só viajam quando o bloco está VISÍVEL (celular + unidade única). Sem
+      // essa guarda, digitar o IMEI e depois colar 20 patrimônios gravaria o MESMO
+      // IMEI nos 20 aparelhos.
+      ...(mostrarCamposCelular ? { telefone, imei, pulsus } : {}),
       memoria,
       armazenamento,
       processador,
@@ -516,6 +541,9 @@ export function NovaCompraForm({
     setFaixaInicio('')
     setFaixaFim('')
     setFaixaSts('')
+    setTelefone('')
+    setImei('')
+    setPulsus('')
     setMarca('')
     setModelo('')
     setMemoria('')
@@ -843,6 +871,47 @@ export function NovaCompraForm({
               placeholder="—"
             />
           </div>
+          {/* F25 — campos do CELULAR. Reativos de graça: `categoria` é estado
+              local e trocar o Select re-renderiza o formulário inteiro (este
+              form não usa react-hook-form). */}
+          {mostrarCamposCelular && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="telefone">Nº do telefone</Label>
+                <Input
+                  id="telefone"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  placeholder="(41) 90000-0000"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="imei">IMEI</Label>
+                <Input
+                  id="imei"
+                  value={imei}
+                  onChange={(e) => setImei(e.target.value)}
+                  placeholder="000000000000000"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="pulsus">Pulsus</Label>
+                <Input
+                  id="pulsus"
+                  value={pulsus}
+                  onChange={(e) => setPulsus(e.target.value)}
+                  placeholder="Identificação no Pulsus"
+                />
+              </div>
+            </>
+          )}
+          {categoria === 'celular' && preview.itens.length > 1 && (
+            <p className="text-xs text-muted-foreground sm:col-span-2">
+              Nº do telefone, IMEI e Pulsus são de cada aparelho, não do modelo —
+              em lote eles não aparecem aqui. Cadastre o lote e preencha na ficha
+              de cada celular.
+            </p>
+          )}
           <CampoComSugestoes
             id="fornecedor"
             label="Fornecedor"

@@ -31,6 +31,16 @@ export const camposTermoSchema = z
     outros_componentes: z.string().max(400),
     observacao: z.string().max(500),
     tecnico: z.string().max(200),
+    // F25 — a cidade da linha da assinatura ("{cidade}, {data por extenso}"),
+    // pré-preenchida pela filial do(s) ativo(s) e editável como todo campo do
+    // termo. Vale nas DUAS famílias: os 7 modelos têm essa linha.
+    //
+    // ⚠ NÃO tem relação com a cláusula de FORO, que segue fixa na comarca da sede
+    // e não é campo (decisão do Johnny, 04/08/2026).
+    //
+    // 120 e não 60: nome de cidade brasileira comprido cabe com folga
+    // ("Santa Bárbara d'Oeste", "São Miguel do Oeste").
+    cidade: z.string().max(120),
   })
   .partial()
 

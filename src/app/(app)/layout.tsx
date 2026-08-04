@@ -5,6 +5,7 @@ import { contarPendenciasAbertas } from '@/lib/queries/pendencias-detalhe'
 import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 import { AppHeader } from '@/components/layout/app-header'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
+import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { ViewerHeader } from '@/components/layout/viewer-header'
 import {
   BarraProgressoNavegacao,
@@ -30,7 +31,9 @@ export default async function AppLayout({
 
   if (pathname === '/relatorios/acesso') {
     const operador = await getOperador()
-    if (operador) redirect('/relatorios/geral')
+    // F25 — o operador logado que abre a porta da SENHA é devolvido ao relatório
+    // dele, não ao Consolidado: é o mesmo destino do item da sidebar.
+    if (operador) redirect(await rotaRelatorioPadrao(operador))
     return <>{children}</>
   }
 
@@ -61,6 +64,10 @@ export default async function AppLayout({
   // enxerga a area /dev. Resolvido aqui, junto dos outros, para nenhuma peca consultar o
   // banco de novo (o mesmo motivo do comentario acima).
   const dev = eDev(operador.papel)
+    // F25 — o destino de "Relatórios" também é resolvido UMA vez aqui e desce por
+    // prop para a sidebar e a paleta (que a espelha): o operador vai para a aba da
+    // filial dele, os demais para o Consolidado.
+    const hrefRelatorios = await rotaRelatorioPadrao(operador)
     return (
       <TooltipProvider delayDuration={300}>
         <ProgressoNavegacaoProvider>
@@ -81,6 +88,7 @@ export default async function AppLayout({
             podeEscrever={escreve}
             eAdmin={admin}
             eDev={dev}
+            hrefRelatorios={hrefRelatorios}
           >
             <div className="flex min-h-svh flex-col">
               <AppHeader
@@ -93,7 +101,12 @@ export default async function AppLayout({
               />
               <div className="flex flex-1">
                 <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
-                  <SidebarNav pendencias={pendencias} eAdmin={admin} eDev={dev} />
+                  <SidebarNav
+                    pendencias={pendencias}
+                    eAdmin={admin}
+                    eDev={dev}
+                    hrefRelatorios={hrefRelatorios}
+                  />
                 </aside>
                 <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
               </div>

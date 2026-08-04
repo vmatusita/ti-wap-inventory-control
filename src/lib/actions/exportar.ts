@@ -245,6 +245,14 @@ const COLUNAS_ATIVOS: ColunaCsv<LinhaExportAtivo>[] = [
   { titulo: 'Categoria', valor: (l) => rotuloCategoria(l.categoria) },
   { titulo: 'Marca', valor: (l) => l.marca },
   { titulo: 'Modelo', valor: (l) => l.modelo },
+  // F25 — campos do celular. Vazios nas demais categorias: uma coluna vazia é
+  // mais barata (e mais fácil de somar numa planilha) que um segundo arquivo.
+  // ⚠ Um telefone gravado como `+5541988887777` sai com o prefixo anti-fórmula
+  // do CSV (`PADRAO_FORMULA` em lib/csv.ts) — proteção correta contra CSV
+  // injection, visível no Excel.
+  { titulo: 'Nº do telefone', valor: (l) => l.telefone },
+  { titulo: 'IMEI', valor: (l) => l.imei },
+  { titulo: 'Pulsus', valor: (l) => l.pulsus },
   { titulo: 'Filial', valor: (l) => l.filial_nome },
   { titulo: 'Status', valor: (l) => rotuloStatus(l.status) },
   { titulo: 'Colaborador', valor: (l) => l.colaborador_atual },

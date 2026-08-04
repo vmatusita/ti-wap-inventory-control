@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getOperador } from '@/lib/auth/acesso'
+import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
 import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
@@ -87,6 +88,8 @@ export default async function DashboardPage() {
   // abaixo são os mesmos para os três cargos (leitura ampla — ADR-001).
   const operador = await getOperador()
   const escreve = podeEscrever(operador?.papel)
+  // F25 — o mesmo destino de "Relatórios" da sidebar (resolvido por cargo).
+  const hrefRelatorios = await rotaRelatorioPadrao(operador)
 
   // As duas leituras do ponto de reposição (F12 · I5) entram no MESMO
   // `Promise.all` das outras — nada de cascata sequencial na home. `null` em
@@ -257,7 +260,7 @@ export default async function DashboardPage() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Últimas movimentações</h2>
               <Link
-                href="/relatorios/geral"
+                href={hrefRelatorios}
                 className="text-xs text-muted-foreground underline-offset-2 hover:underline"
               >
                 ver todas
@@ -304,8 +307,13 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* F25 — o card de Relatórios leva ao mesmo destino da sidebar (por cargo). */}
         {ACOES.filter((a) => escreve || !a.escrita).map((a) => (
-          <Link key={a.href} href={a.href} className="group">
+          <Link
+            key={a.href}
+            href={a.href === '/relatorios/geral' ? hrefRelatorios : a.href}
+            className="group"
+          >
             <Card className="h-full transition-colors group-hover:border-primary/40 group-hover:bg-accent/40">
               <CardContent className="flex items-start gap-3 py-5">
                 <span className="rounded-md bg-muted p-2 text-foreground">

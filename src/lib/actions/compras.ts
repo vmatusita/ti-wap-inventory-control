@@ -117,6 +117,37 @@ export async function registrarCompra(
     return { ok: false, criados: [], erroGeral: traduzErroBanco(error.message, error.code) }
   }
 
+  const ids = (criados ?? []).map((c) => c.ativo_id)
+
+  // F25 — os campos do celular gravados DEPOIS da RPC, e não dentro dela.
+  //
+  // Quem faz o INSERT é `criar_compra_lote` (migration 0064), que lê chaves
+  // NOMINAIS do jsonb e ignora as demais: acrescentar `imei` a `p_itens` sem
+  // recriar a função seria um no-op SILENCIOSO — a tela "funcionaria" e o
+  // aparelho nasceria sem IMEI. Recriar a RPC, por outro lado, obrigaria a rodar
+  // TODOS os roteiros SQL (regra F17 do runbook) e contraria o §1.3 da ordem
+  // ("nenhuma RPC muda nesta fase").
+  //
+  // O preço é conhecido e aceito: este UPDATE está FORA da transação da compra.
+  // Se ele falhar, o ativo existe e os três campos ficam vazios — a ficha os
+  // oferece, e o operador completa. É por isso que o erro não derruba o cadastro:
+  // devolver falha aqui faria o operador repetir uma compra que já aconteceu.
+  const extrasCelular =
+    dados.categoria === 'celular' &&
+    (dados.telefone || dados.imei || dados.pulsus)
+      ? {
+          telefone: dados.telefone ?? null,
+          imei: dados.imei ?? null,
+          pulsus: dados.pulsus ?? null,
+        }
+      : null
+  if (extrasCelular && ids.length > 0) {
+    const { error: eExtras } = await supabase.from('ativos').update(extrasCelular).in('id', ids)
+    if (eExtras) {
+      console.error('[registrarCompra] falha ao gravar telefone/IMEI/Pulsus', eExtras)
+    }
+  }
+
   revalidatePath('/ativos')
   // Compras entram como estoque disponivel — o relatorio ao vivo precisa refletir.
   revalidatePath('/relatorios', 'layout')

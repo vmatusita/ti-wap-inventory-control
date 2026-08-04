@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { FileQuestion } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { getOperador } from '@/lib/auth/acesso'
+import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 
 // Boundary de NOT-FOUND da raiz do grupo (app) — a metade que faltava do par que
 // o `error.tsx` irmão já cobria. Sem este arquivo, todo `notFound()` do grupo
@@ -17,7 +19,7 @@ import { Button } from '@/components/ui/button'
 // aqui repetir a mesma URL nunca ajuda — o recurso não existe). Os dois destinos
 // são rotas de relatório porque são as únicas que o visualizador alcança; para o
 // operador elas também são caminho válido de volta.
-export default function NaoEncontrado() {
+export default async function NaoEncontrado() {
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-center">
       <FileQuestion className="size-8 text-muted-foreground" />
@@ -27,7 +29,9 @@ export default function NaoEncontrado() {
       </p>
       <div className="flex flex-wrap justify-center gap-2">
         <Button asChild variant="outline">
-          <Link href="/relatorios/geral">Ir para o relatório</Link>
+          <Link href={await rotaRelatorioPadrao(await getOperador())}>
+            Ir para o relatório
+          </Link>
         </Button>
         <Button asChild variant="ghost">
           <Link href="/relatorios/gerados">Relatórios gerados</Link>
