@@ -14,13 +14,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 import { hojeISO } from '@/lib/format'
 import { rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import type { Filial } from '@/lib/queries/filiais'
 
 const TODOS_TIPOS = '__todos_tipos'
-const TODAS_FILIAIS = '__todas_filiais'
 
 // Ordem de EXIBIÇÃO do select (não é a ordem do enum): os tipos do dia a dia
 // primeiro, os raros e o estorno no fim. Lista explícita de propósito — varrer
@@ -46,7 +46,15 @@ const TIPOS_EXIBICAO: TipoMovimentacao[] = [
 // Filtros da lista de movimentações (F11 · M8), 100% na URL (`de`/`ate`/`tipo`/
 // `filial`/`q`), no mesmo padrão de `ativos-filtros.tsx`. Mudar qualquer filtro
 // reseta o `page`. Param inválido é ignorado pela página (nunca derruba a rota).
-export function ListaFiltros({ filiais }: { filiais: Filial[] }) {
+export function ListaFiltros({
+  filiais,
+  // F25 — seleção EFETIVA de filial, resolvida no servidor (pode vir do padrão do
+  // cargo, e não da URL).
+  filiaisSelecionadas,
+}: {
+  filiais: Filial[]
+  filiaisSelecionadas: string[]
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -58,7 +66,6 @@ export function ListaFiltros({ filiais }: { filiais: Filial[] }) {
 
   const qAtual = params.get('q') ?? ''
   const tipoAtual = params.get('tipo') ?? ''
-  const filialAtual = params.get('filial') ?? ''
   const deAtual = params.get('de') ?? ''
   const ateAtual = params.get('ate') ?? ''
 
@@ -114,8 +121,10 @@ export function ListaFiltros({ filiais }: { filiais: Filial[] }) {
     aplicar({ q: busca.trim() || null })
   }
 
+  // F25 — o `filial` conta como filtro quando veio da URL, não quando a marcação
+  // saiu do padrão do cargo (senão "Limpar" nunca sumiria para o operador).
   const temFiltro =
-    !!qAtual || !!tipoAtual || !!filialAtual || !!deAtual || !!ateAtual
+    !!qAtual || !!tipoAtual || !!params.get('filial') || !!deAtual || !!ateAtual
   const hoje = hojeISO()
 
   return (
@@ -183,31 +192,17 @@ export function ListaFiltros({ filiais }: { filiais: Filial[] }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="mov-filial" className="text-xs text-muted-foreground">
-          Filial
-        </Label>
-        <Select
-          value={filialAtual || TODAS_FILIAIS}
-          onValueChange={(v) =>
-            aplicar({ filial: v === TODAS_FILIAIS ? null : v })
-          }
-        >
-          <SelectTrigger
-            id="mov-filial"
-            className="w-[170px]"
-            aria-label="Filtrar por filial"
-          >
-            <SelectValue placeholder="Filial" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODAS_FILIAIS}>Todas as filiais</SelectItem>
-            {filiais.map((f) => (
-              <SelectItem key={f.id} value={String(f.id)}>
-                {f.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* O rótulo do BOTÃO resume a seleção ("Todas" × "Filiais 2") porque esta
+            tela põe o nome do campo acima do controle — repetir "Filial" nos dois
+            lugares só ocuparia espaço. */}
+        <Label className="text-xs text-muted-foreground">Filial</Label>
+        <FiltroFilial
+          opcoes={opcoesDeFiliais(filiais, false)}
+          selecionados={filiaisSelecionadas}
+          aplicar={(v) => aplicar({ filial: v })}
+          idPrefixo="mov-filial"
+          rotulo={filiaisSelecionadas.length > 0 ? 'Filiais' : 'Todas'}
+        />
       </div>
 
       <div className="space-y-1.5">

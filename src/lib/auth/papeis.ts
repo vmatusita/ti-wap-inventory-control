@@ -149,3 +149,67 @@ export function filiaisDeEscrita(
   if (papel === 'operador') return filiaisAtivas.filter((id) => vinculos.includes(id))
   return []
 }
+
+// ---------------------------------------------------------------------------
+// F25 — o PADRÃO do filtro de filial das listas (LEITURA, não escrita)
+// ---------------------------------------------------------------------------
+// ⚠ FILTRO DE LEITURA ≠ SELECT DE ESCRITA. `filiaisDeEscrita` acima decide o que a
+// pessoa PODE GRAVAR e é regra de permissão espelhada no Postgres. O que vem abaixo
+// é só a marcação INICIAL de um filtro de lista: conveniência de tela, zero
+// permissão. Todo cargo continua LENDO tudo (ADR-001/ADR-002), e um link explícito
+// com `?filial=…` abre igual para qualquer um.
+//
+// Por que o operador entra recortado: ele opera 1..n filiais e via de regra só quer
+// ver as dele. Decisão do Johnny (04/08/2026): entra com TODAS as vinculadas
+// marcadas — não só a primeira —, então o operador de Serra+Linhares vê as duas
+// juntas de saída.
+
+/**
+ * As filiais que o filtro já vem marcando quando a URL NÃO traz `filial`.
+ *
+ * `[]` significa SEM RECORTE (todas) — é o que dev, admin e consulta recebem, e é
+ * também o que a query interpreta como "não aplique `.in`".
+ *
+ * ⚠ A decisão olha o CARGO, nunca `filiaisEscrita.length === 0`. Lista vazia tem
+ * dois significados diferentes: `consulta` (que não escreve em lugar nenhum, e para
+ * quem "todas" é o certo) e `operador` sem vínculo válido — um usuário quebrado,
+ * que com o atalho errado veria uma lista SEMPRE VAZIA e nenhuma pista do porquê.
+ * Os dois caem em "todas", mas por caminhos distintos e explícitos.
+ */
+export function filtroFilialPadrao(
+  papel: PapelUsuario | null | undefined,
+  filiaisEscrita: readonly number[],
+  filiaisAtivas: readonly number[],
+): number[] {
+  if (papel !== 'operador') return []
+  const vinculadas = filiaisAtivas.filter((id) => filiaisEscrita.includes(id))
+  // Operador sem vínculo ATIVO: cai em "todas" de propósito (ver o ⚠ acima).
+  return vinculadas.length > 0 ? vinculadas : []
+}
+
+/**
+ * A aba em que `/relatorios` abre quando ninguém pediu nada.
+ *
+ * Derivada da regra de cima: operador → a PRIMEIRA filial vinculada em ordem
+ * alfabética de nome; qualquer outro cargo → `'geral'` (o Consolidado).
+ *
+ * O relatório ao vivo é de UMA filial por vez (as abas são exclusivas), então aqui
+ * não há multi: com Serra+Linhares o operador cai em Linhares.
+ *
+ * ⚠ `filiais` tem de vir ORDENADA POR NOME — é o que `listarFiliais()` já entrega
+ * (`.order('nome')`). Ordenar aqui exigiria copiar o array; pior, ordenar
+ * `filiaisEscrita` no lugar seria escrever num array COMPARTILHADO por referência
+ * entre o layout e a página do mesmo render (ver o `readonly` de `Operador`).
+ */
+export const ABA_RELATORIO_CONSOLIDADO = 'geral'
+
+export function abaRelatorioPadrao(
+  papel: PapelUsuario | null | undefined,
+  filiaisEscrita: readonly number[],
+  filiaisOrdenadasPorNome: readonly { id: number; slug: string }[],
+): string {
+  const padrao = filtroFilialPadrao(papel, filiaisEscrita, filiaisOrdenadasPorNome.map((f) => f.id))
+  if (padrao.length === 0) return ABA_RELATORIO_CONSOLIDADO
+  const primeira = filiaisOrdenadasPorNome.find((f) => padrao.includes(f.id))
+  return primeira?.slug ?? ABA_RELATORIO_CONSOLIDADO
+}

@@ -13,9 +13,9 @@ import type { Filial } from '@/lib/queries/filiais'
 // Filiais e itens 100% fictícios.
 
 const FILIAIS: Filial[] = [
-  { id: 1, slug: 'alfa', nome: 'Filial Alfa' },
-  { id: 2, slug: 'beta', nome: 'Filial Beta' },
-  { id: 3, slug: 'gama', nome: 'Filial Gama' },
+  { id: 1, slug: 'alfa', nome: 'Filial Alfa', cidade: 'Cidade Alfa' },
+  { id: 2, slug: 'beta', nome: 'Filial Beta', cidade: 'Cidade Beta' },
+  { id: 3, slug: 'gama', nome: 'Filial Gama', cidade: 'Cidade Gama' },
 ]
 
 function saldo(

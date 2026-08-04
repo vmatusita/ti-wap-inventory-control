@@ -8,7 +8,8 @@ import {
 import { listarFiliais } from '@/lib/queries/filiais'
 import { getOperador } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
-import { dataISO, idNumerico, paginaNumerica } from '@/lib/url-params'
+import { dataISO, paginaNumerica } from '@/lib/url-params'
+import { resolverFiliaisIds } from '@/lib/filtros/filial'
 import { TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
 import { Button } from '@/components/ui/button'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
@@ -54,27 +55,33 @@ export default async function MovimentacoesPage({
   const de = dataISO(texto(sp.de)) ?? undefined
   const ate = dataISO(texto(sp.ate)) ?? undefined
   const tipo = tipoValido(texto(sp.tipo))
-  const filialId = idNumerico(texto(sp.filial)) ?? undefined
   const page = paginaNumerica(texto(sp.page))
 
   // F21 — o histórico é igual para os três cargos; só o CTA de registrar depende
   // do cargo (o filtro de filial continua com a lista inteira: é leitura).
-  const [operador, filiais, resultado] = await Promise.all([
-    getOperador(),
-    listarFiliais(),
-    listarMovimentacoes({
-      q,
-      de,
-      ate,
-      tipo,
-      filialId,
-      page,
-      pageSize: MOV_PAGE_SIZE,
-    }),
-  ])
+  // F25 — o cargo e as filiais vêm ANTES da lista: o filtro de filial tem padrão
+  // por cargo. `getOperador()` é memoizada por request (o layout já a chamou).
+  const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
+
+  const filialIds = resolverFiliaisIds(
+    texto(sp.filial),
+    operador,
+    filiais.map((f) => f.id),
+  )
+
+  const resultado = await listarMovimentacoes({
+    q,
+    de,
+    ate,
+    tipo,
+    filialIds,
+    page,
+    pageSize: MOV_PAGE_SIZE,
+  })
 
   const escreve = podeEscrever(operador?.papel)
-  const temFiltro = Boolean(q || de || ate || tipo || filialId)
+  // `filialIds` é ARRAY — `Boolean([])` é true, daí o `.length > 0`.
+  const temFiltro = Boolean(q || de || ate || tipo || filialIds.length > 0)
 
   // A busca é de CAMPO ÚNICO (o PostgREST não faz `OR` entre tabela e embed):
   // dizer em qual campo procurou evita o operador achar que "não existe".
@@ -106,7 +113,7 @@ export default async function MovimentacoesPage({
         )}
       </div>
 
-      <ListaFiltros filiais={filiais} />
+      <ListaFiltros filiais={filiais} filiaisSelecionadas={filialIds.map(String)} />
 
       {busca && (
         <p className="text-xs text-muted-foreground">

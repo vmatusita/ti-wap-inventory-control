@@ -7,6 +7,7 @@ import { getPendencias } from '@/lib/queries/relatorios'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarPendencias, type TipoPendencia } from '@/lib/queries/pendencias-detalhe'
 import { paginaNumerica } from '@/lib/url-params'
+import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
 import { formatDate } from '@/lib/format'
 import { ClipboardCheck, Filter } from 'lucide-react'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
@@ -61,7 +62,6 @@ export default async function PendenciasPage({
   if (!operador) redirect('/login')
 
   const sp = await searchParams
-  const filialSlug = primeiro(sp.filial) || null
   const tipoRaw = primeiro(sp.tipo)
   const tipo = TIPOS_VALIDOS.includes(tipoRaw as TipoPendencia)
     ? (tipoRaw as TipoPendencia)
@@ -72,8 +72,17 @@ export default async function PendenciasPage({
   // SILÊNCIO (200, sem PGRST103) e a paginação trava com notação científica no
   // rodapé. Página válida mas além do fim cai no fallback PGRST103 da query.
   const page = paginaNumerica(primeiro(sp.page))
+
+  const client = await createClient()
+  // F25 — as filiais vêm ANTES do resto: o filtro de filial tem padrão por cargo,
+  // e aqui ele é por SLUG (a view `v_fila_pendencias` expõe o slug), então a
+  // tradução id→slug precisa da lista.
+  const filiais = await listarFiliais(client)
+  const filialSlugs = resolverFiliaisSlugs(primeiro(sp.filial), operador, filiais)
+
   // Diferencia "não há pendência nenhuma" de "nada neste filtro" no estado vazio.
-  const temFiltro = Boolean(filialSlug || tipo || q)
+  // `filialSlugs` é ARRAY — `Boolean([])` é true, daí o `.length > 0`.
+  const temFiltro = Boolean(filialSlugs.length > 0 || tipo || q)
 
   // F24 — a aba de conflitos troca a FONTE: em vez da fila (`v_fila_pendencias`), a mesa lê
   // as views de conflito. Por isso o `tipo` que vai para `listarPendencias` é estreitado —
@@ -82,17 +91,15 @@ export default async function PendenciasPage({
   const naMesa = tipo === 'conflito'
   const tipoDaFila = naMesa ? null : (tipo as Exclude<TipoPendencia, 'conflito'> | null)
 
-  const client = await createClient()
-  const [filiais, chips, lista, conflitos, totalConflitos] = await Promise.all([
-    listarFiliais(client),
-    getPendencias(client, filialSlug),
+  const [chips, lista, conflitos, totalConflitos] = await Promise.all([
+    getPendencias(client, filialSlugs),
     // Não vale a pena consultar a fila quando a mesa é que vai aparecer.
     naMesa
       ? Promise.resolve({ rows: [], total: 0, page: 1, pageSize: 30 })
-      : listarPendencias({ filialSlug, tipo: tipoDaFila, q, page }),
-    naMesa ? listarConflitos({ filialSlug, q, page }) : Promise.resolve(null),
+      : listarPendencias({ filialSlugs, tipo: tipoDaFila, q, page }),
+    naMesa ? listarConflitos({ filialSlugs, q, page }) : Promise.resolve(null),
     // O chip de conflito é contado SEMPRE (ele aparece em qualquer aba, como os demais).
-    contarGruposConflito(client, filialSlug),
+    contarGruposConflito(client, filialSlugs),
   ])
 
   // "Desde" formatado no SERVIDOR (formatDate + "há N dias") — a tabela é Client
@@ -154,7 +161,12 @@ export default async function PendenciasPage({
       {/* KPI-chips (reuso de getPendencias — total por bucket) + o de conflito */}
       <PendenciasChips pendencias={chipsComConflito} />
 
-      <PendenciasFiltros filiais={filiais} filialSlug={filialSlug} tipo={tipo} q={q} />
+      <PendenciasFiltros
+        filiais={filiais}
+        filiaisSelecionadas={filialSlugs}
+        tipo={tipo}
+        q={q}
+      />
 
       {naMesa ? (
         gruposFmt.length === 0 ? (
@@ -162,7 +174,7 @@ export default async function PendenciasPage({
             {/* Distingue "não há conflito nenhum" (comemorar) de "nada NESTE filtro"
                 (ajustar) — mesma doutrina do estado vazio da fila. Afirmar a verdade
                 global com um filtro aplicado seria mentir por omissão. */}
-            {filialSlug || q ? (
+            {filialSlugs.length > 0 || q ? (
               <EstadoVazio
                 icone={Filter}
                 titulo="Nenhum conflito neste filtro"

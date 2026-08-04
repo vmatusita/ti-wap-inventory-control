@@ -132,6 +132,54 @@ export async function getSaldosItens(filialId: number | null): Promise<SaldoItem
 }
 
 // ---------------------------------------------------------------------------
+// F25 — saldos de um SUBCONJUNTO de filiais (filtro multi-seleção)
+// ---------------------------------------------------------------------------
+// `rel_saldo_itens` (0016) recebe UMA filial ou NULL (consolidado) — não há
+// `p_filiais`. Com o filtro virando multi, a soma passou a ser em memória: N
+// chamadas + `somar`, exatamente o que `combinarSaldosPorFilial` já faz para a
+// tabela lado a lado. Nenhuma RPC muda (§1.3 da ordem F25).
+//
+// ⚠ Somar `falta` entre filiais é a leitura que esta casa JÁ adota: é o que
+// `combinarSaldosPorFilial` faz no ramo do item sem consolidado, e o comentário de
+// `estoqueForaDasColunas` registra que "as fórmulas da RPC são aditivas por
+// filial". Faltar 2 na Serra e 1 em Linhares é faltar 3 nas duas — o que a coluna
+// NÃO significa é "falta 3 num lugar só".
+
+/** Junta N leituras por filial numa lista só, somando célula a célula. Pura. */
+export function somarSaldosDeFiliais(porFilial: SaldoItem[][]): SaldoItem[] {
+  const linhas = new Map<number, SaldoItem>()
+  for (const lista of porFilial) {
+    for (const s of lista) {
+      const atual = linhas.get(s.item_id)
+      if (!atual) {
+        linhas.set(s.item_id, { ...s })
+        continue
+      }
+      atual.total += s.total
+      atual.estoque += s.estoque
+      atual.atrelados += s.atrelados
+      atual.falta += s.falta
+    }
+  }
+  // A ordem é a da RPC (grupo/ordem/nome), preservada pela ordem de inserção: a
+  // primeira leitura já traz TODOS os itens ativos, com zeros onde não há saldo.
+  return [...linhas.values()]
+}
+
+/**
+ * Saldos da seleção de filiais. `[]` = consolidado (todas), 1 id = a RPC direta,
+ * 2+ = N leituras somadas.
+ */
+export async function getSaldosItensDeFiliais(
+  filialIds: readonly number[],
+): Promise<SaldoItem[]> {
+  if (filialIds.length === 0) return getSaldosItens(null)
+  if (filialIds.length === 1) return getSaldosItens(filialIds[0])
+  const porFilial = await Promise.all(filialIds.map((id) => getSaldosItens(id)))
+  return somarSaldosDeFiliais(porFilial)
+}
+
+// ---------------------------------------------------------------------------
 // Saldos das filiais LADO A LADO (F11 · I4)
 // ---------------------------------------------------------------------------
 // "Onde tem mouse sobrando?" exigia trocar o filtro de filial uma vez por
@@ -290,7 +338,8 @@ const LANC_SELECT =
 // tela e pelo export CSV (F10 · T5), para o arquivo sair com EXATAMENTE as
 // linhas do filtro visível.
 export type FiltrosHistorico = {
-  filialId?: number | null
+  // F25 — multi-seleção. Lista vazia/ausente = sem recorte (todas as filiais).
+  filialIds?: readonly number[]
   itemId?: number | null
   tipo?: TipoLancamento | null
   de?: string | null
@@ -308,7 +357,7 @@ function queryHistorico(
   head = false,
 ) {
   let q = supabase.from('lancamentos_item').select(LANC_SELECT, { count: 'exact', head })
-  if (opts.filialId) q = q.eq('filial_id', opts.filialId)
+  if (opts.filialIds && opts.filialIds.length > 0) q = q.in('filial_id', opts.filialIds)
   if (opts.itemId) q = q.eq('item_id', opts.itemId)
   if (opts.tipo) q = q.eq('tipo', opts.tipo)
   if (opts.de) q = q.gte('data', opts.de)

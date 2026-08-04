@@ -20,7 +20,10 @@ import {
 // paginação travar) viviam COPIADOS aqui. As cópias eram exatamente a família que
 // produziu os achados F12-W4-01/-03/-04/-05: /itens, /movimentacoes, /pendencias e
 // as actions de export já usam o módulo; /ativos era a última fora.
-import { idNumerico, paginaNumerica } from '@/lib/url-params'
+import { paginaNumerica } from '@/lib/url-params'
+// F25 — o `filial` da URL virou LISTA e ganhou um padrão por CARGO. A resolução
+// mora em um módulo só porque a action de export reparseia esta MESMA querystring.
+import { resolverFiliaisIds } from '@/lib/filtros/filial'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
@@ -48,7 +51,6 @@ export default async function AtivosPage({
   const sp = await searchParams
 
   const q = texto(sp.q)
-  const filialId = idNumerico(texto(sp.filial)) ?? undefined
 
   const categoriaRaw = texto(sp.categoria)
   const categoria = CATEGORIA_ORDEM.includes(categoriaRaw as CategoriaAtivo)
@@ -69,30 +71,42 @@ export default async function AtivosPage({
   const ordenacao = parseOrdenacao(sp.ord)
   const pageSize = parseTamanhoPagina(sp.pp) ?? undefined
 
-  // F19 — diferencia "não há ativo nenhum" de "nada nesta busca" no estado vazio
-  // (mesma forma de /pendencias e /movimentacoes). `ord`, `pp` e `page` ficam de
-  // fora: são apresentação, não recorte. `status` é ARRAY — `Boolean([])` é true.
-  const temFiltro = Boolean(
-    q || filialId || categoria || status.length > 0 || semPatrimonio,
-  )
-
   // F21 — a lista é igual para os três cargos (leitura ampla); só o CTA de
   // cadastro depende do cargo. Exportar CSV continua para todos
   // (CONSULTA_EXPORTA_CSV = sim, §0 da ordem).
-  const [operador, filiais, resultado] = await Promise.all([
-    getOperador(),
-    listarFiliais(),
-    listarAtivos({
-      q,
-      filialId,
-      categoria,
-      status,
-      semPatrimonio,
-      page,
-      pageSize,
-      ordenacao,
-    }),
-  ])
+  //
+  // F25 — a leitura da lista deixou de ser paralela ao cargo: o filtro de filial
+  // agora TEM um padrão por cargo, então `listarAtivos` precisa do operador e das
+  // filiais ativas antes de saber o que recortar. Custa pouco: `getOperador()` é
+  // memoizada por request (o layout do grupo já a chamou) e `listarFiliais()` lê
+  // uma tabela de 5 linhas.
+  const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
+
+  // `[]` = sem recorte (todas). Ver src/lib/filtros/filial.ts.
+  const filialIds = resolverFiliaisIds(
+    texto(sp.filial),
+    operador,
+    filiais.map((f) => f.id),
+  )
+
+  // F19 — diferencia "não há ativo nenhum" de "nada nesta busca" no estado vazio
+  // (mesma forma de /pendencias e /movimentacoes). `ord`, `pp` e `page` ficam de
+  // fora: são apresentação, não recorte. `status` e `filialIds` são ARRAYS —
+  // `Boolean([])` é true, por isso `.length > 0`.
+  const temFiltro = Boolean(
+    q || filialIds.length > 0 || categoria || status.length > 0 || semPatrimonio,
+  )
+
+  const resultado = await listarAtivos({
+    q,
+    filialIds,
+    categoria,
+    status,
+    semPatrimonio,
+    page,
+    pageSize,
+    ordenacao,
+  })
   const escreve = podeEscrever(operador?.papel)
 
   return (
@@ -129,7 +143,7 @@ export default async function AtivosPage({
         <LembrarLista />
       </Suspense>
 
-      <AtivosFiltros filiais={filiais} />
+      <AtivosFiltros filiais={filiais} filiaisSelecionadas={filialIds.map(String)} />
 
       {resultado.rows.length === 0 ? (
         // F19 — `resultado.total === 0` além do `!temFiltro` porque `?page=9` sem

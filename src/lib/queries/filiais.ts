@@ -2,7 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/types/database'
 
-export type Filial = { id: number; slug: string; nome: string }
+// `cidade` (F25, migration 0102) é a cidade que assina o TERMO — entra na linha
+// "{cidade}, {data por extenso}" dos 7 modelos. `''` = ainda não cadastrada, e
+// quem trata esse caso é `prepararTermo`, avisando em vez de gerar um documento
+// que começa por vírgula.
+export type Filial = { id: number; slug: string; nome: string; cidade: string }
 
 // Filiais ativas, ordenadas por nome. Usadas em filtros e no destino de
 // transferencia. Aceita um client resolvido: o operador usa o client com RLS
@@ -15,7 +19,7 @@ export async function listarFiliais(
   const supabase = client ?? (await createClient())
   const { data, error } = await supabase
     .from('filiais')
-    .select('id, slug, nome')
+    .select('id, slug, nome, cidade')
     .eq('ativo', true)
     .order('nome', { ascending: true })
 

@@ -27,12 +27,21 @@ import {
   rotuloStatus,
 } from '@/lib/dominio'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 import { cn } from '@/lib/utils'
 import type { Filial } from '@/lib/queries/filiais'
 
 const TODAS = '__todas'
 
-export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
+export function AtivosFiltros({
+  filiais,
+  // F25 — a seleção EFETIVA de filial vem resolvida do servidor (pode ter saído do
+  // padrão do cargo, e não da URL), por isso é prop e não `params.get('filial')`.
+  filiaisSelecionadas,
+}: {
+  filiais: Filial[]
+  filiaisSelecionadas: string[]
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -43,7 +52,6 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
   useReportarNavegacao(isPending)
 
   const qAtual = params.get('q') ?? ''
-  const filialAtual = params.get('filial') ?? ''
   const categoriaAtual = params.get('categoria') ?? ''
   const semPatrimonioAtual = params.get('semPatrimonio') === '1'
   const statusAtual = (params.get('status') ?? '')
@@ -110,9 +118,13 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
     startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname))
   }
 
+  // F25 — o `filial` conta como filtro quando a URL o traz (seleção explícita OU a
+  // sentinela `todas`), e NÃO quando a marcação veio do padrão do cargo: senão o
+  // operador acharia a lista permanentemente filtrada e o botão "Limpar" nunca
+  // sumiria da tela.
   const temFiltro =
     !!qAtual ||
-    !!filialAtual ||
+    !!params.get('filial') ||
     !!categoriaAtual ||
     statusAtual.length > 0 ||
     semPatrimonioAtual
@@ -154,22 +166,11 @@ export function AtivosFiltros({ filiais }: { filiais: Filial[] }) {
         </Button>
       </form>
 
-      <Select
-        value={filialAtual || TODAS}
-        onValueChange={(v) => aplicar({ filial: v === TODAS ? null : v })}
-      >
-        <SelectTrigger className="w-[160px]" aria-label="Filtrar por filial">
-          <SelectValue placeholder="Filial" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={TODAS}>Todas as filiais</SelectItem>
-          {filiais.map((f) => (
-            <SelectItem key={f.id} value={String(f.id)}>
-              {f.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <FiltroFilial
+        opcoes={opcoesDeFiliais(filiais, false)}
+        selecionados={filiaisSelecionadas}
+        aplicar={(v) => aplicar({ filial: v })}
+      />
 
       <Select
         value={categoriaAtual || TODAS}

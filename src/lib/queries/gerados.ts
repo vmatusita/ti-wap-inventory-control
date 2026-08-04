@@ -33,29 +33,54 @@ const LISTA_SELECT =
   'filial:filiais!relatorios_gerados_filial_id_fkey(nome, slug), ' +
   'autor:profiles!relatorios_gerados_gerado_por_fkey(nome)'
 
+// O slug reservado do relatório CONSOLIDADO: no banco ele é `filial_id is null`,
+// e não uma linha de `filiais`.
+const SLUG_CONSOLIDADO = 'geral'
+
 export async function listarRelatoriosGerados(
   client: DbClient,
-  filialSlug?: string | null,
+  // F25 — multi-seleção. `[]` = sem recorte (todas). Pode conter `'geral'`
+  // misturado com slugs de filial.
+  filialSlugs: readonly string[] = [],
 ): Promise<RelatorioGeradoLista[]> {
   let q = client.from('relatorios_gerados').select(LISTA_SELECT)
-  if (filialSlug === 'geral') {
-    q = q.is('filial_id', null)
-  } else if (filialSlug) {
-    const { data: f, error: eFilial } = await client
-      .from('filiais')
-      .select('id')
-      .eq('slug', filialSlug)
-      .maybeSingle()
-    if (eFilial)
-      throw new Error(`Falha ao resolver a filial do filtro: ${eFilial.message}`)
-    // Filtro que não pôde ser resolvido tem de devolver VAZIO, nunca o conjunto
-    // completo: antes, um slug inexistente (favorito de filial renomeada, URL
-    // digitada à mão) simplesmente pulava o `.eq()` e a tela listava os snapshots
-    // de TODAS as filiais — com o seletor mostrando só o placeholder, ou seja, sem
-    // nada que denunciasse que o filtro tinha sido ignorado.
-    if (!f) return []
-    q = q.eq('filial_id', f.id)
+
+  if (filialSlugs.length > 0) {
+    const querConsolidado = filialSlugs.includes(SLUG_CONSOLIDADO)
+    const slugsDeFilial = filialSlugs.filter((s) => s !== SLUG_CONSOLIDADO)
+
+    let ids: number[] = []
+    if (slugsDeFilial.length > 0) {
+      const { data: fs, error: eFilial } = await client
+        .from('filiais')
+        .select('id')
+        .in('slug', slugsDeFilial)
+      if (eFilial)
+        throw new Error(`Falha ao resolver a filial do filtro: ${eFilial.message}`)
+      ids = (fs ?? []).map((f) => f.id)
+      // Filtro que não pôde ser resolvido tem de devolver VAZIO, nunca o conjunto
+      // completo: antes, um slug inexistente (favorito de filial renomeada, URL
+      // digitada à mão) simplesmente pulava o `.eq()` e a tela listava os snapshots
+      // de TODAS as filiais — com o seletor mostrando só o placeholder, ou seja, sem
+      // nada que denunciasse que o filtro tinha sido ignorado.
+      //
+      // F25 mantém a regra e a estreita: NENHUM dos slugs pedidos resolveu e o
+      // consolidado não foi pedido ⇒ vazio.
+      if (ids.length === 0 && !querConsolidado) return []
+    }
+
+    // ⚠ `.is('filial_id', null)` e `.in('filial_id', […])` na MESMA coluna se
+    // combinam com AND e devolveriam ZERO linhas em silêncio. Pedir o Consolidado
+    // junto com filiais é um OR, e o PostgREST só o expressa por `.or(...)`.
+    if (querConsolidado && ids.length > 0) {
+      q = q.or(`filial_id.is.null,filial_id.in.(${ids.join(',')})`)
+    } else if (querConsolidado) {
+      q = q.is('filial_id', null)
+    } else {
+      q = q.in('filial_id', ids)
+    }
   }
+
   q = q.order('gerado_em', { ascending: false })
 
   const { data, error } = await q

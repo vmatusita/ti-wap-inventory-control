@@ -470,7 +470,8 @@ export type ListarMovimentacoesParams = {
   de?: string
   ate?: string
   tipo?: TipoMovimentacao
-  filialId?: number
+  // F25 — multi-seleção. Lista vazia/ausente = sem recorte (todas as filiais).
+  filialIds?: readonly number[]
   q?: string
   page?: number
   pageSize?: number
@@ -638,7 +639,10 @@ function queryLista(
   if (params.tipo) q = q.eq('tipo', params.tipo)
   // Filial DE ORIGEM (a coluna `filial_id` da movimentação). Numa transferência,
   // a linha aparece no filtro da origem — é onde o evento foi registrado.
-  if (params.filialId) q = q.eq('filial_id', params.filialId)
+  // F25: multi-seleção; a semântica de ORIGEM não muda.
+  if (params.filialIds && params.filialIds.length > 0) {
+    q = q.in('filial_id', params.filialIds)
+  }
   if (busca?.campo === 'patrimonio') {
     // DUAS formas, como `resolverPatrimoniosParaLote` (F10) já fazia no colar-
     // lista: `.eq` na canônica e `.ilike` (sem curinga = igualdade que ignora a

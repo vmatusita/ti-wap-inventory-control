@@ -51,8 +51,10 @@ import {
 
 const PASSOS = ['Configurar', 'Upload', 'Preview', 'Confirmar', 'Resultado'] as const
 
+// F25 — `Pick`, e não `Filial`: a fase acrescentou `cidade` ao tipo (é a cidade
+// que assina o TERMO) e o import não tem nada com isso. Ver actions/importar.ts.
 type Previa = {
-  filial: Filial
+  filial: Pick<Filial, 'id' | 'slug' | 'nome'>
   validacao: ValidacaoImport
   custo: CustoSubstituir
   termosMultiFilial: TermoMultiFilial[]
@@ -218,7 +220,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
   const [resultado, setResultado] = useState<{
     resultado: ResultadoImport
     backupPath: string
-    filial: Filial
+    filial: Pick<Filial, 'id' | 'slug' | 'nome'>
   } | null>(null)
   const [erroAcao, setErroAcao] = useState<string | null>(null)
   const [baixandoBackup, setBaixandoBackup] = useState(false)

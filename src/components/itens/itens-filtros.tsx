@@ -16,15 +16,24 @@ import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM } from '@/lib/dominio'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 import type { Filial } from '@/lib/queries/filiais'
 import { baseFiltrosItens, registrarFiltrosEnviados } from './url-filtros'
+import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
+import { ehVisaoConsolidado } from '@/lib/url-params'
 
-const TODAS = '__todas'
 const TODOS = '__todos'
 
 // Filtros da tela de itens (OS 3.3.1): filial, grupo, busca — via searchParams
 // (padrão server-side da F3). Mudança de filtro reseta a página do histórico.
 // F11 · I4: acumula o alternador Consolidado × Por filial (param `visao`), que
 // mora aqui porque é a mesma URL e o mesmo cuidado com navegação pendente.
-export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
+export function ItensFiltros({
+  filiais,
+  // F25 — seleção EFETIVA de filial, resolvida no servidor (pode vir do padrão do
+  // cargo). Vazia na visão por filial, onde não há recorte.
+  filiaisSelecionadas,
+}: {
+  filiais: Filial[]
+  filiaisSelecionadas: string[]
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -32,11 +41,11 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
   useReportarNavegacao(isPending)
 
   const qAtual = params.get('q') ?? ''
-  const filialAtual = params.get('filial') ?? ''
   const grupoAtual = params.get('grupo') ?? ''
-  // Qualquer valor fora de 'filiais' é a visão consolidada (o default) — URL
-  // torta nunca quebra a tela.
-  const visaoFiliais = params.get('visao') === 'filiais'
+  // F25 — o default INVERTEU: só `visao=consolidado` desliga a visão lado a lado.
+  // A régua é a MESMA função do Server Component e do export (`ehVisaoConsolidado`
+  // em url-params.ts) — antes este teste literal vivia copiado nos três lugares.
+  const visaoFiliais = !ehVisaoConsolidado(params.get('visao'))
 
   const [busca, setBusca] = useState(qAtual)
   const [qSync, setQSync] = useState(qAtual)
@@ -66,7 +75,7 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
     // quando a URL commita — durante a navegação pendente ele ainda está na
     // tela, e o clique nele gravaria `filial` numa URL que não tem como exibir
     // esse filtro. Quem decide é a base FRESCA (mesma disciplina de `trocarVisao`).
-    if (novo.get('visao') === 'filiais') novo.delete('filial')
+    if (!ehVisaoConsolidado(novo.get('visao'))) novo.delete('filial')
     empurrar(novo, commitada)
   }
 
@@ -92,12 +101,17 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
     // A comparação é com a base FRESCA (não com `visaoFiliais`, que é a URL já
     // commitada): dois cliques na mesma janela de navegação pendente — ida e
     // volta — não podem se anular e deixar a tela na visão errada.
-    if ((novo.get('visao') === 'filiais') === paraFiliais) return
+    const baseJaEstaPorFilial = !ehVisaoConsolidado(novo.get('visao'))
+    if (baseJaEstaPorFilial === paraFiliais) return
+    // F25 — os dois ramos INVERTERAM junto com o default: "Por filial" é agora a
+    // ausência do param (URL limpa no padrão) e o Consolidado é a sentinela
+    // explícita. Trocar o default sem trocar isto deixaria o botão "Consolidado"
+    // apagando o param e voltando para "Por filial" — um botão sem efeito.
     if (paraFiliais) {
-      novo.set('visao', 'filiais')
+      novo.delete('visao')
       novo.delete('filial')
     } else {
-      novo.delete('visao')
+      novo.set('visao', 'consolidado')
     }
     empurrar(novo, commitada, false)
   }
@@ -112,11 +126,16 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
     const commitada = params.toString()
     const base = baseFiltrosItens(commitada)
     const novo = new URLSearchParams()
-    if (base.get('visao') === 'filiais') novo.set('visao', 'filiais')
+    // Preserva a visão nas DUAS direções: agora quem precisa de param explícito é
+    // o Consolidado, e sem isto "Limpar" no Consolidado devolveria o operador para
+    // a visão por filial.
+    if (ehVisaoConsolidado(base.get('visao'))) novo.set('visao', 'consolidado')
     empurrar(novo, commitada)
   }
 
-  const temFiltro = !!qAtual || !!filialAtual || !!grupoAtual
+  // F25 — o `filial` só conta como filtro quando veio da URL, nunca quando a
+  // marcação herdou o padrão do cargo.
+  const temFiltro = !!qAtual || !!params.get('filial') || !!grupoAtual
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -147,22 +166,12 @@ export function ItensFiltros({ filiais }: { filiais: Filial[] }) {
       {/* Na visão "Por filial" TODAS as filiais estão na tabela — o select seria
           redundante (decisão do Johnny, F11 · I4). */}
       {!visaoFiliais && (
-        <Select
-          value={filialAtual || TODAS}
-          onValueChange={(v) => aplicar({ filial: v === TODAS ? null : v })}
-        >
-          <SelectTrigger className="w-[170px]" aria-label="Filtrar por filial">
-            <SelectValue placeholder="Filial" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODAS}>Todas as filiais</SelectItem>
-            {filiais.map((f) => (
-              <SelectItem key={f.id} value={String(f.id)}>
-                {f.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FiltroFilial
+          opcoes={opcoesDeFiliais(filiais, false)}
+          selecionados={filiaisSelecionadas}
+          aplicar={(v) => aplicar({ filial: v })}
+          idPrefixo="itens-filial"
+        />
       )}
 
       <Select

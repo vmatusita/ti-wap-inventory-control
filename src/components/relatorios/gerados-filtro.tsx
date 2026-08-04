@@ -1,50 +1,51 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTransition } from 'react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import { FiltroFilial } from '@/components/layout/filtro-filial'
 
-const TODAS = '__todas'
-
-// Filtro por filial do histórico de relatórios gerados (OS-F3 3.8.4).
+// Filtro por filial do histórico de relatórios gerados (OS-F3 3.8.4; multi na F25).
+//
+// É a única tela cuja lista de opções tem um item que NÃO é filial: "Consolidado"
+// (`geral`), que no banco é `filial_id is null`. Ele entra como uma opção normal do
+// popover, e `listarRelatoriosGerados` é que sabe traduzi-lo — inclusive quando vem
+// junto com filiais, caso em que o filtro precisa virar um OR.
+//
+// ⚠ SEM padrão por cargo aqui, de propósito (decisão F25 §4.7): o arquivo é global.
 export function GeradosFiltroFilial({
   filiais,
-  atual,
+  selecionados,
 }: {
   filiais: { slug: string; nome: string }[]
-  atual: string
+  selecionados: string[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const params = useSearchParams()
   const [isPending, start] = useTransition()
   useReportarNavegacao(isPending)
 
-  function mudar(valor: string) {
-    const qs = valor === TODAS ? '' : `?filial=${valor}`
-    start(() => router.push(`${pathname}${qs}`))
+  // Antes esta função montava a URL do ZERO (`?filial=` + valor), descartando
+  // qualquer outro param. Era inócuo enquanto a tela não tinha mais nenhum, mas
+  // quebraria no dia em que ganhasse ordenação ou paginação — e o precedente
+  // correto da casa é preservar o resto da query.
+  function aplicar(valor: string) {
+    const novo = new URLSearchParams(params.toString())
+    novo.set('filial', valor)
+    const qs = novo.toString()
+    start(() => router.push(qs ? `${pathname}?${qs}` : pathname))
   }
 
   return (
-    <Select value={atual || TODAS} onValueChange={mudar}>
-      <SelectTrigger size="sm" className="w-[180px]" aria-label="Filtrar por filial">
-        <SelectValue placeholder="Filial" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={TODAS}>Todas as filiais</SelectItem>
-        <SelectItem value="geral">Consolidado</SelectItem>
-        {filiais.map((f) => (
-          <SelectItem key={f.slug} value={f.slug}>
-            {f.nome}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <FiltroFilial
+      opcoes={[
+        { valor: 'geral', rotulo: 'Consolidado' },
+        ...filiais.map((f) => ({ valor: f.slug, rotulo: f.nome })),
+      ]}
+      selecionados={selecionados}
+      aplicar={aplicar}
+      idPrefixo="gerados-filial"
+    />
   )
 }

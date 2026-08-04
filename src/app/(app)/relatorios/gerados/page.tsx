@@ -4,6 +4,7 @@ import { BarChart3, FileClock, MessageSquareText } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
+import { resolverFiliaisSlugsSemPadrao } from '@/lib/filtros/filial'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,12 +30,28 @@ export default async function RelatoriosGeradosPage({
   if (!acesso) redirect('/relatorios/acesso')
 
   const sp = await searchParams
-  const filialFiltro = typeof sp.filial === 'string' ? sp.filial : undefined
+  // F25 — multi-seleção, mas SEM padrão por cargo (decisão §4.7): o arquivo é
+  // global e boa parte dele é de relatório CONSOLIDADO, que não pertence a filial
+  // nenhuma; recortar por padrão esconderia justamente esses do operador. Esta é
+  // também a única tela cujo filtro aceita o valor especial 'geral'.
+  const filialFiltro = resolverFiliaisSlugsSemPadrao(
+    typeof sp.filial === 'string' ? sp.filial : undefined,
+  )
 
   const [filiais, gerados] = await Promise.all([
     listarFiliais(acesso.client),
     listarRelatoriosGerados(acesso.client, filialFiltro),
   ])
+
+  // Slug cru era o que aparecia na mensagem de vazio ("cd-afonso-pena"). Com a
+  // lista, traduzir passou a valer a pena: nome real quando a filial existe,
+  // "Consolidado" para o valor especial, e o slug como último recurso (filtro
+  // antigo de filial que sumiu — exatamente o caso que a mensagem explica).
+  const rotulosDoFiltro = filialFiltro
+    .map((s) =>
+      s === 'geral' ? 'Consolidado' : (filiais.find((f) => f.slug === s)?.nome ?? s),
+    )
+    .join(', ')
 
   return (
     <div className="space-y-4">
@@ -63,7 +80,7 @@ export default async function RelatoriosGeradosPage({
               Ver ao vivo
             </Link>
           </Button>
-          <GeradosFiltroFilial filiais={filiais} atual={filialFiltro ?? ''} />
+          <GeradosFiltroFilial filiais={filiais} selecionados={filialFiltro} />
         </div>
       </div>
 
@@ -76,12 +93,12 @@ export default async function RelatoriosGeradosPage({
       {gerados.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-16 text-center">
           <FileClock className="size-8 text-muted-foreground" />
-          {filialFiltro ? (
+          {filialFiltro.length > 0 ? (
             <>
               <p className="font-medium">Nenhum relatório para este filtro</p>
               <p className="max-w-md text-sm text-muted-foreground">
                 Não há snapshot arquivado para{' '}
-                <span className="font-medium">{filialFiltro}</span>. Pode ser um
+                <span className="font-medium">{rotulosDoFiltro}</span>. Pode ser um
                 filtro antigo, ou uma filial que mudou de endereço — o arquivo das
                 outras filiais continua aqui.
               </p>

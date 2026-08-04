@@ -19,14 +19,20 @@ import {
 import { listarConflitosParaExport } from '@/lib/queries/conflitos'
 import type { LadoConflito } from '@/lib/pendencias/conflitos'
 import {
-  getSaldosItens,
+  getSaldosItensDeFiliais,
   listarHistoricoParaExport,
   type FiltrosHistorico,
   type LinhaExportHistorico,
   type SaldoItem,
 } from '@/lib/queries/itens'
-import { listarFiliais } from '@/lib/queries/filiais'
-import { dataISO, idNumerico } from '@/lib/url-params'
+import { listarFiliais, type Filial } from '@/lib/queries/filiais'
+import { getOperador } from '@/lib/auth/acesso'
+import { dataISO, ehVisaoConsolidado, idNumerico } from '@/lib/url-params'
+import {
+  resolverFiliaisIds,
+  resolverFiliaisSlugs,
+  type OperadorDoFiltro,
+} from '@/lib/filtros/filial'
 import {
   CATEGORIA_ORDEM,
   GRUPO_ITEM_ORDEM,
@@ -116,14 +122,38 @@ function texto(p: URLSearchParams, chave: string): string | undefined {
   return v && v.trim() ? v.trim() : undefined
 }
 
+// F25 — o contexto que o padrão POR CARGO exige. O export reparseia a querystring
+// da tela, então precisa dos MESMOS insumos do Server Component: quem está pedindo
+// e as filiais ativas. Sem isto, um operador exportaria o acervo inteiro enquanto a
+// tela mostrava só as filiais dele — sem erro nenhum, que é a pior forma de errar.
+async function contextoFilial(): Promise<{
+  operador: OperadorDoFiltro
+  filiais: Filial[]
+}> {
+  const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
+  return { operador, filiais }
+}
+
 // A visão por filial de /itens NÃO tem recorte de filial: a tabela mostra todas
 // e o select nem é renderizado. O Server Component neutraliza `?filial` no parse
 // desde a F11 (achado A14) e o export precisa fazer o MESMO — senão uma URL
 // `/itens?visao=filiais&filial=3` (link colado, botão voltar, favorito antigo)
 // produz um CSV só da filial 3 que o operador lê como o consolidado que estava
 // vendo na tela (achado F12-W4-03). Vale para os DOIS exports de /itens.
-function filialDeItens(p: URLSearchParams): number | null {
-  return texto(p, 'visao') === 'filiais' ? null : idNumerico(texto(p, 'filial'))
+//
+// F25 — a neutralização passou a valer POR PADRÃO, porque a visão por filial virou
+// a visão padrão de /itens: só o Consolidado (`visao=consolidado`) tem recorte.
+// A régua de qual visão está ativa é a MESMA função da tela (`ehVisaoConsolidado`).
+function filiaisDeItens(
+  p: URLSearchParams,
+  ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
+): number[] {
+  if (!ehVisaoConsolidado(texto(p, 'visao'))) return []
+  return resolverFiliaisIds(
+    texto(p, 'filial'),
+    ctx.operador,
+    ctx.filiais.map((f) => f.id),
+  )
 }
 
 // F24 — `conflito` NÃO entra aqui: ele não é um filtro da fila (as linhas de conflito vêm
@@ -149,7 +179,10 @@ const TIPOS_LANCAMENTO: readonly TipoLancamento[] = [
 ]
 
 // Espelha src/app/(app)/ativos/page.tsx (a paginação não vale no export).
-function filtrosAtivos(p: URLSearchParams): ListarAtivosParams {
+function filtrosAtivos(
+  p: URLSearchParams,
+  ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
+): ListarAtivosParams {
   const categoriaRaw = texto(p, 'categoria')
   const status = (texto(p, 'status') ?? '')
     .split(',')
@@ -158,7 +191,11 @@ function filtrosAtivos(p: URLSearchParams): ListarAtivosParams {
 
   return {
     q: texto(p, 'q'),
-    filialId: idNumerico(texto(p, 'filial')) ?? undefined,
+    filialIds: resolverFiliaisIds(
+      texto(p, 'filial'),
+      ctx.operador,
+      ctx.filiais.map((f) => f.id),
+    ),
     categoria: CATEGORIA_ORDEM.includes(categoriaRaw as CategoriaAtivo)
       ? (categoriaRaw as CategoriaAtivo)
       : undefined,
@@ -168,20 +205,26 @@ function filtrosAtivos(p: URLSearchParams): ListarAtivosParams {
 }
 
 // Espelha src/app/(app)/pendencias/page.tsx.
-function filtrosPendencias(p: URLSearchParams): FiltrosPendencias {
+function filtrosPendencias(
+  p: URLSearchParams,
+  ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
+): FiltrosPendencias {
   const tipoRaw = texto(p, 'tipo')
   return {
-    filialSlug: texto(p, 'filial') ?? null,
+    filialSlugs: resolverFiliaisSlugs(texto(p, 'filial'), ctx.operador, ctx.filiais),
     tipo: TIPOS_PENDENCIA.includes(tipoRaw as TipoFila) ? (tipoRaw as TipoFila) : null,
     q: texto(p, 'q') ?? null,
   }
 }
 
 // Espelha os filtros do histórico de src/app/(app)/itens/page.tsx (F9 · I3).
-function filtrosHistorico(p: URLSearchParams): FiltrosHistorico {
+function filtrosHistorico(
+  p: URLSearchParams,
+  ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
+): FiltrosHistorico {
   const tipoRaw = texto(p, 'tipo')
   return {
-    filialId: filialDeItens(p),
+    filialIds: filiaisDeItens(p, ctx),
     itemId: idNumerico(texto(p, 'item')),
     tipo: TIPOS_LANCAMENTO.includes(tipoRaw as TipoLancamento)
       ? (tipoRaw as TipoLancamento)
@@ -280,7 +323,7 @@ export async function exportarAtivosCSV(filtros: string): Promise<ResultadoExpor
   const negado = await barrado()
   if (negado) return falha(negado)
   try {
-    const params = filtrosAtivos(new URLSearchParams(filtros))
+    const params = filtrosAtivos(new URLSearchParams(filtros), await contextoFilial())
     const { linhas, total } = await listarAtivosParaExport(params, CAP_EXPORT)
     return {
       nome: nomeArquivoCsv('ativos', hojeISO()),
@@ -300,6 +343,7 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
   if (negado) return falha(negado)
   try {
     const p = new URLSearchParams(filtros)
+    const ctx = await contextoFilial()
 
     // F24 — a aba de conflitos tem fonte e colunas PRÓPRIAS (uma linha por cadastro, com a
     // chave do grupo para os pares ficarem adjacentes no Excel). Sem este desvio, o botão
@@ -308,7 +352,7 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
     // caminho da tela.
     if (texto(p, 'tipo') === 'conflito') {
       const todos = await listarConflitosParaExport({
-        filialSlug: texto(p, 'filial') ?? null,
+        filialSlugs: resolverFiliaisSlugs(texto(p, 'filial'), ctx.operador, ctx.filiais),
         q: texto(p, 'q') ?? null,
       })
       // ⚠ O corte é por GRUPO, não por linha. `todos.slice(0, CAP_EXPORT)` podia cair no
@@ -337,7 +381,7 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
       }
     }
 
-    const params = filtrosPendencias(p)
+    const params = filtrosPendencias(p, ctx)
     const { linhas, total } = await listarPendenciasParaExport(params, CAP_EXPORT)
     return {
       nome: nomeArquivoCsv('pendencias', hojeISO()),
@@ -359,26 +403,31 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
   if (negado) return falha(negado)
   try {
     const p = new URLSearchParams(filtros)
+    const ctx = await contextoFilial()
     // Neutraliza `?filial` na visão por filial — sem isso o `rotuloFilial` do
     // arquivo mente ("Matriz" onde a tela dizia o consolidado).
-    const filialId = filialDeItens(p)
+    const filialIds = filiaisDeItens(p, ctx)
     const grupoRaw = texto(p, 'grupo')
     const grupo = GRUPO_ITEM_ORDEM.includes(grupoRaw as GrupoItem)
       ? (grupoRaw as GrupoItem)
       : undefined
     const q = (texto(p, 'q') ?? '').toLowerCase()
 
-    const [saldos, filiais] = await Promise.all([
-      getSaldosItens(filialId),
-      listarFiliais(),
-    ])
+    const saldos = await getSaldosItensDeFiliais(filialIds)
     const filtrados = saldos.filter(
       (s) =>
         (!grupo || s.grupo === grupo) && (!q || s.item.toLowerCase().includes(q)),
     )
-    const rotuloFilial = filialId
-      ? (filiais.find((f) => f.id === filialId)?.nome ?? '—')
-      : 'Consolidado'
+    // O rótulo carimba no arquivo O QUE ele contém. Com multi-seleção ele precisa
+    // nomear TODAS as filiais somadas: escrever "Consolidado" (ou o nome de uma
+    // delas) num CSV que soma duas é a mentira por omissão que o comentário acima
+    // já apontava, agora com uma forma nova de acontecer.
+    const rotuloFilial =
+      filialIds.length === 0
+        ? 'Consolidado'
+        : filialIds
+            .map((id) => ctx.filiais.find((f) => f.id === id)?.nome ?? `#${id}`)
+            .join(' + ')
 
     const linhas = filtrados.slice(0, CAP_EXPORT)
     return {
@@ -400,7 +449,7 @@ export async function exportarItensHistoricoCSV(
   const negado = await barrado()
   if (negado) return falha(negado)
   try {
-    const params = filtrosHistorico(new URLSearchParams(filtros))
+    const params = filtrosHistorico(new URLSearchParams(filtros), await contextoFilial())
     const { linhas, total } = await listarHistoricoParaExport(params, CAP_EXPORT)
     return {
       nome: nomeArquivoCsv('itens-historico', hojeISO()),

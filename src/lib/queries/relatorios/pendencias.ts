@@ -17,9 +17,11 @@ import type { DbClient } from './comum'
 
 // Query base: a fila, opcionalmente recortada por filial. O tipo dela é o contrato
 // dos predicados de balde logo abaixo.
-function queryBase(client: DbClient, filialSlug: string | null) {
+// F25 — a filial virou LISTA de slugs. `[]` = sem recorte (todas), que é o que o
+// relatório consolidado e o /pendencias sem recorte pedem.
+function queryBase(client: DbClient, filialSlugs: readonly string[]) {
   let query = client.from('v_fila_pendencias').select('*', { count: 'exact', head: true })
-  if (filialSlug) query = query.eq('filial', filialSlug)
+  if (filialSlugs.length > 0) query = query.in('filial', filialSlugs)
   return query
 }
 
@@ -77,10 +79,10 @@ const CHAVES_BALDE = Object.keys(BALDES) as BaldeChip[]
 
 async function contar(
   client: DbClient,
-  filialSlug: string | null,
+  filialSlugs: readonly string[],
   filtrar?: (q: QueryFila) => QueryFila,
 ): Promise<number> {
-  const base = queryBase(client, filialSlug)
+  const base = queryBase(client, filialSlugs)
   const { count, error } = await (filtrar ? filtrar(base) : base)
   if (error) throw new Error(`Falha ao contar pendências: ${error.message}`)
   return count ?? 0
@@ -88,11 +90,11 @@ async function contar(
 
 export async function getPendencias(
   client: DbClient,
-  filialSlug: string | null,
+  filialSlugs: readonly string[],
 ): Promise<ChipPendencia[]> {
   const [total, ...contagens] = await Promise.all([
-    contar(client, filialSlug, undefined),
-    ...CHAVES_BALDE.map((chave) => contar(client, filialSlug, BALDES[chave].filtrar)),
+    contar(client, filialSlugs, undefined),
+    ...CHAVES_BALDE.map((chave) => contar(client, filialSlugs, BALDES[chave].filtrar)),
   ])
 
   // "outras" é o RESTO: o que a fila tem e nenhum balde reivindicou. Só assim o chip
@@ -108,7 +110,7 @@ export async function getPendencias(
   // (o chip não pode mostrar número negativo), mas agora deixa rastro no servidor.
   if (resto < 0) {
     console.error(
-      `[pendencias] baldes sobrepostos em ${filialSlug ?? 'geral'}: somam ${somaBaldes} de um total de ${total}. ` +
+      `[pendencias] baldes sobrepostos em ${filialSlugs.join('+') || 'geral'}: somam ${somaBaldes} de um total de ${total}. ` +
         'Uma linha da fila casa mais de um predicado (pendência `;`-joinable?) — ver lib/pendencias/filtro.ts.',
     )
   }

@@ -122,7 +122,11 @@ const rpcRetornoSchema = z.object({
 export type ValidarImportResult =
   | {
       ok: true
-      filial: Filial
+      // F25 — `Pick` explícito, e não `Filial`: a F25 acrescentou `cidade` ao tipo
+      // (é a cidade que assina o TERMO) e o import não tem nada com isso. Amarrar
+      // o contrato do import ao tipo inteiro faria toda coluna nova de `filiais`
+      // vazar para esta tela — e o import é declaradamente intocado nesta fase.
+      filial: Pick<Filial, 'id' | 'slug' | 'nome'>
       validacao: ValidacaoImport
       custo: CustoSubstituir
       termosMultiFilial: TermoMultiFilial[]

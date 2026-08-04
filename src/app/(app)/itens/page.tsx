@@ -10,6 +10,7 @@ import { listarFiliais } from '@/lib/queries/filiais'
 import {
   getHistoricoLancamentos,
   getSaldosItens,
+  getSaldosItensDeFiliais,
   getSaldosPorFilial,
   getUltimoLancamento,
   listarItensAtivos,
@@ -45,7 +46,8 @@ import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { SaldosFiliaisTabela } from '@/components/itens/saldos-filiais'
 import { BadgeRepor } from '@/components/itens/badge-repor'
 import { estoquePorItem, minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
-import { dataISO, idNumerico, paginaNumerica } from '@/lib/url-params'
+import { dataISO, ehVisaoConsolidado, idNumerico, paginaNumerica } from '@/lib/url-params'
+import { resolverFiliaisIds } from '@/lib/filtros/filial'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 
@@ -107,9 +109,12 @@ export default async function ItensPage({
 
   const sp = await searchParams
 
-  // Visão dos saldos (F11 · I4): 'filiais' = as filiais lado a lado; QUALQUER
-  // outro valor (inclusive lixo na URL) cai no consolidado, que é o default.
-  const visaoFiliais = primeiro(sp.visao) === 'filiais'
+  // Visão dos saldos (F11 · I4; default INVERTIDO na F25): a tela abre com as
+  // filiais LADO A LADO — é a pergunta que o operador faz primeiro ("onde tem
+  // mouse sobrando?"). Só a sentinela explícita `visao=consolidado` desliga;
+  // ausência e lixo caem no padrão novo, e `?visao=filiais` (favorito antigo)
+  // continua significando exatamente o que significava.
+  const visaoFiliais = !ehVisaoConsolidado(primeiro(sp.visao))
 
   // Na visão por filial NÃO existe recorte de filial: a tabela mostra todas e o
   // select nem é renderizado. O param é neutralizado aqui, no PARSE — não só no
@@ -117,7 +122,10 @@ export default async function ItensPage({
   // select durante a navegação pendente, link colado) recortaria o histórico, o
   // CSV de saldos e o pré-preenchimento do lançamento sem nenhum controle
   // visível na tela para ver ou desfazer o filtro.
-  const filialId = visaoFiliais ? null : idNumerico(primeiro(sp.filial))
+  //
+  // ⚠ F25 — com o default invertido esta neutralização passou a valer POR PADRÃO:
+  // um favorito antigo `/itens?filial=3` deixa de recortar até que o usuário vá ao
+  // Consolidado. É mudança de sentido de URL antiga, registrada em DECISOES.
   const grupoFiltro = primeiro(sp.grupo) as GrupoItem | undefined
   const q = (primeiro(sp.q) ?? '').trim().toLowerCase()
   // Teto de página (F12-W4-05): `Math.max(1, Number(...))` deixava passar
@@ -139,18 +147,27 @@ export default async function ItensPage({
   // de uma leitura própria (mesma RPC, em paralelo com as outras) — sem ela o
   // badge julgaria por um saldo parcial e apareceria em item que tem sobra nas
   // outras filiais. Na visão por filial o consolidado já vem em cada linha.
-  const consolidadoAparte = !visaoFiliais && filialId !== null
+  // F25 — as filiais vêm antes do resto: o filtro tem padrão por cargo.
+  const filiais = await listarFiliais()
+  const filialIds = visaoFiliais
+    ? []
+    : resolverFiliaisIds(
+        primeiro(sp.filial),
+        operador,
+        filiais.map((f) => f.id),
+      )
 
-  const [filiais, itensAtivos, saldos, ultimo, historico, saldosConsolidados] =
+  const consolidadoAparte = !visaoFiliais && filialIds.length > 0
+
+  const [itensAtivos, saldos, ultimo, historico, saldosConsolidados, saldosFiliais] =
     await Promise.all([
-      listarFiliais(),
       listarItensAtivos(),
       // Na visão por filial esta leitura não é usada (a de baixo traz o
       // consolidado junto) — não se gasta a chamada à toa.
-      visaoFiliais ? Promise.resolve<SaldoItem[]>([]) : getSaldosItens(filialId),
+      visaoFiliais ? Promise.resolve<SaldoItem[]>([]) : getSaldosItensDeFiliais(filialIds),
       getUltimoLancamento(operador.id),
       getHistoricoLancamentos({
-        filialId,
+        filialIds,
         itemId: itemFiltro,
         tipo: tipoFiltro,
         de: deFiltro,
@@ -159,11 +176,13 @@ export default async function ItensPage({
         pageSize: 20,
       }),
       consolidadoAparte ? getSaldosItens(null) : Promise.resolve<SaldoItem[]>([]),
+      // ⚠ F25 — esta leitura (1 + nº de filiais chamadas da mesma RPC) rodava
+      // FORA do `Promise.all`, em `await` sequencial. Enquanto era o caminho raro
+      // dava para conviver; virando o PADRÃO da tela, seriam 6 RPCs em série em
+      // toda abertura de /itens. Ela não depende de nada aqui além de `filiais`,
+      // que já está resolvida — então entra no paralelo.
+      visaoFiliais ? getSaldosPorFilial(filiais) : Promise.resolve(null),
     ])
-
-  // Leitura extra SÓ da visão por filial: nº de filiais + 1 chamada da mesma RPC
-  // dos saldos. A visão consolidada (default) continua com as leituras de antes.
-  const saldosFiliais = visaoFiliais ? await getSaldosPorFilial(filiais) : null
 
   const porGrupo = agruparSaldos(saldos, q, grupoFiltro)
   const porGrupoFiliais = agruparSaldos(saldosFiliais?.itens ?? [], q, grupoFiltro)
@@ -180,7 +199,12 @@ export default async function ItensPage({
   // O `?filial=N` da tela é um filtro de LEITURA: só vale como pré-seleção do
   // lançamento se for uma filial em que este cargo escreve — senão o dialog
   // abriria com um valor fora das opções.
-  const filialPreset = podeEscreverNaFilial(operador, filialId) ? filialId : null
+  //
+  // F25 — com MULTI-seleção, pré-selecionar só faz sentido quando a lista efetiva
+  // tem EXATAMENTE uma filial: com duas marcadas não há "a filial da tela", e
+  // escolher uma delas seria adivinhar. Com 2+, o dialog abre sem preset.
+  const filialUnica = filialIds.length === 1 ? filialIds[0] : null
+  const filialPreset = podeEscreverNaFilial(operador, filialUnica) ? filialUnica : null
 
   // Cruzamento catálogo × saldo do aviso "repor". `listarItensAtivos` só traz
   // item ATIVO e a RPC traz ativo OU com lançamento: item desativado que ainda
@@ -191,8 +215,9 @@ export default async function ItensPage({
   )
 
   const blocosVazios = (visaoFiliais ? porGrupoFiliais : porGrupo).length === 0
-  // `filialId` já é nulo na visão por filial (ver o parse acima).
-  const temFiltroSaldos = Boolean(q || grupoFiltro || filialId)
+  // `filialIds` já é vazio na visão por filial (ver o parse acima). É ARRAY —
+  // `Boolean([])` é true, daí o `.length > 0`.
+  const temFiltroSaldos = Boolean(q || grupoFiltro || filialIds.length > 0)
 
   return (
     <div className="space-y-4">
@@ -230,7 +255,7 @@ export default async function ItensPage({
         </div>
       </div>
 
-      <ItensFiltros filiais={filiais} />
+      <ItensFiltros filiais={filiais} filiaisSelecionadas={filialIds.map(String)} />
 
       {/* Saldos por item */}
       {blocosVazios ? (

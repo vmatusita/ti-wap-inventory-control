@@ -71,7 +71,9 @@ export type TipoFila = Exclude<TipoPendencia, 'conflito'>
 // Filtros da tela (sem paginação) — compartilhados pela lista e pelo export CSV
 // (OS-F10 · T5), para que o arquivo saia com EXATAMENTE as linhas visíveis.
 export type FiltrosPendencias = {
-  filialSlug?: string | null
+  // F25 — multi-seleção por SLUG (`v_fila_pendencias.filial` expõe o slug, não o
+  // id). Lista vazia/ausente = sem recorte.
+  filialSlugs?: readonly string[]
   tipo?: TipoFila | null
   q?: string | null
 }
@@ -172,7 +174,9 @@ function queryPendencias(client: DbClient, opts: FiltrosPendencias, head = false
     // que repete quando um ativo tem termo pendente E itens abertos. Só afeta empates.
     .order('ordem', { ascending: true })
 
-  if (opts.filialSlug) query = query.eq('filial', opts.filialSlug)
+  if (opts.filialSlugs && opts.filialSlugs.length > 0) {
+    query = query.in('filial', opts.filialSlugs)
+  }
 
   // Predicados de `@/lib/pendencias/filtro` (fonte única — os chips do relatório usam
   // os MESMOS). 'outras' é a negação dos quatro, na mesma ordem.

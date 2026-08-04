@@ -5,19 +5,11 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 import type { Filial } from '@/lib/queries/filiais'
 import type { TipoPendencia } from '@/lib/queries/pendencias-detalhe'
-
-const TODAS = '__todas'
 
 const TABS: { valor: TipoPendencia | 'todas'; rotulo: string }[] = [
   { valor: 'todas', rotulo: 'Todas' },
@@ -36,12 +28,14 @@ const TABS: { valor: TipoPendencia | 'todas'; rotulo: string }[] = [
 // troca reseta a paginação. A filial usa o SLUG (v_pendencias.filial é o slug).
 export function PendenciasFiltros({
   filiais,
-  filialSlug,
+  // F25 — seleção EFETIVA de filial (SLUGS), resolvida no servidor: pode ter vindo
+  // do padrão do cargo em vez da URL.
+  filiaisSelecionadas,
   tipo,
   q,
 }: {
   filiais: Filial[]
-  filialSlug: string | null
+  filiaisSelecionadas: string[]
   tipo: TipoPendencia | null
   q: string | null
 }) {
@@ -80,7 +74,9 @@ export function PendenciasFiltros({
     startTransition(() => router.push(`${pathname}?${novo.toString()}`))
   }
 
-  const temFiltro = !!q || !!filialSlug || !!tipo
+  // F25 — só conta como filtro o `filial` que veio da URL; a marcação herdada do
+  // padrão do cargo não deve manter o botão "Limpar" aceso para sempre.
+  const temFiltro = !!q || !!params.get('filial') || !!tipo
 
   return (
     <div className="space-y-2">
@@ -130,22 +126,13 @@ export function PendenciasFiltros({
           </Button>
         </form>
 
-        <Select
-          value={filialSlug || TODAS}
-          onValueChange={(v) => aplicar({ filial: v === TODAS ? null : v })}
-        >
-          <SelectTrigger className="w-[170px]" aria-label="Filtrar por filial">
-            <SelectValue placeholder="Filial" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODAS}>Todas as filiais</SelectItem>
-            {filiais.map((f) => (
-              <SelectItem key={f.id} value={f.slug}>
-                {f.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* ⚠ Por SLUG (`porSlug`): `v_pendencias.filial` é o slug, não o id. */}
+        <FiltroFilial
+          opcoes={opcoesDeFiliais(filiais, true)}
+          selecionados={filiaisSelecionadas}
+          aplicar={(v) => aplicar({ filial: v })}
+          idPrefixo="pend-filial"
+        />
 
         {temFiltro && (
           <Button

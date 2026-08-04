@@ -65,7 +65,10 @@ export async function getSnapshotRelatorioV2(
       getSerieMovimentacoes(client, filialId, periodo),
       getPorMotivo(client, filialId, periodo),
       incluirPendencias
-        ? getPendencias(client, slugParaView)
+        // F25 — `getPendencias` passou a receber LISTA de slugs. O relatório é de
+        // UMA filial (ou consolidado: `[]`), então a tradução é aqui e o snapshot
+        // congelado não muda de forma.
+        ? getPendencias(client, slugParaView ? [slugParaView] : [])
         : Promise.resolve([] as SnapshotRelatorioV2['pendencias']),
       getGruposItens(client, filialId, periodo),
       getTabelasFinais(client, filialId, periodo),

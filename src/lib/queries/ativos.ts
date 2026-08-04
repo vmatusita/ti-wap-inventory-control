@@ -33,7 +33,10 @@ export type AtivoLista = {
 
 export type ListarAtivosParams = {
   q?: string
-  filialId?: number
+  // F25 — o filtro de filial virou MULTI-seleção. Lista vazia/ausente = SEM
+  // recorte (todas). Quem resolve a lista efetiva (URL + padrão do cargo) é
+  // `resolverFiliaisIds` em `@/lib/filtros/filial` — tela e export usam a mesma.
+  filialIds?: readonly number[]
   categoria?: CategoriaAtivo
   status?: StatusAtivo[]
   // Só ativos sem patrimônio físico (pendência 'sem patrimônio físico' — F7E).
@@ -91,7 +94,9 @@ type FilialEmbed = { slug: string; nome: string } | null
 type BuilderAtivos = {
   or(filtro: string): BuilderAtivos
   eq(coluna: string, valor: string | number): BuilderAtivos
-  in(coluna: string, valores: readonly string[]): BuilderAtivos
+  // `readonly (string | number)[]` desde a F25: `status` passa strings e
+  // `filial_id` passa números (smallint).
+  in(coluna: string, valores: readonly (string | number)[]): BuilderAtivos
   is(coluna: string, valor: null): BuilderAtivos
 }
 
@@ -106,7 +111,9 @@ function aplicarFiltrosAtivos<T>(query: T, params: ListarAtivosParams): T {
       `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%`,
     )
   }
-  if (params.filialId) q = q.eq('filial_id', params.filialId)
+  if (params.filialIds && params.filialIds.length > 0) {
+    q = q.in('filial_id', params.filialIds)
+  }
   if (params.categoria) q = q.eq('categoria', params.categoria)
   if (params.status && params.status.length > 0) {
     q = q.in('status', params.status)

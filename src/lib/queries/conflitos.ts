@@ -84,14 +84,17 @@ function chavesNaoNulas(linhas: { chave: string | null }[] | null): string[] {
  * vez. Sem paginar, a mesa mostraria os 1.000 primeiros e esconderia o resto sem avisar,
  * que é exatamente o tipo de truncamento silencioso que este projeto não aceita.
  */
-async function chavesDaFilial(client: DbClient, filialSlug: string): Promise<string[]> {
+async function chavesDasFiliais(
+  client: DbClient,
+  filialSlugs: readonly string[],
+): Promise<string[]> {
   const rows = await paginarTodos<{ chave: string | null }>(
     'Falha ao listar as chaves de conflito da filial',
     (from, to) =>
       client
         .from('v_conflitos_filiais')
         .select('chave')
-        .eq('filial', filialSlug)
+        .in('filial', filialSlugs)
         .order('chave')
         // ⚠ Desempate OBRIGATÓRIO: `chave` sozinha não é uma ordenação total, e o Postgres
         // não promete a mesma ordem entre os dois `range()` de páginas consecutivas — um
@@ -144,14 +147,26 @@ function mapearLado(r: RowLado): LadoConflito {
  */
 export async function contarGruposConflito(
   client: DbClient,
-  filialSlug: string | null = null,
+  filialSlugs: readonly string[] = [],
 ): Promise<number> {
-  if (!filialSlug) {
+  if (filialSlugs.length === 0) {
     const { count, error } = await client
       .from('v_conflitos_filiais_grupos')
       .select('chave', { count: 'exact', head: true })
     if (error) throw new Error(`Falha ao contar conflitos: ${error.message}`)
     return count ?? 0
+  }
+
+  // ⚠ F25 — COM DUAS OU MAIS FILIAIS O ATALHO ABAIXO MENTE. O invariante que o
+  // autoriza ("um grupo tem no máximo UM lado por filial") vale POR FILIAL: um
+  // grupo cujos dois lados estão nas duas filiais selecionadas seria contado DUAS
+  // vezes, e o chip anunciaria o dobro do trabalho — violando a decisão da F24 de
+  // que um GRUPO é uma pendência. Aqui não há saída barata: é preciso contar
+  // CHAVES DISTINTAS, e por isso a varredura paginada. Ela custa uma requisição
+  // na prática (282 lados / 138 grupos em produção em 04/08/2026, contra a página
+  // de 1.000 de `paginarTodos`).
+  if (filialSlugs.length > 1) {
+    return (await chavesDasFiliais(client, filialSlugs)).length
   }
 
   // Com filial: a view agregada não guarda o slug (ela agrega os nomes), então a contagem
@@ -167,7 +182,7 @@ export async function contarGruposConflito(
   const { count, error } = await client
     .from('v_conflitos_filiais')
     .select('ativo_id', { count: 'exact', head: true })
-    .eq('filial', filialSlug)
+    .eq('filial', filialSlugs[0])
   if (error) throw new Error(`Falha ao contar conflitos: ${error.message}`)
   return count ?? 0
 }
@@ -179,7 +194,7 @@ export async function contarGruposConflito(
 export async function contarConflitosAbertos(): Promise<number> {
   try {
     const client = await createClient()
-    return await contarGruposConflito(client, null)
+    return await contarGruposConflito(client, [])
   } catch (e) {
     console.error(`Falha ao contar conflitos entre filiais: ${(e as Error).message}`)
     return 0
@@ -237,11 +252,11 @@ async function chavesPorBusca(client: DbClient, termo: string): Promise<Set<stri
  * fonte derivada.
  */
 export async function listarConflitos(
-  opts: { filialSlug?: string | null; q?: string | null; page?: number } = {},
+  opts: { filialSlugs?: readonly string[]; q?: string | null; page?: number } = {},
 ): Promise<PaginaConflitos> {
   const client = await createClient()
   let page = Math.max(1, opts.page ?? 1)
-  const filialSlug = opts.filialSlug?.trim() || null
+  const filialSlugs = opts.filialSlugs ?? []
   const termo = opts.q?.trim() || null
 
   // ---- o UNIVERSO de chaves visíveis, ANTES de paginar ----
@@ -251,7 +266,7 @@ export async function listarConflitos(
   // vem depois, sobre o que sobrou.
   let universo: string[] | null = null
 
-  if (filialSlug) universo = await chavesDaFilial(client, filialSlug)
+  if (filialSlugs.length > 0) universo = await chavesDasFiliais(client, filialSlugs)
 
   if (termo) {
     const porBusca = await chavesPorBusca(client, termo)
@@ -349,10 +364,10 @@ export async function listarConflitos(
  * filial: os dois lados do mesmo conflito saem lado a lado, como na tela.
  */
 export async function listarConflitosParaExport(
-  opts: { filialSlug?: string | null; q?: string | null } = {},
+  opts: { filialSlugs?: readonly string[]; q?: string | null } = {},
 ): Promise<{ chave: string; lado: LadoConflito }[]> {
   const client = await createClient()
-  const filialSlug = opts.filialSlug?.trim() || null
+  const filialSlugs = opts.filialSlugs ?? []
   const termo = opts.q?.trim() || null
 
   // Recorte por filial e/ou busca: as CHAVES que sobrevivem aos filtros — e depois TODOS os
@@ -363,7 +378,7 @@ export async function listarConflitosParaExport(
   // ⚠ Os MESMOS filtros da tela, pela mesma razão do invariante da F10 §T5: o arquivo tem
   // de sair com exatamente as linhas que estavam visíveis.
   let chaves: string[] | null = null
-  if (filialSlug) chaves = await chavesDaFilial(client, filialSlug)
+  if (filialSlugs.length > 0) chaves = await chavesDasFiliais(client, filialSlugs)
   if (termo) {
     const porBusca = await chavesPorBusca(client, termo)
     chaves = chaves ? chaves.filter((c) => porBusca.has(c)) : [...porBusca]
