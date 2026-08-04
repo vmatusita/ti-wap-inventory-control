@@ -215,9 +215,16 @@ export default async function ItensPage({
   )
 
   const blocosVazios = (visaoFiliais ? porGrupoFiliais : porGrupo).length === 0
-  // `filialIds` já é vazio na visão por filial (ver o parse acima). É ARRAY —
-  // `Boolean([])` é true, daí o `.length > 0`.
-  const temFiltroSaldos = Boolean(q || grupoFiltro || filialIds.length > 0)
+  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
+  // RESOLVIDA aqui faria `temFiltro` ser SEMPRE true para o operador (o padrão do
+  // cargo nunca é vazio): o estado vazio diria "nada com esses filtros" onde a
+  // verdade é "não há nada cadastrado", e ofereceria um "Limpar filtros" que
+  // recai no MESMO recorte — botão morto. É a mesma régua dos componentes de
+  // filtro, que já olham `params.get('filial')`.
+  // (na visão por filial o `filial` é neutralizado, então nem chega aqui)
+  const temFiltroSaldos = Boolean(
+    q || grupoFiltro || (!visaoFiliais && primeiro(sp.filial)),
+  )
 
   return (
     <div className="space-y-4">

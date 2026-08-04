@@ -103,8 +103,14 @@ export default async function AtivosPage({
   // (mesma forma de /pendencias e /movimentacoes). `ord`, `pp` e `page` ficam de
   // fora: são apresentação, não recorte. `status` e `filialIds` são ARRAYS —
   // `Boolean([])` é true, por isso `.length > 0`.
+  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
+  // RESOLVIDA aqui faria `temFiltro` ser SEMPRE true para o operador (o padrão do
+  // cargo nunca é vazio): o estado vazio diria "nada com esses filtros" onde a
+  // verdade é "não há nada cadastrado", e ofereceria um "Limpar filtros" que
+  // recai no MESMO recorte — botão morto. É a mesma régua dos componentes de
+  // filtro, que já olham `params.get('filial')`.
   const temFiltro = Boolean(
-    q || filialIds.length > 0 || categoria || status.length > 0 || semPatrimonio,
+    q || texto(sp.filial) || categoria || status.length > 0 || semPatrimonio,
   )
 
   const resultado = await listarAtivos({
@@ -173,7 +179,9 @@ export default async function AtivosPage({
             icone={PackageOpen}
             titulo="Nenhum ativo com esses filtros"
             descricao="Ajuste a busca ou limpe os filtros para ver todos os ativos."
-            acao={{ href: '/ativos', rotulo: 'Limpar filtros' }}
+            // `filial=todas` explícito: sem ele o operador voltaria ao padrão do
+            // cargo, que é justamente o recorte de onde ele veio.
+            acao={{ href: '/ativos?filial=todas', rotulo: 'Limpar filtros' }}
           />
         )
       ) : (

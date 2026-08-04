@@ -80,8 +80,13 @@ export default async function MovimentacoesPage({
   })
 
   const escreve = podeEscrever(operador?.papel)
-  // `filialIds` é ARRAY — `Boolean([])` é true, daí o `.length > 0`.
-  const temFiltro = Boolean(q || de || ate || tipo || filialIds.length > 0)
+  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
+  // RESOLVIDA aqui faria `temFiltro` ser SEMPRE true para o operador (o padrão do
+  // cargo nunca é vazio): o estado vazio diria "nada com esses filtros" onde a
+  // verdade é "não há nada cadastrado", e ofereceria um "Limpar filtros" que
+  // recai no MESMO recorte — botão morto. É a mesma régua dos componentes de
+  // filtro, que já olham `params.get('filial')`.
+  const temFiltro = Boolean(q || de || ate || tipo || texto(sp.filial))
 
   // A busca é de CAMPO ÚNICO (o PostgREST não faz `OR` entre tabela e embed):
   // dizer em qual campo procurou evita o operador achar que "não existe".

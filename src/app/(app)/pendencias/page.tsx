@@ -81,8 +81,13 @@ export default async function PendenciasPage({
   const filialSlugs = resolverFiliaisSlugs(primeiro(sp.filial), operador, filiais)
 
   // Diferencia "não há pendência nenhuma" de "nada neste filtro" no estado vazio.
-  // `filialSlugs` é ARRAY — `Boolean([])` é true, daí o `.length > 0`.
-  const temFiltro = Boolean(filialSlugs.length > 0 || tipo || q)
+  // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
+  // RESOLVIDA aqui faria `temFiltro` ser SEMPRE true para o operador (o padrão do
+  // cargo nunca é vazio): o estado vazio diria "nada com esses filtros" onde a
+  // verdade é "não há nada cadastrado", e ofereceria um "Limpar filtros" que
+  // recai no MESMO recorte — botão morto. É a mesma régua dos componentes de
+  // filtro, que já olham `params.get('filial')`.
+  const temFiltro = Boolean(primeiro(sp.filial) || tipo || q)
 
   // F24 — a aba de conflitos troca a FONTE: em vez da fila (`v_fila_pendencias`), a mesa lê
   // as views de conflito. Por isso o `tipo` que vai para `listarPendencias` é estreitado —
