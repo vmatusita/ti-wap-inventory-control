@@ -79,7 +79,7 @@ export const resolverPendencias: PaginaAjuda = {
       tipo: 'lista',
       itens: [
         'Os chips do topo mostram a contagem por tipo, e cada um só aparece quando tem alguma coisa em aberto: "termos de responsabilidade pendentes", "itens faltantes de devoluções", "ativos aguardando triagem", "patrimônios a acertar", "conflitos entre filiais" e "outras pendências". Sem nada aberto, a tela diz "Nenhuma pendência aberta. 🎉".',
-        'As abas, logo abaixo dos chips, filtram por tipo: "Todas", "Termos", "Itens faltantes", "Triagem", "Patrimônio", "Conflitos entre filiais" e "Outras". Ao lado, a busca por patrimônio ou colaborador e o seletor de filial; "Limpar" desfaz tudo.',
+        'As abas, logo abaixo dos chips, filtram por tipo: "Todas", "Termos", "Itens faltantes", "Triagem", "Patrimônio", "Conflitos entre filiais" e "Outras". Ao lado, a busca por patrimônio ou colaborador e o botão de filial, que abre um painel de caixas e aceita mais de uma marcada — quem é Operador já entra com as filiais dele marcadas. "Limpar" desfaz tudo.',
         'A aba "Conflitos entre filiais" é diferente das outras: em vez de uma lista de linhas, ela mostra os cadastros do mesmo equipamento LADO A LADO, um bloco por conflito. As demais abas nunca trazem essas linhas — o conflito tem casa própria e não aparece duas vezes.',
         'A tabela traz "Tipo", "Patrimônio", "Modelo", "Colaborador", "Setor", "Filial", "Desde" e "Ação". A coluna "Desde" mostra a data e há quanto tempo aquilo está aberto ("hoje", "há 1 dia", "há N dias").',
         'A ação da linha depende do tipo: "Confirmar assinatura" nos termos, "Resolver" nos itens faltantes. Os outros tipos se resolvem na ficha do ativo.',

@@ -34,6 +34,7 @@ import { hojeISO } from '@/lib/format'
 import { baixarBlob } from '@/lib/download'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import type { CamposTermo } from '@/lib/validators/termo'
+import { mesclarCamposSalvos } from '@/lib/termos/preparo'
 
 type CampoDef = { chave: keyof CamposTermo; rotulo: string; multi?: boolean }
 
@@ -139,7 +140,7 @@ export function GerarTermoDialog({
         // VAZIO — e `nullGetter: () => ''` faria o documento sair começando por
         // vírgula. Chave presente-mas-vazia no snapshot continua vencendo: ela é
         // uma edição deliberada de quem gerou.
-        setCampos({ ...res.campos, ...rest })
+        setCampos(mesclarCamposSalvos(res.campos, rest))
         setData(d ?? res.data)
       } else {
         setCampos(res.campos)

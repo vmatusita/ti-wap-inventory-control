@@ -38,7 +38,7 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'A página Itens tem duas visões, no botão do topo. Consolidado (como a tela abre) soma todas as filiais — ou só a filial escolhida no filtro. Por filial põe uma coluna de estoque para CADA filial, lado a lado, mais a coluna Total: é a resposta rápida para "onde tem mouse sobrando?", sem trocar o filtro cinco vezes. O selo "faltam N" aparece na coluna da filial onde está o déficit.',
+        'A página Itens tem duas visões, no botão do topo, e abre na primeira. Por filial põe uma coluna de estoque para CADA filial, lado a lado, mais a coluna Total: é a resposta rápida para "onde tem mouse sobrando?", sem trocar o filtro cinco vezes. O selo "faltam N" aparece na coluna da filial onde está o déficit. Consolidado, a um clique, soma todas as filiais — ou só as filiais escolhidas no filtro.',
     },
     {
       tipo: 'nota',

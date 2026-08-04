@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   combinarSaldosPorFilial,
   estoqueForaDasColunas,
+  somarSaldosDeFiliais,
   type SaldoItem,
 } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
@@ -171,5 +172,54 @@ describe('estoqueForaDasColunas', () => {
 
     // A tabela renderizada tem só a Alfa: os 2 da Beta ficam fora das colunas.
     expect(estoqueForaDasColunas(linha, [FILIAIS[0]])).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// F25 — somar N filiais quando o filtro é MULTI
+// ---------------------------------------------------------------------------
+// `rel_saldo_itens` (0016) recebe UMA filial ou NULL. Com o filtro virando
+// multi-seleção, 2+ filiais viram N leituras somadas em memória — nenhuma RPC
+// muda. É a mesma aritmética que `combinarSaldosPorFilial` já usava.
+describe('somarSaldosDeFiliais (F25)', () => {
+  it('soma célula a célula as leituras de cada filial', () => {
+    const r = somarSaldosDeFiliais([
+      [saldo(10, 'Mouse', { total: 8, estoque: 7, atrelados: 1, falta: 2 })],
+      [saldo(10, 'Mouse', { total: 4, estoque: 2, atrelados: 2, falta: 1 })],
+    ])
+    expect(r).toEqual([
+      saldo(10, 'Mouse', { total: 12, estoque: 9, atrelados: 3, falta: 3 }),
+    ])
+  })
+
+  it('item que existe só numa das filiais entra com o valor dela', () => {
+    const r = somarSaldosDeFiliais([
+      [saldo(10, 'Mouse', { estoque: 5 })],
+      [saldo(10, 'Mouse', { estoque: 1 }), saldo(20, 'Teclado', { estoque: 4 })],
+    ])
+    expect(r).toHaveLength(2)
+    expect(r.find((s) => s.item_id === 10)?.estoque).toBe(6)
+    expect(r.find((s) => s.item_id === 20)?.estoque).toBe(4)
+  })
+
+  it('preserva a ordem da RPC (ordem de inserção da primeira leitura)', () => {
+    const r = somarSaldosDeFiliais([
+      [saldo(30, 'Cabo'), saldo(10, 'Mouse'), saldo(20, 'Teclado')],
+      [saldo(20, 'Teclado'), saldo(30, 'Cabo')],
+    ])
+    expect(r.map((s) => s.item_id)).toEqual([30, 10, 20])
+  })
+
+  it('NÃO altera os objetos recebidos (as leituras são reusadas na página)', () => {
+    const a = saldo(10, 'Mouse', { estoque: 5 })
+    const b = saldo(10, 'Mouse', { estoque: 3 })
+    somarSaldosDeFiliais([[a], [b]])
+    expect(a.estoque).toBe(5)
+    expect(b.estoque).toBe(3)
+  })
+
+  it('lista vazia devolve vazio', () => {
+    expect(somarSaldosDeFiliais([])).toEqual([])
+    expect(somarSaldosDeFiliais([[], []])).toEqual([])
   })
 })

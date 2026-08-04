@@ -23,6 +23,7 @@ import {
   type TermoTipo,
 } from '@/lib/termos/tipos'
 import { nomeArquivoTermo } from '@/lib/termos/nome-arquivo'
+import { camposFaltantesDoTermo, cidadeDoTermo } from '@/lib/termos/preparo'
 import { dataPorExtenso, mesAnoPorExtenso } from '@/lib/termos/datas'
 import {
   concatenarEquipamentos,
@@ -179,44 +180,18 @@ export async function prepararTermo(input: {
   const avisos: string[] = []
 
   // ---- F25: a cidade da linha da assinatura --------------------------------
-  // Sai da filial CORRENTE dos ativos. Lote com filiais divergentes usa a do
-  // PRIMEIRO e avisa — mesmo padrão do aviso de "vários donos" da devolução:
-  // o termo é um documento único e alguém precisa conferir qual cidade vale.
+  // O JULGAMENTO (qual cidade, quais avisos) é uma função pura em termos/preparo.ts,
+  // com teste próprio; aqui só se lê o banco.
   const cidades = await cidadesDasFiliais(supabase, ativos.map((a) => a.filial_id))
-  const filiaisDoLote = [...new Set(ativos.map((a) => a.filial_id))]
-  const filialDoTermo = cidades.get(ativos[0]?.filial_id ?? -1)
-  const cidade = filialDoTermo?.cidade ?? ''
-  if (filiaisDoLote.length > 1) {
-    const nomes = filiaisDoLote.map((id) => cidades.get(id)?.nome ?? `#${id}`)
-    avisos.push(
-      `Este lote tem equipamentos de mais de uma filial (${nomes.join(', ')}). ` +
-        `A cidade da assinatura veio de ${filialDoTermo?.nome ?? 'a primeira'} — confira antes de gerar.`,
-    )
-  } else if (!cidade) {
-    avisos.push(
-      `A filial ${filialDoTermo?.nome ?? 'do ativo'} não tem cidade cadastrada — ` +
-        `cadastre em Administração → Filiais ou preencha aqui.`,
-    )
-  }
+  const { cidade, avisos: avisosCidade } = cidadeDoTermo(ativos, cidades)
+  avisos.push(...avisosCidade)
 
   if (familia === 'responsabilidade') {
     const mov = movs[0]
     const a = mov.ativo
     if (!a) return falhaPrep('Ativo não encontrado.')
     const colaborador = mov.colaborador ?? a.colaborador_atual ?? ''
-    // F25 — os três campos do celular entram no aviso de faltantes, mas SÓ quando
-    // a categoria é celular: sem essa guarda, todo termo de notebook passaria a
-    // avisar que falta IMEI.
-    const ehCelular = a.categoria === 'celular'
-    const faltando = [
-      !a.marca && 'marca',
-      !a.modelo && 'modelo',
-      !a.service_tag && 'service tag',
-      !a.patrimonio && 'patrimônio',
-      ehCelular && !a.telefone && 'nº do telefone',
-      ehCelular && !a.imei && 'IMEI',
-      ehCelular && !a.pulsus && 'Pulsus',
-    ].filter(Boolean) as string[]
+    const faltando = camposFaltantesDoTermo(a)
     if (faltando.length > 0) {
       avisos.push(`O ativo não tem ${faltando.join(', ')} cadastrado(s) — o campo sai em branco.`)
     }

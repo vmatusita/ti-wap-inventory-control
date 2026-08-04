@@ -53,3 +53,13 @@ update public.filiais set cidade = 'São José dos Pinhais' where slug = 'cd-afo
 update public.filiais set cidade = 'Linhares'             where slug = 'linhares'       and cidade = '';
 update public.filiais set cidade = 'Serra'                where slug = 'serra'          and cidade = '';
 update public.filiais set cidade = 'Eusébio'              where slug = 'eusebio'        and cidade = '';
+
+-- ---------- VERIFICAÇÃO PÓS-APPLY ----------
+--   select id, slug, nome, ativo, cidade from public.filiais order by id;
+--   -- esperado: as 5 filiais reais com cidade preenchida
+--   --   matriz e cd-afonso-pena -> 'São José dos Pinhais'
+--   --   linhares -> 'Linhares' · serra -> 'Serra' · eusebio -> 'Eusébio'
+--   -- em PRODUÇÃO há ainda `nova-teste` (INATIVA), que fica com '' de propósito.
+--
+--   select count(*) from public.filiais where cidade <> '';
+--   -- esperado: 5

@@ -56,7 +56,8 @@ export const administracao: PaginaAjuda = {
       titulo: 'Cadastrar ou editar uma filial',
       itens: [
         'Em Administração › Filiais, a tabela mostra "Nome", "Slug", "Ativos", "Status" e "Ações". Use "Nova filial" ou "Editar" na linha.',
-        'Preencha o "Nome" — o "Slug" é sugerido a partir dele. O slug entra no endereço do relatório daquela filial, então evite mudá-lo depois de divulgar links.',
+        'Preencha o "Nome" — o "Slug" é sugerido a partir dele. O slug entra no endereço do relatório daquela filial, então evite mudá-lo depois de divulgar links. Duas palavras não são aceitas como slug porque o sistema já as usa: "geral" e "todas".',
+        'Preencha a "Cidade": é ela que sai na última linha dos termos desta filial, antes das assinaturas (por exemplo: Linhares, 4 de agosto de 2026). Deixando em branco, o termo avisa na hora de gerar e quem estiver gerando pode escrever a cidade ali mesmo. A cláusula de foro do termo não muda — ela é da sede da empresa.',
         'Na edição existe a caixa "Filial ativa". Desmarcá-la tira a filial das listas e dos seletores; quando ainda há ativos ali, a própria tela avisa a quantidade ao lado da caixa.',
         'Confirme em "Salvar". Slug repetido é recusado com "Já existe uma filial com esse slug."',
         'Filial com acervo não é desativada: a mensagem diz quantos ativos existem e pede que sejam transferidos antes. O mesmo vale para saldo de item — a mensagem diz quantos itens e quantas unidades, e manda zerar o estoque em Itens por quantidade.',

@@ -87,7 +87,7 @@ export const relatoriosGerados: PaginaAjuda = {
       itens: [
         'Abra "Relatórios gerados": o botão está no cabeçalho do relatório ao vivo, ao lado de "Gerar relatório". Quem entra pela senha de acesso chega pelo item "Gerados" da barra de cima.',
         'A lista vem do mais recente para o mais antigo (pela data em que foi gerado), com as colunas "Período", "Filial", "Versão", "Gerado por" e "Em".',
-        'Use o seletor de filial do cabeçalho para recortar: "Todas as filiais", "Consolidado" ou uma filial específica.',
+        'Use o botão de filial do cabeçalho para recortar: ele abre um painel de caixas onde dá para marcar mais de uma filial, além de "Consolidado" (os relatórios que somam todas). "Todas as filiais", dentro do painel, volta a mostrar o arquivo inteiro. Esta é a única lista que abre sem recorte para todo mundo, inclusive para o Operador: o arquivo é de todas as filiais, e recortá-lo esconderia justamente os relatórios consolidados.',
         'O ícone amarelo ao lado do período significa "Tem observação da semana" — passe o mouse para confirmar antes de abrir.',
         'Clique em "Abrir" na linha desejada. Para voltar ao número de agora, use "Ver ao vivo".',
         'Com a lista vazia aparece "Nenhum relatório gerado ainda" — gere o primeiro na página ao vivo.',

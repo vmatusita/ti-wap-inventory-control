@@ -53,7 +53,7 @@ export const lancarItens: PaginaAjuda = {
       titulo: 'Lançar um item por quantidade',
       itens: [
         'Abra Itens pelo menu lateral e use "Lançar" — o diálogo se chama "Lançar quantidade". Dentro da página Itens, a tecla L abre esse mesmo diálogo; fora dela a tecla não faz nada (ela não navega até Itens).',
-        'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item preenchido e o cursor na quantidade. A filial vem junto quando a tela está filtrada por uma filial; na visão Por filial ela abre em branco (a linha vale para todas) — escolha a filial antes de salvar.',
+        'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item preenchido e o cursor na quantidade. A filial vem junto quando a tela está no Consolidado com UMA filial marcada no filtro; com duas ou mais marcadas, e na visão Por filial, ela abre em branco (a linha vale para todas) — escolha a filial antes de salvar.',
         `Escolha o tipo (${TIPOS_LANCAMENTO_TEXTO}) — cada um afeta Total/Estoque de um jeito, e a descrição do escolhido aparece logo abaixo do campo.`,
         `Informe a quantidade e, quando fizer sentido, a pessoa/chamado. ${ATRELAR} e ${DEVOLUCAO} exigem o número do chamado; o Ajuste pede justificativa em "Observação (justificativa do ajuste)" e aceita quantidade negativa (a nota ao lado lembra: "quantidade negativa = baixa").`,
         'Confirme em "Lançar". O aviso "Lançamento registrado." confirma; o saldo da tela se atualiza sozinho.',

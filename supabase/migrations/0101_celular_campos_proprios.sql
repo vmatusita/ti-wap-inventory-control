@@ -58,3 +58,16 @@ comment on column public.ativos.imei is
   'Campo de celular (F25): IMEI do aparelho. Texto livre, SEM máscara — o legado vem sujo (com/sem separador, às vezes dois IMEIs na mesma linha).';
 comment on column public.ativos.pulsus is
   'Campo de celular (F25): identificação do aparelho no Pulsus (MDM). Texto livre.';
+
+-- ---------- VERIFICAÇÃO PÓS-APPLY ----------
+--   select column_name, data_type, is_nullable
+--     from information_schema.columns
+--    where table_schema='public' and table_name='ativos'
+--      and column_name in ('telefone','imei','pulsus')
+--    order by column_name;
+--   -- esperado: 3 linhas, todas text / YES
+--
+--   -- nada foi migrado de `observacoes` (esta fase NÃO faz backfill):
+--   select count(*) from public.ativos
+--    where telefone is not null or imei is not null or pulsus is not null;
+--   -- esperado no apply: 0

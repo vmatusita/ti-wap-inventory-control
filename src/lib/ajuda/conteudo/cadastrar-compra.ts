@@ -46,6 +46,7 @@ export const cadastrarCompra: PaginaAjuda = {
         'Marca, Modelo e Fornecedor sugerem o que já existe no acervo depois de 2 letras (Modelo filtra pela marca já escolhida). É só atalho contra "Dell" virar "DELL" na próxima compra: digitar um valor novo continua normal e nada é bloqueado.',
         'Filial e categoria voltam preenchidas com as da última compra feita naquele navegador — confira antes de cadastrar.',
         'No bloco "Dados do modelo", "Categoria *", "Filial que recebeu *", "Marca *" e "Modelo *" são obrigatórios; "Memória", "Armazenamento", "Processador", "Fornecedor", "Data da entrada" e "Observação (nº da nota fiscal etc.)" são opcionais — o campo de observação é o lugar da NF-e e da garantia.',
+        'Ao escolher a categoria Celular, aparecem "Nº do telefone", "IMEI" e "Pulsus". Eles só aparecem quando você está cadastrando UM aparelho: são de cada celular, não do modelo, e num lote gravariam o mesmo IMEI em todos. Cadastre o lote e preencha esses três na ficha de cada um.',
         'Confira o preview ("{n} equipamentos a cadastrar", com um chip por patrimônio) e conclua em "Cadastrar {n} equipamentos".',
         'Cada ativo entra como Em estoque.',
       ],

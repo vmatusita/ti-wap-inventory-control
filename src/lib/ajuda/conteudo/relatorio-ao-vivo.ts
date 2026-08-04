@@ -37,6 +37,7 @@ export const relatorioAoVivo: PaginaAjuda = {
       tipo: 'lista',
       itens: [
         'Filial: a fileira de abas logo abaixo do título tem uma aba por filial ativa mais "Consolidado" (o endereço /relatorios/geral). Trocar de aba preserva o período escolhido.',
+        'Se o seu cargo é Operador, o menu Relatórios abre direto na aba da sua filial (a primeira em ordem alfabética, quando você trabalha em mais de uma). Administrador, Desenvolvedor e Consulta abrem no Consolidado. As abas continuam todas ali, a um clique.',
         'Período: os botões "Esta semana" (como a tela abre), "Últimos 30 dias", "Este ano" e "Tudo". Para uma faixa qualquer, use "Personalizado", preencha "De" e "Até" e clique em "Aplicar período".',
         'A filial e o período ficam no endereço da página: o link que você copiar abre exatamente o mesmo recorte para quem receber — inclusive para quem entra pela senha de acesso.',
         'Para o operador, o selo "ao vivo" no cabeçalho vira "atualizado agora" quando algum registro muda enquanto você lê. Quem entra pela senha de acesso vê no lugar dele o botão "Atualizar", e a tela também se atualiza sozinha a cada 60 segundos.',

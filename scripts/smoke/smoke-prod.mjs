@@ -357,6 +357,53 @@ function lerContagem(resposta) {
 // Lista declarativa de checks — para acrescentar cobertura, acrescente um
 // objeto aqui. `ctx` é compartilhado entre os checks (na ordem da lista).
 const CHECKS = [
+  // F25 — as colunas do celular existem e a fase NÃO fez backfill de `observacoes`
+  // (mover texto livre é decisão humana, na ficha; ver DECISOES 04/08/2026).
+  {
+    nome: 'ativos · campos do celular (F25)',
+    area: 'ativos · celular',
+    async executar(db) {
+      const { data, error } = await db
+        .from('ativos')
+        .select('telefone, imei, pulsus')
+        .limit(1)
+      if (error) {
+        if (ehAusenciaDeSchema(error)) {
+          return { status: NA, detalhe: 'colunas ausentes (migration 0101 não aplicada?)' }
+        }
+        throw error
+      }
+      const linha = data?.[0]
+      if (!linha) return { status: AVISO, detalhe: 'sem ativo para conferir o shape' }
+      const { faltando } = conferirColunas(linha, ['telefone', 'imei', 'pulsus'])
+      if (faltando.length) return { status: FALHA, detalhe: `faltam: ${faltando.join(', ')}` }
+      return { status: OK, detalhe: 'telefone, imei e pulsus presentes' }
+    },
+  },
+  // F25 — a cidade que assina o termo. As 5 filiais REAIS têm de estar preenchidas;
+  // filial inativa de teste pode ficar vazia de propósito.
+  {
+    nome: 'filiais · cidade do termo (F25)',
+    area: 'filiais · cidade',
+    async executar(db) {
+      const { data, error } = await db.from('filiais').select('slug, ativo, cidade')
+      if (error) {
+        if (ehAusenciaDeSchema(error)) {
+          return { status: NA, detalhe: 'coluna ausente (migration 0102 não aplicada?)' }
+        }
+        throw error
+      }
+      const semCidade = (data ?? []).filter((f) => f.ativo && !f.cidade)
+      if (semCidade.length) {
+        return {
+          status: FALHA,
+          detalhe: `filial ATIVA sem cidade: ${semCidade.map((f) => f.slug).join(', ')}`,
+        }
+      }
+      const comCidade = (data ?? []).filter((f) => f.cidade).length
+      return { status: OK, detalhe: `${comCidade} filiais com cidade; nenhuma ativa sem` }
+    },
+  },
   {
     nome: 'ativos · contagem',
     area: 'ativos',
@@ -779,9 +826,36 @@ const CHECKS = [
 // JSON. Nada é escrito: são GETs.
 const ROTAS_LOGADO = [
   { rota: '/', area: 'dashboard' },
-  { rota: '/ativos', area: 'ativos · lista' },
+  { rota: '/ativos', area: 'ativos · lista', marcador: 'Filtrar por filial' },
+  // F25 — a multi-seleção por CSV e a sentinela abrem sem derrubar a página. A
+  // conta do smoke é ADMIN, então o padrão POR CARGO do operador não é exercido
+  // aqui (isso é o roteiro manual no ensaio) — o que se prova é que o param novo
+  // é aceito nas duas formas.
+  { rota: '/ativos?filial=1,2', area: 'ativos · filtro multi-filial (F25)' },
+  { rota: '/ativos?filial=todas', area: 'ativos · sentinela "todas" (F25)' },
+  // Lixo no param é IGNORADO, nunca derruba o Server Component.
+  { rota: '/ativos?filial=abc,99999', area: 'ativos · filial inválida ignorada (F25)' },
   { rota: '/ativos/novo', area: 'ativos · cadastro de compra' },
-  { rota: '/itens', area: 'itens por quantidade' },
+  // F25 — a visão PADRÃO de /itens virou "Por filial". O filtro de filial não é
+  // renderizado nessa visão (as filiais já estão todas na tela, uma por coluna),
+  // então a AUSÊNCIA do botão é o que prova qual visão abriu.
+  {
+    rota: '/itens',
+    area: 'itens por quantidade · abre em "Por filial" (F25)',
+    marcadorProibido: 'Filtrar por filial',
+  },
+  // …e a sentinela explícita leva ao Consolidado, onde o filtro existe.
+  {
+    rota: '/itens?visao=consolidado',
+    area: 'itens · Consolidado pela sentinela (F25)',
+    marcador: 'Filtrar por filial',
+  },
+  // Link ANTIGO (`?visao=filiais`) continua significando lado a lado.
+  {
+    rota: '/itens?visao=filiais',
+    area: 'itens · link antigo ainda vale (F25)',
+    marcadorProibido: 'Filtrar por filial',
+  },
   { rota: '/movimentacoes', area: 'movimentações · lista' },
   { rota: '/movimentacoes/nova', area: 'movimentações · fluxo (B2)' },
   { rota: '/pendencias', area: 'pendências' },

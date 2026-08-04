@@ -55,7 +55,7 @@ export const fichaDoAtivo: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Editar dados cadastrais',
       itens: [
-        'Em "Editar dados cadastrais" você altera apenas campos não derivados: "Memória", "Armazenamento", "Processador", "Hostname", "Termo de responsabilidade", "Data do termo" e "Observações".',
+        'Em "Editar dados cadastrais" você altera apenas campos não derivados: "Memória", "Armazenamento", "Processador", "Hostname", "Termo de responsabilidade", "Data do termo" e "Observações". Se o ativo for um celular, aparecem também "Nº do telefone", "IMEI" e "Pulsus" — só para celular, porque só ali eles querem dizer alguma coisa.',
         'Status, colaborador, setor, filial e histórico NÃO se editam aqui — eles derivam das movimentações. O próprio diálogo avisa isso.',
         'Confirme em "Salvar". O aviso "Dados cadastrais atualizados." confirma a gravação; se a rede cair, a mensagem diz que nada foi salvo e os campos continuam preenchidos para você tentar de novo.',
       ],
@@ -105,7 +105,7 @@ export const fichaDoAtivo: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        '"Dados do ativo" — "Categoria", "Marca / Modelo", "Specs", "Hostname", "Fornecedor", "Filial", "Colaborador", "Setor", "Termo", "Patrimônio original" e "Origem", mais o bloco "Observações". "Origem" diz de onde o ativo veio: um trazido pelo import de startup aparece como importacao, e é essa origem que dispensa a cobrança de termo.',
+        '"Dados do ativo" — "Categoria", "Marca / Modelo", "Specs", "Hostname", "Fornecedor", "Filial", "Colaborador", "Setor", "Termo", "Patrimônio original" e "Origem", mais o bloco "Observações". Em celular entram ainda "Nº do telefone", "IMEI" e "Pulsus", logo depois do hostname. "Origem" diz de onde o ativo veio: um trazido pelo import de startup aparece como importacao, e é essa origem que dispensa a cobrança de termo.',
         '"Termos" — os termos gerados para este ativo, com quem gerou e quando, e os botões "Editar" e "Baixar". É aqui que se confirma a assinatura, e onde ela se desfaz.',
         '"Itens faltantes da devolução" — os acessórios que não voltaram numa devolução deste ativo. Os abertos trazem o botão "Resolver"; os já resolvidos ficam riscados, com o desfecho, quem resolveu e quando.',
         'Faixa âmbar "Pendência:" — quando o ativo tem uma pendência de identificação em aberto, ela aparece em destaque logo abaixo do cabeçalho.',

@@ -47,7 +47,8 @@ export const listaDeAtivos: PaginaAjuda = {
       titulo: 'Filtrar a lista de ativos',
       itens: [
         'O campo de busca aceita patrimônio, colaborador, marca ou modelo. Ele só é aplicado quando você submete, no Enter ou no botão "Pesquisar" — a lista não muda a cada tecla.',
-        'Os seletores "Filial" (opção "Todas as filiais") e "Categoria" (opção "Todas categorias") recortam a lista. O botão "Status" abre um painel com os estados e um selo com quantos você marcou — dá para marcar mais de um.',
+        'O botão "Filial" e o botão "Status" abrem um painel de caixas para marcar: dá para marcar mais de uma, e um selo no botão mostra quantas você marcou. Dentro do painel de filial, "Todas as filiais" volta a mostrar tudo. O seletor "Categoria" (opção "Todas categorias") recorta por tipo de equipamento.',
+        'Se o seu cargo é Operador, a lista já abre marcando as filiais em que você trabalha — é o começo mais útil para o dia a dia. Administrador, Desenvolvedor e Consulta abrem com todas. Isso vale só quando você chega pela primeira vez: um link que já traz filiais escolhidas abre igual para qualquer pessoa, e "Limpar" devolve a lista ao começo do seu cargo.',
         'O botão "Sem patrimônio" é um interruptor: ligado, mostra só os equipamentos que entraram sem plaqueta.',
         '"Limpar" aparece quando há filtro e volta a lista ao começo, preservando a ordenação e o tamanho de página que você escolheu.',
         'Tudo isso vive no endereço da página: o link copiado abre a mesma tela para quem receber, e voltar/avançar do navegador refaz a consulta. Endereço com valor inválido é ignorado — a lista abre no padrão em vez de dar erro.',
