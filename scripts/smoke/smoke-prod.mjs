@@ -872,6 +872,20 @@ const ROTAS_LOGADO = [
     rota: '/pendencias?tipo=conflito',
     area: 'pendências · conflitos entre filiais (F24)',
     marcador: 'Nenhum conflito entre filiais',
+    // F25 — o marcador ALTERNATIVO (um rótulo que só a mesa renderiza).
+    //
+    // A nota acima previa que esta entrada passaria a falhar no dia em que
+    // houvesse conflito real em produção, e chamou isso de informação. Ela chegou:
+    // em 04/08/2026 produção tem **137 grupos** (um import trouxe máquinas que já
+    // existiam em outra unidade). Só que um check que fica vermelho por causa do
+    // ESTADO DOS DADOS deixa de medir o que deveria — que a rota abre e se
+    // identifica pelo conteúdo — e, pior, normaliza smoke vermelho, que é como uma
+    // falha de verdade passa despercebida na fase seguinte.
+    //
+    // Com os dois marcadores o check aceita as DUAS faces legítimas da tela (mesa
+    // vazia OU mesa com conflitos) e continua reprovando erro, redirect e página
+    // em branco. Quem conta os conflitos é o selo da sidebar, que é o lugar certo.
+    marcadorAlternativo: 'Última movimentação',
   },
   { rota: '/ajuda', area: 'ajuda (B3)' },
   { rota: '/admin/usuarios', area: 'admin · usuários (B1)' },
@@ -1024,7 +1038,11 @@ async function parteC(sessao) {
         const achados = MARCADORES_ERRO.filter((m) => corpo.includes(m))
         if (achados.length) {
           detalhe = `HTTP 200 mas a página é de erro (marcadores: ${achados.join(', ')})`
-        } else if (entrada.marcador && !corpo.includes(entrada.marcador)) {
+        } else if (
+          entrada.marcador &&
+          !corpo.includes(entrada.marcador) &&
+          !(entrada.marcadorAlternativo && corpo.includes(entrada.marcadorAlternativo))
+        ) {
           // F20: a rota respondeu, mas não é a página que deveria ser (slug
           // órfão, conteúdo vazio, registry fora de sincronia com o deploy).
           detalhe = `HTTP 200 sem o conteúdo esperado ("${entrada.marcador}")`
