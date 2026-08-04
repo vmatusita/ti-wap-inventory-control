@@ -5,9 +5,11 @@ import { hojeISO } from '@/lib/format'
 import {
   CAMPOS_POR_TIPO,
   MAX_LOTE_MOVIMENTACAO,
+  TIPOS_FORA_DO_LOTE_MANUAL,
   campoObrigatorio,
   type CampoMovimentacao,
 } from '@/lib/validators/movimentacao'
+import { TIPO_META } from '@/lib/dominio'
 import type {
   CategoriaAtivo,
   TermoStatus,
@@ -56,6 +58,52 @@ export function configPadrao(inicial?: ConfigInicial | null): Config {
   }
 }
 
+// Texto livre vindo da URL: sem espaços nas pontas e com um teto de sanidade —
+// o campo é livre no banco, mas nada justifica um nome de 5 KB no querystring.
+const MAX_TEXTO_URL = 200
+
+// F26 — `ConfigInicial` montada a partir de params SOLTOS da URL. É o que o
+// ATALHO do painel de sucesso usa para reabrir o fluxo na metade que faltou
+// (`?tipo=saida&motivo=troca_upgrade&colaborador=…`), sem ativo nenhum — os
+// mecanismos antigos (`?duplicar=`/`?ativo=`) partem sempre de um registro que
+// já existe, e nenhum deles serve para "a outra metade da troca".
+//
+// PURA e defensiva, na doutrina de `lib/url-params.ts`: param inválido é
+// IGNORADO, nunca derruba a página nem vira estado inválido do formulário.
+//   - `tipo` fora do vocabulário — ou de fluxo próprio (compra/troca/devolução
+//     ao fornecedor, que não se registram por este formulário) — devolve `null`:
+//     sem tipo não há o que pré-preencher.
+//   - `motivo` é conferido pelo CÓDIGO contra o catálogo e pelo `aplica_a`; o
+//     que não casa vira '' (o operador escolhe no select).
+export function configInicialDaUrl(
+  params: {
+    tipo?: string
+    motivo?: string
+    colaborador?: string
+    setor?: string
+  },
+  motivosDisponiveis: readonly { codigo: string; aplica_a: string[] }[],
+): ConfigInicial | null {
+  const tipo = (params.tipo ?? '').trim()
+  if (!(tipo in TIPO_META)) return null
+  const t = tipo as TipoMovimentacao
+  if (TIPOS_FORA_DO_LOTE_MANUAL.includes(t)) return null
+
+  const motivo = (params.motivo ?? '').trim()
+  const motivoOk = motivosDisponiveis.some(
+    (m) => m.codigo === motivo && m.aplica_a.includes(t),
+  )
+
+  const texto = (v: string | undefined) => (v ?? '').trim().slice(0, MAX_TEXTO_URL)
+
+  return {
+    tipo: t,
+    motivo: motivoOk ? motivo : '',
+    colaborador: texto(params.colaborador),
+    setor: texto(params.setor),
+  }
+}
+
 // Entrada em MASSA no lote (F10/M1 — "Colar lista"): o resolver do W1 devolve
 // tudo o que achou, sem olhar o lote atual nem o teto (CONTRATO §1.5). Quem
 // corta e avisa e a UI — e a regra vive aqui, pura e testavel, para o dialog do
@@ -97,18 +145,41 @@ export function mesclarAtivosNoLote(
   return { lote: [...atual, ...adicionados], adicionados, jaNoLote, excedentes }
 }
 
+// Um ativo que ENTROU (fichas do painel de sucesso, chips de "já registrados").
+export type AtivoSucesso = {
+  id: string
+  // null = ativo sem patrimônio físico (F7E) — a UI mostra "sem patrimônio".
+  patrimonio: string | null
+  categoria: CategoriaAtivo
+  movimentacaoId: string
+}
+
+// F26 — um GRUPO do resultado: uma metade do par troca/upgrade, ou o lote
+// simples inteiro. Tipo e motivo ficam no GRUPO (e não mais no resultado) porque
+// o par grava duas movimentações diferentes num envio só, e o painel precisa
+// oferecer o termo certo para cada metade.
+export type GrupoSucesso = {
+  tipo: TipoMovimentacao
+  motivo: string
+  ativos: AtivoSucesso[]
+}
+
+// F26 — a contrapartida da troca que o operador deixou para depois. Só existe
+// para alimentar o ATALHO do painel de sucesso: nenhuma pendência, nenhum estado
+// no servidor (decisão "só a tela", 04/08/2026).
+export type ContrapartidaPendente = {
+  // O tipo da metade que FALTA registrar (o oposto do que acabou de entrar).
+  tipo: TipoMovimentacao
+  // Pré-preenchimento do link — '' quando o tipo alvo nem coleta colaborador.
+  colaborador: string
+}
+
 // Resultado do envio, alimenta o PainelSucesso (fichas + diálogos de termo).
 export type SucessoLote = {
   criadas: number
-  tipo: TipoMovimentacao
-  motivo: string
-  ativos: {
-    id: string
-    // null = ativo sem patrimônio físico (F7E) — a UI mostra "sem patrimônio".
-    patrimonio: string | null
-    categoria: CategoriaAtivo
-    movimentacaoId: string
-  }[]
+  // Lote simples = 1 grupo; par troca/upgrade = 2 (principal primeiro).
+  grupos: GrupoSucesso[]
+  pendente?: ContrapartidaPendente | null
 }
 
 // Serializa UM campo condicional da Config para a(s) chave(s) do input do Zod.

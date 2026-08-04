@@ -7,17 +7,84 @@ import {
   buscarPossiveisDuplicatasDoDia,
   type PossivelDuplicataDia,
 } from '@/lib/actions/movimentacoes'
+import {
+  configDaContrapartida,
+  contrapartidaAtiva,
+  tipoContrapartida,
+  type ContrapartidaTroca,
+} from '@/components/movimentacoes/nova/troca-upgrade'
 import { formatDate, hojeISO } from '@/lib/format'
-import { rotuloTipo } from '@/lib/dominio'
+import { rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Motivo } from '@/lib/queries/motivos'
 
+// Uma metade do envio na revisão: a mesma movimentação aplicada a cada ativo.
+// Sem o par (o caso comum) só existe UM bloco, e ele não ganha cabeçalho — o
+// passo 3 continua idêntico ao que sempre foi.
+function BlocoRevisao({
+  titulo,
+  itens,
+  config,
+  filiais,
+  motivos,
+}: {
+  titulo: string | null
+  itens: AtivoResumo[]
+  config: Config
+  filiais: Filial[]
+  motivos: Motivo[]
+}) {
+  if (itens.length === 0) return null
+  return (
+    <div className="space-y-2">
+      {titulo && (
+        <p className="text-sm font-medium">
+          {titulo} —{' '}
+          <span className="tabular-nums">
+            {itens.length} {itens.length === 1 ? 'ativo' : 'ativos'}
+          </span>
+        </p>
+      )}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50 text-left text-muted-foreground">
+            <tr>
+              <th className="p-2.5 font-medium">Patrimônio</th>
+              <th className="p-2.5 font-medium">Movimentação</th>
+              <th className="p-2.5 font-medium">Destino / Motivo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {itens.map((a) => (
+              <tr key={a.id}>
+                <td className="p-2.5 font-medium tabular-nums">
+                  {a.patrimonio ?? 'sem patrimônio'}
+                </td>
+                <td className="p-2.5">
+                  {config.tipo && rotuloTipo(config.tipo)}
+                </td>
+                <td className="p-2.5 text-muted-foreground">
+                  {resumoDestino(config, filiais, motivos)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // Passo 3 — revisao do lote (mesma movimentacao aplicada a cada ativo) e envio.
+// F26 — quando o par troca/upgrade esta ativo, a revisao mostra DOIS blocos
+// claramente separados (a metade principal primeiro, na mesma ordem em que os
+// itens vao para a Server Action).
 export function PassoRevisao({
   itens,
   config,
+  contrapartida,
   filiais,
   motivos,
   enviando,
@@ -26,6 +93,7 @@ export function PassoRevisao({
 }: {
   itens: AtivoResumo[]
   config: Config
+  contrapartida: ContrapartidaTroca | null
   filiais: Filial[]
   motivos: Motivo[]
   enviando: boolean
@@ -40,14 +108,23 @@ export function PassoRevisao({
 
   const tipo = config.tipo
   const data = config.data
+  const comPar = contrapartidaAtiva(config, contrapartida)
+  const tipoOposto = tipoContrapartida(tipo)
+  const itensOpostos = comPar && contrapartida ? contrapartida.itens : []
+  const total = itens.length + itensOpostos.length
   // A consulta sempre usou `config.data` — só o TEXTO dizia "hoje". Desde os
   // chips Hoje/Ontem da F9, lançar com a data de ontem é rotina, e o aviso
   // afirmava um dia que não era o da movimentação. Derivado da própria data
   // (`formatDate` trata data pura sem risco de fuso).
   const quando = data === hojeISO() ? 'hoje' : `em ${formatDate(data)}`
   // Chave estável: o efeito só refaz a consulta quando o lote/tipo/data mudam
-  // de verdade (o array `itens` é recriado a cada render do pai).
-  const chaveLote = itens.map((a) => a.id).join(',')
+  // de verdade (o array `itens` é recriado a cada render do pai). F26 — a chave
+  // carrega as DUAS metades, cada ativo com o tipo da SUA metade, senão o aviso
+  // de duplicata ignoraria metade do envio.
+  const chaveLote = [
+    ...itens.map((a) => `${a.id}:${tipo}`),
+    ...itensOpostos.map((a) => `${a.id}:${tipoOposto ?? ''}`),
+  ].join(',')
 
   useEffect(() => {
     if (!tipo || !data || chaveLote === '') return
@@ -55,9 +132,15 @@ export function PassoRevisao({
     // Estado alterado SO dentro do callback assincrono (react-hooks/set-state-in-effect).
     void (async () => {
       try {
-        const res = await buscarPossiveisDuplicatasDoDia(
-          chaveLote.split(',').map((ativoId) => ({ ativoId, tipo, data })),
-        )
+        const pares = chaveLote.split(',').map((par) => {
+          const corte = par.lastIndexOf(':')
+          return {
+            ativoId: par.slice(0, corte),
+            tipo: par.slice(corte + 1) as TipoMovimentacao,
+            data,
+          }
+        })
+        const res = await buscarPossiveisDuplicatasDoDia(pares)
         if (vivo) setDuplicatas(res)
       } catch {
         // F19 — o proxy só degrada o erro de NEGÓCIO; um throw de transporte
@@ -93,32 +176,23 @@ export function PassoRevisao({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-muted/50 text-left text-muted-foreground">
-            <tr>
-              <th className="p-2.5 font-medium">Patrimônio</th>
-              <th className="p-2.5 font-medium">Movimentação</th>
-              <th className="p-2.5 font-medium">Destino / Motivo</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {itens.map((a) => (
-              <tr key={a.id}>
-                <td className="p-2.5 font-medium tabular-nums">
-                  {a.patrimonio ?? 'sem patrimônio'}
-                </td>
-                <td className="p-2.5">
-                  {config.tipo && rotuloTipo(config.tipo)}
-                </td>
-                <td className="p-2.5 text-muted-foreground">
-                  {resumoDestino(config, filiais, motivos)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <BlocoRevisao
+        titulo={comPar && tipo ? rotuloTipo(tipo) : null}
+        itens={itens}
+        config={config}
+        filiais={filiais}
+        motivos={motivos}
+      />
+
+      {comPar && contrapartida && tipoOposto && (
+        <BlocoRevisao
+          titulo={`${rotuloTipo(tipoOposto)} da troca`}
+          itens={contrapartida.itens}
+          config={configDaContrapartida(config, contrapartida)}
+          filiais={filiais}
+          motivos={motivos}
+        />
+      )}
 
       <div className="flex justify-between">
         <Button variant="ghost" onClick={onVoltar}>
@@ -127,7 +201,7 @@ export function PassoRevisao({
         <Button onClick={onRegistrar} disabled={enviando}>
           {enviando
             ? 'Registrando…'
-            : `Registrar ${itens.length} ${itens.length === 1 ? 'movimentação' : 'movimentações'}`}
+            : `Registrar ${total} ${total === 1 ? 'movimentação' : 'movimentações'}`}
         </Button>
       </div>
     </div>

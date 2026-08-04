@@ -101,3 +101,118 @@ describe('desserializarRascunho — entrada hostil vira estado utilizavel', () =
     expect(desserializarRascunho(bruto({ passo: 3 }))!.passo).toBe(3)
   })
 })
+
+// F26 — a contrapartida do par troca/upgrade no storage. O requisito mais
+// importante deste bloco é o PRIMEIRO teste: um rascunho gravado ANTES desta
+// fase (que é exatamente o `bruto()` acima, sem a chave) restaura sem erro e
+// sem apagar o lote do operador.
+describe('desserializarRascunho — a contrapartida (F26)', () => {
+  const ID3 = '323e4567-e89b-12d3-a456-426614174000'
+
+  function comContrapartida(over: Record<string, unknown> = {}): string {
+    // `contrapartida` sai do spread de topo e entra MESCLADA — senão o override
+    // parcial de um campo apagaria os outros seis.
+    const { contrapartida: cp, ...resto } = over
+    return bruto({
+      config: {
+        tipo: 'devolucao',
+        motivo: 'troca_upgrade',
+        data: '2026-08-04',
+        itensFaltantes: [],
+      },
+      ...resto,
+      contrapartida: {
+        ids: [ID3],
+        colaborador: 'Fulano da Silva',
+        setor: 'TI',
+        termo: 'sim',
+        termoData: '2026-08-04',
+        itensFaltantes: [],
+        deixarParaDepois: false,
+        ...((cp ?? {}) as Record<string, unknown>),
+      },
+    })
+  }
+
+  it('RASCUNHO ANTIGO (sem a chave) restaura sem erro e sem contrapartida', () => {
+    const r = desserializarRascunho(bruto())!
+    expect(r).not.toBeNull()
+    expect(r.ids).toEqual([ID1, ID2])
+    expect(r.contrapartida).toBeUndefined()
+  })
+
+  it('rascunho NOVO devolve a contrapartida inteira', () => {
+    const r = desserializarRascunho(comContrapartida())!
+    expect(r.contrapartida).toEqual({
+      ids: [ID3],
+      colaborador: 'Fulano da Silva',
+      setor: 'TI',
+      termo: 'sim',
+      termoData: '2026-08-04',
+      itensFaltantes: [],
+      deixarParaDepois: false,
+    })
+  })
+
+  it('"deixar para depois" só é verdadeiro quando é o booleano true', () => {
+    const r = desserializarRascunho(
+      comContrapartida({ contrapartida: { deixarParaDepois: 'sim' } }),
+    )!
+    expect(r.contrapartida!.deixarParaDepois).toBe(false)
+  })
+
+  it('contrapartida não-objeto é ignorada (não derruba o rascunho)', () => {
+    for (const lixo of ['texto', 42, null, ['a']]) {
+      const r = desserializarRascunho(bruto({ contrapartida: lixo }))!
+      expect(r).not.toBeNull()
+      expect(r.ids).toEqual([ID1, ID2])
+      if (Array.isArray(lixo)) {
+        // Array é objeto: vira uma contrapartida vazia, nunca um estado inválido.
+        expect(r.contrapartida!.ids).toEqual([])
+      } else {
+        expect(r.contrapartida).toBeUndefined()
+      }
+    }
+  })
+
+  it('termo fora do vocabulário e itens não-texto são saneados', () => {
+    const r = desserializarRascunho(
+      comContrapartida({
+        contrapartida: { termo: 'talvez', itensFaltantes: ['mouse', 7, null] },
+      }),
+    )!
+    expect(r.contrapartida!.termo).toBe('')
+    expect(r.contrapartida!.itensFaltantes).toEqual(['mouse'])
+  })
+
+  it('o teto é o do LOTE INTEIRO: a contrapartida só leva o que sobra', () => {
+    const principais = Array.from(
+      { length: MAX_LOTE_MOVIMENTACAO - 2 },
+      (_, i) => `p-${i}`,
+    )
+    const opostos = Array.from({ length: 10 }, (_, i) => `c-${i}`)
+    const r = desserializarRascunho(
+      comContrapartida({ ids: principais, contrapartida: { ids: opostos } }),
+    )!
+    expect(r.ids).toHaveLength(MAX_LOTE_MOVIMENTACAO - 2)
+    expect(r.contrapartida!.ids).toEqual(['c-0', 'c-1'])
+  })
+
+  it('lote principal já no teto deixa a contrapartida sem ids', () => {
+    const principais = Array.from(
+      { length: MAX_LOTE_MOVIMENTACAO },
+      (_, i) => `p-${i}`,
+    )
+    const r = desserializarRascunho(
+      comContrapartida({ ids: principais, contrapartida: { ids: [ID3] } }),
+    )!
+    expect(r.contrapartida!.ids).toEqual([])
+  })
+
+  it('ids repetidos na contrapartida são deduplicados', () => {
+    const r = desserializarRascunho(
+      comContrapartida({ contrapartida: { ids: [ID3, ID3, '', 7] } }),
+    )!
+    expect(r.contrapartida!.ids).toEqual([ID3])
+  })
+})

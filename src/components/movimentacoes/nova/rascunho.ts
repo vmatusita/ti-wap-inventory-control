@@ -21,15 +21,67 @@ import { configPadrao, type Config } from '@/components/movimentacoes/nova/confi
 
 export const CHAVE_RASCUNHO = 'wap:mov:rascunho'
 
+// F26 — a metade oposta do par troca/upgrade, do jeito que sobrevive no
+// storage: SO os ids (os resumos sao re-buscados, como os da metade principal)
+// + os campos exclusivos + o flag. OPCIONAL de proposito: rascunho gravado
+// ANTES desta fase nao tem este campo e tem de restaurar sem erro.
+export type RascunhoContrapartida = {
+  ids: string[]
+  colaborador: string
+  setor: string
+  termo: '' | TermoStatus
+  termoData: string
+  itensFaltantes: string[]
+  deixarParaDepois: boolean
+}
+
 export type Rascunho = {
   ids: string[]
   config: Config
   statusResultante: string
   passo: number
+  contrapartida?: RascunhoContrapartida
 }
 
 function texto(v: unknown): string {
   return typeof v === 'string' ? v : ''
+}
+
+function listaDeTexto(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((i): i is string => typeof i === 'string') : []
+}
+
+// Ids vindos do storage: string nao vazia, sem repetir, ate o limite pedido.
+function sanearIds(v: unknown, limite: number): string[] {
+  if (!Array.isArray(v) || limite <= 0) return []
+  return [
+    ...new Set(
+      v.filter((i): i is string => typeof i === 'string' && i.length > 0),
+    ),
+  ].slice(0, limite)
+}
+
+// A contrapartida e DADO DE FORA como o resto: ausente, mal formada ou de uma
+// versao antiga do app => `undefined` (o formulario comeca sem par). O teto do
+// lote vale para a SOMA, entao o que sobra do teto e o limite daqui.
+function sanearContrapartida(
+  bruto: unknown,
+  usadosNaPrincipal: number,
+): RascunhoContrapartida | undefined {
+  if (!bruto || typeof bruto !== 'object') return undefined
+  const c = bruto as Record<string, unknown>
+  const termo = texto(c.termo)
+  return {
+    ids: sanearIds(c.ids, MAX_LOTE_MOVIMENTACAO - usadosNaPrincipal),
+    colaborador: texto(c.colaborador),
+    setor: texto(c.setor),
+    termo: (TERMO_STATUS_ORDEM as string[]).includes(termo)
+      ? (termo as TermoStatus)
+      : '',
+    termoData: texto(c.termoData),
+    itensFaltantes: listaDeTexto(c.itensFaltantes),
+    deixarParaDepois: c.deixarParaDepois === true,
+  }
 }
 
 // Config vinda do storage e DADO DE FORA (o operador pode editar o
@@ -44,9 +96,7 @@ function sanearConfig(bruto: unknown): Config {
 
   const tipo = texto(c.tipo)
   const termo = texto(c.termo)
-  const itens = Array.isArray(c.itensFaltantes)
-    ? c.itensFaltantes.filter((i): i is string => typeof i === 'string')
-    : []
+  const itens = listaDeTexto(c.itensFaltantes)
 
   return {
     data: texto(c.data) || base.data,
@@ -79,24 +129,22 @@ export function desserializarRascunho(bruto: string | null): Rascunho | null {
   if (!dados || typeof dados !== 'object') return null
   const r = dados as Record<string, unknown>
 
-  const ids = Array.isArray(r.ids)
-    ? [
-        ...new Set(
-          r.ids.filter((i): i is string => typeof i === 'string' && i.length > 0),
-        ),
-      ].slice(0, MAX_LOTE_MOVIMENTACAO)
-    : []
+  const ids = sanearIds(r.ids, MAX_LOTE_MOVIMENTACAO)
   // Rascunho sem ativo nenhum nao interessa: o banner so faz sentido com lote.
   if (ids.length === 0) return null
 
   const passoBruto = typeof r.passo === 'number' ? Math.trunc(r.passo) : 1
   const status = texto(r.statusResultante)
+  const contrapartida = sanearContrapartida(r.contrapartida, ids.length)
 
   return {
     ids,
     config: sanearConfig(r.config),
     statusResultante: status in STATUS_META ? status : '',
     passo: passoBruto >= 1 && passoBruto <= 3 ? passoBruto : 1,
+    // Chave AUSENTE quando nao ha par: assim o rascunho novo de um lote simples
+    // continua serializando exatamente como o antigo.
+    ...(contrapartida ? { contrapartida } : {}),
   }
 }
 

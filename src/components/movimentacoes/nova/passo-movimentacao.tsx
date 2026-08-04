@@ -6,8 +6,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerido'
+import { ChecklistFaltantes } from '@/components/movimentacoes/nova/checklist-faltantes'
+import { ChipsData } from '@/components/movimentacoes/nova/chips-data'
+import { SecaoContrapartida } from '@/components/movimentacoes/nova/secao-contrapartida'
+import {
+  MOTIVO_TROCA_UPGRADE,
+  ofereceContrapartida,
+  type ContrapartidaTroca,
+} from '@/components/movimentacoes/nova/troca-upgrade'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,10 +40,8 @@ import {
   type ItemChecklistKit,
 } from '@/lib/validators/kit'
 import {
-  ACESSORIOS_DEVOLUCAO,
   STATUS_ORDEM,
   TERMO_STATUS_ORDEM,
-  rotuloAcessorio,
   rotuloCategoria,
   rotuloStatus,
   rotuloTermo,
@@ -45,52 +50,17 @@ import {
   type TermoStatus,
   type TipoMovimentacao,
 } from '@/lib/dominio'
-import { hojeISO, ontemISO } from '@/lib/format'
+import { hojeISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type {
+  AtivoSucesso,
   Config,
-  SucessoLote,
 } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Kit } from '@/lib/queries/kits'
 import type { Motivo } from '@/lib/queries/motivos'
 import type { UltimaMovimentacaoUsuario } from '@/lib/queries/movimentacoes'
-
-// Atalhos "Hoje/Ontem" ao lado dos campos de data (F9/M10) — a data quase sempre
-// e uma dessas duas e digitar dd/mm/aaaa no celular e o gargalo. As datas saem de
-// `hojeISO`/`ontemISO` (fuso America/Sao_Paulo), entao nunca estouram o
-// `max={hojeISO()}` do input. `type="button"`: nao submete nem interfere no Enter
-// que avanca o passo (o handler do form ignora BUTTON). O `after:` estica a area
-// de toque para ~44px no mobile sem crescer o botao (alinhado a altura do input).
-function ChipsData({
-  campo,
-  onEscolher,
-}: {
-  campo: string
-  onEscolher: (iso: string) => void
-}) {
-  const opcoes = [
-    { rotulo: 'Hoje', valor: hojeISO },
-    { rotulo: 'Ontem', valor: ontemISO },
-  ]
-  return (
-    <div className="flex shrink-0 gap-1">
-      {opcoes.map((o) => (
-        <Button
-          key={o.rotulo}
-          type="button"
-          variant="outline"
-          onClick={() => onEscolher(o.valor())}
-          aria-label={`Preencher ${campo} com ${o.rotulo.toLowerCase()}`}
-          className="relative px-3 after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
-        >
-          {o.rotulo}
-        </Button>
-      ))}
-    </div>
-  )
-}
 
 // F12/M12 — uma categoria do checklist do kit. O ✓/✗ é decorativo (`aria-hidden`):
 // quem usa leitor de tela ouve "Notebook (no lote)" / "Monitor (faltando)", não
@@ -172,11 +142,16 @@ export function PassoMovimentacao({
   kits,
   kitAplicado,
   checklistKit,
+  contrapartida,
+  comandoContrapartidaRef,
   onAplicarKit,
   onLimparKit,
   onTrocarTipo,
   onSet,
   onSetStatusResultante,
+  onSetContrapartida,
+  onAdicionarContrapartida,
+  onRemoverContrapartida,
   onRepetirUltima,
   onVoltar,
   onRevisar,
@@ -189,7 +164,7 @@ export function PassoMovimentacao({
   motivosAplicaveis: Motivo[]
   errosPorAtivo: Record<string, string>
   // F10/M9 — o que ENTROU no envio parcial (some do lote, mas não da tela).
-  jaRegistrados: SucessoLote['ativos']
+  jaRegistrados: AtivoSucesso[]
   filiais: Filial[]
   ultimaMov?: UltimaMovimentacaoUsuario | null
   // F12/M12 — kits ativos, o kit aplicado nesta montagem e o checklist DERIVADO
@@ -197,15 +172,31 @@ export function PassoMovimentacao({
   kits: Kit[]
   kitAplicado: { id: string; nome: string; categorias: CategoriaAtivo[] } | null
   checklistKit: ItemChecklistKit[]
+  // F26 — a metade oposta do par troca/upgrade. A seção aparece e some DERIVADA
+  // de `ofereceContrapartida(config)`; o estado dela vive no formulário-mãe.
+  contrapartida: ContrapartidaTroca
+  comandoContrapartidaRef: React.RefObject<HTMLDivElement | null>
   onAplicarKit: (kit: Kit) => void
   onLimparKit: () => void
   onTrocarTipo: (tipo: TipoMovimentacao) => void
   onSet: <K extends keyof Config>(chave: K, valor: Config[K]) => void
   onSetStatusResultante: (valor: string) => void
+  onSetContrapartida: <K extends keyof ContrapartidaTroca>(
+    chave: K,
+    valor: ContrapartidaTroca[K],
+  ) => void
+  onAdicionarContrapartida: (ativo: AtivoResumo) => void
+  onRemoverContrapartida: (id: string) => void
   onRepetirUltima: () => void
   onVoltar: () => void
   onRevisar: () => void
 }) {
+  // Rótulo do motivo vem do CATÁLOGO (o admin pode renomeá-lo); a detecção do
+  // facilitador é sempre pelo código.
+  const rotuloMotivoTroca =
+    motivosAplicaveis.find((m) => m.codigo === MOTIVO_TROCA_UPGRADE)?.rotulo ??
+    'Troca / upgrade'
+
   return (
     <div className="space-y-5">
       {/* F10/M9 — sucesso PARCIAL: o lote volta com só as falhas, e antes disso
@@ -239,7 +230,10 @@ export function PassoMovimentacao({
           <p className="font-medium text-destructive">
             Itens que falharam no último envio:
           </p>
-          {itens.map(
+          {/* F26 — as DUAS metades do par entram nesta lista: um ativo da
+              contrapartida que falhou volta para a seção dele, e o erro tem de
+              aparecer aqui do mesmo jeito (senão some da tela). */}
+          {[...itens, ...contrapartida.itens].map(
             (a) =>
               errosPorAtivo[a.id] && (
                 <p key={a.id} className="text-destructive">
@@ -531,33 +525,26 @@ export function PassoMovimentacao({
 
       {/* Itens faltantes (devolucao) */}
       {campoAplica(config.tipo, 'itens_faltantes') && (
-        <div className="grid gap-2">
-          <Label>Itens faltantes na devolução</Label>
-          <div className="flex flex-wrap gap-3 rounded-lg border p-3">
-            {ACESSORIOS_DEVOLUCAO.map((it) => {
-              const marcado = config.itensFaltantes.includes(it)
-              return (
-                <label
-                  key={it}
-                  className="flex cursor-pointer items-center gap-2 text-sm"
-                >
-                  <Checkbox
-                    checked={marcado}
-                    onCheckedChange={(c) =>
-                      onSet(
-                        'itensFaltantes',
-                        c === true
-                          ? [...config.itensFaltantes, it]
-                          : config.itensFaltantes.filter((x) => x !== it),
-                      )
-                    }
-                  />
-                  {rotuloAcessorio(it)}
-                </label>
-              )
-            })}
-          </div>
-        </div>
+        <ChecklistFaltantes
+          valor={config.itensFaltantes}
+          onChange={(itens) => onSet('itensFaltantes', itens)}
+        />
+      )}
+
+      {/* F26 — o par troca/upgrade. Aparece e some derivada do estado (tipo +
+          CÓDIGO do motivo), venha o motivo do select, de um kit, do "repetir
+          última" ou do "duplicar". */}
+      {ofereceContrapartida(config) && (
+        <SecaoContrapartida
+          config={config}
+          contrapartida={contrapartida}
+          itensPrincipal={itens}
+          rotuloMotivo={rotuloMotivoTroca}
+          comandoRef={comandoContrapartidaRef}
+          onAdicionar={onAdicionarContrapartida}
+          onRemover={onRemoverContrapartida}
+          onSet={onSetContrapartida}
+        />
       )}
 
       {/* Observacao (todos os tipos) */}

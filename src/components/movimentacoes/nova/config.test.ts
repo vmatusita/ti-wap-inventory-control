@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  configInicialDaUrl,
   construirItem,
   mesclarAtivosNoLote,
   montarItensInput,
@@ -247,5 +248,76 @@ describe('CAMPOS_POR_TIPO ↔ movimentacaoSchema (consistência)', () => {
       '',
     )[0]
     expect(movimentacaoSchema.safeParse(item).success).toBe(false)
+  })
+})
+
+// F26 — o atalho do painel de sucesso reabre o fluxo por querystring, SEM ativo.
+// Param inválido é ignorado (doutrina de `lib/url-params.ts`): a página nunca cai
+// e o formulário nunca começa com estado que a máquina de estados recusaria.
+describe('configInicialDaUrl — o atalho da contrapartida', () => {
+  const MOTIVOS = [
+    { codigo: 'troca_upgrade', aplica_a: ['saida', 'devolucao'] },
+    { codigo: 'desligamento', aplica_a: ['devolucao'] },
+  ]
+
+  it('tipo + motivo + colaborador válidos viram ConfigInicial', () => {
+    expect(
+      configInicialDaUrl(
+        {
+          tipo: 'saida',
+          motivo: 'troca_upgrade',
+          colaborador: 'Fulano de Tal',
+        },
+        MOTIVOS,
+      ),
+    ).toEqual({
+      tipo: 'saida',
+      motivo: 'troca_upgrade',
+      colaborador: 'Fulano de Tal',
+      setor: '',
+    })
+  })
+
+  it('sem tipo (ou tipo inventado) devolve null — não há o que pré-preencher', () => {
+    expect(configInicialDaUrl({}, MOTIVOS)).toBeNull()
+    expect(configInicialDaUrl({ tipo: 'inventado' }, MOTIVOS)).toBeNull()
+    expect(configInicialDaUrl({ tipo: '' }, MOTIVOS)).toBeNull()
+  })
+
+  it('tipo de FLUXO PRÓPRIO é recusado (não se registra por este formulário)', () => {
+    for (const t of ['compra', 'troca', 'devolucao_fornecedor']) {
+      expect(configInicialDaUrl({ tipo: t }, MOTIVOS)).toBeNull()
+    }
+  })
+
+  it('motivo inexistente, ou que não se aplica ao tipo, vira vazio', () => {
+    expect(
+      configInicialDaUrl({ tipo: 'saida', motivo: 'inventado' }, MOTIVOS)!.motivo,
+    ).toBe('')
+    // `desligamento` só se aplica a devolucao.
+    expect(
+      configInicialDaUrl({ tipo: 'saida', motivo: 'desligamento' }, MOTIVOS)!
+        .motivo,
+    ).toBe('')
+    expect(
+      configInicialDaUrl({ tipo: 'devolucao', motivo: 'desligamento' }, MOTIVOS)!
+        .motivo,
+    ).toBe('desligamento')
+  })
+
+  it('o motivo é conferido pelo CÓDIGO, não pelo rótulo', () => {
+    expect(
+      configInicialDaUrl({ tipo: 'saida', motivo: 'Troca / upgrade' }, MOTIVOS)!
+        .motivo,
+    ).toBe('')
+  })
+
+  it('texto vem aparado e com teto de sanidade', () => {
+    const r = configInicialDaUrl(
+      { tipo: 'saida', colaborador: '  Fulano de Tal  ', setor: 'x'.repeat(500) },
+      MOTIVOS,
+    )!
+    expect(r.colaborador).toBe('Fulano de Tal')
+    expect(r.setor).toHaveLength(200)
   })
 })

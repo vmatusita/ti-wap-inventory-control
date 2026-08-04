@@ -12,11 +12,25 @@ import { PassoRevisao } from '@/components/movimentacoes/nova/passo-revisao'
 import {
   configPadrao,
   mesclarAtivosNoLote,
-  montarItensInput,
+  type AtivoSucesso,
   type Config,
   type ConfigInicial,
+  type ContrapartidaPendente,
+  type GrupoSucesso,
   type SucessoLote,
 } from '@/components/movimentacoes/nova/config'
+import {
+  contrapartidaAtiva,
+  contrapartidaPadrao,
+  montarItensDoPar,
+  nascerContrapartida,
+  ofereceContrapartida,
+  prefillContrapartida,
+  tipoContrapartida,
+  validarPar,
+  MOTIVO_TROCA_UPGRADE,
+  type ContrapartidaTroca,
+} from '@/components/movimentacoes/nova/troca-upgrade'
 import {
   lerRascunho,
   limparRascunho,
@@ -31,6 +45,7 @@ import {
 } from '@/lib/actions/movimentacoes'
 import {
   MAX_LOTE_MOVIMENTACAO,
+  campoAplica,
   loteMovimentacaoSchema,
   tiposManuaisPara,
 } from '@/lib/validators/movimentacao'
@@ -70,12 +85,17 @@ type KitAplicado = {
   categorias: CategoriaAtivo[]
 }
 
+function nomeDe(a: AtivoResumo): string {
+  return a.patrimonio ?? 'sem patrimônio'
+}
+
 export function NovaMovimentacaoForm({
   filiais,
   motivos,
   kits = [],
   ativoInicial,
   configInicial,
+  semContrapartida = false,
   ultimaMov,
 }: {
   filiais: Filial[]
@@ -85,6 +105,10 @@ export function NovaMovimentacaoForm({
   kits?: Kit[]
   ativoInicial?: AtivoResumo | null
   configInicial?: ConfigInicial | null
+  // F26 — chegou pelo ATALHO do painel de sucesso (`?contrapartida=nao`), ou
+  // seja: esta tela É a metade que faltava. A seção do par começa recolhida;
+  // sem isto o facilitador pediria a contrapartida da contrapartida, num laço.
+  semContrapartida?: boolean
   ultimaMov?: UltimaMovimentacaoUsuario | null
 }) {
   const router = useRouter()
@@ -104,13 +128,17 @@ export function NovaMovimentacaoForm({
     }
     return c
   })
+  // F26 — a metade oposta do par troca/upgrade.
+  const [contrapartida, setContrapartida] = useState<ContrapartidaTroca>(() =>
+    contrapartidaPadrao({ deixarParaDepois: semContrapartida }),
+  )
   const [statusResultante, setStatusResultante] = useState<string>('')
   const [erros, setErros] = useState<string[]>([])
   const [errosPorAtivo, setErrosPorAtivo] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
   const [sucesso, setSucesso] = useState<SucessoLote | null>(null)
   // F10/M9 — o que ENTROU num envio parcial (o lote guarda só as falhas).
-  const [jaRegistrados, setJaRegistrados] = useState<SucessoLote['ativos']>([])
+  const [jaRegistrados, setJaRegistrados] = useState<AtivoSucesso[]>([])
   // F10/M6 — rascunho: `null` = nada a oferecer; preenchido = banner aberto.
   const [rascunhoPendente, setRascunhoPendente] = useState<Rascunho | null>(null)
   const [hidratado, setHidratado] = useState(false)
@@ -124,6 +152,9 @@ export function NovaMovimentacaoForm({
   const [podeSalvar, setPodeSalvar] = useState(false)
 
   const comandoRef = useRef<HTMLDivElement>(null)
+  // F26 — o combobox da contrapartida tem ref própria: o Enter-avança precisa
+  // ignorar os DOIS (o handler compara por `contains`).
+  const comandoContrapartidaRef = useRef<HTMLDivElement>(null)
   // Trava de reentrância: bloqueia um 2º envio (ex.: Enter apertado 2x rápido no
   // passo 3) antes do estado `enviando` propagar e desabilitar o botão.
   const enviandoRef = useRef(false)
@@ -168,23 +199,46 @@ export function NovaMovimentacaoForm({
     setRascunhoPendente(null)
   }
 
+  // F26 — TODA mudança de Config passa por aqui. A seção da contrapartida é
+  // derivada (tipo + código do motivo); quando a config nova deixa de oferecê-la,
+  // o ESTADO dela morre junto — senão um lote da contrapartida sobreviveria
+  // invisível e voltaria ao aparecer de novo. Quando ela passa a ser oferecida,
+  // nasce com o prefill do colaborador (capturado do lote em memória, ANTES de
+  // qualquer insert).
+  function aplicarConfig(proxima: Config) {
+    const oferecia = ofereceContrapartida(config)
+    const oferece = ofereceContrapartida(proxima)
+    setConfig(proxima)
+    if (!oferece) setContrapartida(contrapartidaPadrao())
+    else if (!oferecia) setContrapartida(nascerContrapartida(proxima, itens))
+  }
+
   function set<K extends keyof Config>(chave: K, valor: Config[K]) {
     marcarAlteracao()
-    setConfig((c) => ({ ...c, [chave]: valor }))
+    aplicarConfig({ ...config, [chave]: valor })
+  }
+
+  function setContrapartidaCampo<K extends keyof ContrapartidaTroca>(
+    chave: K,
+    valor: ContrapartidaTroca[K],
+  ) {
+    marcarAlteracao()
+    setContrapartida((c) => ({ ...c, [chave]: valor }))
   }
 
   // Trocar o tipo limpa os campos específicos do tipo anterior — senão um motivo
-  // (ou filial destino / itens) de um tipo vaza para outro sem o usuário ver.
+  // (ou filial destino / itens) de um tipo vaza para outro sem o usuário ver. O
+  // motivo zerado já derruba a contrapartida (via `aplicarConfig`).
   function trocarTipo(tipo: TipoMovimentacao) {
     marcarAlteracao()
-    setConfig((c) => ({
-      ...c,
+    aplicarConfig({
+      ...config,
       tipo,
       motivo: '',
       chamadoFornecedor: '',
       filialDestinoId: '',
       itensFaltantes: [],
-    }))
+    })
     setStatusResultante('')
   }
 
@@ -201,6 +255,8 @@ export function NovaMovimentacaoForm({
     setConfig((c) =>
       c.tipo && !validos.includes(c.tipo) ? { ...c, tipo: '' } : c,
     )
+    // F26 — sem tipo não há par: a seção some, e o estado dela vai junto.
+    setContrapartida(contrapartidaPadrao())
     // Toast fora do updater do setState (o updater pode rodar duas vezes em
     // StrictMode) e fora do render — este e um handler de evento.
     const culpado = entrantes.find(
@@ -208,12 +264,18 @@ export function NovaMovimentacaoForm({
     )
     if (culpado) {
       toast.warning(
-        `${culpado.patrimonio ?? 'sem patrimônio'} (${rotuloStatus(culpado.status)}) não permite "${rotuloTipo(tipoAtual)}" — o tipo foi limpo.`,
+        `${nomeDe(culpado)} (${rotuloStatus(culpado.status)}) não permite "${rotuloTipo(tipoAtual)}" — o tipo foi limpo.`,
       )
     }
   }
   function adicionar(a: AtivoResumo) {
     if (itens.some((p) => p.id === a.id)) return
+    if (contrapartida.itens.some((p) => p.id === a.id)) {
+      toast.warning(
+        `${nomeDe(a)} já está na outra metade da troca — um ativo não entra nas duas.`,
+      )
+      return
+    }
     const next = [...itens, a]
     marcarAlteracao()
     setItens(next)
@@ -253,6 +315,43 @@ export function NovaMovimentacaoForm({
     ajustarTipoPara(next)
   }
 
+  // --- F26 — os ativos da metade oposta ------------------------------------
+  // O tipo da contrapartida é FIXO (derivado), então um ativo em estado que não
+  // o aceita não pode "limpar o tipo" como no lote principal: ele é recusado na
+  // entrada, com o mesmo toast que nomeia o culpado. `validarPar` repete a
+  // checagem no envio — um rascunho pode ter dormido enquanto o estado mudava.
+  function adicionarContrapartida(a: AtivoResumo) {
+    const alvo = tipoContrapartida(config.tipo)
+    if (!alvo) return
+    if (contrapartida.itens.some((p) => p.id === a.id)) return
+    if (itens.some((p) => p.id === a.id)) {
+      toast.warning(
+        `${nomeDe(a)} já está na outra metade da troca — um ativo não entra nas duas.`,
+      )
+      return
+    }
+    if (itens.length + contrapartida.itens.length >= MAX_LOTE_MOVIMENTACAO) {
+      toast.warning(
+        `As duas metades já somam ${MAX_LOTE_MOVIMENTACAO} ativos, o teto do lote. Registre este par e comece outro.`,
+      )
+      return
+    }
+    if (!tiposManuaisPara([a.status]).includes(alvo)) {
+      toast.warning(
+        `${nomeDe(a)} (${rotuloStatus(a.status)}) não permite "${rotuloTipo(alvo)}" — escolha outro equipamento para a troca.`,
+      )
+      return
+    }
+    marcarAlteracao()
+    setContrapartida((c) => ({ ...c, itens: [...c.itens, a] }))
+  }
+
+  function removerContrapartida(id: string) {
+    if (!contrapartida.itens.some((p) => p.id === id)) return
+    marcarAlteracao()
+    setContrapartida((c) => ({ ...c, itens: c.itens.filter((p) => p.id !== id) }))
+  }
+
   // --- F10/M6 — rascunho persistente (sessionStorage, por aba) --------------
   // Leitura SO dentro de efeito (ler storage no corpo do componente quebraria a
   // hidratacao do Next) e SO na montagem. `?ativo=`/`?duplicar=` tem precedencia
@@ -287,6 +386,21 @@ export function NovaMovimentacaoForm({
         config,
         statusResultante,
         passo,
+        // F26 — a contrapartida só vai para o storage quando a config a oferece:
+        // um lote simples continua serializando exatamente como antes.
+        ...(ofereceContrapartida(config)
+          ? {
+              contrapartida: {
+                ids: contrapartida.itens.map((a) => a.id),
+                colaborador: contrapartida.colaborador,
+                setor: contrapartida.setor,
+                termo: contrapartida.termo,
+                termoData: contrapartida.termoData,
+                itensFaltantes: contrapartida.itensFaltantes,
+                deixarParaDepois: contrapartida.deixarParaDepois,
+              },
+            }
+          : {}),
       })
     }, 400)
     return () => clearTimeout(t)
@@ -297,6 +411,7 @@ export function NovaMovimentacaoForm({
     sucesso,
     itens,
     config,
+    contrapartida,
     statusResultante,
     passo,
   ])
@@ -306,7 +421,10 @@ export function NovaMovimentacaoForm({
     if (!r || restaurando) return
     setRestaurando(true)
     try {
-      const ativos = await buscarResumoDeAtivosPorIds(r.ids)
+      const idsContra = r.contrapartida?.ids ?? []
+      // Uma consulta só para as duas metades (ids únicos; a query preserva a
+      // ordem pedida e simplesmente não devolve quem sumiu).
+      const ativos = await buscarResumoDeAtivosPorIds([...r.ids, ...idsContra])
       // Lista VAZIA com `r.ids` não-vazio (invariante do rascunho: sem ids ele
       // nem existe) é ambígua: o proxy degrada a falha de rede para `[]`, então
       // "a consulta caiu" é indistinguível de "os ativos sumiram". Apagar o
@@ -319,10 +437,15 @@ export function NovaMovimentacaoForm({
         return
       }
 
+      const porId = new Map(ativos.map((a) => [a.id, a]))
+      const principais = r.ids
+        .map((id) => porId.get(id))
+        .filter((a): a is AtivoResumo => a !== undefined)
+
       // Estados podem ter mudado enquanto o rascunho dormia (outro operador
       // movimentou o ativo): a intersecao de tipos e REFEITA e o tipo salvo cai
       // se nao valer mais para o lote inteiro.
-      const validos = tiposDoLote(ativos.map((a) => a.status))
+      const validos = tiposDoLote(principais.map((a) => a.status))
       let cfg = r.config
       if (cfg.tipo && !validos.includes(cfg.tipo)) {
         toast.warning(
@@ -331,15 +454,46 @@ export function NovaMovimentacaoForm({
         cfg = { ...cfg, tipo: '' }
       }
 
-      const ausentes = r.ids.length - ativos.length
+      // F26 — a metade oposta passa pela MESMA re-checagem, com o tipo DELA.
+      let contra = contrapartidaPadrao()
+      if (r.contrapartida && ofereceContrapartida(cfg)) {
+        const alvo = tipoContrapartida(cfg.tipo)
+        const opostosBrutos = idsContra
+          .map((id) => porId.get(id))
+          .filter((a): a is AtivoResumo => a !== undefined)
+        const opostos = alvo
+          ? opostosBrutos.filter((a) =>
+              tiposManuaisPara([a.status]).includes(alvo),
+            )
+          : []
+        const caidos = opostosBrutos.length - opostos.length
+        if (caidos > 0 && alvo) {
+          toast.warning(
+            `${caidos} ${caidos === 1 ? 'ativo da' : 'ativos da'} ${rotuloTipo(alvo).toLowerCase()} da troca não aceita mais essa movimentação e ficou de fora.`,
+          )
+        }
+        contra = contrapartidaPadrao({
+          itens: opostos,
+          colaborador: r.contrapartida.colaborador,
+          setor: r.contrapartida.setor,
+          termo: r.contrapartida.termo,
+          termoData: r.contrapartida.termoData,
+          itensFaltantes: r.contrapartida.itensFaltantes,
+          deixarParaDepois: r.contrapartida.deixarParaDepois,
+        })
+      }
+
+      const pedidos = r.ids.length + idsContra.length
+      const ausentes = pedidos - ativos.length
       if (ausentes > 0) {
         toast.warning(
           `${ausentes} ${ausentes === 1 ? 'ativo do rascunho não foi encontrado' : 'ativos do rascunho não foram encontrados'} e ficaram de fora.`,
         )
       }
 
-      setItens(ativos)
+      setItens(principais)
       setConfig(cfg)
+      setContrapartida(contra)
       setStatusResultante(r.statusResultante)
       // Sem tipo nao ha o que revisar: volta para o passo 2.
       setPasso(cfg.tipo ? r.passo : Math.min(r.passo, 2))
@@ -348,7 +502,7 @@ export function NovaMovimentacaoForm({
       // re-checagem de interseção acabou de ajustar).
       setPodeSalvar(true)
       toast.success(
-        `Rascunho restaurado — ${ativos.length} ${ativos.length === 1 ? 'ativo' : 'ativos'} no lote.`,
+        `Rascunho restaurado — ${principais.length} ${principais.length === 1 ? 'ativo' : 'ativos'} no lote.`,
       )
     } catch {
       // F19 — a restauracao parte de um CLIQUE: se a chamada rejeitar, sem o
@@ -371,16 +525,16 @@ export function NovaMovimentacaoForm({
     if (!ultimaMov) return
     marcarAlteracao()
     const tipoValido = tiposValidos.includes(ultimaMov.tipo)
-    setConfig((c) => ({
-      ...c,
-      tipo: tipoValido ? ultimaMov.tipo : c.tipo,
+    aplicarConfig({
+      ...config,
+      tipo: tipoValido ? ultimaMov.tipo : config.tipo,
       motivo: ultimaMov.motivo ?? '',
       colaborador: ultimaMov.colaborador ?? '',
       setor: ultimaMov.setor ?? '',
       chamado: ultimaMov.chamado ?? '',
       termo: (ultimaMov.termo_assinado as TermoStatus) ?? '',
       termoData: ultimaMov.termo_data ?? '',
-    }))
+    })
     toast.success('Campos preenchidos com a última movimentação.')
     if (!tipoValido) {
       toast.warning(
@@ -414,7 +568,9 @@ export function NovaMovimentacaoForm({
     }
 
     marcarAlteracao()
-    setConfig(decisao.config)
+    // Kit que casa com tipo+motivo do facilitador abre a seção do par como
+    // qualquer outra origem: a derivação é a mesma, sem caso especial.
+    aplicarConfig(decisao.config)
     // Status resultante vive fora da Config: some junto com o tipo antigo.
     if (decisao.trocouTipo) setStatusResultante('')
     setKitAplicado({
@@ -434,7 +590,12 @@ export function NovaMovimentacaoForm({
 
   // Monta e valida o lote. Retorna as mensagens de erro (vazio = ok).
   function validarLote(): string[] {
-    const itensInput = montarItensInput(itens, config, statusResultante)
+    const itensInput = montarItensDoPar(
+      itens,
+      config,
+      statusResultante,
+      contrapartida,
+    )
     const msgs: string[] = []
     const parsed = loteMovimentacaoSchema.safeParse({ itens: itensInput })
     if (!parsed.success) {
@@ -451,6 +612,9 @@ export function NovaMovimentacaoForm({
         )
       }
     }
+    // F26 — as regras que só existem por causa do par (disjunção, teto somado,
+    // seção aberta e vazia, estado do ativo na metade oposta).
+    msgs.push(...validarPar(config, itens, contrapartida))
     return [...new Set(msgs)]
   }
 
@@ -469,11 +633,23 @@ export function NovaMovimentacaoForm({
       return
     }
 
-    const itensInput = montarItensInput(itens, config, statusResultante)
+    const itensInput = montarItensDoPar(
+      itens,
+      config,
+      statusResultante,
+      contrapartida,
+    )
 
     enviandoRef.current = true
     setEnviando(true)
-    const submetidos = [...itens]
+    // F26 — as duas metades são capturadas ANTES do envio: depois do insert o
+    // trigger `aplicar_movimentacao` zera o `colaborador_atual` do devolvido, e
+    // é dele que sai o pré-preenchimento do atalho do painel.
+    const comPar = contrapartidaAtiva(config, contrapartida)
+    const submetidosPrincipal = [...itens]
+    const submetidosContra = comPar ? [...contrapartida.itens] : []
+    const submetidos = [...submetidosPrincipal, ...submetidosContra]
+    const alvo = tipoContrapartida(config.tipo)
     let res
     try {
       res = await registrarMovimentacoes({
@@ -513,22 +689,45 @@ export function NovaMovimentacaoForm({
           .filter((r) => r.movimentacao_id)
           .map((r) => [r.ativo_id, r.movimentacao_id as string]),
       )
-      setSucesso({
-        criadas: res.criadas,
-        tipo: config.tipo as TipoMovimentacao,
-        motivo: config.motivo,
-        ativos: submetidos.map((a) => ({
-          id: a.id,
-          patrimonio: a.patrimonio,
-          categoria: a.categoria,
-          movimentacaoId: movPorAtivo.get(a.id) ?? '',
-        })),
+      const paraSucesso = (a: AtivoResumo): AtivoSucesso => ({
+        id: a.id,
+        patrimonio: a.patrimonio,
+        categoria: a.categoria,
+        movimentacaoId: movPorAtivo.get(a.id) ?? '',
       })
+      const grupos: GrupoSucesso[] = []
+      if (submetidosPrincipal.length > 0) {
+        grupos.push({
+          tipo: config.tipo as TipoMovimentacao,
+          motivo: config.motivo,
+          ativos: submetidosPrincipal.map(paraSucesso),
+        })
+      }
+      if (comPar && alvo && submetidosContra.length > 0) {
+        grupos.push({
+          tipo: alvo,
+          motivo: MOTIVO_TROCA_UPGRADE,
+          ativos: submetidosContra.map(paraSucesso),
+        })
+      }
+      // Contrapartida adiada: o painel oferece o atalho pré-preenchido. Nada
+      // fica pendente no servidor — é só navegação (decisão "só a tela").
+      const pendente: ContrapartidaPendente | null =
+        ofereceContrapartida(config) && contrapartida.deixarParaDepois && alvo
+          ? {
+              tipo: alvo,
+              colaborador: campoAplica(alvo, 'colaborador')
+                ? prefillContrapartida(submetidosPrincipal)
+                : '',
+            }
+          : null
+      setSucesso({ criadas: res.criadas, grupos, pendente })
       router.refresh()
       return
     }
 
-    // Falha (parcial ou total): mantem no form apenas os itens que falharam.
+    // Falha (parcial ou total): mantem no form apenas os itens que falharam —
+    // cada um na SUA metade (F26: as metades não se misturam na volta).
     const novosErros: Record<string, string> = {}
     for (const r of res.resultados) {
       if (!r.ok && r.erro) novosErros[r.ativo_id] = r.erro
@@ -546,7 +745,7 @@ export function NovaMovimentacaoForm({
         return {
           id: r.ativo_id,
           patrimonio: a?.patrimonio ?? null,
-          categoria: a?.categoria as SucessoLote['ativos'][number]['categoria'],
+          categoria: a?.categoria as AtivoSucesso['categoria'],
           movimentacaoId: r.movimentacao_id ?? '',
         }
       })
@@ -556,7 +755,13 @@ export function NovaMovimentacaoForm({
         ...entraram,
       ])
     }
-    setItens(submetidos.filter((a) => falhaIds.includes(a.id)))
+    setItens(submetidosPrincipal.filter((a) => falhaIds.includes(a.id)))
+    if (comPar) {
+      setContrapartida((c) => ({
+        ...c,
+        itens: submetidosContra.filter((a) => falhaIds.includes(a.id)),
+      }))
+    }
     setPasso(2)
     if (res.criadas > 0) {
       toast.warning(
@@ -571,6 +776,7 @@ export function NovaMovimentacaoForm({
   function reiniciar() {
     setItens([])
     setConfig(configPadrao())
+    setContrapartida(contrapartidaPadrao())
     setStatusResultante('')
     setErros([])
     setErrosPorAtivo({})
@@ -596,6 +802,8 @@ export function NovaMovimentacaoForm({
     // um <div role="menuitem">, não um BUTTON: precisa da guarda própria.
     if (el.getAttribute('role') === 'menuitem') return
     if (comandoRef.current?.contains(el)) return
+    // F26 — idem para o combobox da seção da contrapartida.
+    if (comandoContrapartidaRef.current?.contains(el)) return
     e.preventDefault()
     if (passo === 1 && itens.length > 0) setPasso(2)
     else if (passo === 2) avancarParaRevisao()
@@ -612,8 +820,20 @@ export function NovaMovimentacaoForm({
     )
   }
 
+  // F26 — região viva PERSISTENTE (nasce com o formulário e só muda de texto):
+  // é assim que o leitor de tela anuncia a chegada da seção do par sem que o
+  // foco saia do lugar. Um `role="status"` que nascesse junto com a seção não
+  // seria anunciado de forma confiável.
+  const avisoContrapartida = ofereceContrapartida(config)
+    ? `Seção "${rotuloTipo(tipoContrapartida(config.tipo) ?? 'saida')} da troca" disponível no passo Movimentação: registre a outra metade da troca junto, ou marque "Deixar a contrapartida para depois".`
+    : ''
+
   return (
     <div onKeyDown={onKeyDown} className="space-y-6">
+      <p role="status" className="sr-only">
+        {avisoContrapartida}
+      </p>
+
       {/* F10/M6 — lote não registrado desta aba (sessionStorage) */}
       {rascunhoPendente && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
@@ -728,6 +948,8 @@ export function NovaMovimentacaoForm({
           kits={kits}
           kitAplicado={kitAplicado}
           checklistKit={checklistKit}
+          contrapartida={contrapartida}
+          comandoContrapartidaRef={comandoContrapartidaRef}
           onAplicarKit={aplicarKit}
           onLimparKit={() => setKitAplicado(null)}
           onTrocarTipo={trocarTipo}
@@ -736,6 +958,9 @@ export function NovaMovimentacaoForm({
             marcarAlteracao()
             setStatusResultante(v)
           }}
+          onSetContrapartida={setContrapartidaCampo}
+          onAdicionarContrapartida={adicionarContrapartida}
+          onRemoverContrapartida={removerContrapartida}
           onRepetirUltima={repetirUltima}
           onVoltar={() => setPasso(1)}
           onRevisar={avancarParaRevisao}
@@ -746,6 +971,7 @@ export function NovaMovimentacaoForm({
         <PassoRevisao
           itens={itens}
           config={config}
+          contrapartida={contrapartida}
           filiais={filiais}
           motivos={motivos}
           enviando={enviando}
