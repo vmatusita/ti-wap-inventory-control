@@ -4107,3 +4107,36 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   `CorrigirPatrimonioDialog`. **Motivo:** os 22 itens foram executados por nove frentes em paralelo
   com **dono exclusivo por arquivo**; um helper compartilhado escrito por duas frentes ao mesmo tempo
   seria escrita perdida. Ficaram no commit de preparação da fase.
+
+### 9 · PND-05 — a correção da própria ata: "sem migration" respondeu à pergunta errada
+
+- **Contexto:** a ata §4 acima concluiu, com três provas corretas, que reabrir pendência de item
+  **não exige migration**. A segunda volta da revisão adversarial mostrou que as três provas
+  respondem se a OPERAÇÃO é possível — nenhuma delas responde se a **restrição de cargo** que a
+  ordem pediu ("nível administrador") é sustentada pelo banco.
+- **O que estava errado:** a policy `pendencias_item operador resolve` (`0063`) é
+  `pode_escrever_filial(filial_id)` no `using` **e** no `with check`, sem cargo e sem sentido de
+  transição; `pode_escrever_filial` (`0072:123`) devolve `true` para **operador com vínculo**.
+  Logo, um operador vinculado reabre uma pendência resolvida por chamada direta ao PostgREST, com a
+  anon key que o próprio app expõe — **sem justificativa e sem a anotação**, porque as duas só
+  existem dentro da Server Action que ele pulou. A regra vivia só na UI, contra o `CLAUDE.md`
+  ("regras críticas vivem no Postgres — a UI é a segunda linha, nunca a única").
+- **O que NÃO é:** regressão da F28. A policy é assim desde a `0050`/`0063`, e um operador com
+  vínculo já podia alterar qualquer linha de `pendencias_item` pela API, inclusive gravar um
+  desfecho errado. A F28 criou a porta oficial e **prometeu nela** uma restrição que o banco não
+  impunha.
+- **Decisão:** migration **`0103_reabrir_pendencia_item_admin.sql`** escrita — separa a policy única
+  em duas por sentido da transição (operador age no que está **aberto**; só `e_admin()` leva de
+  **resolvida** para **aberta**) — mais o roteiro SQL `supabase/tests/reabrir_pendencia_item.sql`,
+  que prova os quatro casos (operador resolve · operador não reabre · operador de outra filial não
+  reabre · admin reabre) e que roda no job `banco` do CI.
+- **Ela NÃO foi aplicada nesta sessão.** Operações de banco deste projeto vão pelo **MCP Supabase**
+  (runbook §Topologia: o ambiente não tem CLI local apontando para produção), e o MCP Supabase
+  **não estava conectado** na sessão da F28. A ordem prevê exatamente este caso: "sem acesso, deixe
+  a migration escrita + nota de handoff no relatório e entregue a UI pronta atrás da action".
+  Não usei a Management API por token como atalho: é caminho que o projeto nunca usou, para mexer em
+  **policy de segurança**, sem as conferências que o runbook exige (`get_advisors`, smoke) — o risco
+  de trancar o operador fora de resolver pendências não compensa a pressa.
+- **Enquanto não for aplicada:** a UI e a action continuam recusando quem não é nível administrador;
+  o que falta é a trava equivalente para uma chamada direta à API — que já existia antes desta fase.
+- **Reversível?** sim: a migration devolve a policy única com `alter policy`.

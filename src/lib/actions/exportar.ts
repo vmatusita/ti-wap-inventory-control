@@ -240,9 +240,11 @@ function filtrosHistorico(
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
 ): FiltrosHistorico {
   const tipoRaw = texto(p, 'tipo')
+  const filialIds = filiaisDeItens(p, ctx)
+  const itemId = idNumerico(texto(p, 'item'))
   return {
-    filialIds: filiaisDeItens(p, ctx),
-    itemId: idNumerico(texto(p, 'item')),
+    filialIds,
+    itemId,
     tipo: TIPOS_LANCAMENTO.includes(tipoRaw as TipoLancamento)
       ? (tipoRaw as TipoLancamento)
       : null,
@@ -252,6 +254,13 @@ function filtrosHistorico(
     // ou colaborador precisa ser lida aqui para valer no arquivo. `texto` já
     // devolve `undefined` para vazio; o tipo do filtro quer `string | null`.
     busca: texto(p, 'busca') ?? null,
+    // ITN-03a — a ORDEM também é parte do "o arquivo traz o que a tela mostra".
+    // A grade passa a ordenar por data de NEGÓCIO no recorte de 1 item + 1
+    // filial (o mesmo em que a coluna "Saldo após" aparece); sem esta linha o
+    // CSV do MESMO recorte sairia em ordem de REGISTRO, e as duas listas
+    // ficariam invertidas entre si na presença de um lançamento retroativo.
+    // A régua é a mesma da tela (`mostrarSaldoApos` em itens/page.tsx).
+    ordenarPorData: filialIds.length === 1 && itemId != null,
   }
 }
 
