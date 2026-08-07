@@ -19,6 +19,11 @@ import { getOperador, MSG_SOMENTE_LEITURA } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { Eye } from 'lucide-react'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Nova movimentação',
+}
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 function texto(v: string | string[] | undefined): string | undefined {
@@ -101,28 +106,46 @@ export default async function NovaMovimentacaoPage({
 
   let ativoInicial: AtivoResumo | null = null
   let configInicial: ConfigInicial | null = null
+  // MOV-14 — `?duplicar=`/`?ativo=` pode apontar pra um id apagado (Zona
+  // destrutiva) ou quebrado: sem isto, o `if (mov) {…}` sem `else` abria o
+  // wizard em branco em silêncio — o operador não sabia se o link estava
+  // errado ou se ele mesmo esqueceu de escolher um ativo. `null` = nada a
+  // avisar; senão, qual das duas origens falhou.
+  let origemInvalida: 'duplicar' | 'ativo' | null = null
 
   if (duplicarParam) {
     const mov = await buscarMovimentacaoParaDuplicar(duplicarParam)
     if (mov) {
       ativoInicial = await buscarAtivoResumo(mov.ativo_id)
-      configInicial = {
-        tipo: mov.tipo,
-        motivo: mov.motivo ?? '',
-        colaborador: mov.colaborador ?? '',
-        setor: mov.setor ?? '',
-        chamado: mov.chamado ?? '',
-        termo: mov.termo_assinado ?? '',
-        termoData: mov.termo_data ?? '',
-        observacao: mov.observacao ?? '',
-        filialDestinoId: mov.filial_destino_id
-          ? String(mov.filial_destino_id)
-          : '',
-        itensFaltantes: mov.itens_faltantes ?? [],
+      // O ativo referenciado pode ter sido apagado (apagar_ativo leva o
+      // ativo E todo o rastro dele — hoje isso deveria levar a movimentação
+      // junto —, mas não custa blindar: sem o ativo não há o que duplicar de
+      // verdade, e prefixar a config sem nenhum item no lote seria o mesmo
+      // silêncio de antes, só que com um passo 2 preenchido do nada).
+      if (ativoInicial) {
+        configInicial = {
+          tipo: mov.tipo,
+          motivo: mov.motivo ?? '',
+          colaborador: mov.colaborador ?? '',
+          setor: mov.setor ?? '',
+          chamado: mov.chamado ?? '',
+          termo: mov.termo_assinado ?? '',
+          termoData: mov.termo_data ?? '',
+          observacao: mov.observacao ?? '',
+          filialDestinoId: mov.filial_destino_id
+            ? String(mov.filial_destino_id)
+            : '',
+          itensFaltantes: mov.itens_faltantes ?? [],
+        }
+      } else {
+        origemInvalida = 'duplicar'
       }
+    } else {
+      origemInvalida = 'duplicar'
     }
   } else if (ativoParam) {
     ativoInicial = await buscarAtivoResumo(ativoParam)
+    if (!ativoInicial) origemInvalida = 'ativo'
   } else if (tipoParam) {
     // Sem ativo: só os campos da movimentação. O tipo sobrevive no estado e é
     // re-conferido quando o operador adiciona o 1º ativo (`ajustarTipoPara`,
@@ -183,6 +206,7 @@ export default async function NovaMovimentacaoPage({
           configInicial={configInicial}
           semContrapartida={semContrapartida}
           ultimaMov={ultimaMov}
+          origemInvalida={origemInvalida}
         />
       ) : (
         <EstadoVazio

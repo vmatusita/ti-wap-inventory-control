@@ -90,6 +90,7 @@ export function PassoRevisao({
   enviando,
   onVoltar,
   onRegistrar,
+  onConsultandoDuplicatasChange,
 }: {
   itens: AtivoResumo[]
   config: Config
@@ -99,12 +100,20 @@ export function PassoRevisao({
   enviando: boolean
   onVoltar: () => void
   onRegistrar: () => void
+  // MOV-08 — avisa o form (pai) enquanto a consulta de duplicatas abaixo está
+  // em voo. O form usa isto SÓ para ignorar o Enter-de-registrar nessa
+  // janela; o clique aqui neste componente (`onRegistrar`) nunca é gateado.
+  onConsultandoDuplicatasChange: (consultando: boolean) => void
 }) {
   // F10/M5 — regra 7 da spec §8 ("alerta de possível duplicata: mesmo ativo +
   // mesmo tipo + mesmo dia"). AVISO âmbar, não trava (decisão §2 da OS-F10): o
   // registro segue permitido e o servidor não ganhou gate novo. Falha de
   // consulta degrada para "nenhuma duplicata" — o proxy do W1 já trata.
   const [duplicatas, setDuplicatas] = useState<PossivelDuplicataDia[]>([])
+  // MOV-08 — true enquanto a consulta abaixo está em voo. Liga o indicador
+  // "Conferindo duplicatas…" (JSX) e é espelhado pro form via
+  // `onConsultandoDuplicatasChange`.
+  const [consultando, setConsultando] = useState(false)
 
   const tipo = config.tipo
   const data = config.data
@@ -129,8 +138,16 @@ export function PassoRevisao({
   useEffect(() => {
     if (!tipo || !data || chaveLote === '') return
     let vivo = true
-    // Estado alterado SO dentro do callback assincrono (react-hooks/set-state-in-effect).
+    // MOV-08 — liga o indicador (e avisa o form) ANTES do await: é a janela
+    // entre o mount do passo 3 e esta resposta que o Enter duplo furava
+    // (2º Enter despachava `registrar()` antes do aviso aparecer).
+    onConsultandoDuplicatasChange(true)
+    // O `setConsultando(true)` mora DENTRO do callback (e não no corpo do
+    // efeito) por causa do `react-hooks/set-state-in-effect`. O corpo de uma
+    // função async roda de forma síncrona até o primeiro `await`, então o
+    // indicador acende no mesmo tick — a janela protegida é a mesma.
     void (async () => {
+      setConsultando(true)
       try {
         const pares = chaveLote.split(',').map((par) => {
           const corte = par.lastIndexOf(':')
@@ -147,12 +164,22 @@ export function PassoRevisao({
         // (rede caída, sessão morta) escapava como unhandled rejection. Sem
         // toast: o aviso é auxiliar e nunca travou o registro — fica em
         // "nenhuma duplicata", que já é o comportamento previsto na falha.
+      } finally {
+        if (vivo) {
+          setConsultando(false)
+          onConsultandoDuplicatasChange(false)
+        }
       }
     })()
     return () => {
       vivo = false
+      // Efeito limpo (deps mudaram ou desmontou) com a consulta ainda em
+      // voo: destrava o form imediatamente — sem isto, sair do passo 3 antes
+      // da resposta chegar deixava o Enter-de-registrar ignorado pra sempre.
+      setConsultando(false)
+      onConsultandoDuplicatasChange(false)
     }
-  }, [chaveLote, tipo, data])
+  }, [chaveLote, tipo, data, onConsultandoDuplicatasChange])
 
   return (
     <div className="space-y-4">
@@ -194,15 +221,25 @@ export function PassoRevisao({
         />
       )}
 
-      <div className="flex justify-between">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onVoltar}>
           Voltar
         </Button>
-        <Button onClick={onRegistrar} disabled={enviando}>
-          {enviando
-            ? 'Registrando…'
-            : `Registrar ${total} ${total === 1 ? 'movimentação' : 'movimentações'}`}
-        </Button>
+        <span className="flex items-center gap-3">
+          {/* MOV-08 — indicador junto ao botão enquanto a consulta de
+              duplicatas está em voo (o Enter-de-registrar é ignorado nessa
+              janela lá no form; o clique aqui continua livre). */}
+          {consultando && (
+            <span role="status" className="text-xs text-muted-foreground">
+              Conferindo duplicatas…
+            </span>
+          )}
+          <Button onClick={onRegistrar} disabled={enviando}>
+            {enviando
+              ? 'Registrando…'
+              : `Registrar ${total} ${total === 1 ? 'movimentação' : 'movimentações'}`}
+          </Button>
+        </span>
       </div>
     </div>
   )

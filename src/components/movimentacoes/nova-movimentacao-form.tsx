@@ -40,6 +40,7 @@ import {
   type Rascunho,
 } from '@/components/movimentacoes/nova/rascunho'
 import { decidirAplicacaoKit } from '@/components/movimentacoes/nova/aplicar-kit'
+import { camposDaRepeticao } from '@/components/movimentacoes/nova/repetir-ultima'
 import { checklistCategoriasDoKit } from '@/lib/validators/kit'
 import {
   buscarResumoDeAtivosPorIds,
@@ -58,7 +59,6 @@ import {
   type CategoriaAtivo,
   type StatusAtivo,
   type TipoMovimentacao,
-  type TermoStatus,
 } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
@@ -108,6 +108,7 @@ export function NovaMovimentacaoForm({
   configInicial,
   semContrapartida = false,
   ultimaMov,
+  origemInvalida = null,
 }: {
   filiais: Filial[]
   motivos: Motivo[]
@@ -121,6 +122,11 @@ export function NovaMovimentacaoForm({
   // sem isto o facilitador pediria a contrapartida da contrapartida, num laço.
   semContrapartida?: boolean
   ultimaMov?: UltimaMovimentacaoUsuario | null
+  // MOV-14 — `?duplicar=`/`?ativo=` apontava pra um id apagado (Zona
+  // destrutiva) ou quebrado e o wizard abria em branco em silêncio. `null` =
+  // nada a avisar; senão, qual das duas origens falhou (o texto do banner
+  // muda conforme — ver o JSX abaixo).
+  origemInvalida?: 'duplicar' | 'ativo' | null
 }) {
   const router = useRouter()
   const [passo, setPasso] = useState(1)
@@ -152,6 +158,11 @@ export function NovaMovimentacaoForm({
   const [erros, setErros] = useState<string[]>([])
   const [errosPorAtivo, setErrosPorAtivo] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
+  // MOV-08 — reportado pelo passo 3 (`PassoRevisao`) enquanto a consulta de
+  // possíveis duplicatas está em voo. Só o Enter-de-registrar (`onKeyDown`
+  // abaixo) usa isto para se ignorar nessa janela — o clique no botão
+  // continua livre (o aviso é não-bloqueante por decisão registrada).
+  const [consultandoDuplicatas, setConsultandoDuplicatas] = useState(false)
   const [sucesso, setSucesso] = useState<SucessoLote | null>(null)
   // F10/M9 — o que ENTROU num envio parcial (o lote guarda só as falhas).
   const [jaRegistrados, setJaRegistrados] = useState<AtivoSucesso[]>([])
@@ -178,6 +189,11 @@ export function NovaMovimentacaoForm({
   // (montagem intocada, banner aberto, sucesso, lote vazio) — ver o flush de
   // desmontagem mais abaixo.
   const pendenteDeGravar = useRef<Rascunho | null>(null)
+  // MOV-01a — o box de erros (`role="alert"`) nasce ACIMA do stepper: sem
+  // foco nem rolagem ele fica fora da viewport no passo 2 (o mais longo), e o
+  // clique em "Revisar" parece inerte. `tabIndex={-1}` no box (ver JSX) +
+  // foco/scroll no efeito abaixo.
+  const errosRef = useRef<HTMLDivElement>(null)
 
   const tiposValidos = useMemo(
     () => tiposDoLote(itens.map((i) => i.status)),
@@ -374,6 +390,21 @@ export function NovaMovimentacaoForm({
     ) {
       toast.warning(
         `${rotuloPatrimonio(a.patrimonio)} já está na outra metade da troca — um ativo não entra nas duas.`,
+      )
+      return
+    }
+    // MOV-04 — o teto é do ENVIO inteiro (a soma das duas metades, quando a
+    // contrapartida está ativa): `adicionarVarios` e `adicionarContrapartida`
+    // já cortavam por aqui, mas o caminho um-a-um (este combobox) deixava
+    // passar o 31º, 32º… e o erro só estourava no Zod do Revisar, longe do
+    // gesto que causou. Mesma estrutura de toast que `adicionarContrapartida`
+    // usa ao recusar pelo teto — só o sujeito muda quando não há par ativo
+    // (não existe "a outra metade" pra nomear).
+    if (itens.length + naOutraMetade.size >= MAX_LOTE_MOVIMENTACAO) {
+      toast.warning(
+        naOutraMetade.size > 0
+          ? `As duas metades já somam ${MAX_LOTE_MOVIMENTACAO} ativos, o teto do lote. Registre este par e comece outro.`
+          : `O lote atingiu o teto de ${MAX_LOTE_MOVIMENTACAO} ativos. Registre este e comece outro.`,
       )
       return
     }
@@ -692,15 +723,21 @@ export function NovaMovimentacaoForm({
     if (!ultimaMov) return
     marcarAlteracao()
     const tipoValido = tiposValidos.includes(ultimaMov.tipo)
+    // MOV-07 — motivo/termo/termoData são do TIPO: com `tipoValido === false`
+    // o tipo atual sobrevive (o operador escolhe outro), mas aplicar os três
+    // campos do tipo antigo gravava algo incoerente e invisível (Zod só exige
+    // `min(1)`, sem checar `aplica_a`). `camposDaRepeticao` decide isso —
+    // pura e testada (`repetir-ultima.test.ts`).
+    const { motivo, termo, termoData } = camposDaRepeticao(ultimaMov, tipoValido)
     aplicarConfig({
       ...config,
       tipo: tipoValido ? ultimaMov.tipo : config.tipo,
-      motivo: ultimaMov.motivo ?? '',
+      motivo,
       colaborador: ultimaMov.colaborador ?? '',
       setor: ultimaMov.setor ?? '',
       chamado: ultimaMov.chamado ?? '',
-      termo: (ultimaMov.termo_assinado as TermoStatus) ?? '',
-      termoData: ultimaMov.termo_data ?? '',
+      termo,
+      termoData,
     })
     toast.success('Campos preenchidos com a última movimentação.')
     if (!tipoValido) {
@@ -979,6 +1016,18 @@ export function NovaMovimentacaoForm({
     }
   }
 
+  // MOV-01a — sempre que `erros` passa a ter itens (validação local em
+  // `avancarParaRevisao` OU o retorno que devolve pro passo 2 aqui em
+  // `registrar`), leva o foco pro alerta e rola até ele — um efeito só cobre
+  // as duas origens, disparado pela MUDANÇA de estado em vez de duplicado em
+  // cada `setErros`. Mesmo padrão de foco pós-ação do encadeamento de termos
+  // (`painel-sucesso.tsx`, `tituloRef`/`proximoRef`).
+  useEffect(() => {
+    if (erros.length === 0) return
+    errosRef.current?.focus()
+    errosRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [erros])
+
   function reiniciar() {
     setItens([])
     setConfig(configPadrao())
@@ -1015,7 +1064,12 @@ export function NovaMovimentacaoForm({
     e.preventDefault()
     if (passo === 1 && itens.length > 0) setPasso(2)
     else if (passo === 2) avancarParaRevisao()
-    else if (passo === 3) registrar()
+    // MOV-08 — a consulta de possíveis duplicatas (passo 3) está em voo logo
+    // ao montar; um 2º Enter em seguida despachava `registrar()` antes da
+    // resposta chegar, e o aviso (único propósito do passo) nunca era visto.
+    // Ignora SÓ o Enter aqui — o clique no botão (`onRegistrar` direto, sem
+    // passar por este handler) continua livre, decisão registrada.
+    else if (passo === 3 && !consultandoDuplicatas) registrar()
   }
 
   if (sucesso) {
@@ -1041,6 +1095,23 @@ export function NovaMovimentacaoForm({
       <p role="status" className="sr-only">
         {avisoContrapartida}
       </p>
+
+      {/* MOV-14 — `?duplicar=`/`?ativo=` apontava pra um id apagado (Zona
+          destrutiva) ou quebrado: sem aviso, o wizard abria vazio em
+          silêncio. */}
+      {origemInvalida && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>
+            {origemInvalida === 'duplicar'
+              ? 'A movimentação de origem não foi encontrada — o formulário abriu em branco.'
+              : 'O ativo de origem não foi encontrado — o formulário abriu em branco.'}
+          </p>
+        </div>
+      )}
 
       {/* F10/M6 — lote não registrado desta aba (sessionStorage) */}
       {rascunhoPendente && (
@@ -1111,9 +1182,13 @@ export function NovaMovimentacaoForm({
 
       {/* Erros de validacao — F19: `role="alert"` porque o bloco só nasce depois
           de "Revisar"/"Registrar"; sem ele o clique parece não ter efeito para
-          quem não vê a tela. */}
+          quem não vê a tela. MOV-01a — o box fica ACIMA do stepper, fora da
+          viewport no passo 2 (o mais longo): `tabIndex={-1}` + o efeito lá em
+          cima levam foco e rolagem até aqui sempre que `erros` ganha itens. */}
       {erros.length > 0 && (
         <div
+          ref={errosRef}
+          tabIndex={-1}
           role="alert"
           className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
         >
@@ -1186,6 +1261,7 @@ export function NovaMovimentacaoForm({
           enviando={enviando}
           onVoltar={() => setPasso(2)}
           onRegistrar={registrar}
+          onConsultandoDuplicatasChange={setConsultandoDuplicatas}
         />
       )}
     </div>
