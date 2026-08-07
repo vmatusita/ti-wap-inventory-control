@@ -4140,3 +4140,41 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
 - **Enquanto não for aplicada:** a UI e a action continuam recusando quem não é nível administrador;
   o que falta é a trava equivalente para uma chamada direta à API — que já existia antes desta fase.
 - **Reversível?** sim: a migration devolve a policy única com `alter policy`.
+
+### 10 · PND-05 — a `0103` aplicada (ensaio → produção), e o que a medição desmentiu
+
+- **Contexto:** as atas §4 e §9 fecharam a F28 com a migration **escrita e não aplicada**, porque o
+  MCP Supabase não estava conectado. O Johnny ligou o MCP logo depois; o rollout foi feito na mesma
+  sessão, pelo **caminho A** do `docs/RUNBOOK-BANCO.md` (não-destrutiva: ensaio → produção).
+- **Medição ANTES de tocar em nada** (era a pergunta em aberto do relatório):
+  `authenticated` **JÁ TINHA** `SELECT/UPDATE` em `pendencias_item` nos **dois** projetos — o grant
+  veio do `alter default privileges` do bootstrap do Supabase, como a migration supunha.
+  **Conclusão: o fluxo de RESOLVER da F18 nunca esteve quebrado em produção.** O achado do CI
+  continua válido para o que ele mede — um banco **reconstruído só pelas migrations** (recuperação
+  de desastre, ambiente novo) nasceria sem o grant. A `0103` fecha isso; em produção foi no-op.
+- **Ensaio (`sgmvldiizsrjbxzzpmhh`)** — aplicada; policies conferidas; roteiro dos quatro cenários
+  rodado contra o schema real, dentro de transação: **4/4 OK** (operador resolve · operador não
+  reabre · operador de outra filial não reabre · nível administrador reabre). Conferido depois que
+  **nenhum fixture sobreviveu** (`WAP0009103` = 0 linhas, usuários `f28.*` = 0, `pendencias_item`
+  segue com as 22 linhas de antes).
+- **Produção (`pbtjcalbmepmrqzprusb`)** — aplicada; as três policies conferidas uma a uma
+  (`admin reabre` com `e_admin() and pode_escrever_filial and status='resolvida'` no `using` e
+  `status='aberta'` no `with check`; `operador resolve` restrita a `status='aberta'`);
+  `notify pgrst, 'reload schema'`; `get_advisors(security)` **idêntico antes e depois** — nenhum
+  alerta novo. Acervo intocado (a migration não tem DML): 1.653 ativos · 3.279 movimentações.
+- **Smoke pós-apply:** `93 OK · 4 aviso · 0 falha` — os mesmos 4 avisos pré-existentes de catálogo
+  de itens vazio.
+- **⚠ Uma afirmação do relatório caiu por terra na medição:** ele dizia, citando a `0083`, que
+  produção tinha **zero** linhas em `pendencias_item`, e daí que o caminho "pode nunca ter sido
+  exercido". Falso hoje: são **5 linhas — 2 abertas e 3 resolvidas**. A medição da `0083` é de
+  30/07 e envelheceu. Consequência prática: o buraco que a `0103` fechou **era alcançável** para as
+  3 resolvidas — qualquer operador com vínculo na filial delas podia reabri-las por chamada direta
+  à API, sem justificativa e sem anotação. Não há indício de que tenha acontecido (a reabertura não
+  existia na UI até esta fase), mas o risco era real, não hipotético.
+- **Verificação de comportamento em produção:** **não** foi feita por escrita, nem em transação
+  revertida — o comportamento foi provado no **ensaio**, que tem o mesmo schema, e num **Postgres
+  novo** pelo CI. Em produção conferi o que é observável sem escrever: o texto das policies, o
+  grant, os advisors e o smoke. Escrever em `pendencias_item` de produção só para testar — ainda que
+  com rollback — não vale o risco quando o comportamento já está provado duas vezes.
+- **Reversível?** sim: `alter policy "pendencias_item operador resolve" … using (pode_escrever_filial(filial_id))`
+  e `drop policy "pendencias_item admin reabre"`.

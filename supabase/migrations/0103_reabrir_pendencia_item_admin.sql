@@ -1,8 +1,8 @@
 -- Migration 0103 — reabrir pendência de item é do NÍVEL ADMINISTRADOR também no banco
 -- (F28 · PND-05, achado da 2ª volta da revisão adversarial).
 --
--- ⚠ ESTA MIGRATION NÃO FOI APLICADA. Ver "Handoff" no fim do arquivo e a seção
---   correspondente em docs/RELATORIO-F28.md.
+-- ✅ APLICADA em 07/08/2026 — ensaio (sgmvldiizsrjbxzzpmhh) e produção (pbtjcalbmepmrqzprusb),
+--   pelo caminho A do docs/RUNBOOK-BANCO.md. Ata do rollout em docs/DECISOES.md (F28, §10).
 --
 -- ---------------------------------------------------------------------------
 -- O QUE ESTÁ ERRADO HOJE
@@ -82,12 +82,18 @@
 -- que é superusuário e ignora tanto RLS quanto grants. Policy sem grant é regra
 -- que nunca chega a ser avaliada: o Postgres barra antes, no privilégio.
 --
--- ⚠ O QUE ISTO **NÃO** DIZ SOBRE PRODUÇÃO: lá as tabelas provavelmente receberam
--- o grant pelo `alter default privileges` do bootstrap do Supabase, e não pelas
--- migrations — e produção tem ZERO linhas em `pendencias_item` (medido na 0083),
--- então o caminho pode nunca ter sido exercido de verdade. **Conferir antes de
--- aplicar** (a consulta está no bloco de verificação, no fim). O grant é
--- idempotente: se já existir, não muda nada.
+-- ✅ MEDIDO NO ROLLOUT (07/08/2026, antes de aplicar): produção **e** ensaio JÁ
+-- TINHAM o grant — ele veio do `alter default privileges` do bootstrap do
+-- Supabase, não das migrations. Ou seja, **o fluxo de RESOLVER da F18 nunca
+-- esteve quebrado em produção**, e este passo foi no-op nos dois. Ele existe para
+-- que um banco reconstruído SÓ pelas migrations (recuperação de desastre,
+-- ambiente novo) também nasça correto — que é exatamente o que o CI mede.
+--
+-- ⚠ Correção de um pressuposto que envelheceu: a `0083` mediu ZERO linhas em
+-- `pendencias_item` em 30/07, e este comentário chegou a concluir daí que o
+-- caminho "pode nunca ter sido exercido". Em 07/08 são **5 linhas (2 abertas, 3
+-- resolvidas)** — então o buraco que esta migration fecha ERA alcançável para as
+-- 3 resolvidas. Contagem de produção não é premissa: mede-se de novo.
 --
 -- Só SELECT e UPDATE, de propósito: INSERT e DELETE continuam sendo exclusivos do
 -- trigger `aplicar_movimentacao` (0051, security definer, que não passa por
@@ -136,15 +142,23 @@ comment on policy "pendencias_item admin reabre" on public.pendencias_item is
 -- (operador NÃO reabre; admin reabre) antes de aplicar, e rodar depois.
 --
 -- ---------------------------------------------------------------------------
--- HANDOFF (por que não foi aplicada nesta sessão)
+-- ROLLOUT (feito)
 -- ---------------------------------------------------------------------------
--- Operações de banco deste projeto são feitas **via MCP Supabase** (runbook
--- §Topologia: "o ambiente não tem CLI local apontando para produção"). A sessão
--- que executou a F28 **não tinha o MCP Supabase conectado**, então o caminho
--- prescrito (ensaio → conferência → produção) não estava disponível. A ordem da
--- fase prevê exatamente este caso: "sem acesso, deixe a migration escrita + nota
--- de handoff no relatório e entregue a UI pronta atrás da action".
+-- Aplicada em 07/08/2026 nos dois projetos, pelo caminho A do runbook.
 --
--- Enquanto não for aplicada: a UI e a Server Action funcionam e continuam
--- recusando quem não é nível administrador — o que falta é a trava equivalente
--- para uma chamada direta à API, que já existia antes desta fase.
+-- Medido ANTES: `authenticated` JÁ TINHA select/update nos dois (grant do bootstrap do
+-- Supabase), então o passo 0 foi no-op — ele existe para o banco reconstruído só pelas
+-- migrations.
+--
+-- Ensaio (sgmvldiizsrjbxzzpmhh): aplicada, policies conferidas, e o roteiro dos quatro
+-- cenários rodado contra o schema real dentro de transação — 4/4 OK, sem deixar fixture
+-- (WAP0009103 = 0 linhas depois; as 22 pendências de antes, intactas).
+--
+-- Produção (pbtjcalbmepmrqzprusb): aplicada, as três policies conferidas uma a uma,
+-- `notify pgrst, 'reload schema'`, `get_advisors(security)` IDÊNTICO antes e depois,
+-- acervo intocado (1.653 ativos · 3.279 movimentações — a migration não tem DML) e o
+-- smoke logado em 93 OK · 4 avisos pré-existentes · 0 falha.
+--
+-- O comportamento NÃO foi provado por escrita em produção (nem com rollback): já estava
+-- provado no ensaio, que tem o mesmo schema, e num Postgres novo pelo CI. Em produção
+-- conferiu-se o que é observável sem escrever.

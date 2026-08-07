@@ -5,8 +5,9 @@ Fonte: [`docs/ANALISE-UX-2026-08-07.md`](ANALISE-UX-2026-08-07.md) §§3–5 (em
 Execução: 07/08/2026, modo autônomo, direto na `main`.
 
 **22 itens** nas quatro telas de operação — movimentações, ativos, pendências e itens.
-**Zero dependência nova. Zero migration aplicada.** O diff de `supabase/` contém **apenas** a
-migration aditiva do item 18 e o roteiro que a prova — **não aplicados**, com handoff no §9.
+**Zero dependência nova.** O diff de `supabase/` contém **apenas** a migration aditiva do item 18 e
+o roteiro que a prova — **aplicadas em ensaio e produção** no fim da sessão, quando o MCP de banco
+foi conectado (§9).
 
 ---
 
@@ -82,7 +83,7 @@ Legenda: ✅ entregue · ⚠️ entregue com desvio registrado.
 | 15 | **PND-01** Ação direta na fila | ✅ | `CorrigirPatrimonioDialog` embutido na linha (prop `trigger`, criada no commit de preparação); "Movimentar" na triagem; `corrigirPatrimonio` já revalidava `/pendencias` — conferido, nada a mudar. A service tag, que a view não expõe, vem de leitura suplementar restrita aos ids **da página** (ata §8). |
 | 16 | **PND-02** Confirmar assinatura em lote | ✅ | Checkbox nos termos; `confirmarAssinaturaLote` espelha `resolverPendenciaItem` (Zod, `exigirEscritaEm` das filiais **lidas do banco**, update idempotente, anotação por ativo, `revalidatePath`); data única; seleção mista com **as duas ações** e contador em cada; toast honesto quando o lote encolhe. Ata §3. |
 | 17 | **PND-04** A fila conta o porquê e o peso | ✅ | `p.pendencia` truncado com `Dica`; `lib/pendencias/idade.ts` (+9 testes) com limiar **exclusivo** provado nas bordas (30→nova, 31→atenção, 90→atenção, 91→crítica); "sem patrimônio — abrir ficha" no lugar do "—". |
-| 18 | **PND-05** Reabrir pendência de item | ⚠️ | **App entregue e funcionando**: `reabrirPendenciaItem` (`exigirAdmin` + `exigirEscritaEm` + justificativa de 10+ caracteres + anotação por ativo) e `ReabrirPendenciaItemDialog` na ficha; ajuda e o teste que travava "não há reabrir" reescritos. **A trava de cargo NO BANCO ficou pendente** — migration `0103` + roteiro SQL escritos e **não aplicados**. Ver §9 e ata §9. |
+| 18 | **PND-05** Reabrir pendência de item | ✅ | **App entregue e funcionando**: `reabrirPendenciaItem` (`exigirAdmin` + `exigirEscritaEm` + justificativa de 10+ caracteres + anotação por ativo) e `ReabrirPendenciaItemDialog` na ficha; ajuda e o teste que travava "não há reabrir" reescritos. **A trava de cargo NO BANCO** veio na migration `0103` + roteiro SQL, **aplicados em ensaio e produção** no fim da sessão (§9, e atas §9/§10). |
 | 19 | **PND-06** Mesa de conflitos sem armadilhas | ✅ | Aviso fixo "Marque o cadastro **errado**…"; `aria-label` "Marcar o cadastro de {filial} para exclusão"; barra de lote `sticky bottom-0` com fundo opaco, `safe-area` e espaçador; "Ficha" com `target="_blank" rel="noopener"` + `sr-only`. |
 
 ### Bloco 4 · Itens
@@ -107,9 +108,9 @@ Vai para o backlog (§10). Ata §7.
 A ordem diz "busca `?q`". `/itens` **já usa `?q`** para o filtro de saldos, na mesma URL: reusar o
 nome faria um campo apagar o outro. Ata §5.
 
-### 4.3 PND-05 — o único item entregue pela metade, e a metade que falta é a que importa
-Ver §9. A UI e a Server Action estão completas e recusam quem não é nível administrador. A trava
-equivalente no banco está escrita e **não aplicada**.
+### 4.3 PND-05 — entregue em duas etapas, na mesma sessão
+A UI e a Server Action saíram no corpo da fase; a trava equivalente **no banco** (migration `0103`)
+só pôde ser aplicada depois, quando o MCP de banco foi conectado. Rollout completo no §9.
 
 ---
 
@@ -337,46 +338,87 @@ na frente.
 
 ---
 
-## 9. Handoff — o que ficou para o Johnny
+## 9. Rollout da migration `0103` (feito no fim da sessão)
 
-### 9.1 A migration `0103` (o único item entregue pela metade)
+### 9.1 O que é, e por que foi necessária
 
-**O que é:** `supabase/migrations/0103_reabrir_pendencia_item_admin.sql` faz DUAS coisas: (1) concede
+`supabase/migrations/0103_reabrir_pendencia_item_admin.sql` faz duas coisas: (1) concede
 `select, update` sobre `pendencias_item` a `authenticated` — grant que **nunca existiu nas
-migrations** e sem o qual nem resolver nem reabrir funcionam (§7.1); (2) separa a policy de UPDATE em
-duas, por sentido da transição: o operador age no que está **aberto**; só `e_admin()` leva de
-**resolvida** para **aberta**.
+migrations** (§7.1); (2) separa a policy de UPDATE em duas, por sentido da transição: o operador age
+no que está **aberto**; só `e_admin()` leva de **resolvida** para **aberta**.
 
-**Por que é necessária:** a F28 entregou "Reabrir pendência" com gate de nível administrador **na
-Server Action**. A policy (`0063`) não distingue cargo nem sentido, e `pode_escrever_filial` devolve
-`true` para operador com vínculo — então um operador reabre por chamada direta ao PostgREST, **sem
-justificativa e sem anotação**. Não é regressão desta fase (a policy é assim desde a `0050`/`0063`),
-mas a fase prometeu na porta uma trava que o banco não impõe, contra o `CLAUDE.md`.
+A F28 entregou "Reabrir pendência" com gate de nível administrador **na Server Action**. A policy
+(`0063`) não distinguia cargo nem sentido, e `pode_escrever_filial` devolve `true` para operador com
+vínculo — então um operador reabriria por chamada direta ao PostgREST, **sem justificativa e sem
+anotação**. Não era regressão desta fase (a policy é assim desde a `0050`/`0063`), mas a fase
+prometeu na porta uma trava que o banco não impunha, contra o `CLAUDE.md`.
 
-**Por que não foi aplicada:** operações de banco vão pelo **MCP Supabase** (runbook §Topologia), que
-**não estava conectado** nesta sessão. A ordem prevê o caso ("sem acesso, deixe a migration escrita +
-nota de handoff"). Não usei a Management API por token: é caminho que o projeto nunca usou, para
-mexer em **policy de segurança**, sem as conferências do runbook — o risco de trancar o operador fora
-de resolver pendências não compensa a pressa.
+O corpo da fase terminou com ela **escrita e não aplicada** — o MCP de banco não estava conectado, e
+a ordem prevê esse caso. O Johnny conectou o MCP em seguida, e o rollout foi feito na mesma sessão.
 
-**Como aplicar (caminho A do runbook — não-destrutiva):**
-1. `supabase/tests/reabrir_pendencia_item.sql` no **ensaio**, ANTES: os casos 2 e 3 devem marcar `✗`
-   (é o buraco). Aplicar a `0103`. Rodar de novo: os quatro devem marcar `✓`.
-2. Conferir as policies:
-   ```sql
-   select polname, pg_get_expr(polqual, polrelid) as usando,
-          pg_get_expr(polwithcheck, polrelid) as checando
-     from pg_policy where polrelid = 'public.pendencias_item'::regclass order by polname;
-   -- esperado: 3 linhas (1 de leitura + 2 de update)
-   ```
-3. Repetir em **produção** e rodar o smoke.
+### 9.2 O que a medição respondeu (e o que ela desmentiu)
 
-✅ **O roteiro JÁ foi executado** — pelo job `banco` do CI, contra um Postgres novo com todas as
-migrations aplicadas (§7.1). Achou o grant faltante na primeira rodada e, depois da correção, marcou
-os quatro cenários verdes. A `0103` está provada em banco novo; o que falta é aplicá-la em **ensaio
-e produção**.
+**Antes de tocar em nada**, a pergunta que o relatório deixou em aberto:
 
-### 9.2 Smoke de produção
+```sql
+select grantee, string_agg(privilege_type, ',' order by privilege_type)
+  from information_schema.role_table_grants
+ where table_schema='public' and table_name='pendencias_item' group by grantee;
+```
+→ **`authenticated` JÁ TINHA `SELECT/UPDATE` nos dois projetos.** O grant veio do
+`alter default privileges` do bootstrap do Supabase, não das migrations. **Portanto o fluxo de
+RESOLVER da F18 nunca esteve quebrado em produção** — o achado do CI vale para o que ele mede: um
+banco reconstruído **só pelas migrations**. O passo (1) foi no-op nos dois.
+
+⚠ **E uma afirmação deste relatório caiu por terra.** Ele dizia, citando a `0083`, que produção tinha
+**zero** linhas em `pendencias_item`, e daí que o caminho "pode nunca ter sido exercido". A medição
+de 07/08 mostra **5 linhas — 2 abertas e 3 resolvidas**. A contagem da `0083` é de 30/07 e
+envelheceu. Consequência prática: o buraco que a `0103` fechou **era alcançável** para aquelas 3
+resolvidas. Não há indício de que tenha sido explorado (a reabertura nem existia na UI antes desta
+fase), mas o risco era real, não hipotético.
+
+### 9.3 Ensaio (`sgmvldiizsrjbxzzpmhh`) — aplicada e provada
+
+Policies conferidas uma a uma depois do apply, e o roteiro dos quatro cenários rodado **contra o
+schema real**, dentro de transação:
+
+| # | Cenário | Veredito |
+|---|---|---|
+| 0 | fixture: devolução com item faltante abre a pendência | OK |
+| 1 | operador vinculado **RESOLVE** (aberta → resolvida) | OK |
+| 2 | operador vinculado **NÃO reabre** | OK |
+| 3 | operador de **outra filial** não reabre | OK |
+| 4 | **nível administrador REABRE** (resolvida → aberta) | OK |
+
+Conferido depois que **nenhum fixture sobreviveu**: `WAP0009103` = 0 linhas, usuários `f28.*` = 0, e
+as 22 pendências que o ensaio já tinha, intactas.
+
+### 9.4 Produção (`pbtjcalbmepmrqzprusb`) — aplicada e conferida
+
+- As **três policies** conferidas uma a uma: `admin reabre` com
+  `e_admin() AND pode_escrever_filial(filial_id) AND status='resolvida'` no `using` e `status='aberta'`
+  no `with check`; `operador resolve` agora restrita a `status='aberta'`.
+- `notify pgrst, 'reload schema'`.
+- **`get_advisors(security)` idêntico antes e depois** — nenhum alerta novo (os que existem são os
+  conhecidos: `SECURITY DEFINER` das RPCs, que é o desenho do projeto, e o leaked-password, backlog).
+- **Acervo intocado** (a migration não tem DML): 1.653 ativos · 3.279 movimentações.
+- **Smoke logado pós-apply: 93 OK · 4 avisos · 0 falha** — os mesmos 4 avisos pré-existentes.
+
+**O comportamento NÃO foi provado por escrita em produção**, nem em transação revertida: já estava
+provado no **ensaio** (mesmo schema) e num **Postgres novo** pelo CI. Em produção conferiu-se só o
+que é observável sem escrever. Escrever em `pendencias_item` de produção para testar — mesmo com
+rollback — não vale o risco quando o comportamento já foi provado duas vezes.
+
+### 9.5 Como reverter, se precisar
+
+```sql
+alter policy "pendencias_item operador resolve" on public.pendencias_item
+  using (public.pode_escrever_filial(filial_id)) with check (public.pode_escrever_filial(filial_id));
+drop policy "pendencias_item admin reabre" on public.pendencias_item;
+```
+
+### 9.6 Smoke de produção
+
 `node scripts/smoke/smoke-prod.mjs` — resultado colado no §12.
 
 ---
@@ -403,11 +445,14 @@ e produção**.
 - **Build, lint e 2.041 testes verdes não provaram o defeito mais caro da fase.** O CSV divergindo da
   tela passou por tudo isso — os campos são opcionais e o TypeScript aceitou. Quem pegou foi a
   revisão adversarial. Vale como aviso permanente: nesta base, **filtro novo é ponto cego de tipo**.
-- **A migration `0103` não foi aplicada em produção.** Enquanto isso não acontecer, a restrição de
-  cargo do PND-05 vale na UI e na Server Action, **não** contra uma chamada direta à API.
-  *(O roteiro SQL, ao contrário do que esta seção dizia quando foi escrita, JÁ rodou: o job `banco`
-  do CI o executou contra um Postgres novo com todas as migrations — ver §7.1. O que não rodou
-  contra **produção** é a migration.)*
+- **A `0103` foi aplicada em produção, mas o comportamento dela em produção não foi provado por
+  escrita.** Conferi o texto das policies, o grant, os advisors e o smoke; a prova de que o operador
+  não reabre e o admin reabre veio do **ensaio** (mesmo schema) e do **CI** (Postgres novo). Se o
+  ensaio tiver divergido de produção em algo que eu não conferi, isso não apareceria aqui.
+- **Duas afirmações desta seção já nasceram erradas e foram corrigidas por medição** (§9.2): que o
+  roteiro SQL nunca tinha rodado (rodou, no CI) e que produção tinha zero pendências de item (tem 5).
+  Ambas vinham de fontes que envelheceram — o texto escrito antes do push e um comentário de
+  migration de 30/07. **Contagem de produção não é premissa: mede-se de novo.**
 - **A "Saldo após" foi provada por 7 testes puros, não contra dados reais.** A degradação honesta
   (a coluna virar "—" quando a conta não fecha) foi testada por construção, não observada em
   produção. Se o histórico de produção tiver um caso que sature o piso, o comportamento esperado é a
