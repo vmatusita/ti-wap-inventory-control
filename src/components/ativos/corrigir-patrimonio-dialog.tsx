@@ -28,6 +28,7 @@ export function CorrigirPatrimonioDialog({
   serviceTag,
   open,
   onOpenChange,
+  trigger,
 }: {
   ativoId: string
   // null = ativo importado SEM patrimônio (F7E) — o diálogo abre a partir do nulo
@@ -39,6 +40,11 @@ export function CorrigirPatrimonioDialog({
   // não-controlado, com o botão de sempre.
   open?: boolean
   onOpenChange?: (o: boolean) => void
+  // F28/PND-01 — gatilho próprio do chamador, para embutir o diálogo na LINHA da
+  // fila de pendências (o mesmo padrão de `ConfirmarAssinaturaDialog`). Só vale
+  // no modo NÃO-controlado: com `open`/`onOpenChange` quem abre é o menu da ficha
+  // e renderizar gatilho aqui duplicaria a ação.
+  trigger?: React.ReactNode
 }) {
   const router = useRouter()
   const controlado = open !== undefined
@@ -96,10 +102,12 @@ export function CorrigirPatrimonioDialog({
           gatilho aqui duplicaria a ação na barra. */}
       {!controlado && (
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="h-10 gap-2 sm:h-8">
-            <Tag className="size-4" />
-            {rotulo}
-          </Button>
+          {trigger ?? (
+            <Button variant="outline" size="sm" className="h-10 gap-2 sm:h-8">
+              <Tag className="size-4" />
+              {rotulo}
+            </Button>
+          )}
         </DialogTrigger>
       )}
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">

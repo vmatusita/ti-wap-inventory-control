@@ -2,6 +2,8 @@ import { afterEach, describe, it, expect, vi } from 'vitest'
 import {
   formatDate,
   formatDateTime,
+  formatTime,
+  formatTempoRelativo,
   ouTraco,
   hojeISO,
   ontemISO,
@@ -98,6 +100,64 @@ describe('ontemISO', () => {
     vi.setSystemTime(new Date('2026-08-01T12:00:00Z')) // 09:00 de 01/08 em SP
     expect(hojeISO()).toBe('2026-08-01')
     expect(ontemISO()).toBe('2026-07-31')
+  })
+})
+
+describe('formatTime (F28 · MOV-06)', () => {
+  it('devolve só HH:mm no fuso de São Paulo', () => {
+    // 15:00Z = 12:00 BRT.
+    expect(formatTime('2026-07-14T15:00:00Z')).toBe('12:00')
+  })
+
+  it('não adianta 3 h — a hora é a de SP, não a de UTC', () => {
+    // Se fatiasse a string ISO, devolveria '23:40'.
+    expect(formatTime('2026-07-14T23:40:00Z')).toBe('20:40')
+  })
+
+  it('usa relógio de 24 h (sem AM/PM)', () => {
+    expect(formatTime('2026-07-14T02:05:00Z')).toBe('23:05')
+  })
+
+  it('vazio, nulo e lixo viram travessão', () => {
+    expect(formatTime(null)).toBe('—')
+    expect(formatTime(undefined)).toBe('—')
+    expect(formatTime('')).toBe('—')
+    expect(formatTime('nao-e-data')).toBe('—')
+  })
+})
+
+describe('formatTempoRelativo (F28 · MOV-11)', () => {
+  const agora = new Date('2026-08-07T15:00:00Z').getTime()
+
+  it('menos de um minuto é "agora mesmo"', () => {
+    expect(formatTempoRelativo('2026-08-07T14:59:30Z', agora)).toBe('agora mesmo')
+  })
+
+  it('minutos', () => {
+    expect(formatTempoRelativo('2026-08-07T14:58:00Z', agora)).toBe('há 2 min')
+    expect(formatTempoRelativo('2026-08-07T14:01:00Z', agora)).toBe('há 59 min')
+  })
+
+  it('horas', () => {
+    expect(formatTempoRelativo('2026-08-07T13:00:00Z', agora)).toBe('há 2 h')
+    expect(formatTempoRelativo('2026-08-06T16:00:00Z', agora)).toBe('há 23 h')
+  })
+
+  it('dias — singular e plural', () => {
+    expect(formatTempoRelativo('2026-08-06T15:00:00Z', agora)).toBe('há 1 dia')
+    expect(formatTempoRelativo('2026-08-04T15:00:00Z', agora)).toBe('há 3 dias')
+  })
+
+  it('instante no futuro (relógio do cliente atrasado) cai em "agora mesmo"', () => {
+    // Nunca "há -3 min": o rascunho é gravado pelo navegador, mas o relógio pode
+    // andar para trás entre a gravação e a leitura.
+    expect(formatTempoRelativo('2026-08-07T15:10:00Z', agora)).toBe('agora mesmo')
+  })
+
+  it('vazio, nulo e lixo devolvem string vazia (o banner some o trecho)', () => {
+    expect(formatTempoRelativo(null, agora)).toBe('')
+    expect(formatTempoRelativo(undefined, agora)).toBe('')
+    expect(formatTempoRelativo('nao-e-data', agora)).toBe('')
   })
 })
 

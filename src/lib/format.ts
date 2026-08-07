@@ -73,6 +73,47 @@ export function formatDateTime(iso: string | null | undefined): string {
   }
 }
 
+// Só a HORA (HH:mm) de um timestamptz, no fuso de São Paulo. F28/MOV-06: a lista
+// de movimentações mostra `data` (a data de NEGÓCIO, digitada, que pode ser
+// retroativa) na coluna Data e a hora do REGISTRO ao lado — as duas divergem de
+// propósito quando se lança ontem hoje, e é a hora do registro que separa um lote
+// do outro. Fatiar a string ISO devolveria a hora em UTC (3h adiantada).
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return '—'
+    const p = partesSP(d, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    return `${p.hour}:${p.minute}`
+  } catch {
+    return '—'
+  }
+}
+
+// "há 2 h" / "agora mesmo" — tempo decorrido em pt-BR, granularidade grossa de
+// propósito (F28/MOV-11: o banner do rascunho só precisa dizer se o lote é de
+// agora ou de anteontem). `agora` é PARÂMETRO para a função ser pura e testável;
+// quem chama passa `Date.now()`.
+//
+// Instante no futuro (relógio do cliente atrasado em relação ao servidor que
+// gravou) cai em "agora mesmo" — nunca "há -3 min".
+export function formatTempoRelativo(
+  iso: string | null | undefined,
+  agora: number,
+): string {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const seg = Math.floor((agora - t) / 1000)
+  if (seg < 60) return 'agora mesmo'
+  const min = Math.floor(seg / 60)
+  if (min < 60) return `há ${min} min`
+  const horas = Math.floor(min / 60)
+  if (horas < 24) return `há ${horas} h`
+  const dias = Math.floor(horas / 24)
+  return dias === 1 ? 'há 1 dia' : `há ${dias} dias`
+}
+
 // Valor textual ou travessão quando vazio/nulo.
 export function ouTraco(v: string | null | undefined): string {
   return v && v.trim() ? v : '—'
