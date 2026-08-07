@@ -149,30 +149,17 @@ export function MesaConflitos({
 
   return (
     <div className="space-y-4">
-      {/* Barra de lote — só para quem pode apagar, e só com algo marcado. */}
-      {podeApagar && selecionadosVisiveis.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-orange-300/60 bg-orange-50 p-3 dark:border-orange-900/60 dark:bg-orange-950/30">
-          <span className="text-sm tabular-nums">
-            <strong>{selecionadosVisiveis.length}</strong>{' '}
-            {selecionadosVisiveis.length === 1
-              ? 'cadastro selecionado'
-              : 'cadastros selecionados'}
-          </span>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelecionados(new Set())}>
-              Limpar seleção
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="gap-2"
-              disabled={abrindo}
-              onClick={() => abrirDialogo(selecionadosVisiveis)}
-            >
-              <Trash2 className="size-4" />
-              Apagar selecionados ({selecionadosVisiveis.length})
-            </Button>
-          </div>
+      {/* Aviso fixo da semântica invertida da mesa: para quem não conhece a tela, marcar
+          "o certo" é a leitura natural — e é exatamente o oposto do que a caixa faz. Por
+          isso a linha fica sempre visível (não só quando há seleção) e com contraste de
+          destructive, não um parágrafo cinza que passa despercebido. */}
+      {podeApagar && grupos.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive">
+          <AlertTriangle className="size-4 shrink-0" />
+          <p>
+            Marque o cadastro <strong>errado</strong> — a exclusão é do que estiver
+            marcado.
+          </p>
         </div>
       )}
 
@@ -183,9 +170,9 @@ export function MesaConflitos({
             onCheckedChange={(v) =>
               setSelecionados(v === true ? new Set(idsVisiveis) : new Set())
             }
-            aria-label="Selecionar todos os cadastros desta página"
+            aria-label="Marcar todos os cadastros desta página para exclusão"
           />
-          Selecionar todos desta página
+          Marcar todos desta página para exclusão
         </label>
       )}
 
@@ -210,9 +197,9 @@ export function MesaConflitos({
                   sentido da mesa é olhar os dois lados e apagar o ERRADO, então a ação
                   mais proeminente do bloco não pode ser a que destrói os dois — inclusive
                   o lado marcado com "Tem histórico próprio". Apagar um lado é a caixa de
-                  seleção ao lado dele; apagar vários é a barra de lote no topo. Quem
-                  realmente quiser levar o grupo inteiro marca todas as caixas e lê o
-                  número na confirmação. */}
+                  seleção ao lado dele; apagar vários é a barra de lote fixa no rodapé.
+                  Quem realmente quiser levar o grupo inteiro marca todas as caixas e lê
+                  o número na confirmação. */}
             </header>
 
             {/* Os lados LADO A LADO. Em telas estreitas empilham; o realce continua. */}
@@ -225,15 +212,19 @@ export function MesaConflitos({
                         <Checkbox
                           checked={selecionados.has(l.ativoId)}
                           onCheckedChange={(v) => toggle(l.ativoId, v === true)}
-                          aria-label={`Selecionar o cadastro de ${l.filialNome}`}
+                          aria-label={`Marcar o cadastro de ${l.filialNome} para exclusão`}
                         />
                       )}
                       <span className="font-semibold">{l.filialNome}</span>
                     </div>
+                    {/* Nova aba: a mesa tem seleção e rolagem que a navegação normal
+                        derrubaria. O ícone de link externo já sugeria isso — agora ele
+                        não mente mais. */}
                     <Button asChild variant="ghost" size="sm" className="gap-1 px-2">
-                      <Link href={`/ativos/${l.ativoId}`}>
+                      <Link href={`/ativos/${l.ativoId}`} target="_blank" rel="noopener">
                         Ficha
-                        <ExternalLink className="size-3.5" />
+                        <span className="sr-only"> (abre em nova aba)</span>
+                        <ExternalLink className="size-3.5" aria-hidden="true" />
                       </Link>
                     </Button>
                   </div>
@@ -303,6 +294,44 @@ export function MesaConflitos({
           </section>
         )
       })}
+
+      {/* Espaçador: sem ele, a barra sticky do rodapé (abaixo) cobriria a última seção
+          quando a mesa termina no fim da rolagem — mesmo problema que a barra resolve
+          para quem marca no 15º grupo, só que na outra ponta. */}
+      {podeApagar && selecionadosVisiveis.length > 0 && <div aria-hidden="true" className="h-16" />}
+
+      {/* Barra de lote — só para quem pode apagar, e só com algo marcado. Sticky no
+          RODAPÉ (não no topo): com até 20 grupos na mesa, uma barra fixa lá em cima some
+          da tela assim que a pessoa rola para marcar o grupo 15. Fundo OPACO (não
+          `/30` como antes) porque, grudada na borda inferior, a tabela rolaria por
+          baixo dela se o fundo deixasse ver através. Padrão de sticky do repo:
+          `chips-ancora.tsx:31` (lá é topo; aqui é rodapé, por isso `border-t` em vez de
+          borda inteira, e o respiro extra embaixo para não colar no rodapé do celular). */}
+      {podeApagar && selecionadosVisiveis.length > 0 && (
+        <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-orange-300 bg-orange-50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.12)] dark:border-orange-900 dark:bg-orange-950">
+          <span className="text-sm tabular-nums">
+            <strong>{selecionadosVisiveis.length}</strong>{' '}
+            {selecionadosVisiveis.length === 1
+              ? 'cadastro selecionado'
+              : 'cadastros selecionados'}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelecionados(new Set())}>
+              Limpar seleção
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-2"
+              disabled={abrindo}
+              onClick={() => abrirDialogo(selecionadosVisiveis)}
+            >
+              <Trash2 className="size-4" />
+              Apagar selecionados ({selecionadosVisiveis.length})
+            </Button>
+          </div>
+        </div>
+      )}
 
       {dialogo && (
         <DialogoApagarConflito
