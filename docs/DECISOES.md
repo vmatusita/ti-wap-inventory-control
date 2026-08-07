@@ -4178,3 +4178,219 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   com rollback — não vale o risco quando o comportamento já está provado duas vezes.
 - **Reversível?** sim: `alter policy "pendencias_item operador resolve" … using (pode_escrever_filial(filial_id))`
   e `drop policy "pendencias_item admin reabre"`.
+
+---
+
+## 2026-08-07 · F29 · O preset "Semana passada" HERDA a dualidade de janela (T11 segue aberta)
+
+- **Contexto:** o relatório tem DUAS definições de semana, e a F29 precisou acrescentar uma terceira
+  superfície ("Semana passada"). O ao vivo conta **domingo→hoje** (`intervaloDoPreset`,
+  `weekStartsOn: 0`, decisão do Johnny de 16/07 em B2/F6B); o diálogo "Gerar relatório" conta
+  **segunda→sexta** (`semanaUtilCorrente`, o recorte dos e-mails reais). A ordem manda
+  explicitamente NÃO resolver a decisão aberta T11 — só registrar.
+- **Decisão:** o preset novo do ao vivo é **domingo→sábado** da semana anterior (a variante −1 exata
+  da janela vigente daquela superfície) e o atalho novo do diálogo é **segunda→sexta** da semana
+  anterior (`semanaUtilAnterior`, o par de `semanaUtilCorrente`). Nenhuma das duas mudou.
+- **Motivo:** unificar seria decidir T11 por tabela, dentro de uma fase de UX — e as duas janelas
+  existem por motivos diferentes e legítimos (a de tela mostra o que já aconteceu; a do snapshot
+  reproduz o e-mail que o sistema substitui). Herdar mantém cada superfície coerente consigo mesma e
+  não cria uma terceira convenção.
+- **Como isso não vira defeito silencioso:** um teste em `periodo.test.ts` trava as DUAS janelas lado
+  a lado ("difere da janela do preset — a dualidade é deliberada"), e a página de ajuda do relatório
+  ao vivo diz a diferença em pt-BR, com um teste travando a frase.
+- **Reversível?** sim: alinhar as duas é trocar o `case 'semana-passada'` (ou `semanaUtilAnterior`) e
+  atualizar os dois testes + a ajuda.
+
+## 2026-08-07 · F29 · A corrida de versão do snapshot NUNCA produziu duplicata — o banco já travava
+
+- **Contexto:** a análise de UX (REL-04) e a ordem descrevem a versão `max+1` de
+  `actions/relatorios.ts` como "duas queries sem lock: dois operadores geram duplicata em silêncio",
+  e a ordem autoriza escrever uma constraint única **aditiva** em handoff se a mitigação de app não
+  bastar.
+- **Medição:** a constraint **já existe, desde a F3**. A migration `0010:16` tem
+  `unique (periodo_de, periodo_ate, filial_id, versao)` na criação da tabela, e a `0013:10-11`
+  acrescenta `relatorios_gerados_periodo_filial_versao_uidx` sobre
+  `(periodo_de, periodo_ate, coalesce(filial_id, -1), versao)` — que é justamente o que cobre o
+  **consolidado**, onde `NULL` não colide com `NULL` no índice do Postgres. O comentário da `0013`
+  descreve o cenário palavra por palavra.
+- **Decisão:** **nenhuma migration** (o diff de `supabase/` fica vazio) e nada em handoff. A
+  mitigação de app entregue é outra: `gerarRelatorio` reconhece a violação (`23505` ou o nome do
+  índice, em `lib/relatorios/versao-snapshot.ts`) e **renumera**, reaproveitando o snapshot já
+  montado, em até 4 tentativas.
+- **Motivo:** o defeito real não era duplicata — era **perda**. O segundo operador levava
+  `traduzErroBanco` genérico e o snapshot as-of recém-construído (uma reconstrução cara) ia embora
+  junto. Esgotado o laço, a mensagem passou a dizer o que aconteceu e para onde ir.
+- **Reversível?** sim: o laço é local à action; voltar ao `max+1` de uma tentativa é apagar o `for`.
+
+## 2026-08-07 · F29 · A badge "superada" é EXATA, e não uma aproximação sobre a página
+
+- **Contexto:** a ordem aceita calcular "superada" em memória sobre a página carregada, pedindo só
+  que o limite seja registrado. Com a paginação entrando na mesma fase (30 por página), esse cálculo
+  erraria toda vez que a v1 e a v2 caíssem em páginas diferentes.
+- **Decisão:** uma consulta extra de quatro colunas (`periodo_de, periodo_ate, filial_id, versao`),
+  recortada pelas datas **da página exibida** (`.in('periodo_de', datas)`), monta o `max(versao)` por
+  chave. A chave de unicidade começa por `periodo_de`, então nenhuma versão do mesmo período escapa
+  do recorte.
+- **Motivo:** o erro do cálculo aproximado cai para o **lado pior** — a lista afirmaria vigência de
+  um snapshot já superado, e é dessa lista que se escolhe o que imprimir. Uma consulta a mais, com
+  quatro colunas e sem jsonb, é barata perto disso.
+- **Limite que fica:** a segunda consulta não filtra por filial — ela é ampla de propósito, porque a
+  página pode misturar escopos, e a chave completa desempata em memória. Se a leitura falhar, o `Map`
+  fica vazio, `superada` vira `false` em todas e a lista continua de pé (o erro vai para o log do
+  servidor).
+- **Reversível?** sim: apagar o bloco da segunda consulta devolve `superada: false` em tudo.
+
+## 2026-08-07 · F29 · `filial-dialog` GANHOU a caixa de erro que a ordem supunha existir
+
+- **Contexto:** o item UXG-05 lista `filial-dialog` entre as "caixas de erro pós-submit sem
+  `role`/`aria-live`". Lendo o arquivo, **não havia caixa nenhuma**: o erro de `salvar()` ia só por
+  `toast.error` (linha 78), e o único texto `destructive` do arquivo é um aviso ESTÁTICO ligado ao
+  checkbox "Filial ativa".
+- **Decisão:** criar a caixa inline com `role="alert"`, no padrão dos irmãos, alimentada pelo mesmo
+  erro. O toast permanece.
+- **Motivo:** a intenção do item é "a recusa do servidor tem de ser anunciada e ficar na tela". Toast
+  some sozinho, não é anunciado como alerta e o diálogo continua aberto sem dizer o que houve — e a
+  recusa mais comum aqui ("a filial tem N ativos") é justamente a que precisa ficar ao lado do campo
+  que a causou. Marcar o aviso estático com `role="alert"` seria errado: ele já nasce montado, e
+  `role="alert"` interrompe o leitor de tela a cada inserção no DOM.
+- **Reversível?** sim: remover o estado `erro` e a caixa.
+
+## 2026-08-07 · F29 · A mesa de conflitos NÃO recebeu `role="alert"` no banner fixo
+
+- **Contexto:** UXG-05 cita `mesa-conflitos` entre os arquivos a corrigir. O arquivo tem três
+  candidatos: dois boxes dentro de `DialogoApagarConflito` (preenchidos depois de
+  `resumoExclusaoConflito`, uma consulta ao servidor) e o banner "Marque o cadastro **errado**", que
+  nasce montado junto com a mesa.
+- **Decisão:** `role="alert"` só nos dois boxes pós-consulta. O banner ficou de fora.
+- **Motivo:** `role="alert"` é interrupção — ele corta a leitura em curso. Num elemento que já nasce
+  no DOM, isso dispararia em TODA navegação para a página: ruído, não aviso. O banner continua sendo
+  lido na ordem normal do documento, que é onde ele pertence.
+- **Reversível?** sim, mas seria uma regressão de a11y, não uma melhoria.
+
+## 2026-08-07 · F29 · A lista de usuários passou a vir do mais RECENTE
+
+- **Contexto:** `queries/admin.ts` ordenava `created_at asc` desde a F21. O recém-convidado — que é
+  quem o admin procura logo depois de gerar o link — ficava no fundo de uma lista sem busca.
+- **Decisão:** `ascending: false`. Junto entrou o filtro client-side (nome, e-mail, cargo, filial)
+  com a contagem "N de M".
+- **Motivo:** a ordem (ADM-03b) oferece "created_at desc OU por nome" e pede o registro da escolha.
+  `desc` responde à pergunta do momento ("cadê quem acabei de convidar?"); ordem alfabética responde
+  a "onde está o Fulano?", que agora é trabalho da busca.
+- **Reversível?** sim: um booleano na consulta.
+
+## 2026-08-07 · F29 · "Testar senha" NÃO grava trilha em `eventos_admin`
+
+- **Contexto:** a ação nova `testarSenhaAcesso` (ADM-05b) confere um texto digitado contra o hash
+  scrypt de uma senha de acesso e responde só confere/não confere. As ações vizinhas de senha
+  (`senha_criada`, `senha_revogada`, `senha_reativada`) gravam trilha.
+- **Decisão:** sem trilha nesta fase.
+- **Motivo:** `eventos_admin.acao` é TEXT (a `0065` fez isso de propósito), mas o **vocabulário
+  fechado** vive em `lib/auditoria.ts` e é espelhado no `comment` da coluna pela migration `0075`,
+  com a regra escrita no próprio arquivo: "mexeu aqui, mexa lá". Um verbo novo deixaria o banco
+  desatualizado, e acertá-lo é uma migration — que esta ordem proíbe (diff de `supabase/` vazio).
+  Como o teste é **só leitura** (não muda senha, cargo nem acesso) e o admin já podia conferir a
+  mesma senha pela porta pública `/relatorios/acesso`, ficar de fora da trilha não esconde efeito
+  nenhum.
+- **Backlog:** acrescentar `senha_testada` a `ACOES_ADMIN` + `ACAO_ROTULO` + a prosa da ajuda na
+  próxima ordem que já toque uma migration de vocabulário.
+- **Reversível?** sim: é acrescentar o verbo nos três lugares e a chamada na action.
+
+## 2026-08-07 · F29 · `periodoAnterior` mudou de casa (de `queries/relatorios/snapshot.ts` para `lib/relatorios/periodo.ts`)
+
+- **Contexto:** o Δ dos KPIs passou a mostrar a janela de comparação em texto ("Anterior: N (dd/MM a
+  dd/MM)"), e quem monta esse texto é um componente de apresentação. A função que define a janela
+  vivia num módulo que arrasta o client do Supabase.
+- **Decisão:** mover a função (pura) para o módulo puro de período; `snapshot.ts` passa a importá-la.
+- **Motivo:** UMA definição para os dois usos. Reimplementar a janela no componente é o caminho
+  clássico para o rótulo divergir do número sem ninguém perceber — o texto diria uma janela e o
+  `kpisAnterior` teria sido calculado noutra.
+- **Reversível?** sim: a função é a mesma, só mudou de arquivo.
+
+## 2026-08-07 · F29 · O `?` deixou de NAVEGAR e passou a abrir um quadro de atalhos
+
+- **Contexto:** UXG-10d. O `?` levava para `/ajuda` — quem só queria lembrar uma tecla perdia a tela
+  (e o trabalho em andamento, se houvesse), e não existia cheat-sheet nenhum.
+- **Decisão:** o `?` abre um `Dialog` com a tabela de atalhos (Ctrl K, /, N, L, ?, ↑↓/Enter/Esc) e um
+  link "Documentação completa" para `/ajuda/limites-e-atalhos`. A ida à documentação virou escolha.
+- **Efeito colateral registrado:** três páginas de ajuda e dois testes que travavam a frase "? abre
+  esta ajuda" foram atualizados para a realidade nova — a distinção entre o **ícone** "?" (que leva à
+  documentação da tela) e a **tecla** "?" (que não tira ninguém da tela) virou asserção própria.
+- **Fonte da verdade:** continua sendo a página `limites-e-atalhos`; o quadro é resumo, e o link do
+  rodapé existe justamente para o resumo não precisar contar a história toda.
+- **Reversível?** sim: voltar o `router.push('/ajuda')` no handler.
+
+## 2026-08-07 · F29 · O contraste entrou no CI com 17 pares NOVOS, e nenhum known-fail
+
+- **Contexto:** `scripts/contraste.mjs` media 44 pares e rodava só à mão. A lista tinha nascido como
+  prova de correção das revisões passadas — cobria o que já fora TOCADO, e deixava de fora os pares
+  mais usados do app.
+- **Decisão:** 17 pares novos (dark de violet/cyan/orange/slate/teal; `muted-foreground` sobre
+  `background` e sobre `card`, nos dois temas; `primary`×`primary-foreground` nos dois temas; o header
+  inteiro — amarelo da marca, chip preto-sobre-amarelo, branco, `white/70`, `white/80` e o `kbd` sobre
+  `white/10`), todos **medidos antes** de receberem `exigir: true`. Step "Contraste (WCAG 2.1 AA)" no
+  job `verificar` do CI, **antes do build**, mais `npm run contraste`.
+- **Resultado:** nenhum reprovou — **não há known-fail novo**. O mais apertado é `muted-foreground`
+  sobre `background` no claro: **4,73:1** contra o mínimo de 4,5:1. É o texto mais usado do sistema, e
+  é por isso que ele precisa de trava: qualquer clareada nesse token derruba metade da interface de
+  uma vez.
+- **O que continua fora:** o par pré-existente `green-700` sobre `green-100` (4,4996:1, reprova AA por
+  0,0004) segue marcado `antes: true` — documenta o defeito e **não** trava o CI. Está fora do escopo
+  desde a F19 e continua no backlog.
+- **Prova de que o portão pega:** com um par exigido forjado (`gray-300` sobre `background`), o script
+  sai **1**; sem ele, sai **0**.
+- **Reversível?** sim: remover o step do `ci.yml`.
+
+## 2026-08-07 · F29 · A tabela de usuários e a de itens do catálogo viraram Client Components
+
+- **Contexto:** ADM-03a pede filtro client-side nas duas. `usuarios-tabela.tsx` era Server Component
+  e a tabela de `/admin/itens` estava INLINE na página (não havia componente separado).
+- **Decisão:** `usuarios-tabela.tsx` ganhou `'use client'`; a tabela de itens foi extraída para
+  `components/admin/itens-tabela.tsx` (cliente). As duas recebem o array já lido no servidor e filtram
+  em memória com `casaBusca` (`lib/ajuda/busca.ts`, que normaliza acentos).
+- **Motivo:** as duas listas são de dezenas de linhas e não paginam (decisão da F21 para usuários), então
+  o filtro em memória é instantâneo e não custa round-trip por tecla. Os diálogos filhos já eram
+  cliente — o aninhamento não mudou.
+- **O que NÃO passou a ser serializado:** `UsuarioAdmin` já era o que a tabela renderizava (nome,
+  e-mail, cargo, vínculos, situação). Nenhum campo novo desceu para o browser; hash, token e segredo
+  nunca estiveram nesse tipo.
+- **Reversível?** sim: as duas voltam a Server Component removendo o estado de busca.
+
+## 2026-08-07 · F29 · Três esqueletos de carregamento novos (e por que o wrapper é IRMÃO, não pai)
+
+- **Contexto:** UXG-06. Os 13 `loading.tsx` não anunciavam nada, e três rotas herdavam o esqueleto
+  errado: `/dev` e `/dev/destrutivo` caíam no do Dashboard; `ativos/novo` e
+  `movimentacoes/devolucao-fornecedor` herdavam esqueleto de LISTA para telas de formulário.
+- **Decisão:** wrapper `Carregando` (`role="status"` + "Carregando…" invisível) nos 13, mais
+  `dev/loading.tsx`, `ativos/novo/loading.tsx` e
+  `movimentacoes/devolucao-fornecedor/loading.tsx`. A ordem permitia registrar que os dois últimos não
+  valiam o custo — valeram: são vinte linhas cada.
+- **Detalhe que quase virou regressão:** a primeira versão do wrapper envolvia os esqueletos num
+  `<div>`. Isso QUEBRA o `space-y-*` de todas as 13 telas (a classe governa os filhos DIRETOS), e pôr o
+  `<span>` dentro da mesma caixa daria margem ao primeiro esqueleto. O anúncio virou IRMÃO do conteúdo
+  — e, como `sr-only` é posicionado absoluto, o layout ficou idêntico ao de antes.
+- **Reversível?** sim: o wrapper é um componente só.
+
+## 2026-08-07 · F29 · `NavRolavel` usa OVERLAY de gradiente, não `mask-image`
+
+- **Contexto:** UXG-04 sugere "máscara de gradiente (`mask-image`) num wrapper comum" para as três
+  fileiras roláveis.
+- **Decisão:** overlays absolutos com `pointer-events-none`, exibidos só do lado que ainda tem
+  conteúdo (medidos por `scroll` + `ResizeObserver`).
+- **Motivo:** `mask-image` apaga o ELEMENTO inteiro nas bordas — inclusive o fundo. A barra de chips do
+  relatório é `bg-background/95 backdrop-blur`, então a máscara deixaria o conteúdo da página aparecer
+  por baixo dela; e o anel de foco de um chip nas pontas sumiria junto.
+- **Armadilha registrada:** `chips-ancora` é `sticky top-14`. Envolver um sticky num `<div>` em fluxo
+  normal o MATA (ele passa a grudar dentro de uma caixa da própria altura). Por isso o wrapper é quem
+  recebe `sticky`/`z`/`print:hidden`, e o `<nav>` fica só com o que rola.
+- **Reversível?** sim: as três navs voltam ao `<nav>` cru removendo o wrapper.
+
+## 2026-08-07 · F29 · O campo de busca do header é um `<button>`, não um `<input>`
+
+- **Contexto:** UXG-10a pede um "campo-placebo `w-64`" no lugar do botão-fantasma de 28px.
+- **Decisão:** é um `<button>` estilizado como campo (borda, fundo tênue, ícone, `kbd` à direita), com
+  `aria-label` "Buscar ativos e comandos (Ctrl K)" e o texto visual marcado `aria-hidden`.
+- **Motivo:** um `<input>` de verdade teria de duplicar a busca inteira (debounce, resultados, teclado)
+  ou roubar o foco do campo da paleta ao abri-la — a primeira tecla digitada se perderia na
+  transição. O gesto que o operador conhece (clicar num campo de busca) é preservado; o
+  comportamento continua sendo o da paleta, que é onde a busca existe.
+- **Reversível?** sim: é um bloco de JSX no header.
