@@ -105,6 +105,10 @@ async function SecaoUsuarios({ euId, euPapel }: { euId: string; euPapel: PapelUs
         filiais={filiais}
         euId={euId}
         euPapel={euPapel}
+        // F29/ADM-02a — com o Auth fora do ar, `ultimoAcesso` vem null para TODO
+        // MUNDO; sem este sinal a tabela acusaria a equipe inteira de nunca ter
+        // entrado, bem embaixo do aviso que diz que a leitura falhou.
+        authIndisponivel={Boolean(avisoAuth)}
       />
     </div>
   )

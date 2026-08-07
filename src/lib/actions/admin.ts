@@ -15,6 +15,7 @@ import { getSaldosItens } from '@/lib/queries/itens'
 import { getEstadoUsuario, idsDeAdminsAtivos, perfilPorEmail } from '@/lib/queries/admin'
 import type { EstadoUsuario } from '@/lib/queries/admin'
 import {
+  conviteSchema,
   convidarUsuarioSchema,
   definirStatusUsuarioSchema,
   editarUsuarioSchema,
@@ -195,43 +196,8 @@ export async function convidarUsuario(input: {
     !!convite.error && /already|registered|exists|been registered/i.test(convite.error.message)
 
   if (jaExiste) {
-    const recovery = await admin.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: { redirectTo: `${origem}/auth/confirm` },
-    })
-    if (!recovery.error && recovery.data.properties) {
-      // REENVIO NÃO MEXE EM CARGO. Deliberado: aqui a ação é "gerar outro link de acesso
-      // para uma conta que já existe", e sobrescrever o cargo de alguém por esse caminho
-      // burlaria as travas de autoproteção (bastaria "reconvidar" o último admin como
-      // consulta para trancar o sistema). Trocar cargo é a action `editarUsuario`, que
-      // confere as travas. O diálogo avisa o admin.
-      //
-      // Conta DESATIVADA é a armadilha deste caminho: o link é gerado e a pessoa até define
-      // a senha, mas o login continua barrado (ban do Auth) e ela não escreve nada
-      // (`ativo = false`). Sem este aviso, o admin entregaria o link achando que devolveu o
-      // acesso — e o suporte viraria "meu login não funciona".
-      const estado = await getEstadoUsuario(recovery.data.user.id).catch(() => null)
-      const desativado = estado ? !estado.ativo : false
-      await registrarEventoAdmin({
-        acao: 'convite_reenviado',
-        autor: aut.uid,
-        alvo: email,
-        detalhe: desativado ? { conta_desativada: true } : null,
-      })
-      revalidatePath('/admin/usuarios')
-      return {
-        ok: true,
-        reenvio: true,
-        link: linkConfirmacao(origem, recovery.data.properties.hashed_token, 'recovery'),
-        ...(desativado
-          ? {
-              aviso:
-                'Atenção: o acesso desta pessoa está DESATIVADO. O link abaixo deixa ela definir uma senha, mas ela só volta a entrar depois que você clicar em "Reativar" na lista de usuários.',
-            }
-          : {}),
-      }
-    }
+    const r = await gerarLinkDeRecuperacao(admin, origem, email, aut.uid)
+    if (r) return r
   }
 
   // 3) Erro real. O trigger do banco barra e-mail fora do domínio (defesa final).
@@ -241,6 +207,108 @@ export async function convidarUsuario(input: {
     return { ok: false, erro: `Só e-mails ${DOMINIOS_TEXTO} podem ser convidados.` }
   }
   return { ok: false, erro: 'Não foi possível gerar o link de convite. Tente de novo.' }
+}
+
+// Link de RECUPERAÇÃO para uma conta que já existe (mesma tela de definir senha).
+// Extraído na F29 porque passou a ter DOIS chamadores: o ramo 2 de `convidarUsuario`
+// (o admin redigitou um e-mail já cadastrado) e a ação por linha `gerarLinkDeAcesso`.
+// Devolve `null` quando o Auth não produziu o link — quem chama decide a mensagem.
+//
+// REENVIO NÃO MEXE EM CARGO. Deliberado: a ação é "gerar outro link de acesso para uma
+// conta que já existe", e sobrescrever o cargo por esse caminho burlaria as travas de
+// autoproteção (bastaria "reconvidar" o último admin como consulta para trancar o
+// sistema). Trocar cargo é `editarUsuario`, que confere as travas.
+//
+// Conta DESATIVADA é a armadilha: o link é gerado e a pessoa até define a senha, mas o
+// login segue barrado (ban do Auth) e ela não escreve nada (`ativo = false`). Sem este
+// aviso o admin entregaria o link achando que devolveu o acesso.
+async function gerarLinkDeRecuperacao(
+  admin: ReturnType<typeof createAdminClient>,
+  origem: string,
+  email: string,
+  autorUid: string,
+): Promise<{ ok: true; link: string; reenvio: true; aviso?: string } | null> {
+  const recovery = await admin.auth.admin.generateLink({
+    type: 'recovery',
+    email,
+    options: { redirectTo: `${origem}/auth/confirm` },
+  })
+  if (recovery.error || !recovery.data.properties) return null
+
+  const estado = await getEstadoUsuario(recovery.data.user.id).catch(() => null)
+  const desativado = estado ? !estado.ativo : false
+  await registrarEventoAdmin({
+    acao: 'convite_reenviado',
+    autor: autorUid,
+    alvo: email,
+    detalhe: desativado ? { conta_desativada: true } : null,
+  })
+  revalidatePath('/admin/usuarios')
+  return {
+    ok: true,
+    reenvio: true,
+    link: linkConfirmacao(origem, recovery.data.properties.hashed_token, 'recovery'),
+    ...(desativado
+      ? {
+          aviso:
+            'Atenção: o acesso desta pessoa está DESATIVADO. O link abaixo deixa ela definir uma senha, mas ela só volta a entrar depois que você clicar em "Reativar" na lista de usuários.',
+        }
+      : {}),
+  }
+}
+
+// F29/ADM-02b — "Gerar novo link de acesso" na PRÓPRIA LINHA do usuário.
+//
+// Antes, reobter o acesso de alguém exigia deduzir que se devia reabrir "Convidar
+// usuário" e REDIGITAR o e-mail — que está ali na coluna ao lado. O caminho é o mesmo
+// do reenvio (link de recuperação, cargo intocado), só que com o e-mail da linha.
+//
+// ⚠ As DUAS travas do convite valem aqui, e a segunda é a que importa: quem abre um
+// link de recuperação DEFINE A SENHA daquela conta. Sem a checagem, um administrador
+// pegaria o e-mail de um desenvolvedor — que ele lê na própria tabela — e assumiria a
+// conta: cargo dev, área /dev, apagar usuários. É o furo que a F22 fechou no convite;
+// abrir uma segunda porta para o mesmo link sem repeti-la o reabriria inteiro.
+// Falha FECHADA: não deu para saber de quem é o e-mail, recusa.
+export async function gerarLinkDeAcesso(input: { email: string }): Promise<ConviteResult> {
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
+  const parsed = conviteSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'E-mail inválido.' }
+  }
+  const { email } = parsed.data
+
+  if (!eDev(aut.papel)) {
+    let alvo
+    try {
+      alvo = await perfilPorEmail(email)
+    } catch (err) {
+      console.error('[admin/usuarios] falha ao conferir de quem é o e-mail do link', err)
+      return {
+        ok: false,
+        erro: 'Não foi possível conferir esse e-mail agora. Tente de novo em instantes.',
+      }
+    }
+    if (alvo && eDev(alvo.papel)) {
+      return { ok: false, erro: MSG_SO_DEV_GERE_DEV }
+    }
+  }
+
+  const origem = origemDaRequisicao(await headers())
+  if (!origem) {
+    return { ok: false, erro: 'Não foi possível montar o link (endereço do site ausente).' }
+  }
+
+  const r = await gerarLinkDeRecuperacao(createAdminClient(), origem, email, aut.uid)
+  if (!r) {
+    return {
+      ok: false,
+      erro: 'Não foi possível gerar o link de acesso agora. Tente de novo em instantes.',
+    }
+  }
+  return r
 }
 
 // ---- Cargo e vínculos: a gravação (RPC, com o client de SESSÃO) ----

@@ -5,6 +5,7 @@ import {
   MSG_SO_DEV_APAGA,
   MSG_SO_DEV_GERE_DEV,
   MSG_ULTIMO_ADMIN,
+  aguardandoPrimeiroAcesso,
   convidarUsuarioSchema,
   definirStatusUsuarioSchema,
   editarUsuarioSchema,
@@ -655,5 +656,39 @@ describe('editarUsuarioSchema / definirStatusUsuarioSchema', () => {
           .success,
       ).toBe(false)
     }
+  })
+})
+
+// F29/ADM-02a — "aguardando primeiro acesso". Antes, um convidado que nunca terminou
+// de entrar aparecia como "Sem nome · Ativo": indistinguível de quem usa o sistema
+// todo dia, e sem nenhuma pista de que o link do convite continuava pendurado.
+describe('aguardandoPrimeiroAcesso', () => {
+  it('acusa quem nunca logou', () => {
+    expect(aguardandoPrimeiroAcesso({ ultimoAcesso: null, nome: 'Fulano' })).toBe(true)
+  })
+
+  it('acusa o perfil sem nome (o perfil só ganha nome ao definir a senha)', () => {
+    expect(
+      aguardandoPrimeiroAcesso({ ultimoAcesso: '2026-08-01T10:00:00Z', nome: null }),
+    ).toBe(true)
+    expect(
+      aguardandoPrimeiroAcesso({ ultimoAcesso: '2026-08-01T10:00:00Z', nome: '   ' }),
+    ).toBe(true)
+  })
+
+  it('não acusa quem já entrou e tem nome', () => {
+    expect(
+      aguardandoPrimeiroAcesso({ ultimoAcesso: '2026-08-01T10:00:00Z', nome: 'Fulano' }),
+    ).toBe(false)
+  })
+
+  // A guarda que evita a acusação em massa: com o Auth fora do ar, `ultimoAcesso` vem
+  // null para TODO MUNDO. Sem ela a tela diria que a equipe inteira nunca entrou —
+  // logo abaixo do aviso dizendo que a leitura do Auth falhou.
+  it('com o Auth indisponível, só o nome vazio ainda vale como indício', () => {
+    expect(aguardandoPrimeiroAcesso({ ultimoAcesso: null, nome: 'Fulano' }, true)).toBe(
+      false,
+    )
+    expect(aguardandoPrimeiroAcesso({ ultimoAcesso: null, nome: null }, true)).toBe(true)
   })
 })

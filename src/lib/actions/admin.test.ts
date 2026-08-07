@@ -148,4 +148,26 @@ describe('F22 — cargo, status e vínculo só se gravam pelas RPCs, nunca pelo 
     expect(convite!.corpo).toContain('eDev(')
     expect(convite!.corpo).toContain('MSG_SO_DEV_GERE_DEV')
   })
+
+  // F29/ADM-02b — a ação por linha abriu uma SEGUNDA porta para o mesmo link de
+  // recuperação, e quem abre esse link DEFINE A SENHA daquela conta. Sem repetir a
+  // checagem, um administrador pegaria o e-mail de um desenvolvedor — que ele lê na
+  // própria tabela — e assumiria a conta. É o furo que a F22 fechou no convite.
+  it('gerar link de acesso repete a trava anti-furo do convite', () => {
+    const gerar = actionsExportadas().find((a) => a.nome === 'gerarLinkDeAcesso')
+    expect(gerar, 'gerarLinkDeAcesso sumiu do módulo').toBeDefined()
+    expect(gerar!.corpo).toContain('eDev(')
+    expect(gerar!.corpo).toContain('perfilPorEmail(')
+    expect(gerar!.corpo).toContain('MSG_SO_DEV_GERE_DEV')
+  })
+
+  // A trilha de `eventos_admin` não é decorativa: é o que responde "quem gerou um link
+  // para a conta de fulano, e quando". O caminho é compartilhado com o reenvio do
+  // convite, e o registro tem de estar DENTRO dele.
+  it('todo link de recuperação gerado deixa rastro em eventos_admin', () => {
+    expect(SEM_ESPACO).toContain("type:'recovery'")
+    const helper = CODIGO.slice(CODIGO.indexOf('async function gerarLinkDeRecuperacao'))
+    expect(helper).toContain('registrarEventoAdmin(')
+    expect(helper).toContain('convite_reenviado')
+  })
 })

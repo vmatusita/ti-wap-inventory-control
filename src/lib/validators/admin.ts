@@ -60,6 +60,25 @@ export const definirStatusUsuarioSchema = z.object({
   ativo: z.boolean(),
 })
 
+// F29/ADM-02a — "aguardando primeiro acesso": convidado que nunca terminou de entrar.
+//
+// Duas evidências, e as duas importam. `ultimoAcesso === null` é a direta (o Auth
+// nunca registrou um login). O nome vazio é a indireta: o perfil nasce sem nome e só
+// ganha um quando a pessoa define a senha — cobre a conta cujo `last_sign_in_at` não
+// pôde ser lido nesta requisição, e é o que a tela mostrava sozinho antes ("Sem nome").
+//
+// `authIndisponivel` evita a acusação falsa: com o Auth fora do ar, `ultimoAcesso` vem
+// null para TODO MUNDO, e sem esta guarda a tela diria que a equipe inteira nunca
+// entrou. Nesse caso só o nome vazio ainda vale como indício.
+export function aguardandoPrimeiroAcesso(
+  u: { ultimoAcesso: string | null; nome: string | null },
+  authIndisponivel = false,
+): boolean {
+  const semNome = !u.nome || u.nome.trim() === ''
+  if (authIndisponivel) return semNome
+  return u.ultimoAcesso === null || semNome
+}
+
 // ---- F22: gestão avançada (privativa do cargo dev) ----
 // O e-mail novo passa pela MESMA lista de `dominios-email.ts` que o convite. O trigger
 // `handle_new_user` (0041) só cobre INSERT em auth.users — uma TROCA de e-mail não passa

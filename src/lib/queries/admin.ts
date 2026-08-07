@@ -23,6 +23,13 @@ export type UsuarioAdmin = {
    * Normalmente espelha `!ativo`; divergência denuncia uma gravação que ficou pela metade.
    */
   banido: boolean | null
+  /**
+   * F29/ADM-02 — `auth.users.last_sign_in_at`: quando a pessoa entrou pela última
+   * vez. `null` = NUNCA entrou (convite gerado e não usado) OU o Auth não respondeu
+   * (`avisoAuth`). A tela distingue os dois casos pelo aviso; sem esta coluna, um
+   * convidado que nunca ativou era indistinguível de um usuário ativo.
+   */
+  ultimoAcesso: string | null
 }
 
 export type ListaUsuarios = {
@@ -42,7 +49,11 @@ export type ListaUsuarios = {
 const AUTH_PAGINAS_MAX = 50
 const AUTH_POR_PAGINA = 200
 
-type ContaAuth = { email: string | null; banido: boolean }
+type ContaAuth = {
+  email: string | null
+  banido: boolean
+  ultimoAcesso: string | null
+}
 
 // Percorre TODAS as páginas de auth.users. O `perPage: 1000` anterior era um teto fixo sem
 // paginação — silenciosamente correto hoje e silenciosamente errado no dia em que passar.
@@ -66,6 +77,7 @@ async function lerContasAuth(): Promise<{
         porId.set(u.id, {
           email: u.email ?? null,
           banido: Number.isFinite(ate) && ate > agora,
+          ultimoAcesso: u.last_sign_in_at ?? null,
         })
       }
       if (data.users.length < AUTH_POR_PAGINA) break
@@ -99,7 +111,10 @@ export async function listarUsuarios(): Promise<ListaUsuarios> {
       .from('profiles')
       .select('id, nome, created_at, papel, ativo')
       .is('excluido_em', null)
-      .order('created_at', { ascending: true }),
+      // F29/ADM-03b — do mais RECENTE para o mais antigo. Era `ascending: true`, e
+      // quem o admin procura logo depois de convidar é justamente o recém-criado —
+      // que ficava no fundo de uma lista sem busca. Ata em docs/DECISOES.md.
+      .order('created_at', { ascending: false }),
     client.from('operador_filiais').select('usuario_id, filial_id'),
     lerContasAuth(),
   ])
@@ -132,6 +147,7 @@ export async function listarUsuarios(): Promise<ListaUsuarios> {
       ativo: p.ativo,
       vinculos: (vinculosPorUsuario.get(p.id) ?? []).sort((a, b) => a - b),
       banido: contas.aviso ? null : (conta?.banido ?? false),
+      ultimoAcesso: conta?.ultimoAcesso ?? null,
     }
   })
 
