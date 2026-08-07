@@ -34,15 +34,21 @@ export function CopiarPatrimonio({
   async function copiar(e: React.MouseEvent<HTMLButtonElement>) {
     e.stopPropagation()
     // Fora de contexto seguro (http em rede interna, WebView antiga) o
-    // navigator.clipboard nem existe: sai em silencio em vez de quebrar.
-    if (!navigator.clipboard?.writeText) return
+    // navigator.clipboard nem existe. UXG-08a/F27: antes saia em silencio
+    // total — o operador clicava e nada parecia acontecer; agora avisa.
+    if (!navigator.clipboard?.writeText) {
+      toast.error('Não foi possível copiar — copie manualmente.')
+      return
+    }
     try {
       await navigator.clipboard.writeText(valor)
       setCopiado(true)
       toast.success(`${nome} ${concordancia}.`)
       setTimeout(() => setCopiado(false), 2000)
     } catch {
-      // Permissao negada pelo navegador — silencioso, nada quebra.
+      // Permissao negada pelo navegador. UXG-08a/F27: idem, avisa em vez de
+      // falhar em silencio.
+      toast.error('Não foi possível copiar — copie manualmente.')
     }
   }
 

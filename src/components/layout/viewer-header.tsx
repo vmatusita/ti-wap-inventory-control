@@ -1,8 +1,32 @@
+'use client'
+
+import { useFormStatus } from 'react-dom'
 import { Eye, LogOut } from 'lucide-react'
 import { sairVisualizacao } from '@/lib/actions/senhas'
 import { Button } from '@/components/ui/button'
 import { ViewerNav } from '@/components/layout/viewer-nav'
 import { Marca } from '@/components/layout/marca'
+
+// UXG-08b/F27 — precisa ser componente FILHO do <form> pro `useFormStatus`
+// enxergar o `pending` dele (mesmo padrão de auth/confirm/botao-ativar.tsx).
+// Era, junto com o de user-menu.tsx, o único submit sem anti-duplo-clique do
+// app — arquivo virou 'use client' só por causa disto (o resto é apresentação
+// pura, sem estado nenhum).
+function BotaoSair() {
+  const { pending } = useFormStatus()
+  return (
+    <Button
+      type="submit"
+      size="sm"
+      variant="ghost"
+      disabled={pending}
+      className="gap-1.5 text-white hover:bg-white/10 hover:text-white"
+    >
+      <LogOut className="size-4" />
+      {pending ? 'Saindo…' : 'Sair'}
+    </Button>
+  )
+}
 
 // Header do shell REDUZIDO da sessão por senha (OS-F3 3.9.4): marca + navegação
 // (ao vivo / gerados) + rótulo da senha + "Sair". Sem sidebar, sem links de
@@ -20,15 +44,7 @@ export function ViewerHeader({ rotulo }: { rotulo: string }) {
           Visualização · {rotulo}
         </span>
         <form action={sairVisualizacao}>
-          <Button
-            type="submit"
-            size="sm"
-            variant="ghost"
-            className="gap-1.5 text-white hover:bg-white/10 hover:text-white"
-          >
-            <LogOut className="size-4" />
-            Sair
-          </Button>
+          <BotaoSair />
         </form>
       </div>
     </header>

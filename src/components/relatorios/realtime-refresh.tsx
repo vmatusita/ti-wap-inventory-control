@@ -48,9 +48,12 @@ export function RealtimeRefresh() {
 
   return (
     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      {/* UXG-08c/F27 — `motion-reduce:animate-none` no ping (quem pediu menos
+          movimento no SO não via o pulso parar) e par `dark:` no verde (era o
+          único bg-green-500 do app sem variante escura). */}
       <span className="relative flex size-2">
-        <span className="absolute inline-flex size-2 animate-ping rounded-full bg-green-500 opacity-60" />
-        <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+        <span className="absolute inline-flex size-2 animate-ping rounded-full bg-green-500 opacity-60 motion-reduce:animate-none dark:bg-green-400" />
+        <span className="relative inline-flex size-2 rounded-full bg-green-500 dark:bg-green-400" />
       </span>
       {atualizado ? 'atualizado agora' : 'ao vivo'}
     </span>

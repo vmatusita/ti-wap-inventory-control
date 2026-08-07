@@ -1,6 +1,7 @@
 'use client'
 
 import { useTheme } from 'next-themes'
+import { useFormStatus } from 'react-dom'
 import { LogOut, Monitor, Moon, Sun } from 'lucide-react'
 import { signOut } from '@/lib/actions/auth'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -32,6 +33,30 @@ const TEMAS = [
   { valor: 'dark', rotulo: 'Escuro', icone: Moon },
   { valor: 'system', rotulo: 'Sistema', icone: Monitor },
 ] as const
+
+// UXG-08b/F27 — `useFormStatus` só enxerga o `pending` do <form> ANCESTRAL
+// quando é chamado de dentro de um componente FILHO dele (mesmo padrão de
+// auth/confirm/botao-ativar.tsx); por isso o botão de sair vira um componente
+// à parte em vez de inline no JSX de `UserMenu`. Sem isto era o único submit
+// do app sem estado pending — clique duplo no menu disparava dois signOut.
+function ItemSair() {
+  const { pending } = useFormStatus()
+  return (
+    <DropdownMenuItem asChild>
+      <button
+        type="submit"
+        // `disabled:` (pseudo-classe nativa) em vez do `data-disabled` do Radix:
+        // aqui quem desabilita é o atributo HTML no <button> via asChild, não
+        // a prop `disabled` do próprio DropdownMenuItem.
+        className="w-full cursor-pointer disabled:pointer-events-none disabled:opacity-50"
+        disabled={pending}
+      >
+        <LogOut className="size-4" />
+        {pending ? 'Saindo…' : 'Sair'}
+      </button>
+    </DropdownMenuItem>
+  )
+}
 
 // F21 — o CARGO aparece embaixo do nome. Não é enfeite: é a resposta à pergunta
 // "por que eu não vejo o botão de registrar?" sem abrir chamado para a TI. Rótulo
@@ -92,12 +117,7 @@ export function UserMenu({ nome, papel }: { nome: string; papel?: PapelUsuario }
 
         <DropdownMenuSeparator />
         <form action={signOut}>
-          <DropdownMenuItem asChild>
-            <button type="submit" className="w-full cursor-pointer">
-              <LogOut className="size-4" />
-              Sair
-            </button>
-          </DropdownMenuItem>
+          <ItemSair />
         </form>
       </DropdownMenuContent>
     </DropdownMenu>

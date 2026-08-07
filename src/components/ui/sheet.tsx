@@ -75,12 +75,18 @@ function SheetContent({
           <SheetPrimitive.Close data-slot="sheet-close" asChild>
             <Button
               variant="ghost"
-              className="absolute top-3 right-3"
+              // UXG-02/F27 — divergência do shadcn com motivo documentado
+              // (CLAUDE.md): "Close" → "Fechar" (app 100% pt-BR, herdado por 52
+              // arquivos) e alvo de toque >= 40px no mobile (`size-10`), caindo
+              // para os 28px originais (`icon-sm` = size-7) a partir do `sm:` —
+              // mesmo padrão já usado em copiar-patrimonio.tsx/acoes-dev.tsx.
+              // Ata em docs/DECISOES.md.
+              className="absolute top-3 right-3 size-10 sm:size-7"
               size="icon-sm"
             >
               <XIcon
               />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">Fechar</span>
             </Button>
           </SheetPrimitive.Close>
         )}
