@@ -36,7 +36,17 @@ export function ObsTooltip({
           {comIcone && (
             <MessageSquare className="size-3 shrink-0 opacity-60" aria-hidden />
           )}
-          <span className="truncate">{conteudo}</span>
+          {/* REL-13a — o tooltip só existe no hover, que não existe no papel, e o
+              relatório impresso é o substituto do e-mail arquivável: a observação
+              precisa sair COMPLETA. Na mídia print o clamp do `truncate`
+              (nowrap + overflow hidden) é desfeito e o texto quebra em linhas
+              dentro da própria largura da coluna. Vale para TODOS os consumidores
+              do componente — as células do relatório, a tabela de saldo por item,
+              a lista de manutenção, a lista de movimentações e o histórico de
+              lançamentos —, que tinham o mesmo defeito. */}
+          <span className="truncate print:overflow-visible print:whitespace-normal print:break-words">
+            {conteudo}
+          </span>
         </span>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs whitespace-pre-wrap break-words">

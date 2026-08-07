@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { CalendarRange } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,7 @@ export function PeriodoFiltro({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const params = useSearchParams()
   const [isPending, start] = useTransition()
   useReportarNavegacao(isPending)
   const [pDe, setPDe] = useState(de)
@@ -43,14 +44,24 @@ export function PeriodoFiltro({
     setPAte(ate)
   }
 
+  // REL-02 — parte da query ATUAL (preserva filtros/busca das tabelas: sd.*,
+  // en.*, tr.q, mi.q) e sobrescreve só o período, mesmo padrão de
+  // `gerados-filtro.tsx` (aplicar). de/ate somem ao voltar para um preset
+  // nomeado — senão a URL fica contraditória (?preset=semana&de=…&ate=…).
   function aplicarPreset(valor: string) {
-    const novo = new URLSearchParams({ preset: valor })
+    const novo = new URLSearchParams(params.toString())
+    novo.set('preset', valor)
+    novo.delete('de')
+    novo.delete('ate')
     start(() => router.push(`${pathname}?${novo.toString()}`))
   }
 
   function aplicarCustom() {
     if (!pDe || !pAte || pDe > pAte) return
-    const novo = new URLSearchParams({ preset: 'custom', de: pDe, ate: pAte })
+    const novo = new URLSearchParams(params.toString())
+    novo.set('preset', 'custom')
+    novo.set('de', pDe)
+    novo.set('ate', pAte)
     setAberto(false)
     start(() => router.push(`${pathname}?${novo.toString()}`))
   }

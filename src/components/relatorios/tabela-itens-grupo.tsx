@@ -18,6 +18,7 @@ import {
   type CampoDetalhe,
 } from '@/components/relatorios/linha-expansivel'
 import { cn } from '@/lib/utils'
+import { CLASSE_COR_DELTA } from '@/lib/relatorios/delta-kpi'
 import type { SaldoItemPeriodo } from '@/lib/relatorios/tipos'
 
 // Tabela dos grupos 2–3 (§4.2). F6A: mostra Total + Estoque quando o snapshot tem
@@ -107,9 +108,10 @@ export function TabelaItensGrupo({
                       <span
                         className={cn(
                           'inline-flex items-center justify-end gap-0.5 tabular-nums',
-                          i.delta > 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-600 dark:text-red-400',
+                          // REL-10 — fonte única de cor (AA): CLASSE_COR_DELTA,
+                          // a mesma constante dos KPI tiles (verde já em 700
+                          // p/ 4,5:1; vermelho 600 já passava).
+                          i.delta > 0 ? CLASSE_COR_DELTA.verde : CLASSE_COR_DELTA.vermelho,
                         )}
                       >
                         {i.delta > 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}

@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, PackageX, StickyNote } from 'lucide-react'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { manutencaoEmAlerta } from '@/lib/relatorios/manutencao-alerta'
 import { cn } from '@/lib/utils'
+import { CLASSE_COR_DELTA } from '@/lib/relatorios/delta-kpi'
 import type { ManutencaoCaso } from '@/lib/relatorios/tipos'
 
 // Manutenção caso a caso (§4.1): um card por ativo — patrimônio, modelo, chamado,
@@ -101,7 +102,9 @@ export function ManutencaoCasos({
                     Devolvido ao fornecedor:
                   </span>
                 ) : (
-                  <span className="text-green-600 dark:text-green-400">Retorno:</span>
+                  // REL-10 — fonte única de cor (AA): CLASSE_COR_DELTA.verde
+                  // (green-700), não mais o green-600 duplicado à mão.
+                  <span className={CLASSE_COR_DELTA.verde}>Retorno:</span>
                 )}{' '}
                 {formatDate(c.retornoData)}
                 {c.retornoObs ? <span className="italic"> — “{c.retornoObs}”</span> : ''}

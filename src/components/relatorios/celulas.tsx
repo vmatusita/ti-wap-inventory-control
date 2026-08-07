@@ -131,6 +131,10 @@ export function CelulaChamado({ chamado, className }: { chamado: string | null; 
 }
 
 // Coluna de observação truncada + tooltip. `comIcone` mostra o 💬 (movimentações).
+// REL-13a — a observação sai COMPLETA no papel: o clamp é desfeito na mídia print
+// dentro do próprio `ObsTooltip` (obs-tooltip.tsx), que é a fonte única da
+// truncagem. Aqui a largura máxima continua valendo, e é ela que faz o texto
+// quebrar em linhas em vez de esticar a coluna.
 export function CelulaObs({
   texto,
   comIcone,
