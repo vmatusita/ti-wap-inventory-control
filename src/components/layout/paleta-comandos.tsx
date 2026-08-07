@@ -17,6 +17,8 @@ import {
   ClipboardList,
   LayoutDashboard,
   Package,
+  PackagePlus,
+  PackageX,
   Plus,
   Settings,
   Wrench,
@@ -150,6 +152,27 @@ const ACOES: ItemNavegacao[] = [
     apelidos: ['consumivel', 'saldo', 'estoque', 'quantidade'],
     atalho: 'L',
     disparaEm: '/itens',
+  },
+  {
+    // FLX-05 — porta única hoje é o botão da ficha, e só quando o ativo já
+    // está em_manutencao (ativos/[id]/page.tsx). A paleta não navega direto
+    // para DENTRO de uma ficha sem antes achar QUAL ativo, então esta entrada
+    // vai para a LISTA já filtrada nesse status — de lá a ficha e o botão
+    // continuam a um clique. `filial=todas`: ação de escopo global (mesma
+    // sentinela de LINKS_KPI no dashboard), não a lista de trabalho recortada
+    // por cargo que a sidebar/paleta usa para "Pendências".
+    rotulo: 'Devolver ao fornecedor',
+    href: '/ativos?status=em_manutencao&filial=todas',
+    icone: PackageX,
+    apelidos: ['fornecedor', 'baixa', 'sem conserto'],
+  },
+  {
+    // FLX-05 — a mesma ação de primeira linha do card "Ações" do dashboard
+    // (ACOES em page.tsx), que a paleta ainda não oferecia.
+    rotulo: 'Novo equipamento',
+    href: '/ativos/novo',
+    icone: PackagePlus,
+    apelidos: ['compra', 'cadastrar'],
   },
 ]
 

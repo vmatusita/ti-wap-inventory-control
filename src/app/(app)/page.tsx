@@ -10,12 +10,13 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getOperador } from '@/lib/auth/acesso'
-import { rotaRelatorioPadrao, ROTA_RELATORIO_CONSOLIDADO } from '@/lib/relatorios/rota-padrao'
+import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
 import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
+import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 import { itensParaRepor, minimosDoCatalogo } from '@/lib/itens/repor'
 import { hojeISO, formatDate } from '@/lib/format'
 import { rotuloCategoria, pillTipo, rotuloTipo } from '@/lib/dominio'
@@ -25,6 +26,11 @@ import { KpiTiles, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { cn } from '@/lib/utils'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
+
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Dashboard',
+}
 
 // `escrita: true` = o atalho leva a um formulário que GRAVA — some para o cargo
 // Consulta (F21), que continua com os dois atalhos de leitura.
@@ -116,26 +122,34 @@ export default async function DashboardPage() {
     .from('v_fila_pendencias')
     .select('id, ordem, patrimonio, categoria, filial, pendencia')
 
-  const [kpis, pendenciasRes, ultimas, saldosItens, catalogoItens] = await Promise.all([
-    getKpis(client, null),
-    // F18: a MESMA fonte do selo da sidebar e de /pendencias (v_fila_pendencias) —
-    // inclui as pendências de item faltante (uma linha por item). Ler v_pendencias
-    // aqui esconderia os itens (o backfill 0053 tirou o texto do campo livre) e a
-    // prévia divergiria do selo. `ordem` é a chave única por linha (o mesmo ativo
-    // pode ter mais de uma linha).
-    (filiaisDoOperador.length > 0
-      ? filaPendencias.in('filial', filiaisDoOperador)
-      : filaPendencias)
-      // As 5 mais ANTIGAS abertas (as que mais pedem ação), determinístico e na
-      // MESMA ordem da fila (desde asc, desempate por `ordem`) — antes o limit(5)
-      // sem order devolvia 5 arbitrários/instáveis (achado da revisão).
-      .order('desde', { ascending: true, nullsFirst: false })
-      .order('ordem', { ascending: true })
-      .limit(5),
-    getUltimasMovimentacoes(client, null, { de: '2000-01-01', ate: hoje }, 5),
-    getSaldosItens(null),
-    listarItensAtivos(),
-  ])
+  const [kpis, pendenciasRes, ultimas, saldosItens, catalogoItens, conflitos] =
+    await Promise.all([
+      getKpis(client, null),
+      // F18: a MESMA fonte do selo da sidebar e de /pendencias (v_fila_pendencias) —
+      // inclui as pendências de item faltante (uma linha por item). Ler v_pendencias
+      // aqui esconderia os itens (o backfill 0053 tirou o texto do campo livre) e a
+      // prévia divergiria do selo. `ordem` é a chave única por linha (o mesmo ativo
+      // pode ter mais de uma linha).
+      (filiaisDoOperador.length > 0
+        ? filaPendencias.in('filial', filiaisDoOperador)
+        : filaPendencias)
+        // As 5 mais ANTIGAS abertas (as que mais pedem ação), determinístico e na
+        // MESMA ordem da fila (desde asc, desempate por `ordem`) — antes o limit(5)
+        // sem order devolvia 5 arbitrários/instáveis (achado da revisão).
+        .order('desde', { ascending: true, nullsFirst: false })
+        .order('ordem', { ascending: true })
+        .limit(5),
+      getUltimasMovimentacoes(client, null, { de: '2000-01-01', ate: hoje }, 5),
+      getSaldosItens(null),
+      listarItensAtivos(),
+      // FLX-04 — MESMO recorte de filial da fila acima (filiaisDoOperador): o
+      // selo da sidebar soma fila + conflitos com este recorte por cargo
+      // ((app)/layout.tsx:63-73), e o card de Pendências precisa contar a
+      // mesma coisa para não voltar a divergir dele. A função já engole o
+      // próprio erro e devolve 0 — mesma disciplina das outras leituras desta
+      // página (comentário acima do `pendenciasErro`).
+      contarConflitosAbertos(filiaisDoOperador),
+    ])
   // A falha de leitura NÃO pode virar lista vazia: o estado vazio deste card é o
   // comemorativo ("Nenhuma pendência aberta 🎉"), então um erro em
   // `v_fila_pendencias` (RLS, view recriada, timeout) afirmaria ao operador
@@ -258,11 +272,14 @@ export default async function DashboardPage() {
               // "nenhuma pendência aberta" seria uma afirmação global feita sobre
               // uma leitura parcial. Quando há recorte, o texto diz de onde.
               //
-              // ⚠ E fala de FILA, nunca de "pendências" em geral: o selo da sidebar
-              // soma fila + conflitos entre filiais, e este card lê só
-              // `v_fila_pendencias`. Um selo "2" ao lado de um 🎉 categórico seria a
-              // mesma contradição entre superfícies vizinhas que a F25 foi fechar —
-              // o conflito não some, ele está na aba da mesa.
+              // FLX-04 — a fila fala só de `v_fila_pendencias`; conflitos entre
+              // filiais têm fonte e mesa próprias (mesmo motivo do selo da
+              // sidebar somar os dois em (app)/layout.tsx) e não entram nela. O
+              // título "nenhuma pendência NA FILA" continua verdadeiro sozinho —
+              // o que muda é a linha de baixo: com `conflitos` já contado (MESMO
+              // recorte da fila, acima), ela larga a hipótese "se houver" e passa
+              // a dizer o que o selo já sabia, para o card não comemorar 🎉 ao
+              // lado de um selo "2" sem explicar o porquê.
               <EstadoVazio
                 variante="inline"
                 icone={ClipboardCheck}
@@ -271,7 +288,6 @@ export default async function DashboardPage() {
                     ? 'Nenhuma pendência na fila das suas filiais. 🎉'
                     : 'Nenhuma pendência na fila. 🎉'
                 }
-                descricao="conflitos entre filiais, se houver, aparecem em Pendências"
               />
             ) : (
               <ul className="divide-y">
@@ -293,6 +309,29 @@ export default async function DashboardPage() {
                 ))}
               </ul>
             )}
+            {/* FLX-04 — FORA do ramo de fila vazia, de propósito: o selo da
+                sidebar soma fila + conflitos SEMPRE, então esconder esta linha
+                quando a fila tem itens recriaria a mesma divergência entre
+                superfícies vizinhas, só que mais difícil de notar (card "3",
+                selo "5"). Vale inclusive quando a leitura da fila falha — o
+                conflito foi contado por outra fonte, que respondeu. */}
+            {conflitos > 0 && (
+              <p className="flex flex-wrap items-center gap-2 py-2 text-sm text-amber-800 dark:text-amber-300">
+                <TriangleAlert
+                  className="size-4 shrink-0 text-amber-700 dark:text-amber-400"
+                  aria-hidden
+                />
+                <span>
+                  {conflitos} {conflitos === 1 ? 'conflito' : 'conflitos'} entre filiais —{' '}
+                  <Link
+                    href="/pendencias?tipo=conflito"
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    resolver em Pendências
+                  </Link>
+                </span>
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -301,11 +340,15 @@ export default async function DashboardPage() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Últimas movimentações</h2>
               <Link
-                // ⚠ NÃO usa `hrefRelatorios`: este card lista as últimas
-                // movimentações de TODAS as filiais, então o destino é o
-                // Consolidado. Mandar o operador para o relatório da filial dele
-                // aqui seria estreitar o que o card acabou de mostrar amplo.
-                href={ROTA_RELATORIO_CONSOLIDADO}
+                // FLX-02 — antes apontava para o relatório Consolidado
+                // (resquício de antes da F11, quando /movimentacoes não
+                // existia). O card lista as últimas movimentações de TODAS as
+                // filiais, então o destino continua amplo — só que agora na
+                // LISTA (M8), com a MESMA sentinela `filial=todas` de
+                // LINKS_KPI acima: sem ela a ausência do param cairia no
+                // padrão do cargo e estreitaria o que o card acabou de
+                // mostrar.
+                href="/movimentacoes?filial=todas"
                 className="text-xs text-muted-foreground underline-offset-2 hover:underline"
               >
                 ver todas
