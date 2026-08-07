@@ -341,11 +341,32 @@ Escrito para ser lido antes de confiar em qualquer linha acima.
 
 ---
 
-## 12. Smoke de produção
+## 12. CI e smoke de produção
 
-Registrado na §13 quando executado, depois do push. O script (`scripts/smoke/smoke-prod.mjs`)
-lê as credenciais do ambiente por conta própria e **nunca imprime conteúdo de linha** — só
-status, contagens e nomes de coluna.
+### CI — run `31217075137` (commit `5882b8b`)
+
+```
+verificar: success   (lint · testes · CONTRASTE · build)
+banco:     success   (Postgres novo + todas as migrations + roteiros SQL)
+conclusion: success
+```
+
+O step **"Contraste (WCAG 2.1 AA)"** rodou pela primeira vez no CI e passou. O job `banco`
+subiu um Postgres do zero, aplicou a pasta inteira de migrations e rodou os roteiros SQL —
+confirmando, do lado do banco, que a fase não tocou em `supabase/`.
+
+### Smoke de produção
+
+```
+RESUMO · 93 OK · 4 aviso · 0 n/a (pré-F12) · 0 falha
+```
+
+Os mesmos **4 avisos pré-existentes** de catálogo de itens vazio que a F28 já registrava —
+nenhum novo. O script lê as credenciais do ambiente por conta própria e **nunca imprime
+conteúdo de linha**: só status, contagens e nomes de coluna.
+
+⚠ O smoke roda contra o app **no ar** e confere rotas e leituras; ele **não** exercita nenhuma
+das telas novas desta fase (não clica em diálogo, não gera snapshot, não abre a paleta).
 
 ---
 
