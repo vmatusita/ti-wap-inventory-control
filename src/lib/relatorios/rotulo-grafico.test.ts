@@ -3,9 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { STATUS_CHART_COLOR, type StatusAtivo } from '@/lib/dominio'
 import {
   BRAND_AZUL,
+  FRACAO_MINIMA_ROTULO,
+  MAX_PONTOS_COM_ROTULO,
   contrasteWcag,
+  deveRotularSegmento,
   fillRotuloSegmento,
   luminanciaRelativa,
+  mostrarRotulosDaSerie,
 } from './rotulo-grafico'
 
 const BRANCO = '#ffffff'
@@ -90,5 +94,57 @@ describe('BRAND_AZUL', () => {
       luminanciaRelativa(BRAND_AZUL),
       10,
     )
+  })
+})
+
+// F29/REL-06a — o corte do rótulo do segmento empilhado desceu de "≥2" para
+// "≥1 se a barra comportar". O que decide o "comportar" é a fração da barra mais
+// longa, não o valor absoluto.
+describe('deveRotularSegmento', () => {
+  it('rotula o segmento de valor 1 quando ele é grande o bastante na escala', () => {
+    // 1 em 10 = 10% da barra mais longa: cabe.
+    expect(deveRotularSegmento(1, 10)).toBe(true)
+  })
+
+  it('cala o segmento pequeno demais, que sairia por cima do vizinho', () => {
+    // 1 em 400 = 0,25% da largura: o número não cabe no próprio segmento.
+    expect(deveRotularSegmento(1, 400)).toBe(false)
+    expect(deveRotularSegmento(3, 400)).toBe(false)
+  })
+
+  it('o corte é exatamente FRACAO_MINIMA_ROTULO (inclusive)', () => {
+    expect(deveRotularSegmento(4, 100)).toBe(true) // 4% — passa
+    expect(deveRotularSegmento(3, 100)).toBe(false) // 3% — não
+    expect(FRACAO_MINIMA_ROTULO).toBe(0.04)
+  })
+
+  it('zero e negativo nunca recebem rótulo', () => {
+    expect(deveRotularSegmento(0, 10)).toBe(false)
+    expect(deveRotularSegmento(-2, 10)).toBe(false)
+  })
+
+  it('entrada degenerada não quebra nem rotula', () => {
+    expect(deveRotularSegmento(5, 0)).toBe(false)
+    expect(deveRotularSegmento(Number.NaN, 10)).toBe(false)
+    expect(deveRotularSegmento(5, Number.NaN)).toBe(false)
+  })
+
+  it('é mais permissivo que o corte antigo: o valor 1 volta a aparecer', () => {
+    // A regressão que este item conserta: com `n >= 2`, um segmento de 1 ficava
+    // sem rótulo E sem tooltip — ilegível em canal nenhum.
+    expect(deveRotularSegmento(1, 20)).toBe(true)
+  })
+})
+
+describe('mostrarRotulosDaSerie', () => {
+  it('mantém os rótulos numa semana (7 pontos) e num mês por semana', () => {
+    expect(mostrarRotulosDaSerie(7)).toBe(true)
+    expect(mostrarRotulosDaSerie(12)).toBe(true)
+  })
+
+  it('esconde a partir de 21 pontos, onde os rótulos colidem', () => {
+    expect(mostrarRotulosDaSerie(MAX_PONTOS_COM_ROTULO)).toBe(true)
+    expect(mostrarRotulosDaSerie(MAX_PONTOS_COM_ROTULO + 1)).toBe(false)
+    expect(mostrarRotulosDaSerie(365)).toBe(false)
   })
 })

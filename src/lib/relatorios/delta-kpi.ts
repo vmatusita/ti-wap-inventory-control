@@ -1,3 +1,5 @@
+import { formatDate } from '@/lib/format'
+import { periodoAnterior, type Periodo } from '@/lib/relatorios/periodo'
 import type { KpisRelatorio } from '@/lib/relatorios/tipos'
 
 // Semântica do Δ dos KPIs (F16/T2). Puro e testado.
@@ -51,4 +53,27 @@ export const CLASSE_COR_DELTA: Record<CorDelta, string> = {
   verde: 'text-green-700 dark:text-green-400',
   vermelho: 'text-red-600 dark:text-red-400',
   neutro: 'text-muted-foreground',
+}
+
+// F29/REL-07 — o tile mostrava seta + variação e mais nada: "▲ +12" não diz de QUE
+// número nem em relação a QUAL janela. O snapshot v2 carrega `kpisAnterior` inteiro
+// desde a F3B, e a janela é derivável do período — só faltava dizer.
+//
+// A janela sai de `periodoAnterior`, a MESMA função que o motor usa para calcular
+// `kpisAnterior` (por isso ela mudou de casa para o módulo puro): rótulo e número
+// não têm como divergir. Sem período (o dashboard não tem um), devolve `null` e o
+// tile fica exatamente como era.
+export function textoDelta(
+  valorAtual: number,
+  valorAnterior: number,
+  periodo: Periodo | undefined,
+): string | null {
+  if (!periodo) return null
+  const janela = periodoAnterior(periodo)
+  return (
+    `Anterior: ${valorAnterior.toLocaleString('pt-BR')} ` +
+    `(${formatDate(janela.de)} a ${formatDate(janela.ate)}) → ` +
+    `atual: ${valorAtual.toLocaleString('pt-BR')} ` +
+    `(${formatDate(periodo.de)} a ${formatDate(periodo.ate)})`
+  )
 }

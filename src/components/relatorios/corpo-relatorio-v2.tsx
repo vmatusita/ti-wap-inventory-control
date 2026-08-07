@@ -1,5 +1,6 @@
 import { GRUPO_ITEM_META } from '@/lib/dominio'
 import { formatDate } from '@/lib/format'
+import { achatarDisponiveis } from '@/lib/relatorios/resumo'
 import type { GranularidadeSerie, SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
 import { KpiTiles, GrupoKpis, type LinksKpi } from '@/components/relatorios/kpi-tiles'
@@ -52,6 +53,9 @@ export function CorpoRelatorioV2({
   links?: LinksKpi
 }) {
   const s = snapshot
+  // F29/REL-07 — o período vem do META congelado, não de `hoje`: no snapshot a
+  // janela de comparação do Δ tem de ser a do dia em que ele foi gerado.
+  const periodo = { de: s.meta.de, ate: s.meta.ate }
   const serie = s.serieMovimentacoes
   const temMov = serie.pontos.some((p) => p.saidas > 0 || p.devolucoes > 0)
   const acessorios = s.grupos.find((g) => g.grupo === 'acessorio')
@@ -62,10 +66,16 @@ export function CorpoRelatorioV2({
       <ChipsAncora
         temTransferencias={s.transferencias.length > 0}
         temMovItens={(s.movimentacoesItens?.length ?? 0) > 0}
+        temObservacao={Boolean(s.meta.observacao && s.meta.observacao.trim())}
       />
 
       {/* 1. KPIs gerais + série */}
-      <KpiTiles kpis={s.kpis} anterior={s.kpisAnterior} links={links} />
+      <KpiTiles
+        kpis={s.kpis}
+        anterior={s.kpisAnterior}
+        links={links}
+        periodo={periodo}
+      />
       {/* B1/F17 — o snapshot v2 sempre tem kpisAnterior, então o Δ (e sua legenda)
           sempre aparecem aqui; o dashboard e os snapshots v1 usam KpiTiles sem
           `anterior` (sem Δ) e não passam por este corpo. */}
@@ -87,7 +97,12 @@ export function CorpoRelatorioV2({
         descricao="notebooks, desktops, monitores, celulares, tablets"
         sempreAberto
       >
-        <GrupoKpis kpis={s.kpis} anterior={s.kpisAnterior} links={links} />
+        <GrupoKpis
+          kpis={s.kpis}
+          anterior={s.kpisAnterior}
+          links={links}
+          periodo={periodo}
+        />
 
         <div className="rel-print-cols grid gap-3.5 md:grid-cols-2">
           <CardRelatorio
@@ -209,9 +224,23 @@ export function CorpoRelatorioV2({
       {/* 8. Movimentações de itens por quantidade (B5 — seção própria) */}
       <TabelaMovItens rows={s.movimentacoesItens} ehGeral={s.meta.ehGeral} />
 
-      {/* 9. Resumo no formato do e-mail */}
-      <CardRelatorio wide titulo="Resumo do período" subtitulo="no formato do e-mail semanal">
-        <ResumoPeriodoCard resumo={s.resumo} />
+      {/* 9. Resumo no formato do e-mail. `id` (F29/REL-09a) é o alvo do chip
+          "Resumo" — a seção mais procurada não tinha permalink nem atalho na barra
+          sticky. Os extras (F29/REL-08) acrescentam ao texto COPIADO a linha de
+          KPIs e o bloco "Em estoque (N)", que é como o e-mail real abria. */}
+      <CardRelatorio
+        id="resumo"
+        wide
+        titulo="Resumo do período"
+        subtitulo="no formato do e-mail semanal"
+      >
+        <ResumoPeriodoCard
+          resumo={s.resumo}
+          extras={{
+            kpis: s.kpis,
+            disponiveis: achatarDisponiveis(s.disponiveisPorModelo),
+          }}
+        />
       </CardRelatorio>
 
       {/* 10. Observação da semana (B4 — só quando gravada no ato de gerar) */}

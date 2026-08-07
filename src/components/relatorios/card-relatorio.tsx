@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 // Card padrão dos relatórios (grade do mockup). `wide` ocupa a linha inteira.
 // Todo card trata estado vazio ("Sem registros no período") — OS-F3 3.3.7.
 export function CardRelatorio({
+  id,
   titulo,
   subtitulo,
   acao,
@@ -13,6 +14,9 @@ export function CardRelatorio({
   contentClassName,
   children,
 }: {
+  /** F29/REL-09a — alvo de âncora (`#resumo`). Só quem tem chip na barra sticky
+   *  passa; sem `id` o card é exatamente o de antes. */
+  id?: string
   titulo: string
   subtitulo?: string
   acao?: React.ReactNode
@@ -25,7 +29,11 @@ export function CardRelatorio({
 }) {
   return (
     <section
+      id={id}
       className={cn(
+        // `scroll-mt-28` só quando o card é alvo de âncora: 112px é a pilha sticky
+        // do celular (header 56px + a barra de chips), a mesma medida das seções.
+        id && 'scroll-mt-28',
         // `min-w-0`: item de grid tem `min-width:auto`, que resolve para o
         // min-content do conteúdo. Com as tabelas de item (`th/td` em
         // `whitespace-nowrap`) isso inflava a trilha `1fr` para além do

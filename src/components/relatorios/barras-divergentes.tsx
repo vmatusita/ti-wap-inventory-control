@@ -1,7 +1,12 @@
 'use client'
 
 import { Bar, BarChart, LabelList, ReferenceLine, XAxis, YAxis } from 'recharts'
-import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart'
 import type { SaldoItemPeriodo } from '@/lib/relatorios/tipos'
 
 // Movimentação do período por item (§4.2): barras DIVERGENTES — entradas para a
@@ -16,6 +21,34 @@ const config = {
 function abs(v: unknown): string {
   const n = Math.abs(Number(v))
   return n > 0 ? String(n) : ''
+}
+
+// F29/REL-06a — o tooltip deste gráfico não existia, e não bastava plugá-lo: as
+// saídas são gravadas NEGATIVAS no dado (é o que as joga para a esquerda), então o
+// conteúdo padrão diria "Saídas −3". O formatter refaz a linha em valor absoluto,
+// mantendo o quadradinho de cor e o rótulo do config.
+function LinhaTooltip({
+  cor,
+  rotulo,
+  valor,
+}: {
+  cor: string | undefined
+  rotulo: string
+  valor: number
+}) {
+  return (
+    <div className="flex w-full items-center gap-2">
+      <span
+        aria-hidden
+        className="size-2.5 shrink-0 rounded-[2px]"
+        style={{ background: cor }}
+      />
+      <span className="text-muted-foreground">{rotulo}</span>
+      <span className="ml-auto font-mono font-medium tabular-nums text-foreground">
+        {Math.abs(Number(valor)).toLocaleString('pt-BR')}
+      </span>
+    </div>
+  )
 }
 
 export function BarrasDivergentes({ itens }: { itens: SaldoItemPeriodo[] }) {
@@ -61,6 +94,20 @@ export function BarrasDivergentes({ itens }: { itens: SaldoItemPeriodo[] }) {
             tickFormatter={(v: string) => (v.length > 18 ? `${v.slice(0, 17)}…` : v)}
           />
           <ReferenceLine x={0} stroke="var(--border)" />
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent
+                formatter={(valor, nome, item) => (
+                  <LinhaTooltip
+                    cor={item?.color}
+                    rotulo={config[nome as keyof typeof config]?.label ?? String(nome)}
+                    valor={Number(valor)}
+                  />
+                )}
+              />
+            }
+          />
           <Bar dataKey="saidas" fill="var(--color-saidas)" stackId="mov" radius={[4, 0, 0, 4]}>
             <LabelList dataKey="saidas" position="left" offset={6} className="fill-foreground" fontSize={11} formatter={abs} />
           </Bar>

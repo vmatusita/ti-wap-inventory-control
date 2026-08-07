@@ -19,13 +19,21 @@ const BASE: { href: string; rotulo: string }[] = [
 export function ChipsAncora({
   temTransferencias,
   temMovItens,
+  temObservacao,
 }: {
   temTransferencias?: boolean
   temMovItens?: boolean
+  /** F29/REL-09a — a seção `#observacao` já existia; faltava o chip. */
+  temObservacao?: boolean
 }) {
   const chips = [...BASE]
   if (temTransferencias) chips.push({ href: '#transferencias', rotulo: 'Transferências' })
   if (temMovItens) chips.push({ href: '#mov-itens', rotulo: 'Itens' })
+  // F29/REL-09a — "Resumo do período" é a seção mais procurada do relatório (é o
+  // texto que vai para o e-mail) e era a única sem chip nem permalink; ela fecha o
+  // corpo, então o chip vem depois das tabelas e antes de "Como ler".
+  chips.push({ href: '#resumo', rotulo: 'Resumo' })
+  if (temObservacao) chips.push({ href: '#observacao', rotulo: 'Observações' })
   // F17/B4 — âncora do glossário "Como ler este relatório" (sempre presente no corpo
   // v2, único que renderiza estes chips). Fragmento na MESMA página → seguro para o
   // visualizador por senha (nenhum href para fora de /relatorios).

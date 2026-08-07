@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +25,24 @@ export function GrupoColapsavel({
 }) {
   const [aberto, setAberto] = useState(sempreAberto)
   const conteudoId = `${id}-conteudo`
+
+  // F29/REL-09b — no celular os grupos nascem FECHADOS, e o chip-âncora rolava até
+  // um título com o corpo escondido: o clique parecia não fazer nada. Abrir quando o
+  // fragmento aponta para este grupo conserta o mount (link colado/favorito) e o
+  // `hashchange` (clique no chip com a página já aberta — o navegador não recarrega).
+  //
+  // Só ABRE, nunca fecha: sair da âncora não pode recolher um grupo que o leitor
+  // acabou de expandir à mão. Roda no cliente (não há `location` no SSR), e no
+  // desktop é inofensivo — lá o conteúdo é `md:block` de qualquer forma.
+  useEffect(() => {
+    const alvo = `#${id}`
+    function abrirSeForOAlvo() {
+      if (window.location.hash === alvo) setAberto(true)
+    }
+    abrirSeForOAlvo()
+    window.addEventListener('hashchange', abrirSeForOAlvo)
+    return () => window.removeEventListener('hashchange', abrirSeForOAlvo)
+  }, [id])
 
   return (
     <section id={id} className="scroll-mt-28 break-before-page space-y-3">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { KpisRelatorio } from '@/lib/relatorios/tipos'
-import { CLASSE_COR_DELTA, corDelta, SENTIDO_KPI } from './delta-kpi'
+import { CLASSE_COR_DELTA, corDelta, SENTIDO_KPI, textoDelta } from './delta-kpi'
 
 // Todas as chaves de KpisRelatorio (menos as opcionais? emprestado é opcional no
 // tipo mas o mapa cobre). Trava que o mapa cobre exatamente o conjunto esperado.
@@ -79,5 +79,31 @@ describe('CLASSE_COR_DELTA', () => {
     expect(CLASSE_COR_DELTA.verde).toContain('green')
     expect(CLASSE_COR_DELTA.vermelho).toContain('red')
     expect(CLASSE_COR_DELTA.neutro).toContain('muted-foreground')
+  })
+})
+
+// F29/REL-07 — o Δ dizia "▲ +12" e mais nada: de que número, em relação a que
+// janela? O texto da Dica responde, usando a MESMA `periodoAnterior` que o motor
+// usa para calcular `kpisAnterior` — rótulo e número não podem divergir.
+describe('textoDelta', () => {
+  it('diz o valor anterior, a janela de comparação e o valor atual', () => {
+    expect(textoDelta(92, 80, { de: '2026-07-12', ate: '2026-07-18' })).toBe(
+      'Anterior: 80 (05/07/2026 a 11/07/2026) → atual: 92 (12/07/2026 a 18/07/2026)',
+    )
+  })
+
+  it('sem período (dashboard) não monta texto nenhum — o tile fica como era', () => {
+    expect(textoDelta(92, 80, undefined)).toBeNull()
+  })
+
+  it('a janela tem a MESMA duração do período, terminando na véspera', () => {
+    const t = textoDelta(1, 1, { de: '2026-07-15', ate: '2026-07-15' })
+    expect(t).toContain('(14/07/2026 a 14/07/2026)')
+  })
+
+  it('formata milhar em pt-BR nos dois valores', () => {
+    const t = textoDelta(1234, 1200, { de: '2026-01-01', ate: '2026-01-31' })
+    expect(t).toContain('Anterior: 1.200')
+    expect(t).toContain('atual: 1.234')
   })
 })

@@ -4,12 +4,20 @@ import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { gerarTextoResumo } from '@/lib/relatorios/resumo'
+import { gerarTextoResumo, type ExtrasResumo } from '@/lib/relatorios/resumo'
 import type { ResumoPeriodo } from '@/lib/relatorios/tipos'
 
 // Resumo do período no formato do e-mail (OS-F3 3.3.6) + botão "Copiar texto".
-export function ResumoPeriodoCard({ resumo }: { resumo: ResumoPeriodo }) {
-  const texto = gerarTextoResumo(resumo)
+// F29/REL-08 — `extras` acrescenta a linha de KPIs e o bloco "Em estoque (N)", que
+// é como o e-mail real abria. Ausente = o texto de antes, sem mudança nenhuma.
+export function ResumoPeriodoCard({
+  resumo,
+  extras,
+}: {
+  resumo: ResumoPeriodo
+  extras?: ExtrasResumo
+}) {
+  const texto = gerarTextoResumo(resumo, extras)
   const [copiado, setCopiado] = useState(false)
 
   async function copiar() {

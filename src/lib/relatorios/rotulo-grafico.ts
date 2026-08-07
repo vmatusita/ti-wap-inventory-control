@@ -79,3 +79,33 @@ export function fillRotuloSegmento(corBarra: string): string {
     ? 'fill-white'
     : 'fill-black'
 }
+
+// F29/REL-06a — QUANDO desenhar o número dentro do segmento empilhado.
+//
+// O corte era `>= 2`: um segmento de valor 1 ficava sem rótulo E sem tooltip, ou
+// seja, ilegível em canal NENHUM — e é justamente onde âmbar e laranja vizinhos se
+// confundem para daltônicos. Com o tooltip entrando junto (o desempate por hover),
+// o corte pode descer para 1 — mas só quando a barra COMPORTA: um "1" ao lado de
+// uma barra de 400 sai por cima do vizinho e piora a leitura.
+//
+// A largura do segmento é proporcional ao total da linha mais larga, então
+// `valor / maxTotal` é a fração da área de plotagem que ele ocupa. 4% é o menor
+// pedaço que ainda cabe dois dígitos a 11px nas larguras que o card usa (~320px no
+// celular): abaixo disso o número seria desenhado por cima do segmento vizinho.
+export const FRACAO_MINIMA_ROTULO = 0.04
+
+export function deveRotularSegmento(valor: number, maxTotal: number): boolean {
+  if (!Number.isFinite(valor) || valor < 1) return false
+  if (!Number.isFinite(maxTotal) || maxTotal <= 0) return false
+  return valor / maxTotal >= FRACAO_MINIMA_ROTULO
+}
+
+// F29/REL-06b — QUANDO desenhar o rótulo de valor em cima de cada barra da série
+// temporal. Em período longo (preset "Este ano" com balde diário) os números
+// colidem e viram uma tarja ilegível; acima do teto eles somem e entra um eixo Y
+// enxuto, com o valor exato ficando no tooltip (que a série sempre teve).
+export const MAX_PONTOS_COM_ROTULO = 20
+
+export function mostrarRotulosDaSerie(qtdPontos: number): boolean {
+  return qtdPontos <= MAX_PONTOS_COM_ROTULO
+}

@@ -1,7 +1,12 @@
 'use client'
 
 import { Bar, BarChart, LabelList, XAxis, YAxis } from 'recharts'
-import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart'
 import {
   STATUS_CHART_COLOR,
   STATUS_ORDEM,
@@ -9,18 +14,12 @@ import {
   rotuloStatus,
   type StatusAtivo,
 } from '@/lib/dominio'
-import { fillRotuloSegmento } from '@/lib/relatorios/rotulo-grafico'
+import { deveRotularSegmento, fillRotuloSegmento } from '@/lib/relatorios/rotulo-grafico'
 import type { EstoqueCatStatus } from '@/lib/relatorios/tipos'
 
 // Estoque no último dia por categoria × status (§4.1): barras horizontais
 // EMPILHADAS — uma barra por categoria, segmentos por status, rótulo numérico em
 // cada segmento + total na ponta. Rótulo de valor sempre visível (regra §5).
-
-// Esconde rótulos de segmentos muito pequenos (ilegíveis); o total fica na ponta.
-function rotuloSegmento(v: unknown): string {
-  const n = Number(v)
-  return n >= 2 ? String(n) : ''
-}
 
 export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
   // Status presentes em qualquer categoria (na ordem canônica), p/ as séries.
@@ -49,6 +48,13 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
 
   const altura = Math.max(120, data.length * 42 + 16)
   const ultimo = presentes[presentes.length - 1]
+  // Referência de largura para decidir o que cabe: a barra mais longa ocupa a área
+  // inteira de plotagem, então a fração de cada segmento é `valor / maxTotal`.
+  const maxTotal = Math.max(1, ...dados.map((d) => d.total))
+  const rotuloSegmento = (v: unknown): string => {
+    const n = Number(v)
+    return deveRotularSegmento(n, maxTotal) ? String(n) : ''
+  }
 
   return (
     <div>
@@ -71,6 +77,11 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
             axisLine={false}
             tick={{ fontSize: 12 }}
           />
+          {/* F29/REL-06a — este gráfico não tinha tooltip nenhum. Segmento pequeno
+              ficava sem rótulo E sem hover, e âmbar × laranja vizinhos são quase a
+              mesma cor para daltônicos: o tooltip é o desempate que faltava. Mesmo
+              par (`cursor={false}` + ChartTooltipContent) das barras horizontais. */}
+          <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
           {presentes.map((s) => (
             <Bar
               key={s}
@@ -83,7 +94,9 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
                   4,5:1 em quase todo segmento. Agora sai branco ou preto, o que
                   contrastar mais com a cor daquela barra (rotulo-grafico.ts);
                   como as cores de status são hex fixos, o resultado vale igual
-                  no tema claro e no escuro. */}
+                  no tema claro e no escuro.
+                  F29 — o corte desceu de "≥2" para "≥1, se a barra comportar":
+                  `deveRotularSegmento` decide pela fração da barra mais longa. */}
               <LabelList
                 dataKey={s}
                 position="center"

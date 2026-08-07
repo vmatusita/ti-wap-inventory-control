@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { gerarTextoResumo } from '@/lib/relatorios/resumo'
+import { achatarDisponiveis, gerarTextoResumo } from '@/lib/relatorios/resumo'
 import type { ResumoPeriodo, ResumoTipo } from '@/lib/relatorios/tipos'
 
 // Dados 100% fictícios (CLAUDE.md regra 2). B3/F6B: cada motivo em linha própria;
@@ -164,5 +164,109 @@ describe('gerarTextoResumo — B3: quebra de linha por motivo', () => {
     )
     expect(texto.split('\n')).toContain('Foi realizada 1 saída:')
     expect(texto).toContain('  novo colaborador: 01 notebook')
+  })
+})
+
+// F29/REL-08 — o texto copiado passou a incluir o que o e-mail real trazia: a
+// linha de KPIs e o bloco "Em estoque (N)". Os extras são OPCIONAIS: sem eles a
+// saída tem de ser byte a byte a de antes (é o que os casos acima travam).
+describe('gerarTextoResumo — extras (F29/REL-08)', () => {
+  const KPIS = {
+    total: 412,
+    em_uso: 300,
+    em_estoque: 80,
+    reservado: 12,
+    em_triagem: 8,
+    em_manutencao: 7,
+    defasado: 5,
+    emprestado: 3,
+  }
+
+  it('sem extras, o texto é EXATAMENTE o de antes', () => {
+    const base = gerarTextoResumo(resumo({}))
+    expect(gerarTextoResumo(resumo({}), {})).toBe(base)
+    expect(gerarTextoResumo(resumo({}), undefined)).toBe(base)
+  })
+
+  it('a linha de KPIs entra logo abaixo do período', () => {
+    const linhas = gerarTextoResumo(resumo({}), { kpis: KPIS }).split('\n')
+    expect(linhas[0]).toContain('No período de')
+    expect(linhas[1]).toBe('')
+    expect(linhas[2]).toBe(
+      'Total 412 · Em uso 300 · Em estoque 80 · Reservados 12 · Em triagem 8 · Em manutenção 7 · Reserva técnica 5',
+    )
+  })
+
+  it('"Em estoque" fecha o texto, do modelo mais numeroso ao menos', () => {
+    const texto = gerarTextoResumo(resumo({}), {
+      disponiveis: [
+        { modelo: 'Positivo Master', total: 4 },
+        { modelo: 'Dell Latitude 3440', total: 16 },
+      ],
+    })
+    const linhas = texto.split('\n')
+    expect(linhas[linhas.length - 1]).toBe(
+      'Em estoque (20): 16× Dell Latitude 3440, 04× Positivo Master',
+    )
+    // Linha em branco separando das devoluções — o bloco não gruda no anterior.
+    expect(linhas[linhas.length - 2]).toBe('')
+  })
+
+  it('empate de total desempata pelo nome, em pt-BR', () => {
+    const texto = gerarTextoResumo(resumo({}), {
+      disponiveis: [
+        { modelo: 'Órion 5', total: 2 },
+        { modelo: 'Alfa 1', total: 2 },
+      ],
+    })
+    expect(texto).toContain('02× Alfa 1, 02× Órion 5')
+  })
+
+  it('modelo zerado não entra na lista nem no total entre parênteses', () => {
+    const texto = gerarTextoResumo(resumo({}), {
+      disponiveis: [
+        { modelo: 'Com saldo', total: 3 },
+        { modelo: 'Sem saldo', total: 0 },
+      ],
+    })
+    expect(texto).toContain('Em estoque (3): 03× Com saldo')
+    expect(texto).not.toContain('Sem saldo')
+  })
+
+  it('sem nenhum modelo com saldo, o bloco não aparece (nem uma linha vazia solta)', () => {
+    const texto = gerarTextoResumo(resumo({}), { disponiveis: [] })
+    expect(texto).not.toContain('Em estoque')
+    expect(texto).toBe(gerarTextoResumo(resumo({})))
+  })
+
+  it('o total entre parênteses é a soma da lista impressa', () => {
+    const texto = gerarTextoResumo(resumo({}), {
+      disponiveis: [
+        { modelo: 'A', total: 7 },
+        { modelo: 'B', total: 5 },
+        { modelo: '   ', total: 2 },
+      ],
+    })
+    expect(texto).toContain('Em estoque (14): 07× A, 05× B, 02× —')
+  })
+})
+
+describe('achatarDisponiveis', () => {
+  it('junta os modelos de todas as categorias numa lista só', () => {
+    expect(
+      achatarDisponiveis([
+        { modelos: [{ modelo: 'Notebook X', total: 3 }] },
+        { modelos: [{ modelo: 'Monitor Y', total: 5 }, { modelo: 'Monitor Z', total: 1 }] },
+      ]),
+    ).toEqual([
+      { modelo: 'Notebook X', total: 3 },
+      { modelo: 'Monitor Y', total: 5 },
+      { modelo: 'Monitor Z', total: 1 },
+    ])
+  })
+
+  it('grupo sem modelo não deixa buraco', () => {
+    expect(achatarDisponiveis([{ modelos: [] }])).toEqual([])
+    expect(achatarDisponiveis([])).toEqual([])
   })
 })

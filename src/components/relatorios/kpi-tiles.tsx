@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Dica } from '@/components/ui/dica'
+import type { Periodo } from '@/lib/relatorios/periodo'
 import type { KpisRelatorio } from '@/lib/relatorios/tipos'
-import { CLASSE_COR_DELTA, corDelta } from '@/lib/relatorios/delta-kpi'
+import { CLASSE_COR_DELTA, corDelta, textoDelta } from '@/lib/relatorios/delta-kpi'
 
 // Destinos opcionais por tile (OS-F9 / T2). Só o dashboard passa: nos relatórios
 // (ao vivo e snapshot) a prop não vem e o tile continua sendo uma <div> — mesmo
@@ -25,22 +27,50 @@ const TILES: { chave: keyof KpisRelatorio; rotulo: string; sub: string }[] = [
 // Δ vs período anterior: seta + valor. F16/T2 — a COR carrega a semântica por
 // indicador (verde=bom, vermelho=ruim, cinza=neutro), via `corDelta(chave, delta)`;
 // a SETA ▲▼ permanece (a cor nunca é o único canal). Δ zero é neutro.
-export function DeltaKpi({ delta, chave }: { delta: number; chave: keyof KpisRelatorio }) {
-  if (delta === 0) {
-    return <span className="text-[11px] text-muted-foreground tabular-nums">→ 0</span>
-  }
-  const positivo = delta > 0
+//
+// F29/REL-07 — quando o período é conhecido (relatório ao vivo e snapshot), o Δ vira
+// gatilho de `Dica`: "Anterior: N (dd/MM a dd/MM) → atual: M (dd/MM a dd/MM)". A Dica
+// abre por FOCO de teclado, não só por hover, e a seta + o número continuam visíveis
+// — nada do que o papel precisa ler passou para o hover.
+export function DeltaKpi({
+  delta,
+  chave,
+  valorAtual,
+  valorAnterior,
+  periodo,
+}: {
+  delta: number
+  chave: keyof KpisRelatorio
+  valorAtual?: number
+  valorAnterior?: number
+  periodo?: Periodo
+}) {
+  const conteudo =
+    delta === 0 ? (
+      <span className="text-[11px] text-muted-foreground tabular-nums">→ 0</span>
+    ) : (
+      <span
+        className={cn(
+          'inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums',
+          CLASSE_COR_DELTA[corDelta(chave, delta)],
+        )}
+      >
+        {delta > 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+        {delta > 0 ? '+' : ''}
+        {delta.toLocaleString('pt-BR')}
+      </span>
+    )
+
+  const texto =
+    valorAtual === undefined || valorAnterior === undefined
+      ? null
+      : textoDelta(valorAtual, valorAnterior, periodo)
+  if (!texto) return conteudo
+
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums',
-        CLASSE_COR_DELTA[corDelta(chave, delta)],
-      )}
-    >
-      {positivo ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
-      {positivo ? '+' : ''}
-      {delta.toLocaleString('pt-BR')}
-    </span>
+    <Dica texto={texto} className="inline-flex">
+      {conteudo}
+    </Dica>
   )
 }
 
@@ -48,16 +78,21 @@ export function KpiTiles({
   kpis,
   anterior,
   links,
+  periodo,
 }: {
   kpis: KpisRelatorio
   anterior?: KpisRelatorio
   links?: LinksKpi
+  /** F29/REL-07 — período do relatório, para a Dica dizer a janela de comparação.
+   *  Ausente (dashboard) = Δ exatamente como antes, sem Dica. */
+  periodo?: Periodo
 }) {
   return (
     <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-7">
       {TILES.map((t) => {
         const valor = kpis[t.chave] ?? 0
-        const delta = anterior ? valor - (anterior[t.chave] ?? 0) : null
+        const valorAnterior = anterior ? (anterior[t.chave] ?? 0) : null
+        const delta = valorAnterior === null ? null : valor - valorAnterior
         const href = links?.[t.chave]
         const classe = cn(
           'rounded-xl border bg-card px-3.5 py-3',
@@ -72,7 +107,15 @@ export function KpiTiles({
               <span className="text-2xl font-bold tabular-nums">
                 {valor.toLocaleString('pt-BR')}
               </span>
-              {delta != null && <DeltaKpi delta={delta} chave={t.chave} />}
+              {delta != null && (
+                <DeltaKpi
+                  delta={delta}
+                  chave={t.chave}
+                  valorAtual={valor}
+                  valorAnterior={valorAnterior ?? undefined}
+                  periodo={periodo}
+                />
+              )}
             </div>
             <div className="text-[11px] text-muted-foreground">{t.sub}</div>
           </>
@@ -116,16 +159,19 @@ export function GrupoKpis({
   kpis,
   anterior,
   links,
+  periodo,
 }: {
   kpis: KpisRelatorio
   anterior?: KpisRelatorio
   links?: LinksKpi
+  periodo?: Periodo
 }) {
   return (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
       {GRUPO_TILES.map((t) => {
         const valor = kpis[t.chave] ?? 0
-        const delta = anterior ? valor - (anterior[t.chave] ?? 0) : null
+        const valorAnterior = anterior ? (anterior[t.chave] ?? 0) : null
+        const delta = valorAnterior === null ? null : valor - valorAnterior
         const href = links?.[t.chave]
         const classe = 'rounded-lg border bg-card px-3 py-2.5'
         const conteudo = (
@@ -135,7 +181,15 @@ export function GrupoKpis({
               <span className="text-xl font-bold tabular-nums">
                 {valor.toLocaleString('pt-BR')}
               </span>
-              {delta != null && <DeltaKpi delta={delta} chave={t.chave} />}
+              {delta != null && (
+                <DeltaKpi
+                  delta={delta}
+                  chave={t.chave}
+                  valorAtual={valor}
+                  valorAnterior={valorAnterior ?? undefined}
+                  periodo={periodo}
+                />
+              )}
             </div>
             <div className="text-[11px] text-muted-foreground">{t.sub}</div>
           </>

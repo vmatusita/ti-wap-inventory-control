@@ -1,12 +1,13 @@
 'use client'
 
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from 'recharts'
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { mostrarRotulosDaSerie } from '@/lib/relatorios/rotulo-grafico'
 import type { SerieMovimentacoes } from '@/lib/relatorios/tipos'
 
 // Movimentações no período — barras agrupadas saídas (amarelo) × devoluções
@@ -32,6 +33,11 @@ export function GraficoMovSerie({ serie }: { serie: SerieMovimentacoes }) {
   }))
   const totalSaidas = serie.pontos.reduce((s, p) => s + p.saidas, 0)
   const totalDev = serie.pontos.reduce((s, p) => s + p.devolucoes, 0)
+  // F29/REL-06b — em período longo (preset "Este ano" com balde diário) o rótulo em
+  // cima de TODA barra vira uma tarja de números sobrepostos. Acima do teto os
+  // rótulos somem e entra um eixo Y enxuto — a régua que o mockup previa. O valor
+  // exato continua no tooltip, que este gráfico sempre teve.
+  const comRotulos = mostrarRotulosDaSerie(serie.pontos.length)
 
   return (
     <div>
@@ -60,26 +66,39 @@ export function GraficoMovSerie({ serie }: { serie: SerieMovimentacoes }) {
             minTickGap={16}
             tick={{ fontSize: 11 }}
           />
+          {!comRotulos && (
+            <YAxis
+              width={30}
+              tickLine={false}
+              axisLine={false}
+              allowDecimals={false}
+              tick={{ fontSize: 11 }}
+            />
+          )}
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
           <Bar dataKey="saidas" fill="var(--color-saidas)" radius={[4, 4, 0, 0]}>
-            <LabelList
-              dataKey="saidas"
-              position="top"
-              offset={6}
-              className="fill-foreground"
-              fontSize={10}
-              formatter={rotuloValor}
-            />
+            {comRotulos && (
+              <LabelList
+                dataKey="saidas"
+                position="top"
+                offset={6}
+                className="fill-foreground"
+                fontSize={10}
+                formatter={rotuloValor}
+              />
+            )}
           </Bar>
           <Bar dataKey="devolucoes" fill="var(--color-devolucoes)" radius={[4, 4, 0, 0]}>
-            <LabelList
-              dataKey="devolucoes"
-              position="top"
-              offset={6}
-              className="fill-foreground"
-              fontSize={10}
-              formatter={rotuloValor}
-            />
+            {comRotulos && (
+              <LabelList
+                dataKey="devolucoes"
+                position="top"
+                offset={6}
+                className="fill-foreground"
+                fontSize={10}
+                formatter={rotuloValor}
+              />
+            )}
           </Bar>
         </BarChart>
       </ChartContainer>
