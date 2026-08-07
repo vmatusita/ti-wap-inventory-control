@@ -105,8 +105,8 @@ export const mapaDasTelas: PaginaAjuda = {
       tipo: 'lista',
       itens: [
         'Card "Itens para repor": aparece SÓ quando há item abaixo do estoque mínimo. Cada linha traz o estoque e o mínimo daquele item, o quanto falta repor e um link para ele; "ver em Itens" leva à tela completa. Sem nada a repor, o card não existe — a ausência é a boa notícia.',
-        'Card "Pendências": as cinco mais antigas da fila, com "ver todas" para a tela inteira. Sem nenhuma, ele comemora; se a leitura falhar, ele diz "Não foi possível ler as pendências." em vez de fingir que a fila está vazia.',
-        'Card "Últimas movimentações": as cinco últimas registradas, com data, tipo, patrimônio e destino, e "ver todas" para o relatório.',
+        'Card "Pendências": as cinco mais antigas da fila, com "ver todas" para a tela inteira. Sem nenhuma, ele comemora; se a leitura falhar, ele diz "Não foi possível ler as pendências." em vez de fingir que a fila está vazia. Havendo conflito entre filiais, uma linha âmbar avisa quantos são e leva à mesa em Pendências — é o mesmo que o selo da barra lateral soma, para o card nunca comemorar ao lado de um selo diferente de zero.',
+        'Card "Últimas movimentações": as cinco últimas registradas, com data, tipo, patrimônio e destino, e "ver todas" para a lista de movimentações.',
         'No rodapé, quatro cartões de atalho: "Nova movimentação", "Novo equipamento", "Relatórios" e "Ativos".',
       ],
     },

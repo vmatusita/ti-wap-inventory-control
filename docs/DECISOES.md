@@ -3761,3 +3761,61 @@ Revisão de recall sobre o diff inteiro da F24. Os achados de UI/queries foram c
 - **Motivo (o padrão dos 4 achados da volta adversarial):** três dos quatro eram **comentário afirmando invariante que o código não sustenta** — a correção certa é fechar a distância, não reescrever o comentário. O quarto (prévia do colar-lista × form) é o de sempre nesta fase: **a mesma regra implementada em dois lugares**, aqui a aritmética do teto, que já tinha mordido a F26 no `adicionar` vs `adicionarVarios`.
 - **Reversível?** sim — tudo é código de aplicação, teste e documentação. **Nenhuma migration, nada do acervo tocado.**
 - **Pendência honesta:** as correções desta ata passaram por UMA volta adversarial (a que produziu os 4 achados acima) e por lint/build/testes; os 4 consertos finais **não** tiveram volta nova. O roteiro manual do par troca/upgrade continua sendo a prova de mesa que nenhum teste substitui.
+
+## 2026-08-07 · F27 · A sessão abriu numa CÓPIA VELHA do projeto — o trabalho foi feito no repositório real
+
+- **Contexto:** a ordem da F27 foi colada numa sessão cujo diretório de trabalho era `C:\Users\victor.matusita\Documents\Projetos\ti-wap-inventory-control`. Esse diretório **não é o projeto**: tem `src/` da era F3 (118 arquivos, sem `/pendencias`, sem `/dev`, sem `/ajuda`), **nenhum** `package.json`/`tsconfig.json`/`vitest.config.ts`, `docs/` vazio, `supabase/` vazio e um `.git` **sem um único commit** (0 objetos, sem remote). O `.next/` dele é de 13/07/2026 e um `scratch-build.log` do mesmo dia mostra o `npm` falhando por falta de `package.json` — aquela árvore nunca foi a da F26.
+- **Decisão:** localizar e usar o repositório real — `C:\Users\victor.matusita\OneDrive - FRESNOMAQ IND DE MAQUINAS SA\Documents\Projetos\ti-wap-inventory-control` —, cujo `main` estava em `c5124f8` (F26), sincronizado com `origin/main`, e cujo `git status` trazia exatamente os três untracked que a ordem nomeia (`_claude_tmp/`, a análise de 07/08 e a própria ordem). O acesso ao diretório foi pedido e concedido antes de qualquer escrita.
+- **Motivo:** executar a ordem na cópia velha significaria inventar do zero as ~30 telas que os itens citam e produzir um relatório sem `lint`/`test`/`build` possíveis. A identidade do alvo estava provada por três evidências independentes (o `main` na F26, os três untracked previstos, e a presença da própria ordem em `docs/prompts/`).
+- **Reversível?** não há o que reverter — nada foi escrito na cópia velha. **Pendência para o Johnny:** decidir o destino daquela pasta (é lixo de 13/07 e confunde qualquer sessão aberta ali); a F27 não a apagou por estar fora do escopo da ordem.
+
+## 2026-08-07 · F27 · ADM-07 · A régua da confirmação digitada continua sendo de cada tela; só a MENSAGEM foi unificada
+
+- **Contexto:** três implementações de confirmação digitada com réguas diferentes. A ordem mandava unificar a UX, mas **investigando antes o que a action/RPC de cada tela aceita**.
+- **Investigação (o que se achou em cada uma):** (a) **Import** — `aplicarImport` (`src/lib/actions/importar.ts:329`) compara **igualdade exata** (`confirmacaoTexto !== filial.nome`, sem trim/caixa) e a RPC `importar_ativos_substituir` nem repete a checagem. (b) **Apagar conta** — `validarExclusaoDeUsuario` (`src/lib/validators/admin.ts:249`) já tolera trim+caixa, e a RPC `apagar_usuario` (`0074`) **não recebe parâmetro de confirmação nenhum**: a checagem é ergonomia de UI, nunca autorização (quem autoriza é o cargo dev). (c) **Zona destrutiva** — `confirmacaoConfere` tolera trim+caixa e as RPCs (`0082`, `0083`) comparam `upper(btrim(...))`, tolerantes **nas duas camadas**.
+- **Decisão:** **não afrouxar o cliente do import.** Ele continua exigindo igualdade exata, porque afrouxar habilitaria um botão "Substituir tudo" clicável que o servidor recusaria do mesmo jeito — trocar um botão desabilitado sem explicação por um botão habilitado que falha é piorar. O que se unificou foi só a **mensagem**: `dicaConfirmacaoNaoConfere(digitado, confere, esperado)` (`src/lib/validators/confirmacao-digitada.ts`, função pura testada) recebe o `confere` **já calculado pelo chamador** — preservando a régua própria de cada tela — e decide apenas SE a dica aparece (campo não vazio e ainda não confere) e com que texto: *"O texto não confere — digite exatamente {esperado}"*.
+- **Motivo:** a divergência que machucava o operador era a **ausência de explicação** ("linhares" ≠ "Linhares" com o botão morto e mudo), não a tolerância em si. Tolerância é regra de servidor e difere legitimamente entre as três (uma apaga acervo de filial, outra é ergonomia pura). O helper ficou em `lib/validators/` e **não** dentro de `dev-destrutivo.ts` porque é usado por telas de fora do `/dev`, e aquele módulo é documentadamente escopado à Zona destrutiva.
+- **Reversível?** sim — código de aplicação e um módulo puro novo com teste.
+
+## 2026-08-07 · F27 · UXG-02 · Editar `src/components/ui/` (dialog, sheet, skeleton) — o motivo, como manda a convenção
+
+- **Contexto:** o CLAUDE.md diz que componente gerado pelo shadcn **não se edita sem motivo documentado**. Três arquivos precisaram de edição: `ui/dialog.tsx`, `ui/sheet.tsx` (o `<span className="sr-only">Close</span>` herdado, num app 100% pt-BR, que **52 arquivos** herdam) e `ui/skeleton.tsx` (`animate-pulse` sem `motion-reduce`).
+- **Decisão:** editar os três, com comentário no próprio arquivo explicando a divergência em relação ao upstream. "Close" → **"Fechar"**; o X passou de `size-7` (28 px) para `size-10 sm:size-7`, o mesmo bump mobile que o app já usa em 12 outros pontos; `animate-pulse` ganhou `motion-reduce:animate-none`.
+- **Motivo:** são exatamente os casos que a convenção prevê — texto de interface na língua errada e alvo de toque abaixo da régua do próprio projeto não se corrigem por fora do primitive sem duplicar o componente em 52 lugares. O custo é reaplicar as três edições se o shadcn regenerar esses arquivos; o comentário no arquivo existe para isso.
+- **Não feito de propósito:** o segundo `"Close"` (texto visível do `DialogFooter`, atrás de `showCloseButton` cujo default é `false`) ficou como está — grep confirmou **0 usos** do prop no repo, é código morto hoje e está fora das linhas que a ordem nomeia. Registrado no backlog.
+- **Reversível?** sim — três edições pequenas, isoladas e comentadas.
+
+## 2026-08-07 · F27 · REL-13a · O clamp da observação foi desfeito na FONTE, não contornado na célula
+
+- **Contexto:** a truncagem real da observação (`.truncate` = nowrap + overflow hidden) mora em `ObsTooltip` (`obs-tooltip.tsx:39`), consumido por `celulas.tsx`, `tabela-itens-grupo.tsx`, `lista-manutencao.tsx`, `lista-movimentacoes.tsx` e `historico-lancamentos.tsx`. A primeira implementação, feita por um agente que não era dono daquele arquivo, contornou o problema dentro de `CelulaObs`: dois blocos irmãos, um `print:hidden` e um só-impressão com o texto inteiro.
+- **Decisão:** trocar o contorno pela correção literal que a ordem pedia — `print:overflow-visible print:whitespace-normal print:break-words` no próprio `ObsTooltip` — e devolver `CelulaObs` a um bloco só.
+- **Motivo:** o contorno duplicava o conteúdo no DOM, criava duas verdades sobre a mesma célula e **não alcançava** os outros consumidores, entre eles a própria coluna Obs da tabela "Saldo por item", que também é relatório impresso. Uma classe só-impressão na fonte única resolve os cinco de uma vez e não muda nada na tela.
+- **Reversível?** sim — uma linha de classes utilitárias.
+
+## 2026-08-07 · F27 · FLX-04 · A linha de conflitos vale também quando a fila NÃO está vazia
+
+- **Contexto:** a ordem manda renderizar a linha "N conflito(s) entre filiais" *"no lugar da frase condicional atual"*, que vivia no ramo de **fila vazia**. Implementada ao pé da letra, a linha só aparecia quando a fila estava vazia.
+- **Decisão:** renderizar a linha **fora** do ternário, valendo para fila vazia, fila cheia e falha de leitura da fila.
+- **Motivo:** o selo da barra lateral soma fila + conflitos **sempre**. Com 3 na fila e 2 conflitos, a implementação literal deixava o card mostrando "3" ao lado de um selo "5" — a mesma divergência entre superfícies vizinhas que o item foi corrigir, só que mais difícil de notar que o 🎉 original. O recorte por cargo é o mesmo da fila (`filiaisDoOperador`), como o do selo.
+- **Reversível?** sim — é posição de um bloco JSX.
+
+## 2026-08-07 · F27 · FLX-03 · Título de aba distinto onde a sidebar repete o rótulo
+
+- **Contexto:** ao dar um `title` curto por rota, duas colisões apareceram: `/itens` (saldos por quantidade) e `/admin/itens` (catálogo) usam o rótulo "Itens" em navs diferentes; e `/dev` e `/dev/destrutivo` são a mesma área.
+- **Decisão:** `/admin/itens` → **"Catálogo de itens"**; `/dev/destrutivo` → **"Zona destrutiva"** (o texto que a própria UI já usa no `h2` e no link de `/dev`). Rotas de relatório ficaram com título **estático** ("Relatórios", "Relatório gerado") em vez de dinâmico por filial/período, que já estão no `<h1>` da tela.
+- **Motivo:** repetir a string recriaria, dentro do próprio conjunto de títulos novos, a ambiguidade de aba que o item existe para eliminar.
+- **Reversível?** sim — são literais de `metadata`.
+
+## 2026-08-07 · F27 · UXG-01 · `global-error.tsx` não reusa `PainelErro`/`TentarNovamente`
+
+- **Contexto:** o boundary global substitui o **root layout inteiro** — declara o próprio `<html lang="pt-BR">`/`<body>` e não herda CSS, fonte nem providers.
+- **Decisão:** reimportar `./globals.css` e a fonte Geist explicitamente; **não** reusar `TentarNovamente` (que chama `useRouter()`, cujo contexto pode não estar montado nesse boundary — alerta já deixado no arquivo pela F20B) e usar um botão simples chamando `reset()`, a única prop que o Next garante ali; aceitar que a tela fica sempre no tema claro. Junto, criou-se um `src/app/error.tsx` simples, espelhando `not-found.tsx`, para `/login` e `/auth/**` — que não tinham boundary nenhum.
+- **Motivo:** sem a fonte, `var(--font-geist-sans)` fica indefinida e a `font-family` inteira cai no serif do navegador. O tema claro é o `defaultTheme` do app, então a perda é só não acompanhar uma preferência escura salva — reimplementar o script do next-themes numa tela de último recurso seria desproporcional.
+- **Reversível?** sim — dois arquivos novos.
+
+## 2026-08-07 · F27 · MOV-08 · O `setState` do "conferindo duplicatas" mora dentro do callback async
+
+- **Contexto:** a janela em que o aviso de duplicata está em voo passou a ignorar o Enter-de-registrar. A primeira implementação acendia o indicador com `setConsultando(true)` no **corpo do efeito**, o que o `react-hooks/set-state-in-effect` do projeto reprova (`npm run lint` falhou).
+- **Decisão:** mover a chamada para dentro da função async imediatamente invocada, que já existia logo abaixo.
+- **Motivo:** o corpo de uma função async roda de forma **síncrona até o primeiro `await`**, então o indicador acende no mesmo tick e a janela protegida é exatamente a mesma — sem cascata de render. O aviso continua **não-bloqueante**: o clique no botão nunca foi gateado, só o atalho de teclado, e só enquanto a consulta não responde.
+- **Reversível?** sim — duas linhas.

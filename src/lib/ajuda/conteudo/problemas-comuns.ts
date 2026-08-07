@@ -30,12 +30,12 @@ export const problemasComuns: PaginaAjuda = {
         {
           sintoma: 'Não encontro o equipamento na busca.',
           causa:
-            'A busca precisa de 2 letras e procura por patrimônio, service tag, hostname, marca, modelo e nome do colaborador — não por outras informações.',
+            'A busca precisa de 2 letras e procura por patrimônio, service tag, hostname, marca, modelo, nome do colaborador e — na lista de Ativos — telefone e IMEI. Não procura por outras informações.',
           saida: [
             'Tente pela service tag: ela nunca muda, o patrimônio pode ter sido corrigido.',
             'Tente pelo nome de quem está com o equipamento.',
             'Se o patrimônio veio de uma planilha, digite só os números ("1234"): o sistema completa o formato.',
-            'Procure pela busca global (Ctrl+K, ⌘K ou a barra "/") ou pela caixa de ativos do fluxo de nova movimentação: essas duas são as que também procuram por service tag e por hostname. O campo da lista de Ativos procura por patrimônio, colaborador, marca ou modelo — como diz o próprio texto dele.',
+            'A busca da lista de Ativos, a busca global (Ctrl+K, ⌘K ou a barra "/") e a caixa de ativos do fluxo de nova movimentação procuram todas por service tag e hostname. A da lista vai além e é a única que acha por telefone e por IMEI.',
             'Na lista de Ativos, digitar mais palavras RESTRINGE o resultado (cada palavra precisa casar em algum campo). Para procurar em toda a base, apague a busca e use os filtros "Status", "Filial" e "Categoria".',
           ],
         },
