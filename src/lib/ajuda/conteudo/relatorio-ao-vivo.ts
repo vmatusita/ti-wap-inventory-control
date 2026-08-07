@@ -38,7 +38,8 @@ export const relatorioAoVivo: PaginaAjuda = {
       itens: [
         'Filial: a fileira de abas logo abaixo do título tem uma aba por filial ativa mais "Consolidado" (o endereço /relatorios/geral). Trocar de aba preserva o período escolhido.',
         'Se o seu cargo é Operador, o menu Relatórios abre direto na aba da sua filial (a primeira em ordem alfabética, quando você trabalha em mais de uma). Administrador, Desenvolvedor e Consulta abrem no Consolidado. As abas continuam todas ali, a um clique.',
-        'Período: os botões "Esta semana" (como a tela abre), "Últimos 30 dias", "Este ano" e "Tudo". Para uma faixa qualquer, use "Personalizado", preencha "De" e "Até" e clique em "Aplicar período".',
+        'Período: os botões "Esta semana" (como a tela abre), "Semana passada", "Últimos 30 dias", "Este ano" e "Tudo". Para uma faixa qualquer, use "Personalizado", preencha "De" e "Até" e clique em "Aplicar período".',
+        '"Esta semana" conta de domingo até hoje; "Semana passada" é a semana inteira que fechou, de domingo a sábado. Atenção: a janela do relatório congelado é outra — o diálogo "Gerar relatório" trabalha de segunda a sexta, que é o recorte do e-mail semanal. As duas convivem de propósito.',
         'A filial e o período ficam no endereço da página: o link que você copiar abre exatamente o mesmo recorte para quem receber — inclusive para quem entra pela senha de acesso.',
         'Para o operador, o selo "ao vivo" no cabeçalho vira "atualizado agora" quando algum registro muda enquanto você lê. Quem entra pela senha de acesso vê no lugar dele o botão "Atualizar", e a tela também se atualiza sozinha a cada 60 segundos.',
       ],
@@ -47,7 +48,7 @@ export const relatorioAoVivo: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'O relatório é longo, então uma barra de atalhos acompanha a rolagem no topo com os saltos "Principais", "Acessórios", "Componentes", "Saídas", "Entradas", "Transferências" (quando houver), "Itens" (quando houver) e "Como ler". De cima para baixo, a ordem é sempre esta:',
+        'O relatório é longo, então uma barra de atalhos acompanha a rolagem no topo com os saltos "Principais", "Acessórios", "Componentes", "Saídas", "Entradas", "Transferências" (quando houver), "Itens" (quando houver), "Resumo", "Observações" (quando o relatório tem texto da semana) e "Como ler". No celular, os grupos "Acessórios" e "Componentes" nascem fechados — clicar no atalho abre o grupo junto com o salto. De cima para baixo, a ordem é sempre esta:',
     },
     {
       tipo: 'lista',
@@ -59,6 +60,7 @@ export const relatorioAoVivo: PaginaAjuda = {
         'A seção "Pendências" — só para o operador logado; quem entra pela senha de acesso nunca a vê.',
         'As tabelas detalhadas do período: "Saídas", "Entradas", "Transferências" e "Movimentações de itens".',
         'O card "Resumo do período" (no formato do e-mail semanal), a "Observações da semana" quando o relatório congelado tem texto, e a seção recolhível "Como ler este relatório".',
+        'O botão "Copiar texto" do card "Resumo do período" copia o texto inteiro pronto para colar: a linha dos sete indicadores, as saídas e as devoluções por filial e motivo, e o bloco "Em estoque (N)" com a lista de modelos disponíveis — que é como o e-mail semanal abria.',
       ],
     },
     { tipo: 'titulo', id: 'relvivo-filtros', texto: 'Filtrar e buscar nas tabelas' },
@@ -86,7 +88,7 @@ export const relatorioAoVivo: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Cada KPI mostra o Δ (variação) frente ao período anterior com uma seta. A cor tem sentido: subir é bom (verde) em "Em estoque"/"Guardados"; subir é ruim (vermelho) em "Em manutenção" e "Em triagem"; nos demais a variação é neutra (cinza). A seta permanece sempre — a cor é só um reforço.',
+        'Cada KPI mostra o Δ (variação) frente ao período anterior com uma seta. A cor tem sentido: subir é bom (verde) em "Em estoque"/"Guardados"; subir é ruim (vermelho) em "Em manutenção" e "Em triagem"; nos demais a variação é neutra (cinza). A seta permanece sempre — a cor é só um reforço. Passe o mouse (ou dê Tab até o Δ) para ver de onde veio a conta: "Anterior: N (janela) → atual: M". O período anterior tem a MESMA duração do que está na tela e termina na véspera dele.',
     },
     {
       tipo: 'nota',

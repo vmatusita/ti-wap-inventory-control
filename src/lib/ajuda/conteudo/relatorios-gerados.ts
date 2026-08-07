@@ -1,4 +1,5 @@
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
+import { GERADOS_PAGE_SIZE } from '@/lib/queries/gerados'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 export const relatoriosGerados: PaginaAjuda = {
@@ -45,10 +46,12 @@ export const relatoriosGerados: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Gerar um snapshot do relatório',
       itens: [
-        'No relatório, use "Gerar relatório". Confira o período (por padrão a semana útil) e o escopo (filial ou geral).',
-        'A janela se chama "Gerar relatório da semana". Os campos "De" e "Até" já vêm com a segunda e a sexta da semana corrente; em "Escopo", escolha entre o nome da filial e "Consolidado" (quando você já está no consolidado, não há o que escolher).',
+        'No relatório, use "Gerar relatório". Confira o período e o escopo (filial ou geral).',
+        'A janela se chama "Gerar relatório da semana". Os campos "De" e "Até" já vêm com o PERÍODO QUE VOCÊ ESTÁ VENDO na tela — se você mudou o recorte para analisar outro mês, é ele que aparece aqui. Em "Atalhos", "Usar semana corrente" e "Usar semana passada" devolvem a segunda-a-sexta correspondente com um clique.',
+        'Em "Escopo", escolha entre o nome da filial e "Consolidado" (quando você já está no consolidado, não há o que escolher).',
         'Opcionalmente escreva a Observação da semana.',
         'A linha "Será congelado: {alvo} · {de} a {até}." repete o que vai ser gravado — leia antes de confirmar.',
+        'Logo abaixo dela, o sistema diz se aquele período já tem snapshot: "Já existe a v2 deste período, gerada por {nome} em {data} — você criará a v3." Quando não existe nenhum, ele diz que você criará a v1.',
         'Clique em "Gerar e abrir". O aviso "Relatório gerado (versão N)." confirma, e a tela já abre o snapshot novo.',
         'Confirme: o snapshot é salvo, versionado e imutável. Ele aparece no histórico de relatórios gerados.',
       ],
@@ -64,6 +67,7 @@ export const relatoriosGerados: PaginaAjuda = {
         'Erros comuns na hora de gerar: "A data inicial não pode ser depois da final." — inverta "De" e "Até".',
         '"A data final não pode ser no futuro." — o teto é hoje ou a sexta da semana corrente, o que for maior.',
         '"Não foi possível gerar o relatório. Verifique sua conexão e tente de novo." — nada foi gravado; tente outra vez.',
+        '"Outra pessoa gerou este mesmo período agora há pouco." — dois cliques quase simultâneos no mesmo período. Nada foi duplicado (o sistema não permite duas versões com o mesmo número); abra "Relatórios gerados" para ver o que a outra pessoa gravou antes de gerar de novo.',
       ],
     },
     { tipo: 'titulo', id: 'gerados-versoes', texto: 'Versões: regerar sem apagar' },
@@ -78,6 +82,7 @@ export const relatoriosGerados: PaginaAjuda = {
         'Cada snapshot abre com a faixa "Relatório gerado · filial · período · versão N · por quem gerou · quando", mais a pílula "dados congelados".',
         'O corpo é o mesmo do relatório ao vivo, com uma diferença deliberada: no snapshot os indicadores do topo NÃO são clicáveis. Eles descrevem o inventário daquele período, e levar para a lista de ativos de hoje seria mostrar outra coisa.',
         'O botão "Imprimir" também existe aqui — e a impressão sai clara mesmo com o tema escuro ligado.',
+        'No pé do snapshot há três atalhos: "Período anterior" e "Próximo período" andam pelo arquivo da MESMA filial (ou do consolidado), semana a semana; e "Ver este período no ao vivo" abre o mesmo recorte de datas com os números de hoje, para comparar o congelado com o atual. Os três valem também para quem entra pela senha de acesso.',
       ],
     },
     { tipo: 'titulo', id: 'gerados-achar', texto: 'Achar um relatório antigo' },
@@ -86,7 +91,8 @@ export const relatoriosGerados: PaginaAjuda = {
       titulo: 'Encontrar um relatório já gerado',
       itens: [
         'Abra "Relatórios gerados": o botão está no cabeçalho do relatório ao vivo, ao lado de "Gerar relatório". Quem entra pela senha de acesso chega pelo item "Gerados" da barra de cima.',
-        'A lista vem do mais recente para o mais antigo (pela data em que foi gerado), com as colunas "Período", "Filial", "Versão", "Gerado por" e "Em".',
+        `A lista vem do mais recente para o mais antigo (pela data em que foi gerado), com as colunas "Período", "Filial", "Versão", "Gerado por" e "Em", ${GERADOS_PAGE_SIZE} por página. Use "Anterior" e "Próxima" no pé para andar — o filtro de filial continua valendo ao virar a página.`,
+        'A etiqueta "superada" ao lado da versão significa que já existe uma versão maior do mesmo período e escopo. Abrir a superada continua valendo (o link antigo nunca quebra), mas para o número vigente prefira a mais nova.',
         'Use o botão de filial do cabeçalho para recortar: ele abre um painel de caixas onde dá para marcar mais de uma filial, além de "Consolidado" (os relatórios que somam todas). "Todas as filiais", dentro do painel, volta a mostrar o arquivo inteiro. Esta é a única lista que abre sem recorte para todo mundo, inclusive para o Operador: o arquivo é de todas as filiais, e recortá-lo esconderia justamente os relatórios consolidados.',
         'O ícone amarelo ao lado do período significa "Tem observação da semana" — passe o mouse para confirmar antes de abrir.',
         'Clique em "Abrir" na linha desejada. Para voltar ao número de agora, use "Ver ao vivo".',

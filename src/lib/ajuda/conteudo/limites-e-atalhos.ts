@@ -6,6 +6,7 @@ import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
 import { TAMANHOS_PAGINA, TAMANHO_PAGINA_PADRAO } from '@/lib/ativos/lista'
 import { MOV_PAGE_SIZE } from '@/lib/queries/movimentacoes'
+import { GERADOS_PAGE_SIZE } from '@/lib/queries/gerados'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 // Todo teto desta pagina que EXISTE como constante exportada e lido da
@@ -57,6 +58,7 @@ export const limitesEAtalhos: PaginaAjuda = {
           `${TAMANHOS_PAGINA.join(', ')} — à sua escolha; o padrão é ${TAMANHO_PAGINA_PADRAO}`,
         ],
         ['Movimentações por página', `${MOV_PAGE_SIZE}, fixo`],
+        ['Relatórios gerados por página', `${GERADOS_PAGE_SIZE}, fixo`],
         ['Pendências por página', '30, fixo'],
         ['Histórico de lançamentos de itens', '20 por página, fixo'],
         ['Mínimo para uma busca por digitação procurar', '2 caracteres'],

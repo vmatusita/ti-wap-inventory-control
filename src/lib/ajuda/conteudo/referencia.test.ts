@@ -19,6 +19,8 @@ import {
 } from '@/lib/validators/movimentacao'
 import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
 import { MOV_PAGE_SIZE } from '@/lib/queries/movimentacoes'
+import { GERADOS_PAGE_SIZE } from '@/lib/queries/gerados'
+import { PRESETS } from '@/lib/relatorios/periodo'
 import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 import { CAP_EXPORT } from '@/lib/csv'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
@@ -307,6 +309,14 @@ describe('limites-e-atalhos — tetos derivados e guardas reais', () => {
   it('o tamanho de página das movimentações é lido de MOV_PAGE_SIZE', () => {
     expect(cru('limites-e-atalhos')).toContain(`${MOV_PAGE_SIZE}, fixo`)
     expect(fonteDoConteudo('limites-e-atalhos.ts')).toContain('MOV_PAGE_SIZE')
+  })
+
+  // F29/REL-05a — mesma regra de ouro do limite acima: o número da doc sai da
+  // constante, não de um literal digitado que envelhece calado.
+  it('o tamanho de página dos relatórios gerados é lido de GERADOS_PAGE_SIZE', () => {
+    expect(cru('limites-e-atalhos')).toContain(`${GERADOS_PAGE_SIZE}, fixo`)
+    expect(fonteDoConteudo('limites-e-atalhos.ts')).toContain('GERADOS_PAGE_SIZE')
+    expect(fonteDoConteudo('relatorios-gerados.ts')).toContain('GERADOS_PAGE_SIZE')
   })
 
   it('descreve as seis teclas e o Enter do fluxo de movimentação', () => {
@@ -621,17 +631,15 @@ describe('relatorio-ao-vivo — leitura, filtros e impressão', () => {
     expect(passos.length, 'sem passo a passo de impressão').toBeGreaterThan(0)
   })
 
+  // Os rótulos dos presets vêm de `PRESETS` (a fonte que a barra do relatório
+  // renderiza), e não de uma lista digitada aqui: preset novo sem documentação
+  // quebra o teste, que é exatamente o que aconteceu com "Semana passada" (F29).
   it('nomeia os presets de período e as abas de filial com o rótulo real', () => {
     const c = cru('relatorio-ao-vivo')
-    for (const rotulo of [
-      'Esta semana',
-      'Últimos 30 dias',
-      'Este ano',
-      'Tudo',
-      'Personalizado',
-      'Aplicar período',
-      'Consolidado',
-    ]) {
+    for (const p of PRESETS) {
+      expect(c, `rótulo de preset ausente: ${p.rotulo}`).toContain(p.rotulo)
+    }
+    for (const rotulo of ['Personalizado', 'Aplicar período', 'Consolidado']) {
       expect(c, `rótulo ausente: ${rotulo}`).toContain(rotulo)
     }
   })
@@ -655,7 +663,22 @@ describe('relatorio-ao-vivo — leitura, filtros e impressão', () => {
     // periodo.ts: `case 'semana': { de: domingo, ate: hoje }` — o intervalo NUNCA
     // termina no sábado, e o subtítulo da tela mostra `de a ate`.
     expect(t).toContain(normalizarBusca('até HOJE'))
-    expect(t).not.toContain(normalizarBusca('de domingo a sábado'))
+    // F29 — a proibição de "de domingo a sábado" era uma varredura no texto
+    // INTEIRO, e deixou de servir quando o preset "Semana passada" entrou: ele é
+    // a semana FECHADA, e descrevê-lo assim é o correto. A guarda passou a ser
+    // sobre a frase que de fato erraria — "Esta semana" indo até sábado.
+    expect(t).toContain(normalizarBusca('"Esta semana" conta de domingo até hoje'))
+    expect(t).not.toContain(normalizarBusca('"Esta semana" conta de domingo a sábado'))
+    expect(t).not.toContain(normalizarBusca('esta semana vai de domingo a sábado'))
+  })
+
+  // F29/REL-03 — a dualidade de janela é decisão registrada (T11 segue aberta), e a
+  // documentação é o único lugar onde o operador a encontra: se alguém "unificar" as
+  // duas superfícies sem atualizar o texto, é aqui que aparece.
+  it('avisa que o preset da tela e a janela do "Gerar relatório" são diferentes', () => {
+    expect(t).toContain(normalizarBusca('Semana passada'))
+    expect(t).toContain(normalizarBusca('de segunda a sexta'))
+    expect(t).toContain(normalizarBusca('recorte do e-mail semanal'))
   })
 })
 
