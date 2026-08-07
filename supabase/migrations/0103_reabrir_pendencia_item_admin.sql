@@ -68,6 +68,33 @@
 -- Aditiva: não toca DADO nenhum, só predicado de policy → caminho A do
 -- docs/RUNBOOK-BANCO.md (ensaio primeiro, depois produção).
 
+-- 0) O GRANT QUE NUNCA EXISTIU NAS MIGRATIONS ---------------------------------
+-- Achado do roteiro `supabase/tests/reabrir_pendencia_item.sql` na PRIMEIRA vez
+-- que ele rodou (job `banco` do CI, 07/08/2026): num banco construído **pelas
+-- migrations deste repositório**, o papel `authenticated` não tem privilégio
+-- nenhum sobre `pendencias_item` — o primeiro `update` como `authenticated` para
+-- com `permission denied for table pendencias_item`, e o próprio Postgres sugere
+-- o grant que falta. Isso derruba não só a reabertura desta migration, mas o
+-- fluxo de RESOLVER da F18, que está em produção desde 24/07.
+--
+-- POR QUE PASSOU DESPERCEBIDO ATÉ AGORA: nenhum roteiro SQL exercia esta tabela
+-- sob `set local role authenticated` — `pendencias_item.sql` roda como `postgres`,
+-- que é superusuário e ignora tanto RLS quanto grants. Policy sem grant é regra
+-- que nunca chega a ser avaliada: o Postgres barra antes, no privilégio.
+--
+-- ⚠ O QUE ISTO **NÃO** DIZ SOBRE PRODUÇÃO: lá as tabelas provavelmente receberam
+-- o grant pelo `alter default privileges` do bootstrap do Supabase, e não pelas
+-- migrations — e produção tem ZERO linhas em `pendencias_item` (medido na 0083),
+-- então o caminho pode nunca ter sido exercido de verdade. **Conferir antes de
+-- aplicar** (a consulta está no bloco de verificação, no fim). O grant é
+-- idempotente: se já existir, não muda nada.
+--
+-- Só SELECT e UPDATE, de propósito: INSERT e DELETE continuam sendo exclusivos do
+-- trigger `aplicar_movimentacao` (0051, security definer, que não passa por
+-- grant de tabela). `anon` fica de fora — o visualizador por senha não tem policy
+-- aqui e não deve ganhar caminho nenhum.
+grant select, update on table public.pendencias_item to authenticated;
+
 -- 1) O operador só age no que está ABERTO -------------------------------------
 alter policy "pendencias_item operador resolve" on public.pendencias_item
   using      (public.pode_escrever_filial(filial_id) and status = 'aberta')
@@ -88,6 +115,15 @@ comment on policy "pendencias_item admin reabre" on public.pendencias_item is
 -- ---------------------------------------------------------------------------
 -- VERIFICAÇÃO PÓS-APPLY (obrigatória — runbook §5)
 -- ---------------------------------------------------------------------------
+-- O grant JÁ EXISTIA em produção, ou esta migration acabou de criá-lo?
+-- (rodar ANTES de aplicar, para saber qual dos dois mundos é o de produção)
+--   select grantee, privilege_type
+--     from information_schema.role_table_grants
+--    where table_schema = 'public' and table_name = 'pendencias_item'
+--    order by grantee, privilege_type;
+--   -- se `authenticated` NÃO aparecer com SELECT/UPDATE, o fluxo de RESOLVER da
+--   -- F18 está quebrado em produção e esta migration o conserta junto.
+--
 -- As duas policies existem, com os predicados certos?
 --   select polname, pg_get_expr(polqual, polrelid) as usando,
 --          pg_get_expr(polwithcheck, polrelid) as checando
