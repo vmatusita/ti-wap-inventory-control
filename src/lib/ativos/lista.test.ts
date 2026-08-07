@@ -8,6 +8,7 @@ import {
   parseOrdenacao,
   parseTamanhoPagina,
   proximaDirecao,
+  rotuloSubtitulo,
   serializarOrdenacao,
 } from '@/lib/ativos/lista'
 
@@ -144,5 +145,62 @@ describe('parseTamanhoPagina', () => {
 
   it('o padrão do projeto é um dos tamanhos oferecidos', () => {
     expect(ehTamanhoPagina(TAMANHO_PAGINA_PADRAO)).toBe(true)
+  })
+})
+
+// F27/B5 (ATV-05) — o subtítulo não pode afirmar "cadastrados" (verdade GLOBAL)
+// sobre um `total` que já veio filtrado/recortado. Três ramos, na mesma
+// prioridade de `vazioFiltrado` (ativos/page.tsx), mais a concordância
+// singular/plural do particípio.
+describe('rotuloSubtitulo', () => {
+  it('com filtro, devolve "encontrados" (plural) mesmo se também há recorte de filial', () => {
+    expect(
+      rotuloSubtitulo({ total: 37, temFiltro: true, temRecorteFilial: false }),
+    ).toBe('37 encontrados')
+    // Operador filtrou explicitamente por UMA das filiais dele: os dois booleanos
+    // vêm true (a escolha explícita também conta como recorte), e o filtro
+    // explícito vence — mesma prioridade de `vazioFiltrado`.
+    expect(
+      rotuloSubtitulo({ total: 4, temFiltro: true, temRecorteFilial: true }),
+    ).toBe('4 encontrados')
+  })
+
+  it('com filtro e total = 1, concorda no singular: "encontrado"', () => {
+    expect(
+      rotuloSubtitulo({ total: 1, temFiltro: true, temRecorteFilial: false }),
+    ).toBe('1 encontrado')
+  })
+
+  it('só recorte de cargo (sem filtro na URL), devolve "nas suas filiais"', () => {
+    expect(
+      rotuloSubtitulo({ total: 1204, temFiltro: false, temRecorteFilial: true }),
+    ).toBe('1.204 nas suas filiais')
+  })
+
+  it('repouso — sem filtro nem recorte — devolve "cadastrados" (verdade global)', () => {
+    expect(
+      rotuloSubtitulo({ total: 1597, temFiltro: false, temRecorteFilial: false }),
+    ).toBe('1.597 cadastrados')
+  })
+
+  it('repouso com total = 1, concorda no singular: "cadastrado"', () => {
+    expect(
+      rotuloSubtitulo({ total: 1, temFiltro: false, temRecorteFilial: false }),
+    ).toBe('1 cadastrado')
+  })
+
+  it('zero é plural em pt-BR: "0 encontrados" / "0 cadastrados"', () => {
+    expect(
+      rotuloSubtitulo({ total: 0, temFiltro: true, temRecorteFilial: false }),
+    ).toBe('0 encontrados')
+    expect(
+      rotuloSubtitulo({ total: 0, temFiltro: false, temRecorteFilial: false }),
+    ).toBe('0 cadastrados')
+  })
+
+  it('formata milhar com separador pt-BR', () => {
+    expect(
+      rotuloSubtitulo({ total: 12345, temFiltro: false, temRecorteFilial: false }),
+    ).toBe('12.345 cadastrados')
   })
 })

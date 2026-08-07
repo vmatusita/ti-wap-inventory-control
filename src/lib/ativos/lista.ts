@@ -94,3 +94,36 @@ export function parseTamanhoPagina(param: unknown): TamanhoPagina | null {
   const n = Number(texto)
   return ehTamanhoPagina(n) ? n : null
 }
+
+// Subtítulo do cabeçalho da lista (F27/B5 — ATV-05). `resultado.total`
+// (`queries/ativos.ts`) já vem com busca + filtros + recorte de filial
+// aplicados — é o `count` da consulta FILTRADA —, então "N ativos cadastrados"
+// MENTE assim que há filtro: o acervo inteiro pode ter muito mais que isso.
+// Três estados, nesta ordem de prioridade (a MESMA de `vazioFiltrado`, em
+// `ativos/page.tsx` — os dois lêem os mesmos dois booleanos que a página já
+// calcula, F25):
+//   1. há filtro na URL (busca, categoria, status, sem-patrimônio OU filial
+//      escolhida explicitamente) → "encontrados": o total É de uma busca, não
+//      do acervo;
+//   2. sem filtro nenhum, mas a leitura ainda veio recortada pelo PADRÃO do
+//      cargo (operador só lê as filiais vinculadas — F25) → "nas suas
+//      filiais", pra não deixar a pessoa achar que é o acervo inteiro da WAP;
+//   3. repouso puro (admin/dev/consulta sem filtro, ou operador vinculado a
+//      TODAS as filiais) → "cadastrados": aí sim é uma verdade global.
+// Quando os dois primeiros booleanos são verdadeiros ao mesmo tempo (operador
+// escolheu explicitamente UMA das filiais dele), o filtro explícito vence —
+// é a MESMA prioridade de `vazioFiltrado`.
+export function rotuloSubtitulo({
+  total,
+  temFiltro,
+  temRecorteFilial,
+}: {
+  total: number
+  temFiltro: boolean
+  temRecorteFilial: boolean
+}): string {
+  const n = total.toLocaleString('pt-BR')
+  if (temFiltro) return `${n} ${total === 1 ? 'encontrado' : 'encontrados'}`
+  if (temRecorteFilial) return `${n} nas suas filiais`
+  return `${n} ${total === 1 ? 'cadastrado' : 'cadastrados'}`
+}

@@ -12,6 +12,7 @@ import {
   TAMANHOS_PAGINA,
   parseOrdenacao,
   parseTamanhoPagina,
+  rotuloSubtitulo,
 } from '@/lib/ativos/lista'
 // Parsers de parâmetro de URL: FONTE ÚNICA em `@/lib/url-params` (F12 · W6A).
 // `idNumerico` (smallint — sem ele `?filial=99999` derruba o Server Component com
@@ -36,6 +37,11 @@ import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { exportarAtivosCSV } from '@/lib/actions/exportar'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { PackageOpen, PackagePlus } from 'lucide-react'
+
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Ativos',
+}
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -185,7 +191,7 @@ export default async function AtivosPage({
             <LinkAjuda pagina="lista-de-ativos" rotulo="Ajuda sobre a lista de ativos" />
           </div>
           <p className="text-sm text-muted-foreground">
-            {resultado.total.toLocaleString('pt-BR')} ativos cadastrados
+            {rotuloSubtitulo({ total: resultado.total, temFiltro, temRecorteFilial })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

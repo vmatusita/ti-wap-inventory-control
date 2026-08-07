@@ -100,15 +100,23 @@ type BuilderAtivos = {
   is(coluna: string, valor: null): BuilderAtivos
 }
 
-// Filtros da lista de ativos — FONTE ÚNICA (tela + export).
+// Filtros da lista de ativos — FONTE ÚNICA (tela + export CSV, que chama a MESMA
+// função — `listarAtivosParaExport` — então herda qualquer campo novo de graça).
 // Busca livre "campo único" (spec §6 tela 3 / OS-F2 3.1.2): cada palavra do termo
-// precisa casar em patrimonio OU colaborador OU marca OU modelo. Trata marca+modelo
-// como um texto só ("dell latitude" acha marca "Dell" + modelo "Latitude 5420").
+// precisa casar em patrimonio OU colaborador OU marca OU modelo OU service_tag OU
+// hostname OU telefone OU imei. Trata marca+modelo como um texto só ("dell latitude"
+// acha marca "Dell" + modelo "Latitude 5420").
+// F27/B5 (ATV-01) — até aqui só os 4 primeiros campos eram varridos: colar a service
+// tag (o identificador IMUTÁVEL do ativo, spec §5) ou o IMEI (coluna da F25) na busca
+// da LISTA devolvia vazio, embora o combobox da movimentação (`buscarAtivosParaCombobox`,
+// mais abaixo) já achasse por service_tag/hostname havia fases. `telefone`/`imei` são
+// exclusivos DESTA busca — o combobox não precisa deles porque não se movimenta um
+// ativo pelo número do aparelho.
 function aplicarFiltrosAtivos<T>(query: T, params: ListarAtivosParams): T {
   let q = query as unknown as BuilderAtivos
   for (const palavra of params.q ? palavrasDaBusca(params.q) : []) {
     q = q.or(
-      `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%`,
+      `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%,service_tag.ilike.%${palavra}%,hostname.ilike.%${palavra}%,telefone.ilike.%${palavra}%,imei.ilike.%${palavra}%`,
     )
   }
   if (params.filialIds && params.filialIds.length > 0) {

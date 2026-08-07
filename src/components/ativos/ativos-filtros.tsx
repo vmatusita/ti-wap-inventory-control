@@ -169,7 +169,7 @@ export function AtivosFiltros({
           <Input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar patrimônio, colaborador, marca ou modelo…"
+            placeholder="Buscar patrimônio, service tag, hostname, marca, modelo, colaborador, telefone ou IMEI…"
             className="pl-8"
             aria-label="Buscar ativos"
           />

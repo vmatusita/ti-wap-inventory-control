@@ -191,7 +191,13 @@ export function CorpoRelatorioV2({
       {ehOperador && s.pendencias.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-lg font-semibold tracking-tight">Pendências</h2>
-          <PendenciasChips pendencias={s.pendencias} />
+          {/* F27/B5 (PND-03) — chips clicáveis só no AO VIVO para o operador:
+              reusa o MESMO sinal que já decide os KPI tiles clicáveis logo
+              acima (`links`, só vem preenchido em relatorios/[filial]/page.tsx
+              quando `ehOperador`). O snapshot congelado (relatorios/gerados/[id])
+              nunca passa `links`, então `Boolean(links)` já é `false` lá — sem
+              precisar de uma segunda flag para a mesma decisão. */}
+          <PendenciasChips pendencias={s.pendencias} comLink={Boolean(links)} />
         </section>
       )}
 
