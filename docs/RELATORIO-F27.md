@@ -213,6 +213,11 @@ servidor de dev nem banco acessível aqui; ver §8.
 
 ## 6. Verificação executada
 
+> As saídas coladas abaixo são da rodada completa feita antes do fechamento. Depois dela ainda
+> entraram dois commits (o conserto do §12 e esta documentação), então a suíte inteira foi
+> **reexecutada no HEAD entregue** (`2cd9d90`): `lint` exit 0 · `test` **87 arquivos / 1.899
+> testes** exit 0 · `build` exit 0 — os mesmos números.
+
 ### `npm run lint`
 ```
 > estoque-ti-wap@0.1.0 lint
