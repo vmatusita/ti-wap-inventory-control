@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,10 +31,15 @@ const TODOS_TIPOS = '__todos_tipos'
 
 const TIPOS: TipoLancamento[] = ['entrada', 'saida', 'reserva', 'liberacao', 'retorno', 'ajuste']
 
-// Filtros do histórico de lançamentos (OS-F9 · I3): item, tipo e período, 100% na
-// URL (params `item`/`tipo`/`de`/`ate`), no mesmo padrão das outras listas do app.
-// Mudar qualquer filtro reseta o `page`. O filtro de FILIAL continua no
-// ItensFiltros (vale para saldos e histórico) — não se duplica aqui.
+// Filtros do histórico de lançamentos (OS-F9 · I3; busca do ITN-03b): item,
+// tipo, período e busca, 100% na URL (params `item`/`tipo`/`de`/`ate`/`busca`),
+// no mesmo padrão das outras listas do app. Mudar qualquer filtro reseta o
+// `page`. O filtro de FILIAL continua no ItensFiltros (vale para saldos e
+// histórico) — não se duplica aqui.
+//
+// ⚠ ITN-03b — o param é `busca`, NÃO `q`: `q` já é o filtro de SALDOS na mesma
+// página (itens-filtros.tsx / itens/page.tsx); reusar o nome quebraria aquele
+// filtro, já que os dois blocos escrevem na mesma URL (decisão em DECISOES.md).
 export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -46,6 +51,7 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
   const tipoAtual = params.get('tipo') ?? ''
   const deAtual = params.get('de') ?? ''
   const ateAtual = params.get('ate') ?? ''
+  const buscaAtual = params.get('busca') ?? ''
 
   // As datas são controladas localmente e resincronizadas com a URL (mesmo padrão
   // da busca em itens-filtros.tsx) — assim back/forward volta o campo junto.
@@ -56,6 +62,16 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
     setSync(`${deAtual}|${ateAtual}`)
     setDe(deAtual)
     setAte(ateAtual)
+  }
+
+  // Mesma disciplina da busca de saldos (itens-filtros.tsx): só aplica no
+  // ENVIO (Enter/botão), nunca a cada tecla — e resincroniza com a URL para
+  // back/forward voltar o campo junto.
+  const [busca, setBusca] = useState(buscaAtual)
+  const [buscaSync, setBuscaSync] = useState(buscaAtual)
+  if (buscaSync !== buscaAtual) {
+    setBuscaSync(buscaAtual)
+    setBusca(buscaAtual)
   }
 
   function aplicar(mudancas: Record<string, string | null>) {
@@ -74,11 +90,43 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
     startTransition(() => router.push(`${pathname}?${query}`))
   }
 
-  const temFiltro = !!itemAtual || !!tipoAtual || !!deAtual || !!ateAtual
+  function submeterBusca() {
+    aplicar({ busca: busca.trim() || null })
+  }
+
+  const temFiltro = !!itemAtual || !!tipoAtual || !!deAtual || !!ateAtual || !!buscaAtual
   const hoje = hojeISO()
 
   return (
     <div className="flex flex-wrap items-end gap-2">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          submeterBusca()
+        }}
+        className="flex min-w-0 items-end gap-2"
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="hist-busca" className="text-xs text-muted-foreground">
+            Busca
+          </Label>
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="hist-busca"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Chamado ou colaborador"
+              className="w-[220px] pl-8"
+              aria-label="Buscar no histórico por chamado ou colaborador"
+            />
+          </div>
+        </div>
+        <Button type="submit" variant="secondary" className="shrink-0">
+          Pesquisar
+        </Button>
+      </form>
+
       <div className="space-y-1.5">
         <Label htmlFor="hist-item" className="text-xs text-muted-foreground">
           Item
@@ -175,7 +223,8 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
           onClick={() => {
             setDe('')
             setAte('')
-            aplicar({ item: null, tipo: null, de: null, ate: null })
+            setBusca('')
+            aplicar({ item: null, tipo: null, de: null, ate: null, busca: null })
           }}
         >
           <X className="size-4" aria-hidden />

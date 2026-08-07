@@ -21,13 +21,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
+import { Dica } from '@/components/ui/dica'
 import { estornarLancamento } from '@/lib/actions/itens'
 import { formatDate } from '@/lib/format'
 import { pillTipoLancamento, rotuloTipoLancamento } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import type { LancamentoHistorico } from '@/lib/queries/itens'
+import { ROTULO_SALDO_APOS, TEXTO_DICA_SALDO_APOS } from '@/lib/itens/saldo-apos'
+import { TETO_MOTIVO_ESTORNO } from '@/lib/validators/item'
 
 // Histórico de lançamentos (OS 3.3.3): mais recente primeiro, com "Estornar"
 // (cria o inverso vinculado — nada se apaga). Linha estornada/estorno sinalizadas.
@@ -40,13 +45,34 @@ import type { LancamentoHistorico } from '@/lib/queries/itens'
 export function HistoricoLancamentos({
   rows,
   podeEstornar = false,
+  saldoAposPorId,
+  motivoSaldoAposDegradado = null,
 }: {
   rows: LancamentoHistorico[]
   podeEstornar?: boolean
+  // ITN-03a — presente só quando o filtro tem EXATAMENTE 1 item + 1 filial
+  // (calculado no servidor, em `ItensPage` — ver `lib/itens/saldo-apos.ts`).
+  // `undefined` = coluna não aparece; valor `null` numa linha = degradado
+  // (histórico não fechou com o saldo atual), célula vira "—" com o motivo.
+  saldoAposPorId?: Map<string, number | null>
+  motivoSaldoAposDegradado?: string | null
 }) {
   const router = useRouter()
   const [alvo, setAlvo] = useState<LancamentoHistorico | null>(null)
+  // ITN-05c — "Motivo (opcional)" do estorno, digitado no diálogo. Some
+  // concatenado como "Estorno: {motivo}" na observação do inverso.
+  const [motivo, setMotivo] = useState('')
   const [enviando, start] = useTransition()
+
+  function abrirEstorno(r: LancamentoHistorico) {
+    setAlvo(r)
+    setMotivo('')
+  }
+
+  function fecharEstorno() {
+    setAlvo(null)
+    setMotivo('')
+  }
 
   function confirmar() {
     if (!alvo) return
@@ -56,13 +82,16 @@ export function HistoricoLancamentos({
       // estorno não saiu (ou saiu duas vezes). O erro de negócio (`!res.ok`)
       // segue tratado abaixo.
       try {
-        const res = await estornarLancamento({ lancamento_id: alvo.id })
+        const res = await estornarLancamento({
+          lancamento_id: alvo.id,
+          motivo: motivo.trim() || undefined,
+        })
         if (!res.ok) {
           toast.error(res.erro)
           return
         }
         toast.success('Lançamento estornado (inverso criado).')
-        setAlvo(null)
+        fecharEstorno()
         router.refresh()
       } catch {
         toast.error(
@@ -96,7 +125,13 @@ export function HistoricoLancamentos({
               <TableHead className="text-right">Qtd.</TableHead>
               <TableHead className="hidden md:table-cell">Filial</TableHead>
               <TableHead className="hidden md:table-cell">Chamado</TableHead>
+              <TableHead className="hidden lg:table-cell">Colaborador</TableHead>
               <TableHead className="hidden lg:table-cell">Obs.</TableHead>
+              {saldoAposPorId && (
+                <TableHead className="text-right">
+                  <Dica texto={TEXTO_DICA_SALDO_APOS}>{ROTULO_SALDO_APOS}</Dica>
+                </TableHead>
+              )}
               {podeEstornar && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
@@ -104,7 +139,12 @@ export function HistoricoLancamentos({
             {rows.map((r) => (
               <TableRow key={r.id} className={cn(r.estornado && 'opacity-60')}>
                 <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
-                  {formatDate(r.data)}
+                  {/* ITN-02 — o AUTOR (quem registrou, `criado_por`) não tem coluna
+                      própria: fica na Dica da data, ao lado do Colaborador (quem
+                      digitou destinatário) que é a coluna cheia. */}
+                  <Dica texto={`Lançado por ${r.autor_nome ?? 'desconhecido'}`}>
+                    {formatDate(r.data)}
+                  </Dica>
                 </TableCell>
                 <TableCell>
                   <span
@@ -130,11 +170,29 @@ export function HistoricoLancamentos({
                 <TableCell className="hidden whitespace-nowrap tabular-nums text-muted-foreground md:table-cell">
                   {r.chamado ? `#${r.chamado}` : '—'}
                 </TableCell>
+                <TableCell className="hidden whitespace-nowrap lg:table-cell">
+                  {r.colaborador ?? '—'}
+                </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   <div className="max-w-[220px]">
                     <ObsTooltip texto={r.observacao} comIcone className="w-full text-xs" />
                   </div>
                 </TableCell>
+                {saldoAposPorId && (
+                  <TableCell className="text-right tabular-nums">
+                    {(() => {
+                      const valor = saldoAposPorId.get(r.id)
+                      if (valor == null) {
+                        return (
+                          <Dica texto={motivoSaldoAposDegradado ?? 'Não foi possível calcular.'}>
+                            <span className="text-muted-foreground">—</span>
+                          </Dica>
+                        )
+                      }
+                      return <span className="font-medium">{valor.toLocaleString('pt-BR')}</span>
+                    })()}
+                  </TableCell>
+                )}
                 {podeEstornar && (
                   <TableCell className="text-right">
                     {!r.ehEstorno && !r.estornado && (
@@ -142,7 +200,7 @@ export function HistoricoLancamentos({
                         variant="ghost"
                         size="sm"
                         className="gap-1.5 text-muted-foreground"
-                        onClick={() => setAlvo(r)}
+                        onClick={() => abrirEstorno(r)}
                       >
                         <Undo2 className="size-3.5" />
                         <span className="hidden sm:inline">Estornar</span>
@@ -156,7 +214,7 @@ export function HistoricoLancamentos({
         </Table>
       </div>
 
-      <Dialog open={!!alvo} onOpenChange={(o) => !o && setAlvo(null)}>
+      <Dialog open={!!alvo} onOpenChange={(o) => !o && fecharEstorno()}>
         <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Estornar lançamento</DialogTitle>
@@ -183,10 +241,25 @@ export function HistoricoLancamentos({
                 {formatDate(alvo.data)}
                 {alvo.chamado ? ` · #${alvo.chamado}` : ''}
               </p>
+              <p className="mt-1 text-muted-foreground">
+                Lançado por {alvo.autor_nome ?? 'desconhecido'}
+                {alvo.colaborador ? ` · para ${alvo.colaborador}` : ''}
+              </p>
             </div>
           )}
+          <div className="space-y-1.5">
+            <Label htmlFor="estorno-motivo">Motivo (opcional)</Label>
+            <Input
+              id="estorno-motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              maxLength={TETO_MOTIVO_ESTORNO}
+              placeholder="por que este lançamento está sendo estornado"
+              disabled={enviando}
+            />
+          </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setAlvo(null)} disabled={enviando}>
+            <Button variant="ghost" onClick={fecharEstorno} disabled={enviando}>
               Cancelar
             </Button>
             <Button onClick={confirmar} disabled={enviando}>

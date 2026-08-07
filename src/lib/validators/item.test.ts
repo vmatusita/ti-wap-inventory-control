@@ -2,9 +2,12 @@ import { describe, it, expect } from 'vitest'
 import {
   MAX_LINHAS_LOTE_ITEM,
   MSG_ITEM_REPETIDO,
+  MSG_MOTIVO_ESTORNO_MAX,
+  TETO_MOTIVO_ESTORNO,
   atualizarItemSchema,
   errosPorLinhaDoLote,
   erroQuantidadeLancamento,
+  estornoLancamentoSchema,
   exigeChamado,
   explodirLoteLancamentoItem,
   faltaJustificativaAjuste,
@@ -343,5 +346,51 @@ describe('estoque_minimo no schema do catálogo', () => {
     expect(r.success).toBe(true)
     expect('estoque_minimo' in (r.data ?? {})).toBe(false)
     expect('ordem' in (r.data ?? {})).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Estorno de lançamento — motivo opcional (ITN-05c)
+// ---------------------------------------------------------------------------
+
+describe('estornoLancamentoSchema', () => {
+  const idFicticio = '11111111-1111-4111-8111-111111111111'
+
+  it('aceita sem motivo (comportamento de hoje)', () => {
+    const r = estornoLancamentoSchema.safeParse({ lancamento_id: idFicticio })
+    expect(r.success).toBe(true)
+    expect(r.data?.motivo).toBeUndefined()
+  })
+
+  it('string vazia vira ausente, e o motivo é aparado', () => {
+    expect(
+      estornoLancamentoSchema.safeParse({ lancamento_id: idFicticio, motivo: '' }).data?.motivo,
+    ).toBeUndefined()
+    expect(
+      estornoLancamentoSchema.safeParse({ lancamento_id: idFicticio, motivo: '  peça trocada  ' })
+        .data?.motivo,
+    ).toBe('peça trocada')
+  })
+
+  it('recusa motivo acima do teto, com a mensagem em pt-BR', () => {
+    const r = estornoLancamentoSchema.safeParse({
+      lancamento_id: idFicticio,
+      motivo: 'a'.repeat(TETO_MOTIVO_ESTORNO + 1),
+    })
+    expect(r.success).toBe(false)
+    expect(r.error?.issues[0]?.message).toBe(MSG_MOTIVO_ESTORNO_MAX)
+  })
+
+  it('aceita motivo exatamente no teto', () => {
+    const r = estornoLancamentoSchema.safeParse({
+      lancamento_id: idFicticio,
+      motivo: 'a'.repeat(TETO_MOTIVO_ESTORNO),
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('lançamento inválido continua recusado independente do motivo', () => {
+    const r = estornoLancamentoSchema.safeParse({ lancamento_id: 'não-é-uuid', motivo: 'x' })
+    expect(r.success).toBe(false)
   })
 })

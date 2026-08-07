@@ -192,8 +192,20 @@ export function errosPorLinhaDoLote(
 }
 
 // Estorno de lançamento (histórico) — cria o lançamento inverso vinculado.
+// ITN-05c — "Motivo (opcional)": some concatenado como "Estorno: {motivo}" na
+// observação do inverso (`planejarEstorno`, `lib/itens/estorno.ts`) — nunca
+// substitui o texto automático que ajuste/entrada já geravam.
+export const TETO_MOTIVO_ESTORNO = 200
+export const MSG_MOTIVO_ESTORNO_MAX = `Motivo do estorno: no máximo ${TETO_MOTIVO_ESTORNO} caracteres`
+
+const motivoEstornoOpcional = z.preprocess(
+  (v) => (v === '' || v == null ? undefined : v),
+  z.string().trim().max(TETO_MOTIVO_ESTORNO, MSG_MOTIVO_ESTORNO_MAX).optional(),
+)
+
 export const estornoLancamentoSchema = z.object({
   lancamento_id: z.string().uuid('Lançamento inválido'),
+  motivo: motivoEstornoOpcional,
 })
 
 // ---- Catálogo (admin/itens) ----

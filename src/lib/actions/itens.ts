@@ -17,6 +17,8 @@ import {
 } from '@/lib/validators/item'
 import type { TipoLancamento } from '@/lib/dominio'
 import { planejarEstorno } from '@/lib/itens/estorno'
+import { getSaldosItens } from '@/lib/queries/itens'
+import { estoquePorItem } from '@/lib/itens/repor'
 
 // F21 — este arquivo tem DOIS regimes de permissão, e é de propósito:
 //   · LANÇAMENTOS (`lancarItens`, `estornarLancamento`) mexem no saldo de uma FILIAL →
@@ -115,8 +117,11 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
 
 // Estorna um lançamento criando o INVERSO com estorna_id. Nada se apaga. O banco
 // impede duplo estorno (índice único em estorna_id) e valida o saldo do inverso.
+// ITN-05c — `motivo` é OPCIONAL (o operador digita por quê no diálogo) e some
+// concatenado como "Estorno: {motivo}" na observação do inverso (`planejarEstorno`).
 export async function estornarLancamento(input: {
   lancamento_id: string
+  motivo?: string
 }): Promise<ActionResult> {
   const parsed = estornoLancamentoSchema.safeParse(input)
   if (!parsed.success) return { ok: false, erro: 'Lançamento inválido.' }
@@ -151,12 +156,15 @@ export async function estornarLancamento(input: {
     .maybeSingle()
   if (jaEstorno) return { ok: false, erro: 'Este lançamento já foi estornado.' }
 
-  const plano = planejarEstorno({
-    tipo: orig.tipo as TipoLancamento,
-    quantidade: orig.quantidade,
-    chamado: orig.chamado,
-    observacao: orig.observacao,
-  })
+  const plano = planejarEstorno(
+    {
+      tipo: orig.tipo as TipoLancamento,
+      quantidade: orig.quantidade,
+      chamado: orig.chamado,
+      observacao: orig.observacao,
+    },
+    parsed.data.motivo,
+  )
   const { error: e2 } = await supabase.from('lancamentos_item').insert({
     item_id: orig.item_id,
     filial_id: orig.filial_id,
@@ -174,6 +182,31 @@ export async function estornarLancamento(input: {
   revalidarItens()
   revalidatePath('/relatorios', 'layout')
   return { ok: true }
+}
+
+// ITN-05d — saldo do catálogo inteiro numa filial, para o combobox do
+// lançamento mostrar "Mouse USB · 14" ao lado de cada item (a filial já
+// escolhida no diálogo, não a digitação — uma chamada por troca de filial,
+// nunca por tecla). LEITURA (piso da hierarquia, como `buscarAtivosRecentesDoOperador`
+// em `actions/movimentacoes.ts`): qualquer cargo logado ATIVO lê o acervo, e o
+// combobox de lançamento já é só de quem escreve, mas o saldo em si não é dado
+// sensível — reconferir com `exigirEscrita` aqui duplicaria a guarda da
+// própria `lancarItens` sem ganhar nada. Nunca lança: falha vira mapa vazio,
+// nunca "0" chutado nem exceção que trava a lista do combobox.
+export type SaldosPorItem = Readonly<Record<number, number>>
+
+export async function buscarSaldosItens(filialId: number): Promise<SaldosPorItem> {
+  try {
+    if (!Number.isInteger(filialId) || filialId <= 0) return {}
+    const supabase = await createClient()
+    const aut = await exigirPapel(supabase, 'consulta')
+    if (!aut.ok) return {}
+    const saldos = await getSaldosItens(filialId)
+    return estoquePorItem(saldos)
+  } catch (err) {
+    console.error('[buscarSaldosItens] falha ao carregar saldos:', err)
+    return {}
+  }
 }
 
 // ---- Catálogo (admin/itens — padrão de admin/motivos) ----

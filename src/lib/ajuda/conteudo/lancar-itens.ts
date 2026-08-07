@@ -1,6 +1,8 @@
-import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import { MAX_LINHAS_LOTE_ITEM, TETO_MOTIVO_ESTORNO } from '@/lib/validators/item'
 import { TIPO_LANCAMENTO_META, type TipoLancamento } from '@/lib/dominio'
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
+import { ROTULO_SALDO_APOS } from '@/lib/itens/saldo-apos'
+import { ROTULO_ACRESCENTAR, ROTULO_BAIXAR } from '@/lib/itens/sinal-ajuste'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 // REGRA DE OURO: os nomes dos seis tipos de lancamento NAO sao digitados aqui —
@@ -54,8 +56,9 @@ export const lancarItens: PaginaAjuda = {
       itens: [
         'Abra Itens pelo menu lateral e use "Lançar" — o diálogo se chama "Lançar quantidade". Dentro da página Itens, a tecla L abre esse mesmo diálogo; fora dela a tecla não faz nada (ela não navega até Itens).',
         'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item preenchido e o cursor na quantidade. A filial vem junto quando a tela está no Consolidado com UMA filial marcada no filtro; com duas ou mais marcadas, e na visão Por filial, ela abre em branco (a linha vale para todas) — escolha a filial antes de salvar.',
+        'Com a filial escolhida, a lista de itens passa a mostrar o saldo de cada um (ex.: "Mouse USB · 14") — dá para ver antes de escolher às cegas. Sem filial marcada, ou enquanto o saldo ainda carrega, a lista aparece sem o número (nunca com "0" chutado).',
         `Escolha o tipo (${TIPOS_LANCAMENTO_TEXTO}) — cada um afeta Total/Estoque de um jeito, e a descrição do escolhido aparece logo abaixo do campo.`,
-        `Informe a quantidade e, quando fizer sentido, a pessoa/chamado. ${ATRELAR} e ${DEVOLUCAO} exigem o número do chamado; o Ajuste pede justificativa em "Observação (justificativa do ajuste)" e aceita quantidade negativa (a nota ao lado lembra: "quantidade negativa = baixa").`,
+        `Informe a quantidade e, quando fizer sentido, a pessoa/chamado. ${ATRELAR} e ${DEVOLUCAO} exigem o número do chamado; o Ajuste pede justificativa em "Observação (justificativa do ajuste)" e, em vez de digitar o sinal, usa o alternador "${ROTULO_ACRESCENTAR}" / "${ROTULO_BAIXAR}" — o campo só recebe o módulo (sem sinal), o que funciona também no teclado numérico do celular, que não tem tecla de menos. Trocar o tipo para outro que não seja Ajuste some com o sinal negativo pendente na linha.`,
         'Confirme em "Lançar". O aviso "Lançamento registrado." confirma; o saldo da tela se atualiza sozinho.',
         '"Repetir último" traz de volta os campos do seu último lançamento — útil para uma sequência de entradas parecidas.',
       ],
@@ -93,9 +96,10 @@ export const lancarItens: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Achar um lançamento no histórico de itens',
       itens: [
-        'Na página Itens, o histórico filtra por item, por tipo de lançamento e por período (De / Até), além da filial.',
+        'Na página Itens, o histórico filtra por item, por tipo de lançamento, por período (De / Até) e por busca (chamado ou colaborador), além da filial.',
         'Os filtros ficam na URL: o link já vem filtrado ao ser compartilhado, e voltar/avançar do navegador funciona. Trocar um filtro volta para a primeira página.',
-        'A tabela traz "Data", "Tipo", "Item", "Qtd.", "Filial", "Chamado", "Obs." e a coluna de ações. Sem resultado, ela diz "Nenhum lançamento no filtro atual" e sugere ajustar o item, o tipo ou o período.',
+        'A tabela traz "Data" (com o autor do lançamento na dica ao passar o mouse ou focar), "Tipo", "Item", "Qtd.", "Filial", "Chamado", "Colaborador", "Obs." e a coluna de ações. Sem resultado, ela diz "Nenhum lançamento no filtro atual" e sugere ajustar o item, o tipo ou o período.',
+        `Com o filtro em EXATAMENTE um item e uma filial, aparece mais uma coluna: "${ROTULO_SALDO_APOS}" — o estoque logo depois de cada lançamento, do mais recente para o mais antigo. Ela reconstrói a partir do saldo atual; se o histórico não fechar com ele (recorte incompleto), a célula mostra "—" em vez de arriscar um número errado.`,
         'O botão "Exportar histórico" leva para o Excel exatamente o que está filtrado ali.',
       ],
     },
@@ -104,6 +108,7 @@ export const lancarItens: PaginaAjuda = {
       titulo: 'Estornar um lançamento de item',
       itens: [
         'No histórico, use "Estornar" na linha do lançamento errado. O diálogo explica o que vai acontecer: cria o lançamento inverso vinculado (nada é apagado), e o estoque e os atrelados voltam ao estado anterior.',
+        `O campo "Motivo (opcional)" registra o porquê (até ${TETO_MOTIVO_ESTORNO} caracteres): o texto entra na observação do lançamento inverso, precedido de "Estorno: " — SOMADO ao texto automático que ajuste/entrada já geram, nunca no lugar dele. Nos demais tipos (que antes ficavam sem observação nenhuma), o motivo passa a ser a observação inteira.`,
         'O inverso NÃO é sempre do mesmo tipo: o sistema escolhe o que desfaz aquele efeito — uma Entrada é desfeita por um Ajuste negativo (com a observação automática dizendo que é estorno de entrada), uma Liberação por um Retorno, um Atrelar por uma Devolução e vice-versa, e um Ajuste por outro Ajuste de sinal contrário.',
         'Depois disso, a linha original aparece marcada como "(estornado)" e a nova, como "(estorno)". As duas continuam no histórico — é o rastro de auditoria.',
         'Um estorno não se estorna, e o mesmo lançamento não é estornado duas vezes: o sistema recusa com "Um estorno não pode ser estornado." e "Este lançamento já foi estornado."',

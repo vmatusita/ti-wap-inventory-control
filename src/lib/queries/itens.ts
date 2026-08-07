@@ -4,6 +4,7 @@ import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 import { filialParaRpc } from '@/lib/queries/rpc-filial'
+import type { LancamentoParaSaldoApos } from '@/lib/itens/saldo-apos'
 
 // Leituras da operação de itens por quantidade (F3B / OS 3.3.4). Rota só do
 // operador (o visualizador por senha não acessa /itens) — usam o client do
@@ -56,6 +57,9 @@ export type LancamentoHistorico = {
   ehEstorno: boolean
   estornado: boolean
   created_at: string
+  // ITN-02 — quem REGISTROU o lançamento (autor, `criado_por`) — não confundir
+  // com `colaborador`, que é digitado à mão e diz a quem o item se destina.
+  autor_nome: string | null
 }
 
 export type UltimoLancamento = {
@@ -327,12 +331,20 @@ type RawLancRow = {
   created_at: string
   item: { nome: string; grupo: GrupoItem } | null
   filial: { nome: string } | null
+  autor: { nome: string | null } | null
 }
 
+// ITN-02 — embed do autor (`criado_por`), mesmo padrão de `queries/movimentacoes.ts`
+// (TIMELINE_SELECT), `queries/ativos.ts` (anotações), `queries/gerados.ts` e
+// `queries/eventos-admin.ts`. A FK não tem nome próprio na 0015 (`criado_por uuid
+// not null references public.profiles (id)`), então o Postgres gera o padrão
+// `<tabela>_<coluna>_fkey` — confirmado contra o mesmo padrão já em produção em
+// `movimentacoes_criado_por_fkey`.
 const LANC_SELECT =
   'id, data, tipo, quantidade, chamado, colaborador, observacao, estorna_id, created_at, ' +
   'item:itens!lancamentos_item_item_id_fkey(nome, grupo), ' +
-  'filial:filiais!lancamentos_item_filial_id_fkey(nome)'
+  'filial:filiais!lancamentos_item_filial_id_fkey(nome), ' +
+  'autor:profiles!lancamentos_item_criado_por_fkey(nome)'
 
 // Filtros do histórico (F9 · I3), sem paginação — compartilhados pela tabela da
 // tela e pelo export CSV (F10 · T5), para o arquivo sair com EXATAMENTE as
@@ -344,6 +356,11 @@ export type FiltrosHistorico = {
   tipo?: TipoLancamento | null
   de?: string | null
   ate?: string | null
+  // ITN-03b — busca por CHAMADO ou COLABORADOR ("o que saiu no chamado 48211?").
+  // Nome deliberadamente diferente de `q` (o filtro de SALDOS na mesma página,
+  // `itens-filtros.tsx` / `itens/page.tsx`) — reusar `q` aqui quebraria aquele
+  // filtro, já que as duas seções escrevem na mesma URL (decisão em DECISOES.md).
+  busca?: string | null
 }
 
 // Query base (filtros + ordem, sem faixa). O período é sobre a coluna `data` — a
@@ -362,6 +379,14 @@ function queryHistorico(
   if (opts.tipo) q = q.eq('tipo', opts.tipo)
   if (opts.de) q = q.gte('data', opts.de)
   if (opts.ate) q = q.lte('data', opts.ate)
+  const termo = opts.busca?.trim()
+  if (termo) {
+    // Sanitiza os metacaracteres do PostgREST/ILIKE antes de interpolar no
+    // `.or()` — mesma cobertura de `pendencias-detalhe.ts` (`* % _ , ( ) \`),
+    // incluindo o `*` que o PostgREST traduz para `%` no ilike.
+    const esc = termo.replace(/[%_*,()\\]/g, ' ')
+    q = q.or(`chamado.ilike.%${esc}%,colaborador.ilike.%${esc}%`)
+  }
   return q
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
@@ -387,6 +412,7 @@ function mapearLancamento(r: RawLancRow): LinhaExportHistorico {
     observacao: r.observacao,
     ehEstorno: r.estorna_id != null,
     created_at: r.created_at,
+    autor_nome: r.autor?.nome ?? null,
   }
 }
 
@@ -473,6 +499,43 @@ export async function listarHistoricoParaExport(
   }
 
   return { linhas, total }
+}
+
+// ---------------------------------------------------------------------------
+// ITN-03a — "Saldo após": histórico COMPLETO de um item×filial (F28).
+// ---------------------------------------------------------------------------
+// Sem os filtros de tipo/data/busca — eles recortariam a história e a conta de
+// `calcularSaldoApos` fecharia errado (undo de uma Liberação sem enxergar a
+// Entrada anterior). Chamada só quando o filtro do histórico tem EXATAMENTE 1
+// item + 1 filial (`ItensPage`); reusa o padrão de blocos de
+// `listarHistoricoParaExport` (Max Rows do PostgREST corta silenciosamente
+// requests grandes) com o mesmo teto `CAP_EXPORT` — um item×filial chegar
+// perto de 5.000 lançamentos não é esperado, e se chegar a função pura degrada
+// a coluna em vez de fechar a conta errada (ver `saldo-apos.ts`).
+export async function listarLancamentosParaSaldoApos(
+  itemId: number,
+  filialId: number,
+): Promise<LancamentoParaSaldoApos[]> {
+  const supabase = await createClient()
+  const linhas: LancamentoParaSaldoApos[] = []
+
+  for (let volta = 0; volta < MAX_BLOCOS_EXPORT && linhas.length < CAP_EXPORT; volta++) {
+    const tamanho = Math.min(BLOCO_EXPORT, CAP_EXPORT - linhas.length)
+    const { data, error } = await supabase
+      .from('lancamentos_item')
+      .select('id, data, created_at, tipo, quantidade, chamado')
+      .eq('item_id', itemId)
+      .eq('filial_id', filialId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(linhas.length, linhas.length + tamanho - 1)
+    if (error) throw new Error(`Falha ao ler histórico para saldo após: ${error.message}`)
+    const recebidas = (data ?? []) as LancamentoParaSaldoApos[]
+    linhas.push(...recebidas)
+    if (recebidas.length < tamanho) break
+  }
+
+  return linhas
 }
 
 // Último lançamento do operador (para "repetir último" — pré-preenche tudo menos

@@ -39,6 +39,13 @@ import {
 import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { EVENTO_LANCAR_ITEM } from './lancar-item-evento'
 import { ItemCombobox } from './item-combobox'
+import {
+  ROTULO_ACRESCENTAR,
+  ROTULO_BAIXAR,
+  aplicarSinal,
+  moduloDeQuantidade,
+  sentidoDeQuantidade,
+} from '@/lib/itens/sinal-ajuste'
 import type { ItemCatalogo, UltimoLancamento } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 
@@ -225,6 +232,16 @@ export function LancarItemDialog({
     setLinhas((ls) => ls.map((l) => (l.uid === uid ? { ...l, ...campos, erro: undefined } : l)))
   }
 
+  // ITN-05b — trocar o tipo não pode deixar um sinal negativo preso numa
+  // linha: fora do Ajuste não existe alternador para desfazê-lo, e o campo
+  // (sem o alternador) voltaria a exigir a tecla de menos para corrigir.
+  function mudarTipo(novoTipo: TipoLancamento) {
+    setTipo(novoTipo)
+    if (novoTipo !== 'ajuste') {
+      setLinhas((ls) => ls.map((l) => ({ ...l, quantidade: moduloDeQuantidade(l.quantidade) })))
+    }
+  }
+
   function adicionarLinha() {
     setLinhas((ls) => (ls.length >= MAX_LINHAS_LOTE_ITEM ? ls : [...ls, novaLinha()]))
   }
@@ -374,6 +391,7 @@ export function LancarItemDialog({
                       desabilitado={enviando}
                       podeCriarItem={podeCriarItem}
                       descricaoAcessivel={`Item ${i + 1} do lançamento`}
+                      filialId={filialId}
                     />
                   </div>
                   <Input
@@ -382,9 +400,17 @@ export function LancarItemDialog({
                     inputMode="numeric"
                     aria-label={`Quantidade do item ${i + 1}`}
                     className="min-h-10 w-24 shrink-0"
-                    value={l.quantidade}
-                    onChange={(e) => atualizarLinha(l.uid, { quantidade: e.target.value })}
-                    placeholder={exigeObs ? '-3' : '10'}
+                    // ITN-05b — no Ajuste o campo só recebe o MÓDULO: o
+                    // teclado numérico do iOS não tem tecla de menos, e o
+                    // sinal vira o alternador logo abaixo.
+                    value={exigeObs ? moduloDeQuantidade(l.quantidade) : l.quantidade}
+                    onChange={(e) => {
+                      const novoValor = exigeObs
+                        ? aplicarSinal(e.target.value, sentidoDeQuantidade(l.quantidade))
+                        : e.target.value
+                      atualizarLinha(l.uid, { quantidade: novoValor })
+                    }}
+                    placeholder={exigeObs ? '3' : '10'}
                     disabled={enviando}
                   />
                   <Button
@@ -399,6 +425,43 @@ export function LancarItemDialog({
                     <X className="size-4" />
                   </Button>
                 </div>
+                {/* ITN-05b — alternador por linha: aplica o sinal sobre o
+                    módulo já digitado, sem exigir a tecla de menos. Estado
+                    default "+ Acrescentar" (`sentidoDeQuantidade('')`). */}
+                {exigeObs && (
+                  <div
+                    role="group"
+                    aria-label={`Sinal do ajuste do item ${i + 1}`}
+                    className="flex gap-1.5 pl-1"
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={sentidoDeQuantidade(l.quantidade) === 'positivo' ? 'default' : 'outline'}
+                      aria-pressed={sentidoDeQuantidade(l.quantidade) === 'positivo'}
+                      className="min-h-8 flex-1"
+                      onClick={() =>
+                        atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'positivo') })
+                      }
+                      disabled={enviando}
+                    >
+                      {ROTULO_ACRESCENTAR}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={sentidoDeQuantidade(l.quantidade) === 'negativo' ? 'default' : 'outline'}
+                      aria-pressed={sentidoDeQuantidade(l.quantidade) === 'negativo'}
+                      className="min-h-8 flex-1"
+                      onClick={() =>
+                        atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'negativo') })
+                      }
+                      disabled={enviando}
+                    >
+                      {ROTULO_BAIXAR}
+                    </Button>
+                  </div>
+                )}
                 {l.erro && (
                   <p className="pl-1 text-xs text-red-600 dark:text-red-400">{l.erro}</p>
                 )}
@@ -416,9 +479,6 @@ export function LancarItemDialog({
                 <Plus className="size-3.5" />
                 Adicionar item
               </Button>
-              {exigeObs && (
-                <span className="text-xs text-muted-foreground">quantidade negativa = baixa</span>
-              )}
             </div>
           </div>
 
@@ -449,7 +509,7 @@ export function LancarItemDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="lanc-tipo">Tipo</Label>
-              <Select value={tipo} onValueChange={(v) => setTipo(v as TipoLancamento)}>
+              <Select value={tipo} onValueChange={(v) => mudarTipo(v as TipoLancamento)}>
                 <SelectTrigger id="lanc-tipo" className="w-full">
                   {/* F19 — placeholder por simetria com a Filial: o tipo sempre
                       tem valor ('entrada' de partida), então ele nunca aparece

@@ -1,6 +1,41 @@
 import { verbetesGrupoItem, verbetesTipoLancamento } from '@/lib/ajuda/derivacao'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
+// ITN-05a — os quatro números de cada item, cada um com rótulo + explicação de
+// UMA linha. Fonte única: tanto o bloco de texto desta página (que prefixa
+// "rótulo — explicação") quanto as `Dica` dos cabeçalhos Total/Estoque/
+// Atrelados/Falta da visão consolidada (`app/(app)/itens/page.tsx`) leem
+// daqui — ninguém redigita o vocabulário nem a fórmula da coluna Falta.
+export type ChaveNumeroItem = 'total' | 'estoque' | 'atrelados' | 'falta'
+
+export const NUMEROS_ITEM: readonly {
+  chave: ChaveNumeroItem
+  rotulo: string
+  explicacao: string
+}[] = [
+  {
+    chave: 'total',
+    rotulo: 'Total',
+    explicacao: 'Tudo que a TI possui daquele item (o patrimônio do almoxarifado).',
+  },
+  {
+    chave: 'estoque',
+    rotulo: 'Estoque',
+    explicacao: 'O que está fisicamente disponível na prateleira agora.',
+  },
+  {
+    chave: 'atrelados',
+    rotulo: 'Atrelados',
+    explicacao: 'Unidades vinculadas a um ativo/chamado, que devem retornar.',
+  },
+  {
+    chave: 'falta',
+    rotulo: 'Falta',
+    explicacao:
+      'Déficit real: acende quando o que está atrelado somado ao que está com as pessoas passa do Total — máx(0, atrelados + liberados − total). Na operação normal fica sempre em zero; se acender, algum lançamento não fecha e vale conferir o histórico. É compromisso JÁ assumido, e aparece como selo vermelho "faltam N" — não é o mesmo que o aviso "repor".',
+  },
+]
+
 export const itensPorQuantidade: PaginaAjuda = {
   slug: 'itens-por-quantidade',
   titulo: 'Itens por quantidade',
@@ -39,12 +74,7 @@ export const itensPorQuantidade: PaginaAjuda = {
     },
     {
       tipo: 'lista',
-      itens: [
-        'Total — tudo que a TI possui daquele item (o patrimônio do almoxarifado).',
-        'Estoque — o que está fisicamente disponível na prateleira agora.',
-        'Atrelados — unidades vinculadas a um ativo/chamado, que devem retornar.',
-        'Falta — déficit real: acende quando o que está atrelado somado ao que está com as pessoas passa do Total — máx(0, atrelados + liberados − total). Na operação normal fica sempre em zero; se acender, algum lançamento não fecha e vale conferir o histórico. É compromisso JÁ assumido, e aparece como selo vermelho "faltam N" — não é o mesmo que o aviso "repor".',
-      ],
+      itens: NUMEROS_ITEM.map((n) => `${n.rotulo} — ${n.explicacao}`),
     },
     {
       tipo: 'nota',

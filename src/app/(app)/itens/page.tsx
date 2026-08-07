@@ -14,8 +14,10 @@ import {
   getSaldosPorFilial,
   getUltimoLancamento,
   listarItensAtivos,
+  listarLancamentosParaSaldoApos,
   type SaldoItem,
 } from '@/lib/queries/itens'
+import { calcularSaldoApos, type LancamentoParaSaldoApos } from '@/lib/itens/saldo-apos'
 import {
   GRUPO_ITEM_META,
   GRUPO_ITEM_ORDEM,
@@ -31,6 +33,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Dica } from '@/components/ui/dica'
+// ITN-05a — a mesma explicação de UMA linha por número (Total/Estoque/
+// Atrelados/Falta) que a página de ajuda usa, sem redigitar a fórmula da
+// coluna Falta aqui.
+import { NUMEROS_ITEM } from '@/lib/ajuda/conteudo/itens-por-quantidade'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
@@ -150,6 +157,9 @@ export default async function ItensPage({
   const tipoFiltro = tipoValido(primeiro(sp.tipo))
   const deFiltro = dataISO(primeiro(sp.de))
   const ateFiltro = dataISO(primeiro(sp.ate))
+  // ITN-03b — busca por chamado/colaborador. Param `busca`, não `q` (que já é o
+  // filtro de SALDOS nesta mesma página — ver o comentário em historico-filtros.tsx).
+  const buscaFiltro = (primeiro(sp.busca) ?? '').trim() || null
 
   // Ponto de reposição (F12 · I5): o aviso "repor" compara SEMPRE com o estoque
   // CONSOLIDADO (decisão do Johnny 22/07/2026 — o mínimo é do item, não da
@@ -170,7 +180,12 @@ export default async function ItensPage({
 
   const consolidadoAparte = !visaoFiliais && filialIds.length > 0
 
-  const [itensAtivos, saldos, ultimo, historico, saldosConsolidados, saldosFiliais] =
+  // ITN-03a — "Saldo após" só faz sentido com EXATAMENTE 1 item + 1 filial no
+  // recorte (o saldo de um item é por filial; ver `saldo-apos.ts`). A visão
+  // por filial nunca entra aqui: ela zera `filialIds` de propósito (§ acima).
+  const mostrarSaldoApos = !visaoFiliais && filialIds.length === 1 && itemFiltro != null
+
+  const [itensAtivos, saldos, ultimo, historico, saldosConsolidados, saldosFiliais, lancamentosSaldoApos] =
     await Promise.all([
       listarItensAtivos(),
       // Na visão por filial esta leitura não é usada (a de baixo traz o
@@ -183,6 +198,7 @@ export default async function ItensPage({
         tipo: tipoFiltro,
         de: deFiltro,
         ate: ateFiltro,
+        busca: buscaFiltro,
         page,
         pageSize: 20,
       }),
@@ -193,6 +209,13 @@ export default async function ItensPage({
       // toda abertura de /itens. Ela não depende de nada aqui além de `filiais`,
       // que já está resolvida — então entra no paralelo.
       visaoFiliais ? getSaldosPorFilial(filiais) : Promise.resolve(null),
+      // ITN-03a — histórico COMPLETO do item×filial (sem tipo/data/busca/
+      // página), só quando a coluna vai aparecer. Entra no mesmo paralelo: não
+      // depende de nenhuma das outras leituras, só de `filialIds`/`itemFiltro`,
+      // já resolvidos.
+      mostrarSaldoApos
+        ? listarLancamentosParaSaldoApos(itemFiltro, filialIds[0])
+        : Promise.resolve<LancamentoParaSaldoApos[]>([]),
     ])
 
   const porGrupo = agruparSaldos(saldos, q, grupoFiltro)
@@ -231,6 +254,21 @@ export default async function ItensPage({
   const estoqueConsolidado = estoquePorItem(
     consolidadoAparte ? saldosConsolidados : saldos,
   )
+
+  // ITN-03a — "Saldo após". A âncora (`saldoAtualItem`) vem da MESMA leitura
+  // de saldos já usada na tabela de cima — sem chamada extra. Sem ela (item do
+  // `?item=` não aparece nos saldos — id inválido, item nunca ativo) a coluna
+  // simplesmente não aparece, em vez de arriscar a conta sem âncora.
+  const saldoAtualItem = mostrarSaldoApos
+    ? saldos.find((s) => s.item_id === itemFiltro)
+    : undefined
+  const resultadoSaldoApos =
+    mostrarSaldoApos && saldoAtualItem
+      ? calcularSaldoApos(lancamentosSaldoApos, saldoAtualItem)
+      : null
+  const saldoAposPorId = resultadoSaldoApos
+    ? new Map(resultadoSaldoApos.linhas.map((l) => [l.id, l.saldoApos]))
+    : undefined
 
   const blocosVazios = (visaoFiliais ? porGrupoFiliais : porGrupo).length === 0
   // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
@@ -360,10 +398,16 @@ export default async function ItensPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Item</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">Estoque</TableHead>
-                      <TableHead className="text-right">Atrelados</TableHead>
-                      <TableHead className="text-right">Falta</TableHead>
+                      {/* ITN-05a — cada cabeçalho explica o número em UMA linha
+                          (a visão por filial já explica pelo `title` da
+                          célula; aqui não há célula por filial para carregar
+                          isso). Texto vem de `NUMEROS_ITEM`, a mesma fonte da
+                          página de ajuda. */}
+                      {NUMEROS_ITEM.map((n) => (
+                        <TableHead key={n.chave} className="text-right">
+                          <Dica texto={n.explicacao}>{n.rotulo}</Dica>
+                        </TableHead>
+                      ))}
                       {/* Coluna de AÇÃO: some inteira para quem não lança, em vez
                           de sobrar uma coluna vazia em todas as linhas. */}
                       {escreve && (
@@ -447,7 +491,12 @@ export default async function ItensPage({
           />
         </div>
         <HistoricoFiltros itens={itensAtivos} />
-        <HistoricoLancamentos rows={historico.rows} podeEstornar={escreve} />
+        <HistoricoLancamentos
+          rows={historico.rows}
+          podeEstornar={escreve}
+          saldoAposPorId={saldoAposPorId}
+          motivoSaldoAposDegradado={resultadoSaldoApos?.motivoDegradado ?? null}
+        />
         {historico.total > historico.pageSize && (
           <AtivosPaginacao
             page={historico.page}
