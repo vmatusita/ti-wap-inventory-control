@@ -311,8 +311,14 @@ export function ColarListaDialog({
             )}
           </Button>
 
+          {/* F29/UXG-05 — a recusa da conferência nascia muda para o leitor de tela.
+              Só `role="alert"`, sem foco programático: a caixa aparece dentro do
+              dialog, a poucos pixels do botão que acabou de ser clicado. */}
           {res?.erro && (
-            <p className="flex items-start gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+            <p
+              role="alert"
+              className="flex items-start gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+            >
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
               {res.erro}
             </p>

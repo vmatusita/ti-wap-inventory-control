@@ -1,4 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { Carregando } from '@/components/layout/carregando'
 
 // Skeleton genérico do grupo /admin. O cabeçalho ("Administração") e a AdminNav
 // vivem no admin/layout.tsx (acima do boundary) e permanecem; este skeleton
@@ -6,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 // filiais, motivos, itens): barra de ação + tabela.
 export default function Loading() {
   return (
-    <div className="space-y-4 print:hidden">
+    <Carregando className="space-y-4 print:hidden">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Skeleton className="h-4 w-72 max-w-full" />
         <Skeleton className="h-9 w-36 rounded-md" />
@@ -24,6 +25,6 @@ export default function Loading() {
           ))}
         </div>
       </div>
-    </div>
+    </Carregando>
   )
 }

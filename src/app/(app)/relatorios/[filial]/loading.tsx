@@ -1,11 +1,12 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { EsqueletoRelatorioCorpo } from '@/components/layout/esqueleto-relatorio'
+import { Carregando } from '@/components/layout/carregando'
 
 // Skeleton do relatório ao vivo (filial ou consolidado). Ecoa: cabeçalho +
 // cluster de ações → tabs de filial → filtro de período → corpo do relatório.
 export default function Loading() {
   return (
-    <div className="space-y-4 print:hidden">
+    <Carregando className="space-y-4 print:hidden">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <Skeleton className="h-8 w-64" />
@@ -35,6 +36,6 @@ export default function Loading() {
       </div>
 
       <EsqueletoRelatorioCorpo />
-    </div>
+    </Carregando>
   )
 }

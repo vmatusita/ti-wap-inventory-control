@@ -1,8 +1,9 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { Carregando } from '@/components/layout/carregando'
 
 export default function Loading() {
   return (
-    <div className="space-y-6 print:hidden">
+    <Carregando className="space-y-6 print:hidden">
       <Skeleton className="h-4 w-36" />
       <div className="flex items-center justify-between gap-4">
         <div className="space-y-2">
@@ -17,6 +18,6 @@ export default function Loading() {
         <Skeleton className="h-24 w-full rounded-lg" />
         <Skeleton className="h-24 w-full rounded-lg" />
       </div>
-    </div>
+    </Carregando>
   )
 }

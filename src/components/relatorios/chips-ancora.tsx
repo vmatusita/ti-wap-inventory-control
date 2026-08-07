@@ -1,3 +1,5 @@
+import { NavRolavel } from '@/components/layout/nav-rolavel'
+
 // Chips-âncora fixos no topo ao rolar (§4): o relatório fica longo com 3 grupos.
 // Links de âncora (as seções têm scroll-mt); sticky via CSS, sem JS. Ocultos na
 // impressão. `temTransferencias` acrescenta a âncora condicional.
@@ -39,7 +41,13 @@ export function ChipsAncora({
   // visualizador por senha (nenhum href para fora de /relatorios).
   chips.push({ href: '#como-ler', rotulo: 'Como ler' })
   return (
-    <nav className="sticky top-14 z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-lg border bg-background/95 px-1 py-1.5 backdrop-blur [scrollbar-width:none] print:hidden [&::-webkit-scrollbar]:hidden">
+    // ⚠ O `sticky` fica no WRAPPER, não no <nav>: um sticky envolvido por um div em
+    // fluxo normal gruda dentro de uma caixa da própria altura, ou seja, não gruda.
+    <NavRolavel
+      className="sticky top-14 z-20 -mx-1 print:hidden"
+      navClassName="flex gap-1.5 overflow-x-auto rounded-lg border bg-background/95 px-1 py-1.5 backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      rotulo="Seções do relatório"
+    >
       {chips.map((c) => (
         <a
           key={c.href}
@@ -49,6 +57,6 @@ export function ChipsAncora({
           {c.rotulo}
         </a>
       ))}
-    </nav>
+    </NavRolavel>
   )
 }

@@ -482,8 +482,17 @@ function DialogoApagarConflito({
         {/* Algum selecionado já saiu do conflito enquanto esta página estava aberta. A RPC
             recusaria a operação INTEIRA por causa dele (all-or-nothing) — dizer antes evita
             o clique que vai falhar. */}
+        {/* F29/UXG-05 — as duas caixas deste diálogo nascem DEPOIS de uma consulta ao
+            servidor (`abrirDialogo` → `resumoExclusaoConflito`), então `role="alert"`
+            é o certo aqui. O banner fixo "Marque o cadastro errado", que já nasce
+            montado com a mesa, ficou de fora de propósito: `role="alert"` interrompe o
+            leitor de tela a cada inserção no DOM, e ali isso seria ruído em toda
+            navegação para a página, não um aviso de algo que acabou de acontecer. */}
         {faltando > 0 && (
-          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm">
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm"
+          >
             <div className="flex items-center gap-2 font-medium text-destructive">
               <AlertTriangle className="size-4" />
               {faltando === 1
@@ -501,7 +510,10 @@ function DialogoApagarConflito({
         {/* O AVISO DESTACADO (§4.3): apagar cadastro com vida própria é PERMITIDO — o
             Johnny decidiu assim —, mas nunca em silêncio. */}
         {resumo.comHistoricoReal.length > 0 && (
-          <div className="rounded-lg border border-amber-400/60 bg-amber-50 p-3 text-sm dark:border-amber-700/60 dark:bg-amber-950/30">
+          <div
+            role="alert"
+            className="rounded-lg border border-amber-400/60 bg-amber-50 p-3 text-sm dark:border-amber-700/60 dark:bg-amber-950/30"
+          >
             <div className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-300">
               <AlertTriangle className="size-4" />
               {resumo.comHistoricoReal.length === 1

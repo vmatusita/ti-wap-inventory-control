@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { NavRolavel } from '@/components/layout/nav-rolavel'
 
 const ITENS = [
   { href: '/admin/usuarios', rotulo: 'Usuários' },
@@ -19,7 +20,11 @@ const ITENS = [
 export function AdminNav() {
   const pathname = usePathname()
   return (
-    <nav className="-mx-4 -mb-px flex gap-1 overflow-x-auto border-b px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
+    <NavRolavel
+      className="-mx-4 -mb-px md:mx-0"
+      navClassName="flex gap-1 overflow-x-auto border-b px-4 [scrollbar-width:none] md:px-0 [&::-webkit-scrollbar]:hidden"
+      rotulo="Seções da administração"
+    >
       {ITENS.map((i) => {
         const ativa = pathname === i.href || pathname.startsWith(`${i.href}/`)
         return (
@@ -38,6 +43,6 @@ export function AdminNav() {
           </Link>
         )
       })}
-    </nav>
+    </NavRolavel>
   )
 }

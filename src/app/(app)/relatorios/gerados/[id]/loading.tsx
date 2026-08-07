@@ -1,11 +1,12 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { EsqueletoRelatorioCorpo } from '@/components/layout/esqueleto-relatorio'
+import { Carregando } from '@/components/layout/carregando'
 
 // Skeleton do snapshot congelado. Ecoa: link de volta → banner de meta →
 // cabeçalho → corpo do relatório (reusa o skeleton do relatório ao vivo).
 export default function Loading() {
   return (
-    <div className="space-y-4 print:hidden">
+    <Carregando className="space-y-4 print:hidden">
       <Skeleton className="h-4 w-40" />
 
       {/* banner "dados congelados" */}
@@ -20,6 +21,6 @@ export default function Loading() {
       </div>
 
       <EsqueletoRelatorioCorpo />
-    </div>
+    </Carregando>
   )
 }

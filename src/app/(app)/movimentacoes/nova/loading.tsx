@@ -1,10 +1,11 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { Carregando } from '@/components/layout/carregando'
 
 // Skeleton de /movimentacoes/nova. Ecoa a coluna centrada (max-w-3xl): título +
 // o formulário/wizard em passos (busca de ativo, campos e ações).
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 print:hidden">
+    <Carregando className="mx-auto max-w-3xl space-y-6 print:hidden">
       <div className="space-y-2">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-96 max-w-full" />
@@ -39,6 +40,6 @@ export default function Loading() {
           <Skeleton className="h-9 w-32 rounded-md" />
         </div>
       </div>
-    </div>
+    </Carregando>
   )
 }

@@ -1,10 +1,11 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { Carregando } from '@/components/layout/carregando'
 
 // Skeleton de /pendencias. Ecoa: cabeçalho → chips-resumo por bucket → filtros
 // (tabs + busca + filial) → tabela com badges.
 export default function Loading() {
   return (
-    <div className="space-y-4 print:hidden">
+    <Carregando className="space-y-4 print:hidden">
       <div className="space-y-2">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-4 w-96 max-w-full" />
@@ -44,6 +45,6 @@ export default function Loading() {
           ))}
         </div>
       </div>
-    </div>
+    </Carregando>
   )
 }

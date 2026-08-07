@@ -125,7 +125,10 @@ export function ApagarUsuarioDialog({
           {email ? (
             <p className="text-xs text-muted-foreground break-all">{email}</p>
           ) : (
-            <p className="text-xs text-destructive">
+            /* F29/UXG-05 — a irmã desta caixa (a dica da confirmação digitada) já
+               tinha `role="alert"`; esta ficou de fora e é a que EXPLICA por que o
+               diálogo não vai concluir. */
+            <p role="alert" className="text-xs text-destructive">
               Não foi possível ler o e-mail desta conta agora — sem ele não dá para
               confirmar qual conta seria apagada. Atualize a página e tente de novo.
             </p>

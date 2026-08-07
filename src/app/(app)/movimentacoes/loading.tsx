@@ -1,10 +1,11 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { Carregando } from '@/components/layout/carregando'
 
 // Skeleton de /movimentacoes (F11 · M8). Ecoa o layout real: cabeçalho + botão →
 // barra de filtros (busca, tipo, filial, de, até) → tabela de 10 linhas.
 export default function Loading() {
   return (
-    <div className="space-y-5 print:hidden">
+    <Carregando className="space-y-5 print:hidden">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <Skeleton className="h-8 w-56" />
@@ -34,6 +35,6 @@ export default function Loading() {
           ))}
         </div>
       </div>
-    </div>
+    </Carregando>
   )
 }

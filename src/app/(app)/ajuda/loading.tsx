@@ -1,11 +1,12 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { Carregando } from '@/components/layout/carregando'
 
 // Esqueleto do indice da documentacao (F6B, reajustado na F20): ecoa titulo,
 // busca, os chips de categoria e os cards de pagina. Sem ele, a navegacao para a
 // Ajuda herdaria o esqueleto do dashboard (loading.tsx do grupo).
 export default function Loading() {
   return (
-    <div className="space-y-6 print:hidden">
+    <Carregando className="space-y-6 print:hidden">
       <div className="space-y-2">
         <Skeleton className="h-8 w-24" />
         <Skeleton className="h-4 w-80 max-w-full" />
@@ -31,6 +32,6 @@ export default function Loading() {
           </div>
         ))}
       </div>
-    </div>
+    </Carregando>
   )
 }

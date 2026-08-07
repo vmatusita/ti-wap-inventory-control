@@ -1,10 +1,11 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { Carregando } from '@/components/layout/carregando'
 
 // Skeleton de /itens. Ecoa: cabeçalho + ações → filtros → seções por grupo
 // (tabela Item/Total/Estoque/Atrelados/Falta) → histórico de lançamentos.
 export default function Loading() {
   return (
-    <div className="space-y-4 print:hidden">
+    <Carregando className="space-y-4 print:hidden">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <Skeleton className="h-8 w-56" />
@@ -59,6 +60,6 @@ export default function Loading() {
           </div>
         </div>
       </section>
-    </div>
+    </Carregando>
   )
 }

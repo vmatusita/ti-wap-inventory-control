@@ -1,11 +1,12 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { Carregando } from '@/components/layout/carregando'
 
 // Esqueleto de uma pagina da documentacao (F20). Sem ele, a navegacao herdaria
 // o esqueleto do grupo (dashboard), que nao bate com esta tela. Ecoa trilha,
 // titulo, sumario e os primeiros blocos.
 export default function Loading() {
   return (
-    <div className="max-w-3xl space-y-6 print:hidden">
+    <Carregando className="max-w-3xl space-y-6 print:hidden">
       <Skeleton className="h-3 w-32" />
       <div className="space-y-2">
         <Skeleton className="h-8 w-64 max-w-full" />
@@ -17,6 +18,6 @@ export default function Loading() {
           <Skeleton key={i} className="h-4 w-full" />
         ))}
       </div>
-    </div>
+    </Carregando>
   )
 }

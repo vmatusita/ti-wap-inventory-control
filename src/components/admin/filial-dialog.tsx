@@ -50,6 +50,8 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
   const [ativo, setAtivo] = useState(filial?.ativo ?? true)
   // F25 — a cidade que assina o TERMO desta filial.
   const [cidade, setCidade] = useState(filial?.cidade ?? '')
+  // F29/UXG-05 — a recusa do servidor vive na TELA, não só num toast que some.
+  const [erro, setErro] = useState<string | null>(null)
   const [enviando, start] = useTransition()
 
   function mudarNome(v: string) {
@@ -61,6 +63,7 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
 
   function salvar() {
     if (!valido) return
+    setErro(null)
     start(async () => {
       // F19 — sem o catch, o throw de rede some dentro do startTransition
       // (apaga a tela no error boundary) e o operador fica sem feedback.
@@ -75,16 +78,24 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
             })
           : await criarFilial({ nome: nome.trim(), slug, cidade: cidade.trim() })
         if (!res.ok) {
-          toast.error(res.erro)
+          // F29/UXG-05 — o erro ia SÓ por toast. Toast some sozinho, não é anunciado
+          // como alerta e o diálogo continua aberto sem dizer o que houve: a recusa
+          // mais comum aqui ("a filial tem N ativos") precisa ficar na tela ao lado do
+          // campo que a causou. O toast permanece — quem estava olhando para outro
+          // canto do diálogo continua sendo avisado.
+          const msg = res.erro ?? 'Não foi possível salvar a filial.'
+          setErro(msg)
+          toast.error(msg)
           return
         }
         toast.success(edicao ? 'Filial atualizada.' : 'Filial criada.')
         setAberto(false)
         router.refresh()
       } catch {
-        toast.error(
-          'Não foi possível salvar a filial. Verifique sua conexão e tente de novo.',
-        )
+        const msg =
+          'Não foi possível salvar a filial. Verifique sua conexão e tente de novo.'
+        setErro(msg)
+        toast.error(msg)
       }
     })
   }
@@ -153,6 +164,15 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
               </span>
             )}
           </label>
+        )}
+
+        {erro && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+          >
+            {erro}
+          </p>
         )}
 
         <DialogFooter>

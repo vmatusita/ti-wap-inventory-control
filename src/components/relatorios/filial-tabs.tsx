@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import { NavRolavel } from '@/components/layout/nav-rolavel'
 
 // Indicador de navegação de uma tab (F6B/B1). useLinkStatus (Next 16) só
 // funciona DENTRO de um <Link>, então este subcomponente vive como filho do
@@ -35,7 +36,11 @@ export function FilialTabs({
   const tabs = [...filiais, { slug: 'geral', nome: 'Consolidado' }]
 
   return (
-    <nav className="-mx-4 -mb-px flex gap-1 overflow-x-auto border-b px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden print:hidden">
+    <NavRolavel
+      className="-mx-4 -mb-px md:mx-0 print:hidden"
+      navClassName="flex gap-1 overflow-x-auto border-b px-4 [scrollbar-width:none] md:px-0 [&::-webkit-scrollbar]:hidden"
+      rotulo="Filiais do relatório"
+    >
       {tabs.map((t) => {
         const ativa = t.slug === atual
         return (
@@ -55,6 +60,6 @@ export function FilialTabs({
           </Link>
         )
       })}
-    </nav>
+    </NavRolavel>
   )
 }

@@ -1,12 +1,13 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { EsqueletoKpiTiles } from '@/components/layout/esqueleto-relatorio'
+import { Carregando } from '@/components/layout/carregando'
 
 // Skeleton do Dashboard — rota índice do grupo (app). Ecoa: título → KPIs →
 // 2 cards (pendências / últimas movimentações) → 4 atalhos. Como é o loading da
 // rota-índice do grupo, cobre também rotas sem loading próprio (fallback breve).
 export default function Loading() {
   return (
-    <div className="space-y-6 print:hidden">
+    <Carregando className="space-y-6 print:hidden">
       <div className="space-y-2">
         <Skeleton className="h-8 w-44" />
         <Skeleton className="h-4 w-72" />
@@ -41,6 +42,6 @@ export default function Loading() {
           </div>
         ))}
       </div>
-    </div>
+    </Carregando>
   )
 }

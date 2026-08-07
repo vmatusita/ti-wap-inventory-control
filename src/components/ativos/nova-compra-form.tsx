@@ -394,6 +394,16 @@ export function NovaCompraForm({
 
   const [enviando, setEnviando] = useState(false)
   const [errosServidor, setErrosServidor] = useState<string[]>([])
+  // F29/UXG-05 — este formulário é LONGO e não vive dentro de um dialog: a caixa de
+  // erro do servidor nasce fora da viewport de quem está no fim da página. Mesmo par
+  // do wizard (MOV-01a/F27): `role="alert"` para o leitor de tela + `tabIndex={-1}`
+  // com foco e rolagem, porque anunciar sem levar até lá resolve metade do problema.
+  const errosServidorRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (errosServidor.length === 0) return
+    errosServidorRef.current?.focus()
+    errosServidorRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [errosServidor])
   const [resultado, setResultado] = useState<
     { id: string; patrimonio: string }[] | null
   >(null)
@@ -1057,8 +1067,14 @@ export function NovaCompraForm({
         </Tabs>
 
         {/* Preview */}
+        {/* Erros de PARSE da lista/faixa. Aqui não há foco programático: a caixa
+            nasce logo abaixo do campo que a produziu, já sob os olhos de quem digitou
+            — roubar o foco tiraria o cursor do campo no meio da correção. */}
         {preview.erros.length > 0 && (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+          >
             <p className="mb-1 flex items-center gap-1.5 font-medium">
               <TriangleAlert className="size-4" />
               Corrija antes de continuar:
@@ -1104,7 +1120,12 @@ export function NovaCompraForm({
 
       {/* Erros do servidor (duplicidade etc.) */}
       {errosServidor.length > 0 && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+        <div
+          ref={errosServidorRef}
+          tabIndex={-1}
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive outline-none"
+        >
           <p className="mb-1 font-medium">Nada foi cadastrado:</p>
           <ul className="list-inside list-disc space-y-0.5">
             {errosServidor.map((e, i) => (
