@@ -15,6 +15,11 @@ import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { KitDialog } from '@/components/admin/kit-dialog'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Kits',
+}
+
 // Catálogo de KITS DE MOVIMENTAÇÃO (F12 · M12 — promessa da F5 §5.9). Rota de
 // operador (o layout de /admin já exige sessão de operador; o visualizador por
 // senha só alcança /relatorios/**).

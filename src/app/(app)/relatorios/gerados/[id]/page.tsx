@@ -1,11 +1,19 @@
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, FileText, TriangleAlert } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
+import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { buscarRelatorioGerado } from '@/lib/queries/gerados'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
+
+// FLX-03 — título curto da aba (WCAG 2.4.2). Estático: o snapshot (filial +
+// período) já está no banner e no `<h1>` da própria tela.
+export const metadata = {
+  title: 'Relatório gerado',
+}
 
 export default async function RelatorioGeradoPage({
   params,
@@ -15,7 +23,17 @@ export default async function RelatorioGeradoPage({
   const { id } = await params
 
   const acesso = await resolverAcessoRelatorio()
-  if (!acesso) redirect('/relatorios/acesso')
+  if (!acesso) {
+    // FLX-01 — mesma guarda do layout: volta para ESTE snapshot depois de
+    // repor a senha, em vez de cair no consolidado ao vivo.
+    const h = await headers()
+    redirect(
+      redirectAcessoRelatorios(
+        h.get('x-wap-pathname') ?? '',
+        h.get('x-wap-search') ?? '',
+      ),
+    )
+  }
   const ehOperador = acesso.modo === 'operador'
 
   const detalhe = await buscarRelatorioGerado(acesso.client, id)

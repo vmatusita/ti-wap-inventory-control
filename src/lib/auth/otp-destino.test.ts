@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { destinoSeguro, tipoOtpValido, TIPOS_OTP } from '@/lib/auth/otp'
+import {
+  destinoSeguro,
+  redirectAcessoRelatorios,
+  tipoOtpValido,
+  TIPOS_OTP,
+} from '@/lib/auth/otp'
 
 // R-ACC-20 — helpers síncronos e PUROS compartilhados por /auth/confirm e a Server
 // Action confirmarAcesso. otp.ts não importa 'server-only' e só traz um type-only de
@@ -81,5 +86,27 @@ describe('tipoOtpValido — allowlist de EmailOtpType (R-ACC-20)', () => {
   it('é case-sensitive (allowlist exige match exato)', () => {
     expect(tipoOtpValido('INVITE')).toBeNull()
     expect(tipoOtpValido('Recovery')).toBeNull()
+  })
+})
+
+describe('redirectAcessoRelatorios — monta o next da entrada por senha (FLX-01)', () => {
+  it('combina pathname e search no next, codificado', () => {
+    expect(redirectAcessoRelatorios('/relatorios/matriz', '?preset=mes')).toBe(
+      '/relatorios/acesso?next=%2Frelatorios%2Fmatriz%3Fpreset%3Dmes',
+    )
+  })
+
+  it('sem search, o next é só o pathname', () => {
+    expect(redirectAcessoRelatorios('/relatorios/gerados/abc-123', '')).toBe(
+      '/relatorios/acesso?next=%2Frelatorios%2Fgerados%2Fabc-123',
+    )
+  })
+
+  it('o next decodifica de volta ao valor original (round-trip)', () => {
+    const pathname = '/relatorios/geral'
+    const search = '?filial=cd-sul&filial=matriz'
+    const url = redirectAcessoRelatorios(pathname, search)
+    const next = new URL(`https://x${url}`).searchParams.get('next')
+    expect(next).toBe(pathname + search)
   })
 })

@@ -17,6 +17,11 @@ import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { ListaFiltros } from '@/components/movimentacoes/lista-filtros'
 import { ListaMovimentacoes } from '@/components/movimentacoes/lista-movimentacoes'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Movimentações',
+}
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 function texto(v: string | string[] | undefined): string | undefined {

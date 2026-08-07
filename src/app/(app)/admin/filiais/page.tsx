@@ -10,6 +10,11 @@ import {
 } from '@/components/ui/table'
 import { FilialDialog } from '@/components/admin/filial-dialog'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Filiais',
+}
+
 export default async function AdminFiliaisPage() {
   const filiais = await listarFiliaisAdmin()
 

@@ -24,6 +24,14 @@ export async function updateSession(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-wap-pathname', pathname)
+  // FLX-01 — o layout e as páginas de /relatorios/** reconstroem `pathname +
+  // search` a partir destes dois headers quando precisam redirecionar para a
+  // entrada por senha/login SEM perder o destino atual (ex.: sessão do
+  // visualizador expira NO MEIO da leitura, disparada pelo ViewerAutoRefresh de
+  // 60s). Header SEPARADO de `x-wap-pathname` de propósito — concatenar
+  // quebraria o `pathname === '/relatorios/acesso'` de match exato que o layout
+  // já faz.
+  requestHeaders.set('x-wap-search', request.nextUrl.search)
 
   let response = NextResponse.next({ request: { headers: requestHeaders } })
 
@@ -72,9 +80,13 @@ export async function updateSession(request: NextRequest) {
       // sessão não morre no navegador (padrão @supabase/ssr para middleware).
       await supabase.auth.signOut({ scope: 'local' })
       const url = request.nextUrl.clone()
+      // FLX-01 — guarda o destino ANTES de zerar `search`: sem isto quem estava
+      // em /pendencias?filial=3 caía sempre no Dashboard depois de logar de novo.
+      const destino = pathname + request.nextUrl.search
       url.pathname = '/login'
       url.search = ''
       url.searchParams.set('erro', 'sessao-expirada')
+      url.searchParams.set('next', destino)
       const redirect = NextResponse.redirect(url)
       response.cookies
         .getAll()
@@ -112,8 +124,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Qualquer outra rota exige operador logado.
+  // Qualquer outra rota exige operador logado. Guarda o destino em `next` (mesmo
+  // padrão do ramo de /relatorios acima) para o gestor voltar para onde estava
+  // depois do login — não sempre para a Home (FLX-01).
   const url = request.nextUrl.clone()
   url.pathname = '/login'
+  url.search = ''
+  url.searchParams.set('next', pathname + request.nextUrl.search)
   return NextResponse.redirect(url)
 }

@@ -14,6 +14,11 @@ import { getPerfilAtual } from '@/lib/queries/profile'
 import { getOperador, MSG_SOMENTE_LEITURA } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Novo equipamento',
+}
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 function texto(v: string | string[] | undefined): string | undefined {

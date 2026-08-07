@@ -1,7 +1,9 @@
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { FileClock } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
+import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { Button } from '@/components/ui/button'
 import { listarFiliais } from '@/lib/queries/filiais'
@@ -20,6 +22,12 @@ import { ViewerAutoRefresh } from '@/components/relatorios/viewer-auto-refresh'
 import { GerarRelatorioDialog } from '@/components/relatorios/gerar-relatorio-dialog'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
+
+// FLX-03 — título curto da aba (WCAG 2.4.2). Estático (não por filial): o nome
+// exato da filial já está no `<h1>` da própria tela.
+export const metadata = {
+  title: 'Relatórios',
+}
 
 // Teto de execução da rota (route segment config do Next 16 — vale para page,
 // layout e route). Sem ele a rota herda o teto da Vercel, 300 s: em 24/07/2026 um
@@ -60,7 +68,18 @@ export default async function RelatorioFilialPage({
   const sp = await searchParams
 
   const acesso = await resolverAcessoRelatorio()
-  if (!acesso) redirect('/relatorios/acesso')
+  if (!acesso) {
+    // FLX-01 — mesma guarda do layout: preserva filial + período (o `search`
+    // desta página) para o gestor voltar aqui depois de repor a senha, e não
+    // cair sempre no Consolidado ao vivo.
+    const h = await headers()
+    redirect(
+      redirectAcessoRelatorios(
+        h.get('x-wap-pathname') ?? '',
+        h.get('x-wap-search') ?? '',
+      ),
+    )
+  }
 
   const periodo = resolverPeriodo({
     preset: primeiro(sp.preset),

@@ -12,6 +12,11 @@ import { UsuariosTabela } from '@/components/admin/usuarios/usuarios-tabela'
 import { AuditoriaFiltro } from '@/components/admin/usuarios/auditoria-filtro'
 import { AuditoriaTabela } from '@/components/admin/usuarios/auditoria-tabela'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Usuários',
+}
+
 // /admin/usuarios (F21) — gestão de usuários de verdade: cargo, filiais de escrita,
 // desativar/reativar, e a aba Auditoria com a trilha de `eventos_admin`.
 //

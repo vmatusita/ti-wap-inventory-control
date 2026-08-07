@@ -11,6 +11,11 @@ import {
 } from '@/components/ui/table'
 import { MotivoDialog } from '@/components/admin/motivo-dialog'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Motivos',
+}
+
 export default async function AdminMotivosPage() {
   const motivos = await listarMotivosAdmin()
 

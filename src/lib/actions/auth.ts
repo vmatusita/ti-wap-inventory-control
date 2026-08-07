@@ -35,7 +35,12 @@ export async function signIn(
     return { erro: 'E-mail ou senha inválidos' }
   }
 
-  redirect('/')
+  // FLX-01 — volta para onde a sessão expirou (o proxy grava `next` nos dois
+  // redirects para /login) em vez de sempre mandar para o Dashboard. Mesma
+  // sanitização de `confirmarAcesso` logo abaixo — só caminho interno passa,
+  // senão cai na Home. Fecha o open redirect.
+  const nextRaw = formData.get('next')
+  redirect(destinoSeguro(typeof nextRaw === 'string' ? nextRaw : null))
 }
 
 // Encerra a sessao e volta para o login.

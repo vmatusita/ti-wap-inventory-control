@@ -20,6 +20,11 @@ import {
   msgSemEscritaNaFilial,
 } from '@/lib/auth/acesso'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Devolução ao fornecedor',
+}
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 function texto(v: string | string[] | undefined): string | undefined {

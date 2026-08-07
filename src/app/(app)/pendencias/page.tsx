@@ -28,6 +28,11 @@ import {
 import { contarGruposConflito, listarConflitos } from '@/lib/queries/conflitos'
 import { eAdmin } from '@/lib/auth/papeis'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Pendências',
+}
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 function primeiro(v: string | string[] | undefined): string | undefined {
@@ -219,8 +224,12 @@ export default async function PendenciasPage({
         />
       </div>
 
-      {/* KPI-chips (reuso de getPendencias — total por bucket) + o de conflito */}
-      <PendenciasChips pendencias={chipsComConflito} recortado={temRecorteFilial} />
+      {/* KPI-chips (reuso de getPendencias — total por bucket) + o de conflito.
+          F27/B5 (PND-03) — `comLink`: cada chip vira `/pendencias?tipo=…`, a
+          MESMA fila que ele resume. Sempre true aqui: esta rota já exige
+          `getOperador()` (redireciona pra /login sem sessão, acima), então todo
+          visitante É operador — nunca o visualizador por senha. */}
+      <PendenciasChips pendencias={chipsComConflito} recortado={temRecorteFilial} comLink />
 
       <PendenciasFiltros
         filiais={filiais}

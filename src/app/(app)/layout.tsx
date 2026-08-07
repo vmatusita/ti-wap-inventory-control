@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getOperador, getViewerSession, temSessaoSupabase } from '@/lib/auth/acesso'
+import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { contarPendenciasAbertas } from '@/lib/queries/pendencias-detalhe'
 import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 import { AppHeader } from '@/components/layout/app-header'
@@ -30,6 +31,10 @@ export default async function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const h = await headers()
   const pathname = h.get('x-wap-pathname') ?? ''
+  // FLX-01 — search da rota atual (o proxy grava, ver lib/supabase/proxy.ts):
+  // usado para reconstruir `next` no redirect de sessão de visualizador
+  // ausente/expirada, mais abaixo.
+  const search = h.get('x-wap-search') ?? ''
 
   if (pathname === '/relatorios/acesso') {
     const operador = await getOperador()
@@ -156,7 +161,10 @@ export default async function AppLayout({
   // um acesso que nunca dependeu dele.
   if (!viewer) {
     if (await temSessaoSupabase()) redirect('/login?erro=acesso-desativado')
-    redirect('/relatorios/acesso')
+    // FLX-01 — guarda o destino atual: sem isto o ViewerAutoRefresh (60s), que
+    // dispara este redirect NO MEIO da leitura de um relatório, mandava o
+    // gestor sempre para /relatorios/geral, perdendo filial, período e filtros.
+    redirect(redirectAcessoRelatorios(pathname, search))
   }
 
   return (

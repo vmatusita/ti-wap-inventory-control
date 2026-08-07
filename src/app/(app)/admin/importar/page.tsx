@@ -16,6 +16,11 @@ import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { ImportarWizard } from '@/components/admin/importar/importar-wizard'
 import { BaixarBackupButton } from '@/components/admin/importar/baixar-backup-button'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Importar',
+}
+
 // admin/importar (OS-F7 / W3): wizard de "Substituir tudo" + histórico de imports.
 // F21 — só o cargo ADMIN: a rota é fechada pelo `admin/layout.tsx`, a action
 // `aplicarImport` exige `exigirAdmin()`, a RPC `importar_ativos_substituir` tem

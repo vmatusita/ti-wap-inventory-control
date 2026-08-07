@@ -18,6 +18,11 @@ import { AuditoriaPainel } from '@/components/dev/auditoria-painel'
 import { ManutencaoPainel } from '@/components/dev/manutencao-painel'
 import { exportarAuditoriaCSV } from './acoes-export'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Desenvolvedor',
+}
+
 // /dev (F22) — a área do 4º cargo. Quatro blocos: o que está no ar, checagens de
 // integridade, a trilha completa de auditoria e a manutenção (cache + painéis dos serviços).
 //

@@ -14,8 +14,14 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+// FLX-03 — título por página (WCAG 2.4.2): o `template` propaga o sufixo " · Estoque
+// TI WAP" para todo `title` que as páginas declararem (curto, só o nome da tela);
+// `default` é o que aparece quando uma rota não declara título nenhum.
 export const metadata: Metadata = {
-  title: 'Estoque TI · WAP',
+  title: {
+    default: 'Estoque TI · WAP',
+    template: '%s · Estoque TI WAP',
+  },
   description: 'Controle de ativos de TI da WAP',
 }
 

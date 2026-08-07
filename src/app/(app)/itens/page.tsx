@@ -57,6 +57,11 @@ import { resolverFiliaisIds } from '@/lib/filtros/filial'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Itens',
+}
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 function primeiro(v: string | string[] | undefined): string | undefined {

@@ -13,6 +13,11 @@ import { CriarSenhaDialog } from '@/components/admin/criar-senha-dialog'
 import { SenhaAcoes } from '@/components/admin/senha-acoes'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Senhas de acesso',
+}
+
 export default async function AdminSenhasPage() {
   const senhas = await listarSenhasAcesso()
 

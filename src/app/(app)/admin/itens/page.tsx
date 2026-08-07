@@ -11,6 +11,13 @@ import {
 } from '@/components/ui/table'
 import { ItemDialog } from '@/components/admin/item-dialog'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2). "Catálogo de itens", e não só
+// "Itens": a tela `/itens` (saldos por quantidade) já usa esse título curto —
+// mesma sentinela em duas abas seria a própria falha que a fase corrige.
+export const metadata = {
+  title: 'Catálogo de itens',
+}
+
 export default async function AdminItensPage() {
   const itens = await listarItensAdmin()
 

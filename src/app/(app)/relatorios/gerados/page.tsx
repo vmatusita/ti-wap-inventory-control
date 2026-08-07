@@ -1,7 +1,9 @@
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BarChart3, FileClock, MessageSquareText } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
+import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
 import { resolverFiliaisSlugsSemPadrao } from '@/lib/filtros/filial'
@@ -20,6 +22,11 @@ import {
 import { GeradosFiltroFilial } from '@/components/relatorios/gerados-filtro'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Relatórios gerados',
+}
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 export default async function RelatoriosGeradosPage({
@@ -28,7 +35,17 @@ export default async function RelatoriosGeradosPage({
   searchParams: Promise<SearchParams>
 }) {
   const acesso = await resolverAcessoRelatorio()
-  if (!acesso) redirect('/relatorios/acesso')
+  if (!acesso) {
+    // FLX-01 — mesma guarda do layout: preserva o filtro de filial (o `search`
+    // desta página) para o gestor voltar aqui depois de repor a senha.
+    const h = await headers()
+    redirect(
+      redirectAcessoRelatorios(
+        h.get('x-wap-pathname') ?? '',
+        h.get('x-wap-search') ?? '',
+      ),
+    )
+  }
 
   const sp = await searchParams
   // F25 — multi-seleção, mas SEM padrão por cargo (decisão §4.7): o arquivo é

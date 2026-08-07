@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Copy, Eye, PackageX, Plus, TriangleAlert } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
@@ -46,6 +47,26 @@ function Dado({
       <dd className="text-sm">{children}</dd>
     </div>
   )
+}
+
+// FLX-03 — título da aba com o patrimônio (WCAG 2.4.2). Consulta PRÓPRIA, e não
+// `buscarAtivoPorId` (que a página já chama, embaixo): aquela traz a ficha
+// inteira com o embed de filial só para preencher um `<title>`. `data` vem
+// `null` tanto para "não achou" quanto para erro de leitura — os dois caem no
+// mesmo fallback, sem lançar (generateMetadata não pode derrubar a página).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('ativos')
+    .select('patrimonio')
+    .eq('id', id)
+    .maybeSingle()
+  return { title: data?.patrimonio ?? 'Ativo sem patrimônio' }
 }
 
 export default async function AtivoFichaPage({

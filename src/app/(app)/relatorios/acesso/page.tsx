@@ -1,5 +1,10 @@
 import { AcessoForm } from '@/components/relatorios/acesso-form'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+export const metadata = {
+  title: 'Acesso aos relatórios',
+}
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 // Entrada por SENHA de acesso aos relatórios (público — spec §3 / OS-F3 3.9.1).

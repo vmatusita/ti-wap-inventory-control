@@ -26,6 +26,10 @@ const ERRO_QUERY: Record<string, string> = {
 function LoginForm() {
   const searchParams = useSearchParams()
   const [state, formAction, pending] = useActionState(signIn, estadoInicial)
+  // FLX-01 — destino guardado pelo proxy (sessão expirada / rota que exige
+  // login). Viaja num campo oculto e é revalidado (`destinoSeguro`) na Server
+  // Action — mesmo padrão do `next` da entrada por senha (AcessoForm).
+  const next = searchParams.get('next') ?? ''
 
   // Erro genérico do submit (credenciais inválidas).
   useEffect(() => {
@@ -47,6 +51,7 @@ function LoginForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="next" value={next} />
       <div className="space-y-2">
         <Label htmlFor="email">E-mail</Label>
         <Input
