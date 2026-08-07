@@ -55,7 +55,7 @@ export const problemasComuns: PaginaAjuda = {
           causa:
             'Patrimônio repete em casos raros — a identidade de verdade é o PAR patrimônio + service tag. O sistema não escolhe por você de propósito.',
           saida: [
-            'Sempre que houver patrimônio repetido no resultado, a lista de Ativos mostra a coluna "Service Tag" e a lista de Movimentações mostra o chip "ST …" ao lado do número. Compare com a etiqueta do equipamento na sua frente.',
+            'Sempre que houver patrimônio repetido no resultado, a lista de Ativos mostra a service tag em letra menor logo abaixo do número (nas linhas repetidas, em qualquer tamanho de tela) e a lista de Movimentações mostra o chip "ST …" ao lado. Compare com a etiqueta do equipamento na sua frente.',
             'Na busca de ativos do fluxo de movimentação aparece o aviso "Patrimônio duplicado — confira a service tag antes de escolher.". Escolha pela linha que traz a service tag certa.',
             'Ao colar uma lista, os duplicados vão para o bloco "{patrimônio} — patrimônio duplicado: escolha qual" e nada entra sem a sua escolha. Da próxima vez, cole a service tag na mesma linha (depois de vírgula, ponto e vírgula ou TAB) e o sistema resolve sozinho.',
           ],

@@ -53,7 +53,7 @@ export const identidadeDoEquipamento: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        'Na lista de ativos, a coluna "Service Tag" aparece SÓ quando há patrimônio duplicado no resultado da busca — nas demais buscas ela não ocupa espaço.',
+        'Na lista de ativos, o equipamento cujo patrimônio se repete no resultado traz a service tag em letra menor, logo abaixo do número — só nas linhas repetidas, e em qualquer tamanho de tela, inclusive no celular.',
         'Na lista de movimentações, o patrimônio duplicado vem acompanhado do chip "ST" com a service tag ao lado.',
         'Ao montar um lote, a busca de ativos avisa: "Patrimônio duplicado — confira a service tag antes de escolher."',
         'Ao colar uma lista de patrimônios, a linha duplicada é separada em "{patrimônio} — patrimônio duplicado: escolha qual", com o aviso "Nada entra sem escolha. Da próxima vez, cole a service tag na mesma linha para resolver sozinho."',

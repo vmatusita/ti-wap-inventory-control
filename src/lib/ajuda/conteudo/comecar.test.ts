@@ -281,7 +281,11 @@ describe('identidade-do-equipamento', () => {
       'Patrimônio duplicado — confira a service tag antes de escolher.',
       'patrimônio duplicado: escolha qual',
       'Nada entra sem escolha.',
-      'a coluna "Service Tag" aparece SÓ quando há patrimônio duplicado',
+      // F28/ATV-06 — a coluna condicional "Service Tag" morreu: ela aparecia e
+      // sumia conforme a PÁGINA e ainda por cima era `hidden lg:table-cell`,
+      // sumindo no celular, que é onde desambiguar mais importa. Virou sublinha
+      // da célula de patrimônio, só nas linhas repetidas. A trava acompanha.
+      'a service tag em letra menor, logo abaixo do número',
     )
   })
 })

@@ -267,6 +267,11 @@ const COLUNAS_ATIVOS: ColunaCsv<LinhaExportAtivo>[] = [
   { titulo: 'Status', valor: (l) => rotuloStatus(l.status) },
   { titulo: 'Colaborador', valor: (l) => l.colaborador_atual },
   { titulo: 'Setor', valor: (l) => l.setor_atual },
+  // F28/ATV-02 — a pendência passou a ser visível na LISTA (indicador âmbar) e a
+  // ter chip de filtro; sem esta coluna, quem exporta "Com pendência" recebe um
+  // arquivo em que nada distingue as linhas nem diz o motivo. É texto livre
+  // (`ativos.pendencia`), o mesmo que a ficha mostra na faixa âmbar.
+  { titulo: 'Pendência', valor: (l) => l.pendencia },
 ]
 
 const COLUNAS_PENDENCIAS: ColunaCsv<PendenciaDetalhe>[] = [
@@ -366,6 +371,10 @@ const COLUNAS_HISTORICO: ColunaCsv<LinhaExportHistorico>[] = [
   { titulo: 'Filial', valor: (l) => l.filial },
   { titulo: 'Chamado', valor: (l) => l.chamado },
   { titulo: 'Colaborador', valor: (l) => l.colaborador },
+  // F28/ITN-02 — quem LANÇOU (`lancamentos_item.criado_por`). "Colaborador" é
+  // quem levou o item; "Autor" é quem registrou o lançamento. Sem os dois, a
+  // auditoria do CSV não distingue as duas pessoas.
+  { titulo: 'Autor', valor: (l) => l.autor_nome },
   { titulo: 'Observação', valor: (l) => l.observacao },
   { titulo: 'Estorno', valor: (l) => (l.ehEstorno ? 'sim' : 'não') },
 ]
