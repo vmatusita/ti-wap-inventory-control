@@ -76,6 +76,11 @@ type MovRow = {
   chamado: string | null
   itens_faltantes: string[] | null
   snapshot_anterior: { colaborador?: string | null } | null
+  // MOV-09 — a data da PRÓPRIA movimentação (pode ser retroativa, chips
+  // Hoje/Ontem) e o termo_data que o operador já tenha informado nela: as duas
+  // alimentam o pré-preenchimento de `data` do dialog, abaixo.
+  data: string
+  termo_data: string | null
   ativo: {
     id: string
     categoria: CategoriaAtivo
@@ -95,7 +100,7 @@ type MovRow = {
 }
 
 const MOV_SELECT =
-  'id, tipo, motivo, colaborador, chamado, itens_faltantes, snapshot_anterior, ' +
+  'id, tipo, motivo, colaborador, chamado, itens_faltantes, snapshot_anterior, data, termo_data, ' +
   'ativo:ativos!movimentacoes_ativo_id_fkey(id, categoria, marca, modelo, service_tag, patrimonio, colaborador_atual, telefone, imei, pulsus, filial_id), ' +
   'motivo_rel:motivos!movimentacoes_motivo_fkey(rotulo)'
 
@@ -170,6 +175,15 @@ export async function prepararTermo(input: {
   if (movs.length === 0) return falhaPrep('Movimentação não encontrada.')
 
   const hoje = hojeISO()
+  // MOV-09 — o termo herda a data da movimentação de referência (§ comentário do
+  // `.order('id')` acima: mesmo `movs[0]` que já governa as outras decisões do
+  // lote). Com os chips Hoje/Ontem tornando rotina o lançamento retroativo, sem
+  // isto o operador redigitava no dialog uma data que o sistema já sabia — e
+  // esquecer gerava termo divergente do registro. `termo_data` vence (o
+  // operador já declarou a data do termo nesta movimentação, ex.: reemissão);
+  // senão a `data` da movimentação; senão hoje. O campo do dialog SEGUE
+  // editável — isto é só o pré-preenchimento.
+  const dataHerdada = movs[0].termo_data ?? movs[0].data ?? hoje
   const ativos = movs.map((m) => m.ativo).filter((a): a is NonNullable<MovRow['ativo']> => !!a)
   const categorias = ativos.map((a) => a.categoria)
   const ativoIds = ativos.map((a) => a.id)
@@ -226,7 +240,7 @@ export async function prepararTermo(input: {
       familia,
       ativoIds: [a.id],
       categorias: [a.categoria],
-      data: hoje,
+      data: dataHerdada,
       colaborador,
       campos,
       avisos,
@@ -287,7 +301,7 @@ export async function prepararTermo(input: {
     familia,
     ativoIds,
     categorias,
-    data: hoje,
+    data: dataHerdada,
     colaborador,
     campos,
     avisos,

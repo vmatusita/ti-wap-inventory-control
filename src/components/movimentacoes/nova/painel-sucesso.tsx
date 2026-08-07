@@ -242,6 +242,19 @@ export function PainelSucesso({
     (a) => !gerados.has(a.id) && !pulados.has(a.id),
   )
   const proximoRef = useRef<HTMLButtonElement>(null)
+  const tituloRef = useRef<HTMLHeadingElement>(null)
+
+  // MOV-13 — ao suceder, o form (passo-revisao) desmonta e o foco morre no
+  // <body>: leitor de tela nunca ouve "N movimentações registradas". O <h2>
+  // abaixo ganha `tabIndex={-1}` (focável por script, fora da ordem de Tab) e
+  // este efeito move o foco pra lá AO MONTAR. Deps vazias de propósito:
+  // PainelSucesso só monta uma vez por sucesso — trocas de estado internas
+  // (gerar/pular termo, que mexem em `gerados`/`pulados` abaixo) são re-render
+  // da MESMA instância e não devem roubar o foco de volta de quem já está
+  // operando o encadeamento dos termos.
+  useEffect(() => {
+    tituloRef.current?.focus()
+  }, [])
 
   // Encadeamento: fechado um termo, o foco vai para o botao do PROXIMO pendente
   // (o Radix devolve o foco ao gatilho que acabou de ser usado). Assim a
@@ -263,7 +276,7 @@ export function PainelSucesso({
       <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
         <Check className="size-6" />
       </div>
-      <h2 className="text-lg font-semibold">
+      <h2 ref={tituloRef} tabIndex={-1} className="text-lg font-semibold">
         {sucesso.criadas}{' '}
         {sucesso.criadas === 1 ? 'movimentação registrada' : 'movimentações registradas'}
       </h2>

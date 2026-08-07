@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Check, PackageX, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
@@ -69,6 +69,21 @@ export function DevolucaoFornecedorForm({
     substituto?: { id: string; patrimonio: string }
   } | null>(null)
   const enviandoRef = useRef(false)
+  const tituloSucessoRef = useRef<HTMLHeadingElement>(null)
+
+  // MOV-13 — mesma técnica do painel de sucesso do wizard (`painel-sucesso.tsx`):
+  // o <h2> do painel de sucesso abaixo ganha `tabIndex={-1}` (focável por
+  // script, fora da ordem de Tab) e este efeito move o foco pra lá quando a
+  // devolução é registrada — sem isso o foco fica preso no botão que já saiu da
+  // tela e o leitor de tela não anuncia o sucesso. Diferente do painel do
+  // wizard (um componente à parte, que MONTA ao suceder), este formulário troca
+  // de JSX na MESMA instância — por isso o efeito depende de `sucesso` em vez
+  // de deps vazias. Mas como `sucesso` só é setado UMA VEZ nesta tela (nenhum
+  // caminho o volta a `null`), o efeito dispara uma única vez, sem risco de
+  // roubar o foco depois.
+  useEffect(() => {
+    if (sucesso) tituloSucessoRef.current?.focus()
+  }, [sucesso])
 
   async function enviar() {
     if (enviandoRef.current) return
@@ -158,7 +173,11 @@ export function DevolucaoFornecedorForm({
         <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
           <Check className="size-6" />
         </div>
-        <h2 className="text-center text-lg font-semibold">
+        <h2
+          ref={tituloSucessoRef}
+          tabIndex={-1}
+          className="text-center text-lg font-semibold"
+        >
           Devolução ao fornecedor registrada
         </h2>
         <div className="mx-auto mt-4 grid max-w-md gap-3 sm:grid-cols-2">
