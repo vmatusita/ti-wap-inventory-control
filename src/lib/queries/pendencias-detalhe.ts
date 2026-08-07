@@ -47,6 +47,11 @@ export type PendenciaDetalhe = {
   modelo: string | null
   tipo: TipoPendencia
   desde: string | null // timestamptz
+  // F28/PND-01 — só populado nas linhas de tipo 'patrimonio' (o `CorrigirPatrimonioDialog`
+  // embutido na linha da fila exige o trio ativoId/patrimonioAtual/serviceTag). `null` nos
+  // demais tipos: `v_fila_pendencias` não expõe a service tag (ver `listarPendencias`), e
+  // buscá-la para toda linha seria uma leitura extra sem uso nenhum fora deste balde.
+  serviceTag: string | null
 }
 
 export type ListaPendencias = {
@@ -160,7 +165,27 @@ function mapearPendencia(r: RowPendencia): PendenciaDetalhe {
     modelo: r.modelo,
     tipo: classificarPendencia(r.pendencia),
     desde: r.desde,
+    // Preenchida à parte, só para as linhas de tipo 'patrimonio' — ver `listarPendencias`.
+    serviceTag: null,
   }
+}
+
+// F28/PND-01 — `v_fila_pendencias` não expõe `service_tag` (a view foi desenhada para
+// a leitura ampla da fila, não para a correção de patrimônio). Busca em bloco só os
+// ids do balde 'patrimonio' da PÁGINA atual (nunca a fila inteira) e devolve um mapa
+// id→service_tag para o chamador mesclar. Falha aqui não derruba a fila: a correção
+// simplesmente abre sem a service tag (o diálogo trata `null` como "—").
+async function buscarServiceTags(
+  client: DbClient,
+  ids: readonly string[],
+): Promise<Map<string, string | null>> {
+  if (ids.length === 0) return new Map()
+  const { data, error } = await client.from('ativos').select('id, service_tag').in('id', ids)
+  if (error) {
+    console.error(`Falha ao buscar service tag das pendências de patrimônio: ${error.message}`)
+    return new Map()
+  }
+  return new Map((data ?? []).map((a) => [a.id as string, a.service_tag as string | null]))
 }
 
 // Query base (filtros + ordem, sem faixa). Fonte única da semântica de filtro:
@@ -245,6 +270,16 @@ export async function listarPendencias(
   if (error) throw new Error(`Falha ao listar pendências: ${error.message}`)
 
   const rows = (data ?? []).map(mapearPendencia)
+
+  // F28/PND-01 — só o balde 'patrimonio' precisa da service tag (o diálogo embutido
+  // na linha). Uma leitura extra, restrita aos ids desta PÁGINA (no máximo PAGE_SIZE).
+  const idsPatrimonio = rows.filter((r) => r.tipo === 'patrimonio').map((r) => r.id)
+  if (idsPatrimonio.length > 0) {
+    const tags = await buscarServiceTags(client, idsPatrimonio)
+    for (const r of rows) {
+      if (r.tipo === 'patrimonio') r.serviceTag = tags.get(r.id) ?? null
+    }
+  }
 
   return { rows, total: count ?? 0, page, pageSize: PAGE_SIZE }
 }

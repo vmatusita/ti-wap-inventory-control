@@ -15,6 +15,7 @@ import {
   desfazerAssinaturaSchema,
 } from '@/lib/validators/ativo'
 import { formatDate, hojeISO } from '@/lib/format'
+import { dataOpcionalSchema } from '@/lib/validators/data'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import {
   TERMO_ARQUIVO,
@@ -700,5 +701,127 @@ export async function desfazerConfirmacaoTermo(input: {
   revalidatePath('/pendencias')
   revalidatePath('/relatorios', 'layout')
   return { ok: true }
+}
+
+// ---------------------------------------------------------------------------
+// confirmarAssinaturaLote (F28/PND-02) — confirma 1..N termos de uma vez, com
+// UMA data para o lote inteiro (a pilha que volta do mutirão de assinatura tem
+// a mesma data para todo mundo). Espelha `confirmarAssinaturaTermo` (acima, a
+// individual) e `resolverPendenciaItem` (actions/pendencias.ts, que já opera
+// sobre `ids[]`): cargo primeiro, depois as filiais dos ALVOS lidas do banco —
+// nunca confiadas ao cliente — e `exigirEscritaEm` recusando o LOTE INTEIRO se
+// faltar vínculo em uma delas (escrita parcial silenciosa seria pior).
+//
+// O schema fica LOCAL (não exportado): este módulo é 'use server' e só pode
+// exportar async functions — um `export const` de schema quebraria a regra
+// (é a mesma razão pela qual `falhaPrep`/`aplicarFlagTermo`, acima, também são
+// privados a este arquivo).
+const confirmarAssinaturaLoteSchema = z.object({
+  ativo_ids: z
+    .array(z.string().uuid())
+    .min(1, 'Selecione ao menos um termo.')
+    .max(500, 'Muitos termos de uma vez — confirme em blocos menores.'),
+  // Mesma régua da individual (`confirmarAssinaturaSchema`, validators/ativo.ts):
+  // ausente = hoje, sem teto de futuro além disso (termo_data não tem, por
+  // decisão registrada — ver o comentário de `confirmarAssinaturaSchema`).
+  data: dataOpcionalSchema,
+})
+
+// `confirmados`/`ignorados` sempre somam o total pedido (após deduplicar):
+// idempotente como a individual — quem já estava 'sim' entra em `ignorados`,
+// nunca em erro. A UI precisa dessa honestidade quando o lote encolhe (um
+// termo já tinha sido confirmado por outra aba/pessoa entre a fila carregar e
+// o clique).
+export type ConfirmacaoLote =
+  | { ok: true; confirmados: number; ignorados: number }
+  | { ok: false; erro: string }
+
+export async function confirmarAssinaturaLote(input: {
+  ativo_ids: string[]
+  data?: string
+}): Promise<ConfirmacaoLote> {
+  const parsed = confirmarAssinaturaLoteSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+
+  const supabase = await createClient()
+  const cargo = await exigirPapel(supabase, 'operador')
+  if (!cargo.ok) return { ok: false, erro: cargo.erro }
+
+  // Dedup defensivo: a UI seleciona por Set (nunca manda duplicata), mas a
+  // action é um endpoint alcançável por conta própria.
+  const ids = [...new Set(parsed.data.ativo_ids)]
+  const dataAssinatura = parsed.data.data ?? hojeISO()
+
+  // O lote pode misturar filiais (cada linha da fila é o termo pendente de UM
+  // ativo, e os ativos selecionados podem ser de filiais diferentes) — lê as
+  // filiais alvo ANTES e exige escrita em TODAS, como `resolverPendenciaItem`
+  // já faz: confirmar só a parte permitida deixaria o lote meio confirmado,
+  // em silêncio, com uma data cobrindo o que não foi tocado.
+  const { data: alvos, error: eAlvos } = await supabase
+    .from('ativos')
+    .select('id, filial_id, termo_assinado')
+    .in('id', ids)
+  if (eAlvos) return { ok: false, erro: traduzErroBanco(eAlvos.message, eAlvos.code) }
+
+  // Nenhum alvo (ids inexistentes) não é erro — idempotente de propósito, como
+  // a resolução em lote de itens. O cargo de escrita segue exigido de qualquer
+  // forma (a action é alcançável pela rede por si só).
+  const aut =
+    alvos && alvos.length > 0
+      ? await exigirEscritaEm(supabase, alvos.map((a) => a.filial_id))
+      : cargo
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
+  // Idempotente (como a individual): só os que AINDA NÃO estão 'sim' entram no
+  // update — reenviar o lote não sobrescreve quem já foi confirmado por outra
+  // via. `pendentesIds` é calculado ANTES do update para separar "confirmado
+  // agora" de "já estava assinado" mesmo que o UPDATE afete 0 linhas.
+  const pendentesIds = (alvos ?? [])
+    .filter((a) => a.termo_assinado !== 'sim')
+    .map((a) => a.id as string)
+
+  if (pendentesIds.length === 0) {
+    return { ok: true, confirmados: 0, ignorados: ids.length }
+  }
+
+  const { data: atualizados, error: eUpd } = await supabase
+    .from('ativos')
+    .update({ termo_assinado: 'sim', termo_data: dataAssinatura })
+    .in('id', pendentesIds)
+    .neq('termo_assinado', 'sim')
+    .select('id')
+  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
+
+  const idsConfirmados = [...new Set((atualizados ?? []).map((a) => a.id as string))]
+
+  // Uma anotação POR ATIVO, mesmo texto/formato da confirmação individual — o
+  // rastro de "quem confirmou / quando" é a `anotacoes` (imutável), como o
+  // comentário de `confirmarAssinaturaTermo` já explica; `ativos` não tem
+  // coluna de autor.
+  if (idsConfirmados.length > 0) {
+    const texto = `Termo confirmado como assinado (data da assinatura: ${formatDate(dataAssinatura)}).`
+    const { error: eNota } = await supabase.from('anotacoes').insert(
+      idsConfirmados.map((ativoId) => ({
+        ativo_id: ativoId,
+        texto,
+        criado_por: aut.uid,
+      })),
+    )
+    if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
+  }
+
+  revalidatePath('/pendencias')
+  for (const ativoId of idsConfirmados) revalidatePath(`/ativos/${ativoId}`)
+  // Coluna "Termo" do relatório e as pendências ao vivo derivam de ativos —
+  // revalida por garantia, como a individual faz.
+  revalidatePath('/relatorios', 'layout')
+
+  return {
+    ok: true,
+    confirmados: idsConfirmados.length,
+    ignorados: ids.length - idsConfirmados.length,
+  }
 }
 

@@ -1,7 +1,10 @@
 import { PackageCheck, PackageX, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ResolverPendenciaItemDialog } from '@/components/pendencias/resolver-pendencia-item-dialog'
+import {
+  ReabrirPendenciaItemDialog,
+  ResolverPendenciaItemDialog,
+} from '@/components/pendencias/resolver-pendencia-item-dialog'
 import { rotuloAcessorio, rotuloDesfechoPendenciaItem } from '@/lib/dominio'
 import { formatDate } from '@/lib/format'
 import type { PendenciaItemFicha as Pendencia } from '@/lib/queries/pendencias-item'
@@ -9,19 +12,27 @@ import type { PendenciaItemFicha as Pendencia } from '@/lib/queries/pendencias-i
 // Bloco de pendências de item faltante na ficha do ativo (F18 §B3). Abertas em
 // destaque, com Resolver visível SEM clique; resolvidas como auditoria
 // (desfecho/quem/quando) — a resolvida NÃO some da ficha, só da fila. Server
-// Component (embute o diálogo client); não renderiza nada se não houver nenhuma.
+// Component (embute os diálogos client); não renderiza nada se não houver nenhuma.
 //
 // F21 — `podeResolver` vem da ficha (cargo × filial do ativo). Sem ele, o bloco
 // continua VISÍVEL (a pendência é informação, e todo cargo lê tudo): só o botão
 // "Resolver" sai, porque resolver é escrita.
+//
+// F28/PND-05 — `podeReabrir` (default `false`) é NÍVEL ADMINISTRADOR, não
+// vínculo de filial: quem resolveu a pendência pode não ser quem tem direito de
+// desfazer o desfecho de outra pessoa. Sem ele o bloco resolvido continua igual
+// a antes — só o botão "Reabrir pendência" some. A guarda real mora na action
+// (`exigirAdmin`); esconder o botão aqui é só a mensagem, nunca a segurança.
 export function PendenciasItemFicha({
   patrimonio,
   pendencias,
   podeResolver,
+  podeReabrir = false,
 }: {
   patrimonio: string | null
   pendencias: Pendencia[]
   podeResolver: boolean
+  podeReabrir?: boolean
 }) {
   if (pendencias.length === 0) return null
   const abertas = pendencias.filter((p) => p.status === 'aberta')
@@ -65,20 +76,28 @@ export function PendenciasItemFicha({
         {resolvidas.map((p) => (
           <div
             key={p.id}
-            className="flex items-start gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+            className="flex flex-wrap items-start justify-between gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
           >
-            <PackageX className="mt-0.5 size-4 shrink-0" />
-            <div>
-              <span className="font-medium text-foreground/70 line-through decoration-muted-foreground/50">
-                {rotuloAcessorio(p.item)}
-              </span>{' '}
-              <span>— {rotuloDesfechoPendenciaItem(p.desfecho)}</span>
-              <span className="block text-xs">
-                {p.resolvidaEm ? formatDate(p.resolvidaEm) : ''}
-                {p.resolvidaPorNome ? ` · ${p.resolvidaPorNome}` : ''}
-                {p.observacao ? ` · ${p.observacao}` : ''}
-              </span>
+            <div className="flex items-start gap-2">
+              <PackageX className="mt-0.5 size-4 shrink-0" />
+              <div>
+                <span className="font-medium text-foreground/70 line-through decoration-muted-foreground/50">
+                  {rotuloAcessorio(p.item)}
+                </span>{' '}
+                <span>— {rotuloDesfechoPendenciaItem(p.desfecho)}</span>
+                <span className="block text-xs">
+                  {p.resolvidaEm ? formatDate(p.resolvidaEm) : ''}
+                  {p.resolvidaPorNome ? ` · ${p.resolvidaPorNome}` : ''}
+                  {p.observacao ? ` · ${p.observacao}` : ''}
+                </span>
+              </div>
             </div>
+            {podeReabrir && (
+              <ReabrirPendenciaItemDialog
+                id={p.id}
+                resumo={`${rotuloAcessorio(p.item)}${patrimonio ? ' · ' + patrimonio : ''}`}
+              />
+            )}
           </div>
         ))}
       </CardContent>

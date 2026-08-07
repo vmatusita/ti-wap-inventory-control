@@ -460,8 +460,32 @@ describe('pendência de item faltante por movimentação (OS-F18)', () => {
     // não do operador — e insinuava que um dia reabriria (a documentação não
     // promete futuro). A asserção ficou mais forte, não mais fraca: agora exige
     // as duas metades da regra, o "definitivo" E o "não há reabrir".
-    expect(texto).toContain(normalizarBusca('definitivo'))
-    expect(texto).toContain(normalizarBusca('não há reabrir'))
+    //
+    // F28/PND-05: a regra em si MUDOU — reabrir passou a existir (nível
+    // administrador, com justificativa, com rastro). "não há reabrir" virou
+    // MENTIRA e saiu do texto de propósito — travar o literal aqui teria
+    // reprovado exatamente o objetivo desta fase. A asserção agora trava a
+    // verdade NOVA: que reabrir existe, que é exclusivo do nível administrador,
+    // que pede justificativa e que fica registrado na linha do tempo.
+    expect(texto).toContain(normalizarBusca('resolver encerra a pendência'))
+    expect(texto).toContain(normalizarBusca('nível administrador'))
+    expect(texto).toContain(normalizarBusca('reabrir'))
+  })
+
+  it('tem o passo a passo de reabrir uma pendência de item resolvida (F28/PND-05)', () => {
+    expect(titulosDePassos('como-fazer')).toContain(
+      'Reabrir uma pendência de item resolvida',
+    )
+    const texto = textoDaSecao(secao('como-fazer'))
+    // As duas condições que tornam a reabertura segura: exige justificativa e
+    // deixa rastro — sem as duas, "reabrir" seria indistinguível de "apagar o
+    // desfecho sem explicação".
+    expect(texto).toContain(normalizarBusca('justificativa'))
+    expect(texto).toContain(normalizarBusca('linha do tempo do ativo'))
+    // Restrição de cargo: quem NÃO reabre também precisa estar escrito, não só
+    // quem reabre — "só o nível administrador" é a metade que impede alguém de
+    // ler isto e achar que qualquer operador tem o botão.
+    expect(texto).toContain(normalizarBusca('operador ou consulta não vê o botão'))
   })
 })
 

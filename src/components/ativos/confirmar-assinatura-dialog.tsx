@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  confirmarAssinaturaLote,
   confirmarAssinaturaTermo,
   desfazerConfirmacaoTermo,
 } from '@/lib/actions/termos'
@@ -102,6 +103,104 @@ export function ConfirmarAssinaturaDialog({
           </Button>
           <Button onClick={confirmar} disabled={enviando}>
             {enviando ? 'Confirmando…' : 'Confirmar assinatura'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// F28/PND-02 — confirma 1..N termos de UMA vez, com uma data ÚNICA para o lote
+// inteiro (a pilha que volta do mutirão de assinatura tem a mesma data para
+// todo mundo — pedir N datas seria pedir N cliques do mesmo valor). Usada só
+// pela barra de seleção múltipla da fila (`FilaPendenciasTabela`); a linha
+// individual continua com `ConfirmarAssinaturaDialog`, acima, sem mudança.
+export function ConfirmarAssinaturaLoteDialog({
+  ativoIds,
+  trigger,
+}: {
+  ativoIds: string[]
+  trigger: React.ReactNode
+}) {
+  const router = useRouter()
+  const [aberto, setAberto] = useState(false)
+  const [data, setData] = useState(hojeISO())
+  const [enviando, start] = useTransition()
+  const n = ativoIds.length
+
+  function confirmar() {
+    start(async () => {
+      // F19 — sem o catch, o throw de rede some dentro do startTransition e o
+      // operador fica sem feedback. O erro de negócio (`{ok:false,erro}`) segue
+      // tratado logo abaixo.
+      try {
+        const res = await confirmarAssinaturaLote({ ativo_ids: ativoIds, data })
+        if (!res.ok) {
+          toast.error(res.erro ?? 'Não foi possível confirmar as assinaturas.')
+          return
+        }
+        // Honestidade quando o lote encolhe (PND-02, critério 3): parte dos
+        // termos pode já estar assinada (corrida com outra aba/pessoa) — o
+        // toast então diz os dois números, não só "sucesso".
+        if (res.ignorados > 0) {
+          toast.success(
+            res.confirmados > 0
+              ? `${res.confirmados} ${res.confirmados === 1 ? 'assinatura confirmada' : 'assinaturas confirmadas'} — ${res.ignorados} ${res.ignorados === 1 ? 'já estava assinado' : 'já estavam assinados'}.`
+              : `Nenhuma assinatura confirmada — ${res.ignorados === 1 ? 'o termo selecionado já estava assinado' : 'os termos selecionados já estavam assinados'}.`,
+          )
+        } else {
+          toast.success(
+            res.confirmados === 1
+              ? 'Assinatura confirmada.'
+              : `${res.confirmados} assinaturas confirmadas.`,
+          )
+        }
+        setAberto(false)
+        router.refresh()
+      } catch {
+        toast.error(
+          'Não foi possível confirmar as assinaturas. Verifique sua conexão e tente de novo.',
+        )
+      }
+    })
+  }
+
+  return (
+    <Dialog
+      open={aberto}
+      onOpenChange={(o) => {
+        setAberto(o)
+        if (o) setData(hojeISO())
+      }}
+    >
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>
+            {n > 1 ? `Confirmar assinatura de ${n} termos` : 'Confirmar assinatura do termo'}
+          </DialogTitle>
+          <DialogDescription>
+            {n > 1
+              ? 'Registra que os termos foram assinados, todos com a MESMA data — a data e o seu nome ficam na linha do tempo de cada ativo, e eles saem das pendências. O PDF assinado não é anexado aqui.'
+              : 'Registra que o termo foi assinado — a data e o seu nome ficam na linha do tempo, e o ativo sai das pendências. O PDF assinado não é anexado aqui.'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="data-assinatura-lote">Data da assinatura</Label>
+          <Input
+            id="data-assinatura-lote"
+            type="date"
+            max={hojeISO()}
+            value={data}
+            onChange={(e) => setData(e.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+            Cancelar
+          </Button>
+          <Button onClick={confirmar} disabled={enviando}>
+            {enviando ? 'Confirmando…' : `Confirmar assinatura (${n})`}
           </Button>
         </DialogFooter>
       </DialogContent>

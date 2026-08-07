@@ -50,9 +50,18 @@ const TIPOS_VALIDOS: TipoPendencia[] = [
   'outras',
 ]
 
-function haQuantosDias(iso: string | null): string {
-  if (!iso) return ''
+// F28/PND-04 — a idade em dias vira NÚMERO próprio (não só o texto "há N dias"):
+// é o que `faixaIdadePendencia` (lib/pendencias/idade.ts) usa para decidir o badge
+// âmbar/vermelho na tabela, sem o Client Component precisar de `new Date()` (mismatch
+// de hidratação na virada do dia). Negativo (relógio adiantado) vira 0 — "hoje".
+function diasAbertos(iso: string | null): number | null {
+  if (!iso) return null
   const dias = differenceInCalendarDays(new Date(), new Date(iso))
+  return dias < 0 ? 0 : dias
+}
+
+function haQuantosDias(dias: number | null): string {
+  if (dias == null) return ''
   if (dias <= 0) return 'hoje'
   if (dias === 1) return 'há 1 dia'
   return `há ${dias} dias`
@@ -171,11 +180,15 @@ export default async function PendenciasPage({
   // "Desde" formatado no SERVIDOR (formatDate + "há N dias") — a tabela é Client
   // Component (seleção/resolução em lote) e não deve recalcular datas no cliente
   // (mismatch de hidratação na virada do dia).
-  const linhas: LinhaFila[] = lista.rows.map((r) => ({
-    ...r,
-    desdeFmt: formatDate(r.desde),
-    desdeRel: haQuantosDias(r.desde),
-  }))
+  const linhas: LinhaFila[] = lista.rows.map((r) => {
+    const dias = diasAbertos(r.desde)
+    return {
+      ...r,
+      desdeFmt: formatDate(r.desde),
+      desdeRel: haQuantosDias(dias),
+      desdeDias: dias,
+    }
+  })
 
   // F24 — as datas da mesa também são formatadas no SERVIDOR, pelo mesmo motivo da fila:
   // a mesa é Client Component e não deve chamar `new Date()` (mismatch de hidratação).
