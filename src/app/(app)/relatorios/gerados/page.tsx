@@ -7,6 +7,8 @@ import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
 import { resolverFiliaisSlugsSemPadrao } from '@/lib/filtros/filial'
+import { paginaNumerica } from '@/lib/url-params'
+import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -63,9 +65,14 @@ export default async function RelatoriosGeradosPage({
     acesso.modo === 'operador' ? acesso.operador : null,
   )
 
+  // F29/REL-05a — o arquivo cresce ~6 snapshots por semana; sem paginação a tela
+  // passava de 300 linhas no primeiro ano. `page` é o mesmo param (e o mesmo parser
+  // tolerante) de /ativos, /movimentacoes e /pendencias.
+  const page = paginaNumerica(typeof sp.page === 'string' ? sp.page : undefined)
+
   const [filiais, gerados] = await Promise.all([
     listarFiliais(acesso.client),
-    listarRelatoriosGerados(acesso.client, filialFiltro),
+    listarRelatoriosGerados(acesso.client, filialFiltro, { page }),
   ])
 
   // Slug cru era o que aparecia na mensagem de vazio ("cd-afonso-pena"). Com a
@@ -115,7 +122,7 @@ export default async function RelatoriosGeradosPage({
           arquivo semanal INTEIRO está vazio quando ele tem dezenas de snapshots. Era
           a mesma queixa do filtro ignorado, do outro lado: nada denunciava o filtro.
           Vale também para o filtro legítimo que simplesmente não tem snapshot. */}
-      {gerados.length === 0 ? (
+      {gerados.linhas.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-16 text-center">
           <FileClock className="size-8 text-muted-foreground" />
           {filialFiltro.length > 0 ? (
@@ -154,7 +161,7 @@ export default async function RelatoriosGeradosPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {gerados.map((g) => (
+              {gerados.linhas.map((g) => (
                 <TableRow key={g.id}>
                   <TableCell className="whitespace-nowrap tabular-nums">
                     <span className="inline-flex items-center gap-1.5">
@@ -171,9 +178,22 @@ export default async function RelatoriosGeradosPage({
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{g.filialNome}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="tabular-nums">
-                      v{g.versao}
-                    </Badge>
+                    <span className="inline-flex flex-wrap items-center gap-1.5">
+                      <Badge variant="secondary" className="tabular-nums">
+                        v{g.versao}
+                      </Badge>
+                      {/* F29/REL-05b — a errata só existia DEPOIS de abrir. Quem
+                          escolhia da lista podia abrir (e imprimir) a versão
+                          superada sem nada avisar. */}
+                      {g.superada && (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-400/60 text-amber-900 dark:text-amber-200"
+                        >
+                          superada
+                        </Badge>
+                      )}
+                    </span>
                   </TableCell>
                   <TableCell className="hidden whitespace-nowrap md:table-cell">
                     {ouTraco(g.autorNome)}
@@ -191,6 +211,16 @@ export default async function RelatoriosGeradosPage({
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {/* A paginação preserva a query (o filtro de filial continua valendo ao virar
+          a página) e não sai de /relatorios/** — vale igual para o visualizador. */}
+      {gerados.total > gerados.pageSize && (
+        <AtivosPaginacao
+          page={gerados.page}
+          pageSize={gerados.pageSize}
+          total={gerados.total}
+        />
       )}
     </div>
   )

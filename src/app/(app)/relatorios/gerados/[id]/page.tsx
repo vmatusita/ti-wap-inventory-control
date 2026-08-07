@@ -1,10 +1,10 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft, FileText, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BarChart3, FileText, TriangleAlert } from 'lucide-react'
 import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { redirectAcessoRelatorios } from '@/lib/auth/otp'
-import { buscarRelatorioGerado } from '@/lib/queries/gerados'
+import { buscarRelatorioGerado, vizinhosDoRelatorio } from '@/lib/queries/gerados'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
@@ -40,6 +40,17 @@ export default async function RelatorioGeradoPage({
   if (!detalhe) notFound()
 
   const s = detalhe.snapshot
+
+  // F29/REL-05c — o snapshot era um beco: só "← Relatórios gerados". Os três destinos
+  // novos ficam DENTRO de /relatorios/**, então valem também para o visualizador por
+  // senha (que não tem sidebar nem paleta e depende deste rodapé para navegar).
+  const vizinhos = await vizinhosDoRelatorio(acesso.client, {
+    filialId: detalhe.filialId,
+    periodoDe: detalhe.periodo_de,
+  })
+  // O slug vem do PRÓPRIO snapshot congelado (`meta.filialSlug`, gravado na geração):
+  // dispensa consultar `filiais` e continua certo para o consolidado ('geral').
+  const hrefAoVivo = `/relatorios/${s.meta.filialSlug}?preset=custom&de=${detalhe.periodo_de}&ate=${detalhe.periodo_ate}`
 
   return (
     <div className="space-y-4">
@@ -90,6 +101,49 @@ export default async function RelatorioGeradoPage({
       </div>
 
       <CorpoRelatorio snapshot={s} ehOperador={ehOperador} />
+
+      <nav
+        aria-label="Navegar entre snapshots deste escopo"
+        className="flex flex-wrap items-center justify-between gap-2 border-t pt-4 print:hidden"
+      >
+        {vizinhos.anterior ? (
+          <Link
+            href={`/relatorios/gerados/${vizinhos.anterior.id}`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Período anterior ({formatDate(vizinhos.anterior.periodo_de)} a{' '}
+            {formatDate(vizinhos.anterior.periodo_ate)})
+          </Link>
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            Este é o snapshot mais antigo deste escopo
+          </span>
+        )}
+
+        <Link
+          href={hrefAoVivo}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <BarChart3 className="size-4" />
+          Ver este período no ao vivo
+        </Link>
+
+        {vizinhos.proximo ? (
+          <Link
+            href={`/relatorios/gerados/${vizinhos.proximo.id}`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            Próximo período ({formatDate(vizinhos.proximo.periodo_de)} a{' '}
+            {formatDate(vizinhos.proximo.periodo_ate)})
+            <ArrowRight className="size-4" />
+          </Link>
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            Este é o snapshot mais recente deste escopo
+          </span>
+        )}
+      </nav>
     </div>
   )
 }
