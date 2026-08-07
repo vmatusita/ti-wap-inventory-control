@@ -38,6 +38,7 @@ import type {
 } from '@/lib/import'
 import { extrairPatrimonioDoHostname } from '@/lib/import/deparas'
 import { TAMANHO_MAX_ARQUIVO, TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
+import { dicaConfirmacaoNaoConfere } from '@/lib/validators/confirmacao-digitada'
 import { TabelaErros } from '@/components/admin/importar/tabela-erros'
 import { GruposErros } from '@/components/admin/importar/grupos-erros'
 import { CorrecoesAplicadas } from '@/components/admin/importar/correcoes-aplicadas'
@@ -267,6 +268,18 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     [previa],
   )
 
+  // ADM-07 (F27) — dica quando o texto digitado não bate com o nome da filial. O
+  // SERVIDOR (`aplicarImport`, actions/importar.ts) compara IGUALDADE EXATA
+  // (`confirmacaoTexto !== filial.nome`, sem trim/caixa — confirmado lendo a action; a
+  // RPC `importar_ativos_substituir` nem repete essa checagem, ela é só da Server
+  // Action) — então o cliente CONTINUA exato aqui: afrouxar habilitaria um botão que o
+  // servidor recusaria do mesmo jeito. Só a MENSAGEM foi unificada com as outras duas
+  // telas de confirmação digitada (decisão em docs/DECISOES.md).
+  const confereConfirmacao = confirmacao === (previa?.filial.nome ?? '')
+  const dicaConfirmacao = previa
+    ? dicaConfirmacaoNaoConfere(confirmacao, confereConfirmacao, previa.filial.nome)
+    : null
+
   function mudarFilial(v: string) {
     setFilialId(v)
     setPrevia(null)
@@ -381,7 +394,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
   function aplicar() {
     const plano: PlanoImport | null = previa?.validacao.plano ?? null
     if (!previa || !plano || !aplicavel) return
-    if (confirmacao !== previa.filial.nome) return
+    if (!confereConfirmacao) return
     setErroAcao(null)
     startAplicar(async () => {
       // F7F — try/catch: o throw cru (payload grande, serialização, 413, rede)
@@ -437,6 +450,10 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
 
   function recomecar() {
     setPasso(1)
+    // ADM-06 (F27) — o segundo import em sequência é tipicamente de OUTRA filial; um
+    // "Avançar" apressado com a filial anterior ainda marcada, num fluxo que apaga o
+    // acervo da filial, é desastre. Antes só arquivo/prévia/correções/confirmação zeravam.
+    setFilialId('')
     setArquivo(null)
     setErroUpload(null)
     setPrevia(null)
@@ -888,7 +905,16 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 onChange={(e) => setConfirmacao(e.target.value)}
                 placeholder={previa.filial.nome}
                 autoComplete="off"
+                aria-invalid={!!dicaConfirmacao}
+                aria-describedby={dicaConfirmacao ? 'import-confirmacao-dica' : undefined}
               />
+              {/* ADM-07 (F27) — antes o botão só ficava desabilitado, sem dizer por quê
+                  ("linhares" ≠ "Linhares" não dava nenhuma pista). */}
+              {dicaConfirmacao && (
+                <p id="import-confirmacao-dica" role="alert" className="text-sm text-destructive">
+                  {dicaConfirmacao}
+                </p>
+              )}
             </div>
 
             {erroAcao && (
@@ -910,7 +936,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               <Button
                 variant="destructive"
                 className="gap-2"
-                disabled={aplicando || confirmacao !== previa.filial.nome}
+                disabled={aplicando || !confereConfirmacao}
                 onClick={aplicar}
               >
                 {aplicando ? 'Substituindo…' : 'Substituir tudo'}

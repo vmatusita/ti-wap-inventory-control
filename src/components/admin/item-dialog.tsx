@@ -44,6 +44,13 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
   const router = useRouter()
   const edicao = !!item
   const [aberto, setAberto] = useState(false)
+  // ADM-01 (F27) — passo de confirmação DENTRO do mesmo Dialog: "Excluir" mora no
+  // rodapé do formulário (não é um trigger isolado como em `senha-acoes.tsx`, e o
+  // projeto não tem `alert-dialog`), então a confirmação troca o CONTEÚDO do Dialog
+  // já aberto em vez de abrir um segundo. `mudarAberto` garante que fechar por
+  // qualquer caminho (Cancelar, Esc, clique fora, sucesso) sempre volta ao
+  // formulário da próxima vez que o Dialog abrir.
+  const [confirmando, setConfirmando] = useState(false)
   const [nome, setNome] = useState(item?.nome ?? '')
   const [grupo, setGrupo] = useState<GrupoItem>(item?.grupo ?? 'acessorio')
   const [ordem, setOrdem] = useState(String(item?.ordem ?? 0))
@@ -53,6 +60,11 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
 
   const podeExcluir = edicao && item.lancamentos === 0
   const valido = nome.trim().length >= 2
+
+  function mudarAberto(o: boolean) {
+    setAberto(o)
+    if (!o) setConfirmando(false)
+  }
 
   function salvar() {
     if (!valido) return
@@ -84,7 +96,7 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
           return
         }
         toast.success(edicao ? 'Item atualizado.' : 'Item criado.')
-        setAberto(false)
+        mudarAberto(false)
         router.refresh()
       } catch {
         toast.error(
@@ -107,7 +119,7 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
           return
         }
         toast.success('Item excluído.')
-        setAberto(false)
+        mudarAberto(false)
         router.refresh()
       } catch {
         toast.error(
@@ -118,7 +130,7 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
       <DialogTrigger asChild>
         {edicao ? (
           <Button variant="outline" size="sm" className="min-h-10 gap-1.5 sm:min-h-0">
@@ -133,116 +145,152 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
         )}
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{edicao ? 'Editar item' : 'Novo item'}</DialogTitle>
-          <DialogDescription>
-            Catálogo de acessórios, periféricos e componentes controlados por quantidade.
-          </DialogDescription>
-        </DialogHeader>
+        {confirmando && item ? (
+          // ADM-01 (F27) — confirmação no padrão da casa (`senha-acoes.tsx`): foco
+          // inicial no Cancelar (nunca a ação destrutiva sob o Enter) e frase
+          // nomeando o item. Antes, "Excluir" chamava `remover()` direto no clique.
+          <>
+            <DialogHeader>
+              <DialogTitle>Excluir o item {item.nome}?</DialogTitle>
+              <DialogDescription>
+                O item <span className="font-medium text-foreground">{item.nome}</span>{' '}
+                deixa de existir no catálogo. Esta ação não tem volta.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                autoFocus
+                onClick={() => setConfirmando(false)}
+                disabled={enviando}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={remover}
+                disabled={enviando}
+              >
+                {enviando ? 'Excluindo…' : 'Excluir'}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>{edicao ? 'Editar item' : 'Novo item'}</DialogTitle>
+              <DialogDescription>
+                Catálogo de acessórios, periféricos e componentes controlados por quantidade.
+              </DialogDescription>
+            </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="item-nome">Nome</Label>
-            <Input
-              id="item-nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="ex.: Mouse USB, Memória notebook DDR4 8 GB"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="item-grupo">Grupo</Label>
-              <Select value={grupo} onValueChange={(v) => setGrupo(v as GrupoItem)}>
-                <SelectTrigger id="item-grupo" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {GRUPO_ITEM_ORDEM.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {GRUPO_ITEM_META[g].titulo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="item-nome">Nome</Label>
+                <Input
+                  id="item-nome"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="ex.: Mouse USB, Memória notebook DDR4 8 GB"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="item-grupo">Grupo</Label>
+                  <Select value={grupo} onValueChange={(v) => setGrupo(v as GrupoItem)}>
+                    <SelectTrigger id="item-grupo" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GRUPO_ITEM_ORDEM.map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {GRUPO_ITEM_META[g].titulo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="item-ordem">Ordem</Label>
+                  <Input
+                    id="item-ordem"
+                    type="number"
+                    inputMode="numeric"
+                    value={ordem}
+                    onChange={(e) => setOrdem(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Ponto de reposição (F12 · I5). Fora da grade de duas colunas porque
+                  o texto de apoio precisa da linha inteira — é ele que explica que a
+                  comparação é com o estoque SOMADO das filiais, e não com o da
+                  filial que o operador tem na cabeça. */}
+              <div className="space-y-2">
+                <Label htmlFor="item-estoque-minimo">Estoque mínimo</Label>
+                {/* `max`/`step` espelham o Zod (`int().min(0).max(9999)`): sem eles
+                    o campo aceitava `1e5` e `2.5` sem nenhum aviso até o toast de
+                    erro da action. A validação de verdade continua no servidor. */}
+                <Input
+                  id="item-estoque-minimo"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={9999}
+                  step={1}
+                  value={estoqueMinimo}
+                  onChange={(e) => setEstoqueMinimo(e.target.value)}
+                  aria-describedby="item-estoque-minimo-ajuda"
+                />
+                <p id="item-estoque-minimo-ajuda" className="text-xs text-muted-foreground">
+                  0 = sem alerta de reposição. Acima de 0, o item aparece com o aviso
+                  “repor” em Itens por quantidade quando o estoque somado de todas as
+                  filiais ficar abaixo deste número.
+                </p>
+              </div>
+
+              {edicao && (
+                <>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={ativo} onCheckedChange={(c) => setAtivo(c === true)} />
+                    Item ativo
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    {item.lancamentos > 0
+                      ? `Há ${item.lancamentos.toLocaleString('pt-BR')} lançamento(s) — o item não pode ser excluído, apenas desativado.`
+                      : 'Sem lançamentos — pode ser excluído.'}
+                  </p>
+                </>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="item-ordem">Ordem</Label>
-              <Input
-                id="item-ordem"
-                type="number"
-                inputMode="numeric"
-                value={ordem}
-                onChange={(e) => setOrdem(e.target.value)}
-              />
-            </div>
-          </div>
 
-          {/* Ponto de reposição (F12 · I5). Fora da grade de duas colunas porque
-              o texto de apoio precisa da linha inteira — é ele que explica que a
-              comparação é com o estoque SOMADO das filiais, e não com o da
-              filial que o operador tem na cabeça. */}
-          <div className="space-y-2">
-            <Label htmlFor="item-estoque-minimo">Estoque mínimo</Label>
-            {/* `max`/`step` espelham o Zod (`int().min(0).max(9999)`): sem eles
-                o campo aceitava `1e5` e `2.5` sem nenhum aviso até o toast de
-                erro da action. A validação de verdade continua no servidor. */}
-            <Input
-              id="item-estoque-minimo"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={9999}
-              step={1}
-              value={estoqueMinimo}
-              onChange={(e) => setEstoqueMinimo(e.target.value)}
-              aria-describedby="item-estoque-minimo-ajuda"
-            />
-            <p id="item-estoque-minimo-ajuda" className="text-xs text-muted-foreground">
-              0 = sem alerta de reposição. Acima de 0, o item aparece com o aviso
-              “repor” em Itens por quantidade quando o estoque somado de todas as
-              filiais ficar abaixo deste número.
-            </p>
-          </div>
-
-          {edicao && (
-            <>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={ativo} onCheckedChange={(c) => setAtivo(c === true)} />
-                Item ativo
-              </label>
-              <p className="text-xs text-muted-foreground">
-                {item.lancamentos > 0
-                  ? `Há ${item.lancamentos.toLocaleString('pt-BR')} lançamento(s) — o item não pode ser excluído, apenas desativado.`
-                  : 'Sem lançamentos — pode ser excluído.'}
-              </p>
-            </>
-          )}
-        </div>
-
-        <DialogFooter className="sm:justify-between">
-          {podeExcluir ? (
-            <Button
-              variant="ghost"
-              className="gap-1.5 text-destructive hover:text-destructive"
-              onClick={remover}
-              disabled={enviando}
-            >
-              <Trash2 className="size-4" />
-              Excluir
-            </Button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
-              Cancelar
-            </Button>
-            <Button onClick={salvar} disabled={enviando || !valido}>
-              {enviando ? 'Salvando…' : 'Salvar'}
-            </Button>
-          </div>
-        </DialogFooter>
+            <DialogFooter className="sm:justify-between">
+              {podeExcluir ? (
+                <Button
+                  variant="ghost"
+                  className="gap-1.5 text-destructive hover:text-destructive"
+                  onClick={() => setConfirmando(true)}
+                  disabled={enviando}
+                >
+                  <Trash2 className="size-4" />
+                  Excluir
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => mudarAberto(false)} disabled={enviando}>
+                  Cancelar
+                </Button>
+                <Button onClick={salvar} disabled={enviando || !valido}>
+                  {enviando ? 'Salvando…' : 'Salvar'}
+                </Button>
+              </div>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { apagarUsuario } from '@/lib/actions/dev'
+import { dicaConfirmacaoNaoConfere } from '@/lib/validators/confirmacao-digitada'
 
 // F22 — APAGAR a conta de um usuário. É a única ação IRREVERSÍVEL desta tela e é privativa
 // do cargo Desenvolvedor (a lista só monta este diálogo para um dev; a action refaz a
@@ -50,6 +51,10 @@ export function ApagarUsuarioDialog({
   // recusa às cegas de propósito, e aqui o botão nem fica disponível.
   const confere =
     email !== null && confirmacao.trim().toLowerCase() === email.trim().toLowerCase()
+  // ADM-07 (F27) — dica quando o texto digitado não bate com o e-mail. A régua de
+  // igualdade (trim + caixa) já era a mesma de `validarExclusaoDeUsuario` (action) —
+  // só a MENSAGEM estava faltando; antes o botão só ficava desabilitado, em silêncio.
+  const dicaConfirmacao = email !== null ? dicaConfirmacaoNaoConfere(confirmacao, confere, email) : null
 
   function mudarAberto(o: boolean) {
     if (!o) setConfirmacao('')
@@ -133,7 +138,14 @@ export function ApagarUsuarioDialog({
             onChange={(e) => setConfirmacao(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && apagar()}
             disabled={apagando || email === null}
+            aria-invalid={!!dicaConfirmacao}
+            aria-describedby={dicaConfirmacao ? 'dev-apagar-confirmacao-dica' : undefined}
           />
+          {dicaConfirmacao && (
+            <p id="dev-apagar-confirmacao-dica" role="alert" className="text-sm text-destructive">
+              {dicaConfirmacao}
+            </p>
+          )}
         </div>
 
         <DialogFooter>
