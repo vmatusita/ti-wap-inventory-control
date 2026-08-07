@@ -25,13 +25,22 @@ import { STATUS_META, STATUS_ORDEM, type StatusAtivo } from '@/lib/dominio'
 import { formatDate } from '@/lib/format'
 import type { CandidatoAtivo, FichaDestrutiva } from '@/lib/queries/dev-destrutivo'
 
+type Filial = { id: number; nome: string; ativo: boolean }
+
 // Painel do ATIVO na Zona destrutiva (F23): achar → ver o tamanho real do rastro → agir.
 //
 // ⚠ A BUSCA DEVOLVE LISTA E A TELA MOSTRA TODOS OS RESULTADOS, sempre. É regra da casa
 // (spec §5, CLAUDE.md): "patrimônio repete em casos raros — o par patrimônio + service tag é
 // a chave". Numa ferramenta que apaga, escolher sozinho o primeiro resultado de um patrimônio
 // repetido seria apagar o ativo errado, e ninguém saberia.
-export function PainelAtivo() {
+//
+// ⚠ POR ISSO A FILIAL PRECISA TER NOME, NÃO NÚMERO (F27/B8, DEV-02). O caso típico de
+// patrimônio repetido, pós-F24, é o CONFLITO ENTRE FILIAIS: dois cadastros do mesmo aparelho,
+// gêmeos em tudo — mesmo patrimônio, mesma service tag —, e só a filial os distingue. Mostrar
+// "filial 2" ali é pedir para a pessoa decorar o id: exatamente onde escolher o cadastro errado
+// apaga o ativo errado. `filiais` (de `listarFiliaisParaVinculo`, já carregada pela página) só
+// serve para resolver esse nome — nenhuma ação daqui depende dela.
+export function PainelAtivo({ filiais }: { filiais: Filial[] }) {
   const [termo, setTermo] = useState('')
   const [candidatos, setCandidatos] = useState<CandidatoAtivo[] | null>(null)
   const [ficha, setFicha] = useState<FichaDestrutiva | null>(null)
@@ -45,6 +54,15 @@ export function PainelAtivo() {
     | null
   >(null)
   const [statusAlvo, setStatusAlvo] = useState<StatusAtivo | ''>('')
+
+  // Nome da filial pelo id — `filiais` traz TODAS (ativas e desativadas: `listarFiliaisParaVinculo`
+  // não filtra), então o fallback abaixo só entraria em jogo se um ativo apontasse para uma
+  // filial já apagada do cadastro, o que o banco não permite (FK). Fica mesmo assim, para nunca
+  // reduzir a mensagem a um crash por causa de um id que a lista não tinha.
+  const nomeDaFilialPorId = new Map(filiais.map((f) => [f.id, f.nome]))
+  function nomeDaFilial(id: number): string {
+    return nomeDaFilialPorId.get(id) ?? `#${id}`
+  }
 
   function buscar() {
     const t = termo.trim()
@@ -120,7 +138,7 @@ export function PainelAtivo() {
                   {[c.marca, c.modelo].filter(Boolean).join(' ') || c.categoria}
                 </span>
                 <span className="text-muted-foreground">
-                  tag: {c.service_tag ?? '—'} · filial {c.filial_id}
+                  tag: {c.service_tag ?? '—'} · filial {nomeDaFilial(c.filial_id)}
                 </span>
                 <Badge variant="outline">{STATUS_META[c.status]?.rotulo ?? c.status}</Badge>
                 <Button

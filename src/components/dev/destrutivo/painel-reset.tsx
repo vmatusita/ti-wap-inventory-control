@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DialogoDestrutivo } from '@/components/dev/destrutivo/dialogo-destrutivo'
+import { rotuloContagemReset } from '@/components/dev/destrutivo/rotulos-reset'
 import { calcularPreviaReset, resetarBloco } from '@/lib/actions/dev-destrutivo'
 import type { PreviaReset } from '@/lib/queries/dev-destrutivo'
 
@@ -32,6 +33,13 @@ const GLOBAL = 'global'
 // ativo já migrou para outra. É o mesmo recorte do "Substituir tudo" do import; prometer "não
 // vaza" seria mentira, então a tela promete o que é verificável: nenhum ATIVO de outra filial
 // é apagado.
+//
+// ⚠ RÓTULO DAS CHAVES DE `contagens` (F27/B8, DEV-02). Era `chave.replace(/_/g, ' ')` cru nos
+// dois lugares abaixo — "pendencias item" e "lancamentos", sem acento nem preposição, bem na
+// tela que existe para ser lida com atenção antes de uma exclusão sem volta. Agora é
+// `rotuloContagemReset` (rotulos-reset.ts): rótulo curado para as seis chaves que as RPCs de
+// reset conhecem hoje, com o replace como FALLBACK — não removido, só rebaixado a plano B — para
+// uma chave nova que uma migration futura acrescente.
 export function PainelReset({ filiais }: { filiais: Filial[] }) {
   const [bloco, setBloco] = useState<'acervo' | 'itens'>('acervo')
   const [alcance, setAlcance] = useState<string>('')
@@ -133,7 +141,7 @@ export function PainelReset({ filiais }: { filiais: Filial[] }) {
           <ul className="grid gap-1 text-sm sm:grid-cols-2">
             {Object.entries(contagens).map(([chave, valor]) => (
               <li key={chave} className="flex justify-between gap-4 tabular-nums">
-                <span className="text-muted-foreground">{chave.replace(/_/g, ' ')}</span>
+                <span className="text-muted-foreground">{rotuloContagemReset(chave)}</span>
                 <strong>{valor}</strong>
               </li>
             ))}
@@ -206,7 +214,7 @@ export function PainelReset({ filiais }: { filiais: Filial[] }) {
             <li>
               Some(m):{' '}
               {Object.entries(contagens)
-                .map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`)
+                .map(([k, v]) => `${v} ${rotuloContagemReset(k)}`)
                 .join(' · ')}
               .
             </li>

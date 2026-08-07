@@ -2,6 +2,11 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { exigirDev } from '@/lib/auth/acesso'
 import type { DbClient } from '@/lib/auth/acesso'
+import {
+  juntarCatalogoComResultados,
+  type ChecagemResolvida,
+  type ResultadoChecagemRpc,
+} from '@/lib/validators/dev-integridade'
 
 // Leituras da área /dev (F22) — TODAS guardadas por `exigirDev()`.
 //
@@ -120,18 +125,14 @@ export async function getDiagnostico(migracaoNoRepo: string): Promise<Diagnostic
 // 2. Checagens de integridade — SÓ LEITURA, nenhuma correção automática
 // ---------------------------------------------------------------------------
 
-export type Checagem = {
-  chave: string
-  nome: string
-  descricao: string
-  achados: number | null
-  amostra: string[]
-  erro: string | null
-}
+// O formato que a tela consome é `ChecagemResolvida` (src/lib/validators/dev-integridade.ts) —
+// o alias existe para não obrigar quem importa daqui a saber que a junção mora noutro arquivo.
+export type Checagem = ChecagemResolvida
 
 // ⚠ COMO ESTA LISTA FOI ESCOLHIDA (30/07/2026). Cada consulta foi RODADA contra a produção
 // antes de entrar aqui, e todas devolvem ZERO num banco saudável — é isso que dá sentido a um
 // número diferente de zero. Uma checagem que nasce vermelha treina quem lê a página a ignorá-la.
+// (Ficou uma exceção: veja a nota sobre `arquivo_termo_orfao` mais abaixo.)
 //
 // ⚠ UMA CANDIDATA FOI DESCARTADA, e o motivo fica registrado: "o `status` do ativo diverge da
 // última movimentação" acusou 1009 de 1231 ativos em produção. A investigação (docs/DECISOES.md,
@@ -153,12 +154,31 @@ export type Checagem = {
 // que deixa a pessoa saber o que vai ser conferido antes de clicar. Duplicar esta lista no
 // componente criaria uma segunda fonte da verdade, e ela já deriva da migration 0077 pela
 // chave; a lista é rótulo puro (nenhum SQL mora aqui), então exportá-la não abre nada.
+//
+// ⚠ ATUALIZAÇÃO (F27/B8, DEV-01, 07/08/2026) — NOVE checagens, não sete. A migration 0098
+// acrescentou `arquivo_termo_orfao` e `conflito_entre_filiais` à RPC, e este catálogo ficou para
+// trás: `rodarChecagens()` (abaixo) fazia `CHECAGENS.map(...)`, então as duas chaves que a RPC já
+// calculava eram descartadas em silêncio — sem erro, sem aviso, e a tela dizia "são 7 checagens"
+// para sempre. Corrigido: as duas entram no catálogo (ao final, na mesma ordem da RPC), e
+// `rodarChecagens()` agora passa pela função pura `juntarCatalogoComResultados`
+// (src/lib/validators/dev-integridade.ts), que também anexa ao FIM da lista qualquer chave que a
+// RPC devolva e ESTE catálogo não conheça — rotulada pela própria chave. Essa é a REDE
+// PERMANENTE: uma décima checagem, de uma migration futura, na pior das hipóteses aparece feia
+// (a chave crua como nome) — nunca mais some.
+//
+// ⚠ A 0098 também mudou o que a PRIMEIRA checagem conta. Antes, `patrimonio_duplicado` agrupava
+// SEM filial (a identidade era global); desde a F24 (migration 0091) a identidade do ativo é o
+// par patrimônio + service tag DENTRO de cada filial, e o mesmo par em filiais diferentes deixou
+// de ser defeito — é o conflito entre filiais, com fila própria em Pendências. Se a checagem 1
+// continuasse agrupando sem filial, ela contaria como "duplicidade" exatamente o que a checagem 9
+// já conta como conflito — o mesmo fato, dois nomes, um deles alarmante à toa. A descrição da
+// checagem 1 abaixo reflete o recorte novo.
 export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
   {
     chave: 'patrimonio_duplicado',
-    nome: 'Patrimônio + service tag repetidos',
+    nome: 'Patrimônio + service tag repetidos na mesma filial',
     descricao:
-      'O par patrimônio + service tag é a chave de um ativo. Repetir os dois significa cadastro em duplicidade.',
+      'O par patrimônio + service tag é a chave do ativo DENTRO de cada filial — um índice único impede repeti-lo ali. Se aparecer aqui, é corrupção de verdade. O mesmo par em filiais DIFERENTES não é duplicidade: é um conflito entre filiais, contado pela checagem "Conflito entre filiais em aberto" (mais abaixo).',
   },
   {
     chave: 'ativo_filial_inativa',
@@ -195,13 +215,25 @@ export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
     descricao:
       'Operador habilitado que não tem filial de escrita: ele entra no sistema e não consegue registrar nada.',
   },
+  {
+    chave: 'arquivo_termo_orfao',
+    nome: 'Arquivo de termo órfão no armazenamento',
+    descricao:
+      'O inverso da checagem "Termo sem o arquivo correspondente": aqui sobra o arquivo .docx guardado, sem nenhuma linha de termo que o explique. Não trava nada, e não é incomum que apareça sempre diferente de zero — é resíduo antigo, não é sinal de problema sozinho.',
+  },
+  {
+    chave: 'conflito_entre_filiais',
+    nome: 'Conflito entre filiais em aberto',
+    descricao:
+      'Grupos de ativos com o mesmo patrimônio + service tag cadastrados em filiais diferentes — a mesma fila da aba "Conflitos entre filiais" de Pendências. Não é corrupção: é decisão pendente de alguém escolher qual dos dois cadastros é o certo.',
+  },
 ]
 
 export const TOTAL_CHECAGENS = CHECAGENS.length
 
 export async function rodarChecagens(): Promise<Checagem[]> {
   // Client de SESSÃO: a RPC exige `e_dev()` por dentro, e o service role nunca a satisfaz
-  // (ver `sessaoDeDev`). Com o client errado, as sete voltavam "não executadas" para sempre.
+  // (ver `sessaoDeDev`). Com o client errado, todas voltavam "não executadas" para sempre.
   const supabase = await sessaoDeDev()
 
   const { data, error } = await supabase.rpc('dev_checagens_integridade')
@@ -210,16 +242,11 @@ export async function rodarChecagens(): Promise<Checagem[]> {
     return CHECAGENS.map((c) => ({ ...c, achados: null, amostra: [], erro: error.message }))
   }
 
-  // A RPC devolve [{ chave, total, amostra }]. O casamento é pela CHAVE, e uma chave que a
-  // RPC não conheça aparece como "não executada" em vez de sumir da tela — assim um
-  // descompasso entre este arquivo e a migration fica visível, não silencioso.
-  const porChave = new Map(
-    ((data ?? []) as { chave: string; total: number; amostra: string[] }[]).map((r) => [r.chave, r]),
-  )
-  return CHECAGENS.map((c) => {
-    const r = porChave.get(c.chave)
-    return r
-      ? { ...c, achados: r.total, amostra: r.amostra ?? [], erro: null }
-      : { ...c, achados: null, amostra: [], erro: 'Checagem não encontrada no banco.' }
-  })
+  // A RPC devolve [{ chave, total, amostra }]. A junção mora em `juntarCatalogoComResultados`
+  // (src/lib/validators/dev-integridade.ts, testada à parte): casa cada chave do catálogo pelo
+  // nome dela — uma chave do catálogo que a RPC não devolva aparece como "não encontrada" — e,
+  // ao final, anexa qualquer chave que a RPC devolva e o catálogo NÃO conheça, rotulada pela
+  // própria chave (REDE PERMANENTE — ver o comentário acima de `CHECAGENS`). Assim um
+  // descompasso entre este arquivo e a migration fica sempre visível, nunca silencioso.
+  return juntarCatalogoComResultados(CHECAGENS, (data ?? []) as ResultadoChecagemRpc[])
 }

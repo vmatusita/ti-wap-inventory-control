@@ -19,6 +19,12 @@ import type { Checagem } from '@/lib/queries/dev'
 // SELECT — não existe "corrigir automaticamente", e é deliberado: uma correção em massa
 // disparada por um botão de diagnóstico é como se apagam dados sem querer. O que a tela
 // entrega é a contagem e uma amostra para investigar à mão.
+//
+// ⚠ "QUASE TODAS" NA INTRODUÇÃO (F27/B8, DEV-01, 07/08/2026): o texto dizia "todas devolvem
+// zero", que deixou de ser verdade com a nona checagem do catálogo (`arquivo_termo_orfao`,
+// migration 0098) — ela é resíduo de bucket e não nasce em zero por natureza (3 em produção). A
+// própria `descricao` dela, vinda do catálogo, avisa disso; o texto fixo aqui só parou de
+// prometer o que não é mais universal.
 
 /** Quantos identificadores a amostra mostra por checagem (o resto fica no banco). */
 const MAX_AMOSTRA = 5
@@ -132,9 +138,9 @@ export function IntegridadePainel({
         <p className="max-w-prose text-sm text-muted-foreground">
           São <span className="tabular-nums">{total}</span> checagens que varrem o banco
           atrás de estados que não deveriam existir (cadastro em duplicidade, ativo em filial
-          desativada, termo sem arquivo, conta sem perfil, entre outras). Num banco saudável
-          <strong> todas devolvem zero</strong> — um número diferente de zero é o que merece
-          investigação.
+          desativada, termo sem arquivo, conta sem perfil, entre outras). Num banco saudável,
+          <strong> quase todas devolvem zero</strong> — um número diferente de zero nelas merece
+          investigação. A exceção avisa na própria descrição, abaixo.
         </p>
         <Button type="button" onClick={rodar} disabled={pending} className="shrink-0">
           {pending ? 'Rodando…' : 'Rodar checagens'}

@@ -15,6 +15,14 @@ import { PainelAtivo } from '@/components/dev/destrutivo/painel-ativo'
 import { PainelItens } from '@/components/dev/destrutivo/painel-itens'
 import { PainelReset } from '@/components/dev/destrutivo/painel-reset'
 
+// FLX-03 — título curto da aba (WCAG 2.4.2). "Zona destrutiva", e não
+// "Desenvolvedor" de novo: /dev já usa esse título — esta subrota precisa do
+// próprio, para distinguir as duas na aba/histórico/favoritos (o mesmo motivo
+// da fase inteira).
+export const metadata = {
+  title: 'Zona destrutiva',
+}
+
 // /dev/destrutivo (F23) — a ZONA DESTRUTIVA.
 //
 // ⚠ POR QUE UMA SUBROTA, E NÃO UM QUINTO CARD NA /dev. A /dev é uma tela para SE OLHAR:
@@ -69,7 +77,11 @@ export default async function DevDestrutivoPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PainelAtivo />
+          {/* F27/B8 (DEV-02) — a filial precisa ter NOME na lista de candidatos: o caso
+              típico de patrimônio repetido, pós-F24, é o conflito ENTRE filiais, e só a
+              filial distingue os dois cadastros. `filiais` já era buscada nesta página para
+              os outros dois painéis; faltava passá-la a este. */}
+          <PainelAtivo filiais={filiais} />
         </CardContent>
       </Card>
 
