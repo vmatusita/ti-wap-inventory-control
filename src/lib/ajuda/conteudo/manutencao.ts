@@ -170,7 +170,7 @@ export const manutencao: PaginaAjuda = {
         ],
         [
           '"Preencha os dados do substituto: {campos}."',
-          'Falta um dos obrigatórios do bloco "Equipamento substituto". Se o fornecedor não repôs nada, desmarque "Cadastrar o equipamento substituto" em vez de inventar dados.',
+          'Falta um dos obrigatórios do bloco "Equipamento substituto" — cada campo vazio fica marcado em vermelho, com a mensagem logo abaixo dele, e o foco vai direto para o primeiro. Se o fornecedor não repôs nada, desmarque "Cadastrar o equipamento substituto" em vez de inventar dados.',
         ],
         [
           '"Já existe um ativo com esse patrimônio e service tag nesta filial."',

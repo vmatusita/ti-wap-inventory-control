@@ -21,6 +21,7 @@ import type { DevolverFornecedorInput } from '@/lib/validators/devolucao-fornece
 import { CATEGORIA_ORDEM, rotuloCategoria, type CategoriaAtivo } from '@/lib/dominio'
 import { hojeISO, ouTraco } from '@/lib/format'
 import type { Filial } from '@/lib/queries/filiais'
+import { ChipsData } from '@/components/movimentacoes/nova/chips-data'
 
 export type AtivoEmManutencao = {
   id: string
@@ -64,12 +65,22 @@ export function DevolucaoFornecedorForm({
 
   const [enviando, setEnviando] = useState(false)
   const [erros, setErros] = useState<string[]>([])
+  // MOV-12 — só vira true quando `enviar()` encontra obrigatório faltante do
+  // substituto: a partir daí os erros por campo (abaixo) passam a aparecer, e
+  // somem sozinhos assim que o campo correspondente é preenchido (são
+  // derivados a cada render, nunca congelados).
+  const [tentouEnviar, setTentouEnviar] = useState(false)
   const [sucesso, setSucesso] = useState<{
     antigo: { id: string; patrimonio: string | null }
     substituto?: { id: string; patrimonio: string }
   } | null>(null)
   const enviandoRef = useRef(false)
   const tituloSucessoRef = useRef<HTMLHeadingElement>(null)
+  // MOV-12 — mesma técnica do box de erros do wizard (`nova-movimentacao-form.tsx`):
+  // `tabIndex={-1}` no box (ver JSX) + foco/scroll aqui, porque o box só nasce
+  // depois da tentativa de envio e, sem isso, o operador (e o leitor de tela)
+  // não é levado até ele.
+  const errosRef = useRef<HTMLDivElement>(null)
 
   // MOV-13 — mesma técnica do painel de sucesso do wizard (`painel-sucesso.tsx`):
   // o <h2> do painel de sucesso abaixo ganha `tabIndex={-1}` (focável por
@@ -85,21 +96,33 @@ export function DevolucaoFornecedorForm({
     if (sucesso) tituloSucessoRef.current?.focus()
   }, [sucesso])
 
+  useEffect(() => {
+    if (erros.length === 0) return
+    errosRef.current?.focus()
+    errosRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [erros])
+
   async function enviar() {
     if (enviandoRef.current) return
 
-    // Pré-validação amigável do sub-form (a validação de verdade é o Zod na action).
+    // Pré-validação amigável do sub-form (a validação de verdade é o Zod na
+    // action). MOV-12 — a ordem espelha a ordem visual/DOM dos campos (ver
+    // JSX abaixo) para que o foco no primeiro faltante caia no controle certo.
     if (comSubstituto) {
-      const faltando: string[] = []
-      if (!patrimonio.trim()) faltando.push('patrimônio')
+      const faltando: { id: string; campo: string }[] = []
+      if (!patrimonio.trim()) faltando.push({ id: 'sub-patrimonio', campo: 'patrimônio' })
       // F15/C1 — service tag obrigatória no cadastro do substituto.
-      if (!serviceTag.trim()) faltando.push('service tag')
-      if (!categoria) faltando.push('categoria')
-      if (!marca.trim()) faltando.push('marca')
-      if (!modelo.trim()) faltando.push('modelo')
-      if (!filialId) faltando.push('filial')
+      if (!serviceTag.trim()) faltando.push({ id: 'sub-st', campo: 'service tag' })
+      if (!categoria) faltando.push({ id: 'sub-categoria', campo: 'categoria' })
+      if (!filialId) faltando.push({ id: 'sub-filial', campo: 'filial' })
+      if (!marca.trim()) faltando.push({ id: 'sub-marca', campo: 'marca' })
+      if (!modelo.trim()) faltando.push({ id: 'sub-modelo', campo: 'modelo' })
       if (faltando.length > 0) {
-        toast.error(`Preencha os dados do substituto: ${faltando.join(', ')}.`)
+        setTentouEnviar(true)
+        toast.error(
+          `Preencha os dados do substituto: ${faltando.map((f) => f.campo).join(', ')}.`,
+        )
+        document.getElementById(faltando[0].id)?.focus()
         return
       }
     }
@@ -165,6 +188,16 @@ export function DevolucaoFornecedorForm({
     // telas já estão cobertas pelos revalidatePath da action (/ativos, as duas fichas
     // e /relatorios). O painel de sucesso (estado do cliente) permanece na tela.
   }
+
+  // MOV-12 — erro inline por campo do substituto: derivado a cada render (não
+  // congelado), só aparece depois de `tentouEnviar` e some sozinho assim que o
+  // campo é preenchido.
+  const erroPatrimonio = tentouEnviar && !patrimonio.trim() ? 'Informe o patrimônio' : undefined
+  const erroServiceTag = tentouEnviar && !serviceTag.trim() ? 'Informe a service tag' : undefined
+  const erroCategoria = tentouEnviar && !categoria ? 'Informe a categoria' : undefined
+  const erroFilial = tentouEnviar && !filialId ? 'Informe a filial' : undefined
+  const erroMarca = tentouEnviar && !marca.trim() ? 'Informe a marca' : undefined
+  const erroModelo = tentouEnviar && !modelo.trim() ? 'Informe o modelo' : undefined
 
   // ---------- Painel de sucesso ----------
   if (sucesso) {
@@ -257,13 +290,19 @@ export function DevolucaoFornecedorForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor="data-devolucao">Data da devolução</Label>
-          <Input
-            id="data-devolucao"
-            type="date"
-            max={hojeISO()}
-            value={dataDevolucao}
-            onChange={(e) => setDataDevolucao(e.target.value)}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="data-devolucao"
+              type="date"
+              max={hojeISO()}
+              value={dataDevolucao}
+              onChange={(e) => setDataDevolucao(e.target.value)}
+            />
+            <ChipsData
+              campo="a data da devolução"
+              onEscolher={setDataDevolucao}
+            />
+          </div>
         </div>
         <div className="grid gap-2 sm:col-span-2">
           <Label htmlFor="obs-devolucao">Observação (opcional)</Label>
@@ -308,7 +347,14 @@ export function DevolucaoFornecedorForm({
                 onChange={(e) => setPatrimonio(e.target.value)}
                 placeholder="WAP0006026"
                 className="font-mono tabular-nums"
+                aria-invalid={!!erroPatrimonio}
+                aria-describedby={erroPatrimonio ? 'sub-patrimonio-erro' : undefined}
               />
+              {erroPatrimonio && (
+                <p id="sub-patrimonio-erro" role="alert" className="text-sm text-destructive">
+                  {erroPatrimonio}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sub-st">
@@ -319,7 +365,14 @@ export function DevolucaoFornecedorForm({
                 value={serviceTag}
                 onChange={(e) => setServiceTag(e.target.value)}
                 placeholder="ST-ABC123"
+                aria-invalid={!!erroServiceTag}
+                aria-describedby={erroServiceTag ? 'sub-st-erro' : undefined}
               />
+              {erroServiceTag && (
+                <p id="sub-st-erro" role="alert" className="text-sm text-destructive">
+                  {erroServiceTag}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sub-categoria">
@@ -329,7 +382,11 @@ export function DevolucaoFornecedorForm({
                 value={categoria || undefined}
                 onValueChange={(v) => setCategoria(v as CategoriaAtivo)}
               >
-                <SelectTrigger id="sub-categoria">
+                <SelectTrigger
+                  id="sub-categoria"
+                  aria-invalid={!!erroCategoria}
+                  aria-describedby={erroCategoria ? 'sub-categoria-erro' : undefined}
+                >
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -340,13 +397,22 @@ export function DevolucaoFornecedorForm({
                   ))}
                 </SelectContent>
               </Select>
+              {erroCategoria && (
+                <p id="sub-categoria-erro" role="alert" className="text-sm text-destructive">
+                  {erroCategoria}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sub-filial">
                 Filial<span className="text-destructive"> *</span>
               </Label>
               <Select value={filialId || undefined} onValueChange={setFilialId}>
-                <SelectTrigger id="sub-filial">
+                <SelectTrigger
+                  id="sub-filial"
+                  aria-invalid={!!erroFilial}
+                  aria-describedby={erroFilial ? 'sub-filial-erro' : undefined}
+                >
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -357,6 +423,11 @@ export function DevolucaoFornecedorForm({
                   ))}
                 </SelectContent>
               </Select>
+              {erroFilial && (
+                <p id="sub-filial-erro" role="alert" className="text-sm text-destructive">
+                  {erroFilial}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sub-marca">
@@ -367,7 +438,14 @@ export function DevolucaoFornecedorForm({
                 value={marca}
                 onChange={(e) => setMarca(e.target.value)}
                 placeholder="Samsung"
+                aria-invalid={!!erroMarca}
+                aria-describedby={erroMarca ? 'sub-marca-erro' : undefined}
               />
+              {erroMarca && (
+                <p id="sub-marca-erro" role="alert" className="text-sm text-destructive">
+                  {erroMarca}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sub-modelo">
@@ -378,7 +456,14 @@ export function DevolucaoFornecedorForm({
                 value={modelo}
                 onChange={(e) => setModelo(e.target.value)}
                 placeholder="Galaxy A55"
+                aria-invalid={!!erroModelo}
+                aria-describedby={erroModelo ? 'sub-modelo-erro' : undefined}
               />
+              {erroModelo && (
+                <p id="sub-modelo-erro" role="alert" className="text-sm text-destructive">
+                  {erroModelo}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sub-memoria">Memória</Label>
@@ -445,7 +530,12 @@ export function DevolucaoFornecedorForm({
       )}
 
       {erros.length > 0 && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+        <div
+          ref={errosRef}
+          tabIndex={-1}
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+        >
           <p className="mb-1 flex items-center gap-1.5 font-medium">
             <TriangleAlert className="size-4" />
             Nada foi registrado:
