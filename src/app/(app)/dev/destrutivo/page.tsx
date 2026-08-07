@@ -15,12 +15,25 @@ import { PainelAtivo } from '@/components/dev/destrutivo/painel-ativo'
 import { PainelItens } from '@/components/dev/destrutivo/painel-itens'
 import { PainelReset } from '@/components/dev/destrutivo/painel-reset'
 
-// FLX-03 — título curto da aba (WCAG 2.4.2). "Zona destrutiva", e não
-// "Desenvolvedor" de novo: /dev já usa esse título — esta subrota precisa do
-// próprio, para distinguir as duas na aba/histórico/favoritos (o mesmo motivo
-// da fase inteira).
+// FLX-03 — título curto da aba (WCAG 2.4.2).
+//
+// ⚠ "Desenvolvedor", e NÃO "Zona destrutiva" — apesar de repetir o título de /dev.
+// A F27 tentou "Zona destrutiva" primeiro e o smoke de produção pegou o problema:
+// o `redirect('/')` do `dev/layout.tsx` é resolvido pelo Next NO SERVIDOR, e a
+// resposta que o não-dev recebe é 200 com o corpo do PAINEL — mas com o `<title>`
+// resolvido a partir da rota PEDIDA. Resultado: o nome da área restrita ia parar
+// no HTML de quem acabou de ser barrado (no `<title>` e no payload RSC), e batia
+// de frente com o `marcadorProibido: 'Zona destrutiva'` de
+// `scripts/smoke/smoke-prod.mjs`, que existe para provar que a área NÃO vazou.
+//
+// O controle de acesso nunca esteve em risco (nenhuma ferramenta destrutiva é
+// renderizada — conferido em produção: 0 ocorrências de "Apagar ativo",
+// "Resetar" e "Forçar estado"), mas anunciar o nome da zona para quem não pode
+// entrar não tem contrapartida nenhuma, e um marcador de segurança colidindo com
+// um título é armadilha para a próxima fase. Aba repetida com /dev é o preço, e
+// é barato: as duas rotas são exclusivas do cargo dev.
 export const metadata = {
-  title: 'Zona destrutiva',
+  title: 'Desenvolvedor',
 }
 
 // /dev/destrutivo (F23) — a ZONA DESTRUTIVA.

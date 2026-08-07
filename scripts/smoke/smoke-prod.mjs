@@ -931,6 +931,16 @@ const ROTAS_LOGADO = [
   // administrador que a alcançasse teria, de uma vez, apagar ativo, resetar filial e forçar
   // estado. O gate é o `layout.tsx` de /dev (a subrota herda) MAIS o `exigirDev` da própria
   // página; se os dois falhassem, o marcador apareceria aqui e o smoke ficaria vermelho.
+  //
+  // ⚠ ARMADILHA CONHECIDA (F27): este marcador é uma string que também serviria de
+  // TÍTULO de aba. O Next resolve o `<title>` a partir da rota PEDIDA mesmo quando o
+  // `redirect('/')` do layout já devolveu o corpo do painel — então um
+  // `export const metadata = { title: 'Zona destrutiva' }` nesta página faz o marcador
+  // aparecer no HTML de quem foi barrado e este check ficar VERMELHO sem que exista
+  // vazamento nenhum. Foi exatamente o que aconteceu na F27, e por isso
+  // `dev/destrutivo/page.tsx` tem o título "Desenvolvedor" e um comentário explicando.
+  // Quem for mexer no título daquela rota: mexa aqui também, ou troque este marcador
+  // por um que só exista no CORPO da área (ex.: "Forçar estado").
   {
     rota: '/dev/destrutivo',
     area: 'dev · zona destrutiva (F23)',
