@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, RotateCcw, TriangleAlert } from 'lucide-react'
+import { Check, Copy, FileClock, RotateCcw, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +31,7 @@ import {
 import {
   chavePatrimonio,
   duplicatasDaLista,
+  erroTetoLista,
   expandirFaixa,
   parearFaixaComServiceTags,
   parsearLista,
@@ -39,7 +40,15 @@ import {
 } from '@/lib/patrimonio'
 import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { CATEGORIA_ORDEM, rotuloCategoria, type CategoriaAtivo } from '@/lib/dominio'
-import { hojeISO } from '@/lib/format'
+import { formatTempoRelativo, hojeISO } from '@/lib/format'
+import {
+  contarPatrimoniosRascunho,
+  lerRascunhoCompra,
+  limparRascunhoCompra,
+  rascunhoVazio,
+  salvarRascunhoCompra,
+  type RascunhoCompra,
+} from '@/components/ativos/rascunho-compra'
 import type { CompraLoteInput } from '@/lib/validators/compra'
 import type { Filial } from '@/lib/queries/filiais'
 import type { DadosCompraInicial } from '@/lib/queries/compras'
@@ -54,6 +63,23 @@ const DEBOUNCE_SUGESTAO = 300
 const MIN_CHARS_SUGESTAO = 2
 
 type CampoComAcervo = 'marca' | 'modelo' | 'fornecedor'
+
+// ATV-09a — os quatro obrigatórios do bloco "Dados do modelo", na ordem VISUAL do
+// grid (categoria, filial, marca, modelo) — é essa ordem que decide qual campo
+// recebe o foco quando mais de um falta.
+type CampoObrigatorio = 'categoria' | 'filial' | 'marca' | 'modelo'
+const ORDEM_CAMPOS_OBRIGATORIOS: CampoObrigatorio[] = [
+  'categoria',
+  'filial',
+  'marca',
+  'modelo',
+]
+const ROTULO_CAMPO_OBRIGATORIO: Record<CampoObrigatorio, string> = {
+  categoria: 'categoria',
+  filial: 'filial',
+  marca: 'marca',
+  modelo: 'modelo',
+}
 
 async function consultarAcervo(
   campo: CampoComAcervo,
@@ -78,6 +104,8 @@ function CampoComSugestoes({
   aoMudar,
   placeholder,
   marca = '',
+  inputRef,
+  erro,
 }: {
   id: string
   label: string
@@ -88,6 +116,10 @@ function CampoComSugestoes({
   placeholder?: string
   // Só o campo `modelo` usa: filtra as sugestões pela marca já escolhida.
   marca?: string
+  // ATV-09a — permite o form pai focar este input quando ele falta no envio.
+  inputRef?: React.Ref<HTMLInputElement>
+  // ATV-09a — mensagem do obrigatório faltante, mostrada sob o campo.
+  erro?: string
 }) {
   const [sugestoes, setSugestoes] = useState<string[]>([])
   const [aberto, setAberto] = useState(false)
@@ -194,6 +226,7 @@ function CampoComSugestoes({
         <PopoverAnchor asChild>
           <Input
             id={id}
+            ref={inputRef}
             value={valor}
             onChange={(e) => aoMudar(e.target.value)}
             onFocus={() => {
@@ -212,6 +245,8 @@ function CampoComSugestoes({
             aria-activedescendant={
               visivel && indice >= 0 ? `${id}-sug-${indice}` : undefined
             }
+            aria-invalid={!!erro}
+            aria-describedby={erro ? `${id}-erro` : undefined}
           />
         </PopoverAnchor>
         <PopoverContent
@@ -263,6 +298,11 @@ function CampoComSugestoes({
           </ul>
         </PopoverContent>
       </Popover>
+      {erro && (
+        <p id={`${id}-erro`} role="alert" className="text-sm text-destructive">
+          {erro}
+        </p>
+      )}
     </div>
   )
 }
@@ -325,6 +365,33 @@ export function NovaCompraForm({
   const [observacao, setObservacao] = useState('')
   const [data, setData] = useState(hojeISO())
 
+  // ATV-09a — obrigatórios do bloco "Dados do modelo" que faltam no ÚLTIMO envio
+  // tentado. Antes só existia o toast (some sozinho); agora cada campo marca
+  // `aria-invalid` + mensagem própria, e some assim que o campo é preenchido.
+  const [faltando, setFaltando] = useState<Set<CampoObrigatorio>>(new Set())
+  const categoriaRef = useRef<HTMLButtonElement>(null)
+  const filialRef = useRef<HTMLButtonElement>(null)
+  const marcaRef = useRef<HTMLInputElement>(null)
+  const modeloRef = useRef<HTMLInputElement>(null)
+  const refDoCampoObrigatorio: Record<
+    CampoObrigatorio,
+    React.RefObject<HTMLButtonElement | null> | React.RefObject<HTMLInputElement | null>
+  > = {
+    categoria: categoriaRef,
+    filial: filialRef,
+    marca: marcaRef,
+    modelo: modeloRef,
+  }
+
+  function limparFaltando(campo: CampoObrigatorio) {
+    setFaltando((atual) => {
+      if (!atual.has(campo)) return atual
+      const novo = new Set(atual)
+      novo.delete(campo)
+      return novo
+    })
+  }
+
   const [enviando, setEnviando] = useState(false)
   const [errosServidor, setErrosServidor] = useState<string[]>([])
   const [resultado, setResultado] = useState<
@@ -335,6 +402,35 @@ export function NovaCompraForm({
   const [avisoParcial, setAvisoParcial] = useState<string | null>(null)
   const enviandoRef = useRef(false)
   const jaFocouLista = useRef(false)
+
+  // ATV-10b — rascunho persistente (sessionStorage, por aba). `null` = nada a
+  // oferecer; preenchido = banner de restauração aberto.
+  const [rascunhoPendente, setRascunhoPendente] = useState<RascunhoCompra | null>(
+    null,
+  )
+  // "Agora" para o "salvo há N min" do banner, congelado no instante da leitura
+  // (dentro do efeito de hidratação) — nunca `Date.now()` direto no corpo do
+  // componente, que a regra de pureza do React barra (impuro durante o render).
+  const [agoraRascunho, setAgoraRascunho] = useState(0)
+  const [hidratado, setHidratado] = useState(false)
+  // O rascunho só é SOBRESCRITO depois que o operador mexe NESTA montagem —
+  // mesma regra do wizard de movimentação (`nova-movimentacao-form.tsx`):
+  // chegar por "Comprar outro igual" (`inicial`) ou com a memória de
+  // filial/categoria do navegador já preenchida não pode apagar, sozinho, um
+  // rascunho de outra visita a esta aba.
+  const [podeSalvar, setPodeSalvar] = useState(false)
+  // Último rascunho que o debounce ainda não gravou — usado no flush da
+  // desmontagem (não dá para depender dos 400ms do debounce terem passado).
+  const pendenteDeGravar = useRef<RascunhoCompra | null>(null)
+
+  // Primeira alteração REAL do operador nesta montagem. Libera a persistência
+  // e, se o banner estiver aberto, vale como decisão implícita de "começar um
+  // rascunho novo por cima": quem digita por cima do banner sem clicar em
+  // Descartar não pode ficar sem rede até se lembrar disso.
+  function marcarAlteracao() {
+    setPodeSalvar(true)
+    setRascunhoPendente(null)
+  }
 
   // A5 — pré-preenche categoria/filial com o que foi usado na última compra
   // NESTE dispositivo. Pós-mount (nunca no `useState` inicial: o servidor não
@@ -382,9 +478,24 @@ export function NovaCompraForm({
     setArmazenamento(ultimaCompra.armazenamento)
     setProcessador(ultimaCompra.processador)
     setFornecedor(ultimaCompra.fornecedor)
-    if (filiais.some((f) => String(f.id) === ultimaCompra.filialId)) {
+    const filialPreenchida = filiais.some(
+      (f) => String(f.id) === ultimaCompra.filialId,
+    )
+    if (filialPreenchida) {
       setFilialId(ultimaCompra.filialId)
     }
+    // ATV-09a — o preenchimento em massa também precisa apagar o "faltando" de
+    // quem foi preenchido; sem isto o campo continuava marcado em vermelho
+    // depois de "Repetir última compra" repor exatamente o valor que faltava.
+    setFaltando((atual) => {
+      if (atual.size === 0) return atual
+      const novo = new Set(atual)
+      if (ultimaCompra.categoria) novo.delete('categoria')
+      if (ultimaCompra.marca.trim()) novo.delete('marca')
+      if (ultimaCompra.modelo.trim()) novo.delete('modelo')
+      if (filialPreenchida) novo.delete('filial')
+      return novo
+    })
     toast.success('Campos preenchidos com a sua última compra.')
   }
 
@@ -413,9 +524,15 @@ export function NovaCompraForm({
         }
       }
       mensagens.sort((a, b) => a.linha - b.linha)
+      // ATV-09b — o teto do lote não vinha do preview da lista (só da faixa, via
+      // `expandirFaixa`): 250 linhas passavam tranquilas e o erro só chegava do
+      // servidor. O aviso do teto é sobre a CONTAGEM, não uma linha — entra
+      // primeiro na lista de erros, antes dos avisos linha a linha.
+      const erroTeto = erroTetoLista(itens.length)
+      const textoErros = mensagens.map((m) => m.texto)
       return {
         itens,
-        erros: mensagens.map((m) => m.texto),
+        erros: erroTeto ? [erroTeto, ...textoErros] : textoErros,
         duplicadas: new Set(duplicatas.map((d) => d.chave)),
       }
     }
@@ -449,6 +566,135 @@ export function NovaCompraForm({
   // para o ganho, e em lote se preenche pela ficha depois. Decisão registrada.
   const mostrarCamposCelular = categoria === 'celular' && preview.itens.length <= 1
 
+  // --- ATV-10b — rascunho persistente (sessionStorage, por aba) -----------
+  // Leitura SÓ dentro de efeito (ler storage no corpo do componente quebraria
+  // a hidratação do Next) e SÓ na montagem. "Comprar outro igual" (`inicial`)
+  // tem precedência: quem chegou por esse link já trouxe os dados que quer
+  // usar e não vê o banner de um rascunho de outra visita.
+  useEffect(() => {
+    const veioDeLink = Boolean(inicial)
+    const t = setTimeout(() => {
+      if (!veioDeLink) {
+        setRascunhoPendente(lerRascunhoCompra())
+        setAgoraRascunho(Date.now())
+      }
+      setHidratado(true)
+    }, 0)
+    return () => clearTimeout(t)
+    // Montagem apenas: `inicial` só muda com nova navegação (nova página).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Salva o formulário a cada mudança (debounce). Só depois da primeira
+  // alteração do operador (`podeSalvar`) e só quando há algo digitado — form
+  // virgem (ou intocado desde a montagem) não cria rascunho nem sobrescreve o
+  // que já estava salvo. Enquanto o banner está aberto também não grava; a
+  // primeira alteração real o fecha (`marcarAlteracao`) e libera a gravação.
+  useEffect(() => {
+    if (!hidratado || !podeSalvar || rascunhoPendente || resultado) {
+      pendenteDeGravar.current = null
+      return
+    }
+    const rascunho: RascunhoCompra = {
+      modo,
+      textoLista,
+      faixaInicio,
+      faixaFim,
+      faixaSts,
+      categoria,
+      marca,
+      modelo,
+      memoria,
+      armazenamento,
+      processador,
+      fornecedor,
+      filialId,
+      observacao,
+      data,
+      telefone,
+      imei,
+      pulsus,
+      salvoEm: new Date().toISOString(),
+    }
+    if (rascunhoVazio(rascunho)) {
+      pendenteDeGravar.current = null
+      const t = setTimeout(() => limparRascunhoCompra(), 400)
+      return () => clearTimeout(t)
+    }
+    // O mesmo rascunho fica à mão para o flush da desmontagem (abaixo).
+    pendenteDeGravar.current = rascunho
+    const t = setTimeout(() => salvarRascunhoCompra(rascunho), 400)
+    return () => clearTimeout(t)
+  }, [
+    hidratado,
+    podeSalvar,
+    rascunhoPendente,
+    resultado,
+    modo,
+    textoLista,
+    faixaInicio,
+    faixaFim,
+    faixaSts,
+    categoria,
+    marca,
+    modelo,
+    memoria,
+    armazenamento,
+    processador,
+    fornecedor,
+    filialId,
+    observacao,
+    data,
+    telefone,
+    imei,
+    pulsus,
+  ])
+
+  // Flush na SAÍDA da montagem: o lote não pode depender de os 400ms do
+  // debounce terem passado para sobreviver a uma navegação — na desmontagem o
+  // rascunho vai para o storage na hora, e o banner o oferece na tela seguinte.
+  useEffect(() => {
+    return () => {
+      const r = pendenteDeGravar.current
+      if (r) salvarRascunhoCompra(r)
+    }
+  }, [])
+
+  function restaurarRascunhoCompra() {
+    const r = rascunhoPendente
+    if (!r) return
+    setModo(r.modo)
+    setTextoLista(r.textoLista)
+    setFaixaInicio(r.faixaInicio)
+    setFaixaFim(r.faixaFim)
+    setFaixaSts(r.faixaSts)
+    setCategoria(r.categoria)
+    setMarca(r.marca)
+    setModelo(r.modelo)
+    setMemoria(r.memoria)
+    setArmazenamento(r.armazenamento)
+    setProcessador(r.processador)
+    setFornecedor(r.fornecedor)
+    // A filial do rascunho pode não valer mais para este cargo (vínculo
+    // mudou entre a gravação e agora) — nesse caso o campo fica vazio, em vez
+    // de um Select mudo apontando para uma opção que não existe na lista.
+    if (filiais.some((f) => String(f.id) === r.filialId)) setFilialId(r.filialId)
+    setObservacao(r.observacao)
+    setData(r.data)
+    setTelefone(r.telefone)
+    setImei(r.imei)
+    setPulsus(r.pulsus)
+    setFaltando(new Set())
+    setRascunhoPendente(null)
+    setPodeSalvar(true)
+    toast.success('Rascunho restaurado.')
+  }
+
+  function descartarRascunhoCompra() {
+    limparRascunhoCompra()
+    setRascunhoPendente(null)
+  }
+
   async function enviar() {
     if (enviandoRef.current) return
     if (preview.erros.length > 0) {
@@ -459,13 +705,23 @@ export function NovaCompraForm({
       toast.error('Adicione ao menos um patrimônio.')
       return
     }
-    const faltando: string[] = []
-    if (!categoria) faltando.push('categoria')
-    if (!marca.trim()) faltando.push('marca')
-    if (!modelo.trim()) faltando.push('modelo')
-    if (!filialId) faltando.push('filial')
-    if (faltando.length > 0) {
-      toast.error(`Preencha: ${faltando.join(', ')}.`)
+    // ATV-09a — os obrigatórios do bloco "Dados do modelo" antes só falhavam por
+    // `toast.error` (some sozinho, nenhum campo marcado ou focado). Agora ficam em
+    // estado: cada um marca `aria-invalid` + mensagem sob o input, e o primeiro na
+    // ordem VISUAL do grid recebe o foco.
+    const faltandoAgora = new Set<CampoObrigatorio>()
+    if (!categoria) faltandoAgora.add('categoria')
+    if (!filialId) faltandoAgora.add('filial')
+    if (!marca.trim()) faltandoAgora.add('marca')
+    if (!modelo.trim()) faltandoAgora.add('modelo')
+    setFaltando(faltandoAgora)
+    if (faltandoAgora.size > 0) {
+      const rotulos = ORDEM_CAMPOS_OBRIGATORIOS.filter((c) => faltandoAgora.has(c)).map(
+        (c) => ROTULO_CAMPO_OBRIGATORIO[c],
+      )
+      toast.error(`Preencha: ${rotulos.join(', ')}.`)
+      const primeiro = ORDEM_CAMPOS_OBRIGATORIOS.find((c) => faltandoAgora.has(c))
+      if (primeiro) refDoCampoObrigatorio[primeiro].current?.focus()
       return
     }
 
@@ -532,6 +788,10 @@ export function NovaCompraForm({
       // Sem localStorage (modo privado, storage cheio): a compra já foi feita,
       // só não haverá memória de defaults.
     }
+    // ATV-10b — sucesso (e só sucesso) fecha o rascunho: o que entrou não pode
+    // ser oferecido de novo como "compra não cadastrada" na próxima visita.
+    limparRascunhoCompra()
+    pendenteDeGravar.current = null
     setResultado(res.criados)
     toast.success(
       `${res.criados.length} ${res.criados.length === 1 ? 'equipamento cadastrado' : 'equipamentos cadastrados'}.`,
@@ -564,6 +824,10 @@ export function NovaCompraForm({
     setErrosServidor([])
     setResultado(null)
     setAvisoParcial(null)
+    // ATV-09a — categoria e filial não são limpas aqui (de propósito: seguem para
+    // a próxima compra do lote), mas o "faltando" precisa acompanhar por defesa —
+    // um novo envio decide de novo, do zero.
+    setFaltando(new Set())
   }
 
   // ---------- Painel de sucesso ----------
@@ -598,15 +862,33 @@ export function NovaCompraForm({
             </Button>
           ))}
         </div>
-        <div className="mt-6 flex justify-center gap-2">
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Button onClick={reiniciar}>Cadastrar mais</Button>
           <Button asChild variant="outline">
             <Link href="/ativos">Ver ativos</Link>
           </Button>
+          {/* ATV-07a — só com exatamente UM ativo criado: o preset da URL
+              (`?ativo=<id>`) é de um ativo só, e com 2+ não há para qual dos
+              patrimônios recém-cadastrados o botão apontaria. */}
+          {resultado.length === 1 && (
+            <Button asChild variant="outline">
+              <Link href={`/movimentacoes/nova?ativo=${resultado[0].id}`}>
+                Movimentar agora
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     )
   }
+
+  // ATV-10b — só para o texto do banner: contagem de patrimônios e "há quanto
+  // tempo", calculados fora do JSX para não repetir a chamada.
+  const qtdRascunho = rascunhoPendente ? contarPatrimoniosRascunho(rascunhoPendente) : 0
+  const tempoRascunho =
+    rascunhoPendente?.salvoEm && agoraRascunho
+      ? formatTempoRelativo(rascunhoPendente.salvoEm, agoraRascunho)
+      : ''
 
   return (
     <div className="space-y-6">
@@ -629,6 +911,36 @@ export function NovaCompraForm({
         </div>
       )}
 
+      {/* ATV-10b — compra não cadastrada desta aba (sessionStorage). Não
+          aparece junto com o banner acima: "Comprar outro igual" (`inicial`)
+          tem precedência e nem chega a oferecer o rascunho (ver o efeito de
+          hidratação). */}
+      {rascunhoPendente && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <FileClock className="size-4 shrink-0" />
+          <p className="min-w-0 flex-1">
+            Você tem uma compra não cadastrada —{' '}
+            {qtdRascunho > 0 ? (
+              <>
+                <span className="font-medium tabular-nums">{qtdRascunho}</span>{' '}
+                {qtdRascunho === 1 ? 'patrimônio' : 'patrimônios'}
+              </>
+            ) : (
+              'dados preenchidos'
+            )}
+            {tempoRascunho && ` · salvo ${tempoRascunho}`}.
+          </p>
+          <span className="flex gap-2">
+            <Button type="button" variant="outline" onClick={descartarRascunhoCompra}>
+              Descartar
+            </Button>
+            <Button type="button" onClick={restaurarRascunhoCompra}>
+              Restaurar
+            </Button>
+          </span>
+        </div>
+      )}
+
       {/* Patrimônios */}
       <div className="space-y-3">
         <div>
@@ -638,7 +950,13 @@ export function NovaCompraForm({
           </p>
         </div>
 
-        <Tabs value={modo} onValueChange={(v) => setModo(v as 'lista' | 'faixa')}>
+        <Tabs
+          value={modo}
+          onValueChange={(v) => {
+            setModo(v as 'lista' | 'faixa')
+            marcarAlteracao()
+          }}
+        >
           <TabsList>
             <TabsTrigger value="lista">Colar lista</TabsTrigger>
             <TabsTrigger value="faixa">Faixa</TabsTrigger>
@@ -646,7 +964,8 @@ export function NovaCompraForm({
           <TabsContent value="lista" className="mt-3">
             <Label htmlFor="lista" className="mb-2">
               Um por linha — patrimônio <strong>e service tag</strong> (obrigatória),
-              separados por vírgula, ponto e vírgula ou TAB
+              separados por vírgula, ponto e vírgula ou TAB · até {MAX_LOTE_COMPRA}{' '}
+              por lote
             </Label>
             <Textarea
               id="lista"
@@ -662,7 +981,10 @@ export function NovaCompraForm({
               }}
               rows={6}
               value={textoLista}
-              onChange={(e) => setTextoLista(e.target.value)}
+              onChange={(e) => {
+                setTextoLista(e.target.value)
+                marcarAlteracao()
+              }}
               placeholder={
                 'WAP0006026, ST-AAA111\nWAP0006027\tST-ABC123\nWAP0006028; ST-DEF456'
               }
@@ -683,7 +1005,10 @@ export function NovaCompraForm({
                 <Input
                   id="faixa-ini"
                   value={faixaInicio}
-                  onChange={(e) => setFaixaInicio(e.target.value)}
+                  onChange={(e) => {
+                    setFaixaInicio(e.target.value)
+                    marcarAlteracao()
+                  }}
                   placeholder="WAP0006026"
                   className="font-mono tabular-nums"
                 />
@@ -693,7 +1018,10 @@ export function NovaCompraForm({
                 <Input
                   id="faixa-fim"
                   value={faixaFim}
-                  onChange={(e) => setFaixaFim(e.target.value)}
+                  onChange={(e) => {
+                    setFaixaFim(e.target.value)
+                    marcarAlteracao()
+                  }}
                   placeholder="WAP0006035"
                   className="font-mono tabular-nums"
                 />
@@ -712,7 +1040,10 @@ export function NovaCompraForm({
                 id="faixa-sts"
                 rows={4}
                 value={faixaSts}
-                onChange={(e) => setFaixaSts(e.target.value)}
+                onChange={(e) => {
+                  setFaixaSts(e.target.value)
+                  marcarAlteracao()
+                }}
                 placeholder={'ST-ABC123\nST-DEF456\nST-GHI789'}
                 // Idem: 14px no celular = zoom automático do iOS a cada foco.
                 className="font-mono text-base md:text-sm"
@@ -793,7 +1124,10 @@ export function NovaCompraForm({
               variant="outline"
               size="sm"
               className="h-10 gap-1.5 sm:h-8"
-              onClick={repetirUltimaCompra}
+              onClick={() => {
+                repetirUltimaCompra()
+                marcarAlteracao()
+              }}
             >
               <RotateCcw className="size-3.5" />
               Repetir última compra
@@ -807,9 +1141,20 @@ export function NovaCompraForm({
             </Label>
             <Select
               value={categoria || undefined}
-              onValueChange={(v) => setCategoria(v as CategoriaAtivo)}
+              onValueChange={(v) => {
+                setCategoria(v as CategoriaAtivo)
+                limparFaltando('categoria')
+                marcarAlteracao()
+              }}
             >
-              <SelectTrigger id="compra-categoria">
+              <SelectTrigger
+                id="compra-categoria"
+                ref={categoriaRef}
+                aria-invalid={faltando.has('categoria')}
+                aria-describedby={
+                  faltando.has('categoria') ? 'compra-categoria-erro' : undefined
+                }
+              >
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
@@ -820,6 +1165,11 @@ export function NovaCompraForm({
                 ))}
               </SelectContent>
             </Select>
+            {faltando.has('categoria') && (
+              <p id="compra-categoria-erro" role="alert" className="text-sm text-destructive">
+                Selecione a categoria.
+              </p>
+            )}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="compra-filial">
@@ -828,21 +1178,39 @@ export function NovaCompraForm({
             {filiais.length === 0 ? (
               <AvisoSemFilialDeEscrita />
             ) : (
-              <Select
-                value={filialId || undefined}
-                onValueChange={setFilialId}
-              >
-                <SelectTrigger id="compra-filial">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filiais.map((f) => (
-                    <SelectItem key={f.id} value={String(f.id)}>
-                      {f.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select
+                  value={filialId || undefined}
+                  onValueChange={(v) => {
+                    setFilialId(v)
+                    limparFaltando('filial')
+                    marcarAlteracao()
+                  }}
+                >
+                  <SelectTrigger
+                    id="compra-filial"
+                    ref={filialRef}
+                    aria-invalid={faltando.has('filial')}
+                    aria-describedby={
+                      faltando.has('filial') ? 'compra-filial-erro' : undefined
+                    }
+                  >
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filiais.map((f) => (
+                      <SelectItem key={f.id} value={String(f.id)}>
+                        {f.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {faltando.has('filial') && (
+                  <p id="compra-filial-erro" role="alert" className="text-sm text-destructive">
+                    Selecione a filial que recebeu.
+                  </p>
+                )}
+              </>
             )}
           </div>
           <CampoComSugestoes
@@ -851,8 +1219,14 @@ export function NovaCompraForm({
             campo="marca"
             obrigatorio
             valor={marca}
-            aoMudar={setMarca}
+            aoMudar={(v) => {
+              setMarca(v)
+              if (v.trim()) limparFaltando('marca')
+              marcarAlteracao()
+            }}
             placeholder="Samsung"
+            inputRef={marcaRef}
+            erro={faltando.has('marca') ? 'Informe a marca.' : undefined}
           />
           <CampoComSugestoes
             id="modelo"
@@ -860,16 +1234,25 @@ export function NovaCompraForm({
             campo="modelo"
             obrigatorio
             valor={modelo}
-            aoMudar={setModelo}
+            aoMudar={(v) => {
+              setModelo(v)
+              if (v.trim()) limparFaltando('modelo')
+              marcarAlteracao()
+            }}
             placeholder="Galaxy A17"
             marca={marca}
+            inputRef={modeloRef}
+            erro={faltando.has('modelo') ? 'Informe o modelo.' : undefined}
           />
           <div className="grid gap-2">
             <Label htmlFor="memoria">Memória</Label>
             <Input
               id="memoria"
               value={memoria}
-              onChange={(e) => setMemoria(e.target.value)}
+              onChange={(e) => {
+                setMemoria(e.target.value)
+                marcarAlteracao()
+              }}
               placeholder="8 GB"
             />
           </div>
@@ -878,7 +1261,10 @@ export function NovaCompraForm({
             <Input
               id="armazenamento"
               value={armazenamento}
-              onChange={(e) => setArmazenamento(e.target.value)}
+              onChange={(e) => {
+                setArmazenamento(e.target.value)
+                marcarAlteracao()
+              }}
               placeholder="256 GB"
             />
           </div>
@@ -887,7 +1273,10 @@ export function NovaCompraForm({
             <Input
               id="processador"
               value={processador}
-              onChange={(e) => setProcessador(e.target.value)}
+              onChange={(e) => {
+                setProcessador(e.target.value)
+                marcarAlteracao()
+              }}
               placeholder="—"
             />
           </div>
@@ -901,7 +1290,10 @@ export function NovaCompraForm({
                 <Input
                   id="telefone"
                   value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
+                  onChange={(e) => {
+                    setTelefone(e.target.value)
+                    marcarAlteracao()
+                  }}
                   placeholder="(41) 90000-0000"
                 />
               </div>
@@ -910,7 +1302,10 @@ export function NovaCompraForm({
                 <Input
                   id="imei"
                   value={imei}
-                  onChange={(e) => setImei(e.target.value)}
+                  onChange={(e) => {
+                    setImei(e.target.value)
+                    marcarAlteracao()
+                  }}
                   placeholder="000000000000000"
                 />
               </div>
@@ -919,7 +1314,10 @@ export function NovaCompraForm({
                 <Input
                   id="pulsus"
                   value={pulsus}
-                  onChange={(e) => setPulsus(e.target.value)}
+                  onChange={(e) => {
+                    setPulsus(e.target.value)
+                    marcarAlteracao()
+                  }}
                   placeholder="Identificação no Pulsus"
                 />
               </div>
@@ -937,7 +1335,10 @@ export function NovaCompraForm({
             label="Fornecedor"
             campo="fornecedor"
             valor={fornecedor}
-            aoMudar={setFornecedor}
+            aoMudar={(v) => {
+              setFornecedor(v)
+              marcarAlteracao()
+            }}
             placeholder="WAP"
           />
           <div className="grid gap-2">
@@ -947,7 +1348,10 @@ export function NovaCompraForm({
               type="date"
               max={hojeISO()}
               value={data}
-              onChange={(e) => setData(e.target.value)}
+              onChange={(e) => {
+                setData(e.target.value)
+                marcarAlteracao()
+              }}
             />
           </div>
           <div className="grid gap-2 sm:col-span-2">
@@ -957,7 +1361,10 @@ export function NovaCompraForm({
               rows={2}
               maxLength={500}
               value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
+              onChange={(e) => {
+                setObservacao(e.target.value)
+                marcarAlteracao()
+              }}
               placeholder="Ex.: NF-e 12345, garantia 12 meses…"
             />
           </div>

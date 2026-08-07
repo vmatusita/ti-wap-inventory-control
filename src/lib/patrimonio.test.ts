@@ -7,6 +7,7 @@ import {
   parearFaixaComServiceTags,
   chavePatrimonio,
   patrimoniosRepetidos,
+  erroTetoLista,
   MAX_LOTE_COMPRA,
   PATRIMONIO_CANONICAL_RE,
 } from '@/lib/patrimonio'
@@ -294,6 +295,21 @@ describe('chavePatrimonio (par único §5)', () => {
 
   it('distingue mesmo patrimônio com service tags diferentes', () => {
     expect(chavePatrimonio('WAP0000001', 'A')).not.toBe(chavePatrimonio('WAP0000001', 'B'))
+  })
+})
+
+describe('erroTetoLista (ATV-09b — teto também na aba Colar lista)', () => {
+  it('não acusa erro dentro do teto (inclusive no limite exato)', () => {
+    expect(erroTetoLista(0)).toBeNull()
+    expect(erroTetoLista(1)).toBeNull()
+    expect(erroTetoLista(MAX_LOTE_COMPRA)).toBeNull()
+  })
+
+  it(`acusa erro acima de ${MAX_LOTE_COMPRA} itens, no mesmo vocabulário da faixa`, () => {
+    const erro = erroTetoLista(MAX_LOTE_COMPRA + 1)
+    expect(erro).not.toBeNull()
+    expect(erro).toContain(String(MAX_LOTE_COMPRA + 1))
+    expect(erro).toContain(`máximo por lote é ${MAX_LOTE_COMPRA}`)
   })
 })
 

@@ -19,6 +19,7 @@ export const cadastrarCompra: PaginaAjuda = {
     'nota fiscal',
     'leitor',
     'cadastrar',
+    'rascunho',
   ],
   legado: ['como-fazer'],
   blocos: [
@@ -62,6 +63,18 @@ export const cadastrarCompra: PaginaAjuda = {
         'Quem manda quando há mais de uma fonte: o link "Comprar outro igual" vence o botão "Repetir última compra", que vence a memória de filial/categoria do navegador. Confira os campos antes de cadastrar — a nota fiscal é que decide.',
       ],
     },
+    { tipo: 'titulo', id: 'compra-rascunho', texto: 'Se você sair no meio' },
+    {
+      tipo: 'passos',
+      titulo: 'Retomar uma compra que ficou pela metade (rascunho)',
+      itens: [
+        'Enquanto você preenche a compra, a aba guarda um rascunho sozinha: os patrimônios (da lista colada ou da faixa) e os dados do modelo já digitados.',
+        'Saiu da tela ou recarregou a página? Ao voltar aparece o aviso "Você tem uma compra não cadastrada", com quantos patrimônios e há quanto tempo foi salvo, e os botões Restaurar e Descartar.',
+        'O rascunho é só desta aba do navegador e some quando você fecha o navegador. Cadastrar com sucesso ou Descartar também o apagam.',
+        'Abrir a tela por "Comprar outro igual" tem prioridade: nesse caso o rascunho não é oferecido — quem preenche a tela é o link, não uma visita anterior.',
+        'Não confunda com a memória de filial e categoria do navegador (acima): aquela é de longo prazo e sobrevive entre compras — Descartar apaga só o rascunho da compra em andamento, não essa memória.',
+      ],
+    },
     { tipo: 'titulo', id: 'leitor', texto: 'Com o leitor de código de barras' },
     {
       tipo: 'passos',
@@ -80,7 +93,7 @@ export const cadastrarCompra: PaginaAjuda = {
       itens: [
         `Cada equipamento nasce "${S.em_estoque.rotulo}" na filial que recebeu, já com ficha própria e com uma movimentação de "${T.compra.rotulo}" na linha do tempo — é ela que fixa a filial de origem.`,
         'A compra aparece na tabela "Entradas" do relatório do período, com a pílula verde de compra, e engorda os KPIs "Total de ativos" e "Em estoque".',
-        'O painel de sucesso lista os equipamentos cadastrados com link para cada ficha; "Cadastrar mais" recomeça sem sair da tela.',
+        'O painel de sucesso lista os equipamentos cadastrados com link para cada ficha; "Cadastrar mais" recomeça sem sair da tela. Quando é UM equipamento só, aparece também "Movimentar agora", que abre a nova movimentação já com esse ativo escolhido.',
         'Nada é cadastrado pela metade: se algum patrimônio falhar, a caixa "Nada foi cadastrado:" mostra os erros e nenhum equipamento entra.',
         'Equipamento sem plaqueta não se cadastra por aqui — o patrimônio é obrigatório no cadastro manual. Ativo sem patrimônio só existe quando veio do import de startup.',
       ],
@@ -104,12 +117,16 @@ export const cadastrarCompra: PaginaAjuda = {
           'Quebre a faixa em blocos menores e cadastre em duas rodadas.',
         ],
         [
+          `"A lista tem {n} itens; o máximo por lote é ${MAX_LOTE_COMPRA}."`,
+          'Vale também para a lista colada, não só para a faixa: quebre em blocos menores e cadastre em duas rodadas.',
+        ],
+        [
           '"Já existe um ativo com esse patrimônio e service tag nesta filial."',
           'O equipamento já está cadastrado. Procure-o na lista de ativos antes de cadastrar de novo.',
         ],
         [
           '"Preencha: {campos}."',
-          'Falta um obrigatório do bloco "Dados do modelo" (categoria, filial, marca ou modelo).',
+          'Falta um obrigatório do bloco "Dados do modelo" (categoria, filial, marca ou modelo) — cada um fica marcado em vermelho, com a mensagem sob o campo, e o primeiro deles recebe o foco.',
         ],
         [
           '"Não foi possível cadastrar agora. Os dados continuam preenchidos — verifique sua conexão e tente de novo."',

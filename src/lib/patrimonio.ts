@@ -120,6 +120,16 @@ export function duplicatasDaLista(itens: ItemPatrimonio[]): DuplicataLista[] {
     }))
 }
 
+// ATV-09b (F28) — a aba "Colar lista" não tinha teto: 250 linhas passavam tranquilas
+// no preview e o erro só vinha do servidor. Espelha o vocabulário de `expandirFaixa`,
+// mas atua sobre a CONTAGEM final de itens já parseados (o preview da lista filtra
+// linha por linha antes de chegar aqui) — por isso é função separada, e não um novo
+// ramo dentro de `parsearLista` (que tem 41 testes presos à assinatura atual).
+export function erroTetoLista(qtd: number): string | null {
+  if (qtd <= MAX_LOTE_COMPRA) return null
+  return `A lista tem ${qtd} itens; o máximo por lote é ${MAX_LOTE_COMPRA}.`
+}
+
 // Faixa: mesmo prefixo, do inicial ao final (inclusive). N unidades do mesmo modelo.
 export function expandirFaixa(
   inicioRaw: string,
