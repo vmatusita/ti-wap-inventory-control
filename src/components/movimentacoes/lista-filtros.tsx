@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Search, X } from 'lucide-react'
+import { Search, User, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,10 +17,25 @@ import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 import { hojeISO } from '@/lib/format'
 import { rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
+import {
+  chipAtivo,
+  periodoDoChip,
+  type ChavePeriodo,
+} from '@/lib/movimentacoes/chips-periodo'
 import { cn } from '@/lib/utils'
 import type { Filial } from '@/lib/queries/filiais'
 
 const TODOS_TIPOS = '__todos_tipos'
+
+// Sentinela do filtro "Minhas" (F28/MOV-05): o uid NUNCA entra na URL — a page
+// resolve `?autor=eu` para `operador.id` no servidor (ver `page.tsx`).
+const AUTOR_EU = 'eu'
+
+const CHIPS_PERIODO: { chave: ChavePeriodo; rotulo: string }[] = [
+  { chave: 'hoje', rotulo: 'Hoje' },
+  { chave: 'ontem', rotulo: 'Ontem' },
+  { chave: '7dias', rotulo: '7 dias' },
+]
 
 // Ordem de EXIBIÇÃO do select (não é a ordem do enum): os tipos do dia a dia
 // primeiro, os raros e o estorno no fim. Lista explícita de propósito — varrer
@@ -51,9 +66,15 @@ export function ListaFiltros({
   // F25 — seleção EFETIVA de filial, resolvida no servidor (pode vir do padrão do
   // cargo, e não da URL).
   filiaisSelecionadas,
+  // F28/MOV-05 — o botão "Minhas" só faz sentido para quem está logado (é o
+  // autor da movimentação); a rota é sempre de sessão (o visualizador por senha
+  // não alcança `/movimentacoes` — só `/relatorios/**`), mas a page confirma e
+  // manda este booleano em vez de qualquer id.
+  mostrarFiltroAutor,
 }: {
   filiais: Filial[]
   filiaisSelecionadas: string[]
+  mostrarFiltroAutor: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -68,6 +89,7 @@ export function ListaFiltros({
   const tipoAtual = params.get('tipo') ?? ''
   const deAtual = params.get('de') ?? ''
   const ateAtual = params.get('ate') ?? ''
+  const autorAtual = params.get('autor') ?? ''
 
   const [busca, setBusca] = useState(qAtual)
   const [de, setDe] = useState(deAtual)
@@ -123,9 +145,36 @@ export function ListaFiltros({
 
   // F25 — o `filial` conta como filtro quando veio da URL, não quando a marcação
   // saiu do padrão do cargo (senão "Limpar" nunca sumiria para o operador).
+  // F28/MOV-05 — `autor` entra aqui pela presença bruta do param (mesmo padrão
+  // de `tipoAtual`/`deAtual` acima): um valor além de "eu" não filtra nada no
+  // servidor, mas ainda assim precisa de "Limpar" para sair da URL.
   const temFiltro =
-    !!qAtual || !!tipoAtual || !!params.get('filial') || !!deAtual || !!ateAtual
+    !!qAtual ||
+    !!tipoAtual ||
+    !!params.get('filial') ||
+    !!deAtual ||
+    !!ateAtual ||
+    !!autorAtual
   const hoje = hojeISO()
+
+  // F28/MOV-05 — chips de período: aplicam de/ate na URL de uma vez. Clicar no
+  // chip já ativo DESLIGA (limpa de/ate) — não há como um chip "reforçar" a si
+  // mesmo.
+  const chipPeriodoAtivo = chipAtivo(deAtual, ateAtual, hoje)
+  function aplicarChipPeriodo(chave: ChavePeriodo) {
+    if (chipPeriodoAtivo === chave) {
+      setDe('')
+      setAte('')
+      aplicar({ de: null, ate: null })
+      return
+    }
+    const p = periodoDoChip(chave, hoje)
+    setDe(p.de)
+    setAte(p.ate)
+    aplicar({ de: p.de, ate: p.ate })
+  }
+
+  const autorEuAtivo = autorAtual === AUTOR_EU
 
   return (
     <div
@@ -206,6 +255,24 @@ export function ListaFiltros({
       </div>
 
       <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Período</Label>
+        <div className="flex gap-1">
+          {CHIPS_PERIODO.map((c) => (
+            <Button
+              key={c.chave}
+              type="button"
+              variant={chipPeriodoAtivo === c.chave ? 'default' : 'outline'}
+              aria-pressed={chipPeriodoAtivo === c.chave}
+              onClick={() => aplicarChipPeriodo(c.chave)}
+              className="shrink-0"
+            >
+              {c.rotulo}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
         <Label htmlFor="mov-de" className="text-xs text-muted-foreground">
           De
         </Label>
@@ -242,6 +309,22 @@ export function ListaFiltros({
         />
       </div>
 
+      {/* Sem `<Label>` acima, no mesmo padrão do botão "Sem patrimônio" de
+          `ativos-filtros.tsx`: o `items-end` do container alinha o botão pela
+          base com os campos rotulados ao lado. */}
+      {mostrarFiltroAutor && (
+        <Button
+          type="button"
+          variant={autorEuAtivo ? 'default' : 'outline'}
+          aria-pressed={autorEuAtivo}
+          onClick={() => aplicar({ autor: autorEuAtivo ? null : AUTOR_EU })}
+          className="gap-2"
+        >
+          <User className="size-4" aria-hidden />
+          Minhas
+        </Button>
+      )}
+
       {temFiltro && (
         <Button
           variant="ghost"
@@ -250,7 +333,14 @@ export function ListaFiltros({
             setBusca('')
             setDe('')
             setAte('')
-            aplicar({ q: null, tipo: null, filial: null, de: null, ate: null })
+            aplicar({
+              q: null,
+              tipo: null,
+              filial: null,
+              de: null,
+              ate: null,
+              autor: null,
+            })
           }}
         >
           <X className="size-4" aria-hidden />

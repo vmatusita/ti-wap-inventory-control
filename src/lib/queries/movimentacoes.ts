@@ -473,6 +473,10 @@ export type ListarMovimentacoesParams = {
   // F25 — multi-seleção. Lista vazia/ausente = sem recorte (todas as filiais).
   filialIds?: readonly number[]
   q?: string
+  // F28/MOV-05 — filtro "Minhas" (`?autor=eu` na URL). O uid chega AQUI já
+  // resolvido pela page (a partir da sessão) — nunca vem cru da URL, e o
+  // sentinela `'eu'` nunca aparece nesta assinatura.
+  criadoPor?: string
   page?: number
   pageSize?: number
 }
@@ -643,6 +647,9 @@ function queryLista(
   if (params.filialIds && params.filialIds.length > 0) {
     q = q.in('filial_id', params.filialIds)
   }
+  // F28/MOV-05 — "Minhas": só o autor da movimentação. A contagem (`count:
+  // 'exact'` no select acima) herda o filtro de graça, por ser a mesma query.
+  if (params.criadoPor) q = q.eq('criado_por', params.criadoPor)
   if (busca?.campo === 'patrimonio') {
     // DUAS formas, como `resolverPatrimoniosParaLote` (F10) já fazia no colar-
     // lista: `.eq` na canônica e `.ilike` (sem curinga = igualdade que ignora a

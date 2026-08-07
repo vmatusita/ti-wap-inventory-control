@@ -61,6 +61,10 @@ export default async function MovimentacoesPage({
   const ate = dataISO(texto(sp.ate)) ?? undefined
   const tipo = tipoValido(texto(sp.tipo))
   const page = paginaNumerica(texto(sp.page))
+  // F28/MOV-05 — "Minhas": `?autor=eu` é uma SENTINELA; o uid do operador nunca
+  // vem da URL. Qualquer outro valor (garbage, um uuid colado à mão) é
+  // IGNORADO — mesma doutrina dos demais parsers desta página.
+  const autorEu = texto(sp.autor) === 'eu'
 
   // F21 — o histórico é igual para os três cargos; só o CTA de registrar depende
   // do cargo (o filtro de filial continua com a lista inteira: é leitura).
@@ -74,12 +78,19 @@ export default async function MovimentacoesPage({
     filiais.map((f) => f.id),
   )
 
+  // F28/MOV-05 — a sentinela só vira filtro de verdade com sessão (o visualizador
+  // por senha não alcança esta rota, mas `operador` continua opcional na
+  // assinatura — ver `getOperador()` — e este `&&` é a defesa contra o caso
+  // teórico de sessão inválida).
+  const criadoPor = autorEu && operador ? operador.id : undefined
+
   const resultado = await listarMovimentacoes({
     q,
     de,
     ate,
     tipo,
     filialIds,
+    criadoPor,
     page,
     pageSize: MOV_PAGE_SIZE,
   })
@@ -89,7 +100,11 @@ export default async function MovimentacoesPage({
   // ainda descarta a SENTINELA `todas` (que declara "sem recorte" — ver a nota da
   // função). Usar a lista RESOLVIDA aqui faria isto ser SEMPRE true para o operador,
   // porque o padrão do cargo nunca é vazio.
-  const temFiltro = Boolean(q || de || ate || tipo) || ehFiltroDeFilial(texto(sp.filial))
+  // F28/MOV-05 — `criadoPor` (já resolvido, não o param cru) entra aqui pelo
+  // mesmo motivo de `tipo`: só conta como filtro quando de fato filtrou algo.
+  const temFiltro =
+    Boolean(q || de || ate || tipo || criadoPor) ||
+    ehFiltroDeFilial(texto(sp.filial))
 
   // ⚠ ...mas o ESTADO VAZIO precisa da outra pergunta: "esta lista está recortada?".
   // O padrão do cargo não está na URL e mesmo assim recorta a query — sem isto o
@@ -151,7 +166,11 @@ export default async function MovimentacoesPage({
         )}
       </div>
 
-      <ListaFiltros filiais={filiais} filiaisSelecionadas={filialIds.map(String)} />
+      <ListaFiltros
+        filiais={filiais}
+        filiaisSelecionadas={filialIds.map(String)}
+        mostrarFiltroAutor={!!operador}
+      />
 
       {busca && (
         <p className="text-xs text-muted-foreground">

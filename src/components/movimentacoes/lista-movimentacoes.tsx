@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeftRight } from 'lucide-react'
+import { ArrowLeftRight, Copy } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -9,10 +9,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Dica } from '@/components/ui/dica'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
-import { formatDate, ouTraco } from '@/lib/format'
+import { formatDate, formatTime, ouTraco } from '@/lib/format'
 import { pillTipo, rotuloTipo } from '@/lib/dominio'
+import { inicioDeLote } from '@/lib/movimentacoes/agrupar-lote'
 import { cn } from '@/lib/utils'
 import type { MovimentacaoLista } from '@/lib/queries/movimentacoes'
 
@@ -70,6 +73,18 @@ export function ListaMovimentacoes({
     )
   }
 
+  // F28/MOV-06 — separador visual entre LOTES: um lote de N ativos registrado de
+  // uma vez vira N linhas idênticas; a borda superior mais forte junta o bloco
+  // sem precisar de uma linha de cabeçalho nova. Ver o comentário de
+  // `inicioDeLote` para a definição (autor + minuto) e a limitação aceita.
+  const iniciosDeLote = inicioDeLote(
+    rows.map((m) => ({
+      id: m.id,
+      created_at: m.created_at,
+      autor_nome: m.autor_nome,
+    })),
+  )
+
   return (
     <div className="overflow-hidden rounded-lg border">
       <Table>
@@ -82,13 +97,36 @@ export function ListaMovimentacoes({
             <TableHead className={COL_FILIAL}>Filial</TableHead>
             <TableHead className={COL_OPERADOR}>Operador</TableHead>
             <TableHead className={COL_OBS}>Obs.</TableHead>
+            <TableHead>
+              <span className="sr-only">Duplicar</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((m) => (
-            <TableRow key={m.id} className={cn(m.estornada && 'opacity-60')}>
+            <TableRow
+              key={m.id}
+              className={cn(
+                m.estornada && 'opacity-60',
+                // A 1ª linha da PÁGINA nunca marca (inicioDeLote já garante
+                // isso — não há id dela no conjunto).
+                iniciosDeLote.has(m.id) && 'border-t-2 border-t-foreground/20',
+              )}
+            >
               <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
-                {formatDate(m.data)}
+                <div className="flex flex-col leading-tight">
+                  <span>{formatDate(m.data)}</span>
+                  {/* Hora do REGISTRO (created_at), não a data do evento acima
+                      (`data`, de negócio — pode ser retroativa): as duas
+                      divergem de propósito, e é a hora do registro que revela
+                      um lote lançado de uma vez. */}
+                  <Dica
+                    texto={`Registrada no sistema às ${formatTime(m.created_at)}. A data acima é a data do EVENTO — pode ser retroativa e não precisa coincidir com o registro.`}
+                    className="w-fit text-[10px] font-normal text-muted-foreground/70"
+                  >
+                    {formatTime(m.created_at)}
+                  </Dica>
+                </div>
               </TableCell>
 
               <TableCell className="whitespace-nowrap">
@@ -171,6 +209,29 @@ export function ListaMovimentacoes({
                     className="w-full text-xs"
                   />
                 </div>
+              </TableCell>
+
+              <TableCell className="whitespace-nowrap">
+                {/* "Duplicar" por linha (F28/MOV-06) — mesma regra de
+                    `linha-do-tempo.tsx` (o estorno não se duplica: duplicar
+                    um estorno reabriria uma discussão que já foi encerrada).
+                    Ícone-only + `after:` para um alvo de toque decente no
+                    celular sem inchar a coluna. */}
+                {m.tipo !== 'estorno' && (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon-sm"
+                    className="relative after:absolute after:-inset-2 after:content-['']"
+                  >
+                    <Link
+                      href={`/movimentacoes/nova?duplicar=${m.id}`}
+                      aria-label={`Duplicar esta movimentação de ${rotuloTipo(m.tipo)}`}
+                    >
+                      <Copy className="size-3.5" aria-hidden />
+                    </Link>
+                  </Button>
+                )}
               </TableCell>
             </TableRow>
           ))}

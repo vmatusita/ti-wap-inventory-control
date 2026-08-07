@@ -33,8 +33,9 @@ export const listaDeMovimentacoes: PaginaAjuda = {
       titulo: 'Achar uma movimentação já registrada (lista de movimentações)',
       itens: [
         'Abra Movimentações no menu lateral: a lista mostra tudo que já foi registrado, do mais recente para o mais antigo.',
-        'Filtre por período (De / Até), por tipo e por filial — o botão de filial abre um painel de caixas e aceita mais de uma marcada; quem é Operador já entra com as filiais dele marcadas. A busca é de um campo só: digite um patrimônio (WAP0001234 — "wap 1234" também serve, o sistema completa o formato) e vêm as movimentações daquele equipamento; digite um nome ("Fulano") e vêm as do colaborador.',
-        'Cada linha traz data, tipo, patrimônio (link para a ficha), colaborador, filial, quem registrou e a observação. Estorno vem marcado como "estorno" e a movimentação desfeita, como "estornada" — nada é apagado do histórico.',
+        'Filtre por período (De / Até), por tipo e por filial — o botão de filial abre um painel de caixas e aceita mais de uma marcada; quem é Operador já entra com as filiais dele marcadas. Os chips "Hoje", "Ontem" e "7 dias" preenchem De/Até de um clique só (clicar de novo no chip já marcado limpa o período); ainda dá para digitar as datas à mão quando o período não for nenhum desses três. A busca é de um campo só: digite um patrimônio (WAP0001234 — "wap 1234" também serve, o sistema completa o formato) e vêm as movimentações daquele equipamento; digite um nome ("Fulano") e vêm as do colaborador.',
+        'O botão "Minhas" filtra só as movimentações que VOCÊ registrou — útil para conferir o que lançou no dia sem separar o histórico de todo mundo.',
+        'Cada linha traz a data do evento (com a hora do registro em letra menor, logo abaixo — as duas podem divergir quando algo é lançado retroativo), tipo, patrimônio (link para a ficha), colaborador, filial, quem registrou, a observação e o atalho "Duplicar". Estorno vem marcado como "estorno" e a movimentação desfeita, como "estornada" — nada é apagado do histórico. Quando um lote inteiro foi registrado de uma vez, as linhas dele aparecem juntas, separadas do restante por uma borda mais forte acima da primeira.',
         'Os filtros ficam no endereço da página: o link já vai filtrado quando compartilhado, voltar/avançar do navegador funciona e trocar um filtro volta para a primeira página.',
         'Para REGISTRAR, continue usando "Nova movimentação" (botão do topo, card do painel inicial ou a tecla N) — todos vão direto ao formulário.',
       ],
@@ -64,7 +65,8 @@ export const listaDeMovimentacoes: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        'O patrimônio de cada linha é um link para a FICHA do ativo — é lá que estão o estorno, a duplicação e o texto completo da observação.',
+        'O patrimônio de cada linha é um link para a FICHA do ativo — é lá que estão o estorno e o texto completo da observação.',
+        '"Duplicar", na última coluna, já abre "Nova movimentação" pré-preenchida com os mesmos dados desta linha (menos o ativo, que se escolhe de novo) — não é mais preciso passar pela ficha para isso. Some para movimentações do tipo estorno: duplicar um estorno reabriria uma discussão que já foi encerrada.',
         'Quando o mesmo patrimônio pertence a dois equipamentos, a linha ganha ao lado o selo "ST" com a service tag: sem ele, o histórico de duas máquinas se leria como o de uma só.',
         'Ativo sem plaqueta aparece com o selo "sem patrimônio", e o link para a ficha continua ali — é o único caminho até ele.',
         'A observação fica na coluna "Obs.", encurtada; passar o mouse (ou tocar, no celular) mostra o texto inteiro.',
