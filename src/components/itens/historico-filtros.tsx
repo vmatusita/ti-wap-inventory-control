@@ -122,7 +122,7 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
             />
           </div>
         </div>
-        <Button type="submit" variant="secondary" className="shrink-0">
+        <Button type="submit" variant="secondary" className="h-10 shrink-0 sm:h-8">
           Pesquisar
         </Button>
       </form>
@@ -219,7 +219,7 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
       {temFiltro && (
         <Button
           variant="ghost"
-          className="gap-1 text-muted-foreground"
+          className="h-10 gap-1 text-muted-foreground sm:h-8"
           onClick={() => {
             setDe('')
             setAte('')

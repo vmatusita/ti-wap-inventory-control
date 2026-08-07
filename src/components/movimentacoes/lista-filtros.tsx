@@ -209,7 +209,7 @@ export function ListaFiltros({
             />
           </div>
         </div>
-        <Button type="submit" variant="secondary" className="shrink-0">
+        <Button type="submit" variant="secondary" className="h-10 shrink-0 sm:h-8">
           Pesquisar
         </Button>
       </form>
@@ -318,7 +318,7 @@ export function ListaFiltros({
           variant={autorEuAtivo ? 'default' : 'outline'}
           aria-pressed={autorEuAtivo}
           onClick={() => aplicar({ autor: autorEuAtivo ? null : AUTOR_EU })}
-          className="gap-2"
+          className="h-10 gap-2 sm:h-8"
         >
           <User className="size-4" aria-hidden />
           Minhas
@@ -328,7 +328,7 @@ export function ListaFiltros({
       {temFiltro && (
         <Button
           variant="ghost"
-          className="gap-1 text-muted-foreground"
+          className="h-10 gap-1 text-muted-foreground sm:h-8"
           onClick={() => {
             setBusca('')
             setDe('')

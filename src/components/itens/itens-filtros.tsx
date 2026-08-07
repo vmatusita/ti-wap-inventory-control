@@ -154,11 +154,11 @@ export function ItensFiltros({
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar item…"
-            className="pl-8"
+            className="h-10 pl-8 sm:h-8"
             aria-label="Buscar itens"
           />
         </div>
-        <Button type="submit" variant="secondary" className="shrink-0">
+        <Button type="submit" variant="secondary" className="h-10 shrink-0 sm:h-8">
           Pesquisar
         </Button>
       </form>
@@ -178,7 +178,7 @@ export function ItensFiltros({
         value={grupoAtual || TODOS}
         onValueChange={(v) => aplicar({ grupo: v === TODOS ? null : v })}
       >
-        <SelectTrigger className="w-[170px]" aria-label="Filtrar por grupo">
+        <SelectTrigger className="h-10 w-[170px] sm:h-8" aria-label="Filtrar por grupo">
           <SelectValue placeholder="Grupo" />
         </SelectTrigger>
         <SelectContent>
@@ -220,7 +220,7 @@ export function ItensFiltros({
       </div>
 
       {temFiltro && (
-        <Button variant="ghost" onClick={limpar} className="gap-1 text-muted-foreground">
+        <Button variant="ghost" onClick={limpar} className="h-10 gap-1 text-muted-foreground sm:h-8">
           <X className="size-4" />
           Limpar
         </Button>

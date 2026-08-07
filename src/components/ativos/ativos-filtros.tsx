@@ -172,11 +172,11 @@ export function AtivosFiltros({
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar patrimônio, service tag, hostname, marca, modelo, colaborador, telefone ou IMEI…"
-            className="pl-8"
+            className="h-10 pl-8 sm:h-8"
             aria-label="Buscar ativos"
           />
         </div>
-        <Button type="submit" variant="secondary" className="shrink-0">
+        <Button type="submit" variant="secondary" className="h-10 shrink-0 sm:h-8">
           Pesquisar
         </Button>
       </form>
@@ -191,7 +191,7 @@ export function AtivosFiltros({
         value={categoriaAtual || TODAS}
         onValueChange={(v) => aplicar({ categoria: v === TODAS ? null : v })}
       >
-        <SelectTrigger className="w-[150px]" aria-label="Filtrar por categoria">
+        <SelectTrigger className="h-10 w-[150px] sm:h-8" aria-label="Filtrar por categoria">
           <SelectValue placeholder="Categoria" />
         </SelectTrigger>
         <SelectContent>
@@ -206,7 +206,7 @@ export function AtivosFiltros({
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="h-10 gap-2 sm:h-8">
             <SlidersHorizontal className="size-4" />
             Status
             {statusAtual.length > 0 && (
@@ -244,7 +244,7 @@ export function AtivosFiltros({
           aplicar({ semPatrimonio: semPatrimonioAtual ? null : '1' })
         }
         aria-pressed={semPatrimonioAtual}
-        className="gap-2"
+        className="h-10 gap-2 sm:h-8"
       >
         <Tag className="size-4" />
         Sem patrimônio
@@ -256,7 +256,7 @@ export function AtivosFiltros({
           aplicar({ comPendencia: comPendenciaAtual ? null : '1' })
         }
         aria-pressed={comPendenciaAtual}
-        className="gap-2"
+        className="h-10 gap-2 sm:h-8"
       >
         <TriangleAlert className="size-4" />
         Com pendência
@@ -266,7 +266,7 @@ export function AtivosFiltros({
         <Button
           variant="ghost"
           onClick={limpar}
-          className="gap-1 text-muted-foreground"
+          className="h-10 gap-1 text-muted-foreground sm:h-8"
         >
           <X className="size-4" />
           Limpar

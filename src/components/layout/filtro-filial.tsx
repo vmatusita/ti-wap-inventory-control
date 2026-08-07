@@ -107,7 +107,11 @@ export function FiltroFilial({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="gap-2" aria-label="Filtrar por filial">
+        <Button
+          variant="outline"
+          className="h-10 gap-2 sm:h-8"
+          aria-label="Filtrar por filial"
+        >
           <Building2 className="size-4" />
           {rotulo}
           {!todas && (

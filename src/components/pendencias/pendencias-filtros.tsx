@@ -123,7 +123,7 @@ export function PendenciasFiltros({
               aria-label="Buscar pendências"
             />
           </div>
-          <Button type="submit" variant="secondary" className="shrink-0">
+          <Button type="submit" variant="secondary" className="h-10 shrink-0 sm:h-8">
             Pesquisar
           </Button>
         </form>
@@ -143,7 +143,7 @@ export function PendenciasFiltros({
               setBusca('')
               startTransition(() => router.push(pathname))
             }}
-            className="gap-1 text-muted-foreground"
+            className="h-10 gap-1 text-muted-foreground sm:h-8"
           >
             <X className="size-4" />
             Limpar
