@@ -113,7 +113,7 @@ equivalente no banco está escrita e **não aplicada**.
 
 ---
 
-## 5. Revisão adversarial — duas voltas, 12 achados, todos corrigidos
+## 5. Revisão adversarial — duas voltas, 12 achados, todos corrigidos (mais um 13º, do CI — §7.1)
 
 A ordem manda revisar em contexto fresco e re-revisar até limpar. Foram **duas rodadas**, com lentes
 independentes (cumprimento por bloco, matemática das funções puras, regressão, a11y, segurança,
@@ -223,6 +223,60 @@ Não basta uma guarda verde; ela precisa **falhar** quando deve:
   falso-verde da 1ª versão) → **falha** na versão por fatia.
 - Ambos restaurados e re-verificados depois.
 
+### 7.1 O CI, e o 13º achado — que veio do roteiro SQL, não da revisão
+
+O push disparou o CI. O job `verificar` (lint + test + build) passou de primeira. O job **`banco`**,
+que sobe um Postgres novo, aplica **todas** as migrations em ordem e roda `supabase/tests/*.sql`,
+**falhou** — e falhou no roteiro escrito nesta fase, na sua primeira execução real:
+
+```
+==== supabase/tests/reabrir_pendencia_item.sql ====
+ERROR:  permission denied for table pendencias_item
+HINT:   Grant the required privileges to the current role with:
+        GRANT SELECT, UPDATE ON public.pendencias_item TO authenticated;
+CONTEXT: SQL statement "update public.pendencias_item set status = 'resolvida' …"
+```
+
+**O que isso significa.** A parada não foi na reabertura nova: foi no **cenário 1**, o do operador
+**resolvendo** — o fluxo da F18, em produção desde 24/07. Num banco construído **pelas migrations
+deste repositório**, o papel `authenticated` não tem privilégio nenhum sobre `pendencias_item`.
+
+**Por que ninguém tinha visto.** Nenhum roteiro exercia essa tabela sob `set local role
+authenticated`: `pendencias_item.sql` roda como `postgres`, que é superusuário e ignora **RLS e
+grants**. Policy sem grant é regra que nunca chega a ser avaliada — o Postgres barra antes, no
+privilégio. A F18 escreveu a policy e nunca precisou do grant para os testes passarem.
+
+**Correção.** A `0103` passa a conceder `select, update` a `authenticated` (INSERT/DELETE continuam
+exclusivos do trigger `security definer`; `anon` fica de fora). Segunda rodada do CI:
+
+```
+==== supabase/tests/reabrir_pendencia_item.sql ====
+NOTICE:  ✓ 1 operador vinculado RESOLVE a pendência (aberta → resolvida)
+NOTICE:  ✓ 2 operador vinculado NÃO reabre — a linha continua resolvida
+NOTICE:  ✓ 3 operador de OUTRA filial não reabre
+NOTICE:  ✓ 4 nível administrador REABRE (resolvida → aberta)
+NOTICE:  — reabrir_pendencia_item: 4 ok, 0 falha(s)
+```
+
+Os dois jobs verdes. **A `0103` está provada**: aplica limpo num banco novo e as quatro invariantes
+de cargo valem.
+
+**O que ainda não se sabe (e a migration diz como descobrir).** Se produção tem o grant, ele veio do
+`alter default privileges` do bootstrap do Supabase, **não** das migrations — e produção tem **zero
+linhas** em `pendencias_item` desde a medição da `0083`, então o caminho pode nunca ter sido
+exercido de verdade. A consulta que responde isso está no bloco de verificação da `0103`, para rodar
+**antes** de aplicar:
+
+```sql
+select grantee, privilege_type
+  from information_schema.role_table_grants
+ where table_schema = 'public' and table_name = 'pendencias_item'
+ order by grantee, privilege_type;
+```
+
+Se `authenticated` não aparecer ali, o fluxo de **resolver** pendência de item está quebrado em
+produção — silenciosamente, porque nunca houve linha para resolver.
+
 ---
 
 ## 8. Roteiro manual (o que teste puro não cobre)
@@ -287,9 +341,11 @@ na frente.
 
 ### 9.1 A migration `0103` (o único item entregue pela metade)
 
-**O que é:** `supabase/migrations/0103_reabrir_pendencia_item_admin.sql` separa a policy de UPDATE de
-`pendencias_item` em duas, por sentido da transição: o operador age no que está **aberto**; só
-`e_admin()` leva de **resolvida** para **aberta**.
+**O que é:** `supabase/migrations/0103_reabrir_pendencia_item_admin.sql` faz DUAS coisas: (1) concede
+`select, update` sobre `pendencias_item` a `authenticated` — grant que **nunca existiu nas
+migrations** e sem o qual nem resolver nem reabrir funcionam (§7.1); (2) separa a policy de UPDATE em
+duas, por sentido da transição: o operador age no que está **aberto**; só `e_admin()` leva de
+**resolvida** para **aberta**.
 
 **Por que é necessária:** a F28 entregou "Reabrir pendência" com gate de nível administrador **na
 Server Action**. A policy (`0063`) não distingue cargo nem sentido, e `pode_escrever_filial` devolve
@@ -315,9 +371,10 @@ de resolver pendências não compensa a pressa.
    ```
 3. Repetir em **produção** e rodar o smoke.
 
-⚠ **O roteiro SQL não foi executado nesta sessão** (não há banco acessível aqui) — ele foi escrito
-seguindo o padrão e a sequência de fixtures de `supabase/tests/pendencias_item.sql`, que já roda no
-CI. O job `banco` do CI vai executá-lo no próximo push e é a primeira prova real dele.
+✅ **O roteiro JÁ foi executado** — pelo job `banco` do CI, contra um Postgres novo com todas as
+migrations aplicadas (§7.1). Achou o grant faltante na primeira rodada e, depois da correção, marcou
+os quatro cenários verdes. A `0103` está provada em banco novo; o que falta é aplicá-la em **ensaio
+e produção**.
 
 ### 9.2 Smoke de produção
 `node scripts/smoke/smoke-prod.mjs` — resultado colado no §12.
@@ -346,9 +403,11 @@ CI. O job `banco` do CI vai executá-lo no próximo push e é a primeira prova r
 - **Build, lint e 2.041 testes verdes não provaram o defeito mais caro da fase.** O CSV divergindo da
   tela passou por tudo isso — os campos são opcionais e o TypeScript aceitou. Quem pegou foi a
   revisão adversarial. Vale como aviso permanente: nesta base, **filtro novo é ponto cego de tipo**.
-- **A migration `0103` e o roteiro SQL não foram aplicados nem executados.** Enquanto isso não
-  acontecer, a restrição de cargo do PND-05 vale na UI e na Server Action, **não** contra uma chamada
-  direta à API. O roteiro nunca rodou contra um banco de verdade.
+- **A migration `0103` não foi aplicada em produção.** Enquanto isso não acontecer, a restrição de
+  cargo do PND-05 vale na UI e na Server Action, **não** contra uma chamada direta à API.
+  *(O roteiro SQL, ao contrário do que esta seção dizia quando foi escrita, JÁ rodou: o job `banco`
+  do CI o executou contra um Postgres novo com todas as migrations — ver §7.1. O que não rodou
+  contra **produção** é a migration.)*
 - **A "Saldo após" foi provada por 7 testes puros, não contra dados reais.** A degradação honesta
   (a coluna virar "—" quando a conta não fecha) foi testada por construção, não observada em
   produção. Se o histórico de produção tiver um caso que sature o piso, o comportamento esperado é a
@@ -366,7 +425,24 @@ CI. O job `banco` do CI vai executá-lo no próximo push e é a primeira prova r
 
 ## 12. Smoke de produção
 
-> Preenchido após o push e o deploy da Vercel.
+Rodado depois do push e do deploy automático da Vercel:
+
+```
+$ node scripts/smoke/smoke-prod.mjs
+…
+========================================================================
+RESUMO · 93 OK · 4 aviso · 0 n/a (pré-F12) · 0 falha
+========================================================================
+```
+
+**0 falha.** Os 4 avisos são pré-existentes e todos da mesma causa — o **catálogo de itens está
+vazio em produção**, então três checagens de item não têm o que medir e a quarta (RLS de
+`kits_modelos` contra `anon`) lê 0 linhas porque não há kit cadastrado, o que não comprova a RLS.
+Nenhum deles é regressão da F28, e nenhum toca os 22 itens desta fase.
+
+⚠ O smoke cobre **rota e resposta** (HTTP, marcadores de conteúdo, RLS de leitura), não interação de
+tela: ele não clica em chip, não abre diálogo e não confere foco. O que ele prova aqui é que as 28
+rotas e as 33 páginas de ajuda continuam de pé com o código da fase em produção.
 
 ---
 
