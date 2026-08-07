@@ -183,7 +183,7 @@ export function TermosDaFicha({
                       rotulo={rotuloPatrimonio}
                       onGerado={refresh}
                       trigger={
-                        <Button variant="ghost" size="sm" className="h-8 gap-1.5">
+                        <Button variant="ghost" size="sm" className="h-10 gap-1.5 sm:h-8">
                           <Pencil className="size-3.5" />
                           Editar
                         </Button>
@@ -193,7 +193,7 @@ export function TermosDaFicha({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 gap-1.5"
+                    className="h-10 gap-1.5 sm:h-8"
                     onClick={() => baixar(t.id)}
                     disabled={baixando === t.id}
                   >

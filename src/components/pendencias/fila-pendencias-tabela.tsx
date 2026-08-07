@@ -171,7 +171,7 @@ export function FilaPendenciasTabela({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5"
+              className="h-10 gap-1.5 sm:h-8"
               onClick={limparSelecao}
             >
               <X className="size-3.5" />
@@ -181,7 +181,7 @@ export function FilaPendenciasTabela({
               <ConfirmarAssinaturaLoteDialog
                 ativoIds={selecionadasTermosVisiveis}
                 trigger={
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                  <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:h-8">
                     <PenLine className="size-3.5" />
                     {`Confirmar assinatura (${nSelTermos})`}
                   </Button>
@@ -193,7 +193,7 @@ export function FilaPendenciasTabela({
                 ids={selecionadasItensVisiveis}
                 resumo={`${nSelItens} ${nSelItens === 1 ? 'item faltante selecionado' : 'itens faltantes selecionados'}`}
                 trigger={
-                  <Button size="sm" className="h-8 gap-1.5">
+                  <Button size="sm" className="h-10 gap-1.5 sm:h-8">
                     <PackageCheck className="size-3.5" />
                     {`Resolver itens (${nSelItens})`}
                   </Button>
@@ -329,7 +329,7 @@ export function FilaPendenciasTabela({
                       <ConfirmarAssinaturaDialog
                         ativoId={p.id}
                         trigger={
-                          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                          <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:h-8">
                             <PenLine className="size-3.5" />
                             Confirmar assinatura
                           </Button>
@@ -346,7 +346,7 @@ export function FilaPendenciasTabela({
                         patrimonioAtual={p.patrimonio}
                         serviceTag={p.serviceTag}
                         trigger={
-                          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                          <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:h-8">
                             <Tag className="size-3.5" />
                             {rotuloPatrimonio}
                           </Button>
@@ -357,7 +357,7 @@ export function FilaPendenciasTabela({
                         movimentação de verdade, "Triagem OK"): o atalho leva direto
                         para o wizard com o ativo já selecionado. */}
                     {p.tipo === 'triagem' && (
-                      <Button asChild variant="outline" size="sm" className="h-8 gap-1.5">
+                      <Button asChild variant="outline" size="sm" className="h-10 gap-1.5 sm:h-8">
                         <Link href={`/movimentacoes/nova?ativo=${p.id}`}>
                           <ArrowRightLeft className="size-3.5" />
                           Movimentar
@@ -371,7 +371,7 @@ export function FilaPendenciasTabela({
                           p.patrimonio ? ' · ' + p.patrimonio : ''
                         }`}
                         trigger={
-                          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                          <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:h-8">
                             <PackageCheck className="size-3.5" />
                             Resolver
                           </Button>

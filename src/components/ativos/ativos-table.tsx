@@ -246,6 +246,13 @@ export function AtivosTable({
                         onClick={() => alternarOrdem(colunaId)}
                         className={cn(
                           '-mx-2 inline-flex items-center gap-1 rounded-md px-2 py-1 font-medium',
+                          // F29/UXG-03 — o alvo era ~28px (só o padding), e é o
+                          // controle mais tocado do cabeçalho. `min-h-10` no celular,
+                          // `sm:min-h-0` de volta à densidade de antes no desktop —
+                          // aqui é `min-h` (e não `h`) porque o botão é `inline-flex`
+                          // dentro de um <th> e uma altura fixa desalinharia o texto
+                          // dos cabeçalhos que NÃO ordenam.
+                          'min-h-10 sm:min-h-0',
                           'transition-colors hover:text-foreground',
                           'outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           direcao ? 'text-foreground' : 'text-muted-foreground',

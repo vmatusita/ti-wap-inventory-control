@@ -64,7 +64,7 @@ export function PendenciasItemFicha({
                 ids={[p.id]}
                 resumo={`${rotuloAcessorio(p.item)}${patrimonio ? ' · ' + patrimonio : ''}`}
                 trigger={
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                  <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:h-8">
                     <PackageCheck className="size-3.5" />
                     Resolver
                   </Button>

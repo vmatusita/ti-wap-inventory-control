@@ -204,7 +204,7 @@ export function ListaFiltros({
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Patrimônio ou colaborador…"
-              className="pl-8"
+              className="h-10 pl-8 sm:h-8"
               aria-label="Buscar movimentações por patrimônio ou colaborador"
             />
           </div>
@@ -224,7 +224,7 @@ export function ListaFiltros({
         >
           <SelectTrigger
             id="mov-tipo"
-            className="w-[190px]"
+            className="h-10 w-[190px] sm:h-8"
             aria-label="Filtrar por tipo de movimentação"
           >
             <SelectValue placeholder="Tipo" />
@@ -281,7 +281,7 @@ export function ListaFiltros({
           type="date"
           max={ate || hoje}
           value={de}
-          className="w-[160px] tabular-nums"
+          className="h-10 w-[160px] tabular-nums sm:h-8"
           aria-label="Movimentações a partir de"
           onChange={(e) => {
             setDe(e.target.value)
@@ -300,7 +300,7 @@ export function ListaFiltros({
           min={de || undefined}
           max={hoje}
           value={ate}
-          className="w-[160px] tabular-nums"
+          className="h-10 w-[160px] tabular-nums sm:h-8"
           aria-label="Movimentações até"
           onChange={(e) => {
             setAte(e.target.value)

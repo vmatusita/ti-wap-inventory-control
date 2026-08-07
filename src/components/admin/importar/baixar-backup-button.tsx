@@ -40,7 +40,7 @@ export function BaixarBackupButton({
     <Button
       variant="ghost"
       size="sm"
-      className="h-8 gap-1.5"
+      className="h-10 gap-1.5 sm:h-8"
       onClick={baixar}
       disabled={baixando}
     >

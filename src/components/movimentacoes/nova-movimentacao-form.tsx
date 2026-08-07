@@ -1226,7 +1226,12 @@ export function NovaMovimentacaoForm({
                 disabled={n > passo}
                 aria-current={ativo ? 'step' : undefined}
                 className={
-                  'flex items-center gap-2 rounded-full px-2.5 py-1 font-medium transition-colors ' +
+                  // F29/UXG-03 — o stepper é o caminho de volta do lote (voltar ao
+                  // passo 1 para acrescentar um ativo) e tinha ~28px no celular, que
+                  // é onde o lote é montado. `min-h` porque o botão é uma pílula
+                  // `inline-flex` dentro de um <li>: altura fixa quebraria o
+                  // alinhamento com as setas "→" entre os passos.
+                  'flex min-h-10 items-center gap-2 rounded-full px-2.5 py-1 font-medium transition-colors sm:min-h-0 ' +
                   (ativo
                     ? 'bg-primary text-primary-foreground'
                     : concluido

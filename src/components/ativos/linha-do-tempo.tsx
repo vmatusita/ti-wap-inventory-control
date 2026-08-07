@@ -197,7 +197,7 @@ export function LinhaDoTempo({
                       />
                     )}
                     {m.tipo !== 'estorno' && (
-                      <Button asChild variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
+                      <Button asChild variant="ghost" size="sm" className="h-10 gap-1.5 text-xs sm:h-7">
                         <Link href={`/movimentacoes/nova?duplicar=${m.id}`}>
                           <Copy className="size-3.5" />
                           Duplicar

@@ -117,7 +117,7 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Chamado ou colaborador"
-              className="w-[220px] pl-8"
+              className="h-10 w-[220px] pl-8 sm:h-8"
               aria-label="Buscar no histórico por chamado ou colaborador"
             />
           </div>
@@ -135,7 +135,7 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
           value={itemAtual || TODOS_ITENS}
           onValueChange={(v) => aplicar({ item: v === TODOS_ITENS ? null : v })}
         >
-          <SelectTrigger id="hist-item" className="w-[200px]" aria-label="Filtrar histórico por item">
+          <SelectTrigger id="hist-item" className="h-10 w-[200px] sm:h-8" aria-label="Filtrar histórico por item">
             <SelectValue placeholder="Item" />
           </SelectTrigger>
           <SelectContent>
@@ -166,7 +166,7 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
           value={tipoAtual || TODOS_TIPOS}
           onValueChange={(v) => aplicar({ tipo: v === TODOS_TIPOS ? null : v })}
         >
-          <SelectTrigger id="hist-tipo" className="w-[170px]" aria-label="Filtrar histórico por tipo">
+          <SelectTrigger id="hist-tipo" className="h-10 w-[170px] sm:h-8" aria-label="Filtrar histórico por tipo">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
@@ -189,7 +189,7 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
           type="date"
           max={hoje}
           value={de}
-          className="w-[160px] tabular-nums"
+          className="h-10 w-[160px] tabular-nums sm:h-8"
           aria-label="Histórico a partir de"
           onChange={(e) => {
             setDe(e.target.value)
@@ -207,7 +207,7 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
           type="date"
           max={hoje}
           value={ate}
-          className="w-[160px] tabular-nums"
+          className="h-10 w-[160px] tabular-nums sm:h-8"
           aria-label="Histórico até"
           onChange={(e) => {
             setAte(e.target.value)

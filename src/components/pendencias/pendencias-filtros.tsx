@@ -89,7 +89,9 @@ export function PendenciasFiltros({
               type="button"
               onClick={() => aplicar({ tipo: t.valor === 'todas' ? null : t.valor })}
               className={cn(
-                'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                // F29/UXG-03 — o chip tinha ~26px; é o filtro mais tocado da fila e
+                // vive lado a lado com irmãos, onde errar o alvo troca o filtro.
+                'inline-flex min-h-10 items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors sm:min-h-0',
                 ativo
                   ? 'border-transparent bg-foreground text-background'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
@@ -117,7 +119,7 @@ export function PendenciasFiltros({
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar patrimônio ou colaborador…"
-              className="pl-8"
+              className="h-10 pl-8 sm:h-8"
               aria-label="Buscar pendências"
             />
           </div>

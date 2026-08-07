@@ -247,7 +247,7 @@ export function DesfazerAssinaturaDialog({ ativoId }: { ativoId: string }) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 gap-1.5 text-xs text-muted-foreground"
+          className="h-10 gap-1.5 text-xs text-muted-foreground sm:h-7"
         >
           <Undo2 className="size-3.5" />
           Desfazer

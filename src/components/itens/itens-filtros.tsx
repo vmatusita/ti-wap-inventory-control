@@ -202,7 +202,7 @@ export function ItensFiltros({
           size="sm"
           aria-pressed={!visaoFiliais}
           onClick={() => trocarVisao(false)}
-          className="h-8"
+          className="h-10 sm:h-8"
         >
           Consolidado
         </Button>
@@ -212,7 +212,7 @@ export function ItensFiltros({
           size="sm"
           aria-pressed={visaoFiliais}
           onClick={() => trocarVisao(true)}
-          className="h-8 gap-1.5"
+          className="h-10 gap-1.5 sm:h-8"
         >
           <Columns3 className="size-4" aria-hidden />
           Por filial
