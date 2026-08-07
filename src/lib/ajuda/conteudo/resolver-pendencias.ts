@@ -3,6 +3,13 @@ import {
   type TipoPendencia,
 } from '@/lib/pendencias/rotulos'
 import { DESFECHO_PENDENCIA_ITEM_ROTULO } from '@/lib/dominio'
+// F28/PND-04 — os limiares de idade da fila vêm da MESMA constante que colore o
+// badge; digitá-los aqui deixaria a doc envelhecer sozinha (e o teste da ajuda
+// recusa número de teto escrito à mão).
+import {
+  PENDENCIA_ATENCAO_DIAS,
+  PENDENCIA_CRITICA_DIAS,
+} from '@/lib/pendencias/idade'
 import type { PaginaAjuda, Verbete } from '@/lib/ajuda/tipos'
 
 // REGRA DE OURO: os rotulos dos tipos de pendencia NAO sao digitados aqui — saem
@@ -81,7 +88,9 @@ export const resolverPendencias: PaginaAjuda = {
         'Os chips do topo mostram a contagem por tipo, e cada um só aparece quando tem alguma coisa em aberto: "termos de responsabilidade pendentes", "itens faltantes de devoluções", "ativos aguardando triagem", "patrimônios a acertar", "conflitos entre filiais" e "outras pendências". Sem nada aberto, a tela diz "Nenhuma pendência aberta. 🎉".',
         'As abas, logo abaixo dos chips, filtram por tipo: "Todas", "Termos", "Itens faltantes", "Triagem", "Patrimônio", "Conflitos entre filiais" e "Outras". Ao lado, a busca por patrimônio ou colaborador e o botão de filial, que abre um painel de caixas e aceita mais de uma marcada — quem é Operador já entra com as filiais dele marcadas. "Limpar" desfaz tudo.',
         'A aba "Conflitos entre filiais" é diferente das outras: em vez de uma lista de linhas, ela mostra os cadastros do mesmo equipamento LADO A LADO, um bloco por conflito. As demais abas nunca trazem essas linhas — o conflito tem casa própria e não aparece duas vezes.',
-        'A tabela traz "Tipo", "Patrimônio", "Modelo", "Colaborador", "Setor", "Filial", "Desde" e "Ação". A coluna "Desde" mostra a data e há quanto tempo aquilo está aberto ("hoje", "há 1 dia", "há N dias").',
+        'A tabela traz "Tipo", "Patrimônio", "Modelo", "Colaborador", "Setor", "Filial", "Desde" e "Ação". Sob o tipo aparece, em letra menor, o texto da própria pendência — o que exatamente está pendente naquela linha; quando ele não cabe, o texto inteiro aparece ao passar o mouse (ou tocar).',
+        `A coluna "Desde" mostra a data e há quanto tempo aquilo está aberto ("hoje", "há 1 dia", "há N dias") — e ganha destaque conforme envelhece: acima de ${PENDENCIA_ATENCAO_DIAS} dias fica em âmbar, acima de ${PENDENCIA_CRITICA_DIAS} dias em vermelho. A cor não é o único aviso: o motivo do destaque aparece ao passar o mouse.`,
+        'Quando o equipamento ainda não tem plaqueta, o lugar do patrimônio traz "sem patrimônio — abrir ficha", que é link para a ficha como qualquer outro — antes ali havia só um travessão, que não dizia nada nem para quem usa leitor de tela.',
         'A ação da linha depende do tipo: "Confirmar assinatura" nos termos, "Resolver" nos itens faltantes, "Definir patrimônio" (ou "Corrigir patrimônio") na aba Patrimônio e "Movimentar" na Triagem — que já abre o registro de movimentação com o ativo selecionado. Só a aba "Outras" (falta a service tag) segue exigindo abrir a ficha, pelo menu "⋯".',
         '"Exportar CSV" leva para o Excel exatamente as pendências que estão filtradas na tela.',
         'A tela vazia distingue os casos: sem nada aberto, "Nenhuma pendência aberta 🎉"; com filtro, "Nenhuma pendência neste filtro" — e o texto avisa que isso não quer dizer que não haja pendências, é só a combinação de filtros.',
@@ -117,7 +126,7 @@ export const resolverPendencias: PaginaAjuda = {
       itens: [
         'Abra Pendências e vá ao bloco "Itens faltantes": cada linha é UM item que não voltou, com o patrimônio do ativo, o colaborador da época (o da devolução, não o dono atual) e desde quando está aberta.',
         `Na linha, use "Resolver" e escolha o desfecho: "${DESFECHO_RECUPERADO}" (o acessório apareceu) ou "${DESFECHO_BAIXA}" (encerrar sem retorno). A observação é opcional.`,
-        'Para limpar a fila herdada de uma vez, marque várias linhas nas caixas de seleção e resolva em lote — uma justificativa vale para todas as marcadas. A barra que aparece mostra quantos itens estão selecionados e traz "Resolver selecionados".',
+        'Para limpar a fila herdada de uma vez, marque várias linhas nas caixas de seleção e resolva em lote — uma justificativa vale para todas as marcadas. A barra que aparece mostra quantos itens estão selecionados e traz "Resolver itens (N)".',
         'Resolver encerra a pendência: a linha sai da fila, do selo do menu e do CSV, mas continua na ficha do ativo com o desfecho, quem resolveu e quando — é o rastro de auditoria. Um desfecho errado não é definitivo para sempre: veja "Reabrir uma pendência de item resolvida", logo abaixo.',
         'A pendência é sempre do colaborador daquela devolução: se o ativo já saiu para outra pessoa, resolver aqui não mexe no novo dono nem faz surgir "dívida" para ele.',
         'Se a rede cair no envio, o aviso afirma o não-efeito ("nenhuma pendência foi resolvida") — recarregue a fila antes de tentar de novo.',

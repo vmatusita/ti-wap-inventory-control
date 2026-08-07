@@ -153,8 +153,16 @@ export function MesaConflitos({
           "o certo" é a leitura natural — e é exatamente o oposto do que a caixa faz. Por
           isso a linha fica sempre visível (não só quando há seleção) e com contraste de
           destructive, não um parágrafo cinza que passa despercebido. */}
+      {/* ⚠ Cor medida, não escolhida: `text-destructive` sobre `bg-destructive/10`
+          dá 3,99:1 no tema claro (`node scripts/contraste.mjs --par "destructive
+          sobre destructive/10" --tema claro`) e REPROVA o AA de 4,5:1 — e
+          `font-medium` (500) não é "bold" para o limiar relaxado. Justo o aviso
+          que existe para impedir que alguém apague o cadastro certo seria o
+          texto mais difícil de ler da tela. A família red-50/900 + red-950/200 é
+          a mesma do callout âmbar aprovado da ficha: 9,21:1 no claro e 12,21:1
+          no escuro. Achado da revisão adversarial da F28. */}
       {podeApagar && grupos.length > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive">
+        <div className="flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
           <AlertTriangle className="size-4 shrink-0" />
           <p>
             Marque o cadastro <strong>errado</strong> — a exclusão é do que estiver

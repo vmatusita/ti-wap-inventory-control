@@ -380,7 +380,11 @@ describe('pendências', () => {
       'Patrimônio',
       'Outras',
       'Confirmar assinatura',
-      'Resolver selecionados',
+      // F28/PND-02 — o botão do lote virou "Resolver itens (N)" quando ganhou o
+      // irmão "Confirmar assinatura (N)" para termos: com dois botões na mesma
+      // barra, "selecionados" não dizia mais QUAIS. A doc citava o rótulo antigo
+      // e ESTE teste a travava — quem pegou foi a revisão adversarial da F28.
+      'Resolver itens',
     ]) {
       contem('resolver-pendencias', rotulo)
     }

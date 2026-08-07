@@ -3915,3 +3915,195 @@ Nenhum foi refutado — o que é incomum e se explica por serem todos verificáv
   que também pode virar `<title>` é frágil por construção; e o `<title>` de uma rota barrada
   chegar ao usuário barrado é comportamento do Next que ninguém tinha notado antes — nenhuma outra
   rota do app tem `marcadorProibido`, então a colisão só podia nascer aqui.
+
+---
+
+## 2026-08-07 · F28 · Onda B1 — as decisões que a ordem pediu por escrito
+
+A F28 executou os 22 itens da primeira metade da Onda B (`docs/ANALISE-UX-2026-08-07.md` §10) —
+movimentações, ativos, pendências e itens. **Zero migration, zero dependência nova, `supabase/` com
+diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as que nasceram no caminho.
+
+### 1 · MOV-06 — o agrupamento de lote é DERIVADO, e erra de propósito
+
+- **Contexto:** a ordem pede "separador visual leve quando autor+minuto mudam (agrupamento derivado,
+  sem coluna nova no banco)". Medido no código: **não existe `lote_id`** em `movimentacoes` —
+  `registrarMovimentacoes` processa o lote num laço sequencial, cada item um INSERT próprio, sem
+  chave de correlação. Não há como saber, pelo banco, onde um lote termina e outro começa.
+- **Decisão:** o separador é uma **heurística**, calculada em memória por
+  `src/lib/movimentacoes/agrupar-lote.ts` (`inicioDeLote`): marca a linha em que **autor + minuto de
+  `created_at`** mudam em relação à anterior. A primeira linha da página nunca marca. O truncamento
+  ao minuto é feito sobre o ISO em **UTC**, não em São Paulo — como o offset de SP é fixo em horas
+  inteiras, igualdade de minuto é invariante ao fuso, e assim se evita um `Intl` por linha.
+- **Motivo:** a alternativa era uma migration criando `lote_id`, que é mudança de modelo de dados por
+  conveniência de UI — desproporcional, e fora do escopo desta ordem (que proíbe migration exceto o
+  caminho estreito do PND-05).
+- **Limitação assumida e documentada no módulo:** dois operadores gravando no mesmo minuto podem ser
+  agrupados como um lote só, e um lote que atravesse a virada do minuto aparece partido. O separador
+  é **dica visual**, nunca dado — nada no sistema depende dele. Um lote maior que a página (30) fica
+  cortado entre páginas, sem como reconectar.
+- **Reversível?** sim — apagar o módulo e a classe de borda da linha.
+
+### 2 · ATV-02 — o CSV de ativos ganha "Pendência", e "com pendência" tem definição
+
+- **Contexto:** a ordem deixou a coluna do CSV em aberto ("CSV pode ganhar a coluna — registre a
+  escolha"). E `ativos.pendencia` é **texto livre**, não enum: precisa de uma definição de "tem
+  pendência" que valha igual na tela, no filtro e no arquivo.
+- **Decisão (a):** o CSV **ganha** a coluna "Pendência", ao lado de Setor. **Motivo:** sem ela,
+  exportar com o filtro "Com pendência" ligado devolve um arquivo em que nada distingue as linhas —
+  o operador levaria para a planilha uma seleção cujo critério não viaja junto, e teria de voltar à
+  tela para descobrir o porquê de cada uma.
+- **Decisão (b):** "com pendência" = **não-nulo E não-vazio**
+  (`.not('pendencia','is',null).not('pendencia','eq','')`). **Motivo:** alguns fluxos de import
+  gravam string vazia, e string vazia não é pendência — acender o alerta ali encheria a fila de
+  falso-positivo. A regra mora em `aplicarFiltrosAtivos`, que é a **mesma função** usada pela tela e
+  pelo export: é a disciplina F12/W6A (tela e CSV não podem divergir).
+- **Reversível?** sim, as duas.
+
+### 3 · PND-02 — o lote de termos, e por que a seleção tem DOIS conjuntos
+
+- **Contexto:** a fila mistura quatro tipos de pendência. Até aqui, só `itens` era selecionável, e a
+  chave da seleção era o `id` de `pendencias_item`. Termo não tem registro próprio: a pendência é o
+  estado `termo_assinado` do **ativo**.
+- **Decisão:** dois `Set<string>` independentes — `selecionadasItens` (chave = id de
+  `pendencias_item`) e `selecionadasTermos` (chave = id do **ativo**). Não uma chave composta.
+  **Motivo:** os dois universos vivem em tabelas diferentes e cada conjunto só é lido pela sua
+  própria ação; uma chave composta obrigaria toda leitura a desempacotar e criaria a chance de uma
+  ação agir sobre o subconjunto errado — exatamente o risco que a ordem mandou tornar óbvio.
+- **Decisão:** seleção mista mostra **as duas ações**, cada uma com o seu contador no rótulo, e a
+  barra diz "N termos · M itens faltantes selecionados". Nenhuma ação age silenciosamente sobre o
+  que não é dela.
+- **Decisão:** a action `confirmarAssinaturaLote` espelha `resolverPendenciaItem` — Zod, cargo,
+  `exigirEscritaEm` das filiais **lidas do banco** (não das informadas pelo cliente), update
+  idempotente só nos que ainda não estão `'sim'`, **uma anotação por ativo** com o mesmo texto da
+  ação individual, e `revalidatePath` da fila, de cada ficha e do relatório. Devolve
+  `{ confirmados, ignorados }`, e o toast diz os dois números quando o lote encolhe — o operador
+  precisa saber que dois dos cinco já estavam assinados.
+- **Decisão menor:** o schema Zod do lote ficou **local e não exportado** dentro de
+  `actions/termos.ts`, em vez de `validators/ativo.ts`. **Motivo:** o módulo é `'use server'` e só
+  pode exportar `async function` (armadilha F13); mover para o validador é refactor sem mudança de
+  comportamento, e fica registrado como opção.
+- **Reversível?** sim.
+
+### 4 · PND-05 — reabrir pendência de item **sem migration** (com a prova)
+
+- **Contexto:** a ordem admitia migration aditiva se as policies exigissem, e mandava preferir a
+  camada de app. Era a única porta de banco autorizada na fase.
+- **Decisão:** **nenhuma migration.** Reabrir é um UPDATE comum, feito pela Server Action
+  `reabrirPendenciaItem`. O diff de `supabase/` nesta fase é **vazio**.
+- **Prova (conferida nos três pontos antes de escrever a primeira linha):**
+  1. `0050_pendencias_item.sql:56-60` — o CHECK `pendencias_item_ciclo_chk` aceita
+     `status='aberta' and desfecho is null and resolvida_em is null`, e a constraint não tem direção:
+     a volta é tão válida quanto a ida.
+  2. `0063_papeis_policies.sql:196-199` — a policy de UPDATE é `pode_escrever_filial(filial_id)` em
+     `using` **e** `with check`, sem restrição de coluna nem de sentido.
+  3. `0081_guarda_acervo.sql:56-60` — a trigger de imutabilidade do acervo **exclui
+     `pendencias_item` de propósito**, e a migration diz por escrito que guardá-la "quebraria fluxo
+     legítimo sem fechar nenhuma porta que importe".
+- **Decisão de cargo:** o gate é **nível administrador** (`exigirAdmin` = admin OU dev), e não quem
+  escreve na filial. **Motivo:** desfazer um desfecho é correção de registro, não operação do dia. O
+  `exigirEscritaEm` das filiais tocadas continua valendo por cima.
+- **Decisão de dado:** a `observacao` do desfecho anterior é **limpa**, não preservada. **Motivo:** o
+  CHECK não a exige na volta, e um texto que justificava um desfecho que deixou de valer só
+  confundiria a próxima leitura. O rastro do que houve não se perde: fica na anotação.
+- **Decisão de rastro:** justificativa **obrigatória**, mínimo de 10 caracteres — a mesma régua de
+  `MIN_JUSTIFICATIVA` (Zona destrutiva, F23) e `MIN_JUSTIFICATIVA_CONFLITO` (F24). Uma anotação por
+  ativo, com autor e data pelas colunas.
+- **Consequência documental (era o objetivo, não efeito colateral):** a ajuda dizia "Resolver é
+  definitivo: não há reabrir." e `conteudo.test.ts` **travava essa frase literalmente** desde a F20,
+  que a endureceu de propósito. O teste foi **reescrito** (não deletado) para travar a verdade nova:
+  que só o nível administrador reabre, que exige justificativa e que fica rastro.
+- **Reversível?** sim — remover a action e o botão devolve o comportamento antigo; nenhum dado muda
+  de forma.
+
+### 5 · ITN-03b — a busca do histórico é `?busca=`, não `?q=`
+
+- **Contexto:** a ordem pede "busca `?q` no histórico". Medido: `/itens` **já usa `?q`** para o
+  filtro da tabela de **saldos**, na mesma página. Os dois filtros convivem na mesma URL.
+- **Decisão:** o param novo é **`?busca=`**. **Motivo:** reusar `q` faria um campo apagar o outro —
+  digitar um chamado no histórico filtraria também os saldos, e o "Limpar" de um derrubaria o do
+  outro. É também o vocabulário pt-BR que a convenção do projeto pede (e uma resposta parcial ao
+  UXG-09e, que reclama dos params crípticos).
+- **Sanitização:** idêntica ao precedente de `queryPendencias` — os metacaracteres do PostgREST
+  viram espaço antes de entrar no `.or()`, senão uma vírgula no termo alteraria o filtro em vez de
+  ser procurada.
+- **Reversível?** sim.
+
+### 6 · ITN-03a — "Saldo após": qual número, em que ordem, e quando ele se recusa a aparecer
+
+- **Contexto:** a ordem manda calcular no servidor "partindo do saldo atual da RPC e desfazendo linha
+  a linha na ordem decrescente". Ao implementar, três coisas não fechavam.
+- **Decisão (grandeza):** a coluna mostra o **Estoque** — é o número que o operador lê para decidir
+  "dá para atender mais um pedido?". Declarado no cabeçalho do módulo e no rótulo da coluna.
+- **Decisão (ordem):** o cálculo usa `data desc, created_at desc, id desc`, e não a ordenação da
+  grade (`created_at desc, id desc`). **Motivo:** o efeito no saldo é pela data de **negócio**; um
+  lançamento de ontem digitado hoje entra na conta onde aconteceu, não onde foi digitado. A mesma
+  ordenação vale para exibição nesse recorte, para a coluna não ficar incoerente com a linha ao lado.
+- **Decisão (a que mais importa — não inverter o piso):** a fórmula do banco satura em zero
+  (`total = max(0, Σentrada + Σajuste)` etc.), e **saturação não é inversível**: se alguma parcela
+  bateu no piso, desfazer não reconstrói a história. A função **não** desfaz a partir do valor
+  saturado: reconstrói os acumulados **brutos** do mais antigo ao mais novo e aplica o piso só na
+  leitura de cada ponto.
+- **Decisão (degradação honesta):** o ponto mais recente reconstruído é **conferido** contra o saldo
+  que a RPC devolve. Não batendo — histórico incompleto, corrida com outro operador —, a coluna
+  inteira degrada para "—" com o motivo na `Dica`, em vez de mostrar número errado. **Motivo:** numa
+  coluna de auditoria, um número errado é pior que a ausência do número.
+- **Decisão (recorte):** a leitura do cálculo ignora tipo, data, busca e página, e busca **todas** as
+  linhas daquele item×filial. Recortar quebraria a soma. Por isso a coluna só existe com **1 item +
+  1 filial** — em qualquer outro recorte ela seria uma mentira.
+- **Decisão (estorno):** original e inverso entram como dois lançamentos reais, sem tratamento
+  especial — é assim que o banco soma, e é o caso testado.
+- **Reversível?** sim.
+
+### 7 · MOV-05 — o CSV de movimentações que a ordem menciona **não existe**
+
+- **Contexto:** o item diz "Query, contagem e CSV respeitam o filtro". Medido em
+  `src/lib/actions/exportar.ts`: existem `exportarAtivosCSV`, `exportarPendenciasCSV`,
+  `exportarConflitosCSV`, `exportarItensSaldosCSV` e `exportarItensHistoricoCSV` — **não há export de
+  movimentações**, e a tela não tem botão de exportar.
+- **Decisão:** query e contagem respeitam o filtro (verificado: a contagem sai da mesma query). O CSV
+  **não foi criado** — seria feature nova, e a ordem proíbe trabalho de outra fase.
+- **Backlog:** "export CSV da lista de movimentações" fica registrado no relatório da fase.
+
+### 8 · Decisões menores tomadas no caminho (todas reversíveis)
+
+- **MOV-05 · o uid nunca sai do servidor.** `?autor=eu` é **sentinela literal**. O uid da sessão é
+  resolvido no Server Component e vira `criadoPor` na query; um uuid colado na URL (`?autor=<uuid>`)
+  é **ignorado**, pela doutrina de `url-params.ts`. O Client Component recebe só o booleano
+  `mostrarFiltroAutor` — nunca o id.
+- **MOV-11 · o banner lista 2 patrimônios e reticências**, e o "agora" do tempo relativo é congelado
+  no mount (`useState` lazy). Isso não é preciosismo: `Date.now()` direto no corpo do componente é
+  **erro de lint** (`react-hooks/purity`, regra nova do `eslint-config-next`), e a granularidade
+  grossa de `formatTempoRelativo` já era a doutrina.
+- **MOV-12 · a ordem da checagem de faltantes mudou** para seguir a ordem **visual** dos campos
+  (patrimônio → service tag → categoria → filial → marca → modelo). O código checava filial por
+  último: com filial como único faltante, o foco pularia para o campo errado.
+- **ATV-06 · `service_tag` continua fora de `COLUNAS_ORDENAVEIS`**, mas por outro motivo: antes era
+  "coluna condicional, cabeçalho que some não é lugar de estado de ordenação"; agora é que não sobrou
+  cabeçalho nenhum. O comentário foi corrigido para não desinformar a próxima fase.
+- **ATV-12 · os chips de visão NÃO carregam `filial`.** Cada um monta a URL do zero (padrão de
+  `PendenciasChips`): trocar de visão é trocar de contexto, não acumular filtro. Omitir o param
+  devolve o **padrão do cargo** (F25), que é o comportamento correto para o operador.
+- **ATV-10a · a confirmação de descarte é uma segunda tela no MESMO diálogo**, no padrão que
+  `item-dialog.tsx` já usa desde a F27 — **não** um `AlertDialog`, que não existe no projeto e cuja
+  instalação esbarraria na stack fechada. Os quatro caminhos de saída (Esc, clique-fora, X do canto,
+  botão Cancelar) convergem para uma função só.
+- **ATV-09b · o teto de 200 virou função pura nova (`erroTetoLista`)**, e não uma mudança em
+  `parsearLista` — 41 testes dependem daquela assinatura, e a régua pertence ao preview, não ao
+  parser.
+- **PND-01 · a service tag da fila vem de leitura suplementar.** `v_fila_pendencias` não expõe
+  `service_tag`, e o `CorrigirPatrimonioDialog` precisa dela. Em vez de alterar a view (migration),
+  uma leitura extra em bloco na tabela `ativos`, restrita aos ids do tipo `patrimonio` **da página
+  atual** — nunca da fila inteira.
+- **ITN-05c · o motivo do estorno ACRESCENTA, não substitui.** `planejarEstorno` já preenchia
+  observação em ajuste/entrada; com motivo, o texto automático é preservado e o motivo entra depois
+  de um travessão. Nos demais tipos, que não tinham observação, o motivo vira a observação inteira.
+  Teto de 200 caracteres (não especificado na ordem).
+- **ITN-05d · a busca de saldo mora no combobox**, disparada pela troca de filial (contador de
+  pedido, para resposta atrasada não sobrescrever a nova), nunca pela digitação. Enquanto o saldo não
+  chegou — ou se falhar — a opção aparece **sem** o número: nunca com "0" chutado.
+- **Helpers compartilhados criados antes das frentes paralelas:** `formatTime` e
+  `formatTempoRelativo` em `src/lib/format.ts` (com teste), e a prop `trigger` opcional em
+  `CorrigirPatrimonioDialog`. **Motivo:** os 22 itens foram executados por nove frentes em paralelo
+  com **dono exclusivo por arquivo**; um helper compartilhado escrito por duas frentes ao mesmo tempo
+  seria escrita perdida. Ficaram no commit de preparação da fase.

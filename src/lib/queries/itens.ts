@@ -361,6 +361,19 @@ export type FiltrosHistorico = {
   // `itens-filtros.tsx` / `itens/page.tsx`) — reusar `q` aqui quebraria aquele
   // filtro, já que as duas seções escrevem na mesma URL (decisão em DECISOES.md).
   busca?: string | null
+  // ITN-03a — ordena por DATA DE NEGÓCIO em vez de por data de registro. Ligado
+  // só no recorte em que a coluna "Saldo após" aparece (1 item + 1 filial).
+  //
+  // ⚠ Por que existe: a coluna é calculada em ordem cronológica de NEGÓCIO
+  // (`data`), mas a grade sempre ordenou por `created_at`. Com um lançamento
+  // retroativo — entrada de 01/08 digitada em 05/08, depois de uma saída de
+  // 03/08 — a linha da entrada apareceria NO TOPO (registrada por último) com o
+  // saldo de 01/08, e a saída logo abaixo com o saldo de 03/08: cada célula
+  // certa para a sua linha, mas a coluna ilegível de cima para baixo, que é
+  // exatamente como se lê "quando o saldo chegou a 15?". Achado da revisão
+  // adversarial da F28. Fora desse recorte a ordem não muda: a grade continua
+  // "do mais recente registrado para o mais antigo", como a ajuda descreve.
+  ordenarPorData?: boolean
 }
 
 // Query base (filtros + ordem, sem faixa). O período é sobre a coluna `data` — a
@@ -387,6 +400,10 @@ function queryHistorico(
     const esc = termo.replace(/[%_*,()\\]/g, ' ')
     q = q.or(`chamado.ilike.%${esc}%,colaborador.ilike.%${esc}%`)
   }
+  // `created_at`/`id` seguem como desempate nos dois modos — `data` é uma data
+  // PURA e empata o dia inteiro; sem eles a ordem dentro do mesmo dia seria
+  // indefinida, e a paginação poderia repetir ou pular linha entre páginas.
+  if (opts.ordenarPorData) q = q.order('data', { ascending: false })
   return q
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })

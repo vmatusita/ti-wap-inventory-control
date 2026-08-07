@@ -199,6 +199,11 @@ export default async function ItensPage({
         de: deFiltro,
         ate: ateFiltro,
         busca: buscaFiltro,
+        // ITN-03a — quando a coluna "Saldo após" aparece, a grade passa a ser
+        // ordenada pela data de NEGÓCIO, que é a ordem em que a coluna foi
+        // calculada. Sem isso, um lançamento retroativo faria a coluna descer
+        // fora de ordem (achado da revisão adversarial).
+        ordenarPorData: mostrarSaldoApos,
         page,
         pageSize: 20,
       }),

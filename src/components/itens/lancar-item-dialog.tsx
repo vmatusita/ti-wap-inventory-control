@@ -439,7 +439,7 @@ export function LancarItemDialog({
                       size="sm"
                       variant={sentidoDeQuantidade(l.quantidade) === 'positivo' ? 'default' : 'outline'}
                       aria-pressed={sentidoDeQuantidade(l.quantidade) === 'positivo'}
-                      className="min-h-8 flex-1"
+                      className="min-h-10 flex-1 sm:min-h-8"
                       onClick={() =>
                         atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'positivo') })
                       }
@@ -452,7 +452,7 @@ export function LancarItemDialog({
                       size="sm"
                       variant={sentidoDeQuantidade(l.quantidade) === 'negativo' ? 'default' : 'outline'}
                       aria-pressed={sentidoDeQuantidade(l.quantidade) === 'negativo'}
-                      className="min-h-8 flex-1"
+                      className="min-h-10 flex-1 sm:min-h-8"
                       onClick={() =>
                         atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'negativo') })
                       }

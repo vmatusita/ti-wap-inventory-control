@@ -211,6 +211,13 @@ function filtrosAtivos(
       : undefined,
     status,
     semPatrimonio: texto(p, 'semPatrimonio') === '1',
+    // F28/ATV-02 — sem esta linha o chip "Com pendência" valeria na tela e NÃO
+    // no arquivo: `aplicarFiltrosAtivos` é a mesma função nos dois caminhos, mas
+    // o param só chega até ela se for lido AQUI. É o achado F12-W4-03 se
+    // repetindo (a divergência tela × CSV), e foi a revisão adversarial desta
+    // fase que o pegou. Mesma régua de `semPatrimonio`: só `'1'` liga.
+    // Guarda permanente: `src/lib/actions/exportar-filtros.test.ts`.
+    comPendencia: texto(p, 'comPendencia') === '1',
   }
 }
 
@@ -241,6 +248,10 @@ function filtrosHistorico(
       : null,
     de: dataISO(texto(p, 'de')),
     ate: dataISO(texto(p, 'ate')),
+    // F28/ITN-03b — mesma armadilha do `comPendencia` acima: a busca por chamado
+    // ou colaborador precisa ser lida aqui para valer no arquivo. `texto` já
+    // devolve `undefined` para vazio; o tipo do filtro quer `string | null`.
+    busca: texto(p, 'busca') ?? null,
   }
 }
 

@@ -255,6 +255,15 @@ const PARES = [
   { item: 'dark:', onde: 'callout âmbar (claro, inalterado)', texto: 'amber-900', fundo: 'amber-50', px: 12, exigir: true },
   { item: 'dark:', onde: 'callout âmbar (escuro, NOVO)', texto: 'amber-200', fundo: 'amber-950/40', sob: ['card', 'background'], px: 12, tema: 'escuro', exigir: true },
 
+  // ---- F28/PND-06 · aviso da semântica invertida na mesa de conflitos -------
+  // "Marque o cadastro ERRADO" é a frase que impede alguém de apagar o cadastro
+  // certo. Nasceu em `text-destructive` sobre `bg-destructive/10` e a revisão
+  // adversarial da F28 mediu 3,99:1 no claro — reprova (font-medium não é bold,
+  // então o limiar é 4,5:1, não 3:1). Passou para a família do callout âmbar.
+  { item: 'F28', onde: 'aviso da mesa de conflitos — ANTES', texto: 'destructive', fundo: 'destructive/10', px: 14 },
+  { item: 'F28', onde: 'aviso da mesa de conflitos — DEPOIS', texto: 'red-900', fundo: 'red-50', px: 14, exigir: true },
+  { item: 'F28', onde: 'aviso da mesa de conflitos — DEPOIS (escuro)', texto: 'red-200', fundo: 'red-950/40', sob: ['card', 'background'], px: 14, tema: 'escuro', exigir: true },
+
   // ---- P2-7 · rótulo interno do gráfico empilhado ---------------------------
   // As cores das barras são hex FIXOS (STATUS_CHART_COLOR) — valem igual nos dois
   // temas. `antes` = o `fill-white` de 10px que a revisão reprovou.
