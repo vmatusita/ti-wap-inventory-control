@@ -117,8 +117,21 @@ export async function gerarRelatorio(input: {
   let ultimoErro: { message?: string; code?: string } | null = null
 
   for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
-    const versao = (await lerUltimaVersao(client, de, ate, filialId))?.versao ?? 0
-    const proxima = versao + 1
+    // ⚠ A leitura da versão vigente FALHA FECHADA — achado da revisão adversarial
+    // desta fase. Engolir o erro devolveria `null` (indistinguível de "não há versão
+    // nenhuma"), a próxima seria sempre 1, o insert bateria no índice único nas 4
+    // tentativas e o operador levaria "Outra pessoa gerou este mesmo período" sobre
+    // uma falha de INFRAESTRUTURA. Mentira específica é pior que erro genérico.
+    const leitura = await lerUltimaVersao(client, de, ate, filialId)
+    if (!leitura.ok) {
+      return {
+        ok: false,
+        erro:
+          'Não foi possível conferir qual é a versão atual deste período. Nada foi ' +
+          'gravado — tente de novo em instantes.',
+      }
+    }
+    const proxima = (leitura.ultima?.versao ?? 0) + 1
 
     const { data: inserido, error } = await client
       .from('relatorios_gerados')
@@ -157,24 +170,48 @@ export async function gerarRelatorio(input: {
 // Última versão gravada para (período, filial). `filial_id` null = consolidado, e
 // no PostgREST isso é `.is(...)`, não `.eq(...)` — o mesmo par que `queries/gerados.ts`
 // usa para achar a versão mais nova de um snapshot aberto.
+//
+// O retorno DISTINGUE "não há versão" de "não deu para saber": o supabase-js nunca
+// rejeita a promise em falha de rede — ele devolve `{ data: null, error }`, e um
+// `const { data } = …` transformaria a falha em "período virgem" silenciosamente.
+// Quem chama decide o que fazer com cada caso (a geração recusa; o aviso do diálogo
+// degrada).
+type LeituraVersao =
+  | {
+      ok: true
+      ultima: { versao: number; gerado_em: string; autor: { nome: string | null } | null } | null
+    }
+  | { ok: false }
+
 async function lerUltimaVersao(
   client: DbClient,
   de: string,
   ate: string,
   filialId: number | null,
-): Promise<{ versao: number; gerado_em: string; autor: { nome: string | null } | null } | null> {
+): Promise<LeituraVersao> {
   let q = client
     .from('relatorios_gerados')
     .select('versao, gerado_em, autor:profiles!relatorios_gerados_gerado_por_fkey(nome)')
     .eq('periodo_de', de)
     .eq('periodo_ate', ate)
   q = filialId === null ? q.is('filial_id', null) : q.eq('filial_id', filialId)
-  const { data } = await q.order('versao', { ascending: false }).limit(1).maybeSingle()
-  return (data as unknown as {
-    versao: number
-    gerado_em: string
-    autor: { nome: string | null } | null
-  } | null) ?? null
+  const { data, error } = await q
+    .order('versao', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('[relatorios] falha ao ler a versão vigente do período', error)
+    return { ok: false }
+  }
+  return {
+    ok: true,
+    ultima:
+      (data as unknown as {
+        versao: number
+        gerado_em: string
+        autor: { nome: string | null } | null
+      } | null) ?? null,
+  }
 }
 
 // F29/REL-04a — consulta LEVE que responde "este período já tem snapshot?" enquanto
@@ -204,11 +241,14 @@ export async function consultarVersaoDoPeriodo(input: {
     filialSlug === 'geral' ? null : await resolverFilialPorSlug(client, filialSlug)
   if (filialSlug !== 'geral' && !filial) return null
 
-  const ultima = await lerUltimaVersao(client, de, ate, filial?.id ?? null)
-  if (!ultima) return null
+  // Aqui a falha de leitura degrada para "não sei" (o `null` do retorno): perder o
+  // AVISO não é perder a geração, e um erro que não é do operador atrapalharia mais
+  // do que ajuda. O `console.error` de `lerUltimaVersao` deixa o rastro no servidor.
+  const leitura = await lerUltimaVersao(client, de, ate, filial?.id ?? null)
+  if (!leitura.ok || !leitura.ultima) return null
   return {
-    versao: ultima.versao,
-    autorNome: ultima.autor?.nome ?? null,
-    geradoEm: ultima.gerado_em,
+    versao: leitura.ultima.versao,
+    autorNome: leitura.ultima.autor?.nome ?? null,
+    geradoEm: leitura.ultima.gerado_em,
   }
 }

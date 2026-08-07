@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import {
   ehViolacaoDeVersao,
@@ -68,5 +70,60 @@ describe('ehViolacaoDeVersao', () => {
   // insere numa tabela. O teste registra a escolha.
   it('trata qualquer 23505 como colisão — a action só insere em relatorios_gerados', () => {
     expect(ehViolacaoDeVersao('23505', 'duplicate key on ativos_patrimonio_uidx')).toBe(true)
+  })
+})
+
+// F29 — guardas de FONTE dos dois achados da revisão adversarial que a suíte não
+// pegaria (não há banco no Vitest): a leitura da versão vigente falha FECHADA, e o
+// texto copiado dos snapshots ANTIGOS também recebe os extras.
+describe('gerarRelatorio — a leitura de versão não pode voltar a engolir o erro', () => {
+  const FONTE = readFileSync(
+    fileURLToPath(new URL('../actions/relatorios.ts', import.meta.url)),
+    'utf8',
+  )
+
+  // O supabase-js NUNCA rejeita a promise em falha de rede: devolve `{data:null,
+  // error}`. Um `const { data } = …` transformaria a falha em "período virgem", a
+  // próxima versão seria sempre 1, o insert bateria no índice único nas 4 tentativas
+  // e o operador levaria "Outra pessoa gerou este mesmo período" sobre uma falha de
+  // infraestrutura — mentira específica, que é pior que erro genérico.
+  it('distingue "não há versão" de "não deu para saber"', () => {
+    expect(FONTE).toContain('type LeituraVersao')
+    const semEspaco = FONTE.replace(/\s+/g, '')
+    expect(semEspaco).toContain('const{data,error}=awaitq')
+    expect(semEspaco).not.toContain('const{data}=awaitq')
+  })
+
+  it('a geração RECUSA quando a leitura falha, em vez de supor a v1', () => {
+    expect(FONTE).toContain('if (!leitura.ok)')
+    expect(FONTE).toContain('Não foi possível conferir qual é a versão atual')
+  })
+
+  it('a falha deixa rastro no servidor', () => {
+    expect(FONTE).toContain('[relatorios] falha ao ler a versão vigente')
+  })
+})
+
+describe('o texto copiado recebe os extras nos DOIS corpos (v1 e v2)', () => {
+  function corpo(arquivo: string): string {
+    return readFileSync(
+      fileURLToPath(new URL(`../../components/relatorios/${arquivo}`, import.meta.url)),
+      'utf8',
+    ).replace(/\s+/g, '')
+  }
+
+  // O v1 é o corpo dos snapshots pré-F3B, que continuam abrindo pelo link antigo.
+  // Deixá-lo de fora faria o MESMO botão "Copiar texto" produzir textos diferentes
+  // conforme a idade do snapshot — sem nada na tela explicando a diferença.
+  it('v1 passa kpis e disponiveis (que ali já é a lista plana)', () => {
+    expect(corpo('corpo-relatorio.tsx')).toContain(
+      'extras={{kpis:s.kpis,disponiveis:s.disponiveisPorModelo}}',
+    )
+  })
+
+  it('v2 passa kpis e a lista ACHATADA (lá o campo vem agrupado por categoria)', () => {
+    const v2 = corpo('corpo-relatorio-v2.tsx')
+    expect(v2).toContain('kpis:s.kpis')
+    expect(v2).toContain('disponiveis:achatarDisponiveis(s.disponiveisPorModelo)')
   })
 })

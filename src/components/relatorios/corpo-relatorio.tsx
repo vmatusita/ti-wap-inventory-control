@@ -170,7 +170,15 @@ function CorpoRelatorioV1({
           titulo="Resumo do período"
           subtitulo="no formato do e-mail semanal"
         >
-          <ResumoPeriodoCard resumo={s.resumo} />
+          {/* F29/REL-08 — os extras valem também aqui, e não só no corpo v2 (achado
+              da revisão adversarial). No v1 `disponiveisPorModelo` já é a lista plana
+              `ItemModelo[]`, então entra direto — sem achatar. O texto copiado de um
+              snapshot antigo passa a abrir como o e-mail real abria, igual ao dos
+              novos; nada do snapshot é alterado, só o texto que se copia dele. */}
+          <ResumoPeriodoCard
+            resumo={s.resumo}
+            extras={{ kpis: s.kpis, disponiveis: s.disponiveisPorModelo }}
+          />
         </CardRelatorio>
       </div>
     </div>
