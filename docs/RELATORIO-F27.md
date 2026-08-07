@@ -59,7 +59,7 @@ tree entregue. Os roteiros manuais estão em §5.
 |---|---|---|---|
 | 1 | **FLX-01** `next` nas duas portas | ✅ | `proxy.ts:82-94` (sessão expirada), `:117-124` (/relatorios sem cookie), `:130-134` (rota genérica) gravam `next`; `auth.ts:38-43` (`signIn` → `destinoSeguro`); `login/page.tsx:32,54` (campo oculto); `otp.ts:57-60` (`redirectAcessoRelatorios`); `(app)/layout.tsx:167` + `relatorios/[filial]/page.tsx:75-81` + `gerados/page.tsx:41-47` + `gerados/[id]/page.tsx:29-35` (cookie **expirado**) |
 | 2 | **FLX-02** "Ver todas" → lista | ✅ | `(app)/page.tsx:347` `href="/movimentacoes?filial=todas"`; import de `ROTA_RELATORIO_CONSOLIDADO` removido |
-| 3 | **FLX-03** título por página | ✅ | `app/layout.tsx:20-26` (template); 22 páginas do grupo (app) + `login/layout.tsx` (novo); `ativos/[id]/page.tsx:52-70` (`generateMetadata` com patrimônio, consulta mínima) |
+| 3 | **FLX-03** título por página | ⚠️ | `app/layout.tsx:20-26` (template); 22 páginas do grupo (app) + `login/layout.tsx` (novo); `ativos/[id]/page.tsx:52-70` (`generateMetadata` com patrimônio, consulta mínima). **Desvio:** `/dev/destrutivo` ficou com o título de `/dev` ("Desenvolvedor"), revogando a decisão de títulos distintos — o título próprio vazava o nome da área restrita para quem era barrado e derrubava o smoke. Ver §12 |
 | 4 | **FLX-04** card Pendências × conflitos | ⚠️ | `(app)/page.tsx:125-152` (`contarConflitosAbertos` no `Promise.all`, **mesmo recorte de filial** da fila e do selo) e a linha âmbar com link. **Desvio:** a ordem mandava pôr a linha "no lugar da frase condicional" (ramo de fila vazia); ela ficou **fora do ternário** — ver §3.1 |
 | 5 | **FLX-05** devolução ao fornecedor na paleta | ✅ | `paleta-comandos.tsx:156-168` ("Devolver ao fornecedor", apelidos `fornecedor`/`baixa`/`sem conserto`) e `:169-176` ("Novo equipamento", `compra`/`cadastrar`) |
 
@@ -258,7 +258,29 @@ O gate `scripts/verificar-actions-build.mjs` faz parte do `build` e passou.
 git diff c5124f8..HEAD --stat -- supabase/      → (vazio)
 git diff c5124f8..HEAD -- package.json           → (vazio)
 git diff c5124f8..HEAD -- package-lock.json      → (vazio)
+git diff c5124f8..HEAD -- src/lib/types/database.ts → (vazio)
 ```
+
+### `node scripts/smoke/smoke-prod.mjs` (produção, pós-deploy)
+
+Rodou **duas vezes**. Na primeira, logo depois do push, ficou **vermelho** — e o que ele pegou
+era real (§12):
+```
+RESUMO · 92 OK · 4 aviso · 0 n/a (pré-F12) · 1 falha
+
+FALHAS:
+  · [C] /dev/destrutivo (dev · zona destrutiva (F23)) — HTTP 200 COM o conteúdo da área
+        restrita ("Zona destrutiva") — VAZAMENTO para o cargo errado
+```
+Depois do conserto e do redeploy:
+```
+RESUMO · 93 OK · 4 aviso · 0 n/a (pré-F12) · 0 falha
+
+=== SMOKE EXIT: 0 ===
+```
+Os **4 avisos são os mesmos nas duas execuções** — não nasceram na F27. O detalhe de cada um
+**não foi capturado** (a saída foi lida pelo fim, e as linhas de aviso ficaram acima do corte):
+vale uma execução do Johnny com a saída inteira à vista.
 
 ---
 
@@ -291,9 +313,11 @@ git diff c5124f8..HEAD -- package-lock.json      → (vazio)
 6. **DEV-01 não viu a RPC responder.** As duas chaves novas vieram da leitura da migration
    `0098`; que a RPC devolva exatamente esses nomes hoje, em produção, não foi observado. A
    rede permanente existe justamente porque essa suposição pode envelhecer.
-7. **O deploy não foi verificado.** A Vercel publica sozinha a partir da `main`; ninguém aqui
-   abriu a URL de produção depois. O smoke (`scripts/smoke/smoke-prod.mjs`) **não foi
-   executado** — sem credenciais neste ambiente. Fica como conferência do Johnny.
+7. **O deploy foi verificado por fora, não por dentro.** O smoke rodou contra produção depois de
+   cada um dos dois pushes e fechou verde (§6), o que prova que as 93 rotas respondem e que as
+   leituras reais funcionam com uma sessão de operador de verdade. Ele **não** exercita nenhum
+   dos comportamentos novos desta fase: não digita no wizard, não imprime, não expira sessão,
+   não clica em chip. O roteiro de §5 continua inteiro por executar.
 8. **Auto-relato de agente não é prova.** Um dos nove blocos classificou o próprio trabalho
    errado (§3.4). Os status desta tabela foram reconferidos contra o `git diff`, mas o
    mecanismo que produziu aquele engano é o mesmo que produziu os demais relatos.
@@ -374,10 +398,61 @@ O `"Close"` visível do `DialogFooter` (atrás de `showCloseButton`, hoje sem ch
 corrigido para "Fechar" **depois** de a ata registrá-lo como "não feito de propósito". Registros
 alinhados: entrada nova em `DECISOES.md` revisando a anterior, item retirado do backlog acima.
 
-### O que a revisão confirmou como correto
+### 11.4 O que a revisão confirmou como correto
 Escopo limpo (diffs vazios em `supabase/`, `package.json`, `package-lock.json` e no
 `database.ts` gerado; só os três arquivos previstos em `src/components/ui/`); nenhum item de
 Onda B/C implementado de brinde; nenhum teste removido ou enfraquecido; o `next` do FLX-01 sem
 open redirect; o **visualizador por senha sem nenhum link novo para fora de `/relatorios/**`**;
 o aviso de duplicata ainda não-bloqueante (só o Enter espera, o clique nunca); e as páginas de
 ajuda corrigidas de fato.
+
+> **E o que ela NÃO pegou:** as seis lentes leram o diff estático e deram o FLX-03 por
+> resolvido. O defeito de §12 estava ali, no `metadata` de uma rota, e só apareceu com o app
+> no ar. É o argumento mais concreto desta fase a favor de rodar o smoke depois do deploy.
+
+---
+
+## 12. O smoke pós-deploy pegou o que nenhuma outra camada pegou
+
+Este é o achado mais instrutivo da fase, e ele só existiu **depois** do push — lint, testes,
+build e as seis lentes da revisão adversarial passaram por cima dele.
+
+**O sintoma:** na primeira execução pós-deploy, o smoke acusou
+`/dev/destrutivo — HTTP 200 COM o conteúdo da área restrita ("Zona destrutiva") — VAZAMENTO
+para o cargo errado`. É o check que existe para provar que a área mais perigosa do sistema
+(apagar ativo, resetar filial, forçar estado) não alcança quem não é dev.
+
+**O diagnóstico**, feito contra a produção com a conta do smoke (que não é dev), imprimindo só
+fatos estruturais e nenhum conteúdo de página:
+
+| Medida | `/dev/destrutivo` | `/dev` |
+|---|---|---|
+| HTTP | 200 | 200 |
+| Tamanho | 72.960 bytes | 72.133 bytes |
+| `<title>` | **"Zona destrutiva · Estoque TI WAP"** | "Desenvolvedor · Estoque TI WAP" |
+| "Apagar ativo" / "Resetar" / "Forçar estado" no corpo | **0 / 0 / 0** | 0 / 0 / 0 |
+| "Área técnica de manutenção" (layout de `/dev`) no corpo | **0** | 0 |
+
+Ou seja: **o controle de acesso nunca esteve em risco.** O corpo entregue é o do painel, do
+mesmo tamanho do de `/dev`, sem uma única ferramenta destrutiva renderizada. O que aparecia era
+o `<title>`: o `redirect('/')` do `dev/layout.tsx` é resolvido pelo Next **no servidor** e
+devolve 200 com o corpo do painel, mas com o `<title>` resolvido a partir da rota **pedida**. O
+`metadata.title = 'Zona destrutiva'` que a própria F27 acrescentou (FLX-03) caía no HTML de quem
+acabava de ser barrado — e colidia com o `marcadorProibido` do smoke.
+
+**O conserto:** `/dev/destrutivo` voltou a se chamar "Desenvolvedor" na aba, o que **revoga** a
+decisão de títulos distintos que esta mesma fase tinha registrado (§3 e `DECISOES.md`). Anunciar
+o nome da zona destrutiva para quem não pode entrar não tem contrapartida, e aba repetida entre
+duas rotas exclusivas do cargo dev é preço barato. O marcador do smoke ganhou, ao lado, o aviso
+da armadilha, para a próxima fase que mexer naquele título ver o acoplamento ali.
+
+**O que NÃO foi feito, e por quê:** trocar o marcador do smoke por conteúdo de corpo ("Forçar
+estado") deixaria o check mais forte — mas eu não tenho credencial de **dev** para provar que o
+marcador novo aparece quando a área realmente renderiza, e um marcador que nunca casa é um check
+que passa verde para sempre sem testar nada. Fica registrado para quem tiver a conta certa.
+
+**A lição:** um marcador de segurança que é uma string capaz de virar `<title>` é frágil por
+construção, e o `<title>` de uma rota barrada chegar ao usuário barrado é comportamento do Next
+que ninguém tinha notado — nenhuma outra rota do app tem `marcadorProibido`, então a colisão só
+podia nascer aqui. Nenhuma quantidade de teste puro pegaria isto: precisou do app no ar.
+

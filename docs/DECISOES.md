@@ -3883,3 +3883,35 @@ Nenhum foi refutado — o que é incomum e se explica por serem todos verificáv
   `dialog.tsx` já estava aberto pelo próprio UXG-02 ("modais falam pt-BR"), corrigir custou uma
   palavra. O que estava errado não era o conserto — era a ata tê-lo descrito como omissão.
 - **Reversível?** sim.
+
+## 2026-08-07 · F27 · O smoke pós-deploy pegou o título da Zona destrutiva — e a decisão de títulos distintos foi revogada
+
+- **Contexto:** o `scripts/smoke/smoke-prod.mjs`, rodado **depois** do push da F27, ficou vermelho
+  numa linha só: `/dev/destrutivo — HTTP 200 COM o conteúdo da área restrita ("Zona destrutiva") —
+  VAZAMENTO para o cargo errado`. É o check que existe para provar que a área mais perigosa do
+  sistema não alcança quem não é dev.
+- **Diagnóstico (contra a produção, com a conta do smoke, que não é dev):** o controle de acesso
+  **nunca esteve em risco**. O corpo devolvido é o do painel — 72.960 bytes, praticamente os
+  mesmos 72.133 de `/dev` — com **zero** ocorrências de "Apagar ativo", "Resetar", "Forçar estado"
+  e do "Área técnica de manutenção" do layout de `/dev`. Nenhuma ferramenta destrutiva é
+  renderizada. O que aparecia era o `<title>`: o `redirect('/')` do `dev/layout.tsx` é resolvido
+  pelo Next **no servidor** e devolve 200 com o corpo do painel, porém com o `<title>` resolvido a
+  partir da rota **pedida**. O `metadata.title = 'Zona destrutiva'` que a própria F27 acrescentou
+  (FLX-03) caía então no HTML de quem acabava de ser barrado — no `<title>` e no eco dele no
+  payload RSC — e colidia com o `marcadorProibido: 'Zona destrutiva'` do smoke.
+- **Decisão:** `/dev/destrutivo` volta a se chamar **"Desenvolvedor"** na aba. Isto **revoga** a
+  decisão registrada horas antes nesta mesma fase ("FLX-03 · Título de aba distinto onde a sidebar
+  repete o rótulo", item 2), que mandava dar título próprio à subrota. Junto, o marcador do smoke
+  ganhou um aviso ao lado explicando a armadilha, para a próxima fase que mexer naquele título ver
+  o acoplamento ali — ou trocar o marcador por um que só exista no CORPO da área ("Forçar estado").
+- **Motivo:** anunciar o nome da zona destrutiva para quem não pode entrar não tem contrapartida
+  nenhuma, e aba repetida entre duas rotas **exclusivas do cargo dev** é preço barato. Preferi
+  isto a mexer no marcador de segurança: trocar o marcador por conteúdo de corpo tornaria o check
+  mais forte, mas eu não tenho credencial de **dev** para provar que o marcador novo aparece
+  quando a área REALMENTE renderiza — e um marcador que nunca casa é um check que passa verde para
+  sempre sem testar nada. Fica registrado como melhoria possível, para quem tiver a conta certa.
+- **Reversível?** sim — é um literal de `metadata` e um comentário.
+- **O que este episódio ensina (e vale além da F27):** um marcador de segurança baseado em string
+  que também pode virar `<title>` é frágil por construção; e o `<title>` de uma rota barrada
+  chegar ao usuário barrado é comportamento do Next que ninguém tinha notado antes — nenhuma outra
+  rota do app tem `marcadorProibido`, então a colisão só podia nascer aqui.
