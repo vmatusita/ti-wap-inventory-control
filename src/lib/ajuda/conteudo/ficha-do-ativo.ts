@@ -29,6 +29,11 @@ export const fichaDoAtivo: PaginaAjuda = {
       texto:
         'O título da ficha é o próprio patrimônio; quando o equipamento não tem plaqueta, o título é "Sem patrimônio", em itálico. Ao lado ficam o selo do status atual, o botão de copiar o número e, quando existe, a service tag com o seu próprio botão de copiar. No alto da página, "Voltar para ativos" devolve você à ÚLTIMA lista de Ativos que você visitou naquela aba do navegador, com os filtros que ela tinha — não necessariamente o recorte por onde você chegou até aqui.',
     },
+    {
+      tipo: 'paragrafo',
+      texto:
+        'Logo abaixo do título fica a linha da categoria: categoria, service tag (quando existe) e, se o equipamento tem um detentor no momento, "com {colaborador} ({setor})" — o setor só aparece entre parênteses quando está preenchido. Sem colaborador atual (ativo em estoque, em manutenção etc.), essa parte simplesmente não aparece: já dá para ver de longe, sem abrir o card de dados, se o equipamento está com alguém.',
+    },
 
     { tipo: 'titulo', id: 'ficha-acoes', texto: 'A barra de ações' },
     {
@@ -58,6 +63,7 @@ export const fichaDoAtivo: PaginaAjuda = {
         'Em "Editar dados cadastrais" você altera apenas campos não derivados: "Memória", "Armazenamento", "Processador", "Hostname", "Termo de responsabilidade", "Data do termo" e "Observações". Se o ativo for um celular, aparecem também "Nº do telefone", "IMEI" e "Pulsus" — só para celular, porque só ali eles querem dizer alguma coisa.',
         'Status, colaborador, setor, filial e histórico NÃO se editam aqui — eles derivam das movimentações. O próprio diálogo avisa isso.',
         'Confirme em "Salvar". O aviso "Dados cadastrais atualizados." confirma a gravação; se a rede cair, a mensagem diz que nada foi salvo e os campos continuam preenchidos para você tentar de novo.',
+        'Se você alterou algum campo e tentar sair sem salvar — Esc, clique fora do diálogo, "Cancelar" ou o "X" do canto — o sistema pergunta "Descartar alterações?" antes de fechar. Sem nenhuma alteração pendente, sai direto, sem essa pergunta.',
       ],
     },
 
@@ -80,7 +86,7 @@ export const fichaDoAtivo: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        'Cada evento traz o tipo, a data, o par de status "de → para" e quem registrou. Sem nada registrado, o bloco diz "Nenhuma movimentação registrada para este ativo."',
+        'Cada evento traz o tipo, a data, o par de status "de → para" e quem registrou. Sem nada registrado, o bloco diz "Nenhuma movimentação registrada para este ativo." O selo do tipo usa a mesma cor por tipo da lista de movimentações, do dashboard e do relatório — a ficha era a última tela que ainda mostrava esse selo neutro.',
         'Os detalhes aparecem com o nome do campo na frente: "Motivo:", "Destino:", "Chamado:", "Chamado do fornecedor:", "Filial:" e "Itens faltantes:". A observação vem entre aspas, em itálico.',
         'Movimentação desfeita fica riscada e ganha o link "estornada", que leva ao estorno correspondente. Nada é apagado do histórico.',
         '"Estornar" só aparece na movimentação efetiva mais recente. "Duplicar" abre uma nova movimentação com os mesmos campos, para repetir o mesmo evento em outro equipamento.',
@@ -105,7 +111,7 @@ export const fichaDoAtivo: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        '"Dados do ativo" — "Categoria", "Marca / Modelo", "Specs", "Hostname", "Fornecedor", "Filial", "Colaborador", "Setor", "Termo", "Patrimônio original" e "Origem", mais o bloco "Observações". Em celular entram ainda "Nº do telefone", "IMEI" e "Pulsus", logo depois do hostname. "Origem" diz de onde o ativo veio: um trazido pelo import de startup aparece como importacao, e é essa origem que dispensa a cobrança de termo.',
+        '"Dados do ativo" — "Categoria", "Marca / Modelo", "Specs", "Hostname", "Fornecedor", "Filial", "Colaborador", "Setor", "Termo", "Patrimônio original" e "Origem", mais o bloco "Observações". Em celular entram ainda "Nº do telefone", "IMEI" e "Pulsus", logo depois do hostname. "Origem" diz de onde o ativo veio: um trazido pelo import de startup aparece como importacao, e é essa origem que dispensa a cobrança de termo. Quando preenchidos, "Colaborador" e "Marca / Modelo" são links: levam para a lista de Ativos já com esse nome (ou essa marca + modelo) na busca — útil para ver de uma vez todos os equipamentos da mesma pessoa, ou todo o parque de um modelo específico, em qualquer filial. É uma busca por texto, não um filtro exato.',
         '"Termos" — os termos gerados para este ativo, com quem gerou e quando, e os botões "Editar" e "Baixar". É aqui que se confirma a assinatura, e onde ela se desfaz.',
         '"Itens faltantes da devolução" — os acessórios que não voltaram numa devolução deste ativo. Os abertos trazem o botão "Resolver"; os já resolvidos ficam riscados, com o desfecho, quem resolveu e quando.',
         'Faixa âmbar "Pendência:" — quando o ativo tem uma pendência de identificação em aberto, ela aparece em destaque logo abaixo do cabeçalho.',

@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/ativos/status-badge'
 import { EstornarDialog } from '@/components/ativos/estornar-dialog'
 import { cn } from '@/lib/utils'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
-import { rotuloTipo, rotuloAcessorio } from '@/lib/dominio'
+import { pillTipo, rotuloTipo, rotuloAcessorio } from '@/lib/dominio'
 import type { MovimentacaoTimeline } from '@/lib/queries/movimentacoes'
 import type { AnotacaoTimeline } from '@/lib/queries/ativos'
 
@@ -144,9 +144,18 @@ export function LinhaDoTempo({
 
             <div className={cn('rounded-lg border p-3', estornada ? 'bg-muted/30' : 'bg-card')}>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="font-medium">
+                {/* ATV-08 — mesma paleta por tipo já aprovada em contraste e usada
+                    na lista de movimentações, no dashboard e no relatório
+                    (`pillTipo`, `lib/dominio.ts`); a ficha era a única tela que
+                    ainda usava o `Badge variant="secondary"` neutro. */}
+                <span
+                  className={cn(
+                    'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                    pillTipo(m.tipo),
+                  )}
+                >
                   {rotuloTipo(m.tipo)}
-                </Badge>
+                </span>
                 {/* F23 §4.1 — a marca de "forçado" VISÍVEL NA FICHA. Sem ela, uma correção
                     técnica do desenvolvedor apareceria na linha do tempo como um ajuste
                     comum, e quem lesse o histórico meses depois não teria como saber que

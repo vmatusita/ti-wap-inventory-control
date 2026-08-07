@@ -33,6 +33,7 @@ import {
   msgSemEscritaNaFilial,
 } from '@/lib/auth/acesso'
 import { podeEscreverNaFilial } from '@/components/layout/permissoes'
+import { eAdmin } from '@/lib/auth/papeis'
 
 function Dado({
   label,
@@ -133,6 +134,10 @@ export default async function AtivoFichaPage({
   const specs = [ativo.memoria, ativo.armazenamento, ativo.processador]
     .filter(Boolean)
     .join(' · ')
+  // ATV-07b — pivô: marca+modelo vira busca por texto em /ativos. Calculado uma
+  // vez (mesmo padrão de `specs`) porque alimenta tanto o texto exibido quanto o
+  // valor codificado na URL.
+  const marcaModelo = [ativo.marca, ativo.modelo].filter(Boolean).join(' ')
 
   return (
     <div className="space-y-6">
@@ -163,6 +168,18 @@ export default async function AtivoFichaPage({
                   valor={ativo.service_tag}
                   rotulo="Service tag"
                 />
+              </>
+            )}
+            {/* ATV-07c — quem está com o ativo, direto no cabeçalho. Só aparece
+                com detentor; o setor só entra entre parênteses quando existe
+                (nem toda movimentação de saída grava setor). */}
+            {ativo.colaborador_atual && (
+              <>
+                <span>·</span>
+                <span>
+                  com {ativo.colaborador_atual}
+                  {ativo.setor_atual && ` (${ativo.setor_atual})`}
+                </span>
               </>
             )}
           </p>
@@ -253,10 +270,15 @@ export default async function AtivoFichaPage({
 
       {/* F18 — pendências de item faltante (abertas em destaque + resolvidas como
           auditoria). Não gruda mais no campo livre acima; ciclo próprio. */}
+      {/* F28/PND-05 — reabrir uma pendência RESOLVIDA é do nível administrador
+          (admin ou dev), não de quem apenas escreve nesta filial: desfazer um
+          desfecho é correção de registro, não operação do dia. A action recusa
+          de novo no servidor (`exigirAdmin` + `exigirEscritaEm`). */}
       <PendenciasItemFicha
         patrimonio={ativo.patrimonio}
         pendencias={pendenciasItem}
         podeResolver={podeEscreverNesta}
+        podeReabrir={eAdmin(operador?.papel)}
       />
 
       {/* Grid de dados */}
@@ -268,7 +290,23 @@ export default async function AtivoFichaPage({
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
             <Dado label="Categoria">{rotuloCategoria(ativo.categoria)}</Dado>
             <Dado label="Marca / Modelo">
-              {ouTraco([ativo.marca, ativo.modelo].filter(Boolean).join(' '))}
+              {/* ATV-07b — pivô: leva à lista de ativos filtrada por esta
+                  marca+modelo. `filial=todas` é a sentinela obrigatória: sem
+                  ela, o filtro cairia no recorte padrão do cargo (F25) e o
+                  operador veria só as filiais dele. É uma BUSCA por texto
+                  (`ilike`), não um filtro exato — por isso o `title` promete
+                  só isso. */}
+              {marcaModelo ? (
+                <Link
+                  href={`/ativos?q=${encodeURIComponent(marcaModelo)}&filial=todas`}
+                  className="underline-offset-2 hover:underline"
+                  title="Buscar outros ativos desta marca e modelo"
+                >
+                  {marcaModelo}
+                </Link>
+              ) : (
+                ouTraco(marcaModelo)
+              )}
             </Dado>
             <Dado label="Specs">{ouTraco(specs)}</Dado>
             <Dado label="Hostname">{ouTraco(ativo.hostname)}</Dado>
@@ -283,7 +321,20 @@ export default async function AtivoFichaPage({
             )}
             <Dado label="Fornecedor">{ouTraco(ativo.fornecedor)}</Dado>
             <Dado label="Filial">{ativo.filial_nome}</Dado>
-            <Dado label="Colaborador">{ouTraco(ativo.colaborador_atual)}</Dado>
+            <Dado label="Colaborador">
+              {/* ATV-07b — mesmo pivô, agora por nome do colaborador. */}
+              {ativo.colaborador_atual ? (
+                <Link
+                  href={`/ativos?q=${encodeURIComponent(ativo.colaborador_atual)}&filial=todas`}
+                  className="underline-offset-2 hover:underline"
+                  title="Buscar outros ativos deste colaborador"
+                >
+                  {ativo.colaborador_atual}
+                </Link>
+              ) : (
+                ouTraco(ativo.colaborador_atual)
+              )}
+            </Dado>
             <Dado label="Setor">{ouTraco(ativo.setor_atual)}</Dado>
             <Dado label="Termo">
               {rotuloTermo(ativo.termo_assinado)}
