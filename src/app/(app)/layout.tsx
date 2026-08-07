@@ -65,12 +65,18 @@ export default async function AppLayout({
     // duas contagens abaixo já seguiam ("falha de leitura não pode derrubar o
     // shell"); degradar para o selo GLOBAL é o pior caso aceitável, e é o
     // comportamento de antes desta fase.
-    const filiaisDoSelo = await listarFiliais()
-      .then((fs) => resolverFiliaisSlugs(undefined, operador, fs))
-      .catch((e) => {
-        console.error('[layout] falha ao recortar o selo de pendências por filial', e)
-        return [] as string[]
-      })
+    // F29/UXG-12 — a MESMA leitura serve a duas coisas agora: recortar o selo e dar
+    // NOME às filiais de escrita no menu do usuário. Uma chamada só (`listarFiliais`
+    // é memoizada por request de qualquer forma), e o `catch` continua degradando
+    // para o pior caso aceitável: selo global e menu sem a linha de filiais.
+    const filiaisDoShell = await listarFiliais().catch((e) => {
+      console.error('[layout] falha ao ler as filiais do shell', e)
+      return [] as Awaited<ReturnType<typeof listarFiliais>>
+    })
+    const filiaisDoSelo =
+      filiaisDoShell.length > 0
+        ? resolverFiliaisSlugs(undefined, operador, filiaisDoShell)
+        : []
     const [pendenciasFila, conflitos] = await Promise.all([
       contarPendenciasAbertas(filiaisDoSelo),
       contarConflitosAbertos(filiaisDoSelo),
@@ -91,6 +97,14 @@ export default async function AppLayout({
     // prop para a sidebar e a paleta (que a espelha): o operador vai para a aba da
     // filial dele, os demais para o Consolidado.
     const hrefRelatorios = await rotaRelatorioPadrao(operador)
+    // Só o OPERADOR vê "Escreve em: …": admin e dev escrevem em todas (a linha seria
+    // ruído) e consulta não escreve em nenhuma (o rótulo do cargo já diz isso).
+    const filiaisEscritaNomes =
+      operador.papel === 'operador'
+        ? operador.filiaisEscrita
+            .map((id) => filiaisDoShell.find((f) => f.id === id)?.nome)
+            .filter((n): n is string => Boolean(n))
+        : undefined
     return (
       <TooltipProvider delayDuration={300}>
         <ProgressoNavegacaoProvider>
@@ -117,6 +131,8 @@ export default async function AppLayout({
               <AppHeader
                 nome={operador.nome}
                 papel={operador.papel}
+                email={operador.email}
+                filiaisEscrita={filiaisEscritaNomes}
                 pendencias={pendencias}
                 podeEscrever={escreve}
                 eAdmin={admin}

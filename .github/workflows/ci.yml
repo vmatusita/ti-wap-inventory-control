@@ -36,6 +36,14 @@ jobs:
         run: npm run lint
       - name: Testes (Vitest — funções puras)
         run: npm run test
+      # F29/UXG-07 — o medidor de contraste WCAG existia desde a F19 e rodava só à
+      # mão, quando alguém lembrava. Ele lê os MESMOS arquivos que o navegador
+      # (node_modules/tailwindcss/theme.css + src/app/globals.css), é Node puro sem
+      # dependência, não toca banco e não lê env: entra ANTES do build de propósito,
+      # porque custa segundos e reprova cedo. Sai 1 quando um par marcado `exigir`
+      # cai abaixo do mínimo — é o próprio script que decide, não este arquivo.
+      - name: Contraste (WCAG 2.1 AA)
+        run: npm run contraste
       - name: Build (inclui type-check do TypeScript)
         run: npm run build
 

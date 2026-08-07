@@ -15,6 +15,7 @@ import {
   Boxes,
   CircleHelp,
   ClipboardList,
+  History,
   LayoutDashboard,
   Package,
   PackagePlus,
@@ -40,6 +41,7 @@ import { dispararLancarItem } from '@/components/itens/lancar-item-evento'
 import { buscarAtivosParaMovimentacao } from '@/lib/actions/movimentacoes'
 import { casaBusca, normalizarBusca } from '@/lib/ajuda/busca'
 import { rotuloCategoria } from '@/lib/dominio'
+import { lerAtivosRecentes, type AtivoRecente } from '@/lib/ativos/ativos-recentes'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { EntradaPaleta } from '@/lib/ajuda/tipos'
 
@@ -239,6 +241,11 @@ export function PaletaComandosProvider({
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<AtivoResumo[]>([])
   const [carregando, setCarregando] = useState(false)
+  // F29/UXG-10b — a paleta abria SEMPRE vazia: sem digitar nada, ela não oferecia
+  // nada. "Recentes" são os últimos ativos que ESTE navegador abriu, lidos do
+  // `sessionStorage` no momento em que a paleta abre (nunca no render — leitura de
+  // storage no corpo do componente quebraria a hidratação).
+  const [recentes, setRecentes] = useState<AtivoRecente[]>([])
 
   // Abrir SEMPRE zera a consulta anterior: paleta que reabre com resultado velho
   // faz o operador agir sobre a busca errada. Estavel (deps vazias) para poder
@@ -247,6 +254,7 @@ export function PaletaComandosProvider({
     setQuery('')
     setResultados([])
     setCarregando(false)
+    setRecentes(lerAtivosRecentes())
     setAberto(true)
   }, [])
 
@@ -373,7 +381,10 @@ export function PaletaComandosProvider({
     resultados.length === 0 &&
     rotas.length === 0 &&
     acoes.length === 0 &&
-    ajuda.length === 0
+    ajuda.length === 0 &&
+    // Com "Recentes" na tela a paleta NÃO está vazia — o `CommandEmpty` diria
+    // "nada encontrado" logo abaixo de cinco linhas clicáveis.
+    !(query.trim().length === 0 && recentes.length > 0)
 
   return (
     <AbrirPaletaContext.Provider value={abrir}>
@@ -411,6 +422,28 @@ export function PaletaComandosProvider({
               <div className="py-4 text-center text-sm text-muted-foreground">
                 Buscando ativos…
               </div>
+            )}
+
+            {/* "Recentes" só com a paleta EM BRANCO: assim que o operador digita,
+                quem manda é a busca no servidor — a lista de recentes viraria ruído
+                ao lado de um resultado que ele pediu. */}
+            {query.trim().length === 0 && recentes.length > 0 && (
+              <CommandGroup heading="Recentes">
+                {recentes.map((r) => (
+                  <CommandItem
+                    key={`recente:${r.id}`}
+                    value={`recente:${r.id}`}
+                    onSelect={() => irPara(`/ativos/${r.id}`)}
+                    className="flex items-center gap-2"
+                  >
+                    <History className="size-4 text-muted-foreground" aria-hidden />
+                    <span className="font-medium tabular-nums">{r.patrimonio}</span>
+                    <span className="min-w-0 truncate text-muted-foreground">
+                      {r.descricao}
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
             )}
 
             {resultados.length > 0 && (

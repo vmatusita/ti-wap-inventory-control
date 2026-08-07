@@ -559,9 +559,14 @@ describe('mapa-das-telas', () => {
       'Ctrl+K',
       'A barra "/" também abre',
       'N abre uma nova movimentação',
-      '? abre esta ajuda',
+      // F29/UXG-10d — o `?` deixou de NAVEGAR para a ajuda e passou a abrir o quadro
+      // de atalhos por cima da tela. A frase travada acompanha a realidade, e a
+      // distinção entre o ÍCONE "?" (que leva à documentação) e a TECLA "?" (que
+      // não tira ninguém da tela) virou asserção própria logo abaixo.
+      '? abre o quadro de atalhos',
       'enquanto você digita num campo',
     )
+    cita('mapa-das-telas', 'a TECLA ? é outra coisa')
   })
 
   it('descreve o modo escuro com os três rótulos reais e o padrão claro (CAP-93)', () => {

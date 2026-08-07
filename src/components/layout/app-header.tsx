@@ -27,6 +27,8 @@ import type { PapelUsuario } from '@/lib/auth/papeis'
 export function AppHeader({
   nome,
   papel,
+  email,
+  filiaisEscrita,
   pendencias,
   podeEscrever = false,
   eAdmin = false,
@@ -35,6 +37,9 @@ export function AppHeader({
 }: {
   nome: string
   papel?: PapelUsuario
+  /** F29/UXG-12 — e-mail e filiais de escrita descem do shell para o menu do usuário. */
+  email?: string | null
+  filiaisEscrita?: readonly string[]
   pendencias?: number
   podeEscrever?: boolean
   eAdmin?: boolean
@@ -81,27 +86,55 @@ export function AppHeader({
         </SheetContent>
       </Sheet>
 
-      <Marca />
+      {/* F29/UXG-10e — a marca vira link para o início. É a convenção universal
+          (logo → home) e o `Marca` continua burro: quem envolve é o header, porque só
+          ele sabe o destino de cada shell (o do visualizador aponta para o relatório
+          consolidado, em `viewer-header.tsx`). */}
+      <Link
+        href="/"
+        aria-label="Ir para o início"
+        className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-brand-amarelo"
+      >
+        <Marca />
+      </Link>
 
       <div className="ml-auto flex items-center gap-3">
-        {/* Descoberta da paleta para quem não vive de atalho: lupa sempre, o
-            "Ctrl K" só no desktop (no mobile não há teclado para a dica). */}
+        {/* F29/UXG-10a — a única porta VISÍVEL da busca global era um botão-fantasma
+            de 28px, e o centro do header ficava vazio no desktop. Agora é um
+            campo-placebo: parece um campo de busca (o gesto que todo mundo conhece),
+            mas é um <button> — clicar abre a paleta, que é onde a busca de verdade
+            acontece. Não é um <input> de propósito: um campo real aqui teria de
+            duplicar a busca inteira e roubaria o foco do campo da paleta ao abri-la.
+            No celular continua a lupa: 320px não comportam o campo, e lá não há
+            teclado para a dica do atalho. */}
         {abrirPaleta && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={abrirPaleta}
-            aria-label="Buscar ativos e comandos (Ctrl K)"
-            className="size-10 justify-center px-0 text-white hover:bg-white/10 hover:text-white sm:h-7 sm:w-auto sm:gap-1.5 sm:px-2"
-          >
-            <Search className="size-5 sm:size-4" />
-            <kbd
-              aria-hidden
-              className="hidden rounded border border-white/25 bg-white/10 px-1 text-[10px] font-semibold sm:inline"
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={abrirPaleta}
+              aria-label="Buscar ativos e comandos (Ctrl K)"
+              className="size-10 justify-center px-0 text-white hover:bg-white/10 hover:text-white sm:hidden"
             >
-              Ctrl K
-            </kbd>
-          </Button>
+              <Search className="size-5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={abrirPaleta}
+              aria-label="Buscar ativos e comandos (Ctrl K)"
+              className="hidden h-8 w-64 justify-start gap-2 border border-white/20 bg-white/5 px-2.5 font-normal text-white/70 hover:bg-white/10 hover:text-white sm:flex"
+            >
+              <Search className="size-4 shrink-0" aria-hidden />
+              <span aria-hidden>Buscar ativo, tela ou ação…</span>
+              <kbd
+                aria-hidden
+                className="ml-auto rounded border border-white/25 bg-white/10 px-1 text-[10px] font-semibold text-white"
+              >
+                Ctrl K
+              </kbd>
+            </Button>
+          </>
         )}
         {podeEscrever && (
           <Button
@@ -121,7 +154,12 @@ export function AppHeader({
             </Link>
           </Button>
         )}
-        <UserMenu nome={nome} papel={papel} />
+        <UserMenu
+          nome={nome}
+          papel={papel}
+          email={email}
+          filiaisEscrita={filiaisEscrita}
+        />
       </div>
     </header>
   )

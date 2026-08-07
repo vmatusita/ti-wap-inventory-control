@@ -126,7 +126,7 @@ export const comeceAqui: PaginaAjuda = {
       tipo: 'lista',
       itens: [
         'O ícone "?" ao lado do título de uma tela abre direto a página desta documentação que descreve aquela tela.',
-        'A tecla ? (de qualquer tela, fora de um campo de texto) traz você para o índice da documentação.',
+        'A tecla ? (de qualquer tela, fora de um campo de texto) abre o quadro de atalhos de teclado — e ele traz um link para o índice desta documentação.',
         'No índice, a caixa "Buscar na documentação…" filtra as páginas enquanto você digita.',
         'O link "Manual completo (para imprimir)" junta tudo numa página só — bom para ler de ponta a ponta, achar com o Ctrl+F do navegador ou imprimir.',
       ],

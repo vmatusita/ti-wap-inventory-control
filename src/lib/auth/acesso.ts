@@ -24,6 +24,13 @@ export type Operador = {
   // ESCRITA que os outros leem. Alinha com `Permissoes.filiaisEscrita`
   // (components/layout/permissoes.ts), que já era readonly.
   filiaisEscrita: readonly number[]
+  /**
+   * F29/UXG-12 — e-mail da conta logada (de `auth.users`, já lido aqui). Numa máquina
+   * compartilhada da TI, "com qual conta eu estou?" é a primeira pergunta, e o app não
+   * respondia em tela nenhuma. `null` quando a conta não tem e-mail (não acontece hoje:
+   * o login é por e-mail corporativo).
+   */
+  email: string | null
 }
 
 // Mensagem única de "sessão expirada" — antes escrita em 4 variações espalhadas
@@ -207,6 +214,7 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
     nome: perfil.nome?.trim() || user.email || 'Operador',
     papel,
     filiaisEscrita,
+    email: user.email ?? null,
   }
 })
 

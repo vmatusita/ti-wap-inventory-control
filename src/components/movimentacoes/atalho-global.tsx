@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AtalhosDialog } from '@/components/layout/atalhos-dialog'
 
 // Atalhos globais de teclado do shell do OPERADOR (montados so no ramo do
 // operador do `(app)/layout.tsx` — o visualizador por senha nao tem atalho
 // nenhum):
 //   `N` -> nova movimentacao (OS-F2 3.7.2) — SÓ para quem escreve (F21)
-//   `?` -> /ajuda            (OS-F11 / T3 — fecha o backlog da F6B)
+//   `?` -> quadro de atalhos (F29/UXG-10d; antes NAVEGAVA para /ajuda, tirando o
+//          operador da tela em que estava por causa de uma dúvida de uma tecla)
 // Ambos so disparam com o foco FORA de um campo de texto.
 //
 // A guarda `editando` e exportada porque a paleta de comandos (Ctrl+K e "/")
@@ -56,6 +58,7 @@ export function AtalhosGlobais({
   novaMovimentacao?: boolean
 }) {
   const router = useRouter()
+  const [atalhosAbertos, setAtalhosAbertos] = useState(false)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -78,12 +81,20 @@ export function AtalhosGlobais({
       }
       if (e.key === '?') {
         e.preventDefault()
-        router.push('/ajuda')
+        // A guarda `modalAberto()` acima já garante que este quadro não abre por
+        // cima de outro dialogo — inclusive dele mesmo.
+        setAtalhosAbertos(true)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [router, novaMovimentacao])
 
-  return null
+  return (
+    <AtalhosDialog
+      aberto={atalhosAbertos}
+      onOpenChange={setAtalhosAbertos}
+      mostrarNovaMovimentacao={novaMovimentacao}
+    />
+  )
 }

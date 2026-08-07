@@ -101,9 +101,9 @@ export const limitesEAtalhos: PaginaAjuda = {
         },
         {
           teclas: '?',
-          acao: 'Abre esta documentação.',
+          acao: 'Abre o quadro de atalhos de teclado, por cima da tela em que você está.',
           observacao:
-            'Vale o caractere, não a tecla: segurar Shift para digitar "?" é normal e não atrapalha. As mesmas guardas do N valem aqui.',
+            'O quadro tem um link "Documentação completa" que traz você para cá; até a F28 o "?" navegava direto e tirava você da tela. Vale o caractere, não a tecla: segurar Shift para digitar "?" é normal e não atrapalha. As mesmas guardas do N valem aqui.',
         },
         {
           teclas: '↑ ↓ · Enter · Esc',
@@ -121,6 +121,11 @@ export const limitesEAtalhos: PaginaAjuda = {
       tipo: 'nota',
       texto:
         'Nenhum atalho de letra dispara enquanto você digita num campo; o N e o "?" também ficam calados com uma janela de confirmação aberta (o L é a exceção, e está dito na linha dele). Nenhum deles existe para quem entra só com a senha de acesso dos relatórios. Segurar a tecla também não repete a ação: o atalho responde a um toque, não à repetição automática.',
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'No computador, o centro da barra de cima é um campo "Buscar ativo, tela ou ação…" com o "Ctrl K" à direita: clicar nele abre a mesma busca global do atalho. No celular, o botão é a lupa. E a busca não abre mais vazia — o grupo "Recentes" lista os últimos ativos que você abriu nesta sessão do navegador (some ao fechar a aba; nada é guardado no servidor).',
     },
     {
       tipo: 'links',

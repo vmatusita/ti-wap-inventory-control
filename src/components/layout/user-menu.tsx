@@ -61,7 +61,25 @@ function ItemSair() {
 // F21 — o CARGO aparece embaixo do nome. Não é enfeite: é a resposta à pergunta
 // "por que eu não vejo o botão de registrar?" sem abrir chamado para a TI. Rótulo
 // vindo de `PAPEL_ROTULO` (fonte única) — nunca redigitado aqui.
-export function UserMenu({ nome, papel }: { nome: string; papel?: PapelUsuario }) {
+// F29/UXG-12 — o menu respondia metade da pergunta "por que eu não vejo o botão de
+// registrar?": mostrava o cargo, mas para o OPERADOR a resposta completa depende do
+// VÍNCULO de filiais, que o shell já resolve e não descia até aqui. E o e-mail da
+// conta não aparecia em lugar nenhum do app — numa máquina compartilhada da TI, saber
+// com qual conta se está logado é a primeira pergunta.
+export function UserMenu({
+  nome,
+  papel,
+  email,
+  filiaisEscrita,
+}: {
+  nome: string
+  papel?: PapelUsuario
+  email?: string | null
+  /** Nomes das filiais em que este cargo ESCREVE. Só desce para operador — para
+   *  quem escreve em todas (admin/dev) a linha seria ruído, e para consulta a
+   *  ausência de escrita já está dita no rótulo do cargo. */
+  filiaisEscrita?: readonly string[]
+}) {
   // Sem guarda de `montado`: o conteúdo do DropdownMenu do Radix só é montado
   // quando o menu ABRE — o servidor nunca o renderiza, então não há hidratação
   // para divergir. Quando o operador clica, o next-themes já leu o localStorage e
@@ -85,11 +103,21 @@ export function UserMenu({ nome, papel }: { nome: string; papel?: PapelUsuario }
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="max-w-full truncate text-sm font-medium">
-          {nome}
+        <DropdownMenuLabel className="max-w-full text-sm font-medium">
+          <span className="block truncate">{nome}</span>
+          {email && (
+            <span className="block truncate text-xs font-normal text-muted-foreground">
+              {email}
+            </span>
+          )}
           {papel && (
             <span className="block text-xs font-normal text-muted-foreground">
               {PAPEL_ROTULO[papel]}
+            </span>
+          )}
+          {filiaisEscrita && filiaisEscrita.length > 0 && (
+            <span className="block text-xs font-normal text-muted-foreground">
+              Escreve em: {filiaisEscrita.join(', ')}
             </span>
           )}
         </DropdownMenuLabel>

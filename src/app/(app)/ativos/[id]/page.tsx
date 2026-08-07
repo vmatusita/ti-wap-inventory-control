@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/ativos/status-badge'
 import { EditarAtivoDialog } from '@/components/ativos/editar-ativo-dialog'
 import { AcoesExcecaoFicha } from '@/components/ativos/acoes-excecao-ficha'
 import { VoltarParaAtivos } from '@/components/ativos/voltar-para-ativos'
+import { LembrarAtivoRecente } from '@/components/ativos/lembrar-ativo-recente'
 import { CopiarPatrimonio } from '@/components/ativos/copiar-patrimonio'
 import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
@@ -141,6 +142,14 @@ export default async function AtivoFichaPage({
 
   return (
     <div className="space-y-6">
+      {/* F29/UXG-10b — grava na SESSÃO deste navegador que este ativo foi aberto, e é
+          o que alimenta o grupo "Recentes" da paleta (Ctrl+K). Zero servidor. Sem
+          patrimônio, guarda o rótulo que a própria ficha mostra no lugar dele. */}
+      <LembrarAtivoRecente
+        id={ativo.id}
+        patrimonio={ativo.patrimonio ?? 'sem patrimônio'}
+        descricao={marcaModelo || rotuloCategoria(ativo.categoria)}
+      />
       <VoltarParaAtivos />
 
       {/* Cabecalho */}

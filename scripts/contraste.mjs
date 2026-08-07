@@ -294,6 +294,57 @@ const PARES = [
   // São séries de gráfico = elemento gráfico → limiar 3:1, não 4,5:1.
   { item: 'marca', onde: 'azul WAP sobre card escuro', texto: '#2a78d6', fundo: 'card', tema: 'escuro', px: 12, grafico: true, exigir: true },
   { item: 'marca', onde: 'amarelo WAP sobre card escuro', texto: '#eda100', fundo: 'card', tema: 'escuro', px: 12, grafico: true, exigir: true },
+
+  // =========================================================================
+  // F29/UXG-07 — os pares que o script NUNCA tinha medido.
+  //
+  // Até aqui a lista cobria só o que revisões passadas TOCARAM: nasceu como prova
+  // de correção, não como varredura. Ficavam de fora justamente os pares mais
+  // usados do app — o texto secundário de toda tela, todo botão primário, o header
+  // inteiro — e metade da família de pílulas no tema escuro. Com o script entrando
+  // no CI, medir só o que já foi corrigido seria um portão que não guarda nada.
+  //
+  // TODOS os pares abaixo foram medidos ANTES de receber `exigir: true` — nenhum
+  // reprovou, então nenhum vira known-fail. O valor de registrá-los é o futuro:
+  // mexer num token agora quebra o CI em vez de degradar a leitura em silêncio.
+  // =========================================================================
+
+  // ---- Pílulas: o tema ESCURO da família (o claro já estava medido acima) ----
+  // A F19 mediu o par escuro de amber/blue/green; violet, cyan, orange, slate e teal
+  // ganharam variante `dark:` no mesmo lote e nunca foram para a régua.
+  { item: 'F29', onde: 'pílula Reservado (violeta, escuro)', texto: 'violet-300', fundo: 'violet-950', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F29', onde: 'pílula Emprestado (ciano, escuro)', texto: 'cyan-300', fundo: 'cyan-950', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F29', onde: 'pílula Em triagem (laranja, escuro)', texto: 'orange-300', fundo: 'orange-950', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F29', onde: 'pílula Devolvido ao fornecedor (slate, escuro)', texto: 'slate-300', fundo: 'slate-950', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F29', onde: 'pílula Troca (teal, escuro)', texto: 'teal-300', fundo: 'teal-950', px: 11, tema: 'escuro', exigir: true },
+
+  // ---- `muted-foreground` × `background`: o texto MAIS usado do sistema --------
+  // Subtítulo, legenda, célula secundária de tabela, contagem de filtro. Passa por
+  // pouco no claro (4,73:1 contra o mínimo de 4,5:1), e é exatamente por isso que
+  // precisa de trava: qualquer clareada no token derruba metade da interface.
+  { item: 'F29', onde: 'texto secundário (claro)', texto: 'muted-foreground', fundo: 'background', sob: ['background'], px: 14, exigir: true },
+  { item: 'F29', onde: 'texto secundário (escuro)', texto: 'muted-foreground', fundo: 'background', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+  // O mesmo texto sobre CARD (a superfície mais comum depois do fundo da página).
+  { item: 'F29', onde: 'texto secundário sobre card (claro)', texto: 'muted-foreground', fundo: 'card', px: 14, exigir: true },
+  { item: 'F29', onde: 'texto secundário sobre card (escuro)', texto: 'muted-foreground', fundo: 'card', px: 14, tema: 'escuro', exigir: true },
+
+  // ---- `primary` × `primary-foreground`: TODO botão primário do app ----------
+  { item: 'F29', onde: 'botão primário (claro)', texto: 'primary-foreground', fundo: 'primary', px: 14, exigir: true },
+  { item: 'F29', onde: 'botão primário (escuro)', texto: 'primary-foreground', fundo: 'primary', px: 14, tema: 'escuro', exigir: true },
+
+  // ---- O header escuro da marca (mesmo pixel nos dois temas) -----------------
+  // `--brand-dark` e `--brand-amarelo` NÃO são redefinidos no `.dark`: o chrome é
+  // escuro por design. Um par só, portanto, vale para os dois temas.
+  { item: 'F29', onde: 'amarelo WAP sobre o header escuro', texto: 'brand-amarelo', fundo: 'brand-dark', px: 14, exigir: true },
+  { item: 'F29', onde: 'chip "WAP" — preto sobre o amarelo da marca', texto: 'black', fundo: 'brand-amarelo', px: 12, bold: true, exigir: true },
+  { item: 'F29', onde: 'branco sobre o header escuro', texto: 'white', fundo: 'brand-dark', px: 14, exigir: true },
+  // O texto atenuado do chrome escuro: aba inativa do visualizador, subtítulo das
+  // telas de autenticação, rótulo da sessão por senha.
+  { item: 'F29', onde: 'texto atenuado do chrome escuro (70%)', texto: 'white/70', fundo: 'brand-dark', px: 14, exigir: true },
+  { item: 'F29', onde: 'texto atenuado do chrome escuro (80%)', texto: 'white/80', fundo: 'brand-dark', px: 12, exigir: true },
+  // A tecla de atalho no header (`kbd`): branco sobre um véu de 10% que se compõe
+  // com o header. Fundo TRANSLÚCIDO — daí o `sob`.
+  { item: 'F29', onde: 'kbd "Ctrl K" no header', texto: 'white', fundo: 'white/10', sob: ['brand-dark'], px: 10, bold: true, exigir: true },
 ]
 
 // ---------------------------------------------------------------------------

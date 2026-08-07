@@ -283,7 +283,9 @@ describe('navegação e estrutura documentadas (OS-F11 · Onda 3)', () => {
     expect(texto).toContain(normalizarBusca('Ctrl+K'))
     expect(texto).toContain(normalizarBusca('A barra "/" também abre'))
     expect(texto).toContain(normalizarBusca('N abre uma nova movimentação'))
-    expect(texto).toContain(normalizarBusca('? abre esta ajuda'))
+    // F29/UXG-10d — o `?` passou a abrir o QUADRO de atalhos por cima da tela, em vez
+    // de navegar para a ajuda (que continua a um clique, pelo link do rodapé dele).
+    expect(texto).toContain(normalizarBusca('? abre o quadro de atalhos'))
     // A guarda que impede o atalho de disparar dentro de campo/diálogo é
     // comportamento prometido ao operador — se sair do código, sai daqui.
     expect(texto).toContain(normalizarBusca('enquanto você digita num campo'))
