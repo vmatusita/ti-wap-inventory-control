@@ -2,6 +2,9 @@ import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
 import {
   CATEGORIA_ORDEM,
+  rotuloCategoria,
+  rotuloTermo,
+  rotuloTipo,
   type CategoriaAtivo,
   type TermoStatus,
   type TipoMovimentacao,
@@ -160,4 +163,35 @@ export function checklistCategoriasDoKit(
  *  mostra o aviso âmbar (checklist inteiro presente = nada a avisar). */
 export function faltaCategoriaDoKit(checklist: readonly ItemChecklistKit[]): boolean {
   return checklist.some((c) => !c.presente)
+}
+
+/** F29/ADM-04a — "Como o kit aplica": a frase que o admin não via.
+ *
+ *  O formulário do kit pede cinco campos e não mostrava, em lugar nenhum, o que o
+ *  operador recebe ao clicar em "Aplicar kit" — quem cria o preset descobria o
+ *  efeito só indo ao fluxo de nova movimentação testar.
+ *
+ *  Função PURA e sem rótulo redigitado: `rotuloTipo`, `rotuloTermo` e
+ *  `rotuloCategoria` são o vocabulário de `dominio.ts`, o MESMO que o passo 2
+ *  renderiza. O motivo entra já resolvido (o payload guarda o CÓDIGO, e quem tem a
+ *  lista de motivos é a tela), para este módulo não depender de consulta nenhuma.
+ *
+ *  Campo ausente simplesmente não vira parte: um kit sem termo não deve dizer
+ *  "Termo: não informado" — ele não mexe no termo, e a frase sugeriria que mexe. */
+export function descreverKit(
+  payload: {
+    tipo: TipoMovimentacao
+    termo?: TermoStatus
+    categorias: readonly CategoriaAtivo[]
+  },
+  motivoRotulo?: string,
+): string[] {
+  const partes = [rotuloTipo(payload.tipo)]
+  if (motivoRotulo && motivoRotulo.trim()) partes.push(`Motivo: ${motivoRotulo.trim()}`)
+  if (payload.termo) partes.push(`Termo: ${rotuloTermo(payload.termo)}`)
+  const cats = CATEGORIA_ORDEM.filter((c) => payload.categorias.includes(c))
+  if (cats.length > 0) {
+    partes.push(`Checklist: ${cats.map((c) => rotuloCategoria(c)).join(', ')}`)
+  }
+  return partes
 }

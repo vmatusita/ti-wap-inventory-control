@@ -30,6 +30,7 @@ import { campoAplica } from '@/lib/validators/movimentacao'
 import {
   MSG_KIT_SEM_CATEGORIA,
   TIPOS_KIT,
+  descreverKit,
   type KitPayload,
   type TipoKit,
 } from '@/lib/validators/kit'
@@ -65,29 +66,56 @@ export type KitEdit = {
 export function KitDialog({
   kit,
   motivos,
+  duplicarDe,
+  gatilho,
 }: {
   kit?: KitEdit
   // Motivos ATIVOS (listarMotivos, carregado na page). O filtro por tipo é
   // replicado aqui — o fluxo de nova movimentação faz o mesmo inline e não
   // existe helper compartilhado.
   motivos: Motivo[]
+  /** F29/ADM-04b — abre em modo CRIAÇÃO já preenchido com este kit (Duplicar).
+   *  Não é edição: salvar cria um kit novo, e o original fica intocado. */
+  duplicarDe?: KitEdit
+  /** Gatilho alternativo (o item "Duplicar" da linha). Sem ele valem os dois
+   *  botões padrão: "Editar" quando há `kit`, "Novo kit" quando não há. */
+  gatilho?: React.ReactNode
 }) {
   const router = useRouter()
+  // `duplicarDe` semeia o formulário sem ligar o modo edição: é criação com os
+  // campos prontos. O índice único de nome barra colisão, e por isso o nome nasce
+  // como "Cópia de {nome}" em vez de repetir o original e falhar no salvar.
+  const semente = kit ?? duplicarDe
   const edicao = !!kit
   const [aberto, setAberto] = useState(false)
-  const [nome, setNome] = useState(kit?.nome ?? '')
-  const [tipo, setTipo] = useState<TipoKit>((kit?.payload.tipo as TipoKit) ?? 'saida')
-  const [motivo, setMotivo] = useState(kit?.payload.motivo ?? '')
-  const [termo, setTermo] = useState<'' | TermoStatus>(kit?.payload.termo ?? '')
-  const [observacao, setObservacao] = useState(kit?.payload.observacao ?? '')
+  const [nome, setNome] = useState(
+    duplicarDe ? `Cópia de ${duplicarDe.nome}`.slice(0, 80) : (kit?.nome ?? ''),
+  )
+  const [tipo, setTipo] = useState<TipoKit>((semente?.payload.tipo as TipoKit) ?? 'saida')
+  const [motivo, setMotivo] = useState(semente?.payload.motivo ?? '')
+  const [termo, setTermo] = useState<'' | TermoStatus>(semente?.payload.termo ?? '')
+  const [observacao, setObservacao] = useState(semente?.payload.observacao ?? '')
   const [categorias, setCategorias] = useState<Set<CategoriaAtivo>>(
-    new Set(kit?.payload.categorias ?? []),
+    new Set(semente?.payload.categorias ?? []),
   )
   const [ativo, setAtivo] = useState(kit?.ativo ?? true)
   const [enviando, start] = useTransition()
 
   const motivosAplicaveis = motivos.filter((m) => m.aplica_a.includes(tipo))
   const temTermo = campoAplica(tipo, 'termo')
+
+  // F29/ADM-04a — "Como o kit aplica", montado AO VIVO com o vocabulário real
+  // (`descreverKit`, pura e testada). O motivo entra já resolvido para o rótulo que
+  // o operador lê no passo 2 — o payload guarda o código.
+  const motivoRotulo = motivosAplicaveis.find((m) => m.codigo === motivo)?.rotulo
+  const previa = descreverKit(
+    {
+      tipo,
+      termo: temTermo && termo ? termo : undefined,
+      categorias: CATEGORIA_ORDEM.filter((c) => categorias.has(c)),
+    },
+    motivoRotulo,
+  )
 
   // Trocar o tipo derruba o que não vale mais para ele. Sem isso o kit guardaria
   // um motivo impossível (fora do `aplica_a`) ou um termo em tipo que nem tem
@@ -162,7 +190,9 @@ export function KitDialog({
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        {edicao ? (
+        {gatilho ? (
+          gatilho
+        ) : edicao ? (
           <Button variant="outline" size="sm" className="min-h-10 gap-1.5 sm:min-h-0">
             <Pencil className="size-3.5" />
             Editar
@@ -176,10 +206,19 @@ export function KitDialog({
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{edicao ? 'Editar kit' : 'Novo kit'}</DialogTitle>
+          <DialogTitle>
+            {edicao ? 'Editar kit' : duplicarDe ? 'Duplicar kit' : 'Novo kit'}
+          </DialogTitle>
           <DialogDescription>
             Modelo salvo do passo 2 da movimentação. Aplicar um kit só preenche o
             formulário — nada é registrado automaticamente.
+            {duplicarDe && (
+              <>
+                {' '}
+                Este é um kit <strong>novo</strong>, copiado de{' '}
+                <strong>{duplicarDe.nome}</strong> — o original não muda.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -307,6 +346,22 @@ export function KitDialog({
                 nova movimentação, sem afetar o que já foi registrado com ele.
               </p>
             </>
+          )}
+        </div>
+
+        {/* F29/ADM-04a — o admin preenchia cinco campos sem ver o que o operador
+            recebe. Este bloco é a MESMA frase que o passo 2 aplica, montada ao vivo:
+            fica no rodapé (logo acima dos botões) porque é o resumo do que se está
+            prestes a salvar, no lugar onde as outras telas põem a confirmação. */}
+        <div className="rounded-md border bg-muted/40 p-3 text-sm">
+          <p className="text-xs font-semibold text-muted-foreground">
+            Como o kit aplica
+          </p>
+          <p className="mt-1">{previa.join(' · ')}</p>
+          {observacao.trim() && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Observação preenchida: “{observacao.trim()}”
+            </p>
           )}
         </div>
 

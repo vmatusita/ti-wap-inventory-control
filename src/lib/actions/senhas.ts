@@ -123,10 +123,29 @@ export async function sairVisualizacao() {
 // qualquer policy: sem `exigirAdmin()` aqui, QUALQUER logado (inclusive o cargo consulta)
 // criaria e revogaria senhas de acesso. É a camada de action que é o controle real neste
 // caminho, não o banco (ADR-002 §4.1).
+// F29/ADM-05a — devolve também a URL PÚBLICA de entrada. A tela pós-criação mandava
+// "entregue junto do link do relatório" e não fornecia link nenhum; o admin ia caçar o
+// endereço na barra do navegador. Não existe helper de URL base no repositório (nem
+// NEXT_PUBLIC_APP_URL no ambiente), então vale o mesmo padrão do link de convite:
+// derivar da requisição (`origin`, com `host` de reserva).
+export type CriarSenhaResult = (ActionResult & { url?: string }) | { ok: false; erro: string }
+
+function urlDeAcesso(h: Headers): string | null {
+  const origin = h.get('origin')
+  const host = h.get('host')
+  const base =
+    origin ??
+    (host
+      ? `${host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https'}://${host}`
+      : null)
+  if (!base) return null
+  return new URL('/relatorios/acesso', base).toString()
+}
+
 export async function criarSenhaAcesso(input: {
   rotulo: string
   senha: string
-}): Promise<ActionResult> {
+}): Promise<CriarSenhaResult> {
   const supabase = await createClient()
   const aut = await exigirAdmin(supabase)
   if (!aut.ok) return { ok: false, erro: aut.erro }
@@ -154,7 +173,57 @@ export async function criarSenhaAcesso(input: {
   })
 
   revalidatePath('/admin/senhas')
-  return { ok: true }
+  // URL ausente (cabeçalho estranho) não invalida a criação: a senha FOI criada, e o
+  // diálogo simplesmente mostra a senha sem o link.
+  return { ok: true, url: urlDeAcesso(await headers()) ?? undefined }
+}
+
+// F29/ADM-05b — "essa senha ainda é a que eu passei?".
+//
+// Não havia como conferir: o hash é scrypt salgado (não dá para comparar de fora) e a
+// senha em claro nunca é guardada. A única saída era revogar e recriar — cortando o
+// acesso de quem já usava a senha certa.
+//
+// Esta action responde SÓ `confere`. O texto digitado não é exibido, não volta no
+// retorno, não entra na trilha e não vai para log nenhum; a comparação é a MESMA
+// `verificarSenha` (timing-safe) do login público, sobre o hash daquela senha. Nada do
+// modelo afrouxa: scrypt continua, a leitura segue pelo client administrativo dentro de
+// uma action com `exigirAdmin`, e nenhuma senha em claro passa a persistir.
+export async function testarSenhaAcesso(input: {
+  id: string
+  senha: string
+}): Promise<{ ok: true; confere: boolean } | { ok: false; erro: string }> {
+  const supabase = await createClient()
+  const aut = await exigirAdmin(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
+  if (!z.string().uuid().safeParse(input.id).success) {
+    return { ok: false, erro: 'Senha inválida.' }
+  }
+  if (typeof input.senha !== 'string' || input.senha.length === 0) {
+    return { ok: false, erro: 'Digite a senha que você quer conferir.' }
+  }
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('senhas_acesso')
+    .select('rotulo, hash')
+    .eq('id', input.id)
+    .maybeSingle()
+  if (error) return { ok: false, erro: 'Não foi possível conferir a senha agora.' }
+  if (!data) {
+    return { ok: false, erro: 'Senha não encontrada. Atualize a página e tente de novo.' }
+  }
+
+  // SEM trilha em `eventos_admin`, e isso é decisão registrada (F29, docs/DECISOES.md).
+  // O vocabulário de ações é FECHADO em `lib/auditoria.ts` e espelhado no `comment` da
+  // coluna pela migration 0075 ("mexeu aqui, mexa lá") — um verbo novo deixaria o banco
+  // desatualizado, e corrigir isso é uma migration que esta ordem proíbe. Como o teste
+  // é SÓ LEITURA (não muda senha, cargo nem acesso) e o admin já podia conferir a mesma
+  // senha pela porta pública, ficar de fora da trilha não esconde efeito nenhum.
+  // Backlog: entrar como `senha_testada` na próxima migration que tocar o vocabulário.
+  const confere = await verificarSenha(input.senha, data.hash)
+  return { ok: true, confere }
 }
 
 export async function definirStatusSenha(

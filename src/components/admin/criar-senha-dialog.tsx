@@ -35,7 +35,11 @@ export function CriarSenhaDialog() {
   const [rotulo, setRotulo] = useState('')
   const [senha, setSenha] = useState('')
   const [criada, setCriada] = useState<string | null>(null)
-  const [copiado, setCopiado] = useState(false)
+  // F29/ADM-05a — a URL pública, resolvida no servidor a partir da própria requisição
+  // (não há NEXT_PUBLIC_APP_URL no ambiente). `null` = não deu para montar: a senha foi
+  // criada do mesmo jeito e o diálogo simplesmente omite o link.
+  const [url, setUrl] = useState<string | null>(null)
+  const [copiado, setCopiado] = useState<'nada' | 'senha' | 'mensagem'>('nada')
   const [enviando, start] = useTransition()
 
   const valido = rotulo.trim().length >= 2 && senha.length >= 8
@@ -46,9 +50,21 @@ export function CriarSenhaDialog() {
       setRotulo('')
       setSenha('')
       setCriada(null)
-      setCopiado(false)
+      setUrl(null)
+      setCopiado('nada')
     }
   }
+
+  // A mensagem pronta de colar no Teams/WhatsApp. O rótulo entra porque quem recebe
+  // costuma ter mais de um acesso e precisa saber qual é este.
+  const mensagem =
+    criada && url
+      ? [
+          `Acesso ao relatório de estoque de TI (${rotulo.trim()}):`,
+          url,
+          `Senha: ${criada}`,
+        ].join('\n')
+      : null
 
   function salvar() {
     if (!valido) return
@@ -63,6 +79,7 @@ export function CriarSenhaDialog() {
           return
         }
         setCriada(senha) // exibe UMA vez (já temos o texto no client)
+        setUrl(res.url ?? null)
         router.refresh()
       } catch {
         toast.error(
@@ -72,13 +89,22 @@ export function CriarSenhaDialog() {
     })
   }
 
-  async function copiar() {
-    if (!criada) return
+  async function copiar(
+    texto: string,
+    qual: 'senha' | 'mensagem',
+    sucesso: string,
+  ): Promise<void> {
+    // `copiar-patrimonio.tsx` é o modelo: checa a existência da API antes de tentar,
+    // porque sem ela o `await` nem lança e a falha some.
+    if (!navigator.clipboard?.writeText) {
+      toast.error('Não foi possível copiar — copie manualmente.')
+      return
+    }
     try {
-      await navigator.clipboard.writeText(criada)
-      setCopiado(true)
-      toast.success('Senha copiada.')
-      setTimeout(() => setCopiado(false), 2000)
+      await navigator.clipboard.writeText(texto)
+      setCopiado(qual)
+      toast.success(sucesso)
+      setTimeout(() => setCopiado('nada'), 2000)
     } catch {
       toast.error('Não foi possível copiar.')
     }
@@ -98,20 +124,66 @@ export function CriarSenhaDialog() {
             <DialogHeader>
               <DialogTitle>Senha criada — copie agora</DialogTitle>
               <DialogDescription>
-                Esta é a única vez que a senha aparece. Guarde-a com segurança e
-                entregue junto do link do relatório.
+                Esta é a única vez que a senha aparece. Entregue junto do link de
+                entrada — quem recebe precisa dos dois.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3">
-              <code className="min-w-0 flex-1 break-all font-mono text-sm">
-                {criada}
-              </code>
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={copiar}>
-                {copiado ? <Check className="size-4" /> : <Copy className="size-4" />}
-                {copiado ? 'Copiado' : 'Copiar'}
-              </Button>
+
+            {/* F29/ADM-05a — a tela mandava "entregue junto do link do relatório" e
+                não fornecia link nenhum: o admin ia caçar o endereço na barra do
+                navegador ou mandava só a senha, e a pessoa não sabia por onde entrar. */}
+            {url && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Endereço de entrada
+                </p>
+                <code className="block break-all rounded-md border bg-muted/40 p-3 font-mono text-xs">
+                  {url}
+                </code>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground">Senha</p>
+              <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3">
+                <code className="min-w-0 flex-1 break-all font-mono text-sm">
+                  {criada}
+                </code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1.5"
+                  onClick={() => copiar(criada, 'senha', 'Senha copiada.')}
+                >
+                  {copiado === 'senha' ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
+                  {copiado === 'senha' ? 'Copiado' : 'Copiar'}
+                </Button>
+              </div>
             </div>
-            <DialogFooter>
+
+            <DialogFooter className="sm:justify-between">
+              {mensagem ? (
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() =>
+                    copiar(mensagem, 'mensagem', 'Link e senha copiados.')
+                  }
+                >
+                  {copiado === 'mensagem' ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
+                  {copiado === 'mensagem' ? 'Copiado' : 'Copiar link e senha'}
+                </Button>
+              ) : (
+                <span />
+              )}
               <Button onClick={() => fechar(false)}>Concluir</Button>
             </DialogFooter>
           </>

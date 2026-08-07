@@ -223,11 +223,23 @@ export const usuariosESenhas: PaginaAjuda = {
       titulo: 'Reenviar o acesso de quem já existe',
       itens: [
         'Não há tela de "esqueci minha senha": a tela de login diz "Esqueceu a senha? Peça a um administrador para reenviar o convite."',
-        'Em Administração › Usuários, use "Convidar usuário" e informe o MESMO e-mail da pessoa.',
-        'O sistema reconhece que a conta já existe e a tela troca para "Link de acesso gerado", explicando que ao abrir o link a pessoa clica em "Continuar", informa nome e sobrenome e define uma nova senha.',
+        'O caminho curto: em Administração › Usuários, use "Gerar novo link" na PRÓPRIA linha da pessoa — sem redigitar o e-mail. O diálogo "Link de acesso gerado" abre com o endereço pronto para copiar.',
+        'O caminho longo, que continua valendo: use "Convidar usuário" e informe o MESMO e-mail da pessoa.',
+        'Em qualquer um dos dois, o sistema reconhece que a conta já existe e a tela mostra "Link de acesso gerado", explicando que ao abrir o link a pessoa clica em "Continuar", informa nome e sobrenome e define uma nova senha.',
         'Copie o link e entregue como no convite normal. Na tela seguinte, quem JÁ tinha informado nome e sobrenome os encontra preenchidos e só confere; quem nunca informou (a coluna "Nome" ainda mostra o e-mail dela) encontra os dois campos VAZIOS e precisa preenchê-los para concluir — é o caso de todo mundo que já usava o sistema antes de os dois campos existirem.',
         'O cargo e as filiais de quem já existe NÃO se perdem nem se redefinem por aqui: reenviar o acesso só devolve a senha. Para mudar o cargo, edite a linha da pessoa.',
+        'A linha de quem tem o cargo Desenvolvedor não oferece "Gerar novo link" para quem não é Desenvolvedor — e não é excesso de zelo: quem abre um link de recuperação DEFINE a senha daquela conta.',
       ],
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Como saber quem ainda não usou o convite: a coluna "Situação" mostra "Aguardando primeiro acesso" enquanto a pessoa nunca tiver entrado. Some assim que ela define a senha e entra pela primeira vez. Quando a consulta de contas falha — e aí o aviso vermelho aparece no topo da tela —, o sistema deixa de afirmar isso sobre quem já tem nome, em vez de acusar a equipe inteira.',
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'A lista de Usuários vem do mais RECENTE para o mais antigo — quem você acabou de convidar está no topo. E há um campo de busca acima da tabela: digite nome, e-mail, cargo ou filial e a contagem ao lado mostra "N de M".',
     },
 
     {
@@ -258,9 +270,15 @@ export const usuariosESenhas: PaginaAjuda = {
         'Vá a Administração › Senhas de acesso. A tabela traz "Rótulo", "Criada em", "Último uso", "Status" e "Ações"; sem nenhuma criada, a tela diz "Nenhuma senha de acesso criada ainda."',
         'Use "Nova senha". No diálogo "Nova senha de acesso", preencha o "Rótulo" — é o nome que identifica quem vai usar aquela senha. O campo mostra um exemplo em cinza, só como sugestão de formato: escreva ali o nome da filial ou do parceiro que vai usar a senha, porque é por esse rótulo que você a revoga depois.',
         'Digite a "Senha" (mínimo 8 caracteres) ou use o botão "Gerar", que monta uma senha forte sem caracteres ambíguos.',
-        'Use "Criar senha". A tela vira "Senha criada — copie agora": esta é a ÚNICA vez que a senha aparece. Use "Copiar" e guarde-a antes de fechar com "Concluir".',
-        'Entregue à pessoa duas coisas: o endereço do relatório e a senha. Ela entra pela página de acesso por senha, digita a senha em "Senha de acesso" e usa "Entrar".',
+        'Use "Criar senha". A tela vira "Senha criada — copie agora": esta é a ÚNICA vez que a senha aparece. Ela mostra o "Endereço de entrada" (a página pública de acesso por senha) e a senha, cada um com o seu botão.',
+        'O caminho mais rápido é "Copiar link e senha": ele copia uma mensagem pronta com o rótulo, o endereço e a senha, para colar direto no Teams ou no WhatsApp. Guarde antes de fechar com "Concluir".',
+        'Quem recebe entra pelo endereço, digita a senha em "Senha de acesso" e usa "Entrar".',
       ],
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Ficou a dúvida "essa senha ainda é a que eu passei?": use "Testar senha…" na linha da senha ATIVA, digite o que você acha que é a senha e o sistema responde só "Confere" ou "Não confere". Nada é alterado, e o texto digitado não é guardado nem registrado em lugar nenhum. Senha revogada não oferece o teste — ela já não abre o relatório, confira ou não.',
     },
     {
       tipo: 'nota',

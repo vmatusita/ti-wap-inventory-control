@@ -6,10 +6,12 @@ import {
   TIPOS_KIT,
   atualizarKitSchema,
   checklistCategoriasDoKit,
+  descreverKit,
   faltaCategoriaDoKit,
   kitCatalogoSchema,
   kitPayloadSchema,
 } from '@/lib/validators/kit'
+import { rotuloCategoria, rotuloTermo, rotuloTipo } from '@/lib/dominio'
 import { Constants } from '@/lib/types/database'
 import { CATEGORIA_ORDEM } from '@/lib/dominio'
 
@@ -212,5 +214,56 @@ describe('faltaCategoriaDoKit', () => {
 
   it('false no checklist vazio (não há o que avisar)', () => {
     expect(faltaCategoriaDoKit([])).toBe(false)
+  })
+})
+
+// F29/ADM-04a — a frase "Como o kit aplica" que o admin não via ao preencher os
+// cinco campos. Nada de rótulo redigitado: tudo sai de `dominio.ts`.
+describe('descreverKit', () => {
+  it('monta tipo · motivo · termo · checklist com o vocabulário real', () => {
+    expect(
+      descreverKit(
+        { tipo: 'saida', termo: 'gerado', categorias: ['notebook', 'monitor'] },
+        'Novo colaborador',
+      ),
+    ).toEqual([
+      rotuloTipo('saida'),
+      'Motivo: Novo colaborador',
+      `Termo: ${rotuloTermo('gerado')}`,
+      `Checklist: ${rotuloCategoria('notebook')}, ${rotuloCategoria('monitor')}`,
+    ])
+  })
+
+  // Campo ausente não vira "não informado": o kit não MEXE naquele campo, e dizer
+  // "Termo: não informado" sugeriria que mexe.
+  it('omite as partes que o kit não define', () => {
+    expect(descreverKit({ tipo: 'devolucao', categorias: ['notebook'] })).toEqual([
+      rotuloTipo('devolucao'),
+      `Checklist: ${rotuloCategoria('notebook')}`,
+    ])
+  })
+
+  it('motivo em branco não vira parte vazia', () => {
+    expect(descreverKit({ tipo: 'saida', categorias: [] }, '   ')).toEqual([
+      rotuloTipo('saida'),
+    ])
+  })
+
+  it('o checklist sai na ordem canônica, não na ordem em que foi marcado', () => {
+    const [, checklist] = descreverKit({
+      tipo: 'saida',
+      categorias: ['monitor', 'notebook'],
+    })
+    expect(checklist).toBe(
+      `Checklist: ${rotuloCategoria('notebook')}, ${rotuloCategoria('monitor')}`,
+    )
+  })
+
+  it('categoria repetida aparece uma vez só', () => {
+    const [, checklist] = descreverKit({
+      tipo: 'saida',
+      categorias: ['notebook', 'notebook'],
+    })
+    expect(checklist).toBe(`Checklist: ${rotuloCategoria('notebook')}`)
   })
 })

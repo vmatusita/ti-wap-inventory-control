@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { definirStatusSenha } from '@/lib/actions/senhas'
+import { TestarSenhaDialog } from '@/components/admin/testar-senha-dialog'
 
 // Revogar / reativar uma senha de acesso (OS-F3 3.7.4). Revogar mata o acesso no
 // request seguinte (o layout de relatório reconfere a senha ativa a cada request)
@@ -72,48 +73,53 @@ export function SenhaAcoes({
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="min-h-10 sm:min-h-0">
-          Revogar
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="sm:max-w-md"
-        // Foco inicial no Cancelar: a ação destrutiva nunca fica sob o Enter.
-        onOpenAutoFocus={(e) => {
-          e.preventDefault()
-          cancelarRef.current?.focus()
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>Revogar senha de acesso?</DialogTitle>
-          <DialogDescription>
-            A senha <span className="font-medium text-foreground">{rotulo}</span>{' '}
-            deixa de valer. Quem usa esta senha perde o acesso aos relatórios no
-            próximo carregamento. Você pode reativá-la depois, na mesma lista.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            ref={cancelarRef}
-            type="button"
-            variant="ghost"
-            onClick={() => setAberto(false)}
-            disabled={pending}
-          >
-            Cancelar
+    <div className="flex flex-wrap justify-end gap-2">
+      {/* F29/ADM-05b — só para senha ATIVA: conferir uma senha revogada não responde
+          nada útil (ela não abre mais o relatório, confira ou não). */}
+      <TestarSenhaDialog id={id} rotulo={rotulo} />
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="min-h-10 sm:min-h-0">
+            Revogar
           </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={alternar}
-            disabled={pending}
-          >
-            {pending ? 'Revogando…' : 'Revogar'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogTrigger>
+        <DialogContent
+          className="sm:max-w-md"
+          // Foco inicial no Cancelar: a ação destrutiva nunca fica sob o Enter.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault()
+            cancelarRef.current?.focus()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Revogar senha de acesso?</DialogTitle>
+            <DialogDescription>
+              A senha <span className="font-medium text-foreground">{rotulo}</span>{' '}
+              deixa de valer. Quem usa esta senha perde o acesso aos relatórios no
+              próximo carregamento. Você pode reativá-la depois, na mesma lista.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              ref={cancelarRef}
+              type="button"
+              variant="ghost"
+              onClick={() => setAberto(false)}
+              disabled={pending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={alternar}
+              disabled={pending}
+            >
+              {pending ? 'Revogando…' : 'Revogar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

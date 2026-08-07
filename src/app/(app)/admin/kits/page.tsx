@@ -1,8 +1,9 @@
-import { Layers } from 'lucide-react'
+import { Copy, Layers } from 'lucide-react'
 import { listarKitsAdmin } from '@/lib/queries/kits'
 import { listarMotivos } from '@/lib/queries/motivos'
 import { rotuloCategoria, rotuloTipo } from '@/lib/dominio'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -119,15 +120,41 @@ export default async function AdminKitsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <KitDialog
-                      kit={{
-                        id: k.id,
-                        nome: k.nome,
-                        payload: k.payload,
-                        ativo: k.ativo,
-                      }}
-                      motivos={motivos}
-                    />
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <KitDialog
+                        kit={{
+                          id: k.id,
+                          nome: k.nome,
+                          payload: k.payload,
+                          ativo: k.ativo,
+                        }}
+                        motivos={motivos}
+                      />
+                      {/* F29/ADM-04b — kit não se exclui (só desativa), então errar na
+                          criação gerava lixo permanente e um kit parecido nascia do
+                          zero. "Duplicar" abre o mesmo diálogo em modo CRIAÇÃO com o
+                          payload copiado e o nome "Cópia de …" (o índice único de nome
+                          barraria a repetição). O original não é tocado. */}
+                      <KitDialog
+                        duplicarDe={{
+                          id: k.id,
+                          nome: k.nome,
+                          payload: k.payload,
+                          ativo: k.ativo,
+                        }}
+                        motivos={motivos}
+                        gatilho={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="min-h-10 gap-1.5 sm:min-h-0"
+                          >
+                            <Copy className="size-3.5" />
+                            Duplicar
+                          </Button>
+                        }
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

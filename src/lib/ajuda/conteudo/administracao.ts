@@ -84,7 +84,7 @@ export const administracao: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Cadastrar um item no catálogo',
       itens: [
-        'Em Administração › Itens, a tabela mostra "Nome", "Grupo", "Ordem", "Mínimo", "Lançamentos", "Status" e "Ações". Use "Novo item" ou "Editar".',
+        'Em Administração › Itens, a tabela mostra "Nome", "Grupo", "Ordem", "Mínimo", "Lançamentos", "Status" e "Ações". Use "Novo item" ou "Editar". Acima da tabela há um campo de busca por nome ou grupo, com a contagem "N de M" ao lado — o catálogo cresce e rolar a lista inteira para achar um cabo deixou de ser o caminho.',
         'Preencha o "Nome" (é ele que aparece na busca do lançamento), escolha o "Grupo" e, se quiser, ajuste a "Ordem" — ela controla a posição do item dentro do bloco do grupo, na página de saldos.',
         'O campo "Estoque mínimo" é o ponto de reposição: 0 significa sem alerta, e a própria tela explica que acima de 0 o item ganha o aviso "repor" quando o estoque somado de todas as filiais ficar abaixo do número. Na coluna "Mínimo", 0 aparece como travessão.',
         'Item que já tem lançamento NÃO se exclui — a tela diz quantos existem e o caminho é desmarcar "Item ativo". Só item sem nenhum lançamento mostra o botão "Excluir".',
