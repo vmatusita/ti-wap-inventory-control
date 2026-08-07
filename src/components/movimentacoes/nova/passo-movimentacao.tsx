@@ -53,6 +53,7 @@ import {
 } from '@/lib/dominio'
 import { hojeISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import type { PapelUsuario } from '@/lib/auth/papeis'
 import type {
   AtivoSucesso,
   Config,
@@ -139,6 +140,8 @@ export function PassoMovimentacao({
   errosPorAtivo,
   jaRegistrados,
   filiais,
+  papel = null,
+  filiaisEscrita = [],
   ultimaMov,
   kits,
   kitAplicado,
@@ -167,6 +170,11 @@ export function PassoMovimentacao({
   // F10/M9 — o que ENTROU no envio parcial (some do lote, mas não da tela).
   jaRegistrados: AtivoSucesso[]
   filiais: Filial[]
+  // F28/MOV-03 — aviso de vínculo de filial, só repassado para
+  // `SecaoContrapartida` (o lote principal é aviso do PASSO 1, em
+  // `PassoAtivos`). `null`/`[]` = nível administrador ou sessão sem operador.
+  papel?: PapelUsuario | null
+  filiaisEscrita?: readonly number[]
   ultimaMov?: UltimaMovimentacaoUsuario | null
   // F12/M12 — kits ativos, o kit aplicado nesta montagem e o checklist DERIVADO
   // do lote atual (o form recalcula a cada mudança; aqui só se desenha).
@@ -542,6 +550,8 @@ export function PassoMovimentacao({
           itensPrincipal={itens}
           rotuloMotivo={rotuloMotivoTroca}
           comandoRef={comandoContrapartidaRef}
+          papel={papel}
+          filiaisEscrita={filiaisEscrita}
           onAdicionar={onAdicionarContrapartida}
           onRemover={onRemoverContrapartida}
           onSet={onSetContrapartida}

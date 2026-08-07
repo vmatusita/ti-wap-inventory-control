@@ -6,6 +6,7 @@ import {
   eAdmin,
   eDev,
   ePapelValido,
+  escreveNaFilial,
   exigeVinculoDeFilial,
   filiaisDeEscrita,
   papelAtende,
@@ -293,5 +294,53 @@ describe('vocabulário completo', () => {
     for (const p of PAPEIS) {
       expect(PAPEL_ROTULO[p].toLowerCase()).not.toContain('visualizador')
     }
+  })
+})
+
+// F28/MOV-03 — o aviso ANTECIPADO de vínculo de filial no wizard de
+// movimentação. `escreveNaFilial` é só o predicado de TELA (badge âmbar por
+// item, nada trava): a trava real continua sendo `exigirEscritaEm` no
+// servidor, intocada por esta fase.
+describe('escreveNaFilial — aviso de vínculo de filial no wizard (F28/MOV-03)', () => {
+  const filiaisEscrita = [1, 3]
+
+  it('dev escreve em QUALQUER filial, mesmo sem estar na lista de vínculos', () => {
+    expect(escreveNaFilial('dev', [], 99)).toBe(true)
+    expect(escreveNaFilial('dev', filiaisEscrita, 2)).toBe(true)
+  })
+
+  it('admin escreve em QUALQUER filial, mesmo sem estar na lista de vínculos', () => {
+    expect(escreveNaFilial('admin', [], 99)).toBe(true)
+    expect(escreveNaFilial('admin', filiaisEscrita, 2)).toBe(true)
+  })
+
+  it('operador escreve só nas filiais vinculadas', () => {
+    expect(escreveNaFilial('operador', filiaisEscrita, 1)).toBe(true)
+    expect(escreveNaFilial('operador', filiaisEscrita, 3)).toBe(true)
+    expect(escreveNaFilial('operador', filiaisEscrita, 2)).toBe(false)
+  })
+
+  it('operador com lista de vínculos VAZIA não escreve em filial nenhuma', () => {
+    expect(escreveNaFilial('operador', [], 1)).toBe(false)
+    expect(escreveNaFilial('operador', [], 2)).toBe(false)
+  })
+
+  it('consulta nunca escreve, mesmo com a filial na lista', () => {
+    expect(escreveNaFilial('consulta', filiaisEscrita, 1)).toBe(false)
+  })
+
+  it('papel nulo ou indefinido não explode e nunca escreve', () => {
+    expect(escreveNaFilial(null, filiaisEscrita, 1)).toBe(false)
+    expect(escreveNaFilial(undefined, filiaisEscrita, 1)).toBe(false)
+  })
+
+  it('lista de vínculos nula ou indefinida não explode — operador não escreve em nada', () => {
+    expect(escreveNaFilial('operador', null, 1)).toBe(false)
+    expect(escreveNaFilial('operador', undefined, 1)).toBe(false)
+  })
+
+  it('filial ausente (nula ou indefinida) não explode e não escreve', () => {
+    expect(escreveNaFilial('operador', filiaisEscrita, null)).toBe(false)
+    expect(escreveNaFilial('operador', filiaisEscrita, undefined)).toBe(false)
   })
 })

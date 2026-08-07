@@ -213,3 +213,29 @@ export function abaRelatorioPadrao(
   const primeira = filiaisOrdenadasPorNome.find((f) => padrao.includes(f.id))
   return primeira?.slug ?? ABA_RELATORIO_CONSOLIDADO
 }
+
+// ---------------------------------------------------------------------------
+// F28/MOV-03 — aviso ANTECIPADO de vínculo de filial (wizard de movimentação)
+// ---------------------------------------------------------------------------
+// ⚠ AVISO DE TELA, não permissão: a trava de verdade continua sendo
+// `exigirEscritaEm` no servidor (`actions/movimentacoes.ts`), que não muda. Este
+// predicado só decide se um item específico do lote GANHA o badge âmbar "Você
+// não escreve em {filial}" — nada aqui bloqueia adicionar o ativo, avançar de
+// passo ou registrar.
+//
+// Gateia por CARGO antes de olhar a lista, como `filtroFilialPadrao` faz: nível
+// administrador (`eAdmin` — admin OU dev) escreve em qualquer filial, sem
+// vínculo nenhum; só o `operador` é recortado pela lista de vínculos. Qualquer
+// outro cargo (ou `null`/`undefined`, sessão sem perfil) não escreve em
+// filial nenhuma. `filiaisEscrita`/`filialId` ausentes ou malformados nunca
+// lançam — só resolvem para "não escreve".
+export function escreveNaFilial(
+  papel: PapelUsuario | null | undefined,
+  filiaisEscrita: readonly number[] | null | undefined,
+  filialId: number | null | undefined,
+): boolean {
+  if (eAdmin(papel)) return true
+  if (papel !== 'operador') return false
+  if (filialId == null) return false
+  return (filiaisEscrita ?? []).includes(filialId)
+}

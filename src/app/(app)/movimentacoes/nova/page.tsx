@@ -207,6 +207,8 @@ export default async function NovaMovimentacaoPage({
           semContrapartida={semContrapartida}
           ultimaMov={ultimaMov}
           origemInvalida={origemInvalida}
+          papel={operador?.papel ?? null}
+          filiaisEscrita={operador?.filiaisEscrita ?? []}
         />
       ) : (
         <EstadoVazio

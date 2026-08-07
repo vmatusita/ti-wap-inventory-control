@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeftRight, Info, X } from 'lucide-react'
+import { ArrowLeftRight, Info, TriangleAlert, X } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,6 +30,7 @@ import {
   type TermoStatus,
 } from '@/lib/dominio'
 import { hojeISO } from '@/lib/format'
+import { escreveNaFilial, type PapelUsuario } from '@/lib/auth/papeis'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 
@@ -49,6 +50,8 @@ export function SecaoContrapartida({
   itensPrincipal,
   rotuloMotivo,
   comandoRef,
+  papel = null,
+  filiaisEscrita = [],
   onAdicionar,
   onRemover,
   onSet,
@@ -60,6 +63,11 @@ export function SecaoContrapartida({
   // DETECÇÃO é sempre pelo código; só o texto da tela vem daqui.
   rotuloMotivo: string
   comandoRef: React.RefObject<HTMLDivElement | null>
+  // F28/MOV-03 — aviso de vínculo de filial, mesmo formato de `PassoAtivos`:
+  // AVISO, não trava. `null`/`[]` = nível administrador ou sessão sem
+  // operador — nenhum item ganha o badge.
+  papel?: PapelUsuario | null
+  filiaisEscrita?: readonly number[]
   onAdicionar: (ativo: AtivoResumo) => void
   onRemover: (id: string) => void
   onSet: <K extends keyof ContrapartidaTroca>(
@@ -196,6 +204,15 @@ export function SecaoContrapartida({
                       <X className="size-4" />
                     </button>
                   </span>
+                  {/* F28/MOV-03 — mesmo aviso do lote principal, mesma
+                      condição (dev/admin nunca veem isto). */}
+                  {!escreveNaFilial(papel, filiaisEscrita, a.filial_id) && (
+                    <span className="flex basis-full items-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                      Você não escreve em {a.filial_nome} — o registro será
+                      recusado
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

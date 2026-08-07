@@ -42,6 +42,7 @@ export const registrarMovimentacao: PaginaAjuda = {
         'Antes de começar: o equipamento precisa estar cadastrado. Equipamento novo entra por compra, em "Novo equipamento" — não é aqui.',
         'O tipo que você quer precisa ser válido para o estado ATUAL de todos os ativos do lote. Estados diferentes no mesmo lote encolhem a lista de tipos.',
         'Motivos, filiais e kits vêm dos cadastros de Administração — se faltar uma opção na tela, é lá que ela se cria.',
+        'Você é Operador vinculado só a algumas filiais? Um ativo de fora do seu vínculo ganha, assim que entra no lote, o aviso "Você não escreve em {filial} — o registro será recusado". O aviso não impede montar o lote nem avançar de passo — ele avisa cedo o que o registro vai recusar no fim. Administrador e Desenvolvedor nunca veem esse aviso: escrevem em todas as filiais.',
       ],
     },
     { tipo: 'titulo', id: 'registrar-fluxo', texto: 'Os três passos' },
@@ -56,7 +57,7 @@ export const registrarMovimentacao: PaginaAjuda = {
         'Escolha o tipo — só aparecem os tipos válidos para o estado de TODOS os ativos escolhidos. Se um ativo adicionado depois estreitar as opções, o sistema avisa qual ativo limpou o tipo.',
         'Preencha os campos pedidos (os obrigatórios variam por tipo) e confirme. Nos campos de data (da movimentação e do termo) há os atalhos "Hoje" e "Ontem" — um clique preenche. Colaborador e Setor sugerem o que já existe no sistema depois de 2 letras (a lista é só atalho: nome novo continua sendo digitado normalmente).',
         'Na Revisão, confira o aviso âmbar de possível duplicata, se aparecer, antes de registrar.',
-        'A tabela da Revisão mostra "Patrimônio", "Movimentação" e "Destino / Motivo" de cada linha — é a última conferência antes de "Registrar {n} movimentações".',
+        'A Revisão mostra um card com o que vai ser gravado (a Data em destaque, e também motivo, colaborador/setor, termo, chamado, observação e status novo — conforme o tipo) e, abaixo, a lista dos ativos do lote (patrimônio e identificação). É a última conferência antes de "Registrar {n} movimentações" — inclusive da data, no lançamento retroativo com "Hoje"/"Ontem".',
         'Com o teclado dá para andar mais rápido: Enter avança do passo 1 para o 2, valida o 2 e registra no 3. Dentro de uma caixa de texto ou de uma lista de opções o Enter não avança — ele faz o que a caixa espera.',
       ],
     },
@@ -76,6 +77,7 @@ export const registrarMovimentacao: PaginaAjuda = {
       itens: [
         'Enquanto você monta o lote, a aba guarda um rascunho sozinha: os ativos escolhidos, a configuração e em que passo você parou.',
         'Saiu da tela (inclusive pelo atalho N) ou recarregou a página? Ao voltar aparece o aviso "Você tem um lote não registrado", com Restaurar e Descartar.',
+        'O aviso também mostra, quando disponível, alguns dos patrimônios do lote, o tipo de movimentação e há quanto tempo foi salvo — assim dá para reconhecer de relance QUAL rascunho é, sem precisar restaurar para descobrir.',
         'Restaurar re-busca cada ativo no banco na hora — se alguém movimentou um deles nesse meio-tempo, o status vem atualizado e os tipos oferecidos se ajustam; ativo que sumiu do sistema fica de fora, com aviso de quantos ficaram.',
         'O rascunho é só desta aba do navegador e some quando você fecha o navegador. Registrar (mesmo em parte) ou Descartar também o apagam.',
         'Abrir a tela por um link com ativo já escolhido (pela ficha ou por "Duplicar") tem prioridade: nesses casos o rascunho não é oferecido.',
@@ -91,6 +93,7 @@ export const registrarMovimentacao: PaginaAjuda = {
         'Esqueceu ou pulou? O termo continua disponível na ficha do ativo e na página Pendências.',
         'Se parte do lote falhar, o formulário volta com as falhas para corrigir — e agora mostra também os chips "Já registrados", com link para a ficha de cada ativo que entrou. O que foi registrado está registrado: não repita esses.',
         'O botão "Registrar outra movimentação" limpa a tela e recomeça do passo 1, sem perder o que já foi gravado.',
+        'Vai registrar mais um lote parecido com o mesmo tipo de movimentação? "Registrar outro lote com os mesmos campos" recomeça do passo 1 mantendo tipo, motivo, colaborador/setor, filial de destino, termo, chamado, observação e status novo — só os ativos do lote (e a contrapartida da troca, se houver) são zerados.',
       ],
     },
     {

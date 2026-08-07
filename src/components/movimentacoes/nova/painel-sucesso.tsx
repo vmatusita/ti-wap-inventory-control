@@ -220,7 +220,9 @@ export function PainelSucesso({
 }: {
   sucesso: SucessoLote
   onGerado: () => void
-  onReiniciar: () => void
+  // MOV-10 — `opts?.manterConfig` é o botão "com os mesmos campos" abaixo;
+  // chamado sem argumento continua o "do zero" de sempre.
+  onReiniciar: (opts?: { manterConfig?: boolean }) => void
 }) {
   const [gerados, setGerados] = useState<Set<string>>(new Set())
   const [pulados, setPulados] = useState<Set<string>>(new Set())
@@ -342,8 +344,20 @@ export function PainelSucesso({
         </div>
       )}
 
-      <div className="mt-6">
-        <Button onClick={onReiniciar}>Registrar outra movimentação</Button>
+      {/* MOV-10 — o colar-lista sugere "Registre o resto em outro lote": este
+          botão é o atalho para isso — mesma config (tipo, motivo,
+          colaborador/setor, filial destino, termo, chamado, observação e
+          status novo), lote e rascunho zerados. Secundário: o primário
+          continua sendo o "do zero" de sempre. */}
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <Button onClick={() => onReiniciar()}>Registrar outra movimentação</Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onReiniciar({ manterConfig: true })}
+        >
+          Registrar outro lote com os mesmos campos
+        </Button>
       </div>
     </div>
   )

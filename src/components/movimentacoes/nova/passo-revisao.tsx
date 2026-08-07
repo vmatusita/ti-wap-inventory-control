@@ -15,28 +15,71 @@ import {
 } from '@/components/movimentacoes/nova/troca-upgrade'
 import { formatDate, hojeISO } from '@/lib/format'
 import { rotuloPatrimonio, rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
+import { cn } from '@/lib/utils'
+import {
+  montarResumoConfig,
+  type ItemResumo,
+} from '@/components/movimentacoes/nova/resumo-revisao'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Motivo } from '@/lib/queries/motivos'
 
-// Uma metade do envio na revisão: a mesma movimentação aplicada a cada ativo.
-// Sem o par (o caso comum) só existe UM bloco, e ele não ganha cabeçalho — o
-// passo 3 continua idêntico ao que sempre foi.
+// MOV-02 — card com a configuração que a metade vai GRAVAR (antes, essa
+// informação só aparecia diluída, repetida em cada linha da tabela — e a
+// DATA nem aparecia). `destaque` (sempre a Data) ganha realce visual: é o
+// campo que o chip Hoje/Ontem torna fácil de errar num lançamento retroativo.
+function CardResumo({ resumo }: { resumo: ItemResumo[] }) {
+  if (resumo.length === 0) return null
+  return (
+    <dl className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-2">
+      {resumo.map((item) => (
+        <div key={item.rotulo} className={cn(item.destaque && 'sm:col-span-2')}>
+          <dt className="text-xs text-muted-foreground">{item.rotulo}</dt>
+          <dd
+            className={cn(
+              'text-sm',
+              item.destaque && 'text-base font-semibold text-foreground',
+            )}
+          >
+            {item.valor}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+// Marca + modelo (e service tag, quando existe) — a identificação do ativo na
+// tabela reduzida. A configuração (tipo/motivo/destino…) saiu daqui: agora
+// mora só no CardResumo, uma vez por metade, em vez de repetida em N linhas.
+function identificacaoAtivo(a: AtivoResumo): string {
+  const partes = [a.marca, a.modelo].filter((v): v is string => Boolean(v))
+  const base = partes.length > 0 ? partes.join(' ') : '—'
+  return a.service_tag ? `${base} · ${a.service_tag}` : base
+}
+
+// Uma metade do envio na revisão: o card da configuração + a tabela (reduzida
+// a Patrimônio/Identificação) dos ativos que a recebem. Sem o par (o caso
+// comum) só existe UM bloco, e ele não ganha cabeçalho — o passo 3 continua
+// idêntico ao que sempre foi.
 function BlocoRevisao({
   titulo,
   itens,
   config,
+  statusResultante,
   filiais,
   motivos,
 }: {
   titulo: string | null
   itens: AtivoResumo[]
   config: Config
+  statusResultante: string
   filiais: Filial[]
   motivos: Motivo[]
 }) {
   if (itens.length === 0) return null
+  const resumo = montarResumoConfig(config, { statusResultante, filiais, motivos })
   return (
     <div className="space-y-2">
       {titulo && (
@@ -47,13 +90,13 @@ function BlocoRevisao({
           </span>
         </p>
       )}
+      <CardResumo resumo={resumo} />
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50 text-left text-muted-foreground">
             <tr>
               <th className="p-2.5 font-medium">Patrimônio</th>
-              <th className="p-2.5 font-medium">Movimentação</th>
-              <th className="p-2.5 font-medium">Destino / Motivo</th>
+              <th className="p-2.5 font-medium">Identificação</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -62,11 +105,8 @@ function BlocoRevisao({
                 <td className="p-2.5 font-medium tabular-nums">
                   {rotuloPatrimonio(a.patrimonio)}
                 </td>
-                <td className="p-2.5">
-                  {config.tipo && rotuloTipo(config.tipo)}
-                </td>
                 <td className="p-2.5 text-muted-foreground">
-                  {resumoDestino(config, filiais, motivos)}
+                  {identificacaoAtivo(a)}
                 </td>
               </tr>
             ))}
@@ -84,6 +124,7 @@ function BlocoRevisao({
 export function PassoRevisao({
   itens,
   config,
+  statusResultante,
   contrapartida,
   filiais,
   motivos,
@@ -94,6 +135,9 @@ export function PassoRevisao({
 }: {
   itens: AtivoResumo[]
   config: Config
+  // MOV-02 — só o `ajuste` usa (card "Status novo"); vem de estado à parte do
+  // form, igual a `PassoMovimentacao` já recebe (mesmo nome de prop).
+  statusResultante: string
   contrapartida: ContrapartidaTroca | null
   filiais: Filial[]
   motivos: Motivo[]
@@ -207,6 +251,7 @@ export function PassoRevisao({
         titulo={comPar && tipo ? rotuloTipo(tipo) : null}
         itens={itens}
         config={config}
+        statusResultante={statusResultante}
         filiais={filiais}
         motivos={motivos}
       />
@@ -216,6 +261,10 @@ export function PassoRevisao({
           titulo={`${rotuloTipo(tipoOposto)} da troca`}
           itens={contrapartida.itens}
           config={configDaContrapartida(config, contrapartida)}
+          // A contrapartida é sempre saída/devolução — nunca `ajuste` — então
+          // `statusResultante` nunca se aplica a este bloco (montarResumoConfig
+          // já filtra pelo campoAplica; '' aqui é só por completude/clareza).
+          statusResultante=""
           filiais={filiais}
           motivos={motivos}
         />
@@ -243,20 +292,4 @@ export function PassoRevisao({
       </div>
     </div>
   )
-}
-
-// Texto resumido do destino/motivo para a tabela de revisao.
-function resumoDestino(c: Config, filiais: Filial[], motivos: Motivo[]): string {
-  if (c.tipo === 'transferencia') {
-    const f = filiais.find((x) => String(x.id) === c.filialDestinoId)
-    return f ? `→ ${f.nome}` : '—'
-  }
-  const partes: string[] = []
-  if (c.motivo) {
-    const m = motivos.find((x) => x.codigo === c.motivo)
-    partes.push(m?.rotulo ?? c.motivo)
-  }
-  if (c.colaborador) partes.push(c.colaborador)
-  if (c.setor) partes.push(c.setor)
-  return partes.length > 0 ? partes.join(' · ') : '—'
 }

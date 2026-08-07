@@ -56,6 +56,7 @@ import {
   tiposManuaisPara,
 } from '@/lib/validators/movimentacao'
 import {
+  ehTipoMovimentacao,
   rotuloPatrimonio,
   rotuloStatus,
   rotuloTipo,
@@ -63,6 +64,8 @@ import {
   type StatusAtivo,
   type TipoMovimentacao,
 } from '@/lib/dominio'
+import { formatTempoRelativo } from '@/lib/format'
+import type { PapelUsuario } from '@/lib/auth/papeis'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Kit } from '@/lib/queries/kits'
@@ -112,6 +115,8 @@ export function NovaMovimentacaoForm({
   semContrapartida = false,
   ultimaMov,
   origemInvalida = null,
+  papel = null,
+  filiaisEscrita = [],
 }: {
   filiais: Filial[]
   motivos: Motivo[]
@@ -130,6 +135,12 @@ export function NovaMovimentacaoForm({
   // nada a avisar; senão, qual das duas origens falhou (o texto do banner
   // muda conforme — ver o JSX abaixo).
   origemInvalida?: 'duplicar' | 'ativo' | null
+  // F28/MOV-03 — aviso ANTECIPADO de vínculo de filial: descem para
+  // `PassoAtivos` e `SecaoContrapartida`, que badge-am por item o ativo fora
+  // do vínculo do OPERADOR. `null`/`[]` = nível administrador (dev/admin) ou
+  // sessão sem operador — nenhum aviso aparece (ver `escreveNaFilial`).
+  papel?: PapelUsuario | null
+  filiaisEscrita?: readonly number[]
 }) {
   const router = useRouter()
   const [passo, setPasso] = useState(1)
@@ -173,6 +184,12 @@ export function NovaMovimentacaoForm({
   const [jaRegistrados, setJaRegistrados] = useState<AtivoSucesso[]>([])
   // F10/M6 — rascunho: `null` = nada a oferecer; preenchido = banner aberto.
   const [rascunhoPendente, setRascunhoPendente] = useState<Rascunho | null>(null)
+  // MOV-11 — o "agora" do tempo relativo do banner ("salvo há 2 h"). Lido UMA
+  // vez pelo inicializador de função do `useState` (só roda na 1ª renderização
+  // desta montagem) — nunca `Date.now()` direto no corpo do componente, que a
+  // regra de pureza do React recusa (a mesma montagem não precisa de um
+  // relógio vivo: é um valor exibido uma vez, não um cronômetro).
+  const [agoraRascunho] = useState(() => Date.now())
   const [hidratado, setHidratado] = useState(false)
   const [restaurando, setRestaurando] = useState(false)
   // F12/M12 — kit aplicado nesta montagem (só a identidade; ver KitAplicado).
@@ -557,6 +574,13 @@ export function NovaMovimentacaoForm({
       config,
       statusResultante,
       passo,
+      // F28/MOV-11 — snapshot para o banner "lote não registrado" mostrar
+      // QUAIS ativos, de que TIPO e QUANDO. `patrimonio` nulo (ativo sem
+      // plaqueta) vira string vazia — o mesmo sentinela que o resto do módulo
+      // usa para "sem valor" (ver `rotuloPatrimonio`/`sanearConfig`).
+      patrimonios: itens.map((a) => a.patrimonio ?? ''),
+      tipo: config.tipo,
+      salvoEm: new Date().toISOString(),
       // F26 — a contrapartida só vai para o storage quando a config a oferece:
       // um lote simples continua serializando exatamente como antes.
       ...(ofereceContrapartida(config)
@@ -1039,13 +1063,22 @@ export function NovaMovimentacaoForm({
     errosRef.current?.scrollIntoView({ block: 'nearest' })
   }, [erros])
 
-  function reiniciar() {
+  // MOV-10 — `opts?.manterConfig` é o "Registrar outro lote com os mesmos
+  // campos" do painel de sucesso: o lote (itens), a contrapartida, os erros e
+  // o rascunho SEMPRE são zerados (é lote NOVO — os ativos do lote anterior já
+  // foram registrados, repeti-los duplicaria a movimentação); só `config` e
+  // `statusResultante` sobrevivem quando pedido. Chamada sem argumento
+  // continua o "do zero" de sempre — `onReiniciar={reiniciar}` no JSX abaixo
+  // não precisa mudar.
+  function reiniciar(opts?: { manterConfig?: boolean }) {
     setItens([])
-    setConfig(configPadrao())
+    if (!opts?.manterConfig) {
+      setConfig(configPadrao())
+      setStatusResultante('')
+    }
     setContrapartida(contrapartidaPadrao())
     // Lote do zero: esta montagem deixa de ser "a metade que faltava", e o
     // atalho volta a valer para uma troca nova que o operador adie.
-    setStatusResultante('')
     setErros([])
     setErrosPorAtivo({})
     setJaRegistrados([])
@@ -1101,6 +1134,26 @@ export function NovaMovimentacaoForm({
     ? `Seção "${rotuloTipo(tipoContrapartida(config.tipo) ?? 'saida')} da troca" disponível no passo Movimentação: registre a outra metade da troca junto, ou marque "Deixar a contrapartida para depois".`
     : ''
 
+  // MOV-11 — o banner do rascunho ganha QUAIS ativos, de que TIPO e QUANDO.
+  // As três pontas são OPCIONAIS por natureza (`Rascunho`): rascunho salvo
+  // antes desta fase não tem `patrimonios`/`tipo`/`salvoEm`, e o resultado
+  // vazio faz o trecho correspondente simplesmente não renderizar — fallback
+  // obrigatório para o texto de hoje (só a contagem), nunca "undefined".
+  const patrimoniosRascunho = rascunhoPendente?.patrimonios ?? []
+  const resumoPatrimoniosRascunho =
+    patrimoniosRascunho.length > 0
+      ? patrimoniosRascunho
+          .slice(0, 2)
+          .map((p) => p || 'sem patrimônio')
+          .join(', ') + (patrimoniosRascunho.length > 2 ? '…' : '')
+      : ''
+  const tipoRascunho = rascunhoPendente?.tipo
+  const resumoTipoRascunho =
+    tipoRascunho && ehTipoMovimentacao(tipoRascunho) ? rotuloTipo(tipoRascunho) : ''
+  const resumoTempoRascunho = rascunhoPendente?.salvoEm
+    ? formatTempoRelativo(rascunhoPendente.salvoEm, agoraRascunho)
+    : ''
+
   return (
     <div onKeyDown={onKeyDown} className="space-y-6">
       <p role="status" className="sr-only">
@@ -1133,7 +1186,10 @@ export function NovaMovimentacaoForm({
             <span className="font-medium tabular-nums">
               {rascunhoPendente.ids.length}
             </span>{' '}
-            {rascunhoPendente.ids.length === 1 ? 'ativo' : 'ativos'}.
+            {rascunhoPendente.ids.length === 1 ? 'ativo' : 'ativos'}
+            {resumoPatrimoniosRascunho && ` (${resumoPatrimoniosRascunho})`}
+            {resumoTipoRascunho && ` · ${resumoTipoRascunho}`}
+            {resumoTempoRascunho && ` · salvo ${resumoTempoRascunho}`}.
           </p>
           <span className="flex gap-2">
             <Button
@@ -1221,6 +1277,8 @@ export function NovaMovimentacaoForm({
           naOutraMetade={naOutraMetade}
           jaAdicionados={jaAdicionados}
           comandoRef={comandoRef}
+          papel={papel}
+          filiaisEscrita={filiaisEscrita}
           onAdicionar={adicionar}
           onAdicionarVarios={adicionarVarios}
           onRemover={remover}
@@ -1239,6 +1297,8 @@ export function NovaMovimentacaoForm({
           errosPorAtivo={errosPorAtivo}
           jaRegistrados={jaRegistrados}
           filiais={filiais}
+          papel={papel}
+          filiaisEscrita={filiaisEscrita}
           ultimaMov={ultimaMov}
           kits={kits}
           kitAplicado={kitAplicado}
@@ -1266,6 +1326,7 @@ export function NovaMovimentacaoForm({
         <PassoRevisao
           itens={itens}
           config={config}
+          statusResultante={statusResultante}
           contrapartida={contrapartida}
           filiais={filiais}
           motivos={motivos}

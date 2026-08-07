@@ -262,3 +262,46 @@ describe('desserializarRascunho — a contrapartida (F26)', () => {
     expect(r.contrapartida!.ids).toEqual([ID3])
   })
 })
+
+// F28/MOV-11 — o snapshot que alimenta o banner "lote não registrado" (quais
+// patrimônios, de que tipo, salvo quando). O requisito mais importante deste
+// bloco é o PRIMEIRO teste, no mesmo molde da F26: um rascunho gravado ANTES
+// desta fase (o `bruto()` de sempre, sem as três chaves) restaura sem erro.
+describe('desserializarRascunho — o resumo do banner (F28/MOV-11)', () => {
+  it('rascunho antigo sem as chaves novas restaura sem erro, campos vazios', () => {
+    const r = desserializarRascunho(bruto())!
+    expect(r).not.toBeNull()
+    expect(r.ids).toEqual([ID1, ID2])
+    expect(r.patrimonios).toEqual([])
+    expect(r.tipo).toBe('')
+    expect(r.salvoEm).toBe('')
+  })
+
+  it('snapshot completo (patrimônios, tipo e salvoEm) volta inteiro', () => {
+    const r = desserializarRascunho(
+      bruto({
+        patrimonios: ['WAP0001234', 'WAP0001250', ''],
+        tipo: 'saida',
+        salvoEm: '2026-08-07T12:00:00.000Z',
+      }),
+    )!
+    expect(r.patrimonios).toEqual(['WAP0001234', 'WAP0001250', ''])
+    expect(r.tipo).toBe('saida')
+    expect(r.salvoEm).toBe('2026-08-07T12:00:00.000Z')
+  })
+
+  it('lixo nos campos novos é saneado, sem derrubar o rascunho', () => {
+    const r = desserializarRascunho(
+      bruto({
+        // Número dentro do array de patrimônios (sessionStorage adulterado) e
+        // `salvoEm` que não é ISO: nenhum dos dois pode lançar — a validação
+        // de formato de data é do RENDER (formatTempoRelativo), não daqui.
+        patrimonios: ['WAP0001234', 42, null],
+        salvoEm: 'ontem à noite',
+      }),
+    )!
+    expect(r).not.toBeNull()
+    expect(r.patrimonios).toEqual(['WAP0001234'])
+    expect(r.salvoEm).toBe('ontem à noite')
+  })
+})

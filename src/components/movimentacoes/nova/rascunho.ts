@@ -49,6 +49,16 @@ export type Rascunho = {
   statusResultante: string
   passo: number
   contrapartida?: RascunhoContrapartida
+  // F28/MOV-11 — snapshot para o banner "lote não registrado" dizer QUAIS
+  // ativos, de que TIPO e QUANDO — não só a contagem. Os três são OPCIONAIS e
+  // saneados com as MESMAS funções defensivas do resto do módulo
+  // (`listaDeTexto`/`texto`): um rascunho gravado ANTES desta fase não tem
+  // estas chaves e tem de restaurar sem erro (ver rascunho.test.ts).
+  // `patrimonios` guarda string vazia para o ativo SEM plaqueta — é o mesmo
+  // sentinela que `sanearConfig` já usa para "sem valor" nos outros campos.
+  patrimonios?: string[]
+  tipo?: string
+  salvoEm?: string
 }
 
 function texto(v: unknown): string {
@@ -161,6 +171,12 @@ export function desserializarRascunho(bruto: string | null): Rascunho | null {
     // Chave AUSENTE quando nao ha par: assim o rascunho novo de um lote simples
     // continua serializando exatamente como o antigo.
     ...(contrapartida ? { contrapartida } : {}),
+    // F28/MOV-11 — ausentes (rascunho antigo) caem no vazio de `listaDeTexto`/
+    // `texto`: array vazio, string vazia. O banner trata isso como "nada a
+    // mostrar" e cai no texto de hoje (só a contagem) — nunca "undefined".
+    patrimonios: listaDeTexto(r.patrimonios),
+    tipo: texto(r.tipo),
+    salvoEm: texto(r.salvoEm),
   }
 }
 
