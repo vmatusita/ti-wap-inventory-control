@@ -3819,3 +3819,67 @@ Revisão de recall sobre o diff inteiro da F24. Os achados de UI/queries foram c
 - **Decisão:** mover a chamada para dentro da função async imediatamente invocada, que já existia logo abaixo.
 - **Motivo:** o corpo de uma função async roda de forma **síncrona até o primeiro `await`**, então o indicador acende no mesmo tick e a janela protegida é exatamente a mesma — sem cascata de render. O aviso continua **não-bloqueante**: o clique no botão nunca foi gateado, só o atalho de teclado, e só enquanto a consulta não responde.
 - **Reversível?** sim — duas linhas.
+
+## 2026-08-07 · F27 · Revisão adversarial — os 3 achados que sobreviveram (e o que eles corrigem nas atas acima)
+
+Seis lentes independentes (checklist dos 26 itens, correção, segurança/modelo de acesso, escopo,
+a11y/UX, docs/ajuda) leram o diff congelado `c5124f8..HEAD`. **3 achados brutos, 3 sobreviveram**
+à refutação (cada um passou por um cético mandado derrubá-lo e por um revisor independente).
+Nenhum foi refutado — o que é incomum e se explica por serem todos verificáveis por leitura direta.
+
+### 1. ADM-07 tinha alcançado só DUAS das três telas (média)
+
+- **Contexto:** a ata "ADM-07" acima, o `RELATORIO-F27.md` e a mensagem do commit `21a376c`
+  afirmavam que a dica foi aplicada **nas três telas**. O código não sustentava: `grep` de
+  `dicaConfirmacaoNaoConfere` devolvia só `importar-wizard.tsx` e `apagar-usuario-dialog.tsx`.
+  A **Zona destrutiva** (`dialogo-destrutivo.tsx`) — o diálogo ÚNICO por onde passam as sete
+  ferramentas irreversíveis — ficou de fora. O próprio docstring do helper admitia o recorte
+  ("nas duas telas que esta fase toca"), contradizendo o relatório que o acompanhava.
+- **Cenário:** o dev preenche a justificativa (10+ caracteres, a dica dela some), digita a
+  confirmação com **um caractere errado** e o botão "Apagar"/"Executar" fica desabilitado e
+  **mudo** — exatamente o sintoma que o item ADM-07 existe para eliminar, e justo na área mais
+  perigosa do sistema.
+- **Decisão:** aplicar a dica também em `dialogo-destrutivo.tsx`, reaproveitando o `confere` que
+  já era calculado ali (`confirmacaoConfere`, trim+caixa) e só alimentava o `disabled`. Mesmo
+  markup das outras duas: `aria-invalid`, `aria-describedby` e `<p role="alert">`. A **régua não
+  mudou** (as RPCs `0082`/`0083` já toleram caixa/espaço nas duas camadas). O docstring do helper
+  foi corrigido para "nas TRÊS telas".
+- **Motivo:** sem isso o item estava fechado só no papel, e a ata acima estaria mentindo — num
+  arquivo cujo cabeçalho o descreve como rastro de auditoria.
+- **Reversível?** sim.
+
+### 2. MOV-07 estava consertado em UM caminho; o mesmo defeito vivia em outros três (média)
+
+- **Contexto:** a ordem cita o MOV-07 nas linhas do `repetirUltima()`, e foi só lá que o conserto
+  entrou. A revisão encontrou o **mesmo padrão** em três irmãos do mesmo arquivo, nenhum tocado
+  pela fase, todos zerando **só** `tipo` e deixando `motivo`/`termo`/`termoData` do tipo antigo:
+  o clamp do `?duplicar=` (`:144`), o `restaurarRascunho()` (`:637`) e o `ajustarTipoPara()`
+  (`:364`, disparado quando um ativo novo estreita a interseção de tipos).
+- **Decisão:** generalizar a decisão para uma constante única — `CAMPOS_DO_TIPO_VAZIOS`, no mesmo
+  módulo puro do `camposDaRepeticao` — e aplicá-la nos quatro pontos. Três casos de teste novos,
+  entre eles um que trava a constante **não** ser a mesma referência devolvida pela função (quem
+  espalha não pode corromper a fonte).
+- **Motivo:** é **extensão além da linha citada pela ordem**, e a escolha foi consciente: o dano
+  que o item descreve ("motivo incoerente com o tipo, invisível na tela, porque o Zod só exige
+  `min(1)` e ninguém checa `aplica_a`") acontece **igual** pelos três caminhos. Fechar só o
+  primeiro deixaria o item cosmeticamente resolvido e o defeito vivo pelos caminhos mais comuns
+  — "duplicar" e restaurar rascunho são rotina. O custo foi de minutos e reusa código já testado.
+  Escolhi **não** mexer no `trocarTipo` (a alternativa "mais central" que a revisão sugeriu):
+  ali o tipo cai por **escolha do operador**, não por invalidez, e limpar o termo que ele acabou
+  de digitar seria regressão, não conserto.
+- **Reversível?** sim — uma constante e três `spread`.
+
+### 3. As atas e o relatório diziam que o "Close" morto tinha ficado (baixa)
+
+- **Contexto:** a ata "UXG-02" acima registrou, como "não feito de propósito", o segundo `"Close"`
+  do `DialogFooter` (texto visível, atrás de `showCloseButton`, cujo default é `false` e que hoje
+  tem **0 chamadores**), e o `RELATORIO-F27.md` o listou no backlog. Depois disso, ainda na mesma
+  sessão, ele **foi corrigido** para "Fechar" — e nenhum dos dois registros foi atualizado.
+- **Decisão:** manter o conserto e corrigir os registros — esta entrada **revisa** a anterior (o
+  cabeçalho deste arquivo manda nunca apagar entradas, só acrescentar), e o item saiu do backlog
+  do relatório.
+- **Motivo:** o prop está dormente, não morto: o primeiro chamador que passasse `showCloseButton`
+  renderizaria inglês numa UI 100% pt-BR, e o defeito nasceria longe daquele arquivo. Como
+  `dialog.tsx` já estava aberto pelo próprio UXG-02 ("modais falam pt-BR"), corrigir custou uma
+  palavra. O que estava errado não era o conserto — era a ata tê-lo descrito como omissão.
+- **Reversível?** sim.

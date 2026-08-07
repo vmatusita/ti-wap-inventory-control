@@ -122,9 +122,13 @@ function DialogFooter({
       {...props}
     >
       {children}
+      {/* UXG-02 — o rótulo também é pt-BR. Hoje nenhum chamador passa
+          `showCloseButton` (o default é `false`), mas deixar "Close" aqui é uma
+          armadilha: o primeiro que usar o prop renderiza inglês numa UI 100%
+          pt-BR, e o defeito nasceria longe deste arquivo. */}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">Fechar</Button>
         </DialogPrimitive.Close>
       )}
     </div>

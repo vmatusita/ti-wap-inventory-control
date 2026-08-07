@@ -6,7 +6,7 @@
  * conta (`apagar-usuario-dialog.tsx`) e a Zona destrutiva (`validators/dev-destrutivo.ts`
  * + `DialogoDestrutivo`) — e NENHUMA delas dizia por que o botão continuava desabilitado
  * quando o texto digitado não batia ("linhares" ≠ "Linhares" no import, sem explicação
- * nenhuma). O texto da dica agora é um só, nas duas telas que esta fase toca.
+ * nenhuma). O texto da dica agora é um só, nas TRÊS telas.
  *
  * ⚠ A régua de "o que conta como igual" continua em CADA TELA, de propósito — não foi
  * unificada, só a MENSAGEM:

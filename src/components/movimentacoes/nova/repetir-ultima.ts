@@ -19,13 +19,32 @@ export type CamposDaRepeticao = {
   termoData: string
 }
 
+/**
+ * Os três campos do TIPO, zerados.
+ *
+ * Vale sempre que o tipo cai por INVALIDEZ — nunca por escolha do operador. São quatro
+ * caminhos irmãos, e o defeito era o mesmo nos quatro (achado da revisão adversarial da
+ * F27, que encontrou os três últimos ainda abertos depois do conserto do primeiro):
+ *   1. "repetir última" com um tipo que não serve para o lote atual;
+ *   2. `?duplicar=` cujo tipo não vale para o ativo de origem;
+ *   3. rascunho que dormiu enquanto outro operador mexia no estado do ativo;
+ *   4. ativo acrescentado ao lote que estreita a interseção de tipos.
+ * Em todos, o tipo é zerado para o operador escolher outro — e deixar motivo/termo/
+ * termoData do tipo ANTIGO no formulário grava algo incoerente e invisível na tela.
+ */
+export const CAMPOS_DO_TIPO_VAZIOS: CamposDaRepeticao = {
+  motivo: '',
+  termo: '',
+  termoData: '',
+}
+
 export function camposDaRepeticao(
   ultima: Pick<UltimaMovimentacaoUsuario, 'motivo' | 'termo_assinado' | 'termo_data'>,
   tipoValido: boolean,
 ): CamposDaRepeticao {
   // Tipo não vale mais: os três ficam vazios (o toast.warning que o chamador
   // já dispara avisa o operador — aqui é só a decisão de o que NÃO aplicar).
-  if (!tipoValido) return { motivo: '', termo: '', termoData: '' }
+  if (!tipoValido) return { ...CAMPOS_DO_TIPO_VAZIOS }
   return {
     motivo: ultima.motivo ?? '',
     termo: ultima.termo_assinado ?? '',

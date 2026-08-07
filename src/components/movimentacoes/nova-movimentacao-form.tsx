@@ -40,7 +40,10 @@ import {
   type Rascunho,
 } from '@/components/movimentacoes/nova/rascunho'
 import { decidirAplicacaoKit } from '@/components/movimentacoes/nova/aplicar-kit'
-import { camposDaRepeticao } from '@/components/movimentacoes/nova/repetir-ultima'
+import {
+  CAMPOS_DO_TIPO_VAZIOS,
+  camposDaRepeticao,
+} from '@/components/movimentacoes/nova/repetir-ultima'
 import { checklistCategoriasDoKit } from '@/lib/validators/kit'
 import {
   buscarResumoDeAtivosPorIds,
@@ -136,12 +139,14 @@ export function NovaMovimentacaoForm({
   const [config, setConfig] = useState<Config>(() => {
     const c = configPadrao(configInicial)
     // Clampa o tipo inicial (vindo de "duplicar") ao que e valido para o ativo.
+    // MOV-07 — os campos DO TIPO caem junto: sem isto, o motivo/termo da
+    // movimentação duplicada sobrevivia a um tipo que foi zerado por invalidez.
     if (
       ativoInicial &&
       c.tipo &&
       !tiposDoLote([ativoInicial.status]).includes(c.tipo)
     ) {
-      c.tipo = ''
+      Object.assign(c, { tipo: '' }, CAMPOS_DO_TIPO_VAZIOS)
     }
     return c
   })
@@ -360,8 +365,12 @@ export function NovaMovimentacaoForm({
     const tipoAtual = config.tipo
     const validos = tiposDoLote(lista.map((i) => i.status))
     if (!tipoAtual || validos.includes(tipoAtual)) return false
+    // MOV-07 — o tipo cai porque o ativo que entrou estreitou a interseção; os
+    // campos DO TIPO caem com ele (senão o motivo do tipo antigo fica no lote).
     setConfig((c) =>
-      c.tipo && !validos.includes(c.tipo) ? { ...c, tipo: '' } : c,
+      c.tipo && !validos.includes(c.tipo)
+        ? { ...c, tipo: '', ...CAMPOS_DO_TIPO_VAZIOS }
+        : c,
     )
     // F26 — sem tipo não há par: a seção some, e o estado dela vai junto.
     setContrapartida(contrapartidaPadrao())
@@ -634,7 +643,9 @@ export function NovaMovimentacaoForm({
         toast.warning(
           `O tipo "${rotuloTipo(cfg.tipo)}" não vale mais para estes ativos — escolha outro.`,
         )
-        cfg = { ...cfg, tipo: '' }
+        // MOV-07 — os campos DO TIPO caem junto com ele: o rascunho dormiu, o
+        // estado do ativo mudou, e o motivo salvo pertence ao tipo que caiu.
+        cfg = { ...cfg, tipo: '', ...CAMPOS_DO_TIPO_VAZIOS }
       }
 
       // F26 — a metade oposta passa pela MESMA re-checagem, com o tipo DELA.

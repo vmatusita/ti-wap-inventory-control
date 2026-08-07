@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { camposDaRepeticao } from '@/components/movimentacoes/nova/repetir-ultima'
+import {
+  CAMPOS_DO_TIPO_VAZIOS,
+  camposDaRepeticao,
+} from '@/components/movimentacoes/nova/repetir-ultima'
 import type { UltimaMovimentacaoUsuario } from '@/lib/queries/movimentacoes'
 
 // "Repetir última" no passo 2 (MOV-07). Dados 100% fictícios (CLAUDE.md).
@@ -46,5 +49,26 @@ describe('camposDaRepeticao — tipo NÃO vale mais para os ativos atuais', () =
     const c = camposDaRepeticao(ULTIMA, false)
     expect(c.motivo).not.toBe(ULTIMA.motivo)
     expect(c.motivo).toBe('')
+  })
+})
+
+// A revisão adversarial da F27 achou o mesmo defeito em outros TRÊS caminhos em
+// que o tipo cai por invalidez ("duplicar", restaurar rascunho e o ativo que
+// estreita a interseção). A constante abaixo é a fonte única desses três campos.
+describe('CAMPOS_DO_TIPO_VAZIOS — fonte única dos campos que caem com o tipo', () => {
+  it('zera exatamente motivo, termo e termoData', () => {
+    expect(CAMPOS_DO_TIPO_VAZIOS).toEqual({ motivo: '', termo: '', termoData: '' })
+  })
+
+  it('é o mesmo conteúdo que `camposDaRepeticao` devolve com tipo inválido', () => {
+    expect(camposDaRepeticao(ULTIMA, false)).toEqual(CAMPOS_DO_TIPO_VAZIOS)
+  })
+
+  it('não é a MESMA referência devolvida pela função — quem espalha não a corrompe', () => {
+    // `camposDaRepeticao` devolve uma cópia; os três chamadores do formulário
+    // fazem `{ ...c, tipo: '', ...CAMPOS_DO_TIPO_VAZIOS }`. Se a função
+    // devolvesse a própria constante, uma mutação acidental num chamador
+    // contaminaria os outros três em silêncio.
+    expect(camposDaRepeticao(ULTIMA, false)).not.toBe(CAMPOS_DO_TIPO_VAZIOS)
   })
 })
