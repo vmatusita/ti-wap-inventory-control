@@ -29,6 +29,10 @@ export type AtivoLista = {
   colaborador_atual: string | null
   filial_nome: string
   updated_at: string
+  // ATV-02 — texto livre da pendência (campo `ativos.pendencia`), NÃO tratada
+  // aqui: '' e null convivem no banco, e é a UI/filtro que decide o que conta
+  // como "com pendência" (ver `comPendencia` em `aplicarFiltrosAtivos`).
+  pendencia: string | null
 }
 
 export type ListarAtivosParams = {
@@ -41,6 +45,10 @@ export type ListarAtivosParams = {
   status?: StatusAtivo[]
   // Só ativos sem patrimônio físico (pendência 'sem patrimônio físico' — F7E).
   semPatrimonio?: boolean
+  // ATV-02 — só ativos com `pendencia` preenchida (texto livre não nulo e não
+  // vazio). Um `''` gravado no banco não deveria acender o alerta — ver a nota
+  // em `aplicarFiltrosAtivos`.
+  comPendencia?: boolean
   page?: number
   // F11/T7 — 25/50/100. Valor fora da lista cai no `PAGE_SIZE` (a validação é
   // aqui de propósito: a query é a última linha antes do `range()`).
@@ -98,6 +106,9 @@ type BuilderAtivos = {
   // `filial_id` passa números (smallint).
   in(coluna: string, valores: readonly (string | number)[]): BuilderAtivos
   is(coluna: string, valor: null): BuilderAtivos
+  // ATV-02 — nega um filtro do PostgREST (`not.is.null`, `not.eq.`…), no mesmo
+  // formato de `queries/pendencias-detalhe.ts` e `queries/movimentacoes.ts`.
+  not(coluna: string, operador: string, valor: string | null): BuilderAtivos
 }
 
 // Filtros da lista de ativos — FONTE ÚNICA (tela + export CSV, que chama a MESMA
@@ -127,6 +138,13 @@ function aplicarFiltrosAtivos<T>(query: T, params: ListarAtivosParams): T {
     q = q.in('status', params.status)
   }
   if (params.semPatrimonio) q = q.is('patrimonio', null)
+  // ATV-02 — "com pendência" é não-nulo E não-vazio: o import grava `''` em
+  // alguns fluxos e isso não é uma pendência de verdade (decisão registrada em
+  // docs/DECISOES.md). Os dois `.not()` combinam em AND, como os demais
+  // filtros deste builder.
+  if (params.comPendencia) {
+    q = q.not('pendencia', 'is', null).not('pendencia', 'eq', '')
+  }
   return q as unknown as T
 }
 
@@ -141,7 +159,7 @@ function queryLista(
   let query = supabase
     .from('ativos')
     .select(
-      'id, patrimonio, service_tag, categoria, marca, modelo, status, colaborador_atual, updated_at, filiais(slug, nome)',
+      'id, patrimonio, service_tag, categoria, marca, modelo, status, colaborador_atual, updated_at, pendencia, filiais(slug, nome)',
       { count: 'exact', head },
     )
 
@@ -225,6 +243,7 @@ export async function listarAtivos(
       colaborador_atual: r.colaborador_atual,
       filial_nome: filial?.nome ?? '—',
       updated_at: r.updated_at,
+      pendencia: r.pendencia,
     }
   })
 
@@ -495,10 +514,13 @@ export type LinhaExportAtivo = {
   status: StatusAtivo
   colaborador_atual: string | null
   setor_atual: string | null
+  // ATV-02 — exposta para o CSV; falta só a coluna "Pendência" em
+  // `COLUNAS_ATIVOS` (src/lib/actions/exportar.ts, arquivo do orquestrador).
+  pendencia: string | null
 }
 
 const EXPORT_SELECT =
-  'patrimonio, service_tag, hostname, categoria, marca, modelo, telefone, imei, pulsus, status, colaborador_atual, setor_atual, filiais(slug, nome)'
+  'patrimonio, service_tag, hostname, categoria, marca, modelo, telefone, imei, pulsus, status, colaborador_atual, setor_atual, pendencia, filiais(slug, nome)'
 
 // Tamanho do bloco de leitura. O Max Rows do PostgREST (default 1.000 no
 // Supabase) corta requests maiores EM SILÊNCIO — pedir 5.000 de uma vez devolve
@@ -519,6 +541,7 @@ type RawExportRow = {
   status: StatusAtivo
   colaborador_atual: string | null
   setor_atual: string | null
+  pendencia: string | null
   filiais: FilialEmbed
 }
 
@@ -578,6 +601,7 @@ export async function listarAtivosParaExport(
         status: r.status,
         colaborador_atual: r.colaborador_atual,
         setor_atual: r.setor_atual,
+        pendencia: r.pendencia,
       })
     }
 

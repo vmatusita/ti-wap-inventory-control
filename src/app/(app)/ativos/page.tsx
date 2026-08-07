@@ -28,6 +28,7 @@ import { resolverFiliaisIds } from '@/lib/filtros/filial'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
+import { AtivosVisoesRapidas } from '@/components/ativos/ativos-visoes-rapidas'
 import { LembrarLista } from '@/components/ativos/lembrar-lista'
 import { AtivosTable } from '@/components/ativos/ativos-table'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
@@ -81,6 +82,9 @@ export default async function AtivosPage({
   const page = paginaNumerica(texto(sp.page))
 
   const semPatrimonio = texto(sp.semPatrimonio) === '1'
+  // ATV-02 — doutrina de `url-params.ts`: só '1' vale, qualquer outra coisa é
+  // ignorada (nunca derruba o Server Component).
+  const comPendencia = texto(sp.comPendencia) === '1'
 
   // F11/T7 — ordenação e tamanho de página vêm da URL. Param torto é IGNORADO
   // (cai no default `updated_at desc` / 50 por página), nunca derruba a tela.
@@ -114,7 +118,7 @@ export default async function AtivosPage({
   // função). Usar a lista RESOLVIDA aqui faria isto ser SEMPRE true para o operador,
   // porque o padrão do cargo nunca é vazio.
   const temFiltro =
-    Boolean(q || categoria || status.length > 0 || semPatrimonio) ||
+    Boolean(q || categoria || status.length > 0 || semPatrimonio || comPendencia) ||
     ehFiltroDeFilial(texto(sp.filial))
 
   // ⚠ ...e por isso `temFiltro` NÃO decide se a tela pode afirmar uma verdade
@@ -176,6 +180,7 @@ export default async function AtivosPage({
     categoria,
     status,
     semPatrimonio,
+    comPendencia,
     page,
     pageSize,
     ordenacao,
@@ -218,6 +223,15 @@ export default async function AtivosPage({
 
       <AtivosFiltros filiais={filiais} filiaisSelecionadas={filialIds.map(String)} />
 
+      {/* ATV-12 — visões prontas (Em manutenção · Em estoque · Sem patrimônio ·
+          Com pendência), acima da tabela. Fica visível mesmo na lista vazia:
+          é navegação para OUTRA visão, não um dado desta consulta. */}
+      <AtivosVisoesRapidas
+        status={status}
+        semPatrimonio={semPatrimonio}
+        comPendencia={comPendencia}
+      />
+
       {resultado.rows.length === 0 ? (
         // F19 — `resultado.total === 0` além do `!temFiltro` porque `?page=9` sem
         // filtro traz zero linhas com base cheia e cairia no texto errado.
@@ -244,10 +258,7 @@ export default async function AtivosPage({
         )
       ) : (
         <>
-          <AtivosTable
-            rows={resultado.rows}
-            showServiceTag={resultado.patrimoniosDuplicados.size > 0}
-          />
+          <AtivosTable rows={resultado.rows} duplicados={resultado.patrimoniosDuplicados} />
           <AtivosPaginacao
             page={resultado.page}
             pageSize={resultado.pageSize}

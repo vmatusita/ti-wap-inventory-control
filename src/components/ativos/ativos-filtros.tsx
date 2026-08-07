@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Search, SlidersHorizontal, Tag, X } from 'lucide-react'
+import { Search, SlidersHorizontal, Tag, TriangleAlert, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -54,6 +54,7 @@ export function AtivosFiltros({
   const qAtual = params.get('q') ?? ''
   const categoriaAtual = params.get('categoria') ?? ''
   const semPatrimonioAtual = params.get('semPatrimonio') === '1'
+  const comPendenciaAtual = params.get('comPendencia') === '1'
   const statusAtual = (params.get('status') ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -140,7 +141,8 @@ export function AtivosFiltros({
     !!params.get('filial') ||
     !!categoriaAtual ||
     statusAtual.length > 0 ||
-    semPatrimonioAtual
+    semPatrimonioAtual ||
+    comPendenciaAtual
 
   return (
     <div
@@ -246,6 +248,18 @@ export function AtivosFiltros({
       >
         <Tag className="size-4" />
         Sem patrimônio
+      </Button>
+
+      <Button
+        variant={comPendenciaAtual ? 'default' : 'outline'}
+        onClick={() =>
+          aplicar({ comPendencia: comPendenciaAtual ? null : '1' })
+        }
+        aria-pressed={comPendenciaAtual}
+        className="gap-2"
+      >
+        <TriangleAlert className="size-4" />
+        Com pendência
       </Button>
 
       {temFiltro && (

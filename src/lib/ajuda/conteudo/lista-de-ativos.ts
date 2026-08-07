@@ -27,6 +27,9 @@ export const listaDeAtivos: PaginaAjuda = {
     'buscar',
     'sem patrimonio',
     'vazio',
+    'pendencia',
+    'visoes rapidas',
+    'atalho',
   ],
   legado: ['status', 'como-fazer'],
   blocos: [
@@ -38,7 +41,7 @@ export const listaDeAtivos: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'O subtítulo diz quantos ativos existem; no cabeçalho ficam "Exportar CSV" e "Novo equipamento". A tabela mostra "Patrimônio", "Categoria", "Marca / Modelo", "Filial", "Status", "Colaborador" e "Atualizado em" — mais a coluna "Service Tag", que só aparece quando há patrimônio repetido no resultado, justamente para desempatar. Ativo sem plaqueta traz o selo "sem patrimônio"; a linha inteira leva à ficha.',
+        'O subtítulo diz quantos ativos existem; no cabeçalho ficam "Exportar CSV" e "Novo equipamento". A tabela mostra "Patrimônio", "Categoria", "Marca / Modelo", "Filial", "Status", "Colaborador" e "Atualizado em". Quando o patrimônio se repete no resultado, a service tag aparece numa linha menor logo abaixo dele — é o par patrimônio + service tag que desempata os dois cadastros (identidade do equipamento); como não é mais uma coluna à parte, ela aparece em qualquer largura de tela, inclusive no celular. Ativo sem plaqueta traz o selo "sem patrimônio"; a linha inteira leva à ficha. Ativo com pendência registrada mostra um triângulo de alerta ao lado do patrimônio — passe o mouse ou o teclado por cima para ler o texto.',
     },
 
     { tipo: 'titulo', id: 'ativos-filtrar', texto: 'Filtrar e buscar' },
@@ -50,6 +53,8 @@ export const listaDeAtivos: PaginaAjuda = {
         'O botão "Filial" e o botão "Status" abrem um painel de caixas para marcar: dá para marcar mais de uma, e um selo no botão mostra quantas você marcou. Dentro do painel de filial, "Todas as filiais" volta a mostrar tudo. O seletor "Categoria" (opção "Todas categorias") recorta por tipo de equipamento.',
         'Se o seu cargo é Operador, a lista já abre marcando as filiais em que você trabalha — é o começo mais útil para o dia a dia. Administrador, Desenvolvedor e Consulta abrem com todas. Isso vale só quando você chega pela primeira vez: um link que já traz filiais escolhidas abre igual para qualquer pessoa, e "Limpar" devolve a lista ao começo do seu cargo.',
         'O botão "Sem patrimônio" é um interruptor: ligado, mostra só os equipamentos que entraram sem plaqueta.',
+        'O botão "Com pendência" é outro interruptor: ligado, mostra só os equipamentos com alguma pendência registrada — o mesmo texto que aparece no triângulo de alerta ao lado do patrimônio.',
+        'Acima da tabela, quatro chips levam direto a uma visão pronta: "Em manutenção", "Em estoque", "Sem patrimônio" e "Com pendência". Cada um TROCA a tela para aquele recorte — não empilha em cima do filtro que você já tinha montado —, e o chip da visão aberta no momento fica destacado. Eles não carregam a filial que você escolheu: continuam abrindo no recorte do seu cargo, do mesmo jeito que "Limpar" faz.',
         '"Limpar" aparece quando há filtro e volta a lista ao começo, preservando a ordenação e o tamanho de página que você escolheu.',
         'Tudo isso vive no endereço da página: o link copiado abre a mesma tela para quem receber, e voltar/avançar do navegador refaz a consulta. Endereço com valor inválido é ignorado — a lista abre no padrão em vez de dar erro.',
       ],

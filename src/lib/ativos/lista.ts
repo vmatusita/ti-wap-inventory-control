@@ -21,8 +21,11 @@
 //   · `filial_nome` — vem de EMBED (`filiais(nome)`); ordenar por coluna de
 //     tabela relacionada no PostgREST é frágil (depende de o embed ser !inner e
 //     quebra em silêncio quando a relação muda).
-//   · `service_tag` — coluna condicional (só aparece com patrimônio duplicado
-//     na página), cabeçalho que some não é lugar de estado de ordenação.
+//   · `service_tag` — ATV-06: deixou de ser coluna (a coluna condicional que
+//     aparecia e sumia a cada troca de página virou sublinha FIXA da célula de
+//     patrimônio, em `ativos-table.tsx`). Continua fora da whitelist, mas
+//     agora porque não sobrou cabeçalho nenhum para prender um estado de
+//     ordenação — não porque a coluna é condicional.
 //   · `updated_at` — é o default; sem `ord` a lista já vem por ele desc.
 export const COLUNAS_ORDENAVEIS = [
   'patrimonio',

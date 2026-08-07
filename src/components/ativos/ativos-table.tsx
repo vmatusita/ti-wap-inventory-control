@@ -3,7 +3,7 @@
 import { useMemo, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUpDown, TriangleAlert } from 'lucide-react'
 import {
   flexRender,
   getCoreRowModel,
@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Dica } from '@/components/ui/dica'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { CopiarPatrimonio } from '@/components/ativos/copiar-patrimonio'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
@@ -44,17 +45,22 @@ const COL_RESP: Record<string, string> = {
   status: '',
   colaborador_atual: 'hidden sm:table-cell',
   modelo: 'hidden md:table-cell',
-  service_tag: 'hidden lg:table-cell',
   filial_nome: 'hidden lg:table-cell',
   updated_at: 'hidden xl:table-cell',
 }
 
 export function AtivosTable({
   rows,
-  showServiceTag,
+  duplicados,
 }: {
   rows: AtivoLista[]
-  showServiceTag: boolean
+  // ATV-06 — o `resultado.patrimoniosDuplicados` de `listarAtivos` (Set dos
+  // patrimônios que se repetem NA PÁGINA aberta). Antes virava uma coluna
+  // condicional (`showServiceTag: boolean`) que aparecia e sumia a cada troca
+  // de página — e nem aparecia no celular (`hidden lg:table-cell`), onde
+  // desambiguar patrimônio repetido importa mais. Agora decide, LINHA A LINHA,
+  // se a service tag daquela linha vira sublinha do patrimônio.
+  duplicados: ReadonlySet<string>
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -85,43 +91,59 @@ export function AtivosTable({
       {
         accessorKey: 'patrimonio',
         header: 'Patrimônio',
-        cell: ({ row }) => (
-          <span className="flex items-center gap-0.5">
-            <Link
-              href={`/ativos/${row.original.id}`}
-              className="font-medium tabular-nums underline-offset-4 hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {row.original.patrimonio ?? (
-                <Badge
-                  variant="outline"
-                  className="font-normal text-muted-foreground"
+        cell: ({ row }) => {
+          const { patrimonio, service_tag } = row.original
+          // ATV-06 — a service tag vira sublinha SÓ quando o patrimônio desta
+          // LINHA se repete na página (é justamente o par patrimônio+tag que
+          // desambigua — spec §5) e há o que mostrar. Visível em qualquer
+          // largura (sem `hidden …:table-cell`), diferente da antiga coluna.
+          const mostrarServiceTag =
+            patrimonio !== null && duplicados.has(patrimonio) && Boolean(service_tag)
+          return (
+            <span className="flex flex-col gap-0.5">
+              <span className="flex items-center gap-0.5">
+                <Link
+                  href={`/ativos/${row.original.id}`}
+                  className="font-medium tabular-nums underline-offset-4 hover:underline"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  sem patrimônio
-                </Badge>
+                  {patrimonio ?? (
+                    <Badge
+                      variant="outline"
+                      className="font-normal text-muted-foreground"
+                    >
+                      sem patrimônio
+                    </Badge>
+                  )}
+                </Link>
+                {/* Ativo sem patrimônio (F7E) não tem o que copiar. O botão
+                    para a propagação do clique — a LINHA navega por onClick. */}
+                {patrimonio && <CopiarPatrimonio valor={patrimonio} />}
+                {/* ATV-02 — indicador discreto de pendência (texto livre em
+                    `ativos.pendencia`): só o ícone, sem faixa full-width — a
+                    faixa âmbar completa já existe na ficha do ativo. */}
+                {row.original.pendencia && (
+                  <Dica texto={row.original.pendencia}>
+                    <TriangleAlert
+                      aria-hidden
+                      className="size-3.5 shrink-0 text-amber-600 dark:text-amber-500"
+                    />
+                    <span className="sr-only">
+                      Pendência: {row.original.pendencia}
+                    </span>
+                  </Dica>
+                )}
+              </span>
+              {mostrarServiceTag && (
+                <span className="tabular-nums text-xs text-muted-foreground">
+                  {service_tag}
+                </span>
               )}
-            </Link>
-            {/* Ativo sem patrimônio (F7E) não tem o que copiar. O botão para a
-                propagação do clique — a LINHA navega por onClick. */}
-            {row.original.patrimonio && (
-              <CopiarPatrimonio valor={row.original.patrimonio} />
-            )}
-          </span>
-        ),
+            </span>
+          )
+        },
       },
     ]
-
-    if (showServiceTag) {
-      cols.push({
-        accessorKey: 'service_tag',
-        header: 'Service Tag',
-        cell: ({ row }) => (
-          <span className="tabular-nums text-muted-foreground">
-            {row.original.service_tag ?? '—'}
-          </span>
-        ),
-      })
-    }
 
     cols.push(
       {
@@ -168,7 +190,7 @@ export function AtivosTable({
     )
 
     return cols
-  }, [showServiceTag])
+  }, [duplicados])
 
   // TanStack Table retorna funcoes que o React Compiler nao memoiza; aqui a
   // tabela e so de exibicao (paginacao/filtros sao server-side), sem risco.
