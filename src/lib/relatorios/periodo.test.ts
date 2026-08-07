@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { parseISO, differenceInCalendarDays } from 'date-fns'
-import { semanaUtilCorrente, resolverPeriodo } from '@/lib/relatorios/periodo'
+import {
+  semanaUtilCorrente,
+  semanaUtilAnterior,
+  resolverPeriodo,
+  periodoAnterior,
+  periodoInicialDoDialog,
+} from '@/lib/relatorios/periodo'
 
 describe('semanaUtilCorrente', () => {
   it('devolve segunda→sexta da semana que contém a data', () => {
@@ -46,6 +52,124 @@ describe('preset "semana" — semana corrente domingo→sábado (B2/F6B)', () =>
     const r = resolverPeriodo({ preset: 'semana' }, '2027-01-01') // sexta
     expect(r).toMatchObject({ de: '2026-12-27', ate: '2027-01-01', preset: 'semana' })
     expect(parseISO(r.de).getDay()).toBe(0)
+  })
+})
+
+// F29/REL-03 — a variante −1 do preset acima: a semana INTEIRA que fechou
+// (domingo→sábado), toda no passado. `ate` é o sábado, não `hoje`.
+describe('preset "semana-passada" — semana fechada domingo→sábado (F29/REL-03)', () => {
+  it('quarta-feira comum: domingo→sábado da semana anterior', () => {
+    const r = resolverPeriodo({ preset: 'semana-passada' }, '2026-07-15') // quarta
+    expect(r).toMatchObject({
+      de: '2026-07-05',
+      ate: '2026-07-11',
+      preset: 'semana-passada',
+    })
+    expect(r.rotulo).toBe('Semana passada')
+    expect(parseISO(r.de).getDay()).toBe(0) // domingo
+    expect(parseISO(r.ate).getDay()).toBe(6) // sábado
+    expect(differenceInCalendarDays(parseISO(r.ate), parseISO(r.de))).toBe(6)
+  })
+
+  it('domingo: a semana anterior já fechou, e não é a que começa hoje', () => {
+    const r = resolverPeriodo({ preset: 'semana-passada' }, '2026-07-12') // domingo
+    expect(r).toMatchObject({ de: '2026-07-05', ate: '2026-07-11' })
+  })
+
+  it('sábado: continua devolvendo a semana ANTERIOR, não a corrente', () => {
+    const r = resolverPeriodo({ preset: 'semana-passada' }, '2026-07-18') // sábado
+    expect(r).toMatchObject({ de: '2026-07-05', ate: '2026-07-11' })
+  })
+
+  it('virada de mês', () => {
+    const r = resolverPeriodo({ preset: 'semana-passada' }, '2026-08-01') // sábado
+    expect(r).toMatchObject({ de: '2026-07-19', ate: '2026-07-25' })
+  })
+
+  it('virada de ano', () => {
+    const r = resolverPeriodo({ preset: 'semana-passada' }, '2027-01-01') // sexta
+    expect(r).toMatchObject({ de: '2026-12-20', ate: '2026-12-26' })
+  })
+
+  it('o intervalo inteiro fica no passado (nunca inclui hoje)', () => {
+    for (const hoje of ['2026-07-12', '2026-07-15', '2026-07-18', '2027-01-01']) {
+      const r = resolverPeriodo({ preset: 'semana-passada' }, hoje)
+      expect(r.ate < hoje).toBe(true)
+    }
+  })
+})
+
+describe('semanaUtilAnterior (F29/REL-03 — o par seg–sex do dialog)', () => {
+  it('devolve segunda→sexta da semana anterior', () => {
+    const p = semanaUtilAnterior('2026-07-15') // quarta
+    expect(p).toEqual({ de: '2026-07-06', ate: '2026-07-10' })
+    expect(parseISO(p.de).getDay()).toBe(1) // segunda
+    expect(differenceInCalendarDays(parseISO(p.ate), parseISO(p.de))).toBe(4)
+  })
+
+  it('é exatamente uma semana antes de semanaUtilCorrente', () => {
+    for (const hoje of ['2026-07-12', '2026-07-15', '2026-07-18', '2027-01-01']) {
+      const corrente = semanaUtilCorrente(hoje)
+      const anterior = semanaUtilAnterior(hoje)
+      expect(differenceInCalendarDays(parseISO(corrente.de), parseISO(anterior.de))).toBe(7)
+      expect(differenceInCalendarDays(parseISO(corrente.ate), parseISO(anterior.ate))).toBe(7)
+    }
+  })
+
+  // A DUALIDADE de T11, travada: o preset do ao vivo é domingo→sábado; o atalho do
+  // dialog de gerar é segunda→sexta. Se alguém "unificar" por engano, este teste cai.
+  it('difere da janela do preset "semana-passada" — a dualidade é deliberada', () => {
+    const preset = resolverPeriodo({ preset: 'semana-passada' }, '2026-07-15')
+    const dialog = semanaUtilAnterior('2026-07-15')
+    expect(preset.de).toBe('2026-07-05') // domingo
+    expect(dialog.de).toBe('2026-07-06') // segunda
+    expect(preset.ate).toBe('2026-07-11') // sábado
+    expect(dialog.ate).toBe('2026-07-10') // sexta
+  })
+})
+
+describe('periodoAnterior (janela de comparação do Δ dos KPIs)', () => {
+  it('mesma duração, terminando na véspera de `de`', () => {
+    expect(periodoAnterior({ de: '2026-07-12', ate: '2026-07-18' })).toEqual({
+      de: '2026-07-05',
+      ate: '2026-07-11',
+    })
+  })
+
+  it('período de um dia compara com a véspera', () => {
+    expect(periodoAnterior({ de: '2026-07-15', ate: '2026-07-15' })).toEqual({
+      de: '2026-07-14',
+      ate: '2026-07-14',
+    })
+  })
+
+  it('atravessa a virada de ano sem drift', () => {
+    expect(periodoAnterior({ de: '2027-01-01', ate: '2027-01-07' })).toEqual({
+      de: '2026-12-25',
+      ate: '2026-12-31',
+    })
+  })
+})
+
+describe('periodoInicialDoDialog (F29/REL-04b)', () => {
+  const semana = { de: '2026-07-13', ate: '2026-07-17' }
+
+  it('usa o período ativo quando ele cabe no teto', () => {
+    expect(
+      periodoInicialDoDialog({ de: '2026-06-01', ate: '2026-06-30' }, semana, '2026-07-17'),
+    ).toEqual({ de: '2026-06-01', ate: '2026-06-30' })
+  })
+
+  it('recorta o fim ao teto em vez de deixar o botão desabilitado sem explicação', () => {
+    expect(
+      periodoInicialDoDialog({ de: '2026-07-12', ate: '2026-12-31' }, semana, '2026-07-17'),
+    ).toEqual({ de: '2026-07-12', ate: '2026-07-17' })
+  })
+
+  it('volta para a semana útil quando o recorte fica inválido (período no futuro)', () => {
+    expect(
+      periodoInicialDoDialog({ de: '2026-09-01', ate: '2026-09-30' }, semana, '2026-07-17'),
+    ).toEqual(semana)
   })
 })
 

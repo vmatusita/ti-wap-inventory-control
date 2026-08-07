@@ -2,9 +2,11 @@ import {
   parseISO,
   format,
   subDays,
+  subWeeks,
   startOfWeek,
   endOfWeek,
   startOfYear,
+  differenceInCalendarDays,
 } from 'date-fns'
 import { hojeISO } from '@/lib/format'
 import { dataISO } from '@/lib/url-params'
@@ -14,7 +16,13 @@ import { dataISO } from '@/lib/url-params'
 // `hojeISO()` (fuso São Paulo), então não há drift de fuso no servidor (UTC).
 
 export type Periodo = { de: string; ate: string }
-export type PresetPeriodo = 'semana' | '30dias' | 'ano' | 'tudo' | 'custom'
+export type PresetPeriodo =
+  | 'semana'
+  | 'semana-passada'
+  | '30dias'
+  | 'ano'
+  | 'tudo'
+  | 'custom'
 
 // Default do relatório ao vivo (filial e consolidado): semana atual dom–sáb
 // (decisão do Johnny, 16/07/2026 — B2/F6B). Ver `intervaloDoPreset('semana')`.
@@ -33,8 +41,18 @@ export function semanaUtilCorrente(hoje: string = hojeISO()): Periodo {
   return { de: fmt(segunda), ate: fmt(subDays(endOfWeek(base, { weekStartsOn: 1 }), 2)) }
 }
 
+// F29/REL-03 — o par de `semanaUtilCorrente`: segunda a sexta da semana ANTERIOR.
+// É o atalho "Usar semana passada" do dialog "Gerar relatório", e mantém a janela
+// SEG–SEX que aquela superfície sempre usou. Ver a nota de dualidade abaixo.
+export function semanaUtilAnterior(hoje: string = hojeISO()): Periodo {
+  return semanaUtilCorrente(fmt(subWeeks(parseISO(hoje), 1)))
+}
+
 export const PRESETS: { valor: Exclude<PresetPeriodo, 'custom'>; rotulo: string }[] = [
   { valor: 'semana', rotulo: 'Esta semana' },
+  // F29/REL-03 — o recorte mais pedido do relatório semanal: a semana que FECHOU.
+  // Antes exigia "Personalizado" com duas datas na manhã de segunda.
+  { valor: 'semana-passada', rotulo: 'Semana passada' },
   { valor: '30dias', rotulo: 'Últimos 30 dias' },
   { valor: 'ano', rotulo: 'Este ano' },
   { valor: 'tudo', rotulo: 'Tudo' },
@@ -49,6 +67,23 @@ function intervaloDoPreset(preset: Exclude<PresetPeriodo, 'custom'>, hoje: strin
     // presets e deixa o rótulo honesto (sem dias futuros vazios no intervalo).
     case 'semana':
       return { de: fmt(startOfWeek(base, { weekStartsOn: 0 })), ate: hoje }
+    // "Semana passada": a semana INTEIRA anterior, domingo→sábado — a variante −1
+    // da janela do preset acima, e por isso `ate` é o SÁBADO (e não `hoje`): a
+    // semana já fechou, então o intervalo completo está todo no passado e não há
+    // dia futuro vazio para esconder.
+    //
+    // ⚠ DUALIDADE DELIBERADA (decisão aberta T11, que esta fase NÃO resolve): o
+    // relatório AO VIVO conta a semana de domingo a sábado, enquanto o dialog
+    // "Gerar relatório" usa segunda a sexta (`semanaUtilCorrente`/`semanaUtilAnterior`,
+    // o recorte dos e-mails reais). O preset novo HERDA essa dualidade em vez de
+    // arbitrar: cada superfície segue a janela que já usava. Ata em docs/DECISOES.md.
+    case 'semana-passada': {
+      const anterior = subWeeks(base, 1)
+      return {
+        de: fmt(startOfWeek(anterior, { weekStartsOn: 0 })),
+        ate: fmt(endOfWeek(anterior, { weekStartsOn: 0 })),
+      }
+    }
     case '30dias':
       return { de: fmt(subDays(base, 29)), ate: hoje }
     case 'ano':
@@ -92,4 +127,40 @@ export function resolverPeriodo(
   const intervalo = intervaloDoPreset(preset as Exclude<PresetPeriodo, 'custom'>, hoje)
   const rotulo = PRESETS.find((p) => p.valor === preset)?.rotulo ?? 'Esta semana'
   return { ...intervalo, preset, rotulo }
+}
+
+// Período anterior de MESMA duração, terminando na véspera de `de`. É a janela de
+// comparação do Δ dos KPIs (`kpisAnterior`).
+//
+// F29/REL-07 — a função MORAVA em `queries/relatorios/snapshot.ts`, que arrasta o
+// client do Supabase. O Δ passou a mostrar a janela em texto ("Anterior: N
+// (dd/MM–dd/MM)"), e esse texto é montado por um componente de apresentação: se
+// ele recalculasse a janela por conta própria, o rótulo poderia divergir do número
+// sem ninguém perceber. Trazer a função para cá (módulo puro) mantém UMA definição
+// para os dois usos — `snapshot.ts` agora importa daqui.
+export function periodoAnterior(periodo: Periodo): Periodo {
+  const dias = differenceInCalendarDays(parseISO(periodo.ate), parseISO(periodo.de)) + 1
+  return {
+    de: fmt(subDays(parseISO(periodo.de), dias)),
+    ate: fmt(subDays(parseISO(periodo.de), 1)),
+  }
+}
+
+// F29/REL-04b — período com que o dialog "Gerar relatório" ABRE. Antes era sempre a
+// semana útil corrente, mesmo com o operador analisando outro recorte na tela: uma
+// armadilha silenciosa (o snapshot congelava um período diferente do que estava
+// sendo lido). Agora abre com o período ATIVO da página, com duas defesas:
+//   · `ate` nunca passa do teto (a action recusaria "data final no futuro", e o
+//     botão ficaria desabilitado sem explicação);
+//   · se o recorte encolher a ponto de ficar inválido (`de > ate` — acontece com um
+//     período custom inteiramente no futuro), volta para a semana útil, que é o
+//     comportamento de antes desta fase.
+export function periodoInicialDoDialog(
+  periodo: Periodo,
+  semana: Periodo,
+  teto: string,
+): Periodo {
+  const ate = periodo.ate > teto ? teto : periodo.ate
+  if (periodo.de > ate) return semana
+  return { de: periodo.de, ate }
 }

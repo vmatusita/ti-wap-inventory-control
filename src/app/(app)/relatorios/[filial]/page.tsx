@@ -11,7 +11,12 @@ import {
   getSnapshotRelatorioV2,
   resolverFilialPorSlug,
 } from '@/lib/queries/relatorios'
-import { resolverPeriodo, semanaUtilCorrente } from '@/lib/relatorios/periodo'
+import {
+  periodoInicialDoDialog,
+  resolverPeriodo,
+  semanaUtilAnterior,
+  semanaUtilCorrente,
+} from '@/lib/relatorios/periodo'
 import { linksKpiAtivos } from '@/lib/relatorios/kpi-links'
 import { formatDate, hojeISO } from '@/lib/format'
 import { FilialTabs } from '@/components/relatorios/filial-tabs'
@@ -113,9 +118,14 @@ export default async function RelatorioFilialPage({
   ])
 
   const semana = semanaUtilCorrente()
+  const semanaAnterior = semanaUtilAnterior()
   // Teto do dialog "Gerar relatório": hoje ou o fim da semana útil (o maior) —
   // permite a sexta-padrão gerada no meio da semana, barra futuro arbitrário.
   const tetoData = hojeISO() > semana.ate ? hojeISO() : semana.ate
+  // F29/REL-04b — o dialog abre com o período que está NA TELA, não com a semana
+  // corrente fixa: quem analisa junho e clica em "Gerar relatório" congelava julho
+  // sem nada dizer. Os atalhos abaixo devolvem a semana a um clique.
+  const padraoDialog = periodoInicialDoDialog(periodo, semana, tetoData)
 
   return (
     <div className="space-y-4">
@@ -154,8 +164,12 @@ export default async function RelatorioFilialPage({
               filialSlug={filialSlug}
               filialNome={snapshot.meta.filialNome}
               ehGeral={snapshot.meta.ehGeral}
-              padraoDe={semana.de}
-              padraoAte={semana.ate}
+              padraoDe={padraoDialog.de}
+              padraoAte={padraoDialog.ate}
+              semanaDe={semana.de}
+              semanaAte={semana.ate}
+              semanaAnteriorDe={semanaAnterior.de}
+              semanaAnteriorAte={semanaAnterior.ate}
               maxData={tetoData}
             />
           )}

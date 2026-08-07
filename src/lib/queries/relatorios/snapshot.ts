@@ -1,5 +1,4 @@
-import { parseISO, format, differenceInCalendarDays, subDays } from 'date-fns'
-import type { Periodo } from '@/lib/relatorios/periodo'
+import { periodoAnterior, type Periodo } from '@/lib/relatorios/periodo'
 import type { SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { resolverFilialPorSlug, type DbClient } from './comum'
@@ -30,14 +29,10 @@ import { chipManutencaoParada } from '@/lib/relatorios/manutencao-alerta'
 // serializável que a geração de relatório (3.8/3.10) congela.
 // ===========================================================================
 
-// Período anterior de MESMA duração (para o Δ dos KPIs). O comparativo é o
-// estado as-of do último dia do período anterior (véspera de `de`).
-function periodoAnterior(periodo: Periodo): Periodo {
-  const dias = differenceInCalendarDays(parseISO(periodo.ate), parseISO(periodo.de)) + 1
-  const ate = format(subDays(parseISO(periodo.de), 1), 'yyyy-MM-dd')
-  const de = format(subDays(parseISO(periodo.de), dias), 'yyyy-MM-dd')
-  return { de, ate }
-}
+// O período anterior de MESMA duração (comparativo do Δ dos KPIs: o estado as-of do
+// último dia do período anterior, véspera de `de`) mora em `lib/relatorios/periodo.ts`
+// desde a F29 — o rótulo do Δ na tela precisa da MESMA janela que o número, e aquele
+// módulo é puro, importável por componente de apresentação.
 
 // Monta o SnapshotRelatorio schema 2 (serializável, congelável).
 export async function getSnapshotRelatorioV2(

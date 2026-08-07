@@ -8,8 +8,13 @@ import { traduzErroBanco } from '@/lib/actions/erros'
 import { formatDate, hojeISO } from '@/lib/format'
 import { semanaUtilCorrente } from '@/lib/relatorios/periodo'
 import {
+  ehViolacaoDeVersao,
+  type VersaoExistente,
+} from '@/lib/relatorios/versao-snapshot'
+import {
   getSnapshotRelatorioV2,
   resolverFilialPorSlug,
+  type DbClient,
 } from '@/lib/queries/relatorios'
 import { dataRealSchema } from '@/lib/validators/data'
 import type { Json } from '@/lib/types/database'
@@ -97,39 +102,113 @@ export async function gerarRelatorio(input: {
   if (obs) snapshot.meta.observacao = obs
 
   // Versão = max(versao)+1 para o mesmo (período, filial). filial null = geral.
-  let versaoQuery = client
-    .from('relatorios_gerados')
-    .select('versao')
-    .eq('periodo_de', de)
-    .eq('periodo_ate', ate)
-  versaoQuery =
-    filialId === null
-      ? versaoQuery.is('filial_id', null)
-      : versaoQuery.eq('filial_id', filialId)
-  const { data: ultima } = await versaoQuery
-    .order('versao', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  const versao = (ultima?.versao ?? 0) + 1
+  //
+  // F29/REL-04c — a leitura e a inserção são dois passos, e entre eles cabe outro
+  // operador. O empate NÃO produz duplicata: o banco recusa desde a migration 0013
+  // (ver `lib/relatorios/versao-snapshot.ts`). O que se perdia era o trabalho — o
+  // segundo operador levava um erro genérico e o snapshot as-of recém-montado ia
+  // junto. Agora a violação é reconhecida e a versão é RENUMERADA, reaproveitando o
+  // snapshot já pronto (remontá-lo custaria as mesmas consultas de novo).
+  //
+  // O teto de tentativas existe para o laço não virar espera indefinida se algo
+  // além da versão estiver colidindo — 4 cobre com folga qualquer concorrência real
+  // (são poucos operadores clicando num botão semanal).
+  const MAX_TENTATIVAS = 4
+  let ultimoErro: { message?: string; code?: string } | null = null
 
-  const { data: inserido, error } = await client
-    .from('relatorios_gerados')
-    .insert({
-      periodo_de: de,
-      periodo_ate: ate,
-      filial_id: filialId,
-      versao,
-      dados: snapshot as unknown as Json,
-      gerado_por: aut.uid,
-      observacao: obs,
-    })
-    .select('id')
-    .single()
+  for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
+    const versao = (await lerUltimaVersao(client, de, ate, filialId))?.versao ?? 0
+    const proxima = versao + 1
 
-  if (error || !inserido) {
-    return { ok: false, erro: traduzErroBanco(error?.message, error?.code) }
+    const { data: inserido, error } = await client
+      .from('relatorios_gerados')
+      .insert({
+        periodo_de: de,
+        periodo_ate: ate,
+        filial_id: filialId,
+        versao: proxima,
+        dados: snapshot as unknown as Json,
+        gerado_por: aut.uid,
+        observacao: obs,
+      })
+      .select('id')
+      .single()
+
+    if (!error && inserido) {
+      revalidatePath('/relatorios/gerados')
+      return { ok: true, id: inserido.id, versao: proxima }
+    }
+
+    ultimoErro = error ?? null
+    if (!ehViolacaoDeVersao(error?.code, error?.message)) break
   }
 
-  revalidatePath('/relatorios/gerados')
-  return { ok: true, id: inserido.id, versao }
+  if (ultimoErro && ehViolacaoDeVersao(ultimoErro.code, ultimoErro.message)) {
+    return {
+      ok: false,
+      erro:
+        'Outra pessoa gerou este mesmo período agora há pouco. Abra "Relatórios gerados" ' +
+        'para ver a versão mais recente — e gere de novo só se ainda precisar.',
+    }
+  }
+  return { ok: false, erro: traduzErroBanco(ultimoErro?.message, ultimoErro?.code) }
+}
+
+// Última versão gravada para (período, filial). `filial_id` null = consolidado, e
+// no PostgREST isso é `.is(...)`, não `.eq(...)` — o mesmo par que `queries/gerados.ts`
+// usa para achar a versão mais nova de um snapshot aberto.
+async function lerUltimaVersao(
+  client: DbClient,
+  de: string,
+  ate: string,
+  filialId: number | null,
+): Promise<{ versao: number; gerado_em: string; autor: { nome: string | null } | null } | null> {
+  let q = client
+    .from('relatorios_gerados')
+    .select('versao, gerado_em, autor:profiles!relatorios_gerados_gerado_por_fkey(nome)')
+    .eq('periodo_de', de)
+    .eq('periodo_ate', ate)
+  q = filialId === null ? q.is('filial_id', null) : q.eq('filial_id', filialId)
+  const { data } = await q.order('versao', { ascending: false }).limit(1).maybeSingle()
+  return (data as unknown as {
+    versao: number
+    gerado_em: string
+    autor: { nome: string | null } | null
+  } | null) ?? null
+}
+
+// F29/REL-04a — consulta LEVE que responde "este período já tem snapshot?" enquanto
+// o dialog está aberto, para o aviso nascer ANTES do clique e não no toast depois.
+// Só leitura; o cargo mínimo espelha o de `gerarRelatorio` (é o mesmo botão, o mesmo
+// operador) e a resolução de filial é a mesma, para o aviso não falar de outro escopo.
+export async function consultarVersaoDoPeriodo(input: {
+  filialSlug: string
+  de: string
+  ate: string
+}): Promise<VersaoExistente | null> {
+  const parsed = z
+    .object({
+      filialSlug: z.string().min(1),
+      de: dataRealSchema('Data inicial inválida'),
+      ate: dataRealSchema('Data final inválida'),
+    })
+    .safeParse(input)
+  if (!parsed.success) return null
+  const { filialSlug, de, ate } = parsed.data
+
+  const client = await createClient()
+  const aut = await exigirPapel(client, 'operador')
+  if (!aut.ok) return null
+
+  const filial =
+    filialSlug === 'geral' ? null : await resolverFilialPorSlug(client, filialSlug)
+  if (filialSlug !== 'geral' && !filial) return null
+
+  const ultima = await lerUltimaVersao(client, de, ate, filial?.id ?? null)
+  if (!ultima) return null
+  return {
+    versao: ultima.versao,
+    autorNome: ultima.autor?.nome ?? null,
+    geradoEm: ultima.gerado_em,
+  }
 }
