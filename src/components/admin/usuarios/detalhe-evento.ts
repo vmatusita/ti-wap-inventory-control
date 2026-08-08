@@ -44,7 +44,10 @@ const MAX_CRU = 140
 /** Quanto da justificativa cabe na célula antes de virar reticências. */
 const MAX_JUSTIFICATIVA = 90
 
-const ACOES_F23 = new Set([
+// As irreversíveis: as sete da Zona destrutiva (F23) mais a exclusão de conflito entre
+// filiais (F24), que é a única delas fora da /dev. Espelha `ACOES_DESTRUTIVAS`
+// (lib/auditoria.ts) — o que muda aqui é só COMO cada `detalhe` vira frase.
+const ACOES_IRREVERSIVEIS = new Set([
   'ativo_apagado',
   'movimentacao_apagada',
   'item_apagado',
@@ -52,7 +55,23 @@ const ACOES_F23 = new Set([
   'itens_resetados',
   'estado_forcado',
   'saldo_forcado',
+  'conflito_filiais_resolvido',
 ])
+
+/** As filiais que apareciam num grupo de conflito, lidas de `selecionados` (F24). */
+function filiaisDosSelecionados(
+  v: Json | undefined,
+  nomeFilial: (id: number) => string,
+): string | null {
+  if (!Array.isArray(v)) return null
+  const ids = new Set<number>()
+  for (const linha of v) {
+    const o = comoObjeto(linha)
+    const id = numero(o?.filial_id)
+    if (id !== null) ids.add(id)
+  }
+  return ids.size > 0 ? [...ids].map(nomeFilial).join(', ') : null
+}
 
 // Plural explícito, sem regra automática: em pt-BR "movimentação" não vira "movimentaçãos".
 function conta(n: number, singular: string, plural: string): string | null {
@@ -72,7 +91,8 @@ function contagensDoReset(o: Record<string, Json>): string | null {
   return itens.length > 0 ? `apagados: ${itens.join(', ')}` : 'nada a apagar'
 }
 
-// As sete ferramentas destrutivas (F23). A ordem das partes é sempre a mesma: O QUE mudou,
+// As sete ferramentas destrutivas (F23) e a exclusão de conflito entre filiais (F24). A
+// ordem das partes é sempre a mesma: O QUE mudou,
 // QUANTO, e por fim a JUSTIFICATIVA — que é o dado que dá sentido a tudo quando alguém lê a
 // trilha meses depois e o registro original não existe mais.
 function descreverDestrutivo(
@@ -122,6 +142,25 @@ function descreverDestrutivo(
     const delta = numero(o.delta)
     if (de !== null && para !== null) partes.push(`saldo ${de} → ${para}`)
     if (delta !== null) partes.push(`ajuste de ${delta > 0 ? '+' : ''}${delta}`)
+  } else if (acao === 'conflito_filiais_resolvido') {
+    // ⚠ Sem este ramo o evento caía no `else` de `descreverDetalhe`, não achava `papel`
+    // nem `filiais` e terminava no fallback de JSON cru — e o `detalhe` desta ação carrega
+    // `selecionados` e, até 25 ativos, o BACKUP das linhas apagadas: os 140 caracteres
+    // saíam cheios de jsonb, sem a justificativa e sem os números. Mesmo motivo dos ramos
+    // da F23, logo acima.
+    const n = numero(o.ativos)
+    if (n !== null) partes.push(conta(n, 'cadastro apagado', 'cadastros apagados') ?? 'nada apagado')
+    const fil = filiaisDosSelecionados(o.selecionados, nomeFilial)
+    if (fil) partes.push(`Filiais: ${fil}`)
+    const junto = [
+      conta(numero(o.movimentacoes) ?? 0, 'movimentação', 'movimentações'),
+      conta(numero(o.termos) ?? 0, 'termo', 'termos'),
+      conta(numero(o.anotacoes) ?? 0, 'anotação', 'anotações'),
+      conta(numero(o.pendencias_item) ?? 0, 'pendência', 'pendências'),
+    ].filter((x): x is string => x !== null)
+    partes.push(junto.length > 0 ? `levou junto: ${junto.join(', ')}` : 'sem rastro associado')
+    const bp = texto(o.backup_path)
+    if (bp) partes.push(`backup: ${bp}`)
   }
 
   const j = texto(o.justificativa)
@@ -177,8 +216,8 @@ export function descreverDetalhe(
     }
     const correcoes = numero(o.correcoes)
     if (correcoes) partes.push(`${correcoes} correção(ões)`)
-  } else if (ACOES_F23.has(acao)) {
-    // ⚠ Sem estes ramos, os sete verbos da F23 cairiam no fallback de JSON cru — e seria o
+  } else if (ACOES_IRREVERSIVEIS.has(acao)) {
+    // ⚠ Sem estes ramos, os verbos irreversíveis cairiam no fallback de JSON cru — e seria o
     // pior caso possível dele: o `detalhe` destes eventos carrega o BACKUP das linhas
     // apagadas, então os 140 caracteres sairiam cheios do jsonb do backup e a célula não
     // mostraria nem a justificativa nem os números. O backup existe para ser recuperado da

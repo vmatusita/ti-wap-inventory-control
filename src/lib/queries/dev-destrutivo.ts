@@ -61,8 +61,15 @@ export async function buscarAtivosDestrutivo(termo: string): Promise<CandidatoAt
   const t = termo.trim()
   if (t.length < 2) return []
 
-  // `%` e `_` do usuário viram literais — sem isto, um `%` sozinho lista o acervo inteiro.
-  const like = `%${t.replace(/[%_\\]/g, (c) => `\\${c}`)}%`
+  // Metacaracteres do ILIKE **e** do parser do `.or()` do PostgREST, na mesma cobertura de
+  // `pendencias-detalhe.ts`, `itens.ts` e `conflitos.ts` (`* % _ , ( ) \`).
+  //
+  // Escapar só `% _ \` não bastava: `,` `(` `)` são separador e agrupamento do `.or()`, e o
+  // patrimônio é texto livre de até 60 caracteres desde a F7J — buscar por `STF003 (LOC)`
+  // montava um filtro que o PostgREST não parseia (400), e a Zona destrutiva respondia
+  // "Não foi possível buscar agora" para um termo perfeitamente válido. O `*` entra porque
+  // o PostgREST o TRADUZ para `%` no ilike.
+  const like = `%${t.replace(/[%_*,()\\]/g, ' ')}%`
 
   const { data, error } = await supabase
     .from('ativos')

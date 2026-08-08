@@ -37,6 +37,10 @@ export const ACOES_ADMIN = [
   'itens_resetados',
   'estado_forcado',
   'saldo_forcado',
+  // F24 — a ÚNICA exclusão de ativo fora da Zona destrutiva, e a única destas que o nível
+  // administrador (admin OU dev) alcança. Também é gravada DENTRO da RPC
+  // (`apagar_ativos_conflito_filiais`, migrations 0093/0098/0100), na mesma transação.
+  'conflito_filiais_resolvido',
 ] as const
 
 export type AcaoAdmin = (typeof ACOES_ADMIN)[number]
@@ -63,11 +67,17 @@ export const ACAO_ROTULO: Record<AcaoAdmin, string> = {
   itens_resetados: 'Lançamentos de itens resetados',
   estado_forcado: 'Estado do ativo forçado',
   saldo_forcado: 'Saldo de item forçado',
+  conflito_filiais_resolvido: 'Conflito entre filiais resolvido',
 }
 
-// As sete da F23 — a Zona destrutiva. A tela usa isto para dar destaque próprio à linha (uma
-// exclusão irreversível não deve ter o mesmo peso visual de "convite reenviado") e o filtro da
-// aba Auditoria usa para oferecer "só as destrutivas".
+// As que APAGAM ou FORÇAM de forma irreversível: as sete da Zona destrutiva (F23) mais a
+// exclusão de conflito entre filiais (F24), que é a única delas fora da /dev.
+//
+// ⚠ Régua compartilhada e travada por teste — NÃO consumida por nenhuma tela hoje. O
+// comentário anterior afirmava que a trilha destacava estas linhas e que o filtro oferecia
+// "só as destrutivas": nenhuma das duas coisas existe no código. Ficou registrado como
+// pendência em vez de descrito como pronto — comentário que promete UI inexistente faz o
+// leitor concluir que a trilha já separa exclusão irreversível de "convite reenviado".
 export const ACOES_DESTRUTIVAS: readonly AcaoAdmin[] = [
   'ativo_apagado',
   'movimentacao_apagada',
@@ -76,6 +86,7 @@ export const ACOES_DESTRUTIVAS: readonly AcaoAdmin[] = [
   'itens_resetados',
   'estado_forcado',
   'saldo_forcado',
+  'conflito_filiais_resolvido',
 ] as const
 
 export function eAcaoDestrutiva(acao: string): boolean {
@@ -91,4 +102,57 @@ export function eAcaoAdmin(valor: unknown): valor is AcaoAdmin {
 // exibir uma chave feia.
 export function rotuloAcao(acao: string): string {
   return eAcaoAdmin(acao) ? ACAO_ROTULO[acao] : acao
+}
+
+// ---------------------------------------------------------------------------
+// Os RECORTES da trilha (F22) — uma régua só, para a tela e para o CSV
+// ---------------------------------------------------------------------------
+// Estava escrita DUAS vezes: em `queries/eventos-admin.ts` (a tela) e em
+// `app/(app)/dev/acoes-export.ts` (o export). A cópia do export tinha a regex de data com
+// os escapes perdidos (`/^d{4}-d{2}-d{2}$/`, que só casa o literal "dddd-dd-dd"), então os
+// filtros `de`/`ate` eram descartados em silêncio e o arquivo baixava um conjunto de linhas
+// diferente do que a tela mostrava — a "segunda verdade" que os dois arquivos dizem impedir.
+// Mora aqui, no módulo ISOMÓRFICO e puro do vocabulário, porque é aqui que `eAcaoAdmin` já
+// vive e porque assim dá para travar por teste sem carregar o client do Supabase.
+//
+// Valor irreconhecível é IGNORADO (vira null), nunca convertido em lista vazia sem
+// explicação — a mesma regra que o vocabulário de `acao` já seguia.
+
+/** `yyyy-MM-dd`. Só o FORMATO: a existência do dia quem confere é o Postgres. */
+const ISO_DATA = /^\d{4}-\d{2}-\d{2}$/
+
+/** Teto do texto livre (`autor`, `alvo`): o suficiente para um e-mail ou um rótulo. */
+const MAX_TEXTO_FILTRO = 120
+
+export type FiltrosAuditoria = {
+  /** Verbo do vocabulário fechado acima. */
+  acao: string | null
+  /** id do perfil AUTOR (`eventos_admin.autor`). */
+  autor: string | null
+  /** Período por DIA, inclusivo nas duas pontas. */
+  de: string | null
+  ate: string | null
+  /** Busca parcial, sem caixa, na coluna `alvo`. */
+  alvo: string | null
+}
+
+export function sanearFiltrosAuditoria(entrada: {
+  acao?: string | null
+  autor?: string | null
+  de?: string | null
+  ate?: string | null
+  alvo?: string | null
+}): FiltrosAuditoria {
+  const texto = (v: string | null | undefined) => {
+    const t = (v ?? '').trim()
+    return t.length > 0 && t.length <= MAX_TEXTO_FILTRO ? t : null
+  }
+  const data = (v: string | null | undefined) => (v && ISO_DATA.test(v) ? v : null)
+  return {
+    acao: entrada.acao && eAcaoAdmin(entrada.acao) ? entrada.acao : null,
+    autor: texto(entrada.autor),
+    de: data(entrada.de),
+    ate: data(entrada.ate),
+    alvo: texto(entrada.alvo),
+  }
 }

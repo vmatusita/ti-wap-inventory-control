@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { eAcaoAdmin } from '@/lib/auditoria'
+import { sanearFiltrosAuditoria } from '@/lib/auditoria'
 import type { Json } from '@/lib/types/database'
 
 // Leitura da TRILHA de auditoria (F21 — tabela `eventos_admin`, migration 0065). Serve a
@@ -76,8 +76,6 @@ export type FiltrosEventos = {
   alvo?: string | null
 }
 
-const ISO_DATA = /^\d{4}-\d{2}-\d{2}$/
-
 // Da mais recente para a mais antiga. `id` desempata para a paginação ser determinística
 // quando dois eventos caem no mesmo microssegundo (convite + auditoria em lote).
 function query(
@@ -108,22 +106,10 @@ function diaSeguinte(iso: string): string {
   return d.toISOString().slice(0, 10)
 }
 
-// Só o que for reconhecível vira filtro. Valor estranho na URL é IGNORADO, nunca convertido em
-// lista vazia sem explicação — mesma regra que o vocabulário de `acao` já seguia.
-function sanear(params: ListarEventosAdminParams): FiltrosEventos {
-  const texto = (v: string | null | undefined) => {
-    const t = (v ?? '').trim()
-    return t.length > 0 && t.length <= 120 ? t : null
-  }
-  const data = (v: string | null | undefined) => (v && ISO_DATA.test(v) ? v : null)
-  return {
-    acao: params.acao && eAcaoAdmin(params.acao) ? params.acao : null,
-    autor: texto(params.autor),
-    de: data(params.de),
-    ate: data(params.ate),
-    alvo: texto(params.alvo),
-  }
-}
+// Só o que for reconhecível vira filtro. A régua mora em `lib/auditoria.ts`
+// (`sanearFiltrosAuditoria`) e é a MESMA que o export CSV da /dev usa — eram duas cópias, e
+// a do export tinha a regex de data quebrada, o que fazia o arquivo trazer um recorte
+// diferente do da tela.
 
 // Os nomes que podem aparecer em "Quem fez", para o filtro de AUTOR da /dev.
 //
@@ -151,7 +137,7 @@ export async function listarEventosAdmin(
   const pageSize = Math.min(100, Math.max(1, params.pageSize ?? EVENTOS_PAGE_SIZE))
   // Verbo desconhecido na URL não filtra nada (em vez de devolver lista vazia sem explicação
   // — o vocabulário é fechado em src/lib/auditoria.ts). Mesma regra para os demais recortes.
-  const filtros = sanear(params)
+  const filtros = sanearFiltrosAuditoria(params)
 
   const faixa = (p: number) =>
     query(supabase, filtros).range((p - 1) * pageSize, (p - 1) * pageSize + pageSize - 1)

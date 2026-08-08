@@ -60,6 +60,11 @@ function chaveVersao(periodoDe: string, periodoAte: string, filialId: number | n
 // e não uma linha de `filiais`.
 const SLUG_CONSOLIDADO = 'geral'
 
+// Faixa pedida além do fim do resultado: o PostgREST responde 416 com este código em vez de
+// uma lista vazia. Mesmo tratamento das outras listas paginadas (ativos, movimentacoes,
+// itens, pendencias-detalhe, eventos-admin, conflitos).
+const RANGE_INVALIDO = 'PGRST103'
+
 export async function listarRelatoriosGerados(
   client: DbClient,
   // F25 — multi-seleção. `[]` = sem recorte (todas). Pode conter `'geral'`
@@ -71,7 +76,9 @@ export async function listarRelatoriosGerados(
   const pageSize = Math.max(1, opcoes.pageSize ?? GERADOS_PAGE_SIZE)
   const page = Math.max(1, opcoes.page ?? 1)
 
-  let q = client.from('relatorios_gerados').select(LISTA_SELECT, { count: 'exact' })
+  // Recorte de filial resolvido UMA vez; a query é REMONTADA a cada tentativa (a faixa
+  // inválida é refeita numa página menor, abaixo).
+  let filtroFilial: { consolidado: boolean; ids: number[] } | null = null
 
   if (filialSlugs.length > 0) {
     const querConsolidado = filialSlugs.includes(SLUG_CONSOLIDADO)
@@ -99,22 +106,54 @@ export async function listarRelatoriosGerados(
       }
     }
 
-    // ⚠ `.is('filial_id', null)` e `.in('filial_id', […])` na MESMA coluna se
-    // combinam com AND e devolveriam ZERO linhas em silêncio. Pedir o Consolidado
-    // junto com filiais é um OR, e o PostgREST só o expressa por `.or(...)`.
-    if (querConsolidado && ids.length > 0) {
-      q = q.or(`filial_id.is.null,filial_id.in.(${ids.join(',')})`)
-    } else if (querConsolidado) {
-      q = q.is('filial_id', null)
-    } else {
-      q = q.in('filial_id', ids)
-    }
+    filtroFilial = { consolidado: querConsolidado, ids }
   }
 
-  const inicio = (page - 1) * pageSize
-  q = q.order('gerado_em', { ascending: false }).range(inicio, inicio + pageSize - 1)
+  // A consulta com os filtros aplicados. Função (e não um builder guardado) porque um
+  // builder do supabase-js só pode ser executado uma vez, e o fallback de faixa inválida
+  // precisa refazê-la.
+  const consulta = (head = false) => {
+    let q = client
+      .from('relatorios_gerados')
+      .select(LISTA_SELECT, { count: 'exact', head })
+    if (filtroFilial) {
+      const { consolidado, ids } = filtroFilial
+      // ⚠ `.is('filial_id', null)` e `.in('filial_id', […])` na MESMA coluna se
+      // combinam com AND e devolveriam ZERO linhas em silêncio. Pedir o Consolidado
+      // junto com filiais é um OR, e o PostgREST só o expressa por `.or(...)`.
+      if (consolidado && ids.length > 0) {
+        q = q.or(`filial_id.is.null,filial_id.in.(${ids.join(',')})`)
+      } else if (consolidado) {
+        q = q.is('filial_id', null)
+      } else {
+        q = q.in('filial_id', ids)
+      }
+    }
+    // `id` desempata: `gerado_em` empata quando os snapshots das filiais são gerados em
+    // sequência, e sem ordem TOTAL a mesma linha pode aparecer em duas páginas (ou sumir
+    // entre elas). Mesma disciplina de `listarEventosAdmin` e `listarConflitos`.
+    return q.order('gerado_em', { ascending: false }).order('id', { ascending: false })
+  }
 
-  const { data, error, count } = await q
+  const faixa = (p: number) =>
+    consulta().range((p - 1) * pageSize, (p - 1) * pageSize + pageSize - 1)
+
+  let pageAtual = page
+  let { data, error, count } = await faixa(pageAtual)
+
+  // `?page=4` (link salvo, filtro que encolheu o resultado) não pode derrubar o Server
+  // Component: o PostgREST responde 416/PGRST103 em vez de lista vazia. Descobre o total e
+  // mostra a ÚLTIMA página que existe. Uma tentativa, sem laço — mesma rede das outras seis
+  // listas paginadas. Aqui isso vale dobrado: esta tela também é servida ao visualizador
+  // por senha, que não tem sidebar nem paleta para escapar de um error boundary.
+  if (error?.code === RANGE_INVALIDO) {
+    const { count: total, error: erroTotal } = await consulta(true)
+    if (erroTotal)
+      throw new Error(`Falha ao listar relatórios gerados: ${erroTotal.message}`)
+    pageAtual = Math.max(1, Math.ceil((total ?? 0) / pageSize))
+    ;({ data, error, count } = await faixa(pageAtual))
+  }
+
   if (error) throw new Error(`Falha ao listar relatórios gerados: ${error.message}`)
   const rows = (data ?? []) as unknown as RawLista[]
 
@@ -159,7 +198,10 @@ export async function listarRelatoriosGerados(
       r.versao,
   }))
 
-  return { linhas, total: count ?? linhas.length, page, pageSize }
+  // `pageAtual` e não `page`: quando a faixa recuou, o rodapé precisa mostrar a página que
+  // realmente foi servida — senão os botões Anterior/Próxima navegam a partir de um número
+  // que não corresponde às linhas na tela.
+  return { linhas, total: count ?? linhas.length, page: pageAtual, pageSize }
 }
 
 // F29/REL-05c — o snapshot aberto era um beco: só "← Relatórios gerados". Estes são

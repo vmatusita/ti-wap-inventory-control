@@ -11,7 +11,7 @@ import {
   nomeArquivoCsv,
   type ColunaCsv,
 } from '@/lib/csv'
-import { eAcaoAdmin, rotuloAcao } from '@/lib/auditoria'
+import { rotuloAcao, sanearFiltrosAuditoria } from '@/lib/auditoria'
 import type { FiltrosEventos } from '@/lib/queries/eventos-admin'
 import { descreverDetalhe } from '@/components/admin/usuarios/detalhe-evento'
 import { listarFiliaisParaVinculo } from '@/lib/queries/admin'
@@ -165,19 +165,19 @@ export async function exportarAuditoriaCSV(filtros: string): Promise<ResultadoEx
 
   try {
     const p = new URLSearchParams(filtros)
-    const bruto = p.get('acao')
-    const texto = (v: string | null) => {
-      const t = (v ?? '').trim()
-      return t.length > 0 && t.length <= 120 ? t : null
-    }
-    const data = (v: string | null) => (v && /^d{4}-d{2}-d{2}$/.test(v) ? v : null)
-    const recorte: FiltrosEventos = {
-      acao: bruto && eAcaoAdmin(bruto) ? bruto : null,
-      autor: texto(p.get('autor')),
-      de: data(p.get('de')),
-      ate: data(p.get('ate')),
-      alvo: texto(p.get('alvo')),
-    }
+    // ⚠ A régua é a MESMA da tela (`sanearFiltrosAuditoria`, em lib/auditoria.ts) — e é
+    // compartilhada de propósito. Esta função tinha uma CÓPIA da régua, e nela a regex de
+    // data havia perdido os escapes (`/^d{4}-d{2}-d{2}$/` casa o literal "dddd-dd-dd", não
+    // uma data): `de`/`ate` eram sempre descartados, e o CSV baixava a trilha inteira
+    // enquanto a tela mostrava o período filtrado. Duas cópias da mesma régua é como o
+    // arquivo vira uma segunda verdade.
+    const recorte: FiltrosEventos = sanearFiltrosAuditoria({
+      acao: p.get('acao'),
+      autor: p.get('autor'),
+      de: p.get('de'),
+      ate: p.get('ate'),
+      alvo: p.get('alvo'),
+    })
 
     const [{ linhas, total }, filiais] = await Promise.all([
       lerTrilha(supabase, recorte),

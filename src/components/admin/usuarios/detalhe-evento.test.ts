@@ -144,3 +144,48 @@ describe('descreverDetalhe — formas desconhecidas nunca quebram a tela', () =>
     expect(descreverDetalhe('x', grande, nomeFilial)!.length).toBe(140)
   })
 })
+
+describe('descreverDetalhe — exclusão de conflito entre filiais (F24)', () => {
+  // O `detalhe` desta ação carrega `selecionados` e, até 25 ativos, o BACKUP das linhas
+  // apagadas em jsonb. Sem ramo próprio ela caía no fallback de JSON cru e a célula saía
+  // com 140 caracteres do backup — sem a justificativa e sem os números, que é o oposto do
+  // que se lê numa trilha meses depois.
+  const detalhe = {
+    justificativa: 'cadastro duplicado no go-live da filial nova',
+    ativos: 2,
+    selecionados: [
+      { ativo_id: 'a1', patrimonio: 'WAP0009001', filial_id: 1, status: 'em_estoque' },
+      { ativo_id: 'a2', patrimonio: 'WAP0009001', filial_id: 3, status: 'em_uso' },
+    ],
+    movimentacoes: 4,
+    anotacoes: 1,
+    pendencias_item: 0,
+    termos: 1,
+    backup_em_arquivo: false,
+    backup_path: null,
+    backup: [{ ativo: { id: 'a1' } }],
+  }
+
+  it('diz quantos, de quais filiais, o que foi junto e a justificativa', () => {
+    const frase = descreverDetalhe('conflito_filiais_resolvido', detalhe, nomeFilial)!
+    expect(frase).toContain('2 cadastros apagados')
+    expect(frase).toContain('Filiais: Filial Alfa, Filial Gama')
+    expect(frase).toContain('levou junto: 4 movimentações, 1 termo, 1 anotação')
+    expect(frase).toContain('“cadastro duplicado no go-live da filial nova”')
+  })
+
+  it('NÃO despeja o backup na célula', () => {
+    const frase = descreverDetalhe('conflito_filiais_resolvido', detalhe, nomeFilial)!
+    expect(frase).not.toContain('backup')
+    expect(frase).not.toContain('ativo_id')
+  })
+
+  it('acima do cap, o caminho do backup em arquivo aparece', () => {
+    const frase = descreverDetalhe(
+      'conflito_filiais_resolvido',
+      { ...detalhe, backup_em_arquivo: true, backup_path: 'conflito/abc123/2026-08-07.json' },
+      nomeFilial,
+    )!
+    expect(frase).toContain('backup: conflito/abc123/2026-08-07.json')
+  })
+})

@@ -33,6 +33,12 @@ export function GeradosFiltroFilial({
   function aplicar(valor: string) {
     const novo = new URLSearchParams(params.toString())
     novo.set('filial', valor)
+    // ⚠ Qualquer mudança de filtro volta para a página 1 — a mesma regra dos outros sete
+    // filtros do app. Não é zelo: a F29 deu paginação a esta tela (o cenário que o
+    // comentário acima antecipava), e filtrar da página 3 para um recorte com uma página só
+    // pede uma faixa além do fim; o PostgREST responde 416/PGRST103 e a tela inteira cairia
+    // no error boundary — inclusive para o visualizador por senha.
+    novo.delete('page')
     const qs = novo.toString()
     start(() => router.push(qs ? `${pathname}?${qs}` : pathname))
   }

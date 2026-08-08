@@ -57,10 +57,28 @@ export function NavRolavel({
     // estado da primeira medição.
     const ro = new ResizeObserver(medir)
     ro.observe(el)
-    for (const filho of Array.from(el.children)) ro.observe(filho)
+
+    // ⚠ Observar `el.children` UMA vez cobre só os filhos que existiam na montagem — e
+    // esta lista é justamente a que muda depois (o chip "Observações" nasce quando o
+    // snapshot tem observação; a fileira de filiais cresce). O elemento rolável em si não
+    // muda de tamanho quando um chip entra (ele ocupa a largura toda), então o
+    // ResizeObserver dele não dispara: sem o MutationObserver o degradê ficava apagado
+    // numa fileira que passou a transbordar, que é o sintoma que este componente existe
+    // para eliminar.
+    const observarFilhos = () => {
+      for (const filho of Array.from(el.children)) ro.observe(filho)
+    }
+    observarFilhos()
+    const mo = new MutationObserver(() => {
+      observarFilhos() // `observe` no mesmo alvo é idempotente
+      medir()
+    })
+    mo.observe(el, { childList: true, subtree: true, characterData: true })
+
     return () => {
       el.removeEventListener('scroll', medir)
       ro.disconnect()
+      mo.disconnect()
     }
   }, [medir])
 

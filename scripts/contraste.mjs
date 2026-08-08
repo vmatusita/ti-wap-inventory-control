@@ -359,7 +359,10 @@ function exigido(par) {
 
 function medir(par) {
   const tema = par.tema ?? 'claro'
-  const superficie = par.sob ?? (tema === 'escuro' ? ['card', 'background'] : ['card', 'background'])
+  // A pilha padrão é a MESMA nos dois temas (o que muda é o valor dos tokens `card`/
+  // `background`, resolvidos por `resolver()` com o tema). Aqui havia um ternário com os
+  // dois ramos idênticos, que sugeria uma diferença inexistente.
+  const superficie = par.sob ?? ['card', 'background']
   const fundoRgb = achatar(par.fundo, superficie, tema)
   const textoRgb = achatar(par.texto, [par.fundo, ...superficie], tema)
   const r = razao(textoRgb, fundoRgb)
@@ -411,12 +414,16 @@ function main() {
     console.log('| Item | Par | Tema | Texto | Fundo | Razão | Exigido | Veredito |')
     console.log('|---|---|---|---|---|---:|---:|---|')
     for (const l of linhas) {
+      // `antes: true` marca o par ANTERIOR à correção: ele reprova DE PROPÓSITO e está na
+      // lista como registro do defeito. (Aqui se lia `l.preexistente`, campo que nenhum par
+      // define — então o aviso nunca era impresso e um known-fail saía indistinguível de
+      // uma regressão nova.)
       const veredito = l.passa
         ? l.nivel === 'AAA'
           ? '✅ AAA'
           : '✅ AA'
-        : l.preexistente
-          ? '❌ reprova (pré-existente — backlog)'
+        : l.antes
+          ? '❌ reprova (esperado — é o "antes" registrado)'
           : '❌ reprova'
       console.log(
         `| ${l.item} | ${l.onde} | ${l.tema} | \`${l.texto}\` | \`${l.fundo}\` | ${l.razao.toFixed(2)}:1 | ${l.exigido}:1 | ${veredito} |`,

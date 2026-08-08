@@ -4394,3 +4394,44 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   transição. O gesto que o operador conhece (clicar num campo de busca) é preservado; o
   comportamento continua sendo o da paleta, que é onde a busca existe.
 - **Reversível?** sim: é um bloco de JSX no header.
+
+## 2026-08-07 · Revisão de código do intervalo F25→F29 (xhigh) — 12 achados, 12 corrigidos
+
+- **Contexto:** revisão de recall sobre tudo o que entrou desde a última varredura do projeto inteiro
+  (`4857be4`, 24/07): 153 commits, ~45 mil linhas em `src/` e `scripts/`, mais 48 migrations. As fases
+  F25–F29 já tinham revisão adversarial própria; esta olhou os ESPELHOS entre camadas, que é o que uma
+  revisão por fase não enxerga (cada fase confere a si mesma, não o que a fase anterior prometeu).
+- **O que os achados têm em comum:** nenhum é lógica errada dentro de uma função. São promessas que
+  envelheceram — uma régua duplicada cuja cópia degradou, um vocabulário que o banco tem e o
+  TypeScript não, um filtro que não acompanhou a paginação que nasceu na fase seguinte, um
+  `ResizeObserver` que observa menos do que o comentário acima dele afirma.
+- **Decisões tomadas na correção (as que não eram óbvias):**
+  - **Régua única para os recortes da trilha.** `sanearFiltrosAuditoria` passa a viver em
+    `src/lib/auditoria.ts` (módulo isomórfico e puro, com teste) e é usada pela tela E pelo export
+    CSV. Era a duplicação que produzia o defeito: a cópia do export tinha perdido os escapes da
+    regex de data (`/^d{4}-d{2}-d{2}$/`), então `de`/`ate` eram descartados em silêncio e o arquivo
+    baixava a trilha inteira enquanto a tela mostrava o período filtrado.
+  - **`conflito_filiais_resolvido` entra em `ACOES_ADMIN`, `ACAO_ROTULO` e `ACOES_DESTRUTIVAS`.** O
+    comment da coluna `eventos_admin.acao` (migration 0095) já listava o verbo e manda "mexeu aqui,
+    mexa lá" — o TypeScript é que nunca acompanhou. Sem isso a trilha mostrava a chave crua, e o
+    filtro por tipo de ação (montado a partir de `ACOES_ADMIN` nas duas telas de auditoria) não
+    oferecia a única exclusão de ativo que o nível administrador alcança.
+  - **`descreverDetalhe` ganha ramo para essa ação.** O `detalhe` dela carrega `selecionados` e, até
+    25 ativos, o BACKUP das linhas apagadas: sem ramo próprio a célula saía com 140 caracteres de
+    jsonb do backup e sem a justificativa — exatamente o caso que os ramos da F23 existem para
+    evitar.
+  - **`ACOES_DESTRUTIVAS` não é consumida por tela nenhuma**, ao contrário do que o comentário dela
+    afirmava (destaque na linha e filtro "só as destrutivas"). O comentário passou a dizer a verdade
+    e a ausência virou pendência declarada — descrever como pronto o que não existe é pior que a
+    falta.
+  - **O arquivo de snapshots ganhou a rede que as outras seis listas já tinham.** O filtro de filial
+    de `/relatorios/gerados` não zerava `page` (a paginação nasceu na F29, depois do filtro), e
+    `listarRelatoriosGerados` não tratava `PGRST103`: filtrar da página 3 para um recorte de uma
+    página só derrubava a tela no error boundary — inclusive para o visualizador por senha, que não
+    tem sidebar para escapar. Corrigidos os dois lados, mais o desempate por `id` na ordenação.
+- **Reversível?** sim, tudo: nenhuma migration, nenhuma mudança de contrato de dados. `npm run lint`,
+  `npm run build` e `npm run contraste` limpos; a suíte foi de 2.121 para 2.131 testes.
+- **Pendências registradas (não feitas aqui, por escopo):** (1) a trilha ainda não DESTACA visualmente
+  as ações irreversíveis nem oferece o filtro "só as destrutivas" — a régua existe e está testada,
+  falta a UI; (2) `testarSenhaAcesso` (F29/ADM-05b) é um oráculo de senha sem rate-limit próprio,
+  hoje protegido só por `exigirAdmin`.
