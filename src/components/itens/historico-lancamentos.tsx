@@ -32,6 +32,11 @@ import { pillTipoLancamento, rotuloTipoLancamento } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import type { LancamentoHistorico } from '@/lib/queries/itens'
 import { ROTULO_SALDO_APOS, TEXTO_DICA_SALDO_APOS } from '@/lib/itens/saldo-apos'
+import {
+  AVISO_ESTORNO_PERNA_TRANSFERENCIA,
+  ROTULO_PERNA_TRANSFERENCIA,
+  ehPernaDeTransferencia,
+} from '@/lib/itens/transferencia'
 import { TETO_MOTIVO_ESTORNO } from '@/lib/validators/item'
 
 // Histórico de lançamentos (OS 3.3.3): mais recente primeiro, com "Estornar"
@@ -155,6 +160,22 @@ export function HistoricoLancamentos({
                   >
                     {rotuloTipoLancamento(r.tipo)}
                   </span>
+                  {/* F31 · ITN-01 — o selo de transferência é DERIVADO da
+                      observação (`ehPernaDeTransferencia`) e é só apresentação:
+                      no banco as duas pernas são ajustes comuns, e nenhuma
+                      contagem de relatório muda por causa dele. Serve para o
+                      operador distinguir, na lista, um ajuste de inventário de
+                      um remanejamento entre filiais — que antes eram
+                      indistinguíveis sem abrir a observação. */}
+                  {(() => {
+                    const perna = ehPernaDeTransferencia(r.tipo, r.observacao)
+                    if (!perna) return null
+                    return (
+                      <span className="ml-1 text-[10px] text-muted-foreground">
+                        ({ROTULO_PERNA_TRANSFERENCIA[perna]})
+                      </span>
+                    )
+                  })()}
                   {r.ehEstorno && (
                     <span className="ml-1 text-[10px] text-muted-foreground">(estorno)</span>
                   )}
@@ -246,6 +267,20 @@ export function HistoricoLancamentos({
                 {alvo.colaborador ? ` · para ${alvo.colaborador}` : ''}
               </p>
             </div>
+          )}
+          {/* F31 · ITN-01 — estorno de PERNA de transferência. Decidido AVISAR e
+              não bloquear (PLAN-F31 §1.6): bloquear só aqui seria uma garantia
+              de mentira (a regra viveria fora do Postgres), e travar no banco
+              exigiria mexer em constraint de tabela existente, fora do escopo
+              desta fase. Então a tela diz a verdade inteira — inclusive que o
+              total consolidado muda — e aponta o caminho certo. */}
+          {alvo && ehPernaDeTransferencia(alvo.tipo, alvo.observacao) && (
+            <p
+              role="alert"
+              className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+            >
+              {AVISO_ESTORNO_PERNA_TRANSFERENCIA}
+            </p>
           )}
           <div className="space-y-1.5">
             <Label htmlFor="estorno-motivo">Motivo (opcional)</Label>

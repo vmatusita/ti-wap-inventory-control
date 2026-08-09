@@ -1385,6 +1385,19 @@ export type Database = {
         Args: { p_ativo_ids: string[]; p_movimentacao_ids: string[] }
         Returns: boolean
       }
+      transferir_item: {
+        Args: {
+          p_chamado: string
+          p_criado_por: string
+          p_data: string
+          p_destino: number
+          p_itens: Json
+          p_obs_destino: string
+          p_obs_origem: string
+          p_origem: number
+        }
+        Returns: number
+      }
       ultima_migracao_aplicada: { Args: never; Returns: string }
     }
     Enums: {

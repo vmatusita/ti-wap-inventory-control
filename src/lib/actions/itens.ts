@@ -13,11 +13,15 @@ import {
   atualizarItemSchema,
   loteLancamentoItemSchema,
   proximaOrdemDoGrupo,
+  transferenciaItemSchema,
   type LoteLancamentoItemInput,
+  type TransferenciaItemInput,
 } from '@/lib/validators/item'
 import type { TipoLancamento } from '@/lib/dominio'
 import { planejarEstorno } from '@/lib/itens/estorno'
+import { observacoesDaTransferencia } from '@/lib/itens/transferencia'
 import { getSaldosItens } from '@/lib/queries/itens'
+import { listarFiliais } from '@/lib/queries/filiais'
 import { estoquePorItem } from '@/lib/itens/repor'
 
 // F21 — este arquivo tem DOIS regimes de permissão, e é de propósito:
@@ -113,6 +117,77 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
     revalidatePath('/relatorios', 'layout')
   }
   return { ok: resultados.every((r) => r.ok), resultados }
+}
+
+// ---- Transferência entre filiais (F31 · ITN-01) ----
+
+export type TransferirItensResult = ActionResult & {
+  /** Quantos ITENS foram transferidos (o dobro em linhas). Só em sucesso. */
+  itens?: number
+}
+
+// Transfere itens por quantidade de uma filial para outra numa submissão só.
+//
+// É TUDO-OU-NADA, e por isso NÃO tem resultado por linha como `lancarItens`: a
+// gravação inteira acontece dentro de `transferir_item` (RPC da migration 0104),
+// numa transação. Se o estoque da origem não comporta uma das linhas, o trigger
+// recusa e NADA é gravado — nem a perna de destino das outras. É o oposto
+// deliberado do carrinho de lançamento, onde cada linha é independente: lá as
+// linhas não se relacionam entre si; aqui cada par É a operação, e meia
+// transferência é pior que nenhuma (some estoque de um lado sem aparecer no outro).
+//
+// O par gravado é de AJUSTES (−N na origem, +N no destino) — o único caminho que
+// mexe no estoque dos dois lados e deixa o Total consolidado inalterado. Ver o
+// cabeçalho de `src/lib/itens/transferencia.ts` e o da migration.
+export async function transferirItens(
+  input: TransferenciaItemInput,
+): Promise<TransferirItensResult> {
+  const parsed = transferenciaItemSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+  const { origem_id, destino_id, linhas, chamado, data, observacao } = parsed.data
+
+  const supabase = await createClient()
+  // As DUAS filiais, em sequência, ANTES de chamar a RPC. É a mensagem em pt-BR:
+  // a segurança é a policy "operador lanca", que a RPC (SECURITY INVOKER)
+  // atravessa linha a linha — inclusive na perna de destino. Sem estas guardas o
+  // operador receberia o 42501 cru, que a UI traduz como "faça login novamente",
+  // conselho errado para quem só não tem a filial vinculada.
+  const autOrigem = await exigirEscrita(supabase, origem_id)
+  if (!autOrigem.ok) return { ok: false, erro: autOrigem.erro }
+  const autDestino = await exigirEscrita(supabase, destino_id)
+  if (!autDestino.ok) return { ok: false, erro: autDestino.erro }
+
+  // Os NOMES saem do banco, nunca do cliente: a observação cruzada é o que o
+  // histórico vai mostrar para sempre, e um nome vindo do formulário poderia
+  // dizer "Transferência para Serra" numa linha que foi para outro lugar.
+  const filiais = await listarFiliais()
+  const origem = filiais.find((f) => f.id === origem_id)
+  const destino = filiais.find((f) => f.id === destino_id)
+  if (!origem || !destino) {
+    return { ok: false, erro: 'Uma das filiais não existe mais. Atualize a página.' }
+  }
+
+  const obs = observacoesDaTransferencia(origem.nome, destino.nome, observacao)
+
+  const { error } = await supabase.rpc('transferir_item', {
+    p_origem: origem_id,
+    p_destino: destino_id,
+    p_itens: linhas.map((l) => ({ item_id: l.item_id, quantidade: l.quantidade })),
+    p_data: data,
+    // O tipo gerado não aceita `null` em parâmetro `text`; a RPC faz
+    // `nullif(btrim(…), '')`, então a string vazia É a ausência.
+    p_chamado: chamado ?? '',
+    p_obs_origem: obs.origem,
+    p_obs_destino: obs.destino,
+    p_criado_por: autOrigem.uid,
+  })
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
+
+  revalidarItens()
+  revalidatePath('/relatorios', 'layout')
+  return { ok: true, itens: linhas.length }
 }
 
 // Estorna um lançamento criando o INVERSO com estorna_id. Nada se apaga. O banco

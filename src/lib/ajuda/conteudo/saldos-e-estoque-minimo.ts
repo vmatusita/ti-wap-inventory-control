@@ -50,6 +50,11 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
       texto:
         'A tabela vazia diz qual é o caso: "Nenhum item no catálogo" (nada cadastrado ainda, com o atalho "Ir para Administração → Itens"), "Nenhum item com esses filtros" (a busca, o grupo ou a filial não trazem nada) ou "Nenhum saldo ainda" (o catálogo existe, mas ninguém lançou nada).',
     },
+    {
+      tipo: 'nota',
+      texto:
+        'Viu sobra numa filial e falta em outra? A visão Por filial é o lugar de resolver: o ícone de setas ao lado do número abre a transferência já com o item e a filial de origem preenchidos. Transferir mexe no estoque das duas filiais e NÃO mexe no Total — o Total é da TI inteira, e mover uma caixa de uma sala para outra não cria nem destrói caixa. Se o Total mudar depois de um remanejamento, o caminho usado foi o errado (ver a página de lançamento).',
+    },
     { tipo: 'titulo', id: 'minimo', texto: 'Configurar o ponto de reposição' },
     {
       tipo: 'passos',

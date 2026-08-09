@@ -1,4 +1,8 @@
-import { MAX_LINHAS_LOTE_ITEM, TETO_MOTIVO_ESTORNO } from '@/lib/validators/item'
+import {
+  MAX_LINHAS_LOTE_ITEM,
+  MAX_LINHAS_TRANSFERENCIA_ITEM,
+  TETO_MOTIVO_ESTORNO,
+} from '@/lib/validators/item'
 import { TIPO_LANCAMENTO_META, type TipoLancamento } from '@/lib/dominio'
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import { ROTULO_SALDO_APOS } from '@/lib/itens/saldo-apos'
@@ -18,6 +22,13 @@ const TIPOS_LANCAMENTO_TEXTO = (Object.keys(TIPO_LANCAMENTO_META) as TipoLancame
 // chamado nenhum. Por isso os nomes saem daqui, nao da memoria de quem escreve.
 const ATRELAR = TIPO_LANCAMENTO_META.reserva.rotulo
 const DEVOLUCAO = TIPO_LANCAMENTO_META.liberacao.rotulo
+
+// F31 — os tres tipos que a secao de TRANSFERENCIA cita pelo nome. Mesma regra de
+// ouro: 'saida' se chama "Liberacao" na tela e 'liberacao' se chama "Devolucao";
+// digitar esses nomes a mao e como se erra.
+const LIBERACAO = TIPO_LANCAMENTO_META.saida.rotulo
+const ENTRADA = TIPO_LANCAMENTO_META.entrada.rotulo
+const AJUSTE = TIPO_LANCAMENTO_META.ajuste.rotulo
 
 export const lancarItens: PaginaAjuda = {
   slug: 'lancar-itens',
@@ -89,6 +100,31 @@ export const lancarItens: PaginaAjuda = {
         'Nome que já existe no catálogo não é criado de novo: o sistema avisa "Já existe um item com esse nome." — procure-o na lista. Se o homônimo estiver DESATIVADO, ele é reativado e já entra na linha, com aviso dizendo isso.',
         `Criar (ou reativar) um item mexe no CATÁLOGO, e catálogo é da Administração: isso é dos cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}. Com outro cargo, escolha um item que já existe e peça a inclusão do que falta — LANÇAR quantidade continua sendo do cargo ${PAPEL_ROTULO.operador}, nas filiais dele.`,
       ],
+    },
+
+    { tipo: 'titulo', id: 'transferir', texto: 'Mover itens de uma filial para outra' },
+    {
+      tipo: 'nota',
+      texto: `Transferir NÃO é dar baixa aqui e entrada lá. "${LIBERACAO}" tira da prateleira mas mantém o total (o item continua sendo da TI, só está com alguém), então "${LIBERACAO}" na origem + "${ENTRADA}" no destino faz o total da TI CRESCER a cada remanejamento — e nada corrige isso depois. Use "Transferir entre filiais": ele grava o par certo (um "${AJUSTE}" para menos na origem e um para mais no destino), o estoque muda dos dois lados e o total continua exatamente o mesmo.`,
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Transferir itens entre filiais',
+      itens: [
+        'Na página Itens, use "Transferir" (ao lado de "Lançar"). O botão só aparece para quem opera em pelo menos DUAS filiais — com uma só não há transferência possível.',
+        'Na visão Por filial há um atalho na própria célula: o ícone de setas ao lado do número abre o formulário com o item e a filial de ORIGEM já preenchidos. Ele só aparece nas colunas em que você opera e onde há estoque para mover.',
+        'Escolha a filial de origem e a de destino. A origem sai da lista de destinos — a mesma filial dos dois lados é recusada.',
+        `Monte a lista de itens (até ${MAX_LINHAS_TRANSFERENCIA_ITEM} por transferência, o mesmo limite do lançamento). Com a origem escolhida, cada item mostra quanto há lá — e a quantidade que passar disso é recusada antes mesmo de enviar. O mesmo item não entra duas vezes: some as quantidades.`,
+        'Aqui a quantidade é sempre positiva: quem inverte o sinal do lado da origem é o sistema.',
+        'Chamado e observação são opcionais. O que você escrever na observação entra nos DOIS lados, junto do texto automático que diz de onde saiu e para onde foi.',
+        'Confirme em "Transferir". É tudo ou nada: se um item não tiver saldo suficiente na origem, NADA é gravado — nem as outras linhas, nem a metade que já teria entrado no destino. Isso é diferente do lançamento em lote, onde cada linha é independente.',
+        'No histórico as duas pernas aparecem como Ajuste, marcadas "(transferência (saiu))" e "(transferência (entrou))", com a observação dizendo a outra ponta. Os relatórios não mudam: transferência sempre foi contada como ajuste.',
+      ],
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Errou a transferência? Faça a transferência no sentido contrário — é o caminho certo. Estornar UMA das duas pernas pelo histórico desfaz só aquele lado: o outro continua como está e o total consolidado do item muda. O sistema avisa isso no diálogo de estorno, mas não impede — a decisão é sua.',
     },
 
     { tipo: 'titulo', id: 'historico', texto: 'Depois de lançar' },

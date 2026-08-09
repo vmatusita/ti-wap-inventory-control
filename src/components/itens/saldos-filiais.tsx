@@ -9,6 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Dica } from '@/components/ui/dica'
 import { LancarItemLinha } from '@/components/itens/lancar-item-linha'
+import { TransferirItemCelula } from '@/components/itens/transferir-item-celula'
 import { BadgeRepor } from '@/components/itens/badge-repor'
 import { cn } from '@/lib/utils'
 import {
@@ -51,6 +52,7 @@ export function SaldosFiliaisTabela({
   itens,
   minimos,
   podeLancar = false,
+  filiaisTransferencia = [],
 }: {
   filiais: Filial[]
   itens: SaldoItemFiliais[]
@@ -61,6 +63,11 @@ export function SaldosFiliaisTabela({
   // F21 — cargo ≥ operador. As COLUNAS de filial continuam todas visíveis (os
   // saldos são leitura, ampla para todo cargo); só a coluna de ação sai.
   podeLancar?: boolean
+  // F31 · ITN-01 — ids das filiais em que este cargo escreve, quando há DUAS ou
+  // mais (com uma só não há transferência possível e a página manda a lista
+  // vazia). O atalho de transferir aparece na célula cuja filial está aqui E que
+  // tenha estoque > 0: não se transfere de uma prateleira vazia.
+  filiaisTransferencia?: readonly number[]
 }) {
   return (
     <Table>
@@ -91,30 +98,47 @@ export function SaldosFiliaisTabela({
               <TableCell className={cn(COL_ITEM, 'font-medium')}>{linha.item}</TableCell>
               {filiais.map((f) => {
                 const c = linha.porFilial[f.id] ?? ZERO
+                // F31 — o atalho é da CÉLULA (ele diz de onde o item SAI), ao
+                // contrário do "+" de lançar, que é da linha. Some quando a
+                // prateleira está vazia e quando o cargo não escreve nesta filial.
+                const podeTransferirDaqui =
+                  c.estoque > 0 && filiaisTransferencia.includes(f.id)
                 return (
                   <TableCell key={f.id} className="text-right">
                     {/* F19 — total/atrelados saíram do `title=` para uma dica de
                         verdade (P2-10): o atributo nativo não abre por foco de
-                        teclado. A dica cobre a célula inteira, como o title
-                        cobria — nada aqui dentro tem dica própria. */}
-                    <Dica
-                      texto={detalhe(c, f.nome)}
-                      className="flex flex-col items-end gap-0.5"
-                    >
-                      <span
-                        className={cn(
-                          'tabular-nums',
-                          c.estoque > 0 ? 'font-semibold' : 'text-muted-foreground',
-                        )}
-                      >
-                        {c.estoque.toLocaleString('pt-BR')}
-                      </span>
-                      {c.falta > 0 && (
-                        <Badge className="border-transparent bg-red-100 text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">
-                          faltam {c.falta.toLocaleString('pt-BR')}
-                        </Badge>
+                        teclado. A dica cobre o NÚMERO — e desde a F31 não a
+                        célula inteira, porque o botão de transferir tem `title`
+                        próprio e um gatilho dentro do outro abriria os dois no
+                        mesmo hover (é a mesma razão da coluna Total, abaixo). */}
+                    <div className="flex items-center justify-end gap-0.5">
+                      {podeTransferirDaqui && (
+                        <TransferirItemCelula
+                          itemId={linha.item_id}
+                          item={linha.item}
+                          origemId={f.id}
+                          filial={f.nome}
+                        />
                       )}
-                    </Dica>
+                      <Dica
+                        texto={detalhe(c, f.nome)}
+                        className="flex flex-col items-end gap-0.5"
+                      >
+                        <span
+                          className={cn(
+                            'tabular-nums',
+                            c.estoque > 0 ? 'font-semibold' : 'text-muted-foreground',
+                          )}
+                        >
+                          {c.estoque.toLocaleString('pt-BR')}
+                        </span>
+                        {c.falta > 0 && (
+                          <Badge className="border-transparent bg-red-100 text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">
+                            faltam {c.falta.toLocaleString('pt-BR')}
+                          </Badge>
+                        )}
+                      </Dica>
+                    </div>
                   </TableCell>
                 )
               })}

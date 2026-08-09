@@ -49,6 +49,7 @@ import { ItensFiltros } from '@/components/itens/itens-filtros'
 import { HistoricoFiltros } from '@/components/itens/historico-filtros'
 import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
 import { LancarItemLinha } from '@/components/itens/lancar-item-linha'
+import { TransferirItemDialog } from '@/components/itens/transferir-item-dialog'
 import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { SaldosFiliaisTabela } from '@/components/itens/saldos-filiais'
 import { BadgeRepor } from '@/components/itens/badge-repor'
@@ -315,6 +316,15 @@ export default async function ItensPage({
               só navegar até aqui (achado F12-W4-08). Fora do dialog não fica
               nada de lançamento montado: o atalho `L` mora DENTRO dele, então
               para o cargo Consulta a tecla também deixa de existir. */}
+          {/* F31 · ITN-01 — transferir exige escrever nas DUAS pontas, então o
+              botão só existe para quem tem ao menos DUAS filiais de escrita.
+              Com uma só, não há transferência possível e um botão que sempre
+              recusa é pior que botão nenhum. (A validação dura é do servidor:
+              `exigirEscrita` nas duas + a policy `operador lanca`, que a RPC
+              atravessa linha a linha.) */}
+          {escreve && filiaisEscrita.length >= 2 && (
+            <TransferirItemDialog itens={itensAtivos} filiais={filiaisEscrita} />
+          )}
           {escreve && (
             <LancarItemDialog
               itens={itensAtivos}
@@ -386,6 +396,14 @@ export default async function ItensPage({
                   itens={bloco.itens}
                   minimos={minimos}
                   podeLancar={escreve}
+                  // F31 · ITN-01 — o atalho de transferência da CÉLULA. A lista
+                  // (e não um booleano) porque a decisão é por coluna: o
+                  // operador de Serra vê o atalho na coluna dele e não na das
+                  // outras. Vazia quando há menos de duas filiais de escrita —
+                  // o mesmo critério do botão do cabeçalho.
+                  filiaisTransferencia={
+                    filiaisEscrita.length >= 2 ? filiaisEscrita.map((f) => f.id) : []
+                  }
                 />
               </div>
             </section>

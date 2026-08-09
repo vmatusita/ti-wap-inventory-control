@@ -12,7 +12,7 @@ import {
   TIPO_LANCAMENTO_META,
   type TipoLancamento,
 } from '@/lib/dominio'
-import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import { MAX_LINHAS_LOTE_ITEM, MAX_LINHAS_TRANSFERENCIA_ITEM } from '@/lib/validators/item'
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import { CAP_EXPORT } from '@/lib/csv'
 import { TAMANHOS_PAGINA, TAMANHO_PAGINA_PADRAO } from '@/lib/ativos/lista'
@@ -375,6 +375,55 @@ describe('lançar itens e ler saldos', () => {
     contem('saldos-e-estoque-minimo', 'Falta e repor são dois avisos DIFERENTES')
     contem('saldos-e-estoque-minimo', 'máx(0, atrelados + liberados − total)')
     contem('saldos-e-estoque-minimo', 'estoque somado de TODAS as filiais')
+  })
+
+  // ---- F31 · ITN-01 — transferência entre filiais ----
+
+  it('a transferência é documentada como CAMINHO PRÓPRIO, com a âncora no lugar', () => {
+    expect(ancorasDaPagina(pagina('lancar-itens')).map((a) => a.id)).toContain('transferir')
+    contem('lancar-itens', 'Transferir entre filiais')
+    contem('lancar-itens', 'Transferir itens entre filiais')
+  })
+
+  it('diz POR QUE o caminho intuitivo é errado, usando os rótulos reais', () => {
+    // A frase tem de nomear os DOIS tipos do caminho errado e o tipo do caminho
+    // certo — e pelos rótulos de `dominio.ts`, nunca digitados à mão: na tela
+    // 'saida' se chama "Liberação" e 'liberacao' se chama "Devolução", e trocar
+    // um pelo outro manda o operador ao campo errado (mesma armadilha que o
+    // teste do par Atrelar/Devolução, acima, já trava).
+    const liberacao = TIPO_LANCAMENTO_META.saida.rotulo
+    const entrada = TIPO_LANCAMENTO_META.entrada.rotulo
+    const ajuste = TIPO_LANCAMENTO_META.ajuste.rotulo
+    contem('lancar-itens', `"${liberacao}" na origem + "${entrada}" no destino`)
+    contem('lancar-itens', 'faz o total da TI CRESCER')
+    contem('lancar-itens', `um "${ajuste}" para menos na origem e um para mais no destino`)
+    contem('lancar-itens', 'o total continua exatamente o mesmo')
+  })
+
+  it('o teto da transferência sai da constante, e é o mesmo do lançamento', () => {
+    expect(MAX_LINHAS_TRANSFERENCIA_ITEM).toBe(MAX_LINHAS_LOTE_ITEM)
+    contem('lancar-itens', `até ${MAX_LINHAS_TRANSFERENCIA_ITEM} por transferência`)
+  })
+
+  it('afirma o TUDO-OU-NADA, que é o oposto do lote de lançamento', () => {
+    contem('lancar-itens', 'É tudo ou nada')
+    contem('lancar-itens', 'NADA é gravado')
+    // E não deixa o operador achar que vale a regra do carrinho, onde cada linha
+    // é independente — a página documenta as duas coisas, e elas se contradizem
+    // se lidas sem a ressalva.
+    contem('lancar-itens', 'diferente do lançamento em lote')
+  })
+
+  it('documenta o estorno de PERNA como escolha consciente (avisa, não impede)', () => {
+    contem('lancar-itens', 'desfaz só aquele lado')
+    contem('lancar-itens', 'o total consolidado do item muda')
+    contem('lancar-itens', 'transferência no sentido contrário')
+    contem('lancar-itens', 'mas não impede')
+  })
+
+  it('a página de saldos manda para a transferência a partir da visão por filial', () => {
+    contem('saldos-e-estoque-minimo', 'sobra numa filial e falta em outra')
+    contem('saldos-e-estoque-minimo', 'NÃO mexe no Total')
   })
 })
 
