@@ -4524,3 +4524,171 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   permanente nº 5 do `CLAUDE.md`. Um roteiro não executado e declarado é melhor do que um roteiro
   executado no lugar errado.
 - **Reversível?** não se aplica — é uma pendência de verificação, não uma mudança de código.
+
+---
+
+## 2026-08-09 · F31 (Onda C2) · Caminho 1a (RPC transacional), e não 1b (compensação no app)
+
+- **Contexto:** a ordem F31 dava duas rotas para a atomicidade da transferência de item: **(a)** uma
+  RPC transacional nova, se houvesse acesso ao banco; **(b)** compensação explícita na camada de app
+  (grava a origem, grava o destino, e se o destino falhar estorna a origem).
+- **Decisão:** **caminho (a)**. `list_projects` do MCP responde com os dois projetos
+  `ACTIVE_HEALTHY` e `execute_sql` roda nos dois — o bloqueio que a alternativa pressupunha não
+  existe neste ambiente. Migration `0104_transferir_item.sql`, **aditiva**, aplicada pelo caminho A
+  do `RUNBOOK-BANCO.md` (ensaio primeiro, produção depois, verificação pós-apply).
+- **Motivo:** o caminho (b) é estritamente pior aqui, e não por elegância. O estorno compensatório é
+  ele mesmo uma escrita que pode falhar — e falha **exatamente** nas condições em que se precisa
+  dele (rede caindo, sessão expirando). Pior: um estorno de perna de transferência **é** o dano que
+  este recurso existe para evitar (ele devolve N ao Total consolidado, ver a ata do estorno abaixo).
+  O caminho (b) teria a compensação produzindo, no caso ruim, a corrupção que a fase veio corrigir.
+- **Reversível?** sim: `drop function public.transferir_item(smallint,smallint,jsonb,date,text,text,text,uuid)`.
+  É aditiva — nenhum dado do acervo se perde, e as transferências já gravadas continuam existindo
+  como o que sempre foram, pares de ajustes.
+
+## 2026-08-09 · F31 · A RPC é SECURITY INVOKER — é isso que gateia as DUAS filiais
+
+- **Contexto:** a exigência mais delicada do recurso é "escrever nas duas filiais envolvidas". A
+  tentação é uma função `security definer` com guarda interna.
+- **Decisão:** `transferir_item` é **INVOKER**, espelhando `criar_compra_lote` (0008→0064) e
+  `devolver_ao_fornecedor` (0045) — medido no banco antes de decidir (`prosecdef = false` nas duas).
+- **Motivo:** rodando com a sessão de quem chamou, os DOIS inserts passam pela policy
+  `"operador lanca"` de `lancamentos_item`, cujo `with check` é `pode_escrever_filial(filial_id)` e
+  é avaliado **linha a linha**. A permissão nos dois lados sai de graça e **no lugar certo (o
+  Postgres)**, sem que a função precise ser confiada para nada. As guardas `pode_escrever_filial` no
+  corpo são cinto-e-suspensórios **pela MENSAGEM** — sem elas o operador levaria o `42501` cru, que
+  a UI traduz como "faça login novamente", conselho errado para quem só não tem a filial vinculada.
+  É textualmente o mesmo raciocínio que o cabeçalho da `0064` registrou para a compra.
+- **Efeito colateral bem-vindo:** nenhum advisor novo. A classe
+  `authenticated_security_definer_function_executable`, que a `0062`/`0069`/`0079-88` alimentaram,
+  só enxerga `security definer`.
+- **Reversível?** sim, mas não se deve: transformá-la em `definer` reabriria o caminho para escrever
+  em filial alheia. A asserção **8a** de `supabase/tests/transferencia_item.sql` existe para falhar
+  na cara de quem tentar.
+
+## 2026-08-09 · F31 · A RPC pega TODAS as travas advisory antes do primeiro insert
+
+- **Contexto:** o trigger `valida_lancamento_item` faz `pg_advisory_xact_lock(item_id, filial_id)`
+  na PRIMEIRA linha do corpo. Numa função que grava as duas pernas na mesma transação, isso são
+  **duas travas por item**, adquiridas na ordem dos INSERTs.
+- **Achado (desta fase, não copiado):** duas transferências simultâneas em sentidos opostos —
+  `Matriz→Serra` e `Serra→Matriz` do mesmo item — pediriam `(item, matriz)` e `(item, serra)` em
+  ordens **invertidas**. Deadlock clássico. Com carrinho de vários itens, a mesma inversão acontece
+  entre itens quando os dois carrinhos os listam em ordens diferentes.
+- **Decisão:** a RPC adquire **todas** as travas, ela mesma, **antes do primeiro insert**, em ordem
+  total determinística `(item_id, filial_id)` crescente. Advisory locks são reentrantes na mesma
+  sessão, então as travas que o trigger pedir depois já estarão nas mãos.
+- **Motivo:** é exatamente a classe de bug que a `0100` (F24) teve de consertar **depois** de já
+  estar em produção, na RPC de conflitos entre filiais. Aqui ela foi fechada antes de existir.
+- **⚠ O que a prova cobre e o que não cobre:** o caso 3 do roteiro é **estrutural** (a ordenação
+  continua no corpo e continua antes dos inserts) mais o **conjunto** de travas seguradas. NÃO é uma
+  reprodução de deadlock: deadlock exige duas sessões concorrentes, e um roteiro `psql` de sessão
+  única não as tem. Quem remover o passo verá o roteiro falhar — mas a ausência de deadlock em
+  produção não está medida.
+- **Reversível?** sim (é um bloco da função), mas remover reabre o deadlock.
+
+## 2026-08-09 · F31 · As frases das duas pernas moram em TypeScript, não no SQL
+
+- **Contexto:** a transferência grava uma observação cruzada em cada perna ("Transferência para
+  Serra" / "Transferência de Matriz"), e o histórico precisa reconhecê-las para acender o selo.
+- **Decisão:** as frases são compostas em `src/lib/itens/transferencia.ts` e viajam **prontas** para
+  a RPC, como dois parâmetros de texto. O SQL não redige texto nenhum.
+- **Motivo:** se a frase morasse na função plpgsql, o selo do histórico teria de repeti-la em
+  TypeScript — duas cópias da mesma string, em linguagens diferentes, que divergem no primeiro
+  `create or replace`. Com uma definição só, o teste puro a trava. É a mesma disciplina da "REGRA DE
+  OURO" das páginas de ajuda.
+- **Consequência aceita:** um operador que digitasse à mão um ajuste começando por "Transferência
+  para " acenderia o selo. Tudo bem: o selo diz "isto se parece com uma transferência", não "isto é
+  um registro de tipo transferência" — que não existe no enum, por decisão da própria análise.
+- **Reversível?** sim, é um módulo puro com testes.
+
+## 2026-08-09 · F31 · Estorno de perna de transferência: AVISAR, não bloquear
+
+- **Contexto:** `estornarLancamento` cria o inverso **na mesma filial** do original. Estornar só a
+  perna de origem (`−10`) grava `+10` na origem: o Total consolidado **sobe 10** e a transferência
+  fica pela metade — exatamente a corrupção que o recurso existe para impedir.
+- **Decisão:** o diálogo de estorno mostra um aviso explícito quando a linha é perna de
+  transferência, dizendo (a) que desfaz **só este lado**, (b) que o total consolidado muda e (c)
+  qual é o caminho certo — **transferir de volta**. Não bloqueia.
+- **Motivo:** bloquear só na UI seria uma garantia de mentira — a regra viveria fora do Postgres, o
+  que o `CLAUDE.md` proíbe como ÚNICA linha —, e travar no banco exigiria mexer em constraint de
+  `lancamentos_item`, que a ordem F31 põe explicitamente fora de escopo ("nenhum toque em
+  tabelas/policies/RPCs existentes"). Um bloqueio de tela daria a ilusão de garantia sem a garantia.
+  Avisando, quem errou o item tem o caminho certo na frente e quem insistir o faz sabendo o efeito.
+- **⚠ Pendência que isto deixa aberta e nomeada:** o estorno de perna continua **possível por
+  chamada direta ao PostgREST**, sem passar pela tela e sem ver o aviso. Fechá-lo de verdade é
+  matéria de banco e de outra ordem.
+- **Reversível?** sim (é uma caixa no diálogo e uma função pura).
+
+## 2026-08-09 · F31 · O selo "transferência" do histórico é APRESENTAÇÃO, e nenhuma contagem muda
+
+- **Contexto:** a ordem permitia um selo visual derivado da observação, exigindo que a escolha fosse
+  registrada.
+- **Decisão:** existe, e é derivado (`ehPernaDeTransferencia(tipo, observacao)`). No banco as duas
+  pernas são ajustes comuns; **nenhuma contagem de relatório muda** — `ajuste` já era contado como
+  sempre foi, em toda parte.
+- **Motivo:** sem ele, um ajuste de inventário e um remanejamento entre filiais são
+  indistinguíveis na lista sem abrir a observação — e são coisas muito diferentes para quem audita.
+- **Reversível?** sim: é um `<span>` e uma função pura.
+
+## 2026-08-09 · F31 · A conferência ganhou ROTA PRÓPRIA, e não um modo dentro de /itens
+
+- **Contexto:** a ordem descreve "a tabela de saldos da filial ganha coluna editável Contado", o que
+  sugeria um modo de `/itens?conferir=N`.
+- **Decisão:** rota própria `/itens/conferencia`.
+- **Motivo:** `/itens` é um Server Component grande, orientado 100% por `searchParams`, com duas
+  visões, dois blocos de filtro e uma tabela sticky. A conferência é o oposto: fluxo **client** de
+  estado longo (contagens, rascunho, progresso por bloco, sucesso parcial). Como modo, a página
+  renderizaria um corpo completamente diferente conforme um parâmetro, misturando as duas naturezas.
+  O precedente da casa para exatamente isso é `/movimentacoes/nova`. A **intenção** da ordem (a mesma
+  tabela com uma coluna editável) está preservada — a tela é a tabela de saldos daquela filial.
+- **Custo assumido, todo mecânico e travado por teste:** página de ajuda nova
+  (`conferencia-de-estoque`, a 34ª do registry), entrada em `PAGINAS_AJUDA` do
+  `scripts/smoke/smoke-prod.mjs`, linha na matriz `COBERTURA` de `registry.test.ts` e um
+  `<LinkAjuda>` de verdade na página.
+- **Reversível?** sim, mas ao custo de reescrever a tela.
+
+## 2026-08-09 · F31 · A conferência reusa MAX_LINHAS_LOTE_ITEM; não há constante própria
+
+- **Contexto:** a ordem admitia uma constante própria para o teto de blocos da conferência, desde
+  que derivada e registrada.
+- **Decisão:** reusar `MAX_LINHAS_LOTE_ITEM` (10) e particionar os ajustes em blocos sequenciais com
+  progresso visível. `MAX_LINHAS_TRANSFERENCIA_ITEM` também é `MAX_LINHAS_LOTE_ITEM`, pelo mesmo
+  motivo.
+- **Motivo:** é pela esteira de `lancarItens` que a conferência grava, e o teto é dela. Uma constante
+  própria seria uma segunda definição do mesmo limite, com a chance de divergirem — e o trigger
+  valida linha a linha de qualquer forma.
+- **Reversível?** sim: são duas constantes num arquivo só.
+
+## 2026-08-09 · F31 · Na conferência, linha em branco é "não conferi" — nunca "contei zero"
+
+- **Contexto:** a coluna "Contado" aceita vazio.
+- **Decisão:** vazio (e lixo: negativo, fracionário, texto) = **não conferido**; fica de fora do
+  resumo, do diff e dos ajustes. `0` digitado É uma contagem.
+- **Motivo:** é a distinção que sustenta a tela. Tratar vazio como zero transformaria uma conferência
+  parcial num pedido de **zerar o estoque inteiro da filial** — o pior erro possível aqui. A régua
+  vive numa função só (`contagemDaLinha`); o rascunho de propósito **não** a duplica, para as duas
+  não poderem discordar.
+- **Reversível?** sim, mas não se deve.
+
+## 2026-08-09 · F31 · A verificação manual passou a rodar contra o ENSAIO, não contra produção
+
+- **Contexto:** a F30 registrou (ata de 09/08/2026) que não havia como executar roteiro de ESCRITA:
+  sem Supabase local (Docker vetado) e com o `.env.local` apontando para **produção**, escrever
+  seria violar a regra permanente nº 5 do `CLAUDE.md`.
+- **Decisão:** rodar `npm run dev` com `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  **do projeto de ENSAIO** exportados no ambiente (o Next dá precedência a variável já presente em
+  `process.env` sobre `.env.local`), e dirigir o navegador contra ele. O `SUPABASE_SERVICE_ROLE_KEY`
+  foi substituído por um placeholder inválido, para que nenhum caminho administrativo pudesse
+  alcançar produção por engano.
+- **Motivo:** o ensaio existe exatamente para isso e tem dados 100% fictícios. A pendência da F30 era
+  de ambiente, não de impossibilidade — e este caminho a resolve para as próximas fases.
+- **Rastro do que foi criado no ENSAIO (fictício, e o que sobrou está declarado):**
+  uma conta temporária `f31.e2e@wap.ind.br` (agora **desativada**, **banida** e **sem vínculos**, com
+  a senha trocada por um valor aleatório desconhecido — não pôde ser apagada porque
+  `lancamentos_item.criado_por` a referencia e o acervo é imutável); dois itens fictícios
+  ("Adaptador USB-C ficticio", "SSD 480GB ficticio") e os lançamentos do roteiro, que permanecem no
+  ensaio junto do seed fictício que já havia.
+- **⚠ Nada disso tocou produção.** Produção recebeu **apenas** a migration `0104` (aditiva) e o
+  roteiro SQL rodado dentro de `begin; … rollback;` — contagens antes = depois.
+- **Reversível?** o ensaio pode ser resetado pelo caminho nomeado do `db:reset` quando o Johnny
+  quiser.
