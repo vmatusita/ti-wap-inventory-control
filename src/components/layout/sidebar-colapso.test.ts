@@ -44,6 +44,24 @@ describe('o estado recolhido é CSS, e o CSS tem todos os ganchos', () => {
     expect(bloco.slice(i, i + 260)).toContain(regra)
   })
 
+  // A revisão adversarial da F30 pegou exatamente isto: as três regras de
+  // rótulo/item/selo NÃO estavam ancoradas no <aside>, e como o Sheet do
+  // hambúrguer monta a MESMA SidebarNav (com os mesmos `data-sidebar-*`),
+  // recolher no desktop e estreitar a janela deixava o menu de TOQUE só com
+  // ícones. Passava em tudo — build, lint e o resto desta suíte.
+  it('toda regra do modo recolhido é ancorada no <aside> do desktop', () => {
+    const semComentario = bloco.replace(/\/\*[\s\S]*?\*\//g, '')
+    const seletores = [...semComentario.matchAll(/:root\[data-sidebar[^{]*\{/g)].map((m) =>
+      m[0].slice(0, -1).trim(),
+    )
+    expect(seletores.length, 'o bloco do colapso mudou de formato').toBeGreaterThanOrEqual(4)
+    for (const s of seletores) {
+      expect(s, `seletor solto — vazaria para o menu mobile: "${s}"`).toContain(
+        '[data-sidebar-lateral]',
+      )
+    }
+  })
+
   it.each([
     ['data-sidebar-lateral', LATERAL],
     ['data-sidebar-rotulo', LATERAL],
@@ -64,6 +82,41 @@ describe('o estado recolhido é CSS, e o CSS tem todos os ganchos', () => {
 
   it('o <aside> continua nascendo expandido (é o que o servidor pinta)', () => {
     expect(LATERAL).toContain('w-60')
+  })
+})
+
+describe('duas abas contam a mesma história', () => {
+  // O `storage` só dispara nas OUTRAS abas, e o atributo do <html> é local a
+  // cada uma. Sem reconciliar antes de avisar o React, a aba que só OUVE ficaria
+  // com o React dizendo "recolhida" (ele cai no fallback do storage) e o CSS
+  // mostrando o menu inteiro — `aria-expanded` mentindo sobre a tela.
+  it('o ouvinte de storage reconcilia o atributo ANTES de avisar o React', () => {
+    const src = fonte('src/components/layout/sidebar-colapso.tsx')
+    const i = src.indexOf('function aoMudarStorage')
+    expect(i, 'o ouvinte de storage sumiu').toBeGreaterThan(0)
+    const corpo = src.slice(i, i + 600)
+    const iAplica = corpo.indexOf('aplicarAtributo')
+    const iAvisa = corpo.indexOf('aviso()')
+    expect(iAplica, 'o ouvinte não reconcilia o <html>').toBeGreaterThan(0)
+    expect(iAvisa).toBeGreaterThan(0)
+    expect(iAplica, 'avisa o React antes de acertar o CSS').toBeLessThan(iAvisa)
+  })
+
+  it('só `aplicarAtributo` ESCREVE o atributo do <html>', () => {
+    // Duas escritas espalhadas divergem com o tempo — e divergência aqui é
+    // exatamente o flash que este desenho existe para evitar. (Ler o atributo,
+    // em `lerAgora`, é outra coisa e continua livre.)
+    const src = fonte('src/components/layout/sidebar-colapso.tsx')
+    const helper = src.slice(
+      src.indexOf('function aplicarAtributo'),
+      src.indexOf('function lerStorage'),
+    )
+    const escritas = (t: string) =>
+      // `=(?!=)` para não confundir a ATRIBUIÇÃO com a comparação `===` da leitura.
+      [...t.matchAll(/dataset\[[^\]]+\]\s*=(?!=)/g)].length +
+      [...t.matchAll(/delete\s+document\.documentElement\.dataset/g)].length
+    expect(escritas(helper), 'o helper deixou de escrever os dois lados').toBe(2)
+    expect(escritas(src), 'escrita do atributo fora de aplicarAtributo').toBe(2)
   })
 })
 

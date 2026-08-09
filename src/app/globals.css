@@ -182,19 +182,25 @@
    sidebar recolhida veria 240px pintados e o salto para 64px na hidratação.
    Como o React NÃO duplica essas classes, não há como os dois discordarem.
    Especificidade (0,3,0) — ganha das utilitárias do Tailwind (0,1,0). */
+/* ⚠ TODAS as regras abaixo são ancoradas em `[data-sidebar-lateral]` — o <aside>
+   do DESKTOP. Isso não é firula de seletor: a MESMA `SidebarNav` é montada
+   dentro do Sheet do hambúrguer (app-header.tsx), com os mesmos `data-sidebar-*`
+   em cada item. Sem a âncora, recolher no computador e depois estreitar a janela
+   deixava o menu de TOQUE só com ícones — e "o mobile não muda" é requisito da
+   UXG-13, não preferência. */
 :root[data-sidebar='recolhida'] [data-sidebar-lateral] {
   width: 4rem; /* = w-16 */
 }
-:root[data-sidebar='recolhida'] [data-sidebar-rotulo] {
+:root[data-sidebar='recolhida'] [data-sidebar-lateral] [data-sidebar-rotulo] {
   display: none;
 }
-:root[data-sidebar='recolhida'] [data-sidebar-item] {
+:root[data-sidebar='recolhida'] [data-sidebar-lateral] [data-sidebar-item] {
   justify-content: center;
   padding-inline: 0;
 }
 /* O selo de pendências CONTINUA visível recolhida — é a razão de o operador
    olhar para a sidebar. Sem rótulo ao lado, ele sobe para o canto do ícone. */
-:root[data-sidebar='recolhida'] [data-sidebar-selo] {
+:root[data-sidebar='recolhida'] [data-sidebar-lateral] [data-sidebar-selo] {
   position: absolute;
   top: 0.125rem;
   right: 0.125rem;

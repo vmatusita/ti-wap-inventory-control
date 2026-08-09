@@ -30,12 +30,37 @@ import {
 // sistema abertas lado a lado passam a concordar sobre a sidebar.
 const ouvintes = new Set<() => void>()
 
+/** Escreve (ou apaga) o atributo do <html> — a chave do visual, ver `lerAgora`. */
+function aplicarAtributo(recolhida: boolean): void {
+  if (recolhida) document.documentElement.dataset[ATRIBUTO_SIDEBAR] = VALOR_RECOLHIDA
+  else delete document.documentElement.dataset[ATRIBUTO_SIDEBAR]
+}
+
+function lerStorage(): string | null {
+  try {
+    return window.localStorage.getItem(CHAVE_SIDEBAR)
+  } catch {
+    return null
+  }
+}
+
 function assinar(aviso: () => void): () => void {
+  // O `storage` só dispara nas OUTRAS abas — e o atributo do <html> é local a
+  // cada uma delas. Sem reconciliar aqui, a aba que apenas OUVE ficaria com o
+  // React dizendo "recolhida" (ele lê o storage no fallback) e o CSS mostrando o
+  // menu inteiro: tooltip aparecendo sobre rótulo visível, `aria-expanded`
+  // mentindo e o botão oferecendo "Expandir" um menu que está aberto.
+  function aoMudarStorage(e: StorageEvent) {
+    // `key === null` é `localStorage.clear()` — vale reconciliar também.
+    if (e.key !== null && e.key !== CHAVE_SIDEBAR) return
+    aplicarAtributo(leituraDoStorage(e.key === null ? lerStorage() : e.newValue))
+    aviso()
+  }
   ouvintes.add(aviso)
-  window.addEventListener('storage', aviso)
+  window.addEventListener('storage', aoMudarStorage)
   return () => {
     ouvintes.delete(aviso)
-    window.removeEventListener('storage', aviso)
+    window.removeEventListener('storage', aoMudarStorage)
   }
 }
 
@@ -89,8 +114,7 @@ export function SidebarColapsoProvider({ children }: { children: React.ReactNode
     }
     // O MESMO atributo que o script inline escreve: React e CSS têm de contar a
     // mesma história, senão o próximo reload volta ao estado antigo.
-    if (proxima) document.documentElement.dataset[ATRIBUTO_SIDEBAR] = VALOR_RECOLHIDA
-    else delete document.documentElement.dataset[ATRIBUTO_SIDEBAR]
+    aplicarAtributo(proxima)
     for (const aviso of ouvintes) aviso()
   }, [])
 
