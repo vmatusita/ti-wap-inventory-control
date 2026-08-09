@@ -275,7 +275,19 @@ export function ConferenciaEstoque({
     toast.success('Conferência encerrada.')
   }
 
-  const tudoGravado = ajustes.length > 0 && pendentes.length === 0
+  // "Já registrei tudo o que havia" — a condição que libera o encerrar.
+  //
+  // ⚠ A primeira escrita era `ajustes.length > 0 && pendentes.length === 0`, e o
+  // roteiro manual pegou o furo: depois de registrar, o `router.refresh()` traz os
+  // saldos NOVOS, as contagens passam a bater com eles e `ajustes` volta a ser
+  // VAZIO — então `tudoGravado` virava false exatamente no instante em que o
+  // trabalho terminou. O botão "Encerrar conferência" sumia, e o rascunho (com as
+  // contagens e os `gravados`) ficava no `sessionStorage` para ser reoferecido na
+  // próxima visita, como se houvesse trabalho pendente.
+  //
+  // A âncora certa é `gravados`: ele NÃO se apaga quando os saldos se atualizam —
+  // é o registro de que esta conferência já gravou alguma coisa.
+  const tudoGravado = gravados.length > 0 && pendentes.length === 0
 
   return (
     <div className="space-y-4">
