@@ -32,12 +32,12 @@ import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio
 import { cn } from '@/lib/utils'
 import {
   ajustesDaConferencia,
-  esquecerGravado,
-  itensPendentes,
+  baseDaConferencia,
   linhasDaConferencia,
   observacaoDeInventario,
   particionar,
   resumoDaConferencia,
+  somarEscrito,
   textoResumoConferencia,
   type AjusteConferencia,
 } from '@/lib/itens/conferencia'
@@ -75,10 +75,20 @@ export function ConferenciaEstoque({
 }) {
   const router = useRouter()
   const [contagens, setContagens] = useState<Record<number, string>>({})
-  const [gravados, setGravados] = useState<number[]>([])
+  // O que ESTA sessão já gravou por item (com sinal). NÃO viaja no rascunho, de
+  // propósito: depois de um F5 os saldos que o servidor manda já incluem tudo o
+  // que foi escrito, e a base congelada é recapturada deles — somar de novo aqui
+  // descontaria duas vezes.
+  const [jaEscrito, setJaEscrito] = useState<Record<number, number>>({})
+  // A BASE CONGELADA: o estoque de cada item no instante em que a tela abriu.
+  // `useState` com inicializador, e não `useMemo` sobre `saldos`, porque ela NÃO
+  // pode acompanhar o `router.refresh()` — é exatamente disso que a idempotência
+  // depende (ver `baseDaConferencia`). Trocar de filial a recaptura porque a
+  // página dá `key` ao componente, remontando-o.
+  const [base] = useState(() => baseDaConferencia(saldos))
   // "Esta conferência já gravou alguma coisa" — fato que NÃO desanda quando o
-  // operador corrige uma linha (ao contrário de `gravados`). Viaja no rascunho
-  // para sobreviver ao F5. Ver `tudoGravado`, mais abaixo.
+  // operador corrige uma linha. Viaja no rascunho para sobreviver ao F5.
+  // Ver `tudoGravado`, mais abaixo.
   const [registrou, setRegistrou] = useState(false)
   const [estados, setEstados] = useState<Record<number, EstadoLinha>>({})
   const [observacao, setObservacao] = useState(observacaoDeInventario(formatDate(hojeISO())))
@@ -113,9 +123,13 @@ export function ConferenciaEstoque({
     return () => clearTimeout(t)
   }, [filialId])
 
-  // Salva a cada mudança. `contagens` e `gravados` são o trabalho que não pode se
-  // perder num F5 no meio do corredor — e `gravados` em especial, porque é ele
-  // que impede o reenvio de regravar um ajuste que já entrou.
+  // Salva a cada mudança. As CONTAGENS são o trabalho que não pode se perder num
+  // F5 no meio do corredor.
+  //
+  // ⚠ `jaEscrito` NÃO é salvo, e não é esquecimento: depois de um F5 o servidor
+  // manda saldos que já incluem tudo o que esta conferência gravou, e a base
+  // congelada é recapturada deles — restaurar o acumulado descontaria a mesma
+  // escrita duas vezes, e o operador veria diferenças que não existem.
   //
   // ⚠ NÃO grava enquanto o banner está aberto: senão a primeira tecla digitada
   // por quem ainda não decidiu já teria apagado o rascunho que o banner está
@@ -125,27 +139,26 @@ export function ConferenciaEstoque({
   // formulário de movimentação.
   useEffect(() => {
     if (oferta) return
-    const temAlgo = Object.keys(contagens).length > 0 || gravados.length > 0 || registrou
+    const temAlgo = Object.keys(contagens).length > 0 || registrou
     if (!temAlgo) return
     if (!iniciadaEm.current) iniciadaEm.current = new Date().toISOString()
     salvarRascunhoConferencia({
       filialId,
       contagens,
-      gravados,
       registrou,
       observacao,
       iniciadaEm: iniciadaEm.current,
     })
-  }, [contagens, gravados, registrou, observacao, filialId, oferta])
+  }, [contagens, registrou, observacao, filialId, oferta])
 
   function continuarRascunho() {
     const r = rascunhoOfertado.current
     if (!r) return
     setContagens(r.contagens)
-    setGravados(r.gravados)
-    // Rascunho antigo (gravado antes deste campo existir) restaura sem a marca —
-    // e ainda assim se comporta: `gravados` não vazio já implica que gravou.
-    setRegistrou(r.registrou || r.gravados.length > 0)
+    // `jaEscrito` começa vazio de propósito (ver o efeito acima): os saldos que
+    // acabaram de vir do servidor já contêm o que foi gravado antes do F5.
+    setJaEscrito({})
+    setRegistrou(r.registrou)
     if (r.observacao) setObservacao(r.observacao)
     iniciadaEm.current = r.iniciadaEm || new Date().toISOString()
     setOferta(null)
@@ -165,23 +178,24 @@ export function ConferenciaEstoque({
     // oferta fechar) e o trabalho desta sessão se perderia num F5.
     if (oferta) descartarRascunho()
     setContagens((c) => ({ ...c, [itemId]: valor }))
-    // ⚠ MUDAR A CONTAGEM TIRA O ITEM DE `gravados`. Achado da revisão adversarial
-    // desta fase: sem isto, uma correção feita DEPOIS de registrar sumia em
-    // silêncio — o item seguia filtrado por `itensPendentes`, nunca entrava no
-    // diálogo, nunca chegava ao servidor, e o botão dizia "Nada a registrar" com
-    // a diferença colorida na tabela. Se o operador então encerrasse, o rascunho
-    // era apagado e o ajuste desaparecia sem erro e sem aviso.
+    // ⚠ CORRIGIR UMA CONTAGEM JÁ REGISTRADA volta a gerar pendência sozinho, sem
+    // nenhuma lista de ids para manter em dia: `diff` É "contado − base congelada
+    // − o que esta sessão já escreveu", então basta a contagem mudar.
     //
-    // Reenviar não duplica: o saldo do sistema já absorveu o primeiro ajuste, e o
-    // novo diff é calculado contra o número atualizado.
-    setGravados((g) => (g.includes(itemId) ? esquecerGravado(g, itemId) : g))
+    // Foi a PRIMEIRA revisão adversarial que achou o furo (a correção sumia em
+    // silêncio) e a SEGUNDA que mostrou por que consertá-lo com uma lista de ids
+    // não bastava: aquilo dependia de o `router.refresh()` já ter chegado, e não
+    // há nada que garanta isso — o campo volta a ficar editável antes.
     setEstados((e) => (e[itemId] ? { ...e, [itemId]: {} } : e))
   }
 
-  const linhas = useMemo(() => linhasDaConferencia(saldos, contagens), [saldos, contagens])
+  const linhas = useMemo(
+    () => linhasDaConferencia(saldos, contagens, base, jaEscrito),
+    [saldos, contagens, base, jaEscrito],
+  )
   const resumo = useMemo(() => resumoDaConferencia(linhas), [linhas])
-  const ajustes = useMemo(() => ajustesDaConferencia(linhas), [linhas])
-  const pendentes = useMemo(() => itensPendentes(ajustes, gravados), [ajustes, gravados])
+  // `diff` já é o que FALTA gravar, então "pendente" e "ajuste" são a mesma lista.
+  const pendentes = useMemo(() => ajustesDaConferencia(linhas), [linhas])
   const diffPorItem = useMemo(
     () => new Map(linhas.map((l) => [l.itemId, l.diff])),
     [linhas],
@@ -207,7 +221,9 @@ export function ConferenciaEstoque({
     const blocos = particionar(aEnviar, MAX_LINHAS_LOTE_ITEM)
 
     start(async () => {
-      const gravadosAgora: number[] = []
+      // Guarda o AJUSTE inteiro (item + quantidade), não só o id: é a quantidade
+      // que sai da conta de "o que ainda falta" (`somarEscrito`).
+      const gravadosAgora: AjusteConferencia[] = []
       const errosAgora: Record<number, EstadoLinha> = {}
       let interrompeu = false
 
@@ -232,7 +248,7 @@ export function ConferenciaEstoque({
           }
           bloco.forEach((a, j) => {
             const r = res.resultados[j]
-            if (r?.ok) gravadosAgora.push(a.item_id)
+            if (r?.ok) gravadosAgora.push(a)
             else errosAgora[a.item_id] = { erro: r?.erro ?? 'Não foi possível registrar.' }
           })
         } catch {
@@ -247,15 +263,17 @@ export function ConferenciaEstoque({
       }
 
       setProgresso(null)
-      // `gravados` cresce ANTES de qualquer outra coisa: é ele que o rascunho
-      // guarda e que faz o reenvio mandar só o que falta.
+      // O acumulado sobe ANTES de qualquer outra coisa: é ele que faz o `diff`
+      // de cada linha virar "o que ainda falta" no MESMO render, sem esperar o
+      // `router.refresh()` — que é o ida-e-volta em que a 2ª revisão adversarial
+      // mostrou existir a janela de duplicação.
       if (gravadosAgora.length) {
-        setGravados((g) => [...new Set([...g, ...gravadosAgora])])
+        setJaEscrito((j) => somarEscrito(j, gravadosAgora))
         setRegistrou(true)
       }
       setEstados((e) => {
         const novo = { ...e }
-        for (const id of gravadosAgora) novo[id] = { gravado: true }
+        for (const a of gravadosAgora) novo[a.item_id] = { gravado: true }
         for (const [id, est] of Object.entries(errosAgora)) novo[Number(id)] = est
         return novo
       })
@@ -284,12 +302,20 @@ export function ConferenciaEstoque({
     })
   }
 
+  // ⚠ ENCERRAR TEM DE ZERAR `registrou` TAMBÉM. A 2ª revisão adversarial pegou:
+  // sem isso, `tudoGravado` continuava true logo depois de encerrar (o botão
+  // "Encerrar conferência" reaparecia na hora) E o efeito de salvar disparava de
+  // novo — `temAlgo` era verdadeiro só por causa dele —, regravando no
+  // `sessionStorage` um rascunho vazio que o `desserializar` agora aceita.
+  // Resultado: a próxima visita oferecia "Continuar a conferência…" para um
+  // trabalho que já tinha sido encerrado.
   function concluir() {
     limparRascunhoConferencia()
     rascunhoOfertado.current = null
     iniciadaEm.current = null
     setContagens({})
-    setGravados([])
+    setJaEscrito({})
+    setRegistrou(false)
     setEstados({})
     router.refresh()
     toast.success('Conferência encerrada.')
@@ -301,16 +327,17 @@ export function ConferenciaEstoque({
   // roteiro manual pegou o furo: depois de registrar, o `router.refresh()` traz os
   // saldos NOVOS, as contagens passam a bater com eles e `ajustes` volta a ser
   // VAZIO — então `tudoGravado` virava false exatamente no instante em que o
-  // trabalho terminou. O botão "Encerrar conferência" sumia, e o rascunho (com as
-  // contagens e os `gravados`) ficava no `sessionStorage` para ser reoferecido na
-  // próxima visita, como se houvesse trabalho pendente.
+  // trabalho terminou. O botão "Encerrar conferência" sumia, e o rascunho ficava
+  // no `sessionStorage` para ser reoferecido na próxima visita, como se houvesse
+  // trabalho pendente.
   //
-  // ⚠⚠ E a âncora TAMBÉM não pode ser `gravados`, que era a segunda tentativa:
-  // desde a correção da revisão adversarial, `gravados` ENCOLHE quando o operador
-  // corrige uma contagem já registrada — corrigir a única linha gravada faria o
-  // botão sumir de novo. A âncora é um fato que não desanda: esta conferência
-  // gravou alguma coisa, em algum momento.
+  // A âncora é um fato que não desanda enquanto a conferência está aberta: esta
+  // conferência gravou alguma coisa, em algum momento. Quem a desfaz é só o
+  // `concluir()`, acima.
   const tudoGravado = registrou && pendentes.length === 0
+
+  // Quantos itens esta sessão já acertou — o "· N já registradas" da barra.
+  const jaRegistradas = Object.keys(jaEscrito).length
 
   return (
     <div className="space-y-4">
@@ -431,10 +458,10 @@ export function ConferenciaEstoque({
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
         <p className="text-sm tabular-nums" aria-live="polite">
           {textoResumoConferencia(resumo)}
-          {gravados.length > 0 && (
+          {jaRegistradas > 0 && (
             <span className="text-muted-foreground">
               {' '}
-              · {gravados.length} já registrada{gravados.length === 1 ? '' : 's'}
+              · {jaRegistradas} já registrada{jaRegistradas === 1 ? '' : 's'}
             </span>
           )}
         </p>

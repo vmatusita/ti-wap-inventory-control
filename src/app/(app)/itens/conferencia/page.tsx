@@ -134,7 +134,13 @@ export default async function ConferenciaPage({
   return (
     <div className="space-y-4">
       {cabecalho}
+      {/* ⚠ `key` NÃO é enfeite: sem ela o React reusa a instância ao trocar de
+          filial pelos atalhos "Conferir outra filial", e as contagens da filial
+          anterior — mais a BASE CONGELADA dos saldos dela — atravessariam para a
+          nova, produzindo diferenças inventadas. Achado da 2ª revisão
+          adversarial da F31. */}
       <ConferenciaEstoque
+        key={filial.id}
         filialId={filial.id}
         filialNome={filial.nome}
         saldos={saldos}

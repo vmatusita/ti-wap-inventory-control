@@ -7,7 +7,6 @@ import {
 const VALIDO = JSON.stringify({
   filialId: 3,
   contagens: { 1: '14', 5: '8' },
-  gravados: [7],
   registrou: true,
   observacao: 'Inventário de 09/08/2026',
   iniciadaEm: '2026-08-09T14:32:00.000Z',
@@ -19,8 +18,7 @@ describe('desserializarRascunhoConferencia (dado de FORA, sempre)', () => {
     expect(r).toEqual({
       filialId: 3,
       contagens: { 1: '14', 5: '8' },
-      gravados: [7],
-      registrou: true,
+          registrou: true,
       observacao: 'Inventário de 09/08/2026',
       iniciadaEm: '2026-08-09T14:32:00.000Z',
     })
@@ -53,11 +51,21 @@ describe('desserializarRascunhoConferencia (dado de FORA, sempre)', () => {
     expect(desserializarRascunhoConferencia(JSON.stringify({ filialId: 3 }))).toBeNull()
   })
 
-  it('rascunho SÓ com gravados sobrevive — é o envio parcial esperando reenvio', () => {
+  it('O QUE JÁ FOI GRAVADO POR ITEM não viaja no rascunho — é estado de sessão', () => {
+    // Decisão da 2ª revisão adversarial: depois de um F5 os saldos que o servidor
+    // manda JÁ incluem o que esta conferência escreveu, e a base congelada é
+    // recapturada deles. Restaurar o acumulado descontaria a mesma escrita duas
+    // vezes e o operador veria diferenças que não existem.
     const r = desserializarRascunhoConferencia(
-      JSON.stringify({ filialId: 3, contagens: {}, gravados: [4, 9] }),
+      JSON.stringify({ filialId: 3, contagens: { 1: '5' }, gravados: [4, 9], jaEscrito: { 4: 2 } }),
     )
-    expect(r?.gravados).toEqual([4, 9])
+    expect(r).toEqual({
+      filialId: 3,
+      contagens: { 1: '5' },
+      registrou: false,
+      observacao: '',
+      iniciadaEm: '',
+    })
   })
 
   it('contagem com chave ou valor fora de forma é descartada, o resto sobrevive', () => {
@@ -71,25 +79,28 @@ describe('desserializarRascunhoConferencia (dado de FORA, sempre)', () => {
   })
 
   it('contagens não-objeto (array, string, número) viram mapa vazio', () => {
+    // `registrou: true` mantém o rascunho VIVO para a asserção poder olhar as
+    // contagens — sem ele, um rascunho sem contagem nenhuma é descartado inteiro
+    // (o que também está certo, e é o teste logo acima).
     for (const contagens of [[], 'x', 5, null]) {
-      const bruto = JSON.stringify({ filialId: 3, contagens, gravados: [1] })
+      const bruto = JSON.stringify({ filialId: 3, contagens, registrou: true })
       expect(desserializarRascunhoConferencia(bruto)?.contagens, JSON.stringify(contagens)).toEqual(
         {},
       )
     }
   })
 
-  it('gravados fora de forma vira lista vazia; repetidos são deduplicados', () => {
-    expect(
-      desserializarRascunhoConferencia(
-        JSON.stringify({ filialId: 3, contagens: { 1: '1' }, gravados: 'x' }),
-      )?.gravados,
-    ).toEqual([])
-    expect(
-      desserializarRascunhoConferencia(
-        JSON.stringify({ filialId: 3, contagens: { 1: '1' }, gravados: [4, 4, 'z', 0, 9] }),
-      )?.gravados,
-    ).toEqual([4, 9])
+  it('campo desconhecido no storage é simplesmente ignorado', () => {
+    const r = desserializarRascunhoConferencia(
+      JSON.stringify({ filialId: 3, contagens: { 1: '1' }, gravados: 'x', qualquerCoisa: 42 }),
+    )
+    expect(Object.keys(r ?? {}).sort()).toEqual([
+      'contagens',
+      'filialId',
+      'iniciadaEm',
+      'observacao',
+      'registrou',
+    ])
   })
 
   it('NÃO valida o texto da contagem — quem julga é contagemDaLinha, uma régua só', () => {
@@ -152,9 +163,9 @@ describe('registrou (a marca que sustenta o "Encerrar conferência")', () => {
     // Sem esta linha, corrigir a última contagem gravada apagaria o rascunho e o
     // botão "Encerrar conferência" sumiria (o furo que a marca existe para fechar).
     const r = desserializarRascunhoConferencia(
-      JSON.stringify({ filialId: 3, contagens: {}, gravados: [], registrou: true }),
+      JSON.stringify({ filialId: 3, contagens: {}, registrou: true }),
     )
     expect(r?.registrou).toBe(true)
-    expect(r?.gravados).toEqual([])
+    expect(r?.contagens).toEqual({})
   })
 })

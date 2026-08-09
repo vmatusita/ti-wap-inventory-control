@@ -64,25 +64,67 @@ export function contagemDaLinha(bruto: string | null | undefined): number | null
   return n
 }
 
+/** Estoque por item no instante em que a conferência ABRIU — a base congelada. */
+export type BaseDaConferencia = Readonly<Record<number, number>>
+/** Quanto esta conferência já gravou por item (com sinal), nesta sessão. */
+export type EscritoPorItem = Readonly<Record<number, number>>
+
+/**
+ * A base congelada, tirada dos saldos na abertura da tela.
+ *
+ * ⚠ POR QUE CONGELAR, e por que isto é o coração da idempotência (2ª volta da
+ * revisão adversarial da F31). A primeira versão calculava o que falta gravar
+ * como `contado − estoque ATUAL`, confiando que o `router.refresh()` já tivesse
+ * trazido o saldo novo depois de um registro. Não dá para confiar: o `refresh()`
+ * é um ida-e-volta de rede que NÃO é esperado pelo `useTransition`, então existe
+ * uma janela — dezenas a centenas de milissegundos, e esta tela é usada no
+ * corredor, no celular — em que o campo já está reabilitado e `saldos` ainda é o
+ * antigo. Corrigir a contagem nessa janela recalculava a diferença contra o
+ * número velho e mandava o ajuste INTEIRO de novo: 2 + 3 + 3 = 8 onde o operador
+ * contou 5, sem erro nenhum na tela.
+ *
+ * Com a base congelada a conta deixa de depender de tempo:
+ *
+ *     falta gravar = (contado − base) − o que esta conferência já gravou
+ *
+ * Ela é verdadeira antes e depois do refresh chegar, e o mesmo clique repetido
+ * nunca escreve duas vezes.
+ */
+export function baseDaConferencia(saldos: readonly SaldoItem[]): Record<number, number> {
+  const base: Record<number, number> = {}
+  for (const s of saldos) base[s.item_id] = s.estoque
+  return base
+}
+
 /**
  * As linhas CONTADAS, na ordem dos saldos (que já vêm ordenados por grupo/ordem).
  * Item que não está em `saldos` é ignorado — a contagem é sempre sobre o catálogo
  * que a tela mostrou.
+ *
+ * `sistema` é o saldo AO VIVO (é o que a coluna mostra); `diff` é o que ainda
+ * FALTA gravar. No estado assentado — refresh chegou — os dois concordam, porque
+ * o saldo vivo já é `base + jaEscrito`. Na janela do refresh eles divergem por um
+ * instante, e quem manda é o `diff`: é ele que vira lançamento.
  */
 export function linhasDaConferencia(
   saldos: readonly SaldoItem[],
   contagens: Readonly<Record<number, string>>,
+  base: BaseDaConferencia = {},
+  jaEscrito: EscritoPorItem = {},
 ): LinhaConferencia[] {
   const linhas: LinhaConferencia[] = []
   for (const s of saldos) {
     const contado = contagemDaLinha(contagens[s.item_id])
     if (contado === null) continue
+    // Item que apareceu no catálogo depois da abertura não tem base congelada —
+    // cai no saldo vivo, que para ele é a primeira leitura de qualquer forma.
+    const partida = base[s.item_id] ?? s.estoque
     linhas.push({
       itemId: s.item_id,
       item: s.item,
       sistema: s.estoque,
       contado,
-      diff: contado - s.estoque,
+      diff: contado - partida - (jaEscrito[s.item_id] ?? 0),
     })
   }
   return linhas
@@ -103,7 +145,14 @@ export function resumoDaConferencia(
   return { conferidos: linhas.length, comDiferenca, sobrando, faltando }
 }
 
-/** Só as divergências viram ajuste. Linha que bateu não gera lançamento nenhum. */
+/**
+ * Só as divergências viram ajuste. Linha que bateu não gera lançamento nenhum.
+ *
+ * Como `diff` já é "o que FALTA gravar" (base congelada menos o que esta sessão
+ * escreveu), esta lista é exatamente o pendente: reenviar depois de um envio
+ * parcial manda só o que falta, e clicar duas vezes na mesma tela não escreve
+ * duas vezes.
+ */
 export function ajustesDaConferencia(
   linhas: readonly LinhaConferencia[],
 ): AjusteConferencia[] {
@@ -132,49 +181,25 @@ export function particionar<T>(itens: readonly T[], teto: number): T[][] {
 }
 
 /**
- * O que AINDA falta gravar — a idempotência do reenvio.
+ * Soma o que acabou de ser gravado ao registro da sessão.
  *
- * Depois de um envio parcial, a tela reoferece "Registrar diferenças"; sem este
- * filtro, o segundo clique regravaria os ajustes que já entraram e o estoque
- * andaria DUAS vezes na mesma direção. `gravados` é a lista de itens confirmados
- * pelo servidor, e ela sobrevive no rascunho — então nem um F5 no meio faz o
- * reenvio duplicar.
+ * É a outra metade da base congelada: `baseDaConferencia` diz de onde se partiu,
+ * e este acumulador diz o quanto esta conferência já andou. Juntos, `diff` é
+ * sempre "o que ainda falta", sem depender de o saldo do servidor já ter chegado.
  *
- * ⚠ INVARIANTE DE QUEM CHAMA, e ela não é opcional: `gravados` significa "o que
- * já foi gravado **para a contagem que está na tela agora**". Assim que o
- * operador MUDA a contagem de um item, aquele item tem de sair da lista — é para
- * isso que existe `esquecerGravado`. Sem isso, uma correção feita depois de
- * registrar some em silêncio: o item continua filtrado aqui, nunca entra no
- * diálogo, nunca chega ao servidor, e o botão diz "Nada a registrar" com uma
- * diferença colorida na tabela. (Achado da revisão adversarial da F31, encontrado
- * por duas lentes independentes.)
+ * Acumula (`+=`) em vez de sobrescrever, de propósito: um item pode ser corrigido
+ * e regravado várias vezes na mesma sessão, e é a SOMA do que foi escrito que
+ * precisa sair da conta.
  */
-export function itensPendentes(
-  ajustes: readonly AjusteConferencia[],
-  gravados: readonly number[],
-): AjusteConferencia[] {
-  const feitos = new Set(gravados)
-  return ajustes.filter((a) => !feitos.has(a.item_id))
-}
-
-/**
- * Tira um item do registro de "já gravado" — o que se faz quando a contagem dele
- * MUDA depois de registrado.
- *
- * Não é redundante com o filtro acima, e sim a outra metade dele: `itensPendentes`
- * responde "o que falta enviar", e esta responde "o que deixou de estar em dia".
- * Existe como função nomeada, e não como um `filter` solto no componente, porque a
- * invariante entre as duas é o ponto exato onde a revisão adversarial achou o furo.
- *
- * Reenviar depois de corrigir NÃO duplica: o saldo do sistema já absorveu o
- * primeiro ajuste, então o novo `diff` é calculado contra o número atualizado e
- * vale exatamente a correção que falta.
- */
-export function esquecerGravado(
-  gravados: readonly number[],
-  itemId: number,
-): number[] {
-  return gravados.filter((id) => id !== itemId)
+export function somarEscrito(
+  jaEscrito: EscritoPorItem,
+  gravadosAgora: readonly AjusteConferencia[],
+): Record<number, number> {
+  const novo: Record<number, number> = { ...jaEscrito }
+  for (const a of gravadosAgora) {
+    novo[a.item_id] = (novo[a.item_id] ?? 0) + a.quantidade
+  }
+  return novo
 }
 
 /** Observação padrão do lote de ajustes — vira a justificativa de CADA linha. */

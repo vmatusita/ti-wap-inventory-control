@@ -27,15 +27,15 @@ export type RascunhoConferencia = {
   filialId: number
   /** itemId → texto digitado no campo "Contado" (string, como no input). */
   contagens: Record<number, string>
-  /** Itens cujo ajuste JÁ foi gravado PARA A CONTAGEM ATUAL — a idempotência do
-   *  reenvio. Encolhe quando o operador corrige uma contagem já registrada
-   *  (`esquecerGravado`, em `lib/itens/conferencia.ts`). */
-  gravados: number[]
-  /** Esta conferência já gravou alguma coisa, em algum momento. É o que sustenta
-   *  o "Encerrar conferência" — `gravados` não serve para isso, porque encolhe.
-   *  OPCIONAL: rascunho gravado antes deste campo existir restaura sem ele, e o
-   *  componente cai de volta em `gravados.length > 0`, que era a regra anterior. */
-  registrou?: boolean
+  /** Esta conferência já gravou alguma coisa, em algum momento — é o que sustenta
+   *  o "Encerrar conferência".
+   *
+   *  ⚠ O QUE **NÃO** ESTÁ AQUI, e é decisão: o quanto já foi gravado por item.
+   *  Depois de um F5 os saldos que o servidor manda já incluem tudo o que esta
+   *  conferência escreveu, e a base congelada é recapturada deles — guardar o
+   *  acumulado faria a mesma escrita ser descontada duas vezes. O acumulado é
+   *  estado de SESSÃO (`jaEscrito`, no componente), não de rascunho. */
+  registrou: boolean
   /** Observação do lote, se o operador editou a padrão. */
   observacao?: string
   /** ISO de quando a conferência começou — alimenta o "começada às {hora}". */
@@ -69,12 +69,6 @@ function sanearContagens(bruto: unknown): Record<number, string> {
   return saida
 }
 
-function sanearGravados(bruto: unknown): number[] {
-  if (!Array.isArray(bruto)) return []
-  const ids = bruto.map(idPositivo).filter((n): n is number => n !== null)
-  return [...new Set(ids)]
-}
-
 /**
  * JSON cru => rascunho utilizável, ou `null` quando não há nada aproveitável
  * (chave ausente, JSON quebrado, filial inválida). Nunca lança.
@@ -99,20 +93,18 @@ export function desserializarRascunhoConferencia(
   if (filialId === null) return null
 
   const contagens = sanearContagens(r.contagens)
-  const gravados = sanearGravados(r.gravados)
-  // Rascunho sem contagem NEM item gravado não interessa: o banner ofereceria
-  // "continuar" um trabalho que não existe. `registrou` sozinho também conta —
-  // é a conferência cujas contagens foram todas corrigidas e reenviadas.
-  if (Object.keys(contagens).length === 0 && gravados.length === 0 && r.registrou !== true) {
+  // Rascunho sem contagem NENHUMA não interessa: o banner ofereceria "continuar"
+  // um trabalho que não existe. `registrou` sozinho também conta — é a
+  // conferência que já gravou tudo e está esperando o "Encerrar".
+  if (Object.keys(contagens).length === 0 && r.registrou !== true) {
     return null
   }
 
   return {
     filialId,
     contagens,
-    gravados,
-    // Ausente (rascunho de antes deste campo) => false, e quem restaura cai de
-    // volta em `gravados.length > 0`. Nunca `undefined` vazando para a tela.
+    // Ausente (ou qualquer coisa que não seja `true` literal) => false. Nunca
+    // `undefined` vazando para a tela.
     registrou: r.registrou === true,
     observacao: texto(r.observacao),
     iniciadaEm: texto(r.iniciadaEm),

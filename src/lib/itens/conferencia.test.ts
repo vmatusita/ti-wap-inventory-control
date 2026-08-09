@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   ajustesDaConferencia,
+  baseDaConferencia,
   contagemDaLinha,
-  esquecerGravado,
-  itensPendentes,
   linhasDaConferencia,
   observacaoDeInventario,
   particionar,
   resumoDaConferencia,
+  somarEscrito,
   textoResumoConferencia,
 } from '@/lib/itens/conferencia'
 import type { SaldoItem } from '@/lib/queries/itens'
@@ -178,33 +178,6 @@ describe('particionar (blocos do teto de linhas do lançamento)', () => {
   })
 })
 
-describe('itensPendentes (idempotência do reenvio)', () => {
-  const AJUSTES = [
-    { item_id: 3, quantidade: 2 },
-    { item_id: 5, quantidade: -2 },
-    { item_id: 6, quantidade: -1 },
-  ]
-
-  it('reenviar manda só o que ainda não gravou', () => {
-    expect(itensPendentes(AJUSTES, [3])).toEqual([
-      { item_id: 5, quantidade: -2 },
-      { item_id: 6, quantidade: -1 },
-    ])
-  })
-
-  it('com tudo gravado, o reenvio não manda nada — nunca grava duas vezes', () => {
-    expect(itensPendentes(AJUSTES, [3, 5, 6])).toEqual([])
-  })
-
-  it('sem nada gravado, manda tudo', () => {
-    expect(itensPendentes(AJUSTES, [])).toEqual(AJUSTES)
-  })
-
-  it('id gravado que já não está na lista não atrapalha', () => {
-    expect(itensPendentes(AJUSTES, [99])).toEqual(AJUSTES)
-  })
-})
-
 describe('observacaoDeInventario', () => {
   it('é a justificativa de cada linha — nunca vazia (CHECK lanc_item_ajuste_obs)', () => {
     const obs = observacaoDeInventario('09/08/2026')
@@ -213,33 +186,112 @@ describe('observacaoDeInventario', () => {
   })
 })
 
-describe('esquecerGravado (a outra metade da idempotência — achado da revisão F31)', () => {
-  const AJUSTES = [
-    { item_id: 3, quantidade: 2 },
-    { item_id: 5, quantidade: -2 },
-  ]
+// ---------------------------------------------------------------------------
+// BASE CONGELADA + acumulado — a idempotência que NÃO depende de tempo.
+// (2ª volta da revisão adversarial da F31.)
+// ---------------------------------------------------------------------------
 
-  it('tira só o item pedido, preservando a ordem dos demais', () => {
-    expect(esquecerGravado([3, 5, 6], 5)).toEqual([3, 6])
+describe('baseDaConferencia', () => {
+  it('congela o estoque de cada item da abertura', () => {
+    expect(baseDaConferencia(SALDOS)).toEqual({ 1: 14, 2: 8, 3: 5, 4: 3, 5: 10, 6: 2 })
   })
 
-  it('item que não está na lista não muda nada', () => {
-    expect(esquecerGravado([3, 5], 99)).toEqual([3, 5])
-    expect(esquecerGravado([], 3)).toEqual([])
+  it('lista vazia vira mapa vazio', () => {
+    expect(baseDaConferencia([])).toEqual({})
+  })
+})
+
+describe('somarEscrito', () => {
+  it('acumula por item, sem perder o que já havia', () => {
+    const j1 = somarEscrito({}, [{ item_id: 3, quantidade: 2 }])
+    expect(j1).toEqual({ 3: 2 })
+    const j2 = somarEscrito(j1, [{ item_id: 3, quantidade: 1 }, { item_id: 5, quantidade: -4 }])
+    expect(j2).toEqual({ 3: 3, 5: -4 })
   })
 
-  it('CORRIGIR uma contagem já gravada devolve o item aos pendentes', () => {
-    // O furo que a revisão adversarial achou: sem `esquecerGravado`, o item
-    // continuava filtrado para sempre e a correção sumia em silêncio.
-    const gravados = [3, 5]
-    expect(itensPendentes(AJUSTES, gravados)).toEqual([])
-    const depoisDaCorrecao = esquecerGravado(gravados, 3)
-    expect(itensPendentes(AJUSTES, depoisDaCorrecao)).toEqual([{ item_id: 3, quantidade: 2 }])
+  it('SOMA em vez de sobrescrever — o mesmo item pode ser corrigido várias vezes', () => {
+    const j = somarEscrito({ 3: 2 }, [{ item_id: 3, quantidade: 5 }])
+    expect(j[3]).toBe(7)
   })
 
-  it('e o item corrigido volta a sair dos pendentes quando for gravado de novo', () => {
-    const g1 = esquecerGravado([3, 5], 3)
-    const g2 = [...g1, 3]
-    expect(itensPendentes(AJUSTES, g2)).toEqual([])
+  it('não muta o mapa recebido', () => {
+    const antes = { 3: 2 }
+    somarEscrito(antes, [{ item_id: 3, quantidade: 1 }])
+    expect(antes).toEqual({ 3: 2 })
+  })
+
+  it('nada gravado devolve o mesmo conteúdo', () => {
+    expect(somarEscrito({ 3: 2 }, [])).toEqual({ 3: 2 })
+  })
+})
+
+describe('o diff é "o que FALTA gravar", não "contado − sistema"', () => {
+  const BASE = baseDaConferencia(SALDOS)
+
+  it('sem nada gravado, é a diferença crua (o caso do dia a dia)', () => {
+    const [l] = linhasDaConferencia(SALDOS, { 3: '7' }, BASE, {})
+    expect(l.diff).toBe(2)
+  })
+
+  it('depois de gravar, zera — mesmo com o saldo do servidor AINDA velho', () => {
+    // ⚠ Este é o caso que a 2ª revisão adversarial levantou: o `router.refresh()`
+    // é um ida-e-volta de rede que não trava o campo, então existe uma janela em
+    // que `saldos` ainda é o antigo. Antes da base congelada, o diff se
+    // recalculava contra o número velho e o ajuste inteiro era reenviado.
+    const [l] = linhasDaConferencia(SALDOS, { 3: '7' }, BASE, { 3: 2 })
+    expect(l.diff).toBe(0)
+    expect(l.sistema).toBe(5) // o saldo ao vivo continua o antigo — e tudo bem
+  })
+
+  it('e zera igualmente DEPOIS de o saldo novo chegar', () => {
+    const saldosNovos = SALDOS.map((s) => (s.item_id === 3 ? { ...s, estoque: 7 } : s))
+    const [l] = linhasDaConferencia(saldosNovos, { 3: '7' }, BASE, { 3: 2 })
+    expect(l.diff).toBe(0)
+    expect(l.sistema).toBe(7)
+  })
+
+  it('CORRIGIR depois de gravar manda só a diferença que falta', () => {
+    // Gravou +2 (5 → 7) e agora percebe que eram 9: falta +2, não +4.
+    const [l] = linhasDaConferencia(SALDOS, { 3: '9' }, BASE, { 3: 2 })
+    expect(l.diff).toBe(2)
+    expect(ajustesDaConferencia([l])).toEqual([{ item_id: 3, quantidade: 2 }])
+  })
+
+  it('corrigir PARA BAIXO gera ajuste negativo, também só do que falta', () => {
+    // Gravou +2 (5 → 7) e agora percebe que eram 6: falta −1.
+    const [l] = linhasDaConferencia(SALDOS, { 3: '6' }, BASE, { 3: 2 })
+    expect(l.diff).toBe(-1)
+  })
+
+  it('clicar em registrar duas vezes na mesma tela não gera nada na segunda', () => {
+    const contagens = { 3: '7', 5: '8' }
+    const primeiro = ajustesDaConferencia(linhasDaConferencia(SALDOS, contagens, BASE, {}))
+    expect(primeiro).toEqual([
+      { item_id: 3, quantidade: 2 },
+      { item_id: 5, quantidade: -2 },
+    ])
+    const depois = somarEscrito({}, primeiro)
+    const segundo = ajustesDaConferencia(linhasDaConferencia(SALDOS, contagens, BASE, depois))
+    expect(segundo).toEqual([])
+  })
+
+  it('envio PARCIAL: o reenvio manda só quem falhou, e uma vez só', () => {
+    const contagens = { 3: '7', 5: '8' }
+    const todos = ajustesDaConferencia(linhasDaConferencia(SALDOS, contagens, BASE, {}))
+    // Só o item 3 entrou; o 5 falhou (concorrência).
+    const escrito = somarEscrito({}, [todos[0]])
+    const pendentes = ajustesDaConferencia(linhasDaConferencia(SALDOS, contagens, BASE, escrito))
+    expect(pendentes).toEqual([{ item_id: 5, quantidade: -2 }])
+  })
+
+  it('item que apareceu no catálogo DEPOIS da abertura usa o saldo vivo como base', () => {
+    const comItemNovo = [...SALDOS, saldo(7, 'Item que chegou depois', 4)]
+    const [l] = linhasDaConferencia(comItemNovo, { 7: '6' }, BASE, {})
+    expect(l.diff).toBe(2)
+  })
+
+  it('sem base nem acumulado (chamada antiga), continua sendo contado − sistema', () => {
+    const [l] = linhasDaConferencia(SALDOS, { 3: '7' })
+    expect(l.diff).toBe(2)
   })
 })
