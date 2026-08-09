@@ -4435,3 +4435,92 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   as ações irreversíveis nem oferece o filtro "só as destrutivas" — a régua existe e está testada,
   falta a UI; (2) `testarSenhaAcesso` (F29/ADM-05b) é um oráculo de senha sem rate-limit próprio,
   hoje protegido só por `exigirAdmin`.
+
+## 2026-08-09 · F30 (Onda C1) · A seleção da lista de ativos é POR PÁGINA
+
+- **Contexto:** ATV-03 (análise de UX de 07/08, §4) pede que o lote de movimentação nasça de onde o
+  operador filtra. A lista de `/ativos` é paginada e filtrada NO SERVIDOR: trocar página, filtro ou
+  busca é uma navegação que devolve `rows` novos ao mesmo componente client, sem desmontá-lo.
+- **Decisão:** a seleção vale só para a página aberta. Um efeito PODA do `rowSelection` todo id que
+  não está mais em `rows` (`podarForaDaPagina`), de modo que trocar de página/filtro/busca limpa o
+  que sumiu da tela. Persistir a seleção entre páginas fica no backlog.
+- **Motivo:** sem a poda, o `rowSelection` da TanStack sobrevive à troca de dados e a barra
+  anunciaria "5 selecionados" com duas linhas na tela — e "Movimentar" levaria ativos que o operador
+  não está mais vendo, o que é pior do que perder a seleção. É também o comportamento que
+  `mesa-conflitos.tsx` e `fila-pendencias-tabela.tsx` já documentam como decisão, não como defeito.
+- **Reversível?** sim: preservar entre páginas exigiria elevar o estado (sessionStorage, como o
+  rascunho do wizard) e resolver os ids no servidor ao movimentar — nada do que foi feito aqui atrapalha.
+
+## 2026-08-09 · F30 (Onda C1) · O teto do `?ativos=` e a peneira de UUID
+
+- **Contexto:** o `?ativos=` é o primeiro lugar do sistema em que uma LISTA de ids entra pela URL.
+  `buscarAtivosResumoPorIds` monta um `.in('id', …)` direto no PostgREST.
+- **Decisão:** `parseIdsDeAtivos` (puro, testado) peneira por UUID, colapsa repetidos (com
+  normalização de caixa), preserva a ordem de chegada e corta no `MAX_LOTE_MOVIMENTACAO`. O wizard
+  monta o lote com o que sobrou e o banner âmbar da MOV-14 (F27) passa a exibir também uma frase
+  somando os três motivos de "ficou de fora": apagado, endereço quebrado no link, cortado pelo teto.
+  Nenhum id aproveitável cai no caminho de `origemInvalida`, que já existia.
+- **Motivo:** um pedaço que não é UUID **não** devolve "nada encontrado" — ele derruba a página com
+  `invalid input syntax for type uuid`. A peneira tem de vir ANTES da consulta. E o corte pelo teto
+  segue a voz que o operador já conhece do "Colar lista", em vez de inventar uma segunda.
+- **Armadilha registrada:** `'ativos'` PRECISA entrar em `PARAMS_SEMEADORES` (F26). É essa lista que
+  gera a `key` de remontagem: sem ela, voltar à lista, escolher outros cinco e clicar "Movimentar"
+  reabriria o wizard com o lote antigo — a rota é a mesma e o React reaproveita a árvore.
+- **Precedência declarada:** `duplicar` > `ativos` > `ativo` > `tipo`. São ramos excludentes da mesma
+  leitura de URL; quem chega com dois params ganha o primeiro da lista.
+- **Reversível?** sim: é leitura de querystring, sem migration e sem contrato de dados.
+
+## 2026-08-09 · F30 (Onda C1) · Impressão do relatório: COLUNAS, não `LinhaDetalhe`
+
+- **Contexto:** REL-01. A4 retrato mede ~718px de viewport (Chrome, margens padrão): `sm:` casa,
+  `md:`/`lg:`/`xl:` não. Toda coluna escondida por breakpoint sumia do papel, e a linha expansível
+  que a revelaria no celular é `print:hidden`. A ordem de serviço deixou a escolha por tabela:
+  reexibir as COLUNAS na mídia print, ou imprimir a `LinhaDetalhe` como pares rótulo:valor.
+- **Decisão:** COLUNAS, e a mesma escolha para as SEIS tabelas (saídas, entradas, transferências,
+  movimentações de itens, a grade v1 e os grupos de itens). Cada coluna escondida ganhou a variante
+  de impressão que a reexibe; uma classe `rel-print-compacta`, escopada às seis tabelas, encolhe
+  fonte e padding e solta o `whitespace-nowrap` dentro do `@media print`.
+- **Motivo:** (1) a `LinhaDetalhe` é COMPARTILHADA pelas cinco tabelas com chevron — destravá-la para
+  uma destrava para todas, e o raio de impacto é maior do que mexer coluna a coluna; (2) ela dobraria
+  a altura de cada linha no papel, num documento que já ocupa várias páginas; (3) a grade v1
+  (`tabela-movimentacoes.tsx`, dos snapshots pré-F3B) nem tem `LinhaDetalhe` — a escolha por colunas
+  é a única que atende as seis com um mecanismo só; (4) medido: a tabela mais larga (Saídas, 11
+  colunas) ocupa 685px numa página de 718px, sem transbordar.
+- **Armadilha registrada:** a variante de impressão e o `hidden` têm a MESMA especificidade (uma
+  classe) — quem ganha é a ordem no CSS gerado. Conferido no CSS de produção do `npm run build`: o
+  Tailwind emite as utilitárias base antes das variantes, então a de print vence dentro do
+  `@media print`. Se essa ordem mudar numa atualização do Tailwind, a impressão volta a perder
+  colunas em silêncio — por isso `impressao-colunas.test.ts` existe. **Nunca** reabrir `.hidden`
+  globalmente no `@media print`: vazaria para o app inteiro.
+- **Reversível?** sim: são classes de mídia print e um bloco de CSS. A tela não mudou em nada.
+
+## 2026-08-09 · F30 (Onda C1) · O colapso da sidebar é CSS; o React só cuida do comportamento
+
+- **Contexto:** UXG-13 pede preferência persistida em `localStorage` "sem flash de layout na
+  hidratação — resolva como o tema resolve". O servidor não conhece a preferência do navegador: se o
+  React decidir a largura, a tela nasce com 240px e pula para 64px na hidratação.
+- **Decisão:** mecanismo ÚNICO. O estado visual (largura, rótulos, posição do selo, centralização)
+  mora inteiro num atributo `data-sidebar` do `<html>`, escrito por um script inline ANTES da
+  primeira pintura e mantido pelo `alternar()` do contexto. O React não duplica nenhuma dessas
+  classes: ele cuida só do comportamento (tooltip no modo ícone, `aria-expanded`, direção do ícone).
+- **Motivo:** é a mesma receita do tema (o next-themes injeta o próprio script e o `<html>` já tem
+  `suppressHydrationWarning` por causa dele). Duplicar o estado em classes condicionais criaria duas
+  fontes de verdade que podem divergir — e a divergência reintroduz o flash sem quebrar teste nenhum.
+  Daí `sidebar-colapso.test.ts` cobrar, estruturalmente, que a largura recolhida NÃO seja classe do React.
+- **Detalhe:** a leitura usa `useSyncExternalStore` (e não `useEffect` + `setState`, que o lint do
+  projeto barra como renderização em cascata). De brinde, duas abas do sistema passam a concordar.
+- **Reversível?** sim: são três ganchos de `data-*`, um bloco de CSS e um contexto.
+
+## 2026-08-09 · F30 (Onda C1) · O que esta fase NÃO pôde verificar
+
+- **Contexto:** a ordem exigia registrar uma movimentação "de verdade em ambiente com dados
+  fictícios" ao fim do roteiro da seleção múltipla. O ambiente não tem Supabase local — o Johnny
+  vetou o uso de Docker durante a execução — e o `.env.local` aponta para PRODUÇÃO.
+- **Decisão:** não registrar. O roteiro de escrita fica como pendência declarada, e a verificação do
+  que era verificável foi feita sem tocar em produção: os contratos de CSS (impressão e colapso)
+  foram medidos no navegador sobre uma bancada com dados 100% fictícios carregando o CSS compilado
+  do `npm run build`, e a lógica de seleção, teto, dedupe e avisos está em funções puras testadas.
+- **Motivo:** rodar seed fictício ou registrar movimentação de teste em produção contraria a regra
+  permanente nº 5 do `CLAUDE.md`. Um roteiro não executado e declarado é melhor do que um roteiro
+  executado no lugar errado.
+- **Reversível?** não se aplica — é uma pendência de verificação, não uma mudança de código.
