@@ -18,6 +18,10 @@ import {
   loteLancamentoItemSchema,
   precisaRepor,
   proximaOrdemDoGrupo,
+  MAX_LINHAS_TRANSFERENCIA_ITEM,
+  MSG_TRANSFERENCIA_MESMA_FILIAL,
+  MSG_TRANSFERENCIA_QTD,
+  transferenciaItemSchema,
 } from '@/lib/validators/item'
 
 // Lançamento de itens por quantidade. Dados 100% fictícios (CLAUDE.md).
@@ -392,5 +396,102 @@ describe('estornoLancamentoSchema', () => {
   it('lançamento inválido continua recusado independente do motivo', () => {
     const r = estornoLancamentoSchema.safeParse({ lancamento_id: 'não-é-uuid', motivo: 'x' })
     expect(r.success).toBe(false)
+  })
+})
+
+// ---- Transferência entre filiais (F31 · ITN-01) ----
+
+describe('transferenciaItemSchema', () => {
+  const BASE = {
+    origem_id: 1,
+    destino_id: 2,
+    linhas: [{ item_id: 5, quantidade: 10 }],
+    data: DATA_OK,
+  }
+
+  it('aceita a transferência mínima (1 item, sem chamado nem observação)', () => {
+    const r = transferenciaItemSchema.safeParse(BASE)
+    expect(r.success).toBe(true)
+    expect(r.data?.chamado).toBeUndefined()
+    expect(r.data?.observacao).toBeUndefined()
+  })
+
+  it('recusa origem igual ao destino, apontando o campo destino', () => {
+    const r = transferenciaItemSchema.safeParse({ ...BASE, destino_id: 1 })
+    expect(r.success).toBe(false)
+    const issue = r.error?.issues.find((i) => i.path[0] === 'destino_id')
+    expect(issue?.message).toBe(MSG_TRANSFERENCIA_MESMA_FILIAL)
+  })
+
+  it('recusa quantidade zero ou negativa — aqui não existe sinal', () => {
+    for (const q of [0, -3]) {
+      const r = transferenciaItemSchema.safeParse({
+        ...BASE,
+        linhas: [{ item_id: 5, quantidade: q }],
+      })
+      expect(r.success, `quantidade ${q}`).toBe(false)
+      expect(r.error?.issues.some((i) => i.message === MSG_TRANSFERENCIA_QTD)).toBe(true)
+    }
+  })
+
+  it('recusa quantidade fracionária', () => {
+    const r = transferenciaItemSchema.safeParse({
+      ...BASE,
+      linhas: [{ item_id: 5, quantidade: 1.5 }],
+    })
+    expect(r.success).toBe(false)
+  })
+
+  it('recusa o mesmo item duas vezes, marcando a SEGUNDA linha', () => {
+    const r = transferenciaItemSchema.safeParse({
+      ...BASE,
+      linhas: [
+        { item_id: 5, quantidade: 1 },
+        { item_id: 5, quantidade: 2 },
+      ],
+    })
+    expect(r.success).toBe(false)
+    const issue = r.error?.issues.find((i) => i.message === MSG_ITEM_REPETIDO)
+    expect(issue?.path).toEqual(['linhas', 1, 'item_id'])
+  })
+
+  it('exige ao menos uma linha e respeita o teto do carrinho', () => {
+    expect(transferenciaItemSchema.safeParse({ ...BASE, linhas: [] }).success).toBe(false)
+
+    const noTeto = Array.from({ length: MAX_LINHAS_TRANSFERENCIA_ITEM }, (_, i) => ({
+      item_id: i + 1,
+      quantidade: 1,
+    }))
+    expect(transferenciaItemSchema.safeParse({ ...BASE, linhas: noTeto }).success).toBe(true)
+    expect(
+      transferenciaItemSchema.safeParse({
+        ...BASE,
+        linhas: [...noTeto, { item_id: 999, quantidade: 1 }],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('o teto é o MESMO do lançamento (uma definição só do limite)', () => {
+    expect(MAX_LINHAS_TRANSFERENCIA_ITEM).toBe(MAX_LINHAS_LOTE_ITEM)
+  })
+
+  it('recusa data futura (mesma regra do lançamento)', () => {
+    const r = transferenciaItemSchema.safeParse({ ...BASE, data: '2999-12-31' })
+    expect(r.success).toBe(false)
+  })
+
+  it('chamado só aceita dígitos; vazio vira ausente', () => {
+    expect(transferenciaItemSchema.safeParse({ ...BASE, chamado: '48211' }).data?.chamado).toBe('48211')
+    expect(transferenciaItemSchema.safeParse({ ...BASE, chamado: '' }).data?.chamado).toBeUndefined()
+    expect(transferenciaItemSchema.safeParse({ ...BASE, chamado: 'abc' }).success).toBe(false)
+  })
+
+  it('a transferência NÃO exige justificativa (não é ajuste na tela do operador)', () => {
+    expect(transferenciaItemSchema.safeParse(BASE).success).toBe(true)
+  })
+
+  it('recusa filial ausente ou não numérica', () => {
+    expect(transferenciaItemSchema.safeParse({ ...BASE, origem_id: 0 }).success).toBe(false)
+    expect(transferenciaItemSchema.safeParse({ ...BASE, destino_id: 'x' }).success).toBe(false)
   })
 })

@@ -191,6 +191,63 @@ export function errosPorLinhaDoLote(
   return porLinha
 }
 
+// ---- Transferência entre filiais (F31 · ITN-01) ----
+
+/** Teto de linhas por transferência. O MESMO do lançamento, de propósito: é o
+ *  mesmo carrinho, com o mesmo argumento (acima disso a tela vira lista de
+ *  conferência e o operador perde o controle do que digitou). Uma constante
+ *  própria seria uma segunda definição do mesmo limite. */
+export const MAX_LINHAS_TRANSFERENCIA_ITEM = MAX_LINHAS_LOTE_ITEM
+
+export const MSG_TRANSFERENCIA_MESMA_FILIAL =
+  'A filial de destino não pode ser a mesma da origem'
+export const MSG_TRANSFERENCIA_QTD =
+  'A quantidade a transferir deve ser maior que zero'
+
+/** Uma linha do carrinho de transferência. A quantidade é SEMPRE positiva aqui
+ *  — quem inverte o sinal na perna de origem é a RPC (`−N` na origem, `+N` no
+ *  destino), não a tela. */
+export const linhaTransferenciaItemSchema = z.object({
+  item_id: itemIdCampo,
+  quantidade: quantidadeCampo.positive(MSG_TRANSFERENCIA_QTD),
+})
+
+// Origem, destino e os campos comuns valem para a transferência inteira; só
+// item e quantidade variam por linha. Espelha `loteLancamentoItemSchema`.
+export const transferenciaItemSchema = z
+  .object({
+    origem_id: filialIdCampo,
+    destino_id: filialIdCampo,
+    linhas: z
+      .array(linhaTransferenciaItemSchema)
+      .min(1, 'Adicione ao menos um item à transferência')
+      .max(
+        MAX_LINHAS_TRANSFERENCIA_ITEM,
+        `A transferência aceita no máximo ${MAX_LINHAS_TRANSFERENCIA_ITEM} itens`,
+      ),
+    chamado: chamadoOpcional,
+    data: dataNaoFuturaSchema,
+    observacao: observacaoOpcional,
+  })
+  .superRefine((v, ctx) => {
+    if (v.origem_id === v.destino_id) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['destino_id'],
+        message: MSG_TRANSFERENCIA_MESMA_FILIAL,
+      })
+    }
+    // Mesma regra do lote: o mesmo item duas vezes é sempre erro (some as
+    // quantidades). Aqui ela é ainda mais necessária — duas linhas do mesmo
+    // item viram quatro ajustes sobre o mesmo saldo, e o segundo par leria um
+    // estoque que o primeiro já mexeu.
+    for (const i of indicesDeItemRepetido(v.linhas)) {
+      ctx.addIssue({ code: 'custom', path: ['linhas', i, 'item_id'], message: MSG_ITEM_REPETIDO })
+    }
+  })
+
+export type TransferenciaItemInput = z.infer<typeof transferenciaItemSchema>
+
 // Estorno de lançamento (histórico) — cria o lançamento inverso vinculado.
 // ITN-05c — "Motivo (opcional)": some concatenado como "Estorno: {motivo}" na
 // observação do inverso (`planejarEstorno`, `lib/itens/estorno.ts`) — nunca
