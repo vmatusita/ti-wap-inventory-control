@@ -1,5 +1,13 @@
 # PLAN-F31 — Onda C2: transferência de item entre filiais + modo Conferência
 
+> **⚠ ESTE PLANO É O DE ANTES DE EDITAR — e uma parte dele foi SUPERADA pela execução.**
+> A §2.5/§2.6 desenhavam a idempotência da conferência como uma lista de ids já gravados
+> (`itensPendentes(ajustes, gravados)`). Três voltas de revisão adversarial derrubaram esse
+> desenho: ele dependia de o `router.refresh()` já ter chegado, o que ninguém garante. O que ficou
+> é **base congelada na abertura + o que a sessão já gravou**
+> (`baseDaConferencia`/`somarEscrito`), e `gravados` deixou de existir. O porquê está em
+> `docs/RELATORIO-F31.md` §4 e nas atas de `docs/DECISOES.md`. O resto do plano vale como escrito.
+
 Plano autossuficiente da ordem `docs/prompts/F31-onda-c2-ultracode.md` (itens **ITN-01** e
 **ITN-04** de `docs/ANALISE-UX-2026-08-07.md` §5). Os dois recursos tocam a MESMA área
 (`/itens`, `actions/itens.ts`, o diálogo) — por isso são trabalhados **em sequência**:

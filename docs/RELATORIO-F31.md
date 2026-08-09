@@ -299,10 +299,32 @@ Diff da fase: **35 arquivos**, +4.401 / −156. `supabase/`: **exatamente 2 arqu
 
 ---
 
-## 7. Push e deploy
+## 7. Push, deploy e smoke de produção
 
-`git pull --rebase` (já em dia) e **push da `main`** feito: `4610d03..0af844d`. A Vercel deploya
-sozinha a partir daí.
+`git pull --rebase` (já em dia) e **push da `main`** feito. A Vercel publicou.
+
+**Smoke** (`node scripts/smoke/smoke-prod.mjs`, com credenciais do `.env.local`, contra
+`https://ti-wap-inventory-control.vercel.app`):
+
+```
+RESUMO · 94 OK · 4 aviso · 0 n/a (pré-F12) · 0 falha
+```
+
+Foram **94 OK** (eram 93 na F28) — o OK a mais é `/ajuda/conferencia-de-estoque`, **HTTP 200**, que
+é a prova direta de que **o build desta fase está no ar**. Os 4 avisos são os mesmos de sempre e
+**não são regressão**: todos dizem a mesma coisa, que produção não tem catálogo de itens nem kits
+cadastrados (medido de forma independente: `0 itens`, `0 lançamentos`).
+
+```
+[AVISO] itens · catálogo ativo — catálogo de itens vazio (esperado em DEV, não em produção)
+[AVISO] rpc rel_saldo_itens · consolidado — 0 linhas (catálogo de itens vazio)
+[AVISO] itens.estoque_minimo (I5) — coluna existe; catálogo vazio
+[AVISO] kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não comprovada
+```
+
+> **Consequência honesta disso:** os dois recursos desta fase são de **itens por quantidade**, e
+> produção ainda não usa itens. Eles estão no ar, funcionando e provados **no ensaio** — mas ninguém
+> os exercitou com dado real ainda.
 
 ---
 
@@ -319,7 +341,8 @@ sozinha a partir daí.
   podendo produzir ajuste a mais** (§4.2). Estreitado, declarado, no backlog — não resolvido.
 - **Queda de rede no meio do registro continua ambígua**: o app deixou de afirmar que nada foi
   gravado, mas não sabe dizer se foi. Não há chave de idempotência.
-- **O smoke de produção não foi executado nesta fase** — ver §9.
+- **O smoke prova que as páginas RESPONDEM, não que os recursos funcionam em produção.** Ele é
+  só-leitura: nada foi transferido nem conferido lá.
 - **Nenhuma medição de desempenho** foi feita: nem da RPC com carrinho cheio, nem da conferência
   numa filial com catálogo grande.
 - **Não há teste de componente React** para a conferência: a lógica está coberta por testes puros e
@@ -333,10 +356,7 @@ sozinha a partir daí.
 
 **Pendências desta fase:**
 
-1. **Smoke de produção não rodado** (`node scripts/smoke/smoke-prod.mjs`). O `.env.smoke` tem
-   `SMOKE_EMAIL`/`SMOKE_SENHA`, mas o smoke precisa do app já deployado, e o push acabou de sair.
-   Rodar depois que a Vercel publicar. *(Ver §10 se a saída já estiver anexada.)*
-2. **Resíduo fictício no ENSAIO** (nada em produção): a conta `f31.e2e@wap.ind.br` ficou
+1. **Resíduo fictício no ENSAIO** (nada em produção): a conta `f31.e2e@wap.ind.br` ficou
    **desativada, banida e sem vínculos**, com a senha trocada por um valor aleatório desconhecido —
    não pôde ser apagada porque `lancamentos_item.criado_por` a referencia e o acervo é imutável.
    Ficaram também dois itens fictícios e os lançamentos do roteiro. Some no próximo `db:reset` do
