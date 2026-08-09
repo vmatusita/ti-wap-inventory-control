@@ -27,8 +27,15 @@ export type RascunhoConferencia = {
   filialId: number
   /** itemId → texto digitado no campo "Contado" (string, como no input). */
   contagens: Record<number, string>
-  /** Itens cujo ajuste JÁ foi gravado — a idempotência do reenvio. */
+  /** Itens cujo ajuste JÁ foi gravado PARA A CONTAGEM ATUAL — a idempotência do
+   *  reenvio. Encolhe quando o operador corrige uma contagem já registrada
+   *  (`esquecerGravado`, em `lib/itens/conferencia.ts`). */
   gravados: number[]
+  /** Esta conferência já gravou alguma coisa, em algum momento. É o que sustenta
+   *  o "Encerrar conferência" — `gravados` não serve para isso, porque encolhe.
+   *  OPCIONAL: rascunho gravado antes deste campo existir restaura sem ele, e o
+   *  componente cai de volta em `gravados.length > 0`, que era a regra anterior. */
+  registrou?: boolean
   /** Observação do lote, se o operador editou a padrão. */
   observacao?: string
   /** ISO de quando a conferência começou — alimenta o "começada às {hora}". */
@@ -94,13 +101,19 @@ export function desserializarRascunhoConferencia(
   const contagens = sanearContagens(r.contagens)
   const gravados = sanearGravados(r.gravados)
   // Rascunho sem contagem NEM item gravado não interessa: o banner ofereceria
-  // "continuar" um trabalho que não existe.
-  if (Object.keys(contagens).length === 0 && gravados.length === 0) return null
+  // "continuar" um trabalho que não existe. `registrou` sozinho também conta —
+  // é a conferência cujas contagens foram todas corrigidas e reenviadas.
+  if (Object.keys(contagens).length === 0 && gravados.length === 0 && r.registrou !== true) {
+    return null
+  }
 
   return {
     filialId,
     contagens,
     gravados,
+    // Ausente (rascunho de antes deste campo) => false, e quem restaura cai de
+    // volta em `gravados.length > 0`. Nunca `undefined` vazando para a tela.
+    registrou: r.registrou === true,
     observacao: texto(r.observacao),
     iniciadaEm: texto(r.iniciadaEm),
   }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ajustesDaConferencia,
   contagemDaLinha,
+  esquecerGravado,
   itensPendentes,
   linhasDaConferencia,
   observacaoDeInventario,
@@ -209,5 +210,36 @@ describe('observacaoDeInventario', () => {
     const obs = observacaoDeInventario('09/08/2026')
     expect(obs).toBe('Inventário de 09/08/2026')
     expect(obs.trim().length).toBeGreaterThan(0)
+  })
+})
+
+describe('esquecerGravado (a outra metade da idempotência — achado da revisão F31)', () => {
+  const AJUSTES = [
+    { item_id: 3, quantidade: 2 },
+    { item_id: 5, quantidade: -2 },
+  ]
+
+  it('tira só o item pedido, preservando a ordem dos demais', () => {
+    expect(esquecerGravado([3, 5, 6], 5)).toEqual([3, 6])
+  })
+
+  it('item que não está na lista não muda nada', () => {
+    expect(esquecerGravado([3, 5], 99)).toEqual([3, 5])
+    expect(esquecerGravado([], 3)).toEqual([])
+  })
+
+  it('CORRIGIR uma contagem já gravada devolve o item aos pendentes', () => {
+    // O furo que a revisão adversarial achou: sem `esquecerGravado`, o item
+    // continuava filtrado para sempre e a correção sumia em silêncio.
+    const gravados = [3, 5]
+    expect(itensPendentes(AJUSTES, gravados)).toEqual([])
+    const depoisDaCorrecao = esquecerGravado(gravados, 3)
+    expect(itensPendentes(AJUSTES, depoisDaCorrecao)).toEqual([{ item_id: 3, quantidade: 2 }])
+  })
+
+  it('e o item corrigido volta a sair dos pendentes quando for gravado de novo', () => {
+    const g1 = esquecerGravado([3, 5], 3)
+    const g2 = [...g1, 3]
+    expect(itensPendentes(AJUSTES, g2)).toEqual([])
   })
 })

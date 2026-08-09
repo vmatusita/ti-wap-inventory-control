@@ -8,6 +8,7 @@ const VALIDO = JSON.stringify({
   filialId: 3,
   contagens: { 1: '14', 5: '8' },
   gravados: [7],
+  registrou: true,
   observacao: 'Inventário de 09/08/2026',
   iniciadaEm: '2026-08-09T14:32:00.000Z',
 })
@@ -19,6 +20,7 @@ describe('desserializarRascunhoConferencia (dado de FORA, sempre)', () => {
       filialId: 3,
       contagens: { 1: '14', 5: '8' },
       gravados: [7],
+      registrou: true,
       observacao: 'Inventário de 09/08/2026',
       iniciadaEm: '2026-08-09T14:32:00.000Z',
     })
@@ -126,5 +128,33 @@ describe('horaDoRascunho', () => {
     for (const v of [null, undefined, '', 'ontem', '2026-13-45T99:99:99Z']) {
       expect(horaDoRascunho(v), String(v)).toBeNull()
     }
+  })
+})
+
+describe('registrou (a marca que sustenta o "Encerrar conferência")', () => {
+  it('ausente vira false — nunca undefined vazando para a tela', () => {
+    const r = desserializarRascunhoConferencia(
+      JSON.stringify({ filialId: 3, contagens: { 1: '1' } }),
+    )
+    expect(r?.registrou).toBe(false)
+  })
+
+  it('só `true` literal conta; qualquer outro valor é false', () => {
+    for (const v of ['true', 1, {}, null, 'sim']) {
+      const r = desserializarRascunhoConferencia(
+        JSON.stringify({ filialId: 3, contagens: { 1: '1' }, registrou: v }),
+      )
+      expect(r?.registrou, JSON.stringify(v)).toBe(false)
+    }
+  })
+
+  it('rascunho SÓ com registrou sobrevive — é a conferência toda corrigida e reenviada', () => {
+    // Sem esta linha, corrigir a última contagem gravada apagaria o rascunho e o
+    // botão "Encerrar conferência" sumiria (o furo que a marca existe para fechar).
+    const r = desserializarRascunhoConferencia(
+      JSON.stringify({ filialId: 3, contagens: {}, gravados: [], registrou: true }),
+    )
+    expect(r?.registrou).toBe(true)
+    expect(r?.gravados).toEqual([])
   })
 })

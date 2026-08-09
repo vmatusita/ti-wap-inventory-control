@@ -139,6 +139,15 @@ export function particionar<T>(itens: readonly T[], teto: number): T[][] {
  * andaria DUAS vezes na mesma direção. `gravados` é a lista de itens confirmados
  * pelo servidor, e ela sobrevive no rascunho — então nem um F5 no meio faz o
  * reenvio duplicar.
+ *
+ * ⚠ INVARIANTE DE QUEM CHAMA, e ela não é opcional: `gravados` significa "o que
+ * já foi gravado **para a contagem que está na tela agora**". Assim que o
+ * operador MUDA a contagem de um item, aquele item tem de sair da lista — é para
+ * isso que existe `esquecerGravado`. Sem isso, uma correção feita depois de
+ * registrar some em silêncio: o item continua filtrado aqui, nunca entra no
+ * diálogo, nunca chega ao servidor, e o botão diz "Nada a registrar" com uma
+ * diferença colorida na tabela. (Achado da revisão adversarial da F31, encontrado
+ * por duas lentes independentes.)
  */
 export function itensPendentes(
   ajustes: readonly AjusteConferencia[],
@@ -146,6 +155,26 @@ export function itensPendentes(
 ): AjusteConferencia[] {
   const feitos = new Set(gravados)
   return ajustes.filter((a) => !feitos.has(a.item_id))
+}
+
+/**
+ * Tira um item do registro de "já gravado" — o que se faz quando a contagem dele
+ * MUDA depois de registrado.
+ *
+ * Não é redundante com o filtro acima, e sim a outra metade dele: `itensPendentes`
+ * responde "o que falta enviar", e esta responde "o que deixou de estar em dia".
+ * Existe como função nomeada, e não como um `filter` solto no componente, porque a
+ * invariante entre as duas é o ponto exato onde a revisão adversarial achou o furo.
+ *
+ * Reenviar depois de corrigir NÃO duplica: o saldo do sistema já absorveu o
+ * primeiro ajuste, então o novo `diff` é calculado contra o número atualizado e
+ * vale exatamente a correção que falta.
+ */
+export function esquecerGravado(
+  gravados: readonly number[],
+  itemId: number,
+): number[] {
+  return gravados.filter((id) => id !== itemId)
 }
 
 /** Observação padrão do lote de ajustes — vira a justificativa de CADA linha. */

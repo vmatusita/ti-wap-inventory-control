@@ -32,6 +32,7 @@ import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio
 import { cn } from '@/lib/utils'
 import {
   ajustesDaConferencia,
+  esquecerGravado,
   itensPendentes,
   linhasDaConferencia,
   observacaoDeInventario,
@@ -75,6 +76,10 @@ export function ConferenciaEstoque({
   const router = useRouter()
   const [contagens, setContagens] = useState<Record<number, string>>({})
   const [gravados, setGravados] = useState<number[]>([])
+  // "Esta conferência já gravou alguma coisa" — fato que NÃO desanda quando o
+  // operador corrige uma linha (ao contrário de `gravados`). Viaja no rascunho
+  // para sobreviver ao F5. Ver `tudoGravado`, mais abaixo.
+  const [registrou, setRegistrou] = useState(false)
   const [estados, setEstados] = useState<Record<number, EstadoLinha>>({})
   const [observacao, setObservacao] = useState(observacaoDeInventario(formatDate(hojeISO())))
   const [confirmando, setConfirmando] = useState(false)
@@ -120,23 +125,27 @@ export function ConferenciaEstoque({
   // formulário de movimentação.
   useEffect(() => {
     if (oferta) return
-    const temAlgo = Object.keys(contagens).length > 0 || gravados.length > 0
+    const temAlgo = Object.keys(contagens).length > 0 || gravados.length > 0 || registrou
     if (!temAlgo) return
     if (!iniciadaEm.current) iniciadaEm.current = new Date().toISOString()
     salvarRascunhoConferencia({
       filialId,
       contagens,
       gravados,
+      registrou,
       observacao,
       iniciadaEm: iniciadaEm.current,
     })
-  }, [contagens, gravados, observacao, filialId, oferta])
+  }, [contagens, gravados, registrou, observacao, filialId, oferta])
 
   function continuarRascunho() {
     const r = rascunhoOfertado.current
     if (!r) return
     setContagens(r.contagens)
     setGravados(r.gravados)
+    // Rascunho antigo (gravado antes deste campo existir) restaura sem a marca —
+    // e ainda assim se comporta: `gravados` não vazio já implica que gravou.
+    setRegistrou(r.registrou || r.gravados.length > 0)
     if (r.observacao) setObservacao(r.observacao)
     iniciadaEm.current = r.iniciadaEm || new Date().toISOString()
     setOferta(null)
@@ -156,7 +165,17 @@ export function ConferenciaEstoque({
     // oferta fechar) e o trabalho desta sessão se perderia num F5.
     if (oferta) descartarRascunho()
     setContagens((c) => ({ ...c, [itemId]: valor }))
-    setEstados((e) => (e[itemId]?.erro ? { ...e, [itemId]: { ...e[itemId], erro: undefined } } : e))
+    // ⚠ MUDAR A CONTAGEM TIRA O ITEM DE `gravados`. Achado da revisão adversarial
+    // desta fase: sem isto, uma correção feita DEPOIS de registrar sumia em
+    // silêncio — o item seguia filtrado por `itensPendentes`, nunca entrava no
+    // diálogo, nunca chegava ao servidor, e o botão dizia "Nada a registrar" com
+    // a diferença colorida na tabela. Se o operador então encerrasse, o rascunho
+    // era apagado e o ajuste desaparecia sem erro e sem aviso.
+    //
+    // Reenviar não duplica: o saldo do sistema já absorveu o primeiro ajuste, e o
+    // novo diff é calculado contra o número atualizado.
+    setGravados((g) => (g.includes(itemId) ? esquecerGravado(g, itemId) : g))
+    setEstados((e) => (e[itemId] ? { ...e, [itemId]: {} } : e))
   }
 
   const linhas = useMemo(() => linhasDaConferencia(saldos, contagens), [saldos, contagens])
@@ -232,6 +251,7 @@ export function ConferenciaEstoque({
       // guarda e que faz o reenvio mandar só o que falta.
       if (gravadosAgora.length) {
         setGravados((g) => [...new Set([...g, ...gravadosAgora])])
+        setRegistrou(true)
       }
       setEstados((e) => {
         const novo = { ...e }
@@ -285,9 +305,12 @@ export function ConferenciaEstoque({
   // contagens e os `gravados`) ficava no `sessionStorage` para ser reoferecido na
   // próxima visita, como se houvesse trabalho pendente.
   //
-  // A âncora certa é `gravados`: ele NÃO se apaga quando os saldos se atualizam —
-  // é o registro de que esta conferência já gravou alguma coisa.
-  const tudoGravado = gravados.length > 0 && pendentes.length === 0
+  // ⚠⚠ E a âncora TAMBÉM não pode ser `gravados`, que era a segunda tentativa:
+  // desde a correção da revisão adversarial, `gravados` ENCOLHE quando o operador
+  // corrige uma contagem já registrada — corrigir a única linha gravada faria o
+  // botão sumir de novo. A âncora é um fato que não desanda: esta conferência
+  // gravou alguma coisa, em algum momento.
+  const tudoGravado = registrou && pendentes.length === 0
 
   return (
     <div className="space-y-4">
