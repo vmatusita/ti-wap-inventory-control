@@ -116,15 +116,29 @@ export function linhasDaConferencia(
   for (const s of saldos) {
     const contado = contagemDaLinha(contagens[s.item_id])
     if (contado === null) continue
-    // Item que apareceu no catálogo depois da abertura não tem base congelada —
-    // cai no saldo vivo, que para ele é a primeira leitura de qualquer forma.
-    const partida = base[s.item_id] ?? s.estoque
+    // ⚠ A BASE CONGELADA VALE SÓ PARA ITEM QUE ESTA SESSÃO JÁ ESCREVEU. Para
+    // todos os outros o ponto de partida é o saldo AO VIVO — e isso não é
+    // detalhe: a base existe para atravessar a janela do `router.refresh()` das
+    // MINHAS escritas, e só. Usá-la em item que eu não toquei faria uma escrita
+    // de OUTRA pessoa (outro operador lançando na mesma filial enquanto conto)
+    // ser contada de novo por cima, criando unidades fantasmas. Com esta regra,
+    // item que ninguém desta sessão mexeu enxerga sempre o número corrente.
+    //
+    // Item que apareceu no catálogo depois da abertura também cai no vivo, que
+    // para ele é a primeira leitura de qualquer forma.
+    //
+    // ⚠ O RESÍDUO, declarado: se eu JÁ gravei aquele item E outra pessoa também
+    // mexer nele, o meu ajuste seguinte não enxerga a mexida dela. Fechar isso de
+    // verdade é matéria de SERVIDOR (um "ajustar para N" ou uma chave de
+    // idempotência), fora do escopo da F31 — está no relatório e no backlog.
+    const escrito = jaEscrito[s.item_id] ?? 0
+    const partida = escrito !== 0 ? (base[s.item_id] ?? s.estoque) : s.estoque
     linhas.push({
       itemId: s.item_id,
       item: s.item,
       sistema: s.estoque,
       contado,
-      diff: contado - partida - (jaEscrito[s.item_id] ?? 0),
+      diff: contado - partida - escrito,
     })
   }
   return linhas

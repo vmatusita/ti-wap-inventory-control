@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  chaveRascunhoConferencia,
   desserializarRascunhoConferencia,
   horaDoRascunho,
 } from '@/components/itens/conferencia/rascunho'
@@ -167,5 +168,22 @@ describe('registrou (a marca que sustenta o "Encerrar conferência")', () => {
     )
     expect(r?.registrou).toBe(true)
     expect(r?.contagens).toEqual({})
+  })
+})
+
+describe('chaveRascunhoConferencia (3ª volta da revisão adversarial)', () => {
+  it('cada filial tem espaço próprio no storage', () => {
+    expect(chaveRascunhoConferencia(1)).not.toBe(chaveRascunhoConferencia(2))
+  })
+
+  it('a chave carrega o id da filial, e o prefixo é estável', () => {
+    expect(chaveRascunhoConferencia(3)).toBe('wap:itens:conferencia:3')
+  })
+
+  it('duas filiais nunca colidem — era o furo da chave global', () => {
+    // Com uma chave só, digitar a primeira contagem na filial B apagava o
+    // rascunho ainda não registrado da filial A.
+    const chaves = [1, 2, 3, 4, 5].map(chaveRascunhoConferencia)
+    expect(new Set(chaves).size).toBe(chaves.length)
   })
 })

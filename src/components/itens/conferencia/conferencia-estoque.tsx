@@ -115,7 +115,7 @@ export function ConferenciaEstoque({
   // prateleira, e aplicá-las aqui produziria diferenças inventadas.
   useEffect(() => {
     const t = setTimeout(() => {
-      const r = lerRascunhoConferencia()
+      const r = lerRascunhoConferencia(filialId)
       if (!r || r.filialId !== filialId) return
       rascunhoOfertado.current = r
       setOferta({ hora: horaDoRascunho(r.iniciadaEm) })
@@ -166,7 +166,7 @@ export function ConferenciaEstoque({
   }
 
   function descartarRascunho() {
-    limparRascunhoConferencia()
+    limparRascunhoConferencia(filialId)
     rascunhoOfertado.current = null
     iniciadaEm.current = null
     setOferta(null)
@@ -252,9 +252,15 @@ export function ConferenciaEstoque({
             else errosAgora[a.item_id] = { erro: r?.erro ?? 'Não foi possível registrar.' }
           })
         } catch {
+          // ⚠ NÃO afirmamos "não foi registrado": a exceção prova que a RESPOSTA
+          // não voltou, não que o servidor não gravou — ele pode ter inserido a
+          // linha e a resposta ter se perdido no caminho. Como `lancarItens` não
+          // tem chave de idempotência (é matéria de servidor, fora do escopo da
+          // F31), o reenvio às cegas duplicaria o ajuste. A mensagem manda
+          // conferir antes, que é a única coisa honesta a dizer aqui.
           for (const a of bloco) {
             errosAgora[a.item_id] = {
-              erro: 'Falha de conexão — este ajuste não foi registrado.',
+              erro: 'A conexão caiu e não deu para confirmar se este ajuste entrou. Recarregue a página e confira o saldo antes de mandar de novo.',
             }
           }
           interrompeu = true
@@ -310,7 +316,7 @@ export function ConferenciaEstoque({
   // Resultado: a próxima visita oferecia "Continuar a conferência…" para um
   // trabalho que já tinha sido encerrado.
   function concluir() {
-    limparRascunhoConferencia()
+    limparRascunhoConferencia(filialId)
     rascunhoOfertado.current = null
     iniciadaEm.current = null
     setContagens({})

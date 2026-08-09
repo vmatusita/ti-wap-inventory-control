@@ -295,3 +295,27 @@ describe('o diff é "o que FALTA gravar", não "contado − sistema"', () => {
     expect(l.diff).toBe(2)
   })
 })
+
+describe('escrita EXTERNA (outro operador) — 3ª volta da revisão adversarial', () => {
+  const BASE = baseDaConferencia(SALDOS)
+
+  it('item que ESTA sessão não tocou usa sempre o saldo VIVO como partida', () => {
+    // Outro operador ajustou o Cabo HDMI de 5 para 8 enquanto eu contava. Conto 8
+    // (o número certo) → nada a gravar. Com a base congelada valendo para todo
+    // item, isto daria +3 e criaria 3 unidades fantasmas.
+    const saldosNovos = SALDOS.map((s) => (s.item_id === 3 ? { ...s, estoque: 8 } : s))
+    const [l] = linhasDaConferencia(saldosNovos, { 3: '8' }, BASE, {})
+    expect(l.diff).toBe(0)
+  })
+
+  it('e a conta continua certa quando eu conto DIFERENTE do que ele deixou', () => {
+    const saldosNovos = SALDOS.map((s) => (s.item_id === 3 ? { ...s, estoque: 8 } : s))
+    const [l] = linhasDaConferencia(saldosNovos, { 3: '10' }, BASE, {})
+    expect(l.diff).toBe(2)
+  })
+
+  it('a base congelada segue valendo para o item que EU escrevi (a janela do refresh)', () => {
+    const [l] = linhasDaConferencia(SALDOS, { 3: '7' }, BASE, { 3: 2 })
+    expect(l.diff).toBe(0)
+  })
+})

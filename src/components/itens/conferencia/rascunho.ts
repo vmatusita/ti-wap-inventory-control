@@ -21,7 +21,19 @@
 // porque alguém pode ter lançado alguma coisa enquanto o rascunho dormia — um
 // saldo cacheado faria a tela calcular diferença contra um número velho.
 
-export const CHAVE_RASCUNHO_CONFERENCIA = 'wap:itens:conferencia'
+const PREFIXO_RASCUNHO_CONFERENCIA = 'wap:itens:conferencia'
+
+/**
+ * A chave é POR FILIAL, e isso não é enfeite (3ª volta da revisão adversarial da
+ * F31): com uma chave global, um operador que estivesse no meio da contagem da
+ * filial A e abrisse a conferência da filial B apagava, na primeira tecla
+ * digitada em B, o rascunho de A — que ainda tinha contagens não registradas.
+ * A leitura já recusava rascunho de outra filial; era a ESCRITA que passava por
+ * cima. Com um espaço por filial, as duas convivem.
+ */
+export function chaveRascunhoConferencia(filialId: number): string {
+  return `${PREFIXO_RASCUNHO_CONFERENCIA}:${filialId}`
+}
 
 export type RascunhoConferencia = {
   filialId: number
@@ -125,11 +137,15 @@ function sessao(): Storage | null {
   }
 }
 
-export function lerRascunhoConferencia(): RascunhoConferencia | null {
+export function lerRascunhoConferencia(filialId: number): RascunhoConferencia | null {
   const s = sessao()
   if (!s) return null
   try {
-    return desserializarRascunhoConferencia(s.getItem(CHAVE_RASCUNHO_CONFERENCIA))
+    const r = desserializarRascunhoConferencia(s.getItem(chaveRascunhoConferencia(filialId)))
+    // Cinto-e-suspensórios: mesmo com a chave por filial, um rascunho cujo
+    // `filialId` interno não bate com a chave é lixo (storage adulterado, versão
+    // antiga do app que usava a chave global) e não é oferecido.
+    return r && r.filialId === filialId ? r : null
   } catch {
     return null
   }
@@ -139,17 +155,17 @@ export function salvarRascunhoConferencia(r: RascunhoConferencia): void {
   const s = sessao()
   if (!s) return
   try {
-    s.setItem(CHAVE_RASCUNHO_CONFERENCIA, JSON.stringify(r))
+    s.setItem(chaveRascunhoConferencia(r.filialId), JSON.stringify(r))
   } catch {
     // Cota estourada / storage bloqueado: segue sem rascunho.
   }
 }
 
-export function limparRascunhoConferencia(): void {
+export function limparRascunhoConferencia(filialId: number): void {
   const s = sessao()
   if (!s) return
   try {
-    s.removeItem(CHAVE_RASCUNHO_CONFERENCIA)
+    s.removeItem(chaveRascunhoConferencia(filialId))
   } catch {
     // idem
   }

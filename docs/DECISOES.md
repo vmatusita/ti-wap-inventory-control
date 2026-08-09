@@ -4692,3 +4692,76 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   roteiro SQL rodado dentro de `begin; … rollback;` — contagens antes = depois.
 - **Reversível?** o ensaio pode ser resetado pelo caminho nomeado do `db:reset` quando o Johnny
   quiser.
+
+## 2026-08-09 · F31 · A idempotência da conferência é BASE CONGELADA + acumulado, e não lista de ids
+
+- **Contexto:** três voltas de revisão adversarial derrubaram duas tentativas de idempotência antes
+  desta. (1ª) Uma lista de ids "já gravados" filtrava por `item_id` e nunca encolhia: corrigir a
+  contagem de um item já registrado fazia a correção **sumir em silêncio** — o botão dizia "Nada a
+  registrar" com a diferença colorida na tela, e encerrar levava o ajuste junto. (2ª) Consertar isso
+  fazendo a lista encolher passou a depender de o `router.refresh()` **já ter chegado** — e ele não
+  é esperado pelo `useTransition`, então o campo volta a ficar editável com o saldo velho na tela.
+  Corrigir naquela janela reenviava o ajuste INTEIRO: 2 + 3 + 3 = 8 onde o operador contou 5.
+- **Decisão:** a conta deixou de depender de tempo. A **base de cada item é congelada na abertura**
+  (`baseDaConferencia`, `useState` com inicializador — nunca reavaliada) e o que a sessão já gravou
+  é **acumulado** (`somarEscrito`). O que falta gravar é
+  `contado − base − já escrito por esta sessão`, verdadeiro antes e depois de o saldo novo chegar.
+  Some a lista de ids.
+- **Motivo:** era a única formulação que não depende de saber se o `saldos` corrente já inclui a
+  minha própria escrita — pergunta que o cliente **não tem como responder** sem uma versão vinda do
+  servidor.
+- **Consequências que isso arrastou, e são de propósito:**
+  - `jaEscrito` **não** viaja no rascunho: depois de um F5 os saldos que o servidor manda já incluem
+    tudo o que a conferência escreveu, e a base é recapturada deles — restaurar o acumulado
+    descontaria a mesma escrita duas vezes.
+  - a página passou a dar **`key={filial.id}`** ao componente: sem isso, trocar de filial pelos
+    atalhos reusava a instância e levava as contagens **e a base** da filial anterior junto.
+  - `concluir()` zera **também** a marca `registrou`: sem isso o botão "Encerrar conferência"
+    reaparecia na hora e o efeito de salvar regravava um **rascunho fantasma** por cima do que
+    acabara de ser limpo.
+- **Reversível?** sim — é um módulo puro com 62 asserções e um componente.
+
+## 2026-08-09 · F31 · A base congelada vale SÓ para item que a própria sessão escreveu
+
+- **Contexto:** a 3ª volta da revisão mostrou que congelar a base para TODO item transforma a
+  escrita de OUTRA pessoa em divergência minha. Cenário: eu abro a conferência com o item em 10;
+  outro operador ajusta para 13 enquanto conto; eu conto 13 (o número certo) e o app gravaria +3,
+  levando a 16 — três unidades fantasmas.
+- **Decisão:** a base congelada passa a valer **só** para item que ESTA sessão já escreveu. Todo o
+  resto parte do **saldo ao vivo**.
+- **Motivo:** a base existe para atravessar a janela do `router.refresh()` das MINHAS escritas, e só
+  isso. Para item que eu não toquei, o saldo ao vivo é sempre a melhor informação disponível — e é
+  ele que carrega o que outra pessoa fez.
+- **⚠ O RESÍDUO, declarado e não resolvido:** se eu já gravei aquele item **E** outra pessoa também
+  mexer nele, o meu ajuste seguinte não enxerga a mexida dela. Distinguir "a minha escrita ainda não
+  chegou" de "a escrita de outro chegou" é **impossível no cliente** sem uma versão vinda do
+  servidor. Fechar de verdade é matéria de banco (um "ajustar para N", ou uma chave de idempotência
+  no lote) — e a ordem F31 põe isso fora de escopo. Está no relatório (§4.2, §8) e no backlog.
+- **Reversível?** sim (é uma linha em `linhasDaConferencia`), mas voltar reabre o furo.
+
+## 2026-08-09 · F31 · Queda de rede deixou de afirmar "não foi registrado"
+
+- **Contexto:** o `catch` do envio marcava as linhas com "Falha de conexão — este ajuste não foi
+  registrado." A 3ª volta da revisão apontou que a exceção prova que a **resposta** não voltou, não
+  que o servidor não gravou: `lancarItens` insere e só então responde, e não há chave de
+  idempotência.
+- **Decisão:** a mensagem passou a ser "A conexão caiu e não deu para confirmar se este ajuste
+  entrou. Recarregue a página e confira o saldo antes de mandar de novo."
+- **Motivo:** é a única coisa honesta a dizer. A anterior dava uma garantia que o app não tem, e o
+  operador que confiasse nela reenviaria e duplicaria o ajuste.
+- **Reversível?** sim, mas a mensagem antiga era falsa.
+
+## 2026-08-09 · F31 · O rascunho da conferência tem chave POR FILIAL
+
+- **Contexto:** a chave era global (`wap:itens:conferencia`). A leitura já recusava rascunho de
+  outra filial; a ESCRITA passava por cima. Um operador no meio da contagem da filial A que
+  abrisse a conferência da filial B apagava, na primeira tecla digitada em B, as contagens ainda
+  não registradas de A — sem aviso nenhum.
+- **Decisão:** `wap:itens:conferencia:{filialId}`, com `lerRascunhoConferencia(filialId)` conferindo
+  também o `filialId` de dentro (cinto-e-suspensórios contra storage adulterado ou rascunho gravado
+  por uma versão anterior do app, que usava a chave global).
+- **Motivo:** o rascunho existe para o trabalho não se perder; uma chave que se sobrescreve entre
+  filiais fazia exatamente o contrário do que promete.
+- **Efeito colateral aceito:** rascunhos gravados pela versão anterior (chave global) ficam órfãos e
+  nunca mais são oferecidos. São de uma aba que existiu por minutos, no dia do deploy.
+- **Reversível?** sim.
