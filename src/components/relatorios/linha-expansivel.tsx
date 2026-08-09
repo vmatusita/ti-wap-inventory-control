@@ -8,9 +8,15 @@ import { cn } from '@/lib/utils'
 // Porta de entrada por toque para o conteúdo que as tabelas escondem no mobile
 // (F16/T5). Cada tabela detalhada esconde colunas abaixo de sm/md/lg/xl; aqui a
 // linha ganha um chevron que revela, como pares rótulo:valor, exatamente o que
-// sumiu na largura atual. Desktop (a partir do breakpoint em que nada fica oculto)
-// e IMPRESSÃO não mudam — o chevron e a linha de detalhe têm `print:hidden` e a
-// classe `<bp>:hidden` do chamador.
+// sumiu na largura atual. No desktop (a partir do breakpoint em que nada fica
+// oculto) isto some pela classe `<bp>:hidden` do chamador.
+//
+// REL-01 (F30) — o `print:hidden` daqui MUDOU de motivo. Antes ele existia porque
+// "a impressão não muda"; hoje é o contrário: o papel passou a receber as colunas
+// escondidas (`print:table-cell` nas tabelas), e reimprimir os mesmos campos como
+// pares rótulo:valor só duplicaria tudo e dobraria a altura de cada linha. Ou
+// seja, o chevron e a linha de detalhe continuam fora do papel — mas agora porque
+// o papel já tem a informação, não porque ela não cabia.
 
 // Estado das linhas expandidas por id. Simples Set em memória (não vai à URL — é
 // um detalhe de leitura efêmero, não algo a compartilhar por link).

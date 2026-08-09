@@ -45,7 +45,10 @@ export function TabelaItensGrupo({
 
   return (
     <div className="overflow-hidden rounded-lg border">
-      <Table>
+      {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
+          encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
+          a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
+      <Table className="rel-print-compacta">
         <TableHeader>
           <TableRow>
             <TableHead className="w-10 p-0 lg:hidden print:hidden" aria-hidden />
@@ -61,7 +64,7 @@ export function TabelaItensGrupo({
             {mostrarAtrelados && <TableHead className="text-right">Atrelados</TableHead>}
             <TableHead className="text-right">Δ período</TableHead>
             <TableHead className="text-right">Falta</TableHead>
-            <TableHead className="hidden lg:table-cell">Obs.</TableHead>
+            <TableHead className="hidden lg:table-cell print:table-cell">Obs.</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -129,7 +132,7 @@ export function TabelaItensGrupo({
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="hidden lg:table-cell">
+                  <TableCell className="hidden lg:table-cell print:table-cell">
                     <div className="max-w-[220px]">
                       <ObsTooltip texto={i.obs} className="w-full text-xs" />
                     </div>

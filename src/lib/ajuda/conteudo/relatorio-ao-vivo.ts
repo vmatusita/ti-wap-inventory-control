@@ -118,12 +118,18 @@ export const relatorioAoVivo: PaginaAjuda = {
         'Ajuste antes o que quer levar: a filial (aba), o período e os filtros de cada tabela. O papel sai exatamente com o recorte que está na tela.',
         'Clique em "Imprimir", no canto direito do cabeçalho. Ele abre a janela de impressão do navegador — de onde também se escolhe "Salvar como PDF", se a ideia é anexar num e-mail.',
         'Confira a prévia: os cards saem em coluna única, um card nunca é cortado ao meio, cada grupo começa numa página nova e os grupos que ficam recolhidos no celular saem abertos. Os controles de tela (botões, abas, barra de atalhos, filtros) não vão para o papel.',
+        'As tabelas saem COMPLETAS no papel, com as colunas que a tela esconde quando a janela é estreita: Marca/Modelo, Colaborador/Setor, Chamado, Termo e Observação. Para caber em A4 retrato, a letra encolhe e os textos longos quebram em mais de uma linha — o cabeçalho da tabela se repete a cada página nova.',
       ],
     },
     {
       tipo: 'nota',
       texto:
         'A impressão sai SEMPRE clara, mesmo com o tema escuro ligado — você não precisa voltar para o tema Claro antes de imprimir, nem o papel sai com fundo preto. As marcas de linha estornada continuam visíveis no papel. O botão "Imprimir" existe tanto no relatório ao vivo quanto no relatório congelado; nas demais telas, imprimir pelo próprio navegador (Ctrl+P) também sai claro.',
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Você não precisa abrir os detalhes de cada linha (a setinha ▾ do celular) antes de imprimir: no papel esses campos já saem como colunas de verdade, e a linha de detalhe do celular é omitida justamente para não repetir a mesma informação duas vezes. Se quiser mais folga para os textos longos, escolha "Paisagem" na própria janela de impressão do navegador.',
     },
     {
       tipo: 'links',

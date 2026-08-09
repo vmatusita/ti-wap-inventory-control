@@ -99,17 +99,20 @@ export function TabelaTransferencias({
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
-          <Table>
+          {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
+              encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
+              a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
+          <Table className="rel-print-compacta">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10 p-0 lg:hidden print:hidden" aria-hidden />
                 <TableHead>Data</TableHead>
                 <TableHead>De → Para</TableHead>
-                <TableHead className="hidden sm:table-cell">Categoria</TableHead>
-                <TableHead className="hidden lg:table-cell">Marca/Modelo</TableHead>
+                <TableHead className="hidden sm:table-cell print:table-cell">Categoria</TableHead>
+                <TableHead className="hidden lg:table-cell print:table-cell">Marca/Modelo</TableHead>
                 <TableHead>Patrimônio</TableHead>
-                <TableHead className="hidden md:table-cell">Chamado</TableHead>
-                <TableHead className="hidden lg:table-cell">Obs.</TableHead>
+                <TableHead className="hidden md:table-cell print:table-cell">Chamado</TableHead>
+                <TableHead className="hidden lg:table-cell print:table-cell">Obs.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -138,8 +141,8 @@ export function TabelaTransferencias({
                           {r.para}
                         </span>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
-                      <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
+                      <TableCell className="hidden sm:table-cell print:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
+                      <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">{r.modelo}</TableCell>
                       <CelulaPatrimonio
                         patrimonio={r.patrimonio}
                         ativoId={r.ativoId}
@@ -147,8 +150,8 @@ export function TabelaTransferencias({
                         estornada={r.estornada}
                         estornoData={r.estornoData}
                       />
-                      <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
-                      <CelulaObs texto={r.obs} className="hidden lg:table-cell" />
+                      <CelulaChamado chamado={r.chamado} className="hidden md:table-cell print:table-cell" />
+                      <CelulaObs texto={r.obs} className="hidden lg:table-cell print:table-cell" />
                     </TableRow>
                     {estaAberta(r.id) && (
                       <LinhaDetalhe colSpan={8} campos={detalhe} className="lg:hidden" />

@@ -65,17 +65,20 @@ export function TabelaMovimentacoes({
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
-          <Table>
+          {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
+              encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
+              a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
+          <Table className="rel-print-compacta">
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Patrimônio</TableHead>
-                <TableHead className="hidden lg:table-cell">Ativo</TableHead>
+                <TableHead className="hidden lg:table-cell print:table-cell">Ativo</TableHead>
                 <TableHead>Colaborador / Setor</TableHead>
-                <TableHead className="hidden md:table-cell">Filial</TableHead>
-                <TableHead className="hidden md:table-cell">Chamado</TableHead>
-                <TableHead className="hidden lg:table-cell">Observação</TableHead>
+                <TableHead className="hidden md:table-cell print:table-cell">Filial</TableHead>
+                <TableHead className="hidden md:table-cell print:table-cell">Chamado</TableHead>
+                <TableHead className="hidden lg:table-cell print:table-cell">Observação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,13 +91,13 @@ export function TabelaMovimentacoes({
                   <TableCell className="whitespace-nowrap font-medium tabular-nums">
                     {r.patrimonio}
                   </TableCell>
-                  <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.ativo}</TableCell>
+                  <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">{r.ativo}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {r.colaborador_setor ?? '—'}
                   </TableCell>
-                  <TableCell className="hidden whitespace-nowrap md:table-cell">{r.filial}</TableCell>
-                  <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
-                  <CelulaObs texto={r.observacao} comIcone className="hidden lg:table-cell" />
+                  <TableCell className="hidden whitespace-nowrap md:table-cell print:table-cell">{r.filial}</TableCell>
+                  <CelulaChamado chamado={r.chamado} className="hidden md:table-cell print:table-cell" />
+                  <CelulaObs texto={r.observacao} comIcone className="hidden lg:table-cell print:table-cell" />
                 </TableRow>
               ))}
             </TableBody>

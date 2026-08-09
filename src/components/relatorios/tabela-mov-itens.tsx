@@ -106,19 +106,22 @@ export function TabelaMovItens({
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
-          <Table>
+          {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
+              encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
+              a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
+          <Table className="rel-print-compacta">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10 p-0 lg:hidden print:hidden" aria-hidden />
                 <TableHead>Data</TableHead>
-                {ehGeral && <TableHead className="hidden sm:table-cell">Filial</TableHead>}
+                {ehGeral && <TableHead className="hidden sm:table-cell print:table-cell">Filial</TableHead>}
                 <TableHead>Item</TableHead>
-                <TableHead className="hidden md:table-cell">Grupo</TableHead>
+                <TableHead className="hidden md:table-cell print:table-cell">Grupo</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Qtd.</TableHead>
-                <TableHead className="hidden md:table-cell">Chamado</TableHead>
-                <TableHead className="hidden lg:table-cell">Colaborador</TableHead>
-                <TableHead className="hidden lg:table-cell">Obs.</TableHead>
+                <TableHead className="hidden md:table-cell print:table-cell">Chamado</TableHead>
+                <TableHead className="hidden lg:table-cell print:table-cell">Colaborador</TableHead>
+                <TableHead className="hidden lg:table-cell print:table-cell">Obs.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -144,7 +147,7 @@ export function TabelaMovItens({
                       </TableCell>
                       <CelulaData data={r.data} />
                       {ehGeral && (
-                        <TableCell className="hidden whitespace-nowrap sm:table-cell">{r.filial}</TableCell>
+                        <TableCell className="hidden whitespace-nowrap sm:table-cell print:table-cell">{r.filial}</TableCell>
                       )}
                       <TableCell className="font-medium">
                         <span className="inline-flex items-center gap-1.5">
@@ -152,7 +155,7 @@ export function TabelaMovItens({
                           {r.estornada && <BadgeEstornada data={r.estornoData} />}
                         </span>
                       </TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">
+                      <TableCell className="hidden text-muted-foreground md:table-cell print:table-cell">
                         {rotuloGrupoItem(r.grupo)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
@@ -171,11 +174,11 @@ export function TabelaMovItens({
                       <TableCell className="text-right font-semibold tabular-nums">
                         {formatQtd(r.quantidade)}
                       </TableCell>
-                      <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
-                      <TableCell className="hidden whitespace-nowrap text-muted-foreground lg:table-cell">
+                      <CelulaChamado chamado={r.chamado} className="hidden md:table-cell print:table-cell" />
+                      <TableCell className="hidden whitespace-nowrap text-muted-foreground lg:table-cell print:table-cell">
                         {r.colaborador ?? '—'}
                       </TableCell>
-                      <CelulaObs texto={r.obs} className="hidden lg:table-cell" />
+                      <CelulaObs texto={r.obs} className="hidden lg:table-cell print:table-cell" />
                     </TableRow>
                     {estaAberta(r.id) && (
                       <LinhaDetalhe colSpan={10} campos={detalhe} className="lg:hidden" />

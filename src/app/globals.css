@@ -199,4 +199,32 @@
   html {
     color-scheme: light !important;
   }
+  /* REL-01 (F30) — o impresso é o substituto do e-mail ARQUIVÁVEL, e A4 retrato
+     mede ~718px de viewport: `sm:` casa, `md:`/`lg:`/`xl:` não. As colunas
+     escondidas por largura voltam pelo `print:table-cell` das próprias tabelas
+     (Tailwind emite a variante DEPOIS do `.hidden`, mesma especificidade, então
+     ela ganha); o que falta é caber. Daí a compactação, escopada à classe das
+     seis tabelas do relatório — um `.hidden { display: table-cell }` global
+     vazaria para o app inteiro. */
+  .rel-print-compacta {
+    font-size: 10px;
+  }
+  .rel-print-compacta th,
+  .rel-print-compacta td {
+    padding: 2px 4px;
+    /* Vence o `whitespace-nowrap` das células (0,2,0 × 0,1,0): é a quebra de
+       linha que faz 11 colunas caberem na largura do papel. */
+    white-space: normal;
+  }
+  /* O `<Table>` do shadcn embrulha a tabela num contêiner `overflow-x-auto`:
+     na tela ele rola, no papel ele CORTA o que passar da largura. */
+  [data-slot='table-container'] {
+    overflow: visible !important;
+  }
+  /* Cabeçalho repetido a cada página (o navegador faz por padrão em <thead>
+     semântico — todas as seis tabelas usam o `TableHeader` do shadcn, que é um
+     <thead> de verdade; a linha é o cinto extra). */
+  thead {
+    display: table-header-group;
+  }
 }

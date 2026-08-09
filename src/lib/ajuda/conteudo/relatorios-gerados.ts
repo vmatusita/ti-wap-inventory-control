@@ -81,7 +81,7 @@ export const relatoriosGerados: PaginaAjuda = {
       itens: [
         'Cada snapshot abre com a faixa "Relatório gerado · filial · período · versão N · por quem gerou · quando", mais a pílula "dados congelados".',
         'O corpo é o mesmo do relatório ao vivo, com uma diferença deliberada: no snapshot os indicadores do topo NÃO são clicáveis. Eles descrevem o inventário daquele período, e levar para a lista de ativos de hoje seria mostrar outra coisa.',
-        'O botão "Imprimir" também existe aqui — e a impressão sai clara mesmo com o tema escuro ligado.',
+        'O botão "Imprimir" também existe aqui — e a impressão sai clara mesmo com o tema escuro ligado, com as tabelas COMPLETAS (as colunas que a tela esconde quando a janela é estreita saem no papel). Vale igual para quem entra pela senha de acesso.',
         'No pé do snapshot há três atalhos: "Período anterior" e "Próximo período" andam pelo arquivo da MESMA filial (ou do consolidado), semana a semana; e "Ver este período no ao vivo" abre o mesmo recorte de datas com os números de hoje, para comparar o congelado com o atual. Os três valem também para quem entra pela senha de acesso.',
       ],
     },

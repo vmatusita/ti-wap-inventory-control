@@ -631,6 +631,23 @@ describe('relatorio-ao-vivo — leitura, filtros e impressão', () => {
     expect(passos.length, 'sem passo a passo de impressão').toBeGreaterThan(0)
   })
 
+  // REL-01 (F30) — o papel deixou de perder coluna. A promessa é do OPERADOR (é
+  // ele quem arquiva o impresso), então tem de estar escrita nas DUAS páginas de
+  // relatório: a ao vivo e a do snapshot congelado.
+  it('promete as tabelas completas no papel, no ao vivo e no congelado', () => {
+    const vivo = normalizarBusca(cru('relatorio-ao-vivo'))
+    expect(vivo).toContain(normalizarBusca('tabelas saem COMPLETAS'))
+    // As colunas que a análise nomeou como perdidas (ANALISE-UX §6, REL-01).
+    for (const coluna of ['Marca/Modelo', 'Colaborador/Setor', 'Termo', 'Observação']) {
+      expect(vivo, `coluna não prometida no papel: ${coluna}`).toContain(
+        normalizarBusca(coluna),
+      )
+    }
+    expect(normalizarBusca(cru('relatorios-gerados'))).toContain(
+      normalizarBusca('tabelas COMPLETAS'),
+    )
+  })
+
   // Os rótulos dos presets vêm de `PRESETS` (a fonte que a barra do relatório
   // renderiza), e não de uma lista digitada aqui: preset novo sem documentação
   // quebra o teste, que é exatamente o que aconteceu com "Semana passada" (F29).

@@ -118,21 +118,24 @@ export function TabelaSaidas({
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
-          <Table>
+          {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
+              encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
+              a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
+          <Table className="rel-print-compacta">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10 p-0 xl:hidden print:hidden" aria-hidden />
                 <TableHead>Data</TableHead>
-                {ehGeral && <TableHead className="hidden md:table-cell">Filial</TableHead>}
-                <TableHead className="hidden sm:table-cell">Categoria</TableHead>
-                <TableHead className="hidden lg:table-cell">Marca/Modelo</TableHead>
+                {ehGeral && <TableHead className="hidden md:table-cell print:table-cell">Filial</TableHead>}
+                <TableHead className="hidden sm:table-cell print:table-cell">Categoria</TableHead>
+                <TableHead className="hidden lg:table-cell print:table-cell">Marca/Modelo</TableHead>
                 <TableHead>Patrimônio</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Motivo</TableHead>
-                <TableHead className="hidden md:table-cell">Chamado</TableHead>
-                <TableHead className="hidden lg:table-cell">Colab./Setor</TableHead>
-                <TableHead className="hidden xl:table-cell">Termo</TableHead>
-                <TableHead className="hidden xl:table-cell">Obs.</TableHead>
+                <TableHead className="hidden md:table-cell print:table-cell">Chamado</TableHead>
+                <TableHead className="hidden lg:table-cell print:table-cell">Colab./Setor</TableHead>
+                <TableHead className="hidden xl:table-cell print:table-cell">Termo</TableHead>
+                <TableHead className="hidden xl:table-cell print:table-cell">Obs.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -162,10 +165,10 @@ export function TabelaSaidas({
                       </TableCell>
                       <CelulaData data={r.data} />
                       {ehGeral && (
-                        <TableCell className="hidden whitespace-nowrap md:table-cell">{r.filial}</TableCell>
+                        <TableCell className="hidden whitespace-nowrap md:table-cell print:table-cell">{r.filial}</TableCell>
                       )}
-                      <TableCell className="hidden sm:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
-                      <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.modelo}</TableCell>
+                      <TableCell className="hidden sm:table-cell print:table-cell">{rotuloCategoria(r.categoria)}</TableCell>
+                      <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">{r.modelo}</TableCell>
                       <CelulaPatrimonio
                         patrimonio={r.patrimonio}
                         ativoId={r.ativoId}
@@ -177,12 +180,12 @@ export function TabelaSaidas({
                         <PilulaTipo tipo={r.tipo} />
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{r.motivo ?? '—'}</TableCell>
-                      <CelulaChamado chamado={r.chamado} className="hidden md:table-cell" />
-                      <TableCell className="hidden whitespace-nowrap lg:table-cell">
+                      <CelulaChamado chamado={r.chamado} className="hidden md:table-cell print:table-cell" />
+                      <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">
                         {r.colaboradorSetor ?? '—'}
                       </TableCell>
-                      <TableCell className="hidden whitespace-nowrap xl:table-cell">{r.termo ?? '—'}</TableCell>
-                      <CelulaObs texto={r.obs} className="hidden xl:table-cell" />
+                      <TableCell className="hidden whitespace-nowrap xl:table-cell print:table-cell">{r.termo ?? '—'}</TableCell>
+                      <CelulaObs texto={r.obs} className="hidden xl:table-cell print:table-cell" />
                     </TableRow>
                     {estaAberta(r.id) && (
                       <LinhaDetalhe colSpan={12} campos={detalhe} className="xl:hidden" />
