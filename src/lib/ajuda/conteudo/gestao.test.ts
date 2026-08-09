@@ -13,6 +13,7 @@ import {
   type TipoLancamento,
 } from '@/lib/dominio'
 import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import { CAP_EXPORT } from '@/lib/csv'
 import { TAMANHOS_PAGINA, TAMANHO_PAGINA_PADRAO } from '@/lib/ativos/lista'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
@@ -283,6 +284,30 @@ describe('lista de ativos', () => {
     expect(ancorasDaPagina(pagina('lista-de-ativos')).map((a) => a.id)).toContain(
       'ativos-voltar',
     )
+  })
+
+  // ATV-03 (F30) — a seleção múltipla é a ponte entre filtrar e movimentar.
+  // Sem documentação, ela é uma coluna de caixinhas que apareceu do nada.
+  it('documenta a seleção múltipla, o teto e o escopo por página', () => {
+    for (const frase of [
+      'Movimentar',
+      'Copiar patrimônios',
+      'Limpar seleção',
+      'PÁGINA que está aberta',
+    ]) {
+      contem('lista-de-ativos', frase)
+    }
+    // O teto vem da constante real, como manda a regra de ouro da ajuda.
+    contem('lista-de-ativos', `até ${MAX_LOTE_MOVIMENTACAO} ativos`)
+    expect(ancorasDaPagina(pagina('lista-de-ativos')).map((a) => a.id)).toContain(
+      'ativos-selecionar',
+    )
+    // A restrição de cargo tem de estar escrita nos DOIS lugares em que o
+    // operador procura: na página da lista e no mapa de telas.
+    contem('lista-de-ativos', 'só aparecem para quem registra movimentação')
+    contem('mapa-das-telas', 'caixinhas de seleção da lista de ativos')
+    // E a outra ponta da ponte: quem chega no wizard precisa saber de onde veio.
+    contem('registrar-movimentacao', 'marque as caixinhas das linhas')
   })
 
   it('distingue o vazio "não há nada" do vazio "nada bate com o filtro"', () => {

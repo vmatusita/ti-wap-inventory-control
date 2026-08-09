@@ -3,7 +3,12 @@ import {
   type ConfigInicial,
 } from '@/components/movimentacoes/nova-movimentacao-form'
 import { configInicialDaUrl } from '@/components/movimentacoes/nova/config'
-import { buscarAtivoResumo, type AtivoResumo } from '@/lib/queries/ativos'
+import {
+  buscarAtivoResumo,
+  buscarAtivosResumoPorIds,
+  type AtivoResumo,
+} from '@/lib/queries/ativos'
+import { avisoDoLoteInicial, parseIdsDeAtivos } from '@/lib/movimentacoes/lote-url'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarKitsAtivos, type Kit } from '@/lib/queries/kits'
 import { listarMotivos } from '@/lib/queries/motivos'
@@ -41,6 +46,11 @@ function texto(v: string | string[] | undefined): string | undefined {
 // diferir da atual (link igual = navegação que não acontece = botão mudo).
 const PARAMS_SEMEADORES = [
   'ativo',
+  // ATV-03 (F30) — a LISTA de ids que a seleção múltipla de /ativos manda.
+  // Semeador de pleno direito: ele monta o lote inteiro do passo 1, e a `key`
+  // precisa mudar quando a lista muda (senão voltar para a lista, escolher
+  // outros cinco e clicar "Movimentar" reabriria o wizard com o lote antigo).
+  'ativos',
   'duplicar',
   'tipo',
   'motivo',
@@ -71,6 +81,7 @@ export default async function NovaMovimentacaoPage({
 }) {
   const sp = await searchParams
   const ativoParam = param(sp, 'ativo')
+  const ativosParam = param(sp, 'ativos')
   const duplicarParam = param(sp, 'duplicar')
   // F26 — o ATALHO do painel de sucesso (a metade da troca que ficou para
   // depois): tipo + motivo + colaborador, sem ativo. `contrapartida=nao` diz
@@ -105,6 +116,11 @@ export default async function NovaMovimentacaoPage({
   const escreve = podeEscrever(operador?.papel)
 
   let ativoInicial: AtivoResumo | null = null
+  // ATV-03 — o lote que veio pronto da lista de ativos (`?ativos=`).
+  let ativosIniciais: AtivoResumo[] | null = null
+  // ATV-03 — a frase do banner âmbar quando alguém do `?ativos=` ficou de fora
+  // (apagado, endereço quebrado no link, ou cortado pelo teto do lote).
+  let avisoLote: string | null = null
   let configInicial: ConfigInicial | null = null
   // MOV-14 — `?duplicar=`/`?ativo=` pode apontar pra um id apagado (Zona
   // destrutiva) ou quebrado: sem isto, o `if (mov) {…}` sem `else` abria o
@@ -142,6 +158,29 @@ export default async function NovaMovimentacaoPage({
       }
     } else {
       origemInvalida = 'duplicar'
+    }
+  } else if (ativosParam) {
+    // ATV-03 — o lote nasce da lista. A peneira de UUID vem ANTES da consulta:
+    // `buscarAtivosResumoPorIds` monta um `.in('id', …)` e um pedaço que não é
+    // UUID derruba a página com `invalid input syntax for type uuid` — não é
+    // "nada encontrado", é erro 500.
+    const { ids, invalidos, excedentes } = parseIdsDeAtivos(ativosParam)
+    if (ids.length > 0) {
+      // A função preserva a ordem pedida e simplesmente NÃO devolve id que não
+      // existe — a diferença de tamanho é o sinal de que alguém sumiu.
+      const encontrados = await buscarAtivosResumoPorIds(ids)
+      if (encontrados.length > 0) ativosIniciais = encontrados
+      avisoLote = avisoDoLoteInicial({
+        pedidos: ids.length,
+        encontrados: encontrados.length,
+        invalidos,
+        excedentes,
+      })
+    } else {
+      // Nenhum id aproveitável: é o mesmo caso do `?ativo=` quebrado — o
+      // formulário abre em branco, e sem aviso o operador não sabe se errou o
+      // link ou se esqueceu de escolher.
+      origemInvalida = 'ativo'
     }
   } else if (ativoParam) {
     ativoInicial = await buscarAtivoResumo(ativoParam)
@@ -203,6 +242,8 @@ export default async function NovaMovimentacaoPage({
           motivos={motivos}
           kits={kits}
           ativoInicial={ativoInicial}
+          ativosIniciais={ativosIniciais}
+          avisoLote={avisoLote}
           configInicial={configInicial}
           semContrapartida={semContrapartida}
           ultimaMov={ultimaMov}

@@ -111,6 +111,8 @@ export function NovaMovimentacaoForm({
   motivos,
   kits = [],
   ativoInicial,
+  ativosIniciais,
+  avisoLote = null,
   configInicial,
   semContrapartida = false,
   ultimaMov,
@@ -124,6 +126,15 @@ export function NovaMovimentacaoForm({
   // igual ao "Repetir última" sem última movimentação.
   kits?: Kit[]
   ativoInicial?: AtivoResumo | null
+  // ATV-03 (F30) — o lote que veio PRONTO da seleção múltipla de /ativos
+  // (`?ativos=id1,id2,…`). Prop separada, e não um `ativoInicial` que virou
+  // array: `?ativo=` continua sendo o caminho de UM ativo (a ficha, o painel de
+  // sucesso), com semântica e chamadores próprios.
+  ativosIniciais?: AtivoResumo[] | null
+  // ATV-03 — a frase do banner âmbar quando alguém do `?ativos=` ficou de fora.
+  // Vem PRONTA do servidor (`avisoDoLoteInicial`), porque é lá que se sabe
+  // quantos ids foram pedidos e quantos o banco devolveu.
+  avisoLote?: string | null
   configInicial?: ConfigInicial | null
   // F26 — chegou pelo ATALHO do painel de sucesso (`?contrapartida=nao`), ou
   // seja: esta tela É a metade que faltava. A seção do par começa recolhida;
@@ -144,18 +155,29 @@ export function NovaMovimentacaoForm({
 }) {
   const router = useRouter()
   const [passo, setPasso] = useState(1)
-  const [itens, setItens] = useState<AtivoResumo[]>(
-    ativoInicial ? [ativoInicial] : [],
-  )
+  // ATV-03 — o lote de ABERTURA, venha ele da seleção múltipla da lista
+  // (`?ativos=`) ou de um ativo só (`?ativo=`/`?duplicar=`). Unificar aqui é o
+  // que faz o resto do wizard (interseção da máquina de estados, avisos de
+  // vínculo, kits, rascunho) não precisar saber por qual porta o lote entrou.
+  // Constante de render, e não estado: só alimenta inicializadores de `useState`.
+  const ativosDeAbertura: AtivoResumo[] =
+    ativosIniciais && ativosIniciais.length > 0
+      ? ativosIniciais
+      : ativoInicial
+        ? [ativoInicial]
+        : []
+  const [itens, setItens] = useState<AtivoResumo[]>(ativosDeAbertura)
   const [config, setConfig] = useState<Config>(() => {
     const c = configPadrao(configInicial)
     // Clampa o tipo inicial (vindo de "duplicar") ao que e valido para o ativo.
     // MOV-07 — os campos DO TIPO caem junto: sem isto, o motivo/termo da
     // movimentação duplicada sobrevivia a um tipo que foi zerado por invalidez.
+    // ATV-03 — a interseção passa a ser a do LOTE inteiro: com vários ativos de
+    // abertura, um tipo que não serve a TODOS não pode sobreviver.
     if (
-      ativoInicial &&
+      ativosDeAbertura.length > 0 &&
       c.tipo &&
-      !tiposDoLote([ativoInicial.status]).includes(c.tipo)
+      !tiposDoLote(ativosDeAbertura.map((a) => a.status)).includes(c.tipo)
     ) {
       Object.assign(c, { tipo: '' }, CAMPOS_DO_TIPO_VAZIOS)
     }
@@ -542,7 +564,10 @@ export function NovaMovimentacaoForm({
   // hidratacao do Next) e SO na montagem. `?ativo=`/`?duplicar=` tem precedencia
   // (decisao §2): quem chegou por um link explicito nao ve o banner.
   useEffect(() => {
-    const veioDeLink = Boolean(ativoInicial || configInicial)
+    // ATV-03 — chegar com o lote pronto da lista é chegar POR LINK: o banner de
+    // rascunho não pode oferecer a restauração de outra visita por cima dos
+    // cinco ativos que o operador acabou de escolher.
+    const veioDeLink = Boolean(ativosDeAbertura.length > 0 || configInicial)
     // Estado alterado dentro do callback (react-hooks/set-state-in-effect).
     const t = setTimeout(() => {
       if (!veioDeLink) setRascunhoPendente(lerRascunho())
@@ -1162,8 +1187,13 @@ export function NovaMovimentacaoForm({
 
       {/* MOV-14 — `?duplicar=`/`?ativo=` apontava pra um id apagado (Zona
           destrutiva) ou quebrado: sem aviso, o wizard abria vazio em
-          silêncio. */}
-      {origemInvalida && (
+          silêncio.
+          ATV-03 (F30) — o MESMO banner atende o `?ativos=` da seleção múltipla,
+          com a diferença de que ali o lote pode abrir PARCIAL: a frase vem
+          pronta do servidor e diz quantos ficaram de fora e por quê. Os dois
+          casos são excludentes (são ramos diferentes da mesma leitura de URL),
+          e `origemInvalida` tem precedência por ser o caso em que nada abriu. */}
+      {(origemInvalida || avisoLote) && (
         <div
           role="alert"
           className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
@@ -1172,7 +1202,9 @@ export function NovaMovimentacaoForm({
           <p>
             {origemInvalida === 'duplicar'
               ? 'A movimentação de origem não foi encontrada — o formulário abriu em branco.'
-              : 'O ativo de origem não foi encontrado — o formulário abriu em branco.'}
+              : origemInvalida === 'ativo'
+                ? 'O ativo de origem não foi encontrado — o formulário abriu em branco.'
+                : avisoLote}
           </p>
         </div>
       )}

@@ -1,10 +1,12 @@
 import { CAP_EXPORT } from '@/lib/csv'
 import { TAMANHOS_PAGINA, TAMANHO_PAGINA_PADRAO } from '@/lib/ativos/lista'
+import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
-// REGRA DE OURO: nem o teto do export nem os tamanhos de pagina sao digitados —
-// vem de `CAP_EXPORT`, `TAMANHOS_PAGINA` e `TAMANHO_PAGINA_PADRAO`, as MESMAS
-// constantes que a tela usa. Mudou a lista de tamanhos, a frase muda junto.
+// REGRA DE OURO: nem o teto do export, nem os tamanhos de pagina, nem o teto da
+// selecao multipla sao digitados — vem de `CAP_EXPORT`, `TAMANHOS_PAGINA`,
+// `TAMANHO_PAGINA_PADRAO` e `MAX_LOTE_MOVIMENTACAO`, as MESMAS constantes que a
+// tela usa. Mudou a lista de tamanhos ou o teto do lote, a frase muda junto.
 const TAMANHOS_TEXTO = `${TAMANHOS_PAGINA.slice(0, -1).join(', ')} ou ${
   TAMANHOS_PAGINA[TAMANHOS_PAGINA.length - 1]
 }`
@@ -92,6 +94,26 @@ export const listaDeAtivos: PaginaAjuda = {
         'É a última lista visitada, não "a tela de onde eu vim": se você trocou o filtro depois, é o filtro novo que volta, e ele pode não conter o ativo que você acabou de ver.',
         'A memória é da aba: abrir a ficha em outra aba, ou usar o link direto que alguém mandou, leva ao "Voltar para ativos" limpo, sem nenhum filtro.',
       ],
+    },
+
+    { tipo: 'titulo', id: 'ativos-selecionar', texto: 'Selecionar vários e movimentar de uma vez' },
+    {
+      tipo: 'passos',
+      titulo: 'Montar o lote de movimentação a partir da lista',
+      itens: [
+        'Filtre até sobrar o conjunto que você quer mexer — por exemplo, status "Em estoque" na filial Matriz, categoria Notebook.',
+        'Marque a caixinha na primeira coluna de cada linha. A caixa do cabeçalho marca a página inteira de uma vez.',
+        `A seleção aceita até ${MAX_LOTE_MOVIMENTACAO} ativos — é o mesmo teto do lote de movimentação. Ao passar disso, o aviso diz quantos ficaram de fora; a página pode mostrar até ${TAMANHOS_PAGINA[TAMANHOS_PAGINA.length - 1]} linhas, então "marcar todos" leva os ${MAX_LOTE_MOVIMENTACAO} primeiros.`,
+        'Com pelo menos um marcado, aparece uma barra no rodapé: "N ativos selecionados", "Movimentar", "Copiar patrimônios" e "Limpar seleção". Ela acompanha a rolagem, então você não precisa voltar ao topo.',
+        '"Movimentar" abre a tela de nova movimentação já com os ativos escolhidos no passo 1 — de lá o fluxo é o mesmo de sempre (tipo, motivo, conferência).',
+        '"Copiar patrimônios" copia os selecionados, um por linha, para colar num chamado ou numa planilha. Ativo sem plaqueta não tem o que copiar e o aviso diz quantos ficaram de fora.',
+        'A seleção vale para a PÁGINA que está aberta: trocar de página, de filtro ou de busca limpa as marcações. Marque e movimente uma página de cada vez.',
+      ],
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'As caixinhas só aparecem para quem registra movimentação. O cargo Consulta vê a mesma lista, os mesmos filtros e o mesmo "Exportar CSV" — sem a coluna de seleção e sem a barra do rodapé. Se algum dos ativos escolhidos tiver sido apagado no meio do caminho, a tela de movimentação abre com os que restaram e um aviso âmbar diz quantos não foram encontrados.',
     },
 
     { tipo: 'titulo', id: 'exportar', texto: 'Levar para o Excel' },

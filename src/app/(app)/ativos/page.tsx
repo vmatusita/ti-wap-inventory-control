@@ -258,7 +258,11 @@ export default async function AtivosPage({
         )
       ) : (
         <>
-          <AtivosTable rows={resultado.rows} duplicados={resultado.patrimoniosDuplicados} />
+          <AtivosTable
+            rows={resultado.rows}
+            duplicados={resultado.patrimoniosDuplicados}
+            escreve={escreve}
+          />
           <AtivosPaginacao
             page={resultado.page}
             pageSize={resultado.pageSize}
