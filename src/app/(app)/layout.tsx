@@ -5,7 +5,9 @@ import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { contarPendenciasAbertas } from '@/lib/queries/pendencias-detalhe'
 import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 import { AppHeader } from '@/components/layout/app-header'
-import { SidebarNav } from '@/components/layout/sidebar-nav'
+import { SidebarLateral } from '@/components/layout/sidebar-lateral'
+import { SidebarColapsoProvider } from '@/components/layout/sidebar-colapso'
+import { SCRIPT_SIDEBAR } from '@/components/layout/sidebar-preferencia'
 import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
 import { listarFiliais } from '@/lib/queries/filiais'
@@ -107,6 +109,16 @@ export default async function AppLayout({
         : undefined
     return (
       <TooltipProvider delayDuration={300}>
+        {/* UXG-13 — o anti-flash da sidebar recolhida, na mesma disciplina do
+            tema: um script que roda ANTES da primeira pintura e marca o <html>,
+            de onde o CSS tira a largura. Sem ele, quem recolheu veria 240px
+            pintados e o salto para 64px na hidratação. O `<html>` já tem
+            `suppressHydrationWarning` (F19) — foi o next-themes que o exigiu, e
+            é ele que absorve este atributo também.
+            Fica no ramo do OPERADOR porque só aqui existe sidebar: o
+            visualizador por senha não tem menu lateral nenhum. */}
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_SIDEBAR }} />
+        <SidebarColapsoProvider>
         <ProgressoNavegacaoProvider>
           <BarraProgressoNavegacao />
           {/* Atalhos `N` e `?` + paleta Ctrl+K / "/" — SÓ neste ramo (operador).
@@ -140,19 +152,18 @@ export default async function AppLayout({
                 hrefRelatorios={hrefRelatorios}
               />
               <div className="flex flex-1">
-                <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] w-60 shrink-0 self-start overflow-y-auto border-r bg-background p-3 md:block print:hidden">
-                  <SidebarNav
-                    pendencias={pendencias}
-                    eAdmin={admin}
-                    eDev={dev}
-                    hrefRelatorios={hrefRelatorios}
-                  />
-                </aside>
+                <SidebarLateral
+                  pendencias={pendencias}
+                  eAdmin={admin}
+                  eDev={dev}
+                  hrefRelatorios={hrefRelatorios}
+                />
                 <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
               </div>
             </div>
           </PaletaComandosProvider>
         </ProgressoNavegacaoProvider>
+        </SidebarColapsoProvider>
       </TooltipProvider>
     )
   }

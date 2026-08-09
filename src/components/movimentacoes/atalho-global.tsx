@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AtalhosDialog } from '@/components/layout/atalhos-dialog'
+import { useSidebarColapso } from '@/components/layout/sidebar-colapso'
 
 // Atalhos globais de teclado do shell do OPERADOR (montados so no ramo do
 // operador do `(app)/layout.tsx` — o visualizador por senha nao tem atalho
@@ -10,7 +11,11 @@ import { AtalhosDialog } from '@/components/layout/atalhos-dialog'
 //   `N` -> nova movimentacao (OS-F2 3.7.2) — SÓ para quem escreve (F21)
 //   `?` -> quadro de atalhos (F29/UXG-10d; antes NAVEGAVA para /ajuda, tirando o
 //          operador da tela em que estava por causa de uma dúvida de uma tecla)
-// Ambos so disparam com o foco FORA de um campo de texto.
+//   `[` -> recolhe/expande a sidebar (F30/UXG-13). Fica AQUI, e não dentro da
+//          própria sidebar, para os atalhos globais continuarem todos num
+//          arquivo só — e para reusar as mesmas duas guardas, em vez de uma
+//          terceira nocao de "o usuario esta digitando".
+// Todos so disparam com o foco FORA de um campo de texto.
 //
 // A guarda `editando` e exportada porque a paleta de comandos (Ctrl+K e "/")
 // precisa exatamente da mesma nocao de "o usuario esta digitando" — duas
@@ -59,6 +64,9 @@ export function AtalhosGlobais({
 }) {
   const router = useRouter()
   const [atalhosAbertos, setAtalhosAbertos] = useState(false)
+  // F30/UXG-13 — fora do provider (nenhum caso hoje) o contexto devolve um
+  // `alternar` que não faz nada: a tecla fica inerte, nada quebra.
+  const { alternar: alternarSidebar } = useSidebarColapso()
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -84,11 +92,21 @@ export function AtalhosGlobais({
         // A guarda `modalAberto()` acima já garante que este quadro não abre por
         // cima de outro dialogo — inclusive dele mesmo.
         setAtalhosAbertos(true)
+        return
+      }
+      // F30/UXG-13 — recolher/expandir a sidebar. Vale para TODOS os cargos
+      // (inclusive Consulta): é ergonomia de leitura, nao uma tecla que escreve.
+      // No celular a sidebar nem existe (`hidden md:block`), entao a tecla
+      // alterna uma preferencia invisivel — inofensivo, e mantem a escolha
+      // pronta para quando a mesma conta abrir no desktop.
+      if (e.key === '[') {
+        e.preventDefault()
+        alternarSidebar()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [router, novaMovimentacao])
+  }, [router, novaMovimentacao, alternarSidebar])
 
   return (
     <AtalhosDialog

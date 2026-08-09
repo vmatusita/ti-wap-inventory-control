@@ -30,6 +30,8 @@ const ATALHOS: { teclas: string; acao: string }[] = [
   { teclas: 'N', acao: 'Nova movimentação, de qualquer tela' },
   { teclas: 'L', acao: 'Lançar item — só na página Itens' },
   { teclas: '?', acao: 'Abre este quadro de atalhos' },
+  // F30/UXG-13 — vale para todos os cargos: recolher o menu é leitura, não escrita.
+  { teclas: '[', acao: 'Recolhe (e expande) o menu lateral — no computador' },
   { teclas: '↑ ↓ · Enter · Esc', acao: 'Na busca: andar, abrir e fechar' },
 ]
 

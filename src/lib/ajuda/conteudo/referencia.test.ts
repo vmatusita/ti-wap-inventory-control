@@ -84,6 +84,11 @@ function rotulosDe(arquivo: string, constante: string): string[] {
   return [...bloco[1].matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1])
 }
 
+/** Código-fonte de um arquivo qualquer do repositório, pelo caminho relativo. */
+function fonteDe(arquivo: string): string {
+  return readFileSync(join(process.cwd(), ...arquivo.split('/')), 'utf8')
+}
+
 /** Código-fonte de um módulo de conteúdo desta frente (para provar que um valor
  *  é DERIVADO, e não um literal que por acaso coincide com a constante hoje). */
 function fonteDoConteudo(arquivo: string): string {
@@ -319,18 +324,52 @@ describe('limites-e-atalhos — tetos derivados e guardas reais', () => {
     expect(fonteDoConteudo('relatorios-gerados.ts')).toContain('GERADOS_PAGE_SIZE')
   })
 
-  it('descreve as seis teclas e o Enter do fluxo de movimentação', () => {
+  // A lista é DERIVADA do quadro do "?" (`atalhos-dialog.tsx`), que é o resumo
+  // que o operador vê na tela — assim uma tecla nova entra aqui por consequência
+  // de existir no app, e não porque alguém lembrou de editar o teste. Foi o que
+  // faltou quando o `[` da F30 entrou: a lista era literal e não cobrava nada.
+  it('descreve todas as teclas do quadro do "?" e o Enter do fluxo', () => {
     const b = blocos('limites-e-atalhos', 'atalhos')[0]
     expect(b).toBeDefined()
     const teclas = b.itens.map((a) => a.teclas)
-    for (const k of ['Ctrl+K', '/', 'N', 'L', '?', 'Enter']) {
-      expect(teclas, `atalho ausente: ${k}`).toContain(k)
+
+    // `{ teclas: 'X', acao: … }` — a fonte do resumo que o `?` abre.
+    const doQuadro = [
+      ...fonteDe('src/components/layout/atalhos-dialog.tsx').matchAll(
+        /\{\s*teclas:\s*'([^']+)'/g,
+      ),
+    ].map((m) => m[1])
+    expect(doQuadro.length, 'o quadro do "?" mudou de formato').toBeGreaterThan(5)
+
+    // O quadro escreve "Ctrl K" (o desenho da tecla); a documentação, "Ctrl+K".
+    const equivalente = (k: string) => (k === 'Ctrl K' ? 'Ctrl+K' : k)
+    for (const k of [...doQuadro.map(equivalente), 'Enter']) {
+      expect(teclas, `atalho ausente na documentação: ${k}`).toContain(k)
     }
+
     // Cada atalho de letra tem de dizer QUANDO não dispara — a guarda é promessa.
-    for (const k of ['Ctrl+K', '/', 'N', 'L', '?', 'Enter']) {
+    for (const k of ['Ctrl+K', '/', 'N', 'L', '?', '[', 'Enter']) {
       const linha = b.itens.find((a) => a.teclas === k)!
+      expect(linha, `atalho ausente: ${k}`).toBeDefined()
       expect(linha.observacao?.length ?? 0, `guarda ausente em ${k}`).toBeGreaterThan(20)
     }
+  })
+
+  // UXG-13 (F30) — o `[` e o menu recolhível têm de estar nas DUAS páginas em
+  // que o operador procura: a de atalhos e o mapa das telas.
+  it('documenta o menu recolhível e a preferência por navegador', () => {
+    const atalhos = normalizarBusca(cru('limites-e-atalhos'))
+    expect(atalhos).toContain(normalizarBusca('Recolhe (e expande) o menu lateral'))
+    expect(atalhos).toContain(normalizarBusca('guardada NESTE navegador'))
+
+    const mapa = normalizarBusca(cru('mapa-das-telas'))
+    expect(mapa).toContain(normalizarBusca('Os atalhos globais são quatro'))
+    // Sem as aspas do rótulo: `cru()` é o JSON dos blocos, onde elas vêm
+    // escapadas (\") e nunca casariam com uma busca em texto corrido.
+    expect(mapa).toContain(normalizarBusca('no pé do menu lateral deixa só os ícones'))
+    expect(mapa).toContain(normalizarBusca('Um filete separa os grupos do menu'))
+    // O selo de pendências continua visível recolhido — é requisito, não detalhe.
+    expect(mapa).toContain(normalizarBusca('visível sobre o ícone com o menu recolhido'))
   })
 
   it('mantém a guarda global e a busca por "teclado"', () => {

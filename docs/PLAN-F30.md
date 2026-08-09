@@ -132,7 +132,8 @@ As colunas `hidden md|lg|xl:table-cell` **não saem no papel** e a `LinhaDetalhe
 `tabela-saidas.tsx` (10), `tabela-entradas.tsx` (10), `tabela-transferencias.tsx` (7),
 `tabela-mov-itens.tsx` (7), `tabela-movimentacoes.tsx` (6, grade v1 dos snapshots pré-F3B),
 `tabela-itens-grupo.tsx` (2).
-Cada `hidden <bp>:table-cell` ganha `print:table-cell`. **Decisão única para as seis: colunas,
+Cada coluna escondida ganha a variante de impressão que a reexibe (`print` + `table-cell`).
+**Decisão única para as seis: colunas,
 não `LinhaDetalhe`** — registrada em DECISOES com o motivo (a `LinhaDetalhe` é compartilhada
 pelas cinco tabelas com chevron, o raio de impacto de destravá-la é maior, ela dobra a altura de
 cada linha no papel e a `tabela-movimentacoes` v1 nem a tem; a compactação abaixo resolve a
@@ -152,7 +153,9 @@ Escopo por classe (`.rel-print-compacta`, aplicada no `<Table className>` das se
 
 **Ordem da cascata**: `hidden` e `print:table-cell` têm a mesma especificidade (uma classe) — quem
 ganha é a ordem no CSS gerado. Verificar no CSS do `npm run build` que `print:table-cell` vem
-**depois** de `.hidden`; se não vier, usar `print:table-cell!` (Tailwind v4) e registrar.
+**depois** de `.hidden`; se não vier, usar o sufixo de `!important` do Tailwind v4 e registrar.
+(Evite escrever variantes de classe como exemplo neste documento: o scanner do Tailwind lê
+`docs/`, e uma classe citada aqui vira regra morta no CSS de produção.)
 
 **Não regride**: `obs-tooltip.tsx:47` (REL-13a, observação completa no papel), legendas da F17
 (sem `print:hidden`, saem hoje), linhas estornadas da F16, `break-before-page`/`break-inside-avoid`.

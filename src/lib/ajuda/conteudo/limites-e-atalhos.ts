@@ -106,6 +106,12 @@ export const limitesEAtalhos: PaginaAjuda = {
             'O quadro tem um link "Documentação completa" que traz você para cá; até a F28 o "?" navegava direto e tirava você da tela. Vale o caractere, não a tecla: segurar Shift para digitar "?" é normal e não atrapalha. As mesmas guardas do N valem aqui.',
         },
         {
+          teclas: '[',
+          acao: 'Recolhe (e expande) o menu lateral, deixando só os ícones.',
+          observacao:
+            'Vale no computador, onde o menu lateral existe — no celular o menu é o do botão de três traços e não muda. A escolha fica guardada NESTE navegador (como o tema Claro/Escuro), então recolher no notebook não recolhe no computador da mesa. Recolhido, o nome de cada item aparece ao passar o mouse ou o teclado por cima, e o selo de pendências continua visível sobre o ícone. As mesmas guardas do N valem aqui.',
+        },
+        {
           teclas: '↑ ↓ · Enter · Esc',
           acao: 'Dentro da busca global: andar pela lista, abrir o escolhido e fechar.',
         },
