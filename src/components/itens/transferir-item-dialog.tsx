@@ -81,6 +81,12 @@ export function TransferirItemDialog({
   const [saldos, setSaldos] = useState<SaldosPorItem>({})
   const [saldosDe, setSaldosDe] = useState<number | null>(null)
   const pedido = useRef(0)
+  // ⚠ A TRANSFERÊNCIA INVALIDA O MAPA. Sem este contador o efeito só reagiria a
+  // `origemId`, e transferir tudo o que havia numa filial deixava o diálogo
+  // dizendo "10 em estoque em Matriz" na reabertura — com a checagem prévia
+  // aprovando um segundo envio que o trigger recusaria. O `router.refresh()` não
+  // resolve: ele revalida o Server Component, não este estado de cliente.
+  const [recarga, setRecarga] = useState(0)
 
   useEffect(() => {
     if (origemId == null) return
@@ -96,7 +102,7 @@ export function TransferirItemDialog({
         setSaldos({})
         setSaldosDe(origemId)
       })
-  }, [origemId])
+  }, [origemId, recarga])
 
   const saldosAtuais = origemId != null && saldosDe === origemId ? saldos : {}
 
@@ -216,6 +222,13 @@ export function TransferirItemDialog({
         )
         limpar()
         setAberto(false)
+        // O saldo da origem acabou de mudar por nossa causa: releia antes que o
+        // operador reabra o diálogo na mesma filial (a origem é preservada de
+        // propósito — transferir em seguida é o caso comum). `saldosDe = null`
+        // primeiro, pela mesma regra da troca de origem: enquanto a releitura
+        // não chega, melhor NENHUM número do que o de antes da transferência.
+        setSaldosDe(null)
+        setRecarga((r) => r + 1)
         router.refresh()
       } catch {
         // A transferência é tudo-ou-nada no banco: se a chamada nem chegou, nada

@@ -17,6 +17,7 @@
 // o ajuste de diferença mexe no Total (ajuste sempre mexe), que é justamente o
 // certo: se sumiram 3 mouses, a TI passou a ter 3 a menos, não só a prateleira.
 
+import { estoquePorItem } from '@/lib/itens/repor'
 import type { SaldoItem } from '@/lib/queries/itens'
 
 /** Uma linha CONTADA da conferência (linha em branco não vira `LinhaConferencia`). */
@@ -53,14 +54,23 @@ export type AjusteConferencia = { item_id: number; quantidade: number }
  * transformaria uma conferência parcial num pedido de zerar o estoque inteiro da
  * filial, que é o pior erro possível nesta tela.
  *
- * Lixo (texto, negativo, fracionário) também vale como não conferido: a tela
- * impede digitá-lo, e o que vier do `sessionStorage` é dado de fora.
+ * Lixo (texto, negativo, fracionário) também vale como não conferido.
+ *
+ * ⚠ A RÉGUA É DE DÍGITOS, não `Number(...) é inteiro`. `<input type="number">`
+ * NÃO impede notação exponencial — `1e5` é um floating-point number válido em
+ * HTML, então `e.target.value` devolve a string inteira e `Number('1e5')` daria
+ * uma contagem de CEM MIL, com o ajuste monstruoso que isso implica. Uma
+ * prateleira se conta em dígitos; qualquer outra forma é engano de digitação ou
+ * `sessionStorage` adulterado, e não conferência.
  */
+const SO_DIGITOS = /^\d+$/
+
 export function contagemDaLinha(bruto: string | null | undefined): number | null {
   const t = (bruto ?? '').trim()
   if (t === '') return null
+  if (!SO_DIGITOS.test(t)) return null
   const n = Number(t)
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) return null
+  if (!Number.isSafeInteger(n)) return null
   return n
 }
 
@@ -89,11 +99,14 @@ export type EscritoPorItem = Readonly<Record<number, number>>
  *
  * Ela é verdadeira antes e depois do refresh chegar, e o mesmo clique repetido
  * nunca escreve duas vezes.
+ *
+ * A projeção `item_id → estoque` já existe em `estoquePorItem` (lib/itens/repor)
+ * e é a MESMA — o que muda aqui é só o nome de domínio ("a base congelada"), não
+ * a conta. Reescrevê-la deixaria duas definições do que é "o saldo de partida",
+ * que é exatamente o tipo de divergência que este módulo existe para evitar.
  */
-export function baseDaConferencia(saldos: readonly SaldoItem[]): Record<number, number> {
-  const base: Record<number, number> = {}
-  for (const s of saldos) base[s.item_id] = s.estoque
-  return base
+export function baseDaConferencia(saldos: readonly SaldoItem[]): BaseDaConferencia {
+  return estoquePorItem(saldos)
 }
 
 /**
@@ -131,8 +144,18 @@ export function linhasDaConferencia(
     // mexer nele, o meu ajuste seguinte não enxerga a mexida dela. Fechar isso de
     // verdade é matéria de SERVIDOR (um "ajustar para N" ou uma chave de
     // idempotência), fora do escopo da F31 — está no relatório e no backlog.
+    //
+    // ⚠ "JÁ ESCREVEU" É A PRESENÇA DA CHAVE, NUNCA `escrito !== 0`. A diferença
+    // parece cosmética e não é: uma sessão que grava +2 e depois corrige com −2
+    // volta a ter acumulado ZERO, e testar o número faria a base congelada cair
+    // fora justamente nela — reabrindo a janela do `router.refresh()` que a base
+    // existe para fechar (o refresh do +2 chega, o do −2 ainda não, a partida
+    // vira o saldo velho e o mesmo −2 reaparece como pendente). Como
+    // `somarEscrito` sempre GRAVA a chave, ela é o registro fiel de "esta sessão
+    // tocou neste item", inclusive quando a soma deu zero.
+    const tocado = Object.prototype.hasOwnProperty.call(jaEscrito, s.item_id)
     const escrito = jaEscrito[s.item_id] ?? 0
-    const partida = escrito !== 0 ? (base[s.item_id] ?? s.estoque) : s.estoque
+    const partida = tocado ? (base[s.item_id] ?? s.estoque) : s.estoque
     linhas.push({
       itemId: s.item_id,
       item: s.item,

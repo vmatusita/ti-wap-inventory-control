@@ -95,6 +95,7 @@ export function avisoDoLoteInicial({
   encontrados,
   invalidos,
   excedentes,
+  teto = MAX_LOTE_MOVIMENTACAO,
 }: {
   /** Quantos ids VÁLIDOS foram consultados no banco (já sem repetição e sem corte). */
   pedidos: number
@@ -102,6 +103,10 @@ export function avisoDoLoteInicial({
   encontrados: number
   invalidos: number
   excedentes: number
+  /** O MESMO teto que `parseIdsDeAtivos` aplicou. Chega por parâmetro porque o
+   *  corte é de lá: citar a constante aqui faria a frase anunciar um número que
+   *  não foi o usado sempre que o chamador passasse outro teto. */
+  teto?: number
 }): string | null {
   const sumiram = Math.max(0, pedidos - encontrados)
   const partes: string[] = []
@@ -120,7 +125,7 @@ export function avisoDoLoteInicial({
     // Mesma voz do corte do "Colar lista" (colar-lista-dialog.tsx): o operador
     // já conhece esta frase de outro caminho do mesmo wizard.
     partes.push(
-      `${excedentes} ${plural(excedentes, 'ativo ficou', 'ativos ficaram')} de fora: o lote aceita ${MAX_LOTE_MOVIMENTACAO} por movimentação. Registre o resto em outro lote.`,
+      `${excedentes} ${plural(excedentes, 'ativo ficou', 'ativos ficaram')} de fora: o lote aceita ${teto} por movimentação. Registre o resto em outro lote.`,
     )
   }
 

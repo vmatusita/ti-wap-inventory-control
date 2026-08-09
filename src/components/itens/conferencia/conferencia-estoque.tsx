@@ -26,7 +26,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { lancarItens } from '@/lib/actions/itens'
-import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import {
+  faltaJustificativaAjuste,
+  MAX_LINHAS_LOTE_ITEM,
+  MSG_JUSTIFICATIVA_AJUSTE,
+} from '@/lib/validators/item'
 import { formatDate, hojeISO } from '@/lib/format'
 import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
@@ -345,6 +349,11 @@ export function ConferenciaEstoque({
   // Quantos itens esta sessão já acertou — o "· N já registradas" da barra.
   const jaRegistradas = Object.keys(jaEscrito).length
 
+  // A justificativa do ajuste é obrigatória no banco (CHECK `lanc_item_ajuste_obs`)
+  // e no Zod do lote. A MESMA função pura da validação de lançamento decide aqui,
+  // para as duas telas nunca discordarem sobre o que é justificativa suficiente.
+  const faltaObservacao = faltaJustificativaAjuste('ajuste', observacao)
+
   return (
     <div className="space-y-4">
       {oferta && (
@@ -543,7 +552,19 @@ export function ConferenciaEstoque({
               onChange={(e) => setObservacao(e.target.value)}
               rows={2}
               disabled={enviando}
+              aria-invalid={faltaObservacao || undefined}
+              aria-describedby={faltaObservacao ? 'conf-obs-erro' : undefined}
             />
+            {/* Segunda linha da mesma régua do banco (`lanc_item_ajuste_obs`, via
+                `faltaJustificativaAjuste`). Sem ela, apagar a observação só
+                falhava DEPOIS do envio — e, como o laço para no primeiro bloco,
+                o erro aparecia apenas nas 10 primeiras linhas, deixando as
+                demais sem explicação nenhuma na tela. */}
+            {faltaObservacao && (
+              <p id="conf-obs-erro" className="text-xs text-red-600 dark:text-red-400">
+                {MSG_JUSTIFICATIVA_AJUSTE}
+              </p>
+            )}
           </div>
 
           {pendentes.length > MAX_LINHAS_LOTE_ITEM && (
@@ -562,7 +583,10 @@ export function ConferenciaEstoque({
             <Button variant="ghost" onClick={() => setConfirmando(false)} disabled={enviando}>
               Cancelar
             </Button>
-            <Button onClick={registrar} disabled={enviando || pendentes.length === 0}>
+            <Button
+              onClick={registrar}
+              disabled={enviando || pendentes.length === 0 || faltaObservacao}
+            >
               {enviando ? 'Registrando…' : `Registrar ${pendentes.length}`}
             </Button>
           </DialogFooter>

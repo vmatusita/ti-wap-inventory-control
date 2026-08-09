@@ -71,6 +71,7 @@ src/
       movimentacoes/page.tsx        # lista/histórico de movimentações (F11 · M8)
       movimentacoes/devolucao-fornecedor/page.tsx  # baixa + substituto no mesmo passo (F8)
       itens/page.tsx                # itens por quantidade: saldos + lançamento + histórico (F3B)
+      itens/conferencia/page.tsx    # modo Conferência: contar a prateleira de UMA filial (F31 · ITN-04)
       pendencias/page.tsx           # ativos com pendência (sem patrimônio/termo) — só operador (F6A/F7E)
       ajuda/page.tsx                # ÍNDICE da documentação + busca (F20)
       ajuda/[slug]/page.tsx         # uma página da documentação — rota dinâmica do registry (F20)
@@ -91,6 +92,8 @@ src/
   components/
     ui/            # shadcn (CLI)
     layout/  ativos/  movimentacoes/  itens/  pendencias/  relatorios/  admin/  ajuda/  dev/
+      # layout/ inclui a sidebar que recolhe (sidebar-lateral/-colapso/-preferencia — F30 · UXG-13);
+      # itens/conferencia/ é a tela de contagem + seu rascunho (F31 · ITN-04)
   lib/
     supabase/      # client.ts, server.ts, middleware de sessão
     actions/       # Server Actions (Zod dentro) — inclui termos.ts (F5A), dev.ts (F22) e dev-destrutivo.ts (F23)
@@ -102,7 +105,10 @@ src/
       conteudo/      # uma página por arquivo (o texto)
       derivacao.ts   # rótulos e vocabulário DERIVADOS de dominio.ts/validators
       indice.ts  legado.ts  tipos.ts  busca.ts  ancora.ts
-    auth/  ativos/  itens/  pendencias/  relatorios/  import/
+    auth/  ativos/  itens/  movimentacoes/  pendencias/  relatorios/  import/
+      # itens/ inclui conferencia.ts (aritmética do inventário — F31 · ITN-04) e
+      # transferencia.ts (observações cruzadas e selo do par de ajustes — F31 · ITN-01);
+      # movimentacoes/ inclui lote-url.ts (o `?ativos=` da seleção múltipla — F30 · ATV-03)
     types/database.ts   # GERADO — não editar à mão
   templates/
     termos/*.docx  # 7 modelos de termo tagueados e sanitizados (F5A) — lidos em runtime

@@ -117,6 +117,14 @@ describe('avisoDoLoteInicial', () => {
     )
   })
 
+  it('cita o TETO QUE FOI USADO, e não a constante, quando o corte veio de outro', () => {
+    // `parseIdsDeAtivos` recebe o teto por parâmetro; a frase precisa dizer o
+    // mesmo número, senão o operador lê um limite que não foi o aplicado.
+    const msg = avisoDoLoteInicial({ ...nada, excedentes: 2, teto: 3 })
+    expect(msg).toContain('o lote aceita 3 por movimentação')
+    expect(msg).not.toContain(`${MAX_LOTE_MOVIMENTACAO} por movimentação`)
+  })
+
   it('cita o teto pela constante real quando o lote foi cortado', () => {
     const msg = avisoDoLoteInicial({ ...nada, excedentes: 7 })
     expect(msg).toContain('7 ativos ficaram de fora')

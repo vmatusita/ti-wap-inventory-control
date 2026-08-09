@@ -13,13 +13,13 @@
 // do Next).
 //
 // ⚠ O QUE ELE GUARDA E POR QUÊ. `contagens` é o trabalho braçal que não pode se
-// perder num F5 no meio do corredor. `gravados` é o que já foi confirmado pelo
-// servidor — e ele PRECISA sobreviver junto: sem isso, um refresh depois de um
-// envio parcial reofereceria os ajustes já gravados e o estoque andaria duas
-// vezes na mesma direção (ver `itensPendentes`, em `lib/itens/conferencia.ts`).
-// Os SALDOS não são guardados: eles são relidos do servidor na restauração,
-// porque alguém pode ter lançado alguma coisa enquanto o rascunho dormia — um
-// saldo cacheado faria a tela calcular diferença contra um número velho.
+// perder num F5 no meio do corredor. `registrou` é o fato "esta conferência já
+// gravou alguma coisa", que sustenta o botão "Encerrar conferência" depois de um
+// refresh. Os SALDOS não são guardados: eles são relidos do servidor na
+// restauração, porque alguém pode ter lançado alguma coisa enquanto o rascunho
+// dormia — um saldo cacheado faria a tela calcular diferença contra um número
+// velho. E o ACUMULADO por item também não viaja: ver o comentário do campo
+// `registrou`, abaixo, e `linhasDaConferencia` em `lib/itens/conferencia.ts`.
 
 const PREFIXO_RASCUNHO_CONFERENCIA = 'wap:itens:conferencia'
 

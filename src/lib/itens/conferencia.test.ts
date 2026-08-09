@@ -57,6 +57,16 @@ describe('contagemDaLinha (vazio ≠ zero — é a distinção que sustenta a te
       expect(contagemDaLinha(v), v).toBeNull()
     }
   })
+
+  it('recusa NOTAÇÃO EXPONENCIAL — `1e5` não é uma prateleira com cem mil', () => {
+    // `<input type="number">` NÃO barra o `e`: `1e5` é um floating-point number
+    // válido em HTML, então a string chega inteira ao handler. Com a régua
+    // antiga (`Number()` + `isInteger`) isso virava uma contagem de 100.000 e um
+    // ajuste de +99.995 no item.
+    for (const v of ['1e5', '1E5', '+5', '2e0', '0b11', '0x10', ' 1 2 ']) {
+      expect(contagemDaLinha(v), v).toBeNull()
+    }
+  })
 })
 
 describe('linhasDaConferencia', () => {
@@ -317,5 +327,30 @@ describe('escrita EXTERNA (outro operador) — 3ª volta da revisão adversarial
   it('a base congelada segue valendo para o item que EU escrevi (a janela do refresh)', () => {
     const [l] = linhasDaConferencia(SALDOS, { 3: '7' }, BASE, { 3: 2 })
     expect(l.diff).toBe(0)
+  })
+
+  it('e continua valendo quando o meu acumulado VOLTOU A ZERO (+2 e depois −2)', () => {
+    // O furo: testar `escrito !== 0` em vez da presença da chave. Conto 7 e
+    // gravo +2; percebo o engano, corrijo para 5 e gravo −2 — o acumulado zera.
+    // Nesse instante chega o refresh da PRIMEIRA gravação (estoque = 7) e o da
+    // segunda ainda não. Se a base cair fora, a partida vira 7, o diff renasce
+    // como −2 e um clique a mais derruba o estoque para 3.
+    const jaEscrito = somarEscrito(somarEscrito({}, [{ item_id: 3, quantidade: 2 }]), [
+      { item_id: 3, quantidade: -2 },
+    ])
+    expect(jaEscrito[3]).toBe(0)
+    const saldoNoMeioDoRefresh = SALDOS.map((s) =>
+      s.item_id === 3 ? { ...s, estoque: 7 } : s,
+    )
+    const [l] = linhasDaConferencia(saldoNoMeioDoRefresh, { 3: '5' }, BASE, jaEscrito)
+    expect(l.diff).toBe(0)
+    expect(ajustesDaConferencia([l])).toEqual([])
+  })
+
+  it('acumulado zerado NÃO congela o item para sempre: corrigir de novo ainda funciona', () => {
+    const jaEscrito = { 3: 0 }
+    // Base 5, acumulado 0 (gravei +2 e −2): contar 9 pede +4, não outra coisa.
+    const [l] = linhasDaConferencia(SALDOS, { 3: '9' }, BASE, jaEscrito)
+    expect(l.diff).toBe(4)
   })
 })

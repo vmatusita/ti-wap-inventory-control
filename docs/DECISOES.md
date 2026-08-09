@@ -4765,3 +4765,45 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
 - **Efeito colateral aceito:** rascunhos gravados pela versão anterior (chave global) ficam órfãos e
   nunca mais são oferecidos. São de uma aba que existiu por minutos, no dia do deploy.
 - **Reversível?** sim.
+
+## 2026-08-09 · Revisão xhigh do intervalo F30→F31 · A base congelada caía quando o acumulado zerava
+
+- **Contexto:** `linhasDaConferencia` decidia usar a base congelada por `escrito !== 0`. A intenção
+  escrita ao lado é outra — "a base vale para item que ESTA sessão já escreveu" —, e as duas
+  divergem exatamente no caso em que a sessão gravou `+N` e depois corrigiu com `−N`: o acumulado
+  volta a zero e o item deixa de ser reconhecido como tocado.
+- **Falha concreta:** estoque 5, conta 7, grava +2; percebe o engano, corrige para 5, grava −2
+  (`jaEscrito[3] = 0`). Nesse instante chega o `router.refresh()` da PRIMEIRA gravação (estoque 7) e
+  o da segunda ainda não. Sem a base, a partida vira 7 e o diff renasce como −2: a linha volta a
+  aparecer como pendente e um clique a mais derruba o estoque para 3. É a mesma duplicação que a 2ª
+  volta da revisão da F31 fechou, reaberta na fronteira do zero.
+- **Decisão:** "já escreveu" passa a ser a PRESENÇA da chave em `jaEscrito`
+  (`hasOwnProperty`), não o valor. `somarEscrito` sempre grava a chave, então ela é o registro fiel
+  de "toquei neste item" — inclusive quando a soma deu zero.
+- **Motivo:** o número é uma quantidade, não um fato. O fato que a base precisa é binário.
+- **Reversível?** sim (uma linha), mas voltar reabre a duplicação. Dois testes travam o caso.
+
+## 2026-08-09 · Revisão xhigh do intervalo F30→F31 · Contagem da conferência é DÍGITO, não `Number()`
+
+- **Contexto:** `contagemDaLinha` aceitava tudo que `Number()` transformasse num inteiro ≥ 0, e o
+  comentário afirmava que "a tela impede digitar lixo". Não impede: `<input type="number">` aceita
+  notação exponencial, porque `1e5` é um *floating-point number* válido em HTML — `e.target.value`
+  devolve a string inteira e `Number('1e5')` dá 100.000.
+- **Decisão:** a régua virou `/^\d+$/` + `Number.isSafeInteger`.
+- **Motivo:** uma prateleira se conta em dígitos. Qualquer outra forma é engano de digitação ou
+  `sessionStorage` adulterado — e o custo do engano aqui é um ajuste de +99.995 num item.
+- **Reversível?** sim, mas não há caso de uso para exponencial numa contagem física.
+
+## 2026-08-09 · Revisão xhigh do intervalo F30→F31 · O diálogo de transferência relê o saldo depois de transferir
+
+- **Contexto:** o mapa de saldos da origem era buscado num efeito preso a `[origemId]`. Como
+  `limpar()` preserva a origem de propósito (transferir em seguida é o caso comum) e o
+  `router.refresh()` revalida o Server Component e não o estado do cliente, transferir tudo o que
+  havia numa filial deixava o diálogo dizendo "10 em estoque em Matriz" na reabertura — com a
+  checagem prévia aprovando um segundo envio que só o trigger recusaria.
+- **Decisão:** um contador `recarga` entra nas dependências do efeito e é incrementado no sucesso,
+  junto de `setSaldosDe(null)` — enquanto a releitura não chega, nenhum número aparece.
+- **Motivo:** a checagem prévia existe para o operador não descobrir no envio; servida por um número
+  velho, ela faz o oposto. E `saldosDe = null` segue a regra já escrita para a troca de origem:
+  melhor nenhum número do que o de antes.
+- **Reversível?** sim.

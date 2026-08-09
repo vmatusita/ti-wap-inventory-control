@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowDown, ArrowUp, ChevronsUpDown, TriangleAlert } from 'lucide-react'
@@ -113,11 +113,16 @@ export function AtivosTable({
   // operador não está mais vendo. A seleção é POR PÁGINA (ata em DECISOES).
   useEffect(() => {
     setRowSelection((prev) => {
-      const podado = podarForaDaPagina(
-        new Set(Object.keys(prev).filter((id) => prev[id])),
-        idsDaPagina,
-      )
-      if (podado.size === Object.keys(prev).length) return prev
+      // ⚠ Comparar com `Object.keys(prev).length` seria comparar grandezas
+      // diferentes: aquilo conta TODAS as chaves, inclusive as de valor `false`
+      // que um caminho interno da TanStack pode deixar para trás (o
+      // `onRowSelectionChange` está ligado direto no setter). Com uma chave
+      // `false` sobrando, o atalho "nada mudou" nunca mais seria atingido e o
+      // efeito reescreveria o estado a cada ordenação. O que se compara é o
+      // número de MARCADOS.
+      const marcados = Object.keys(prev).filter((id) => prev[id])
+      const podado = podarForaDaPagina(new Set(marcados), idsDaPagina)
+      if (podado.size === marcados.length) return prev
       return Object.fromEntries([...podado].map((id) => [id, true]))
     })
   }, [idsDaPagina])
@@ -148,6 +153,16 @@ export function AtivosTable({
       )
     }
   }
+
+  // As duas ações das caixas, sempre na versão do último render. Os ColumnDef
+  // são memoizados por `[duplicados, escreve]` e não podem fechar sobre
+  // `selecionados`/`idsDaPagina` (é o que os fazia ser reconstruídos a cada
+  // clique); a ref é a ponte. Sincronizada em efeito — nunca no corpo do render,
+  // que é escrita em ref durante a renderização.
+  const acoes = useRef({ marcarLinha, marcarPagina })
+  useEffect(() => {
+    acoes.current = { marcarLinha, marcarPagina }
+  })
 
   function movimentarSelecionados() {
     // A ORDEM importa: vai como o operador vê a lista (ordenação atual), e é a
@@ -206,25 +221,39 @@ export function AtivosTable({
     // ATV-03 — a coluna de seleção só existe para quem escreve. `escreve` ENTRA
     // no array de dependências do useMemo lá embaixo: sem isso a coluna
     // congelaria no valor do primeiro render.
+    //
+    // ⚠ O QUE ESTE BLOCO **NÃO** PODE LER: `selecionados`. Ele muda a cada caixa
+    // marcada, e tê-lo como dependência reconstruía os oito ColumnDef a cada
+    // clique — o que obriga a TanStack a refazer o modelo de colunas e recriar
+    // as células das até 100 linhas da página. O estado da caixa sai do próprio
+    // `row`/`table` (que a TanStack já deriva de `state.rowSelection`) e as
+    // ações saem de `acoes`, uma ref estável. Assim o memo depende só do que
+    // muda de verdade quando a TABELA muda.
     if (escreve) {
       cols.push({
         id: 'selecao',
-        header: () => (
-          <Checkbox
-            checked={estadoDoCabecalho(selecionados, idsDaPagina)}
-            onCheckedChange={(v) => marcarPagina(v === true)}
-            // O rótulo diz o TETO, não só a ação: numa página de 100 o clique
-            // marca 30, e quem usa leitor de tela precisa saber disso antes.
-            aria-label={`Selecionar os ativos desta página (até ${MAX_SELECAO})`}
-            className="after:-inset-y-3 sm:after:-inset-y-2"
-          />
-        ),
+        header: ({ table }) => {
+          const linhas = table.getRowModel().rows
+          return (
+            <Checkbox
+              checked={estadoDoCabecalho(
+                new Set(linhas.filter((l) => l.getIsSelected()).map((l) => l.id)),
+                linhas.map((l) => l.id),
+              )}
+              onCheckedChange={(v) => acoes.current.marcarPagina(v === true)}
+              // O rótulo diz o TETO, não só a ação: numa página de 100 o clique
+              // marca 30, e quem usa leitor de tela precisa saber disso antes.
+              aria-label={`Selecionar os ativos desta página (até ${MAX_SELECAO})`}
+              className="after:-inset-y-3 sm:after:-inset-y-2"
+            />
+          )
+        },
         cell: ({ row }) => {
           const { id, patrimonio } = row.original
           return (
             <Checkbox
-              checked={selecionados.has(id)}
-              onCheckedChange={(v) => marcarLinha(id, v === true)}
+              checked={row.getIsSelected()}
+              onCheckedChange={(v) => acoes.current.marcarLinha(id, v === true)}
               // Nomeia o ativo: uma coluna de caixas todas chamadas
               // "Selecionar" é inútil para quem navega por teclado.
               aria-label={`Selecionar ${patrimonio ?? 'ativo sem patrimônio'}`}
@@ -338,10 +367,7 @@ export function AtivosTable({
     )
 
     return cols
-    // `escreve`, `selecionados` e `idsDaPagina` entram porque a coluna de
-    // seleção os lê: sem eles as caixas nasceriam congeladas no primeiro render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [duplicados, escreve, selecionados, idsDaPagina])
+  }, [duplicados, escreve])
 
   // TanStack Table retorna funcoes que o React Compiler nao memoiza; aqui a
   // tabela e so de exibicao (paginacao/filtros sao server-side), sem risco.

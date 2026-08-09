@@ -99,11 +99,15 @@ export function estadoDoCabecalho(
  * "5 selecionados" com duas linhas na tela — e "Movimentar" levaria ativos que o
  * operador não está mais vendo. Devolve o MESMO objeto quando nada muda, para
  * não disparar re-render à toa.
+ *
+ * O retorno é `ReadonlySet` justamente porque o caminho "nada mudou" devolve o
+ * próprio `atual`: prometer `Set` ali exigiria um cast que apagaria, para quem
+ * chama, a imutabilidade que a assinatura de entrada declara.
  */
 export function podarForaDaPagina(
   atual: ReadonlySet<string>,
   idsDaPagina: readonly string[],
-): Set<string> {
+): ReadonlySet<string> {
   const daPagina = new Set(idsDaPagina)
   let mudou = false
   const proxima = new Set<string>()
@@ -111,7 +115,7 @@ export function podarForaDaPagina(
     if (daPagina.has(id)) proxima.add(id)
     else mudou = true
   }
-  return mudou ? proxima : (atual as Set<string>)
+  return mudou ? proxima : atual
 }
 
 /**
