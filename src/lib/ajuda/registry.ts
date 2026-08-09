@@ -35,6 +35,7 @@ import { listaDeAtivos } from '@/lib/ajuda/conteudo/lista-de-ativos'
 import { listaDeMovimentacoes } from '@/lib/ajuda/conteudo/lista-de-movimentacoes'
 import { lancarItens } from '@/lib/ajuda/conteudo/lancar-itens'
 import { saldosEEstoqueMinimo } from '@/lib/ajuda/conteudo/saldos-e-estoque-minimo'
+import { conferenciaDeEstoque } from '@/lib/ajuda/conteudo/conferencia-de-estoque'
 import { resolverPendencias } from '@/lib/ajuda/conteudo/resolver-pendencias'
 import { administracao } from '@/lib/ajuda/conteudo/administracao'
 import { usuariosESenhas } from '@/lib/ajuda/conteudo/usuarios-e-senhas'
@@ -75,6 +76,7 @@ export const PAGINAS: readonly PaginaAjuda[] = [
   listaDeMovimentacoes,
   lancarItens,
   saldosEEstoqueMinimo,
+  conferenciaDeEstoque,
   resolverPendencias,
   administracao,
   usuariosESenhas,

@@ -977,6 +977,7 @@ const PAGINAS_AJUDA = [
   ['lista-de-movimentacoes', 'Achar uma movimentação já registrada'],
   ['lancar-itens', 'Lançar itens por quantidade'],
   ['saldos-e-estoque-minimo', 'Ler os saldos e o estoque mínimo'],
+  ['conferencia-de-estoque', 'Conferir o estoque (inventário)'],
   ['resolver-pendencias', 'Resolver as pendências'],
   ['administracao', 'Administração: os cadastros de apoio'],
   ['usuarios-e-senhas', 'Operadores e senhas de acesso'],

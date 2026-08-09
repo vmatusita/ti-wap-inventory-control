@@ -1,5 +1,7 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { PackageOpen, PackagePlus } from 'lucide-react'
+import { ClipboardCheck, PackageOpen, PackagePlus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { getOperador } from '@/lib/auth/acesso'
 import { eAdmin, podeEscrever } from '@/lib/auth/papeis'
 import {
@@ -316,6 +318,26 @@ export default async function ItensPage({
               só navegar até aqui (achado F12-W4-08). Fora do dialog não fica
               nada de lançamento montado: o atalho `L` mora DENTRO dele, então
               para o cargo Consulta a tecla também deixa de existir. */}
+          {/* F31 · ITN-04 — a conferência é de quem grava ajustes; com nenhuma
+              filial de escrita não há o que conferir. Ela leva para uma ROTA
+              PRÓPRIA (o porquê está no cabeçalho de itens/conferencia/page.tsx),
+              e a filial é escolhida lá: aqui a tela pode estar no Consolidado,
+              com duas filiais marcadas ou com nenhuma — não há "a filial da
+              tela" para presumir. Quando há UMA só no filtro, ela vai no link. */}
+          {escreve && filiaisEscrita.length > 0 && (
+            <Button asChild variant="outline" className="gap-2">
+              <Link
+                href={
+                  filialPreset
+                    ? `/itens/conferencia?filial=${filialPreset}`
+                    : '/itens/conferencia'
+                }
+              >
+                <ClipboardCheck className="size-4" />
+                Conferir estoque
+              </Link>
+            </Button>
+          )}
           {/* F31 · ITN-01 — transferir exige escrever nas DUAS pontas, então o
               botão só existe para quem tem ao menos DUAS filiais de escrita.
               Com uma só, não há transferência possível e um botão que sempre

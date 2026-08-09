@@ -40,6 +40,10 @@ const SLUGS_C3 = [
   'lista-de-movimentacoes',
   'lancar-itens',
   'saldos-e-estoque-minimo',
+  // F31 · ITN-04 — a conferência entra na MESMA régua estrutural das outras oito
+  // (categoria "fazer", fecha em links, corpo de verdade, âncoras únicas no
+  // projeto inteiro). Página nova que não entrasse aqui nasceria sem rede.
+  'conferencia-de-estoque',
   'resolver-pendencias',
   'administracao',
   'usuarios-e-senhas',
@@ -424,6 +428,44 @@ describe('lançar itens e ler saldos', () => {
   it('a página de saldos manda para a transferência a partir da visão por filial', () => {
     contem('saldos-e-estoque-minimo', 'sobra numa filial e falta em outra')
     contem('saldos-e-estoque-minimo', 'NÃO mexe no Total')
+  })
+
+  // ---- F31 · ITN-04 — conferência de estoque (inventário) ----
+
+  it('a conferência tem a seção nomeada pela ordem, com âncora própria', () => {
+    expect(ancorasDaPagina(pagina('conferencia-de-estoque')).map((a) => a.id)).toContain(
+      'conferencia',
+    )
+    contem('conferencia-de-estoque', 'Conferência de estoque (inventário)')
+  })
+
+  it('diz que a conferência gera AJUSTES, pelo rótulo real de dominio.ts', () => {
+    contem('conferencia-de-estoque', `lançamentos de "${TIPO_LANCAMENTO_META.ajuste.rotulo}"`)
+  })
+
+  it('trava a distinção que sustenta a tela: linha em branco ≠ contei zero', () => {
+    contem('conferencia-de-estoque', 'Linha em branco significa "não conferi"')
+    contem('conferencia-de-estoque', 'não é o mesmo que contar zero')
+    contem('conferencia-de-estoque', 'digite 0')
+  })
+
+  it('diz que o número conferido é o ESTOQUE, não o total', () => {
+    contem('conferencia-de-estoque', 'O número que você confere é o ESTOQUE')
+    contem('conferencia-de-estoque', 'não está lá para ser contado')
+  })
+
+  it('documenta o rascunho e o reenvio idempotente (o par que evita gravar 2×)', () => {
+    contem('conferencia-de-estoque', 'Continuar a conferência de {filial} começada às {hora}?')
+    contem('conferencia-de-estoque', 'volta a oferecer só o que faltou')
+    contem('conferencia-de-estoque', 'NÃO é gravado de novo')
+  })
+
+  it('o tamanho do bloco de envio sai da constante real', () => {
+    contem('conferencia-de-estoque', `blocos de ${MAX_LINHAS_LOTE_ITEM}`)
+  })
+
+  it('promete a verificação que o operador consegue fazer sozinho', () => {
+    contem('conferencia-de-estoque', 'Refazer a mesma conferência logo depois deve dar tudo zerado')
   })
 })
 

@@ -154,6 +154,7 @@ const COBERTURA: Record<string, { pagina: string } | { isento: string }> = {
   '/movimentacoes/nova': { pagina: 'registrar-movimentacao' },
   '/movimentacoes/devolucao-fornecedor': { pagina: 'manutencao' },
   '/itens': { pagina: 'itens-por-quantidade' },
+  '/itens/conferencia': { pagina: 'conferencia-de-estoque' },
   '/pendencias': { pagina: 'resolver-pendencias' },
   '/relatorios/[filial]': { pagina: 'relatorio-ao-vivo' },
   '/relatorios/gerados': { pagina: 'relatorios-gerados' },
