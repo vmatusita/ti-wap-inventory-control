@@ -149,6 +149,26 @@ Baseline da fase: **2.131** testes em 100 arquivos → **2.241** em 105 (**+110*
 
 Mais 3 asserções acrescentadas a testes existentes da ajuda (`gestao.test.ts`, `referencia.test.ts`).
 
+### Smoke e deploy
+
+`main` pushada (`b63c845..fc1daa3`), a Vercel deployou sozinha. Sem `SMOKE_EMAIL`/`SMOKE_SENHA` no
+ambiente, o smoke rodou só a parte A (rotas sem sessão):
+
+```
+node scripts/smoke/smoke-prod.mjs --sem-sessao
+RESUMO · 16 OK · 0 aviso · 0 n/a (pré-F12) · 0 falha
+```
+
+Que o **build novo está no ar** foi conferido pelo conteúdo do CSS servido em produção — não pelo
+smoke, que não olha versão:
+
+| Verificação no CSS de `ti-wap-inventory-control.vercel.app` | Resultado |
+|---|---|
+| `.print\:table-cell{display:table-cell}` presente | ✅ offset 101647 |
+| …**depois** de `.hidden` (a cascata que faz a impressão funcionar) | ✅ `.hidden` em 18309 |
+| `.rel-print-compacta` presente | ✅ |
+| Regra do colapso **ancorada** em `[data-sidebar-lateral]` (a correção da §4) | ✅ |
+
 ---
 
 ## 4. A revisão adversarial
@@ -256,8 +276,8 @@ Cinco atas novas em [`docs/DECISOES.md`](DECISOES.md), todas de 09/08/2026:
   no CSS de produção (`print:text-[11px]` está no bundle por causa da própria análise de UX); (c) a
   `tabela-movimentacoes.tsx` (grade v1) ganhou impressão completa mas continua sem chevron nem linha
   de detalhe no celular, onde as colunas escondidas seguem inalcançáveis.
-- **Smoke de produção não executado:** `scripts/smoke/smoke-prod.mjs` exige `SMOKE_EMAIL` e
-  `SMOKE_SENHA`, que não existem neste ambiente. Sem elas, só a parte A (rotas sem sessão) rodaria.
+- **Smoke logado (partes B e C) não executado:** `scripts/smoke/smoke-prod.mjs` exige `SMOKE_EMAIL` e
+  `SMOKE_SENHA`, que não existem neste ambiente. A parte A rodou verde (§3).
 
 ---
 
@@ -281,4 +301,6 @@ Cinco atas novas em [`docs/DECISOES.md`](DECISOES.md), todas de 09/08/2026:
   regressão silenciosa de decisões de CSS que nenhum teste de comportamento alcançaria — mas um teste
   estrutural confirma que a regra existe, não que ela produz o pixel certo. Foi exatamente essa a
   brecha por onde o vazamento para o mobile passou, e o teste foi endurecido depois.
-- **O deploy não foi observado.** A Vercel deploya a `main` sozinha; este relatório termina no push.
+- **O deploy foi conferido pelo CSS servido, não pela tela.** Está provado que o build novo está no
+  ar e que as regras chegaram na ordem certa; não que alguém abriu o sistema logado e usou os três
+  recursos em produção. As partes B e C do smoke, que exigem sessão, não rodaram.
