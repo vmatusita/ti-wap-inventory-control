@@ -79,8 +79,8 @@ export const relatoriosGerados: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        'Cada snapshot abre com a faixa "Relatório gerado · filial · período · versão N · por quem gerou · quando", mais a pílula "dados congelados".',
-        'O corpo é o mesmo do relatório ao vivo, com uma diferença deliberada: no snapshot os indicadores do topo NÃO são clicáveis. Eles descrevem o inventário daquele período, e levar para a lista de ativos de hoje seria mostrar outra coisa.',
+        'Cada snapshot abre com a faixa "Relatório gerado · filial · período · versão N · por quem gerou · quando", mais a pílula "dados congelados" — é o carimbo de QUANDO O RELATÓRIO FOI GERADO, diferente do "atualizado às HH:mm" que só existe no relatório ao vivo (esse marca a última leitura do banco, e não faria sentido aqui: nada muda depois de congelado).',
+        'O corpo é o mesmo do relatório ao vivo — as mesmas cores por situação em indicadores, gráficos e no card "Acervo por situação", os mesmos selos "foto de dd/MM"/"dd/MM – dd/MM" em cada card e a mesma barra de atalhos com a contagem de cada seção —, com uma diferença deliberada: no snapshot os indicadores do topo NÃO são clicáveis, e o mesmo vale para os gráficos (nenhum segmento e nenhuma barra abre outra tela). Eles descrevem o inventário daquele período, e levar para a lista de ativos de hoje seria mostrar outra coisa. Continua funcionando o que é só efeito de tela e não navega: clicar numa entrada de legenda para atenuar a outra série, por exemplo.',
         'O botão "Imprimir" também existe aqui — e a impressão sai clara mesmo com o tema escuro ligado, com as tabelas COMPLETAS (as colunas que a tela esconde quando a janela é estreita saem no papel). Vale igual para quem entra pela senha de acesso.',
         'No pé do snapshot há três atalhos: "Período anterior" e "Próximo período" andam pelo arquivo da MESMA filial (ou do consolidado), semana a semana; e "Ver este período no ao vivo" abre o mesmo recorte de datas com os números de hoje, para comparar o congelado com o atual. Os três valem também para quem entra pela senha de acesso.',
       ],
@@ -103,7 +103,7 @@ export const relatoriosGerados: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Um relatório congelado guarda o que existia no formato do dia em que foi gerado — e por isso os mais antigos mostram menos coisa que os de hoje. Nos primeiros, os indicadores do topo saem sem o Δ (a comparação com o período anterior ainda não era gravada). Nos gerados antes da leitura melhorada das tabelas, as linhas estornadas saem sem a marca "estornada", o patrimônio sai como texto puro (sem link para a ficha) e não há o destaque de manutenção parada. Isso não é defeito nem perda de dado: é o congelamento fazendo o que promete. O relatório ao vivo e os snapshots novos têm tudo.',
+        'Um relatório congelado guarda o que existia no formato do dia em que foi gerado — e por isso os mais antigos mostram menos coisa que os de hoje. Nos primeiros, os indicadores do topo saem sem o Δ (a comparação com o período anterior ainda não era gravada). Nos gerados antes da leitura melhorada das tabelas, as linhas estornadas saem sem a marca "estornada", o patrimônio sai como texto puro (sem link para a ficha) e não há o destaque de manutenção parada. Nos gerados antes do card "Evolução do estoque", ele simplesmente não aparece — o ponto por semana não foi gravado naquele snapshot. Isso não é defeito nem perda de dado: é o congelamento fazendo o que promete. O relatório ao vivo e os snapshots novos têm tudo.',
     },
     {
       tipo: 'links',

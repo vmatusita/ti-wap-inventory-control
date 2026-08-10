@@ -84,6 +84,7 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 ## 8. Relatórios
 
 - **Ao vivo** (`/relatorios/[filial]`, `geral` = consolidado) — derivado a cada request; KPIs, gráficos Recharts (via `chart` do shadcn), 3 grupos no formato do e-mail. Queries em `src/lib/queries/relatorios/`; lógica de série/período/resumo em `src/lib/relatorios/`.
+- **Cor dos gráficos (F32/RV-21):** `--chart-1..5` (`src/app/globals.css`) são a escala categórica da casa — azul e amarelo da marca + `#16a34a`/`#6d28d9`/`#db2777`, valor único nos dois temas — não mais os cinzas de fábrica do shadcn. A régua: **série nova usa o token, nunca hex avulso**. Isso vale só para série que **não é status**: cor de status continua vindo de `STATUS_CHART_COLOR` (`src/lib/dominio.ts`), a língua do status na página inteira (tile, segmento empilhado, badge, swatch do glossário). Armadilha: `fillRotuloSegmento` (`src/lib/relatorios/rotulo-grafico.ts`) só sabe converter hex e os tokens listados em `TOKEN_PARA_HEX`; cor nova via `var(--…)` que não passe por ali cai em luminância 0 e o rótulo do segmento sai branco em silêncio.
 - **Snapshot semanal** (`/relatorios/gerados`) — congela o estado num jsonb imutável.
 - **Acesso por senha** — as rotas de relatório também aceitam o cookie de visualização (ver §4).
 

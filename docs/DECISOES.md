@@ -4807,3 +4807,160 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   velho, ela faz o oposto. E `saldosDe = null` segue a regra já escrita para a troca de origem:
   melhor nenhum número do que o de antes.
 - **Reversível?** sim.
+
+## 2026-08-10 · F32 · Triagem trocou de família de cor (laranja → rosa), badge junto
+
+- **Contexto:** a análise de 10/08 (RV-02) simulou os cinco matizes de status sob deutanopia
+  (Machado–Oliveira–Fernandes 2009, severidade 1.0) e mediu distância OKLab entre vizinhos
+  ADJACENTES, na ordem em que os segmentos das barras empilhadas se tocam (`STATUS_ORDEM`). O par
+  `em_triagem` (laranja `#ea580c`) × `em_manutencao` (âmbar `#d97706`) media ΔE 1,6 sob deutanopia
+  — abaixo do piso de 8 — e 6,7 em visão normal — abaixo do piso de 15: o pior par da pilha,
+  praticamente indistinguível para quem tem esse tipo de daltonismo.
+- **Decisão:** `em_triagem` migrou para rosa `#db2777`, a única família de matiz ainda livre no
+  sistema. Dois outros pares também se moveram para afastar dos vizinhos: `reservado` `#7c3aed` →
+  `#6d28d9` (violeta mais escuro, deutan 5,2 → 7,6) e `emprestado` `#0891b2` → `#06b6d4` (ciano
+  mais claro, visão normal 9,9 → 17,5). O BADGE de `em_triagem` (listas, ficha do ativo, tabelas)
+  acompanhou o matiz do gráfico — de `bg-orange-100/text-orange-700` para
+  `bg-pink-100/text-pink-700` (5,01:1 claro · 8,28:1 escuro contra o fundo do próprio badge,
+  medido em `scripts/contraste.mjs`).
+- **Motivo:** a fase promove `STATUS_CHART_COLOR` de "cor das barras empilhadas" para a LÍNGUA do
+  status na página inteira (tile → segmento → badge → glossário). Se o badge tivesse ficado
+  laranja com o gráfico já rosa, a mesma cor teria significados diferentes conforme a superfície —
+  exatamente o que a fase existe para eliminar. O ciano de `emprestado` ficou abaixo do piso de
+  contraste 3:1 contra o card mesmo depois do ajuste (2,43:1) — é o alívio registrado
+  (`alivio: true` em `scripts/contraste.mjs`): o segmento carrega rótulo, total e legenda em
+  texto, então a cor nunca é o único canal ali.
+- **Reversível?** sim — três linhas em `STATUS_CHART_COLOR` mais a classe do badge de
+  `em_triagem`, em `src/lib/dominio.ts`, e os pares correspondentes em `scripts/contraste.mjs`.
+  Voltar reabre o par ΔE 1,6.
+
+## 2026-08-10 · F32 · A régua dos baldes da "Evolução do estoque" (RV-06)
+
+- **Contexto:** o card novo do RV-06 reconstrói `em_estoque` as-of por semana, sem migration nem
+  RPC nova — cada ponto é uma chamada a `rel_estoque_asof`, que mede ~233 ms na consolidada. Era
+  preciso decidir onde cai cada ponto, quantos pontos entram, e o que fazer quando o período é
+  curto demais para formar curva.
+- **Decisão:** o marco é o SÁBADO — a semana do relatório ao vivo é domingo→sábado
+  (`intervaloDoPreset`/periodo.ts, decisão do Johnny de 16/07) —, e um sábado dentro de
+  `[de, ate]` é uma semana fechada dentro da janela lida. Entram as últimas 8 semanas fechadas mais
+  o fim do período (sempre um ponto, porque é o número que o resto da página exibe nos KPIs), teto
+  de 9 leituras as-of por render, disparadas em paralelo. Abaixo de 3 pontos
+  (`MIN_PONTOS_SERIE_ESTADO`) o card não aparece: dois pontos são um segmento de reta, não uma
+  tendência, e três é o menor número em que uma inflexão (subiu, depois desceu) pode aparecer.
+- **Consequência aceita, registrada:** no preset padrão "Esta semana" (7 dias) cabem no máximo 1
+  sábado + o fim do período = 2 pontos, abaixo do mínimo — o card some no preset mais usado do
+  relatório. A alternativa (completar com pontos fora do período) foi descartada: contradiria o
+  chip "período" que todo card do RV-04 passou a exibir, e uma janela de 7 dias genuinamente não
+  tem tendência semanal para mostrar. Quem quer a curva troca para "Últimos 30 dias" ou "Este ano".
+- **Reversível?** sim — as constantes (`MAX_SEMANAS_SERIE_ESTADO`, `MAX_PONTOS_SERIE_ESTADO`,
+  `MIN_PONTOS_SERIE_ESTADO`) e a régua do sábado moram só em `src/lib/relatorios/serie-estado.ts`.
+
+## 2026-08-10 · F32 · A banda âmbar do medidor estoque × mínimo (RV-09)
+
+- **Contexto:** o chip vermelho "faltam N" já cobria o alerta binário ("já acabou"), mas não
+  avisava quem estava a uma unidade do mínimo, prestes a entrar em falta. O RV-09 acrescenta um
+  micro-medidor de três níveis (falta/limite/folga) na tabela de saldo por item; faltava definir a
+  largura da banda "limite" (âmbar) acima do mínimo.
+- **Decisão:** `bandaDeLimite(minimo) = max(2, ceil(20% do mínimo))`.
+- **Motivo:** as duas parcelas cobrem os dois extremos do catálogo. Só a percentual quebra no
+  miúdo — com mínimo 5, 20% é 1, e o âmbar só apareceria num único valor de estoque (6), tarde
+  demais para quem repõe por lote. Só a absoluta quebra no graúdo — com mínimo 200, "faltam 2 para
+  o mínimo" é ruído, não risco. O `max` das duas dá uma banda que faz sentido tanto para cabo
+  avulso quanto para memória contada às dezenas — o catálogo inteiro.
+- **Reversível?** sim — `FOLGA_ABSOLUTA_MINIMA` e `FOLGA_PROPORCIONAL`, em
+  `src/lib/relatorios/medidor-minimo.ts`.
+
+## 2026-08-10 · F32 · Ícones de grupo genéricos, e a prop virou CHAVE (RV-19a)
+
+- **Contexto:** a rolagem rápida não distinguia os 3 GRUPOS (Equipamentos principais, Acessórios,
+  Componentes) das 4 tabelas dentro deles — mesma tipografia em tudo (análise §2). O RV-19a
+  acrescenta um ícone de 16px por grupo. A primeira implementação recebia a prop como componente
+  lucide (`icone?: LucideIcon`, chamado com `icone={LaptopMinimal}`) — compilou, passou `tsc`,
+  `eslint` e `next build` limpos, e derrubou a rota com HTTP 500 no primeiro request real:
+  `GrupoColapsavel` é `'use client'`, `corpo-relatorio-v2.tsx` é Server Component, e função não
+  atravessa a fronteira RSC ("Functions cannot be passed directly to Client Components") — um
+  componente React é uma função.
+- **Decisão:** dois ajustes. (1) A prop virou uma CHAVE string
+  (`IconeGrupo = 'principais' | 'acessorios' | 'componentes'`), com o mapa
+  `Record<IconeGrupo, LucideIcon>` residindo dentro do próprio módulo cliente — só a chave
+  atravessa a fronteira. (2) Os três glifos escolhidos são genéricos de propósito (`LaptopMinimal`,
+  `Cable`, `Cpu`), não específicos de uma categoria dentro do grupo (nada de `Monitor` ou
+  `Headphones`) — um glifo específico sugeriria que o grupo é só aquilo, quando cada grupo abriga
+  várias categorias.
+- **Motivo:** prop de Client Component tem de ser serializável — string, número, objeto simples —
+  nunca uma função. É a mesma classe de defeito do achado do `PREFIXO_FILTROS` (ata seguinte): só
+  apareceu rodando a página, nenhuma das três checagens estáticas pegou.
+- **Reversível?** sim — o mapa é uma constante única em `grupo-colapsavel.tsx`. Voltar a receber o
+  componente lucide direto na prop reabre o 500.
+
+## 2026-08-10 · F32 · A fronteira RSC: dois HTTP 500 que só apareceram rodando a página
+
+- **Contexto:** a autoverificação da F32 (lint, `tsc`, `next build`) passou limpa duas vezes com
+  defeitos que só apareceram no navegador — os dois nascem da mesma regra: um Server Component não
+  executa o código de um módulo `'use client'` importado, só recebe uma referência serializada de
+  cliente. (1) `GrupoColapsavel` (RV-19a, ata acima) recebendo um ícone lucide como função. (2)
+  `PREFIXO_FILTROS` morava em `use-filtros-tabela.ts`, módulo `'use client'`; o RV-12 fez
+  `corpo-relatorio-v2.tsx` (Server Component) importar essa constante para saber a qual tabela o
+  clique de cada gráfico aponta — e `PREFIXO_FILTROS.saidas` chegava `undefined` em runtime, em
+  silêncio. O clique montaria `undefined.motivo=Troca` na URL e o filtro nunca aplicaria — sem
+  erro, sem log.
+- **Decisão:** o valor compartilhado entre servidor e cliente foi extraído para um módulo PURO
+  novo, `src/lib/relatorios/prefixos-tabela.ts` (sem `'use client'`), e `use-filtros-tabela.ts`
+  passou a reexportar dele — os consumidores antigos não mudaram uma linha. Ficou uma guarda
+  estática nova, `src/components/relatorios/fronteira-rsc.test.ts`, provada por mutação, para o
+  mesmo engano não se repetir em silêncio numa mudança futura.
+- **Motivo:** os dois defeitos escapam de lint/tsc/build porque o tipo existe e a sintaxe existe —
+  só o runtime RSC diferencia "referência de cliente" de "valor real". A correção estrutural
+  (módulo puro para valor compartilhado; chave em vez de componente para prop de Client Component)
+  é mais barata de manter do que lembrar a regra a cada novo import.
+- **Reversível?** o módulo puro sim (é uma extração mecânica); o teste de mutação é a defesa contra
+  reabrir o mesmo furo e não deveria ser revertido.
+
+## 2026-08-10 · F32 · O acento de status nos tiles vale também no dashboard e no relatório v1
+
+- **Contexto:** o RV-01 pediu o acento de 3px no topo dos KPI tiles do relatório (v2). `KpiTiles`
+  e `GrupoKpis` (`src/components/relatorios/kpi-tiles.tsx`), porém, são o MESMO componente usado no
+  dashboard (`src/app/(app)/page.tsx`, com os links do F9/T2) e no relatório v1
+  (`corpo-relatorio.tsx`) — não existe uma versão "só relatório v2" separada.
+- **Decisão:** o acento (`acentoDoTile`) entrou na função compartilhada, então dashboard e
+  relatório v1 passaram a exibir a mesma barra de 3px que o relatório v2 — decisão tomada de
+  propósito, não descoberta depois como efeito colateral não visto.
+- **Motivo:** a promessa da fase é "a mesma cor significa o mesmo status em toda superfície" (tile
+  → segmento → badge → glossário). Restringir o acento só ao v2 quebraria essa promessa exatamente
+  no lugar mais visitado — o leitor aprenderia a cor num card do relatório e não a reencontraria na
+  tela que abre todo dia.
+- **Reversível?** sim — `acentoDoTile` é uma função isolada; gateá-la por chamador é uma guarda de
+  `if`, mas reabre a inconsistência que esta decisão evita.
+
+## 2026-08-10 · F32 · "hoje, parcial" depende de prop de rota, não de `hojeISO()` interno (RV-05)
+
+- **Contexto:** o RV-05 marca o balde de HOJE na série diária com 55% de opacidade + a nota "hoje,
+  parcial" na legenda — mas só faz sentido no relatório AO VIVO. Um snapshot é congelado: se
+  `GraficoMovSerie` chamasse `hojeISO()` sozinho por dentro, o MESMO snapshot desenharia o selo
+  "parcial" no dia em que foi gerado e o perderia, silenciosamente, no dia seguinte — o componente
+  renderizaria diferente com a passagem do tempo, contradizendo a promessa de congelamento do
+  snapshot.
+- **Decisão:** `hoje` só é calculado quando a prop `aoVivo?: boolean` vem `true`
+  (`const hoje = aoVivo ? hojeISO() : null`), e a prop entra de FORA, pela rota — não é lida de
+  dentro do componente. Sem a prop (chamadas antigas, viewer de snapshot), nada muda: v1 e
+  snapshots continuam idênticos ao que eram antes do RV-05. O atenuamento de fim de semana NÃO é
+  gateado por `aoVivo` — é fato de calendário, não "hoje", e vale igual em qualquer contexto.
+- **Motivo:** é a mesma disciplina de pureza já usada em `formatTempoRelativo`/`carimboAtualizado`
+  (hora/data como parâmetro, nunca lida de dentro da função) — senão a saída passa a depender de
+  QUANDO ela roda, não só dos dados que recebe.
+- **Reversível?** sim, mas voltar a ler `hojeISO()` sem o gate reabre o snapshot que muda sozinho.
+
+## 2026-08-10 · F32 · O carimbo "atualizado às HH:mm" fixa o fuso de São Paulo (RV-16)
+
+- **Contexto:** o RV-16 promoveu "atualizado às HH:mm" de um `title` de hover (só existia no
+  viewer, no hover do mouse) para texto persistente, no relatório do operador e no visualizador por
+  senha — e sai também no papel. Faltava decidir em qual fuso mostrar a hora.
+- **Decisão:** `carimboAtualizado()` (`src/lib/relatorios/carimbo-hora.ts`) usa `formatTime`, que
+  já resolve para `America/Sao_Paulo` — não o fuso do navegador de quem está lendo.
+- **Motivo:** o relatório inteiro raciocina no fuso de SP (período, datas das tabelas,
+  `formatDateTime` do snapshot gerado). Se o carimbo usasse o fuso do navegador, um gestor lendo de
+  outro fuso veria "atualizado às 14:32" e teria de adivinhar qual relógio está falando antes de
+  decidir se a página está fresca — fixar SP em toda a página, inclusive aqui, elimina a pergunta:
+  existe um único relógio no relatório inteiro.
+- **Reversível?** sim — `carimboAtualizado` é uma função pura de uma linha de conversão; trocar o
+  fuso reabre a ambiguidade que esta decisão fecha.

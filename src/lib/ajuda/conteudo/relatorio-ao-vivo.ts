@@ -41,24 +41,25 @@ export const relatorioAoVivo: PaginaAjuda = {
         'Período: os botões "Esta semana" (como a tela abre), "Semana passada", "Últimos 30 dias", "Este ano" e "Tudo". Para uma faixa qualquer, use "Personalizado", preencha "De" e "Até" e clique em "Aplicar período".',
         '"Esta semana" conta de domingo até hoje; "Semana passada" é a semana inteira que fechou, de domingo a sábado. Atenção: a janela do relatório congelado é outra — o diálogo "Gerar relatório" trabalha de segunda a sexta, que é o recorte do e-mail semanal. As duas convivem de propósito.',
         'A filial e o período ficam no endereço da página: o link que você copiar abre exatamente o mesmo recorte para quem receber — inclusive para quem entra pela senha de acesso.',
-        'Para o operador, o selo "ao vivo" no cabeçalho vira "atualizado agora" quando algum registro muda enquanto você lê. Quem entra pela senha de acesso vê no lugar dele o botão "Atualizar", e a tela também se atualiza sozinha a cada 60 segundos.',
+        'Para o operador, o selo "ao vivo" no cabeçalho vira "atualizado agora" quando algum registro muda enquanto você lê. Quem entra pela senha de acesso vê no lugar dele o botão "Atualizar", e a tela também se atualiza sozinha a cada 60 segundos. Ao lado dos dois, um texto fixo diz "atualizado às HH:mm" (no fuso de São Paulo) — não precisa passar o mouse para saber a hora, e ele sai também na impressão.',
       ],
     },
     { tipo: 'titulo', id: 'relvivo-estrutura', texto: 'A ordem das seções' },
     {
       tipo: 'paragrafo',
       texto:
-        'O relatório é longo, então uma barra de atalhos acompanha a rolagem no topo com os saltos "Principais", "Acessórios", "Componentes", "Saídas", "Entradas", "Transferências" (quando houver), "Itens" (quando houver), "Resumo", "Observações" (quando o relatório tem texto da semana) e "Como ler". No celular, os grupos "Acessórios" e "Componentes" nascem fechados — clicar no atalho abre o grupo junto com o salto. De cima para baixo, a ordem é sempre esta:',
+        'O relatório é longo, então uma barra de atalhos acompanha a rolagem no topo com os saltos "Principais", "Acessórios", "Componentes", "Saídas", "Entradas", "Transferências" (quando houver), "Itens" (quando houver), "Resumo", "Observações" (quando o relatório tem texto da semana) e "Como ler". No celular, os grupos "Acessórios" e "Componentes" nascem fechados — clicar no atalho abre o grupo junto com o salto. Cada atalho também mostra quanto tem naquela seção (por exemplo, "Saídas · 19"), e o atalho da seção que está na tela se destaca sozinho enquanto você rola — sem precisar clicar para saber onde está. De cima para baixo, a ordem é sempre esta:',
     },
     {
       tipo: 'lista',
       itens: [
         'Os sete indicadores do topo: "Total de ativos", "Em uso", "Em estoque", "Reservados", "Em triagem", "Em manutenção" e "Reserva técnica" (os defasados, que continuam em posse da WAP).',
+        'O card "Acervo por situação" — uma barra só com a composição do acervo inteiro por situação: o mesmo total dos indicadores acima, visto em proporção.',
         'O card "Movimentações" — saídas × devoluções ao longo do período.',
-        'O grupo "Equipamentos principais" (notebooks, desktops, monitores, celulares e tablets), com os tiles "Guardados", "Reservados", "Em manutenção" e "Emprestados" e os cards "Estoque no último dia", "Disponíveis por modelo", "Reservados", "Saídas por motivo", "Devoluções por motivo" e "Em manutenção, caso a caso".',
+        `O grupo "Equipamentos principais" (notebooks, desktops, monitores, celulares e tablets), com os tiles "Guardados", "Reservados", "Em manutenção" e "Emprestados" e os cards "Estoque no último dia", "Evolução do estoque" (só aparece quando o período reúne semanas fechadas suficientes — no preset "Esta semana" ele ainda não dá para desenhar), "Disponíveis por modelo", "Reservados", "Saídas por motivo", "Devoluções por motivo" e "Em manutenção, caso a caso" (o subtítulo já resume o risco: quantos casos, quantos estão parados há ${MANUTENCAO_ALERTA_DIAS}+ dias e quantos encerraram no período).`,
         'Os grupos "Acessórios e periféricos" e "Componentes", cada um com "Saldo por item" e "Movimentação por item".',
         'A seção "Pendências" — só para o operador logado; quem entra pela senha de acesso nunca a vê.',
-        'As tabelas detalhadas do período: "Saídas", "Entradas", "Transferências" e "Movimentações de itens".',
+        'As tabelas detalhadas do período: "Saídas", "Entradas", "Transferências" (no relatório consolidado, com um resumo "filial de origem → filial de destino" acima da tabela) e "Movimentações de itens".',
         'O card "Resumo do período" (no formato do e-mail semanal), a "Observações da semana" quando o relatório congelado tem texto, e a seção recolhível "Como ler este relatório".',
         'O botão "Copiar texto" do card "Resumo do período" copia o texto inteiro pronto para colar: a linha dos sete indicadores, as saídas e as devoluções por filial e motivo, e o bloco "Em estoque (N)" com a lista de modelos disponíveis — que é como o e-mail semanal abria.',
       ],
@@ -83,12 +84,32 @@ export const relatorioAoVivo: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
+        'Cada situação do ativo tem uma cor fixa, e ela se repete em todo o relatório: a faixa fina no topo de cada indicador, os segmentos dos gráficos empilhados, a barra "Acervo por situação" e o pontinho ao lado de cada verbete de status em "Como ler este relatório" — a mesma cor em todo lugar, para o olho aprender uma vez só. "Total de ativos" fica sem essa faixa de propósito: ele é a soma das situações, não uma situação. Nos gráficos de barra, cada marca colada na vizinha ganha uma fresta fina na cor do fundo do card, só para separar visualmente uma da outra mesmo quando as cores são parecidas.',
+    },
+    {
+      tipo: 'nota',
+      texto:
         'Para o operador logado, o patrimônio nas tabelas e nos cards de manutenção é um link direto para a ficha do ativo; e no relatório ao vivo os KPI tiles levam à lista de ativos já filtrada por aquele status (e pela filial do relatório, quando não é o consolidado). Quem entra pela senha de acesso vê os mesmos números, mas sem esses atalhos — a visualização não sai das telas de relatório.',
     },
     {
       tipo: 'nota',
       texto:
+        'Ainda para o operador, dois gráficos também são atalho: clicar numa barra de "Saídas por motivo" ou "Devoluções por motivo" filtra a tabela correspondente, mais abaixo, por aquele motivo e rola a tela até ela; clicar num segmento do card "Estoque no último dia" abre a lista de ativos já filtrada por aquela situação E aquela categoria. As duas coisas só existem no relatório AO VIVO, para quem está logado — o mesmo regime dos KPI tiles — e cada gráfico clicável traz uma nota fixa avisando que dá para clicar. No relatório congelado e para quem entra pela senha de acesso, nenhum gráfico é clicável.',
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Já clicar numa entrada da legenda de um gráfico de barras (por exemplo "Saídas" ou "Devoluções", no card "Movimentações") atenua a outra série na tela, para comparar uma de cada vez — clicar de novo restaura as duas. Isso é diferente dos cliques acima: vale para todo mundo, inclusive quem entra pela senha de acesso e no relatório congelado, porque é só um efeito da tela. A impressão sempre sai com as duas séries cheias, não importa o que estava atenuado quando você mandou imprimir.',
+    },
+    {
+      tipo: 'nota',
+      texto:
         'Cada KPI mostra o Δ (variação) frente ao período anterior com uma seta. A cor tem sentido: subir é bom (verde) em "Em estoque"/"Guardados"; subir é ruim (vermelho) em "Em manutenção" e "Em triagem"; nos demais a variação é neutra (cinza). A seta permanece sempre — a cor é só um reforço. Passe o mouse (ou dê Tab até o Δ) para ver de onde veio a conta: "Anterior: N (janela) → atual: M". O período anterior tem a MESMA duração do que está na tela e termina na véspera dele.',
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Ao lado do título de cada card, um selo diz que tipo de número ele traz: cinza "foto de dd/MM" é um retrato do estoque naquele dia (os indicadores do topo, o "Estoque no último dia"); azul "dd/MM – dd/MM" é o que aconteceu ao longo do intervalo (as saídas, as devoluções, a "Evolução do estoque"). Os dois nunca se misturam — somar um card de foto com um de período é o erro de leitura mais comum num relatório de estoque, e o selo existe para evitar essa confusão.',
     },
     {
       tipo: 'nota',
