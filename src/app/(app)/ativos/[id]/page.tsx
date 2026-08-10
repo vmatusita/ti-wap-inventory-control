@@ -81,15 +81,42 @@ export default async function AtivoFichaPage({
   const ativo = await buscarAtivoPorId(id)
   if (!ativo) notFound()
 
-  const [movimentacoes, anotacoes, motivosLista, termos, pendenciasItem, operador] =
-    await Promise.all([
-      listarMovimentacoesDoAtivo(id),
-      listarAnotacoesDoAtivo(id),
-      listarMotivos(),
-      listarTermosDoAtivo(id),
-      listarPendenciasItemDoAtivo(id),
-      getOperador(),
-    ])
+  // F33 — UMA rodada de leitura, não três. Estas nove leituras dependem só de `id`
+  // e de `ativo` (já resolvido acima): nenhuma delas usa o resultado de outra.
+  // Antes eram três esperas em sequência (seis, depois duas, depois uma solta), e
+  // cada espera custa uma ida ao banco de ponta a ponta. Os três últimos itens
+  // guardam o vínculo de sucessão e são exatamente os mesmos de antes — inclusive
+  // os ramos que não leem nada quando não há ativo antigo.
+  const [
+    movimentacoes,
+    anotacoes,
+    motivosLista,
+    termos,
+    pendenciasItem,
+    operador,
+    // F14/MN4 — vínculo de sucessão (devolução ao fornecedor). `ativoAntigo` = o
+    // que ESTE substitui (quando é um substituto); `substitutoDeste` = quem
+    // substituiu ESTE. `timelineAntigo` é a linha do tempo do ativo antigo,
+    // renderizada SOMENTE-LEITURA na ficha do substituto (histórico por VÍNCULO,
+    // sem copiar movimentações).
+    substitutoDeste,
+    ativoAntigo,
+    timelineAntigo,
+  ] = await Promise.all([
+    listarMovimentacoesDoAtivo(id),
+    listarAnotacoesDoAtivo(id),
+    listarMotivos(),
+    listarTermosDoAtivo(id),
+    listarPendenciasItemDoAtivo(id),
+    getOperador(),
+    buscarSubstitutoDe(ativo.id),
+    ativo.substitui_ativo_id
+      ? buscarVinculoAtivo(ativo.substitui_ativo_id)
+      : Promise.resolve(null),
+    ativo.substitui_ativo_id
+      ? listarMovimentacoesDoAtivo(ativo.substitui_ativo_id)
+      : Promise.resolve([]),
+  ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
 
   // F21 — esta ficha é de UM ativo, que mora em UMA filial: dá para responder
@@ -105,20 +132,6 @@ export default async function AtivoFichaPage({
     : operador?.papel === 'consulta'
       ? MSG_SOMENTE_LEITURA
       : msgSemEscritaNaFilial(ativo.filial_nome)
-
-  // F14/MN4 — vínculo de sucessão (devolução ao fornecedor). `ativoAntigo` = o que
-  // ESTE substitui (quando é um substituto); `substitutoDeste` = quem substituiu ESTE.
-  const [substitutoDeste, ativoAntigo] = await Promise.all([
-    buscarSubstitutoDe(ativo.id),
-    ativo.substitui_ativo_id
-      ? buscarVinculoAtivo(ativo.substitui_ativo_id)
-      : Promise.resolve(null),
-  ])
-  // Linha do tempo do ativo antigo — renderizada SOMENTE-LEITURA na ficha do
-  // substituto (histórico por VÍNCULO, sem copiar movimentações).
-  const timelineAntigo = ativo.substitui_ativo_id
-    ? await listarMovimentacoesDoAtivo(ativo.substitui_ativo_id)
-    : []
 
   // Movimentações elegíveis a termo (mais recentes; a linha do tempo vem desc):
   // responsabilidade (saída/empréstimo) e devolução — para geração retroativa.

@@ -5065,3 +5065,66 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
 - **Como se derruba:** se o TTFB não cair, o arquivo sai no commit seguinte.
 - **Reversível?** sim — apagar `vercel.json` (ou trocar a região) e fazer deploy devolve o estado
   anterior. Nenhum dado é tocado.
+
+## 2026-08-10 · F33 · Frente C — sete deduplicações, e a regra que governou todas
+
+- **Contexto:** o mapa da Frente A achou nove pontos onde a mesma leitura era feita duas vezes no
+  mesmo render, ou onde leituras independentes esperavam umas pelas outras em cascata.
+- **Regra que governou a frente inteira:** nenhuma mudança pode alterar o RESULTADO de nenhuma
+  função. Onde a equivalência não era demonstrável, a otimização **não entrou** (ver "não entrou"
+  abaixo).
+- **Decisão — o que entrou:**
+  1. `/ativos/[id]`: as três rodadas de leitura viraram UM `Promise.all` de nove. As nove dependem
+     só de `id` e de `ativo` (resolvido antes) — nenhuma usa o resultado de outra.
+  2. `contarConflitosAbertos` passou a ser memoizada por requisição com chave **TEXTUAL**
+     (`JSON.stringify` da lista de slugs). O `cache()` do React memoiza por IDENTIDADE do
+     argumento, e o selo da sidebar e o card da Home montam arrays DIFERENTES com o MESMO conteúdo
+     — com o array cru o memo erraria sempre. `JSON` e não `join` porque `[]` e `['']` precisam ser
+     chaves distintas.
+  3. `/pendencias` e `/relatorios/gerados` (ramo do OPERADOR) chamam `listarFiliais()` **sem
+     client**: passar o `client` local — que `createClient()` devolve NOVO a cada chamada — errava
+     o memo que o layout já preencheu. O ramo do VISUALIZADOR continua recebendo o client
+     administrativo, sem o qual a RLS de anon devolveria lista vazia (achado da revisão da F3).
+  4. `getPerfilAtual()` saiu de `/movimentacoes/nova` e de `/ativos/novo`: ele refazia um
+     `auth.getUser()` **de rede** (~28 ms medidos) mais um select em `profiles` para responder o
+     que `getOperador()` — no mesmo `Promise.all` — já respondia. O módulo ficou morto e foi
+     removido: deixar um atalho que duplica `getOperador()` é convidar a reintroduzir a chamada.
+  5. `ultimaMovimentacaoDoUsuario` entrou no `Promise.all` de `/movimentacoes/nova`, em vez de
+     esperar atrás de todos os ramos condicionais de `?duplicar=`/`?ativos=`/`?ativo=`.
+  6. `getSnapshotRelatorioV2` guarda a PROMISE de `listarFiliais` em vez de esperá-la: a lista só
+     é consumida DEPOIS do `Promise.all` das dez leituras caras, e o `await` adiava o motor inteiro
+     do relatório por um select de seis linhas. Mesma técnica que a F32 já usava para `estadoNoFim`.
+- **Efeito colateral aceito e declarado (item 2):** o memo guarda também o caminho de ERRO (a
+  função engole a falha e devolve 0). Antes, uma falha no selo podia conviver com um sucesso no
+  card — as duas superfícies exibindo números diferentes. Agora as duas exibem o mesmo. Isso
+  REFORÇA o invariante da F25 ("MESMA fonte do selo, do card e de /pendencias") em vez de violá-lo.
+- **Não entrou — `/relatorios/[filial]`:** a página e `getSnapshotRelatorioV2` compartilham o mesmo
+  `acesso.client`, então as duas chamadas de `listarFiliais` já se deduplicam entre si; trocar só a
+  da página deixaria a do snapshot errando o memo e o total continuaria em duas leituras. Fechar de
+  verdade exigiria mudar a assinatura do motor do relatório — churn de API por ~5 ms depois da
+  Frente B. Fica no backlog.
+- **Não entrou — `getOperador()` derivar as filiais de `listarFiliais()`:** economizaria uma query,
+  mas `listarFiliais()` ordena por NOME e o select interno de `getOperador` não ordena. Como
+  `filiaisDeEscrita` devolve essa lista na ordem recebida, e o menu do usuário imprime
+  "Escreve em: …" nessa ordem para o cargo `operador`, a troca mudaria um TEXTO DE UI. A ordem
+  proíbe. Registrado e descartado.
+- **Reversível?** sim — cada item é uma edição isolada, sem migration e sem dado tocado.
+
+## 2026-08-10 · F33 · Frente F — nenhum cache ENTRE requisições nesta fase
+
+- **Contexto:** a ordem autoriza cache entre requisições para dado de referência global e idêntico
+  para todos os logados (filiais, motivos, catálogo), sob requisitos cumulativos: API vigente
+  confirmada, invalidação explícita, TTL e prova de não-vazamento.
+- **Decisão:** **não cachear entre requisições.** Só `React cache()` (por requisição), que é o que
+  sustenta os itens 2, 3 e 6 da ata acima.
+- **Motivo — três, cada um suficiente:**
+  1. `'use cache'` exige `cacheComponents: true` no `next.config.ts` (confirmado na doc do Next 16),
+     flag que o projeto não tem. Ligá-la muda o regime de cache do app inteiro, não só das três
+     funções candidatas — risco desproporcional numa ordem de performance.
+  2. O prêmio evaporou. Os candidatos legítimos são `listarMotivos` (13 linhas), `listarItensAtivos`
+     (0) e `listarKitsAtivos` (0). Depois da Frente B, uma leitura dessas custa poucos
+     milissegundos — não os ~120 ms de antes.
+  3. O custo de errar é altíssimo e permanente: cache entre requisições que vaze recorte por
+     cargo/filial é vazamento de dado entre usuários. A régua da ordem é explícita — "sobrou
+     qualquer dúvida de vazamento? Não cacheie".
+- **Reversível?** não se aplica — é um "não fazer", registrado para não ser reaberto sem número novo.

@@ -15,9 +15,7 @@ import { listarMotivos } from '@/lib/queries/motivos'
 import {
   buscarMovimentacaoParaDuplicar,
   ultimaMovimentacaoDoUsuario,
-  type UltimaMovimentacaoUsuario,
 } from '@/lib/queries/movimentacoes'
-import { getPerfilAtual } from '@/lib/queries/profile'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { getOperador, MSG_SOMENTE_LEITURA } from '@/lib/auth/acesso'
@@ -92,7 +90,7 @@ export default async function NovaMovimentacaoPage({
   const setorParam = param(sp, 'setor')
   const semContrapartida = param(sp, 'contrapartida') === 'nao'
 
-  const [filiais, motivos, perfil, kits, operador] = await Promise.all([
+  const [filiais, motivos, ultimaMov, kits, operador] = await Promise.all([
     // A lista NÃO é recortada por vínculo de propósito: o único select de filial
     // deste fluxo é a filial de DESTINO da transferência, e o parâmetro §0 da
     // ordem F21 (`TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao`) diz que o destino é
@@ -100,7 +98,22 @@ export default async function NovaMovimentacaoPage({
     // ORIGEM (a atual de cada ativo do lote), pela action `registrarMovimentacoes`.
     listarFiliais(),
     listarMotivos(),
-    getPerfilAtual(),
+    // F33 — a "última movimentação sua" sai do MESMO `getOperador()` que esta
+    // página já pede logo abaixo (memoizado por requisição, então esta segunda
+    // chamada é a MESMA promise, não uma leitura nova) e entra AQUI, no
+    // `Promise.all`, em vez de esperar no fim da função.
+    //
+    // Antes eram duas perdas somadas: `getPerfilAtual()` refazia um
+    // `auth.getUser()` DE REDE mais um select em `profiles` — exatamente o que
+    // `getOperador()` acabara de fazer no mesmo array — e a leitura da última
+    // movimentação só começava depois de todos os ramos condicionais de
+    // `?duplicar=`/`?ativos=`/`?ativo=`, serializada atrás deles.
+    //
+    // O `id` é o mesmo nos dois caminhos (`operador.id` é o `user.id` do
+    // profile), e o ramo nulo continua devolvendo `null`.
+    getOperador().then((o) =>
+      o ? ultimaMovimentacaoDoUsuario(o.id) : null,
+    ),
     // Kits (F12 · M12) são um FACILITADOR do passo 2: uma falha ao ler o
     // catálogo não pode derrubar a tela de registrar movimentação — degrada para
     // lista vazia (o botão "Aplicar kit" some) e a causa vai para o log do
@@ -202,10 +215,6 @@ export default async function NovaMovimentacaoPage({
       motivos,
     )
   }
-
-  const ultimaMov: UltimaMovimentacaoUsuario | null = perfil
-    ? await ultimaMovimentacaoDoUsuario(perfil.id)
-    : null
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

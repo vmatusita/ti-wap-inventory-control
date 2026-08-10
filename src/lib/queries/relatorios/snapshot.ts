@@ -51,8 +51,12 @@ export async function getSnapshotRelatorioV2(
   const slugParaView = ehGeral ? null : filialSlug
   const anterior = periodoAnterior(periodo)
 
-  const filiais = await listarFiliais(client)
-  const filiaisNome = new Map(filiais.map((f) => [f.id, f.nome]))
+  // F33 — MESMA técnica do `estadoNoFim` logo abaixo, e pelo mesmo motivo: guarda
+  // a PROMISE, não o await. Esta lista só é consumida DEPOIS do Promise.all grande
+  // (é o `filiaisNome` que `manutencaoDeEstado` recebe), e esperá-la aqui adiava o
+  // motor inteiro do relatório — as dez leituras mais caras da tela — por causa de
+  // um select de seis linhas. Sem `await` aqui, ela corre junto com elas.
+  const filiaisPromise = listarFiliais(client)
 
   // F32-pós (revisão de custo, ACHADO 7) — hoisted ANTES do Promise.all: guarda a
   // PROMISE (não o await), não a chamada em si. `getSerieEstado` também precisa
@@ -101,6 +105,8 @@ export async function getSnapshotRelatorioV2(
       // campo nem existe no snapshot.
       getSerieEstado(client, filialId, periodo, estadoNoFim),
     ])
+
+  const filiaisNome = new Map((await filiaisPromise).map((f) => [f.id, f.nome]))
 
   const [reservados, manutencao] = await Promise.all([
     reservadosDeEstado(client, estado, periodo.ate),

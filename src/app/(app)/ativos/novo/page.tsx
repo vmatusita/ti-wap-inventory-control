@@ -10,7 +10,6 @@ import {
   ultimaCompraDoOperador,
   type DadosCompraInicial,
 } from '@/lib/queries/compras'
-import { getPerfilAtual } from '@/lib/queries/profile'
 import { getOperador, MSG_SOMENTE_LEITURA } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
 
@@ -35,11 +34,11 @@ export default async function NovoEquipamentoPage({
   // Id fora do formato uuid devolve null (não derruba a página).
   const duplicarParam = texto(sp.duplicar)
 
-  const [filiais, perfil, operador] = await Promise.all([
-    listarFiliais(),
-    getPerfilAtual(),
-    getOperador(),
-  ])
+  // F33 — sem `getPerfilAtual()`: ele refazia um `auth.getUser()` DE REDE mais um
+  // select em `profiles` para responder o que `getOperador()` — na linha de baixo,
+  // no mesmo `Promise.all` — já responde. O `id` é o mesmo nos dois (`operador.id`
+  // é o `user.id` do profile) e é só disso que esta tela precisa.
+  const [filiais, operador] = await Promise.all([listarFiliais(), getOperador()])
 
   // F21 — a filial que RECEBE a compra é escrita: o select oferece só as filiais
   // vinculadas (admin → todas as ativas). A lista de leitura desta tela não
@@ -48,7 +47,7 @@ export default async function NovoEquipamentoPage({
 
   const [inicial, ultimaCompra] = await Promise.all<DadosCompraInicial | null>([
     duplicarParam ? dadosParaDuplicarCompra(duplicarParam) : Promise.resolve(null),
-    perfil ? ultimaCompraDoOperador(perfil.id) : Promise.resolve(null),
+    operador ? ultimaCompraDoOperador(operador.id) : Promise.resolve(null),
   ])
 
   return (
