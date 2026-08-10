@@ -29,7 +29,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 24 = LTS Ativo. Era 20, que saiu do suporte em abril/2026 e
+          # ficava SEIS majors atrás do Node do desenvolvimento (26) — e esse vão
+          # não é teórico: em 10/08/2026 ele derrubou o CI por dois pushes com
+          # `ReferenceError: sessionStorage is not defined`, porque a Web Storage
+          # API só existe como global sem flag a partir do Node 24. O teste
+          # daquele caso ficou hermético (traz a própria dublê, ver
+          # relatorio-visitado.test.ts), mas a lição maior é que um runner velho
+          # esconde defeito ao invés de achar: aqui o CI mentia nos DOIS sentidos
+          # — reprovava código são e não exercitava o runtime de verdade.
+          #
+          # 24 e não 26: 26 ainda é "Current", não LTS (vira LTS em out/2026). CI
+          # roda no LTS Ativo — o vão cai de seis majors para dois, e os dois já
+          # têm Web Storage, que era a divergência que mordeu. Quando o 26 virar
+          # LTS, subir aqui é troca de um número.
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: Lint

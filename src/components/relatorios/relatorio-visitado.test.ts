@@ -19,12 +19,20 @@ import {
 //
 // A versão original deste comentário afirmava que "este repo roda em Node 26,
 // que expõe `sessionStorage` como global REAL" e usava o global ambiente direto.
-// Isso é verdade na máquina de quem escreveu — e FALSO no CI, que fixa
-// `node-version: 20` (.github/workflows/ci.yml): a Web Storage API só passou a
-// existir como global sem flag no Node 24. Resultado: o arquivo nasceu verde
-// localmente e vermelho no CI, com `ReferenceError: sessionStorage is not
-// defined` estourando no `beforeEach` e derrubando os 21 testes ANTES de
-// qualquer expectativa rodar. Ficou assim por dois pushes.
+// Isso era verdade na máquina de quem escreveu — e FALSO no CI, que então fixava
+// `node-version: 20`: a Web Storage API só passou a existir como global sem flag
+// no Node 24. Resultado: o arquivo nasceu verde localmente e vermelho no CI, com
+// `ReferenceError: sessionStorage is not defined` estourando no `beforeEach` e
+// derrubando os 21 testes ANTES de qualquer expectativa rodar. Ficou assim por
+// dois pushes.
+//
+// O CI subiu para o Node 24 depois disso (.github/workflows/ci.yml), então hoje
+// os dois lados TÊM Web Storage e a dublê abaixo nem chega a ser instalada lá.
+// Ela FICA mesmo assim, e de propósito: era exatamente uma suposição sobre "qual
+// Node roda isto" que quebrou este arquivo, e trocar o número do runner não
+// desfaz a suposição — só a torna verdadeira por enquanto. Com a dublê, o teste
+// prova o mesmo comportamento em qualquer runtime, inclusive num runner futuro
+// mais antigo ou num ambiente sem Web Storage.
 //
 // A correção é tornar o arquivo HERMÉTICO em vez de depender do runtime: se o
 // ambiente não traz Web Storage, ele instala uma dublê em memória. Não é fingir

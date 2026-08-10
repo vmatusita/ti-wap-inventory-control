@@ -4976,8 +4976,7 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   testes antes de qualquer expectativa rodar. O CI ficou vermelho por dois pushes (`d45b8e0` e
   `257d2bb`), e o passo de testes bloqueia contraste e build, que nem chegavam a rodar.
 - **Decisão:** o ARQUIVO DE TESTE passou a ser hermético — instala uma dublê de `Storage` em
-  memória no topo do módulo quando `typeof globalThis.sessionStorage === 'undefined'`. O CI
-  continua no Node 20 por ora.
+  memória no topo do módulo quando `typeof globalThis.sessionStorage === 'undefined'`.
 - **Motivo:** um teste cujo resultado depende de qual Node roda é frágil por construção, e o módulo
   sob teste (`relatorio-visitado.ts`) roda no NAVEGADOR, onde `sessionStorage` sempre existe — a
   versão do Node nunca foi parte do que ele precisa provar. Subir o CI de Node resolveria o sintoma
@@ -4986,9 +4985,26 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   do valor para string; onde o runtime já traz a de verdade, ela não entra.
 - **Como reproduzir o ambiente do CI sem instalar outro Node** (registrado no próprio arquivo):
   `NODE_OPTIONS=--no-experimental-webstorage npx vitest run` — a suíte inteira passa nos dois modos.
-- **Pendência aberta (do Johnny):** o CI roda Node 20, que saiu do suporte em abril/2026, enquanto o
-  desenvolvimento roda Node 26. Seis majors de distância é exatamente o vão em que esta classe de
-  defeito se esconde, e o próprio GitHub já avisa que as actions estão sendo forçadas para o Node 24.
-  Subir `node-version` no `ci.yml` é uma decisão à parte, com risco próprio (build e `npm ci` mudam
-  de runtime), e não entrou nesta correção de propósito.
-- **Reversível?** sim — apagar a dublê devolve o vermelho no CI.
+- **Reversível?** sim — apagar a dublê devolve o vermelho num runner sem Web Storage.
+
+## 2026-08-10 · F32-pós · CI sobe de Node 20 para Node 24 (LTS Ativo)
+
+- **Contexto:** decorrência direta da ata acima, e aprovada pelo Johnny na sequência. O CI fixava
+  `node-version: 20` — fora de suporte desde abril/2026 — enquanto o desenvolvimento roda Node 26.
+  Seis majors de distância, e o vão não era teórico: foi exatamente ele que derrubou o CI por dois
+  pushes com `ReferenceError: sessionStorage is not defined`.
+- **Decisão:** `node-version: 24` em `.github/workflows/ci.yml`. A dublê de `Storage` do teste FICA
+  onde está.
+- **Motivo:** um runner velho esconde defeito em vez de achar — ali o CI mentia nos dois sentidos:
+  reprovava código são E não exercitava o runtime que o app realmente encontra. **24 e não 26**
+  porque o 26 ainda é "Current" (vira LTS em out/2026) e CI deve rodar no LTS Ativo; o vão cai de
+  seis majors para dois, e os dois já têm Web Storage, que era a divergência que mordeu. A dublê
+  fica porque o que quebrou o arquivo foi uma SUPOSIÇÃO sobre qual Node roda os testes — trocar o
+  número do runner não desfaz a suposição, só a torna verdadeira por enquanto.
+- **Não entrou:** `actions/checkout@v4` e `actions/setup-node@v4` seguem em v4. O aviso de
+  depreciação que aparece nos runs é sobre o runtime das ACTIONS (o GitHub já as força no Node 24
+  sozinho), não sobre o `node-version` do projeto — são coisas diferentes, e subir para v5 é outra
+  mudança, com risco próprio. Também não foi criado `engines`/`.nvmrc`: hoje a versão do Node vive
+  num lugar só (o `ci.yml`), e acrescentar um segundo lugar para dizer a mesma coisa é criar a
+  chance de os dois divergirem.
+- **Reversível?** sim — é a troca de um número.
