@@ -4964,3 +4964,31 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   existe um único relógio no relatório inteiro.
 - **Reversível?** sim — `carimboAtualizado` é uma função pura de uma linha de conversão; trocar o
   fuso reabre a ambiguidade que esta decisão fecha.
+
+## 2026-08-10 · F32-pós · Teste de `sessionStorage` traz a própria dublê em vez de o CI subir de Node
+
+- **Contexto:** `src/components/relatorios/relatorio-visitado.test.ts` (F32/RV-17) usava o
+  `sessionStorage` AMBIENTE do runtime, com um comentário afirmando que "este repo roda em Node 26,
+  que expõe `sessionStorage` como global REAL". Verdade na máquina de quem escreveu; falso no CI,
+  que fixa `node-version: 20` (`.github/workflows/ci.yml`) — a Web Storage API só existe como
+  global sem flag a partir do Node 24. O arquivo nasceu verde localmente e vermelho no CI:
+  `ReferenceError: sessionStorage is not defined` estourava no `beforeEach` e derrubava os 21
+  testes antes de qualquer expectativa rodar. O CI ficou vermelho por dois pushes (`d45b8e0` e
+  `257d2bb`), e o passo de testes bloqueia contraste e build, que nem chegavam a rodar.
+- **Decisão:** o ARQUIVO DE TESTE passou a ser hermético — instala uma dublê de `Storage` em
+  memória no topo do módulo quando `typeof globalThis.sessionStorage === 'undefined'`. O CI
+  continua no Node 20 por ora.
+- **Motivo:** um teste cujo resultado depende de qual Node roda é frágil por construção, e o módulo
+  sob teste (`relatorio-visitado.ts`) roda no NAVEGADOR, onde `sessionStorage` sempre existe — a
+  versão do Node nunca foi parte do que ele precisa provar. Subir o CI de Node resolveria o sintoma
+  e deixaria a fragilidade de pé para o próximo global de browser que um teste encostar. A dublê
+  cobre as operações que os testes usam com a mesma semântica da Web Storage, inclusive a coerção
+  do valor para string; onde o runtime já traz a de verdade, ela não entra.
+- **Como reproduzir o ambiente do CI sem instalar outro Node** (registrado no próprio arquivo):
+  `NODE_OPTIONS=--no-experimental-webstorage npx vitest run` — a suíte inteira passa nos dois modos.
+- **Pendência aberta (do Johnny):** o CI roda Node 20, que saiu do suporte em abril/2026, enquanto o
+  desenvolvimento roda Node 26. Seis majors de distância é exatamente o vão em que esta classe de
+  defeito se esconde, e o próprio GitHub já avisa que as actions estão sendo forçadas para o Node 24.
+  Subir `node-version` no `ci.yml` é uma decisão à parte, com risco próprio (build e `npm ci` mudam
+  de runtime), e não entrou nesta correção de propósito.
+- **Reversível?** sim — apagar a dublê devolve o vermelho no CI.

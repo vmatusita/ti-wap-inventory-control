@@ -8,17 +8,63 @@ import {
   lerHrefAoVivo,
 } from './relatorio-visitado'
 
-// F32/RV-17. DIVERGÊNCIA da ordem, registrada aqui (CLAUDE.md regra 9 — "o código
-// vale"): a ordem presumia que `sessionStorage` não existe no ambiente `node` do
-// Vitest, decisão herdada de `ativos-recentes.test.ts` (F29). Este repo agora
-// roda em Node 26 (`node --version`), que expõe `sessionStorage`/`localStorage`
-// como globais REAIS desde a estabilização da Web Storage API — `typeof
-// sessionStorage === 'object'` já na raiz do processo, sem jsdom. As funções
-// PURAS (`ehSlugDeRelatorio`, `hrefDoRelatorioVisitado`) continuam sendo o grosso
-// da cobertura por não tocarem storage nenhum; as de I/O agora são testadas
-// contra o storage REAL (`beforeEach`/`afterEach` limpam a chave para as duplas
-// não vazarem estado entre `it`s), e a ausência de storage é simulada só onde o
-// roteiro pede explicitamente — via `vi.stubGlobal`, desfeito no `afterEach`.
+// F32/RV-17. As funções PURAS (`ehSlugDeRelatorio`, `hrefDoRelatorioVisitado`)
+// são o grosso da cobertura por não tocarem storage nenhum; as de I/O são
+// exercitadas contra um `sessionStorage` de verdade (`beforeEach`/`afterEach`
+// limpam a chave para as duplas não vazarem estado entre `it`s), e a AUSÊNCIA de
+// storage é simulada só onde o roteiro pede — via `vi.stubGlobal`, desfeito no
+// `afterEach`.
+//
+// ⚠ POR QUE ESTE ARQUIVO TRAZ A PRÓPRIA DUBLÊ (regressão medida, não teoria).
+//
+// A versão original deste comentário afirmava que "este repo roda em Node 26,
+// que expõe `sessionStorage` como global REAL" e usava o global ambiente direto.
+// Isso é verdade na máquina de quem escreveu — e FALSO no CI, que fixa
+// `node-version: 20` (.github/workflows/ci.yml): a Web Storage API só passou a
+// existir como global sem flag no Node 24. Resultado: o arquivo nasceu verde
+// localmente e vermelho no CI, com `ReferenceError: sessionStorage is not
+// defined` estourando no `beforeEach` e derrubando os 21 testes ANTES de
+// qualquer expectativa rodar. Ficou assim por dois pushes.
+//
+// A correção é tornar o arquivo HERMÉTICO em vez de depender do runtime: se o
+// ambiente não traz Web Storage, ele instala uma dublê em memória. Não é fingir
+// que passa — as operações que estes testes usam têm a mesma semântica da Web
+// Storage, inclusive a coerção do valor para string, que é o que garante que
+// `hrefDoRelatorioVisitado` receba string na leitura. Onde o runtime já traz a
+// de verdade (Node 24+, e o navegador, que é onde este módulo roda em produção),
+// a dublê não entra e nada muda.
+//
+// Para reproduzir o ambiente do CI aqui, sem instalar outro Node:
+//   NODE_OPTIONS=--no-experimental-webstorage npx vitest run src/components/relatorios/relatorio-visitado.test.ts
+function storageEmMemoria(): Storage {
+  const mapa = new Map<string, string>()
+  return {
+    get length() {
+      return mapa.size
+    },
+    clear: () => mapa.clear(),
+    getItem: (chave: string) => mapa.get(String(chave)) ?? null,
+    key: (indice: number) => [...mapa.keys()][indice] ?? null,
+    removeItem: (chave: string) => {
+      mapa.delete(String(chave))
+    },
+    setItem: (chave: string, valor: string) => {
+      mapa.set(String(chave), String(valor))
+    },
+  } as Storage
+}
+
+// No topo do módulo de propósito: os hooks `beforeEach`/`afterEach` abaixo já
+// usam `sessionStorage`, então a dublê precisa existir antes de qualquer um
+// deles rodar. `configurable`/`writable` porque `vi.stubGlobal` precisa poder
+// sobrescrever (e restaurar) esta propriedade no bloco de degradação.
+if (typeof globalThis.sessionStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    value: storageEmMemoria(),
+    configurable: true,
+    writable: true,
+  })
+}
 
 beforeEach(() => {
   sessionStorage.removeItem(CHAVE_RELATORIO_VISITADO)
@@ -119,7 +165,10 @@ describe('hrefDoRelatorioVisitado — a função que fecha o buraco de seguranç
   })
 })
 
-describe('I/O (lembrarRelatorioVisitado / lerHrefAoVivo) — storage real do Node 26', () => {
+// "storage real" = a Web Storage do runtime quando ela existe, ou a dublê em
+// memória do topo deste arquivo quando não — o mesmo contrato nos dois casos.
+// NÃO diga "do Node 26" aqui: foi essa suposição de runtime que quebrou o CI.
+describe('I/O (lembrarRelatorioVisitado / lerHrefAoVivo) — contra storage real', () => {
   it('sem memória gravada, lê o fallback', () => {
     expect(lerHrefAoVivo()).toBe('/relatorios/geral')
   })
