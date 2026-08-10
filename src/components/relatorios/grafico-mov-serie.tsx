@@ -76,7 +76,18 @@ export function GraficoMovSerie({ serie }: { serie: SerieMovimentacoes }) {
             />
           )}
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-          <Bar dataKey="saidas" fill="var(--color-saidas)" radius={[4, 4, 0, 0]}>
+          {/* F32/RV-03 — 2px de respiro na cor da superfície entre as barras do
+              par. Aqui elas não se empilham, mas em balde apertado (preset longo,
+              eixo com muitos pontos) os dois retângulos encostam e o par
+              amarelo/azul vira um bloco só; a fresta devolve a leitura do par —
+              e é o único separador que sobra na impressão P&B. */}
+          <Bar
+            dataKey="saidas"
+            fill="var(--color-saidas)"
+            radius={[4, 4, 0, 0]}
+            stroke="var(--card)"
+            strokeWidth={2}
+          >
             {comRotulos && (
               <LabelList
                 dataKey="saidas"
@@ -88,7 +99,13 @@ export function GraficoMovSerie({ serie }: { serie: SerieMovimentacoes }) {
               />
             )}
           </Bar>
-          <Bar dataKey="devolucoes" fill="var(--color-devolucoes)" radius={[4, 4, 0, 0]}>
+          <Bar
+            dataKey="devolucoes"
+            fill="var(--color-devolucoes)"
+            radius={[4, 4, 0, 0]}
+            stroke="var(--card)"
+            strokeWidth={2}
+          >
             {comRotulos && (
               <LabelList
                 dataKey="devolucoes"

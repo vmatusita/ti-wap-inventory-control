@@ -21,6 +21,37 @@ import type { EstoqueCatStatus } from '@/lib/relatorios/tipos'
 // EMPILHADAS — uma barra por categoria, segmentos por status, rótulo numérico em
 // cada segmento + total na ponta. Rótulo de valor sempre visível (regra §5).
 
+// Uma linha do tooltip, no MESMO desenho que o `ChartTooltipContent` produz
+// sozinho (swatch 10px + rótulo atenuado + valor monoespaçado à direita). Existe
+// porque fornecer `formatter` substitui a linha inteira: para acrescentar o
+// rodapé do total (F32/RV-23) na última série, é preciso redesenhar as demais.
+// Espelho deliberado de `chart.tsx` — se o desenho de lá mudar, este acompanha.
+function LinhaTooltip({
+  cor,
+  rotulo,
+  valor,
+}: {
+  cor?: string
+  rotulo: React.ReactNode
+  valor: number
+}) {
+  return (
+    <>
+      <div
+        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+        style={{ background: cor }}
+        aria-hidden
+      />
+      <div className="flex flex-1 items-center justify-between leading-none">
+        <span className="text-muted-foreground">{rotulo}</span>
+        <span className="font-mono font-medium tabular-nums text-foreground">
+          {valor.toLocaleString('pt-BR')}
+        </span>
+      </div>
+    </>
+  )
+}
+
 export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
   // Status presentes em qualquer categoria (na ordem canônica), p/ as séries.
   const presentes = STATUS_ORDEM.filter(
@@ -56,6 +87,39 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
     return deveRotularSegmento(n, maxTotal) ? String(n) : ''
   }
 
+  // F32/RV-23 — o total da categoria só existia no rótulo da ponta da barra; no
+  // hover o leitor tinha de somar os segmentos de cabeça. O Recharts entrega uma
+  // entrada de payload por `<Bar>` (inclusive as de valor zero), na ordem em que
+  // foram declaradas: a última é `presentes[presentes.length - 1]`, e é nela que
+  // o rodapé entra — dentro da caixa do tooltip, não abaixo dela.
+  const ultimoIndice = presentes.length - 1
+  const linhaTooltip = (
+    valor: unknown,
+    nome: unknown,
+    item: { color?: string; payload?: Record<string, unknown> },
+    indice: number,
+  ) => {
+    const linha = (
+      <LinhaTooltip
+        cor={item?.color ?? (item?.payload?.fill as string | undefined)}
+        rotulo={config[String(nome)]?.label ?? String(nome)}
+        valor={Number(valor)}
+      />
+    )
+    if (indice !== ultimoIndice) return linha
+    return (
+      <>
+        {linha}
+        <div className="mt-1 flex w-full items-center justify-between border-t border-border/50 pt-1 leading-none">
+          <span className="text-muted-foreground">Total</span>
+          <span className="font-mono font-medium tabular-nums text-foreground">
+            {Number(item?.payload?.total ?? 0).toLocaleString('pt-BR')}
+          </span>
+        </div>
+      </>
+    )
+  }
+
   return (
     <div>
       <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-foreground/70">
@@ -78,10 +142,14 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
             tick={{ fontSize: 12 }}
           />
           {/* F29/REL-06a — este gráfico não tinha tooltip nenhum. Segmento pequeno
-              ficava sem rótulo E sem hover, e âmbar × laranja vizinhos são quase a
-              mesma cor para daltônicos: o tooltip é o desempate que faltava. Mesmo
-              par (`cursor={false}` + ChartTooltipContent) das barras horizontais. */}
-          <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+              ficava sem rótulo E sem hover, e o par âmbar × laranja de então era
+              quase a mesma cor para daltônicos: o tooltip era o desempate que
+              faltava. A F32 consertou o par na raiz (a triagem virou rosa — ver
+              STATUS_CHART_COLOR), e o tooltip continua sendo o 4º canal.
+              F32/RV-23 — o rodapé do tooltip passou a trazer o TOTAL da categoria,
+              que só existia no rótulo da ponta: quem está no hover não deveria
+              precisar somar 5 segmentos de cabeça. */}
+          <ChartTooltip cursor={false} content={<ChartTooltipContent formatter={linhaTooltip} />} />
           {presentes.map((s) => (
             <Bar
               key={s}
@@ -89,6 +157,13 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
               stackId="estoque"
               fill={STATUS_CHART_COLOR[s as StatusAtivo]}
               radius={s === ultimo ? [0, 4, 4, 0] : 0}
+              /* F32/RV-03 — 2px de respiro na cor da SUPERFÍCIE entre segmentos
+                 colados. Vizinhos de matiz parecido passam a se separar pela
+                 fresta, não pela sorte da cor; é o complemento estrutural da
+                 paleta nova e o que segura a leitura na impressão P&B, onde
+                 matiz nenhum sobrevive. `var(--card)` acompanha o tema. */
+              stroke="var(--card)"
+              strokeWidth={2}
             >
               {/* F19 — o rótulo era branco fixo a 10px e reprovava o mínimo de
                   4,5:1 em quase todo segmento. Agora sai branco ou preto, o que

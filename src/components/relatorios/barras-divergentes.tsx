@@ -7,6 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { useEstreito } from '@/components/relatorios/use-estreito'
 import type { SaldoItemPeriodo } from '@/lib/relatorios/tipos'
 
 // Movimentação do período por item (§4.2): barras DIVERGENTES — entradas para a
@@ -52,6 +53,7 @@ function LinhaTooltip({
 }
 
 export function BarrasDivergentes({ itens }: { itens: SaldoItemPeriodo[] }) {
+  const estreito = useEstreito()
   const comMov = itens.filter((i) => i.entradas > 0 || i.saidas > 0)
   if (comMov.length === 0) {
     return (
@@ -68,6 +70,14 @@ export function BarrasDivergentes({ itens }: { itens: SaldoItemPeriodo[] }) {
   }))
   const maxAbs = Math.max(1, ...data.map((d) => Math.max(d.entradas, Math.abs(d.saidas))))
   const altura = Math.max(120, data.length * 34 + 16)
+  // F32/RV-10 — o eixo era 110px FIXO e o tick cortava o nome em 18 caracteres,
+  // sem socorro: o tooltip do Recharts abre pela BARRA, e item com movimento só
+  // de um lado tem barra minúscula do outro. No desktop o eixo agora respira até
+  // 150px (a mesma régua das barras horizontais), e o nome cabe em 24 caracteres.
+  // O nome COMPLETO segue no cabeçalho do tooltip: o `tickFormatter` trunca só o
+  // texto do tick — o `dataKey="item"` que alimenta o tooltip é o valor cheio.
+  const larguraEixo = estreito ? 96 : 150
+  const maxRotulo = estreito ? 14 : 24
 
   return (
     <div>
@@ -87,11 +97,13 @@ export function BarrasDivergentes({ itens }: { itens: SaldoItemPeriodo[] }) {
           <YAxis
             type="category"
             dataKey="item"
-            width={110}
+            width={larguraEixo}
             tickLine={false}
             axisLine={false}
             tick={{ fontSize: 11 }}
-            tickFormatter={(v: string) => (v.length > 18 ? `${v.slice(0, 17)}…` : v)}
+            tickFormatter={(v: string) =>
+              v.length > maxRotulo ? `${v.slice(0, maxRotulo - 1)}…` : v
+            }
           />
           <ReferenceLine x={0} stroke="var(--border)" />
           <ChartTooltip
@@ -108,10 +120,28 @@ export function BarrasDivergentes({ itens }: { itens: SaldoItemPeriodo[] }) {
               />
             }
           />
-          <Bar dataKey="saidas" fill="var(--color-saidas)" stackId="mov" radius={[4, 0, 0, 4]}>
+          {/* F32/RV-03 — 2px de respiro na cor da superfície entre as duas marcas
+              do mesmo `stackId`: a fresta separa saída de entrada mesmo quando o
+              item tem os dois lados quase colados no zero, e sobrevive à
+              impressão P&B, onde a cor não separa nada. */}
+          <Bar
+            dataKey="saidas"
+            fill="var(--color-saidas)"
+            stackId="mov"
+            radius={[4, 0, 0, 4]}
+            stroke="var(--card)"
+            strokeWidth={2}
+          >
             <LabelList dataKey="saidas" position="left" offset={6} className="fill-foreground" fontSize={11} formatter={abs} />
           </Bar>
-          <Bar dataKey="entradas" fill="var(--color-entradas)" stackId="mov" radius={[0, 4, 4, 0]}>
+          <Bar
+            dataKey="entradas"
+            fill="var(--color-entradas)"
+            stackId="mov"
+            radius={[0, 4, 4, 0]}
+            stroke="var(--card)"
+            strokeWidth={2}
+          >
             <LabelList dataKey="entradas" position="right" offset={6} className="fill-foreground" fontSize={11} formatter={abs} />
           </Bar>
         </BarChart>
