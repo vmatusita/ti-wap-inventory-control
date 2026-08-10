@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estoque TI WAP — Relatório v3 (proposta · dados fictícios)</title>
+<style>
+  :root { --surface:#fcfcfb; --page:#f9f9f7; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --border:rgba(11,11,11,.10); --amarelo:#eda100; --azul:#2a78d6; }
+  * { box-sizing:border-box; margin:0; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--page); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; font-size:14px; }
+  header { background:#111110; color:#fff; padding:0 28px; height:56px; display:flex; align-items:center; gap:14px; position:relative; z-index:30; }
+  .logo { background:var(--amarelo); color:#111110; font-weight:800; padding:3px 10px; border-radius:6px; letter-spacing:.5px; }
+  .apptitle { font-weight:600; font-size:15px; }
+  .live { margin-left:auto; display:flex; align-items:center; gap:7px; font-size:12.5px; color:#c9c8c0; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#35c06f; animation:pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity:.35; } }
+  .tabs { display:flex; gap:2px; padding:10px 28px 0; background:#111110; overflow-x:auto; }
+  .tab { padding:9px 16px 11px; font-size:13.5px; color:#b9b8b0; border-radius:8px 8px 0 0; white-space:nowrap; cursor:default; }
+  .tab.on { background:var(--page); color:var(--ink); font-weight:650; box-shadow:inset 0 3px 0 var(--amarelo); }
+  .faixa-proto { background:#fbf6e8; border-bottom:1px solid #eadfc0; color:#6b5310; text-align:center; font-size:12px; padding:5px 12px; }
+  main { max-width:1080px; margin:0 auto; padding:16px 28px 60px; }
+
+  /* chips-âncora sticky c/ contagem + scroll-spy (RV-13/14) */
+  .ancora-wrap { position:sticky; top:0; z-index:20; background:var(--page); padding:8px 0 10px; }
+  .ancoras { display:flex; gap:6px; overflow-x:auto; border:1px solid var(--border); background:rgba(252,252,251,.95); backdrop-filter:blur(4px); border-radius:10px; padding:5px 6px; }
+  .anc { flex-shrink:0; border:1px solid var(--border); background:var(--surface); border-radius:99px; padding:4px 11px; font-size:12px; font-weight:550; color:var(--ink2); text-decoration:none; transition:.15s; }
+  .anc .n { color:var(--muted); font-variant-numeric:tabular-nums; font-weight:650; }
+  .anc.on { border-color:var(--amarelo); color:var(--ink); box-shadow:inset 0 -2px 0 var(--amarelo); }
+  .anc:hover { border-color:var(--amarelo); color:var(--ink); }
+
+  .pagehead { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:10px 0 14px; }
+  h1 { font-size:19px; }
+  .upd { font-size:12.5px; color:var(--muted); }
+
+  /* KPI tiles com acento de status (RV-01) */
+  .tiles { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; margin-bottom:12px; }
+  .tile { position:relative; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px 14px 11px; overflow:hidden; }
+  .acento { position:absolute; top:0; left:0; right:0; height:3px; }
+  .tlabel { font-size:11.5px; color:var(--ink2); font-weight:600; }
+  .tval { font-size:22px; font-weight:700; margin:2px 0 1px; display:flex; align-items:baseline; gap:5px; white-space:nowrap; } /* proporcional (RV-22) */
+  .tsub { font-size:10.5px; color:var(--muted); }
+  .delta { font-size:11px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .d-bom { color:#15803d; } .d-ruim { color:#dc2626; } .d-neutro { color:var(--muted); }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px; min-width:0; }
+  .card.wide { grid-column:1 / -1; }
+  .chead { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:2px; }
+  .ctitle { font-size:14px; font-weight:650; }
+  .csub { font-size:12px; color:var(--muted); margin:1px 0 12px; }
+  /* chip foto × período (RV-04) */
+  .chip-foto { font-size:10.5px; font-weight:600; color:#57534e; background:#f0efec; border:1px solid var(--border); border-radius:99px; padding:2px 8px; white-space:nowrap; }
+  .chip-per { font-size:10.5px; font-weight:600; color:#1c5cab; background:#e3eefb; border:1px solid #c9ddf5; border-radius:99px; padding:2px 8px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--ink2); margin-bottom:8px; }
+  .lg { display:flex; align-items:center; gap:5px; }
+  .lg-note { color:var(--muted); }
+  .sw { width:10px; height:10px; border-radius:3px; flex-shrink:0; display:inline-block; }
+
+  /* barra única do acervo + empilhadas (RV-02/03/07) — gap de 2px na cor da superfície */
+  .stackrow { display:flex; align-items:center; gap:10px; }
+  .stackwrap { min-width:0; flex:1; display:flex; align-items:center; gap:8px; }
+  .stackwrap .stack { flex:none; }
+  .stack { display:flex; gap:2px; height:22px; width:100%; }
+  .seg { display:flex; align-items:center; justify-content:center; border-radius:3px; min-width:3px; cursor:pointer; transition:filter .12s; }
+  .seg:hover { filter:brightness(1.12); }
+  .seg-rot { font-size:11px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .stack-total { font-size:12.5px; font-weight:650; font-variant-numeric:tabular-nums; width:44px; text-align:right; }
+  .hrow3 { display:grid; grid-template-columns:86px 1fr 44px; align-items:center; gap:10px; padding:5px 0; }
+
+  /* série de colunas (RV-05) */
+  .serie { display:flex; gap:10px; align-items:flex-end; height:190px; padding-top:14px; border-bottom:1px solid #c3c2b7; }
+  .dia { flex:1; display:flex; flex-direction:column; height:100%; }
+  .colpair { flex:1; display:flex; gap:2px; align-items:flex-end; justify-content:center; }
+  .col { width:16px; border-radius:4px 4px 0 0; position:relative; min-height:0; cursor:pointer; }
+  .col:hover { filter:brightness(1.1); }
+  .col-val { position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:10.5px; color:var(--ink2); font-variant-numeric:tabular-nums; }
+  .x { text-align:center; font-size:11px; color:var(--muted); padding-top:6px; font-variant-numeric:tabular-nums; }
+  .x-fds { color:#c3c2b7; }
+  .x-hoje { color:var(--ink); font-weight:650; }
+
+  .svgtick { font-size:10.5px; fill:var(--muted); font-variant-numeric:tabular-nums; }
+  .svgend { font-size:12.5px; font-weight:700; fill:var(--ink); } /* texto nunca veste a cor da série */
+  svg { width:100%; height:auto; display:block; }
+
+  /* seções / grupos (RV-19) */
+  section.bloco { margin-top:22px; scroll-margin-top:64px; }
+  .sechead { display:flex; align-items:baseline; gap:8px; margin-bottom:10px; }
+  .sechead .ico { font-size:15px; color:var(--muted); }
+  .sechead h2 { font-size:16px; }
+  .sechead .sdesc { font-size:12px; color:var(--muted); }
+
+  .hrow { display:grid; grid-template-columns:150px 1fr 74px; align-items:center; gap:10px; padding:5px 0; cursor:pointer; border-radius:6px; }
+  .hrow:hover { background:rgba(237,161,0,.06); }
+  .hlbl { font-size:12.5px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .htrack { height:15px; }
+  .hbar { height:15px; border-radius:0 4px 4px 0; min-width:3px; }
+  .hval { font-size:12.5px; font-weight:650; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+  .hpct { color:var(--muted); font-weight:500; }
+
+  /* manutenção */
+  .mgrid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .mcard { border:1px solid var(--border); background:var(--surface); border-radius:10px; padding:11px 12px; }
+  .mtop { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .mpat { font-weight:650; font-variant-numeric:tabular-nums; }
+  .mmod { font-size:12px; color:var(--muted); }
+  .badge { margin-left:auto; font-size:10.5px; font-weight:600; border-radius:99px; padding:2px 8px; white-space:nowrap; }
+  .b-red { background:#fee2e2; color:#991b1b; }
+  .b-amber { background:#fef3c7; color:#92400e; }
+  .b-green { background:#dcfce7; color:#166534; }
+  .mtl { margin-top:7px; border-left:2px solid var(--grid); padding-left:9px; list-style:none; font-size:12px; display:flex; flex-direction:column; gap:4px; }
+  .mut { color:var(--muted); }
+  .ret { color:#15803d; font-weight:600; }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:650; padding:7px 9px; border-bottom:1px solid var(--grid); }
+  td { padding:7px 9px; border-bottom:1px solid var(--grid); color:var(--ink2); vertical-align:middle; }
+  td strong { color:var(--ink); }
+  .num { font-variant-numeric:tabular-nums; }
+  th.num, td.num { text-align:right; }
+  table .num strong { font-size:13.5px; }
+  .meter { width:52px; height:5px; background:#eceae4; border-radius:99px; margin-top:3px; margin-left:auto; overflow:hidden; }
+  .meter span { display:block; height:100%; border-radius:99px; }
+  .chip-falta { font-size:10.5px; font-weight:650; background:#fee2e2; color:#b91c1c; border-radius:99px; padding:2px 8px; }
+  .pill { font-size:11px; font-weight:650; padding:2px 8px; border-radius:99px; white-space:nowrap; }
+  .p-saida { background:#fdf3dd; color:#8a5b00; }
+  .p-neutra { background:#e7e5e4; color:#57534e; }
+
+  /* barras divergentes */
+  .dvrow { display:grid; grid-template-columns:130px 1fr; gap:10px; align-items:center; padding:4px 0; }
+  .dv { display:flex; align-items:center; height:18px; }
+  .dv-esq, .dv-dir { flex:1; display:flex; align-items:center; gap:5px; min-width:0; }
+  .dv-esq { justify-content:flex-end; }
+  .dvbar { height:14px; min-width:2px; }
+  .dv-esq .dvbar { border-radius:4px 0 0 4px; }
+  .dv-dir .dvbar { border-radius:0 4px 4px 0; }
+  .dv-eixo { width:1px; height:22px; background:#c3c2b7; flex-shrink:0; }
+  .dv-val { font-size:11px; color:var(--ink2); font-variant-numeric:tabular-nums; }
+
+  .filtro-ativo { display:none; margin:0 0 10px; }
+  .filtro-ativo.on { display:inline-flex; align-items:center; gap:6px; font-size:12px; background:#fbf6e8; border:1px solid #eadfc0; color:#6b5310; border-radius:99px; padding:4px 10px; }
+  .filtro-ativo button { border:0; background:none; cursor:pointer; font-weight:700; color:#6b5310; }
+  tr.some { display:none; }
+
+  dl.gloss { display:grid; grid-template-columns:1fr 1fr; gap:8px 22px; }
+  .verbete dt { font-size:12.5px; font-weight:650; display:flex; align-items:center; gap:7px; }
+  .verbete dd { font-size:11.5px; color:var(--muted); margin:2px 0 0 17px; }
+
+  .notas { margin-top:26px; border-top:1px solid var(--grid); padding-top:14px; font-size:12px; color:var(--muted); line-height:1.65; }
+  .notas strong { color:var(--ink2); }
+  #tip { position:fixed; pointer-events:none; background:#111110; color:#fff; font-size:12px; padding:6px 10px; border-radius:8px; opacity:0; transition:opacity .12s; z-index:99; max-width:280px; }
+  @media (max-width:900px) { .tiles { grid-template-columns:repeat(3,1fr); } .grid,.mgrid,dl.gloss { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">WAP</span><span class="apptitle">Estoque TI</span>
+  <span class="live"><span class="dot"></span> ao vivo · atualizado às 10:42</span>
+</header>
+<nav class="tabs">
+  <span class="tab">Matriz</span><span class="tab">CD Afonso Pena</span><span class="tab">Linhares</span>
+  <span class="tab">Serra Park</span><span class="tab">Eusébio</span><span class="tab on">Consolidado</span>
+</nav>
+<div class="faixa-proto"><strong>Protótipo</strong> — proposta visual v3 (análise de 10/08/2026) · todos os dados são fictícios · cada bloco referencia um achado RV-xx da análise</div>
+<main>
+  <div class="ancora-wrap"><nav class="ancoras" id="ancoras">
+    <a class="anc" href="#principais">Principais</a>
+    <a class="anc" href="#acessorios">Acessórios <span class="n">· 5</span></a>
+    <a class="anc" href="#saidas">Saídas <span class="n">· 34</span></a>
+    <a class="anc" href="#resumo">Resumo</a>
+    <a class="anc" href="#como-ler">Como ler</a>
+  </nav></div>
+
+  <div class="pagehead">
+    <h1>Relatório — Consolidado</h1>
+    <span class="upd">Período personalizado · 01/08/2026 a 10/08/2026</span>
+  </div>
+
+  <section class="tiles">
+<div class="tile" data-tip="Total de ativos — RV-01: acento na cor do status · Δ vs período anterior (Dica no app)"><span class="acento" style="background:var(--grid)"></span>
+  <div class="tlabel">Total de ativos</div>
+  <div class="tval">1.283 <span class="delta d-neutro">▲ +6</span></div>
+  <div class="tsub">no inventário</div></div>
+<div class="tile" data-tip="Em uso — RV-01: acento na cor do status · Δ vs período anterior (Dica no app)"><span class="acento" style="background:#2a78d6"></span>
+  <div class="tlabel">Em uso</div>
+  <div class="tval">941 <span class="delta d-neutro">▲ +9</span></div>
+  <div class="tsub">com colaborador/setor</div></div>
+<div class="tile" data-tip="Em estoque — RV-01: acento na cor do status · Δ vs período anterior (Dica no app)"><span class="acento" style="background:#16a34a"></span>
+  <div class="tlabel">Em estoque</div>
+  <div class="tval">214 <span class="delta d-ruim">▼ −12</span></div>
+  <div class="tsub">disponíveis p/ entrega</div></div>
+<div class="tile" data-tip="Reservados — RV-01: acento na cor do status · Δ vs período anterior (Dica no app)"><span class="acento" style="background:#6d28d9"></span>
+  <div class="tlabel">Reservados</div>
+  <div class="tval">38 <span class="delta d-neutro">▲ +4</span></div>
+  <div class="tsub">aguardando entrega</div></div>
+<div class="tile" data-tip="Em triagem — RV-01: acento na cor do status · Δ vs período anterior (Dica no app)"><span class="acento" style="background:#db2777"></span>
+  <div class="tlabel">Em triagem</div>
+  <div class="tval">22 <span class="delta d-ruim">▲ +3</span></div>
+  <div class="tsub">devolvidos, em conferência</div></div>
+<div class="tile" data-tip="Em manutenção — RV-01: acento na cor do status · Δ vs período anterior (Dica no app)"><span class="acento" style="background:#d97706"></span>
+  <div class="tlabel">Em manutenção</div>
+  <div class="tval">31 <span class="delta d-bom">▼ −2</span></div>
+  <div class="tsub">conserto/assistência</div></div>
+<div class="tile" data-tip="Reserva técnica — RV-01: acento na cor do status · Δ vs período anterior (Dica no app)"><span class="acento" style="background:#9ca3af"></span>
+  <div class="tlabel">Reserva técnica</div>
+  <div class="tval">37 <span class="delta d-neutro">→ 0</span></div>
+  <div class="tsub">defasados / posse WAP</div></div>
+  </section>
+
+  <section class="card wide" style="margin-bottom:14px">
+    <div class="chead"><div class="ctitle">Acervo por situação</div><span class="chip-foto" data-tip="RV-04: chip padronizado — este card é a FOTO do último dia">foto de 10/08</span></div>
+    <div class="csub">todas as filiais · a página inteira num relance (RV-07) — passe o mouse; as cores são as mesmas dos tiles acima e de tudo abaixo (RV-01/02)</div>
+<div class="legend"><span class="lg"><span class="sw" style="background:#16a34a"></span>Em estoque</span> <span class="lg"><span class="sw" style="background:#6d28d9"></span>Reservado</span> <span class="lg"><span class="sw" style="background:#2a78d6"></span>Em uso</span> <span class="lg"><span class="sw" style="background:#06b6d4"></span>Emprestado</span> <span class="lg"><span class="sw" style="background:#db2777"></span>Em triagem</span> <span class="lg"><span class="sw" style="background:#d97706"></span>Em manutenção</span> <span class="lg"><span class="sw" style="background:#9ca3af"></span>Reserva técnica</span></div>
+<div class="stackrow"><div class="stack" style="width:100%"><div class="seg" style="width:16.68%;background:#16a34a" data-tip="Em estoque: 214 (16.7%)"><span class="seg-rot" style="color:#000">214</span></div><div class="seg" style="width:2.96%;background:#6d28d9" data-tip="Reservado: 38 (3.0%)"></div><div class="seg" style="width:73.34%;background:#2a78d6" data-tip="Em uso: 941 (73.3%)"><span class="seg-rot" style="color:#000">941</span></div><div class="seg" style="width:0.94%;background:#06b6d4" data-tip="Emprestado: 12 (0.9%)"></div><div class="seg" style="width:1.71%;background:#db2777" data-tip="Em triagem: 22 (1.7%)"></div><div class="seg" style="width:2.42%;background:#d97706" data-tip="Em manutenção: 31 (2.4%)"></div><div class="seg" style="width:1.95%;background:#9ca3af" data-tip="Reserva técnica: 25 (1.9%)"></div></div>
+<div class="stack-total">1.283</div></div>
+  </section>
+
+  <div class="grid">
+    <div class="card wide">
+      <div class="chead"><div class="ctitle">Movimentações</div><span class="chip-per" data-tip="RV-04: este card é FLUXO do período">01/08 – 10/08</span></div>
+      <div class="csub">saídas × devoluções por dia — fim de semana atenuado no eixo; hoje em barra clara, parcial (RV-05); pares com respiro de 2px (RV-03)</div>
+<div class="legend">
+  <span class="lg"><span class="sw" style="background:#eda100"></span>Saídas (34)</span>
+  <span class="lg"><span class="sw" style="background:#2a78d6"></span>Devoluções (16)</span>
+  <span class="lg lg-note">■ barras claras = hoje, parcial · cinza no eixo = fim de semana</span>
+</div>
+<div class="serie"><div class="dia"><div class="colpair"><div class="col" style="height:0%;background:#eda100;opacity:1" data-tip="Saídas · 01/08: 0"></div><div class="col" style="height:0%;background:#2a78d6;opacity:1" data-tip="Devoluções · 01/08: 0"></div></div><div class="x x-fds">01/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:0%;background:#eda100;opacity:1" data-tip="Saídas · 02/08: 0"></div><div class="col" style="height:0%;background:#2a78d6;opacity:1" data-tip="Devoluções · 02/08: 0"></div></div><div class="x x-fds">02/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:60%;background:#eda100;opacity:1" data-tip="Saídas · 03/08: 6"><span class="col-val">6</span></div><div class="col" style="height:30%;background:#2a78d6;opacity:1" data-tip="Devoluções · 03/08: 3"><span class="col-val">3</span></div></div><div class="x ">03/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:90%;background:#eda100;opacity:1" data-tip="Saídas · 04/08: 9"><span class="col-val">9</span></div><div class="col" style="height:20%;background:#2a78d6;opacity:1" data-tip="Devoluções · 04/08: 2"><span class="col-val">2</span></div></div><div class="x ">04/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:40%;background:#eda100;opacity:1" data-tip="Saídas · 05/08: 4"><span class="col-val">4</span></div><div class="col" style="height:50%;background:#2a78d6;opacity:1" data-tip="Devoluções · 05/08: 5"><span class="col-val">5</span></div></div><div class="x ">05/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:70%;background:#eda100;opacity:1" data-tip="Saídas · 06/08: 7"><span class="col-val">7</span></div><div class="col" style="height:10%;background:#2a78d6;opacity:1" data-tip="Devoluções · 06/08: 1"><span class="col-val">1</span></div></div><div class="x ">06/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:50%;background:#eda100;opacity:1" data-tip="Saídas · 07/08: 5"><span class="col-val">5</span></div><div class="col" style="height:40%;background:#2a78d6;opacity:1" data-tip="Devoluções · 07/08: 4"><span class="col-val">4</span></div></div><div class="x ">07/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:0%;background:#eda100;opacity:1" data-tip="Saídas · 08/08: 0"></div><div class="col" style="height:0%;background:#2a78d6;opacity:1" data-tip="Devoluções · 08/08: 0"></div></div><div class="x x-fds">08/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:0%;background:#eda100;opacity:1" data-tip="Saídas · 09/08: 0"></div><div class="col" style="height:0%;background:#2a78d6;opacity:1" data-tip="Devoluções · 09/08: 0"></div></div><div class="x x-fds">09/08</div></div><div class="dia"><div class="colpair"><div class="col" style="height:30%;background:#eda100;opacity:0.55" data-tip="Saídas · 10/08: 3 (hoje, parcial)"><span class="col-val">3</span></div><div class="col" style="height:10%;background:#2a78d6;opacity:0.55" data-tip="Devoluções · 10/08: 1 (hoje, parcial)"><span class="col-val">1</span></div></div><div class="x x-hoje">10/08</div></div></div>
+    </div>
+
+    <div class="card wide">
+      <div class="chead"><div class="ctitle">Evolução do estoque</div><span class="chip-foto">foto semana a semana</span></div>
+      <div class="csub">em estoque no fim de cada semana (as-of, 8 semanas) — a forma que faltava: tendência de ESTADO, não fluxo (RV-06) · valor final rotulado</div>
+<svg viewBox="0 0 640 170" role="img" aria-label="Em estoque, semana a semana">
+<line x1="40" y1="144.0" x2="626" y2="144.0" stroke="var(--grid)"/><text x="34" y="147.5" text-anchor="end" class="svgtick">200</text><line x1="40" y1="92.0" x2="626" y2="92.0" stroke="var(--grid)"/><text x="34" y="95.5" text-anchor="end" class="svgtick">220</text><line x1="40" y1="40.0" x2="626" y2="40.0" stroke="var(--grid)"/><text x="34" y="43.5" text-anchor="end" class="svgtick">240</text><polyline points="40.0,24.4 120.9,45.2 201.7,63.4 282.6,79.0 363.4,68.6 444.3,86.8 525.1,97.2 606.0,107.6" fill="none" stroke="#16a34a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="40.0" cy="24.4" r="3.5" fill="#16a34a" stroke="var(--surface)" stroke-width="2"><title>semana de 15/06: 246 em estoque</title></circle><text x="40.0" y="162" text-anchor="middle" class="svgtick">15/06</text><circle cx="120.9" cy="45.2" r="3.5" fill="#16a34a" stroke="var(--surface)" stroke-width="2"><title>semana de 22/06: 238 em estoque</title></circle><text x="120.9" y="162" text-anchor="middle" class="svgtick">22/06</text><circle cx="201.7" cy="63.4" r="3.5" fill="#16a34a" stroke="var(--surface)" stroke-width="2"><title>semana de 29/06: 231 em estoque</title></circle><text x="201.7" y="162" text-anchor="middle" class="svgtick">29/06</text><circle cx="282.6" cy="79.0" r="3.5" fill="#16a34a" stroke="var(--surface)" stroke-width="2"><title>semana de 06/07: 225 em estoque</title></circle><text x="282.6" y="162" text-anchor="middle" class="svgtick">06/07</text><circle cx="363.4" cy="68.6" r="3.5" fill="#16a34a" stroke="var(--surface)" stroke-width="2"><title>semana de 13/07: 229 em estoque</title></circle><text x="363.4" y="162" text-anchor="middle" class="svgtick">13/07</text><circle cx="444.3" cy="86.8" r="3.5" fill="#16a34a" stroke="var(--surface)" stroke-width="2"><title>semana de 20/07: 222 em estoque</title></circle><text x="444.3" y="162" text-anchor="middle" class="svgtick">20/07</text><circle cx="525.1" cy="97.2" r="3.5" fill="#16a34a" stroke="var(--surface)" stroke-width="2"><title>semana de 27/07: 218 em estoque</title></circle><text x="525.1" y="162" text-anchor="middle" class="svgtick">27/07</text><circle cx="606.0" cy="107.6" r="5" fill="#16a34a" stroke="var(--surface)" stroke-width="2"><title>semana de 03/08: 214 em estoque</title></circle><text x="608.0" y="95.6" text-anchor="end" class="svgend">214</text><text x="606.0" y="162" text-anchor="middle" class="svgtick">03/08</text></svg>
+    </div>
+  </div>
+
+  <section class="bloco" id="principais">
+    <div class="sechead"><span class="ico">▣</span><h2>Equipamentos principais</h2><span class="sdesc">notebooks, desktops, monitores, celulares, tablets (ícone por grupo — RV-19)</span></div>
+    <div class="grid">
+      <div class="card wide">
+        <div class="chead"><div class="ctitle">Estoque no último dia</div><span class="chip-foto">foto de 10/08</span></div>
+        <div class="csub">por categoria e situação — paleta corrigida e validada (RV-02: triagem agora é rosa, não mais o laranja gêmeo do âmbar) · gap de 2px entre segmentos (RV-03) · clique num segmento = lista de ativos filtrada (RV-12)</div>
+<div class="legend"><span class="lg"><span class="sw" style="background:#16a34a"></span>Em estoque</span> <span class="lg"><span class="sw" style="background:#6d28d9"></span>Reservado</span> <span class="lg"><span class="sw" style="background:#2a78d6"></span>Em uso</span> <span class="lg"><span class="sw" style="background:#06b6d4"></span>Emprestado</span> <span class="lg"><span class="sw" style="background:#db2777"></span>Em triagem</span> <span class="lg"><span class="sw" style="background:#d97706"></span>Em manutenção</span> <span class="lg"><span class="sw" style="background:#9ca3af"></span>Reserva técnica</span></div><div class="hrow3"><div class="hlbl">Notebook</div>
+<div class="stackwrap"><div class="stack" style="width:100.0%"><div class="seg" style="width:14.07%;background:#16a34a" data-tip="Notebook · Em estoque: 74 — clique = /ativos filtrado (RV-12)"><span class="seg-rot" style="color:#000">74</span></div><div class="seg" style="width:2.85%;background:#6d28d9" data-tip="Notebook · Reservado: 15 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:75.67%;background:#2a78d6" data-tip="Notebook · Em uso: 398 — clique = /ativos filtrado (RV-12)"><span class="seg-rot" style="color:#000">398</span></div><div class="seg" style="width:1.14%;background:#06b6d4" data-tip="Notebook · Emprestado: 6 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:1.71%;background:#db2777" data-tip="Notebook · Em triagem: 9 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:2.66%;background:#d97706" data-tip="Notebook · Em manutenção: 14 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:1.90%;background:#9ca3af" data-tip="Notebook · Reserva técnica: 10 — clique = /ativos filtrado (RV-12)"></div></div><div class="hval">526</div></div></div>
+<div class="hrow3"><div class="hlbl">Celular</div>
+<div class="stackwrap"><div class="stack" style="width:72.6%"><div class="seg" style="width:15.18%;background:#16a34a" data-tip="Celular · Em estoque: 58 — clique = /ativos filtrado (RV-12)"><span class="seg-rot" style="color:#000">58</span></div><div class="seg" style="width:3.14%;background:#6d28d9" data-tip="Celular · Reservado: 12 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:75.65%;background:#2a78d6" data-tip="Celular · Em uso: 289 — clique = /ativos filtrado (RV-12)"><span class="seg-rot" style="color:#000">289</span></div><div class="seg" style="width:0.52%;background:#06b6d4" data-tip="Celular · Emprestado: 2 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:1.57%;background:#db2777" data-tip="Celular · Em triagem: 6 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:2.36%;background:#d97706" data-tip="Celular · Em manutenção: 9 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:1.57%;background:#9ca3af" data-tip="Celular · Reserva técnica: 6 — clique = /ativos filtrado (RV-12)"></div></div><div class="hval">382</div></div></div>
+<div class="hrow3"><div class="hlbl">Monitor</div>
+<div class="stackwrap"><div class="stack" style="width:55.5%"><div class="seg" style="width:21.23%;background:#16a34a" data-tip="Monitor · Em estoque: 62 — clique = /ativos filtrado (RV-12)"><span class="seg-rot" style="color:#000">62</span></div><div class="seg" style="width:2.74%;background:#6d28d9" data-tip="Monitor · Reservado: 8 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:68.84%;background:#2a78d6" data-tip="Monitor · Em uso: 201 — clique = /ativos filtrado (RV-12)"><span class="seg-rot" style="color:#000">201</span></div><div class="seg" style="width:1.03%;background:#06b6d4" data-tip="Monitor · Emprestado: 3 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:1.71%;background:#db2777" data-tip="Monitor · Em triagem: 5 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:2.05%;background:#d97706" data-tip="Monitor · Em manutenção: 6 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:2.40%;background:#9ca3af" data-tip="Monitor · Reserva técnica: 7 — clique = /ativos filtrado (RV-12)"></div></div><div class="hval">292</div></div></div>
+<div class="hrow3"><div class="hlbl">Desktop</div>
+<div class="stackwrap"><div class="stack" style="width:11.4%"><div class="seg" style="width:23.33%;background:#16a34a" data-tip="Desktop · Em estoque: 14 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:3.33%;background:#6d28d9" data-tip="Desktop · Reservado: 2 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:63.33%;background:#2a78d6" data-tip="Desktop · Em uso: 38 — clique = /ativos filtrado (RV-12)"><span class="seg-rot" style="color:#000">38</span></div><div class="seg" style="width:1.67%;background:#06b6d4" data-tip="Desktop · Emprestado: 1 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:1.67%;background:#db2777" data-tip="Desktop · Em triagem: 1 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:3.33%;background:#d97706" data-tip="Desktop · Em manutenção: 2 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:3.33%;background:#9ca3af" data-tip="Desktop · Reserva técnica: 2 — clique = /ativos filtrado (RV-12)"></div></div><div class="hval">60</div></div></div>
+<div class="hrow3"><div class="hlbl">Tablet</div>
+<div class="stackwrap"><div class="stack" style="width:4.4%"><div class="seg" style="width:26.09%;background:#16a34a" data-tip="Tablet · Em estoque: 6 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:4.35%;background:#6d28d9" data-tip="Tablet · Reservado: 1 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:65.22%;background:#2a78d6" data-tip="Tablet · Em uso: 15 — clique = /ativos filtrado (RV-12)"></div><div class="seg" style="width:4.35%;background:#db2777" data-tip="Tablet · Em triagem: 1 — clique = /ativos filtrado (RV-12)"></div></div><div class="hval">23</div></div></div>
+      </div>
+
+      <div class="card">
+        <div class="chead"><div class="ctitle">Saídas por motivo</div><span class="chip-per">01/08 – 10/08</span></div>
+        <div class="csub">com % do total (RV-08) · clique numa barra filtra a tabela de Saídas lá embaixo (RV-12)</div>
+<div class="hrow" data-tip="Novo colaborador: 18 (53% do total) — clique filtra a tabela (RV-12)" onclick="filtrarMotivo('Novo colaborador','saidas')">
+<div class="hlbl">Novo colaborador</div><div class="htrack"><div class="hbar" style="width:100.0%;background:#eda100"></div></div>
+<div class="hval">18 <span class="hpct">· 53%</span></div></div>
+<div class="hrow" data-tip="Troca / upgrade: 8 (24% do total) — clique filtra a tabela (RV-12)" onclick="filtrarMotivo('Troca / upgrade','saidas')">
+<div class="hlbl">Troca / upgrade</div><div class="htrack"><div class="hbar" style="width:44.4%;background:#eda100"></div></div>
+<div class="hval">8 <span class="hpct">· 24%</span></div></div>
+<div class="hrow" data-tip="Empréstimo: 4 (12% do total) — clique filtra a tabela (RV-12)" onclick="filtrarMotivo('Empréstimo','saidas')">
+<div class="hlbl">Empréstimo</div><div class="htrack"><div class="hbar" style="width:22.2%;background:#eda100"></div></div>
+<div class="hval">4 <span class="hpct">· 12%</span></div></div>
+<div class="hrow" data-tip="Monitor adicional: 3 (9% do total) — clique filtra a tabela (RV-12)" onclick="filtrarMotivo('Monitor adicional','saidas')">
+<div class="hlbl">Monitor adicional</div><div class="htrack"><div class="hbar" style="width:16.7%;background:#eda100"></div></div>
+<div class="hval">3 <span class="hpct">· 9%</span></div></div>
+<div class="hrow" data-tip="Uso compartilhado: 1 (3% do total) — clique filtra a tabela (RV-12)" onclick="filtrarMotivo('Uso compartilhado','saidas')">
+<div class="hlbl">Uso compartilhado</div><div class="htrack"><div class="hbar" style="width:5.6%;background:#eda100"></div></div>
+<div class="hval">1 <span class="hpct">· 3%</span></div></div>
+      </div>
+
+      <div class="card">
+        <div class="chead"><div class="ctitle">Devoluções por motivo</div><span class="chip-per">01/08 – 10/08</span></div>
+        <div class="csub">com % do total (RV-08)</div>
+<div class="hrow" data-tip="Desligamento: 9 (56% do total) — clique filtra a tabela (RV-12)" onclick="filtrarMotivo('Desligamento','saidas')">
+<div class="hlbl">Desligamento</div><div class="htrack"><div class="hbar" style="width:100.0%;background:#2a78d6"></div></div>
+<div class="hval">9 <span class="hpct">· 56%</span></div></div>
+<div class="hrow" data-tip="Troca / upgrade: 5 (31% do total) — clique filtra a tabela (RV-12)" onclick="filtrarMotivo('Troca / upgrade','saidas')">
+<div class="hlbl">Troca / upgrade</div><div class="htrack"><div class="hbar" style="width:55.6%;background:#2a78d6"></div></div>
+<div class="hval">5 <span class="hpct">· 31%</span></div></div>
+<div class="hrow" data-tip="Fim de empréstimo: 2 (12% do total) — clique filtra a tabela (RV-12)" onclick="filtrarMotivo('Fim de empréstimo','saidas')">
+<div class="hlbl">Fim de empréstimo</div><div class="htrack"><div class="hbar" style="width:22.2%;background:#2a78d6"></div></div>
+<div class="hval">2 <span class="hpct">· 12%</span></div></div>
+      </div>
+
+      <div class="card wide">
+        <div class="chead"><div class="ctitle">Em manutenção, caso a caso</div><span class="chip-foto">foto de 10/08</span></div>
+        <div class="csub"><strong style="color:var(--ink2)">31 casos · 4 em alerta (30+ dias) · 3 encerrados no período</strong> — o subtítulo agora resume o risco (RV-19) · 3 exemplos abaixo</div>
+        <div class="mgrid">
+
+<div class="mcard"><div class="mtop"><span class="mpat">WAP0004821</span><span class="mmod">Notebook Pro X14 · Matriz · #48211</span>
+<span class="badge b-red" data-tip="parado há 41 dias — 30+ vira alerta">⏱ há 41 dias</span></div>
+<ul class="mtl"><li><span class="mut">Envio:</span> <em>“não liga, sem sinal de carga”</em></li>
+<li>🗒 orçamento aprovado, aguardando peça — <span class="mut">Fulano de Tal, 28/07 14:12</span></li></ul></div>
+<div class="mcard"><div class="mtop"><span class="mpat">WAP0002347</span><span class="mmod">Celular K52 · Serra Park · #50994</span>
+<span class="badge b-amber">⏱ há 12 dias</span></div>
+<ul class="mtl"><li><span class="mut">Envio:</span> <em>“tela trincada”</em></li></ul></div>
+<div class="mcard"><div class="mtop"><span class="mpat">WAP0001990</span><span class="mmod">Monitor M24 · Linhares</span>
+<span class="badge b-green">✓ voltou em 06/08</span></div>
+<ul class="mtl"><li><span class="ret">Retorno:</span> 06/08 — <em>“troca da fonte”</em></li></ul></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloco" id="acessorios">
+    <div class="sechead"><span class="ico">◎</span><h2>Acessórios e periféricos</h2><span class="sdesc">fone, mochila, teclado, mouse, carregadores…</span></div>
+    <div class="grid">
+      <div class="card">
+        <div class="chead"><div class="ctitle">Saldo por item</div><span class="chip-foto">foto de 10/08</span></div>
+        <div class="csub">medidor estoque × mínimo na própria célula (RV-09): verde ok · âmbar no limite · vermelho em falta</div>
+        <table>
+          <thead><tr><th>Item</th><th class="num">Total</th><th class="num">Estoque</th><th class="num"></th><th class="num">Δ período</th><th class="num">Falta</th></tr></thead>
+          <tbody>
+<tr><td>Mouse USB</td><td class="num mut">120</td>
+<td class="num"><strong>34</strong>
+<div class="meter" data-tip="RV-09: estoque 34 × mínimo 20"><span style="width:100%;background:#16a34a"></span></div></td>
+<td class="num mut">mín 20</td><td class="num"><span class="d-ruim">▼ -3</span></td><td class="num"><span class="mut">—</span></td></tr>
+<tr><td>Teclado ABNT2</td><td class="num mut">80</td>
+<td class="num"><strong>12</strong>
+<div class="meter" data-tip="RV-09: estoque 12 × mínimo 15"><span style="width:80%;background:#dc2626"></span></div></td>
+<td class="num mut">mín 15</td><td class="num"><span class="d-ruim">▼ -3</span></td><td class="num"><span class="chip-falta">faltam 3</span></td></tr>
+<tr><td>Headset com fio</td><td class="num mut">60</td>
+<td class="num"><strong>17</strong>
+<div class="meter" data-tip="RV-09: estoque 17 × mínimo 15"><span style="width:100%;background:#d97706"></span></div></td>
+<td class="num mut">mín 15</td><td class="num"><span class="d-bom">▲ +1</span></td><td class="num"><span class="mut">—</span></td></tr>
+<tr><td>Mochila executiva</td><td class="num mut">90</td>
+<td class="num"><strong>41</strong>
+<div class="meter" data-tip="RV-09: estoque 41 × mínimo 25"><span style="width:100%;background:#16a34a"></span></div></td>
+<td class="num mut">mín 25</td><td class="num"><span class="d-ruim">▼ -4</span></td><td class="num"><span class="mut">—</span></td></tr>
+<tr><td>Carregador USB-C 65W</td><td class="num mut">150</td>
+<td class="num"><strong>22</strong>
+<div class="meter" data-tip="RV-09: estoque 22 × mínimo 30"><span style="width:73%;background:#dc2626"></span></div></td>
+<td class="num mut">mín 30</td><td class="num"><span class="d-ruim">▼ -8</span></td><td class="num"><span class="chip-falta">faltam 8</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="chead"><div class="ctitle">Movimentação por item</div><span class="chip-per">01/08 – 10/08</span></div>
+        <div class="csub">entradas × saídas no período — barras divergentes (forma mantida; só ganham respiro e tooltip melhor)</div>
+<div class="legend"><span class="lg"><span class="sw" style="background:#eda100"></span>Saídas</span>
+<span class="lg"><span class="sw" style="background:#2a78d6"></span>Entradas</span></div><div class="dvrow"><div class="hlbl" title="Mouse USB">Mouse USB</div>
+<div class="dv"><div class="dv-esq"><span class="dv-val">9</span><div class="dvbar" style="width:75%;background:#eda100" data-tip="Saídas · Mouse USB: 9"></div></div><div class="dv-eixo"></div>
+<div class="dv-dir"><div class="dvbar" style="width:50%;background:#2a78d6" data-tip="Entradas · Mouse USB: 6"></div><span class="dv-val">6</span></div></div></div>
+<div class="dvrow"><div class="hlbl" title="Teclado ABNT2">Teclado ABNT2</div>
+<div class="dv"><div class="dv-esq"><span class="dv-val">5</span><div class="dvbar" style="width:42%;background:#eda100" data-tip="Saídas · Teclado ABNT2: 5"></div></div><div class="dv-eixo"></div>
+<div class="dv-dir"><div class="dvbar" style="width:17%;background:#2a78d6" data-tip="Entradas · Teclado ABNT2: 2"></div><span class="dv-val">2</span></div></div></div>
+<div class="dvrow"><div class="hlbl" title="Headset com fio">Headset com fio</div>
+<div class="dv"><div class="dv-esq"><span class="dv-val">2</span><div class="dvbar" style="width:17%;background:#eda100" data-tip="Saídas · Headset com fio: 2"></div></div><div class="dv-eixo"></div>
+<div class="dv-dir"><div class="dvbar" style="width:25%;background:#2a78d6" data-tip="Entradas · Headset com fio: 3"></div><span class="dv-val">3</span></div></div></div>
+<div class="dvrow"><div class="hlbl" title="Mochila executiva">Mochila executiva</div>
+<div class="dv"><div class="dv-esq"><span class="dv-val">4</span><div class="dvbar" style="width:33%;background:#eda100" data-tip="Saídas · Mochila executiva: 4"></div></div><div class="dv-eixo"></div>
+<div class="dv-dir"><div class="dvbar" style="width:0%;background:#2a78d6" data-tip="Entradas · Mochila executiva: 0"></div></div></div></div>
+<div class="dvrow"><div class="hlbl" title="Carregador USB-C 65W">Carregador USB-C 65W</div>
+<div class="dv"><div class="dv-esq"><span class="dv-val">12</span><div class="dvbar" style="width:100%;background:#eda100" data-tip="Saídas · Carregador USB-C 65W: 12"></div></div><div class="dv-eixo"></div>
+<div class="dv-dir"><div class="dvbar" style="width:33%;background:#2a78d6" data-tip="Entradas · Carregador USB-C 65W: 4"></div><span class="dv-val">4</span></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloco" id="saidas">
+    <div class="sechead"><h2>Saídas — 34 no período</h2><span class="sdesc">4 linhas de exemplo · o clique nos gráficos de motivo chega AQUI já filtrado (RV-12)</span></div>
+    <div class="card wide">
+      <span class="filtro-ativo" id="filtro-chip">motivo: <strong id="filtro-nome"></strong> <button onclick="limparFiltro()" aria-label="Limpar filtro">×</button></span>
+      <table id="tab-saidas">
+        <thead><tr><th>Data</th><th>Filial</th><th>Categoria</th><th>Marca/Modelo</th><th class="num">Patrimônio</th><th>Tipo</th><th>Motivo</th><th class="num">Chamado</th><th>Colab./Setor</th></tr></thead>
+        <tbody>
+<tr data-motivo="Novo colaborador"><td class="num mut">05/08</td><td>Matriz</td><td>Notebook</td><td>Notebook Pro X14</td>
+<td class="num"><strong>WAP0001234</strong></td><td><span class="pill p-saida">Saída</span></td><td>Novo colaborador</td>
+<td class="num mut">#51203</td><td>Fulano de Tal · Comercial</td></tr>
+<tr data-motivo="Monitor adicional"><td class="num mut">05/08</td><td>Serra Park</td><td>Monitor</td><td>Monitor M24</td>
+<td class="num"><strong>WAP0002461</strong></td><td><span class="pill p-saida">Saída</span></td><td>Monitor adicional</td>
+<td class="num mut">#51188</td><td>Beltrana Souza · Financeiro</td></tr>
+<tr data-motivo="Troca / upgrade"><td class="num mut">06/08</td><td>Matriz</td><td>Celular</td><td>Celular K52</td>
+<td class="num"><strong>WAP0003310</strong></td><td><span class="pill p-saida">Saída</span></td><td>Troca / upgrade</td>
+<td class="num mut">#51240</td><td>Sicrano Pereira · Logística</td></tr>
+<tr data-motivo="Empréstimo"><td class="num mut">07/08</td><td>Linhares</td><td>Notebook</td><td>Notebook Slim 13</td>
+<td class="num"><strong>WAP0004102</strong></td><td><span class="pill p-neutra">Empréstimo</span></td><td>Empréstimo</td>
+<td class="num mut">#51302</td><td>Fulana Lima · Projetos</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="bloco" id="resumo">
+    <div class="sechead"><h2>Resumo do período</h2><span class="sdesc">no formato do e-mail semanal (inalterado — F29 já o completou)</span></div>
+    <div class="card wide"><pre style="font-family:inherit; font-size:12.5px; white-space:pre-wrap; color:var(--ink2)">Semana 01/08 a 10/08 — Consolidado
+Em estoque (214): 74 notebooks, 58 celulares, 62 monitores, 14 desktops, 6 tablets
+34 saídas: Novo colaborador 18 · Troca / upgrade 8 · Empréstimo 4 · Monitor adicional 3 · Uso compartilhado 1
+16 devoluções: Desligamento 9 · Troca / upgrade 5 · Fim de empréstimo 2</pre></div>
+  </section>
+
+  <section class="bloco" id="como-ler">
+    <div class="sechead"><h2>Como ler este relatório</h2><span class="sdesc">glossário — agora com o swatch da cor que cada status veste em TODA a página (RV-01)</span></div>
+    <div class="card wide"><dl class="gloss">
+<div class="verbete"><dt><span class="sw" style="background:#16a34a"></span>Em estoque (Guardados)</dt><dd>Disponível na prateleira da TI, pronto para entrega.</dd></div>
+<div class="verbete"><dt><span class="sw" style="background:#6d28d9"></span>Reservado</dt><dd>Separado para um colaborador, aguardando a entrega.</dd></div>
+<div class="verbete"><dt><span class="sw" style="background:#2a78d6"></span>Em uso</dt><dd>Entregue e em uso por um colaborador ou setor.</dd></div>
+<div class="verbete"><dt><span class="sw" style="background:#06b6d4"></span>Emprestado</dt><dd>Cedido em caráter temporário — espera-se a devolução.</dd></div>
+<div class="verbete"><dt><span class="sw" style="background:#db2777"></span>Em triagem</dt><dd>Devolvido, aguardando conferência antes de voltar ao estoque.</dd></div>
+<div class="verbete"><dt><span class="sw" style="background:#d97706"></span>Em manutenção</dt><dd>Em conserto ou assistência técnica.</dd></div>
+<div class="verbete"><dt><span class="sw" style="background:#9ca3af"></span>Reserva técnica (Defasado)</dt><dd>Obsoleto, em posse da WAP como reserva.</dd></div><div class="verbete"><dt><span class="chip-foto">foto de 10/08</span> × <span class="chip-per">01/08 – 10/08</span></dt>
+<dd>Cards com o chip cinza mostram a FOTO do estoque no último dia; com o chip azul, o que ACONTECEU dentro do período (RV-04).</dd></div>
+    </dl></div>
+  </section>
+
+  <div class="notas">
+    <strong>O que este protótipo demonstra</strong> (mapa achado → onde olhar): <strong>RV-01</strong> acento de cor nos tiles + swatches no glossário · <strong>RV-02</strong> paleta de status corrigida (triagem = rosa; validada contra daltonismo por script) · <strong>RV-03</strong> respiro de 2px entre segmentos e pares · <strong>RV-04</strong> chips “foto de …” × “período” em todo card · <strong>RV-05</strong> fim de semana atenuado e “hoje, parcial” na série · <strong>RV-06</strong> card “Evolução do estoque” · <strong>RV-07</strong> barra única “Acervo por situação” · <strong>RV-08</strong> % nos motivos · <strong>RV-09</strong> medidor estoque×mínimo · <strong>RV-12</strong> clique em motivo/segmento filtra a tabela (teste: clique numa barra de “Saídas por motivo”) · <strong>RV-13/14</strong> chips-âncora com contagem e seção ativa ao rolar · <strong>RV-16</strong> “atualizado às 10:42” no topo · <strong>RV-19</strong> ícones de grupo + resumo de risco da manutenção · <strong>RV-22</strong> números grandes sem tabular-nums.
+    Interações do app real que aqui são simuladas: tooltips (passe o mouse em qualquer barra/segmento/tile), filtro por clique, scroll-spy. Dados 100% fictícios.
+  </div>
+</main>
+<div id="tip"></div>
+<script>
+  // tooltip global (mesmo padrão do mockup F3)
+  const tip = document.getElementById('tip');
+  document.querySelectorAll('[data-tip]').forEach(el => {
+    el.addEventListener('mousemove', e => {
+      tip.textContent = el.dataset.tip;
+      tip.style.left = Math.min(e.clientX + 14, innerWidth - 290) + 'px';
+      tip.style.top = (e.clientY + 14) + 'px';
+      tip.style.opacity = 1;
+    });
+    el.addEventListener('mouseleave', () => tip.style.opacity = 0);
+  });
+
+  // RV-13 — scroll-spy dos chips-âncora
+  const chips = [...document.querySelectorAll('.anc')];
+  const alvos = chips.map(c => document.querySelector(c.getAttribute('href'))).filter(Boolean);
+  const marcar = id => chips.forEach(c => c.classList.toggle('on', c.getAttribute('href') === '#' + id));
+  const io = new IntersectionObserver(en => {
+    const vis = en.filter(e => e.isIntersecting).sort((a,b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    if (vis.length) marcar(vis[0].target.id);
+  }, { rootMargin:'-15% 0px -70% 0px' });
+  alvos.forEach(a => io.observe(a));
+
+  // RV-12 — clique numa barra de motivo filtra a tabela de saídas
+  function filtrarMotivo(motivo, alvo) {
+    document.querySelectorAll('#tab-saidas tbody tr').forEach(tr =>
+      tr.classList.toggle('some', tr.dataset.motivo !== motivo));
+    document.getElementById('filtro-nome').textContent = motivo;
+    document.getElementById('filtro-chip').classList.add('on');
+    document.getElementById(alvo).scrollIntoView({ behavior:'smooth' });
+  }
+  function limparFiltro() {
+    document.querySelectorAll('#tab-saidas tbody tr').forEach(tr => tr.classList.remove('some'));
+    document.getElementById('filtro-chip').classList.remove('on');
+  }
+</script>
+</body>
+</html>
