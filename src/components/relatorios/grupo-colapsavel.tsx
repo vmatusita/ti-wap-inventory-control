@@ -1,8 +1,32 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, type LucideIcon } from 'lucide-react'
+import { Cable, ChevronDown, Cpu, LaptopMinimal, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// F32/RV-19a — o ícone entra por CHAVE (string), não pelo componente lucide.
+//
+// A primeira versão recebia `icone?: LucideIcon` e o corpo do relatório passava
+// `icone={LaptopMinimal}`. Compilou, passou no `tsc`, passou no `eslint` e
+// passou no `next build` — e derrubava a rota com HTTP 500 no primeiro request:
+// `corpo-relatorio-v2.tsx` é Server Component e este arquivo é `'use client'`,
+// e função NÃO atravessa a fronteira RSC ("Functions cannot be passed directly
+// to Client Components"). Um componente React é uma função.
+//
+// Só o navegador pegou. A lição, registrada aqui porque o próximo a acrescentar
+// uma prop neste arquivo corre o mesmo risco: **prop de Client Component tem de
+// ser serializável** — string, número, objeto simples. O mapa mora do lado do
+// cliente, e a fronteira só atravessa a chave.
+export type IconeGrupo = 'principais' | 'acessorios' | 'componentes'
+
+const ICONE: Record<IconeGrupo, LucideIcon> = {
+  // Genéricos de propósito: cada grupo abriga várias categorias, e um glifo
+  // específico (Monitor, Headphones, MemoryStick) sugeriria que o grupo é só
+  // aquilo. Nenhum deles colide com os ícones da sidebar.
+  principais: LaptopMinimal,
+  acessorios: Cable,
+  componentes: Cpu,
+}
 
 // Seção de grupo recolhível no MOBILE (§3.7): grupos fechados por padrão em
 // <768px, exceto o primeiro. No desktop (md+) sempre expandido (md:block); na
@@ -19,19 +43,20 @@ export function GrupoColapsavel({
   // GRUPO (nunca do `CardRelatorio` das tabelas), por isso mora aqui e não
   // vira prop genérica de título. Opcional e decorativo: sem ele, o cabeçalho
   // é bit-a-bit o de antes.
-  icone: Icone,
+  icone,
   sempreAberto = false,
   children,
 }: {
   id: string
   titulo: string
   descricao?: string
-  icone?: LucideIcon
+  icone?: IconeGrupo
   sempreAberto?: boolean
   children: React.ReactNode
 }) {
   const [aberto, setAberto] = useState(sempreAberto)
   const conteudoId = `${id}-conteudo`
+  const Icone = icone ? ICONE[icone] : null
 
   // F29/REL-09b — no celular os grupos nascem FECHADOS, e o chip-âncora rolava até
   // um título com o corpo escondido: o clique parecia não fazer nada. Abrir quando o

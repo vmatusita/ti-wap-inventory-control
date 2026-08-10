@@ -251,7 +251,7 @@ export function BarrasEmpilhadas({
           hover"): mesmo texto-guia de barras-horizontais.tsx, só existe quando
           `recorteFilial` existe — sem a prop, o card renderiza como hoje. */}
       {recorteFilial && (
-        <p className="pt-1 text-xs text-muted-foreground">
+        <p className="pt-1 text-xs text-muted-foreground print:hidden">
           Clique num segmento para ver esses ativos na lista.
         </p>
       )}

@@ -1,4 +1,3 @@
-import { Cable, Cpu, Laptop2 } from 'lucide-react'
 import { GRUPO_ITEM_META } from '@/lib/dominio'
 import { formatDate } from '@/lib/format'
 import { achatarDisponiveis } from '@/lib/relatorios/resumo'
@@ -8,7 +7,7 @@ import { resumoRiscoManutencao } from '@/lib/relatorios/resumo-manutencao'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
 import { BarraAcervo } from '@/components/relatorios/barra-acervo'
 import { SerieEstadoGrafico } from '@/components/relatorios/serie-estado-grafico'
-import { PREFIXO_FILTROS } from '@/components/relatorios/use-filtros-tabela'
+import { PREFIXO_FILTROS } from '@/lib/relatorios/prefixos-tabela'
 import { KpiTiles, GrupoKpis, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { GraficoMovSerie } from '@/components/relatorios/grafico-mov-serie'
 import { BarrasHorizontais } from '@/components/relatorios/barras-horizontais'
@@ -148,14 +147,15 @@ export function CorpoRelatorioV2({
       {/* 2. GRUPO — Equipamentos principais */}
       {/* F32/RV-19a — o ícone dá três marcos na rolagem de uma página longa, onde
           título de grupo e título de tabela eram tipograficamente idênticos.
-          `Laptop2`/`Cable`/`Cpu` são genéricos de propósito: cada grupo abriga
-          várias categorias, e um glifo específico (Monitor, Headphones,
-          MemoryStick) sugeriria que o grupo é só aquilo. */}
+          Passa-se a CHAVE, não o componente lucide: este arquivo é Server
+          Component e `GrupoColapsavel` é `'use client'` — função não atravessa a
+          fronteira RSC, e a primeira versão (que passava o ícone) derrubava a
+          rota com 500 sem que lint, tsc ou build reclamassem. */}
       <GrupoColapsavel
         id="principais"
         titulo="Equipamentos principais"
         descricao="notebooks, desktops, monitores, celulares, tablets"
-        icone={Laptop2}
+        icone="principais"
         sempreAberto
       >
         <GrupoKpis
@@ -292,7 +292,7 @@ export function CorpoRelatorioV2({
           id="acessorios"
           titulo={GRUPO_ITEM_META.acessorio.titulo}
           descricao="fone, mochila, teclado, mouse, hub, carregadores…"
-          icone={Cable}
+          icone="acessorios"
         >
           <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
             <CardRelatorio
@@ -322,7 +322,7 @@ export function CorpoRelatorioV2({
           id="componentes"
           titulo={GRUPO_ITEM_META.componente.titulo}
           descricao="SSD, memórias por DDR e tamanho…"
-          icone={Cpu}
+          icone="componentes"
         >
           <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
             <CardRelatorio

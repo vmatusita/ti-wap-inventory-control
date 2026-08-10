@@ -19,7 +19,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import { useEstreito } from '@/components/relatorios/use-estreito'
-import { PREFIXO_FILTROS } from '@/components/relatorios/use-filtros-tabela'
+import { PREFIXO_FILTROS } from '@/lib/relatorios/prefixos-tabela'
 import { rotuloComPercentual } from '@/lib/relatorios/percentual'
 import { rotuloCliqueMotivo, urlFiltroMotivo } from '@/lib/relatorios/cliques-grafico'
 
@@ -232,7 +232,7 @@ export function BarrasHorizontais({
           do mesmo aviso que quem passa o cursor sobre uma barra e vê o cursor
           virar ponteiro. Só existe quando `filtroTabela` existe. */}
       {filtroTabela && (
-        <p className="pt-1 text-xs text-muted-foreground">
+        <p className="pt-1 text-xs text-muted-foreground print:hidden">
           Clique numa barra para filtrar {destino === 'saidas' ? 'as Saídas' : 'as Entradas'} por
           este motivo.
         </p>

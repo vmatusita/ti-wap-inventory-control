@@ -35,23 +35,15 @@ const RESUMO_LIMITE = 12
 
 export type CampoFiltro = 'filial' | 'categoria' | 'motivo' | 'tipo'
 
-// Prefixo de param por tabela — curto, estável e sem colisão entre as tabelas
-// (duas filtradas ao mesmo tempo não se atropelam) nem com os params da página
-// (`preset`/`de`/`ate`). Param final: `<prefixo>.<campo>`, valor = `Opcao.valor`;
-// param ausente = "todas". Ex.: `?preset=mes&sd.motivo=Troca&en.categoria=celular`.
-// A busca livre (F16/T3) usa o mesmo prefixo com o sufixo `.q`: `?sd.q=wap0001234`.
-//   sd = Saídas · en = Entradas · mv = Últimas movimentações (grade v1)
-//   tr = Transferências · mi = Movimentações de itens (F16/T3 — busca livre)
-// NÃO renomeie: link antigo colado por aí deixaria de reproduzir o filtro.
-export const PREFIXO_FILTROS = {
-  saidas: 'sd',
-  entradas: 'en',
-  movimentacoes: 'mv',
-  transferencias: 'tr',
-  movItens: 'mi',
-} as const
-
-export type PrefixoFiltros = (typeof PREFIXO_FILTROS)[keyof typeof PREFIXO_FILTROS]
+// Os prefixos MUDARAM DE CASA na F32 (`lib/relatorios/prefixos-tabela.ts`) e são
+// reexportados daqui para os consumidores antigos não mudarem uma linha.
+//
+// ⚠ NÃO os traga de volta para este arquivo. Ele é `'use client'`; um Server
+// Component que importe daqui recebe uma REFERÊNCIA de cliente, e ler
+// `PREFIXO_FILTROS.saidas` do servidor devolve `undefined` — sem erro de tipo,
+// sem erro de build, sem aviso. O motivo completo está no módulo novo.
+import { type PrefixoFiltros } from '@/lib/relatorios/prefixos-tabela'
+export { PREFIXO_FILTROS, type PrefixoFiltros } from '@/lib/relatorios/prefixos-tabela'
 
 // Todos os campos existentes — usado para varrer a query (ler/limpar) sem
 // depender de quais campos a tabela mostra agora.
