@@ -79,16 +79,31 @@ export function marcarTodosDaPagina(
  * O estado do checkbox do cabeçalho. `'indeterminate'` é o valor que o Checkbox
  * do shadcn entende — parcial precisa ser visível, senão o operador não sabe se
  * clicar vai marcar ou desmarcar.
+ *
+ * ⚠ O TETO ENTRA NA CONTA, e essa é a parte não-óbvia. Numa página de 100 linhas
+ * "marcar todos" marca 30 e para: `marcados === idsDaPagina.length` NUNCA é
+ * verdade, e a caixa ficava eternamente 'indeterminate'. O Radix devolve `true`
+ * no clique seguinte de uma caixa indeterminada — então o 2º clique chamava
+ * `marcarTodosDaPagina(…, true)`, que não tinha o que acrescentar (teto cheio),
+ * e a seleção em massa não se desfazia por gesto nenhum do cabeçalho: só uma a
+ * uma ou por "Limpar seleção". Defeito relatado em produção (F30/ATV-03).
+ *
+ * Com o teto cheio a caixa lê `true` — "não cabe mais nada desta página" é o
+ * mesmo estado prático de "está tudo marcado", e é ele que faz o próximo clique
+ * chegar como `false` e LIMPAR. Marcação parcial abaixo do teto continua
+ * 'indeterminate' (ainda cabe mais, e o clique deve completar).
  */
 export function estadoDoCabecalho(
   selecionados: ReadonlySet<string>,
   idsDaPagina: readonly string[],
+  teto: number = MAX_SELECAO,
 ): boolean | 'indeterminate' {
   if (idsDaPagina.length === 0) return false
   let marcados = 0
   for (const id of idsDaPagina) if (selecionados.has(id)) marcados++
   if (marcados === 0) return false
-  return marcados === idsDaPagina.length ? true : 'indeterminate'
+  if (marcados === idsDaPagina.length) return true
+  return marcados >= teto ? true : 'indeterminate'
 }
 
 /**

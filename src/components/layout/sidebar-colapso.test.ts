@@ -33,15 +33,32 @@ describe('o estado recolhido é CSS, e o CSS tem todos os ganchos', () => {
     expect(bloco).not.toContain('@media print')
   })
 
+  // Sem os comentários: eles CITAM os ganchos entre crases (é a documentação do
+  // porquê de cada regra), e um `indexOf` cru acharia a menção antes do seletor
+  // — a sonda passaria a medir a prosa, não o CSS.
+  const regras = bloco.replace(/\/\*[\s\S]*?\*\//g, '')
+
   it.each([
     ['[data-sidebar-lateral]', 'width: 4rem'],
     ['[data-sidebar-rotulo]', 'display: none'],
     ['[data-sidebar-item]', 'justify-content: center'],
-    ['[data-sidebar-selo]', 'position: absolute'],
+    // O item COM selo empilha (ícone em cima, contagem embaixo). Era
+    // `position: absolute` no selo, e ali ele cobria o próprio ícone em 40px de
+    // largura útil — ver o comentário longo no globals.css.
+    ['[data-sidebar-com-selo]', 'flex-direction: column'],
+    ['[data-sidebar-selo]', 'font-size: 10px'],
   ])('%s recebe %s', (gancho, regra) => {
-    const i = bloco.indexOf(gancho)
+    const i = regras.indexOf(gancho)
     expect(i, `gancho sem regra no globals.css: ${gancho}`).toBeGreaterThanOrEqual(0)
-    expect(bloco.slice(i, i + 260)).toContain(regra)
+    expect(regras.slice(i, i + 260)).toContain(regra)
+  })
+
+  // A regressão que motivou o empilhamento: enquanto o selo era absoluto no
+  // canto do item, ele COLIDIA com o glifo (badge de 18px+ sobre um ícone de
+  // 16px num item de 40px). Voltar a `position: absolute` aqui é voltar ao
+  // defeito relatado em produção.
+  it('o selo não volta a ser posicionado por cima do ícone', () => {
+    expect(regras).not.toContain('position: absolute')
   })
 
   // A revisão adversarial da F30 pegou exatamente isto: as três regras de
@@ -69,6 +86,7 @@ describe('o estado recolhido é CSS, e o CSS tem todos os ganchos', () => {
     ['data-sidebar-rotulo', NAV],
     ['data-sidebar-item', NAV],
     ['data-sidebar-selo', NAV],
+    ['data-sidebar-com-selo', NAV],
   ])('o gancho %s é escrito no componente', (gancho, src) => {
     expect(src).toContain(gancho)
   })

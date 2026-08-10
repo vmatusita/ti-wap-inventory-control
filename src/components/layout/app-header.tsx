@@ -123,13 +123,22 @@ export function AppHeader({
               variant="ghost"
               onClick={abrirPaleta}
               aria-label="Buscar ativos e comandos (Ctrl K)"
-              className="hidden h-8 w-64 justify-start gap-2 border border-white/20 bg-white/5 px-2.5 font-normal text-white/70 hover:bg-white/10 hover:text-white sm:flex"
+              className="hidden h-8 w-64 justify-start gap-2 border border-white/20 bg-white/5 px-2.5 font-normal text-white/70 hover:bg-white/10 hover:text-white sm:flex md:w-72"
             >
               <Search className="size-4 shrink-0" aria-hidden />
-              <span aria-hidden>Buscar ativo, tela ou ação…</span>
+              {/* `min-w-0 flex-1 truncate`: o `Button` é `whitespace-nowrap` e não
+                  recorta nada, então sem isto o conteúdo (16 + 8 + ~170 + 8 + ~43
+                  ≈ 245px) estourava os ~234px úteis de um `w-64` e o `kbd` saía
+                  POR CIMA da borda direita, encostando no CTA ao lado. Quem cede
+                  espaço é o texto (que tem reticências e é `aria-hidden` — o nome
+                  acessível está no `aria-label` do botão), nunca o selo do
+                  atalho. O `md:w-72` devolve a frase inteira onde ela cabe. */}
+              <span aria-hidden className="min-w-0 flex-1 truncate text-left">
+                Buscar ativo, tela ou ação…
+              </span>
               <kbd
                 aria-hidden
-                className="ml-auto rounded border border-white/25 bg-white/10 px-1 text-[10px] font-semibold text-white"
+                className="shrink-0 rounded border border-white/25 bg-white/10 px-1 text-[10px] font-semibold text-white"
               >
                 Ctrl K
               </kbd>

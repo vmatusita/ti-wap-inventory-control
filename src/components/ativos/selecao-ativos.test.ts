@@ -128,6 +128,41 @@ describe('estadoDoCabecalho', () => {
     // 3 marcados, mas nenhum é desta página: o cabeçalho tem de dizer "vazio".
     expect(estadoDoCabecalho(new Set(ids(3, 90)), ids(3))).toBe(false)
   })
+
+  // O defeito relatado em produção: página de 100 com o teto de 30 marcados.
+  // Enquanto isto lia 'indeterminate', o Radix mandava `true` no clique
+  // seguinte, `marcarTodosDaPagina` não tinha o que acrescentar e a seleção em
+  // massa não se desfazia pelo cabeçalho — só uma a uma.
+  it('teto cheio lê CHEIO, não parcial — é o que faz o 2º clique limpar', () => {
+    const pagina = ids(100)
+    const marcados = new Set(pagina.slice(0, MAX_SELECAO))
+    expect(estadoDoCabecalho(marcados, pagina)).toBe(true)
+  })
+
+  it('o ciclo completo do cabeçalho numa página maior que o teto', () => {
+    const pagina = ids(100)
+    expect(estadoDoCabecalho(new Set(), pagina)).toBe(false) // 1º clique: marca
+
+    const depoisDoPrimeiro = marcarTodosDaPagina(new Set(), pagina, true)
+    expect(depoisDoPrimeiro.proxima.size).toBe(MAX_SELECAO)
+    expect(estadoDoCabecalho(depoisDoPrimeiro.proxima, pagina)).toBe(true) // 2º clique: limpa
+
+    const depoisDoSegundo = marcarTodosDaPagina(depoisDoPrimeiro.proxima, pagina, false)
+    expect(depoisDoSegundo.proxima.size).toBe(0)
+    expect(estadoDoCabecalho(depoisDoSegundo.proxima, pagina)).toBe(false)
+  })
+
+  it('parcial ABAIXO do teto continua indeterminado (ainda cabe mais)', () => {
+    const pagina = ids(100)
+    const marcados = new Set(pagina.slice(0, MAX_SELECAO - 1))
+    expect(estadoDoCabecalho(marcados, pagina)).toBe('indeterminate')
+  })
+
+  it('página menor que o teto não muda de comportamento', () => {
+    const pagina = ids(10)
+    expect(estadoDoCabecalho(new Set(pagina.slice(0, 4)), pagina)).toBe('indeterminate')
+    expect(estadoDoCabecalho(new Set(pagina), pagina)).toBe(true)
+  })
 })
 
 describe('podarForaDaPagina', () => {

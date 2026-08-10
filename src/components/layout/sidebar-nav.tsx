@@ -176,10 +176,14 @@ export function SidebarNav({
             // condicional à contagem e vale sempre.
             aria-label={descricao}
             data-sidebar-item=""
+            // O gancho que o CSS do modo ícone precisa para EMPILHAR este item
+            // (ícone em cima, contagem embaixo). Só o item que tem selo muda de
+            // eixo; os outros continuam a linha de sempre. Vem do servidor junto
+            // com a contagem, então não há salto entre pintura e hidratação —
+            // mesma disciplina do resto do bloco `data-sidebar` no globals.css.
+            data-sidebar-com-selo={contagem ? '' : undefined}
             className={cn(
-              // `relative` sustenta o selo de pendências no modo ícone, onde ele
-              // vira um badge posicionado sobre o canto (regra no globals.css).
-              'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               separador && 'mt-1 border-t pt-3',
               atual
                 ? 'bg-accent text-accent-foreground'

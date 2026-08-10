@@ -211,17 +211,39 @@
   padding-inline: 0;
 }
 /* O selo de pendências CONTINUA visível recolhida — é a razão de o operador
-   olhar para a sidebar. Sem rótulo ao lado, ele sobe para o canto do ícone. */
+   olhar para a sidebar.
+
+   O QUE MUDOU e por quê: ele era `position: absolute` no canto do item, e ali
+   ele COLIDIA com o próprio ícone. A conta: aside `w-16` (64px) − `p-3` dos dois
+   lados = 40px de item; o ícone `size-4` centralizado ocupa x 12–28 / y 8–24 e o
+   selo (`right: .125rem`, largura mínima 18px) ocupava x 20–38 / y 2–18 — 8×10px
+   de sobreposição direta sobre o glifo. E como o `Badge variant="warning"` tem
+   fundo TRANSLÚCIDO (`bg-warning/10`), o ícone atravessava o número em vez de
+   ficar atrás dele; com 3 dígitos o badge alarga e cobre quase o ícone inteiro.
+   Defeito relatado em produção.
+
+   A correção é de EIXO, não de deslocamento: o item que tem selo empilha —
+   ícone em cima, contagem embaixo. Em 40px não cabe badge ao lado do ícone, e
+   qualquer reposicionamento no canto continuaria sobre o glifo. Só o item COM
+   selo muda (`[data-sidebar-com-selo]`, escrito no servidor por sidebar-nav.tsx);
+   os demais seguem a linha de sempre. */
+:root[data-sidebar='recolhida']
+  [data-sidebar-lateral]
+  [data-sidebar-item][data-sidebar-com-selo] {
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-block: 0.375rem;
+}
 :root[data-sidebar='recolhida'] [data-sidebar-lateral] [data-sidebar-selo] {
-  position: absolute;
-  top: 0.125rem;
-  right: 0.125rem;
   margin-left: 0;
-  min-width: 1.125rem;
+  height: auto;
+  min-width: 0;
+  max-width: 100%;
   justify-content: center;
+  padding-block: 0;
   padding-inline: 0.25rem;
   font-size: 10px;
-  line-height: 1rem;
+  line-height: 0.875rem;
 }
 
 /* Impressão dos relatórios (OS-F3 3.5.2 / F3B 3.7): cards em coluna única, sem
