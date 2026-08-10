@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { linksKpiAtivos } from './kpi-links'
+import { linksKpiAtivos, recorteFilialAtivos } from './kpi-links'
 
 describe('linksKpiAtivos', () => {
   // F25 — o consolidado passou a declarar `&filial=todas` EXPLICITAMENTE. Antes
@@ -50,5 +50,26 @@ describe('linksKpiAtivos', () => {
         'total',
       ].sort(),
     )
+  })
+})
+
+// F32/RV-12 — `recorteFilialAtivos` é o pedaço extraído de `linksKpiAtivos` que
+// `urlAtivosPorSegmento` (cliques-grafico.ts) reusa para o clique nos segmentos
+// das barras empilhadas. Mesma sentinela, mesma razão (ver o comentário acima
+// de `linksKpiAtivos` em kpi-links.ts): sem ela o consolidado "esqueceria" de
+// declarar `&filial=todas` e o clique cairia no padrão do CARGO, não no total
+// que o segmento mostrou.
+describe('recorteFilialAtivos', () => {
+  it('consolidado (null): devolve a sentinela &filial=todas', () => {
+    expect(recorteFilialAtivos(null)).toBe('&filial=todas')
+  })
+
+  it('filial específica: devolve &filial=<id>', () => {
+    expect(recorteFilialAtivos(7)).toBe('&filial=7')
+  })
+
+  it('linksKpiAtivos usa exatamente o que recorteFilialAtivos devolve', () => {
+    const l = linksKpiAtivos(3)
+    expect(l.em_uso).toBe(`/ativos?status=em_uso${recorteFilialAtivos(3)}`)
   })
 })

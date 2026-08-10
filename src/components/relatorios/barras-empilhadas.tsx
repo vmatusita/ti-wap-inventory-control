@@ -1,6 +1,7 @@
 'use client'
 
-import { Bar, BarChart, LabelList, XAxis, YAxis } from 'recharts'
+import { useRouter } from 'next/navigation'
+import { Bar, BarChart, LabelList, Rectangle, XAxis, YAxis, type BarShapeProps } from 'recharts'
 import {
   ChartContainer,
   ChartTooltip,
@@ -12,9 +13,11 @@ import {
   STATUS_ORDEM,
   rotuloCategoria,
   rotuloStatus,
+  type CategoriaAtivo,
   type StatusAtivo,
 } from '@/lib/dominio'
 import { deveRotularSegmento, fillRotuloSegmento } from '@/lib/relatorios/rotulo-grafico'
+import { rotuloCliqueSegmento, urlAtivosPorSegmento } from '@/lib/relatorios/cliques-grafico'
 import type { EstoqueCatStatus } from '@/lib/relatorios/tipos'
 
 // Estoque no último dia por categoria × status (§4.1): barras horizontais
@@ -52,7 +55,18 @@ function LinhaTooltip({
   )
 }
 
-export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
+export function BarrasEmpilhadas({
+  dados,
+  recorteFilial,
+}: {
+  dados: EstoqueCatStatus[]
+  // F32/RV-12 — opcional e SERIALIZÁVEL (o chamador é Server Component): o
+  // fragmento pronto de `recorteFilialAtivos` (kpi-links.ts), a mesma
+  // sentinela `&filial=todas`/`&filial=<id>` que os KPI tiles já usam.
+  // Ausente = nenhum segmento vira alvo de clique — snapshot e viewer, que
+  // nunca recebem a prop, renderizam exatamente como hoje.
+  recorteFilial?: string
+}) {
   // Status presentes em qualquer categoria (na ordem canônica), p/ as séries.
   const presentes = STATUS_ORDEM.filter(
     (s) =>
@@ -64,6 +78,12 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
   const data = dados.map((d) => {
     const row: Record<string, number | string> = {
       categoria: rotuloCategoria(d.categoria),
+      // F32/RV-12 — a chave CRUA junto do rótulo: `/ativos?categoria=` espera o
+      // valor do enum ("notebook"), não o rótulo em pt-BR ("Notebook") que a
+      // linha já guarda para o eixo Y. Sem isto, a URL do clique carregaria
+      // "categoria=Notebook" e `/ativos` (case-sensitive) IGNORARIA o filtro
+      // em silêncio — achado que só apareceria testando o link, não o tipo.
+      categoriaChave: d.categoria,
       total: d.total,
     }
     for (const s of presentes) {
@@ -85,6 +105,40 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
   const rotuloSegmento = (v: unknown): string => {
     const n = Number(v)
     return deveRotularSegmento(n, maxTotal) ? String(n) : ''
+  }
+
+  const router = useRouter()
+
+  // F32/RV-12 — alvo clicável por SEGMENTO via `shape` (mesmo caminho de
+  // barras-horizontais.tsx e de grafico-mov-serie.tsx — `<Cell>` está
+  // DEPRECIADO no Recharts v3). Uma fábrica por `status` porque cada `<Bar>`
+  // do loop abaixo é UMA série (um status) espalhada por todas as categorias;
+  // `props.payload` é a LINHA inteira (`data[i]`, com todos os status +
+  // `categoriaChave` + `total`), então o valor DESTE segmento é
+  // `payload[status]`, não `payload.total`.
+  //
+  // Segmento de valor zero não é alvo de clique (não há o que ver do outro
+  // lado — instrução da ordem) nem sem `recorteFilial`: as duas condições
+  // caem no MESMO retorno do `<Bar>` sem `shape`, então o segmento zero e o
+  // caminho sem a prop renderizam pixel a pixel como hoje.
+  function formaSegmentoClicavel(status: StatusAtivo) {
+    // Nome próprio (não anônima): `react/display-name` marca função retornada
+    // que devolve JSX sem nome como "componente sem display name".
+    return function Segmento(props: BarShapeProps) {
+      const linha = props.payload as Record<string, number | string> | undefined
+      const valor = linha ? Number(linha[status]) : 0
+      if (!recorteFilial || !linha || !(valor > 0)) return <Rectangle {...props} />
+      const categoria = linha.categoriaChave as CategoriaAtivo
+      return (
+        <Rectangle
+          {...props}
+          role="button"
+          aria-label={rotuloCliqueSegmento(status, categoria, valor)}
+          cursor="pointer"
+          onClick={() => router.push(urlAtivosPorSegmento(status, categoria, recorteFilial))}
+        />
+      )
+    }
   }
 
   // F32/RV-23 — o total da categoria só existia no rótulo da ponta da barra; no
@@ -164,6 +218,7 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
                  matiz nenhum sobrevive. `var(--card)` acompanha o tema. */
               stroke="var(--card)"
               strokeWidth={2}
+              shape={formaSegmentoClicavel(s)}
             >
               {/* F19 — o rótulo era branco fixo a 10px e reprovava o mínimo de
                   4,5:1 em quase todo segmento. Agora sai branco ou preto, o que
@@ -192,6 +247,14 @@ export function BarrasEmpilhadas({ dados }: { dados: EstoqueCatStatus[] }) {
           ))}
         </BarChart>
       </ChartContainer>
+      {/* F32/RV-12 — afordância PERSISTENTE (a régua da fase é "nada novo só em
+          hover"): mesmo texto-guia de barras-horizontais.tsx, só existe quando
+          `recorteFilial` existe — sem a prop, o card renderiza como hoje. */}
+      {recorteFilial && (
+        <p className="pt-1 text-xs text-muted-foreground">
+          Clique num segmento para ver esses ativos na lista.
+        </p>
+      )}
     </div>
   )
 }

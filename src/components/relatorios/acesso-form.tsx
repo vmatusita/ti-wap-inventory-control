@@ -34,11 +34,14 @@ export function AcessoForm({ next }: { next: string }) {
             <input type="hidden" name="next" value={next} />
             <div className="space-y-2">
               <Label htmlFor="senha">Senha de acesso</Label>
+              {/* current-password (não "off"): senha de longa vida, sessão de 24h — o
+                  gestor redigitava de memória todo dia porque o gerenciador de senhas
+                  não oferecia guardar (RV-18, docs/ANALISE-RELATORIOS-2026-08-10.md §2). */}
               <Input
                 id="senha"
                 name="senha"
                 type="password"
-                autoComplete="off"
+                autoComplete="current-password"
                 autoFocus
                 required
               />
@@ -51,6 +54,9 @@ export function AcessoForm({ next }: { next: string }) {
               <a href="/login" className="underline underline-offset-2">
                 Entrar com sua conta
               </a>
+            </p>
+            <p className="text-center text-xs text-muted-foreground">
+              Não tem a senha? Peça à TI da WAP.
             </p>
           </form>
         </div>

@@ -45,6 +45,13 @@ function arquivosDaSuperficie(): string[] {
 // `href="/x"`, `href={'/x'}` e `href={`/x/${id}`}` — só os LITERAIS, que é o que dá
 // para conferir estaticamente. Href vindo de variável entra na lista de exceções
 // abaixo, com o motivo.
+//
+// O varredor NÃO tira comentários antes de procurar, e isso é deliberado: para
+// tirá-los seria preciso decidir onde um `//` é comentário e onde é o começo de
+// `"//evil.com"` dentro de uma string — errar nessa conta ESCONDERIA um vazamento
+// real. Um tripwire pode dar falso positivo (alguém escreveu um exemplo num
+// comentário, o teste fica vermelho e a pessoa reescreve a frase); não pode dar
+// falso negativo. A F32 pagou uma rodada vermelha por isso, em viewer-nav.tsx.
 const RE_HREF = /href=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/g
 
 function hrefsLiterais(fonte: string): string[] {
@@ -154,5 +161,86 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
     )
     expect(snapshot).not.toContain('links=')
     expect(snapshot).not.toContain('linksKpiAtivos')
+  })
+
+  // ===========================================================================
+  // F32 — as duas CATEGORIAS NOVAS de saída que o varredor de href não enxerga.
+  // ===========================================================================
+
+  // RV-12b abriu a primeira: clicar num segmento das barras empilhadas navega
+  // para `/ativos?…` por `router.push()`, uma chamada de FUNÇÃO. Não existe
+  // `href` nenhum para o regex achar — é uma classe de vazamento que o tripwire
+  // original não cobria, e por isso ela ganha prova própria, no molde dos tiles.
+  it('o clique nos segmentos (RV-12) só é habilitado no ao vivo E para o operador', () => {
+    const aoVivo = readFileSync(
+      join(RAIZ, 'app', '(app)', 'relatorios', '[filial]', 'page.tsx'),
+      'utf8',
+    )
+    expect(aoVivo).toContain(
+      'const recorteFilial = ehOperador ? recorteFilialAtivos(filialId) : undefined',
+    )
+
+    const snapshot = readFileSync(
+      join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', '[id]', 'page.tsx'),
+      'utf8',
+    )
+    expect(snapshot).not.toContain('recorteFilial')
+    expect(snapshot).not.toContain('recorteFilialAtivos')
+
+    // Segunda trava, no consumidor: o corpo só repassa o recorte se `links`
+    // existir. Sem esta linha, passar `recorteFilial` por engano de uma rota
+    // futura bastaria para acender o clique — a guarda da página seria a única.
+    const corpo = readFileSync(
+      join(RAIZ, 'components', 'relatorios', 'corpo-relatorio-v2.tsx'),
+      'utf8',
+    )
+    expect(corpo).toContain('recorteFilial={links ? recorteFilial : undefined}')
+  })
+
+  // RV-17 abriu a segunda: o "Ao vivo" do header do viewer deixou de ser um
+  // literal e passou a sair de `sessionStorage` — que é editável pelo devtools.
+  // O varredor, que só lê literais, ficaria cego justamente onde o valor deixou
+  // de ser constante. A prova real é a função pura: ela não PODE devolver nada
+  // fora de /relatorios/**, e é isso que se exercita aqui, com entrada hostil.
+  it('o href memorizado do "Ao vivo" (RV-17) nunca sai de /relatorios/**', async () => {
+    const { hrefDoRelatorioVisitado } = await import(
+      '@/components/relatorios/relatorio-visitado'
+    )
+    const hostis: unknown[] = [
+      '../admin',
+      '../../login',
+      '//evil.com',
+      'https://evil.com',
+      'javascript:alert(1)',
+      '/ativos',
+      'geral?x=1',
+      'geral#frag',
+      'gerados',
+      'acesso',
+      'a'.repeat(500),
+      '',
+      123,
+      null,
+      undefined,
+      {},
+      [],
+    ]
+    for (const bruto of hostis) {
+      const href = hrefDoRelatorioVisitado(bruto)
+      expect(href.startsWith('/relatorios/'), `entrada ${String(bruto)} escapou: ${href}`).toBe(
+        true,
+      )
+      expect(/[:?#%\\]/.test(href), `entrada ${String(bruto)} passou caractere de escape`).toBe(
+        false,
+      )
+    }
+    // E o caminho feliz continua funcionando (a guarda não pode ser "recuse tudo").
+    expect(hrefDoRelatorioVisitado('matriz')).toBe('/relatorios/matriz')
+  })
+
+  it('o header do viewer continua tirando o href da função validada, não de um literal solto', () => {
+    const nav = readFileSync(join(RAIZ, 'components', 'layout', 'viewer-nav.tsx'), 'utf8')
+    expect(nav).toContain('@/components/relatorios/relatorio-visitado')
+    expect(nav).toContain('lerHrefAoVivo')
   })
 })

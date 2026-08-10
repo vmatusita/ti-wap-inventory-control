@@ -26,8 +26,21 @@ const STATUS_TOTAL = 'em_estoque,reservado,em_uso,emprestado,em_triagem,em_manut
 // lista recortada nas filiais dele — o número da tela deixaria de bater com o do
 // tile que ele acabou de clicar. A sentinela declara explicitamente o que o tile
 // promete.
+//
+// F32/RV-12 — extraído de dentro de `linksKpiAtivos` para virar o `recorteFilial`
+// que `urlAtivosPorSegmento` (cliques-grafico.ts) também precisa: o clique num
+// segmento das barras empilhadas monta a MESMA sentinela, e duplicá-la ali seria
+// o jeito de as duas um dia divergirem (uma corrigida, a outra esquecida — a
+// família de achados que `url-params.ts` documenta). `linksKpiAtivos` não mudou
+// de comportamento: só passou a chamar esta função em vez de montar o literal
+// inline (prova: os testes existentes de `kpi-links.test.ts` continuam passando
+// sem edição).
+export function recorteFilialAtivos(filialId: number | null): string {
+  return filialId != null ? `&filial=${filialId}` : '&filial=todas'
+}
+
 export function linksKpiAtivos(filialId: number | null): LinksKpi {
-  const filial = filialId != null ? `&filial=${filialId}` : '&filial=todas'
+  const filial = recorteFilialAtivos(filialId)
   return {
     total: `/ativos?status=${STATUS_TOTAL}${filial}`,
     em_uso: `/ativos?status=em_uso${filial}`,
