@@ -1,4 +1,5 @@
 import { GrupoColapsavel } from '@/components/relatorios/grupo-colapsavel'
+import { STATUS_CHART_COLOR } from '@/lib/dominio'
 import {
   LEGENDA_DELTA,
   LEGENDA_ESTORNO,
@@ -73,7 +74,23 @@ export function GlossarioRelatorio() {
       <dl className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
         {verbetes.map((v) => (
           <div key={v.termo} className="break-inside-avoid">
-            <dt className="text-sm font-semibold">{v.termo}</dt>
+            {/* F32/RV-01b — o glossário EXPLICAVA as cores sem mostrá-las: era o
+                único lugar da página que falava de todos os status e o único que
+                não os pintava. O `status?` do verbete já existia (legendas.ts)
+                justamente para travar a cobertura no teste; aqui ele passa a
+                pagar o swatch de 10px, na MESMA cor do tile, do segmento e da
+                barra do acervo. Decorativo (`aria-hidden`): quem carrega o
+                sentido é o termo escrito ao lado — a cor só o reencontra. */}
+            <dt className="flex items-center gap-2 text-sm font-semibold">
+              {v.status && (
+                <span
+                  aria-hidden
+                  className="size-2.5 shrink-0 rounded-[3px]"
+                  style={{ background: STATUS_CHART_COLOR[v.status] }}
+                />
+              )}
+              {v.termo}
+            </dt>
             <dd className="text-xs text-muted-foreground">{v.definicao}</dd>
           </div>
         ))}

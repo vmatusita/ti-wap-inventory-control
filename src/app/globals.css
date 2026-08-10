@@ -93,11 +93,20 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Escala categórica da casa (F32/RV-02+RV-21). Eram os cinzas de fábrica do
+     shadcn, que gráfico nenhum usava — os nossos vestiam brand + hex de status
+     direto. Ou seja: quem escrevesse `var(--chart-1)` "porque é o token" ganhava
+     uma série CINZA, e a régua não tinha onde morar. Agora o token É a escala:
+     azul da marca, amarelo da marca e os três matizes de status já medidos por
+     simulação de daltonismo (análise de 10/08 §4). Série nova usa TOKEN, não hex
+     avulso — ver docs/ARQUITETURA.md.
+     Valor único nos dois temas, como o resto dos gráficos: ΔE entre duas cores
+     não depende do fundo, e a impressão é sempre clara. */
+  --chart-1: var(--brand-azul);
+  --chart-2: var(--brand-amarelo);
+  --chart-3: #16a34a;
+  --chart-4: #6d28d9;
+  --chart-5: #db2777;
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -144,11 +153,14 @@
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    /* F32/RV-21 — a escala categórica é a MESMA nos dois temas (hex único, o
+       modelo vigente dos gráficos). Estas cinco linhas existem só para que o
+       `.dark` não reponha os cinzas de fábrica que estavam aqui. */
+    --chart-1: var(--brand-azul);
+    --chart-2: var(--brand-amarelo);
+    --chart-3: #16a34a;
+    --chart-4: #6d28d9;
+    --chart-5: #db2777;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     /* Espelha --primary do dark (neutro). Antes era um roxo herdado do preset

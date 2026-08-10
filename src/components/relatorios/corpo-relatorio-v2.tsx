@@ -2,7 +2,9 @@ import { GRUPO_ITEM_META } from '@/lib/dominio'
 import { formatDate } from '@/lib/format'
 import { achatarDisponiveis } from '@/lib/relatorios/resumo'
 import type { GranularidadeSerie, SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
+import { agregarAcervoPorSituacao } from '@/lib/relatorios/acervo'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
+import { BarraAcervo } from '@/components/relatorios/barra-acervo'
 import { KpiTiles, GrupoKpis, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { GraficoMovSerie } from '@/components/relatorios/grafico-mov-serie'
 import { BarrasHorizontais } from '@/components/relatorios/barras-horizontais'
@@ -60,6 +62,9 @@ export function CorpoRelatorioV2({
   const temMov = serie.pontos.some((p) => p.saidas > 0 || p.devolucoes > 0)
   const acessorios = s.grupos.find((g) => g.grupo === 'acessorio')
   const componentes = s.grupos.find((g) => g.grupo === 'componente')
+  // F32/RV-07 — derivado em memória do que o snapshot já tem. Vale igual no ao
+  // vivo e no snapshot v2 (inclusive nos gerados antes da F32).
+  const acervo = agregarAcervoPorSituacao(s.estoqueCatStatus)
 
   return (
     <div className="space-y-4">
@@ -80,6 +85,20 @@ export function CorpoRelatorioV2({
           sempre aparecem aqui; o dashboard e os snapshots v1 usam KpiTiles sem
           `anterior` (sem Δ) e não passam por este corpo. */}
       <LegendaDelta />
+
+      {/* 1b. O sumário de uma linha (F32/RV-07). Fica ENTRE os tiles e o resto
+          porque é exatamente o elo entre os dois: os tiles dizem quanto tem de
+          cada situação, esta barra mostra a proporção entre elas, e as empilhadas
+          logo abaixo repetem o mesmo vocabulário de cor por categoria. */}
+      <CardRelatorio
+        wide
+        titulo="Acervo por situação"
+        subtitulo={`${acervo.total.toLocaleString('pt-BR')} ativos no último dia do período`}
+        vazio={acervo.segmentos.length === 0}
+        vazioMsg="Sem ativos no acervo neste recorte."
+      >
+        <BarraAcervo acervo={acervo} />
+      </CardRelatorio>
 
       <CardRelatorio
         wide
