@@ -26,7 +26,7 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
       VIEW_SESSION_SECRET: placeholder-view-secret-para-ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           # Node 24 = LTS Ativo. Era 20, que saiu do suporte em abril/2026 e
@@ -91,7 +91,7 @@ jobs:
       SUPABASE_TELEMETRY_DISABLED: 1
       DO_NOT_TRACK: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: supabase/setup-cli@v1
         with:
           # VERSÃO FIXA, e não `latest` (24/07/2026: o CI do banco quebrou com
