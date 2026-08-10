@@ -5008,3 +5008,60 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   num lugar só (o `ci.yml`), e acrescentar um segundo lugar para dizer a mesma coisa é criar a
   chance de os dois divergirem.
 - **Reversível?** sim — é a troca de um número.
+
+## 2026-08-10 · F33 · O "suspeito nº 1" foi medido e não é o gargalo — `getClaims()` não entra
+
+- **Contexto:** a ordem da F33 aponta `await supabase.auth.getUser()` no `src/lib/supabase/proxy.ts`
+  como suspeito nº 1 do custo fixo de navegação, e sugere trocar por validação **local** de JWT
+  (`getClaims()`/JWKS) — "SÓ se a doc atual do `@supabase/ssr` confirmar o padrão E os claims
+  disponíveis sustentarem a régua B8".
+- **Medição:** o harness `scripts/perf/medir.mjs` mede `/login` duas vezes — **sem** cookie de
+  sessão (o proxy roda, mas `getUser()` não vai à rede porque não há sessão a validar) e **com**
+  cookie (mesma página, mesmo render, agora com a ida de rede). Mediana de 11 rodadas:
+  39,2 ms → 67,0 ms. **A ida de rede ao Auth custa ~28 ms por navegação**, contra TTFB de
+  1.000–1.400 ms nas rotas de operador: **~2%**.
+- **Decisão:** **não** trocar `getUser()` por `getClaims()`. Dois motivos independentes, cada um
+  suficiente:
+  1. O header do JWT deste projeto é `alg: HS256` (segredo simétrico legado). Lido no código do
+     SDK instalado (`@supabase/auth-js` 2.110.2, `GoTrueClient.js`), `getClaims()` só verifica
+     localmente quando a chave é **assimétrica**; com `HS*` ele cai no fallback `getUser()` de
+     rede — **o mesmo round-trip, com decode e validação a mais antes**. Seria igual ou pior.
+  2. O JWT **não carrega `last_sign_in_at`** (claims: `aal, amr, app_metadata, aud, email, exp,
+     iat, is_anonymous, iss, phone, role, session_id, sub, user_metadata`). `iat` muda a cada
+     refresh de token — que, pela regra vigente, **não** desloga dentro da janela — e `session_id`
+     não carrega timestamp. Validação local pura **não sustenta a régua B8**.
+- **Motivo:** migrar o projeto para chaves assimétricas é troca de **configuração do Auth de
+  produção**, fora de código e fora de migration, e ainda deixaria a B8 sem fonte para "quando a
+  sessão começou". Trocar o mecanismo de sessão de um sistema em produção diária para ganhar 28 ms
+  de 1.200 ms é péssima relação risco/prêmio. Régua da própria ordem: "Performance × qualquer
+  invariante (design, contagem, acesso, B8): o invariante vence, sempre."
+- **Reversível?** não se aplica — é um "não fazer". Se um dia o projeto migrar para chave
+  assimétrica por outro motivo, esta ata é o ponto de partida para reabrir a conta.
+
+## 2026-08-10 · F33 · As funções renderizavam em Washington com o banco em São Paulo — `vercel.json` fixa `gru1`
+
+- **Contexto:** fechado o baseline, os 1.000–1.400 ms de TTFB das rotas de operador não se
+  explicavam pelo middleware (28 ms, ata acima) nem pelo banco (`EXPLAIN` das queries mais quentes
+  dá 2–91 ms). O cabeçalho `x-vercel-id` de **todas** as rotas de operador em produção é
+  `gru1::iad1::…`: a requisição **entra** em `gru1` (São Paulo, onde o proxy roda — daí os 28 ms
+  baratos) mas o HTML é **renderizado** em `iad1` (Washington, DC). O Postgres está em
+  `sa-east-1` (São Paulo), confirmado por `get_project(pbtjcalbmepmrqzprusb).region`. Não existia
+  `vercel.json` no repositório, então a região das funções era a padrão do projeto.
+  Resultado: **toda ida ao banco saía de Washington, ia a São Paulo e voltava** — e o layout
+  `(app)` mais a página encadeiam de 8 a 10 dessas idas em sequência.
+- **Experimento de confirmação:** o baseline **local** (`next start`, build de produção, **mesmo
+  código**, **mesmo banco de produção**, servidor a ~16 ms do Postgres) responde 2,3× a 5,0× mais
+  rápido nas mesmas rotas com o mesmo harness — `/ativos/[id]` 1355 → 273 ms, `/` 1196 → 287 ms.
+  A única variável que muda é **onde o servidor está**.
+- **Decisão:** criar `vercel.json` com `{"regions": ["gru1"]}` — região padrão das funções passa a
+  ser São Paulo, ao lado do banco.
+- **Motivo:** é o item de maior ganho e menor risco da fase. Não muda um pixel, um texto, uma
+  contagem ou uma regra; não acrescenta dependência; não habilita recurso pago (região padrão não
+  tem sobretaxa, e a duração faturada tende a **cair**, porque a função passa menos tempo bloqueada
+  em I/O). Chave `regions` confirmada na doc atual da Vercel. Efeito colateral bem-vindo: o dado
+  brasileiro deixa de trafegar para os EUA a cada render.
+- **Como se prova:** harness completo contra produção antes e depois do deploy, e o `x-vercel-id`
+  deixando de trazer `iad1`.
+- **Como se derruba:** se o TTFB não cair, o arquivo sai no commit seguinte.
+- **Reversível?** sim — apagar `vercel.json` (ou trocar a região) e fazer deploy devolve o estado
+  anterior. Nenhum dado é tocado.
