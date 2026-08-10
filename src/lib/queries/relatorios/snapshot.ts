@@ -51,13 +51,6 @@ export async function getSnapshotRelatorioV2(
   const slugParaView = ehGeral ? null : filialSlug
   const anterior = periodoAnterior(periodo)
 
-  // F33 — MESMA técnica do `estadoNoFim` logo abaixo, e pelo mesmo motivo: guarda
-  // a PROMISE, não o await. Esta lista só é consumida DEPOIS do Promise.all grande
-  // (é o `filiaisNome` que `manutencaoDeEstado` recebe), e esperá-la aqui adiava o
-  // motor inteiro do relatório — as dez leituras mais caras da tela — por causa de
-  // um select de seis linhas. Sem `await` aqui, ela corre junto com elas.
-  const filiaisPromise = listarFiliais(client)
-
   // F32-pós (revisão de custo, ACHADO 7) — hoisted ANTES do Promise.all: guarda a
   // PROMISE (não o await), não a chamada em si. `getSerieEstado` também precisa
   // do estado no fim do período (o último ponto da série É `periodo.ate`), e sem
@@ -79,6 +72,7 @@ export async function getSnapshotRelatorioV2(
     resumo,
     movsItens,
     serieEstado,
+    filiais,
   ] = await Promise.all([
       estadoNoFim,
       lerEstadoAtivos(client, filialId, anterior.ate),
@@ -104,9 +98,23 @@ export async function getSnapshotRelatorioV2(
       // `undefined` também quando o período não junta pontos suficientes, e aí o
       // campo nem existe no snapshot.
       getSerieEstado(client, filialId, periodo, estadoNoFim),
+      // F33 — a lista de filiais entra AQUI, e não num `await` antes daqui. Ela só
+      // é consumida depois (é o `filiaisNome` que `manutencaoDeEstado` recebe), e
+      // esperá-la lá em cima adiava o motor inteiro do relatório — as dez leituras
+      // mais caras da tela — por causa de um select de seis linhas.
+      //
+      // ⚠ E entra DENTRO do array, não como promise guardada numa variável. A
+      // diferença não é de estilo: se ela ficasse de fora e o `Promise.all` acima
+      // rejeitasse primeiro, a função sairia por exceção antes de esperá-la, e uma
+      // rejeição dela (mesma causa-raiz — é o MESMO client) ficaria sem handler.
+      // Rejeição não tratada derruba o processo no Node, e numa função serverless
+      // isso alcança as requisições CONCORRENTES da mesma instância, não só esta.
+      // Dentro do array, o próprio `Promise.all` é o handler. É também a diferença
+      // para o `estadoNoFim` acima, que parece o mesmo padrão mas é membro daqui.
+      listarFiliais(client),
     ])
 
-  const filiaisNome = new Map((await filiaisPromise).map((f) => [f.id, f.nome]))
+  const filiaisNome = new Map(filiais.map((f) => [f.id, f.nome]))
 
   const [reservados, manutencao] = await Promise.all([
     reservadosDeEstado(client, estado, periodo.ate),

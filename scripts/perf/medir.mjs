@@ -380,12 +380,20 @@ async function medirTudo(rotas) {
     const totais = boas.map((m) => m.total)
     const status = [...new Set(amostras[i].map((m) => m.status))].sort()
     const bytes = boas.map((m) => m.bytes)
+    // `x-vercel-cache` PRECISA sair no relatório, não só ser lido. Uma rota
+    // autenticada servida do cache de borda apareceria como ganho enorme — e
+    // seria, na verdade, resposta de uma sessão entregue a outra pessoa, que é
+    // exatamente o que a Frente F proíbe. Sem este campo no arquivo versionado,
+    // a evidência não distingue "ficou rápido" de "vazou". Esperado: MISS ou
+    // ausente (null) em tudo que exige sessão; HIT só no estático público.
+    const cache = [...new Set(boas.map((m) => m.cache ?? '(sem cabeçalho)'))].sort()
     return {
       rota: rota.rotulo,
       sessao: rota.sessao,
       amostras: boas.length,
       falhas: amostras[i].length - boas.length,
       status,
+      cache,
       bytes_mediana: bytes.length ? Math.round(mediana(bytes)) : null,
       bytes_min: bytes.length ? Math.min(...bytes) : null,
       bytes_max: bytes.length ? Math.max(...bytes) : null,
@@ -479,6 +487,18 @@ async function main() {
     log('')
     log('ATENÇÃO — rota(s) que NÃO responderam 200 (sessão recusada ou redirect):')
     for (const n of naoDuzentos) log(`  ${n.rota} (${n.sessao}) — HTTP ${n.status.join('/')}`)
+  }
+
+  // Rota com sessão servida do cache de borda seria ganho FALSO — e vazamento de
+  // uma sessão para outra pessoa. Um HIT aqui invalida a medição e é incidente.
+  const cacheado = linhas.filter(
+    (l) => l.sessao !== 'publico' && l.cache.some((c) => c && c.toUpperCase().includes('HIT')),
+  )
+  if (cacheado.length) {
+    log('')
+    log('ATENÇÃO GRAVE — rota COM SESSÃO servida do cache de borda (x-vercel-cache HIT):')
+    for (const c of cacheado) log(`  ${c.rota} (${c.sessao}) — ${c.cache.join('/')}`)
+    process.exitCode = 1
   }
 }
 
