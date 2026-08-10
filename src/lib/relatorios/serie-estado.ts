@@ -13,9 +13,17 @@ import type { PontoEstado } from '@/lib/relatorios/tipos'
 // A restrição que dita todo o desenho: **sem migration e sem RPC nova**. O estado
 // as-of de uma data só existe via `rel_estoque_asof`, que reconstrói a linha do
 // tempo inteira e mede ~233 ms na consolidada. Um ponto por semana custa uma
-// chamada. Daí o TETO DURO de 9 leituras por render — não é número mágico: é o
+// chamada. Daí o TETO DURO de leituras por render — não é número mágico: é o
 // orçamento que a página aguenta com as leituras que ela já faz, disparadas em
 // paralelo (ver o comentário de `maxDuration` em relatorios/[filial]/page.tsx).
+//
+// F32-pós (revisão de custo, ACHADO 7): o teto nasceu em 8 semanas (9 leituras
+// por render) e caiu para 6 semanas depois que a rota ao vivo passou a ser
+// revalidada sozinha a cada 60s pelo viewer por senha (ViewerAutoRefresh) — 9
+// chamadas de `rel_estoque_asof` por request virou caro demais para um card
+// decorativo. Somado ao reuso do último ponto (o fim do período já é lido pelo
+// chamador para outra coisa — ver `getSerieEstado` em estoque.ts), o pior caso
+// real por request caiu de 9 para 6 reconstruções as-of.
 //
 // ONDE os pontos caem: no fim de cada semana ENCERRADA dentro do período. A
 // semana do relatório ao vivo é domingo→sábado (`intervaloDoPreset` em
@@ -29,8 +37,12 @@ import type { PontoEstado } from '@/lib/relatorios/tipos'
 // card contradizer o chip "período" que todos os outros cards passaram a exibir
 // (RV-04). Quem quer a curva troca para "Últimos 30 dias" ou "Este ano".
 
-// Últimas 8 semanas fechadas + o ponto do fim do período = 9 leituras as-of.
-export const MAX_SEMANAS_SERIE_ESTADO = 8
+// Últimas 6 semanas fechadas + o ponto do fim do período = 7 pontos na série,
+// mas não 7 leituras as-of: o ponto do fim do período reaproveita a promise que
+// `getSnapshotRelatorioV2` já tem em voo (ver `estadoNoFim` em snapshot.ts e o
+// bloco DEGRADAÇÃO em `getSerieEstado`), então o pior caso real é 6 chamadas de
+// `rel_estoque_asof` por render.
+export const MAX_SEMANAS_SERIE_ESTADO = 6
 export const MAX_PONTOS_SERIE_ESTADO = MAX_SEMANAS_SERIE_ESTADO + 1
 // Dois pontos são um segmento de reta, não uma tendência — e três é o menor
 // número em que uma inflexão (subiu, depois desceu) pode aparecer.

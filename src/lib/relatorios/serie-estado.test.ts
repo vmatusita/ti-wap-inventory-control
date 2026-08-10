@@ -34,8 +34,9 @@ describe('datasDaSerieEstado — onde os pontos caem', () => {
     expect(datas).toHaveLength(MAX_PONTOS_SERIE_ESTADO)
     expect(datas).toHaveLength(MAX_SEMANAS_SERIE_ESTADO + 1)
     // São as últimas semanas, não as primeiras: um período longo interessa pelo
-    // que está acontecendo agora.
-    expect(datas[0]).toBe('2026-06-20')
+    // que está acontecendo agora. Teto caiu de 8 para 6 semanas (F32-pós, ACHADO
+    // 7) — com `ate = 2026-08-10` os 6 sábados mais recentes são 04/07 a 08/08.
+    expect(datas[0]).toBe('2026-07-04')
     expect(datas[datas.length - 1]).toBe('2026-08-10')
   })
 

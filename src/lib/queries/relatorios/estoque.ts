@@ -106,13 +106,32 @@ export async function lerEstadoAtivos(
 // SEM migration e SEM RPC nova (restrição da ordem): cada ponto é uma chamada de
 // `lerEstadoAtivos`, que já sabe escolher entre o fast path (data ≥ hoje) e a
 // reconstrução exata via `rel_estoque_asof`. As datas vêm da régua pura
-// `datasDaSerieEstado`, que TAMBÉM é o teto de custo: no máximo 9 leituras por
-// render, sempre disparadas em paralelo.
+// `datasDaSerieEstado`, que TAMBÉM é o teto de custo — ver ali o orçamento novo
+// (6 leituras no pior caso, não mais 9).
+//
+// F32-pós (revisão de custo) — DOIS cortes, nenhum muda a forma do card:
+// (a) REUSO DO ÚLTIMO PONTO. O último ponto da série é sempre `periodo.ate`, e
+// `getSnapshotRelatorioV2` já lê `lerEstadoAtivos(..., periodo.ate)` como
+// `estado` no MESMO Promise.all — reconstruir de novo aqui seria a MESMA leitura
+// duas vezes dentro do mesmo request. `estadoNoFim` é essa promise já em voo,
+// hoisted pelo chamador; quando a data do ponto bate com `periodo.ate` ela é
+// reaproveitada em vez de disparar `lerEstadoAtivos` outra vez.
+// (b) TETO MENOR. `MAX_SEMANAS_SERIE_ESTADO` caiu de 8 para 6 — ver serie-estado.ts.
 //
 // Devolve `undefined` — não uma série vazia — quando o período não junta pontos
 // suficientes: é a diferença entre "o card não se aplica aqui" e "o card está
 // vazio", e é `undefined` que faz o campo opcional simplesmente não existir no
 // JSON congelado (o que mantém snapshots pré-F32 e pós-F32 com a MESMA forma).
+//
+// DEGRADAÇÃO: o card é opcional e decorativo (`serieEstado?` em tipos.ts) — ele
+// não pode derrubar as contagens que não dependem dele. Por isso o corpo inteiro
+// vive num try/catch: se qualquer uma das reconstruções as-of falhar (a RPC
+// `rel_estoque_asof` lança em erro, ver `lerEstadoAtivos`), a rejeição é
+// registrada com `console.error` e a função devolve `undefined` — o mesmo valor
+// que "período curto demais" já produz, e que o resto do sistema já sabe tratar
+// como "sem card". Sem o try/catch, essa rejeição subiria pelo `Promise.all` de
+// `getSnapshotRelatorioV2` e derrubaria a rota inteira (500) por causa de um
+// card acessório — o mesmo cuidado que `itens.ts` já toma para dado decorativo.
 //
 // Esta função só ACRESCENTA leitura: nenhuma agregação existente passa por aqui,
 // e o número de cada ponto é contado com a mesma régra de `kpisDeEstado` (as duas
@@ -121,17 +140,34 @@ export async function getSerieEstado(
   client: DbClient,
   filialId: number | null,
   periodo: Periodo,
+  // Promise já em voo (hoisted por getSnapshotRelatorioV2) do estado no fim do
+  // período — ver o corte (a) acima. Opcional: chamadores fora do snapshot v2
+  // (se algum dia existirem) seguem funcionando sem reuso, só sem o desconto.
+  estadoNoFim?: Promise<EstadoAtivo[]>,
 ): Promise<SerieEstado | undefined> {
   const datas = datasDaSerieEstado(periodo)
   if (datas.length < MIN_PONTOS_SERIE_ESTADO) return undefined
 
-  const estados = await Promise.all(
-    datas.map((data) => lerEstadoAtivos(client, filialId, data)),
-  )
-  const contagens = estados.map(
-    (estado) => estado.filter((a) => a.status === 'em_estoque').length,
-  )
-  return { pontos: montarPontosEstado(datas, contagens) }
+  try {
+    const estados = await Promise.all(
+      datas.map((data) =>
+        data === periodo.ate && estadoNoFim
+          ? estadoNoFim
+          : lerEstadoAtivos(client, filialId, data),
+      ),
+    )
+    const contagens = estados.map(
+      (estado) => estado.filter((a) => a.status === 'em_estoque').length,
+    )
+    return { pontos: montarPontosEstado(datas, contagens) }
+  } catch (err) {
+    // Card opcional e decorativo: uma reconstrução as-of que falha aqui não pode
+    // derrubar o relatório inteiro (KPIs, categoria×status etc. não dependem
+    // desta série). Loga e degrada para "o card não se aplica" — ver o bloco
+    // DEGRADAÇÃO acima.
+    console.error('Falha ao montar a série de evolução do estoque (card opcional):', err)
+    return undefined
+  }
 }
 
 export function kpisDeEstado(estado: EstadoAtivo[]): KpisRelatorio {

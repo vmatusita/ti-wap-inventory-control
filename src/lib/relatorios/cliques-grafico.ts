@@ -50,6 +50,28 @@ export function urlAtivosPorSegmento(
   return `/ativos?status=${status}&categoria=${categoria}${recorteFilial}`
 }
 
+/**
+ * Defesa em profundidade do clique nos segmentos das barras empilhadas
+ * (RV-12): a página do ao vivo já decide sozinha — só ela monta
+ * `recorteFilial`, e só quando `ehOperador` — mas essa decisão mora numa
+ * prop que atravessa componentes até chegar aqui. Se uma rota futura (ou uma
+ * refatoração descuidada) passasse `recorteFilial` adiante sem também passar
+ * `links`, o clique acenderia para quem não devia — o snapshot congelado e o
+ * visualizador por senha, que nunca recebem `links`, ganhariam navegação para
+ * `/ativos`. Esta função é o segundo portão: só devolve `recorteFilial`
+ * quando `temLinks` (o espelho de `links` no chamador) também é verdadeiro;
+ * caso contrário devolve `undefined`, e o clique fica desabilitado. Como o
+ * clique navega por `router.push` (não por `href`), o varredor de href do
+ * confinamento (`confinamento-viewer.test.ts`) não o enxerga — por isso a
+ * guarda precisa ser uma função pura testável, não só uma linha de JSX.
+ */
+export function recorteParaSegmento(
+  temLinks: boolean,
+  recorteFilial: string | undefined,
+): string | undefined {
+  return temLinks ? recorteFilial : undefined
+}
+
 // Concorda o status no plural SEM duplicar o texto de STATUS_META — deriva de
 // `rotuloStatus`, nunca reescreve "Reservado"/"Devolvido ao fornecedor" à mão.
 //

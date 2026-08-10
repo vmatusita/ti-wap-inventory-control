@@ -15,6 +15,61 @@ import { filialParaRpc } from '@/lib/queries/rpc-filial'
 // OS-F3 3.6): saldo as-of + movimentação no período + carimbo de frescor + a
 // última observação de cada item. Esconde itens sem nenhum sinal no filtro.
 
+// F32/RV-09 — o estoque MÍNIMO de cada item, para o micro-medidor da coluna
+// Estoque. `itens.estoque_minimo` é régua do estoque CONSOLIDADO (migration
+// 0042, comentário da coluna) — é o mesmo número que `precisaRepor` compara
+// contra `estoqueConsolidado` em validators/item.ts, nunca contra saldo por
+// filial. Por isso quem chama só invoca esta função quando `filialId` é null
+// (a aba consolidada): nas outras cinco abas, cruzar o mínimo consolidado com
+// o saldo DA FILIAL geraria alarme falso — a ajuda do operador
+// (`saldos-e-estoque-minimo.ts`) já avisa que julgar pelo recorte mandaria
+// comprar o que está sobrando na filial ao lado. Nem vale a pena LER o
+// catálogo fora do consolidado: economiza uma leitura por request em 5 das 6
+// abas.
+//
+// Não dá para reusar `listarItensAtivos()` (queries/itens.ts): aquela função
+// abre o próprio client de operador, e esta leitura serve TAMBÉM o visualizador
+// por senha, que chega com o client administrativo resolvido em
+// `resolverAcessoRelatorio`. Toda query desta superfície recebe o client de
+// fora — é o que o tripwire `fronteira-viewer.test.ts` vigia. `itens` é tabela
+// de inventário, dentro do que o viewer já pode ler.
+//
+// Sem `.eq('ativo', true)`: um item desativado no catálogo pode ainda ter saldo
+// e aparecer na tabela do relatório (o filtro de exibição é o saldo, não o
+// flag), e escondê-lo aqui tiraria o medidor justamente da linha que continua
+// sendo exibida.
+//
+// Pagina com `paginarTodos` (as outras quatro leituras deste Promise.all usam
+// o mesmo padrão ou `.limit(1000)` explícito): sem isso, o PostgREST cortaria
+// em 1000 linhas em silêncio, e o medidor sumiria justamente das linhas que
+// deveriam alertar — o catálogo inteiro da WAP passa dessa marca. `paginarTodos`
+// LANÇA em erro (é assim que ele detecta o corte silencioso no caminho feliz),
+// mas o mínimo é enfeite de leitura, não número do relatório: falhar aqui não
+// pode derrubar a página inteira, então a exceção vira `console.error` e lista
+// vazia — sem catálogo, os itens ficam sem `minimo` e a célula volta a ser
+// exatamente a de antes desta fase, que é a degradação certa.
+async function lerMinimosDoCatalogo(
+  client: DbClient,
+): Promise<{ id: number; estoque_minimo: number }[]> {
+  try {
+    return await paginarTodos<{ id: number; estoque_minimo: number }>(
+      'Falha ao ler o mínimo do catálogo de itens',
+      (from, to) =>
+        client
+          .from('itens')
+          .select('id, estoque_minimo')
+          .order('id', { ascending: true })
+          .range(from, to),
+    )
+  } catch (e) {
+    console.error(
+      'Falha ao ler o mínimo do catálogo de itens',
+      e instanceof Error ? e.message : e,
+    )
+    return []
+  }
+}
+
 // Grupos 2–3: saldo as-of + movimentação no período + frescor + última obs.
 export async function getGruposItens(
   client: DbClient,
@@ -41,21 +96,16 @@ export async function getGruposItens(
       if (filialId) q = q.eq('filial_id', filialId)
       return q.order('created_at', { ascending: false }).limit(1000)
     })(),
-    // F32/RV-09 — o estoque MÍNIMO de cada item, para o micro-medidor da coluna
-    // Estoque. Só ACRESCENTA leitura: nenhuma contagem existente passa por aqui.
-    //
-    // Não dá para reusar `listarItensAtivos()` (queries/itens.ts): aquela função
-    // abre o próprio client de operador, e esta leitura serve TAMBÉM o visualizador
-    // por senha, que chega com o client administrativo resolvido em
-    // `resolverAcessoRelatorio`. Toda query desta superfície recebe o client de
-    // fora — é o que o tripwire `fronteira-viewer.test.ts` vigia. `itens` é tabela
-    // de inventário, dentro do que o viewer já pode ler.
-    //
-    // Sem `.eq('ativo', true)`: um item desativado no catálogo pode ainda ter saldo
-    // e aparecer na tabela do relatório (o filtro de exibição é o saldo, não o
-    // flag), e escondê-lo aqui tiraria o medidor justamente da linha que continua
-    // sendo exibida.
-    client.from('itens').select('id, estoque_minimo'),
+    // Só a aba CONSOLIDADA (filialId null) tem medidor de mínimo — ver o comentário
+    // de `lerMinimosDoCatalogo` acima para o motivo. Nas abas de filial nem vale ler
+    // o catálogo: `Promise.resolve([])` deixa `minimos` vazio e `minimoDoItem`
+    // devolve 0 para toda linha, que é o mesmo JSON de quando o campo não existia.
+    filialId === null
+      ? lerMinimosDoCatalogo(client)
+      // Tipado explicitamente: sem isso o TS infere `never[]` para o array vazio
+      // (não há contexto do outro ramo do ternário) e a união dos dois ramos do
+      // Promise.all fica mais frágil do que precisa.
+      : Promise.resolve<{ id: number; estoque_minimo: number }[]>([]),
   ])
   if (saldos.error) throw new Error(`Falha nos saldos de itens: ${saldos.error.message}`)
   if (movs.error) throw new Error(`Falha na movimentação de itens: ${movs.error.message}`)
@@ -66,13 +116,9 @@ export async function getGruposItens(
     throw new Error(`Falha no frescor dos itens: ${frescor.error.message}`)
   if (obsRows.error)
     throw new Error(`Falha nas observações dos itens: ${obsRows.error.message}`)
-  // O catálogo NÃO lança: o mínimo é enfeite de leitura (o medidor), não número do
-  // relatório. Falhar aqui derrubaria a página inteira — inclusive as contagens,
-  // que não dependem dele. Sem catálogo, os itens ficam sem `minimo` e a célula
-  // volta a ser exatamente a de antes desta fase, que é a degradação certa.
-  if (catalogo.error) {
-    console.error('Falha ao ler o mínimo do catálogo de itens', catalogo.error.message)
-  }
+  // `catalogo` já chega como array pronto (ou vazio): `lerMinimosDoCatalogo`
+  // absorve o próprio erro (ver comentário acima do Promise.all), então não há
+  // `.error` para conferir aqui.
 
   const movPorItem = new Map<number, { entradas: number; saidas: number }>()
   for (const m of movs.data ?? []) {
@@ -87,7 +133,7 @@ export async function getGruposItens(
   // `minimosDoCatalogo` (lib/itens/repor.ts) é a função pura que o dashboard e a
   // tela /itens já usam para a mesma travessia — reusá-la mantém UMA definição de
   // "mínimo do item" no sistema.
-  const minimos = minimosDoCatalogo(catalogo.data ?? [])
+  const minimos = minimosDoCatalogo(catalogo)
 
   const porGrupo = new Map<GrupoItem, SaldoItemPeriodo[]>()
   for (const s of saldos.data ?? []) {

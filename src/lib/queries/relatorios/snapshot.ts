@@ -54,6 +54,16 @@ export async function getSnapshotRelatorioV2(
   const filiais = await listarFiliais(client)
   const filiaisNome = new Map(filiais.map((f) => [f.id, f.nome]))
 
+  // F32-pós (revisão de custo, ACHADO 7) — hoisted ANTES do Promise.all: guarda a
+  // PROMISE (não o await), não a chamada em si. `getSerieEstado` também precisa
+  // do estado no fim do período (o último ponto da série É `periodo.ate`), e sem
+  // este hoist ela reconstruiria a mesma leitura as-of DE NOVO dentro do mesmo
+  // request — dobrando o custo do ponto mais caro. Os dois consumidores abaixo
+  // (o `estado` do Promise.all e o 4º parâmetro de `getSerieEstado`) esperam a
+  // MESMA promise, então o paralelismo entre eles fica intacto: só a duplicação
+  // de trabalho é que some.
+  const estadoNoFim = lerEstadoAtivos(client, filialId, periodo.ate)
+
   const [
     estado,
     estadoAnt,
@@ -66,7 +76,7 @@ export async function getSnapshotRelatorioV2(
     movsItens,
     serieEstado,
   ] = await Promise.all([
-      lerEstadoAtivos(client, filialId, periodo.ate),
+      estadoNoFim,
       lerEstadoAtivos(client, filialId, anterior.ate),
       getSerieMovimentacoes(client, filialId, periodo),
       getPorMotivo(client, filialId, periodo),
@@ -81,11 +91,15 @@ export async function getSnapshotRelatorioV2(
       getResumoPeriodo(client, filialId, periodo),
       getLancamentosItensPeriodo(client, filialId, periodo),
       // F32/RV-06 — a evolução do estoque entra no MESMO Promise.all: ela é o
-      // caminho mais lento da página (até 9 reconstruções as-of, ver
+      // caminho mais lento da página (até 6 reconstruções as-of no pior caso, ver
       // `getSerieEstado`), e serializá-la depois somaria o tempo dela ao de tudo
-      // que já roda aqui. Devolve `undefined` quando o período não junta pontos
-      // suficientes — e aí o campo nem existe no snapshot.
-      getSerieEstado(client, filialId, periodo),
+      // que já roda aqui. Recebe `estadoNoFim` para reaproveitar a leitura do fim
+      // do período em vez de refazê-la (ACHADO 7), e o próprio corpo dela é
+      // à prova de falha: um erro na RPC as-of vira `console.error` + `undefined`
+      // em vez de derrubar este `Promise.all` inteiro (ACHADO 3) — devolve
+      // `undefined` também quando o período não junta pontos suficientes, e aí o
+      // campo nem existe no snapshot.
+      getSerieEstado(client, filialId, periodo, estadoNoFim),
     ])
 
   const [reservados, manutencao] = await Promise.all([

@@ -31,6 +31,26 @@ export function SerieEstadoGrafico({ serie }: { serie: SerieEstado }) {
   const dados = serie.pontos
   const ultimoIndice = dados.length - 1
 
+  // `domain={['dataMin', 'dataMax']}` degenera quando TODOS os pontos têm o
+  // mesmo valor (filial pequena cujo estoque não mudou nas semanas do
+  // período — caso comum): o domínio vira [n, n], a escala linear não tem
+  // faixa pra distribuir, o eixo sai com um único tick e a curva "estável"
+  // encosta na borda da área de plotagem, lendo como extremo em vez de
+  // patamar. Por isso o domínio é calculado aqui e ganha um degrau de 1
+  // pra cada lado quando min === max. `Math.min()`/`Math.max()` sem
+  // argumento (lista vazia) devolvem Infinity/-Infinity — daí o guard.
+  // O piso em 0 existe porque estoque não é negativo: um eixo começando em
+  // -1 leria como erro de dado, não como folga visual.
+  const valores = dados.map((p) => p.em_estoque)
+  const dominio: [number, number] =
+    valores.length === 0
+      ? [0, 1]
+      : (() => {
+          const min = Math.min(...valores)
+          const max = Math.max(...valores)
+          return min === max ? [Math.max(0, min - 1), max + 1] : [min, max]
+        })()
+
   // O valor do último ponto sai escrito, em TINTA (foreground), não na cor da
   // série: número na cor da linha vira decoração e some contra fundo claro; o
   // valor final é o dado mais lido do gráfico e precisa do contraste do texto
@@ -81,7 +101,7 @@ export function SerieEstadoGrafico({ serie }: { serie: SerieEstado }) {
           axisLine={false}
           allowDecimals={false}
           tick={{ fontSize: 11 }}
-          domain={['dataMin', 'dataMax']}
+          domain={dominio}
         />
         <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
         <Line

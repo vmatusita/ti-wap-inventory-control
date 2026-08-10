@@ -146,6 +146,7 @@ function ChartTooltipContent({
   labelFormatter,
   labelClassName,
   formatter,
+  footer,
   color,
   nameKey,
   labelKey,
@@ -162,6 +163,14 @@ function ChartTooltipContent({
     index: number,
     payload: unknown,
   ) => React.ReactNode
+  // F32/ACHADO-11 — slot de RODAPÉ, separado do `formatter`. O `formatter`
+  // substitui a LINHA inteira de cada série (é por item do payload); um
+  // consumidor que precisasse só de uma linha extra ao final (ex.: um total)
+  // era forçado a reimplementar TODAS as linhas à mão para poder acrescentar
+  // a última — foi o que `barras-empilhadas.tsx` fazia antes desta prop.
+  // Motivo documentado da edição neste arquivo GERADO (shadcn): a prop existe
+  // para eliminar essa duplicação sem tocar no desenho padrão de cada linha.
+  footer?: (payload: ItemTooltip[]) => React.ReactNode
   color?: string
   hideLabel?: boolean
   hideIndicator?: boolean
@@ -291,6 +300,7 @@ function ChartTooltipContent({
             )
           })}
       </div>
+      {footer?.(payload)}
     </div>
   )
 }
@@ -398,3 +408,7 @@ export {
   ChartLegendContent,
   ChartStyle,
 }
+// F32/ACHADO-11 — tipo do item de payload exportado para quem tipa a prop
+// `footer`: sem isto, todo consumidor teria de reconstruir esta forma
+// permissiva (ver comentário no topo do arquivo) só para anotar o parâmetro.
+export type { ItemTooltip as ChartTooltipItem }

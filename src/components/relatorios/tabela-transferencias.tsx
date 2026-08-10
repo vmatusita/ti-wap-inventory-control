@@ -109,8 +109,13 @@ export function TabelaTransferencias({
           nada de gráfico: sankey para meia dúzia de pares é canhão em mosca.
           Deriva de `rows` (o período inteiro), não de `filtradas`: o resumo
           descreve o recorte do relatório, e mudar de forma a cada tecla da busca
-          o transformaria noutra coisa. Nenhuma contagem muda. */}
-      {ehGeral && <ChipsResumo resumo={resumoDePares} />}
+          o transformaria noutra coisa. Nenhuma contagem muda.
+          `imprimir` — aqui a linha é CONTEÚDO do relatório consolidado (a ajuda
+          anuncia "um resumo 'filial de origem → filial de destino' acima da
+          tabela"), não navegação de tela; sem a prop ela sumiria do papel pelo
+          `print:hidden` padrão do componente, que existe para o outro uso dele
+          (resumo de FILTRO em Saídas/Entradas). */}
+      {ehGeral && <ChipsResumo resumo={resumoDePares} imprimir />}
 
       {filtradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">

@@ -171,7 +171,7 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
   // para `/ativos?…` por `router.push()`, uma chamada de FUNÇÃO. Não existe
   // `href` nenhum para o regex achar — é uma classe de vazamento que o tripwire
   // original não cobria, e por isso ela ganha prova própria, no molde dos tiles.
-  it('o clique nos segmentos (RV-12) só é habilitado no ao vivo E para o operador', () => {
+  it('o clique nos segmentos (RV-12) só é habilitado no ao vivo E para o operador', async () => {
     const aoVivo = readFileSync(
       join(RAIZ, 'app', '(app)', 'relatorios', '[filial]', 'page.tsx'),
       'utf8',
@@ -188,13 +188,28 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
     expect(snapshot).not.toContain('recorteFilialAtivos')
 
     // Segunda trava, no consumidor: o corpo só repassa o recorte se `links`
-    // existir. Sem esta linha, passar `recorteFilial` por engano de uma rota
-    // futura bastaria para acender o clique — a guarda da página seria a única.
+    // existir. A prova era um literal (`recorteFilial={links ? recorteFilial
+    // : undefined}`) preso à formatação exata do fonte: um reflow do
+    // Prettier que quebrasse essa linha em >100 colunas deixaria o teste
+    // vermelho sem defeito nenhum, e a "correção" mais fácil (afrouxar para
+    // `toContain('recorteFilial')`) apagaria a guarda de verdade. Por isso a
+    // prova virou COMPORTAMENTO da função pura `recorteParaSegmento` (mesmo
+    // molde do teste de `hrefDoRelatorioVisitado` logo abaixo): exercita a
+    // guarda com o caso perigoso (sem `links`, com recorte) e confirma que
+    // ela barra. A asserção de fiação continua abaixo, mas normalizando os
+    // espaços do fonte — imune a quebra de linha, sensível a apagar a guarda.
+    const { recorteParaSegmento } = await import('@/lib/relatorios/cliques-grafico')
+    expect(recorteParaSegmento(true, '&filial=7')).toBe('&filial=7')
+    expect(recorteParaSegmento(false, '&filial=7')).toBeUndefined()
+
     const corpo = readFileSync(
       join(RAIZ, 'components', 'relatorios', 'corpo-relatorio-v2.tsx'),
       'utf8',
     )
-    expect(corpo).toContain('recorteFilial={links ? recorteFilial : undefined}')
+    const corpoNormalizado = corpo.replace(/\s+/g, ' ')
+    expect(corpoNormalizado).toContain(
+      'recorteFilial={recorteParaSegmento(Boolean(links), recorteFilial)}',
+    )
   })
 
   // RV-17 abriu a segunda: o "Ao vivo" do header do viewer deixou de ser um

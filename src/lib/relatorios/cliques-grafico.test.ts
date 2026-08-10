@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  recorteParaSegmento,
   rotuloCliqueMotivo,
   rotuloCliqueSegmento,
   urlAtivosPorSegmento,
@@ -79,6 +80,34 @@ describe('rotuloCliqueMotivo', () => {
     expect(rotuloCliqueMotivo('Novo colaborador', 1, 'saidas')).toBe(
       'Ver a 1 saída por Novo colaborador',
     )
+  })
+})
+
+describe('recorteParaSegmento', () => {
+  // Tabela-verdade completa: o caso perigoso é a última linha — `temLinks`
+  // falso mas `recorteFilial` presente (o cenário de uma rota futura que
+  // repassa o recorte sem repassar `links`). Se essa linha devolvesse o
+  // recorte em vez de `undefined`, o clique acenderia onde não devia — é
+  // exatamente o defeito que esta função existe para impedir (ver JSDoc em
+  // cliques-grafico.ts).
+  it('operador no ao vivo, filial específica: devolve o recorte', () => {
+    expect(recorteParaSegmento(true, '&filial=7')).toBe('&filial=7')
+  })
+
+  it('operador no ao vivo, consolidado: devolve o recorte', () => {
+    expect(recorteParaSegmento(true, '&filial=todas')).toBe('&filial=todas')
+  })
+
+  it('operador sem recorte montado (não deveria ocorrer, mas não é o caso perigoso): undefined', () => {
+    expect(recorteParaSegmento(true, undefined)).toBeUndefined()
+  })
+
+  it('CASO PERIGOSO — sem links mas com recorte presente: a guarda barra, devolve undefined', () => {
+    expect(recorteParaSegmento(false, '&filial=7')).toBeUndefined()
+  })
+
+  it('sem links e sem recorte: undefined', () => {
+    expect(recorteParaSegmento(false, undefined)).toBeUndefined()
   })
 })
 

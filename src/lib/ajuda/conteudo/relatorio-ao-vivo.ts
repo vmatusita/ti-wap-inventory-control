@@ -1,4 +1,5 @@
 import { MANUTENCAO_ALERTA_DIAS } from '@/lib/relatorios/manutencao-alerta'
+import { MAX_SEMANAS_SERIE_ESTADO } from '@/lib/relatorios/serie-estado'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 export const relatorioAoVivo: PaginaAjuda = {
@@ -56,7 +57,7 @@ export const relatorioAoVivo: PaginaAjuda = {
         'Os sete indicadores do topo: "Total de ativos", "Em uso", "Em estoque", "Reservados", "Em triagem", "Em manutenção" e "Reserva técnica" (os defasados, que continuam em posse da WAP).',
         'O card "Acervo por situação" — uma barra só com a composição do acervo inteiro por situação: o mesmo total dos indicadores acima, visto em proporção.',
         'O card "Movimentações" — saídas × devoluções ao longo do período.',
-        `O grupo "Equipamentos principais" (notebooks, desktops, monitores, celulares e tablets), com os tiles "Guardados", "Reservados", "Em manutenção" e "Emprestados" e os cards "Estoque no último dia", "Evolução do estoque" (só aparece quando o período reúne semanas fechadas suficientes — no preset "Esta semana" ele ainda não dá para desenhar), "Disponíveis por modelo", "Reservados", "Saídas por motivo", "Devoluções por motivo" e "Em manutenção, caso a caso" (o subtítulo já resume o risco: quantos casos, quantos estão parados há ${MANUTENCAO_ALERTA_DIAS}+ dias e quantos encerraram no período).`,
+        `O grupo "Equipamentos principais" (notebooks, desktops, monitores, celulares e tablets), com os tiles "Guardados", "Reservados", "Em manutenção" e "Emprestados" e os cards "Estoque no último dia", "Evolução do estoque" (só aparece quando o período reúne semanas fechadas suficientes — no preset "Esta semana" ele ainda não dá para desenhar; em períodos longos, como "Este ano", ele mostra as últimas ${MAX_SEMANAS_SERIE_ESTADO} semanas, não o período inteiro, e o selo do card declara essa janela menor), "Disponíveis por modelo", "Reservados", "Saídas por motivo", "Devoluções por motivo" e "Em manutenção, caso a caso" (o subtítulo já resume o risco: quantos casos, quantos estão parados há ${MANUTENCAO_ALERTA_DIAS}+ dias e quantos encerraram no período).`,
         'Os grupos "Acessórios e periféricos" e "Componentes", cada um com "Saldo por item" e "Movimentação por item".',
         'A seção "Pendências" — só para o operador logado; quem entra pela senha de acesso nunca a vê.',
         'As tabelas detalhadas do período: "Saídas", "Entradas", "Transferências" (no relatório consolidado, com um resumo "filial de origem → filial de destino" acima da tabela) e "Movimentações de itens".',

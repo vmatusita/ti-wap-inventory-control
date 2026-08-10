@@ -7,6 +7,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
+  type ChartTooltipItem,
 } from '@/components/ui/chart'
 import {
   STATUS_CHART_COLOR,
@@ -19,41 +20,11 @@ import {
 import { deveRotularSegmento, fillRotuloSegmento } from '@/lib/relatorios/rotulo-grafico'
 import { rotuloCliqueSegmento, urlAtivosPorSegmento } from '@/lib/relatorios/cliques-grafico'
 import type { EstoqueCatStatus } from '@/lib/relatorios/tipos'
+import { cn } from '@/lib/utils'
 
 // Estoque no último dia por categoria × status (§4.1): barras horizontais
 // EMPILHADAS — uma barra por categoria, segmentos por status, rótulo numérico em
 // cada segmento + total na ponta. Rótulo de valor sempre visível (regra §5).
-
-// Uma linha do tooltip, no MESMO desenho que o `ChartTooltipContent` produz
-// sozinho (swatch 10px + rótulo atenuado + valor monoespaçado à direita). Existe
-// porque fornecer `formatter` substitui a linha inteira: para acrescentar o
-// rodapé do total (F32/RV-23) na última série, é preciso redesenhar as demais.
-// Espelho deliberado de `chart.tsx` — se o desenho de lá mudar, este acompanha.
-function LinhaTooltip({
-  cor,
-  rotulo,
-  valor,
-}: {
-  cor?: string
-  rotulo: React.ReactNode
-  valor: number
-}) {
-  return (
-    <>
-      <div
-        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-        style={{ background: cor }}
-        aria-hidden
-      />
-      <div className="flex flex-1 items-center justify-between leading-none">
-        <span className="text-muted-foreground">{rotulo}</span>
-        <span className="font-mono font-medium tabular-nums text-foreground">
-          {valor.toLocaleString('pt-BR')}
-        </span>
-      </div>
-    </>
-  )
-}
 
 export function BarrasEmpilhadas({
   dados,
@@ -129,50 +100,56 @@ export function BarrasEmpilhadas({
       const valor = linha ? Number(linha[status]) : 0
       if (!recorteFilial || !linha || !(valor > 0)) return <Rectangle {...props} />
       const categoria = linha.categoriaChave as CategoriaAtivo
+      // ACHADO-2 — extraída para `onClick` e `onKeyDown` compartilharem a
+      // MESMA navegação, em vez de montar a URL duas vezes.
+      const irParaLista = () =>
+        router.push(urlAtivosPorSegmento(status, categoria, recorteFilial))
       return (
         <Rectangle
           {...props}
           role="button"
           aria-label={rotuloCliqueSegmento(status, categoria, valor)}
           cursor="pointer"
-          onClick={() => router.push(urlAtivosPorSegmento(status, categoria, recorteFilial))}
+          onClick={irParaLista}
+          // ACHADO-2 — o segmento se ANUNCIA como botão (`role="button"`),
+          // mas sem isto Tab nunca parava nele e Enter/Espaço não faziam
+          // nada: o único caminho até a lista filtrada era o mouse.
+          // `tabIndex={0}` põe o segmento na ordem de tabulação; o
+          // `onKeyDown` dispara a mesma navegação do clique nas duas teclas
+          // que ativam um botão nativo — `preventDefault` no espaço evita
+          // que ele role a página, como faria em qualquer elemento focável.
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return
+            event.preventDefault()
+            irParaLista()
+          }}
+          // `outline` em SVG é inconsistente entre navegadores; o anel de
+          // foco reaproveita o traço que o segmento já desenha (RV-03, 2px
+          // na cor do card para separar vizinhos colados) e só troca a COR
+          // desse traço para a de primeiro plano quando o foco vem do
+          // teclado (`focus-visible`) — não mexe na geometria do segmento.
+          className={cn((props as { className?: string }).className, 'focus-visible:stroke-foreground')}
         />
       )
     }
   }
 
-  // F32/RV-23 — o total da categoria só existia no rótulo da ponta da barra; no
-  // hover o leitor tinha de somar os segmentos de cabeça. O Recharts entrega uma
-  // entrada de payload por `<Bar>` (inclusive as de valor zero), na ordem em que
-  // foram declaradas: a última é `presentes[presentes.length - 1]`, e é nela que
-  // o rodapé entra — dentro da caixa do tooltip, não abaixo dela.
-  const ultimoIndice = presentes.length - 1
-  const linhaTooltip = (
-    valor: unknown,
-    nome: unknown,
-    item: { color?: string; payload?: Record<string, unknown> },
-    indice: number,
-  ) => {
-    const linha = (
-      <LinhaTooltip
-        cor={item?.color ?? (item?.payload?.fill as string | undefined)}
-        rotulo={config[String(nome)]?.label ?? String(nome)}
-        valor={Number(valor)}
-      />
-    )
-    if (indice !== ultimoIndice) return linha
-    return (
-      <>
-        {linha}
-        <div className="mt-1 flex w-full items-center justify-between border-t border-border/50 pt-1 leading-none">
-          <span className="text-muted-foreground">Total</span>
-          <span className="font-mono font-medium tabular-nums text-foreground">
-            {Number(item?.payload?.total ?? 0).toLocaleString('pt-BR')}
-          </span>
-        </div>
-      </>
-    )
-  }
+  // F32/ACHADO-11 — o total da categoria só existia no rótulo da ponta da
+  // barra; no hover o leitor tinha de somar os segmentos de cabeça. Todo item
+  // do payload do tooltip carrega a MESMA linha de dados (`data[i]`, com o
+  // `total` incluso) — o primeiro item já basta para ler o total, sem
+  // depender de qual série é a última. Vira o rodapé via a prop `footer` do
+  // `ChartTooltipContent` (chart.tsx), o que deixa o desenho de CADA série a
+  // cargo do componente padrão do shadcn — não há mais linha reimplementada.
+  const rodapeTotal = (payload: ChartTooltipItem[]) => (
+    <div className="mt-1 flex w-full items-center justify-between border-t border-border/50 pt-1 leading-none">
+      <span className="text-muted-foreground">Total</span>
+      <span className="font-mono font-medium tabular-nums text-foreground">
+        {Number(payload[0]?.payload?.total ?? 0).toLocaleString('pt-BR')}
+      </span>
+    </div>
+  )
 
   return (
     <div>
@@ -202,8 +179,12 @@ export function BarrasEmpilhadas({
               STATUS_CHART_COLOR), e o tooltip continua sendo o 4º canal.
               F32/RV-23 — o rodapé do tooltip passou a trazer o TOTAL da categoria,
               que só existia no rótulo da ponta: quem está no hover não deveria
-              precisar somar 5 segmentos de cabeça. */}
-          <ChartTooltip cursor={false} content={<ChartTooltipContent formatter={linhaTooltip} />} />
+              precisar somar 5 segmentos de cabeça.
+              F32/ACHADO-11 — o total voltou a ser um RODAPÉ (`footer`), não um
+              `formatter` que redesenhava linha por linha: cada série volta a
+              usar o desenho PADRÃO do `ChartTooltipContent` (swatch, rótulo e
+              valor), e só o total abaixo dele é conteúdo próprio deste gráfico. */}
+          <ChartTooltip cursor={false} content={<ChartTooltipContent footer={rodapeTotal} />} />
           {presentes.map((s) => (
             <Bar
               key={s}

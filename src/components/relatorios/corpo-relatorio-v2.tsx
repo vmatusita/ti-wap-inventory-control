@@ -4,6 +4,8 @@ import { achatarDisponiveis } from '@/lib/relatorios/resumo'
 import type { GranularidadeSerie, SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
 import { agregarAcervoPorSituacao } from '@/lib/relatorios/acervo'
 import { resumoRiscoManutencao } from '@/lib/relatorios/resumo-manutencao'
+import { MAX_PONTOS_SERIE_ESTADO, MAX_SEMANAS_SERIE_ESTADO } from '@/lib/relatorios/serie-estado'
+import { recorteParaSegmento } from '@/lib/relatorios/cliques-grafico'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
 import { BarraAcervo } from '@/components/relatorios/barra-acervo'
 import { SerieEstadoGrafico } from '@/components/relatorios/serie-estado-grafico'
@@ -178,14 +180,16 @@ export function CorpoRelatorioV2({
                 aquele status E aquela categoria. `recorteFilial` só chega no ao
                 vivo para o operador: ausente, o gráfico é o estático de sempre —
                 é o mesmo gate dos KPI tiles desde a F16.
-                O `links ? … : undefined` é DEFESA EM PROFUNDIDADE, não repetição
+                `recorteParaSegmento` é a DEFESA EM PROFUNDIDADE, não repetição
                 à toa: a página é quem decide, mas se um dia outra rota passar o
                 recorte por engano, o clique só acende se o sinal de "operador no
-                ao vivo" também tiver chegado. O teste de confinamento cobra esta
-                linha, porque o varredor de `href` não enxerga `router.push`. */}
+                ao vivo" também tiver chegado. F32/achado-10 — antes essa defesa
+                era uma expressão inline (`links ? recorteFilial : undefined`)
+                que só um casamento de string no teste de confinamento provava;
+                agora mora numa função pura testada em cliques-grafico.ts. */}
             <BarrasEmpilhadas
               dados={s.estoqueCatStatus}
-              recorteFilial={links ? recorteFilial : undefined}
+              recorteFilial={recorteParaSegmento(Boolean(links), recorteFilial)}
             />
           </CardRelatorio>
 
@@ -196,18 +200,40 @@ export function CorpoRelatorioV2({
               reconstruído as-of; congelado no snapshot como campo opcional.
               O card só existe quando a régua junta pontos suficientes (ver
               lib/relatorios/serie-estado.ts) — no preset padrão de 7 dias ele
-              não aparece, e snapshot gerado antes desta fase também não o tem. */}
-          {s.serieEstado && s.serieEstado.pontos.length > 0 && (
-            <CardRelatorio
-              wide
-              titulo="Evolução do estoque"
-              subtitulo="em estoque no fim de cada semana do período"
-              janela="periodo"
-              periodoJanela={periodo}
-            >
-              <SerieEstadoGrafico serie={s.serieEstado} />
-            </CardRelatorio>
-          )}
+              não aparece, e snapshot gerado antes desta fase também não o tem.
+
+              F32/achado-5 — o chip "foto × período" é o ÚNICO canal que declara
+              a janela ao leitor; deixá-lo mentir era o defeito. `datasDaSerieEstado`
+              corta silenciosamente para as últimas MAX_SEMANAS_SERIE_ESTADO
+              semanas, então em "Este ano" a série cobre só ~2 meses — mas
+              `periodoJanela={periodo}` fazia o chip anunciar o ANO INTEIRO
+              ("01/01 – 10/08"), e quem lê a inclinação achava que via a
+              tendência do ano. Agora o chip usa a janela REAL (primeiro e
+              último ponto da série que veio no snapshot), não a do relatório;
+              o subtítulo segue o mesmo raciocínio: no teto ele diz quantas
+              semanas são, fora do teto continua dizendo "cada semana do
+              período" porque aí as duas janelas coincidem. */}
+          {s.serieEstado && s.serieEstado.pontos.length > 0 && (() => {
+            const serieEstado = s.serieEstado
+            const primeiro = serieEstado.pontos[0]
+            const ultimo = serieEstado.pontos[serieEstado.pontos.length - 1]
+            const noTeto = serieEstado.pontos.length >= MAX_PONTOS_SERIE_ESTADO
+            return (
+              <CardRelatorio
+                wide
+                titulo="Evolução do estoque"
+                subtitulo={
+                  noTeto
+                    ? `em estoque no fim das últimas ${MAX_SEMANAS_SERIE_ESTADO} semanas do período`
+                    : 'em estoque no fim de cada semana do período'
+                }
+                janela="periodo"
+                periodoJanela={{ de: primeiro.chave, ate: ultimo.chave }}
+              >
+                <SerieEstadoGrafico serie={serieEstado} />
+              </CardRelatorio>
+            )
+          })()}
 
           <CardRelatorio
             titulo="Disponíveis por modelo"

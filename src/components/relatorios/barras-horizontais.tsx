@@ -22,6 +22,7 @@ import { useEstreito } from '@/components/relatorios/use-estreito'
 import { PREFIXO_FILTROS } from '@/lib/relatorios/prefixos-tabela'
 import { rotuloComPercentual } from '@/lib/relatorios/percentual'
 import { rotuloCliqueMotivo, urlFiltroMotivo } from '@/lib/relatorios/cliques-grafico'
+import { cn } from '@/lib/utils'
 
 // Barras horizontais de série única com o valor à direita (OS-F3 3.3.2). Reusado
 // em "Ativos por categoria", "Saídas por motivo" e "Devoluções por motivo". Cor
@@ -95,6 +96,10 @@ export function BarrasHorizontais({
   function formaBarraClicavel(props: BarShapeProps) {
     const item = dados[props.index ?? -1]
     if (!filtroTabela || !item) return <Rectangle {...props} />
+    // `props` vem do recharts (BarShapeProps) e não tipa `className`, mas o
+    // `<Rectangle>` repassa tudo pro `<path>` por baixo — por isso o cast
+    // estreito só para ler o que o próprio recharts pode ter posto ali.
+    const classNameOriginal = (props as { className?: string }).className
     return (
       <Rectangle
         {...props}
@@ -102,6 +107,29 @@ export function BarrasHorizontais({
         aria-label={rotuloCliqueMotivo(item.rotulo, item.total, destino)}
         cursor="pointer"
         onClick={() => aoClicarBarra(item)}
+        // `role="button"` promete a quem usa leitor de tela que isto é um
+        // botão — sem `tabIndex`, o Tab pula a barra e a promessa vira
+        // mentira. Enter/Espaço espelham o `onClick` porque um `<Rectangle>`
+        // (na prática um `<path>`) não dispara clique sintético sozinho ao
+        // ganhar essas teclas, diferente de um `<button>` nativo.
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            aoClicarBarra(item)
+          }
+        }}
+        // Anel de foco no `stroke`, não em `outline`: `outline` em elemento
+        // SVG tem suporte inconsistente entre navegadores (Safari em
+        // particular não desenha outline em `<path>`), então a única borda
+        // confiável ali é o próprio traço do shape. Esta barra — diferente
+        // das empilhadas de `grafico-mov-serie.tsx` — não desenha stroke
+        // nenhum hoje, então a espessura precisa ser declarada aqui junto,
+        // senão o `focus-visible:stroke-foreground` "liga" um traço de 0px.
+        className={cn(
+          'focus-visible:stroke-foreground focus-visible:[stroke-width:2]',
+          classNameOriginal,
+        )}
       />
     )
   }

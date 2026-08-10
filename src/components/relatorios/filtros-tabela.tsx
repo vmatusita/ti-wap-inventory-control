@@ -101,12 +101,22 @@ export function FiltrosTabela({
 }
 
 // Chips do resumo por (filial×)motivo das linhas visíveis (entradas/saídas).
-// `print:hidden` — não vai para a impressão limpa. Vazio → não renderiza.
-export function ChipsResumo({ resumo }: { resumo: [string, number][] }) {
+// `print:hidden` por padrão — nasceu como resumo de FILTRO (elemento de tela,
+// não navega para o papel). A F32/RV-11 reusou o componente para a linha "quem
+// mandou para quem?" do consolidado de transferências, que é CONTEÚDO do
+// relatório (a ajuda promete essa linha na impressão) — daí a prop `imprimir`:
+// só quem a passa `true` sai do `print:hidden`. Vazio → não renderiza.
+export function ChipsResumo({
+  resumo,
+  imprimir = false,
+}: {
+  resumo: [string, number][]
+  imprimir?: boolean
+}) {
   if (resumo.length === 0) return null
 
   return (
-    <div className="flex flex-wrap gap-1.5 print:hidden">
+    <div className={cn('flex flex-wrap gap-1.5', !imprimir && 'print:hidden')}>
       {resumo.map(([chave, n]) => (
         <span key={chave} className="rounded-full bg-muted px-2.5 py-0.5 text-xs">
           {chave}: <span className="font-semibold tabular-nums">{n}</span>
