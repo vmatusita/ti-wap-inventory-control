@@ -56,6 +56,15 @@ export type SerieMovimentacoes = {
   granularidade: GranularidadeSerie
   pontos: PontoSerie[]
 }
+// F32/RV-06 — a evolução do ESTADO (quantos ativos na prateleira), semana a
+// semana. É outra coisa da série acima, que mede FLUXO (o que saiu e voltou): a
+// pergunta gerencial "a prateleira está esvaziando?" não se responde somando
+// movimentações, e sim reconstruindo o estoque as-of em várias datas.
+// `rotulo` já vem pronto ('dd/MM') pelo mesmo motivo de `PontoSerie`: o snapshot
+// é lido meses depois e não pode recalcular a formatação.
+export type PontoEstado = { chave: string; rotulo: string; em_estoque: number }
+export type SerieEstado = { pontos: PontoEstado[] }
+
 export type ContagemMotivo = { motivo: string; total: number } // motivo = rótulo
 export type PorMotivo = { saidas: ContagemMotivo[]; devolucoes: ContagemMotivo[] }
 export type ChipPendencia = { chave: string; rotulo: string; total: number }
@@ -153,6 +162,11 @@ export type SaldoItemPeriodo = {
   total?: number
   estoque?: number
   saldo?: number // legado (snapshots pré-F6A) — não gravar em snapshots novos
+  // F32/RV-09: estoque mínimo do CATÁLOGO no momento da leitura, para o
+  // micro-medidor na coluna Estoque. OPCIONAL (mantém `schema: 2`): snapshots
+  // gerados antes desta fase não têm o campo e a célula fica como era. Item sem
+  // mínimo cadastrado também não tem — e aí não há medidor, de propósito.
+  minimo?: number
   atrelados: number
   falta: number
   entradas: number
@@ -273,6 +287,12 @@ export type SnapshotRelatorioV2 = {
   reservados: ItemReservado[]
   manutencao: ManutencaoCaso[]
   serieMovimentacoes: SerieMovimentacoes
+  // F32/RV-06: a evolução do `em_estoque` semana a semana, reconstruída as-of e
+  // CONGELADA na geração. Campo OPCIONAL — mantém `schema: 2` (precedentes:
+  // `emprestado?`, `total?/estoque?`, `movimentacoesItens?`). Snapshot sem o
+  // campo simplesmente não renderiza o card; e ele nem sempre existe nos novos,
+  // porque a régua exige um mínimo de pontos (ver lib/relatorios/serie-estado.ts).
+  serieEstado?: SerieEstado
   porMotivo: PorMotivo
   grupos: GrupoRelatorio[]
   pendencias: ChipPendencia[]

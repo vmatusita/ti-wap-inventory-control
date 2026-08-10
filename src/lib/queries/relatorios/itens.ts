@@ -7,6 +7,7 @@ import type {
   SaldoItemPeriodo,
 } from '@/lib/relatorios/tipos'
 import { marcaEstorno } from '@/lib/relatorios/estorno'
+import { minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
 import { paginarTodos, type DbClient } from './comum'
 import { filialParaRpc } from '@/lib/queries/rpc-filial'
 
@@ -20,7 +21,7 @@ export async function getGruposItens(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<GrupoRelatorio[]> {
-  const [saldos, movs, frescor, obsRows] = await Promise.all([
+  const [saldos, movs, frescor, obsRows, catalogo] = await Promise.all([
     client.rpc('rel_saldo_itens', { p_filial: filialParaRpc(filialId), p_ate: periodo.ate }),
     client.rpc('rel_mov_itens', { p_filial: filialParaRpc(filialId), p_de: periodo.de, p_ate: periodo.ate }),
     client.rpc('rel_frescor_itens', { p_filial: filialParaRpc(filialId), p_ate: periodo.ate }),
@@ -40,6 +41,21 @@ export async function getGruposItens(
       if (filialId) q = q.eq('filial_id', filialId)
       return q.order('created_at', { ascending: false }).limit(1000)
     })(),
+    // F32/RV-09 — o estoque MÍNIMO de cada item, para o micro-medidor da coluna
+    // Estoque. Só ACRESCENTA leitura: nenhuma contagem existente passa por aqui.
+    //
+    // Não dá para reusar `listarItensAtivos()` (queries/itens.ts): aquela função
+    // abre o próprio client de operador, e esta leitura serve TAMBÉM o visualizador
+    // por senha, que chega com o client administrativo resolvido em
+    // `resolverAcessoRelatorio`. Toda query desta superfície recebe o client de
+    // fora — é o que o tripwire `fronteira-viewer.test.ts` vigia. `itens` é tabela
+    // de inventário, dentro do que o viewer já pode ler.
+    //
+    // Sem `.eq('ativo', true)`: um item desativado no catálogo pode ainda ter saldo
+    // e aparecer na tabela do relatório (o filtro de exibição é o saldo, não o
+    // flag), e escondê-lo aqui tiraria o medidor justamente da linha que continua
+    // sendo exibida.
+    client.from('itens').select('id, estoque_minimo'),
   ])
   if (saldos.error) throw new Error(`Falha nos saldos de itens: ${saldos.error.message}`)
   if (movs.error) throw new Error(`Falha na movimentação de itens: ${movs.error.message}`)
@@ -50,6 +66,13 @@ export async function getGruposItens(
     throw new Error(`Falha no frescor dos itens: ${frescor.error.message}`)
   if (obsRows.error)
     throw new Error(`Falha nas observações dos itens: ${obsRows.error.message}`)
+  // O catálogo NÃO lança: o mínimo é enfeite de leitura (o medidor), não número do
+  // relatório. Falhar aqui derrubaria a página inteira — inclusive as contagens,
+  // que não dependem dele. Sem catálogo, os itens ficam sem `minimo` e a célula
+  // volta a ser exatamente a de antes desta fase, que é a degradação certa.
+  if (catalogo.error) {
+    console.error('Falha ao ler o mínimo do catálogo de itens', catalogo.error.message)
+  }
 
   const movPorItem = new Map<number, { entradas: number; saidas: number }>()
   for (const m of movs.data ?? []) {
@@ -61,6 +84,10 @@ export async function getGruposItens(
   }
   const frescorPorGrupo = new Map<GrupoItem, string | null>()
   for (const f of frescor.data ?? []) frescorPorGrupo.set(f.grupo, f.ultima)
+  // `minimosDoCatalogo` (lib/itens/repor.ts) é a função pura que o dashboard e a
+  // tela /itens já usam para a mesma travessia — reusá-la mantém UMA definição de
+  // "mínimo do item" no sistema.
+  const minimos = minimosDoCatalogo(catalogo.data ?? [])
 
   const porGrupo = new Map<GrupoItem, SaldoItemPeriodo[]>()
   for (const s of saldos.data ?? []) {
@@ -76,10 +103,17 @@ export async function getGruposItens(
     ) {
       continue
     }
+    // F32/RV-09 — `item_id` já estava em escopo e era descartado ao montar a
+    // linha; agora ele paga o cruzamento com o catálogo antes de sair. Mínimo 0
+    // (item sem mínimo cadastrado, ou desativado e fora do catálogo) NÃO grava o
+    // campo: o JSON de um item sem régua fica idêntico ao de antes desta fase, e
+    // é `undefined` que faz o medidor não existir em vez de existir zerado.
+    const minimo = minimoDoItem(minimos, s.item_id)
     const linha: SaldoItemPeriodo = {
       item: s.item,
       total,
       estoque,
+      ...(minimo > 0 ? { minimo } : {}),
       atrelados,
       falta,
       entradas: mov.entradas,

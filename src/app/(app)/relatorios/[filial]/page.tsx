@@ -17,7 +17,8 @@ import {
   semanaUtilAnterior,
   semanaUtilCorrente,
 } from '@/lib/relatorios/periodo'
-import { linksKpiAtivos } from '@/lib/relatorios/kpi-links'
+import { linksKpiAtivos, recorteFilialAtivos } from '@/lib/relatorios/kpi-links'
+import { LembrarRelatorioVisitado } from '@/components/relatorios/lembrar-relatorio-visitado'
 import { formatDate, hojeISO } from '@/lib/format'
 import { FilialTabs } from '@/components/relatorios/filial-tabs'
 import { PeriodoFiltro } from '@/components/relatorios/periodo-filtro'
@@ -106,6 +107,12 @@ export default async function RelatorioFilialPage({
   // /relatorios/**). O snapshot congelado nunca recebe `links` (aponta p/ o
   // inventário de hoje, não o do período).
   const links = ehOperador ? linksKpiAtivos(filialId) : undefined
+  // F32/RV-12 — o MESMO gate, para o clique nos segmentos das empilhadas: o
+  // fragmento de filial que o destino em `/ativos` precisa carregar (com a
+  // sentinela `filial=todas` no consolidado, F25). Duas variáveis com a mesma
+  // condição de propósito — o corpo ainda gateia por `links` antes de repassar,
+  // e é essa dupla checagem que o teste de confinamento cobra.
+  const recorteFilial = ehOperador ? recorteFilialAtivos(filialId) : undefined
 
   const [filiais, snapshot] = await Promise.all([
     listarFiliais(acesso.client),
@@ -186,7 +193,17 @@ export default async function RelatorioFilialPage({
           relatório a cada request, então o último balde da série diária pode ser
           o dia de hoje, ainda enchendo. `links` responde outra pergunta ("quem
           olha pode navegar?") e continua sendo só do operador. */}
-      <CorpoRelatorio snapshot={snapshot} ehOperador={ehOperador} links={links} aoVivo />
+      {/* F32/RV-17 — só a sessão por senha tem o header com o botão "Ao vivo"
+          que lê esta memória; gravar para o operador seria escrever sem leitor. */}
+      {!ehOperador && <LembrarRelatorioVisitado slug={filialSlug} />}
+
+      <CorpoRelatorio
+        snapshot={snapshot}
+        ehOperador={ehOperador}
+        links={links}
+        recorteFilial={recorteFilial}
+        aoVivo
+      />
     </div>
   )
 }

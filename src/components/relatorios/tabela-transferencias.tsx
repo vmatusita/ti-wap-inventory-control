@@ -17,7 +17,7 @@ import {
   CelulaObs,
   CelulaPatrimonio,
 } from '@/components/relatorios/celulas'
-import { FiltrosTabela } from '@/components/relatorios/filtros-tabela'
+import { ChipsResumo, FiltrosTabela } from '@/components/relatorios/filtros-tabela'
 import {
   BotaoExpandir,
   LinhaDetalhe,
@@ -28,6 +28,7 @@ import { useFiltrosTabela, PREFIXO_FILTROS } from '@/components/relatorios/use-f
 import { rotuloCategoria } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import { LegendaEstorno } from '@/components/relatorios/legendas'
+import { paresDeTransferencia } from '@/lib/relatorios/transferencias-resumo'
 import type { LinhaTransferencia } from '@/lib/relatorios/tipos'
 
 // Campos textuais da busca livre (F16/T3) — refs de MÓDULO (estáveis).
@@ -49,9 +50,14 @@ const BUSCA_PATRIMONIO = (r: LinhaTransferencia) => r.patrimonio
 // patrimônio virar link p/ a ficha; viewer por senha vê texto puro.
 export function TabelaTransferencias({
   rows,
+  ehGeral,
   ehOperador,
 }: {
   rows: LinhaTransferencia[]
+  /** F32/RV-11 — só o CONSOLIDADO ganha a linha-resumo dos pares. No relatório de
+   *  uma filial a pergunta "quem mandou para quem?" já está respondida: uma das
+   *  duas pontas é sempre a filial da aba, e os chips só repetiriam o nome dela. */
+  ehGeral?: boolean
   ehOperador?: boolean
 }) {
   const {
@@ -72,6 +78,10 @@ export function TabelaTransferencias({
     buscaPatrimonio: BUSCA_PATRIMONIO,
   })
   const { estaAberta, alternar } = useExpandidas()
+  const resumoDePares: [string, number][] = paresDeTransferencia(rows).map((p) => [
+    `${p.de} → ${p.para}`,
+    p.total,
+  ])
 
   if (rows.length === 0) return null
 
@@ -92,6 +102,15 @@ export function TabelaTransferencias({
         busca={busca}
         setBusca={setBusca}
       />
+      {/* F32/RV-11 — a tabela lista movimento a movimento; no consolidado a
+          pergunta é "quem mandou para quem?", e respondê-la exigia varrer as
+          linhas. Os chips derivam em memória (groupBy de/para, função pura
+          testada) e reusam o MESMO componente que Saídas e Entradas já usam —
+          nada de gráfico: sankey para meia dúzia de pares é canhão em mosca.
+          Deriva de `rows` (o período inteiro), não de `filtradas`: o resumo
+          descreve o recorte do relatório, e mudar de forma a cada tecla da busca
+          o transformaria noutra coisa. Nenhuma contagem muda. */}
+      {ehGeral && <ChipsResumo resumo={resumoDePares} />}
 
       {filtradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">

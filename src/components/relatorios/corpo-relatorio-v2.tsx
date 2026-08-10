@@ -7,6 +7,8 @@ import { agregarAcervoPorSituacao } from '@/lib/relatorios/acervo'
 import { resumoRiscoManutencao } from '@/lib/relatorios/resumo-manutencao'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
 import { BarraAcervo } from '@/components/relatorios/barra-acervo'
+import { SerieEstadoGrafico } from '@/components/relatorios/serie-estado-grafico'
+import { PREFIXO_FILTROS } from '@/components/relatorios/use-filtros-tabela'
 import { KpiTiles, GrupoKpis, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { GraficoMovSerie } from '@/components/relatorios/grafico-mov-serie'
 import { BarrasHorizontais } from '@/components/relatorios/barras-horizontais'
@@ -51,11 +53,16 @@ export function CorpoRelatorioV2({
   snapshot,
   ehOperador = false,
   links,
+  recorteFilial,
   aoVivo = false,
 }: {
   snapshot: SnapshotRelatorioV2
   ehOperador?: boolean
   links?: LinksKpi
+  /** F32/RV-12 — o fragmento `&filial=<id>`/`&filial=todas` que o clique num
+   *  segmento das empilhadas usa para montar o destino em `/ativos`. Só a rota ao
+   *  vivo o monta, e só para o operador — o mesmo regime de `links`. */
+  recorteFilial?: string
   /** F32/RV-05 — "este relatório está sendo derivado agora", que é DIFERENTE de
    *  "quem olha é operador" (`links`): a rota ao vivo serve os dois públicos. Só
    *  ela passa `true`; o snapshot congelado nunca passa, e é isso que impede a
@@ -76,10 +83,20 @@ export function CorpoRelatorioV2({
 
   return (
     <div className="space-y-4">
+      {/* F32/RV-13+RV-14 — os chips passaram a dizer quanto tem em cada seção
+          (responde "vale rolar até lá?" ANTES do gesto) e qual seção está na
+          tela (scroll-spy por IntersectionObserver). Os números já estavam todos
+          no snapshot: nenhuma leitura nova. */}
       <ChipsAncora
-        temTransferencias={s.transferencias.length > 0}
-        temMovItens={(s.movimentacoesItens?.length ?? 0) > 0}
-        temObservacao={Boolean(s.meta.observacao && s.meta.observacao.trim())}
+        contagens={{
+          acessorios: acessorios?.itens.length,
+          componentes: componentes?.itens.length,
+          saidas: s.saidas.length,
+          entradas: s.entradas.length,
+          transferencias: s.transferencias.length,
+          movItens: s.movimentacoesItens?.length ?? 0,
+          temObservacao: Boolean(s.meta.observacao && s.meta.observacao.trim()),
+        }}
       />
 
       {/* 1. KPIs gerais + série */}
@@ -157,8 +174,40 @@ export function CorpoRelatorioV2({
             periodoJanela={periodo}
             vazio={s.estoqueCatStatus.length === 0}
           >
-            <BarrasEmpilhadas dados={s.estoqueCatStatus} />
+            {/* F32/RV-12b — clicar num segmento abre `/ativos` já filtrado por
+                aquele status E aquela categoria. `recorteFilial` só chega no ao
+                vivo para o operador: ausente, o gráfico é o estático de sempre —
+                é o mesmo gate dos KPI tiles desde a F16.
+                O `links ? … : undefined` é DEFESA EM PROFUNDIDADE, não repetição
+                à toa: a página é quem decide, mas se um dia outra rota passar o
+                recorte por engano, o clique só acende se o sinal de "operador no
+                ao vivo" também tiver chegado. O teste de confinamento cobra esta
+                linha, porque o varredor de `href` não enxerga `router.push`. */}
+            <BarrasEmpilhadas
+              dados={s.estoqueCatStatus}
+              recorteFilial={links ? recorteFilial : undefined}
+            />
           </CardRelatorio>
+
+          {/* F32/RV-06 — "Evolução do estoque": a forma que faltava. O relatório
+              respondia "quanto saiu/entrou" (a série de movimentações) e "como
+              está no fim" (KPIs, empilhadas), mas não "para onde a prateleira
+              está indo". Um ponto por semana ENCERRADA dentro do período,
+              reconstruído as-of; congelado no snapshot como campo opcional.
+              O card só existe quando a régua junta pontos suficientes (ver
+              lib/relatorios/serie-estado.ts) — no preset padrão de 7 dias ele
+              não aparece, e snapshot gerado antes desta fase também não o tem. */}
+          {s.serieEstado && s.serieEstado.pontos.length > 0 && (
+            <CardRelatorio
+              wide
+              titulo="Evolução do estoque"
+              subtitulo="em estoque no fim de cada semana do período"
+              janela="periodo"
+              periodoJanela={periodo}
+            >
+              <SerieEstadoGrafico serie={s.serieEstado} />
+            </CardRelatorio>
+          )}
 
           <CardRelatorio
             titulo="Disponíveis por modelo"
@@ -189,11 +238,15 @@ export function CorpoRelatorioV2({
           >
             {/* F32/RV-08 — "Novo colaborador: 219" não responde "de quanto?". O
                 percentual é sempre sobre a soma da PRÓPRIA lista (o total de
-                saídas do período), nunca um total externo. */}
+                saídas do período), nunca um total externo.
+                F32/RV-12a — e clicar na barra passa a filtrar a tabela de Saídas
+                lá embaixo (o filtro já era serializável na URL desde a F13; o que
+                faltava era o gráfico saber apontar para ele). */}
             <BarrasHorizontais
               dados={s.porMotivo.saidas.map((m) => ({ rotulo: m.motivo, total: m.total }))}
               cor="var(--color-brand-amarelo)"
               comPercentual
+              filtroTabela={links ? { prefixo: PREFIXO_FILTROS.saidas, ancora: 'saidas' } : undefined}
             />
           </CardRelatorio>
 
@@ -208,6 +261,9 @@ export function CorpoRelatorioV2({
               dados={s.porMotivo.devolucoes.map((m) => ({ rotulo: m.motivo, total: m.total }))}
               cor="var(--color-brand-azul)"
               comPercentual
+              filtroTabela={
+                links ? { prefixo: PREFIXO_FILTROS.entradas, ancora: 'entradas' } : undefined
+              }
             />
           </CardRelatorio>
 
@@ -307,7 +363,11 @@ export function CorpoRelatorioV2({
       {/* 6–7. Tabelas detalhadas */}
       <TabelaSaidas rows={s.saidas} ehGeral={s.meta.ehGeral} ehOperador={ehOperador} />
       <TabelaEntradas rows={s.entradas} ehGeral={s.meta.ehGeral} ehOperador={ehOperador} />
-      <TabelaTransferencias rows={s.transferencias} ehOperador={ehOperador} />
+      <TabelaTransferencias
+        rows={s.transferencias}
+        ehGeral={s.meta.ehGeral}
+        ehOperador={ehOperador}
+      />
 
       {/* 8. Movimentações de itens por quantidade (B5 — seção própria) */}
       <TabelaMovItens rows={s.movimentacoesItens} ehGeral={s.meta.ehGeral} />

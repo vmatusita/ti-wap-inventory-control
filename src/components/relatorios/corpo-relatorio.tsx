@@ -66,11 +66,13 @@ export function CorpoRelatorio({
   snapshot,
   ehOperador = false,
   links,
+  recorteFilial,
   aoVivo = false,
 }: {
   snapshot: AnySnapshot
   ehOperador?: boolean
   links?: LinksKpi
+  recorteFilial?: string
   aoVivo?: boolean
 }) {
   if (ehSnapshotV2(snapshot)) {
@@ -79,6 +81,7 @@ export function CorpoRelatorio({
         snapshot={snapshot}
         ehOperador={ehOperador}
         links={links}
+        recorteFilial={recorteFilial}
         aoVivo={aoVivo}
       />
     )

@@ -6,6 +6,7 @@ import {
   categoriaDeEstado,
   disponiveisPorModeloDeEstado,
   estoqueCatStatusDeEstado,
+  getSerieEstado,
   kpisDeEstado,
   lerEstadoAtivos,
   manutencaoDeEstado,
@@ -53,8 +54,18 @@ export async function getSnapshotRelatorioV2(
   const filiais = await listarFiliais(client)
   const filiaisNome = new Map(filiais.map((f) => [f.id, f.nome]))
 
-  const [estado, estadoAnt, serie, porMotivo, pendencias, grupos, tabelas, resumo, movsItens] =
-    await Promise.all([
+  const [
+    estado,
+    estadoAnt,
+    serie,
+    porMotivo,
+    pendencias,
+    grupos,
+    tabelas,
+    resumo,
+    movsItens,
+    serieEstado,
+  ] = await Promise.all([
       lerEstadoAtivos(client, filialId, periodo.ate),
       lerEstadoAtivos(client, filialId, anterior.ate),
       getSerieMovimentacoes(client, filialId, periodo),
@@ -69,6 +80,12 @@ export async function getSnapshotRelatorioV2(
       getTabelasFinais(client, filialId, periodo),
       getResumoPeriodo(client, filialId, periodo),
       getLancamentosItensPeriodo(client, filialId, periodo),
+      // F32/RV-06 — a evolução do estoque entra no MESMO Promise.all: ela é o
+      // caminho mais lento da página (até 9 reconstruções as-of, ver
+      // `getSerieEstado`), e serializá-la depois somaria o tempo dela ao de tudo
+      // que já roda aqui. Devolve `undefined` quando o período não junta pontos
+      // suficientes — e aí o campo nem existe no snapshot.
+      getSerieEstado(client, filialId, periodo),
     ])
 
   const [reservados, manutencao] = await Promise.all([
@@ -100,6 +117,10 @@ export async function getSnapshotRelatorioV2(
     reservados,
     manutencao,
     serieMovimentacoes: serie,
+    // Campo OPCIONAL: `undefined` some do JSON no `JSON.stringify` do jsonb, então
+    // um snapshot sem pontos suficientes fica com a MESMA forma dos gerados antes
+    // desta fase — nada de `"serieEstado": null` para o render ter de tratar.
+    ...(serieEstado ? { serieEstado } : {}),
     porMotivo,
     grupos,
     pendencias: pendenciasFinais,

@@ -26,7 +26,10 @@ export type JanelaCard = 'foto' | 'periodo'
 // aqui, a política "shape-only" existente é suficiente e evita duplicar regra.
 const ISO_DATA_PURA_RE = /^\d{4}-\d{2}-\d{2}$/
 
-function ddMM(iso: string): string | null {
+// EXPORTADA desde o RV-06 (a evolução do estoque rotula cada ponto em dd/MM e
+// congela o rótulo no snapshot): duas cópias da mesma regra de fatiamento seriam
+// duas chances de a armadilha de fuso voltar por uma delas.
+export function ddMM(iso: string): string | null {
   if (!ISO_DATA_PURA_RE.test(iso)) return null
   return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 }

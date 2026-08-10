@@ -11,7 +11,13 @@ import type {
   KpisRelatorio,
   ManutencaoCaso,
   ModelosPorCategoria,
+  SerieEstado,
 } from '@/lib/relatorios/tipos'
+import {
+  MIN_PONTOS_SERIE_ESTADO,
+  datasDaSerieEstado,
+  montarPontosEstado,
+} from '@/lib/relatorios/serie-estado'
 import { modeloDe, paginarTodos, ultimoPorAtivo, type DbClient } from './comum'
 import { filialParaRpc } from '@/lib/queries/rpc-filial'
 
@@ -92,6 +98,40 @@ export async function lerEstadoAtivos(
     colaborador: r.colaborador,
     setor: r.setor,
   }))
+}
+
+// F32/RV-06 — "Evolução do estoque": um ponto de `em_estoque` por semana
+// encerrada dentro do período, reconstruído AS-OF.
+//
+// SEM migration e SEM RPC nova (restrição da ordem): cada ponto é uma chamada de
+// `lerEstadoAtivos`, que já sabe escolher entre o fast path (data ≥ hoje) e a
+// reconstrução exata via `rel_estoque_asof`. As datas vêm da régua pura
+// `datasDaSerieEstado`, que TAMBÉM é o teto de custo: no máximo 9 leituras por
+// render, sempre disparadas em paralelo.
+//
+// Devolve `undefined` — não uma série vazia — quando o período não junta pontos
+// suficientes: é a diferença entre "o card não se aplica aqui" e "o card está
+// vazio", e é `undefined` que faz o campo opcional simplesmente não existir no
+// JSON congelado (o que mantém snapshots pré-F32 e pós-F32 com a MESMA forma).
+//
+// Esta função só ACRESCENTA leitura: nenhuma agregação existente passa por aqui,
+// e o número de cada ponto é contado com a mesma régra de `kpisDeEstado` (as duas
+// baixas terminais já saem de `lerEstadoAtivos`).
+export async function getSerieEstado(
+  client: DbClient,
+  filialId: number | null,
+  periodo: Periodo,
+): Promise<SerieEstado | undefined> {
+  const datas = datasDaSerieEstado(periodo)
+  if (datas.length < MIN_PONTOS_SERIE_ESTADO) return undefined
+
+  const estados = await Promise.all(
+    datas.map((data) => lerEstadoAtivos(client, filialId, data)),
+  )
+  const contagens = estados.map(
+    (estado) => estado.filter((a) => a.status === 'em_estoque').length,
+  )
+  return { pontos: montarPontosEstado(datas, contagens) }
 }
 
 export function kpisDeEstado(estado: EstadoAtivo[]): KpisRelatorio {

@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
+import { MedidorMinimo } from '@/components/relatorios/medidor-minimo'
 import {
   BotaoExpandir,
   LinhaDetalhe,
@@ -90,13 +91,18 @@ export function TabelaItensGrupo({
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {total.toLocaleString('pt-BR')}
                       </TableCell>
+                      {/* F32/RV-09 — o medidor mora sob o número do ESTOQUE (não na
+                          coluna Falta): é o estoque que se compara com o mínimo, e
+                          a coluna Falta só existe quando já é tarde. */}
                       <TableCell className="text-right text-base font-semibold tabular-nums">
                         {estoque.toLocaleString('pt-BR')}
+                        <MedidorMinimo estoque={estoque} minimo={i.minimo} />
                       </TableCell>
                     </>
                   ) : (
                     <TableCell className="text-right text-base font-semibold tabular-nums">
                       {estoque.toLocaleString('pt-BR')}
+                      <MedidorMinimo estoque={estoque} minimo={i.minimo} />
                     </TableCell>
                   )}
                   {mostrarAtrelados && (
