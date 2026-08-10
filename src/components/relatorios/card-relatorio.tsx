@@ -70,17 +70,22 @@ export function CardRelatorio({
           )}
           {chip && (
             // Chip PERSISTENTE (não é hover/tooltip) — cinza p/ 'foto' (um
-            // instante), azul-claro p/ 'periodo' (um intervalo). Nenhuma cor
-            // nova: reaproveita os dois pares já em produção no relatório —
-            // bg-muted/text-muted-foreground (sidebar-nav.tsx, chip "em
-            // breve") e bg-blue-100/text-blue-700 com
-            // dark:bg-blue-950/dark:text-blue-300 (dominio.ts, pílula de
-            // Entrada) — ambos ≥4,5:1 (AA) nos dois temas, já validados em uso.
+            // instante), azul-claro p/ 'periodo' (um intervalo).
+            //
+            // O par do 'foto' era `bg-muted text-muted-foreground`, copiado do
+            // chip "em breve" da sidebar. A revisão adversarial da F32 mediu:
+            // **4,34:1** — reprova AA nos 11px em que o chip é renderizado. E é
+            // exatamente o par que o próprio repo já tinha catalogado como
+            // defeituoso em `scripts/contraste.mjs` (P2-8, "pílula fallback —
+            // ANTES"), com a correção ao lado. Copiar de um lugar que está em
+            // produção não é o mesmo que copiar de um lugar MEDIDO — a lição
+            // desta troca. Agora usa o par corrigido de lá (`gray-200/gray-600`,
+            // 6,11:1 claro · 5,64:1 escuro), que já entra no portão do CI.
             <span
               className={cn(
                 'mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium',
                 janela === 'foto'
-                  ? 'bg-muted text-muted-foreground'
+                  ? 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                   : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
               )}
             >

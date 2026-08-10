@@ -44,23 +44,40 @@ export function MedidorMinimo({
   const rotulo = rotuloMedidor(estoque, minimo)
 
   return (
-    // `title` NÃO é o canal — é reforço. O canal de verdade é o `aria-label` (para
-    // quem usa leitor de tela) e o chip "faltam N" ao lado (para quem lê o papel
-    // em P&B, onde os três matizes viram cinzas parecidos). A régua da fase é
-    // "nada novo só em hover".
-    <span
-      role="img"
-      aria-label={rotulo ?? undefined}
-      title={rotulo ?? undefined}
-      className={cn(
-        'mt-1 ml-auto block h-1.5 w-11 overflow-hidden rounded-full print:border print:border-foreground/40',
-        TRILHO[nivel],
+    <span className="mt-1 flex items-center justify-end gap-1">
+      {/* F32 — achado da revisão adversarial: 'limite' e 'folga' desenhavam a
+          MESMA barra cheia (o preenchimento satura em 100% assim que o estoque
+          alcança o mínimo), diferindo só pelo matiz — e âmbar-600 e verde-600
+          têm luminância quase igual, então em P&B, no papel, os dois viravam o
+          mesmo cinza. Quem só olha (sem mouse para o `title`, sem leitor de
+          tela) não conseguia separar "precisa repor logo" de "tem de sobra".
+          O rótulo abaixo é esse canal, em TEXTO e permanente.
+          Só o 'limite' o recebe: 'falta' já tem o chip vermelho "faltam N" na
+          coluna ao lado, e 'folga' não é alerta — anunciar os três encheria a
+          tabela de ruído justamente onde não há nada a fazer. */}
+      {nivel === 'limite' && (
+        <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+          no limite
+        </span>
       )}
-    >
+      {/* `title` NÃO é o canal — é reforço. O canal de verdade é o `aria-label`
+          (leitor de tela) e o texto ao lado. A régua da fase é "nada novo só em
+          hover"; a borda no `print:` mantém o medidor visível quando a cor de
+          fundo não é impressa. */}
       <span
-        className={cn('block h-full rounded-full', PREENCHIMENTO[nivel])}
-        style={{ width: `${Math.round(fracao * 100)}%` }}
-      />
+        role="img"
+        aria-label={rotulo ?? undefined}
+        title={rotulo ?? undefined}
+        className={cn(
+          'block h-1.5 w-11 shrink-0 overflow-hidden rounded-full print:border print:border-foreground/40',
+          TRILHO[nivel],
+        )}
+      >
+        <span
+          className={cn('block h-full rounded-full', PREENCHIMENTO[nivel])}
+          style={{ width: `${Math.round(fracao * 100)}%` }}
+        />
+      </span>
     </span>
   )
 }

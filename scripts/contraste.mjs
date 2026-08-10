@@ -363,6 +363,21 @@ const PARES = [
   // de-ênfase (croma 0,019), não uma categoria "viva" — quem carrega o sentido
   // dele é o rótulo, não a cor (análise §4).
   // =========================================================================
+  // Os dois pares do chip de janela do card (RV-04), a 11px. O ramo "foto"
+  // nasceu com `muted-foreground` sobre `muted` — 4,34:1, o MESMO par que o
+  // P2-8 acima já registra como defeito conhecido — e a revisão adversarial da
+  // fase o pegou. Entram no portão para a troca não se desfazer sozinha.
+  { item: 'F32', onde: 'chip "foto de dd/MM" (claro)', texto: 'gray-600', fundo: 'gray-200', px: 11, exigir: true },
+  { item: 'F32', onde: 'chip "foto de dd/MM" (escuro)', texto: 'gray-400', fundo: 'gray-800', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F32', onde: 'chip "dd/MM – dd/MM" (claro)', texto: 'blue-700', fundo: 'blue-100', px: 11, exigir: true },
+  { item: 'F32', onde: 'chip "dd/MM – dd/MM" (escuro)', texto: 'blue-300', fundo: 'blue-950', px: 11, tema: 'escuro', exigir: true },
+
+  // O rótulo "no limite" do micro-medidor (RV-09) — o canal de TEXTO que separa
+  // 'limite' de 'folga' sem depender de cor (âmbar-600 e verde-600 viram o mesmo
+  // cinza no papel P&B). 10px, então o limiar é o de texto pequeno.
+  { item: 'F32', onde: 'rótulo "no limite" do medidor (claro)', texto: 'amber-700', fundo: 'card', px: 10, exigir: true },
+  { item: 'F32', onde: 'rótulo "no limite" do medidor (escuro)', texto: 'amber-400', fundo: 'card', px: 10, tema: 'escuro', exigir: true },
+
   { item: 'F32', onde: 'badge Em triagem (rosa, claro — NOVO)', texto: 'pink-700', fundo: 'pink-100', px: 11, exigir: true },
   { item: 'F32', onde: 'badge Em triagem (rosa, escuro — NOVO)', texto: 'pink-300', fundo: 'pink-950', px: 11, tema: 'escuro', exigir: true },
 
