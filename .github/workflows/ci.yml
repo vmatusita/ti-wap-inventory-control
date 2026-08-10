@@ -27,7 +27,7 @@ jobs:
       VIEW_SESSION_SECRET: placeholder-view-secret-para-ci
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # Node 24 = LTS Ativo. Era 20, que saiu do suporte em abril/2026 e
           # ficava SEIS majors atrás do Node do desenvolvimento (26) — e esse vão
