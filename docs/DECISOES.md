@@ -5254,3 +5254,63 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   segurança ficaram idênticos.
 - **Reversível?** sim — `drop index` nos cinco índices e `alter policy` de volta ao corpo da `0103`.
   Nenhum dado foi tocado; nenhuma trigger ou função de negócio foi alterada.
+
+## 2026-08-10 · F33 · Dois itens da Frente C REVERTIDOS — o Next já deduplicava
+
+- **Contexto:** o mapa da Frente A apontou duas duplicatas no mesmo render: `contarConflitosAbertos`
+  chamada pelo selo da sidebar E pelo card da Home, e `listarFiliais` chamada pelo layout com um
+  argumento e pela página com outro (errando a chave do memo do React). Os dois foram corrigidos e
+  commitados.
+- **A medição que os condenou:** produção ainda rodava o código ANTES da Frente C e o `next start`
+  local rodava o DEPOIS, os dois contra o MESMO Postgres — então `pg_stat_statements.calls` conta
+  os dois. Oito renders de cada lado, com a janela verificada sem tráfego de fundo (todos os
+  contadores subiram exatamente 8):
+
+  | Rota | query | antes/render | depois/render |
+  |---|---|---:|---:|
+  | `/` | `v_conflitos_filiais_grupos` | **1,00** | **1,00** |
+  | `/pendencias` | `listarFiliais` (4 colunas) | **1,00** | **1,00** |
+  | `/movimentacoes/nova` | `getPerfilAtual` (`profiles`) | **1,00** | **0,00** |
+
+- **Causa:** o **Next.js memoiza requisições `fetch` idênticas dentro de um mesmo render**
+  (request memoization). As duas chamadas de `contarConflitosAbertos` e as duas de `listarFiliais`
+  produzem GETs BYTE A BYTE iguais ao PostgREST — o framework já as colapsava, e a duplicata do
+  mapa **nunca chegava ao banco**. `getPerfilAtual` escapava porque seleciona colunas DIFERENTES
+  (`id, nome` contra `nome, papel, ativo, excluido_em`): URL diferente, sem memoização.
+- **Decisão:** **reverter** o memo textual de `contarConflitosAbertos` e as duas trocas de
+  `listarFiliais()`. Régua da ordem: "otimização sem número que a sustente é revertida". Além de
+  não economizarem nada, o memo de conflitos mudava o comportamento no caminho de ERRO (passava a
+  guardar o `0` da falha) — mudança de comportamento sem ganho é o pior negócio possível.
+- **O que fica desta investigação (mais valioso que o código revertido):** o mapa de duplicatas de
+  leitura deste projeto precisa considerar a memoização do Next antes de chamar algo de duplicata.
+  Duas chamadas à mesma função de `queries/` só custam duas idas ao banco quando a URL final
+  DIFERE — colunas, filtros ou client administrativo contra client com RLS.
+- **Reversível?** já revertido (`git checkout 02b640a -- …` nos três arquivos).
+
+## 2026-08-10 · F33 · C1 e C7 — medidos por A/B intercalado, com a ressalva do método
+
+- **Contexto:** C1 (`/ativos/[id]`: três rodadas de leitura viram uma) e C7 (`listarFiliais` vira
+  promise no motor do relatório) não removem QUERY nenhuma — removem **esperas sequenciais**. A
+  memoização do Next não ajuda nisso, mas o harness de latência tem ruído de ~10% entre sessões,
+  maior que o efeito esperado.
+- **Método:** dois `next start` do mesmo projeto contra o mesmo banco, diferindo só no commit
+  (3101 = `02b640a`, antes; 3100 = depois), medidos **intercalados** — cada rodada mede cada rota
+  nas duas versões, alternando quem vai primeiro. `/ajuda` entra como CONTROLE (a Frente C não a
+  toca): a diferença medida nela é o ruído residual, e um ganho só é real acima dele.
+- **Resultado (TTFB mediana, 15 rodadas):** `/relatorios/geral` −8,8% (controle +3,3% → **−12,1%**
+  relativo); `/movimentacoes/nova` −5,6% (**−8,9%** relativo); `/relatorios/[filial]` −4,2%
+  (−7,5% relativo); `/ativos/[id]` −1,9% (−5,2% relativo).
+- **Segunda execução, 25 rodadas, focada na ficha:** sem antecessor −11,6%, com antecessor −15,4%,
+  **controle −10%** — a rodada inteira derivou. Normalizado: −1,6% e −5,4%.
+- **Ressalva metodológica declarada:** o controle derivar 10% numa das execuções expõe um viés do
+  método — o servidor "depois" (3100) já tinha servido a execução anterior e estava mais aquecido
+  (JIT, pool de conexões) que o "antes" (3101). Por isso a leitura honesta é a NORMALIZADA pelo
+  controle, e não o número bruto.
+- **Decisão:** C1 e C7 **ficam**. C7 tem ganho claro e acima do ruído nas duas rotas de relatório.
+  C1 fica com ganho pequeno (−1,6% a −5,4%) mas de direção consistente em duas execuções
+  independentes, apoiado no fato estrutural verificável no diff: uma rodada sequencial a menos para
+  ativo normal, duas para ativo com antecessor. Não pode mudar resultado — as nove leituras já
+  dependiam só de `id` e `ativo`.
+- **Descoberto de passagem:** só **2 dos 1.654** ativos de produção têm `substitui_ativo_id`. O
+  caso de três rodadas que a ordem cita como suspeito é, na prática, 0,1% do acervo — o ganho de C1
+  no caso comum é de uma rodada, não duas.

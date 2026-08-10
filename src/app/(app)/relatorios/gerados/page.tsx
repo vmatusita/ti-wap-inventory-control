@@ -71,13 +71,7 @@ export default async function RelatoriosGeradosPage({
   const page = paginaNumerica(typeof sp.page === 'string' ? sp.page : undefined)
 
   const [filiais, gerados] = await Promise.all([
-    // F33 — o VISUALIZADOR por senha continua precisando do client administrativo
-    // (sem ele a RLS de anon devolve lista vazia e o filtro de filial some — achado
-    // da revisão da F3). Já o OPERADOR chama sem argumento: `listarFiliais` é
-    // memoizada por requisição e a chave é o ARGUMENTO, então passar o
-    // `acesso.client` (instância nova a cada `createClient()`) errava o memo que o
-    // layout do grupo (app) já preencheu, e lia `filiais` duas vezes por navegação.
-    listarFiliais(acesso.modo === 'viewer' ? acesso.client : undefined),
+    listarFiliais(acesso.client),
     listarRelatoriosGerados(acesso.client, filialFiltro, { page }),
   ])
 

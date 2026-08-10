@@ -1,5 +1,4 @@
 import 'server-only'
-import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
@@ -209,27 +208,11 @@ export async function contarGruposConflito(
  * Contagem para o badge da sidebar. Falha de leitura NÃO derruba o shell — devolve 0 e
  * registra no log, exatamente como `contarPendenciasAbertas` faz desde a F9.
  */
-// F33 — MEMOIZADA POR REQUISIÇÃO. Esta contagem é a query mais cara que o app
-// dispara (medida em produção: 91 ms, 2.226 chamadas), e ela roda DUAS vezes no
-// mesmo render da Home: uma no selo da sidebar ((app)/layout.tsx) e outra no card
-// de Pendências ((app)/page.tsx). As duas passam o MESMO recorte — os dois arrays
-// saem de `resolverFiliaisSlugs(undefined, operador, listarFiliais())` — mas são
-// objetos DIFERENTES.
-//
-// ⚠ Por isso a chave do memo é TEXTUAL e não o array: `cache()` do React memoiza
-// por IDENTIDADE do argumento (WeakMap para objeto), então com o array cru o memo
-// erraria sempre e não economizaria nada. `JSON.stringify`/`parse` fecha o ciclo
-// sem ambiguidade — `[]` e `['']` viram chaves distintas, o que `join()` não
-// garantiria.
-//
-// ⚠ O cache é POR REQUISIÇÃO, nunca global (mesma nota de `getOperador`): um
-// conflito resolvido tem de sumir do selo na navegação seguinte.
-//
-// Se um dia dois pontos passarem a mesma lista em ORDEM diferente, o memo
-// simplesmente ERRA e a contagem é refeita ao vivo — degrada para o comportamento
-// de antes desta mudança, nunca para um número errado.
-const contarConflitosPorChave = cache(async (chave: string): Promise<number> => {
-  const filialSlugs = JSON.parse(chave) as string[]
+export async function contarConflitosAbertos(
+  // F25 — mesmo recorte do badge de pendências: o selo tem de contar o que a mesa
+  // vai mostrar para quem está olhando.
+  filialSlugs: readonly string[] = [],
+): Promise<number> {
   try {
     const client = await createClient()
     return await contarGruposConflito(client, filialSlugs)
@@ -237,14 +220,6 @@ const contarConflitosPorChave = cache(async (chave: string): Promise<number> => 
     console.error(`Falha ao contar conflitos entre filiais: ${(e as Error).message}`)
     return 0
   }
-})
-
-export async function contarConflitosAbertos(
-  // F25 — mesmo recorte do badge de pendências: o selo tem de contar o que a mesa
-  // vai mostrar para quem está olhando.
-  filialSlugs: readonly string[] = [],
-): Promise<number> {
-  return contarConflitosPorChave(JSON.stringify(filialSlugs))
 }
 
 /**

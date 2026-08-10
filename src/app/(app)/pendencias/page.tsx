@@ -91,14 +91,7 @@ export default async function PendenciasPage({
   // F25 — as filiais vêm ANTES do resto: o filtro de filial tem padrão por cargo,
   // e aqui ele é por SLUG (a view `v_fila_pendencias` expõe o slug), então a
   // tradução id→slug precisa da lista.
-  // F33 — SEM passar o client. `listarFiliais` é memoizada por requisição e a chave
-  // do memo é o ARGUMENTO; o layout do grupo (app) já a chamou sem argumento nesta
-  // mesma requisição, então esta chamada é um acerto de cache. Passando o `client`
-  // local (que `createClient()` devolve NOVO a cada vez, nunca a mesma referência)
-  // o memo errava e a tabela `filiais` era lida duas vezes por navegação. Esta rota
-  // é só de operador — o client default é o mesmo client com RLS do `client` acima,
-  // então a lista é idêntica.
-  const filiais = await listarFiliais()
+  const filiais = await listarFiliais(client)
   const filialSlugs = resolverFiliaisSlugs(primeiro(sp.filial), operador, filiais)
 
   // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL, e `ehFiltroDeFilial`
