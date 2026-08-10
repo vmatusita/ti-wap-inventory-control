@@ -26,10 +26,20 @@ const MEDIDAS: {
   fill: string
 }[] = [
   { status: 'em_estoque', branco: 3.3, preto: 6.37, fill: 'fill-black' },
-  { status: 'reservado', branco: 5.7, preto: 3.69, fill: 'fill-white' },
+  // F32/RV-02 — três matizes trocados por medição de daltonismo (o par
+  // triagem × manutenção media ΔE 1,6 sob deutanopia). Estas três linhas são a
+  // MEDIÇÃO NOVA, não um afrouxamento: o teste continua exigindo ≥4,5:1 na cor
+  // escolhida, e foi ele que provou que as três seguem legíveis.
+  //   · reservado #7c3aed → #6d28d9: mais escuro, o rótulo continua branco.
+  //   · emprestado #0891b2 → #06b6d4: mais claro, o rótulo continua preto.
+  //   · em_triagem #ea580c → #db2777: VIROU o rótulo de preto para branco — e é
+  //     o caso mais apertado da tabela (4,60 branco × 4,57 preto). Os dois lados
+  //     passam de AA; o seletor pega o maior, e por isso o valor não pode ser
+  //     "arredondado à mão" aqui: qualquer repintada devolve a decisão ao teste.
+  { status: 'reservado', branco: 7.1, preto: 2.96, fill: 'fill-white' },
   { status: 'em_uso', branco: 4.42, preto: 4.76, fill: 'fill-black' },
-  { status: 'emprestado', branco: 3.68, preto: 5.7, fill: 'fill-black' },
-  { status: 'em_triagem', branco: 3.56, preto: 5.9, fill: 'fill-black' },
+  { status: 'emprestado', branco: 2.43, preto: 8.65, fill: 'fill-black' },
+  { status: 'em_triagem', branco: 4.6, preto: 4.57, fill: 'fill-white' },
   { status: 'em_manutencao', branco: 3.19, preto: 6.59, fill: 'fill-black' },
   { status: 'defasado', branco: 2.54, preto: 8.27, fill: 'fill-black' },
 ]

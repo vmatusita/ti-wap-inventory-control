@@ -236,7 +236,10 @@ const PARES = [
   { item: 'família', onde: 'Reservado (violeta)', texto: 'violet-700', fundo: 'violet-100', px: 11, exigir: true },
   { item: 'família', onde: 'Em uso (azul)', texto: 'blue-700', fundo: 'blue-100', px: 11, exigir: true },
   { item: 'família', onde: 'Emprestado (ciano)', texto: 'cyan-700', fundo: 'cyan-100', px: 11, exigir: true },
-  { item: 'família', onde: 'Em triagem (laranja)', texto: 'orange-700', fundo: 'orange-100', px: 11, exigir: true },
+  // O laranja da triagem saiu do badge na F32 (virou rosa, ver o bloco F32 no fim
+  // do arquivo). A linha fica como registro do matiz aposentado — ela passa, e
+  // apagá-la esconderia de onde o rosa veio.
+  { item: 'família', onde: 'Em triagem (laranja — aposentado na F32)', texto: 'orange-700', fundo: 'orange-100', px: 11, exigir: true },
   { item: 'família', onde: 'Em manutenção (âmbar)', texto: 'amber-800', fundo: 'amber-100', px: 11, exigir: true },
   { item: 'família', onde: 'Descartado (cinza)', texto: 'gray-600', fundo: 'gray-200', px: 11, exigir: true },
   { item: 'família', onde: 'Devolvido ao fornecedor (slate)', texto: 'slate-700', fundo: 'slate-200', px: 11, exigir: true },
@@ -314,7 +317,7 @@ const PARES = [
   // ganharam variante `dark:` no mesmo lote e nunca foram para a régua.
   { item: 'F29', onde: 'pílula Reservado (violeta, escuro)', texto: 'violet-300', fundo: 'violet-950', px: 11, tema: 'escuro', exigir: true },
   { item: 'F29', onde: 'pílula Emprestado (ciano, escuro)', texto: 'cyan-300', fundo: 'cyan-950', px: 11, tema: 'escuro', exigir: true },
-  { item: 'F29', onde: 'pílula Em triagem (laranja, escuro)', texto: 'orange-300', fundo: 'orange-950', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F29', onde: 'pílula Em triagem (laranja, escuro — aposentado na F32)', texto: 'orange-300', fundo: 'orange-950', px: 11, tema: 'escuro', exigir: true },
   { item: 'F29', onde: 'pílula Devolvido ao fornecedor (slate, escuro)', texto: 'slate-300', fundo: 'slate-950', px: 11, tema: 'escuro', exigir: true },
   { item: 'F29', onde: 'pílula Troca (teal, escuro)', texto: 'teal-300', fundo: 'teal-950', px: 11, tema: 'escuro', exigir: true },
 
@@ -345,6 +348,42 @@ const PARES = [
   // A tecla de atalho no header (`kbd`): branco sobre um véu de 10% que se compõe
   // com o header. Fundo TRANSLÚCIDO — daí o `sob`.
   { item: 'F29', onde: 'kbd "Ctrl K" no header', texto: 'white', fundo: 'white/10', sob: ['brand-dark'], px: 10, bold: true, exigir: true },
+
+  // =========================================================================
+  // F32/RV-02 — a paleta de status vira a LÍNGUA da página inteira.
+  //
+  // Três matizes trocados por medição (análise de 10/08 §4). Aqui entram os dois
+  // pares de BADGE novos (o rosa da triagem) e os SEIS hex de gráfico contra o
+  // card, nos dois temas — porque desde a F32 esses hex não pintam só o segmento
+  // empilhado: pintam o acento de 3px do KPI tile, a barra do acervo, a linha da
+  // evolução e o swatch do glossário. Um token que degrade agora degrada em
+  // quatro superfícies de uma vez, e o portão precisa enxergar isso.
+  //
+  // `defasado` #9ca3af fica FORA da régua de propósito: é o cinza deliberado de
+  // de-ênfase (croma 0,019), não uma categoria "viva" — quem carrega o sentido
+  // dele é o rótulo, não a cor (análise §4).
+  // =========================================================================
+  { item: 'F32', onde: 'badge Em triagem (rosa, claro — NOVO)', texto: 'pink-700', fundo: 'pink-100', px: 11, exigir: true },
+  { item: 'F32', onde: 'badge Em triagem (rosa, escuro — NOVO)', texto: 'pink-300', fundo: 'pink-950', px: 11, tema: 'escuro', exigir: true },
+
+  // Os hex de gráfico contra a superfície do card. Limiar de elemento gráfico (3:1).
+  { item: 'F32', onde: 'segmento Em estoque (verde) sobre card', texto: '#16a34a', fundo: 'card', px: 12, grafico: true, exigir: true },
+  { item: 'F32', onde: 'segmento Em estoque (verde) sobre card escuro', texto: '#16a34a', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
+  { item: 'F32', onde: 'segmento Em triagem (rosa) sobre card', texto: '#db2777', fundo: 'card', px: 12, grafico: true, exigir: true },
+  { item: 'F32', onde: 'segmento Em manutenção (âmbar) sobre card', texto: '#d97706', fundo: 'card', px: 12, grafico: true, exigir: true },
+  { item: 'F32', onde: 'segmento Em manutenção (âmbar) sobre card escuro', texto: '#d97706', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
+
+  // Os dois pares que ficam ABAIXO do piso — e por que isso é legal aqui.
+  // A regra de alívio da análise §4: o segmento nunca depende da cor sozinha —
+  // ele tem rótulo de valor dentro (fill preto/branco escolhido por luminância
+  // medida, `fillRotuloSegmento`), total na ponta, legenda com o nome escrito e
+  // tooltip. Quatro canais de texto. Registrar o número é melhor do que fingir
+  // que ele passa OU do que deixar o par fora da lista.
+  { item: 'F32', onde: 'segmento Emprestado (ciano) sobre card', texto: '#06b6d4', fundo: 'card', px: 12, grafico: true, alivio: true },
+  { item: 'F32', onde: 'segmento Reservado (violeta) sobre card escuro', texto: '#6d28d9', fundo: 'card', px: 12, tema: 'escuro', grafico: true, alivio: true },
+  // O mesmo violeta no tema CLARO passa com folga — é o escuro que aperta.
+  { item: 'F32', onde: 'segmento Reservado (violeta) sobre card', texto: '#6d28d9', fundo: 'card', px: 12, grafico: true, exigir: true },
+  { item: 'F32', onde: 'segmento Emprestado (ciano) sobre card escuro', texto: '#06b6d4', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
 ]
 
 // ---------------------------------------------------------------------------
@@ -418,13 +457,19 @@ function main() {
       // lista como registro do defeito. (Aqui se lia `l.preexistente`, campo que nenhum par
       // define — então o aviso nunca era impresso e um known-fail saía indistinguível de
       // uma regressão nova.)
+      // `alivio: true` (F32) marca o par que fica abaixo do piso DE PROPÓSITO
+      // porque o elemento não depende da cor sozinha — carrega rótulo de valor,
+      // total e legenda em texto. Sem esta marca ele sairia indistinguível de uma
+      // regressão, exatamente como acontecia com o `antes` antes da F29.
       const veredito = l.passa
         ? l.nivel === 'AAA'
           ? '✅ AAA'
           : '✅ AA'
         : l.antes
           ? '❌ reprova (esperado — é o "antes" registrado)'
-          : '❌ reprova'
+          : l.alivio
+            ? '⚠️ abaixo do piso (alívio registrado — rótulo, total e legenda em texto)'
+            : '❌ reprova'
       console.log(
         `| ${l.item} | ${l.onde} | ${l.tema} | \`${l.texto}\` | \`${l.fundo}\` | ${l.razao.toFixed(2)}:1 | ${l.exigido}:1 | ${veredito} |`,
       )

@@ -83,8 +83,10 @@ export function fillRotuloSegmento(corBarra: string): string {
 // F29/REL-06a — QUANDO desenhar o número dentro do segmento empilhado.
 //
 // O corte era `>= 2`: um segmento de valor 1 ficava sem rótulo E sem tooltip, ou
-// seja, ilegível em canal NENHUM — e é justamente onde âmbar e laranja vizinhos se
-// confundem para daltônicos. Com o tooltip entrando junto (o desempate por hover),
+// seja, ilegível em canal NENHUM — e era justamente onde o par âmbar × laranja de
+// então se confundia para daltônicos (a F32 desfez o par: a triagem virou rosa, e
+// o rótulo continua sendo o canal que não depende de cor nenhuma). Com o tooltip
+// entrando junto (o desempate por hover),
 // o corte pode descer para 1 — mas só quando a barra COMPORTA: um "1" ao lado de
 // uma barra de 400 sai por cima do vizinho e piora a leitura.
 //

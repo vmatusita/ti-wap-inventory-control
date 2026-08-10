@@ -45,10 +45,17 @@ export const STATUS_META: Record<
     badge:
       'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300 border-transparent',
   },
+  // F32/RV-02 — a triagem trocou de família (laranja → rosa). NÃO é gosto: o
+  // laranja `#ea580c` do GRÁFICO media ΔE 1,6 sob deutanopia contra o âmbar
+  // vizinho `#d97706` da manutenção (piso 8) e 6,7 em visão normal (piso 15) —
+  // par indistinguível. O rosa era a única família de matiz livre no sistema. O
+  // BADGE acompanha o gráfico porque a promessa da fase é uma cor só por status
+  // em toda superfície: tile → segmento → badge → glossário. Par medido:
+  // 5,01:1 claro · 8,28:1 escuro (`node scripts/contraste.mjs`).
   em_triagem: {
     rotulo: 'Em triagem',
     badge:
-      'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 border-transparent',
+      'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300 border-transparent',
   },
   em_manutencao: {
     rotulo: 'Em manutenção',
@@ -79,14 +86,34 @@ export function rotuloStatus(s: StatusAtivo): string {
 
 // Cor de gráfico por status (barras empilhadas de estoque — F3B). Escala
 // categórica distinta; `em_uso` é o azul da marca (token único --color-brand-azul,
-// mesma cor da 2ª série dos gráficos). Consumido só em barras-empilhadas, como
-// fill SVG / style.background / config de chart — todos aceitam CSS var.
+// mesma cor da 2ª série dos gráficos). Desde a F32 este mapa deixou de ser "cor
+// das empilhadas" e virou a LÍNGUA do status na página inteira: acento dos KPI
+// tiles, barra do acervo, segmentos, swatch do glossário. Consumido como fill
+// SVG / style.background / config de chart — todos aceitam CSS var.
+//
+// F32/RV-02 — três matizes trocados por MEDIÇÃO (análise de 10/08 §4: simulação
+// Machado–Oliveira–Fernandes 2009 severidade 1.0 + distância OKLab ×100 entre
+// vizinhos ADJACENTES na ordem em que os segmentos se tocam, STATUS_ORDEM):
+//   · `em_triagem` #ea580c → #db2777 — o par com `em_manutencao` media ΔE 1,6
+//     sob deutanopia (piso 8) e 6,7 em visão normal (piso 15). O pior possível.
+//   · `reservado` #7c3aed → #6d28d9 — um degrau mais escuro afasta do azul
+//     vizinho (deutan 5,2 → 7,6).
+//   · `emprestado` #0891b2 → #06b6d4 — um degrau mais claro afasta do azul em
+//     visão normal (9,9 → 17,5).
+// Resultado da pilha: pior par CVD 7,6 · pior par em visão normal 17,1. O ciano
+// mede 2,43:1 contra o card, abaixo do piso 3:1 de elemento gráfico — alívio
+// registrado em `scripts/contraste.mjs`: o segmento carrega rótulo direto,
+// total na ponta, legenda e tooltip, quatro canais além da cor.
+//
+// ARMADILHA: `fillRotuloSegmento` (rotulo-grafico.ts) só sabe converter hex e os
+// tokens listados em TOKEN_PARA_HEX. Cor nova aqui é hex literal OU entra lá —
+// senão a luminância vira 0 e o rótulo sai branco sobre fundo claro, em silêncio.
 export const STATUS_CHART_COLOR: Record<StatusAtivo, string> = {
   em_estoque: '#16a34a',
-  reservado: '#7c3aed',
+  reservado: '#6d28d9',
   em_uso: 'var(--color-brand-azul)',
-  emprestado: '#0891b2',
-  em_triagem: '#ea580c',
+  emprestado: '#06b6d4',
+  em_triagem: '#db2777',
   em_manutencao: '#d97706',
   defasado: '#9ca3af',
   descartado: '#6b7280',
