@@ -1,11 +1,9 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/proxy'
 
 // Next.js 16 renomeou "middleware" para "proxy" (mesma funcionalidade).
 // Doc: node_modules/next/dist/docs/01-app/01-getting-started/16-proxy.md
 export async function proxy(request: NextRequest) {
-  // ANDAIME DA F32 — TEMPORÁRIO, remover junto com src/app/verify/.
-  if (request.nextUrl.pathname.startsWith('/verify')) return NextResponse.next()
   return updateSession(request)
 }
 
