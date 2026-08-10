@@ -5128,3 +5128,129 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
      cargo/filial é vazamento de dado entre usuários. A régua da ordem é explícita — "sobrou
      qualquer dúvida de vazamento? Não cacheie".
 - **Reversível?** não se aplica — é um "não fazer", registrado para não ser reaberto sem número novo.
+
+## 2026-08-10 · F33 · Frente D — banco: dois índices ficam, um FK-set fica, um índice funcional NÃO fica, uma fusão de policy foi recusada
+
+- **Contexto:** cinco itens ranqueados pela Frente A (D1…D5), método fixo — EXPLAIN ANALYZE BUFFERS
+  antes/depois em ensaio (sgmvldiizsrjbxzzpmhh), índice só fica se o PLANO mudar, produção só
+  recebe o que passou. Migrations 0105–0107 em `supabase/migrations/`.
+
+- **D1 — índice funcional para `chave_identidade_ativo()`: TENTADO E DESCARTADO. Não entra migration
+  nenhuma.** Este era o item de maior valor estimado e o resultado é negativo — registrado com o
+  método completo para não ser reaberto sem prova nova:
+  - Confirmado seguro para indexar: `provolatile='i'` (IMMUTABLE), corpo é concatenação pura de
+    texto sobre os PARÂMETROS, sem `now()`, sem consulta a tabela (0099).
+  - **Três variantes prototipadas em ensaio, nenhuma mudou o plano:**
+    1. `(chave_identidade_ativo(patrimonio, service_tag)) INCLUDE (filial_id)` — plano idêntico
+       (Seq Scan on ativos a_1, mesmo custo 463.52).
+    2. A mesma + `INCLUDE (id)` (a CTE `ident` também projeta `id`) — plano idêntico de novo.
+    3. **Forçado** com `set local enable_seqscan = off`: mesmo assim o Postgres manteve o Seq Scan
+       com a penalidade de 10 bilhões aplicada — prova de que **nenhum caminho alternativo foi
+       sequer gerado** para este formato de consulta, não que o índice perdeu por custo.
+  - **A causa raiz, isolada:** `select chave_identidade_ativo(patrimonio, service_tag), id,
+    filial_id from ativos` — SEM `WHERE`, SEM `ORDER BY` — é exatamente a consulta que define a CTE
+    `ident` (materializada uma vez, reusada duas vezes por `v_conflitos_filiais_grupos`). Um
+    Index Only Scan só entra como candidato quando há predicado ou ordenação que combine com o
+    índice; um scan completo e não-ordenado não dá ao planejador motivo para preferi-lo (confirmado
+    testando o mesmo índice com uma equality query isolada — aí sim ele é escolhido; e com um
+    `WHERE chave IS NOT NULL` adicionado à consulta isolada — aí ele é escolhido, só que o custo real
+    (1.040 buffers) é **PIOR** que o Seq Scan original (97 buffers), porque a tabela `ativos` é
+    pequena (47 páginas / ~1.650 linhas) e qualquer acesso via índice para uma leitura quase
+    completa perde para varrer a tabela inteira sequencialmente.
+  - **Conclusão:** os 72 ms atribuídos à função na Frente A são, na prática, o custo do próprio Seq
+    Scan (I/O + avaliação de linha por linha) — não algo que um índice, do jeito que a view está
+    escrita hoje, consiga evitar. Destravar isso exigiria REESCREVER a `ident` CTE (ex.: um `WHERE
+    chave IS NOT NULL` — matematicamente inócuo, porque `grupos` já filtra `chave is not null` e o
+    JOIN final nunca casa `NULL = NULL`) — mas isso é alterar a VIEW, não só criar um índice, e a
+    ordem desta frente pede "o índice que muda o plano". Registrado como pendência de investigação
+    futura, não como código pronto: **não editei a view**.
+  - **Índices de teste (`zz_test_*`) todos derrubados em ensaio** — nenhum resíduo.
+
+- **D2 — índice de ordenação de `movimentacoes`: ENTROU (migration 0105).** `data desc, created_at
+  desc, id desc` é a ordenação FIXA de `listarMovimentacoes` (com e sem filtro). Antes: Seq Scan +
+  Sort top-N, 159 buffers, ~68,6 ms. Depois: Index Scan puro, sem Sort, 6 buffers, ~0,11 ms. Maior
+  ganho medido de toda a frente.
+
+- **D3 — 4 FKs de `movimentacoes`: ENTRARAM (migration 0106); as outras 11 FKs do advisor NÃO
+  entraram.** Medidos individualmente em ensaio, os 4 (`estorno_de`, `criado_por`, `motivo`,
+  `filial_destino_id`) mudaram de plano (Seq Scan → Index/Bitmap Scan) sob consultas que espelham
+  padrões reais do código (`.in('estorno_de', ids)`, `.eq('criado_por', uid)`, o `OR` do relatório
+  por período). As outras 11 FKs do advisor (anotacoes, eventos_admin, import_logs, kits_modelos,
+  lancamentos_item, pendencias_item, relatorios_gerados ×2, senhas_acesso, termos_gerados ×2) ficam
+  de fora: são tabelas de 0 a 49 linhas — índice ali é custo de escrita/manutenção sem ganho de
+  leitura mensurável, e a `movimentacoes` (3.288 linhas, ~55/dia) é a única tabela grande do grupo.
+
+- **D4 — `e_admin()` sem `(select …)` em `pendencias_item`: ENTROU (migration 0107).** Medido com o
+  predicado COMBINADO das duas policies permissivas de UPDATE (é assim que o Postgres avalia — OR
+  entre si): sem o wrap, `e_admin()` fica dentro do `OR` e é potencialmente reavaliado por linha
+  (cost=164.50); com `(select e_admin())`, vira InitPlan avaliado 1× (cost=89.76, -45%). Provado
+  com o roteiro `supabase/tests/reabrir_pendencia_item.sql` rodado em ensaio dentro de
+  `begin;…rollback;` (sem resíduo): 4/4 cenários OK — operador resolve, operador NÃO reabre,
+  operador de outra filial NÃO reabre, nível administrador REABRE.
+
+- **D5 — fundir as 2 policies permissivas de `pendencias_item.UPDATE`: RECUSADO. Nenhuma migration.**
+  A ordem chamou este de "o item mais perigoso da frente" e pediu para não fundir sem prova de
+  equivalência total. A álgebra (permissive policies são OR'd tanto no USING quanto no WITH CHECK)
+  sugere que uma fusão SERIA equivalente — mas o ganho é puramente cosmético: `pendencias_item` tem
+  5 linhas em produção, e o WARN do advisor (`multiple_permissive_policies`) não tem custo medido
+  nenhum além do que a D4 já resolveu (a chamada dupla de `pode_escrever_filial` por linha é
+  desprezível numa tabela deste tamanho). Diante de "ganho quase nulo" × "risco de mexer em quem
+  reabre pendência resolvida", a régua da própria ordem decide: **um WARN de advisor não vale o
+  risco.** Fica como pendência declarada, não como código.
+
+- **Prova final:** `get_advisors(performance)` nos dois projetos, antes → depois:
+  produção 21 → 21 (11 `unindexed_foreign_keys` a menos das 4 de `movimentacoes` resolvidas,
+  compensados por 4 `unused_index` NOVOS e temporários dos índices recém-criados — resolvem sozinhos
+  assim que o tráfego real os exercitar; `multiple_permissive_policies` intacto, por D5); ensaio
+  20 → 19 (mesma lógica, e `movimentacoes_ordem_lista_idx` já não aparece como "unused" porque os
+  próprios EXPLAINs desta frente o exercitaram). **Zero achado NOVO de classe diferente** nos dois
+  bancos — nenhuma policy nova, nenhum achado de segurança novo (`get_advisors(security)` idêntico
+  antes/depois nos dois). Roteiro `supabase/tests/reabrir_pendencia_item.sql`: 4/4 em ensaio; o CI
+  (`job banco`, GitHub Actions) roda a pasta inteira de `supabase/tests/` a cada push e é a prova
+  formal — não pude executá-lo eu mesma fora do push.
+
+- **Reversível?** sim, as três migrations aplicadas são só índices (`DROP INDEX`) e um `ALTER
+  POLICY` de volta ao corpo da 0103 — nenhum dado tocado em nenhuma das três.
+
+## 2026-08-10 · F33 · Frente D — três migrations entraram, duas propostas foram recusadas
+
+- **Contexto:** os advisors e o `EXPLAIN` da Frente A sustentavam cinco candidatos de banco.
+  Caminho A do `docs/RUNBOOK-BANCO.md` (ensaio → sonda → produção, apply via MCP) em todos.
+- **Regra que governou a frente:** o plano tem de MUDAR. Índice que não muda plano não fica —
+  índice morto custa escrita e manutenção e não paga nada.
+- **Entraram (migrations `0105`, `0106`, `0107`, aplicadas nos dois projetos em 10/08/2026):**
+  - `0105` · `movimentacoes_ordem_lista_idx (data desc, created_at desc, id desc)`. É a ordenação
+    que `listarMovimentacoes` usa SEMPRE, com e sem filtro, e nenhum índice cobria a tripla.
+    Medido em ensaio: **Seq Scan + Sort top-N, 159 buffers, ~68,6 ms → Index Scan sem Sort,
+    6 buffers, ~0,11 ms**. Maior ganho da frente.
+  - `0106` · quatro índices de FK em `movimentacoes` (`estorno_de`, `criado_por`, `motivo`,
+    `filial_destino_id`). As quatro consultas de teste espelham padrões reais do código e as
+    quatro mudaram de plano (Seq Scan → Index/Bitmap Scan).
+  - `0107` · `e_admin()` dentro de `(select …)` na policy "pendencias_item admin reabre",
+    restaurando o padrão documentado em `0063:46-57`. Custo estimado 164,50 → 89,76 (−45%).
+    **Semântica idêntica** — conferido depois no banco: `using`/`with check` diferem da `0103`
+    apenas pelo wrap, `polcmd` continua `w` e `polpermissive` continua `true`. Roteiro
+    `supabase/tests/reabrir_pendencia_item.sql` rodado em ensaio dentro de `begin; … rollback;`:
+    4/4 cenários OK.
+- **DESCARTADO — o índice funcional de `chave_identidade_ativo()` (era o item nº 2 do plano):**
+  três variantes prototipadas em ensaio (funcional simples; funcional + `INCLUDE (id, filial_id)`;
+  e forçado com `enable_seqscan=off`) e **nenhuma mudou o plano**. Causa raiz isolada: a CTE que
+  materializa `v_conflitos_filiais_grupos` faz varredura completa **sem `WHERE` e sem `ORDER BY`**,
+  e o planejador só considera Index (Only) Scan quando há predicado ou pathkey que combine; com um
+  `WHERE` acrescentado o índice É usado e fica **PIOR** (1.040 buffers contra 97 do Seq Scan),
+  porque a tabela tem só 47 páginas. Os índices de teste foram derrubados; zero resíduo em ensaio.
+  **Consequência declarada:** os ~72 ms de `chave_identidade_ativo()` por navegação de operador
+  CONTINUAM lá. Destravá-los exigiria reescrever a VIEW ou materializar a chave numa coluna gerada
+  em `ativos` — mudança de modelo do acervo, que esta ordem não autoriza. **Vira pendência
+  declarada no relatório, com o número medido**, e não um índice que fingiria resolver.
+- **RECUSADO — fundir as duas policies permissivas de `pendencias_item.UPDATE` (WARN do advisor):**
+  a álgebra do RLS sugere que a fusão seria equivalente (permissivas são OR entre si no `USING` e
+  no `WITH CHECK`), mas a tabela tem **5 linhas** em produção e o WARN não tem custo medido além do
+  que a `0107` já resolveu. Ganho quase nulo contra o risco de alterar quem pode reabrir uma
+  pendência já resolvida. Régua da própria ordem: "um WARN de advisor não vale o risco".
+- **Advisors:** produção 21 → 21 (11 `unindexed_foreign_keys`, quatro a menos; mais 4
+  `unused_index` TEMPORÁRIOS dos índices recém-criados, que se auto-resolvem com tráfego real);
+  ensaio 20 → 19. **Zero achado novo de classe diferente** nos dois bancos, e os advisors de
+  segurança ficaram idênticos.
+- **Reversível?** sim — `drop index` nos cinco índices e `alter policy` de volta ao corpo da `0103`.
+  Nenhum dado foi tocado; nenhuma trigger ou função de negócio foi alterada.
