@@ -243,9 +243,12 @@ function montarRotas(ctx) {
     ctx.senhaId && segredoView ? cookieViewer(ctx.senhaId) : null
 
   const rotas = []
-  const add = (rotulo, caminho, sessao, cookie, esperado = 200) => {
+  // `estatico: true` marca rota PÚBLICA e pré-renderizada, que a borda serve de
+  // cache legitimamente mesmo quando a medição manda um cookie junto. Só a sonda
+  // do proxy usa isso — ver o comentário dela e a guarda de cache no fim.
+  const add = (rotulo, caminho, sessao, cookie, opcoes = {}) => {
     if (!caminho) return
-    rotas.push({ rotulo, caminho, sessao, cookie, esperado })
+    rotas.push({ rotulo, caminho, sessao, cookie, estatico: opcoes.estatico === true })
   }
 
   // Controle de rede: asset estático, FORA do matcher do proxy (src/proxy.ts).
@@ -264,7 +267,16 @@ function montarRotas(ctx) {
     // cookie, vai. A diferença entre estas duas linhas é, isolada, o preço da
     // ida de rede Vercel→Auth do Supabase que o proxy paga por navegação — o
     // número que decide se mexer no proxy vale a pena.
-    add('/login (com sessão — sonda do getUser do proxy)', '/login', 'operador', cookieOperador)
+    //
+    // `estatico: true`: `/login` é PÚBLICA e pré-renderizada (`○ Static` no
+    // build), e a borda a serve de cache — inclusive quando esta sonda manda um
+    // cookie junto. Isso NÃO é sessão cacheada: o HTML é o mesmo formulário para
+    // todo mundo e não carrega nada da sessão; o que muda com o cookie é só o
+    // trabalho do proxy, que roda antes e é justamente o que se quer medir. Sem
+    // esta marca, a guarda de cache no fim acusaria a própria sonda.
+    add('/login (com sessão — sonda do getUser do proxy)', '/login', 'operador', cookieOperador, {
+      estatico: true,
+    })
 
     add('/ (dashboard)', '/', 'operador', cookieOperador)
     add('/ativos', '/ativos', 'operador', cookieOperador)
@@ -390,6 +402,7 @@ async function medirTudo(rotas) {
     return {
       rota: rota.rotulo,
       sessao: rota.sessao,
+      estatico: rota.estatico,
       amostras: boas.length,
       falhas: amostras[i].length - boas.length,
       status,
@@ -492,7 +505,10 @@ async function main() {
   // Rota com sessão servida do cache de borda seria ganho FALSO — e vazamento de
   // uma sessão para outra pessoa. Um HIT aqui invalida a medição e é incidente.
   const cacheado = linhas.filter(
-    (l) => l.sessao !== 'publico' && l.cache.some((c) => c && c.toUpperCase().includes('HIT')),
+    (l) =>
+      l.sessao !== 'publico' &&
+      !l.estatico &&
+      l.cache.some((c) => c && c.toUpperCase().includes('HIT')),
   )
   if (cacheado.length) {
     log('')

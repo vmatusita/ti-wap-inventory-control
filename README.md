@@ -29,7 +29,7 @@ O sistema está **em produção desde o go-live de 15/07/2026** (1.596 ativos, 5
 | [`docs/DECISOES.md`](docs/DECISOES.md) | Rastro de auditoria das decisões autônomas (append-only) |
 | [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md) | Procedimento de migrations/deploy de banco (o "gate", apply manual, armadilhas) |
 | [`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md) | Auditoria de dívida técnica (diagnóstico priorizado) |
-| [`CHANGELOG.md`](CHANGELOG.md) | Histórico das fases entregues (F0→F32) |
+| [`CHANGELOG.md`](CHANGELOG.md) | Histórico das fases entregues (F0→F33) |
 | [`docs/ADR-002-papeis-e-permissoes.md`](docs/ADR-002-papeis-e-permissoes.md) | Decisão de arquitetura do **modelo de acesso**: os cargos, o vínculo de filiais e o controle de usuários (com a emenda do cargo Desenvolvedor, §13) |
 | [`docs/MATRIZ-REGRAS.md`](docs/MATRIZ-REGRAS.md) | Matriz viva de regras de negócio (F19): cada regra com localização e prova |
 | `supabase/migrations/` | **Fonte da verdade do banco** desde a F1 (todas as migrations em ordem; a `0029` não existe) |
