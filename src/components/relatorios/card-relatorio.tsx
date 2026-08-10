@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { textoJanela, type JanelaCard } from '@/lib/relatorios/janela-card'
 
 // Card padrão dos relatórios (grade do mockup). `wide` ocupa a linha inteira.
 // Todo card trata estado vazio ("Sem registros no período") — OS-F3 3.3.7.
@@ -6,6 +7,8 @@ export function CardRelatorio({
   id,
   titulo,
   subtitulo,
+  janela,
+  periodoJanela,
   acao,
   wide,
   vazio,
@@ -19,6 +22,14 @@ export function CardRelatorio({
   id?: string
   titulo: string
   subtitulo?: string
+  /** F32/RV-04 — o microssinal "foto × período": marca se o card é um instante
+   *  as-of ("Estoque no último dia", KPI) ou o filme de um intervalo ("Saídas
+   *  por motivo", série/Δ). As duas props andam SEMPRE em par com
+   *  `periodoJanela` — nenhuma delas sozinha, ou as duas ausentes, produz o
+   *  card de ANTES, byte a byte (dashboard e relatório v1 usam este mesmo
+   *  componente e não podem mudar). */
+  janela?: JanelaCard
+  periodoJanela?: { de: string; ate: string }
   acao?: React.ReactNode
   wide?: boolean
   vazio?: boolean
@@ -27,6 +38,11 @@ export function CardRelatorio({
   contentClassName?: string
   children?: React.ReactNode
 }) {
+  // '' (props ausentes OU ISO malformado — textoJanela já filtra os dois
+  // casos) = sem chip. Ramo aditivo puro: o bloco do subtítulo original não
+  // muda uma linha.
+  const chip = janela && periodoJanela ? textoJanela(janela, periodoJanela) : ''
+
   return (
     <section
       id={id}
@@ -51,6 +67,25 @@ export function CardRelatorio({
           <h2 className="text-sm font-semibold leading-tight">{titulo}</h2>
           {subtitulo && (
             <p className="mt-0.5 text-xs text-muted-foreground">{subtitulo}</p>
+          )}
+          {chip && (
+            // Chip PERSISTENTE (não é hover/tooltip) — cinza p/ 'foto' (um
+            // instante), azul-claro p/ 'periodo' (um intervalo). Nenhuma cor
+            // nova: reaproveita os dois pares já em produção no relatório —
+            // bg-muted/text-muted-foreground (sidebar-nav.tsx, chip "em
+            // breve") e bg-blue-100/text-blue-700 com
+            // dark:bg-blue-950/dark:text-blue-300 (dominio.ts, pílula de
+            // Entrada) — ambos ≥4,5:1 (AA) nos dois temas, já validados em uso.
+            <span
+              className={cn(
+                'mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[11px] font-medium',
+                janela === 'foto'
+                  ? 'bg-muted text-muted-foreground'
+                  : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+              )}
+            >
+              {chip}
+            </span>
           )}
         </div>
         {acao && <div className="shrink-0">{acao}</div>}

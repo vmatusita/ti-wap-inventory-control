@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Seção de grupo recolhível no MOBILE (§3.7): grupos fechados por padrão em
@@ -14,12 +14,19 @@ export function GrupoColapsavel({
   id,
   titulo,
   descricao,
+  // RV-19a (análise §2): rolagem rápida não distinguia os 3 GRUPOS das 4
+  // tabelas dentro deles — mesma tipografia em tudo. O ícone é marco só do
+  // GRUPO (nunca do `CardRelatorio` das tabelas), por isso mora aqui e não
+  // vira prop genérica de título. Opcional e decorativo: sem ele, o cabeçalho
+  // é bit-a-bit o de antes.
+  icone: Icone,
   sempreAberto = false,
   children,
 }: {
   id: string
   titulo: string
   descricao?: string
+  icone?: LucideIcon
   sempreAberto?: boolean
   children: React.ReactNode
 }) {
@@ -47,6 +54,10 @@ export function GrupoColapsavel({
   return (
     <section id={id} className="scroll-mt-28 break-before-page space-y-3">
       <div className="flex w-full items-center gap-2">
+        {/* `shrink-0` porque títulos como "Acessórios e periféricos" já
+            disputam espaço com o botão de 40px no mobile — o ícone não pode
+            ser o que cede. `aria-hidden`: o `h2` ao lado já nomeia o grupo. */}
+        {Icone && <Icone className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
         <div className="min-w-0">
           <h2 className="text-lg font-semibold tracking-tight">{titulo}</h2>
           {descricao && <p className="text-xs text-muted-foreground">{descricao}</p>}

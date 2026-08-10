@@ -177,6 +177,15 @@ export function glossarioRelatorio(): VerbeteRelatorio[] {
       definicao:
         'Desfaz a última movimentação de um ativo e restaura o estado anterior (spec §8, regra 6). A linha original fica esmaecida nas tabelas, mas a contagem do período continua incluindo-a.',
     },
+    {
+      // F32/RV-04 — o microssinal "foto × período" (chip em CardRelatorio,
+      // ver src/lib/relatorios/janela-card.ts). Verbete novo ao FIM da lista
+      // de propósito: não é status nem tipo de movimentação, é a chave de
+      // leitura do relatório inteiro.
+      termo: 'Foto × período',
+      definicao:
+        'Chip cinza "foto de dd/MM" = um instante (o estoque naquela data, como fecha um caixa). Chip azul "dd/MM – dd/MM" = um intervalo (o que se moveu entre as duas datas, como um extrato). Cards de KPI e saldo são foto; cards de série, motivo e movimentação por item são período.',
+    },
   ]
 }
 

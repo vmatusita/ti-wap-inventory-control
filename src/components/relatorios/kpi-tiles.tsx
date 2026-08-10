@@ -22,7 +22,21 @@ import { CLASSE_COR_DELTA, corDelta, textoDelta } from '@/lib/relatorios/delta-k
 // ativos" fica SEM acento de propósito — não é uma situação, é a soma delas.
 function acentoDoTile(chave: keyof KpisRelatorio): React.CSSProperties | undefined {
   if (chave === 'total') return undefined
-  return { borderTopWidth: 3, borderTopColor: STATUS_CHART_COLOR[chave as StatusAtivo] }
+  // F32/RV-20 — `borderTopStyle` explícito aqui (não só `-Width`/`-Color`) é o
+  // que sustenta o acento nos DOIS chamadores. Em `KpiTiles` a classe `border`
+  // do tile já dá border-style: solid nos quatro lados, então isto seria
+  // redundante; mas em `GrupoKpis` o RV-20 tirou essa classe (o grupo virou
+  // "bg-muted/40 sem borda" de propósito, pra pesar menos que os tiles
+  // principais) — sem `border-style` de algum lugar ele fica no valor inicial
+  // `none`, e um `border-top-width: 3px` com `border-style: none` não desenha
+  // NADA (largura só conta quando o estilo não é none). Fixar o style aqui,
+  // na função compartilhada, resolve os dois casos com uma leitura e sem
+  // depender de qual classe cada chamador aplica no tile.
+  return {
+    borderTopWidth: 3,
+    borderTopStyle: 'solid',
+    borderTopColor: STATUS_CHART_COLOR[chave as StatusAtivo],
+  }
 }
 
 // Destinos opcionais por tile (OS-F9 / T2). Só o dashboard passa: nos relatórios
@@ -124,9 +138,13 @@ export function KpiTiles({
           <>
             <div className="text-xs font-semibold text-foreground/80">{t.rotulo}</div>
             <div className="mt-0.5 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold tabular-nums">
-                {valor.toLocaleString('pt-BR')}
-              </span>
+              {/* F32/RV-22 — sem `tabular-nums` aqui: dígito de largura fixa serve
+                  pra ALINHAR EM COLUNA (tabela, eixo — onde vários números ficam
+                  um embaixo do outro e precisam bater). Um valor isolado de 24px
+                  não alinha com nada ao lado; o efeito que sobra é só o "121" com
+                  buraco no 1 estreito. O Δ ao lado (`DeltaKpi`) mantém
+                  `tabular-nums` de propósito — ele alinha com o irmão dele. */}
+              <span className="text-2xl font-bold">{valor.toLocaleString('pt-BR')}</span>
               {delta != null && (
                 <DeltaKpi
                   delta={delta}
@@ -199,14 +217,21 @@ export function GrupoKpis({
         const delta = valorAnterior === null ? null : valor - valorAnterior
         const href = links?.[t.chave]
         const acento = acentoDoTile(t.chave)
-        const classe = 'rounded-lg border bg-card px-3 py-2.5'
+        // F32/RV-20 — o grupo repete 3 dos 7 números já mostrados 200px acima,
+        // no MESMO desenho de tile: o leitor não sabia se estava vendo dado novo
+        // ou dado repetido. `bg-muted/40` sem `border` (era `border bg-card`,
+        // idêntico ao tile principal) e valor `text-lg` (era `text-xl`, contra o
+        // `text-2xl` do tile principal) rebaixam o peso visual sem mudar o
+        // conteúdo. A perda da classe `border` é a armadilha do acento — ver o
+        // comentário de `acentoDoTile`.
+        const classe = 'rounded-lg bg-muted/40 px-3 py-2.5'
         const conteudo = (
           <>
             <div className="text-xs font-medium text-muted-foreground">{t.rotulo}</div>
             <div className="mt-0.5 flex items-baseline gap-1.5">
-              <span className="text-xl font-bold tabular-nums">
-                {valor.toLocaleString('pt-BR')}
-              </span>
+              {/* F32/RV-22 — mesmo raciocínio do tile principal: número isolado,
+                  não coluna, `tabular-nums` só cria buracos visuais. */}
+              <span className="text-lg font-bold">{valor.toLocaleString('pt-BR')}</span>
               {delta != null && (
                 <DeltaKpi
                   delta={delta}

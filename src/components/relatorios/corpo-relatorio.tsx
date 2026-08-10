@@ -59,17 +59,29 @@ function serieDoSnapshot(s: SnapshotRelatorio): SerieMovimentacoes {
 // F16/T4 — `links` (destinos dos KPI tiles) só chega no relatório AO VIVO para o
 // operador; o snapshot congelado e o viewer não recebem (a página não os monta). V1
 // (snapshots antigos) NÃO repassa `links` — segue sem tiles clicáveis.
+// F32/RV-05 — `aoVivo` só desce para o v2. O v1 existe para reabrir snapshots
+// gerados antes do F3B: ele é congelado por definição, nunca "ao vivo", e por isso
+// nem recebe a prop — a grade dele fica idêntica à de antes desta fase.
 export function CorpoRelatorio({
   snapshot,
   ehOperador = false,
   links,
+  aoVivo = false,
 }: {
   snapshot: AnySnapshot
   ehOperador?: boolean
   links?: LinksKpi
+  aoVivo?: boolean
 }) {
   if (ehSnapshotV2(snapshot)) {
-    return <CorpoRelatorioV2 snapshot={snapshot} ehOperador={ehOperador} links={links} />
+    return (
+      <CorpoRelatorioV2
+        snapshot={snapshot}
+        ehOperador={ehOperador}
+        links={links}
+        aoVivo={aoVivo}
+      />
+    )
   }
   return <CorpoRelatorioV1 snapshot={snapshot} ehOperador={ehOperador} />
 }

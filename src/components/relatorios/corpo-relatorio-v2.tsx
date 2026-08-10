@@ -1,8 +1,10 @@
+import { Cable, Cpu, Laptop2 } from 'lucide-react'
 import { GRUPO_ITEM_META } from '@/lib/dominio'
 import { formatDate } from '@/lib/format'
 import { achatarDisponiveis } from '@/lib/relatorios/resumo'
 import type { GranularidadeSerie, SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
 import { agregarAcervoPorSituacao } from '@/lib/relatorios/acervo'
+import { resumoRiscoManutencao } from '@/lib/relatorios/resumo-manutencao'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
 import { BarraAcervo } from '@/components/relatorios/barra-acervo'
 import { KpiTiles, GrupoKpis, type LinksKpi } from '@/components/relatorios/kpi-tiles'
@@ -49,10 +51,16 @@ export function CorpoRelatorioV2({
   snapshot,
   ehOperador = false,
   links,
+  aoVivo = false,
 }: {
   snapshot: SnapshotRelatorioV2
   ehOperador?: boolean
   links?: LinksKpi
+  /** F32/RV-05 — "este relatório está sendo derivado agora", que é DIFERENTE de
+   *  "quem olha é operador" (`links`): a rota ao vivo serve os dois públicos. Só
+   *  ela passa `true`; o snapshot congelado nunca passa, e é isso que impede a
+   *  marca de balde parcial de aparecer hoje e sumir amanhã no MESMO snapshot. */
+  aoVivo?: boolean
 }) {
   const s = snapshot
   // F29/REL-07 — o período vem do META congelado, não de `hoje`: no snapshot a
@@ -90,10 +98,19 @@ export function CorpoRelatorioV2({
           porque é exatamente o elo entre os dois: os tiles dizem quanto tem de
           cada situação, esta barra mostra a proporção entre elas, e as empilhadas
           logo abaixo repetem o mesmo vocabulário de cor por categoria. */}
+      {/* F32/RV-04 — daqui em diante cada card declara a JANELA que ele enxerga:
+          `foto` = estado reconstruído no último dia (as-of), `periodo` = o que
+          aconteceu no intervalo. A confusão nº 1 de quem lê relatório de estoque é
+          somar as duas coisas, e até aqui a distinção morava só no fraseado do
+          subtítulo, diferente em cada card. O chip é o mesmo sinal, no mesmo
+          lugar, com o mesmo vocabulário — depois de dois relatórios o olho o lê
+          sem pensar. O glossário ganhou o verbete "Foto × período". */}
       <CardRelatorio
         wide
         titulo="Acervo por situação"
         subtitulo={`${acervo.total.toLocaleString('pt-BR')} ativos no último dia do período`}
+        janela="foto"
+        periodoJanela={periodo}
         vazio={acervo.segmentos.length === 0}
         vazioMsg="Sem ativos no acervo neste recorte."
       >
@@ -104,16 +121,24 @@ export function CorpoRelatorioV2({
         wide
         titulo="Movimentações"
         subtitulo={SUBTITULO_SERIE[serie.granularidade]}
+        janela="periodo"
+        periodoJanela={periodo}
         vazio={!temMov}
       >
-        <GraficoMovSerie serie={serie} />
+        <GraficoMovSerie serie={serie} aoVivo={aoVivo} />
       </CardRelatorio>
 
       {/* 2. GRUPO — Equipamentos principais */}
+      {/* F32/RV-19a — o ícone dá três marcos na rolagem de uma página longa, onde
+          título de grupo e título de tabela eram tipograficamente idênticos.
+          `Laptop2`/`Cable`/`Cpu` são genéricos de propósito: cada grupo abriga
+          várias categorias, e um glifo específico (Monitor, Headphones,
+          MemoryStick) sugeriria que o grupo é só aquilo. */}
       <GrupoColapsavel
         id="principais"
         titulo="Equipamentos principais"
         descricao="notebooks, desktops, monitores, celulares, tablets"
+        icone={Laptop2}
         sempreAberto
       >
         <GrupoKpis
@@ -128,6 +153,8 @@ export function CorpoRelatorioV2({
             wide
             titulo="Estoque no último dia"
             subtitulo="por categoria e situação"
+            janela="foto"
+            periodoJanela={periodo}
             vazio={s.estoqueCatStatus.length === 0}
           >
             <BarrasEmpilhadas dados={s.estoqueCatStatus} />
@@ -136,6 +163,8 @@ export function CorpoRelatorioV2({
           <CardRelatorio
             titulo="Disponíveis por modelo"
             subtitulo={`${(s.kpis.em_estoque ?? 0).toLocaleString('pt-BR')} em estoque — a lista do e-mail`}
+            janela="foto"
+            periodoJanela={periodo}
             vazio={s.disponiveisPorModelo.length === 0}
           >
             <ListaModeloCategoria grupos={s.disponiveisPorModelo} />
@@ -144,6 +173,8 @@ export function CorpoRelatorioV2({
           <CardRelatorio
             titulo="Reservados"
             subtitulo="patrimônio · modelo · nº do chamado"
+            janela="foto"
+            periodoJanela={periodo}
             vazio={s.reservados.length === 0}
           >
             <ListaReservados itens={s.reservados} />
@@ -152,29 +183,45 @@ export function CorpoRelatorioV2({
           <CardRelatorio
             titulo="Saídas por motivo"
             subtitulo="no período"
+            janela="periodo"
+            periodoJanela={periodo}
             vazio={s.porMotivo.saidas.length === 0}
           >
+            {/* F32/RV-08 — "Novo colaborador: 219" não responde "de quanto?". O
+                percentual é sempre sobre a soma da PRÓPRIA lista (o total de
+                saídas do período), nunca um total externo. */}
             <BarrasHorizontais
               dados={s.porMotivo.saidas.map((m) => ({ rotulo: m.motivo, total: m.total }))}
               cor="var(--color-brand-amarelo)"
+              comPercentual
             />
           </CardRelatorio>
 
           <CardRelatorio
             titulo="Devoluções por motivo"
             subtitulo="no período"
+            janela="periodo"
+            periodoJanela={periodo}
             vazio={s.porMotivo.devolucoes.length === 0}
           >
             <BarrasHorizontais
               dados={s.porMotivo.devolucoes.map((m) => ({ rotulo: m.motivo, total: m.total }))}
               cor="var(--color-brand-azul)"
+              comPercentual
             />
           </CardRelatorio>
 
           <CardRelatorio
             wide
             titulo="Em manutenção, caso a caso"
-            subtitulo={`${s.manutencao.length.toLocaleString('pt-BR')} caso(s) — envio, anotações e retorno`}
+            /* F32/RV-19b — o subtítulo dizia só quantos casos existiam ("14
+               caso(s) — envio, anotações e retorno"), que é a informação que o
+               leitor já vê contando os cards. Agora ele dimensiona o RISCO antes
+               de o leitor decidir abrir: quantos estão parados há 30+ dias e
+               quantos encerraram no período. */
+            subtitulo={resumoRiscoManutencao(s.manutencao)}
+            janela="foto"
+            periodoJanela={periodo}
             vazio={s.manutencao.length === 0}
           >
             <ManutencaoCasos casos={s.manutencao} ehOperador={ehOperador} />
@@ -189,12 +236,23 @@ export function CorpoRelatorioV2({
           id="acessorios"
           titulo={GRUPO_ITEM_META.acessorio.titulo}
           descricao="fone, mochila, teclado, mouse, hub, carregadores…"
+          icone={Cable}
         >
           <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
-            <CardRelatorio titulo="Saldo por item" subtitulo="total · estoque · atrelados · Δ · falta">
+            <CardRelatorio
+              titulo="Saldo por item"
+              subtitulo="total · estoque · atrelados · Δ · falta"
+              janela="foto"
+              periodoJanela={periodo}
+            >
               <TabelaItensGrupo itens={acessorios.itens} mostrarAtrelados />
             </CardRelatorio>
-            <CardRelatorio titulo="Movimentação por item" subtitulo="entradas × saídas no período">
+            <CardRelatorio
+              titulo="Movimentação por item"
+              subtitulo="entradas × saídas no período"
+              janela="periodo"
+              periodoJanela={periodo}
+            >
               <BarrasDivergentes itens={acessorios.itens} />
             </CardRelatorio>
           </div>
@@ -208,12 +266,23 @@ export function CorpoRelatorioV2({
           id="componentes"
           titulo={GRUPO_ITEM_META.componente.titulo}
           descricao="SSD, memórias por DDR e tamanho…"
+          icone={Cpu}
         >
           <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
-            <CardRelatorio titulo="Saldo por item" subtitulo="total · estoque · Δ · falta">
+            <CardRelatorio
+              titulo="Saldo por item"
+              subtitulo="total · estoque · Δ · falta"
+              janela="foto"
+              periodoJanela={periodo}
+            >
               <TabelaItensGrupo itens={componentes.itens} mostrarAtrelados={componentes.temAtrelados} />
             </CardRelatorio>
-            <CardRelatorio titulo="Movimentação por item" subtitulo="entradas × saídas no período">
+            <CardRelatorio
+              titulo="Movimentação por item"
+              subtitulo="entradas × saídas no período"
+              janela="periodo"
+              periodoJanela={periodo}
+            >
               <BarrasDivergentes itens={componentes.itens} />
             </CardRelatorio>
           </div>

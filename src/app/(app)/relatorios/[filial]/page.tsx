@@ -182,7 +182,11 @@ export default async function RelatorioFilialPage({
         <PeriodoFiltro preset={periodo.preset} de={periodo.de} ate={periodo.ate} />
       </div>
 
-      <CorpoRelatorio snapshot={snapshot} ehOperador={ehOperador} links={links} />
+      {/* F32/RV-05 — `aoVivo` marca a ROTA, não o cargo: esta página deriva o
+          relatório a cada request, então o último balde da série diária pode ser
+          o dia de hoje, ainda enchendo. `links` responde outra pergunta ("quem
+          olha pode navegar?") e continua sendo só do operador. */}
+      <CorpoRelatorio snapshot={snapshot} ehOperador={ehOperador} links={links} aoVivo />
     </div>
   )
 }
