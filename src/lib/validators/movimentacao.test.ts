@@ -114,6 +114,42 @@ describe('movimentacaoSchema', () => {
     }
   })
 
+  // F34 (revisão do intervalo F32→F34, 11/08/2026) — a re-reserva (reserva
+  // sobre 'reservado') passou a ser possível; sem a regra cruzada abaixo, uma
+  // reserva em branco por cima de outra apagava o detentor em silêncio.
+  it('rejeita reserva sem colaborador NEM setor (regra do superRefine, F34)', () => {
+    const r = movimentacaoSchema.safeParse({
+      tipo: 'reserva',
+      ativo_id: UUID,
+      data: DATA_OK,
+    })
+    expect(r.success).toBe(false)
+    if (!r.success) {
+      const issue = r.error.issues.find((i) => i.path.includes('colaborador'))
+      expect(issue?.message).toBe('Informe o colaborador ou o setor de destino')
+    }
+  })
+
+  it('aceita reserva só com colaborador', () => {
+    const r = movimentacaoSchema.safeParse({
+      tipo: 'reserva',
+      ativo_id: UUID,
+      data: DATA_OK,
+      colaborador: 'Beltrano Ficticio',
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('aceita reserva só com setor', () => {
+    const r = movimentacaoSchema.safeParse({
+      tipo: 'reserva',
+      ativo_id: UUID,
+      data: DATA_OK,
+      setor: 'Financeiro',
+    })
+    expect(r.success).toBe(true)
+  })
+
   it('rejeita data futura', () => {
     const r = movimentacaoSchema.safeParse({
       tipo: 'saida',
@@ -369,12 +405,12 @@ describe('CAMPOS_POR_TIPO (matriz tipo × campos)', () => {
     )
   })
 
-  it('só saida/emprestimo pedem colaborador OU setor', () => {
+  it('saida/emprestimo/reserva pedem colaborador OU setor', () => {
     const comRegra = Object.entries(CAMPOS_POR_TIPO)
       .filter(([, meta]) => meta.exigeColaboradorOuSetor)
       .map(([t]) => t)
       .sort()
-    expect(comRegra).toEqual(['emprestimo', 'saida'])
+    expect(comRegra).toEqual(['emprestimo', 'reserva', 'saida'])
   })
 
   it('só ajuste tem observação obrigatória (justificativa)', () => {

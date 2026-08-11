@@ -515,13 +515,19 @@ describe('mensagens-de-erro — catálogo com o texto exato da tela', () => {
     expect(t).toContain(normalizarBusca('"Atrelar" e "Devolução"'))
   })
 
-  it('não cobra destino da reserva (a regra é só de saída e empréstimo)', () => {
-    // `movimentacaoSchema`: o superRefine que emite "Informe o colaborador ou o
-    // setor de destino" só roda para `saida` e `emprestimo`; `reserva` tem os
-    // dois campos como opcionais.
-    expect(c).toContain('Saída e empréstimo precisam de um destino')
+  // Revisão do intervalo F32→F34 (11/08/2026) — este caso afirmava o OPOSTO
+  // ("não cobra destino da reserva"), e virou porque o REQUISITO virou, não
+  // para passar: o superRefine de `movimentacaoSchema` que emite "Informe o
+  // colaborador ou o setor de destino" passou a rodar também para `reserva`.
+  // Motivo: a F34 abriu a re-reserva (reserva sobre um ativo já `reservado`) e,
+  // sem a regra, uma reserva em branco por cima de outra gravava
+  // colaborador_atual/setor_atual = null — o ativo seguia `reservado` sem dono
+  // conhecido. A asserção continua sendo de DOIS lados (a frase nova está lá E
+  // a antiga não está), para que uma volta atrás na doc não passe batida.
+  it('cobra destino também na reserva (a regra deixou de ser só de saída e empréstimo)', () => {
+    expect(c).toContain('Saída, empréstimo e reserva precisam de um destino')
     expect(normal('mensagens-de-erro')).not.toContain(
-      normalizarBusca('Saída, empréstimo e reserva precisam'),
+      normalizarBusca('a reserva não exige nenhum dos dois'),
     )
   })
 })

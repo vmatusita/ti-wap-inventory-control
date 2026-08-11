@@ -59,6 +59,7 @@ export const devolucaoETriagem: PaginaAjuda = {
         `Escolha "${T.devolucao.rotulo}" em "Tipo de movimentação".`,
         '"Motivo *" é obrigatório: é ele que diz por que o equipamento voltou (troca, desligamento, fim do empréstimo). O motivo também decide qual modelo de termo de devolução será oferecido depois.',
         'Confira com o equipamento na mão o bloco "Itens faltantes na devolução" e marque o que NÃO voltou. Nada faltando? Não marque nada — o bloco é opcional.',
+        `Marcar um item aqui NÃO segura o equipamento fora do estoque: ele volta a "${S.em_estoque.rotulo}" nesta MESMA devolução, com a pendência aberta em paralelo. Quer conferir e resolver o que falta antes de liberar de novo? Registre "${T.envio_triagem.rotulo}" logo em seguida (ver "Enviar para triagem", abaixo).`,
         'Ajuste a "Data" (a data em que o equipamento chegou à TI) e registre.',
         'Na tela de sucesso, o botão "Gerar termo de devolução ({n})" emite UM termo para o lote inteiro, listando todos os equipamentos devolvidos.',
       ],
@@ -73,6 +74,15 @@ export const devolucaoETriagem: PaginaAjuda = {
         'O desfecho é escolhido na página Pendências: "Item recuperado" ou "Baixa — não vai voltar". Dá para resolver várias de uma vez, com uma justificativa só.',
         'Aprovar a triagem não encerra essas pendências — os dois assuntos são independentes de propósito.',
       ],
+    },
+    {
+      // F34 — o par que a página tratava em seções separadas: a pendência de
+      // item (acima) não segura o equipamento, e a triagem (abaixo) segura.
+      // Sem esta ponte, o operador que só leu o checklist de acessórios
+      // conclui — errado — que marcar um item faltante já tira o equipamento
+      // do estoque disponível.
+      tipo: 'nota',
+      texto: `Marcar item faltante NÃO segura o equipamento: mesmo com a pendência aberta, ele já conta como "${S.em_estoque.rotulo}" e pode ser entregue a outra pessoa antes de o acessório aparecer — quem recebe pode ficar sem o carregador. Quer impedir isso? Registre "${T.envio_triagem.rotulo}" logo depois da devolução: enquanto o ativo estiver "${S.em_triagem.rotulo}" ele some do estoque disponível e do card "Disponíveis por modelo", só voltando por "${T.triagem_ok.rotulo}". É esse o caso de uso do tipo novo — usar os dois juntos quando o equipamento não pode sair de novo sem antes resolver o que falta.`,
     },
     {
       tipo: 'titulo',

@@ -26,11 +26,16 @@ function payloadBase(over: Record<string, unknown> = {}) {
 }
 
 describe('TIPOS_KIT', () => {
-  it('é exatamente o enum do banco MENOS os tipos excluídos do kit', () => {
+  // Guarda de COBERTURA, não de ordem: prova que nenhum tipo do enum foi
+  // esquecido e nenhum a mais entrou, comparando os dois lados como CONJUNTO
+  // (ordenados antes do toEqual). A ORDEM de TIPOS_KIT é decisão de
+  // APRESENTAÇÃO — a ordem do `<select>` de `kit-dialog.tsx` — e é livre para
+  // mudar sem quebrar este teste (ver o comentário em kit.ts).
+  it('cobre exatamente o enum do banco MENOS os tipos excluídos do kit (como conjunto)', () => {
     const esperado = Constants.public.Enums.tipo_movimentacao.filter(
       (t) => !(TIPOS_EXCLUIDOS_DO_KIT as readonly string[]).includes(t),
     )
-    expect([...TIPOS_KIT]).toEqual(esperado)
+    expect([...TIPOS_KIT].sort()).toEqual([...esperado].sort())
   })
 
   it('não contém compra, estorno nem troca', () => {

@@ -70,7 +70,13 @@ export const mensagensDeErro: PaginaAjuda = {
         ],
         [
           'Informe o colaborador ou o setor de destino',
-          'Saída e empréstimo precisam de um destino: uma pessoa ou um setor (a reserva não exige nenhum dos dois — nela só a "Data" é obrigatória).',
+          // Revisão do intervalo F32→F34 (11/08/2026): o parêntese antigo dizia
+          // que "a reserva não exige nenhum dos dois — nela só a Data é
+          // obrigatória", e isso deixou de valer. A F34 abriu a re-reserva
+          // (reserva sobre um ativo já reservado) e uma reserva em branco por
+          // cima de outra apagava o detentor anterior em silêncio; a reserva
+          // ganhou a MESMA regra cruzada de saída/empréstimo.
+          'Saída, empréstimo e reserva precisam de um destino: uma pessoa ou um setor. Na reserva isso é o que impede uma reserva nova por cima de outra de apagar, sem aviso, para quem o equipamento estava separado.',
           'Preencha "Colaborador" ou "Setor" — um dos dois basta.',
         ],
         [

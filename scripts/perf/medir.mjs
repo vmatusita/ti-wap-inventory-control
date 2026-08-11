@@ -81,6 +81,36 @@ function opcao(nome, padrao) {
 }
 const temFlag = (nome) => argv.includes(`--${nome}`)
 
+// Guarda de NaN (revisão do intervalo F32→F34, 11/08/2026): `Number(valor)` de
+// um argv/env malformado (typo na flag, `--repeticoes` seguido de OUTRA flag)
+// não lança — vira `NaN` calado, e o `NaN` se propaga até o consumidor. Cada
+// consumidor morre de um jeito diferente, e nenhum deles é bom:
+//   · `AbortSignal.timeout(NaN)` LANÇA — medido neste runtime (Node v26.4.0):
+//     `RangeError: The value of "delay" is out of range. It must be an integer.
+//     Received NaN`. Como a chamada mora DENTRO do `try` de `medirUma`, o
+//     RangeError é capturado e vira `{ok:false}` em TODA rota, de TODA rodada:
+//     o script "roda" inteiro e reporta 100% de falha de rede que nunca houve.
+//   · `for (let r = 0; r < NaN; r++)` simplesmente não executa: zero rodadas,
+//     zero amostras, medianas nulas.
+// Os dois desfechos são o do achado 6 (medição falha por inteiro), entrando
+// pela porta dos argumentos em vez da sessão expirada — e desde aquele achado
+// os dois REPROVAM o script, em vez de sair 0. Esta guarda é a camada de
+// antes: valor malformado cai no padrão e a medição continua válida.
+// `>= 0` (não `> 0`) de propósito: `--aquecimento 0` é valor legítimo e
+// intencional (pular o aquecimento); só `NaN`/negativo cai no padrão.
+function numeroOuPadrao(valor, padrao) {
+  // `.trim()` ANTES do `Number`, e não só `=== ''`: `Number('')` E
+  // `Number('   ')` são os DOIS `0` (não `NaN`), então uma env var vazia ou só
+  // com espaços — `PERF_TIMEOUT_MS=" "` vindo do shell/CI — passaria batido no
+  // `Number.isFinite` de baixo e viraria timeout ZERO, abortando todo fetch na
+  // hora. `carregarEnvArquivo` já dá `.trim()` no que lê do `.env.local`, mas
+  // variável exportada direto no ambiente não passa por lá.
+  const texto = typeof valor === 'string' ? valor.trim() : valor
+  if (texto === undefined || texto === null || texto === '') return padrao
+  const n = Number(texto)
+  return Number.isFinite(n) && n >= 0 ? n : padrao
+}
+
 const urlApp = (process.env.PERF_URL_APP || URL_APP_PADRAO).replace(/\/+$/, '')
 const urlSupabase =
   process.env.PERF_SUPABASE_URL ||
@@ -97,11 +127,11 @@ const senha = process.env.PERF_SENHA || process.env.SMOKE_SENHA || ''
 const segredoView = process.env.VIEW_SESSION_SECRET || ''
 const chaveServico = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
-const REPETICOES = Number(opcao('repeticoes', process.env.PERF_REPETICOES || '11'))
-const AQUECIMENTO = Number(opcao('aquecimento', process.env.PERF_AQUECIMENTO || '2'))
+const REPETICOES = numeroOuPadrao(opcao('repeticoes', process.env.PERF_REPETICOES), 11)
+const AQUECIMENTO = numeroOuPadrao(opcao('aquecimento', process.env.PERF_AQUECIMENTO), 2)
 const ROTULO = opcao('rotulo', process.env.PERF_ROTULO || 'baseline')
 const SAIDA = opcao('saida', process.env.PERF_SAIDA || '')
-const TIMEOUT_MS = Number(process.env.PERF_TIMEOUT_MS || '90000')
+const TIMEOUT_MS = numeroOuPadrao(process.env.PERF_TIMEOUT_MS, 90000)
 const SEM_SESSAO = temFlag('sem-sessao')
 
 // ---------------------------------------------------------------------------
@@ -424,6 +454,19 @@ async function medirTudo(rotas) {
 // 6. Saída
 // ---------------------------------------------------------------------------
 
+// Valores de `x-vercel-cache` que PROVAM render fresco para ESTA requisição,
+// numa rota COM SESSÃO. F34-perf (11/08/2026, achado 3): a régua original era
+// DENY-LIST — só barrava "HIT" — mas a Vercel também emite STALE (serve uma
+// cópia velha enquanto revalida atrás), PRERENDER (HTML pré-gerado, nunca
+// passou pelo handler desta requisição) e REVALIDATED (idem, já revalidado):
+// os três significam "esta resposta não veio de um render fresco para esta
+// requisição" — exatamente o que a guarda quer barrar — e os três passavam
+// verdes. Por isso virou ALLOW-LIST: só o que PROVA frescor entra aqui;
+// QUALQUER valor fora da lista — inclusive um que a Vercel venha a inventar
+// amanhã — cai do lado seguro (reprova) sozinho, sem depender de alguém
+// lembrar de ampliar um deny-list.
+const CACHE_FRESCO_ACEITO = new Set(['MISS', 'BYPASS', '(SEM CABEÇALHO)'])
+
 function tabelaMd(linhas) {
   const cab =
     '| Rota | Sessão | HTTP | TTFB mediana | TTFB p95 | Total mediana | Total p95 | HTML (bytes) | n |'
@@ -482,40 +525,57 @@ async function main() {
     rotas: linhas,
   }
 
-  const destino = SAIDA
-    ? resolve(RAIZ, SAIDA)
-    : join(RAIZ, 'docs', 'perf', `${ROTULO}.json`)
-  mkdirSync(dirname(destino), { recursive: true })
-  writeFileSync(destino, JSON.stringify(relatorio, null, 2) + '\n', 'utf8')
-  log(`JSON gravado em ${destino.replace(RAIZ, '.')}`)
-
+  // As três checagens rodam ANTES da gravação do JSON (F34-perf, 11/08/2026,
+  // achado 6). Antes só a checagem de cache reprovava o script: uma medição
+  // TOTALMENTE falha (sessão expirada => tudo 307, ou o alvo fora do ar) ainda
+  // gravava o JSON com números inválidos, imprimia "ATENÇÃO" perdido no meio
+  // de centenas de linhas de log e SAÍA 0 — e esses JSONs em docs/perf/ são
+  // citados como evidência de fase. Um relatório de performance que ninguém
+  // reprovou vira evidência de fase por omissão; falhar alto é a única saída
+  // honesta — mesma doutrina do `if (retErr) throw` de
+  // src/lib/queries/relatorios/estoque.ts. O JSON CONTINUA SENDO GRAVADO nos
+  // três casos logo abaixo (é evidência; sumir com ele é pior do que reportar
+  // o problema) — só o código de saída é que passa a reprovar.
   const falhas = linhas.filter((l) => l.falhas > 0 || l.amostras === 0)
   if (falhas.length) {
     log('')
     log(`ATENÇÃO — ${falhas.length} rota(s) com falha de medição:`)
     for (const f of falhas) log(`  ${f.rota} (${f.sessao}) — ${f.erros.join('; ') || 'sem amostra'}`)
+    process.exitCode = 1
   }
   const naoDuzentos = linhas.filter((l) => !l.status.every((s) => s === 200))
   if (naoDuzentos.length) {
     log('')
     log('ATENÇÃO — rota(s) que NÃO responderam 200 (sessão recusada ou redirect):')
     for (const n of naoDuzentos) log(`  ${n.rota} (${n.sessao}) — HTTP ${n.status.join('/')}`)
+    process.exitCode = 1
   }
 
-  // Rota com sessão servida do cache de borda seria ganho FALSO — e vazamento de
-  // uma sessão para outra pessoa. Um HIT aqui invalida a medição e é incidente.
+  // Rota com sessão servida do cache de borda seria ganho FALSO — e vazamento
+  // de uma sessão para outra pessoa. Ver CACHE_FRESCO_ACEITO (seção 6, achado
+  // 3): allow-list, não deny-list — qualquer valor que não prove render fresco
+  // é incidente, não só "HIT" literal.
   const cacheado = linhas.filter(
     (l) =>
       l.sessao !== 'publico' &&
       !l.estatico &&
-      l.cache.some((c) => c && c.toUpperCase().includes('HIT')),
+      l.cache.some((c) => !CACHE_FRESCO_ACEITO.has((c || '').toUpperCase())),
   )
   if (cacheado.length) {
     log('')
-    log('ATENÇÃO GRAVE — rota COM SESSÃO servida do cache de borda (x-vercel-cache HIT):')
-    for (const c of cacheado) log(`  ${c.rota} (${c.sessao}) — ${c.cache.join('/')}`)
+    log(
+      'ATENÇÃO GRAVE — rota COM SESSÃO sem prova de render fresco (x-vercel-cache fora de MISS/BYPASS/ausente):',
+    )
+    for (const c of cacheado) log(`  ${c.rota} (${c.sessao}) — observado: ${c.cache.join('/')}`)
     process.exitCode = 1
   }
+
+  const destino = SAIDA
+    ? resolve(RAIZ, SAIDA)
+    : join(RAIZ, 'docs', 'perf', `${ROTULO}.json`)
+  mkdirSync(dirname(destino), { recursive: true })
+  writeFileSync(destino, JSON.stringify(relatorio, null, 2) + '\n', 'utf8')
+  log(`JSON gravado em ${destino.replace(RAIZ, '.')}`)
 }
 
 main().catch((erro) => {

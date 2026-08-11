@@ -22,6 +22,7 @@ import {
 } from '@/lib/validators/movimentacao'
 import type { StatusAtivo } from '@/lib/dominio'
 import type { AtivoResumo } from '@/lib/queries/ativos'
+import { Constants } from '@/lib/types/database'
 
 const DATA_OK = '2020-01-01'
 
@@ -91,16 +92,20 @@ describe('tipoContrapartida — só devolução ⇄ saída formam par', () => {
     expect(tipoContrapartida('saida')).toBe('devolucao')
   })
 
-  it.each([
-    'emprestimo',
-    'reserva',
-    'transferencia',
-    'ajuste',
-    'triagem_ok',
-    'envio_manutencao',
-    'descarte',
+  // DERIVADA do enum do banco menos o único par (`saida`/`devolucao`), e não
+  // uma tupla escrita à mão — a lista literal deixou `envio_triagem` (F34)
+  // passar batido por este guarda (achado da revisão adversarial, 11/08/2026;
+  // ver docs/DECISOES.md). Um tipo NOVO no enum agora entra sozinho aqui. O
+  // caso `''` (nenhum tipo escolhido ainda) não vem do enum — é acrescentado à
+  // parte, continua provando que a ausência de tipo também não forma par.
+  const SEM_PAR = [
+    ...Constants.public.Enums.tipo_movimentacao.filter(
+      (t) => t !== 'saida' && t !== 'devolucao',
+    ),
     '',
-  ] as const)('%s não tem contrapartida', (tipo) => {
+  ] as const
+
+  it.each(SEM_PAR)('%s não tem contrapartida', (tipo) => {
     expect(tipoContrapartida(tipo)).toBeNull()
   })
 })

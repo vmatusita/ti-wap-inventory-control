@@ -160,7 +160,15 @@ export type MetaTipoMovimentacao = {
   campos: Partial<Record<CampoMovimentacao, RegraCampo>>
   // A observacao vira justificativa obrigatoria (>=10 chars) — so no ajuste.
   observacaoObrigatoria?: boolean
-  // saida/emprestimo exigem colaborador OU setor (regra cruzada do superRefine).
+  // saida/emprestimo/reserva exigem colaborador OU setor (regra cruzada do
+  // superRefine). A reserva entrou aqui na revisao do intervalo F32→F34
+  // (11/08/2026): a F34 abriu a RE-RESERVA (reserva sobre 'reservado', que
+  // troca o detentor sem estorno nem ajuste) e, sem esta regra, uma reserva em
+  // branco por cima de outra apagava o detentor em silencio — o ativo
+  // continuava 'reservado', mas ninguem mais sabia para quem. A regra vale
+  // tambem para a PRIMEIRA reserva (em_estoque -> reservado): reservar para
+  // ninguem ja era um registro sem sentido — o card "Reservados" do relatorio
+  // sairia vazio para aquele ativo.
   exigeColaboradorOuSetor?: boolean
 }
 
@@ -198,10 +206,14 @@ export const CAMPOS_POR_TIPO: Record<TipoMovimentacao, MetaTipoMovimentacao> = {
   reserva: {
     campos: {
       motivo: 'opcional',
+      // colaborador/setor continuam 'opcional' cada um NESTA matriz — igual a
+      // saida/emprestimo. Quem exige um dos dois e a regra CRUZADA do
+      // superRefine (exigeColaboradorOuSetor abaixo), nao a matriz por campo.
       colaborador: 'opcional',
       setor: 'opcional',
       chamado: 'opcional',
     },
+    exigeColaboradorOuSetor: true,
   },
   devolucao: { campos: { motivo: 'obrigatorio', itens_faltantes: 'opcional' } },
   // F34/C — o par manual da triagem: `envio_triagem` entra e `triagem_ok` sai.
@@ -302,7 +314,9 @@ const base = z.object({
 })
 
 // saida / emprestimo: (colaborador OU setor) + motivo. A regra "colaborador OU
-// setor" e checada no superRefine da uniao (abaixo).
+// setor" e checada no superRefine da uniao (abaixo) — e, desde a revisao do
+// intervalo F32→F34 (11/08/2026), a MESMA regra tambem vale para a reserva
+// (ver reservaSchema e o superRefine mais abaixo).
 const saidaSchema = base.extend({
   tipo: z.literal('saida'),
   motivo: z.string().trim().min(1, 'Informe o motivo'),
@@ -316,7 +330,16 @@ const emprestimoSchema = base.extend({
   setor: textoOpcional,
 })
 
-// reserva: separa p/ alguem (opcionalmente colaborador/setor/motivo).
+// reserva: separa p/ alguem — (colaborador OU setor) + motivo opcional. Ate a
+// F33 os dois campos eram totalmente livres (a reserva so partia de
+// em_estoque, onde nao havia detentor a perder); a F34 abriu a RE-RESERVA
+// (reserva sobre 'reservado') e uma re-reserva em branco passou a APAGAR o
+// detentor anterior em silencio — o trigger grava colaborador_atual/
+// setor_atual = null e o ativo continua 'reservado' sem dono conhecido. Por
+// isso a reserva ganhou a mesma regra cruzada de saida/emprestimo (revisao do
+// intervalo F32→F34, 11/08/2026): colaborador e setor continuam OPCIONAIS
+// aqui no Zod por campo, mas o superRefine da uniao (abaixo) exige um dos
+// dois — vale tanto para a primeira reserva quanto para a re-reserva.
 const reservaSchema = base.extend({
   tipo: z.literal('reserva'),
   motivo: textoOpcional,
@@ -398,7 +421,10 @@ export const movimentacaoSchema = z
     simples('descarte'),
   ])
   .superRefine((val, ctx) => {
-    if (val.tipo === 'saida' || val.tipo === 'emprestimo') {
+    // F34 (revisao 11/08/2026): a reserva entrou aqui junto de saida/emprestimo
+    // — sem isso, a re-reserva (reserva sobre 'reservado') em branco apagava o
+    // detentor anterior sem aviso (ver o comentario de reservaSchema acima).
+    if (val.tipo === 'saida' || val.tipo === 'emprestimo' || val.tipo === 'reserva') {
       const temColab = 'colaborador' in val && !!val.colaborador?.trim()
       const temSetor = 'setor' in val && !!val.setor?.trim()
       if (!temColab && !temSetor) {

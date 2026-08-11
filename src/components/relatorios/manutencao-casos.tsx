@@ -79,7 +79,15 @@ export function ManutencaoCasos({
                   destacar — o rótulo é que fica em cinza, como no padrão de
                   `linha-expansivel.tsx`. */}
               <dd className="min-w-0 truncate tabular-nums">
-                {c.chamado ? `#${ouTraco(c.chamado)}` : '—'}
+                {/* Guarda ÚNICA (achado 4, F34): a régua de "vazio" é a do
+                    `ouTraco` (trim), não truthiness — um chamado só de espaços
+                    existe (snapshot congelado antigo, carga de go-live via CSV
+                    que roda fora do Zod) e não pode cair no ramo do '#', senão
+                    renderiza "#—". O '#' fica DENTRO do valor não-vazio. */}
+                {(() => {
+                  const chamado = ouTraco(c.chamado)
+                  return chamado === '—' ? chamado : `#${chamado}`
+                })()}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">

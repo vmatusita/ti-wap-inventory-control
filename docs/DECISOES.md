@@ -5539,3 +5539,144 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   `docs/prompts/README.md` e das próprias atas.
 - **Os dois arquivos NÃO foram commitados nem editados** por esta fase — são propostas aguardando o
   OK do Johnny, e commitá-las por conta própria as transformaria em decisão registrada.
+
+## 2026-08-11 · Revisão F32→F34 · A reserva passa a exigir colaborador OU setor — emenda à ata "Re-reserva SEM colaborador LIMPA o detentor"
+
+- **Contexto:** a revisão de código do intervalo F32→F34 apontou como achado mais grave que a
+  re-reserva (aberta pela F34) com colaborador **e** setor em branco grava
+  `colaborador_atual`/`setor_atual` = null: o ativo continua `reservado` e ninguém mais sabe para
+  quem. Antes da F34 isso era impossível — a `reserva` só partia de `em_estoque`, onde não havia
+  detentor a perder. Nenhuma camada (form, Zod, action ou trigger) impedia nem avisava.
+- **Decisão:** `CAMPOS_POR_TIPO.reserva` ganha `exigeColaboradorOuSetor: true` e o `superRefine` de
+  `movimentacaoSchema` passa a rodar a regra cruzada também para `reserva`, reutilizando **a mesma
+  mensagem** de saída/empréstimo ("Informe o colaborador ou o setor de destino"). Vale para
+  **qualquer** reserva — a primeira e a re-reserva.
+- **Esta ata EMENDA, e não revoga, a de 2026-08-11 · F34 · "Re-reserva SEM colaborador LIMPA o
+  detentor (comportamento herdado, aceito)".** Aquela decisão continua de pé no que ela decidiu: o
+  **trigger** segue **sem `coalesce` de exceção**, e a regra **não** depende do estado de origem —
+  que era exatamente a objeção registrada lá ("criaria uma regra que depende do estado de origem —
+  mais difícil de explicar ao operador"). A alternativa recusada naquela ata era *preservar o
+  detentor anterior no banco*; esta aqui é outra: **não deixar entrar reserva sem destino**. Ela
+  implementa, aliás, o próprio remédio que a ata antiga prescrevia em prosa — "quem quer só trocar o
+  chamado informa o colaborador de novo" — em vez de confiar que o operador vá lembrar.
+- **Por que uniforme, e não só sobre `reservado`:** uma regra que valesse só na re-reserva seria
+  justamente a "regra que depende do estado de origem" que a ata anterior recusou, e o Zod valida um
+  item por vez, sem enxergar o estado atual do ativo — implementá-la exigiria mover a regra para a
+  Server Action e duplicá-la. Além disso, reservar para **ninguém** já era registro sem sentido: o
+  card "Reservados" do relatório sai sem destino para aquele ativo. Uma régua só, no lugar onde o
+  repositório já guarda essa classe de regra (o `superRefine`, precedente de saída/empréstimo).
+- **O que NÃO mudou:** o banco. O trigger `aplicar_movimentacao` continua gravando o que vier no
+  payload, e o roteiro `supabase/tests/f34_triagem_reserva.sql` cenário **h** continua passando —
+  ele insere direto na tabela, por fora do Zod. O comentário do cenário foi reescrito para deixar a
+  **assimetria** explícita: o trigger aceita, o app recusa. Quem escrever por fora do app (service
+  role, SQL Editor) ainda apaga o detentor.
+- **Documentação que ficou falsa e foi corrigida junto:**
+  `src/lib/ajuda/conteudo/entregar-emprestar-reservar.ts` (a célula da tabela dizia `só a "Data" (o
+  resto é opcional)` e o passo dizia "Nenhum campo além da Data é obrigatório") e
+  `src/lib/ajuda/conteudo/mensagens-de-erro.ts` (dizia "a reserva não exige nenhum dos dois").
+  O teste-guarda `src/lib/ajuda/conteudo/referencia.test.ts` travava o requisito ANTIGO
+  (`it('não cobra destino da reserva…')`) e virou junto — com asserção dos dois lados (a frase nova
+  presente **e** a antiga ausente), para uma volta atrás na doc não passar batida.
+- **Reversível?** sim, e barato: tirar `reserva` do `superRefine` e do `CAMPOS_POR_TIPO`. Nada foi
+  gravado no banco, nenhuma migration foi criada.
+
+## 2026-08-11 · Revisão F32→F34 · A ordem de `TIPOS_KIT` volta a ser decisão de apresentação — emenda à ata "`envio_triagem` é kit-ável"
+
+- **Contexto:** a ata de 2026-08-11 · F34 · "`envio_triagem` é kit-ável" registrou que o valor novo
+  entraria **no fim** de `TIPOS_KIT` "porque o teste-guarda compara elemento a elemento". A revisão
+  apontou o efeito colateral: `kit-dialog.tsx` desenha o `<select>` na ordem dessa lista, então
+  "Envio para triagem" caía depois de "Ajuste", longe de "Triagem OK", que é o par dele — enquanto
+  `lista-filtros.tsx` põe os dois lado a lado. Um teste estava ditando a ordem da UI.
+- **Decisão:** o guarda de `kit.test.ts` passa a comparar os dois lados **como conjunto** (ordenados
+  antes do `toEqual`), e `envio_triagem` vai para **antes de `triagem_ok`** na lista — a triagem
+  entra e depois sai, a mesma ordem de `lista-filtros.tsx`.
+- **Motivo:** o guarda quer provar **cobertura** (nenhum tipo do enum esquecido, nenhum a mais), não
+  ordem. Do jeito anterior, todo `alter type … add value` futuro empurraria mais um item para o fundo
+  do dropdown, e a única razão seria a ordem de inserção no enum do Postgres.
+- **Reversível?** sim; a ordem da lista é livre por construção agora.
+
+## 2026-08-11 · Revisão F32→F34 · As duas divergências de FORMA entre a `0109` e a `0054` — registradas aqui, não na migration
+
+- **Contexto:** a seção do `rel_estoque_asof` na `0109` fixa a regra "DIFF vs 0054 = SÓ o acréscimo
+  de 'envio_triagem' às duas listas … Qualquer outra diferença é BUG". Ao repetir o procedimento de
+  diff que o próprio cabeçalho manda seguir, aparecem **duas** outras diferenças textuais.
+- **As duas, e por que são inócuas:**
+  - **(a)** a `0054` declarava `language sql stable security invoker set search_path = public`; a
+    `0109` traz `language sql stable set search_path = public`, sem o `security invoker` explícito.
+    Não é remoção de segurança: `SECURITY INVOKER` é o **padrão** do Postgres, e `pg_get_functiondef()`
+    — a fonte do "corpo VIGENTE" que serviu de base para toda a `0109` — **não imprime** a cláusula
+    quando ela é o padrão. A palavra sumiu na **leitura** do corpo, não na função.
+  - **(b)** `0016`/`0022`/`0045`/`0047`/`0054` traziam, logo após o `create or replace`, o par
+    `revoke all … from public;` + `grant execute … to authenticated, service_role;`. A `0109` não
+    repete o par. `create or replace function` **preserva** a ACL da função existente — só um `drop`
+    seguido de `create` a perderia, e não há `drop` na `0109`. O grant da `0054` continua valendo.
+- **Decisão:** registrar a análise **aqui**, e **não** dentro da `0109`. Leia a regra do cabeçalho
+  como "qualquer outra diferença **DE SEMÂNTICA** é BUG".
+- **Motivo — e por que a primeira tentativa foi desfeita:** a `0109` **já está aplicada em produção**
+  (ledger `20260811120021`), e o `CLAUDE.md` manda "nunca editar uma já aplicada". A revisão chegou a
+  escrever o esclarecimento como comentário dentro do arquivo, no palpite de que os marcadores
+  "✅ APLICADA em …" das `0105`–`0107` fossem edição posterior; `git log` por arquivo desmentiu —
+  **toda** migration deste repositório tem **exatamente um commit**, os marcadores nasceram junto com
+  o arquivo. A edição foi revertida e a ata é o lugar certo: o cabeçalho da própria `0109` já manda
+  ler `docs/DECISOES.md` para o material de apoio (é onde estão os fingerprints md5 do corpo
+  anterior).
+- **Reversível?** nada a reverter: nenhuma linha de SQL foi tocada, em nenhum ambiente.
+
+## 2026-08-11 · Revisão F32→F34 · Devolvido com item faltante conta como disponível — a consequência vai para a ajuda
+
+- **Contexto:** com a `devolucao` resultando `em_estoque` (F34), um ativo devolvido **com**
+  `itens_faltantes` entra na hora no KPI "Em estoque" e no card "Disponíveis por modelo". Antes da
+  F34 ele parava em `em_triagem`, estado que essas contagens não tratam como disponível — a
+  conferência obrigatória era o que segurava. A pendência de item continua nascendo (F18), mas só
+  aparece na fila de `/pendencias` e na ficha: **nunca no lugar de onde se escolhe** o equipamento.
+- **Decisão:** manter o comportamento (é a mudança que a F34 pediu) e **tratar o par na ajuda**, que
+  é o que ninguém tinha feito — nem a ordem, nem o `CHANGELOG`, nem a página de devolução, que dizia
+  apenas que a devolução "já conta como Em estoque na hora".
+  `src/lib/ajuda/conteudo/devolucao-e-triagem.ts` passa a dizer, em linguagem de operador, que marcar
+  item faltante **não segura** o equipamento, e que quem quiser segurá-lo registra "Envio para
+  triagem" logo depois — amarrando os dois assuntos, que a página tratava em seções separadas.
+- **Motivo:** desfazer seria revogar a F34; bloquear a saída de ativo com pendência de item seria
+  regra de negócio nova, fora do escopo de uma revisão. A informação já existe no sistema — o que
+  faltava era o operador saber que "em estoque" deixou de implicar "conferido".
+- **Pendência declarada (backlog):** um sinal **visual** no card "Disponíveis por modelo" e na lista
+  de ativos ("N com pendência de item") não foi feito — exige leitura nova no motor do relatório e
+  mudaria a forma do snapshot congelado. Fica para quem priorizar.
+- **Reversível?** só texto de ajuda; nada de comportamento.
+
+## 2026-08-11 · Revisão F32→F34 · Guardas de teste com lista literal passam a ser DERIVADOS
+
+- **Contexto:** dois guardas prometiam, em comentário, quebrar quando os dois lados divergissem — e
+  não quebraram quando a F34 acrescentou `envio_triagem`, porque enumeravam os tipos numa tupla
+  escrita à mão: `FORMAVEIS` em `src/components/movimentacoes/nova/config.test.ts` (consistência
+  `CAMPOS_POR_TIPO` ↔ `movimentacaoSchema`) e o `it.each` de "nenhuma contrapartida" em
+  `troca-upgrade.test.ts`. O tipo novo atravessou a fase inteira sem passar por nenhum dos dois.
+- **Decisão:** derivar as duas listas do enum do banco / das fontes únicas já existentes, em vez de
+  listá-las. Um tipo novo passa a entrar sozinho no guarda — ou o guarda quebra pedindo decisão
+  explícita —, nunca mais passa batido.
+- **Motivo:** guarda que precisa ser lembrado não é guarda. Mesma doutrina do
+  `transicoes-sql.test.ts`, que reconstrói a matriz a partir do SQL em vez de repeti-la.
+- **Reversível?** sim, mas não há motivo.
+
+## 2026-08-11 · Revisão F32→F34 · O harness de performance passa a REPROVAR, e a guarda de cache vira allow-list
+
+- **Contexto:** dois achados no mesmo arquivo (`scripts/perf/medir.mjs`). (1) A guarda que o próprio
+  comentário chama de detector de "incidente" — rota **com sessão** servida do cache de borda —
+  casava só a substring `HIT` do `x-vercel-cache`, deixando passar `STALE`, `PRERENDER` e
+  `REVALIDATED`, que também significam "esta resposta não veio de um render fresco". (2) Só essa
+  guarda setava `process.exitCode = 1`: rotas com falha de medição, zero amostras ou HTTP ≠ 200
+  apenas imprimiam aviso, e o JSON era gravado **antes** das checagens — uma medição totalmente falha
+  (sessão expirada ⇒ tudo 307) gravava evidência inválida em `docs/perf/` e **saía 0**.
+- **Decisão:** (1) a régua vira **allow-list** — `CACHE_FRESCO_ACEITO` = `MISS`, `BYPASS`, ausência
+  do cabeçalho; qualquer outro valor, inclusive um que a Vercel invente amanhã, reprova sozinho.
+  (2) as três checagens rodam **antes** da gravação e as três setam `exitCode = 1`. O JSON continua
+  sendo gravado — sumir com a evidência é pior que reportar o problema.
+- **De quebra:** `REPETICOES`/`AQUECIMENTO`/`PERF_TIMEOUT_MS` ganharam guarda de `NaN`
+  (`numeroOuPadrao`), com `.trim()` antes do `Number` — `Number('')` e `Number('   ')` são os dois
+  `0`, não `NaN`, então uma env var vazia ou só com espaços virava **timeout zero**.
+- **Fato medido, contra o palpite:** a primeira redação do comentário afirmava que
+  `AbortSignal.timeout(NaN)` "o Node converte para 0". É **falso** — medido no runtime do projeto
+  (Node v26.4.0): `RangeError: The value of "delay" is out of range. It must be an integer. Received
+  NaN`. Como a chamada mora dentro do `try` de `medirUma`, o `RangeError` é capturado e vira
+  `{ok:false}` em toda rota de toda rodada: o script "roda" inteiro e reporta 100% de falha de rede
+  que nunca houve. O comentário foi corrigido para o que a medição mostrou.
+- **Reversível?** sim; é ferramenta de medição, não toca o app nem o banco.

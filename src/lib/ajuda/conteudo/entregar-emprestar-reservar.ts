@@ -44,7 +44,10 @@ export const entregarEmprestarReservar: PaginaAjuda = {
           // duas origens possíveis, no mesmo padrão "·" das linhas acima.
           `${S.em_estoque.rotulo} · ${S.reservado.rotulo}`,
           S.reservado.rotulo,
-          'só a "Data" (o resto é opcional)',
+          // Revisão do intervalo F32→F34 (11/08/2026): a reserva ganhou a
+          // MESMA exigência cruzada de saída/empréstimo — sem ela, a
+          // re-reserva em branco apagava o detentor anterior em silêncio.
+          '"Colaborador" OU "Setor"',
           'Não',
         ],
       ],
@@ -56,7 +59,9 @@ export const entregarEmprestarReservar: PaginaAjuda = {
       itens: [
         `O ativo precisa estar em um estado que aceite o tipo (a tabela acima). Um equipamento que já está "${S.em_uso.rotulo}" não aceita outra "${T.saida.rotulo}" — ele precisa voltar por "${T.devolucao.rotulo}" antes.`,
         'O catálogo de motivos precisa ter ao menos um motivo aplicável ao tipo escolhido — os motivos são mantidos em Administração › Motivos. Sem nenhum motivo cadastrado para o tipo, o campo "Motivo" nem aparece na tela.',
-        `Tenha em mãos o nome do colaborador ou o setor de destino: um dos dois é obrigatório na ${T.saida.rotulo} e no ${T.emprestimo.rotulo}.`,
+        // Revisão do intervalo F32→F34 (11/08/2026): a reserva entrou na
+        // mesma exigência de saída/empréstimo (colaborador OU setor).
+        `Tenha em mãos o nome do colaborador ou o setor de destino: um dos dois é obrigatório na ${T.saida.rotulo}, no ${T.emprestimo.rotulo} e na ${T.reserva.rotulo}.`,
       ],
     },
     {
@@ -85,7 +90,11 @@ export const entregarEmprestarReservar: PaginaAjuda = {
       titulo: 'Reservar um equipamento para alguém',
       itens: [
         `Reserve quando o equipamento já tem dono definido mas ainda não saiu da TI — máquina separada para quem começa na semana que vem, por exemplo. O ativo precisa estar "${S.em_estoque.rotulo}" (a primeira reserva) ou já "${S.reservado.rotulo}" (a re-reserva, para trocar de dono sem tirar o equipamento da TI — veja abaixo).`,
-        `No passo "Movimentação", escolha "${T.reserva.rotulo}". Nenhum campo além da "Data" é obrigatório, mas preencha "Colaborador" (ou "Setor") e "Chamado (opcional)": é o que aparece no card "Reservados" do relatório, na linha "patrimônio · modelo · nº do chamado".`,
+        // Revisão do intervalo F32→F34 (11/08/2026): "Colaborador" ou "Setor"
+        // deixou de ser opcional na reserva — é o que sustenta o card
+        // "Reservados" do relatório, e é exatamente o que a re-reserva não
+        // pode apagar (ver abaixo). "Chamado" continua opcional.
+        `No passo "Movimentação", escolha "${T.reserva.rotulo}". Preencha "Colaborador" ou "Setor" — um dos dois é obrigatório, porque é o que aparece no card "Reservados" do relatório, na linha "patrimônio · modelo · nº do chamado"; sem um destino, o registro não teria para quem apontar. "Chamado (opcional)" continua livre.`,
         `Registrado, o ativo fica "${S.reservado.rotulo}" e some do que está disponível para entrega — o KPI "Reservados" ("aguardando entrega") sobe e o "${S.em_estoque.rotulo}" desce.`,
         `Quando a pessoa retirar o equipamento, registre a "${T.saida.rotulo}" (ou o "${T.emprestimo.rotulo}") normalmente: o ativo reservado aceita os dois direto, sem voltar ao estoque. É aí que o termo é oferecido.`,
         // F34 — a reserva passou a valer também sobre um ativo já reservado

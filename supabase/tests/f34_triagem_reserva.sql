@@ -244,16 +244,28 @@ begin
     raise warning '✗ g3 esperado 2 movimentacoes tipo reserva na linha do tempo, obtido %', v_cnt;
   end if;
 
-  -- h — re-reserva SEM colaborador: o detentor fica NULO. Comportamento
-  -- HERDADO da reserva original — aplicar_movimentacao grava
-  -- colaborador_atual/setor_atual = new.colaborador/new.setor tal qual vieram
-  -- no payload da 'reserva' (0109 não muda essa linha); se vierem nulos, o
-  -- campo zera. A ordem manda registrar, não "consertar" (ata em DECISOES.md).
+  -- h — re-reserva SEM colaborador, inserida DIRETO NA TABELA (por fora do
+  -- Zod, como o resto deste roteiro): o TRIGGER aceita e o detentor fica NULO
+  -- — aplicar_movimentacao grava colaborador_atual/setor_atual =
+  -- new.colaborador/new.setor tal qual vieram no payload da 'reserva' (0109
+  -- não muda essa linha); se vierem nulos, o campo zera. Isso CONTINUA
+  -- verdade e este cenário deve CONTINUAR passando: o trigger não é o lugar
+  -- da regra de negócio "colaborador OU setor" (isso é validação de entrada,
+  -- não máquina de estados).
+  --
+  -- O que mudou é o caminho do APP: na revisão do intervalo F32→F34
+  -- (11/08/2026), a reserva ganhou a mesma regra cruzada de saída/empréstimo
+  -- no movimentacaoSchema (superRefine, src/lib/validators/movimentacao.ts)
+  -- — uma reserva sem colaborador NEM setor agora é RECUSADA antes de chegar
+  -- ao banco. Este cenário existe justamente para deixar a assimetria
+  -- explícita: quem inserir por fora do app (SQL direto, script, RPC futura
+  -- sem essa checagem) ainda apaga o detentor em silêncio — o Zod é a única
+  -- barreira, e ela mora na aplicação, não no Postgres.
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'reserva', v_matriz, v_prof);                                     -- sem colaborador/setor
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
   if v_status = 'reservado' and v_colab is null and v_setor is null then
-    raise notice '✓ h re-reserva sem colaborador: continua reservado, detentor fica NULO (herdado da reserva)';
+    raise notice '✓ h re-reserva sem colaborador (inserida por fora do app): trigger aceita, detentor fica NULO — o app recusa, o banco não';
   else
     raise warning '✗ h esperado reservado/null/null, obtido %/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');

@@ -35,9 +35,14 @@ import {
 // selecionável no formulário. Um kit de qualquer um dos quatro seria inaplicável.
 //
 // Lista LITERAL (o `z.enum` precisa de tupla, não de `TipoMovimentacao[]`), com
-// um teste que trava a equivalência com `Constants.public.Enums.tipo_movimentacao`
+// um teste-guarda que trava a COBERTURA contra `Constants.public.Enums.tipo_movimentacao`
 // menos os excluídos — mesma doutrina do `TERMO_STATUS_ORDEM` (dominio.ts): se o
 // enum do banco mudar, o teste quebra em vez de o select ficar mudo.
+//
+// A ORDEM aqui é decisão de APRESENTAÇÃO, não de cobertura: é a ordem em que
+// `kit-dialog.tsx` (admin/kits) desenha o `<select>` do tipo. O guarda (kit.test.ts)
+// compara os dois lados como CONJUNTO — reordenar esta lista livremente não quebra
+// o teste, só muda o dropdown.
 export const TIPOS_EXCLUIDOS_DO_KIT = [
   'compra',
   'estorno',
@@ -50,6 +55,12 @@ export const TIPOS_KIT = [
   'emprestimo',
   'reserva',
   'devolucao',
+  // F34 — `envio_triagem` entra logo ANTES de `triagem_ok`: a triagem entra e
+  // depois sai, mesma ordem de `lista-filtros.tsx` (os dois lado a lado, na
+  // ordem em que acontecem na prateleira). Kit-ável por simetria com
+  // `triagem_ok`: mandar um lote inteiro para a triagem é tão repetitivo
+  // quanto liberá-lo de volta.
+  'envio_triagem',
   'triagem_ok',
   'envio_manutencao',
   'retorno_manutencao',
@@ -57,11 +68,6 @@ export const TIPOS_KIT = [
   'descarte',
   'transferencia',
   'ajuste',
-  // F34 — kit-ável por simetria com `triagem_ok`: mandar um lote inteiro para a
-  // triagem é tão repetitivo quanto liberá-lo de volta. Fica no FIM porque o
-  // teste-guarda compara esta lista com o enum do banco NA ORDEM, e o
-  // `alter type ... add value` anexa o valor novo no fim do enum (0108).
-  'envio_triagem',
 ] as const satisfies readonly TipoMovimentacao[]
 
 export type TipoKit = (typeof TIPOS_KIT)[number]

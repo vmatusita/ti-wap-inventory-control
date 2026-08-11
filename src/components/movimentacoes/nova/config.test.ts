@@ -11,6 +11,7 @@ import {
   loteMovimentacaoSchema,
   movimentacaoSchema,
 } from '@/lib/validators/movimentacao'
+import { Constants } from '@/lib/types/database'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 
 const UUID = '123e4567-e89b-12d3-a456-426614174000'
@@ -202,20 +203,39 @@ describe('mesclarAtivosNoLote — teto e dedup ao colar em massa', () => {
 // Consistência tabela ↔ schema: o que a tabela declara aplicável/obrigatório
 // tem de casar com o que o movimentacaoSchema aceita/rejeita. Se alguém mudar
 // só um dos lados, um destes quebra.
+//
+// FORMAVEIS é DERIVADA do enum do banco, não uma tupla escrita à mão — foi uma
+// lista literal que deixou `envio_triagem` (F34) passar batido por este guarda
+// (achado da revisão adversarial, 11/08/2026; ver docs/DECISOES.md). Um tipo
+// NOVO no enum agora entra sozinho aqui, ou o guarda quebra pedindo decisão
+// explícita (`Constants.public.Enums.tipo_movimentacao` some/aparece).
+//
+// Por que "enum menos exclusões nomeadas" e não `ehTipoManual` (movimentacao.ts):
+// `ehTipoManual` filtra o que é SELECIONÁVEL no formulário — e por isso NÃO
+// inclui `compra` (tem tela própria /ativos/novo), embora `compra` esteja na
+// união do `movimentacaoSchema` (`simples('compra')`) e por isso seja
+// legitimamente parte do que este guarda de CONSISTÊNCIA precisa cobrir. Menos
+// exclusões dá a lista mais simples de ler: cada exclusão é um motivo diferente
+// e citável, sem reimplementar o filtro de "selecionável" para um guarda que
+// não é sobre seleção.
+const FORMAVEIS_EXCLUIDOS_DO_GUARDA = [
+  // Fluxo próprio por RPC — nem entram na união discriminada do
+  // movimentacaoSchema (ver o comentário acima dela em validators/movimentacao.ts).
+  'troca',
+  'devolucao_fornecedor',
+  // O formulário nunca cria estornos: `serializarCampo` (config.ts) nem
+  // serializa `estorno_de` (cai no `default`, no-op) — testar aqui sempre
+  // falharia por CONSTRUÇÃO, não por regra de negócio.
+  'estorno',
+  // Precisa do status_resultante injetado por `montarItensInput` (3º
+  // parâmetro, fora da Config) — tem `it` dedicado logo abaixo.
+  'ajuste',
+] as const
+
 describe('CAMPOS_POR_TIPO ↔ movimentacaoSchema (consistência)', () => {
-  const FORMAVEIS = [
-    'saida',
-    'emprestimo',
-    'reserva',
-    'devolucao',
-    'transferencia',
-    'triagem_ok',
-    'envio_manutencao',
-    'retorno_manutencao',
-    'marcar_defasado',
-    'descarte',
-    'compra',
-  ] as const
+  const FORMAVEIS = Constants.public.Enums.tipo_movimentacao.filter(
+    (t) => !(FORMAVEIS_EXCLUIDOS_DO_GUARDA as readonly string[]).includes(t),
+  )
 
   it.each(FORMAVEIS)('%s totalmente preenchido é aceito pelo schema', (tipo) => {
     const itens = montarItensInput([ativo], cfg({ tipo }), '')
@@ -227,6 +247,9 @@ describe('CAMPOS_POR_TIPO ↔ movimentacaoSchema (consistência)', () => {
     expect(loteMovimentacaoSchema.safeParse({ itens }).success).toBe(true)
   })
 
+  // `envio_triagem` (o entrante desta correção) não ganha caso aqui: é
+  // CAMPOS_SIMPLES (só `motivo` opcional), sem nenhum campo obrigatório na
+  // tabela — não há o que rejeitar vazio.
   it('rejeita quando um campo OBRIGATÓRIO da tabela fica vazio', () => {
     const rejeita = (c: Config, status = '') =>
       !movimentacaoSchema.safeParse(montarItensInput([ativo], c, status)[0]).success

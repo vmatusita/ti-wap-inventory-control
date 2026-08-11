@@ -6,6 +6,48 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 11/08/2026 — Revisão de código do intervalo F32→F34: 10 achados aplicados ✅
+
+Revisão adversarial (xhigh) do intervalo `257d2bb..d45e1de` — CI, **F33** (performance) e **F34**
+(triagem opt-in, re-reserva, relatório). **Nenhuma migration**, **nenhuma dependência nova**,
+**nenhum dado do acervo tocado**.
+
+- 🔒 **A re-reserva parou de apagar o detentor em silêncio.** A F34 abriu `reserva` sobre
+  `reservado`, mas `reservaSchema` não tinha a regra cruzada de saída/empréstimo: uma reserva com
+  colaborador **e** setor em branco por cima de outra gravava `colaborador_atual = null` — o ativo
+  seguia `reservado` e ninguém mais sabia para quem. Antes da F34 era impossível (a reserva só partia
+  de `em_estoque`, sem detentor a perder). A `reserva` ganhou `exigeColaboradorOuSetor`, com a
+  **mesma** mensagem de saída/empréstimo. **O trigger não mudou** — a ata da F34 que decidiu não pôr
+  `coalesce` no banco continua de pé, e o cenário `h` do roteiro SQL continua passando; o comentário
+  dele agora explicita a assimetria (o banco aceita, o app recusa).
+- 📋 **O harness de performance passou a reprovar.** `scripts/perf/medir.mjs` gravava o JSON **antes**
+  das checagens e só o incidente de cache setava código de saída: uma medição totalmente falha
+  (sessão expirada ⇒ tudo 307) virava evidência em `docs/perf/` **saindo 0**. E a guarda de cache
+  casava só `HIT`, deixando passar `STALE`/`PRERENDER`/`REVALIDATED` — virou **allow-list**
+  (`MISS`/`BYPASS`/ausente), então valor novo reprova sozinho.
+- 🧪 **Dois guardas de teste que prometiam quebrar, e não quebraram.** `FORMAVEIS` (consistência
+  `CAMPOS_POR_TIPO` ↔ `movimentacaoSchema`) e o `it.each` de contrapartida enumeravam os tipos à mão:
+  `envio_triagem` atravessou a F34 inteira sem passar por nenhum dos dois. Agora são **derivados**.
+- 🎛️ **Um teste parou de ditar a ordem da UI.** `envio_triagem` estava no fim de `TIPOS_KIT` só
+  porque o guarda comparava **na ordem** do enum — e caía depois de "Ajuste" no dropdown de kits,
+  longe de "Triagem OK". O guarda virou de **cobertura** (conjunto) e o tipo foi para o lugar certo.
+- 📖 **Quatro afirmações que a F34 tornou falsas.** O `#—` que o card de manutenção imprimia com
+  chamado só de espaços (duas guardas com réguas diferentes); o comentário de `aplicarFlagTermo`
+  ("o ativo está em triagem"); a ajuda dizendo que a reserva "não exige nenhum dos dois"; e a
+  ajuda de devolução, que dizia que o ativo volta ao estoque mas **não** que marcar item faltante
+  não o segura — quem quiser segurar registra "Envio para triagem".
+- 🗂️ **O índice das ordens voltou a existir:** `docs/prompts/README.md` saltava de F26 para F34 —
+  **sete** ordens de serviço no disco e fora do índice, incluindo a própria F33.
+- ⛔ **Um achado NÃO virou edição de código.** As duas divergências de forma entre a `0109` e a
+  `0054` (`security invoker` implícito, `revoke/grant` não repetido) são inócuas — mas a `0109` **já
+  está aplicada em produção**, e `git log` por arquivo prova que **toda** migration deste repositório
+  tem exatamente um commit. A análise foi para `DECISOES.md`, não para dentro da migration.
+- **Seis atas** em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-11 · Revisão F32→F34), duas delas
+  **emendando** atas da própria F34. Pendência declarada: sinal visual de "pendência de item" no card
+  "Disponíveis por modelo" (exige leitura nova no motor do relatório).
+
+---
+
 ## 11/08/2026 — A triagem virou opt-in, e o reservado passou a mudar de dono (F34) ✅ 🔒
 
 - 📦 **A devolução volta direto para o estoque.** Até aqui **toda** devolução jogava o ativo em `em_triagem` e exigia um segundo registro (`triagem_ok`) só para ele voltar a existir como estoque — na prática um log a mais, porque ninguém conferia nada entre um e outro. Agora `devolucao` (de `em_uso` ou `emprestado`) resulta **`em_estoque`**, com o detentor limpo e as pendências de item abertas como sempre. **Nenhum ativo mudou de estado**: quem está em triagem hoje continua lá, e todas as saídas da triagem seguem valendo.

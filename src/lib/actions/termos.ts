@@ -427,7 +427,12 @@ async function persistirTermo(
 // (o alvo é não rebaixar sim/enviado — 'gerado'→'gerado' não rebaixa nada).
 // A movimentação é IMUTÁVEL (RLS insert-only, 0005) — por isso a flag mora no
 // ativo, que é o que v_pendencias/ficha/relatório leem (ver DECISOES). Devolução
-// não mexe no termo (o ativo está em triagem; a coluna é sobre responsabilidade).
+// não mexe na flag porque termo_assinado é sobre RESPONSABILIDADE e o termo de
+// devolução é de outra família — o guard é familiaDoTipo(tipo) !== 'responsabilidade'
+// (early return abaixo) e nunca dependeu do estado do ativo.
+// (Emenda F34, 11/08/2026: a premissa antiga era o ativo cair em triagem depois da
+// devolução — desde a migration 0109 a devolução resulta 'em_estoque' direto, a
+// triagem virou opt-in por 'envio_triagem'. Ver docs/MATRIZ-REGRAS.md R-TER-06.)
 async function aplicarFlagTermo(
   supabase: ServerClient,
   tipo: TermoTipo,
