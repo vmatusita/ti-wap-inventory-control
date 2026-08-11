@@ -65,14 +65,18 @@ end $$;
 -- C — aplicar_movimentacao: 'envio_triagem' zera o detentor, como 'triagem_ok'
 -- ============================================================================
 -- Base: corpo VIGENTE (0099). DIFF vs 0099 = SÓ o acréscimo de 'envio_triagem' às DUAS
--- listas de zeramento (colaborador_atual e setor_atual). NADA MAIS muda:
+-- listas de zeramento (colaborador_atual e setor_atual). NADA MAIS muda no COMPORTAMENTO:
+-- (a fidelidade é ao corpo que ESTAVA RODANDO, e ele carregava só 4 linhas de comentário —
+--  bem menos que o arquivo 0099. Os ~44 comentários explicativos da F24/F18 que a 0099 tem
+--  no arquivo NÃO estavam na função em produção, então não foram "perdidos" aqui: quem
+--  quiser o porquê do estorno-strip e da guarda de identidade lê a 0099.)
 --   · `devolucao` CONTINUA zerando colaborador/setor e CONTINUA abrindo `pendencias_item`
 --     por item faltante (F18) — só o `status_resultante` mudou, e ele vem da função acima;
 --   · o termo de devolução, o snapshot, o estorno, a guarda de identidade por filial
 --     (F24/0099) e a fixação de filial de compra/troca ficam byte a byte;
 --   · `reserva` já gravava `new.colaborador`/`new.setor` do payload — é isso que faz a
 --     RE-RESERVA trocar o detentor sem uma linha nova aqui (provado por roteiro, não por
---     leitura: `supabase/tests/transicoes_extra.sql`).
+--     leitura: `supabase/tests/f34_triagem_reserva.sql`, cenários g1/g2/g3).
 --
 -- Por que 'envio_triagem' entra no zeramento e não é mero no-op defensivo: de `em_estoque`
 -- o detentor é normalmente nulo, MAS o `ajuste` (válvula de escape) grava
