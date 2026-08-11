@@ -29,8 +29,13 @@ export const devolucaoETriagem: PaginaAjuda = {
   legado: ['movimentacoes'],
   blocos: [
     {
+      // F34 — a triagem deixou de ser passo obrigatório da devolução: antes,
+      // "receber de volta" eram SEMPRE duas movimentações (a devolução jogava
+      // em_triagem e só a triagem OK liberava o estoque de novo). Hoje a
+      // devolução sozinha já devolve o equipamento ao estoque; conferir antes
+      // virou uma escolha do operador, não um passo obrigatório do fluxo.
       tipo: 'paragrafo',
-      texto: `Receber um equipamento de volta são duas movimentações, e não uma: "${T.devolucao.rotulo}" (o equipamento saiu da mão do colaborador e chegou à TI — vira "${S.em_triagem.rotulo}") e, depois da conferência, "${T.triagem_ok.rotulo}" (está apto — volta a ser "${S.em_estoque.rotulo}"). A separação existe para que o que chegou não vire estoque disponível antes de alguém olhar.`,
+      texto: `"${T.devolucao.rotulo}" encerra a posse do colaborador e devolve o equipamento à TI — ele já conta como "${S.em_estoque.rotulo}" (disponível) na hora, sem passo extra. Quer conferir antes de liberar de novo (acessórios, backup, decisão de destino)? Registre "${T.envio_triagem.rotulo}" — é opcional, e quem decide é você. Estando "${S.em_triagem.rotulo}", "${T.triagem_ok.rotulo}" devolve o equipamento ao estoque de novo.`,
     },
     {
       tipo: 'nota',
@@ -86,6 +91,23 @@ export const devolucaoETriagem: PaginaAjuda = {
         'As duas movimentações são independentes depois de gravadas: estornar uma delas não desfaz a outra.',
       ],
     },
+    {
+      tipo: 'titulo',
+      id: 'devolucao-envio-triagem',
+      texto: 'Enviar para triagem (quando quiser conferir)',
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Separar um equipamento para conferência manual',
+      itens: [
+        `A devolução já deixa o equipamento "${S.em_estoque.rotulo}" — conferir antes NÃO é uma etapa do fluxo, é uma escolha sua. Quer olhar o equipamento antes de liberar de novo? Registre "${T.envio_triagem.rotulo}".`,
+        `Antes de começar: o ativo precisa estar "${S.em_estoque.rotulo}" — é o único estado de onde a triagem manual sai.`,
+        `Escolha "${T.envio_triagem.rotulo}" em "Tipo de movimentação"; só a "Data" é obrigatória.`,
+        'Use quando fizer sentido conferir: checklist de acessórios, backup e limpeza dos dados, ou decidir o destino do equipamento (segue apto para liberar, precisa de manutenção, está defasado).',
+        `Enquanto o ativo estiver "${S.em_triagem.rotulo}", ele NÃO conta como disponível — some do estoque e do card "Disponíveis por modelo" até voltar por "${T.triagem_ok.rotulo}", logo abaixo.`,
+        `A pendência "triagem parada" (equipamento parado há mais de 7 dias) passa a acusar só quem foi mandado para lá de propósito — não mais toda devolução, que agora nem passa por aqui.`,
+      ],
+    },
     { tipo: 'titulo', id: 'devolucao-triagem', texto: 'Conferir e liberar (Triagem OK)' },
     {
       tipo: 'passos',
@@ -105,7 +127,8 @@ export const devolucaoETriagem: PaginaAjuda = {
         'A devolução limpa o Colaborador e o Setor da ficha: o equipamento passa a ser da TI de novo.',
         'A linha entra na tabela "Entradas" do relatório do período, com as colunas "Motivo", "Colaborador", "Setor" e "Itens faltantes".',
         'A pendência de termo da entrega anterior deixa de valer, porque ela só existe enquanto o ativo está entregue.',
-        'A triagem aprovada devolve o equipamento à contagem de "Em estoque" e ao card "Disponíveis por modelo" do relatório.',
+        'A devolução já entra na contagem de "Em estoque" e no card "Disponíveis por modelo" do relatório — não é preciso passar pela triagem para o equipamento virar estoque disponível.',
+        'A triagem aprovada devolve o equipamento à contagem de "Em estoque" e ao card "Disponíveis por modelo" do relatório do mesmo jeito, para quem passou por ela.',
         'Acessórios e periféricos que voltaram (mouse, fone, carregador avulso) não entram por aqui: eles são controlados por quantidade, na tela Itens.',
       ],
     },
@@ -131,8 +154,12 @@ export const devolucaoETriagem: PaginaAjuda = {
           'Não estorne: resolva a pendência na página Pendências com o desfecho "Item recuperado".',
         ],
         [
-          `O ativo ficou "${S.em_triagem.rotulo}" e não devia`,
-          `A devolução sempre leva para a triagem — é o desenho do fluxo. Para liberar, registre "${T.triagem_ok.rotulo}".`,
+          // F34 — a devolução deixou de levar para a triagem sozinha; a linha
+          // antiga ("A devolução sempre leva para a triagem — é o desenho do
+          // fluxo") ficou FALSA e virou o erro contrário: o operador que
+          // procura o passo automático de antes.
+          `Quero conferir o equipamento antes de liberar de novo, e não acho o passo`,
+          `A devolução não leva mais sozinha para a triagem. Registre "${T.envio_triagem.rotulo}" (o ativo precisa estar "${S.em_estoque.rotulo}") e, depois de conferir, "${T.triagem_ok.rotulo}" para liberar de novo.`,
         ],
         [
           '"{patrimônio} está nas duas metades da troca"',

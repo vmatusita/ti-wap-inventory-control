@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { achatarDisponiveis, gerarTextoResumo } from '@/lib/relatorios/resumo'
+import { gerarTextoResumo } from '@/lib/relatorios/resumo'
 import type { ResumoPeriodo, ResumoTipo } from '@/lib/relatorios/tipos'
 
 // Dados 100% fictícios (CLAUDE.md regra 2). B3/F6B: cada motivo em linha própria;
@@ -168,8 +168,13 @@ describe('gerarTextoResumo — B3: quebra de linha por motivo', () => {
 })
 
 // F29/REL-08 — o texto copiado passou a incluir o que o e-mail real trazia: a
-// linha de KPIs e o bloco "Em estoque (N)". Os extras são OPCIONAIS: sem eles a
-// saída tem de ser byte a byte a de antes (é o que os casos acima travam).
+// linha de KPIs. Os extras são OPCIONAIS: sem eles a saída tem de ser byte a byte
+// a de antes (é o que os casos acima travam).
+// F34/A — o bloco "Em estoque (N)" que a REL-08 também acrescentava foi revogado
+// PARCIALMENTE (ata em docs/DECISOES.md): os casos que o travavam (o próprio bloco
+// e `achatarDisponiveis`, que o alimentava) SAEM daqui porque o REQUISITO mudou —
+// não são testes apagados para passar. O caso novo que os substitui trava o
+// oposto: `describe('gerarTextoResumo — F34/A…')`, mais abaixo.
 describe('gerarTextoResumo — extras (F29/REL-08)', () => {
   const KPIS = {
     total: 412,
@@ -197,76 +202,39 @@ describe('gerarTextoResumo — extras (F29/REL-08)', () => {
     )
   })
 
-  it('"Em estoque" fecha o texto, do modelo mais numeroso ao menos', () => {
-    const texto = gerarTextoResumo(resumo({}), {
-      disponiveis: [
-        { modelo: 'Positivo Master', total: 4 },
-        { modelo: 'Dell Latitude 3440', total: 16 },
-      ],
-    })
-    const linhas = texto.split('\n')
-    expect(linhas[linhas.length - 1]).toBe(
-      'Em estoque (20): 16× Dell Latitude 3440, 04× Positivo Master',
-    )
-    // Linha em branco separando das devoluções — o bloco não gruda no anterior.
-    expect(linhas[linhas.length - 2]).toBe('')
-  })
-
-  it('empate de total desempata pelo nome, em pt-BR', () => {
-    const texto = gerarTextoResumo(resumo({}), {
-      disponiveis: [
-        { modelo: 'Órion 5', total: 2 },
-        { modelo: 'Alfa 1', total: 2 },
-      ],
-    })
-    expect(texto).toContain('02× Alfa 1, 02× Órion 5')
-  })
-
-  it('modelo zerado não entra na lista nem no total entre parênteses', () => {
-    const texto = gerarTextoResumo(resumo({}), {
-      disponiveis: [
-        { modelo: 'Com saldo', total: 3 },
-        { modelo: 'Sem saldo', total: 0 },
-      ],
-    })
-    expect(texto).toContain('Em estoque (3): 03× Com saldo')
-    expect(texto).not.toContain('Sem saldo')
-  })
-
-  it('sem nenhum modelo com saldo, o bloco não aparece (nem uma linha vazia solta)', () => {
-    const texto = gerarTextoResumo(resumo({}), { disponiveis: [] })
-    expect(texto).not.toContain('Em estoque')
-    expect(texto).toBe(gerarTextoResumo(resumo({})))
-  })
-
-  it('o total entre parênteses é a soma da lista impressa', () => {
-    const texto = gerarTextoResumo(resumo({}), {
-      disponiveis: [
-        { modelo: 'A', total: 7 },
-        { modelo: 'B', total: 5 },
-        { modelo: '   ', total: 2 },
-      ],
-    })
-    expect(texto).toContain('Em estoque (14): 07× A, 05× B, 02× —')
-  })
+  // Os cinco casos que travavam o bloco "Em estoque (N): 16× Modelo A, …" (aqui) e
+  // o describe('achatarDisponiveis', …) que o alimentava SAÍRAM nesta fase: a F34/A
+  // revogou parcialmente a REL-08 e o bloco deixou de ser emitido — não é teste
+  // apagado para passar, é teste de um comportamento que não existe mais. O caso
+  // abaixo trava o oposto.
 })
 
-describe('achatarDisponiveis', () => {
-  it('junta os modelos de todas as categorias numa lista só', () => {
-    expect(
-      achatarDisponiveis([
-        { modelos: [{ modelo: 'Notebook X', total: 3 }] },
-        { modelos: [{ modelo: 'Monitor Y', total: 5 }, { modelo: 'Monitor Z', total: 1 }] },
-      ]),
-    ).toEqual([
-      { modelo: 'Notebook X', total: 3 },
-      { modelo: 'Monitor Y', total: 5 },
-      { modelo: 'Monitor Z', total: 1 },
-    ])
+// F34/A — revogação PARCIAL da REL-08 (ata em docs/DECISOES.md): o bloco
+// "Em estoque (N): …" sai do texto copiado, mas a LINHA DE TOTAIS (que também
+// contém a palavra "Em estoque", só que seguida de espaço + número, sem
+// parênteses) continua byte a byte. O assert certo é sobre "Em estoque (" — com o
+// parêntese — e o caso prova as duas coisas ao mesmo tempo, para não deixar a
+// regressão mais fácil (bloco voltando) passar batida por um assert frouxo.
+describe('gerarTextoResumo — F34/A: bloco "Em estoque (N)" revogado', () => {
+  const KPIS = {
+    total: 412,
+    em_uso: 300,
+    em_estoque: 80,
+    reservado: 12,
+    em_triagem: 8,
+    em_manutencao: 7,
+    defasado: 5,
+    emprestado: 3,
+  }
+
+  it('o texto nunca contém "Em estoque (", mas a linha de totais com "Em estoque 80" permanece', () => {
+    const texto = gerarTextoResumo(resumo({}), { kpis: KPIS })
+    expect(texto).toContain('Em estoque 80')
+    expect(texto).not.toContain('Em estoque (')
   })
 
-  it('grupo sem modelo não deixa buraco', () => {
-    expect(achatarDisponiveis([{ modelos: [] }])).toEqual([])
-    expect(achatarDisponiveis([])).toEqual([])
+  it('sem KPIs também não sobra o bloco (nem a expressão "Em estoque" solta)', () => {
+    const texto = gerarTextoResumo(resumo({}))
+    expect(texto).not.toContain('Em estoque')
   })
 })

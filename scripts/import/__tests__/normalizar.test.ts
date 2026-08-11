@@ -214,22 +214,35 @@ describe('estadoPlanilha (precedência Situação > Status)', () => {
   })
 })
 
-describe('statusAposMovimentacao (espelho da migration 0004)', () => {
+describe('statusAposMovimentacao (espelho da migration 0109)', () => {
   it('transições válidas', () => {
     expect(statusAposMovimentacao('em_estoque', 'compra')).toBe('em_estoque')
     expect(statusAposMovimentacao('em_estoque', 'saida')).toBe('em_uso')
     expect(statusAposMovimentacao('em_triagem', 'saida')).toBe('em_uso')
-    expect(statusAposMovimentacao('em_uso', 'devolucao')).toBe('em_triagem')
+    // F34: a devolucao passa a pousar direto em em_estoque (era em_triagem) — o REQUISITO
+    // mudou (migration 0109, revogação parcial da doutrina antiga de triagem automática).
+    expect(statusAposMovimentacao('em_uso', 'devolucao')).toBe('em_estoque')
     expect(statusAposMovimentacao('em_triagem', 'triagem_ok')).toBe('em_estoque')
     expect(statusAposMovimentacao('em_uso', 'transferencia')).toBe('em_uso')
     expect(statusAposMovimentacao('em_estoque', 'ajuste', 'defasado')).toBe('defasado')
+    // F34: envio_triagem — a triagem manual opt-in (em_estoque -> em_triagem).
+    expect(statusAposMovimentacao('em_estoque', 'envio_triagem')).toBe('em_triagem')
+    // F34: re-reserva — reserva também vale sobre reservado, permanecendo reservado
+    // (troca de colaborador/setor/chamado sem estorno e sem ajuste).
+    expect(statusAposMovimentacao('reservado', 'reserva')).toBe('reservado')
   })
 
   it('transições inválidas → null (replay pula com estado_divergente)', () => {
     expect(statusAposMovimentacao('em_uso', 'saida')).toBeNull()
+    // Caso PRÉ-F34 que continua valendo: a origem de `devolucao` (em_uso/emprestado) não
+    // mudou — só o destino (agora em_estoque, ver acima) — então em_estoque->devolucao
+    // segue inválida.
     expect(statusAposMovimentacao('em_estoque', 'devolucao')).toBeNull()
     expect(statusAposMovimentacao('descartado', 'transferencia')).toBeNull()
     expect(statusAposMovimentacao('em_uso', 'compra')).toBeNull()
+    // F34: envio_triagem só parte de em_estoque — de em_uso/reservado/etc. é inválida.
+    expect(statusAposMovimentacao('em_uso', 'envio_triagem')).toBeNull()
+    expect(statusAposMovimentacao('reservado', 'envio_triagem')).toBeNull()
   })
 })
 

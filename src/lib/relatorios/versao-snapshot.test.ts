@@ -104,7 +104,16 @@ describe('gerarRelatorio — a leitura de versão não pode voltar a engolir o e
   })
 })
 
-describe('o texto copiado recebe os extras nos DOIS corpos (v1 e v2)', () => {
+// F34/A — revogação PARCIAL da REL-08 (ata em docs/DECISOES.md): o bloco
+// "Em estoque (N)" deixou de ser emitido (lib/relatorios/resumo.ts) e o extra
+// `disponiveis` saiu do contrato de `ExtrasResumo` — os dois corpos passam a
+// repassar SÓ `kpis`. Este describe travava `extras={{kpis:s.kpis,disponiveis:…}}`
+// nos dois; o teste muda porque o REQUISITO mudou, não para "passar" — e a
+// assinatura escolhida (`toContain('extras={{kpis:s.kpis}}')`) já é, por
+// construção, uma asserção negativa: se `disponiveis` voltasse a ser passado, o
+// texto stripado ficaria `extras={{kpis:s.kpis,disponiveis:…}}` e deixaria de
+// conter a substring exata que o teste procura (falha, não falso-positivo).
+describe('o texto copiado recebe só o extra kpis nos DOIS corpos (v1 e v2)', () => {
   function corpo(arquivo: string): string {
     return readFileSync(
       fileURLToPath(new URL(`../../components/relatorios/${arquivo}`, import.meta.url)),
@@ -115,15 +124,13 @@ describe('o texto copiado recebe os extras nos DOIS corpos (v1 e v2)', () => {
   // O v1 é o corpo dos snapshots pré-F3B, que continuam abrindo pelo link antigo.
   // Deixá-lo de fora faria o MESMO botão "Copiar texto" produzir textos diferentes
   // conforme a idade do snapshot — sem nada na tela explicando a diferença.
-  it('v1 passa kpis e disponiveis (que ali já é a lista plana)', () => {
-    expect(corpo('corpo-relatorio.tsx')).toContain(
-      'extras={{kpis:s.kpis,disponiveis:s.disponiveisPorModelo}}',
-    )
+  it('v1 passa só kpis', () => {
+    expect(corpo('corpo-relatorio.tsx')).toContain('extras={{kpis:s.kpis}}')
   })
 
-  it('v2 passa kpis e a lista ACHATADA (lá o campo vem agrupado por categoria)', () => {
+  it('v2 passa só kpis — sem achatarDisponiveis (função removida na F34/A)', () => {
     const v2 = corpo('corpo-relatorio-v2.tsx')
-    expect(v2).toContain('kpis:s.kpis')
-    expect(v2).toContain('disponiveis:achatarDisponiveis(s.disponiveisPorModelo)')
+    expect(v2).toContain('extras={{kpis:s.kpis}}')
+    expect(v2).not.toContain('achatarDisponiveis')
   })
 })

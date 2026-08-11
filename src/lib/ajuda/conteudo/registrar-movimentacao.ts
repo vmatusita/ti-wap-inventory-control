@@ -32,9 +32,11 @@ export const registrarMovimentacao: PaginaAjuda = {
   legado: ['como-fazer', 'movimentacoes'],
   blocos: [
     {
+      // F34 — "enviar para triagem" entrou na lista: é um tipo manual comum
+      // do wizard, como qualquer outro, e não um passo automático da devolução.
       tipo: 'paragrafo',
       texto:
-        'Este é o caminho de quase tudo que acontece com um equipamento: entregar, emprestar, reservar, receber de volta, aprovar a triagem, mandar consertar, trazer de volta do conserto, transferir de filial, marcar como defasado, descartar e ajustar. A tela é a mesma para um equipamento ou para trinta — e a movimentação é o registro do EVENTO: você conta o que aconteceu, e o estado do ativo, o estoque e o relatório se atualizam sozinhos a partir dela.',
+        'Este é o caminho de quase tudo que acontece com um equipamento: entregar, emprestar, reservar, receber de volta, enviar para triagem, aprovar a triagem, mandar consertar, trazer de volta do conserto, transferir de filial, marcar como defasado, descartar e ajustar. A tela é a mesma para um equipamento ou para trinta — e a movimentação é o registro do EVENTO: você conta o que aconteceu, e o estado do ativo, o estoque e o relatório se atualizam sozinhos a partir dela.',
     },
     {
       tipo: 'lista',

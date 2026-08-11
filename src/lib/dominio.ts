@@ -128,6 +128,9 @@ export const TIPO_META: Record<TipoMovimentacao, { rotulo: string }> = {
   emprestimo: { rotulo: 'Empréstimo' },
   reserva: { rotulo: 'Reserva' },
   devolucao: { rotulo: 'Devolução' },
+  // F34 — a triagem virou manual: `envio_triagem` é a ENTRADA (em_estoque →
+  // em_triagem) e `triagem_ok` continua sendo a SAÍDA (em_triagem → em_estoque).
+  envio_triagem: { rotulo: 'Envio para triagem' },
   triagem_ok: { rotulo: 'Triagem OK' },
   envio_manutencao: { rotulo: 'Envio p/ manutenção' },
   retorno_manutencao: { rotulo: 'Retorno de manutenção' },

@@ -18,13 +18,18 @@ const FORA_DO_FORMULARIO: TipoMovimentacao[] = [...TIPOS_FORA_DO_LOTE_MANUAL, 'e
 // mesmo build, em vez de deixar a doc falando de um estado que a tela nao tem.
 const S = STATUS_META
 
+// F34 — a triagem deixou de ser etapa automática da devolução: "devolucao"
+// agora resulta direto em_estoque, e o tipo novo "envio_triagem" é quem leva
+// para em_triagem, só quando o operador ESCOLHE conferir. `Record` exaustivo:
+// esqueceu o tipo novo, o build quebra sozinho — foi o que aconteceu aqui.
 const EFEITO_MOVIMENTACAO: Record<TipoMovimentacao, string> = {
   compra: `Entrada de um ativo novo COMPRADO. Resultado: ${S.em_estoque.rotulo}. Não se registra por este formulário: é o cadastro de equipamento novo que a grava sozinha, na linha do tempo do ativo recém-criado.`,
   troca: `Entrada do equipamento SUBSTITUTO que o fornecedor mandou no lugar do devolvido (nascimento do ativo, como a compra). Registrada só pela devolução ao fornecedor — nunca pelo formulário de nova movimentação. Aparece nas Entradas do relatório rotulada "${TIPO_META.troca.rotulo}", nunca contada como compra (não foi comprado). Resultado: ${S.em_estoque.rotulo}.`,
   saida: `Entrega definitiva a um colaborador ou setor. Resultado: ${S.em_uso.rotulo}. É a movimentação que abre a cobrança do termo de responsabilidade.`,
   emprestimo: `Entrega temporária, com devolução esperada. Resultado: ${S.emprestado.rotulo}. Use quando o equipamento vai voltar — o relatório separa emprestados de "${S.em_uso.rotulo}" justamente por isso.`,
-  reserva: `Separa o ativo para alguém sem entregar ainda. Resultado: ${S.reservado.rotulo}. O equipamento continua com a TI, mas sai da conta de disponíveis.`,
-  devolucao: `O ativo volta da mão do colaborador para a TI. Resultado: ${S.em_triagem.rotulo} (aguarda conferência). É aqui que se marca o checklist do que NÃO voltou.`,
+  reserva: `Separa o ativo para alguém sem entregar ainda — vale também sobre um ativo já "${S.reservado.rotulo}" (a re-reserva), trocando colaborador/setor/chamado sem estorno. Resultado: ${S.reservado.rotulo}. O equipamento continua com a TI, mas sai da conta de disponíveis.`,
+  devolucao: `O ativo volta da mão do colaborador para a TI. Resultado: ${S.em_estoque.rotulo} — o equipamento já conta como disponível na hora, sem passo de triagem. É aqui que se marca o checklist do que NÃO voltou; quem quiser conferir antes de liberar de novo registra "${TIPO_META.envio_triagem.rotulo}" depois, por escolha própria.`,
+  envio_triagem: `Separa o ativo "${S.em_estoque.rotulo}" para conferência manual — quando o operador QUER checar acessórios, formatar ou decidir o destino antes de liberar de novo. É opcional: nem toda devolução passa por aqui. Resultado: ${S.em_triagem.rotulo}.`,
   triagem_ok: `Conferência aprovada — o ativo volta a ficar disponível. Resultado: ${S.em_estoque.rotulo}.`,
   envio_manutencao: `Enviado para conserto ou assistência. Resultado: ${S.em_manutencao.rotulo}. Exige o número do chamado aberto pelo FORNECEDOR (campo "Chamado do fornecedor"), que é o que permite cobrar o conserto depois.`,
   retorno_manutencao: `Voltou do conserto e está apto. Resultado: ${S.em_estoque.rotulo}.`,

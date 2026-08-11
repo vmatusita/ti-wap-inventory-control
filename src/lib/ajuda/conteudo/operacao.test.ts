@@ -198,7 +198,7 @@ describe('derivação (os tetos e os rótulos vêm do código)', () => {
     expect(texto('cadastrar-compra')).toContain(`máximo ${MAX_LOTE_COMPRA} unidades`)
   })
 
-  it('a frente cobre em prosa os 15 tipos de movimentação, pelo rótulo real', () => {
+  it('a frente cobre em prosa os 16 tipos de movimentação, pelo rótulo real', () => {
     const tudo = textoDaFrente()
     for (const t of Object.keys(TIPO_META) as TipoMovimentacao[]) {
       expect(tudo, `tipo sem prosa na frente: ${t}`).toContain(TIPO_META[t].rotulo)

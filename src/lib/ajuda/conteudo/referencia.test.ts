@@ -218,7 +218,7 @@ describe('status-do-ativo — glossário completo e com contexto', () => {
   })
 })
 
-describe('tipos-de-movimentacao — os 15 tipos e o que não está no formulário', () => {
+describe('tipos-de-movimentacao — os 16 tipos e o que não está no formulário', () => {
   it('cobre todos os tipos do domínio, com efeito escrito', () => {
     const b = blocos('tipos-de-movimentacao', 'movimentacoes')[0]
     expect(b).toBeDefined()

@@ -129,7 +129,10 @@ export function glossarioRelatorio(): VerbeteRelatorio[] {
     {
       termo: 'Em triagem',
       status: 'em_triagem',
-      definicao: 'Devolvido, aguardando conferência antes de voltar ao estoque.',
+      // F34 — a triagem deixou de ser passo automático da devolução (que
+      // agora resulta em_estoque direto); só entra aqui quem foi separado de
+      // propósito, por um "Envio para triagem" manual.
+      definicao: 'Separado manualmente para conferência antes de voltar ao estoque.',
     },
     {
       termo: 'Em manutenção',

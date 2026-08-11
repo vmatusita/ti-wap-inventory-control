@@ -5,15 +5,18 @@ import { STATUS_ORDEM, type CategoriaAtivo, type StatusAtivo } from '@/lib/domin
 // PROSA por enum: sem um texto para cada status, o TypeScript nao compila.
 const DESC_STATUS: Record<StatusAtivo, string> = {
   em_estoque:
-    'Disponível na prateleira da TI, pronto para sair. É o estado em que o equipamento nasce (compra ou troca) e para onde ele volta depois da triagem e do retorno da manutenção.',
+    'Disponível na prateleira da TI, pronto para sair. É o estado em que o equipamento nasce (compra ou troca) e para onde ele volta depois da devolução, da triagem (quando houve) e do retorno da manutenção.',
   reservado:
     'Separado para um colaborador ou finalidade, mas ainda não entregue. Continua fisicamente com a TI e some da conta de disponíveis — no relatório aparece em "Reservados", com o número do chamado.',
   em_uso:
     'Entregue e em uso por um colaborador ou setor. É o estado que cobra termo de responsabilidade e o que a devolução desfaz.',
   emprestado:
     'Cedido em caráter temporário — espera-se a devolução. A diferença para "Em uso" é a expectativa de retorno, e é ela que separa os dois nos relatórios.',
+  // F34 — a triagem deixou de ser passo automático da devolução (que agora
+  // resulta em_estoque direto): nada entra aqui sozinho, é sempre um "Envio
+  // para triagem" registrado de propósito, quando alguém quer conferir.
   em_triagem:
-    'Devolvido e aguardando conferência antes de voltar ao estoque. Enquanto ficar aqui, o equipamento não conta como disponível — quem tira daqui é a triagem aprovada ou o envio à manutenção.',
+    'Separado para conferência — entrada manual, nunca automática: alguém registrou "Envio para triagem" de propósito, para checar acessórios, fazer backup/limpeza ou decidir o destino. Enquanto ficar aqui, o equipamento não conta como disponível — quem tira daqui é a triagem aprovada ou o envio à manutenção.',
   em_manutencao:
     'Em conserto ou assistência técnica. Daqui sai pelo retorno da manutenção (volta ao estoque) ou pela devolução ao fornecedor (baixa). O caso fica visível no relatório, com o tempo parado.',
   defasado:

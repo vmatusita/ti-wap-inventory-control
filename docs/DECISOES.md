@@ -5314,3 +5314,228 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
 - **Descoberto de passagem:** só **2 dos 1.654** ativos de produção têm `substitui_ativo_id`. O
   caso de três rodadas que a ordem cita como suspeito é, na prática, 0,1% do acervo — o ganho de C1
   no caso comum é de uma rodada, não duas.
+
+## 2026-08-11 · F34 · A triagem virou opt-in: `devolucao` vai direto ao estoque e nasce `envio_triagem`
+
+- **Contexto:** até a F33, TODA `devolucao` jogava o ativo em `em_triagem` e exigia um segundo
+  registro (`triagem_ok`) só para ele voltar a existir como estoque. Na operação real da WAP o passo
+  virou um log a mais: ninguém conferia nada entre um e outro, e o KPI "Em triagem" só media atraso
+  de digitação.
+- **Decisão (do Johnny, na ordem F34):** `devolucao` (de `em_uso` e de `emprestado`) passa a resultar
+  **`em_estoque`**; nasce o tipo **`envio_triagem`** — rótulo **"Envio para triagem"**, `em_estoque →
+  em_triagem` — para quando o operador **quiser** inspecionar; `triagem_ok` continua sendo a saída da
+  triagem (`em_triagem → em_estoque`), byte a byte.
+- **Campos do tipo novo:** família dos "simples" — só `motivo` opcional; `chamado` e `observacao` já
+  vêm do base de toda movimentação. Nenhum campo obrigatório, nenhum fluxo próprio: é tipo manual
+  comum do wizard, e a interseção `tiposManuaisPara` o oferece sozinha para lote 100% `em_estoque`.
+- **Motivo:** o custo do passo obrigatório era real (dois registros por devolução) e o benefício,
+  zero, porque a conferência não acontecia ali. Tornando-o opt-in, quem conferir de verdade continua
+  tendo o estado — e a pendência "triagem parada (7+ dias)" passa a acusar só quem foi mandado à
+  triagem de propósito, que é o que ela sempre quis dizer.
+- **Nenhum ativo mudou de estado.** Quem está `em_triagem` hoje continua lá, e todas as saídas atuais
+  da triagem (saída, manutenção, defasado, descarte, transferência) seguem valendo. Contagens por
+  status antes = depois, coladas em `docs/RELATORIO-F34.md`.
+- **Reversível?** sim, e sem perda: `create or replace` das três funções de volta aos corpos
+  anteriores (fingerprints md5 na ata seguinte). O `add value` do enum é inócuo se não for usado.
+
+## 2026-08-11 · F34 · As duas migrations e os corpos ANTERIORES (backup lógico)
+
+- **Contexto:** a ordem manda guardar o `pg_get_functiondef` anterior das funções recriadas.
+- **Decisão:** `0108_envio_triagem_enum.sql` (só o `alter type … add value if not exists
+  'envio_triagem'`) e `0109_devolucao_direta_e_re_reserva.sql` (as três funções por `create or
+  replace` PURO). Separadas de propósito — valor novo de enum não é usável na transação que o
+  adiciona (precedentes 0044→0045 e 0046→0047).
+- **Base de cada recriação: o corpo VIGENTE lido do BANCO**, não a migration mais antiga. Md5 do
+  functiondef **ANTES**, idênticos em ensaio e produção:
+  `status_apos_movimentacao` = `b5d0d51a637959dc59ffda697beffedd` (base 0047);
+  `aplicar_movimentacao` = `f7212a5927f5dc3bb6be3732895e25fd` (base 0099);
+  `rel_estoque_asof` = `6c173d2bdd922ebf9c78fd5cff5bb4c6` (base 0054).
+  Md5 **DEPOIS**: `69a73abfcfe13d7b2560bb6908c09a72`, `53dbb8c0c189e20b83411c86976bfc28`,
+  `b98dbb8b3022b8e43cfd395b53c9ada1`.
+- **Motivo:** é a regressão clássica que a própria 0047 documenta. `aplicar_movimentacao` já tinha
+  sido recriada pela 0051 (F18) e pela 0097/0099 (F24) — partir da 0047 teria apagado a guarda de
+  identidade por filial e a abertura de `pendencias_item`.
+- **Reversível?** sim — `create or replace` de volta aos três corpos acima.
+
+## 2026-08-11 · F34 · `envio_triagem` zera o detentor no trigger, e o as-of espelha
+
+- **Contexto:** a ordem deixou em aberto se `envio_triagem` deveria entrar nas listas de zeramento de
+  `colaborador_atual`/`setor_atual` do `aplicar_movimentacao`, chamando o caso de "no-op defensivo"
+  (de `em_estoque` o detentor já é nulo).
+- **Decisão:** ENTRA nas duas listas, e o mesmo acréscimo é espelhado nos dois `case` paralelos de
+  `rel_estoque_asof`.
+- **Motivo: não é no-op.** O `ajuste` — a válvula de escape — grava `status_resultante` direto e
+  **não** limpa colaborador/setor. Um ativo pode chegar a `em_estoque` carregando detentor; sem esta
+  linha, o `envio_triagem` levaria esse detentor para dentro de `em_triagem`, estado que por desenho
+  não tem dono (é o mesmo motivo pelo qual `triagem_ok` zera). Provado no ensaio: caso 8 do roteiro
+  E2E (ativo em `em_uso` → `ajuste` para `em_estoque` mantendo "Fulano Ficticio" → `envio_triagem`
+  limpa). O espelho em `rel_estoque_asof` é obrigatório: sem ele o estado AO VIVO diria "sem
+  detentor" e a leitura AS-OF do relatório continuaria mostrando o detentor anterior.
+- **Nota de passagem (não corrigida aqui, backlog):** `rel_estoque_asof` não lista
+  `devolucao_fornecedor` nas mesmas listas, ao contrário do trigger. Não é bug hoje — o status
+  `devolvido_fornecedor` é filtrado no `where` final e nunca chega a ser lido —, mas é uma assimetria
+  entre os dois espelhos que vale fechar quando alguém tocar a função de novo.
+- **Reversível?** sim, tirando `'envio_triagem'` das quatro listas.
+
+## 2026-08-11 · F34 · A re-reserva: `reserva` passa a valer sobre `reservado`
+
+- **Contexto:** caso real — notebook reservado para um novo contratado; a pessoa desiste da vaga e
+  entra outra. Não havia caminho: só dava para estornar (se fosse a última movimentação) ou usar
+  `ajuste` com justificativa, os dois mentindo sobre o que aconteceu.
+- **Decisão:** o tipo `reserva` passa a aceitar também o estado `reservado` (`reservado → reservado`),
+  trocando colaborador/setor/chamado pelos informados. Sem estorno, sem ajuste, com as duas reservas
+  na linha do tempo. Nenhum campo novo: o `aplicar_movimentacao` já gravava `new.colaborador`/
+  `new.setor` para o tipo `reserva`, então a mudança inteira coube na `status_apos_movimentacao`.
+- **Vocabulário:** o Johnny chamou isso de "transferência de colaborador". O tipo `transferencia` do
+  sistema é **transferência de FILIAL** e ficou **byte a byte** — nada nesta fase o toca.
+- **Provado por roteiro, não por leitura:** casos 6a/6b/6c do E2E no ensaio (Fulano/TI → Ciclano/
+  Financeiro, ativo continua `reservado`, duas `reserva` na linha do tempo).
+- **Reversível?** sim — tirar `'reservado'` da linha da `reserva` no `case`.
+
+## 2026-08-11 · F34 · Re-reserva SEM colaborador LIMPA o detentor (comportamento herdado, aceito)
+
+- **Contexto:** `reserva` grava `new.colaborador`/`new.setor` sem `coalesce` — reserva sem
+  destinatário sempre limpou o detentor. Com a re-reserva isso ganha um caso novo: reservar de novo
+  **sem informar colaborador** apaga quem estava lá, em vez de preservar.
+- **Decisão:** manter o comportamento herdado, sem `coalesce` de exceção.
+- **Motivo:** é o que a `reserva` sempre fez em `em_estoque`, e a alternativa ("sem colaborador,
+  preserva o anterior") criaria uma regra que depende do estado de origem — mais difícil de explicar
+  ao operador do que "a reserva grava o que você informou". Quem quer só trocar o chamado informa o
+  colaborador de novo. Documentado na ajuda e travado por roteiro (caso 7 do E2E).
+- **Reversível?** sim, mas exigiria diferenciar `reserva` por estado de origem no trigger.
+
+## 2026-08-11 · F34 · `envio_triagem` é kit-ável
+
+- **Contexto:** `TIPOS_KIT` (kit.ts) lista todo tipo do enum que não tenha fluxo próprio, e um teste
+  compara a lista com o enum do banco **na ordem**.
+- **Decisão:** `envio_triagem` entra nos kit-áveis, por simetria com `triagem_ok` — e entra **no FIM**
+  da lista, porque `alter type … add value` anexa o valor novo no fim do enum e o teste-guarda
+  compara elemento a elemento.
+- **Motivo:** mandar um lote inteiro para conferência é tão repetitivo quanto liberá-lo de volta; era
+  o que a ordem já indicava.
+- **Reversível?** sim — mover para `TIPOS_EXCLUIDOS_DO_KIT`.
+
+## 2026-08-11 · F34 · O texto do e-mail perde o bloco "Em estoque (N)" — revogação parcial do item REL-08
+
+- **Contexto:** a F29 acrescentou ao texto copiado do card "Resumo do período" um bloco final
+  "Em estoque (24): 16× Modelo A, …" (item **REL-08 da análise de UX de 07/08/2026** — não a regra
+  `R-REL-08` da `MATRIZ-REGRAS.md`, que trata de outro assunto). No uso real ele não é colado no
+  e-mail semanal.
+- **Decisão:** `gerarTextoResumo` para de emitir o bloco. Foi **removido** o plumbing inteiro
+  (`blocoDisponiveis`, `achatarDisponiveis`, o extra `disponiveis` de `ExtrasResumo` e os repasses
+  nos dois corpos de relatório) em vez de deixá-lo morto. A **linha de totais** (Total · Em uso · Em
+  estoque · Reservados · …) fica **byte a byte**, e o card visual "Disponíveis por modelo" não muda
+  em nada.
+- **Motivo:** requisito revogado pelo dono do produto; plumbing morto é dívida que engana a próxima
+  leitura. Os testes que travavam o bloco saíram porque o REQUISITO mudou — e entrou um teste novo
+  que trava que o texto NÃO contém `Em estoque (` ao mesmo tempo em que a linha de totais continua lá.
+- **Consequência aceita:** o texto é gerado NO RENDER. Snapshot antigo reaberto hoje também copia
+  **sem** o bloco, embora o dado congelado (`disponiveisPorModelo`) continue no JSON e o card visual
+  continue desenhando a lista. Não há como preservar o texto histórico sem congelá-lo, e congelar
+  texto de render nunca foi o desenho.
+- **Reversível?** sim — está tudo num commit só.
+
+## 2026-08-11 · F34 · O chamado exibido em "Reservados" depois de uma re-reserva
+
+- **Contexto:** a coluna "Chamado" da lista de Reservados do relatório mostra o último chamado
+  **não-vazio** as-of (`chamadoAteData`).
+- **Decisão:** aceitar como está. Re-reserva **com** chamado novo passa a exibi-lo; re-reserva **sem**
+  chamado deixa o chamado antigo aparecendo.
+- **Motivo:** refinar a leitura as-of para "o chamado da reserva vigente" está fora do espírito da
+  ordem e mexeria numa fórmula de leitura de relatório que a fase declara intocada. O caso é
+  documentado na ajuda para não parecer defeito.
+- **Reversível?** sim — é uma mudança de leitura, não de dado.
+
+## 2026-08-11 · F34 · O espelho da máquina de estados dentro do import FOI corrigido (e por quê)
+
+- **Contexto:** a ordem põe o **import** fora do escopo, nomeando "RPC, telas, De→Para". A varredura
+  achou um **segundo** espelho, que não é nenhum dos três: `scripts/import/normalizar.ts` tem uma
+  tabela `TRANSICOES` + `statusAposMovimentacao()` que o próprio comentário chama de "espelho fiel de
+  `status_apos_movimentacao`". Ela é consumida por `plano.ts` e `carga.ts` para **simular o trigger**
+  e decidir se gera uma movimentação de `ajuste` de reconciliação.
+- **Decisão:** corrigir o espelho (`devolucao → em_estoque`, entrada nova `envio_triagem`, `reserva`
+  aceitando `reservado`, o tipo local e a asserção do teste). O dicionário `ESTADOS` — o De→Para de
+  verdade, onde "Validar"/"Devolvido" mapeiam para o **estado** `em_triagem` — **não** foi tocado, e
+  nenhuma tela, RPC ou plano do import mudou.
+- **Motivo:** deixar o espelho velho não é neutro. Se a ferramenta de go-live/emergência for religada
+  depois da 0109, ela ou grava um `ajuste` espúrio (alegando divergência que não existe) ou — pior —
+  **deixa de gravar** o `ajuste` que faltava, e o ativo fica silenciosamente no estado errado. E o
+  teste do próprio import travava o comportamento antigo, então `npm run test` não acusaria nada. A
+  exclusão da ordem protege o COMPORTAMENTO do import; um espelho desatualizado da função que esta
+  fase muda é justamente o que o §V da ordem manda caçar ("algum caminho ainda monta ou promete
+  `devolucao → em_triagem`?").
+- **Reversível?** sim — são cinco pontos num arquivo e meio.
+
+## 2026-08-11 · F34 · As nove checagens do `/dev` NÃO precisaram de emenda
+
+- **Contexto:** a ordem manda ler o SQL vigente de `dev_checagens_integridade()` e conferir se alguma
+  das nove pressupõe "devolução ⇒ em_triagem".
+- **Decisão:** nenhuma pressupõe — a função não foi recriada. As nove são: `patrimonio_duplicado`,
+  `ativo_filial_inativa`, `termo_sem_arquivo`, `perfil_sem_conta`, `conta_sem_perfil`,
+  `pendencia_de_estornada`, `operador_sem_filial`, `arquivo_termo_orfao` e `conflito_entre_filiais`.
+  Nenhuma cita `em_triagem`, `devolucao` ou `triagem_ok`.
+- **Motivo:** diff mínimo. Recriar uma função `security definer` sem necessidade custa uma volta
+  inteira de roteiros (regra F17) e não compra nada.
+- **Mesmo raciocínio, mesma conclusão, para:** `v_pendencias` (a pendência "triagem parada" é sobre
+  `status` + `updated_at`, agnóstica de como o ativo chegou lá — continua funcionando e passa a
+  acusar só a triagem deliberada), `v_pendencias_item`, `v_fila_pendencias`, as RPCs `rel_*` (contam
+  `saida`/`devolucao`, e `devolucao` continua existindo) e `forcar_estado_ativo` (a lista
+  `v_sem_detentor` é por STATUS, e `em_triagem` já está nela).
+
+## 2026-08-11 · F34 · O `ajuste` a mais no teste do plano de carga é o comportamento CERTO
+
+- **Contexto:** consertar o espelho do import derrubou um caso de
+  `scripts/import/__tests__/plano.test.ts` ("saída e devolução no MESMO dia em arquivos diferentes
+  aplicam na ordem válida"). A fixture declara `situacao: 'Validar'`, que o De→Para mapeia para o
+  estado `em_triagem`. Até a F33 a `devolucao` do replay pousava justamente ali e batia com a
+  planilha sem reconciliação nenhuma.
+- **Decisão:** a asserção passa a esperar `['compra','saida','devolucao','ajuste']`, com o comentário
+  explicando o mecanismo — não mexer na fixture nem no `plano.ts`.
+- **Motivo:** o `ajuste` novo é exatamente o que a correção do espelho existe para produzir: o replay
+  agora termina em `em_estoque` e a planilha diz `em_triagem`, então o plano precisa reconciliar. Ter
+  trocado a fixture para "Guardada" faria o teste voltar ao verde escondendo a mudança real. A ordem
+  greedy — o que o caso testa de verdade — continua provada.
+- **Reversível?** sim, é uma linha de asserção.
+
+## 2026-08-11 · F34 · O subtítulo do tile "Em triagem" também mentia (achado da revisão de completude)
+
+- **Contexto:** a caça a textos do fluxo antigo mirava a ajuda e o glossário. O crítico de
+  completude achou `src/components/relatorios/kpi-tiles.tsx`, cujo tile dizia
+  "Em triagem — devolvidos, em conferência". É a frase mais lida de todas (todo operador que abre
+  `/relatorios/[filial]`), e **não tem rede**: a varredura de rótulos dos testes da ajuda captura só
+  o campo `rotulo`, nunca o `sub`.
+- **Decisão:** vira "separados p/ conferência". Mesma correção em `docs/PLANO-AJUDA.md` (duas
+  ocorrências de "15 tipos"), que se declara mapa vivo da documentação do operador.
+- **Motivo:** texto de UI que promete o fluxo revogado é o defeito mais barato de cometer e o mais
+  caro de perceber — ninguém abre um chamado por causa de um subtítulo, só desconfia do sistema.
+- **Reversível?** sim.
+
+## 2026-08-11 · F34 · O `docs/PLANO-ESPELHO-SHAREPOINT.md` não commitado NÃO é trabalho pendente de outra sessão
+
+- **Contexto:** a ordem manda PARAR se `git status` mostrar trabalho não commitado de outra sessão.
+  Havia um arquivo não rastreado além da própria ordem: `docs/PLANO-ESPELHO-SHAREPOINT.md`.
+- **Decisão:** seguir com a F34 e **deixar o arquivo como está** (não commitado, não tocado).
+- **Motivo:** é um documento de PLANEJAMENTO da sessão de 10/08/2026, que se declara no próprio topo
+  como "nenhum código foi alterado — este documento é o plano", aguardando o OK do Johnny para virar
+  ordem de serviço. Não há implementação pela metade, não colide com nenhum arquivo da F34, e
+  commitá-lo por conta própria transformaria uma proposta em decisão registrada. Fica declarado no
+  relatório da fase como pendência do Johnny.
+- **Reversível?** nada foi feito; basta o Johnny commitar ou descartar quando decidir.
+
+## 2026-08-11 · F34 · O número F34 do plano do SharePoint está OCUPADO — o espelho será F35
+
+- **Contexto:** ao fechar esta fase apareceram DOIS arquivos não rastreados de uma sessão de
+  planejamento paralela: `docs/PLANO-ESPELHO-SHAREPOINT.md` (10/08) e
+  `docs/ROTEIRO-ESPELHO-ENTRA.md` (11/08, 09:13). O plano reserva para si o nome
+  `docs/prompts/F34-espelho-sharepoint-ultracode.md` ("numeração a confirmar na data da execução —
+  hoje a F33 é a última") e o roteiro do Entra ID diz, textualmente, que ao final "a ordem F34 pode
+  rodar".
+- **Decisão:** o número **F34 é desta ordem** (triagem manual, re-reserva e os dois acertos no
+  relatório) — foi ela que o Johnny colou e ela já está em produção. O espelho do SharePoint, quando
+  virar ordem de serviço, é **F35**; os dois documentos precisam ser reescritos com o número novo
+  antes de virarem ordem.
+- **Motivo:** o precedente F19/F20B da casa manda renumerar e registrar quando há colisão. Rodar
+  duas ordens diferentes com o mesmo número quebraria a rastreabilidade do `CHANGELOG`, do
+  `docs/prompts/README.md` e das próprias atas.
+- **Os dois arquivos NÃO foram commitados nem editados** por esta fase — são propostas aguardando o
+  OK do Johnny, e commitá-las por conta própria as transformaria em decisão registrada.

@@ -32,13 +32,20 @@ export const TRANSICOES: Record<StatusAtivo, TipoMovimentacao[]> = {
     'saida',
     'emprestimo',
     'reserva',
+    // F34/C — a triagem virou OPT-IN: quem quiser conferir o equipamento antes
+    // de recolocá-lo no estoque manda para a triagem de propósito. Até a F33 a
+    // `devolucao` fazia isso sozinha, e o passo virou log sem valor.
+    'envio_triagem',
     'envio_manutencao',
     'marcar_defasado',
     'descarte',
     'transferencia',
     'ajuste',
   ],
-  reservado: ['saida', 'emprestimo', 'transferencia', 'ajuste'],
+  // F34/D — a RE-RESERVA: `reserva` sobre `reservado` troca o colaborador/setor
+  // e o ativo CONTINUA reservado (o candidato desistiu, entrou outro). Sem
+  // estorno e sem ajuste — as duas reservas ficam na linha do tempo.
+  reservado: ['saida', 'emprestimo', 'reserva', 'transferencia', 'ajuste'],
   em_uso: ['devolucao', 'envio_manutencao', 'transferencia', 'ajuste'],
   emprestado: ['devolucao', 'transferencia', 'ajuste'],
   em_triagem: [
@@ -197,6 +204,9 @@ export const CAMPOS_POR_TIPO: Record<TipoMovimentacao, MetaTipoMovimentacao> = {
     },
   },
   devolucao: { campos: { motivo: 'obrigatorio', itens_faltantes: 'opcional' } },
+  // F34/C — o par manual da triagem: `envio_triagem` entra e `triagem_ok` sai.
+  // Os dois são "simples" (motivo opcional); chamado e observação vêm do base.
+  envio_triagem: CAMPOS_SIMPLES,
   triagem_ok: CAMPOS_SIMPLES,
   envio_manutencao: CAMPOS_ENVIO_MANUTENCAO,
   retorno_manutencao: CAMPOS_SIMPLES,
@@ -380,6 +390,7 @@ export const movimentacaoSchema = z
     ajusteSchema,
     estornoSchema,
     simples('compra'),
+    simples('envio_triagem'),
     simples('triagem_ok'),
     envioManutencaoSchema,
     simples('retorno_manutencao'),

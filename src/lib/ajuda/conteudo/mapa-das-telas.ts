@@ -94,7 +94,9 @@ export const mapaDasTelas: PaginaAjuda = {
         ['Em uso', `Ativos no estado ${STATUS_META.em_uso.rotulo} — os que estão com um colaborador ou setor.`],
         ['Em estoque', `Ativos no estado ${STATUS_META.em_estoque.rotulo} — disponíveis para entrega.`],
         ['Reservados', `Ativos no estado ${STATUS_META.reservado.rotulo} — separados, aguardando a entrega.`],
-        ['Em triagem', `Ativos no estado ${STATUS_META.em_triagem.rotulo} — devolvidos, ainda em conferência.`],
+        // F34 — "devolvidos" ficou falso: a devolução resulta em_estoque
+        // direto, e a triagem só nasce de um "Envio para triagem" manual.
+        ['Em triagem', `Ativos no estado ${STATUS_META.em_triagem.rotulo} — separados manualmente, em conferência.`],
         ['Em manutenção', `Ativos no estado ${STATUS_META.em_manutencao.rotulo} — em conserto ou assistência.`],
         [
           'Reserva técnica',

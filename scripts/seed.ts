@@ -64,6 +64,7 @@ type Tipo =
   | 'emprestimo'
   | 'reserva'
   | 'devolucao'
+  | 'envio_triagem' // F34: triagem manual opt-in (em_estoque -> em_triagem) — ver buildSteps()
   | 'triagem_ok'
   | 'envio_manutencao'
   | 'marcar_defasado'
@@ -438,12 +439,20 @@ function buildSteps(status: Status, categoria: Categoria): Step[] {
     motivo: afterEmprestimo ? 'fim_emprestimo' : pickWeighted(MOTIVO_DEVOLUCAO),
     itens: itensFaltantes(),
   })
+  // F34 (migration 0109): a devolucao passa a pousar direto em em_estoque — a triagem
+  // virou OPT-IN. Toda cadeia que antes ia devolucao() -> triagemOk() agora PRECISA do
+  // passo manual envioTriagem() entre os dois (em_estoque -> em_triagem), senao
+  // triagemOk() vira transicao invalida (exige em_triagem, e devolucao() ja deixou o
+  // ativo em em_estoque) e o seed aborta contra o banco. E a cadeia devolucao ->
+  // envio_triagem -> triagem_ok que o CLAUDE.md cita como exemplo do fluxo novo.
+  const envioTriagem = (): Step => ({ tipo: 'envio_triagem' })
   const triagemOk = (): Step => ({ tipo: 'triagem_ok' })
 
   switch (status) {
     case 'em_uso': {
       if (chance(0.3)) {
-        steps.push(saida(), devolucao(), triagemOk())
+        // F34: envioTriagem() entre devolucao() e triagemOk() — ver comentario acima.
+        steps.push(saida(), devolucao(), envioTriagem(), triagemOk())
       }
       steps.push(saida())
       break
@@ -453,19 +462,22 @@ function buildSteps(status: Status, categoria: Categoria): Step[] {
       if (r < 0.4) {
         // sem historico (ativo parado em estoque)
       } else if (r < 0.7) {
-        steps.push(saida(), devolucao(), triagemOk())
+        // F34: idem
+        steps.push(saida(), devolucao(), envioTriagem(), triagemOk())
       } else {
         const c = novoColaborador()
         steps.push(
           { tipo: 'emprestimo', motivo: 'uso_compartilhado', colaborador: c.colaborador, setor: c.setor },
           devolucao(true),
+          envioTriagem(), // F34: idem — devolucao(true) tambem ja pousa em em_estoque
           triagemOk(),
         )
       }
       break
     }
     case 'reservado': {
-      if (chance(0.2)) steps.push(saida(), devolucao(), triagemOk())
+      // F34: idem
+      if (chance(0.2)) steps.push(saida(), devolucao(), envioTriagem(), triagemOk())
       const c = novoColaborador()
       steps.push({ tipo: 'reserva', motivo: 'novo_colaborador', colaborador: c.colaborador, setor: c.setor, chamado: c.chamado })
       break
@@ -479,19 +491,26 @@ function buildSteps(status: Status, categoria: Categoria): Step[] {
       break
     }
     case 'em_triagem': {
-      steps.push(saida(), devolucao())
+      // F34: antes bastava terminar em devolucao() (que pousava em em_triagem). Agora ela
+      // pousa em em_estoque — o alvo em_triagem so e alcancado com o envio_triagem manual
+      // como ULTIMO passo. Sem isto a meta de 2% de em_triagem da STATUS_DIST vira 0 em
+      // silencio (a autoverificacao ~1464-1469 acusaria o desvio).
+      steps.push(saida(), devolucao(), envioTriagem())
       break
     }
     case 'defasado': {
       if (chance(0.5)) steps.push({ tipo: 'marcar_defasado' })
-      else steps.push(saida(), devolucao(), triagemOk(), { tipo: 'marcar_defasado' })
+      // F34: idem (a cadeia termina em marcar_defasado(); envioTriagem() so mantem a
+      // transicao devolucao -> triagem_ok valida no meio do caminho)
+      else steps.push(saida(), devolucao(), envioTriagem(), triagemOk(), { tipo: 'marcar_defasado' })
       break
     }
     case 'descartado': {
       const r = rng()
       if (r < 0.4) steps.push({ tipo: 'descarte' })
       else if (r < 0.7) steps.push({ tipo: 'marcar_defasado' }, { tipo: 'descarte' })
-      else steps.push(saida(), devolucao(), triagemOk(), { tipo: 'descarte' })
+      // F34: idem
+      else steps.push(saida(), devolucao(), envioTriagem(), triagemOk(), { tipo: 'descarte' })
       break
     }
   }

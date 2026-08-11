@@ -8,8 +8,11 @@ import { gerarTextoResumo, type ExtrasResumo } from '@/lib/relatorios/resumo'
 import type { ResumoPeriodo } from '@/lib/relatorios/tipos'
 
 // Resumo do período no formato do e-mail (OS-F3 3.3.6) + botão "Copiar texto".
-// F29/REL-08 — `extras` acrescenta a linha de KPIs e o bloco "Em estoque (N)", que
-// é como o e-mail real abria. Ausente = o texto de antes, sem mudança nenhuma.
+// F29/REL-08 — `extras` acrescenta a linha de KPIs, que é como o e-mail real abria.
+// Ausente = o texto de antes, sem mudança nenhuma.
+// F34/A — o bloco "Em estoque (N)" que o extra também emitia foi revogado (ver
+// lib/relatorios/resumo.ts); este componente só repassa `extras` adiante, então não
+// há prop nem tipo morto aqui — o formato de `ExtrasResumo` mudou na origem.
 export function ResumoPeriodoCard({
   resumo,
   extras,

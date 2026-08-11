@@ -321,7 +321,14 @@ describe('reconciliação de estado (ordem 3.2.4)', () => {
       devolucoes: [regDev({ linha: 2, data: '10/03/2026' })],
     })
     const tipos = p.movimentacoes.map((m) => m.tipo)
-    expect(tipos).toEqual(['compra', 'saida', 'devolucao'])
+    // F34 (11/08/2026) — o `ajuste` no fim é NOVO e está certo. A fixture diz
+    // `situacao: 'Validar'`, que o De→Para mapeia para o estado `em_triagem`;
+    // até a F33 a `devolucao` do replay pousava justamente em `em_triagem` e
+    // batia com a planilha sem reconciliação. Desde a migration 0109 ela pousa
+    // em `em_estoque`, então o plano precisa de um `ajuste` final para deixar o
+    // ativo no estado que a planilha declara. A ordem greedy — o que este caso
+    // testa — continua sendo `saida` antes de `devolucao`.
+    expect(tipos).toEqual(['compra', 'saida', 'devolucao', 'ajuste'])
     expect(p.inconsistencias.filter((i) => i.tipo === 'estado_divergente')).toHaveLength(0)
   })
 

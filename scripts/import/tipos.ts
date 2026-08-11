@@ -17,6 +17,7 @@ export type TipoMovimentacao =
   | 'emprestimo'
   | 'reserva'
   | 'devolucao'
+  | 'envio_triagem' // F34: triagem manual opt-in (em_estoque -> em_triagem) — migration 0109
   | 'triagem_ok'
   | 'envio_manutencao'
   | 'retorno_manutencao'

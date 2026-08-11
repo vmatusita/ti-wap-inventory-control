@@ -66,7 +66,11 @@ export const manutencao: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Onde esse número reaparece depois de registrado: na linha do tempo da ficha, na linha "Chamado do fornecedor:" daquela movimentação; no relatório, dentro do card "Em manutenção, caso a caso", na linha de apoio de cada caso ("filial · #chamado interno · fornecedor {chamado do fornecedor} · envio dd/MM/aaaa"); e no bloco de contexto da tela de devolução ao fornecedor, já preenchido. Ele NÃO tem coluna própria na lista de ativos nem na de movimentações, não é filtro e não sai no CSV exportado — para achá-lo, abra a ficha do equipamento ou o card de manutenção do relatório.',
+        // F34/Frente B — o card de manutenção parou de concatenar os chamados na
+        // linha de apoio: agora "Chamado:" e "Chamado do fornecedor:" têm linha
+        // própria e aparecem SEMPRE, com traço quando não informados. O texto
+        // antigo descrevia a string que o componente deixou de renderizar.
+        'Onde esse número reaparece depois de registrado: na linha do tempo da ficha, na linha "Chamado do fornecedor:" daquela movimentação; no relatório, dentro do card "Em manutenção, caso a caso", em linha própria logo abaixo do patrimônio ("Chamado:" e "Chamado do fornecedor:", sempre presentes — traço quando não informados; filial e data de envio ficam na linha de apoio abaixo); e no bloco de contexto da tela de devolução ao fornecedor, já preenchido. Ele NÃO tem coluna própria na lista de ativos nem na de movimentações, não é filtro e não sai no CSV exportado — para achá-lo, abra a ficha do equipamento ou o card de manutenção do relatório.',
     },
     { tipo: 'titulo', id: 'manutencao-acompanhar', texto: 'Acompanhar o conserto' },
     {

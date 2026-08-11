@@ -43,8 +43,10 @@ begin
   end if;
 
   -- ---------------------------------------------------------------
-  -- CENARIO 1 — caminho feliz: compra -> saida -> devolucao -> triagem_ok
-  -- Esperado: em_estoque -> em_uso -> em_triagem -> em_estoque
+  -- CENARIO 1 — caminho feliz: compra -> saida -> devolucao -> envio_triagem ->
+  -- triagem_ok. Esperado: em_estoque -> em_uso -> em_estoque (F34, 11/08/2026: a
+  -- devolucao passa a resultar direto em_estoque — a triagem virou OPT-IN) ->
+  -- em_triagem (envio_triagem, manual) -> em_estoque (triagem_ok).
   -- ---------------------------------------------------------------
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('TESTE0000001', 'notebook', v_matriz);
@@ -65,8 +67,16 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'devolucao', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
-  if v_status = 'em_triagem' and v_colab is null then raise notice '✓ 1c devolucao -> em_triagem (colaborador limpo)';
-  else raise warning '✗ 1c devolucao: esperado em_triagem/null, obtido %/%', v_status, v_colab; end if;
+  if v_status = 'em_estoque' and v_colab is null then raise notice '✓ 1c devolucao -> em_estoque (colaborador limpo, F34)';
+  else raise warning '✗ 1c devolucao: esperado em_estoque/null, obtido %/%', v_status, v_colab; end if;
+
+  -- F34: a triagem virou OPT-IN — precisa de um envio_triagem manual para o
+  -- ativo chegar a em_triagem antes do triagem_ok (senão a transicao é invalida).
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
+    values (a, 'envio_triagem', v_matriz, v_prof);
+  select status into v_status from public.ativos where id = a;
+  if v_status = 'em_triagem' then raise notice '✓ 1c2 envio_triagem -> em_triagem (F34, opt-in)';
+  else raise warning '✗ 1c2 envio_triagem: esperado em_triagem, obtido %', v_status; end if;
 
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'triagem_ok', v_matriz, v_prof);
@@ -130,7 +140,7 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
     values (d, 'saida', 'Beltrano Teste', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');  -- em_uso
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
-    values (d, 'devolucao', v_matriz, v_prof, timestamptz '2026-06-01 10:01:00+00');                 -- em_triagem
+    values (d, 'devolucao', v_matriz, v_prof, timestamptz '2026-06-01 10:01:00+00');                 -- em_estoque (F34)
   declare v_saida uuid;
   begin
     select id into v_saida from public.movimentacoes
@@ -183,6 +193,12 @@ begin
   -- pendencia = 'itens faltantes: carregador, mochila' e 5b exigia null apos
   -- triagem_ok; a OS-F18 inverteu os dois (§A5). O 5c prova o bug §0.1b corrigido:
   -- triagem_ok preserva um trecho alheio (nao apaga o campo inteiro).
+  -- F34 (11/08/2026): a devolucao agora resulta em_estoque direto (nao mais
+  -- em_triagem) — a triagem virou OPT-IN, entao insere-se um envio_triagem manual
+  -- antes do triagem_ok para a transicao continuar valida. Sem isto o INSERT do
+  -- triagem_ok (linha desprotegida, sem begin/exception) abortaria o do-block
+  -- inteiro e o CENARIO 6 nunca rodaria — era exatamente o defeito que a F34
+  -- introduziria aqui.
   -- ---------------------------------------------------------------
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('TESTE0000005', 'notebook', v_matriz);
@@ -199,6 +215,10 @@ begin
   if v_cnt = 2 then raise notice '✓ 5b devolucao criou 2 pendencias_item abertas (F18)';
   else raise warning '✗ 5b esperado 2 pendencias_item abertas, obtido %', v_cnt; end if;
   update public.ativos set pendencia = 'sem patrimônio físico' where id = e;  -- trecho alheio
+  -- F34: envio_triagem manual antes do triagem_ok (a devolucao acima ja deixou o
+  -- ativo em_estoque, nao em_triagem — ver nota do cabecalho deste cenario).
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
+    values (e, 'envio_triagem', v_matriz, v_prof);
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (e, 'triagem_ok', v_matriz, v_prof);
   select pendencia into v_pend from public.ativos where id = e;

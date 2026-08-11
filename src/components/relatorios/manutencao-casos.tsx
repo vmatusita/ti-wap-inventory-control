@@ -67,10 +67,36 @@ export function ManutencaoCasos({
               )
             )}
           </div>
+          {/* F34/Frente B — chamado interno e do fornecedor deixam de sair
+              concatenados na linha miúda (onde SUMIAM quando ausentes) e ganham
+              par rótulo/valor SEMPRE presente (traço quando vazio), no padrão
+              formal de linha-expansivel.tsx (dl fora de tabela). Filial e data
+              de envio continuam na linha miúda, sem os chamados. */}
+          <dl className="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+            <div className="flex items-baseline gap-1.5">
+              <dt className="shrink-0 font-medium text-muted-foreground">Chamado:</dt>
+              {/* Valor SEM `text-muted-foreground`: é ele que a frente B quer
+                  destacar — o rótulo é que fica em cinza, como no padrão de
+                  `linha-expansivel.tsx`. */}
+              <dd className="min-w-0 truncate tabular-nums">
+                {c.chamado ? `#${ouTraco(c.chamado)}` : '—'}
+              </dd>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              {/* "Chamado do fornecedor" é o rótulo da casa para este campo
+                  (passo 2 do envio, linha do tempo da ficha, devolução ao
+                  fornecedor) — não abreviar para "Fornecedor", que num card de
+                  manutenção se lê como o NOME da assistência. */}
+              <dt className="shrink-0 font-medium text-muted-foreground">
+                Chamado do fornecedor:
+              </dt>
+              {/* chamadoFornecedor é opcional (F14) — snapshot pré-F14 não tem a
+                  chave; ?? null cobre undefined e ouTraco cobre string vazia. */}
+              <dd className="min-w-0 truncate">{ouTraco(c.chamadoFornecedor ?? null)}</dd>
+            </div>
+          </dl>
           <p className="mt-1 text-xs text-muted-foreground">
             {c.filial}
-            {c.chamado ? ` · #${c.chamado}` : ''}
-            {c.chamadoFornecedor ? ` · fornecedor ${c.chamadoFornecedor}` : ''}
             {c.dataEnvio ? ` · envio ${formatDate(c.dataEnvio)}` : ''}
           </p>
 

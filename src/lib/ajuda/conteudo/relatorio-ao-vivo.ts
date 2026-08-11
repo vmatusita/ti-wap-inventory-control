@@ -62,7 +62,10 @@ export const relatorioAoVivo: PaginaAjuda = {
         'A seção "Pendências" — só para o operador logado; quem entra pela senha de acesso nunca a vê.',
         'As tabelas detalhadas do período: "Saídas", "Entradas", "Transferências" (no relatório consolidado, com um resumo "filial de origem → filial de destino" acima da tabela) e "Movimentações de itens".',
         'O card "Resumo do período" (no formato do e-mail semanal), a "Observações da semana" quando o relatório congelado tem texto, e a seção recolhível "Como ler este relatório".',
-        'O botão "Copiar texto" do card "Resumo do período" copia o texto inteiro pronto para colar: a linha dos sete indicadores, as saídas e as devoluções por filial e motivo, e o bloco "Em estoque (N)" com a lista de modelos disponíveis — que é como o e-mail semanal abria.',
+        // F34/A — o bloco "Em estoque (N)" saiu do texto copiado (revogação
+        // parcial da REL-08). A lista de disponíveis por modelo continua na
+        // tela, no card ao lado — mas não é mais duplicada no texto.
+        'O botão "Copiar texto" do card "Resumo do período" copia o texto inteiro pronto para colar: a linha dos sete indicadores, as saídas e as devoluções por filial e motivo. A lista de modelos disponíveis não entra no texto — ela vive no card "Disponíveis por modelo", logo acima.',
       ],
     },
     { tipo: 'titulo', id: 'relvivo-filtros', texto: 'Filtrar e buscar nas tabelas' },

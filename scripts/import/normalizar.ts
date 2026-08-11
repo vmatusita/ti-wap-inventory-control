@@ -397,14 +397,25 @@ export function estadoPlanilha(status: string | null | undefined, situacao: stri
 }
 
 // ---------------------------------------------------------------------------
-// Máquina de estados (espelho fiel de status_apos_movimentacao — migration 0004)
-
+// Máquina de estados (espelho fiel de status_apos_movimentacao — migration 0109, que
+// recriou a função sobre o corpo vigente da 0047; 0109 é a base atual, não a 0004
+// original). Este espelho NÃO é o De→Para de import (dicionário ESTADOS, acima) — é
+// consumido por scripts/import/plano.ts e scripts/import/carga.ts para simular o
+// trigger e decidir se gera um `ajuste` de reconciliação. Mexer numa das duas (a
+// função no banco ou esta tabela) SEM mexer na outra deixa a ferramenta desatualizada:
+// religada, ela grava ajuste espúrio ou deixa de gravar o ajuste que faltava.
 const TRANSICOES: Partial<Record<TipoMovimentacao, { de: StatusAtivo[]; para: StatusAtivo | 'mantem' }>> = {
   compra: { de: ['em_estoque'], para: 'em_estoque' },
   saida: { de: ['em_estoque', 'reservado', 'em_triagem'], para: 'em_uso' },
   emprestimo: { de: ['em_estoque', 'reservado'], para: 'emprestado' },
-  reserva: { de: ['em_estoque'], para: 'reservado' },
-  devolucao: { de: ['em_uso', 'emprestado'], para: 'em_triagem' },
+  // F34: reserva passa a valer também sobre reservado -> reservado (a RE-RESERVA, troca
+  // de colaborador/setor/chamado sem estorno e sem ajuste).
+  reserva: { de: ['em_estoque', 'reservado'], para: 'reservado' },
+  // F34: a devolucao passa a pousar direto em em_estoque (era em_triagem) — a triagem
+  // virou opt-in manual via envio_triagem, abaixo.
+  devolucao: { de: ['em_uso', 'emprestado'], para: 'em_estoque' },
+  // F34: tipo novo — a triagem manual opt-in (em_estoque -> em_triagem).
+  envio_triagem: { de: ['em_estoque'], para: 'em_triagem' },
   triagem_ok: { de: ['em_triagem'], para: 'em_estoque' },
   envio_manutencao: { de: ['em_estoque', 'em_triagem', 'em_uso', 'defasado'], para: 'em_manutencao' },
   retorno_manutencao: { de: ['em_manutencao'], para: 'em_estoque' },

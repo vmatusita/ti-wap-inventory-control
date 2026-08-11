@@ -55,15 +55,16 @@ describe('cobertura do glossario (derivada de dominio.ts)', () => {
     expect(bloco.itens).toHaveLength(9)
   })
 
-  it('cobre os 15 tipos de movimentação', () => {
+  it('cobre os 16 tipos de movimentação', () => {
     const bloco = todosOsBlocos().find(
       (b): b is BlocoMovimentacoes => b.tipo === 'movimentacoes',
     )
     expect(bloco).toBeDefined()
     const chaves = bloco!.itens.map((v) => v.chave).sort()
     expect(chaves).toEqual(Object.keys(TIPO_META).sort())
-    // F14 acrescentou devolucao_fornecedor → 14; F15 acrescentou troca → 15.
-    expect(bloco!.itens).toHaveLength(15)
+    // F14 acrescentou devolucao_fornecedor → 14; F15 acrescentou troca → 15;
+    // F34 acrescentou envio_triagem (a triagem virou opt-in) → 16.
+    expect(bloco!.itens).toHaveLength(16)
   })
 
   it('cobre os 6 tipos de lançamento de item, com a descrição de dominio.ts', () => {

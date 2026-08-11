@@ -57,6 +57,11 @@ export const TIPOS_KIT = [
   'descarte',
   'transferencia',
   'ajuste',
+  // F34 — kit-ável por simetria com `triagem_ok`: mandar um lote inteiro para a
+  // triagem é tão repetitivo quanto liberá-lo de volta. Fica no FIM porque o
+  // teste-guarda compara esta lista com o enum do banco NA ORDEM, e o
+  // `alter type ... add value` anexa o valor novo no fim do enum (0108).
+  'envio_triagem',
 ] as const satisfies readonly TipoMovimentacao[]
 
 export type TipoKit = (typeof TIPOS_KIT)[number]
