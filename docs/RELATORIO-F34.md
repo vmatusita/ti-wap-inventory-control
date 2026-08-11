@@ -343,7 +343,7 @@ depende de sessão logada — está listada abaixo como roteiro para o Johnny, d
 | 6 | **Espelhos**: `transicoes-sql.test.ts` verde com TS×SQL idênticos; `db:types` regenerado; TODOS os roteiros verdes (ensaio e CI) | ✅ | 13 testes verdes; `database.ts` regenerado do ensaio (diff = só o valor de enum); CI `banco` **433 ✓, 0 ✗** nos 19 roteiros |
 | 7 | **Nada além do combinado**: `transferencia`/`troca`/`devolucao_fornecedor`/import byte a byte; nenhuma fórmula de contagem mudou; nenhum ativo mudou de estado | ✅ com 1 ressalva | `git diff` de supabase toca 5 arquivos (§5); a ressalva é o **espelho do import**, corrigido com ata (§5); contagens na §1 |
 | 8 | **Ajuda e docs**: páginas emendadas com os guardas derivados verdes; todas as emendas de documentação feitas | ✅ | 414 testes de `src/lib/ajuda/` verdes; spec §4/§5/§7/§11, MATRIZ-REGRAS, ARQUITETURA, PLANO-AJUDA, DECISOES, CHANGELOG, README e `docs/prompts/README.md` |
-| 9 | **Portões**: lint · test · build limpos (baseline colada); smoke OK; migrations em ENSAIO e PRODUÇÃO com verificação pós-apply; deploy READY + smoke pós-deploy | ✅ | §2 (baseline e depois); §4 (fingerprints iguais nos dois bancos, advisors sem achado novo); deploy e smoke na §11 |
+| 9 | **Portões**: lint · test · build limpos (baseline colada); smoke OK; migrations em ENSAIO e PRODUÇÃO com verificação pós-apply; deploy READY + smoke pós-deploy | ✅ | §2 (baseline e depois); §4 (fingerprints iguais nos dois bancos, advisors sem achado novo); §11 (deploy READY e smoke **94 OK · 0 falha**) |
 | 10 | **Relatório** com checklist autoverificado e evidências reais | ✅ | este arquivo |
 
 Regras permanentes do `CLAUDE.md` conferidas: **nenhum dado real** entrou em seed, fixture, teste ou
@@ -358,4 +358,50 @@ commitado**; migrations aplicadas pelo caminho A do runbook, sem bater no gate.
 | `6e1541c` | `docs(f34): a ordem de serviço da fase` |
 | `d79a8de` | `feat(f34): triagem manual, devolução direta ao estoque e re-reserva` |
 | `9efeed3` | `docs(f34): as atas, o CHANGELOG, o README e a linha da fase` |
-| (este) | `fix(f34): os quatro achados da revisão adversarial + o relatório da fase` |
+| `198c508` | `fix(f34): os quatro achados da revisão adversarial e o relatório da fase` |
+| `44bf36a` | `docs(f34): a colisão de numeração com o plano do espelho do SharePoint` |
+| `351004a` | merge da PR #13 na `main` (deploy de produção) |
+
+## 11. Rollout — o que foi para produção, em que ordem
+
+**Banco antes do app**, como o §R manda.
+
+1. **ENSAIO** (`sgmvldiizsrjbxzzpmhh`): `0108` e `0109` por `apply_migration` (caminho A do runbook,
+   sem bater no gate). Verificação pós-apply: enum 16/16, uma assinatura por função, tabela-verdade
+   consultada direto, E2E de escrita com 16 asserções em rollback (§4).
+2. **CI, num Postgres limpo** (PR [#13](https://github.com/vmatusita/ti-wap-inventory-control/pull/13)):
+   `banco` e `verificar` **verdes** nos dois pushes; migrations `0001`→`0109` aplicadas em ordem e os
+   19 roteiros com **433 ✓, 0 ✗**.
+3. **PRODUÇÃO** (`pbtjcalbmepmrqzprusb`): as duas migrations aplicadas **depois** do CI verde e
+   **antes** do merge. Fingerprints md5 das três funções **idênticos aos do ensaio**; grants
+   inalterados; `get_advisors(security)` **sem nenhum achado novo** (os que aparecem são os mesmos
+   de sempre: as RPCs `security definer` com guarda interna, a proteção de senha vazada e a tabela
+   de backup `_bkp_*`, todos anteriores à F34).
+4. **Merge** da PR #13 na `main` (`351004a`) → deploy da Vercel
+   `dpl_neK38G5gHrYkeDTrxHWmSkB8nkJ4`, target `production`, estado **READY**.
+5. **Smoke pós-deploy** (`scripts/smoke/smoke-prod.mjs`, sessão de operador de verdade):
+
+```
+RESUMO · 94 OK · 4 aviso · 0 n/a (pré-F12) · 0 falha
+```
+
+Os 4 avisos são os **mesmos de sempre** desde a F31 e dizem todos a mesma coisa — produção não tem
+catálogo de itens (catálogo vazio, `rel_saldo_itens` sem linhas, `estoque_minimo` sem dado, RLS de
+`kits_modelos` não comprovável sem kit cadastrado). Nenhum tem relação com a F34.
+
+**Estado de produção depois de tudo** (leitura direta, pós-deploy):
+
+| chave | valor |
+|---|---|
+| enum `tipo_movimentacao` | **16** |
+| última migration no ledger | `20260811120021` (a `0109`) |
+| TOTAL ativos | **1654** (= baseline) |
+| `em_triagem` | **15** (= baseline) |
+| movimentações com `tipo='envio_triagem'` | 0 — ninguém usou ainda, como esperado |
+| total de movimentações | 3311 (baseline 3308; +3 de operação real durante a janela) |
+
+`defasado` 119, `devolvido_fornecedor` 4, `em_manutencao` 16 — todos iguais à baseline. `em_estoque`
+150 / `em_uso` 1309 / `reservado` 41 refletem as saídas e reservas que os operadores registraram
+durante a janela da fase; **nenhuma** delas foi provocada pela F34, e o total do acervo não se
+moveu. Nenhum `update`/`delete` de dado saiu desta ordem.
+
