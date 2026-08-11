@@ -311,10 +311,16 @@ depende de sessão logada — está listada abaixo como roteiro para o Johnny, d
 
 ## 9. Pendências e backlog novo
 
-- **`docs/PLANO-ESPELHO-SHAREPOINT.md` continua não commitado, de propósito.** É o plano da sessão
-  de 10/08/2026 (espelho automático da planilha do SharePoint), que se declara "proposta para
-  validação do Johnny" e diz que nenhum código foi alterado. Não é trabalho pela metade e não colide
-  com nada da F34 — mas **é decisão do Johnny** commitá-lo ou descartá-lo. Ata registrada.
+- **Dois arquivos do plano do SharePoint continuam não commitados, de propósito.**
+  `docs/PLANO-ESPELHO-SHAREPOINT.md` (10/08) e `docs/ROTEIRO-ESPELHO-ENTRA.md` (11/08, apareceu no
+  meio desta fase) são de uma sessão de planejamento paralela; o primeiro se declara "proposta para
+  validação do Johnny" e diz que nenhum código foi alterado. Não são trabalho pela metade e não
+  colidem com nenhum arquivo da F34 — mas **é decisão do Johnny** commitá-los ou descartá-los.
+- **⚠ Colisão de numeração:** os dois documentos reservam para si o nome
+  `docs/prompts/F34-espelho-sharepoint-ultracode.md`, e o roteiro do Entra ID diz "ao final a ordem
+  F34 pode rodar". **O número F34 é desta ordem** — o espelho do SharePoint será **F35**, e os dois
+  arquivos precisam ser renumerados antes de virarem ordem de serviço. Ata registrada (precedente
+  F19/F20B).
 - **`rel_estoque_asof` não lista `devolucao_fornecedor` nas listas de zeramento, ao contrário do
   trigger.** Não é bug hoje (o status `devolvido_fornecedor` é filtrado no `where` final e a linha
   nunca é lida), mas é uma assimetria entre dois espelhos que vale fechar quando alguém tocar a

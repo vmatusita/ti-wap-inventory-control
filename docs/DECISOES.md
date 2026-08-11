@@ -5521,3 +5521,21 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   commitá-lo por conta própria transformaria uma proposta em decisão registrada. Fica declarado no
   relatório da fase como pendência do Johnny.
 - **Reversível?** nada foi feito; basta o Johnny commitar ou descartar quando decidir.
+
+## 2026-08-11 · F34 · O número F34 do plano do SharePoint está OCUPADO — o espelho será F35
+
+- **Contexto:** ao fechar esta fase apareceram DOIS arquivos não rastreados de uma sessão de
+  planejamento paralela: `docs/PLANO-ESPELHO-SHAREPOINT.md` (10/08) e
+  `docs/ROTEIRO-ESPELHO-ENTRA.md` (11/08, 09:13). O plano reserva para si o nome
+  `docs/prompts/F34-espelho-sharepoint-ultracode.md` ("numeração a confirmar na data da execução —
+  hoje a F33 é a última") e o roteiro do Entra ID diz, textualmente, que ao final "a ordem F34 pode
+  rodar".
+- **Decisão:** o número **F34 é desta ordem** (triagem manual, re-reserva e os dois acertos no
+  relatório) — foi ela que o Johnny colou e ela já está em produção. O espelho do SharePoint, quando
+  virar ordem de serviço, é **F35**; os dois documentos precisam ser reescritos com o número novo
+  antes de virarem ordem.
+- **Motivo:** o precedente F19/F20B da casa manda renumerar e registrar quando há colisão. Rodar
+  duas ordens diferentes com o mesmo número quebraria a rastreabilidade do `CHANGELOG`, do
+  `docs/prompts/README.md` e das próprias atas.
+- **Os dois arquivos NÃO foram commitados nem editados** por esta fase — são propostas aguardando o
+  OK do Johnny, e commitá-las por conta própria as transformaria em decisão registrada.
