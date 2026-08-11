@@ -114,7 +114,7 @@ Coluna **frente** = quem escreve na Onda 2.
 | 25 | `relatorio-ao-vivo` | Ler o relatório ao vivo | O que cada grupo, KPI e cor querem dizer. | `relatorios` |
 | 26 | `relatorios-gerados` | Os relatórios gerados da semana | Gerar o snapshot congelado e achar os anteriores. | `relatorios`, `como-fazer` |
 | 27 | `status-do-ativo` | Status e categorias do ativo | Os nove estados, com o selo real de cada um (a contagem vem de `STATUS_ORDEM`). | `status` |
-| 28 | `tipos-de-movimentacao` | Tipos de movimentação | Os 15 tipos: o que cada um provoca e que campos pede. | `movimentacoes` |
+| 28 | `tipos-de-movimentacao` | Tipos de movimentação | Os 16 tipos (F34: +`envio_triagem`): o que cada um provoca e que campos pede. | `movimentacoes` |
 | 29 | `itens-por-quantidade` | Itens por quantidade | Os grupos, os quatro números e os seis tipos de lançamento. | `itens` |
 | 30 | `limites-e-atalhos` | Limites, tetos e atalhos | Quanto cabe em cada lote e o que cada tecla faz. | `como-fazer` |
 | 31 | `mensagens-de-erro` | Mensagens de erro | O que o sistema diz, o que significa e como sair. | — |
@@ -361,7 +361,7 @@ Restrições que a visão de compatibilidade impõe (verificadas por teste):
   menos uma página** apontando para ele;
 - o glossário de **status** tem de ser o primeiro glossário `status` da visão; o de **termo**, o
   primeiro `termo`; o de **grupos de item**, o primeiro glossário `neutro` **dentro de** `itens`;
-- o bloco `movimentacoes` (15 tipos) vive na página `tipos-de-movimentacao`, herdando
+- o bloco `movimentacoes` (16 tipos desde a F34) vive na página `tipos-de-movimentacao`, herdando
   `movimentacoes`.
 
 ### 8.1 Frases legadas obrigatórias, por seção antiga

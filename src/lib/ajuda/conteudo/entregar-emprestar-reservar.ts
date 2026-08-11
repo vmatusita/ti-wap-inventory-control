@@ -39,7 +39,10 @@ export const entregarEmprestarReservar: PaginaAjuda = {
         ],
         [
           T.reserva.rotulo,
-          S.em_estoque.rotulo,
+          // F34 — a reserva passou a valer também SOBRE reservado (a
+          // re-reserva, que troca colaborador/setor/chamado sem estorno):
+          // duas origens possíveis, no mesmo padrão "·" das linhas acima.
+          `${S.em_estoque.rotulo} · ${S.reservado.rotulo}`,
           S.reservado.rotulo,
           'só a "Data" (o resto é opcional)',
           'Não',
@@ -81,11 +84,16 @@ export const entregarEmprestarReservar: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Reservar um equipamento para alguém',
       itens: [
-        `Reserve quando o equipamento já tem dono definido mas ainda não saiu da TI — máquina separada para quem começa na semana que vem, por exemplo. O ativo precisa estar "${S.em_estoque.rotulo}".`,
+        `Reserve quando o equipamento já tem dono definido mas ainda não saiu da TI — máquina separada para quem começa na semana que vem, por exemplo. O ativo precisa estar "${S.em_estoque.rotulo}" (a primeira reserva) ou já "${S.reservado.rotulo}" (a re-reserva, para trocar de dono sem tirar o equipamento da TI — veja abaixo).`,
         `No passo "Movimentação", escolha "${T.reserva.rotulo}". Nenhum campo além da "Data" é obrigatório, mas preencha "Colaborador" (ou "Setor") e "Chamado (opcional)": é o que aparece no card "Reservados" do relatório, na linha "patrimônio · modelo · nº do chamado".`,
         `Registrado, o ativo fica "${S.reservado.rotulo}" e some do que está disponível para entrega — o KPI "Reservados" ("aguardando entrega") sobe e o "${S.em_estoque.rotulo}" desce.`,
         `Quando a pessoa retirar o equipamento, registre a "${T.saida.rotulo}" (ou o "${T.emprestimo.rotulo}") normalmente: o ativo reservado aceita os dois direto, sem voltar ao estoque. É aí que o termo é oferecido.`,
-        `A reserva não tem um tipo próprio de cancelamento. Desistiu? Se a reserva for a última movimentação do ativo, use "Estornar" na linha do tempo da ficha; se já houver movimentação depois dela, use "${T.ajuste.rotulo}" com justificativa.`,
+        // F34 — a reserva passou a valer também sobre um ativo já reservado
+        // (a RE-RESERVA), para o caso real de trocar o dono sem devolver nem
+        // ajustar: quem entrou no lugar de quem desistiu.
+        `A reserva mudou de dono antes da entrega? Registre uma nova "${T.reserva.rotulo}" por cima, com o colaborador/setor/chamado novos — sem estorno e sem ajuste. Exemplo: um notebook reservado para um contratado que desiste da vaga; entra outra pessoa no lugar, e você registra a "${T.reserva.rotulo}" de novo, agora com o nome dela. O ativo continua "${S.reservado.rotulo}"; as duas reservas ficam lado a lado na linha do tempo do ativo.`,
+        `Consequência da re-reserva: a coluna "Reservados" do relatório mostra o chamado mais recente NÃO VAZIO. Re-reserva com chamado novo passa a exibi-lo; re-reserva sem chamado deixa o chamado da reserva anterior aparecendo.`,
+        `A reserva não tem um tipo próprio de cancelamento. Desistiu de vez (ninguém entra no lugar)? Se a reserva for a última movimentação do ativo, use "Estornar" na linha do tempo da ficha; se já houver movimentação depois dela, use "${T.ajuste.rotulo}" com justificativa.`,
       ],
     },
     { tipo: 'titulo', id: 'eer-bastidores', texto: 'O que acontece por trás' },

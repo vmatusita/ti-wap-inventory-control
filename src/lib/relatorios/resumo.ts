@@ -1,7 +1,6 @@
 import { formatDate } from '@/lib/format'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import type {
-  ItemModelo,
   KpisRelatorio,
   ResumoPeriodo,
   ResumoTipo,
@@ -67,12 +66,18 @@ function blocoTipo(
 // com a lista de disponíveis por modelo e trazia os números de estado — quem colava
 // o resumo no Teams ainda transcrevia o estoque à mão, do gráfico ao lado.
 //
-// Os extras são OPCIONAIS de propósito: sem eles a saída é byte a byte a de antes
-// (é o que os testes da F3B travam), então nenhum consumidor antigo muda.
+// F34/A — revogação PARCIAL da REL-08 (decisão do Johnny, 11/08/2026; ata em
+// docs/DECISOES.md): o bloco "Em estoque (N): 16× Modelo A, …" sai do texto
+// copiado — quem colava o resumo levava uma SEGUNDA fonte da mesma lista que já
+// está no card "Disponíveis por modelo" ao lado, e as duas listas podiam envelhecer
+// diferente entre o clique em "Copiar texto" e a rolagem até o card. O CARD visual
+// e o dado congelado `disponiveisPorModelo` do snapshot CONTINUAM existindo (spec
+// §7) — morreu só a re-exposição como texto copiável. A linha de KPIs não muda.
+//
+// O extra é OPCIONAL de propósito: sem ele a saída é byte a byte a de antes (é o
+// que os testes da F3B travam), então nenhum consumidor antigo muda.
 export type ExtrasResumo = {
   kpis?: KpisRelatorio
-  /** Achatado: no v2 `disponiveisPorModelo` vem agrupado por categoria. */
-  disponiveis?: readonly ItemModelo[]
 }
 
 // Ordem e rótulos dos KPIs na linha de estado — os MESMOS de `kpi-tiles.tsx`, na
@@ -91,24 +96,16 @@ function linhaKpis(kpis: KpisRelatorio): string {
   return KPIS_TEXTO.map((k) => `${k.rotulo} ${kpis[k.chave] ?? 0}`).join(' · ')
 }
 
-// "Em estoque (24): 16× Dell Latitude 3440, 04× Positivo Master…" — o formato do
-// e-mail, do mais numeroso para o menos. Modelo sem nome vira "—" (não some da
-// conta): o total entre parênteses tem de fechar com a soma da lista.
-function blocoDisponiveis(disponiveis: readonly ItemModelo[]): string[] {
-  const comSaldo = disponiveis.filter((m) => m.total > 0)
-  if (comSaldo.length === 0) return []
-  const total = comSaldo.reduce((s, m) => s + m.total, 0)
-  const lista = [...comSaldo]
-    .sort((a, b) => b.total - a.total || a.modelo.localeCompare(b.modelo, 'pt-BR'))
-    .map((m) => `${pad2(m.total)}× ${m.modelo.trim() || '—'}`)
-    .join(', ')
-  return [`Em estoque (${total}): ${lista}`]
-}
-
+// F34/A — o bloco "Em estoque (N): …" (antiga `blocoDisponiveis`) e o achatador
+// `achatarDisponiveis` (que preparava a lista para ele) foram REMOVIDOS daqui, não
+// deixados mortos: o requisito mudou (revogação parcial da REL-08, comentário acima
+// de `ExtrasResumo`), e a ordem prefere remover o plumbing a manter função exportada
+// sem consumidor. O CARD visual "Disponíveis por modelo" lê `disponiveisPorModelo`/
+// os grupos por categoria direto do snapshot (`lib/queries/relatorios/*`,
+// `components/relatorios/lista-modelo*.tsx`) — não passa mais por este arquivo.
 export function gerarTextoResumo(resumo: ResumoPeriodo, extras?: ExtrasResumo): string {
   const periodo = `No período de ${formatDate(resumo.de)} a ${formatDate(resumo.ate)}:`
   const kpis = extras?.kpis ? [linhaKpis(extras.kpis), ''] : []
-  const disponiveis = extras?.disponiveis ? blocoDisponiveis(extras.disponiveis) : []
   const partes = [
     periodo,
     '',
@@ -116,15 +113,6 @@ export function gerarTextoResumo(resumo: ResumoPeriodo, extras?: ExtrasResumo): 
     ...blocoTipo({ singular: 'saída', plural: 'saídas' }, resumo.saidas),
     '',
     ...blocoTipo({ singular: 'devolução', plural: 'devoluções' }, resumo.devolucoes),
-    ...(disponiveis.length > 0 ? ['', ...disponiveis] : []),
   ]
   return partes.join('\n')
-}
-
-// O v2 guarda os disponíveis agrupados por categoria; o texto é uma lista só. Um
-// modelo pertence a UMA categoria, então achatar não soma duas linhas do mesmo nome.
-export function achatarDisponiveis(
-  grupos: readonly { modelos: readonly ItemModelo[] }[],
-): ItemModelo[] {
-  return grupos.flatMap((g) => g.modelos.map((m) => ({ ...m })))
 }

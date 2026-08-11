@@ -52,7 +52,9 @@ const TILES: { chave: keyof KpisRelatorio; rotulo: string; sub: string }[] = [
   { chave: 'em_uso', rotulo: 'Em uso', sub: 'com colaborador/setor' },
   { chave: 'em_estoque', rotulo: 'Em estoque', sub: 'disponíveis p/ entrega' },
   { chave: 'reservado', rotulo: 'Reservados', sub: 'aguardando entrega' },
-  { chave: 'em_triagem', rotulo: 'Em triagem', sub: 'devolvidos, em conferência' },
+  // F34 — "devolvidos" deixou de ser verdade: a devolução volta direto ao estoque
+  // e só quem foi mandado à triagem de propósito (`envio_triagem`) aparece aqui.
+  { chave: 'em_triagem', rotulo: 'Em triagem', sub: 'separados p/ conferência' },
   { chave: 'em_manutencao', rotulo: 'Em manutenção', sub: 'conserto/assistência' },
   { chave: 'defasado', rotulo: 'Reserva técnica', sub: 'defasados / posse WAP' },
 ]

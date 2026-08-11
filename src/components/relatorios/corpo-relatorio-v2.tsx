@@ -1,6 +1,5 @@
 import { GRUPO_ITEM_META } from '@/lib/dominio'
 import { formatDate } from '@/lib/format'
-import { achatarDisponiveis } from '@/lib/relatorios/resumo'
 import type { GranularidadeSerie, SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
 import { agregarAcervoPorSituacao } from '@/lib/relatorios/acervo'
 import { resumoRiscoManutencao } from '@/lib/relatorios/resumo-manutencao'
@@ -400,21 +399,20 @@ export function CorpoRelatorioV2({
 
       {/* 9. Resumo no formato do e-mail. `id` (F29/REL-09a) é o alvo do chip
           "Resumo" — a seção mais procurada não tinha permalink nem atalho na barra
-          sticky. Os extras (F29/REL-08) acrescentam ao texto COPIADO a linha de
-          KPIs e o bloco "Em estoque (N)", que é como o e-mail real abria. */}
+          sticky. O extra (F29/REL-08) acrescenta ao texto COPIADO a linha de KPIs.
+          F34/A — o bloco "Em estoque (N)" saiu do texto (revogação parcial da
+          REL-08 — ver lib/relatorios/resumo.ts); com ele foram embora o campo
+          `disponiveis` do extra e a função de achatamento que o alimentava (removida
+          do módulo de resumo — não sobrou import morto aqui). `s.disponiveisPorModelo`
+          continua intocado como dado do card "Disponíveis por modelo" logo acima,
+          agrupado por categoria. */}
       <CardRelatorio
         id="resumo"
         wide
         titulo="Resumo do período"
         subtitulo="no formato do e-mail semanal"
       >
-        <ResumoPeriodoCard
-          resumo={s.resumo}
-          extras={{
-            kpis: s.kpis,
-            disponiveis: achatarDisponiveis(s.disponiveisPorModelo),
-          }}
-        />
+        <ResumoPeriodoCard resumo={s.resumo} extras={{ kpis: s.kpis }} />
       </CardRelatorio>
 
       {/* 10. Observação da semana (B4 — só quando gravada no ato de gerar) */}

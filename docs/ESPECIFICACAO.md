@@ -124,7 +124,7 @@ Uma digitação, quatro efeitos. Ninguém mais "atualiza o inventário".
 
 ### Estados do ativo
 
-Ciclo típico: compra → em estoque → saída → em uso → devolução → triagem → volta ao estoque (ou manutenção/descarte).
+Ciclo típico: compra → em estoque → saída → em uso → devolução → volta ao estoque (ou manutenção/descarte). **(Emenda F34, 11/08/2026)** A triagem deixou de ser passo automático da devolução — é um desvio **opcional**: do estoque, o operador manda o ativo para triagem quando quiser inspecioná-lo (`envio_triagem`), e de lá ele volta ao estoque (`triagem_ok`).
 
 | Estado | Significado | Equivale hoje a |
 |---|---|---|
@@ -132,11 +132,13 @@ Ciclo típico: compra → em estoque → saída → em uso → devolução → t
 | `reservado` | Separado para alguém (chamado aberto) | Reservada |
 | `em_uso` | Entregue a colaborador/setor | Remanejo / Saída |
 | `emprestado` | Saída temporária com devolução prevista | Empréstimo |
-| `em_triagem` | Devolvido, aguardando **triagem**: conferência física (checklist de acessórios), backup/limpeza dos dados e decisão do destino — feita pela operadora | Validar / Devolvido |
+| `em_triagem` | Separado **manualmente** para conferência: conferência física (checklist de acessórios), backup/limpeza dos dados e decisão do destino — feita pela operadora | Validar / Devolvido |
 | `em_manutencao` | Em conserto (interno ou assistência) | Manutenção |
 | `defasado` | **Reserva técnica** ("RT WAP" nas planilhas): funciona, mas está abaixo do padrão atual; guardado para reposição emergencial ou peças | RT Wap / Posse Wap / Defasada |
 | `descartado` | Baixa definitiva | Descarte |
 | `devolvido_fornecedor` | **(Emenda F14)** Baixa terminal — a manutenção não teve conserto e o fornecedor ficou com o equipamento (e o trocou). Sai do inventário como o `descartado` | — (novo no sistema) |
+
+> **Nota (Emenda F34, 11/08/2026):** a coluna "Equivale hoje a" continua `Validar / Devolvido` de propósito — é vocabulário do **import** (De→Para do go-live e do import de startup, §5/§10.2), que esta emenda não toca. O que mudou é só o **caminho** até `em_triagem`: deixou de ser automático na devolução e virou entrada manual (`envio_triagem`) — ver a tabela de transições abaixo.
 
 ### Transições (a tabela que o banco aplica — fonte: migration `0004_maquina_estados.sql`)
 
@@ -146,8 +148,9 @@ Ciclo típico: compra → em estoque → saída → em uso → devolução → t
 | `troca` | **(Emenda F15)** `em_estoque` (substituto recém-cadastrado) | `em_estoque` — entrada do substituto; fixa a filial (espelho da `compra`, gravado só pela RPC `devolver_ao_fornecedor`) |
 | `saida` | `em_estoque`, `reservado`, `em_triagem` | `em_uso` |
 | `emprestimo` | `em_estoque`, `reservado` | `emprestado` |
-| `reserva` | `em_estoque` | `reservado` |
-| `devolucao` | `em_uso`, `emprestado` | `em_triagem` |
+| `reserva` | `em_estoque`, `reservado` **(Emenda F34: sobre `reservado` é a re-reserva)** | `reservado` |
+| `devolucao` | `em_uso`, `emprestado` | `em_estoque` **(Emenda F34 — era `em_triagem`)** |
+| `envio_triagem` | `em_estoque` **(Emenda F34)** | `em_triagem` |
 | `triagem_ok` | `em_triagem` | `em_estoque` |
 | `envio_manutencao` | `em_estoque`, `em_triagem`, `em_uso`, `defasado` | `em_manutencao` |
 | `retorno_manutencao` | `em_manutencao` | `em_estoque` |
@@ -158,11 +161,13 @@ Ciclo típico: compra → em estoque → saída → em uso → devolução → t
 | `ajuste` | qualquer | o estado informado — exige justificativa (regra 6) |
 | `estorno` | só a última movimentação efetiva do ativo | devolve o ativo ao estado (status, colaborador, setor, filial) anterior à movimentação estornada |
 
-São **15** tipos no total (Emenda F14: +`devolucao_fornecedor`; Emenda F15: +`troca`) — `ajuste` e `estorno` são as válvulas de escape administrativas; os outros 13 são o dia a dia (mas `compra` e `troca` têm fluxo próprio, não o de nova movimentação).
+São **16** tipos no total (Emenda F14: +`devolucao_fornecedor`; Emenda F15: +`troca`; Emenda F34: +`envio_triagem`) — `ajuste` e `estorno` são as válvulas de escape administrativas; os outros 14 são o dia a dia (mas `compra` e `troca` têm fluxo próprio, não o de nova movimentação).
 
 > **Emenda F14 (23/07/2026) — manutenção com fornecedor.** Toda manutenção vai para o fornecedor, que abre um chamado próprio. O `envio_manutencao` passa a gravar o **chamado do fornecedor** (`movimentacoes.chamado_fornecedor`, texto livre, **obrigatório**), de baixa visibilidade — só nos contextos de manutenção (passo 2 do envio, linha do tempo da ficha, card de manutenção do relatório). O ciclo ganha o desfecho **`devolucao_fornecedor` → `devolvido_fornecedor`** (não teve conserto), terminal como `descartado`. Nesse desfecho o operador cadastra o **substituto no mesmo submit** (RPC atômica `devolver_ao_fornecedor`, lote sempre 1): o ativo novo nasce `em_estoque` com `ativos.substitui_ativo_id` apontando para o antigo (herda o fornecedor do antigo; os chamados vêm do último envio). Fonte: migrations `0044`/`0045`. Ver §5 (colunas) e §7 (relatório).
 
 > **Emenda F15 (23/07/2026) — o substituto nasce por `troca`, não `compra`.** O equipamento substituto (Emenda F14) passa a nascer com a movimentação **`troca`** (novo valor de enum), nunca `compra` — ele chegou por substituição do fornecedor, não foi comprado. `troca` **espelha** a `compra` na máquina de estados (nascimento `em_estoque`→`em_estoque`, fixa a filial) e como **entrada do período** no relatório (§7 — aparece nas Entradas rotulada "Troca"), mas **difere** no rótulo, na cor (teal) e em qualquer leitura de "o que foi comprado" (nenhum KPI/contagem de compras a inclui). É gravada **só** pela RPC `devolver_ao_fornecedor` — nunca no fluxo manual de nova movimentação, em kits ou no "duplicar" (como a `compra` e a `devolucao_fornecedor`). O import **nunca** produz `troca`. Migrations `0046` (add value) / `0047` (usos). Revoga a nota da Emenda F14 em §7 sobre "a compra do substituto entra nas Entradas": é a **troca** que entra.
+
+> **Emenda F34 (11/08/2026) — triagem manual, devolução direta e re-reserva.** Decisão do Johnny: até aqui **toda** `devolucao` empurrava o ativo para `em_triagem`, exigindo um segundo registro (`triagem_ok`) só para ele voltar a existir como estoque — na prática um log a mais, sem valor. A `devolucao` (de `em_uso`/`emprestado`) passa a resultar **direto em `em_estoque`**; nasce o tipo **`envio_triagem`** ("Envio para triagem", `em_estoque → em_triagem`) para quando o operador **quiser** inspecionar o equipamento — `triagem_ok` continua sendo a saída da triagem (`em_triagem → em_estoque`), sem mudança nenhuma. E o tipo **`reserva` passa a valer também sobre `reservado`** (`reservado → reservado`): a **re-reserva**, que troca colaborador/setor/chamado do equipamento reservado sem estorno e sem ajuste (caso real: notebook reservado para um contratado que desiste da vaga, reservado de novo para outro). Nenhum ativo existente muda de estado — quem está `em_triagem` hoje fica onde está, e todas as saídas atuais da triagem (saída, manutenção, defasado, descarte, transferência) continuam valendo. O tipo `transferencia` é de **FILIAL** e **não** é tocado por esta emenda. Migrations `0108` (valor de enum) / `0109` (máquina de estados). Ata em `docs/DECISOES.md` (2026-08-11).
 
 ## 5. Modelo de dados
 
@@ -248,7 +253,7 @@ Estrutura de `/relatorios/[filial]` (e a visão consolidada `/relatorios/geral`)
 8. **Transferências** — bloco condicional (só quando houver), aparece nas duas filiais (regra 5).
 
 > **(Emenda F16 — tabelas detalhadas 6–8 + movimentações de itens)** Cada tabela detalhada ganha um **campo de busca livre** que filtra as linhas já carregadas em qualquer coluna textual (patrimônio — **inclusive fora do formato canônico**, ex.: "wap 1234" acha `WAP0001234` —, modelo, categoria, motivo, chamado, colaborador/setor, obs, item, filial), sem sensibilidade a caixa/acento, **persistido no link** (prefixo por tabela, ex.: `sd.q`) e composto com os filtros; a contagem "X exibida(s)" segue correta. O **patrimônio** vira **link para a ficha** (`/ativos/[id]`) para o **operador** (visualizador por senha e snapshots antigos: texto puro). Toda linha cuja **movimentação foi estornada** nasce **sinalizada** (linha esmaecida + marca "estornada" com a data, visível a operador e visualizador, presente na impressão); na tabela de **movimentações de itens** ficam marcados tanto o lançamento de estorno quanto o lançamento estornado. **Nenhuma contagem** (título, chips de resumo, série, por motivo, resumo do e-mail) muda — a sinalização é só de leitura.
-9. **Resumo no formato do e-mail** — "19 saídas: Matriz — novo colaborador: 04 notebooks, 04 monitores; …" gerado automaticamente, com botão **copiar texto** e **imprimir** a página limpa.
+9. **Resumo no formato do e-mail** — "19 saídas: Matriz — novo colaborador: 04 notebooks, 04 monitores; …" gerado automaticamente, com botão **copiar texto** e **imprimir** a página limpa. **(Nota, Emenda F34)** O texto copiado traz o período, a **linha de totais** (Total · Em uso · Em estoque · Reservados · …), as saídas e as devoluções por motivo — a lista de **disponíveis por modelo** vive só no card visual da tela, nunca no texto copiado.
 
 > **(Emenda F17 — o relatório se explica sozinho)** Toda a semântica visual acumulada nas F14–F16 ganha **legendas explicativas dentro do próprio relatório**, para o operador **e** o visualizador por senha (que não acessa `/ajuda`), no ao vivo **e** nos snapshots (inclusive antigos — legenda é render, não dado): (a) o **Δ** dos KPIs ganha uma nota — a seta ▲▼ dá a direção, a cor dá o juízo **por indicador** (verde = melhora, vermelho = piora, cinza = neutro); (b) as tabelas com linha **estornada** ganham a nota "linha esmaecida = movimentação estornada depois; a contagem do período continua incluindo a original", e as Entradas explicam a pílula **"Troca"** (substituto do fornecedor, não é compra); (c) o card de **manutenção** ganha a legenda das quatro cores do badge (âmbar = em andamento · vermelho = parado 30+ dias · verde = voltou · cinza = devolvido ao fornecedor), mostrando só as presentes nos casos exibidos; (d) uma seção recolhível **"Como ler este relatório"** ao fim traz o glossário (os 7 KPIs, **"Guardados = Em estoque"**, "Reserva técnica", o que conta como Saída/Entrada/Transferência, o estoque as-of e o estorno), com chip-âncora. As legendas são **texto puro** (sem link — o visualizador nunca ganha href para fora de `/relatorios`) e **nenhuma contagem muda**. Os tiles do grupo "Equipamentos principais" ganharam subtítulo e o vazio das buscas passou a dizer "nenhuma … encontrada" quando há filtro ativo (antes dizia sempre "no período").
 
@@ -371,6 +376,8 @@ Emenda à regra "não existe tela de importação". Decisão do Johnny (16/07/20
 | **F3B — Relatórios v2** | Relatório no formato do e-mail (3 grupos + tabelas de Saídas/Entradas), **itens por quantidade** (catálogo + lançamentos, antecipados da F5), **anotações** na linha do tempo, reconstrução as-of do estoque, sem export CSV | Relatório cobre 100% do e-mail com dados fictícios; falta/atrelados automáticos; snapshot v2 congela os 3 grupos |
 | **F4 — Carga inicial + go-live** | Scripts de carga única (`scripts/import/`): normalização De→Para + dry-run + relatório de inconsistências + carga idempotente (inclui os **saldos iniciais de itens** a partir da planilha de gestão online); ensaio; reset do seed | Dados reais dentro; números batem com as planilhas; **cutover: planilhas viram só-leitura, e-mail semanal aposentado por completo e nenhuma tela de importação existe no app** |
 | **F5 — Refino** | Pendências e alertas avançados, **estoque mínimo por item** (reorder point), resumo automático por e-mail (opcional), backup agendado, upload dos termos (PDF), HTML autocontido do snapshot, kits de lote salvos | Backlog priorizado com o uso real |
+
+> Nota (Emenda F34, 11/08/2026): o critério de pronto da F2 acima é **histórico** — registra a máquina de estados vigente naquela fase, não reescrita aqui. Desde a F34 a devolução vai direto a `em_estoque` e a triagem passou a ser passo opcional (`envio_triagem`); ver §4.
 
 Ordem pensada para o sistema ficar **demonstrável cedo sem depender dos dados reais**: F3 já mostra os relatórios com dados fictícios; a virada de chave (F4) acontece quando a WAP quiser, sem pressa e sem período de convivência planilha×sistema. Detalhamento de esforço, escopo por fase e ordem das telas: [`PLANEJAMENTO.md`](./PLANEJAMENTO.md).
 

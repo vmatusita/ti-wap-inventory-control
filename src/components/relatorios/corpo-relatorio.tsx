@@ -186,14 +186,13 @@ function CorpoRelatorioV1({
           subtitulo="no formato do e-mail semanal"
         >
           {/* F29/REL-08 — os extras valem também aqui, e não só no corpo v2 (achado
-              da revisão adversarial). No v1 `disponiveisPorModelo` já é a lista plana
-              `ItemModelo[]`, então entra direto — sem achatar. O texto copiado de um
-              snapshot antigo passa a abrir como o e-mail real abria, igual ao dos
-              novos; nada do snapshot é alterado, só o texto que se copia dele. */}
-          <ResumoPeriodoCard
-            resumo={s.resumo}
-            extras={{ kpis: s.kpis, disponiveis: s.disponiveisPorModelo }}
-          />
+              da revisão adversarial).
+              F34/A — `disponiveis` saiu do extra (revogação parcial da REL-08:
+              o bloco "Em estoque (N)" não é mais emitido no texto copiado — ver
+              comentário em lib/relatorios/resumo.ts). Só `kpis` continua sendo
+              repassado; `s.disponiveisPorModelo` permanece intocado como dado do
+              CARD "Disponíveis por modelo" logo acima, que não usa este componente. */}
+          <ResumoPeriodoCard resumo={s.resumo} extras={{ kpis: s.kpis }} />
         </CardRelatorio>
       </div>
     </div>

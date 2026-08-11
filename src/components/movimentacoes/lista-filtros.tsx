@@ -51,6 +51,8 @@ const TIPOS_EXIBICAO: TipoMovimentacao[] = [
   'envio_manutencao',
   'retorno_manutencao',
   'devolucao_fornecedor',
+  // F34 — o par manual da triagem, na ordem em que acontece na prateleira.
+  'envio_triagem',
   'triagem_ok',
   'marcar_defasado',
   'descarte',

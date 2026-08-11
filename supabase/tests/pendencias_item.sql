@@ -80,8 +80,15 @@ begin
   -- 3 — triagem_ok NÃO mexe nas abertas NEM em ativos.pendencia (plantamos
   --     'sem patrimônio físico' antes e conferimos que SOBREVIVE — o bug latente
   --     do §0.1b, que zerava o campo inteiro, está corrigido).
+  --     F34 (11/08/2026): a devolução do passo 1 agora termina em_estoque (não
+  --     mais em_triagem — a triagem virou OPT-IN), então precisamos de um
+  --     envio_triagem manual antes do triagem_ok para a transição continuar
+  --     válida. Sem isto o triagem_ok abortaria o do-block e os Cenários 4 a 8
+  --     nunca rodariam.
   -- ---------------------------------------------------------------
-  update public.ativos set pendencia = 'sem patrimônio físico' where id = a;  -- ativo do passo 1 (em_triagem)
+  update public.ativos set pendencia = 'sem patrimônio físico' where id = a;  -- ativo do passo 1 (em_estoque, F34)
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
+    values (a, 'envio_triagem', v_mat, v_prof);
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'triagem_ok', v_mat, v_prof);
   select pendencia into v_pend from public.ativos where id = a;

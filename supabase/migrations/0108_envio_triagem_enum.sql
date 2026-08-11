@@ -1,0 +1,22 @@
+-- Migration 0108 — valor de enum novo: 'envio_triagem' (OS-F34, frente C).
+--
+-- 'envio_triagem' = "Envio para triagem" (em_estoque -> em_triagem). Nasce porque a
+-- triagem deixa de ser etapa AUTOMÁTICA: até a F33, TODA `devolucao` jogava o ativo em
+-- `em_triagem` e exigia um segundo registro (`triagem_ok`) só para ele voltar a existir
+-- como estoque — na prática, um log a mais, sem valor. Decisão do Johnny (11/08/2026):
+-- a `devolucao` passa a resultar direto em `em_estoque` (0109) e a triagem vira OPT-IN:
+-- o operador manda para a triagem quando QUISER inspecionar. `triagem_ok` continua sendo
+-- a saída da triagem (em_triagem -> em_estoque), e todo ativo hoje `em_triagem` fica
+-- exatamente onde está — esta fase não move nenhum ativo.
+--
+-- SEPARADA da 0109 DE PROPÓSITO (precedente 0044→0045 e 0046→0047): no Postgres um valor
+-- novo de enum NÃO pode ser USADO na mesma transação que o adiciona. Cada migration roda
+-- numa transação (o job `banco` do CI aplica a pasta inteira em ordem); a 0109 — que USA
+-- 'envio_triagem' em `status_apos_movimentacao`, `aplicar_movimentacao` e `rel_estoque_asof`
+-- — só roda depois desta COMMITAR.
+-- `add value if not exists` = idempotente; sem BEFORE/AFTER (anexado no FIM do enum).
+--
+-- Aditiva, não toca dado (nenhum delete/update em ativos/movimentacoes) — não bate no
+-- gate do modo automático. Caminho A do docs/RUNBOOK-BANCO.md (ensaio → produção).
+
+alter type public.tipo_movimentacao add value if not exists 'envio_triagem';
