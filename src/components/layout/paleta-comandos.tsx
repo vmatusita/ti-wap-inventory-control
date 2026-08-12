@@ -22,6 +22,7 @@ import {
   PackageX,
   Plus,
   Settings,
+  Tag,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
@@ -128,6 +129,15 @@ const ROTAS: ItemNavegacao[] = [
     soDev: true,
   },
   { rotulo: 'Ajuda', href: '/ajuda', icone: CircleHelp, atalho: '?' },
+  {
+    // F35 — a tela de versões NÃO tem item na sidebar (decisão da ordem): as
+    // portas dela são o badge no pé do menu, a página de ajuda e esta entrada.
+    // Sem `soAdmin`/`soDev`: qualquer perfil ativo lê o histórico.
+    rotulo: 'Versões do sistema',
+    href: '/versoes',
+    icone: Tag,
+    apelidos: ['versao', 'novidades', 'o que mudou', 'historico do sistema', 'atualizacao'],
+  },
 ]
 
 // TODAS as entradas deste grupo ESCREVEM — é o que "Ações" significa aqui. Por

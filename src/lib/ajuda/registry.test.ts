@@ -166,6 +166,7 @@ const COBERTURA: Record<string, { pagina: string } | { isento: string }> = {
   '/admin/kits': { pagina: 'kits-de-movimentacao' },
   '/admin/itens': { pagina: 'administracao' },
   '/admin/importar': { pagina: 'import-de-startup' },
+  '/versoes': { pagina: 'versoes-do-sistema' },
   // Isenções — cada uma com o motivo, para ninguém "isentar por preguiça".
   '/dev': {
     isento:

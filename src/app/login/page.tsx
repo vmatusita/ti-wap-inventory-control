@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Marca } from '@/components/layout/marca'
+import { CreditoAutor } from '@/components/layout/credito-autor'
 
 const estadoInicial: LoginState = {}
 
@@ -104,6 +105,15 @@ export default function LoginPage() {
           <Suspense fallback={null}>
             <LoginForm />
           </Suspense>
+
+          {/* F35 — o crédito fica DENTRO do card, e não solto no fundo da tela:
+              o fundo é `bg-muted`, e `muted-foreground` sobre ele mede 4,34:1 no
+              tema claro — abaixo do piso AA de 4,5:1 para texto pequeno. Sobre
+              `card` são 4,73:1 (claro) e 6,91:1 (escuro). Medido com
+              `npm run contraste --par "muted-foreground sobre <fundo>"`. */}
+          <p className="mt-6 border-t pt-4 text-center">
+            <CreditoAutor />
+          </p>
         </div>
       </Card>
     </div>

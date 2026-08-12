@@ -946,6 +946,16 @@ const ROTAS_LOGADO = [
     area: 'dev · zona destrutiva (F23)',
     marcadorProibido: 'Zona destrutiva',
   },
+  // F35 — o histórico de versões. O marcador NÃO é o <h1> ("Versões"), de
+  // propósito: essa string também é o título da aba, e a armadilha registrada
+  // logo acima mostra que um <title> sozinho já a colocaria no HTML. O marcador
+  // é o título da PRIMEIRA versão do sistema, que fica no fim da lista — se ele
+  // aparece, a lista inteira renderizou a partir do registry.
+  {
+    rota: '/versoes',
+    area: 'versionamento (F35)',
+    marcador: 'Fundação: o sistema no ar, com login por convite',
+  },
 ]
 
 // F20 — as páginas da documentação. Além do 200, cada uma exige o MARCADOR:
@@ -988,6 +998,7 @@ const PAGINAS_AJUDA = [
   ['tipos-de-movimentacao', 'Tipos de movimentação'],
   ['itens-por-quantidade', 'Itens por quantidade'],
   ['limites-e-atalhos', 'Limites, tetos e atalhos'],
+  ['versoes-do-sistema', 'Versões do sistema'],
   ['mensagens-de-erro', 'Mensagens de erro'],
   ['problemas-comuns', 'Problemas comuns'],
   ['problemas-import-e-acesso', 'Problemas de import e de acesso'],

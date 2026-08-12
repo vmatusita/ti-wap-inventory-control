@@ -1,6 +1,7 @@
 'use client'
 
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { RodapeSidebar } from '@/components/layout/rodape-sidebar'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { useSidebarColapso } from '@/components/layout/sidebar-colapso'
 
@@ -28,11 +29,14 @@ export function SidebarLateral({
   eAdmin,
   eDev,
   hrefRelatorios,
+  versao,
 }: {
   pendencias?: number
   eAdmin?: boolean
   eDev?: boolean
   hrefRelatorios?: string
+  /** F35 — a versão no ar, resolvida no servidor e exibida no pé do menu. */
+  versao: string
 }) {
   const { recolhida, alternar } = useSidebarColapso()
 
@@ -52,6 +56,10 @@ export function SidebarLateral({
           eDev={eDev}
           hrefRelatorios={hrefRelatorios}
         />
+        {/* F35 — o rodapé é UM filho só do `justify-between`: com três, o Flex
+            espalharia o badge no meio da tela em vez de grudá-lo no botão. */}
+        <div className="flex shrink-0 flex-col gap-1">
+        <RodapeSidebar versao={versao} colapsada={recolhida} />
         <button
           type="button"
           onClick={alternar}
@@ -71,6 +79,7 @@ export function SidebarLateral({
           {/* O mesmo gancho dos rótulos do menu — o CSS o esconde no modo ícone. */}
           <span data-sidebar-rotulo="">Recolher</span>
         </button>
+        </div>
       </div>
     </aside>
   )

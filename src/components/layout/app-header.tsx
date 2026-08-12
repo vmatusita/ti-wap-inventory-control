@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { RodapeSidebar } from '@/components/layout/rodape-sidebar'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { UserMenu } from '@/components/layout/user-menu'
 import { Marca } from '@/components/layout/marca'
@@ -34,6 +35,7 @@ export function AppHeader({
   eAdmin = false,
   eDev = false,
   hrefRelatorios,
+  versao,
 }: {
   nome: string
   papel?: PapelUsuario
@@ -49,6 +51,8 @@ export function AppHeader({
    *  SidebarNav do desktop; sem repassar aqui, o operador no celular continuaria
    *  indo para o Consolidado enquanto no desktop ia para a filial dele. */
   hrefRelatorios?: string
+  /** F35 — a versão no ar, mostrada no pé do menu (aqui, o Sheet do celular). */
+  versao: string
 }) {
   const [aberto, setAberto] = useState(false)
   // Gatilho da paleta global (OS-F11 / T1). `null` fora do provider — nesse caso
@@ -82,6 +86,12 @@ export function AppHeader({
               eDev={eDev}
               hrefRelatorios={hrefRelatorios}
             />
+            {/* F35 — o MESMO rodapé do <aside> do desktop. Nunca `colapsada`:
+                o menu de toque não recolhe (o CSS do recolhido é ancorado no
+                <aside>, que não existe aqui). */}
+            <div className="mt-2 border-t pt-2">
+              <RodapeSidebar versao={versao} />
+            </div>
           </div>
         </SheetContent>
       </Sheet>

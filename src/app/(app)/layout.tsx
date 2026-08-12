@@ -21,6 +21,13 @@ import { PaletaComandosProvider } from '@/components/layout/paleta-comandos'
 import { INDICE_PALETA } from '@/lib/ajuda/indice'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { eAdmin, eDev, podeEscrever } from '@/lib/auth/papeis'
+import { versaoAtual } from '@/lib/versoes/registry'
+
+// F35 — a versao no ar desce por PROP para o shell (pe da sidebar, no desktop e
+// no Sheet do celular). Constante de modulo, e nao chamada por request: o
+// registry e imutavel entre deploys, mesma disciplina do `INDICE_PALETA`. E
+// tambem o que impede o Client Component de importar o registry inteiro.
+const VERSAO_ATUAL = versaoAtual().versao
 
 // Shell do grupo (app). Três modos (spec §3 / OS-F3 3.9.4):
 //  - Público: /relatorios/acesso (entrada por senha) — sem shell.
@@ -150,6 +157,7 @@ export default async function AppLayout({
                 eAdmin={admin}
                 eDev={dev}
                 hrefRelatorios={hrefRelatorios}
+                versao={VERSAO_ATUAL}
               />
               <div className="flex flex-1">
                 <SidebarLateral
@@ -157,6 +165,7 @@ export default async function AppLayout({
                   eAdmin={admin}
                   eDev={dev}
                   hrefRelatorios={hrefRelatorios}
+                  versao={VERSAO_ATUAL}
                 />
                 <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
               </div>

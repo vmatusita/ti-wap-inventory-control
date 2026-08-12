@@ -47,6 +47,7 @@ import { statusDoAtivo } from '@/lib/ajuda/conteudo/status-do-ativo'
 import { tiposDeMovimentacao } from '@/lib/ajuda/conteudo/tipos-de-movimentacao'
 import { itensPorQuantidade } from '@/lib/ajuda/conteudo/itens-por-quantidade'
 import { limitesEAtalhos } from '@/lib/ajuda/conteudo/limites-e-atalhos'
+import { versoesDoSistema } from '@/lib/ajuda/conteudo/versoes-do-sistema'
 import { mensagensDeErro } from '@/lib/ajuda/conteudo/mensagens-de-erro'
 
 import { problemasComuns } from '@/lib/ajuda/conteudo/problemas-comuns'
@@ -88,6 +89,7 @@ export const PAGINAS: readonly PaginaAjuda[] = [
   tiposDeMovimentacao,
   itensPorQuantidade,
   limitesEAtalhos,
+  versoesDoSistema,
   mensagensDeErro,
   // Resolver
   problemasComuns,
