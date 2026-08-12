@@ -1,0 +1,692 @@
+// Registry de versoes do sistema (F35). UMA lista ordenada alimenta a pagina
+// `/versoes`, o badge do rodape da sidebar, o `package.json` e os testes — nao
+// existe segunda fonte.
+//
+// ORDEM: mais recente primeiro. `VERSOES[0]` E a versao atual, e um teste trava
+// que ela seja identica a `package.json.version`.
+//
+// O ESQUEMA (ata `2026-08-12 · F35` em `docs/DECISOES.md`): cada FASE do
+// `CHANGELOG.md` vira uma MENOR; cada entrega avulsa registrada la vira uma
+// CORRECAO da menor vigente a epoca; as fases anteriores ao go-live sao `0.x.0`
+// e o go-live de 15/07/2026 e a `1.0.0`. Entrada do CHANGELOG que agrupa varias
+// fases vira uma versao por fase, todas com a data do cabecalho.
+//
+// AO ACRESCENTAR UMA VERSAO (regra permanente, item 7 do `CLAUDE.md`): escreva
+// `mudancas` em LINGUAGEM DE OPERADOR — rotulos reais das telas, o efeito antes
+// da causa, nada de vocabulario de desenvolvedor (ha um teste que recusa).
+//
+// Este modulo NAO e so-servidor (sao strings planas, sem import pesado), mas o
+// badge da sidebar continua recebendo a versao por PROP do Server Component
+// `(app)/layout.tsx` — importa-lo de um Client Component jogaria as dezenas de
+// entradas para dentro do bundle sem necessidade.
+import type { EntradaVersao } from '@/lib/versoes/tipos'
+
+export const VERSOES: readonly EntradaVersao[] = [
+  {
+    versao: '1.40.0',
+    data: '2026-08-12',
+    fase: 'F35',
+    titulo: 'O sistema passa a dizer em que versão está, e o que mudou em cada uma',
+    mudancas: [
+      'O rodapé do menu lateral mostra a versão do sistema; clicar nela abre o histórico completo.',
+      'Nova tela Versões, com todas as versões desde o início, cada uma com a data e o que mudou.',
+      'A página de ajuda "Versões do sistema" explica como ler o histórico e onde encontrá-lo.',
+    ],
+  },
+  {
+    versao: '1.39.1',
+    data: '2026-08-11',
+    titulo: 'Revisão interna de qualidade das últimas atualizações',
+    mudancas: [
+      'Uma correção evita que uma nova reserva apague, em silêncio, o nome de quem está com o equipamento.',
+      'A ajuda foi corrigida em quatro pontos onde o texto já não descrevia o comportamento atual.',
+    ],
+  },
+  {
+    versao: '1.39.0',
+    data: '2026-08-11',
+    fase: 'F34',
+    titulo: 'Devolução volta direto ao estoque, e o reservado pode trocar de dono',
+    mudancas: [
+      'A devolução volta direto para o estoque, sem passar pela triagem obrigatória.',
+      'Quem quiser conferir o equipamento antes registra "Envio para triagem", que agora é um tipo próprio.',
+      'Dá para trocar o colaborador ou o setor de um equipamento reservado sem estornar e refazer a reserva.',
+      'Nos cards de manutenção, o chamado interno e o do fornecedor aparecem sempre, com "—" quando não informados.',
+    ],
+  },
+  {
+    versao: '1.38.0',
+    data: '2026-08-10',
+    fase: 'F33',
+    titulo: 'Sistema muito mais rápido nas telas de operação',
+    mudancas: [
+      'As telas do dia a dia responderam de 65% a 74% mais rápido: relatório consolidado, ficha do ativo e tela inicial.',
+      'A causa era o sistema montar as telas do outro lado do mundo; agora ele monta perto dos dados, no Brasil.',
+      'Nenhuma tela mudou de aparência ou de comportamento — só a velocidade.',
+    ],
+  },
+  {
+    versao: '1.37.0',
+    data: '2026-08-10',
+    fase: 'F32',
+    titulo: 'Relatório mais legível, clicável e com curva de estoque',
+    mudancas: [
+      'As cores de situação foram trocadas para quem não distingue certos tons: triagem, reservado e emprestado mudaram.',
+      'Clicar numa barra de motivo filtra a tabela de Saídas ou Entradas correspondente e rola até ela.',
+      'Clicar num pedaço do gráfico de situação abre a lista de Ativos já filtrada.',
+      'Novo card "Evolução do estoque", com a curva semana a semana dentro do período.',
+      'A tabela de saldo por item ganhou um medidor verde, âmbar ou vermelho comparando estoque e mínimo.',
+      'O horário de "Atualizado às" ficou sempre visível, inclusive no papel.',
+    ],
+  },
+  {
+    versao: '1.36.0',
+    data: '2026-08-09',
+    fase: 'F31',
+    titulo: 'Transferência de itens entre filiais e modo Conferência',
+    mudancas: [
+      'Dá para transferir itens entre filiais numa tela só, e o Total da TI para de inflar a cada remanejamento.',
+      'A transferência é tudo ou nada: se faltar saldo numa das pontas, nada é gravado.',
+      'Novo modo Conferência para contar a prateleira de uma filial e registrar todas as diferenças de uma vez.',
+      'A contagem fica salva no aparelho: recarregar a página no meio não perde o trabalho nem duplica lançamento.',
+      'Estornar só um lado de uma transferência avisa que a operação fica pela metade, antes de confirmar.',
+    ],
+  },
+  {
+    versao: '1.35.0',
+    data: '2026-08-09',
+    fase: 'F30',
+    titulo: 'Seleção múltipla na lista, impressão completa e menu que recolhe',
+    mudancas: [
+      'Dá para marcar vários ativos na lista e mandar todos juntos para uma nova movimentação.',
+      'Quem fica de fora da seleção é avisado pelo patrimônio: apagado, endereço quebrado ou acima do teto de 30.',
+      'O relatório impresso voltou a trazer Marca/Modelo, Colaborador/Setor, Chamado, Termo e Observação, que sumiam no papel.',
+      'O menu lateral recolhe e devolve espaço à tela, pela tecla de colchete ou pelo botão no pé do menu.',
+      'Com o menu recolhido, o aviso de pendências continua visível sobre o ícone.',
+    ],
+  },
+  {
+    versao: '1.34.0',
+    data: '2026-08-07',
+    fase: 'F29',
+    titulo: 'Relatórios que se navegam, administração que se encontra',
+    mudancas: [
+      'O relatório ganhou o atalho "Semana passada", que era o recorte digitado à mão toda segunda-feira.',
+      'Congelar o relatório abre no período que está na tela e avisa qual versão daquele período já existe.',
+      'A lista de relatórios gerados pagina, marca a versão superada e leva ao período anterior e ao próximo.',
+      'Os gráficos empilhado e divergente passaram a mostrar o valor ao passar o mouse.',
+      'Usuários e o catálogo de Itens ganharam busca por nome, e-mail, cargo, filial ou grupo.',
+      'A senha de acesso ao relatório pode ser copiada junto do link e conferida depois, sem revogar.',
+    ],
+  },
+  {
+    versao: '1.33.0',
+    data: '2026-08-07',
+    fase: 'F28',
+    titulo: 'A rotina diária: revisão completa, fila que age na linha e histórico auditável',
+    mudancas: [
+      'A Revisão do lote passou a mostrar a data do lançamento junto de motivo, colaborador, termo e chamado.',
+      'O aviso de equipamento de outra filial nasce já na montagem do lote, e não só na hora de gravar.',
+      'Movimentações ganhou os atalhos Hoje, Ontem e 7 dias, mais o filtro "Minhas".',
+      'A fila de Pendências resolve na própria linha e assina vários termos de uma vez, com data única.',
+      'Pendência resolvida por engano pode ser reaberta com justificativa, pelo nível Administrador.',
+      'O histórico de Itens diz quem levou, quem lançou e o saldo depois de cada movimento.',
+    ],
+  },
+  {
+    versao: '1.32.0',
+    data: '2026-08-07',
+    fase: 'F27',
+    titulo: 'Sessão expirada devolve ao lugar certo e cada tela ganha nome próprio',
+    mudancas: [
+      'Depois de a sessão expirar, entrar de novo devolve para a tela e os filtros em que se estava.',
+      'Cada tela passou a ter nome próprio na aba do navegador, com o patrimônio na ficha do ativo.',
+      'Campo obrigatório em falta rola a tela até o aviso e coloca o foco nele, em vez de errar fora da vista.',
+      'A busca da lista de Ativos passou a achar também por service tag, hostname, telefone e IMEI.',
+      'O termo herda a data da movimentação retroativa, em vez de sugerir sempre a data de hoje.',
+      'Excluir item do catálogo passou a pedir confirmação.',
+    ],
+  },
+  {
+    versao: '1.31.0',
+    data: '2026-08-04',
+    fase: 'F26',
+    titulo: 'Troca de equipamento: devolução e entrega do novo numa tela só',
+    mudancas: [
+      'Com o motivo Troca/upgrade, a mesma tela abre a metade oposta: devolveu o antigo, já lança a saída do novo.',
+      'Um único "Registrar" grava a troca inteira, sem percorrer o fluxo duas vezes.',
+      'O colaborador vem preenchido quando todos os equipamentos devolvidos estão com a mesma pessoa.',
+      'Dá para deixar a outra metade para depois, com um atalho pronto na tela de sucesso.',
+      'Cada metade gera o documento certo: termo de responsabilidade de quem recebe, termo de devolução de quem devolveu.',
+    ],
+  },
+  {
+    versao: '1.30.0',
+    data: '2026-08-04',
+    fase: 'F25',
+    titulo: 'Celular com campos próprios, cidade certa no termo e filtro de filial por cargo',
+    mudancas: [
+      'Número, IMEI e Pulsus do celular viraram campos do ativo e já preenchem o termo, em vez de texto solto.',
+      'O termo passou a trazer a cidade da filial na linha da assinatura, e não mais sempre São José dos Pinhais.',
+      'O filtro de filial virou seleção múltipla em Ativos, Movimentações, Itens, Pendências e relatórios gerados.',
+      'Quem opera entra com as filiais em que escreve já marcadas; os demais cargos continuam vendo todas.',
+      'O catálogo de Itens abre na visão por filial, com o consolidado a um clique.',
+    ],
+  },
+  {
+    versao: '1.29.0',
+    data: '2026-07-30',
+    fase: 'F24',
+    titulo: 'Importação não trava mais por duplicidade entre filiais',
+    mudancas: [
+      'Linha cujo equipamento já existe em OUTRA filial deixou de bloquear a importação inteira: ela entra.',
+      'O par duplicado vira a pendência "conflito entre filiais", com uma mesa própria dentro de Pendências.',
+      'Na mesa, os dois cadastros aparecem lado a lado, com os campos diferentes realçados e o histórico de cada um.',
+      'De lá o nível Administrador apaga o cadastro errado — um, vários ou ambos —, com justificativa obrigatória.',
+      'A importação continua sem transferir equipamento de uma filial para outra.',
+    ],
+  },
+  {
+    versao: '1.28.0',
+    data: '2026-07-30',
+    fase: 'F23',
+    titulo: 'Zona destrutiva do cargo Desenvolvedor: apagar, resetar e forçar',
+    mudancas: [
+      'Só o cargo Desenvolvedor vê a nova Zona destrutiva, separada do resto para não ser clicada por engano.',
+      'Apagar ativo, movimentação ou item exige confirmação digitada e justificativa, e gera cópia de segurança.',
+      'O registro de auditoria é gravado junto com a exclusão: nunca fica uma exclusão sem rastro.',
+      'Corrigido um risco real: apagar "a última movimentação" podia escolher a errada quando duas eram do mesmo instante.',
+    ],
+  },
+  {
+    versao: '1.27.0',
+    data: '2026-07-30',
+    fase: 'F22',
+    titulo: 'Novo cargo Desenvolvedor, gestão de conta e área própria',
+    mudancas: [
+      'Nasceu um quarto cargo, acima de Administrador: o Desenvolvedor. Ninguém abaixo dele mexe em quem é Desenvolvedor.',
+      'Trocar o e-mail de login, encerrar as sessões de alguém e apagar uma conta deixaram de exigir o painel do provedor.',
+      'Apagar uma conta arquiva o perfil e preserva a história: movimentações, termos e eventos seguem mostrando quem fez.',
+      'Nova área Desenvolvedor, com diagnóstico do que está no ar, checagens de integridade e auditoria completa com exportação.',
+    ],
+  },
+  {
+    versao: '1.26.0',
+    data: '2026-07-29',
+    fase: 'F21',
+    titulo: 'Cargos, vínculo de filiais e controle de usuários',
+    mudancas: [
+      'Todo mundo que entrava podia tudo. Agora há três cargos: Consulta só lê, Operador registra, Administrador administra.',
+      'O Operador escreve apenas nas filiais vinculadas a ele; a leitura continua ampla para todos.',
+      'Dá para desativar um usuário em Administração, e o acesso cai no carregamento de tela seguinte.',
+      'Toda ação administrativa passou a ficar registrada numa trilha de auditoria.',
+    ],
+  },
+  {
+    versao: '1.25.0',
+    data: '2026-07-28',
+    fase: 'F20B',
+    titulo: 'Nome oficial do arquivo do termo e "Tentar novamente" que tenta',
+    mudancas: [
+      'O termo baixa como "tipo - patrimônio - colaborador", com acentos e espaços preservados.',
+      'Termos gerados antes da mudança também baixam com o nome novo, sem precisar gerar de novo.',
+      'O botão "Tentar novamente" das telas com erro voltou a refazer a leitura, em vez de não fazer nada.',
+    ],
+  },
+  {
+    versao: '1.24.3',
+    data: '2026-07-25',
+    titulo: 'Revisão interna encontra e corrige falhas silenciosas',
+    mudancas: [
+      'A lista de Ativos podia repetir ou pular linhas ao virar de página; a ordem ficou estável.',
+      'Um filtro de Pendências prometia um grupo que a aba não mostrava; os dois lados foram alinhados.',
+      'Quatro casos em que um erro passava em silêncio e a tela mostrava informação errada foram corrigidos.',
+    ],
+  },
+  {
+    versao: '1.24.2',
+    data: '2026-07-25',
+    titulo: 'Ajustes internos de segurança e de data',
+    mudancas: [
+      'A data "desde" da fila de Pendências aparecia um dia atrasada em algumas linhas; foi corrigida.',
+      'Nenhum número de produção mudou: mesma quantidade de ativos e movimentações antes e depois.',
+    ],
+  },
+  {
+    versao: '1.24.1',
+    data: '2026-07-25',
+    titulo: 'Relatório deixa de ficar minutos tentando carregar',
+    mudancas: [
+      'O relatório por filial podia ficar até cinco minutos tentando carregar; agora desiste rápido e mostra o erro.',
+      'O ambiente de ensaio estava menos restrito que o de produção; os dois foram alinhados.',
+    ],
+  },
+  {
+    versao: '1.24.0',
+    data: '2026-07-24',
+    fase: 'F20',
+    titulo: 'A ajuda virou a documentação do operador',
+    mudancas: [
+      'A Ajuda deixou de ser uma página única e virou 33 páginas organizadas por intenção.',
+      'Ganhou busca no índice, grupo próprio na busca global e um manual completo para imprimir.',
+      'O "?" de cada tela passou a abrir a página daquela tela, em 16 telas.',
+      'Endereços de ajuda salvos antes da mudança continuam levando ao lugar certo.',
+    ],
+  },
+  {
+    versao: '1.23.1',
+    data: '2026-07-24',
+    titulo: 'Quem aceita o convite informa o próprio nome',
+    mudancas: [
+      'Ao aceitar o convite, a pessoa informa nome e sobrenome junto com a senha, em vez de aparecer só pelo e-mail.',
+      'Quem já tinha nome cadastrado não teve nada alterado.',
+    ],
+  },
+  {
+    versao: '1.23.0',
+    data: '2026-07-24',
+    fase: 'F19-UX',
+    titulo: 'Modo escuro opcional e correções de acessibilidade',
+    mudancas: [
+      'Novo modo escuro, desligado por padrão: escolha Claro, Escuro ou Sistema no menu do usuário.',
+      'A impressão do relatório sai sempre no modo claro, mesmo com o modo escuro ligado na tela.',
+      'Telas que não avisavam quando algo dava errado ao salvar passaram a mostrar o aviso.',
+      'O botão "Voltar para ativos", na ficha, passou a preservar os filtros da lista.',
+    ],
+  },
+  {
+    versao: '1.22.0',
+    data: '2026-07-24',
+    fase: 'F19',
+    titulo: 'Auditoria das regras do sistema corrige dois erros de estoque',
+    mudancas: [
+      'Auditoria regra a regra comparou o que estava especificado com o que o sistema faz: 209 regras conferidas.',
+      'Corrigido um erro em que o relatório de período passado podia mostrar como "em estoque" quem não estava.',
+      'Fechada uma brecha de baixo risco no cadastro de compra em lote.',
+    ],
+  },
+  {
+    versao: '1.21.0',
+    data: '2026-07-24',
+    fase: 'F18',
+    titulo: 'Item faltante na devolução vira pendência com vida própria',
+    mudancas: [
+      'Item que não voltou na devolução virou pendência própria, presa à devolução e ao colaborador da época.',
+      'O equipamento circula livre: se sair para outra pessoa, a pendência continua apontando quem devia.',
+      'A pendência se encerra por "Item recuperado" ou "Baixa — não vai voltar", uma a uma ou em lote.',
+      'A resolvida sai da fila e continua visível na ficha, com quem resolveu e quando.',
+    ],
+  },
+  {
+    versao: '1.20.1',
+    data: '2026-07-24',
+    titulo: 'Equipamento importado não é mais cobrado por termo pendente',
+    mudancas: [
+      'Equipamento que entrou pela importação inicial deixou de aparecer como termo pendente na fila e no relatório.',
+      'O cadastro manual continua exigindo o termo normalmente, e ainda dá para gerar o termo de um importado.',
+    ],
+  },
+  {
+    versao: '1.20.0',
+    data: '2026-07-24',
+    fase: 'F17',
+    titulo: 'Relatório que se explica sozinho',
+    mudancas: [
+      'Setas, cores e selos ganharam legenda na própria tela, no relatório ao vivo e nos congelados.',
+      'A legenda de manutenção diz o que cada cor significa: em andamento, parado, retornou ou devolvido ao fornecedor.',
+      'Linhas estornadas ganharam a nota de que a contagem continua incluindo a movimentação original.',
+      'Nova seção recolhível "Como ler este relatório", com o glossário dos indicadores.',
+    ],
+  },
+  {
+    versao: '1.19.0',
+    data: '2026-07-23',
+    fase: 'F16',
+    titulo: 'Relatório mais fácil de ler e de navegar',
+    mudancas: [
+      'Movimentações estornadas aparecem esmaecidas nas tabelas, sem mudar nenhuma contagem.',
+      'A variação dos indicadores ganhou cor com sentido: verde melhora, vermelho piora, cinza neutro.',
+      'Cada tabela ganhou busca livre, e o patrimônio virou link direto para a ficha.',
+      'Os indicadores do topo viraram atalho para a lista de Ativos já filtrada.',
+      'No celular, uma setinha por linha abre os campos que a tabela esconde.',
+      'Manutenção parada há 30 dias ou mais passou a aparecer em vermelho, com contagem em Pendências.',
+    ],
+  },
+  {
+    versao: '1.18.0',
+    data: '2026-07-23',
+    fase: 'F15',
+    titulo: 'Correções do primeiro uso real da devolução ao fornecedor',
+    mudancas: [
+      'O cadastro manual de equipamento passou a exigir a service tag em todas as categorias.',
+      'A ficha ganhou "Definir service tag" para preencher quando ela veio vazia da importação.',
+      'O painel de sucesso da devolução ao fornecedor parou de sumir logo depois de registrar.',
+      'O equipamento que substitui outro aparece como "Troca", e nunca mais como "Compra".',
+    ],
+  },
+  {
+    versao: '1.17.0',
+    data: '2026-07-23',
+    fase: 'F14',
+    titulo: 'Manutenção com fornecedor: chamado, devolução e substituto',
+    mudancas: [
+      'Enviar para manutenção passou a exigir o número do chamado do fornecedor.',
+      'Nasceu a situação "Devolvido ao fornecedor", para quando o equipamento não volta consertado.',
+      'A devolução ao fornecedor e o cadastro do substituto acontecem num único registrar.',
+      'A ficha do novo mostra o histórico do que ele substituiu, e a do antigo aponta para o sucessor.',
+    ],
+  },
+  {
+    versao: '1.16.0',
+    data: '2026-07-23',
+    fase: 'F13',
+    titulo: 'Correção da falha que impedia o sistema de gravar',
+    mudancas: [
+      'Uma falha grave deixou o sistema sem gravar nada por algumas horas: movimentação, cadastro, administração e importação.',
+      'A causa foi corrigida, e duas checagens automáticas novas impedem que o mesmo defeito volte sem ser notado.',
+      'O "?" das telas voltou a abrir a ajuda na seção certa, em vez de parar no topo.',
+      'As listas e o relatório deixaram de rolar para o lado no celular.',
+      'Corrigida uma falha de segurança: a tela de definir senha podia, em caso raro, levar a senha para o endereço da página.',
+    ],
+  },
+  {
+    versao: '1.15.0',
+    data: '2026-07-23',
+    fase: 'F12',
+    titulo: 'Estoque mínimo, kits de movimentação e a auditoria do que foi ao ar sem conferência',
+    mudancas: [
+      'O catálogo de itens ganhou o campo Estoque mínimo, com o selo "repor" quando o total cai abaixo dele.',
+      'Novo card "Itens para repor" na tela inicial, com os mais urgentes primeiro.',
+      'Administração ganhou a tela de Kits: "Aplicar kit" preenche de uma vez os quatro campos da movimentação.',
+      'Corrigido: a fila de Pendências caía ao receber um número de página fora da faixa.',
+      'Corrigido: a busca de Movimentações não achava patrimônio fora do formato padrão.',
+    ],
+  },
+  {
+    versao: '1.14.0',
+    data: '2026-07-22',
+    fase: 'F11',
+    titulo: 'Busca global, lista de Movimentações e tabelas decentes',
+    mudancas: [
+      'Nasceu a tela Movimentações, com o histórico inteiro, filtros de período, tipo e filial, e busca.',
+      'Busca global pelo Ctrl+K ou pela lupa do topo, achando por patrimônio, service tag, hostname, marca ou colaborador.',
+      'A tecla "?" abre a ajuda, e o ícone de cada tela já leva à seção certa.',
+      'A lista de Ativos ganhou ordenação por coluna e escolha de 25, 50 ou 100 por página.',
+      'Itens ganhou a visão "Por filial", com o saldo de cada filial lado a lado.',
+      'Os filtros das tabelas do relatório passaram a viajar no link.',
+    ],
+  },
+  {
+    versao: '1.13.0',
+    data: '2026-07-22',
+    fase: 'F10',
+    titulo: 'Operação em massa: colar a lista, sugestões e rascunho salvo',
+    mudancas: [
+      'Dá para colar ou bipar a lista inteira de patrimônios de uma vez, em vez de buscar equipamento por equipamento.',
+      'O lote cresceu de 10 para 30 ativos, então 15 monitores não exigem mais duas rodadas.',
+      'Sair da tela no meio do preenchimento parou de perder o lote: dá para restaurar o rascunho ao voltar.',
+      'Aviso âmbar quando o mesmo equipamento já teve saída no dia, sem travar o registro.',
+      'Marca, Modelo e Fornecedor sugerem o que já existe, e dá para repetir a última compra ou comprar outro igual.',
+      'Ativos, Pendências e Itens ganharam exportação em CSV respeitando os filtros da tela.',
+    ],
+  },
+  {
+    versao: '1.12.1',
+    data: '2026-07-22',
+    titulo: 'Login liberado para os e-mails da Stefanini',
+    mudancas: [
+      'Contas @stefanini.com e @latam.stefanini.com passaram a poder entrar no sistema.',
+      'O acesso é o mesmo de quem usa @wap.ind.br.',
+    ],
+  },
+  {
+    versao: '1.12.0',
+    data: '2026-07-22',
+    fase: 'F9',
+    titulo: 'Facilidades do dia a dia: buscar por nome, colar do Excel e contadores',
+    mudancas: [
+      'A busca da movimentação passou a achar o equipamento também pelo nome do colaborador.',
+      'Colar a lista da compra aceita colunas separadas por tabulação ou ponto e vírgula, e não só por vírgula.',
+      'A conferência da compra avisa na hora quando duas linhas repetem patrimônio ou service tag.',
+      'Atalhos Hoje e Ontem nos campos de data, e memória da última filial e categoria usadas.',
+      'O menu lateral passou a mostrar a quantidade de pendências, e os cards da tela inicial levam à lista já filtrada.',
+      'Copiar o patrimônio da ficha ou da lista virou um clique.',
+    ],
+  },
+  {
+    versao: '1.11.1',
+    data: '2026-07-21',
+    titulo: 'Manutenção interna de segurança, qualidade e documentação',
+    mudancas: [
+      'Revisão de segurança fechou acessos a dados internos que estavam mais abertos do que deveriam.',
+      'Passou a existir uma conferência automática do banco de dados a cada mudança do sistema.',
+      'Nenhuma tela do dia a dia mudou.',
+    ],
+  },
+  {
+    versao: '1.11.0',
+    data: '2026-07-20',
+    fase: 'F7K',
+    titulo: 'Modelo que repetia a marca aparece certo em toda tela',
+    mudancas: [
+      'Modelo que já trazia a marca junto (marca HP, modelo "HP Pro SFF 280 G9") deixou de virar "HP HP…" no rótulo.',
+      'A correção acontece na importação, então todas as telas passam a mostrar o nome certo.',
+    ],
+  },
+  {
+    versao: '1.10.0',
+    data: '2026-07-20',
+    fase: 'F7J',
+    titulo: 'Importação: patrimônio curto, patrimônio forçado e "Sem patrimônio"',
+    mudancas: [
+      'O nome do computador passou a completar também o patrimônio com menos dígitos, para os prefixos conhecidos.',
+      'Valor fora do padrão pode ser forçado e entra como patrimônio de verdade, ainda que não canônico.',
+      'O botão "Sem patrimônio" limpa o campo e manda o equipamento para a fila de pendências.',
+    ],
+  },
+  {
+    versao: '1.9.1',
+    data: '2026-07-20',
+    titulo: 'Importação completa o patrimônio pelo nome do computador, sozinha',
+    mudancas: [
+      'O preenchimento do patrimônio pelo nome do computador virou correção automática, sem virar aviso a resolver.',
+      'Passou a valer também quando o patrimônio da planilha está fora do formato, e o valor original fica registrado.',
+      'Toda forma escrita de "não tem plaqueta" importa vazio e vira pendência, em vez de travar a linha.',
+    ],
+  },
+  {
+    versao: '1.9.0',
+    data: '2026-07-20',
+    fase: 'F8',
+    titulo: 'Compra de abertura da importação volta a ser só ponto de partida',
+    mudancas: [
+      'A compra que a importação cria para abrir a história do equipamento voltou a ficar fora das Entradas do período.',
+      'A data real da entrega continua na ficha e na linha do tempo — o que mudou foi só a contagem do relatório.',
+      'Isso desfaz a mudança da versão anterior, que tinha inflado as Entradas com a carga inicial.',
+    ],
+  },
+  {
+    versao: '1.8.0',
+    data: '2026-07-20',
+    fase: 'F7H',
+    titulo: 'Compra da importação com data real passa a contar como Entrada',
+    mudancas: [
+      'A compra criada pela importação passou a entrar nas Entradas do relatório quando tinha data real de entrega.',
+      'A mudança durou horas: a versão seguinte a desfez, porque a carga inicial inflava as Entradas do período.',
+    ],
+  },
+  {
+    versao: '1.7.0',
+    data: '2026-07-20',
+    fase: 'F7G',
+    titulo: 'Importação lê a planilha do Excel direto',
+    mudancas: [
+      'A tela de importação passou a ler o arquivo do Excel original, sem exigir conversão para CSV.',
+      'Cerca de 355 datas da Matriz que se perdiam na conversão voltaram a chegar corretas.',
+    ],
+  },
+  {
+    versao: '1.6.0',
+    data: '2026-07-17',
+    fase: 'F7F',
+    titulo: 'Importação com erro em português e correção em massa mais esperta',
+    mudancas: [
+      'O erro do "Substituir tudo" passou a ser explicado em português, e não por um código técnico.',
+      'Patrimônio ausente passou a ser completado pelo nome do computador, com aviso âmbar conferível.',
+      '"Aplicar tudo" passou a incluir também os grupos só parcialmente corrigidos.',
+      'Aviso deixou de ser mostrado como erro: ganhou cor âmbar própria, distinta do vermelho.',
+    ],
+  },
+  {
+    versao: '1.5.0',
+    data: '2026-07-17',
+    fase: 'F7E',
+    titulo: 'Importação: data no formato dia/mês e patrimônio vazio sem travar',
+    mudancas: [
+      'Data de entrega escrita como dia/mês passou a assumir o ano certo e a datar o acerto de estoque.',
+      'Patrimônio vazio deixou de travar a linha: o equipamento entra e vira a pendência "sem patrimônio físico".',
+      'Erros do mesmo tipo passaram a aparecer num card só, com sugestão de correção em um clique.',
+    ],
+  },
+  {
+    versao: '1.4.0',
+    data: '2026-07-17',
+    fase: 'F7B',
+    titulo: 'Erros da importação se corrigem na tela, e não na planilha',
+    mudancas: [
+      'Erros e avisos passaram a ser corrigidos na própria conferência, antes de importar.',
+      'Valores iguais se corrigem em massa, com sugestão de qual é o valor certo.',
+      'Toda correção pode ser desfeita, e o arquivo original nunca é alterado.',
+    ],
+  },
+  {
+    versao: '1.3.0',
+    data: '2026-07-16',
+    fase: 'F7',
+    titulo: 'Nasce a importação da planilha inicial de uma filial',
+    mudancas: [
+      'Nova tela para carregar de uma vez a planilha inicial de uma filial inteira.',
+      'A importação mostra antes o que vai acontecer, faz cópia de segurança e pede o nome da filial como confirmação.',
+      'É só para abrir uma filial nova no sistema: a entrada do dia a dia continua sendo manual.',
+    ],
+  },
+  {
+    versao: '1.2.0',
+    data: '2026-07-16',
+    fase: 'F6B',
+    titulo: 'Melhorias de uso logo depois do go-live',
+    mudancas: [
+      'As telas passaram a mostrar barra de progresso e esqueleto enquanto carregam.',
+      'A semana do relatório passou a começar no domingo, e o relatório congelado ganhou campo de observação.',
+      'Dá para confirmar ou desfazer a assinatura de um termo, e corrigir o patrimônio depois do cadastro.',
+      'A sessão passou a durar 24 horas, e nasceu a página de Ajuda.',
+    ],
+  },
+  {
+    versao: '1.1.0',
+    data: '2026-07-16',
+    fase: 'F6A',
+    titulo: 'Correções da primeira semana em produção',
+    mudancas: [
+      'A carga inicial deixou de aparecer misturada nas Entradas do relatório do período.',
+      'Itens ganhou a distinção entre Total e Estoque, que estavam sendo somados como a mesma coisa.',
+      'Nasceu a tela de Pendências, e as pendências passaram a aparecer só para quem opera.',
+    ],
+  },
+  {
+    versao: '1.0.0',
+    data: '2026-07-15',
+    fase: 'F4',
+    titulo: 'Go-live: os dados reais das cinco filiais entram no sistema',
+    mudancas: [
+      'Os dados reais das cinco filiais entraram no sistema: 1.596 ativos e 3.231 movimentações, conferidos contra a planilha.',
+      'A partir desta data as planilhas antigas viraram consulta, e todo registro novo passou a ser feito aqui.',
+    ],
+  },
+  {
+    versao: '0.6.0',
+    data: '2026-07-14',
+    fase: 'F5A',
+    titulo: 'O sistema passa a gerar os termos',
+    mudancas: [
+      'Os sete modelos de termo (cinco de responsabilidade e dois de devolução) passaram a ser gerados pelo sistema.',
+      'O arquivo sai fiel ao modelo antigo, com prévia na tela antes de baixar.',
+    ],
+  },
+  {
+    versao: '0.5.0',
+    data: '2026-07-14',
+    fase: 'F3B',
+    titulo: 'Relatório no formato do e-mail e itens por quantidade',
+    mudancas: [
+      'O relatório ganhou o formato do e-mail semanal, com os três grupos e as tabelas de saídas, entradas e transferências.',
+      'Nasceu a tela de Itens, com saldo, o que está atrelado a cada equipamento e o que está faltando.',
+      'A linha do tempo do ativo passou a aceitar anotações.',
+    ],
+  },
+  {
+    versao: '0.4.0',
+    data: '2026-07-13',
+    fase: 'F3',
+    titulo: 'Relatórios por filial, acesso por senha e administração',
+    mudancas: [
+      'Nasceu o relatório ao vivo por filial e o consolidado, com indicadores, gráficos e resumo no formato do e-mail.',
+      'Nasceu o relatório congelado da semana, guardado com versão própria.',
+      'Quem só precisa ver o relatório passou a entrar por senha, sem conta no sistema.',
+      'Administração ganhou convites, senhas de acesso, filiais e motivos, mais exportação e impressão.',
+    ],
+  },
+  {
+    versao: '0.3.0',
+    data: '2026-07-13',
+    fase: 'F2',
+    titulo: 'A operação: lista, ficha, movimentação em lote e estorno',
+    mudancas: [
+      'Nasceu a lista de Ativos com busca e filtros, e a ficha com a linha do tempo do equipamento.',
+      'Nasceu a nova movimentação, já em lote, com as regras de situação validadas na hora.',
+      'Dá para estornar a última movimentação e cadastrar equipamento novo pela compra, inclusive em série.',
+      'Primeiros atalhos contra a planilha: tecla N, repetir a última e duplicar da linha do tempo.',
+    ],
+  },
+  {
+    versao: '0.2.0',
+    data: '2026-07-10',
+    fase: 'F1',
+    titulo: 'O banco de dados do sistema, com dados fictícios',
+    mudancas: [
+      'A estrutura de dados do sistema foi criada, com as regras de situação do equipamento junto dela.',
+      'O ambiente de desenvolvimento passou a rodar com dados 100% fictícios, sem nenhum dado real da WAP.',
+    ],
+  },
+  {
+    versao: '0.1.0',
+    data: '2026-07-10',
+    fase: 'F0',
+    titulo: 'Fundação: o sistema no ar, com login por convite',
+    mudancas: [
+      'O sistema nasceu e foi publicado, com o login por convite restrito ao e-mail corporativo.',
+      'Ficaram de pé as telas iniciais e a sessão de quem entra.',
+    ],
+  },
+]
+
+/** A versao no ar. E sempre a primeira do registry — ha teste que trava isso. */
+export function versaoAtual(): EntradaVersao {
+  return VERSOES[0]
+}
+
+/** `1.40.0` -> `[1, 40, 0]`. Base do comparador (semver nao se compara como texto). */
+export function partesSemver(versao: string): [number, number, number] {
+  const [maior = 0, menor = 0, correcao = 0] = versao.split('.').map(Number)
+  return [maior, menor, correcao]
+}
+
+/** Negativo se `a` vem antes de `b`; zero se iguais; positivo se depois. */
+export function compararSemver(a: string, b: string): number {
+  const pa = partesSemver(a)
+  const pb = partesSemver(b)
+  for (let i = 0; i < 3; i += 1) {
+    if (pa[i] !== pb[i]) return pa[i] - pb[i]
+  }
+  return 0
+}

@@ -6,6 +6,48 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 12/08/2026 — O sistema passa a ter versão, e a contar o que mudou (F35) ✅
+
+- 🔢 **O `0.1.0` do scaffold virou história de verdade.** O sistema estava em produção desde
+  15/07/2026, com ~35 fases entregues, e o `package.json` ainda marcava a versão do primeiro dia —
+  não havia como dizer "isso saiu na versão X". O `CHANGELOG` inteiro foi mapeado para um esquema
+  semver: **fase = minor, entrega avulsa = patch, go-live = `1.0.0`**, fases pré-go-live em `0.x`.
+  São **56 versões**, de `0.1.0` (10/07) a **`1.40.0`** (esta). O `1.29.0` que a ordem chutava caiu
+  na F24 — a conta foi feita, não estimada.
+- 🗂️ **A fonte única é um registry em TypeScript** (`src/lib/versoes/`), no molde da documentação da
+  F20: uma lista ordenada alimenta a página, o badge da sidebar e os testes. `VERSOES[0]` **é** a
+  versão atual, e um teste recusa qualquer divergência com o `package.json`.
+- 🗣️ **As mudanças são traduzidas, não copiadas.** Este `CHANGELOG` é narrativa de quem
+  desenvolve; a página fala com quem opera ("A devolução volta direto para o estoque"), com os
+  rótulos reais das telas. Um guarda de vocabulário recusa 21 termos de desenvolvedor dentro do
+  registry, e fase invisível ao usuário (auditoria, desempenho) ganha 2 a 3 frases honestas em vez
+  de silêncio.
+- 🧭 **Tela nova `/versoes`**, lida por qualquer perfil ativo, sem nenhuma consulta ao banco: a
+  linha do tempo inteira, mais recente primeiro, a atual destacada, cada bloco com `v<versão>`,
+  data `dd/MM/yyyy`, a fase em texto miúdo e o que mudou. Sem item novo na sidebar — chega-se por
+  **`v1.40.0` no pé do menu**, pelo `Ctrl+K` e pela **35ª página de ajuda**.
+- 🎛️ **O badge não escreveu uma linha de CSS.** O recolhido da F30 é atributo no `<html>` com
+  seletores que um teste obriga a estarem ancorados em `[data-sidebar-lateral]`; o rodapé novo
+  **reusa os ganchos existentes** (`data-sidebar-item`, `data-sidebar-rotulo`) e, recolhido, some
+  virando dica no ícone. Os testes de colapso e o selo de pendências continuam verdes **sem uma
+  edição sequer**.
+- ✍️ **Crédito de autoria em três pontos, e só três** — rodapé do login, pé da sidebar e rodapé de
+  `/versoes` —, sempre pelo mesmo componente, em texto pequeno com token existente, abrindo
+  `vmatusita.com.br` em aba nova. **Nada em `/relatorios/**`** (decisão do Johnny) e **nenhum
+  recurso externo**: sem logo, sem imagem, sem fonte, sem script.
+- 🔁 **Virou processo, não evento.** O item 7 do [`CLAUDE.md`](CLAUDE.md) passa a exigir, ao fim de
+  toda ordem com mudança visível: bump de minor, entrada nova no registry **em linguagem de
+  operador** e tag `v<versão>`. Um teste lê este arquivo e **derruba o `npm run test`** se uma
+  entrega nova ficar sem versão — a regra não depende de alguém lembrar.
+- 🏷️ **Primeira tag do repositório:** `v1.40.0`. As anteriores não foram criadas retroativamente
+  (decisão registrada) — a história vive no registry e neste arquivo.
+- 🚫 **Zero migration, zero dependência nova** (`git diff supabase/` vazio; no `package.json` só o
+  campo `version` mudou), nenhuma contagem de relatório alterada, visualizador por senha intocado.
+  Decisões em [`docs/DECISOES.md`](docs/DECISOES.md); evidências, a tabela fase→versão inteira e "o
+  que este relatório NÃO prova" em [`docs/RELATORIO-F35.md`](docs/RELATORIO-F35.md).
+
+---
+
 ## 11/08/2026 — Revisão de código do intervalo F32→F34: 10 achados aplicados ✅
 
 Revisão adversarial (xhigh) do intervalo `257d2bb..d45e1de` — CI, **F33** (performance) e **F34**
