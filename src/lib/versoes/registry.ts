@@ -258,7 +258,7 @@ export const VERSOES: readonly EntradaVersao[] = [
     titulo: 'Relatório deixa de ficar minutos tentando carregar',
     mudancas: [
       'O relatório por filial podia ficar até cinco minutos tentando carregar; agora desiste rápido e mostra o erro.',
-      'O ambiente de ensaio estava menos restrito que o de produção; os dois foram alinhados.',
+      'A cópia do sistema usada para testar estava com permissões mais abertas que a que a equipe usa; as duas foram alinhadas.',
     ],
   },
   {
@@ -298,7 +298,7 @@ export const VERSOES: readonly EntradaVersao[] = [
     versao: '1.22.0',
     data: '2026-07-24',
     fase: 'F19',
-    titulo: 'Auditoria das regras do sistema corrige dois erros de estoque',
+    titulo: 'Auditoria das regras do sistema corrige um erro de estoque e fecha uma brecha',
     mudancas: [
       'Auditoria regra a regra comparou o que estava especificado com o que o sistema faz: 209 regras conferidas.',
       'Corrigido um erro em que o relatório de período passado podia mostrar como "em estoque" quem não estava.',

@@ -35,8 +35,9 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
   `/versoes` —, sempre pelo mesmo componente, em texto pequeno com token existente, abrindo
   `vmatusita.com.br` em aba nova. **Nada em `/relatorios/**`** (decisão do Johnny) e **nenhum
   recurso externo**: sem logo, sem imagem, sem fonte, sem script.
-- 🔁 **Virou processo, não evento.** O item 7 do [`CLAUDE.md`](CLAUDE.md) passa a exigir, ao fim de
-  toda ordem com mudança visível: bump de minor, entrada nova no registry **em linguagem de
+- 🔁 **Virou processo, não evento.** O item **8** do [`CLAUDE.md`](CLAUDE.md) passa a exigir, para
+  **toda entrada nova neste arquivo** — esse é o gatilho, e não "achar que a mudança é visível":
+  bump (minor se for fase, patch se for entrega avulsa), entrada nova no registry **em linguagem de
   operador** e tag `v<versão>`. Um teste lê este arquivo e **derruba o `npm run test`** se uma
   entrega nova ficar sem versão — a regra não depende de alguém lembrar.
 - 🏷️ **Primeira tag do repositório:** `v1.40.0`. As anteriores não foram criadas retroativamente

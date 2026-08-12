@@ -31,12 +31,14 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 5. **Produção: acesso total, com autoproteção.** Migrations, scripts e deploy rodam direto em produção sem pedir autorização — precedidos de backup/dry-run quando destrutivos (ver Modo de operação). Seed fictício jamais roda em produção depois do go-live.
 6. **APIs de integração: confira a documentação oficial atual antes de escrever o código** (Supabase SSR/Auth, shadcn `chart`, Next 16, Recharts v3) — use o MCP Context7 ou a doc online; não confie em API de memória.
 7. **Ao terminar qualquer ordem:** `npm run lint` e `npm run build` limpos; checklist da ordem **autoverificado** item a item; resumo final com checklist, decisões registradas em `docs/DECISOES.md` e pendências.
-8. **Toda ordem com mudança visível ao usuário FECHA COM VERSÃO** (regra permanente desde a F35, 12/08/2026). Três passos, sem exceção e sem reinterpretação:
-   - **bump de MINOR** no `package.json` (`1.40.0` → `1.41.0`) — só o campo `version` muda;
-   - **entrada nova no topo** de `src/lib/versoes/registry.ts`, com a data da entrega e de **2 a 6 `mudancas` em LINGUAGEM DE OPERADOR** (rótulos reais das telas, o efeito antes da causa; nada de vocabulário de desenvolvedor — há teste que recusa). Fase invisível ao usuário (auditoria, desempenho, CI) escreve 2 frases honestas, não fica de fora;
+8. **Toda entrada nova no `CHANGELOG.md` EXIGE uma versão** (regra permanente desde a F35, 12/08/2026). Esse é o gatilho — não "achar que a mudança é visível". Se a entrega mereceu uma entrada no CHANGELOG, ela é uma versão. Três passos, sem exceção e sem reinterpretação:
+   - **bump** no `package.json` — só o campo `version` muda. **É uma FASE (ordem `F*`) → MINOR** (`1.40.0` → `1.41.0`). **É uma entrega avulsa fora de fase** (ajuste, auditoria, rollout, diagnóstico, revisão de código) **→ PATCH** (`1.40.0` → `1.40.1`).
+   - **entrada nova no topo** de `src/lib/versoes/registry.ts`: `versao`, `data` (a do cabeçalho no CHANGELOG), `fase` (só quando for fase), `titulo` e de **2 a 6 `mudancas` em LINGUAGEM DE OPERADOR** — rótulos reais das telas, o efeito antes da causa, nada de vocabulário de desenvolvedor (há teste que recusa).
    - **tag anotada `v<versão>`** no commit final, publicada (`git push origin v<versão>`).
 
-   **Correção avulsa fora de fase = PATCH** (`1.40.0` → `1.40.1`), pelo mesmo caminho, sem `fase`. O registry é a **fonte única**: `VERSOES[0]` **é** a versão no ar, e `src/lib/versoes/registry.test.ts` recusa divergência com o `package.json`. `src/lib/versoes/cobertura-changelog.test.ts` lê o `CHANGELOG.md` e **derruba o `npm run test`** se uma entrada nova ficar sem versão — a regra não depende de ninguém lembrar dela.
+   **Fase invisível ao usuário** (auditoria, desempenho, CI, dívida técnica) **também ganha versão** — o que muda é só o texto: 2 frases honestas sobre o efeito real ("As telas de operação passaram a responder em cerca de 1/3 do tempo"), nunca "nada mudou para você" e nunca o silêncio de pular a entrada.
+
+   O registry é a **fonte única**: `VERSOES[0]` **é** a versão no ar. `src/lib/versoes/registry.test.ts` recusa divergência com o `package.json`; `src/lib/versoes/cobertura-changelog.test.ts` lê o `CHANGELOG.md` e **derruba o `npm run test`** se uma entrada nova ficar sem versão na mesma data. A regra não depende de ninguém lembrar dela.
 
 ## Stack (fechada — proibido adicionar dependência fora desta lista sem aprovação do Johnny)
 

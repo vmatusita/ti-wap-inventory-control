@@ -38,14 +38,13 @@ export const versoesDoSistema: PaginaAjuda = {
     { tipo: 'titulo', id: 'versoes-como-ler', texto: 'Como ler o número' },
     {
       tipo: 'paragrafo',
-      texto:
-        'O número tem três partes, separadas por ponto — por exemplo, 1.40.0. A do meio sobe a cada entrega planejada, com recursos ou melhorias; a última sobe em correções e ajustes avulsos entre uma entrega e outra. A primeira parte virou 1 no dia em que os dados reais das cinco filiais entraram no sistema, em 15/07/2026.',
+      texto: `O número tem três partes, separadas por ponto — por exemplo, ${versaoAtual().versao}. A do meio sobe a cada entrega planejada, com recursos ou melhorias; a última sobe em correções e ajustes avulsos entre uma entrega e outra. A primeira parte virou 1 no dia em que os dados reais das cinco filiais entraram no sistema, em 15/07/2026.`,
     },
     {
       tipo: 'tabela',
       colunas: ['O que aparece', 'O que significa'],
       linhas: [
-        ['v1.40.0', 'o número da versão; a primeira da lista é a que está no ar'],
+        [`v${versaoAtual().versao}`, 'o número da versão; a primeira da lista é a que está no ar'],
         ['A data ao lado', 'o dia em que aquela versão entrou no ar'],
         ['O código miúdo (F34, F20B…)', 'o nome interno da entrega, para cruzar com a documentação do projeto'],
         ['A lista de tópicos', 'o que mudou para quem usa o sistema, em português comum'],
