@@ -143,7 +143,7 @@ sido escrita.
 | 6 | Guardas de ajuda, paleta, título de aba e smoke verdes com a rota nova | ✅ | `npx vitest run src/lib/ajuda` → 13 arquivos, 435 testes |
 | 7 | `git diff supabase/` vazio; no `package.json` só `version`; nenhuma tela/contagem de relatório mudou; visualizador byte a byte | ✅ | §6 abaixo |
 | 8 | `CLAUDE.md` com a regra permanente e a árvore atualizada; emendas de documentação | ✅ | item **8** novo; árvore com `versoes/`, `lib/versoes/`, `rodape-sidebar`/`credito-autor`; spec §6 item 7; CHANGELOG, README, índice de ordens, DECISOES |
-| 9 | `lint`/`test`/`build` limpos; CI verde; deploy READY; smoke pós-deploy; tag publicada | ⏳/✅ | §8 (rollout) |
+| 9 | `lint`/`test`/`build` limpos; CI verde; deploy READY; smoke pós-deploy; tag publicada | ✅ | §8 — CI run 31624421818 (`verificar` **e** `banco` success), deploy `a5e2ca7` READY, smoke **96 OK · 0 falha** com `/versoes` 200, tag `v1.40.0` publicada |
 | 10 | Relatório com checklist autoverificado e evidências reais | ✅ | este arquivo |
 
 ## 5. Decisões registradas (`docs/DECISOES.md`, 2026-08-12 · F35)
@@ -208,11 +208,54 @@ outra rota cai no `redirect('/login')` do fim da função.
 **Um defeito real, corrigido:** o link do badge tinha `aria-label="Versão 1.40.0 do sistema — ver o
 que mudou"` enquanto o texto visível é `v1.40.0`. O texto visível **não era substring** do nome
 acessível — falha de **WCAG 2.5.3 (Label in Name)**: quem comanda por voz dizendo "clicar v1.40.0"
-não acertaria o alvo. O rótulo passou a começar pelo texto visível.
+não acertaria o alvo. O rótulo passou a começar pelo texto visível. **Nenhum teste pegaria isso** —
+é o tipo de defeito que só aparece lendo a árvore de acessibilidade da página rodando.
 
-## 8. Rollout (§R)
+### 7.2 Revisão adversarial (contexto fresco) — 6 lentes, 3 céticos por achado
 
-_(preenchido ao fim da execução — ver §9)_
+`mapeamento` · `lingua-operador` · `sidebar-colapso` · `escopo-e-vazamento` · `guardas-e-processo` ·
+`codigo-e-render`. **7 achados brutos**, cada um julgado por 3 céticos independentes (ângulos
+*correção*, *requisito*, *reprodução*), refutação por padrão. **Três lentes voltaram limpas**
+(mapeamento, colapso da sidebar, escopo/vazamento).
+
+Os sete, e o que foi feito com cada um:
+
+| # | Achado | Desfecho |
+|---|---|---|
+| 1 | O item 8 do `CLAUDE.md` se contradizia: abria com "toda ordem com mudança **visível**" e fechava dizendo que fase invisível também entra | **Corrigido.** O gatilho passou a ser objetivo — **toda entrada nova no `CHANGELOG.md`** —, com minor/patch explicitados e o caso "invisível ao usuário" resolvido no texto, não na elegibilidade |
+| 2 | A página de ajuda prometia versão derivada do registry, mas tinha `1.40.0` **digitado** em dois pontos (o parágrafo e a tabela) — envelheceria no próximo bump | **Corrigido.** Os dois passaram a ler `versaoAtual()`; agora o comentário do arquivo é verdade |
+| 3 | O `CHANGELOG` dizia que a regra virou "item 7" do `CLAUDE.md`; virou o **item 8** | **Corrigido** |
+| 4 | O título da `1.22.0` dizia "corrige **dois erros de estoque**" — só um era de estoque; o outro era brecha de acesso | **Corrigido:** "corrige um erro de estoque e fecha uma brecha" |
+| 5 | A `1.24.1` dizia "ambiente de **ensaio**… de **produção**" — jargão interno que o guarda de vocabulário não pega (e `grep 'ensaio'` em toda a ajuda da F20 dá zero) | **Corrigido:** "A cópia do sistema usada para testar…" |
+| 6 | O §R nunca foi executado: sem push, sem tag, sem `RELATORIO-F35.md`, com scaffold sobrando — enquanto `CHANGELOG`/`README` já afirmavam a fase concluída | **Resolvido:** era o passo seguinte. Scaffold removido, relatório escrito, §8 executado e verificado |
+| 7 | Mesmo achado do #6, por outra lente (links mortos para o relatório) | idem |
+
+⚠ **Contaminação de refutação, registrada por honestidade:** os achados 2, 3 e 4 foram corrigidos por
+mim **enquanto os céticos julgavam**, e por isso vários deles votaram "refutado — o disco já mostra
+corrigido". A contagem final da máquina (2 confirmados, 5 refutados) **subestima** o que a revisão
+achou: os cinco eram reais, e cinco dos sete viraram correção. É a mesma armadilha registrada na
+F26; o remédio é não ler o placar sem ler os achados.
+
+## 8. Rollout (§R) — executado
+
+| Passo | Resultado |
+|---|---|
+| 1. Sem banco | `git diff --stat -- supabase/` **vazio**. Nenhum apply, nenhum gate. |
+| 1. CI verde no push | Run **31624421818** (`a5e2ca7`) — **`verificar` success** (lint · testes · contraste · build) **e `banco` success** (aplica todas as migrations + roteiros SQL). Conclusão do run: `success`. |
+| 2. Deploy na Vercel | `a5e2ca7`, target **production**, estado **READY**. |
+| 2. Smoke pós-deploy | `node scripts/smoke/smoke-prod.mjs` → **96 OK · 4 aviso · 0 falha**, com `/versoes` **HTTP 200** (marcador conferido) e `/ajuda/versoes-do-sistema` **HTTP 200**. |
+| 3. Tag publicada | `v1.40.0` **anotada**, apontando para `a5e2ca7` (o commit deployado), publicada em `origin`. Primeira tag do repositório. |
+| 4. Encerramento | este relatório + as emendas de documentação + o resumo final. |
+
+**Os 4 avisos do smoke são pré-existentes e alheios a esta fase** — todos sobre o **catálogo de itens
+vazio** (a carga da F6C, pendência declarada no `README` desde 16/07/2026): catálogo vazio, RPC de
+saldo com 0 linhas, `estoque_minimo` sem dado e a RLS de `kits_modelos` que não se comprova sem kit
+cadastrado. Nenhum deles é regressão.
+
+Uma armadilha de ambiente vale registro: depois de apagar o scaffold de verificação, o `npm run
+build` **falhou** porque os tipos gerados em `.next/types` ainda referenciavam a rota apagada
+(`AppPageConfig<"/login/verify-f35">`). `rm -rf .next` e rebuild resolveram — é artefato gerado, não
+código.
 
 ## 9. O que este relatório NÃO prova
 
