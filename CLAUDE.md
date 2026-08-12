@@ -31,6 +31,12 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 5. **Produção: acesso total, com autoproteção.** Migrations, scripts e deploy rodam direto em produção sem pedir autorização — precedidos de backup/dry-run quando destrutivos (ver Modo de operação). Seed fictício jamais roda em produção depois do go-live.
 6. **APIs de integração: confira a documentação oficial atual antes de escrever o código** (Supabase SSR/Auth, shadcn `chart`, Next 16, Recharts v3) — use o MCP Context7 ou a doc online; não confie em API de memória.
 7. **Ao terminar qualquer ordem:** `npm run lint` e `npm run build` limpos; checklist da ordem **autoverificado** item a item; resumo final com checklist, decisões registradas em `docs/DECISOES.md` e pendências.
+8. **Toda ordem com mudança visível ao usuário FECHA COM VERSÃO** (regra permanente desde a F35, 12/08/2026). Três passos, sem exceção e sem reinterpretação:
+   - **bump de MINOR** no `package.json` (`1.40.0` → `1.41.0`) — só o campo `version` muda;
+   - **entrada nova no topo** de `src/lib/versoes/registry.ts`, com a data da entrega e de **2 a 6 `mudancas` em LINGUAGEM DE OPERADOR** (rótulos reais das telas, o efeito antes da causa; nada de vocabulário de desenvolvedor — há teste que recusa). Fase invisível ao usuário (auditoria, desempenho, CI) escreve 2 frases honestas, não fica de fora;
+   - **tag anotada `v<versão>`** no commit final, publicada (`git push origin v<versão>`).
+
+   **Correção avulsa fora de fase = PATCH** (`1.40.0` → `1.40.1`), pelo mesmo caminho, sem `fase`. O registry é a **fonte única**: `VERSOES[0]` **é** a versão no ar, e `src/lib/versoes/registry.test.ts` recusa divergência com o `package.json`. `src/lib/versoes/cobertura-changelog.test.ts` lê o `CHANGELOG.md` e **derruba o `npm run test`** se uma entrada nova ficar sem versão — a regra não depende de ninguém lembrar dela.
 
 ## Stack (fechada — proibido adicionar dependência fora desta lista sem aprovação do Johnny)
 
@@ -76,6 +82,7 @@ src/
       ajuda/page.tsx                # ÍNDICE da documentação + busca (F20)
       ajuda/[slug]/page.tsx         # uma página da documentação — rota dinâmica do registry (F20)
       ajuda/manual/page.tsx         # manual completo numa página só, para ler e imprimir (F20)
+      versoes/page.tsx              # histórico de versões do sistema (F35) — só o registry, sem banco; SEM item na sidebar
       relatorios/[filial]/page.tsx  # relatório AO VIVO por filial ('geral' = consolidado)
       relatorios/gerados/page.tsx        # histórico de snapshots semanais
       relatorios/gerados/[id]/page.tsx   # snapshot congelado e interativo (spec §7.1)
@@ -92,7 +99,9 @@ src/
   components/
     ui/            # shadcn (CLI)
     layout/  ativos/  movimentacoes/  itens/  pendencias/  relatorios/  admin/  ajuda/  dev/
-      # layout/ inclui a sidebar que recolhe (sidebar-lateral/-colapso/-preferencia — F30 · UXG-13);
+      # layout/ inclui a sidebar que recolhe (sidebar-lateral/-colapso/-preferencia — F30 · UXG-13),
+      # o rodape-sidebar.tsx (badge de versão, desktop + Sheet) e o credito-autor.tsx
+      # (o crédito de autoria, em TRÊS pontos e só três — F35);
       # itens/conferencia/ é a tela de contagem + seu rascunho (F31 · ITN-04)
   lib/
     supabase/      # client.ts, server.ts, middleware de sessão
@@ -105,6 +114,9 @@ src/
       conteudo/      # uma página por arquivo (o texto)
       derivacao.ts   # rótulos e vocabulário DERIVADOS de dominio.ts/validators
       indice.ts  legado.ts  tipos.ts  busca.ts  ancora.ts
+    versoes/       # versionamento do sistema (F35) — FONTE ÚNICA da versão no ar
+      registry.ts    # a lista ordenada = a página /versoes, o badge da sidebar e o package.json
+      tipos.ts       # módulo PURO (o tipo que servidor e cliente compartilham)
     auth/  ativos/  itens/  movimentacoes/  pendencias/  relatorios/  import/
       # itens/ inclui conferencia.ts (aritmética do inventário — F31 · ITN-04) e
       # transferencia.ts (observações cruzadas e selo do par de ajustes — F31 · ITN-01);

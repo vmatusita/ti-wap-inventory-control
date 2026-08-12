@@ -5680,3 +5680,156 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   `{ok:false}` em toda rota de toda rodada: o script "roda" inteiro e reporta 100% de falha de rede
   que nunca houve. O comentário foi corrigido para o que a medição mostrou.
 - **Reversível?** sim; é ferramenta de medição, não toca o app nem o banco.
+
+## 2026-08-12 · F35 · O número F35 é DESTA ordem — o espelho do SharePoint passa a ser F36 (emenda à ata de 11/08)
+
+- **Contexto:** a ata `2026-08-11 · F34 · O número F34 do plano do SharePoint está OCUPADO` reservou
+  o **F35** para o espelho do SharePoint, que ainda era proposta. Em 12/08 o Johnny colou uma ordem
+  de serviço chamada, no próprio arquivo, `docs/prompts/F35-versionamento-credito-ultracode.md`.
+- **Decisão:** o **F35 é desta ordem** (versionamento, página de versões e crédito de autoria). O
+  espelho do SharePoint, quando virar ordem de serviço, é **F36** — e os dois documentos
+  (`docs/PLANO-ESPELHO-SHAREPOINT.md`, que ainda diz "F34", e `docs/ROTEIRO-ESPELHO-ENTRA.md`)
+  precisam ser reescritos com o número novo antes de rodarem.
+- **Motivo:** exatamente o critério que a ata de 11/08 usou para si mesma — "o número é da ordem que
+  o Johnny colou, e ela já está sendo executada". Uma reserva não executada cede lugar a uma ordem
+  em execução; o precedente da casa (F19/F20B) manda renumerar e registrar.
+- **Os dois arquivos continuam NÃO commitados e NÃO editados** por esta fase, como na F34. (Um
+  `git add -A` os arrastou para o commit `4b175f4`; a inclusão foi desfeita com `git rm --cached` +
+  `--amend` **antes de qualquer push**, e eles voltaram a aparecer como não rastreados.)
+- **Reversível?** sim — é numeração; basta reescrever os dois documentos.
+
+## 2026-08-12 · F35 · O esquema de versões: fase = minor, entrega avulsa = patch, go-live = 1.0.0
+
+- **Contexto:** o sistema estava em produção desde 15/07/2026 com ~35 fases entregues e o
+  `package.json` ainda em `0.1.0`. A ordem manda mapear a história retroativa do `CHANGELOG.md` para
+  semver, mas a **unidade** ("uma versão por quê?") não é óbvia: as seis primeiras entradas do
+  CHANGELOG **agrupam** várias fases num dia só, e várias entradas não são fase nenhuma.
+- **Decisão — a unidade é o que foi ENTREGUE, na ordem em que o `CHANGELOG.md` registra (lendo de
+  baixo para cima):**
+  1. cada **fase** (uma ordem de serviço `F*`) vira uma **minor**;
+  2. cada **entrega avulsa** registrada no CHANGELOG — entrada própria (ajuste, auditoria, rollout,
+     diagnóstico, revisão) **ou** item nomeado dentro de uma entrada agrupada que não é fase — vira
+     um **patch** da minor vigente à época;
+  3. fases anteriores ao go-live são `0.x.0`; o **go-live de 15/07/2026 (F4) é a `1.0.0`**;
+  4. entrada que agrupa N fases vira N versões, **todas com a data do cabeçalho** (o dia em que a
+     leva foi ao ar como conjunto); a ordem interna vem do `git log`;
+  5. a data exibida é a do CHANGELOG, não a do commit — por isso as datas do registry são
+     **não-crescentes** de cima para baixo (empate é permitido, retrocesso não).
+- **Resultado contado, não estimado: 56 entradas** — 6 em `0.x`, a `1.0.0`, 39 minors e 9 patches
+  depois do go-live, mais esta fase. **A F35 fecha como `1.40.0`.** A ordem estimava "algo em torno
+  de 1.29.0" e mandava contar: o `1.29.0` acabou caindo na **F24**.
+- **Fora do registry, de propósito:** `F5` (refino) e `F6C` (carga dos saldos de itens) — backlog
+  nunca executado, citado em prosa por outras entradas. Os *sprints* de dívida técnica de 14–15/07
+  não têm cabeçalho próprio no CHANGELOG e são invisíveis ao operador: ficam dentro da `0.6.0`.
+  Dois códigos com cara de fase também estão isentos, com motivo: **`F6`** é taquigrafia da dupla
+  F6A/F6B e **`F7C`** é rótulo de uma DECISÃO, não de uma ordem. A lista vive em
+  `cobertura-changelog.test.ts` e só cresce com justificativa escrita.
+- **Motivo:** o critério 1 da ordem exige que **toda** fase do CHANGELOG esteja coberta, nomeando as
+  sub-fases (F3B, F5A, F6A/F6B, F7B/F7E/F7F, F20B). Uma versão por *entrada* do CHANGELOG perderia
+  as fases agrupadas de vista; uma versão por *fase* mais patches para o resto cobre tudo e ainda
+  produz a tabela fase→versão 1:1 que a ordem pede no relatório.
+- **Reversível?** renumerar depois seria caro (a tag e o `package.json` já saíram), mas nada do
+  acervo depende disso.
+
+## 2026-08-12 · F35 · A F7H ganha versão própria mesmo tendo sido desfeita horas depois
+
+- **Contexto:** a F7H (compra do import com data real virando Entrada do relatório) foi ao ar em
+  20/07/2026, **chegou a produção** (809 compras marcadas) e foi **revertida no mesmo dia** pela F8.
+- **Decisão:** ela é a **`1.8.0`**, com `mudancas` que dizem o que mudou **e** que a versão seguinte
+  desfez; a `1.9.0` (F8) conta o desfecho logo acima dela na tela.
+- **Motivo:** o critério 1 manda não pular fase nenhuma, e ela é nomeada no CHANGELOG. Além disso é
+  história verdadeira: alguém que olhar um relatório daquele dia precisa saber que as Entradas
+  estavam infladas. Escondê-la deixaria a página mais limpa e menos honesta.
+- **Reversível?** sim — é texto no registry.
+
+## 2026-08-12 · F35 · O registry de versões NÃO é só-servidor, mas o badge recebe a versão por prop
+
+- **Contexto:** `src/lib/ajuda/registry.ts` é marcado só-servidor porque o CONTEÚDO das páginas
+  arrasta PapaParse e o domínio inteiro. O reflexo seria repetir a marcação em `lib/versoes`.
+- **Decisão:** `src/lib/versoes/registry.ts` **não** é só-servidor (são strings planas, sem import
+  pesado — só o `import type` dos tipos), mas **nenhum Client Component o importa**: o badge do pé
+  da sidebar recebe `versao` por **prop**, de uma constante de módulo em `(app)/layout.tsx`
+  (`VERSAO_ATUAL = versaoAtual().versao`).
+- **Motivo:** importá-lo do lado cliente jogaria as 56 entradas do histórico — título e 2 a 6 frases
+  cada — no bundle de **toda tela do app**, para mostrar sete caracteres. A prop custa nada e o
+  padrão é o mesmo do `INDICE_PALETA`. Marcar como só-servidor seria a solução errada para o
+  problema certo: proibiria também o que é inofensivo (importar o tipo).
+- **Consequência declarada:** `so-servidor.test.ts` cobre `lib/ajuda`, não `lib/versoes`. Se um dia
+  o registry de versões passar a importar algo de servidor, essa proteção **não existe
+  automaticamente** ali — precisa de teste equivalente.
+- **Reversível?** sim, em minutos, nos dois sentidos.
+
+## 2026-08-12 · F35 · O badge de versão não escreve UMA LINHA de CSS — e o rodapé do celular é o mesmo ponto
+
+- **Contexto:** o recolhido da sidebar (F30) vive num atributo do `<html>` lido por regras de
+  `globals.css`, e `sidebar-colapso.test.ts` exige que **todo** seletor `:root[data-sidebar…]`
+  contenha `[data-sidebar-lateral]` — sem a âncora, a regra vaza para o Sheet do celular (bug já
+  relatado em produção, documentado duas vezes no próprio CSS). A ordem exige que os testes de
+  colapso continuem verdes **sem serem editados**.
+- **Decisão:** o rodapé novo **não cria nenhuma regra de CSS**. Ele reusa os ganchos existentes:
+  `data-sidebar-item` (centraliza e tira o padding quando recolhido) e `data-sidebar-rotulo` (some
+  quando recolhido). Recolhida, o número da versão e o crédito desaparecem junto com os rótulos do
+  menu, e o número continua alcançável pela **dica** do ícone — mesmo padrão dos itens de navegação,
+  que abre no mouse **e** no foco. `data-sidebar-selo` **não** é reusado: ele carrega o CSS de
+  empilhamento pensado para a contagem de pendências e o herdaríamos sem querer.
+- **Layout:** o rodapé entra como **um** filho do `flex … justify-between` (agrupado com o botão de
+  recolher num `<div>`), porque com três filhos o Flex espalharia o badge no meio da tela.
+- **O celular:** `SidebarLateral` não é montada no celular — só `SidebarNav`, dentro do Sheet. O
+  **mesmo** componente `RodapeSidebar` entra no Sheet, sem `colapsada`. Isso **não é um quarto ponto
+  de crédito**: é o pé da sidebar em outra largura de tela, e o componente é um só. Sem ele, quem
+  usa o sistema no celular nunca veria a versão nem chegaria à tela por ali.
+- **Motivo:** a alternativa (CSS novo para o rodapé recolhido) trocaria zero benefício visual por
+  todo o risco que o próprio arquivo documenta.
+- **Reversível?** sim; é um componente e duas linhas de montagem.
+
+## 2026-08-12 · F35 · O crédito: microcopy, os três pontos — e por que ele fica DENTRO do card no login
+
+- **Decisão (microcopy):** forma longa **"Desenvolvido por vmatusita"** onde há espaço (rodapé do
+  login e rodapé de `/versoes`) e forma curta **"vmatusita"** no pé da sidebar, onde a linha tem
+  ~200px e divide espaço com o badge de versão. Um componente só
+  (`src/components/layout/credito-autor.tsx`), com `variante="longa" | "curta"`.
+- **Decisão (os três pontos, e só três):** rodapé do **login**, pé da **sidebar**, rodapé de
+  **`/versoes`**. **Nada em `/relatorios/**` nem em `relatorios/acesso`** — é decisão explícita do
+  Johnny no texto da ordem: o relatório é o documento que a empresa lê e imprime, e assinatura de
+  desenvolvedor não pertence a ele.
+- **Decisão (onde exatamente, no login):** **dentro do `<Card>`**, abaixo do formulário, e não solto
+  no fundo da tela. **Medido, não suposto:** o fundo do login é `bg-muted`, e `muted-foreground`
+  sobre `muted` dá **4,34:1 no tema claro** — abaixo do piso AA de 4,5:1 para texto pequeno. Sobre
+  `card` são **4,73:1** (claro) e **6,91:1** (escuro); sobre `background` (sidebar e `/versoes`),
+  **4,73:1** e **7,63:1**. Os três pares usados já eram exigidos em `scripts/contraste.mjs` desde a
+  F29 — **nenhum par novo foi criado**, e `npm run contraste` continua saindo 0.
+- **Decisão (o link):** `target="_blank"` com **`rel="noopener noreferrer"`**, `aria-label` dizendo
+  que abre em nova aba. Os dois links externos que já existiam no repositório usam **um** dos dois
+  (`manutencao-painel.tsx` só `noreferrer`, `mesa-conflitos.tsx` só `noopener`) — este componente é
+  o padrão daqui para a frente. **Nenhum recurso externo**: sem logo, sem imagem, sem fonte, sem
+  script (custo R$ 0 e política de conteúdo do app).
+- **Reversível?** sim; é um componente em três pontos de montagem.
+
+## 2026-08-12 · F35 · A regra permanente de versionamento vira o item 8 do CLAUDE.md — com teste que a cobra
+
+- **Decisão:** o `CLAUDE.md` ganha o item **8** nas Regras permanentes: toda ordem com mudança
+  visível ao usuário fecha com **bump de minor** no `package.json`, **entrada nova no topo do
+  registry** (em linguagem de operador, de 2 a 6 itens) e **tag anotada `v<versão>` publicada**;
+  correção avulsa fora de fase = **patch**. Fase invisível ao usuário escreve 2 frases honestas, não
+  fica de fora.
+- **Por que item 8 novo, e não um parágrafo dentro do 7:** o item 7 é "os portões" (lint, build,
+  checklist, resumo). Enfiar o versionamento lá o deixaria como alínea de uma lista que já é longa —
+  e a ordem pede que a regra seja "clara o bastante para a F36 obedecer sem reinterpretar".
+- **A regra não depende de ninguém lembrar:** `src/lib/versoes/cobertura-changelog.test.ts` lê o
+  `CHANGELOG.md`, extrai os cabeçalhos e as fases citadas e **derruba o `npm run test`** se uma
+  entrada nova ficar sem versão na mesma data, ou se uma fase citada não tiver versão. O
+  `registry.test.ts` trava a sincronia com o `package.json`. Documentação que envelhece em silêncio
+  foi o problema que a F20 resolveu virando build; aqui é o mesmo remédio.
+- **Reversível?** sim; é regra de processo e dois arquivos de teste.
+
+## 2026-08-12 · F35 · As tags começam em v1.40.0 — nada de tag retroativa
+
+- **Contexto:** o repositório não tinha **nenhuma** tag. As 55 versões anteriores existem como
+  história mapeada, não como marcos criados na época.
+- **Decisão:** criar **apenas** a tag `v1.40.0`, apontando para o commit desta fase. Nenhuma tag
+  retroativa em commit antigo.
+- **Motivo:** a própria ordem põe isso fora de escopo, e com razão: uma tag retroativa afirmaria que
+  aquele commit foi *publicado* como aquela versão, o que nunca aconteceu — várias fases foram ao ar
+  em vários commits, e algumas (as levas do import) sequer têm um commit único que as represente. A
+  história fica onde ela é verdadeira: no `CHANGELOG.md` e no registry.
+- **Reversível?** sim; tags podem ser criadas depois se um dia forem úteis.
