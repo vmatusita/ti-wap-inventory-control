@@ -63,7 +63,6 @@ function fasesCitadas(texto: string): string[] {
 describe('cobertura do CHANGELOG pelo registry de versoes', () => {
   const entradas = lerChangelog()
   const fasesDoRegistry = new Set(VERSOES.map((v) => v.fase).filter(Boolean))
-  const datasDoRegistry = new Set(VERSOES.map((v) => v.data))
 
   it('o CHANGELOG foi lido de verdade', () => {
     expect(entradas.length).toBeGreaterThan(40)
@@ -86,12 +85,30 @@ describe('cobertura do CHANGELOG pelo registry de versoes', () => {
     ).toEqual([])
   })
 
-  it('toda data de entrega do CHANGELOG existe no registry', () => {
-    const faltando = new Set<string>()
-    for (const e of entradas) if (!datasDoRegistry.has(e.data)) faltando.add(e.data)
+  // POR CONTAGEM, e nao por presenca da data — e a diferenca decide se a REGRA
+  // PERMANENTE vale ou nao. Perguntar so `datasDoRegistry.has(e.data)` deixava
+  // passar a segunda entrega do mesmo dia: ela herdava a data de uma versao que
+  // ja existia e ia para producao sem bump, sem entrada no registry e sem tag —
+  // exatamente o caso PATCH do item 8 do `CLAUDE.md`. E duas entregas no mesmo
+  // dia sao a norma aqui, nao a excecao: 7 em 24/07, 5 em 23/07, e a propria
+  // 1.39.1 divide 11/08 com a F34.
+  it('cada entrada do CHANGELOG tem uma versao propria na mesma data', () => {
+    const contar = (datas: string[]) =>
+      datas.reduce((m, d) => m.set(d, (m.get(d) ?? 0) + 1), new Map<string, number>())
+    const noChangelog = contar(entradas.map((e) => e.data))
+    const noRegistry = contar(VERSOES.map((v) => v.data))
+
+    const descobertas = [...noChangelog]
+      .filter(([data, quantas]) => (noRegistry.get(data) ?? 0) < quantas)
+      .map(
+        ([data, quantas]) =>
+          `${data}: ${quantas} entrada(s) no CHANGELOG para ${noRegistry.get(data) ?? 0} versao(oes)`,
+      )
+      .sort()
+
     expect(
-      [...faltando].sort(),
-      'entrada do CHANGELOG sem nenhuma versao na mesma data — toda entrega vira versao (regra permanente do CLAUDE.md)',
+      descobertas,
+      'entrada do CHANGELOG sem versao propria na mesma data — toda entrega vira versao, com bump e tag (regra permanente do CLAUDE.md, item 8)',
     ).toEqual([])
   })
 

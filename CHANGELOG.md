@@ -6,6 +6,51 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 12/08/2026 — Revisão de código da F35: 12 achados aplicados ✅
+
+Revisão adversarial (xhigh) do intervalo `66dee7c..25db770` — a F35 inteira: registry de versões,
+tela `/versoes`, badge no pé da sidebar e o crédito de autoria. **12 achados, todos aplicados.**
+Nada de banco, nenhuma dependência nova.
+
+- 📱 **O badge de versão deixava a gaveta do celular aberta.** O `RodapeSidebar` é o mesmo
+  componente no `<aside>` do desktop e no Sheet do hambúrguer, mas só a `SidebarNav` recebia o
+  `onNavigate` que fecha a gaveta — tocar no `v1.40.0` navegava para `/versoes` e deixava o menu
+  por cima da tela recém-aberta. O gancho passou a valer também para o rodapé.
+- 🎨 **O código miúdo da entrega reprovava o piso AA.** `text-muted-foreground/70` em 11px mede
+  **2,71:1** sobre `card` no tema claro e **4,02:1** no escuro; o piso para texto pequeno é 4,5:1.
+  Voltou ao `muted-foreground` cheio (4,73:1 e 6,91:1), o par que `scripts/contraste.mjs` já
+  exige. A conta teve de ser feita à mão: o script mede uma lista fixa de pares e não varre o
+  código, então a variante com transparência passava por baixo do CI.
+- 🔒 **A regra permanente tinha um buraco, e era o caso mais comum.** O teste que a sustenta
+  perguntava só se a DATA da entrada existia no registry — então a segunda entrega do mesmo dia
+  herdava a versão da primeira e passava sem bump, sem entrada e sem tag. E duas entregas no mesmo
+  dia são a norma aqui: 7 em 24/07, 5 em 23/07, e a 1.39.1 divide 11/08 com a F34. A conferência
+  virou **por contagem por data**, e foi provada ao contrário: com uma entrada de teste datada de
+  hoje ela reprova com `2026-08-12: 2 entrada(s) no CHANGELOG para 1 versao(oes)` — o teste antigo
+  passava. Esta entrada aqui é a primeira a nascer sob a regra consertada.
+- 🧭 **O mapa das telas não sabia do pé do menu.** A página nova de ajuda linka para
+  `mapa-das-telas`, que ainda dizia que o menu termina em "Ajuda" e não citava a tela Versões. A
+  tabela "Tela · Para que serve" **não** foi mexida, de propósito: um teste prova que ela espelha
+  exatamente os itens da sidebar, e `/versoes` não é item de menu. O acerto foi na seção "A barra
+  de cima", que já descreve o pé do menu, mais o link recíproco.
+- ⏱️ **Dois testes do registry mentiam pequeno.** "Nenhuma data está no futuro" calculava o hoje em
+  UTC — das 21:00 às 23:59 BRT aceitaria uma versão datada de amanhã — e passou a usar o
+  `hojeISO()` do fuso do negócio. E o teste chamado "1.x ou maior" cravava `=== 1`: a primeira
+  `2.0.0` reprovaria um registry correto.
+- 🖱️ **A explicação da sigla saiu do hover.** O que `F35` significa vivia só num `title`, invisível
+  para teclado e para toque. Em vez de 47 dicas flutuantes (47 paradas de Tab novas numa página
+  que quase não hidrata), a explicação virou uma frase visível no alto da tela — mouse, teclado,
+  celular e leitor de tela de uma vez.
+- 🧹 **Limpeza do que a fase deixou para trás:** `AUTOR`/`SITE_AUTOR` exportados sem nenhum
+  importador (convite para um quarto ponto de crédito montado à mão, fora do componente que
+  carrega o `rel="noopener noreferrer"`), um wrapper de duas colunas com um filho só, a leitura de
+  `VERSOES[0]` onde já existe `versaoAtual()`, o texto da ajuda que prometia só o mouse na dica do
+  menu recolhido e o bloco do botão "Recolher" sem reindentar dentro do `<div>` novo da F30.
+- ✅ **`npm run lint` limpo, `npm run build` limpo, 2.544 testes verdes.** Zero migration, zero
+  dependência nova, `supabase/` intocado.
+
+---
+
 ## 12/08/2026 — O sistema passa a ter versão, e a contar o que mudou (F35) ✅
 
 - 🔢 **O `0.1.0` do scaffold virou história de verdade.** O sistema estava em produção desde

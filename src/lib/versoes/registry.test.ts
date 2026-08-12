@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { hojeISO } from '@/lib/format'
 import { VERSOES, compararSemver, partesSemver, versaoAtual } from '@/lib/versoes/registry'
 
 const RAIZ = process.cwd()
@@ -73,7 +74,12 @@ describe('registry de versoes', () => {
   })
 
   it('nenhuma data esta no futuro', () => {
-    const hoje = new Date().toISOString().slice(0, 10)
+    // `hojeISO()` e nao `new Date().toISOString()`: o teto e o dia no fuso do
+    // NEGOCIO (America/Sao_Paulo). Em UTC, das 21:00 as 23:59 BRT o dia ja virou,
+    // e por tres horas todo dia o teste aceitaria uma versao datada de amanha —
+    // que e justamente o erro de digitacao que ele existe para pegar. O CI roda
+    // em UTC, entao la a folga seria ainda mais silenciosa.
+    const hoje = hojeISO()
     for (const v of VERSOES) {
       expect(v.data <= hoje, `${v.versao} datada no futuro: ${v.data}`).toBe(true)
     }
@@ -137,8 +143,14 @@ describe('registry de versoes', () => {
       if (i === 0) return
       expect(partesSemver(v.versao)[0], `${v.versao} deveria ser 0.x (anterior ao go-live)`).toBe(0)
     })
+    // `>= 1`, e nao `=== 1`: o nome do teste diz "1.x OU MAIOR", e cravar o 1
+    // faria a primeira `2.0.0` do repositorio reprovar um registry correto, com
+    // uma mensagem dizendo o contrario do que a regra promete.
     VERSOES.slice(0, golive).forEach((v) => {
-      expect(partesSemver(v.versao)[0], `${v.versao} deveria ser 1.x (posterior ao go-live)`).toBe(1)
+      expect(
+        partesSemver(v.versao)[0],
+        `${v.versao} deveria ser 1.x ou maior (posterior ao go-live)`,
+      ).toBeGreaterThanOrEqual(1)
     })
   })
 

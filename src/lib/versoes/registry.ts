@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.40.1',
+    data: '2026-08-12',
+    titulo: 'Acertos de revisão na tela de versões e no menu do celular',
+    mudancas: [
+      'No celular, tocar no número da versão no pé do menu passou a fechar a gaveta — antes o menu ficava por cima da tela que acabara de abrir.',
+      'Na tela Versões, o código miúdo da entrega ficou mais legível, e o que ele significa passou a vir escrito no alto da página em vez de aparecer só para quem usa mouse.',
+      'A ajuda passou a descrever o pé do menu lateral: o número da versão, o nome de quem desenvolve o sistema e a tela que o número abre.',
+      'Uma trava interna passou a exigir que toda entrega registrada no histórico tenha a sua própria versão, mesmo quando duas saem no mesmo dia.',
+    ],
+  },
+  {
     versao: '1.40.0',
     data: '2026-08-12',
     fase: 'F35',

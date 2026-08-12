@@ -73,7 +73,8 @@ export const mapaDasTelas: PaginaAjuda = {
         'O avatar, no canto direito, abre o menu do usuário: o seu nome, o e-mail da conta, o seu cargo, o seletor "Tema" e o "Sair". Quem tem o cargo Operador vê ali também a linha "Escreve em: …" com as filiais em que pode registrar — é a resposta para "por que não aparece o botão de registrar nesta filial?".',
         'No celular não há menu lateral fixo: o botão "Abrir menu", à esquerda, traz o mesmo menu numa gaveta.',
         'No computador, o botão "Recolher" no pé do menu lateral deixa só os ícones e devolve largura para a tela — útil em notebook. A tecla [ faz o mesmo. Recolhido, passar o mouse ou o teclado por um ícone mostra o nome do item. A escolha fica guardada neste navegador, como o tema: ao voltar, o menu abre do jeito que você deixou. No celular nada muda.',
-        'Um filete separa os grupos do menu: as telas do dia a dia em cima, depois "Administração" e "Desenvolvedor" (quando o seu cargo os vê) e, por último, "Ajuda".',
+        'Um filete separa os grupos do menu: as telas do dia a dia em cima, depois "Administração" e "Desenvolvedor" (quando o seu cargo os vê) e, por último, "Ajuda". Abaixo de "Ajuda" começa o pé do menu, que não é item de navegação.',
+        'No pé do menu fica o número da versão do sistema (por exemplo v1.40.0) e, embaixo dele, o nome de quem desenvolve o sistema. O número é um link: abre a tela "Versões", com o histórico do que mudou em cada versão — ela é aberta a qualquer cargo e não tem item próprio no menu, então o número é a porta principal para chegar lá (o Ctrl+K também acha por "versões" ou "novidades"). Com o menu recolhido, o número some junto com os outros rótulos e volta ao passar o mouse ou o teclado pelo ícone.',
         'O item "Pendências" do menu carrega um selo âmbar com quantas estão abertas. A contagem se refaz a cada navegação e o selo some quando zera — e continua visível sobre o ícone com o menu recolhido.',
       ],
     },
@@ -191,6 +192,7 @@ export const mapaDasTelas: PaginaAjuda = {
       tipo: 'links',
       itens: [
         { slug: 'limites-e-atalhos', texto: 'A tabela completa de atalhos' },
+        { slug: 'versoes-do-sistema', texto: 'A tela que o número do pé do menu abre' },
         { slug: 'comece-aqui' },
         { slug: 'lista-de-ativos', texto: 'A lista que os tiles do painel abrem' },
         { slug: 'resolver-pendencias', texto: 'A fila por trás do selo âmbar' },

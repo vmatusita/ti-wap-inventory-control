@@ -32,7 +32,7 @@ export const versoesDoSistema: PaginaAjuda = {
         `No pé do menu lateral, em texto pequeno: v${versaoAtual().versao} é a versão no ar hoje.`,
         'Pela busca do teclado (Ctrl+K, ou ⌘K no Mac), procurando por "versões" ou "novidades".',
         'Direto pelo endereço /versoes.',
-        'Com o menu recolhido, o número some do lado do ícone e aparece ao passar o mouse sobre ele.',
+        'Com o menu recolhido, o número some do lado do ícone e aparece ao passar o mouse ou o teclado por ele.',
       ],
     },
     { tipo: 'titulo', id: 'versoes-como-ler', texto: 'Como ler o número' },

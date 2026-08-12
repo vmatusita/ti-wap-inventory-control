@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 
 import { getOperador } from '@/lib/auth/acesso'
 import { formatDate } from '@/lib/format'
-import { VERSOES } from '@/lib/versoes/registry'
+import { VERSOES, versaoAtual } from '@/lib/versoes/registry'
 import { CreditoAutor } from '@/components/layout/credito-autor'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { Badge } from '@/components/ui/badge'
@@ -23,27 +23,33 @@ export default async function VersoesPage() {
   const operador = await getOperador()
   if (!operador) redirect('/login')
 
-  const atual = VERSOES[0]
+  // `versaoAtual()` e nao `VERSOES[0]`: o registry e a fonte unica, e quem
+  // responde "qual esta no ar" e a funcao — a mesma que o `(app)/layout.tsx` usa
+  // para o badge da sidebar. Ler o indice aqui abriria um segundo caminho, e o
+  // badge e este texto poderiam divergir na mesma tela.
+  const atual = versaoAtual()
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Versões</h1>
-            <LinkAjuda pagina="versoes-do-sistema" rotulo="Ajuda sobre as versões do sistema" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            O que mudou em cada versão do sistema, da mais recente para a mais antiga. O sistema
-            está na <span className="font-medium tabular-nums text-foreground">v{atual.versao}</span>
-            , no ar desde {formatDate(atual.data)}.
-          </p>
+      <div>
+        <div className="flex items-center gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Versões</h1>
+          <LinkAjuda pagina="versoes-do-sistema" rotulo="Ajuda sobre as versões do sistema" />
         </div>
+        {/* O que o codigo miudo da fase significa fica AQUI, visivel e uma vez
+            so: no `title` de cada linha ele existia so para quem tem mouse — no
+            celular e no teclado a sigla ficava sem explicacao nenhuma. */}
+        <p className="text-sm text-muted-foreground">
+          O que mudou em cada versão do sistema, da mais recente para a mais antiga. O sistema está
+          na <span className="font-medium tabular-nums text-foreground">v{atual.versao}</span>, no ar
+          desde {formatDate(atual.data)}. O código miúdo ao lado da data (F35, F20B…) é o nome
+          interno da entrega, para cruzar com a documentação do projeto.
+        </p>
       </div>
 
       <ol className="space-y-4">
-        {VERSOES.map((v, i) => {
-          const eAtual = i === 0
+        {VERSOES.map((v) => {
+          const eAtual = v.versao === atual.versao
           return (
             <li
               key={v.versao}
@@ -66,8 +72,14 @@ export default async function VersoesPage() {
                   </Badge>
                 ) : null}
                 {v.fase ? (
+                  // `text-muted-foreground` PURO, sem `/70`: a 70% de alfa este
+                  // texto de 11px media 2,71:1 sobre `card` no tema claro e
+                  // 4,02:1 no escuro — os dois abaixo do piso AA de 4,5:1. Cheio,
+                  // sao 4,73:1 e 6,91:1, o par que `scripts/contraste.mjs` ja
+                  // exige. O `/70` nao aparece no script porque ele mede uma
+                  // lista fixa de pares e nao varre o codigo: a conta e nossa.
                   <span
-                    className="text-[11px] text-muted-foreground/70"
+                    className="text-[11px] text-muted-foreground"
                     title="Nome interno da entrega, para cruzar com a documentação do projeto"
                   >
                     {v.fase}

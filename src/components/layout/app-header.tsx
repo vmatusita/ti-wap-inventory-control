@@ -88,9 +88,11 @@ export function AppHeader({
             />
             {/* F35 — o MESMO rodapé do <aside> do desktop. Nunca `colapsada`:
                 o menu de toque não recolhe (o CSS do recolhido é ancorado no
-                <aside>, que não existe aqui). */}
+                <aside>, que não existe aqui). O `onNavigate` é o mesmo da
+                `SidebarNav` acima: sem ele, tocar no badge navegava para
+                `/versoes` e deixava a gaveta aberta por cima da tela. */}
             <div className="mt-2 border-t pt-2">
-              <RodapeSidebar versao={versao} />
+              <RodapeSidebar versao={versao} onNavigate={() => setAberto(false)} />
             </div>
           </div>
         </SheetContent>

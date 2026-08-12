@@ -13,8 +13,11 @@ import { cn } from '@/lib/utils'
 // Cor: `text-muted-foreground` sobre `background` e sobre `card`, os dois pares
 // ja medidos e exigidos em `scripts/contraste.mjs` (bloco F29) nos dois temas.
 // NENHUM recurso externo — sem logo, sem imagem, sem fonte, sem script.
-export const AUTOR = 'vmatusita'
-export const SITE_AUTOR = 'https://www.vmatusita.com.br'
+// Constantes de MODULO, sem `export`: o credito vive nos tres pontos acima e
+// sempre por este componente. Exporta-las convidaria um quarto ponto a montar o
+// link a mao, fora do `rel="noopener noreferrer"` e da cor ja medida.
+const AUTOR = 'vmatusita'
+const SITE_AUTOR = 'https://www.vmatusita.com.br'
 
 type CreditoAutorProps = {
   /** `longa` = "Desenvolvido por vmatusita"; `curta` = so o nome (pe da sidebar). */

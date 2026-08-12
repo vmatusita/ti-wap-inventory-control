@@ -59,26 +59,26 @@ export function SidebarLateral({
         {/* F35 — o rodapé é UM filho só do `justify-between`: com três, o Flex
             espalharia o badge no meio da tela em vez de grudá-lo no botão. */}
         <div className="flex shrink-0 flex-col gap-1">
-        <RodapeSidebar versao={versao} colapsada={recolhida} />
-        <button
-          type="button"
-          onClick={alternar}
-          aria-expanded={!recolhida}
-          aria-controls={ID_SIDEBAR_NAV}
-          aria-keyshortcuts="["
-          aria-label={recolhida ? 'Expandir menu' : 'Recolher menu'}
-          title={recolhida ? 'Expandir menu ([)' : 'Recolher menu ([)'}
-          data-sidebar-item=""
-          className="flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          {recolhida ? (
-            <PanelLeftOpen className="size-4 shrink-0" aria-hidden />
-          ) : (
-            <PanelLeftClose className="size-4 shrink-0" aria-hidden />
-          )}
-          {/* O mesmo gancho dos rótulos do menu — o CSS o esconde no modo ícone. */}
-          <span data-sidebar-rotulo="">Recolher</span>
-        </button>
+          <RodapeSidebar versao={versao} colapsada={recolhida} />
+          <button
+            type="button"
+            onClick={alternar}
+            aria-expanded={!recolhida}
+            aria-controls={ID_SIDEBAR_NAV}
+            aria-keyshortcuts="["
+            aria-label={recolhida ? 'Expandir menu' : 'Recolher menu'}
+            title={recolhida ? 'Expandir menu ([)' : 'Recolher menu ([)'}
+            data-sidebar-item=""
+            className="flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            {recolhida ? (
+              <PanelLeftOpen className="size-4 shrink-0" aria-hidden />
+            ) : (
+              <PanelLeftClose className="size-4 shrink-0" aria-hidden />
+            )}
+            {/* O mesmo gancho dos rótulos do menu — o CSS o esconde no modo ícone. */}
+            <span data-sidebar-rotulo="">Recolher</span>
+          </button>
         </div>
       </div>
     </aside>

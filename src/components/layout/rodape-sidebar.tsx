@@ -28,9 +28,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 export function RodapeSidebar({
   versao,
   colapsada = false,
+  onNavigate,
 }: {
   versao: string
   colapsada?: boolean
+  /**
+   * Fecha a gaveta do celular ao navegar — o Sheet do `app-header.tsx` guarda o
+   * estado `aberto` em React e NAO reage a mudanca de rota, entao sem isto o
+   * menu ficava por cima da tela que o toque acabou de abrir. E o mesmo gancho
+   * que a `SidebarNav` ja aplica em cada item dela.
+   */
+  onNavigate?: () => void
 }) {
   // WCAG 2.5.3 (Label in Name): o nome acessivel COMECA pelo texto visivel
   // (`v1.40.0`), senao quem comanda por voz dizendo "clicar v1.40.0" nao acerta
@@ -39,6 +47,7 @@ export function RodapeSidebar({
   const link = (
     <Link
       href="/versoes"
+      onClick={onNavigate}
       data-sidebar-item=""
       aria-label={`v${versao} — versões do sistema, ver o que mudou`}
       className="flex h-9 shrink-0 items-center gap-3 rounded-md px-3 text-xs font-medium text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
