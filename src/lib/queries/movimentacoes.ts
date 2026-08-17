@@ -13,6 +13,7 @@ import {
   type AtivoResumo,
   type RawAtivoResumo,
 } from '@/lib/queries/ativos'
+import { paginarTodos } from '@/lib/queries/relatorios/comum'
 
 // Estado do ativo ANTES da movimentacao (usado no dialog de estorno — o ativo
 // volta a este estado). Gravado pelo trigger em `snapshot_anterior` (jsonb).
@@ -88,17 +89,26 @@ export async function listarMovimentacoesDoAtivo(
   ativoId: string,
 ): Promise<MovimentacaoTimeline[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('movimentacoes')
-    .select(TIMELINE_SELECT)
-    .eq('ativo_id', ativoId)
-    .order('created_at', { ascending: false })
-    .order('data', { ascending: false })
-
-  if (error)
-    throw new Error(`Falha ao carregar a linha do tempo: ${error.message}`)
-
-  const rows = (data ?? []) as unknown as RawTimelineRow[]
+  // Paginada: era a única leitura de `movimentacoes` no app que devolvia o
+  // histórico COMPLETO de uma entidade sem nenhuma rede de segurança. O domínio
+  // de um ativo é pequeno hoje, mas nada no schema o limita — um ativo de pool
+  // com empréstimo/devolução semanal por anos acumula milhares de linhas —, e
+  // aqui um corte silencioso seria pior que num agregado: o operador veria uma
+  // linha do tempo faltando história, sem aviso nenhum. Desempate por `id`
+  // porque `created_at`+`data` empatam quando um lote grava tudo na mesma
+  // transação, e ordenação com empate não pagina.
+  const rows = await paginarTodos<RawTimelineRow>(
+    'Falha ao carregar a linha do tempo',
+    (from, to) =>
+      supabase
+        .from('movimentacoes')
+        .select(TIMELINE_SELECT)
+        .eq('ativo_id', ativoId)
+        .order('created_at', { ascending: false })
+        .order('data', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to),
+  )
   return rows.map((r) => {
     const autor = r.autor
     const origem = r.origem

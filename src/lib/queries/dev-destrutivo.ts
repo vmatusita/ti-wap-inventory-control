@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirDev } from '@/lib/auth/acesso'
 import type { DbClient } from '@/lib/auth/acesso'
 import { rotuloDoAtivo } from '@/lib/validators/dev-destrutivo'
+import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import type { StatusAtivo } from '@/lib/dominio'
 
 // Leituras da ZONA DESTRUTIVA da /dev (F23) — todas guardadas por `exigirDev()`.
@@ -271,13 +272,25 @@ export async function listarItensDestrutivo(): Promise<CandidatoItem[]> {
   const itens = data ?? []
   if (itens.length === 0) return []
 
-  // Contagem por item numa consulta só: traz os `item_id` dos lançamentos e agrupa aqui. O
-  // catálogo é curado e pequeno (unidades), então isto não é o gargalo de ninguém.
-  const { data: lanc, error: eLanc } = await supabase.from('lancamentos_item').select('item_id')
-  if (eLanc) throw new Error(`Falha ao contar lançamentos: ${eLanc.message}`)
+  // Contagem por item numa consulta só: traz os `item_id` dos lançamentos e agrupa aqui.
+  //
+  // PAGINADA. O comentário anterior justificava a ausência de teto dizendo que "o
+  // catálogo é curado e pequeno" — verdade sobre `itens` (lido acima), mas esta
+  // leitura é de `lancamentos_item`, que é HISTÓRICO de evento e cresce sem teto.
+  // Subestimar a contagem aqui é grave: é o número que o dev lê para avaliar o
+  // estrago antes de desativar ou apagar um item na Zona destrutiva.
+  const lanc = await paginarTodos<{ item_id: number }>(
+    'Falha ao contar lançamentos',
+    (from, to) =>
+      supabase
+        .from('lancamentos_item')
+        .select('item_id')
+        .order('id', { ascending: true })
+        .range(from, to),
+  )
 
   const porItem = new Map<number, number>()
-  for (const l of lanc ?? []) porItem.set(l.item_id, (porItem.get(l.item_id) ?? 0) + 1)
+  for (const l of lanc) porItem.set(l.item_id, (porItem.get(l.item_id) ?? 0) + 1)
 
   return itens.map((i) => ({ ...i, lancamentos: porItem.get(i.id) ?? 0 }) as CandidatoItem)
 }

@@ -460,13 +460,28 @@ async function executarItens(
   }
 
   // idempotência: aberturas já lançadas (item × filial com observação padrão)
-  const { data: aberturas, error: abErr } = await db
-    .from('lancamentos_item')
-    .select('item_id, filial_id')
-    .eq('tipo', 'entrada')
-    .eq('observacao', OBS_SALDO_INICIAL)
-  if (abErr) throw new Error(`Falha ao ler lançamentos: ${abErr.message}`)
-  const jaLancado = new Set((aberturas ?? []).map((l) => `${l.item_id}|${l.filial_id}`))
+  //
+  // Paginada como as duas leituras acima: o filtro é por um texto de convenção
+  // (OBS_SALDO_INICIAL), não por restrição do banco, e `lancamentos_item` é
+  // tabela de evento. Se o conjunto passasse de 1.000, o corte do PostgREST
+  // faria a carga achar que uma abertura ainda não existe e lançá-la DE NOVO —
+  // o oposto do que este `Set` existe para garantir.
+  const jaLancado = new Set<string>()
+  {
+    const PAGE = 1000
+    for (let de = 0; ; de += PAGE) {
+      const { data, error } = await db
+        .from('lancamentos_item')
+        .select('item_id, filial_id')
+        .eq('tipo', 'entrada')
+        .eq('observacao', OBS_SALDO_INICIAL)
+        .order('id')
+        .range(de, de + PAGE - 1)
+      if (error) throw new Error(`Falha ao ler lançamentos: ${error.message}`)
+      for (const l of data ?? []) jaLancado.add(`${l.item_id}|${l.filial_id}`)
+      if (!data || data.length < PAGE) break
+    }
+  }
 
   for (const s of plano.saldos) {
     const itemId = idPorNome.get(s.nomeItem.trim().toLowerCase())

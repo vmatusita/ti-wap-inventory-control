@@ -80,22 +80,34 @@ export async function getGruposItens(
     client.rpc('rel_saldo_itens', { p_filial: filialParaRpc(filialId), p_ate: periodo.ate }),
     client.rpc('rel_mov_itens', { p_filial: filialParaRpc(filialId), p_de: periodo.de, p_ate: periodo.ate }),
     client.rpc('rel_frescor_itens', { p_filial: filialParaRpc(filialId), p_ate: periodo.ate }),
-    (() => {
-      let q = client
-        .from('lancamentos_item')
-        .select('item_id, observacao, data, created_at')
-        .not('observacao', 'is', null)
-        // F23: a correção de saldo do dev tem `observacao` NÃO-NULA por construção (é ali que
-        // mora a justificativa obrigatória), então esta leitura — que existe justamente para
-        // exibir observações no relatório — publicaria o texto que o desenvolvedor escreveu
-        // para si mesmo. Segundo dos dois pontos do lado dos ITENS que a revisão adversarial
-        // encontrou depois que a varredura da fase parou em `movimentacoes`.
-        .eq('forcado', false)
-        .gte('data', periodo.de)
-        .lte('data', periodo.ate)
-      if (filialId) q = q.eq('filial_id', filialId)
-      return q.order('created_at', { ascending: false }).limit(1000)
-    })(),
+    // Paginada de verdade — o comentário no alto do arquivo já dizia "como as
+    // outras quatro", mas esta usava `.limit(1000)` FIXO. Com o preset "Tudo"
+    // (plurianual), o 1.001º lançamento com observação sumia sem aviso, e a
+    // "última observação" de um item podia ficar de fora por estar atrás da
+    // janela. Desempate por `id`: `created_at` sozinho empata dentro do mesmo
+    // lote de lançamentos, e empate não pagina.
+    paginarTodos<{ item_id: number; observacao: string | null }>(
+      'Falha nas observações dos itens',
+      (from, to) => {
+        let q = client
+          .from('lancamentos_item')
+          .select('item_id, observacao, data, created_at')
+          .not('observacao', 'is', null)
+          // F23: a correção de saldo do dev tem `observacao` NÃO-NULA por construção (é ali que
+          // mora a justificativa obrigatória), então esta leitura — que existe justamente para
+          // exibir observações no relatório — publicaria o texto que o desenvolvedor escreveu
+          // para si mesmo. Segundo dos dois pontos do lado dos ITENS que a revisão adversarial
+          // encontrou depois que a varredura da fase parou em `movimentacoes`.
+          .eq('forcado', false)
+          .gte('data', periodo.de)
+          .lte('data', periodo.ate)
+        if (filialId) q = q.eq('filial_id', filialId)
+        return q
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to)
+      },
+    ),
     // Só a aba CONSOLIDADA (filialId null) tem medidor de mínimo — ver o comentário
     // de `lerMinimosDoCatalogo` acima para o motivo. Nas abas de filial nem vale ler
     // o catálogo: `Promise.resolve([])` deixa `minimos` vazio e `minimoDoItem`
@@ -114,8 +126,8 @@ export async function getGruposItens(
   // observação de cada item — e a geração de snapshot congelaria a afirmação.
   if (frescor.error)
     throw new Error(`Falha no frescor dos itens: ${frescor.error.message}`)
-  if (obsRows.error)
-    throw new Error(`Falha nas observações dos itens: ${obsRows.error.message}`)
+  // `obsRows` não tem `.error` para conferir: `paginarTodos` LANÇA com o rótulo
+  // em qualquer página, que é o mesmo contrato que este `throw` garantia.
   // `catalogo` já chega como array pronto (ou vazio): `lerMinimosDoCatalogo`
   // absorve o próprio erro (ver comentário acima do Promise.all), então não há
   // `.error` para conferir aqui.
@@ -125,7 +137,7 @@ export async function getGruposItens(
     movPorItem.set(m.item_id, { entradas: Number(m.entradas), saidas: Number(m.saidas) })
   }
   const obsPorItem = new Map<number, string>()
-  for (const o of obsRows.data ?? []) {
+  for (const o of obsRows) {
     if (o.observacao && !obsPorItem.has(o.item_id)) obsPorItem.set(o.item_id, o.observacao)
   }
   const frescorPorGrupo = new Map<GrupoItem, string | null>()
