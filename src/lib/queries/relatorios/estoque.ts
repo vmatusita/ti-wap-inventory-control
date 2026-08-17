@@ -18,8 +18,15 @@ import {
   datasDaSerieEstado,
   montarPontosEstado,
 } from '@/lib/relatorios/serie-estado'
-import { modeloDe, paginarTodos, ultimoPorAtivo, type DbClient } from './comum'
+import {
+  modeloDe,
+  paginarPorIds,
+  paginarTodos,
+  ultimoPorAtivo,
+  type DbClient,
+} from './comum'
 import { filialParaRpc } from '@/lib/queries/rpc-filial'
+import type { Database } from '@/lib/types/database'
 
 // Estoque no fim do período: KPIs, categoria × status, disponíveis por modelo,
 // reservados e manutenção — TUDO derivado do estado reconstruído AS-OF (OS-F3
@@ -83,12 +90,32 @@ export async function lerEstadoAtivos(
     }))
   }
 
-  const { data, error } = await client.rpc('rel_estoque_asof', {
-    p_filial: filialParaRpc(filialId),
-    p_data: ate,
-  })
-  if (error) throw new Error(`Falha ao reconstruir o estoque as-of: ${error.message}`)
-  return (data ?? []).map((r) => ({
+  // A RPC devolve UMA LINHA POR ATIVO — o mesmo domínio do fast path acima, e
+  // portanto sujeita ao mesmo corte de 1.000 linhas do PostgREST. Ficou anos sem
+  // paginação porque o acervo cabia embaixo do teto; os imports de go-live
+  // (20–31/07/2026) o levaram a ~1,6 mil e o corte passou a valer, em silêncio:
+  // `kpis` (fast path, paginado) contava o acervo inteiro e `kpisAnterior` (aqui)
+  // parava em 1.000, e o comparativo do relatório anunciava centenas de ativos
+  // novos que nunca existiram.
+  //
+  // A função SQL está CORRETA e devolve tudo — o defeito era só a leitura. O
+  // `.order('ativo_id')` NÃO é enfeite: `rel_estoque_asof` não tem `order by` no
+  // corpo, e paginar por OFFSET sem ordem total repete e perde linhas quando o
+  // plano muda entre duas páginas (ver o bloco de `paginarTodos` em comum.ts).
+  // `ativo_id` é uuid e há uma linha por ativo, então é ordem total.
+  type LinhaAsof = Database['public']['Functions']['rel_estoque_asof']['Returns'][number]
+  const linhas = await paginarTodos<LinhaAsof>(
+    'Falha ao reconstruir o estoque as-of',
+    (from, to) =>
+      client
+        .rpc('rel_estoque_asof', {
+          p_filial: filialParaRpc(filialId),
+          p_data: ate,
+        })
+        .order('ativo_id', { ascending: true })
+        .range(from, to),
+  )
+  return linhas.map((r) => ({
     ativo_id: r.ativo_id,
     categoria: r.categoria,
     marca: r.marca,
@@ -264,12 +291,20 @@ async function dadosAtivos(
 ): Promise<Map<string, DadosAtivo>> {
   const out = new Map<string, DadosAtivo>()
   if (ids.length === 0) return out
-  const { data, error } = await client
-    .from('ativos')
-    .select('id, patrimonio, marca, modelo, filial_id')
-    .in('id', ids)
-  if (error) throw new Error(`Falha ao ler ativos: ${error.message}`)
-  for (const r of data ?? [])
+  // `ids` tinha um teto ACIDENTAL: vinha de leituras que elas próprias truncavam
+  // em 1.000 (os retornos/devoluções de `manutencaoDeEstado`). Paginar aquelas
+  // tirou o teto daqui junto — e uma lista grande de uuids estoura a URL antes
+  // mesmo do corte de linhas. Por lotes resolve os dois.
+  type Linha = { id: string } & DadosAtivo
+  const linhas = await paginarPorIds<Linha>('Falha ao ler ativos', ids, (lote, from, to) =>
+    client
+      .from('ativos')
+      .select('id, patrimonio, marca, modelo, filial_id')
+      .in('id', lote)
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
+  for (const r of linhas)
     out.set(r.id, { patrimonio: r.patrimonio, marca: r.marca, modelo: r.modelo, filial_id: r.filial_id })
   return out
 }
@@ -283,13 +318,18 @@ async function chamadoAteData(
 ): Promise<Map<string, string>> {
   if (ids.length === 0) return new Map()
   type LinhaChamado = { ativo_id: string; chamado: string }
-  const rows = await paginarTodos<LinhaChamado>(
+  // Já paginava; o que faltava era quebrar o `.in()` em lotes — pelo mesmo motivo
+  // de `dadosAtivos` (URL). A ordenação por ativo continua correta: o desempate
+  // de `ultimoPorAtivo` é DENTRO de cada ativo, e um ativo nunca se divide entre
+  // dois lotes.
+  const rows = await paginarPorIds<LinhaChamado>(
     'Falha ao ler chamados as-of',
-    (from, to) =>
+    ids,
+    (lote, from, to) =>
       client
         .from('movimentacoes')
         .select('ativo_id, chamado, created_at')
-        .in('ativo_id', ids)
+        .in('ativo_id', lote)
         .not('chamado', 'is', null)
         .lte('data', ate)
         .order('created_at', { ascending: false })
@@ -344,44 +384,63 @@ export async function manutencaoDeEstado(
   const emManutencao = estado.filter((a) => a.status === 'em_manutencao').map((a) => a.ativo_id)
 
   // Quem voltou de manutenção dentro do período (fechamento do caso).
-  let retQ = client
-    .from('movimentacoes')
-    .select('ativo_id, data, observacao')
-    .eq('tipo', 'retorno_manutencao')
-    .gte('data', periodo.de)
-    .lte('data', periodo.ate)
-  if (filialId) retQ = retQ.eq('filial_id', filialId)
-  const { data: retornos, error: retErr } = await retQ.order('created_at', {
-    ascending: false,
-  })
+  //
   // As leituras desta função LANÇAM em erro, como todas as irmãs do módulo
   // (`dadosAtivos`, `chamadoAteData`, `lerEstadoAtivos`). Antes o canal `error`
   // era descartado e um `data` nulo virava "ninguém voltou da manutenção": a
   // seção saía incompleta sem nenhum sinal — e `gerarRelatorio` CONGELAVA esse
   // resultado errado num snapshot imutável. Falhar alto é a única saída honesta.
-  if (retErr) throw new Error(`Falha ao ler retornos de manutenção: ${retErr.message}`)
+  // `paginarTodos` mantém isso: ela lança com o rótulo em qualquer página.
+  //
+  // Paginadas porque o filtro é só tipo + período, e o período pode ser o preset
+  // "Tudo" (2000-01-01 até hoje) — o mesmo par que `buscarLinhasPeriodo` e
+  // `getLancamentosItensPeriodo` já tratavam com `paginarTodos`; estas duas
+  // ficaram de fora da proteção. Desempate por `id`: `created_at` empata dentro
+  // de uma mesma transação (um lote de movimentações grava tudo no mesmo
+  // instante), e ordenação com empate não serve para paginar.
+  type LinhaMov = { ativo_id: string; data: string; observacao: string | null }
+  const retornos = await paginarTodos<LinhaMov>(
+    'Falha ao ler retornos de manutenção',
+    (from, to) => {
+      let q = client
+        .from('movimentacoes')
+        .select('ativo_id, data, observacao')
+        .eq('tipo', 'retorno_manutencao')
+        .gte('data', periodo.de)
+        .lte('data', periodo.ate)
+      if (filialId) q = q.eq('filial_id', filialId)
+      return q
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to)
+    },
+  )
   const retornoPorAtivo = ultimoPorAtivo(
-    retornos ?? [],
+    retornos,
     (r) => r.ativo_id,
     (r) => ({ data: r.data, obs: r.observacao }),
   )
 
   // F14/§0 — quem foi DEVOLVIDO AO FORNECEDOR no período (outro desfecho do caso,
   // com badge própria; o ativo saiu do inventário, como no descarte).
-  let devQ = client
-    .from('movimentacoes')
-    .select('ativo_id, data, observacao')
-    .eq('tipo', 'devolucao_fornecedor')
-    .gte('data', periodo.de)
-    .lte('data', periodo.ate)
-  if (filialId) devQ = devQ.eq('filial_id', filialId)
-  const { data: devolucoes, error: devErr } = await devQ.order('created_at', {
-    ascending: false,
-  })
-  if (devErr)
-    throw new Error(`Falha ao ler devoluções ao fornecedor: ${devErr.message}`)
+  const devolucoes = await paginarTodos<LinhaMov>(
+    'Falha ao ler devoluções ao fornecedor',
+    (from, to) => {
+      let q = client
+        .from('movimentacoes')
+        .select('ativo_id, data, observacao')
+        .eq('tipo', 'devolucao_fornecedor')
+        .gte('data', periodo.de)
+        .lte('data', periodo.ate)
+      if (filialId) q = q.eq('filial_id', filialId)
+      return q
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to)
+    },
+  )
   const devolucaoPorAtivo = ultimoPorAtivo(
-    devolucoes ?? [],
+    devolucoes,
     (r) => r.ativo_id,
     (r) => ({ data: r.data, obs: r.observacao }),
   )
@@ -395,36 +454,62 @@ export async function manutencaoDeEstado(
   ]
   if (ids.length === 0) return []
 
-  const [dados, enviosRaw, anotacoesRaw] = await Promise.all([
+  // Estas duas herdavam de `ids` um teto que nem era delas: `ids` vinha dos
+  // retornos/devoluções acima, que truncavam em 1.000 e por tabela mantinham a
+  // lista pequena por acidente. Paginar aquelas removeu o acidente — então estas
+  // passam a ler por lotes de id, cada lote paginado. (Mesmo motivo do `throw`
+  // de antes: sem envio não há data, dias em manutenção nem chamado do
+  // fornecedor, e o card sairia mudo em vez de acusar a falha; `paginarPorIds`
+  // lança igual.)
+  type LinhaEnvio = {
+    ativo_id: string
+    data: string
+    observacao: string | null
+    chamado: string | null
+    chamado_fornecedor: string | null
+    created_at: string
+  }
+  type AnotRow = {
+    ativo_id: string
+    texto: string
+    created_at: string
+    autor: { nome: string | null } | null
+  }
+  const [dados, envios, anotacoesRows] = await Promise.all([
     dadosAtivos(client, ids),
-    client
-      .from('movimentacoes')
-      .select('ativo_id, data, observacao, chamado, chamado_fornecedor, created_at')
-      .in('ativo_id', ids)
-      .eq('tipo', 'envio_manutencao')
-      .lte('data', periodo.ate)
-      .order('created_at', { ascending: false }),
-    client
-      .from('anotacoes')
-      .select('ativo_id, texto, created_at, autor:profiles!anotacoes_criado_por_fkey(nome)')
-      .in('ativo_id', ids)
-      // Fim do dia `ate` no fuso de São Paulo (UTC-3 fixo), não em UTC — senão as
-      // anotações das últimas 3h do dia (21:00–23:59 BRT) cairiam para fora.
-      .lte('created_at', fimDoDiaSP(periodo.ate))
-      .order('created_at', { ascending: true }),
+    paginarPorIds<LinhaEnvio>(
+      'Falha ao ler envios de manutenção',
+      ids,
+      (lote, from, to) =>
+        client
+          .from('movimentacoes')
+          .select('ativo_id, data, observacao, chamado, chamado_fornecedor, created_at')
+          .in('ativo_id', lote)
+          .eq('tipo', 'envio_manutencao')
+          .lte('data', periodo.ate)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to),
+    ),
+    paginarPorIds<AnotRow>(
+      'Falha ao ler anotações da manutenção',
+      ids,
+      (lote, from, to) =>
+        client
+          .from('anotacoes')
+          .select('ativo_id, texto, created_at, autor:profiles!anotacoes_criado_por_fkey(nome)')
+          .in('ativo_id', lote)
+          // Fim do dia `ate` no fuso de São Paulo (UTC-3 fixo), não em UTC — senão as
+          // anotações das últimas 3h do dia (21:00–23:59 BRT) cairiam para fora.
+          .lte('created_at', fimDoDiaSP(periodo.ate))
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to),
+    ),
   ])
 
-  // Mesmo motivo do `throw` acima: sem envio não há data, dias em manutenção nem
-  // chamado do fornecedor, e o card sairia mudo em vez de acusar a falha.
-  if (enviosRaw.error)
-    throw new Error(`Falha ao ler envios de manutenção: ${enviosRaw.error.message}`)
-  if (anotacoesRaw.error)
-    throw new Error(
-      `Falha ao ler anotações da manutenção: ${anotacoesRaw.error.message}`,
-    )
-
   const envioPorAtivo = ultimoPorAtivo(
-    enviosRaw.data ?? [],
+    envios,
     (e) => e.ativo_id,
     (e) => ({
       data: e.data,
@@ -433,9 +518,8 @@ export async function manutencaoDeEstado(
       chamadoFornecedor: e.chamado_fornecedor,
     }),
   )
-  type AnotRow = { ativo_id: string; texto: string; created_at: string; autor: { nome: string | null } | null }
   const anotacoesPorAtivo = new Map<string, { texto: string; autor: string | null; em: string }[]>()
-  for (const a of (anotacoesRaw.data ?? []) as unknown as AnotRow[]) {
+  for (const a of anotacoesRows) {
     const lista = anotacoesPorAtivo.get(a.ativo_id) ?? []
     lista.push({ texto: a.texto, autor: a.autor?.nome ?? null, em: a.created_at })
     anotacoesPorAtivo.set(a.ativo_id, lista)

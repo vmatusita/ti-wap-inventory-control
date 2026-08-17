@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import { paginarTodos } from '@/lib/queries/relatorios/comum'
+import { paginarPorIds, paginarTodos } from '@/lib/queries/relatorios/comum'
 import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
 import type { DbClient } from '@/lib/auth/acesso'
 import type { GrupoConflito, LadoConflito } from '@/lib/pendencias/conflitos'
@@ -486,10 +486,21 @@ export async function ladosDosAtivos(
   ativoIds: string[],
 ): Promise<LadoConflito[]> {
   if (ativoIds.length === 0) return []
-  const { data, error } = await client
-    .from('v_conflitos_filiais')
-    .select(LADO_SELECT)
-    .in('ativo_id', ativoIds)
-  if (error) throw new Error(`Falha ao ler os cadastros em conflito: ${error.message}`)
-  return ((data ?? []) as RowLado[]).map(mapearLado)
+  // Por lotes: o teto de `MAX_ATIVOS_POR_OPERACAO` (200) protege o call site que
+  // APAGA, mas não este — `resumoExclusaoConflito` (o preview) só faz dedup por
+  // Set antes de chegar aqui. Como é a leitura que diz ao operador quanta coisa
+  // será destruída, um corte silencioso subestimaria justamente o número que o
+  // diálogo existe para mostrar.
+  const linhas = await paginarPorIds<RowLado>(
+    'Falha ao ler os cadastros em conflito',
+    ativoIds,
+    (lote, from, to) =>
+      client
+        .from('v_conflitos_filiais')
+        .select(LADO_SELECT)
+        .in('ativo_id', lote)
+        .order('ativo_id', { ascending: true })
+        .range(from, to),
+  )
+  return linhas.map(mapearLado)
 }
