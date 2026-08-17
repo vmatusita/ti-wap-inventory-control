@@ -12,8 +12,10 @@ import { modeloDe, paginarPorIds, paginarTodos, ultimoPorAtivo } from './comum'
 // CALLBACK de página, e é o callback que se simula — nenhuma parte do
 // supabase-js entra aqui.
 
-// Fonte falsa: um array que responde a (from,to) como o PostgREST responderia,
-// inclusive o teto de 1.000 por página.
+// Fonte falsa: um array que responde a (from,to) como o PostgREST responderia.
+// `teto` é o `max-rows` DO SERVIDOR — quantas linhas ele topa devolver numa
+// resposta, independente do tamanho da janela pedida. O padrão do Supabase é
+// 1.000, mas é config de projeto: os testes abaixo exercitam os dois casos.
 function fonte(total: number, teto = 1000) {
   const chamadas: [number, number][] = []
   const fazPagina = (from: number, to: number) => {
@@ -27,11 +29,16 @@ function fonte(total: number, teto = 1000) {
 }
 
 describe('paginarTodos', () => {
-  it('lê tudo numa página só quando o conjunto é menor que a página', async () => {
+  it('lê tudo e confirma o fim com uma página vazia quando o conjunto é pequeno', async () => {
     const { chamadas, fazPagina } = fonte(7)
     const rows = await paginarTodos<{ i: number }>('rótulo', fazPagina)
     expect(rows).toHaveLength(7)
-    expect(chamadas).toEqual([[0, 999]])
+    // A segunda chamada é a CONFIRMAÇÃO de que acabou, e começa em 7 (o que o
+    // servidor entregou), não em 1.000 (o que pedimos).
+    expect(chamadas).toEqual([
+      [0, 999],
+      [7, 1006],
+    ])
   })
 
   it('devolve vazio sem nenhuma página extra quando não há linha nenhuma', async () => {
@@ -49,6 +56,7 @@ describe('paginarTodos', () => {
     expect(chamadas).toEqual([
       [0, 999],
       [1000, 1999],
+      [1648, 2647],
     ])
   })
 
@@ -62,6 +70,18 @@ describe('paginarTodos', () => {
       [0, 999],
       [1000, 1999],
     ])
+  })
+
+  it('lê tudo mesmo com o `max-rows` do servidor MENOR que a página pedida', async () => {
+    // A regressão que o `rows.length < PAGINA → break` deixava passar: com
+    // max-rows=500, TODA página vem curta. Parar na primeira devolveria 500 de
+    // 2.500 — o corte silencioso de volta, agora disfarçado de paginação.
+    const { chamadas, fazPagina } = fonte(2500, 500)
+    const rows = await paginarTodos<{ i: number }>('rótulo', fazPagina)
+    expect(rows).toHaveLength(2500)
+    expect(rows.map((r) => r.i)).toEqual([...Array(2500).keys()])
+    // Avança 500 por vez (o que o servidor entregou), não 1.000 (o que pedimos).
+    expect(chamadas.map(([de]) => de)).toEqual([0, 500, 1000, 1500, 2000, 2500])
   })
 
   it('trata `data` nulo como fim da paginação, não como erro', async () => {
@@ -88,6 +108,16 @@ describe('paginarTodos', () => {
       'Falha ao ler o estoque: timeout',
     )
   })
+
+  it('LANÇA ao bater no teto de paginação em vez de devolver o acumulado', async () => {
+    // Um cinto de segurança que corta dado calado é o mesmo bug num número
+    // maior — e mais convincente, porque 100.000 não parece um número redondo
+    // de API. A fonte é infinita de propósito.
+    const { fazPagina } = fonte(Number.MAX_SAFE_INTEGER)
+    await expect(paginarTodos('Falha ao ler o estoque', fazPagina)).rejects.toThrow(
+      /teto de pagina[çc][ãa]o atingido \(100000 linhas\)/,
+    )
+  })
 })
 
 describe('paginarPorIds', () => {
@@ -104,12 +134,37 @@ describe('paginarPorIds', () => {
   it('quebra a lista em lotes de 100 e concatena na ordem dos ids', async () => {
     const ids = Array.from({ length: 250 }, (_, i) => `id-${i}`)
     const lotes: string[][] = []
-    const rows = await paginarPorIds<{ id: string }>('rótulo', ids, (lote) => {
-      lotes.push(lote)
-      return Promise.resolve({ data: lote.map((id) => ({ id })), error: null })
+    const rows = await paginarPorIds<{ id: string }>('rótulo', ids, (lote, from) => {
+      if (from === 0) lotes.push(lote)
+      return Promise.resolve({
+        data: from === 0 ? lote.map((id) => ({ id })) : [],
+        error: null,
+      })
     })
     expect(lotes.map((l) => l.length)).toEqual([100, 100, 50])
+    // A ordem do RESULTADO é a de `ids` mesmo com os lotes em voo ao mesmo
+    // tempo: `partes.flat()` recompõe pelo índice do lote, não pela chegada.
     expect(rows.map((r) => r.id)).toEqual(ids)
+  })
+
+  it('dispara os lotes EM PARALELO, não um depois do outro', async () => {
+    const ids = Array.from({ length: 250 }, (_, i) => `id-${i}`)
+    let emVoo = 0
+    let picoEmVoo = 0
+    const rows = await paginarPorIds<{ id: string }>('rótulo', ids, (lote, from) => {
+      emVoo++
+      picoEmVoo = Math.max(picoEmVoo, emVoo)
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          emVoo--
+          resolve({ data: from === 0 ? lote.map((id) => ({ id })) : [], error: null })
+        }, 0),
+      )
+    })
+    expect(rows).toHaveLength(250)
+    // Em série o pico seria 1. Os três lotes são independentes (nenhum id se
+    // divide entre dois), então nada obriga a enfileirá-los.
+    expect(picoEmVoo).toBe(3)
   })
 
   it('pagina DENTRO de cada lote — um id pode ter muitas linhas', async () => {
@@ -127,6 +182,7 @@ describe('paginarPorIds', () => {
     expect(pedidos).toEqual([
       [0, 999],
       [1000, 1999],
+      [1200, 2199],
     ])
   })
 

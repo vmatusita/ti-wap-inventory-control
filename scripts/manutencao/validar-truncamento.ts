@@ -19,8 +19,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { loadEnvLocal } from '../env-guard'
 import { lerEstadoAtivos } from '../../src/lib/queries/relatorios/estoque'
-import { periodoAnterior } from '../../src/lib/relatorios/periodo'
-import { semanaUtilCorrente } from '../../src/lib/relatorios/periodo'
+import { periodoAnterior, semanaUtilCorrente } from '../../src/lib/relatorios/periodo'
 import { hojeISO } from '../../src/lib/format'
 import { filialParaRpc } from '../../src/lib/queries/rpc-filial'
 import type { DbClient } from '../../src/lib/queries/relatorios/comum'
@@ -130,10 +129,13 @@ async function main() {
   console.log(`  kpisAnterior.total: ${kpisAnt}`)
   console.log(`  Δ do total: ${kpis - kpisAnt >= 0 ? '+' : ''}${kpis - kpisAnt}`)
   checar(kpisAnt > PAGINA, `kpisAnterior.total > ${PAGINA} (não truncado)`)
-  checar(
-    Math.abs(kpis - kpisAnt) < 100,
-    `Δ do total sem o salto fantasma de centenas (${kpis - kpisAnt})`,
-  )
+  // Sem limiar sobre o Δ. Um `Math.abs(kpis - kpisAnt) < 100` reprovaria o
+  // go-live de uma filial nova pela tela `admin/importar` — centenas de ativos
+  // numa semana é evento LEGÍTIMO e já aconteceu (20–31/07). Um validador
+  // reexecutável que acusa FALHA no caminho normal ensina quem o roda a ignorar
+  // o resultado. Quem detecta o truncamento é a checagem acima (`kpisAnt` preso
+  // em 1.000), e ela não depende de adivinhar quanto o acervo pode variar.
+  console.log(`  (Δ é informativo — variação grande pode ser import de go-live, não truncamento)`)
 
   // 5) Evidência para os vereditos da varredura que dependiam de volume real.
   console.log('\n· volumes que sustentam os vereditos da varredura')

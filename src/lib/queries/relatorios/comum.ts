@@ -32,10 +32,12 @@ export function modeloDe(marca: string | null, modelo: string | null): string {
 // Paginação única do PostgREST (que corta selects em 1.000 linhas). Uma única
 // constante de página e um teto único: o maior domínio hoje é "todos os ativos"
 // (~1,6 mil) e "movimentações de um período"; 100 páginas dão ~60× de folga
-// sobre o pior caso atual. O teto é só um cinto de segurança contra loop
-// infinito — nenhuma consulta real chega perto. (Antes: 4 loops com tetos
-// divergentes 20k/50k/100k; unificar em 100k só AMPLIA o menor, nunca trunca o
-// que já passava.)
+// sobre o pior caso atual. (Antes: 4 loops com tetos divergentes 20k/50k/100k;
+// unificar em 100k só AMPLIA o menor, nunca trunca o que já passava.)
+//
+// O teto NÃO é um limite de leitura: alcançá-lo LANÇA. Um teto que corta dado e
+// devolve o acumulado seria a mesma falha silenciosa que esta paginação existe
+// para eliminar — só que num número maior e mais convincente.
 const PAGINA = 1000
 const CAP_PAGINACAO = 100_000
 
@@ -53,6 +55,18 @@ const CAP_PAGINACAO = 100_000
 // não tem `order by` no corpo — o caso de `rel_estoque_asof` —, a ordem é
 // imposta AQUI, na chamada: o builder de RPC do supabase-js aceita `.order()` e
 // `.range()` como qualquer select, então não é preciso mexer na função SQL.
+//
+// ⚠ O FIM É "PÁGINA VAZIA", nunca "página menor que `PAGINA`".
+//
+// `PAGINA` é o tamanho PEDIDO; o servidor devolve o que quiser até esse teto. O
+// `max-rows` do PostgREST é config de projeto (Settings → API no Supabase) e não
+// vale nada supor que é 1.000: baixado para 500, toda página vira curta e um
+// `rows.length < PAGINA → break` pararia na PRIMEIRA — exatamente o corte
+// silencioso que esta função existe para impedir, agora disfarçado de paginação.
+// Por isso o avanço é `from += rows.length` (o que o servidor de fato entregou,
+// não o que pedimos) e a parada é `rows.length === 0`. Custa uma requisição
+// extra por leitura, que retorna vazia; é o preço de não depender de um
+// parâmetro remoto que ninguém aqui controla.
 export async function paginarTodos<Row>(
   rotuloErro: string,
   fazPagina: (
@@ -61,12 +75,20 @@ export async function paginarTodos<Row>(
   ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
 ): Promise<Row[]> {
   const acc: Row[] = []
-  for (let from = 0; from < CAP_PAGINACAO; from += PAGINA) {
+  let from = 0
+  for (;;) {
     const { data, error } = await fazPagina(from, from + PAGINA - 1)
     if (error) throw new Error(`${rotuloErro}: ${error.message}`)
     const rows = (data ?? []) as Row[]
+    if (rows.length === 0) break
     acc.push(...rows)
-    if (rows.length < PAGINA) break
+    from += rows.length
+    if (from >= CAP_PAGINACAO)
+      throw new Error(
+        `${rotuloErro}: teto de paginação atingido (${CAP_PAGINACAO} linhas). ` +
+          'A leitura foi abortada de propósito — devolver o acumulado seria afirmar ' +
+          'um número truncado com cara de certo.',
+      )
   }
   return acc
 }
@@ -89,6 +111,13 @@ const LOTE_IDS = 100
 // ordenação (o `ultimoPorAtivo`, que reduz linhas JÁ ordenadas) precisa ordenar
 // DENTRO de cada lote e agrupar por id — que é exatamente o que os chamadores
 // fazem, porque o desempate deles é por ativo, nunca entre ativos diferentes.
+//
+// Os lotes vão EM PARALELO. É a mesma invariante de cima que autoriza: nenhum
+// ativo se divide entre dois lotes, então nada num lote depende de outro e a
+// ordem em que chegam não muda o resultado — `partes.flat()` recompõe a ordem
+// de `ids` pelo índice, não pela chegada. Em série, `manutencaoDeEstado` com o
+// preset "Tudo" pagaria ⌈n/100⌉ round-trips enfileirados em CADA uma das quatro
+// leituras por id; em paralelo, paga a latência de um lote só.
 export async function paginarPorIds<Row>(
   rotuloErro: string,
   ids: readonly string[],
@@ -99,15 +128,14 @@ export async function paginarPorIds<Row>(
   ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
 ): Promise<Row[]> {
   if (ids.length === 0) return []
-  const acc: Row[] = []
-  for (let i = 0; i < ids.length; i += LOTE_IDS) {
-    const lote = ids.slice(i, i + LOTE_IDS) as string[]
-    const rows = await paginarTodos<Row>(rotuloErro, (from, to) =>
-      fazPagina(lote, from, to),
-    )
-    acc.push(...rows)
-  }
-  return acc
+  const lotes: string[][] = []
+  for (let i = 0; i < ids.length; i += LOTE_IDS) lotes.push(ids.slice(i, i + LOTE_IDS))
+  const partes = await Promise.all(
+    lotes.map((lote) =>
+      paginarTodos<Row>(rotuloErro, (from, to) => fazPagina(lote, from, to)),
+    ),
+  )
+  return partes.flat()
 }
 
 // "Última movimentação por ativo": reduz linhas JÁ ordenadas (mais recente

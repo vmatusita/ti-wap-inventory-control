@@ -14,6 +14,11 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { chavePatrimonio } from '../../src/lib/patrimonio'
+// FONTE ÚNICA da paginação do PostgREST. Este script tinha três cópias manuais
+// do laço (`for (let de = 0; ; de += PAGE)`), cada uma sem o teto anti-loop e
+// cada uma com a mesma suposição frágil de que o servidor sempre devolve 1.000
+// por página — a correção do paginador teria de ser reaplicada à mão em todas.
+import { paginarTodos } from '../../src/lib/queries/relatorios/comum'
 import { assertCargaGuards, createAdminClient, resolverAdmin } from './guard'
 import { montarPlanoItens, type PlanoItens } from './itens'
 import { chaveServiceTag, statusAposMovimentacao, SLUG_POR_FILIAL, mapearUnidade } from './normalizar'
@@ -160,20 +165,17 @@ type AtivoDb = {
 
 async function buscarAtivosExistentes(db: Db): Promise<Map<string, AtivoDb>> {
   const mapa = new Map<string, AtivoDb>()
-  const PAGE = 1000
-  for (let de = 0; ; de += PAGE) {
-    const { data, error } = await db
+  const linhas = await paginarTodos<AtivoDb>('Falha ao ler ativos', (from, to) =>
+    db
       .from('ativos')
       .select(
         'id, patrimonio, service_tag, status, filial_id, colaborador_atual, setor_atual, termo_assinado, termo_data, marca, modelo, fornecedor, hostname, memoria, armazenamento, processador, patrimonio_original, pendencia, observacoes',
       )
       .order('id')
-      .range(de, de + PAGE - 1)
-    if (error) throw new Error(`Falha ao ler ativos: ${error.message}`)
-    for (const a of (data ?? []) as AtivoDb[]) {
-      mapa.set(chavePatrimonio(a.patrimonio, chaveServiceTag(a.service_tag)), a)
-    }
-    if (!data || data.length < PAGE) break
+      .range(from, to),
+  )
+  for (const a of linhas) {
+    mapa.set(chavePatrimonio(a.patrimonio, chaveServiceTag(a.service_tag)), a)
   }
   return mapa
 }
@@ -188,22 +190,20 @@ async function buscarMovimentacoesExistentes(db: Db): Promise<{
 }> {
   const chaves = new Map<string, number>()
   const comprasPorAtivo = new Map<string, number>()
-  const PAGE = 1000
-  for (let de = 0; ; de += PAGE) {
-    const { data, error } = await db
+  type LinhaMov = { ativo_id: string; tipo: string; data: string; chamado: string | null }
+  const linhas = await paginarTodos<LinhaMov>('Falha ao ler movimentações', (from, to) =>
+    db
       .from('movimentacoes')
       .select('ativo_id, tipo, data, chamado')
       .order('id')
-      .range(de, de + PAGE - 1)
-    if (error) throw new Error(`Falha ao ler movimentações: ${error.message}`)
-    for (const m of data ?? []) {
-      const k = `${m.ativo_id}|${m.tipo}|${m.data}|${m.chamado ?? ''}`
-      chaves.set(k, (chaves.get(k) ?? 0) + 1)
-      if (m.tipo === 'compra') {
-        comprasPorAtivo.set(m.ativo_id as string, (comprasPorAtivo.get(m.ativo_id as string) ?? 0) + 1)
-      }
+      .range(from, to),
+  )
+  for (const m of linhas) {
+    const k = `${m.ativo_id}|${m.tipo}|${m.data}|${m.chamado ?? ''}`
+    chaves.set(k, (chaves.get(k) ?? 0) + 1)
+    if (m.tipo === 'compra') {
+      comprasPorAtivo.set(m.ativo_id, (comprasPorAtivo.get(m.ativo_id) ?? 0) + 1)
     }
-    if (!data || data.length < PAGE) break
   }
   return { chaves, comprasPorAtivo }
 }
@@ -466,22 +466,18 @@ async function executarItens(
   // tabela de evento. Se o conjunto passasse de 1.000, o corte do PostgREST
   // faria a carga achar que uma abertura ainda não existe e lançá-la DE NOVO —
   // o oposto do que este `Set` existe para garantir.
-  const jaLancado = new Set<string>()
-  {
-    const PAGE = 1000
-    for (let de = 0; ; de += PAGE) {
-      const { data, error } = await db
+  const aberturas = await paginarTodos<{ item_id: number; filial_id: number }>(
+    'Falha ao ler lançamentos',
+    (from, to) =>
+      db
         .from('lancamentos_item')
         .select('item_id, filial_id')
         .eq('tipo', 'entrada')
         .eq('observacao', OBS_SALDO_INICIAL)
         .order('id')
-        .range(de, de + PAGE - 1)
-      if (error) throw new Error(`Falha ao ler lançamentos: ${error.message}`)
-      for (const l of data ?? []) jaLancado.add(`${l.item_id}|${l.filial_id}`)
-      if (!data || data.length < PAGE) break
-    }
-  }
+        .range(from, to),
+  )
+  const jaLancado = new Set(aberturas.map((l) => `${l.item_id}|${l.filial_id}`))
 
   for (const s of plano.saldos) {
     const itemId = idPorNome.get(s.nomeItem.trim().toLowerCase())

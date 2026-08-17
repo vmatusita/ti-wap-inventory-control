@@ -23,6 +23,18 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.40.3',
+    data: '2026-08-17',
+    titulo: 'A revisão da correção do corte de 1.000',
+    mudancas: [
+      'A trava que impede o sistema de contar só os primeiros 1.000 equipamentos deixou de depender de um ajuste do servidor que ninguém aqui controla. Se esse ajuste mudasse, a contagem voltaria a parar cedo em silêncio — agora não volta.',
+      'Uma leitura longa que passe do limite de segurança acusa erro na tela, em vez de mostrar um número menor com cara de certo. Falhar à vista é melhor que um total errado que ninguém desconfia.',
+      'As telas de relatório de períodos longos ficaram mais rápidas: as consultas que buscam equipamentos em blocos agora vão todas ao mesmo tempo, em vez de cada bloco esperar o anterior terminar.',
+      'A tela de manutenção do sistema abre mais rápido e parou de carregar todo o histórico de lançamentos de estoque só para mostrar quantos lançamentos cada item tem.',
+      'Quando um relatório antigo é corrigido e republicado, a lista de pendências daquela semana é preservada como estava — antes ela era substituída pela lista de hoje. O aviso da correção passou a dizer isso, e também que marca, modelo e patrimônio aparecem como estão hoje.',
+    ],
+  },
+  {
     versao: '1.40.2',
     data: '2026-08-17',
     titulo: 'Os relatórios voltaram a contar o acervo inteiro',

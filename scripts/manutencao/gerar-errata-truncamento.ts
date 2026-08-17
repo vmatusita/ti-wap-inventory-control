@@ -21,13 +21,14 @@
  * Regra 2 do CLAUDE.md: a saída imprime SÓ CONTAGENS e ids técnicos (uuid de
  * snapshot) — nenhum patrimônio, nome de colaborador ou linha de produção.
  */
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, statSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { loadEnvLocal } from '../env-guard'
 import { getSnapshotRelatorioV2 } from '../../src/lib/queries/relatorios/snapshot'
 import { periodoAnterior } from '../../src/lib/relatorios/periodo'
+import type { SnapshotRelatorioV2 } from '../../src/lib/relatorios/tipos'
 import { formatDate } from '../../src/lib/format'
 import type { DbClient } from '../../src/lib/queries/relatorios/comum'
 
@@ -45,9 +46,12 @@ const OBSERVACAO_ERRATA =
   `${MARCA_ERRATA} Correção do truncamento de 1.000 linhas: a versão anterior deste ` +
   'relatório congelou apenas os primeiros 1.000 ativos do acervo, porque a leitura que ' +
   'reconstrói o estoque numa data passada era cortada nesse limite. Os totais desta versão ' +
-  'foram recalculados sobre o acervo inteiro. Ressalva: exclusões feitas DEPOIS da geração ' +
+  'foram recalculados sobre o acervo inteiro. Ressalva 1: exclusões feitas DEPOIS da geração ' +
   'original (por exemplo, resoluções de conflito entre filiais) não são reconstruíveis ' +
-  'retroativamente — um ativo apagado desde então não reaparece nestes números.'
+  'retroativamente — um ativo apagado desde então não reaparece nestes números. Ressalva 2: ' +
+  'os quadros que dependem do cadastro do equipamento (patrimônio, marca e modelo) mostram o ' +
+  'cadastro COMO ESTÁ HOJE, não como estava na geração original; a seção de pendências foi ' +
+  'preservada exatamente como a versão anterior a congelou.'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
@@ -88,12 +92,20 @@ async function main() {
   const linhas = (todos ?? []) as unknown as LinhaSnapshot[]
   console.log(`snapshots existentes: ${linhas.length}`)
 
-  // Backup JSON das linhas candidatas — FORA do repositório (autoproteção).
-  const dir = join(tmpdir(), 'errata-truncamento')
+  // Backup JSON de TODAS as linhas — FORA do repositório e DURÁVEL (autoproteção,
+  // § Modo de operação do CLAUDE.md). Não vai em `tmpdir()`: o `%TEMP%` do Windows
+  // é varrido sem aviso, e um backup que pode ter sumido não é backup — é um
+  // caminho impresso no console. Se a errata gravar uma v2 errada, é este arquivo
+  // que reconstitui o estado anterior.
+  const dir = join(homedir(), 'estoque-ti-backups', 'errata-truncamento')
   mkdirSync(dir, { recursive: true })
   const arquivoBackup = join(dir, `relatorios_gerados-${CORTE_IMPORT}.json`)
   writeFileSync(arquivoBackup, JSON.stringify(linhas, null, 1), 'utf8')
-  console.log(`backup de leitura: ${arquivoBackup}`)
+  // Conferido, não suposto: o `writeFileSync` acima pode ter ido para um disco
+  // cheio ou uma pasta sincronizada que rejeitou a escrita.
+  const bytes = statSync(arquivoBackup).size
+  if (bytes === 0) throw new Error(`Backup vazio em ${arquivoBackup} — nada será gravado.`)
+  console.log(`backup durável: ${arquivoBackup} (${bytes} bytes, ${linhas.length} linhas)`)
 
   // A versão mais recente por (período, filial) — a errata só nasce da mais nova.
   const chave = (l: LinhaSnapshot) => `${l.periodo_de}|${l.periodo_ate}|${l.filial_id ?? -1}`
@@ -143,6 +155,13 @@ async function main() {
   console.log('\n--- reconstrução com o motor corrigido ---')
   const mapeamento: { v1: string; v2: string | null; de: string; ate: string; escopo: string; antes: string; depois: string }[] = []
 
+  // Autor resolvido UMA vez, antes do laço: o resultado é invariante e consultá-lo
+  // por snapshot abria uma janela feia — se o perfil dev fosse desativado no meio
+  // da execução, o `throw` de `devMaisAntigo()` pararia o lote pela metade, com
+  // parte das erratas já gravada. Só no modo EXECUTAR: o dry-run não deve exigir
+  // um perfil dev ativo para rodar.
+  const autor = EXECUTAR ? await devMaisAntigo() : null
+
   for (const l of paraGerar) {
     const escopo = l.filial_id === null ? 'geral' : await slugDaFilial(l.filial_id)
     const periodo = {
@@ -150,7 +169,14 @@ async function main() {
       ate: l.periodo_ate,
       rotulo: `${formatDate(l.periodo_de)} a ${formatDate(l.periodo_ate)}`,
     }
-    const novo = await getSnapshotRelatorioV2(client, escopo, periodo)
+    // `incluirPendencias: false` NÃO é economia — é honestidade. `getPendencias`
+    // não recebe período nenhum: ela conta a fila de pendências CORRENTE. Deixá-la
+    // reconstruir estamparia a fila de HOJE num relatório de semanas atrás, e a
+    // v2 apresentaria como "a versão corrigida daquela semana" uma seção que
+    // nunca foi daquela semana. O que era as-of na v1 continua as-of na v2; o que
+    // não era, a v2 herda congelado da v1 em vez de inventar.
+    const novo = await getSnapshotRelatorioV2(client, escopo, periodo, false)
+    novo.pendencias = (l.dados.pendencias ?? []) as SnapshotRelatorioV2['pendencias']
     const antesK = totalDe(l.dados, 'kpis')
     const antesKA = totalDe(l.dados, 'kpisAnterior')
     const depoisK = novo.kpis.total
@@ -182,7 +208,6 @@ async function main() {
       continue
     }
 
-    const autor = await devMaisAntigo()
     const { data: inserido, error: eIns } = await client
       .from('relatorios_gerados')
       .insert({
@@ -191,14 +216,14 @@ async function main() {
         filial_id: l.filial_id,
         versao: proxima,
         dados: novo as never,
-        gerado_por: autor,
+        gerado_por: autor!,
         observacao: OBSERVACAO_ERRATA,
       })
       .select('id')
       .single()
     if (eIns) throw new Error(`Falha ao inserir a errata: ${eIns.message}`)
     registro.v2 = inserido!.id
-    console.log(`    gravado v${proxima}: ${inserido!.id} (autor ${autor.slice(0, 8)})`)
+    console.log(`    gravado v${proxima}: ${inserido!.id} (autor ${autor!.slice(0, 8)})`)
     mapeamento.push(registro)
   }
 

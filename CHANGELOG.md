@@ -6,6 +6,41 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 17/08/2026 — Revisão de código da correção do truncamento: 12 achados aplicados ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.40.3**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo
+`c76172a..a1ba1d2` — os seis commits da v1.40.2, que ainda não tinham passado pela revisão. Zero
+migration. **14 achados, 12 aplicados**; os dois pulados estão nomeados abaixo, com o motivo.
+
+- 🐛 **O paginador ainda tinha duas saídas silenciosas — a mesma falha que a v1.40.2 existia para
+  matar.** (1) O fim da leitura era "página com menos de 1.000 linhas", o que amarrava a corretude a
+  um parâmetro de projeto do servidor: baixado para 500, TODA página vira curta e a leitura pararia na
+  primeira. Agora o fim é "página vazia" e o avanço é pelo que o servidor de fato entregou. (2) O teto
+  anti-loop de 100.000 linhas fazia `break` e devolvia o acumulado; agora **lança**.
+- ⚡ **Duas leituras estavam pagando caro pela própria correção.** Os lotes de 100 ids iam em série
+  (⌈n/100⌉ idas e voltas enfileiradas em cada uma das quatro leituras por id da manutenção) — agora vão
+  em paralelo, o que a própria invariante da função já autorizava. E a contagem de lançamentos por item
+  da Zona destrutiva, que passou a materializar a tabela inteira em memória para produzir dezenas de
+  inteiros, virou contagem no banco, uma por item, sem trafegar linha.
+- 📄 **A errata dizia mais do que entregava.** Ela reconstruía o snapshot INTEIRO com o estado de hoje,
+  e a fila de pendências não é as-of — a v2 de 03–07/08 saiu carregando as pendências de 17/08. Agora
+  as pendências são **herdadas congeladas da v1** e o texto declara as duas ressalvas.
+- 🧰 **Ferramenta:** a carga de go-live tinha **três** cópias manuais do laço de paginação, nenhuma com
+  teto anti-loop — as três passaram a usar a fonte única. O validador deixou de reprovar um Δ de acervo
+  maior que 100 (o go-live de uma filial é exatamente isso) e o backup da errata saiu do `%TEMP%`, que
+  o sistema varre sem avisar, para um caminho durável conferido antes de qualquer gravação.
+- 🧪 **`paginarTodos` ganhou os três testes que faltavam** (16 no arquivo, 2.560 na suíte): servidor que
+  devolve menos linhas do que o pedido, teto que lança, e lotes que realmente saem em paralelo. O
+  parâmetro `teto` do próprio helper de teste era morto — era ele que provaria o achado nº 1.
+- ⏭️ **Dois achados pulados, os dois de desempenho e nenhum de corretude:** paginar a reconstrução
+  as-of a re-executa por página (o conserto é a função devolver uma linha agregada), e a leitura das
+  observações de itens varre o período inteiro para extrair uma frase por item (o conserto é resolver
+  "o mais recente por chave" no banco). Ambos exigem migration + regeneração de tipos, o que é trabalho
+  de fase, não edição de revisão.
+- ✅ **`npm run lint` limpo, `npm run build` limpo, `tsc --noEmit` limpo, 2.560 testes verdes.**
+
+---
+
 ## 17/08/2026 — O corte de 1.000 linhas nas leituras do estoque ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.40.2**). A API de dados do Supabase corta **qualquer** resposta em
