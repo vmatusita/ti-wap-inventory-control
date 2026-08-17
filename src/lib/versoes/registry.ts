@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.40.2',
+    data: '2026-08-17',
+    titulo: 'Os relatórios voltaram a contar o acervo inteiro',
+    mudancas: [
+      'O comparativo do relatório voltou a contar o acervo inteiro: o total da semana anterior parava em 1.000 equipamentos, e a diferença entre as semanas aparecia como um salto de centenas de itens que nunca entraram.',
+      'Quem escolhe uma data passada — no relatório de uma filial ou no consolidado — passou a ver todos os equipamentos daquele dia, e não só os 1.000 primeiros. Isso vale para os quadros de categoria, de disponíveis por modelo, de reservados e de manutenção.',
+      'O relatório da semana de 3 a 7 de agosto foi refeito: a versão congelada dizia 1.000 equipamentos e agora diz 1.648. A versão antiga continua guardada e marcada como superada.',
+      'A linha do tempo da ficha do equipamento e a última observação de cada item de estoque também passaram a mostrar o histórico completo, sem corte.',
+    ],
+  },
+  {
     versao: '1.40.1',
     data: '2026-08-12',
     titulo: 'Acertos de revisão na tela de versões e no menu do celular',

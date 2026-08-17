@@ -5833,3 +5833,77 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   em vários commits, e algumas (as levas do import) sequer têm um commit único que as represente. A
   história fica onde ela é verdadeira: no `CHANGELOG.md` e no registry.
 - **Reversível?** sim; tags podem ser criadas depois se um dia forem úteis.
+
+## 2026-08-17 · Truncamento de 1.000 · A correção é paginar no app, não subir o `max-rows`
+
+- **Contexto:** a API de dados do Supabase (PostgREST) corta qualquer resposta em 1.000 linhas. O
+  acervo passou desse teto nos imports de go-live (20–31/07/2026), e as leituras não paginadas
+  passaram a devolver número errado em silêncio — o caso visível foi o Δ fantasma de **+647** no
+  comparativo do relatório.
+- **Alternativa descartada:** subir o `max-rows` no painel do Supabase. Resolve hoje e volta a
+  quebrar no próximo patamar (nada avisa quando o acervo passar do novo teto), vale só para este
+  projeto e não para quem consome a mesma API, e deixa a paginação como dívida em todos os pontos.
+- **Decisão:** paginar no app, reusando o `paginarTodos` que já existia desde a F3 — e **não** tocar
+  `supabase/`. A função SQL está correta: provado em produção, a mesma RPC com `offset=1000` devolve
+  as 648 linhas restantes. O defeito era só do lado da leitura.
+- **Reversível?** sim; são leituras, sem migration e sem mudança de contrato.
+
+## 2026-08-17 · Truncamento de 1.000 · A ordem total é imposta na CHAMADA da RPC, não no SQL
+
+- **Contexto:** `rel_estoque_asof` não tem `order by` no `select` final (migration `0109`). `.range()`
+  vira OFFSET/LIMIT, e OFFSET sobre relação **sem ordem total** é indefinido: nada obriga duas
+  consultas independentes a enumerarem as linhas na mesma sequência, então páginas vizinhas podem
+  repetir linhas e perder outras. Trocar um bug de contagem por outro, mais difícil de ver.
+- **Medido:** hoje as duas passadas concordam (1.648 distintos, zero duplicatas, com e sem `order`).
+  Mas isso é propriedade do **plano atual**, não garantia — e um `seq scan` virar `index scan` basta
+  para quebrar.
+- **Decisão:** impor `.order('ativo_id')` na chamada da RPC (`ativo_id` é uuid e há uma linha por
+  ativo, logo ordem **total**), em vez de acrescentar `order by` na função SQL. Motivo: `supabase/`
+  está fora do escopo desta entrega, o builder de RPC do supabase-js aceita `.order()` como qualquer
+  select, e a correção fica ao lado da paginação que a exige — quem ler `paginarTodos` vê a regra.
+  A exigência ficou escrita no cabeçalho de `paginarTodos`, não só neste commit.
+- **Reversível?** sim; é um `.order()` na chamada.
+
+## 2026-08-17 · Truncamento de 1.000 · Errata só depois do último import "Substituir tudo" (31/07)
+
+- **Contexto:** seis snapshots congelados carregam a assinatura do truncamento (`kpis` ou
+  `kpisAnterior` **exatamente** 1000). A tentação é regerar todos.
+- **Decisão:** só gera errata o snapshot cujas **duas** datas reconstruídas (o `periodo_ate` e o `ate`
+  da janela anterior) sejam **posteriores a 31/07/2026** — data do último import "Substituir tudo",
+  conferida em `import_logs` (filial 4, 31/07 18:32Z).
+- **Motivo:** os imports de go-live **apagaram e recriaram** o acervo. Reconstruir um estado as-of
+  anterior a isso não devolve o que era verdade naquele dia: devolve o acervo de hoje projetado para
+  trás por movimentações que foram apagadas junto. Seria um número **enganoso com aparência de
+  corrigido** — pior que o erro atual, porque ninguém desconfiaria dele.
+- **Efeito:** qualifica **apenas** o consolidado 03–07/08 (reconstrói 07/08 e 02/08). Os cinco de
+  julho ficam como estão e entram no relatório como **não-erratáveis**, com o motivo escrito — a
+  omissão é deliberada, não esquecimento.
+- **Reversível?** a v1 nunca é tocada e a errata é linha nova; regerar depois é sempre possível.
+
+## 2026-08-17 · Truncamento de 1.000 · O `.in(ids)` grande vira lotes de 100
+
+- **Contexto:** paginar os retornos/devoluções da manutenção removeu um teto que era **acidental**: a
+  lista `ids` que alimenta os envios, as anotações e `dadosAtivos` só era pequena porque as leituras
+  que a produziam truncavam em 1.000.
+- **Decisão:** `paginarPorIds` — lotes de 100 ids, cada lote paginado por dentro.
+- **Motivo:** são **dois** limites distintos, e o segundo não é o desta entrega. Um `.in()` viaja na
+  query string (`?ativo_id=in.(uuid,…)`), e um uuid custa 37 caracteres com a vírgula: mil ids passam
+  de 37 KB de URL e a requisição morre no proxy (414) antes de qualquer truncamento. 100 ids ≈ 3,7 KB
+  deixa folga para os dois. A ordenação continua correta porque o desempate dos chamadores é **dentro
+  de cada ativo**, e um ativo nunca se divide entre dois lotes.
+- **Reversível?** sim; é uma constante e um laço.
+
+## 2026-08-17 · Truncamento de 1.000 · Divergência de 1 ativo entre o fast path e o as-of de hoje
+
+- **Achado (não corrigido):** com tudo paginado, `lerEstadoAtivos(hoje)` pelo fast path devolve
+  **1.647** e a reconstrução as-of da mesma data devolve **1.648**. Caracterizado em produção: **um**
+  ativo cujo `status` gravado é `devolvido_fornecedor` (baixa terminal) mas que a reconstrução as-of
+  de hoje ainda conta. Três movimentações, nenhuma com data futura.
+- **Por que não entra nesta entrega:** não é truncamento — os dois lados agora leem o conjunto
+  inteiro, e a diferença permanece. É divergência entre o `status` materializado na tabela e a
+  máquina de estados reconstruída, cuja investigação mora no SQL (`status_apos_movimentacao` /
+  `rel_estoque_asof`) — e `supabase/` está fora do escopo desta ordem.
+- **Efeito prático:** o Δ do total no relatório ao vivo aparece como **−1** em vez de 0. Antes desta
+  correção o mesmo Δ aparecia como **+647**, então o resíduo é de outra ordem de grandeza.
+- **Encaminhamento:** registrado como pendência no relatório da entrega, para uma ordem que possa
+  mexer no banco.

@@ -6,6 +6,43 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 17/08/2026 — O corte de 1.000 linhas nas leituras do estoque ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.40.2**). A API de dados do Supabase corta **qualquer** resposta em
+**1.000 linhas**, e quem lê uma coleção maior sem paginar recebe 1.000 e nenhum erro. O acervo passou
+desse teto nos imports de go-live (20–31/07) — desde então, toda leitura não paginada que abrange o
+acervo inteiro devolvia número errado, em silêncio. Zero migration: `supabase/` intocado, a função SQL
+sempre esteve correta.
+
+- 🐛 **O Δ fantasma de +647.** `lerEstadoAtivos` tem dois caminhos: o *fast path* (período terminando
+  hoje) já paginava e contava 1.647; o caminho **as-of** chamava `rel_estoque_asof` **sem paginação** e
+  parava em 1.000. Como `kpis` sai de um e `kpisAnterior` do outro, o comparativo anunciava **+647
+  ativos** que nunca entraram. Provado em produção: a mesma RPC com `offset=1000` devolve as 648 linhas
+  restantes (1.648 as-of 15/08).
+- 🧭 **Paginar sem ordem total era o segundo bug, e não estava no diagnóstico.** `rel_estoque_asof` não
+  tem `order by` no corpo, e `.range()` vira OFFSET: sem ordem total, duas páginas podem repetir e
+  perder linhas se o plano mudar entre elas. A ordem passou a ser imposta **na chamada**
+  (`.order('ativo_id')`, uuid único por linha) — correção por construção, sem tocar o SQL.
+- 🔍 **Varredura mesma-raiz: 217 pontos de leitura** enumerados em `src/` e `scripts/` — 175 seguros por
+  construção, 30 já paginados, **12 corrigidos**. Além do as-of: os retornos e devoluções da manutenção,
+  a última observação de itens (usava `.limit(1000)` **fixo**, apesar do comentário do arquivo afirmar o
+  contrário), a linha do tempo da ficha, a contagem de lançamentos da Zona destrutiva, os lados de
+  conflito e a idempotência da carga de go-live. As leituras por `.in(ids)` passaram a ir em **lotes de
+  100**: mil uuid numa query string estouram a URL antes mesmo do corte de linhas.
+- 🧪 **`paginarTodos` ganhou o primeiro teste do repositório** (13 casos), incluindo o que era o bug:
+  página **exatamente cheia** exige a leitura seguinte — 1.000 linhas é indistinguível de "acabou".
+- 📄 **Errata do snapshot congelado.** O consolidado de **03–07/08** congelou `kpis = 1000` e
+  `kpisAnterior = 1000`; os valores reais são **1.648** e **1.641**. Foi gravada uma **v2** (linha nova —
+  a v1 é imutável e ficou intacta, conferida contra backup), com a ressalva de que exclusões feitas
+  depois da geração original não são reconstruíveis. Os snapshots de julho com `kpisAnterior = 1000` são
+  **não-erratáveis de propósito**: reconstruí-los cairia antes do import "Substituir tudo" de 31/07, que
+  apagou e recriou o acervo — o número sairia pior que o congelado.
+- ✅ **`npm run lint` limpo, `npm run build` limpo, 2.557 testes verdes**, e um script só-leitura
+  (`scripts/manutencao/validar-truncamento.ts`) que prova em produção que nenhuma leitura devolve
+  exatamente 1.000. Relatório em [`docs/RELATORIO-CORRECAO-TRUNCAMENTO-1000.md`](docs/RELATORIO-CORRECAO-TRUNCAMENTO-1000.md).
+
+---
+
 ## 12/08/2026 — Revisão de código da F35: 12 achados aplicados ✅
 
 Revisão adversarial (xhigh) do intervalo `66dee7c..25db770` — a F35 inteira: registry de versões,
