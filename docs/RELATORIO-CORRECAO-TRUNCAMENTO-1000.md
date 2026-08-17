@@ -123,13 +123,20 @@ Supabase — os testes respeitam isso: simulam o **callback de página**, não o
 
 | veredito | pontos |
 |---|---|
-| seguro estruturalmente | 175 |
-| já paginado | 30 |
+| seguro estruturalmente | 174 |
+| já paginado | 29 |
 | **corrigido nesta entrega** | **12** |
 | investigado e mantido (com motivo) | 2 |
+| **total** | **217** |
 
-> Os 12 corrigidos = 5 classificados `corrigir` pela varredura + 7 promovidos por análise
-> (o efeito dominó de 2.2 e os pontos que a auditoria de completude escalou).
+> **De onde vêm os 12.** A varredura classificou 5 pontos como `corrigir` e 7 como
+> `investigar`. Os 12 corrigidos são: esses **5**, mais **5** dos `investigar` (os envios e
+> anotações da manutenção, a linha do tempo, os lados de conflito e a carga de go-live), mais
+> **2 promovidos por análise** — `dadosAtivos`, que a varredura dera como seguro, e
+> `chamadoAteData`, que ela dera como já paginado: os dois dependiam do teto **acidental** que
+> paginar os retornos/devoluções removeu (§2.2). É por isso que "seguro estrutural" e "já
+> paginado" aparecem aqui com **um a menos** que no plano (175→174 e 30→29): o plano foi escrito
+> antes dessa promoção. Restam **2** `investigar`, tratados no §3.1.
 
 ### 3.1 Investigados e **não** corrigidos
 
@@ -853,4 +860,29 @@ exatamente cheia protege a regra de regredir.
 | 4 — segredos | `SUPABASE_SERVICE_ROLE_KEY` só em `scripts/` local; nada commitado |
 | 5 — produção com autoproteção | errata precedida de **backup JSON fora do repositório**, **dry-run** antes do `--executar`, e contagens conferidas depois |
 | 7 — lint/build/checklist | §4, saídas reais coladas |
-| 8 — **versão** | bump `1.40.2` + entrada no registry (linguagem de operador) + CHANGELOG + tag anotada `v1.40.2` + ata |
+| 8 — **versão** | bump `1.40.2` + entrada no registry (linguagem de operador) + CHANGELOG + ata + tag anotada `v1.40.2` criada no commit final e publicada no fechamento da branch (§9) |
+
+---
+
+## 9. Revisão adversarial do próprio diff
+
+Antes do merge, quatro revisores em contexto fresco leram o diff contra o plano e os critérios,
+e cada achado passou por um verificador encarregado de **refutá-lo**.
+
+- **Lente "correção da paginação"** (ordem total, off-by-one, `paginarPorIds`, canal de erro):
+  **nenhum achado**.
+- **Lente "regressão nos consumidores"** (variáveis renomeadas, `.data` órfão, casts de embed,
+  `tsc`/`test`): **nenhum achado**.
+- **Lente "errata e produção"**: 1 achado, **refutado** — alegava que o backup em `%TEMP%`
+  contraria a regra 2. Não contraria: a regra 2 governa o que entra no **repositório**
+  (seed, fixture, teste, comentário, screenshot); o backup é a autoproteção que a **regra 5**
+  exige antes de escrever em produção, fica fora do repo e não amplia acesso nenhum (quem roda o
+  script já tem a service role).
+- **Lente "requisitos e versão"**: 2 achados, **ambos confirmados e corrigidos** —
+  (a) a tabela-resumo do §3 somava 219 porque herdara os números do plano (175/30) sem descontar
+  os 2 pontos promovidos a corrigido; agora soma 217 e explica a promoção;
+  (b) esta tabela de conformidade afirmava a tag `v1.40.2` como já publicada quando ela ainda não
+  existia — a linha passou a dizer **quando** ela é criada, em vez de afirmar um fato futuro.
+
+Que as duas lentes de código não tenham achado nada, e que as duas correções tenham sido em
+**afirmações do relatório**, é o resultado honesto a registrar.
