@@ -413,7 +413,10 @@ const MENSAGENS_OBRIGATORIAS = [
   'A devolução é maior que a quantidade atrelada ao chamado.',
   'O retorno é maior que a quantidade liberada em aberto.',
   'O ajuste exige uma justificativa (observação).',
-  'Reserva e liberação exigem o número do chamado.',
+  // 19/08/2026 (avulsa) — a recusa do chamado passou a falar os rótulos DA TELA
+  // (antes: "Reserva e liberação exigem o número do chamado.", os nomes
+  // internos do enum — "Liberação" na tela é OUTRO tipo).
+  'Atrelar e Devolução exigem o número do chamado.',
   'Quantidade inválida para este tipo de lançamento.',
   'Já existe um item com esse nome.',
   'Este lançamento já foi estornado.',
@@ -510,9 +513,18 @@ describe('mensagens-de-erro — catálogo com o texto exato da tela', () => {
     expect(t).toContain(normalizarBusca('Verifique sua conexão e tente de novo.'))
   })
 
-  it('traduz o par "Reserva e liberação" para os rótulos que a tela mostra', () => {
+  // 19/08/2026 (avulsa) — este caso afirmava o CONTRÁRIO ("traduz o par
+  // 'Reserva e liberação' para os rótulos que a tela mostra") e virou porque a
+  // RECUSA virou: `MSG_CHAMADO_OBRIGATORIO` e o ramo `lanc_item_chamado` de
+  // `traduzErroBanco` passaram a falar os rótulos DA TELA, e a tabela deixou de
+  // ser um dicionário de nomes internos. Asserção de DOIS lados, como sempre:
+  // a frase nova está lá E a antiga não está.
+  it('a recusa do chamado fala os rótulos da tela — o texto interno morreu', () => {
     const t = normal('mensagens-de-erro')
+    expect(t).toContain(normalizarBusca('Atrelar e Devolução exigem o número do chamado.'))
     expect(t).toContain(normalizarBusca('"Atrelar" e "Devolução"'))
+    expect(t).not.toContain(normalizarBusca('Reserva e liberação exigem'))
+    expect(t).not.toContain(normalizarBusca('a mensagem usa os nomes internos'))
   })
 
   // Revisão do intervalo F32→F34 (11/08/2026) — este caso afirmava o OPOSTO

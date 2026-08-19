@@ -1,20 +1,33 @@
 import {
   MAX_LINHAS_LOTE_ITEM,
   MAX_LINHAS_TRANSFERENCIA_ITEM,
+  MSG_CHAMADO_OBRIGATORIO,
   TETO_MOTIVO_ESTORNO,
 } from '@/lib/validators/item'
 import { TIPO_LANCAMENTO_META, type TipoLancamento } from '@/lib/dominio'
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
+import {
+  GRUPOS_ESCOLHA,
+  PERGUNTA_ESCOLHA,
+  TAREFA_DO_TIPO,
+  grupoPorChave,
+} from '@/lib/itens/escolha-tipo'
 import { ROTULO_SALDO_APOS } from '@/lib/itens/saldo-apos'
 import { ROTULO_ACRESCENTAR, ROTULO_BAIXAR } from '@/lib/itens/sinal-ajuste'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
 // REGRA DE OURO: os nomes dos seis tipos de lancamento NAO sao digitados aqui —
-// saem de `TIPO_LANCAMENTO_META`, o mesmo lugar de onde o seletor do dialogo os
-// tira. Tipo novo (ou rotulo renomeado) aparece nesta frase no mesmo build.
+// saem de `TIPO_LANCAMENTO_META`, o mesmo lugar de onde o dialogo os tira. Tipo
+// novo (ou rotulo renomeado) aparece nesta frase no mesmo build. O mesmo vale
+// para as perguntas da escolha guiada (19/08/2026): grupos e respostas saem de
+// `escolha-tipo.ts`, a fonte que o proprio dialogo renderiza.
 const TIPOS_LANCAMENTO_TEXTO = (Object.keys(TIPO_LANCAMENTO_META) as TipoLancamento[])
   .map((t) => TIPO_LANCAMENTO_META[t].rotulo)
   .join(', ')
+
+const GRUPOS_TEXTO = GRUPOS_ESCOLHA.map((g) => `"${g.rotulo}"`).join(', ')
+const SAIU = grupoPorChave('saiu')
+const VOLTOU = grupoPorChave('voltou')
 
 // Os dois tipos que exigem o numero do chamado sao 'reserva' e 'liberacao'
 // (`exigeChamado`, em validators/item.ts). Na TELA eles se chamam "Atrelar" e
@@ -68,8 +81,10 @@ export const lancarItens: PaginaAjuda = {
         'Abra Itens pelo menu lateral e use "Lançar" — o diálogo se chama "Lançar quantidade". Dentro da página Itens, a tecla L abre esse mesmo diálogo; fora dela a tecla não faz nada (ela não navega até Itens).',
         'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item preenchido e o cursor na quantidade. A filial vem junto quando a tela está no Consolidado com UMA filial marcada no filtro; com duas ou mais marcadas, e na visão Por filial, ela abre em branco (a linha vale para todas) — escolha a filial antes de salvar.',
         'Com a filial escolhida, a lista de itens passa a mostrar o saldo de cada um (ex.: "Mouse USB · 14") — dá para ver antes de escolher às cegas. Sem filial marcada, ou enquanto o saldo ainda carrega, a lista aparece sem o número (nunca com "0" chutado).',
-        `Escolha o tipo (${TIPOS_LANCAMENTO_TEXTO}) — cada um afeta Total/Estoque de um jeito, e a descrição do escolhido aparece logo abaixo do campo.`,
+        `Responda "${PERGUNTA_ESCOLHA}" — ${GRUPOS_TEXTO}. Em "${SAIU.rotulo}" e "${VOLTOU.rotulo}" vem a segunda pergunta ("${SAIU.pergunta}" / "${VOLTOU.pergunta}"), e a resposta — pessoa ou chamado — escolhe o par certo sozinha: "${TAREFA_DO_TIPO.saida}" é ${TIPO_LANCAMENTO_META.saida.rotulo} e volta como "${TAREFA_DO_TIPO.retorno}" (${TIPO_LANCAMENTO_META.retorno.rotulo}); "${TAREFA_DO_TIPO.reserva}" é ${TIPO_LANCAMENTO_META.reserva.rotulo} e volta como "${TAREFA_DO_TIPO.liberacao}" (${TIPO_LANCAMENTO_META.liberacao.rotulo}).`,
+        `O nome oficial do tipo (${TIPOS_LANCAMENTO_TEXTO}) aparece na pílula colorida logo abaixo da resposta, com o efeito no Total/Estoque — é o mesmo nome do histórico, dos filtros e do relatório. Sem resposta o formulário não grava: ele não chuta tipo nenhum (antes abria pré-marcado em ${TIPO_LANCAMENTO_META.entrada.rotulo}, e o lançamento sem atenção subia o estoque).`,
         `Informe a quantidade e, quando fizer sentido, a pessoa/chamado. ${ATRELAR} e ${DEVOLUCAO} exigem o número do chamado; o Ajuste pede justificativa em "Observação (justificativa do ajuste)" e, em vez de digitar o sinal, usa o alternador "${ROTULO_ACRESCENTAR}" / "${ROTULO_BAIXAR}" — o campo só recebe o módulo (sem sinal), o que funciona também no teclado numérico do celular, que não tem tecla de menos. Trocar o tipo para outro que não seja Ajuste some com o sinal negativo pendente na linha.`,
+        'Com item, quantidade, filial e resposta preenchidos, a linha mostra a prévia "Estoque na filial: 14 → 12". Se a operação deixaria a prateleira negativa, a prévia avisa "será recusado (estoque insuficiente)" ali mesmo — antes do envio, não depois.',
         'Confirme em "Lançar". O aviso "Lançamento registrado." confirma; o saldo da tela se atualiza sozinho.',
         '"Repetir último" traz de volta os campos do seu último lançamento — útil para uma sequência de entradas parecidas.',
       ],
@@ -135,6 +150,7 @@ export const lancarItens: PaginaAjuda = {
         'Na página Itens, o histórico filtra por item, por tipo de lançamento, por período (De / Até) e por busca (chamado ou colaborador), além da filial.',
         'Os filtros ficam na URL: o link já vem filtrado ao ser compartilhado, e voltar/avançar do navegador funciona. Trocar um filtro volta para a primeira página.',
         'A tabela traz "Data" (com o autor do lançamento na dica ao passar o mouse ou focar), "Tipo", "Item", "Qtd.", "Filial", "Chamado", "Colaborador", "Obs." e a coluna de ações. Sem resultado, ela diz "Nenhum lançamento no filtro atual" e sugere ajustar o item, o tipo ou o período.',
+        `O sinal da coluna "Qtd." é o efeito na PRATELEIRA: + entra no estoque, − sai. Uma ${TIPO_LANCAMENTO_META.saida.rotulo} de 3 aparece como −3 (três unidades saíram do estoque), mesmo que no registro a quantidade seja o número 3 — o Total só muda com ${TIPO_LANCAMENTO_META.entrada.rotulo} e ${TIPO_LANCAMENTO_META.ajuste.rotulo}. A dica do cabeçalho repete essa régua, e o filtro "Tipo" agrupa as opções pelas mesmas respostas do lançamento (Chegou / Saiu / Voltou / Acerto).`,
         `Com o filtro em EXATAMENTE um item e uma filial, aparece mais uma coluna: "${ROTULO_SALDO_APOS}" — o estoque logo depois de cada lançamento, do mais recente para o mais antigo. Ela reconstrói a partir do saldo atual; se o histórico não fechar com ele (recorte incompleto), a célula mostra "—" em vez de arriscar um número errado.`,
         'O botão "Exportar histórico" leva para o Excel exatamente o que está filtrado ali.',
       ],
@@ -172,9 +188,9 @@ export const lancarItens: PaginaAjuda = {
           'Procure o lançamento de Liberação no histórico e confira a quantidade.',
         ],
         [
-          'Reserva e liberação exigem o número do chamado.',
-          `O tipo escolhido precisa do chamado e ele ficou em branco. Na tela esses dois tipos se chamam "${ATRELAR}" e "${DEVOLUCAO}" — a mensagem usa os nomes internos.`,
-          'Preencha "Chamado" antes de lançar.',
+          `${MSG_CHAMADO_OBRIGATORIO}.`,
+          `São os dois lançamentos que amarram a peça a um chamado — "${ATRELAR}" na ida, "${DEVOLUCAO}" na volta. Sem o número, o par não fecha e a coluna "Falta" acende depois.`,
+          'Preencha "Chamado" antes de lançar (só números).',
         ],
         [
           'O ajuste exige uma justificativa (observação).',

@@ -6,6 +6,54 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 19/08/2026 — Lançamento de itens: a escolha do tipo virou duas perguntas ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.40.4**), a partir do feedback do Johnny: *"está confuso o controle
+de itens, não está claro e com o fluxo certo os lançamentos de itens"*. Diagnóstico completo e ata em
+[`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-19). **Zero migration, zero dependência nova** — os
+rótulos oficiais da F6A §A4 (Liberação/Atrelar/Devolução/Retorno) e a doutrina Total/Estoque da 0027
+não mudam; o que muda é o CAMINHO até o tipo e o vocabulário das mensagens. Tela de itens apenas
+(`/itens`); relatórios e snapshots intocados.
+
+- 🧭 **O tipo deixou de ser um select plano de seis quase-sinônimos.** O diálogo "Lançar quantidade"
+  agora pergunta **"O que aconteceu?"** (Chegou · Saiu da prateleira · Voltou à prateleira · Acerto de
+  contagem) e, no saiu/voltou, **"com quem estava?"** (pessoa ou chamado). O par certo —
+  Liberação↔Retorno, Atrelar↔Devolução — sai da resposta; a fonte é o módulo puro novo
+  `src/lib/itens/escolha-tipo.ts`, cujo teste prova a correspondência das posições CONTRA
+  `planejarEstorno` (a autoridade do inverso). O rótulo oficial continua à vista: miúdo dentro da
+  resposta e na pílula colorida de confirmação, com a descrição do efeito.
+- 🐛 **Morreu o default silencioso `entrada`.** O tipo nasce VAZIO e salvar sem responder é recusado
+  ("Diga o que aconteceu…") — antes, quem abria o diálogo para registrar uma entrega e não tocava no
+  campo gravava uma Entrada, subindo o estoque que devia descer. Presets (botão da linha, paleta) e
+  "Repetir último" continuam preenchendo o que sabem; nenhum deles chuta intenção.
+- 👁️ **Prévia de efeito por linha, antes do envio.** Com item + quantidade + filial + resposta, a
+  linha mostra **"Estoque na filial: 14 → 12"** (`efeito-lancamento.ts`, a MESMA fórmula do banco/
+  "Saldo após" — teste cruzado contra `calcularSaldoApos`); estouro de prateleira avisa "será
+  recusado (estoque insuficiente)" ali, como a transferência da F31 já fazia. O saldo por item subiu
+  do combobox para o diálogo: UMA leitura por troca de filial (eram até 10, uma por linha do
+  carrinho), invalidada após cada lançamento — o mapa alimenta combobox E prévia.
+- ➖ **O sinal da coluna Qtd. do histórico virou o EFEITO na prateleira.** Uma Liberação de 3 aparecia
+  como "+3" com o estoque descendo — o "+" era o número cru, não a direção. Agora: −3 (e a Dica do
+  cabeçalho explica a régua; o resumo do diálogo de estorno diz "−3 no estoque"). O CSV exportado
+  continua com a quantidade crua — a direção lá sempre esteve na coluna Tipo.
+- 🗣️ **As recusas falam o vocabulário da tela.** "Reserva e liberação exigem o número do chamado"
+  (Zod E tradução do CHECK `lanc_item_chamado`) virou **"Atrelar e Devolução exigem o número do
+  chamado"**, derivada de `TIPO_LANCAMENTO_META` — renomear o rótulo renomeia a mensagem no mesmo
+  build. A tabela da ajuda que existia para pedir desculpas ("a mensagem usa os nomes internos")
+  perdeu a razão de existir e foi reescrita; o campo Chamado da Devolução ganhou o placeholder "o
+  mesmo chamado do Atrelar", e o Colaborador se adapta à resposta ("quem ficou com o item" na
+  Liberação, com aviso âmbar quando vazio).
+- 🧰 **Filtro de tipo do histórico agrupado pelas mesmas respostas** (Chegou / Saiu / Voltou /
+  Acerto), ajuda de "Lançar itens"/"Itens por quantidade"/"Mensagens de erro" reescrita nos pontos
+  que ensinavam a conviver com a confusão, e dica no Acerto apontando o modo Conferência para
+  contagem de prateleira inteira.
+- 🧪 **Dois módulos puros novos com testes** (`escolha-tipo`, `efeito-lancamento`), asserções de
+  dois lados nos textos que viraram (a frase nova está lá E a antiga não está) e suíte inteira verde.
+  **Backlog registrado na ata:** seletor de atrelamentos em aberto na Devolução (exige leitura nova
+  por chamado) e o mesmo sinal-por-efeito na tabela de movimentações de itens do relatório (§7 é
+  matéria de fase).
+- ✅ **`npm run lint` limpo, `npm run build` limpo, testes verdes** (2.560 herdados + os novos).
+
 ## 17/08/2026 — Revisão de código da correção do truncamento: 12 achados aplicados ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.40.3**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo

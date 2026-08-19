@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { TIPO_LANCAMENTO_META } from '@/lib/dominio'
 import {
   MAX_LINHAS_LOTE_ITEM,
+  MSG_CHAMADO_OBRIGATORIO,
   MSG_ITEM_REPETIDO,
   MSG_MOTIVO_ESTORNO_MAX,
   TETO_MOTIVO_ESTORNO,
@@ -89,7 +91,7 @@ describe('lancamentoItemSchema (lançamento simples — comportamento da F3B)', 
     expect(r.success).toBe(true)
   })
 
-  it('reserva sem chamado falha com a mensagem de sempre', () => {
+  it('reserva sem chamado falha falando os rótulos da tela (19/08/2026)', () => {
     const r = lancamentoItemSchema.safeParse({
       item_id: 1,
       filial_id: 2,
@@ -98,7 +100,14 @@ describe('lancamentoItemSchema (lançamento simples — comportamento da F3B)', 
       data: DATA_OK,
     })
     expect(r.success).toBe(false)
-    expect(r.error?.issues.some((i) => i.message.includes('chamado é obrigatório'))).toBe(true)
+    // A mensagem fala "Atrelar" e "Devolução" (rótulos de TELA, via
+    // TIPO_LANCAMENTO_META) — nunca mais "reserva e liberação", os nomes
+    // internos do enum, que na tela apontavam para o campo errado ("Liberação"
+    // é o rótulo de OUTRO tipo, que não pede chamado).
+    expect(r.error?.issues.some((i) => i.message === MSG_CHAMADO_OBRIGATORIO)).toBe(true)
+    expect(MSG_CHAMADO_OBRIGATORIO).toContain(TIPO_LANCAMENTO_META.reserva.rotulo)
+    expect(MSG_CHAMADO_OBRIGATORIO).toContain(TIPO_LANCAMENTO_META.liberacao.rotulo)
+    expect(MSG_CHAMADO_OBRIGATORIO.toLowerCase()).not.toContain('reserva')
   })
 
   it('ajuste sem justificativa falha', () => {

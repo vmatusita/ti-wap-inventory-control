@@ -23,6 +23,18 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.40.4',
+    data: '2026-08-19',
+    titulo: 'Lançar itens virou responder o que aconteceu',
+    mudancas: [
+      'Lançar um item deixou de ser escolher entre seis nomes parecidos: o formulário pergunta "O que aconteceu?" — Chegou, Saiu da prateleira, Voltou à prateleira ou Acerto de contagem — e, no saiu/voltou, se a peça estava com uma pessoa ou atrelada a um chamado. O par certo (Liberação volta como Retorno; Atrelar volta como Devolução) sai da resposta, sem decorar vocabulário.',
+      'O formulário não abre mais pré-marcado em "Entrada": sem responder o que aconteceu, nada é gravado. Antes, quem não tocava no campo registrava uma entrada sem querer — e o estoque subia quando devia descer.',
+      'Cada linha do lançamento mostra a prévia "Estoque na filial: 14 → 12" antes de salvar, e avisa ali mesmo quando a quantidade passa do que existe na prateleira — em vez de recusar só depois do envio.',
+      'No histórico de lançamentos, o sinal da coluna Qtd. passou a ser o efeito no estoque: uma Liberação de 3 aparece como −3 (saiu da prateleira), não mais como +3. O filtro de tipo ganhou os mesmos grupos do formulário.',
+      'A recusa por falta de chamado fala os nomes das telas — "Atrelar e Devolução exigem o número do chamado" — em vez dos nomes internos que apontavam para o campo errado.',
+    ],
+  },
+  {
     versao: '1.40.3',
     data: '2026-08-17',
     titulo: 'A revisão da correção do corte de 1.000',

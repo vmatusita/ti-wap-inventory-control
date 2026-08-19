@@ -1,3 +1,5 @@
+import { MSG_CHAMADO_OBRIGATORIO } from '@/lib/validators/item'
+
 // Contrato de retorno padrão das Server Actions simples (ok + erro opcional).
 // Antes redefinido como AdminResult/ItemActionResult/EditarAtivoResult/
 // EstornoResult/CriarSenhaResult — todos idênticos. Actions com retorno rico
@@ -71,7 +73,11 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
     return 'O ajuste exige uma justificativa (observação).'
   }
   if (m.includes('lanc_item_chamado')) {
-    return 'Reserva e liberação exigem o número do chamado.'
+    // 19/08/2026 (avulsa) — a MESMA frase do Zod (`MSG_CHAMADO_OBRIGATORIO`),
+    // que fala os rótulos DA TELA (Atrelar/Devolução). O texto antigo dizia
+    // "reserva e liberação", os nomes internos do enum — e "Liberação", na
+    // tela, é o rótulo de OUTRO tipo, que não pede chamado nenhum.
+    return `${MSG_CHAMADO_OBRIGATORIO}.`
   }
   if (m.includes('lanc_item_qtd_valida')) {
     return 'Quantidade inválida para este tipo de lançamento.'

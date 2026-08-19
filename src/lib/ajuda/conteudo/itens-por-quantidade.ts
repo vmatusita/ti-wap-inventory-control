@@ -90,7 +90,7 @@ export const itensPorQuantidade: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Eles andam em pares: o que sai por Liberação volta por Retorno; o que sai por Atrelar volta por Devolução. Escolher o par errado não some com a peça, mas embaralha a coluna Atrelados — e é a causa mais comum de a coluna Falta acender. Atrelar e Devolução exigem o número do chamado (é ele que amarra a ida à volta); Ajuste exige uma justificativa e aceita quantidade negativa, para dar baixa numa contagem que não bateu.',
+        'Eles andam em pares: o que sai por Liberação volta por Retorno; o que sai por Atrelar volta por Devolução. Escolher o par errado não some com a peça, mas embaralha a coluna Atrelados — e é a causa mais comum de a coluna Falta acender. Por isso o formulário de lançamento não pede o tipo pelo nome: ele pergunta "O que aconteceu?" (Chegou, Saiu da prateleira, Voltou à prateleira, Acerto de contagem) e, no saiu/voltou, se a peça estava com uma pessoa ou atrelada a um chamado — o par certo sai da resposta. Atrelar e Devolução exigem o número do chamado (é ele que amarra a ida à volta); Ajuste exige uma justificativa e aceita quantidade negativa, para dar baixa numa contagem que não bateu.',
     },
     {
       tipo: 'nota',

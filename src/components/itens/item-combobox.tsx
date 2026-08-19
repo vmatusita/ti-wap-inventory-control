@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useRef, useState, useTransition } from 'react'
+import { useId, useState, useTransition } from 'react'
 import { Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { buscarSaldosItens, criarItemInline, type SaldosPorItem } from '@/lib/actions/itens'
+import { criarItemInline, type SaldosPorItem } from '@/lib/actions/itens'
 import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import type { ItemCatalogo } from '@/lib/queries/itens'
@@ -35,7 +35,7 @@ export function ItemCombobox({
   desabilitado,
   podeCriarItem = false,
   descricaoAcessivel,
-  filialId = null,
+  saldos = {},
 }: {
   itens: ItemCatalogo[]
   valor: number | null
@@ -51,11 +51,13 @@ export function ItemCombobox({
   /** Ex.: "Item 2 do lançamento" — o rótulo visível é único para o bloco todo. */
   descricaoAcessivel: string
   /**
-   * ITN-05d — a filial já escolhida no diálogo pai (`lancar-item-dialog.tsx`),
-   * descida para carregar o saldo de cada item ("Mouse USB · 14") sem escolher
-   * às cegas. Sem filial (`null`), nenhuma opção mostra número.
+   * ITN-05d, elevado em 19/08/2026: o saldo por item na filial escolhida vem
+   * PRONTO do diálogo pai ("Mouse USB · 14") — quem busca é ele, UMA vez por
+   * troca de filial, e o mesmo mapa alimenta a prévia de efeito das linhas.
+   * (Antes cada combobox buscava o seu: dez linhas, dez leituras iguais.)
+   * Vazio = nenhuma opção mostra número — nunca "0" chutado.
    */
-  filialId?: number | null
+  saldos?: SaldosPorItem
 }) {
   const [aberto, setAberto] = useState(false)
   const [busca, setBusca] = useState('')
@@ -64,44 +66,6 @@ export function ItemCombobox({
   const [grupoNovo, setGrupoNovo] = useState<GrupoItem>('acessorio')
   const [salvando, start] = useTransition()
   const idNome = useId()
-
-  // ITN-05d — saldo por item na filial escolhida. Uma chamada por TROCA de
-  // filial (efeito com `filialId` como única dependência), nunca por tecla
-  // digitada na busca (que é 100% local, abaixo). `pedido` descarta resposta
-  // atrasada de uma filial que já não é mais a selecionada (mesmo padrão de
-  // `colar-lista-dialog.tsx`, com contador em vez de flag de cleanup).
-  //
-  // `saldosFilialId` marca de QUAL filial é o `saldos` guardado: sem ela, ao
-  // trocar para uma filial nova (ou limpar a filial) o combobox mostraria por
-  // um instante o saldo da filial ANTERIOR — pior que não mostrar número
-  // nenhum. Resolvido com este estado extra E NÃO com `setSaldos({})` direto
-  // no corpo do efeito quando `filialId` é nulo: isso é setState SÍNCRONO
-  // dentro do efeito (dispara re-render em cascata sem esperar resposta
-  // nenhuma) e o lint (`react-hooks/set-state-in-effect`) recusa.
-  const [saldos, setSaldos] = useState<SaldosPorItem>({})
-  const [saldosFilialId, setSaldosFilialId] = useState<number | null>(null)
-  const pedido = useRef(0)
-
-  useEffect(() => {
-    if (filialId == null) return
-    const meu = ++pedido.current
-    buscarSaldosItens(filialId)
-      .then((mapa) => {
-        if (meu !== pedido.current) return
-        setSaldos(mapa)
-        setSaldosFilialId(filialId)
-      })
-      .catch(() => {
-        // Sem número chutado: a lista continua utilizável, só sem o saldo.
-        if (meu !== pedido.current) return
-        setSaldos({})
-        setSaldosFilialId(filialId)
-      })
-  }, [filialId])
-
-  // Só usa o mapa se ele for DESTA filial — cobre tanto "sem filial" quanto o
-  // instante entre a troca de filial e a resposta chegar.
-  const saldosAtuais = filialId != null && saldosFilialId === filialId ? saldos : {}
 
   const selecionado = itens.find((i) => i.id === valor)
   const buscaLimpa = busca.trim()
@@ -279,9 +243,9 @@ export function ItemCombobox({
                         {/* ITN-05d — saldo na filial escolhida. Ausente (sem
                             filial, ainda carregando ou a leitura falhou):
                             nenhum número aparece — nunca "0" chutado. */}
-                        {saldosAtuais[i.id] != null && (
+                        {saldos[i.id] != null && (
                           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                            · {saldosAtuais[i.id].toLocaleString('pt-BR')}
+                            · {saldos[i.id].toLocaleString('pt-BR')}
                           </span>
                         )}
                       </CommandItem>

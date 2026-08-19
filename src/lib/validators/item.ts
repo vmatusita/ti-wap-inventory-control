@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Constants } from '@/lib/types/database'
+import { TIPO_LANCAMENTO_META } from '@/lib/dominio'
 import { dataNaoFuturaSchema } from '@/lib/validators/data'
 
 // Validadores compartilhados (cliente E servidor) do lançamento de item por
@@ -47,7 +48,15 @@ const quantidadeCampo = z.coerce
 
 export const MSG_JUSTIFICATIVA_AJUSTE =
   'A justificativa do ajuste é obrigatória (mín. 3 caracteres)'
-export const MSG_CHAMADO_OBRIGATORIO = 'O chamado é obrigatório em reserva e liberação'
+// 19/08/2026 (avulsa) — a mensagem dizia "reserva e liberação", os nomes
+// INTERNOS do enum: na tela esses tipos se chamam "Atrelar" e "Devolução", e
+// "Liberação" é o rótulo de OUTRO tipo (saida), que não pede chamado nenhum.
+// O operador escolhia "Devolução" e era cobrado por "liberação" — a ajuda
+// mantinha uma tabela só para traduzir a divergência. Os rótulos saem de
+// `TIPO_LANCAMENTO_META` (a fonte que o seletor usa): renomear lá renomeia
+// aqui no mesmo build. `traduzErroBanco` (actions/erros.ts) reusa esta
+// constante para a recusa vinda do CHECK `lanc_item_chamado` dizer o mesmo.
+export const MSG_CHAMADO_OBRIGATORIO = `${TIPO_LANCAMENTO_META.reserva.rotulo} e ${TIPO_LANCAMENTO_META.liberacao.rotulo} exigem o número do chamado`
 export const MSG_ITEM_REPETIDO =
   'Este item já está no lançamento — some as quantidades em uma linha só'
 

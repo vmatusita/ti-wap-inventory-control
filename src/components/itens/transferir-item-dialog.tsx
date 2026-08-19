@@ -331,7 +331,8 @@ export function TransferirItemDialog({
                 <div key={l.uid} className="space-y-1">
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      {/* `filialId` = a ORIGEM: é o saldo de onde o item SAI que
+                      {/* `saldos` = o mapa da ORIGEM (este diálogo já o eleva
+                          desde a F31): é o saldo de onde o item SAI que
                           interessa na hora de escolher. `podeCriarItem` fica em
                           false — item novo tem saldo zero e não se transfere. */}
                       <ItemCombobox
@@ -342,7 +343,7 @@ export function TransferirItemDialog({
                         desabilitado={enviando}
                         podeCriarItem={false}
                         descricaoAcessivel={`Item ${i + 1} da transferência`}
-                        filialId={origemId}
+                        saldos={saldosAtuais}
                       />
                     </div>
                     <Input

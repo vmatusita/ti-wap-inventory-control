@@ -24,18 +24,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { lancarItens } from '@/lib/actions/itens'
+import { buscarSaldosItens, lancarItens, type SaldosPorItem } from '@/lib/actions/itens'
 import {
   MAX_LINHAS_LOTE_ITEM,
   errosPorLinhaDoLote,
+  exigeChamado,
   loteLancamentoItemSchema,
 } from '@/lib/validators/item'
 import { hojeISO } from '@/lib/format'
 import {
   TIPO_LANCAMENTO_META,
   descricaoTipoLancamento,
+  pillTipoLancamento,
   type TipoLancamento,
 } from '@/lib/dominio'
+import {
+  DICA_ACERTO_CONFERENCIA,
+  GRUPOS_ESCOLHA,
+  MSG_ESCOLHA_TIPO,
+  PERGUNTA_ESCOLHA,
+  TAREFA_DO_TIPO,
+  grupoDoTipo,
+  grupoPorChave,
+  type GrupoEscolha,
+} from '@/lib/itens/escolha-tipo'
+import { previewEstoque, textoPreview } from '@/lib/itens/efeito-lancamento'
 import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { EVENTO_LANCAR_ITEM } from './lancar-item-evento'
 import { ItemCombobox } from './item-combobox'
@@ -46,10 +59,9 @@ import {
   moduloDeQuantidade,
   sentidoDeQuantidade,
 } from '@/lib/itens/sinal-ajuste'
+import { cn } from '@/lib/utils'
 import type { ItemCatalogo, UltimoLancamento } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
-
-const TIPOS: TipoLancamento[] = ['entrada', 'saida', 'reserva', 'liberacao', 'retorno', 'ajuste']
 
 // Uma linha do carrinho (F10 · I1). `uid` é só a chave estável do React — o
 // índice não serve, porque remover uma linha do meio remontaria as seguintes.
@@ -61,6 +73,17 @@ type LinhaCarrinho = { uid: number; itemId: number | null; quantidade: string; e
 // dialog. "Repetir último" pré-preenche tudo menos a quantidade. Atalho `L` abre
 // de qualquer lugar de /itens (o `N` já é da movimentação de ativos — decisão
 // registrada em DECISOES).
+//
+// 19/08/2026 (avulsa — "está confuso o controle de itens"): o TIPO deixou de
+// ser um select plano de seis nomes com default silencioso 'entrada' e virou a
+// escolha guiada de `lib/itens/escolha-tipo.ts` — "O que aconteceu?" e, quando
+// saiu/voltou, "com quem estava?". Sem resposta não há tipo (nada de gravar
+// Entrada porque ninguém tocou no campo); o par certo (Liberação↔Retorno,
+// Atrelar↔Devolução) sai da resposta, não da memória. Junto: o saldo da filial
+// subiu do combobox para cá (UMA leitura por troca de filial, não uma por
+// linha) e cada linha ganhou a prévia "Estoque na filial: 14 → 12"
+// (`efeito-lancamento.ts`) — estouro de estoque aparece ANTES do envio, como a
+// transferência já fazia. Quem recusa de verdade continua sendo o trigger.
 export function LancarItemDialog({
   itens,
   filiais,
@@ -96,7 +119,15 @@ export function LancarItemDialog({
     { uid: 1, itemId: null, quantidade: '' },
   ])
   const [filialId, setFilialId] = useState<number | null>(filiais[0]?.id ?? null)
-  const [tipo, setTipo] = useState<TipoLancamento>('entrada')
+  // O tipo NASCE VAZIO (era 'entrada'): com default silencioso, quem abria o
+  // dialog para registrar uma entrega e não tocava no campo gravava o estoque
+  // para CIMA. Agora o salvar cobra a resposta (`MSG_ESCOLHA_TIPO`).
+  const [tipo, setTipo] = useState<TipoLancamento | null>(null)
+  // O grupo aberto na primeira pergunta ENQUANTO a segunda não foi respondida
+  // ("Saiu da prateleira" clicado, "pessoa ou chamado?" pendente). Com tipo
+  // escolhido, o grupo é DERIVADO dele — ver `grupoAtual`.
+  const [grupoAberto, setGrupoAberto] = useState<GrupoEscolha | null>(null)
+  const [erroTipo, setErroTipo] = useState<string | null>(null)
   const [chamado, setChamado] = useState('')
   const [colaborador, setColaborador] = useState('')
   const [data, setData] = useState(hojeISO())
@@ -110,6 +141,38 @@ export function LancarItemDialog({
   // Preset vindo da linha do saldo (I6): quando o dialog abre por causa dele, o
   // foco inicial vai para a quantidade em vez do primeiro campo.
   const focarQtdAoAbrir = useRef(false)
+
+  // Saldo da FILIAL, por item — o mesmo mecanismo do diálogo de transferência
+  // (F31): uma chamada por troca de filial, nunca por tecla, e o mapa desce por
+  // prop para o combobox de CADA linha (antes cada combobox buscava o seu — dez
+  // linhas, dez leituras iguais). `pedido` descarta resposta atrasada de uma
+  // filial que já não é a selecionada; `saldosDe` marca de qual filial é o mapa
+  // (sem ela, trocar de filial mostraria por um instante o saldo da anterior).
+  // ⚠ O LANÇAMENTO INVALIDA O MAPA: sem `recarga`, lançar e reabrir mostraria o
+  // saldo de antes — com a prévia aprovando um envio que o trigger recusaria.
+  const [saldos, setSaldos] = useState<SaldosPorItem>({})
+  const [saldosDe, setSaldosDe] = useState<number | null>(null)
+  const pedido = useRef(0)
+  const [recarga, setRecarga] = useState(0)
+
+  useEffect(() => {
+    if (filialId == null) return
+    const meu = ++pedido.current
+    buscarSaldosItens(filialId)
+      .then((mapa) => {
+        if (meu !== pedido.current) return
+        setSaldos(mapa)
+        setSaldosDe(filialId)
+      })
+      .catch(() => {
+        // Sem número chutado: a prévia e o combobox ficam sem saldo, só isso.
+        if (meu !== pedido.current) return
+        setSaldos({})
+        setSaldosDe(filialId)
+      })
+  }, [filialId, recarga])
+
+  const saldosAtuais = filialId != null && saldosDe === filialId ? saldos : {}
 
   const catalogo = useMemo(() => {
     if (!criadosLocal.length) return itens
@@ -139,6 +202,39 @@ export function LancarItemDialog({
     return () => window.removeEventListener('keydown', onKey)
   }, [aberto])
 
+  // O tipo muda por um caminho só — botão da escolha, "Repetir último", preset
+  // ou limpeza. Fora do Ajuste não existe alternador de sinal, então trocar
+  // para outro tipo (ou para nenhum) não pode deixar um "-" preso na linha
+  // (ITN-05b): o campo voltaria a exigir a tecla de menos para corrigir.
+  function definirTipo(novo: TipoLancamento | null) {
+    setTipo(novo)
+    setErroTipo(null)
+    if (novo !== 'ajuste') {
+      setLinhas((ls) => ls.map((l) => ({ ...l, quantidade: moduloDeQuantidade(l.quantidade) })))
+    }
+  }
+
+  function escolherGrupo(chave: GrupoEscolha) {
+    const g = grupoPorChave(chave)
+    if (g.tipos.length === 1) {
+      // "Chegou" e "Acerto" têm um tipo só: a primeira resposta já decide.
+      setGrupoAberto(null)
+      definirTipo(g.tipos[0])
+      return
+    }
+    // "Saiu"/"Voltou" abrem a segunda pergunta. Trocar de grupo invalida o tipo
+    // anterior; reclicar o grupo do tipo atual mantém a escolha.
+    setGrupoAberto(chave)
+    setErroTipo(null)
+    if (tipo && grupoDoTipo(tipo).chave !== chave) definirTipo(null)
+  }
+
+  // Com tipo escolhido o grupo aceso é DERIVADO dele (fonte única); o estado
+  // `grupoAberto` só existe para o instante entre as duas perguntas.
+  const grupoAtual: GrupoEscolha | null = tipo ? grupoDoTipo(tipo).chave : grupoAberto
+  const grupoDuplo =
+    grupoAtual === 'saiu' || grupoAtual === 'voltou' ? grupoPorChave(grupoAtual) : null
+
   // "Lançar da linha" (I6) — o botão de cada linha da tabela de saldos dispara o
   // CustomEvent; aqui o dialog abre já com item + filial preenchidos (na PRIMEIRA
   // linha do carrinho). O preset vence o estado anterior do form (os demais
@@ -164,7 +260,11 @@ export function LancarItemDialog({
           ? presetFilial
           : null,
       )
-      setTipo('entrada')
+      // O preset traz ITEM, nunca intenção: o tipo fica sem resposta (era
+      // 'entrada' — o default silencioso que esta correção existe para matar).
+      setTipo(null)
+      setGrupoAberto(null)
+      setErroTipo(null)
       setChamado('')
       setColaborador('')
       setData(hojeISO())
@@ -202,7 +302,9 @@ export function LancarItemDialog({
 
   function limpar() {
     setLinhas([novaLinha()])
-    setTipo('entrada')
+    setTipo(null)
+    setGrupoAberto(null)
+    setErroTipo(null)
     setChamado('')
     setColaborador('')
     setData(hojeISO())
@@ -220,7 +322,8 @@ export function LancarItemDialog({
     if (filiais.some((f) => f.id === ultimo.filial_id)) {
       setFilialId(ultimo.filial_id)
     }
-    setTipo(ultimo.tipo)
+    setGrupoAberto(null)
+    definirTipo(ultimo.tipo)
     setChamado(ultimo.chamado ?? '')
     setColaborador(ultimo.colaborador ?? '')
     setData(hojeISO())
@@ -230,16 +333,6 @@ export function LancarItemDialog({
 
   function atualizarLinha(uid: number, campos: Partial<LinhaCarrinho>) {
     setLinhas((ls) => ls.map((l) => (l.uid === uid ? { ...l, ...campos, erro: undefined } : l)))
-  }
-
-  // ITN-05b — trocar o tipo não pode deixar um sinal negativo preso numa
-  // linha: fora do Ajuste não existe alternador para desfazê-lo, e o campo
-  // (sem o alternador) voltaria a exigir a tecla de menos para corrigir.
-  function mudarTipo(novoTipo: TipoLancamento) {
-    setTipo(novoTipo)
-    if (novoTipo !== 'ajuste') {
-      setLinhas((ls) => ls.map((l) => ({ ...l, quantidade: moduloDeQuantidade(l.quantidade) })))
-    }
   }
 
   function adicionarLinha() {
@@ -255,10 +348,27 @@ export function LancarItemDialog({
     router.refresh()
   }
 
-  const exigeChamado = tipo === 'reserva' || tipo === 'liberacao'
+  // As regras por tipo vêm do validator (fonte única com o servidor): chamado
+  // em Atrelar/Devolução, justificativa no Ajuste. Sem tipo, nenhuma vale.
+  const precisaChamado = tipo != null && exigeChamado(tipo)
   const exigeObs = tipo === 'ajuste'
 
+  // O rótulo do Colaborador acompanha a resposta: numa Liberação, "quem ficou
+  // com o item" É o dado da linha do histórico — chamar de "(opcional)" seco
+  // era o convite para deixá-lo vazio.
+  const rotuloColaborador =
+    tipo === 'saida'
+      ? 'Colaborador (quem ficou com o item)'
+      : tipo === 'retorno'
+        ? 'Colaborador (quem devolveu — opcional)'
+        : 'Colaborador (opcional)'
+
   function salvar() {
+    if (!tipo) {
+      setErroTipo(MSG_ESCOLHA_TIPO)
+      toast.error(`${MSG_ESCOLHA_TIPO}.`)
+      return
+    }
     const input = {
       filial_id: filialId ?? 0,
       tipo,
@@ -298,6 +408,7 @@ export function LancarItemDialog({
           )
           limpar()
           setAberto(false)
+          setRecarga((r) => r + 1)
           router.refresh()
           return
         }
@@ -315,6 +426,7 @@ export function LancarItemDialog({
           toast.warning(
             `${registradas} de ${res.resultados.length} linhas lançadas. Corrija o que falhou.`,
           )
+          setRecarga((r) => r + 1)
           router.refresh()
         } else {
           toast.error(falhas[0]?.resultado?.erro ?? 'Nenhuma linha foi lançada.')
@@ -351,7 +463,7 @@ export function LancarItemDialog({
         <DialogHeader>
           <DialogTitle>Lançar quantidade</DialogTitle>
           <DialogDescription>
-            Entrada, liberação, atrelar, devolução, retorno ou ajuste — vários itens no mesmo
+            Diga o que aconteceu, confira o efeito no estoque e salve — vários itens no mesmo
             lançamento.
           </DialogDescription>
         </DialogHeader>
@@ -379,94 +491,120 @@ export function LancarItemDialog({
                 {linhas.length}/{MAX_LINHAS_LOTE_ITEM}
               </span>
             </div>
-            {linhas.map((l, i) => (
-              <div key={l.uid} className="space-y-1">
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <ItemCombobox
-                      itens={catalogo}
-                      valor={l.itemId}
-                      onSelecionar={(id) => atualizarLinha(l.uid, { itemId: id })}
-                      onItemCriado={itemCriado}
-                      desabilitado={enviando}
-                      podeCriarItem={podeCriarItem}
-                      descricaoAcessivel={`Item ${i + 1} do lançamento`}
-                      filialId={filialId}
+            {linhas.map((l, i) => {
+              // Prévia do efeito (19/08/2026): item + quantidade + tipo + saldo
+              // carregado → "Estoque na filial: 14 → 12". `null` = calada (nada
+              // digitado, saldo ainda carregando, quantidade inválida) — a
+              // validação fala por ela nesses casos.
+              const previa =
+                tipo && l.itemId != null
+                  ? previewEstoque(
+                      tipo,
+                      l.quantidade === '' ? 0 : Number(l.quantidade),
+                      saldosAtuais[l.itemId],
+                    )
+                  : null
+              return (
+                <div key={l.uid} className="space-y-1">
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <ItemCombobox
+                        itens={catalogo}
+                        valor={l.itemId}
+                        onSelecionar={(id) => atualizarLinha(l.uid, { itemId: id })}
+                        onItemCriado={itemCriado}
+                        desabilitado={enviando}
+                        podeCriarItem={podeCriarItem}
+                        descricaoAcessivel={`Item ${i + 1} do lançamento`}
+                        saldos={saldosAtuais}
+                      />
+                    </div>
+                    <Input
+                      ref={i === 0 ? qtdRef : undefined}
+                      type="number"
+                      inputMode="numeric"
+                      aria-label={`Quantidade do item ${i + 1}`}
+                      className="min-h-10 w-24 shrink-0"
+                      // ITN-05b — no Ajuste o campo só recebe o MÓDULO: o
+                      // teclado numérico do iOS não tem tecla de menos, e o
+                      // sinal vira o alternador logo abaixo.
+                      value={exigeObs ? moduloDeQuantidade(l.quantidade) : l.quantidade}
+                      onChange={(e) => {
+                        const novoValor = exigeObs
+                          ? aplicarSinal(e.target.value, sentidoDeQuantidade(l.quantidade))
+                          : e.target.value
+                        atualizarLinha(l.uid, { quantidade: novoValor })
+                      }}
+                      placeholder={exigeObs ? '3' : '10'}
+                      disabled={enviando}
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Remover o item ${i + 1} do lançamento`}
+                      className="size-10 shrink-0"
+                      onClick={() => removerLinha(l.uid)}
+                      disabled={enviando || linhas.length <= 1}
+                    >
+                      <X className="size-4" />
+                    </Button>
                   </div>
-                  <Input
-                    ref={i === 0 ? qtdRef : undefined}
-                    type="number"
-                    inputMode="numeric"
-                    aria-label={`Quantidade do item ${i + 1}`}
-                    className="min-h-10 w-24 shrink-0"
-                    // ITN-05b — no Ajuste o campo só recebe o MÓDULO: o
-                    // teclado numérico do iOS não tem tecla de menos, e o
-                    // sinal vira o alternador logo abaixo.
-                    value={exigeObs ? moduloDeQuantidade(l.quantidade) : l.quantidade}
-                    onChange={(e) => {
-                      const novoValor = exigeObs
-                        ? aplicarSinal(e.target.value, sentidoDeQuantidade(l.quantidade))
-                        : e.target.value
-                      atualizarLinha(l.uid, { quantidade: novoValor })
-                    }}
-                    placeholder={exigeObs ? '3' : '10'}
-                    disabled={enviando}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remover o item ${i + 1} do lançamento`}
-                    className="size-10 shrink-0"
-                    onClick={() => removerLinha(l.uid)}
-                    disabled={enviando || linhas.length <= 1}
-                  >
-                    <X className="size-4" />
-                  </Button>
+                  {/* ITN-05b — alternador por linha: aplica o sinal sobre o
+                      módulo já digitado, sem exigir a tecla de menos. Estado
+                      default "+ Acrescentar" (`sentidoDeQuantidade('')`). */}
+                  {exigeObs && (
+                    <div
+                      role="group"
+                      aria-label={`Sinal do ajuste do item ${i + 1}`}
+                      className="flex gap-1.5 pl-1"
+                    >
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={sentidoDeQuantidade(l.quantidade) === 'positivo' ? 'default' : 'outline'}
+                        aria-pressed={sentidoDeQuantidade(l.quantidade) === 'positivo'}
+                        className="min-h-10 flex-1 sm:min-h-8"
+                        onClick={() =>
+                          atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'positivo') })
+                        }
+                        disabled={enviando}
+                      >
+                        {ROTULO_ACRESCENTAR}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={sentidoDeQuantidade(l.quantidade) === 'negativo' ? 'default' : 'outline'}
+                        aria-pressed={sentidoDeQuantidade(l.quantidade) === 'negativo'}
+                        className="min-h-10 flex-1 sm:min-h-8"
+                        onClick={() =>
+                          atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'negativo') })
+                        }
+                        disabled={enviando}
+                      >
+                        {ROTULO_BAIXAR}
+                      </Button>
+                    </div>
+                  )}
+                  {previa && (
+                    <p
+                      className={cn(
+                        'pl-1 text-xs tabular-nums',
+                        previa.recusado
+                          ? 'text-amber-700 dark:text-amber-400'
+                          : 'text-muted-foreground',
+                      )}
+                    >
+                      {textoPreview(previa)}
+                    </p>
+                  )}
+                  {l.erro && (
+                    <p className="pl-1 text-xs text-red-600 dark:text-red-400">{l.erro}</p>
+                  )}
                 </div>
-                {/* ITN-05b — alternador por linha: aplica o sinal sobre o
-                    módulo já digitado, sem exigir a tecla de menos. Estado
-                    default "+ Acrescentar" (`sentidoDeQuantidade('')`). */}
-                {exigeObs && (
-                  <div
-                    role="group"
-                    aria-label={`Sinal do ajuste do item ${i + 1}`}
-                    className="flex gap-1.5 pl-1"
-                  >
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={sentidoDeQuantidade(l.quantidade) === 'positivo' ? 'default' : 'outline'}
-                      aria-pressed={sentidoDeQuantidade(l.quantidade) === 'positivo'}
-                      className="min-h-10 flex-1 sm:min-h-8"
-                      onClick={() =>
-                        atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'positivo') })
-                      }
-                      disabled={enviando}
-                    >
-                      {ROTULO_ACRESCENTAR}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={sentidoDeQuantidade(l.quantidade) === 'negativo' ? 'default' : 'outline'}
-                      aria-pressed={sentidoDeQuantidade(l.quantidade) === 'negativo'}
-                      className="min-h-10 flex-1 sm:min-h-8"
-                      onClick={() =>
-                        atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'negativo') })
-                      }
-                      disabled={enviando}
-                    >
-                      {ROTULO_BAIXAR}
-                    </Button>
-                  </div>
-                )}
-                {l.erro && (
-                  <p className="pl-1 text-xs text-red-600 dark:text-red-400">{l.erro}</p>
-                )}
-              </div>
-            ))}
+              )
+            })}
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -480,6 +618,85 @@ export function LancarItemDialog({
                 Adicionar item
               </Button>
             </div>
+          </div>
+
+          {/* A escolha guiada do tipo (19/08/2026 — `lib/itens/escolha-tipo.ts`).
+              Duas perguntas de operador no lugar do select de seis nomes: o par
+              certo (Liberação↔Retorno, Atrelar↔Devolução) sai da resposta. O
+              rótulo OFICIAL continua à vista — na pílula de confirmação e, nos
+              grupos duplos, miúdo dentro de cada resposta — para a ponte com o
+              histórico e o relatório. */}
+          <div className="space-y-2">
+            <Label>{PERGUNTA_ESCOLHA}</Label>
+            <div
+              role="group"
+              aria-label={PERGUNTA_ESCOLHA}
+              className="grid grid-cols-2 gap-1.5 sm:grid-cols-4"
+            >
+              {GRUPOS_ESCOLHA.map((g) => (
+                <Button
+                  key={g.chave}
+                  type="button"
+                  size="sm"
+                  variant={grupoAtual === g.chave ? 'default' : 'outline'}
+                  aria-pressed={grupoAtual === g.chave}
+                  className="min-h-10 px-2 sm:min-h-8"
+                  onClick={() => escolherGrupo(g.chave)}
+                  disabled={enviando}
+                >
+                  {g.rotulo}
+                </Button>
+              ))}
+            </div>
+            {grupoDuplo && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium">{grupoDuplo.pergunta}</p>
+                <div
+                  role="group"
+                  aria-label={grupoDuplo.pergunta ?? undefined}
+                  className="grid grid-cols-2 gap-1.5"
+                >
+                  {grupoDuplo.tipos.map((t) => (
+                    <Button
+                      key={t}
+                      type="button"
+                      variant={tipo === t ? 'default' : 'outline'}
+                      aria-pressed={tipo === t}
+                      className="h-auto min-h-10 flex-col items-start gap-0 px-2.5 py-1.5"
+                      onClick={() => definirTipo(t)}
+                      disabled={enviando}
+                    >
+                      <span className="text-sm font-medium">{TAREFA_DO_TIPO[t]}</span>
+                      <span className="text-[11px] font-normal opacity-75">
+                        {TIPO_LANCAMENTO_META[t].rotulo}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {tipo ? (
+              <p className="text-xs text-muted-foreground">
+                <span
+                  className={cn(
+                    'mr-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                    pillTipoLancamento(tipo),
+                  )}
+                >
+                  {TIPO_LANCAMENTO_META[tipo].rotulo}
+                </span>
+                {descricaoTipoLancamento(tipo)}
+              </p>
+            ) : (
+              erroTipo && (
+                <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+                  {erroTipo}.
+                </p>
+              )
+            )}
+            {grupoAtual === 'acerto' && (
+              <p className="text-xs text-muted-foreground">{DICA_ACERTO_CONFERENCIA}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -508,43 +725,6 @@ export function LancarItemDialog({
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lanc-tipo">Tipo</Label>
-              <Select value={tipo} onValueChange={(v) => mudarTipo(v as TipoLancamento)}>
-                <SelectTrigger id="lanc-tipo" className="w-full">
-                  {/* F19 — placeholder por simetria com a Filial: o tipo sempre
-                      tem valor ('entrada' de partida), então ele nunca aparece
-                      na tela; existe para o campo não ficar mudo se um dia o
-                      estado inicial virar vazio. */}
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {TIPO_LANCAMENTO_META[t].rotulo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {descricaoTipoLancamento(tipo)}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="lanc-chamado">
-                Chamado{exigeChamado ? '' : ' (opcional)'}
-              </Label>
-              <Input
-                id="lanc-chamado"
-                inputMode="numeric"
-                value={chamado}
-                onChange={(e) => setChamado(e.target.value)}
-                placeholder="nº do chamado"
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label htmlFor="lanc-data">Data</Label>
               <Input
                 id="lanc-data"
@@ -556,14 +736,39 @@ export function LancarItemDialog({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="lanc-colab">Colaborador (opcional)</Label>
-            <Input
-              id="lanc-colab"
-              value={colaborador}
-              onChange={(e) => setColaborador(e.target.value)}
-              placeholder="a quem se destina"
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="lanc-chamado">
+                Chamado{precisaChamado ? '' : ' (opcional)'}
+              </Label>
+              <Input
+                id="lanc-chamado"
+                inputMode="numeric"
+                value={chamado}
+                onChange={(e) => setChamado(e.target.value)}
+                placeholder={
+                  // Na Devolução o chamado é a AMARRA com o Atrelar de origem —
+                  // é ele que fecha o par no banco (reserva aberta do chamado).
+                  tipo === 'liberacao'
+                    ? `o mesmo chamado do ${TIPO_LANCAMENTO_META.reserva.rotulo}`
+                    : 'nº do chamado'
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="lanc-colab">{rotuloColaborador}</Label>
+              <Input
+                id="lanc-colab"
+                value={colaborador}
+                onChange={(e) => setColaborador(e.target.value)}
+                placeholder={tipo === 'saida' ? 'nome de quem levou' : 'a quem se destina'}
+              />
+              {tipo === 'saida' && !colaborador.trim() && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Sem o nome, o histórico não dirá com quem o item está.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-1.5">

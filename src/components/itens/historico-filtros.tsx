@@ -17,19 +17,13 @@ import {
 } from '@/components/ui/select'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 import { hojeISO } from '@/lib/format'
-import {
-  GRUPO_ITEM_META,
-  GRUPO_ITEM_ORDEM,
-  rotuloTipoLancamento,
-  type TipoLancamento,
-} from '@/lib/dominio'
+import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM, rotuloTipoLancamento } from '@/lib/dominio'
+import { GRUPOS_ESCOLHA } from '@/lib/itens/escolha-tipo'
 import type { ItemCatalogo } from '@/lib/queries/itens'
 import { baseFiltrosItens, registrarFiltrosEnviados } from './url-filtros'
 
 const TODOS_ITENS = '__todos_itens'
 const TODOS_TIPOS = '__todos_tipos'
-
-const TIPOS: TipoLancamento[] = ['entrada', 'saida', 'reserva', 'liberacao', 'retorno', 'ajuste']
 
 // Filtros do histórico de lançamentos (OS-F9 · I3; busca do ITN-03b): item,
 // tipo, período e busca, 100% na URL (params `item`/`tipo`/`de`/`ate`/`busca`),
@@ -171,10 +165,20 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={TODOS_TIPOS}>Todos os tipos</SelectItem>
-            {TIPOS.map((t) => (
-              <SelectItem key={t} value={t}>
-                {rotuloTipoLancamento(t)}
-              </SelectItem>
+            {/* 19/08/2026 (avulsa) — as opções agrupadas pela MESMA pergunta do
+                diálogo de lançamento ("Chegou / Saiu / Voltou / Acerto",
+                `lib/itens/escolha-tipo.ts`): quem aprendeu a lançar pela
+                resposta encontra o filtro pelo mesmo caminho. Os rótulos
+                oficiais continuam sendo o texto de cada opção. */}
+            {GRUPOS_ESCOLHA.map((g) => (
+              <SelectGroup key={g.chave}>
+                <SelectLabel>{g.rotulo}</SelectLabel>
+                {g.tipos.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {rotuloTipoLancamento(t)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
           </SelectContent>
         </Select>

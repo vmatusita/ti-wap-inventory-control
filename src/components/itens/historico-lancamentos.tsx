@@ -28,6 +28,7 @@ import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
 import { Dica } from '@/components/ui/dica'
 import { estornarLancamento } from '@/lib/actions/itens'
 import { formatDate } from '@/lib/format'
+import { DICA_QTD_HISTORICO, qtdComSinal } from '@/lib/itens/efeito-lancamento'
 import { pillTipoLancamento, rotuloTipoLancamento } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import type { LancamentoHistorico } from '@/lib/queries/itens'
@@ -127,7 +128,13 @@ export function HistoricoLancamentos({
               <TableHead>Data</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Item</TableHead>
-              <TableHead className="text-right">Qtd.</TableHead>
+              {/* 19/08/2026 (avulsa) — o sinal da coluna passou a ser o EFEITO
+                  na prateleira, não o número cru: uma Liberação de 3 aparecia
+                  como "+3" com o estoque descendo. A régua é
+                  `efeitoNoEstoque` (a mesma fórmula do banco/saldo após). */}
+              <TableHead className="text-right">
+                <Dica texto={DICA_QTD_HISTORICO}>Qtd.</Dica>
+              </TableHead>
               <TableHead className="hidden md:table-cell">Filial</TableHead>
               <TableHead className="hidden md:table-cell">Chamado</TableHead>
               <TableHead className="hidden lg:table-cell">Colaborador</TableHead>
@@ -185,7 +192,7 @@ export function HistoricoLancamentos({
                 </TableCell>
                 <TableCell className="font-medium">{r.item}</TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">
-                  {r.quantidade > 0 ? `+${r.quantidade}` : r.quantidade}
+                  {qtdComSinal(r.tipo, r.quantidade)}
                 </TableCell>
                 <TableCell className="hidden whitespace-nowrap md:table-cell">{r.filial}</TableCell>
                 <TableCell className="hidden whitespace-nowrap tabular-nums text-muted-foreground md:table-cell">
@@ -258,7 +265,7 @@ export function HistoricoLancamentos({
                 </span>
               </div>
               <p className="mt-1 text-muted-foreground tabular-nums">
-                {alvo.quantidade > 0 ? `+${alvo.quantidade}` : alvo.quantidade} · {alvo.filial} ·{' '}
+                {qtdComSinal(alvo.tipo, alvo.quantidade)} no estoque · {alvo.filial} ·{' '}
                 {formatDate(alvo.data)}
                 {alvo.chamado ? ` · #${alvo.chamado}` : ''}
               </p>

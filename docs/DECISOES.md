@@ -5907,3 +5907,39 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   correção o mesmo Δ aparecia como **+647**, então o resíduo é de outra ordem de grandeza.
 - **Encaminhamento:** registrado como pendência no relatório da entrega, para uma ordem que possa
   mexer no banco.
+
+## 2026-08-19 · Avulsa v1.40.4 · Lançamento de itens: a escolha do tipo vira duas perguntas
+
+- **Contexto:** feedback direto do Johnny na conversa: *"está confuso o controle de itens, não está
+  claro e com o fluxo certo os lançamentos de itens"*. Diagnóstico sobre o código e a própria ajuda:
+  (1) o select plano de seis tipos tem três quase-sinônimos (Liberação/Devolução/Retorno) e os PARES
+  (Liberação↔Retorno, Atrelar↔Devolução) eram invisíveis — a ajuda admitia que errar o par "é a causa
+  mais comum de a coluna Falta acender"; (2) o default silencioso `entrada` gravava estoque para CIMA
+  em lançamento sem atenção; (3) as recusas de chamado falavam os nomes INTERNOS do enum ("reserva e
+  liberação"), que na tela apontam para o campo errado — a ajuda mantinha uma tabela só para traduzir
+  a divergência; (4) a coluna Qtd. do histórico mostrava "+3" numa Liberação de 3 (o "+" era o número
+  cru, não a direção); (5) nenhuma prévia de efeito antes do envio (a transferência da F31 já tinha).
+- **Escolha:** escolha guiada em duas perguntas ("O que aconteceu?" → Chegou/Saiu/Voltou/Acerto; no
+  saiu/voltou, "pessoa ou chamado?"), tipo nascendo VAZIO, prévia "Estoque na filial: 14 → 12" por
+  linha, sinal-por-efeito na coluna Qtd., mensagens derivadas de `TIPO_LANCAMENTO_META` e filtro de
+  tipo agrupado. Módulos puros novos `src/lib/itens/escolha-tipo.ts` e `efeito-lancamento.ts`, com
+  teste de correspondência dos pares CONTRA `planejarEstorno` e do efeito CONTRA `calcularSaldoApos`.
+- **O que NÃO se reabre:** os rótulos oficiais da F6A §A4 (decisão do Johnny, 16/07/2026) e os valores
+  do enum ficam como estão — a correção organiza o CAMINHO até o tipo, não o vocabulário oficial, que
+  segue à vista (miúdo na resposta, pílula de confirmação, histórico, filtros, relatório). Zero
+  migration: as mensagens do trigger continuam as mesmas no banco; a tradução (`traduzErroBanco`) é
+  que fala a língua da tela — coerente com "a UI é a segunda linha".
+- **De quebra:** o saldo por item subiu do combobox (uma leitura POR LINHA do carrinho, até 10 iguais)
+  para o diálogo (UMA por troca de filial, invalidada após lançar — mesmo padrão da transferência
+  F31); o combobox passou a receber o mapa por prop nos dois diálogos.
+- **Escopo contido (regra 1):** só a tela `/itens` e suas mensagens. A tabela de movimentações de
+  itens do RELATÓRIO (spec §7, renderizador compartilhado com snapshots congelados) continua com a
+  quantidade crua — mesma decisão para o CSV exportado (dado, não apresentação; a direção está na
+  coluna Tipo).
+- **Backlog gerado (não executado):** (a) na Devolução, seletor de atrelamentos EM ABERTO do
+  item×filial (hoje o operador lembra o chamado de cabeça; exige leitura nova por chamado — candidata
+  a fase); (b) sinal-por-efeito na tabela de mov. de itens do relatório, se o Johnny quiser (§7 é
+  matéria de fase); (c) colaborador obrigatório na Liberação, se a operação confirmar (hoje é aviso
+  âmbar, não trava).
+- **Reversível?** sim — apresentação e mensagens; nenhum dado, nenhuma migration, nenhum contrato de
+  action mudou (`lancarItens` recebe o mesmo payload).

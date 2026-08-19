@@ -1,5 +1,5 @@
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
-import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import { MAX_LINHAS_LOTE_ITEM, MSG_CHAMADO_OBRIGATORIO } from '@/lib/validators/item'
 import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
@@ -194,8 +194,12 @@ export const mensagensDeErro: PaginaAjuda = {
           'Preencha "Observação (justificativa do ajuste)". Bastam algumas palavras, mas elas ficam no histórico.',
         ],
         [
-          'Reserva e liberação exigem o número do chamado.',
-          'Na tela esses dois tipos se chamam "Atrelar" e "Devolução": são os que amarram a peça a um chamado, e por isso pedem o número.',
+          // 19/08/2026 (avulsa) — a recusa passou a falar os rótulos DA TELA
+          // ("Atrelar" e "Devolução"); antes dizia "reserva e liberação", os
+          // nomes internos do enum, e esta linha existia para traduzir a
+          // divergência. A frase vem da MESMA constante que o formulário usa.
+          `${MSG_CHAMADO_OBRIGATORIO}.`,
+          '"Atrelar" e "Devolução" são os dois lançamentos que amarram a peça a um chamado, e por isso pedem o número.',
           'Preencha "Chamado" (só números). Sem chamado, o par ida/volta não fecha e a coluna "Falta" acende depois.',
         ],
         [
