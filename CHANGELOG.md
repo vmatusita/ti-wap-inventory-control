@@ -6,6 +6,64 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 19/08/2026 — Revisão de código das v1.40.3 e v1.40.4: 14 achados aplicados ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.40.5**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo
+`a1ba1d2..e258ea3` — os dois commits que ainda não tinham passado por revisão: as correções da
+v1.40.3 (que revisaram a v1.40.2, mas não a si mesmas) e a v1.40.4 inteira. Zero migration, zero
+dependência nova. **15 achados, 14 aplicados**; o pulado está nomeado abaixo, com o motivo. Ata em
+[`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-19).
+
+- 🐛 **A tela e o arquivo voltaram a dizer a mesma coisa.** A v1.40.4 pôs o sinal do EFEITO na coluna
+  Qtd. do histórico e decidiu deixar o CSV com a quantidade crua — uma Liberação de 3 lia "−3" na
+  tela e "3" no arquivo. É a divergência tela × arquivo que este repositório já tinha classificado
+  como defeito (achado F12-W4-03, comentário vivo em `actions/exportar.ts`), e quem soma a coluna do
+  CSV para conferir estoque obtinha o total errado. A coluna virou **"Quantidade (efeito no
+  estoque)"** e emite o número COM SINAL — número, não texto formatado, para o Excel somar.
+  **Isto revoga a decisão registrada na entrada da v1.40.4 abaixo.**
+- 🐛 **O validador do truncamento carregava o defeito que ele existe para detectar.** A v1.40.3 baniu
+  o `n < PAGINA` do paginador e das três cópias da carga, mas deixou a quarta — em
+  `scripts/manutencao/validar-truncamento.ts`, justamente o oráculo que PROVA que o corte de 1.000
+  acabou. Com o teto do servidor abaixo de 1.000, ele contaria metade do acervo e imprimiria
+  "TUDO OK". Corrigido **no lugar**, de propósito: ele continua sem importar o paginador de `src/`,
+  porque um oráculo que compartilha código com o que testa não prova nada — e o comentário agora
+  registra isso, para a próxima revisão não "consertar" o acoplamento de volta.
+- 🐛 **Três defeitos de fronteira no paginador da v1.40.3.** (1) O teto anti-loop lançava com o
+  acervo em EXATAMENTE 100.000 linhas — uma leitura completa virando exceção; agora só o excedente
+  lança. (2) A parada "página vazia" custava uma requisição extra em toda leitura; agora o tamanho da
+  PRIMEIRA página define o teto efetivo do servidor e uma página mais curta que ela já prova o fim —
+  seguro com teto de 500 e sem a ida sobrando. (3) Os lotes paralelos não tinham limite de quantos
+  vão ao mesmo tempo, e o número crescia sozinho com o acervo; agora vão em janelas de 6.
+- 🐛 **A suíte estava vermelha e as duas ordens anteriores declararam o contrário.** O tripwire de
+  fronteira RSC estourava o tempo (7,8 s contra 5 s) porque relia cada módulo do disco uma vez por
+  import que o cita. Memoizado por caminho, sem afrouxar nada do que ele detecta.
+- 👁️ **A prévia de efeito parou de prometer o que não entrega.** Em Devolução e Retorno o estoque
+  sempre cabe, então ela nunca acusava recusa — mas o banco ainda confere a quantidade em aberto do
+  chamado. Agora a prévia diz isso. E quantidade negativa fora do Acerto de contagem, que fazia a
+  prévia simplesmente SUMIR da linha (o erro só aparecia depois de clicar em Lançar), passou a ter
+  aviso próprio.
+- 🧹 **Diálogo e leitura de saldos:** a consulta de saldos disparava em toda visita a `/itens`, mesmo
+  sem ninguém abrir o formulário — agora só ao abrir. O alerta "Diga o que aconteceu" sobrevivia ao
+  fechamento e reaparecia sozinho na abertura seguinte — e a correção passou por **todos** os
+  caminhos de fechar, inclusive o botão "Cancelar", que não passa pelo mesmo canal do X. O rótulo do
+  Colaborador na Liberação voltou a marcar "(opcional)" num campo que segue opcional.
+- 🧰 **Ferramenta e higiene:** o autor da errata era resolvido antes de saber se havia errata a
+  gerar, transformando uma reexecução que deveria ser no-op em erro; e o `package-lock.json` estava
+  parado na versão `0.1.0` havia ~40 versões, sujando a árvore a cada instalação.
+- 🔁 **A revisão da revisão pegou três defeitos nas próprias correções**, todos corrigidos antes de
+  fechar: o `>=` do teto reapareceu na cópia do validador (o mesmo achado aplicado pela metade), o
+  botão "Cancelar" ficou de fora da limpeza do alerta, e o limitador de concorrência não parava de
+  puxar trabalho novo depois da primeira falha — gastando exatamente o recurso que ele existe para
+  proteger. Cada um ganhou teste ou comentário que trava a regressão.
+- ⏭️ **Um achado pulado, de arquitetura e não de corretude:** a contagem de lançamentos por item da
+  Zona destrutiva faz uma consulta por item do catálogo, quando o banco resolve tudo numa ida só. O
+  conserto certo exige migration + regeneração de tipos + publicação, e publicar a chamada antes da
+  migration aplicada derrubaria a tela — é trabalho de fase. O que dava para fazer sem isso foi
+  feito: o leque de consultas simultâneas ganhou teto, e a dívida ficou registrada no arquivo.
+- ✅ **`npm run lint` limpo, `npm run build` limpo, 2.596 testes verdes** (eram 2.578 verdes + 1
+  vermelho; +18 casos novos, nenhuma asserção afrouxada — a prova de segurança do paginador com teto
+  de servidor menor que a página continua intacta).
+
 ## 19/08/2026 — Lançamento de itens: a escolha do tipo virou duas perguntas ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.40.4**), a partir do feedback do Johnny: *"está confuso o controle
@@ -35,7 +93,9 @@ não mudam; o que muda é o CAMINHO até o tipo e o vocabulário das mensagens. 
 - ➖ **O sinal da coluna Qtd. do histórico virou o EFEITO na prateleira.** Uma Liberação de 3 aparecia
   como "+3" com o estoque descendo — o "+" era o número cru, não a direção. Agora: −3 (e a Dica do
   cabeçalho explica a régua; o resumo do diálogo de estorno diz "−3 no estoque"). O CSV exportado
-  continua com a quantidade crua — a direção lá sempre esteve na coluna Tipo.
+  continua com a quantidade crua — a direção lá sempre esteve na coluna Tipo. ⚠️ **Revogado no dia
+  seguinte pela v1.40.5 (entrada acima):** a revisão mostrou que deixar tela e arquivo divergindo é
+  o defeito F12-W4-03 que este repositório já tinha nomeado, e o CSV passou a levar o efeito.
 - 🗣️ **As recusas falam o vocabulário da tela.** "Reserva e liberação exigem o número do chamado"
   (Zod E tradução do CHECK `lanc_item_chamado`) virou **"Atrelar e Devolução exigem o número do
   chamado"**, derivada de `TIPO_LANCAMENTO_META` — renomear o rótulo renomeia a mensagem no mesmo

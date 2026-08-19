@@ -4,6 +4,7 @@ import { exigirDev } from '@/lib/auth/acesso'
 import type { DbClient } from '@/lib/auth/acesso'
 import { rotuloDoAtivo } from '@/lib/validators/dev-destrutivo'
 import type { StatusAtivo } from '@/lib/dominio'
+import { mapComLimite, LIMITE_LOTES_PARALELOS } from '@/lib/queries/relatorios/comum'
 
 // Leituras da ZONA DESTRUTIVA da /dev (F23) — todas guardadas por `exigirDev()`.
 //
@@ -271,7 +272,7 @@ export async function listarItensDestrutivo(): Promise<CandidatoItem[]> {
   const itens = data ?? []
   if (itens.length === 0) return []
 
-  // Contagem CONTADA NO BANCO, uma consulta por item, em paralelo.
+  // Contagem CONTADA NO BANCO, uma consulta por item, em LOTES — não mais toda de uma vez.
   //
   // A versão anterior trazia os `item_id` de TODOS os lançamentos e agrupava em
   // JS. Isso só parecia barato porque o corte de 1.000 do PostgREST limitava a
@@ -281,18 +282,29 @@ export async function listarItensDestrutivo(): Promise<CandidatoItem[]> {
   // materializaria a tabela inteira para produzir um punhado de inteiros.
   //
   // `count: 'exact', head: true` devolve só o número no header — não passa pelo
-  // `max-rows`, não trafega linha nenhuma. O leque é o tamanho do CATÁLOGO, que
-  // aí sim é curado e pequeno (dezenas de itens), e não o do histórico.
-  const contagens = await Promise.all(
-    itens.map(async (i) => {
-      const { count, error: eCount } = await supabase
-        .from('lancamentos_item')
-        .select('id', { count: 'exact', head: true })
-        .eq('item_id', i.id)
-      if (eCount) throw new Error(`Falha ao contar lançamentos: ${eCount.message}`)
-      return count ?? 0
-    }),
-  )
+  // `max-rows`, não trafega linha nenhuma.
+  //
+  // 19/08/2026 (revisão) — ACHADO 7: o comentário anterior defendia o `Promise.all` dizendo
+  // que "o leque é o tamanho do CATÁLOGO, que aí sim é curado e pequeno". Isso ficou falso: o
+  // catálogo cresce (a curadoria é de conteúdo, não de tamanho), e cada item vira uma
+  // requisição HTTP própria ao PostgREST, todas em voo ao mesmo tempo — 60 itens = 60
+  // requisições simultâneas só para abrir a tela. Trocado por `mapComLimite`, que mantém a
+  // MESMA semântica (resultado por índice, um erro de contagem derruba tudo com a mesma
+  // mensagem) mas trava o leque em `LIMITE_LOTES_PARALELOS`.
+  //
+  // Isso é remendo, não conserto — e fica registrado como dívida: o conserto de fundo é uma
+  // RPC `security definer` com `select item_id, count(*) from lancamentos_item group by
+  // item_id` (mesmo padrão de `dev_checagens_integridade()`), numa ida só ao banco em vez de N.
+  // Não entrou aqui porque exige migration nova (próxima é 0110) + `npm run db:types` +
+  // aplicar em PRODUÇÃO, e essa aplicação está fora do escopo desta edição.
+  const contagens = await mapComLimite(itens, LIMITE_LOTES_PARALELOS, async (i) => {
+    const { count, error: eCount } = await supabase
+      .from('lancamentos_item')
+      .select('id', { count: 'exact', head: true })
+      .eq('item_id', i.id)
+    if (eCount) throw new Error(`Falha ao contar lançamentos: ${eCount.message}`)
+    return count ?? 0
+  })
 
   return itens.map((i, n) => ({ ...i, lancamentos: contagens[n] }) as CandidatoItem)
 }

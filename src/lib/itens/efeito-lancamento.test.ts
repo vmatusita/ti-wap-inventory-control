@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { TIPO_LANCAMENTO_META, type TipoLancamento } from '@/lib/dominio'
 import {
+  avisoQuantidadeInvalida,
   efeitoNoEstoque,
   previewEstoque,
   qtdComSinal,
@@ -83,14 +84,29 @@ describe('qtdComSinal', () => {
 
 describe('previewEstoque', () => {
   it('mostra o antes → depois do estoque da filial', () => {
-    expect(previewEstoque('saida', 2, 14)).toEqual({ antes: 14, depois: 12, recusado: false })
-    expect(previewEstoque('entrada', 10, 14)).toEqual({ antes: 14, depois: 24, recusado: false })
-    expect(previewEstoque('ajuste', -3, 14)).toEqual({ antes: 14, depois: 11, recusado: false })
+    expect(previewEstoque('saida', 2, 14)).toEqual({
+      antes: 14,
+      depois: 12,
+      recusado: false,
+      alertaPar: false,
+    })
+    expect(previewEstoque('entrada', 10, 14)).toEqual({
+      antes: 14,
+      depois: 24,
+      recusado: false,
+      alertaPar: false,
+    })
+    expect(previewEstoque('ajuste', -3, 14)).toEqual({
+      antes: 14,
+      depois: 11,
+      recusado: false,
+      alertaPar: false,
+    })
   })
 
   it('acusa a recusa quando a prateleira ficaria negativa (a regra do trigger)', () => {
     const p = previewEstoque('saida', 20, 2)
-    expect(p).toEqual({ antes: 2, depois: -18, recusado: true })
+    expect(p).toEqual({ antes: 2, depois: -18, recusado: true, alertaPar: false })
     expect(textoPreview(p!)).toContain('será recusado')
   })
 
@@ -104,16 +120,75 @@ describe('previewEstoque', () => {
   })
 
   it('ajuste negativo é prévia válida (o alternador − Baixar produz exatamente isso)', () => {
-    expect(previewEstoque('ajuste', -14, 14)).toEqual({ antes: 14, depois: 0, recusado: false })
+    expect(previewEstoque('ajuste', -14, 14)).toEqual({
+      antes: 14,
+      depois: 0,
+      recusado: false,
+      alertaPar: false,
+    })
     expect(previewEstoque('ajuste', -15, 14)?.recusado).toBe(true)
   })
 
   it('o texto da prévia é pt-BR e afirma o não-efeito da recusa', () => {
-    expect(textoPreview({ antes: 14, depois: 12, recusado: false })).toBe(
+    expect(textoPreview({ antes: 14, depois: 12, recusado: false, alertaPar: false })).toBe(
       'Estoque na filial: 14 → 12',
     )
-    expect(textoPreview({ antes: 2, depois: -18, recusado: true })).toBe(
+    expect(textoPreview({ antes: 2, depois: -18, recusado: true, alertaPar: false })).toBe(
       'Estoque na filial: 2 → -18 — será recusado (estoque insuficiente)',
     )
+  })
+})
+
+describe('previewEstoque — alertaPar (achado 10)', () => {
+  it('é true só em liberacao (Devolução) e retorno (Retorno) — varre os seis tipos', () => {
+    // Quantidade 1 é válida em qualquer tipo (positiva), então a varredura
+    // não esbarra na regra "negativa fora do Ajuste" de previewEstoque.
+    for (const t of Object.keys(TIPO_LANCAMENTO_META) as TipoLancamento[]) {
+      const esperado = t === 'liberacao' || t === 'retorno'
+      expect(previewEstoque(t, 1, 10)?.alertaPar, t).toBe(esperado)
+    }
+  })
+})
+
+describe('textoPreview — ressalva do par (achado 10)', () => {
+  it('inclui a ressalva do par (com os rótulos oficiais) quando alertaPar', () => {
+    const texto = textoPreview({ antes: 14, depois: 16, recusado: false, alertaPar: true })
+    expect(texto).toContain('quantidade em aberto do par')
+    expect(texto).toContain(TIPO_LANCAMENTO_META.liberacao.rotulo)
+    expect(texto).toContain(TIPO_LANCAMENTO_META.retorno.rotulo)
+  })
+
+  it('NÃO inclui a ressalva do par quando alertaPar é false', () => {
+    const texto = textoPreview({ antes: 14, depois: 12, recusado: false, alertaPar: false })
+    expect(texto).not.toContain('quantidade em aberto do par')
+  })
+
+  it('continua dizendo "será recusado" quando o estoque ficaria negativo', () => {
+    const texto = textoPreview({ antes: 2, depois: -18, recusado: true, alertaPar: false })
+    expect(texto).toContain('será recusado')
+  })
+})
+
+describe('avisoQuantidadeInvalida (achado 14)', () => {
+  it('avisa, citando o rótulo oficial do Ajuste, quando a quantidade é negativa fora dele', () => {
+    const tiposForaDoAjuste = (Object.keys(TIPO_LANCAMENTO_META) as TipoLancamento[]).filter(
+      (t) => t !== 'ajuste',
+    )
+    for (const t of tiposForaDoAjuste) {
+      const aviso = avisoQuantidadeInvalida(t, -3)
+      expect(aviso, t).not.toBeNull()
+      expect(aviso, t).toContain(TIPO_LANCAMENTO_META.ajuste.rotulo)
+    }
+  })
+
+  it('fica calado (null) para negativo no Ajuste — é a única quantidade negativa legítima', () => {
+    expect(avisoQuantidadeInvalida('ajuste', -5)).toBeNull()
+  })
+
+  it('fica calado para zero, positivo e valor não inteiro (inclusive NaN)', () => {
+    expect(avisoQuantidadeInvalida('saida', 0)).toBeNull()
+    expect(avisoQuantidadeInvalida('saida', 5)).toBeNull()
+    expect(avisoQuantidadeInvalida('saida', 1.5)).toBeNull()
+    expect(avisoQuantidadeInvalida('saida', NaN)).toBeNull()
   })
 })

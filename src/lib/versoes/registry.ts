@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.40.5',
+    data: '2026-08-19',
+    titulo: 'A revisão das duas últimas entregas',
+    mudancas: [
+      'O arquivo de Excel do histórico de lançamentos passou a trazer a quantidade com o MESMO sinal que a tela mostra: uma Liberação de 3 sai como −3, e não mais como 3. Quem somava aquela coluna para conferir o estoque vinha obtendo um total errado.',
+      'A prévia do lançamento parou de dar a entender que uma Devolução ou um Retorno passariam só porque cabem na prateleira — ela avisa que a quantidade ainda em aberto no chamado é conferida na hora de salvar.',
+      'Digitar uma quantidade negativa fora do Acerto de contagem explica o problema ali mesmo. Antes a prévia simplesmente sumia da linha, sem dizer nada, e o erro só aparecia depois de clicar em Lançar.',
+      'O alerta "Diga o que aconteceu" não reaparece mais sozinho ao reabrir o formulário depois de desistir — inclusive quando se fecha pelo botão Cancelar. E o Colaborador voltou a dizer "(opcional)" na Liberação, num campo que continua sendo opcional.',
+      'Abrir a tela de Itens deixou de consultar os saldos por conta própria: isso agora só acontece quando alguém abre o formulário de lançar.',
+      'Os relatórios de acervo muito grande deixaram de acusar erro numa leitura que tinha dado certo, ficaram um pouco mais rápidos, e as consultas em bloco ganharam limite de quantas vão ao mesmo tempo para não sobrecarregar o sistema nas telas mais pesadas.',
+    ],
+  },
+  {
     versao: '1.40.4',
     data: '2026-08-19',
     titulo: 'Lançar itens virou responder o que aconteceu',

@@ -5943,3 +5943,67 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   âmbar, não trava).
 - **Reversível?** sim — apresentação e mensagens; nenhum dado, nenhuma migration, nenhum contrato de
   action mudou (`lancarItens` recebe o mesmo payload).
+
+## 2026-08-19 · Revisão das v1.40.3/v1.40.4 · O CSV do histórico passa a levar o EFEITO, não a quantidade crua
+
+- **Contexto:** a v1.40.4 pôs o sinal do efeito na coluna Qtd. da tela e registrou, no CHANGELOG, a
+  decisão de deixar o CSV com a quantidade crua ("a direção lá sempre esteve na coluna Tipo"). A
+  revisão adversarial do intervalo apontou isso como achado nº 1: a ajuda promete que o botão "leva
+  para o Excel exatamente o que está filtrado ali", e `actions/exportar.ts` já carrega um comentário
+  classificando divergência tela × arquivo como defeito (achado F12-W4-03).
+- **Decisão:** revogar. A coluna virou "Quantidade (efeito no estoque)" e emite
+  `efeitoNoEstoque(tipo, quantidade)` — o NÚMERO com sinal, não `qtdComSinal` (que devolve texto
+  pt-BR com "+" e ponto de milhar, e o Excel não soma texto). A entrada da v1.40.4 no CHANGELOG foi
+  anotada com a revogação, em vez de reescrita: entrada não se apaga.
+- **Motivo:** o argumento original ("a direção está na coluna Tipo") vale para quem LÊ linha a linha,
+  não para quem SOMA a coluna — e somar a coluna para conferir estoque é justamente o uso que o
+  export existe para servir. Duas leituras do mesmo dado filtrado não podem dar totais diferentes.
+- **Reversível?** sim — uma linha em `COLUNAS_HISTORICO`. Nenhum dado gravado muda.
+
+## 2026-08-19 · Revisão das v1.40.3/v1.40.4 · O validador do truncamento continua sem importar o paginador de `src/`
+
+- **Contexto:** achado nº 2 — `contarAsofBruto`, em `scripts/manutencao/validar-truncamento.ts`,
+  ainda parava com `n < PAGINA`, o padrão que a v1.40.3 baniu do paginador compartilhado e das três
+  cópias da carga. O caminho óbvio de correção seria trocar pelo `paginarTodos` compartilhado, como
+  a carga fez.
+- **Decisão:** NÃO importar. O laço foi corrigido no lugar (avança pelo que o servidor entregou;
+  para em página vazia ou em página mais curta que a primeira observada), e um comentário explícito
+  registra por que esta cópia continua hand-rolled.
+- **Motivo:** o docblock da função já dizia o essencial — ela é o oráculo INDEPENDENTE do motor de
+  `src/`. Um defeito no paginador compartilhado passaria a mentir nos dois lados da comparação
+  `doMotor === bruto`, e a checagem deixaria de checar. Duplicação aqui é a característica, não a
+  dívida; o que era defeito era o critério de parada, e é só isso que mudou.
+- **Reversível?** sim, mas não deve ser: o comentário existe para impedir que a próxima revisão
+  "conserte" o acoplamento de volta.
+
+## 2026-08-19 · Revisão das v1.40.3/v1.40.4 · Contagem por item da Zona destrutiva fica como dívida
+
+- **Contexto:** achado nº 7 — a v1.40.3 trocou a leitura paginada de `lancamentos_item` por uma
+  contagem por item do catálogo, disparadas todas de uma vez. Some o tráfego de linhas, mas nasce um
+  leque de requisições simultâneas que cresce com o catálogo. A forma certa é o banco agrupar e
+  devolver tudo numa ida.
+- **Decisão:** aplicar só a metade segura — o leque ganhou teto (`mapComLimite`,
+  `LIMITE_LOTES_PARALELOS`) — e registrar a dívida em comentário no próprio arquivo, sem criar a
+  migration.
+- **Motivo:** o conserto de fundo exige migration nova + regeneração de tipos + publicação, e
+  publicar a chamada antes de a migration estar aplicada derrubaria a Zona destrutiva. Isso é
+  trabalho de fase, não edição de revisão — o mesmo critério que a v1.40.3 usou para pular os dois
+  achados de desempenho dela.
+- **Reversível?** n/a — nada foi removido; a dívida está nomeada no código e aqui.
+
+## 2026-08-19 · Revisão das v1.40.3/v1.40.4 · A revisão da revisão pegou três achados aplicados pela metade
+
+- **Contexto:** depois de aplicar os 14 achados, três revisores adversariais releram o próprio diff.
+  Acharam: (a) o `>=` → `>` do teto anti-loop foi aplicado no paginador mas NÃO na cópia do
+  validador, que copiou só o outro critério; (b) a limpeza do alerta de tipo entrou no canal que o
+  Radix usa para fechar (X, Esc, clique fora), mas o botão "Cancelar" fecha por conta própria e
+  ficou de fora — o caminho mais comum de desistência; (c) o limitador de concorrência não parava de
+  puxar trabalho da fila depois da primeira rejeição, abrindo conexões novas para um resultado já
+  descartado.
+- **Decisão:** corrigir os três antes de fechar a entrega. Todo caminho de fechamento do diálogo
+  passa a chamar uma função única (`mudarAberto`), e o limitador ganhou parada por falha, com teste.
+- **Motivo:** os dois primeiros são o mesmo tipo de erro — achado aplicado num lugar e não no outro
+  lugar que tinha o mesmo problema. O terceiro gastava justamente o recurso que a correção existia
+  para proteger. Reportar como "corrigido" o que estava corrigido pela metade seria pior que não ter
+  corrigido, porque ninguém volta a olhar.
+- **Reversível?** sim — três edições pequenas, todas cobertas por teste ou comentário.

@@ -47,10 +47,42 @@ function checar(ok: boolean, descricao: string) {
   if (!ok) falhas++
 }
 
-/** Contagem paginada bruta da RPC as-of — independente do motor de src/. */
+/**
+ * Contagem paginada bruta da RPC as-of — INDEPENDENTE do motor de src/.
+ *
+ * 19/08/2026 (revisão, achado 2): este laço continua HAND-ROLLED de propósito,
+ * mesmo existindo `paginarTodos` em src/lib/queries/relatorios/comum.ts. É a
+ * decisão de projeto do docblock acima: este oráculo não pode compartilhar
+ * código com o motor que ele valida, senão um defeito no paginador
+ * compartilhado mentiria nos DOIS lados de toda comparação `doMotor ===
+ * bruto` (ver `caso()`, mais abaixo) e a checagem perderia o valor. NÃO troque
+ * por `paginarTodos` — isso reintroduziria o acoplamento que este arquivo
+ * existe para evitar.
+ *
+ * Isso não desculpa reimplementar a paginação de qualquer jeito: até
+ * 19/08/2026 este laço parava com `n < PAGINA` (PAGINA = tamanho PEDIDO por
+ * página), o EXATO padrão que a v1.40.3 baniu do paginador compartilhado. Se
+ * o `max-rows` do projeto Supabase (Settings → API) estiver abaixo de PAGINA
+ * — por exemplo 500 —, toda página vem curta e `n < PAGINA` para na
+ * PRIMEIRA. O validador que deveria PROVAR a ausência de truncamento passava
+ * a cometer o mesmo corte silencioso, e as asserções contra `PAGINA` (1000)
+ * não pegavam isso porque o número errado batia com o teto real do servidor,
+ * não com 1000.
+ *
+ * Critério corrigido — o mesmo do paginador compartilhado, reescrito à mão:
+ * avança por `n` (o que o servidor DE FATO devolveu, nunca o tamanho pedido)
+ * e só para por página VAZIA (fim garantido, sempre seguro) ou por uma página
+ * mais curta que a PRIMEIRA página não-vazia observada nesta chamada — o teto
+ * efetivo do servidor não muda no meio de uma paginação, então uma página
+ * mais curta que o teto já observado só pode ser a última. Nunca compare
+ * contra PAGINA: é o tamanho pedido, não o que define o fim.
+ */
 async function contarAsofBruto(filialId: number | null, data: string): Promise<number> {
+  const CAP_ANTI_LOOP = 100_000
   let total = 0
-  for (let from = 0; from < 100_000; from += PAGINA) {
+  let from = 0
+  let primeiraPagina: number | null = null
+  for (;;) {
     const { data: pag, error } = await client
       // `filialParaRpc` preserva o NULL (= consolidado). Passar `undefined`
       // OMITE o argumento do payload, e o PostgREST não acha a sobrecarga.
@@ -62,8 +94,20 @@ async function contarAsofBruto(filialId: number | null, data: string): Promise<n
       .range(from, from + PAGINA - 1)
     if (error) throw new Error(`RPC as-of falhou: ${error.message}`)
     const n = pag?.length ?? 0
+    if (n === 0) break
     total += n
-    if (n < PAGINA) break
+    from += n
+    if (primeiraPagina === null) primeiraPagina = n
+    else if (n < primeiraPagina) break
+    // `>` e não `>=`: o teto é sobre o EXCEDENTE. Com exatamente CAP_ANTI_LOOP
+    // linhas a leitura está COMPLETA, e `>=` abortaria o script inteiro (nem
+    // `caso()` nem `main()` tratam exceção) numa contagem que deu certo — o
+    // mesmo off-by-one que a revisão corrigiu em `paginarTodos`.
+    if (from > CAP_ANTI_LOOP)
+      throw new Error(
+        `contarAsofBruto: teto anti-loop atingido (${CAP_ANTI_LOOP} linhas) — abortado de ` +
+          'propósito para não devolver um total truncado com cara de certo.',
+      )
   }
   return total
 }

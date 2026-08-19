@@ -30,6 +30,7 @@ import {
   type SaldoItemFiliais,
 } from '@/lib/queries/itens'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
+import { efeitoNoEstoque } from '@/lib/itens/efeito-lancamento'
 import { getOperador } from '@/lib/auth/acesso'
 import { dataISO, ehVisaoConsolidado, idNumerico } from '@/lib/url-params'
 import {
@@ -387,7 +388,15 @@ const COLUNAS_HISTORICO: ColunaCsv<LinhaExportHistorico>[] = [
   { titulo: 'Tipo', valor: (l) => rotuloTipoLancamento(l.tipo) },
   { titulo: 'Item', valor: (l) => l.item },
   { titulo: 'Grupo', valor: (l) => rotuloGrupoItem(l.grupo) },
-  { titulo: 'Quantidade', valor: (l) => l.quantidade },
+  // 19/08/2026 (revisão) — achado F12-W4-03 se repetindo: a coluna emitia
+  // `l.quantidade` cru (sempre positivo, exceto no Ajuste) enquanto a tela já
+  // usa `qtdComSinal`/`efeitoNoEstoque` para mostrar o efeito na prateleira.
+  // Uma Liberação de 3 lia "-3" na tela e "3" no arquivo — quem soma a coluna
+  // pra conferir estoque tirava o total com o sinal invertido em saida/reserva.
+  // Aqui vai o NÚMERO com sinal (não o texto "+3" da tela, que o Excel não
+  // soma): mesma régua de `efeitoNoEstoque` que a tela usa, então as duas
+  // views não podem mais divergir.
+  { titulo: 'Quantidade (efeito no estoque)', valor: (l) => efeitoNoEstoque(l.tipo, l.quantidade) },
   { titulo: 'Filial', valor: (l) => l.filial },
   { titulo: 'Chamado', valor: (l) => l.chamado },
   { titulo: 'Colaborador', valor: (l) => l.colaborador },

@@ -160,7 +160,20 @@ async function main() {
   // da execução, o `throw` de `devMaisAntigo()` pararia o lote pela metade, com
   // parte das erratas já gravada. Só no modo EXECUTAR: o dry-run não deve exigir
   // um perfil dev ativo para rodar.
-  const autor = EXECUTAR ? await devMaisAntigo() : null
+  //
+  // 19/08/2026 (revisão, achado 13) — segundo motivo da guarda: `paraGerar.length
+  // > 0` abaixo é redundante com o `return` de `paraGerar.length === 0` logo
+  // acima, e é PROPOSITAL: sem essa condição também aqui, o invariante "só chega
+  // nesta linha com algo para gerar" passaria a depender de ninguém nunca separar
+  // as duas linhas num refactor futuro. Sem ela (ou sem o `return` de cima),
+  // reexecutar o script depois que as erratas elegíveis já foram todas geradas —
+  // o caso normal de reexecução — chamaria `devMaisAntigo()` e LANÇARIA se
+  // nenhum perfil dev estivesse ativo, transformando um no-op silencioso em
+  // ruído. As asserções `autor!` mais abaixo continuam seguras com isto: elas só
+  // são alcançadas dentro do laço sobre `paraGerar` (que não roda se ele estiver
+  // vazio) e dentro do ramo `EXECUTAR` (o único em que `devMaisAntigo()` chegou a
+  // rodar e `autor` deixou de ser `null`).
+  const autor = EXECUTAR && paraGerar.length > 0 ? await devMaisAntigo() : null
 
   for (const l of paraGerar) {
     const escopo = l.filial_id === null ? 'geral' : await slugDaFilial(l.filial_id)

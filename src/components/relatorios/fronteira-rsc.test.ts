@@ -83,6 +83,36 @@ function resolverAlias(modulo: string): string | null {
   return null
 }
 
+// Memoização (revisão 19/08/2026): a varredura chama `resolverAlias` e depois
+// `readFileSync` + `ehModuloCliente` para CADA import de valor de CADA arquivo —
+// e o mesmo módulo cliente (ex.: `use-filtros-tabela.ts`) é alvo de import em
+// dezenas de arquivos, então acabava sendo relido e reanalisado centenas de
+// vezes. O custo escala com arquivos × imports, e cresce a cada fase; sem
+// cache o caso "nenhum valor comum atravessa a fronteira" já passava dos 5s
+// (7.776ms medidos) e estourava o `testTimeout` padrão do Vitest. As funções
+// puras acima ficam INTOCADAS — são elas que a autoguarda exercita — e o cache
+// mora só nestes wrappers, usados apenas pela varredura real.
+const cacheAlias = new Map<string, string | null>()
+function resolverAliasMemo(modulo: string): string | null {
+  const cacheado = cacheAlias.get(modulo)
+  if (cacheado !== undefined) return cacheado
+  const resolvido = resolverAlias(modulo)
+  cacheAlias.set(modulo, resolvido)
+  return resolvido
+}
+
+// Chave é o caminho ABSOLUTO já resolvido (não o especificador `@/...`), então
+// dois imports diferentes que resolvem para o mesmo arquivo compartilham o
+// mesmo resultado — cada arquivo do projeto é lido do disco no máximo 1 vez.
+const cacheClientePorCaminho = new Map<string, boolean>()
+function ehClienteNoCaminho(caminhoAbsoluto: string): boolean {
+  const cacheado = cacheClientePorCaminho.get(caminhoAbsoluto)
+  if (cacheado !== undefined) return cacheado
+  const resultado = ehModuloCliente(readFileSync(caminhoAbsoluto, 'utf8'))
+  cacheClientePorCaminho.set(caminhoAbsoluto, resultado)
+  return resultado
+}
+
 // Componente por convenção: **PascalCase** — maiúscula seguida de MINÚSCULA.
 // Um componente atravessa a fronteira legitimamente; é o valor comum que não.
 //
@@ -105,28 +135,37 @@ describe('fronteira RSC: Server Component não importa VALOR de módulo cliente'
     expect(arquivos.length).toBeGreaterThan(50)
   })
 
-  it('nenhum valor comum atravessa a fronteira', () => {
-    const violacoes: string[] = []
-    for (const caminho of arquivos) {
-      const fonte = readFileSync(caminho, 'utf8')
-      if (ehModuloCliente(fonte)) continue // cliente → cliente é livre
-      for (const { modulo, nomes } of importesDeValor(fonte)) {
-        const alvo = resolverAlias(modulo)
-        if (!alvo) continue
-        if (!ehModuloCliente(readFileSync(alvo, 'utf8'))) continue
-        for (const nome of nomes) {
-          if (pareceComponente(nome)) continue
-          violacoes.push(
-            `${caminho.split(/[\\/]/).slice(-2).join('/')}: importa "${nome}" de "${modulo}", que é 'use client' — no servidor esse valor vale undefined`,
-          )
+  it(
+    'nenhum valor comum atravessa a fronteira',
+    () => {
+      const violacoes: string[] = []
+      for (const caminho of arquivos) {
+        const fonte = readFileSync(caminho, 'utf8')
+        if (ehModuloCliente(fonte)) continue // cliente → cliente é livre
+        for (const { modulo, nomes } of importesDeValor(fonte)) {
+          const alvo = resolverAliasMemo(modulo)
+          if (!alvo) continue
+          if (!ehClienteNoCaminho(alvo)) continue
+          for (const nome of nomes) {
+            if (pareceComponente(nome)) continue
+            violacoes.push(
+              `${caminho.split(/[\\/]/).slice(-2).join('/')}: importa "${nome}" de "${modulo}", que é 'use client' — no servidor esse valor vale undefined`,
+            )
+          }
         }
       }
-    }
-    expect(
-      violacoes,
-      'mova o valor para um módulo puro (ex.: lib/relatorios/prefixos-tabela.ts) e reexporte do módulo cliente',
-    ).toEqual([])
-  })
+      expect(
+        violacoes,
+        'mova o valor para um módulo puro (ex.: lib/relatorios/prefixos-tabela.ts) e reexporte do módulo cliente',
+      ).toEqual([])
+    },
+    // Timeout explícito (revisão 19/08/2026): com a memoização acima o caso cai
+    // para bem menos de 1s, mas ele faz uma varredura de sistema de arquivos que
+    // cresce a cada fase (181 arquivos .tsx hoje) — em vez de confiar no padrão
+    // de 5s do Vitest, declaramos folga generosa (~3x o pior tempo já medido sem
+    // cache) para o caso de o projeto crescer bem além do tamanho atual.
+    15_000,
+  )
 
   // Autoguarda: um detector que pare de detectar transforma este teste numa
   // varredura que passa a seco. (A mesma disciplina do varredor de href.)

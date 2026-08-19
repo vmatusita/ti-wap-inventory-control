@@ -48,7 +48,11 @@ import {
   grupoPorChave,
   type GrupoEscolha,
 } from '@/lib/itens/escolha-tipo'
-import { previewEstoque, textoPreview } from '@/lib/itens/efeito-lancamento'
+import {
+  avisoQuantidadeInvalida,
+  previewEstoque,
+  textoPreview,
+} from '@/lib/itens/efeito-lancamento'
 import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { EVENTO_LANCAR_ITEM } from './lancar-item-evento'
 import { ItemCombobox } from './item-combobox'
@@ -142,21 +146,41 @@ export function LancarItemDialog({
   // foco inicial vai para a quantidade em vez do primeiro campo.
   const focarQtdAoAbrir = useRef(false)
 
-  // Saldo da FILIAL, por item — o mesmo mecanismo do diálogo de transferência
-  // (F31): uma chamada por troca de filial, nunca por tecla, e o mapa desce por
-  // prop para o combobox de CADA linha (antes cada combobox buscava o seu — dez
-  // linhas, dez leituras iguais). `pedido` descarta resposta atrasada de uma
-  // filial que já não é a selecionada; `saldosDe` marca de qual filial é o mapa
-  // (sem ela, trocar de filial mostraria por um instante o saldo da anterior).
-  // ⚠ O LANÇAMENTO INVALIDA O MAPA: sem `recarga`, lançar e reabrir mostraria o
-  // saldo de antes — com a prévia aprovando um envio que o trigger recusaria.
+  // Saldo da FILIAL, por item — parecido com o mecanismo do diálogo de
+  // transferência (F31), com uma diferença: lá o componente inteiro mora
+  // dentro do `DialogContent`, que o Radix desmonta ao fechar; aqui não (ver
+  // achado 4 abaixo), então o efeito precisa se guardar sozinho. O mapa desce
+  // por prop para o combobox de CADA linha (antes cada combobox buscava o
+  // seu — dez linhas, dez leituras iguais). `pedido` descarta resposta
+  // atrasada de uma filial que já não é a selecionada; `saldosDe` marca de
+  // qual filial é o mapa (sem ela, trocar de filial mostraria por um instante
+  // o saldo da anterior).
+  // ⚠ O LANÇAMENTO INVALIDA O MAPA: sem `recarga`, reabrir depois de lançar
+  // mostraria o saldo de antes — com a prévia aprovando um envio que o
+  // trigger recusaria.
   const [saldos, setSaldos] = useState<SaldosPorItem>({})
   const [saldosDe, setSaldosDe] = useState<number | null>(null)
   const pedido = useRef(0)
   const [recarga, setRecarga] = useState(0)
 
+  // 19/08/2026 (revisão) — achado 4: este `LancarItemDialog` é montado direto
+  // na página, fora do `DialogContent` (veja `src/app/(app)/itens/page.tsx`,
+  // dentro de `{escreve && (...)}`) — o Radix só desmonta o CONTEÚDO do
+  // diálogo, não o componente que o declara. Sem o `if (!aberto) return`
+  // abaixo, toda visita a /itens disparava esta Server Action para uma prévia
+  // que nenhum pixel da tela chegava a mostrar. Agora é uma chamada por
+  // ABERTURA do diálogo e por troca de filial ENQUANTO ele está aberto —
+  // nunca no load da página. Conferindo o resto do fluxo com essa guarda:
+  // (a) ao abrir, `aberto` vira `true` e o efeito busca o saldo da filial
+  // atual; (b) no sucesso do lançamento, `salvar()` faz `limpar()` →
+  // `setAberto(false)` → `setRecarga(r => r + 1)` — com o diálogo já fechado
+  // o efeito NÃO refaz a leitura na hora, só na próxima abertura, o que é
+  // MELHOR (poupa um POST que ninguém veria) e continua honrando o aviso
+  // acima; (c) na falha parcial (`registradas > 0`) o diálogo continua
+  // aberto e o mesmo `setRecarga` faz o efeito refazer a leitura NA HORA,
+  // porque `aberto` segue `true`.
   useEffect(() => {
-    if (filialId == null) return
+    if (!aberto || filialId == null) return
     const meu = ++pedido.current
     buscarSaldosItens(filialId)
       .then((mapa) => {
@@ -170,7 +194,7 @@ export function LancarItemDialog({
         setSaldos({})
         setSaldosDe(filialId)
       })
-  }, [filialId, recarga])
+  }, [aberto, filialId, recarga])
 
   const saldosAtuais = filialId != null && saldosDe === filialId ? saldos : {}
 
@@ -354,11 +378,19 @@ export function LancarItemDialog({
   const exigeObs = tipo === 'ajuste'
 
   // O rótulo do Colaborador acompanha a resposta: numa Liberação, "quem ficou
-  // com o item" É o dado da linha do histórico — chamar de "(opcional)" seco
-  // era o convite para deixá-lo vazio.
+  // com o item" é o dado útil para o histórico. 19/08/2026 (revisão) —
+  // achado 9: mas o campo CONTINUA opcional no Zod, e neste mesmo arquivo a
+  // ausência de "(opcional)" é justamente a convenção que marca campo
+  // obrigatório (`Chamado{precisaChamado ? '' : ' (opcional)'}` logo abaixo).
+  // Sem o sufixo, o operador lia "Colaborador (quem ficou com o item)" ao
+  // lado de "Chamado (opcional)" e concluía, pela convenção da própria tela,
+  // que o colaborador era obrigatório — reforçado pelo aviso âmbar logo
+  // abaixo. Restaurada a marca de opcional, no mesmo formato que o ramo
+  // 'retorno' já usa; o aviso âmbar continua sendo um empurrão, não uma
+  // exigência.
   const rotuloColaborador =
     tipo === 'saida'
-      ? 'Colaborador (quem ficou com o item)'
+      ? 'Colaborador (quem ficou com o item — opcional)'
       : tipo === 'retorno'
         ? 'Colaborador (quem devolveu — opcional)'
         : 'Colaborador (opcional)'
@@ -407,7 +439,7 @@ export function LancarItemDialog({
               : 'Lançamento registrado.',
           )
           limpar()
-          setAberto(false)
+          mudarAberto(false)
           setRecarga((r) => r + 1)
           router.refresh()
           return
@@ -440,8 +472,27 @@ export function LancarItemDialog({
     })
   }
 
+  // 19/08/2026 (revisão) — achado 8: `erroTipo` só zerava em `limpar()` e em
+  // `definirTipo()`. Sem isso, clicar em "Lançar" sem responder "O que
+  // aconteceu?", ver o alerta vermelho, desistir e fechar deixava o erro vivo —
+  // reabrir o diálogo já nascia acusando uma falha que não existe, um
+  // `role="alert"` que leitor de tela anuncia à toa. Só o ERRO some ao fechar,
+  // nunca um `limpar()` inteiro: o resto do estado sobreviver ao fechar é
+  // proposital ("Repetir último" e o rascunho do carrinho dependem disso).
+  //
+  // ⚠ FUNÇÃO ÚNICA, e não um handler inline no `onOpenChange`: o Radix só
+  // chama `onOpenChange` quando é ELE quem fecha (Esc, clique fora, o X do
+  // `DialogPrimitive.Close`). O botão "Cancelar" do rodapé fecha por conta
+  // própria, e um `setAberto(false)` cru ali pularia a limpeza — deixando o
+  // caminho MAIS comum de desistência com o defeito que este achado corrigiu.
+  // Todo caminho de fechamento passa por aqui.
+  function mudarAberto(v: boolean) {
+    setAberto(v)
+    if (!v) setErroTipo(null)
+  }
+
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="size-4" />
@@ -492,18 +543,24 @@ export function LancarItemDialog({
               </span>
             </div>
             {linhas.map((l, i) => {
+              const quantidadeNum = l.quantidade === '' ? 0 : Number(l.quantidade)
               // Prévia do efeito (19/08/2026): item + quantidade + tipo + saldo
               // carregado → "Estoque na filial: 14 → 12". `null` = calada (nada
               // digitado, saldo ainda carregando, quantidade inválida) — a
               // validação fala por ela nesses casos.
               const previa =
                 tipo && l.itemId != null
-                  ? previewEstoque(
-                      tipo,
-                      l.quantidade === '' ? 0 : Number(l.quantidade),
-                      saldosAtuais[l.itemId],
-                    )
+                  ? previewEstoque(tipo, quantidadeNum, saldosAtuais[l.itemId])
                   : null
+              // 19/08/2026 (revisão) — achado 14: fora do Ajuste, uma
+              // quantidade negativa fazia `previewEstoque` devolver `null` (a
+              // prévia não decide nada — quem recusa de verdade é o trigger)
+              // e a prévia que estava visível sumia SEM explicação; o erro só
+              // aparecia no envio, pelo Zod. `avisoQuantidadeInvalida` cobre
+              // esse buraco. Mutuamente exclusivo com `previa` por
+              // construção (quando há aviso, `previewEstoque` já devolveu
+              // null) — o JSX abaixo garante isso também na renderização.
+              const aviso = tipo ? avisoQuantidadeInvalida(tipo, quantidadeNum) : null
               return (
                 <div key={l.uid} className="space-y-1">
                   <div className="flex items-start gap-2">
@@ -598,6 +655,11 @@ export function LancarItemDialog({
                     >
                       {textoPreview(previa)}
                     </p>
+                  )}
+                  {/* achado 14 — mesmo tom e layout do `recusado` acima, para
+                      o mesmo lugar onde a prévia sumia calada. */}
+                  {!previa && aviso && (
+                    <p className="pl-1 text-xs text-amber-700 dark:text-amber-400">{aviso}</p>
                   )}
                   {l.erro && (
                     <p className="pl-1 text-xs text-red-600 dark:text-red-400">{l.erro}</p>
@@ -786,7 +848,7 @@ export function LancarItemDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+          <Button variant="ghost" onClick={() => mudarAberto(false)} disabled={enviando}>
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={enviando}>
