@@ -182,7 +182,19 @@ também citam a função) e compara com `STATUS_COM_DETENTOR` em `dominio.ts`. M
 | `npm run lint` | limpo |
 | `npm run test` | **2.609** testes, 128 arquivos, 0 falha (eram 2.544 na F35) |
 | `npm run build` | limpo |
-| roteiros SQL | ver §6.2; o job `banco` do CI é a prova final, num Postgres novo |
+| CI, job `verificar` | ✅ lint · testes · contraste WCAG · build |
+| CI, job `banco` | ✅ **20 roteiros, 451 ✓, 0 ✗**, num Postgres novo com **todas** as 111 migrations aplicadas em ordem |
+
+O job `banco` é a prova final, e é ele que fecha as duas lacunas do ensaio: `dev_destrutivo.sql` e
+`import_substituir.sql`, que não foram rodados contra a produção, **rodaram lá** e passaram — os
+cenários 9c e 9f do primeiro (o zeramento em estado terminal e o par positivo em `emprestado`)
+continuam ✓, como a leitura estática previa. Os 18 cenários do `f36_detentor.sql` aparecem um a um
+no log, e os dois que trocaram de lado também:
+
+```
+✓ 7a ajuste para em_manutencao (estado sem dono) ZERA o detentor (F36)
+✓ j1 ajuste para em_estoque (estado sem dono) ZERA o detentor (F36)
+```
 
 ## 7. A trava que impede a volta
 
@@ -207,13 +219,14 @@ desfaz de verdade"; a checagem existe justamente para isso aparecer em vez de me
   de `restore` foi recusada pelo classificador do modo automático; não há Docker nesta máquina para
   `supabase start`. O ensaio foi feito contra a **produção em transação desfeita** — mais fiel ao
   dado real, mas sem a folga de um ambiente descartável. Ata em `docs/DECISOES.md`.
-- **`dev_destrutivo.sql` e `import_substituir.sql` não foram rodados** nesta sessão: o primeiro faz
-  reset global do acervo (travaria as tabelas de produção pela duração da transação) e o segundo
-  chama a RPC destrutiva do import. Os dois foram cobertos por **leitura estática** — o único ponto
-  em `dev_destrutivo.sql` que a F36 alcança são os cenários 9c e 9f, e os dois continuam válidos
-  (9c força `descartado`, 9f força `emprestado`; nenhum dos dois muda de lado). Os **comentários**
-  daqueles cenários foram atualizados, porque descreviam a regra antiga. A prova executável fica com
-  o job `banco` do CI.
+- **`dev_destrutivo.sql` e `import_substituir.sql` não foram rodados contra a produção**: o primeiro
+  faz reset global do acervo (travaria as tabelas de produção pela duração da transação) e o segundo
+  chama a RPC destrutiva do import. Antes do push eles tinham só **leitura estática** — o único ponto
+  em `dev_destrutivo.sql` que a F36 alcança são os cenários 9c e 9f, e a leitura dizia que os dois
+  continuavam válidos (9c força `descartado`, 9f força `emprestado`; nenhum muda de lado); os
+  **comentários** daqueles cenários foram atualizados, porque descreviam a regra antiga. **O job
+  `banco` do CI depois os rodou e confirmou** (§6.4) — mas o rastro fica registrado: entre o apply em
+  produção e o CI, essa parte estava provada por leitura, não por execução.
 - **Dois roteiros falham em produção por artefato de ambiente**, idêntico com e sem a F36:
   `conflito_filiais.sql` (espera 4 grupos de conflito; o acervo real tem 76) e `troca.sql` (rebaixa a
   `admin` o primeiro `profile` que encontra, e em produção esse perfil é um `dev`). Nenhum tem
@@ -250,8 +263,9 @@ manual do operador neste repositório.
 | 3 | Ensaio dos treze roteiros, com e sem as migrations |
 | 4 | `0110` aplicada em produção (nenhum dado tocado) |
 | 5 | `0111` aplicada em produção (4 linhas) |
-| 6 | Contagens depois: sujos = 0, ativos por status inalterados |
+| 6 | `notify pgrst, 'reload schema'` (função nova em `public`) e contagens depois: sujos = 0, ativos por status inalterados; as **dez** checagens rodadas como `dev`, `detentor_em_estado_sem_dono` = 0 |
 | 7 | Commit + tag `v1.41.0` + push (o deploy sai pela Vercel) |
+| 8 | CI verde nos dois jobs — `verificar` e `banco` (20 roteiros, 451 ✓) |
 
 A ordem `0110` → `0111` importa: a `0111` usa `status_tem_detentor`.
 A ordem **migration antes do deploy** também: o código novo (`STATUS_COM_DETENTOR`, a décima
