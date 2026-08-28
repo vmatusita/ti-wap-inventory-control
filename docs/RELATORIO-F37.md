@@ -197,7 +197,14 @@ grants** (a armadilha `42501` do runbook):
 
 Rodados contra o banco real, em transação desfeita: **19 dos 21 com 0 falhas**.
 
-| situação | roteiros |
+> ✅ **A prova final chegou: o job `banco` do CI passou.** Num Postgres **limpo**, aplicando
+> `0001`→`0114` do zero, os **21 roteiros** rodaram com **485 ✓ e 0 ✗** (run `33203614886`, jobs
+> `verificar` e `banco` ambos `success`). Isso cobre exatamente os três que eu **não** podia rodar
+> daqui: `dev_destrutivo.sql` e `import_substituir.sql` (travariam produção) e `troca.sql` (falha em
+> produção por artefato de ambiente). A tabela abaixo é o que foi medido **localmente**, contra o
+> banco real, antes disso.
+
+| situação (bateria local, contra produção) | roteiros |
 |---|---|
 | **0 falhas** | `asof_desempate`, `cargo_dev`, `conflito_filiais`, `dominios_login`, `f34_triagem_reserva`, `f36_detentor` (depois do conserto do §5.6), **`f37_colaboradores_tipos` (24/0)**, `itens_extra`, `itens_quantidade`, `manutencao_fornecedor`, `maquina_estados`, **`papeis_rls` (74/0)**, `pendencias_import_termo`, `pendencias_item`, `reabrir_pendencia_item`, `seguranca_catalogo`, `transferencia_item`, `transicoes_extra` |
 | **pulados de propósito** | `dev_destrutivo` e `import_substituir` — fazem reset global do acervo e chamam a RPC destrutiva do import; travariam as tabelas de produção pela duração da transação. Cobertos pelo job `banco` do CI |
@@ -256,6 +263,8 @@ teste — é fazê-lo medir o que se propôs a medir, em vez de medir um uuid.
 | `npm run test` | 128 arquivos · **2.609** testes | 130 arquivos · **2.646** testes |
 | `npm run build` | limpo, 26 rotas | **limpo, 28 rotas** (as duas novas presentes) |
 | `npm run db:types` | — | regenerado e commitado |
+| CI (GitHub Actions) | — | **`verificar` e `banco` ambos verdes** — run `33203614886`, 21 roteiros, **485 ✓ · 0 ✗** |
+| smoke pós-deploy | — | **101 OK · 1 aviso pré-existente · 0 falha**, com as duas rotas novas |
 
 ---
 
@@ -364,9 +373,11 @@ colunas que só existem depois dele.
    duas do SQL. Para caracteres exóticos fora da tabela, `lower()` do Postgres e `toLowerCase()` do
    JavaScript **podem** divergir. O modo de falhar é o benigno (o vínculo não acontece, o texto é
    gravado), nunca um vínculo errado — mas não foi varrido caractere a caractere.
-4. **Os roteiros SQL foram rodados por transação desfeita contra PRODUÇÃO**, não num banco limpo.
-   Dois deles ficaram de fora (travariam tabelas de produção) e um falha por artefato de ambiente.
-   **A prova final é o job `banco` do CI**, que sobe um Postgres novo e aplica `0001`→`0114`.
+4. ~~Os roteiros SQL foram rodados só por transação desfeita contra produção.~~ **Fechado:** o job
+   `banco` do CI passou depois, num Postgres limpo, com os 21 roteiros (485 ✓ · 0 ✗). O que
+   permanece é menor: a bateria local e a do CI rodam contra bancos com **dados diferentes**, então
+   um defeito que só apareça com o volume real de produção sairia da primeira, e um que dependa de
+   banco virgem, da segunda. As duas rodaram; nenhuma sozinha basta.
 5. **Nenhuma tela foi aberta num navegador, e os dois temas não foram vistos com o olho.** O
    servidor de desenvolvimento subiu, mas as telas de `/admin/**` exigem sessão, e digitar senha em
    formulário não é coisa que eu faça. O que ficou no lugar disso, e é menos do que ver:
