@@ -225,6 +225,34 @@ do backfill registradas · checagem 10 em zero · `CHANGELOG` + `registry.ts` + 
 
 ## 4. F37 — Fundação: quem é a pessoa e o que é o item
 
+> ✅ **EXECUTADA em 28/08/2026** pela ordem `docs/prompts/F37-fundacao-colaboradores-tipos-ultracode.md`
+> (**v1.42.0**, migrations `0112`/`0113`/`0114`). Evidências em `docs/RELATORIO-F37.md`.
+>
+> **Três coisas saíram diferentes do que este §4 rascunhou, e a ordem mandou (ela é a régua acima
+> deste plano). As três estão em ata em `docs/DECISOES.md` (2026-08-28 · F37):**
+>
+> 1. **A ponta solta do §4.1 foi fechada: o passado se liga por CHAVE, nunca por UPDATE.** O
+>    texto abaixo diz "permite amarrar em lote" sem dizer como. Não há como: `guarda_acervo`
+>    (`0081`) recusa UPDATE em `movimentacoes`/`lancamentos_item` para **todo mundo, service
+>    role incluso**. A tela de consolidação **cria cadastros** a partir das chaves distintas
+>    encontradas no texto; a resolução do passado é por `nome_chave` **na leitura**.
+> 2. **A chave virou uma FUNÇÃO nomeada** (`public.colaborador_chave(text)`), em vez de uma
+>    expressão inline na coluna gerada — a mesma expressão serve a coluna e a view da fila, e dá
+>    uma âncora única para a guarda TS↔SQL.
+> 3. **A expressão mudou em dois pontos:** `btrim` vem **depois** do colapso (senão `'	João'`
+>    ficaria com um espaço grudado na chave) e o `s` foi trocado por uma **classe explícita**
+>    `[ 	
+]` — o `s` do Postgres é `[[:space:]]` (sensível a locale) e o do JavaScript
+>    inclui NBSP: **não são o mesmo conjunto**, e é essa diferença que faria o vínculo falhar em
+>    silêncio. `ñ/Ñ` entrou na tabela de acentos.
+>
+> **E uma coisa NÃO saiu:** a curva de desempenho do §4.3. O harness
+> (`scripts/perf/medir-itens.mjs`) está escrito e guardado, mas o projeto de **ensaio está
+> pausado** e produção é proibida para ele (§C.2 da ordem) — a curva dos três patamares é a
+> **pendência número um** da fase. O que foi medido é a âncora do volume de hoje, só-leitura
+> (`docs/perf/f37-ancora-producao.json`). **Nenhuma otimização entrou**, que era o ponto do D6.
+
+
 **Por que uma fase só de fundação:** as três coisas que a F38 e a F39 precisam (uma pessoa que é
 sempre a mesma pessoa, um tipo que é sempre o mesmo tipo, e um número medido de desempenho) são
 migrations aditivas e telas de cadastro. Misturá-las com a mudança de fluxo da F38 faria uma fase
@@ -276,8 +304,13 @@ alter table public.lancamentos_item add column colaborador_id uuid references pu
   snapshot da época, doutrina do repositório inteiro — a pendência de item guarda o nome, não a
   pessoa).
 - **O histórico não é tocado.** Registro antigo tem texto e `colaborador_id` nulo.
-- Uma tela `/admin/colaboradores` lista os nomes de texto que ainda não têm vínculo, agrupados
-  pela `nome_chave`, e permite amarrar em lote. Migração por uso, sem parar nada.
+- Uma tela `/admin/colaboradores` lista os nomes de texto que ainda não têm CADASTRO, agrupados
+  pela `nome_chave`, e permite **criar os cadastros** em lote. Migração por uso, sem parar nada.
+  ⚠ **Corrigido em 28/08/2026 (execução da F37):** a redação original — "amarrar em lote" — sugere
+  um UPDATE em histórico, que **não existe e não pode existir**. `guarda_acervo` (`0081`) recusa
+  UPDATE em `movimentacoes`/`lancamentos_item` para todo mundo, service role incluso. A tela
+  **cria cadastro**; a ligação do passado é por `nome_chave` **na leitura**, e o `colaborador_id`
+  só é gravado **no INSERT do registro novo**.
 - ⚠ **Consequência a dizer em voz alta:** enquanto houver texto sem vínculo, o saldo por pessoa
   (§5.3) cobre só o que está vinculado. A tela mostra isso na cara — "N lançamentos antigos sem
   vínculo" — em vez de fingir um total completo.

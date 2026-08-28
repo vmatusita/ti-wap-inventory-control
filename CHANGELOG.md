@@ -6,6 +6,46 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 28/08/2026 — F37: fundação — quem é a pessoa e o que é o item ✅ 🔒
+
+Fase (**v1.42.0**). Fundação para as duas fases seguintes do plano de agosto (os itens andando
+junto com o ativo; o termo listando o que foi junto): as duas precisam de **uma pessoa que é
+sempre a mesma pessoa** e de **um tipo que é sempre o mesmo tipo**, e nenhuma das duas coisas
+existia. Colaborador era texto livre em três lugares — em produção, **1.420 registros com nome
+preenchido, em 956 grafias distintas**, todas digitadas à mão. A fase é **ADITIVA**: três
+migrations que só criam (`0112` a função de vocabulário `colaborador_chave`, a tabela
+`colaboradores` com chave de deduplicação gerada e a view da fila de consolidação; `0113` as
+colunas `colaborador_id` **anuláveis**; `0114` a tabela `tipos_item` com os 7 slugs que o
+histórico já guarda e `itens.tipo_id` anulável). **Nenhuma função ou trigger existente foi
+recriada, nenhum registro histórico foi alterado.** Ata em
+[`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-28); evidências em
+[`docs/RELATORIO-F37.md`](docs/RELATORIO-F37.md).
+
+- ✨ **Cadastro de colaboradores** (`/admin/colaboradores`), com o campo do fluxo oferecendo a
+  lista e permitindo **criar a pessoa ali mesmo** — no wizard de movimentação, na contrapartida
+  da troca e no lançamento de item, que era o único que não tinha sugestão nenhuma. **Texto
+  livre continua valendo e nunca bloqueia**: o vínculo é resolvido no servidor, pela chave
+  normalizada do próprio texto, e nome fora do cadastro grava com vínculo nulo, como sempre.
+  Nada do wizard mudou de forma — nenhum id viaja pelo formulário, pelo rascunho ou pelo kit —,
+  e por isso **nenhum teste dos fluxos existentes precisou ser editado**.
+- ✨ **A fila de consolidação**, na mesma tela: os nomes digitados à mão agrupados pela chave
+  normalizada, com a contagem de ocorrências **somada no banco** (lição do teto de 1.000
+  linhas), e a criação em lote. Consolidar **cria cadastro** — não altera uma linha de
+  histórico, que é o que `guarda_acervo` (`0081`) recusa a todo mundo, service role incluso.
+  A ligação do passado é por **chave na leitura**, nunca por UPDATE.
+- ✨ **Tipos de item** (`/admin/tipos-item`) e a coluna de tipo em `/admin/itens`, com selo
+  dizendo quantos itens ainda estão sem. Os 7 slugs são os que `movimentacoes.itens_faltantes` e
+  `pendencias_item.item` já guardam — é isso que deixará a fase do termo tirar a constante do
+  código sem quebrar histórico, e há guarda TS↔SQL que derruba o `npm run test` se os dois lados
+  divergirem. **`fone` passou a exibir "Fone de ouvido"** nos dois lados; nenhum código gravado
+  mudou.
+- 📏 **A medição antes de otimizar (D6).** O harness `scripts/perf/medir-itens.mjs` está escrito
+  e guardado, mas **a curva dos três patamares não foi levantada**: o projeto de ensaio está
+  pausado e produção é proibida para ele. O que foi medido é a **âncora do volume de hoje**, só
+  leitura ([`docs/perf/f37-ancora-producao.json`](docs/perf/f37-ancora-producao.json)) — e ela já
+  diz algo: com 30 lançamentos a agregação custa ~1–2 ms, e todo o tempo observado é conexão
+  fria. **Zero otimização entrou.**
+
 ## 28/08/2026 — F36: o detentor sai junto com o ativo ✅ 🔒
 
 Fase (**v1.41.0**). Até aqui, quem apagava colaborador/setor do ativo era uma **lista de tipos de

@@ -211,10 +211,20 @@ begin
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('ZZF36EST01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36EST01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Fulano Estornado', 'RH', v_matriz, k_dev);                 -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, motivo, filial_id, criado_por)
-    values (a, 'devolucao', 'desligamento', v_matriz, k_dev);                       -- em_estoque, sem dono
+  -- ⚠ `created_at` EXPLÍCITO e distinto — corrigido em 28/08/2026 (F37), e o motivo
+  -- vale para qualquer roteiro futuro que estorne. A guarda do estorno em
+  -- `aplicar_movimentacao` (0110, linha ~126) recusa quando existe movimentação mais
+  -- nova, comparando a TUPLA `(created_at, id)`. Dentro de uma transação, `now()` é
+  -- CONSTANTE: as duas linhas abaixo nasciam com o MESMO `created_at`, o desempate
+  -- caía no `id` — que é `gen_random_uuid()`, aleatório a cada execução — e o
+  -- cenário virava cara-ou-coroa. Medido: **2 falhas em 5 execuções** contra o banco
+  -- real. Não era defeito do código; era o roteiro perguntando uma coisa que ele não
+  -- controlava. Com os dois instantes separados, a `devolucao` é inequivocamente a
+  -- última e o cenário mede o que se propôs a medir.
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por, created_at)
+    values (a, 'saida', 'Fulano Estornado', 'RH', v_matriz, k_dev, now() - interval '2 minutes');  -- em_uso
+  insert into public.movimentacoes (ativo_id, tipo, motivo, filial_id, criado_por, created_at)
+    values (a, 'devolucao', 'desligamento', v_matriz, k_dev, now() - interval '1 minute');         -- em_estoque, sem dono
   select colaborador_atual into v_colab from public.ativos where id = a;
   if v_colab is null then
     raise notice '✓ g1 a devolucao zerou o detentor (precondicao do estorno)';

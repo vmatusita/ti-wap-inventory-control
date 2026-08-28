@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import { chaveColaborador, chavesDistintas } from '@/lib/colaboradores/chave'
 
 // Leituras do cadastro de pessoas (F37 · D5). Rota só do operador — usam o client do
@@ -50,36 +51,50 @@ export type ResumoConsolidacao = {
 // continuar verdadeiro quando a lista estiver cortada.
 const TETO_FILA = 500
 
+// As duas listas abaixo usam `paginarTodos` (F19/`queries/relatorios/comum.ts`), e não
+// um `.limit(N)` grande. O motivo é o defeito da v1.40.2: o PostgREST tem um teto de
+// linhas por resposta que é CONFIGURAÇÃO do projeto — hoje 1.000 —, e ele corta a
+// resposta **sem erro**. Um `.limit(2000)` não pede 2.000 linhas: pede 2.000 e recebe
+// 1.000 caladamente. `paginarTodos` OBSERVA o teto que o servidor de fato entregou na
+// primeira página, pagina até o fim, e **lança** ao bater no cap em vez de devolver um
+// número truncado com cara de certo. O `.order()` explícito é a outra metade da
+// correção: sem ordem total, duas páginas podem repetir ou pular linhas.
+
 /** Catálogo ativo, para o combobox do fluxo (nome + chave, o mínimo). */
 export async function listarColaboradoresAtivos(): Promise<Colaborador[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('colaboradores')
-    .select('id, nome, matricula, setor, filial_id, ativo, nome_chave')
-    .eq('ativo', true)
-    .order('nome', { ascending: true })
-    .limit(2000)
-  if (error) throw new Error(`Falha ao listar colaboradores: ${error.message}`)
-  return (data ?? []) as Colaborador[]
+  return paginarTodos<Colaborador>('Falha ao listar colaboradores', (from, to) =>
+    supabase
+      .from('colaboradores')
+      .select('id, nome, matricula, setor, filial_id, ativo, nome_chave')
+      .eq('ativo', true)
+      .order('nome', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
 }
 
 /** Cadastro completo + quantos registros cada pessoa já tem vinculados. */
 export async function listarColaboradoresAdmin(): Promise<ColaboradorAdmin[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('colaboradores')
-    .select(
-      'id, nome, matricula, setor, filial_id, ativo, nome_chave, created_at, movimentacoes(count), lancamentos_item(count)',
-    )
-    .order('nome', { ascending: true })
-    .limit(2000)
-  if (error) throw new Error(`Falha ao listar colaboradores: ${error.message}`)
   type Row = Colaborador & {
     created_at: string
     movimentacoes: { count: number }[]
     lancamentos_item: { count: number }[]
   }
-  return ((data ?? []) as Row[]).map((r) => ({
+  const linhas = await paginarTodos<Row>('Falha ao listar colaboradores', (from, to) =>
+    supabase
+      .from('colaboradores')
+      .select(
+        'id, nome, matricula, setor, filial_id, ativo, nome_chave, created_at, movimentacoes(count), lancamentos_item(count)',
+      )
+      // `nome` NÃO é único (a chave é `nome_chave`), então sozinho ele não é ordem
+      // TOTAL — o `id` é o desempate que torna a paginação determinística.
+      .order('nome', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
+  return linhas.map((r) => ({
     id: r.id,
     nome: r.nome,
     matricula: r.matricula,
@@ -110,6 +125,13 @@ export async function filaDeConsolidacao(): Promise<TextoDeColaborador[]> {
     .eq('ja_cadastrado', false)
     .order('ocorrencias', { ascending: false })
     .order('grafia_exemplo', { ascending: true })
+    // Desempate por `nome_chave` (única na view): sem ele, dois grupos com a mesma
+    // contagem e a mesma grafia de exemplo poderiam trocar de lugar entre dois
+    // carregamentos, e o corte do teto tiraria um ou outro sem critério.
+    .order('nome_chave', { ascending: true })
+    // Teto DELIBERADAMENTE abaixo do teto de linhas do PostgREST: uma página só,
+    // sem paginação, e a tela AVISA quando há mais (`resumo.truncado`), com os
+    // números vindo da view de resumo — que não depende deste corte.
     .limit(TETO_FILA)
   if (error) throw new Error(`Falha ao ler a fila de consolidação: ${error.message}`)
   type Row = {
@@ -143,47 +165,38 @@ export async function filaDeConsolidacao(): Promise<TextoDeColaborador[]> {
 export async function resumoDaConsolidacao(): Promise<ResumoConsolidacao> {
   const supabase = await createClient()
 
-  const contar = async (cadastrado: boolean) => {
-    const { count, error } = await supabase
-      .from('v_colaboradores_textos')
-      .select('nome_chave', { count: 'exact', head: true })
-      .eq('ja_cadastrado', cadastrado)
-    if (error) throw new Error(`Falha ao contar a consolidação: ${error.message}`)
-    return count ?? 0
-  }
+  // UMA leitura de NO MÁXIMO DUAS LINHAS (uma por `ja_cadastrado`) — a view
+  // `v_colaboradores_consolidacao` (0112) já soma tudo no banco.
+  //
+  // ⚠ A primeira versão desta função somava `ocorrencias` paginando os grupos aqui,
+  // com o tamanho de página escrito à mão. A revisão adversarial derrubou, e com
+  // razão: (a) o teto de linhas do PostgREST é CONFIGURAÇÃO do projeto, e um teto
+  // menor que a página pedida faria o laço concluir na primeira volta, devolvendo
+  // uma soma menor **em silêncio**; e (b) `.range()` sobre uma view que nasce de
+  // `group by`, sem `order by` total, pode enumerar em ordens diferentes entre duas
+  // idas ao servidor — repetindo ou pulando linhas. Os dois são exatamente os
+  // defeitos que a v1.40.2 documentou (docs/RELATORIO-CORRECAO-TRUNCAMENTO-1000.md).
+  //
+  // Duas linhas não truncam nunca, em teto nenhum. Era isso que "agregue no SQL"
+  // queria dizer.
+  const { data, error } = await supabase
+    .from('v_colaboradores_consolidacao')
+    .select('ja_cadastrado, grupos, registros')
+  if (error) throw new Error(`Falha ao resumir a consolidação: ${error.message}`)
 
-  const somarOcorrencias = async (cadastrado: boolean) => {
-    // Soma por páginas: `ocorrencias` é um número por grupo e o PostgREST não soma.
-    // A leitura é EXPLICITAMENTE paginada até o fim — nunca uma página só, que é o
-    // defeito que o teto de 1.000 documentou.
-    const PAGINA = 1000
-    let total = 0
-    for (let de = 0; ; de += PAGINA) {
-      const { data, error } = await supabase
-        .from('v_colaboradores_textos')
-        .select('ocorrencias')
-        .eq('ja_cadastrado', cadastrado)
-        .range(de, de + PAGINA - 1)
-      if (error) throw new Error(`Falha ao somar a consolidação: ${error.message}`)
-      const linhas = (data ?? []) as { ocorrencias: number | null }[]
-      for (const l of linhas) total += l.ocorrencias ?? 0
-      if (linhas.length < PAGINA) return total
-    }
-  }
+  type Linha = { ja_cadastrado: boolean | null; grupos: number | null; registros: number | null }
+  const linhas = (data ?? []) as Linha[]
+  const lado = (cadastrado: boolean) => linhas.find((l) => l.ja_cadastrado === cadastrado)
 
-  const [gruposPendentes, gruposCadastrados, registrosPendentes, registrosCadastrados] =
-    await Promise.all([
-      contar(false),
-      contar(true),
-      somarOcorrencias(false),
-      somarOcorrencias(true),
-    ])
+  const pendentes = lado(false)
+  const cadastrados = lado(true)
+  const gruposPendentes = pendentes?.grupos ?? 0
 
   return {
     gruposPendentes,
-    registrosPendentes,
-    gruposCadastrados,
-    registrosCadastrados,
+    registrosPendentes: pendentes?.registros ?? 0,
+    gruposCadastrados: cadastrados?.grupos ?? 0,
+    registrosCadastrados: cadastrados?.registros ?? 0,
     truncado: gruposPendentes > TETO_FILA,
   }
 }

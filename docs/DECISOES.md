@@ -6126,3 +6126,241 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   `troca.sql` (rebaixa a `admin` o primeiro `profile` que encontra, e em produção esse perfil é um
   `dev` — a `profiles_guarda_dev` recusa). Nenhum dos dois tem relação com a F36; ambos passam no
   banco limpo do CI.
+
+## 2026-08-28 · F37 · O passado se liga por CHAVE, não por UPDATE
+
+- **Contexto:** o §4.1 do `docs/PLAN-F36-F39.md` previa uma tela que "permite amarrar em lote" os
+  nomes de texto ao cadastro novo, sem dizer como. Não há como: `guarda_acervo` (migration `0081`)
+  recusa UPDATE em `movimentacoes` e `lancamentos_item` **para todo mundo, service role incluso**,
+  fora da janela `estoque.dev_destrutivo` — o corpo lido do banco levanta
+  `'Registro histórico não se altera: % é imutável…'` com errcode `42501`.
+- **Decisão:** `colaborador_id` só é gravado **no INSERT do registro novo**. A tela de
+  `/admin/colaboradores` **cria/reaproveita CADASTROS** a partir das chaves distintas encontradas
+  no texto — nunca altera uma linha de histórico —, e a resolução do passado é por `nome_chave`
+  **na leitura**. Está provado por asserção NEGATIVA no roteiro novo
+  (`supabase/tests/f37_colaboradores_tipos.sql`, cenários e1/e2), rodando **como o DONO**: como
+  `authenticated` quem barra é a RLS, e isso mediria a coisa errada.
+- **Motivo:** a imutabilidade do acervo é doutrina da casa desde a `0081`, e contorná-la para
+  "melhorar um dado" seria exatamente o que ela existe para impedir. O ganho de vincular o passado
+  não paga o preço de abrir a porta.
+- **Reversível?** sim — as colunas são anuláveis e o `drop column` não perde dado nenhum.
+
+## 2026-08-28 · F37 · O vínculo é resolvido NO SERVIDOR, e não carregado pelo formulário
+
+- **Contexto:** o desenho óbvio seria o combobox devolver um `colaborador_id` que viaja no payload
+  do wizard até o INSERT. Isso obrigaria a mexer no `Config`, no schema Zod, no rascunho do
+  `sessionStorage`, no "repetir última", nos kits e no resumo de revisão — e o critério 3 da ordem
+  exige que **os testes existentes desses fluxos passem sem edição**.
+- **Decisão:** o formulário continua falando **só em string**. O `colaborador_id` é descoberto na
+  Server Action, imediatamente antes do INSERT, resolvendo a **chave normalizada do próprio texto**
+  numa consulta por lote (`resolverColaboradoresPorNome`).
+- **Motivo:** além de não tocar em nada do wizard, o desenho é mais generoso: quem digitou
+  "joão  silva" para o cadastro "João Silva" também resolve, porque a chave é a mesma. E a
+  resolução **nunca lança** — se a consulta falhar, o mapa volta vazio, o `colaborador_id` fica nulo
+  e a movimentação é gravada assim mesmo. O vínculo é um bônus; derrubar a movimentação do operador
+  por causa dele seria trocar o essencial pelo acessório.
+- **Reversível?** sim — é uma consulta e um campo a mais no objeto do INSERT.
+
+## 2026-08-28 · F37 · A chave normalizada: função nomeada, `btrim` depois do colapso e classe de espaço explícita
+
+- **Contexto:** o DDL rascunhado no §4.1 do plano punha a expressão **inline** na coluna gerada e
+  usava `regexp_replace(..., '\s+', ' ', 'g')` com `btrim` por dentro.
+- **Decisão:** três mudanças. (1) A expressão virou `public.colaborador_chave(text)`, IMMUTABLE —
+  a mesma serve a coluna gerada E a view da fila de consolidação, e dá **uma âncora única** para a
+  guarda TS↔SQL (`src/lib/colaboradores/chave-sql.test.ts`, molde do `detentor-sql.test.ts` da
+  F36). (2) `btrim` passou para **fora** do `regexp_replace`: com ele por dentro, `E'\tJoão'` vira
+  `' joao'` — com um espaço grudado na chave —, porque `btrim(text)` sem segundo argumento apara
+  **só o espaço ASCII**. (3) `'\s+'` virou a classe explícita `'[ \t\n\r\f\v]+'`.
+- **Motivo da (3), que é a decisiva:** `\s` **não é o mesmo conjunto nos dois lados**. No Postgres
+  é `[[:space:]]` (sensível a locale); no JavaScript inclui NBSP (U+00A0) e vários espaços Unicode.
+  Um nome colado do Excel com NBSP normalizaria diferente em cada lado e o vínculo simplesmente não
+  aconteceria — **em silêncio, sem erro nenhum**. Com a classe explícita os dois lados são idênticos
+  por construção, e é isso que faz a guarda TS↔SQL ser uma prova em vez de uma esperança. `ñ/Ñ`
+  entrou na tabela de acentos pelo mesmo cuidado.
+- **Conferido contra o banco real** (transação desfeita, 28/08/2026): `'  João   Silva  '` →
+  `joao silva`; `'JOAO SILVA'` colidiu no índice único com a anterior; `'Ção Ñandú Ünico'` →
+  `cao nandu unico`; `E'Maria\tdos\nSantos'` → `maria dos santos`.
+- **Reversível?** sim, mas com cuidado: mudar a expressão **recalcula a coluna gerada** de todas as
+  linhas e pode criar colisão no índice único. Uma mudança futura precisa medir isso antes.
+
+## 2026-08-28 · F37 · Duas pessoas de mesmo nome normalizado não cabem no cadastro
+
+- **Contexto:** o índice único sobre `nome_chave` é o que faz a deduplicação funcionar. Ele também
+  significa que dois "João Silva" REAIS não podem coexistir.
+- **Decisão:** aceitar a limitação e **tratá-la na UI, não escondê-la**. A colisão `23505` vira
+  frase em pt-BR (`MSG_COLABORADOR_DUPLICADO`) que diz as duas saídas que existem: escrever o nome
+  completo de uma das pessoas, ou registrar a matrícula para distinguir. Nunca um código cru na tela.
+- **Motivo:** a alternativa — chave composta com matrícula — quebraria a deduplicação justamente no
+  caso comum (a esmagadora maioria dos 1.420 registros de texto não tem matrícula nenhuma), que é o
+  problema que a fase existe para resolver. Homônimo real é raro; grafia divergente é a regra.
+- **Reversível?** sim — trocar o índice único por um parcial ou composto é migration aditiva.
+
+## 2026-08-28 · F37 · RLS das tabelas novas: `colaboradores` é o único cadastro que o OPERADOR escreve
+
+- **Contexto:** todo catálogo de administração deste projeto (`filiais`, `motivos`, `itens`,
+  `kits_modelos`) escreve por `e_admin()`, e `criarItemInline` (F10) exige admin **mesmo nascendo no
+  meio de um lançamento**. Copiar esse padrão para `colaboradores` era o caminho de menor atrito.
+- **Decisão:** **não** copiar. `colaboradores` recebe INSERT por **`pode_escrever()`** (dev, admin e
+  operador) e UPDATE por `e_admin()`; a guarda de Server Action correspondente é
+  `exigirPapel(supabase, 'operador')`, **não** `exigirEscrita(supabase, filialId)`. Sem policy de
+  DELETE nas duas tabelas novas — cadastro de pessoa e tipo citado no histórico não se apagam,
+  desativam-se (mesmo idioma de `operador_filiais` e `eventos_admin`). `tipos_item` segue o padrão
+  normal de catálogo: `e_admin()` para escrever.
+- **Motivo:** quem cadastra a pessoa é o operador, no meio do fluxo — exigir admin ali quebraria o
+  wizard na mão dele, que é justamente o que a ordem manda evitar (§A.6). E **não** é
+  `exigirEscrita` porque aquela guarda cobra **vínculo de filial**, e cadastro de pessoa não é
+  matéria de filial: o `filial_id` do colaborador é atributo, não escopo de escrita. Um operador da
+  Matriz que entrega equipamento a alguém da Serra precisa poder cadastrar essa pessoa.
+- **Grants EXPLÍCITOS nas migrations**, ao contrário de `0014`/`0043`: precedente da `0103` — o
+  Postgres que o job `banco` do CI sobe é construído só pelas migrations e **não** reproduz o
+  *default privilege* que a plataforma Supabase concede a `authenticated`. Foi assim que
+  `pendencias_item` deu `permission denied` só no CI.
+- **Provado** em `supabase/tests/papeis_rls.sql` (74 asserções, 0 falhas contra o banco real):
+  1i/1j (consulta lê), 1i-bis (consulta não escreve), 2j (operador CRIA, inclusive de filial não
+  vinculada), 3c-bis/3c-ter (operador não cria tipo nem edita colaborador), 4h/4i (perfil desativado
+  não lê nenhuma das duas), 5c-bis/5c-ter (admin cria tipo e edita colaborador). As duas relações
+  entraram no **bloco de grants** do roteiro, com o comentário dizendo qual asserção usa cada uma —
+  a armadilha `42501` do runbook.
+- **Reversível?** sim — trocar a policy de INSERT por `e_admin()` é uma linha.
+
+## 2026-08-28 · F37 · Texto livre continua valendo, e o campo continua sendo `datalist`
+
+- **Contexto:** a ordem pede "combobox com criação inline". O molde citado é o `ItemCombobox` da
+  F10, que é Popover + `cmdk`.
+- **Decisão:** manter `<input>` + `<datalist>` NATIVO (a decisão §2 da F10 para este campo) e
+  acrescentar: a lista passa a trazer os **cadastros primeiro** e o histórico depois, e aparece um
+  botão **"Cadastrar «Fulano»"** quando o nome digitado não tem cadastro.
+- **Motivo:** trocar por Popover aqui mexeria no **Enter do wizard**, que tem história cara —
+  aceitar a sugestão com Enter no Chrome dispara o keydown da página e pularia direto para a
+  Revisão (regressão da F10 sobre a F9, e o `veioDoDatalist` existe por causa dela). O ganho pedido
+  pela ordem (oferecer o cadastro + criar inline) não exige trocar o mecanismo. **Texto livre
+  continua valendo e nunca bloqueia**, que é o requisito duro do §A.4.
+- **Reversível?** sim — o componente novo é isolado (`campo-colaborador.tsx`) e o antigo
+  (`campo-sugerido.tsx`) continua no ar servindo o campo Setor.
+
+## 2026-08-28 · F37 · `fone` passa a exibir "Fone de ouvido" — nos dois lados, no mesmo commit
+
+- **Contexto:** o rótulo do slug `fone` era "Fone". O §4.2 do plano pediu a troca como exemplo.
+- **Decisão:** trocar em `ACESSORIO_ROTULO.fone` (`src/lib/dominio.ts`) **e** no seed da migration
+  `0114`, no mesmo commit, com uma guarda TS↔SQL (`src/lib/validators/tipos-item-sql.test.ts`) que
+  derruba o `npm run test` se um lado andar sem o outro.
+- **Motivo:** enquanto o vocabulário morar nos dois lugares, tela e banco não podem discordar. **O
+  código gravado (`fone`) NÃO mudou** — isso muda o que as pendências antigas EXIBEM, não o que
+  guardam. Slug gravado nunca muda: é o que mantém legível todo registro que o cita.
+- **Reversível?** sim — é uma string em cada lado.
+
+## 2026-08-28 · F37 · A medição não aconteceu: o ensaio está pausado (pendência nº 1)
+
+- **Contexto:** o D6 manda **medir antes de otimizar**, com volume simulado em três patamares
+  (10 mil / 100 mil / 500 mil lançamentos) num banco de **ensaio**. O projeto de ensaio
+  (`sgmvldiizsrjbxzzpmhh`) está **INACTIVE** e a chamada de `restore` é recusada pelo classificador
+  do modo automático — tentada nesta sessão, recusada de novo. Produção é **proibida** em hipótese
+  nenhuma (§C.2 da ordem), e não há Docker nem CLI local.
+- **Decisão:** entregar o harness **escrito, guardado e verificado por leitura**
+  (`scripts/perf/medir-itens.mjs`), **não executá-lo**, e registrar a curva como **pendência número
+  um**. No lugar dela, medir o que É possível e é permitido: a **âncora do volume de hoje**, só
+  leitura, contra produção (`docs/perf/f37-ancora-producao.json`).
+- **Guardas do harness, provadas e não só escritas:** com `MEDIR_ITENS_REF` apontando para o ref de
+  produção o script **recusa antes de qualquer chamada de rede** (testado com `fetch` substituído
+  por uma função que lança — se a guarda falhasse, nada aconteceria mesmo assim). Ele recusa também
+  quando o ref de produção está escondido em `NEXT_PUBLIC_SUPABASE_URL`, que é o caso desta máquina
+  — a lição F11 do `env-guard.ts`: comparar duas variáveis entre si é teste de *consistência*, não
+  de *identidade*. E ganhou uma terceira guarda, **feita pelo banco**: `assertBancoDeEnsaio()`
+  pergunta se `public.ambiente` declara `desenvolvimento` — o mesmo sinal que faz
+  `resetar_dados_ficticios` recusar em produção (conferido: em produção a tabela está **vazia**).
+  É a única das três que não depende de uma lista ser mantida em dia.
+- **O que a âncora já diz:** com 30 lançamentos, `rel_saldo_itens` custa **1,9 ms** com a conexão
+  quente e **53 ms** na fria — e a diferença é compilação de plano e catálogo, não agregação
+  (1.175 blocos lidos para uma tabela de **uma página**). No volume de hoje **não há o que otimizar**,
+  que é exatamente o que o D6 queria saber antes de deixar alguém otimizar.
+- **Reversível?** n/a — nada foi executado nem gravado.
+
+## 2026-08-28 · F37 · A revisão adversarial derrubou o índice que a ordem proibia
+
+- **Contexto:** a primeira versão da `0113` criava dois índices parciais sobre `colaborador_id`
+  (`movimentacoes` e `lancamentos_item`), justificados no próprio comentário como "o que a F38 vai
+  consultar".
+- **Achado (gravidade alta):** a ordem F37 proíbe **nominalmente** "nenhum índice novo em
+  `lancamentos_item`" (§Fora), e o critério de aceitação 8 cobra `git diff` sem índice novo. Três
+  agravantes que a revisão trouxe e que a execução não tinha visto: (1) **nenhuma consulta desta
+  fase** filtra por `colaborador_id` — o índice existiria para uma pergunta que ainda não é feita,
+  que é a definição de otimizar antes do número; (2) o §5 do `docs/PLAN-F36-F39.md` **já reserva**
+  esse índice para a migration da fase seguinte, depois da medição; (3) o precedente desta tabela é
+  o **oposto** — a `0106` (F33/D3) investigou as FKs sem índice e deixou `lancamentos_item` de fora
+  DE PROPÓSITO, por ser pequena. Em 28/08/2026 ela tinha 30 linhas.
+- **Decisão:** remover os **dois** índices — o de `movimentacoes` junto, por coerência: ele também
+  não serve consulta nenhuma desta fase, e manter um e tirar o outro seria escolher pela letra em
+  vez do princípio. A migration ganhou, no lugar deles, o parágrafo que explica por que não há
+  índice ali e quando ele deve entrar.
+- **Como foi aplicado, e por que não virou uma migration `0115` de `drop index`:** as três
+  migrations desta fase **ainda não tinham sido publicadas** (nenhum push). Editar o arquivo e
+  derrubar o índice no banco no mesmo ato deixa repositório e produção **idênticos**, e faz o job
+  `banco` do CI — que aplica `0001`→`0114` num Postgres limpo — reproduzir exatamente produção. Uma
+  `0115` de `drop` deixaria o `create` no diff, contra o critério 8, e uma cicatriz sem função.
+  A regra "nunca editar migration já aplicada" existe para impedir divergência entre repositório e
+  bancos implantados; aqui há um banco só, e ele foi corrigido junto.
+- **Reversível?** sim — e a reversão é justamente o que a fase seguinte fará, com número na mão.
+
+## 2026-08-28 · F37 · O resumo da fila virou view: agregação no SQL, no máximo duas linhas
+
+- **Contexto:** `resumoDaConsolidacao` somava `ocorrencias` **paginando os grupos no cliente**, com
+  o tamanho de página escrito à mão (1000) e **sem `order by`**.
+- **Achado (gravidade alta):** são os dois defeitos exatos que a v1.40.2 documentou
+  (`docs/RELATORIO-CORRECAO-TRUNCAMENTO-1000.md`), e a ordem F37 cita essa lição nominalmente. O
+  teto de linhas do PostgREST é **configuração do projeto**: um teto menor que a página pedida faria
+  `linhas.length < PAGINA` ser verdade já na primeira volta, e o laço concluiria devolvendo uma soma
+  menor **em silêncio**. E `.range()` sobre uma view que nasce de `group by`, sem ordem total, pode
+  enumerar em ordens diferentes entre duas idas ao servidor — repetindo ou pulando linhas.
+- **Decisão:** a soma passou a ser a view `public.v_colaboradores_consolidacao` — `count` e `sum`
+  agrupados por `ja_cadastrado`, **no máximo duas linhas**. Nenhum teto de linhas alcança duas
+  linhas, hoje ou depois de alguém mexer na configuração. E as duas listas do admin
+  (`listarColaboradoresAdmin`/`Ativos`), que pediam `.limit(2000)` contra um teto de 1.000, passaram
+  a usar `paginarTodos` (F19) — que **observa** o teto entregue na primeira página e **lança** ao
+  bater no cap, em vez de devolver número truncado com cara de certo —, com `.order()` de chave
+  total (`nome`, `id`).
+- **Motivo:** "agregue no SQL" não era conselho de estilo; era a única forma de a contagem não
+  depender de configuração de servidor.
+- **Reversível?** sim — a view é aditiva.
+
+## 2026-08-28 · F37 · `normalize(NFC)` na chave: o mesmo nome em duas formas Unicode era duas pessoas
+
+- **Contexto:** ao investigar um achado da revisão sobre divergência TS↔SQL, os dois lados foram
+  executados sobre um corpus de caracteres exóticos (İ turco, sigma final, ß, NBSP, espaço fino,
+  zero-width, cirílico). **9 casos, 0 divergências** — o achado caiu por medição. Mas o mesmo corpus
+  revelou outra coisa, essa real: **NFC e NFD davam chaves diferentes**.
+- **O defeito:** "João" digitado no Windows vem PRECOMPOSTO (`ã` = 1 código); colado do macOS ou de
+  certos exports vem DECOMPOSTO (`a` + til combinante = 2 códigos). O `translate` da chave só conhece
+  a forma precomposta, então a versão NFD atravessava intacta e virava `joão silva` em vez de
+  `joao silva` — **duas pessoas onde há uma**, que é exatamente o defeito que a tabela existe para
+  não ter.
+- **Decisão:** `normalize(p_nome, NFC)` por dentro de tudo, nos dois lados (`normalize('NFC')` no
+  TypeScript). `normalize` é IMMUTABLE (conferido: `provolatile = 'i'`), então cabe na coluna gerada.
+  A guarda TS↔SQL passou a exigir a estrutura `translate(normalize(p_nome, NFC), …)` — casar a
+  ORDEM das duas operações, não só a presença delas, porque o `normalize` depois do `translate` não
+  serviria de nada.
+- **Feito AGORA porque agora era de graça:** a tabela tinha **0 linhas**. Mudar a expressão depois
+  recalcularia a coluna gerada de todas as linhas e poderia colidir no índice único.
+- **Efeito medido na base real:** a fila de consolidação caiu de **904 para 903 grupos** — havia
+  mesmo um nome gravado em NFD que agora reconhece o gêmeo precomposto.
+- **Reversível?** sim, com a mesma ressalva de qualquer mudança na expressão: recalcula a coluna.
+
+## 2026-08-28 · F37 · Um flake de OUTRA fase, achado por acidente: `f36_detentor.sql` era cara-ou-coroa
+
+- **Contexto:** ao rodar a bateria de roteiros pela terceira vez, `f36_detentor.sql` falhou tendo
+  passado nas duas anteriores. Medido: **2 falhas em 5 execuções**.
+- **A causa (e não é a F37 — `git diff` prova que nem o roteiro nem a `0110` foram tocados):** a
+  guarda do estorno em `aplicar_movimentacao` recusa quando existe movimentação mais nova,
+  comparando a **tupla `(created_at, id)`**. Dentro de uma transação, `now()` é **constante**: as
+  duas movimentações do cenário `g` nasciam com o **mesmo `created_at`**, o desempate caía no `id`
+  — que é `gen_random_uuid()`, **aleatório a cada execução** — e o cenário virava sorteio.
+- **Decisão:** corrigir, apesar de ser trabalho de outra fase. O motivo é direto: isso deixa o job
+  `banco` do CI **vermelho ~40% das vezes**, e o critério 9 desta ordem exige esse job verde — um
+  vermelho por sorteio seria lido como defeito da F37. A correção dá aos dois INSERTs instantes
+  explícitos e distintos (`now() - interval '2 minutes'` e `'1 minute'`). **8 execuções seguidas, 8
+  verdes.**
+- **Motivo de não ser "enfraquecer o teste":** o cenário passou a medir o que se propôs a medir (o
+  estorno devolve o detentor) em vez de medir qual uuid saiu maior. Nenhuma asserção foi removida
+  nem afrouxada.
+- **Regra que fica para quem escrever roteiro daqui em diante:** duas movimentações do MESMO ativo
+  na MESMA transação precisam de `created_at` explícito e distinto.
+- **Reversível?** sim — são dois valores literais.

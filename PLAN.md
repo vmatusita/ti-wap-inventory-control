@@ -49,8 +49,8 @@ Contagens de produção (só-leitura, 28/08/2026):
 | `filiais` | 6 · `profiles` 15 |
 
 Colaborador em texto: **1420** registros com nome preenchido (1412 em `movimentacoes` + 8 em
-`lancamentos_item`), **956** grafias distintas, **904** chaves normalizadas distintas → a normalização
-junta **52** grafias. `ativos.colaborador_atual` preenchido em 1241 ativos.
+`lancamentos_item`), **956** grafias distintas, **903** chaves normalizadas distintas → a normalização
+junta **53** grafias. `ativos.colaborador_atual` preenchido em 1241 ativos.
 
 Slugs de acessório realmente gravados no histórico: `cabo`, `carregador`, `mochila` (em
 `movimentacoes.itens_faltantes` **e** em `pendencias_item.item`) — os outros 4 dos 7 existem só no código.

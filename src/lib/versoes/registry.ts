@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.42.0',
+    data: '2026-08-28',
+    fase: 'F37',
+    titulo: 'As pessoas e os tipos de item ganham cadastro',
+    mudancas: [
+      'Agora dá para cadastrar as pessoas que recebem os equipamentos, em Administração → Colaboradores. No campo "Colaborador" da movimentação e do lançamento de item, os nomes já cadastrados aparecem na lista enquanto você digita — e quem não estiver lá pode ser cadastrado ali mesmo, pelo botão que aparece embaixo do campo.',
+      'Nada ficou obrigatório: digitar um nome que não está no cadastro continua salvando a movimentação do mesmo jeito, exatamente como antes. O nome também continua sendo guardado como você escreveu, no registro daquele dia.',
+      'A mesma tela mostra a fila dos nomes que já foram digitados à mão e ainda não têm cadastro, juntando as grafias da mesma pessoa: "João Silva", "JOAO SILVA" e "joão  silva" aparecem como uma linha só, com a quantidade de registros em que cada nome aparece. Dá para transformar em cadastro várias de uma vez. Nenhuma movimentação já registrada é alterada por isso — o histórico continua como está.',
+      'O campo "Colaborador" do lançamento de item, que era só uma caixa de texto sem nenhuma sugestão, passou a funcionar como o da movimentação.',
+      'Administração ganhou a aba "Tipos de item" — carregador, mochila, fone de ouvido —, e cada item do catálogo pode receber um tipo direto na lista, em Administração → Itens. Preencher é opcional; um aviso mostra quantos itens ainda estão sem tipo.',
+      '"Fone" passou a se chamar "Fone de ouvido" em todas as telas, inclusive nas pendências antigas. Só o nome mudou; o que estava registrado continua igual.',
+    ],
+  },
+  {
     versao: '1.41.0',
     data: '2026-08-28',
     fase: 'F36',

@@ -467,6 +467,40 @@ function colaboradorFicticioOuNulo() {
 // 6. Descoberta de contexto e preparação da piscina de pares (item × filial)
 // ---------------------------------------------------------------------------
 
+// GUARDA DE IDENTIDADE, feita PELO BANCO — a mais forte das três, e a única que não
+// depende de nenhuma lista ser mantida em dia.
+//
+// `REFS_DE_PRODUCAO` (acima) é uma LISTA DE NEGAÇÃO: ela só recusa o que alguém
+// lembrou de escrever nela. Um projeto de produção novo que ainda não estivesse lá
+// seria um alvo válido — foi exatamente o furo que a F11 achou no `env-guard.ts`.
+//
+// Esta pergunta é de outra natureza: "este banco se declara de desenvolvimento?".
+// `public.ambiente` tem a linha `desenvolvimento` só nos bancos que são de ensaio; a
+// produção real tem a tabela VAZIA (conferido em 28/08/2026), e é por isso que a RPC
+// `resetar_dados_ficticios` (migration 0083/0090) recusa com 42501 lá. Reusar o mesmo
+// sinal aqui é herdar uma guarda já provada, em vez de inventar outra.
+//
+// Roda ANTES da primeira escrita e aborta a execução inteira se a resposta for não.
+async function assertBancoDeEnsaio() {
+  const existe = await consultar(
+    `select (to_regclass('public.ambiente') is not null) as tem_tabela;`,
+  )
+  if (!existe.length || existe[0].tem_tabela !== true) {
+    throw new Error(
+      'Este banco não tem a tabela public.ambiente — não há como ele se declarar de desenvolvimento. Execução recusada (o harness escreve e apaga linhas).',
+    )
+  }
+  const linhas = await consultar(
+    `select count(*)::int as n from public.ambiente where rotulo = 'desenvolvimento';`,
+  )
+  if (!linhas.length || Number(linhas[0].n) < 1) {
+    throw new Error(
+      'public.ambiente NÃO declara este banco como "desenvolvimento" — é o mesmo sinal que faz a RPC resetar_dados_ficticios recusar em produção. Execução recusada.',
+    )
+  }
+  log('  guarda de identidade: o banco se declara "desenvolvimento" (public.ambiente) ✓')
+}
+
 async function descobrirCriadoPor() {
   let linhas = await consultar(
     `select id from public.profiles where ativo = true and excluido_em is null order by created_at asc limit 1;`,
@@ -720,6 +754,11 @@ async function main() {
   log('---------------------------------------------------------------')
 
   const inicio = new Date().toISOString()
+
+  // A guarda de identidade vem ANTES até da contagem: nada é lido nem escrito num
+  // banco que não se declarou de desenvolvimento.
+  await assertBancoDeEnsaio()
+
   const antes = await contarMarcadas()
   if (antes.lancamentos_item > 0 || antes.itens > 0) {
     log('')

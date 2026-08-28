@@ -1103,6 +1103,14 @@ export type Database = {
       }
     }
     Views: {
+      v_colaboradores_consolidacao: {
+        Row: {
+          grupos: number | null
+          ja_cadastrado: boolean | null
+          registros: number | null
+        }
+        Relationships: []
+      }
       v_colaboradores_textos: {
         Row: {
           colaborador_id: string | null

@@ -22,8 +22,17 @@
 //      do colapso nos dois lados, senão `'\tJoão'` viraria ` joao`, com um espaço
 //      grudado na chave.
 //
+//   3. Unicode tem DUAS formas legítimas para o mesmo nome. "João" digitado no
+//      Windows vem PRECOMPOSTO (NFC: `ã` é um código só); colado do macOS ou de
+//      certos exports vem DECOMPOSTO (NFD: `a` + til combinante, dois códigos). A
+//      tabela de acentos só conhece a forma precomposta, então sem o `normalize`
+//      a versão NFD atravessa intacta e vira `joão silva` em vez de `joao silva` —
+//      duas pessoas onde há uma. Os dois lados normalizam para NFC ANTES de tudo
+//      (`normalize(p_nome, NFC)` no SQL, que é IMMUTABLE e por isso cabe na coluna
+//      gerada).
+//
 // A ordem das operações é a da função SQL, na mesma sequência:
-//   translate(acentos) → colapsa espaço → apara espaço → minúsculas
+//   normalize(NFC) → translate(acentos) → colapsa espaço → apara espaço → minúsculas
 //
 // SE OS DOIS LADOS DIVERGIREM mesmo assim (um caractere exótico que `lower()` do
 // Postgres e `toLowerCase()` do JavaScript tratem diferente), o efeito é uma busca que
@@ -59,7 +68,9 @@ function aparar(texto: string): string {
 export function chaveColaborador(nome: string | null | undefined): string {
   if (!nome) return ''
   let saida = ''
-  for (const c of nome) saida += MAPA.get(c) ?? c
+  // `normalize('NFC')` primeiro, espelhando `normalize(p_nome, NFC)` do SQL — sem
+  // ele, o mesmo nome em NFD não casa com a versão precomposta.
+  for (const c of nome.normalize('NFC')) saida += MAPA.get(c) ?? c
   return aparar(saida.replace(RE_ESPACOS, ' ')).toLowerCase()
 }
 

@@ -38,6 +38,17 @@
 --      ` joao`, com um espaço à esquerda GRUDADO na chave. Colapsar e então aparar
 --      resolve, e nada mais muda.
 --
+--   c) `normalize(p_nome, NFC)` por dentro de tudo. Sem ele, o MESMO nome escrito de
+--      duas formas Unicode legítimas dá chaves diferentes: "João" digitado no Windows
+--      vem PRECOMPOSTO (NFC: `ã` = 1 código), e colado do macOS ou de certos exports
+--      vem DECOMPOSTO (NFD: `a` + til combinante = 2 códigos). O `translate` acima só
+--      conhece a forma precomposta, então a versão NFD atravessava intacta e virava
+--      `joão silva` em vez de `joao silva` — duas pessoas onde há uma, que é
+--      exatamente o defeito que esta tabela existe para não ter. `normalize` é
+--      IMMUTABLE (conferido: `provolatile = 'i'`), então cabe na coluna gerada.
+--      Medido em 28/08/2026, com a tabela ainda vazia: `E'João Silva'` dava
+--      `joão silva` e passou a dar `joao silva`, igual ao `'João Silva'` precomposto.
+--
 --   b) classe explícita `[ \t\n\r\f\v]` no lugar de `\s`. O `\s` do Postgres é
 --      `[[:space:]]` (sensível a locale) e o `\s` do JavaScript inclui NBSP (U+00A0)
 --      e outros espaços Unicode — **não são o mesmo conjunto**. Com a classe
@@ -82,7 +93,7 @@ immutable
 strict
 set search_path = public
 as $$
-  select lower(btrim(regexp_replace(translate(p_nome,
+  select lower(btrim(regexp_replace(translate(normalize(p_nome, NFC),
     'áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ',
     'aaaaaeeeeiiiiooooouuuucnAAAAAEEEEIIIIOOOOOUUUUCN'),
     '[ \t\n\r\f\v]+', ' ', 'g')));
@@ -190,6 +201,31 @@ comment on view public.v_colaboradores_textos is
   'Fila de consolidação (F37 · A.5): um grupo por chave normalizada de nome digitado à mão em movimentacoes/lancamentos_item, com a contagem de ocorrências SOMADA NO BANCO e a marca de já ter cadastro. `ja_cadastrado = false` é o que a tela oferece para criar em lote. Não altera registro nenhum — o passado se resolve por chave na leitura.';
 
 grant select on public.v_colaboradores_textos to authenticated;
+
+-- O RESUMO da fila, em DUAS linhas no máximo — e é por isso que ele existe.
+--
+-- A tela precisa de quatro números: quantos nomes ainda não têm cadastro, quantos
+-- registros estão por trás deles, e o mesmo par para os já cadastrados. Somar isso
+-- lendo os grupos no cliente seria paginar 904 linhas para obter 4 números — e
+-- paginação client-side é exatamente onde nasce a contagem truncada que a v1.40.2
+-- documentou (docs/RELATORIO-CORRECAO-TRUNCAMENTO-1000.md).
+--
+-- Com esta view a resposta tem no máximo duas linhas: nenhum teto de linhas do
+-- PostgREST a alcança, hoje ou depois de alguém mexer na configuração. "Agregue no
+-- SQL" deixa de ser recomendação e vira a única coisa que o código consegue fazer.
+create view public.v_colaboradores_consolidacao
+with (security_invoker = true) as
+  select
+    t.ja_cadastrado,
+    count(*)::bigint                        as grupos,
+    coalesce(sum(t.ocorrencias), 0)::bigint as registros
+  from public.v_colaboradores_textos t
+  group by t.ja_cadastrado;
+
+comment on view public.v_colaboradores_consolidacao is
+  'Resumo da fila de consolidação (F37 · A.5) em NO MÁXIMO duas linhas — uma por `ja_cadastrado`. Existe para que os números da tela nunca dependam de paginação no cliente: nenhum teto de linhas do PostgREST alcança duas linhas.';
+
+grant select on public.v_colaboradores_consolidacao to authenticated;
 
 -- ===== SMOKE (rodar depois de aplicar — só leitura) =====
 --   select count(*) as colaboradores from public.colaboradores;          -- esperado: 0

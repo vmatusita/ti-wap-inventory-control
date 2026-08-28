@@ -55,16 +55,27 @@ comment on column public.movimentacoes.colaborador_id is
 comment on column public.lancamentos_item.colaborador_id is
   'Espelho de movimentacoes.colaborador_id para o diário de itens por quantidade (F37 · D5). Anulável, gravado só no INSERT, texto preservado ao lado.';
 
--- Índices PARCIAIS: a esmagadora maioria das linhas históricas tem a coluna nula, e
--- indexá-las seria peso sem leitor. O `where … is not null` guarda só o que vai ser
--- consultado ("o que saiu com esta pessoa"), que é a pergunta que a F38 vai fazer.
-create index movimentacoes_colaborador_id_idx
-  on public.movimentacoes (colaborador_id)
-  where colaborador_id is not null;
-
-create index lancamentos_item_colaborador_id_idx
-  on public.lancamentos_item (colaborador_id)
-  where colaborador_id is not null;
+-- ---------------------------------------------------------------------------
+-- SEM ÍNDICE NENHUM AQUI — e isso é decisão, não esquecimento
+-- ---------------------------------------------------------------------------
+-- A primeira versão desta migration criava dois índices parciais sobre
+-- `colaborador_id`, justificados como "o que a F38 vai consultar". A revisão
+-- adversarial derrubou os dois, e tinha razão:
+--
+--   · a ordem F37 proíbe NOMINALMENTE "nenhum índice novo em `lancamentos_item`"
+--     (§Fora), e o critério de aceitação 8 cobra `git diff` sem índice novo;
+--   · nenhuma consulta DESTA fase filtra por `colaborador_id` — o índice existiria
+--     para uma pergunta que ainda não é feita, que é a definição de otimizar antes
+--     do número (o erro que a F33 documentou ter cometido e revertido);
+--   · o §5 do docs/PLAN-F36-F39.md JÁ reserva esse índice para a migration da fase
+--     seguinte, DEPOIS da medição — ele pertence a outra fase;
+--   · e o precedente desta tabela é o oposto: a `0106` (F33/D3) investigou as FKs
+--     sem índice e deixou `lancamentos_item` de fora DE PROPÓSITO, por ser pequena
+--     ("índice ali é custo de escrita sem ganho de leitura mensurável"). Em
+--     28/08/2026 ela tinha 30 linhas.
+--
+-- O Postgres não exige índice na coluna referenciadora de uma FK. Quando a fase
+-- seguinte tiver o número que justifique, o índice entra lá — medido.
 
 -- ===== SMOKE (rodar depois de aplicar — só leitura) =====
 --   select column_name, data_type, is_nullable from information_schema.columns

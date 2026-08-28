@@ -42,11 +42,24 @@ function migrationVigenteDaChave(): { arquivo: string; sql: string } {
   return { arquivo, sql: readFileSync(join(DIR_MIGRACOES, arquivo), 'utf8') }
 }
 
-/** Os dois argumentos do `translate(...)` do corpo, na ordem em que estão no SQL. */
+/**
+ * Os dois argumentos do `translate(...)` do corpo, na ordem em que estão no SQL.
+ *
+ * O padrão exige o `normalize(p_nome, NFC)` POR DENTRO do `translate` — não é
+ * frescura: a tabela de acentos só conhece a forma precomposta, então o `normalize`
+ * tem de vir ANTES dela ou o nome em NFD atravessa intacto. Casar a estrutura aqui
+ * faz a ordem das duas operações ser parte do que este teste trava.
+ */
 function tabelaDeAcentosNoSql(sql: string): { de: string; para: string } {
   const corpo = sql.slice(sql.lastIndexOf(ANCORA_CREATE))
-  const m = corpo.match(/translate\(\s*p_nome\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*\)/)
-  if (!m) throw new Error('não achei o translate(p_nome, …, …) de colaborador_chave')
+  const m = corpo.match(
+    /translate\(\s*normalize\(\s*p_nome\s*,\s*NFC\s*\)\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*\)/,
+  )
+  if (!m) {
+    throw new Error(
+      'não achei o translate(normalize(p_nome, NFC), …, …) de colaborador_chave',
+    )
+  }
   return { de: m[1], para: m[2] }
 }
 
@@ -87,6 +100,23 @@ describe('chaveColaborador (TS) espelha colaborador_chave (SQL da migration vige
     // NÃO são o mesmo conjunto. A classe explícita é o que torna este teste uma prova.
     expect(classe).toBe('[ \\t\\n\\r\\f\\v]+')
     expect(sql.slice(sql.lastIndexOf(ANCORA_CREATE))).not.toMatch(/'\\s\+'/)
+  })
+
+  it('o SQL normaliza para NFC antes de tudo (senão o mesmo nome em NFD vira outra pessoa)', () => {
+    const corpo = sql.slice(sql.lastIndexOf(ANCORA_CREATE))
+    expect(corpo).toMatch(/normalize\(\s*p_nome\s*,\s*NFC\s*\)/)
+  })
+
+  it('as duas formas Unicode do MESMO nome dão a MESMA chave', () => {
+    const precomposto = 'Joao Silva'.replace('a', 'ã') // NFC: 'ã' e um codigo so
+    const decomposto = precomposto.normalize('NFD') // 'a' + til combinante
+    // Sanidade do proprio caso: se as duas formas fossem iguais o teste nao mediria
+    // nada — e o erro classico de escrever as duas variantes no codigo-fonte e o
+    // editor normalizar as duas para a mesma coisa.
+    expect(decomposto).not.toBe(precomposto)
+    expect(decomposto.length).toBeGreaterThan(precomposto.length)
+    expect(chaveColaborador(decomposto)).toBe('joao silva')
+    expect(chaveColaborador(decomposto)).toBe(chaveColaborador(precomposto))
   })
 
   it('o SQL apara DEPOIS de colapsar (btrim por fora do regexp_replace)', () => {

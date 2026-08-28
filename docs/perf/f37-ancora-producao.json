@@ -1,0 +1,96 @@
+{
+  "rotulo": "f37-ancora-producao",
+  "alvo": "produção (ref omitido) — SOMENTE LEITURA, nenhuma escrita",
+  "node": "v26.4.0",
+  "medido_em": "2026-08-28",
+  "metodo": {
+    "transporte": "Management API POST /v1/projects/{ref}/database/query",
+    "fria": "EXPLAIN ANALYZE na primeira consulta da conexão (inclui planejamento e catálogo)",
+    "quente": "2 aquecimentos + EXPLAIN ANALYZE na mesma conexão, 7 repetições, mediana",
+    "observacao": "Âncora do volume de HOJE. A curva dos três patamares (10 mil / 100 mil / 500 mil) exige um banco onde se possa escrever e está PENDENTE — o projeto de ensaio está pausado e produção é proibida (F37 §C.2). Rodar scripts/perf/medir-itens.mjs quando o ensaio voltar."
+  },
+  "volume": {
+    "ativos": 1616,
+    "itens": 18,
+    "lancamentos_item": 30,
+    "movimentacoes": 3429
+  },
+  "medidas": [
+    {
+      "medida": "rel_saldo_itens (consolidado, hoje)",
+      "fria": {
+        "execution_ms": 53.298,
+        "planning_ms": 0.324,
+        "shared_hit": 1175,
+        "shared_read": 0,
+        "linhas": 18,
+        "node": "Function Scan"
+      },
+      "quente": {
+        "repeticoes": 7,
+        "execution_ms_mediana": 1.878,
+        "execution_ms_min": 1.095,
+        "execution_ms_max": 3.44,
+        "shared_hit": 3,
+        "shared_read": 0
+      }
+    },
+    {
+      "medida": "rel_saldo_itens (uma filial, hoje)",
+      "fria": {
+        "execution_ms": 7.332,
+        "planning_ms": 0.105,
+        "shared_hit": 1172,
+        "shared_read": 0,
+        "linhas": 18,
+        "node": "Function Scan"
+      },
+      "quente": {
+        "repeticoes": 7,
+        "execution_ms_mediana": 1.181,
+        "execution_ms_min": 1.086,
+        "execution_ms_max": 1.658,
+        "shared_hit": 3,
+        "shared_read": 0
+      }
+    },
+    {
+      "medida": "rel_mov_itens (consolidado, 30 dias)",
+      "fria": {
+        "execution_ms": 10.889,
+        "planning_ms": 0.1,
+        "shared_hit": 1107,
+        "shared_read": 0,
+        "linhas": 18,
+        "node": "Function Scan"
+      },
+      "quente": {
+        "repeticoes": 7,
+        "execution_ms_mediana": 0.849,
+        "execution_ms_min": 0.715,
+        "execution_ms_max": 2.691,
+        "shared_hit": 7,
+        "shared_read": 0
+      }
+    },
+    {
+      "medida": "historico paginado (20 linhas, offset 0)",
+      "fria": {
+        "execution_ms": 1.649,
+        "planning_ms": 2.871,
+        "shared_hit": 8,
+        "shared_read": 0,
+        "linhas": 20,
+        "node": "Limit"
+      },
+      "quente": {
+        "repeticoes": 7,
+        "execution_ms_mediana": 0.207,
+        "execution_ms_min": 0.186,
+        "execution_ms_max": 2.102,
+        "shared_hit": 2,
+        "shared_read": 0
+      }
+    }
+  ]
+}
