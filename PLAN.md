@@ -1,265 +1,343 @@
-# PLAN — F37 · Fundação: quem é a pessoa e o que é o item
+# PLAN — F38 · Os itens andam com o ativo
 
-Ordem: `docs/prompts/F37-fundacao-colaboradores-tipos-ultracode.md` (28/08/2026).
-Fonte do escopo: `docs/PLAN-F36-F39.md` §4 (decisões D5, D6, D7).
-Versão de saída: **1.42.0**. Migrations livres conferidas: a última é a `0111` → **`0112`, `0113`, `0114`**.
+> Plano de execução da ordem `docs/prompts/F38-itens-andam-com-o-ativo-ultracode.md` (28/08/2026).
+> Escrito **depois** da exploração e **antes** da implementação. Onde este plano e a ordem
+> divergirem, **a ordem manda**.
 
-> Este arquivo substitui o PLAN.md da F29 (histórico no git). É o plano autossuficiente exigido
-> pela seção "Como trabalhar" da ordem.
+## 0. O estado medido, não presumido (28/08/2026)
 
----
-
-## 0. O ambiente, antes de tudo (o que muda o plano de rollout)
-
-| Peça do runbook | Estado real em 28/08/2026 | Consequência |
-|---|---|---|
-| MCP Supabase | **não existe nesta sessão** | banco vai pela **Management API** (`POST /v1/projects/{ref}/database/query`) |
-| Projeto de **ensaio** (`sgmvldiizsrjbxzzpmhh`) | **INACTIVE** (pausa do plano gratuito) | `restore` é **recusado pelo classificador**; ensaio indisponível |
-| Docker / `psql` / Supabase CLI local | **ausentes** | `supabase start` não roda aqui |
-
-**Ensaio possível:** `begin; <migration>; <conferências>; rollback;` contra **produção** — roda contra o dado
-real e não deixa rastro (precedente F36, ata de 2026-08-28). A prova final continua sendo o job `banco`
-do CI, que sobe um Postgres limpo e aplica `0001`→última.
-
-**Consequência dura para a frente C:** o harness de medição **não pode rodar** — ele precisa de um banco
-onde se possa escrever 500 mil linhas, e produção está proibida em qualquer hipótese (§C.2). O harness é
-escrito, guardado e conferido; a **curva dos três patamares fica como pendência nº 1**, com o comando
-exato para rodá-la assim que o ensaio voltar. O que **é** medido nesta fase: a âncora real, só-leitura,
-no volume de hoje da produção (§C abaixo).
-
----
-
-## 1. Baseline (medida ANTES de qualquer mudança)
-
-```
-npm run lint   → limpo (sem saída)
-npm run test   → 128 arquivos, 2609 testes, todos passando (104,89 s)
-npm run build  → limpo, 26 rotas
-```
-
-Contagens de produção (só-leitura, 28/08/2026):
-
-| tabela | linhas |
+| fato | valor |
 |---|---|
-| `ativos` | 1616 |
-| `movimentacoes` | 3429 |
-| `lancamentos_item` | 30 |
-| `itens` | 18 |
-| `pendencias_item` | 17 |
-| `filiais` | 6 · `profiles` 15 |
+| Versão no ar | `1.42.1` (`package.json` + `VERSOES[0]`) |
+| Última migration no repo | `0115_fila_consolidacao_chave_vazia.sql` → **`0116`–`0119` livres** |
+| `git status` | limpo, exceto o próprio arquivo da ordem (insumo da fase) |
+| Baseline `npm run lint` | limpo |
+| Baseline `npm run test` | **132 arquivos · 2663 testes · 0 falhas** |
+| Baseline `npm run build` | limpo |
+| Produção (`pbtjcalbmepmrqzprusb`) | ativos 1615 · movimentacoes 3430 · lancamentos_item 30 · itens 18 · pendencias_item 17 · colaboradores 0 · tipos_item 7 · filiais 6 |
+| Ensaio (`sgmvldiizsrjbxzzpmhh`) | **ACTIVE_HEALTHY**, `public.ambiente.rotulo = 'desenvolvimento'`, última migration aplicada **`0109`** — faltam `0110`…`0115` |
+| md5 `valida_lancamento_item` | `90f5c1bb63d215f196da4e2a7e9d87f0` — **idêntico** em produção e ensaio |
+| md5 `rel_saldo_itens` | `552a9f0b9a2527cadd62770d2d1a90d2` — idêntico nos dois |
+| md5 `rel_mov_itens` | `02cfff1692e6549fd983036637300cf2` — idêntico nos dois |
 
-Colaborador em texto: **1420** registros com nome preenchido (1412 em `movimentacoes` + 8 em
-`lancamentos_item`), **956** grafias distintas, **903** chaves normalizadas distintas → a normalização
-junta **53** grafias. `ativos.colaborador_atual` preenchido em 1241 ativos.
+### md5 das funções que a fase promete NÃO tocar (produção, antes)
 
-Slugs de acessório realmente gravados no histórico: `cabo`, `carregador`, `mochila` (em
-`movimentacoes.itens_faltantes` **e** em `pendencias_item.item`) — os outros 4 dos 7 existem só no código.
+```
+aplicar_movimentacao()                                    d2010a896dabc442a04cfe2f72c7b068
+status_apos_movimentacao(status_ativo, tipo_movimentacao) 69a73abfcfe13d7b2560bb6908c09a72
+status_tem_detentor(status_ativo)                         551c37d163ecd06fbf9c70fdb7f6945b
+rel_estoque_asof(smallint, date)                          817f81d9f52b7694f2c1ae48899bc6f8
+rel_saldo_itens(smallint, date)                           552a9f0b9a2527cadd62770d2d1a90d2
+guarda_acervo()                                           0829c62705d936370e95eb6e42b67c4f
+rel_mov_itens(smallint, date, date)                       02cfff1692e6549fd983036637300cf2
+criar_compra_lote(jsonb, uuid)                            58533fd3d3011eb527065c9660c847a1
+devolver_ao_fornecedor(uuid, jsonb, jsonb, uuid)          a7641d50a19e252141fc762117b687e2
+transferir_item(...)                                      da0a511f3f57e11017a43be46ffa4b72
+```
 
----
+⚠ **`aplicar_movimentacao()` É o trigger da `0051`.** A ordem lista os dois como intocáveis; são a
+mesma restrição, não duas. Um único md5 prova as duas promessas.
 
-## 2. A decisão de desenho que governa a frente A
+**A única função existente que esta fase recria:** `valida_lancamento_item()`, e sobre o corpo lido
+do banco por `pg_get_functiondef` (gravado em `docs/perf/valida_lancamento_item-vigente.sql`).
 
-A ordem (§A.3) proíbe UPDATE em histórico, e `guarda_acervo` (`0081`) recusa UPDATE em
-`movimentacoes`/`lancamentos_item` **para todo mundo, service role incluso** (corpo lido do banco:
-`raise exception 'Registro histórico não se altera: % é imutável…' using errcode = '42501'`).
+## 1. A aritmética que governa tudo (cabeçalho da `0027`, transcrito)
 
-**Como o híbrido grava os dois lados sem tocar em nada existente:**
+```
+total     = max(0, Σentrada + Σajuste)
+atrelados = Σ_chamado max(0, Σreserva − Σliberacao)
+liberados = max(0, Σsaida − Σretorno)
+estoque   = max(0, total − atrelados − liberados)
+falta     = max(0, atrelados + liberados − total)
+```
 
-- `colaborador_id` é resolvido **no servidor, no momento do INSERT**, a partir do texto que o operador
-  deixou no campo — pela **chave normalizada**, não por um id carregado pela tela.
-- Isso mantém **intactos** o `Config` do wizard, o rascunho do `sessionStorage`, o schema Zod, o resumo
-  de revisão, o "repetir última", os kits e a contrapartida da troca — e por isso **os testes existentes
-  desses fluxos passam sem uma linha editada** (critério 3 da ordem).
-- Quem escolheu um cadastro na lista grava os dois (o texto bate com a chave → resolve).
-  Quem digitou um nome que não está no cadastro salva do mesmo jeito, com `colaborador_id` nulo.
-  Quem digitou "joão  silva" para um cadastro "João Silva" **também** resolve — a chave é a mesma.
-- O passado continua sendo resolvido **por chave na leitura**. Nenhum UPDATE, em lugar nenhum.
+Rótulos (F6A §A4): `entrada`→"Entrada" · `saida`→"Liberação" · `reserva`→"Atrelar" ·
+`liberacao`→"Devolução" · `retorno`→"Retorno" · `ajuste`→"Ajuste".
 
-**A chave mora no SQL, numa função IMMUTABLE nomeada** — `public.colaborador_chave(text)` — usada pela
-coluna gerada **e** pela view da fila de consolidação. Uma âncora só para a guarda TS↔SQL.
+**A partição da §C — não é fórmula nova:**
 
-Expressão (validada contra o banco real em transação desfeita):
+```
+com_a_pessoa(item, filial, colaborador) = Σ saida(colaborador_id = C) − Σ retorno(colaborador_id = C)
+```
+
+Prova de que nada muda de número:
+`Σ_C com_a_pessoa(C) + (Σ saida sem vínculo − Σ retorno sem vínculo) = Σsaida − Σretorno`, que é
+exatamente o `liberados` **antes** do `max(0, …)`. O `max` fica onde sempre esteve, em
+`rel_saldo_itens` — `rel_saldo_colaborador` **não** o replica (saldo por pessoa é uma parcela, e
+zerá-la por baixo esconderia anomalia). Nenhuma das cinco fórmulas é reescrita, nenhuma sexta nasce.
+
+## 2. As quatro migrations — DDL final
+
+### `0116_lancamento_item_movimentacao.sql` — o vínculo
 
 ```sql
-lower(btrim(regexp_replace(translate($1,
-  'áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ',
-  'aaaaaeeeeiiiiooooouuuucnAAAAAEEEEIIIIOOOOOUUUUCN'),
-  '[ \t\n\r\f\v]+', ' ', 'g')))
+alter table public.lancamentos_item
+  add column movimentacao_id uuid references public.movimentacoes (id);
+
+create index lanc_item_mov_idx on public.lancamentos_item (movimentacao_id);
 ```
 
-Duas diferenças deliberadas frente ao DDL rascunhado no §4.1 do plano (as duas viram ata):
+- Anulável, **sem default** — todo lançamento histórico continua válido, o avulso da tela de itens
+  continua nascendo com ela nula. **Nenhum UPDATE em linha existente.**
+- FK **imediata** (não `deferrable`). Confirmado por leitura: a `0050` precisou de `deferrable`
+  porque quem insere é um trigger `before insert` em `movimentacoes` (a linha ainda não está na
+  heap). Aqui a RPC da §B insere a movimentação **antes** dos itens, na mesma transação — quando o
+  `insert` do item roda, a movimentação já está na heap.
+- **Só `movimentacao_id`, nunca `ativo_id`.** "O que foi junto com este notebook" é um join.
+- Índice de FK é **estrutural** (precedente `0106`), não otimização — serve ao join e ao `on delete`
+  das ferramentas do `/dev`. Não é o índice de saldo por pessoa da §C (esse depende da curva).
+- **Sem policy nova.** `lancamentos_item` já tem `"leitura operador"` (SELECT, piso) e
+  `"operador lanca"` (INSERT, `pode_escrever_filial(filial_id) and estorno_item_coerente(...)`).
+  Coluna nova entra na policy existente sem reescrevê-la — a policy não enumera colunas.
+- Rollback lógico: `drop index lanc_item_mov_idx; alter table … drop column movimentacao_id;`
 
-1. **`btrim` DEPOIS do colapso**, não antes. Com `btrim` antes, `"\tJoão"` viraria `" joao"` — com um
-   espaço à esquerda na chave. Colapsar e então aparar resolve.
-2. **Classe explícita `[ \t\n\r\f\v]` no lugar de `\s`.** `\s` do Postgres é `[[:space:]]` (depende de
-   locale) e o `\s` do JavaScript inclui NBSP e outros espaços Unicode — **eles não são o mesmo
-   conjunto**. Com a classe explícita os dois lados são idênticos por construção, e é isso que torna a
-   guarda TS↔SQL uma prova, não uma esperança. `ñ/Ñ` entrou na tabela de acentos.
+### `0117_criar_movimentacao_com_itens.sql` — a RPC transacional
 
-Prova empírica já rodada (transação desfeita contra produção): `"  João   Silva  "` → `joao silva`;
-`"JOAO SILVA"` colidiu no índice único com a anterior; `"Ção Ñandú Ünico"` → `cao nandu unico`;
-`E'Maria\tdos\nSantos'` → `maria dos santos`.
+```sql
+create or replace function public.criar_movimentacao_com_itens(
+  p_movimentacoes jsonb,   -- [ {row de movimentacoes}, … ] na ordem do lote
+  p_itens         jsonb,   -- [ {indice_movimentacao, item_id, filial_id, tipo, quantidade, data, colaborador, colaborador_id, observacao, chamado}, … ]
+  p_criado_por    uuid
+) returns jsonb              -- {"movimentacoes": [uuid,…], "itens": <int>}
+language plpgsql
+security invoker             -- DECLARADO, não por omissão (§B.1)
+set search_path to 'public'
+```
 
----
+**Ordem de execução, e por que é essa:**
 
-## 3. As três migrations (DDL final)
+1. Validar forma: `p_movimentacoes` array não-vazio, teto 30 (`MAX_LOTE_MOVIMENTACAO`);
+   `indice_movimentacao` de cada item dentro do intervalo.
+2. **Travar os ativos do lote em ordem crescente de `id`** —
+   `perform 1 from public.ativos where id = any(v_ativos) order by id for update`.
+   *Por que:* a transação única passa a segurar N row locks de `ativos` que hoje não coexistem (cada
+   INSERT é a própria transação). Dois lotes com os mesmos ativos em ordens diferentes deadlockariam
+   nos row locks que o trigger `aplicar_movimentacao` pega (`select … for update`). Ordem total pelo
+   `id` fecha isso. **Ata obrigatória** — é decisão desta ordem, não da ordem escrita.
+3. **Adquirir TODAS as advisory locks `(item_id, filial_id)`, em ordem total crescente, ANTES do
+   primeiro INSERT** (§B.3, passo 5 da `0104`). Advisory locks são reentrantes: as que o trigger
+   `valida_lancamento_item` pedir depois já estarão nas mãos.
+4. INSERT das movimentações, **na ordem do array**, guardando os ids em `v_ids uuid[]`. Falha →
+   `raise` com `detail = 'f38_linha=<i>'` para a action dizer QUAL linha derrubou o lote.
+5. INSERT dos lançamentos de item, cada um com `movimentacao_id = v_ids[indice_movimentacao + 1]`.
+6. `return jsonb_build_object('movimentacoes', to_jsonb(v_ids), 'itens', v_n_itens)`.
 
-### `0112_colaboradores.sql`
-- `create function public.colaborador_chave(text) returns text language sql immutable strict set search_path = public` — a expressão acima.
-- `create table public.colaboradores`: `id uuid pk default gen_random_uuid()`, `nome text not null`,
-  `matricula text`, `setor text`, `filial_id smallint references filiais(id)`, `ativo boolean not null default true`,
-  `criado_por uuid not null references profiles(id)`, `created_at timestamptz not null default now()`,
-  `nome_chave text generated always as (public.colaborador_chave(nome)) stored`,
-  `check (btrim(nome) <> '')`.
-- `create unique index colaboradores_nome_chave_uidx on public.colaboradores (nome_chave)`.
-- Índice auxiliar `colaboradores_filial_idx (filial_id) where filial_id is not null`.
-- RLS **ligada** + 3 policies (padrão `itens`/`kits_modelos`, com o piso da `0070`):
-  - `leitura operador` — `for select to authenticated using ((select public.papel_atual()) is not null)`
-  - `escrita cria colaborador` — `for insert to authenticated with check ((select public.pode_escrever()))`
-  - `admin atualiza colaborador` — `for update to authenticated using ((select public.e_admin())) with check ((select public.e_admin()))`
-  - **sem policy de DELETE** → ninguém apaga cadastro pela API (deny-all, mesmo idioma de `operador_filiais`/`eventos_admin`).
-- `grant select, insert, update on table public.colaboradores to authenticated;` — **explícito**, seguindo o
-  precedente da `0103` (o Postgres do job `banco` não reproduz o *default privilege* da plataforma).
-- `create view public.v_colaboradores_textos with (security_invoker = true)` — a fila de consolidação,
-  **agregada no SQL** (lição do teto de 1.000): agrupa por `colaborador_chave`, devolve
-  `nome_chave · grafia_exemplo (mode) · ocorrencias · grafias · filial_id (mode) · ja_cadastrado · colaborador_id`.
-  `grant select on public.v_colaboradores_textos to authenticated;`
+**O que a RPC NÃO faz** (lições da `0104`): não recalcula saldo (quem valida é o trigger, sob a
+trava); não redige texto (observações chegam prontas de `src/lib/`); não decide autorização
+(`security invoker` + as policies `"operador insere"` e `"operador lanca"`, linha a linha). As
+guardas `pode_escrever_filial` no corpo são **cinto-e-suspensórios pela mensagem** — sem elas o
+operador recebe `42501` cru, que a UI traduz como conselho errado.
 
-### `0113_colaborador_vinculo.sql`
-- `alter table public.movimentacoes add column colaborador_id uuid references public.colaboradores (id);`
-- `alter table public.lancamentos_item add column colaborador_id uuid references public.colaboradores (id);`
-- Índices `(colaborador_id) where colaborador_id is not null` nas duas.
-- **Nada mais.** Nenhuma função, nenhum trigger, nenhuma policy existente. Os INSERTs de todas as RPCs
-  usam lista de colunas explícita — conferido uma a uma (`criar_compra_lote`, `devolver_ao_fornecedor`,
-  `transferir_item`, `importar_ativos_substituir`, `forcar_estado_ativo`, `forcar_saldo_item`): nenhuma
-  precisa mudar, a coluna nova nasce nula.
+Grants (padrão `0104`/`0064`):
+```sql
+revoke all on function public.criar_movimentacao_com_itens(jsonb, jsonb, uuid) from public, anon, service_role;
+grant execute on function public.criar_movimentacao_com_itens(jsonb, jsonb, uuid) to authenticated;
+```
 
-### `0114_tipos_item.sql`
-- `create table public.tipos_item (id smallint generated always as identity primary key, slug text not null unique, rotulo text not null, ativo boolean not null default true, ordem int not null default 0, created_at timestamptz not null default now())`.
-- Seed **exato**, na ordem de `ACESSORIOS_DEVOLUCAO`: `carregador`/Carregador, `mochila`/Mochila,
-  `mouse`/Mouse, `teclado`/Teclado, `mousepad`/Mousepad, **`fone`/"Fone de ouvido"**, `cabo`/Cabo.
-- `alter table public.itens add column tipo_id smallint references public.tipos_item (id);`
-- RLS + policies padrão de catálogo (`select` pelo piso; `insert`/`update` por `e_admin()`; sem delete).
-- `grant select, insert, update on table public.tipos_item to authenticated;`
+### `0118_saldo_colaborador.sql` — a conta por pessoa + a guarda no trigger
 
-**Fora, byte a byte:** `aplicar_movimentacao`, `rel_estoque_asof`, `rel_saldo_itens`, `rel_mov_itens`,
-`valida_lancamento_item`, `guarda_acervo`, `status_apos_movimentacao`, `status_tem_detentor`,
-`resetar_dados_ficticios`. Nenhuma delas é recriada. Prova: `git diff` vazio nas migrations antigas +
-`pg_get_functiondef` antes/depois.
+```sql
+create or replace function public.rel_saldo_colaborador(p_colaborador uuid)
+returns table (
+  item_id      smallint,
+  item         text,
+  filial_id    smallint,
+  filial       text,
+  com_a_pessoa bigint
+) language sql stable security invoker set search_path = public as $$ … $$;
+```
 
----
+Corpo: `sum(case tipo when 'saida' then quantidade when 'retorno' then -quantidade else 0 end)`
+agrupado por `(item_id, filial_id)`, `where colaborador_id = p_colaborador`, `having <> 0`.
+**Sem `max(0, …)`** (ver §1). Grants: `revoke … from public, anon;`
+`grant execute … to authenticated, service_role;` (precedente `0056`).
 
-## 4. Código
+**A guarda nova em `valida_lancamento_item`** — recriação sobre o corpo lido do banco, md5 de
+partida `90f5c1bb63d215f196da4e2a7e9d87f0` registrado na migration. A primeira linha
+(`perform pg_advisory_xact_lock(new.item_id::int, new.filial_id::int)`) e toda a aritmética existente
+saem **byte a byte**. Entra **um bloco novo**, espelho exato da guarda de `liberacao` contra
+`reserva`:
 
-| Arquivo | O quê |
-|---|---|
-| `src/lib/colaboradores/chave.ts` | `chaveColaborador(nome)` — espelho EXATO da função SQL |
-| `src/lib/colaboradores/chave-sql.test.ts` | guarda TS↔SQL: extrai a tabela de `translate` e a classe de espaço da migration vigente e compara com o TS, char a char; corpus de casos |
-| `src/lib/validators/colaborador.ts` | `colaboradorSchema`, `colaboradorInlineSchema` (molde `itemInlineSchema`), `atualizarColaboradorSchema`, `consolidarColaboradoresSchema` |
-| `src/lib/queries/colaboradores.ts` | `listarColaboradoresAdmin`, `filaDeConsolidacao` (lê a view), `resumoDaConsolidacao`, `sugestoesDoCampoColaborador` (cadastro + as DUAS tabelas de histórico), `resolverColaboradoresPorNome` — o `listarColaboradoresAtivos` previsto aqui foi escrito, ficou sem nenhum chamador e saiu na revisão de 28/08/2026: o campo do fluxo é servido por prefixo, não por lista inteira |
-| `src/lib/actions/colaboradores.ts` | `criarColaboradorInline` (`exigirEscrita`… ver §5), `criarColaborador`/`atualizarColaborador` (`exigirAdmin`), `consolidarColaboradores` (`exigirAdmin`) |
-| `src/lib/actions/movimentacoes.ts` | resolve as chaves do lote em UMA consulta e passa `colaborador_id` para `montarRow` |
-| `src/lib/actions/itens.ts` | idem em `lancarItens` |
-| `src/components/movimentacoes/nova/campo-colaborador.tsx` | combobox sobre `colaboradores` + criação inline, **mantendo texto livre** |
-| `src/components/itens/lancar-item-dialog.tsx` | troca o `<Input>` cru pelo mesmo combobox |
-| `src/app/(app)/admin/colaboradores/page.tsx` + `src/components/admin/colaboradores-*.tsx` | lista + fila de consolidação |
-| `src/app/(app)/admin/tipos-item/page.tsx` + `src/components/admin/tipos-item-*.tsx` | cadastro de tipos |
-| `src/components/admin/itens-tabela.tsx` / `item-dialog.tsx` | coluna e escolha de tipo, com selo "sem tipo" |
-| `src/lib/dominio.ts` | `ACESSORIO_ROTULO.fone` → `'Fone de ouvido'` (só o rótulo) |
-| `src/lib/validators/tipos-item-sql.test.ts` | guarda TS↔SQL dos 7 slugs + rótulos contra o seed da `0114` |
+```sql
+if new.tipo::text = 'retorno' and new.colaborador_id is not null then
+  select coalesce(sum(case l.tipo::text when 'saida'   then l.quantidade
+                                        when 'retorno' then -l.quantidade else 0 end), 0)
+  into v_pessoa_net
+  from public.lancamentos_item l
+  where l.item_id = new.item_id and l.filial_id = new.filial_id
+    and l.colaborador_id = new.colaborador_id;
+  if v_pessoa_net - new.quantidade < 0 then
+    raise exception 'Retorno maior que o registrado com esta pessoa (não há % para retornar).', new.quantidade
+      using errcode = 'check_violation';
+  end if;
+end if;
+```
 
-**Regra de ouro do incremento:** nenhum arquivo `*.test.*` existente é editado. Se um quebrar, quem está
-errado é o código novo.
+✅ **`lancamentos_item.colaborador_id` JÁ EXISTE** — conferido em produção: `uuid`, anulável, sem
+default, nascido na F37 (`0113`), e `lancarItens` já o grava por `resolverColaboradoresPorNome`. A
+`0118` **não cria coluna nenhuma**: só a leitura nova e o bloco novo no trigger.
 
----
+⚠ **Retorno SEM `colaborador_id` continua valendo exatamente como hoje** — é o caminho de todo o
+histórico, e não pode virar erro retroativo. A guarda antiga (retorno ≤ liberado em aberto, sem
+recorte de pessoa) **continua valendo para os dois casos**; a nova só ACRESCENTA um teto quando há
+pessoa nomeada.
 
-## 5. Permissão, nome a nome
+### `0119_ciclo_pendencia_item.sql` — o ciclo fecha
 
-| Ação | Guarda de Server Action | Policy |
-|---|---|---|
-| ler colaboradores / tipos | — (piso de leitura) | `papel_atual() is not null` |
-| criar colaborador inline (wizard) | `exigirPapel(supabase, 'operador')` | `pode_escrever()` |
-| editar/desativar colaborador | `exigirAdmin` | `e_admin()` |
-| consolidar em lote | `exigirAdmin` | `e_admin()` (insert cabe em `pode_escrever`) |
-| criar/editar tipo de item | `exigirAdmin` | `e_admin()` |
+RPC `public.resolver_pendencias_item_com_lancamentos(p_ids uuid[], p_desfecho text, p_observacao text, p_lancamentos jsonb, p_criado_por uuid)`,
+`security invoker`, `set search_path`:
 
-Por que `exigirPapel(…, 'operador')` e não `exigirEscrita`: `exigirEscrita(supabase, filialId)` cobra
-**vínculo de filial**, e cadastro de pessoa não é matéria de filial (o `filial_id` é atributo, não escopo
-de escrita). `exigirPapel` com o piso `operador` é o espelho exato de `pode_escrever()` — dev ⊃ admin ⊃
-operador, e `consulta` recusado.
+1. Travas advisory `(item_id, filial_id)` em ordem total crescente, antes do primeiro INSERT.
+2. `update public.pendencias_item set … where id = any(p_ids) and status = 'aberta'` **returning id**
+   — idempotência preservada (reenviar não re-resolve).
+3. Insere os lançamentos **só das pendências que o UPDATE de fato resolveu** (`returning`), nunca das
+   que já estavam resolvidas — é isso que impede lançamento duplicado numa corrida.
+4. Tudo na mesma transação. Falha em qualquer ponto → nada resolvido, nada lançado.
 
----
+RPC irmã `public.reabrir_pendencias_item_com_estornos(p_ids uuid[], p_justificativa text, p_criado_por uuid)`:
+mesmo desenho, insere os **inversos** (`estorna_id` apontando o lançamento original;
+`lanc_item_estorna_uidx` garante uma vez só) e reabre. Não conseguindo gravar o inverso, **recusa** —
+nunca reabre deixando lançamento de pé.
 
-## 6. Provas
+**A aritmética dos dois desfechos, conferida contra a `0027`:**
 
-- **Roteiro novo** `supabase/tests/f37_colaboradores_tipos.sql`, no molde do `f36_detentor.sql`
-  (independente, `begin; … rollback;`, `raise notice '✓'` / `raise warning '✗'`), cobrindo:
-  a) a chave normaliza (corpus); b) o índice único recusa a segunda grafia; c) a view agrupa e conta
-  certo; d) **asserção NEGATIVA**: `update movimentacoes set colaborador_id = …` é recusado pela
-  `guarda_acervo` **rodando como DONO** (molde `dev_destrutivo.sql:565-577`, checando a mensagem
-  `%imutável%` — como `authenticated` quem barra é a RLS, e isso mediria a coisa errada);
-  e) INSERT com `colaborador_id` funciona (o vínculo do registro novo); f) os 7 slugs; g) `itens.tipo_id`
-  anulável; h) FK recusa tipo inexistente.
-- **`papeis_rls.sql`**: asserções novas + as duas relações **dentro do bloco de grants** (armadilha
-  `42501`) — `colaboradores` e `tipos_item` no bloco de leitura; `colaboradores` e `tipos_item` no de
-  escrita, com o comentário dizendo qual asserção usa cada uma.
-- **`seguranca_catalogo.sql`**: nenhuma edição — os blocos 2 (RLS ligada) e 3 (`security_invoker`) são
-  varreduras genéricas e já cobrem tabela/view nova. Se eu esquecer o `enable row level security` ou o
-  `security_invoker` da view, é ele que acusa.
-- **Todos** os roteiros rodados (regra F17), pelo caminho da Management API com
-  `raise warning` → `raise exception` (o transporte engole NOTICE/WARNING). Ficam de fora, como na F36:
-  `dev_destrutivo.sql` e `import_substituir.sql` (travariam produção); `conflito_filiais.sql` e
-  `troca.sql` falham por artefato de ambiente, idêntico antes e depois.
+| Desfecho | Lançamentos | total | atrelados | liberados | estoque | com_a_pessoa |
+|---|---|---|---|---|---|---|
+| `recuperado` | `retorno` 1 (com vínculo) | `=` | `=` | `−1` | **`+1`** | **`−1`** |
+| `baixa` | `retorno` 1 (com vínculo) **+** `ajuste` −1 | **`−1`** | `=` | `−1` | `+1−1 = ` **`=`** | **`−1`** |
 
----
+Conferência linha a linha: `retorno` não entra em `total` (só `entrada`/`ajuste`) → `recuperado`
+deixa o Total intacto; entra em `liberados` com sinal negativo → `estoque = total − atrelados −
+liberados` sobe 1. Na `baixa`, o `ajuste −1` derruba `total` em 1 e o `estoque` volta ao valor de
+antes (`+1` do retorno, `−1` do ajuste). **Por que dois lançamentos e não um `ajuste` só:** `ajuste`
+**não** entra em `Σsaida − Σretorno`, então um ajuste negativo sozinho tiraria do Total e deixaria o
+item na conta da pessoa para sempre — o furo exato que esta frente fecha.
 
-## 7. Frente C — a medição
+O `ajuste` exige `observacao` não vazia (`lanc_item_ajuste_obs`): texto composto por **função pura
+em `src/lib/pendencias/texto-baixa.ts`**, testada — nunca dentro da função SQL (lição da `0104`).
 
-`scripts/perf/medir-itens.mjs`, no molde do `medir.mjs` (mesmo cabeçalho de regras, mesma máscara de
-segredo, mesmo JSON versionado em `docs/perf/`), com:
+## 3. A ponte tipo→item (§D e §E) — a regra, e o que a leitura corrigiu
 
-- guarda `REFS_DE_PRODUCAO` reutilizada de `scripts/env-guard.ts` — **recusa produção sempre**, e
-  também recusa quando o ref não é conhecido como ensaio;
-- três patamares (10 mil / 100 mil / 500 mil) de lançamentos **100% fictícios** (`@faker-js/faker`, seed
-  determinístico), `EXPLAIN ANALYZE` em `rel_saldo_itens`, `rel_mov_itens`, o custo por INSERT do trigger
-  `valida_lancamento_item` e o histórico paginado;
-- limpeza obrigatória com contagem antes/depois.
+**O que o modelo diz hoje:** `tipos_item` **não tem `filial_id`**; `itens` é catálogo **global** (18
+linhas em produção), com `tipo_id smallint null references tipos_item(id)` (`0114`). A filial só
+aparece no *saldo* (`lancamentos_item.filial_id`), nunca no catálogo. Logo "item de catálogo ativo
+naquela filial" **não é uma consulta que o modelo suporte** como escrito.
 
-**O que É medido nesta fase** (só-leitura, produção, permitido e já rodado):
+**Regra implementada** (ata obrigatória):
 
-| medida | volume de hoje | resultado |
-|---|---|---|
-| `rel_saldo_itens(null, hoje)` — conexão fria | 30 lançamentos | **17,8 ms**, 1138 blocos |
-| `rel_saldo_itens(null, hoje)` — conexão quente | 30 lançamentos | **1,1 ms**, 3 blocos |
-| `rel_mov_itens(null, -30d, hoje)` — fria | 30 lançamentos | **7,1 ms**, 1088 blocos |
-| histórico paginado (20 linhas) | 30 lançamentos | **0,34 ms**, 8 blocos |
+- Candidatos = `itens` com `ativo = true` e `tipo_id` = o tipo da linha do checklist.
+- **Exatamente um** candidato → resolve sozinho.
+- **Zero** candidatos → a linha marcada "Devolvido" **não bloqueia**: a devolução é registrada, o
+  lançamento não nasce, e a tela diz por quê ("nenhum item de catálogo deste tipo").
+- **Dois ou mais** → a linha pergunta qual (combobox restrito ao tipo). A filial entra no combobox
+  como **informação** (o saldo daquele item naquela filial), não como filtro do catálogo — porque o
+  catálogo é global.
+- O mesmo par de regras vale na §E, a partir de `pendencias_item.item` (que é um **slug de tipo**).
+  **Resolver pendência nunca falha por causa do catálogo.**
 
-Leitura: no volume de hoje **a agregação não custa nada** — o custo medido é compilação de plano e
-catálogo da conexão nova. O driver real de escala está identificado por leitura do corpo:
-`valida_lancamento_item` agrega **todo o diário de (item, filial) a cada INSERT** sob
-`pg_advisory_xact_lock` → popular N linhas do mesmo par custa **O(N²)**; `rel_saldo_itens` varre o diário
-inteiro até a data → **O(N)** por leitura.
+Módulo: `src/lib/itens/ponte-tipo-item.ts` (função pura + teste). **Nome escolhido de propósito:**
+`src/lib/itens/escolha-tipo.ts` já existe e é outra coisa (a escolha do *tipo de lançamento*).
 
----
+## 4. O lote tudo-ou-nada (§B.2) — o que a leitura corrigiu sobre "o painel"
 
-## 8. Rollout (§R)
+⚠ **O sucesso parcial do lote NÃO passa por `painel-sucesso.tsx`.** A leitura mostrou que
+`nova-movimentacao-form.tsx:966-1030` só monta o `PainelSucesso` quando `res.ok === true` (sucesso
+**total**). O caminho de sucesso parcial é `nova-movimentacao-form.tsx:1035-1076`: volta ao passo 2,
+popula `errosPorAtivo` e `jaRegistrados` (renderizados em `passo-movimentacao.tsx:222-265`,
+"Já registrados (N):" e "Itens que falharam no último envio:"), e emite o toast
+`` `${res.criadas} registrada(s); ${falhaIds.length} falhou(aram). Revise os itens restantes.` ``.
 
-1. `0112` → `0113` → `0114` por Management API: **ensaio em transação desfeita contra produção** →
-   roteiros SQL → conferência → **produção** → `notify pgrst, 'reload schema';` → conferência pós-apply.
-2. `npm run db:types` (via `--project-id`, Management API) e commit do `database.ts`.
-3. SQL **antes** do deploy da Vercel.
-4. CI verde (lint + test + build + job `banco`), deploy READY, smoke com as duas rotas novas.
-5. Tag anotada `v1.42.0` publicada.
-6. `docs/RELATORIO-F37.md` + emendas (`CLAUDE.md` árvore, spec §5/§6, `README.md`,
-   `docs/prompts/README.md` linha F36 → relatório e linha F37, `docs/PLAN-F36-F39.md` §4 executado e
-   §4.1 corrigido, `docs/DECISOES.md` com uma ata por decisão).
+**É esse caminho que é reescrito**, não o `painel-sucesso.tsx`. O que muda:
 
-## 9. Ordem dos incrementos
+- `jaRegistrados` deixa de existir para este fluxo — nada foi gravado.
+- O texto passa a dizer: **nada foi gravado**, **qual linha falhou**, **por quê**, e **o que fazer**.
+- `RegistrarLoteResult.criadas` passa a ser `0` sempre que `ok === false`.
+- Teste que quebra por decisão explícita: `src/lib/ajuda/conteudo.test.ts:192-212`, que exige o
+  título de manual **"Depois de registrar: termos em sequência e sucesso parcial"** — o texto do
+  manual é reescrito junto, e isso vai **nomeado no relatório**.
+- **Nenhum outro teste existente muda.** Confirmado por grep: nenhum `*.test.ts` referencia
+  `RegistrarLoteResult`, `ItemResultado`, `LancarItensResult` nem renderiza `PainelSucesso`.
 
-1. `0112`+`0113` + RLS/grants + `db:types` → 2. chave TS + guarda → 3. resolução no INSERT (as duas
-actions) → 4. combobox + criação inline (wizard e item) → 5. `/admin/colaboradores` + fila →
-6. `0114` + seed + guarda TS↔SQL + rótulo do `fone` → 7. `/admin/tipos-item` + coluna em `admin/itens` →
-8. roteiro SQL + `papeis_rls.sql` → 9. `seed.ts`/`reset.ts` → 10. ajuda/nav/paleta/smoke/título →
-11. harness + medição → 12. versão + documentação → 13. revisão adversarial em contexto fresco.
+**Validação antes de gravar** (§B.2, segunda bala): o passo de revisão passa a conferir o lote
+inteiro contra o banco (patrimônio existe, estado permite a transição, filial) e mostrar o que vai
+falhar **antes** do envio. Não substitui a validação do banco — é a primeira linha.
 
-Frentes A e B correm em paralelo até `admin-nav`/ajuda/smoke, que são ponto de encontro.
+**O carrinho avulso (`lancarItens`) continua linha a linha.** O cabeçalho de `transferirItens`
+(`src/lib/actions/itens.ts:141-153`) explica por que os dois desenhos coexistem de propósito: "lá as
+linhas não se relacionam entre si". **Não unificar.**
+
+## 5. Testes existentes que NÃO podem mudar
+
+`config.test.ts` (27) · `troca-upgrade.test.ts` (58) · `rascunho.test.ts` (22) ·
+`resumo-revisao.test.ts` (18) · `aplicar-kit.test.ts` (12) · `repetir-ultima.test.ts` (7) ·
+`validators/movimentacao.test.ts` (~48) · `validators/item.test.ts` (~35) · `lote-url.test.ts` (18) ·
+`agrupar-lote.test.ts` (9) · `selecao-ativos.test.ts` (25) · `tipos-item-sql.test.ts` (98 linhas) ·
+`chave-sql.test.ts` · `dominio.test.ts` · `versoes/registry.test.ts` · `ajuda/registry.test.ts`.
+
+**Muda um só, e por decisão explícita da §B.2:** `src/lib/ajuda/conteudo.test.ts:192-212`.
+
+## 6. Guardas que vão reclamar — e como não acordá-las
+
+**Preferência da ordem: sem rota nova.** "Com esta pessoa" entra como **bloco expansível na linha da
+tabela** de `/admin/colaboradores` e como bloco no diálogo de devolução. Assim:
+
+- `ajuda/registry.test.ts:199-203` (toda rota de `(app)` precisa de linha em `COBERTURA`) — não
+  dispara.
+- `ajuda/registry.test.ts:262-272` (a tela renderiza o `<LinkAjuda>` prometido) — não dispara.
+- `paleta-comandos.tsx` — sem rota, sem entrada nova (não há teste, mas o comentário de
+  `:79-80` pede espelho com a sidebar; a sidebar não muda).
+- `smoke-prod.mjs` `ROTAS_LOGADO` — sem rota nova, nada a acrescentar. As checagens da Parte B
+  (contagens/shape) ganham a conferência da coluna e das RPCs novas.
+- Jargão de dev: `registry.test.ts:333-351` (11 termos) e `versoes/registry.test.ts:157-189` (21
+  termos, inclui `RPC`, `policy`, `enum`, `deploy`, `commit`, `schema`). A entrada de versão e o
+  texto de ajuda passam por essa peneira.
+
+## 7. Roteiro SQL — `supabase/tests/f38_itens_com_ativo.sql`
+
+Cenários (todos em `begin; … rollback;`, comparando **linhas de uma `select` final** — o MCP engole
+`NOTICE`):
+
+1. Vínculo: lançamento nascido pela RPC aponta a movimentação certa; o avulso continua com
+   `movimentacao_id` nulo.
+2. **Tudo-ou-nada:** lote com uma linha inválida grava **0** movimentações e **0** lançamentos
+   (contagens antes/depois).
+3. **Ordem das travas:** a RPC pede as advisory locks em ordem crescente `(item_id, filial_id)`
+   mesmo quando o carrinho chega em ordem decrescente — provado por `pg_locks`.
+4. Saldo por pessoa: `Σ_C com_a_pessoa(C) + sem_vínculo = liberados` para todo item×filial.
+5. Guarda nova: `retorno` com pessoa acima do saldo dela é recusado; `retorno` **sem** pessoa passa
+   como sempre passou.
+6. §C.3: devolução de equipamento entregue **antes** da fase (pessoa com saldo zero) grava o
+   `retorno` **sem** vínculo e repõe o estoque.
+7. `recuperado`: estoque +1, pessoa −1, Total inalterado.
+8. `baixa`: pessoa −1, Total −1, estoque de volta ao que era.
+9. Reabertura grava os inversos; reenviar não duplica.
+10. Estorno de movimentação com itens grava os inversos dos itens vinculados.
+11. O caminho "Faltante" continua **byte a byte**: `itens_faltantes` com os mesmos slugs, pendência
+    nasce pelo trigger, `aplicar_movimentacao` não foi recriado.
+
+⚠ **Regra da pendência nº 5 da F37:** duas movimentações do mesmo ativo na mesma transação precisam
+de `created_at` **explícito e distinto**, senão o desempate cai num sorteio de uuid e o roteiro fica
+intermitente.
+
+## 8. Ordem de implementação (escolhida para dar rollback limpo)
+
+1. **Curva** (frente 0) — rodando; decide o índice `lanc_item_colaborador_idx`.
+2. Pôr o **ensaio em dia** (`0110`…`0115`) — pré-requisito para rodar `f37_colaboradores_tipos.sql`
+   e `papeis_rls.sql` lá (regra F17).
+3. `0116` vínculo.
+4. `0117` RPC + wizard + o caminho de erro do lote reescrito + validação prévia na revisão.
+5. `0118` saldo por pessoa + guarda no trigger.
+6. Checklist de dois desfechos (encontra a §C no diálogo de devolução — **ponto de sincronização**).
+7. `0119` ciclo da pendência + reabertura.
+8. Leituras de tela ("o que foi junto", "Com esta pessoa", contagem de sem-vínculo agregada no SQL).
+9. Versão `1.43.0` + documentação + tag.
+
+Verificar `lint`/`test`/`build` a cada incremento.
+
+## 9. O que esta fase NÃO toca
+
+Termos e os 7 `.docx` (é a F39) · `ACESSORIOS_DEVOLUCAO` continua vivo como fallback de rótulo ·
+`aplicar_movimentacao` / `status_apos_movimentacao` / `status_tem_detentor` / `rel_estoque_asof` /
+`guarda_acervo` / `rel_saldo_itens` byte a byte · nenhum valor novo de enum · nenhum UPDATE/DELETE em
+`movimentacoes` ou `lancamentos_item` · nenhum índice sem número da curva · `ativos.colaborador_atual`
+continua texto · nenhuma dependência nova · custo R$ 0 · nenhum dado real.
