@@ -20,7 +20,6 @@ import {
 } from '@/lib/queries/ativos'
 import {
   possiveisDuplicatasDoDia,
-  sugestoesColaboradores,
   sugestoesSetores,
   ultimosAtivosMovimentadosDoOperador,
   type ParMovimentacaoDia as ParMovimentacaoDiaQuery,
@@ -549,13 +548,21 @@ export async function buscarAtivosRecentesDoOperador(
   }
 }
 
-// M4 — sugestoes de colaborador. Guarda de 2 chars TAMBEM aqui: nao bater no
-// banco por uma letra (a query repete a guarda; esta e a barata).
+// M4/F37 — sugestões de colaborador. Guarda de 2 chars TAMBÉM aqui: não bater no
+// banco por uma letra (a query repete a guarda; esta é a barata).
+//
 // F37/A.4 — o campo de colaborador passa a oferecer o CADASTRO, além do histórico, e
 // a dizer se o que está digitado já é um cadastro (é isso que decide se a tela
-// oferece "Cadastrar"). Mesmo molde do `buscarSugestoesColaboradores` logo abaixo:
-// guarda de 2 caracteres antes de tocar o banco e degradação CALADA — o campo é texto
-// livre e continua aceitando o que for digitado, aconteça o que acontecer com a rede.
+// oferece "Cadastrar"). Degradação CALADA — o campo é texto livre e continua
+// aceitando o que for digitado, aconteça o que acontecer com a rede.
+//
+// Esta action SUBSTITUIU a `buscarSugestoesColaboradores` (M4), removida na revisão
+// de 28/08/2026: depois que wizard, contrapartida e o diálogo de lançamento de item
+// passaram todos a usar `CampoColaborador`, nenhuma tela passava mais
+// `campo="colaborador"` a `CampoComSugestoes` — a action antiga continuava alcançável
+// pela rede sem nenhuma tela por trás, e duas implementações da mesma sugestão
+// convidavam a corrigir a errada. `buscarSugestoesSetores` continua: setor não ganhou
+// cadastro, e é o único uso restante do `CampoComSugestoes`.
 export async function buscarColaboradoresDoCampo(
   prefixo: string,
 ): Promise<SugestoesColaborador> {
@@ -570,18 +577,6 @@ export async function buscarColaboradoresDoCampo(
   } catch (err) {
     console.error('[buscarColaboradoresDoCampo] falha ao carregar sugestões:', err)
     return vazio
-  }
-}
-
-export async function buscarSugestoesColaboradores(
-  prefixo: string,
-): Promise<string[]> {
-  if (prefixo.trim().length < 2) return []
-  try {
-    return await sugestoesColaboradores(prefixo)
-  } catch (err) {
-    console.error('[buscarSugestoesColaboradores] falha nas sugestões:', err)
-    return []
   }
 }
 

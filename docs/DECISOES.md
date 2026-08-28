@@ -6392,3 +6392,46 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   custo foi dominado por **round-trip da API** (4 chamadas em lote), não pela agregação do trigger.
   Daí `MEDIR_ITENS_LOTE=2000` no comando registrado no relatório.
 - **Reversível?** n/a — nada ficou gravado.
+
+---
+
+## 2026-08-28 · Revisão de código da F37 · 15 achados, 15 aplicados (v1.42.1)
+
+- **Contexto:** a F37 passou por uma revisão adversarial DURANTE a fase (6 lentes, 3 achados
+  aplicados — §5.5 do `docs/RELATORIO-F37.md`), mas as **correções dela** e o commit `4e35d4e`
+  entraram depois e nunca foram revisados. Revisão `xhigh` de 10 ângulos sobre `3fa1dcd..HEAD`,
+  a fase inteira. Entrega avulsa fora de fase → **PATCH** pela regra 8 do `CLAUDE.md`.
+- **Decisão:** aplicar os 15 achados. Nenhum foi pulado. Os quatro que mudam comportamento visível
+  e mereciam alternativa registrada:
+  - **Reativação inline de colaborador desativado.** A action roda com guarda de OPERADOR e a
+    policy de UPDATE é de nível administrador (`0112`): o UPDATE atingia zero linhas **sem erro** e
+    a action respondia `reativado: true`. Havia duas saídas — afrouxar a policy, ou dizer a verdade.
+    Escolhida a segunda: a policy está certa (o roteiro `papeis_rls.sql` a prova de propósito na
+    asserção 3c-ter, e afrouxá-la daria ao operador o poder de renomear qualquer pessoa do
+    cadastro). A action passou a **contar as linhas devolvidas** (`.select('id')`) e devolve
+    `precisaAdminParaReativar`; o vínculo da movimentação acontece do mesmo jeito.
+  - **`jaCadastrado` passou a exigir cadastro ATIVO.** Sem isso, o homônimo desativado escondia o
+    botão "Cadastrar" e o operador ficava sem caminho nenhum — o beco que a criação inline existe
+    para fechar.
+  - **Migration `0115`** (`create or replace view`, sem alteração de dado): a fila de consolidação
+    filtrava com `btrim` de um argumento, que apara só o espaço ASCII. **Medido em produção ANTES
+    de aplicar** (com `values`, leitura pura): tab e CR viravam chave vazia — pendência somada pelo
+    resumo e invisível na lista, impossível de zerar; **NBSP não** — ele atravessa
+    `colaborador_chave` inteiro e virava linha de nome invisível que a consolidação recusaria no
+    check de nome vazio. Foi essa medição que trocou o filtro de `nome_chave <> ''` para um `btrim`
+    contra o conjunto completo (seis espaços ASCII + `chr(160)`). Aplicada em produção; 903 grupos
+    antes, 903 depois, `security_invoker` preservado.
+  - **`ordem` de tipo de item virou `optional()` no schema** em vez de `default(0)`, e a action
+    pergunta `== null`. Era a única forma de distinguir "não informou" de "informou zero" — e zero
+    é o topo da lista, não a ausência.
+- **Motivo:** todos são defeitos que falham **em silêncio** — uma tela que anuncia o que não fez, um
+  seletor em branco, uma contagem que ninguém consegue zerar, um formulário que reverte a própria
+  edição. Nenhum deles quebra build, teste ou lint; é por isso que a revisão existe.
+- **O ensaio ficou de fora, e é pendência declarada:** o projeto `estoque-ti-wap-ensaio` está na
+  migration **0109** — não tem a `0110` (F36) nem as `0112`–`0114` (F37), então a `0115` não pôde
+  ser aplicada lá (`function public.colaborador_chave(text) does not exist`). É deriva
+  **pré-existente**, anterior a esta revisão, e alinhar o ensaio é operação de deploy de outras
+  fases, fora do escopo de uma revisão de código. Fica no backlog.
+- **Reversível?** Código: `git revert` do commit da v1.42.1. Banco: reaplicar o corpo da view como
+  está na `0112` (o rollback lógico está escrito no cabeçalho da `0115`). Nenhum dado foi criado,
+  alterado ou apagado.

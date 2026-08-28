@@ -6,6 +6,72 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 28/08/2026 — Revisão de código da F37: 15 achados aplicados ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.42.1**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo
+`3fa1dcd..HEAD` — a F37 inteira, inclusive as correções que a própria fase aplicou depois da sua
+revisão interna e que ninguém tinha revisado. **15 achados, 15 aplicados.** Uma migration
+(`0115`, um `create or replace view` sem alteração de dado), zero dependência nova. Ata em
+[`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-28).
+
+- 🐛 **A reativação inline anunciava o que não fazia.** `criarColaboradorInline` roda com a guarda do
+  OPERADOR, mas a policy de UPDATE de `colaboradores` é de nível administrador (`0112`). Quando o
+  operador tentava reaproveitar um cadastro DESATIVADO, o PostgREST não devolvia erro nenhum — a RLS
+  simplesmente não enxergava a linha, o UPDATE atingia zero registros e a action respondia
+  `reativado: true`. A tela dizia "Fulano voltou ao cadastro" e o banco continuava com
+  `ativo = false`. O roteiro `papeis_rls.sql` já provava esse zero-linhas-sem-erro na asserção
+  3c-ter. Agora a action **conta as linhas devolvidas** e, quando não reativou, diz a verdade: a
+  movimentação sai vinculada do mesmo jeito e a tela pede um administrador.
+- 🐛 **O homônimo desativado deixava o operador sem saída.** A consulta que decide se o botão
+  "Cadastrar" aparece casava por chave **sem olhar `ativo`**. Com um homônimo desativado, ele não
+  aparecia na lista (que só traz ativos) E o botão sumia — não havia caminho nenhum na tela. É
+  exatamente o beco que a criação inline existe para fechar.
+- 🐛 **As sugestões do campo tinham encolhido de 500 para 50 linhas varridas, e sem ordem.** O campo
+  novo substituiu um que varria 500 (número medido: o prefixo de 2 letras mais populoso do histórico
+  devolve ~90 linhas). Nomes que apareciam antes sumiram, e duas cargas da mesma tela podiam oferecer
+  listas diferentes. Voltou aos 500, com ordem explícita.
+- 🐛 **O lançamento de item não sugeria quem só aparece no diário de itens.** As sugestões liam só
+  `movimentacoes`, e o campo agora serve também o diálogo de lançamento — cujo histórico vive em
+  `lancamentos_item`. Passou a ler as DUAS tabelas, como a fila de consolidação sempre leu.
+- 🐛 **Duas das três consultas do campo tinham o erro engolido.** Uma falha na consulta que pergunta
+  "isto já é cadastro?" devolvia "não é" como se fosse fato, e a tela oferecia cadastrar alguém já
+  cadastrado. Agora o erro vai para o log do servidor.
+- 🐛 **Ordem 0 num tipo de item novo era descartada em silêncio.** O `if (!ordem)` da action não
+  distinguia "não informou" de "informou zero" — quem digitava `0` querendo o topo da lista via o
+  tipo aparecer no fim. O schema passou a `optional()` e a pergunta virou `== null`.
+- 🐛 **Item com tipo desativado exibia um seletor em branco.** A tela do catálogo recebia só os tipos
+  ativos, então um item classificado com um tipo depois desativado não achava a opção
+  correspondente: nem "Sem tipo", nem o rótulo. A busca ainda o chamava de "sem tipo", e qualquer
+  clique no seletor o reclassificava sem ninguém ver o valor anterior. Agora o tipo atual aparece
+  sempre, marcado "(desativado)".
+- 🐛 **Os dois diálogos novos voltavam com os valores de ANTES da edição.** Eles limpavam o
+  formulário no FECHAMENTO, copiando a prop do render velho — o `router.refresh()` ainda não tinha
+  voltado. Depois de renomear, reabrir "Editar" mostrava o nome antigo, e salvar de novo revertia a
+  correção em silêncio. Passaram a semear o formulário na ABERTURA.
+- 🐛 **Apagar a "Ordem" ao editar um tipo jogava ele para o topo** — enquanto o texto de ajuda do
+  campo prometia o fim da lista. Em branco na edição agora significa "mantenha a ordem atual", e o
+  texto de ajuda diz isso.
+- 🐛 **A fila de consolidação contava grupo que não é pessoa nenhuma** (migration `0115`). O filtro
+  da `0112` usava `btrim` de um argumento, que apara só o espaço ASCII: um nome de tab ou CR
+  atravessava e virava uma pendência que o cartão "Nomes sem cadastro" somava e a lista não mostrava
+  — impossível de zerar. Medido em produção antes de corrigir, o NBSP se comportava diferente e pior
+  (virava linha de nome invisível que a consolidação recusava), e por isso o filtro final apara a
+  chave contra o conjunto completo de espaços. Em produção: 903 grupos antes, 903 depois.
+- 🔧 **O harness de medição religa o trigger mesmo interrompido.** Ele desliga um trigger de
+  validação de saldo durante a população e confiava só no `try/finally`, que **não roda** em Ctrl+C
+  nem no encerramento da máquina — foi exatamente o que aconteceu na primeira execução real
+  (relatório da F37). Ganhou handler de sinal.
+- 🧹 **Código morto removido.** Uma função de leitura de colaboradores exportada e **nunca chamada**
+  (que ainda por cima justificava um índice no comentário da `0112` — errata na `0115`), e o ramo
+  "colaborador" do campo de sugestões antigo, que ficou inalcançável quando as três telas migraram
+  para o campo novo: duas implementações da mesma coisa, uma delas sem uso.
+- 🧹 **A neutralização de curinga do ILIKE virou arquivo único.** Ela estava duplicada verbatim em
+  dois módulos de leitura, um deles declarando-se "espelho" do outro. É regra de segurança, não
+  estilo: tapar um buraco numa cópia e esquecer a outra não quebrava build nenhum. Há teste que
+  recusa a volta da cópia local.
+- 📄 **O `package-lock.json` estava com a versão anterior** na árvore de trabalho, fora do commit do
+  bump da F37.
+
 ## 28/08/2026 — F37: fundação — quem é a pessoa e o que é o item ✅ 🔒
 
 Fase (**v1.42.0**). Fundação para as duas fases seguintes do plano de agosto (os itens andando

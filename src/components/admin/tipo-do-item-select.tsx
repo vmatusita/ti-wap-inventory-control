@@ -35,11 +35,19 @@ export function TipoDoItemSelect({
   itemId: number
   itemNome: string
   tipoId: number | null
+  /** O catálogo INTEIRO de tipos (ativos e inativos) — ver `oferecidos` abaixo. */
   tipos: readonly TipoItem[]
 }) {
   const router = useRouter()
   const [valor, setValor] = useState(tipoId == null ? SEM_TIPO : String(tipoId))
   const [salvando, iniciar] = useTransition()
+
+  // Oferece os ATIVOS e, além deles, o tipo ATUAL do item mesmo se ele tiver sido
+  // desativado (revisão de 28/08/2026). Sem esta linha, um item classificado com um
+  // tipo que depois saiu de circulação não achava `SelectItem` correspondente e o
+  // Radix desenhava o gatilho EM BRANCO — nem "Sem tipo", nem o rótulo. Desativar um
+  // tipo tira ele das escolhas NOVAS; não apaga a classificação de quem já o usa.
+  const oferecidos = tipos.filter((t) => t.ativo || t.id === tipoId)
 
   function mudar(novo: string) {
     const anterior = valor
@@ -76,9 +84,9 @@ export function TipoDoItemSelect({
         <SelectItem value={SEM_TIPO}>
           <span className="text-muted-foreground">Sem tipo</span>
         </SelectItem>
-        {tipos.map((t) => (
+        {oferecidos.map((t) => (
           <SelectItem key={t.id} value={String(t.id)}>
-            {t.rotulo}
+            {t.ativo ? t.rotulo : `${t.rotulo} (desativado)`}
           </SelectItem>
         ))}
       </SelectContent>

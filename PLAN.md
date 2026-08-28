@@ -156,7 +156,7 @@ Prova empírica já rodada (transação desfeita contra produção): `"  João  
 | `src/lib/colaboradores/chave.ts` | `chaveColaborador(nome)` — espelho EXATO da função SQL |
 | `src/lib/colaboradores/chave-sql.test.ts` | guarda TS↔SQL: extrai a tabela de `translate` e a classe de espaço da migration vigente e compara com o TS, char a char; corpus de casos |
 | `src/lib/validators/colaborador.ts` | `colaboradorSchema`, `colaboradorInlineSchema` (molde `itemInlineSchema`), `atualizarColaboradorSchema`, `consolidarColaboradoresSchema` |
-| `src/lib/queries/colaboradores.ts` | `listarColaboradoresAdmin`, `listarColaboradoresAtivos`, `filaDeConsolidacao` (lê a view), `resumoDaConsolidacao` |
+| `src/lib/queries/colaboradores.ts` | `listarColaboradoresAdmin`, `filaDeConsolidacao` (lê a view), `resumoDaConsolidacao`, `sugestoesDoCampoColaborador` (cadastro + as DUAS tabelas de histórico), `resolverColaboradoresPorNome` — o `listarColaboradoresAtivos` previsto aqui foi escrito, ficou sem nenhum chamador e saiu na revisão de 28/08/2026: o campo do fluxo é servido por prefixo, não por lista inteira |
 | `src/lib/actions/colaboradores.ts` | `criarColaboradorInline` (`exigirEscrita`… ver §5), `criarColaborador`/`atualizarColaborador` (`exigirAdmin`), `consolidarColaboradores` (`exigirAdmin`) |
 | `src/lib/actions/movimentacoes.ts` | resolve as chaves do lote em UMA consulta e passa `colaborador_id` para `montarRow` |
 | `src/lib/actions/itens.ts` | idem em `lancarItens` |

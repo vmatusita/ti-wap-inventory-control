@@ -81,8 +81,14 @@ export async function criarTipoItem(input: {
 
   // Ordem: a informada, ou 10 acima da maior — para o tipo novo cair no fim da lista
   // sem que ninguém precise renumerar nada.
+  //
+  // `== null`, e NÃO `!ordem` (revisão de 28/08/2026): `0` é ordem válida — é o topo
+  // da lista — e o teste de veracidade a confundia com "não informou", mandando para
+  // o FIM, em silêncio, o tipo que alguém pediu para ficar em primeiro. O schema
+  // agora deixa o campo `optional()` em vez de `default(0)` justamente para os dois
+  // casos chegarem distinguíveis até aqui.
   let ordem = parsed.data.ordem
-  if (!ordem) {
+  if (ordem == null) {
     const { data: maior } = await supabase
       .from('tipos_item')
       .select('ordem')

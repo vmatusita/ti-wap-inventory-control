@@ -31,16 +31,26 @@ export const tipoItemSchema = z.object({
     .trim()
     .min(2, 'Informe o nome que aparece na tela')
     .max(60, 'Nome: no máximo 60 caracteres'),
-  ordem: z.coerce.number().int('Ordem inteira').min(0).max(999).default(0),
+  // OPCIONAL, não `.default(0)`. A diferença importa: a action decide a ordem
+  // automática ("10 acima da maior") quando o admin NÃO informa nada, e `0` é um
+  // valor legítimo — é o topo da lista. Com `.default(0)` os dois casos chegavam
+  // indistinguíveis, e o `if (!ordem)` da action descartava em silêncio o zero que
+  // alguém digitou de propósito (revisão de 28/08/2026).
+  ordem: z.coerce.number().int('Ordem inteira').min(0).max(999).optional(),
 })
 
 /**
  * Edição: o SLUG **não entra**. Slug gravado nunca muda — é a promessa que mantém
  * legível todo registro histórico que o cita. Rótulo, ordem e o liga/desliga, sim.
+ *
+ * Aqui a `ordem` é OBRIGATÓRIA, ao contrário da criação: editar sem mandar ordem
+ * nenhuma não tem leitura possível ("mantém a atual" é a tela que resolve, mandando
+ * a atual), e um `.default(0)` faria o campo apagado jogar o tipo para o topo.
  */
 export const atualizarTipoItemSchema = tipoItemSchema.omit({ slug: true }).extend({
   id: z.coerce.number().int().positive(),
   ativo: z.boolean(),
+  ordem: z.coerce.number().int('Ordem inteira').min(0).max(999),
 })
 
 /** Escolha do tipo na ficha do item: `null` é resposta válida (nasce sem tipo). */

@@ -16,13 +16,35 @@ export type TipoItemAdmin = TipoItem & {
   itens: number
 }
 
-/** Tipos ATIVOS, na ordem de exibição — para o select da ficha do item. */
+/** Tipos ATIVOS, na ordem de exibição — para quem só oferece escolha nova. */
 export async function listarTiposItemAtivos(): Promise<TipoItem[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tipos_item')
     .select('id, slug, rotulo, ativo, ordem')
     .eq('ativo', true)
+    .order('ordem', { ascending: true })
+    .order('rotulo', { ascending: true })
+  if (error) throw new Error(`Falha ao listar tipos de item: ${error.message}`)
+  return (data ?? []) as TipoItem[]
+}
+
+/**
+ * O catálogo INTEIRO (ativos e inativos), na ordem de exibição.
+ *
+ * É esta — e não `listarTiposItemAtivos` — que alimenta a coluna "Tipo" de
+ * `/admin/itens` (revisão de 28/08/2026). Com só os ativos, um item que aponta para
+ * um tipo DESATIVADO não achava opção correspondente no `Select` do Radix e o gatilho
+ * renderizava em BRANCO: nem "Sem tipo", nem o rótulo — e a busca por texto o
+ * classificava como "sem tipo", enquanto o selo "N itens ainda não têm tipo" não o
+ * contava. Quem monta a lista de ESCOLHA é o componente, que mostra o tipo inativo
+ * só enquanto ele for o valor atual daquele item.
+ */
+export async function listarTiposItem(): Promise<TipoItem[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('tipos_item')
+    .select('id, slug, rotulo, ativo, ordem')
     .order('ordem', { ascending: true })
     .order('rotulo', { ascending: true })
   if (error) throw new Error(`Falha ao listar tipos de item: ${error.message}`)

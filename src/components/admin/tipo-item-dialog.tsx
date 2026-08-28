@@ -47,9 +47,17 @@ export function TipoItemDialog({ tipo }: { tipo?: TipoItemAdmin }) {
 
   const valido = rotulo.trim().length >= 2 && (edicao || slug.trim().length >= 2)
 
+  // Semeia o formulário na ABERTURA, não no fechamento (revisão de 28/08/2026).
+  //
+  // Fechar-e-resetar parecia equivalente e não é: `salvar()` chama `mudarAberto(false)`
+  // ANTES de o `router.refresh()` trazer os dados novos, então o reset copiava a prop
+  // do render VELHO. Depois de renomear um tipo, reabrir "Editar" mostrava o nome
+  // anterior — e salvar de novo (para mexer só no liga/desliga, por exemplo) desfazia
+  // a edição em silêncio. Semeando na abertura, o formulário sempre nasce do que a
+  // tabela está exibindo naquele instante.
   function mudarAberto(v: boolean) {
     setAberto(v)
-    if (!v) {
+    if (v) {
       setRotulo(tipo?.rotulo ?? '')
       setSlug(tipo?.slug ?? '')
       setSlugEditado(false)
@@ -67,19 +75,28 @@ export function TipoItemDialog({ tipo }: { tipo?: TipoItemAdmin }) {
   }
 
   function salvar() {
+    // "Em branco" tem significados DIFERENTES nos dois modos, e o campo agora diz
+    // cada um deles (revisão de 28/08/2026). Na criação, em branco = "decida por
+    // mim" e a action põe 10 acima da maior — por isso `undefined`, e não `0`, que
+    // seria o TOPO da lista. Na edição, em branco = "não mexa", então mandamos a
+    // ordem atual: `Number('') || 0` mandava zero e jogava o tipo para o topo,
+    // contradizendo o próprio texto de ajuda do campo.
+    const ordemDigitada = ordem.trim()
+    const ordemParaCriar = ordemDigitada === '' ? undefined : Number(ordemDigitada)
+    const ordemParaEditar = ordemDigitada === '' ? (tipo?.ordem ?? 0) : Number(ordemDigitada)
     iniciar(async () => {
       try {
         const res = edicao
           ? await atualizarTipoItem({
               id: tipo!.id,
               rotulo: rotulo.trim(),
-              ordem: Number(ordem) || 0,
+              ordem: ordemParaEditar,
               ativo,
             })
           : await criarTipoItem({
               slug: slug.trim(),
               rotulo: rotulo.trim(),
-              ordem: Number(ordem) || 0,
+              ordem: ordemParaCriar,
             })
         if (!res.ok) {
           toast.error(res.erro ?? 'Não foi possível salvar o tipo.')
@@ -178,7 +195,11 @@ export function TipoItemDialog({ tipo }: { tipo?: TipoItemAdmin }) {
               inputMode="numeric"
               value={ordem}
               onChange={(e) => setOrdem(e.target.value.replace(/\D/g, ''))}
-              placeholder="deixe em branco para entrar no fim"
+              placeholder={
+                edicao
+                  ? 'deixe em branco para manter a ordem atual'
+                  : 'deixe em branco para entrar no fim'
+              }
               className="tabular-nums"
             />
           </div>

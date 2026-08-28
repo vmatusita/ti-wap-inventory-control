@@ -14,6 +14,10 @@ import {
   type RawAtivoResumo,
 } from '@/lib/queries/ativos'
 import { paginarTodos } from '@/lib/queries/relatorios/comum'
+import {
+  MIN_PREFIXO_SUGESTAO,
+  prefixoSeguro,
+} from '@/lib/queries/prefixo-busca'
 
 // Estado do ativo ANTES da movimentacao (usado no dialog de estorno — o ativo
 // volta a este estado). Gravado pelo trigger em `snapshot_anterior` (jsonb).
@@ -300,16 +304,10 @@ export async function ultimosAtivosMovimentadosDoOperador(
 const LINHAS_SUGESTAO = 500
 const MAX_SUGESTOES = 10
 
-// Prefixo mínimo. O proxy de action repete a guarda: 1 letra varreria a base
-// inteira à toa.
-const MIN_PREFIXO_SUGESTAO = 2
-
-// Neutraliza os curingas do LIKE/ILIKE do PostgREST (`%`, `_` e o `*` que ele
-// traduz para `%`) e o que quebra o parser da querystring. Sem isso, digitar
-// "%" listaria o histórico inteiro.
-function prefixoSeguro(prefixo: string): string {
-  return prefixo.trim().replace(/[%_*(),\\]/g, '')
-}
+// `prefixoSeguro` e `MIN_PREFIXO_SUGESTAO` moravam AQUI e foram copiados verbatim
+// para queries/colaboradores.ts na F37. Na revisão de 28/08/2026 as duas cópias
+// viraram uma só em `queries/prefixo-busca.ts`: o conjunto neutralizado é regra de
+// segurança do ILIKE, e manter duas listas era garantir que um dia elas divergiriam.
 
 async function sugestoesDeColuna(
   coluna: 'colaborador' | 'setor',
@@ -341,9 +339,11 @@ async function sugestoesDeColuna(
     .slice(0, MAX_SUGESTOES)
 }
 
-export async function sugestoesColaboradores(prefixo: string): Promise<string[]> {
-  return sugestoesDeColuna('colaborador', prefixo)
-}
+// `sugestoesColaboradores` foi removida na revisão de 28/08/2026 — o campo de
+// colaborador inteiro passou a `sugestoesDoCampoColaborador`
+// (queries/colaboradores.ts), que também traz o CADASTRO e lê as DUAS tabelas de
+// histórico. `sugestoesDeColuna` continua genérica de propósito: se um dia o
+// colaborador precisar do caminho simples de novo, ele está aqui inteiro.
 
 export async function sugestoesSetores(prefixo: string): Promise<string[]> {
   return sugestoesDeColuna('setor', prefixo)

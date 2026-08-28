@@ -43,6 +43,13 @@ export type CriarColaboradorResult = ActionResult & {
   id?: string
   nome?: string
   reativado?: boolean
+  /**
+   * O cadastro existe, está DESATIVADO e quem clicou não teve permissão para
+   * reativá-lo (a policy de UPDATE da 0112 é `e_admin()`; o operador só INSERE).
+   * A movimentação segue e sai vinculada — o que a tela precisa dizer é que a
+   * reativação depende de um administrador, em vez de anunciar que aconteceu.
+   */
+  precisaAdminParaReativar?: boolean
 }
 
 /**
@@ -104,14 +111,37 @@ export async function criarColaboradorInline(input: {
       // operador queria usar a pessoa, não criá-la duas vezes.
       return { ok: true, id: existente.id, nome: existente.nome }
     }
-    const { error: erroReativar } = await supabase
+    // ⚠ `.select('id')` NÃO é enfeite: é o que torna esta reativação verificável.
+    //
+    // A policy de UPDATE da 0112 é `e_admin()`, e esta action roda sob
+    // `exigirPapel(…, 'operador')`. Para um operador puro, o PostgREST não devolve
+    // erro nenhum — a RLS simplesmente não enxerga a linha e o UPDATE atinge ZERO
+    // registros (é exatamente o que a asserção 3c-ter de supabase/tests/papeis_rls.sql
+    // mede). Sem contar as linhas devolvidas, `erroReativar` vinha nulo e a action
+    // respondia `reativado: true` para uma reativação que nunca aconteceu — a tela
+    // dizia "voltou ao cadastro" e o banco continuava com `ativo = false`.
+    const { data: reativados, error: erroReativar } = await supabase
       .from('colaboradores')
       .update({ ativo: true })
       .eq('id', existente.id)
+      .select('id')
     if (erroReativar) {
       return {
         ok: false,
         erro: 'Este colaborador já existe, mas está desativado, e não foi possível reativá-lo. Reative-o em Administração → Colaboradores.',
+      }
+    }
+    if (!reativados || reativados.length === 0) {
+      // Cadastro existe e continua desativado. Devolvemos `ok` COM o id: o vínculo
+      // da movimentação é legítimo (`resolverColaboradoresPorNome` não filtra por
+      // `ativo`, e o histórico aponta para a pessoa certa), e travar o fluxo aqui
+      // seria punir o operador por uma permissão que ele não tem. O que muda é a
+      // frase: a tela pede um administrador em vez de anunciar o que não fez.
+      return {
+        ok: true,
+        id: existente.id,
+        nome: existente.nome,
+        precisaAdminParaReativar: true,
       }
     }
     revalidarColaboradores()

@@ -21,6 +21,10 @@
 --      o DONO — a única forma de ligar o passado é por CHAVE na leitura, nunca UPDATE.
 --   f  A VIEW v_colaboradores_textos agrupa por chave, soma ocorrências/grafias NO
 --      BANCO e atualiza ja_cadastrado/colaborador_id assim que o cadastro nasce.
+--      Desde a 0115 (revisão de 28/08/2026), prova também que nome só de tab/CR/NBSP
+--      NÃO vira grupo na fila (f3) e que a LISTA e o RESUMO contam o mesmo número de
+--      pendências (f4) — era essa igualdade que o grupo fantasma quebrava, e é ela
+--      que o operador vê no cartão "Nomes sem cadastro".
 --   g  tipos_item tem EXATAMENTE os 7 slugs do histórico, fone exibe "Fone de ouvido",
 --      o check de formato do slug recusa maiúscula/espaço, o unique de slug recusa
 --      duplicata.
@@ -84,6 +88,7 @@ declare
   v_rotulo          text;
   v_cnt             int;
   v_orfaos          int;
+  v_grupos_resumo   bigint;
   v_slugs_esperados text[];
   v_slugs_obtidos   text[];
 begin
@@ -293,6 +298,59 @@ begin
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'f2; '; raise warning '✗ f2 esperado ja_cadastrado=true e colaborador_id=%, obtido ja_cadastrado=% colaborador_id=%',
       v_colab_id2, coalesce(v_ja_cad::text, '(null)'), coalesce(v_colab_view_id::text, '(null)');
+  end if;
+
+  -- f3 (migration 0115, revisão de 28/08/2026) — GRUPO QUE NÃO É PESSOA NENHUMA
+  --     não entra na fila.
+  --
+  -- Por que isto merece asserção própria: o filtro da 0112 era
+  -- `btrim(coalesce(colaborador,'')) <> ''`, e `btrim` de UM argumento apara SÓ o
+  -- espaço ASCII. Um nome de tab/CR atravessava e virava grupo de chave VAZIA —
+  -- somado pelo resumo (`v_colaboradores_consolidacao`) e descartado pela lista, ou
+  -- seja, uma pendência que a tela mostrava e ninguém conseguia zerar. Com NBSP a
+  -- chave nem vazia ficava: virava linha de nome invisível que a consolidação
+  -- recusaria no check `colaboradores_nome_nao_vazio`.
+  --
+  -- Três inserts, um por caractere, e a asserção é sobre o TOTAL de grupos sem
+  -- pessoa na view inteira — que tem de ser ZERO mesmo com eles no acervo. Note que
+  -- as três linhas SÃO gravadas: a prova é que a view as ignora, não que o banco as
+  -- recuse (ele não recusa, e não é papel dele).
+  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F004', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (a, 'saida', E'\t', v_matriz, k_prof);
+
+  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F005', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (a, 'saida', E'\r\n', v_matriz, k_prof);
+
+  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F006', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (a, 'saida', chr(160), v_matriz, k_prof);
+
+  select count(*) into v_cnt from public.v_colaboradores_textos
+   where btrim(coalesce(nome_chave, ''),
+               ' ' || chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(160)) = '';
+  if v_cnt = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ f3 nome só de tab/CR/NBSP não vira grupo na fila (0 grupos sem pessoa, com as 3 linhas gravadas)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || 'f3; ';
+    raise warning '✗ f3 a fila tem % grupo(s) que não são pessoa nenhuma — o filtro da 0115 não está valendo', v_cnt;
+  end if;
+
+  -- f4 — a outra metade do mesmo defeito: a LISTA e o RESUMO têm de contar a MESMA
+  -- coisa. Era essa igualdade que o grupo fantasma quebrava, e é ela que o operador
+  -- enxerga (o cartão "Nomes sem cadastro" × as linhas da tabela).
+  select count(*) into v_cnt from public.v_colaboradores_textos where not ja_cadastrado;
+  select coalesce(grupos, 0) into v_grupos_resumo
+    from public.v_colaboradores_consolidacao where ja_cadastrado = false;
+  if v_cnt = coalesce(v_grupos_resumo, 0) then
+    v_ok := v_ok + 1;
+    raise notice '✓ f4 lista e resumo contam o mesmo número de grupos pendentes (%)', v_cnt;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || 'f4; ';
+    raise warning '✗ f4 lista diz % grupo(s) pendente(s) e o resumo diz % — números que a tela mostra lado a lado',
+      v_cnt, coalesce(v_grupos_resumo::text, '(null)');
   end if;
 
   -- =============================================================

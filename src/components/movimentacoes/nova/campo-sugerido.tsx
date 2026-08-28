@@ -3,10 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  buscarSugestoesColaboradores,
-  buscarSugestoesSetores,
-} from '@/lib/actions/movimentacoes'
+import { buscarSugestoesSetores } from '@/lib/actions/movimentacoes'
 
 // F10/M4 — colaborador e setor eram texto livre redigitado a cada movimentacao
 // ("Fulano da Silva" x "fulano silva"). Agora o campo sugere o que JA existe no
@@ -16,8 +13,14 @@ import {
 //
 // Debounce de 300ms e minimo de 2 caracteres, iguais aos do combobox de ativos;
 // o proxy do W1 repete a guarda de 2 chars do lado do servidor.
+//
+// F37 + revisão de 28/08/2026 — o `colaborador` SAIU deste mapa. O campo de
+// colaborador do wizard, da contrapartida e do diálogo de lançamento de item passou
+// a ser o `CampoColaborador`, que oferece o CADASTRO (F37 · D5) além do histórico:
+// nenhuma tela passava mais `campo="colaborador"` aqui, e a entrada morta mantinha
+// viva uma segunda implementação da mesma sugestão — a chance de alguém corrigir a
+// errada era metade. Setor continua, porque setor não ganhou cadastro.
 const BUSCA = {
-  colaborador: buscarSugestoesColaboradores,
   setor: buscarSugestoesSetores,
 } as const
 

@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { paginarTodos } from '@/lib/queries/relatorios/comum'
+import {
+  MIN_PREFIXO_SUGESTAO,
+  prefixoSeguro,
+} from '@/lib/queries/prefixo-busca'
 import { chaveColaborador, chavesDistintas } from '@/lib/colaboradores/chave'
 
 // Leituras do cadastro de pessoas (F37 · D5). Rota só do operador — usam o client do
@@ -60,19 +64,14 @@ const TETO_FILA = 500
 // número truncado com cara de certo. O `.order()` explícito é a outra metade da
 // correção: sem ordem total, duas páginas podem repetir ou pular linhas.
 
-/** Catálogo ativo, para o combobox do fluxo (nome + chave, o mínimo). */
-export async function listarColaboradoresAtivos(): Promise<Colaborador[]> {
-  const supabase = await createClient()
-  return paginarTodos<Colaborador>('Falha ao listar colaboradores', (from, to) =>
-    supabase
-      .from('colaboradores')
-      .select('id, nome, matricula, setor, filial_id, ativo, nome_chave')
-      .eq('ativo', true)
-      .order('nome', { ascending: true })
-      .order('id', { ascending: true })
-      .range(from, to),
-  )
-}
+// NÃO existe aqui um `listarColaboradoresAtivos`, e a ausência é decisão (revisão de
+// 28/08/2026). Ele existiu, exportado, e NUNCA teve um chamador: o campo do fluxo é
+// servido por `sugestoesDoCampoColaborador` (prefixo + teto de 8), não por uma lista
+// inteira baixada para o cliente. Código morto que ninguém percebe é ruim por si só;
+// pior, o comentário do índice `colaboradores_ativo_nome_idx` na migration 0112 o
+// citava como "a única consulta quente da tabela" — a errata está no cabeçalho da
+// 0115. O índice continua justificado, pelo `where ativo = true order by nome` de
+// `sugestoesDoCampoColaborador`.
 
 /** Cadastro completo + quantos registros cada pessoa já tem vinculados. */
 export async function listarColaboradoresAdmin(): Promise<ColaboradorAdmin[]> {
@@ -157,10 +156,11 @@ export async function filaDeConsolidacao(): Promise<TextoDeColaborador[]> {
 }
 
 /**
- * Os números que a tela diz na cara. Contados NO BANCO: `count` com `head: true` não
- * traz linha nenhuma, só o total — então nem o teto de 1.000 nem o teto da fila
- * acima influem no que é exibido. E o resumo diz se a LISTA foi cortada, para o
- * operador nunca confundir "é isso que existe" com "é isso que coube".
+ * Os números que a tela diz na cara. Somados NO BANCO, pela view
+ * `v_colaboradores_consolidacao` (0112) — nem o teto de 1.000 do PostgREST nem o
+ * `TETO_FILA` acima influem no que é exibido, porque a resposta tem no máximo DUAS
+ * linhas. E o resumo diz se a LISTA foi cortada, para o operador nunca confundir "é
+ * isso que existe" com "é isso que coube".
  */
 export async function resumoDaConsolidacao(): Promise<ResumoConsolidacao> {
   const supabase = await createClient()
@@ -249,14 +249,15 @@ export type SugestoesColaborador = {
   jaCadastrado: boolean
 }
 
-const MIN_PREFIXO = 2
 const TETO_SUGESTOES = 8
 
-/** Neutraliza os curingas do ILIKE do PostgREST — espelho de `prefixoSeguro`
- *  em queries/movimentacoes.ts. Sem isso, digitar "%" listaria o cadastro inteiro. */
-function prefixoSeguro(prefixo: string): string {
-  return prefixo.trim().replace(/[%_*(),\\]/g, '')
-}
+// Teto de linhas VARRIDAS por tabela de histórico. É o mesmo `LINHAS_SUGESTAO` do
+// caminho que este campo substituiu (`sugestoesDeColuna`, F10/M4), e não um número
+// novo: lá está medido que "o prefixo de 2 letras mais populoso do histórico devolve
+// ~90 linhas", e 500 é a folga que sobra disso. A primeira versão deste arquivo
+// varria 50 — abaixo do próprio caso medido —, o que fazia a lista perder nomes que
+// o campo antigo mostrava, sem nada na tela dizendo que o corte existia.
+const LINHAS_HISTORICO = 500
 
 /**
  * Alimenta o campo de colaborador do wizard e do lançamento de item.
@@ -265,18 +266,24 @@ function prefixoSeguro(prefixo: string): string {
  * continua sendo texto livre e a maior parte dos nomes ainda só existe no histórico
  * enquanto a consolidação não acontece. Esconder o histórico transformaria o campo
  * numa lista fechada, que é exatamente o que a ordem manda NÃO fazer.
+ *
+ * O histórico sai das DUAS tabelas que guardam nome digitado à mão — `movimentacoes`
+ * e `lancamentos_item` —, exatamente como a view `v_colaboradores_textos` as une.
+ * Ler só a primeira deixava o dialogo de lançamento de item sem sugerir as pessoas
+ * que só aparecem no diário de itens, que é justamente o campo mais exposto a grafia
+ * divergente (era um `<input>` cru até esta fase).
  */
 export async function sugestoesDoCampoColaborador(
   prefixo: string,
 ): Promise<SugestoesColaborador> {
   const vazio: SugestoesColaborador = { cadastrados: [], historico: [], jaCadastrado: false }
   const termo = prefixoSeguro(prefixo)
-  if (termo.length < MIN_PREFIXO) return vazio
+  if (termo.length < MIN_PREFIXO_SUGESTAO) return vazio
 
   const supabase = await createClient()
   const chave = chaveColaborador(prefixo)
 
-  const [doCadastro, doHistorico, exato] = await Promise.all([
+  const [doCadastro, deMovimentacoes, deLancamentos, exato] = await Promise.all([
     supabase
       .from('colaboradores')
       .select('nome')
@@ -289,12 +296,46 @@ export async function sugestoesDoCampoColaborador(
       .select('colaborador')
       .not('colaborador', 'is', null)
       .ilike('colaborador', `${termo}%`)
-      .limit(50),
-    supabase.from('colaboradores').select('id').eq('nome_chave', chave).maybeSingle(),
+      // Ordem explícita: sem ela o corte de `LINHAS_HISTORICO` pega um subconjunto
+      // ARBITRÁRIO, e duas cargas da mesma tela podem sugerir listas diferentes.
+      .order('colaborador')
+      .limit(LINHAS_HISTORICO),
+    supabase
+      .from('lancamentos_item')
+      .select('colaborador')
+      .not('colaborador', 'is', null)
+      .ilike('colaborador', `${termo}%`)
+      .order('colaborador')
+      .limit(LINHAS_HISTORICO),
+    // `ativo` entra no SELECT porque "já cadastrado" e "está no ar" são coisas
+    // diferentes: o índice único é sobre TODOS os cadastros, mas quem some da lista
+    // é só o desativado. Sem esta coluna, um homônimo DESATIVADO marcava
+    // `jaCadastrado = true`, o botão "Cadastrar" desaparecia e o operador ficava sem
+    // saída nenhuma na tela — o beco que `criarColaboradorInline` existe para fechar.
+    supabase
+      .from('colaboradores')
+      .select('id, ativo')
+      .eq('nome_chave', chave)
+      .maybeSingle(),
   ])
 
   if (doCadastro.error) {
     throw new Error(`Falha ao carregar sugestões: ${doCadastro.error.message}`)
+  }
+  // As outras três NÃO derrubam o campo (ele é texto livre e tem de continuar
+  // aceitando o que for digitado), mas o silêncio total mentia: um erro em `exato`
+  // devolvia `jaCadastrado = false` e a tela oferecia "Cadastrar" para alguém já
+  // cadastrado. Registrado no log do servidor, degradado no que dá para degradar.
+  for (const [rotulo, r] of [
+    ['movimentacoes', deMovimentacoes],
+    ['lancamentos_item', deLancamentos],
+    ['cadastro exato', exato],
+  ] as const) {
+    if (r.error) {
+      console.error(
+        `[sugestoesDoCampoColaborador] falha em ${rotulo}: ${r.error.message}`,
+      )
+    }
   }
 
   const cadastrados = ((doCadastro.data ?? []) as { nome: string }[]).map((r) => r.nome)
@@ -303,7 +344,11 @@ export async function sugestoesDoCampoColaborador(
   // Dedup pela MESMA chave do banco — assim "João Silva" e "joão  silva" não
   // aparecem como duas opções, e nenhuma grafia já cadastrada se repete na lista.
   const porChave = new Map<string, string>()
-  for (const linha of (doHistorico.data ?? []) as { colaborador: string | null }[]) {
+  const doHistorico = [
+    ...((deMovimentacoes.data ?? []) as { colaborador: string | null }[]),
+    ...((deLancamentos.data ?? []) as { colaborador: string | null }[]),
+  ]
+  for (const linha of doHistorico) {
     const valor = linha.colaborador?.trim()
     if (!valor) continue
     const k = chaveColaborador(valor)
@@ -316,6 +361,8 @@ export async function sugestoesDoCampoColaborador(
     historico: [...porChave.values()]
       .sort((a, b) => a.localeCompare(b, 'pt-BR'))
       .slice(0, TETO_SUGESTOES),
-    jaCadastrado: Boolean(exato.data?.id),
+    // Só o cadastro ATIVO conta como "já cadastrado": para o desativado a tela
+    // precisa continuar oferecendo o botão, que é o caminho da reativação.
+    jaCadastrado: Boolean(exato.data?.id) && exato.data?.ativo === true,
   }
 }

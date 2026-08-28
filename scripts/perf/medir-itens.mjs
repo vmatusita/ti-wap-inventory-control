@@ -740,6 +740,67 @@ async function limpar(triggerFoiDesligado) {
 }
 
 // ---------------------------------------------------------------------------
+// 9-bis. Limpeza por SINAL — porque `finally` não roda quando o processo morre
+// ---------------------------------------------------------------------------
+//
+// ISTO NÃO É PRECAUÇÃO TEÓRICA: aconteceu. `docs/RELATORIO-F37.md` registra a
+// primeira execução real interrompida (a máquina foi desligada no meio dos
+// patamares) com ~10 mil linhas populadas — "o processo morreu antes do finally",
+// e a limpeza teve de ser feita à MÃO, na janela `dev_destrutivo`, junto com o
+// religamento dos dois triggers de `lancamentos_item`.
+//
+// O `try/finally` do `main()` cobre erro; NÃO cobre Ctrl+C, `kill` nem o
+// encerramento da sessão — nesses casos o Node encerra sem desenrolar a pilha. E o
+// estado que fica para trás é o pior possível: um trigger de VALIDAÇÃO DE SALDO
+// desligado numa tabela do acervo, que é exatamente a guarda que o resto do sistema
+// supõe ligada.
+//
+// Por isso o estado que a limpeza precisa enxergar vive AQUI, no módulo, e não como
+// variável local do `main()`: o handler de sinal roda fora dele.
+//
+// Limite honesto: sinal entregue é sinal tratável. Queda de energia, `kill -9` e
+// certos encerramentos do Windows não avisam ninguém — para esses, a rede que resta
+// é a contagem ANTES do `main()`, que grita quando encontra sobra marcada.
+const estadoDaSessao = { triggerFoiDesligado: false }
+
+let sinalJaTratado = false
+
+async function limparPorSinal(sinal) {
+  if (sinalJaTratado) return
+  sinalJaTratado = true
+  log('')
+  log(`Recebido ${sinal} — interrompendo. O \`finally\` do main() não roda aqui, então`)
+  log('a limpeza é feita por este handler (religa o trigger e apaga o que foi marcado).')
+  try {
+    await limpar(estadoDaSessao.triggerFoiDesligado)
+    const depois = await contarMarcadas()
+    const sujo = depois.lancamentos_item !== 0 || depois.itens !== 0
+    log(
+      `Contagem DEPOIS da limpeza por sinal: lancamentos_item=${depois.lancamentos_item}, itens=${depois.itens}`,
+    )
+    if (sujo) {
+      log('ATENÇÃO GRAVE — O ENSAIO FICOU SUJO mesmo após a limpeza por sinal. Remova à mão.')
+    }
+    process.exit(sujo ? 1 : 130)
+  } catch (erro) {
+    log('')
+    log(`ATENÇÃO GRAVE — a limpeza por sinal FALHOU: ${descreverErro(erro)}`)
+    log(
+      `Limpe à mão: religue o trigger ${NOME_TRIGGER_VALIDACAO} em public.lancamentos_item ` +
+        `e apague as linhas marcadas ${MARCADOR} (ver "A GUARDA DE DELETE" no cabeçalho).`,
+    )
+    process.exit(1)
+  }
+}
+
+for (const sinal of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK']) {
+  // `void`: o handler é async e ninguém pode esperar por ele aqui — o processo só
+  // termina no `process.exit()` de dentro dele, o que é justamente o que segura o
+  // Node vivo tempo bastante para a limpeza acontecer.
+  process.on(sinal, () => void limparPorSinal(sinal))
+}
+
+// ---------------------------------------------------------------------------
 // 10. Orquestração
 // ---------------------------------------------------------------------------
 
@@ -770,7 +831,6 @@ async function main() {
   }
   log(`Contagem ANTES (linhas marcadas ${MARCADOR}): lancamentos_item=${antes.lancamentos_item}, itens=${antes.itens}`)
 
-  let triggerFoiDesligado = false
   const resultadoPatamares = []
   let erroFatal = null
   let paresCount = 0
@@ -789,9 +849,13 @@ async function main() {
     log(`  pares (item × filial) disponíveis: ${pares.length} (par quente = pares[0])`)
 
     if (DESLIGAR_TRIGGER_POPULACAO) {
-      log(`Desligando ${NOME_TRIGGER_VALIDACAO} para a população (opt-in, religa no finally)...`)
+      log(
+        `Desligando ${NOME_TRIGGER_VALIDACAO} para a população (opt-in, religa no finally OU no handler de sinal)...`,
+      )
       await consultar(`alter table public.lancamentos_item disable trigger ${NOME_TRIGGER_VALIDACAO};`)
-      triggerFoiDesligado = true
+      // Marca ANTES de qualquer outra coisa e no estado do MÓDULO: se um Ctrl+C
+      // chegar na linha seguinte, é esta marca que faz o handler religar o trigger.
+      estadoDaSessao.triggerFoiDesligado = true
     }
 
     let totalAtual = 0
@@ -823,7 +887,7 @@ async function main() {
     log('')
     log('Limpando o ensaio (obrigatório, inclusive em erro)...')
     try {
-      await limpar(triggerFoiDesligado)
+      await limpar(estadoDaSessao.triggerFoiDesligado)
     } catch (erroLimpeza) {
       // Se a limpeza em si falhar, isso é gritado mais abaixo (depois !== 0),
       // mas também aqui, imediatamente — é a pendência número um do relatório.

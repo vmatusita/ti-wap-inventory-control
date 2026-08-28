@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.42.1',
+    data: '2026-08-28',
+    titulo: 'A revisão do cadastro de pessoas e tipos de item',
+    mudancas: [
+      'Quando você tenta cadastrar alguém que já existe no cadastro mas está desativado, a tela agora diz a verdade. Antes ela avisava "voltou ao cadastro de colaboradores" e nada acontecia: reativar é coisa de administrador. Agora a mensagem explica isso, e a movimentação sai vinculada à pessoa certa do mesmo jeito.',
+      'O botão "Cadastrar" embaixo do campo Colaborador voltou a aparecer quando o nome digitado pertence a alguém desativado. Antes ele sumia e o nome também não aparecia na lista — não havia nada a fazer na tela.',
+      'A lista de nomes que aparece enquanto você digita voltou a olhar o histórico inteiro, e não só um pedaço dele: nomes que apareciam antes tinham sumido, e a lista podia mudar de uma abertura para outra. No lançamento de item ela passou a sugerir também quem só aparece no histórico de itens.',
+      'Em Administração → Itens, o item classificado com um tipo que foi desativado depois mostrava a coluna "Tipo" em branco — e um clique ali trocava o tipo sem ninguém ver qual era o anterior. Agora o tipo aparece, marcado como desativado.',
+      'Ao editar um colaborador ou um tipo de item, reabrir "Editar" mostrava os dados de antes da edição, e salvar de novo desfazia a correção. Os dois formulários passaram a abrir sempre com o que a lista está exibindo. Na edição de tipo, deixar a "Ordem na lista" em branco agora mantém a ordem atual, como o texto do campo promete.',
+      'O cartão "Nomes sem cadastro" podia mostrar uma pendência a mais que nunca aparecia na lista e não tinha como ser resolvida — quando alguém digitava só um espaço estranho no campo. Esses casos deixaram de contar como nome de gente.',
+    ],
+  },
+  {
     versao: '1.42.0',
     data: '2026-08-28',
     fase: 'F37',

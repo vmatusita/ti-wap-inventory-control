@@ -1,5 +1,5 @@
 import { listarItensAdmin } from '@/lib/queries/itens'
-import { listarTiposItemAtivos } from '@/lib/queries/tipos-item'
+import { listarTiposItem } from '@/lib/queries/tipos-item'
 import { ItemDialog } from '@/components/admin/item-dialog'
 import { ItensTabela } from '@/components/admin/itens-tabela'
 
@@ -13,7 +13,11 @@ export const metadata = {
 export default async function AdminItensPage() {
   const [itens, tipos] = await Promise.all([
     listarItensAdmin(),
-    listarTiposItemAtivos(),
+    // O catálogo INTEIRO de tipos, inclusive os desativados: um item que aponta para
+    // um tipo desativado precisa continuar exibindo o rótulo dele na coluna “Tipo”.
+    // Com só os ativos, o select saía EM BRANCO e a busca chamava o item de “sem
+    // tipo” (revisão de 28/08/2026). Quem escolhe o que é oferecido é o componente.
+    listarTiposItem(),
   ])
   const semTipo = itens.filter((i) => i.tipo_id == null).length
 

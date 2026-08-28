@@ -63,9 +63,17 @@ export function ColaboradorDialog({
 
   const valido = nome.trim().length >= 2
 
+  // Semeia o formulário na ABERTURA, não no fechamento (revisão de 28/08/2026).
+  //
+  // Fechar-e-resetar parecia equivalente e não é: `salvar()` chama `mudarAberto(false)`
+  // ANTES de o `router.refresh()` trazer os dados novos, então o reset copiava a prop
+  // do render VELHO. Depois de corrigir "Joao Silva" para "João Vitor Silva", reabrir
+  // "Editar" mostrava o nome anterior — e salvar de novo revertia a correção sem que
+  // ninguém tivesse pedido. Semeando na abertura, o formulário sempre nasce do que a
+  // tabela está exibindo naquele instante.
   function mudarAberto(v: boolean) {
     setAberto(v)
-    if (!v) {
+    if (v) {
       setNome(colaborador?.nome ?? '')
       setMatricula(colaborador?.matricula ?? '')
       setSetor(colaborador?.setor ?? '')

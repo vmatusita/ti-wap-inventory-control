@@ -108,6 +108,16 @@ export function CampoColaborador({
         // texto da movimentação, e assim as duas colunas contam a mesma história.
         if (res.nome) onChange(res.nome)
         setSug((s) => ({ ...s, jaCadastrado: true }))
+        if (res.precisaAdminParaReativar) {
+          // A pessoa EXISTE e continua desativada: quem clicou não tem permissão de
+          // reativar (isso é de administrador). A movimentação sai vinculada do
+          // mesmo jeito — o que a frase não pode fazer é anunciar uma reativação
+          // que não aconteceu.
+          toast.info(
+            `${res.nome} já está no cadastro, mas desativado. A movimentação sai vinculada a ela; peça a um administrador para reativá-la em Administração → Colaboradores.`,
+          )
+          return
+        }
         toast.success(
           res.reativado
             ? `${res.nome} voltou ao cadastro de colaboradores.`
