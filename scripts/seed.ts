@@ -31,6 +31,9 @@
 // Uso: `npm run db:seed` (exige as guardas do .env.local — ver scripts/env-guard.ts).
 import { fakerPT_BR as faker } from '@faker-js/faker'
 import seedrandom from 'seedrandom'
+// F37/D5 — a MESMA normalizacao da coluna gerada colaboradores.nome_chave (migration
+// 0112). O seed resolve o vinculo do jeito que a Server Action resolve: pela chave.
+import { chaveColaborador } from '../src/lib/colaboradores/chave'
 import {
   assertGuardsAndGetConfig,
   createAdminClient,
@@ -170,6 +173,39 @@ const SETORES = [
   'Fiscal',
   'PCP',
 ]
+// F37/D5 — o POOL de colaboradores fictícios. Antes cada saída sorteava um
+// `faker.person.fullName()` novo e independente: ~1.400 movimentações produziam ~1.400
+// pessoas diferentes, cada uma aparecendo uma vez só. Isso nunca pareceu com a
+// realidade (a mesma pessoa troca de equipamento várias vezes) e, pior, deixava a
+// tela de consolidação sem nada para consolidar no ambiente de desenvolvimento.
+//
+// Lista FIXA e escrita à mão, não gerada: assim ela não consome nada do gerador e o
+// sorteio continua sendo UMA chamada ao faker por colaborador — a sequência do
+// `seedrandom` (que decide status, filial e proporções, e é o que o `sumario()`
+// confere) fica byte a byte como estava.
+//
+// Nomes 100% inventados (CLAUDE.md regra 2). As três últimas linhas repetem nomes com
+// grafias diferentes DE PROPÓSITO — é o material que a fila de /admin/colaboradores
+// existe para juntar, e sem ele a tela não teria como ser exercitada em dev.
+const NOMES_COLABORADORES = [
+  'Ana Beatriz Nogueira', 'Bruno Salgado Pires', 'Carla Menezes Dutra',
+  'Diego Ferraz Lopes', 'Eduarda Campos Vilela', 'Fábio Rezende Amaral',
+  'Gabriela Tavares Rocha', 'Henrique Bastos Moreira', 'Isabela Quintela Faria',
+  'João Vitor Peçanha', 'Karina Aloísio Braga', 'Leandro Duarte Fontes',
+  'Mariana Coutinho Alves', 'Natália Bittencourt Rios', 'Otávio Marinho Serra',
+  'Paula Andrade Queiroz', 'Rafael Nunes Portela', 'Sabrina Vasconcelos Lima',
+  'Thiago Barcelos Cunha', 'Vanessa Furtado Neves', 'William Gouveia Prado',
+  'Yasmin Trindade Barros', 'Alberto Siqueira Mota', 'Bianca Fontoura Braz',
+  'Caio Menegatti Rangel', 'Débora Sampaio Vidal', 'Emerson Paiva Toledo',
+  'Fernanda Loureiro Assis', 'Gustavo Rabelo Xavier', 'Helena Drumond Ferraz',
+  'Igor Sarmento Bulhões', 'Juliana Espíndola Mattos', 'Kleber Antunes Vieira',
+  'Larissa Bonfim Guedes', 'Murilo Pacheco Tostes', 'Nádia Vergara Solano',
+  'Osvaldo Menezes Brandão', 'Priscila Camargo Estrela', 'Ricardo Valadares Pinto',
+  'Simone Aguiar Peixoto',
+  // As grafias divergentes da MESMA pessoa (o caso que a consolidação junta):
+  'ana beatriz nogueira', 'JOAO VITOR PECANHA', 'Mariana  Coutinho  Alves',
+]
+
 const MEMORIAS = ['8 GB', '16 GB', '32 GB']
 const ARMAZENAMENTOS = ['256 GB SSD', '512 GB SSD', '1 TB SSD']
 const PROCESSADORES = ['Intel i5', 'Intel i7', 'Ryzen 5', 'Ryzen 7']
@@ -201,19 +237,22 @@ type TipoLanc = 'entrada' | 'saida' | 'reserva' | 'liberacao' | 'ajuste'
 // Catalogo ~25 itens — nomes GENERICOS de produto (regra 2: nada real). Plano
 // §3.8: memorias separadas por DDR e tamanho; "kit teclado+mouse" e item proprio.
 // `ordem` = posicao no array (o admin ajusta depois).
-const ITENS_CATALOGO: { nome: string; grupo: GrupoItem }[] = [
-  { nome: 'Fone de ouvido', grupo: 'acessorio' },
-  { nome: 'Headset', grupo: 'acessorio' },
-  { nome: 'Mochila para notebook', grupo: 'acessorio' },
-  { nome: 'Teclado USB', grupo: 'acessorio' },
-  { nome: 'Mouse USB', grupo: 'acessorio' },
+// F37/D7 — `tipo` e o SLUG de public.tipos_item (migration 0114). Opcional de
+// proposito: item sem tipo tem de existir no seed, senao o selo "N itens ainda nao
+// tem tipo" de /admin/itens nunca apareceria em desenvolvimento.
+const ITENS_CATALOGO: { nome: string; grupo: GrupoItem; tipo?: string }[] = [
+  { nome: 'Fone de ouvido', grupo: 'acessorio', tipo: 'fone' },
+  { nome: 'Headset', grupo: 'acessorio', tipo: 'fone' },
+  { nome: 'Mochila para notebook', grupo: 'acessorio', tipo: 'mochila' },
+  { nome: 'Teclado USB', grupo: 'acessorio', tipo: 'teclado' },
+  { nome: 'Mouse USB', grupo: 'acessorio', tipo: 'mouse' },
   { nome: 'Kit teclado + mouse', grupo: 'acessorio' },
-  { nome: 'Mousepad', grupo: 'acessorio' },
+  { nome: 'Mousepad', grupo: 'acessorio', tipo: 'mousepad' },
   { nome: 'Hub USB-C', grupo: 'acessorio' },
   { nome: 'Adaptador USB-C', grupo: 'acessorio' },
-  { nome: 'Carregador Type-C', grupo: 'acessorio' },
-  { nome: 'Carregador micro-USB', grupo: 'acessorio' },
-  { nome: 'Cabo HDMI', grupo: 'acessorio' },
+  { nome: 'Carregador Type-C', grupo: 'acessorio', tipo: 'carregador' },
+  { nome: 'Carregador micro-USB', grupo: 'acessorio', tipo: 'carregador' },
+  { nome: 'Cabo HDMI', grupo: 'acessorio', tipo: 'cabo' },
   { nome: 'Webcam', grupo: 'acessorio' },
   { nome: 'Suporte para notebook', grupo: 'acessorio' },
   { nome: 'SSD 256 GB', grupo: 'componente' },
@@ -408,7 +447,11 @@ type Ativo = {
 
 function novoColaborador(): { colaborador: string; setor: string; chamado: string | null } {
   return {
-    colaborador: faker.person.fullName(),
+    // UMA chamada ao faker, como era com `faker.person.fullName()`: o que muda é a
+    // fonte do nome, não quantos números o gerador consome. A sequência do
+    // `seedrandom` — que decide status, filial e as proporções conferidas pelo
+    // `sumario()` — não é tocada.
+    colaborador: faker.helpers.arrayElement(NOMES_COLABORADORES),
     setor: pick(SETORES),
     chamado: chance(0.6) ? `CH${randInt(10000, 99999)}` : null,
   }
@@ -670,6 +713,9 @@ async function inserirMovimentacoes(
   db: ReturnType<typeof createAdminClient>,
   ativos: Ativo[],
   criadoPor: string,
+  // F37/D5 — chave normalizada -> id do cadastro. Nome fora do mapa grava id nulo,
+  // exatamente como acontece na Server Action: e o modelo hibrido reproduzido no seed.
+  vinculos: Map<string, string>,
 ): Promise<number> {
   let total = 0
   let done = 0
@@ -689,6 +735,9 @@ async function inserirMovimentacoes(
         filial_id: filialCorrente, // origem, no caso da transferencia
         filial_destino_id: s.tipo === 'transferencia' ? s.destinoFilialId : null,
         colaborador: s.colaborador ?? null,
+        // F37/D5 — o vínculo, resolvido pela chave do próprio texto. Nome que não
+        // virou cadastro fica com id nulo, exatamente como o histórico real.
+        colaborador_id: vinculos.get(chaveColaborador(s.colaborador)) ?? null,
         setor: s.setor ?? null,
         chamado: s.chamado ?? null,
         chamado_fornecedor:
@@ -801,15 +850,77 @@ async function inserirCasosDevolucaoFornecedor(
   console.log('[seed] 2 casos de devolucao ao fornecedor (1 sem substituto, 1 com substituto por troca) + 1 importado sem service tag.')
 }
 
+// ============================ COLABORADORES (F37 · D5) =============================
+
+// Quantos nomes do pool viram CADASTRO. Os outros ficam só como texto, de propósito:
+// é assim que o ambiente de desenvolvimento reproduz o estado real do dia da F37 —
+// histórico inteiro em texto, cadastro nascendo aos poucos — e é o que dá conteúdo
+// para a fila de /admin/colaboradores. Cadastrar todos deixaria a tela sempre vazia.
+const FRACAO_CADASTRADA = 0.7
+
+async function inserirColaboradores(
+  db: ReturnType<typeof createAdminClient>,
+  filialIdBySlug: Map<string, number>,
+  criadoPor: string,
+): Promise<Map<string, string>> {
+  // Só as grafias CANÔNICAS entram (as variantes de grafia do fim da lista existem
+  // para a fila juntar, não para virar cadastro duplicado — e o índice único as
+  // recusaria de qualquer forma).
+  const canonicos = NOMES_COLABORADORES.filter((n) => n === n.trim() && !/\s\s/.test(n) && n !== n.toUpperCase() && n !== n.toLowerCase())
+  const quantos = Math.round(canonicos.length * FRACAO_CADASTRADA)
+  const filiais = [...filialIdBySlug.values()]
+  const rows = canonicos.slice(0, quantos).map((nome, i) => ({
+    nome,
+    setor: SETORES[i % SETORES.length],
+    filial_id: filiais[i % filiais.length],
+    criado_por: criadoPor,
+  }))
+  // `upsert` com `ignoreDuplicates` e leitura DEPOIS, em vez de `insert().select()`:
+  // a guarda de "banco vazio" do `main()` confere `ativos`, não esta tabela, e uma
+  // rodada em cima de um cadastro que sobrou pararia tudo no índice único. Assim o
+  // passo é idempotente, e o mapa sai completo — inclusive dos que já existiam.
+  const { error } = await db
+    .from('colaboradores')
+    .upsert(rows, { onConflict: 'nome_chave', ignoreDuplicates: true })
+  if (error) throw new Error(`Insert de colaboradores falhou: ${error.message}`)
+
+  const { data, error: lErr } = await db.from('colaboradores').select('id, nome_chave')
+  if (lErr) throw new Error(`Nao consegui reler colaboradores: ${lErr.message}`)
+  const porChave = new Map<string, string>()
+  for (const r of (data ?? []) as { id: string; nome_chave: string }[]) {
+    porChave.set(r.nome_chave, r.id)
+  }
+  console.log(
+    `[seed] ${porChave.size} colaboradores cadastrados (de ${canonicos.length} nomes do pool) — os demais ficam só em texto, para a fila de consolidacao ter o que juntar.`,
+  )
+  return porChave
+}
+
 // ============================ ITENS POR QUANTIDADE (F3B) =============================
 
 async function inserirItens(
   db: ReturnType<typeof createAdminClient>,
 ): Promise<ItemSeed[]> {
-  const rows = ITENS_CATALOGO.map((c, i) => ({ nome: c.nome, grupo: c.grupo, ordem: i + 1 }))
+  // F37/D7 — o tipo de cada item, resolvido pelo SLUG contra o seed da migration 0114.
+  // Nem todo item tem tipo, e isso é de propósito: é assim que o catálogo real está,
+  // e é o que faz o selo "N itens ainda não têm tipo" aparecer em /admin/itens.
+  const { data: tipos, error: tErr } = await db.from('tipos_item').select('id, slug')
+  if (tErr) throw new Error(`Nao consegui ler tipos_item: ${tErr.message}`)
+  const idPorSlug = new Map(
+    ((tipos ?? []) as { id: number; slug: string }[]).map((t) => [t.slug, t.id]),
+  )
+  const rows = ITENS_CATALOGO.map((c, i) => ({
+    nome: c.nome,
+    grupo: c.grupo,
+    ordem: i + 1,
+    tipo_id: c.tipo ? (idPorSlug.get(c.tipo) ?? null) : null,
+  }))
   const { data, error } = await db.from('itens').insert(rows).select('id, nome, grupo')
   if (error) throw new Error(`Insert de itens falhou: ${error.message}`)
-  console.log(`[seed] ${data?.length ?? 0} itens (catalogo) inseridos.`)
+  const comTipo = rows.filter((r) => r.tipo_id != null).length
+  console.log(
+    `[seed] ${data?.length ?? 0} itens (catalogo) inseridos — ${comTipo} com tipo, ${rows.length - comTipo} sem.`,
+  )
   return (data ?? []) as ItemSeed[]
 }
 
@@ -881,7 +992,7 @@ function gerarLancamentos(
         const abertos = [...reservaAberta.entries()].filter(([, n]) => n > 0)
         if (abertos.length && chance(0.5)) chamado = pick(abertos)[0]
         saldo -= q
-        eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'saida', quantidade: q, chamado, colaborador: chance(0.4) ? faker.person.fullName() : null, observacao: null })
+        eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'saida', quantidade: q, chamado, colaborador: chance(0.4) ? faker.helpers.arrayElement(NOMES_COLABORADORES) : null, observacao: null })
       } else if (r < 0.65) {
         const q = grupo === 'acessorio' ? randInt(5, 40) : randInt(4, 16)
         saldo += q
@@ -890,7 +1001,7 @@ function gerarLancamentos(
         const q = randInt(1, 6)
         const ch = novoChamado()
         reservaAberta.set(ch, (reservaAberta.get(ch) ?? 0) + q)
-        eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'reserva', quantidade: q, chamado: ch, colaborador: chance(0.4) ? faker.person.fullName() : null, observacao: null })
+        eventos.push({ item_id: itemId, filial_id: filialId, tipo: 'reserva', quantidade: q, chamado: ch, colaborador: chance(0.4) ? faker.helpers.arrayElement(NOMES_COLABORADORES) : null, observacao: null })
       } else if (r < 0.92) {
         const abertos = [...reservaAberta.entries()].filter(([, n]) => n > 0)
         if (abertos.length) {
@@ -927,6 +1038,7 @@ async function inserirLancamentos(
   db: ReturnType<typeof createAdminClient>,
   rows: LancRow[],
   criadoPor: string,
+  vinculos: Map<string, string>,
 ): Promise<number> {
   let total = 0
   for (const r of rows) {
@@ -937,6 +1049,7 @@ async function inserirLancamentos(
       quantidade: r.quantidade,
       chamado: r.chamado,
       colaborador: r.colaborador,
+      colaborador_id: vinculos.get(chaveColaborador(r.colaborador)) ?? null,
       data: r.data,
       observacao: r.observacao,
       criado_por: criadoPor,
@@ -1650,7 +1763,8 @@ async function main() {
   const ativos = gerarAtivos(filialIdBySlug)
 
   await inserirAtivos(db, ativos)
-  const totalMov = await inserirMovimentacoes(db, ativos, criadoPor)
+  const vinculos = await inserirColaboradores(db, filialIdBySlug, criadoPor)
+  const totalMov = await inserirMovimentacoes(db, ativos, criadoPor, vinculos)
   await reforcarPendenciaSemPatrimonio(db, ativos)
   await inserirCasosDevolucaoFornecedor(db, filialIdBySlug, criadoPor)
 
@@ -1659,7 +1773,7 @@ async function main() {
   const garantidos = casosGarantidos(itens, filialIdBySlug)
   const pular = new Set(garantidos.map((r) => `${r.item_id}:${r.filial_id}`))
   const lancRows = [...garantidos, ...gerarLancamentos(itens, filialIdBySlug, pular)]
-  const totalLanc = await inserirLancamentos(db, lancRows, criadoPor)
+  const totalLanc = await inserirLancamentos(db, lancRows, criadoPor, vinculos)
   const totalAnot = await inserirAnotacoes(db, criadoPor)
 
   // F21: trilha de auditoria ficticia (a aba "Auditoria" de /admin/usuarios).

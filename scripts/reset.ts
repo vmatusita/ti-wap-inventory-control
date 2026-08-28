@@ -73,14 +73,32 @@ async function main() {
     .gte('quando', EPOCH)
   if (eventoErr) throw new Error(`Falha ao apagar eventos_admin: ${eventoErr.message}`)
 
+  // colaboradores (F37): as pessoas ficticias que o seed cadastra. FORA da RPC, pelo
+  // MESMO motivo de `eventos_admin` acima — e por um segundo, decisivo: a RPC
+  // `resetar_dados_ficticios` e uma funcao EXISTENTE, e a F37 e aditiva (nenhuma funcao
+  // existente e recriada). Aqui funciona porque a RPC ja apagou `movimentacoes` e
+  // `lancamentos_item`, que sao quem referencia esta tabela: quando chegamos, nenhuma FK
+  // aponta mais para ca. `colaboradores` nao tem trigger de guarda, entao o `.delete()`
+  // do service role passa direto.
+  //
+  // `tipos_item` NAO e apagada, de proposito: os 7 slugs vem do SEED DA MIGRATION 0114,
+  // nao do seed ficticio — sao vocabulario do sistema, da mesma familia de `motivos` e
+  // `filiais`, que este script tambem preserva. Apaga-los deixaria o banco sem o
+  // vocabulario que o checklist da devolucao precisa.
+  const { count: colabCount, error: colabErr } = await db
+    .from('colaboradores')
+    .delete({ count: 'exact' })
+    .gte('created_at', EPOCH)
+  if (colabErr) throw new Error(`Falha ao apagar colaboradores: ${colabErr.message}`)
+
   console.log(
     `[reset] apagados: ${n.anotacoes ?? 0} anotacoes, ${n.lancamentos_item ?? 0} lancamentos_item, ` +
       `${n.pendencias_item ?? 0} pendencias_item, ${n.termos_gerados ?? 0} termos_gerados, ` +
       `${n.movimentacoes ?? 0} movimentacoes, ${n.ativos ?? 0} ativos, ${n.itens ?? 0} itens, ` +
-      `${eventoCount ?? 0} eventos_admin.`,
+      `${eventoCount ?? 0} eventos_admin, ${colabCount ?? 0} colaboradores.`,
   )
   console.log(
-    '[reset] preservados: filiais, motivos, profiles (contas, com cargo) e operador_filiais (vinculos de escrita).',
+    '[reset] preservados: filiais, motivos, tipos_item (vocabulario da 0114), profiles (contas, com cargo) e operador_filiais (vinculos de escrita).',
   )
 }
 
