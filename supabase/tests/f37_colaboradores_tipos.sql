@@ -341,12 +341,26 @@ begin
   -- f4 — a outra metade do mesmo defeito: a LISTA e o RESUMO têm de contar a MESMA
   -- coisa. Era essa igualdade que o grupo fantasma quebrava, e é ela que o operador
   -- enxerga (o cartão "Nomes sem cadastro" × as linhas da tabela).
+  --
+  -- O nome abaixo existe para a asserção não ser `0 = 0`. Neste ponto do roteiro o
+  -- único grupo de nome de gente (`Fulano ZZF37`) JÁ ganhou cadastro no f2, e num
+  -- banco recém-migrado do CI não há mais nada: sem esta linha, os dois lados
+  -- valeriam zero e o teste passaria mesmo com a view quebrada. Ele é o grupo
+  -- PENDENTE que os dois lados têm de enxergar.
+  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F007', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (a, 'saida', 'Ciclano ZZF37 Pendente', v_matriz, k_prof);
+
   select count(*) into v_cnt from public.v_colaboradores_textos where not ja_cadastrado;
   select coalesce(grupos, 0) into v_grupos_resumo
     from public.v_colaboradores_consolidacao where ja_cadastrado = false;
-  if v_cnt = coalesce(v_grupos_resumo, 0) then
+  if v_cnt >= 1 and v_cnt = coalesce(v_grupos_resumo, 0) then
     v_ok := v_ok + 1;
-    raise notice '✓ f4 lista e resumo contam o mesmo número de grupos pendentes (%)', v_cnt;
+    raise notice '✓ f4 lista e resumo contam o mesmo número de grupos pendentes (%, e não zero dos dois lados)', v_cnt;
+  elsif v_cnt < 1 then
+    -- Não é "passou": é o teste avisando que perdeu o poder de medir.
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || 'f4; ';
+    raise warning '✗ f4 nenhum grupo pendente na fila — o caso do teste sumiu, e a igualdade viraria 0 = 0';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'f4; ';
     raise warning '✗ f4 lista diz % grupo(s) pendente(s) e o resumo diz % — números que a tela mostra lado a lado',
