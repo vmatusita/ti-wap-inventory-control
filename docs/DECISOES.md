@@ -6364,3 +6364,31 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
 - **Regra que fica para quem escrever roteiro daqui em diante:** duas movimentações do MESMO ativo
   na MESMA transação precisam de `created_at` explícito e distinto.
 - **Reversível?** sim — são dois valores literais.
+
+## 2026-08-28 · F37 · O ensaio foi restaurado pelo MCP, a medição começou e foi interrompida
+
+- **Contexto:** a curva de desempenho do D6 ficou como pendência nº 1 porque o projeto de ensaio
+  estava `INACTIVE` e o `restore` pela Management API crua é recusado pelo classificador. No fim da
+  sessão o **MCP do Supabase** apareceu, e `restore_project` foi **aceito** — o projeto subiu.
+- **O que foi feito antes de confiar em qualquer número:** conferido que as três funções medidas
+  (`rel_saldo_itens`, `rel_mov_itens`, `valida_lancamento_item`) têm **md5 idêntico** no ensaio e em
+  produção — sem isso a curva mediria outro sistema; e conferido que o ensaio **declara
+  `desenvolvimento`** em `public.ambiente`, que é a terceira guarda do harness (a única que não
+  depende de lista mantida à mão).
+- **O harness rodou pela primeira vez:** smoke de 2.000 linhas — populou em 7,1 s, mediu 6 coisas e
+  **limpou sozinho** (0 marcadas antes, 0 depois). A execução dos três patamares foi **interrompida**
+  a pedido do Johnny (máquina sendo desligada), com ~10 mil linhas populadas.
+- **Decisão:** parar, **limpar o ensaio à mão** e deixar a curva para o início da próxima fase.
+- **A limpeza foi conferida, não presumida:** o processo morreu **antes** do `finally`, então a
+  limpeza automática não rodou. Feita à mão na janela `estoque.dev_destrutivo` (sem ela a
+  `guarda_acervo` recusa o DELETE em `lancamentos_item`). Resultado: **0 linhas marcadas
+  `PERF-F37`**, totais de volta a **23 lançamentos e 6 itens** (os mesmos de antes), e os dois
+  triggers de `lancamentos_item` **HABILITADOS** — a opção de desligar o de validação é opt-in e não
+  foi usada. Nenhum JSON de curva foi gravado.
+- **O ensaio ficou ATIVO de propósito:** desligá-lo de novo custaria outro `restore` na próxima
+  sessão. O plano gratuito o pausa sozinho por inatividade, então a escolha é reversível sem ação
+  de ninguém.
+- **Achado que já sobrou da tentativa:** popular 2.000 linhas custou 7,1 s com o trigger LIGADO, e o
+  custo foi dominado por **round-trip da API** (4 chamadas em lote), não pela agregação do trigger.
+  Daí `MEDIR_ITENS_LOTE=2000` no comando registrado no relatório.
+- **Reversível?** n/a — nada ficou gravado.

@@ -272,19 +272,42 @@ teste — é fazê-lo medir o que se propôs a medir, em vez de medir um uuid.
 
 ### 6.1 O que não deu para fazer, e por quê
 
-A curva dos três patamares exige um banco onde se possa **escrever 500 mil linhas**. Não havia um:
+A curva dos três patamares exige um banco onde se possa **escrever 500 mil linhas**. Durante quase
+toda a fase não havia um: o projeto de **ensaio** estava `INACTIVE`, `POST /restore` pela Management
+API crua é **recusado pelo classificador**, produção é **proibida em hipótese nenhuma** (§C.2), e não
+há Docker nem CLI local.
 
-| peça | estado |
+**No fim da sessão isso destravou pela metade, e a metade importa:**
+
+| o que aconteceu | resultado |
 |---|---|
-| projeto de **ensaio** (`sgmvldiizsrjbxzzpmhh`) | **INACTIVE**; `POST /restore` **recusado pelo classificador** (tentado nesta sessão) |
-| produção | **proibida em hipótese nenhuma** (§C.2 da ordem) |
-| Docker / `psql` / Supabase CLI local | ausentes |
+| O **MCP do Supabase** apareceu na sessão e `restore_project` foi **ACEITO** | ensaio subiu (`INACTIVE` → `COMING_UP` → `ACTIVE_HEALTHY`) |
+| Conferência de que a medida seria **transferível** | as três funções medidas têm **md5 IDÊNTICO** no ensaio e em produção — `rel_saldo_itens`, `rel_mov_itens`, `valida_lancamento_item` |
+| Guarda de identidade do harness | o ensaio **declara `desenvolvimento`** em `public.ambiente` — a terceira guarda passou de verdade |
+| **Primeira execução real do harness** (smoke de 2.000 linhas) | populou, mediu 6 coisas e **limpou 100%** (0 marcadas antes, 0 depois) |
+| Os três patamares | **INTERROMPIDOS** — a máquina precisou ser desligada com ~10 mil linhas populadas |
 
-**A curva é a pendência número um da fase.** O harness está escrito, guardado e pronto:
+**A curva continua sendo a pendência número um**, mas o que era um bloqueio virou um comando. Para a
+próxima fase, com o ensaio já no ar:
 
 ```bash
-MEDIR_ITENS_CONFIRM=sim MEDIR_ITENS_REF=<ref-do-ensaio> node scripts/perf/medir-itens.mjs
+MEDIR_ITENS_CONFIRM=sim \
+MEDIR_ITENS_REF=sgmvldiizsrjbxzzpmhh \
+NEXT_PUBLIC_SUPABASE_URL=https://sgmvldiizsrjbxzzpmhh.supabase.co \
+MEDIR_ITENS_LOTE=2000 \
+node scripts/perf/medir-itens.mjs
 ```
+
+> ⚠ **O ensaio ficou LIMPO, e isso foi conferido — não presumido.** O processo foi morto **antes**
+> do `finally` do harness, então a limpeza automática **não rodou**; ela foi feita à mão, na janela
+> `estoque.dev_destrutivo` (sem ela a `guarda_acervo` recusa o DELETE). Depois: **0 linhas marcadas
+> `PERF-F37`**, e os totais de volta ao que eram antes — **23 lançamentos e 6 itens**. Os dois
+> triggers de `lancamentos_item` seguem **HABILITADOS** (a opção de desligar o de validação é
+> opt-in e não foi usada). Nenhum JSON de curva foi gravado — a medição não chegou lá.
+>
+> **O que a interrupção já ensinou, e vale para quem retomar:** popular 2.000 linhas levou **7,1 s**
+> com o trigger ligado, e o custo foi dominado por **round-trip da API**, não pela agregação —
+> 4 chamadas em lote. É por isso que `MEDIR_ITENS_LOTE=2000` está no comando acima.
 
 ### 6.2 As guardas do harness — provadas, não só escritas
 
@@ -422,8 +445,11 @@ Vale dizer sem rodeio, porque é a diferença entre "está no ar" e "está fazen
 
 ## 9. Pendências que a fase deixa nomeadas
 
-1. **A curva de desempenho dos três patamares** (§6.1). Bloqueada pelo projeto de ensaio pausado —
-   restaurá-lo é ação do Johnny, e depois disso é um comando só.
+1. **A curva de desempenho dos três patamares** (§6.1) — **a primeira coisa a fazer na próxima
+   fase.** Já não está bloqueada: o ensaio está **no ar**, o harness **rodou de verdade** num smoke
+   de 2.000 linhas (populou, mediu e limpou sozinho), a transferibilidade da medida está provada
+   (md5 idêntico das três funções) e o comando exato está no §6.1. Falta só rodá-lo até o fim — a
+   execução foi interrompida por desligamento da máquina, e o ensaio ficou limpo e conferido.
 2. **`scripts/import/carga.ts`** (carga única do go-live, F4) não grava `colaborador_id`. Não é
    defeito: é ferramenta de go-live, fora do escopo desta ordem, e o vínculo daquelas linhas se
    resolve por chave na leitura como o de todo o histórico.

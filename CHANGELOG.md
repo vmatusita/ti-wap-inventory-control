@@ -39,9 +39,11 @@ recriada, nenhum registro histórico foi alterado.** Ata em
   código sem quebrar histórico, e há guarda TS↔SQL que derruba o `npm run test` se os dois lados
   divergirem. **`fone` passou a exibir "Fone de ouvido"** nos dois lados; nenhum código gravado
   mudou.
-- 📏 **A medição antes de otimizar (D6).** O harness `scripts/perf/medir-itens.mjs` está escrito
-  e guardado, mas **a curva dos três patamares não foi levantada**: o projeto de ensaio está
-  pausado e produção é proibida para ele. O que foi medido é a **âncora do volume de hoje**, só
+- 📏 **A medição antes de otimizar (D6).** O harness `scripts/perf/medir-itens.mjs` está escrito,
+  guardado e **rodou de verdade** (smoke de 2.000 linhas: populou, mediu e limpou sozinho) — mas
+  **a curva dos três patamares não foi levantada**, porque a execução completa foi interrompida.
+  Fica como a primeira tarefa da próxima fase, e já não é um bloqueio: o projeto de ensaio foi
+  restaurado e está no ar, limpo e conferido. O que foi medido é a **âncora do volume de hoje**, só
   leitura ([`docs/perf/f37-ancora-producao.json`](docs/perf/f37-ancora-producao.json)) — e ela já
   diz algo: com 30 lançamentos a agregação custa ~1–2 ms, e todo o tempo observado é conexão
   fria. **Zero otimização entrou.**
