@@ -128,8 +128,15 @@ comment on column public.colaboradores.nome_chave is
 comment on column public.colaboradores.filial_id is
   'Filial de referência da pessoa. É ATRIBUTO, não escopo de escrita: criar/editar colaborador não passa por vínculo de filial (operador_filiais).';
 
+-- O índice único NÃO é otimização: ele É o mecanismo de deduplicação — sem ele a
+-- tabela aceitaria "João Silva" e "JOAO SILVA" como duas pessoas, que é o problema
+-- que ela existe para resolver.
 create unique index colaboradores_nome_chave_uidx on public.colaboradores (nome_chave);
-create index colaboradores_filial_idx on public.colaboradores (filial_id) where filial_id is not null;
+
+-- Este casa EXATAMENTE a única consulta quente da tabela — `listarColaboradoresAtivos`
+-- faz `where ativo = true order by nome`, que é o campo de colaborador do fluxo
+-- inteiro. Não há índice por `filial_id`: a tela filtra filial em memória sobre a
+-- lista já carregada, então um índice ali seria peso sem leitor (mesma régua da 0113).
 create index colaboradores_ativo_nome_idx on public.colaboradores (ativo, nome);
 
 -- ---------------------------------------------------------------------------

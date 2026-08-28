@@ -84,7 +84,10 @@ alter table public.itens
 comment on column public.itens.tipo_id is
   'Tipo do item (F37 · D7), ANULÁVEL de propósito: o catálogo existente nasce sem tipo e ninguém é obrigado a preencher. A F39 usa o tipo para dizer no termo "um carregador" em vez de "Fone WAAW 10 Energy" (D8); item sem tipo simplesmente não entra por nome.';
 
-create index itens_tipo_idx on public.itens (tipo_id) where tipo_id is not null;
+-- SEM ÍNDICE em `itens.tipo_id`, pela mesma régua da 0113: `itens` é tabela
+-- PRÉ-EXISTENTE, nenhuma consulta desta fase filtra por `tipo_id` (a tela cruza os
+-- tipos em memória, com 18 itens no catálogo real) e a fase é proibida de otimizar.
+-- Quando houver consulta que o justifique, ele entra — medido.
 
 alter table public.tipos_item enable row level security;
 
