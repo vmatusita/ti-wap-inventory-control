@@ -401,6 +401,25 @@ colunas que só existem depois dele.
 
 ---
 
+---
+
+## 8-bis. O que muda na operação AMANHÃ (e o que só muda depois de alguém agir)
+
+Vale dizer sem rodeio, porque é a diferença entre "está no ar" e "está fazendo efeito":
+
+- **`colaboradores` em produção está VAZIA.** O híbrido está no ar, mas enquanto não houver
+  cadastro **nenhum registro novo sai com vínculo** — a chave não tem em que casar. Isso é o
+  desenho, não uma falha: a fila de `/admin/colaboradores` tem **903 nomes** esperando, e o primeiro
+  gesto útil é consolidar uma leva pequena e conferir.
+- **O que já mudou sozinho:** o campo de colaborador passou a sugerir o histórico nos três pontos
+  (antes o lançamento de item não sugeria nada), `fone` virou "Fone de ouvido" em toda tela, e
+  `/admin/itens` ganhou a coluna Tipo com o aviso de quantos itens faltam classificar (hoje, **os
+  18**).
+- **O que continua exatamente igual:** registrar movimentação. Nenhum campo virou obrigatório,
+  nenhum texto deixou de ser aceito.
+
+---
+
 ## 9. Pendências que a fase deixa nomeadas
 
 1. **A curva de desempenho dos três patamares** (§6.1). Bloqueada pelo projeto de ensaio pausado —
