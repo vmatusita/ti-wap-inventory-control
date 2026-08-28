@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      _bkp_relatorios_gerados_f6a: {
+        Row: {
+          dados: Json | null
+          filial_id: number | null
+          gerado_em: string | null
+          gerado_por: string | null
+          id: string | null
+          periodo_ate: string | null
+          periodo_de: string | null
+          versao: number | null
+        }
+        Insert: {
+          dados?: Json | null
+          filial_id?: number | null
+          gerado_em?: string | null
+          gerado_por?: string | null
+          id?: string | null
+          periodo_ate?: string | null
+          periodo_de?: string | null
+          versao?: number | null
+        }
+        Update: {
+          dados?: Json | null
+          filial_id?: number | null
+          gerado_em?: string | null
+          gerado_por?: string | null
+          id?: string | null
+          periodo_ate?: string | null
+          periodo_de?: string | null
+          versao?: number | null
+        }
+        Relationships: []
+      }
       ambiente: {
         Row: {
           criado_em: string
@@ -204,6 +237,57 @@ export type Database = {
           },
         ]
       }
+      colaboradores: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string
+          filial_id: number | null
+          id: string
+          matricula: string | null
+          nome: string
+          nome_chave: string | null
+          setor: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por: string
+          filial_id?: number | null
+          id?: string
+          matricula?: string | null
+          nome: string
+          nome_chave?: string | null
+          setor?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string
+          filial_id?: number | null
+          id?: string
+          matricula?: string | null
+          nome?: string
+          nome_chave?: string | null
+          setor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "colaboradores_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "colaboradores_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eventos_admin: {
         Row: {
           acao: string
@@ -341,6 +425,7 @@ export type Database = {
           id: number
           nome: string
           ordem: number
+          tipo_id: number | null
         }
         Insert: {
           ativo?: boolean
@@ -350,6 +435,7 @@ export type Database = {
           id?: never
           nome: string
           ordem?: number
+          tipo_id?: number | null
         }
         Update: {
           ativo?: boolean
@@ -359,8 +445,17 @@ export type Database = {
           id?: never
           nome?: string
           ordem?: number
+          tipo_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "itens_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_item"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kits_modelos: {
         Row: {
@@ -401,6 +496,7 @@ export type Database = {
         Row: {
           chamado: string | null
           colaborador: string | null
+          colaborador_id: string | null
           created_at: string
           criado_por: string
           data: string
@@ -416,6 +512,7 @@ export type Database = {
         Insert: {
           chamado?: string | null
           colaborador?: string | null
+          colaborador_id?: string | null
           created_at?: string
           criado_por: string
           data?: string
@@ -431,6 +528,7 @@ export type Database = {
         Update: {
           chamado?: string | null
           colaborador?: string | null
+          colaborador_id?: string | null
           created_at?: string
           criado_por?: string
           data?: string
@@ -444,6 +542,20 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["tipo_lancamento"]
         }
         Relationships: [
+          {
+            foreignKeyName: "lancamentos_item_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_item_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "v_colaboradores_textos"
+            referencedColumns: ["colaborador_id"]
+          },
           {
             foreignKeyName: "lancamentos_item_criado_por_fkey"
             columns: ["criado_por"]
@@ -501,6 +613,7 @@ export type Database = {
           chamado: string | null
           chamado_fornecedor: string | null
           colaborador: string | null
+          colaborador_id: string | null
           created_at: string
           criado_por: string
           data: string
@@ -525,6 +638,7 @@ export type Database = {
           chamado?: string | null
           chamado_fornecedor?: string | null
           colaborador?: string | null
+          colaborador_id?: string | null
           created_at?: string
           criado_por: string
           data?: string
@@ -549,6 +663,7 @@ export type Database = {
           chamado?: string | null
           chamado_fornecedor?: string | null
           colaborador?: string | null
+          colaborador_id?: string | null
           created_at?: string
           criado_por?: string
           data?: string
@@ -589,6 +704,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_pendencias"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "v_colaboradores_textos"
+            referencedColumns: ["colaborador_id"]
           },
           {
             foreignKeyName: "movimentacoes_criado_por_fkey"
@@ -945,8 +1074,47 @@ export type Database = {
           },
         ]
       }
+      tipos_item: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: number
+          ordem: number
+          rotulo: string
+          slug: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: never
+          ordem?: number
+          rotulo: string
+          slug: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: never
+          ordem?: number
+          rotulo?: string
+          slug?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
+      v_colaboradores_textos: {
+        Row: {
+          colaborador_id: string | null
+          filial_id: number | null
+          grafia_exemplo: string | null
+          grafias: number | null
+          ja_cadastrado: boolean | null
+          nome_chave: string | null
+          ocorrencias: number | null
+        }
+        Relationships: []
+      }
       v_conflitos_filiais: {
         Row: {
           ativo_id: string | null
@@ -1157,6 +1325,7 @@ export type Database = {
         Args: { p_patrimonio: string; p_service_tag: string }
         Returns: string
       }
+      colaborador_chave: { Args: { p_nome: string }; Returns: string }
       criar_compra_lote: {
         Args: { p_criado_por: string; p_itens: Json }
         Returns: {
@@ -1380,6 +1549,10 @@ export type Database = {
           p_tipo: Database["public"]["Enums"]["tipo_movimentacao"]
         }
         Returns: Database["public"]["Enums"]["status_ativo"]
+      }
+      status_tem_detentor: {
+        Args: { p: Database["public"]["Enums"]["status_ativo"] }
+        Returns: boolean
       }
       termo_ancora_coerente: {
         Args: { p_ativo_ids: string[]; p_movimentacao_ids: string[] }
