@@ -343,7 +343,8 @@ ter cometido e revertido.
 | 4 | Contagens do acervo **relidas**: idênticas às de antes |
 | 5 | `npm run db:types` regenerado (`--project-id`, Management API) e commitado |
 | 6 | Roteiros SQL rodados contra o banco real (§5.3) |
-| 7 | `lint` + `test` + `build` limpos; commit e tag `v1.42.0` |
+| 7 | `lint` + `test` + `build` limpos; commit, tag anotada `v1.42.0` e push |
+| 8 | Deploy da Vercel; **smoke pós-deploy: 101 OK · 1 aviso · 0 falha**, com as duas rotas novas conferidas **pelo conteúdo** — `/admin/colaboradores` (marcador "Nomes digitados que ainda não têm cadastro", 1,2 MB de HTML: é a fila de 903 grupos renderizando) e `/admin/tipos-item`. O único aviso é pré-existente e alheio à fase (`kits_modelos` · RLS não comprovada porque não há kit cadastrado) |
 
 **Ordem migration → deploy respeitada:** o SQL entrou antes do código, porque o código novo lê
 colunas que só existem depois dele.
