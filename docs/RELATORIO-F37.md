@@ -375,10 +375,16 @@ colunas que só existem depois dele.
    novos — **nenhuma ocorrência**, porque eles reusam os primitivos do shadcn e as classes exatas do
    `itens-tabela.tsx`, que já vive nos dois temas. Isso torna a regressão de tema improvável, **não
    impossível**: alinhamento, quebra de linha e contraste real continuam por conferir.
-6. **A consolidação em lote nunca foi executada com dados reais.** A fila foi medida (903 grupos,
+6. **`npm run db:seed` e `npm run db:reset` não foram executados.** Pela mesma razão do harness: as
+   guardas do `env-guard.ts` recusam produção, e não há outro banco. As mudanças nos dois scripts
+   (o pool de nomes, o cadastro de 70% deles, o `tipo_id` no catálogo, a limpeza de `colaboradores`
+   fora da RPC) passam por `tsc` e `lint`, e a lógica foi conferida por leitura — mas **nenhuma
+   linha delas rodou**. Primeira execução no ensaio deve conferir: o `sumario()` continua dentro da
+   tolerância de ±3pp, e `colaboradores` fica vazia depois do reset.
+7. **A consolidação em lote nunca foi executada com dados reais.** A fila foi medida (903 grupos,
    1.420 registros) e a action foi lida e tipada, mas ninguém clicou em "Cadastrar N selecionados"
    em produção. A primeira execução real deve ser feita com poucas linhas marcadas.
-7. **O comportamento com mais de 500 grupos na fila não foi observado.** A tela avisa que a lista
+8. **O comportamento com mais de 500 grupos na fila não foi observado.** A tela avisa que a lista
    foi cortada e os números do resumo vêm somados do banco — mas o caso de 903 grupos (que é o real)
    não foi visto renderizado.
 
