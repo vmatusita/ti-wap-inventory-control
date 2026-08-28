@@ -37,6 +37,9 @@
 --   10  o caminho "Faltante" é byte a byte: mesmos slugs, pendência pelo trigger
 --   11  grants das três RPCs novas: authenticated sim; anon e service_role não
 --   12  idempotência: resolver duas vezes não re-resolve NEM duplica lançamento
+--   13  o ESTORNO desfaz o conjunto: sem os inversos RECUSA; com eles, o item volta
+--   14  as 10 funções que a fase prometeu não tocar saíram byte a byte (md5), e
+--       nenhum valor novo entrou em tipo_lancamento
 --
 -- ⚠ O QUE ELE **NÃO** PROVA. O caso 3 é estrutural + de conjunto de travas, não uma
 -- reprodução de deadlock: deadlock exige DUAS sessões concorrentes, e um roteiro de
@@ -674,13 +677,112 @@ begin
   end if;
 
   -- =========================================================================
+  -- 13 — O ESTORNO DESFAZ O CONJUNTO (§B.5)
+  -- =========================================================================
+  -- Uma entrega que leva 1 item, e o estorno dela: os dois têm de voltar.
+  select public.criar_movimentacao_com_itens(
+    jsonb_build_array(
+      jsonb_build_object('ativo_id', v_ativo4, 'tipo', 'saida', 'motivo', 'novo_colaborador',
+                         'data', current_date::text, 'colaborador', 'Fulano ZZF38 Um',
+                         'colaborador_id', v_colab::text)
+    ),
+    jsonb_build_array(
+      jsonb_build_object('indice_movimentacao', 0, 'item_id', v_itemB, 'tipo', 'saida',
+                         'quantidade', 3, 'data', current_date::text,
+                         'colaborador_id', v_colab::text)
+    ),
+    k_admin
+  ) into v_ret;
+  v_mov := ((v_ret -> 'movimentacoes') ->> 0)::uuid;
+
+  select estoque into v_est0 from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+
+  -- 13a: estorno SEM a lista dos inversos tem de RECUSAR (nunca meio estorno).
+  begin
+    perform public.estornar_movimentacao_com_itens(v_mov, 'Estorno sem itens — roteiro F38',
+                                                   '[]'::jsonb, k_admin);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '13a_MEIO_ESTORNO; ';
+    raise warning '✗ 13a o estorno passou deixando o lançamento de item de pé';
+  exception when check_violation then
+    v_ok := v_ok + 1;
+    raise notice '✓ 13a estorno sem os inversos dos itens foi RECUSADO — nunca meio estorno';
+  end;
+
+  -- 13b: com o inverso, estorna e o estoque volta.
+  select id into v_lanc from public.lancamentos_item
+   where movimentacao_id = v_mov and estorna_id is null;
+
+  select public.estornar_movimentacao_com_itens(
+    v_mov, 'Estorno com itens — roteiro F38',
+    jsonb_build_array(jsonb_build_object(
+      'estorna_id', v_lanc::text, 'item_id', v_itemB, 'filial_id', v_f1,
+      'tipo', 'retorno', 'quantidade', 3, 'colaborador_id', v_colab::text,
+      'observacao', 'Estorno: roteiro F38')),
+    k_admin
+  ) into v_ret;
+
+  select estoque into v_est1 from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+
+  if (v_ret ->> 'itens')::int = 1 and v_est1 = v_est0 + 3 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 13b o estorno devolveu o item à prateleira junto com o equipamento (%→%)', v_est0, v_est1;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '13b; ';
+    raise warning '✗ 13b esperava estoque +3 e 1 inverso; veio %→% e %', v_est0, v_est1, v_ret ->> 'itens';
+  end if;
+
+  if (select status from public.ativos where id = v_ativo4) = 'em_estoque' then
+    v_ok := v_ok + 1; raise notice '✓ 13c o ativo voltou ao estado anterior (aplicar_movimentacao intocada)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '13c; ';
+    raise warning '✗ 13c o ativo não voltou ao estado anterior';
+  end if;
+
+  -- =========================================================================
+  -- 14 — AS FUNÇÕES QUE ESTA FASE PROMETEU NÃO TOCAR
+  -- =========================================================================
+  select count(*) into v_n from (values
+    ('aplicar_movimentacao',      'd2010a896dabc442a04cfe2f72c7b068'),
+    ('guarda_acervo',             '0829c62705d936370e95eb6e42b67c4f'),
+    ('rel_saldo_itens',           '552a9f0b9a2527cadd62770d2d1a90d2'),
+    ('rel_mov_itens',             '02cfff1692e6549fd983036637300cf2'),
+    ('rel_estoque_asof',          '817f81d9f52b7694f2c1ae48899bc6f8'),
+    ('status_apos_movimentacao',  '69a73abfcfe13d7b2560bb6908c09a72'),
+    ('status_tem_detentor',       '551c37d163ecd06fbf9c70fdb7f6945b'),
+    ('transferir_item',           'da0a511f3f57e11017a43be46ffa4b72'),
+    ('criar_compra_lote',         '58533fd3d3011eb527065c9660c847a1'),
+    ('devolver_ao_fornecedor',    'a7641d50a19e252141fc762117b687e2')
+  ) as esperado(nome, md5)
+  join pg_proc p on p.proname = esperado.nome
+  join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+  where md5(pg_get_functiondef(p.oid)) <> esperado.md5;
+
+  if v_n = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 14 as 10 funções que a F38 prometeu não tocar saíram BYTE A BYTE (md5 conferido)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '14; ';
+    raise warning '✗ 14 % função(ões) que deveriam sair byte a byte mudaram de corpo', v_n;
+  end if;
+
+  -- E nenhum valor novo de enum (a ordem proíbe nominalmente).
+  select count(*) into v_n from unnest(enum_range(null::public.tipo_lancamento));
+  if v_n = 6 then
+    v_ok := v_ok + 1; raise notice '✓ 14b tipo_lancamento continua com 6 valores — nenhum enum novo';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '14b; ';
+    raise warning '✗ 14b tipo_lancamento tem % valores, esperava 6', v_n;
+  end if;
+
+  -- =========================================================================
   -- 11 — GRANTS das RPCs novas
   -- =========================================================================
   for v_def in
     select unnest(array[
       'public.criar_movimentacao_com_itens(jsonb,jsonb,uuid)',
       'public.resolver_pendencias_item_com_lancamentos(uuid[],text,text,jsonb,uuid)',
-      'public.reabrir_pendencias_item_com_estornos(uuid[],text,jsonb,uuid)'
+      'public.reabrir_pendencias_item_com_estornos(uuid[],text,jsonb,uuid)',
+      'public.estornar_movimentacao_com_itens(uuid,text,jsonb,uuid)'
     ])
   loop
     if has_function_privilege('authenticated', v_def, 'execute')
@@ -708,9 +810,10 @@ begin
    where n.nspname = 'public' and p.prosecdef
      and p.proname in ('criar_movimentacao_com_itens', 'rel_saldo_colaborador',
                        'resolver_pendencias_item_com_lancamentos',
-                       'reabrir_pendencias_item_com_estornos');
+                       'reabrir_pendencias_item_com_estornos',
+                       'estornar_movimentacao_com_itens');
   if v_n = 0 then
-    v_ok := v_ok + 1; raise notice '✓ 11f as quatro funções novas são SECURITY INVOKER';
+    v_ok := v_ok + 1; raise notice '✓ 11f as cinco funções novas são SECURITY INVOKER';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '11f; ';
     raise warning '✗ 11f % função(ões) nova(s) virou definer — a autorização saiu das policies', v_n;

@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
-import { hojeISO } from '@/lib/format'
 import {
   loteComItensSchema,
   estornoActionSchema,
@@ -37,7 +36,8 @@ import {
   type SugestoesColaborador as SugestoesColaboradorQuery,
 } from '@/lib/queries/colaboradores'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
-import type { StatusAtivo } from '@/lib/dominio'
+import { planejarEstorno } from '@/lib/itens/estorno'
+import type { StatusAtivo, TipoLancamento } from '@/lib/dominio'
 import type { Json } from '@/lib/types/database'
 
 // Re-export dos tipos do CONTRATO §1.5 (OS-F10): o fluxo de movimentação roda em
@@ -535,20 +535,55 @@ export async function estornarMovimentacao(input: {
   const aut = await exigirEscrita(supabase, ativo.filial_id)
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
-  const { error: insertErr } = await supabase.from('movimentacoes').insert({
-    ativo_id: mov.ativo_id,
-    tipo: 'estorno',
-    estorno_de: mov.id,
-    data: hojeISO(),
-    filial_id: ativo.filial_id,
-    observacao: parsed.data.observacao ?? null,
-    criado_por: aut.uid,
+  // F38 · §B.5 — o estorno passa a desfazer O CONJUNTO. Se a movimentação carregou
+  // periféricos (0116), estornar sem tocá-los deixaria o acessório fora da
+  // prateleira e na conta da pessoa para um evento que o sistema passou a dizer que
+  // não aconteceu. Os inversos são calculados por `planejarEstorno` — a mesma
+  // função pura que o estorno avulso de item usa desde a F3B — e gravados pela RPC
+  // na MESMA transação. Se algum não puder ser gravado, a RPC recusa o estorno
+  // inteiro: nunca meio estorno.
+  const { data: itensDaMov, error: itensErr } = await supabase
+    .from('lancamentos_item')
+    .select('id, item_id, filial_id, tipo, quantidade, chamado, observacao, colaborador, colaborador_id')
+    .eq('movimentacao_id', mov.id)
+    .is('estorna_id', null)
+  if (itensErr) return { ok: false, erro: traduzErroBanco(itensErr.message, itensErr.code) }
+
+  const estornos = (itensDaMov ?? []).map((l) => {
+    const plano = planejarEstorno(
+      {
+        tipo: l.tipo as TipoLancamento,
+        quantidade: l.quantidade,
+        chamado: l.chamado,
+        observacao: l.observacao,
+      },
+      parsed.data.observacao ?? null,
+    )
+    return {
+      estorna_id: l.id,
+      item_id: l.item_id,
+      filial_id: l.filial_id,
+      tipo: plano.tipo,
+      quantidade: plano.quantidade,
+      chamado: plano.chamado,
+      observacao: plano.observacao,
+      colaborador: l.colaborador,
+      colaborador_id: l.colaborador_id,
+    }
+  })
+
+  const { error: insertErr } = await supabase.rpc('estornar_movimentacao_com_itens', {
+    p_movimentacao_id: mov.id,
+    p_observacao: parsed.data.observacao ?? null,
+    p_estornos: estornos as unknown as Json,
+    p_criado_por: aut.uid,
   })
 
   if (insertErr) return { ok: false, erro: traduzErroBanco(insertErr.message, insertErr.code) }
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${mov.ativo_id}`)
+  if (estornos.length > 0) revalidatePath('/itens')
   // O estorno RESTAURA pendencia/termo_assinado/termo_data do snapshot_anterior
   // (trigger, migration 0047) — ou seja, mexe direto no que a fila mostra.
   revalidatePath('/pendencias')

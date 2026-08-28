@@ -8,6 +8,19 @@ import {
   reabrirPendenciaItemSchema,
   resolverPendenciaItemSchema,
 } from '@/lib/validators/pendencia-item'
+import {
+  resolverItemDoSlug,
+  type ItemDoCatalogo,
+  type TipoParaPonte,
+} from '@/lib/itens/ponte-tipo-item'
+import { decidirVinculoRetorno, type SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
+import { textoDaBaixa, textoDoRetornoDaPendencia } from '@/lib/pendencias/texto-baixa'
+import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
+import { chaveColaborador } from '@/lib/colaboradores/chave'
+import { planejarEstorno } from '@/lib/itens/estorno'
+import { hojeISO } from '@/lib/format'
+import type { TipoLancamento } from '@/lib/dominio'
+import type { Json } from '@/lib/types/database'
 
 // Resolve (encerra) 1..N pendências de item numa tacada — o caminho para zerar a
 // fila herdada com UMA justificativa (F18 §B2). Só toca as ABERTAS (`.eq('status',
@@ -37,7 +50,7 @@ export async function resolverPendenciaItem(input: {
   // justificativa cobrindo o que não foi resolvido.
   const { data: alvos, error: eFiliais } = await supabase
     .from('pendencias_item')
-    .select('filial_id')
+    .select('id, ativo_id, filial_id, item, colaborador, status')
     .in('id', ids)
   if (eFiliais) return { ok: false, erro: traduzErroBanco(eFiliais.message, eFiliais.code) }
 
@@ -50,29 +63,166 @@ export async function resolverPendenciaItem(input: {
       : cargo
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
-  const { data, error } = await supabase
-    .from('pendencias_item')
-    .update({
-      status: 'resolvida',
-      desfecho,
-      observacao: observacao ?? null,
-      resolvida_em: new Date().toISOString(),
-      resolvida_por: aut.uid,
-    })
-    .in('id', ids)
-    .eq('status', 'aberta')
-    .select('ativo_id')
+  // F38 · §E — RESOLVER PASSA A SER UM LANÇAMENTO, e o ciclo fecha.
+  //
+  // Até aqui resolver mexia só na linha da pendência: nenhum lançamento nascia.
+  // Agora que existe conta por pessoa (0118), isso deixaria item dado como perdido
+  // na conta daquela pessoa PARA SEMPRE, e item recuperado nunca voltaria à
+  // prateleira. Os dois desfechos passam a gravar, na MESMA transação:
+  //
+  //   recuperado → `retorno` 1              (estoque +1 · pessoa −1 · Total inalterado)
+  //   baixa      → `retorno` 1 + `ajuste` −1 (pessoa −1 · Total −1 · estoque de volta)
+  //
+  // ⚠ RESOLVER NUNCA FALHA POR CAUSA DO CATÁLOGO. `pendencias_item.item` guarda um
+  // SLUG DE TIPO, e lançamento precisa de um ITEM. Quando a ponte não resolve
+  // (tipo sem item ativo, ou slug que nem é tipo — o histórico anterior ao
+  // catálogo), a pendência é resolvida do mesmo jeito e o lançamento simplesmente
+  // não nasce. O acervo de equipamentos não fica refém do cadastro de acessórios.
+  const lancamentos = await montarLancamentosDaResolucao(supabase, {
+    alvos: (alvos ?? []).filter((p) => p.status === 'aberta'),
+    desfecho: desfecho as 'recuperado' | 'baixa',
+    observacao: observacao ?? null,
+  })
+
+  const { data, error } = await supabase.rpc(
+    'resolver_pendencias_item_com_lancamentos',
+    {
+      p_ids: ids,
+      p_desfecho: desfecho,
+      p_observacao: observacao ?? null,
+      p_lancamentos: lancamentos.payload as unknown as Json,
+      p_criado_por: aut.uid,
+    },
+  )
 
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   // A fila, o badge da sidebar e os relatórios contam as abertas; as fichas dos
   // ativos afetados mostram a pendência (agora resolvida — permanece, como rastro).
   revalidatePath('/pendencias')
-  for (const ativoId of new Set((data ?? []).map((r) => r.ativo_id))) {
-    revalidatePath(`/ativos/${ativoId}`)
-  }
+  for (const ativoId of lancamentos.ativos) revalidatePath(`/ativos/${ativoId}`)
   revalidatePath('/relatorios', 'layout')
+  // O desfecho mexeu no estoque (e, na baixa, no Total da TI).
+  if (((data as { lancamentos?: number } | null)?.lancamentos ?? 0) > 0) {
+    revalidatePath('/itens')
+  }
   return { ok: true }
+}
+
+// ---------------------------------------------------------------------------
+// F38 · §E — de "pendências selecionadas" para "os lançamentos do desfecho".
+// ---------------------------------------------------------------------------
+// Aqui moram as duas resoluções que a RPC NÃO faz de propósito (o cabeçalho da
+// 0119 diz por quê): a ponte TIPO→ITEM e a PESSOA.
+//
+//   · o item vem do slug (`pendencias_item.item`), pela mesma ponte da frente D;
+//   · a pessoa vem do TEXTO (`pendencias_item.colaborador`, um retrato da época),
+//     resolvida por chave no servidor — nenhum id viaja pelo formulário;
+//   · o vínculo só é gravado se a pessoa TEM saldo daquele item (regra §C.3): sem
+//     saldo, o lançamento sai sem vínculo, repõe o estoque igual e não inventa
+//     dívida. Sem isso, a guarda da 0118 recusaria a resolução de toda pendência
+//     anterior a esta fase — que é justamente a fila que existe hoje.
+//
+// O texto do `ajuste` da baixa (obrigatório pelo CHECK `lanc_item_ajuste_obs`) é
+// composto por função pura e testada, nunca dentro do SQL.
+async function montarLancamentosDaResolucao(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: {
+    alvos: {
+      id: string
+      ativo_id: string
+      filial_id: number
+      item: string
+      colaborador: string | null
+    }[]
+    desfecho: 'recuperado' | 'baixa'
+    observacao: string | null
+  },
+): Promise<{ payload: Record<string, unknown>[]; ativos: Set<string> }> {
+  const ativos = new Set<string>()
+  if (args.alvos.length === 0) return { payload: [], ativos }
+
+  const [{ data: tipos }, { data: itens }] = await Promise.all([
+    supabase.from('tipos_item').select('id, slug, rotulo'),
+    supabase.from('itens').select('id, nome, ativo, tipo_id'),
+  ])
+
+  const vinculos = await resolverColaboradoresPorNome(
+    supabase,
+    args.alvos.map((p) => p.colaborador),
+  )
+
+  // O saldo de cada pessoa, uma consulta por pessoa distinta (nunca por linha).
+  const saldoPorPessoa = new Map<string, SaldoDaPessoa[]>()
+  for (const pessoaId of new Set(
+    args.alvos
+      .map((p) => vinculos.get(chaveColaborador(p.colaborador)))
+      .filter((x): x is string => !!x),
+  )) {
+    const { data: saldos } = await supabase.rpc('rel_saldo_colaborador', {
+      p_colaborador: pessoaId,
+    })
+    saldoPorPessoa.set(pessoaId, (saldos ?? []) as SaldoDaPessoa[])
+  }
+
+  const consumido = new Map<string, number>()
+  const payload: Record<string, unknown>[] = []
+
+  for (const p of args.alvos) {
+    ativos.add(p.ativo_id)
+    const r = resolverItemDoSlug(
+      (itens ?? []) as ItemDoCatalogo[],
+      (tipos ?? []) as TipoParaPonte[],
+      p.item,
+    )
+    if (r.situacao !== 'resolvido') continue // sem item: a pendência resolve mesmo assim
+
+    const pessoaId = vinculos.get(chaveColaborador(p.colaborador)) ?? null
+    let vinculo: string | null = null
+    if (pessoaId) {
+      const chave = `${pessoaId}|${r.item.id}|${p.filial_id}`
+      const base =
+        saldoPorPessoa
+          .get(pessoaId)
+          ?.find((s) => s.item_id === r.item.id && s.filial_id === p.filial_id)?.com_a_pessoa ?? 0
+      const restante = base - (consumido.get(chave) ?? 0)
+      const decisao = decidirVinculoRetorno({
+        colaboradorId: pessoaId,
+        itemId: r.item.id,
+        filialId: p.filial_id,
+        quantidade: 1,
+        saldos: [{ item_id: r.item.id, filial_id: p.filial_id, com_a_pessoa: restante }],
+      })
+      vinculo = decisao.colaboradorId
+      if (vinculo) consumido.set(chave, (consumido.get(chave) ?? 0) + 1)
+    }
+
+    const rotulo =
+      (tipos ?? []).find((t) => t.slug === p.item)?.rotulo ?? r.item.nome ?? p.item
+    payload.push({
+      pendencia_id: p.id,
+      item_id: r.item.id,
+      filial_id: p.filial_id,
+      quantidade: 1,
+      data: hojeISO(),
+      colaborador: p.colaborador,
+      colaborador_id: vinculo,
+      observacao_retorno: textoDoRetornoDaPendencia(args.desfecho, {
+        itemRotulo: rotulo,
+        colaborador: p.colaborador,
+      }),
+      observacao_ajuste:
+        args.desfecho === 'baixa'
+          ? textoDaBaixa({
+              itemRotulo: rotulo,
+              colaborador: p.colaborador,
+              observacaoDaResolucao: args.observacao,
+            })
+          : null,
+    })
+  }
+
+  return { payload, ativos }
 }
 
 // ---------------------------------------------------------------------------
@@ -133,22 +283,62 @@ export async function reabrirPendenciaItem(input: {
   const aut = await exigirEscritaEm(supabase, alvosResolvidos.map((p) => p.filial_id))
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
-  // Limpa a `observacao` do desfecho anterior (decisão registrada em
-  // docs/DECISOES.md): o CHECK não a exige, e preservá-la perderia sentido —
-  // ela descrevia UM desfecho que, reaberta a pendência, deixou de valer. O
-  // texto que explica a reabertura é a JUSTIFICATIVA, que vai para a anotação
-  // (abaixo), não para esta coluna.
-  const { error } = await supabase
-    .from('pendencias_item')
-    .update({
-      status: 'aberta',
-      desfecho: null,
-      observacao: null,
-      resolvida_em: null,
-      resolvida_por: null,
-    })
-    .in('id', alvosResolvidos.map((p) => p.id))
-    .eq('status', 'resolvida')
+  // F38 · §E — REABRIR DESFAZ O QUE A RESOLUÇÃO FEZ, ou recusa.
+  //
+  // Desde que resolver virou lançamento, reabrir sem tocá-lo deixaria o item de
+  // volta na fila E de volta na prateleira ao mesmo tempo — uma pendência aberta
+  // sobre um acessório que o sistema diz que voltou. Portanto: os lançamentos que
+  // nasceram daquelas pendências (`pendencia_item_id`, 0119) são estornados na
+  // MESMA transação, com os inversos calculados por `planejarEstorno` — a função
+  // pura que o estorno avulso de item já usava desde a F3B.
+  //
+  // A RPC confere, antes de devolver, que nenhuma pendência reaberta ficou com
+  // lançamento de pé, e recusa a transação inteira se ficou. Nunca reabre deixando
+  // lançamento órfão — e essa garantia é do BANCO, não da boa-fé desta função.
+  const idsAlvo = alvosResolvidos.map((p) => p.id)
+  const { data: lancDaPendencia, error: eLanc } = await supabase
+    .from('lancamentos_item')
+    .select(
+      'id, item_id, filial_id, tipo, quantidade, chamado, observacao, colaborador, colaborador_id, pendencia_item_id',
+    )
+    .in('pendencia_item_id', idsAlvo)
+    .is('estorna_id', null)
+  if (eLanc) return { ok: false, erro: traduzErroBanco(eLanc.message, eLanc.code) }
+
+  const estornos = (lancDaPendencia ?? []).map((l) => {
+    const plano = planejarEstorno(
+      {
+        tipo: l.tipo as TipoLancamento,
+        quantidade: l.quantidade,
+        chamado: l.chamado,
+        observacao: l.observacao,
+      },
+      justificativa,
+    )
+    return {
+      estorna_id: l.id,
+      pendencia_id: l.pendencia_item_id,
+      item_id: l.item_id,
+      filial_id: l.filial_id,
+      tipo: plano.tipo,
+      quantidade: plano.quantidade,
+      chamado: plano.chamado,
+      observacao: plano.observacao,
+      colaborador: l.colaborador,
+      colaborador_id: l.colaborador_id,
+    }
+  })
+
+  // A `observacao` do desfecho anterior é limpa pela RPC (decisão registrada em
+  // docs/DECISOES.md): o CHECK não a exige, e preservá-la perderia sentido — ela
+  // descrevia UM desfecho que, reaberta a pendência, deixou de valer. O texto que
+  // explica a reabertura é a JUSTIFICATIVA, que vai para a anotação (abaixo).
+  const { error } = await supabase.rpc('reabrir_pendencias_item_com_estornos', {
+    p_ids: idsAlvo,
+    p_justificativa: justificativa,
+    p_estornos: estornos as unknown as Json,
+    p_criado_por: aut.uid,
+  })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   // Anotação por ATIVO (rastro imutável na linha do tempo, como o desfazer do
@@ -169,5 +359,7 @@ export async function reabrirPendenciaItem(input: {
     revalidatePath(`/ativos/${ativoId}`)
   }
   revalidatePath('/relatorios', 'layout')
+  // Os inversos mexeram no estoque de itens por quantidade.
+  if (estornos.length > 0) revalidatePath('/itens')
   return { ok: true }
 }

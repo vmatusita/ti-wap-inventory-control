@@ -1379,6 +1379,15 @@ export type Database = {
       e_admin: { Args: never; Returns: boolean }
       e_dev: { Args: never; Returns: boolean }
       encerrar_sessoes_usuario: { Args: { p_alvo: string }; Returns: number }
+      estornar_movimentacao_com_itens: {
+        Args: {
+          p_criado_por: string
+          p_estornos: Json
+          p_movimentacao_id: string
+          p_observacao: string | null
+        }
+        Returns: Json
+      }
       estorno_item_coerente: {
         Args: { p_estorna_id: string; p_filial: number; p_item: number }
         Returns: boolean
@@ -1573,7 +1582,7 @@ export type Database = {
           p_desfecho: string
           p_ids: string[]
           p_lancamentos: Json
-          p_observacao: string
+          p_observacao: string | null
         }
         Returns: Json
       }
