@@ -367,9 +367,14 @@ colunas que só existem depois dele.
 4. **Os roteiros SQL foram rodados por transação desfeita contra PRODUÇÃO**, não num banco limpo.
    Dois deles ficaram de fora (travariam tabelas de produção) e um falha por artefato de ambiente.
    **A prova final é o job `banco` do CI**, que sobe um Postgres novo e aplica `0001`→`0114`.
-5. **Nenhuma tela foi aberta num navegador.** A verificação foi `build` + tipos + testes + as
-   consultas que as telas fazem, executadas direto no banco. O smoke pós-deploy com as duas rotas
-   novas é o que fecha essa lacuna, e ele depende do deploy.
+5. **Nenhuma tela foi aberta num navegador, e os dois temas não foram vistos com o olho.** O
+   servidor de desenvolvimento subiu, mas as telas de `/admin/**` exigem sessão, e digitar senha em
+   formulário não é coisa que eu faça. O que ficou no lugar disso, e é menos do que ver:
+   `build` + tipos + a bateria de testes; o **smoke pós-deploy** conferindo as duas rotas **pelo
+   conteúdo** (101 OK, 0 falhas); e uma varredura por cor literal sem par `dark:` nos nove arquivos
+   novos — **nenhuma ocorrência**, porque eles reusam os primitivos do shadcn e as classes exatas do
+   `itens-tabela.tsx`, que já vive nos dois temas. Isso torna a regressão de tema improvável, **não
+   impossível**: alinhamento, quebra de linha e contraste real continuam por conferir.
 6. **A consolidação em lote nunca foi executada com dados reais.** A fila foi medida (903 grupos,
    1.420 registros) e a action foi lida e tipada, mas ninguém clicou em "Cadastrar N selecionados"
    em produção. A primeira execução real deve ser feita com poucas linhas marcadas.
