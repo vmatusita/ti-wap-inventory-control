@@ -134,11 +134,26 @@ na tela. Ata em [`docs/DECISOES.md`](DECISOES.md).
 | afirmação | prova |
 |---|---|
 | Nenhuma função ou trigger existente foi recriada | `git diff` nas migrations antigas vazio; nenhuma das três novas contém `create or replace` de função existente (`colaborador_chave` é **nova**) |
-| Nenhum registro de acervo foi alterado | contagens de produção **idênticas** antes e depois do apply: `ativos` 1616, `movimentacoes` 3429, `lancamentos_item` 30, `itens` 18, `pendencias_item` 17 |
+| Nenhum registro de acervo foi alterado | contagens de produção **idênticas** antes e imediatamente depois do apply: `ativos` 1616, `movimentacoes` 3429, `lancamentos_item` 30, `itens` 18, `pendencias_item` 17. Ver a nota abaixo sobre a leitura mais tardia |
 | Nenhuma linha ganhou vínculo retroativo | `select count(*) from movimentacoes where colaborador_id is not null` → **0** logo após o apply |
 | Nenhum teste existente foi editado para passar | os únicos `*.test.*` tocados são `registry.test.ts` (registrar as 2 rotas novas na matriz `COBERTURA`, que é o que o próprio teste exige) e `papeis_rls.sql` (asserções **novas** + as relações novas no bloco de grants) |
 | Zero otimização entrou | `git diff` não mostra **nenhum** índice novo em `lancamentos_item` — a primeira versão da `0113` tinha um, e a revisão adversarial o derrubou (§5.5). Nenhuma paginação nova, nenhuma tabela de saldo, nenhum cache |
 | Zero dependência nova | `git diff package.json` mostra **só** o campo `version` |
+
+> **A conferência do fim do dia deu números DIFERENTES — e a diferença tem dono.** Ao fechar a
+> fase, o acervo lido era `ativos = 1615` e `movimentacoes = 3428`, não os 1616/3429 da manhã.
+> Perseguido até o fim, e **não é da F37**: às **18:50 UTC** um administrador resolveu um conflito
+> entre filiais pela mesa de `/pendencias` — justificativa "Duplicado na planilha", patrimônio
+> `TEC0012008` —, e a trilha em `eventos_admin` registra a operação com backup completo em jsonb.
+> Ela apagou **1 ativo e 2 movimentações**. Depois disso, **1 movimentação** foi registrada
+> normalmente. A conta fecha exata:
+>
+> `1616 − 1 = 1615` · `3429 − 2 + 1 = 3428`
+>
+> Ou seja: operação real, por gente real, no meio da fase — e a única razão de isso aparecer aqui é
+> que a fase mede o acervo antes e depois. Uma leitura preguiçosa teria escrito "as contagens
+> bateram" ou, pior, "o acervo mudou" — as duas erradas. Nenhum caminho desta fase escreve em
+> `ativos`, `movimentacoes` ou `lancamentos_item` fora dos INSERTs do fluxo normal.
 
 ---
 
