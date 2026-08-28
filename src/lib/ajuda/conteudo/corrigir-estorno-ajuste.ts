@@ -100,6 +100,10 @@ export const corrigirEstornoAjuste: PaginaAjuda = {
         'Use o ajuste também para acertar um lote inteiro que entrou errado e já tem movimentações posteriores: estornar não resolve esses casos, porque o estorno só alcança a última linha.',
       ],
     },
+    {
+      tipo: 'nota',
+      texto: `Ajustar para um estado em que ninguém está com o equipamento — "${S.em_estoque.rotulo}", "${S.em_triagem.rotulo}", "${S.em_manutencao.rotulo}", "${S.defasado.rotulo}", "${S.descartado.rotulo}" ou "${S.devolvido_fornecedor.rotulo}" — LIMPA o colaborador e o setor da ficha. É o que se espera: se o equipamento voltou para a prateleira, ele não está mais com ninguém. Nos três estados em que alguém ESTÁ com ele ("${S.em_uso.rotulo}", "${S.emprestado.rotulo}", "${S.reservado.rotulo}") o ajuste preserva quem está. E "Estornar" continua devolvendo o pacote inteiro, colaborador incluído — é isso que faz desfazer desfazer de verdade.`,
+    },
     { tipo: 'titulo', id: 'correcao-cadastro', texto: 'O que o cadastro não corrige' },
     {
       tipo: 'nota',

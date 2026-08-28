@@ -6007,3 +6007,122 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
   para proteger. Reportar como "corrigido" o que estava corrigido pela metade seria pior que não ter
   corrigido, porque ninguém volta a olhar.
 - **Reversível?** sim — três edições pequenas, todas cobertas por teste ou comentário.
+
+## 2026-08-28 · F36 · A regra do detentor passa a perguntar ao ESTADO, não ao TIPO
+
+- **Contexto:** quem apagava `colaborador_atual`/`setor_atual` eram **três listas escritas à mão**,
+  em três lugares diferentes e já divergentes entre si: seis TIPOS em `aplicar_movimentacao`
+  (`devolucao`, `envio_triagem`, `triagem_ok`, `descarte`, `envio_manutencao`,
+  `devolucao_fornecedor`), **cinco** TIPOS em `rel_estoque_asof` (a mesma lista menos
+  `devolucao_fornecedor`) e **cinco ESTADOS** em `forcar_estado_ativo` (`0084`), esta última
+  deixando `defasado` de fora de propósito. O furo principal era o `ajuste`: a válvula de escape
+  grava `status_resultante` direto e não limpava nada, então um ativo chegava a `em_estoque`
+  carregando detentor. `retorno_manutencao`, `marcar_defasado`, `troca` e `compra` tinham o mesmo
+  buraco, e nenhuma lista de tipos os cobria.
+- **Decisão:** as três listas viram **uma pergunta ao estado resultante**. Migration `0110`: função
+  nova `status_tem_detentor(status_ativo)` (`immutable`, verdadeira só em `em_uso`, `emprestado`,
+  `reservado` — decisão D1 do Johnny) + recriação de `aplicar_movimentacao`, `rel_estoque_asof`,
+  `forcar_estado_ativo` e `dev_checagens_integridade` por `create or replace` PURO sobre o corpo
+  vigente lido do banco. Migration `0111`: o backfill do passado. O ramo novo entra **primeiro** nos
+  `case`, e é a ordem que faz a regra funcionar.
+- **Motivo:** a spec §4 define os estados; a lista de tipos era uma derivação enviesada dela, e
+  derivações enviesadas envelhecem em silêncio — a prova é que as três já estavam diferentes umas
+  das outras. Perguntar ao estado fecha os cinco furos de uma vez e não pode divergir de si mesma.
+- **Reversível?** sim — `create or replace` de volta aos corpos anteriores, cujos md5 estão no
+  cabeçalho da `0110` (`aplicar_movimentacao` `53dbb8c0c189e20b83411c86976bfc28`,
+  `rel_estoque_asof` `b98dbb8b3022b8e43cfd395b53c9ada1`, `dev_checagens_integridade`
+  `021e363b953d3034db0cd18937a1a59b`, `forcar_estado_ativo` `27b64765a043f9d32fd3846ed5fac4ea`). O
+  backfill da `0111` é reversível pelo JSON de backup (fora do repositório).
+
+## 2026-08-28 · F36 · `forcar_estado_ativo` entra no escopo (a `0084` esquecia o `defasado`)
+
+- **Contexto:** o plano da fase (`docs/PLAN-F36-F39.md` §3) listava três funções. Lendo o corpo
+  vigente do banco apareceu uma quarta: `forcar_estado_ativo` (Zona destrutiva, `0084`) tem a sua
+  PRÓPRIA lista de estados sem dono — `em_estoque, em_triagem, em_manutencao, descartado,
+  devolvido_fornecedor` — com um comentário dizendo que `defasado` ficou de fora de propósito
+  ("ali o detentor é informação legítima"). A decisão D1 revoga exatamente essa premissa.
+- **Decisão:** recriar também `forcar_estado_ativo` na `0110`, trocando o array constante pela
+  chamada a `status_tem_detentor` nas três ocorrências (o `if` do zeramento e os dois
+  `detentor_zerado` reportados na trilha e no retorno).
+- **Motivo:** deixá-la como estava criaria um caminho de escrita **oficial** capaz de gravar
+  detentor em estado sem dono — isto é, faria a décima checagem de integridade subir por operação
+  normal, que é o oposto do que ela existe para dizer. Uma trava que acusa o próprio sistema não é
+  trava, é ruído.
+- **Reversível?** sim — mesmo `create or replace`, md5 anterior registrado acima. O `update`
+  explícito dentro da função ficou (agora redundante, porque o trigger já zera): é a segunda linha,
+  e é ela que dá honestidade ao `detentor_zerado` gravado em `eventos_admin`.
+
+## 2026-08-28 · F36 · Backfill do passado — protocolo destrutivo cumprido (produção)
+
+- **Contexto:** a `0111` altera dado em produção. Não bate no gate do modo automático (o
+  classificador barra `delete from public.ativos` / `public.movimentacoes`; isto é `update`) nem na
+  `guarda_acervo` (`0081`, `before delete` em `ativos`), mas é operação destrutiva pelo CLAUDE.md.
+- **Decisão:** limpeza silenciosa (decisão D3 do Johnny), com o protocolo inteiro:
+  1. **Contagem antes:** 4 ativos, **todos** `em_estoque` (2 com colaborador, 3 com setor). Nenhum
+     outro estado apareceu — a varredura foi por `status not in ('em_uso','emprestado','reservado')`,
+     não por uma lista de estados.
+  2. **Backup:** as 4 linhas inteiras (`to_jsonb`) exportadas para JSON **fora do repositório**
+     (`scratchpad/backup-f36/ativos-detentor-sujo-antes.json`) — contêm nome real, e a regra 2 do
+     CLAUDE.md proíbe dado real no repositório.
+  3. **Dry-run:** `select` com o mesmo `where`, e depois a `0110` + a `0111` inteiras rodadas contra
+     a **produção real** dentro de `begin; … rollback;`. Resultado: sujos 4 → 0; total de ativos
+     1.616 → 1.616; por status `em_uso` 1.320, `emprestado` 3, `reservado` 54, `em_estoque` 116 —
+     idênticos antes e depois; movimentações 3.429, nenhuma criada.
+  4. **Depois do apply:** a mesma contagem em zero e a décima checagem em zero.
+- **Motivo:** inventar 4 movimentações de ajuste que ninguém registrou sujaria a linha do tempo dos
+  equipamentos para corrigir um defeito de gravação. O acervo é imutável (`0081`); a correção fica
+  registrada na migration e aqui, não no histórico do ativo.
+- **Reversível?** sim, pelo JSON do backup (4 linhas, `update` de volta por `id`).
+
+## 2026-08-28 · F36 · O efeito RETROATIVO no relatório as-of foi contado antes de aplicar
+
+- **Contexto:** `rel_estoque_asof` é a leitura "como estava no dia X". Trocar a lista de tipos pela
+  pergunta ao estado muda o que ela responde para **datas passadas**, não só para hoje — é a
+  correção, mas precisa ser contada antes e dita em voz alta (§3.3 do plano).
+- **Decisão:** medir e registrar. Em produção, **21 movimentações** são candidatas a mudar de
+  leitura — todas do tipo `ajuste` com `status_resultante = 'em_estoque'`, entre **27/07/2026 e
+  27/08/2026**, carregando colaborador/setor no `snapshot_anterior`. Na leitura de **hoje**, 4
+  ativos mudam. Nenhuma fórmula de contagem foi tocada: a lista de status filtrados no `where`, o
+  desempate por `ajuste` (`0054`), a existência as-of (`0022`) e a filial as-of ficaram byte a byte.
+- **Motivo:** o estado ao vivo e o as-of têm de concordar — foi a exigência de par que a própria
+  `0109` registrou. Sem o espelho, o mesmo ativo apareceria sem responsável na ficha e com o
+  responsável antigo no relatório da data.
+- **Reversível?** sim, junto com a `0110`. Os relatórios **congelados** (`relatorios_gerados`) não
+  são tocados: são retratos em JSON, e continuam dizendo o que diziam.
+
+## 2026-08-28 · F36 · Dois roteiros SQL existentes trocaram de lado (não foram apagados)
+
+- **Contexto:** `manutencao_fornecedor.sql` cenário **7a** e `f34_triagem_reserva.sql` cenário **j1**
+  afirmavam, cada um à sua maneira, que "o `ajuste` preserva o detentor" — a 7a usava isso como
+  precondição de 7b (`devolucao_fornecedor` zera) e a j1 como precondição de j2 (`envio_triagem` não
+  leva detentor para dentro da triagem). Os dois falharam no ensaio da F36, como tinham de falhar.
+- **Decisão:** **inverter a asserção**, não apagá-la — 7a e j1 passam a afirmar que o ajuste ZERA —,
+  e plantar a precondição do cenário seguinte com um `update` direto em `ativos`, com comentário
+  dizendo por quê.
+- **Motivo:** o cenário que muda de lado é a melhor prova de que a mudança pegou; apagá-lo perderia
+  essa prova. E a precondição não tem outra forma: depois da `0110` **nenhum** caminho de escrita
+  produz um ativo em estado sem dono COM detentor — esse estado só existe como dado legado, anterior
+  à `0111`. `update` em `ativos` é operação normal (a `guarda_acervo` é `before delete`).
+- **Reversível?** sim — as duas edições são locais e comentadas.
+
+## 2026-08-28 · F36 · O ensaio rodou contra PRODUÇÃO em transação desfeita (o projeto de ensaio está pausado)
+
+- **Contexto:** o `RUNBOOK-BANCO.md` manda ensaiar no projeto `sgmvldiizsrjbxzzpmhh` antes de
+  produção. Ele está **INACTIVE** (pausa por inatividade do plano gratuito) e a chamada de `restore`
+  foi recusada pelo classificador do modo automático. Não há Docker nesta máquina, então
+  `supabase start` também não é caminho.
+- **Decisão:** ensaiar contra a **produção** dentro de `begin; … rollback;` — a `0110`, a `0111` e
+  **treze roteiros** de `supabase/tests/` rodados assim, cada um comparado com e sem as migrations,
+  mais `pg_get_functiondef` antes/depois conferido linha a linha. Nada foi gravado. Ficaram de fora,
+  de propósito: `dev_destrutivo.sql` (faz reset global do acervo — travaria as tabelas de produção
+  pela duração da transação) e `import_substituir.sql` (a RPC destrutiva do import), os dois
+  cobertos por leitura estática e pelo job `banco` do CI.
+- **Motivo:** um `create or replace` conferido só por leitura é exatamente o que a `0047` e a `0109`
+  mandam não fazer. Com o ensaio indisponível, a transação desfeita é o ensaio mais fiel que existe
+  — roda contra o dado real e não deixa rastro.
+- **Reversível?** n/a — nada foi persistido pelo ensaio.
+- **Nota de honestidade:** dois roteiros falham em produção por **artefato de ambiente**, idêntico
+  com e sem a F36: `conflito_filiais.sql` (espera 4 grupos de conflito e o acervo real tem 76) e
+  `troca.sql` (rebaixa a `admin` o primeiro `profile` que encontra, e em produção esse perfil é um
+  `dev` — a `profiles_guarda_dev` recusa). Nenhum dos dois tem relação com a F36; ambos passam no
+  banco limpo do CI.

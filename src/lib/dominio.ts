@@ -231,6 +231,28 @@ export const STATUS_ORDEM: StatusAtivo[] = [
   'devolvido_fornecedor',
 ]
 
+// ---------- QUEM ESTA COM O EQUIPAMENTO (F36) ----------
+// Os estados em que ALGUEM esta com o ativo. Em todo o resto ele esta com a TI
+// (ou nao existe mais), e colaborador/setor sao apagados pelo trigger
+// `aplicar_movimentacao` — a regra pergunta ao ESTADO RESULTANTE, nao ao TIPO da
+// movimentacao (decisao D1 do Johnny, 28/08/2026).
+//
+// ⚠ ESTE MAPA E ESPELHO, NAO FONTE. A fonte da verdade e a funcao
+// `public.status_tem_detentor` (migration 0110). `detentor-sql.test.ts` le a
+// migration e recusa divergencia — mesma tecnica de `transicoes-sql.test.ts`.
+// Aqui mora so a apresentacao/derivacao no cliente (ex.: explicar por que o campo
+// "Colaborador" some, ou por que um ajuste vai limpar o detentor).
+export const STATUS_COM_DETENTOR: readonly StatusAtivo[] = [
+  'em_uso',
+  'emprestado',
+  'reservado',
+]
+
+/** Alguem esta com o equipamento neste estado? (espelho de `status_tem_detentor`) */
+export function statusTemDetentor(s: StatusAtivo): boolean {
+  return STATUS_COM_DETENTOR.includes(s)
+}
+
 export const CATEGORIA_ORDEM: CategoriaAtivo[] = [
   'notebook',
   'celular',

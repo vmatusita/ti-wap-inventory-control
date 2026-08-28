@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.41.0',
+    data: '2026-08-28',
+    fase: 'F36',
+    titulo: 'O equipamento volta para o estoque sem dono',
+    mudancas: [
+      'Quando um equipamento vai para um estado em que ninguém está com ele — em estoque, em triagem, em manutenção, defasado, descartado ou devolvido ao fornecedor —, o colaborador e o setor saem da ficha junto. Antes isso só acontecia em alguns caminhos: quem usava "Ajuste" para acertar o estado deixava o equipamento na prateleira ainda "com o Fulano".',
+      'A mesma correção vale para o relatório de uma data passada. O estado ao vivo e a leitura da data escolhida diziam coisas diferentes sobre quem estava com o equipamento; agora dizem a mesma coisa. Isso muda o que alguns relatórios antigos mostram: 21 registros de julho e agosto deixam de exibir um responsável que já não existia.',
+      'Quatro equipamentos que estavam nessa situação foram limpos, sem inventar movimentação nenhuma para isso — o histórico deles continua exatamente como está.',
+      'Nos três estados em que alguém realmente está com o equipamento — em uso, emprestado e reservado — nada mudou: o responsável continua na ficha, a transferência entre filiais leva o responsável junto, e "Estornar" continua devolvendo tudo como estava, inclusive quem estava com ele.',
+      'A tela de manutenção do sistema ganhou uma décima conferência, que acusa qualquer equipamento sem dono que ainda apareça com um nome colado. Em operação normal ela marca zero.',
+    ],
+  },
+  {
     versao: '1.40.5',
     data: '2026-08-19',
     titulo: 'A revisão das duas últimas entregas',

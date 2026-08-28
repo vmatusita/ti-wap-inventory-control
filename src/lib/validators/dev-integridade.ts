@@ -14,8 +14,12 @@
 // catálogo continuou com sete, e as duas novas nunca apareceram na tela — sem erro, sem aviso.
 // A garantia agora é: toda chave que a RPC devolver entra na tela. As que o catálogo conhece
 // saem com nome e descrição curados; as que não conhece aparecem no FIM da lista, rotuladas pela
-// própria chave. Uma décima checagem, acrescentada por uma migration futura, na pior das
+// própria chave. Uma checagem nova, acrescentada por uma migration futura, na pior das
 // hipóteses aparece feia (a chave crua como nome) — nunca ausente.
+//
+// Foi o que aconteceu na F36 (28/08/2026), agora do jeito certo: a migration 0110 acrescentou a
+// DÉCIMA checagem (`detentor_em_estado_sem_dono`) e a entrada curada entrou no MESMO commit —
+// a rede continua sendo o piso, não o plano.
 
 /** Uma entrada do catálogo curado (`CHECAGENS`, em `src/lib/queries/dev.ts`). */
 export type CatalogoChecagem = { chave: string; nome: string; descricao: string }

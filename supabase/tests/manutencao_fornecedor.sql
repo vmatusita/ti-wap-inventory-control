@@ -265,8 +265,21 @@ begin
 
   -- ---------------------------------------------------------------
   -- CENARIO 7 (achado da revisão adversarial) — devolucao_fornecedor ZERA o
-  --   detentor (espelho de descartado). Ativo chega a em_manutencao por AJUSTE
-  --   (que PRESERVA colaborador/setor); a devolução deve limpar os dois.
+  --   detentor (espelho de descartado).
+  --
+  --   ⚠ EMENDA F36 (28/08/2026) — 7a TROCOU DE LADO. Até a F36 o `ajuste` era a
+  --   válvula de escape que gravava status_resultante SEM limpar colaborador/setor,
+  --   e este cenário afirmava exatamente isso ("ajuste preserva o detentor"). A F36
+  --   fez o zeramento perguntar ao ESTADO RESULTANTE (migration 0110,
+  --   `status_tem_detentor`): `em_manutencao` é estado SEM dono, então o ajuste
+  --   agora LIMPA. A asserção foi invertida em vez de removida — é ela que prova,
+  --   aqui, o furo principal que a F36 fechou.
+  --
+  --   O que 7b prova continua idêntico (devolucao_fornecedor zera). A precondição
+  --   dele — um ativo em `em_manutencao` COM detentor — passa a ser plantada à mão,
+  --   porque desde a 0110 nenhum caminho de escrita produz esse estado: ele só
+  --   existe como DADO LEGADO, anterior à limpeza da 0111. `update` em `ativos` é
+  --   operação normal (a guarda_acervo da 0081 só barra DELETE).
   -- ---------------------------------------------------------------
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('TESTEF14007', 'notebook', v_matriz);
@@ -276,10 +289,13 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
     values (a, 'saida', 'Fulano Fic', 'TI', v_matriz, v_prof);   -- em_uso (detentor setado)
   insert into public.movimentacoes (ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
-    values (a, 'ajuste', v_matriz, 'em_manutencao', 'forcar manutencao (teste F14)', v_prof); -- preserva detentor
-  select colaborador_atual into v_cf from public.ativos where id = a;
-  if v_cf is not null then raise notice '✓ 7a ajuste preserva o detentor antes da devolucao';
-  else raise warning '✗ 7a ajuste deveria preservar o detentor (precondicao)'; end if;
+    values (a, 'ajuste', v_matriz, 'em_manutencao', 'forcar manutencao (teste F14)', v_prof);
+  select colaborador_atual, setor_atual into v_cf, v_forn from public.ativos where id = a;
+  if v_cf is null and v_forn is null then
+    raise notice '✓ 7a ajuste para em_manutencao (estado sem dono) ZERA o detentor (F36)';
+  else raise warning '✗ 7a ajuste para em_manutencao deveria zerar o detentor (F36), obtido %/%', v_cf, v_forn; end if;
+  -- precondição LEGADA de 7b, plantada à mão (ver a emenda acima)
+  update public.ativos set colaborador_atual = 'Fulano Fic', setor_atual = 'TI' where id = a;
   insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
     values (a, 'devolucao_fornecedor', v_matriz, 'OS-FORN-7', v_prof);
   select colaborador_atual, setor_atual into v_cf, v_forn from public.ativos where id = a;

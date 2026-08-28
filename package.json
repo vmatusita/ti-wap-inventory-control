@@ -1,6 +1,6 @@
 {
   "name": "estoque-ti-wap",
-  "version": "1.40.5",
+  "version": "1.41.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -1158,7 +1158,10 @@ begin
     raise warning '✗ 9b status após forçar = %', v_st;
   end if;
 
-  -- 9c. o DETENTOR foi ZERADO (estado terminal) — o que o `ajuste` sozinho NÃO faria
+  -- 9c. o DETENTOR foi ZERADO (estado terminal). ⚠ Nota F36 (28/08/2026): quando esta
+  --     asserção nasceu, o `ajuste` sozinho NÃO zerava — o zeramento era da RPC. Desde a
+  --     migration 0110 o trigger também zera (a pergunta virou ao ESTADO resultante), e as
+  --     duas camadas concordam. A asserção continua valendo, e agora prova as duas.
   if v_txt is null and (select setor_atual from public.ativos where id = v_at_k) is null then
     v_ok := v_ok + 1; raise notice '✓ 9c num estado terminal o detentor é zerado';
   else
@@ -1188,8 +1191,12 @@ begin
     raise warning '✗ 9e resumo %→%, por_mes %→%, por_motivo %→%', v_r1, v_s1, v_r2, v_s2, v_r3, v_s3;
   end if;
 
-  -- 9f. PAR POSITIVO do zeramento: num estado NÃO terminal o detentor é informação legítima e
+  -- 9f. PAR POSITIVO do zeramento: num estado COM DONO o detentor é informação legítima e
   --     precisa sobreviver. Sem isto, uma implementação que zerasse SEMPRE passaria em 9c.
+  --     ⚠ Vocabulário F36 (0110): "com dono" são exatamente `em_uso`, `emprestado` e
+  --     `reservado` (`status_tem_detentor`) — `defasado`, que a 0084 deixava de fora da
+  --     lista à mão, passou para o lado SEM dono. Este cenário usa `emprestado`, que está
+  --     dos dois lados da mudança e continua preservando.
   insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
   values ('WAP0009902', 'F23L', 'notebook', v_f1, 'cadastro') returning id into v_at_l;
   insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)

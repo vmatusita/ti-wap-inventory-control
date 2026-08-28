@@ -6,6 +6,58 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 28/08/2026 — F36: o detentor sai junto com o ativo ✅ 🔒
+
+Fase (**v1.41.0**). Até aqui, quem apagava colaborador/setor do ativo era uma **lista de tipos de
+movimentação** — seis deles em `aplicar_movimentacao`, cinco em `rel_estoque_asof`, e mais uma
+lista de *estados* escrita à mão dentro do "Forçar estado" da Zona destrutiva. Três cópias da
+mesma regra, cada uma envelhecida de um jeito. O furo principal era o **`ajuste`**: a válvula de
+escape grava o estado direto e não limpava nada, então um equipamento chegava a "Em estoque"
+ainda com o nome de quem o tinha. `retorno_manutencao`, `marcar_defasado`, `troca` e `compra`
+tinham o mesmo buraco. A F36 troca as três listas por **uma pergunta ao estado resultante**
+(`status_tem_detentor`: só `em_uso`, `emprestado` e `reservado` têm dono — decisão do Johnny,
+28/08/2026). Duas migrations: a `0110` recria quatro funções por `create or replace` puro sobre o
+corpo lido do banco e cria a função de vocabulário; a `0111` limpa o passado. Ata em
+[`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-28); evidências em
+[`docs/RELATORIO-F36.md`](docs/RELATORIO-F36.md).
+
+- 🐛 **O equipamento volta para a prateleira sem dono.** Todo estado em que ninguém está com o
+  ativo — em estoque, em triagem, em manutenção, defasado, descartado, devolvido ao fornecedor —
+  passa a limpar colaborador e setor, **venha a mudança de que movimentação vier**. A ordem dos
+  ramos é a regra: o ramo novo vem primeiro e absorve inteira a lista de seis que existia, e
+  ainda fecha os cinco tipos que nenhuma lista cobria.
+- 🐛 **O relatório de data passada parou de discordar do estado ao vivo.** `rel_estoque_asof`
+  recebeu a mesma pergunta — sem isso, o mesmo equipamento apareceria sem responsável na ficha e
+  com o responsável antigo na leitura da data. **É retroativo, e foi contado antes:** 21
+  movimentações em produção (todas `ajuste` → `em_estoque`, de 27/07 a 27/08/2026) mudam de
+  leitura.
+- 🧹 **O passado foi limpo em silêncio, sem inventar histórico.** Um `update` único em 4 ativos
+  (todos "Em estoque", 2 com colaborador e 3 com setor), com backup em JSON das linhas antes,
+  dry-run contra a produção real dentro de transação desfeita, e contagens depois: nenhum ativo
+  mudou de estado, nenhuma movimentação nasceu.
+- ✅ **"Forçar estado" (Zona destrutiva) passou a usar o mesmo vocabulário.** A `0084` listava os
+  estados sem dono à mão e deixava **`defasado` de fora de propósito**; a decisão nova revoga
+  essa premissa. Sem recriar aquela função, o próprio sistema teria um caminho oficial capaz de
+  gravar dono em estado sem dono — e a conferência abaixo acusaria operação normal como defeito.
+- 🛡 **Uma décima conferência de integridade** (`detentor_em_estado_sem_dono`) no `/dev`, com a
+  entrada curada no catálogo da tela no mesmo commit. Em operação normal ela é sempre zero. Os
+  dois caminhos que podem legitimamente fazê-la subir estão nomeados: "Estornar" e "Apagar
+  movimentação" restauram o retrato anterior inteiro — de propósito, e é o que faz desfazer
+  desfazer.
+- 🧪 **Roteiro SQL novo** (`supabase/tests/f36_detentor.sql`, 11 cenários incluindo o par
+  positivo, o espelho as-of nas duas datas e a conferência por delta) e **guarda TS↔SQL nova**
+  (`detentor-sql.test.ts`, no molde de `transicoes-sql.test.ts`). **Dois roteiros existentes
+  trocaram de lado**, e é a prova de que a mudança pegou: `manutencao_fornecedor.sql` 7a e
+  `f34_triagem_reserva.sql` j1 afirmavam que "o ajuste preserva o detentor" — agora afirmam o
+  contrário, e a precondição do cenário seguinte passou a ser plantada à mão, porque nenhum
+  caminho de escrita a produz mais.
+- ⛔ **O que NÃO mudou:** `status_apos_movimentacao` ficou byte a byte (nenhuma transição nasce,
+  morre ou muda de destino — a F36 mexe no que a movimentação **grava**, nunca no que ela
+  **permite**), o ramo do estorno ficou byte a byte, e a transferência entre filiais continua
+  levando o responsável junto. Zero dependência nova.
+
+---
+
 ## 19/08/2026 — Revisão de código das v1.40.3 e v1.40.4: 14 achados aplicados ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.40.5**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo

@@ -163,8 +163,13 @@ export type Checagem = ChecagemResolvida
 // `rodarChecagens()` agora passa pela função pura `juntarCatalogoComResultados`
 // (src/lib/validators/dev-integridade.ts), que também anexa ao FIM da lista qualquer chave que a
 // RPC devolva e ESTE catálogo não conheça — rotulada pela própria chave. Essa é a REDE
-// PERMANENTE: uma décima checagem, de uma migration futura, na pior das hipóteses aparece feia
+// PERMANENTE: uma checagem nova, de uma migration futura, na pior das hipóteses aparece feia
 // (a chave crua como nome) — nunca mais some.
+//
+// ⚠ ATUALIZAÇÃO (F36, 28/08/2026) — DEZ checagens. A migration 0110 acrescentou
+// `detentor_em_estado_sem_dono` à RPC, e a entrada correspondente entrou aqui NO MESMO COMMIT:
+// a rede permanente garante que uma checagem nova APAREÇA, não que apareça legível. Ela é a
+// trava que impede a volta do defeito que a F36 corrigiu — em operação normal vale zero.
 //
 // ⚠ A 0098 também mudou o que a PRIMEIRA checagem conta. Antes, `patrimonio_duplicado` agrupava
 // SEM filial (a identidade era global); desde a F24 (migration 0091) a identidade do ativo é o
@@ -226,6 +231,12 @@ export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
     nome: 'Conflito entre filiais em aberto',
     descricao:
       'Grupos de ativos com o mesmo patrimônio + service tag cadastrados em filiais diferentes — a mesma fila da aba "Conflitos entre filiais" de Pendências. Não é corrupção: é decisão pendente de alguém escolher qual dos dois cadastros é o certo.',
+  },
+  {
+    chave: 'detentor_em_estado_sem_dono',
+    nome: 'Equipamento sem dono ainda com colaborador',
+    descricao:
+      'Equipamento num estado em que ninguém está com ele (em estoque, em triagem, em manutenção, defasado, descartado ou devolvido ao fornecedor) que ainda carrega colaborador ou setor. Em operação normal isto é SEMPRE zero: desde a F36 toda movimentação apaga o detentor ao levar o equipamento para um estado sem dono. Se subir, ou alguém desfez uma movimentação antiga (o estorno e o "Apagar movimentação" restauram o retrato de antes, de propósito), ou apareceu um caminho de escrita que não passa pelo registro da movimentação — e é melhor descobrir aqui do que no relatório.',
   },
 ]
 

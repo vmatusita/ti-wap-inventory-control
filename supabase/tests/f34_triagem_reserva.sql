@@ -355,11 +355,23 @@ begin
 
   -- =============================================================
   -- j — ZERAMENTO: por que envio_triagem entrou nas listas de zeramento do
-  -- trigger (0109). O `ajuste` é a válvula de escape que grava status_resultante
-  -- direto SEM limpar colaborador/setor — é o ÚNICO caminho que deixa um ativo
-  -- em_estoque AINDA com detentor. Sem a linha nova na 0109, um envio_triagem
-  -- levaria esse detentor para dentro de em_triagem, estado que por desenho não
-  -- tem dono.
+  -- trigger (0109).
+  --
+  -- ⚠ EMENDA F36 (28/08/2026) — j1 TROCOU DE LADO. Quando este cenário foi
+  -- escrito, o `ajuste` era a válvula de escape que gravava status_resultante
+  -- direto SEM limpar colaborador/setor, e j1 afirmava isso ("deixa em_estoque
+  -- AINDA com detentor"). Era o furo principal da F36: a migration 0110 fez o
+  -- zeramento perguntar ao ESTADO RESULTANTE (`status_tem_detentor`), então o
+  -- ajuste para `em_estoque` agora LIMPA. j1 passou a afirmar o novo, em vez de
+  -- ser apagado — é a prova, aqui, de que o furo fechou.
+  --
+  -- j2 continua provando o MESMO que provava (envio_triagem não leva detentor
+  -- para dentro de em_triagem). Só a precondição mudou de forma: um ativo
+  -- `em_estoque` COM detentor não nasce mais de nenhum caminho de escrita — é
+  -- DADO LEGADO, anterior à limpeza da 0111 —, então passa a ser plantado à mão.
+  -- `update` em `ativos` é operação normal (a guarda_acervo da 0081 só barra
+  -- DELETE). Sem a linha da 0109 em `envio_triagem`, ou sem a regra da 0110,
+  -- esse detentor legado vazaria para `em_triagem`.
   -- =============================================================
   insert into public.ativos (patrimonio, categoria, filial_id)
     values ('ZZF34ZER01', 'notebook', v_matriz);
@@ -367,20 +379,25 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
     values (a, 'saida', 'Detentor Fantasma', 'Comercial', v_matriz, v_prof);       -- em_uso
   insert into public.movimentacoes (ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
-    values (a, 'ajuste', 'em_estoque', 'F34 cenario j: forca em_estoque com detentor preso (teste)', v_matriz, v_prof);
-  select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
-  if v_status = 'em_estoque' and v_colab = 'Detentor Fantasma' then
-    raise notice '✓ j1 ajuste deixa o ativo em_estoque AINDA com detentor (precondicao do cenario)';
+    values (a, 'ajuste', 'em_estoque', 'F34 cenario j: ajuste para estado sem dono (teste)', v_matriz, v_prof);
+  select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
+  if v_status = 'em_estoque' and v_colab is null and v_setor is null then
+    raise notice '✓ j1 ajuste para em_estoque (estado sem dono) ZERA o detentor (F36)';
   else
-    raise warning '✗ j1 precondicao: esperado em_estoque/Detentor Fantasma, obtido %/%',
-      v_status, coalesce(v_colab, '(null)');
+    raise warning '✗ j1 esperado em_estoque/null/null, obtido %/%/%',
+      v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
+
+  -- precondição LEGADA de j2, plantada à mão (ver a emenda acima)
+  update public.ativos
+     set colaborador_atual = 'Detentor Fantasma', setor_atual = 'Comercial'
+   where id = a;
 
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'envio_triagem', v_matriz, v_prof);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
   if v_status = 'em_triagem' and v_colab is null and v_setor is null then
-    raise notice '✓ j2 envio_triagem zera o detentor preso pelo ajuste (0109: em_triagem nao tem dono)';
+    raise notice '✓ j2 envio_triagem zera o detentor legado (0109/0110: em_triagem nao tem dono)';
   else
     raise warning '✗ j2 esperado em_triagem/null/null, obtido %/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
