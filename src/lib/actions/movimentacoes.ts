@@ -26,6 +26,12 @@ import {
   type ParMovimentacaoDia as ParMovimentacaoDiaQuery,
   type PossivelDuplicataDia as PossivelDuplicataDiaQuery,
 } from '@/lib/queries/movimentacoes'
+import {
+  resolverColaboradoresPorNome,
+  sugestoesDoCampoColaborador,
+  type SugestoesColaborador as SugestoesColaboradorQuery,
+} from '@/lib/queries/colaboradores'
+import { chaveColaborador } from '@/lib/colaboradores/chave'
 import type { StatusAtivo } from '@/lib/dominio'
 
 // Re-export dos tipos do CONTRATO §1.5 (OS-F10): o fluxo de movimentação roda em
@@ -46,6 +52,7 @@ import type { StatusAtivo } from '@/lib/dominio'
 // Guarda automática: `src/lib/use-server-exports.ts` (+ teste).
 export type ParMovimentacaoDia = ParMovimentacaoDiaQuery
 export type PossivelDuplicataDia = PossivelDuplicataDiaQuery
+export type SugestoesColaborador = SugestoesColaboradorQuery
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -73,7 +80,19 @@ type AtivoBasico = { id: string; filial_id: number; status: StatusAtivo }
 // corrente do ativo. Os campos condicionais (motivo/colaborador/setor) sao lidos
 // por narrowing da uniao discriminada (`'campo' in item`), sem escape de tipo; os
 // comuns (chamado/observacao/termo_*) vem do base do schema.
-function montarRow(item: MovimentacaoInput, ativo: AtivoBasico, uid: string) {
+//
+// F37 — `vinculos` e o mapa chave-normalizada -> id do cadastro de pessoas, resolvido
+// UMA VEZ para o lote inteiro (nunca uma consulta por linha). O modelo e HIBRIDO: o
+// TEXTO continua sendo gravado exatamente como antes (e o retrato da epoca, doutrina
+// da casa) e o `colaborador_id` entra AO LADO dele quando a chave resolve. Nome que
+// nao esta no cadastro nao bloqueia nada: grava com id nulo, como sempre gravou.
+function montarRow(
+  item: MovimentacaoInput,
+  ativo: AtivoBasico,
+  uid: string,
+  vinculos: Map<string, string>,
+) {
+  const colaborador = ('colaborador' in item ? item.colaborador : undefined) ?? null
   return {
     ativo_id: item.ativo_id,
     tipo: item.tipo,
@@ -82,7 +101,12 @@ function montarRow(item: MovimentacaoInput, ativo: AtivoBasico, uid: string) {
     filial_id: ativo.filial_id, // origem (a corrente do ativo)
     filial_destino_id:
       item.tipo === 'transferencia' ? item.filial_destino_id : null,
-    colaborador: ('colaborador' in item ? item.colaborador : undefined) ?? null,
+    colaborador,
+    // F37/D5 — o vínculo com o cadastro, sempre anulável. Resolvido pela chave
+    // normalizada do próprio texto acima: quem escolheu da lista resolve, quem
+    // digitou "joão  silva" para o cadastro "João Silva" também, e quem digitou um
+    // nome que não existe salva do mesmo jeito com id nulo.
+    colaborador_id: vinculos.get(chaveColaborador(colaborador)) ?? null,
     setor: ('setor' in item ? item.setor : undefined) ?? null,
     chamado: item.chamado ?? null,
     // F14/MN1: chamado do fornecedor — só o envio_manutencao o carrega (narrowing).
@@ -108,6 +132,7 @@ async function processarItemLote(
   index: number,
   ativo: AtivoBasico | undefined,
   uid: string,
+  vinculos: Map<string, string>,
 ): Promise<{ resultado: ItemResultado; interromper: boolean }> {
   if (!ativo) {
     return {
@@ -139,7 +164,7 @@ async function processarItemLote(
 
   const { data: inserida, error: insertErr } = await supabase
     .from('movimentacoes')
-    .insert(montarRow(item, ativo, uid))
+    .insert(montarRow(item, ativo, uid, vinculos))
     .select('id')
     .single()
 
@@ -245,6 +270,16 @@ export async function registrarMovimentacoes(input: {
   }
   const uid = aut.uid
 
+  // F37/D5 — o vínculo com o cadastro de pessoas, resolvido UMA VEZ para o lote
+  // inteiro (uma consulta, não uma por linha). Nunca lança: se a resolução falhar, o
+  // mapa vem vazio, as linhas gravam `colaborador_id` nulo e o lote segue. O vínculo
+  // é um bônus — derrubar a movimentação do operador por causa dele seria trocar o
+  // essencial pelo acessório.
+  const vinculos = await resolverColaboradoresPorNome(
+    supabase,
+    itens.map((i) => ('colaborador' in i ? i.colaborador : null)),
+  )
+
   const resultados: ItemResultado[] = []
   const rotasAtivos = new Set<string>()
   let criadas = 0
@@ -269,6 +304,7 @@ export async function registrarMovimentacoes(input: {
       index,
       ativoPorId.get(item.ativo_id),
       uid,
+      vinculos,
     )
     resultados.push(resultado)
     if (resultado.ok) {
@@ -515,6 +551,28 @@ export async function buscarAtivosRecentesDoOperador(
 
 // M4 — sugestoes de colaborador. Guarda de 2 chars TAMBEM aqui: nao bater no
 // banco por uma letra (a query repete a guarda; esta e a barata).
+// F37/A.4 — o campo de colaborador passa a oferecer o CADASTRO, além do histórico, e
+// a dizer se o que está digitado já é um cadastro (é isso que decide se a tela
+// oferece "Cadastrar"). Mesmo molde do `buscarSugestoesColaboradores` logo abaixo:
+// guarda de 2 caracteres antes de tocar o banco e degradação CALADA — o campo é texto
+// livre e continua aceitando o que for digitado, aconteça o que acontecer com a rede.
+export async function buscarColaboradoresDoCampo(
+  prefixo: string,
+): Promise<SugestoesColaborador> {
+  const vazio: SugestoesColaborador = {
+    cadastrados: [],
+    historico: [],
+    jaCadastrado: false,
+  }
+  if (prefixo.trim().length < 2) return vazio
+  try {
+    return await sugestoesDoCampoColaborador(prefixo)
+  } catch (err) {
+    console.error('[buscarColaboradoresDoCampo] falha ao carregar sugestões:', err)
+    return vazio
+  }
+}
+
 export async function buscarSugestoesColaboradores(
   prefixo: string,
 ): Promise<string[]> {

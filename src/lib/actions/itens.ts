@@ -23,6 +23,8 @@ import { observacoesDaTransferencia } from '@/lib/itens/transferencia'
 import { getSaldosItens } from '@/lib/queries/itens'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { estoquePorItem } from '@/lib/itens/repor'
+import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
+import { chaveColaborador } from '@/lib/colaboradores/chave'
 
 // F21 — este arquivo tem DOIS regimes de permissão, e é de propósito:
 //   · LANÇAMENTOS (`lancarItens`, `estornarLancamento`) mexem no saldo de uma FILIAL →
@@ -88,7 +90,16 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
   const resultados: ResultadoLinhaLancamento[] = []
   let criados = 0
 
-  for (const v of explodirLoteLancamentoItem(parsed.data)) {
+  const linhas = explodirLoteLancamentoItem(parsed.data)
+  // F37/D5 — o vínculo com o cadastro de pessoas, resolvido UMA VEZ para o carrinho
+  // inteiro. O TEXTO continua sendo gravado como antes; o id entra ao lado quando a
+  // chave normalizada resolve. Nome fora do cadastro não bloqueia nada.
+  const vinculos = await resolverColaboradoresPorNome(
+    supabase,
+    linhas.map((v) => v.colaborador ?? null),
+  )
+
+  for (const v of linhas) {
     const { error } = await supabase.from('lancamentos_item').insert({
       item_id: v.item_id,
       filial_id: v.filial_id,
@@ -96,6 +107,7 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
       quantidade: v.quantidade,
       chamado: v.chamado ?? null,
       colaborador: v.colaborador ?? null,
+      colaborador_id: vinculos.get(chaveColaborador(v.colaborador)) ?? null,
       data: v.data,
       observacao: v.observacao ?? null,
       criado_por: uid,

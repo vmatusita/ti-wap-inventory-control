@@ -16,6 +16,7 @@ import { AtivoCombobox } from '@/components/movimentacoes/ativo-combobox'
 import { ChecklistFaltantes } from '@/components/movimentacoes/nova/checklist-faltantes'
 import { ChipsData } from '@/components/movimentacoes/nova/chips-data'
 import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerido'
+import { CampoColaborador } from '@/components/movimentacoes/nova/campo-colaborador'
 import {
   tipoContrapartida,
   type ContrapartidaTroca,
@@ -91,6 +92,12 @@ export function SecaoContrapartida({
   const restante =
     MAX_LOTE_MOVIMENTACAO - itensPrincipal.length - contrapartida.itens.length
   const cheio = restante <= 0
+
+  // F37 — filial que um colaborador cadastrado aqui herda: a do par, quando é uma só.
+  const filiaisDoPar = new Set(
+    [...itensPrincipal, ...contrapartida.itens].map((a) => a.filial_id),
+  )
+  const filialDaContrapartida = filiaisDoPar.size === 1 ? [...filiaisDoPar][0] : null
 
   return (
     <section
@@ -223,13 +230,14 @@ export function SecaoContrapartida({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {campoAplica(alvo, 'colaborador') && (
               <>
-                <CampoComSugestoes
+                <CampoColaborador
                   id="contrapartida-colaborador"
                   rotulo="Colaborador"
-                  campo="colaborador"
                   valor={contrapartida.colaborador}
                   onChange={(v) => onSet('colaborador', v)}
                   placeholder="Quem recebe o equipamento"
+                  filialId={filialDaContrapartida}
+                  podeCadastrar={papel !== 'consulta'}
                 />
                 <CampoComSugestoes
                   id="contrapartida-setor"

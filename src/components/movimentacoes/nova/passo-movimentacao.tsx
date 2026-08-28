@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerido'
+import { CampoColaborador } from '@/components/movimentacoes/nova/campo-colaborador'
 import { ChecklistFaltantes } from '@/components/movimentacoes/nova/checklist-faltantes'
 import { ChipsData } from '@/components/movimentacoes/nova/chips-data'
 import { SecaoContrapartida } from '@/components/movimentacoes/nova/secao-contrapartida'
@@ -206,6 +207,13 @@ export function PassoMovimentacao({
     motivosAplicaveis.find((m) => m.codigo === MOTIVO_TROCA_UPGRADE)?.rotulo ??
     'Troca / upgrade'
 
+  // F37 — a filial que um colaborador cadastrado NO MEIO do fluxo herda. Só quando o
+  // lote inteiro é de uma filial só; misturou, fica nulo e o admin preenche depois.
+  // É um palpite de conveniência: `filial_id` do colaborador é atributo, e não manda
+  // em permissão nenhuma (quem cria não precisa de vínculo com aquela filial).
+  const filiaisDoLote = new Set(itens.map((a) => a.filial_id))
+  const filialDoLote = filiaisDoLote.size === 1 ? [...filiaisDoLote][0] : null
+
   return (
     <div className="space-y-5">
       {/* F10/M9 — sucesso PARCIAL: o lote volta com só as falhas, e antes disso
@@ -372,13 +380,14 @@ export function PassoMovimentacao({
           {/* Colaborador / Setor */}
           {campoAplica(config.tipo, 'colaborador') && (
             <>
-              <CampoComSugestoes
+              <CampoColaborador
                 id="colaborador"
                 rotulo="Colaborador"
-                campo="colaborador"
                 valor={config.colaborador}
                 onChange={(v) => onSet('colaborador', v)}
                 placeholder="Nome do colaborador"
+                filialId={filialDoLote}
+                podeCadastrar={papel !== 'consulta'}
               />
               <CampoComSugestoes
                 id="setor"

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { buscarSaldosItens, lancarItens, type SaldosPorItem } from '@/lib/actions/itens'
+import { CampoColaborador } from '@/components/movimentacoes/nova/campo-colaborador'
 import {
   MAX_LINHAS_LOTE_ITEM,
   errosPorLinhaDoLote,
@@ -818,12 +819,22 @@ export function LancarItemDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lanc-colab">{rotuloColaborador}</Label>
-              <Input
+              {/* F37/A.4 — o campo passa a oferecer o cadastro de pessoas e a
+                  criação inline, igual ao wizard de movimentação. Antes era um
+                  <Input> cru, sem sugestão nenhuma: dos dois lugares onde se digita
+                  colaborador, este era o mais exposto a grafia divergente. O rótulo
+                  continua dinâmico por tipo e continua trazendo "(opcional)" —
+                  texto livre, e nunca bloqueia. */}
+              <CampoColaborador
                 id="lanc-colab"
-                value={colaborador}
-                onChange={(e) => setColaborador(e.target.value)}
+                rotulo={rotuloColaborador}
+                valor={colaborador}
+                onChange={setColaborador}
                 placeholder={tipo === 'saida' ? 'nome de quem levou' : 'a quem se destina'}
+                filialId={filialId}
+                // `filiais` já vem recortado às filiais em que este cargo ESCREVE
+                // (F21): lista vazia = cargo consulta, que não cria nada.
+                podeCadastrar={filiais.length > 0}
               />
               {tipo === 'saida' && !colaborador.trim() && (
                 <p className="text-xs text-amber-700 dark:text-amber-400">
