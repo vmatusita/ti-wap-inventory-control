@@ -34,10 +34,33 @@ export type Config = {
   observacao: string
   filialDestinoId: string
   itensFaltantes: string[]
+  // F38 · D12 — o outro desfecho do checklist da devolução: o que VOLTOU. Cada
+  // linha é um tipo marcado como devolvido mais o item de catálogo que ele
+  // resolveu (`itemId: null` = a ponte não resolveu, e isso NÃO bloqueia nada:
+  // a devolução é registrada e o lançamento simplesmente não nasce).
+  //
+  // ⚠ OS DOIS SÃO OPCIONAIS NO TIPO, e isso é decisão, não descuido. `configPadrao`
+  // sempre os devolve como `[]`, então em runtime eles existem; declarados
+  // obrigatórios, porém, TODA `Config` montada à mão — inclusive as dos testes
+  // existentes de `config`, `resumo-revisao` e `troca-upgrade`, que a ordem F38
+  // manda não tocar — deixaria de compilar. Leia sempre com `?? []`.
+  itensDevolvidos?: ItemDevolvido[]
+  // F38 · D13 — os periféricos que saem JUNTO com o equipamento na entrega.
+  // `indice` é a posição do ativo no lote: com vários equipamentos, o operador
+  // escolhe a qual deles cada periférico acompanha (padrão, o primeiro).
+  itensJunto?: ItemJunto[]
 }
 
+/** F38 — uma linha "Voltou" do checklist da devolução. */
+export type ItemDevolvido = { tipoSlug: string; itemId: number | null }
+
+/** F38 — uma linha da seção "Itens que vão junto" da entrega. */
+export type ItemJunto = { indice: number; itemId: number; quantidade: number }
+
 // Estado pre-preenchido vindo de "duplicar" (page.tsx) — tudo opcional.
-export type ConfigInicial = Partial<Omit<Config, 'itensFaltantes'>> & {
+export type ConfigInicial = Partial<
+  Omit<Config, 'itensFaltantes' | 'itensDevolvidos' | 'itensJunto'>
+> & {
   itensFaltantes?: string[]
 }
 
@@ -55,6 +78,10 @@ export function configPadrao(inicial?: ConfigInicial | null): Config {
     observacao: inicial?.observacao || '',
     filialDestinoId: inicial?.filialDestinoId || '',
     itensFaltantes: inicial?.itensFaltantes || [],
+    // F38 — nunca vêm de "duplicar" nem da URL: são conferência DESTA devolução
+    // e escolha DESTE lote, não campo repetível. Nascem sempre vazios.
+    itensDevolvidos: [],
+    itensJunto: [],
   }
 }
 

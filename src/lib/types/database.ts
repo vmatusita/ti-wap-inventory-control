@@ -14,39 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _bkp_relatorios_gerados_f6a: {
-        Row: {
-          dados: Json | null
-          filial_id: number | null
-          gerado_em: string | null
-          gerado_por: string | null
-          id: string | null
-          periodo_ate: string | null
-          periodo_de: string | null
-          versao: number | null
-        }
-        Insert: {
-          dados?: Json | null
-          filial_id?: number | null
-          gerado_em?: string | null
-          gerado_por?: string | null
-          id?: string | null
-          periodo_ate?: string | null
-          periodo_de?: string | null
-          versao?: number | null
-        }
-        Update: {
-          dados?: Json | null
-          filial_id?: number | null
-          gerado_em?: string | null
-          gerado_por?: string | null
-          id?: string | null
-          periodo_ate?: string | null
-          periodo_de?: string | null
-          versao?: number | null
-        }
-        Relationships: []
-      }
       ambiente: {
         Row: {
           criado_em: string
@@ -505,7 +472,9 @@ export type Database = {
           forcado: boolean
           id: string
           item_id: number
+          movimentacao_id: string | null
           observacao: string | null
+          pendencia_item_id: string | null
           quantidade: number
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
         }
@@ -521,7 +490,9 @@ export type Database = {
           forcado?: boolean
           id?: string
           item_id: number
+          movimentacao_id?: string | null
           observacao?: string | null
+          pendencia_item_id?: string | null
           quantidade: number
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
         }
@@ -537,7 +508,9 @@ export type Database = {
           forcado?: boolean
           id?: string
           item_id?: number
+          movimentacao_id?: string | null
           observacao?: string | null
+          pendencia_item_id?: string | null
           quantidade?: number
           tipo?: Database["public"]["Enums"]["tipo_lancamento"]
         }
@@ -582,6 +555,27 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_item_movimentacao_id_fkey"
+            columns: ["movimentacao_id"]
+            isOneToOne: false
+            referencedRelation: "movimentacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_item_pendencia_item_id_fkey"
+            columns: ["pendencia_item_id"]
+            isOneToOne: false
+            referencedRelation: "pendencias_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_item_pendencia_item_id_fkey"
+            columns: ["pendencia_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_pendencias_item"
             referencedColumns: ["id"]
           },
         ]
@@ -1341,6 +1335,10 @@ export type Database = {
           patrimonio: string
         }[]
       }
+      criar_movimentacao_com_itens: {
+        Args: { p_criado_por: string; p_itens: Json; p_movimentacoes: Json }
+        Returns: Json
+      }
       definir_papel_usuario: {
         Args: {
           p_alvo: string
@@ -1451,6 +1449,15 @@ export type Database = {
         Args: { p_bloco: string; p_filial: number }
         Returns: Json
       }
+      reabrir_pendencias_item_com_estornos: {
+        Args: {
+          p_criado_por: string
+          p_estornos: Json
+          p_ids: string[]
+          p_justificativa: string
+        }
+        Returns: Json
+      }
       registrar_tentativa_senha: {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
         Returns: boolean
@@ -1513,6 +1520,16 @@ export type Database = {
           total: number
         }[]
       }
+      rel_saldo_colaborador: {
+        Args: { p_colaborador: string }
+        Returns: {
+          com_a_pessoa: number
+          filial: string
+          filial_id: number
+          item: string
+          item_id: number
+        }[]
+      }
       rel_saldo_itens: {
         Args: { p_ate: string; p_filial: number }
         Returns: {
@@ -1547,6 +1564,16 @@ export type Database = {
           p_contagens: Json
           p_filial: number
           p_justificativa: string
+        }
+        Returns: Json
+      }
+      resolver_pendencias_item_com_lancamentos: {
+        Args: {
+          p_criado_por: string
+          p_desfecho: string
+          p_ids: string[]
+          p_lancamentos: Json
+          p_observacao: string
         }
         Returns: Json
       }

@@ -588,3 +588,42 @@ export function mesmaServiceTag(a: string | null | undefined, b: string | null |
   const nb = b?.trim().toUpperCase() ?? ''
   return na !== '' && na === nb
 }
+
+// ---------------------------------------------------------------------------
+// F38 — "Itens que vão junto" (D13)
+// ---------------------------------------------------------------------------
+// A seção OPCIONAL do wizard: periféricos que saem com o equipamento na entrega,
+// ou que voltam com ele na devolução. Cada linha aponta UMA movimentação do lote
+// pelo ÍNDICE (é assim que o D13 se materializa: com vários equipamentos no lote,
+// o operador escolhe a qual deles cada periférico acompanha — padrão, o primeiro).
+//
+// O TIPO DO LANÇAMENTO NÃO VEM DAQUI. Ele é DERIVADO no servidor do tipo da
+// movimentação apontada — entrega vira `saida`, devolução vira `retorno`. Deixar o
+// cliente escolher seria abrir um caminho para gravar `entrada` de estoque pelo
+// formulário de movimentação, que não é o que esta seção existe para fazer.
+//
+// Nenhum `colaborador_id` viaja daqui, pela mesma doutrina da F37: o vínculo é
+// resolvido no SERVIDOR, pela chave do texto do próprio campo Colaborador.
+export const MAX_ITENS_JUNTO = 20
+
+export const itemJuntoSchema = z.object({
+  /** Índice (base 0) da movimentação do lote que este item acompanha. */
+  indice: z.coerce.number().int().min(0, 'Escolha a qual equipamento este item acompanha'),
+  item_id: z.coerce.number({ message: 'Escolha o item' }).int().positive('Escolha o item'),
+  quantidade: z.coerce
+    .number({ message: 'Informe a quantidade' })
+    .int('A quantidade deve ser inteira')
+    .positive('A quantidade deve ser maior que zero')
+    .max(999, 'Quantidade acima do razoável para um item que vai junto'),
+})
+
+export type ItemJuntoInput = z.infer<typeof itemJuntoSchema>
+
+export const loteComItensSchema = loteMovimentacaoSchema.extend({
+  itensJunto: z
+    .array(itemJuntoSchema)
+    .max(MAX_ITENS_JUNTO, `No máximo ${MAX_ITENS_JUNTO} itens podem ir junto num lote`)
+    .default([]),
+})
+
+export type LoteComItensInput = z.infer<typeof loteComItensSchema>

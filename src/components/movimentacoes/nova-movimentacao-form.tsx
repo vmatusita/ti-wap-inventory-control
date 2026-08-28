@@ -33,6 +33,7 @@ import {
   MOTIVO_TROCA_UPGRADE,
   type ContrapartidaTroca,
 } from '@/components/movimentacoes/nova/troca-upgrade'
+import { montarItensJuntoDoLote } from '@/components/movimentacoes/nova/itens-do-lote'
 import {
   lerRascunho,
   limparRascunho,
@@ -67,6 +68,8 @@ import {
 import { formatTempoRelativo } from '@/lib/format'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import type { AtivoResumo } from '@/lib/queries/ativos'
+import type { TipoItem } from '@/lib/queries/tipos-item'
+import type { ItemDoCatalogo } from '@/lib/itens/ponte-tipo-item'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Kit } from '@/lib/queries/kits'
 import type { Motivo } from '@/lib/queries/motivos'
@@ -119,6 +122,8 @@ export function NovaMovimentacaoForm({
   origemInvalida = null,
   papel = null,
   filiaisEscrita = [],
+  tiposItem = [],
+  itensCatalogo = [],
 }: {
   filiais: Filial[]
   motivos: Motivo[]
@@ -152,6 +157,11 @@ export function NovaMovimentacaoForm({
   // sessão sem operador — nenhum aviso aparece (ver `escreveNaFilial`).
   papel?: PapelUsuario | null
   filiaisEscrita?: readonly number[]
+  // F38 — o vocabulário de tipos (checklist de dois desfechos) e o catálogo de
+  // itens (a ponte tipo→item e a seção "Itens que vão junto"). Vêm do servidor,
+  // como filiais/motivos/kits: o wizard não consulta banco.
+  tiposItem?: TipoItem[]
+  itensCatalogo?: ItemDoCatalogo[]
 }) {
   const router = useRouter()
   const [passo, setPasso] = useState(1)
@@ -203,7 +213,6 @@ export function NovaMovimentacaoForm({
   const [consultandoDuplicatas, setConsultandoDuplicatas] = useState(false)
   const [sucesso, setSucesso] = useState<SucessoLote | null>(null)
   // F10/M9 — o que ENTROU num envio parcial (o lote guarda só as falhas).
-  const [jaRegistrados, setJaRegistrados] = useState<AtivoSucesso[]>([])
   // F10/M6 — rascunho: `null` = nada a oferecer; preenchido = banner aberto.
   const [rascunhoPendente, setRascunhoPendente] = useState<Rascunho | null>(null)
   // MOV-11 — o "agora" do tempo relativo do banner ("salvo há 2 h"). Lido UMA
@@ -941,6 +950,14 @@ export function NovaMovimentacaoForm({
       res = await registrarMovimentacoes({
         // itensInput ja no formato de MovimentacaoInput (validado no servidor)
         itens: itensInput as never,
+        // F38 · D13 — os periféricos que vão (ou voltam) junto, já na numeração
+        // que a RPC espera: principal primeiro, contrapartida deslocada.
+        itensJunto: montarItensJuntoDoLote({
+          config,
+          totalPrincipal: submetidosPrincipal.length,
+          contrapartida,
+          totalContrapartida: submetidosContra.length,
+        }),
       })
     } catch {
       // F19 — sem o catch, o throw de transporte (rede caindo, sessao morta,
@@ -961,11 +978,9 @@ export function NovaMovimentacaoForm({
       return
     }
 
-    const falhaIds = res.resultados.filter((r) => !r.ok).map((r) => r.ativo_id)
-
     if (res.criadas > 0) {
-      // Sucesso (total ou parcial) fecha o rascunho: o que entrou nao pode ser
-      // reoferecido como "lote não registrado" na proxima visita (M6).
+      // Sucesso fecha o rascunho: o que entrou nao pode ser reoferecido como
+      // "lote não registrado" na proxima visita (M6).
       limparRascunho()
     }
 
@@ -1025,55 +1040,52 @@ export function NovaMovimentacaoForm({
             }
           : null
       setSucesso({ criadas: res.criadas, grupos, pendente })
+      if (res.avisosVinculo?.length) {
+        // §C.3 — a devolução repôs o estoque, mas alguma linha saiu sem baixar
+        // conta de ninguém. Não é erro; é o que aconteceu, dito na cara.
+        for (const aviso of res.avisosVinculo) toast.info(aviso)
+      }
       router.refresh()
       return
     }
 
-    // Falha (parcial ou total): mantem no form apenas os itens que falharam —
-    // cada um na SUA metade (F26: as metades não se misturam na volta).
+    // ---------------------------------------------------------------------
+    // FALHA — e desde a F38 ela é sempre TOTAL (decisão do Johnny, 28/08/2026).
+    // ---------------------------------------------------------------------
+    // O lote inteiro passa por `criar_movimentacao_com_itens` (0117), numa
+    // transação: ou tudo, ou nada. Não existe mais "meio lote", e por isso três
+    // coisas que existiam aqui deixaram de existir:
+    //
+    //   · `jaRegistrados` — nada entrou, não há chip de "já registrado" a mostrar;
+    //   · o toast "N registrada(s); M falhou(aram)" — nenhuma foi registrada;
+    //   · a poda do lote pelos que falharam — o lote volta INTEIRO, porque é ele
+    //     inteiro que precisa ser corrigido e reenviado.
+    //
+    // O que o operador precisa saber, e nesta ordem: **nada foi gravado**, QUAL
+    // linha derrubou o lote, POR QUÊ, e o que fazer.
     const novosErros: Record<string, string> = {}
     for (const r of res.resultados) {
       if (!r.ok && r.erro) novosErros[r.ativo_id] = r.erro
     }
     setErrosPorAtivo(novosErros)
 
-    // F10/M9 — quem ENTROU some do lote, mas nao da tela: vira chip com link
-    // para a ficha no passo 2 (a informacao ja vinha no resultado da action e
-    // era jogada fora). Acumula entre tentativas do mesmo lote.
-    const porId = new Map(submetidos.map((a) => [a.id, a]))
-    const entraram = res.resultados
-      .filter((r) => r.ok)
-      .map((r) => {
-        const a = porId.get(r.ativo_id)
-        return {
-          id: r.ativo_id,
-          patrimonio: a?.patrimonio ?? null,
-          categoria: a?.categoria as AtivoSucesso['categoria'],
-          movimentacaoId: r.movimentacao_id ?? '',
-        }
-      })
-    if (entraram.length > 0) {
-      setJaRegistrados((prev) => [
-        ...prev.filter((p) => !entraram.some((e) => e.id === p.id)),
-        ...entraram,
-      ])
-    }
-    setItens(submetidosPrincipal.filter((a) => falhaIds.includes(a.id)))
+    // O lote volta como estava: nada foi gravado, nada some da tela.
+    setItens(submetidosPrincipal)
     if (comPar) {
-      setContrapartida((c) => ({
-        ...c,
-        itens: submetidosContra.filter((a) => falhaIds.includes(a.id)),
-      }))
+      setContrapartida((c) => ({ ...c, itens: submetidosContra }))
     }
     setPasso(2)
-    if (res.criadas > 0) {
-      toast.warning(
-        `${res.criadas} registrada(s); ${falhaIds.length} falhou(aram). Revise os itens restantes.`,
-      )
-      router.refresh()
-    } else {
-      toast.error('Nenhuma movimentação registrada. Veja os erros nos itens.')
-    }
+
+    const culpada = res.linhaQueFalhou
+    const patrimonioCulpado =
+      culpada !== undefined
+        ? (submetidos[culpada]?.patrimonio ?? null)
+        : null
+    toast.error(
+      patrimonioCulpado
+        ? `Nada foi gravado. O lote parou em ${rotuloPatrimonio(patrimonioCulpado)} — corrija e envie de novo.`
+        : 'Nada foi gravado. Veja o erro apontado no item e envie o lote de novo.',
+    )
   }
 
   // MOV-01a — sempre que `erros` passa a ter itens (validação local em
@@ -1106,7 +1118,6 @@ export function NovaMovimentacaoForm({
     // atalho volta a valer para uma troca nova que o operador adie.
     setErros([])
     setErrosPorAtivo({})
-    setJaRegistrados([])
     setKitAplicado(null)
     setPasso(1)
     setSucesso(null)
@@ -1332,7 +1343,8 @@ export function NovaMovimentacaoForm({
           estadosMistos={estadosMistos}
           motivosAplicaveis={motivosAplicaveis}
           errosPorAtivo={errosPorAtivo}
-          jaRegistrados={jaRegistrados}
+          tiposItem={tiposItem}
+          itensCatalogo={itensCatalogo}
           filiais={filiais}
           papel={papel}
           filiaisEscrita={filiaisEscrita}

@@ -27,6 +27,7 @@ import {
   montarItensInput,
   type Config,
   type ContrapartidaPendente,
+  type ItemDevolvido,
 } from '@/components/movimentacoes/nova/config'
 
 // O CODIGO do motivo (seed 0007, `aplica_a = {saida,devolucao}`) — FONTE UNICA.
@@ -71,6 +72,10 @@ export type ContrapartidaTroca = {
   termoData: string
   // Sentido saida -> devolucao (a metade `devolucao` coleta itens faltantes).
   itensFaltantes: string[]
+  // F38 · D12 — o OUTRO desfecho do mesmo checklist: o que VOLTOU. Opcional pelo
+  // mesmo motivo de `Config.itensDevolvidos` (os testes do par, que a ordem F38
+  // manda não tocar, montam esta estrutura à mão). Leia sempre com `?? []`.
+  itensDevolvidos?: ItemDevolvido[]
   // Ligado: a secao recolhe e o registrar grava so a metade principal. O PADRAO
   // e a contrapartida ABERTA (decisao do Johnny, 04/08/2026).
   deixarParaDepois: boolean
@@ -107,6 +112,8 @@ export function contrapartidaPadrao(
     termo: inicial?.termo ?? '',
     termoData: inicial?.termoData ?? '',
     itensFaltantes: inicial?.itensFaltantes ?? [],
+    // F38 — o outro desfecho do mesmo checklist. Nasce vazio como o irmão.
+    itensDevolvidos: inicial?.itensDevolvidos ?? [],
     deixarParaDepois: inicial?.deixarParaDepois ?? false,
     jaRegistrada: inicial?.jaRegistrada ?? false,
     // `?? ''` NAO cabe aqui: apagaria a diferenca entre "ninguem informou o

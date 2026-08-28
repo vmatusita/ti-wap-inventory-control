@@ -29,7 +29,14 @@ declare
   v_dev_mov  uuid;
   v_cnt      int;
 begin
-  select id into v_prof from public.profiles limit 1;
+  -- F38: perfil ATIVO e escolha DETERMINÍSTICA. O `limit 1` sem `order by` e sem
+  -- filtro podia cair num perfil DESATIVADO (`papel_atual()` devolve null para ele
+  -- desde a 0070) — e aí toda guarda de cargo recusava com 42501, num roteiro que
+  -- passava verde ontem. É a mesma classe de não-determinismo da pendência nº 5 da
+  -- F37, só que em quem o roteiro escolhe como autor.
+  select id into v_prof from public.profiles
+   where ativo and excluido_em is null
+   order by created_at, id limit 1;
   if v_prof is null then
     raise exception 'PRE-REQUISITO: crie ao menos 1 operador (profile) antes de rodar este roteiro';
   end if;

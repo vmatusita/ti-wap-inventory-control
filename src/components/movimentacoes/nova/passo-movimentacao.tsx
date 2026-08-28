@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { Check, ChevronDown, Layers, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerido'
 import { CampoColaborador } from '@/components/movimentacoes/nova/campo-colaborador'
 import { ChecklistFaltantes } from '@/components/movimentacoes/nova/checklist-faltantes'
+import { SecaoItensJunto, ofereceItensJunto } from '@/components/movimentacoes/nova/secao-itens-junto'
 import { ChipsData } from '@/components/movimentacoes/nova/chips-data'
 import { SecaoContrapartida } from '@/components/movimentacoes/nova/secao-contrapartida'
 import {
@@ -55,11 +55,10 @@ import {
 import { hojeISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { PapelUsuario } from '@/lib/auth/papeis'
-import type {
-  AtivoSucesso,
-  Config,
-} from '@/components/movimentacoes/nova/config'
+import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
+import type { TipoItem } from '@/lib/queries/tipos-item'
+import type { ItemDoCatalogo } from '@/lib/itens/ponte-tipo-item'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Kit } from '@/lib/queries/kits'
 import type { Motivo } from '@/lib/queries/motivos'
@@ -139,7 +138,6 @@ export function PassoMovimentacao({
   estadosMistos,
   motivosAplicaveis,
   errosPorAtivo,
-  jaRegistrados,
   filiais,
   papel = null,
   filiaisEscrita = [],
@@ -149,6 +147,8 @@ export function PassoMovimentacao({
   checklistKit,
   contrapartida,
   comandoContrapartidaRef,
+  tiposItem,
+  itensCatalogo,
   onAplicarKit,
   onLimparKit,
   onTrocarTipo,
@@ -168,14 +168,15 @@ export function PassoMovimentacao({
   estadosMistos: boolean
   motivosAplicaveis: Motivo[]
   errosPorAtivo: Record<string, string>
-  // F10/M9 — o que ENTROU no envio parcial (some do lote, mas não da tela).
-  jaRegistrados: AtivoSucesso[]
   filiais: Filial[]
   // F28/MOV-03 — aviso de vínculo de filial, só repassado para
   // `SecaoContrapartida` (o lote principal é aviso do PASSO 1, em
   // `PassoAtivos`). `null`/`[]` = nível administrador ou sessão sem operador.
   papel?: PapelUsuario | null
   filiaisEscrita?: readonly number[]
+  // F38 — o vocabulário de tipos e o catálogo de itens (checklist + itens junto).
+  tiposItem: TipoItem[]
+  itensCatalogo: ItemDoCatalogo[]
   ultimaMov?: UltimaMovimentacaoUsuario | null
   // F12/M12 — kits ativos, o kit aplicado nesta montagem e o checklist DERIVADO
   // do lote atual (o form recalcula a cada mudança; aqui só se desenha).
@@ -216,27 +217,6 @@ export function PassoMovimentacao({
 
   return (
     <div className="space-y-5">
-      {/* F10/M9 — sucesso PARCIAL: o lote volta com só as falhas, e antes disso
-          quem entrou sumia da tela sem deixar rastro. Agora fica o chip com o
-          link da ficha (a informação já vinha no resultado da action). */}
-      {jaRegistrados.length > 0 && (
-        <div className="rounded-lg border border-green-600/40 bg-green-50 p-3 text-sm dark:border-green-400/30 dark:bg-green-950/40">
-          <p className="flex items-center gap-1.5 font-medium text-green-800 dark:text-green-300">
-            <Check className="size-4" />
-            Já registrados ({jaRegistrados.length}):
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {jaRegistrados.map((a) => (
-              <Button key={a.id} asChild variant="outline" size="sm">
-                <Link href={`/ativos/${a.id}`} className="tabular-nums">
-                  {rotuloPatrimonio(a.patrimonio)}
-                </Link>
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* F19 — `role="alert"` porque o box só existe DEPOIS do envio: quem usa
           leitor de tela precisa ouvir quais itens falharam sem sair caçando. */}
       {Object.keys(errosPorAtivo).length > 0 && (
@@ -541,11 +521,28 @@ export function PassoMovimentacao({
         </div>
       )}
 
-      {/* Itens faltantes (devolucao) */}
+      {/* F38 · D12 — o checklist da devolução, agora com DOIS desfechos:
+          "Voltou" repõe o estoque, "Faltou" abre a pendência como sempre. */}
       {campoAplica(config.tipo, 'itens_faltantes') && (
         <ChecklistFaltantes
-          valor={config.itensFaltantes}
-          onChange={(itens) => onSet('itensFaltantes', itens)}
+          tipos={tiposItem}
+          itensCatalogo={itensCatalogo}
+          faltantes={config.itensFaltantes}
+          devolvidos={config.itensDevolvidos ?? []}
+          onChange={(v) => {
+            onSet('itensFaltantes', v.faltantes)
+            onSet('itensDevolvidos', v.devolvidos)
+          }}
+        />
+      )}
+
+      {/* F38 · D13 — os periféricos que saem JUNTO com o equipamento. */}
+      {ofereceItensJunto(config.tipo) && (
+        <SecaoItensJunto
+          equipamentos={itens}
+          itensCatalogo={itensCatalogo}
+          valor={config.itensJunto ?? []}
+          onChange={(v) => onSet('itensJunto', v)}
         />
       )}
 
@@ -561,6 +558,8 @@ export function PassoMovimentacao({
           comandoRef={comandoContrapartidaRef}
           papel={papel}
           filiaisEscrita={filiaisEscrita}
+          tiposItem={tiposItem}
+          itensCatalogo={itensCatalogo}
           onAdicionar={onAdicionarContrapartida}
           onRemover={onRemoverContrapartida}
           onSet={onSetContrapartida}

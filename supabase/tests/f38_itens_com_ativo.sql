@@ -1,0 +1,732 @@
+-- =============================================================
+-- Roteiro de teste: OS ITENS ANDAM COM O ATIVO (F38 · migrations 0116–0119).
+--
+-- Roda no job `banco` do CI (psql, ON_ERROR_STOP=1) e é auto-verificável no SQL
+-- editor / MCP dos dois projetos. Mesmo padrão dos demais roteiros da pasta:
+--   NOTICE  '✓ ...'  quando a invariante bate
+--   WARNING '✗ ...'  quando NÃO bate (o job `banco` falha em qualquer `WARNING: ✗`)
+--
+-- ESCREVE (usuários, perfis, vínculos, ativos, itens, movimentações e lançamentos
+-- fictícios), então roda inteiro dentro de `begin; … rollback;` — nada sobra. É
+-- AUTOSSUFICIENTE: cria tudo de que precisa, para funcionar também num Postgres
+-- novo do CI.
+--
+-- DADOS 100% FICTÍCIOS (regra 2 do CLAUDE.md): patrimônios `ZZF38…`, itens
+-- "TESTE F38 …", e-mails `f38.*@wap.ind.br`. Nenhum dado real da WAP.
+--
+-- ⚠ REGRA DA PENDÊNCIA Nº 5 DA F37, que este roteiro obedece em toda parte: duas
+-- movimentações do MESMO ativo na mesma transação precisam de `created_at`
+-- EXPLÍCITO E DISTINTO. Sem isso o desempate de "qual é a última" cai num sorteio
+-- de uuid e o roteiro fica intermitente — foi o flake do §5.6 da F37.
+--
+-- O QUE ELE PROVA
+--   0   âncora: as leituras enxergam as entradas (senão os casos abaixo comparam zeros)
+--   1   o VÍNCULO: lançamento nascido pela RPC aponta a movimentação certa (D13);
+--       o avulso continua com `movimentacao_id` nulo
+--   2   TUDO-OU-NADA: um lote com uma linha inválida grava ZERO movimentações e
+--       ZERO lançamentos — contagens antes e depois
+--   3   as travas, em ordem determinística e ANTES do primeiro INSERT (estrutural +
+--       conjunto de travas em `pg_locks`), mesmo com o carrinho em ordem contrária
+--   4   a IDENTIDADE do critério 5: Σ com_a_pessoa + sem vínculo = liberados
+--   5   a guarda nova: `retorno` com pessoa acima do saldo dela é recusado…
+--   6   …e `retorno` SEM pessoa continua passando exatamente como sempre passou
+--       (é o caminho de todo o histórico — a regra §C.3 depende disso)
+--   7   `recuperado`: estoque +1, pessoa −1, Total inalterado
+--   8   `baixa`: pessoa −1, Total −1, estoque de volta ao que era
+--   9   reabrir grava os inversos; reabrir com a lista incompleta RECUSA
+--   10  o caminho "Faltante" é byte a byte: mesmos slugs, pendência pelo trigger
+--   11  grants das três RPCs novas: authenticated sim; anon e service_role não
+--   12  idempotência: resolver duas vezes não re-resolve NEM duplica lançamento
+--
+-- ⚠ O QUE ELE **NÃO** PROVA. O caso 3 é estrutural + de conjunto de travas, não uma
+-- reprodução de deadlock: deadlock exige DUAS sessões concorrentes, e um roteiro de
+-- sessão única não as tem. O que o 3 garante é que o passo anti-deadlock continua no
+-- corpo, continua vindo antes dos inserts, e que as travas de fato foram tomadas.
+-- =============================================================
+
+begin;
+
+create temp table _f38_resumo (ok int, falhas int, detalhe text);
+
+-- Privilégios de TABELA para os cenários que fazem `set local role authenticated`.
+-- Mesma razão documentada em `papeis_rls.sql` e repetida em `transferencia_item.sql`:
+-- num projeto Supabase hospedado estes grants já existem por default privilege e o
+-- bloco é no-op; no Postgres NOVO do CI, não existem, e sem eles o cenário pararia em
+-- "permission denied" — resposta certa para a pergunta errada (aqui se mede POLICY,
+-- não privilégio de tabela). Só a tabela/verbo que alguma asserção usa.
+grant select on
+  public.filiais,           -- resolução de filial
+  public.itens,             -- fixtures e o join de rel_saldo_colaborador
+  public.ativos,            -- a RPC 0117 lê e trava o ativo
+  public.movimentacoes,     -- 2 (nada parcial sobrou)
+  public.lancamentos_item,  -- 2, 4 e o trigger, que lê o saldo
+  public.pendencias_item,   -- 7, 8, 9
+  public.tipos_item         -- a ponte tipo→item do cenário 10
+  to authenticated;
+grant insert on public.movimentacoes, public.lancamentos_item to authenticated;
+grant update on public.pendencias_item to authenticated;  -- 7, 8, 9 (resolver/reabrir)
+
+do $$
+declare
+  -- identidades fictícias (uuid fixo, hex válido — o prefixo f38a marca a fase)
+  k_admin    uuid := '00000000-f38a-4000-8000-0000000000a1';
+  k_operador uuid := '00000000-f38a-4000-8000-0000000000b2';
+  v_f1       smallint;
+  v_f2       smallint;
+  v_itemA    smallint;
+  v_itemB    smallint;
+  v_colab    uuid;
+  v_colab2   uuid;
+  v_ativo1   uuid;
+  v_ativo2   uuid;
+  v_ativo3   uuid;
+  v_ativo4   uuid;
+  v_mov      uuid;
+  v_mov_dev  uuid;
+  v_pend     uuid;
+  v_lanc     uuid;
+  v_ok       int  := 0;
+  v_falhas   int  := 0;
+  v_msgs     text := '';
+  v_n        int;
+  v_n_mov0   int; v_n_lanc0 int;
+  v_n_mov1   int; v_n_lanc1 int;
+  v_ret      jsonb;
+  v_total0   bigint; v_total1 bigint;
+  v_est0     bigint; v_est1   bigint;
+  v_pessoa   bigint;
+  v_soma     bigint;
+  v_lib      bigint;
+  v_def      text;
+  v_pos_lock int;
+  v_pos_ins  int;
+  v_travas   int;
+  v_tipo_id  smallint;
+begin
+  -- =========================================================================
+  -- FIXTURES
+  -- =========================================================================
+  select id into v_f1 from public.filiais where ativo order by id limit 1;
+  select id into v_f2 from public.filiais where ativo and id <> v_f1 order by id limit 1;
+  if v_f1 is null or v_f2 is null then
+    raise warning '✗ 0 o banco precisa de ao menos DUAS filiais ativas para este roteiro';
+    insert into _f38_resumo values (0, 1, 'sem duas filiais ativas');
+    return;
+  end if;
+
+  insert into auth.users (id, instance_id, aud, role, email,
+                          encrypted_password, email_confirmed_at, created_at, updated_at)
+  values
+    (k_admin,    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+     'f38.chefia@wap.ind.br',   '', now(), now(), now()),
+    (k_operador, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+     'f38.operador@wap.ind.br', '', now(), now(), now());
+  update public.profiles set papel = 'admin'    where id = k_admin;
+  update public.profiles set papel = 'operador' where id = k_operador;
+  insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
+
+  insert into public.tipos_item (slug, rotulo, ordem)
+    values ('zzf38tipo', 'TESTE F38 Tipo', 9990) returning id into v_tipo_id;
+
+  insert into public.itens (nome, grupo, ordem, tipo_id)
+    values ('TESTE F38 Item A', 'acessorio', 9990, v_tipo_id) returning id into v_itemA;
+  insert into public.itens (nome, grupo, ordem)
+    values ('TESTE F38 Item B', 'acessorio', 9991) returning id into v_itemB;
+
+  insert into public.colaboradores (nome, filial_id, criado_por)
+    values ('Fulano ZZF38 Um', v_f1, k_admin) returning id into v_colab;
+  insert into public.colaboradores (nome, filial_id, criado_por)
+    values ('Fulano ZZF38 Dois', v_f1, k_admin) returning id into v_colab2;
+
+  -- Estoque de partida: 30 do A e 12 do B na filial 1.
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (v_itemA, v_f1, 'entrada', 30, current_date, k_admin),
+         (v_itemB, v_f1, 'entrada', 12, current_date, k_admin);
+
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('ZZF38A001', 'notebook', v_f1) returning id into v_ativo1;
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('ZZF38A002', 'monitor', v_f1) returning id into v_ativo2;
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('ZZF38A003', 'notebook', v_f1) returning id into v_ativo3;
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('ZZF38A004', 'notebook', v_f1) returning id into v_ativo4;
+
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
+
+  select total, estoque into v_total0, v_est0
+    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+
+  if coalesce(v_total0, 0) = 30 and coalesce(v_est0, 0) = 30 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 0 âncora: a leitura de saldo enxerga as entradas (Total=30, Estoque=30)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '0; ';
+    raise warning '✗ 0 âncora: esperava Total=30/Estoque=30, veio %/% — as comparações abaixo seriam vazias',
+      coalesce(v_total0::text,'(null)'), coalesce(v_est0::text,'(null)');
+  end if;
+
+  -- =========================================================================
+  -- 1 — O VÍNCULO (D13): dois equipamentos, dois periféricos, cada um no seu
+  -- =========================================================================
+  select public.criar_movimentacao_com_itens(
+    jsonb_build_array(
+      jsonb_build_object('ativo_id', v_ativo1, 'tipo', 'saida', 'motivo', 'novo_colaborador',
+                         'data', current_date::text, 'colaborador', 'Fulano ZZF38 Um',
+                         'colaborador_id', v_colab::text),
+      jsonb_build_object('ativo_id', v_ativo2, 'tipo', 'saida', 'motivo', 'novo_colaborador',
+                         'data', current_date::text, 'colaborador', 'Fulano ZZF38 Dois',
+                         'colaborador_id', v_colab2::text)
+    ),
+    jsonb_build_array(
+      jsonb_build_object('indice_movimentacao', 0, 'item_id', v_itemA, 'tipo', 'saida',
+                         'quantidade', 2, 'data', current_date::text,
+                         'colaborador', 'Fulano ZZF38 Um', 'colaborador_id', v_colab::text),
+      jsonb_build_object('indice_movimentacao', 1, 'item_id', v_itemB, 'tipo', 'saida',
+                         'quantidade', 1, 'data', current_date::text,
+                         'colaborador', 'Fulano ZZF38 Dois', 'colaborador_id', v_colab2::text)
+    ),
+    k_admin
+  ) into v_ret;
+
+  if (v_ret ->> 'itens')::int = 2 and jsonb_array_length(v_ret -> 'movimentacoes') = 2 then
+    v_ok := v_ok + 1; raise notice '✓ 1a a RPC gravou 2 movimentações e 2 lançamentos';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1a; ';
+    raise warning '✗ 1a retorno inesperado da RPC: %', v_ret;
+  end if;
+
+  -- O fone aponta a movimentação do notebook; o cabo, a do monitor (D13).
+  select count(*) into v_n
+    from public.lancamentos_item l
+    join public.movimentacoes m on m.id = l.movimentacao_id
+   where (l.item_id = v_itemA and m.ativo_id = v_ativo1)
+      or (l.item_id = v_itemB and m.ativo_id = v_ativo2);
+  if v_n = 2 then
+    v_ok := v_ok + 1; raise notice '✓ 1b cada item aponta a movimentação do SEU equipamento (D13)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1b; ';
+    raise warning '✗ 1b esperava 2 vínculos cruzados corretos, obtido %', v_n;
+  end if;
+
+  -- "O que foi junto com este notebook" é um JOIN — e ativo_id NÃO existe aqui.
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema='public' and table_name='lancamentos_item' and column_name='ativo_id'
+  ) then
+    v_ok := v_ok + 1; raise notice '✓ 1c lancamentos_item NÃO tem ativo_id (a verdade mora num lugar só)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1c; ';
+    raise warning '✗ 1c lancamentos_item ganhou uma coluna ativo_id — segunda cópia da mesma verdade';
+  end if;
+
+  -- O lançamento AVULSO (carrinho da tela de itens) continua com o vínculo nulo.
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (v_itemB, v_f1, 'entrada', 5, current_date, k_admin) returning id into v_lanc;
+  if (select movimentacao_id from public.lancamentos_item where id = v_lanc) is null then
+    v_ok := v_ok + 1; raise notice '✓ 1d o lançamento avulso continua nascendo sem vínculo — e assim fica';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1d; ';
+    raise warning '✗ 1d o lançamento avulso nasceu com movimentacao_id';
+  end if;
+
+  -- FK imediata, não deferrable (a 0050 precisou adiar; aqui não).
+  select count(*) into v_n from pg_constraint
+   where conrelid = 'public.lancamentos_item'::regclass and contype = 'f'
+     and conname like '%movimentacao%' and condeferrable;
+  if v_n = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 1e a FK de movimentacao_id é IMEDIATA (a RPC insere a movimentação antes)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1e; ';
+    raise warning '✗ 1e a FK de movimentacao_id ficou deferrable';
+  end if;
+
+  -- =========================================================================
+  -- 2 — TUDO-OU-NADA: uma linha inválida derruba o lote inteiro
+  -- =========================================================================
+  select count(*) into v_n_mov0  from public.movimentacoes;
+  select count(*) into v_n_lanc0 from public.lancamentos_item;
+
+  begin
+    perform public.criar_movimentacao_com_itens(
+      jsonb_build_array(
+        -- válida: ativo3 está em estoque, aceita saída
+        jsonb_build_object('ativo_id', v_ativo3, 'tipo', 'saida', 'motivo', 'novo_colaborador',
+                           'data', current_date::text, 'colaborador', 'Fulano ZZF38 Um',
+                           'colaborador_id', v_colab::text),
+        -- INVÁLIDA: ativo1 já saiu no caso 1 — 'saida' sobre 'em_uso' não é transição
+        jsonb_build_object('ativo_id', v_ativo1, 'tipo', 'saida', 'motivo', 'novo_colaborador',
+                           'data', current_date::text, 'colaborador', 'Fulano ZZF38 Um',
+                           'colaborador_id', v_colab::text)
+      ),
+      jsonb_build_array(
+        jsonb_build_object('indice_movimentacao', 0, 'item_id', v_itemA, 'tipo', 'saida',
+                           'quantidade', 1, 'data', current_date::text)
+      ),
+      k_admin
+    );
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2a_LOTE_INVALIDO_PASSOU; ';
+    raise warning '✗ 2a o lote com uma linha inválida foi ACEITO — o tudo-ou-nada não está valendo';
+  exception when others then
+    v_ok := v_ok + 1;
+    raise notice '✓ 2a o lote com uma linha inválida foi recusado (%, %)', sqlstate, left(sqlerrm, 60);
+  end;
+
+  select count(*) into v_n_mov1  from public.movimentacoes;
+  select count(*) into v_n_lanc1 from public.lancamentos_item;
+
+  if v_n_mov1 = v_n_mov0 and v_n_lanc1 = v_n_lanc0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 2b ZERO movimentações e ZERO lançamentos sobraram (mov %→%, lanc %→%)',
+      v_n_mov0, v_n_mov1, v_n_lanc0, v_n_lanc1;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2b; ';
+    raise warning '✗ 2b sobrou meio lote: mov %→%, lanc %→%', v_n_mov0, v_n_mov1, v_n_lanc0, v_n_lanc1;
+  end if;
+
+  -- O ativo3, que estava na linha VÁLIDA do lote recusado, não se moveu.
+  if (select status from public.ativos where id = v_ativo3) = 'em_estoque' then
+    v_ok := v_ok + 1; raise notice '✓ 2c a linha VÁLIDA do lote recusado também não gravou nada';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2c; ';
+    raise warning '✗ 2c a linha válida do lote recusado mudou o estado do ativo';
+  end if;
+
+  -- =========================================================================
+  -- 3 — AS TRAVAS: em ordem determinística, e ANTES do primeiro INSERT
+  -- =========================================================================
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'criar_movimentacao_com_itens';
+
+  v_pos_lock := position('pg_advisory_xact_lock' in v_def);
+  v_pos_ins  := position('insert into public.movimentacoes' in v_def);
+  if v_pos_lock > 0 and v_pos_ins > 0 and v_pos_lock < v_pos_ins then
+    v_ok := v_ok + 1; raise notice '✓ 3a a trava advisory está no corpo e vem ANTES do primeiro INSERT';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3a; ';
+    raise warning '✗ 3a a ordem trava→insert se perdeu (lock em %, insert em %)', v_pos_lock, v_pos_ins;
+  end if;
+
+  if position('order by 1, 2' in v_def) > 0 and position('order by 1' in v_def) < v_pos_ins then
+    v_ok := v_ok + 1; raise notice '✓ 3b a ordenação determinística dos pares continua no corpo';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3b; ';
+    raise warning '✗ 3b a ordenação determinística dos pares sumiu — volta o risco de deadlock';
+  end if;
+
+  if position('for update' in v_def) > 0 and position('for update' in v_def) < v_pos_ins then
+    v_ok := v_ok + 1; raise notice '✓ 3c os ATIVOS também são travados em ordem, antes do primeiro INSERT';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c; ';
+    raise warning '✗ 3c a trava dos ativos sumiu — dois lotes com ativos em ordens diferentes deadlockam';
+  end if;
+
+  -- O carrinho chega em ordem DECRESCENTE de item, e mesmo assim as duas travas
+  -- estão nas mãos ao fim da chamada (advisory é transacional: elas sobrevivem).
+  perform public.criar_movimentacao_com_itens(
+    jsonb_build_array(
+      jsonb_build_object('ativo_id', v_ativo3, 'tipo', 'saida', 'motivo', 'novo_colaborador',
+                         'data', current_date::text, 'colaborador', 'Fulano ZZF38 Um',
+                         'colaborador_id', v_colab::text)
+    ),
+    jsonb_build_array(
+      jsonb_build_object('indice_movimentacao', 0, 'item_id', greatest(v_itemA, v_itemB),
+                         'tipo', 'saida', 'quantidade', 1, 'data', current_date::text),
+      jsonb_build_object('indice_movimentacao', 0, 'item_id', least(v_itemA, v_itemB),
+                         'tipo', 'saida', 'quantidade', 1, 'data', current_date::text)
+    ),
+    k_admin
+  );
+
+  select count(*) into v_travas from pg_locks
+   where locktype = 'advisory' and pid = pg_backend_pid()
+     and classid in (v_itemA, v_itemB);
+  if v_travas >= 2 then
+    v_ok := v_ok + 1; raise notice '✓ 3d as travas dos DOIS pares foram tomadas (% advisory na transação)', v_travas;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3d; ';
+    raise warning '✗ 3d esperava ao menos 2 travas advisory dos itens, obtido %', v_travas;
+  end if;
+
+  -- =========================================================================
+  -- 4 — A IDENTIDADE DO CRITÉRIO 5: Σ com_a_pessoa + sem vínculo = liberados
+  -- =========================================================================
+  select coalesce(sum(case tipo::text when 'saida' then quantidade
+                                      when 'retorno' then -quantidade else 0 end), 0)
+    into v_lib
+    from public.lancamentos_item where item_id = v_itemA and filial_id = v_f1;
+
+  select coalesce(sum(com_a_pessoa), 0) into v_soma
+    from (
+      select com_a_pessoa from public.rel_saldo_colaborador(v_colab)
+       where item_id = v_itemA and filial_id = v_f1
+      union all
+      select com_a_pessoa from public.rel_saldo_colaborador(v_colab2)
+       where item_id = v_itemA and filial_id = v_f1
+    ) x;
+
+  select coalesce(sum(case tipo::text when 'saida' then quantidade
+                                      when 'retorno' then -quantidade else 0 end), 0)
+    into v_n
+    from public.lancamentos_item
+   where item_id = v_itemA and filial_id = v_f1 and colaborador_id is null;
+
+  if v_soma + v_n = v_lib then
+    v_ok := v_ok + 1;
+    raise notice '✓ 4a Σ com_a_pessoa (%) + sem vínculo (%) = liberados (%) — nenhum número mudou',
+      v_soma, v_n, v_lib;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '4a; ';
+    raise warning '✗ 4a a identidade quebrou: % + % <> %', v_soma, v_n, v_lib;
+  end if;
+
+  -- =========================================================================
+  -- 5 — A GUARDA NOVA: retorno com pessoa acima do saldo DELA é recusado
+  -- =========================================================================
+  select com_a_pessoa into v_pessoa from public.rel_saldo_colaborador(v_colab)
+   where item_id = v_itemA and filial_id = v_f1;
+
+  begin
+    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                         colaborador_id, criado_por)
+      values (v_itemA, v_f1, 'retorno', coalesce(v_pessoa, 0)::int + 1, current_date,
+              v_colab, k_admin);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '5a_GUARDA_NAO_PEGOU; ';
+    raise warning '✗ 5a retorno acima do saldo da pessoa (% + 1) foi ACEITO', v_pessoa;
+  exception when check_violation then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5a retorno acima do que a pessoa tem (%) foi recusado', v_pessoa;
+  end;
+
+  -- E o retorno DENTRO do saldo dela passa (o par que prova que não fechou demais).
+  begin
+    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                         colaborador_id, criado_por)
+      values (v_itemA, v_f1, 'retorno', 1, current_date, v_colab, k_admin);
+    v_ok := v_ok + 1; raise notice '✓ 5b retorno DENTRO do saldo da pessoa continua passando';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '5b; ';
+    raise warning '✗ 5b o retorno legítimo foi recusado (%) — a guarda fechou demais', sqlerrm;
+  end;
+
+  -- =========================================================================
+  -- 6 — RETORNO SEM PESSOA continua passando (o caminho de TODO o histórico,
+  --     e a razão de a regra §C.3 poder existir: entrega antiga funciona igual)
+  -- =========================================================================
+  -- A conta da pessoa ANTES — é a comparação que dá sentido ao 6b (comparar com
+  -- zero seria falso verde: a pessoa TEM saldo neste ponto do roteiro).
+  select coalesce(com_a_pessoa, 0) into v_pessoa from public.rel_saldo_colaborador(v_colab)
+   where item_id = v_itemA and filial_id = v_f1;
+
+  begin
+    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
+      values (v_itemA, v_f1, 'retorno', 1, current_date, k_admin);
+    v_ok := v_ok + 1;
+    raise notice '✓ 6a retorno SEM colaborador_id passa como sempre passou (entrega antiga funciona igual)';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '6a; ';
+    raise warning '✗ 6a retorno sem vínculo virou erro retroativo (%) — o histórico quebrou', sqlerrm;
+  end;
+
+  -- E ele não é debitado de pessoa nenhuma: a conta de quem TINHA saldo não mexeu.
+  select coalesce(com_a_pessoa, 0) into v_n from public.rel_saldo_colaborador(v_colab)
+   where item_id = v_itemA and filial_id = v_f1;
+  if v_n = v_pessoa then
+    v_ok := v_ok + 1;
+    raise notice '✓ 6b o retorno sem vínculo não tirou da conta de ninguém (a de quem tem saldo segue em %)', v_n;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '6b; ';
+    raise warning '✗ 6b o retorno sem vínculo mexeu na conta de alguém (%→%)', v_pessoa, v_n;
+  end if;
+
+  -- =========================================================================
+  -- 7 — `recuperado`: estoque +1, pessoa −1, Total INALTERADO
+  -- =========================================================================
+  -- Uma devolução com item faltante, que abre a pendência pelo trigger 0051.
+  -- ⚠ `created_at` explícito e distinto (pendência nº 5 da F37).
+  insert into public.movimentacoes (ativo_id, tipo, motivo, data, filial_id, colaborador,
+                                    colaborador_id, itens_faltantes, criado_por, created_at)
+    values (v_ativo1, 'devolucao', 'desligamento', current_date, v_f1, 'Fulano ZZF38 Um',
+            v_colab, array['zzf38tipo'], k_admin, now() + interval '1 second')
+    returning id into v_mov_dev;
+
+  select id into v_pend from public.pendencias_item
+   where movimentacao_id = v_mov_dev and item = 'zzf38tipo';
+
+  if v_pend is not null then
+    v_ok := v_ok + 1; raise notice '✓ 7a a devolução com item faltante abriu a pendência pelo trigger (byte a byte)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '7a; ';
+    raise warning '✗ 7a a pendência não nasceu — o caminho Faltante mudou';
+  end if;
+
+  -- Dá saldo à pessoa para o retorno da resolução poder carregar o vínculo.
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                       colaborador_id, criado_por)
+    values (v_itemA, v_f1, 'saida', 1, current_date, v_colab, k_admin);
+
+  select total, estoque into v_total0, v_est0
+    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+  select com_a_pessoa into v_pessoa from public.rel_saldo_colaborador(v_colab)
+   where item_id = v_itemA and filial_id = v_f1;
+
+  select public.resolver_pendencias_item_com_lancamentos(
+    array[v_pend], 'recuperado', 'Achado na gaveta — roteiro F38',
+    jsonb_build_array(jsonb_build_object(
+      'pendencia_id', v_pend::text, 'item_id', v_itemA, 'filial_id', v_f1,
+      'quantidade', 1, 'data', current_date::text,
+      'colaborador', 'Fulano ZZF38 Um', 'colaborador_id', v_colab::text,
+      'observacao_retorno', 'Pendência resolvida — roteiro F38')),
+    k_admin
+  ) into v_ret;
+
+  select total, estoque into v_total1, v_est1
+    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+
+  if v_total1 = v_total0 and v_est1 = v_est0 + 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 7b recuperado: estoque %→% (+1) e Total % inalterado', v_est0, v_est1, v_total1;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '7b; ';
+    raise warning '✗ 7b recuperado: esperava estoque +1 e Total igual; veio estoque %→%, Total %→%',
+      v_est0, v_est1, v_total0, v_total1;
+  end if;
+
+  select com_a_pessoa into v_n from public.rel_saldo_colaborador(v_colab)
+   where item_id = v_itemA and filial_id = v_f1;
+  if coalesce(v_n, 0) = coalesce(v_pessoa, 0) - 1 then
+    v_ok := v_ok + 1; raise notice '✓ 7c recuperado: a conta da pessoa baixou 1 (%→%)', v_pessoa, v_n;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '7c; ';
+    raise warning '✗ 7c recuperado: a conta da pessoa foi de % para %', v_pessoa, v_n;
+  end if;
+
+  if (select status from public.pendencias_item where id = v_pend) = 'resolvida' then
+    v_ok := v_ok + 1; raise notice '✓ 7d a pendência ficou resolvida';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '7d; ';
+    raise warning '✗ 7d a pendência não foi resolvida';
+  end if;
+
+  -- =========================================================================
+  -- 12 — IDEMPOTÊNCIA: reenviar não re-resolve NEM duplica lançamento
+  -- =========================================================================
+  select count(*) into v_n_lanc0 from public.lancamentos_item where pendencia_item_id = v_pend;
+
+  select public.resolver_pendencias_item_com_lancamentos(
+    array[v_pend], 'recuperado', 'Reenvio — roteiro F38',
+    jsonb_build_array(jsonb_build_object(
+      'pendencia_id', v_pend::text, 'item_id', v_itemA, 'filial_id', v_f1,
+      'quantidade', 1, 'data', current_date::text,
+      'colaborador_id', v_colab::text)),
+    k_admin
+  ) into v_ret;
+
+  select count(*) into v_n_lanc1 from public.lancamentos_item where pendencia_item_id = v_pend;
+
+  if (v_ret ->> 'resolvidas')::int = 0 and v_n_lanc1 = v_n_lanc0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 12a reenviar não re-resolveu (0) nem duplicou lançamento (% linhas)', v_n_lanc1;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '12a; ';
+    raise warning '✗ 12a reenvio duplicou: resolvidas=%, lançamentos %→%',
+      v_ret ->> 'resolvidas', v_n_lanc0, v_n_lanc1;
+  end if;
+
+  -- =========================================================================
+  -- 9 — REABRIR grava os inversos; com a lista incompleta, RECUSA
+  -- =========================================================================
+  select id into v_lanc from public.lancamentos_item
+   where pendencia_item_id = v_pend and tipo::text = 'retorno' and estorna_id is null;
+
+  -- 9a: lista VAZIA de estornos com lançamento de pé → tem de recusar.
+  begin
+    perform public.reabrir_pendencias_item_com_estornos(
+      array[v_pend], 'Reabertura sem estorno — roteiro F38', '[]'::jsonb, k_admin);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '9a_ORFAO_PASSOU; ';
+    raise warning '✗ 9a reabriu deixando lançamento órfão de pé';
+  exception when check_violation then
+    v_ok := v_ok + 1;
+    raise notice '✓ 9a reabrir sem os inversos foi RECUSADO — nunca deixa lançamento órfão';
+  end;
+
+  if (select status from public.pendencias_item where id = v_pend) = 'resolvida' then
+    v_ok := v_ok + 1; raise notice '✓ 9b a recusa voltou tudo: a pendência continua resolvida';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '9b; ';
+    raise warning '✗ 9b a pendência foi reaberta mesmo com a recusa — a transação não voltou';
+  end if;
+
+  -- 9c: com o inverso na lista, reabre.
+  select public.reabrir_pendencias_item_com_estornos(
+    array[v_pend], 'Reabertura com estorno — roteiro F38',
+    jsonb_build_array(jsonb_build_object(
+      'estorna_id', v_lanc::text, 'pendencia_id', v_pend::text,
+      'item_id', v_itemA, 'filial_id', v_f1, 'tipo', 'saida', 'quantidade', 1,
+      'colaborador_id', v_colab::text,
+      'observacao', 'Estorno: reabertura — roteiro F38')),
+    k_admin
+  ) into v_ret;
+
+  if (v_ret ->> 'reabertas')::int = 1 and (v_ret ->> 'estornos')::int = 1
+     and (select status from public.pendencias_item where id = v_pend) = 'aberta' then
+    v_ok := v_ok + 1; raise notice '✓ 9c reabrir com os inversos funciona, e a pendência volta a aberta';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '9c; ';
+    raise warning '✗ 9c reabertura não fechou o ciclo: %', v_ret;
+  end if;
+
+  if (select count(*) from public.lancamentos_item where estorna_id = v_lanc) = 1 then
+    v_ok := v_ok + 1; raise notice '✓ 9d o inverso aponta o original por estorna_id, uma vez só';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '9d; ';
+    raise warning '✗ 9d o inverso não ficou ligado ao original';
+  end if;
+
+  -- =========================================================================
+  -- 8 — `baixa`: pessoa −1, Total −1, estoque DE VOLTA ao que era
+  -- =========================================================================
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                       colaborador_id, criado_por)
+    values (v_itemA, v_f1, 'saida', 1, current_date, v_colab2, k_admin);
+
+  insert into public.movimentacoes (ativo_id, tipo, motivo, data, filial_id, colaborador,
+                                    colaborador_id, itens_faltantes, criado_por, created_at)
+    values (v_ativo2, 'devolucao', 'desligamento', current_date, v_f1, 'Fulano ZZF38 Dois',
+            v_colab2, array['zzf38tipo'], k_admin, now() + interval '2 seconds')
+    returning id into v_mov_dev;
+  select id into v_pend from public.pendencias_item where movimentacao_id = v_mov_dev;
+
+  select total, estoque into v_total0, v_est0
+    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+  select com_a_pessoa into v_pessoa from public.rel_saldo_colaborador(v_colab2)
+   where item_id = v_itemA and filial_id = v_f1;
+
+  select public.resolver_pendencias_item_com_lancamentos(
+    array[v_pend], 'baixa', null,
+    jsonb_build_array(jsonb_build_object(
+      'pendencia_id', v_pend::text, 'item_id', v_itemA, 'filial_id', v_f1,
+      'quantidade', 1, 'data', current_date::text,
+      'colaborador', 'Fulano ZZF38 Dois', 'colaborador_id', v_colab2::text,
+      'observacao_retorno', 'Baixa — roteiro F38',
+      'observacao_ajuste', 'Baixa de item faltante: TESTE F38 Item A — não vai voltar.')),
+    k_admin
+  ) into v_ret;
+
+  select total, estoque into v_total1, v_est1
+    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+
+  if (v_ret ->> 'lancamentos')::int = 2 then
+    v_ok := v_ok + 1; raise notice '✓ 8a a baixa gravou DOIS lançamentos (retorno + ajuste), não um';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8a; ';
+    raise warning '✗ 8a a baixa gravou % lançamento(s) — deveriam ser 2', v_ret ->> 'lancamentos';
+  end if;
+
+  if v_total1 = v_total0 - 1 and v_est1 = v_est0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 8b baixa: Total %→% (−1) e estoque % de volta ao que era', v_total0, v_total1, v_est1;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8b; ';
+    raise warning '✗ 8b baixa: esperava Total −1 e estoque igual; veio Total %→%, estoque %→%',
+      v_total0, v_total1, v_est0, v_est1;
+  end if;
+
+  select com_a_pessoa into v_n from public.rel_saldo_colaborador(v_colab2)
+   where item_id = v_itemA and filial_id = v_f1;
+  if coalesce(v_n, 0) = coalesce(v_pessoa, 0) - 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 8c baixa: a conta da pessoa baixou 1 (%→%) — o item não fica com ela para sempre',
+      v_pessoa, v_n;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8c; ';
+    raise warning '✗ 8c baixa: a conta da pessoa foi de % para % — o furo continua aberto', v_pessoa, v_n;
+  end if;
+
+  -- =========================================================================
+  -- 10 — O CAMINHO "FALTANTE" É BYTE A BYTE
+  -- =========================================================================
+  if (select item from public.pendencias_item where id = v_pend) = 'zzf38tipo' then
+    v_ok := v_ok + 1; raise notice '✓ 10a a pendência guarda o SLUG literal, como sempre guardou';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '10a; ';
+    raise warning '✗ 10a o slug gravado na pendência mudou';
+  end if;
+
+  if (select itens_faltantes from public.movimentacoes where id = v_mov_dev) = array['zzf38tipo'] then
+    v_ok := v_ok + 1; raise notice '✓ 10b movimentacoes.itens_faltantes continua com os mesmos slugs';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '10b; ';
+    raise warning '✗ 10b itens_faltantes mudou de formato';
+  end if;
+
+  -- A ponte tipo→item existe no modelo: o tipo do checklist encontra o item ativo.
+  select count(*) into v_n from public.itens i
+    join public.tipos_item t on t.id = i.tipo_id
+   where t.slug = 'zzf38tipo' and i.ativo;
+  if v_n = 1 then
+    v_ok := v_ok + 1; raise notice '✓ 10c a ponte tipo→item resolve um único item ativo (o caso que não pergunta nada)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '10c; ';
+    raise warning '✗ 10c a ponte tipo→item encontrou % candidatos, esperava 1', v_n;
+  end if;
+
+  -- =========================================================================
+  -- 11 — GRANTS das RPCs novas
+  -- =========================================================================
+  for v_def in
+    select unnest(array[
+      'public.criar_movimentacao_com_itens(jsonb,jsonb,uuid)',
+      'public.resolver_pendencias_item_com_lancamentos(uuid[],text,text,jsonb,uuid)',
+      'public.reabrir_pendencias_item_com_estornos(uuid[],text,jsonb,uuid)'
+    ])
+  loop
+    if has_function_privilege('authenticated', v_def, 'execute')
+       and not has_function_privilege('anon', v_def, 'execute')
+       and not has_function_privilege('service_role', v_def, 'execute') then
+      v_ok := v_ok + 1;
+      raise notice '✓ 11 grants de % : authenticated sim, anon e service_role não', split_part(v_def, '(', 1);
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '11(' || split_part(v_def, '(', 1) || '); ';
+      raise warning '✗ 11 grants errados em %', v_def;
+    end if;
+  end loop;
+
+  -- rel_saldo_colaborador é leitura: authenticated e service_role sim, anon não.
+  if has_function_privilege('authenticated', 'public.rel_saldo_colaborador(uuid)', 'execute')
+     and not has_function_privilege('anon', 'public.rel_saldo_colaborador(uuid)', 'execute') then
+    v_ok := v_ok + 1; raise notice '✓ 11e rel_saldo_colaborador: authenticated sim, anon não';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '11e; ';
+    raise warning '✗ 11e grants errados em rel_saldo_colaborador';
+  end if;
+
+  -- As quatro funções são INVOKER (a autorização mora nas policies).
+  select count(*) into v_n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prosecdef
+     and p.proname in ('criar_movimentacao_com_itens', 'rel_saldo_colaborador',
+                       'resolver_pendencias_item_com_lancamentos',
+                       'reabrir_pendencias_item_com_estornos');
+  if v_n = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 11f as quatro funções novas são SECURITY INVOKER';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '11f; ';
+    raise warning '✗ 11f % função(ões) nova(s) virou definer — a autorização saiu das policies', v_n;
+  end if;
+
+  -- =========================================================================
+  -- RESUMO (a linha que o MCP consegue ler — ele engole NOTICE/WARNING)
+  -- =========================================================================
+  insert into _f38_resumo values (v_ok, v_falhas, nullif(v_msgs, ''));
+  if v_falhas = 0 then
+    raise notice '=== f38_itens_com_ativo: % asserções OK, 0 falhas (ROLLBACK — nada gravado) ===', v_ok;
+  else
+    raise warning '✗ TOTAL f38_itens_com_ativo: % falha(s) — %', v_falhas, v_msgs;
+  end if;
+end $$;
+
+select * from _f38_resumo;
+
+rollback;

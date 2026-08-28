@@ -6,12 +6,18 @@ import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import {
-  loteMovimentacaoSchema,
+  loteComItensSchema,
   estornoActionSchema,
   mesmaServiceTag,
   parsearLoteColado,
+  type ItemJuntoInput,
   type MovimentacaoInput,
 } from '@/lib/validators/movimentacao'
+import {
+  MOTIVO_SEM_VINCULO_TEXTO,
+  decidirVinculosDoLote,
+  type SaldoDaPessoa,
+} from '@/lib/itens/vinculo-retorno'
 import {
   buscarAtivosParaCombobox,
   buscarAtivosPorPatrimonios,
@@ -32,6 +38,7 @@ import {
 } from '@/lib/queries/colaboradores'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
 import type { StatusAtivo } from '@/lib/dominio'
+import type { Json } from '@/lib/types/database'
 
 // Re-export dos tipos do CONTRATO §1.5 (OS-F10): o fluxo de movimentação roda em
 // Client Component e só pode importar deste módulo — `src/lib/queries/**` é
@@ -56,8 +63,19 @@ export type SugestoesColaborador = SugestoesColaboradorQuery
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
 // ---------------------------------------------------------------------------
-// Resultado do lote (OS-F2 3.4.1): quais entraram e qual falhou.
+// Resultado do lote — TUDO OU NADA desde a F38 (decisão do Johnny, 28/08/2026).
 // ---------------------------------------------------------------------------
+// Até a F37 o lote era gravado num `for` de INSERTs, cada um a própria transação:
+// uma transição inválida no 18º de 30 deixava 17 gravadas e 13 fora, e o operador
+// reconciliava à mão. Agora o lote inteiro passa por
+// `criar_movimentacao_com_itens` (0117): **ou tudo, ou nada**.
+//
+// O QUE ISSO MUDA NESTE TIPO, e por que os campos continuam aqui:
+//   · `criadas` é 0 sempre que `ok` é false. Não existe mais "meio lote".
+//   · `resultados` sobrevive porque a tela ainda precisa apontar QUAL linha
+//     derrubou o lote — só que agora TODAS vêm com `ok: false` quando algo falha,
+//     e só a culpada carrega o erro de verdade.
+//   · `linhaQueFalhou` é o índice dela, extraído do `detail` que a RPC anexa.
 export type ItemResultado = {
   index: number
   ativo_id: string
@@ -71,7 +89,31 @@ export type RegistrarLoteResult = {
   criadas: number
   resultados: ItemResultado[]
   erroGeral?: string
+  /** F38: quantos lançamentos de item nasceram junto com o lote. */
+  itensLancados?: number
+  /** F38: índice (base 0) da linha que derrubou o lote inteiro, quando há uma. */
+  linhaQueFalhou?: number
+  /** F38: por que uma linha de item saiu sem vínculo com a pessoa (§C.3). */
+  avisosVinculo?: string[]
 }
+
+// O `detail` que a 0117 anexa aos erros para dizer QUAL linha derrubou o lote.
+// Formato: `f38_linha=<índice base 0>` (movimentação) ou `f38_item=<índice>`.
+const MARCA_LINHA = /f38_linha=(\d+)/
+const MARCA_ITEM = /f38_item=(\d+)/
+
+function linhaDoDetalhe(detalhe: string | null | undefined): number | undefined {
+  const m = MARCA_LINHA.exec(detalhe ?? '')
+  return m ? Number(m[1]) : undefined
+}
+
+function itemDoDetalhe(detalhe: string | null | undefined): number | undefined {
+  const m = MARCA_ITEM.exec(detalhe ?? '')
+  return m ? Number(m[1]) : undefined
+}
+
+/** A linha que não é a culpada: nada foi gravado, e o texto diz isso sem rodeio. */
+const NADA_GRAVADO = 'Não foi gravada — o lote inteiro foi recusado.'
 
 type AtivoBasico = { id: string; filial_id: number; status: StatusAtivo }
 
@@ -85,19 +127,18 @@ type AtivoBasico = { id: string; filial_id: number; status: StatusAtivo }
 // TEXTO continua sendo gravado exatamente como antes (e o retrato da epoca, doutrina
 // da casa) e o `colaborador_id` entra AO LADO dele quando a chave resolve. Nome que
 // nao esta no cadastro nao bloqueia nada: grava com id nulo, como sempre gravou.
-function montarRow(
-  item: MovimentacaoInput,
-  ativo: AtivoBasico,
-  uid: string,
-  vinculos: Map<string, string>,
-) {
+//
+// F38 — a row deixou de carregar `filial_id`. Quem a deriva agora é a RPC 0117, do
+// ativo lido SOB A TRAVA, dentro da mesma transação: entre a leitura desta action e
+// o INSERT, o ativo pode ter sido transferido por outra sessão, e numa transação
+// única isso deixou de ser aceitável em silêncio. Uma fonte só.
+function montarRow(item: MovimentacaoInput, uid: string, vinculos: Map<string, string>) {
   const colaborador = ('colaborador' in item ? item.colaborador : undefined) ?? null
   return {
     ativo_id: item.ativo_id,
     tipo: item.tipo,
     motivo: ('motivo' in item ? item.motivo : undefined) ?? null,
     data: item.data,
-    filial_id: ativo.filial_id, // origem (a corrente do ativo)
     filial_destino_id:
       item.tipo === 'transferencia' ? item.filial_destino_id : null,
     colaborador,
@@ -122,71 +163,46 @@ function montarRow(
   }
 }
 
-// Processa UM item do lote: valida a transicao (transferencia != filial atual),
-// monta a row e insere. Devolve o resultado do item e se o lote deve parar — as
-// linhas anteriores ja estao commitadas (cada insert e uma transacao). OS-F2 3.4.1.
-async function processarItemLote(
-  supabase: ServerClient,
-  item: MovimentacaoInput,
-  index: number,
-  ativo: AtivoBasico | undefined,
-  uid: string,
-  vinculos: Map<string, string>,
-): Promise<{ resultado: ItemResultado; interromper: boolean }> {
-  if (!ativo) {
-    return {
-      resultado: {
-        index,
-        ativo_id: item.ativo_id,
-        ok: false,
-        erro: 'Ativo não encontrado.',
-      },
-      interromper: true,
+// A primeira linha de validação do lote, ANTES de gravar: erra rápido e com a
+// mensagem certa, em vez de deixar o banco recusar com um código cru.
+//
+// ⚠ Ela NÃO substitui a validação do banco, e nem tenta: o estado do ativo pode
+// mudar entre esta leitura e a transação. A do banco é a que vale — esta existe
+// para que o operador conserte ANTES de perder o lote inteiro (§B.2 da ordem F38).
+function conferirLoteAntesDeGravar(
+  itens: MovimentacaoInput[],
+  ativoPorId: Map<string, AtivoBasico>,
+): { index: number; erro: string } | null {
+  for (let index = 0; index < itens.length; index++) {
+    const item = itens[index]
+    const ativo = ativoPorId.get(item.ativo_id)
+    if (!ativo) return { index, erro: 'Ativo não encontrado.' }
+    if (item.tipo === 'transferencia' && item.filial_destino_id === ativo.filial_id) {
+      return { index, erro: 'A filial de destino deve ser diferente da atual.' }
     }
   }
+  return null
+}
 
-  // Transferencia: destino tem de ser diferente da filial atual (OS-F2 3.3.1).
-  if (
-    item.tipo === 'transferencia' &&
-    item.filial_destino_id === ativo.filial_id
-  ) {
-    return {
-      resultado: {
-        index,
-        ativo_id: item.ativo_id,
-        ok: false,
-        erro: 'A filial de destino deve ser diferente da atual.',
-      },
-      interromper: true,
-    }
-  }
-
-  const { data: inserida, error: insertErr } = await supabase
-    .from('movimentacoes')
-    .insert(montarRow(item, ativo, uid, vinculos))
-    .select('id')
-    .single()
-
-  if (insertErr) {
-    return {
-      resultado: {
-        index,
-        ativo_id: item.ativo_id,
-        ok: false,
-        erro: traduzErroBanco(insertErr.message, insertErr.code),
-      },
-      interromper: true,
-    }
-  }
-
+// Todas as linhas recusadas de uma vez: a culpada com o motivo verdadeiro, as
+// outras dizendo que nada foi gravado. Nunca sobra a impressão de meio lote.
+function loteInteiroRecusado(
+  itens: MovimentacaoInput[],
+  culpada: number | undefined,
+  erro: string,
+  erroGeral?: string,
+): RegistrarLoteResult {
   return {
-    resultado: {
+    ok: false,
+    criadas: 0,
+    resultados: itens.map((item, index) => ({
       index,
       ativo_id: item.ativo_id,
-      ok: true,
-      movimentacao_id: inserida?.id,
-    },
-    interromper: false,
+      ok: false,
+      erro: index === culpada ? erro : NADA_GRAVADO,
+    })),
+    erroGeral: erroGeral ?? (culpada === undefined ? erro : undefined),
+    linhaQueFalhou: culpada,
   }
 }
 
@@ -197,8 +213,10 @@ async function processarItemLote(
 // transacao). OS-F2 3.4.1.
 export async function registrarMovimentacoes(input: {
   itens: MovimentacaoInput[]
+  /** F38 · D13 — os periféricos que vão (ou voltam) junto. Opcional. */
+  itensJunto?: ItemJuntoInput[]
 }): Promise<RegistrarLoteResult> {
-  const parsed = loteMovimentacaoSchema.safeParse(input)
+  const parsed = loteComItensSchema.safeParse(input)
   if (!parsed.success) {
     return {
       ok: false,
@@ -223,8 +241,8 @@ export async function registrarMovimentacoes(input: {
   // uma vez (mapa abaixo) e não é reidratado durante o loop, então uma 2ª linha
   // do mesmo ativo usaria filial/estado obsoletos. A UI já deduplica; aqui é a
   // barreira da Server Action contra payload forjado.
-  const ids = [...new Set(itens.map((i) => i.ativo_id))]
-  if (ids.length !== itens.length) {
+  const idsDoLote = [...new Set(itens.map((i) => i.ativo_id))]
+  if (idsDoLote.length !== itens.length) {
     return {
       ok: false,
       criadas: 0,
@@ -237,7 +255,7 @@ export async function registrarMovimentacoes(input: {
   const { data: ativosData, error: ativosErr } = await supabase
     .from('ativos')
     .select('id, filial_id, status')
-    .in('id', ids)
+    .in('id', idsDoLote)
   if (ativosErr) {
     return {
       ok: false,
@@ -279,39 +297,60 @@ export async function registrarMovimentacoes(input: {
     itens.map((i) => ('colaborador' in i ? i.colaborador : null)),
   )
 
-  const resultados: ItemResultado[] = []
-  const rotasAtivos = new Set<string>()
-  let criadas = 0
-  let interrompido = false
+  // Primeira linha: o que dá para conferir sem tocar o banco. A do banco continua
+  // sendo a que vale; esta poupa o operador de perder o lote por algo óbvio.
+  const problema = conferirLoteAntesDeGravar(itens, ativoPorId)
+  if (problema) return loteInteiroRecusado(itens, problema.index, problema.erro)
 
-  for (let index = 0; index < itens.length; index++) {
-    const item = itens[index]
+  // F38 · D13 — os itens que vão junto. O tipo do lançamento é DERIVADO do tipo da
+  // movimentação apontada (entrega → `saida`, devolução → `retorno`); o cliente não
+  // o escolhe. Item apontando movimentação de outro tipo simplesmente não vira
+  // lançamento — não é erro, é uma seção opcional que não se aplica àquela linha.
+  const { payload: itensPayload, avisos } = await montarItensJunto(
+    supabase,
+    itens,
+    parsed.data.itensJunto,
+    ativoPorId,
+    vinculos,
+  )
 
-    if (interrompido) {
-      resultados.push({
-        index,
-        ativo_id: item.ativo_id,
-        ok: false,
-        erro: 'Não processado — o lote foi interrompido em um item anterior.',
-      })
-      continue
-    }
+  const { data: retorno, error: rpcErr } = await supabase.rpc(
+    'criar_movimentacao_com_itens',
+    {
+      // O gerador de tipos declara `Json` para argumento jsonb; as duas listas
+      // são objetos simples (string/number/null/array), então o cast é honesto.
+      p_movimentacoes: itens.map((item) => montarRow(item, uid, vinculos)) as unknown as Json,
+      p_itens: itensPayload as unknown as Json,
+      p_criado_por: uid,
+    },
+  )
 
-    const { resultado, interromper } = await processarItemLote(
-      supabase,
-      item,
-      index,
-      ativoPorId.get(item.ativo_id),
-      uid,
-      vinculos,
+  if (rpcErr) {
+    const culpada = linhaDoDetalhe(rpcErr.details)
+    const itemCulpado = itemDoDetalhe(rpcErr.details)
+    const mensagem = traduzErroBanco(rpcErr.message, rpcErr.code)
+    if (culpada !== undefined) return loteInteiroRecusado(itens, culpada, mensagem)
+    // Falhou por causa de um ITEM que ia junto (ou por algo do lote inteiro): não
+    // há linha culpada a apontar, e o texto geral carrega o motivo verdadeiro.
+    return loteInteiroRecusado(
+      itens,
+      undefined,
+      mensagem,
+      itemCulpado !== undefined
+        ? `Nada foi gravado. O ${itemCulpado + 1}º item que ia junto foi recusado: ${mensagem}`
+        : `Nada foi gravado. ${mensagem}`,
     )
-    resultados.push(resultado)
-    if (resultado.ok) {
-      criadas++
-      rotasAtivos.add(item.ativo_id)
-    }
-    if (interromper) interrompido = true
   }
+
+  const criadas = itens.length
+  const rotasAtivos = new Set(itens.map((i) => i.ativo_id))
+  const ids = (retorno as { movimentacoes?: string[] } | null)?.movimentacoes ?? []
+  const resultados: ItemResultado[] = itens.map((item, index) => ({
+    index,
+    ativo_id: item.ativo_id,
+    ok: true,
+    movimentacao_id: ids[index],
+  }))
 
   if (criadas > 0) {
     revalidatePath('/ativos')
@@ -327,13 +366,132 @@ export async function registrarMovimentacoes(input: {
     // v_pendencias — revalida como fazem itens.ts/ativos.ts (senao o link do
     // relatorio serve dado obsoleto ao visualizador por senha).
     revalidatePath('/relatorios', 'layout')
+    // F38: o lote pode ter mexido no estoque de itens por quantidade.
+    if (itensPayload.length > 0) revalidatePath('/itens')
   }
 
   return {
-    ok: resultados.every((r) => r.ok),
+    ok: true,
     criadas,
     resultados,
+    itensLancados: itensPayload.length,
+    avisosVinculo: avisos.length > 0 ? avisos : undefined,
   }
+}
+
+// ---------------------------------------------------------------------------
+// F38 · D13 — os itens que vão junto: do que o wizard mandou ao payload da RPC.
+// ---------------------------------------------------------------------------
+// Duas coisas acontecem aqui, e nenhuma delas pode acontecer no cliente:
+//
+//  1. O TIPO DO LANÇAMENTO é derivado do tipo da movimentação apontada. Entrega
+//     (`saida`/`emprestimo`) vira `saida` ("Liberação"); devolução vira `retorno`
+//     ("Retorno"). Nenhum outro tipo de movimentação carrega item — a seção nem
+//     aparece para eles, e um payload forjado que aponte para uma `transferencia`
+//     simplesmente não gera lançamento.
+//
+//  2. A REGRA §C.3 do vínculo condicional, para as linhas de `retorno`: só carrega
+//     `colaborador_id` quem tem saldo registrado suficiente daquele item naquela
+//     filial. Equipamento entregue ANTES desta fase deixa a pessoa com saldo zero;
+//     recusar a devolução ali mataria o D12 ("entrega antiga funciona igual"). Sem
+//     saldo, o `retorno` é gravado sem o vínculo — repõe o estoque do mesmo jeito,
+//     sem inventar dívida. A tela diz, discretamente, qual dos dois aconteceu.
+async function montarItensJunto(
+  supabase: ServerClient,
+  itens: MovimentacaoInput[],
+  itensJunto: ItemJuntoInput[],
+  ativoPorId: Map<string, AtivoBasico>,
+  vinculos: Map<string, string>,
+): Promise<{ payload: Record<string, unknown>[]; avisos: string[] }> {
+  if (itensJunto.length === 0) return { payload: [], avisos: [] }
+
+  type Linha = ItemJuntoInput & {
+    tipo: 'saida' | 'retorno'
+    filialId: number
+    itemId: number
+    colaborador: string | null
+    colaboradorId: string | null
+    data: string
+  }
+
+  const linhas: Linha[] = []
+  for (const j of itensJunto) {
+    const mov = itens[j.indice]
+    if (!mov) continue // o Zod da RPC recusaria; aqui o índice fora do lote só é ignorado
+    const tipo =
+      mov.tipo === 'saida' || mov.tipo === 'emprestimo'
+        ? ('saida' as const)
+        : mov.tipo === 'devolucao'
+          ? ('retorno' as const)
+          : null
+    if (!tipo) continue
+    const ativo = ativoPorId.get(mov.ativo_id)
+    if (!ativo) continue
+    const colaborador = ('colaborador' in mov ? mov.colaborador : undefined) ?? null
+    linhas.push({
+      ...j,
+      tipo,
+      itemId: j.item_id,
+      filialId: ativo.filial_id,
+      colaborador,
+      colaboradorId: vinculos.get(chaveColaborador(colaborador)) ?? null,
+      data: mov.data,
+    })
+  }
+
+  if (linhas.length === 0) return { payload: [], avisos: [] }
+
+  // A §C.3 só entra nas linhas de RETORNO, e o saldo é consultado UMA VEZ por
+  // pessoa (nunca uma consulta por linha).
+  const avisos: string[] = []
+  const retornos = linhas.filter((l) => l.tipo === 'retorno' && l.colaboradorId)
+  const decisao = new Map<Linha, string | null>()
+
+  if (retornos.length > 0) {
+    const porPessoa = new Map<string, Linha[]>()
+    for (const l of retornos) {
+      const lista = porPessoa.get(l.colaboradorId!) ?? []
+      lista.push(l)
+      porPessoa.set(l.colaboradorId!, lista)
+    }
+    for (const [pessoaId, doPessoa] of porPessoa) {
+      const { data: saldos } = await supabase.rpc('rel_saldo_colaborador', {
+        p_colaborador: pessoaId,
+      })
+      const decididas = decidirVinculosDoLote(
+        doPessoa.map((l) => ({
+          ref: l,
+          itemId: l.itemId,
+          filialId: l.filialId,
+          quantidade: l.quantidade,
+        })),
+        {
+          colaboradorId: pessoaId,
+          saldos: (saldos ?? []) as SaldoDaPessoa[],
+        },
+      )
+      for (const d of decididas) {
+        decisao.set(d.ref, d.colaboradorId)
+        if (!d.colaboradorId && d.motivoSemVinculo) {
+          const texto = MOTIVO_SEM_VINCULO_TEXTO[d.motivoSemVinculo]
+          if (!avisos.includes(texto)) avisos.push(texto)
+        }
+      }
+    }
+  }
+
+  const payload = linhas.map((l) => ({
+    indice_movimentacao: l.indice,
+    item_id: l.itemId,
+    tipo: l.tipo,
+    quantidade: l.quantidade,
+    data: l.data,
+    colaborador: l.colaborador,
+    colaborador_id:
+      l.tipo === 'retorno' ? (decisao.has(l) ? decisao.get(l) : l.colaboradorId) : l.colaboradorId,
+  }))
+
+  return { payload, avisos }
 }
 
 // ---------------------------------------------------------------------------

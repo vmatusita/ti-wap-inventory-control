@@ -34,6 +34,8 @@ import { hojeISO } from '@/lib/format'
 import { escreveNaFilial, type PapelUsuario } from '@/lib/auth/papeis'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
+import type { TipoItem } from '@/lib/queries/tipos-item'
+import type { ItemDoCatalogo } from '@/lib/itens/ponte-tipo-item'
 
 // F26 — a seção do PAR troca/upgrade dentro do passo 2. Ela existe nos DOIS
 // sentidos e é a MESMA seção: o que muda é o tipo alvo (e, com ele, quais campos
@@ -53,6 +55,8 @@ export function SecaoContrapartida({
   comandoRef,
   papel = null,
   filiaisEscrita = [],
+  tiposItem,
+  itensCatalogo,
   onAdicionar,
   onRemover,
   onSet,
@@ -69,6 +73,9 @@ export function SecaoContrapartida({
   // operador — nenhum item ganha o badge.
   papel?: PapelUsuario | null
   filiaisEscrita?: readonly number[]
+  // F38 · D12 — o vocabulário e o catálogo do checklist de dois desfechos.
+  tiposItem: TipoItem[]
+  itensCatalogo: ItemDoCatalogo[]
   onAdicionar: (ativo: AtivoResumo) => void
   onRemover: (id: string) => void
   onSet: <K extends keyof ContrapartidaTroca>(
@@ -296,9 +303,15 @@ export function SecaoContrapartida({
 
           {campoAplica(alvo, 'itens_faltantes') && (
             <ChecklistFaltantes
-              valor={contrapartida.itensFaltantes}
-              onChange={(itens) => onSet('itensFaltantes', itens)}
-              rotulo="Itens faltantes na devolução da troca"
+              tipos={tiposItem}
+              itensCatalogo={itensCatalogo}
+              faltantes={contrapartida.itensFaltantes}
+              devolvidos={contrapartida.itensDevolvidos ?? []}
+              onChange={(v) => {
+                onSet('itensFaltantes', v.faltantes)
+                onSet('itensDevolvidos', v.devolvidos)
+              }}
+              rotulo="O que voltou na devolução da troca"
             />
           )}
         </div>

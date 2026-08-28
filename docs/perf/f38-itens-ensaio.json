@@ -1,0 +1,216 @@
+{
+  "rotulo": "f38-itens-ensaio",
+  "alvo": "ensaio",
+  "node": "v24.14.1",
+  "inicio": "2026-08-28T22:56:34.539Z",
+  "fim": "2026-08-28T23:06:41.254Z",
+  "metodo": {
+    "patamares": [
+      10000,
+      100000,
+      500000
+    ],
+    "pares": 1500,
+    "itens_ficticios": 300,
+    "linhas_por_par": 333.3,
+    "repeticoes": {
+      "leitura": 3,
+      "insert_par_quente": 20
+    },
+    "populacao": "trigger trg_valida_lancamento_item DESLIGADO durante a população (alter table ... disable trigger), religado ao final — custo real do trigger NÃO refletido no tempo de população, só nas medidas 3 explícitas.",
+    "limpeza": "ok — contagem marcada voltou a 0 nas duas tabelas"
+  },
+  "patamares": [
+    {
+      "linhas": 10000,
+      "populacao_ms": 8659.1,
+      "medidas": [
+        {
+          "nome": "rel_saldo_itens (consolidado)",
+          "sql_rotulo": "select * from rel_saldo_itens(null::smallint, current_date)",
+          "execution_ms": 19.8,
+          "planning_ms": 0.1,
+          "shared_hit": 1354,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "rel_saldo_itens (uma filial)",
+          "sql_rotulo": "select * from rel_saldo_itens(1::smallint, current_date)",
+          "execution_ms": 12.5,
+          "planning_ms": 0.1,
+          "shared_hit": 1351,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "rel_mov_itens (consolidado, 30 dias)",
+          "sql_rotulo": "select * from rel_mov_itens(null::smallint, current_date - 30, current_date)",
+          "execution_ms": 16.3,
+          "planning_ms": 0.1,
+          "shared_hit": 10235,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "trigger valida_lancamento_item (custo por INSERT no par quente, N=20 inserts individuais)",
+          "sql_rotulo": "insert into lancamentos_item (...) values (par quente, entrada, 1)",
+          "execution_ms": 3.3,
+          "planning_ms": 0.1,
+          "shared_hit": 272,
+          "shared_read": 0,
+          "plano_resumo": "ModifyTable on lancamentos_item"
+        },
+        {
+          "nome": "histórico paginado (offset 0 — primeira página)",
+          "sql_rotulo": "select ... join itens/filiais/profiles ... order by data desc, created_at desc limit 20 offset 0",
+          "execution_ms": 20.7,
+          "planning_ms": 2.6,
+          "shared_hit": 1317,
+          "shared_read": 0,
+          "plano_resumo": "Limit"
+        },
+        {
+          "nome": "histórico paginado (offset profundo = 9980 — última página)",
+          "sql_rotulo": "select ... limit 20 offset 9980",
+          "execution_ms": 47.1,
+          "planning_ms": 2.5,
+          "shared_hit": 1317,
+          "shared_read": 0,
+          "plano_resumo": "Limit"
+        }
+      ]
+    },
+    {
+      "linhas": 100000,
+      "populacao_ms": 75690.4,
+      "medidas": [
+        {
+          "nome": "rel_saldo_itens (consolidado)",
+          "sql_rotulo": "select * from rel_saldo_itens(null::smallint, current_date)",
+          "execution_ms": 170.2,
+          "planning_ms": 0.1,
+          "shared_hit": 10418,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "rel_saldo_itens (uma filial)",
+          "sql_rotulo": "select * from rel_saldo_itens(1::smallint, current_date)",
+          "execution_ms": 80.6,
+          "planning_ms": 0.1,
+          "shared_hit": 10415,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "rel_mov_itens (consolidado, 30 dias)",
+          "sql_rotulo": "select * from rel_mov_itens(null::smallint, current_date - 30, current_date)",
+          "execution_ms": 114.6,
+          "planning_ms": 0.1,
+          "shared_hit": 10367,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "trigger valida_lancamento_item (custo por INSERT no par quente, N=20 inserts individuais)",
+          "sql_rotulo": "insert into lancamentos_item (...) values (par quente, entrada, 1)",
+          "execution_ms": 3.3,
+          "planning_ms": 0.2,
+          "shared_hit": 272,
+          "shared_read": 0,
+          "plano_resumo": "ModifyTable on lancamentos_item"
+        },
+        {
+          "nome": "histórico paginado (offset 0 — primeira página)",
+          "sql_rotulo": "select ... join itens/filiais/profiles ... order by data desc, created_at desc limit 20 offset 0",
+          "execution_ms": 151.7,
+          "planning_ms": 2.7,
+          "shared_hit": 15058,
+          "shared_read": 0,
+          "plano_resumo": "Limit"
+        },
+        {
+          "nome": "histórico paginado (offset profundo = 99980 — última página)",
+          "sql_rotulo": "select ... limit 20 offset 99980",
+          "execution_ms": 366.3,
+          "planning_ms": 2.6,
+          "shared_hit": 15058,
+          "shared_read": 0,
+          "plano_resumo": "Limit"
+        }
+      ]
+    },
+    {
+      "linhas": 500000,
+      "populacao_ms": 316748,
+      "medidas": [
+        {
+          "nome": "rel_saldo_itens (consolidado)",
+          "sql_rotulo": "select * from rel_saldo_itens(null::smallint, current_date)",
+          "execution_ms": 807.6,
+          "planning_ms": 0.1,
+          "shared_hit": 47448,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "rel_saldo_itens (uma filial)",
+          "sql_rotulo": "select * from rel_saldo_itens(1::smallint, current_date)",
+          "execution_ms": 386.1,
+          "planning_ms": 0.1,
+          "shared_hit": 47445,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "rel_mov_itens (consolidado, 30 dias)",
+          "sql_rotulo": "select * from rel_mov_itens(null::smallint, current_date - 30, current_date)",
+          "execution_ms": 1031.9,
+          "planning_ms": 0.1,
+          "shared_hit": 47398,
+          "shared_read": 0,
+          "plano_resumo": "Function Scan"
+        },
+        {
+          "nome": "trigger valida_lancamento_item (custo por INSERT no par quente, N=20 inserts individuais)",
+          "sql_rotulo": "insert into lancamentos_item (...) values (par quente, entrada, 1)",
+          "execution_ms": 3.5,
+          "planning_ms": 0.1,
+          "shared_hit": 276,
+          "shared_read": 0,
+          "plano_resumo": "ModifyTable on lancamentos_item"
+        },
+        {
+          "nome": "histórico paginado (offset 0 — primeira página)",
+          "sql_rotulo": "select ... join itens/filiais/profiles ... order by data desc, created_at desc limit 20 offset 0",
+          "execution_ms": 708.1,
+          "planning_ms": 2.7,
+          "shared_hit": 73466,
+          "shared_read": 0,
+          "plano_resumo": "Limit"
+        },
+        {
+          "nome": "histórico paginado (offset profundo = 499980 — última página)",
+          "sql_rotulo": "select ... limit 20 offset 499980",
+          "execution_ms": 2653.7,
+          "planning_ms": 2.7,
+          "shared_hit": 73466,
+          "shared_read": 0,
+          "plano_resumo": "Limit"
+        }
+      ]
+    }
+  ],
+  "contagens": {
+    "antes": {
+      "lancamentos_item": 0,
+      "itens": 0
+    },
+    "depois": {
+      "lancamentos_item": 0,
+      "itens": 0
+    }
+  },
+  "erro": null
+}

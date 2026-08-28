@@ -11,6 +11,8 @@ import {
 import { avisoDoLoteInicial, parseIdsDeAtivos } from '@/lib/movimentacoes/lote-url'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarKitsAtivos, type Kit } from '@/lib/queries/kits'
+import { listarTiposItemAtivos, type TipoItem } from '@/lib/queries/tipos-item'
+import { listarItensAdmin, type ItemAdmin } from '@/lib/queries/itens'
 import { listarMotivos } from '@/lib/queries/motivos'
 import {
   buscarMovimentacaoParaDuplicar,
@@ -90,7 +92,8 @@ export default async function NovaMovimentacaoPage({
   const setorParam = param(sp, 'setor')
   const semContrapartida = param(sp, 'contrapartida') === 'nao'
 
-  const [filiais, motivos, ultimaMov, kits, operador] = await Promise.all([
+  const [filiais, motivos, ultimaMov, kits, operador, tiposItem, itensCatalogo] =
+    await Promise.all([
     // A lista NÃO é recortada por vínculo de propósito: o único select de filial
     // deste fluxo é a filial de DESTINO da transferência, e o parâmetro §0 da
     // ordem F21 (`TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao`) diz que o destino é
@@ -125,6 +128,19 @@ export default async function NovaMovimentacaoPage({
       return []
     }),
     getOperador(),
+    // F38 — o vocabulário do checklist de dois desfechos e o catálogo da ponte
+    // tipo→item. FACILITADORES, como os kits: uma falha ao ler não derruba a tela
+    // de registrar movimentação — a seção de itens simplesmente não aparece, e a
+    // causa vai para o log do servidor. Sem eles a devolução continua funcionando
+    // (o checklist some, o array de faltantes continua vazio).
+    listarTiposItemAtivos().catch((err): TipoItem[] => {
+      console.error('[movimentacoes/nova] falha ao listar tipos de item:', err)
+      return []
+    }),
+    listarItensAdmin().catch((err): ItemAdmin[] => {
+      console.error('[movimentacoes/nova] falha ao listar o catálogo de itens:', err)
+      return []
+    }),
   ])
   const escreve = podeEscrever(operador?.papel)
 
@@ -250,6 +266,8 @@ export default async function NovaMovimentacaoPage({
           filiais={filiais}
           motivos={motivos}
           kits={kits}
+          tiposItem={tiposItem}
+          itensCatalogo={itensCatalogo}
           ativoInicial={ativoInicial}
           ativosIniciais={ativosIniciais}
           avisoLote={avisoLote}
