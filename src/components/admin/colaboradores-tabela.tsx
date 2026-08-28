@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/table'
 import { casaBusca } from '@/lib/ajuda/busca'
 import { ColaboradorDialog } from '@/components/admin/colaborador-dialog'
+import { ComEstaPessoaLinha } from '@/components/admin/com-esta-pessoa-linha'
 import type { ColaboradorAdmin } from '@/lib/queries/colaboradores'
 import type { Filial } from '@/lib/queries/filiais'
 
@@ -160,6 +161,8 @@ export function ColaboradoresTabela({
                       )}
                     </TableCell>
                     <TableCell className="text-right">
+                      {/* F38 · §C.2 — "Com esta pessoa" expande a LINHA, sem rota nova. */}
+                      <ComEstaPessoaLinha colaboradorId={c.id} nome={c.nome} />
                       <ColaboradorDialog colaborador={c} filiais={filiais} />
                     </TableCell>
                   </TableRow>

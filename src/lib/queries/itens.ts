@@ -577,3 +577,106 @@ export async function getUltimoLancamento(userId: string): Promise<UltimoLancame
     .maybeSingle()
   return (data as UltimoLancamento | null) ?? null
 }
+
+// ---------------------------------------------------------------------------
+// F38 — "Com esta pessoa" e "o que foi junto"
+// ---------------------------------------------------------------------------
+
+/** Uma linha do bloco "Com esta pessoa" (RPC `rel_saldo_colaborador`, 0118). */
+export type SaldoDoColaborador = {
+  item_id: number
+  item: string
+  filial_id: number
+  filial: string
+  com_a_pessoa: number
+}
+
+/**
+ * O que está COM esta pessoa, por item e filial.
+ *
+ * É uma PARTIÇÃO de `liberados` (cabeçalho da 0027), não uma conta nova: somando
+ * todas as pessoas mais as linhas sem vínculo dá exatamente o `liberados` que a
+ * tela de itens sempre mostrou. Linhas que zeraram não voltam.
+ */
+export async function saldoDoColaborador(
+  colaboradorId: string,
+): Promise<SaldoDoColaborador[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('rel_saldo_colaborador', {
+    p_colaborador: colaboradorId,
+  })
+  if (error) throw new Error(`Falha ao ler o saldo do colaborador: ${error.message}`)
+  return (data ?? []) as SaldoDoColaborador[]
+}
+
+/**
+ * Quantos lançamentos de item AINDA não têm vínculo com o cadastro de pessoas.
+ *
+ * ⚠ A CONTAGEM É AGREGADA NO SQL, e isso não é preciosismo: a lição do
+ * `docs/RELATORIO-CORRECAO-TRUNCAMENTO-1000.md` é que contagem nascida de leitura
+ * paginada mente em silêncio quando a tabela passa do teto. `head: true` + `count`
+ * pede ao PostgREST o número, não as linhas.
+ *
+ * A honestidade que a F37 instalou continua: enquanto houver lançamento antigo sem
+ * vínculo, a tela DIZ quantos são, em vez de fingir um total completo.
+ */
+export async function lancamentosSemVinculo(): Promise<number> {
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('lancamentos_item')
+    .select('id', { count: 'exact', head: true })
+    .is('colaborador_id', null)
+    .not('colaborador', 'is', null)
+  if (error) {
+    // Degrada para 0 (o aviso some) em vez de derrubar a tela por um contador.
+    console.error('[lancamentosSemVinculo] falha ao contar:', error)
+    return 0
+  }
+  return count ?? 0
+}
+
+/** Uma linha de "o que foi junto com este equipamento". */
+export type ItemQueFoiJunto = {
+  id: string
+  item: string
+  tipo: TipoLancamento
+  quantidade: number
+  data: string
+  movimentacao_id: string
+}
+
+/**
+ * O que foi junto com um ATIVO — pelo JOIN de `movimentacao_id` (0116), que é a
+ * razão de a coluna existir. Nunca por `ativo_id`: a movimentação já aponta o
+ * ativo, e uma segunda cópia da mesma verdade é um lugar novo para as duas
+ * discordarem.
+ */
+export async function itensQueForamJunto(ativoId: string): Promise<ItemQueFoiJunto[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('lancamentos_item')
+    .select('id, tipo, quantidade, data, movimentacao_id, itens(nome), movimentacoes!inner(ativo_id)')
+    .eq('movimentacoes.ativo_id', ativoId)
+    .order('data', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) {
+    console.error('[itensQueForamJunto] falha ao ler:', error)
+    return []
+  }
+  type Row = {
+    id: string
+    tipo: TipoLancamento
+    quantidade: number
+    data: string
+    movimentacao_id: string | null
+    itens: { nome: string } | null
+  }
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    id: r.id,
+    item: r.itens?.nome ?? '—',
+    tipo: r.tipo,
+    quantidade: r.quantidade,
+    data: r.data,
+    movimentacao_id: r.movimentacao_id ?? '',
+  }))
+}

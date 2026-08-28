@@ -14,6 +14,8 @@ import { AnotarDialog } from '@/components/ativos/anotar-dialog'
 import { LinhaDoTempo } from '@/components/ativos/linha-do-tempo'
 import { TermosDaFicha } from '@/components/ativos/termos-da-ficha'
 import { PendenciasItemFicha } from '@/components/ativos/pendencias-item-ficha'
+import { ItensQueForamJunto } from '@/components/ativos/itens-que-foram-junto'
+import { itensQueForamJunto } from '@/lib/queries/itens'
 import {
   buscarAtivoPorId,
   buscarSubstitutoDe,
@@ -102,6 +104,8 @@ export default async function AtivoFichaPage({
     substitutoDeste,
     ativoAntigo,
     timelineAntigo,
+    // F38 — "o que foi junto com este notebook", pelo JOIN de movimentacao_id.
+    itensJunto,
   ] = await Promise.all([
     listarMovimentacoesDoAtivo(id),
     listarAnotacoesDoAtivo(id),
@@ -116,6 +120,7 @@ export default async function AtivoFichaPage({
     ativo.substitui_ativo_id
       ? listarMovimentacoesDoAtivo(ativo.substitui_ativo_id)
       : Promise.resolve([]),
+    itensQueForamJunto(id),
   ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
 
@@ -296,6 +301,9 @@ export default async function AtivoFichaPage({
           (admin ou dev), não de quem apenas escreve nesta filial: desfazer um
           desfecho é correção de registro, não operação do dia. A action recusa
           de novo no servidor (`exigirAdmin` + `exigirEscritaEm`). */}
+      {/* F38 — o que foi junto com este equipamento (join por movimentacao_id). */}
+      <ItensQueForamJunto itens={itensJunto} />
+
       <PendenciasItemFicha
         patrimonio={ativo.patrimonio}
         pendencias={pendenciasItem}

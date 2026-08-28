@@ -8,6 +8,7 @@ import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerid
 import { CampoColaborador } from '@/components/movimentacoes/nova/campo-colaborador'
 import { ChecklistFaltantes } from '@/components/movimentacoes/nova/checklist-faltantes'
 import { SecaoItensJunto, ofereceItensJunto } from '@/components/movimentacoes/nova/secao-itens-junto'
+import { ComEstaPessoaDevolucao } from '@/components/movimentacoes/nova/com-esta-pessoa-devolucao'
 import { ChipsData } from '@/components/movimentacoes/nova/chips-data'
 import { SecaoContrapartida } from '@/components/movimentacoes/nova/secao-contrapartida'
 import {
@@ -519,6 +520,12 @@ export function PassoMovimentacao({
             </div>
           </div>
         </div>
+      )}
+
+      {/* F38 · §C.2 — o que o sistema tem registrado com esta pessoa, ao lado
+          do checklist: sem isso, marcar "Voltou" é chute. */}
+      {campoAplica(config.tipo, 'itens_faltantes') && config.colaborador.trim() && (
+        <ComEstaPessoaDevolucao nome={config.colaborador} />
       )}
 
       {/* F38 · D12 — o checklist da devolução, agora com DOIS desfechos:

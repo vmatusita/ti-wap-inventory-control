@@ -12,6 +12,16 @@ import {
   MSG_COLABORADOR_DUPLICADO,
 } from '@/lib/validators/colaborador'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
+import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
+import {
+  lancamentosSemVinculo,
+  saldoDoColaborador,
+  type SaldoDoColaborador as SaldoDoColaboradorQuery,
+} from '@/lib/queries/itens'
+
+// Re-export no ALIAS INLINE (a forma segura — ver o comentário longo em
+// actions/movimentacoes.ts sobre o defeito B1+B2 da F13).
+export type SaldoDoColaborador = SaldoDoColaboradorQuery
 
 // Server Actions do cadastro de pessoas (F37 · D5).
 //
@@ -294,4 +304,79 @@ export async function consolidarColaboradores(input: {
 
   revalidarColaboradores()
   return { ok: true, criados: criados?.length ?? 0, jaExistiam }
+}
+
+// ---------------------------------------------------------------------------
+// F38 · frente C — "Com esta pessoa", sob demanda
+// ---------------------------------------------------------------------------
+// O bloco é carregado no CLIQUE, não na montagem da tabela: são N pessoas na
+// tela e uma consulta por linha seria um round-trip por colaborador para
+// informação que quase nunca é olhada. A leitura é `rel_saldo_colaborador`
+// (0118, `security invoker`), então a RLS continua sendo a autorização — e o
+// piso de leitura já é "todo logado ativo lê tudo".
+//
+// Devolve o CONTADOR de lançamentos sem vínculo junto, porque a honestidade
+// instalada na F37 exige dizer quantos ficaram de fora da conta — e a contagem é
+// agregada no SQL (lição do teto de 1.000), nunca contada em memória.
+export type SaldoDaPessoaResult = {
+  ok: boolean
+  saldos: SaldoDoColaborador[]
+  semVinculo: number
+  erro?: string
+}
+
+export async function buscarSaldoDoColaborador(
+  colaboradorId: string,
+): Promise<SaldoDaPessoaResult> {
+  if (!/^[0-9a-f-]{36}$/i.test(colaboradorId)) {
+    return { ok: false, saldos: [], semVinculo: 0, erro: 'Colaborador inválido.' }
+  }
+  const supabase = await createClient()
+  const cargo = await exigirPapel(supabase, 'consulta')
+  if (!cargo.ok) return { ok: false, saldos: [], semVinculo: 0, erro: cargo.erro }
+
+  try {
+    const [saldos, semVinculo] = await Promise.all([
+      saldoDoColaborador(colaboradorId),
+      lancamentosSemVinculo(),
+    ])
+    return { ok: true, saldos, semVinculo }
+  } catch (err) {
+    console.error('[buscarSaldoDoColaborador] falha:', err)
+    return {
+      ok: false,
+      saldos: [],
+      semVinculo: 0,
+      erro: 'Não foi possível ler o que está com esta pessoa agora.',
+    }
+  }
+}
+
+/**
+ * O mesmo bloco, a partir do NOME digitado — o caminho do wizard de devolução.
+ *
+ * ⚠ NENHUM ID VIAJA PELO FORMULÁRIO (doutrina da F37): o campo Colaborador é texto
+ * livre, e o vínculo é resolvido AQUI, no servidor, pela chave normalizada do
+ * próprio texto. Nome que não está no cadastro devolve lista vazia com
+ * `cadastrado: false` — e a tela usa isso para dizer, discretamente, que a
+ * devolução vai repor o estoque sem baixar conta de ninguém (regra §C.3).
+ */
+export async function buscarSaldoPorNomeDeColaborador(
+  nome: string,
+): Promise<SaldoDaPessoaResult & { cadastrado: boolean }> {
+  const limpo = (nome ?? '').trim()
+  if (!limpo) return { ok: true, saldos: [], semVinculo: 0, cadastrado: false }
+
+  const supabase = await createClient()
+  const cargo = await exigirPapel(supabase, 'consulta')
+  if (!cargo.ok) {
+    return { ok: false, saldos: [], semVinculo: 0, cadastrado: false, erro: cargo.erro }
+  }
+
+  const vinculos = await resolverColaboradoresPorNome(supabase, [limpo])
+  const id = vinculos.get(chaveColaborador(limpo))
+  if (!id) return { ok: true, saldos: [], semVinculo: 0, cadastrado: false }
+
+  const r = await buscarSaldoDoColaborador(id)
+  return { ...r, cadastrado: true }
 }
