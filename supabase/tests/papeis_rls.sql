@@ -99,6 +99,8 @@ grant select on
   public.senhas_acesso,     -- 3d / 5f: ver 0 linhas é a RLS trabalhando
   public.import_logs,       -- 3e / 5e-bis
   public.eventos_admin,     -- 3f / 5e
+  public.colaboradores,     -- 1i (consulta lê o cadastro), 2j, 3c-ter
+  public.tipos_item,        -- 1j (consulta lê o vocabulário), 3c-bis, 5c-bis
   -- ⚠ A VIEW precisa de grant PRÓPRIO: `grant ... on all tables` cobria views, a lista
   -- explícita não. É a única view que alguma asserção consulta (1b-ter e 4g, os dois lados do
   -- gate da 0070 — ela tem `security_invoker = true`, então herda a RLS das tabelas-base).
@@ -116,7 +118,13 @@ grant insert, update, delete on
   public.filiais,            -- 3b
   public.motivos,            -- 3a / 5c
   public.itens,              -- 3c
-  public.import_logs         -- 3f-bis (forjar a trilha)
+  public.import_logs,        -- 3f-bis (forjar a trilha)
+  -- F37 — `colaboradores` é a ÚNICA tabela de cadastro que o OPERADOR escreve
+  -- (INSERT por `pode_escrever()`, porque ele cria a pessoa inline no meio do fluxo);
+  -- UPDATE continua sendo do nível administrador. As duas metades são medidas: 2j
+  -- (operador CRIA) e 3c-ter (operador NÃO edita).
+  public.colaboradores,      -- 1i-bis, 2j, 3c-ter
+  public.tipos_item          -- 3c-bis (operador recusado), 5c-bis (admin cria)
   to authenticated;
 
 -- `profiles`: espelho EXATO do grant da 0063 — nunca `update` de tabela (3g depende disso).
@@ -160,6 +168,10 @@ declare
   v_mov_t2     uuid;
   v_termo_f2   uuid;   -- a VÍTIMA: termo de ativo da filial NÃO vinculada
   v_termo_novo uuid;   -- o termo que o operador gera legitimamente na filial dele
+  -- F37 — o colaborador que o OPERADOR cria (2j) e que só o ADMIN edita (3c-ter/5c-ter).
+  -- É a mesma linha nas três asserções de propósito: é o que prova que a diferença
+  -- está no CARGO, e não em qual linha cada um alcança.
+  v_colab_f37  uuid;
   v_ok         int  := 0;
   v_falhas     int  := 0;
   v_msgs       text := '';
@@ -312,6 +324,37 @@ begin
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1b-ter; ';
     raise warning '✗ 1b-ter consulta não leu v_estoque_atual — o gate da 0070 cegou a view';
   end if;
+
+  -- 1i / 1j (F37). As tabelas NOVAS entram no mesmo piso de leitura das demais: todo
+  -- logado ATIVO lê tudo. `tipos_item` tem seed (7 linhas da 0114), então aqui a
+  -- asserção é "vê as 7"; `colaboradores` nasce vazia, e para ela o que se mede é que
+  -- a leitura NÃO é recusada — 0 linhas com sucesso é diferente de 42501.
+  select count(*) into v_n from public.tipos_item;
+  if v_n >= 7 then
+    v_ok := v_ok + 1; raise notice '✓ 1i consulta ATIVO lê tipos_item (% linhas)', v_n;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1i; ';
+    raise warning '✗ 1i consulta viu só % tipo(s) de item — o piso de leitura fechou demais', v_n;
+  end if;
+
+  begin
+    select count(*) into v_n from public.colaboradores;
+    v_ok := v_ok + 1; raise notice '✓ 1j consulta ATIVO lê colaboradores (% linhas)', v_n;
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1j; ';
+    raise warning '✗ 1j consulta recusada ao ler colaboradores (% %)', sqlstate, sqlerrm;
+  end;
+
+  -- 1i-bis. O cargo CONSULTA não escreve NADA — nem o cadastro de pessoas, que é a
+  -- única tabela de cadastro aberta ao operador. Sem esta asserção, a policy
+  -- `pode_escrever()` da 0112 poderia estar escrita como `using (true)` e ninguém veria.
+  begin
+    insert into public.colaboradores (nome, criado_por) values ('Consulta F37', k_consulta);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '1i-bis; ';
+    raise warning '✗ 1i-bis consulta CRIOU colaborador (não escreve nada)';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 1i-bis consulta recusada ao criar colaborador (%)', sqlstate;
+  end;
 
   -- 1c..1h. NÃO escreve em nada
   begin
@@ -661,6 +704,25 @@ begin
     raise warning '✗ 2h a transferência LEGÍTIMA foi recusada (%) — a 0067 quebrou o fluxo normal', sqlstate;
   end;
 
+  -- 2j (F37). A METADE POSITIVA do par com 3c-ter, e a asserção que a ordem F37 pede
+  -- por escrito no critério 7: o OPERADOR cria colaborador. Se isso falhar, o campo de
+  -- colaborador do wizard quebra na mão dele — é a razão de `colaboradores` ter INSERT
+  -- por `pode_escrever()` e não por `e_admin()` como os outros cadastros.
+  --
+  -- Note que NÃO há recorte por filial aqui: cadastro de pessoa não é matéria de
+  -- filial (`filial_id` é atributo). O operador vinculado só à filial 1 cadastra uma
+  -- pessoa da filial 2 — e deve mesmo, porque é ele quem entrega o equipamento.
+  begin
+    insert into public.colaboradores (nome, filial_id, criado_por)
+    values ('Fulano F37 Operador', v_f2, k_operador)
+    returning id into v_colab_f37;
+    v_ok := v_ok + 1;
+    raise notice '✓ 2j operador CRIA colaborador (inline no fluxo), inclusive de filial não vinculada';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2j(' || sqlstate || '); ';
+    raise warning '✗ 2j operador recusado ao criar colaborador (% %) — o campo do wizard quebra assim', sqlstate, sqlerrm;
+  end;
+
   -- =========================================================================
   -- 3 — OPERADOR não é admin: catálogo e leituras fechadas
   -- =========================================================================
@@ -687,6 +749,34 @@ begin
     raise warning '✗ 3c operador CRIOU item de catálogo (é matéria de admin)';
   exception when others then
     v_ok := v_ok + 1; raise notice '✓ 3c operador recusado ao criar item (%)', sqlstate;
+  end;
+
+  -- 3c-bis (F37). `tipos_item` é vocabulário do sistema, como motivos: o operador
+  -- escolhe, não inventa.
+  begin
+    insert into public.tipos_item (slug, rotulo) values ('f37_op', 'Tipo do operador');
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c-bis; ';
+    raise warning '✗ 3c-bis operador CRIOU tipo de item (é matéria de admin)';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 3c-bis operador recusado ao criar tipo de item (%)', sqlstate;
+  end;
+
+  -- 3c-ter (F37). A METADE NEGATIVA do par com 2j: o operador CRIA colaborador
+  -- (porque cadastra a pessoa no meio do fluxo), mas NÃO edita nem desativa — isso é
+  -- do nível administrador. Sem esta asserção, uma policy de UPDATE escrita por
+  -- engano com `pode_escrever()` daria ao operador o poder de renomear qualquer
+  -- pessoa do cadastro, e nada acusaria.
+  begin
+    update public.colaboradores set nome = 'Renomeado pelo operador' where id = v_colab_f37;
+    get diagnostics v_n = row_count;
+    if v_n = 0 then
+      v_ok := v_ok + 1; raise notice '✓ 3c-ter operador não edita colaborador (0 linhas — a policy de UPDATE é de admin)';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c-ter; ';
+      raise warning '✗ 3c-ter operador EDITOU % colaborador(es)', v_n;
+    end if;
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 3c-ter operador recusado ao editar colaborador (%)', sqlstate;
   end;
 
   -- 3d. senhas_acesso: ilegível para QUALQUER papel (0012 — service role apenas).
@@ -839,6 +929,26 @@ begin
     raise warning '✗ 4g desativado leu % linha(s) de v_estoque_atual', v_n;
   end if;
 
+  -- 4h / 4i (F37). As tabelas NOVAS herdam o mesmo gate. `tipos_item` é o caso mais
+  -- fácil de passar despercebido: ela tem SEED (7 linhas da 0114), então uma policy de
+  -- leitura escrita como `using (true)` — o texto velho de 0014/0043 — daria 7 linhas
+  -- aqui e ninguém notaria, porque nenhuma outra asserção olha para ela com este cargo.
+  select count(*) into v_n from public.tipos_item;
+  if v_n = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 4h desativado NÃO LÊ tipos_item (existem 7 linhas, viu 0)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '4h_LE_TIPOS; ';
+    raise warning '✗ 4h desativado leu % tipo(s) de item — a policy ficou using(true)', v_n;
+  end if;
+
+  select count(*) into v_n from public.colaboradores;
+  if v_n = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 4i desativado NÃO LÊ colaboradores (existe 1, viu 0)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '4i_LE_COLABS; ';
+    raise warning '✗ 4i desativado leu % colaborador(es)', v_n;
+  end if;
+
   reset role;
 
   -- =========================================================================
@@ -870,6 +980,33 @@ begin
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5c; ';
     raise warning '✗ 5c admin recusado ao criar motivo: % %', sqlstate, sqlerrm;
+  end;
+
+  -- 5c-bis (F37). O outro lado do 3c-bis: quem cria tipo de item é o nível administrador.
+  begin
+    insert into public.tipos_item (slug, rotulo) values ('f37_adm', 'Tipo do admin');
+    v_ok := v_ok + 1; raise notice '✓ 5c-bis admin cria tipo de item';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '5c-bis; ';
+    raise warning '✗ 5c-bis admin recusado ao criar tipo de item: % %', sqlstate, sqlerrm;
+  end;
+
+  -- 5c-ter (F37). O outro lado do 3c-ter: quem EDITA/desativa colaborador é o admin.
+  -- A asserção é sobre `row_count`, e não sobre exceção, porque uma policy de UPDATE
+  -- que não casa não levanta erro — ela simplesmente não vê a linha. Um `update` que
+  -- "não deu erro" e mexeu em 0 linhas é a falha silenciosa clássica deste roteiro.
+  begin
+    update public.colaboradores set setor = 'TI (editado pelo admin)' where id = v_colab_f37;
+    get diagnostics v_n = row_count;
+    if v_n = 1 then
+      v_ok := v_ok + 1; raise notice '✓ 5c-ter admin edita colaborador (1 linha)';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '5c-ter; ';
+      raise warning '✗ 5c-ter admin mexeu em % colaborador(es), esperado 1', v_n;
+    end if;
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '5c-ter(' || sqlstate || '); ';
+    raise warning '✗ 5c-ter admin recusado ao editar colaborador: % %', sqlstate, sqlerrm;
   end;
 
   begin

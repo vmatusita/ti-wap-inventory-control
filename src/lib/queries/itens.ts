@@ -30,6 +30,11 @@ export type ItemAdmin = {
   ativo: boolean
   estoque_minimo: number
   lancamentos: number
+  // F37/D7 — o tipo do item, ANULÁVEL: o catálogo existente nasceu sem tipo e
+  // ninguém é obrigado a preencher. `admin/itens` mostra a coluna com um selo nos
+  // sem tipo, e a F39 vai usar o tipo para dizer "um carregador" no termo em vez do
+  // nome comercial do produto.
+  tipo_id: number | null
 }
 
 export type SaldoItem = {
@@ -89,7 +94,7 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('itens')
-    .select('id, nome, grupo, ordem, ativo, estoque_minimo, lancamentos_item(count)')
+    .select('id, nome, grupo, ordem, ativo, estoque_minimo, tipo_id, lancamentos_item(count)')
     .order('grupo', { ascending: true })
     .order('ordem', { ascending: true })
     .order('nome', { ascending: true })
@@ -101,6 +106,7 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
     ordem: number
     ativo: boolean
     estoque_minimo: number
+    tipo_id: number | null
     lancamentos_item: { count: number }[]
   }
   return ((data ?? []) as Row[]).map((r) => ({
@@ -110,6 +116,7 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
     ordem: r.ordem,
     ativo: r.ativo,
     estoque_minimo: r.estoque_minimo,
+    tipo_id: r.tipo_id,
     lancamentos: r.lancamentos_item?.[0]?.count ?? 0,
   }))
 }

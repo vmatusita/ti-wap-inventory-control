@@ -33,8 +33,8 @@ export default async function AdminLayout({
         {/* O subtítulo lista o que as abas do AdminNav cobrem — quando uma aba
             nasce (Kits, na F12/M12), esta frase entra junto. */}
         <p className="text-sm text-muted-foreground">
-          Usuários, senhas de acesso, filiais, vocabulário de motivos, kits de
-          movimentação e catálogo de itens.
+          Usuários, senhas de acesso, filiais, cadastro de colaboradores, vocabulário
+          de motivos, kits de movimentação, catálogo de itens e tipos de item.
         </p>
       </div>
       <AdminNav />

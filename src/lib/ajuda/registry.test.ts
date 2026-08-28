@@ -162,9 +162,11 @@ const COBERTURA: Record<string, { pagina: string } | { isento: string }> = {
   '/admin/usuarios': { pagina: 'usuarios-e-senhas' },
   '/admin/senhas': { pagina: 'usuarios-e-senhas' },
   '/admin/filiais': { pagina: 'administracao' },
+  '/admin/colaboradores': { pagina: 'administracao' },
   '/admin/motivos': { pagina: 'administracao' },
   '/admin/kits': { pagina: 'kits-de-movimentacao' },
   '/admin/itens': { pagina: 'administracao' },
+  '/admin/tipos-item': { pagina: 'administracao' },
   '/admin/importar': { pagina: 'import-de-startup' },
   '/versoes': { pagina: 'versoes-do-sistema' },
   // Isenções — cada uma com o motivo, para ninguém "isentar por preguiça".

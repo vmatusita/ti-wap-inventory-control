@@ -5,12 +5,15 @@ import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 export const administracao: PaginaAjuda = {
   slug: 'administracao',
   titulo: 'Administração: os cadastros de apoio',
-  resumo: 'Filiais, motivos, catálogo de itens e kits.',
+  resumo: 'Filiais, colaboradores, motivos, catálogo de itens, tipos e kits.',
   categoria: 'fazer',
   termos: [
     'admin',
     'cadastro',
     'filial',
+    'colaborador',
+    'pessoa',
+    'tipo de item',
     'motivo',
     'catalogo',
     'vocabulario',
@@ -31,7 +34,7 @@ export const administracao: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'Todas as abas dividem o mesmo título "Administração" e a mesma barra: "Usuários", "Senhas de acesso", "Filiais", "Motivos", "Kits", "Itens" e "Importar". Mexa aqui quando faltar uma opção nas telas de operação (uma filial nova, um motivo que não existe, um item fora do catálogo) — não para consertar um registro já feito, que se corrige na ficha ou por estorno.',
+        'Todas as abas dividem o mesmo título "Administração" e a mesma barra: "Usuários", "Senhas de acesso", "Filiais", "Colaboradores", "Motivos", "Kits", "Itens", "Tipos de item" e "Importar". Mexa aqui quando faltar uma opção nas telas de operação (uma filial nova, um motivo que não existe, um item fora do catálogo) — não para consertar um registro já feito, que se corrige na ficha ou por estorno.',
     },
     {
       tipo: 'lista',
@@ -39,9 +42,11 @@ export const administracao: PaginaAjuda = {
         `Usuários — as contas do sistema: convidar, definir o cargo e as filiais de escrita, desativar e reativar, e a trilha das ações administrativas. Só e-mails ${DOMINIOS_TEXTO} podem ser convidados. Trocar o e-mail de uma conta, apagar uma conta e encerrar as sessões de alguém são ações do cargo ${PAPEL_ROTULO.dev}, e só aparecem para ele.`,
         'Senhas de acesso — senhas que dão ao visualizador acesso só aos relatórios. Revogar pede confirmação e tem efeito imediato, no carregamento de tela seguinte; a senha revogada pode ser reativada na mesma lista.',
         'Filiais — cadastro das filiais.',
+        'Colaboradores — as pessoas a quem os equipamentos são entregues, e a fila dos nomes que já foram digitados à mão e ainda não viraram cadastro.',
         'Motivos — o vocabulário de motivos oferecido na tela de movimentação.',
         'Kits — os modelos do passo 2 da movimentação (tipo, motivo, termo, observação padrão e as categorias esperadas), aplicados com um clique em Nova movimentação.',
-        'Itens — o catálogo de itens por quantidade (nome, grupo, ordem, estoque mínimo).',
+        'Itens — o catálogo de itens por quantidade (nome, grupo, ordem, estoque mínimo). O tipo de cada item também se escolhe aqui, na coluna "Tipo".',
+        'Tipos de item — o vocabulário do que acompanha um equipamento (carregador, mochila, fone de ouvido). É o que a conferência da devolução lista.',
         'Importar — import de startup de uma filial por arquivo (CSV ou Excel .xlsx), para o go-live dela no sistema.',
       ],
     },
@@ -62,6 +67,36 @@ export const administracao: PaginaAjuda = {
         'Confirme em "Salvar". Slug repetido é recusado com "Já existe uma filial com esse slug."',
         'Filial com acervo não é desativada: a mensagem diz quantos ativos existem e pede que sejam transferidos antes. O mesmo vale para saldo de item — a mensagem diz quantos itens e quantas unidades, e manda zerar o estoque em Itens por quantidade.',
         'Filial desativada não some do passado: o saldo que ficou nela continua contando no Total da página de Itens, com a nota "inclui N de filial desativada".',
+      ],
+    },
+
+    { tipo: 'titulo', id: 'admin-colaboradores', texto: 'Colaboradores' },
+    {
+      tipo: 'paragrafo',
+      texto:
+        'Até agora o nome de quem recebia o equipamento era digitado a cada movimentação. "João Silva", "Joao Silva" e "joão  silva" viravam três pessoas diferentes na hora de somar o que cada um está usando. Esta aba dá um cadastro para cada pessoa — e o campo da movimentação passa a oferecer a lista, sem deixar de aceitar um nome novo digitado na hora.',
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Cadastrar uma pessoa',
+      itens: [
+        'Em Administração › Colaboradores, a tabela mostra "Nome", "Setor", "Matrícula", "Filial", "Registros", "Status" e "Ações". Use "Novo colaborador" ou "Editar". Acima há a busca por nome, matrícula ou setor e o filtro por filial — inclusive "Sem filial", que é como nasce quem foi cadastrado no meio de um lote de filiais misturadas.',
+        'Só o "Nome" é obrigatório. Matrícula, setor e filial são referência e podem ficar em branco; a filial aqui NÃO limita quem pode registrar movimentação para essa pessoa.',
+        'A coluna "Registros" conta as movimentações e os lançamentos de item já ligados a este cadastro. Ela começa em zero mesmo para quem aparece no histórico há meses: o que já foi registrado guarda o nome como estava no dia, e continua assim.',
+        'Nome repetido é recusado: "Já existe um colaborador com este nome." Duas pessoas com o mesmo nome não cabem no cadastro — a saída é escrever o nome completo de uma delas, ou registrar a matrícula para distinguir.',
+        'Ninguém é apagado daqui. Quem sai da empresa é desmarcado em "Colaborador ativo": some das sugestões e continua no histórico, com nome.',
+        'A pessoa também pode ser cadastrada sem passar por aqui, no botão "Cadastrar" que aparece embaixo do campo Colaborador da movimentação e do lançamento de item.',
+      ],
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Transformar em cadastro os nomes que já foram digitados',
+      itens: [
+        'Abaixo da lista fica a seção "Nomes digitados que ainda não têm cadastro". Cada linha junta as grafias de um mesmo nome e mostra em quantos registros ele aparece; a coluna "Grafias" acusa quando o mesmo nome foi escrito de mais de um jeito.',
+        'Os três cartões dizem quantos nomes ainda não têm cadastro, quantos já têm, e quantos você marcou. Os números são do total, não do que coube na tela: quando a lista é maior que o que cabe, aparece um aviso dizendo o total e sugerindo cadastrar em levas.',
+        'Marque as linhas (ou a caixa do cabeçalho, que marca todas as visíveis) e clique em "Cadastrar N selecionado(s)". São no máximo 200 por vez. O nome criado é a grafia mais usada do grupo.',
+        'Cadastrar aqui NÃO altera nenhuma movimentação já registrada — o histórico fica exatamente como está. O que muda é dali para a frente: os registros novos passam a sair ligados ao cadastro.',
+        'Um nome cadastrado sai da fila no carregamento seguinte da tela.',
       ],
     },
 
@@ -91,6 +126,24 @@ export const administracao: PaginaAjuda = {
         'Nome repetido é recusado com "Já existe um item com esse nome." Se o homônimo estiver desativado, o caminho é reativá-lo em vez de criar outro.',
         'Item também pode ser criado sem passar por aqui, direto no diálogo de lançamento — é o mesmo catálogo, e por isso também é da Administração.',
       ],
+    },
+
+    { tipo: 'titulo', id: 'admin-tipos-item', texto: 'Tipos de item' },
+    {
+      tipo: 'passos',
+      titulo: 'Manter o vocabulário dos tipos',
+      itens: [
+        'Em Administração › Tipos de item, a tabela mostra "Nome", "Código", "Ordem", "Itens", "Status" e "Ações". Use "Novo tipo" ou "Editar".',
+        'O "Nome" é o que aparece nas telas — foi por aqui que "Fone" passou a se chamar "Fone de ouvido". O "Código" é a identidade do tipo, é sugerido a partir do nome e é FIXO depois de criado: é ele que fica gravado nas devoluções já registradas, e mudá-lo tornaria ilegível o que já foi escrito.',
+        'A "Ordem" controla a posição na lista. Deixando em branco, o tipo novo entra no fim.',
+        'A coluna "Itens" conta quantos itens do catálogo apontam para o tipo. Tipo não se exclui: desmarque "Tipo ativo" para tirá-lo das listas sem tocar no que já foi registrado.',
+        'Código repetido é recusado. Se o homônimo estiver desativado, criar de novo o reativa em vez de recusar.',
+      ],
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'O tipo de cada item do catálogo é escolhido na própria lista de Administração › Itens, na coluna "Tipo" — não é preciso abrir o item. Escolher é opcional e pode ser feito aos poucos: um aviso acima da tabela diz quantos itens ainda estão sem tipo, e some sozinho quando não houver mais nenhum.',
     },
 
     {

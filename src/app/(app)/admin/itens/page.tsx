@@ -1,4 +1,5 @@
 import { listarItensAdmin } from '@/lib/queries/itens'
+import { listarTiposItemAtivos } from '@/lib/queries/tipos-item'
 import { ItemDialog } from '@/components/admin/item-dialog'
 import { ItensTabela } from '@/components/admin/itens-tabela'
 
@@ -10,7 +11,11 @@ export const metadata = {
 }
 
 export default async function AdminItensPage() {
-  const itens = await listarItensAdmin()
+  const [itens, tipos] = await Promise.all([
+    listarItensAdmin(),
+    listarTiposItemAtivos(),
+  ])
+  const semTipo = itens.filter((i) => i.tipo_id == null).length
 
   return (
     <div className="space-y-4">
@@ -21,9 +26,21 @@ export default async function AdminItensPage() {
         <ItemDialog />
       </div>
 
+      {/* F37/B.4 — o selo dos sem tipo. Diz o número na cara em vez de deixar o
+          admin descobrir rolando a lista; some sozinho quando o catálogo estiver
+          todo classificado. Item sem tipo continua funcionando em tudo — só não vai
+          entrar no termo pelo nome do tipo (D8). */}
+      {semTipo > 0 && (
+        <p className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground tabular-nums">{semTipo}</span>{' '}
+          {semTipo === 1 ? 'item ainda não tem tipo' : 'itens ainda não têm tipo'}.
+          Escolher o tipo é opcional e pode ser feito aos poucos, na coluna “Tipo”.
+        </p>
+      )}
+
       {/* F29/ADM-03a — a tabela (que vivia inline aqui) virou Client Component só por
           causa do filtro; a leitura continua no servidor, e o array desce pronto. */}
-      <ItensTabela itens={itens} />
+      <ItensTabela itens={itens} tipos={tipos} />
     </div>
   )
 }

@@ -909,6 +909,20 @@ const ROTAS_LOGADO = [
   { rota: '/ajuda', area: 'ajuda (B3)' },
   { rota: '/admin/usuarios', area: 'admin · usuários (B1)' },
   { rota: '/admin/itens', area: 'admin · catálogo de itens' },
+  // F37 — as duas abas novas. O marcador vem de DENTRO da tela, não do shell de
+  // /admin (que sai igual em qualquer aba): em Colaboradores é o título da fila de
+  // consolidação, que a página sempre renderiza — com fila cheia ou vazia —, e em
+  // Tipos de item é o texto de abertura da aba.
+  {
+    rota: '/admin/colaboradores',
+    area: 'admin · colaboradores (F37)',
+    marcador: 'Nomes digitados que ainda não têm cadastro',
+  },
+  {
+    rota: '/admin/tipos-item',
+    area: 'admin · tipos de item (F37)',
+    marcador: 'O vocabulário do que acompanha um equipamento',
+  },
   { rota: '/admin/kits', area: 'admin · kits (M12)' },
   { rota: '/admin/importar', area: 'admin · import de startup' },
   { rota: '/relatorios/geral', area: 'relatório ao vivo' },

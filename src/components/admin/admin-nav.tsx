@@ -9,11 +9,16 @@ const ITENS = [
   { href: '/admin/usuarios', rotulo: 'Usuários' },
   { href: '/admin/senhas', rotulo: 'Senhas de acesso' },
   { href: '/admin/filiais', rotulo: 'Filiais' },
+  // F37 — Colaboradores fica ao lado de Filiais porque as duas respondem "quem/onde",
+  // e não "o que se escolhe no formulário": é cadastro de mundo real, não vocabulário.
+  { href: '/admin/colaboradores', rotulo: 'Colaboradores' },
   { href: '/admin/motivos', rotulo: 'Motivos' },
   // Vocabulários do fluxo ficam juntos: Motivos (o que se escolhe no passo 2),
   // Kits (o preset do passo 2 inteiro — F12/M12) e Itens (catálogo por quantidade).
   { href: '/admin/kits', rotulo: 'Kits' },
   { href: '/admin/itens', rotulo: 'Itens' },
+  // Tipos de item vem logo depois de Itens: um classifica o outro.
+  { href: '/admin/tipos-item', rotulo: 'Tipos de item' },
   { href: '/admin/importar', rotulo: 'Importar' },
 ]
 

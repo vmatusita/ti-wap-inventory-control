@@ -107,7 +107,22 @@ const ROTAS: ItemNavegacao[] = [
     icone: Settings,
     // 'kits' entra com a F12/M12 (/admin/kits): sem o apelido, Ctrl+K → "kit"
     // não achava nada e a tela nova ficava sem porta de entrada pelo teclado.
-    apelidos: ['usuarios', 'senhas', 'filiais', 'motivos', 'importar', 'kits'],
+    // 'colaborador'/'pessoa' e 'tipo de item' entram com a F37: as duas abas novas
+    // ficam atrás desta única entrada, e sem os apelidos Ctrl+K → "colaborador" não
+    // acharia porta de entrada nenhuma pelo teclado.
+    apelidos: [
+      'usuarios',
+      'senhas',
+      'filiais',
+      'motivos',
+      'importar',
+      'kits',
+      'colaborador',
+      'colaboradores',
+      'pessoa',
+      'tipo de item',
+      'tipos',
+    ],
     soAdmin: true,
   },
   {

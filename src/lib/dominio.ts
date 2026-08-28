@@ -347,6 +347,18 @@ export const TERMO_STATUS_ORDEM: TermoStatus[] = ['sim', 'enviado', 'gerado', 'n
 
 // ---------- ITENS DA DEVOLUCAO (checklist — OS-F2 3.5.2) ----------
 // Acessorios conferidos na devolucao. Um item marcado = FALTANTE (vira pendencia).
+//
+// F37/D7 — este vocabulario ganhou um ESPELHO NO BANCO: a tabela `tipos_item`
+// (migration 0114) tem exatamente estes sete slugs, com estes rotulos. Os dois lados
+// sao o mesmo conjunto, e `src/lib/validators/tipos-item-sql.test.ts` derruba o
+// `npm run test` se um andar sem o outro. Continua sendo daqui que sai o checklist
+// da devolucao e a pendencia — a constante so sai do codigo na F39; o espelho existe
+// para que essa remocao nao quebre uma linha de historico, porque
+// `movimentacoes.itens_faltantes` e `pendencias_item.item` guardam ESTES literais.
+//
+// SLUG GRAVADO NUNCA MUDA. Rotulo pode: `fone` passou a exibir "Fone de ouvido" na
+// F37, nos dois lados ao mesmo tempo. Isso muda o que as pendencias antigas EXIBEM,
+// nao o que elas guardam.
 export const ACESSORIOS_DEVOLUCAO = [
   'carregador',
   'mochila',
@@ -363,7 +375,10 @@ export const ACESSORIO_ROTULO: Record<string, string> = {
   mouse: 'Mouse',
   teclado: 'Teclado',
   mousepad: 'Mousepad',
-  fone: 'Fone',
+  // F37/B.2 — era "Fone". "Fone de ouvido" é o que a pessoa diz quando conta o que
+  // faltou na caixa; o código gravado (`fone`) não mudou, e nenhum registro antigo
+  // foi tocado. Muda o que a pendência EXIBE, não o que ela guarda.
+  fone: 'Fone de ouvido',
   cabo: 'Cabo',
 }
 

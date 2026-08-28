@@ -15,7 +15,9 @@ import {
 import { GRUPO_ITEM_META } from '@/lib/dominio'
 import { casaBusca } from '@/lib/ajuda/busca'
 import type { ItemAdmin } from '@/lib/queries/itens'
+import type { TipoItem } from '@/lib/queries/tipos-item'
 import { ItemDialog } from '@/components/admin/item-dialog'
+import { TipoDoItemSelect } from '@/components/admin/tipo-do-item-select'
 
 // F29/ADM-03a — a tabela do catálogo vivia INLINE na page (Server Component) e não
 // tinha filtro nenhum: com o catálogo crescendo, achar "cabo HDMI" era rolar a tela.
@@ -25,17 +27,26 @@ import { ItemDialog } from '@/components/admin/item-dialog'
 
 // A busca varre nome e RÓTULO do grupo ("Acessórios e periféricos"), não a chave
 // crua ('acessorio'): é o que está escrito na tela.
-function textoBuscavel(it: ItemAdmin): string {
-  return `${it.nome} ${GRUPO_ITEM_META[it.grupo].rotulo}`
+function textoBuscavel(it: ItemAdmin, tipos: readonly TipoItem[]): string {
+  const tipo = tipos.find((t) => t.id === it.tipo_id)?.rotulo ?? 'sem tipo'
+  return `${it.nome} ${GRUPO_ITEM_META[it.grupo].rotulo} ${tipo}`
 }
 
-export function ItensTabela({ itens }: { itens: readonly ItemAdmin[] }) {
+export function ItensTabela({
+  itens,
+  tipos,
+}: {
+  itens: readonly ItemAdmin[]
+  // F37/D7 — os tipos ATIVOS, para a coluna de tipo. Descem prontos do servidor,
+  // como o array de itens: a tabela nao busca nada.
+  tipos: readonly TipoItem[]
+}) {
   const buscaId = useId()
   const [busca, setBusca] = useState('')
 
   const visiveis = useMemo(
-    () => itens.filter((it) => casaBusca(textoBuscavel(it), busca)),
-    [itens, busca],
+    () => itens.filter((it) => casaBusca(textoBuscavel(it, tipos), busca)),
+    [itens, tipos, busca],
   )
 
   return (
@@ -50,8 +61,8 @@ export function ItensTabela({ itens }: { itens: readonly ItemAdmin[] }) {
             id={buscaId}
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por nome ou grupo…"
-            aria-label="Buscar item por nome ou grupo"
+            placeholder="Buscar por nome, grupo ou tipo…"
+            aria-label="Buscar item por nome, grupo ou tipo"
             autoComplete="off"
             className="h-10 pl-8 sm:h-8"
           />
@@ -76,6 +87,11 @@ export function ItensTabela({ itens }: { itens: readonly ItemAdmin[] }) {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Grupo</TableHead>
+                {/* F37/D7 — o TIPO do item. Fica ao lado do Grupo porque os dois
+                    classificam, mas respondem coisas diferentes: grupo diz como o
+                    item se comporta no estoque, tipo diz o que ele E ("carregador"),
+                    e e o tipo que a F39 vai escrever no termo. */}
+                <TableHead className="hidden lg:table-cell">Tipo</TableHead>
                 <TableHead className="hidden text-right md:table-cell">Ordem</TableHead>
                 {/* Mínimo aparece antes de Ordem no corte de tela (`sm`, não `md`):
                     é regra de operação — decide o aviso "repor" em /itens —,
@@ -96,6 +112,14 @@ export function ItensTabela({ itens }: { itens: readonly ItemAdmin[] }) {
                     <Badge variant="secondary" className="font-normal">
                       {GRUPO_ITEM_META[it.grupo].rotulo}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <TipoDoItemSelect
+                      itemId={it.id}
+                      itemNome={it.nome}
+                      tipoId={it.tipo_id}
+                      tipos={tipos}
+                    />
                   </TableCell>
                   <TableCell className="hidden text-right tabular-nums text-muted-foreground md:table-cell">
                     {it.ordem}
