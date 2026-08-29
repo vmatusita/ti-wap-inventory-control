@@ -2,7 +2,7 @@
 
 > Ordem: `docs/prompts/F38-itens-andam-com-o-ativo-ultracode.md` (28/08/2026) ·
 > Versão: **1.43.0** · Migrations **`0116`–`0121`** ·
-> Roteiro novo: `supabase/tests/f38_itens_com_ativo.sql` (44 asserções, 0 falhas).
+> Roteiro novo: `supabase/tests/f38_itens_com_ativo.sql` (45 asserções, 0 falhas).
 
 ## 1. O que faltava, em uma frase
 
@@ -189,9 +189,9 @@ asserção.
 
 ## 7. As provas executáveis
 
-### 7.1 O roteiro novo — 44 asserções, 0 falhas
+### 7.1 O roteiro novo — 45 asserções, 0 falhas
 
-`supabase/tests/f38_itens_com_ativo.sql`, rodado no ensaio:
+`supabase/tests/f38_itens_com_ativo.sql`, rodado no ensaio — **45 asserções, 0 falhas**:
 
 | # | o que prova |
 |---|---|
@@ -209,7 +209,7 @@ asserção.
 | 11 | grants das quatro RPCs e o `security invoker` das cinco funções novas |
 | 12a | idempotência: reenviar não re-resolve nem duplica lançamento |
 | 13a–13c | o estorno desfaz o conjunto, ou recusa |
-| 14, 14b | **as 10 funções intocadas por md5**, e nenhum enum novo |
+| 14, 14a, 14b | nenhuma das 10 funções intocadas carrega marca da F38 (com contraprova na que FOI recriada), e nenhum enum novo |
 
 ### 7.2 Todos os roteiros (regra F17)
 
@@ -219,7 +219,7 @@ Rodados no ensaio depois da recriação de `valida_lancamento_item`:
 cargo_dev.sql              ok=46  falhas=0
 conflito_filiais.sql       ok=38  falhas=0
 dev_destrutivo.sql         ok=108 falhas=0
-f38_itens_com_ativo.sql    ok=44  falhas=0
+f38_itens_com_ativo.sql    ok=45  falhas=0
 papeis_rls.sql             ok=74  falhas=0
 transferencia_item.sql     ok=18  falhas=0
 f37_colaboradores_tipos.sql ok=25 falhas=1  (ver 7.3)

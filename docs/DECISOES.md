@@ -6660,3 +6660,38 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
 - **Nenhum outro teste existente foi alterado.** Os 27+58+22+18+12+7 testes das funções puras do
   wizard, os validadores, o `tipos-item-sql.test.ts` e o `chave-sql.test.ts` passam sem edição.
 - **Reversível?** sim, é texto.
+
+---
+
+## 2026-08-28 · F38 · O md5 no roteiro provava "é o mesmo banco", não "é a mesma função"
+
+- **Contexto:** o cenário 14 do `f38_itens_com_ativo.sql` provava o critério 9 comparando
+  `md5(pg_get_functiondef(...))` das dez funções intocáveis contra os hashes lidos de **produção**.
+  Passou no ensaio com 44 asserções e 0 falhas.
+- **O que aconteceu:** o job `banco` do CI **falhou** — "2 função(ões) que deveriam sair byte a byte
+  mudaram de corpo". O CI monta um Postgres NOVO, aplicando as migrations do zero;
+  `pg_get_functiondef` **reconstrói** o texto da definição, e detalhes de formatação e de versão do
+  servidor mudam o hash sem que uma linha de corpo tenha mudado.
+- **Diagnóstico:** md5 absoluto responde "este banco tem o mesmo texto daquele banco". A pergunta do
+  critério 9 é outra: "esta fase recriou a função?". São coisas diferentes, e a primeira só coincide
+  com a segunda quando os dois lados são o MESMO servidor.
+- **Decisão, em duas partes:**
+  1. O cenário 14 passou a provar o que vale em qualquer Postgres: **nenhuma das dez funções
+     intocadas carrega marca da F38 no corpo** — mais uma **contraprova** (`14a`) de que a ÚNICA
+     recriada, `valida_lancamento_item`, carrega. Sem a contraprova, um `ilike` que nunca casa
+     passaria por "nada mudou", que é o falso verde clássico deste repositório.
+  2. Nasceu `src/lib/itens/migrations-f38.test.ts`: a prova sobre o **DIFF**, lida do disco, sem
+     banco nenhum. Ela responde exatamente a pergunta do critério 9 — quais funções as migrations
+     `0116`–`0121` recriam — e ainda trava enum novo, DELETE/UPDATE em acervo e `security definer`
+     nas cinco funções novas.
+- **⚠ Uma armadilha de marcador, achada no caminho:** a primeira versão do cenário 14 procurava
+  `movimentacao_id` no corpo. `aplicar_movimentacao` **já cita essa palavra desde a 0051**, porque
+  insere em `pendencias_item (ativo_id, movimentacao_id, …)` — coluna homônima e sem relação nenhuma
+  com a que nasceu em `lancamentos_item`. Marcador ambíguo acusa função inocente. Os marcadores
+  finais são só os que a F38 introduziu: `pendencia_item_id`, `rel_saldo_colaborador`,
+  `criar_movimentacao_com_itens`, `registrado com esta pessoa`, `F38`.
+- **O md5 continua onde é a prova certa:** produção antes × depois do apply, mesmo servidor, os dez
+  hashes idênticos — em `docs/RELATORIO-F38.md` §5.
+- **Motivo:** é exatamente para isso que o job `banco` existe, e está registrado na memória do
+  projeto que "o CI `banco` pega o que os bancos vivos não pegam". Pegou.
+- **Reversível?** sim, é teste.

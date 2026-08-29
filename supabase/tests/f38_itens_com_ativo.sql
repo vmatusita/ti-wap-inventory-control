@@ -1,5 +1,5 @@
 -- =============================================================
--- Roteiro de teste: OS ITENS ANDAM COM O ATIVO (F38 · migrations 0116–0119).
+-- Roteiro de teste: OS ITENS ANDAM COM O ATIVO (F38 · migrations 0116–0121).
 --
 -- Roda no job `banco` do CI (psql, ON_ERROR_STOP=1) e é auto-verificável no SQL
 -- editor / MCP dos dois projetos. Mesmo padrão dos demais roteiros da pasta:
@@ -35,16 +35,25 @@
 --   8   `baixa`: pessoa −1, Total −1, estoque de volta ao que era
 --   9   reabrir grava os inversos; reabrir com a lista incompleta RECUSA
 --   10  o caminho "Faltante" é byte a byte: mesmos slugs, pendência pelo trigger
---   11  grants das três RPCs novas: authenticated sim; anon e service_role não
+--   11  grants das quatro RPCs novas: authenticated sim; anon e service_role não
 --   12  idempotência: resolver duas vezes não re-resolve NEM duplica lançamento
 --   13  o ESTORNO desfaz o conjunto: sem os inversos RECUSA; com eles, o item volta
---   14  as 10 funções que a fase prometeu não tocar saíram byte a byte (md5), e
---       nenhum valor novo entrou em tipo_lancamento
+--   14  nenhuma das 10 funções intocadas carrega marca da F38 no corpo (e a
+--       contraprova: a ÚNICA recriada, valida_lancamento_item, carrega), e nenhum
+--       valor novo entrou em tipo_lancamento
 --
 -- ⚠ O QUE ELE **NÃO** PROVA. O caso 3 é estrutural + de conjunto de travas, não uma
 -- reprodução de deadlock: deadlock exige DUAS sessões concorrentes, e um roteiro de
 -- sessão única não as tem. O que o 3 garante é que o passo anti-deadlock continua no
 -- corpo, continua vindo antes dos inserts, e que as travas de fato foram tomadas.
+--
+-- ⚠ E o caso 14 NÃO compara md5. A primeira escrita dele fixava os hashes lidos de
+-- produção: passou no ensaio e FALHOU no job `banco`, que monta um Postgres novo —
+-- `pg_get_functiondef` reconstrói o texto, e formatação/versão do servidor mudam o
+-- hash sem que uma linha de corpo mude. md5 absoluto prova "é o mesmo BANCO", não
+-- "é a mesma FUNÇÃO". O md5 continua sendo a prova certa onde é comparável (produção
+-- antes × depois, mesmo servidor): está em docs/RELATORIO-F38.md §5. A prova sobre o
+-- DIFF vive em src/lib/itens/migrations-f38.test.ts, que roda sem banco nenhum.
 -- =============================================================
 
 begin;
@@ -741,28 +750,57 @@ begin
   -- =========================================================================
   -- 14 — AS FUNÇÕES QUE ESTA FASE PROMETEU NÃO TOCAR
   -- =========================================================================
-  select count(*) into v_n from (values
-    ('aplicar_movimentacao',      'd2010a896dabc442a04cfe2f72c7b068'),
-    ('guarda_acervo',             '0829c62705d936370e95eb6e42b67c4f'),
-    ('rel_saldo_itens',           '552a9f0b9a2527cadd62770d2d1a90d2'),
-    ('rel_mov_itens',             '02cfff1692e6549fd983036637300cf2'),
-    ('rel_estoque_asof',          '817f81d9f52b7694f2c1ae48899bc6f8'),
-    ('status_apos_movimentacao',  '69a73abfcfe13d7b2560bb6908c09a72'),
-    ('status_tem_detentor',       '551c37d163ecd06fbf9c70fdb7f6945b'),
-    ('transferir_item',           'da0a511f3f57e11017a43be46ffa4b72'),
-    ('criar_compra_lote',         '58533fd3d3011eb527065c9660c847a1'),
-    ('devolver_ao_fornecedor',    'a7641d50a19e252141fc762117b687e2')
-  ) as esperado(nome, md5)
-  join pg_proc p on p.proname = esperado.nome
-  join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
-  where md5(pg_get_functiondef(p.oid)) <> esperado.md5;
+  -- ⚠ AQUI NÃO SE COMPARA md5, e isso é lição aprendida no próprio CI desta fase.
+  -- A primeira escrita deste cenário fixava os md5 lidos de PRODUÇÃO. Passou no
+  -- ensaio (mesmo Postgres, mesmas migrations aplicadas na mesma ordem) e FALHOU no
+  -- job `banco`, que monta um Postgres novo do zero: `pg_get_functiondef` reconstrói
+  -- o texto e detalhes de formatação/versão do servidor mudam o hash sem que uma
+  -- linha de corpo tenha mudado. Um md5 absoluto prova "é o mesmo BANCO", não "é a
+  -- mesma FUNÇÃO" — e o que a ordem pede é o segundo.
+  --
+  -- O md5 continua sendo a prova certa ONDE ele é comparável: produção antes × depois
+  -- do apply, no mesmo servidor. Está no `docs/RELATORIO-F38.md` §5, com os dez
+  -- hashes idênticos.
+  --
+  -- O que se prova AQUI, e vale em qualquer Postgres: nenhuma das dez funções
+  -- intocadas carrega marca da F38 no corpo. Se alguém recriar uma delas para
+  -- "só acrescentar o colaborador_id", este cenário cai.
+  select count(*) into v_n
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+   where p.proname in (
+     'aplicar_movimentacao', 'guarda_acervo', 'rel_saldo_itens', 'rel_mov_itens',
+     'rel_estoque_asof', 'status_apos_movimentacao', 'status_tem_detentor',
+     'transferir_item', 'criar_compra_lote', 'devolver_ao_fornecedor')
+     -- ⚠ Os marcadores são os que SÓ a F38 introduziu. `movimentacao_id` ficou de
+     -- fora de propósito: `aplicar_movimentacao` já cita essa palavra desde a 0051,
+     -- porque insere em `pendencias_item (ativo_id, movimentacao_id, …)` — coluna
+     -- homônima e sem relação com a que nasceu em `lancamentos_item`. Marcador
+     -- ambíguo acusa função inocente, e foi o que aconteceu na primeira escrita.
+     and (pg_get_functiondef(p.oid) ilike '%pendencia_item_id%'
+       or pg_get_functiondef(p.oid) ilike '%rel_saldo_colaborador%'
+       or pg_get_functiondef(p.oid) ilike '%criar_movimentacao_com_itens%'
+       or pg_get_functiondef(p.oid) ilike '%registrado com esta pessoa%'
+       or pg_get_functiondef(p.oid) ilike '%F38%');
 
   if v_n = 0 then
     v_ok := v_ok + 1;
-    raise notice '✓ 14 as 10 funções que a F38 prometeu não tocar saíram BYTE A BYTE (md5 conferido)';
+    raise notice '✓ 14 nenhuma das 10 funções intocadas carrega marca da F38 no corpo';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '14; ';
-    raise warning '✗ 14 % função(ões) que deveriam sair byte a byte mudaram de corpo', v_n;
+    raise warning '✗ 14 % função(ões) que deveriam sair byte a byte ganharam código da F38', v_n;
+  end if;
+
+  -- E a contraprova: a função que a fase RECRIOU de propósito tem, sim, a marca.
+  -- Sem ela, um `ilike` que nunca casa passaria por "nada mudou" (falso verde).
+  if (select pg_get_functiondef(p.oid) ilike '%registrado com esta pessoa%'
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'valida_lancamento_item') then
+    v_ok := v_ok + 1;
+    raise notice '✓ 14a a ÚNICA função recriada (valida_lancamento_item) tem o bloco novo — o teste acima não é vazio';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '14a; ';
+    raise warning '✗ 14a valida_lancamento_item NÃO tem a guarda por pessoa — a 0118 não pegou';
   end if;
 
   -- E nenhum valor novo de enum (a ordem proíbe nominalmente).
