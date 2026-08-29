@@ -45,6 +45,11 @@ const CAMPOS_RESP: CampoDef[] = [
   { chave: 'service_tag', rotulo: 'Service Tag' },
   { chave: 'patrimonio', rotulo: 'Patrimônio' },
   { chave: 'chamado', rotulo: 'Chamado' },
+  // F39 — os periféricos que saíram com o equipamento, pré-preenchidos pelos itens
+  // que foram junto na movimentação (F38). Editável como todo campo do termo
+  // (§3.9): limpar aqui faz a seção SUMIR do documento, e digitar à mão faz
+  // aparecer — `tem_acessorios` é derivado do texto final, no servidor.
+  { chave: 'acessorios', rotulo: 'Acessórios que acompanham', multi: true },
   // F25 — a cidade da linha da assinatura, pré-preenchida pela filial do ativo.
   { chave: 'cidade', rotulo: 'Cidade da assinatura' },
 ]

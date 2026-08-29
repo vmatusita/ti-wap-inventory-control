@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  avisoConferenciaSemLancamento,
   camposFaltantesDoTermo,
   cidadeDoTermo,
   mesclarCamposSalvos,
+  MSG_CONFERENCIA_SEM_LANCAMENTO,
   type AtivoDoTermo,
   type FilialDoTermo,
 } from '@/lib/termos/preparo'
@@ -161,6 +163,23 @@ describe('mesclarCamposSalvos — reabrir um termo já gerado', () => {
     expect(r.cidade).toBe('')
   })
 
+  it('TERMO ANTERIOR À F39 sem `acessorios` abre com a linha sugerida hoje', () => {
+    // Mesma razão da `cidade` na F25: a chave não existe no jsonb de nenhum termo
+    // gerado antes desta fase, e sem a mescla o campo abriria vazio — fazendo a
+    // seção sumir do papel numa reemissão de termo que tinha periférico.
+    const r = mesclarCamposSalvos(
+      { acessorios: 'Mouse, Teclado', colaborador: 'Fulano' },
+      { colaborador: 'Fulano de Tal' },
+    )
+    expect(r.acessorios).toBe('Mouse, Teclado')
+    expect(r.colaborador).toBe('Fulano de Tal')
+  })
+
+  it('`acessorios` salvo VAZIO continua vencendo (edição deliberada de quem gerou)', () => {
+    const r = mesclarCamposSalvos({ acessorios: 'Mouse, Teclado' }, { acessorios: '' })
+    expect(r.acessorios).toBe('')
+  })
+
   it('idem para os campos do celular de um termo antigo (eram digitados à mão)', () => {
     const r = mesclarCamposSalvos(
       { imei: '111111111111111', telefone: '(41) 90000-0000' },
@@ -169,5 +188,60 @@ describe('mesclarCamposSalvos — reabrir um termo já gerado', () => {
     expect(r.imei).toBe('999999999999999')
     // O que o snapshot não trouxe vem do cadastro — que agora existe.
     expect(r.telefone).toBe('(41) 90000-0000')
+  })
+})
+
+// F39 · §C.3 — o aviso do que o papel esconderia.
+describe('avisoConferenciaSemLancamento', () => {
+  const homogeneo = [
+    { filial_id: 1, detentor_anterior: 'Fulano de Tal' },
+    { filial_id: 1, detentor_anterior: 'Fulano de Tal' },
+  ]
+
+  it('linha PREENCHIDA nunca avisa — o papel está dizendo o que voltou', () => {
+    expect(avisoConferenciaSemLancamento(homogeneo, 'Mouse, Teclado')).toBeNull()
+    const misto = [
+      { filial_id: 1, detentor_anterior: 'Fulano de Tal' },
+      { filial_id: 2, detentor_anterior: 'Fulano de Tal' },
+    ]
+    expect(avisoConferenciaSemLancamento(misto, 'Mouse')).toBeNull()
+  })
+
+  it('lote HOMOGÊNEO com linha vazia não avisa — ali "nada voltou" é honesto', () => {
+    expect(avisoConferenciaSemLancamento(homogeneo, '')).toBeNull()
+    expect(avisoConferenciaSemLancamento(homogeneo, '   ')).toBeNull()
+  })
+
+  it('um ativo só é homogêneo por definição', () => {
+    expect(
+      avisoConferenciaSemLancamento([{ filial_id: 7, detentor_anterior: null }], ''),
+    ).toBeNull()
+  })
+
+  it('FILIAIS diferentes + linha vazia avisa — o checklist não virou lançamento', () => {
+    const misto = [
+      { filial_id: 1, detentor_anterior: 'Fulano de Tal' },
+      { filial_id: 2, detentor_anterior: 'Fulano de Tal' },
+    ]
+    expect(avisoConferenciaSemLancamento(misto, '')).toBe(MSG_CONFERENCIA_SEM_LANCAMENTO)
+  })
+
+  it('DETENTORES diferentes + linha vazia avisa', () => {
+    const misto = [
+      { filial_id: 1, detentor_anterior: 'Fulano de Tal' },
+      { filial_id: 1, detentor_anterior: 'Beltrana da Silva' },
+    ]
+    expect(avisoConferenciaSemLancamento(misto, '')).toBe(MSG_CONFERENCIA_SEM_LANCAMENTO)
+  })
+
+  it('detentor nulo ao lado de detentor com nome também é lote misto', () => {
+    // O espelho de `checklistPodeLancar`, que compara o texto TRIMADO e não filtra
+    // o vazio: um ativo sem detentor ao lado de outro com detentor não deixa
+    // decidir de qual conta o acessório baixa.
+    const misto = [
+      { filial_id: 1, detentor_anterior: null },
+      { filial_id: 1, detentor_anterior: 'Fulano de Tal' },
+    ]
+    expect(avisoConferenciaSemLancamento(misto, '')).toBe(MSG_CONFERENCIA_SEM_LANCAMENTO)
   })
 })

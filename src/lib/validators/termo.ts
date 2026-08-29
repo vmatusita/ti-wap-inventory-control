@@ -29,6 +29,20 @@ export const camposTermoSchema = z
     patrimonios: z.string().max(600),
     marcas_modelos: z.string().max(600),
     outros_componentes: z.string().max(400),
+    // F39 — a linha de periféricos do termo de RESPONSABILIDADE ("Acompanham o
+    // equipamento os seguintes acessórios e periféricos: …"), pré-preenchida pelos
+    // itens que foram junto na movimentação (F38) e editável como todo campo do
+    // termo (§3.9 do PLANO-TERMOS).
+    //
+    // ⚠ Quem garante o teto é `montarLinhaDeAcessorios` (lib/termos/acessorios.ts),
+    // NÃO este `max`. Deixar a linha sugerida estourar aqui faria `gerarTermo`
+    // devolver "Há campos inválidos. Revise o termo." num campo que o operador nem
+    // digitou. O `max` continua valendo para o que ele digita à mão — é a segunda
+    // linha, não a única.
+    //
+    // 600 e não 400 (o de `outros_componentes`): a entrega lista tudo o que saiu
+    // com o equipamento; a devolução, só o que voltou naquele ato.
+    acessorios: z.string().max(600),
     observacao: z.string().max(500),
     tecnico: z.string().max(200),
     // F25 — a cidade da linha da assinatura ("{cidade}, {data por extenso}"),

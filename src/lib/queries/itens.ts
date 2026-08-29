@@ -5,6 +5,7 @@ import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 import { filialParaRpc } from '@/lib/queries/rpc-filial'
 import type { LancamentoParaSaldoApos } from '@/lib/itens/saldo-apos'
+import type { LancamentoDeAcessorio, TipoDeAcessorio } from '@/lib/termos/acessorios'
 
 // Leituras da operação de itens por quantidade (F3B / OS 3.3.4). Rota só do
 // operador (o visualizador por senha não acessa /itens) — usam o client do
@@ -722,4 +723,93 @@ export async function itensQueForamJunto(ativoId: string): Promise<ItemQueFoiJun
     data: r.data,
     movimentacao_id: r.movimentacao_id ?? '',
   }))
+}
+
+// ---------------------------------------------------------------------------
+// F39 — os acessórios que vão ao TERMO.
+// ---------------------------------------------------------------------------
+
+/** Os lançamentos e os tipos que a linha do termo precisa, lidos de uma vez. */
+export type AcessoriosDaMovimentacao = {
+  lancamentos: LancamentoDeAcessorio[]
+  /** Só os tipos que aparecem nos lançamentos — ativos e DESATIVADOS. */
+  tipos: TipoDeAcessorio[]
+}
+
+/**
+ * O que foi junto com a(s) movimentação(ões) de um termo, agrupável por tipo.
+ *
+ * Molde de `itensQueForamJunto`: o vínculo é `movimentacao_id` (0116), nunca
+ * `ativo_id`. O tipo do item e o rótulo vêm no MESMO select — o termo precisa dos
+ * três (tipo, rótulo, ordem) e uma segunda consulta só para o vocabulário seria
+ * gratuita.
+ *
+ * ⚠ NENHUMA CONTAGEM NASCE DE LEITURA TRUNCADA: `prepararTermoSchema` limita o lote
+ * a 20 movimentações (`.max(20)`) e cada uma carrega no máximo `MAX_LINHAS_LOTE_ITEM`
+ * linhas de item — o resultado é limitado pelo schema, não por um `limit` implícito.
+ *
+ * AS DUAS EXCLUSÕES, e as duas são de correção:
+ *
+ *  · `estorna_id is null` — `estornar_movimentacao_com_itens` (0121, corpo vigente
+ *    na 0122) grava o lançamento inverso apontando a movimentação DE ESTORNO, não a
+ *    original (está escrito no comentário do `v_novo`). Filtrar pela movimentação do
+ *    termo já deixa o inverso de fora; esta exclusão é o CINTO, para o caso de se
+ *    preparar termo sobre a própria movimentação de estorno — onde o inverso de uma
+ *    entrega apareceria como se fosse acessório devolvido.
+ *
+ *  · `pendencia_item_id is null` — um item recuperado semanas depois não pode
+ *    aparecer como "voltou" num papel cuja `{observacao}` o declara faltante; as
+ *    duas linhas se contradiriam no mesmo documento. ⚠ Lido em 29/08/2026,
+ *    `resolver_pendencias_item_com_lancamentos` (0119) NÃO grava `movimentacao_id`
+ *    nesses lançamentos, então o filtro é redundante NESTE MOMENTO; ele entra
+ *    porque declara a intenção e sobrevive ao dia em que alguém passar a vincular.
+ */
+export async function acessoriosDasMovimentacoes(
+  movimentacaoIds: readonly string[],
+  tipo: Extract<TipoLancamento, 'saida' | 'retorno'>,
+): Promise<AcessoriosDaMovimentacao> {
+  if (movimentacaoIds.length === 0) return { lancamentos: [], tipos: [] }
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('lancamentos_item')
+    .select(
+      'quantidade, estorna_id, pendencia_item_id, itens!inner(tipo_id, tipos_item(id, rotulo, ordem))',
+    )
+    .in('movimentacao_id', [...movimentacaoIds])
+    .eq('tipo', tipo)
+    .is('estorna_id', null)
+    .is('pendencia_item_id', null)
+  if (error) {
+    // Degrada para vazio (o campo abre em branco e continua editável) em vez de
+    // derrubar a preparação do termo por causa do pré-preenchimento de um campo.
+    console.error('[acessoriosDasMovimentacoes] falha ao ler:', error)
+    return { lancamentos: [], tipos: [] }
+  }
+  type Row = {
+    quantidade: number
+    estorna_id: string | null
+    pendencia_item_id: string | null
+    itens: {
+      tipo_id: number | null
+      tipos_item: { id: number; rotulo: string; ordem: number } | null
+    } | null
+  }
+  const rows = (data ?? []) as unknown as Row[]
+  const tipos = new Map<number, TipoDeAcessorio>()
+  for (const r of rows) {
+    const t = r.itens?.tipos_item
+    if (t) tipos.set(t.id, { id: t.id, rotulo: t.rotulo, ordem: t.ordem })
+  }
+  return {
+    // As duas marcas viajam junto de propósito: o filtro do SQL é a primeira
+    // linha, e `montarLinhaDeAcessorios` as recusa de novo — a regra é do
+    // DOCUMENTO, não da consulta, e é lá que ela tem teste.
+    lancamentos: rows.map((r) => ({
+      tipo_id: r.itens?.tipo_id ?? null,
+      quantidade: r.quantidade,
+      estorna_id: r.estorna_id,
+      pendencia_item_id: r.pendencia_item_id,
+    })),
+    tipos: [...tipos.values()],
+  }
 }

@@ -11,6 +11,7 @@
 
 import type { CategoriaAtivo } from '@/lib/dominio'
 import type { CamposTermo } from '@/lib/validators/termo'
+import { checklistPodeLancar } from '@/components/movimentacoes/nova/itens-do-lote'
 
 export type FilialDoTermo = { id: number; nome: string; cidade: string }
 
@@ -117,4 +118,63 @@ export function mesclarCamposSalvos(
   salvos: CamposTermo,
 ): CamposTermo {
   return { ...preparados, ...salvos }
+}
+
+// ---------------------------------------------------------------------------
+// F39 · §C.3 — o aviso do que o papel esconderia
+// ---------------------------------------------------------------------------
+
+/** Uma movimentação do lote, do ponto de vista de "quem detinha e onde". */
+export type MovimentacaoParaAviso = {
+  filial_id: number
+  /**
+   * Quem detinha o equipamento ANTES da devolução. Vem do `snapshot_anterior` —
+   * `ativos.colaborador_atual` já foi limpo pelo trigger quando o termo é
+   * preparado, e ler dali diria "ninguém" para o lote inteiro.
+   */
+  detentor_anterior: string | null
+}
+
+export const MSG_CONFERENCIA_SEM_LANCAMENTO =
+  'Houve item conferido nesta devolução que não gerou lançamento de estoque — ' +
+  'confira a linha de componentes antes de gerar.'
+
+/**
+ * O aviso do caso que o papel esconderia: o operador conferiu "Voltou" e
+ * `{outros_componentes}` sai VAZIO, afirmando num documento assinado que nada
+ * acompanhou.
+ *
+ * A FONTE DO "VOLTOU" É O LANÇAMENTO, e não existe registro do que foi marcado e
+ * não lançou — então o aviso é derivado do que dá para saber no servidor. O que dá
+ * para saber é o **lote misto**: a mesma condição que desliga o lançamento do
+ * checklist em `checklistPodeLancar` (F38), reusada aqui de propósito, para que as
+ * duas pontas não possam divergir.
+ *
+ * ⚠ O ESPELHO RETROSPECTIVO. Na tela, `checklistPodeLancar` olhou o `colaborador_atual`
+ * do ativo; aqui ele já foi limpo pelo trigger da devolução, e o equivalente é o
+ * `snapshot_anterior.colaborador`. A filial não muda numa devolução, então a
+ * corrente serve.
+ *
+ * ⚠ O QUE ESTE AVISO **NÃO** COBRE, e vai declarado no relatório: tipo cuja ponte
+ * não resolve item de catálogo (`ponte-tipo-item.ts` — zero candidatos, ou
+ * ambiguidade que ninguém decidiu) também não gera lançamento, e disso não fica
+ * registro nenhum no banco. Num lote homogêneo esse caso é indistinguível de "nada
+ * acompanhou mesmo".
+ *
+ * ⚠ POR QUE `itens_faltantes` NÃO DISPARA O AVISO SOZINHO: o que faltou já sai na
+ * `{observacao}` ("Não devolvido(s): …"), que é o caminho honesto e o mais comum.
+ * Avisar ali faria o banner aparecer em quase toda devolução — e aviso que sempre
+ * aparece é aviso que ninguém lê, pela mesma razão já registrada em
+ * `camposFaltantesDoTermo`.
+ */
+export function avisoConferenciaSemLancamento(
+  movs: readonly MovimentacaoParaAviso[],
+  linhaDeComponentes: string,
+): string | null {
+  if (linhaDeComponentes.trim() !== '') return null
+  const lote = movs.map((m) => ({
+    filial_id: m.filial_id,
+    colaborador_atual: m.detentor_anterior,
+  }))
+  return checklistPodeLancar(lote) ? null : MSG_CONFERENCIA_SEM_LANCAMENTO
 }

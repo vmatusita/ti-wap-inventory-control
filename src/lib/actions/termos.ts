@@ -24,7 +24,13 @@ import {
   type TermoTipo,
 } from '@/lib/termos/tipos'
 import { nomeArquivoTermo } from '@/lib/termos/nome-arquivo'
-import { camposFaltantesDoTermo, cidadeDoTermo } from '@/lib/termos/preparo'
+import {
+  avisoConferenciaSemLancamento,
+  camposFaltantesDoTermo,
+  cidadeDoTermo,
+} from '@/lib/termos/preparo'
+import { montarLinhaDeAcessorios } from '@/lib/termos/acessorios'
+import { acessoriosDasMovimentacoes } from '@/lib/queries/itens'
 import { dataPorExtenso, mesAnoPorExtenso } from '@/lib/termos/datas'
 import {
   concatenarEquipamentos,
@@ -41,6 +47,27 @@ import {
 const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
+// Os tetos REAIS de `camposTermoSchema` — quem os respeita é
+// `montarLinhaDeAcessorios`, não o Zod (ver o comentário no validator).
+const LIMITE_ACESSORIOS = 600
+const LIMITE_OUTROS_COMPONENTES = 400
+
+/**
+ * O aviso do item que foi junto mas não tem tipo cadastrado (§C.3).
+ *
+ * Aviso, NUNCA bloqueio: o termo sai do mesmo jeito, com a linha do que deu para
+ * nomear. Devolve lista (0 ou 1) para caber num `push(...)` sem `if`.
+ */
+function avisosDeItemSemTipo(descartados: number): string[] {
+  if (descartados <= 0) return []
+  const plural = descartados === 1 ? 'item' : 'itens'
+  return [
+    `${descartados} ${plural} que ${descartados === 1 ? 'foi' : 'foram'} junto não ` +
+      `${descartados === 1 ? 'tem' : 'têm'} tipo cadastrado e ${descartados === 1 ? 'ficou' : 'ficaram'} ` +
+      `fora do termo — classifique em Administração → Itens.`,
+  ]
+}
+
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
 // Payload do merge (jsonb + docx): os campos editáveis do dialog + as datas por
@@ -49,6 +76,12 @@ type DadosTermo = CamposTermo & {
   data: string
   data_extenso: string
   data_mes_ano: string
+  // F39 — o interruptor do bloco `{#tem_acessorios}` dos 5 modelos de
+  // responsabilidade. DERIVADO DO TEXTO FINAL do campo, no servidor, e nunca do
+  // que o banco leu: apagar a linha no diálogo tem de fazer a seção sumir do
+  // papel, e digitá-la à mão tem de fazê-la aparecer. Ver a derivação em
+  // `gerarTermo`.
+  tem_acessorios: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +250,13 @@ export async function prepararTermo(input: {
     if (faltando.length > 0) {
       avisos.push(`O ativo não tem ${faltando.join(', ')} cadastrado(s) — o campo sai em branco.`)
     }
+    // F39 — os periféricos que saíram COM ESTE equipamento. A movimentação de
+    // referência é `movs[0]`, a mesma que já governa marca, modelo, patrimônio e
+    // chamado: é o D13 no papel — o fone que acompanhou o notebook aponta a
+    // movimentação do notebook, e cada termo lista só o que é dele.
+    const junto = await acessoriosDasMovimentacoes([mov.id], 'saida')
+    const acessorios = montarLinhaDeAcessorios(junto.lancamentos, junto.tipos, LIMITE_ACESSORIOS)
+    avisos.push(...avisosDeItemSemTipo(acessorios.descartados))
     const campos: CamposTermo = {
       colaborador,
       marca: a.marca ?? '',
@@ -235,6 +275,9 @@ export async function prepararTermo(input: {
       // segue manual e sem coluna.
       obs: '',
       cidade,
+      // Sugestão, nunca trava: o operador edita, apaga ou digita outra coisa, e
+      // `tem_acessorios` (gerarTermo) segue o texto final.
+      acessorios: acessorios.linha,
     }
     return {
       ok: true,
@@ -286,13 +329,39 @@ export async function prepararTermo(input: {
     .select('nome')
     .eq('id', uid)
     .maybeSingle()
+  // F39 · D11 — `{outros_componentes}` deixa de ser '' fixo e passa a listar O QUE
+  // VOLTOU: a união dos lançamentos de `retorno` de TODAS as movimentações do lote
+  // (o checklist é um só para o lote inteiro). `{observacao}` continua dizendo o que
+  // FALTOU, com o mesmo texto de sempre — as duas linhas dizem coisas diferentes, e
+  // é isso que tira a ambiguidade do documento.
+  const voltaram = await acessoriosDasMovimentacoes(
+    movs.map((m) => m.id),
+    'retorno',
+  )
+  const componentes = montarLinhaDeAcessorios(
+    voltaram.lancamentos,
+    voltaram.tipos,
+    LIMITE_OUTROS_COMPONENTES,
+  )
+  avisos.push(...avisosDeItemSemTipo(componentes.descartados))
+  // O caso que o papel esconderia: conferência que não virou lançamento. Aviso,
+  // nunca bloqueio — o termo sai do mesmo jeito (ver `avisoConferenciaSemLancamento`).
+  const avisoSemLancamento = avisoConferenciaSemLancamento(
+    movs.map((m) => ({
+      filial_id: m.ativo?.filial_id ?? 0,
+      detentor_anterior: m.snapshot_anterior?.colaborador ?? null,
+    })),
+    componentes.linha,
+  )
+  if (avisoSemLancamento) avisos.push(avisoSemLancamento)
+
   const campos: CamposTermo = {
     colaborador,
     descricao: descricaoDevolucao(motivoCodigo, motivoRotulo),
     series,
     patrimonios,
     marcas_modelos,
-    outros_componentes: '',
+    outros_componentes: componentes.linha,
     observacao: observacaoSugestao(itensFaltantes),
     tecnico: perfil?.nome ?? '',
     cidade,
@@ -490,6 +559,17 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
     data,
     data_extenso: dataPorExtenso(data),
     data_mes_ano: mesAnoPorExtenso(data),
+    // F39 · §C.4 — o interruptor da seção, derivado do TEXTO QUE VAI AO PAPEL.
+    //
+    // Nunca do que o banco leu: o campo é editável (§3.9 do PLANO-TERMOS), e é o
+    // texto final que manda. Limpar a linha no diálogo faz a seção sumir do
+    // documento; digitá-la à mão faz aparecer. Como `termos_gerados.dados` guarda
+    // o payload inteiro, o snapshot registra o que foi renderizado — sem migration.
+    //
+    // Os 2 modelos de DEVOLUÇÃO não têm `{#tem_acessorios}`: a chave a mais é
+    // inofensiva (o docxtemplater ignora dado sem tag), como `data_mes_ano` já é
+    // nos 5 de responsabilidade.
+    tem_acessorios: (campos.acessorios ?? '').trim().length > 0,
   }
 
   let buffer: Buffer

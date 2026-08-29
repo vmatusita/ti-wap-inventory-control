@@ -19,6 +19,16 @@ export type LancamentoDeAcessorio = {
   /** O tipo do ITEM do catálogo (`itens.tipo_id`, F37). Anulável — nasce nulo. */
   tipo_id: number | null
   quantidade: number
+  /**
+   * O lançamento que este INVERTE (`lancamentos_item.estorna_id`). Preenchido →
+   * fora do termo: ver `SEGUNDA LINHA` abaixo.
+   */
+  estorna_id?: string | null
+  /**
+   * A pendência de que este lançamento nasceu (`pendencias_item`, 0119).
+   * Preenchido → fora do termo.
+   */
+  pendencia_item_id?: string | null
 }
 
 /** O que esta regra precisa saber de um tipo do catálogo (`tipos_item`). */
@@ -67,6 +77,19 @@ export function montarLinhaDeAcessorios(
   let descartados = 0
 
   for (const l of lancamentos) {
+    // SEGUNDA LINHA das duas exclusões da §C.2. A primeira é o SQL do leitor
+    // (`acessoriosDasMovimentacoes`), que já não traz estas linhas; aqui elas são
+    // recusadas de novo, porque a regra é do DOCUMENTO e não da consulta:
+    //
+    //  · `estorna_id` — o inverso de um estorno pertence à movimentação DE
+    //    ESTORNO (0121/0122). Preparando termo sobre a própria movimentação de
+    //    estorno, ele apareceria como se fosse acessório devolvido;
+    //  · `pendencia_item_id` — item recuperado semanas depois não pode aparecer
+    //    como "voltou" num papel cuja `{observacao}` o declara faltante.
+    //
+    // Não contam como `descartados`: não é que falte tipo neles — é que eles não
+    // são deste documento.
+    if (l.estorna_id != null || l.pendencia_item_id != null) continue
     // Tipo nulo, ou tipo que não existe no catálogo recebido: o termo não tem
     // como nomeá-lo, então ele fica de fora — e é contado, para o aviso existir.
     if (l.tipo_id == null || !porId.has(l.tipo_id)) {

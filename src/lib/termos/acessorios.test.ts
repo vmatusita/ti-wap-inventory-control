@@ -110,6 +110,65 @@ describe('montarLinhaDeAcessorios', () => {
     expect(a).toBe('Carregador, Mochila, Mouse (2), Teclado, Fone de ouvido')
   })
 
+  // ---- As duas exclusões da §C.2 -------------------------------------------
+
+  it('o INVERSO de estorno não entra na linha (estorna_id preenchido)', () => {
+    // O inverso pertence à movimentação DE ESTORNO (0121/0122). Preparando termo
+    // sobre a própria movimentação de estorno, ele apareceria como se fosse
+    // acessório devolvido — e o papel diria que voltou o que na verdade foi
+    // desfeito.
+    const r = montarLinhaDeAcessorios(
+      [
+        { tipo_id: 3, quantidade: 1 },
+        { tipo_id: 6, quantidade: 1, estorna_id: 'c0ffee00-0000-4000-8000-000000000001' },
+      ],
+      TIPOS,
+      LIMITE_ACESSORIOS,
+    )
+    expect(r.linha).toBe('Mouse')
+    // Não é descarte por falta de tipo: o tipo existe, a linha é que não é deste
+    // documento.
+    expect(r.descartados).toBe(0)
+  })
+
+  it('o lançamento nascido de PENDÊNCIA não entra na linha (pendencia_item_id preenchido)', () => {
+    // Item recuperado semanas depois não pode aparecer como "voltou" num papel
+    // cuja {observacao} o declara faltante — as duas linhas se contradiriam no
+    // mesmo documento.
+    const r = montarLinhaDeAcessorios(
+      [
+        { tipo_id: 3, quantidade: 1 },
+        { tipo_id: 2, quantidade: 1, pendencia_item_id: 'dec0de00-0000-4000-8000-000000000002' },
+      ],
+      TIPOS,
+      LIMITE_OUTROS_COMPONENTES,
+    )
+    expect(r.linha).toBe('Mouse')
+    expect(r.descartados).toBe(0)
+  })
+
+  it('linha marcada E sem tipo não conta como descartada — ela nem é deste documento', () => {
+    const r = montarLinhaDeAcessorios(
+      [
+        { tipo_id: 3, quantidade: 1 },
+        { tipo_id: null, quantidade: 1, estorna_id: 'c0ffee00-0000-4000-8000-000000000003' },
+      ],
+      TIPOS,
+      LIMITE_ACESSORIOS,
+    )
+    expect(r.linha).toBe('Mouse')
+    expect(r.descartados).toBe(0)
+  })
+
+  it('marca NULA (o caso normal) entra na linha como sempre', () => {
+    const r = montarLinhaDeAcessorios(
+      [{ tipo_id: 3, quantidade: 1, estorna_id: null, pendencia_item_id: null }],
+      TIPOS,
+      LIMITE_ACESSORIOS,
+    )
+    expect(r.linha).toBe('Mouse')
+  })
+
   // ---- O teto do campo -----------------------------------------------------
 
   /** Um catálogo grande de rótulos longos, para estourar qualquer um dos tetos. */
