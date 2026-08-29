@@ -744,9 +744,14 @@ export type AcessoriosDaMovimentacao = {
  * três (tipo, rótulo, ordem) e uma segunda consulta só para o vocabulário seria
  * gratuita.
  *
- * ⚠ NENHUMA CONTAGEM NASCE DE LEITURA TRUNCADA: `prepararTermoSchema` limita o lote
- * a 20 movimentações (`.max(20)`) e cada uma carrega no máximo `MAX_LINHAS_LOTE_ITEM`
- * linhas de item — o resultado é limitado pelo schema, não por um `limit` implícito.
+ * ⚠ NENHUMA CONTAGEM NASCE DE LEITURA TRUNCADA, e a conta é esta (corrigida na revisão
+ * adversarial da fase, que pegou a constante errada aqui): `prepararTermoSchema` limita o
+ * termo a **20 movimentações** (`.max(20)`), e cada movimentação nasce de um LOTE que
+ * aceita no máximo **`MAX_ITENS_JUNTO` = 20 linhas de item no lote INTEIRO**
+ * (`validators/movimentacao.ts`) — não por movimentação. O pior caso teórico é 20 termos
+ * × 20 linhas = 400, ordens de grandeza abaixo de qualquer teto de linhas do PostgREST.
+ * ⚠ NÃO confundir com `MAX_LINHAS_LOTE_ITEM` (`validators/item.ts`), que é do CARRINHO de
+ * `/itens`: aquele fluxo não grava `movimentacao_id` e não chega aqui.
  *
  * AS DUAS EXCLUSÕES, e as duas são de correção:
  *

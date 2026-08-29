@@ -23,7 +23,7 @@ import { formatDate, hojeISO } from '@/lib/format'
 import { FilialTabs } from '@/components/relatorios/filial-tabs'
 import { PeriodoFiltro } from '@/components/relatorios/periodo-filtro'
 import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
-import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 import { ViewerAutoRefresh } from '@/components/relatorios/viewer-auto-refresh'
@@ -128,7 +128,13 @@ export default async function RelatorioFilialPage({
       { de: periodo.de, ate: periodo.ate, rotulo: periodo.rotulo },
       ehOperador, // viewer → sem pendências no snapshot ao vivo
     ),
-    listarTiposItem(acesso.client),
+    listarTiposItem(acesso.client).catch((err): TipoItem[] => {
+      // Degrada, nunca derruba: sem o mapa, o item faltante sai com o slug cru —
+      // o fallback desenhado. Derrubar o relatório inteiro por causa de um
+      // vocabulário de exibição seria trocar o essencial pelo acessório.
+      console.error('[relatorios/[filial]] falha ao listar tipos de item:', err)
+      return []
+    }),
   ])
 
   const semana = semanaUtilCorrente()

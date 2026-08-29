@@ -328,7 +328,20 @@ export async function prepararTermo(input: {
   // F39 — o vocabulário do que FALTOU sai do catálogo `tipos_item` (F37), não mais
   // de constante do código. TODOS os tipos, inclusive os desativados: a
   // `{observacao}` fala de PASSADO, e um slug histórico tem de sair legível.
-  const rotulosDosTipos = mapaRotulosTipo(await listarTiposItem())
+  //
+  // ⚠ DEGRADA, NUNCA DERRUBA (achado da revisão adversarial desta fase). Antes da
+  // F39 este caminho não lia banco nenhum para montar a `{observacao}`; `listarTiposItem`
+  // LANÇA em erro, e sem este `catch` um blip no banco passaria a impedir a
+  // preparação do termo inteiro — quebrando o "aviso, nunca bloqueio" que a própria
+  // fase adota nas outras leituras novas. Sem o mapa, `rotuloTipoItem` cai no slug
+  // cru, que é exatamente o fallback desenhado: o termo sai, com "fone" em vez de
+  // "Fone de ouvido", e o operador edita o campo se quiser.
+  const rotulosDosTipos = mapaRotulosTipo(
+    await listarTiposItem().catch((err) => {
+      console.error('[prepararTermo] falha ao listar tipos de item:', err)
+      return []
+    }),
+  )
   // Responsável de TI = operador logado (automático, §4.2).
   const { data: perfil } = await supabase
     .from('profiles')

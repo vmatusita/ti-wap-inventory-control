@@ -24,7 +24,7 @@ import {
 } from '@/lib/queries/ativos'
 import { listarMovimentacoesDoAtivo } from '@/lib/queries/movimentacoes'
 import { listarMotivos } from '@/lib/queries/motivos'
-import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { listarTermosDoAtivo } from '@/lib/queries/termos'
 import { listarPendenciasItemDoAtivo } from '@/lib/queries/pendencias-item'
@@ -126,7 +126,14 @@ export default async function AtivoFichaPage({
       ? listarMovimentacoesDoAtivo(ativo.substitui_ativo_id)
       : Promise.resolve([]),
     itensQueForamJunto(id),
-    listarTiposItem(),
+    listarTiposItem().catch((err): TipoItem[] => {
+      // Degrada, nunca derruba: o mapa serve só ao RÓTULO, e sem ele
+      // `rotuloTipoItem` cai no slug cru — o fallback desenhado. Derrubar ativos/[id]
+      // inteira por causa de um vocabulário de exibição seria trocar o essencial
+      // pelo acessório.
+      console.error('[ativos/[id]] falha ao listar tipos de item:', err)
+      return []
+    }),
   ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
   const rotulosTipo = mapaRotulosTipo(tiposItem)

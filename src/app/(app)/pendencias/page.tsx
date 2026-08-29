@@ -5,7 +5,7 @@ import { podeEscrever } from '@/lib/auth/papeis'
 import { createClient } from '@/lib/supabase/server'
 import { getPendencias } from '@/lib/queries/relatorios'
 import { listarFiliais } from '@/lib/queries/filiais'
-import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { listarPendencias, type TipoPendencia } from '@/lib/queries/pendencias-detalhe'
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
@@ -179,7 +179,14 @@ export default async function PendenciasPage({
     naMesa ? listarConflitos({ filialSlugs, q, page }) : Promise.resolve(null),
     // O chip de conflito é contado SEMPRE (ele aparece em qualquer aba, como os demais).
     contarGruposConflito(client, filialSlugs),
-    listarTiposItem(),
+    listarTiposItem().catch((err): TipoItem[] => {
+      // Degrada, nunca derruba: o mapa serve só ao RÓTULO, e sem ele
+      // `rotuloTipoItem` cai no slug cru — o fallback desenhado. Derrubar pendencias
+      // inteira por causa de um vocabulário de exibição seria trocar o essencial
+      // pelo acessório.
+      console.error('[pendencias] falha ao listar tipos de item:', err)
+      return []
+    }),
   ])
 
   // "Desde" formatado no SERVIDOR (formatDate + "há N dias") — a tabela é Client

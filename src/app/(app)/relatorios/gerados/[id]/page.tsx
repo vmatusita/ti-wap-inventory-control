@@ -7,7 +7,7 @@ import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { buscarRelatorioGerado, vizinhosDoRelatorio } from '@/lib/queries/gerados'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
-import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
 
@@ -49,7 +49,12 @@ export default async function RelatorioGeradoPage({
   // F39 — o vocabulário dos itens faltantes, com o CLIENT RESOLVIDO (o snapshot
   // congelado também é servido ao visualizador por senha). O snapshot guarda os
   // SLUGS; o rótulo é resolvido na hora de exibir, como sempre foi.
-  const tiposItem = await listarTiposItem(acesso.client)
+  const tiposItem = await listarTiposItem(acesso.client).catch((err): TipoItem[] => {
+    // Degrada, nunca derruba (mesma razão da rota ao vivo): sem o mapa, o item
+    // faltante sai com o slug cru, e o snapshot continua abrindo.
+    console.error('[relatorios/gerados/[id]] falha ao listar tipos de item:', err)
+    return []
+  })
 
   const vizinhos = await vizinhosDoRelatorio(acesso.client, {
     filialId: detalhe.filialId,
