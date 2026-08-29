@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.43.0',
+    data: '2026-08-28',
+    fase: 'F38',
+    titulo: 'Os acessórios andam junto com o equipamento',
+    mudancas: [
+      'Ao entregar um notebook, dá para registrar na mesma tela o fone, o carregador e a mochila que saem junto: a seção "Itens que vão junto" baixa cada um do estoque da filial e passa a contar na conta de quem recebeu. Com mais de um equipamento no lote, você escolhe a qual deles cada acessório acompanha. Depois, a ficha do equipamento mostra "Itens que foram junto" — a resposta para "o que saiu com este notebook", que antes não existia.',
+      'Na devolução, o checklist passou a ter dois botões por acessório em vez de um. "Voltou" repõe o item no estoque da filial na hora e baixa da conta da pessoa; "Faltou" abre a pendência como sempre fez. A lista agora vem do catálogo de tipos, e não de uma lista fixa.',
+      'Ao lado do checklist aparece "Com esta pessoa": o que o sistema tem registrado com quem está devolvendo. Quem ainda não está no cadastro, ou item que nunca foi registrado com a pessoa, não impede nada — marcar "Voltou" repõe o estoque do mesmo jeito, só não baixa conta de ninguém.',
+      'Resolver uma pendência de item passou a mexer no estoque, e é isso que fecha a conta: "Item recuperado" devolve o acessório à prateleira e tira da conta da pessoa; "Baixa" tira da conta dela e também do total da TI. Antes, um item dado como perdido ficava na conta da pessoa para sempre.',
+      'Um lote com uma linha errada não entra mais pela metade. Se qualquer equipamento do lote for recusado, nada é gravado — a tela volta com o lote inteiro e aponta qual linha parou tudo, com o motivo. Antes, as linhas anteriores já estavam registradas e sobrava reconciliar à mão.',
+      'Estornar uma movimentação que levou acessórios agora desfaz os dois lados no mesmo ato: o equipamento volta ao estado anterior e os acessórios voltam para a prateleira. Se algum não puder voltar, o estorno inteiro é recusado — nunca fica metade desfeita.',
+    ],
+  },
+  {
     versao: '1.42.1',
     data: '2026-08-28',
     titulo: 'A revisão do cadastro de pessoas e tipos de item',

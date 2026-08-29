@@ -6435,3 +6435,228 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
 - **Reversível?** Código: `git revert` do commit da v1.42.1. Banco: reaplicar o corpo da view como
   está na `0112` (o rollback lógico está escrito no cabeçalho da `0115`). Nenhum dado foi criado,
   alterado ou apagado.
+
+---
+
+## 2026-08-28 · F38 · A curva de desempenho, e o que ela decidiu sobre o índice
+
+- **Contexto:** a frente 0 da ordem manda rodar os três patamares (10 mil / 100 mil / 500 mil) antes
+  de escrever migration, e o entregável é o número que decide se o índice de saldo por pessoa entra.
+- **Decisão (a):** a **primeira corrida** usou o método padrão (trigger de validação LIGADO durante
+  a população) e foi **interrompida em 126.020 linhas**, de propósito. A curva de degradação medida
+  ali é entregável: um lote de 2.000 linhas passou de ~6 s no começo para ~60–120 s aos 126 mil —
+  extrapolando, os 500 mil levariam mais de 8 horas. O ensaio foi limpo à mão na janela
+  `estoque.dev_destrutivo` e **conferido**: 23 lançamentos e 6 itens antes, 23 e 6 depois.
+- **Decisão (b):** a corrida completa usou `MEDIR_ITENS_DESLIGAR_TRIGGER=sim` — a opção que o próprio
+  harness documenta para isto, e que **não contamina a medida 3**, feita com o trigger ligado.
+  População: 8,7 s / 75,7 s / 316,7 s. JSON em `docs/perf/f38-itens-ensaio.json`.
+- **O achado que contraria a previsão da F37:** o custo por INSERT do trigger no par quente é
+  **PLANO** — 3,3 ms aos 10 mil, 3,3 aos 100 mil, 3,5 aos 500 mil, num par que chegou a 75 mil
+  linhas. A F37 previu um driver quadrático LENDO O CÓDIGO (o trigger agrega todo o diário do par a
+  cada INSERT). Em campo, `lanc_item_item_filial_idx` já serve essa agregação: o trigger varre o
+  índice do par, não a tabela. A leitura estava certa sobre a forma e errada sobre o custo.
+- **Decisão (c) — o índice ENTRA (migration `0120`):** a curva dos três patamares mede as leituras
+  que já existiam; a que decide o índice é a NOVA. Segunda população dirigida (marcador `PERF-F38`,
+  500.000 lançamentos com `colaborador_id`, 200 pessoas × 100 itens × 5 filiais), medida com e sem o
+  índice no mesmo par: `rel_saldo_colaborador` **111,56 ms → 9,22 ms (12,1×)**; INSERT com
+  `colaborador_id` 2,64 → 2,83 ms (+0,19 ms, +7,2%); 9.833 → 869 buffers; 5,5 MB de índice sobre 71
+  MB de tabela. Segunda limpeza também conferida (0 linhas `PERF-`).
+- **Motivo:** `rel_saldo_colaborador` é a ÚNICA consulta do sistema que filtra `lancamentos_item` por
+  `colaborador_id` **sem** o par (item, filial) — `lanc_item_item_filial_idx` começa por `item_id` e
+  não a serve. E ela está no caminho de ESCRITA, não só de leitura: a action consulta o saldo da
+  pessoa antes de gravar o `retorno`, para decidir o vínculo (§C.3). A `0113` (F37) recusou este
+  mesmo índice por escrito, por falta de número, e deixou a regra: "quando a fase seguinte tiver o
+  número que justifique, o índice entra lá — medido". O número veio.
+- **E o que a curva decidiu NÃO fazer:** nada além disso. Nenhum saldo materializado, nenhum cache,
+  nenhuma paginação nova — agora o número desaconselha, não só a ordem proíbe.
+- **Reversível?** `drop index public.lanc_item_colaborador_idx;`
+
+---
+
+## 2026-08-28 · F38 · O lote é tudo-ou-nada — e o "painel de sucesso parcial" não era o painel
+
+- **Contexto:** a §B.2 da ordem manda o lote virar tudo-ou-nada e diz "o componente
+  `painel-sucesso.tsx` e os testes dele mudam junto".
+- **Achado que corrige a premissa:** o sucesso parcial do lote **nunca passou** por
+  `painel-sucesso.tsx`. `nova-movimentacao-form.tsx:966-1030` só monta o `PainelSucesso` quando
+  `res.ok === true` — sucesso TOTAL. O caminho parcial era `:1035-1076`: volta ao passo 2, popula
+  `errosPorAtivo`, mostra os chips "Já registrados (N)" e emite o toast
+  "N registrada(s); M falhou(aram). Revise os itens restantes." O que o `painel-sucesso.tsx` chama de
+  "parcial" é outra coisa: a metade adiada do par troca/upgrade.
+- **Decisão:** foi ESSE caminho que foi reescrito. `jaRegistrados` foi removido inteiro (estado,
+  prop e bloco de JSX) — nada entra mais pela metade, então não há o que ele mostrava. O lote volta
+  INTEIRO à tela, a linha culpada é apontada pelo `detail` que a RPC anexa (`f38_linha=<i>`), e o
+  toast passa a dizer "Nada foi gravado. O lote parou em <patrimônio> — corrija e envie de novo."
+  O `painel-sucesso.tsx` **não foi tocado**, e nenhum teste dele mudou (não havia nenhum).
+- **Motivo:** meio lote é pior que lote nenhum, porque só o segundo é óbvio. E emendar o componente
+  errado teria deixado o caminho real intacto.
+- **Reversível?** `git revert` do commit; a RPC continua no banco sem uso.
+
+---
+
+## 2026-08-28 · F38 · A RPC trava DUAS classes de lock, não uma
+
+- **Contexto:** a §B.3 da ordem nomeia as advisory locks `(item_id, filial_id)` e manda adquiri-las
+  todas, em ordem total, antes do primeiro INSERT — o passo 5 da `0104`.
+- **Achado:** a transacionalidade cria uma SEGUNDA classe que a ordem não nomeia.
+  `aplicar_movimentacao` faz `select … from ativos … for update` a cada INSERT. Hoje cada INSERT é a
+  própria transação, então esses row locks **nunca coexistem**. Numa transação única, um lote de 30
+  ativos passa a segurar 30 deles ao mesmo tempo — e dois lotes que compartilhem ativos em ordens
+  diferentes deadlockam, exatamente pelo mecanismo que a `0100` teve de consertar em produção.
+- **Decisão:** a `0117` trava os ativos **ela mesma**, em ordem total crescente de `id`, antes de
+  tudo; depois as advisory locks, também em ordem total; só então o primeiro INSERT. A ordem entre as
+  duas classes é fixa e única, porque esta é a única função que pede as duas.
+- **Motivo:** a mesma razão que o cabeçalho da `0104` dá para a classe que ela já tratava. Fechar
+  antes é barato; descobrir depois, em produção, não.
+- **Reversível?** `drop function public.criar_movimentacao_com_itens(jsonb, jsonb, uuid);`
+
+---
+
+## 2026-08-28 · F38 · A filial vem do ativo lido sob a trava, nunca do payload
+
+- **Contexto:** `montarRow` (action) gravava `filial_id: ativo.filial_id`, lido antes do INSERT.
+- **Decisão:** a `0117` **deriva** a filial do ativo já travado, dentro da transação, e o payload
+  deixou de carregá-la.
+- **Motivo:** entre a leitura da action e o INSERT, o ativo pode ter sido transferido por outra
+  sessão. Com INSERTs independentes isso era uma janela estreita e tolerada; numa transação única
+  que segura o ativo, deixar de usar o valor travado seria escolher o dado obsoleto de propósito. E
+  a policy `pode_escrever_filial` passa a ser avaliada sobre o valor verdadeiro.
+- **Reversível?** sim, junto com a RPC.
+
+---
+
+## 2026-08-28 · F38 · O vínculo condicional do retorno (§C.3)
+
+- **Contexto:** a `0118` acrescentou um teto novo em `valida_lancamento_item` — um `retorno` que
+  NOMEIA uma pessoa não pode exceder o que ela tem. Equipamento entregue ANTES desta fase não tem
+  `saida` vinculada a ninguém: a pessoa tem saldo ZERO, e a conferência do checklist seria RECUSADA,
+  matando o D12 ("entrega antiga funciona igual").
+- **Decisão (a ordem já a antecipou, e ela foi implementada assim):** a linha de devolução só carrega
+  `colaborador_id` quando a pessoa tem saldo registrado **suficiente** daquele item naquela filial;
+  não tendo, o `retorno` é gravado **sem** o vínculo. Repõe o estoque igual, sem inventar dívida nem
+  recusar a conferência. A regra mora em `src/lib/itens/vinculo-retorno.ts` (função pura, testada), e
+  `decidirVinculosDoLote` **debita o saldo à medida que decide** — duas linhas do mesmo par na mesma
+  transação consomem o mesmo saldo, e decidir cada uma contra o saldo inicial faria a segunda ser
+  recusada pelo banco.
+- **Motivo:** isto não contorna a guarda: é escolher, na aplicação, entre duas gravações que o banco
+  aceita. Se a aplicação errar e mandar o vínculo sem saldo, o banco recusa — e está certo.
+- **Na tela:** o bloco "Com esta pessoa" da devolução diz, discretamente, qual dos dois aconteceu.
+- **Reversível?** sim; o banco continua aceitando os dois formatos.
+
+---
+
+## 2026-08-28 · F38 · A ponte tipo→item, e o que o modelo NÃO suporta
+
+- **Contexto:** a §D da ordem diz "tipo com exatamente um item de catálogo ativo **naquela filial**
+  resolve sozinho".
+- **Achado:** o modelo não suporta isso como escrito. `itens` é catálogo **global** (18 linhas em
+  produção) com `tipo_id` anulável (`0114`); `tipos_item` **não tem `filial_id`**. A filial só existe
+  no diário (`lancamentos_item.filial_id`), nunca no catálogo — os candidatos são os mesmos em toda
+  filial.
+- **Decisão:** candidatos = itens `ativo = true` com aquele `tipo_id`. Um candidato resolve sozinho;
+  dois ou mais, a linha pergunta; **zero não bloqueia nada** — a devolução é registrada, o lançamento
+  não nasce, e a tela diz por quê. A filial entra no combobox como INFORMAÇÃO, não como filtro. A
+  mesma regra vale na §E, a partir do slug de `pendencias_item.item`.
+- **Motivo:** conferir a devolução e resolver pendência **nunca** podem falhar por causa do catálogo.
+  O acervo de equipamentos não pode ficar refém do cadastro de acessórios.
+- **Módulo:** `src/lib/itens/ponte-tipo-item.ts`. O nome evita colisão com
+  `src/lib/itens/escolha-tipo.ts`, que já existe e é outra coisa (a escolha do *tipo de lançamento*).
+- **Reversível?** sim, é função pura consumida pela tela e pela action.
+
+---
+
+## 2026-08-28 · F38 · Nasce `lancamentos_item.pendencia_item_id`, e por quê
+
+- **Contexto:** o critério 8 exige que reabrir uma pendência que gerou lançamento grave os inversos
+  "ou recuse — nunca deixa lançamento órfão".
+- **Achado:** sem um elo, descobrir QUAL lançamento veio de QUAL pendência seria adivinhação por
+  texto de observação — e indistinguível quando duas pendências nascem da mesma devolução, porque
+  elas têm o MESMO `movimentacao_id`.
+- **Decisão:** a `0119` acrescenta `pendencia_item_id uuid` (anulável, FK, com índice), no mesmo
+  desenho da `0116`. Com ele, a RPC de reabertura **confere dentro da transação** que nenhuma
+  pendência reaberta ficou com lançamento de pé, e recusa se ficou.
+- **Motivo:** a garantia do critério 8 passa a ser do BANCO, não da boa-fé de quem chama. Uma action
+  que esquecesse um item derrubaria a reabertura, em vez de deixar o acervo mentindo.
+- **Reversível?** `alter table public.lancamentos_item drop column pendencia_item_id;`
+
+---
+
+## 2026-08-28 · F38 · A `baixa` são DOIS lançamentos, e o estorno desfaz o conjunto
+
+- **Contexto:** o §E da ordem fixa `recuperado` → `retorno` e `baixa` → `retorno` + `ajuste` −1.
+- **Conferência contra a `0027`, feita antes de implementar:** `retorno` não entra em
+  `total = max(0, Σentrada + Σajuste)`, e `ajuste` **não entra** em `liberados = max(0, Σsaida −
+  Σretorno)` nem, portanto, em `com_a_pessoa`. Um `ajuste` negativo sozinho tiraria do Total e
+  deixaria o item na conta da pessoa **para sempre** — o furo exato que a frente existe para fechar.
+  Só o par preserva as duas contas. É a mesma lógica com que a `0104` provou que só o par de ajustes
+  preserva o Total numa transferência.
+- **A ordem dos dois importa, e é fixada no SQL:** o `retorno` entra PRIMEIRO. Invertido, o
+  `ajuste −1` encontraria a prateleira ainda sem o item e o trigger recusaria por estoque negativo.
+- **Decisão paralela (§B.5, migration `0121`):** estornar uma movimentação que carregou periféricos
+  grava os inversos deles na MESMA transação, ou **recusa**. Os inversos vêm de `planejarEstorno`
+  (`src/lib/itens/estorno.ts`, pura e testada desde a F3B) — a função SQL não decide o que é inverso
+  de quê, pela mesma razão que a `0104` deu para não redigir texto por dentro.
+- **Reversível?** `drop function` das duas RPCs; nenhum dado precisa ser desfeito.
+
+---
+
+## 2026-08-28 · F38 · Migrations a mais do que a ordem nomeou (`0120`, `0121`)
+
+- **Contexto:** a ordem lista `0116`–`0119`.
+- **Decisão:** o índice de saldo por pessoa virou a `0120`, e o estorno acoplado a `0121`.
+- **Motivo:** o índice **depende da curva** (D6) e por isso não podia estar nas quatro escritas antes
+  dela; o estorno acoplado precisa de RPC própria, e a `0119` já estava aplicada no ensaio quando ele
+  foi escrito. A doutrina da casa é clara: nunca editar migration já aplicada. Migration nova é o
+  caminho limpo.
+- **Reversível?** cada uma tem o rollback lógico no próprio cabeçalho.
+
+---
+
+## 2026-08-28 · F38 · Os dez roteiros SQL que escolhiam o autor por sorteio
+
+- **Contexto:** ao rodar TODOS os roteiros no ensaio (regra F17), `import_substituir.sql` e
+  `troca.sql` morreram com `42501 Apenas administradores podem executar o import de startup` — num
+  roteiro que passava verde ontem, e sobre uma função que a F38 não tocou.
+- **Causa:** dez roteiros escolhem o perfil-autor com
+  `select id into v_prof from public.profiles limit 1` — **sem `order by` e sem filtro**. No ensaio
+  isso caía num perfil `ativo = false` sobrado de um E2E da F31, e `papel_atual()` devolve NULL para
+  perfil desativado desde a `0070`; daí toda guarda de cargo recusar.
+- **Decisão:** os dez passaram a
+  `where ativo and excluido_em is null order by created_at, id limit 1`.
+- **Motivo:** é a **mesma classe de não-determinismo** da pendência nº 5 da F37 (`limit 1` sem
+  desempate), só que em quem o roteiro escolhe como autor. A correção é de uma linha e desbloqueia a
+  verificação da fase; não corrigir deixaria a regra F17 impossível de cumprir no ensaio.
+- **Reversível?** sim, é uma linha por arquivo.
+
+---
+
+## 2026-08-28 · F38 · `p_observacao` corrigido à mão em `database.ts`
+
+- **Contexto:** `npm run db:types` (CLI fixada 2.109.1) perde o `| null` de parâmetros anuláveis —
+  defeito conhecido e já registrado neste projeto.
+- **Decisão:** depois de regenerar, duas assinaturas foram corrigidas à mão:
+  `resolver_pendencias_item_com_lancamentos.p_observacao` e
+  `estornar_movimentacao_com_itens.p_observacao`, de `string` para `string | null`. O diff foi
+  conferido para não conter mais nada além disso e das entradas novas.
+- **Nota:** os tipos foram gerados a partir do **ensaio**, e o ensaio não tem a tabela de backup
+  `_bkp_relatorios_gerados_f6a` que existe em produção — ela sumiu do arquivo. Regenerar de produção
+  depois do apply a traz de volta.
+- **Reversível?** regerar e recorrigir.
+
+---
+
+## 2026-08-28 · F38 · Dois testes existentes mudaram, e os dois por decisão da ordem
+
+- **Contexto:** a ordem manda não tocar em teste existente, "salvo os do painel de sucesso, que mudam
+  por decisão explícita (§B.2)".
+- **Decisão:** dois testes mudaram, nenhum deles do painel:
+  1. `src/lib/ajuda/conteudo.test.ts` — o título de manual "Depois de registrar: termos em sequência
+     e **sucesso parcial**" virou "…e **o lote que não entra pela metade**". A §B.2 extinguiu o
+     conceito; manter o título seria documentar um comportamento que não existe mais.
+  2. `src/lib/ajuda/conteudo/operacao.test.ts` — a asserção que exigia o rótulo
+     `"Itens faltantes na devolução"` passou a exigir `"O que voltou com o equipamento"` e os dois
+     desfechos. A §D mudou o rótulo **junto com o que o checklist faz**; a asserção acompanha a tela,
+     que é a promessa dela.
+- **Nenhum outro teste existente foi alterado.** Os 27+58+22+18+12+7 testes das funções puras do
+  wizard, os validadores, o `tipos-item-sql.test.ts` e o `chave-sql.test.ts` passam sem edição.
+- **Reversível?** sim, é texto.

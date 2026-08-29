@@ -6,6 +6,36 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 28/08/2026 — F38 · Os itens andam com o ativo ✅ 🔒
+
+**v1.43.0** · migrations `0116`–`0121` · ordem em
+[`docs/prompts/F38-itens-andam-com-o-ativo-ultracode.md`](docs/prompts/F38-itens-andam-com-o-ativo-ultracode.md) ·
+relatório em [`docs/RELATORIO-F38.md`](docs/RELATORIO-F38.md).
+
+O acessório e o equipamento viviam em dois mundos que não se falavam. Esta fase juntou os dois:
+
+- **O vínculo** (`0116`): `lancamentos_item.movimentacao_id` — "o que foi junto com este notebook"
+  virou um join, e a ficha do ativo mostra o card "Itens que foram junto". Nunca `ativo_id`: a
+  movimentação já aponta o ativo.
+- **O lote tudo-ou-nada** (`0117`): `criar_movimentacao_com_itens` grava as movimentações **e** os
+  lançamentos de item numa transação só. Uma linha ruim derruba o lote inteiro (decisão do Johnny,
+  28/08/2026) — e o sucesso parcial, que deixava metade gravada, deixou de existir. Abate o item
+  **U** da [`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md) no caminho da movimentação.
+- **A conta por pessoa** (`0118`): `rel_saldo_colaborador` e o bloco "Com esta pessoa". É uma
+  partição de `liberados` (cabeçalho da `0027`), não uma fórmula nova — **nenhum número da tela de
+  itens mudou**.
+- **O checklist virou o catálogo** (D12): dois desfechos por acessório. "Voltou" repõe o estoque;
+  "Faltou" abre a pendência **exatamente como antes**, com os mesmos slugs e o mesmo trigger.
+- **O ciclo da pendência fecha** (`0119`): `recuperado` → `retorno`; `baixa` → `retorno` + `ajuste`
+  negativo. Sem isso, item dado como perdido ficava na conta da pessoa para sempre.
+- **A curva de desempenho** (D6, pendência nº 1 da F37): os três patamares medidos —
+  [`docs/perf/f38-itens-ensaio.json`](docs/perf/f38-itens-ensaio.json). O índice de saldo por pessoa
+  (`0120`) entrou **com o número na mão**: 111,56 ms → 9,22 ms (12,1×) aos 500 mil lançamentos.
+- **O estorno desfaz o conjunto** (`0121`): estornar uma entrega que levou periféricos devolve os
+  dois lados, ou recusa. Nunca meio estorno.
+
+---
+
 ## 28/08/2026 — Revisão de código da F37: 15 achados aplicados ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.42.1**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo

@@ -113,3 +113,32 @@ export function decidirVinculosDoLote<L extends { itemId: number; filialId: numb
     return { ...linha, ...decisao }
   })
 }
+
+/**
+ * De ONDE sai a pessoa de uma linha de item — e a resposta difere entre os dois
+ * caminhos, o que é exatamente o tipo de sutileza que some numa expressão inline.
+ *
+ *   ENTREGA (`saida`)   → do campo Colaborador do formulário. É para ELE que o
+ *                         acessório está indo.
+ *   DEVOLUÇÃO (`retorno`) → do DETENTOR ATUAL do ativo. O formulário de devolução
+ *                         **não tem** campo Colaborador (`CAMPOS_POR_TIPO` não o
+ *                         inclui para esse tipo), então ler o campo ali devolve
+ *                         sempre `null` — e a conta da pessoa jamais baixaria numa
+ *                         devolução, que é justamente o que a frente C existe para
+ *                         fazer. Foi um furo real, achado percorrendo a tela.
+ *
+ * ⚠ O detentor tem de ser lido ANTES do INSERT: `aplicar_movimentacao` zera
+ * `ativos.colaborador_atual` assim que a devolução entra.
+ */
+export function pessoaDaLinhaDeItem(args: {
+  tipo: 'saida' | 'retorno'
+  /** O que o operador digitou no campo Colaborador (entrega). */
+  colaboradorDoFormulario: string | null | undefined
+  /** Quem está com o ativo hoje (devolução). */
+  detentorAtual: string | null | undefined
+}): string | null {
+  const bruto =
+    args.tipo === 'retorno' ? args.detentorAtual : args.colaboradorDoFormulario
+  const limpo = (bruto ?? '').trim()
+  return limpo || null
+}

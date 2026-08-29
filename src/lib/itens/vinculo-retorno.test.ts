@@ -4,6 +4,7 @@ import {
   MOTIVO_SEM_VINCULO_TEXTO,
   decidirVinculoRetorno,
   decidirVinculosDoLote,
+  pessoaDaLinhaDeItem,
   type SaldoDaPessoa,
 } from '@/lib/itens/vinculo-retorno'
 
@@ -174,5 +175,51 @@ describe('decidirVinculosDoLote — o saldo é consumido linha a linha', () => {
     expect(r.every((l) => l.colaboradorId === null && l.motivoSemVinculo === 'sem_cadastro')).toBe(
       true,
     )
+  })
+})
+
+describe('pessoaDaLinhaDeItem — de onde sai a pessoa em cada caminho', () => {
+  it('ENTREGA usa o campo Colaborador do formulário', () => {
+    expect(
+      pessoaDaLinhaDeItem({
+        tipo: 'saida',
+        colaboradorDoFormulario: 'Fulano Novo',
+        detentorAtual: 'Ninguém Antigo',
+      }),
+    ).toBe('Fulano Novo')
+  })
+
+  it('DEVOLUÇÃO usa o DETENTOR do ativo — o formulário nem tem o campo', () => {
+    expect(
+      pessoaDaLinhaDeItem({
+        tipo: 'retorno',
+        colaboradorDoFormulario: null,
+        detentorAtual: 'Fulano Detentor',
+      }),
+    ).toBe('Fulano Detentor')
+  })
+
+  it('devolução IGNORA o campo do formulário mesmo quando ele vem preenchido', () => {
+    expect(
+      pessoaDaLinhaDeItem({
+        tipo: 'retorno',
+        colaboradorDoFormulario: 'Alguém Que Não Devolveu',
+        detentorAtual: 'Fulano Detentor',
+      }),
+    ).toBe('Fulano Detentor')
+  })
+
+  it('ativo sem detentor devolve null — e isso não é erro', () => {
+    expect(
+      pessoaDaLinhaDeItem({ tipo: 'retorno', colaboradorDoFormulario: 'X', detentorAtual: null }),
+    ).toBeNull()
+  })
+
+  it('só espaço não é nome', () => {
+    for (const v of ['   ', '', null, undefined]) {
+      expect(
+        pessoaDaLinhaDeItem({ tipo: 'saida', colaboradorDoFormulario: v, detentorAtual: 'Y' }),
+      ).toBeNull()
+    }
   })
 })

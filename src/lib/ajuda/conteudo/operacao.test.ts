@@ -630,8 +630,14 @@ describe('devolução e triagem', () => {
     expect(t()).toContain(STATUS_META.em_triagem.rotulo)
   })
 
-  it('cita o rótulo real do checklist e a pendência por item', () => {
-    expect(t()).toContain('"Itens faltantes na devolução"')
+  // F38 · D12 — o rótulo do checklist mudou junto com o que ele FAZ: até a F37 era
+  // "Itens faltantes na devolução" e marcar significava uma coisa só (faltou);
+  // agora é "O que voltou com o equipamento", com dois desfechos, e "Voltou" repõe
+  // o estoque. A asserção acompanha o rótulo da tela — é essa a promessa dela.
+  it('cita o rótulo real do checklist e os dois desfechos da pendência', () => {
+    expect(t()).toContain('"O que voltou com o equipamento"')
+    expect(t()).toContain('"Voltou"')
+    expect(t()).toContain('"Faltou"')
     expect(t()).toContain('Item recuperado')
     expect(t()).toContain('Baixa — não vai voltar')
   })

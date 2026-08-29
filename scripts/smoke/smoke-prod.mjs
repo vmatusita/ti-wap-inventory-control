@@ -799,6 +799,68 @@ const CHECKS = [
       return { status: OK, detalhe: `${linhas} resultado(s) (teto 12) · shape ok` }
     },
   },
+
+  // F38 — o vínculo item↔movimentação (0116) e o elo com a pendência (0119).
+  // Conferem SHAPE, não conteúdo: em produção as duas colunas nascem vazias, e é
+  // isso que se quer ver logo depois do deploy — nenhum registro histórico tocado.
+  {
+    nome: 'lancamentos_item · vínculo com movimentação e pendência (F38)',
+    area: 'itens · vínculo',
+    async executar(db) {
+      const { error } = await db
+        .from('lancamentos_item')
+        .select('id, movimentacao_id, pendencia_item_id')
+        .limit(1)
+      if (error) {
+        if (ehAusenciaDeSchema(error)) {
+          return { status: NA, detalhe: 'colunas ausentes (migrations 0116/0119 não aplicadas?)' }
+        }
+        throw error
+      }
+      const { count, error: eConta } = await db
+        .from('lancamentos_item')
+        .select('id', { count: 'exact', head: true })
+        .not('movimentacao_id', 'is', null)
+      if (eConta) throw eConta
+      return {
+        status: OK,
+        detalhe: `shape ok · ${count ?? 0} lançamento(s) com vínculo de movimentação`,
+      }
+    },
+  },
+
+  // F38 — a leitura "Com esta pessoa" (0118). Responde para um colaborador que
+  // existe; sem cadastro nenhum, é NA e não falha (produção começou com zero).
+  {
+    nome: 'rel_saldo_colaborador · a conta por pessoa (F38)',
+    area: 'itens · saldo por pessoa',
+    async executar(db) {
+      const { data: pessoa, error: ePessoa } = await db
+        .from('colaboradores')
+        .select('id')
+        .limit(1)
+      if (ePessoa) {
+        if (ehAusenciaDeSchema(ePessoa)) return { status: NA, detalhe: 'colaboradores ausente' }
+        throw ePessoa
+      }
+      if (!pessoa?.length) {
+        return { status: NA, detalhe: 'nenhum colaborador cadastrado ainda' }
+      }
+      const { data, error } = await db.rpc('rel_saldo_colaborador', {
+        p_colaborador: pessoa[0].id,
+      })
+      if (error) {
+        if (ehAusenciaDeSchema(error)) {
+          return { status: NA, detalhe: 'RPC ausente (migration 0118 não aplicada?)' }
+        }
+        throw error
+      }
+      return {
+        status: OK,
+        detalhe: `respondeu · ${data?.length ?? 0} linha(s) para a primeira pessoa`,
+      }
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------

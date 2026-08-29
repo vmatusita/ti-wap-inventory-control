@@ -170,9 +170,13 @@ O diagnóstico de 24/07 continua válido e a distância só cresceu (55 → 109 
 
 `0058_drop_backup_f18.sql` e `0059_advisors_rls_perf.sql` estão no repositório. **Não confirmei nesta sessão se foram aplicadas em produção** — a verificação exige o MCP do Supabase, fora do alcance desta auditoria. Fica como pergunta objetiva para o próximo apply. A regra proposta em 25/07 permanece a boa: **todo backup de operação nasce com uma migration de DROP datada**.
 
-### U — Escrita em duas etapas sem transação `[Prio 12]` — **inalterado**
+### U — Escrita em duas etapas sem transação `[Prio 12]` — **parcialmente abatido pela F38 (28/08/2026)**
 
-`actions/termos.ts:622-633` confirmado: o `update` em `ativos` commita antes do `insert` em `anotacoes` ser avaliado. Mesmo padrão em `actions/ativos.ts:289` e `:375`. O paliativo barato (inverter a ordem — anotação órfã é inócua) continua não aplicado.
+**O que saiu da lista:** o caminho do **lote de movimentação** e o do **estorno com itens** deixaram de ser escrita em duas etapas. `criar_movimentacao_com_itens` (migration `0117`) grava as movimentações **e** os lançamentos de item numa transação só — tudo ou nada, uma linha ruim derruba o lote inteiro —, e `estornar_movimentacao_com_itens` (`0121`) desfaz o par inteiro ou recusa, nunca meio estorno. É o que o `CHANGELOG.md` da F38 chama de "abater o item U no caminho da movimentação".
+
+**O que continua:** `actions/termos.ts:622-633` confirmado: o `update` em `ativos` ainda commita antes do `insert` em `anotacoes` ser avaliado. Mesmo padrão em `actions/ativos.ts:289` e `:375`. Nenhum dos dois estava no escopo da F38, e o paliativo barato (inverter a ordem — anotação órfã é inócua) continua não aplicado.
+
+**E uma escrita em duas etapas nova ficou de pé DE PROPÓSITO:** o carrinho avulso de `lancarItens` (`src/lib/actions/itens.ts:70-132`) continua um `insert` por linha dentro de um `for`, sem RPC e sem transação. Isso não é a mesma dívida disfarçada — é decisão registrada: o cabeçalho de `transferirItens` (`itens.ts:143-149`) explica a diferença, "é o oposto deliberado do carrinho de lançamento, onde cada linha é independente: lá as linhas não se relacionam entre si; aqui cada par É a operação, e meia transferência é pior que nenhuma". O carrinho de `lancarItens` não tem essa garantia para proteger — uma linha falhar não deixa as outras inconsistentes entre si —, e por isso não entrou no tudo-ou-nada da F38.
 
 ### K / L — Convenção e coesão `[Prio 12]` — **pioraram**
 

@@ -15,6 +15,7 @@ import {
 import {
   MOTIVO_SEM_VINCULO_TEXTO,
   decidirVinculosDoLote,
+  pessoaDaLinhaDeItem,
   type SaldoDaPessoa,
 } from '@/lib/itens/vinculo-retorno'
 import {
@@ -115,7 +116,17 @@ function itemDoDetalhe(detalhe: string | null | undefined): number | undefined {
 /** A linha que não é a culpada: nada foi gravado, e o texto diz isso sem rodeio. */
 const NADA_GRAVADO = 'Não foi gravada — o lote inteiro foi recusado.'
 
-type AtivoBasico = { id: string; filial_id: number; status: StatusAtivo }
+type AtivoBasico = {
+  id: string
+  filial_id: number
+  status: StatusAtivo
+  // F38 — quem está com o ativo HOJE. Na DEVOLUÇÃO é daqui que sai a pessoa do
+  // `retorno`: o formulário de devolução NÃO coleta Colaborador (o campo nem
+  // aparece — `CAMPOS_POR_TIPO` não o inclui para esse tipo), e quem devolve é o
+  // detentor. Ler `item.colaborador` ali daria sempre null, e a conta por pessoa
+  // nunca baixaria na devolução — o furo que a verificação em tela encontrou.
+  colaborador_atual: string | null
+}
 
 // Monta a row de INSERT de uma movimentacao a partir do item validado + o estado
 // corrente do ativo. Os campos condicionais (motivo/colaborador/setor) sao lidos
@@ -254,7 +265,7 @@ export async function registrarMovimentacoes(input: {
   // Estado corrente de cada ativo (filial de origem + status atual).
   const { data: ativosData, error: ativosErr } = await supabase
     .from('ativos')
-    .select('id, filial_id, status')
+    .select('id, filial_id, status, colaborador_atual')
     .in('id', idsDoLote)
   if (ativosErr) {
     return {
@@ -292,10 +303,14 @@ export async function registrarMovimentacoes(input: {
   // mapa vem vazio, as linhas gravam `colaborador_id` nulo e o lote segue. O vínculo
   // é um bônus — derrubar a movimentação do operador por causa dele seria trocar o
   // essencial pelo acessório.
-  const vinculos = await resolverColaboradoresPorNome(
-    supabase,
-    itens.map((i) => ('colaborador' in i ? i.colaborador : null)),
-  )
+  //
+  // F38 — os DETENTORES ATUAIS entram na mesma resolução. Na devolução a pessoa do
+  // `retorno` não vem do formulário (que não tem o campo), e sim do ativo; sem
+  // esses nomes aqui, o mapa não teria a chave e o vínculo nunca resolveria.
+  const vinculos = await resolverColaboradoresPorNome(supabase, [
+    ...itens.map((i) => ('colaborador' in i ? i.colaborador : null)),
+    ...(ativosData ?? []).map((a) => a.colaborador_atual),
+  ])
 
   // Primeira linha: o que dá para conferir sem tocar o banco. A do banco continua
   // sendo a que vale; esta poupa o operador de perder o lote por algo óbvio.
@@ -427,7 +442,18 @@ async function montarItensJunto(
     if (!tipo) continue
     const ativo = ativoPorId.get(mov.ativo_id)
     if (!ativo) continue
-    const colaborador = ('colaborador' in mov ? mov.colaborador : undefined) ?? null
+    // ⚠ De ONDE sai a pessoa, e por que difere entre os dois caminhos:
+    //   ENTREGA  → do campo Colaborador do formulário (é para ELE que o item vai);
+    //   DEVOLUÇÃO → do DETENTOR ATUAL do ativo. O formulário de devolução não tem
+    //     campo Colaborador (`CAMPOS_POR_TIPO` não o inclui), então ler
+    //     `mov.colaborador` ali daria sempre null e a conta da pessoa jamais
+    //     baixaria numa devolução. O nome é lido do ativo ANTES do INSERT — depois
+    //     dele, `aplicar_movimentacao` zera `colaborador_atual`.
+    const colaborador = pessoaDaLinhaDeItem({
+      tipo,
+      colaboradorDoFormulario: 'colaborador' in mov ? mov.colaborador : null,
+      detentorAtual: ativo.colaborador_atual,
+    })
     linhas.push({
       ...j,
       tipo,

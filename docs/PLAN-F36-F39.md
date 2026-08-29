@@ -364,6 +364,29 @@ registro histórico alterado · a curva de desempenho publicada em `docs/RELATOR
 
 ## 5. F38 — Os itens andam com o ativo
 
+> ✅ **EXECUTADA em 28/08/2026** pela ordem `docs/prompts/F38-itens-andam-com-o-ativo-ultracode.md`
+> (**v1.43.0**, migrations `0116`–`0121`). Evidências em `docs/RELATORIO-F38.md`.
+>
+> **Quatro coisas saíram diferentes do que este §5 rascunhou, e a ordem mandou (ela é a régua
+> acima deste plano). As quatro estão em ata em `docs/DECISOES.md` (2026-08-28 · F38):**
+>
+> 1. **A numeração das migrations mudou.** O §5.1 numerou o vínculo como `0115` e o §5.3 o saldo
+>    por pessoa como `0116`; na execução ficaram `0116` (vínculo), `0117` (RPC do lote), `0118`
+>    (saldo por pessoa), `0119` (ciclo da pendência), `0120` (índice) e `0121` (estorno acoplado)
+>    — porque a `0115` já tinha sido usada pela revisão de código da F37 (v1.42.1).
+> 2. **`lanc_item_colaborador_idx` virou migration própria, e só entrou DEPOIS da curva.** O
+>    §5.1 previa criá-lo junto com o vínculo; na execução ele saiu do DDL da `0116` e nasceu como
+>    a `0120`, só depois de uma segunda população dirigida medir o efeito (111,56 ms → 9,22 ms,
+>    12,1× aos 500 mil) — com o número medido no nome, que é o que o D6 exige.
+> 3. **A `baixa` grava DOIS lançamentos, não um.** O §5.4 propunha só um `ajuste` negativo; o
+>    Johnny fechou a ponta em 28/08/2026 e a ordem determinou `retorno` **+** `ajuste` negativo,
+>    porque `ajuste` sozinho não entra na conta por pessoa (`Σsaida − Σretorno`) e deixaria o item
+>    na conta dela para sempre.
+> 4. **O estorno acoplado e a coluna `pendencia_item_id` não estavam neste §5.** Os dois entraram
+>    na execução: a RPC `estornar_movimentacao_com_itens` (§B.5 da ordem) desfaz o conjunto ou
+>    recusa, e `lancamentos_item.pendencia_item_id` (`0119`) é o elo que prova, dentro da
+>    transação, que reabrir pendência nunca deixa lançamento órfão.
+
 **Depende da F37** (precisa de `colaboradores` e de `tipos_item`).
 
 ### 5.1 O vínculo que não existe (migration `0115`)
@@ -374,6 +397,10 @@ alter table public.lancamentos_item
 create index lanc_item_mov_idx        on public.lancamentos_item (movimentacao_id);
 create index lanc_item_colaborador_idx on public.lancamentos_item (colaborador_id, item_id, filial_id);
 ```
+
+⚠ **Na execução (28/08/2026): virou a migration `0116`, e `lanc_item_colaborador_idx` SAIU deste
+DDL** — nasceu depois, sozinho, como a `0120`, só depois de a curva medir o efeito. Ver
+divergência (2) no bloco EXECUTADA acima.
 
 Só `movimentacao_id`, **não** `ativo_id`: a movimentação já aponta o ativo, e uma segunda cópia
 da mesma verdade é um lugar novo para os dois discordarem. "O que foi junto com este notebook" é
@@ -408,6 +435,9 @@ movimentações **e** os lançamentos de item **tudo ou nada**.
 
 ### 5.3 Saldo por colaborador (migration `0116`)
 
+⚠ **Na execução (28/08/2026): virou a migration `0118`** — a `0116` foi o vínculo do §5.1, e a
+`0117` a RPC do §5.2. Ver divergência (1) no bloco EXECUTADA acima.
+
 A conta é uma **partição** das fórmulas que já existem na `0027`, não uma fórmula nova:
 
 ```
@@ -440,6 +470,12 @@ ninguém decidiu isto ainda: ao resolver a pendência em `/pendencias`, o desfec
 vira lançamento. `recuperado` → `retorno` (repõe estoque, baixa da pessoa); `baixa` → `ajuste`
 negativo com a justificativa (some do total, baixa da pessoa). Sem isso, um item dado como
 perdido fica na conta da pessoa para sempre.
+
+⚠ **O Johnny decidiu diferente do proposto (28/08/2026), e a ordem foi escrita com a decisão
+dele:** `baixa` grava **`retorno` + `ajuste` negativo** (dois lançamentos), não só o `ajuste`. Um
+`ajuste` sozinho não entra em `Σsaida − Σretorno` (a conta por pessoa do §5.3) — deixaria o item
+na conta da pessoa para sempre, o furo exato que este parágrafo existe para fechar. Ver
+divergência (3) no bloco EXECUTADA acima.
 
 ⚠ **Entrega antiga funciona igual.** Como o checklist mostra os **tipos do catálogo** (e não "o
 que esta pessoa recebeu"), devolução de equipamento entregue antes desta fase continua
@@ -542,7 +578,7 @@ F39  o termo diz o que foi junto┴────────────►  prec
 | F36 | `0110` (3 funções por `create or replace` puro) | não | **A** — ensaio → produção |
 | F36 | `0111` (backfill do detentor) | **sim** | **A**, com protocolo destrutivo do `CLAUDE.md`: backup JSON → dry-run → apply → contagens |
 | F37 | `0112` `0113` `0114` (tabelas + colunas anuláveis + seed de vocabulário) | não | **A** |
-| F38 | `0115` `0116` `0117` | não | **A** |
+| F38 | `0116`–`0121` (vínculo, RPC do lote, saldo por pessoa, ciclo da pendência, índice, estorno acoplado) | não | **A** |
 | F39 | nenhuma | não | — |
 
 Nenhuma delas bate no gate do modo automático (nenhuma contém `delete from public.ativos` ou

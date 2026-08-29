@@ -197,7 +197,7 @@ describe('operação em massa documentada (OS-F10 · Onda 2)', () => {
       // M6
       'Retomar um lote que ficou pela metade (rascunho)',
       // M9
-      'Depois de registrar: termos em sequência e sucesso parcial',
+      'Depois de registrar: termos em sequência e o lote que não entra pela metade',
       // A6 (+ A2/A4 ficam no passo da compra)
       'Comprar outro igual (sem redigitar a ficha)',
       // I1

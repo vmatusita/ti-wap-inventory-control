@@ -188,11 +188,20 @@ function BotaoDesfecho({
       type="button"
       aria-pressed={ativo}
       onClick={onClick}
+      // O par marcado usa o idioma de BADGE da casa (fundo claro + texto escuro no
+      // tema claro, e o inverso no escuro), e não fundo saturado com texto branco:
+      // `bg-emerald-600` com branco mede **3,65:1** e `bg-amber-600`, **3,2:1** —
+      // os dois abaixo do mínimo de 4,5:1 do WCAG AA para texto pequeno. Medido no
+      // navegador durante a verificação da fase, não estimado.
       className={cn(
         'focus-visible:ring-ring rounded-md border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
         !ativo && 'bg-background text-muted-foreground hover:bg-muted',
-        ativo && tom === 'ok' && 'border-emerald-600 bg-emerald-600 text-white',
-        ativo && tom === 'alerta' && 'border-amber-600 bg-amber-600 text-white',
+        ativo &&
+          tom === 'ok' &&
+          'border-emerald-600 bg-emerald-100 text-emerald-900 dark:border-emerald-500 dark:bg-emerald-950 dark:text-emerald-200',
+        ativo &&
+          tom === 'alerta' &&
+          'border-amber-600 bg-amber-100 text-amber-900 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-200',
       )}
     >
       {children}

@@ -25,7 +25,7 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 ## Regras permanentes (continuam valendo — não são pedidos de autorização)
 
 1. **Escopo da ordem atual.** Não "aproveite para fazer" trabalho de outra fase — o que surgir de fora vai para o backlog no resumo.
-2. **NUNCA dados reais.** Nenhum nome de colaborador real, patrimônio real ou linha das planilhas da WAP em seed, fixture, teste, comentário ou screenshot. Dados de desenvolvimento são 100% fictícios (F1). Os dados reais só entram em produção pela **carga de go-live** — a carga global inicial pelos **scripts da F4** (autônoma, com os CSVs do Johnny) e, desde a **F7 (16/07/2026)**, o **import de startup por filial** pela tela `admin/importar` (só modo *Substituir tudo*, go-live novo de uma filial; ver spec §10.2 e `docs/DECISOES.md`). A entrada de dados **do dia a dia continua 100% manual** — não há sincronização recorrente nem modo *Atualizar* (adiado). CSVs de teste e o smoke do import são **100% fictícios** (`WAP0001234`/"Fulano"); os CSVs reais nunca entram no repositório. Desde a **F24 (30/07/2026)**, a linha cujo par já existe em **OUTRA filial** **não bloqueia mais** o import (revoga parcialmente a decisão F7C de 17/07): ela importa, os dois cadastros coexistem — a identidade do ativo virou **por filial** (`0091`) — e o par vira a pendência **"conflito entre filiais"**, resolvida na mesa de `/pendencias`. O import **continua não transferindo** ativo entre filiais, e o conflito **só nasce do import**: cadastro manual e edição de ficha seguem recusando par de qualquer filial.
+2. **NUNCA dados reais.** Nenhum nome de colaborador real, patrimônio real ou linha das planilhas da WAP em seed, fixture, teste, comentário ou screenshot. Dados de desenvolvimento são 100% fictícios (F1). Os dados reais só entram em produção pela **carga de go-live** — a carga global inicial pelos **scripts da F4** (autônoma, com os CSVs do Johnny) e, desde a **F7 (16/07/2026)**, o **import de startup por filial** pela tela `admin/importar` (só modo *Substituir tudo*, go-live novo de uma filial; ver spec §10.2 e `docs/DECISOES.md`). A entrada de dados **do dia a dia continua 100% manual** — não há sincronização recorrente nem modo *Atualizar* (adiado). CSVs de teste e o smoke do import são **100% fictícios** (`WAP0001234`/"Fulano"); os CSVs reais nunca entram no repositório. Desde a **F24 (30/07/2026)**, a linha cujo par já existe em **OUTRA filial** **não bloqueia mais** o import (revoga parcialmente a decisão F7C de 17/07): ela importa, os dois cadastros coexistem — a identidade do ativo virou **por filial** (`0091`) — e o par vira a pendência **"conflito entre filiais"**, resolvida na mesa de `/pendencias`. O import **continua não transferindo** ativo entre filiais, e o conflito **só nasce do import**: cadastro manual e edição de ficha seguem recusando par de qualquer filial. Desde a **F38 (28/08/2026)**, o checklist de itens faltantes da devolução deixou de vir da lista fixa `ACESSORIOS_DEVOLUCAO` e passou a vir do catálogo `tipos_item`, com dois desfechos (Voltou/Faltou) — a constante segue viva como fallback de rótulo do histórico, e a remoção dela é da F39.
 3. **Custo R$ 0.** Não habilitar nenhum recurso pago, nenhum serviço novo, nenhuma lib com licença comercial. Infra permitida: Supabase Free + Vercel (conta Pro existente do Johnny).
 4. **Segredos:** nunca commitar `.env*` (mantenha `.env.example` atualizado). `SUPABASE_SERVICE_ROLE_KEY` só em código server-side ou scripts locais — jamais em Client Component ou variável `NEXT_PUBLIC_*`.
 5. **Produção: acesso total, com autoproteção.** Migrations, scripts e deploy rodam direto em produção sem pedir autorização — precedidos de backup/dry-run quando destrutivos (ver Modo de operação). Seed fictício jamais roda em produção depois do go-live.
@@ -106,11 +106,21 @@ src/
       # layout/ inclui a sidebar que recolhe (sidebar-lateral/-colapso/-preferencia — F30 · UXG-13),
       # o rodape-sidebar.tsx (badge de versão, desktop + Sheet) e o credito-autor.tsx
       # (o crédito de autoria, em TRÊS pontos e só três — F35);
+      # ativos/itens-que-foram-junto.tsx é o card "Itens que foram junto" na ficha,
+      # pelo join de lancamentos_item.movimentacao_id — nunca ativo_id (F38 · frente A);
       # itens/conferencia/ é a tela de contagem + seu rascunho (F31 · ITN-04);
+      # itens/com-esta-pessoa.tsx é o bloco reusável do saldo por colaborador,
+      # alimentado por rel_saldo_colaborador (F38 · frente C);
       # movimentacoes/nova/campo-colaborador.tsx é o campo com cadastro + criação inline
       # (F37) — usado no wizard, na contrapartida E no lançar-item-dialog;
+      # movimentacoes/nova/secao-itens-junto.tsx é "Itens que vão junto" na entrega
+      # (F38 · D13); itens-do-lote.ts traduz o coletado para os índices que
+      # criar_movimentacao_com_itens espera; com-esta-pessoa-devolucao.tsx é o
+      # "Com esta pessoa" ao lado do checklist (F38);
       # admin/ inclui colaboradores-tabela/colaborador-dialog/fila-consolidacao e
-      # tipos-item-tabela/tipo-item-dialog/tipo-do-item-select (F37)
+      # tipos-item-tabela/tipo-item-dialog/tipo-do-item-select (F37), e
+      # com-esta-pessoa-linha.tsx expande a LINHA de admin/colaboradores com o mesmo
+      # bloco reusável, sem rota nova (F38 · §C.2)
   lib/
     supabase/      # client.ts, server.ts, middleware de sessão
     actions/       # Server Actions (Zod dentro) — inclui termos.ts (F5A), dev.ts (F22) e dev-destrutivo.ts (F23)
@@ -129,8 +139,14 @@ src/
       registry.ts    # a lista ordenada = a página /versoes, o badge da sidebar e o package.json
       tipos.ts       # módulo PURO (o tipo que servidor e cliente compartilham)
     auth/  ativos/  itens/  movimentacoes/  pendencias/  relatorios/  import/
-      # itens/ inclui conferencia.ts (aritmética do inventário — F31 · ITN-04) e
-      # transferencia.ts (observações cruzadas e selo do par de ajustes — F31 · ITN-01);
+      # itens/ inclui conferencia.ts (aritmética do inventário — F31 · ITN-04),
+      # transferencia.ts (observações cruzadas e selo do par de ajustes — F31 · ITN-01),
+      # ponte-tipo-item.ts (a ponte TIPO→ITEM: um item ativo do tipo resolve sozinho;
+      # zero ou mais de um, a tela pergunta/não bloqueia — F38 · §D/§E) e
+      # vinculo-retorno.ts (a regra §C.3: o retorno só carrega colaborador_id quando a
+      # pessoa tem saldo suficiente — F38);
+      # pendencias/ inclui texto-baixa.ts (o texto da justificativa do ajuste da baixa
+      # de pendência de item, função pura fora do SQL — F38 · §E);
       # movimentacoes/ inclui lote-url.ts (o `?ativos=` da seleção múltipla — F30 · ATV-03)
     types/database.ts   # GERADO — não editar à mão
   templates/

@@ -86,15 +86,31 @@ export const registrarMovimentacao: PaginaAjuda = {
         'Abrir a tela por um link com ativo já escolhido (pela ficha, por "Duplicar" ou pelo "Movimentar" da seleção da lista de ativos) tem prioridade: nesses casos o rascunho não é oferecido.',
       ],
     },
+    {
+      tipo: 'titulo',
+      id: 'itens-que-vao-junto',
+      texto: 'Mandar acessórios junto com o equipamento',
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Registrar o que sai junto (fone, carregador, mochila)',
+      itens: [
+        `Em "${T.saida.rotulo}" e "${T.emprestimo.rotulo}" aparece a seção "Itens que vão junto". Ela é opcional: sem nenhuma linha, tudo funciona como antes.`,
+        'Cada linha é um item do catálogo mais a quantidade. Ao registrar, o acessório baixa do estoque daquela filial e passa a contar na conta da pessoa que recebeu o equipamento.',
+        'Com mais de um equipamento no lote, cada linha tem o campo "Vai com": é ali que você diz a qual deles aquele acessório acompanha (o padrão é o primeiro). O fone fica preso à saída do notebook; o cabo, à do monitor.',
+        'Depois, a ficha do equipamento mostra o card "Itens que foram junto" — a resposta para "o que saiu com este notebook", que antes não existia.',
+        'Estornar a movimentação desfaz os dois lados: o equipamento volta ao estado anterior e os acessórios voltam para a prateleira, no mesmo ato.',
+      ],
+    },
     { tipo: 'titulo', id: 'depois', texto: 'Depois de confirmar' },
     {
       tipo: 'passos',
-      titulo: 'Depois de registrar: termos em sequência e sucesso parcial',
+      titulo: 'Depois de registrar: termos em sequência e o lote que não entra pela metade',
       itens: [
         'Registrou uma saída ou empréstimo com vários ativos? A tela de sucesso lista os termos elegíveis com o estado de cada um (pendente / gerado / pulado).',
         'O botão em destaque é sempre o do PRÓXIMO termo pendente: gerou um, o destaque anda sozinho para o seguinte — dá para emitir a sequência inteira sem procurar botão. Pular é permitido e não gera nada.',
         'Esqueceu ou pulou? O termo continua disponível na ficha do ativo e na página Pendências.',
-        'Se parte do lote falhar, o formulário volta com as falhas para corrigir — e agora mostra também os chips "Já registrados", com link para a ficha de cada ativo que entrou. O que foi registrado está registrado: não repita esses.',
+        'Se qualquer linha do lote falhar, NADA é gravado — nem as linhas boas. O formulário volta com o lote inteiro e aponta a linha que parou tudo, com o motivo. Corrija ali e envie de novo: não existe metade registrada para reconciliar depois.',
         'O botão "Registrar outra movimentação" limpa a tela e recomeça do passo 1, sem perder o que já foi gravado.',
         'Vai registrar mais um lote parecido com o mesmo tipo de movimentação? "Registrar outro lote com os mesmos campos" recomeça do passo 1 mantendo tipo, motivo, colaborador/setor, filial de destino, termo, chamado, observação e status novo — só os ativos do lote (e a contrapartida da troca, se houver) são zerados.',
       ],

@@ -216,6 +216,15 @@ export function PassoMovimentacao({
   const filiaisDoLote = new Set(itens.map((a) => a.filial_id))
   const filialDoLote = filiaisDoLote.size === 1 ? [...filiaisDoLote][0] : null
 
+  // F38 — quem está devolvendo. O formulário de DEVOLUÇÃO não tem campo
+  // Colaborador (`CAMPOS_POR_TIPO` não o inclui para esse tipo): a pessoa é o
+  // DETENTOR do equipamento. Mesma honestidade do prefill do par troca/upgrade —
+  // só quando o lote inteiro está com a MESMA pessoa; detentores mistos (ou nenhum)
+  // devolvem null e o bloco não aparece, em vez de mostrar a conta de um deles.
+  const detentores = new Set(itens.map((a) => (a.colaborador_atual ?? '').trim()))
+  const detentorDoLote =
+    detentores.size === 1 ? ([...detentores][0] || null) : null
+
   return (
     <div className="space-y-5">
       {/* F19 — `role="alert"` porque o box só existe DEPOIS do envio: quem usa
@@ -524,8 +533,8 @@ export function PassoMovimentacao({
 
       {/* F38 · §C.2 — o que o sistema tem registrado com esta pessoa, ao lado
           do checklist: sem isso, marcar "Voltou" é chute. */}
-      {campoAplica(config.tipo, 'itens_faltantes') && config.colaborador.trim() && (
-        <ComEstaPessoaDevolucao nome={config.colaborador} />
+      {campoAplica(config.tipo, 'itens_faltantes') && detentorDoLote && (
+        <ComEstaPessoaDevolucao nome={detentorDoLote} />
       )}
 
       {/* F38 · D12 — o checklist da devolução, agora com DOIS desfechos:
