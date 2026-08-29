@@ -7,6 +7,8 @@ import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { buscarRelatorioGerado, vizinhosDoRelatorio } from '@/lib/queries/gerados'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
+import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2). Estático: o snapshot (filial +
@@ -44,6 +46,11 @@ export default async function RelatorioGeradoPage({
   // F29/REL-05c — o snapshot era um beco: só "← Relatórios gerados". Os três destinos
   // novos ficam DENTRO de /relatorios/**, então valem também para o visualizador por
   // senha (que não tem sidebar nem paleta e depende deste rodapé para navegar).
+  // F39 — o vocabulário dos itens faltantes, com o CLIENT RESOLVIDO (o snapshot
+  // congelado também é servido ao visualizador por senha). O snapshot guarda os
+  // SLUGS; o rótulo é resolvido na hora de exibir, como sempre foi.
+  const tiposItem = await listarTiposItem(acesso.client)
+
   const vizinhos = await vizinhosDoRelatorio(acesso.client, {
     filialId: detalhe.filialId,
     periodoDe: detalhe.periodo_de,
@@ -100,7 +107,11 @@ export default async function RelatorioGeradoPage({
         <BotaoImprimir />
       </div>
 
-      <CorpoRelatorio snapshot={s} ehOperador={ehOperador} />
+      <CorpoRelatorio
+        snapshot={s}
+        ehOperador={ehOperador}
+        rotulosTipo={mapaRotulosTipo(tiposItem)}
+      />
 
       <nav
         aria-label="Navegar entre snapshots deste escopo"

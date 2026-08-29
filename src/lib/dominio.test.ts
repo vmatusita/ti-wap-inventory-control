@@ -5,8 +5,6 @@ import {
   rotuloStatus,
   rotuloTipo,
   rotuloCategoria,
-  rotuloAcessorio,
-  ACESSORIOS_DEVOLUCAO,
   rotuloDesfechoPendenciaItem,
   DESFECHOS_PENDENCIA_ITEM,
   DESFECHO_PENDENCIA_ITEM_ROTULO,
@@ -66,10 +64,10 @@ describe('rótulos de domínio', () => {
     expect(rotuloCategoria('notebook')).toBe('Notebook')
   })
 
-  it('rotuloAcessorio faz passthrough de código desconhecido', () => {
-    expect(rotuloAcessorio('mouse')).toBe('Mouse')
-    expect(rotuloAcessorio('inexistente')).toBe('inexistente')
-  })
+  // F39 — o caso do rótulo de acessório saiu junto com a constante. O passthrough
+  // pelo slug cru continua existindo, agora em `rotuloTipoItem`
+  // (lib/itens/rotulo-tipo.ts), com teste próprio; o vocabulário mora em
+  // `tipos_item`, não mais aqui.
 })
 
 describe('DESFECHO_PENDENCIA_ITEM (F18 — encerramento da pendência de item)', () => {
@@ -127,14 +125,9 @@ describe('ordens canônicas', () => {
     expect(new Set(CATEGORIA_ORDEM).size).toBe(CATEGORIA_ORDEM.length)
   })
 
-  // `ACESSORIO_ROTULO` é `Record<string, string>` e `rotuloAcessorio` devolve o
-  // próprio código quando não acha — fallback certo para um valor vindo do banco,
-  // frouxo demais para a LISTA canônica do checklist: um acessório novo sem
-  // rótulo passaria despercebido e sairia com o código cru no checklist da
-  // devolução e na documentação (`rotulosAcessorios`, lib/ajuda/derivacao.ts).
-  it('todo acessório do checklist de devolução tem rótulo próprio', () => {
-    for (const codigo of ACESSORIOS_DEVOLUCAO) {
-      expect(rotuloAcessorio(codigo), `acessório sem rótulo: ${codigo}`).not.toBe(codigo)
-    }
-  })
+  // F39 — o caso "todo acessório do checklist tem rótulo próprio" saiu com a
+  // constante. O que ele protegia — os SETE slugs históricos com os rótulos que o
+  // operador vê — passou para `validators/tipos-item-sql.test.ts`, agora lendo o
+  // seed da 0114 contra literais do próprio teste, e não contra um lado TS que
+  // deixou de existir.
 })

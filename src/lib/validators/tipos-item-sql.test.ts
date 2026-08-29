@@ -1,28 +1,47 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  ACESSORIOS_DEVOLUCAO,
-  ACESSORIO_ROTULO,
-  rotuloAcessorio,
-} from '@/lib/dominio'
 
-// GUARDA DE SINCRONIA TS↔SQL DO VOCABULÁRIO DE TIPOS DE ITEM (F37 · D7).
+// GUARDA DOS SETE SLUGS HISTÓRICOS DO CATÁLOGO DE TIPOS DE ITEM.
 //
-// `ACESSORIOS_DEVOLUCAO` + `ACESSORIO_ROTULO` (dominio.ts) e o seed de `tipos_item`
-// (migration 0114) são o MESMO conjunto — e precisam continuar sendo, porque
-// `movimentacoes.itens_faltantes` e `pendencias_item.item` guardam esses literais no
-// histórico, sem FK e sem CHECK que os obrigue a nada. Hoje o vocabulário mora nos
-// dois lugares; é esta guarda que permite à F39 tirar a constante do código sem
-// quebrar uma linha de histórico: enquanto os dois lados forem provadamente iguais, a
-// remoção é uma troca de fonte, não uma mudança de significado.
+// ⚠ ESTA GUARDA FOI INVERTIDA NA F39, e a inversão é deliberada. Até aqui ela
+// provava que a lista fixa de acessórios em `dominio.ts` e o seed de `tipos_item`
+// (migration 0114) eram o MESMO conjunto — dois lados, um espelho.
+// A F39 removeu o lado TS: o vocabulário passou a ser só o catálogo do banco, que o
+// administrador edita em Administração → Tipos de item. Sem um dos lados, o teste
+// antigo perderia o sentido.
 //
-// Sem ela, o modo de falhar seria silencioso e feio: um tipo criado só no banco
-// apareceria no admin e sumiria do checklist da devolução; um slug renomeado só no TS
-// faria a pendência antiga exibir o código cru ("fone") no lugar do rótulo.
+// O QUE CONTINUA PRECISANDO DE PROTEÇÃO, e por isso o teste ficou de pé: os SETE
+// SLUGS HISTÓRICOS. São eles — e exatamente eles — que `movimentacoes.itens_faltantes`
+// e `pendencias_item.item` guardam em PRODUÇÃO, como texto livre, sem FK e sem CHECK
+// que obrigue a nada. Some um do seed e toda pendência antiga que o cita passa a
+// exibir o slug cru em vez do rótulo; mude um rótulo e o operador vê outra palavra
+// para o mesmo registro de sempre.
+//
+// Então os literais esperados vivem AQUI, no próprio teste, e não num módulo que
+// alguém possa "arrumar" junto com o seed. É essa separação que faz a guarda valer:
+// para quebrá-la de propósito é preciso editar dois arquivos com intenções opostas.
 //
 // Mesma técnica de `detentor-sql.test.ts` (F36), `transicoes-sql.test.ts` e
 // `chave-sql.test.ts`: deriva o vocabulário DIRETO do SQL da migration vigente.
+
+/**
+ * Os sete slugs históricos, na ORDEM do seed, com os rótulos que o operador vê.
+ *
+ * ⚠ NÃO É "o catálogo": o administrador pode acrescentar tipos, e isso é o desenho.
+ * É o PISO — o que o histórico em produção já cita e não pode deixar de existir.
+ */
+const HISTORICOS: readonly { slug: string; rotulo: string }[] = [
+  { slug: 'carregador', rotulo: 'Carregador' },
+  { slug: 'mochila', rotulo: 'Mochila' },
+  { slug: 'mouse', rotulo: 'Mouse' },
+  { slug: 'teclado', rotulo: 'Teclado' },
+  { slug: 'mousepad', rotulo: 'Mousepad' },
+  // F37/B.2 — era "Fone". A troca foi deliberada e vale nos dois lados; o SLUG
+  // gravado (`fone`) nunca mudou, e nenhum registro antigo foi tocado.
+  { slug: 'fone', rotulo: 'Fone de ouvido' },
+  { slug: 'cabo', rotulo: 'Cabo' },
+]
 
 const DIR_MIGRACOES = join(process.cwd(), 'supabase', 'migrations')
 const ANCORA_SEED = 'insert into public.tipos_item (slug, rotulo, ordem) values'
@@ -54,7 +73,7 @@ function seedNoSql(sql: string): LinhaSeed[] {
   )
 }
 
-describe('tipos_item (SQL da migration vigente) espelha o vocabulário do TS', () => {
+describe('o seed de tipos_item mantém os SETE slugs históricos', () => {
   const { arquivo, sql } = migrationVigenteDoSeed()
   const doSql = seedNoSql(sql)
 
@@ -62,23 +81,20 @@ describe('tipos_item (SQL da migration vigente) espelha o vocabulário do TS', (
     expect(doSql.length).toBeGreaterThan(0)
   })
 
-  it('os slugs do SQL são exatamente os do TS', () => {
-    expect(doSql.map((l) => l.slug).sort()).toEqual([...ACESSORIOS_DEVOLUCAO].sort())
+  it('os sete slugs históricos estão no seed, na mesma ORDEM', () => {
+    // Igualdade, e não "contém": o seed da 0114 é exatamente a lista histórica.
+    // Um tipo novo entra por INSERT do admin, em runtime — não reescrevendo este
+    // seed, que é o que o histórico em produção cita.
+    expect(doSql.map((l) => l.slug)).toEqual(HISTORICOS.map((h) => h.slug))
   })
 
-  it('a ORDEM do seed é a ordem da constante — o checklist e o admin listam igual', () => {
-    expect(doSql.map((l) => l.slug)).toEqual([...ACESSORIOS_DEVOLUCAO])
-  })
-
-  it.each(ACESSORIOS_DEVOLUCAO)('o rótulo de `%s` é o mesmo nos dois lados', (slug) => {
+  it.each(HISTORICOS)('o rótulo de $slug continua sendo "$rotulo"', ({ slug, rotulo }) => {
     const linha = doSql.find((l) => l.slug === slug)
     expect(linha, `${slug} não está no seed da ${arquivo}`).toBeDefined()
-    expect(linha?.rotulo).toBe(ACESSORIO_ROTULO[slug])
-    expect(linha?.rotulo).toBe(rotuloAcessorio(slug))
+    expect(linha?.rotulo).toBe(rotulo)
   })
 
-  it('`fone` exibe "Fone de ouvido" nos dois lados (a única troca de rótulo da F37)', () => {
-    expect(rotuloAcessorio('fone')).toBe('Fone de ouvido')
+  it('o slug fone exibe "Fone de ouvido" (a única troca de rótulo da F37)', () => {
     expect(doSql.find((l) => l.slug === 'fone')?.rotulo).toBe('Fone de ouvido')
   })
 
@@ -94,5 +110,22 @@ describe('tipos_item (SQL da migration vigente) espelha o vocabulário do TS', (
 
   it('nenhum rótulo do SQL vem vazio ou só com espaço', () => {
     for (const l of doSql) expect(l.rotulo.trim().length).toBeGreaterThan(0)
+  })
+})
+
+// A guarda da guarda: se alguém apagar a lista de cima, o teste acima passaria a
+// comparar dois vazios e diria "verde" sem provar nada.
+describe('a própria lista histórica não pode encolher em silêncio', () => {
+  it('são SETE, e os sete slugs são os que a 0114 semeou', () => {
+    expect(HISTORICOS).toHaveLength(7)
+    expect(HISTORICOS.map((h) => h.slug)).toEqual([
+      'carregador',
+      'mochila',
+      'mouse',
+      'teclado',
+      'mousepad',
+      'fone',
+      'cabo',
+    ])
   })
 })

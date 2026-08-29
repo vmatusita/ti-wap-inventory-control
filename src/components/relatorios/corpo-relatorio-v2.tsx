@@ -26,6 +26,7 @@ import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
 import { ResumoPeriodoCard } from '@/components/relatorios/resumo-periodo'
 import { ObservacaoCard } from '@/components/relatorios/observacao-card'
 import { ChipsAncora } from '@/components/relatorios/chips-ancora'
+import type { MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { GrupoColapsavel } from '@/components/relatorios/grupo-colapsavel'
 import {
   GlossarioRelatorio,
@@ -54,6 +55,7 @@ export function CorpoRelatorioV2({
   ehOperador = false,
   links,
   recorteFilial,
+  rotulosTipo,
   aoVivo = false,
 }: {
   snapshot: SnapshotRelatorioV2
@@ -67,6 +69,13 @@ export function CorpoRelatorioV2({
    *  "quem olha é operador" (`links`): a rota ao vivo serve os dois públicos. Só
    *  ela passa `true`; o snapshot congelado nunca passa, e é isso que impede a
    *  marca de balde parcial de aparecer hoje e sumir amanhã no MESMO snapshot. */
+  /** F39 — o vocabulário dos itens faltantes (`tipos_item`), lido no servidor
+   *  com o client RESOLVIDO e descido por prop até `TabelaEntradas`. O
+   *  visualizador por SENHA roda com o client administrativo: uma leitura feita
+   *  com a sessão comum devolveria vazio para ele, e o relatório impresso sairia
+   *  com o slug cru. Só o v2 tem tabela de Entradas — o v1 (snapshots pré-F3B)
+   *  não a recebe. */
+  rotulosTipo: MapaRotulosTipo
   aoVivo?: boolean
 }) {
   const s = snapshot
@@ -387,7 +396,12 @@ export function CorpoRelatorioV2({
 
       {/* 6–7. Tabelas detalhadas */}
       <TabelaSaidas rows={s.saidas} ehGeral={s.meta.ehGeral} ehOperador={ehOperador} />
-      <TabelaEntradas rows={s.entradas} ehGeral={s.meta.ehGeral} ehOperador={ehOperador} />
+      <TabelaEntradas
+        rows={s.entradas}
+        ehGeral={s.meta.ehGeral}
+        rotulosTipo={rotulosTipo}
+        ehOperador={ehOperador}
+      />
       <TabelaTransferencias
         rows={s.transferencias}
         ehGeral={s.meta.ehGeral}

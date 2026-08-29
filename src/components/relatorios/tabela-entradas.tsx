@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment } from 'react'
+import { Fragment, useMemo } from 'react'
 import {
   Table,
   TableBody,
@@ -29,25 +29,32 @@ import {
   PREFIXO_FILTROS,
   type CampoFiltro,
 } from '@/components/relatorios/use-filtros-tabela'
-import { rotuloAcessorio, rotuloCategoria } from '@/lib/dominio'
+import { rotuloCategoria } from '@/lib/dominio'
+import { rotuloTipoItem, type MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { cn } from '@/lib/utils'
 import { LegendaEstorno, LegendaTroca } from '@/components/relatorios/legendas'
 import type { LinhaEntrada } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
 
-// Campos textuais da busca livre (F16/T3) — refs de MÓDULO (estáveis).
-const BUSCA_TEXTO = (r: LinhaEntrada) => [
-  r.filial,
-  rotuloCategoria(r.categoria),
-  r.modelo,
-  r.patrimonio,
-  r.motivo,
-  r.colaborador,
-  r.setor,
-  ...(r.itensFaltantes ?? []).map(rotuloAcessorio),
-  r.obs,
-]
+// Campos textuais da busca livre (F16/T3).
+//
+// ⚠ F39 — deixou de ser ref de MÓDULO porque passou a depender do mapa de
+// rótulos (`tipos_item`), que vem por prop. A estabilidade da ref, que é o que
+// importa para o `useFiltrosTabela`, é preservada pelo `useMemo` lá embaixo:
+// o mapa é uma constante de render do Server Component pai.
+const buscaTextoCom =
+  (rotulosTipo: MapaRotulosTipo) => (r: LinhaEntrada) => [
+    r.filial,
+    rotuloCategoria(r.categoria),
+    r.modelo,
+    r.patrimonio,
+    r.motivo,
+    r.colaborador,
+    r.setor,
+    ...(r.itensFaltantes ?? []).map((it) => rotuloTipoItem(it, rotulosTipo)),
+    r.obs,
+  ]
 const BUSCA_PATRIMONIO = (r: LinhaEntrada) => r.patrimonio
 
 // Entradas do período (§4.4): tipos devolucao + compra + troca (F15). Colunas: Data ·
@@ -59,12 +66,21 @@ const BUSCA_PATRIMONIO = (r: LinhaEntrada) => r.patrimonio
 export function TabelaEntradas({
   rows,
   ehGeral,
+  rotulosTipo,
   ehOperador,
 }: {
   rows: LinhaEntrada[]
   ehGeral: boolean
+  // F39 — o vocabulário dos itens faltantes vem do catálogo `tipos_item`, por
+  // PROP do Server Component. ⚠ Esta tabela também serve quem entrou por SENHA, e
+  // essa sessão roda com o client ADMINISTRATIVO: quem lê `tipos_item` lá em cima
+  // usa o client RESOLVIDO, senão o relatório impresso sairia com o slug cru.
+  rotulosTipo: MapaRotulosTipo
   ehOperador?: boolean
 }) {
+  // A ref estável que `useFiltrosTabela` espera: o mapa é constante de render
+  // (vem pronto do Server Component), então o memo devolve sempre a mesma função.
+  const buscaTexto = useMemo(() => buscaTextoCom(rotulosTipo), [rotulosTipo])
   const {
     filtradas,
     temFiltro,
@@ -82,7 +98,7 @@ export function TabelaEntradas({
     prefixo: PREFIXO_FILTROS.entradas,
     ehGeral,
     resumoChave: chaveResumoMotivo,
-    buscaTexto: BUSCA_TEXTO,
+    buscaTexto,
     buscaPatrimonio: BUSCA_PATRIMONIO,
   })
   const { estaAberta, alternar } = useExpandidas()
@@ -138,7 +154,7 @@ export function TabelaEntradas({
               {filtradas.map((r) => {
                 const faltantes =
                   r.itensFaltantes && r.itensFaltantes.length > 0
-                    ? r.itensFaltantes.map(rotuloAcessorio).join(', ')
+                    ? r.itensFaltantes.map((it) => rotuloTipoItem(it, rotulosTipo)).join(', ')
                     : '—'
                 const detalhe: CampoDetalhe[] = [
                   ...(ehGeral
@@ -192,7 +208,7 @@ export function TabelaEntradas({
                                 // amber-300 acendia sobre o fundo amber-950.
                                 className="rounded border border-amber-300 bg-amber-50 px-1.5 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
                               >
-                                {rotuloAcessorio(it)}
+                                {rotuloTipoItem(it, rotulosTipo)}
                               </span>
                             ))}
                           </div>

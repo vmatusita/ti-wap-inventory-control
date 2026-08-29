@@ -1,4 +1,3 @@
-import { rotulosAcessorios } from '@/lib/ajuda/derivacao'
 import { STATUS_META, TIPO_META } from '@/lib/dominio'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
@@ -45,7 +44,7 @@ export const devolucaoETriagem: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        `Checklist de devolução (acessórios conferidos): ${rotulosAcessorios().join(', ')}.`,
+        'Checklist de devolução: a lista de itens conferidos vem do catálogo de tipos de item — o administrador acrescenta ou desativa o que quiser em Administração › Tipos de item, e a devolução passa a oferecer isso.',
         'O Motivo (quando aparece) vem do catálogo de motivos, mantido em Administração › Motivos.',
       ],
     },

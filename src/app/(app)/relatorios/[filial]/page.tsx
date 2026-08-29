@@ -23,6 +23,8 @@ import { formatDate, hojeISO } from '@/lib/format'
 import { FilialTabs } from '@/components/relatorios/filial-tabs'
 import { PeriodoFiltro } from '@/components/relatorios/periodo-filtro'
 import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
+import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 import { ViewerAutoRefresh } from '@/components/relatorios/viewer-auto-refresh'
 import { GerarRelatorioDialog } from '@/components/relatorios/gerar-relatorio-dialog'
@@ -114,7 +116,11 @@ export default async function RelatorioFilialPage({
   // e é essa dupla checagem que o teste de confinamento cobra.
   const recorteFilial = ehOperador ? recorteFilialAtivos(filialId) : undefined
 
-  const [filiais, snapshot] = await Promise.all([
+  // F39 — `tiposItem` com o CLIENT RESOLVIDO, como `listarFiliais` logo acima e
+  // pelo mesmo motivo: a sessão por SENHA roda com o client administrativo, e uma
+  // leitura feita com a sessão comum devolveria vazio para ela — o relatório
+  // impresso sairia com o slug cru no lugar do rótulo do item faltante.
+  const [filiais, snapshot, tiposItem] = await Promise.all([
     listarFiliais(acesso.client),
     getSnapshotRelatorioV2(
       acesso.client,
@@ -122,6 +128,7 @@ export default async function RelatorioFilialPage({
       { de: periodo.de, ate: periodo.ate, rotulo: periodo.rotulo },
       ehOperador, // viewer → sem pendências no snapshot ao vivo
     ),
+    listarTiposItem(acesso.client),
   ])
 
   const semana = semanaUtilCorrente()
@@ -202,6 +209,7 @@ export default async function RelatorioFilialPage({
         ehOperador={ehOperador}
         links={links}
         recorteFilial={recorteFilial}
+        rotulosTipo={mapaRotulosTipo(tiposItem)}
         aoVivo
       />
     </div>

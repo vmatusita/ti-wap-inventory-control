@@ -104,14 +104,53 @@ describe('descricaoDevolucao', () => {
 })
 
 describe('observacaoSugestao', () => {
+  // F39 — o vocabulário deixou de morar numa constante do código e passou a vir do
+  // catálogo `tipos_item` (F37), por parâmetro. Os RÓTULOS ESPERADOS SÃO OS MESMOS:
+  // a migration 0114 semeou os 7 slugs históricos com exatamente os rótulos da
+  // constante que saiu. Mudou a assinatura, não o texto do papel.
+  const ROTULOS = {
+    carregador: 'Carregador',
+    mochila: 'Mochila',
+    mouse: 'Mouse',
+    teclado: 'Teclado',
+    mousepad: 'Mousepad',
+    fone: 'Fone de ouvido',
+    cabo: 'Cabo',
+  }
+
   it('lista acessórios faltantes, deduplicando e rotulando', () => {
-    expect(observacaoSugestao(['mouse', 'mouse', 'teclado'])).toBe(
+    expect(observacaoSugestao(['mouse', 'mouse', 'teclado'], ROTULOS)).toBe(
       'Não devolvido(s): Mouse, Teclado',
     )
   })
 
   it('ignora vazios e devolve string vazia quando nada falta', () => {
-    expect(observacaoSugestao(['', 'cabo'])).toBe('Não devolvido(s): Cabo')
-    expect(observacaoSugestao([])).toBe('')
+    expect(observacaoSugestao(['', 'cabo'], ROTULOS)).toBe('Não devolvido(s): Cabo')
+    expect(observacaoSugestao([], ROTULOS)).toBe('')
+  })
+
+  it('os SETE slugs históricos saem com os rótulos de sempre', () => {
+    // A régua da §E: nenhum rótulo que o operador vê hoje pode mudar. Este é o
+    // teste que a prova, slug a slug.
+    expect(
+      observacaoSugestao(
+        ['carregador', 'mochila', 'mouse', 'teclado', 'mousepad', 'fone', 'cabo'],
+        ROTULOS,
+      ),
+    ).toBe(
+      'Não devolvido(s): Carregador, Mochila, Mouse, Teclado, Mousepad, Fone de ouvido, Cabo',
+    )
+  })
+
+  it('slug SEM tipo no catálogo continua legível (o mesmo `?? codigo` de antes)', () => {
+    // `movimentacoes.itens_faltantes` guarda texto livre, sem FK: um slug gravado
+    // antes de `tipos_item` existir tem de aparecer como está, nunca sumir.
+    expect(observacaoSugestao(['mouse', 'suporte_notebook'], ROTULOS)).toBe(
+      'Não devolvido(s): Mouse, suporte_notebook',
+    )
+  })
+
+  it('mapa VAZIO cai inteiro no slug cru, sem quebrar', () => {
+    expect(observacaoSugestao(['mouse'], {})).toBe('Não devolvido(s): mouse')
   })
 })

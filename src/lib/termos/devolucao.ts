@@ -1,7 +1,7 @@
 // Regras do termo de DEVOLUÇÃO (F5A / PLANO-TERMOS §4.2): ordenação do lote,
 // concatenação das colunas e mapa motivo→Descrição.
 import type { CategoriaAtivo } from '@/lib/dominio'
-import { rotuloAcessorio } from '@/lib/dominio'
+import { rotuloTipoItem, type MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 
 // Ordem dos equipamentos no termo: notebook → monitor → celular → demais
 // (desktop, tablet, outro). Empate pelo patrimônio (§4.2).
@@ -86,9 +86,22 @@ export function descricaoDevolucao(
 // Sugestão editável para "Observação" a partir dos itens faltantes conferidos na
 // devolução (os exemplos reais traziam "Mochila não devolvida"). União dos
 // acessórios marcados no lote; vazio se nada faltou.
-export function observacaoSugestao(itensFaltantes: string[]): string {
+//
+// ⚠ F39 — o TEXTO não muda, nem os rótulos: só a fonte do vocabulário. Antes vinha
+// da constante do código; agora vem do catálogo `tipos_item`
+// (F37), pelo mapa que a action carrega e passa. O fallback pelo slug cru é o
+// mesmo `?? codigo` de sempre — `movimentacoes.itens_faltantes` guarda texto
+// livre, e slug sem tipo correspondente continua legível no papel.
+//
+// ⚠ Esta linha diz o que FALTOU. O que VOLTOU sai em `{outros_componentes}`, pela
+// função pura de `termos/acessorios.ts` — são duas linhas diferentes no mesmo
+// documento, e é isso que tira a ambiguidade dele (D11).
+export function observacaoSugestao(
+  itensFaltantes: string[],
+  rotulosTipo: MapaRotulosTipo,
+): string {
   const unicos = [...new Set(itensFaltantes.filter(Boolean))]
   if (unicos.length === 0) return ''
-  const nomes = unicos.map((c) => rotuloAcessorio(c))
+  const nomes = unicos.map((c) => rotuloTipoItem(c, rotulosTipo))
   return `Não devolvido(s): ${nomes.join(', ')}`
 }

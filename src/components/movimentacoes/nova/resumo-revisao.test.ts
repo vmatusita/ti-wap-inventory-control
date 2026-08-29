@@ -43,11 +43,26 @@ const MOTIVOS: Motivo[] = [
   { codigo: 'desligamento', rotulo: 'Desligamento', aplica_a: ['saida', 'devolucao'] },
 ]
 
+// F39 — o vocabulário dos itens faltantes deixou de ser constante do código e
+// passou a vir do catálogo `tipos_item` (F37), por parâmetro. Os RÓTULOS não
+// mudaram: a migration 0114 semeou os 7 slugs históricos com exatamente os
+// mesmos rótulos da constante que saiu. Só a assinatura mudou.
+const ROTULOS_TIPO = {
+  carregador: 'Carregador',
+  mochila: 'Mochila',
+  mouse: 'Mouse',
+  teclado: 'Teclado',
+  mousepad: 'Mousepad',
+  fone: 'Fone de ouvido',
+  cabo: 'Cabo',
+}
+
 function ctx(over: Partial<ContextoResumoConfig> = {}): ContextoResumoConfig {
   return {
     statusResultante: '',
     filiais: FILIAIS,
     motivos: MOTIVOS,
+    rotulosTipo: ROTULOS_TIPO,
     ...over,
   }
 }
@@ -185,13 +200,26 @@ describe('montarResumoConfig — Motivo: rótulo do catálogo, com fallback pro 
   })
 })
 
-describe('montarResumoConfig — Itens faltantes usa o rótulo de dominio.ts, não o código cru', () => {
+describe('montarResumoConfig — Itens faltantes usa o rótulo do catálogo, não o código cru', () => {
   it('devolução com itens marcados', () => {
     const resumo = montarResumoConfig(
       cfg({ tipo: 'devolucao', itensFaltantes: ['mouse', 'carregador'] }),
       ctx(),
     )
     expect(resumo.find((r) => r.rotulo === 'Itens faltantes')?.valor).toBe('Mouse, Carregador')
+  })
+
+  it('slug histórico SEM tipo no catálogo continua legível (fallback pelo slug cru)', () => {
+    // O mesmo fallback pelo slug cru de antes: `movimentacoes.itens_faltantes`
+    // guarda texto livre, e um slug antigo sem tipo correspondente tem de aparecer
+    // como está — nunca sumir.
+    const resumo = montarResumoConfig(
+      cfg({ tipo: 'devolucao', itensFaltantes: ['mouse', 'suporte_notebook'] }),
+      ctx(),
+    )
+    expect(resumo.find((r) => r.rotulo === 'Itens faltantes')?.valor).toBe(
+      'Mouse, suporte_notebook',
+    )
   })
 
   it('checklist vazio: a linha não aparece', () => {

@@ -345,46 +345,26 @@ export function rotuloTermo(t: TermoStatus | null | undefined): string {
 // o teste quebra e o select não fica mudo.
 export const TERMO_STATUS_ORDEM: TermoStatus[] = ['sim', 'enviado', 'gerado', 'nao']
 
-// ---------- ITENS DA DEVOLUCAO (checklist — OS-F2 3.5.2) ----------
-// Acessorios conferidos na devolucao. Um item marcado = FALTANTE (vira pendencia).
+// ---------- ITENS DA DEVOLUCAO ----------
+// F39 — a lista fixa de acessorios da devolucao (a constante, o mapa de rotulos e
+// a funcao de rotulo) SAIU daqui. Os nomes antigos estao em docs/DECISOES.md.
 //
-// F37/D7 — este vocabulario ganhou um ESPELHO NO BANCO: a tabela `tipos_item`
-// (migration 0114) tem exatamente estes sete slugs, com estes rotulos. Os dois lados
-// sao o mesmo conjunto, e `src/lib/validators/tipos-item-sql.test.ts` derruba o
-// `npm run test` se um andar sem o outro. Continua sendo daqui que sai o checklist
-// da devolucao e a pendencia — a constante so sai do codigo na F39; o espelho existe
-// para que essa remocao nao quebre uma linha de historico, porque
-// `movimentacoes.itens_faltantes` e `pendencias_item.item` guardam ESTES literais.
+// O vocabulario do que acompanha um equipamento deixou de ser lista fixa do codigo
+// e passou a ser o catalogo `tipos_item` (F37, migration 0114), que o administrador
+// edita em Administracao -> Tipos de item. A F38 ja tinha tirado dele o governo do
+// checklist; esta fase tirou o resto.
 //
-// SLUG GRAVADO NUNCA MUDA. Rotulo pode: `fone` passou a exibir "Fone de ouvido" na
-// F37, nos dois lados ao mesmo tempo. Isso muda o que as pendencias antigas EXIBEM,
-// nao o que elas guardam.
-export const ACESSORIOS_DEVOLUCAO = [
-  'carregador',
-  'mochila',
-  'mouse',
-  'teclado',
-  'mousepad',
-  'fone',
-  'cabo',
-] as const
-
-export const ACESSORIO_ROTULO: Record<string, string> = {
-  carregador: 'Carregador',
-  mochila: 'Mochila',
-  mouse: 'Mouse',
-  teclado: 'Teclado',
-  mousepad: 'Mousepad',
-  // F37/B.2 — era "Fone". "Fone de ouvido" é o que a pessoa diz quando conta o que
-  // faltou na caixa; o código gravado (`fone`) não mudou, e nenhum registro antigo
-  // foi tocado. Muda o que a pendência EXIBE, não o que ela guarda.
-  fone: 'Fone de ouvido',
-  cabo: 'Cabo',
-}
-
-export function rotuloAcessorio(codigo: string): string {
-  return ACESSORIO_ROTULO[codigo] ?? codigo
-}
+// ONDE PROCURAR AGORA:
+//   · o rotulo de um slug   -> `rotuloTipoItem(slug, mapa)` em lib/itens/rotulo-tipo.ts
+//     (modulo PURO, com o MESMO fallback pelo slug cru que a funcao antiga tinha);
+//   · o catalogo            -> `listarTiposItem()` (TODOS, para quem exibe passado)
+//     e `listarTiposItemAtivos()` (para quem oferece escolha), em queries/tipos-item.ts;
+//   · os SETE slugs historicos (`carregador`, `mochila`, `mouse`, `teclado`,
+//     `mousepad`, `fone`, `cabo`) continuam no seed da 0114, e continuam sendo os
+//     literais que `movimentacoes.itens_faltantes` e `pendencias_item.item` guardam
+//     em producao. Quem os protege agora e validators/tipos-item-sql.test.ts.
+//
+// SLUG GRAVADO NUNCA MUDA — isso nao mudou com a remocao. Rotulo pode.
 
 // ---------- DESFECHO DA PENDÊNCIA DE ITEM (F18 §B5) ----------
 // Uma pendência de item faltante (tabela pendencias_item) encerra por ação MANUAL

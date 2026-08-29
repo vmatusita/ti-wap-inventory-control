@@ -11,7 +11,7 @@ import {
 import { avisoDoLoteInicial, parseIdsDeAtivos } from '@/lib/movimentacoes/lote-url'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarKitsAtivos, type Kit } from '@/lib/queries/kits'
-import { listarTiposItemAtivos, type TipoItem } from '@/lib/queries/tipos-item'
+import { listarTiposItem, listarTiposItemAtivos, type TipoItem } from '@/lib/queries/tipos-item'
 import { listarItensAdmin, type ItemAdmin } from '@/lib/queries/itens'
 import { listarMotivos } from '@/lib/queries/motivos'
 import {
@@ -92,8 +92,19 @@ export default async function NovaMovimentacaoPage({
   const setorParam = param(sp, 'setor')
   const semContrapartida = param(sp, 'contrapartida') === 'nao'
 
-  const [filiais, motivos, ultimaMov, kits, operador, tiposItem, itensCatalogo] =
-    await Promise.all([
+  const [
+    filiais,
+    motivos,
+    ultimaMov,
+    kits,
+    operador,
+    tiposItem,
+    // F39 — o catálogo INTEIRO (ativos e desativados), SÓ para o rótulo do resumo
+    // da revisão. A lista de ESCOLHA do checklist continua sendo `tiposItem`
+    // (só ativos), byte a byte como a F38 a deixou.
+    tiposItemTodos,
+    itensCatalogo,
+  ] = await Promise.all([
     // A lista NÃO é recortada por vínculo de propósito: o único select de filial
     // deste fluxo é a filial de DESTINO da transferência, e o parâmetro §0 da
     // ordem F21 (`TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao`) diz que o destino é
@@ -135,6 +146,10 @@ export default async function NovaMovimentacaoPage({
     // (o checklist some, o array de faltantes continua vazio).
     listarTiposItemAtivos().catch((err): TipoItem[] => {
       console.error('[movimentacoes/nova] falha ao listar tipos de item:', err)
+      return []
+    }),
+    listarTiposItem().catch((err): TipoItem[] => {
+      console.error('[movimentacoes/nova] falha ao listar todos os tipos de item:', err)
       return []
     }),
     listarItensAdmin().catch((err): ItemAdmin[] => {
@@ -267,6 +282,7 @@ export default async function NovaMovimentacaoPage({
           motivos={motivos}
           kits={kits}
           tiposItem={tiposItem}
+          tiposItemTodos={tiposItemTodos}
           itensCatalogo={itensCatalogo}
           ativoInicial={ativoInicial}
           ativosIniciais={ativosIniciais}

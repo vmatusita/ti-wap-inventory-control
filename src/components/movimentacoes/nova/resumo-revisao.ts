@@ -12,12 +12,12 @@ import {
   type CampoMovimentacao,
 } from '@/lib/validators/movimentacao'
 import {
-  rotuloAcessorio,
   rotuloStatus,
   rotuloTermo,
   rotuloTipo,
   type StatusAtivo,
 } from '@/lib/dominio'
+import { rotuloTipoItem, type MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { formatDate } from '@/lib/format'
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { Filial } from '@/lib/queries/filiais'
@@ -38,6 +38,10 @@ export type ContextoResumoConfig = {
   statusResultante: string
   filiais: Filial[]
   motivos: Motivo[]
+  // F39 — o vocabulário dos itens faltantes vem do catálogo `tipos_item`, não
+  // mais de constante do código. Chega por parâmetro como `filiais` e `motivos`,
+  // pela mesma razão: o módulo é puro e não lê banco.
+  rotulosTipo: MapaRotulosTipo
 }
 
 // Um campo aplica E tem valor não-vazio? Gate único para não virar mural de
@@ -55,7 +59,7 @@ function aplicaComValor(
 // Chamado do fornecedor, Observação, Status novo, itens faltantes.
 export function montarResumoConfig(
   config: Config,
-  { statusResultante, filiais, motivos }: ContextoResumoConfig,
+  { statusResultante, filiais, motivos, rotulosTipo }: ContextoResumoConfig,
 ): ItemResumo[] {
   const tipo = config.tipo
   const itens: ItemResumo[] = []
@@ -129,7 +133,7 @@ export function montarResumoConfig(
   if (campoAplica(tipo, 'itens_faltantes') && config.itensFaltantes.length > 0) {
     itens.push({
       rotulo: 'Itens faltantes',
-      valor: config.itensFaltantes.map((c) => rotuloAcessorio(c)).join(', '),
+      valor: config.itensFaltantes.map((c) => rotuloTipoItem(c, rotulosTipo)).join(', '),
     })
   }
 

@@ -23,6 +23,7 @@ import {
 import type { Config } from '@/components/movimentacoes/nova/config'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { Filial } from '@/lib/queries/filiais'
+import type { MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import type { Motivo } from '@/lib/queries/motivos'
 
 // MOV-02 — card com a configuração que a metade vai GRAVAR (antes, essa
@@ -70,6 +71,7 @@ function BlocoRevisao({
   statusResultante,
   filiais,
   motivos,
+  rotulosTipo,
 }: {
   titulo: string | null
   itens: AtivoResumo[]
@@ -77,9 +79,10 @@ function BlocoRevisao({
   statusResultante: string
   filiais: Filial[]
   motivos: Motivo[]
+  rotulosTipo: MapaRotulosTipo
 }) {
   if (itens.length === 0) return null
-  const resumo = montarResumoConfig(config, { statusResultante, filiais, motivos })
+  const resumo = montarResumoConfig(config, { statusResultante, filiais, motivos, rotulosTipo })
   return (
     <div className="space-y-2">
       {titulo && (
@@ -128,6 +131,7 @@ export function PassoRevisao({
   contrapartida,
   filiais,
   motivos,
+  rotulosTipo,
   enviando,
   onVoltar,
   onRegistrar,
@@ -141,6 +145,10 @@ export function PassoRevisao({
   contrapartida: ContrapartidaTroca | null
   filiais: Filial[]
   motivos: Motivo[]
+  // F39 — o vocabulário dos itens faltantes do resumo. Vem de `listarTiposItem()`
+  // (TODOS, inclusive desativados) para que um rascunho restaurado com tipo
+  // desativado continue exibindo o rótulo, e não o slug cru.
+  rotulosTipo: MapaRotulosTipo
   enviando: boolean
   onVoltar: () => void
   onRegistrar: () => void
@@ -254,6 +262,7 @@ export function PassoRevisao({
         statusResultante={statusResultante}
         filiais={filiais}
         motivos={motivos}
+        rotulosTipo={rotulosTipo}
       />
 
       {comPar && contrapartida && tipoOposto && (
@@ -267,6 +276,7 @@ export function PassoRevisao({
           statusResultante=""
           filiais={filiais}
           motivos={motivos}
+          rotulosTipo={rotulosTipo}
         />
       )}
 

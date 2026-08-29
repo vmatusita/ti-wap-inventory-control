@@ -5,6 +5,8 @@ import { podeEscrever } from '@/lib/auth/papeis'
 import { createClient } from '@/lib/supabase/server'
 import { getPendencias } from '@/lib/queries/relatorios'
 import { listarFiliais } from '@/lib/queries/filiais'
+import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { listarPendencias, type TipoPendencia } from '@/lib/queries/pendencias-detalhe'
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
@@ -166,7 +168,9 @@ export default async function PendenciasPage({
   const naMesa = tipo === 'conflito'
   const tipoDaFila = naMesa ? null : (tipo as Exclude<TipoPendencia, 'conflito'> | null)
 
-  const [chips, lista, conflitos, totalConflitos] = await Promise.all([
+  // F39 — `tiposItem`: o vocabulário dos itens faltantes da fila, que a tabela
+  // (Client Component) recebe por PROP. TODOS os tipos, inclusive desativados.
+  const [chips, lista, conflitos, totalConflitos, tiposItem] = await Promise.all([
     getPendencias(client, filialSlugs),
     // Não vale a pena consultar a fila quando a mesa é que vai aparecer.
     naMesa
@@ -175,6 +179,7 @@ export default async function PendenciasPage({
     naMesa ? listarConflitos({ filialSlugs, q, page }) : Promise.resolve(null),
     // O chip de conflito é contado SEMPRE (ele aparece em qualquer aba, como os demais).
     contarGruposConflito(client, filialSlugs),
+    listarTiposItem(),
   ])
 
   // "Desde" formatado no SERVIDOR (formatDate + "há N dias") — a tabela é Client
@@ -313,7 +318,11 @@ export default async function PendenciasPage({
           // (leitura ampla) e a linha só traz o slug da filial, não o id — quem
           // recusa a filial não vinculada é a action, com a mensagem em pt-BR
           // (critério 2 da ordem F21).
-          <FilaPendenciasTabela rows={linhas} podeResolver={podeEscrever(operador.papel)} />
+          <FilaPendenciasTabela
+            rows={linhas}
+            rotulosTipo={mapaRotulosTipo(tiposItem)}
+            podeResolver={podeEscrever(operador.papel)}
+          />
         )}
       </div>
       )}

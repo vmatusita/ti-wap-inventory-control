@@ -5,7 +5,8 @@ import {
   ReabrirPendenciaItemDialog,
   ResolverPendenciaItemDialog,
 } from '@/components/pendencias/resolver-pendencia-item-dialog'
-import { rotuloAcessorio, rotuloDesfechoPendenciaItem } from '@/lib/dominio'
+import { rotuloDesfechoPendenciaItem } from '@/lib/dominio'
+import { rotuloTipoItem, type MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { formatDate } from '@/lib/format'
 import type { PendenciaItemFicha as Pendencia } from '@/lib/queries/pendencias-item'
 
@@ -26,11 +27,15 @@ import type { PendenciaItemFicha as Pendencia } from '@/lib/queries/pendencias-i
 export function PendenciasItemFicha({
   patrimonio,
   pendencias,
+  rotulosTipo,
   podeResolver,
   podeReabrir = false,
 }: {
   patrimonio: string | null
   pendencias: Pendencia[]
+  // F39 — o rótulo do tipo vem do catálogo `tipos_item`, por PROP. TODOS os
+  // tipos (inclusive desativados): `pendencias_item.item` guarda slug histórico.
+  rotulosTipo: MapaRotulosTipo
   podeResolver: boolean
   podeReabrir?: boolean
 }) {
@@ -52,7 +57,7 @@ export function PendenciasItemFicha({
             <div className="flex items-start gap-2">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
               <div>
-                <span className="font-medium">{rotuloAcessorio(p.item)}</span>
+                <span className="font-medium">{rotuloTipoItem(p.item, rotulosTipo)}</span>
                 <span className="block text-xs text-amber-800/80 dark:text-amber-200/70">
                   {p.colaborador ? `${p.colaborador} · ` : ''}
                   devolução de {p.desde ? formatDate(p.desde) : '—'}
@@ -62,7 +67,7 @@ export function PendenciasItemFicha({
             {podeResolver && (
               <ResolverPendenciaItemDialog
                 ids={[p.id]}
-                resumo={`${rotuloAcessorio(p.item)}${patrimonio ? ' · ' + patrimonio : ''}`}
+                resumo={`${rotuloTipoItem(p.item, rotulosTipo)}${patrimonio ? ' · ' + patrimonio : ''}`}
                 trigger={
                   <Button variant="outline" size="sm" className="h-10 gap-1.5 sm:h-8">
                     <PackageCheck className="size-3.5" />
@@ -82,7 +87,7 @@ export function PendenciasItemFicha({
               <PackageX className="mt-0.5 size-4 shrink-0" />
               <div>
                 <span className="font-medium text-foreground/70 line-through decoration-muted-foreground/50">
-                  {rotuloAcessorio(p.item)}
+                  {rotuloTipoItem(p.item, rotulosTipo)}
                 </span>{' '}
                 <span>— {rotuloDesfechoPendenciaItem(p.desfecho)}</span>
                 <span className="block text-xs">
@@ -95,7 +100,7 @@ export function PendenciasItemFicha({
             {podeReabrir && (
               <ReabrirPendenciaItemDialog
                 id={p.id}
-                resumo={`${rotuloAcessorio(p.item)}${patrimonio ? ' · ' + patrimonio : ''}`}
+                resumo={`${rotuloTipoItem(p.item, rotulosTipo)}${patrimonio ? ' · ' + patrimonio : ''}`}
               />
             )}
           </div>

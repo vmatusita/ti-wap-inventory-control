@@ -17,6 +17,7 @@ import { ListaReservados } from '@/components/relatorios/lista-reservados'
 import { TabelaMovimentacoes } from '@/components/relatorios/tabela-movimentacoes'
 import { ResumoPeriodoCard } from '@/components/relatorios/resumo-periodo'
 import { CorpoRelatorioV2 } from '@/components/relatorios/corpo-relatorio-v2'
+import type { MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 
 const MESES_ABREV_COMPAT = [
   'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
@@ -67,12 +68,20 @@ export function CorpoRelatorio({
   ehOperador = false,
   links,
   recorteFilial,
+  rotulosTipo,
   aoVivo = false,
 }: {
   snapshot: AnySnapshot
   ehOperador?: boolean
   links?: LinksKpi
   recorteFilial?: string
+  /** F39 — o vocabulário dos itens faltantes (`tipos_item`), lido no servidor
+   *  com o client RESOLVIDO e descido por prop até `TabelaEntradas`. O
+   *  visualizador por SENHA roda com o client administrativo: uma leitura feita
+   *  com a sessão comum devolveria vazio para ele, e o relatório impresso sairia
+   *  com o slug cru. Só o v2 tem tabela de Entradas — o v1 (snapshots pré-F3B)
+   *  não a recebe. */
+  rotulosTipo: MapaRotulosTipo
   aoVivo?: boolean
 }) {
   if (ehSnapshotV2(snapshot)) {
@@ -82,6 +91,7 @@ export function CorpoRelatorio({
         ehOperador={ehOperador}
         links={links}
         recorteFilial={recorteFilial}
+        rotulosTipo={rotulosTipo}
         aoVivo={aoVivo}
       />
     )

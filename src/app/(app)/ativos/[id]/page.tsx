@@ -24,6 +24,8 @@ import {
 } from '@/lib/queries/ativos'
 import { listarMovimentacoesDoAtivo } from '@/lib/queries/movimentacoes'
 import { listarMotivos } from '@/lib/queries/motivos'
+import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { listarTermosDoAtivo } from '@/lib/queries/termos'
 import { listarPendenciasItemDoAtivo } from '@/lib/queries/pendencias-item'
 import type { TermoTipo } from '@/lib/termos/tipos'
@@ -106,6 +108,9 @@ export default async function AtivoFichaPage({
     timelineAntigo,
     // F38 — "o que foi junto com este notebook", pelo JOIN de movimentacao_id.
     itensJunto,
+    // F39 — o vocabulário dos itens faltantes (linha do tempo e bloco de
+    // pendências). TODOS os tipos, inclusive desativados: os dois exibem PASSADO.
+    tiposItem,
   ] = await Promise.all([
     listarMovimentacoesDoAtivo(id),
     listarAnotacoesDoAtivo(id),
@@ -121,8 +126,10 @@ export default async function AtivoFichaPage({
       ? listarMovimentacoesDoAtivo(ativo.substitui_ativo_id)
       : Promise.resolve([]),
     itensQueForamJunto(id),
+    listarTiposItem(),
   ])
   const motivos = Object.fromEntries(motivosLista.map((m) => [m.codigo, m.rotulo]))
+  const rotulosTipo = mapaRotulosTipo(tiposItem)
 
   // F21 — esta ficha é de UM ativo, que mora em UMA filial: dá para responder
   // exatamente se quem abriu pode agir sobre ele. Toda a escrita da tela
@@ -307,6 +314,7 @@ export default async function AtivoFichaPage({
       <PendenciasItemFicha
         patrimonio={ativo.patrimonio}
         pendencias={pendenciasItem}
+        rotulosTipo={rotulosTipo}
         podeResolver={podeEscreverNesta}
         podeReabrir={eAdmin(operador?.papel)}
       />
@@ -415,6 +423,7 @@ export default async function AtivoFichaPage({
           movimentacoes={movimentacoes}
           anotacoes={anotacoes}
           motivos={motivos}
+          rotulosTipo={rotulosTipo}
           somenteLeitura={!podeEscreverNesta}
         />
       </div>
@@ -441,6 +450,7 @@ export default async function AtivoFichaPage({
           <LinhaDoTempo
             movimentacoes={timelineAntigo}
             motivos={motivos}
+            rotulosTipo={rotulosTipo}
             somenteLeitura
           />
         </div>

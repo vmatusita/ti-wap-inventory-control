@@ -31,6 +31,8 @@ import {
 } from '@/lib/termos/preparo'
 import { montarLinhaDeAcessorios } from '@/lib/termos/acessorios'
 import { acessoriosDasMovimentacoes } from '@/lib/queries/itens'
+import { listarTiposItem } from '@/lib/queries/tipos-item'
+import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { dataPorExtenso, mesAnoPorExtenso } from '@/lib/termos/datas'
 import {
   concatenarEquipamentos,
@@ -323,6 +325,10 @@ export async function prepararTermo(input: {
     )
   }
   const itensFaltantes = movs.flatMap((m) => m.itens_faltantes ?? [])
+  // F39 — o vocabulário do que FALTOU sai do catálogo `tipos_item` (F37), não mais
+  // de constante do código. TODOS os tipos, inclusive os desativados: a
+  // `{observacao}` fala de PASSADO, e um slug histórico tem de sair legível.
+  const rotulosDosTipos = mapaRotulosTipo(await listarTiposItem())
   // Responsável de TI = operador logado (automático, §4.2).
   const { data: perfil } = await supabase
     .from('profiles')
@@ -362,7 +368,7 @@ export async function prepararTermo(input: {
     patrimonios,
     marcas_modelos,
     outros_componentes: componentes.linha,
-    observacao: observacaoSugestao(itensFaltantes),
+    observacao: observacaoSugestao(itensFaltantes, rotulosDosTipos),
     tecnico: perfil?.nome ?? '',
     cidade,
   }

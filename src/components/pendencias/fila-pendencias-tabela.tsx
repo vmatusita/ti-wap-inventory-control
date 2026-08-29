@@ -21,7 +21,8 @@ import {
 } from '@/components/ativos/confirmar-assinatura-dialog'
 import { CorrigirPatrimonioDialog } from '@/components/ativos/corrigir-patrimonio-dialog'
 import { ResolverPendenciaItemDialog } from '@/components/pendencias/resolver-pendencia-item-dialog'
-import { rotuloCategoria, rotuloAcessorio } from '@/lib/dominio'
+import { rotuloCategoria } from '@/lib/dominio'
+import { rotuloTipoItem, type MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { ROTULO_TIPO_PENDENCIA, CLASSE_TIPO_PENDENCIA } from '@/lib/pendencias/rotulos'
 import {
   faixaIdadePendencia,
@@ -65,9 +66,14 @@ const DICA_FAIXA_IDADE: Record<Exclude<FaixaIdadePendencia, 'nova'>, string> = {
 // para o cargo Consulta, que é o público de quem só acompanha o que falta.
 export function FilaPendenciasTabela({
   rows,
+  rotulosTipo,
   podeResolver = false,
 }: {
   rows: LinhaFila[]
+  // F39 — o vocabulário vem do catálogo `tipos_item`, por PROP do Server
+  // Component: módulo cliente não importa query (fronteira-rsc.test.ts). TODOS
+  // os tipos, inclusive desativados — `pendencias_item.item` guarda slug histórico.
+  rotulosTipo: MapaRotulosTipo
   podeResolver?: boolean
 }) {
   // F28/PND-02 — dois universos de seleção que NUNCA se misturam: item faltante
@@ -245,7 +251,7 @@ export function FilaPendenciasTabela({
                       <Checkbox
                         checked={selecionadasItens.has(itemId)}
                         onCheckedChange={(c) => toggleItem(itemId, c === true)}
-                        aria-label={`Selecionar ${rotuloAcessorio(p.item ?? 'item')}`}
+                        aria-label={`Selecionar ${rotuloTipoItem(p.item ?? 'item', rotulosTipo)}`}
                       />
                     )}
                     {ehTermo && (
@@ -263,7 +269,7 @@ export function FilaPendenciasTabela({
                   </Badge>
                   {ehItem && p.item && (
                     <span className="mt-1 block text-xs font-medium">
-                      {rotuloAcessorio(p.item)}
+                      {rotuloTipoItem(p.item, rotulosTipo)}
                     </span>
                   )}
                   {/* F28/PND-04 — o TEXTO da pendência, que já vinha da query e nunca
@@ -367,7 +373,7 @@ export function FilaPendenciasTabela({
                     {ehItem && (
                       <ResolverPendenciaItemDialog
                         ids={[itemId]}
-                        resumo={`${rotuloAcessorio(p.item ?? 'item')}${
+                        resumo={`${rotuloTipoItem(p.item ?? 'item', rotulosTipo)}${
                           p.patrimonio ? ' · ' + p.patrimonio : ''
                         }`}
                         trigger={

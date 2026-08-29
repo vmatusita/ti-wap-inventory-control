@@ -72,6 +72,7 @@ import { formatTempoRelativo } from '@/lib/format'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import type { AtivoResumo } from '@/lib/queries/ativos'
 import type { TipoItem } from '@/lib/queries/tipos-item'
+import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import type { ItemDoCatalogo } from '@/lib/itens/ponte-tipo-item'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Kit } from '@/lib/queries/kits'
@@ -126,6 +127,7 @@ export function NovaMovimentacaoForm({
   papel = null,
   filiaisEscrita = [],
   tiposItem = [],
+  tiposItemTodos = [],
   itensCatalogo = [],
 }: {
   filiais: Filial[]
@@ -164,9 +166,18 @@ export function NovaMovimentacaoForm({
   // itens (a ponte tipo→item e a seção "Itens que vão junto"). Vêm do servidor,
   // como filiais/motivos/kits: o wizard não consulta banco.
   tiposItem?: TipoItem[]
+  // F39 — o catálogo INTEIRO (ativos e desativados), usado SÓ para o rótulo do
+  // resumo da revisão. Prop separada de propósito: `tiposItem` continua sendo a
+  // lista de ESCOLHA do checklist (só ativos, byte a byte como a F38 a deixou), e
+  // quem exibe passado — um rascunho restaurado citando um tipo desativado —
+  // precisa de todos, senão o slug cru vazaria para a tela.
+  tiposItemTodos?: TipoItem[]
   itensCatalogo?: ItemDoCatalogo[]
 }) {
   const router = useRouter()
+  // F39 — o mapa slug→rótulo dos tipos, para o resumo da revisão. `useMemo` só
+  // para não remontar o objeto a cada render do wizard.
+  const rotulosTipo = useMemo(() => mapaRotulosTipo(tiposItemTodos), [tiposItemTodos])
   const [passo, setPasso] = useState(1)
   // ATV-03 — o lote de ABERTURA, venha ele da seleção múltipla da lista
   // (`?ativos=`) ou de um ativo só (`?ativo=`/`?duplicar=`). Unificar aqui é o
@@ -1429,6 +1440,7 @@ export function NovaMovimentacaoForm({
           contrapartida={contrapartida}
           filiais={filiais}
           motivos={motivos}
+          rotulosTipo={rotulosTipo}
           enviando={enviando}
           onVoltar={() => setPasso(2)}
           onRegistrar={registrar}

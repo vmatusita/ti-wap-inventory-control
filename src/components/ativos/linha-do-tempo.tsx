@@ -6,7 +6,8 @@ import { StatusBadge } from '@/components/ativos/status-badge'
 import { EstornarDialog } from '@/components/ativos/estornar-dialog'
 import { cn } from '@/lib/utils'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
-import { pillTipo, rotuloTipo, rotuloAcessorio } from '@/lib/dominio'
+import { pillTipo, rotuloTipo } from '@/lib/dominio'
+import { rotuloTipoItem, type MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import type { MovimentacaoTimeline } from '@/lib/queries/movimentacoes'
 import type { AnotacaoTimeline } from '@/lib/queries/ativos'
 
@@ -39,6 +40,7 @@ export function LinhaDoTempo({
   movimentacoes,
   anotacoes = [],
   motivos,
+  rotulosTipo,
   // F14/MN4 — reuso somente-leitura (seção "Histórico do ativo substituído" na
   // ficha do substituto): esconde as ações (Estornar/Duplicar), que agiriam sobre
   // o ativo ANTIGO. Na ficha própria do ativo segue `false` (ações visíveis).
@@ -47,6 +49,10 @@ export function LinhaDoTempo({
   movimentacoes: MovimentacaoTimeline[]
   anotacoes?: AnotacaoTimeline[]
   motivos: Record<string, string>
+  // F39 — o vocabulário dos itens faltantes vem do catálogo `tipos_item`, por
+  // PROP: quem lê o banco é a página (Server Component). O mapa carrega TODOS os
+  // tipos, inclusive os desativados — a linha do tempo exibe passado.
+  rotulosTipo: MapaRotulosTipo
   somenteLeitura?: boolean
 }) {
   const eventos: Evento[] = [
@@ -269,7 +275,7 @@ export function LinhaDoTempo({
                         variant="outline"
                         className="border-amber-300 bg-amber-50 text-xs font-normal text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
                       >
-                        {rotuloAcessorio(it)}
+                        {rotuloTipoItem(it, rotulosTipo)}
                       </Badge>
                     ))}
                   </p>

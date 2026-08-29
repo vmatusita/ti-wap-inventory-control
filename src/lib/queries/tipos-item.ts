@@ -1,4 +1,6 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import type { Database } from '@/lib/types/database'
 
 // Leituras do catálogo de TIPOS de item (F37 · D7). Rota só do operador — client do
 // servidor com a sessão dele (RLS `authenticated`), como o resto de src/lib/queries.
@@ -39,9 +41,17 @@ export async function listarTiposItemAtivos(): Promise<TipoItem[]> {
  * classificava como "sem tipo", enquanto o selo "N itens ainda não têm tipo" não o
  * contava. Quem monta a lista de ESCOLHA é o componente, que mostra o tipo inativo
  * só enquanto ele for o valor atual daquele item.
+ *
+ * ⚠ ACEITA UM CLIENT RESOLVIDO (F39), no precedente exato de `listarFiliais`. O
+ * relatório também é servido ao VISUALIZADOR POR SENHA, e essa sessão roda com o
+ * client ADMINISTRATIVO devolvido por `resolverAcessoRelatorio` — uma leitura feita
+ * aqui com `createClient()` devolveria vazio para ele, e o relatório impresso sairia
+ * com o slug cru no lugar do rótulo. Defeito que passa por todo teste de operador.
  */
-export async function listarTiposItem(): Promise<TipoItem[]> {
-  const supabase = await createClient()
+export async function listarTiposItem(
+  client?: SupabaseClient<Database>,
+): Promise<TipoItem[]> {
+  const supabase = client ?? (await createClient())
   const { data, error } = await supabase
     .from('tipos_item')
     .select('id, slug, rotulo, ativo, ordem')
