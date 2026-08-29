@@ -25,16 +25,19 @@ export type MapaRotulosTipo = Readonly<Record<string, string>>
 /**
  * O mapa, a partir do catálogo lido do banco.
  *
- * ⚠ PROTÓTIPO NULO. O slug vem de coluna de TEXTO LIVRE (`pendencias_item.item` e
- * `movimentacoes.itens_faltantes` não têm FK nem CHECK), então um registro com o
- * slug `toString` ou `constructor` acharia uma FUNÇÃO no `Record` comum e a
- * devolveria como se fosse rótulo. A função antiga tinha o mesmo furo; aqui ele
- * não veio junto.
+ * ⚠ OBJETO COMUM, E ISSO NÃO É DESCUIDO. A primeira versão usava
+ * `Object.create(null)` para fechar o furo do slug `toString`; o navegador
+ * derrubou a ideia em 30 segundos: este mapa ATRAVESSA A FRONTEIRA RSC como prop
+ * (a tabela de Entradas do relatório, a fila de pendências, o resumo da revisão),
+ * e o React recusa protótipo nulo com "Only plain objects … can be passed to
+ * Client Components" — o relatório caía para render no cliente. Quem fecha o furo
+ * é o `hasOwnProperty` de `rotuloTipoItem`, que é o lugar certo: a proteção mora
+ * na LEITURA, e assim vale também para mapa montado à mão.
  */
 export function mapaRotulosTipo(
   tipos: readonly { slug: string; rotulo: string }[],
 ): MapaRotulosTipo {
-  const mapa: Record<string, string> = Object.create(null)
+  const mapa: Record<string, string> = {}
   for (const t of tipos) mapa[t.slug] = t.rotulo
   return mapa
 }

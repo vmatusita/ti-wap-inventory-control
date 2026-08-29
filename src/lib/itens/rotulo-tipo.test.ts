@@ -77,9 +77,21 @@ describe('rotuloTipoItem', () => {
   })
 
   it('não herda propriedade de Object.prototype como se fosse rótulo', () => {
-    // Um `Record` comum devolveria a função `toString` para o slug "toString".
-    // O mapa é montado a partir do banco, mas o slug vem de coluna de texto livre.
+    // Um `Record` comum devolveria a FUNÇÃO `toString` para o slug "toString", e o
+    // slug vem de coluna de texto livre. Quem fecha isso é o `hasOwnProperty` da
+    // leitura — e não um protótipo nulo no mapa, que o React recusa como prop de
+    // Client Component ("Only plain objects … can be passed").
     expect(typeof rotuloTipoItem('toString', mapa)).toBe('string')
     expect(rotuloTipoItem('toString', mapa)).toBe('toString')
+    expect(rotuloTipoItem('constructor', mapa)).toBe('constructor')
+    expect(rotuloTipoItem('__proto__', mapa)).toBe('__proto__')
+  })
+
+  it('o mapa é objeto COMUM — ele atravessa a fronteira RSC como prop', () => {
+    // Regressão de 29/08/2026: com `Object.create(null)` o React derrubava o
+    // render no servidor do relatório e caía para o cliente. O teste guarda a
+    // forma, porque nenhum type-check pega isso.
+    expect(Object.getPrototypeOf(mapa)).toBe(Object.prototype)
+    expect(JSON.parse(JSON.stringify(mapa)).mouse).toBe('Mouse')
   })
 })
