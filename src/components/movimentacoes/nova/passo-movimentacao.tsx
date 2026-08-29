@@ -8,6 +8,10 @@ import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerid
 import { CampoColaborador } from '@/components/movimentacoes/nova/campo-colaborador'
 import { ChecklistFaltantes } from '@/components/movimentacoes/nova/checklist-faltantes'
 import { SecaoItensJunto, ofereceItensJunto } from '@/components/movimentacoes/nova/secao-itens-junto'
+import {
+  MSG_LOTE_MISTO_SEM_LANCAMENTO,
+  checklistPodeLancar,
+} from '@/components/movimentacoes/nova/itens-do-lote'
 import { ComEstaPessoaDevolucao } from '@/components/movimentacoes/nova/com-esta-pessoa-devolucao'
 import { ChipsData } from '@/components/movimentacoes/nova/chips-data'
 import { SecaoContrapartida } from '@/components/movimentacoes/nova/secao-contrapartida'
@@ -224,6 +228,11 @@ export function PassoMovimentacao({
   const detentores = new Set(itens.map((a) => (a.colaborador_atual ?? '').trim()))
   const detentorDoLote =
     detentores.size === 1 ? ([...detentores][0] || null) : null
+  // F38 — lote misto (filiais ou detentores diferentes) não deixa o checklist
+  // mexer no estoque: não dá para saber de qual prateleira nem de qual conta o
+  // acessório é. A tela AVISA; a regra que de fato desliga o lançamento está em
+  // `montarItensJuntoDoLote`, do lado do envio.
+  const checklistLanca = checklistPodeLancar(itens)
 
   return (
     <div className="space-y-5">
@@ -549,6 +558,7 @@ export function PassoMovimentacao({
             onSet('itensFaltantes', v.faltantes)
             onSet('itensDevolvidos', v.devolvidos)
           }}
+          avisoSemLancamento={checklistLanca ? null : MSG_LOTE_MISTO_SEM_LANCAMENTO}
         />
       )}
 

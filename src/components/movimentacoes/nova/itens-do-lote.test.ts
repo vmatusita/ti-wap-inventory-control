@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { montarItensJuntoDoLote } from '@/components/movimentacoes/nova/itens-do-lote'
+import {
+  MSG_LOTE_MISTO_SEM_LANCAMENTO,
+  checklistPodeLancar,
+  montarItensJuntoDoLote,
+} from '@/components/movimentacoes/nova/itens-do-lote'
 import { configPadrao, type Config } from '@/components/movimentacoes/nova/config'
 import { contrapartidaPadrao } from '@/components/movimentacoes/nova/troca-upgrade'
 
@@ -160,5 +164,98 @@ describe('montarItensJuntoDoLote — o par troca/upgrade e o deslocamento do ín
       totalContrapartida: 1,
     })
     expect(r).toEqual([{ indice: 0, item_id: 4, quantidade: 1 }])
+  })
+})
+
+describe('checklistPodeLancar — o lote misto não mexe no estoque', () => {
+  const A = { filial_id: 1, colaborador_atual: 'Fulano' }
+  const B = { filial_id: 1, colaborador_atual: 'Beatriz' }
+  const C = { filial_id: 2, colaborador_atual: 'Fulano' }
+
+  it('lote de UM ativo é homogêneo por definição', () => {
+    expect(checklistPodeLancar([A])).toBe(true)
+  })
+
+  it('lote ausente ou vazio não bloqueia (é o caminho de quem não passa o lote)', () => {
+    expect(checklistPodeLancar()).toBe(true)
+    expect(checklistPodeLancar([])).toBe(true)
+  })
+
+  it('mesma filial E mesma pessoa: pode lançar', () => {
+    expect(checklistPodeLancar([A, { ...A }])).toBe(true)
+  })
+
+  it('DETENTORES diferentes: NÃO lança — o fone do Fulano baixaria da conta da Beatriz', () => {
+    expect(checklistPodeLancar([A, B])).toBe(false)
+  })
+
+  it('FILIAIS diferentes: NÃO lança — o acessório voltaria para a prateleira errada', () => {
+    expect(checklistPodeLancar([A, C])).toBe(false)
+  })
+
+  it('ativos sem detentor nenhum ainda são homogêneos entre si', () => {
+    expect(
+      checklistPodeLancar([
+        { filial_id: 1, colaborador_atual: null },
+        { filial_id: 1, colaborador_atual: '  ' },
+      ]),
+    ).toBe(true)
+  })
+})
+
+describe('montarItensJuntoDoLote — o lote misto desliga o checklist', () => {
+  const marcado = { tipo: 'devolucao' as const, itensDevolvidos: [{ tipoSlug: 'cabo', itemId: 4 }] }
+
+  it('lote homogêneo continua gerando a linha', () => {
+    const r = montarItensJuntoDoLote({
+      config: cfg(marcado),
+      totalPrincipal: 2,
+      lotePrincipal: [
+        { filial_id: 1, colaborador_atual: 'Fulano' },
+        { filial_id: 1, colaborador_atual: 'Fulano' },
+      ],
+    })
+    expect(r).toEqual([{ indice: 0, item_id: 4, quantidade: 1 }])
+  })
+
+  it('detentores diferentes: NENHUMA linha, e a devolução segue', () => {
+    const r = montarItensJuntoDoLote({
+      config: cfg(marcado),
+      totalPrincipal: 2,
+      lotePrincipal: [
+        { filial_id: 1, colaborador_atual: 'Fulano' },
+        { filial_id: 1, colaborador_atual: 'Beatriz' },
+      ],
+    })
+    expect(r).toEqual([])
+  })
+
+  it('filiais diferentes: NENHUMA linha', () => {
+    const r = montarItensJuntoDoLote({
+      config: cfg(marcado),
+      totalPrincipal: 2,
+      lotePrincipal: [
+        { filial_id: 1, colaborador_atual: 'Fulano' },
+        { filial_id: 2, colaborador_atual: 'Fulano' },
+      ],
+    })
+    expect(r).toEqual([])
+  })
+
+  it('a ENTREGA não é afetada pela regra — lá cada linha escolhe seu equipamento', () => {
+    const r = montarItensJuntoDoLote({
+      config: cfg({ tipo: 'saida', itensJunto: [{ indice: 1, itemId: 3, quantidade: 1 }] }),
+      totalPrincipal: 2,
+      lotePrincipal: [
+        { filial_id: 1, colaborador_atual: 'Fulano' },
+        { filial_id: 2, colaborador_atual: 'Beatriz' },
+      ],
+    })
+    expect(r).toEqual([{ indice: 1, item_id: 3, quantidade: 1 }])
+  })
+
+  it('o aviso da tela existe e explica o efeito, não o mecanismo', () => {
+    expect(MSG_LOTE_MISTO_SEM_LANCAMENTO).toContain('não mexe no estoque')
+    expect(MSG_LOTE_MISTO_SEM_LANCAMENTO).toContain('lotes separados')
   })
 })

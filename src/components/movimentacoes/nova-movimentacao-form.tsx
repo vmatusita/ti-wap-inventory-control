@@ -519,10 +519,27 @@ export function NovaMovimentacaoForm({
     }
   }
   function remover(id: string) {
+    const posicao = itens.findIndex((p) => p.id === id)
     const next = itens.filter((p) => p.id !== id)
     if (next.length === itens.length) return
     marcarAlteracao()
     setItens(next)
+    // F38 · D13 — os "itens que vão junto" apontam o equipamento por POSIÇÃO no
+    // lote. Tirar um ativo do meio desloca todo mundo depois dele: sem este
+    // reajuste, o fone que ia com o 3º equipamento passaria a ir com o 4º, em
+    // silêncio, e o operador só descobriria olhando a ficha errada depois.
+    // Achado da revisão adversarial da fase.
+    setConfig((c) => {
+      const junto = c.itensJunto ?? []
+      if (junto.length === 0) return c
+      return {
+        ...c,
+        itensJunto: junto
+          // A linha que apontava o ativo REMOVIDO some junto com ele.
+          .filter((l) => l.indice !== posicao)
+          .map((l) => (l.indice > posicao ? { ...l, indice: l.indice - 1 } : l)),
+      }
+    })
     // Remover nunca estreita a interseção, então `ajustarTipoPara` não limpa
     // nada aqui — mas o prefill precisa acompanhar: tirar o notebook do outro
     // detentor devolve o lote a um dono só, e o nome volta a ser honesto.
@@ -957,6 +974,11 @@ export function NovaMovimentacaoForm({
           totalPrincipal: submetidosPrincipal.length,
           contrapartida,
           totalContrapartida: submetidosContra.length,
+          // Os lotes vão junto para a regra do checklist homogêneo poder olhar
+          // filial e detentor — sem eles, um lote misto lançaria na prateleira
+          // errada e na conta de quem não devolveu.
+          lotePrincipal: submetidosPrincipal,
+          loteContrapartida: submetidosContra,
         }),
       })
     } catch {

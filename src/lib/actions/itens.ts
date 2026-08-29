@@ -25,6 +25,7 @@ import { listarFiliais } from '@/lib/queries/filiais'
 import { estoquePorItem } from '@/lib/itens/repor'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
+import { decidirVinculoRetorno, type SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
 
 // F21 — este arquivo tem DOIS regimes de permissão, e é de propósito:
 //   · LANÇAMENTOS (`lancarItens`, `estornarLancamento`) mexem no saldo de uma FILIAL →
@@ -99,7 +100,60 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
     linhas.map((v) => v.colaborador ?? null),
   )
 
+  // F38 · §C.3 — O CARRINHO AVULSO TAMBÉM PRECISA DA REGRA DO VÍNCULO, e a
+  // primeira escrita da fase esqueceu disso (achado da revisão adversarial).
+  //
+  // A 0118 pôs um teto novo no trigger: `retorno` que NOMEIA uma pessoa não pode
+  // exceder o que ela tem daquele item naquela filial. Aqui, o campo é literalmente
+  // "Colaborador (quem devolveu — opcional)" e o id era resolvido e gravado sem
+  // olhar saldo nenhum. Efeito: uma devolução avulsa que funcionava até a véspera
+  // — item que saiu SEM vínculo (histórico anterior à F37) e volta com o nome
+  // digitado — passava a ser RECUSADA pelo banco, com uma mensagem sobre saldo que
+  // não descreve o que o operador fez de errado (nada).
+  //
+  // A regra é a mesma da movimentação: o vínculo só entra quando há saldo; não
+  // havendo, o `retorno` é gravado sem ele e repõe o estoque igual.
+  const saldosPorPessoa = new Map<string, SaldoDaPessoa[]>()
+  for (const pessoaId of new Set(
+    linhas
+      .filter((v) => v.tipo === 'retorno')
+      .map((v) => vinculos.get(chaveColaborador(v.colaborador)))
+      .filter((x): x is string => !!x),
+  )) {
+    const { data: saldos } = await supabase.rpc('rel_saldo_colaborador', {
+      p_colaborador: pessoaId,
+    })
+    saldosPorPessoa.set(pessoaId, (saldos ?? []) as SaldoDaPessoa[])
+  }
+  const consumido = new Map<string, number>()
+
   for (const v of linhas) {
+    const pessoaId = vinculos.get(chaveColaborador(v.colaborador)) ?? null
+    let vinculo: string | null = pessoaId
+    if (v.tipo === 'retorno' && pessoaId) {
+      const chave = `${pessoaId}|${v.item_id}|${v.filial_id}`
+      const base =
+        saldosPorPessoa
+          .get(pessoaId)
+          ?.find((s) => s.item_id === v.item_id && s.filial_id === v.filial_id)
+          ?.com_a_pessoa ?? 0
+      const decisao = decidirVinculoRetorno({
+        colaboradorId: pessoaId,
+        itemId: v.item_id,
+        filialId: v.filial_id,
+        quantidade: v.quantidade,
+        saldos: [
+          {
+            item_id: v.item_id,
+            filial_id: v.filial_id,
+            com_a_pessoa: base - (consumido.get(chave) ?? 0),
+          },
+        ],
+      })
+      vinculo = decisao.colaboradorId
+      if (vinculo) consumido.set(chave, (consumido.get(chave) ?? 0) + v.quantidade)
+    }
+
     const { error } = await supabase.from('lancamentos_item').insert({
       item_id: v.item_id,
       filial_id: v.filial_id,
@@ -107,7 +161,7 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
       quantidade: v.quantidade,
       chamado: v.chamado ?? null,
       colaborador: v.colaborador ?? null,
-      colaborador_id: vinculos.get(chaveColaborador(v.colaborador)) ?? null,
+      colaborador_id: vinculo,
       data: v.data,
       observacao: v.observacao ?? null,
       criado_por: uid,

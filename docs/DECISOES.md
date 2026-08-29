@@ -6695,3 +6695,102 @@ diff vazio.** As atas abaixo são as que a ordem exigiu nominalmente, mais as qu
 - **Motivo:** é exatamente para isso que o job `banco` existe, e está registrado na memória do
   projeto que "o CI `banco` pega o que os bancos vivos não pegam". Pegou.
 - **Reversível?** sim, é teste.
+
+---
+
+## 2026-08-28 · F38 · A revisão adversarial: 5 defeitos reais, 5 corrigidos
+
+Seis lentes independentes sobre o diff da fase, cada achado julgado por um cético
+instruído a **refutar por padrão**. Sobreviveram cinco — e três deles quebravam
+comportamento em produção, não só desenho.
+
+### 1. Reabrir uma `baixa` podia falhar, e de forma intermitente (migration `0122`)
+
+- **O defeito:** `reabrir_pendencias_item_com_estornos` (`0119`) ordenava os inversos
+  por `case when quantidade > 0 then 0 else 1`. O comentário ao lado prometia "o
+  positivo primeiro: o `ajuste +1` repõe o Total antes de a `saida` tirar da
+  prateleira" — e o `case` **não cumpria a promessa**. Desfazer uma `baixa` produz
+  DOIS inversos, e `planejarEstorno` os calcula assim: `retorno (+Q) → saida (+Q)`
+  (não inverte sinal) e `ajuste (−Q) → ajuste (+Q)` (inverte). **Os dois são
+  positivos**, caem no mesmo ramo, e a ordem entre eles ficava por conta da ordem
+  física de leitura — que a action nem fixava (lia sem `order by`).
+- **Por que importa:** no caso comum de uma baixa (acessório que já estava com
+  estoque 0 quando sumiu), a ordem errada faz o trigger calcular estoque −1 e
+  recusar a transação INTEIRA. Reabrir a pendência falharia, de vez em quando, com
+  uma mensagem sobre estoque que não descreve a causa.
+- **A correção:** ordenar pelo **EFEITO** — "quem repõe o Total antes de quem
+  consome a prateleira" — e desempatar até o fim (`item_id`, `estorna_id`). Só
+  `ajuste` mexe no Total (cabeçalho da `0027`), então ele é o primeiro ramo. A mesma
+  ordem foi aplicada à `estornar_movimentacao_com_itens` (`0121`), por coerência.
+- **A prova:** cenário **15** do roteiro, que reabre a pendência do caso 8 (uma
+  BAIXA) mandando os inversos **na ordem pior de propósito** — a `saida` primeiro. O
+  cenário 9, que já existia, só reabria um `recuperado` (um lançamento só) e nunca
+  alcançava esta ambiguidade.
+
+### 2. O carrinho avulso de itens quebrava uma devolução que funcionava
+
+- **O defeito:** `lancarItens` (`src/lib/actions/itens.ts`) grava `colaborador_id`
+  resolvido pelo nome, em QUALQUER tipo — inclusive `retorno` —, sem passar pela
+  regra §C.3. A guarda nova da `0118` então recusava.
+- **O cenário:** item que saiu SEM vínculo (todo o histórico anterior à F37) e volta
+  pela tela de itens, com o nome digitado no campo que se chama literalmente
+  "Colaborador (quem devolveu — opcional)". `v_pessoa_net` é 0, e o banco recusa
+  com "Retorno maior que o registrado com esta pessoa" — sobre uma operação
+  cotidiana que passava até a véspera, e por um erro que o operador não cometeu.
+- **A correção:** o carrinho passou a usar `decidirVinculoRetorno`, a mesma regra da
+  movimentação, com o saldo consultado uma vez por pessoa e debitado linha a linha.
+  Sem saldo, o `retorno` é gravado sem vínculo e repõe o estoque igual.
+- **Lição:** a §C.3 foi escrita pensando no wizard, e o carrinho é OUTRO caminho
+  para o mesmo trigger. Guarda nova no banco obriga a varrer **todos** os
+  escritores, não só o que a ordem nomeia.
+
+### 3. Remover um ativo do lote deixava o periférico apontando o equipamento errado
+
+- **O defeito:** os "itens que vão junto" apontam o equipamento por **posição** no
+  lote (D13). `remover(id)` tirava o ativo de `itens` e não tocava
+  `config.itensJunto`: as linhas seguintes ficavam deslocadas em silêncio.
+- **O cenário:** lote `[A, B, C]`, o fone marcado para ir com B (`indice: 1`); o
+  operador volta ao passo 1 e remove A; agora `indice: 1` é o C. O fone sai preso à
+  movimentação do equipamento errado, e ninguém vê.
+- **A correção:** `remover` reajusta a lista — a linha do ativo removido some, e as
+  de índice maior decrementam.
+
+### 4. O checklist da devolução num lote MISTO lançava na prateleira e na conta erradas
+
+- **O defeito:** o checklist é UM só para o lote inteiro, então suas linhas apontam
+  a primeira movimentação da metade — e dessa movimentação saem a **filial** onde o
+  acessório é reposto e a **pessoa** cuja conta baixa. Num lote de devolução com
+  ativos de filiais diferentes, o acessório voltava para a prateleira errada; com
+  detentores diferentes, o fone que o Fulano devolveu baixava da conta da Beatriz, e
+  o Fulano continuava devendo.
+- **Por que passou:** a tela já escondia o bloco informativo "Com esta pessoa" em
+  lote misto — mas o checklist continuava renderizado e a action gravava assim mesmo.
+  A verificação em tela não pegou porque foi feita com um ativo só.
+- **A correção:** `checklistPodeLancar` (função pura, testada). Lote misto **não
+  gera lançamento**: a devolução é registrada, as pendências do "Faltou" nascem como
+  sempre, e a tela avisa com o texto de `MSG_LOTE_MISTO_SEM_LANCAMENTO`. É a mesma
+  honestidade de `prefillContrapartida`, que se recusa a chutar nome com detentores
+  mistos.
+- **Nota:** a ENTREGA não é afetada — lá cada linha escolhe seu equipamento (D13).
+
+### 5. O rascunho perdia os itens do lote, sem avisar
+
+- **O defeito:** `sanearConfig` não copiava `itensDevolvidos`/`itensJunto` — campos
+  que nasceram nesta fase. O operador montava um lote com três acessórios, fechava a
+  aba, voltava, e a tela reabria completa **menos** os itens.
+- **A correção:** os dois campos passaram a ser saneados como todo o resto do módulo
+  (são dado de fora: o operador pode editar o `sessionStorage`). Na contrapartida, o
+  campo sai do objeto quando está vazio — o que também deixou o teste existente de
+  round-trip passar sem edição.
+
+### E dois achados que a revisão marcou e a correção não seguiu ao pé da letra
+
+- **O comentário invertido da `0117`** ("advisory primeiro, ativos depois", quando o
+  corpo faz o oposto) foi corrigido no texto: o código estava certo, e `0121` já
+  concordava com ele. O risco era um mantenedor "consertar" o código para casar com
+  o comentário e reintroduzir a inversão que a `0100` já pagou uma vez.
+- **Motivo:** nenhum dos dois muda comportamento hoje. Mas documentação errada sobre
+  ordem de trava é uma armadilha carregada esperando o próximo leitor.
+
+**Reversível?** cada correção isoladamente: a `0122` reaplicando os corpos da `0119`
+e da `0121`; as quatro do código, por `git revert`.

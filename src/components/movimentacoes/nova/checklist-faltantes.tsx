@@ -59,6 +59,7 @@ export function ChecklistFaltantes({
   devolvidos,
   onChange,
   rotulo = 'O que voltou com o equipamento',
+  avisoSemLancamento = null,
 }: {
   /** Os tipos ATIVOS do catálogo, na ordem de exibição. */
   tipos: TipoItem[]
@@ -68,6 +69,13 @@ export function ChecklistFaltantes({
   devolvidos: ItemDevolvido[]
   onChange: (v: { faltantes: string[]; devolvidos: ItemDevolvido[] }) => void
   rotulo?: string
+  /**
+   * F38 — o texto que explica por que "Voltou" NÃO vai mexer no estoque neste
+   * lote (hoje: filiais ou detentores diferentes). `null` = vai mexer normalmente.
+   * O checklist continua inteiro e o "Faltou" continua abrindo pendência: o que o
+   * lote misto desliga é só o lançamento.
+   */
+  avisoSemLancamento?: string | null
 }) {
   function desfechoDe(slug: string): DesfechoLinha | null {
     if (faltantes.includes(slug)) return 'faltante'
@@ -115,6 +123,15 @@ export function ChecklistFaltantes({
         <strong>Faltou</strong> para abrir a pendência. Deixe em branco o que não fazia parte
         da entrega.
       </p>
+
+      {avisoSemLancamento && (
+        <p
+          role="status"
+          className="rounded-md border border-amber-600/40 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          {avisoSemLancamento}
+        </p>
+      )}
       <ul className="divide-y rounded-lg border">
         {tipos.map((tipo) => {
           const desfecho = desfechoDe(tipo.slug)

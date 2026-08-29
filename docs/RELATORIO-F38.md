@@ -1,8 +1,8 @@
 # RELATÓRIO F38 — Os itens andam com o ativo
 
 > Ordem: `docs/prompts/F38-itens-andam-com-o-ativo-ultracode.md` (28/08/2026) ·
-> Versão: **1.43.0** · Migrations **`0116`–`0121`** ·
-> Roteiro novo: `supabase/tests/f38_itens_com_ativo.sql` (45 asserções, 0 falhas).
+> Versão: **1.43.0** · Migrations **`0116`–`0122`** ·
+> Roteiro novo: `supabase/tests/f38_itens_com_ativo.sql` (48 asserções, 0 falhas).
 
 ## 1. O que faltava, em uma frase
 
@@ -189,7 +189,7 @@ asserção.
 
 ## 7. As provas executáveis
 
-### 7.1 O roteiro novo — 45 asserções, 0 falhas
+### 7.1 O roteiro novo — 48 asserções, 0 falhas
 
 `supabase/tests/f38_itens_com_ativo.sql`, rodado no ensaio — **45 asserções, 0 falhas**:
 
@@ -209,6 +209,7 @@ asserção.
 | 11 | grants das quatro RPCs e o `security invoker` das cinco funções novas |
 | 12a | idempotência: reenviar não re-resolve nem duplica lançamento |
 | 13a–13c | o estorno desfaz o conjunto, ou recusa |
+| 15 | reabrir uma BAIXA com os inversos na ordem PIOR (a correção da 0122) |
 | 14, 14a, 14b | nenhuma das 10 funções intocadas carrega marca da F38 (com contraprova na que FOI recriada), e nenhum enum novo |
 
 ### 7.2 Todos os roteiros (regra F17)
@@ -219,7 +220,7 @@ Rodados no ensaio depois da recriação de `valida_lancamento_item`:
 cargo_dev.sql              ok=46  falhas=0
 conflito_filiais.sql       ok=38  falhas=0
 dev_destrutivo.sql         ok=108 falhas=0
-f38_itens_com_ativo.sql    ok=45  falhas=0
+f38_itens_com_ativo.sql    ok=48  falhas=0
 papeis_rls.sql             ok=74  falhas=0
 transferencia_item.sql     ok=18  falhas=0
 f37_colaboradores_tipos.sql ok=25 falhas=1  (ver 7.3)
@@ -245,6 +246,37 @@ F31, e `papel_atual()` devolve NULL para perfil desativado desde a `0070`: `impo
 passava verde ontem. É a **mesma classe de não-determinismo** da pendência nº 5 da F37, só que em
 quem o roteiro escolhe como autor. Corrigido nos dez: `where ativo and excluido_em is null order by
 created_at, id limit 1`. Depois disso, os dois rodam.
+
+## 7.5 A revisão adversarial — 6 lentes, cético por cima, 5 achados confirmados e corrigidos
+
+Seis lentes independentes em contexto fresco (a ordem cumprida ao pé da letra ·
+concorrência e travas · a aritmética · regressão no fluxo que já existia · modelo de
+acesso · as provas provam o que dizem?), cada achado julgado por um cético instruído
+a **refutar por padrão**. Cinco sobreviveram, e três quebravam comportamento — não
+desenho. Todos corrigidos, com prova nova onde faltava.
+
+| # | onde | o defeito | a correção |
+|---|---|---|---|
+| 1 | `0119` | reabrir uma `baixa` podia FALHAR: os dois inversos são ambos positivos e o `case` não os desempatava | migration **`0122`** ordena pelo EFEITO + cenário **15** do roteiro, que manda os inversos na ordem PIOR |
+| 2 | `actions/itens.ts` | o carrinho avulso gravava `colaborador_id` em `retorno` sem a §C.3 — e a guarda nova recusava uma devolução que funcionava | passou a usar `decidirVinculoRetorno`, como a movimentação |
+| 3 | `nova-movimentacao-form.tsx` | remover um ativo do lote deixava o periférico apontando o equipamento errado (índice por posição) | `remover` reajusta `itensJunto` |
+| 4 | `itens-do-lote.ts` | checklist num lote MISTO repunha na filial errada e baixava da conta de quem não devolveu | `checklistPodeLancar` — lote misto não gera lançamento, e a tela avisa |
+| 5 | `rascunho.ts` | o rascunho voltava perdendo os itens do lote, sem avisar | os dois campos passaram a ser saneados |
+
+E um sexto, que era só texto mas carregado: o comentário da `0117` dizia "advisory
+primeiro, ativos depois" e o corpo faz o **oposto**. O código estava certo (e a
+`0121` concordava com ele); o risco era alguém "consertar" o código para casar com o
+comentário e reintroduzir a inversão de ordem que a `0100` já pagou em produção. O
+texto foi corrigido, com o aviso de que quem mexer numa mexe nas duas.
+
+⚠ **O achado nº 4 é o que mais ensina:** a verificação em tela desta mesma fase, que
+tinha acabado de encontrar dois outros furos, **não o pegou** — porque foi feita com
+um ativo só no lote. Percorrer a tela prova o caminho que se percorre; a lente
+adversarial pergunta pelos que não se percorreu.
+
+Depois das cinco correções: `lint` limpo, **2740 testes** (eram 2663 na baseline),
+`build` limpo, roteiro F38 com **48 asserções e 0 falhas**, e todos os roteiros
+rodados de novo no ensaio.
 
 ## 8. Rollout
 

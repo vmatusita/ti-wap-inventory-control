@@ -8,7 +8,7 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ## 28/08/2026 — F38 · Os itens andam com o ativo ✅ 🔒
 
-**v1.43.0** · migrations `0116`–`0121` · ordem em
+**v1.43.0** · migrations `0116`–`0122` · ordem em
 [`docs/prompts/F38-itens-andam-com-o-ativo-ultracode.md`](docs/prompts/F38-itens-andam-com-o-ativo-ultracode.md) ·
 relatório em [`docs/RELATORIO-F38.md`](docs/RELATORIO-F38.md).
 
@@ -33,6 +33,10 @@ O acessório e o equipamento viviam em dois mundos que não se falavam. Esta fas
   (`0120`) entrou **com o número na mão**: 111,56 ms → 9,22 ms (12,1×) aos 500 mil lançamentos.
 - **O estorno desfaz o conjunto** (`0121`): estornar uma entrega que levou periféricos devolve os
   dois lados, ou recusa. Nunca meio estorno.
+- **A revisão adversarial** (`0122` e quatro correções de código): seis lentes acharam cinco
+  defeitos reais, três deles quebrando comportamento em produção — o principal era reabrir uma
+  pendência de baixa, que podia falhar por causa da ordem dos dois lançamentos inversos. Detalhe
+  em [`docs/RELATORIO-F38.md`](docs/RELATORIO-F38.md) §7.5.
 
 ---
 

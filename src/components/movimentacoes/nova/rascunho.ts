@@ -16,7 +16,12 @@ import {
   ehTipoMovimentacao,
   type TermoStatus,
 } from '@/lib/dominio'
-import { configPadrao, type Config } from '@/components/movimentacoes/nova/config'
+import {
+  configPadrao,
+  type Config,
+  type ItemDevolvido,
+  type ItemJunto,
+} from '@/components/movimentacoes/nova/config'
 
 export const CHAVE_RASCUNHO = 'wap:mov:rascunho'
 
@@ -31,6 +36,9 @@ export type RascunhoContrapartida = {
   termo: '' | TermoStatus
   termoData: string
   itensFaltantes: string[]
+  // F38 — o outro desfecho do mesmo checklist. Opcional: rascunho gravado antes
+  // deste campo existir restaura sem erro, com lista vazia.
+  itensDevolvidos?: ItemDevolvido[]
   deixarParaDepois: boolean
   // OPCIONAIS: rascunho gravado antes destes campos existirem restaura sem erro.
   // `jaRegistrada` PRECISA viajar junto com `deixarParaDepois` — sem ela, um
@@ -89,6 +97,7 @@ function sanearContrapartida(
   if (!bruto || typeof bruto !== 'object') return undefined
   const c = bruto as Record<string, unknown>
   const termo = texto(c.termo)
+  const devolvidos = saneiaItensDevolvidos(c.itensDevolvidos)
   return {
     ids: sanearIds(c.ids, MAX_LOTE_MOVIMENTACAO - usadosNaPrincipal),
     colaborador: texto(c.colaborador),
@@ -98,6 +107,10 @@ function sanearContrapartida(
       : '',
     termoData: texto(c.termoData),
     itensFaltantes: listaDeTexto(c.itensFaltantes),
+    // F38 — o outro desfecho do mesmo checklist, na metade da troca. Sai do objeto
+    // quando está vazio (o caso comum): o rascunho é sessionStorage, e uma chave a
+    // mais por metade da troca não paga o custo de existir sem conteúdo.
+    ...(devolvidos.length > 0 ? { itensDevolvidos: devolvidos } : {}),
     deixarParaDepois: c.deixarParaDepois === true,
     jaRegistrada: c.jaRegistrada === true,
     // Ausente => `undefined`: quem restaura trata o campo como do OPERADOR.
@@ -139,6 +152,9 @@ function sanearConfig(bruto: unknown): Config {
     observacao: texto(c.observacao),
     filialDestinoId: texto(c.filialDestinoId),
     itensFaltantes: itens,
+    // F38 — sem estas duas linhas o rascunho voltava perdendo os itens do lote.
+    itensDevolvidos: saneiaItensDevolvidos(c.itensDevolvidos),
+    itensJunto: saneiaItensJunto(c.itensJunto),
   }
 }
 
@@ -222,4 +238,52 @@ export function limparRascunho(): void {
   } catch {
     // idem
   }
+}
+
+// ---------------------------------------------------------------------------
+// F38 — os campos de item do rascunho (achado da revisão adversarial da fase)
+// ---------------------------------------------------------------------------
+// `itensDevolvidos` e `itensJunto` nasceram na F38 e `sanearConfig` não os
+// copiava: o rascunho voltava com os dois vazios, e o operador que montou um lote
+// de entrega com três acessórios, fechou a aba e voltou perdia essa parte SEM
+// AVISO — a tela reabria completa, só que sem os itens.
+//
+// São DADOS DE FORA (o operador pode editar o sessionStorage), então cada campo é
+// conferido: índice/id/quantidade têm de ser inteiros sãos, e o `itemId` do
+// devolvido é `number | null` de propósito (null = a ponte não resolveu, e isso
+// não é erro). Lixo vira lista vazia, nunca estado inválido.
+
+function inteiroPositivo(v: unknown): number | null {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null
+}
+
+function saneiaItensJunto(bruto: unknown): ItemJunto[] {
+  if (!Array.isArray(bruto)) return []
+  const saidas: ItemJunto[] = []
+  for (const l of bruto) {
+    if (!l || typeof l !== 'object') continue
+    const o = l as Record<string, unknown>
+    const indice =
+      typeof o.indice === 'number' && Number.isInteger(o.indice) && o.indice >= 0
+        ? o.indice
+        : null
+    const itemId = inteiroPositivo(o.itemId)
+    const quantidade = inteiroPositivo(o.quantidade)
+    if (indice === null || itemId === null || quantidade === null) continue
+    saidas.push({ indice, itemId, quantidade })
+  }
+  return saidas
+}
+
+function saneiaItensDevolvidos(bruto: unknown): ItemDevolvido[] {
+  if (!Array.isArray(bruto)) return []
+  const saidas: ItemDevolvido[] = []
+  for (const l of bruto) {
+    if (!l || typeof l !== 'object') continue
+    const o = l as Record<string, unknown>
+    const tipoSlug = typeof o.tipoSlug === 'string' ? o.tipoSlug.trim() : ''
+    if (!tipoSlug) continue
+    saidas.push({ tipoSlug, itemId: inteiroPositivo(o.itemId) })
+  }
+  return saidas
 }

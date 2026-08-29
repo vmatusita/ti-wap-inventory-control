@@ -1,5 +1,5 @@
 -- =============================================================
--- Roteiro de teste: OS ITENS ANDAM COM O ATIVO (F38 · migrations 0116–0121).
+-- Roteiro de teste: OS ITENS ANDAM COM O ATIVO (F38 · migrations 0116–0122).
 --
 -- Roda no job `banco` do CI (psql, ON_ERROR_STOP=1) e é auto-verificável no SQL
 -- editor / MCP dos dois projetos. Mesmo padrão dos demais roteiros da pasta:
@@ -41,6 +41,8 @@
 --   14  nenhuma das 10 funções intocadas carrega marca da F38 no corpo (e a
 --       contraprova: a ÚNICA recriada, valida_lancamento_item, carrega), e nenhum
 --       valor novo entrou em tipo_lancamento
+--   15  reabrir uma BAIXA funciona com os DOIS inversos na ordem PIOR — a
+--       correção da 0122, que o cenário 9 (só recuperado) não alcançava
 --
 -- ⚠ O QUE ELE **NÃO** PROVA. O caso 3 é estrutural + de conjunto de travas, não uma
 -- reprodução de deadlock: deadlock exige DUAS sessões concorrentes, e um roteiro de
@@ -683,6 +685,69 @@ begin
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '10c; ';
     raise warning '✗ 10c a ponte tipo→item encontrou % candidatos, esperava 1', v_n;
+  end if;
+
+  -- =========================================================================
+  -- 15 — REABRIR uma BAIXA: os DOIS inversos, na ordem que o trigger aceita
+  -- =========================================================================
+  -- O cenario que a revisao adversarial da fase encontrou. Desfazer uma baixa
+  -- produz DOIS inversos POSITIVOS (saida, do retorno; ajuste, do ajuste
+  -- negativo) — o `case ... quantidade > 0` da 0119 nao os desempatava, e na
+  -- ordem errada o trigger recusa por estoque negativo. A 0122 ordena pelo
+  -- EFEITO: ajuste positivo (repoe o Total) antes de quem consome a prateleira.
+  --
+  -- Aqui a pendencia do caso 8 (que foi resolvida como BAIXA) e reaberta, com os
+  -- dois inversos mandados na ordem PIOR de proposito: a saida primeiro.
+  select id into v_lanc from public.lancamentos_item
+   where pendencia_item_id = v_pend and tipo::text = 'retorno' and estorna_id is null;
+  select id into v_mov from public.lancamentos_item
+   where pendencia_item_id = v_pend and tipo::text = 'ajuste' and estorna_id is null;
+
+  select total, estoque into v_total0, v_est0
+    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+
+  begin
+    select public.reabrir_pendencias_item_com_estornos(
+      array[v_pend], 'Reabrir a baixa — roteiro F38',
+      jsonb_build_array(
+        -- ORDEM PIOR DE PROPOSITO: a saida vem primeiro no array.
+        jsonb_build_object(
+          'estorna_id', v_lanc::text, 'pendencia_id', v_pend::text,
+          'item_id', v_itemA, 'filial_id', v_f1, 'tipo', 'saida', 'quantidade', 1,
+          'colaborador_id', v_colab2::text, 'observacao', 'Estorno do retorno — roteiro F38'),
+        jsonb_build_object(
+          'estorna_id', v_mov::text, 'pendencia_id', v_pend::text,
+          'item_id', v_itemA, 'filial_id', v_f1, 'tipo', 'ajuste', 'quantidade', 1,
+          'observacao', 'Estorno do ajuste da baixa — roteiro F38')
+      ),
+      k_admin
+    ) into v_ret;
+
+    v_ok := v_ok + 1;
+    raise notice '✓ 15a reabrir uma BAIXA funciona mesmo com os inversos na ordem pior (a 0122 reordena)';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '15a; ';
+    raise warning '✗ 15a reabrir a baixa falhou (%) — a ordem dos inversos voltou a depender do array', sqlerrm;
+  end;
+
+  select total, estoque into v_total1, v_est1
+    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+
+  if v_total1 = v_total0 + 1 and v_est1 = v_est0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 15b desfazer a baixa devolveu o Total (%→%) e deixou o estoque onde estava (%)',
+      v_total0, v_total1, v_est1;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '15b; ';
+    raise warning '✗ 15b esperava Total +1 e estoque igual; veio Total %→% e estoque %→%',
+      v_total0, v_total1, v_est0, v_est1;
+  end if;
+
+  if (select status from public.pendencias_item where id = v_pend) = 'aberta' then
+    v_ok := v_ok + 1; raise notice '✓ 15c a pendência da baixa voltou a ABERTA';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '15c; ';
+    raise warning '✗ 15c a pendência da baixa não reabriu';
   end if;
 
   -- =========================================================================

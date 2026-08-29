@@ -30,6 +30,45 @@ import type { Config, ItemJunto } from '@/components/movimentacoes/nova/config'
 import type { ContrapartidaTroca } from '@/components/movimentacoes/nova/troca-upgrade'
 import type { ItemJuntoInput } from '@/lib/validators/movimentacao'
 
+/** O que esta regra precisa saber de cada ativo do lote. */
+export type LoteParaChecklist = {
+  filial_id: number
+  colaborador_atual: string | null
+}
+
+/**
+ * ⚠ O CHECKLIST SÓ VIRA LANÇAMENTO NUM LOTE HOMOGÊNEO — achado da revisão
+ * adversarial da F38, e a razão é aritmética, não estética.
+ *
+ * O checklist é UM só para o lote inteiro (é conferência da devolução, não escolha
+ * por ativo), então suas linhas apontam a primeira movimentação da metade. Dessa
+ * movimentação saem DUAS coisas que decidem o lançamento: a **filial** onde o
+ * acessório é reposto e a **pessoa** cuja conta baixa.
+ *
+ * Num lote com ativos de filiais diferentes, o acessório voltaria para a
+ * prateleira errada. Num lote com detentores diferentes, o fone que o Fulano
+ * devolveu baixaria da conta da Beatriz — e o Fulano continuaria devendo. Os dois
+ * erros são silenciosos e só apareceriam meses depois, num relatório que ninguém
+ * consegue explicar.
+ *
+ * Então: lote misto NÃO gera lançamento. A devolução é registrada normalmente, as
+ * pendências do "Faltou" nascem como sempre, e a tela avisa. É a mesma honestidade
+ * de `prefillContrapartida`, que se recusa a chutar o nome com detentores mistos.
+ *
+ * Lote de um ativo só — o caso comum — é homogêneo por definição.
+ */
+export function checklistPodeLancar(lote?: readonly LoteParaChecklist[]): boolean {
+  if (!lote || lote.length <= 1) return true
+  const filiais = new Set(lote.map((a) => a.filial_id))
+  if (filiais.size > 1) return false
+  const detentores = new Set(lote.map((a) => (a.colaborador_atual ?? '').trim()))
+  return detentores.size === 1
+}
+
+/** O aviso que a tela mostra quando o lote misto desliga o checklist. */
+export const MSG_LOTE_MISTO_SEM_LANCAMENTO =
+  'Este lote tem equipamentos de filiais ou de pessoas diferentes, então marcar "Voltou" não mexe no estoque — não dá para saber de qual prateleira nem de qual conta o acessório é. Registre as devoluções em lotes separados para o estoque acompanhar.'
+
 /** Uma linha do checklist vira lançamento? Só quando resolveu um item. */
 function linhasDoChecklist(
   devolvidos: readonly { tipoSlug: string; itemId: number | null }[],
@@ -63,6 +102,14 @@ export function montarItensJuntoDoLote(args: {
   contrapartida?: ContrapartidaTroca | null
   /** Quantos ativos a contrapartida submeteu (0 quando ela não vai junto). */
   totalContrapartida?: number
+  /**
+   * O lote da metade PRINCIPAL, na ordem submetida. Serve a uma pergunta só:
+   * a devolução é homogênea? (ver `checklistPodeLancar`). Opcional — sem ele, o
+   * checklist é tratado como homogêneo, que é o comportamento de um ativo só.
+   */
+  lotePrincipal?: readonly LoteParaChecklist[]
+  /** Idem, para a metade da contrapartida. */
+  loteContrapartida?: readonly LoteParaChecklist[]
 }): ItemJuntoInput[] {
   const { config, totalPrincipal } = args
   const totalContra = args.totalContrapartida ?? 0
@@ -72,7 +119,7 @@ export function montarItensJuntoDoLote(args: {
     if (config.tipo === 'saida' || config.tipo === 'emprestimo') {
       linhas.push(...linhasDaEntrega(config.itensJunto ?? [], totalPrincipal))
     }
-    if (config.tipo === 'devolucao') {
+    if (config.tipo === 'devolucao' && checklistPodeLancar(args.lotePrincipal)) {
       linhas.push(...linhasDoChecklist(config.itensDevolvidos ?? [], 0))
     }
   }
@@ -82,7 +129,7 @@ export function montarItensJuntoDoLote(args: {
   // ordem F38 a pediu só na entrega principal).
   if (args.contrapartida && totalContra > 0) {
     const alvoEhDevolucao = config.tipo === 'saida'
-    if (alvoEhDevolucao) {
+    if (alvoEhDevolucao && checklistPodeLancar(args.loteContrapartida)) {
       linhas.push(...linhasDoChecklist(args.contrapartida.itensDevolvidos ?? [], totalPrincipal))
     }
   }

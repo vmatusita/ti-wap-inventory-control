@@ -63,7 +63,13 @@
 --     isso esta função também trava os ativos ELA MESMA, em ordem total crescente
 --     de `id`, antes de tudo.
 --
--- A ordem entre as duas classes é fixa e única (advisory primeiro, ativos depois),
+-- ⚠ A ORDEM ENTRE AS DUAS CLASSES É **ATIVOS PRIMEIRO, ADVISORY DEPOIS** — é o que
+-- o corpo faz (passo 2, depois passo 3), e é o que `estornar_movimentacao_com_itens`
+-- (0121) também faz. A primeira escrita deste comentário dizia o contrário, e o
+-- risco era concreto: alguém "consertaria" o código para casar com o texto, as duas
+-- funções passariam a divergir, e um lote e um estorno disputando o mesmo ativo e o
+-- mesmo par (item, filial) deadlockariam — a classe de bug que a 0100 já pagou em
+-- produção. Quem mexer aqui mexe nas DUAS, ou em nenhuma. A ordem é fixa e única
 -- porque esta é a única função que pede as duas. Quem mexer neste corpo NÃO PODE
 -- remover nenhum dos dois passos nem trocar a ordenação por "a ordem em que o
 -- operador digitou". O roteiro `supabase/tests/f38_itens_com_ativo.sql` trava isso.
