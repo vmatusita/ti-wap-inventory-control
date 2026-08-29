@@ -46,7 +46,7 @@ Prioriza pela fórmula da skill: `Prioridade = (Impacto + Risco) × (6 − Esfor
 | **Y** | **Zero teste de componente em 181 `.tsx`** *(novo)* | Testes | 3 | 3 | 4 | **12** |
 | **K** | Forms centrais com `useState` manual vs. `react-hook-form` | Código | 2 | 2 | 3 | **12** |
 | **U** | Escrita em duas etapas sem transação (termo/patrimônio/service tag) | Arquitetura | 2 | 2 | 3 | **12** |
-| **L** | `termos.ts` (832) — responsabilidades misturadas | Código | 2 | 2 | 3 | **12** |
+| **L** | `termos.ts` (918) — responsabilidades misturadas | Código | 2 | 2 | 3 | **12** |
 | **Z** | Drift de dependências (minor/patch em 19 pacotes) *(novo)* | Dependência | 1 | 1 | 1 | **10** |
 
 ---
@@ -180,7 +180,7 @@ O diagnóstico de 24/07 continua válido e a distância só cresceu (55 → 109 
 
 ### K / L — Convenção e coesão `[Prio 12]` — **pioraram**
 
-`react-hook-form` está em **2** formulários reais (`editar-ativo-dialog`, `botao-ativar`). Contra isso: `nova-compra-form` **32** `useState` (era 23), `nova-movimentacao-form` **20** (era 15), e dois recrutas — `devolucao-fornecedor-form` (**20**) e `transferir-item-dialog` (**11**, F31). `termos.ts` cresceu de 611 para **832** linhas.
+`react-hook-form` está em **2** formulários reais (`editar-ativo-dialog`, `botao-ativar`). Contra isso: `nova-compra-form` **32** `useState` (era 23), `nova-movimentacao-form` **20** (era 15), e dois recrutas — `devolucao-fornecedor-form` (**20**) e `transferir-item-dialog` (**11**, F31). `termos.ts` cresceu de 611 para **832** e, com a F39, para **918** linhas (+86: a leitura dos acessórios da movimentação, os dois avisos novos e a derivação de `tem_acessorios`). A F39 manteve a disciplina que a dívida pede — o JULGAMENTO foi para módulos puros (`termos/acessorios.ts`, `avisoConferenciaSemLancamento` em `termos/preparo.ts`) e a LEITURA para `queries/itens.ts`; o que cresceu aqui é só a orquestração. Ainda assim, cresceu.
 
 ## Resolvido desde a auditoria anterior
 

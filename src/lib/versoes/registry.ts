@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.44.0',
+    data: '2026-08-29',
+    fase: 'F39',
+    titulo: 'O termo diz o que foi junto',
+    mudancas: [
+      'O termo de entrega agora lista o fone, o mouse e a mochila que saíram com o equipamento. A linha aparece no papel logo abaixo dos dados do aparelho, com a quantidade quando saiu mais de um ("Mouse (2)"), e vem pronta a partir do que você registrou em "Itens que vão junto".',
+      'Entrega sem nenhum acessório continua saindo exatamente como sempre saiu: sem linha em branco e sem sobra no documento.',
+      'O campo "Acessórios que acompanham" é editável como todo campo do termo. Apagar a linha faz a parte sumir do documento; digitar à mão faz aparecer.',
+      'No termo de devolução, a linha "Outros componentes" deixou de sair vazia e passou a dizer o que a pessoa devolveu naquele ato. O que faltou continua na Observação, como sempre — são duas linhas diferentes, e agora o papel não deixa dúvida.',
+      'Se um acessório que foi junto ainda não tem tipo cadastrado, a tela avisa antes de gerar e aponta onde classificar, em Administração → Itens. O termo sai do mesmo jeito.',
+      'Os nomes dos itens conferidos na devolução passaram a vir todos do cadastro de Tipos de item. Nenhum nome mudou de lugar nem de escrita — o que muda é que agora o administrador acrescenta um tipo novo e ele aparece em todas as telas.',
+    ],
+  },
+  {
     versao: '1.43.1',
     data: '2026-08-29',
     titulo: 'Correções da revisão de código da versão anterior',

@@ -494,6 +494,34 @@ conferível — foi por isso que o D12 escolheu esta opção e não a lista deri
 
 ## 6. F39 — O termo diz o que foi junto
 
+> ✅ **EXECUTADO em 29/08/2026** (**v1.44.0**), pela ordem
+> `docs/prompts/F39-termo-diz-o-que-foi-junto-ultracode.md`. Relatório completo em
+> [`RELATORIO-F39.md`](RELATORIO-F39.md). **Zero migration** confirmado: `git diff supabase/` vazio.
+>
+> **Onde a ordem divergiu deste §6, e o que valeu (a ordem manda):**
+>
+> 1. **A §E entrou na fase.** Este §6 previa só a linha "`ACESSORIOS_DEVOLUCAO`/`ACESSORIO_ROTULO`
+>    saem" como consequência; a ordem transformou isso numa frente própria com **sete superfícies
+>    nomeadas**, a inversão da guarda TS↔SQL e a ajuda deixando de enumerar — e é a frente que
+>    tocou mais arquivos que todo o resto somado.
+> 2. **A ordem de trabalho do §6.1 ("eu edito → gero PDF → você confere → só então os `.docx`
+>    entram no repositório") NÃO foi seguida, por decisão do Johnny de 29/08/2026** registrada no
+>    cabeçalho da ordem: a conferência visual **não bloqueia** a fase. Ela vai a produção em modo
+>    autônomo, e o que fica é o **pacote de evidências** (`docs/f39-evidencias/`) para auditoria
+>    quando ele quiser. **Não há PDF**: não existe conversor instalado nesta máquina
+>    (`soffice`/`libreoffice`/`pandoc`) e nada foi instalado para isso — a conferência é no Word,
+>    a partir dos `.docx`.
+> 3. **A prova de fidelidade saiu mais forte que o previsto.** O §6.1 dizia "o script prova que
+>    nada mais mudou, não que a página ficou bonita". Verdade — mas, renderizando o modelo NOVO com
+>    `tem_acessorios` falso e o da baseline com o MESMO payload, o resultado é **byte a byte
+>    idêntico** nos cinco, e não apenas "mesmo texto e mesma contagem de parágrafos".
+> 4. **Uma decisão de diagramação que este plano deixou em aberto**: o `w:pPr` clonado do vizinho
+>    vai **sem o `w:numPr`** — a cláusula é frase, não item da lista numerada de identificação.
+>    Ata em `docs/DECISOES.md`.
+> 5. **Dois módulos a mais do que a tabela do §6.2 nomeia**: `src/lib/itens/rotulo-tipo.ts` (a
+>    função pura de rótulo que substitui a constante) e a guarda `src/lib/termos/modelos-docx.test.ts`
+>    (nenhum teste do repositório abria os `.docx` até esta fase).
+
 **Depende da F38** (é ela que sabe quais periféricos foram com aquele equipamento).
 **Zero migration** — o que muda é `.docx`, Zod e uma função pura.
 

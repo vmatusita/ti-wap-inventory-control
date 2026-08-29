@@ -6917,3 +6917,198 @@ e da `0121`; as quatro do código, por `git revert`.
   `movimentacoes.ts` ainda dizia que `montarRow` grava `filial_id: ativo.filial_id` —
   linha que a `0117` removeu, justamente porque a filial passou a ser derivada dentro
   da transação, sob a trava.
+
+## 2026-08-29 · F39 · A cláusula aprovada e o ponto de inserção em cada modelo
+
+- **Contexto:** os 5 modelos `.docx` de responsabilidade não tinham onde citar periférico. O §6.1
+  do `docs/PLAN-F36-F39.md` propôs uma redação e deixou "onde entra" em aberto; o Johnny fechou as
+  duas pontas em 29/08/2026, no cabeçalho da ordem F39.
+- **Decisão:** a cláusula é `Acompanham o equipamento os seguintes acessórios e periféricos:
+  {acessorios}`, **aprovada como está** — não se reescreve nem se "melhora". Ela entra **logo
+  depois do último parágrafo do bloco de identificação** e antes das cláusulas de responsabilidade.
+  A âncora foi **medida** nos cinco arquivos, e o script ancora pelo TEXTO do parágrafo, nunca pelo
+  índice:
+
+  | Modelo | âncora (texto exato) | idx | total `<w:p>` |
+  |---|---|---|---|
+  | `responsabilidade-notebook` | `NÚMERO DO CHAMADO: {chamado}` | 11 | 39 |
+  | `responsabilidade-desktop` | `NÚMERO DO CHAMADO: {chamado}` | 11 | 44 |
+  | `responsabilidade-monitor-interno` | `NÚMERO DO CHAMADO: {chamado}` | 10 | 33 |
+  | `responsabilidade-monitor-homeoffice` | `Número do Chamado: {chamado}` | 11 | 33 |
+  | `responsabilidade-celular` | `OBS: {obs}` | 14 | 36 |
+
+- **Motivo:** no **celular** o `{chamado}` existe (idx 10) mas **não** fecha o bloco — telefone,
+  IMEI, Pulsus e OBS vêm depois. Uma leitura apressada que assumisse "responsabilidade sempre
+  termina em CHAMADO" erraria só nele, e só na diagramação de um documento assinado.
+- **Reversível?** sim — reverter é um deploy do commit anterior, com os `.docx` voltando junto.
+
+## 2026-08-29 · F39 · A seção entra em TRÊS parágrafos, e o `w:pPr` vai sem o `w:numPr`
+
+- **Contexto:** o D10 exige que, não havendo periférico, o parágrafo **inteiro** suma do documento
+  — nem linha vazia pendurada, nem marcador de lista órfão.
+- **Decisão (a marcação):** bloco condicional do docxtemplater com as tags de abertura e fechamento
+  **sozinhas, cada uma no seu próprio parágrafo**, envolvendo o parágrafo da cláusula — três `<w:p>`
+  por modelo. Conferido na documentação oficial vigente (Context7,
+  `docxtemplater.com/docs/configuration`, 29/08/2026), e não de memória: com `paragraphLoop: true`
+  — que `renderizarDocx` já usa —, *"if both the opening and closing loop tags are on separate
+  paragraphs with no other content, the library treats the loop as a paragraph loop … removing the
+  original paragraphs containing the tags"*. A mesma página avisa que o recurso falha quando o
+  parágrafo da tag tem espaço sobrando: por isso as tags entram sem `w:pPr` e sem espaço. Abrir e
+  fechar **dentro** do mesmo parágrafo apagaria o texto e deixaria o parágrafo — exatamente o
+  defeito proibido.
+- **Decisão (o `w:pPr`):** clonar o `w:pPr` do parágrafo vizinho **menos o `<w:numPr>`**. Medido:
+  o bloco de identificação é lista numerada nos cinco (`numId` 2 no notebook; 1 no desktop,
+  monitor interno e celular; 36 com `ilvl` 1 no home office). Clonar inteiro faria a cláusula virar
+  mais um item numerado ao lado de "MARCA"/"MODELO" — e ela é frase, não campo da lista. Sem
+  `numPr` não há marcador órfão: o que sobra é o recuo do `pStyle` (nos 4 que o têm) ou nenhum
+  recuo (home office, que não tem `pStyle`). O `w:pPr` aplicado é **declarado por modelo** na saída
+  do script, e a saída está no relatório.
+- **Decisão (o negrito):** o rótulo sai em negrito com `<w:b/><w:bCs/>` inserido no `w:rPr` clonado
+  logo após o `<w:rFonts …/>` (posição exigida pela ordem do schema `CT_RPr`). Não é estilo
+  inventado: essas propriedades existem nos 5 modelos — é o que formata "Notebook"/"Celular", logo
+  acima do bloco de identificação. Medido: nenhum run do bloco de identificação tem `<w:b/>`.
+- **Motivo:** é a única marcação que satisfaz o D10 sem inventar estilo, e a prova está no critério
+  2 — renderizado **sem** periférico, o documento sai **byte a byte** igual ao da baseline nos cinco.
+- **Reversível?** sim (deploy anterior).
+
+## 2026-08-29 · F39 · O formato da linha: quantidade explícita e corte por " e mais N"
+
+- **Contexto:** o D10 fixou "linha única separada por vírgula". Faltavam duas decisões que ele não
+  cobre: o que fazer com quantidade maior que 1 e o que fazer quando a linha estoura o campo.
+- **Decisão:** soma 1 imprime `Rótulo`; soma maior imprime `Rótulo (N)` — `Fone de ouvido, Mouse (2),
+  Teclado, Mochila`. Estourando o teto do campo (600 em `acessorios`, 400 em `outros_componentes`),
+  corta-se no último item **inteiro** que cabe e acrescenta-se ` e mais N`, com o resultado
+  **dentro** do limite, conferido com o sufixo já formatado.
+- **Motivo:** documento assinado que diz "Mouse" quando saíram dois está errado, e a quantidade é
+  barata. E o teto é responsabilidade da **função pura**, não do Zod: deixar estourar faria
+  `gerarTermo` devolver "Há campos inválidos. Revise o termo." num campo que o operador nem digitou
+  — mensagem que não diz o que fazer. O `max` do Zod continua valendo para o que ele digita à mão.
+- **⚠ O sufixo cresce de dígito:** conferir o comprimento sem o sufixo formatado devolveria uma
+  linha um caractere maior que o teto quando N passa de 9. Há teste para isso, em dez limites justos.
+- **Reversível?** sim.
+
+## 2026-08-29 · F39 · As duas exclusões da linha, e por que uma delas é redundante hoje
+
+- **Contexto:** nem todo lançamento vinculado a uma movimentação pertence ao termo dela.
+- **Decisão:** ficam **fora** da linha os lançamentos com `estorna_id` preenchido e os com
+  `pendencia_item_id` preenchido. Filtro no SQL do leitor (`acessoriosDasMovimentacoes`) **e**
+  recusa na função pura (`montarLinhaDeAcessorios`) — a regra é do DOCUMENTO, não da consulta, e é
+  na função que ela tem teste.
+- **Motivo, conferido no SQL e não presumido:**
+  - `estorna_id` — `estornar_movimentacao_com_itens` (`0121`, corpo vigente na `0122`) grava o
+    inverso com `movimentacao_id = v_novo`, a movimentação **DE ESTORNO** (comentário do `v_novo`,
+    linhas 135‑137). Filtrar pela movimentação do termo já o deixa de fora; a exclusão é o **cinto**
+    para quem preparar termo sobre a própria movimentação de estorno, onde o inverso de uma entrega
+    apareceria como se fosse acessório devolvido.
+  - `pendencia_item_id` — o `insert` de `resolver_pendencias_item_com_lancamentos` (`0119`, linhas
+    177‑191 e 202‑216) grava `item_id, filial_id, tipo, quantidade, data, colaborador,
+    colaborador_id, observacao, pendencia_item_id, criado_por`: **`movimentacao_id` NÃO está na
+    lista**. Logo o filtro é **redundante neste momento**. Entra porque declara a intenção e
+    sobrevive ao dia em que alguém passar a vincular — e, nesse dia, um item recuperado semanas
+    depois apareceria como "voltou" num papel cuja `{observacao}` o declara faltante.
+- **Prova:** de **teste**, e não de tela — o dado de hoje não produz esses casos, e dizer o
+  contrário no relatório seria autoverificação desonesta.
+- **Reversível?** sim.
+
+## 2026-08-29 · F39 · `tem_acessorios` deriva do TEXTO FINAL, nunca do que o banco leu
+
+- **Contexto:** o bloco condicional dos `.docx` precisa de um booleano, e havia dois lugares de onde
+  tirá-lo: o que a leitura do banco encontrou, ou o texto que efetivamente vai ao papel.
+- **Decisão:** `tem_acessorios = (campos.acessorios ?? '').trim().length > 0`, derivado em
+  `gerarTermo`, ao lado de `data_extenso`/`data_mes_ano`.
+- **Motivo:** o campo é **editável** (§3.9 do `PLANO-TERMOS`). Apagar a linha no diálogo tem de
+  fazer a seção sumir do papel, e digitá-la à mão tem de fazê-la aparecer — só o texto final
+  responde por isso. Conferido nos DOIS sentidos, no arquivo gerado: campo limpo → 39 `<w:p>` (a
+  contagem da baseline) e cláusula ausente; texto digitado à mão → 40 `<w:p>` e a cláusula com o
+  texto digitado.
+- **Nota:** os 2 modelos de devolução não têm `{#tem_acessorios}`; a chave a mais é inofensiva (o
+  docxtemplater ignora dado sem tag), como `data_mes_ano` já é nos 5 de responsabilidade.
+- **Reversível?** sim.
+
+## 2026-08-29 · F39 · O critério do aviso "conferido mas sem lançamento"
+
+- **Contexto:** a §C.3 da ordem pede um aviso para o caso que o papel esconderia — o operador
+  conferiu "Voltou" e `{outros_componentes}` sai **vazio**, afirmando num documento assinado que
+  nada acompanhou. E manda registrar em ata **qual critério** foi escolhido, porque a fonte do
+  "voltou" é o lançamento e **não existe registro do que foi marcado e não lançou**.
+- **Decisão:** avisar quando, ao mesmo tempo, (a) a linha de componentes saiu **vazia** e (b) o lote
+  é **misto** pelo mesmo critério de `checklistPodeLancar` (F38) — filiais divergentes **ou**
+  detentores divergentes. A função (`avisoConferenciaSemLancamento`, `termos/preparo.ts`) **reusa**
+  `checklistPodeLancar` de propósito, para que as duas pontas não possam divergir, com o espelho
+  retrospectivo do detentor: na tela ele veio de `ativos.colaborador_atual`; aqui o trigger da
+  devolução já o limpou, e o equivalente é `snapshot_anterior.colaborador`.
+- **O que este critério NÃO cobre, e vai declarado:** tipo cuja ponte não resolve item de catálogo
+  (`ponte-tipo-item.ts` — zero candidatos, ou ambiguidade que ninguém decidiu) também não gera
+  lançamento, e disso **não fica registro nenhum no banco**. Num lote homogêneo esse caso é
+  indistinguível de "nada acompanhou mesmo".
+- **Por que `itens_faltantes` NÃO dispara o aviso sozinho** (a ordem admitia): o que faltou já sai
+  na `{observacao}` ("Não devolvido(s): …"), que é o caminho honesto e o mais comum. Avisar ali
+  faria o banner aparecer em quase toda devolução — e aviso que sempre aparece é aviso que ninguém
+  lê, pela mesma razão já registrada em `camposFaltantesDoTermo` (04/08/2026).
+- **Reversível?** sim.
+
+## 2026-08-29 · F39 · A guarda TS↔SQL foi invertida, não apagada
+
+- **Contexto:** `src/lib/validators/tipos-item-sql.test.ts` provava que a constante do código e o
+  seed de `tipos_item` (`0114`) eram o mesmo conjunto. A §E removeu o lado TS; sem ele, a guarda
+  perderia o sentido.
+- **Decisão:** a guarda passa a provar que os **sete slugs históricos** — `carregador`, `mochila`,
+  `mouse`, `teclado`, `mousepad`, `fone`, `cabo` — seguem no seed da `0114`, **na mesma ordem** e
+  com os **mesmos rótulos**, com os literais esperados vivendo **dentro do próprio teste**. Ao lado
+  dela entrou uma guarda-da-guarda, que recusa a lista encolher em silêncio (dois vazios comparados
+  passariam verdes sem provar nada).
+- **Motivo:** são esses sete literais que `movimentacoes.itens_faltantes` e `pendencias_item.item`
+  citam em PRODUÇÃO, como texto livre, sem FK e sem CHECK. Some um do seed e toda pendência antiga
+  que o cita passa a exibir o slug cru; mude um rótulo e o operador vê outra palavra para o mesmo
+  registro de sempre. Com os literais no teste, quebrar a guarda de propósito exige editar **dois**
+  arquivos com intenções opostas.
+- **Reversível?** sim.
+
+## 2026-08-29 · F39 · A ajuda parou de enumerar os acessórios e passou a apontar o cadastro
+
+- **Contexto:** `rotulosAcessorios()` (`lib/ajuda/derivacao.ts`) derivava a lista do checklist da
+  constante, e a página `conteudo/devolucao-e-triagem.ts` a imprimia por extenso.
+- **Decisão:** a função morre com a constante, e a frase passa a **apontar o cadastro**: "a lista de
+  itens conferidos vem do catálogo de tipos de item — o administrador acrescenta ou desativa o que
+  quiser em Administração › Tipos de item".
+- **Motivo:** as páginas de conteúdo da ajuda são módulos **estáticos, sem banco** (F20). Não há
+  como derivar a lista de verdade ali, e reescrevê-la à mão seria a mesma constante com outro nome
+  — uma segunda fonte da verdade, que é exatamente o que a fase veio remover. Apontar o cadastro é
+  o que virou verdade na F38.
+- **Reversível?** sim.
+
+## 2026-08-29 · F39 · O mapa de rótulos é objeto COMUM — protótipo nulo não atravessa a fronteira RSC
+
+- **Contexto:** `mapaRotulosTipo` nasceu devolvendo `Object.create(null)`, para que um slug gravado
+  como `toString` não achasse uma **função** no `Record` e a devolvesse como se fosse rótulo (o
+  slug vem de coluna de texto livre, e a função antiga tinha o mesmo furo).
+- **Achado, e ele só apareceu no NAVEGADOR:** esse mapa atravessa a fronteira RSC como **prop** (a
+  tabela de Entradas do relatório, a fila de pendências, o resumo da revisão), e o React recusa:
+  *"Only plain objects, and a few built-ins, can be passed to Client Components from Server
+  Components. Classes or null prototypes are not supported."* O render no **servidor** do relatório
+  caía e a página degradava para render no cliente. **Nem o `tsc`, nem o `npm run build`, nem os
+  2.824 testes pegavam** — é erro de serialização em runtime.
+- **Decisão:** o mapa volta a ser objeto comum; quem fecha o furo é o `hasOwnProperty` de
+  `rotuloTipoItem`, que é o lugar certo — a proteção mora na **leitura**, e assim vale também para
+  mapa montado à mão num teste. Entraram dois testes: os três nomes herdados (`toString`,
+  `constructor`, `__proto__`) caindo no slug cru, e a **forma** do mapa (protótipo
+  `Object.prototype`, sobrevive a round-trip de JSON), que é o que guarda a regressão.
+- **Motivo do registro:** a lição transferível é curta — **defesa contra chave herdada vai na
+  leitura, nunca na forma do objeto**; objeto que vira prop tem de ser serializável.
+- **Reversível?** sim.
+
+## 2026-08-29 · F39 · O que o pacote de evidências prova, e o que ele NÃO prova
+
+- **Contexto:** a ordem substituiu o aceite prévio do Johnny por um pacote de evidências
+  (`docs/f39-evidencias/`), com a conferência visual explicitamente **não bloqueante**.
+- **O que ele PROVA, mecanicamente:** que os 5 modelos mudaram só onde deviam (uma parte divergente
+  no pacote, XML anterior reconstituível, +3 `<w:p>`, foro e assinatura intactos); e que um termo
+  **sem** acessório sai **byte a byte** idêntico ao de antes da fase — o par `baseline/` ×
+  `novo-sem-acessorios/`, renderizado com o mesmo payload fictício.
+- **O que ele NÃO prova:** a **diagramação** da cláusula quando HÁ acessório. Nenhuma inspeção de
+  XML diz se a linha ficou bem posicionada na página. É para isso que existe `novo-com-acessorios/`,
+  e é a única coisa que fica pendente de olho humano.
+- **Não há PDF:** não existe conversor instalado nesta máquina (`soffice`, `libreoffice`, `pandoc`
+  — os três ausentes, e não há `soffice.exe` nos diretórios padrão do LibreOffice) e **nada foi
+  instalado** para isso (custo R$ 0, stack fechada). A conferência é no Word, a partir dos `.docx`.
+- **Reversível?** não se aplica.

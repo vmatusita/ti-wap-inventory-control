@@ -66,6 +66,7 @@ Regra transversal (decisão §3.9): as colunas abaixo indicam o **pré-preenchim
 | NÚMERO DO CHAMADO | `movimentacoes.chamado` | automático |
 | TELEFONE / IMEI / PULSUS / OBS (só celular) | — | manual no dialog |
 | Variante (só monitor) | — | escolha no dialog (define o template) |
+| **"Acompanham o equipamento os seguintes acessórios e periféricos: {acessorios}"** ⟵ **F39** | os lançamentos de item vinculados à movimentação (`lancamentos_item.movimentacao_id`, F38), agrupados por tipo | automático, editável — rótulo do tipo com a quantidade quando > 1 ("Mouse (2)"); **item sem tipo cadastrado fica de fora e vira aviso no dialog**. Envolvida pelo bloco condicional `{#tem_acessorios}…{/tem_acessorios}`: sem periférico, o parágrafo INTEIRO some do documento |
 | "São José dos Pinhais, {dd de MMMM de yyyy}" | data de geração | automático (date-fns `ptBR`, caixa conforme o template) |
 
 ### 4.2 Devolução (modelos 6–7)
@@ -79,8 +80,8 @@ Regra transversal (decisão §3.9): as colunas abaixo indicam o **pré-preenchim
 | Número do Patrimônio | patrimônios do lote, mesma ordem | automático |
 | Marca e Modelo | "Marca Modelo / Marca Modelo", mesma ordem | automático |
 | **Ordem dos equipamentos** | notebook → monitor → celular → demais (desktop, tablet, outro), empate por patrimônio | automático |
-| Outros componentes | — | manual (ex.: "Carregador", "Teclado, mouse e fonte") |
-| Observação | — | manual (ex.: pendências do colaborador) |
+| Outros componentes (`{outros_componentes}`) ⟵ **F39** | os lançamentos de tipo `retorno` vinculados às movimentações do lote — **o que foi conferido como devolvido naquele ato** | automático, editável. Era `''` fixo desde a F5A. **Não** inclui o inverso de estorno (`estorna_id`) nem o lançamento nascido de pendência (`pendencia_item_id`) |
+| Observação (`{observacao}`) | `movimentacoes.itens_faltantes` → "Não devolvido(s): …" | automático, editável. **Diz o que FALTOU** — a linha acima diz o que voltou, e é essa separação que tira a ambiguidade do documento (D11) |
 | "Nome do responsável que recebeu a máquina em TI" | `profiles.nome` do operador logado | automático |
 | "São José Dos Pinhais, {dd de MMMM de yyyy}." | data de geração | automático |
 
@@ -156,6 +157,8 @@ Upload do PDF assinado (segue sendo o item 5.5 da F5 — complementar: gerar →
 4. A cidade fixa **"São José dos Pinhais"** dos modelos vale para todas as filiais (Linhares, Eusébio…)? Hoje os arquivos são assim; variar por filial = variação de template, fica fora até você pedir.
    → **RESPONDIDA em 04/08/2026 (Johnny) e implementada na F25: NÃO — a cidade varia por filial.** `filiais` ganhou a coluna `cidade` (migration `0102`, semeada por slug: Matriz e CD Afonso Pena → São José dos Pinhais · Linhares → Linhares · Serra → Serra · Eusébio → Eusébio) e a linha da assinatura dos **7 modelos** foi retagueada de `São José dos Pinhais, {data_extenso}` para **`{cidade}, {data_extenso}`**. `prepararTermo` preenche pela filial corrente do(s) ativo(s), o campo é editável no diálogo como todos os outros, lote com filiais divergentes usa a do primeiro **e avisa**, e filial sem cidade cadastrada **avisa** em vez de deixar sair um documento começando por vírgula.
    **A cláusula de FORO não mudou** ("Comarca de São José dos Pinhais/PR"): decisão explícita do Johnny — a linha da assinatura diz onde se assinou, o foro é escolha jurídica da sede. Não virou variação de template: é um placeholder a mais no mesmo arquivo. O retag foi feito por `scripts/termos/retaguear-cidade.mjs`, que **prova** a fidelidade — a linha é um run único nos 7 modelos, e o script confere que só `word/document.xml` diverge no pacote e que a ocorrência do foro não muda.
+
+   **F39 (29/08/2026) — a seção de acessórios entrou pelo mesmo caminho.** `scripts/termos/inserir-acessorios.mjs` insere TRÊS parágrafos nos 5 modelos de responsabilidade (as tags do bloco condicional sozinhas, envolvendo a cláusula), clonando o `w:pPr` do parágrafo vizinho **menos o `w:numPr`** — a cláusula é frase, não item da lista numerada de identificação. Prova por modelo: partes idênticas menos `word/document.xml`, XML anterior reconstituível byte a byte, **+3** `<w:p>`, foro e linha da assinatura contados antes e depois, e o `w:pPr` aplicado declarado na saída. Renderizado **sem** periférico, o documento sai **byte a byte** igual ao de antes da fase nos cinco. Nasceu também a guarda que faltava: `src/lib/termos/modelos-docx.test.ts` confere o conjunto de tags dos 7 modelos, extraído do TEXTO (⚠ no XML cru, três deles carregam um GUID de DrawingML entre chaves que um `matchAll` capturaria como se fosse tag).
 5. Corrigir na sanitização as inconsistências herdadas (ano "2025" no monitor home office, caixa de meses) — presumo que sim.
 
 ## 11. Execução proposta e critérios de aceite

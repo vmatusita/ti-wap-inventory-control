@@ -6,6 +6,60 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 29/08/2026 — F39: O termo diz o que foi junto ✅ 🔒
+
+**v1.44.0** · fecha a série F36→F39 (ordem `docs/prompts/F39-termo-diz-o-que-foi-junto-ultracode.md`,
+plano §6 · decisões D8/D9/D10/D11). **Zero migration, zero dependência nova** — o que muda é o
+`.docx`, o Zod, uma função pura e a remoção de uma constante. Relatório em
+[`docs/RELATORIO-F39.md`](docs/RELATORIO-F39.md); atas em [`docs/DECISOES.md`](docs/DECISOES.md)
+(2026-08-29).
+
+Até aqui o termo mentia por omissão: a F38 fez o acessório andar junto com o equipamento no banco,
+mas o papel que a pessoa assina continuava listando só marca, modelo, service tag e patrimônio.
+
+- 📄 **Os 5 modelos de responsabilidade ganharam a seção de acessórios** — por **script**
+  (`scripts/termos/inserir-acessorios.mjs`, no molde do `retaguear-cidade.mjs` da F25), nunca pelo
+  Word, porque só assim dá para provar depois que **só** a seção nova mudou. A cláusula aprovada
+  ("Acompanham o equipamento os seguintes acessórios e periféricos: {acessorios}") entra em três
+  parágrafos — bloco condicional com as tags sozinhas —, que é a forma que o `paragraphLoop` remove
+  por inteiro quando não há periférico. Provado por modelo: **5** arquivos mudados (não 7), **+3**
+  `<w:p>` cada, uma única parte divergente no pacote, XML anterior reconstituível byte a byte, foro
+  e linha da assinatura contados antes e depois. **Sem periférico, o documento renderizado sai BYTE
+  A BYTE igual ao de antes da fase** nos cinco.
+- ➕ **A linha vem pronta**: `src/lib/termos/acessorios.ts` (função pura, 19 testes) agrupa por tipo,
+  soma as quantidades ("Mouse (2)"), ordena pela ordem do catálogo, descarta item sem tipo — e
+  **conta quantos descartou**, que é o que alimenta o aviso — e corta com " e mais N" quando estoura
+  o teto do campo, em vez de deixar a geração morrer num "Há campos inválidos".
+- 📄 **O termo de devolução (D11)**: `{outros_componentes}` deixou de sair `''` fixo desde a F5A e
+  passou a listar **o que voltou** naquele ato. `{observacao}` continua dizendo o que **faltou**,
+  com o mesmo texto — duas linhas diferentes, sem ambiguidade no mesmo papel. Nenhum `.docx` de
+  devolução foi tocado.
+- 🔒 **Duas exclusões de correção**, com filtro no SQL e recusa na função pura: o inverso de estorno
+  (`estorna_id`) e o lançamento nascido de pendência (`pendencia_item_id`) não entram na linha —
+  item recuperado semanas depois não pode aparecer como "voltou" num papel cuja observação o declara
+  faltante.
+- ✏️ **`tem_acessorios` é derivado do TEXTO FINAL**, no servidor: apagar o campo faz a seção sumir do
+  documento e digitar a linha à mão faz aparecer. Conferido nos dois sentidos, no arquivo gerado.
+- 🧹 **`ACESSORIOS_DEVOLUCAO` saiu do código** (pendência nº 4 da F38): o vocabulário passou a vir de
+  `tipos_item` nas **sete** superfícies que dependiam da constante, sempre por prop a partir de um
+  Server Component. **Nenhum rótulo que o operador vê mudou** — a `0114` semeou os sete slugs
+  históricos com exatamente os rótulos da constante, e a guarda TS↔SQL foi **invertida** (passou a
+  proteger o seed) em vez de apagada.
+- 🐛 **Um defeito achado só no navegador**: o mapa de rótulos nascia com protótipo nulo e o React
+  recusa isso como prop de Client Component — o render no servidor do relatório caía e a página
+  degradava. Nem o `build` nem os 2.825 testes pegavam. Corrigido, com teste de forma.
+- 🔍 **O relatório foi conferido pela porta do VISUALIZADOR POR SENHA**, e não só pela do operador: a
+  leitura de `tipos_item` sai do client resolvido, senão o relatório impresso sairia com o slug cru
+  para quem entra por senha.
+
+⚠️ **O que esta fase ainda não produz em produção:** `lancamentos_item.movimentacao_id` está
+preenchido em **0** linhas (a F38 subiu em 28/08 e ninguém registrou entrega pelo caminho novo
+ainda) e **7 dos 18** itens do catálogo têm tipo. Nenhuma movimentação existente produz linha de
+acessório hoje — a fase se prova no ensaio e nos testes, e em produção na primeira entrega
+registrada com "Itens que vão junto".
+
+---
+
 ## 29/08/2026 — Revisão de código da F38: 15 achados aplicados ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.43.1**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo

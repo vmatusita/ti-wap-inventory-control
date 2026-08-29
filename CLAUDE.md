@@ -25,7 +25,7 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 ## Regras permanentes (continuam valendo — não são pedidos de autorização)
 
 1. **Escopo da ordem atual.** Não "aproveite para fazer" trabalho de outra fase — o que surgir de fora vai para o backlog no resumo.
-2. **NUNCA dados reais.** Nenhum nome de colaborador real, patrimônio real ou linha das planilhas da WAP em seed, fixture, teste, comentário ou screenshot. Dados de desenvolvimento são 100% fictícios (F1). Os dados reais só entram em produção pela **carga de go-live** — a carga global inicial pelos **scripts da F4** (autônoma, com os CSVs do Johnny) e, desde a **F7 (16/07/2026)**, o **import de startup por filial** pela tela `admin/importar` (só modo *Substituir tudo*, go-live novo de uma filial; ver spec §10.2 e `docs/DECISOES.md`). A entrada de dados **do dia a dia continua 100% manual** — não há sincronização recorrente nem modo *Atualizar* (adiado). CSVs de teste e o smoke do import são **100% fictícios** (`WAP0001234`/"Fulano"); os CSVs reais nunca entram no repositório. Desde a **F24 (30/07/2026)**, a linha cujo par já existe em **OUTRA filial** **não bloqueia mais** o import (revoga parcialmente a decisão F7C de 17/07): ela importa, os dois cadastros coexistem — a identidade do ativo virou **por filial** (`0091`) — e o par vira a pendência **"conflito entre filiais"**, resolvida na mesa de `/pendencias`. O import **continua não transferindo** ativo entre filiais, e o conflito **só nasce do import**: cadastro manual e edição de ficha seguem recusando par de qualquer filial. Desde a **F38 (28/08/2026)**, o checklist de itens faltantes da devolução deixou de vir da lista fixa `ACESSORIOS_DEVOLUCAO` e passou a vir do catálogo `tipos_item`, com dois desfechos (Voltou/Faltou) — a constante segue viva como fallback de rótulo do histórico, e a remoção dela é da F39.
+2. **NUNCA dados reais.** Nenhum nome de colaborador real, patrimônio real ou linha das planilhas da WAP em seed, fixture, teste, comentário ou screenshot. Dados de desenvolvimento são 100% fictícios (F1). Os dados reais só entram em produção pela **carga de go-live** — a carga global inicial pelos **scripts da F4** (autônoma, com os CSVs do Johnny) e, desde a **F7 (16/07/2026)**, o **import de startup por filial** pela tela `admin/importar` (só modo *Substituir tudo*, go-live novo de uma filial; ver spec §10.2 e `docs/DECISOES.md`). A entrada de dados **do dia a dia continua 100% manual** — não há sincronização recorrente nem modo *Atualizar* (adiado). CSVs de teste e o smoke do import são **100% fictícios** (`WAP0001234`/"Fulano"); os CSVs reais nunca entram no repositório. Desde a **F24 (30/07/2026)**, a linha cujo par já existe em **OUTRA filial** **não bloqueia mais** o import (revoga parcialmente a decisão F7C de 17/07): ela importa, os dois cadastros coexistem — a identidade do ativo virou **por filial** (`0091`) — e o par vira a pendência **"conflito entre filiais"**, resolvida na mesa de `/pendencias`. O import **continua não transferindo** ativo entre filiais, e o conflito **só nasce do import**: cadastro manual e edição de ficha seguem recusando par de qualquer filial. Desde a **F38 (28/08/2026)**, o checklist de itens faltantes da devolução deixou de vir de uma lista fixa no código e passou a vir do catálogo `tipos_item`, com dois desfechos (Voltou/Faltou). Desde a **F39 (29/08/2026)**, a constante **não existe mais**: `ACESSORIOS_DEVOLUCAO`/`ACESSORIO_ROTULO`/`rotuloAcessorio` saíram de `src/lib/dominio.ts` e o vocabulário passou a ser UM só — `tipos_item`, lido por `listarTiposItem()` (**todos**, para quem exibe passado) ou `listarTiposItemAtivos()` (para quem oferece escolha) e traduzido pela função pura `rotuloTipoItem(slug, mapa)` (`src/lib/itens/rotulo-tipo.ts`), com o mesmo **fallback pelo slug cru** de antes — `movimentacoes.itens_faltantes` e `pendencias_item.item` guardam texto livre, e slug histórico sem tipo correspondente tem de continuar legível. O mapa desce por **prop** a partir de um Server Component (nunca import de query em módulo cliente) e, nas rotas de relatório, sai do **client resolvido** (`resolverAcessoRelatorio`) — com o client de sessão comum o visualizador por senha veria slug cru. Os **sete slugs históricos** (`carregador`, `mochila`, `mouse`, `teclado`, `mousepad`, `fone`, `cabo`) seguem no seed da `0114`, e quem os protege agora é `src/lib/validators/tipos-item-sql.test.ts` (a guarda TS↔SQL invertida). Ainda na F39, os **5 modelos `.docx` de responsabilidade** ganharam a seção de acessórios (bloco condicional `{#tem_acessorios}`, inserido por script e provado byte a byte) e `{outros_componentes}` dos 2 de devolução deixou de sair vazia.
 3. **Custo R$ 0.** Não habilitar nenhum recurso pago, nenhum serviço novo, nenhuma lib com licença comercial. Infra permitida: Supabase Free + Vercel (conta Pro existente do Johnny).
 4. **Segredos:** nunca commitar `.env*` (mantenha `.env.example` atualizado). `SUPABASE_SERVICE_ROLE_KEY` só em código server-side ou scripts locais — jamais em Client Component ou variável `NEXT_PUBLIC_*`.
 5. **Produção: acesso total, com autoproteção.** Migrations, scripts e deploy rodam direto em produção sem pedir autorização — precedidos de backup/dry-run quando destrutivos (ver Modo de operação). Seed fictício jamais roda em produção depois do go-live.
@@ -127,6 +127,8 @@ src/
     queries/       # leituras tipadas (ativos, movimentacoes, relatorios, itens, termos, dev, dev-destrutivo…)
     validators/    # schemas Zod compartilhados
     termos/        # tipos, mapa motivo→Descrição, ordenação do lote, datas (F5A)
+      acessorios.ts  # a LINHA de periféricos do termo: agrupa por tipo, soma, corta no
+                     # teto do campo e conta o que descartou (F39 · §B) — função PURA
     colaboradores/ # a CHAVE de deduplicação de nome (F37 · D5)
       chave.ts       # espelho EXATO de public.colaborador_chave (migration 0112)
       chave-sql.test.ts  # a guarda TS↔SQL que prova a igualdade dos dois lados
@@ -144,7 +146,9 @@ src/
       # ponte-tipo-item.ts (a ponte TIPO→ITEM: um item ativo do tipo resolve sozinho;
       # zero ou mais de um, a tela pergunta/não bloqueia — F38 · §D/§E) e
       # vinculo-retorno.ts (a regra §C.3: o retorno só carrega colaborador_id quando a
-      # pessoa tem saldo suficiente — F38);
+      # pessoa tem saldo suficiente — F38) e rotulo-tipo.ts (slug→rótulo do catálogo
+      # `tipos_item`, com fallback pelo slug cru; substituiu a constante de dominio.ts
+      # — F39 · §E. Módulo PURO: o mapa desce por PROP, nunca por import de query);
       # pendencias/ inclui texto-baixa.ts (o texto da justificativa do ajuste da baixa
       # de pendência de item, função pura fora do SQL — F38 · §E);
       # movimentacoes/ inclui lote-url.ts (o `?ativos=` da seleção múltipla — F30 · ATV-03)
@@ -156,11 +160,18 @@ supabase/
   tests/           # roteiros SQL auto-verificáveis (domínios de login, RLS)
 scripts/
   seed.ts  reset.ts     # dados fictícios (guardas anti-produção obrigatórias)
+  termos/               # edição dos MODELOS .docx por script, nunca pelo Word (F25/F39):
+                        # retaguear-cidade.mjs (F25), inserir-acessorios.mjs (F39 · §A) e
+                        # evidencias-acessorios.mjs (o pacote de docs/f39-evidencias/).
+                        # Conferência por padrão; grava só com --aplicar
   perf/                 # harness de medição — medir.mjs (TTFB das rotas, F33) e
                         # medir-itens.mjs (saldo/diário de itens em ENSAIO, F37 · D6)
   import/               # carga ÚNICA do go-live (F4) — ferramenta, não feature do app
   smoke/                # smoke reexecutável contra produção (F12 §W5)
 docs/  mockups/
+  # docs/f39-evidencias/ — os 5 modelos renderizados em três versões (baseline, novo sem
+  # acessório, novo com acessório) + o par ponta a ponta do ensaio. Payload 100% fictício;
+  # é o que o Johnny abre no Word para a conferência visual da cláusula (F39 · §A.4)
 ```
 
 Se a estrutura real divergir desta ao começar uma ordem, PARE e reporte a diferença.
