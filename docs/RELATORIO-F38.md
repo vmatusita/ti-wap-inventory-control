@@ -292,6 +292,43 @@ rodados de novo no ensaio.
 4. **Ordem migration → deploy** respeitada: o SQL entrou antes do deploy, porque o código novo lê
    coluna e chama RPC que só existem depois dele.
 
+## 8.5 Contagens de fechamento e smoke pós-deploy
+
+Lidas de produção **depois** de todas as sete migrations e do deploy final:
+
+```
+acervo                              1615 ativos · 3430 movs · 30 lancs · 17 pendencias
+                                    (IDÊNTICO à baseline)
+Total da TI por filial              1:256 | 2:0 | 3:0 | 4:0 | 5:0 | 6:0
+                                    (IDÊNTICO à baseline)
+colunas/RPCs da fase                2 colunas · 5 RPCs
+a 0122 pegou?                       sim
+funções intocadas ainda byte a byte 10 de 10
+```
+
+**Smoke pós-deploy** (`scripts/smoke/smoke-prod.mjs`, sessão real): **102 OK · 1
+aviso · 1 n/a · 0 falha**.
+
+- O aviso é **pré-existente e alheio à fase**: `kits_modelos · anon NÃO lê (RLS)` —
+  não há kit cadastrado, então a RLS não se comprova. Está assim desde a F37.
+- O `n/a` é a checagem nova `rel_saldo_colaborador · a conta por pessoa (F38)`:
+  produção tem **zero colaboradores cadastrados** (herdado da F37 — a fila de 903
+  nomes ainda espera alguém consolidar), então não há pessoa para consultar. A
+  checagem responde `n/a` de propósito, em vez de falhar.
+- A checagem nova do vínculo respondeu: `shape ok · 0 lançamento(s) com vínculo de
+  movimentação` — exatamente o esperado logo após o deploy: nenhum registro histórico
+  foi tocado.
+
+**Deploy:** `dpl_8SkQBsWFchx4oxory19rrR53rqes`, **READY**, commit `444ea3c`,
+região `gru1`.
+
+**Tag:** `v1.43.0` anotada, publicada, apontando para `444ea3c` — o commit
+efetivamente deployado. (Ela chegou a ser criada em `7d5314c` e foi recriada no
+commit final depois das correções da revisão; a tag deve marcar o estado final da
+versão, não um intermediário.)
+
+**CI:** verde nos dois jobs (`verificar` e `banco`) no commit final.
+
 ## 9. Decisões desta fase (atas completas em `docs/DECISOES.md`, 2026-08-28)
 
 1. **O lote é tudo-ou-nada, e o "painel de sucesso parcial" não era o que a ordem supunha.** A
@@ -343,7 +380,11 @@ rodados de novo no ensaio.
    o checklist; a remoção da constante é da F39.
 5. **`scripts/import/carga.ts` não grava `movimentacao_id`** — é ferramenta de go-live, e a carga
    inicial não tem periférico vinculado. Não é defeito.
-6. **`ativos.colaborador_atual` continua texto** (pendência nº 3 da F37, intocada por decisão).
+6. **A fila de 903 nomes da F37 continua esperando consolidação.** Enquanto `colaboradores`
+   estiver vazia em produção, a conta por pessoa não tem em que casar: todo `retorno` sai sem
+   vínculo pela regra §C.3, e o bloco "Com esta pessoa" mostra a frase de "ainda não está no
+   cadastro". A F38 está no ar; ela **começa a fazer efeito** quando alguém consolidar a fila.
+7. **`ativos.colaborador_atual` continua texto** (pendência nº 3 da F37, intocada por decisão).
 
 ## 11. O que este relatório NÃO prova
 
@@ -358,6 +399,12 @@ rodados de novo no ensaio.
 - **Não prova que o índice `lanc_item_colaborador_idx` valha a pena HOJE.** Com 30 lançamentos, ele
   não muda nada. O que a medição prova é que ele é o único caminho para `rel_saldo_colaborador` não
   degradar linearmente com o tamanho da tabela, e que o custo de escrita é de 0,19 ms.
+- **Não prova nada sobre a conta por pessoa EM PRODUÇÃO.** Não há colaborador cadastrado lá, e
+  por isso a checagem de smoke correspondente respondeu `n/a`. Tudo o que se sabe da frente C vem
+  do ensaio e dos testes — o primeiro número real virá quando a fila de nomes for consolidada.
+- **Não prova o caminho do lote MISTO em tela.** A regra nova (`checklistPodeLancar`) tem teste
+  unitário; o aviso na tela foi lido no código, não visto renderizado — a verificação em tela foi
+  feita com um ativo só, que é justamente o caso que a regra não afeta.
 - **Não prova a ausência do drift entre o arquivo da migration e o SQL aplicado.** A `0116`, aplicada
   via `apply_migration`, teve o cabeçalho de comentário condensado no envio; o DDL e os `comment on`
   são idênticos ao arquivo, e o schema resultante foi conferido — mas o texto registrado no ledger
