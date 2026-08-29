@@ -46,16 +46,25 @@ export function SecaoItensJunto({
   equipamentos,
   itensCatalogo,
   valor,
+  reservados = 0,
   onChange,
 }: {
   equipamentos: AtivoResumo[]
   itensCatalogo: ItemDoCatalogo[]
   valor: ItemJunto[]
+  /**
+   * Quantas linhas de item o LOTE já gasta fora desta seção — hoje, o "Voltou" do
+   * checklist da devolução da troca. O teto `MAX_ITENS_JUNTO` é do lote INTEIRO
+   * (Zod, no servidor): contando só as linhas daqui, a seção deixava o operador
+   * passar do teto e o lote era recusado inteiro com uma mensagem que não
+   * mencionava o checklist. Achado da revisão de código de 29/08/2026.
+   */
+  reservados?: number
   onChange: (v: ItemJunto[]) => void
 }) {
   const disponiveis = itensCatalogo.filter((i) => i.ativo)
   const varios = equipamentos.length > 1
-  const cheio = valor.length >= MAX_ITENS_JUNTO
+  const cheio = valor.length + reservados >= MAX_ITENS_JUNTO
 
   function acrescentar() {
     if (cheio || disponiveis.length === 0) return
@@ -175,7 +184,10 @@ export function SecaoItensJunto({
           </Button>
           {cheio && (
             <span className="text-muted-foreground ml-2 text-xs">
-              Máximo de {MAX_ITENS_JUNTO} itens por lote.
+              Máximo de {MAX_ITENS_JUNTO} itens por lote
+              {reservados > 0
+                ? ` — ${reservados} ${reservados === 1 ? 'já está marcado' : 'já estão marcados'} como "Voltou" na devolução da troca.`
+                : '.'}
             </span>
           )}
         </div>

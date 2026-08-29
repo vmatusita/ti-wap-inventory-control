@@ -14,6 +14,10 @@ import {
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { AtivoCombobox } from '@/components/movimentacoes/ativo-combobox'
 import { ChecklistFaltantes } from '@/components/movimentacoes/nova/checklist-faltantes'
+import {
+  MSG_LOTE_MISTO_SEM_LANCAMENTO,
+  checklistPodeLancar,
+} from '@/components/movimentacoes/nova/itens-do-lote'
 import { ChipsData } from '@/components/movimentacoes/nova/chips-data'
 import { CampoComSugestoes } from '@/components/movimentacoes/nova/campo-sugerido'
 import { CampoColaborador } from '@/components/movimentacoes/nova/campo-colaborador'
@@ -312,6 +316,14 @@ export function SecaoContrapartida({
                 onSet('itensDevolvidos', v.devolvidos)
               }}
               rotulo="O que voltou na devolução da troca"
+              // F38 — a MESMA regra do lote misto que vale na metade principal
+              // (`checklistPodeLancar`, aplicada no envio por
+              // `montarItensJuntoDoLote`). Sem este aviso, a metade da troca
+              // descartava os lançamentos do "Voltou" em silêncio: o operador via
+              // a marcação verde e o estoque não mexia.
+              avisoSemLancamento={
+                checklistPodeLancar(contrapartida.itens) ? null : MSG_LOTE_MISTO_SEM_LANCAMENTO
+              }
             />
           )}
         </div>

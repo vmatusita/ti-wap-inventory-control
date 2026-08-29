@@ -6794,3 +6794,126 @@ comportamento em produção, não só desenho.
 
 **Reversível?** cada correção isoladamente: a `0122` reaplicando os corpos da `0119`
 e da `0121`; as quatro do código, por `git revert`.
+
+---
+
+## 2026-08-29 · Revisão de código da F38 — 15 achados, 15 aplicados (v1.43.1)
+
+- **Contexto:** revisão adversarial (`xhigh`, 10 ângulos) do intervalo `a1df00e..HEAD`
+  — a F38 inteira, **inclusive** a `0122` e as cinco correções que a própria fase
+  aplicou depois da sua revisão interna, que nunca tinham sido revisadas por ninguém.
+  Mesma lição da revisão da F37: o que a fase conserta no fim é justamente o código
+  mais novo e menos olhado do repositório.
+- **Decisão:** aplicar os 15 achados. Uma migration nova (`0123`), nenhuma dependência
+  nova, nenhum dado tocado. Versão **1.43.1** (entrega avulsa fora de fase → PATCH).
+- **Reversível?** a `0123` reaplicando o corpo da `0117`; o resto por `git revert`.
+
+### 1. A `0122` consertou a ordem dos inversos e deixou passar a dos ORIGINAIS (`0123`)
+
+- **O defeito:** a `0122` nasceu de um achado certeiro — inserir lançamentos na ordem
+  errada faz `valida_lancamento_item` recusar por estoque negativo — e ordenou pelo
+  efeito nas DUAS funções de estorno. Ficou de fora a função que **grava** o lote:
+  `criar_movimentacao_com_itens` (`0117`), cujo passo 5 percorre `p_itens` na ordem
+  crua do payload.
+- **E o payload tem ordem conhecida e desfavorável.** `montarItensJuntoDoLote` empilha
+  primeiro as linhas da ENTREGA (`saida`) e depois as do checklist da DEVOLUÇÃO
+  (`retorno`) — que é exatamente a montagem de uma **troca/upgrade**: o notebook velho
+  volta com o fone, o novo sai com outro fone, mesmo item, mesma filial. Com a
+  prateleira em 0 (o caso comum de um acessório que está todo com as pessoas), a
+  `saida` entrava primeiro, o trigger chegava a −1 e derrubava o lote INTEIRO — 30
+  movimentações de equipamento perdidas por causa de um periférico, numa operação que
+  é neutra no saldo.
+- **A correção (`0123`):** ordem TOTAL pelo efeito — `entrada`/`retorno`/`liberacao`/
+  `ajuste` positivo antes dos consumidores, desempatando pela **ordinalidade** do
+  payload. O `detail = f38_item=<i>` continua apontando o índice ORIGINAL: reordenar a
+  inserção não pode reescrever o que a mensagem diz. O cast da quantidade no
+  `order by` é guardado por `jsonb_typeof(...) = 'number'` — a RPC é alcançável por
+  qualquer sessão `authenticated`, e um payload forjado estouraria ANTES da validação
+  por linha, que tem a mensagem em pt-BR.
+- **Provado no ensaio, em transação revertida** (nenhuma linha `ZZ0123%` sobrou):
+  a ordem antiga recusa com `23514 Estoque insuficiente: … deixaria -1 na prateleira`;
+  com a `0123`, o mesmo lote grava `{"itens": 2, "movimentacoes": [2 uuids]}`.
+- **Rollout:** aplicada em ENSAIO (`sgmvldiizsrjbxzzpmhh`) e em PRODUÇÃO
+  (`pbtjcalbmepmrqzprusb`). Conferido depois: assinatura única `(jsonb, jsonb, uuid)`,
+  `prosecdef = false`, grants `authenticated:EXECUTE`, e as contagens do acervo em
+  produção intactas — 3.430 movimentações, 30 lançamentos de item, 1.615 ativos.
+- **Nota de lado:** o smoke da própria `0122` (`ilike '%repõe o Total%'`) reporta
+  `false` para `estornar_movimentacao_com_itens` mesmo com a migration aplicada — a
+  frase só existe nos comentários da função irmã. A `0122` já está aplicada e não se
+  edita; a prova correta é `pg_get_functiondef(...) like '%else 2%'`, e foi essa que
+  se usou aqui.
+
+### 2. Falha ao LER o saldo virava "saldo zero" em silêncio
+
+- **O defeito:** as três actions que aplicam a regra §C.3 (`registrarMovimentacoes`,
+  `resolverPendenciaItem`, `lancarItens`) chamavam `rel_saldo_colaborador`
+  descartando o `error`. Um blip no banco fazia `saldos` voltar `null`, toda linha era
+  decidida como `sem_saldo`, e o `retorno` era gravado **sem** `colaborador_id`: o
+  estoque ficava certo e a conta da pessoa nunca baixava. É o furo que a F38 existe
+  para fechar, agora sem rastro nenhum.
+- **A correção:** `saldosPorColaborador` (`src/lib/queries/itens.ts`) lê todas as
+  pessoas em PARALELO e devolve o **erro** em vez de uma lista vazia; as três actions
+  recusam a operação com `MSG_SALDO_INDISPONIVEL`. Nada foi gravado ainda quando essa
+  leitura acontece, então recusar é o lado seguro.
+- **Nota:** a leitura do CATÁLOGO (`tipos_item`/`itens`) em `resolverPendenciaItem`
+  continua **não bloqueando** — é a doutrina da §E, "resolver nunca falha por causa do
+  catálogo" —, mas o erro agora vai para o log em vez de sumir.
+
+### 3. O rascunho perdia o "Voltou" da devolução da troca
+
+- **O defeito:** a correção nº 5 da revisão da própria fase ensinou
+  `sanearContrapartida` a ler `itensDevolvidos` — mas ninguém o **gravava** no objeto
+  do rascunho, nem o repassava a `contrapartidaPadrao` no restore. O campo era código
+  morto nos dois sentidos, e a conferência voltava vazia enquanto o `itensFaltantes`
+  ao lado sobrevivia.
+- **A correção:** o campo entra na ida e na volta.
+
+### 4. Restaurar rascunho com ativo faltando desalinhava os itens que vão junto
+
+- **O defeito:** o índice de `itensJunto` é POSICIONAL. O caminho `remover` já
+  reajustava (correção da própria fase); a RESTAURAÇÃO DE RASCUNHO, não — ela remonta
+  o lote a partir dos ids salvos, deixa de fora os ativos que sumiram do banco e não
+  toca nos índices. O fone do 3º equipamento passava a acompanhar OUTRO equipamento —
+  ou sumia calado, porque `linhasDaEntrega` descarta índice fora do lote.
+- **A correção:** `reindexarItensJunto` (função pura, 7 testes) traduz a posição pelo
+  **id** do equipamento, que é estável; a linha some junto com o equipamento que não
+  voltou, e a tela diz quantas foram embora.
+
+### 5. O estorno era o único caminho que mandava o vínculo sem olhar saldo
+
+- **O defeito:** `estornarMovimentacao` copiava `colaborador_id` do lançamento
+  original para o inverso. O inverso de uma `saida` é um `retorno`, e a guarda da
+  `0118` recusa `retorno` que exceda o que a pessoa tem. Com a conta já zerada por
+  outro caminho, desfazer a movimentação do EQUIPAMENTO morria com uma mensagem sobre
+  saldo de ACESSÓRIO.
+- **A correção:** a §C.3 vale ali também — sem saldo, o inverso vai sem o vínculo.
+
+### 6–15. Os demais
+
+- **O checklist da metade da troca não avisava do lote misto:** a regra
+  `checklistPodeLancar` já descartava os lançamentos daquela metade; só o
+  `avisoSemLancamento` ficou de fora, e o operador via a marcação verde sem o estoque
+  mexer.
+- **A guarda das migrations não cobria a `0122`:** `DA_F38` parava na `0121`, então a
+  migration que recria DUAS funções passava por fora de todas as asserções do critério
+  9 — podia recriar uma intocável ou virar `security definer` com o arquivo verde.
+  Além da lista corrigida, entrou a **guarda da guarda**: nenhuma migration a partir
+  da `0116` pode ficar de fora de `DA_F38`.
+- **"Com esta pessoa" mostrava contagem GLOBAL** (`lancamentosSemVinculo` não recorta
+  por pessoa) sem dizer a palavra — lido ali, o número parecia a dívida oculta daquela
+  pessoa.
+- **O teto de itens por lote contava só metade:** a seção da entrega limitava as
+  próprias 20 linhas sem somar o "Voltou" da devolução da troca, e o servidor recusava
+  o lote inteiro com uma mensagem que não mencionava o checklist.
+- **Três de tela:** o erro da tentativa anterior ficava em cima da lista correta em
+  `/admin/colaboradores`; o saldo da pessoa anterior ficava visível sob o nome novo
+  durante o debounce (resolvido carregando o nome JUNTO com o resultado, sem
+  `setState` dentro do efeito); e a validação de UUID (`[0-9a-f-]{36}`) aceitava 36
+  hífens, mandando o lixo morrer no `22P02` em vez da mensagem em pt-BR que já existia.
+- **Duas de desempenho:** a ponte tipo→item deixou de ser refeita por tipo a cada
+  render do passo 2 (`useMemo`), e as leituras de saldo por pessoa deixaram de ser
+  sequenciais.
+- **Um comentário que a própria fase tornou falso:** o bloco de `exigirEscritaEm` em
+  `movimentacoes.ts` ainda dizia que `montarRow` grava `filial_id: ativo.filial_id` —
+  linha que a `0117` removeu, justamente porque a filial passou a ser derivada dentro
+  da transação, sob a trava.

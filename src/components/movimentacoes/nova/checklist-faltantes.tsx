@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -77,6 +78,16 @@ export function ChecklistFaltantes({
    */
   avisoSemLancamento?: string | null
 }) {
+  // A ponte tipo→item por tipo, calculada UMA vez por catálogo — não uma vez por
+  // tipo a cada tecla digitada no passo 2. `resolverItemDoTipo` filtra e ordena o
+  // catálogo inteiro com `localeCompare`; dentro do `map` de renderização isso
+  // refazia N ordenações a cada re-render, para um resultado que só muda quando
+  // `itensCatalogo` muda.
+  const resolucoes = useMemo(
+    () => new Map(tipos.map((t) => [t.slug, resolverItemDoTipo(itensCatalogo, t.id)])),
+    [tipos, itensCatalogo],
+  )
+
   function desfechoDe(slug: string): DesfechoLinha | null {
     if (faltantes.includes(slug)) return 'faltante'
     if (devolvidos.some((d) => d.tipoSlug === slug)) return 'devolvido'
@@ -93,7 +104,7 @@ export function ChecklistFaltantes({
       return
     }
     if (alvo === 'devolvido') {
-      const r = resolverItemDoTipo(itensCatalogo, tipo.id)
+      const r = resolucoes.get(tipo.slug) ?? resolverItemDoTipo(itensCatalogo, tipo.id)
       onChange({
         ...semEste,
         devolvidos: [
@@ -135,7 +146,8 @@ export function ChecklistFaltantes({
       <ul className="divide-y rounded-lg border">
         {tipos.map((tipo) => {
           const desfecho = desfechoDe(tipo.slug)
-          const resolucao = resolverItemDoTipo(itensCatalogo, tipo.id)
+          const resolucao =
+            resolucoes.get(tipo.slug) ?? resolverItemDoTipo(itensCatalogo, tipo.id)
           const escolhido = devolvidos.find((d) => d.tipoSlug === tipo.slug)
           return (
             <li key={tipo.slug} className="flex flex-wrap items-center gap-3 p-3 text-sm">

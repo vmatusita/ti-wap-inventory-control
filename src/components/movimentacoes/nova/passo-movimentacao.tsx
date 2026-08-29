@@ -568,6 +568,14 @@ export function PassoMovimentacao({
           equipamentos={itens}
           itensCatalogo={itensCatalogo}
           valor={config.itensJunto ?? []}
+          // O teto `MAX_ITENS_JUNTO` é do LOTE inteiro, e o "Voltou" da devolução
+          // da troca também gasta linha: sem contá-lo aqui, a seção deixava passar
+          // do teto e o servidor recusava o lote todo.
+          reservados={
+            ofereceContrapartida(config)
+              ? (contrapartida.itensDevolvidos ?? []).filter((d) => d.itemId != null).length
+              : 0
+          }
           onChange={(v) => onSet('itensJunto', v)}
         />
       )}

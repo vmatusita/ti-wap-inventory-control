@@ -33,7 +33,10 @@ import {
   MOTIVO_TROCA_UPGRADE,
   type ContrapartidaTroca,
 } from '@/components/movimentacoes/nova/troca-upgrade'
-import { montarItensJuntoDoLote } from '@/components/movimentacoes/nova/itens-do-lote'
+import {
+  montarItensJuntoDoLote,
+  reindexarItensJunto,
+} from '@/components/movimentacoes/nova/itens-do-lote'
 import {
   lerRascunho,
   limparRascunho,
@@ -643,6 +646,11 @@ export function NovaMovimentacaoForm({
               termo: contrapartida.termo,
               termoData: contrapartida.termoData,
               itensFaltantes: contrapartida.itensFaltantes,
+              // F38 — o OUTRO desfecho do mesmo checklist. `rascunho.ts` já
+              // saneava o campo na volta, mas ninguém o gravava na ida: o
+              // "Voltou" da devolução da troca sumia no restore enquanto o
+              // "Faltou" ao lado sobrevivia.
+              itensDevolvidos: contrapartida.itensDevolvidos ?? [],
               deixarParaDepois: contrapartida.deixarParaDepois,
               jaRegistrada: contrapartida.jaRegistrada,
               prefillColaborador: contrapartida.prefillColaborador,
@@ -757,6 +765,9 @@ export function NovaMovimentacaoForm({
           termo: r.contrapartida.termo,
           termoData: r.contrapartida.termoData,
           itensFaltantes: r.contrapartida.itensFaltantes,
+          // F38 — o par do `itensFaltantes` acima. Ausente no rascunho antigo =>
+          // `undefined`, e `contrapartidaPadrao` o troca por lista vazia.
+          itensDevolvidos: r.contrapartida.itensDevolvidos,
           deixarParaDepois: r.contrapartida.deixarParaDepois,
           // `jaRegistrada` volta junto: sem ela, um rascunho salvo na tela que
           // veio do atalho ressuscitava o laço ao ser restaurado numa URL limpa.
@@ -774,6 +785,23 @@ export function NovaMovimentacaoForm({
           `${ausentes} ${ausentes === 1 ? 'ativo do rascunho não foi encontrado' : 'ativos do rascunho não foram encontrados'} e ficaram de fora.`,
         )
       }
+
+      // F38 · D13 — os "itens que vão junto" apontam o equipamento por POSIÇÃO, e
+      // o lote acabou de ser remontado sem os ativos que sumiram. Sem reancorar
+      // pelo id, o fone do 3º equipamento passaria a acompanhar outro, em silêncio.
+      const juntoAntes = cfg.itensJunto ?? []
+      const juntoDepois = reindexarItensJunto(
+        juntoAntes,
+        r.ids,
+        principais.map((a) => a.id),
+      )
+      if (juntoDepois.length < juntoAntes.length) {
+        const perdidos = juntoAntes.length - juntoDepois.length
+        toast.warning(
+          `${perdidos} ${perdidos === 1 ? 'item que ia junto acompanhava um equipamento que ficou de fora e foi removido' : 'itens que iam junto acompanhavam equipamentos que ficaram de fora e foram removidos'}.`,
+        )
+      }
+      cfg = { ...cfg, itensJunto: juntoDepois }
 
       setItens(principais)
       setConfig(cfg)

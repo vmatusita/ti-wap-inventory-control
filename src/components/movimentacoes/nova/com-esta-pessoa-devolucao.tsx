@@ -23,7 +23,14 @@ import {
 // NENHUM ID VIAJA. O componente manda o TEXTO do campo Colaborador; quem resolve
 // a chave é o servidor, na doutrina da F37.
 export function ComEstaPessoaDevolucao({ nome }: { nome: string }) {
+  // ⚠ O NOME VIAJA JUNTO COM O RESULTADO, e é isso que impede o bloco de mostrar o
+  // saldo da pessoa ANTERIOR sob o nome novo. Trocar o equipamento do lote troca o
+  // detentor; guardando só os saldos, a Ana ficava na tela enquanto o formulário já
+  // dizia Bruno, durante o debounce inteiro (achado da revisão de 29/08/2026).
+  // A comparação é na RENDERIZAÇÃO, não num `setState` dentro do efeito — que
+  // custaria um render a mais para dizer o que já dá para saber olhando a prop.
   const [estado, setEstado] = useState<{
+    nome: string
     saldos: SaldoDoColaborador[]
     semVinculo: number
     cadastrado: boolean
@@ -34,13 +41,20 @@ export function ComEstaPessoaDevolucao({ nome }: { nome: string }) {
   useEffect(() => {
     if (!limpo) return
     let vivo = true
-    // Debounce curto: o nome é digitado letra a letra, e cada tecla não pode
-    // virar um round-trip (mesmo idioma do combobox de ativo).
+    // Debounce curto: o nome pode mudar a cada ajuste do lote, e cada mudança não
+    // pode virar um round-trip (mesmo idioma do combobox de ativo).
     const t = setTimeout(async () => {
       const r = await buscarSaldoPorNomeDeColaborador(limpo)
       if (!vivo) return
       setEstado(
-        r.ok ? { saldos: r.saldos, semVinculo: r.semVinculo, cadastrado: r.cadastrado } : null,
+        r.ok
+          ? {
+              nome: limpo,
+              saldos: r.saldos,
+              semVinculo: r.semVinculo,
+              cadastrado: r.cadastrado,
+            }
+          : null,
       )
     }, 400)
     return () => {
@@ -49,10 +63,8 @@ export function ComEstaPessoaDevolucao({ nome }: { nome: string }) {
     }
   }, [limpo])
 
-  // Campo vazio não mostra bloco nenhum — e a checagem fica na RENDERIZAÇÃO, não
-  // num `setState` dentro do efeito (que o lint recusa, e com razão: seria um
-  // render a mais para dizer o que já dá para saber olhando a prop).
-  if (!limpo || !estado) return null
+  // Campo vazio, ou resposta que é de OUTRO nome: nada a mostrar.
+  if (!limpo || !estado || estado.nome !== limpo) return null
 
   return (
     <div className="rounded-lg border p-3">

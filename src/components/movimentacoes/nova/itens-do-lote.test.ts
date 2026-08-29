@@ -3,6 +3,7 @@ import {
   MSG_LOTE_MISTO_SEM_LANCAMENTO,
   checklistPodeLancar,
   montarItensJuntoDoLote,
+  reindexarItensJunto,
 } from '@/components/movimentacoes/nova/itens-do-lote'
 import { configPadrao, type Config } from '@/components/movimentacoes/nova/config'
 import { contrapartidaPadrao } from '@/components/movimentacoes/nova/troca-upgrade'
@@ -257,5 +258,52 @@ describe('montarItensJuntoDoLote — o lote misto desliga o checklist', () => {
   it('o aviso da tela existe e explica o efeito, não o mecanismo', () => {
     expect(MSG_LOTE_MISTO_SEM_LANCAMENTO).toContain('não mexe no estoque')
     expect(MSG_LOTE_MISTO_SEM_LANCAMENTO).toContain('lotes separados')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// reindexarItensJunto — o índice posicional sobrevive a um lote remontado
+// ---------------------------------------------------------------------------
+describe('reindexarItensJunto', () => {
+  const A = 'aaaaaaaa-0000-4000-8000-000000000001'
+  const B = 'bbbbbbbb-0000-4000-8000-000000000002'
+  const C = 'cccccccc-0000-4000-8000-000000000003'
+  const linha = (indice: number, itemId = 7) => ({ indice, itemId, quantidade: 1 })
+
+  it('lista vazia devolve lista vazia', () => {
+    expect(reindexarItensJunto([], [A, B], [A, B])).toEqual([])
+  })
+
+  it('lote inteiro de volta: os índices não mudam', () => {
+    expect(reindexarItensJunto([linha(0), linha(2)], [A, B, C], [A, B, C])).toEqual([
+      linha(0),
+      linha(2),
+    ])
+  })
+
+  it('o ativo do MEIO não voltou: quem vinha depois desloca para trás', () => {
+    // O fone acompanhava o C (posição 2); sem o B, o C passa a ser a posição 1.
+    expect(reindexarItensJunto([linha(2)], [A, B, C], [A, C])).toEqual([linha(1)])
+  })
+
+  it('o ativo da linha não voltou: a linha some junto com ele', () => {
+    expect(reindexarItensJunto([linha(1)], [A, B, C], [A, C])).toEqual([])
+  })
+
+  it('índice fora dos ids originais não vira lançamento (rascunho corrompido)', () => {
+    expect(reindexarItensJunto([linha(9)], [A, B], [A, B])).toEqual([])
+  })
+
+  it('preserva item e quantidade de cada linha', () => {
+    const r = reindexarItensJunto(
+      [{ indice: 1, itemId: 42, quantidade: 3 }],
+      [A, B],
+      [B],
+    )
+    expect(r).toEqual([{ indice: 0, itemId: 42, quantidade: 3 }])
+  })
+
+  it('lote inteiro perdido devolve lista vazia, nunca índice inválido', () => {
+    expect(reindexarItensJunto([linha(0), linha(1)], [A, B], [])).toEqual([])
   })
 })

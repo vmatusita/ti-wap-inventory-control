@@ -24,7 +24,10 @@ export function ComEstaPessoa({
   compacto = false,
 }: {
   saldos: SaldoDoColaborador[]
-  /** Quantos lançamentos do sistema inteiro ainda não têm vínculo (agregado no SQL). */
+  /**
+   * Quantos lançamentos do SISTEMA INTEIRO ainda não têm vínculo (agregado no
+   * SQL). Não é recorte desta pessoa — e o texto do rodapé diz a palavra.
+   */
   semVinculo?: number
   /** Dentro de um diálogo, o bloco perde o cabeçalho e a borda. */
   compacto?: boolean
@@ -54,9 +57,13 @@ export function ComEstaPessoa({
   const rodape =
     semVinculo > 0 ? (
       <p className="text-muted-foreground mt-2 text-xs">
+        {/* ⚠ O número é DO SISTEMA INTEIRO (`lancamentosSemVinculo` conta sem
+            recorte de pessoa), e o texto tem de dizer isso: lido dentro de "Com
+            esta pessoa" sem essa palavra, ele parecia a dívida oculta DAQUELA
+            pessoa — achado da revisão de código de 29/08/2026. */}
         {semVinculo === 1
-          ? 'Há 1 lançamento de item mais antigo que ainda não está ligado a um cadastro — ele não entra nesta conta.'
-          : `Há ${semVinculo} lançamentos de item mais antigos que ainda não estão ligados a um cadastro — eles não entram nesta conta.`}
+          ? 'Há 1 lançamento de item mais antigo no sistema que ainda não está ligado a um cadastro — ele não entra em conta nenhuma por pessoa.'
+          : `Há ${semVinculo} lançamentos de item mais antigos no sistema que ainda não estão ligados a um cadastro — eles não entram em conta nenhuma por pessoa.`}
       </p>
     ) : null
 

@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.43.1',
+    data: '2026-08-29',
+    titulo: 'Correções da revisão de código da versão anterior',
+    mudancas: [
+      'Trocar um equipamento levando e trazendo o mesmo acessório no mesmo lote deixou de ser recusado. Quando a prateleira estava zerada, o registro inteiro caía com "Estoque insuficiente" mesmo que o acessório voltasse na mesma operação; agora o que volta entra antes do que sai, e o lote passa.',
+      'Quando o sistema não consegue conferir o que está com a pessoa, a devolução não é mais gravada por baixo do pano sem baixar a conta dela: a tela avisa e pede para tentar de novo.',
+      'O rascunho do lote parou de perder o que já tinha sido conferido: o "Voltou" da devolução da troca volta marcado, e os acessórios que iam junto continuam com o equipamento certo mesmo quando algum equipamento do rascunho não existe mais.',
+      'Na devolução da troca, o aviso de que marcar "Voltou" não vai mexer no estoque (equipamentos de filiais ou pessoas diferentes) passou a aparecer também nessa metade — antes só a metade principal avisava.',
+      'Desfazer uma movimentação que levou acessórios não falha mais por causa de acessório já devolvido por outro caminho.',
+      'No bloco "Com esta pessoa", o aviso sobre lançamentos antigos sem cadastro agora diz que o número é do sistema inteiro — antes parecia dívida daquela pessoa.',
+    ],
+  },
+  {
     versao: '1.43.0',
     data: '2026-08-28',
     fase: 'F38',

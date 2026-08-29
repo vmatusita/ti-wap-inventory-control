@@ -609,6 +609,49 @@ export async function saldoDoColaborador(
   return (data ?? []) as SaldoDoColaborador[]
 }
 
+/** O que a tela diz quando o saldo por pessoa não pôde ser lido. */
+export const MSG_SALDO_INDISPONIVEL =
+  'Não foi possível conferir o que está com esta pessoa agora. Tente de novo em instantes.'
+
+/**
+ * O saldo de VÁRIAS pessoas de uma vez — a leitura que a regra §C.3 faz antes de
+ * decidir se o `retorno` carrega o vínculo.
+ *
+ * ⚠ FALHA DE LEITURA NÃO PODE VIRAR "SALDO ZERO". As três actions que aplicam a
+ * §C.3 chamavam a RPC descartando o `error`: um blip no banco fazia `saldos` voltar
+ * `null`, toda linha era decidida como `sem_saldo`, e o `retorno` era gravado SEM
+ * `colaborador_id`. O estoque ficava certo e a conta da pessoa nunca baixava — que
+ * é exatamente o furo que a F38 existe para fechar, agora sem rastro nenhum. Por
+ * isso esta função devolve o erro em vez de uma lista vazia: quem chama recusa a
+ * operação com uma mensagem honesta, e o operador tenta de novo.
+ *
+ * As consultas são independentes entre si — vão em paralelo, nunca uma por vez.
+ */
+export async function saldosPorColaborador(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ids: Iterable<string>,
+): Promise<
+  { ok: true; mapa: Map<string, SaldoDoColaborador[]> } | { ok: false; erro: string }
+> {
+  const distintos = [...new Set(ids)]
+  if (distintos.length === 0) return { ok: true, mapa: new Map() }
+
+  const respostas = await Promise.all(
+    distintos.map((id) => supabase.rpc('rel_saldo_colaborador', { p_colaborador: id })),
+  )
+
+  const mapa = new Map<string, SaldoDoColaborador[]>()
+  for (let i = 0; i < distintos.length; i++) {
+    const { data, error } = respostas[i]
+    if (error) {
+      console.error('[saldosPorColaborador] falha ao ler o saldo:', error)
+      return { ok: false, erro: MSG_SALDO_INDISPONIVEL }
+    }
+    mapa.set(distintos[i], (data ?? []) as SaldoDoColaborador[])
+  }
+  return { ok: true, mapa }
+}
+
 /**
  * Quantos lançamentos de item AINDA não têm vínculo com o cadastro de pessoas.
  *

@@ -91,6 +91,38 @@ function linhasDaEntrega(itensJunto: readonly ItemJunto[], teto: number): ItemJu
 }
 
 /**
+ * Reancora `itensJunto` quando o LOTE muda de tamanho fora do botão "remover".
+ *
+ * ⚠ O ÍNDICE É POSICIONAL, e posição não sobrevive a um lote que encolheu. O
+ * caminho `remover` do formulário já reajusta (achado da revisão adversarial da
+ * fase), mas a RESTAURAÇÃO DE RASCUNHO não: ela remonta o lote a partir dos ids
+ * salvos e deixa de fora os ativos que sumiram do banco, sem tocar nos índices. Um
+ * fone preso ao 3º equipamento passava a acompanhar OUTRO equipamento — ou sumia
+ * calado, porque `linhasDaEntrega` descarta índice fora do lote.
+ *
+ * A tradução é feita pelo ID, que é estável: a linha vai para a nova posição do
+ * MESMO equipamento, e some junto com ele quando ele não volta.
+ */
+export function reindexarItensJunto(
+  itensJunto: readonly ItemJunto[],
+  idsOriginais: readonly string[],
+  idsRestantes: readonly string[],
+): ItemJunto[] {
+  if (itensJunto.length === 0) return []
+  const novaPosicao = new Map<string, number>()
+  idsRestantes.forEach((id, i) => novaPosicao.set(id, i))
+
+  const saidas: ItemJunto[] = []
+  for (const l of itensJunto) {
+    const id = idsOriginais[l.indice]
+    const destino = id === undefined ? undefined : novaPosicao.get(id)
+    if (destino === undefined) continue // o equipamento não voltou: a linha vai com ele
+    saidas.push({ ...l, indice: destino })
+  }
+  return saidas
+}
+
+/**
  * O array de itens que acompanha o lote, na numeração que a RPC espera.
  *
  * `totalPrincipal` é quantos ativos a metade principal submeteu — é ele que

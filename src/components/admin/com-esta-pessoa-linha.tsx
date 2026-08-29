@@ -41,6 +41,10 @@ export function ComEstaPessoaLinha({
     }
     setAberto(true)
     if (dados || carregando) return
+    // O erro da tentativa anterior sai ANTES da nova: sem isto, uma segunda
+    // tentativa bem-sucedida mostrava a mensagem vermelha antiga em cima da lista
+    // correta (achado da revisão de código de 29/08/2026).
+    setErro(null)
     iniciar(async () => {
       const r = await buscarSaldoDoColaborador(colaboradorId)
       if (r.ok) setDados({ saldos: r.saldos, semVinculo: r.semVinculo })

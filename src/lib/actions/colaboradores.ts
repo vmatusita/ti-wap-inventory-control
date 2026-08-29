@@ -318,6 +318,9 @@ export async function consolidarColaboradores(input: {
 // Devolve o CONTADOR de lançamentos sem vínculo junto, porque a honestidade
 // instalada na F37 exige dizer quantos ficaram de fora da conta — e a contagem é
 // agregada no SQL (lição do teto de 1.000), nunca contada em memória.
+/** O formato canônico do UUID que o Postgres aceita, conferido antes de ir até lá. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export type SaldoDaPessoaResult = {
   ok: boolean
   saldos: SaldoDoColaborador[]
@@ -328,7 +331,10 @@ export type SaldoDaPessoaResult = {
 export async function buscarSaldoDoColaborador(
   colaboradorId: string,
 ): Promise<SaldoDaPessoaResult> {
-  if (!/^[0-9a-f-]{36}$/i.test(colaboradorId)) {
+  // O FORMATO do UUID, não só o comprimento: `[0-9a-f-]{36}` aceitava 36 hífens, e
+  // o lixo passava a guarda para morrer no `22P02` do Postgres, dentro do catch
+  // genérico — a mensagem certa existia e não era usada.
+  if (!UUID_RE.test(colaboradorId)) {
     return { ok: false, saldos: [], semVinculo: 0, erro: 'Colaborador inválido.' }
   }
   const supabase = await createClient()

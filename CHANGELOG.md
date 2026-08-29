@@ -6,6 +6,62 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 29/08/2026 — Revisão de código da F38: 15 achados aplicados ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.43.1**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo
+`a1df00e..HEAD` — a F38 inteira, inclusive a `0122` e as cinco correções que a própria fase aplicou
+depois da sua revisão adversarial e que ninguém tinha revisado. **15 achados, 15 aplicados.** Uma
+migration (`0123`, um `create or replace function` sem alteração de dado), zero dependência nova.
+Ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-29).
+
+- 🐛 **A `0122` consertou a ordem dos inversos e deixou passar a ordem dos ORIGINAIS** (`0123`).
+  `criar_movimentacao_com_itens` inseria os lançamentos na ordem crua do payload — e o payload tem
+  uma ordem conhecida: `montarItensJuntoDoLote` empilha as linhas da entrega (`saida`) antes das do
+  checklist (`retorno`), que é exatamente a montagem de uma **troca/upgrade**. Com o mesmo acessório
+  nos dois lados e a prateleira em 0 — o caso comum de um item que está todo com as pessoas — a
+  `saida` entrava primeiro, `valida_lancamento_item` chegava a `−1` e derrubava **o lote inteiro**
+  com "Estoque insuficiente", numa operação neutra no saldo. A `0123` ordena pelo EFEITO
+  (`entrada`/`retorno`/`liberacao`/`ajuste` positivo antes dos consumidores), desempatando pela
+  ordinalidade do payload, e mantém o índice ORIGINAL na etiqueta do erro. Provado no ensaio, em
+  transação revertida: a ordem antiga recusa com `23514`, a nova grava as duas movimentações e os
+  dois lançamentos.
+- 🐛 **Falha ao LER o saldo virava "saldo zero" em silêncio.** As três actions que aplicam a regra
+  §C.3 chamavam `rel_saldo_colaborador` descartando o `error`. Um blip no banco fazia toda linha de
+  devolução ser gravada **sem** `colaborador_id`: o estoque ficava certo e a conta da pessoa nunca
+  baixava — o furo que a F38 existe para fechar, agora sem rastro. Nasceu
+  `saldosPorColaborador` (`src/lib/queries/itens.ts`): lê todas as pessoas **em paralelo**, devolve o
+  erro em vez de uma lista vazia, e as três actions recusam a operação com um texto honesto.
+- 🐛 **O "Voltou" da devolução da troca sumia no rascunho.** `rascunho.ts` saneava
+  `contrapartida.itensDevolvidos` na volta, mas ninguém o gravava na ida nem o repassava a
+  `contrapartidaPadrao` — o campo era código morto e a conferência voltava vazia, enquanto o
+  "Faltou" ao lado sobrevivia.
+- 🐛 **Restaurar rascunho com ativo faltando desalinhava os "itens que vão junto".** O índice é
+  posicional; o lote é remontado sem os ativos que sumiram, e o fone do 3º equipamento passava a
+  acompanhar outro — ou sumia calado. Nasceu `reindexarItensJunto`, que traduz a posição pelo **id**
+  do equipamento e avisa quantas linhas foram embora com ele.
+- 🐛 **O estorno era o único caminho que mandava o vínculo sem olhar saldo.** Com a conta da pessoa
+  já zerada por outro caminho, desfazer a movimentação do equipamento morria com uma mensagem sobre
+  saldo de acessório. Agora a §C.3 vale ali também.
+- 🐛 **O checklist da metade da troca não avisava do lote misto.** A regra `checklistPodeLancar` já
+  descartava os lançamentos; só o aviso na tela ficou de fora, e o operador via a marcação verde sem
+  o estoque mexer.
+- 🐛 **"Com esta pessoa" mostrava uma contagem do sistema inteiro** como se fosse a dívida oculta
+  daquela pessoa. O texto passou a dizer a palavra.
+- 🐛 **Teto de itens por lote contava só metade.** A seção da entrega limitava as próprias 20 linhas
+  sem somar o "Voltou" da devolução da troca — e o servidor recusava o lote inteiro com uma mensagem
+  que não mencionava o checklist.
+- 🐛 **Três defeitos menores de tela:** o erro da tentativa anterior ficava em cima da lista correta
+  em `/admin/colaboradores`; o saldo da pessoa anterior ficava na tela sob o nome novo durante o
+  debounce; e a validação de UUID aceitava 36 hífens, mandando o lixo morrer no `22P02` do Postgres
+  em vez de na mensagem em pt-BR que já existia.
+- 🧪 **A guarda das migrations não cobria a `0122`.** `DA_F38` parava na `0121`, então a migration
+  que recria DUAS funções passava inteira por fora das asserções do critério 9. Além de corrigir a
+  lista, entrou a **guarda da guarda**: nenhuma migration a partir da `0116` pode ficar de fora.
+- ⚡ **Menos trabalho repetido:** a ponte tipo→item deixou de ser refeita por tipo a cada tecla
+  digitada no passo 2, e as leituras de saldo por pessoa deixaram de ser sequenciais.
+
+---
+
 ## 28/08/2026 — F38 · Os itens andam com o ativo ✅ 🔒
 
 **v1.43.0** · migrations `0116`–`0122` · ordem em

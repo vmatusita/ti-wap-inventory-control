@@ -37,6 +37,7 @@ import {
   type SugestoesColaborador as SugestoesColaboradorQuery,
 } from '@/lib/queries/colaboradores'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
+import { saldosPorColaborador } from '@/lib/queries/itens'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import type { StatusAtivo, TipoLancamento } from '@/lib/dominio'
 import type { Json } from '@/lib/types/database'
@@ -279,9 +280,11 @@ export async function registrarMovimentacoes(input: {
     (ativosData ?? []).map((a) => [a.id, a as AtivoBasico]),
   )
 
-  // Vínculo de escrita em TODAS as filiais tocadas pelo lote — `montarRow` grava
-  // `filial_id: ativo.filial_id` (a origem), e é esse valor que a policy de INSERT de
-  // `movimentacoes` avalia. O lote é recusado inteiro: gravar as linhas permitidas e
+  // Vínculo de escrita em TODAS as filiais tocadas pelo lote. Desde a F38 quem grava
+  // `filial_id` é a RPC 0117, derivando-a do ativo lido SOB A TRAVA — e é esse valor
+  // que a policy de INSERT de `movimentacoes` avalia. Esta conferência continua aqui
+  // pela MENSAGEM (sem ela vem o 42501 cru) e porque erra antes de abrir transação.
+  // O lote é recusado inteiro: gravar as linhas permitidas e
   // recusar as outras deixaria o operador com meia transferência registrada.
   //
   // TRANSFERENCIA_EXIGE_VINCULO_DESTINO = nao (§0 da ordem F21): `filial_destino_id`
@@ -321,13 +324,14 @@ export async function registrarMovimentacoes(input: {
   // movimentação apontada (entrega → `saida`, devolução → `retorno`); o cliente não
   // o escolhe. Item apontando movimentação de outro tipo simplesmente não vira
   // lançamento — não é erro, é uma seção opcional que não se aplica àquela linha.
-  const { payload: itensPayload, avisos } = await montarItensJunto(
-    supabase,
-    itens,
-    parsed.data.itensJunto,
-    ativoPorId,
-    vinculos,
-  )
+  const {
+    payload: itensPayload,
+    avisos,
+    erro: erroDosItens,
+  } = await montarItensJunto(supabase, itens, parsed.data.itensJunto, ativoPorId, vinculos)
+  // Nada foi gravado ainda: recusar aqui é o lado seguro. O contrário — seguir com
+  // o vínculo em branco — deixaria o acessório na conta da pessoa para sempre.
+  if (erroDosItens) return loteInteiroRecusado(itens, undefined, erroDosItens)
 
   const { data: retorno, error: rpcErr } = await supabase.rpc(
     'criar_movimentacao_com_itens',
@@ -417,7 +421,7 @@ async function montarItensJunto(
   itensJunto: ItemJuntoInput[],
   ativoPorId: Map<string, AtivoBasico>,
   vinculos: Map<string, string>,
-): Promise<{ payload: Record<string, unknown>[]; avisos: string[] }> {
+): Promise<{ payload: Record<string, unknown>[]; avisos: string[]; erro?: string }> {
   if (itensJunto.length === 0) return { payload: [], avisos: [] }
 
   type Linha = ItemJuntoInput & {
@@ -480,10 +484,13 @@ async function montarItensJunto(
       lista.push(l)
       porPessoa.set(l.colaboradorId!, lista)
     }
+    // ⚠ Falha de leitura NÃO vira "saldo zero": gravaria o `retorno` sem vínculo e
+    // a conta da pessoa nunca baixaria — em silêncio, que é o furo que esta fase
+    // fecha. Recusa o lote com a mensagem honesta (ver `saldosPorColaborador`).
+    const lidos = await saldosPorColaborador(supabase, porPessoa.keys())
+    if (!lidos.ok) return { payload: [], avisos: [], erro: lidos.erro }
+
     for (const [pessoaId, doPessoa] of porPessoa) {
-      const { data: saldos } = await supabase.rpc('rel_saldo_colaborador', {
-        p_colaborador: pessoaId,
-      })
       const decididas = decidirVinculosDoLote(
         doPessoa.map((l) => ({
           ref: l,
@@ -493,7 +500,7 @@ async function montarItensJunto(
         })),
         {
           colaboradorId: pessoaId,
-          saldos: (saldos ?? []) as SaldoDaPessoa[],
+          saldos: (lidos.mapa.get(pessoaId) ?? []) as SaldoDaPessoa[],
         },
       )
       for (const d of decididas) {
@@ -597,6 +604,35 @@ export async function estornarMovimentacao(input: {
       colaborador_id: l.colaborador_id,
     }
   })
+
+  // F38 · §C.3 tem de valer AQUI TAMBÉM — o estorno era o único caminho que
+  // mandava o vínculo sem olhar saldo (achado da revisão de 29/08/2026). O inverso
+  // de uma `saida` é um `retorno`, e a guarda da 0118 recusa `retorno` que exceda o
+  // que a pessoa tem. Quando a conta dela já zerou por outro caminho, o estorno
+  // inteiro morria com uma mensagem sobre saldo de acessório — para quem só queria
+  // desfazer a movimentação do equipamento. Sem saldo, o inverso vai SEM o vínculo:
+  // repõe a prateleira do mesmo jeito e não inventa dívida negativa.
+  const retornos = estornos.filter((e) => e.tipo === 'retorno' && e.colaborador_id)
+  if (retornos.length > 0) {
+    const lidos = await saldosPorColaborador(
+      supabase,
+      retornos.map((e) => e.colaborador_id as string),
+    )
+    if (!lidos.ok) return { ok: false, erro: lidos.erro }
+    for (const pessoaId of new Set(retornos.map((e) => e.colaborador_id as string))) {
+      const doPessoa = retornos.filter((e) => e.colaborador_id === pessoaId)
+      const decididas = decidirVinculosDoLote(
+        doPessoa.map((e) => ({
+          ref: e,
+          itemId: e.item_id,
+          filialId: e.filial_id,
+          quantidade: e.quantidade,
+        })),
+        { colaboradorId: pessoaId, saldos: (lidos.mapa.get(pessoaId) ?? []) as SaldoDaPessoa[] },
+      )
+      for (const d of decididas) d.ref.colaborador_id = d.colaboradorId
+    }
+  }
 
   const { error: insertErr } = await supabase.rpc('estornar_movimentacao_com_itens', {
     p_movimentacao_id: mov.id,

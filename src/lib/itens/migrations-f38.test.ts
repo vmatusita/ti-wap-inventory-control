@@ -21,8 +21,17 @@ import { describe, expect, it } from 'vitest'
 
 const DIR = join(process.cwd(), 'supabase', 'migrations')
 
-/** As migrations que a F38 acrescentou. */
-const DA_F38 = ['0116', '0117', '0118', '0119', '0120', '0121']
+/**
+ * As migrations que a F38 acrescentou — INCLUSIVE as de correção posteriores
+ * (0122, ordem dos inversos; 0123, ordem dos itens do lote).
+ *
+ * ⚠ ESTA LISTA É A COBERTURA DO TESTE, e não um registro histórico. Enquanto ela
+ * parou em `0121`, a 0122 — que recria DUAS funções — passava inteira por fora de
+ * todas as asserções abaixo: podia ter recriado uma intocável, acrescentado valor
+ * de enum ou virado `security definer`, e o arquivo continuaria verde. Migration
+ * nova da fase entra AQUI no mesmo commit em que nasce.
+ */
+const DA_F38 = ['0116', '0117', '0118', '0119', '0120', '0121', '0122', '0123']
 
 /** As dez que a ordem nomeia como intocáveis. */
 const INTOCAVEIS = [
@@ -62,9 +71,20 @@ function funcoesDefinidas(sql: string): string[] {
 }
 
 describe('migrations da F38 — o critério 9, provado no disco', () => {
-  it('as seis migrations da fase existem', () => {
+  it('toda migration listada como da fase existe no disco', () => {
     const achadas = arquivosDaFase().map((a) => a.nome.slice(0, 4))
     expect(achadas).toEqual(DA_F38)
+  })
+
+  // A guarda da guarda: sem ela, esquecer de acrescentar a migration nova em
+  // `DA_F38` não quebra nada — só apaga a cobertura em silêncio, que foi
+  // exatamente o que aconteceu com a 0122. A última da F37 é a 0115.
+  it('nenhuma migration a partir da 0116 fica de fora da lista', () => {
+    const posteriores = readdirSync(DIR)
+      .filter((f) => f.endsWith('.sql') && /^\d{4}_/.test(f) && f.slice(0, 4) >= '0116')
+      .map((f) => f.slice(0, 4))
+      .sort()
+    expect(posteriores, 'migration nova sem cobertura em DA_F38').toEqual(DA_F38)
   })
 
   it('NENHUMA função intocável é recriada pelas migrations da fase', () => {

@@ -16,6 +16,7 @@ import {
 import { decidirVinculoRetorno, type SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
 import { textoDaBaixa, textoDoRetornoDaPendencia } from '@/lib/pendencias/texto-baixa'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
+import { saldosPorColaborador } from '@/lib/queries/itens'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import { hojeISO } from '@/lib/format'
@@ -83,6 +84,9 @@ export async function resolverPendenciaItem(input: {
     desfecho: desfecho as 'recuperado' | 'baixa',
     observacao: observacao ?? null,
   })
+  // Nada foi resolvido ainda: recusar é o lado seguro. Resolver com o vínculo em
+  // branco deixaria o acessório na conta da pessoa exatamente como antes da F38.
+  if (lancamentos.erro) return { ok: false, erro: lancamentos.erro }
 
   const { data, error } = await supabase.rpc(
     'resolver_pendencias_item_com_lancamentos',
@@ -138,32 +142,36 @@ async function montarLancamentosDaResolucao(
     desfecho: 'recuperado' | 'baixa'
     observacao: string | null
   },
-): Promise<{ payload: Record<string, unknown>[]; ativos: Set<string> }> {
+): Promise<{ payload: Record<string, unknown>[]; ativos: Set<string>; erro?: string }> {
   const ativos = new Set<string>()
   if (args.alvos.length === 0) return { payload: [], ativos }
 
-  const [{ data: tipos }, { data: itens }] = await Promise.all([
+  const [{ data: tipos, error: eTipos }, { data: itens, error: eItens }] = await Promise.all([
     supabase.from('tipos_item').select('id, slug, rotulo'),
     supabase.from('itens').select('id, nome, ativo, tipo_id'),
   ])
+  // Falha de leitura do CATÁLOGO não bloqueia (a doutrina da §E: resolver nunca
+  // falha por causa do catálogo), mas também não pode ser invisível: sem estas
+  // linhas, a pendência resolveria sem lançamento e ninguém saberia por quê.
+  if (eTipos) console.error('[resolverPendenciaItem] falha ao ler tipos_item:', eTipos)
+  if (eItens) console.error('[resolverPendenciaItem] falha ao ler o catálogo de itens:', eItens)
 
   const vinculos = await resolverColaboradoresPorNome(
     supabase,
     args.alvos.map((p) => p.colaborador),
   )
 
-  // O saldo de cada pessoa, uma consulta por pessoa distinta (nunca por linha).
-  const saldoPorPessoa = new Map<string, SaldoDaPessoa[]>()
-  for (const pessoaId of new Set(
+  // O saldo de cada pessoa, uma consulta por pessoa distinta (nunca por linha) e
+  // todas em paralelo. ⚠ Falha de leitura NÃO vira "saldo zero": gravaria o
+  // `retorno` sem vínculo e o item ficaria na conta da pessoa para sempre.
+  const lidos = await saldosPorColaborador(
+    supabase,
     args.alvos
       .map((p) => vinculos.get(chaveColaborador(p.colaborador)))
       .filter((x): x is string => !!x),
-  )) {
-    const { data: saldos } = await supabase.rpc('rel_saldo_colaborador', {
-      p_colaborador: pessoaId,
-    })
-    saldoPorPessoa.set(pessoaId, (saldos ?? []) as SaldoDaPessoa[])
-  }
+  )
+  if (!lidos.ok) return { payload: [], ativos, erro: lidos.erro }
+  const saldoPorPessoa = lidos.mapa as Map<string, SaldoDaPessoa[]>
 
   const consumido = new Map<string, number>()
   const payload: Record<string, unknown>[] = []

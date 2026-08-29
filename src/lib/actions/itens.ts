@@ -20,7 +20,7 @@ import {
 import type { TipoLancamento } from '@/lib/dominio'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import { observacoesDaTransferencia } from '@/lib/itens/transferencia'
-import { getSaldosItens } from '@/lib/queries/itens'
+import { getSaldosItens, saldosPorColaborador } from '@/lib/queries/itens'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { estoquePorItem } from '@/lib/itens/repor'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
@@ -113,18 +113,19 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
   //
   // A regra é a mesma da movimentação: o vínculo só entra quando há saldo; não
   // havendo, o `retorno` é gravado sem ele e repõe o estoque igual.
-  const saldosPorPessoa = new Map<string, SaldoDaPessoa[]>()
-  for (const pessoaId of new Set(
+  //
+  // ⚠ E falha de LEITURA do saldo não vira "saldo zero": gravaria o `retorno` sem
+  // vínculo e a conta da pessoa nunca baixaria, em silêncio. As consultas vão em
+  // paralelo e o erro recusa o lançamento (ver `saldosPorColaborador`).
+  const lidos = await saldosPorColaborador(
+    supabase,
     linhas
       .filter((v) => v.tipo === 'retorno')
       .map((v) => vinculos.get(chaveColaborador(v.colaborador)))
       .filter((x): x is string => !!x),
-  )) {
-    const { data: saldos } = await supabase.rpc('rel_saldo_colaborador', {
-      p_colaborador: pessoaId,
-    })
-    saldosPorPessoa.set(pessoaId, (saldos ?? []) as SaldoDaPessoa[])
-  }
+  )
+  if (!lidos.ok) return { ok: false, resultados: [], erroGeral: lidos.erro }
+  const saldosPorPessoa = lidos.mapa as Map<string, SaldoDaPessoa[]>
   const consumido = new Map<string, number>()
 
   for (const v of linhas) {
