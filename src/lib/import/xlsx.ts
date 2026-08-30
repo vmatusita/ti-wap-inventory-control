@@ -120,12 +120,10 @@ export async function lerXlsx(input: ArrayBuffer | Uint8Array): Promise<CsvCru> 
     throw new ErroArquivoImport(msgLimiteLinhas(linhasDeDados))
   }
 
-  const largura = colunas
-
   const lerLinha = (numeroLinha: number): string[] => {
     const row = ws.getRow(numeroLinha)
     const celulas: string[] = []
-    for (let c = 1; c <= largura; c++) celulas.push(celulaParaTexto(row.getCell(c).value))
+    for (let c = 1; c <= colunas; c++) celulas.push(celulaParaTexto(row.getCell(c).value))
     return celulas
   }
 
