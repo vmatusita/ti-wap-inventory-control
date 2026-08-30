@@ -13,11 +13,29 @@
 // globals.css e quebra se alguém mudar o token sem atualizar esta constante.
 export const BRAND_AZUL = '#2a78d6'
 
-// Tokens CSS aceitos onde se espera um hex. Só o azul da marca chega aqui hoje;
-// a forma `var(--brand-azul)` também entra porque é como o token é declarado.
-const TOKEN_PARA_HEX: Record<string, string> = {
+// Tokens CSS aceitos onde se espera um hex.
+//
+// F40 — os NOVE `--grafico-<familia>` entraram aqui, e essa entrada é OBRIGATÓRIA,
+// não conveniência: desde a F40 `STATUS_CHART_COLOR` não escreve mais hex nenhum,
+// e sem estas linhas TODA cor de barra chegaria a `canaisDoHex` como texto
+// desconhecido, a luminância viraria 0 e os rótulos sairiam brancos sobre fundo
+// claro — em silêncio, exatamente a armadilha que `dominio.ts` documenta.
+//
+// Os valores DUPLICAM `src/app/globals.css` de propósito: este módulo é puro e
+// roda no Vitest, sem CSSOM para resolver variável. `src/lib/dominio/cores.test.ts`
+// lê o globals.css e quebra se algum dos dez divergir — é a trava TS↔CSS.
+export const TOKEN_PARA_HEX: Record<string, string> = {
   'var(--color-brand-azul)': BRAND_AZUL,
   'var(--brand-azul)': BRAND_AZUL,
+  'var(--grafico-em-estoque)': '#16a34a',
+  'var(--grafico-reservado)': '#6d28d9',
+  'var(--grafico-em-uso)': BRAND_AZUL,
+  'var(--grafico-emprestado)': '#06b6d4',
+  'var(--grafico-em-triagem)': '#db2777',
+  'var(--grafico-em-manutencao)': '#d97706',
+  'var(--grafico-defasado)': '#9ca3af',
+  'var(--grafico-descartado)': '#6b7280',
+  'var(--grafico-devolvido-fornecedor)': '#64748b',
 }
 
 // #rgb ou #rrggbb (com ou sem alfa, que é ignorado — o rótulo é comparado com o
