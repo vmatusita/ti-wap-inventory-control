@@ -100,8 +100,10 @@ export function AtivosPaginacao({
       <div className="flex flex-wrap items-center gap-2">
         {tamanhos && tamanhos.length > 0 && (
           <Select value={String(pageSize)} onValueChange={trocarTamanho}>
+            {/* F40 — `w-[140px]` virou `w-36` (144px, da escala). Ver a nota em
+                `ativos-filtros.tsx`. */}
             <SelectTrigger
-              className="h-10 w-[140px] sm:h-7"
+              className="h-10 w-36 sm:h-7"
               aria-label="Ativos por página"
             >
               <SelectValue />

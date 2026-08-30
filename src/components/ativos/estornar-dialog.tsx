@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { estornarMovimentacao } from '@/lib/actions/movimentacoes'
 import { ouTraco } from '@/lib/format'
@@ -98,7 +99,9 @@ export function EstornarDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-md border bg-muted/40 p-3 text-sm">
+        {/* F40 — moldura à mão (`rounded-md border`) virou `Card`. `ring-0 border`
+            mantém o traço no mesmo tom; a tinta não muda. */}
+        <Card className="block overflow-visible border bg-muted/40 p-3 text-sm ring-0">
           <p className="mb-2 font-medium">O ativo volta a ser:</p>
           <ul className="space-y-1.5">
             <li className="flex items-center gap-2">
@@ -124,7 +127,7 @@ export function EstornarDialog({
               </li>
             )}
           </ul>
-        </div>
+        </Card>
 
         <div className="grid gap-2">
           <Label htmlFor="estorno-obs">Observação (opcional)</Label>

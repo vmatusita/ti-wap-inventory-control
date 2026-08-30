@@ -21,6 +21,25 @@ export type TermoStatus = Enums<'termo_status'>
 // no 800 · cinza 6,11 · slate 8,40), entao so o verde desceu um degrau, para
 // `green-800` (6,45:1). Nao e inconsistencia: e o mesmo ALVO de contraste com a
 // tinta que cada matiz exige. Confira com `node scripts/contraste.mjs`.
+//
+// F40 — AS CLASSES DEIXARAM DE ESCREVER PALETA. Onde se lia
+// `bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300`, lê-se
+// `bg-selo-em-estoque text-selo-em-estoque-texto`: os tokens vivem em
+// `src/app/globals.css` com os MESMOS valores oklch, copiados do `theme.css` do
+// Tailwind. Nenhuma cor mudou (as 18 razões estão medidas em `contraste.mjs`,
+// item `F40`, e batem casa decimal por casa decimal com os pares crus).
+//
+// POR QUE ISSO IMPORTA: a régua media uma LISTA de 73 pares e a cor morava em
+// 555 classes espalhadas por 60 arquivos. Enquanto for `bg-green-100` escrito no
+// JSX, nenhum teste distingue "verde de status" de "verde qualquer" — e famílias
+// em uso sem par nenhum (emerald, sky) entravam sem passar por régua alguma.
+//
+// O NOME DA FAMÍLIA É O DO PRIMEIRO DONO, e ela é REUSADA por quem compartilha a
+// mesma tinta: `TIPO_PILL.compra` e `TIPO_LANC_PILL.liberacao` vestem
+// `--selo-em-estoque`; `TIPO_LANC_PILL.retorno` veste `--selo-troca` (o mesmo
+// teal que a F15 já lhes dava). O compartilhamento não é novo — só ficou
+// visível. `defasado` continua em `bg-muted`, que já era token: são NOVE
+// famílias, não dez.
 export const STATUS_META: Record<
   StatusAtivo,
   { rotulo: string; badge: string }
@@ -28,22 +47,22 @@ export const STATUS_META: Record<
   em_estoque: {
     rotulo: 'Em estoque',
     badge:
-      'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 border-transparent',
+      'bg-selo-em-estoque text-selo-em-estoque-texto border-transparent',
   },
   reservado: {
     rotulo: 'Reservado',
     badge:
-      'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300 border-transparent',
+      'bg-selo-reservado text-selo-reservado-texto border-transparent',
   },
   em_uso: {
     rotulo: 'Em uso',
     badge:
-      'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-transparent',
+      'bg-selo-em-uso text-selo-em-uso-texto border-transparent',
   },
   emprestado: {
     rotulo: 'Emprestado',
     badge:
-      'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300 border-transparent',
+      'bg-selo-emprestado text-selo-emprestado-texto border-transparent',
   },
   // F32/RV-02 — a triagem trocou de família (laranja → rosa). NÃO é gosto: o
   // laranja `#ea580c` do GRÁFICO media ΔE 1,6 sob deutanopia contra o âmbar
@@ -55,12 +74,12 @@ export const STATUS_META: Record<
   em_triagem: {
     rotulo: 'Em triagem',
     badge:
-      'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300 border-transparent',
+      'bg-selo-em-triagem text-selo-em-triagem-texto border-transparent',
   },
   em_manutencao: {
     rotulo: 'Em manutenção',
     badge:
-      'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-transparent',
+      'bg-selo-em-manutencao text-selo-em-manutencao-texto border-transparent',
   },
   defasado: {
     rotulo: 'Defasado',
@@ -69,14 +88,14 @@ export const STATUS_META: Record<
   descartado: {
     rotulo: 'Descartado',
     badge:
-      'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-transparent',
+      'bg-selo-descartado text-selo-descartado-texto border-transparent',
   },
   // F14: baixa terminal — o fornecedor ficou com o equipamento (não teve conserto).
   // Cinza-neutra de baixa, distinta do descartado (slate vs gray).
   devolvido_fornecedor: {
     rotulo: 'Devolvido ao fornecedor',
     badge:
-      'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-transparent',
+      'bg-selo-devolvido-fornecedor text-selo-devolvido-fornecedor-texto border-transparent',
   },
 }
 
@@ -108,16 +127,22 @@ export function rotuloStatus(s: StatusAtivo): string {
 // ARMADILHA: `fillRotuloSegmento` (rotulo-grafico.ts) só sabe converter hex e os
 // tokens listados em TOKEN_PARA_HEX. Cor nova aqui é hex literal OU entra lá —
 // senão a luminância vira 0 e o rótulo sai branco sobre fundo claro, em silêncio.
+//
+// F40 — os nove hex saíram daqui e viraram `--grafico-<familia>` em
+// `src/app/globals.css`, com os MESMOS valores: nenhuma cor mudou, mudou o
+// endereço. Os nove estão em TOKEN_PARA_HEX, e `src/lib/dominio/cores.test.ts`
+// prova que os dois lados não divergem — é a mesma disciplina das travas TS↔SQL
+// da casa. Trocar a tinta de gráfico um dia passa a ser editar uma linha do CSS.
 export const STATUS_CHART_COLOR: Record<StatusAtivo, string> = {
-  em_estoque: '#16a34a',
-  reservado: '#6d28d9',
-  em_uso: 'var(--color-brand-azul)',
-  emprestado: '#06b6d4',
-  em_triagem: '#db2777',
-  em_manutencao: '#d97706',
-  defasado: '#9ca3af',
-  descartado: '#6b7280',
-  devolvido_fornecedor: '#64748b',
+  em_estoque: 'var(--grafico-em-estoque)',
+  reservado: 'var(--grafico-reservado)',
+  em_uso: 'var(--grafico-em-uso)',
+  emprestado: 'var(--grafico-emprestado)',
+  em_triagem: 'var(--grafico-em-triagem)',
+  em_manutencao: 'var(--grafico-em-manutencao)',
+  defasado: 'var(--grafico-defasado)',
+  descartado: 'var(--grafico-descartado)',
+  devolvido_fornecedor: 'var(--grafico-devolvido-fornecedor)',
 }
 
 // ---------- TIPO DE MOVIMENTACAO ----------
@@ -187,10 +212,10 @@ export function rotuloPatrimonio(p: string | null | undefined): string {
 // bg-*-100 → dark:bg-*-950 · text-*-700|800 → dark:text-*-300.
 // (O `compra` usa 800 pelo mesmo motivo medido do `em_estoque` — ver STATUS_META.)
 const TIPO_PILL: Partial<Record<TipoMovimentacao, string>> = {
-  saida: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  devolucao: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  compra: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
-  troca: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
+  saida: 'bg-selo-em-manutencao text-selo-em-manutencao-texto',
+  devolucao: 'bg-selo-em-uso text-selo-em-uso-texto',
+  compra: 'bg-selo-em-estoque text-selo-em-estoque-texto',
+  troca: 'bg-selo-troca text-selo-troca-texto',
 }
 
 // Neutro dos tipos sem cor própria. F19 — era `bg-muted text-muted-foreground`,
@@ -198,7 +223,7 @@ const TIPO_PILL: Partial<Record<TipoMovimentacao, string>> = {
 // `gray-200/gray-600` (6,11:1 claro · 5,64:1 escuro) é o MESMO já usado pelo badge
 // "descartado" de STATUS_META — reaproveitar mantém a família visual do neutro.
 const PILL_NEUTRA =
-  'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+  'bg-selo-descartado text-selo-descartado-texto'
 
 export function pillTipo(t: TipoMovimentacao): string {
   return TIPO_PILL[t] ?? PILL_NEUTRA
@@ -309,11 +334,11 @@ export function descricaoTipoLancamento(t: TipoLancamento): string {
 // âmbar, atrelar(reserva) violeta, devolução(liberacao) verde, retorno teal,
 // ajuste neutro.
 const TIPO_LANC_PILL: Record<TipoLancamento, string> = {
-  entrada: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  saida: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  reserva: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
-  liberacao: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
-  retorno: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
+  entrada: 'bg-selo-em-uso text-selo-em-uso-texto',
+  saida: 'bg-selo-em-manutencao text-selo-em-manutencao-texto',
+  reserva: 'bg-selo-reservado text-selo-reservado-texto',
+  liberacao: 'bg-selo-em-estoque text-selo-em-estoque-texto',
+  retorno: 'bg-selo-troca text-selo-troca-texto',
   // F19 — mesmo neutro AA do `pillTipo` (ver PILL_NEUTRA).
   ajuste: PILL_NEUTRA,
 }

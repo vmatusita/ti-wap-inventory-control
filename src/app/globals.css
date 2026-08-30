@@ -65,6 +65,29 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* F40 — os apelidos que fazem `bg-selo-em-estoque` e `text-selo-em-estoque-texto`
+     EXISTIREM. No Tailwind v4 é este bloco que transforma um token em utilitário; sem
+     ele, `--selo-*` seria variável CSS declarada e nenhuma classe a alcançaria.
+     Os VALORES vivem no `:root`/`.dark` abaixo — aqui só mora o apelido. */
+  --color-selo-em-estoque: var(--selo-em-estoque);
+  --color-selo-em-estoque-texto: var(--selo-em-estoque-texto);
+  --color-selo-reservado: var(--selo-reservado);
+  --color-selo-reservado-texto: var(--selo-reservado-texto);
+  --color-selo-em-uso: var(--selo-em-uso);
+  --color-selo-em-uso-texto: var(--selo-em-uso-texto);
+  --color-selo-emprestado: var(--selo-emprestado);
+  --color-selo-emprestado-texto: var(--selo-emprestado-texto);
+  --color-selo-em-triagem: var(--selo-em-triagem);
+  --color-selo-em-triagem-texto: var(--selo-em-triagem-texto);
+  --color-selo-em-manutencao: var(--selo-em-manutencao);
+  --color-selo-em-manutencao-texto: var(--selo-em-manutencao-texto);
+  --color-selo-descartado: var(--selo-descartado);
+  --color-selo-descartado-texto: var(--selo-descartado-texto);
+  --color-selo-devolvido-fornecedor: var(--selo-devolvido-fornecedor);
+  --color-selo-devolvido-fornecedor-texto: var(--selo-devolvido-fornecedor-texto);
+  --color-selo-troca: var(--selo-troca);
+  --color-selo-troca-texto: var(--selo-troca-texto);
 }
 
 :root {
@@ -124,6 +147,90 @@
   --brand-amarelo: #eda100;
   --brand-dark: #111110;
   --brand-azul: #2a78d6;
+
+  /* ================================================================
+     F40 — AS NOVE FAMÍLIAS DE SELO (tema claro).
+
+     Os valores são os MESMOS `oklch` que `bg-green-100` e `text-green-800` já
+     entregam hoje, copiados de `node_modules/tailwindcss/theme.css` — o mesmo
+     arquivo que `scripts/contraste.mjs` lê. NENHUM PIXEL MUDA DE COR. O que muda
+     é que a cor passa a ter NOME, e nome é o que o medidor e a guarda alcançam:
+     enquanto for `bg-green-100` escrito no JSX, nenhum teste distingue "verde de
+     status" de "verde qualquer" (plano §3.5).
+
+     POR QUE O VALOR É LITERAL E NÃO `var(--outro)`: `contraste.mjs:138-165` lê o
+     arquivo linha a linha e resolve por `parseOklch ?? parseHex ?? corLiteral`.
+     `var(--x)` devolve `null` e a linha é ignorada EM SILÊNCIO — token que o
+     medidor não lê conta como falha, não como aprovação. É o que já acontece com
+     `--chart-1`/`--chart-2` acima (plano §2.3).
+
+     A ESCOLHA DO TOM É MEDIDA, não gosto: o verde usa `-800` porque
+     `green-700/green-100` dá 4,4996:1 e reprova AA por 0,0004 (ver o comentário
+     de `STATUS_META` em `src/lib/dominio.ts`). Confira com `npm run contraste`.
+
+     `defasado` NÃO tem família aqui: ele já era `bg-muted text-muted-foreground`,
+     que é token desde sempre. Nove famílias, não dez.
+     ================================================================ */
+  --selo-em-estoque: oklch(96.2% 0.044 156.743); /* = green-100 */
+  --selo-em-estoque-texto: oklch(44.8% 0.119 151.328); /* = green-800 — 6,45:1 */
+  --selo-reservado: oklch(94.3% 0.029 294.588); /* = violet-100 */
+  --selo-reservado-texto: oklch(49.1% 0.27 292.581); /* = violet-700 — 6,13:1 */
+  --selo-em-uso: oklch(93.2% 0.032 255.585); /* = blue-100 */
+  --selo-em-uso-texto: oklch(48.8% 0.243 264.376); /* = blue-700 — 5,59:1 */
+  --selo-emprestado: oklch(95.6% 0.045 203.388); /* = cyan-100 */
+  --selo-emprestado-texto: oklch(52% 0.105 223.128); /* = cyan-700 — 4,71:1 */
+  --selo-em-triagem: oklch(94.8% 0.028 342.258); /* = pink-100 */
+  --selo-em-triagem-texto: oklch(52.5% 0.223 3.958); /* = pink-700 — 5,01:1 */
+  --selo-em-manutencao: oklch(96.2% 0.059 95.617); /* = amber-100 */
+  --selo-em-manutencao-texto: oklch(47.3% 0.137 46.201); /* = amber-800 — 6,41:1 */
+  --selo-descartado: oklch(92.8% 0.006 264.531); /* = gray-200 */
+  --selo-descartado-texto: oklch(44.6% 0.03 256.802); /* = gray-600 — 6,11:1 */
+  --selo-devolvido-fornecedor: oklch(92.9% 0.013 255.508); /* = slate-200 */
+  --selo-devolvido-fornecedor-texto: oklch(37.2% 0.044 257.287); /* = slate-700 — 8,40:1 */
+  --selo-troca: oklch(95.3% 0.051 180.801); /* = teal-100 */
+  --selo-troca-texto: oklch(51.1% 0.096 186.391); /* = teal-700 — 4,79:1 */
+
+  /* ================================================================
+     F40 — A TINTA DE GRÁFICO, uma por família.
+
+     Valor único nos dois temas (é o modelo vigente dos gráficos: ΔE entre duas
+     cores não depende do fundo, e a impressão é sempre clara) — por isso estas
+     nove linhas NÃO se repetem no `.dark`: nada lá as sobrescreve, e a cascata
+     resolve.
+
+     Os valores são exatamente os hex que `STATUS_CHART_COLOR` escrevia em
+     `src/lib/dominio.ts` até a F40, um a um. NENHUMA COR MUDA — o que muda é o
+     endereço dela.
+
+     ⚠ A ORDEM DA F40 pedia que estes tokens nascessem como APELIDO de
+     `--selo-<familia>-texto`. Eles NÃO nascem: as duas tintas são diferentes hoje
+     (`#16a34a` é `green-600`; `--selo-em-estoque-texto` é `green-800`), e apelidar
+     mudaria a cor de cinco superfícies — o acento do KPI tile, a barra do acervo,
+     o segmento empilhado, a série temporal e o swatch do glossário. "Sem mudar
+     nenhuma cor" é a metade bloqueante da instrução, e é ela que vale. Ata em
+     `docs/DECISOES.md` (2026-08-30 · F40).
+
+     SEPARAR a tinta de área da tinta de texto continua ADIADO, e agora é uma
+     linha daqui em vez de uma caçada em `dominio.ts` — item AA de
+     `docs/DIVIDA-TECNICA.md`, com os dois alívios medidos (`#06b6d4` a 2,43:1 e
+     `#6d28d9` a 2,52:1).
+
+     ⚠ ARMADILHA HERDADA (`dominio.ts:108-110`): `fillRotuloSegmento` só sabe
+     converter hex e os tokens de `TOKEN_PARA_HEX`
+     (`src/lib/relatorios/rotulo-grafico.ts`). Estes nove estão lá, e
+     `src/lib/dominio/cores.test.ts` prova que os dois lados não divergem. Cor nova
+     aqui SEM entrada lá faz a luminância virar 0 e o rótulo sair branco sobre
+     fundo claro, em silêncio.
+     ================================================================ */
+  --grafico-em-estoque: #16a34a;
+  --grafico-reservado: #6d28d9;
+  --grafico-em-uso: #2a78d6; /* = --brand-azul, escrito literal p/ o medidor ler */
+  --grafico-emprestado: #06b6d4;
+  --grafico-em-triagem: #db2777;
+  --grafico-em-manutencao: #d97706;
+  --grafico-defasado: #9ca3af;
+  --grafico-descartado: #6b7280;
+  --grafico-devolvido-fornecedor: #64748b;
 }
 
 /* `@media not print` (F19): na impressão este bloco inteiro deixa de existir e o
@@ -171,6 +278,36 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+
+    /* F40 — as nove famílias de selo no tema ESCURO. Mesmos valores que os pares
+       `dark:bg-*-950 dark:text-*-300` de `STATUS_META` e `TIPO_PILL` entregavam
+       antes desta fase, copiados de `theme.css`. Nenhuma cor muda.
+
+       Note que os tons NÃO são uniformes, e isso é herança medida, não descuido:
+       o neutro do descartado é `gray-800/gray-400` e o do devolvido ao fornecedor
+       é `slate-800/slate-300` — os dois cinzas ficam distinguíveis lado a lado,
+       que é a razão de serem duas famílias.
+
+       As nove tintas de GRÁFICO (`--grafico-*`) não se repetem aqui de propósito:
+       são valor único nos dois temas, e o `.dark` não as sobrescreve. */
+    --selo-em-estoque: oklch(26.6% 0.065 152.934); /* = green-950 */
+    --selo-em-estoque-texto: oklch(87.1% 0.15 154.449); /* = green-300 */
+    --selo-reservado: oklch(28.3% 0.141 291.089); /* = violet-950 */
+    --selo-reservado-texto: oklch(81.1% 0.111 293.571); /* = violet-300 */
+    --selo-em-uso: oklch(28.2% 0.091 267.935); /* = blue-950 */
+    --selo-em-uso-texto: oklch(80.9% 0.105 251.813); /* = blue-300 */
+    --selo-emprestado: oklch(30.2% 0.056 229.695); /* = cyan-950 */
+    --selo-emprestado-texto: oklch(86.5% 0.127 207.078); /* = cyan-300 */
+    --selo-em-triagem: oklch(28.4% 0.109 3.907); /* = pink-950 */
+    --selo-em-triagem-texto: oklch(82.3% 0.12 346.018); /* = pink-300 */
+    --selo-em-manutencao: oklch(27.9% 0.077 45.635); /* = amber-950 */
+    --selo-em-manutencao-texto: oklch(87.9% 0.169 91.605); /* = amber-300 */
+    --selo-descartado: oklch(27.8% 0.033 256.848); /* = gray-800 */
+    --selo-descartado-texto: oklch(70.7% 0.022 261.325); /* = gray-400 */
+    --selo-devolvido-fornecedor: oklch(27.9% 0.041 260.031); /* = slate-800 */
+    --selo-devolvido-fornecedor-texto: oklch(86.9% 0.022 252.894); /* = slate-300 */
+    --selo-troca: oklch(27.7% 0.046 192.524); /* = teal-950 */
+    --selo-troca-texto: oklch(85.5% 0.138 181.071); /* = teal-300 */
   }
 }
 
@@ -298,5 +435,24 @@
      <thead> de verdade; a linha é o cinto extra). */
   thead {
     display: table-header-group;
+  }
+  /* F40 — O QUADRO DO CARD SOBREVIVE AO PAPEL.
+     O `Card` do kit desenha o traço com `ring-1` (`src/components/ui/card.tsx:15`),
+     e `ring` é box-shadow: TODO navegador descarta box-shadow na impressão. Enquanto
+     as telas emolduravam à mão com `rounded-* border`, isso não aparecia — a borda
+     era `border` de verdade. Com o sistema de design trocando essas molduras pelo
+     `Card` (plano §3.8), o relatório impresso — que é feature desde a F19 —
+     perderia todos os quadros de uma vez.
+     A conversão é do ANEL em BORDA, aqui e só aqui: nenhuma linha `oklch` é tocada,
+     e `scripts/contraste.mjs` continua lendo o arquivo do mesmo jeito.
+
+     O traço é `var(--border)` e NÃO um cinza literal: na mídia print o bloco
+     `.dark` não existe (F19), então `--border` cai no valor claro do `:root` — que
+     é exatamente o mesmo traço que as molduras `border` do produto imprimem hoje.
+     Um `#d4d4d4` escolhido no braço faria os quadros do papel saírem num cinza
+     diferente do de sempre. */
+  [data-slot='card'] {
+    border: 1px solid var(--border);
+    box-shadow: none;
   }
 }

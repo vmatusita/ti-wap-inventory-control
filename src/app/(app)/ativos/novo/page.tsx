@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import { ArrowLeft, Eye } from 'lucide-react'
 import { NovaCompraForm } from '@/components/ativos/nova-compra-form'
-import { LinkAjuda } from '@/components/layout/link-ajuda'
+import {
+  CabecalhoDaPagina,
+  MEDIDA_DE_FORMULARIO,
+  Pagina,
+} from '@/components/layout/pagina'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { filiaisParaEscrita } from '@/components/layout/permissoes'
 import { listarFiliais } from '@/lib/queries/filiais'
@@ -51,7 +55,13 @@ export default async function NovoEquipamentoPage({
   ])
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    // F40 — o `mx-auto max-w-3xl` saiu do CONTAINER e virou `MEDIDA_DE_FORMULARIO`
+    // no bloco dos campos (decisão do Johnny, 30/08/2026). É a única mudança de
+    // posição visível desta fase: a tela deixa de ser uma coluna centrada e passa
+    // a começar na mesma linha vertical do cabeçalho do app e de todas as outras
+    // telas. O formulário continua com os mesmos 768px — o que mudou é que o
+    // título, o link de voltar e os avisos deixaram de acompanhar a centragem.
+    <Pagina>
       <Link
         href="/ativos"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -60,37 +70,33 @@ export default async function NovoEquipamentoPage({
         Voltar para ativos
       </Link>
 
-      <div>
-        <div className="flex items-center gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Novo equipamento
-          </h1>
-          <LinkAjuda pagina="cadastrar-compra" rotulo="Ajuda: como cadastrar um equipamento" />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Entrada por compra — os equipamentos nascem em estoque na filial que
-          recebeu, com uma movimentação de compra na linha do tempo. Compra em
-          série? Cole a lista ou informe a faixa de patrimônios.
-        </p>
-      </div>
+      <CabecalhoDaPagina
+        titulo="Novo equipamento"
+        ajuda="cadastrar-compra"
+        ajudaRotulo="Ajuda: como cadastrar um equipamento"
+        descricao="Entrada por compra — os equipamentos nascem em estoque na filial que recebeu, com uma movimentação de compra na linha do tempo. Compra em série? Cole a lista ou informe a faixa de patrimônios."
+      />
 
       {/* Cargo Consulta abriu a URL direto (nenhum caminho da UI leva até aqui):
           diz o motivo em vez de oferecer um formulário que a action recusaria.
           Isto é reforço, não a trava — `registrarCompra` recusa no servidor. */}
       {podeEscrever(operador?.papel) ? (
-        <NovaCompraForm
-          filiais={filiaisEscrita}
-          inicial={inicial}
-          ultimaCompra={ultimaCompra}
-        />
+        <div className={MEDIDA_DE_FORMULARIO}>
+          <NovaCompraForm
+            filiais={filiaisEscrita}
+            inicial={inicial}
+            ultimaCompra={ultimaCompra}
+          />
+        </div>
       ) : (
         <EstadoVazio
+          className={MEDIDA_DE_FORMULARIO}
           icone={Eye}
           titulo="Esta tela registra uma compra"
           descricao={MSG_SOMENTE_LEITURA}
           acao={{ href: '/ativos', rotulo: 'Voltar para ativos' }}
         />
       )}
-    </div>
+    </Pagina>
   )
 }

@@ -34,7 +34,7 @@ import { AtivosTable } from '@/components/ativos/ativos-table'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { Button } from '@/components/ui/button'
 import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
-import { LinkAjuda } from '@/components/layout/link-ajuda'
+import { CabecalhoDaPagina, Pagina } from '@/components/layout/pagina'
 import { exportarAtivosCSV } from '@/lib/actions/exportar'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { PackageOpen, PackagePlus } from 'lucide-react'
@@ -188,32 +188,33 @@ export default async function AtivosPage({
   const escreve = podeEscrever(operador?.papel)
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Ativos</h1>
-            <LinkAjuda pagina="lista-de-ativos" rotulo="Ajuda sobre a lista de ativos" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {rotuloSubtitulo({ total: resultado.total, temFiltro, temRecorteFilial })}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ExportarCsvButton
-            acao={exportarAtivosCSV}
-            descricao="dos ativos filtrados"
-          />
-          {escreve && (
-            <Button asChild variant="outline" className="gap-2">
-              <Link href="/ativos/novo">
-                <PackagePlus className="size-4" />
-                Novo equipamento
-              </Link>
-            </Button>
-          )}
-        </div>
-      </div>
+    <Pagina>
+      <CabecalhoDaPagina
+        titulo="Ativos"
+        ajuda="lista-de-ativos"
+        ajudaRotulo="Ajuda sobre a lista de ativos"
+        descricao={rotuloSubtitulo({
+          total: resultado.total,
+          temFiltro,
+          temRecorteFilial,
+        })}
+        acoes={
+          <>
+            <ExportarCsvButton
+              acao={exportarAtivosCSV}
+              descricao="dos ativos filtrados"
+            />
+            {escreve && (
+              <Button asChild variant="outline" className="gap-2">
+                <Link href="/ativos/novo">
+                  <PackagePlus className="size-4" />
+                  Novo equipamento
+                </Link>
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* F19 (P2-12a) — grava a URL filtrada desta lista para o "Voltar para
           ativos" da ficha voltar ao filtro. Não renderiza nada. */}
@@ -272,6 +273,6 @@ export default async function AtivosPage({
           />
         </>
       )}
-    </div>
+    </Pagina>
   )
 }

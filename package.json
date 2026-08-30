@@ -1,6 +1,6 @@
 {
   "name": "estoque-ti-wap",
-  "version": "1.44.2",
+  "version": "1.45.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -53,6 +53,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "playwright": "^1.62.1",
     "seedrandom": "^3.0.5",
     "tailwindcss": "^4",
     "tsx": "^4.23.0",

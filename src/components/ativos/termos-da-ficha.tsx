@@ -6,6 +6,7 @@ import { CheckCircle2, Download, FileText, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { GerarTermoDialog } from '@/components/movimentacoes/gerar-termo-dialog'
 import {
   ConfirmarAssinaturaDialog,
@@ -132,7 +133,9 @@ export function TermosDaFicha({
       <CardContent className="space-y-4">
         {/* Assinatura do termo de responsabilidade (B6): confirmar / desfazer.
             Só 'sim' encerra a pendência. */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+        {/* F40 — moldura à mão virou `Card`, com `ring-0 border` para o traço
+            continuar o mesmo. Nenhuma cor muda. */}
+        <Card className="flex flex-row flex-wrap items-center justify-between gap-3 border bg-muted/30 p-3 ring-0">
           {termoAssinado === 'sim' ? (
             <>
               <div className="flex items-center gap-2 text-sm">
@@ -155,16 +158,22 @@ export function TermosDaFicha({
               {podeEscrever && <ConfirmarAssinaturaDialog ativoId={ativoId} />}
             </>
           )}
-        </div>
+        </Card>
 
+        {/* F40 — era um `<p>` solto, um dos 8 vazios do produto sem moldura
+            nenhuma. `EstadoVazio` na variante `inline` é a mesma linha compacta,
+            agora com o ícone e a anatomia que as outras telas usam. O texto é o
+            mesmo. */}
         {termos.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum termo gerado para este ativo ainda.
-          </p>
+          <EstadoVazio
+            variante="inline"
+            icone={FileText}
+            titulo="Nenhum termo gerado para este ativo ainda."
+          />
         ) : (
           <ul className="divide-y">
             {termos.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center gap-3 py-2.5 first:pt-0">
+              <li key={t.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0">
                 <FileText className="size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{TERMO_ROTULO[t.tipo]}</p>

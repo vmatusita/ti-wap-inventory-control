@@ -242,3 +242,81 @@ Ordem importa: **Y antes de E, K, L.** Três testes de render (`nova-compra-form
 ---
 
 *Método: leitura estática do repositório na `main` (`c76172a`), execução de `npm run lint`, `npm run build`, `npm run test`, `npm audit` e `npm outdated`, e varredura das 109 migrations. **Não** houve consulta a produção nem ao ensaio nesta sessão — os itens **A** e **B** dependem de sonda de banco para fechar, e estão marcados como tal.*
+
+---
+
+## Achados da F40 (30/08/2026) — sistema de design
+
+### AA — A tinta de ÁREA e a tinta de TEXTO ainda são a mesma decisão `[Prio 12]` *(novo — 30/08/2026)*
+
+O selo é **texto** sobre pastilha clara: piso 4,5:1 pela WCAG, o que obriga tinta escura e croma
+baixo. O segmento de gráfico é **área**: piso 3:1 pela WCAG 1.4.11, o que lhe dá três pontos de
+folga para saturar. **São duas réguas, e o WAP resolve as duas com uma decisão só** — a cor de cada
+status é escolhida uma vez e serve ao badge, ao acento do KPI tile, à barra do acervo, ao segmento
+empilhado, à série temporal e ao swatch do glossário.
+
+**Os dois números, medidos agora com `npm run contraste`:**
+
+| par | tema | razão | piso | veredito |
+| --- | --- | ---: | ---: | --- |
+| segmento Emprestado `#06b6d4` sobre `card` | claro | **2,43:1** | 3:1 | ⚠️ abaixo do piso |
+| segmento Reservado `#6d28d9` sobre `card` | escuro | **2,52:1** | 3:1 | ⚠️ abaixo do piso |
+
+Os dois são **alívios registrados**, não descuido: o segmento carrega rótulo de valor dentro (com o
+`fill` preto/branco escolhido por luminância medida), total na ponta, legenda com o nome escrito e
+tooltip — quatro canais de texto além da cor. O registro está em `scripts/contraste.mjs`.
+
+**Por que a F40 não resolveu:** separar as tintas **muda a cor dos gráficos**. É mudança visível,
+exige nova rodada de medição de ΔE sob simulação de daltonismo (a análise de 10/08 §4 é o
+precedente) e é decisão do dono — não efeito colateral de uma refatoração de layout.
+
+**O que a F40 fez:** deixou o terreno pronto. Os nove `--grafico-<familia>` existem em
+`src/app/globals.css` com o valor de hoje, `STATUS_CHART_COLOR` aponta para eles e
+`src/lib/dominio/cores.test.ts` espelha os hex em `TOKEN_PARA_HEX`. **Trocar a tinta de área virou
+editar uma linha de CSS**; antes era editar `dominio.ts` e torcer para `fillRotuloSegmento`
+entender o valor novo (a armadilha que o próprio arquivo documenta).
+
+**Esforço** 2 · **Impacto** 2 · **Risco** 2 — mas o gatilho é uma decisão, não uma tarde de código.
+
+### AB — O âmbar é 56% da cor crua, e dá para tokenizá-lo SEM repintar `[Prio 32]` *(novo — 30/08/2026)*
+
+**310 das 555 classes de paleta crua do inventário são âmbar** — mais do que todas as outras doze
+famílias somadas. O callout
+`border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200`
+está reescrito à mão em dezenas de lugares, sempre igual (a única exceção do repositório é
+`mesa-conflitos.tsx:515`, com `dark:border-amber-700/60`).
+
+**O caminho fácil é o errado.** O token `--warning` já existe e já é medido, e é o que o plano
+§3.6 prescreve para o `Aviso` — mas ele mede **4,92:1** contra os **8,77:1** do âmbar de hoje.
+Migrar para ele é repintar dezenas de telas E piorar o contraste. Foi por isso que a F40 criou o
+`Aviso` e **não o aplicou** (ata em `docs/DECISOES.md`).
+
+**A correção, e ela é barata:** uma décima família de token —
+`--callout-atencao` / `--callout-atencao-texto` / `--callout-atencao-borda`, nos dois temas, com os
+**valores oklch de hoje** copiados do `theme.css` do Tailwind, exatamente como as nove famílias de
+selo da F40. Aí o `Aviso` pinta com token, as dezenas de cópias colapsam num componente só, **zero
+pixel muda** e a catraca de cor crua cai de 479 para perto de 200 em uma frente.
+
+É a melhor relação valor/esforço da lista depois dos itens já fechados: **é meia tarde de trabalho e
+resolve mais da metade da dívida de cor.** Recomendado como o **primeiro movimento da frente a**.
+
+**Esforço** 1 · **Impacto** 4 · **Risco** 1.
+
+### V (reaberto) — `next@16.2.12`: três advisories novos em `postcss` e `sharp` `[Prio 20]`
+
+O item V foi fechado em 30/08/2026 com o `next` em `16.2.12` e o total de vulnerabilidades em 2.
+Ao instalar o Playwright nesta mesma data, o `npm audit` passou a acusar **5 (2 moderate, 3 high)**.
+
+**O Playwright não trouxe nenhuma delas** — conferido: ele depende só de `playwright-core`
+(`npm ls postcss sharp uuid` mostra que os três vêm de `next`, `@tailwindcss/postcss`, `shadcn`,
+`vitest` e `exceljs`). São advisories **publicados depois** do fechamento do item:
+
+- `postcss <= 8.5.22` (HIGH) — quatro advisories, três deles de leitura arbitrária de `.map` por
+  `sourceMappingURL`. Chega por `next@16.2.12`, que embute `postcss@8.4.31`.
+- `sharp < 0.35.0` (HIGH) — CVEs herdados do libvips. Chega por `next` (`sharp@0.34.5`).
+- `uuid < 11.1.1` (moderate) — o de sempre, por `exceljs`, sem correção publicada; aceito e
+  registrado desde 12/08.
+
+`npm audit fix --force` quer instalar `next@16.3.3`, que está **fora da faixa da stack fechada** —
+major/minor de framework é decisão de fase, não de manutenção, e a F40 é uma ordem de apresentação.
+**Fica registrado, não corrigido nesta ordem.**

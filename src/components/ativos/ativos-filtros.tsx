@@ -191,7 +191,13 @@ export function AtivosFiltros({
         value={categoriaAtual || TODAS}
         onValueChange={(v) => aplicar({ categoria: v === TODAS ? null : v })}
       >
-        <SelectTrigger className="h-10 w-[150px] sm:h-8" aria-label="Filtrar por categoria">
+        {/* F40 — `w-[150px]` virou `w-40` (160px, da escala). O produto tinha 32
+            larguras de campo em pixel, com 11 valores distintos, em filtros
+            equivalentes: 220/200/170/160/150/190/96/140/180/240/260. Nenhum deles
+            estava na escala, e nenhum deles foi escolhido — foram herdados. 160px
+            é o degrau acima de 150 e cabe "Notebook", "Monitor" e "Celular" com
+            folga. */}
+        <SelectTrigger className="h-10 w-40 sm:h-8" aria-label="Filtrar por categoria">
           <SelectValue placeholder="Categoria" />
         </SelectTrigger>
         <SelectContent>

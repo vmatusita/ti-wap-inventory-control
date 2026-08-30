@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowRight, Copy, StickyNote } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ativos/status-badge'
 import { EstornarDialog } from '@/components/ativos/estornar-dialog'
 import { cn } from '@/lib/utils'
@@ -21,9 +22,12 @@ function LinhaEstado({
   if (!para) return null
   return (
     <span className="inline-flex items-center gap-1.5">
-      {de && <StatusBadge status={de} className="text-[11px]" />}
+      {/* F40 — `text-[11px]` caiu para `text-xs` (12px). A hierarquia do produto
+          tem QUATRO degraus (24 / 16 / 14 / 12) e nenhum deles é 11: os 49 tamanhos
+          arbitrários do inventário eram todos assim, escolhidos um a um. */}
+      {de && <StatusBadge status={de} className="text-xs" />}
       <ArrowRight className="size-3 text-muted-foreground" />
-      <StatusBadge status={para} className="text-[11px]" />
+      <StatusBadge status={para} className="text-xs" />
     </span>
   )
 }
@@ -61,8 +65,17 @@ export function LinhaDoTempo({
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
 
   if (eventos.length === 0) {
+    // F40 — só o `py-10` mudou (passo fora da escala) para `py-12`.
+    //
+    // ⚠ ESTE VAZIO **NÃO** VIROU `<EstadoVazio>`, e a ausência é a decisão: o
+    // componente pinta o título em `text-foreground font-medium` e acrescenta um
+    // ícone, enquanto isto aqui é `text-sm text-muted-foreground`. Adotá-lo
+    // REPINTA a tela, e a ordem da F40 proíbe. A adoção é de uma linha e cabe na
+    // frente que decidir a repintura — a borda tracejada é a única moldura à mão
+    // legítima do produto, e a regra 6 de `consistencia.test.ts` abre exceção
+    // nominal para ela justamente por isso.
     return (
-      <p className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
         Nenhuma movimentação registrada para este ativo.
       </p>
     )
@@ -100,7 +113,10 @@ export function LinhaDoTempo({
           return (
             <li key={`nota-${n.id}`} className="relative pl-6">
               {trilho('bg-amber-400')}
-              <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
+              {/* F40 — a moldura vem do `Card`. `ring-0 border` mantém o traço
+                  âmbar exato de hoje (o anel do Card é neutro); a tinta NÃO muda.
+                  Só o raio vai de 8px para 12px. */}
+              <Card className="block overflow-visible border border-amber-200 bg-amber-50/60 p-3 ring-0 dark:border-amber-900/60 dark:bg-amber-950/20">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     variant="outline"
@@ -114,7 +130,7 @@ export function LinhaDoTempo({
                 <p className="mt-2 text-xs text-muted-foreground">
                   {ouTraco(n.autor_nome)} · {formatDateTime(n.created_at)}
                 </p>
-              </div>
+              </Card>
             </li>
           )
         }
@@ -148,7 +164,9 @@ export function LinhaDoTempo({
           >
             {trilho('bg-primary')}
 
-            <div className={cn('rounded-lg border p-3', estornada ? 'bg-muted/30' : 'bg-card')}>
+            {/* F40 — idem: `Card` com `ring-0 border`, para o traço continuar o
+                mesmo `border-border` de hoje em vez do anel do kit. */}
+            <Card className={cn('block overflow-visible border p-3 ring-0', estornada ? 'bg-muted/30' : 'bg-card')}>
               <div className="flex flex-wrap items-center gap-2">
                 {/* ATV-08 — mesma paleta por tipo já aprovada em contraste e usada
                     na lista de movimentações, no dashboard e no relatório
@@ -156,7 +174,7 @@ export function LinhaDoTempo({
                     ainda usava o `Badge variant="secondary"` neutro. */}
                 <span
                   className={cn(
-                    'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                    'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold',
                     pillTipo(m.tipo),
                   )}
                 >
@@ -289,7 +307,7 @@ export function LinhaDoTempo({
               <p className="mt-2 text-xs text-muted-foreground">
                 {ouTraco(m.autor_nome)} · {formatDateTime(m.created_at)}
               </p>
-            </div>
+            </Card>
           </li>
         )
       })}

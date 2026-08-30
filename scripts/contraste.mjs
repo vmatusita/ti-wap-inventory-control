@@ -399,6 +399,59 @@ const PARES = [
   // O mesmo violeta no tema CLARO passa com folga — é o escuro que aperta.
   { item: 'F32', onde: 'segmento Reservado (violeta) sobre card', texto: '#6d28d9', fundo: 'card', px: 12, grafico: true, exigir: true },
   { item: 'F32', onde: 'segmento Emprestado (ciano) sobre card escuro', texto: '#06b6d4', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
+
+  // =========================================================================
+  // F40 — AS NOVE FAMÍLIAS DE SELO, agora medidas pelo TOKEN.
+  //
+  // Até aqui a régua media uma LISTA de pares de paleta crua, e a cor morava em
+  // 555 classes espalhadas por 60 arquivos: `emerald` (11 ocorrências em uso) e
+  // `sky` (4) não tinham par nenhum aqui, e ninguém acusava. Com `STATUS_META`,
+  // `TIPO_PILL` e `PILL_NEUTRA` falando por `--selo-<familia>`, o medidor passa a
+  // ler o MESMO endereço que a tela usa — e o `resolver()` de sempre dá conta,
+  // sem uma linha nova de código.
+  //
+  // AS RAZÕES TÊM DE SAIR IDÊNTICAS ÀS DOS PARES DE PALETA LOGO ACIMA, na mesma
+  // casa decimal: é ISSO que prova que a migração não mudou cor nenhuma. Os pares
+  // crus ficam no arquivo, como referência, até a frente que consumir cada
+  // família encerrar (plano §4.3).
+  //
+  // 11px porque é o tamanho em que o badge é renderizado — o mesmo dos pares de
+  // paleta correspondentes.
+  // =========================================================================
+  { item: 'F40', onde: 'selo Em estoque (claro)', texto: 'selo-em-estoque-texto', fundo: 'selo-em-estoque', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Em estoque (escuro)', texto: 'selo-em-estoque-texto', fundo: 'selo-em-estoque', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'selo Reservado (claro)', texto: 'selo-reservado-texto', fundo: 'selo-reservado', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Reservado (escuro)', texto: 'selo-reservado-texto', fundo: 'selo-reservado', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'selo Em uso (claro)', texto: 'selo-em-uso-texto', fundo: 'selo-em-uso', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Em uso (escuro)', texto: 'selo-em-uso-texto', fundo: 'selo-em-uso', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'selo Emprestado (claro)', texto: 'selo-emprestado-texto', fundo: 'selo-emprestado', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Emprestado (escuro)', texto: 'selo-emprestado-texto', fundo: 'selo-emprestado', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'selo Em triagem (claro)', texto: 'selo-em-triagem-texto', fundo: 'selo-em-triagem', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Em triagem (escuro)', texto: 'selo-em-triagem-texto', fundo: 'selo-em-triagem', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'selo Em manutenção (claro)', texto: 'selo-em-manutencao-texto', fundo: 'selo-em-manutencao', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Em manutenção (escuro)', texto: 'selo-em-manutencao-texto', fundo: 'selo-em-manutencao', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'selo Descartado (claro)', texto: 'selo-descartado-texto', fundo: 'selo-descartado', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Descartado (escuro)', texto: 'selo-descartado-texto', fundo: 'selo-descartado', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'selo Devolvido ao fornecedor (claro)', texto: 'selo-devolvido-fornecedor-texto', fundo: 'selo-devolvido-fornecedor', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Devolvido ao fornecedor (escuro)', texto: 'selo-devolvido-fornecedor-texto', fundo: 'selo-devolvido-fornecedor', px: 11, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'selo Troca (claro)', texto: 'selo-troca-texto', fundo: 'selo-troca', px: 11, exigir: true },
+  { item: 'F40', onde: 'selo Troca (escuro)', texto: 'selo-troca-texto', fundo: 'selo-troca', px: 11, tema: 'escuro', exigir: true },
+
+  // ---- F40 · as TRÊS intenções do <Aviso> (layout/aviso.tsx) ---------------
+  // O bloco de alerta tinha >= 8 anatomias e nenhum componente. Agora tem três,
+  // e as três estão na régua ANTES de a primeira tela usá-las.
+  //
+  // O par "erro — ANTES" é o rascunho do plano (§3.6), que trazia um véu
+  // `bg-destructive/5` atrás do texto: ele REPROVA por 0,14, e é por isso que o
+  // componente não tem fundo na intenção de erro. Fica registrado para que
+  // ninguém "melhore" o Aviso pondo o véu de volta.
+  { item: 'F40', onde: 'Aviso erro — o véu do rascunho (REPROVA)', texto: 'destructive', fundo: 'destructive/5', px: 14, antes: true },
+  { item: 'F40', onde: 'Aviso erro (claro)', texto: 'destructive', fundo: 'card', px: 14, exigir: true },
+  { item: 'F40', onde: 'Aviso erro (escuro)', texto: 'destructive', fundo: 'card', px: 14, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'Aviso atenção (claro)', texto: 'warning', fundo: 'warning/10', px: 14, exigir: true },
+  { item: 'F40', onde: 'Aviso atenção (escuro)', texto: 'warning', fundo: 'warning/10', px: 14, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'Aviso informação (claro)', texto: 'muted-foreground', fundo: 'muted/50', px: 12, exigir: true },
+  { item: 'F40', onde: 'Aviso informação (escuro)', texto: 'muted-foreground', fundo: 'muted/50', px: 12, tema: 'escuro', exigir: true },
 ]
 
 // ---------------------------------------------------------------------------

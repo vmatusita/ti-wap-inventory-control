@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.45.0',
+    data: '2026-08-30',
+    fase: 'F40',
+    titulo: 'Sistema de design: a fundação e a tela de Ativos',
+    mudancas: [
+      'As três telas de Ativos — a lista, a ficha do equipamento e o cadastro de compra — passaram a ter o mesmo espaçamento entre os blocos, o mesmo tamanho de título e o mesmo tipo de moldura em volta dos quadros. Antes cada uma tinha o seu.',
+      'A tela de cadastrar equipamento novo deixou de ficar centralizada e passou a começar na mesma linha das outras telas. O formulário continua com a mesma largura; o que mudou é que o título e o botão "Voltar para ativos" agora se alinham com o cabeçalho do sistema.',
+      'A tela cinza que aparece enquanto Ativos carrega passou a ter exatamente a largura e o ritmo da tela de verdade — some o pulinho que dava quando o conteúdo chegava.',
+      'As cores dos crachás de situação e das pastilhas de tipo ganharam nome próprio. Nenhuma cor mudou: as 18 combinações foram medidas antes e depois e deram o mesmo resultado. O que muda é que agora cada cor é conferida automaticamente antes de qualquer entrega.',
+      'Os textos de 11 pixels da linha do tempo subiram para 12, e duas caixas de filtro que tinham largura escolhida a dedo passaram a usar a medida padrão.',
+    ],
+  },
+  {
     versao: '1.44.2',
     data: '2026-08-30',
     titulo: 'Revisão de projeto de sistema',

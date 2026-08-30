@@ -7306,3 +7306,219 @@ e da `0121`; as quatro do código, por `git revert`.
 
 - **Reversível?** Tudo: as mudanças de código são commits; a `0124` reverte com um `alter
   database`; o bump de dependências reverte com o `package-lock.json` anterior.
+
+## 2026-08-30 · F40 · Playwright aprovado como devDependency (§8 decisão 1 do plano)
+
+- **Contexto:** o `docs/PLANO-DESIGN-SYSTEM.md` §6.1 diz com todas as letras qual é o buraco da
+  verificação: o teste de consistência pega **classe** errada, não pega **elemento que muda de
+  lugar sem mudar de classe**. O repositório irmão fechou esse buraco com 156 imagens por passada,
+  e foi assim que descobriu, num monitor de 1920px, um defeito que nenhuma das 104 imagens
+  anteriores mostrava. Quem barrava o Playwright não era a regra de custo (é MIT e R$ 0) — era a
+  "Stack (fechada)" do `CLAUDE.md`, que proíbe dependência nova sem aprovação registrada.
+- **Decisão:** o Johnny **aprovou** em 30/08/2026. `playwright@^1.62.1` entra como
+  **devDependency**, e nasce com o script `scripts/design/capturar.mjs`.
+- **Alternativas:** (a) não aprovar e fazer a conferência manual de 32 rotas × 3 larguras × 2 temas
+  a cada frente — caro, e é honesto dizer que provavelmente não seria feito inteiro toda vez;
+  (b) um serviço de screenshot hospedado — custa dinheiro e sai da infra permitida.
+- **Motivo:** custo R$ 0, licença MIT, só dev, zero superfície em produção. Conferido depois de
+  instalar: `playwright` depende **só** de `playwright-core`, e o `npm audit` não ganhou nenhuma
+  vulnerabilidade por causa dele (as 3 novas que apareceram são de `postcss`/`sharp`, transitivas
+  do `next@16.2.12`, com advisories publicados depois de 30/08 — ver o item V reaberto em
+  `docs/DIVIDA-TECNICA.md`).
+- **Reversível?** `npm rm -D playwright` e apagar `scripts/design/`.
+
+## 2026-08-30 · F40 · Nenhuma foto foi tirada — e o motivo é a regra 2, não uma falha
+
+- **Contexto:** a ordem manda capturar uma passada "antes" e uma "depois" em 375/1280/1920 px ×
+  claro/escuro. Mas o `.env.local` deste repositório aponta para o ref de **produção**
+  `pbtjcalbmepmrqzprusb`, e a regra 2 do `CLAUDE.md` proíbe dado real em screenshot. Não existe
+  `.env.ensaio` no repositório, e as chaves do projeto de ensaio são insumo físico que só o Johnny
+  tem.
+- **Decisão:** **não capturar nada**, e escrever a trava no próprio script em vez de confiar em
+  quem o executa. `scripts/design/capturar.mjs` lê o `NEXT_PUBLIC_SUPABASE_URL` do arquivo de
+  ambiente ANTES de subir o navegador e **aborta com código 2** se o ref for o de produção.
+  Executado nesta ordem, ele recusou — a saída está no relatório.
+- **Alternativas:** (a) fotografar produção "só para ver" — proibido, e é o tipo de exceção que
+  vira hábito; (b) inventar um `.env.ensaio` com chaves adivinhadas — não existem;
+  (c) rodar `npm run db:seed` contra ensaio — a ordem proíbe explicitamente nesta fase.
+- **Motivo:** a conferência visual é desejável; publicar dado real de colaborador num PNG dentro do
+  repositório é irreversível.
+- **Como resolver:** criar `.env.ensaio` apontando para o projeto de ensaio (`sgmvldiizsrjbxzzpmhh`),
+  rodar `npm run db:seed` contra ele, subir o `next dev` com esse arquivo e rodar
+  `node scripts/design/capturar.mjs --env .env.ensaio --saida docs/f40-evidencias/depois`.
+
+## 2026-08-30 · F40 · Os `--grafico-<familia>` NÃO nascem como apelido de `--selo-*-texto`
+
+- **Contexto:** a decisão 4 da ordem manda os `--grafico-<familia>` nascerem "como apelido de
+  `--selo-<familia>-texto`, **sem mudar nenhuma cor**". As duas metades não podem ser verdade ao
+  mesmo tempo, e isso é MEDIDO: `STATUS_CHART_COLOR.em_estoque` era `#16a34a` (= `green-600`) e
+  `--selo-em-estoque-texto` é `green-800`; o emprestado era `#06b6d4` (`cyan-500`) contra
+  `cyan-700`; e assim por diante nas nove. Apelidar mudaria a cor de **cinco superfícies** — acento
+  do KPI tile, barra do acervo, segmento empilhado, série temporal e swatch do glossário.
+- **Decisão:** vale a metade que a própria ordem trata como **bloqueante** ("nenhuma cor
+  RENDERIZADA muda"). Os nove `--grafico-*` nascem com o **valor que a tinta de gráfico tem hoje**,
+  hex por hex, e `STATUS_CHART_COLOR` passa a apontar para eles.
+- **Alternativas:** (a) apelidar de verdade e repintar os gráficos — bloqueante; (b) deixar os hex
+  em `dominio.ts` — reprova o critério 4 da ordem e a asserção 1 de `cores.test.ts`.
+- **Motivo:** o objetivo declarado da decisão 3 do plano §8 é *deixar o terreno pronto* para
+  separar a tinta de área da de texto um dia. Isso é alcançado do mesmo jeito: trocar a tinta virou
+  editar uma linha de `globals.css`, quando antes era editar `dominio.ts` e torcer para
+  `fillRotuloSegmento` entender o valor novo.
+- **Consequência obrigatória, e ela não é opcional:** a ARMADILHA documentada em `dominio.ts` —
+  `fillRotuloSegmento` só sabe converter hex e os tokens de `TOKEN_PARA_HEX`. Os nove entraram lá,
+  e `src/lib/dominio/cores.test.ts` prova hex a hex que os dois lados não divergem. Sem isso, a
+  luminância viraria 0 e o rótulo de todo segmento sairia branco sobre fundo claro, em silêncio.
+- **Reversível?** Uma linha por família em `globals.css` (e a entrada correspondente em
+  `TOKEN_PARA_HEX`, que o teste cobra).
+
+## 2026-08-30 · F40 · O `Aviso` é criado e NÃO é aplicado — aplicar repinta, e esta ordem proíbe
+
+- **Contexto:** o plano §3.6/§3.7 desenha o `Aviso` com a tinta do token `--warning`
+  (`border-warning/40 bg-warning/10 text-warning`) e promete substituir as ~30 caixas âmbar
+  escritas à mão. Só que o callout âmbar de hoje é
+  `border-amber-300 bg-amber-50 text-amber-900` e mede **8,77:1**; o par do token mede **4,92:1**.
+  Trocar é repintar — e a ordem da F40 lista "nenhuma cor RENDERIZADA muda" no fora-de-escopo, e
+  manda a revisão adversarial tratar cor alterada como **bloqueante**.
+- **Decisão:** o `Aviso` é **criado, medido e não aplicado** nesta ordem — o mesmo tratamento que a
+  ordem já dá ao `CascoDeAutenticacao`, e pelo mesmo tipo de razão. As caixas do piloto ganharam a
+  moldura do `Card` (uma moldura só no produto) com `ring-0 border`, que mantém o traço no tom de
+  hoje, e **a tinta ficou exatamente onde estava**.
+- **Alternativas:** (a) aplicar e repintar — bloqueante; (b) deixar as molduras à mão — reprova os
+  critérios 6 e 7 da ordem; (c) criar uma décima família de token com o âmbar de hoje — é a saída
+  certa, e está recomendada em `docs/DIVIDA-TECNICA.md` (item AB) como o primeiro movimento da
+  frente **a**, fora do escopo declarado desta ordem ("as 9 famílias").
+- **Motivo:** o âmbar é **56% de toda a cor crua do produto** (310 de 555 classes). Tokenizá-lo com
+  o valor de hoje remove dezenas de classes por frente sem mudar um pixel; migrá-lo para
+  `--warning` é decisão de aparência, que merece ser tomada de propósito e não como efeito
+  colateral de uma refatoração de layout.
+- **Medido antes de escrever:** o rascunho do plano trazia `bg-destructive/5` atrás do texto de
+  erro, e a régua **reprovou** — 4,36:1 no tema claro (com `/10` piora para 3,99:1, que é o mesmo
+  defeito que a F28 corrigiu na mesa de conflitos). Sem véu nenhum, `text-destructive` sobre o card
+  dá **4,76:1** e passa. Os sete pares do `Aviso` estão em `scripts/contraste.mjs`, item `F40`,
+  inclusive o do véu reprovado — registrado para que ninguém o ponha de volta "melhorando".
+- **Reversível?** Trocar três strings em `src/components/layout/aviso.tsx`.
+
+## 2026-08-30 · F40 · O teste da ajuda passou a reconhecer a prop `ajuda` do cabeçalho
+
+- **Contexto:** `src/lib/ajuda/registry.test.ts` prova que "a tela leva ao '?' declarado na matriz"
+  lendo a fonte da `page.tsx` e exigindo um `<LinkAjuda pagina="…">` escrito ali. O
+  `CabecalhoDaPagina` **absorveu** o `LinkAjuda` (ele era a origem dos cinco arranjos de gap do
+  achado 2 do inventário), então `/ativos` passou a declarar o alvo pela prop `ajuda` — e o teste
+  reprovou.
+- **Decisão:** ensinar o detector a enxergar `ajuda="…"` além de `<LinkAjuda pagina="…">`. O FATO
+  que o teste guarda não mudou; mudou o caminho por onde ele é dito.
+- **Alternativas:** (a) manter o `LinkAjuda` escrito à mão em cada tela — desfaz a consolidação que
+  é o item mais barato do plano; (b) pôr `/ativos` na lista `SEM_LINK_PROPRIO` — seria mentira: a
+  tela TEM o "?".
+- **Motivo:** a ordem manda não alterar teste existente sem registrar. Este é o registro. A busca é
+  pela prop solta em início de linha (`/^\s*ajuda="([^"]+)"/gm`) e **não** por um regex que
+  atravesse o corpo do `<CabecalhoDaPagina …>`: o cabeçalho é multilinha e carrega JSX aninhado nas
+  props `descricao`/`acoes`/`aoLado`, então um `[\s\S]*?` cruzaria a fronteira de um componente
+  para o outro e passaria a acertar por acaso. `ajuda=` é prop do `CabecalhoDaPagina` e de mais
+  nada no repositório — conferido por `grep`.
+- **Reversível?** Apagar duas linhas do teste.
+
+## 2026-08-30 · F40 · "Nenhum hex" em dominio.ts é sobre o CÓDIGO — os comentários históricos ficam
+
+- **Contexto:** o plano mediu **555** classes de paleta crua com um `grep`, que não distingue
+  código de comentário. `src/lib/dominio.ts` cita em prosa os hex que a F32 aposentou (`#ea580c`) e
+  as classes que a F19 mediu — 5 das 555 são essas citações. Uma catraca que as contasse puniria
+  quem EXPLICA o que fez.
+- **Decisão:** a catraca de `src/lib/dominio/cores.test.ts` conta o código **sem comentários**
+  (`src/lib/layout/texto-fonte.ts`), e os DOIS números ficam registrados no arquivo para a
+  comparação com o plano continuar possível: 555 pelo `grep` / **550** só código, antes da F40;
+  490 pelo `grep` / **479** só código, depois.
+- **Alternativas:** contar o `grep` cru — faria o teto SUBIR quando um comentário explicasse a
+  migração, que é o incentivo errado.
+- **Motivo:** é a mesma razão pela qual `consistencia.test.ts` remove comentários antes de casar, e
+  a linha de base prova a necessidade: a varredura ingênua por `<h1` neste repositório devolve 22,
+  e só 19 são `<h1>` de verdade.
+- **E VALE TAMBÉM PARA O CRITÉRIO 4 DA ORDEM**, que é onde a leitura literal aperta: ele diz que
+  "`src/lib/dominio.ts` não contém nenhuma classe de paleta de fábrica do Tailwind nem nenhum hex".
+  O ARQUIVO contém — oito hex, todos em comentário, e todos anteriores a esta fase: são a ata em
+  prosa da F32/RV-02, que registra por que a triagem trocou de `#ea580c` para `#db2777` e o
+  reservado de `#7c3aed` para `#6d28d9`, com o ΔE medido sob deutanopia ao lado. **O CÓDIGO não
+  contém nenhum**, e é isso que `cores.test.ts` prova com `toBeNull()`. Apagar essas linhas para
+  satisfazer um `grep` seria destruir a única explicação escrita de três decisões de cor medidas —
+  e a apagaria justamente do arquivo que a ordem quer limpo *para que a régua alcance a cor*. A
+  régua alcança; o que fica é a memória de por que a cor é essa.
+- **Reversível?** Trocar uma chamada de função no teste.
+
+## 2026-08-30 · F40 · `src/lib/dominio/` convive com `src/lib/dominio.ts`
+
+- **Contexto:** a ordem nomeia `src/lib/dominio/cores.test.ts`, e criar esse arquivo cria um
+  **diretório** com o mesmo nome do **arquivo** `src/lib/dominio.ts`, que 146 arquivos importam por
+  `@/lib/dominio`.
+- **Decisão:** seguir o caminho que a ordem nomeia, e **provar** que nada quebrou: `npm run lint`,
+  `npx tsc --noEmit`, `npm run test` (3.088 testes, 142 arquivos) e `npm run build` rodaram com o
+  diretório criado, os quatro verdes.
+- **Motivo:** TypeScript e Vite preferem o arquivo com extensão ao diretório, então
+  `@/lib/dominio` continua resolvendo para `dominio.ts`. Ficou o aviso no cabeçalho do teste: se um
+  dia alguém criar `src/lib/dominio/index.ts`, a ambiguidade deixa de ser teórica — quebrar o
+  `dominio.ts` em módulos tem de vir ANTES, não depois.
+- **Reversível?** Renomear para `src/lib/dominio-cores.test.ts`.
+
+## 2026-08-30 · F40 · `rounded-full` não é moldura, e `env(safe-area-inset-*)` não é passo
+
+- **Contexto:** as regras 4 e 6 de `src/lib/layout/consistencia.test.ts` precisavam de duas
+  definições que, mal escritas, tornariam o teste ou inútil ou impossível de satisfazer.
+- **Decisão e motivo, um a um:**
+  - **`rounded-full` não conta como raio de moldura.** Dos 190 `rounded-* border` do inventário,
+    187 são raios de cartão (`rounded-lg` 133 · `rounded-md` 38 · `rounded-xl` 16) e 3 são
+    `rounded-full` — que é a geometria de uma pastilha, de um ponto de trilho e de um avatar,
+    nenhum dos quais vira `Card`. É a mesma definição do repositório irmão.
+  - **`env(safe-area-inset-*)` não é passo de espaçamento.** É o recorte físico do aparelho e não
+    tem equivalente na escala. A exceção é nominal (só vale se o valor arbitrário mencionar
+    `env(`); `p-[18px]` continua reprovando.
+- **E uma correção que a linha de base pagou:** `ehStringDeClasse` precisou aceitar `border` e
+  `rounded` SOZINHOS. Sem isso, `cn('rounded-lg p-3', ativo && 'border')` escapava inteiro, porque
+  o ramo condicional era descartado antes de a combinação ser montada. O bloco
+  `describe('a regra da moldura sabe o que e moldura')` exercita os dois detectores com fixtures
+  próprias — o irmão perdeu `border-2`/`border-4` por um `\d` que virou a letra "d", e a suíte
+  ficou verde porque nenhum código da época exercitava a regra.
+- **Reversível?** As definições são duas funções puras exportadas pelo próprio teste.
+
+## 2026-08-30 · F40 · Os `Card` do piloto levam `ring-0 border` — e é para NÃO mudar cor
+
+- **Contexto:** o plano §3.8 manda "uma moldura só: `Card`". Mas o `Card` do kit desenha o traço
+  com `ring-1 ring-foreground/10` (um box-shadow), e as 9 molduras à mão do piloto desenhavam com
+  `border` — que herda `border-border` (`oklch(0.922 0 0)` no claro). Os dois tons são parecidos e
+  **não são iguais**; trocar um pelo outro em 9 lugares é repintar 9 traços.
+- **Decisão:** os `Card` que substituem moldura existente levam `ring-0 border` na `className`. O
+  raio vai de 8px (`rounded-lg`) para 12px (`rounded-xl`) — isso é geometria, é o que "uma moldura
+  só" significa, e está no relatório.
+- **Por que isso NÃO é burlar a regra 6:** a regra pergunta "alguém está desenhando um cartão à
+  mão?". Uma `className` de 9 caracteres pendurada num `<Card>` não é um cartão à mão — é o
+  componente do sistema configurado. E ela não escapa por um buraco: a `className` desses `Card`
+  **não tem `rounded-*` nenhum** (o raio vem do próprio `Card`), então a combinação que a regra
+  procura simplesmente não existe ali. A regra não foi afrouxada em uma vírgula.
+- **Reversível?** Tirar `ring-0 border` devolve o anel do kit.
+
+## 2026-08-30 · F40 · A regra 2 mede largura de PÁGINA, e a superfície de portal não é página
+
+- **Contexto:** o plano §4.1 escreve a regra 2 assim: "`max-w-` de container fora de `pagina.tsx`
+  (permitido em `max-w-sm`/`max-w-md` de conteúdo interno, lista explícita)". A primeira versão
+  implementada só olhava a COMBINAÇÃO `mx-auto` + `max-w-*` — e a revisão adversarial mostrou que
+  isso protegia apenas o padrão ANTIGO: um wrapper `max-w-6xl` **alinhado à esquerda**, que é
+  exatamente o que o casco existe para monopolizar, passava calado.
+- **Decisão:** a regra passou a reprovar `max-w-*` **de container** em qualquer `className` fora do
+  SISTEMA, com a lista explícita de **conteúdo** que o plano permite —
+  `xs` · `sm` · `md` · `full` · `none` · `fit` · `min` · `max` —, e **uma exceção nova**: as
+  superfícies de PORTAL (`DialogContent`, `SheetContent`, `PopoverContent`, `DropdownMenuContent`,
+  `AlertDialogContent`, `CommandDialog`, `SelectContent`, `TooltipContent`).
+- **Por que a exceção do portal NÃO é um afrouxamento:** o Radix monta essas superfícies no fim do
+  `<body>`, fora da árvore do `<Pagina>`. O `max-w-lg` de um `DialogContent` mede a caixa flutuante
+  do modal, não a coluna da tela — ele não disputa nada com o casco, e obrigá-lo a sair de
+  `LARGURAS` seria pedir que a régua de página governasse um objeto que não está na página. O
+  produto tem 34 dessas, com seis medidas; consolidá-las é assunto de uma frente de DIÁLOGOS
+  (§1.5 do plano já registra as quatro convenções concorrentes de ALTURA de diálogo pelo mesmo
+  motivo), não da régua de página.
+- **Como o varredor sabe de quem é a `className`:** ele lê para trás até o `<Nome` aberto mais
+  próximo. Quando um `=>` numa prop anterior quebra a leitura, o dono sai como string vazia — e
+  string vazia **não** está na lista de portais, ou seja, o caso duvidoso cai do lado SEVERO da
+  regra. É onde ele tem de cair, e há fixture provando isso.
+- **Alternativas:** (a) manter só a combinação `mx-auto` + `max-w-*` — deixaria a invariante que o
+  plano §3.3 declara ("`Pagina` é a única origem de `max-w-*` de container no produto") sem guarda
+  nenhuma; (b) reprovar também os diálogos — deixaria o teste vermelho em 34 lugares que esta ordem
+  não migra, e teste vermelho por semanas é teste que se aprende a ignorar.
+- **Reversível?** Duas funções puras e um `Set`, todos no próprio teste.

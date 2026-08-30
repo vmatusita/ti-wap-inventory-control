@@ -6,6 +6,57 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 30/08/2026 — F40 · Sistema de design: a fundação e o piloto em `/ativos` ✅ 🔒
+
+Fase (**v1.45.0**). Executa as duas primeiras frentes de
+[`docs/PLANO-DESIGN-SYSTEM.md`](docs/PLANO-DESIGN-SYSTEM.md): o **casco de página**, os **componentes
+de sistema**, os **tokens semânticos de cor**, os **dois testes que reprovam a regressão** — e aplica
+tudo às **3 rotas de `/ativos`**, o piloto. As frentes **a**, **b**, **c** e **d** (as outras 29
+rotas) ficam para ordens próprias. Plano de execução em [`docs/PLAN-F40.md`](docs/PLAN-F40.md),
+relatório com as evidências em [`docs/RELATORIO-F40.md`](docs/RELATORIO-F40.md), nove atas em
+[`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-30).
+
+**A promessa desta fase, e ela foi medida:** nenhuma cor renderizada mudou. Os 18 pares novos de
+selo imprimem, em `npm run contraste`, exatamente as mesmas razões dos pares de paleta que
+substituíram — 18 de 18, casa decimal por casa decimal.
+
+- 🎨 **Nasceu o casco de página**, e com ele a única origem de `<h1>` e de largura do produto.
+  `layout/pagina.tsx` (`Pagina`, `CabecalhoDaPagina`, `SecaoDaPagina`) fecha os quatro ritmos
+  verticais das 32 rotas num só (`gap-6`), consolida os 19 títulos escritos à mão e **absorve o
+  `LinkAjuda`** — que era a origem dos cinco arranjos de gap do achado 2 do inventário. O casco
+  **alinha à esquerda** (decisão do Johnny): existe uma linha vertical no produto inteiro.
+- 🎨 **Mais cinco componentes de sistema:** `Aviso` (3 intenções, com o papel ARIA junto da cor),
+  `CartaoDeMetrica` + `GradeDeMetricas`, `CascoDeAutenticacao` (as 4 portas, com `<h1>` de verdade),
+  `QuadroDeTabela` e `ConfirmacaoDigitada`. O `EstadoVazio` passou a aceitar `ReactNode` na ação,
+  sem quebrar nenhum dos 12 usos. **`Aviso` e `CascoDeAutenticacao` nascem sem consumidor de
+  propósito** — aplicá-los repinta tela, e esta ordem proíbe; é a frente d.
+- 🎨 **As nove famílias de cor de status ganharam nome.** `bg-green-100 text-green-800 dark:…`
+  virou `bg-selo-em-estoque text-selo-em-estoque-texto`, com os 36 valores `oklch` copiados do
+  `theme.css` do Tailwind. `src/lib/dominio.ts` **não contém mais nenhuma classe de paleta de
+  fábrica nem nenhum hex** — e agora há teste que prova isso com `toBeNull()`. `globals.css` ganhou
+  150 linhas e **não teve nenhuma alterada** (conferido por diff).
+- 🧪 **Dois testes novos guardam o desenho.** `lib/layout/consistencia.test.ts` são 8 regras — um
+  `<h1>` só, uma origem de largura, a escala de espaçamento, sem arbitrário, sem fonte em pixel,
+  uma moldura só, toda rota migrada no casco, e o esqueleto casando com a tela — com a lista de
+  exceções **agrupada por frente**, que só encolhe. `lib/dominio/cores.test.ts` é a catraca da cor
+  crua (550 → **479**) mais a trava TS↔CSS dos tokens.
+- 📐 **`npm run contraste` passou de 85 para 110 pares**, e agora mede o TOKEN em vez de uma lista
+  de classes. Entre os pares novos está um que **reprova de propósito**: o véu `bg-destructive/5`
+  que o rascunho do plano punha atrás do texto de erro dá 4,36:1 — abaixo do piso. O componente
+  ficou sem véu (4,76:1), e o par reprovado fica registrado para ninguém pôr o véu de volta
+  "melhorando".
+- 🖼️ **O piloto: as 3 rotas de `/ativos`.** Nenhuma escreve `<h1>`, `max-w-*` de container,
+  `text-[Npx]` ou moldura à mão. Nove molduras viraram `Card`, a tabela virou `QuadroDeTabela`, o
+  vazio da linha do tempo e o `<p>` solto dos termos viraram `EstadoVazio`, e os três `loading.tsx`
+  passaram a montar o **mesmo** `<Pagina>` da tela. `/ativos/novo` perdeu o `mx-auto` — é a única
+  mudança de posição visível da fase.
+- 🔧 **Playwright entrou como devDependency** (MIT, R$ 0, só dev — aprovado pelo Johnny), com
+  `scripts/design/capturar.mjs`. **Nenhuma foto foi tirada nesta ordem**: o script lê o ref do
+  Supabase antes de subir o navegador e **recusa** produção, e não há ambiente de ensaio no
+  repositório. É a pendência principal da fase.
+
+---
+
 ## 30/08/2026 — Revisão de projeto de sistema: o fuso do banco, o truncamento e as dependências ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.44.2**). Revisão arquitetural do sistema inteiro pelo método da
