@@ -11,7 +11,7 @@ import {
 import { avisoDoLoteInicial, parseIdsDeAtivos } from '@/lib/movimentacoes/lote-url'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarKitsAtivos, type Kit } from '@/lib/queries/kits'
-import { listarTiposItem, listarTiposItemAtivos, type TipoItem } from '@/lib/queries/tipos-item'
+import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { listarItensAdmin, type ItemAdmin } from '@/lib/queries/itens'
 import { listarMotivos } from '@/lib/queries/motivos'
 import {
@@ -98,10 +98,14 @@ export default async function NovaMovimentacaoPage({
     ultimaMov,
     kits,
     operador,
-    tiposItem,
-    // F39 — o catálogo INTEIRO (ativos e desativados), SÓ para o rótulo do resumo
-    // da revisão. A lista de ESCOLHA do checklist continua sendo `tiposItem`
-    // (só ativos), byte a byte como a F38 a deixou.
+    // F39 — o catálogo INTEIRO (ativos e desativados). O resumo da revisão precisa de
+    // TODOS (um rascunho restaurado pode citar tipo desativado); a lista de ESCOLHA do
+    // checklist é o recorte dos ativos, derivado logo abaixo.
+    //
+    // ⚠ UMA CONSULTA SÓ (revisão de 29/08/2026). A fase tinha somado `listarTiposItem()`
+    // ao lado do `listarTiposItemAtivos()` que já existia: dois round-trips à mesma
+    // tabela, com o mesmo select e a mesma ordenação, num request de operação. O
+    // recorte é `filter`, e `filter` preserva a ordem de `ordem`+`rotulo`.
     tiposItemTodos,
     itensCatalogo,
   ] = await Promise.all([
@@ -144,12 +148,8 @@ export default async function NovaMovimentacaoPage({
     // de registrar movimentação — a seção de itens simplesmente não aparece, e a
     // causa vai para o log do servidor. Sem eles a devolução continua funcionando
     // (o checklist some, o array de faltantes continua vazio).
-    listarTiposItemAtivos().catch((err): TipoItem[] => {
-      console.error('[movimentacoes/nova] falha ao listar tipos de item:', err)
-      return []
-    }),
     listarTiposItem().catch((err): TipoItem[] => {
-      console.error('[movimentacoes/nova] falha ao listar todos os tipos de item:', err)
+      console.error('[movimentacoes/nova] falha ao listar tipos de item:', err)
       return []
     }),
     listarItensAdmin().catch((err): ItemAdmin[] => {
@@ -157,6 +157,9 @@ export default async function NovaMovimentacaoPage({
       return []
     }),
   ])
+  // A lista de ESCOLHA do checklist: só os ATIVOS, byte a byte o que a F38 mostrava
+  // (`listarTiposItemAtivos` é a mesma consulta com `.eq('ativo', true)`).
+  const tiposItem = tiposItemTodos.filter((t) => t.ativo)
   const escreve = podeEscrever(operador?.papel)
 
   let ativoInicial: AtivoResumo | null = null

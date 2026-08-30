@@ -7112,3 +7112,98 @@ e da `0121`; as quatro do código, por `git revert`.
   — os três ausentes, e não há `soffice.exe` nos diretórios padrão do LibreOffice) e **nada foi
   instalado** para isso (custo R$ 0, stack fechada). A conferência é no Word, a partir dos `.docx`.
 - **Reversível?** não se aplica.
+
+---
+
+## 2026-08-29 · Revisão de código da F39 — 10 achados, 10 aplicados (v1.44.1)
+
+- **Contexto:** revisão adversarial (`xhigh`, 10 ângulos independentes + varredura de lacunas) do
+  intervalo `d661c76..HEAD` — a F39 inteira: os 5 modelos `.docx` alterados por script, a função
+  pura da linha de acessórios, o `{outros_componentes}` da devolução, a remoção de
+  `ACESSORIOS_DEVOLUCAO`/`ACESSORIO_ROTULO`/`rotuloAcessorio` de `dominio.ts` e as duas correções
+  que a própria fase aplicou depois da sua revisão adversarial. Zero migration envolvida.
+- **Decisão:** os 10 achados foram aplicados, todos em código-fonte e testes.
+
+  1. **`MSG_CONFERENCIA_SEM_LANCAMENTO` afirmava o que o servidor não sabe.** O texto dizia "Houve
+     item conferido nesta devolução que não gerou lançamento de estoque". Não existe registro do que
+     foi marcado "Voltou" e não lançou — e num lote misto o checklist **nunca** lança, porque é
+     `checklistPodeLancar` que o desliga. Logo `componentes.linha` sai vazia por construção e o
+     aviso disparava em **todo** termo de devolução de lote misto, inclusive naqueles em que o
+     operador não tocou no checklist: uma afirmação falsa, e o "aviso que sempre aparece é aviso que
+     ninguém lê" que a própria fase cita em `camposFaltantesDoTermo`. O texto passou a declarar a
+     CONDIÇÃO, verdadeira em todos os casos ("este lote tem equipamentos de filiais ou de pessoas
+     diferentes, então o que você marcou como 'Voltou' não gerou lançamento…"). A condição de
+     disparo não mudou — os testes existentes comparam contra a constante exportada.
+  2. **Ativo ausente virava filial `0`.** O `filial_id: m.ativo?.filial_id ?? 0` no chamador de
+     `avisoConferenciaSemLancamento` punha um sentinela ao lado de filiais reais; o conjunto ficava
+     com dois valores e o lote parecia misto sem nada de misto existir. Essas linhas agora ficam
+     **fora** do julgamento (`movs.filter((m) => m.ativo != null)`); lote inteiro sem ativo legível
+     cai no caso "homogêneo por definição", que é não avisar.
+  3. **`/movimentacoes/nova` consultava `tipos_item` duas vezes.** A fase acrescentou
+     `listarTiposItem()` ao lado do `listarTiposItemAtivos()` que já existia — mesmo `select`, mesma
+     ordenação, mesma tabela minúscula, dois round-trips num request de operação. Ficou **uma**
+     consulta; `tiposItem` (a lista de ESCOLHA do checklist) virou `tiposItemTodos.filter(t =>
+     t.ativo)`, byte a byte o que a F38 mostrava — `filter` preserva a ordem de `ordem`+`rotulo`, e
+     `listarTiposItemAtivos` é literalmente a mesma consulta com `.eq('ativo', true)`. A função
+     continua existindo para os outros chamadores.
+  4. **`prepararTermo` encadeava três leituras independentes.** Catálogo de tipos, `profiles` do
+     técnico e lançamentos de `retorno` eram três `await` em série, e **duas** delas nasceram nesta
+     fase — o diálogo do termo de devolução ficou 3× mais lento em latência de rede sem precisar.
+     Foram para um `Promise.all`.
+  5. **Três clients Supabase na mesma action.** `listarTiposItem()` e `acessoriosDasMovimentacoes()`
+     criavam cada um o seu `createClient()` dentro de `prepararTermo`, que já tinha um autenticado.
+     `acessoriosDasMovimentacoes` ganhou o parâmetro `client?` opcional — no precedente exato de
+     `listarFiliais` e do que a própria F39 fez com `listarTiposItem` — e os dois caminhos (entrega e
+     devolução) passam o client da action.
+  6. **O snapshot congelado ganhou um round-trip serial.** `listarTiposItem(acesso.client)` era
+     aguardado antes de `vizinhosDoRelatorio`, sendo as duas leituras independentes, na rota que o
+     visualizador por senha abre para imprimir — a mesma que a F33 otimizou por TTFB. Entraram no
+     mesmo `Promise.all`.
+  7. **Os tetos das linhas estavam duplicados à mão.** `LIMITE_ACESSORIOS = 600` e
+     `LIMITE_OUTROS_COMPONENTES = 400` viviam em `actions/termos.ts` repetindo os `.max()` de
+     `camposTermoSchema`, sem nada amarrando os dois lados. Baixar o `max` sem baixar a constante
+     devolveria uma sugestão que o próprio Zod recusa, com "Há campos inválidos. Revise o termo." num
+     campo que o operador não digitou — **exatamente** a falha que `cortarNoLimite` existe para
+     impedir. As duas constantes passaram a ser exportadas de `validators/termo.ts`, o schema as
+     consome e a action as importa. Uma fonte só, e sem teste novo para amarrar o que agora é o
+     mesmo identificador.
+  8. **Um módulo de `lib/` dependia de valor de dentro do wizard.** `lib/termos/preparo.ts` — usado
+     por `prepararTermo`, que é Server Action — importava `checklistPodeLancar` de
+     `components/movimentacoes/nova/itens-do-lote.ts`. O arquivo hoje não tem `'use client'`, mas
+     está no diretório inteiro do wizard: no dia em que ganhasse a diretiva, o bundler trocaria o
+     import por uma REFERÊNCIA, a função chegaria como `undefined` e a action estouraria em runtime
+     — com `tsc`, `eslint` e `next build` verdes. É a classe de defeito que
+     `components/relatorios/fronteira-rsc.test.ts` documenta. A regra (`LoteParaChecklist`,
+     `checklistPodeLancar`, `MSG_LOTE_MISTO_SEM_LANCAMENTO`) mudou para
+     **`src/lib/itens/checklist-lote.ts`**; `itens-do-lote.ts` **reexporta** os três nomes, então o
+     wizard, a contrapartida e o teste daquela pasta continuam importando do mesmo lugar de sempre e
+     a fonte é uma só.
+  9. **A guarda nova dos `.docx` não renderizava nada.** `modelos-docx.test.ts` conferia o conjunto
+     de tags e a forma dos parágrafos, mas a F39 alterou os 5 modelos manipulando XML cru —
+     `<w:b/><w:bCs/>` inserido numa posição que precisa respeitar a sequência do schema `CT_RPr`, e
+     um `w:pPr` clonado do vizinho sem o `w:numPr`. Errando a posição, as tags continuariam certas, o
+     teste passaria verde e o defeito só apareceria quando o docxtemplater lançasse em
+     `renderizarDocx` ("Não foi possível montar o documento do termo") ou, pior, quando o Word
+     recusasse abrir um termo já assinado. Entrou um smoke que renderiza **os 7 modelos** pelo
+     caminho real (as mesmas opções de `renderizarDocx`: `paragraphLoop`, `linebreaks`,
+     `nullGetter`), com payload 100% fictício, provando que nenhuma chave `{…}` sobra, que
+     `tem_acessorios` ligado imprime "Acompanham o equipamento os seguintes acessórios e
+     periféricos: …" com a linha, e que desligado tira o bloco **inteiro** (D10) sem levar o resto do
+     documento junto (colaborador e a linha da assinatura da F25 continuam de pé).
+  10. **Sobra de edição.** `TERMO_STATUS_ORDEM` ficou com indentação de 4 espaços no meio de uma
+      lista de 2 em `lib/ajuda/derivacao.ts`, deixada pela remoção do import de
+      `ACESSORIOS_DEVOLUCAO`. O repositório não tem config de Prettier, então nem lint nem build
+      reclamariam.
+
+- **O que a revisão NÃO mudou, de propósito:** o `descartados` continua contando LINHAS de
+  lançamento (e não itens distintos) — é assim que o operador vê na tela, e está documentado na
+  função; o termo de responsabilidade continua saindo de `movs[0]` (comportamento da F5A, fora do
+  escopo desta fase); e as evidências `.docx` de `docs/f39-evidencias/` ficaram como estão.
+- **Motivo:** os dois primeiros achados são de correção — um aviso que afirma um fato falso ao
+  operador é pior do que aviso nenhum, e é ele quem decide se confere a linha antes de assinar. Os
+  quatro seguintes são latência acrescentada por esta fase em rotas de operação. Os três de estrutura
+  fecham buracos que passam por lint, build e teste (drift de constante, fronteira RSC, `.docx` que
+  não renderiza) — a mesma classe de falha silenciosa que o projeto já combate com guardas.
+- **Reversível?** sim, tudo em código: `git revert` do commit. Nenhuma migration, nenhum dado
+  tocado, nenhuma dependência nova. Os 5 modelos `.docx` **não** foram alterados por esta revisão —
+  só passaram a ser renderizados no teste.

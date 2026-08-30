@@ -6,6 +6,61 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 29/08/2026 — Revisão de código da F39: 10 achados aplicados ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.44.1**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo
+`d661c76..HEAD` — a F39 inteira, dos 5 modelos `.docx` à remoção da constante de `dominio.ts`.
+**10 achados, 10 aplicados.** Zero migration, zero dependência nova.
+Ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-29).
+
+- 🐛 **O aviso de conferência afirmava um fato que o servidor não tem como saber.**
+  `MSG_CONFERENCIA_SEM_LANCAMENTO` dizia "Houve item conferido nesta devolução que não gerou
+  lançamento de estoque" — mas não existe registro do que foi marcado "Voltou" e não lançou, e num
+  lote misto o checklist **nunca** lança (é `checklistPodeLancar` que o desliga). A linha de
+  componentes saía vazia por construção, então o aviso disparava em 100% dos termos de lote misto,
+  inclusive naqueles em que ninguém conferiu nada. O texto passou a declarar a **condição**, que é
+  verdade em todos os casos: o lote tem filiais ou pessoas diferentes, então o "Voltou" não vira
+  lançamento nem entra na linha.
+- 🐛 **Movimentação sem ativo embutido virava filial `0` e fingia lote misto.** O
+  `m.ativo?.filial_id ?? 0` do chamador punha um valor sentinela ao lado de filiais reais: o
+  conjunto ficava com dois valores e o aviso acima disparava sozinho. Agora essas linhas ficam
+  **fora** do julgamento.
+- ⚡ **`/movimentacoes/nova` consultava `tipos_item` duas vezes no mesmo request.** A fase somou
+  `listarTiposItem()` ao lado do `listarTiposItemAtivos()` que já existia — mesmo select, mesma
+  ordenação, mesma tabela. Virou uma consulta só; a lista de escolha do checklist é o `filter` dos
+  ativos (e `filter` preserva a ordem de `ordem`+`rotulo`).
+- ⚡ **`prepararTermo` encadeava três leituras independentes.** O catálogo de tipos, o `profiles` do
+  técnico e os lançamentos de retorno eram aguardados em série — duas delas acrescentadas por esta
+  fase. Foram para um `Promise.all`, com o client que a própria action já tinha em mãos
+  (`listarTiposItem` e `acessoriosDasMovimentacoes` passaram a aceitar client resolvido, no
+  precedente de `listarFiliais`).
+- ⚡ **O snapshot congelado ganhou um round-trip serial de graça.** `listarTiposItem` era aguardado
+  antes de `vizinhosDoRelatorio` na rota que o visualizador por senha abre para imprimir — a mesma
+  que a F33 mexeu por TTFB. As duas entraram no mesmo `Promise.all`.
+- 🧱 **Os tetos das linhas de periféricos estavam duplicados à mão.** `LIMITE_ACESSORIOS = 600` e
+  `LIMITE_OUTROS_COMPONENTES = 400` viviam na action, repetindo os `.max()` de `camposTermoSchema`
+  sem nada amarrando os dois lados. Divergir reintroduziria exatamente o "Há campos inválidos.
+  Revise o termo." que a função de corte existe para impedir. Agora são exportados do validator e
+  o schema os consome.
+- 🧱 **Um módulo de `lib/` dependia de valor de dentro do wizard.** `termos/preparo.ts` — usado por
+  `prepararTermo`, que é Server Action — importava `checklistPodeLancar` de
+  `components/movimentacoes/nova/itens-do-lote.ts`. Bastaria um `'use client'` naquele arquivo para
+  o import virar referência, a função chegar como `undefined` e a action estourar em runtime com
+  `tsc`, `eslint` e `next build` verdes (a classe que `fronteira-rsc.test.ts` documenta). A regra
+  mudou para `lib/itens/checklist-lote.ts`; `itens-do-lote.ts` **reexporta** os três nomes, e o
+  wizard e o teste dele continuam importando do mesmo lugar.
+- 🧪 **A guarda nova dos `.docx` não renderizava nenhum modelo.** Ela conferia o conjunto de tags e
+  a forma dos parágrafos, mas a F39 alterou os 5 modelos mexendo em XML cru (`<w:b/><w:bCs/>` numa
+  posição que precisa respeitar a sequência do schema `CT_RPr`). Errando a posição, o teste passaria
+  verde e o defeito só apareceria no Word, num termo já assinado. Entraram **17 asserções** que
+  renderizam os 7 modelos pelo caminho real do docxtemplater (as mesmas opções de `renderizarDocx`),
+  provando que nenhuma tag sobra, que `tem_acessorios` ligado imprime a cláusula com a linha e que
+  desligado tira o bloco inteiro do papel (D10) sem levar o resto junto.
+- 🧹 **Sobra de edição em `lib/ajuda/derivacao.ts`** — `TERMO_STATUS_ORDEM` com indentação de 4
+  espaços no meio de uma lista de 2, deixada pela remoção do import de `ACESSORIOS_DEVOLUCAO`.
+
+`npm run lint`, `npm run build` e `npm run test` (140 arquivos, **2842 testes**) limpos.
+
 ## 29/08/2026 — F39: O termo diz o que foi junto ✅ 🔒
 
 **v1.44.0** · fecha a série F36→F39 (ordem `docs/prompts/F39-termo-diz-o-que-foi-junto-ultracode.md`,

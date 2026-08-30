@@ -17,7 +17,7 @@ import {
   CATEGORIA_ORDEM,
   GRUPO_ITEM_META,
   GRUPO_ITEM_ORDEM,
-    TERMO_STATUS_ORDEM,
+  TERMO_STATUS_ORDEM,
   type CategoriaAtivo,
   type StatusAtivo,
   type TipoMovimentacao,

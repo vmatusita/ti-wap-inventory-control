@@ -43,6 +43,8 @@ import {
 import {
   gerarTermoSchema,
   prepararTermoSchema,
+  LIMITE_ACESSORIOS,
+  LIMITE_OUTROS_COMPONENTES,
   type CamposTermo,
 } from '@/lib/validators/termo'
 
@@ -50,9 +52,10 @@ const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 // Os tetos REAIS de `camposTermoSchema` — quem os respeita é
-// `montarLinhaDeAcessorios`, não o Zod (ver o comentário no validator).
-const LIMITE_ACESSORIOS = 600
-const LIMITE_OUTROS_COMPONENTES = 400
+// `montarLinhaDeAcessorios`, não o Zod (ver o comentário no validator). ⚠ IMPORTADOS
+// do próprio schema desde a revisão de 29/08/2026: repetir o número aqui deixava os
+// dois lados livres para divergir, e a divergência reintroduz exatamente o
+// "Há campos inválidos. Revise o termo." que a função de corte existe para impedir.
 
 /**
  * O aviso do item que foi junto mas não tem tipo cadastrado (§C.3).
@@ -256,7 +259,7 @@ export async function prepararTermo(input: {
     // referência é `movs[0]`, a mesma que já governa marca, modelo, patrimônio e
     // chamado: é o D13 no papel — o fone que acompanhou o notebook aponta a
     // movimentação do notebook, e cada termo lista só o que é dele.
-    const junto = await acessoriosDasMovimentacoes([mov.id], 'saida')
+    const junto = await acessoriosDasMovimentacoes([mov.id], 'saida', supabase)
     const acessorios = montarLinhaDeAcessorios(junto.lancamentos, junto.tipos, LIMITE_ACESSORIOS)
     avisos.push(...avisosDeItemSemTipo(acessorios.descartados))
     const campos: CamposTermo = {
@@ -336,27 +339,32 @@ export async function prepararTermo(input: {
   // fase adota nas outras leituras novas. Sem o mapa, `rotuloTipoItem` cai no slug
   // cru, que é exatamente o fallback desenhado: o termo sai, com "fone" em vez de
   // "Fone de ouvido", e o operador edita o campo se quiser.
-  const rotulosDosTipos = mapaRotulosTipo(
-    await listarTiposItem().catch((err) => {
+  //
+  // ⚠ AS TRÊS LEITURAS EM PARALELO (revisão de 29/08/2026). Elas não dependem uma da
+  // outra, e a F39 acrescentou DUAS delas a um caminho que antes tinha só o `profiles`:
+  // encadeadas, o diálogo do termo pagava três idas ao banco em série a cada abertura.
+  // O client é o `supabase` desta action — `listarTiposItem` aceita client resolvido
+  // desde esta fase, e criar um segundo era relê a sessão à toa.
+  const [tiposParaObservacao, perfilDoTecnico, voltaram] = await Promise.all([
+    listarTiposItem(supabase).catch((err) => {
       console.error('[prepararTermo] falha ao listar tipos de item:', err)
       return []
     }),
-  )
-  // Responsável de TI = operador logado (automático, §4.2).
-  const { data: perfil } = await supabase
-    .from('profiles')
-    .select('nome')
-    .eq('id', uid)
-    .maybeSingle()
-  // F39 · D11 — `{outros_componentes}` deixa de ser '' fixo e passa a listar O QUE
-  // VOLTOU: a união dos lançamentos de `retorno` de TODAS as movimentações do lote
-  // (o checklist é um só para o lote inteiro). `{observacao}` continua dizendo o que
-  // FALTOU, com o mesmo texto de sempre — as duas linhas dizem coisas diferentes, e
-  // é isso que tira a ambiguidade do documento.
-  const voltaram = await acessoriosDasMovimentacoes(
-    movs.map((m) => m.id),
-    'retorno',
-  )
+    // Responsável de TI = operador logado (automático, §4.2).
+    supabase.from('profiles').select('nome').eq('id', uid).maybeSingle(),
+    // F39 · D11 — `{outros_componentes}` deixa de ser '' fixo e passa a listar O QUE
+    // VOLTOU: a união dos lançamentos de `retorno` de TODAS as movimentações do lote
+    // (o checklist é um só para o lote inteiro). `{observacao}` continua dizendo o que
+    // FALTOU, com o mesmo texto de sempre — as duas linhas dizem coisas diferentes, e
+    // é isso que tira a ambiguidade do documento.
+    acessoriosDasMovimentacoes(
+      movs.map((m) => m.id),
+      'retorno',
+      supabase,
+    ),
+  ])
+  const rotulosDosTipos = mapaRotulosTipo(tiposParaObservacao)
+  const perfil = perfilDoTecnico.data
   const componentes = montarLinhaDeAcessorios(
     voltaram.lancamentos,
     voltaram.tipos,
@@ -365,11 +373,17 @@ export async function prepararTermo(input: {
   avisos.push(...avisosDeItemSemTipo(componentes.descartados))
   // O caso que o papel esconderia: conferência que não virou lançamento. Aviso,
   // nunca bloqueio — o termo sai do mesmo jeito (ver `avisoConferenciaSemLancamento`).
+  //
+  // ⚠ MOVIMENTAÇÃO SEM ATIVO EMBUTIDO FICA DE FORA, e não vira filial `0` (revisão de
+  // 29/08/2026): um `?? 0` ao lado de filiais reais faz o conjunto ter dois valores e
+  // o lote parecer misto — o aviso dispararia sozinho, sem nada de misto existir.
   const avisoSemLancamento = avisoConferenciaSemLancamento(
-    movs.map((m) => ({
-      filial_id: m.ativo?.filial_id ?? 0,
-      detentor_anterior: m.snapshot_anterior?.colaborador ?? null,
-    })),
+    movs
+      .filter((m) => m.ativo != null)
+      .map((m) => ({
+        filial_id: m.ativo!.filial_id,
+        detentor_anterior: m.snapshot_anterior?.colaborador ?? null,
+      })),
     componentes.linha,
   )
   if (avisoSemLancamento) avisos.push(avisoSemLancamento)

@@ -8,6 +8,17 @@ import { TERMO_TIPOS } from '@/lib/termos/tipos'
 // passar até o Postgres (22008). SEM regra de futuro, de propósito: `termo_data`
 // não tem teto por decisão registrada (ver o comentário de `dataOpcionalSchema`).
 
+// F39 (revisão de 29/08/2026) — OS TETOS DAS DUAS LINHAS DE PERIFÉRICOS, exportados.
+//
+// `montarLinhaDeAcessorios` (lib/termos/acessorios.ts) é quem GARANTE que a linha
+// sugerida cabe; o `.max()` daqui é a segunda linha, para o que o operador digita à
+// mão. Os dois lados precisam do MESMO número, e a action os repetia à mão: baixar o
+// `max` sem baixar a constante devolveria uma sugestão que o próprio Zod recusa, com
+// a mensagem "Há campos inválidos. Revise o termo." num campo que ninguém digitou —
+// exatamente a falha que a função de corte existe para impedir. Uma fonte só.
+export const LIMITE_ACESSORIOS = 600
+export const LIMITE_OUTROS_COMPONENTES = 400
+
 // Todos os placeholders editáveis do dialog (§3.9: todo campo é editável). São
 // apenas TEXTO do documento — não alteram o cadastro do ativo nem a movimentação.
 // Chaves fechadas (nada de payload arbitrário). Datas por extenso são derivadas
@@ -28,7 +39,7 @@ export const camposTermoSchema = z
     series: z.string().max(600),
     patrimonios: z.string().max(600),
     marcas_modelos: z.string().max(600),
-    outros_componentes: z.string().max(400),
+    outros_componentes: z.string().max(LIMITE_OUTROS_COMPONENTES),
     // F39 — a linha de periféricos do termo de RESPONSABILIDADE ("Acompanham o
     // equipamento os seguintes acessórios e periféricos: …"), pré-preenchida pelos
     // itens que foram junto na movimentação (F38) e editável como todo campo do
@@ -42,7 +53,7 @@ export const camposTermoSchema = z
     //
     // 600 e não 400 (o de `outros_componentes`): a entrega lista tudo o que saiu
     // com o equipamento; a devolução, só o que voltou naquele ato.
-    acessorios: z.string().max(600),
+    acessorios: z.string().max(LIMITE_ACESSORIOS),
     observacao: z.string().max(500),
     tecnico: z.string().max(200),
     // F25 — a cidade da linha da assinatura ("{cidade}, {data por extenso}"),

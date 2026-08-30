@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
 import { describe, expect, it } from 'vitest'
 import { TERMO_ARQUIVO, TERMO_TIPOS } from '@/lib/termos/tipos'
@@ -160,4 +161,105 @@ describe('modelos .docx dos termos', () => {
     const xml = zip.file('word/document.xml')!.asText()
     expect(xml.split('{cidade}, {data_extenso}').length - 1).toBe(1)
   })
+})
+
+// ---------------------------------------------------------------------------
+// O SMOKE DE RENDERIZAÇÃO (revisão de 29/08/2026)
+// ---------------------------------------------------------------------------
+// Conferir o conjunto de tags não prova que o modelo RENDERIZA. A F39 alterou os 5
+// modelos de responsabilidade mexendo em XML cru — `<w:b/><w:bCs/>` inserido numa
+// posição que precisa respeitar a sequência do schema `CT_RPr`, um `w:pPr` clonado
+// do vizinho sem o `w:numPr`. Errando a posição, o pacote continua com as tags
+// certas e a guarda acima passa verde: o defeito só apareceria quando o
+// docxtemplater lançasse em `renderizarDocx` ("Não foi possível montar o documento
+// do termo") ou, pior, quando o Word recusasse abrir um termo já assinado.
+//
+// Este bloco fecha esse buraco pelo caminho REAL: as mesmas opções de
+// `renderizarDocx` (`paragraphLoop`, `linebreaks`, `nullGetter`), o mesmo `render`.
+// Payload 100% fictício.
+const OPCOES = { paragraphLoop: true, linebreaks: true, nullGetter: () => '' }
+
+/** Renderiza o modelo com o payload e devolve o TEXTO do documento gerado. */
+function renderizar(arquivo: string, dados: Record<string, unknown>): string {
+  const zip = new PizZip(readFileSync(path.join(DIR, arquivo)))
+  const doc = new Docxtemplater(zip, OPCOES)
+  doc.render(dados)
+  const saida = new PizZip(doc.getZip().generate({ type: 'nodebuffer' }))
+  const xml = saida.file('word/document.xml')!.asText()
+  return (xml.match(/<w:t[^>]*>[\s\S]*?<\/w:t>/g) ?? [])
+    .map((t) => t.replace(/<[^>]+>/g, ''))
+    .join('')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
+const PAYLOAD_BASE: Record<string, unknown> = {
+  colaborador: 'Fulano de Tal',
+  marca: 'MarcaFicticia',
+  modelo: 'ModeloFicticio',
+  service_tag: 'ST0000000',
+  patrimonio: 'WAP0001234',
+  chamado: '000000',
+  telefone: '(00) 00000-0000',
+  imei: '000000000000000',
+  pulsus: 'Sim',
+  obs: '',
+  descricao: 'Descrição fictícia',
+  series: 'ST0000000',
+  patrimonios: 'WAP0001234',
+  marcas_modelos: 'MarcaFicticia ModeloFicticio',
+  outros_componentes: 'Mouse, Teclado (2)',
+  observacao: 'Não devolvido(s): Mochila',
+  tecnico: 'Beltrana da Silva',
+  cidade: 'Cidade Fictícia',
+  data: '2026-08-29',
+  data_extenso: '29 de agosto de 2026',
+  data_mes_ano: 'agosto de 2026',
+}
+
+describe('os 7 modelos RENDERIZAM pelo caminho real do docxtemplater', () => {
+  it.each(Object.keys(ESPERADO))('%s renderiza sem lançar e sem sobrar tag', (arquivo) => {
+    const texto = renderizar(arquivo, {
+      ...PAYLOAD_BASE,
+      acessorios: 'Mouse, Teclado (2)',
+      tem_acessorios: true,
+    })
+    expect(texto).toContain('Fulano de Tal')
+    // Nenhuma chave sobrando: tag não substituída denuncia modelo fora de sincronia
+    // com o payload de `gerarTermo`.
+    expect(texto).not.toMatch(/\{[^{}]*\}/)
+  })
+
+  it.each(RESPONSABILIDADE)(
+    '%s: `tem_acessorios` LIGADO imprime a cláusula com a linha',
+    (arquivo) => {
+      const texto = renderizar(arquivo, {
+        ...PAYLOAD_BASE,
+        acessorios: 'Mouse, Teclado (2)',
+        tem_acessorios: true,
+      })
+      expect(texto).toContain(
+        'Acompanham o equipamento os seguintes acessórios e periféricos: Mouse, Teclado (2)',
+      )
+    },
+  )
+
+  it.each(RESPONSABILIDADE)(
+    '%s: `tem_acessorios` DESLIGADO tira a cláusula inteira do papel (D10)',
+    (arquivo) => {
+      const texto = renderizar(arquivo, {
+        ...PAYLOAD_BASE,
+        acessorios: '',
+        tem_acessorios: false,
+      })
+      expect(texto).not.toContain('Acompanham o equipamento')
+      expect(texto).not.toContain('acessórios e periféricos')
+      // E o resto do documento continua de pé.
+      expect(texto).toContain('Fulano de Tal')
+      expect(texto).toContain('Cidade Fictícia, 29 de agosto de 2026')
+    },
+  )
 })

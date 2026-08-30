@@ -772,9 +772,13 @@ export type AcessoriosDaMovimentacao = {
 export async function acessoriosDasMovimentacoes(
   movimentacaoIds: readonly string[],
   tipo: Extract<TipoLancamento, 'saida' | 'retorno'>,
+  // ⚠ ACEITA O CLIENT DE QUEM CHAMA (revisão de 29/08/2026), como `listarTiposItem` e
+  // `listarFiliais`. `prepararTermo` já tem um client autenticado em mãos; criar outro
+  // aqui era reler cookies e remontar o client SSR no meio da própria action.
+  client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<AcessoriosDaMovimentacao> {
   if (movimentacaoIds.length === 0) return { lancamentos: [], tipos: [] }
-  const supabase = await createClient()
+  const supabase = client ?? (await createClient())
   const { data, error } = await supabase
     .from('lancamentos_item')
     .select(

@@ -49,17 +49,22 @@ export default async function RelatorioGeradoPage({
   // F39 — o vocabulário dos itens faltantes, com o CLIENT RESOLVIDO (o snapshot
   // congelado também é servido ao visualizador por senha). O snapshot guarda os
   // SLUGS; o rótulo é resolvido na hora de exibir, como sempre foi.
-  const tiposItem = await listarTiposItem(acesso.client).catch((err): TipoItem[] => {
-    // Degrada, nunca derruba (mesma razão da rota ao vivo): sem o mapa, o item
-    // faltante sai com o slug cru, e o snapshot continua abrindo.
-    console.error('[relatorios/gerados/[id]] falha ao listar tipos de item:', err)
-    return []
-  })
-
-  const vizinhos = await vizinhosDoRelatorio(acesso.client, {
-    filialId: detalhe.filialId,
-    periodoDe: detalhe.periodo_de,
-  })
+  //
+  // ⚠ NO MESMO `Promise.all` DOS VIZINHOS (revisão de 29/08/2026): as duas leituras
+  // são independentes, e esta rota é a que o visualizador abre para imprimir — foi
+  // por TTFB que a F33 mexeu nela. Encadeadas, era um round-trip serial de graça.
+  const [tiposItem, vizinhos] = await Promise.all([
+    listarTiposItem(acesso.client).catch((err): TipoItem[] => {
+      // Degrada, nunca derruba (mesma razão da rota ao vivo): sem o mapa, o item
+      // faltante sai com o slug cru, e o snapshot continua abrindo.
+      console.error('[relatorios/gerados/[id]] falha ao listar tipos de item:', err)
+      return []
+    }),
+    vizinhosDoRelatorio(acesso.client, {
+      filialId: detalhe.filialId,
+      periodoDe: detalhe.periodo_de,
+    }),
+  ])
   // O slug vem do PRÓPRIO snapshot congelado (`meta.filialSlug`, gravado na geração):
   // dispensa consultar `filiais` e continua certo para o consolidado ('geral').
   const hrefAoVivo = `/relatorios/${s.meta.filialSlug}?preset=custom&de=${detalhe.periodo_de}&ate=${detalhe.periodo_ate}`

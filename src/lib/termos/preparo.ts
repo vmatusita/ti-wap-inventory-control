@@ -11,7 +11,7 @@
 
 import type { CategoriaAtivo } from '@/lib/dominio'
 import type { CamposTermo } from '@/lib/validators/termo'
-import { checklistPodeLancar } from '@/components/movimentacoes/nova/itens-do-lote'
+import { checklistPodeLancar } from '@/lib/itens/checklist-lote'
 
 export type FilialDoTermo = { id: number; nome: string; cidade: string }
 
@@ -135,9 +135,18 @@ export type MovimentacaoParaAviso = {
   detentor_anterior: string | null
 }
 
+// ⚠ O TEXTO AFIRMA SÓ O QUE O SERVIDOR SABE (revisão de 29/08/2026). A primeira
+// redação dizia "Houve item conferido nesta devolução que não gerou lançamento" —
+// e isso o servidor NÃO sabe: não existe registro do que foi marcado "Voltou" e não
+// lançou. Pior, num lote misto o checklist NUNCA lança (é a própria
+// `checklistPodeLancar` que o desliga), então a linha sai vazia por construção e o
+// aviso disparava em 100% dos termos de lote misto — inclusive nos que ninguém
+// conferiu, afirmando um fato falso. O que é verdade em todos os casos é a
+// CONDIÇÃO, e é ela que o texto passou a declarar.
 export const MSG_CONFERENCIA_SEM_LANCAMENTO =
-  'Houve item conferido nesta devolução que não gerou lançamento de estoque — ' +
-  'confira a linha de componentes antes de gerar.'
+  'Este lote tem equipamentos de filiais ou de pessoas diferentes, então o que ' +
+  'você marcou como "Voltou" não gerou lançamento de estoque e não entra na linha ' +
+  'de componentes — confira essa linha antes de gerar.'
 
 /**
  * O aviso do caso que o papel esconderia: o operador conferiu "Voltou" e
@@ -148,7 +157,8 @@ export const MSG_CONFERENCIA_SEM_LANCAMENTO =
  * não lançou — então o aviso é derivado do que dá para saber no servidor. O que dá
  * para saber é o **lote misto**: a mesma condição que desliga o lançamento do
  * checklist em `checklistPodeLancar` (F38), reusada aqui de propósito, para que as
- * duas pontas não possam divergir.
+ * duas pontas não possam divergir. E é por isso que a MENSAGEM fala da condição, e
+ * não de uma conferência que ela não tem como ter visto.
  *
  * ⚠ O ESPELHO RETROSPECTIVO. Na tela, `checklistPodeLancar` olhou o `colaborador_atual`
  * do ativo; aqui ele já foi limpo pelo trigger da devolução, e o equivalente é o

@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.44.1',
+    data: '2026-08-29',
+    titulo: 'Revisão de código da F39',
+    mudancas: [
+      'O aviso que aparecia ao gerar termo de devolução de um lote com equipamentos de filiais ou de pessoas diferentes dizia que "houve item conferido" mesmo quando ninguém tinha conferido nada. Agora ele diz o que de fato acontece: nesse tipo de lote, o que você marca como "Voltou" não entra na linha de componentes.',
+      'A tela de registrar movimentação passou a buscar a lista de tipos de item uma vez só, em vez de duas, e o diálogo do termo de devolução faz suas três consultas ao mesmo tempo. As duas telas abrem mais rápido.',
+      'O termo de devolução deixou de mostrar o aviso de lote misto quando um dos equipamentos do lote não pôde ser lido — antes isso bastava para o sistema achar que havia filiais diferentes.',
+      'Os 5 modelos de termo de responsabilidade passaram a ser abertos e preenchidos de verdade durante os testes automáticos, com e sem acessórios. Modelo alterado por engano passa a ser barrado antes de chegar a um papel assinado.',
+    ],
+  },
+  {
     versao: '1.44.0',
     data: '2026-08-29',
     fase: 'F39',

@@ -148,7 +148,13 @@ src/
       # vinculo-retorno.ts (a regra §C.3: o retorno só carrega colaborador_id quando a
       # pessoa tem saldo suficiente — F38) e rotulo-tipo.ts (slug→rótulo do catálogo
       # `tipos_item`, com fallback pelo slug cru; substituiu a constante de dominio.ts
-      # — F39 · §E. Módulo PURO: o mapa desce por PROP, nunca por import de query);
+      # — F39 · §E. Módulo PURO: o mapa desce por PROP, nunca por import de query) e
+      # checklist-lote.ts (a regra do LOTE HOMOGÊNEO — `checklistPodeLancar`,
+      # `LoteParaChecklist`, `MSG_LOTE_MISTO_SEM_LANCAMENTO`. Nasceu na F38 dentro de
+      # `components/movimentacoes/nova/itens-do-lote.ts` e MUDOU PARA CÁ na revisão da
+      # F39, porque o servidor a reusa em `termos/preparo.ts`: módulo de `lib/` não pode
+      # depender de valor vindo do wizard — um `'use client'` lá tornaria a função
+      # `undefined` na Server Action, com o build verde. `itens-do-lote.ts` reexporta);
       # pendencias/ inclui texto-baixa.ts (o texto da justificativa do ajuste da baixa
       # de pendência de item, função pura fora do SQL — F38 · §E);
       # movimentacoes/ inclui lote-url.ts (o `?ativos=` da seleção múltipla — F30 · ATV-03)
