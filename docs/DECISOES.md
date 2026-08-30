@@ -7418,7 +7418,7 @@ e da `0121`; as quatro do código, por `git revert`.
   nada no repositório — conferido por `grep`.
 - **Reversível?** Apagar duas linhas do teste.
 
-## 2026-08-30 · F40 · A catraca de cor conta o CÓDIGO, não o `grep` do inventário
+## 2026-08-30 · F40 · "Nenhum hex" em dominio.ts é sobre o CÓDIGO — os comentários históricos ficam
 
 - **Contexto:** o plano mediu **555** classes de paleta crua com um `grep`, que não distingue
   código de comentário. `src/lib/dominio.ts` cita em prosa os hex que a F32 aposentou (`#ea580c`) e
@@ -7433,6 +7433,15 @@ e da `0121`; as quatro do código, por `git revert`.
 - **Motivo:** é a mesma razão pela qual `consistencia.test.ts` remove comentários antes de casar, e
   a linha de base prova a necessidade: a varredura ingênua por `<h1` neste repositório devolve 22,
   e só 19 são `<h1>` de verdade.
+- **E VALE TAMBÉM PARA O CRITÉRIO 4 DA ORDEM**, que é onde a leitura literal aperta: ele diz que
+  "`src/lib/dominio.ts` não contém nenhuma classe de paleta de fábrica do Tailwind nem nenhum hex".
+  O ARQUIVO contém — oito hex, todos em comentário, e todos anteriores a esta fase: são a ata em
+  prosa da F32/RV-02, que registra por que a triagem trocou de `#ea580c` para `#db2777` e o
+  reservado de `#7c3aed` para `#6d28d9`, com o ΔE medido sob deutanopia ao lado. **O CÓDIGO não
+  contém nenhum**, e é isso que `cores.test.ts` prova com `toBeNull()`. Apagar essas linhas para
+  satisfazer um `grep` seria destruir a única explicação escrita de três decisões de cor medidas —
+  e a apagaria justamente do arquivo que a ordem quer limpo *para que a régua alcance a cor*. A
+  régua alcança; o que fica é a memória de por que a cor é essa.
 - **Reversível?** Trocar uma chamada de função no teste.
 
 ## 2026-08-30 · F40 · `src/lib/dominio/` convive com `src/lib/dominio.ts`
@@ -7484,3 +7493,32 @@ e da `0121`; as quatro do código, por `git revert`.
   **não tem `rounded-*` nenhum** (o raio vem do próprio `Card`), então a combinação que a regra
   procura simplesmente não existe ali. A regra não foi afrouxada em uma vírgula.
 - **Reversível?** Tirar `ring-0 border` devolve o anel do kit.
+
+## 2026-08-30 · F40 · A regra 2 mede largura de PÁGINA, e a superfície de portal não é página
+
+- **Contexto:** o plano §4.1 escreve a regra 2 assim: "`max-w-` de container fora de `pagina.tsx`
+  (permitido em `max-w-sm`/`max-w-md` de conteúdo interno, lista explícita)". A primeira versão
+  implementada só olhava a COMBINAÇÃO `mx-auto` + `max-w-*` — e a revisão adversarial mostrou que
+  isso protegia apenas o padrão ANTIGO: um wrapper `max-w-6xl` **alinhado à esquerda**, que é
+  exatamente o que o casco existe para monopolizar, passava calado.
+- **Decisão:** a regra passou a reprovar `max-w-*` **de container** em qualquer `className` fora do
+  SISTEMA, com a lista explícita de **conteúdo** que o plano permite —
+  `xs` · `sm` · `md` · `full` · `none` · `fit` · `min` · `max` —, e **uma exceção nova**: as
+  superfícies de PORTAL (`DialogContent`, `SheetContent`, `PopoverContent`, `DropdownMenuContent`,
+  `AlertDialogContent`, `CommandDialog`, `SelectContent`, `TooltipContent`).
+- **Por que a exceção do portal NÃO é um afrouxamento:** o Radix monta essas superfícies no fim do
+  `<body>`, fora da árvore do `<Pagina>`. O `max-w-lg` de um `DialogContent` mede a caixa flutuante
+  do modal, não a coluna da tela — ele não disputa nada com o casco, e obrigá-lo a sair de
+  `LARGURAS` seria pedir que a régua de página governasse um objeto que não está na página. O
+  produto tem 34 dessas, com seis medidas; consolidá-las é assunto de uma frente de DIÁLOGOS
+  (§1.5 do plano já registra as quatro convenções concorrentes de ALTURA de diálogo pelo mesmo
+  motivo), não da régua de página.
+- **Como o varredor sabe de quem é a `className`:** ele lê para trás até o `<Nome` aberto mais
+  próximo. Quando um `=>` numa prop anterior quebra a leitura, o dono sai como string vazia — e
+  string vazia **não** está na lista de portais, ou seja, o caso duvidoso cai do lado SEVERO da
+  regra. É onde ele tem de cair, e há fixture provando isso.
+- **Alternativas:** (a) manter só a combinação `mx-auto` + `max-w-*` — deixaria a invariante que o
+  plano §3.3 declara ("`Pagina` é a única origem de `max-w-*` de container no produto") sem guarda
+  nenhuma; (b) reprovar também os diálogos — deixaria o teste vermelho em 34 lugares que esta ordem
+  não migra, e teste vermelho por semanas é teste que se aprende a ignorar.
+- **Reversível?** Duas funções puras e um `Set`, todos no próprio teste.

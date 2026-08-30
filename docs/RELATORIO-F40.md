@@ -5,7 +5,7 @@ Execução autônoma de **30/08/2026**, na branch `f40-design-system`, a partir 
 a fundação e o piloto em `/ativos`. As frentes **a**, **b**, **c** e **d** ficam para ordens próprias.
 
 Plano de execução: [`docs/PLAN-F40.md`](PLAN-F40.md). Atas: [`docs/DECISOES.md`](DECISOES.md),
-nove entradas em 2026-08-30.
+**dez** entradas em 2026-08-30.
 
 **A promessa desta fase, e ela está medida abaixo: nenhuma cor renderizada mudou.**
 
@@ -69,13 +69,13 @@ comentários antes de casar.
 
 ### 2.3 Fundação — os dois testes
 
-**`src/lib/layout/consistencia.test.ts`** — 9 regras, 338 asserções, no molde de
+**`src/lib/layout/consistencia.test.ts`** — 9 regras, 341 asserções, no molde de
 `sidebar-colapso.test.ts` (lê texto-fonte, ambiente `node`, zero dependência nova).
 
 | # | regra | como reprova |
 | ---: | --- | --- |
 | 1 | um `<h1>` só | `<h1` fora dos 7 arquivos do SISTEMA |
-| 2 | uma origem de largura | `mx-auto` **+** `max-w-*` no MESMO `className` (lido inteiro, não string a string) — e `style={{ maxWidth }}` |
+| 2 | uma origem de largura | `max-w-*` de container fora do SISTEMA (conteúdo `xs`/`sm`/`md`/`full`/… segue livre, e a superfície de portal não é página); `mx-auto` **+** `max-w-*` no MESMO `className`; e `style={{ maxWidth }}` |
 | 3/4 | a escala | passo fora de `{0,0.5,1,1.5,2,3,4,6,8,12,16,auto,px}`, e valor arbitrário |
 | 4b | não zere o eixo que pediu | `p-N` junto de `py-0`/`px-0` na MESMA `className` |
 | 5 | sem tamanho arbitrário | `text-[Npx]` e `w-`/`min-w-`/`max-w-[NNNpx]` |
@@ -280,10 +280,21 @@ movimento da frente **a**.
 
 ## 4.1 A revisão adversarial — o que ela pegou, e o que foi corrigido
 
-Quatro lentes independentes em **contexto fresco**, cada uma com uma pergunta só, e cada achado
-passando por um cético que tentava refutá-lo antes de valer. Elas encontraram **uma família inteira
-de defeitos que a suíte não pegava**, e é justo dizer o quanto: *trocar uma moldura à mão pelo `Card`
-do kit troca junto o traço, o fundo e o display* — e cada uma dessas três trocas é uma repintura.
+Quatro lentes independentes em **contexto fresco** — cor · critérios · rigor dos testes · regressão
+—, cada uma com uma pergunta só, e cada um dos **20 achados** passando por um cético em contexto
+próprio, instruído a REFUTAR e a devolver "não é real" na dúvida. **24 agentes ao todo.**
+
+**Veredito: 19 refutados, 1 confirmado.** E os 19 foram refutados pelo mesmo motivo — *"o defeito
+era real num estado intermediário do branch, e já está corrigido no HEAD"*: a revisão rodou em
+paralelo às correções que ela mesma provocou, e cada cético foi ao código conferir e encontrou o
+conserto já lá. O único achado que sobreviveu é **sobre a revisão, não sobre a entrega**: um dos
+revisores percebeu, e provou com `git status` mudando entre chamadas suas, que a árvore estava sendo
+editada enquanto ele lia — que é o efeito colateral do "corrija e re-revise até limpar" que a
+própria ordem manda. **Nenhum defeito da entrega sobreviveu à verificação.**
+
+Elas encontraram **uma família inteira de defeitos que a suíte não pegava**, e é justo dizer o
+quanto: *trocar uma moldura à mão pelo `Card` do kit troca junto o traço, o fundo e o display* — e
+cada uma dessas três trocas é uma repintura.
 
 **Sete correções de renderização** (commit `bda69da`):
 
@@ -297,7 +308,17 @@ do kit troca junto o traço, o fundo e o display* — e cada uma dessas três tr
 | `linha-do-tempo.tsx` — o vazio | `EstadoVazio` pinta o título em `text-foreground font-medium`; o `<p>` era `text-sm text-muted-foreground` | voltou ao `<p>`, só o `py-10` virou `py-12` |
 | `globals.css` — `@media print` | a borda do `Card` no papel usava um `#d4d4d4` escolhido no braço | `var(--border)` — o mesmo traço que as molduras já imprimem |
 
-**E cinco regras do teste ficaram mais duras** — todas por achado da revisão, nenhuma afrouxada:
+**E sete regras do teste ficaram mais duras** — todas por achado da revisão, nenhuma afrouxada:
+
+- **a regra 2 media a coisa errada.** Ela só reprovava a COMBINAÇÃO `mx-auto` + `max-w-*`, ou seja,
+  protegia apenas o padrão ANTIGO: um wrapper `max-w-6xl` **alinhado à esquerda** — exatamente o que
+  o casco existe para monopolizar — passava calado. Agora ela reprova `max-w-*` de container em
+  qualquer `className` fora do SISTEMA, com a lista de conteúdo que o plano §4.1 permite
+  (`xs`·`sm`·`md`·`full`·`none`·`fit`·`min`·`max`) e uma exceção nova para as **superfícies de
+  portal**: o `max-w-lg` de um `DialogContent` mede a caixa flutuante do modal, que o Radix monta
+  fora da árvore do `<Pagina>`, e não a coluna da tela. Ata em `DECISOES.md`.
+- **a regra 4b nasceu** — "nenhuma `className` zera o eixo que ela mesma acabou de pedir" —, que é a
+  guarda do defeito dos nove cartões.
 
 - a exceção do inset de aparelho era `passo.includes('env(')`, e **qualquer** valor arbitrário que
   mencionasse `env` escapava da escala inteira (`p-[9999px_env(x)]`). Virou a forma **estrutural**
@@ -343,6 +364,8 @@ Nove atas em [`docs/DECISOES.md`](DECISOES.md), 2026-08-30:
 7. **`src/lib/dominio/` convive com `src/lib/dominio.ts`** — provado com os quatro comandos.
 8. **`rounded-full` não é moldura** e **`env(safe-area-inset-*)` não é passo**.
 9. **Os `Card` do piloto levam `ring-0 border`** — e é justamente para NÃO mudar cor.
+10. **A regra 2 mede largura de PÁGINA**, e a superfície de portal (`DialogContent` e irmãs) não é
+    página — o Radix a monta fora da árvore do casco.
 
 **As duas decisões do Johnny que a ordem já trazia decididas** estão aplicadas e visíveis:
 o `mx-auto` saiu (`/ativos/novo` é a única mudança de posição da fase) e o ritmo padrão é `gap-6`.

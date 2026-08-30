@@ -203,8 +203,8 @@ function classes(texto: string): { linha: number; valor: string }[] {
  * As regras que olham UM utilitário por vez (a escala) continuam usando
  * `classes()`, que é mais simples e basta.
  */
-function classNames(texto: string): { linha: number; valor: string }[] {
-  const achadas: { linha: number; valor: string }[] = []
+function classNames(texto: string): { linha: number; valor: string; tag: string }[] {
+  const achadas: { linha: number; valor: string; tag: string }[] = []
   const marca = /className=/g
   let m: RegExpExecArray | null
   while ((m = marca.exec(texto)) !== null) {
@@ -249,13 +249,39 @@ function classNames(texto: string): { linha: number; valor: string }[] {
       if (v.trim() && ehStringDeClasse(v)) partes.push(v.trim())
     }
     if (partes.length === 0) continue
+    // O ELEMENTO DONO desta `className` — o `<Nome` aberto mais próximo antes
+    // dela. A regra de largura precisa saber disto: um `DialogContent` é uma
+    // superfície de PORTAL, montada fora da árvore do `<Pagina>`, e o `max-w-*`
+    // dele governa a caixa do modal, não a coluna da tela.
+    const antes = texto.slice(0, m.index)
+    const abertura = /<([A-Za-z][A-Za-z0-9.]*)[^<>]*$/.exec(antes)
     achadas.push({
-      linha: texto.slice(0, m.index).split('\n').length,
+      linha: antes.split('\n').length,
       valor: partes.join(' '),
+      tag: abertura ? abertura[1] : '',
     })
   }
   return achadas
 }
+
+/**
+ * Superfícies de PORTAL — modal, gaveta, popover, menu.
+ *
+ * Elas são montadas fora da árvore do `<Pagina>` (o Radix as leva para o fim do
+ * `<body>`), e o `max-w-*` delas mede a caixa flutuante, não a coluna da tela.
+ * O produto tem 34 dessas, com seis medidas — consolidá-las é assunto de uma
+ * frente de DIÁLOGOS, não da régua de página.
+ */
+const SUPERFICIES_DE_PORTAL = new Set([
+  'DialogContent',
+  'SheetContent',
+  'PopoverContent',
+  'DropdownMenuContent',
+  'AlertDialogContent',
+  'CommandDialog',
+  'SelectContent',
+  'TooltipContent',
+])
 
 // ---------------------------------------------------------------------------
 
@@ -322,17 +348,93 @@ describe('todo titulo de tela sai do cabecalho de pagina', () => {
 
 // 2 · UMA SÓ ORIGEM DE LARGURA ---------------------------------------------
 
+/**
+ * `max-w-*` DE CONTAINER — o que só o casco pode declarar.
+ *
+ * O plano §4.1 escreve a regra assim: "`max-w-` de container fora de
+ * `pagina.tsx` (permitido em `max-w-sm`/`max-w-md` de conteúdo interno, lista
+ * explícita)". A primeira versão desta regra só olhava a COMBINAÇÃO
+ * `mx-auto` + `max-w-*`, e a revisão adversarial mostrou que isso protegia
+ * apenas o padrão ANTIGO: um wrapper `max-w-6xl` alinhado à esquerda — que é
+ * exatamente o que o casco existe para monopolizar — passava calado.
+ *
+ * A lista do que é CONTEÚDO, e por que cada um está aqui:
+ *   `xs` `sm` `md`   — caixa de aviso, coluna de texto curta, menu.
+ *   `full` `none`    — não limitam nada; `max-w-full` é o antídoto de overflow.
+ *   `fit` `min` `max` — medida intrínseca do próprio conteúdo.
+ * Tudo o mais (`lg` para cima, `screen-*`, arbitrário) é largura de PÁGINA, e
+ * sai de `LARGURAS` ou de `MEDIDA_DE_FORMULARIO`, em `pagina.tsx`.
+ *
+ * Formulário dentro de página cheia usa a CONSTANTE `MEDIDA_DE_FORMULARIO` — e é
+ * por isso que a regra pode ser dura: quem passa a constante não escreve o
+ * literal, e o varredor lê literais.
+ */
+const MAX_W_DE_CONTEUDO = new Set([
+  'xs',
+  'sm',
+  'md',
+  'full',
+  'none',
+  'fit',
+  'min',
+  'max',
+])
+
+function maxWDeContainer(partes: string[]): string[] {
+  return partes
+    .map((p) => p.slice(p.lastIndexOf(':') + 1))
+    .filter((p) => p.startsWith('max-w-'))
+    .filter((p) => !MAX_W_DE_CONTEUDO.has(p.slice('max-w-'.length)))
+}
+
 describe('so o casco de pagina centraliza e limita a largura', () => {
+  it('o varredor sabe de QUEM e cada className', () => {
+    const um = (fonte: string) => classNames(fonte)[0]
+    expect(um('<div className="max-w-6xl" />')?.tag).toBe('div')
+    expect(um('<DialogContent className="sm:max-w-lg" />')?.tag).toBe('DialogContent')
+    // Multilinha, que e como o repositorio escreve.
+    expect(um('<Card\n  size="sm"\n  className="border p-3"\n/>')?.tag).toBe('Card')
+    // ⚠ Um `=>` numa prop ANTES do className quebra a varredura para tras (o
+    // `>` fecha a busca). O detector devolve string vazia, e string vazia NAO
+    // esta em SUPERFICIES_DE_PORTAL — ou seja, o caso duvidoso cai do lado
+    // SEVERO da regra, que e onde ele tem de cair.
+    expect(um('<div onClick={() => x()} className="max-w-6xl" />')?.tag).toBe('')
+  })
+
+  it('a superficie de PORTAL nao entra na regua de pagina', () => {
+    const doDialogo = classNames('<DialogContent className="sm:max-w-lg" />')[0]
+    expect(SUPERFICIES_DE_PORTAL.has(doDialogo.tag)).toBe(true)
+    const daPagina = classNames('<div className="max-w-6xl" />')[0]
+    expect(SUPERFICIES_DE_PORTAL.has(daPagina.tag)).toBe(false)
+    expect(maxWDeContainer(daPagina.valor.split(/\s+/))).toEqual(['max-w-6xl'])
+  })
+
+  it('o detector distingue largura de PAGINA de largura de CONTEUDO', () => {
+    expect(maxWDeContainer(['max-w-6xl'])).toEqual(['max-w-6xl'])
+    expect(maxWDeContainer(['max-w-3xl'])).toEqual(['max-w-3xl'])
+    expect(maxWDeContainer(['sm:max-w-lg'])).toEqual(['max-w-lg'])
+    expect(maxWDeContainer(['max-w-screen-md'])).toEqual(['max-w-screen-md'])
+    expect(maxWDeContainer(['max-w-[960px]'])).toEqual(['max-w-[960px]'])
+    // Conteúdo interno — segue permitido, como o plano §4.1 escreve.
+    expect(maxWDeContainer(['max-w-sm', 'max-w-md', 'max-w-full', 'max-w-fit'])).toEqual([])
+  })
+
   it.each(SOB_REGRA)('$arquivo', ({ arquivo, texto }) => {
     if (ehDoSistema(arquivo)) return
     const culpados = classNames(texto)
-      .filter(({ valor }) => {
+      .flatMap(({ linha, valor, tag }) => {
         const partes = valor.split(/\s+/)
+        const achados: string[] = []
         const centraliza = partes.some((p) => p === 'mx-auto' || p.endsWith(':mx-auto'))
         const limita = partes.some((p) => /(^|:)max-w-/.test(p))
-        return centraliza && limita
+        if (centraliza && limita) achados.push(`linha ${linha}: "${valor}" — centraliza e limita`)
+        if (!SUPERFICIES_DE_PORTAL.has(tag)) {
+          for (const largo of maxWDeContainer(partes)) {
+            achados.push(`linha ${linha}: "${largo}" — largura de PAGINA fora do casco`)
+          }
+        }
+        return achados
       })
-      .map(({ linha, valor }) => `linha ${linha}: "${valor}"`)
 
     // A regra tambem olha o `style=` inline: sem isto, `style={{ maxWidth: 960,
     // marginInline: 'auto' }}` fazia exatamente o que a regra proibe, por um
