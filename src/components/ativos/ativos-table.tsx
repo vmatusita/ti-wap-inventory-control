@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dica } from '@/components/ui/dica'
 import { StatusBadge } from '@/components/ativos/status-badge'
@@ -388,8 +389,17 @@ export function AtivosTable({
   })
 
   return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-lg border">
+    // F40 — a moldura `overflow-hidden rounded-lg border` à mão virou
+    // `<QuadroDeTabela>`, que é um `Card` sem respiro vertical: a tabela encosta
+    // no quadro e as bordas de linha dela fazem a divisão interna. O `Table` do kit
+    // já traz `overflow-x-auto` no invólucro, então o que não couber rola DENTRO do
+    // quadro, sem empurrar a página.
+    //
+    // ⚠ A barra de seleção fica FORA do quadro, e continua tendo de ficar: o
+    // `Card` tem `overflow-hidden`, e `position: sticky` não gruda dentro de um
+    // ancestral com `overflow`. Ela é IRMÃ do quadro, nunca filha.
+    <div className="flex flex-col gap-3">
+      <QuadroDeTabela>
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
@@ -495,7 +505,7 @@ export function AtivosTable({
           ))}
         </TableBody>
       </Table>
-      </div>
+      </QuadroDeTabela>
 
       {escreve && (
         <BarraSelecaoAtivos

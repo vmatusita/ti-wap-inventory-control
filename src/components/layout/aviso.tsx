@@ -21,19 +21,31 @@ import { cn } from '@/lib/utils'
 export type IntencaoDoAviso = 'erro' | 'atencao' | 'informacao'
 
 /**
- * A tinta de cada intenção.
+ * A tinta de cada intenção — TODA MEDIDA antes de ser escrita
+ * (`node scripts/contraste.mjs --par "<texto> sobre <fundo>"`).
  *
- * O ÂMBAR É `text-warning`, NUNCA `text-warning-foreground`, e isto é medido: o
- * `-foreground` é quase branco no tema claro (`globals.css`) e dá **1,10:1**
- * sobre `bg-warning/10`, enquanto `text-warning` dá **4,92:1`. É o par que
+ * O ÂMBAR É `text-warning`, NUNCA `text-warning-foreground`: o `-foreground` é
+ * quase branco no tema claro e dá **1,10:1** sobre `bg-warning/10`, enquanto
+ * `text-warning` dá **4,92:1** (claro) e **7,86:1** (escuro). É o par que
  * `ui/badge.tsx` já usa e o que o comentário do próprio token documenta.
+ *
+ * ⚠ O ERRO NÃO TEM FUNDO, e a ausência é MEDIDA, não descuido. O rascunho deste
+ * componente (plano §3.6) trazia `bg-destructive/5`, e a régua reprovou: o
+ * `text-destructive` sobre esse véu dá **4,36:1** no tema claro — abaixo do piso
+ * de 4,5:1. Com `/10` piora para 3,99:1 (é o mesmo defeito que a F28 já tinha
+ * corrigido na mesa de conflitos). Sem véu nenhum, sobre o card, dá **4,76:1** e
+ * passa. Também é o que as 12 caixas vermelhas do produto já renderizam hoje —
+ * então consolidar não repinta nenhuma delas.
+ *
+ * A informação usa `bg-muted/50`: `muted-foreground` sobre ele mede 4,53:1
+ * (claro) e 6,39:1 (escuro).
  *
  * Os dois tokens (`--destructive` e `--warning`) CLAREIAM SOZINHOS no `.dark` —
  * daí não haver nenhuma variante `dark:` aqui, ao contrário das ~30 caixas à mão
  * que este componente substitui, todas com `dark:border-amber-900` repetido.
  */
 const TOM: Record<IntencaoDoAviso, string> = {
-  erro: 'border-destructive/40 bg-destructive/5 text-destructive',
+  erro: 'border-destructive/40 text-destructive',
   atencao: 'border-warning/40 bg-warning/10 text-warning',
   // Sem tinta própria: a borda é a `border-border` padrão que a caixa já traz.
   informacao: 'bg-muted/50',

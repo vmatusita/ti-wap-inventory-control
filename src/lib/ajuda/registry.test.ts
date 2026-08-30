@@ -254,6 +254,20 @@ describe('matriz de cobertura (rota × página)', () => {
           continue
         }
         for (const m of fonte.matchAll(/<LinkAjuda[^>]*\bpagina="([^"]+)"/g)) slugs.push(m[1])
+        // F40 — o "?" deixou de ser escrito à mão ao lado do `<h1>`: o
+        // `CabecalhoDaPagina` do sistema de design ABSORVEU o `LinkAjuda` (era a
+        // origem dos cinco arranjos de gap do achado 2 do inventário), e a tela
+        // declara o alvo pela prop `ajuda`. É o MESMO fato — "esta tela leva ao
+        // '?' desta página" —, dito por outro caminho; sem esta linha o teste
+        // passaria a reprovar toda tela migrada, que é o oposto do que ele quer.
+        //
+        // A busca é pela PROP `ajuda="…"` solta, e não por um regex que atravesse
+        // o corpo do `<CabecalhoDaPagina …>`: o cabeçalho é multilinha e carrega
+        // JSX aninhado nas props `descricao`/`acoes`/`aoLado`, então um
+        // `[\s\S]*?` até o `ajuda=` cruzaria a fronteira de um componente para o
+        // outro e passaria a acertar por acaso. `ajuda=` é prop de
+        // `CabecalhoDaPagina` e de mais nada no repositório.
+        for (const m of fonte.matchAll(/^\s*ajuda="([^"]+)"/gm)) slugs.push(m[1])
       }
     }
     return slugs

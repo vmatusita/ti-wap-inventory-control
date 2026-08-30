@@ -50,9 +50,13 @@ export function PendenciasItemFicha({
       </CardHeader>
       <CardContent className="space-y-2">
         {abertas.map((p) => (
-          <div
+          // F40 — a moldura à mão virou `Card`. `ring-0 border` mantém o traço
+          // âmbar exato de hoje (8,77:1 no claro); A TINTA NÃO MUDA. Migrar este
+          // callout para o token `--warning` é decisão própria — item AB de
+          // `docs/DIVIDA-TECNICA.md`.
+          <Card
             key={p.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+            className="flex flex-row flex-wrap items-center justify-between gap-2 border border-amber-300 bg-amber-50 p-3 py-0 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
           >
             <div className="flex items-start gap-2">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
@@ -76,12 +80,12 @@ export function PendenciasItemFicha({
                 }
               />
             )}
-          </div>
+          </Card>
         ))}
         {resolvidas.map((p) => (
-          <div
+          <Card
             key={p.id}
-            className="flex flex-wrap items-start justify-between gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+            className="flex flex-row flex-wrap items-start justify-between gap-2 border bg-muted/30 p-3 py-0 text-sm text-muted-foreground ring-0"
           >
             <div className="flex items-start gap-2">
               <PackageX className="mt-0.5 size-4 shrink-0" />
@@ -103,7 +107,7 @@ export function PendenciasItemFicha({
                 resumo={`${rotuloTipoItem(p.item, rotulosTipo)}${patrimonio ? ' · ' + patrimonio : ''}`}
               />
             )}
-          </div>
+          </Card>
         ))}
       </CardContent>
     </Card>

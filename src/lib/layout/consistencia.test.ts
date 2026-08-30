@@ -621,21 +621,22 @@ describe('toda rota migrada renderiza dentro do casco', () => {
  * (`ativos/novo/loading.tsx` e `movimentacoes/devolucao-fornecedor/loading.tsx`,
  * ambos `max-w-3xl space-y-5` contra `mx-auto max-w-3xl space-y-6` das páginas).
  *
- * A comparação é pelo ATRIBUTO `data-casco-da-pagina`, não por string de
- * `max-w-*`: o atributo é o que o `<Pagina>` escreve, e um esqueleto que copie a
- * classe certa pelo motivo errado continuaria divergindo no dia em que a tabela
- * de larguras mudasse.
+ * A COMPARAÇÃO É PELO CASCO, não por string de `max-w-*`: o esqueleto monta um
+ * `<Pagina>` de verdade, igual ao da tela, e é dele que a largura sai nos dois
+ * lados. Um esqueleto que copiasse a classe certa pelo motivo errado voltaria a
+ * divergir no dia em que a tabela de larguras mudasse — que é exatamente como os
+ * dois divergiram antes.
+ *
+ * O `data-casco-da-pagina` continua aceito como segunda porta, para o esqueleto
+ * que um dia não puder montar o componente.
  */
 function larguraDeclarada(fonte: string): string | null {
   const casco = /<Pagina\b[^>]*?largura=(?:"([a-z]+)"|\{'([a-z]+)'\})/.exec(fonte)
   if (casco) return casco[1] ?? casco[2]
+  const atributo = /data-casco-da-pagina="([a-z]+)"/.exec(fonte)
+  if (atributo) return atributo[1]
   if (/<Pagina[\s/>]/.test(fonte)) return 'cheia' // o padrão da prop
   return null
-}
-
-function larguraDoEsqueleto(fonte: string): string | null {
-  const m = /data-casco-da-pagina="([a-z]+)"/.exec(fonte)
-  return m ? m[1] : null
 }
 
 describe('o esqueleto declara a mesma largura da tela', () => {
@@ -649,12 +650,12 @@ describe('o esqueleto declara a mesma largura da tela', () => {
 
   it.each(COM_ESQUELETO)('$rota', ({ rota, dir }) => {
     const daTela = larguraDeclarada(fonteDaRota(dir, false))
-    const doEsqueleto = larguraDoEsqueleto(fonteDaRota(dir, true))
+    const doEsqueleto = larguraDeclarada(fonteDaRota(dir, true))
     expect(daTela, `${rota} nao declara largura no <Pagina>`).not.toBeNull()
     expect(
       doEsqueleto,
-      `o loading.tsx de ${rota} nao marca data-casco-da-pagina — sem isso nada garante que ` +
-        `o esqueleto e a tela tenham a mesma largura.`,
+      `o loading.tsx de ${rota} nao monta um <Pagina> nem marca data-casco-da-pagina — sem ` +
+        `isso nada garante que o esqueleto e a tela tenham a mesma largura.`,
     ).not.toBeNull()
     expect(
       doEsqueleto,

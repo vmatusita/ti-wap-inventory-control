@@ -436,6 +436,22 @@ const PARES = [
   { item: 'F40', onde: 'selo Devolvido ao fornecedor (escuro)', texto: 'selo-devolvido-fornecedor-texto', fundo: 'selo-devolvido-fornecedor', px: 11, tema: 'escuro', exigir: true },
   { item: 'F40', onde: 'selo Troca (claro)', texto: 'selo-troca-texto', fundo: 'selo-troca', px: 11, exigir: true },
   { item: 'F40', onde: 'selo Troca (escuro)', texto: 'selo-troca-texto', fundo: 'selo-troca', px: 11, tema: 'escuro', exigir: true },
+
+  // ---- F40 · as TRÊS intenções do <Aviso> (layout/aviso.tsx) ---------------
+  // O bloco de alerta tinha >= 8 anatomias e nenhum componente. Agora tem três,
+  // e as três estão na régua ANTES de a primeira tela usá-las.
+  //
+  // O par "erro — ANTES" é o rascunho do plano (§3.6), que trazia um véu
+  // `bg-destructive/5` atrás do texto: ele REPROVA por 0,14, e é por isso que o
+  // componente não tem fundo na intenção de erro. Fica registrado para que
+  // ninguém "melhore" o Aviso pondo o véu de volta.
+  { item: 'F40', onde: 'Aviso erro — o véu do rascunho (REPROVA)', texto: 'destructive', fundo: 'destructive/5', px: 14, antes: true },
+  { item: 'F40', onde: 'Aviso erro (claro)', texto: 'destructive', fundo: 'card', px: 14, exigir: true },
+  { item: 'F40', onde: 'Aviso erro (escuro)', texto: 'destructive', fundo: 'card', px: 14, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'Aviso atenção (claro)', texto: 'warning', fundo: 'warning/10', px: 14, exigir: true },
+  { item: 'F40', onde: 'Aviso atenção (escuro)', texto: 'warning', fundo: 'warning/10', px: 14, tema: 'escuro', exigir: true },
+  { item: 'F40', onde: 'Aviso informação (claro)', texto: 'muted-foreground', fundo: 'muted/50', px: 12, exigir: true },
+  { item: 'F40', onde: 'Aviso informação (escuro)', texto: 'muted-foreground', fundo: 'muted/50', px: 12, tema: 'escuro', exigir: true },
 ]
 
 // ---------------------------------------------------------------------------

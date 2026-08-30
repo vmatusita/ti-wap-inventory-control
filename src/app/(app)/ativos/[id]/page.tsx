@@ -31,7 +31,11 @@ import { listarPendenciasItemDoAtivo } from '@/lib/queries/pendencias-item'
 import type { TermoTipo } from '@/lib/termos/tipos'
 import { rotuloCategoria, rotuloTermo } from '@/lib/dominio'
 import { formatDate, ouTraco } from '@/lib/format'
-import { LinkAjuda } from '@/components/layout/link-ajuda'
+import {
+  CabecalhoDaPagina,
+  Pagina,
+  SecaoDaPagina,
+} from '@/components/layout/pagina'
 import {
   getOperador,
   MSG_SOMENTE_LEITURA,
@@ -173,7 +177,7 @@ export default async function AtivoFichaPage({
   const marcaModelo = [ativo.marca, ativo.modelo].filter(Boolean).join(' ')
 
   return (
-    <div className="space-y-6">
+    <Pagina>
       {/* F29/UXG-10b — grava na SESSÃO deste navegador que este ativo foi aberto, e é
           o que alimenta o grupo "Recentes" da paleta (Ctrl+K). Zero servidor. Sem
           patrimônio, guarda o rótulo que a própria ficha mostra no lugar dele. */}
@@ -184,20 +188,28 @@ export default async function AtivoFichaPage({
       />
       <VoltarParaAtivos />
 
-      {/* Cabecalho */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight tabular-nums">
-              {ativo.patrimonio ?? (
-                <span className="text-muted-foreground italic">Sem patrimônio</span>
-              )}
-            </h1>
+      {/* Cabecalho — F40: o `<h1>` sai do `CabecalhoDaPagina`, e o `tabular-nums`
+          do patrimônio sobrevive porque a prop `titulo` aceita `ReactNode`. O
+          botão de copiar e o crachá de status vão em `aoLado`, que é a porta para
+          o que fica NA LINHA do título sem ser o "?". */}
+      <CabecalhoDaPagina
+        ajuda="ficha-do-ativo"
+        ajudaRotulo="Ajuda sobre a ficha do ativo"
+        titulo={
+          <span className="tabular-nums">
+            {ativo.patrimonio ?? (
+              <span className="text-muted-foreground italic">Sem patrimônio</span>
+            )}
+          </span>
+        }
+        aoLado={
+          <>
             {ativo.patrimonio && <CopiarPatrimonio valor={ativo.patrimonio} />}
             <StatusBadge status={ativo.status} />
-            <LinkAjuda pagina="ficha-do-ativo" rotulo="Ajuda sobre a ficha do ativo" />
-          </div>
-          <p className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+          </>
+        }
+        descricao={
+          <span className="flex flex-wrap items-center gap-x-1">
             {rotuloCategoria(ativo.categoria)}
             {ativo.service_tag && (
               <>
@@ -223,55 +235,66 @@ export default async function AtivoFichaPage({
                 </span>
               </>
             )}
-          </p>
-        </div>
-        {podeEscreverNesta ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild size="sm" className="h-10 gap-2 sm:h-8">
-              <Link href={`/movimentacoes/nova?ativo=${ativo.id}`}>
-                <Plus className="size-4" />
-                Nova movimentação
-              </Link>
-            </Button>
-            {/* F14/MN3 — atalho para o fluxo dedicado (só em manutenção) */}
-            {ativo.status === 'em_manutencao' && (
-              <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
-                <Link href={`/movimentacoes/devolucao-fornecedor?ativo=${ativo.id}`}>
-                  <PackageX className="size-4" />
-                  Devolver ao fornecedor
+          </span>
+        }
+        acoes={
+          podeEscreverNesta ? (
+            <>
+              <Button asChild size="sm" className="h-10 gap-2 sm:h-8">
+                <Link href={`/movimentacoes/nova?ativo=${ativo.id}`}>
+                  <Plus className="size-4" />
+                  Nova movimentação
                 </Link>
               </Button>
-            )}
-            {/* A6 (F10) — comprar outra unidade do mesmo modelo sem redigitar os
-                dados cadastrais. Patrimônio e service tag NUNCA vão junto. */}
-            <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
-              <Link href={`/ativos/novo?duplicar=${ativo.id}`}>
-                <Copy className="size-4" />
-                Comprar outro igual
-              </Link>
-            </Button>
-            <AnotarDialog ativoId={ativo.id} />
-            <EditarAtivoDialog ativo={ativo} />
-            {/* F19 — as ações de EXCEÇÃO (corrigir/definir patrimônio, definir service
-                tag) saem da barra para o menu "⋯": eram 6 controles lado a lado
-                disputando atenção com o CTA "Nova movimentação". */}
-            <AcoesExcecaoFicha
-              ativoId={ativo.id}
-              patrimonio={ativo.patrimonio}
-              serviceTag={ativo.service_tag}
-            />
-          </div>
-        ) : (
-          <p className="flex max-w-sm items-start gap-2 rounded-lg border bg-muted/40 p-2.5 text-xs text-muted-foreground">
-            <Eye className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            <span>{motivoSemEscrita}</span>
-          </p>
-        )}
-      </div>
+              {/* F14/MN3 — atalho para o fluxo dedicado (só em manutenção) */}
+              {ativo.status === 'em_manutencao' && (
+                <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
+                  <Link href={`/movimentacoes/devolucao-fornecedor?ativo=${ativo.id}`}>
+                    <PackageX className="size-4" />
+                    Devolver ao fornecedor
+                  </Link>
+                </Button>
+              )}
+              {/* A6 (F10) — comprar outra unidade do mesmo modelo sem redigitar os
+                  dados cadastrais. Patrimônio e service tag NUNCA vão junto. */}
+              <Button asChild size="sm" variant="outline" className="h-10 gap-2 sm:h-8">
+                <Link href={`/ativos/novo?duplicar=${ativo.id}`}>
+                  <Copy className="size-4" />
+                  Comprar outro igual
+                </Link>
+              </Button>
+              <AnotarDialog ativoId={ativo.id} />
+              <EditarAtivoDialog ativo={ativo} />
+              {/* F19 — as ações de EXCEÇÃO (corrigir/definir patrimônio, definir service
+                  tag) saem da barra para o menu "⋯": eram 6 controles lado a lado
+                  disputando atenção com o CTA "Nova movimentação". */}
+              <AcoesExcecaoFicha
+                ativoId={ativo.id}
+                patrimonio={ativo.patrimonio}
+                serviceTag={ativo.service_tag}
+              />
+            </>
+          ) : (
+            // F40 — a caixa "você só lê nesta filial" era um `rounded-lg border`
+            // desenhado à mão, com `p-2.5` (passo fora da escala). A moldura passa a
+            // ser o `Card`, a única do produto; `ring-0 border` mantém o traço no
+            // MESMO tom de hoje (o anel do Card é `foreground/10`, a borda é
+            // `border-border` — parecidos, não iguais), e `p-3` põe o respiro na
+            // escala. Nenhuma cor muda; o que muda é o raio, de 8px para 12px.
+            <Card className="flex max-w-sm flex-row items-start gap-2 border p-3 py-0 text-xs text-muted-foreground ring-0">
+              <Eye className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>{motivoSemEscrita}</span>
+            </Card>
+          )
+        }
+      />
 
       {/* F14/MN4 — vínculo de sucessão (nos dois sentidos) */}
       {(ativoAntigo || substitutoDeste) && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border bg-muted/30 p-3 text-sm">
+        // F40 — era `rounded-lg border bg-muted/30` à mão, com `gap-x-5` (passo
+        // fora da escala, agora `gap-x-6`). A moldura vem do `Card`, com
+        // `ring-0 border` para o traço continuar exatamente o de hoje.
+        <Card className="flex flex-row flex-wrap items-center gap-x-6 gap-y-1.5 border bg-muted/30 p-3 py-0 text-sm ring-0">
           {ativoAntigo && (
             <span className="inline-flex items-center gap-1.5">
               <PackageX className="size-4 text-muted-foreground" />
@@ -296,17 +319,23 @@ export default async function AtivoFichaPage({
               </Link>
             </span>
           )}
-        </div>
+        </Card>
       )}
 
-      {/* Pendencia em destaque */}
+      {/* Pendencia em destaque.
+          F40 — a moldura à mão virou `Card`. A TINTA ÂMBAR NÃO MUDA: continua
+          `amber-300/amber-50/amber-900` (8,77:1) no claro e o par `dark:` no
+          escuro. O `<Aviso intencao="atencao">` existe e pinta com o token
+          `--warning` (4,92:1) — trocar aqui seria REPINTAR uma tela, e esta ordem
+          proíbe. A migração do âmbar para o token é decisão própria, registrada em
+          `docs/DIVIDA-TECNICA.md`. */}
       {ativo.pendencia && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <Card className="flex flex-row items-start gap-2 border border-amber-300 bg-amber-50 p-3 py-0 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             <span className="font-medium">Pendência:</span> {ativo.pendencia}
           </span>
-        </div>
+        </Card>
       )}
 
       {/* F18 — pendências de item faltante (abertas em destaque + resolvidas como
@@ -420,9 +449,10 @@ export default async function AtivoFichaPage({
         podeEscrever={podeEscreverNesta}
       />
 
-      {/* Linha do tempo */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">Linha do tempo</h2>
+      {/* Linha do tempo — F40: o `<h2>` de 18px escrito à mão virou o degrau de
+          TÍTULO DE SEÇÃO da hierarquia (16px, `font-medium`), o mesmo que o
+          `CardTitle` do kit já usa. São quatro degraus no produto: 24 / 16 / 14 / 12. */}
+      <SecaoDaPagina titulo="Linha do tempo">
         {/* `somenteLeitura` já existia para o histórico do ativo substituído
             (F14/MN4); a F21 passa a usá-lo também quando o CARGO não escreve
             nesta filial — Estornar e Duplicar levam a escrita. */}
@@ -433,35 +463,40 @@ export default async function AtivoFichaPage({
           rotulosTipo={rotulosTipo}
           somenteLeitura={!podeEscreverNesta}
         />
-      </div>
+      </SecaoDaPagina>
 
       {/* F14/MN4 — histórico do ativo SUBSTITUÍDO (por vínculo, sem copiar movs) */}
       {ativo.substitui_ativo_id && ativoAntigo && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Histórico do ativo substituído —{' '}
-            <span className="tabular-nums">
-              {ativoAntigo.patrimonio ?? 'sem patrimônio'}
-            </span>
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            As movimentações abaixo pertencem ao ativo devolvido ao fornecedor (
-            <Link
-              href={`/ativos/${ativoAntigo.id}`}
-              className="underline-offset-2 hover:underline"
-            >
-              ver ficha
-            </Link>
-            ) — mostradas aqui só para consulta.
-          </p>
+        <SecaoDaPagina
+          titulo={
+            <>
+              Histórico do ativo substituído —{' '}
+              <span className="tabular-nums">
+                {ativoAntigo.patrimonio ?? 'sem patrimônio'}
+              </span>
+            </>
+          }
+          descricao={
+            <>
+              As movimentações abaixo pertencem ao ativo devolvido ao fornecedor (
+              <Link
+                href={`/ativos/${ativoAntigo.id}`}
+                className="underline-offset-2 hover:underline"
+              >
+                ver ficha
+              </Link>
+              ) — mostradas aqui só para consulta.
+            </>
+          }
+        >
           <LinhaDoTempo
             movimentacoes={timelineAntigo}
             motivos={motivos}
             rotulosTipo={rotulosTipo}
             somenteLeitura
           />
-        </div>
+        </SecaoDaPagina>
       )}
-    </div>
+    </Pagina>
   )
 }

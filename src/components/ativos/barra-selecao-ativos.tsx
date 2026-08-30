@@ -2,6 +2,7 @@
 
 import { ArrowLeftRight, Copy, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 // ATV-03 (F30) — a barra que aparece quando há ativos selecionados na lista.
 //
@@ -31,12 +32,22 @@ export function BarraSelecaoAtivos({
     <>
       {/* Sem isto a barra cobre as últimas linhas quando ela está grudada. */}
       <div aria-hidden className="h-16" />
-      <div
+      {/* F40 — a moldura vem do `Card` (uma moldura só no produto), com três
+          ajustes que a barra exige e que nada mais exige:
+          · `bg-background` em vez do `bg-card`: a barra flutua SOBRE a lista e
+            precisa ser opaca contra o fundo da página, não contra o cartão;
+          · `py-0` porque o respiro vertical dela é o `p-3` + o inset do aparelho;
+          · o `pb-[max(0.75rem,env(safe-area-inset-bottom))]` fica — é o "queixo"
+            do celular, não um passo de espaçamento, e a regra 4 do teste de
+            consistência abre exceção nominal para `env(`.
+          O `overflow-hidden` que o `Card` traz não atrapalha aqui: quem não pode
+          ter ancestral com `overflow` é a PRÓPRIA barra sticky, e ela é o Card. */}
+      <Card
         // `role="region"` + rótulo: para o leitor de tela a barra é um bloco
         // novo que apareceu longe do foco, não um pedaço solto da tabela.
         role="region"
         aria-label="Ações dos ativos selecionados"
-        className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.12)] print:hidden"
+        className="sticky bottom-0 z-20 flex flex-row flex-wrap items-center justify-between gap-3 bg-background p-3 py-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.12)] print:hidden"
       >
         {/* `aria-live` porque o número muda sem que nada receba foco — quem usa
             leitor de tela precisa ouvir a contagem subir a cada caixa marcada. */}
@@ -72,7 +83,7 @@ export function BarraSelecaoAtivos({
             Limpar seleção
           </Button>
         </div>
-      </div>
+      </Card>
     </>
   )
 }
