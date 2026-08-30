@@ -28,7 +28,7 @@ export default function Loading() {
           {/* Abas "Faixa" × "Colar lista" */}
           <Skeleton className="h-9 w-64 max-w-full rounded-md" />
 
-          <Card>
+          <Card className="border ring-0">
             <div className="flex flex-col gap-4 px-(--card-spacing)">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex flex-col gap-2">

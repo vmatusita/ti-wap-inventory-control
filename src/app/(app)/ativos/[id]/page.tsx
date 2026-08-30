@@ -281,7 +281,7 @@ export default async function AtivoFichaPage({
             // MESMO tom de hoje (o anel do Card é `foreground/10`, a borda é
             // `border-border` — parecidos, não iguais), e `p-3` põe o respiro na
             // escala. Nenhuma cor muda; o que muda é o raio, de 8px para 12px.
-            <Card className="flex max-w-sm flex-row items-start gap-2 border p-3 py-0 text-xs text-muted-foreground ring-0">
+            <Card className="flex max-w-sm flex-row items-start gap-2 border bg-muted/40 p-3 py-0 text-xs text-muted-foreground ring-0">
               <Eye className="mt-0.5 size-3.5 shrink-0" aria-hidden />
               <span>{motivoSemEscrita}</span>
             </Card>

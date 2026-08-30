@@ -1,4 +1,3 @@
-import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Carregando } from '@/components/layout/carregando'
 import { Pagina } from '@/components/layout/pagina'
@@ -17,11 +16,14 @@ export default function Loading() {
           </div>
           <Skeleton className="h-9 w-44" />
         </div>
-        <Card className="h-40 w-full py-0" />
+        {/* Blocos CHEIOS, não molduras vazias: o esqueleto promete a silhueta do
+            conteúdo, e trocar um `Skeleton` cinza por um cartão vazio mudaria o
+            que a tela mostra enquanto carrega. */}
+        <Skeleton className="h-40 w-full rounded-lg" />
         <div className="flex flex-col gap-3">
           <Skeleton className="h-6 w-40" />
-          <Card className="h-24 w-full py-0" />
-          <Card className="h-24 w-full py-0" />
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-lg" />
         </div>
       </Pagina>
     </Carregando>

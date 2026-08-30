@@ -92,7 +92,18 @@ const PENDENTES = [
   'src/app/auth/',
   'src/components/dev/',
   'src/components/ajuda/',
-  'src/components/layout/',
+  // ⚠ A CASCA DO APP É POR ARQUIVO, NÃO POR PREFIXO. Um `src/components/layout/`
+  // inteiro na lista isentaria também o componente de SISTEMA que alguém criasse
+  // amanhã e esquecesse de pôr em `SISTEMA` — ele nasceria fora de todas as 8
+  // regras, em silêncio. Estes cinco são os únicos arquivos legados da pasta que
+  // hoje violam alguma regra; qualquer arquivo novo ali já nasce sob a régua.
+  'src/components/layout/app-header.tsx',
+  'src/components/layout/atalhos-dialog.tsx',
+  'src/components/layout/aviso-sem-escrita.tsx',
+  'src/components/layout/esqueleto-relatorio.tsx',
+  'src/components/layout/painel-erro.tsx',
+  'src/components/layout/paleta-comandos.tsx',
+  'src/components/layout/sidebar-nav.tsx',
   // ---- fora de escopo por DECISÃO, não por frente -------------------------
   // 1.412 linhas e 30 `useState`: formulário é outra frente, e mexer nele junto
   // com o layout é trocar dívida conhecida por risco de regressão (ordem F40).
@@ -323,6 +334,16 @@ describe('so o casco de pagina centraliza e limita a largura', () => {
       })
       .map(({ linha, valor }) => `linha ${linha}: "${valor}"`)
 
+    // A regra tambem olha o `style=` inline: sem isto, `style={{ maxWidth: 960,
+    // marginInline: 'auto' }}` fazia exatamente o que a regra proibe, por um
+    // caminho que ela nao enxergava. Hoje nao ha nenhum no produto — e e por isso
+    // que fechar custa uma linha e nao uma migracao.
+    texto.split('\n').forEach((linha, i) => {
+      if (/style=\{[^}]*max-?[Ww]idth/.test(linha)) {
+        culpados.push(`linha ${i + 1}: largura por style inline — ${linha.trim()}`)
+      }
+    })
+
     expect(
       culpados,
       `${arquivo} centraliza e limita a largura por conta propria. Container de pagina e ` +
@@ -374,11 +395,16 @@ const ESPACAMENTO =
  * `pb-[max(0.75rem,env(safe-area-inset-bottom))]`, que é o padrão correto: um
  * passo da escala como piso, o inset como teto.
  *
- * A exceção é ESTREITA de propósito — só vale se o valor arbitrário mencionar
- * `env(`. `p-[18px]` continua reprovando.
+ * A EXCEÇÃO É ESTRUTURAL, NÃO UMA BUSCA POR SUBSTRING. A revisão adversarial
+ * mostrou que `passo.includes('env(')` deixava passar QUALQUER valor arbitrário
+ * que mencionasse `env` em qualquer posição — `p-[9999px_env(x)]` escapava da
+ * escala inteira. A forma aceita é UMA: um piso da escala e o inset como teto,
+ * que é o padrão correto e o único que o produto usa.
  */
 function ehInsetDeAparelho(passo: string): boolean {
-  return passo.includes('env(')
+  return /^\[max\(\d+(\.\d+)?rem,env\(safe-area-inset-(top|right|bottom|left)\)\)\]$/.test(
+    passo,
+  )
 }
 
 describe('o espacamento das telas cabe na escala', () => {
@@ -427,7 +453,10 @@ describe('a tipografia e as larguras de campo saem da escala', () => {
             `linha ${linha}: "${utilitario}" — fonte arbitraria (use text-xs, 12px)`,
           )
         }
-        if (/^w-\[\d+px\]$/.test(utilitario)) {
+        // `min-w-` e `max-w-` contam: as 32 larguras de campo do inventário
+        // aparecem nas três formas, e fechar só uma delas seria deixar a porta
+        // aberta ao lado da que se fechou.
+        if (/^(w|min-w|max-w)-\[\d+px\]$/.test(utilitario)) {
           culpados.push(
             `linha ${linha}: "${utilitario}" — largura em pixel (use a escala: w-36, w-40…)`,
           )
@@ -464,9 +493,17 @@ export function molduraCrua(partes: string[]): boolean {
  * (`rounded-lg` 133 · `rounded-md` 38 · `rounded-xl` 16) e 3 são `rounded-full`.
  * `rounded-full` é a geometria de uma PASTILHA, de um PONTO de trilho e de um
  * avatar — nenhum deles é agrupamento com moldura, e nenhum deles vira `Card`.
+ *
+ * O raio DIRECIONAL conta (`rounded-t-xl`, `rounded-tr-lg`): um cartão com o topo
+ * arredondado e borda crua é um cartão à mão do mesmo jeito. Foi a revisão
+ * adversarial que apontou esse buraco.
  */
 export function temRaio(partes: string[]): boolean {
-  return partes.some((p) => /(^|:)rounded(-(sm|md|lg|xl|2xl|3xl|4xl))?$/.test(p))
+  return partes.some((p) =>
+    /(^|:)rounded(-(t|r|b|l|tl|tr|br|bl|s|e|ss|se|es|ee))?(-(sm|md|lg|xl|2xl|3xl|4xl))?$/.test(
+      p,
+    ),
+  )
 }
 
 describe('a regra da moldura sabe o que e moldura', () => {
@@ -500,9 +537,23 @@ describe('a regra da moldura sabe o que e moldura', () => {
     expect(temRaio(['rounded-lg'])).toBe(true)
     expect(temRaio(['rounded'])).toBe(true)
     expect(temRaio(['sm:rounded-xl'])).toBe(true)
+    // Raio direcional TAMBEM e moldura — topo arredondado com borda crua e um
+    // cartao a mao do mesmo jeito.
+    expect(temRaio(['rounded-t-xl'])).toBe(true)
+    expect(temRaio(['rounded-tr-lg'])).toBe(true)
+    // `rounded-full` NAO: e pastilha, ponto de trilho, avatar.
     expect(temRaio(['rounded-full'])).toBe(false)
-    expect(temRaio(['rounded-t-xl'])).toBe(false)
     expect(temRaio(['border'])).toBe(false)
+  })
+
+  it('o inset de aparelho e a UNICA forma arbitraria aceita na escala', () => {
+    // A forma correta: um passo da escala como piso, o recorte do aparelho como
+    // teto. Qualquer outra coisa que mencione `env` reprova.
+    expect(ehInsetDeAparelho('[max(0.75rem,env(safe-area-inset-bottom))]')).toBe(true)
+    expect(ehInsetDeAparelho('[max(1rem,env(safe-area-inset-left))]')).toBe(true)
+    expect(ehInsetDeAparelho('[9999px_env(x)]')).toBe(false)
+    expect(ehInsetDeAparelho('[env(safe-area-inset-bottom)]')).toBe(false)
+    expect(ehInsetDeAparelho('[18px]')).toBe(false)
   })
 
   it('a combinacao partida em duas strings do mesmo cn() nao escapa', () => {

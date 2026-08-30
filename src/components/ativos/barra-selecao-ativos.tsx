@@ -47,7 +47,7 @@ export function BarraSelecaoAtivos({
         // novo que apareceu longe do foco, não um pedaço solto da tabela.
         role="region"
         aria-label="Ações dos ativos selecionados"
-        className="sticky bottom-0 z-20 flex flex-row flex-wrap items-center justify-between gap-3 bg-background p-3 py-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.12)] print:hidden"
+        className="sticky bottom-0 z-20 flex flex-row flex-wrap items-center justify-between gap-3 border bg-background p-3 py-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.12)] ring-0 print:hidden"
       >
         {/* `aria-live` porque o número muda sem que nada receba foco — quem usa
             leitor de tela precisa ouvir a contagem subir a cada caixa marcada. */}

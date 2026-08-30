@@ -19,10 +19,20 @@ import { cn } from '@/lib/utils'
 // `/ativos` é irmã do quadro justamente por isso — ver
 // `src/components/ativos/barra-selecao-ativos.tsx`).
 //
+// ⚠ TRÊS AJUSTES NO `Card`, e os três existem para NÃO REPINTAR nada:
+// · `border ring-0` — o kit desenha o traço com `ring-1 ring-foreground/10` e as
+//   molduras que este componente substitui desenhavam com `border`, que herda
+//   `border-border`. Os dois cinzas são parecidos e não são iguais.
+// · `bg-transparent` — o quadro é uma MOLDURA, não uma superfície. O `Card` traz
+//   `bg-card`, e nenhum dos invólucros de tabela do produto tinha fundo próprio:
+//   no tema escuro isso pintaria a tabela de `oklch(0.205)` sobre um fundo de
+//   `oklch(0.145)`, e a diferença aparece.
+// · `py-0` — a tabela encosta no quadro, como uma tabela deve encostar.
+//
 // ⚠ IMPRESSÃO: o traço do `Card` é `ring-1`, que é box-shadow, e navegador
 // descarta box-shadow no papel. O `@media print` de `src/app/globals.css`
-// converte o anel em borda real — sem isso o relatório impresso perderia os
-// quadros todos de uma vez.
+// converte o anel em borda real (com `var(--border)`, o mesmo traço de sempre) —
+// sem isso o relatório impresso perderia os quadros todos de uma vez.
 
 export function QuadroDeTabela({
   className,
@@ -31,5 +41,7 @@ export function QuadroDeTabela({
   className?: string
   children: React.ReactNode
 }) {
-  return <Card className={cn('py-0', className)}>{children}</Card>
+  return (
+    <Card className={cn('border bg-transparent py-0 ring-0', className)}>{children}</Card>
+  )
 }

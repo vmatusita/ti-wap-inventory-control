@@ -29,7 +29,7 @@ export default function Loading() {
           <Skeleton className="h-9 w-36" />
           <Skeleton className="h-9 w-28" />
         </div>
-        <Card className="py-0">
+        <Card className="border py-0 ring-0">
           <div className="divide-y">
             {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 p-3">

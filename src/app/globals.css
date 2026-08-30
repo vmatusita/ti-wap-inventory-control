@@ -444,9 +444,15 @@
      `Card` (plano §3.8), o relatório impresso — que é feature desde a F19 —
      perderia todos os quadros de uma vez.
      A conversão é do ANEL em BORDA, aqui e só aqui: nenhuma linha `oklch` é tocada,
-     e `scripts/contraste.mjs` continua lendo o arquivo do mesmo jeito. */
+     e `scripts/contraste.mjs` continua lendo o arquivo do mesmo jeito.
+
+     O traço é `var(--border)` e NÃO um cinza literal: na mídia print o bloco
+     `.dark` não existe (F19), então `--border` cai no valor claro do `:root` — que
+     é exatamente o mesmo traço que as molduras `border` do produto imprimem hoje.
+     Um `#d4d4d4` escolhido no braço faria os quadros do papel saírem num cinza
+     diferente do de sempre. */
   [data-slot='card'] {
-    border: 1px solid #d4d4d4;
+    border: 1px solid var(--border);
     box-shadow: none;
   }
 }
