@@ -116,7 +116,7 @@ export function LinhaDoTempo({
               {/* F40 — a moldura vem do `Card`. `ring-0 border` mantém o traço
                   âmbar exato de hoje (o anel do Card é neutro); a tinta NÃO muda.
                   Só o raio vai de 8px para 12px. */}
-              <Card className="block overflow-visible border border-amber-200 bg-amber-50/60 p-3 py-0 ring-0 dark:border-amber-900/60 dark:bg-amber-950/20">
+              <Card className="block overflow-visible border border-amber-200 bg-amber-50/60 p-3 ring-0 dark:border-amber-900/60 dark:bg-amber-950/20">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     variant="outline"
@@ -166,7 +166,7 @@ export function LinhaDoTempo({
 
             {/* F40 — idem: `Card` com `ring-0 border`, para o traço continuar o
                 mesmo `border-border` de hoje em vez do anel do kit. */}
-            <Card className={cn('block overflow-visible border p-3 py-0 ring-0', estornada ? 'bg-muted/30' : 'bg-card')}>
+            <Card className={cn('block overflow-visible border p-3 ring-0', estornada ? 'bg-muted/30' : 'bg-card')}>
               <div className="flex flex-wrap items-center gap-2">
                 {/* ATV-08 — mesma paleta por tipo já aprovada em contraste e usada
                     na lista de movimentações, no dashboard e no relatório

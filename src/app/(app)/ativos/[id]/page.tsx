@@ -281,7 +281,7 @@ export default async function AtivoFichaPage({
             // MESMO tom de hoje (o anel do Card é `foreground/10`, a borda é
             // `border-border` — parecidos, não iguais), e `p-3` põe o respiro na
             // escala. Nenhuma cor muda; o que muda é o raio, de 8px para 12px.
-            <Card className="flex max-w-sm flex-row items-start gap-2 border bg-muted/40 p-3 py-0 text-xs text-muted-foreground ring-0">
+            <Card className="flex max-w-sm flex-row items-start gap-2 border bg-muted/40 p-3 text-xs text-muted-foreground ring-0">
               <Eye className="mt-0.5 size-3.5 shrink-0" aria-hidden />
               <span>{motivoSemEscrita}</span>
             </Card>
@@ -294,7 +294,7 @@ export default async function AtivoFichaPage({
         // F40 — era `rounded-lg border bg-muted/30` à mão, com `gap-x-5` (passo
         // fora da escala, agora `gap-x-6`). A moldura vem do `Card`, com
         // `ring-0 border` para o traço continuar exatamente o de hoje.
-        <Card className="flex flex-row flex-wrap items-center gap-x-6 gap-y-1.5 border bg-muted/30 p-3 py-0 text-sm ring-0">
+        <Card className="flex flex-row flex-wrap items-center gap-x-6 gap-y-1.5 border bg-muted/30 p-3 text-sm ring-0">
           {ativoAntigo && (
             <span className="inline-flex items-center gap-1.5">
               <PackageX className="size-4 text-muted-foreground" />
@@ -330,7 +330,7 @@ export default async function AtivoFichaPage({
           proíbe. A migração do âmbar para o token é decisão própria, registrada em
           `docs/DIVIDA-TECNICA.md`. */}
       {ativo.pendencia && (
-        <Card className="flex flex-row items-start gap-2 border border-amber-300 bg-amber-50 p-3 py-0 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <Card className="flex flex-row items-start gap-2 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             <span className="font-medium">Pendência:</span> {ativo.pendencia}

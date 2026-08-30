@@ -56,7 +56,7 @@ export function PendenciasItemFicha({
           // `docs/DIVIDA-TECNICA.md`.
           <Card
             key={p.id}
-            className="flex flex-row flex-wrap items-center justify-between gap-2 border border-amber-300 bg-amber-50 p-3 py-0 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+            className="flex flex-row flex-wrap items-center justify-between gap-2 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
           >
             <div className="flex items-start gap-2">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
@@ -85,7 +85,7 @@ export function PendenciasItemFicha({
         {resolvidas.map((p) => (
           <Card
             key={p.id}
-            className="flex flex-row flex-wrap items-start justify-between gap-2 border bg-muted/30 p-3 py-0 text-sm text-muted-foreground ring-0"
+            className="flex flex-row flex-wrap items-start justify-between gap-2 border bg-muted/30 p-3 text-sm text-muted-foreground ring-0"
           >
             <div className="flex items-start gap-2">
               <PackageX className="mt-0.5 size-4 shrink-0" />

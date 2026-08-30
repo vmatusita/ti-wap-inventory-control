@@ -439,6 +439,61 @@ describe('o espacamento das telas cabe na escala', () => {
   })
 })
 
+// 4b · NÃO ZERE O EIXO QUE VOCÊ ACABOU DE PEDIR ----------------------------
+
+/**
+ * `p-3 py-0` no MESMO `className` é quase sempre engano — e este custou nove
+ * cartões.
+ *
+ * O `Card` do kit traz `py-(--card-spacing)`, e a intenção de quem escreve
+ * `p-3 py-0` é "apaga o padding vertical do componente e me dá 12px". Só que o
+ * `cn()` usa tailwind-merge, onde `p-` JÁ conflita com `py-`: `p-3` sozinho
+ * apaga o `py-(--card-spacing)`. O `py-0` escrito depois não desfaz o padding do
+ * componente — ele zera o `p-3` no eixo vertical, e o conteúdo fica colado nas
+ * bordas de cima e de baixo.
+ *
+ * A suíte inteira ficou verde com esse defeito em NOVE cartões do piloto, porque
+ * nenhuma regra olhava a contradição entre duas classes que, cada uma, está na
+ * escala. Quem o pegou foi a revisão adversarial da F40.
+ */
+function zeraOEixoQuePediu(partes: string[]): string | null {
+  const semVariante = (p: string) => p.slice(p.lastIndexOf(':') + 1)
+  const utils = partes.map(semVariante)
+  const temP = utils.some((p) => /^-?p-[^[]/.test(p))
+  if (!temP) return null
+  const zerado = utils.find((p) => p === 'py-0' || p === 'px-0')
+  return zerado ?? null
+}
+
+describe('nenhuma className zera o eixo que ela mesma acabou de pedir', () => {
+  it('o detector reconhece o padrao', () => {
+    expect(zeraOEixoQuePediu(['border', 'p-3', 'py-0', 'ring-0'])).toBe('py-0')
+    expect(zeraOEixoQuePediu(['p-4', 'px-0'])).toBe('px-0')
+    // Sem `p-*`, `py-0` é legítimo: é como o QuadroDeTabela apaga o respiro do kit.
+    expect(zeraOEixoQuePediu(['border', 'py-0', 'ring-0'])).toBeNull()
+    expect(zeraOEixoQuePediu(['p-3'])).toBeNull()
+    // Vale para o token também: `p-(--card-spacing) py-0` é a mesma contradição.
+    expect(zeraOEixoQuePediu(['p-(--card-spacing)', 'py-0'])).toBe('py-0')
+    // `py-0` sozinho é legítimo mesmo com padding horizontal declarado à parte.
+    expect(zeraOEixoQuePediu(['px-3', 'py-0'])).toBeNull()
+  })
+
+  it.each(SOB_REGRA)('$arquivo', ({ arquivo, texto }) => {
+    const culpados = classNames(texto)
+      .map(({ linha, valor }) => ({ linha, valor, zerado: zeraOEixoQuePediu(valor.split(/\s+/)) }))
+      .filter((c) => c.zerado)
+      .map((c) => `linha ${c.linha}: "${c.zerado}" anula o eixo de um p-* na mesma className`)
+
+    expect(
+      culpados,
+      `${arquivo} pede um padding e o zera num eixo. Num <Card>, "p-3" SOZINHO ja apaga o ` +
+        `py-(--card-spacing) do kit (tailwind-merge); o "py-0" escrito depois zera o proprio ` +
+        `p-3 e cola o conteudo nas bordas.\n  ` +
+        culpados.join('\n  '),
+    ).toEqual([])
+  })
+})
+
 // 5 · SEM FONTE ARBITRÁRIA, SEM LARGURA DE CAMPO EM PIXEL -------------------
 
 describe('a tipografia e as larguras de campo saem da escala', () => {

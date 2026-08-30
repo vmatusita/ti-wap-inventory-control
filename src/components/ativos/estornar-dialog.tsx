@@ -101,7 +101,7 @@ export function EstornarDialog({
 
         {/* F40 — moldura à mão (`rounded-md border`) virou `Card`. `ring-0 border`
             mantém o traço no mesmo tom; a tinta não muda. */}
-        <Card className="block overflow-visible border bg-muted/40 p-3 py-0 text-sm ring-0">
+        <Card className="block overflow-visible border bg-muted/40 p-3 text-sm ring-0">
           <p className="mb-2 font-medium">O ativo volta a ser:</p>
           <ul className="space-y-1.5">
             <li className="flex items-center gap-2">

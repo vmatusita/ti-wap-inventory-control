@@ -135,7 +135,7 @@ export function TermosDaFicha({
             Só 'sim' encerra a pendência. */}
         {/* F40 — moldura à mão virou `Card`, com `ring-0 border` para o traço
             continuar o mesmo. Nenhuma cor muda. */}
-        <Card className="flex flex-row flex-wrap items-center justify-between gap-3 border bg-muted/30 p-3 py-0 ring-0">
+        <Card className="flex flex-row flex-wrap items-center justify-between gap-3 border bg-muted/30 p-3 ring-0">
           {termoAssinado === 'sim' ? (
             <>
               <div className="flex items-center gap-2 text-sm">
