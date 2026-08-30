@@ -16,6 +16,13 @@
 
 import ExcelJS from 'exceljs'
 import type { CsvCru } from './parse'
+import {
+  ErroArquivoImport,
+  MAX_COLUNAS_PLANILHA,
+  MAX_LINHAS_PLANILHA,
+  msgLimiteColunas,
+  msgLimiteLinhas,
+} from './limites'
 
 /** Assinatura de arquivo ZIP — todo .xlsx é um zip (`PK\x03\x04`). Serve para
  *  ROTEAR entre o leitor xlsx e o parser CSV pelo CONTEÚDO (não pela extensão):
@@ -25,10 +32,8 @@ export function pareceXlsx(input: ArrayBuffer | Uint8Array): boolean {
   return b.length >= 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04
 }
 
-// Redes de segurança contra planilha absurda (arquivo errado / forjado). A maior
-// filial real tem ~1.200 linhas e ~20 colunas — os tetos dão folga de sobra.
-const MAX_COLUNAS = 40
-const MAX_LINHAS = 20_000
+// Os tetos contra planilha absurda (arquivo errado / forjado) vivem em `limites.ts`,
+// junto do tamanho máximo do arquivo — ver `MAX_LINHAS_PLANILHA`/`MAX_COLUNAS_PLANILHA`.
 
 function pad(n: number, largura: number): string {
   return String(n).padStart(largura, '0')
@@ -103,7 +108,19 @@ export async function lerXlsx(input: ArrayBuffer | Uint8Array): Promise<CsvCru> 
   const ws = wb.worksheets[0]
   if (!ws) throw new Error('A planilha do Excel está vazia (nenhuma aba encontrada).')
 
-  const largura = Math.min(Math.max(ws.getRow(1).cellCount, 1), MAX_COLUNAS)
+  // RECUSAR, nunca truncar (dívida técnica item T, fechada em 30/08/2026). O que vem
+  // depois do preview é `importar_ativos_substituir` — apaga o acervo da filial e o
+  // recria a partir do plano. Uma linha cortada em silêncio aqui é um ativo que deixa
+  // de existir sem ninguém saber; um erro nomeado é um arquivo que volta para o dono.
+  const colunas = Math.max(ws.getRow(1).cellCount, 1)
+  if (colunas > MAX_COLUNAS_PLANILHA) throw new ErroArquivoImport(msgLimiteColunas(colunas))
+
+  const linhasDeDados = Math.max(ws.rowCount - 1, 0)
+  if (linhasDeDados > MAX_LINHAS_PLANILHA) {
+    throw new ErroArquivoImport(msgLimiteLinhas(linhasDeDados))
+  }
+
+  const largura = colunas
 
   const lerLinha = (numeroLinha: number): string[] => {
     const row = ws.getRow(numeroLinha)
@@ -114,8 +131,7 @@ export async function lerXlsx(input: ArrayBuffer | Uint8Array): Promise<CsvCru> 
 
   const header = lerLinha(1)
   const linhas: CsvCru['linhas'] = []
-  const ultima = Math.min(ws.rowCount, MAX_LINHAS + 1)
-  for (let r = 2; r <= ultima; r++) {
+  for (let r = 2; r <= ws.rowCount; r++) {
     linhas.push({ celulas: lerLinha(r), linha: r })
   }
 

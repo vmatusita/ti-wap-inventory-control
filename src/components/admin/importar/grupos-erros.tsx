@@ -62,7 +62,7 @@ type CtrlProps = {
   setCampo: (chave: string, valor: string) => void
 }
 
-const CATEGORIAS = Object.entries(TIPO_CANONICO) as [Exclude<CategoriaAtivo, 'outro'>, string][]
+const CATEGORIAS = Object.entries(TIPO_CANONICO) as [CategoriaAtivo, string][]
 const ESTADOS = Object.entries(SITUACAO_CANONICA) as [
   Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>,
   string,
@@ -262,7 +262,7 @@ function CardCategoria({
   ...comuns
 }: CtrlProps & {
   grupo: GrupoErro
-  sugestao: Exclude<CategoriaAtivo, 'outro'> | null
+  sugestao: CategoriaAtivo | null
 }) {
   const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
   const categoria = massaEfetiva(grupo, rascunho)
@@ -1114,14 +1114,14 @@ export function GruposErros({
 
         switch (grupo.correcao.kind) {
           case 'categoria': {
-            // `sugerirValor` nunca devolve 'outro' (não há termo no vocabulário
-            // que resolva para ele) — o guard existe só para satisfazer o tipo.
-            const s = grupo.correcao.sugestao
+            // O guard `s !== 'outro'` que vivia aqui sumiu em 30/08/2026 junto com o
+            // enum-fantasma (dívida técnica, item I): `CategoriaAtivo` do MOTOR não
+            // tem mais o valor que o CSV nunca produz, então não há o que descartar.
             return (
               <CardCategoria
                 key={chaveReact}
                 grupo={grupo}
-                sugestao={s !== null && s !== 'outro' ? s : null}
+                sugestao={grupo.correcao.sugestao}
                 {...comuns}
               />
             )

@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.44.2',
+    data: '2026-08-30',
+    titulo: 'Revisão de projeto de sistema',
+    mudancas: [
+      'Movimentação registrada depois das 21h passou a ficar com a data do dia em que você registrou. Antes o sistema podia gravar a data do dia seguinte e o lançamento sumia do relatório daquele dia. Nenhum registro antigo ficou torto — o problema foi corrigido antes de acontecer com alguém.',
+      'Planilha grande demais no import de startup agora é recusada com o motivo na tela: quantas linhas ela tem e qual é o limite. Antes o sistema cortava o que passava do limite sem avisar, e os equipamentos das linhas cortadas simplesmente não entravam.',
+      'As telas de administração de usuários, de colaboradores e de itens, e o bloco "Com esta pessoa", passaram a consultar o banco por caminhos mais diretos.',
+      'A base do sistema foi atualizada e oito alertas de segurança do fornecedor foram fechados, um deles na porta de entrada do login. Nada mudou nas telas.',
+    ],
+  },
+  {
     versao: '1.44.1',
     data: '2026-08-29',
     titulo: 'Revisão de código da F39',

@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      _bkp_relatorios_gerados_f6a: {
+        Row: {
+          dados: Json | null
+          filial_id: number | null
+          gerado_em: string | null
+          gerado_por: string | null
+          id: string | null
+          periodo_ate: string | null
+          periodo_de: string | null
+          versao: number | null
+        }
+        Insert: {
+          dados?: Json | null
+          filial_id?: number | null
+          gerado_em?: string | null
+          gerado_por?: string | null
+          id?: string | null
+          periodo_ate?: string | null
+          periodo_de?: string | null
+          versao?: number | null
+        }
+        Update: {
+          dados?: Json | null
+          filial_id?: number | null
+          gerado_em?: string | null
+          gerado_por?: string | null
+          id?: string | null
+          periodo_ate?: string | null
+          periodo_de?: string | null
+          versao?: number | null
+        }
+        Relationships: []
+      }
       ambiente: {
         Row: {
           criado_em: string
@@ -1428,6 +1461,7 @@ export type Database = {
         }
         Returns: Json
       }
+      hoje_brt: { Args: never; Returns: string }
       importar_ativos_substituir: {
         Args: {
           p_backup_path: string

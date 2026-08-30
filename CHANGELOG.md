@@ -6,6 +6,46 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 30/08/2026 — Revisão de projeto de sistema: o fuso do banco, o truncamento e as dependências ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.44.2**). Revisão arquitetural do sistema inteiro pelo método da
+skill `system-design`, com sondagem dos DOIS bancos vivos e dos advisors do Supabase. **Seis itens
+da dívida técnica fechados** (V, Z, T, W, B, I), uma migration aditiva (`0124`) aplicada em ensaio
+e produção, e um relatório novo: [`docs/SYSTEM-DESIGN-2026-08-30.md`](docs/SYSTEM-DESIGN-2026-08-30.md).
+Ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-08-30).
+
+- 🐛 **O banco passou a viver no fuso de São Paulo — e o defeito das 21h morreu com isso.**
+  A sessão do Postgres rodava em UTC, então entre 21:00 e 23:59 toda RPC que carimba data com
+  `current_date` gravava **o dia seguinte** — e o lançamento sumia do relatório do próprio dia em
+  que foi feito. O item estava aberto desde 25/07, tinha se espalhado para 27 migrations e nasceu
+  de novo em código das F34–F38. A correção é um `alter database set timezone` (migration `0124`):
+  um comando, nenhuma RPC recriada, valendo para as funções de hoje e para as que ainda não
+  existem. Confirmado antes de aplicar que **nenhum dado ficou torto** (zero movimentações com data
+  no futuro ou posterior ao próprio registro) — era defeito real que nunca chegou a se materializar.
+  Junto vieram `public.hoje_brt()` (a intenção escrita, independente da configuração) e cinco
+  asserções no CI que percebem a reversão, uma delas independente do horário em que roda.
+- 🐛 **Planilha grande demais no import passou a ser recusada, em vez de cortada em silêncio.**
+  O leitor de `.xlsx` truncava em 20.000 linhas e 40 colunas sem erro, sem aviso e sem marca — e o
+  passo seguinte apaga o acervo da filial e o recria a partir do que leu. Agora a tela diz quantas
+  linhas o arquivo tem, qual é o limite e o que fazer; a planilha exatamente no teto continua
+  passando.
+- 🔒 **Oito alertas de segurança do Next fechados, e o total de vulnerabilidades caiu de 13 para 2.**
+  `next` foi de `16.2.10` para `16.2.12` (um dos alertas era bypass do proxy, que é a porta de
+  autenticação deste sistema), `react`/`react-dom` para `19.2.8`, mais o acerto de 19 pacotes
+  atrasados. As duas restantes são de uma biblioteca de leitura de Excel sem correção publicada,
+  registradas como aceitas.
+- ⚡ **Quatro índices novos no banco**, nas colunas que a auditoria de usuários, o bloco "Com esta
+  pessoa", a lista de colaboradores por filial e a coluna Tipo de itens percorrem.
+- 🧹 **Uma categoria de equipamento que o import nunca produzia saiu do código**, junto com as
+  quatro adaptações que existiam só para contorná-la.
+- 📄 **Relatório novo com o retrato completo do sistema**: requisitos, desenho, os caminhos crítico
+  e mais perigoso, onde estão os milissegundos (a mesma tela custa 69 ms para quem entra por senha
+  e 567 ms para quem está logado), o que falta em confiabilidade e cinco recomendações que dependem
+  de decisão do Johnny — entre elas uma otimização de 15 a 18% em toda navegação, cujo custo é
+  encurtar o alcance do "encerrar sessões".
+
+---
+
 ## 29/08/2026 — Revisão de código da F39: 10 achados aplicados ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.44.1**). Revisão adversarial (`xhigh`, 10 ângulos) do intervalo

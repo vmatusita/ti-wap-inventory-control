@@ -14,7 +14,11 @@ import {
   type ValidacaoImport,
 } from '@/lib/import'
 import { correcoesSchema, parseCorrecoesJson } from '@/lib/validators/importar'
-import { TAMANHO_MAX_ARQUIVO, TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
+import {
+  ErroArquivoImport,
+  TAMANHO_MAX_ARQUIVO,
+  TAMANHO_MAX_ROTULO,
+} from '@/lib/import/limites'
 import {
   custoSubstituir,
   exportarAcervoFilial,
@@ -47,6 +51,18 @@ import type { Json } from '@/lib/types/database'
 
 // Limite de tamanho do arquivo: `TAMANHO_MAX_ARQUIVO` (fonte única em
 // `@/lib/import/limites`, compartilhada com o wizard).
+
+/**
+ * A mensagem que o operador vê quando a LEITURA do arquivo falha. `ErroArquivoImport`
+ * é o erro que o leitor escreve para ele — teto de linhas/colunas estourado, com o
+ * número e o limite — e passa inteiro. Qualquer outra exceção (zip corrompido, falha
+ * interna do ExcelJS, buffer ilegível) vira o genérico: o detalhe não ajudaria quem
+ * está na tela e pode vazar interno.
+ */
+function mensagemDeLeitura(e: unknown): string {
+  if (e instanceof ErroArquivoImport) return e.message
+  return 'Não foi possível ler o arquivo. Confira o CSV/Excel e tente de novo.'
+}
 
 // ---- schemas -------------------------------------------------------------
 
@@ -241,8 +257,12 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   try {
     buffer = await arqRes.arquivo.arrayBuffer()
     validacao = await validarArquivoImport(buffer, filialSel, undefined, corrRes.correcoes)
-  } catch {
-    return { ok: false, erro: 'Não foi possível ler o arquivo. Confira o CSV/Excel e tente de novo.' }
+  } catch (e) {
+    // Item T (30/08/2026): o leitor de planilha RECUSA arquivo acima dos tetos em vez de
+    // truncar em silêncio, e a mensagem dele é escrita para o operador (diz o número e o
+    // limite). Ela precisa atravessar este catch — o genérico abaixo esconderia justamente
+    // a única informação acionável. Qualquer outra exceção segue no genérico.
+    return { ok: false, erro: mensagemDeLeitura(e) }
   }
 
   // F7C → F24 — o motor é PURO (não fala com o banco), então a régua "este par já existe
@@ -557,7 +577,8 @@ export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvC
     // (datas já normalizadas em dd/MM/aaaa).
     const conteudo = await csvCorrigidoDeArquivo(buffer, corrRes.correcoes, filial.nome)
     return { ok: true, nome: `import-corrigido-${filial.slug}.csv`, conteudo }
-  } catch {
+  } catch (e) {
+    if (e instanceof ErroArquivoImport) return { ok: false, erro: e.message }
     return { ok: false, erro: 'Não foi possível gerar o arquivo corrigido. Refaça a análise.' }
   }
 }

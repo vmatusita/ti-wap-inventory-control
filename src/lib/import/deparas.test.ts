@@ -157,12 +157,12 @@ describe('SITUACAO_CANONICA (F7B §3.4) — ciclo fechado com estadoPlanilha', (
 })
 
 describe('TIPO_CANONICO (F7B) — ciclo fechado com mapearCategoria', () => {
-  it.each(['notebook', 'desktop', 'monitor', 'celular', 'tablet'] as Exclude<
-    CategoriaAtivo,
-    'outro'
-  >[])('%s → termo → volta à mesma categoria', (categoria) => {
-    expect(mapearCategoria(TIPO_CANONICO[categoria])).toBe(categoria)
-  })
+  it.each(['notebook', 'desktop', 'monitor', 'celular', 'tablet'] as CategoriaAtivo[])(
+    '%s → termo → volta à mesma categoria',
+    (categoria) => {
+      expect(mapearCategoria(TIPO_CANONICO[categoria])).toBe(categoria)
+    },
+  )
 
   it('todo termo do vocabulário mapeia; `outro` não é alcançável pelo CSV', () => {
     for (const termo of CATEGORIAS_TERMOS) expect(mapearCategoria(termo)).not.toBeNull()

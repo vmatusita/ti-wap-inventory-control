@@ -30,8 +30,15 @@ const DIR = join(process.cwd(), 'supabase', 'migrations')
  * todas as asserções abaixo: podia ter recriado uma intocável, acrescentado valor
  * de enum ou virado `security definer`, e o arquivo continuaria verde. Migration
  * nova da fase entra AQUI no mesmo commit em que nasce.
+ *
+ * Desde 30/08/2026 a lista passou a receber também migration de FORA da F38 (a
+ * `0124`, do fuso do negócio): a asserção "nenhuma migration a partir da 0116 fica
+ * de fora" cobra TODAS as posteriores, e essa cobrança é a parte que vale — a
+ * migration nova cai sob as guardas de intocáveis, de enum e de DELETE em massa
+ * mesmo sem ser da fase. Ler a lista como "o que já passou por estas guardas", e
+ * não como o índice da F38.
  */
-const DA_F38 = ['0116', '0117', '0118', '0119', '0120', '0121', '0122', '0123']
+const DA_F38 = ['0116', '0117', '0118', '0119', '0120', '0121', '0122', '0123', '0124']
 
 /** As dez que a ordem nomeia como intocáveis. */
 const INTOCAVEIS = [

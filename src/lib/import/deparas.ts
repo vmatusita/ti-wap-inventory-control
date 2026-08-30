@@ -247,7 +247,7 @@ export const CATEGORIAS_TERMOS: readonly string[] = Object.keys(CATEGORIAS)
  * ele (`mapearCategoria` nunca devolve 'outro') — categoria desconhecida se corrige
  * para uma das 5 conhecidas ou a linha sai do import.
  */
-export const TIPO_CANONICO: Record<Exclude<CategoriaAtivo, 'outro'>, string> = {
+export const TIPO_CANONICO: Record<CategoriaAtivo, string> = {
   notebook: 'Notebook',
   desktop: 'Desktop',
   monitor: 'Monitor',

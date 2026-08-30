@@ -51,13 +51,22 @@ export type StatusAtivo =
   | 'defasado'
   | 'descartado'
 
+/**
+ * As categorias que o import de startup PRODUZ. Deliberadamente MENOR que o enum
+ * `categoria_ativo` do banco (que tem também `outro`, usado no cadastro manual):
+ * `mapearCategoria` devolve `null` para o que não reconhece — nunca `outro` —, e a
+ * linha vira erro corrigível no preview, com um termo real do vocabulário.
+ *
+ * `outro` morou aqui até 30/08/2026 (dívida técnica, item I). Como valor inalcançável,
+ * ele só cobrava pedágio: três `Exclude<CategoriaAtivo, 'outro'>` e um guard de runtime
+ * que existia "só para satisfazer o tipo". Tirar o valor foi o que apagou os quatro.
+ */
 export type CategoriaAtivo =
   | 'notebook'
   | 'desktop'
   | 'monitor'
   | 'celular'
   | 'tablet'
-  | 'outro'
 
 export type FilialOficial =
   | 'Matriz'

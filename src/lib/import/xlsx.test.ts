@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import ExcelJS from 'exceljs'
 import { lerXlsx, pareceXlsx } from './xlsx'
+import {
+  ErroArquivoImport,
+  MAX_COLUNAS_PLANILHA,
+  MAX_LINHAS_PLANILHA,
+} from './limites'
 import { validarArquivoImport, validarCsvImport } from './plano'
 import type { FilialSelecionada } from './tipos'
 
@@ -123,5 +128,53 @@ describe('validarArquivoImport — paridade CSV × XLSX', () => {
     expect(pareceXlsx(csvBuf)).toBe(false)
     // A entrada assíncrona resolve os dois sem lançar.
     await expect(validarArquivoImport(csvBuf, FILIAL, HOJE)).resolves.toBeTruthy()
+  })
+})
+
+describe('lerXlsx — tetos de tamanho (dívida técnica item T, 30/08/2026)', () => {
+  // ANTES desta correção o leitor TRUNCAVA em silêncio (`Math.min`): a linha 20.001 e a
+  // coluna 41 sumiam sem aviso, e o passo seguinte do import apaga o acervo da filial e o
+  // recria a partir do plano. Ativo que deixa de existir sem sinal. Agora recusa.
+  //
+  // As planilhas gigantes são montadas com linha ESPARSA (`getRow(n)` direto): o ExcelJS
+  // guarda as linhas num mapa esparso, então `rowCount` = n sem materializar n linhas —
+  // o teste fica em milissegundos e ainda exercita o caminho real do leitor.
+  function planilhaComUltimaLinha(n: number): Promise<Uint8Array> {
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('s')
+    ws.getCell('A1').value = 'Patrimônio'
+    ws.getCell(`A${n}`).value = 'WAP0001234'
+    return wb.xlsx.writeBuffer().then((b) => new Uint8Array(b as ArrayBuffer))
+  }
+
+  it('recusa planilha com mais linhas de dados que o teto, dizendo o número e o limite', async () => {
+    // header (1) + 20.001 linhas de dados
+    const buf = await planilhaComUltimaLinha(MAX_LINHAS_PLANILHA + 2)
+    await expect(lerXlsx(buf)).rejects.toBeInstanceOf(ErroArquivoImport)
+    await expect(lerXlsx(buf)).rejects.toThrow('20.001 linhas')
+    await expect(lerXlsx(buf)).rejects.toThrow('o limite do import é 20.000')
+  })
+
+  it('aceita a planilha EXATAMENTE no teto de linhas (o limite não é off-by-one)', async () => {
+    const buf = await planilhaComUltimaLinha(MAX_LINHAS_PLANILHA + 1)
+    const csv = await lerXlsx(buf)
+    expect(csv.linhas).toHaveLength(MAX_LINHAS_PLANILHA)
+    // e a ÚLTIMA linha continua chegando ao motor — é o que o truncamento comia
+    expect(csv.linhas.at(-1)!.linha).toBe(MAX_LINHAS_PLANILHA + 1)
+    expect(csv.linhas.at(-1)!.celulas[0]).toBe('WAP0001234')
+  })
+
+  it('recusa planilha mais larga que o teto de colunas em vez de cortar à direita', async () => {
+    const header = Array.from({ length: MAX_COLUNAS_PLANILHA + 1 }, (_, i) => `Col ${i + 1}`)
+    const buf = await montarXlsx(header, [['x']])
+    await expect(lerXlsx(buf)).rejects.toBeInstanceOf(ErroArquivoImport)
+    await expect(lerXlsx(buf)).rejects.toThrow('41 colunas')
+  })
+
+  it('aceita a planilha EXATAMENTE no teto de colunas', async () => {
+    const header = Array.from({ length: MAX_COLUNAS_PLANILHA }, (_, i) => `Col ${i + 1}`)
+    const buf = await montarXlsx(header, [['x']])
+    const csv = await lerXlsx(buf)
+    expect(csv.header).toHaveLength(MAX_COLUNAS_PLANILHA)
   })
 })

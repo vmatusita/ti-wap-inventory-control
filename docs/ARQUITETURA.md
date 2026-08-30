@@ -90,7 +90,8 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 
 ## 9. Banco, migrations e CI
 
-- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0057`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026). *(Emenda F19: o intervalo estava congelado em `0040`.)*
+- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0124`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026). *(Emenda F19: o intervalo estava congelado em `0040`. Emenda de 30/08/2026: estava congelado em `0057`.)*
+- **O fuso do banco é `America/Sao_Paulo`** desde a `0124` (30/08/2026), gravado com `alter database … set timezone`. Antes a sessão rodava em UTC e toda RPC que carimbava data com `current_date` gravava o dia seguinte entre 21h e meia-noite BRT — o defeito que a dívida técnica listava como item W, corrigido pela CLASSE em vez de RPC a RPC. Código novo pode chamar `public.hoje_brt()` para deixar a intenção escrita; `supabase/tests/fuso_do_negocio.sql` recusa a reversão no CI. Motivação e trade-offs em [`SYSTEM-DESIGN-2026-08-30.md`](SYSTEM-DESIGN-2026-08-30.md) §5.2.
 - **Tipos** gerados do schema em `src/lib/types/database.ts` (`npm run db:types`) — não editar à mão.
 - **CI** (`.github/workflows/ci.yml`): job `verificar` (`lint` + `test` + `build`) e job `banco` (sobe Postgres, aplica `0001`→última migration em ordem e roda os roteiros de `supabase/tests/`).
 - **Deploy/migrations em produção:** [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) (topologia prod/ensaio, o gate, apply manual, armadilhas conhecidas).

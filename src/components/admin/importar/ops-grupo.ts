@@ -121,7 +121,7 @@ export function opsDoGrupo(
           op: 'substituir',
           campo: 'tipo',
           de: grupo.chave,
-          para: TIPO_CANONICO[cat as Exclude<CategoriaAtivo, 'outro'>],
+          para: TIPO_CANONICO[cat as CategoriaAtivo],
         },
       ]
     }

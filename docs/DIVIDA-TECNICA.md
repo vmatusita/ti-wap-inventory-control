@@ -1,5 +1,16 @@
 # Dívida Técnica — Estoque TI WAP
 
+> **Atualização de 30/08/2026 — revisão de projeto de sistema.** Seis itens desta lista foram
+> FECHADOS e um foi verificado; o restante segue válido. Fechados: **V** (`next` em `16.2.12`,
+> 13 vulnerabilidades → 2), **Z** (drift patch/minor em dia), **T** (o `.xlsx` grande passou a ser
+> recusado, com mensagem para o operador, em vez de truncado em silêncio), **W** (o fuso foi
+> corrigido pela CLASSE — `alter database set timezone` na migration `0124` —, não RPC a RPC, e
+> ganhou trava no CI), **I** (o enum-fantasma `'outro'` saiu do motor de import) e **B**
+> (verificado: `0058`/`0059` estão aplicadas em produção; a `_bkp_relatorios_gerados_f6a`
+> permanece de propósito — ver a ata). O item **G** PIOROU (55 → 60 `as unknown as`). Detalhe,
+> medições e os cinco itens que dependem de decisão do Johnny em
+> [`SYSTEM-DESIGN-2026-08-30.md`](SYSTEM-DESIGN-2026-08-30.md).
+
 **Reauditoria em 12/08/2026** (skill `tech-debt`) — sucede as auditorias de 21/07 e 24-25/07/2026, revalidando item a item contra o código de hoje, dez fases depois (F26→F35). Esta rodada **não executou** correções: é levantamento e priorização (a ordem em curso é a auditoria; o escopo de outra fase fica no plano abaixo).
 
 Prioriza pela fórmula da skill: `Prioridade = (Impacto + Risco) × (6 − Esforço)`, cada eixo de 1 a 5 (esforço invertido: menor esforço = maior prioridade). Escala de esforço → tempo: **1** ≈ ½ dia · **2** ≈ 1–2 dias · **3** ≈ 3–5 dias · **4** ≈ 1–2 semanas · **5** ≈ 1 mês+.

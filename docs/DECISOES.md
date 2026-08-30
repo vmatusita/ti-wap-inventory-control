@@ -7207,3 +7207,102 @@ e da `0121`; as quatro do código, por `git revert`.
 - **Reversível?** sim, tudo em código: `git revert` do commit. Nenhuma migration, nenhum dado
   tocado, nenhuma dependência nova. Os 5 modelos `.docx` **não** foram alterados por esta revisão —
   só passaram a ser renderizados no teste.
+
+## 2026-08-30 · Revisão de projeto de sistema — o fuso do banco, o truncamento e as dependências (v1.44.2)
+
+- **Contexto:** revisão arquitetural do sistema inteiro pelo método da skill `system-design`
+  (requisitos → alto nível → aprofundamento → escala/confiabilidade → trade-offs), com sondagem
+  dos DOIS bancos vivos e dos advisors do Supabase. Entrega avulsa fora de fase. O relatório está
+  em [`SYSTEM-DESIGN-2026-08-30.md`](SYSTEM-DESIGN-2026-08-30.md); esta ata registra as decisões
+  que a revisão tomou por conta própria.
+
+- **Decisão 1 — o item W (fuso) foi fechado por CONFIGURAÇÃO, não por reescrita de RPC.**
+  A migration `0124` roda `alter database <atual> set timezone = 'America/Sao_Paulo'`. O plano
+  anterior (`DIVIDA-TECNICA.md`, item W) era criar uma função `hoje()` e trocar `current_date` por
+  ela em cada RPC — o que exigiria recriar INTEIRAS sete funções de 200 a 470 linhas, que é
+  exatamente o item X, o mecanismo que espalhou este defeito. **Motivo:** um comando corrige as
+  funções de hoje, as de ontem e as que ainda não existem; a alternativa multiplicaria o vetor de
+  propagação para corrigir a carga que ele propagou. Medições que sustentaram a segurança da
+  troca, feitas ANTES de aplicar: (a) zero colunas `timestamp without time zone` no schema
+  `public` — tudo é `timestamptz`, cujo valor não muda com o fuso; (b) as duas conversões
+  `toISOString().slice(0,10)` do TS operam sobre `Date` do JS, alheio ao fuso do banco, e o resto
+  formata com `Intl` em `America/Sao_Paulo`; (c) `movimentacoes`/`lancamentos_item` com data no
+  futuro = 0, e com data posterior ao próprio `created_at` = 0 — o defeito era real e nunca se
+  materializou, então **não há backfill a fazer**.
+  **Aplicação:** ensaio primeiro (`sgmvldiizsrjbxzzpmhh`), conferido (`current_date` = `hoje_brt()`,
+  `rel_estoque_asof`/`rel_resumo`/`rel_mov_por_mes`/`rel_saldo_itens` respondendo), depois produção
+  (`pbtjcalbmepmrqzprusb`). Nos dois: `TimeZone=America/Sao_Paulo` gravado no catálogo, 4 índices
+  criados. Migration ADITIVA — não bate no gate (nenhum DDL destrutivo).
+  **Reversível?** `alter database postgres set timezone = 'UTC'` devolve o estado anterior; a
+  função `hoje_brt()` e os índices são inertes se ficarem.
+
+- **Decisão 2 — a trava foi escrita junto com a correção, e ela é independente do relógio.**
+  `supabase/tests/fuso_do_negocio.sql` (5 asserções, roda no job `banco`). A asserção nº 4 pergunta
+  que INSTANTE o Postgres entende por "hoje às 00:00" — as outras passariam por acaso entre 00h e
+  21h mesmo com o banco em UTC, e um roteiro que só reprova à noite é um roteiro que não reprova.
+  **Motivo:** correção que mora em configuração precisa de trava que perceba a reversão; um banco
+  restaurado do zero volta ao default de fábrica sem avisar ninguém.
+
+- **Decisão 3 — o `.xlsx` grande passou a ser RECUSADO, com a mensagem chegando ao operador.**
+  `src/lib/import/xlsx.ts` truncava em 20.000 linhas / 40 colunas com `Math.min`, sem sinal
+  (item T). Os tetos foram para `limites.ts` (junto do tamanho máximo do arquivo, que já morava
+  lá) e o leitor lança `ErroArquivoImport` — classe nova cuja razão de existir é ATRAVESSAR o
+  `catch` da Server Action: o genérico "não foi possível ler o arquivo" esconderia justamente a
+  única informação acionável (o número e o limite). Qualquer outra exceção segue no genérico.
+  **Motivo:** o passo seguinte apaga o acervo da filial e o recria a partir do plano; linha
+  cortada em silêncio é ativo que deixa de existir sem ninguém saber.
+
+- **Decisão 4 — quatro índices de FK, não quinze.** O linter aponta 15 chaves estrangeiras sem
+  índice. Entraram as 4 que uma tela percorre (`eventos_admin.autor`,
+  `movimentacoes.colaborador_id`, `colaboradores.filial_id`, `itens.tipo_id`). As outras 11 são
+  colunas de autoria que ninguém consulta por si só e cujo pai (`profiles`) nunca é apagado, e sim
+  arquivado (`0073`). **Motivo:** índice que ninguém usa é custo de escrita e ruído — o mesmo
+  linter já lista SEIS índices nunca usados neste banco.
+
+- **Decisão 5 — a tabela `_bkp_relatorios_gerados_f6a` NÃO foi apagada, embora seja redundante.**
+  Medido: 2 linhas, ambas presentes em `relatorios_gerados`, com o `jsonb` idêntico byte a byte.
+  Mesmo assim fica. **Motivo:** a `0058` registra que ela está atrelada a uma decisão em aberto do
+  Johnny sobre os 2 snapshots de go-live; se a decisão for apagá-los, esta tabela é a rede.
+  Apagá-la agora seria remover a rede antes do salto. O item B da dívida, porém, **fecha**: as
+  migrations `0058`/`0059` foram confirmadas aplicadas em produção (as três tabelas de backup
+  antigas não existem mais; a única policy com `auth.uid()` está com o wrap `(select auth.uid())`).
+
+- **Decisão 6 — `next` foi para 16.2.12 (patch), não para 16.3.x (minor).** Oito advisories da
+  faixa `>=16.0.0 <16.2.11`, um deles bypass de proxy — e `src/proxy.ts` é a porta de
+  autenticação. Junto: `react`/`react-dom` 19.2.4 → 19.2.8 e o drift patch/minor de 19 pacotes.
+  `npm audit` foi de **13 vulnerabilidades (9 HIGH) para 2 (moderate)**, as duas do `uuid` que o
+  `exceljs` arrasta — sem versão corrigida publicada, **aceitas e registradas**. **Motivo:** minor
+  é decisão de fase, não de manutenção. Os pins exatos de `next`/`react`/`react-dom`/
+  `eslint-config-next` foram restaurados depois do `npm i` (que os converte em `^`).
+
+- **Decisão 7 — `getUser()` → `getClaims()` no proxy NÃO foi aplicado, e está registrado por quê.**
+  A doc oficial atual do Supabase recomenda `getClaims()` no proxy, e a produção já publica JWKS
+  ES256 (verificação local funcionaria hoje, sem migrar chave). O ganho é medido: a sonda `/login
+  com sessão` mede 65 ms de mediana sobre um piso de ~370 ms nas rotas logadas — 15 a 18% de toda
+  navegação de operador. O custo também: `getClaims()` confia na assinatura até o token expirar
+  (`jwt_exp` = 3600 s), então **"encerrar sessões"** — a ferramenta do cargo dev — deixaria de ter
+  efeito imediato. Perfil desativado continua fechando na hora (o `getOperador()` lê `profiles` a
+  cada requisição e as policies barram); o que se perde é a revogação de sessão. **Motivo de não
+  aplicar:** enfraquecer um controle de segurança existente é escolha do dono do sistema, não
+  efeito colateral de uma revisão de arquitetura. Recomendação R1 do relatório: aplicar `getClaims()`
+  **junto com** `jwt_exp` de 900 s, que corta a janela para 15 min e mantém quase todo o ganho.
+
+- **Decisão 8 — o enum-fantasma `'outro'` saiu do motor de import (item I).** `CategoriaAtivo` de
+  `src/lib/import/tipos.ts` descreve o que o import PRODUZ, e `mapearCategoria` nunca devolve
+  `'outro'` (devolve `null`, e a linha vira erro corrigível). Como valor inalcançável, ele cobrava
+  três `Exclude<CategoriaAtivo, 'outro'>` e um guard de runtime que existia "só para satisfazer o
+  tipo". O enum do BANCO (`categoria_ativo`, em `dominio.ts`) continua com `outro` — é valor real
+  do cadastro manual.
+
+- **Decisão 9 — a lista `DA_F38` de `migrations-f38.test.ts` passou a receber migration de fora da
+  fase.** A `0124` entrou lá. **Motivo:** a asserção "nenhuma migration a partir da 0116 fica de
+  fora" cobra TODAS as posteriores, e é essa cobrança que vale — a migration nova cai sob as
+  guardas de intocáveis, de enum e de DELETE em massa mesmo sem ser da F38. Ler a lista como "o
+  que já passou por estas guardas".
+
+- **Decisão 10 — `vitest.config.ts` virou `vitest.config.mts`.** O Vitest 4.1.11 passou a avisar
+  que o arquivo usa sintaxe ESM sendo carregado como CommonJS. `.mts` é a correção documentada e
+  não muda nada além da extensão (nenhum arquivo referencia o caminho).
+
+- **Reversível?** Tudo: as mudanças de código são commits; a `0124` reverte com um `alter
+  database`; o bump de dependências reverte com o `package-lock.json` anterior.
