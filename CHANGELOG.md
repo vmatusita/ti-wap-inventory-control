@@ -6,6 +6,66 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 31/08/2026 — F42 · As telas: itens deixou de ser a exceção ✅ 🔒
+
+Fase (**v1.47.0**). A outra metade do [`docs/PLANO-ITENS.md`](docs/PLANO-ITENS.md): a F41 entregou o
+motor, esta entrega as **telas**. A dor era a D3, dita assim pelo Johnny — *"a view de itens foge
+totalmente do padrão do sistema; eu mesmo que projetei estou me perdendo"*. O objetivo declarado, e
+o critério de tudo: **quem sabe usar `/ativos` sabe usar `/itens` sem aprender nada novo.**
+**Sem migration** — a F41 já entregou o banco, e a coluna nova é derivada.
+
+- 🧭 **`/itens` virou uma tabela só, dentro do casco da F40.** Ela empilhava TRÊS telas: os saldos,
+  um toggle `?visao=` que trocava as **colunas** da tabela inteira (a única tela do produto em que
+  um filtro mudava o formato, e não o recorte) e uma segunda seção de histórico com filtro de
+  gramática diferente, segundo botão de CSV e a única paginação da página — que paginava o histórico
+  e **não** os saldos. Agora é filtros + tabela + paginação, e a paginação pagina os **itens**.
+- 🔢 **Coluna nova: "Em uso"** — quantas unidades estão com as pessoas. O número sempre existiu
+  dentro da RPC de saldo e nunca era devolvido; ele se **deriva** exatamente do que ela devolve
+  (`total + falta − em estoque − reservado`), identidade algébrica provada nos dois ramos e
+  conferida contra `SELECT` agregado nos **dois** bancos (20 = 20 em produção, 10 = 10 em ensaio,
+  zero divergências item a item e par a par). **Nenhuma migration.**
+- 🔽 **A comparação entre filiais virou linha expansível**, com o mesmo chevron dos relatórios (F16),
+  e o filtro de filial parou de sumir da barra: ele está sempre visível e sempre vale. O param
+  `?visao=` deixou de existir — URL antiga com ele abre a tela normalmente, sem 404 e sem tela
+  quebrada, e o smoke prova as duas sentinelas.
+- 📜 **O histórico ganhou rota própria (`/itens/historico`)**, com `loading`/`error` no molde das
+  irmãs. **Saiu a seção, não o recurso**: todo filtro, coluna, ação e export continuam lá — e o
+  filtro de **filial**, que vinha emprestado do bloco de saldos, virou filtro próprio, senão teria
+  sido o único a se perder na separação. Link antigo (`/itens?tipo=…&de=…`) **redireciona**
+  preservando o recorte inteiro, em vez de abrir os saldos ignorando o filtro em silêncio.
+- 🧾 **Um CSV de saldos só**, superset dos dois de antes (mais `Tipo` e `Em uso`). Eram dois
+  formatos escolhidos pelo mesmo `?visao=`; agora tela, linha aberta e arquivo saem das **mesmas
+  funções puras** — a divergência tela × arquivo (achado F12-W4-03) deixou de ter como acontecer.
+- 🪟 **O diálogo de lançamento caiu de 893 para 637 linhas** e ganhou **a prévia da regularização**:
+  ao escolher item e quantidade, ele já diz que "1 item entrará no estoque por acerto automático",
+  **antes** de gravar — pela MESMA função pura da F41 que a RPC espelha. E o aviso que a action já
+  devolvia desde a F41, e que o toast descartava, passou a ser dito. O carrinho, a escolha de tipo,
+  os campos comuns e o detalhe da linha viraram componentes; o JSX **morto** que a F41 deixou (a
+  segunda pergunta e o placeholder da devolução de reserva) saiu junto.
+- 🔁 **`transferir-item-dialog` encolheu reusando o carrinho** (457 → 424) e **não** migrou para
+  `react-hook-form`: sem teste de componente, seria trocar dívida conhecida por risco de regressão.
+  Ata registrada, dívida atualizada com o critério.
+- 🏷️ **Selo "regularizado" na ficha do ativo.** O tipo `ItemQueFoiJunto` **não lia** a coluna que a
+  F41 criou — o selo nunca teria como acender. Em produção o cartão tinha zero linhas até a F41;
+  agora que elas existem, apareceria sem explicação.
+- 📐 **A régua do design system passou a valer para as telas de item**, e `/itens`,
+  `/itens/historico` e `/itens/conferencia` entraram na lista de rotas migradas: **30 testes
+  vermelhos e 88 violações viraram zero**, com as três travas do piloto atualizadas para a verdade
+  nova (29 → 30 rotas, 3 → 6 migradas). `PENDENTES` **só encolheu**. A conferência entrou no casco
+  **sem tocar na aritmética** da F31.
+- 🔎 **Descoberta.** As subrotas de Itens aparecem no menu lateral quando a seção está aberta, entram
+  na paleta de comandos por nome próprio e no mapa das telas — rota que não entra nos três nasce
+  invisível. O smoke cobre as duas rotas novas nas **duas** listas.
+- 🛡️ **Um defeito latente encontrado no caminho.** `SaldosPorItem` é `Record<number, number>`, e o
+  TypeScript aceita calado um objeto de chaves de texto ali — passar o par `{ estoque, emUso }`
+  inteiro zeraria o saldo do diálogo de transferência **com o build verde**. O tipo ganhou duas
+  linhas que transformam esse engano em erro de compilação, verificadas reintroduzindo o engano.
+
+**Zero migrations** (`git diff v1.46.0..HEAD -- supabase/` vazio). Atas em
+[`docs/DECISOES.md`](docs/DECISOES.md); relatório em [`docs/RELATORIO-F42.md`](docs/RELATORIO-F42.md).
+
+---
+
 ## 31/08/2026 — F41 · O motor: o acessório deixou de travar a devolução ✅ 🔒
 
 Fase (**v1.46.0**). O item por quantidade parou de **bloquear** quem tenta usá-lo, e passou a falar

@@ -193,6 +193,36 @@ O diagnóstico de 24/07 continua válido e a distância só cresceu (55 → 109 
 
 `react-hook-form` está em **2** formulários reais (`editar-ativo-dialog`, `botao-ativar`). Contra isso: `nova-compra-form` **32** `useState` (era 23), `nova-movimentacao-form` **20** (era 15), e dois recrutas — `devolucao-fornecedor-form` (**20**) e `transferir-item-dialog` (**11**, F31). `termos.ts` cresceu de 611 para **832** e, com a F39, para **918** linhas (+86: a leitura dos acessórios da movimentação, os dois avisos novos e a derivação de `tem_acessorios`). A F39 manteve a disciplina que a dívida pede — o JULGAMENTO foi para módulos puros (`termos/acessorios.ts`, `avisoConferenciaSemLancamento` em `termos/preparo.ts`) e a LEITURA para `queries/itens.ts`; o que cresceu aqui é só a orquestração. Ainda assim, cresceu.
 
+#### Emenda F42 (31/08/2026) — o que a fase das telas de item fez com este item
+
+`transferir-item-dialog` **não** migrou para `react-hook-form`, e o motivo fica registrado aqui com
+o custo declarado, para a próxima pessoa não repetir a análise do zero:
+
+- **O que foi feito:** o carrinho multi-linha, que estava COPIADO nos dois diálogos de item, virou
+  um componente só (`src/components/itens/carrinho-linhas.tsx`) com a forma da linha junto. O
+  diálogo de transferência caiu de **457 para 424** linhas e o de lançamento, de **893 para 637** —
+  este último também perdendo três pedaços de **código morto** que a F41 deixou (a segunda pergunta
+  da escolha de tipo, que era sempre `null`; o botão do "grupo duplo"; e o placeholder do chamado
+  que ramificava num tipo que a tela não oferece mais).
+- **O que NÃO foi feito, e por quê:** a migração de estado. Este repositório não renderiza
+  componente em teste — `vitest.config.mts` roda em `node` e só inclui `*.test.ts`. Migrar seria
+  reescrever, sem rede, quatro mecanismos não-mecânicos: a validação por linha (`errosPorLinhaDoLote`
+  devolve um mapa índice→mensagem que o diálogo espalha à mão em `l.erro`), a checagem de saldo
+  pré-envio (uma segunda passada síncrona depois do `safeParse`), o `limpar()` que preserva origem e
+  destino **de propósito**, e o foco imperativo da primeira linha. É o mesmo argumento que trava o
+  item **E** e que o item **Y** aponta como o desbloqueio real.
+- **O custo do desbloqueio continua sendo o mesmo:** `@testing-library/react`, dependência nova, que
+  precisa de aprovação do Johnny pela regra da stack fechada (item **Y**).
+
+**O que a F42 quitou:** a duplicação do carrinho entre os dois diálogos (era forma copiada, não
+importada), e o tipo `LinhaCarrinho`, que estava definido duas vezes com o mesmo corpo.
+
+**Dívida nova, pequena e com dono:** o teto de `TETO_PALETA_CRUA` desceu de 479 para **473**, mas o
+número de ARQUIVOS com cor crua subiu de 59 para **61** — a tabela única e os pedaços do diálogo
+viraram cinco componentes, e o vermelho do "faltam N" e o âmbar dos avisos foram junto. São as
+mesmas ocorrências, mais espalhadas; a conversão para token de selo continua sendo trabalho das
+frentes seguintes do sistema de design.
+
 ## Resolvido desde a auditoria anterior
 
 ### M — RLS "sempre true" + visualizador em service-role — **substancialmente resolvido pelas F21–F24** ✅

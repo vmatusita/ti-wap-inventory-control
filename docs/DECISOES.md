@@ -7934,3 +7934,185 @@ e da `0121`; as quatro do código, por `git revert`.
 - Reversível? Não se aplica. Fica anotado em `docs/DIVIDA-TECNICA.md`: o ensaio merece uma limpeza,
   ou o roteiro merece ser tolerante a resíduo — e enquanto não for, a leitura certa de
   `dev_destrutivo` é a do CI, não a do ensaio.
+
+## 2026-08-31 · F42 · J3, a decisão do Johnny que abriu esta fase
+
+- Contexto: quatro dores medidas em produção viraram o `docs/PLANO-ITENS.md`. A terceira (D3) foi
+  dita assim: *"a view de itens foge totalmente do padrão do sistema; eu mesmo que projetei estou me
+  perdendo"*. A F41 entregou o motor (J1 e J4); faltava decidir o que fazer com a tela.
+- Decisão (Johnny, 31/08/2026 — **J3**): **reescrever `/itens` no padrão de `/ativos`** — filtros +
+  uma tabela + paginação, dentro do casco da F40. O histórico vira rota própria; o diálogo de
+  lançamento encolhe. A alternativa "fundir itens no acervo" foi considerada e **recusada**.
+- Motivo: item por quantidade não é ativo com patrimônio (spec §2), e fundi-los abriria a porta que o
+  §7 do plano fecha com todas as letras. O que faltava não era um modelo de dados novo — era a tela
+  falar a mesma língua das outras.
+- Reversível? Sim, pelo git. Nada de banco mudou nesta fase.
+
+## 2026-08-31 · F42 · duas decisões do Johnny sobre o rollout
+
+- Contexto: a ordem de serviço da fase fixou duas coisas antes de a execução começar.
+- Decisão: (a) **rollout completo nesta run**, até produção — merge na `main`, tag `v1.47.0`, deploy
+  e smoke; (b) **sem captura de tela nesta ordem**: não há `.env.ensaio` neste repositório, e apontar
+  o `scripts/design/capturar.mjs` para o `.env.local` fotografaria PRODUÇÃO, gravando nome de
+  colaborador e patrimônio real em PNG dentro do repo — contra a regra 2 do `CLAUDE.md`.
+- Motivo: a prova visual desta fase é a régua (`consistencia.test.ts`), os quatro comandos e o smoke;
+  a conferência a olho é do Johnny, depois. As três rotas de item **entraram** no `ROTAS_PADRAO` do
+  script mesmo sem ele rodar, para quem tiver o ambiente amanhã fotografar sem reabrir a decisão.
+- Reversível? Sim: basta rodar o script com `--env .env.ensaio` quando o arquivo existir.
+
+## 2026-08-31 · F42 · "Em uso" é DERIVADA, e por isso a fase não tem migration
+
+- Contexto: a F41 batizou o número ("quanto está com as pessoas") e não o transformou em coluna. Ele
+  é calculado DENTRO de `rel_saldo_itens` (a variável `liberados` da CTE `por_item`, migration
+  `0027`) e não faz parte do `returns table`. A tentação óbvia era uma migration para devolvê-lo.
+- Decisão: **derivar**, por `emUsoDoSaldo()` em `src/lib/itens/lista.ts`:
+  `em_uso = total + falta − em estoque − reservado`. Zero DDL. `git diff v1.46.0..HEAD -- supabase/`
+  sai vazio.
+- Motivo: a igualdade é uma **identidade algébrica**, não uma aproximação. `estoque` e `falta` são o
+  mesmo clamp aplicado aos dois lados opostos de `x = total − atrelados − liberados` (um é
+  `max(0, x)`, o outro `max(0, −x)`), e `max(0,x) − max(0,−x)` é identicamente `x` para todo `x` —
+  logo a expressão devolve `liberados` nos **dois** ramos, sem caso de borda. Provado por teste caso
+  a caso mais uma varredura de 9×9×9 combinações, e conferido contra `SELECT` agregado nos **dois**
+  bancos: produção `20 = 20` (0 divergências entre os 22 itens, 0 entre os 8 pares item×filial com
+  uso), ensaio `10 = 10`. É aditiva por filial pelo mesmo motivo que `somarSaldosDeFiliais` já soma
+  célula a célula: cada clamp da RPC é aplicado dentro de UMA filial.
+- Reversível? Não se aplica — não há nada a desfazer no banco. Se um dia a RPC devolver `liberados`
+  de verdade, a função pura passa a lê-lo e o teste dela vira a guarda da migração.
+
+## 2026-08-31 · F42 · o toggle `?visao=` morreu, e com ele `ehVisaoConsolidado`
+
+- Contexto: `?visao=consolidado|filiais` escolhia entre as DUAS tabelas de `/itens` — o único filtro
+  do produto que trocava as **colunas** em vez do recorte. A régua dele vivia em
+  `src/lib/url-params.ts` (`ehVisaoConsolidado`), com três chamadores.
+- Decisão: o param **deixa de existir**, a função **sai** de `url-params.ts`, e `filiaisDeItens` (em
+  `actions/exportar.ts`) para de gatear o recorte de filial nele. Três testes da F25 que provavam o
+  default invertido foram **substituídos** por um que prova que a função não existe mais, e o param
+  saiu da lista de `exportar-filtros.test.ts`. Entrou no lugar uma guarda de REGRESSÃO: seis arquivos
+  não podem voltar a ler `'visao'` / `sp.visao` / `ehVisaoConsolidado` (conferida sobre o código, sem
+  comentários — punir quem explica é o contrário do que este repositório quer).
+- Motivo: a REGRA mudou, o objeto que aqueles testes descreviam deixou de existir, e função de parser
+  sem chamador é dívida esperando um chamador errado. O gate no export existia por um motivo real —
+  a visão escondia o select e o Server Component neutralizava `?filial` no parse, então o export
+  tinha de neutralizar junto (achado F12-W4-03) —, e esse motivo evaporou: não há mais tela em que o
+  filtro de filial esteja invisível e mesmo assim recorte.
+- Reversível? Sim, pelo git. **URL antiga não quebra**: `?visao=` virou param ignorado, a rota
+  responde 200 e renderiza normalmente — o smoke prova as duas sentinelas.
+
+## 2026-08-31 · F42 · o link antigo do HISTÓRICO redireciona; o do toggle, não
+
+- Contexto: até a v1.46.0 o histórico morava dentro de `/itens` e os cinco params dele
+  (`item` / `tipo` / `de` / `ate` / `busca`) viajavam na mesma querystring dos saldos.
+- Decisão: `/itens` **redireciona** para `/itens/historico` quando qualquer um desses params vier
+  preenchido, preservando também `filial` e `page`. `?visao=` **não** redireciona — é ignorado.
+- Motivo: são dois casos diferentes. Um `?visao=` a mais na URL não muda o que a tela mostra; já um
+  `?tipo=saida&de=…` abriria os saldos **ignorando o recorte em silêncio** — pior que um 404, porque
+  o operador leria a lista errada achando que é a certa. `q` **não** viaja no redirecionamento: ele é
+  o filtro de SALDOS (o do histórico é `busca`), e levá-lo trocaria um filtro pelo outro no caminho.
+  A regra é pura e testada (`destinoHistoricoLegado`), com precedente em
+  `src/components/ajuda/redireciona-ancora-legada.tsx`.
+- Reversível? Sim, pelo git.
+
+## 2026-08-31 · F42 · o filtro de FILIAL mudou de casa junto com o histórico
+
+- Contexto: o bloco de filtros do histórico (`historico-filtros.tsx`) nunca teve filtro de filial —
+  ele vinha emprestado do bloco de saldos, porque as duas seções dividiam a mesma tela e a mesma URL.
+- Decisão: `HistoricoFiltros` ganha `FiltroFilial` próprio, e `/itens/historico` o alimenta com a
+  seleção efetiva resolvida no servidor (que pode vir do padrão do cargo).
+- Motivo: sem isso, o recorte por filial seria o ÚNICO recurso a se perder na separação — que é o
+  modo de falha número um de um redesenho. O componente é o MESMO das outras listas (F25): uma UI só
+  para a mesma pergunta.
+- Reversível? Sim, pelo git.
+
+## 2026-08-31 · F42 · o CSV de saldos virou UM formato, superset dos dois
+
+- Contexto: `exportarItensSaldosCSV` ramificava no mesmo `?visao=` que a tela, e emitia dois arquivos
+  de formatos e nomes diferentes (`itens-saldos` e `itens-saldos-por-filial`).
+- Decisão: um formato só (`itens-saldos`), com **tudo** o que os dois traziam mais `Tipo` (F37) e
+  `Em uso`: Item · Grupo · Tipo · Filial · Total · Em estoque · Em uso · Reservado · Falta · uma
+  coluna de estoque e uma de "faltam" por filial · Fora das colunas.
+- Motivo: sem duas visões não há dois arquivos a escolher, e a escolha era exatamente o mecanismo do
+  achado F12-W4-03 (tela mostrando um conjunto, arquivo baixando outro) — o F25-fix já tinha corrido
+  atrás dele uma vez. Tela, linha expansível e CSV passaram a sair das MESMAS funções puras
+  (`saldoDoRecorte`, `emUsoDoSaldo`), então divergir deixou de ser possível por construção.
+- Reversível? Sim, pelo git. A página de ajuda foi reescrita no mesmo commit.
+
+## 2026-08-31 · F42 · duas colunas de classificação, e não uma
+
+- Contexto: o plano e a ordem descreviam a tabela como `Item · Tipo · Total · Em estoque · Em uso ·
+  Falta`. Uma coluna de classificação, chamada "Tipo".
+- Decisão: a tabela tem **Grupo** e **Tipo**, escondidas abaixo de `md` e de `lg` respectivamente.
+- Motivo: são dois fatos diferentes e os dois já existiam. `grupo` (Acessórios × Componentes) era o
+  **cabeçalho de seção** da tela antiga e é o que o filtro "Grupo" filtra — sem coluna, ele sumiria
+  da tela ao acabarem as seções. `tipo` é o vocabulário de `tipos_item` (F37/F39), o mesmo que
+  `/admin/itens` mostra, e nunca esteve aqui. Chamar `grupo` de "Tipo" faria a tabela e o filtro
+  usarem palavras diferentes para a mesma coisa.
+- Reversível? Sim, pelo git.
+
+## 2026-08-31 · F42 · as subrotas de Itens no menu, e por que não uma barra de abas
+
+- Contexto: `/itens` passou a ter três telas irmãs. A ordem pedia "as subrotas visíveis (Conferir ·
+  Histórico), como o resto do sistema faz" — e o resto do sistema (`/admin`) faz isso com uma barra
+  de abas DENTRO da página (`admin-nav.tsx`), montada pelo `layout.tsx` do segmento.
+- Decisão: **subitens no menu lateral**, indentados, mostrados só quando a seção está aberta e nunca
+  no modo só-ícones. Nada de barra de abas.
+- Motivo: em `/admin` o `layout.tsx` é dono do `<h1>` e as páginas não têm título próprio. Em
+  `/itens` cada tela tem o seu `CabecalhoDaPagina`, com título, descrição e ações próprios — uma
+  barra acima dele empurraria o título para o meio da tela. Mostrar as subrotas sempre transformaria
+  a sidebar num índice e dobraria a altura do bloco de operação, quebrando o que o filete de UXG-13a
+  separa; e no modo só-ícones três ícones empilhados não são navegação, são adivinhação.
+- Detalhe que vale registrar: a lista `SUBROTAS_ITENS` fica **fora** do array de itens do menu. Duas
+  guardas leem esse array por texto-fonte e contam os `rotulo:` — `comecar.test.ts` compara com a
+  tabela do menu na ajuda, linha a linha e na ordem, e `sidebar-colapso.test.ts` confere os
+  separadores. Declarar as subrotas dentro do array as faria contar como itens de MENU.
+- Reversível? Sim, pelo git.
+
+## 2026-08-31 · F42 · `transferir-item-dialog` NÃO migrou para react-hook-form
+
+- Contexto: item K da `DIVIDA-TECNICA.md` — 10 `useState` num formulário. A ordem previa a migração,
+  com a ressalva de que "encolher com segurança vale mais que reescrever".
+- Decisão: **não migrar**. O diálogo encolheu de 457 para 424 linhas reusando o carrinho
+  compartilhado (`carrinho-linhas.tsx`), e a migração fica registrada na dívida com o critério.
+- Motivo: este repositório não renderiza componente em teste (`vitest.config.mts` roda em `node` e só
+  inclui `*.test.ts`). Migrar significaria reescrever, sem rede: a validação por linha
+  (`errosPorLinhaDoLote` devolve um mapa índice→mensagem espalhado à mão em `l.erro`), a checagem de
+  saldo pré-envio, o `limpar()` que preserva origem e destino **de propósito**, e o foco imperativo
+  da primeira linha. Seria trocar bugs visíveis no `git diff` (um `setState` esquecido) por bugs
+  visíveis só clicando (um `reset` mal calibrado) — exatamente o argumento que a própria
+  `DIVIDA-TECNICA.md` registra para `nova-compra-form.tsx`.
+- Reversível? Não se aplica. A dívida continua aberta, agora com o custo declarado.
+
+## 2026-08-31 · F42 · `SaldosPorItem` ganhou dois campos `never` para pegar um engano do TypeScript
+
+- Contexto: `buscarSaldosItens` passou a devolver o par `{ estoque, emUso }` (a prévia da
+  regularização de uma devolução precisa do que está com as pessoas). O diálogo de transferência
+  guardava o retorno inteiro num estado tipado como `SaldosPorItem` e o TypeScript **não reclamou**.
+- Decisão: `SaldosPorItem` virou `Readonly<Record<number, number>>` interseccionado com
+  `{ estoque?: never; emUso?: never }`.
+- Motivo: `Record<number, number>` só restringe as chaves NUMÉRICAS — um objeto de chaves de texto é
+  atribuível a ele sem erro. O efeito do engano seria `saldos[itemId]` sempre `undefined`: a linha do
+  carrinho pararia de mostrar o saldo da origem E `erroQuantidadeAcimaDoSaldo` nunca acenderia, com o
+  build verde e nenhum teste vermelho. Duas linhas de tipo transformam isso em erro de compilação —
+  verificado reintroduzindo o engano e confirmando o `TS2345`.
+- Reversível? Sim, pelo git.
+
+## 2026-08-31 · F42 · os testes que mudaram porque a REGRA mudou
+
+- Contexto: sete asserções ficaram vermelhas por descreverem coisas que a fase eliminou.
+- Decisão e motivo, uma a uma:
+  - `consistencia.test.ts`: `ROTAS.length` 29 → **30** (`/itens/historico` nasceu) e `ROTAS_MIGRADAS`
+    de 3 → **6**. Atualizadas para a verdade nova, **não** afrouxadas — `PENDENTES` só encolheu.
+  - `filtros/filial.test.ts`: os três testes de `ehVisaoConsolidado` viraram um que prova que a
+    função **não existe mais**.
+  - `exportar-filtros.test.ts`: o caminho da página do histórico mudou de rota, `visao` saiu da lista
+    do parser comum, e entrou a guarda de regressão do toggle.
+  - `conteudo.test.ts`: "Por filial põe uma coluna para CADA filial" e "o filtro de filial some da
+    barra" descreviam a visão morta. Trocadas pelas frases da linha expansível e do filtro que agora
+    está sempre lá.
+  - `gestao.test.ts`: o export deixou de ser dois arquivos; a asserção acompanha, e ganhou uma nova
+    exigindo que a ajuda diga para onde o "Exportar histórico" foi.
+  - `dominio/cores.test.ts`: a catraca desceu de **479 para 473** (o banner âmbar da conferência
+    virou `<Aviso intencao="atencao">`, e três arquivos com cor crua deixaram de existir) e a
+    contagem de arquivos subiu de 59 para **61** (a tabela e os pedaços do diálogo viraram cinco
+    componentes; as mesmas cores, mais espalhadas). O TETO só desce; a contagem de arquivos é
+    registro.
+- Reversível? Sim, pelo git.

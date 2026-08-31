@@ -228,6 +228,42 @@ Levantados dos dados reais; o importador aplica este mapa e a interface só ofer
 >
 > **Mudança de navegação (decisão da OS-F11 §2, registrada em `docs/DECISOES.md` — 2026-07-22 · F11):** o item "Movimentações" do menu lateral passa a abrir a **lista**; o atalho `N`, o botão do cabeçalho e o card do painel inicial continuam indo **direto ao formulário** de nova movimentação. Registrar segue a um gesto; auditar deixou de ser impossível.
 
+> **As telas de item (emenda F42, 31/08/2026).** A F41 entregou o motor; esta emenda registra as
+> TELAS. `/itens` deixou de empilhar três coisas numa página — os saldos, um alternador de VISÃO
+> que trocava as **colunas** da tabela e uma segunda seção de histórico com filtro próprio — e
+> passou a ser **uma lista no padrão de `/ativos`**: um conjunto de filtros (busca, filial, grupo),
+> **uma** tabela e **uma** paginação, que agora pagina os **itens**. As colunas são
+> `Item · Grupo · Tipo · Total · Em estoque · Em uso · Falta`, com o menu de ações da linha; o selo
+> âmbar "repor" fica junto do nome e o selo vermelho "faltam N" na coluna Falta, como sempre — são
+> avisos diferentes (§5, `itens`).
+>
+> **"Em uso" é coluna, e é DERIVADA.** Ela responde "quanto está com as pessoas"
+> (`Σ saída − Σ devolução`), o número que a F41 nomeou e que só existia por dedução entre Total e
+> Em estoque. **Nenhuma migration**: `rel_saldo_itens` (`0027`) já calcula esse valor internamente
+> (`liberados`) sem devolvê-lo, e ele se obtém das quatro colunas que ela devolve, por
+> `total + falta − em estoque − reservado` — identidade algébrica exata nos dois ramos do clamp,
+> e aditiva por filial. **`Reservado` saiu da tabela** (é zero desde a conversão da F41) e continua
+> no histórico, no CSV e no detalhe da linha quando não for zero.
+>
+> **A comparação entre filiais virou detalhe da linha.** Cada item abre com um chevron e mostra,
+> filial por filial, o que tem na prateleira e o que está com as pessoas — com o atalho de
+> transferência na filial de origem. Some daí o toggle Consolidado/Por filial, e com ele o param
+> `?visao=`: **o filtro de filial passou a estar sempre visível e a valer sempre**, o que revoga a
+> parte da emenda F25 que dizia que `/itens` "abre na visão Por filial" e neutralizava `?filial`.
+> URL antiga com `?visao=` continua abrindo a tela, sem 404 e sem quebra.
+>
+> **O histórico de lançamentos ganhou rota própria: `/itens/historico`**, alcançável pelo menu
+> lateral (subitem de Itens), pelo botão "Histórico" do cabeçalho, pelo menu da linha de um item
+> (já filtrado nele) e pelo `Ctrl+K`. **Saiu a seção, não o recurso**: todo filtro, coluna, o export
+> e o estorno continuam lá, e o recorte por **filial** — que vinha emprestado do bloco de saldos —
+> virou filtro próprio. Link antigo (`/itens?tipo=…&de=…`) **redireciona** para a rota nova
+> preservando o recorte inteiro. O **CSV de saldos** virou um formato só, superset dos dois de
+> antes, com `Tipo` e `Em uso` a mais; o do histórico continua sendo outro arquivo, na outra tela.
+>
+> **O diálogo de lançamento avisa antes de gravar**: escolhidos item e quantidade, ele diz quantas
+> unidades vão entrar por **acerto automático** (regra 14, §8) — a mesma conta que a RPC faz. E na
+> ficha do equipamento, o cartão "Itens que foram junto" marca essas linhas com o selo
+> **"regularizado"**, para que um Ajuste ao lado do notebook não apareça sem explicação.
 > **Filtro de filial: multi-seleção e padrão por cargo (emenda F25, 04/08/2026).** Em toda lista que filtra por filial — `/ativos`, `/movimentacoes`, `/itens`, `/pendencias` e `/relatorios/gerados` — o seletor de filial virou **painel de caixas** (marcar 2+ filiais), no mesmo padrão do filtro de Status. E o padrão deixou de ser "todas" para o **Operador**: ele entra com **todas as filiais vinculadas a ele** já marcadas; nível administrador, Desenvolvedor e Consulta continuam entrando com todas.
 >
 > O param `filial` da URL passou a ter **três** estados, e não dois: **ausente** = o padrão do cargo · **`filial=todas`** = sem recorte (sentinela explícita, necessária porque a ausência já significa o padrão) · **`filial=<lista>`** = essas filiais, **igual para qualquer cargo** — o link continua compartilhável. "Limpar" volta ao padrão do cargo e preserva ordenação e tamanho de página. Consequência aceita e registrada: um link **sem** o param muda de sentido conforme quem o abre.
