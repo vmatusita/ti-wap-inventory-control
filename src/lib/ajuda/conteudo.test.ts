@@ -162,7 +162,10 @@ describe('cobertura do glossario (derivada de dominio.ts)', () => {
 describe('honestidade do manual (OS-F9 I5a, revisto pela OS-F12)', () => {
   it('explica Falta pela semântica real da 0027 (déficit, não reposição)', () => {
     const texto = textoDaSecao(secao('itens'))
-    expect(texto).toContain(normalizarBusca('atrelados + liberados − total'))
+    // F41 — a FÓRMULA é a mesma; mudaram os NOMES dos números (decisão J1:
+    // 'atrelados'→'reservado', 'liberados'→'em uso'). A asserção segue o texto da
+    // tela, que é o que ela existe para travar. Ata em docs/DECISOES.md.
+    expect(texto).toContain(normalizarBusca('reservado + em uso − total'))
     expect(texto).toContain(normalizarBusca('déficit'))
   })
 
@@ -415,7 +418,8 @@ describe('estoque mínimo e kits documentados (OS-F12)', () => {
   it('separa "falta" (déficit vermelho) de "repor" (âmbar, ponto de reposição)', () => {
     const texto = textoDaSecao(secao('itens'))
     expect(texto).toContain(normalizarBusca('Falta e repor são dois avisos DIFERENTES'))
-    expect(texto).toContain(normalizarBusca('máx(0, atrelados + liberados − total)'))
+    // F41 — ver a nota do caso acima: a conta não mudou, os nomes sim.
+    expect(texto).toContain(normalizarBusca('máx(0, reservado + em uso − total)'))
     expect(texto).toContain(normalizarBusca('selo vermelho "faltam N"'))
     expect(texto).toContain(normalizarBusca('selo âmbar "repor"'))
   })

@@ -155,9 +155,9 @@ export const lancarItens: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Estornar um lançamento de item',
       itens: [
-        'No histórico, use "Estornar" na linha do lançamento errado. O diálogo explica o que vai acontecer: cria o lançamento inverso vinculado (nada é apagado), e o estoque e os atrelados voltam ao estado anterior.',
+        'No histórico, use "Estornar" na linha do lançamento errado. O diálogo explica o que vai acontecer: cria o lançamento inverso vinculado (nada é apagado), e o estoque e o reservado voltam ao estado anterior.',
         `O campo "Motivo (opcional)" registra o porquê (até ${TETO_MOTIVO_ESTORNO} caracteres): o texto entra na observação do lançamento inverso, precedido de "Estorno: " — SOMADO ao texto automático que ajuste/entrada já geram, nunca no lugar dele. Nos demais tipos (que antes ficavam sem observação nenhuma), o motivo passa a ser a observação inteira.`,
-        'O inverso NÃO é sempre do mesmo tipo: o sistema escolhe o que desfaz aquele efeito — uma Entrada é desfeita por um Ajuste negativo (com a observação automática dizendo que é estorno de entrada), uma Liberação por um Retorno, um Atrelar por uma Devolução e vice-versa, e um Ajuste por outro Ajuste de sinal contrário.',
+        'O inverso NÃO é sempre do mesmo tipo: o sistema escolhe o que desfaz aquele efeito — uma Compra é desfeita por um Ajuste negativo (com a observação automática dizendo que é estorno de compra), uma Saída por uma Devolução e vice-versa, e um Ajuste por outro Ajuste de sinal contrário. Quando o que se estorna é um acerto automático, a observação diz isso com todas as letras.',
         'Depois disso, a linha original aparece marcada como "(estornado)" e a nova, como "(estorno)". As duas continuam no histórico — é o rastro de auditoria.',
         'Um estorno não se estorna, e o mesmo lançamento não é estornado duas vezes: o sistema recusa com "Um estorno não pode ser estornado." e "Este lançamento já foi estornado."',
         'Se a rede cair, o aviso afirma o não-efeito ("o lançamento continua como estava") — não repita às cegas: recarregue e confira o histórico.',
@@ -174,12 +174,12 @@ export const lancarItens: PaginaAjuda = {
           'Confira a filial e o saldo; se a contagem física não bate, corrija com um Ajuste justificado antes.',
         ],
         [
-          'A devolução é maior que a quantidade atrelada ao chamado.',
-          'Está voltando mais do que foi atrelado àquele chamado.',
+          'A devolução é maior que a quantidade reservada para o chamado.',
+          'Está voltando mais do que foi reservado para aquele chamado. Só aparece em lançamento antigo: nenhuma tela cria reserva nova desde 31/08/2026.',
           'Confira o número do chamado e a quantidade original no histórico.',
         ],
         [
-          'O retorno é maior que a quantidade liberada em aberto.',
+          'A devolução é maior que a quantidade que ainda está com as pessoas.',
           'Está voltando mais do que saiu com as pessoas.',
           'Procure o lançamento de Liberação no histórico e confira a quantidade.',
         ],

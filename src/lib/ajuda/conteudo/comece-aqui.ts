@@ -115,7 +115,7 @@ export const comeceAqui: PaginaAjuda = {
         'Abra "Ativos" e use a busca para achar um equipamento qualquer. Entre na ficha e veja a "Linha do tempo": cada linha é uma movimentação registrada, com quem registrou e quando.',
         'Abra "Movimentações" no menu lateral para ver o que a equipe registrou hoje.',
         'Abra "Pendências": é a lista do que precisa da sua ação.',
-        'Abra "Itens" e repare nas quatro colunas de cada linha — total, estoque, atrelados e falta. É outro mundo, contado por quantidade.',
+        'Abra "Itens" e repare nas quatro colunas de cada linha — total, em estoque, reservado e falta. É outro mundo, contado por quantidade.',
         'Abra "Relatórios": é a mesma verdade, agora arrumada por filial e por período — nada ali é digitado à mão.',
         'Pressione Ctrl+K em qualquer tela: essa é a forma mais rápida de achar um equipamento ou pular para uma tela.',
         'Quando precisar registrar algo, use "Nova movimentação" (ou a tecla N) e siga o guia correspondente aqui na documentação.',

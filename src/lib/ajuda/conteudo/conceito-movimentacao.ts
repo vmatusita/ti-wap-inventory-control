@@ -65,7 +65,7 @@ export const conceitoMovimentacao: PaginaAjuda = {
         ],
         [
           'Um lançamento de item por quantidade',
-          'O saldo daquele item na filial, o total, os atrelados e os avisos de falta e de reposição — inclusive o card do painel inicial.',
+          'O saldo daquele item na filial, o total, o reservado e os avisos de falta e de reposição — inclusive o card do painel inicial.',
         ],
       ],
     },
