@@ -93,7 +93,9 @@ export async function resolverPendenciaItem(input: {
     {
       p_ids: ids,
       p_desfecho: desfecho,
-      p_observacao: observacao ?? null,
+      // '' e não null — ver a nota igual em `estornarMovimentacao` (actions/movimentacoes.ts):
+      // a RPC faz `nullif(btrim(coalesce(p_observacao, '')), '')` e grava o mesmo.
+      p_observacao: observacao ?? '',
       p_lancamentos: lancamentos.payload as unknown as Json,
       p_criado_por: aut.uid,
     },

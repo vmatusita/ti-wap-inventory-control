@@ -636,7 +636,11 @@ export async function estornarMovimentacao(input: {
 
   const { error: insertErr } = await supabase.rpc('estornar_movimentacao_com_itens', {
     p_movimentacao_id: mov.id,
-    p_observacao: parsed.data.observacao ?? null,
+    // '' e não null: o gerador de tipos declara `p_observacao text` (sem default),
+    // então `null` não é atribuível. Os dois são EQUIVALENTES para a RPC, que faz
+    // `nullif(btrim(coalesce(p_observacao, '')), '')` — a linha gravada é a mesma.
+    // Achado da F41 ao rodar `db:types`: o database.ts estava velho e escondia isso.
+    p_observacao: parsed.data.observacao ?? '',
     p_estornos: estornos as unknown as Json,
     p_criado_por: aut.uid,
   })
