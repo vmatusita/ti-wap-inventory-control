@@ -2,8 +2,20 @@
 -- (F41, frente A · decisão J2 de docs/PLANO-ITENS.md §4.2).
 --
 -- RECRIA duas funções e CRIA uma terceira. NÃO toca no trigger
--- `valida_lancamento_item` — as quatro guardas dele continuam de pé, INCLUSIVE a
+-- `valida_lancamento_item` — as CINCO guardas dele continuam de pé, INCLUSIVE a
 -- que gerou o print. NÃO grava lançamento nenhum (a conversão é a 0127).
+--
+-- ⚠ CINCO, e não quatro: além do total não-negativo, do estoque não-negativo, da
+-- `liberacao` contra a reserva aberta do chamado e do `retorno` contra o aberto
+-- GLOBAL do par, há a checagem POR PESSOA que a 0118 (F38) acrescentou — `retorno`
+-- que NOMEIA um colaborador não pode exceder o que aquela pessoa tem registrado.
+--
+-- A partição não a afeta, e a conta é curta: ela só DIMINUI a quantidade do
+-- `retorno` normal (`v_normal = mín(q, A) <= q`). Logo, todo `retorno` que passaria
+-- na guarda de pessoa com a quantidade cheia continua passando com a partida — e
+-- nenhum que seria recusado passa a ser aceito. Quem garante que a aplicação não
+-- manda uma pessoa sem saldo é a regra §C.3 (`src/lib/itens/vinculo-retorno.ts`),
+-- que derruba o vínculo antes de montar o payload; ela não mudou nesta fase.
 --
 -- ---------------------------------------------------------------------------
 -- OS CORPOS DE PARTIDA, LIDOS DO BANCO (não de migration antiga)

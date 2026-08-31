@@ -80,7 +80,7 @@ atrelados = Σ_por_chamado máx(0, Σreserva − Σliberacao)   -- só linhas co
 estoque   = total_raw − atrelados − máx(0, lib_raw)
 ```
 
-As quatro guardas do trigger, todas mantidas de pé:
+As CINCO guardas do trigger, todas mantidas de pé:
 `total_raw ≥ 0` · `estoque ≥ 0` · `liberacao ≤ reserva em aberto do chamado` ·
 `retorno ≤ lib_raw` (e, quando a linha nomeia pessoa, `retorno ≤ o registrado com ela`).
 
@@ -244,7 +244,7 @@ operador, `CHANGELOG.md`, tag anotada `v1.46.0` publicada.
 - **O redesenho de `/itens` (F42 inteira).** `app/(app)/itens/page.tsx` e `components/itens/**` só
   mudam no que **rótulo** e **chamada da RPC nova** exigirem. Nada de casco da F40, nada de tabela
   única, nada de `/itens/historico`, nada de encolher o diálogo de 876 linhas.
-- **`valida_lancamento_item`** — as quatro guardas ficam de pé, **inclusive a que gerou o print**.
+- **`valida_lancamento_item`** — as CINCO guardas ficam de pé, **inclusive a que gerou o print**.
   Se a implementação precisar afrouxar o trigger, ela está errada.
 - **Os valores do enum `tipo_lancamento`** e **os nomes das colunas SQL**.
 - `/ativos`, o wizard além da seção de itens, `components/ui/`, `types/database.ts` (só por
