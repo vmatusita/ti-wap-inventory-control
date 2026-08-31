@@ -15,6 +15,7 @@ import {
 } from '@/lib/itens/ponte-tipo-item'
 import { decidirVinculoRetorno, type SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
 import { textoDaBaixa, textoDoRetornoDaPendencia } from '@/lib/pendencias/texto-baixa'
+import { textoDaRegularizacao } from '@/lib/itens/regularizacao'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
 import { saldosPorColaborador } from '@/lib/queries/itens'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
@@ -219,6 +220,16 @@ async function montarLancamentosDaResolucao(
       colaborador_id: vinculo,
       observacao_retorno: textoDoRetornoDaPendencia(args.desfecho, {
         itemRotulo: rotulo,
+        colaborador: p.colaborador,
+      }),
+      // F41 — a justificativa do ACERTO AUTOMÁTICO, mandada SEMPRE. Quem decide se
+      // vai haver acerto é a RPC, sob a trava, lendo o saldo do par (0126). Aqui ela
+      // é quase certa de ser usada: nenhuma das 14 pendências abertas em produção
+      // tem saída registrada, e era exatamente por isso que "Item recuperado" era
+      // recusado pelo trigger antes desta fase.
+      observacao_regularizacao: textoDaRegularizacao('pendencia', {
+        itemRotulo: rotulo,
+        quantidade: 1,
         colaborador: p.colaborador,
       }),
       observacao_ajuste:

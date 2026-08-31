@@ -17,6 +17,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { criarItemInline, type SaldosPorItem } from '@/lib/actions/itens'
 import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio'
+import { chaveItem } from '@/lib/itens/chave'
 import { cn } from '@/lib/utils'
 import type { ItemCatalogo } from '@/lib/queries/itens'
 
@@ -69,7 +70,11 @@ export function ItemCombobox({
 
   const selecionado = itens.find((i) => i.id === valor)
   const buscaLimpa = busca.trim()
-  const jaExiste = itens.some((i) => i.nome.trim().toLowerCase() === buscaLimpa.toLowerCase())
+  // F41 — a comparação passou a ser pela CHAVE NORMALIZADA, a mesma do índice único
+  // `itens_nome_chave_uidx` (0125). Com `lower(nome)`, "Mochila " digitada com um
+  // espaço a mais não casava com "Mochila": o botão "Criar" aparecia, o operador
+  // clicava e levava um erro de duplicidade no meio do fluxo. Agora ele nem aparece.
+  const jaExiste = itens.some((i) => chaveItem(i.nome) === chaveItem(buscaLimpa))
   const podeCriar = podeCriarItem && buscaLimpa.length >= 2 && !jaExiste
 
   function fechar(proximo: boolean) {

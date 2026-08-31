@@ -17,7 +17,10 @@ import {
   type LoteLancamentoItemInput,
   type TransferenciaItemInput,
 } from '@/lib/validators/item'
-import type { TipoLancamento } from '@/lib/dominio'
+import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
+import type { Json } from '@/lib/types/database'
+import { chaveItem } from '@/lib/itens/chave'
+import { avisoDeRegularizacao, textoDaRegularizacao } from '@/lib/itens/regularizacao'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import { observacoesDaTransferencia } from '@/lib/itens/transferencia'
 import { getSaldosItens, saldosPorColaborador } from '@/lib/queries/itens'
@@ -59,8 +62,11 @@ export type ResultadoLinhaLancamento = {
 export type LancarItensResult = {
   ok: boolean
   resultados: ResultadoLinhaLancamento[]
-  /** Falha ANTES de tocar o banco (sessão expirada, payload inválido). */
+  /** Falha ANTES de tocar o banco (sessão expirada, payload inválido) — e, desde a
+   *  F41, também a recusa do lote inteiro pela RPC transacional. */
   erroGeral?: string
+  /** F41 — a linha discreta sobre o que entrou por acerto automático, quando entrou. */
+  avisoRegularizacao?: string
 }
 
 // Lança um CARRINHO de itens (1..MAX_LINHAS_LOTE_ITEM) sobre os mesmos campos
@@ -128,6 +134,22 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
   const saldosPorPessoa = lidos.mapa as Map<string, SaldoDaPessoa[]>
   const consumido = new Map<string, number>()
 
+  // F41 — o nome de cada item, para a justificativa do acerto automático (a RPC
+  // não redige texto). Falha de leitura não bloqueia: sem o nome o texto diz
+  // "item", o que é pior de ler e não recusa nada.
+  const nomesDeItem = new Map<number, string>()
+  {
+    const ids = [...new Set(linhas.map((v) => v.item_id))]
+    const { data: cat, error: erroCat } = await supabase
+      .from('itens')
+      .select('id, nome')
+      .in('id', ids)
+    if (erroCat) console.error('[lancarItens] falha ao ler o nome dos itens:', erroCat.message)
+    else for (const i of cat ?? []) nomesDeItem.set(i.id, i.nome)
+  }
+
+  const payload: Record<string, unknown>[] = []
+
   for (const v of linhas) {
     const pessoaId = vinculos.get(chaveColaborador(v.colaborador)) ?? null
     let vinculo: string | null = pessoaId
@@ -155,7 +177,7 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
       if (vinculo) consumido.set(chave, (consumido.get(chave) ?? 0) + v.quantidade)
     }
 
-    const { error } = await supabase.from('lancamentos_item').insert({
+    payload.push({
       item_id: v.item_id,
       filial_id: v.filial_id,
       tipo: v.tipo,
@@ -165,25 +187,88 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
       colaborador_id: vinculo,
       data: v.data,
       observacao: v.observacao ?? null,
-      criado_por: uid,
+      // Mandada SEMPRE, pelo mesmo motivo de `montarItensJunto`: quem decide se
+      // vai haver acerto é a RPC, sob a trava. Só faz sentido para `retorno` e
+      // `saida` — nos outros tipos a RPC nem olha.
+      observacao_regularizacao: textoDaRegularizacao(
+        v.tipo === 'retorno' ? 'devolucao' : 'entrega',
+        {
+          itemRotulo: nomesDeItem.get(v.item_id) ?? null,
+          quantidade: Math.abs(v.quantidade),
+          colaborador: v.colaborador ?? null,
+        },
+      ),
     })
-    if (error) {
-      resultados.push({
+  }
+
+  // F41 — O CARRINHO VIROU TUDO-OU-NADA, e é uma mudança de comportamento.
+  //
+  // Até 30/08/2026 este laço fazia um INSERT por linha, sequencial, sem transação:
+  // se a terceira falhasse, as duas primeiras ficavam gravadas e o operador saía
+  // sem saber o que tinha entrado. Estava registrado na DIVIDA-TECNICA.md como
+  // "carrinho sem transação", e a F38 já tinha decidido o contrário para o lote de
+  // movimentações ("meio lote é pior que lote nenhum", 28/08/2026).
+  //
+  // A RPC `lancar_itens_lote` (0126) grava tudo numa transação só, com as travas
+  // em ordem total e a MESMA partição da quantidade do checklist — que é o que a
+  // §4.2 do plano exige: "a regra é a mesma nos dois caminhos, senão nascem dois
+  // comportamentos".
+  //
+  // O RESULTADO POR LINHA sobrevive, porque a tela depende dele: a RPC etiqueta a
+  // linha culpada em `detail` (f41_linha=N), e é ela que fica marcada. As outras
+  // não vão como "ok" (não foram gravadas) nem como "erro" (não é culpa delas):
+  // vão com o texto de que nada foi gravado.
+  const { data: retorno, error: erroRpc } = await supabase.rpc('lancar_itens_lote', {
+    p_linhas: payload as unknown as Json,
+    p_criado_por: uid,
+  })
+
+  if (erroRpc) {
+    const culpada = linhaCulpadaDoLancamento(erroRpc.details)
+    const mensagem = traduzErroBanco(erroRpc.message, erroRpc.code)
+    return {
+      ok: false,
+      resultados: linhas.map((v, i) => ({
         itemId: v.item_id,
         ok: false,
-        erro: traduzErroBanco(error.message, error.code),
-      })
-      continue
+        erro:
+          i === culpada
+            ? mensagem
+            : culpada === undefined
+              ? mensagem
+              : 'Não gravado — o lançamento inteiro foi recusado por outra linha.',
+      })),
+      erroGeral:
+        culpada !== undefined
+          ? `Nada foi gravado. A ${culpada + 1}ª linha foi recusada: ${mensagem}`
+          : `Nada foi gravado. ${mensagem}`,
     }
-    criados++
-    resultados.push({ itemId: v.item_id, ok: true })
   }
+
+  criados = linhas.length
+  resultados.push(...linhas.map((v) => ({ itemId: v.item_id, ok: true })))
 
   if (criados > 0) {
     revalidarItens()
     revalidatePath('/relatorios', 'layout')
   }
-  return { ok: resultados.every((r) => r.ok), resultados }
+  const reg = retorno as { regularizacoes?: number; unidades_regularizadas?: number } | null
+  return {
+    ok: true,
+    resultados,
+    avisoRegularizacao:
+      avisoDeRegularizacao(reg?.unidades_regularizadas ?? 0, reg?.regularizacoes ?? 0) ??
+      undefined,
+  }
+}
+
+/** O `detail` que a `lancar_itens_lote` (0126) anexa para dizer QUAL linha caiu.
+ *  Espelho de `linhaDoDetalhe` (actions/movimentacoes.ts), com a etiqueta da F41. */
+function linhaCulpadaDoLancamento(detail: string | undefined | null): number | undefined {
+  const m = /f41_linha=(\d+)/.exec(detail ?? '')
+  if (!m) return undefined
+  const n = Number(m[1])
+  return Number.isInteger(n) && n >= 0 ? n : undefined
 }
 
 // ---- Transferência entre filiais (F31 · ITN-01) ----
@@ -360,7 +445,17 @@ export async function buscarSaldosItens(filialId: number): Promise<SaldosPorItem
 // `reativado` (F12 · W6A): o item não foi criado agora — ele já existia
 // DESATIVADO e voltou ao catálogo. A UI precisa saber para dizer a verdade no
 // toast; ver `criarItemInline`.
-export type CriarItemResult = ActionResult & { id?: number; reativado?: boolean }
+export type CriarItemResult = ActionResult & {
+  id?: number
+  reativado?: boolean
+  /**
+   * F41 — o homônimo existe, está DESATIVADO, e quem clicou não tem permissão de
+   * reativá-lo (UPDATE de `itens` é `e_admin()`). O item é devolvido SELECIONADO
+   * assim mesmo, porque é isso que destrava o fluxo; só o texto do toast muda.
+   * Mesmo desfecho de `criarColaboradorInline` (F37).
+   */
+  precisaAdminParaReativar?: boolean
+}
 
 export async function criarItem(input: {
   nome: string
@@ -414,12 +509,29 @@ export async function criarItem(input: {
 // dentro do diálogo e com o carrinho já montado. Agora o item desativado é
 // REATIVADO e devolvido selecionado: é o que o operador quer (usar o item), é
 // reversível em Administração → Itens e preserva todo o histórico dele.
+// F41 — O OPERADOR PASSA A CADASTRAR ITEM, e por que isso não é afrouxamento.
+//
+// Até 30/08/2026 esta função exigia `exigirAdmin`, com a justificativa escrita no
+// próprio arquivo: "é CATÁLOGO, logo exige ADMIN … ele lança sobre o catálogo
+// curado, não o edita". O precedente que derruba essa justificativa é da casa e é
+// de três dias antes — a F37/D5 abriu `colaboradores` ao operador *"porque é ele
+// quem cadastra a pessoa inline no meio da movimentação, e exigir admin ali
+// quebraria o fluxo na mão dele"*. É a mesma frase, palavra por palavra, para
+// itens, e o custo de não abrir está MEDIDO: dos 132 pares item×filial em produção,
+// a maioria dos itens sequer estava cadastrada (dor D4 do docs/PLANO-ITENS.md).
+//
+// A abertura é SÓ do INSERT, nas três camadas alinhadas, como manda o ADR-002:
+//   · policy "escrita cria item" com `pode_escrever()` (migration 0125);
+//   · `exigirPapel(…, 'operador')` aqui, que dá a MENSAGEM em pt-BR;
+//   · a tela oferece "Cadastrar" a quem escreve.
+// Editar, desativar e apagar item continuam `e_admin()` — igualzinho a colaborador.
 export async function criarItemInline(input: {
   nome: string
   grupo: string
+  tipo_id?: number | null
 }): Promise<CriarItemResult> {
   const supabase = await createClient()
-  const aut = await exigirAdmin(supabase)
+  const aut = await exigirPapel(supabase, 'operador')
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const parsed = itemInlineSchema.safeParse(input)
@@ -427,28 +539,53 @@ export async function criarItemInline(input: {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
-  // Catálogo INTEIRO (ativos e inativos) para achar o homônimo. Comparação em
-  // JS e não `ilike` no banco: o nome é texto livre e um `%` ou `_` digitado
-  // pelo operador viraria curinga no padrão. O catálogo é curado e minúsculo —
-  // `listarItensAdmin` já o lê inteiro a cada carga de /admin/itens.
-  const { data: catalogo, error: erroCatalogo } = await supabase
+  // F41 — a busca do homônimo passou a ser pela CHAVE NORMALIZADA, no banco.
+  //
+  // Antes o catálogo inteiro vinha para o servidor e a comparação era
+  // `lower(nome)` em JS. Isso empatava com o índice único de então
+  // (`itens_nome_uidx`, sobre `lower(nome)`), mas empata NÃO empata mais: a 0125
+  // criou `itens_nome_chave_uidx` sobre `item_chave(nome)`, que também ignora
+  // acento e espaço colapsado. Com a comparação velha, "Mochila " digitada pelo
+  // operador não acharia "Mochila" — o servidor concluiria "não existe", tentaria
+  // inserir e levaria o erro cru do índice único, no meio do fluxo dele.
+  //
+  // `.eq('nome_chave', …)` e nunca `ilike`: a chave é calculada, não digitada, e
+  // `ilike` transformaria um `%` no nome em curinga.
+  const chave = chaveItem(parsed.data.nome)
+  const { data: homonimo, error: erroBusca } = await supabase
     .from('itens')
     .select('id, nome, ativo')
-  if (erroCatalogo) {
-    return { ok: false, erro: traduzErroBanco(erroCatalogo.message, erroCatalogo.code) }
+    .eq('nome_chave', chave)
+    .maybeSingle()
+  if (erroBusca) {
+    return { ok: false, erro: traduzErroBanco(erroBusca.message, erroBusca.code) }
   }
-  // Mesma chave do índice único `itens_nome_uidx` (0014): `lower(nome)`.
-  const alvo = parsed.data.nome.toLowerCase()
-  const homonimo = (catalogo ?? []).find((i) => i.nome.trim().toLowerCase() === alvo)
+
+  if (homonimo?.ativo) {
+    // Já existe e está no ar: devolve SELECIONADO, sem criar nada. O operador
+    // queria usar o item, não cadastrá-lo duas vezes.
+    return { ok: true, id: homonimo.id }
+  }
+
   if (homonimo && !homonimo.ativo) {
-    const { error: erroReativar } = await supabase
+    // Existe DESATIVADO. Reativar é UPDATE, e UPDATE de `itens` é `e_admin()` — para
+    // um operador puro a RLS nega em SILÊNCIO (0 linhas afetadas, sem erro). Por
+    // isso a contagem de linhas é obrigatória, não estética: é a lição literal da
+    // F37 (`criarColaboradorInline`). Sem ela, o item voltaria "reativado" na tela e
+    // continuaria desativado no banco.
+    const { data: reativados, error: erroReativar } = await supabase
       .from('itens')
       .update({ ativo: true })
       .eq('id', homonimo.id)
+      .select('id')
     if (erroReativar) {
+      return { ok: false, erro: traduzErroBanco(erroReativar.message, erroReativar.code) }
+    }
+    if (!reativados || reativados.length === 0) {
       return {
-        ok: false,
-        erro: 'Já existe um item com esse nome, mas ele está desativado e não foi possível reativá-lo. Reative-o em Administração → Itens.',
+        ok: true,
+        id: homonimo.id,
+        precisaAdminParaReativar: true,
       }
     }
     revalidarItens()
@@ -464,15 +601,31 @@ export async function criarItemInline(input: {
     .maybeSingle()
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
+  // INSERT direto, e não mais uma chamada a `criarItem`: aquela é a ação do
+  // catálogo de /admin/itens e exige `exigirAdmin` por dentro — delegar a ela
+  // desfaria a abertura logo na linha seguinte.
+  //
   // `estoque_minimo: 0` explícito = o default da coluna (0042) e "sem alerta de
-  // reposição": quem está no meio de um lançamento não define ponto de reposição
-  // (o `itemInlineSchema` nem tem o campo). Ajusta-se depois em admin/itens.
-  return criarItem({
-    nome: parsed.data.nome,
-    grupo: parsed.data.grupo,
-    ordem: proximaOrdemDoGrupo(maior?.ordem ?? null),
-    estoque_minimo: 0,
-  })
+  // reposição": quem está no meio de um lançamento não define ponto de reposição.
+  // Ajusta-se depois em admin/itens.
+  const { data: criado, error: erroInsert } = await supabase
+    .from('itens')
+    .insert({
+      nome: parsed.data.nome,
+      grupo: parsed.data.grupo as GrupoItem,
+      tipo_id: parsed.data.tipo_id ?? null,
+      ordem: proximaOrdemDoGrupo(maior?.ordem ?? null),
+      estoque_minimo: 0,
+      criado_por: aut.uid,
+    })
+    .select('id')
+    .single()
+  if (erroInsert) {
+    return { ok: false, erro: traduzErroBanco(erroInsert.message, erroInsert.code) }
+  }
+
+  revalidarItens()
+  return { ok: true, id: criado.id }
 }
 
 // Item nunca é excluído quando tem lançamentos (o histórico referencia) — só

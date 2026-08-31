@@ -248,7 +248,7 @@ export function HistoricoLancamentos({
             <DialogTitle>Estornar lançamento</DialogTitle>
             <DialogDescription>
               Cria o lançamento <strong>inverso</strong> vinculado (nada é apagado). O estoque
-              e os atrelados voltam ao estado anterior.
+              e o reservado volta ao estado anterior.
             </DialogDescription>
           </DialogHeader>
           {alvo && (

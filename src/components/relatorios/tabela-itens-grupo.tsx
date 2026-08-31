@@ -62,7 +62,7 @@ export function TabelaItensGrupo({
             ) : (
               <TableHead className="text-right">Saldo</TableHead>
             )}
-            {mostrarAtrelados && <TableHead className="text-right">Atrelados</TableHead>}
+            {mostrarAtrelados && <TableHead className="text-right">Reservado</TableHead>}
             <TableHead className="text-right">Δ período</TableHead>
             <TableHead className="text-right">Falta</TableHead>
             <TableHead className="hidden lg:table-cell print:table-cell">Obs.</TableHead>

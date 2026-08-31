@@ -363,7 +363,7 @@ function colunasSaldosPorFilial(filiais: Filial[]): ColunaCsv<SaldoItemFiliais>[
     ]),
     { titulo: 'Total', valor: (l) => l.consolidado.estoque },
     { titulo: 'Unidades (todas)', valor: (l) => l.consolidado.total },
-    { titulo: 'Atrelados (todas)', valor: (l) => l.consolidado.atrelados },
+    { titulo: 'Reservado (todas)', valor: (l) => l.consolidado.atrelados },
     { titulo: 'Faltam (todas)', valor: (l) => l.consolidado.falta },
     { titulo: 'Fora das colunas', valor: (l) => estoqueForaDasColunas(l, filiais) },
   ]
@@ -378,7 +378,7 @@ function colunasSaldos(filialRotulo: string): ColunaCsv<SaldoItem>[] {
     { titulo: 'Filial', valor: () => filialRotulo },
     { titulo: 'Total', valor: (l) => l.total },
     { titulo: 'Estoque', valor: (l) => l.estoque },
-    { titulo: 'Atrelados', valor: (l) => l.atrelados },
+    { titulo: 'Reservado', valor: (l) => l.atrelados },
     { titulo: 'Falta', valor: (l) => l.falta },
   ]
 }

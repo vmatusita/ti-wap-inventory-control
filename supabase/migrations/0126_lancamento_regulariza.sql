@@ -166,6 +166,9 @@ declare
   v_reg        int;      -- a parte que o diário NÃO conhecia
   v_normal     int;      -- a parte que ele conhecia
   v_obs_reg    text;
+  -- O que foi regularizado, para a tela DIZER (e não adivinhar):
+  v_n_reg      int := 0;  -- quantas linhas ganharam acerto
+  v_qtd_reg    int := 0;  -- quantas unidades entraram por acerto
 begin
   -- 1) Forma do payload ------------------------------------------------------
   if p_movimentacoes is null or jsonb_typeof(p_movimentacoes) <> 'array' then
@@ -414,6 +417,8 @@ begin
       exception when others then
         raise exception '%', sqlerrm using errcode = sqlstate, detail = 'f38_item=' || v_i;
       end;
+      v_n_reg   := v_n_reg + 1;
+      v_qtd_reg := v_qtd_reg + v_reg;
     end if;
 
     -- (b) A LINHA NORMAL, com a quantidade que o diário reconhece. Para `retorno`
@@ -443,7 +448,13 @@ begin
     end if;
   end loop;
 
-  return jsonb_build_object('movimentacoes', to_jsonb(v_ids), 'itens', v_n_itens);
+  -- `regularizacoes` e `unidades_regularizadas` são F41: é com eles que o painel de
+  -- sucesso diz, em UMA linha, o que entrou por acerto automático — sem eles a tela
+  -- teria de adivinhar, ou consultar de novo depois de gravar. Chave NOVA no jsonb
+  -- de retorno não muda a ASSINATURA e não quebra chamador antigo, que só lê as que
+  -- conhece.
+  return jsonb_build_object('movimentacoes', to_jsonb(v_ids), 'itens', v_n_itens,
+                            'regularizacoes', v_n_reg, 'unidades_regularizadas', v_qtd_reg);
 end $$;
 
 comment on function public.criar_movimentacao_com_itens(jsonb, jsonb, uuid) is
@@ -485,6 +496,8 @@ declare
   v_reg        int;
   v_normal     int;
   v_obs_reg    text;
+  v_n_reg      int := 0;
+  v_qtd_reg    int := 0;
 begin
   if p_ids is null or cardinality(p_ids) = 0 then
     raise exception 'Selecione ao menos uma pendência.'
@@ -572,7 +585,9 @@ begin
         v_autor,
         true
       );
-      v_n_lanc := v_n_lanc + 1;
+      v_n_lanc  := v_n_lanc + 1;
+      v_n_reg   := v_n_reg + 1;
+      v_qtd_reg := v_qtd_reg + v_reg;
     end if;
 
     -- (a) O RETORNO, com a parte que o diário conhecia: repõe a prateleira e baixa
@@ -626,7 +641,8 @@ begin
     end if;
   end loop;
 
-  return jsonb_build_object('resolvidas', cardinality(v_resolvidas), 'lancamentos', v_n_lanc);
+  return jsonb_build_object('resolvidas', cardinality(v_resolvidas), 'lancamentos', v_n_lanc,
+                            'regularizacoes', v_n_reg, 'unidades_regularizadas', v_qtd_reg);
 end $$;
 
 comment on function public.resolver_pendencias_item_com_lancamentos(uuid[], text, text, jsonb, uuid) is
@@ -676,6 +692,8 @@ declare
   v_reg       int;
   v_normal    int;
   v_obs_reg   text;
+  v_n_reg     int := 0;
+  v_qtd_reg   int := 0;
 begin
   if p_linhas is null or jsonb_typeof(p_linhas) <> 'array' then
     raise exception 'O lançamento precisa ser uma lista de linhas.'
@@ -810,6 +828,8 @@ begin
       exception when others then
         raise exception '%', sqlerrm using errcode = sqlstate, detail = 'f41_linha=' || v_i;
       end;
+      v_n_reg   := v_n_reg + 1;
+      v_qtd_reg := v_qtd_reg + v_reg;
     end if;
 
     if v_normal <> 0 then
@@ -832,7 +852,8 @@ begin
     end if;
   end loop;
 
-  return jsonb_build_object('linhas', v_n);
+  return jsonb_build_object('linhas', v_n,
+                            'regularizacoes', v_n_reg, 'unidades_regularizadas', v_qtd_reg);
 end $$;
 
 comment on function public.lancar_itens_lote(jsonb, uuid) is

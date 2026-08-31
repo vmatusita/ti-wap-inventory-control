@@ -18,6 +18,7 @@ import {
   pessoaDaLinhaDeItem,
   type SaldoDaPessoa,
 } from '@/lib/itens/vinculo-retorno'
+import { avisoDeRegularizacao, textoDaRegularizacao } from '@/lib/itens/regularizacao'
 import {
   buscarAtivosParaCombobox,
   buscarAtivosPorPatrimonios,
@@ -97,6 +98,14 @@ export type RegistrarLoteResult = {
   linhaQueFalhou?: number
   /** F38: por que uma linha de item saiu sem vínculo com a pessoa (§C.3). */
   avisosVinculo?: string[]
+  /**
+   * F41 — a linha discreta sobre o que entrou no estoque por ACERTO AUTOMÁTICO,
+   * quando entrou. Vem do que a RPC de fato gravou (`regularizacoes` /
+   * `unidades_regularizadas` no jsonb de retorno), nunca de uma previsão da
+   * aplicação: dizer "2 acessórios entraram" sem ter contado seria inventar.
+   * `undefined` quando não houve acerto nenhum — e aí a tela não diz nada.
+   */
+  avisoRegularizacao?: string
 }
 
 // O `detail` que a 0117 anexa aos erros para dizer QUAL linha derrubou o lote.
@@ -363,7 +372,18 @@ export async function registrarMovimentacoes(input: {
 
   const criadas = itens.length
   const rotasAtivos = new Set(itens.map((i) => i.ativo_id))
-  const ids = (retorno as { movimentacoes?: string[] } | null)?.movimentacoes ?? []
+  const devolvido = retorno as {
+    movimentacoes?: string[]
+    regularizacoes?: number
+    unidades_regularizadas?: number
+  } | null
+  const ids = devolvido?.movimentacoes ?? []
+  // F41 — o que a RPC DE FATO gravou de acerto automático. Lido do retorno dela, na
+  // mesma transação que gravou; contar aqui seria contar outra coisa.
+  const regularizado = {
+    linhas: devolvido?.regularizacoes ?? 0,
+    unidades: devolvido?.unidades_regularizadas ?? 0,
+  }
   const resultados: ItemResultado[] = itens.map((item, index) => ({
     index,
     ativo_id: item.ativo_id,
@@ -395,6 +415,8 @@ export async function registrarMovimentacoes(input: {
     resultados,
     itensLancados: itensPayload.length,
     avisosVinculo: avisos.length > 0 ? avisos : undefined,
+    avisoRegularizacao:
+      avisoDeRegularizacao(regularizado.unidades, regularizado.linhas) ?? undefined,
   }
 }
 
@@ -513,6 +535,25 @@ async function montarItensJunto(
     }
   }
 
+  // F41 — O NOME DO ITEM, para a justificativa do acerto automático se explicar
+  // sozinha no diário. Uma consulta para o lote inteiro, nunca uma por linha; e a
+  // falha NÃO bloqueia nada: sem o nome, `textoDaRegularizacao` escreve "item", que
+  // é pior de ler mas não recusa a movimentação do equipamento — que é justamente o
+  // que esta fase existe para não fazer mais.
+  const nomes = new Map<number, string>()
+  {
+    const ids = [...new Set(linhas.map((l) => l.itemId))]
+    const { data: itens, error } = await supabase
+      .from('itens')
+      .select('id, nome')
+      .in('id', ids)
+    if (error) {
+      console.error('[montarItensJunto] falha ao ler o nome dos itens:', error.message)
+    } else {
+      for (const i of itens ?? []) nomes.set(i.id, i.nome)
+    }
+  }
+
   const payload = linhas.map((l) => ({
     indice_movimentacao: l.indice,
     item_id: l.itemId,
@@ -522,6 +563,28 @@ async function montarItensJunto(
     colaborador: l.colaborador,
     colaborador_id:
       l.tipo === 'retorno' ? (decisao.has(l) ? decisao.get(l) : l.colaboradorId) : l.colaboradorId,
+    // F41 — A JUSTIFICATIVA DO ACERTO AUTOMÁTICO, mandada SEMPRE.
+    //
+    // Quem decide se vai haver acerto é a RPC, sob a trava, lendo o saldo do par
+    // (0126) — daqui não dá para saber. Então a frase vai em toda linha, mesmo
+    // quando provavelmente não será usada: o custo de mandar à toa é uma string; o
+    // de não mandar é a RPC recusar o lote inteiro por falta de justificativa
+    // (`lanc_item_ajuste_obs`), que é exatamente o bug que esta fase acabou.
+    //
+    // A quantidade do texto é a da LINHA, não a partição: a RPC não redige texto e
+    // não teria como reescrever o número. Dizer "1 unidade" quando o acerto foi de
+    // 1 é o caso comum (o checklist manda sempre quantidade 1); nos raros casos em
+    // que a entrega parte a quantidade, o texto nomeia o total pedido, e a linha do
+    // ajuste mostra o número real ao lado. Preferi um texto levemente amplo a um
+    // texto que a RPC precisasse compor — a regra da 0117 não se dobra por isso.
+    observacao_regularizacao: textoDaRegularizacao(
+      l.tipo === 'retorno' ? 'devolucao' : 'entrega',
+      {
+        itemRotulo: nomes.get(l.itemId) ?? null,
+        quantidade: l.quantidade,
+        colaborador: l.colaborador,
+      },
+    ),
   }))
 
   return { payload, avisos }
