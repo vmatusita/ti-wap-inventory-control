@@ -16,6 +16,14 @@ import { dicaConfirmacaoNaoConfere } from '@/lib/validators/confirmacao-digitada
 // filiais. Quatro cópias que só se manteriam iguais enquanto ninguém mexesse
 // numa delas — e uma delas JÁ tinha ficado sem `role="alert"` (F29/UXG-05).
 //
+// ⚠ ESTE COMPONENTE NASCE SEM CONSUMIDOR, como o `CascoDeAutenticacao` e o
+// `CartaoDeMetrica`, e a revisão de 31/08/2026 pediu que a ausência ficasse
+// ESCRITA em vez de descoberta por `grep`. As quatro telas que a caixa substitui
+// vivem em `/admin/importar`, `/admin/usuarios`, `/dev/destrutivo` e
+// `/pendencias` — nenhuma delas está no piloto, e as quatro são caminho
+// DESTRUTIVO: trocar a caixa de confirmação delas junto com o layout misturaria
+// duas classes de risco na mesma ordem. É matéria das frentes **a** e **c**.
+//
 // ⚠ A RÉGUA DE "O QUE CONTA COMO IGUAL" NÃO VEM PARA CÁ, e isso é deliberado:
 // ela é diferente em cada tela porque o SERVIDOR de cada uma compara de um jeito
 // (o import exige igualdade exata; apagar conta e a Zona destrutiva toleram

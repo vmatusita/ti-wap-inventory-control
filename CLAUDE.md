@@ -47,7 +47,7 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 - **Supabase**: `@supabase/supabase-js` + `@supabase/ssr` · tipos gerados por `supabase gen types typescript`
 - **Zod** + **react-hook-form** (+ `@hookform/resolvers`) · **TanStack Table** (via data-table do shadcn) · **date-fns** (locale `ptBR`) · **PapaParse** (F3 export / scripts de carga única F4) · **ExcelJS** (leitura do `.xlsx` no import de startup — F7G, MIT, aprovado pelo Johnny 20/07/2026; `serverExternalPackages`) · **sonner** (toasts, via shadcn)
 - **docxtemplater** + **pizzip** (preenchem os templates `.docx` dos termos, server-side — F5A) · **docx-preview** (preview do termo no navegador). Libs **MIT**, aprovadas pelo Johnny (PLANO-TERMOS §3.1). `serverExternalPackages` no `next.config.ts`.
-- Dev: **Supabase CLI**, **@faker-js/faker** (locale pt_BR, só em `scripts/`), **seedrandom**, **Vitest** (só funções puras), ESLint + Prettier
+- Dev: **Supabase CLI**, **@faker-js/faker** (locale pt_BR, só em `scripts/`), **seedrandom**, **Vitest** (só funções puras), **tsx**, **Playwright** (só `scripts/design/capturar.mjs`, as fotos de tela do sistema de design — MIT, R$ 0, aprovado pelo Johnny 30/08/2026; ata em `docs/DECISOES.md`), ESLint + Prettier
 - Proibidos (decisão registrada): Prisma/Drizzle, Redux/Zustand/TanStack Query, ECharts (upgrade futuro documentado), Highcharts/AG Charts/MUI X Pro, i18n, monorepo.
 
 ## Convenções

@@ -6,7 +6,7 @@ import {
   type Bloco,
   type Secao,
 } from '@/lib/ajuda/conteudo'
-import { normalizarBusca } from '@/lib/ajuda/busca'
+import { casaBusca, normalizarBusca } from '@/lib/ajuda/busca'
 import {
   STATUS_META,
   STATUS_ORDEM,
@@ -43,6 +43,55 @@ describe('normalizarBusca', () => {
     expect(normalizarBusca('Manutenção')).toBe('manutencao')
     expect(normalizarBusca('SAÍDA')).toBe('saida')
     expect(normalizarBusca('  Atrelar ')).toBe('atrelar')
+  })
+
+  // A normalização tem de ser IDEMPOTENTE: é o que permite `casaBusca` normalizar
+  // os dois lados sem mudar nada para quem já entregava texto normalizado (a
+  // busca da /ajuda e a paleta). Se deixar de ser, as duas telas divergem.
+  it('é idempotente', () => {
+    for (const t of ['Manutenção', 'SAÍDA', '  João  Silva ', 'İstanbul', 'Ação']) {
+      expect(normalizarBusca(normalizarBusca(t))).toBe(normalizarBusca(t))
+    }
+  })
+})
+
+// ⚠ REGRESSÃO DE 31/08/2026 — a busca das telas de administração não achava
+// ninguém. `casaBusca` normalizava só a CONSULTA e confiava numa frase do JSDoc
+// ("`textoIndexado` chega JÁ normalizado") que as cinco tabelas de /admin não
+// cumpriam: elas montam o texto da linha com o nome como está no banco. Digitar
+// o nome exato da pessoa devolvia zero resultado, e só um fragmento minúsculo e
+// sem acento no meio da palavra casava. Agora os DOIS lados são normalizados.
+describe('casaBusca com texto cru (o defeito das tabelas de /admin)', () => {
+  const linha = 'João Silva 12345 Financeiro Matriz'
+
+  it('acha o nome exato, com acento e maiúscula', () => {
+    expect(casaBusca(linha, 'João Silva')).toBe(true)
+    expect(casaBusca(linha, 'Joao Silva')).toBe(true)
+    expect(casaBusca(linha, 'joão silva')).toBe(true)
+  })
+
+  it('acha uma palavra isolada, seja qual for a caixa', () => {
+    expect(casaBusca(linha, 'Silva')).toBe(true)
+    expect(casaBusca(linha, 'silva')).toBe(true)
+    expect(casaBusca(linha, 'Financeiro')).toBe(true)
+    expect(casaBusca(linha, 'MATRIZ')).toBe(true)
+    expect(casaBusca(linha, '12345')).toBe(true)
+  })
+
+  it('continua não achando o que não está lá', () => {
+    expect(casaBusca(linha, 'Pereira')).toBe(false)
+    expect(casaBusca(linha, 'Serra')).toBe(false)
+  })
+
+  it('texto já normalizado atravessa igual (a /ajuda não muda)', () => {
+    const indexado = normalizarBusca('Manutenção e Saída')
+    expect(casaBusca(indexado, 'manutencao')).toBe(true)
+    expect(casaBusca(indexado, 'Manutenção')).toBe(true)
+  })
+
+  it('consulta vazia casa com tudo', () => {
+    expect(casaBusca(linha, '')).toBe(true)
+    expect(casaBusca(linha, '   ')).toBe(true)
   })
 })
 

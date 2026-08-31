@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.45.1',
+    data: '2026-08-31',
+    titulo: 'A busca que não achava ninguém, e mais treze correções da revisão',
+    mudancas: [
+      'A busca das telas de Administração — Colaboradores, Fila de consolidação, Itens, Tipos de item e Usuários — voltou a achar o que você digita. Escrever o nome completo de alguém não trazia ninguém: só um pedaço da palavra, em minúsculas e sem acento, funcionava.',
+      'O campo de nome da movimentação e do lançamento de item passou a reconhecer quem já está cadastrado mesmo sem o acento, e a sugerir também pelo sobrenome. Antes, digitar "Joao Silva" para uma "João Silva" cadastrada não mostrava nada e ainda escondia o botão de cadastrar — não sobrava saída na tela.',
+      'Os quadros e avisos coloridos voltaram a sair com a cor certa quando você imprime. A impressão estava trocando toda moldura colorida por um cinza padrão.',
+      'As caixas de aviso ganharam o mesmo canto arredondado dos outros quadros do sistema. Nenhuma cor mudou.',
+      'As conferências automáticas que protegem o padrão visual passaram a enxergar trechos que antes pulavam sem avisar, e a ferramenta que mede o andamento do padrão passou a contar pela mesma régua delas.',
+      'A ferramenta interna que fotografa as telas passou a subir o próprio ambiente e a exigir que você confirme para qual base está apontando — antes ela podia fotografar dados reais sem perceber.',
+    ],
+  },
+  {
     versao: '1.45.0',
     data: '2026-08-30',
     fase: 'F40',

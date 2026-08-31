@@ -446,13 +446,34 @@
      A conversão é do ANEL em BORDA, aqui e só aqui: nenhuma linha `oklch` é tocada,
      e `scripts/contraste.mjs` continua lendo o arquivo do mesmo jeito.
 
-     O traço é `var(--border)` e NÃO um cinza literal: na mídia print o bloco
-     `.dark` não existe (F19), então `--border` cai no valor claro do `:root` — que
-     é exatamente o mesmo traço que as molduras `border` do produto imprimem hoje.
-     Um `#d4d4d4` escolhido no braço faria os quadros do papel saírem num cinza
-     diferente do de sempre. */
+     ⚠ SÓ A LARGURA, NUNCA A COR — correção da revisão de 31/08/2026. Esta regra
+     nasceu escrevendo o ATALHO `border: 1px solid var(--border)`, que redeclara
+     largura, estilo E COR de uma vez. E ela mora FORA de `@layer`: o
+     `@import "tailwindcss"` abre com `@layer theme, base, components, utilities`,
+     e declaração sem camada vence QUALQUER camada, seja qual for a especificidade
+     — é o mesmo mecanismo que faz o `@media not print` do `.dark`, lá em cima,
+     resolver por cascata em vez de brigar por peso. Resultado: no papel, o atalho
+     também vencia `border-amber-300` (a pendência da ficha, a da linha do tempo,
+     a de `pendencias-item-ficha`) e `border-destructive/40` (as duas telas de
+     `/dev`), e todo Card com traço próprio saía CINZA.
+     E nem precisava tocar nelas: BORDA de verdade sempre imprimiu bem — quem some
+     no papel é o `ring`, que é box-shadow. `dev/page.tsx` já tinha
+     `border-destructive/40` num Card ANTES da F40 (`git show 0ea3fed`) e sempre
+     imprimiu na cor certa.
+
+     Sem `border-color` aqui, quem resolve a cor volta a ser a cascata de sempre: a
+     utilidade `border-<cor>` da própria tela, quando existe; e, quando não existe,
+     o reset `* { @apply border-border }` do `@layer base` acima — que é
+     `var(--border)`, exatamente o que esta regra sempre quis para os Cards sem cor
+     própria. Na mídia print o bloco `.dark` não existe (F19), então `--border` cai
+     no valor claro do `:root`, o mesmo traço que as molduras `border` do produto
+     já imprimem.
+
+     `border-style` também fica de fora: o preflight do Tailwind já deixa
+     `border: 0 solid` em `*`, então só falta a LARGURA — e escrevê-lo aqui
+     fecharia a porta para um Card que um dia queira `border-dashed`. */
   [data-slot='card'] {
-    border: 1px solid var(--border);
+    border-width: 1px;
     box-shadow: none;
   }
 }

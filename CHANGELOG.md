@@ -6,6 +6,66 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 31/08/2026 — Revisão de código: a busca que não achava ninguém ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.45.1**). Revisão de código sobre a F40 e o entorno, com
+**14 achados fechados**. O defeito de operação foi relatado pelo Johnny e reproduzido: a busca das
+telas de administração não achava o nome exato de ninguém.
+
+- 🐛 **A busca de `/admin` estava quebrada há duas fases, e a causa era uma só.** `casaBusca`
+  normalizava apenas a CONSULTA e confiava numa frase do próprio comentário ("o texto indexado
+  chega já normalizado") que as cinco tabelas de administração não cumpriam — elas passam o nome
+  como está no banco. `"João Silva"` virava `"joao silva"` e nunca casava com `"João Silva …"`;
+  só um fragmento minúsculo e sem acento no MEIO da palavra funcionava. A correção é de uma
+  linha, na função, e vale para Colaboradores, Fila de consolidação, Itens, Tipos de item e
+  Usuários de uma vez — remendar tela a tela deixaria a próxima cair na mesma armadilha.
+- 🐛 **O beco sem saída do campo de colaborador.** A lista de sugestões buscava por
+  `ilike('nome', …)`, que ignora caixa mas **não** acento, enquanto o "já cadastrado" resolvia
+  pela chave normalizada. Digitar "Joao Silva" para uma "João Silva" cadastrada devolvia lista
+  vazia **e** escondia o botão "Cadastrar" — nem sugestão, nem saída. Agora os dois lados
+  perguntam pela mesma chave (`nome_chave`), e a busca virou substring: o sobrenome sugere.
+  Conferido no banco: `'João Silva' ilike 'Joao Silva%'` é **falso** e a consulta nova é
+  verdadeira.
+- 🖨️ **A impressão apagava a cor de toda moldura.** A regra `[data-slot='card']` que a F40 pôs
+  no bloco de impressão usava o atalho `border: 1px solid var(--border)` — e regra sem `@layer`
+  vence qualquer camada, inclusive as utilidades do Tailwind. No papel, o âmbar da pendência, o
+  da linha do tempo e o vermelho das telas de `/dev` saíam cinza. Agora a regra escreve **só a
+  largura**; a cor volta a vir da tela. Borda de verdade nunca teve problema de impressão — quem
+  some é o anel, que é sombra.
+- 🔬 **A guarda do sistema de design media outra coisa, em silêncio.** O varredor
+  `semComentarios` não conhecia literal de expressão regular: uma aspas dentro de `/[,()"']/`
+  abria uma string fantasma e todo comentário depois dela sobrevivia; uma barra escapada `\/`
+  era lida como início de comentário e truncava o literal. **19 dos 628 arquivos** de `src` eram
+  lidos errado, 15 deles terminando com o estado de string aberto — e nenhum teste ficava
+  vermelho. Corrigido, com dois invariantes novos que medem o repositório inteiro (comprimento
+  preservado, nenhum comentário sobrevivente).
+- 🧹 **Uma régua só para o teste e para o medidor.** `scripts/design/medir.mjs` tinha a própria
+  cópia de `semComentarios` — a duplicação que o cabeçalho do módulo diz textualmente não poder
+  existir — e mais duas réguas próprias, que já tinham divergido: relatava **46** passos fora da
+  escala onde havia **88** (a lista dele não via `p-2.5`), e **178** molduras à mão onde há
+  **167** (o regex casava `border-b` e perdia o que é montado em `cn(...)`; os dois erros se
+  cancelavam). Virou `medir.ts` rodado por `tsx`, importando de `src/lib/layout/` — o molde de
+  `scripts/carac-relatorios.ts`. A régua nasceu em `src/lib/layout/regua-de-classes.ts`.
+- 🔒 **A trava "absoluta" das fotos de tela era conselho.** `capturar.mjs` conferia o ref de um
+  ARQUIVO e fotografava o que estivesse em `--base`: com o servidor de produção no ar,
+  `--env .env.ensaio` imprimia "não é produção" e fotografava produção. Agora `--base` não
+  existe (o script sobe o próprio servidor com o ambiente que ele mesmo validou) e
+  `--ref-esperado` é obrigatório. As quatro saídas de recusa foram exercitadas.
+- 🧪 **Dois buracos nas 8 regras de consistência.** A regra 7 lia a pasta inteira da rota, então
+  um `error.tsx` que citasse o casco fazia uma `page.tsx` regredida passar; e a regra 4b
+  comparava classes de breakpoints diferentes (`py-0` com `md:p-3`) como se fossem a mesma
+  contradição, o que reprovaria código correto na primeira tela da frente seguinte.
+- 📝 **Cinco acertos de registro:** o `Aviso` passou a usar o `Card` (o raio era 8px contra 12px,
+  dentro do componente criado para acabar com "quatro raios") sem repintar nada — as seis razões
+  de contraste continuam idênticas; o CHANGELOG da F40 dizia "dois" componentes sem consumidor e
+  eram quatro; o `CLAUDE.md` não listava o Playwright nem o `tsx` na stack fechada; o
+  `package-lock.json` ficou uma versão atrás na `v1.45.0`; e o `.gitignore` não cobria os
+  arquivos de bloqueio do Word (`~$*`).
+
+Suíte em **3.233 testes** (eram 3.224), `npm run lint` e `npm run build` limpos.
+
+---
+
 ## 30/08/2026 — F40 · Sistema de design: a fundação e o piloto em `/ativos` ✅ 🔒
 
 Fase (**v1.45.0**). Executa as duas primeiras frentes de
@@ -28,8 +88,10 @@ substituíram — 18 de 18, casa decimal por casa decimal.
 - 🎨 **Mais cinco componentes de sistema:** `Aviso` (3 intenções, com o papel ARIA junto da cor),
   `CartaoDeMetrica` + `GradeDeMetricas`, `CascoDeAutenticacao` (as 4 portas, com `<h1>` de verdade),
   `QuadroDeTabela` e `ConfirmacaoDigitada`. O `EstadoVazio` passou a aceitar `ReactNode` na ação,
-  sem quebrar nenhum dos 12 usos. **`Aviso` e `CascoDeAutenticacao` nascem sem consumidor de
-  propósito** — aplicá-los repinta tela, e esta ordem proíbe; é a frente d.
+  sem quebrar nenhum dos 12 usos. **Quatro deles nascem sem consumidor, de propósito** — `Aviso`,
+  `CascoDeAutenticacao`, `CartaoDeMetrica` (+`GradeDeMetricas`) e `ConfirmacaoDigitada`: aplicá-los
+  repinta tela, e esta ordem proíbe; são as frentes a–d. Só `QuadroDeTabela` entra no piloto.
+  (Este parágrafo dizia "dois" até a revisão de 31/08/2026 — eram quatro.)
 - 🎨 **As nove famílias de cor de status ganharam nome.** `bg-green-100 text-green-800 dark:…`
   virou `bg-selo-em-estoque text-selo-em-estoque-texto`, com os 36 valores `oklch` copiados do
   `theme.css` do Tailwind. `src/lib/dominio.ts` **não contém mais nenhuma classe de paleta de

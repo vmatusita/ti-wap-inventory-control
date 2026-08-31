@@ -24,6 +24,13 @@
 .DS_Store
 *.pem
 
+# Arquivos de bloqueio do Office (`~$responsabilidade-notebook.docx` e irmãos).
+# O Word cria um ao ABRIR qualquer .docx e nem sempre o apaga — um ficou solto em
+# src/templates/termos/ e entraria num `git add .` (revisão de 31/08/2026). Os 7
+# modelos de termo se editam por script (scripts/termos/, F25/F39), nunca pelo
+# Word; abrir para CONFERIR é legítimo, e o lixo que isso deixa para aqui.
+~$*
+
 # debug
 npm-debug.log*
 yarn-debug.log*

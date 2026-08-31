@@ -281,21 +281,78 @@ export async function sugestoesDoCampoColaborador(
   if (termo.length < MIN_PREFIXO_SUGESTAO) return vazio
 
   const supabase = await createClient()
-  const chave = chaveColaborador(prefixo)
+
+  // A CHAVE do que foi digitado — a MESMA normalização da coluna gerada
+  // `colaboradores.nome_chave` (migration 0112 / `src/lib/colaboradores/chave.ts`).
+  //
+  // Deriva de `termo` (o prefixo já sem curinga), e não de `prefixo` cru:
+  // `chaveColaborador` tira acento e caixa, mas NÃO neutraliza `%`, `_`, `*`,
+  // `(`, `)`, `,` nem `\` — quem faz isso é só `prefixoSeguro`. Normalizar
+  // DEPOIS de limpar o curinga é o que garante que nada perigoso vira padrão de
+  // LIKE. (Até a revisão de 31/08/2026 esta linha usava `prefixo`: inofensivo no
+  // `.eq()` de baixo, que não interpreta curinga, mas eram duas normas para a
+  // mesma coisa — e agora a chave também vai para um LIKE.)
+  const chave = chaveColaborador(termo)
 
   const [doCadastro, deMovimentacoes, deLancamentos, exato] = await Promise.all([
+    // O CADASTRO É BUSCADO POR `nome_chave`, NÃO POR `nome` — correção do achado
+    // 4 da revisão de 31/08/2026.
+    //
+    // `ILIKE` do Postgres ignora CAIXA e **não** ignora ACENTO. Com
+    // `.ilike('nome', 'Joao Silva%')`, o cadastro "João Silva" não casava — e
+    // como `jaCadastrado` (a consulta `exato`, abaixo) sempre usou a chave
+    // normalizada, ele casava. As duas juntas fechavam um BECO SEM SAÍDA na
+    // tela: a lista vinha vazia E o botão "Cadastrar" sumia, porque
+    // `campo-colaborador.tsx` o esconde quando `jaCadastrado` é true. Era
+    // exatamente o beco que o comentário da consulta `exato` diz existir para
+    // fechar. Agora os dois lados perguntam pela MESMA chave.
+    //
+    // `.like()` e não `.ilike()`: `nome_chave` é gerada em minúsculas e `chave`
+    // também sai minúscula — o fold de caixa do ILIKE seria trabalho à toa.
+    //
+    // E É SUBSTRING (`%chave%`), não prefixo: com prefixo, digitar o SOBRENOME
+    // de alguém não sugeria ninguém, que é a outra metade do mesmo achado. O
+    // custo é um scan da tabela de pessoas — pequena, e a única do trio que tem
+    // como ser varrida barato. O histórico abaixo continua por prefixo, e a nota
+    // lá explica por quê.
     supabase
       .from('colaboradores')
       .select('nome')
       .eq('ativo', true)
-      .ilike('nome', `${termo}%`)
+      .like('nome_chave', `%${chave}%`)
+      // A ordem continua por `nome` — a grafia de verdade, com acento e caixa, que
+      // é o que o operador lê na lista. O índice `colaboradores_ativo_nome_idx`
+      // (ativo, nome) segue fazendo o mesmo papel de antes: resolve o
+      // `ativo = true` e entrega as linhas já ordenadas, sem sort extra. Ele nunca
+      // sustentou o filtro de texto em si.
       .order('nome')
       .limit(TETO_SUGESTOES),
+    // O HISTÓRICO TAMBÉM VIROU SUBSTRING, mas continua SENSÍVEL A ACENTO — e a
+    // diferença para o cadastro acima é DECISÃO, não esquecimento (revisão de
+    // 31/08/2026).
+    //
+    // Substring aqui é de graça: os índices destas duas tabelas são sobre
+    // `colaborador_id` (a FK), não sobre a coluna de TEXTO `colaborador` — então
+    // `ilike 'x%'` já varria tudo, e `ilike '%x%'` varre o mesmo tanto. O que se
+    // ganha é o sobrenome passar a sugerir, igual ao cadastro.
+    //
+    // O ACENTO é que fica de fora, e o motivo é o custo. Não há coluna
+    // equivalente a `nome_chave` nestas tabelas; resolver acento significaria ou
+    // uma coluna gerada + índice nas tabelas do acervo (migration nova sobre a
+    // fonte da verdade), ou filtrar pela view `v_colaboradores_textos`, que
+    // reagrupa a UNIÃO INTEIRA das duas a cada tecla. `movimentacoes` cresce todo
+    // dia e NUNCA encolhe (`guarda_acervo`, migration 0081), então essa conta só
+    // piora. O defeito de VERDADE — o beco sem saída em que a lista vinha vazia e
+    // o botão "Cadastrar" sumia — some com a correção de cima, porque
+    // `jaCadastrado` só olha `colaboradores`.
+    //
+    // Se um dia isto importar, mede-se antes de indexar — a régua que a própria
+    // migration 0113 registrou para este par de tabelas.
     supabase
       .from('movimentacoes')
       .select('colaborador')
       .not('colaborador', 'is', null)
-      .ilike('colaborador', `${termo}%`)
+      .ilike('colaborador', `%${termo}%`)
       // Ordem explícita: sem ela o corte de `LINHAS_HISTORICO` pega um subconjunto
       // ARBITRÁRIO, e duas cargas da mesma tela podem sugerir listas diferentes.
       .order('colaborador')
@@ -304,7 +361,7 @@ export async function sugestoesDoCampoColaborador(
       .from('lancamentos_item')
       .select('colaborador')
       .not('colaborador', 'is', null)
-      .ilike('colaborador', `${termo}%`)
+      .ilike('colaborador', `%${termo}%`)
       .order('colaborador')
       .limit(LINHAS_HISTORICO),
     // `ativo` entra no SELECT porque "já cadastrado" e "está no ar" são coisas

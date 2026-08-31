@@ -27,6 +27,20 @@ import { cn } from '@/lib/utils'
 // O RÓTULO É UM `<span>` `text-xs`, NÃO UM `CardTitle`: com `size="sm"` o
 // `CardTitle` do kit cai para 14px por `group-data-[size=sm]/card:text-sm`, e o
 // rótulo de métrica é o degrau de apoio (12px) da hierarquia — ver o plano §3.4.
+//
+// ⚠ ESTE COMPONENTE NASCE SEM CONSUMIDOR, como o `CascoDeAutenticacao` e o
+// `ConfirmacaoDigitada`, e a revisão de 31/08/2026 pediu que a ausência ficasse
+// ESCRITA em vez de descoberta por `grep`: substituir os cinco cartões de métrica
+// de hoje repinta tela (o de `relatorios/kpi-tiles.tsx` não tem `tabular-nums`; o
+// de `admin/importar` lê número→rótulo), e a ordem da F40 proíbe repintar fora do
+// piloto. A adoção é das frentes **a** e **b** do plano (§5).
+//
+// ⚠ E COMO NADA O RENDERIZA AINDA, NADA O EXERCITA. Quem for adotá-lo: confira
+// primeiro o par `py-0` do `Card` + `p-(--card-spacing)` do filho clicável
+// (`RESPIRO`, abaixo) numa tela de verdade — é a mesma família de defeito que
+// zerou o respiro de NOVE cartões do piloto (regra 4b de
+// `src/lib/layout/consistencia.test.ts`), e aqui ela está escrita em DOIS
+// elementos, o que nenhuma das 8 regras alcança.
 
 /** A grade dos cartões: 2 colunas no celular, e o que a tela pedir acima. */
 export function GradeDeMetricas({

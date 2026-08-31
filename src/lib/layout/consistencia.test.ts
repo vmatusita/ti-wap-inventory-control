@@ -4,6 +4,21 @@ import { join, relative, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { semComentarios } from '@/lib/layout/texto-fonte'
+// A RÉGUA vive em `regua-de-classes.ts` desde a revisão de 31/08/2026, e não mais
+// aqui dentro: `scripts/design/medir.ts` precisa das MESMAS definições, e um
+// script não importa de um `.test.ts`. Enquanto cada lado tinha a sua, o medidor
+// relatava outro número em silêncio — 46 passos fora da escala onde havia 88.
+import {
+  ESCALA,
+  classNames,
+  classes,
+  ehInsetDeAparelho,
+  ehMolduraAMao,
+  ehStringDeClasse,
+  molduraCrua,
+  passoForaDaEscala,
+  temRaio,
+} from '@/lib/layout/regua-de-classes'
 
 // O SISTEMA DE LAYOUT, ESCRITO COMO TESTE (F40).
 //
@@ -144,127 +159,6 @@ const FONTES = fontes().map((f) => ({ ...f, texto: semComentarios(f.texto) }))
 const SOB_REGRA = FONTES.filter((f) => !ehPendente(f.arquivo))
 
 /**
- * Parece uma string de classe do Tailwind (e não uma frase da interface)?
- *
- * DUAS CONDIÇÕES, e as duas foram pagas pelo repositório irmão. A primeira: toda
- * palavra separada por espaço tem de ter cara de utilitário — a versão dele que
- * classificava pela PRESENÇA de maiúscula/pontuação tratava o `.` como literal e
- * cegava todo `className` que contivesse `px-1.5` ou `py-0.5`, dois passos que
- * este mesmo arquivo aprova (114 `className` invisíveis, dois deles com moldura
- * escrita à mão de verdade).
- *
- * A segunda: ao menos UMA palavra tem de carregar sintaxe que frase nenhuma tem
- * (hífen, dois-pontos, colchete, barra ou parêntese). Sem ela, dezenas de frases
- * reais em pt-BR passavam como classe só porque nenhuma continha por acaso um
- * `p-` — e teste que depende de sorte não é teste.
- */
-export function ehStringDeClasse(valor: string): boolean {
-  const partes = valor.trim().split(/\s+/).filter(Boolean)
-  if (partes.length === 0) return false
-  // `sm:`, `hover:`, `data-[x=y]:`, `p-(--var)`, `w-1/2`, `bg-black/10`,
-  // `text-[11px]`, `*:[img]:rounded-t-xl` — tudo isso é utilitário legítimo.
-  const UTILITARIO = /^[a-z0-9@*!-]+[a-z0-9:@[\]()/.%_&>=+~,'"-]*$/
-  if (!partes.every((p) => UTILITARIO.test(p))) return false
-  // `border` e `rounded` SOZINHOS não têm hífen nem dois-pontos — e são
-  // exatamente as duas classes que a regra 6 procura. Sem esta segunda porta,
-  // `cn('rounded-lg p-3', ativo && 'border')` escapava inteiro, porque o ramo
-  // condicional era descartado antes de a combinação ser montada. O teste do
-  // próprio detector, mais abaixo, é a prova de que a porta funciona.
-  return partes.some((p) => /[-:[\]/()]/.test(p) || /^(border|rounded)$/.test(p))
-}
-
-/** Cada string de classe do arquivo, com a linha. Aspas simples, duplas e crase. */
-function classes(texto: string): { linha: number; valor: string }[] {
-  const achadas: { linha: number; valor: string }[] = []
-  const linhas = texto.split('\n')
-  for (let i = 0; i < linhas.length; i++) {
-    // Mais grosseiro que um parser de JSX, e DE PROPÓSITO: o que interessa é a
-    // string de classe, esteja ela num `className=`, dentro de um `cn(...)`, num
-    // ternário ou numa constante — os quatro existem no produto.
-    for (const m of linhas[i].matchAll(/'([^']*)'|"([^"]*)"|`([^`]*)`/g)) {
-      const valor = m[1] ?? m[2] ?? m[3] ?? ''
-      if (!valor.trim()) continue
-      achadas.push({ linha: i + 1, valor })
-    }
-  }
-  return achadas
-}
-
-/**
- * Um `className` INTEIRO, com todas as partes juntas.
- *
- * POR QUE ISTO EXISTE: as regras que procuram uma COMBINAÇÃO de classes
- * (centralizar **e** limitar largura; arredondar **e** contornar) olhavam uma
- * string de cada vez no irmão. Bastava partir a combinação em duas strings do
- * mesmo `cn(...)` para escapar 100% verde:
- *
- *     className={cn('flex flex-col gap-6', 'mx-auto', larga && 'max-w-6xl')}
- *
- * As regras que olham UM utilitário por vez (a escala) continuam usando
- * `classes()`, que é mais simples e basta.
- */
-function classNames(texto: string): { linha: number; valor: string; tag: string }[] {
-  const achadas: { linha: number; valor: string; tag: string }[] = []
-  const marca = /className=/g
-  let m: RegExpExecArray | null
-  while ((m = marca.exec(texto)) !== null) {
-    let i = m.index + m[0].length
-    let fim = i
-    if (texto[i] === '{') {
-      let nivel = 0
-      let emTexto: string | null = null
-      for (; i < texto.length; i++) {
-        const c = texto[i]
-        if (emTexto) {
-          if (c === '\\') i++
-          else if (c === emTexto) emTexto = null
-          continue
-        }
-        if (c === "'" || c === '"' || c === '`') emTexto = c
-        else if (c === '{') nivel++
-        else if (c === '}') {
-          nivel--
-          if (nivel === 0) {
-            fim = i + 1
-            break
-          }
-        }
-      }
-    } else if (texto[i] === '"' || texto[i] === "'") {
-      const aspas = texto[i]
-      for (i++; i < texto.length; i++) {
-        if (texto[i] === '\\') i++
-        else if (texto[i] === aspas) {
-          fim = i + 1
-          break
-        }
-      }
-    } else {
-      continue
-    }
-    const bloco = texto.slice(m.index, fim)
-    const partes: string[] = []
-    for (const s of bloco.matchAll(/'([^']*)'|"([^"]*)"|`([^`]*)`/g)) {
-      const v = s[1] ?? s[2] ?? s[3] ?? ''
-      if (v.trim() && ehStringDeClasse(v)) partes.push(v.trim())
-    }
-    if (partes.length === 0) continue
-    // O ELEMENTO DONO desta `className` — o `<Nome` aberto mais próximo antes
-    // dela. A regra de largura precisa saber disto: um `DialogContent` é uma
-    // superfície de PORTAL, montada fora da árvore do `<Pagina>`, e o `max-w-*`
-    // dele governa a caixa do modal, não a coluna da tela.
-    const antes = texto.slice(0, m.index)
-    const abertura = /<([A-Za-z][A-Za-z0-9.]*)[^<>]*$/.exec(antes)
-    achadas.push({
-      linha: antes.split('\n').length,
-      valor: partes.join(' '),
-      tag: abertura ? abertura[1] : '',
-    })
-  }
-  return achadas
-}
-
-/**
  * Superfícies de PORTAL — modal, gaveta, popover, menu.
  *
  * Elas são montadas fora da árvore do `<Pagina>` (o Radix as leva para o fim do
@@ -324,6 +218,87 @@ describe('o varredor acha o que tem de achar', () => {
     expect(semComentarios("const s = '// isto é string'")).toBe("const s = '// isto é string'")
     // O bloco vira ESPAÇO, não some: a linha 4 continua sendo a linha 4.
     expect(semComentarios('a\n/* b\nc */\nd')).toBe('a\n    \n    \nd')
+  })
+
+  // ---- LITERAL DE REGEX (revisão de código de 31/08/2026) -------------------
+  //
+  // O scanner não conhecia literal de regex, e a falta media outra coisa em
+  // SILÊNCIO: em 19 dos 628 arquivos de `src` a saída saía errada e nenhum teste
+  // reclamava. Estes casos são os dois defeitos reais do repositório mais as
+  // fronteiras da heurística — sem eles, a próxima "melhoria" no scanner volta a
+  // ser exercitada só pelo código de hoje, que é o que já deixou a regra 6 passar
+  // meses com `\d` virado em `d` (ver o comentário de `molduraCrua`).
+  it('o removedor entende literal de regex, e não confunde com divisão', () => {
+    // O CÓDIGO sobrevive inteiro; o COMENTÁRIO vira espaço do mesmo tamanho.
+    // Escrever os espaços à mão faz o teste falhar por contagem em vez de por
+    // defeito — o preenchimento se calcula.
+    const NOTA = '// nota'
+    const limpo = (codigo: string, comentario: string) =>
+      codigo + ' '.repeat(comentario.length)
+
+    // Divisão comum continua divisão — não vira início de regex.
+    expect(semComentarios(`const media = soma / total ${NOTA}`)).toBe(
+      limpo('const media = soma / total ', NOTA),
+    )
+    expect(semComentarios(`const m = calcular() / 2 ${NOTA}`)).toBe(
+      limpo('const m = calcular() / 2 ', NOTA),
+    )
+    expect(semComentarios(`const m = arr[0] / 2 ${NOTA}`)).toBe(
+      limpo('const m = arr[0] / 2 ', NOTA),
+    )
+
+    // DEFEITO 1 — aspas DENTRO da classe de caracteres abriam string fantasma, e
+    // a partir dali todo comentário do arquivo sobrevivia. Caso real:
+    // `src/lib/queries/compras.ts:68`.
+    const classe = String.raw`.replace(/[,()"']/g, '%')`
+    expect(semComentarios(`${classe}\n${NOTA}`)).toBe(limpo(`${classe}\n`, NOTA))
+
+    // DEFEITO 2 — a barra ESCAPADA era lida como o `//` de comentário e truncava
+    // o literal. Caso real: `src/lib/queries/dev.ts:51`.
+    const barra = String.raw`url.replace(/^https?:\/\//, '')`
+    expect(semComentarios(`${barra}\n${NOTA}`)).toBe(limpo(`${barra}\n`, NOTA))
+
+    // Palavra que PRECEDE valor: depois de `return` a barra só pode ser regex.
+    const comReturn = String.raw`function f(x) { return /a\/b/.test(x) }`
+    expect(semComentarios(`${comReturn} ${NOTA}`)).toBe(limpo(`${comReturn} `, NOTA))
+
+    // JSX: nem o fechamento de tag nem a tag auto-fechada abrem regex.
+    expect(semComentarios(`const el = <div>x</div>\n${NOTA}`)).toBe(
+      limpo('const el = <div>x</div>\n', NOTA),
+    )
+    expect(semComentarios(`const el = <Icone tamanho={2} />\n${NOTA}`)).toBe(
+      limpo('const el = <Icone tamanho={2} />\n', NOTA),
+    )
+  })
+
+  // AS DUAS PROVAS SOBRE OS ARQUIVOS DE VERDADE. Os casos acima são sintéticos;
+  // estes dois medem o repositório inteiro, que é onde o defeito morava sem
+  // ninguém ver.
+  it('o removedor não sobra nem come um caractere de nenhum arquivo', () => {
+    // INVARIANTE ESTRUTURAL: comentário vira espaço do MESMO tamanho, e todo o
+    // resto é copiado 1:1 — então a saída tem exatamente o comprimento da
+    // entrada. É o que sustenta a promessa do módulo ("linha 274 continua sendo
+    // a linha 274"), e é o que quebra na hora se o scanner abandonar o laço no
+    // meio ou escrever duas vezes.
+    const divergentes = FONTES.map(({ arquivo, texto }) => ({
+      arquivo,
+      cru: readFileSync(join(RAIZ, arquivo), 'utf8').length,
+      limpo: texto.length,
+    })).filter((f) => f.cru !== f.limpo)
+    expect(divergentes).toEqual([])
+  })
+
+  it('nenhum comentário de linha inteira sobrevive à limpeza', () => {
+    // O SINTOMA DO DEFEITO, medido no repositório: quando o scanner perdia o fio
+    // (aspas dentro de classe de caracteres, barra escapada), ele passava a ler o
+    // resto do arquivo como se fosse string e os `//` seguintes chegavam intactos
+    // na saída — 19 arquivos, nenhum teste vermelho. Se voltar a acontecer, esta
+    // linha nomeia o arquivo.
+    const comSobras = FONTES.map(({ arquivo, texto }) => ({
+      arquivo,
+      linhas: texto.split('\n').filter((l) => /^\s*\/\//.test(l)).length,
+    })).filter((f) => f.linhas > 0)
+    expect(comSobras).toEqual([])
   })
 })
 
@@ -459,81 +434,25 @@ describe('so o casco de pagina centraliza e limita a largura', () => {
 
 // 3 e 4 · UMA ESCALA DE ESPAÇAMENTO ----------------------------------------
 
-/** Os passos permitidos nas telas — 0px a 64px, base 4px (plano §3.1). */
-const ESCALA = new Set([
-  '0',
-  '0.5',
-  '1',
-  '1.5',
-  '2',
-  '3',
-  '4',
-  '6',
-  '8',
-  '12',
-  '16',
-  'auto',
-  'px',
-])
-
-/**
- * As propriedades que a escala governa. Largura e altura não entram.
- *
- * A ORDEM DA ALTERNÂNCIA IMPORTA, e custou um falso positivo ao irmão: com `gap`
- * antes de `gap-x`, o utilitário `gap-x-6` casava com `gap` e capturava `x-6`
- * como passo — reprovando um espaçamento de 24px que está na escala. Alternância
- * de regex é ordenada e não volta atrás depois que o casamento inteiro deu
- * certo, então o prefixo mais longo tem de vir primeiro.
- */
-const ESPACAMENTO =
-  /^-?(px|py|pt|pr|pb|pl|ps|pe|p|mx|my|mt|mr|mb|ml|ms|me|m|gap-x|gap-y|gap|space-x|space-y)-(.+)$/
-
-/**
- * `env(safe-area-inset-*)` NÃO é passo de espaçamento.
- *
- * É o recorte físico do aparelho (o "queixo" do iPhone), e não existe passo
- * equivalente na escala — nem poderia: o valor é do dispositivo, não do desenho.
- * A barra de seleção de `/ativos` usa
- * `pb-[max(0.75rem,env(safe-area-inset-bottom))]`, que é o padrão correto: um
- * passo da escala como piso, o inset como teto.
- *
- * A EXCEÇÃO É ESTRUTURAL, NÃO UMA BUSCA POR SUBSTRING. A revisão adversarial
- * mostrou que `passo.includes('env(')` deixava passar QUALQUER valor arbitrário
- * que mencionasse `env` em qualquer posição — `p-[9999px_env(x)]` escapava da
- * escala inteira. A forma aceita é UMA: um piso da escala e o inset como teto,
- * que é o padrão correto e o único que o produto usa.
- */
-function ehInsetDeAparelho(passo: string): boolean {
-  return /^\[max\(\d+(\.\d+)?rem,env\(safe-area-inset-(top|right|bottom|left)\)\)\]$/.test(
-    passo,
-  )
-}
-
 describe('o espacamento das telas cabe na escala', () => {
   it.each(SOB_REGRA)('$arquivo', ({ arquivo, texto }) => {
+    // A PERGUNTA é `passoForaDaEscala`, de `regua-de-classes.ts` — a MESMA que
+    // `scripts/design/medir.ts` faz. Enquanto ela morava aqui dentro, o medidor
+    // tinha a própria versão, sem decimais, e relatava 46 onde havia 88.
     const culpados: string[] = []
     for (const { linha, valor } of classes(texto)) {
       if (!ehStringDeClasse(valor)) continue
       for (const parte of valor.split(/\s+/)) {
-        const utilitario = parte.slice(parte.lastIndexOf(':') + 1)
-        const m = ESPACAMENTO.exec(utilitario)
-        if (!m) continue
-        const passo = m[2]
-        // `p-(--card-spacing)` — token do Tailwind v4, não número mágico.
-        if (/^\(--[a-z0-9-]+\)$/.test(passo)) continue
-        if (passo.startsWith('[')) {
-          if (ehInsetDeAparelho(passo)) continue
-          culpados.push(`linha ${linha}: "${utilitario}" — valor arbitrario`)
-          continue
-        }
-        if (!ESCALA.has(passo)) {
-          culpados.push(`linha ${linha}: "${utilitario}" — passo fora da escala`)
-        }
+        const culpado = passoForaDaEscala(parte)
+        if (culpado) culpados.push(`linha ${linha}: "${culpado}"`)
       }
     }
     expect(
       culpados,
-      `${arquivo} usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16}. ` +
+      // A escala sai da CONSTANTE, não de uma cópia escrita na frase: mensagem de
+      // erro que lista uma escala diferente da que o detector usa ensina a coisa
+      // errada a quem está tentando consertar.
+      `${arquivo} usa espacamento fora da escala {${[...ESCALA].join(', ')}}. ` +
         `A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou ` +
         `p-[18px].\n  ` +
         culpados.join('\n  '),
@@ -559,12 +478,23 @@ describe('o espacamento das telas cabe na escala', () => {
  * escala. Quem o pegou foi a revisão adversarial da F40.
  */
 function zeraOEixoQuePediu(partes: string[]): string | null {
+  // ⚠ A COMPARAÇÃO É DENTRO DO MESMO GRUPO DE VARIANTES — correção da revisão de
+  // 31/08/2026 (achado 14). Isto descartava o prefixo ANTES de comparar, e assim
+  // tratava `py-0 md:p-3` como a mesma contradição de `md:p-3 md:py-0`. Só a
+  // segunda é: o tailwind-merge resolve conflito dentro de um grupo de variantes,
+  // não entre grupos, então `className="py-0 md:p-3"` é legítimo (sem respiro
+  // vertical no celular, padding completo a partir de `md`) e nenhum eixo é
+  // zerado. Sem esta correção, a primeira tela da frente a ou b que escrevesse
+  // esse padrão seria reprovada com uma mensagem mandando apagar a classe certa.
+  const variante = (p: string) => p.slice(0, p.lastIndexOf(':') + 1)
   const semVariante = (p: string) => p.slice(p.lastIndexOf(':') + 1)
-  const utils = partes.map(semVariante)
-  const temP = utils.some((p) => /^-?p-[^[]/.test(p))
-  if (!temP) return null
-  const zerado = utils.find((p) => p === 'py-0' || p === 'px-0')
-  return zerado ?? null
+  for (const grupo of new Set(partes.map(variante))) {
+    const doGrupo = partes.filter((p) => variante(p) === grupo).map(semVariante)
+    if (!doGrupo.some((p) => /^-?p-[^[]/.test(p))) continue
+    const zerado = doGrupo.find((p) => p === 'py-0' || p === 'px-0')
+    if (zerado) return `${grupo}${zerado}`
+  }
+  return null
 }
 
 describe('nenhuma className zera o eixo que ela mesma acabou de pedir', () => {
@@ -578,6 +508,18 @@ describe('nenhuma className zera o eixo que ela mesma acabou de pedir', () => {
     expect(zeraOEixoQuePediu(['p-(--card-spacing)', 'py-0'])).toBe('py-0')
     // `py-0` sozinho é legítimo mesmo com padding horizontal declarado à parte.
     expect(zeraOEixoQuePediu(['px-3', 'py-0'])).toBeNull()
+
+    // ---- VARIANTES (achado 14 da revisão de 31/08/2026) --------------------
+    // Grupos DIFERENTES não se anulam: o `p-3` só existe a partir do `md`, e o
+    // `py-0` da tela base sobrevive. É um padrão legítimo, e a versão anterior
+    // do detector o reprovava.
+    expect(zeraOEixoQuePediu(['py-0', 'md:p-3'])).toBeNull()
+    expect(zeraOEixoQuePediu(['p-3', 'md:py-0'])).toBeNull()
+    expect(zeraOEixoQuePediu(['sm:p-3', 'md:py-0'])).toBeNull()
+    // Mas o MESMO grupo é a mesma contradição de sempre, só que atrás de um
+    // prefixo — e a mensagem tem de nomear a classe inteira, com a variante.
+    expect(zeraOEixoQuePediu(['md:p-3', 'md:py-0'])).toBe('md:py-0')
+    expect(zeraOEixoQuePediu(['sm:p-4', 'sm:px-0'])).toBe('sm:px-0')
   })
 
   it.each(SOB_REGRA)('$arquivo', ({ arquivo, texto }) => {
@@ -631,37 +573,6 @@ describe('a tipografia e as larguras de campo saem da escala', () => {
 })
 
 // 6 · UMA MOLDURA SÓ --------------------------------------------------------
-
-/**
- * Borda CRUA faz moldura; `border-b`, `border-input`, `border-l-2` não.
- *
- * Qualquer espessura conta. A primeira versão do irmão listava só `border` e
- * `border-2`, e a revisão adversarial mostrou `rounded-lg border-4` passando
- * ileso — um cartão escrito à mão, com traço mais grosso, invisível para a regra
- * que existe justamente para pegá-lo.
- */
-export function molduraCrua(partes: string[]): boolean {
-  return partes.some((p) => /^border(-\d+)?$/.test(p.slice(p.lastIndexOf(':') + 1)))
-}
-
-/**
- * `rounded-full` NÃO É RAIO DE MOLDURA, e a distinção é do inventário, não
- * conveniência: dos 190 `rounded-* border` medidos, 187 são raios de cartão
- * (`rounded-lg` 133 · `rounded-md` 38 · `rounded-xl` 16) e 3 são `rounded-full`.
- * `rounded-full` é a geometria de uma PASTILHA, de um PONTO de trilho e de um
- * avatar — nenhum deles é agrupamento com moldura, e nenhum deles vira `Card`.
- *
- * O raio DIRECIONAL conta (`rounded-t-xl`, `rounded-tr-lg`): um cartão com o topo
- * arredondado e borda crua é um cartão à mão do mesmo jeito. Foi a revisão
- * adversarial que apontou esse buraco.
- */
-export function temRaio(partes: string[]): boolean {
-  return partes.some((p) =>
-    /(^|:)rounded(-(t|r|b|l|tl|tr|br|bl|s|e|ss|se|es|ee))?(-(sm|md|lg|xl|2xl|3xl|4xl))?$/.test(
-      p,
-    ),
-  )
-}
 
 describe('a regra da moldura sabe o que e moldura', () => {
   // A PROVA DE QUE O DETECTOR FUNCIONA — e ela existe porque a regra já quebrou
@@ -726,14 +637,11 @@ describe('a regra da moldura sabe o que e moldura', () => {
 describe('agrupamento com borda vem de Card, nao escrito a mao', () => {
   it.each(SOB_REGRA)('$arquivo', ({ arquivo, texto }) => {
     if (ehDoSistema(arquivo)) return
+    // `ehMolduraAMao` mora em `regua-de-classes.ts` e é a MESMA que
+    // `scripts/design/medir.ts` usa — inclusive a isenção da borda TRACEJADA do
+    // estado vazio, a única moldura à mão legítima do produto.
     const culpados = classNames(texto)
-      .filter(({ valor }) => {
-        const partes = valor.split(/\s+/)
-        // A borda TRACEJADA do estado vazio é a única moldura à mão legítima do
-        // produto — e ela mora em `estado-vazio.tsx`, que é do SISTEMA.
-        if (partes.includes('border-dashed')) return false
-        return temRaio(partes) && molduraCrua(partes)
-      })
+      .filter(({ valor }) => ehMolduraAMao(valor))
       .map(({ linha, valor }) => `linha ${linha}: "${valor}"`)
 
     expect(
@@ -773,17 +681,31 @@ function rotasDoGrupo(): { rota: string; dir: string; arquivo: string }[] {
 const ROTAS = rotasDoGrupo()
 const ROTAS_MIGRADAS = ROTAS.filter((r) => !ehPendente(r.arquivo))
 
-/** O texto de todos os `.tsx` da pasta da rota — a página e os painéis dela. */
+/**
+ * O texto de UM arquivo da rota — a TELA (`page.tsx`) ou o ESQUELETO
+ * (`loading.tsx`).
+ *
+ * SEM OS COMENTÁRIOS, aqui pelo motivo OPOSTO ao das outras regras: a busca é
+ * por PRESENÇA, e um comentário que citasse o casco pelo nome faria uma tela
+ * que não o usa passar no teste.
+ *
+ * ⚠ UM ARQUIVO, NÃO A PASTA INTEIRA — correção da revisão de 31/08/2026
+ * (achado 13). Isto lia TODOS os `.tsx` não-`loading` da pasta e os concatenava,
+ * e as regras 7 e 8 perguntam por `.includes(...)`: bastava um `error.tsx`, um
+ * `not-found.tsx` ou um painel irmão montar `<Pagina>` para que uma `page.tsx`
+ * que voltou a escrever o próprio container passasse VERDE. A regra 8 herdava o
+ * mesmo defeito por outro caminho — `larguraDeclarada` lia a concatenação e
+ * podia pegar a variante do arquivo errado. Quem é a tela é a `page.tsx`, e
+ * quem é o esqueleto é o `loading.tsx`; mais ninguém.
+ *
+ * Hoje nenhuma das 29 pastas de rota tem painel colocado ao lado da página, então
+ * a mudança não reprova nada. Se uma frente futura criar um, a saída é NOMEAR o
+ * arquivo extra — como a lista `PENDENTES` já faz —, nunca voltar a concatenar a
+ * pasta.
+ */
 function fonteDaRota(dir: string, esqueleto: boolean): string {
-  // SEM OS COMENTÁRIOS, aqui pelo motivo OPOSTO ao das outras regras: a busca é
-  // por PRESENÇA, e um comentário que citasse o casco pelo nome faria uma tela
-  // que não o usa passar no teste.
   return semComentarios(
-    readdirSync(dir)
-      .filter((n) => n.endsWith('.tsx'))
-      .filter((n) => (esqueleto ? n === 'loading.tsx' : n !== 'loading.tsx'))
-      .map((n) => readFileSync(join(dir, n), 'utf8'))
-      .join('\n'),
+    readFileSync(join(dir, esqueleto ? 'loading.tsx' : 'page.tsx'), 'utf8'),
   )
 }
 

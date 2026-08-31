@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 // O AVISO — a faixa curta que diz o que deu errado ou o que exige atenção (F40).
@@ -17,6 +18,36 @@ import { cn } from '@/lib/utils'
 //
 // A COR NUNCA É O ÚNICO SINAL: o texto de cada aviso já diz o que aconteceu, e
 // as três intenções também se separam pelo tom da borda.
+//
+// ⚠ A MOLDURA VEM DO `Card`, e é a mesma receita do `QuadroDeTabela` — correção
+// da revisão de 31/08/2026. Até aqui este componente desenhava a própria caixa
+// com `rounded-lg border`: 8px de raio contra os 12px do `Card`, dentro do
+// componente que a fase criou justamente para acabar com "quatro raios e três
+// traços para o mesmo objeto". Ele escapava da regra 6 de
+// `src/lib/layout/consistencia.test.ts` só por estar na lista `SISTEMA`, que é
+// isenta — e a divergência apareceria na primeira tela da frente **a** que
+// pusesse um aviso âmbar ao lado de um cartão.
+//
+// OS TRÊS AJUSTES NO `Card`, e os três existem para NÃO REPINTAR nada:
+// · `border ring-0` — o kit desenha o traço com `ring-1 ring-foreground/10`, e a
+//   cor da borda deste componente é a da INTENÇÃO (`border-destructive/40`,
+//   `border-warning/40`, ou a `border-border` padrão). O anel neutro do kit
+//   apagaria essa distinção.
+// · `bg-transparent` — o aviso é uma FAIXA, não uma superfície. O `Card` traz
+//   `bg-card`, e no tema escuro `--card` é `oklch(0.205)` contra `oklch(0.145)`
+//   do `--background`: um aviso de erro posto direto na página ganharia um fundo
+//   que ele não tem hoje. Com `bg-transparent` a intenção `erro` continua SEM
+//   VÉU — que é a medição do bloco abaixo, e a razão de ela passar por 4,76:1.
+//   As intenções `atencao` e `informacao` põem o fundo delas DEPOIS, no `TOM`, e
+//   o `cn()` (tailwind-merge) deixa o último vencer.
+// · `p-3` sozinho, NUNCA `p-3 py-0` — o `p-3` já apaga o `py-(--card-spacing)`
+//   do kit; o `py-0` escrito depois zeraria o respiro vertical. Foi o defeito
+//   que a revisão adversarial da F40 pegou em nove cartões do piloto, e a regra
+//   4b do teste de consistência existe por causa dele.
+//
+// `text-card-foreground` vem junto e não muda nada: `--card-foreground` e
+// `--foreground` são o MESMO valor nos dois temas (`globals.css:95/97` e
+// `242/245`). Nenhuma das seis razões medidas em `npm run contraste` se move.
 
 export type IntencaoDoAviso = 'erro' | 'atencao' | 'informacao'
 
@@ -78,17 +109,19 @@ export function Aviso({
   children: React.ReactNode
 }) {
   return (
-    <div
+    <Card
       ref={ref}
       role={PAPEL[intencao]}
       className={cn(
-        'flex items-start gap-2 rounded-lg border p-3 text-sm',
+        // `flex-row` porque o `Card` do kit é `flex-col`; `gap-2` vence o
+        // `gap-(--card-spacing)` dele pelo tailwind-merge.
+        'flex flex-row items-start gap-2 border bg-transparent p-3 text-sm ring-0',
         TOM[intencao],
         className,
       )}
     >
       {icone ? <span className="mt-0.5 shrink-0">{icone}</span> : null}
       <div className="min-w-0 flex-1">{children}</div>
-    </div>
+    </Card>
   )
 }

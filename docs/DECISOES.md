@@ -7522,3 +7522,144 @@ e da `0121`; as quatro do código, por `git revert`.
   nenhuma; (b) reprovar também os diálogos — deixaria o teste vermelho em 34 lugares que esta ordem
   não migra, e teste vermelho por semanas é teste que se aprende a ignorar.
 - **Reversível?** Duas funções puras e um `Set`, todos no próprio teste.
+
+## 2026-08-31 · avulsa · A skill `system-design` foi aplicada ao ACERVO, não de novo à WAP
+
+- **Contexto:** pedido de aplicar a skill `system-design` ao projeto. A mesma skill já havia sido
+  aplicada ao sistema da WAP **no dia anterior** (`SYSTEM-DESIGN-2026-08-30.md`, v1.44.1), e desde
+  então entrou só a F40 (sistema de design — matéria de UI, sem efeito arquitetural). Reaplicá-la
+  ao mesmo alvo produziria o mesmo documento duas vezes.
+- **Decisão:** aplicar o método ao **produto multiempresa** (`PLANO-PRODUTO-MULTIEMPRESA.md` v0.1,
+  14/08), cujo desenho nunca passou por crivo arquitetural e cuja ordem F0 já está escrita e pronta
+  para rodar. Resultado em `SYSTEM-DESIGN-ACERVO-2026-08-31.md`.
+- **Por quê:** a §8 do documento de ontem elege "segunda empresa / multi-tenant" como gatilho de
+  REMODELAGEM ("o escopo de escrita é por filial, não por tenant"). É o único desenho ainda aberto
+  do projeto, e revisão de arquitetura antes da primeira linha de código é onde ela é barata.
+- **O que a revisão concluiu:** as cinco decisões estruturais do plano (D1–D5) estão certas e
+  nenhuma precisa ser revertida. As correções são todas DENTRO da D1: (1) a porta pública do
+  visualizador usa `service_role`, e nenhuma das quatro defesas anti-vazamento do plano a alcança;
+  (2) o predicado de tenant especificado (`e_membro(empresa_id)`) é o antipadrão de desempenho
+  documentado — função que recebe a linha não é içável a InitPlan; (3) o transplante está
+  subdimensionado (292 de 628 arquivos citam `filial`; 71 policies e 116 funções `security definer`
+  a reautorar); (4) o gatilho de custo do §8 do plano está calibrado no limite errado — o que morde
+  primeiro é o SMTP de auth, na primeira empresa real, não os 500 MB de banco.
+- **Escopo:** documento de análise. **Nenhum código, migration ou comportamento foi alterado**, e
+  por isso não houve entrada no `CHANGELOG.md` nem bump de versão (a regra permanente é disparada
+  por entrada nova no CHANGELOG; análise que não muda o produto não gera uma).
+- **Reversível?** É um documento; o plano do produto continua íntegro e a decisão sobre acatar ou
+  não cada recomendação é do Johnny.
+
+## 2026-08-31 · revisão de código · `casaBusca` normaliza OS DOIS lados
+
+- **Contexto:** o Johnny relatou que a pesquisa de colaboradores não achava a pessoa mesmo
+  digitando o nome exato. Reproduzido: `casaBusca(textoIndexado, consulta)` normalizava só a
+  CONSULTA, e o contrato "o texto indexado chega já normalizado" existia apenas no JSDoc. Os dois
+  chamadores de `/ajuda` cumpriam; as CINCO tabelas de `/admin` (colaboradores, fila de
+  consolidação, itens, tipos de item, usuários) passavam o texto cru da linha.
+- **Decisão:** normalizar os dois lados dentro de `casaBusca`, e **não** embrulhar cada chamador
+  em `normalizarBusca`.
+- **Por quê:** o remendo tela a tela deixa a próxima tabela cair na mesma armadilha — e a função
+  tem uma homônima no repositório (a de `components/relatorios/use-filtros-tabela.ts` já normaliza
+  os dois lados), o que é justamente o que faz o engano parecer certo na hora de escrever.
+  `normalizarBusca` é idempotente, então quem já cumpria o contrato não muda em nada; há teste
+  novo provando a idempotência, para essa premissa não silenciar se alguém mexer nela.
+- **Reversível?** Uma linha, e os 6 testes novos em `src/lib/ajuda/conteudo.test.ts`.
+
+## 2026-08-31 · revisão de código · o cadastro busca por `nome_chave`; o histórico, não
+
+- **Contexto:** `sugestoesDoCampoColaborador` buscava o cadastro com `ilike('nome', 'termo%')` —
+  que ignora caixa e **não** acento — enquanto `jaCadastrado` resolvia pela chave normalizada.
+  Digitar "Joao Silva" para uma "João Silva" cadastrada devolvia lista vazia E escondia o botão
+  "Cadastrar": nem sugestão, nem saída. Conferido no banco: `'João Silva' ilike 'Joao Silva%'` é
+  falso.
+- **Decisão:** o CADASTRO passa a filtrar por `like('nome_chave', '%chave%')` — a coluna gerada da
+  0112, já minúscula e sem acento, a mesma base que decide `jaCadastrado` —, e a chave passa a
+  derivar de `termo` (o prefixo já sem curinga), não de `prefixo` cru. As duas consultas de
+  HISTÓRICO viraram substring (`%termo%`) mas continuam sensíveis a acento.
+- **Por quê:** `unaccent` é extensão e está proibido (0112, linha 31), e `nome_chave` já resolve o
+  problema sem ela. O substring no cadastro é de graça (a tabela é pequena) e fecha a outra metade
+  do achado, o sobrenome que nunca sugeria. No histórico o substring também é de graça — os
+  índices de `movimentacoes`/`lancamentos_item` são sobre `colaborador_id`, não sobre a coluna de
+  texto, então já era varredura completa —, mas resolver ACENTO ali exigiria coluna gerada +
+  índice nas tabelas do acervo, ou filtrar pela view `v_colaboradores_textos`, que reagrupa a
+  união inteira das duas a cada tecla. `movimentacoes` cresce todo dia e nunca encolhe
+  (`guarda_acervo`, 0081). O defeito de verdade — o beco sem saída — some com a correção do
+  cadastro, porque `jaCadastrado` só olha `colaboradores`.
+- **Pendência conhecida:** grafia sem acento **no histórico** continua não sugerindo. Mede-se
+  antes de indexar, a régua que a 0113 já registrou para este par de tabelas.
+- **Reversível?** Duas linhas de consulta em `src/lib/queries/colaboradores.ts`.
+
+## 2026-08-31 · revisão de código · a regra de impressão do Card escreve só a LARGURA
+
+- **Contexto:** a F40 acrescentou `[data-slot='card'] { border: 1px solid var(--border) }` no
+  bloco de impressão, para converter o anel do kit (que é sombra, e some no papel) em traço. O
+  atalho `border:` redeclara largura, estilo E COR — e o bloco está FORA de `@layer`, então vence
+  qualquer camada, inclusive as utilidades do Tailwind. No papel, todo Card com traço próprio (o
+  âmbar da pendência, o da linha do tempo, o vermelho das duas telas de `/dev`) saía cinza.
+- **Decisão:** `border-width: 1px` e `box-shadow: none`, sem `border-color` e sem `border-style`.
+- **Por quê:** a revisão propunha `outline: 1px solid var(--border); outline-offset: -1px`, e a
+  investigação derrubou: com o offset negativo o contorno cai exatamente sobre a borda e MASCARA a
+  cor da mesma forma — o mesmo defeito por outro caminho. Sem `border-color`, quem resolve a cor
+  volta a ser a cascata: a utilidade da própria tela, quando existe, e o reset
+  `* { @apply border-border }` do `@layer base` quando não. `border-style` fica de fora porque o
+  preflight já deixa `solid`, e escrevê-lo fecharia a porta a um Card `border-dashed`. Borda de
+  verdade nunca teve problema de impressão — só o anel tem, e é só ele que a regra precisa
+  substituir. Conferido no CSS compilado: `[data-slot=card]{box-shadow:none;border-width:1px}`.
+- **Reversível?** Duas linhas em `src/app/globals.css`.
+
+## 2026-08-31 · revisão de código · uma régua só: `regua-de-classes.ts` e `medir.ts`
+
+- **Contexto:** `scripts/design/medir.mjs` trazia uma CÓPIA de `semComentarios` — a duplicação que
+  o cabeçalho de `texto-fonte.ts` diz textualmente não poder existir — e mais duas réguas próprias.
+  As duas já tinham divergido do teste: o script relatava 46 passos fora da escala onde havia 88
+  (a lista dele só tinha inteiros, não via `p-2.5`) e 178 molduras à mão onde há 167 (o regex
+  casava `border-b`/`border-dashed`/`rounded-full border` e perdia o que é montado em `cn(...)`).
+  Os dois erros se cancelavam e o total parecia certo.
+- **Decisão:** extrair `ESCALA`, `ESPACAMENTO`, `ehInsetDeAparelho`, `ehStringDeClasse`, `classes`,
+  `classNames`, `molduraCrua`, `temRaio` — mais os dois predicados de alto nível
+  `passoForaDaEscala` e `ehMolduraAMao` — para `src/lib/layout/regua-de-classes.ts`, ao lado de
+  `texto-fonte.ts`; e renomear `medir.mjs` para `medir.ts`, rodado por `npx tsx`, importando pelo
+  alias `@/`.
+- **Por quê:** um script de produção não deve importar de um arquivo de teste, e um `.mjs` não
+  alcança o alias. O precedente da casa já existe: `scripts/carac-relatorios.ts` é `.ts` em
+  `scripts/`, importa `@/lib/format` e roda por `tsx` (que já é devDependency, usada por `db:seed`).
+- **Os números do medidor MUDARAM, e para melhor:** molduras 178 para **167**, passos fora da
+  escala 46 para **88** (coluna CÓDIGO). Quem comparar com o relatório da F40 não deve ler isso
+  como dívida nova: os números antigos estavam errados. `Classes de paleta crua` continua 479/60,
+  batendo com a catraca de `cores.test.ts`.
+- **Reversível?** O módulo novo é puro e o script antigo está no git.
+
+## 2026-08-31 · revisão de código · a trava das fotos de tela tranca o SERVIDOR
+
+- **Contexto:** `scripts/design/capturar.mjs` chamava a própria trava de ABSOLUTA, mas conferia o
+  ref de um ARQUIVO (`--env`) e fotografava o que estivesse em `--base`. Com o `next dev` de
+  produção no ar — o padrão deste repositório —, `--env .env.ensaio` lia o ref de ensaio, imprimia
+  "não é produção" e fotografava produção, com nome e patrimônio reais. Era a violação da regra 2
+  do CLAUDE.md que a trava existe para impedir.
+- **Decisão:** `--base` deixou de existir (o script sobe o próprio `next dev` com as variáveis do
+  arquivo já validado injetadas no processo filho) e `--ref-esperado` passou a ser obrigatório.
+- **Por quê:** uma trava que se anuncia absoluta e é conselho é pior que nenhuma, porque quem
+  confia nela para de conferir. A investigação descartou "perguntar ao servidor": não há hoje canal
+  público sem login que devolva o ref — `/dev` o mostra mascarado e exige cargo dev —, e criar um
+  seria superfície nova para um problema de ferramenta. A garantia de que o filho sobe contra o
+  banco aprovado é documentada: o `@next/env` só define variável que ainda não existe em
+  `process.env` (ordem `process.env`, `.env.*.local`, `.env.local`, `.env`), conferido na
+  documentação oficial do Next em 31/08/2026, como manda a regra 6.
+- **Sobre o `REF_PRODUCAO` cravado no arquivo:** não é vazamento. É a mesma string que sai em
+  `NEXT_PUBLIC_SUPABASE_URL`, pública por definição do prefixo, e já está em texto puro neste
+  arquivo. Deixou de ser a única defesa, que era o problema.
+- **Reversível?** É ferramenta de dev; o arquivo anterior está no git.
+
+## 2026-08-31 · revisão de código · o que NÃO foi corrigido, e por quê
+
+- **Componentes sem consumidor:** `CartaoDeMetrica`, `GradeDeMetricas`, `ConfirmacaoDigitada` e
+  `CascoDeAutenticacao` continuam sem chamador. **Não foram apagados** — são a fundação que as
+  frentes a–d vão consumir, e apagá-los seria desfazer trabalho deliberado da F40. O que a revisão
+  pediu e foi feito: a ausência passou a estar ESCRITA nos quatro (só o `CascoDeAutenticacao` a
+  tinha) e o CHANGELOG parou de dizer "dois".
+- **Buraco NOVO, achado durante a investigação e não corrigido:** a regra 1 de
+  `consistencia.test.ts` procura `/<h1[\s>]/` **por linha**, então um `<h1` que abre sozinho na
+  linha com os atributos na seguinte — o próprio estilo de `casco-de-autenticacao.tsx:60` — escapa
+  da regra. Hoje é inofensivo porque esse arquivo é do SISTEMA (isento), mas um `<h1>` não
+  autorizado escrito assim em qualquer outro arquivo passaria batido. Fica no backlog: é achado de
+  fora dos 14 desta revisão, e a regra 1 do CLAUDE.md manda não aproveitar a carona.

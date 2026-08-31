@@ -12,7 +12,7 @@ export function normalizarBusca(texto: string): string {
 }
 
 /**
- * O PREDICADO da busca da documentação — um só, para os dois lados.
+ * O PREDICADO da busca — um só, para os dois lados e para os dois textos.
  *
  * Mora aqui, e não em `indice.ts`, porque `indice.ts` é só-servidor e quem
  * filtra de verdade é o CLIENTE (`AjudaBusca`, sobre o `data-ajuda-texto` que o
@@ -21,10 +21,29 @@ export function normalizarBusca(texto: string): string {
  * navegador e não era testada. É a mesma armadilha que a revisão da F20 já
  * pegou em `resolverDestinoLegado`: um lugar só, e é o lugar testado.
  *
- * `textoIndexado` chega JÁ normalizado (é o que o servidor gravou); a consulta
- * é normalizada aqui. Consulta vazia casa com tudo.
+ * ⚠ NORMALIZA OS **DOIS** LADOS, e a segunda normalização é a correção da
+ * revisão de 31/08/2026. Até aqui a função normalizava só a consulta, e o
+ * contrato "`textoIndexado` chega JÁ normalizado" existia apenas nesta frase —
+ * a assinatura aceita `string` dos dois lados e não tinha como cobrá-lo. Os
+ * dois chamadores de `/ajuda` cumpriam (o servidor grava normalizado no
+ * `data-ajuda-texto`; a paleta passa a `chave` que `indice.ts` já normalizou),
+ * mas as CINCO tabelas de administração passavam o texto CRU da linha — e a
+ * busca simplesmente não achava ninguém:
+ *
+ *     casaBusca('João Silva 12345 Financeiro', 'João Silva')
+ *       → 'joao silva' ⊄ 'João Silva 12345 Financeiro'  → false
+ *
+ * Digitar o nome exato da pessoa devolvia nada; só um fragmento minúsculo e sem
+ * acento no MEIO da palavra ("ilva") casava. Buscar por "Silva" também falhava,
+ * pelo "S" maiúsculo. Remendar tela a tela deixaria a próxima tabela cair na
+ * mesma armadilha, então a normalização passou a ser responsabilidade DAQUI.
+ *
+ * Custa nada para quem já cumpria o contrato: `normalizarBusca` é idempotente
+ * (NFD é idempotente por definição, e depois do `replace` não sobra diacrítico
+ * para o `toLowerCase` reintroduzir), então texto já normalizado atravessa
+ * inalterado. Consulta vazia continua casando com tudo.
  */
 export function casaBusca(textoIndexado: string, consulta: string): boolean {
   const q = normalizarBusca(consulta)
-  return q === '' || textoIndexado.includes(q)
+  return q === '' || normalizarBusca(textoIndexado).includes(q)
 }
