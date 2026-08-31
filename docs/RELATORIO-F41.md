@@ -23,8 +23,8 @@ e do plano de área [`PLANO-ITENS.md`](PLANO-ITENS.md) §5. Plano da execução 
 
 **Nenhuma falha pré-existente nos quatro comandos.** Tudo que ficou vermelho durante a fase foi
 causado por ela, e está explicado abaixo — com uma exceção que não é dos quatro comandos e sim dos
-roteiros de banco:  já falhava no ensaio antes desta fase, e a §5.4 mostra a
-prova disso.
+roteiros de banco: `dev_destrutivo.sql` já falhava no projeto de ensaio antes desta fase, e a §5.4
+mostra a prova disso.
 
 ---
 
