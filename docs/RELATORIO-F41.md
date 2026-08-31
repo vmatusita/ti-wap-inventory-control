@@ -21,8 +21,10 @@ e do plano de área [`PLANO-ITENS.md`](PLANO-ITENS.md) §5. Plano da execução 
 | `npm run contraste` | **verde** (exit 0; o único ❌ é o "antes" registrado da F40, esperado) |
 | `npm run build` | **verde** |
 
-**Nenhuma falha pré-existente.** Tudo que ficou vermelho durante a fase foi causado por ela, e está
-explicado abaixo.
+**Nenhuma falha pré-existente nos quatro comandos.** Tudo que ficou vermelho durante a fase foi
+causado por ela, e está explicado abaixo — com uma exceção que não é dos quatro comandos e sim dos
+roteiros de banco:  já falhava no ensaio antes desta fase, e a §5.4 mostra a
+prova disso.
 
 ---
 
@@ -301,15 +303,163 @@ continua legível: o filtro de tipo mostra "Reserva" e "Devolução de reserva",
 
 ## 8. O rollout em produção
 
-_(preenchido na §8 após o apply — ver abaixo)_
+Ordem seguida à risca (`RUNBOOK-BANCO.md`): backup → `0125` → `0126` → verificar → `0127` →
+contagem por contagem → `notify pgrst` → tipos → merge → deploy → smoke.
+
+### 8.1 O backup, antes de qualquer escrita
+
+`scratchpad/backup-reservas-producao-2026-08-31.json` — **12 linhas** (todos os lançamentos com
+chamado, não só os 5 grupos abertos) · `scratchpad/producao-saldo-antes.txt` — **30 linhas**, uma por
+par item×filial. O `scratchpad/` é ignorado pelo git por construção, e é onde o dado real fica.
+
+### 8.2 Depois da `0125` e da `0126`
+
+| Verificação | Esperado | Real |
+|---|---|---|
+| `item_chave(text)` — assinatura, volatilidade, strict | 1 linha, `i`, `true` | ✔ |
+| `item_chave(x) = colaborador_chave(x)` | `true` | ✔ |
+| Policies de `itens` | `escrita cria item`/INSERT · `admin atualiza`/UPDATE · `admin apaga`/DELETE · `leitura operador`/SELECT | ✔ (4, nenhuma a mais) |
+| As três RPCs | 3 linhas, `prosecdef = false`, contador presente | ✔ |
+| Grants | `authenticated` + dono; **sem** `anon`, **sem** `service_role` | ✔ |
+| `lancamentos_item` | 58 (nenhuma das duas grava acervo) | ✔ **58** |
+| `itens` | 22 (o índice único não derrubou nada) | ✔ **22** |
+| `valida_lancamento_item` — md5 do corpo | `be4be02fe97acfe7aff9a752cd73b58d` | ✔ **intocado** |
+
+### 8.3 A conversão da `0127` — a prova par a par (critério 6)
+
+Saída literal do `diff -u` entre a foto de saldo antes e depois, nos 30 pares:
+
+```
+--- producao-saldo-antes.txt
++++ producao-saldo-depois.txt
+@@ -1,11 +1,11 @@
+-item=39 filial=1 total=41 reservado=1 em_uso=7 estoque=33
++item=39 filial=1 total=41 reservado=0 em_uso=8 estoque=33
+ item=39 filial=2 total=0 reservado=0 em_uso=0 estoque=0
+ item=39 filial=3 total=1 reservado=0 em_uso=0 estoque=1
+-item=39 filial=4 total=1 reservado=1 em_uso=0 estoque=0
++item=39 filial=4 total=1 reservado=0 em_uso=1 estoque=0
+ item=40 filial=1 total=65 reservado=0 em_uso=0 estoque=65
+ …
+-item=40 filial=4 total=1 reservado=1 em_uso=0 estoque=0
++item=40 filial=4 total=1 reservado=0 em_uso=1 estoque=0
+ …
+-item=133 filial=4 total=1 reservado=1 em_uso=0 estoque=0
++item=133 filial=4 total=1 reservado=0 em_uso=1 estoque=0
+ …
+-item=134 filial=4 total=1 reservado=1 em_uso=0 estoque=0
++item=134 filial=4 total=1 reservado=0 em_uso=1 estoque=0
+```
+
+**`total` e `estoque` IDÊNTICOS nos 30 pares.** Mudaram só `reservado` (→ 0) e `em_uso` (+1), e só
+nos **5** pares convertidos. É o critério 6, provado linha a linha e não no agregado.
+
+### 8.4 As contagens, antes × depois (critérios 6 e 9)
+
+| Medida | Antes | Depois | Leitura |
+|---|---|---|---|
+| `lancamentos_item` | 58 | **68** | +10 = exatamente as 10 linhas da conversão (5 grupos × 2) |
+| … `ajuste` | 22 | **22** | intacto |
+| … `entrada` | 13 | **13** | intacto |
+| … `reserva` | 5 | **5** | intacto — a conversão **não apaga** a reserva, ela a FECHA |
+| … `retorno` | 4 | **4** | intacto |
+| … `saida` | 14 | **19** | +5 (a saída que reabre cada unidade) |
+| … `liberacao` | 0 | **5** | +5 (o fechamento de cada reserva) |
+| … marcados `regularizacao` | — | **0** | correto: a conversão **não é** regularização |
+| **Σ total** | 264 | **264** | **idêntico** |
+| **Σ em estoque** | 244 | **244** | **idêntico** |
+| Σ reservado | 5 | **0** | zerado |
+| Σ em uso | 15 | **20** | +5 |
+| Grupos com reserva aberta | 5 | **0** | ✔ |
+| Pares com lançamento | 30 | **30** | intacto |
+| `itens` (todos com `nome_chave`) | 22 | **22 / 22** | o índice único entrou limpo |
+| `pendencias_item` abertas | 14 | **14** | intacto |
+
+**Critério 9 provado:** `58 + 10`, e as 10 são nomeáveis uma a uma. Nenhum tipo histórico mudou de
+contagem — `guarda_acervo` (`0081`) recusa UPDATE e DELETE a todo mundo, service role incluso.
+
+### 8.5 Os dois bancos convergiram, byte a byte
+
+`md5(prosrc)` das seis funções tocadas, comparado entre produção e ensaio:
+
+| Função | md5 (idêntico nos dois) |
+|---|---|
+| `criar_movimentacao_com_itens` | `046ecfc854b221c88a3abf2f388d66c0` |
+| `resolver_pendencias_item_com_lancamentos` | `a1b8a8bd767373d738c5135801fb152e` |
+| `lancar_itens_lote` | `3df9cc3a5a9988692e955bd561cf8b89` |
+| `item_chave` | `49effffa794c5b2766b6741425bf31d3` |
+| `dev_checagens_integridade` | `32ea68625e378be43eae4c5794da4345` |
+| `valida_lancamento_item` | `be4be02fe97acfe7aff9a752cd73b58d` (**intocado**) |
+
+A divergência de comentário que existia entre os ambientes **antes** desta fase convergiu.
+
+### 8.6 A janela entre o SQL e o deploy
+
+Ela existiu e foi curta, e o desenho a tornou inofensiva: **a assinatura das RPCs não mudou**, então
+entre a `0126` e o deploy a aplicação no ar continuou chamando o que sempre chamou. As chaves novas
+(`observacao_regularizacao` no payload; `regularizacoes`/`unidades_regularizadas` no retorno) são
+aditivas — chamador antigo ignora o que não conhece, e uma linha sem a justificativa só é recusada
+se a partição fosse mesmo necessária, com mensagem clara.
+
+### 8.7 Deploy e smoke
+
+Merge `--no-ff` na `main`, push, tag anotada **`v1.46.0`** publicada
+(`28cc11e3b8ad609a0fd2167056c67e56933a1945`).
+
+**CI na `main` (run 33435461547): `verificar: success` · `banco: success`.**
+
+`node scripts/smoke/smoke-prod.mjs`:
+
+```
+========================================================================
+RESUMO · 103 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+========================================================================
+```
+
+103 rotas e leituras OK, **zero falhas**. O único aviso é **pré-existente e alheio à fase**:
+`kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não
+comprovada`. É um caso que não consegue se provar por falta de dado, não uma falha.
+
+### 8.8 As onze checagens de `/dev`
+
+A função devolve **11 blocos** em produção (contados no corpo) e contém `reserva_aberta`. A conta
+que ela faz, rodada à parte: **0 reservas abertas**. A RPC exige cargo `dev` por dentro — chamá-la
+com o service role dá `42501`, que é a guarda funcionando.
 
 ---
 
 ## 9. A revisão adversarial
 
-Dois revisores em contexto fresco, nenhum deles autor do código.
+Dois revisores em contexto fresco, nenhum autor do código, instruídos a apontar só lacunas de
+correção ou de requisito — nunca preferência de estilo — e a sustentar todo achado com evidência.
 
-_(veredito na seção final)_
+| Revisor | Recorte | Veredito |
+|---|---|---|
+| **1** | O diff inteiro contra `PLAN-F41.md` e os 12 critérios | **limpo — 0 bloqueantes** |
+| **2** | Só as migrations, byte a byte, contra o corpo lido do banco | **0 bloqueantes**, 1 achado de documentação |
+
+**O revisor 2 foi mais rigoroso do que o pedido**, e vale registrar o método: em vez de transcrever
+o texto de `pg_get_functiondef` (uma transcrição sua já tinha introduzido um erro de digitação, que
+o próprio hash denunciou), ele comparou `prosrc` — o corpo literal armazenado pelo Postgres — por
+**MD5 contra o texto exato dos arquivos de migration**, provando que o que está aplicado É o que os
+arquivos dizem, sem drift, antes de rodar o `diff`.
+
+**Os dois achados, e o que foi feito com eles:**
+
+1. *(revisor 1, não bloqueante)* **"Repetir último" podia ressuscitar um tipo que a tela não oferece
+   mais.** Não era hipótese: a conversão da `0127` gravou `liberacao` e `saida` hoje, em nome de quem
+   fez as reservas. Não gravava dado errado — o trigger recusaria —, mas a mensagem seria sobre uma
+   reserva que o operador não sabe que existiu. **Corrigido** (commit `07876c1`): tipo fora dos
+   oferecidos volta em branco, mesma guarda que a filial já tinha.
+2. *(revisor 2, não bloqueante)* **O trigger tem CINCO guardas, e a migration dizia quatro.** A
+   quinta é a checagem por PESSOA da `0118`. O revisor refez a conta antes de apontar e concluiu que
+   a partição não a afeta — ela só DIMINUI a quantidade do `retorno` (`mín(q, A) ≤ q`), então todo
+   retorno que passaria com a quantidade cheia continua passando com a partida. **Documentação
+   corrigida** (commit `d53dd0d`) no cabeçalho da `0126`, na MATRIZ e no `PLAN-F41`, com a conta
+   escrita — quem for mexer nisso depois merece o número certo.
+
+Nenhum dos dois apontou guarda afrouxada ou trava sumida, que a ordem classifica como bloqueante por
+definição.
 
 ---
 
