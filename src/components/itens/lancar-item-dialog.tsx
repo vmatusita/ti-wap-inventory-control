@@ -45,6 +45,7 @@ import {
   MSG_ESCOLHA_TIPO,
   PERGUNTA_ESCOLHA,
   TAREFA_DO_TIPO,
+  TIPOS_OFERECIDOS,
   grupoDoTipo,
   grupoPorChave,
   type GrupoEscolha,
@@ -356,7 +357,15 @@ export function LancarItemDialog({
       setFilialId(ultimo.filial_id)
     }
     setGrupoAberto(null)
-    definirTipo(ultimo.tipo)
+    // F41 — mesma guarda da filial, um parágrafo acima, agora para o TIPO: o último
+    // lançamento pode ter sido de um tipo que a tela NÃO oferece mais (`reserva` ou
+    // `liberacao`, que a decisão J1 tirou do vocabulário). Repetir com ele deixaria o
+    // operador com um tipo que ele não escolheu, não consegue reescolher pelos quatro
+    // botões, e que o trigger provavelmente recusaria — a reserva já foi fechada.
+    // Não é hipótese: a conversão da 0127 gravou `liberacao` e `saida` HOJE, em nome
+    // de quem tinha feito as reservas. Tipo fora dos oferecidos volta em branco, e o
+    // operador responde a pergunta.
+    if (TIPOS_OFERECIDOS.includes(ultimo.tipo)) definirTipo(ultimo.tipo)
     setChamado(ultimo.chamado ?? '')
     setColaborador(ultimo.colaborador ?? '')
     setData(hojeISO())
