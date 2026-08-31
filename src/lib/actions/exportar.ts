@@ -239,7 +239,9 @@ function filtrosPendencias(
   }
 }
 
-// Espelha os filtros do histórico de src/app/(app)/itens/page.tsx (F9 · I3).
+// Espelha os filtros do histórico de src/app/(app)/itens/historico/page.tsx
+// (F9 · I3). A rota virou própria na F42: o histórico não mora mais dentro de
+// itens/page.tsx, e cada tela manda a própria querystring para o próprio export.
 function filtrosHistorico(
   p: URLSearchParams,
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },

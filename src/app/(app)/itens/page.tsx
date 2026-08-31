@@ -300,7 +300,17 @@ export default async function ItensPage({
         ) : (
           <EstadoVazio
             icone={PackageOpen}
-            titulo={temFiltro ? 'Nenhum item com esses filtros' : 'Nenhum saldo ainda'}
+            // Três títulos, e não dois: o do recorte por CARGO existia na tela
+            // antiga e a revisão adversarial da F42 apontou que ele tinha caído no
+            // genérico. "Nenhum saldo ainda" é uma afirmação GLOBAL, e para o
+            // operador de uma filial só ela é falsa — as outras podem ter saldo.
+            titulo={
+              temFiltro
+                ? 'Nenhum item com esses filtros'
+                : temRecorteFilial
+                  ? 'Nenhum saldo nas suas filiais'
+                  : 'Nenhum saldo ainda'
+            }
             descricao={vazioFiltrado.descricao}
             acao={vazioFiltrado.acao}
           />

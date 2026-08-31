@@ -304,7 +304,7 @@ function FiliaisDoItem({
   return (
     <div className="flex flex-col gap-2 px-4 py-3">
       <p className="text-xs text-muted-foreground">
-        {linha.item} em cada filial — estoque na prateleira, com as pessoas e no acervo.
+        {linha.item} em cada filial — na prateleira, com as pessoas e no acervo.
       </p>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2 xl:grid-cols-3">
         {filiais.map((f) => {
@@ -326,6 +326,23 @@ function FiliaisDoItem({
                   {emUso.toLocaleString('pt-BR')}
                   <span className="ml-1 text-xs text-muted-foreground">em uso</span>
                 </span>
+                {/* O TOTAL DA FILIAL. A tabela antiga o escondia no `title` de cada
+                    célula, junto com o reservado; a revisão adversarial da F42
+                    apontou que ele tinha sumido no redesenho, e ele volta VISÍVEL —
+                    é o número que fecha a conta da linha (estoque + em uso). */}
+                <span className="text-muted-foreground">
+                  {c.total.toLocaleString('pt-BR')}
+                  <span className="ml-1 text-xs">no acervo</span>
+                </span>
+                {/* Reservado só aparece quando NÃO é zero, que é o caso normal desde
+                    a conversão da F41. Uma coluna permanentemente vazia é ruído; o
+                    número escondido, quando existe, é dado que falta. */}
+                {c.atrelados > 0 && (
+                  <span className="text-muted-foreground">
+                    {c.atrelados.toLocaleString('pt-BR')}
+                    <span className="ml-1 text-xs">reservado</span>
+                  </span>
+                )}
                 {c.falta > 0 && (
                   <Badge className="border-transparent bg-red-100 text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">
                     faltam {c.falta.toLocaleString('pt-BR')}
