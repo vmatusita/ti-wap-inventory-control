@@ -12,6 +12,8 @@ Cada fase do projeto é executada como uma **ordem de serviço** em `docs/prompt
 
 Se o código existente, a ordem de serviço e os documentos se contradisserem: resolva pela hierarquia acima (a spec manda), **registre a decisão em `docs/DECISOES.md`** e siga — não trave.
 
+`docs/README.md` é o **índice** dos 60+ documentos: diz qual é vivo, qual é plano de área e qual é histórico (relatório de fase, análise datada) que não se atualiza. Consulte-o antes de abrir ou escrever documento nesta pasta. Documentação interna de desenvolvedor (README, índice, onboarding, runbook) **não** entra no `CHANGELOG.md` — o registro dela é a ata em `docs/DECISOES.md`; a regra 8 vale para o que muda o sistema do operador.
+
 ## Modo de operação: AUTÔNOMO — acesso total (decisão do Johnny, 09/07/2026)
 
 O Claude Code **não pede autorização**: decide, implementa, aplica migrations, roda scripts, mergeia na `main` e deploya — **inclusive direto em produção**. Perguntar ao Johnny é exceção rara, reservada a insumo físico que só ele tem (ex.: os CSVs reais, uma credencial que não existe no ambiente) — nunca para pedir permissão.

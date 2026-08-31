@@ -2,6 +2,33 @@
 
 Procedimento único para aplicar migrations e mudanças de banco neste projeto. Nasceu do item **A** do plano de dívida técnica (`docs/DIVIDA-TECNICA.md`) para tirar da cabeça o que hoje é conhecimento tribal (o "gate", o apply manual, as armadilhas).
 
+## Quando usar este runbook
+
+Use **sempre** que a mudança tocar o banco: nova migration, `create or replace` de função/trigger/view, `add value` de enum, RPC nova, policy de RLS, alteração de dado em produção. Não use para mudança só de código — essa vai pelo deploy normal da Vercel.
+
+**Pare e leia antes de rodar qualquer coisa** se a mudança contiver `delete from public.ativos` ou `delete from public.movimentacoes`: ela bate no *gate* (abaixo) e o caminho é outro.
+
+## Pré-requisitos e acessos
+
+| Precisa de | Para quê | Quem tem |
+|---|---|---|
+| **MCP Supabase** conectado | `apply_migration`, `execute_sql`, `get_advisors`, `list_migrations` | o agente, na sessão |
+| **SQL Editor** do projeto de produção | migrations que batem no gate (caminho B) | só o Johnny |
+| `.env.local` apontando para **DEV** | rodar `db:seed`/`db:reset` sem risco | qualquer dev |
+
+Não existe Supabase CLI local apontando para produção — toda operação em prod passa por MCP ou pelo SQL Editor. A CLI local está linkada ao projeto de **ensaio**.
+
+## O caminho, em 30 segundos
+
+1. Escreva a migration em `supabase/migrations/NNNN_*.sql` (nunca edite uma já aplicada).
+2. Ela contém `delete from ativos/movimentacoes`? **Não** → caminho **A**. **Sim** → caminho **B**.
+3. Aplique em **ensaio primeiro**, sempre.
+4. Rode a **verificação pós-apply** (assinatura, grants, contagens antes = depois).
+5. Mexeu em função/trigger/RPC/enum? Rode **TODOS** os roteiros de `supabase/tests/*.sql`.
+6. `notify pgrst, 'reload schema';` se mudou assinatura de RPC ou colunas.
+7. Só então aplique em produção — e repita 4→6.
+8. Migration que muda o que o código novo usa: **SQL antes do deploy** da Vercel.
+
 ## Topologia
 
 | Papel | Projeto Supabase (ref) | Uso |
@@ -47,13 +74,197 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
 6. **Recarregar o cache do PostgREST**: `notify pgrst, 'reload schema';` (senão a API não enxerga a nova assinatura).
 7. **Smoke só-leitura de produção** (ver o padrão nas atas de F7* em `docs/DECISOES.md`).
 
-## Divergência do ledger (estado em 23/07/2026 — ver a medição de 24/07 mais abaixo)
+## Rollback — a regra geral
+
+Toda migration entra com o rollback **escrito antes do apply**, no rodapé do próprio arquivo. O histórico do anexo A mostra que ele quase sempre cai num destes quatro moldes:
+
+| A migration é… | O rollback é | Perde dado? |
+|---|---|---|
+| **Aditiva** (coluna, tabela, índice, RPC nova) | `drop` do que ela criou | Não — nada do acervo |
+| **Recriação de função/view** (`create or replace` puro) | `create or replace` de volta ao **corpo da migration anterior** | Não |
+| **`add value` de enum** | Não há — mas o valor é inócuo enquanto ninguém o usa | Não |
+| **Toca dado** (`update`/`delete` de linhas) | O comando inverso, **a partir do backup das linhas** | Só se o backup falhar |
+
+Três exigências que não se negociam:
+
+1. **Confira o corpo vigente ANTES de recriar uma função.** O rollback de um `create or replace` é o corpo anterior — se ele já tinha drift em relação ao repo, você reverte para algo que nunca existiu. O jeito de conferir é `pg_get_functiondef` (ver "Conferir o estado do banco").
+2. **Operação que toca dado exporta backup antes** (linhas em `scratchpad/`, ou o jsonb/arquivo que as RPCs destrutivas já gravam sozinhas) e confere **contagens antes = depois**.
+3. **Rollback que reabre um furo de segurança só faz sentido junto do rollback completo da fase.** Várias entradas do anexo A dizem isso explicitamente — desfazer só a policy deixa o sistema pior que antes da migration.
+
+## Roteiros de teste SQL — rode TODOS ao mexer em função/trigger (regra nova, F17)
+
+**Mudou uma função, um trigger, a máquina de estados ou uma RPC (qualquer `create or replace` de função, ou um `add value` de enum que muda comportamento)? Rode TODOS os roteiros de `supabase/tests/*.sql` antes do push — não só o roteiro novo da fase.**
+
+Por quê: `npm run lint` / `test` / `build` **não executam** os roteiros SQL — só o job `banco` do CI (GitHub Actions) os roda (sobe um Postgres, aplica `0001`→última migration e roda cada `*.sql` com `psql`, falhando em qualquer `WARNING: ✗`). Foi exatamente o furo da **F15**: a `0047` mudou a RPC `devolver_ao_fornecedor` (o substituto passou a nascer por `troca`, não `compra`); o roteiro novo `troca.sql` cobriu o comportamento novo, mas o roteiro `manutencao_fornecedor.sql` (F14) **continuou exigindo `compra`** no cenário 4d → o job `banco` ficou vermelho a cada run desde o push da F15, sem que `lint/test/build` locais acusassem nada. Corrigido na **F17** (4d passou a exigir `troca`; ata em `docs/DECISOES.md`).
+
+Como rodar sem Docker/psql local (este ambiente): prove os roteiros no projeto de **ENSAIO** via MCP Supabase `execute_sql` — bloco `begin; … rollback;` que devolve **LINHAS** (o MCP engole `NOTICE`/`WARNING`, então não confie neles: compare o valor real numa `select` final, ex.: `select tipo from movimentacoes where id = <substituto_mov_id>`). Confirme antes que o ensaio está com as migrations em dia (`list_migrations`). A prova final continua sendo o job `banco` **verde** no GitHub após o push.
+
+## Conferir o estado do banco
+
+O ledger de migrations **não** responde "o banco está certo?" — quem responde é o objeto no banco. Estas três sondas são o controle que funciona.
+### Como conferir o efeito (sem depender do ledger)
+
+```sql
+-- 0039 aplicada? Nenhuma tabela de backup órfã deve sobrar.
+select count(*) as tabelas_backup
+from pg_tables where schemaname = 'public' and tablename like 'backup%';
+-- esperado: 0
+
+-- 0040 aplicada? A guarda de contagens tem de estar no corpo da RPC.
+select pg_get_functiondef(p.oid) like '%p_contagens is null%' as tem_guarda
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname = 'importar_ativos_substituir';
+-- esperado: true (exatamente 1 linha)
+```
+
+### ⚠️ O ledger NÃO é o controle de integridade (medição de 24/07/2026)
+
+**Nunca rode `supabase db push` contra produção a partir deste repo.** A reauditoria de dívida técnica (24/07) mediu o ledger e achou uma incompatibilidade **estrutural**, não uma simples defasagem:
+
+- As `version` do ledger são **timestamps de 14 dígitos gerados pelo MCP no ato do apply** (`20260722145340` → `0041_dominios_login`); os arquivos do repo usam prefixo sequencial (`0041_…sql`). A doc do Supabase confirma que a CLI identifica migration **pelo timestamp do nome do arquivo** ("a new row will be inserted into the migration history table with timestamp as its unique id").
+- Portanto os dois esquemas **não casam para praticamente nenhuma migration** — não só para as faltantes. Um `db push` tentaria reaplicar migrations já aplicadas.
+- **O dano concreto:** a RPC do import é redefinida em cadeia (`0032`→`0037`→**`0048`**). Reaplicar `0031`–`0037` **regrediria** o corpo vivo para o da `0037`, desfazendo a `0048`.
+
+**O controle que funciona (e que já se usa):**
+1. **Sonda de efeito** — conferir o objeto no banco (`pg_get_functiondef`, `information_schema`, `has_function_privilege`), não o ledger. É o método de fingerprint que a F19 usou para provar paridade ensaio×produção. ⚠ **Mas a forma CRUA do fingerprint tem um falso-positivo — use a sonda normalizada da seção abaixo.**
+2. **Job `banco` do CI** — prova que as 56 migrations aplicam limpo e em ordem num Postgres novo.
+3. **Verificação pós-apply** do passo 5 acima.
+
+### Sonda de paridade ensaio × produção (use ESTA — a crua engana)
+
+⚠ **`md5(pg_get_functiondef(oid))` cru NÃO serve para comparar ambientes.** Em 25/07/2026 ele
+apontou `criar_compra_lote` como divergente entre ensaio e produção, e a conclusão ("a `0055`/`0040`
+não chegaram ao ensaio") era **falsa**: a diferença era só o **fim de linha** — produção guarda o
+corpo com CRLF e o ensaio com LF (1.664 vs 1.617 bytes, exatamente os 47 `\r`). O fim de linha
+depende de **como** o SQL foi aplicado (SQL Editor no Windows vs MCP), não do que ele faz.
+**Normalize sempre**, e ao achar divergência **abra a diferença antes de reportá-la**.
+
+Rode o bloco abaixo nos DOIS projetos e compare linha a linha (10 classes de objeto). O filtro
+`not like '\_%'` exclui as tabelas de backup ad-hoc, que existem só em produção por construção.
+
+```sql
+with
+funcs as (
+  select 'func' classe, p.proname||'('||pg_get_function_identity_arguments(p.oid)||')' obj,
+         md5(regexp_replace(pg_get_functiondef(p.oid),'\s+',' ','g')||p.prosecdef::text||p.provolatile::text) fp
+  from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace where ns.nspname='public'),
+cols as (
+  select 'coluna', c.table_name||'.'||c.column_name,
+         md5(c.data_type||c.is_nullable||coalesce(regexp_replace(c.column_default,'\s+',' ','g'),'-')||coalesce(c.character_maximum_length::text,'-'))
+  from information_schema.columns c where c.table_schema='public' and c.table_name not like '\_%'),
+cons as (
+  select 'constraint', conrelid::regclass::text||'.'||conname,
+         md5(regexp_replace(pg_get_constraintdef(oid),'\s+',' ','g'))
+  from pg_constraint where connamespace='public'::regnamespace),
+idx as (
+  select 'indice', indexname, md5(regexp_replace(indexdef,'\s+',' ','g'))
+  from pg_indexes where schemaname='public'),
+pol as (
+  select 'policy', tablename||'.'||policyname,
+         md5(cmd||roles::text||coalesce(regexp_replace(qual,'\s+',' ','g'),'-')||coalesce(regexp_replace(with_check,'\s+',' ','g'),'-')||permissive::text)
+  from pg_policies where schemaname='public'),
+vws as (
+  select 'view', c.relname,
+         md5(regexp_replace(pg_get_viewdef(c.oid,true),'\s+',' ','g')||coalesce(c.reloptions::text,'-'))
+  from pg_class c join pg_namespace ns on ns.oid=c.relnamespace where ns.nspname='public' and c.relkind='v'),
+enums as (
+  select 'enum', t.typname, md5(string_agg(e.enumlabel, ',' order by e.enumsortorder))
+  from pg_type t join pg_enum e on e.enumtypid=t.oid
+  join pg_namespace ns on ns.oid=t.typnamespace where ns.nspname='public' group by t.typname),
+trg as (
+  select 'trigger', c.relname||'.'||t.tgname, md5(regexp_replace(pg_get_triggerdef(t.oid),'\s+',' ','g'))
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace ns on ns.oid=c.relnamespace where ns.nspname='public' and not t.tgisinternal),
+rls as (
+  select 'rls_flag', c.relname, md5(c.relrowsecurity::text||c.relforcerowsecurity::text)
+  from pg_class c join pg_namespace ns on ns.oid=c.relnamespace
+  where ns.nspname='public' and c.relkind='r' and c.relname not like '\_%'),
+grants as (
+  select 'grant_func', p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',
+         md5(has_function_privilege('anon',p.oid,'execute')::text
+           ||has_function_privilege('authenticated',p.oid,'execute')::text
+           ||has_function_privilege('service_role',p.oid,'execute')::text)
+  from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace where ns.nspname='public'),
+tudo as (
+  select * from funcs union all select * from cols union all select * from cons
+  union all select * from idx union all select * from pol union all select * from vws
+  union all select * from enums union all select * from trg union all select * from rls
+  union all select * from grants)
+select classe, count(*) as objetos, md5(string_agg(obj||'='||fp,'|' order by obj)) as fp_classe
+from tudo group by classe order by classe;
+```
+
+Classe que divergir → repita só aquela classe **sem** o `group by`, e faça o `except` dos dois
+resultados para achar o objeto exato.
+
+⚠ **SEGUNDO FALSO-POSITIVO CONHECIDO, e ele derrota até a sonda normalizada: COMENTÁRIO.**
+(F23, 30/07/2026.) Quando uma função grande é recriada **colando o SQL à mão em cada banco**
+— que é o que o apply por MCP obriga —, é fácil reescrever levemente um comentário interno
+entre uma colagem e outra. O corpo passa a diferir em bytes e no md5 normalizado, e o
+comportamento é **idêntico**. Aconteceu com `apagar_ativo` (5580 × 5529 bytes) e `apagar_item`
+(2567 × 2563). Antes de concluir "os bancos divergiram", refaça o hash **sem as linhas de
+comentário** — se bater, a divergência é redacional:
+
+```sql
+with d as (
+  select p.proname, string_agg(l, ' ' order by ord) as codigo
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
+         lateral regexp_split_to_table(pg_get_functiondef(p.oid), e'\n') with ordinality as t(l, ord)
+   where n.nspname='public' and p.proname = :nome
+     and btrim(l) not like '--%' and btrim(l) <> ''
+   group by p.proname)
+select proname, md5(regexp_replace(codigo, '\s+', ' ', 'g')) as fp_codigo, length(codigo)
+  from d;
+```
+
+A lição operacional: **o que precisa ser idêntico é o CÓDIGO**; comentário divergente é dívida
+de redação, não de comportamento — mas vale corrigir na próxima recriação daquela função, para
+a sonda agregada voltar a ser um sinal limpo.
+
+**Resultado de 25/07/2026 (depois do rollout de `0056`/`0058`/`0059`/`0060`):** as **10 classes
+batem** entre ensaio e produção — 15 funções, 15 grants, 201 colunas, 56 constraints, 47 índices,
+20 policies, 5 views, 6 enums, 2 triggers, 15 flags de RLS. Paridade completa; a única diferença
+fora do filtro é `_bkp_relatorios_gerados_f6a`, retida em produção de propósito.
+
+**Estado medido em 24/07/2026:** 56 migrations no repo, **46 no ledger** *(a `0057` entrou no mesmo dia, por caminho A, no ledger de ensaio e produção)*. As 10 ausentes (`0031`–`0037`, `0039`, `0040`, `0056`) foram **todas sondadas e estão aplicadas** — inclusive a **`0056`** (as sete RPCs `rel_*` já estão com `anon` sem `execute`), que o `CHANGELOG` ainda dava como pendente de handoff.
+
+## Armadilhas conhecidas (todas já aconteceram)
+- **Banco novo nasce em UTC — e o fuso do negócio é uma CONFIGURAÇÃO, não um trecho de SQL.** Desde a `0124` (30/08/2026) o banco roda em `America/Sao_Paulo`, gravado com `alter database … set timezone`. É isso que faz `current_date` nas RPCs carimbar a data certa (entre 21h e meia-noite, um banco em UTC grava o dia seguinte — o item W da dívida). A armadilha: **restore, branch de banco ou projeto novo voltam ao default de fábrica** e o sintoma só aparece à noite, no relatório de quem lançou. Mitigação: `supabase/tests/fuso_do_negocio.sql` reprova no job `banco`, e a asserção nº 4 dele é independente do horário de propósito. Ao criar qualquer banco novo, reaplique a `0124` antes de qualquer carga.
+- **Arquivo errado no SQL Editor** — rodar a migration anterior por engano (F7E: 0033 no lugar da 0034 → nada aplicado, erro `42701` depois). Mitigação: a verificação pós-apply do passo 5.
+- **Cache do PostgREST** — sem `notify pgrst`, a API recusa a nova assinatura da RPC. Mitigação: passo 6.
+- **Overload de função** — recriar com assinatura diferente (ou pular a ordem das migrations que fazem `drop`+`create`) deixa duas versões coexistindo → PostgREST não resolve a chamada. Mitigação: sempre `create or replace` puro com assinatura idêntica; verificação do passo 5.
+- **Ordem migration → deploy** — se a migration muda a assinatura/colunas que o código novo usa, aplicar o SQL ANTES do deploy da Vercel.
+- **Roteiro de teste defasado após mudar função/trigger** — a F15 mudou a RPC mas só atualizou o roteiro novo; o roteiro antigo (`manutencao_fornecedor.sql` 4d) ficou exigindo o comportamento velho (`compra`) e derrubou o job `banco` silenciosamente (lint/test/build locais não rodam SQL). Mitigação: a regra "rode TODOS os roteiros" da seção acima.
+- **Asserção nova do `papeis_rls.sql` sobre relação FORA do bloco de grants → `42501` só no CI, e leva o arquivo inteiro.** O roteiro é o único que faz `set local role authenticated`, e um projeto Supabase **hospedado** concede a `anon`/`authenticated` os privilégios de TABELA de `public` por *default privilege*. O Postgres NOVO que o job `banco` sobe **não** reproduz esses defaults. Então uma asserção que faça `select … from X` (ou escreva em X) sem X no bloco de grants explícito do topo do roteiro dá `ERROR: permission denied for table X` (`42501`), **aborta o `do $$` inteiro** — levando com ele todas as seções seguintes, que nem chegam a rodar — e **passa VERDE no ensaio**. É uma resposta certa para a pergunta errada: ali se mede *policy (RLS)*, não privilégio; quem mede privilégio é `seguranca_catalogo.sql`. **Inclusive VIEW:** `v_estoque_atual` precisou de `grant` próprio, porque o atalho `grant … on all tables in schema public` cobria views e o bloco explícito não — e o atalho está barrado no próprio roteiro: a variante de UPDATE cai no bloco `do $trava$` (devolveria o UPDATE de TABELA em `profiles` que a `0063` revogou, e a asserção `3g`, de escalada de privilégio, passaria por engano), e a de SELECT foi proibida pela regra escrita ali ("só entra a tabela/verbo que uma asserção realmente usa"), porque `on all tables` mascararia qualquer REVOKE futuro. Aconteceu com `ativos` no primeiro push da F21 e de novo com `v_estoque_atual` na revisão da `0070`. Mitigação: toda asserção nova entra **junto** com a sua relação/verbo no bloco de grants, com o comentário dizendo qual asserção a usa — e a prova é o job `banco` verde, não o run no ensaio.
+
+## Escalada — quando parar e chamar o Johnny
+
+O modo autônomo (`CLAUDE.md`) decide e executa sozinho, inclusive em produção. Estes são os casos em que ele **para**:
+
+| Situação | Por quê |
+|---|---|
+| A migration bate no **gate** (caminho B) | Só o Johnny roda no SQL Editor de produção — é o humano no circuito, por desenho |
+| **Divergência ensaio × produção** que não seja fim de linha | Abrir a diferença é obrigatório antes de reportar; se ela for real, é drift e não se corrige por reflexo |
+| **Contagem do acervo mudou** quando a migration não devia tocar dado | Sinal de efeito colateral — não siga para o próximo passo |
+| `get_advisors(security)` com **achado NOVO** depois do apply | O apply abriu um furo; o rollback vem antes do diagnóstico |
+| Falta **insumo físico** (CSV real, credencial que não existe no ambiente) | Não há como o agente obter — é a única "pergunta" prevista no modo autônomo |
+
+Fora desses casos: decida, execute, e registre a ata em [`DECISOES.md`](DECISOES.md).
+
+---
+
+## Anexo A — histórico de apply, migration a migration
+
+Registro append-only do que foi aplicado, como foi conferido e qual era o rollback de cada uma. **É histórico, não procedimento** — o procedimento está no topo. Serve para responder "esta migration chegou aos dois bancos?" e "qual era o corpo anterior desta função?" sem depender do ledger.
+
+O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a razão de este anexo existir.
+
 
 `list_migrations` de produção mostra `0001`–`0030` + `rate_limit_senha` (0025) + `0038` + `0041`. **Faltam no ledger** (aplicadas à mão pelo gate, mas os objetos EXISTEM em produção — `import_logs`, a RPC de 4 args etc.):
 
 - **0031, 0032, 0033, 0034, 0035, 0036, 0037** — as migrations do import de startup (F7…F8).
 - `0029` **não existe** (gap real na numeração; nunca foi criada).
-- **`0039` (drop dos backups) e `0040` (hardening das RPCs) — JÁ APLICADAS, só fora do ledger.** *Correção de 23/07/2026 (F12).* Até esta data o runbook, o `README.md` e o `CHANGELOG.md` diziam que as duas estavam **pendentes de apply**. **Medição direta no banco de produção desmente:** não existe **nenhuma** tabela `backup%` (é exatamente o efeito da `0039`) e o corpo de `importar_ativos_substituir` **contém** a guarda `p_contagens is null` (efeito da `0040`). O que falta é o **registro**, não o efeito — elas entram na reconciliação abaixo, junto com as `0031`–`0037`. **Conferir antes de reconciliar** (ver os dois SELECTs em "Como conferir o efeito", logo abaixo): registrar no ledger uma migration que não esteja aplicada é pior que a divergência.
+- **`0039` (drop dos backups) e `0040` (hardening das RPCs) — JÁ APLICADAS, só fora do ledger.** *Correção de 23/07/2026 (F12).* Até esta data o runbook, o `README.md` e o `CHANGELOG.md` diziam que as duas estavam **pendentes de apply**. **Medição direta no banco de produção desmente:** não existe **nenhuma** tabela `backup%` (é exatamente o efeito da `0039`) e o corpo de `importar_ativos_substituir` **contém** a guarda `p_contagens is null` (efeito da `0040`). O que falta é o **registro**, não o efeito — elas entram na reconciliação abaixo, junto com as `0031`–`0037`. **Conferir antes de reconciliar** (ver os dois SELECTs em "Conferir o estado do banco", no corpo do runbook): registrar no ledger uma migration que não esteja aplicada é pior que a divergência.
 - **`0041`** (domínios de login: `@stefanini.com` + `@latam.stefanini.com`, 22/07/2026) — **aplicada por MCP em prod E ensaio**, e no ledger dos dois. Não bate no gate (é `create or replace` de trigger, sem `delete from`).
 - **`0042`** (`itens.estoque_minimo` — F12, 23/07/2026) e **`0043`** (`kits_modelos` — F12, 23/07/2026) — as duas **aditivas** (coluna com default `0` + tabela nova com RLS), sem `delete from`, então **não batem no gate**: aplicadas por MCP em **ensaio primeiro** e depois em produção, e registradas no ledger dos dois normalmente. Rollback documentado no backup lógico da ordem: são aditivas, o `drop` não perde nenhum dado do acervo.
 - **`0044`** (enums `devolvido_fornecedor`/`devolucao_fornecedor` — F14, 23/07/2026) e **`0045`** (colunas `movimentacoes.chamado_fornecedor` + `ativos.substitui_ativo_id`, check `NOT VALID`, recriação de `status_apos_movimentacao`/`aplicar_movimentacao`/`rel_estoque_asof` por `create or replace` puro, RPC nova `devolver_ao_fornecedor`) — **aditivas**, sem `delete from` → **não batem no gate**: aplicadas por MCP em **ensaio primeiro** e depois em produção, registradas no ledger dos dois. `0044`/`0045` são migrations **separadas** de propósito (valor de enum novo não é usável na transação que o adiciona). Verificação pós-apply em produção: enums 9/14, colunas/check/índice presentes, RPC 1 assinatura + grants (authenticated=true, anon/service_role=false), diffs corretos das 3 funções (conferidos ANTES de recriar: corpos vigentes = base 0022/0023/0024, sem drift), acervo inalterado (1593). Rollback lógico: `drop` das colunas/índice/RPC + `create or replace` das 3 funções de volta aos corpos 0022/0023/0024 (nenhum dado do acervo se perde).
@@ -490,134 +701,10 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
   `drop function` das ferramentas; reaplicar o corpo da `0064` no import; `drop column forcado`
   nas duas tabelas. **Nenhum dado do acervo se perde em nenhum passo.**
 - **Retroativo C3 (F15 — toca dado, caminho B).** UPDATE de **2 linhas** de `movimentacoes` (`tipo 'compra'→'troca'` no nascimento dos substitutos já registrados, `ativo_id in (select id from ativos where substitui_ativo_id is not null)`). O classificador **não barrou** um UPDATE de 2 linhas via `execute_sql`. Backup das linhas em `scratchpad/f15/retroativo-backup.md` (WAP0005656/WAP0005657); antes=depois conferido (`compra` de substituto 2→0, `troca` 0→2); `status_resultante`/estado dos ativos intactos (a transição de `troca` é a mesma da `compra`). Rollback: `update movimentacoes set tipo='compra' where id in ('5cc393bc-…','95d3d096-…')`.
+---
 
-### Como conferir o efeito (sem depender do ledger)
+## Anexo B — reconciliação do ledger (opcional, cosmética)
 
-```sql
--- 0039 aplicada? Nenhuma tabela de backup órfã deve sobrar.
-select count(*) as tabelas_backup
-from pg_tables where schemaname = 'public' and tablename like 'backup%';
--- esperado: 0
-
--- 0040 aplicada? A guarda de contagens tem de estar no corpo da RPC.
-select pg_get_functiondef(p.oid) like '%p_contagens is null%' as tem_guarda
-from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-where n.nspname = 'public' and p.proname = 'importar_ativos_substituir';
--- esperado: true (exatamente 1 linha)
-```
-
-### ⚠️ O ledger NÃO é o controle de integridade (medição de 24/07/2026)
-
-**Nunca rode `supabase db push` contra produção a partir deste repo.** A reauditoria de dívida técnica (24/07) mediu o ledger e achou uma incompatibilidade **estrutural**, não uma simples defasagem:
-
-- As `version` do ledger são **timestamps de 14 dígitos gerados pelo MCP no ato do apply** (`20260722145340` → `0041_dominios_login`); os arquivos do repo usam prefixo sequencial (`0041_…sql`). A doc do Supabase confirma que a CLI identifica migration **pelo timestamp do nome do arquivo** ("a new row will be inserted into the migration history table with timestamp as its unique id").
-- Portanto os dois esquemas **não casam para praticamente nenhuma migration** — não só para as faltantes. Um `db push` tentaria reaplicar migrations já aplicadas.
-- **O dano concreto:** a RPC do import é redefinida em cadeia (`0032`→`0037`→**`0048`**). Reaplicar `0031`–`0037` **regrediria** o corpo vivo para o da `0037`, desfazendo a `0048`.
-
-**O controle que funciona (e que já se usa):**
-1. **Sonda de efeito** — conferir o objeto no banco (`pg_get_functiondef`, `information_schema`, `has_function_privilege`), não o ledger. É o método de fingerprint que a F19 usou para provar paridade ensaio×produção. ⚠ **Mas a forma CRUA do fingerprint tem um falso-positivo — use a sonda normalizada da seção abaixo.**
-2. **Job `banco` do CI** — prova que as 56 migrations aplicam limpo e em ordem num Postgres novo.
-3. **Verificação pós-apply** do passo 5 acima.
-
-### Sonda de paridade ensaio × produção (use ESTA — a crua engana)
-
-⚠ **`md5(pg_get_functiondef(oid))` cru NÃO serve para comparar ambientes.** Em 25/07/2026 ele
-apontou `criar_compra_lote` como divergente entre ensaio e produção, e a conclusão ("a `0055`/`0040`
-não chegaram ao ensaio") era **falsa**: a diferença era só o **fim de linha** — produção guarda o
-corpo com CRLF e o ensaio com LF (1.664 vs 1.617 bytes, exatamente os 47 `\r`). O fim de linha
-depende de **como** o SQL foi aplicado (SQL Editor no Windows vs MCP), não do que ele faz.
-**Normalize sempre**, e ao achar divergência **abra a diferença antes de reportá-la**.
-
-Rode o bloco abaixo nos DOIS projetos e compare linha a linha (10 classes de objeto). O filtro
-`not like '\_%'` exclui as tabelas de backup ad-hoc, que existem só em produção por construção.
-
-```sql
-with
-funcs as (
-  select 'func' classe, p.proname||'('||pg_get_function_identity_arguments(p.oid)||')' obj,
-         md5(regexp_replace(pg_get_functiondef(p.oid),'\s+',' ','g')||p.prosecdef::text||p.provolatile::text) fp
-  from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace where ns.nspname='public'),
-cols as (
-  select 'coluna', c.table_name||'.'||c.column_name,
-         md5(c.data_type||c.is_nullable||coalesce(regexp_replace(c.column_default,'\s+',' ','g'),'-')||coalesce(c.character_maximum_length::text,'-'))
-  from information_schema.columns c where c.table_schema='public' and c.table_name not like '\_%'),
-cons as (
-  select 'constraint', conrelid::regclass::text||'.'||conname,
-         md5(regexp_replace(pg_get_constraintdef(oid),'\s+',' ','g'))
-  from pg_constraint where connamespace='public'::regnamespace),
-idx as (
-  select 'indice', indexname, md5(regexp_replace(indexdef,'\s+',' ','g'))
-  from pg_indexes where schemaname='public'),
-pol as (
-  select 'policy', tablename||'.'||policyname,
-         md5(cmd||roles::text||coalesce(regexp_replace(qual,'\s+',' ','g'),'-')||coalesce(regexp_replace(with_check,'\s+',' ','g'),'-')||permissive::text)
-  from pg_policies where schemaname='public'),
-vws as (
-  select 'view', c.relname,
-         md5(regexp_replace(pg_get_viewdef(c.oid,true),'\s+',' ','g')||coalesce(c.reloptions::text,'-'))
-  from pg_class c join pg_namespace ns on ns.oid=c.relnamespace where ns.nspname='public' and c.relkind='v'),
-enums as (
-  select 'enum', t.typname, md5(string_agg(e.enumlabel, ',' order by e.enumsortorder))
-  from pg_type t join pg_enum e on e.enumtypid=t.oid
-  join pg_namespace ns on ns.oid=t.typnamespace where ns.nspname='public' group by t.typname),
-trg as (
-  select 'trigger', c.relname||'.'||t.tgname, md5(regexp_replace(pg_get_triggerdef(t.oid),'\s+',' ','g'))
-  from pg_trigger t join pg_class c on c.oid=t.tgrelid
-  join pg_namespace ns on ns.oid=c.relnamespace where ns.nspname='public' and not t.tgisinternal),
-rls as (
-  select 'rls_flag', c.relname, md5(c.relrowsecurity::text||c.relforcerowsecurity::text)
-  from pg_class c join pg_namespace ns on ns.oid=c.relnamespace
-  where ns.nspname='public' and c.relkind='r' and c.relname not like '\_%'),
-grants as (
-  select 'grant_func', p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',
-         md5(has_function_privilege('anon',p.oid,'execute')::text
-           ||has_function_privilege('authenticated',p.oid,'execute')::text
-           ||has_function_privilege('service_role',p.oid,'execute')::text)
-  from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace where ns.nspname='public'),
-tudo as (
-  select * from funcs union all select * from cols union all select * from cons
-  union all select * from idx union all select * from pol union all select * from vws
-  union all select * from enums union all select * from trg union all select * from rls
-  union all select * from grants)
-select classe, count(*) as objetos, md5(string_agg(obj||'='||fp,'|' order by obj)) as fp_classe
-from tudo group by classe order by classe;
-```
-
-Classe que divergir → repita só aquela classe **sem** o `group by`, e faça o `except` dos dois
-resultados para achar o objeto exato.
-
-⚠ **SEGUNDO FALSO-POSITIVO CONHECIDO, e ele derrota até a sonda normalizada: COMENTÁRIO.**
-(F23, 30/07/2026.) Quando uma função grande é recriada **colando o SQL à mão em cada banco**
-— que é o que o apply por MCP obriga —, é fácil reescrever levemente um comentário interno
-entre uma colagem e outra. O corpo passa a diferir em bytes e no md5 normalizado, e o
-comportamento é **idêntico**. Aconteceu com `apagar_ativo` (5580 × 5529 bytes) e `apagar_item`
-(2567 × 2563). Antes de concluir "os bancos divergiram", refaça o hash **sem as linhas de
-comentário** — se bater, a divergência é redacional:
-
-```sql
-with d as (
-  select p.proname, string_agg(l, ' ' order by ord) as codigo
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
-         lateral regexp_split_to_table(pg_get_functiondef(p.oid), e'\n') with ordinality as t(l, ord)
-   where n.nspname='public' and p.proname = :nome
-     and btrim(l) not like '--%' and btrim(l) <> ''
-   group by p.proname)
-select proname, md5(regexp_replace(codigo, '\s+', ' ', 'g')) as fp_codigo, length(codigo)
-  from d;
-```
-
-A lição operacional: **o que precisa ser idêntico é o CÓDIGO**; comentário divergente é dívida
-de redação, não de comportamento — mas vale corrigir na próxima recriação daquela função, para
-a sonda agregada voltar a ser um sinal limpo.
-
-**Resultado de 25/07/2026 (depois do rollout de `0056`/`0058`/`0059`/`0060`):** as **10 classes
-batem** entre ensaio e produção — 15 funções, 15 grants, 201 colunas, 56 constraints, 47 índices,
-20 policies, 5 views, 6 enums, 2 triggers, 15 flags de RLS. Paridade completa; a única diferença
-fora do filtro é `_bkp_relatorios_gerados_f6a`, retida em produção de propósito.
-
-**Estado medido em 24/07/2026:** 56 migrations no repo, **46 no ledger** *(a `0057` entrou no mesmo dia, por caminho A, no ledger de ensaio e produção)*. As 10 ausentes (`0031`–`0037`, `0039`, `0040`, `0056`) foram **todas sondadas e estão aplicadas** — inclusive a **`0056`** (as sete RPCs `rel_*` já estão com `anon` sem `execute`), que o `CHANGELOG` ainda dava como pendente de handoff.
-
-### Reconciliação (opcional — decisão do Johnny; **cosmética**)
 Registrar no ledger as migrations já aplicadas, para o histórico bater com produção. **Metadados apenas** (não recria nada — só insere linhas) e, pelo que está acima, **não torna o repo pushável**: serve para leitura humana do histórico, não como garantia. Rodar no SQL Editor de produção:
 
 ```sql
@@ -643,19 +730,3 @@ on conflict (version) do nothing;
 > **Confira o `name` real dos arquivos** em `supabase/migrations/` antes de rodar (o `version` é que importa para o `on conflict`; o `name` é só rótulo).
 Conferir antes: `select version, name from supabase_migrations.schema_migrations order by version;`. Reversível (`delete` das mesmas `version`). Como o apply de produção é manual (gate), esta reconciliação é para **fidelidade do histórico**, não muda o funcionamento.
 
-## Roteiros de teste SQL — rode TODOS ao mexer em função/trigger (regra nova, F17)
-
-**Mudou uma função, um trigger, a máquina de estados ou uma RPC (qualquer `create or replace` de função, ou um `add value` de enum que muda comportamento)? Rode TODOS os roteiros de `supabase/tests/*.sql` antes do push — não só o roteiro novo da fase.**
-
-Por quê: `npm run lint` / `test` / `build` **não executam** os roteiros SQL — só o job `banco` do CI (GitHub Actions) os roda (sobe um Postgres, aplica `0001`→última migration e roda cada `*.sql` com `psql`, falhando em qualquer `WARNING: ✗`). Foi exatamente o furo da **F15**: a `0047` mudou a RPC `devolver_ao_fornecedor` (o substituto passou a nascer por `troca`, não `compra`); o roteiro novo `troca.sql` cobriu o comportamento novo, mas o roteiro `manutencao_fornecedor.sql` (F14) **continuou exigindo `compra`** no cenário 4d → o job `banco` ficou vermelho a cada run desde o push da F15, sem que `lint/test/build` locais acusassem nada. Corrigido na **F17** (4d passou a exigir `troca`; ata em `docs/DECISOES.md`).
-
-Como rodar sem Docker/psql local (este ambiente): prove os roteiros no projeto de **ENSAIO** via MCP Supabase `execute_sql` — bloco `begin; … rollback;` que devolve **LINHAS** (o MCP engole `NOTICE`/`WARNING`, então não confie neles: compare o valor real numa `select` final, ex.: `select tipo from movimentacoes where id = <substituto_mov_id>`). Confirme antes que o ensaio está com as migrations em dia (`list_migrations`). A prova final continua sendo o job `banco` **verde** no GitHub após o push.
-
-## Armadilhas conhecidas (todas já aconteceram)
-- **Banco novo nasce em UTC — e o fuso do negócio é uma CONFIGURAÇÃO, não um trecho de SQL.** Desde a `0124` (30/08/2026) o banco roda em `America/Sao_Paulo`, gravado com `alter database … set timezone`. É isso que faz `current_date` nas RPCs carimbar a data certa (entre 21h e meia-noite, um banco em UTC grava o dia seguinte — o item W da dívida). A armadilha: **restore, branch de banco ou projeto novo voltam ao default de fábrica** e o sintoma só aparece à noite, no relatório de quem lançou. Mitigação: `supabase/tests/fuso_do_negocio.sql` reprova no job `banco`, e a asserção nº 4 dele é independente do horário de propósito. Ao criar qualquer banco novo, reaplique a `0124` antes de qualquer carga.
-- **Arquivo errado no SQL Editor** — rodar a migration anterior por engano (F7E: 0033 no lugar da 0034 → nada aplicado, erro `42701` depois). Mitigação: a verificação pós-apply do passo 5.
-- **Cache do PostgREST** — sem `notify pgrst`, a API recusa a nova assinatura da RPC. Mitigação: passo 6.
-- **Overload de função** — recriar com assinatura diferente (ou pular a ordem das migrations que fazem `drop`+`create`) deixa duas versões coexistindo → PostgREST não resolve a chamada. Mitigação: sempre `create or replace` puro com assinatura idêntica; verificação do passo 5.
-- **Ordem migration → deploy** — se a migration muda a assinatura/colunas que o código novo usa, aplicar o SQL ANTES do deploy da Vercel.
-- **Roteiro de teste defasado após mudar função/trigger** — a F15 mudou a RPC mas só atualizou o roteiro novo; o roteiro antigo (`manutencao_fornecedor.sql` 4d) ficou exigindo o comportamento velho (`compra`) e derrubou o job `banco` silenciosamente (lint/test/build locais não rodam SQL). Mitigação: a regra "rode TODOS os roteiros" da seção acima.
-- **Asserção nova do `papeis_rls.sql` sobre relação FORA do bloco de grants → `42501` só no CI, e leva o arquivo inteiro.** O roteiro é o único que faz `set local role authenticated`, e um projeto Supabase **hospedado** concede a `anon`/`authenticated` os privilégios de TABELA de `public` por *default privilege*. O Postgres NOVO que o job `banco` sobe **não** reproduz esses defaults. Então uma asserção que faça `select … from X` (ou escreva em X) sem X no bloco de grants explícito do topo do roteiro dá `ERROR: permission denied for table X` (`42501`), **aborta o `do $$` inteiro** — levando com ele todas as seções seguintes, que nem chegam a rodar — e **passa VERDE no ensaio**. É uma resposta certa para a pergunta errada: ali se mede *policy (RLS)*, não privilégio; quem mede privilégio é `seguranca_catalogo.sql`. **Inclusive VIEW:** `v_estoque_atual` precisou de `grant` próprio, porque o atalho `grant … on all tables in schema public` cobria views e o bloco explícito não — e o atalho está barrado no próprio roteiro: a variante de UPDATE cai no bloco `do $trava$` (devolveria o UPDATE de TABELA em `profiles` que a `0063` revogou, e a asserção `3g`, de escalada de privilégio, passaria por engano), e a de SELECT foi proibida pela regra escrita ali ("só entra a tabela/verbo que uma asserção realmente usa"), porque `on all tables` mascararia qualquer REVOKE futuro. Aconteceu com `ativos` no primeiro push da F21 e de novo com `v_estoque_atual` na revisão da `0070`. Mitigação: toda asserção nova entra **junto** com a sua relação/verbo no bloco de grants, com o comentário dizendo qual asserção a usa — e a prova é o job `banco` verde, não o run no ensaio.

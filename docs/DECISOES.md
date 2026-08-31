@@ -7663,3 +7663,51 @@ e da `0121`; as quatro do código, por `git revert`.
   da regra. Hoje é inofensivo porque esse arquivo é do SISTEMA (isento), mas um `<h1>` não
   autorizado escrito assim em qualquer outro arquivo passaria batido. Fica no backlog: é achado de
   fora dos 14 desta revisão, e a regra 1 do CLAUDE.md manda não aproveitar a carona.
+
+## 2026-08-31 · documentação · a porta de entrada estava enterrada sob o histórico
+
+- **Contexto:** aplicação da disciplina de documentação técnica ao repositório (pedido do Johnny,
+  fora de fase). O diagnóstico mediu, não presumiu: o `README.md` tinha **65 KB**, dos quais ~45 KB
+  eram uma seção "Status" com **um parágrafo por fase, da F9 à F40** — conteúdo que o `CHANGELOG.md`
+  já guarda com mais detalhe e mais atualizado. O próprio README estava **defasado**: anunciava
+  "F0→F39, versão 1.44.2" com a F40 entregue e o `package.json` em **1.45.1**. O `docs/` tinha
+  **65 arquivos `.md` sem índice** — um recém-chegado não tem como saber que `RELATORIO-F22.md` é
+  arqueologia e `MATRIZ-REGRAS.md` é vivo. O `RUNBOOK-BANCO.md`, documento operacional, tinha
+  **595 das suas 661 linhas** ocupadas pelo log de apply migration a migration, entre o passo 4 e o
+  passo seguinte do procedimento. E `PLAN.md` continuava na raiz, com o plano da **F39**, uma fase
+  encerrada — enquanto os planos da F30 à F40 já moram em `docs/`.
+- **Decisão:** cinco mudanças, nenhuma delas apagando conteúdo.
+  1. **`README.md` reescrito** (65 KB → ~9 KB) na ordem em que se lê: o que é → *Começar em 5
+     minutos* → comandos → stack → as duas regras que explicam o sistema (patrimônio + acesso) →
+     onde fica o quê → status curto → como as fases funcionam. O histórico fase a fase virou **link**
+     para o `CHANGELOG.md`. O que era só do README — filiais oficiais, perguntas em aberto da spec
+     §13, A8 e T11 — foi **preservado**. Corrigido também o pré-requisito de Node (dizia 20+; o CI
+     roda 24 e o desenvolvimento, 26) e acrescentado `npm run contraste`, que faltava na tabela.
+  2. **`docs/README.md` criado** — índice orientado a tarefa ("se você quer X, leia Y"), a
+     hierarquia de autoridade, e a separação explícita entre **vivo**, **plano de área**,
+     **exploração** e **histórico que não se atualiza**.
+  3. **`docs/ONBOARDING.md` criado** — do clone à primeira mudança em produção: as quatro regras que
+     não se quebram, o ambiente, a ordem de leitura, os dois caminhos da primeira mudança, a tabela
+     do que reprova no CI e quem pergunta o quê.
+  4. **`RUNBOOK-BANCO.md` reordenado, sem perder uma linha.** Ao topo: *Quando usar*, *Pré-requisitos
+     e acessos*, *O caminho em 30 segundos*, e as seções novas *Rollback — a regra geral* (os quatro
+     moldes extraídos do próprio histórico) e *Escalada*. O log migration a migration virou
+     **Anexo A**; a reconciliação do ledger, **Anexo B**. A única edição de texto foi a referência
+     cruzada que apontava "logo abaixo" para algo que passou a estar acima.
+  5. **`PLAN.md` → `docs/PLAN-F39.md`**, alinhado a `PLAN-F30`…`PLAN-F40`.
+- **Por quê:** documentação desatualizada é pior que documentação ausente, porque ninguém desconfia
+  dela. O README duplicava o CHANGELOG e por isso envelhecia sozinho — cada fase nova o deixava mais
+  errado sem que ninguém tocasse nele. A regra que fecha esse ciclo está escrita agora em
+  `docs/README.md`: **cada fato mora num lugar só; o resto é link**. E um runbook cuja primeira
+  metade é histórico deixa de ser lido no momento em que mais importa — quando alguém está prestes a
+  aplicar uma migration em produção.
+- **Sobre não entrar no `CHANGELOG.md`:** a regra 8 do `CLAUDE.md` manda que toda entrada nova no
+  CHANGELOG tenha versão, em **linguagem de operador**. Esta entrega não muda nada para quem opera o
+  sistema — a documentação do operador (`/ajuda`, `/versoes`) não foi tocada. Escrever uma entrada
+  aqui obrigaria a um texto que a própria regra proíbe ("nada mudou para você"). Então **não há
+  entrada no CHANGELOG e não há versão nova**: o registro é esta ata, e o `CLAUDE.md` passou a dizer
+  isso explicitamente, para a próxima sessão não reabrir a dúvida.
+- **O que NÃO foi feito:** nenhum documento histórico foi editado ou apagado — relatórios de fase,
+  análises datadas e as 7.600 linhas deste arquivo seguem intactos. `ESPECIFICACAO.md`,
+  `ARQUITETURA.md` e `MATRIZ-REGRAS.md` não foram tocados: estão atualizados e são a autoridade.
+- **Reversível?** Inteiramente — é só documentação, e o conteúdo anterior do README está no git.
