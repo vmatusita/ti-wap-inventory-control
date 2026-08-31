@@ -1,5 +1,6 @@
 import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 import { MAX_LINHAS_LOTE_ITEM, MSG_CHAMADO_OBRIGATORIO } from '@/lib/validators/item'
+import { TIPO_LANCAMENTO_META } from '@/lib/dominio'
 import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 import { DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
@@ -171,7 +172,7 @@ export const mensagensDeErro: PaginaAjuda = {
         [
           'Estoque insuficiente: a operação deixaria o item com estoque negativo na prateleira.',
           'A quantidade que você quer tirar é maior do que a que existe naquela filial.',
-          'Confira a coluna "Estoque" da filial escolhida. Se a prateleira tem mais do que o sistema sabe, registre antes a "Entrada" que faltou — ou um "Ajuste" com justificativa.',
+          'Confira a coluna "Estoque" da filial escolhida. Se a prateleira tem mais do que o sistema sabe, registre antes a "Compra" que faltou — ou um "Ajuste" com justificativa. Dentro de uma movimentação de equipamento isso não acontece mais: o sistema faz o acerto sozinho e segue.',
         ],
         [
           'Ajuste inválido: deixaria o item com total negativo.',
@@ -179,14 +180,14 @@ export const mensagensDeErro: PaginaAjuda = {
           'Reveja a quantidade: o ajuste corrige a contagem, não cria dívida. Se o total está errado desde antes, ajuste em duas etapas e explique em cada uma.',
         ],
         [
-          'A devolução é maior que a quantidade atrelada ao chamado.',
-          'Você está devolvendo mais peças do que as que foram atreladas naquele chamado.',
-          'Confira o número do chamado e o histórico daquele item. Devolva o que está atrelado; o excedente, se existir de verdade, entra como "Entrada".',
+          'A devolução é maior que a quantidade reservada para o chamado.',
+          'Você está devolvendo mais peças do que as que foram reservadas naquele chamado. Só aparece em lançamento antigo: nenhuma tela cria reserva nova desde 31/08/2026.',
+          'Confira o número do chamado e o histórico daquele item. Devolva o que está reservado; o excedente, se existir de verdade, entra como "Compra".',
         ],
         [
-          'O retorno é maior que a quantidade liberada em aberto.',
-          'O retorno passou do que ainda está com as pessoas por aquela liberação.',
-          'Veja no histórico quanto ainda está em aberto e lance só essa quantidade.',
+          'A devolução é maior que a quantidade que ainda está com as pessoas.',
+          'A devolução passou do que ainda está com as pessoas. Dentro de uma movimentação de equipamento isso não recusa mais nada: o excedente entra como acerto automático.',
+          'No lançamento avulso, veja no histórico quanto ainda está em aberto. Marcando "Voltou" no checklist de uma devolução, não há o que fazer: o sistema resolve sozinho.',
         ],
         [
           'O ajuste exige uma justificativa (observação).',
@@ -199,7 +200,7 @@ export const mensagensDeErro: PaginaAjuda = {
           // nomes internos do enum, e esta linha existia para traduzir a
           // divergência. A frase vem da MESMA constante que o formulário usa.
           `${MSG_CHAMADO_OBRIGATORIO}.`,
-          '"Atrelar" e "Devolução" são os dois lançamentos que amarram a peça a um chamado, e por isso pedem o número.',
+          `"${TIPO_LANCAMENTO_META.reserva.rotulo}" e "${TIPO_LANCAMENTO_META.liberacao.rotulo}" são os dois lançamentos que amarram a peça a um chamado, e por isso pedem o número. Os dois saíram da tela na F41 — esta recusa só alcança lançamento antigo.`,
           'Preencha "Chamado" (só números). Sem chamado, o par ida/volta não fecha e a coluna "Falta" acende depois.',
         ],
         [
@@ -208,8 +209,8 @@ export const mensagensDeErro: PaginaAjuda = {
           'Corrija a quantidade da linha. No ajuste, negativo significa baixa.',
         ],
         [
-          'Já existe um item com esse nome.',
-          'O catálogo não aceita dois itens com o mesmo nome.',
+          'Já existe um item com esse nome (a comparação ignora acento, maiúscula e espaço a mais). Use o item que já existe.',
+          'O catálogo não aceita dois itens com o mesmo nome — e desde 31/08/2026 a comparação ignora acento, maiúscula e espaço a mais: "Mochila " e "mochila" são o mesmo item.',
           'Use o item que já existe. Se ele não aparece na busca, provavelmente está desativado: reative-o em Administração › Itens.',
         ],
         [

@@ -305,20 +305,37 @@ export function rotuloGrupoItem(g: GrupoItem): string {
 
 export const GRUPO_ITEM_ORDEM: GrupoItem[] = ['acessorio', 'componente']
 
-// Semântica Total/Estoque (F6A §A4, decisão Johnny 16/07/2026). Os VALORES do enum
-// são imutáveis (renomear quebraria histórico); a reconciliação é só de RÓTULO:
-//   saida→Liberação (fica c/ a pessoa), reserva→Atrelar (vai retornar),
-//   liberacao→Devolução (repõe estoque), retorno→Retorno (novo). `descricao` ajuda
-//   o operador no dialog a entender o efeito de cada tipo.
+// UM VOCABULÁRIO SÓ, COM AS PALAVRAS DO ATIVO (F41 · decisão J1, 31/08/2026).
+//
+// Os VALORES do enum continuam imutáveis — renomear reescreveria a leitura de todo
+// lançamento histórico e de todo relatório congelado. O que mudou foi o RÓTULO, e
+// mudou porque o item e o ativo diziam nomes diferentes para a mesma função, com
+// TRÊS colisões ao contrário (dor D1 do docs/PLANO-ITENS.md):
+//
+//   · `saida` era "Liberação" no item e "Saída" no ativo — mesmo valor, dois nomes;
+//   · `liberacao` era rotulado "Devolução" enquanto "Liberação" era o rótulo de
+//     OUTRO tipo (`saida`) — o comentário de `actions/erros.ts` já registrava uma
+//     mensagem que precisou ser reescrita por causa disso;
+//   · "Atrelar" descrevia exatamente o que o operador queria ("este item acompanha
+//     o equipamento") e fazia outra coisa: prendia a unidade a um CHAMADO, que só
+//     um `liberacao` do mesmo chamado soltava. Foi a segunda metade da dor D2.
+//
+// A reconciliação anterior (F6A §A4, 16/07/2026) tentou dar nome próprio a cada
+// tipo; esta desiste disso e usa as palavras que o operador já conhece do ativo:
+//   entrada→Compra · saida→Saída · retorno→Devolução · ajuste→Ajuste
+// O par reserva/liberacao SAI DA TELA (só histórico) e passa a ler-se
+//   reserva→Reserva · liberacao→Devolução de reserva
+// — legível para quem abrir um lançamento antigo, e impossível de escolher por
+// engano, porque `escolha-tipo.ts` não os oferece mais.
 export const TIPO_LANCAMENTO_META: Record<
   TipoLancamento,
   { rotulo: string; descricao: string }
 > = {
-  entrada: { rotulo: 'Entrada', descricao: 'Compra/recebimento — soma ao total e ao estoque.' },
-  saida: { rotulo: 'Liberação', descricao: 'Item fica com a pessoa — baixa o estoque; o total continua.' },
-  reserva: { rotulo: 'Atrelar', descricao: 'Acompanha um ativo/chamado e vai retornar — baixa o estoque.' },
-  liberacao: { rotulo: 'Devolução', descricao: 'Item atrelado voltou — repõe o estoque.' },
-  retorno: { rotulo: 'Retorno', descricao: 'Item liberado voltou para a prateleira — repõe o estoque.' },
+  entrada: { rotulo: 'Compra', descricao: 'Compra/recebimento — soma ao total e ao estoque.' },
+  saida: { rotulo: 'Saída', descricao: 'Item fica com a pessoa — baixa o estoque; o total continua.' },
+  reserva: { rotulo: 'Reserva', descricao: 'Separado para um chamado e vai voltar — baixa o estoque.' },
+  liberacao: { rotulo: 'Devolução de reserva', descricao: 'Item separado para um chamado voltou — repõe o estoque.' },
+  retorno: { rotulo: 'Devolução', descricao: 'Item que estava com a pessoa voltou para a prateleira — repõe o estoque.' },
   ajuste: { rotulo: 'Ajuste', descricao: 'Correção de inventário (± com justificativa).' },
 }
 
@@ -330,15 +347,25 @@ export function descricaoTipoLancamento(t: TipoLancamento): string {
   return TIPO_LANCAMENTO_META[t]?.descricao ?? ''
 }
 
-// Pílula colorida da coluna Tipo no histórico: entrada azul, liberação(saida)
-// âmbar, atrelar(reserva) violeta, devolução(liberacao) verde, retorno teal,
-// ajuste neutro.
+// Pílula colorida da coluna Tipo no histórico. A F41 alinhou a TINTA ao rótulo: se
+// o item passou a dizer "Compra" e "Devolução" com as palavras do ativo, dizê-las
+// em cores diferentes das do ativo desfaria metade do trabalho — o operador
+// reconhece o selo antes de ler a palavra.
+//
+// Cada tipo usa EXATAMENTE o token do tipo correspondente do ativo (`TIPO_PILL`):
+//   entrada  → a de `compra`      (era `selo-em-uso`; virou `selo-em-estoque`)
+//   saida    → a de `saida`       (já casava)
+//   retorno  → a de `devolucao`   (era `selo-troca`; virou `selo-em-uso`)
+//   ajuste   → a neutra           (já casava — no ativo, `ajuste` também é neutra)
+// O par reserva/liberacao não tem correspondente com tinta própria no ativo (lá
+// `reserva` cai na neutra), então mantém a sua: são de histórico, e distingui-los
+// do resto ajuda quem abre um lançamento antigo.
 const TIPO_LANC_PILL: Record<TipoLancamento, string> = {
-  entrada: 'bg-selo-em-uso text-selo-em-uso-texto',
+  entrada: 'bg-selo-em-estoque text-selo-em-estoque-texto',
   saida: 'bg-selo-em-manutencao text-selo-em-manutencao-texto',
   reserva: 'bg-selo-reservado text-selo-reservado-texto',
-  liberacao: 'bg-selo-em-estoque text-selo-em-estoque-texto',
-  retorno: 'bg-selo-troca text-selo-troca-texto',
+  liberacao: 'bg-selo-troca text-selo-troca-texto',
+  retorno: 'bg-selo-em-uso text-selo-em-uso-texto',
   // F19 — mesmo neutro AA do `pillTipo` (ver PILL_NEUTRA).
   ajuste: PILL_NEUTRA,
 }

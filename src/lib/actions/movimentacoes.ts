@@ -577,7 +577,14 @@ export async function estornarMovimentacao(input: {
   // inteiro: nunca meio estorno.
   const { data: itensDaMov, error: itensErr } = await supabase
     .from('lancamentos_item')
-    .select('id, item_id, filial_id, tipo, quantidade, chamado, observacao, colaborador, colaborador_id')
+    // F41 — `regularizacao` entra na leitura porque `planejarEstorno` precisa dela
+    // para redigir o inverso do ACERTO AUTOMÁTICO com o texto certo. A aritmética
+    // não muda (ajuste positivo → ajuste negativo, como qualquer ajuste); o que
+    // mudaria sem isto é o diário dizer "Estorno de ajuste" sobre um ajuste que o
+    // operador nunca fez.
+    .select(
+      'id, item_id, filial_id, tipo, quantidade, chamado, observacao, colaborador, colaborador_id, regularizacao',
+    )
     .eq('movimentacao_id', mov.id)
     .is('estorna_id', null)
   if (itensErr) return { ok: false, erro: traduzErroBanco(itensErr.message, itensErr.code) }
@@ -589,6 +596,7 @@ export async function estornarMovimentacao(input: {
         quantidade: l.quantidade,
         chamado: l.chamado,
         observacao: l.observacao,
+        regularizacao: l.regularizacao,
       },
       parsed.data.observacao ?? null,
     )

@@ -17,7 +17,7 @@ import {
   MAX_LOTE_MOVIMENTACAO,
   TIPOS_FORA_DO_LOTE_MANUAL,
 } from '@/lib/validators/movimentacao'
-import { MAX_LINHAS_LOTE_ITEM } from '@/lib/validators/item'
+import { MAX_LINHAS_LOTE_ITEM, MSG_CHAMADO_OBRIGATORIO } from '@/lib/validators/item'
 import { MOV_PAGE_SIZE } from '@/lib/queries/movimentacoes'
 import { GERADOS_PAGE_SIZE } from '@/lib/queries/gerados'
 import { PRESETS } from '@/lib/relatorios/periodo'
@@ -286,12 +286,46 @@ describe('itens-por-quantidade — grupos, números e tipos de lançamento', () 
     )
   })
 
-  it('mantém a semântica de Falta (déficit) e explica os pares ida/volta', () => {
+  it('mantém a semântica de Falta (déficit) e explica o par ida/volta', () => {
+    // F41 — as quatro literais deste caso mudaram porque o VOCABULÁRIO mudou
+    // (decisão J1), não para ficar verde. A fórmula da Falta é a MESMA: só os
+    // nomes dos números viraram "reservado" e "em uso". E o par ida/volta agora é
+    // UM só, porque reserva/liberacao saíram da tela. Ata em docs/DECISOES.md.
     const t = normal('itens-por-quantidade')
-    expect(t).toContain(normalizarBusca('atrelados + liberados − total'))
+    expect(t).toContain(normalizarBusca('reservado + em uso − total'))
     expect(t).toContain(normalizarBusca('déficit'))
-    expect(t).toContain(normalizarBusca('o que sai por Liberação volta por Retorno'))
-    expect(t).toContain(normalizarBusca('o que sai por Atrelar volta por Devolução'))
+    // O par que sobrou, derivado do domínio para não voltar a envelhecer.
+    expect(t).toContain(
+      normalizarBusca(
+        `o que sai por ${TIPO_LANCAMENTO_META.saida.rotulo} volta por ${TIPO_LANCAMENTO_META.retorno.rotulo}`,
+      ),
+    )
+  })
+
+  // A outra metade da decisão J1, e a que o critério 10 da F41 cobra: os dois
+  // tipos que saíram da tela continuam LEGÍVEIS no histórico — a página explica
+  // que eles existem e que ninguém cria mais nenhum.
+  it('explica que o par reserva/devolução-de-reserva saiu da tela e ficou no histórico', () => {
+    const t = normal('itens-por-quantidade')
+    expect(t).toContain(normalizarBusca(TIPO_LANCAMENTO_META.reserva.rotulo))
+    expect(t).toContain(normalizarBusca(TIPO_LANCAMENTO_META.liberacao.rotulo))
+    expect(t).toContain(normalizarBusca('nenhuma tela cria reserva nova'))
+    // O nome VELHO aparece — e tem de aparecer. Quem operou com "Atrelar" por duas
+    // semanas precisa achar, na ajuda, a frase que diz que aquilo virou outra coisa.
+    // O que o critério 10 da F41 proíbe é OFERECER o termo numa tela, não citá-lo
+    // aqui explicando que ele saiu. Por isso a asserção é de contexto, não de
+    // ausência: o nome velho só pode aparecer ao lado da explicação de que morreu.
+    expect(t).toContain(normalizarBusca('Atrelar'))
+    expect(t).toContain(normalizarBusca('SAIU da tela'))
+  })
+
+  // F41 — o acerto automático é o coração da fase, e ele TEM de estar explicado:
+  // um ajuste que o sistema grava sozinho e que a ajuda não menciona é
+  // exatamente o "acerto mal explicado que polui o Total" que o plano temia.
+  it('explica o acerto automático — o que é, quando acontece e onde aparece', () => {
+    const t = normal('itens-por-quantidade')
+    expect(t).toContain(normalizarBusca('acerto automático'))
+    expect(t).toContain(normalizarBusca('não é mais recusado'))
   })
 })
 
@@ -410,15 +444,19 @@ const MENSAGENS_OBRIGATORIAS = [
   // Itens por quantidade
   'Estoque insuficiente: a operação deixaria o item com estoque negativo na prateleira.',
   'Ajuste inválido: deixaria o item com total negativo.',
-  'A devolução é maior que a quantidade atrelada ao chamado.',
-  'O retorno é maior que a quantidade liberada em aberto.',
+  // F41 — as duas frases mudaram com o vocabulário (decisão J1) e com o fim do
+  // bloqueio: "atrelada AO chamado" virou "reservada PARA o chamado", e o "retorno
+  // maior que o liberado em aberto" virou "devolução maior que o que está com as
+  // pessoas" — que é a mesma recusa, agora só alcançável fora de uma movimentação.
+  'A devolução é maior que a quantidade reservada para o chamado.',
+  'A devolução é maior que a quantidade que ainda está com as pessoas.',
   'O ajuste exige uma justificativa (observação).',
   // 19/08/2026 (avulsa) — a recusa do chamado passou a falar os rótulos DA TELA
   // (antes: "Reserva e liberação exigem o número do chamado.", os nomes
   // internos do enum — "Liberação" na tela é OUTRO tipo).
-  'Atrelar e Devolução exigem o número do chamado.',
+  `${MSG_CHAMADO_OBRIGATORIO}.`,
   'Quantidade inválida para este tipo de lançamento.',
-  'Já existe um item com esse nome.',
+  'Já existe um item com esse nome (a comparação ignora acento, maiúscula e espaço a mais). Use o item que já existe.',
   'Este lançamento já foi estornado.',
   'Um estorno não pode ser estornado.',
   // Identidade e duplicidade
@@ -520,9 +558,19 @@ describe('mensagens-de-erro — catálogo com o texto exato da tela', () => {
   // ser um dicionário de nomes internos. Asserção de DOIS lados, como sempre:
   // a frase nova está lá E a antiga não está.
   it('a recusa do chamado fala os rótulos da tela — o texto interno morreu', () => {
+    // F41 — as literais viraram DERIVAÇÃO. O caso nasceu em 19/08/2026 travando
+    // "Atrelar e Devolução…" como string; a decisão J1 renomeou os dois rótulos e a
+    // string envelheceu no mesmo dia. O que este caso quer provar nunca foi a
+    // grafia: é que a ajuda diz a MESMA frase que o formulário e o tradutor de erro
+    // dizem. Derivando de `MSG_CHAMADO_OBRIGATORIO` e de `TIPO_LANCAMENTO_META`, ele
+    // continua provando isso e para de envelhecer a cada renome.
     const t = normal('mensagens-de-erro')
-    expect(t).toContain(normalizarBusca('Atrelar e Devolução exigem o número do chamado.'))
-    expect(t).toContain(normalizarBusca('"Atrelar" e "Devolução"'))
+    expect(t).toContain(normalizarBusca(`${MSG_CHAMADO_OBRIGATORIO}.`))
+    expect(t).toContain(
+      normalizarBusca(
+        `"${TIPO_LANCAMENTO_META.reserva.rotulo}" e "${TIPO_LANCAMENTO_META.liberacao.rotulo}"`,
+      ),
+    )
     expect(t).not.toContain(normalizarBusca('Reserva e liberação exigem'))
     expect(t).not.toContain(normalizarBusca('a mensagem usa os nomes internos'))
   })

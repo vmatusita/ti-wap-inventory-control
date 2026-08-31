@@ -6,12 +6,7 @@ import {
 } from '@/lib/validators/item'
 import { TIPO_LANCAMENTO_META, type TipoLancamento } from '@/lib/dominio'
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
-import {
-  GRUPOS_ESCOLHA,
-  PERGUNTA_ESCOLHA,
-  TAREFA_DO_TIPO,
-  grupoPorChave,
-} from '@/lib/itens/escolha-tipo'
+import { GRUPOS_ESCOLHA, PERGUNTA_ESCOLHA, TAREFA_DO_TIPO } from '@/lib/itens/escolha-tipo'
 import { ROTULO_SALDO_APOS } from '@/lib/itens/saldo-apos'
 import { ROTULO_ACRESCENTAR, ROTULO_BAIXAR } from '@/lib/itens/sinal-ajuste'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
@@ -26,21 +21,22 @@ const TIPOS_LANCAMENTO_TEXTO = (Object.keys(TIPO_LANCAMENTO_META) as TipoLancame
   .join(', ')
 
 const GRUPOS_TEXTO = GRUPOS_ESCOLHA.map((g) => `"${g.rotulo}"`).join(', ')
-const SAIU = grupoPorChave('saiu')
-const VOLTOU = grupoPorChave('voltou')
 
 // Os dois tipos que exigem o numero do chamado sao 'reserva' e 'liberacao'
-// (`exigeChamado`, em validators/item.ts). Na TELA eles se chamam "Atrelar" e
-// "Devolucao" — e "Liberacao" e o rotulo de OUTRO tipo ('saida'), que nao pede
-// chamado nenhum. Por isso os nomes saem daqui, nao da memoria de quem escreve.
-const ATRELAR = TIPO_LANCAMENTO_META.reserva.rotulo
-const DEVOLUCAO = TIPO_LANCAMENTO_META.liberacao.rotulo
+// (`exigeChamado`, em validators/item.ts). F41: eles SAIRAM da tela — o dialogo nao
+// os oferece mais — e vivem so no historico, onde se leem "Reserva" e "Devolucao de
+// reserva". Os nomes continuam saindo daqui, e nao da memoria de quem escreve,
+// porque e assim que esta pagina acompanha o proximo renome sozinha.
+const RESERVA = TIPO_LANCAMENTO_META.reserva.rotulo
+const DEVOLUCAO_DE_RESERVA = TIPO_LANCAMENTO_META.liberacao.rotulo
 
-// F31 — os tres tipos que a secao de TRANSFERENCIA cita pelo nome. Mesma regra de
-// ouro: 'saida' se chama "Liberacao" na tela e 'liberacao' se chama "Devolucao";
-// digitar esses nomes a mao e como se erra.
-const LIBERACAO = TIPO_LANCAMENTO_META.saida.rotulo
-const ENTRADA = TIPO_LANCAMENTO_META.entrada.rotulo
+// Os tipos que a tela OFERECE, citados pelo nome nesta pagina. Mesma regra de ouro.
+// Repare que o NOME DA CONSTANTE agora bate com o rotulo: antes da F41 havia um
+// `const LIBERACAO = ...saida.rotulo` que passou a valer "Saida", e um `DEVOLUCAO`
+// que apontava para 'liberacao' — ler o fonte era mais dificil que ler a tela.
+const SAIDA = TIPO_LANCAMENTO_META.saida.rotulo
+const DEVOLUCAO = TIPO_LANCAMENTO_META.retorno.rotulo
+const COMPRA = TIPO_LANCAMENTO_META.entrada.rotulo
 const AJUSTE = TIPO_LANCAMENTO_META.ajuste.rotulo
 
 export const lancarItens: PaginaAjuda = {
@@ -64,7 +60,7 @@ export const lancarItens: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'Use o lançamento quando a quantidade de um item mudar: chegou uma caixa de mouses, um teclado saiu com alguém, uma memória foi atrelada a um chamado. Não use para equipamento com patrimônio — esse tem ficha e movimentação próprias. E não use o Ajuste como atalho para os outros tipos: ele existe para corrigir contagem, com justificativa.',
+        'Use o lançamento quando a quantidade de um item mudar: chegou uma caixa de mouses, um teclado saiu com alguém, um carregador voltou. Não use para equipamento com patrimônio — esse tem ficha e movimentação próprias. E não use o Ajuste como atalho para os outros tipos: ele existe para corrigir contagem, com justificativa.',
     },
     {
       tipo: 'lista',
@@ -81,9 +77,9 @@ export const lancarItens: PaginaAjuda = {
         'Abra Itens pelo menu lateral e use "Lançar" — o diálogo se chama "Lançar quantidade". Dentro da página Itens, a tecla L abre esse mesmo diálogo; fora dela a tecla não faz nada (ela não navega até Itens).',
         'Se o item já aparece na tabela de saldos, use o botão de lançar da própria linha: o formulário abre com o item preenchido e o cursor na quantidade. A filial vem junto quando a tela está no Consolidado com UMA filial marcada no filtro; com duas ou mais marcadas, e na visão Por filial, ela abre em branco (a linha vale para todas) — escolha a filial antes de salvar.',
         'Com a filial escolhida, a lista de itens passa a mostrar o saldo de cada um (ex.: "Mouse USB · 14") — dá para ver antes de escolher às cegas. Sem filial marcada, ou enquanto o saldo ainda carrega, a lista aparece sem o número (nunca com "0" chutado).',
-        `Responda "${PERGUNTA_ESCOLHA}" — ${GRUPOS_TEXTO}. Em "${SAIU.rotulo}" e "${VOLTOU.rotulo}" vem a segunda pergunta ("${SAIU.pergunta}" / "${VOLTOU.pergunta}"), e a resposta — pessoa ou chamado — escolhe o par certo sozinha: "${TAREFA_DO_TIPO.saida}" é ${TIPO_LANCAMENTO_META.saida.rotulo} e volta como "${TAREFA_DO_TIPO.retorno}" (${TIPO_LANCAMENTO_META.retorno.rotulo}); "${TAREFA_DO_TIPO.reserva}" é ${TIPO_LANCAMENTO_META.reserva.rotulo} e volta como "${TAREFA_DO_TIPO.liberacao}" (${TIPO_LANCAMENTO_META.liberacao.rotulo}).`,
+        `Responda "${PERGUNTA_ESCOLHA}" — ${GRUPOS_TEXTO}. São QUATRO botões e uma pergunta só: desde 31/08/2026 o item usa as mesmas palavras do equipamento, então não há mais o que desambiguar. O que sai por ${SAIDA} ("${TAREFA_DO_TIPO.saida}") volta por ${DEVOLUCAO} ("${TAREFA_DO_TIPO.retorno}"), do mesmo jeito que na ficha de um notebook.`,
         `O nome oficial do tipo (${TIPOS_LANCAMENTO_TEXTO}) aparece na pílula colorida logo abaixo da resposta, com o efeito no Total/Estoque — é o mesmo nome do histórico, dos filtros e do relatório. Sem resposta o formulário não grava: ele não chuta tipo nenhum (antes abria pré-marcado em ${TIPO_LANCAMENTO_META.entrada.rotulo}, e o lançamento sem atenção subia o estoque).`,
-        `Informe a quantidade e, quando fizer sentido, a pessoa/chamado. ${ATRELAR} e ${DEVOLUCAO} exigem o número do chamado; o Ajuste pede justificativa em "Observação (justificativa do ajuste)" e, em vez de digitar o sinal, usa o alternador "${ROTULO_ACRESCENTAR}" / "${ROTULO_BAIXAR}" — o campo só recebe o módulo (sem sinal), o que funciona também no teclado numérico do celular, que não tem tecla de menos. Trocar o tipo para outro que não seja Ajuste some com o sinal negativo pendente na linha.`,
+        `Informe a quantidade e, quando fizer sentido, a pessoa/chamado. ${RESERVA} e ${DEVOLUCAO_DE_RESERVA} exigem o número do chamado (os dois saíram da tela na F41 e só aparecem no histórico); o Ajuste pede justificativa em "Observação (justificativa do ajuste)" e, em vez de digitar o sinal, usa o alternador "${ROTULO_ACRESCENTAR}" / "${ROTULO_BAIXAR}" — o campo só recebe o módulo (sem sinal), o que funciona também no teclado numérico do celular, que não tem tecla de menos. Trocar o tipo para outro que não seja Ajuste some com o sinal negativo pendente na linha.`,
         'Com item, quantidade, filial e resposta preenchidos, a linha mostra a prévia "Estoque na filial: 14 → 12". Se a operação deixaria a prateleira negativa, a prévia avisa "será recusado (estoque insuficiente)" ali mesmo — antes do envio, não depois.',
         'Confirme em "Lançar". O aviso "Lançamento registrado." confirma; o saldo da tela se atualiza sozinho.',
         '"Repetir último" traz de volta os campos do seu último lançamento — útil para uma sequência de entradas parecidas.',
@@ -97,9 +93,9 @@ export const lancarItens: PaginaAjuda = {
       itens: [
         'Uma nota com 5 itens é UM lançamento com 5 linhas — não é preciso abrir o formulário cinco vezes.',
         `Use "Adicionar item" para incluir uma linha (item + quantidade). O contador ao lado de "Itens" mostra quanto já foi usado do limite de ${MAX_LINHAS_LOTE_ITEM} linhas por lançamento.`,
-        `Filial, tipo, data, chamado, colaborador e observação são COMUNS a todas as linhas — preencha uma vez. As regras do tipo (chamado obrigatório em ${ATRELAR}/${DEVOLUCAO}, justificativa no Ajuste) valem para o lançamento inteiro.`,
+        `Filial, tipo, data, chamado, colaborador e observação são COMUNS a todas as linhas — preencha uma vez. As regras do tipo (chamado obrigatório em ${RESERVA}/${DEVOLUCAO_DE_RESERVA}, que hoje só existem no histórico, justificativa no Ajuste) valem para o lançamento inteiro.`,
         'O mesmo item não pode aparecer duas vezes no carrinho: some as quantidades numa linha só.',
-        'Cada linha é lançada por conta própria: se uma falhar (saldo insuficiente, por exemplo), as outras entram do mesmo jeito. O aviso diz "X de Y linhas lançadas" e o formulário fica só com as que falharam, com o motivo em cada linha — corrija e mande de novo, sem redigitar o resto.',
+        'O lançamento é TUDO OU NADA desde 31/08/2026: se uma linha for recusada, nenhuma é gravada, e o aviso diz qual foi e por quê. Antes cada linha entrava por conta própria e metade do carrinho ficava de pé — o operador saía sem saber o que tinha gravado. Corrija a linha apontada e mande de novo; o carrinho continua montado.',
         '"Repetir último" e o botão de lançar da linha do saldo preenchem a PRIMEIRA linha do carrinho (e os campos comuns).',
         'Se a rede cair no envio, o aviso é explícito: nenhum lançamento foi registrado. O carrinho continua montado para você repetir.',
       ],
@@ -120,7 +116,7 @@ export const lancarItens: PaginaAjuda = {
     { tipo: 'titulo', id: 'transferir', texto: 'Mover itens de uma filial para outra' },
     {
       tipo: 'nota',
-      texto: `Transferir NÃO é dar baixa aqui e entrada lá. "${LIBERACAO}" tira da prateleira mas mantém o total (o item continua sendo da TI, só está com alguém), então "${LIBERACAO}" na origem + "${ENTRADA}" no destino faz o total da TI CRESCER a cada remanejamento — e nada corrige isso depois. Use "Transferir entre filiais": ele grava o par certo (um "${AJUSTE}" para menos na origem e um para mais no destino), o estoque muda dos dois lados e o total continua exatamente o mesmo.`,
+      texto: `Transferir NÃO é dar baixa aqui e entrada lá. "${SAIDA}" tira da prateleira mas mantém o total (o item continua sendo da TI, só está com alguém), então "${SAIDA}" na origem + "${COMPRA}" no destino faz o total da TI CRESCER a cada remanejamento — e nada corrige isso depois. Use "Transferir entre filiais": ele grava o par certo (um "${AJUSTE}" para menos na origem e um para mais no destino), o estoque muda dos dois lados e o total continua exatamente o mesmo.`,
     },
     {
       tipo: 'passos',
@@ -189,7 +185,7 @@ export const lancarItens: PaginaAjuda = {
         ],
         [
           `${MSG_CHAMADO_OBRIGATORIO}.`,
-          `São os dois lançamentos que amarram a peça a um chamado — "${ATRELAR}" na ida, "${DEVOLUCAO}" na volta. Sem o número, o par não fecha e a coluna "Falta" acende depois.`,
+          `São os dois lançamentos que amarram a peça a um chamado — "${RESERVA}" na ida, "${DEVOLUCAO_DE_RESERVA}" na volta. Sem o número, o par não fecha e a coluna "Falta" acende depois.`,
           'Preencha "Chamado" antes de lançar (só números).',
         ],
         [

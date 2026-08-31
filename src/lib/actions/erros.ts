@@ -64,26 +64,44 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
     m.includes('devolução maior') || m.includes('devolucao maior') || m.includes('atrelado aberto') ||
     m.includes('liberação maior') || m.includes('liberacao maior') || m.includes('reserva aberta')
   ) {
-    return 'A devolução é maior que a quantidade atrelada ao chamado.'
+    // F41 — "reservada PARA o chamado", não "atrelada AO chamado": o rótulo do tipo
+    // deixou de ser "Atrelar" e passou a ser "Reserva". A frase tem de acompanhar,
+    // senão manda o operador procurar na tela um botão que não existe mais.
+    // ⚠ Esta frase é espelhada à mão em `ajuda/conteudo/mensagens-de-erro.ts`, e
+    // `referencia.test.ts` compara as duas. Mudou aqui, mude lá NO MESMO COMMIT.
+    return 'A devolução é maior que a quantidade reservada para o chamado.'
   }
   if (m.includes('retorno maior') || m.includes('liberado em aberto')) {
-    return 'O retorno é maior que a quantidade liberada em aberto.'
+    // F41 — a mensagem sobrevive para o LANÇAMENTO AVULSO fora de movimentação e
+    // para payload forjado. Dentro de uma movimentação de equipamento ela não
+    // aparece mais: a RPC parte a quantidade e regulariza o excedente (0126).
+    return 'A devolução é maior que a quantidade que ainda está com as pessoas.'
   }
   if (m.includes('lanc_item_ajuste_obs')) {
     return 'O ajuste exige uma justificativa (observação).'
   }
+  if (m.includes('acerto automático') || m.includes('acerto automatico')) {
+    // F41 — a RPC recusa quando precisaria regularizar e a aplicação não mandou a
+    // justificativa pronta em `observacao_regularizacao` (a RPC não redige texto).
+    // É bug de chamador, não erro de operador: a frase diz o que dá para fazer.
+    return 'Não consegui registrar o acerto automático deste item. Tente de novo; se repetir, lance o item pela tela de Itens e registre a movimentação em seguida.'
+  }
   if (m.includes('lanc_item_chamado')) {
-    // 19/08/2026 (avulsa) — a MESMA frase do Zod (`MSG_CHAMADO_OBRIGATORIO`),
-    // que fala os rótulos DA TELA (Atrelar/Devolução). O texto antigo dizia
-    // "reserva e liberação", os nomes internos do enum — e "Liberação", na
-    // tela, é o rótulo de OUTRO tipo, que não pede chamado nenhum.
+    // 19/08/2026 (avulsa) — a MESMA frase do Zod (`MSG_CHAMADO_OBRIGATORIO`), que
+    // fala os rótulos DA TELA. F41: os rótulos viraram "Reserva" e "Devolução de
+    // reserva", e os dois tipos saíram da tela — esta recusa só alcança lançamento
+    // antigo ou payload forjado. A constante continua sendo a fonte única.
     return `${MSG_CHAMADO_OBRIGATORIO}.`
   }
   if (m.includes('lanc_item_qtd_valida')) {
     return 'Quantidade inválida para este tipo de lançamento.'
   }
-  if (m.includes('itens_nome_uidx')) {
-    return 'Já existe um item com esse nome.'
+  // Os DOIS índices únicos do catálogo. `itens_nome_uidx` (lower(nome)) é o antigo;
+  // `itens_nome_chave_uidx` (0125) é o novo e é ESTRITAMENTE mais forte — ignora
+  // acento e espaço a mais além da caixa. Qualquer um dos dois pode ser o que
+  // dispara, então os dois traduzem para a mesma frase.
+  if (m.includes('itens_nome_uidx') || m.includes('itens_nome_chave_uidx')) {
+    return 'Já existe um item com esse nome (a comparação ignora acento, maiúscula e espaço a mais). Use o item que já existe.'
   }
   // Corrida de duplo-estorno: o índice único parcial dispara "duplicate key" —
   // trata ANTES do ramo genérico de duplicidade (senão vazaria a msg de patrimônio).

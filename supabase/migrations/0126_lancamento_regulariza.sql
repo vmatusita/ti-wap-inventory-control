@@ -106,7 +106,10 @@
 --   · a filial derivada do ativo LIDO SOB A TRAVA (v_ativo.filial_id), nunca do payload
 --   · o bloco `exception when others` que etiqueta a linha culpada e RE-LANÇA o erro
 --     original (detail = 'f38_linha=' / 'f38_item=')
---   · o `security invoker` (por ausência de `security definer`) e o search_path
+--   · o `security invoker` DECLARADO e o search_path. Ele é o default do Postgres,
+--     e por isso `pg_get_functiondef` não o imprime — mas a 0117, a 0119 e a 0123 o
+--     escrevem com todas as letras no arquivo, e recriar sem ele trocaria uma
+--     garantia explícita por uma implícita. Aqui está escrito, nas três.
 --   · a ORDEM TOTAL de inserção por efeito do passo 5 e o guard
 --     `jsonb_typeof(e.value -> 'quantidade') = 'number'` que a 0123 introduziu
 --   · o teto do lote (30), a validação de `indice_movimentacao` e a guarda
@@ -134,6 +137,7 @@ create or replace function public.criar_movimentacao_com_itens(
 )
 returns jsonb
 language plpgsql
+security invoker
 set search_path = public
 as $$
 declare
@@ -466,6 +470,7 @@ create or replace function public.resolver_pendencias_item_com_lancamentos(
 )
 returns jsonb
 language plpgsql
+security invoker
 set search_path = public
 as $$
 declare
@@ -652,6 +657,7 @@ create or replace function public.lancar_itens_lote(
 )
 returns jsonb
 language plpgsql
+security invoker
 set search_path = public
 as $$
 declare
