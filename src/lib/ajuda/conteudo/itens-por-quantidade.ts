@@ -61,7 +61,7 @@ export const NUMEROS_ITEM: readonly {
 export const itensPorQuantidade: PaginaAjuda = {
   slug: 'itens-por-quantidade',
   titulo: 'Itens por quantidade',
-  resumo: 'Os grupos, os quatro números e os seis tipos de lançamento.',
+  resumo: 'Os grupos, os números de cada item e os seis tipos de lançamento.',
   categoria: 'consultar',
   termos: [
     'item',
@@ -96,10 +96,11 @@ export const itensPorQuantidade: PaginaAjuda = {
       texto:
         'O grupo é só organização: define em que bloco o item aparece na tabela de saldos, o filtro "Grupo" da página Itens e em qual das duas seções do relatório ele é contado. Quem cria o item escolhe o grupo em Administração › Itens, e ele pode ser trocado depois sem afetar nenhum lançamento já feito.',
     },
-    { tipo: 'titulo', id: 'itens-numeros', texto: 'Os quatro números de cada item' },
+    { tipo: 'titulo', id: 'itens-numeros', texto: 'Os números de cada item' },
     {
       tipo: 'paragrafo',
-      texto: 'Cada item mostra quatro números, que significam coisas diferentes:',
+      texto:
+        'Cada item tem cinco números, que significam coisas diferentes. Quatro deles são colunas da tabela — Total, Em estoque, Em uso e Falta. O quinto, Reservado, saiu da tabela em 31/08/2026: nenhuma tela cria reserva desde então e ele é zero em todas as filiais, mas continua existindo para o histórico, no arquivo exportado e na linha aberta de cada item quando não for zero.',
     },
     {
       tipo: 'lista',
@@ -108,7 +109,7 @@ export const itensPorQuantidade: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'A conta que liga os quatro: o Total só muda com Compra e Ajuste. A Saída tira do Em estoque sem mexer no Total (o item continua sendo da TI, só não está na prateleira); a Devolução repõe o Em estoque. É por isso que Total e Em estoque quase nunca são iguais — a diferença é o que está na mão das pessoas.',
+        'A conta que liga os números: o Total só muda com Compra e Ajuste. A Saída tira do Em estoque e põe no Em uso, sem mexer no Total (o item continua sendo da TI, só não está na prateleira); a Devolução faz o caminho de volta. É por isso que Total e Em estoque quase nunca são iguais — a diferença é exatamente o Em uso, a coluna que apareceu em 31/08/2026 para dizer esse número em vez de deixar você calculá-lo de cabeça.',
     },
     { tipo: 'titulo', id: 'itens-tipos', texto: 'Os tipos de lançamento' },
     {

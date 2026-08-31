@@ -47,7 +47,7 @@ export const conferenciaDeEstoque: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Conferir o estoque de uma filial',
       itens: [
-        'Na página Itens, use "Conferir estoque". Se a tela estiver filtrada em UMA filial, ela já vem escolhida; senão, a conferência abre perguntando de qual filial ela é.',
+        'Na página Itens, use "Conferir estoque" — ou o item "Conferir estoque" que aparece indentado sob "Itens" no menu lateral, ou o Ctrl+K. Se a página Itens estiver filtrada em UMA filial, ela já vem escolhida; senão, a conferência abre perguntando de qual filial ela é.',
         'A tabela mostra, por item: "Sistema" (o que o sistema diz que há), "Contado" (onde você digita) e "Diferença" (a conta, ao vivo). Sobra aparece em verde com sinal de mais; falta, em vermelho com sinal de menos.',
         'Preencha SÓ o que você contou. Linha em branco significa "não conferi" e fica de fora de tudo — não é o mesmo que contar zero. Se contou e não havia nada, digite 0: aí sim é uma contagem.',
         'A barra no rodapé acompanha o trabalho: quantos itens você conferiu, quantos divergem e o total que sobra e que falta.',

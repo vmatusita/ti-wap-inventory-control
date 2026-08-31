@@ -36,7 +36,46 @@ type NavItem = {
   // perguntas são diferentes: `eAdmin` é NÍVEL (admin ⊂ dev) e responde "true" para o dev,
   // então marcar /dev como `soAdmin` a mostraria para todo administrador.
   soDev?: boolean
+  /**
+   * F42 — as SUBROTAS visíveis do item, mostradas indentadas ENQUANTO o operador
+   * está dentro dele.
+   *
+   * Nasceu com `/itens`, que passou a ter três telas irmãs (saldos, conferência e
+   * histórico) depois de a fase separar o que era uma tela só. Sem isto, duas
+   * delas só existiriam para quem já sabe que existem — e rota que ninguém acha é
+   * rota que ninguém usa, que é a dor D3 do `docs/PLANO-ITENS.md` voltando por
+   * outra porta.
+   *
+   * ⚠ SÓ QUANDO A SEÇÃO ESTÁ ABERTA. Uma sidebar que mostra todas as subrotas o
+   * tempo todo vira índice, não menu — e o filete de UXG-13a deixaria de separar o
+   * dia a dia dos cadastros, porque o dia a dia teria dobrado de altura.
+   *
+   * ⚠ E NUNCA NO MODO SÓ-ÍCONES: lá não há rótulo, e três ícones empilhados não
+   * são navegação, são adivinhação. `/admin` resolve o mesmo problema com uma
+   * barra de abas DENTRO da página (`admin-nav.tsx`), o que aqui não serviria:
+   * cada tela de item tem o próprio `CabecalhoDaPagina`, com título e ações
+   * próprios, e uma barra acima dele empurraria o título para o meio da tela.
+   */
+  subitens?: { rotulo: string; href: string }[]
 }
+
+/**
+ * As subrotas de "Itens" (F42), FORA da lista `ITENS` de propósito.
+ *
+ * Duas guardas leem a lista de itens do menu por TEXTO-FONTE e contam os `rotulo:` que
+ * encontram dentro dele: `comecar.test.ts` compara a lista com a tabela do menu na
+ * página de ajuda "Mapa das telas", linha a linha e na ordem, e
+ * `sidebar-colapso.test.ts` confere quais itens têm separador. Declarar as
+ * subrotas dentro do array as faria contar como itens de MENU — a tabela da ajuda
+ * passaria a exigir duas linhas que não são itens do menu lateral, e a guarda
+ * deixaria de provar o que existe para provar.
+ *
+ * Mantê-las aqui é o que preserva as duas guardas exatamente como estavam.
+ */
+const SUBROTAS_ITENS = [
+  { rotulo: 'Conferir estoque', href: '/itens/conferencia' },
+  { rotulo: 'Histórico', href: '/itens/historico' },
+]
 
 const ITENS: NavItem[] = [
   { rotulo: 'Dashboard', icone: LayoutDashboard, href: '/' },
@@ -45,7 +84,15 @@ const ITENS: NavItem[] = [
   // continua a um clique — pelo botão do header, pelo atalho `N` e pelo card do
   // dashboard, todos direto em /movimentacoes/nova.
   { rotulo: 'Movimentações', icone: ArrowLeftRight, href: '/movimentacoes' },
-  { rotulo: 'Itens', icone: Boxes, href: '/itens' },
+  {
+    rotulo: 'Itens',
+    icone: Boxes,
+    href: '/itens',
+    // `match` explícito: `ativa()` já casaria por prefixo, mas escrever o alvo
+    // deixa dito que as TRÊS rotas de item acendem o mesmo item de menu.
+    match: '/itens',
+    subitens: SUBROTAS_ITENS,
+  },
   { rotulo: 'Pendências', icone: ClipboardList, href: '/pendencias' },
   // F25 — este href é o PADRÃO/fallback: o layout do grupo manda `hrefRelatorios`
   // resolvido POR CARGO (o operador cai na aba da filial dele) e ele substitui este
@@ -205,7 +252,43 @@ export function SidebarNav({
           </Link>
         )
 
-        if (!colapsada) return <Fragment key={item.rotulo}>{link}</Fragment>
+        // F42 — as subrotas, indentadas, só com a seção ABERTA e só fora do modo
+        // só-ícones (ver a nota do campo `subitens`). O `aria-current` de cada uma
+        // é exato, e não por prefixo: dentro de `/itens/historico` quem está na
+        // página é o histórico, não a lista de saldos.
+        const subitens =
+          !colapsada && atual && item.subitens?.length ? (
+            <ul className="flex flex-col gap-0.5 border-l pl-3 ml-5">
+              {item.subitens.map((sub) => {
+                const subAtual = pathname === sub.href || pathname.startsWith(`${sub.href}/`)
+                return (
+                  <li key={sub.href}>
+                    <Link
+                      href={sub.href}
+                      onClick={onNavigate}
+                      aria-current={subAtual ? 'page' : undefined}
+                      className={cn(
+                        'flex items-center rounded-md px-3 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        subAtual
+                          ? 'font-medium text-foreground'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                      )}
+                    >
+                      {sub.rotulo}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : null
+
+        if (!colapsada)
+          return (
+            <Fragment key={item.rotulo}>
+              {link}
+              {subitens}
+            </Fragment>
+          )
 
         // Só-ícones: o nome do item precisa continuar alcançável pelo mouse E
         // pelo teclado (o Tooltip do Radix abre no foco, não só no hover). O

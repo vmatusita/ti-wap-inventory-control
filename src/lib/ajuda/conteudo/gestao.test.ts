@@ -372,7 +372,20 @@ describe('lançar itens e ler saldos', () => {
     // tinha mudado — protegendo a documentação errada em vez de detectá-la. O que
     // vale fixar é o par tela × arquivo: o export ACOMPANHA a visão.
     contem('saldos-e-estoque-minimo', 'COLUNA POR FILIAL')
-    contem('saldos-e-estoque-minimo', 'o estoque mínimo não vai no arquivo')
+    // F42 — a frase mudou porque o FATO mudou: eram DOIS arquivos, um por visão da
+    // tela, e virou UM só (superset dos dois). O estoque mínimo continua sendo a
+    // única coisa que a tela mostra e o arquivo não leva — mas agora ele é "a
+    // única", e não "não vai em nenhuma das duas". A asserção acompanha a verdade
+    // nova em vez de fixar a redação antiga.
+    contem('saldos-e-estoque-minimo', 'O arquivo é um só, chamado itens-saldos')
+    contem('saldos-e-estoque-minimo', 'não vai no arquivo')
+  })
+
+  it('avisa que o histórico e o export dele mudaram de tela (F42)', () => {
+    // O botão "Exportar histórico" saiu do cabeçalho do histórico DENTRO de /itens
+    // e foi para /itens/historico. Quem procurar por ele na tela de saldos precisa
+    // ler para onde ele foi — senão a documentação vira o mapa de uma tela antiga.
+    contem('saldos-e-estoque-minimo', 'Itens → Histórico')
   })
 
   it('mantém a distinção falta × repor com a fórmula real', () => {

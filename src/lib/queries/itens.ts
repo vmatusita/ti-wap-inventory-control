@@ -693,6 +693,15 @@ export type ItemQueFoiJunto = {
   quantidade: number
   data: string
   movimentacao_id: string
+  /**
+   * F42 — o ACERTO AUTOMÁTICO da F41 (`lancamentos_item.regularizacao`, 0125).
+   *
+   * A F41 criou a marca e as RPCs passaram a gravá-la, mas ESTA leitura nunca
+   * pediu a coluna — o selo "regularizado" da ficha do ativo nunca teria como
+   * acender. Em produção o cartão inteiro tinha zero linhas até a F41, então o
+   * buraco não aparecia; agora que as linhas existem, apareceria.
+   */
+  regularizacao: boolean
 }
 
 /**
@@ -705,7 +714,9 @@ export async function itensQueForamJunto(ativoId: string): Promise<ItemQueFoiJun
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('lancamentos_item')
-    .select('id, tipo, quantidade, data, movimentacao_id, itens(nome), movimentacoes!inner(ativo_id)')
+    .select(
+      'id, tipo, quantidade, data, movimentacao_id, regularizacao, itens(nome), movimentacoes!inner(ativo_id)',
+    )
     .eq('movimentacoes.ativo_id', ativoId)
     .order('data', { ascending: false })
     .order('created_at', { ascending: false })
@@ -719,6 +730,7 @@ export async function itensQueForamJunto(ativoId: string): Promise<ItemQueFoiJun
     quantidade: number
     data: string
     movimentacao_id: string | null
+    regularizacao: boolean | null
     itens: { nome: string } | null
   }
   return ((data ?? []) as unknown as Row[]).map((r) => ({
@@ -728,6 +740,9 @@ export async function itensQueForamJunto(ativoId: string): Promise<ItemQueFoiJun
     quantidade: r.quantidade,
     data: r.data,
     movimentacao_id: r.movimentacao_id ?? '',
+    // `not null default false` na 0125 — o `?? false` é só a defesa contra um
+    // `null` que o tipo do PostgREST admite e o banco não produz.
+    regularizacao: r.regularizacao ?? false,
   }))
 }
 

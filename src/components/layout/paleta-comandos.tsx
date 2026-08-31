@@ -90,6 +90,26 @@ const ROTAS: ItemNavegacao[] = [
     apelidos: ['historico', 'lista', 'entrega', 'devolucao', 'saida', 'entrada'],
   },
   { rotulo: 'Itens', href: '/itens', icone: Boxes, apelidos: ['consumiveis', 'quantidade'] },
+  // F42 — as DUAS subrotas de item entram por nome próprio. Elas já aparecem na
+  // sidebar quando a seção está aberta, mas quem está em outra tela só chega a
+  // elas passando por /itens primeiro — e a paleta existe justamente para poupar
+  // esse gesto. Rota que não entra aqui nasce meio invisível.
+  {
+    rotulo: 'Histórico de itens',
+    href: '/itens/historico',
+    icone: Boxes,
+    apelidos: ['lancamento', 'diario', 'estorno', 'saldo apos'],
+  },
+  {
+    // A conferência é do cargo que ESCREVE (a tela recusa quem não escreve e
+    // explica por quê), mas a entrada fica em "Ir para" e não em "Ações": ela
+    // NAVEGA para uma rota, não dispara nada — e a paleta já esconde o grupo
+    // "Ações" inteiro de quem não escreve.
+    rotulo: 'Conferir estoque',
+    href: '/itens/conferencia',
+    icone: Boxes,
+    apelidos: ['conferencia', 'inventario', 'contagem', 'prateleira'],
+  },
   { rotulo: 'Pendências', href: '/pendencias', icone: ClipboardList, apelidos: ['termo'] },
   // F25 — o href é substituído por `hrefRelatorios` (resolvido por cargo no layout,
   // igual à sidebar que esta lista espelha). Os apelidos passaram a existir porque o
