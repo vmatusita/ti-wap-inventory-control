@@ -21,18 +21,26 @@ import type { LadoConflito } from '@/lib/pendencias/conflitos'
 import {
   CELULA_SALDO_ZERO,
   estoqueForaDasColunas,
-  getSaldosItensDeFiliais,
   getSaldosPorFilial,
   listarHistoricoParaExport,
+  listarItensAtivos,
   type FiltrosHistorico,
   type LinhaExportHistorico,
-  type SaldoItem,
   type SaldoItemFiliais,
 } from '@/lib/queries/itens'
+import { listarTiposItem } from '@/lib/queries/tipos-item'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import { efeitoNoEstoque } from '@/lib/itens/efeito-lancamento'
+// F42 — as MESMAS funções puras que a tabela de `/itens` usa. O arquivo e a tela
+// somam pela mesma conta ou não somam.
+import {
+  emUsoDoSaldo,
+  saldoDoRecorte,
+  tiposPorItemDoCatalogo,
+  type NumerosDoItem,
+} from '@/lib/itens/lista'
 import { getOperador } from '@/lib/auth/acesso'
-import { dataISO, ehVisaoConsolidado, idNumerico } from '@/lib/url-params'
+import { dataISO, idNumerico } from '@/lib/url-params'
 import {
   resolverFiliaisIds,
   resolverFiliaisSlugs,
@@ -139,27 +147,23 @@ async function contextoFilial(): Promise<{
   return { operador, filiais }
 }
 
-// A visão por filial de /itens NÃO tem recorte de filial: a tabela mostra todas
-// e o select nem é renderizado. O Server Component neutraliza `?filial` no parse
-// desde a F11 (achado A14) e o export precisa fazer o MESMO — senão uma URL
-// `/itens?visao=filiais&filial=3` (link colado, botão voltar, favorito antigo)
-// produz um CSV só da filial 3 que o operador lê como o consolidado que estava
-// vendo na tela (achado F12-W4-03). Vale para os DOIS exports de /itens.
+// O recorte de filial das telas de item — saldos (`/itens`) e histórico
+// (`/itens/historico`).
 //
-// F25 — a neutralização passou a valer POR PADRÃO, porque a visão por filial virou
-// a visão padrão de /itens: só o Consolidado (`visao=consolidado`) tem recorte.
-// A régua de qual visão está ativa é a MESMA função da tela (`ehVisaoConsolidado`).
+// HISTÓRICO DESTA FUNÇÃO, que vale guardar: até a F42 ela GATEAVA o recorte em
+// `?visao=`, porque a visão "por filial" de /itens não renderizava o select e o
+// Server Component neutralizava `?filial` no parse (achado A14 da F11) — o export
+// tinha de fazer o MESMO, senão uma URL `?visao=filiais&filial=3` produzia um CSV
+// de uma filial que o operador lia como o consolidado da tela (achado F12-W4-03).
 //
-// ⚠ F25-fix — quem depende disto agora é o export do HISTÓRICO. O de SALDOS deixou
-// de "neutralizar e mandar o consolidado" na visão por filial: ele passou a ter um
-// ramo próprio que emite uma coluna por filial, como a tabela da tela. Neutralizar
-// era o certo enquanto essa visão era exceção; virando o padrão, o arquivo tinha de
-// PASSAR A MOSTRAR o que a tela mostra, não a esconder o recorte.
+// F42 — o gate MORREU junto com a visão. Não há mais tela em que o filtro de filial
+// esteja invisível e mesmo assim recorte: ele é sempre renderizado e sempre vale,
+// nas duas rotas. A função ficou sendo o que sempre quis ser — o `resolverFiliaisIds`
+// das telas de item, com o padrão por cargo, igual ao de `/ativos`.
 function filiaisDeItens(
   p: URLSearchParams,
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
 ): number[] {
-  if (!ehVisaoConsolidado(texto(p, 'visao'))) return []
   return resolverFiliaisIds(
     texto(p, 'filial'),
     ctx.operador,
@@ -332,25 +336,46 @@ const COLUNAS_CONFLITOS: ColunaCsv<{ chave: string; lado: LadoConflito }>[] = [
   { titulo: 'Tem histórico real', valor: (l) => (l.lado.temHistoricoReal ? 'sim' : 'não') },
 ]
 
-// F25-fix — as colunas da visão POR FILIAL (a visão PADRÃO de /itens desde a F25).
-// Espelham a tabela lado a lado de `saldos-filiais.tsx`, e nada do que a tela mostra
-// fica de fora:
-//  · uma coluna de ESTOQUE por filial (o número grande da célula);
-//  · uma de FALTA por filial — na tela é o chip vermelho "faltam N" dentro da mesma
-//    célula, e é o sinal mais visível da linha; omiti-lo seria perder na planilha
-//    exatamente o que faz alguém abrir a planilha;
-//  · o Total consolidado (a coluna "Total" da tabela) e os outros dois números do
-//    consolidado, que o CSV do Consolidado já trazia e não podem sumir só porque o
-//    default da tela mudou;
-//  · o "fora das colunas" (estoque de filial DESATIVADA que o Total inclui e nenhuma
-//    coluna mostra) — na tela é a nota "inclui N de filial desativada".
-// Os rótulos do consolidado dizem "(todas)" de propósito: sem isso o arquivo teria
-// um "Total" com sentido diferente do "Total" do CSV do Consolidado, e somar as duas
-// colunas na mesma planilha daria um número que não existe.
-function colunasSaldosPorFilial(filiais: Filial[]): ColunaCsv<SaldoItemFiliais>[] {
+// AS COLUNAS DO CSV DE SALDOS — UM formato só, superset dos dois de antes (F42).
+//
+// Até a v1.46.0 esta função tinha DUAS gêmeas, escolhidas pelo mesmo `?visao=` que
+// escolhia a tabela: `colunasSaldos` (o Consolidado, com uma linha por item) e
+// `colunasSaldosPorFilial` (a matriz). Dois arquivos com o mesmo botão e formatos
+// diferentes foi a forma que o achado F12-W4-03 encontrou de continuar existindo —
+// e o F25-fix teve de correr atrás quando o default da tela mudou.
+//
+// Com a visão morta, o CSV é um só e traz TUDO o que os dois traziam, mais as duas
+// novidades da fase. Nada do que a tela mostra fica de fora:
+//  · Item, Grupo e **Tipo** (F37) — as três primeiras colunas da tabela;
+//  · Filial: o rótulo do RECORTE ("Consolidado" ou "A + B"), sem o qual o arquivo
+//    perde o contexto assim que sai da tela;
+//  · os cinco números do recorte, incluindo **Em uso** (a coluna nova) e Reservado
+//    (que saiu da tabela por ser zero desde a F41, mas continua aqui: quem abrir um
+//    lançamento antigo precisa do número);
+//  · uma coluna de ESTOQUE e uma de FALTA por filial — na tela são a linha
+//    expansível e o chip vermelho "faltam N", o sinal mais visível da linha;
+//  · o "fora das colunas" (estoque de filial DESATIVADA que o Total inclui e
+//    nenhuma coluna mostra) — na tela é a nota "inclui N em estoque de filial fora
+//    desta lista".
+//
+// Os rótulos por filial dizem só o nome dela; os do recorte não dizem "(todas)"
+// porque a coluna Filial já carimba o que o arquivo contém.
+function colunasSaldosItens(
+  filiais: Filial[],
+  filialRotulo: string,
+  recorte: (l: SaldoItemFiliais) => NumerosDoItem,
+  tiposPorItem: Readonly<Record<number, string | null>>,
+): ColunaCsv<SaldoItemFiliais>[] {
   return [
     { titulo: 'Item', valor: (l) => l.item },
     { titulo: 'Grupo', valor: (l) => rotuloGrupoItem(l.grupo) },
+    { titulo: 'Tipo', valor: (l) => tiposPorItem[l.item_id] ?? '' },
+    { titulo: 'Filial', valor: () => filialRotulo },
+    { titulo: 'Total', valor: (l) => recorte(l).total },
+    { titulo: 'Em estoque', valor: (l) => recorte(l).estoque },
+    { titulo: 'Em uso', valor: (l) => emUsoDoSaldo(recorte(l)) },
+    { titulo: 'Reservado', valor: (l) => recorte(l).atrelados },
+    { titulo: 'Falta', valor: (l) => recorte(l).falta },
     ...filiais.flatMap((f) => [
       {
         titulo: f.nome,
@@ -361,25 +386,7 @@ function colunasSaldosPorFilial(filiais: Filial[]): ColunaCsv<SaldoItemFiliais>[
         valor: (l: SaldoItemFiliais) => (l.porFilial[f.id] ?? CELULA_SALDO_ZERO).falta,
       },
     ]),
-    { titulo: 'Total', valor: (l) => l.consolidado.estoque },
-    { titulo: 'Unidades (todas)', valor: (l) => l.consolidado.total },
-    { titulo: 'Reservado (todas)', valor: (l) => l.consolidado.atrelados },
-    { titulo: 'Faltam (todas)', valor: (l) => l.consolidado.falta },
     { titulo: 'Fora das colunas', valor: (l) => estoqueForaDasColunas(l, filiais) },
-  ]
-}
-
-function colunasSaldos(filialRotulo: string): ColunaCsv<SaldoItem>[] {
-  return [
-    { titulo: 'Item', valor: (l) => l.item },
-    { titulo: 'Grupo', valor: (l) => rotuloGrupoItem(l.grupo) },
-    // O saldo é sempre "de uma filial" ou consolidado — sem esta coluna o
-    // arquivo perde o contexto assim que sai da tela.
-    { titulo: 'Filial', valor: () => filialRotulo },
-    { titulo: 'Total', valor: (l) => l.total },
-    { titulo: 'Estoque', valor: (l) => l.estoque },
-    { titulo: 'Reservado', valor: (l) => l.atrelados },
-    { titulo: 'Falta', valor: (l) => l.falta },
   ]
 }
 
@@ -489,8 +496,11 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
   }
 }
 
-// Saldos por item: reusa a RPC da tela (sem paginação) e replica em CÓDIGO os
-// filtros `grupo`/`q` — que a página também aplica em código, não no banco.
+// Saldos por item: reusa a MESMA leitura da tela (`getSaldosPorFilial`, sem
+// paginação) e replica em CÓDIGO os filtros `grupo`/`q` — que a página também
+// aplica em código, não no banco. A conta do recorte e a de "Em uso" vêm das
+// funções puras de `@/lib/itens/lista`, as mesmas que a tabela usa: é o que
+// garante, por construção, que arquivo e tela não podem divergir.
 export async function exportarItensSaldosCSV(filtros: string): Promise<ResultadoExportCsv> {
   const negado = await barrado()
   if (negado) return falha(negado)
@@ -502,43 +512,26 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
       ? (grupoRaw as GrupoItem)
       : undefined
     const q = (texto(p, 'q') ?? '').toLowerCase()
-
-    // ⚠ F25-fix — a visão POR FILIAL virou o PADRÃO de /itens, e até aqui o botão
-    // "Exportar saldos" dessa visão baixava o CONSOLIDADO: a tela mostrava uma
-    // coluna por filial e o arquivo trazia uma coluna só. Enquanto era o caminho
-    // raro (`?visao=filiais`) dava para conviver; virando o que todo mundo vê, é
-    // exatamente a divergência tela × arquivo do achado F12-W4-03. Agora o CSV
-    // desta visão tem as MESMAS colunas da tabela.
-    if (!ehVisaoConsolidado(texto(p, 'visao'))) {
-      const { filiais, itens } = await getSaldosPorFilial(ctx.filiais)
-      const filtrados = itens.filter(
-        (s) =>
-          (!grupo || s.grupo === grupo) && (!q || s.item.toLowerCase().includes(q)),
-      )
-      const linhas = filtrados.slice(0, CAP_EXPORT)
-      return {
-        // Nome PRÓPRIO: as duas visões do mesmo botão têm colunas diferentes, e dois
-        // arquivos de mesmo nome na pasta de downloads viram `(1)`, `(2)` — ninguém
-        // lembra qual é qual depois.
-        nome: nomeArquivoCsv('itens-saldos-por-filial', hojeISO()),
-        conteudo: gerarCsv(colunasSaldosPorFilial(filiais), linhas),
-        total: filtrados.length,
-        exportadas: linhas.length,
-        truncado: linhas.length < filtrados.length,
-      }
-    }
-
-    // Consolidado: `?filial` volta a valer (é a única visão que o renderiza).
     const filialIds = filiaisDeItens(p, ctx)
-    const saldos = await getSaldosItensDeFiliais(filialIds)
-    const filtrados = saldos.filter(
-      (s) =>
-        (!grupo || s.grupo === grupo) && (!q || s.item.toLowerCase().includes(q)),
+
+    const [{ itens }, catalogo, tipos] = await Promise.all([
+      getSaldosPorFilial(ctx.filiais),
+      listarItensAtivos(),
+      listarTiposItem(),
+    ])
+
+    // As filiais que viram COLUNA: as do recorte quando há um, todas quando não há
+    // — exatamente as que a linha expansível da tela lista.
+    const filiaisVisiveis =
+      filialIds.length > 0 ? ctx.filiais.filter((f) => filialIds.includes(f.id)) : ctx.filiais
+
+    const filtrados = itens.filter(
+      (s) => (!grupo || s.grupo === grupo) && (!q || s.item.toLowerCase().includes(q)),
     )
+
     // O rótulo carimba no arquivo O QUE ele contém. Com multi-seleção ele precisa
     // nomear TODAS as filiais somadas: escrever "Consolidado" (ou o nome de uma
-    // delas) num CSV que soma duas é a mentira por omissão que o comentário acima
-    // já apontava, agora com uma forma nova de acontecer.
+    // delas) num CSV que soma duas é mentira por omissão.
     const rotuloFilial =
       filialIds.length === 0
         ? 'Consolidado'
@@ -549,7 +542,15 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
     const linhas = filtrados.slice(0, CAP_EXPORT)
     return {
       nome: nomeArquivoCsv('itens-saldos', hojeISO()),
-      conteudo: gerarCsv(colunasSaldos(rotuloFilial), linhas),
+      conteudo: gerarCsv(
+        colunasSaldosItens(
+          filiaisVisiveis,
+          rotuloFilial,
+          (l) => saldoDoRecorte(l, filialIds),
+          tiposPorItemDoCatalogo(catalogo, tipos),
+        ),
+        linhas,
+      ),
       total: filtrados.length,
       exportadas: linhas.length,
       truncado: linhas.length < filtrados.length,

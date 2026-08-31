@@ -21,6 +21,12 @@ export type ItemCatalogo = {
   nome: string
   grupo: GrupoItem
   estoque_minimo: number
+  // F42 — o tipo do item (F37/D7), ANULÁVEL: o catálogo existente nasceu sem tipo
+  // e ninguém é obrigado a preencher. A tabela de `/itens` ganhou a coluna "Tipo"
+  // e a lê daqui, cruzando com `listarTiposItem()` — o mesmo par que `/admin/itens`
+  // já usa. Campo ADITIVO: quem só lia `id`/`nome`/`grupo` (os dois diálogos, o
+  // combobox, os filtros do histórico) não muda uma linha.
+  tipo_id: number | null
 }
 
 export type ItemAdmin = {
@@ -81,7 +87,7 @@ export async function listarItensAtivos(): Promise<ItemCatalogo[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('itens')
-    .select('id, nome, grupo, estoque_minimo')
+    .select('id, nome, grupo, estoque_minimo, tipo_id')
     .eq('ativo', true)
     .order('grupo', { ascending: true })
     .order('ordem', { ascending: true })

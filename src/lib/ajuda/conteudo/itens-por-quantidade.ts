@@ -1,12 +1,21 @@
 import { verbetesGrupoItem, verbetesTipoLancamento } from '@/lib/ajuda/derivacao'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 
-// ITN-05a — os quatro números de cada item, cada um com rótulo + explicação de
-// UMA linha. Fonte única: tanto o bloco de texto desta página (que prefixa
-// "rótulo — explicação") quanto as `Dica` dos cabeçalhos Total/Estoque/
-// Atrelados/Falta da visão consolidada (`app/(app)/itens/page.tsx`) leem
-// daqui — ninguém redigita o vocabulário nem a fórmula da coluna Falta.
-export type ChaveNumeroItem = 'total' | 'estoque' | 'atrelados' | 'falta'
+// ITN-05a — os números de cada item, cada um com rótulo + explicação de UMA
+// linha. Fonte única: tanto o bloco de texto desta página (que prefixa
+// "rótulo — explicação") quanto as `Dica` dos cabeçalhos da tabela de `/itens`
+// leem daqui — ninguém redigita o vocabulário nem a fórmula da coluna Falta.
+//
+// F42 — entrou **Em uso**, e a ORDEM aqui é a ORDEM DAS COLUNAS na tela. A F41
+// batizou o número ("quanto está com as pessoas") e não o transformou em coluna;
+// ele é derivado do que `rel_saldo_itens` já devolve, sem migration nenhuma —
+// `emUsoDoSaldo` em `src/lib/itens/lista.ts` carrega a álgebra e a prova.
+//
+// ⚠ `Reservado` continua nesta lista e SAIU da tabela: desde a F41 nenhuma tela
+// cria reserva, o número é zero em produção, e uma coluna permanentemente vazia é
+// ruído. Ele continua no CSV, na linha expansível quando não for zero, e aqui —
+// que é onde quem encontrar um lançamento antigo vai procurar o que ele significa.
+export type ChaveNumeroItem = 'total' | 'estoque' | 'emUso' | 'atrelados' | 'falta'
 
 export const NUMEROS_ITEM: readonly {
   chave: ChaveNumeroItem
@@ -22,6 +31,15 @@ export const NUMEROS_ITEM: readonly {
     chave: 'estoque',
     rotulo: 'Em estoque',
     explicacao: 'O que está fisicamente disponível na prateleira agora.',
+  },
+  {
+    // F42 — a coluna nova. Não existe no banco: é derivada do que a RPC de saldo
+    // já devolve (total + falta − em estoque − reservado), e a conta bate item a
+    // item com Σ saída − Σ devolução.
+    chave: 'emUso',
+    rotulo: 'Em uso',
+    explicacao:
+      'Quantas unidades estão com as pessoas agora — tudo que saiu menos tudo que voltou.',
   },
   {
     // F41 — a coluna SQL continua se chamando `atrelados` (renomeá-la custaria caro

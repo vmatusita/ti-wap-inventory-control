@@ -96,8 +96,11 @@ const COMPARTILHADOS: {
     params: ['filial', 'tipo', 'q'],
   },
   {
-    tela: '/itens (histórico de lançamentos)',
-    pagina: ['src', 'app', '(app)', 'itens', 'page.tsx'],
+    // F42 — o histórico saiu de dentro de `/itens` e ganhou ROTA PRÓPRIA. O
+    // caminho da página mudou; a lista de params é a MESMA, porque nenhum filtro
+    // se perdeu na separação — é exatamente isso que esta linha agora prova.
+    tela: '/itens/historico',
+    pagina: ['src', 'app', '(app)', 'itens', 'historico', 'page.tsx'],
     parser: 'filtrosHistorico',
     params: ['item', 'tipo', 'de', 'ate', 'busca'],
   },
@@ -110,8 +113,16 @@ const COMPARTILHADOS: {
   },
 ]
 
-// `filial`/`visao` do histórico e dos saldos passam por `filiaisDeItens`, que é o
-// parser compartilhado das duas visões de /itens — a fatia certa para eles.
+// O `filial` das duas telas de item passa por `filiaisDeItens`, o parser comum —
+// a fatia certa para ele.
+//
+// ⚠ F42 — `visao` SAIU desta lista porque o param deixou de existir. Ele estava
+// aqui por um motivo real: enquanto a visão "por filial" escondia o select e o
+// Server Component neutralizava `?filial` no parse, o export tinha de neutralizar
+// junto, ou baixava uma filial que a tela não estava mostrando (achado F12-W4-03).
+// Sem visão, não há mais o que neutralizar: o filtro de filial é sempre visível e
+// sempre vale, nas duas rotas. Tirar o param daqui é registrar que a REGRA mudou —
+// não afrouxar a guarda (ata em `docs/DECISOES.md`, 31/08/2026).
 const PARSER_FILIAL_ITENS = 'filiaisDeItens'
 
 describe('tela × CSV — todo filtro compartilhado é lido nos DOIS lados', () => {
@@ -136,13 +147,39 @@ describe('tela × CSV — todo filtro compartilhado é lido nos DOIS lados', () 
     })
   }
 
-  it('o recorte de filial das duas visões de /itens passa pelo parser comum', () => {
+  it('o recorte de filial das DUAS telas de item passa pelo parser comum', () => {
     const corpo = corpoDe(PARSER_FILIAL_ITENS)
-    for (const param of ['visao', 'filial']) {
+    for (const param of ['filial']) {
       expect(
         corpo.includes(`'${param}'`),
-        `${PARSER_FILIAL_ITENS}() não lê "${param}" — o recorte de filial de /itens divergiria entre tela e CSV`,
+        `${PARSER_FILIAL_ITENS}() não lê "${param}" — o recorte de filial das telas de item divergiria entre tela e CSV`,
       ).toBe(true)
+    }
+  })
+
+  it('o toggle `?visao=` nao voltou — ele trocava as COLUNAS, e foi o que a F42 matou', () => {
+    // Guarda de REGRESSÃO, não de sincronia: se um dia alguém reintroduzir um param
+    // que muda o FORMATO da tabela em vez do recorte, a divergência tela × arquivo
+    // volta com ele — e foi assim que o F25-fix nasceu. `/itens` é a única tela do
+    // produto que já teve isso; que continue sendo a única que não tem.
+    //
+    // ⚠ A busca é pelas formas de LEITURA do param (`'visao'`, `sp.visao`,
+    // `ehVisaoConsolidado`), nunca pela palavra solta: os comentários destes
+    // arquivos CITAM o toggle para explicar por que ele morreu, e punir quem
+    // explica é o contrário do que este repositório quer.
+    const LEITURAS = ["'visao'", 'sp.visao', 'ehVisaoConsolidado']
+    for (const alvo of [
+      ['src', 'lib', 'actions', 'exportar.ts'],
+      ['src', 'app', '(app)', 'itens', 'page.tsx'],
+      ['src', 'app', '(app)', 'itens', 'historico', 'page.tsx'],
+      ['src', 'components', 'itens', 'itens-filtros.tsx'],
+      ['src', 'components', 'itens', 'historico-filtros.tsx'],
+      ['src', 'lib', 'url-params.ts'],
+    ]) {
+      const src = fonte(...alvo)
+      for (const leitura of LEITURAS) {
+        expect(src, `${alvo.join('/')} voltou a ler "${leitura}"`).not.toContain(leitura)
+      }
     }
   })
 })

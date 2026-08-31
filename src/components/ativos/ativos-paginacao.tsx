@@ -25,6 +25,7 @@ export function AtivosPaginacao({
   total,
   saltoPagina = false,
   tamanhos,
+  rotuloTamanho = 'Ativos por página',
 }: {
   page: number
   pageSize: number
@@ -34,6 +35,10 @@ export function AtivosPaginacao({
   // /itens continuam usando SEM nenhuma alteração naqueles arquivos.
   saltoPagina?: boolean
   tamanhos?: readonly number[]
+  // F42 — o rótulo acessível do seletor de tamanho. Era a string literal "Ativos
+  // por página", escrita quando só a lista de ativos oferecia o seletor; `/itens`
+  // passou a oferecê-lo e leria em voz alta o nome da tela errada.
+  rotuloTamanho?: string
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -102,10 +107,7 @@ export function AtivosPaginacao({
           <Select value={String(pageSize)} onValueChange={trocarTamanho}>
             {/* F40 — `w-[140px]` virou `w-36` (144px, da escala). Ver a nota em
                 `ativos-filtros.tsx`. */}
-            <SelectTrigger
-              className="h-10 w-36 sm:h-7"
-              aria-label="Ativos por página"
-            >
+            <SelectTrigger className="h-10 w-36 sm:h-7" aria-label={rotuloTamanho}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

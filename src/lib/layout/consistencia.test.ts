@@ -88,9 +88,7 @@ const PENDENTES = [
   'src/components/relatorios/',
   // ---- frente c · admin + itens -------------------------------------------
   'src/app/(app)/admin/',
-  'src/app/(app)/itens/',
   'src/components/admin/',
-  'src/components/itens/',
   // ---- frente d · dev, ajuda, versões, telas públicas e a casca do app -----
   'src/app/(app)/dev/',
   'src/app/(app)/ajuda/',
@@ -710,15 +708,22 @@ function fonteDaRota(dir: string, esqueleto: boolean): string {
 }
 
 describe('toda rota migrada renderiza dentro do casco', () => {
-  it('o varredor achou as rotas do grupo, e 3 delas estao migradas', () => {
-    // 29 no grupo protegido; as outras 3 das 32 do inventário são as PORTAS
+  it('o varredor achou as rotas do grupo, e 6 delas estao migradas', () => {
+    // 30 no grupo protegido; as outras 3 das 33 do inventário são as PORTAS
     // públicas (`/login`, `/auth/confirm`, `/auth/definir-senha`), que ficam fora
     // de `(app)` e são matéria do `CascoDeAutenticacao`, na frente d.
-    expect(ROTAS.length).toBe(29)
+    //
+    // F42 — 29 virou 30: `/itens/historico` nasceu nesta fase (o histórico de
+    // lançamentos saiu de dentro de `/itens` e ganhou rota própria). E as 3
+    // migradas viraram 6, com as três rotas de item.
+    expect(ROTAS.length).toBe(30)
     expect(ROTAS_MIGRADAS.map((r) => r.rota).sort()).toEqual([
       '/ativos',
       '/ativos/[id]',
       '/ativos/novo',
+      '/itens',
+      '/itens/conferencia',
+      '/itens/historico',
     ])
   })
 

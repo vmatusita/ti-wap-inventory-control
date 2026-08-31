@@ -133,29 +133,28 @@ function selecao<T>(
 }
 
 // ---------------------------------------------------------------------------
-// F25 — a VISÃO de /itens (o default inverteu)
+// F42 — A VISÃO DE /itens NÃO EXISTE MAIS (a função `ehVisaoConsolidado` saiu daqui)
 // ---------------------------------------------------------------------------
-// Até a F24 o teste literal `visao === 'filiais'` vivia COPIADO em três arquivos
-// (a page, o componente de filtros e a action de export) e o default era o
-// Consolidado. A F25 inverteu: a tela abre LADO A LADO, e só a sentinela explícita
-// `visao=consolidado` desliga.
+// O QUE ELA ERA: a régua única do param `?visao=consolidado|filiais`, que escolhia
+// entre as DUAS tabelas de `/itens`. Nasceu na F25 porque o teste literal vivia
+// COPIADO em três arquivos (a page, os filtros e a action de export) e inverter um
+// default espalhado em três cópias é o roteiro exato do achado F12-W4-03 — o CSV
+// recortado enquanto a tela mostrava tudo.
 //
-// Inverter um default espalhado em três cópias é o roteiro exato do achado
-// F12-W4-03 (o CSV recortado enquanto a tela mostrava tudo). Por isso a régua vira
-// função única aqui, e as três cópias passam a chamá-la.
+// POR QUE SAIU: a F42 matou o toggle. Ele era a única coisa no produto que fazia um
+// filtro TROCAR AS COLUNAS da tabela em vez de recortar as linhas, e a comparação
+// entre filiais virou a linha expansível de cada item. Sem duas tabelas, não há
+// visão a escolher — e uma função de parser sem chamador é dívida esperando um
+// chamador errado.
 //
-// RETROCOMPATÍVEL: `?visao=filiais` continua significando lado a lado — é o mesmo
-// resultado do default, então favorito antigo abre igual.
-
-/** `true` só para a sentinela explícita do Consolidado. Ausência e lixo caem no
- *  padrão novo (por filial). */
-export function ehVisaoConsolidado(v: string | null | undefined): boolean {
-  // ⚠ O `trim()` mora AQUI, e não em quem chama. A página lia o valor CRU e a
-  // action de export o passava por um helper que trimava: `?visao=%20consolidado`
-  // abria a tela lado a lado e baixava o CSV do Consolidado — a divergência
-  // tela×arquivo que a regra F12/W6A existe para impedir.
-  return v?.trim() === 'consolidado'
-}
+// O QUE ACONTECE COM O LINK ANTIGO: `?visao=consolidado` e `?visao=filiais` viram
+// param IGNORADO. A rota responde 200 e renderiza a tela normalmente — nada de 404,
+// nada de tela quebrada, e o smoke prova as duas URLs. Já os params do HISTÓRICO
+// (`item`/`tipo`/`de`/`ate`/`busca`) redirecionam para `/itens/historico` com o
+// recorte inteiro (`destinoHistoricoLegado`, em `lib/itens/lista.ts`) — esses SIM
+// mudariam de sentido em silêncio, que é pior que um 404.
+//
+// A guarda de regressão está em `src/lib/actions/exportar-filtros.test.ts`.
 
 /** `filial` das telas que filtram por ID (`/ativos`, `/movimentacoes`, `/itens`). */
 export function selecaoFilialIds(v: string | null | undefined): SelecaoFilial<number> {

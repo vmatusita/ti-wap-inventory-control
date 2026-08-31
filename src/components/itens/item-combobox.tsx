@@ -114,7 +114,11 @@ export function ItemCombobox({
         // Item REATIVADO (F12-W4-06) é a exceção: ele já existia e pode ter um
         // mínimo configurado. Não inventamos um valor — a próxima carga da tela
         // traz o real; até lá o combobox só precisa do id e do nome.
-        onItemCriado({ id: res.id, nome, grupo: grupoNovo, estoque_minimo: 0 })
+        // F42 — `tipo_id: null` pela MESMA razão: `criarItemInline` grava sem tipo
+        // (é `/admin/itens` que classifica), e o item recém-criado aparece com "—"
+        // na coluna Tipo até a próxima carga da tela. Inventar um tipo aqui seria
+        // a tela mentindo sobre a linha do banco.
+        onItemCriado({ id: res.id, nome, grupo: grupoNovo, estoque_minimo: 0, tipo_id: null })
         onSelecionar(res.id)
         toast.success(
           res.reativado

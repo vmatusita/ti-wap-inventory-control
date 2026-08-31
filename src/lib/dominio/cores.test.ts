@@ -55,6 +55,12 @@ const PALETA_DO_TAILWIND =
  * | --- | ---: | ---: | ---: |
  * | 30/08/2026, antes da F40 | 555 | **550** | 60 |
  * | F40 — só a fundação (tokens + `dominio.ts`) | 491 | **479** | 60 |
+ * | F42 — `/itens` no casco (uma tabela no lugar de duas) | — | **479** | **59** |
+ *
+ * A F42 baixou a contagem de ARQUIVOS sem baixar o total: `saldos-filiais.tsx` e
+ * `transferir-item-celula.tsx` saíram (a comparação entre filiais virou a linha
+ * expansível de `itens-table.tsx`), e as cores cruas que eram deles — o vermelho
+ * do "faltam N" — vieram junto para o arquivo novo. Menos um arquivo, mesmo total.
  *
  * A CATRACA CONTA O CÓDIGO, não o `grep`. O inventário do plano usa `grep`, que
  * não distingue código de comentário, e por isso mede 555 onde o código tem 550
@@ -67,7 +73,7 @@ const PALETA_DO_TAILWIND =
  * A meta ao fim das cinco frentes é o teto abaixo de 120 (plano §7).
  */
 const TETO_PALETA_CRUA = 479
-const ARQUIVOS_COM_PALETA = 60
+const ARQUIVOS_COM_PALETA = 59
 
 /**
  * Todo `.ts`/`.tsx` de `src`, SEM comentários — a mesma abrangência do grep do

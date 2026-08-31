@@ -20,21 +20,39 @@ import { hojeISO } from '@/lib/format'
 import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM, rotuloTipoLancamento } from '@/lib/dominio'
 import { GRUPOS_ESCOLHA } from '@/lib/itens/escolha-tipo'
 import type { ItemCatalogo } from '@/lib/queries/itens'
+import type { Filial } from '@/lib/queries/filiais'
+import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 import { baseFiltrosItens, registrarFiltrosEnviados } from './url-filtros'
 
 const TODOS_ITENS = '__todos_itens'
 const TODOS_TIPOS = '__todos_tipos'
 
-// Filtros do histórico de lançamentos (OS-F9 · I3; busca do ITN-03b): item,
-// tipo, período e busca, 100% na URL (params `item`/`tipo`/`de`/`ate`/`busca`),
-// no mesmo padrão das outras listas do app. Mudar qualquer filtro reseta o
-// `page`. O filtro de FILIAL continua no ItensFiltros (vale para saldos e
-// histórico) — não se duplica aqui.
+// Filtros do histórico de lançamentos (OS-F9 · I3; busca do ITN-03b): FILIAL,
+// item, tipo, período e busca, 100% na URL (params
+// `filial`/`item`/`tipo`/`de`/`ate`/`busca`), no mesmo padrão das outras listas do
+// app. Mudar qualquer filtro reseta o `page`.
 //
-// ⚠ ITN-03b — o param é `busca`, NÃO `q`: `q` já é o filtro de SALDOS na mesma
-// página (itens-filtros.tsx / itens/page.tsx); reusar o nome quebraria aquele
-// filtro, já que os dois blocos escrevem na mesma URL (decisão em DECISOES.md).
-export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
+// ⚠ F42 — O FILTRO DE FILIAL PASSOU A MORAR AQUI. Enquanto o histórico era a
+// segunda seção de `/itens`, ele vinha emprestado do bloco de saldos (um select
+// só, valendo para os dois). Com a rota própria, esse empréstimo acabou — e sem
+// trazê-lo junto, o recorte por filial seria o ÚNICO recurso a se perder na
+// separação, que é o modo de falha número um de um redesenho.
+//
+// ⚠ ITN-03b — o param é `busca`, NÃO `q`. Ele nasceu assim porque `q` já era o
+// filtro de SALDOS na mesma página, e os dois blocos escreviam na mesma URL
+// (decisão em DECISOES.md). O nome FICA como está mesmo agora que as telas são
+// duas: links antigos carregam `busca`, e renomear quebraria todos eles de graça.
+export function HistoricoFiltros({
+  itens,
+  filiais,
+  // F25 — seleção EFETIVA de filial, resolvida no servidor (pode vir do padrão do
+  // cargo, e não da URL), por isso é prop e não `params.get('filial')`.
+  filiaisSelecionadas,
+}: {
+  itens: ItemCatalogo[]
+  filiais: Filial[]
+  filiaisSelecionadas: string[]
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -88,7 +106,16 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
     aplicar({ busca: busca.trim() || null })
   }
 
-  const temFiltro = !!itemAtual || !!tipoAtual || !!deAtual || !!ateAtual || !!buscaAtual
+  // O `filial` conta como filtro quando a URL o traz (seleção explícita OU a
+  // sentinela `todas`), e NÃO quando a marcação veio do padrão do cargo — senão o
+  // operador acharia o histórico permanentemente filtrado e o "Limpar" nunca sumiria.
+  const temFiltro =
+    !!itemAtual ||
+    !!tipoAtual ||
+    !!deAtual ||
+    !!ateAtual ||
+    !!buscaAtual ||
+    !!params.get('filial')
   const hoje = hojeISO()
 
   return (
@@ -120,6 +147,20 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
           Pesquisar
         </Button>
       </form>
+
+      {/* F42 — a filial mora aqui desde que o histórico ganhou rota própria.
+          `FiltroFilial` é o MESMO componente das outras listas: uma UI só para a
+          mesma pergunta (F25). O `<Label>` de fora acompanha a gramática deste
+          bloco, que rotula todos os campos. */}
+      <div className="space-y-1.5">
+        <span className="block text-xs text-muted-foreground">Filial</span>
+        <FiltroFilial
+          opcoes={opcoesDeFiliais(filiais, false)}
+          selecionados={filiaisSelecionadas}
+          aplicar={(v) => aplicar({ filial: v })}
+          idPrefixo="hist-filial"
+        />
+      </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="hist-item" className="text-xs text-muted-foreground">
@@ -231,7 +272,17 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
             setDe('')
             setAte('')
             setBusca('')
-            aplicar({ item: null, tipo: null, de: null, ate: null, busca: null })
+            // `filial: null` devolve o operador ao PADRÃO DO CARGO — que é o estado
+            // de repouso da tela, não um filtro que ele escolheu. Mesma régua de
+            // `AtivosFiltros` e de `ItensFiltros`.
+            aplicar({
+              item: null,
+              tipo: null,
+              de: null,
+              ate: null,
+              busca: null,
+              filial: null,
+            })
           }}
         >
           <X className="size-4" aria-hidden />

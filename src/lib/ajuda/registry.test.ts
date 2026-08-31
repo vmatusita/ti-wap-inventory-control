@@ -155,6 +155,11 @@ const COBERTURA: Record<string, { pagina: string } | { isento: string }> = {
   '/movimentacoes/devolucao-fornecedor': { pagina: 'manutencao' },
   '/itens': { pagina: 'itens-por-quantidade' },
   '/itens/conferencia': { pagina: 'conferencia-de-estoque' },
+  // F42 — o histórico saiu de dentro de `/itens` e virou rota. A página de ajuda
+  // dele já existia: a seção `historico` de `lancar-itens` é quem descreve os
+  // filtros, a coluna "Saldo após" e o export. Rota nova sem linha aqui derruba o
+  // `npm run test` — é a guarda desta matriz.
+  '/itens/historico': { pagina: 'lancar-itens' },
   '/pendencias': { pagina: 'resolver-pendencias' },
   '/relatorios/[filial]': { pagina: 'relatorio-ao-vivo' },
   '/relatorios/gerados': { pagina: 'relatorios-gerados' },
