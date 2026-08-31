@@ -26,6 +26,7 @@ import { observacoesDaTransferencia } from '@/lib/itens/transferencia'
 import { getSaldosItens, saldosPorColaborador } from '@/lib/queries/itens'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { estoquePorItem } from '@/lib/itens/repor'
+import { emUsoDoSaldo } from '@/lib/itens/lista'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { decidirVinculoRetorno, type SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
@@ -420,19 +421,57 @@ export async function estornarLancamento(input: {
 // sensível — reconferir com `exigirEscrita` aqui duplicaria a guarda da
 // própria `lancarItens` sem ganhar nada. Nunca lança: falha vira mapa vazio,
 // nunca "0" chutado nem exceção que trava a lista do combobox.
-export type SaldosPorItem = Readonly<Record<number, number>>
+/**
+ * `itens.id` → uma quantidade.
+ *
+ * ⚠ OS DOIS `?: never` NÃO SÃO ENFEITE. `Record<number, number>` só restringe as
+ * chaves NUMÉRICAS: um objeto com chaves de texto — como o `SaldosDaFilial`
+ * (`{ estoque, emUso }`) logo abaixo — é atribuível a ele sem o TypeScript
+ * reclamar. Passar o objeto inteiro por engano deixaria toda leitura
+ * `saldos[itemId]` em `undefined`: o diálogo de transferência pararia de mostrar
+ * o saldo da origem E `erroQuantidadeAcimaDoSaldo` nunca acenderia, com o build
+ * verde e nenhum teste vermelho. Aconteceu na F42, ao `buscarSaldosItens` passar
+ * a devolver o par; estas duas linhas transformam o mesmo engano em erro de
+ * compilação.
+ */
+export type SaldosPorItem = Readonly<Record<number, number>> & {
+  estoque?: never
+  emUso?: never
+}
 
-export async function buscarSaldosItens(filialId: number): Promise<SaldosPorItem> {
+/**
+ * O saldo de uma filial, por item — os DOIS números que a prévia do diálogo pede.
+ *
+ * F42 — antes isto era só o mapa de ESTOQUE. Ganhou `emUso` porque a prévia da
+ * regularização (`partirQuantidade`, F41) precisa do par `{ emEstoque, emUso }`:
+ * a `saida` só olha o estoque, mas a `devolução` olha o que está com as pessoas.
+ *
+ * ⚠ SEM MIGRATION. `rel_saldo_itens` calcula `liberados` e não o devolve; o número
+ * se DERIVA das quatro colunas que ela devolve (`emUsoDoSaldo`, em
+ * `src/lib/itens/lista.ts`, com a álgebra e a prova). Uma segunda fonte para o
+ * mesmo número é exatamente o que esta casa não faz.
+ */
+export type SaldosDaFilial = {
+  /** `itens.id` → em estoque na prateleira daquela filial. */
+  estoque: SaldosPorItem
+  /** `itens.id` → unidades com as pessoas (Σ saída − Σ devolução). */
+  emUso: SaldosPorItem
+}
+
+export async function buscarSaldosItens(filialId: number): Promise<SaldosDaFilial> {
+  const vazio: SaldosDaFilial = { estoque: {}, emUso: {} }
   try {
-    if (!Number.isInteger(filialId) || filialId <= 0) return {}
+    if (!Number.isInteger(filialId) || filialId <= 0) return vazio
     const supabase = await createClient()
     const aut = await exigirPapel(supabase, 'consulta')
-    if (!aut.ok) return {}
+    if (!aut.ok) return vazio
     const saldos = await getSaldosItens(filialId)
-    return estoquePorItem(saldos)
+    const emUso: Record<number, number> = {}
+    for (const s of saldos) emUso[s.item_id] = emUsoDoSaldo(s)
+    return { estoque: estoquePorItem(saldos), emUso }
   } catch (err) {
     console.error('[buscarSaldosItens] falha ao carregar saldos:', err)
-    return {}
+    return vazio
   }
 }
 

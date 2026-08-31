@@ -133,12 +133,15 @@ export function HistoricoFiltros({
           </Label>
           <div className="relative min-w-0">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            {/* F42 — `w-[220px]` virou `w-56` (224px, da escala): degrau mais
+                próximo para cima, para não truncar o placeholder "Chamado ou
+                colaborador". */}
             <Input
               id="hist-busca"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Chamado ou colaborador"
-              className="h-10 w-[220px] pl-8 sm:h-8"
+              className="h-10 w-56 pl-8 sm:h-8"
               aria-label="Buscar no histórico por chamado ou colaborador"
             />
           </div>
@@ -170,7 +173,9 @@ export function HistoricoFiltros({
           value={itemAtual || TODOS_ITENS}
           onValueChange={(v) => aplicar({ item: v === TODOS_ITENS ? null : v })}
         >
-          <SelectTrigger id="hist-item" className="h-10 w-[200px] sm:h-8" aria-label="Filtrar histórico por item">
+          {/* F42 — `w-[200px]` virou `w-52` (208px, da escala): degrau mais
+              próximo para cima. */}
+          <SelectTrigger id="hist-item" className="h-10 w-52 sm:h-8" aria-label="Filtrar histórico por item">
             <SelectValue placeholder="Item" />
           </SelectTrigger>
           <SelectContent>
@@ -201,7 +206,9 @@ export function HistoricoFiltros({
           value={tipoAtual || TODOS_TIPOS}
           onValueChange={(v) => aplicar({ tipo: v === TODOS_TIPOS ? null : v })}
         >
-          <SelectTrigger id="hist-tipo" className="h-10 w-[170px] sm:h-8" aria-label="Filtrar histórico por tipo">
+          {/* F42 — `w-[170px]` virou `w-44` (176px, da escala): degrau mais
+              próximo para cima. */}
+          <SelectTrigger id="hist-tipo" className="h-10 w-44 sm:h-8" aria-label="Filtrar histórico por tipo">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
@@ -232,12 +239,14 @@ export function HistoricoFiltros({
         <Label htmlFor="hist-de" className="text-xs text-muted-foreground">
           De
         </Label>
+        {/* F42 — `w-[160px]` virou `w-40`: já é exatamente os 160px da
+            escala, sem arredondar nada. */}
         <Input
           id="hist-de"
           type="date"
           max={hoje}
           value={de}
-          className="h-10 w-[160px] tabular-nums sm:h-8"
+          className="h-10 w-40 tabular-nums sm:h-8"
           aria-label="Histórico a partir de"
           onChange={(e) => {
             setDe(e.target.value)
@@ -250,12 +259,14 @@ export function HistoricoFiltros({
         <Label htmlFor="hist-ate" className="text-xs text-muted-foreground">
           Até
         </Label>
+        {/* F42 — `w-[160px]` virou `w-40`: já é exatamente os 160px da
+            escala, sem arredondar nada. */}
         <Input
           id="hist-ate"
           type="date"
           max={hoje}
           value={ate}
-          className="h-10 w-[160px] tabular-nums sm:h-8"
+          className="h-10 w-40 tabular-nums sm:h-8"
           aria-label="Histórico até"
           onChange={(e) => {
             setAte(e.target.value)

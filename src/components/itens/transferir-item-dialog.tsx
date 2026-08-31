@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ArrowRightLeft, Plus, X } from 'lucide-react'
+import { ArrowRight, ArrowRightLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { buscarSaldosItens, transferirItens, type SaldosPorItem } from '@/lib/actions/itens'
+import { CarrinhoLinhas, type LinhaCarrinho } from '@/components/itens/carrinho-linhas'
 import {
   MAX_LINHAS_TRANSFERENCIA_ITEM,
   errosPorLinhaDoLote,
@@ -33,11 +34,12 @@ import {
 import { erroQuantidadeAcimaDoSaldo } from '@/lib/itens/transferencia'
 import { hojeISO } from '@/lib/format'
 import { EVENTO_TRANSFERIR_ITEM } from './transferir-item-evento'
-import { ItemCombobox } from './item-combobox'
 import type { ItemCatalogo } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 
-type LinhaCarrinho = { uid: number; itemId: number | null; quantidade: string; erro?: string }
+// F42 — a forma da linha vem de `carrinho-linhas.tsx`, junto do widget que a
+// desenha. Ela estava definida DUAS VEZES, aqui e em `lancar-item-dialog.tsx`,
+// com o mesmo corpo — duas cópias do mesmo type é como as duas divergem calado.
 
 // Transferir itens por quantidade entre filiais (F31 · ITN-01).
 //
@@ -94,7 +96,16 @@ export function TransferirItemDialog({
     buscarSaldosItens(origemId)
       .then((mapa) => {
         if (meu !== pedido.current) return
-        setSaldos(mapa)
+        // F42 — `buscarSaldosItens` passou a devolver o PAR { estoque, emUso }: a
+        // prévia da regularização do lançamento precisa do que está com as pessoas.
+        // A transferência só olha a prateleira da origem, então fica com `estoque`.
+        //
+        // ⚠ O TypeScript NÃO PEGA este erro: `SaldosPorItem` é `Record<number, number>`,
+        // e um objeto com chaves de texto é atribuível a ele sem reclamação. Passar o
+        // objeto inteiro por engano deixaria `saldosAtuais[itemId]` sempre `undefined`
+        // — a linha nunca mostraria o saldo e `erroQuantidadeAcimaDoSaldo` nunca
+        // acenderia, tudo com o build verde.
+        setSaldos(mapa.estoque)
         setSaldosDe(origemId)
       })
       .catch(() => {
@@ -318,84 +329,40 @@ export function TransferirItemDialog({
             </p>
           )}
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label>Itens</Label>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {linhas.length}/{MAX_LINHAS_TRANSFERENCIA_ITEM}
-              </span>
-            </div>
-            {linhas.map((l, i) => {
+          {/* O CARRINHO — o mesmo widget do diálogo de lançamento desde a F42
+              (`carrinho-linhas.tsx`). Ele estava COPIADO nos dois arquivos: mesma
+              linha, mesmo combobox, mesmo campo de quantidade, mesmo contador.
+
+              O que é DAQUI desce por `abaixoDaLinha`: o saldo da ORIGEM, que é o
+              que interessa na hora de escolher o que vai sair. E `podeCriarItem`
+              fica em false — item novo tem saldo zero e não se transfere. */}
+          <CarrinhoLinhas
+            linhas={linhas}
+            catalogo={itens}
+            saldos={saldosAtuais}
+            maximo={MAX_LINHAS_TRANSFERENCIA_ITEM}
+            desabilitado={enviando}
+            podeCriarItem={false}
+            refPrimeiraQuantidade={qtdRef}
+            ondeAcessivel="da transferência"
+            onQuantidade={(uid, valor) => atualizarLinha(uid, { quantidade: valor })}
+            onItem={(uid, itemId) => atualizarLinha(uid, { itemId })}
+            onRemover={removerLinha}
+            onAdicionar={adicionarLinha}
+            onItemCriado={() => {}}
+            abaixoDaLinha={(l) => {
+              // O saldo da origem, quando se sabe. Ausente (sem origem escolhida,
+              // ainda carregando ou a leitura falhou): nada aparece — nunca um
+              // "0" chutado, que aprovaria na tela o que o servidor recusaria.
               const saldo = l.itemId != null ? saldosAtuais[l.itemId] : undefined
+              if (saldo == null || l.erro) return null
               return (
-                <div key={l.uid} className="space-y-1">
-                  <div className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      {/* `saldos` = o mapa da ORIGEM (este diálogo já o eleva
-                          desde a F31): é o saldo de onde o item SAI que
-                          interessa na hora de escolher. `podeCriarItem` fica em
-                          false — item novo tem saldo zero e não se transfere. */}
-                      <ItemCombobox
-                        itens={itens}
-                        valor={l.itemId}
-                        onSelecionar={(id) => atualizarLinha(l.uid, { itemId: id })}
-                        onItemCriado={() => {}}
-                        desabilitado={enviando}
-                        podeCriarItem={false}
-                        descricaoAcessivel={`Item ${i + 1} da transferência`}
-                        saldos={saldosAtuais}
-                      />
-                    </div>
-                    <Input
-                      ref={i === 0 ? qtdRef : undefined}
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      aria-label={`Quantidade do item ${i + 1}`}
-                      className="min-h-10 w-24 shrink-0"
-                      value={l.quantidade}
-                      onChange={(e) => atualizarLinha(l.uid, { quantidade: e.target.value })}
-                      placeholder="10"
-                      disabled={enviando}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Remover o item ${i + 1} da transferência`}
-                      className="size-10 shrink-0"
-                      onClick={() => removerLinha(l.uid)}
-                      disabled={enviando || linhas.length <= 1}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </div>
-                  {/* O saldo da origem, quando se sabe. Ausente (sem origem
-                      escolhida, ainda carregando ou a leitura falhou): nada
-                      aparece — nunca "0" chutado. */}
-                  {saldo != null && !l.erro && (
-                    <p className="pl-1 text-xs tabular-nums text-muted-foreground">
-                      {saldo.toLocaleString('pt-BR')} em estoque em {nomeOrigem}
-                    </p>
-                  )}
-                  {l.erro && (
-                    <p className="pl-1 text-xs text-red-600 dark:text-red-400">{l.erro}</p>
-                  )}
-                </div>
+                <p className="pl-1 text-xs tabular-nums text-muted-foreground">
+                  {saldo.toLocaleString('pt-BR')} em estoque em {nomeOrigem}
+                </p>
               )
-            })}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-10 gap-1.5 sm:min-h-0"
-              onClick={adicionarLinha}
-              disabled={enviando || linhas.length >= MAX_LINHAS_TRANSFERENCIA_ITEM}
-            >
-              <Plus className="size-3.5" />
-              Adicionar item
-            </Button>
-          </div>
+            }}
+          />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">

@@ -7,8 +7,9 @@ import { filiaisParaEscrita, podeEscreverNaFilial } from '@/components/layout/pe
 import { listarFiliais } from '@/lib/queries/filiais'
 import { getSaldosItens } from '@/lib/queries/itens'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
-import { LinkAjuda } from '@/components/layout/link-ajuda'
+import { CabecalhoDaPagina, Pagina } from '@/components/layout/pagina'
 import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { ConferenciaEstoque } from '@/components/itens/conferencia/conferencia-estoque'
 import { idNumerico } from '@/lib/url-params'
@@ -58,26 +59,23 @@ export default async function ConferenciaPage({
   const filialId = podeEscreverNaFilial(operador, filialPedida) ? filialPedida : null
   const filial = filialId != null ? filiais.find((f) => f.id === filialId) : undefined
 
+  // O casco e o título saem daqui — as QUATRO saídas da tela (sem escrita, sem
+  // filial escolhida, filial sem item, conferência aberta) passam pelo MESMO
+  // `<CabecalhoDaPagina>`, nunca um `<h1>` próprio (regra 1 da régua).
   const cabecalho = (
-    <div>
-      <div className="flex items-center gap-0.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Conferência de estoque</h1>
-        <LinkAjuda
-          pagina="conferencia-de-estoque"
-          rotulo="Ajuda sobre a conferência de estoque"
-        />
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Conte a prateleira de uma filial e registre as diferenças de uma vez.
-      </p>
-    </div>
+    <CabecalhoDaPagina
+      titulo="Conferência de estoque"
+      ajuda="conferencia-de-estoque"
+      ajudaRotulo="Ajuda sobre a conferência de estoque"
+      descricao="Conte a prateleira de uma filial e registre as diferenças de uma vez."
+    />
   )
 
   // Cargo sem escrita nenhuma (consulta), ou operador sem vínculo: a tela explica
   // em vez de abrir um seletor vazio.
   if (!escreve || filiaisEscrita.length === 0) {
     return (
-      <div className="space-y-4">
+      <Pagina>
         {cabecalho}
         {escreve ? (
           <AvisoSemFilialDeEscrita />
@@ -89,29 +87,31 @@ export default async function ConferenciaPage({
             acao={{ href: '/itens', rotulo: 'Voltar para Itens' }}
           />
         )}
-      </div>
+      </Pagina>
     )
   }
 
   if (!filial) {
     return (
-      <div className="space-y-4">
+      <Pagina>
         {cabecalho}
-        <section className="max-w-md space-y-3 rounded-xl border bg-card p-4">
-          <h2 className="text-sm font-semibold">De qual filial é a conferência?</h2>
-          <p className="text-sm text-muted-foreground">
-            O estoque é contado por filial. Escolha a que você tem na frente — dá para conferir
-            as outras depois, uma de cada vez.
-          </p>
-          <div className="flex flex-wrap gap-2">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>De qual filial é a conferência?</CardTitle>
+            <CardDescription>
+              O estoque é contado por filial. Escolha a que você tem na frente — dá para
+              conferir as outras depois, uma de cada vez.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
             {filiaisEscrita.map((f) => (
               <Button key={f.id} asChild variant="outline" className="min-h-11">
                 <Link href={`/itens/conferencia?filial=${f.id}`}>{f.nome}</Link>
               </Button>
             ))}
-          </div>
-        </section>
-      </div>
+          </CardContent>
+        </Card>
+      </Pagina>
     )
   }
 
@@ -119,7 +119,7 @@ export default async function ConferenciaPage({
 
   if (saldos.length === 0) {
     return (
-      <div className="space-y-4">
+      <Pagina>
         {cabecalho}
         <EstadoVazio
           icone={PackageOpen}
@@ -127,12 +127,12 @@ export default async function ConferenciaPage({
           descricao={`O catálogo de itens está vazio ou nunca houve lançamento em ${filial.nome}. Cadastre os itens em Administração → Itens antes de conferir.`}
           acao={{ href: '/itens', rotulo: 'Voltar para Itens' }}
         />
-      </div>
+      </Pagina>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <Pagina>
       {cabecalho}
       {/* ⚠ `key` NÃO é enfeite: sem ela o React reusa a instância ao trocar de
           filial pelos atalhos "Conferir outra filial", e as contagens da filial
@@ -146,6 +146,6 @@ export default async function ConferenciaPage({
         saldos={saldos}
         outrasFiliais={filiaisEscrita.filter((f) => f.id !== filial.id)}
       />
-    </div>
+    </Pagina>
   )
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { semComentarios } from '@/lib/layout/texto-fonte'
 
 // GUARDA DE SINCRONIA TELA ↔ CSV (F28, depois de o defeito nascer PELA SEGUNDA VEZ).
 //
@@ -168,6 +169,10 @@ describe('tela × CSV — todo filtro compartilhado é lido nos DOIS lados', () 
     // arquivos CITAM o toggle para explicar por que ele morreu, e punir quem
     // explica é o contrário do que este repositório quer.
     const LEITURAS = ["'visao'", 'sp.visao', 'ehVisaoConsolidado']
+    // `semComentarios` é o mesmo recorte que `consistencia.test.ts` usa: o que
+    // vale é o CÓDIGO. A nota que explica por que o toggle morreu cita o nome da
+    // função morta de propósito, e punir quem explica é o contrário do que este
+    // repositório quer.
     for (const alvo of [
       ['src', 'lib', 'actions', 'exportar.ts'],
       ['src', 'app', '(app)', 'itens', 'page.tsx'],
@@ -176,7 +181,7 @@ describe('tela × CSV — todo filtro compartilhado é lido nos DOIS lados', () 
       ['src', 'components', 'itens', 'historico-filtros.tsx'],
       ['src', 'lib', 'url-params.ts'],
     ]) {
-      const src = fonte(...alvo)
+      const src = semComentarios(fonte(...alvo))
       for (const leitura of LEITURAS) {
         expect(src, `${alvo.join('/')} voltou a ler "${leitura}"`).not.toContain(leitura)
       }
