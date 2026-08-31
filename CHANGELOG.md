@@ -6,6 +6,57 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 31/08/2026 — F41 · O motor: o acessório deixou de travar a devolução ✅ 🔒
+
+Fase (**v1.46.0**). O item por quantidade parou de **bloquear** quem tenta usá-lo, e passou a falar
+a mesma língua do equipamento. Nasceu de quatro dores do Johnny, medidas em produção e diagnosticadas
+em [`docs/PLANO-ITENS.md`](docs/PLANO-ITENS.md). **Esta ordem entrega o motor; o redesenho das
+telas de `/itens` é a próxima**, e por decisão do Johnny nada dela foi antecipado aqui.
+
+O número que resume o problema: dos **132** pares item×filial de produção, só **4** tinham saída em
+aberto. Nos outros **128**, marcar "Voltou" **derrubava o lote inteiro** — e com ele a devolução do
+notebook que o operador queria registrar. O diário tinha **58** lançamentos, **zero** com vínculo a
+uma movimentação: a entrega/devolução com itens da F38 nunca gravou uma linha em produção.
+
+- 🐛 **O erro do print morreu, e a guarda que o causava continua de pé.** A recusa era certa
+  (`retorno` maior que a saída em aberto) e a premissa é que estava errada: ela supunha um diário
+  completo desde sempre, e o diário nasceu em 17/08/2026 sobre um acervo de anos. As RPCs passaram a
+  **partir a quantidade** — a parte que o diário conhecia vira o lançamento normal; a que ele não
+  conhecia vira um **Ajuste de acerto automático**, com justificativa própria e marcado como tal. O
+  trigger `valida_lancamento_item` **não mudou uma linha**: o sistema passou a escolher entre
+  gravações que o banco já aceitava.
+- ⚙️ **A conta é feita no Postgres, sob a trava, e relida a cada linha.** Fazê-la na aplicação abriria
+  a corrida que a fase existe para fechar. A regra é a mesma nos **três** caminhos — checklist da
+  devolução, "Itens que vão junto" da entrega e lançamento avulso —, porque uma regra por caminho
+  seriam duas verdades sobre o mesmo fato.
+- 🗣️ **Um vocabulário só, com as palavras do ativo.** `entrada`→**Compra**, `saida`→**Saída**,
+  `retorno`→**Devolução**, `ajuste`→**Ajuste**. O par Atrelar/Devolução-de-chamado **saiu da tela** e
+  ficou legível no histórico como **Reserva** e **Devolução de reserva**; a coluna `Atrelados` virou
+  **Reservado**. Os VALORES do enum não mudaram — renomeá-los reescreveria a leitura de todo
+  lançamento histórico. A pílula de cada tipo ganhou a tinta do tipo correspondente do ativo.
+- 👤 **O operador cadastra item no meio do fluxo**, pela mesma razão, palavra por palavra, que abriu
+  `colaboradores` na F37. Item criado a partir de uma linha do checklist **já nasce com o tipo dela**.
+  Editar, desativar e apagar continuam do nível administrador. Nomes que só diferem por acento, caixa
+  ou espaço são o mesmo item.
+- 🧾 **A escolha do tipo virou uma pergunta só**, com quatro botões: a segunda existia apenas para
+  desempatar o par que o vocabulário confundia, e sem ele não há o que desempatar.
+- 🔁 **O carrinho de lançamento virou tudo ou nada** (era um `for` de INSERTs, item da
+  `DIVIDA-TECNICA.md`) — e nasceu com a mesma partição do checklist.
+- 🔒 **As 5 reservas abertas viraram saída**, numa conversão única e só-INSERT. **Efeito no estoque:
+  zero** — `total` e `em estoque` idênticos, par por par, antes e depois; o que mudou é que agora a
+  devolução do equipamento as fecha. Uma **11ª checagem de integridade** em `/dev` vigia para que não
+  voltem.
+- 🧪 **Prova.** Roteiro novo `f41_regularizacao.sql` (25 asserções — o caso do print, a devolução
+  parcial, a entrega sem saldo, a pendência, o estorno, o avulso, a leitura incremental e, ao
+  contrário de tudo, que o trigger **não** foi afrouxado), `f38_itens_com_ativo.sql` com três
+  cenários novos (51) e `papeis_rls.sql` com o `3c` invertido (76). Os dois jobs do CI verdes.
+
+Migrations `0125`–`0127`. Atas — incluindo as seis decisões do Johnny e os dois pontos em que o
+plano de área estava errado sobre a linhagem das funções — em
+[`docs/DECISOES.md`](docs/DECISOES.md); relatório em [`docs/RELATORIO-F41.md`](docs/RELATORIO-F41.md).
+
+---
+
 ## 31/08/2026 — Revisão de código: a busca que não achava ninguém ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.45.1**). Revisão de código sobre a F40 e o entorno, com

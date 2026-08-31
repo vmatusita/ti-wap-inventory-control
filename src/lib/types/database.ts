@@ -420,34 +420,47 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
+          criado_por: string | null
           estoque_minimo: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           id: number
           nome: string
+          nome_chave: string | null
           ordem: number
           tipo_id: number | null
         }
         Insert: {
           ativo?: boolean
           created_at?: string
+          criado_por?: string | null
           estoque_minimo?: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           id?: never
           nome: string
+          nome_chave?: string | null
           ordem?: number
           tipo_id?: number | null
         }
         Update: {
           ativo?: boolean
           created_at?: string
+          criado_por?: string | null
           estoque_minimo?: number
           grupo?: Database["public"]["Enums"]["grupo_item"]
           id?: never
           nome?: string
+          nome_chave?: string | null
           ordem?: number
           tipo_id?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "itens_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "itens_tipo_id_fkey"
             columns: ["tipo_id"]
@@ -509,6 +522,7 @@ export type Database = {
           observacao: string | null
           pendencia_item_id: string | null
           quantidade: number
+          regularizacao: boolean
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
         }
         Insert: {
@@ -527,6 +541,7 @@ export type Database = {
           observacao?: string | null
           pendencia_item_id?: string | null
           quantidade: number
+          regularizacao?: boolean
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
         }
         Update: {
@@ -545,6 +560,7 @@ export type Database = {
           observacao?: string | null
           pendencia_item_id?: string | null
           quantidade?: number
+          regularizacao?: boolean
           tipo?: Database["public"]["Enums"]["tipo_lancamento"]
         }
         Relationships: [
@@ -1417,7 +1433,7 @@ export type Database = {
           p_criado_por: string
           p_estornos: Json
           p_movimentacao_id: string
-          p_observacao: string | null
+          p_observacao: string
         }
         Returns: Json
       }
@@ -1469,6 +1485,11 @@ export type Database = {
           p_correcoes?: Json
           p_plano: Json
         }
+        Returns: Json
+      }
+      item_chave: { Args: { p_nome: string }; Returns: string }
+      lancar_itens_lote: {
+        Args: { p_criado_por: string; p_linhas: Json }
         Returns: Json
       }
       mov_da_carga_import: { Args: { p_observacao: string }; Returns: boolean }
@@ -1616,7 +1637,7 @@ export type Database = {
           p_desfecho: string
           p_ids: string[]
           p_lancamentos: Json
-          p_observacao: string | null
+          p_observacao: string
         }
         Returns: Json
       }

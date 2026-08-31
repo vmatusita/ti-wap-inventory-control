@@ -20,19 +20,23 @@ export const NUMEROS_ITEM: readonly {
   },
   {
     chave: 'estoque',
-    rotulo: 'Estoque',
+    rotulo: 'Em estoque',
     explicacao: 'O que está fisicamente disponível na prateleira agora.',
   },
   {
+    // F41 — a coluna SQL continua se chamando `atrelados` (renomeá-la custaria caro
+    // e não resolve dor nenhuma); o que mudou é o nome que a tela dá ao número.
+    // "Reservado" é a palavra que o ativo já usa para a mesma ideia.
     chave: 'atrelados',
-    rotulo: 'Atrelados',
-    explicacao: 'Unidades vinculadas a um ativo/chamado, que devem retornar.',
+    rotulo: 'Reservado',
+    explicacao:
+      'Unidades separadas para um chamado, que devem voltar. Desde 31/08/2026 nenhuma tela cria reserva nova — este número existe para o histórico e tende a ficar em zero.',
   },
   {
     chave: 'falta',
     rotulo: 'Falta',
     explicacao:
-      'Déficit real: acende quando o que está atrelado somado ao que está com as pessoas passa do Total — máx(0, atrelados + liberados − total). Na operação normal fica sempre em zero; se acender, algum lançamento não fecha e vale conferir o histórico. É compromisso JÁ assumido, e aparece como selo vermelho "faltam N" — não é o mesmo que o aviso "repor".',
+      'Déficit real: acende quando o que está reservado somado ao que está com as pessoas passa do Total — máx(0, reservado + em uso − total). Na operação normal fica sempre em zero; se acender, algum lançamento não fecha e vale conferir o histórico. É compromisso JÁ assumido, e aparece como selo vermelho "faltam N" — não é o mesmo que o aviso "repor".',
   },
 ]
 
@@ -48,10 +52,17 @@ export const itensPorQuantidade: PaginaAjuda = {
     'periferico',
     'consumivel',
     'saldo',
+    // F41 — os termos VELHOS continuam na busca de propósito: quem aprendeu a
+    // operar com "atrelado" e "liberação" tem de achar a página que explica que
+    // esses nomes mudaram. Termo de busca é porta de entrada, não rótulo de tela.
     'atrelado',
+    'reservado',
+    'em uso',
     'glossario',
     'liberacao',
     'devolucao de item',
+    'acerto automatico',
+    'regularizacao',
     'chamado',
   ],
   legado: ['itens'],
@@ -79,18 +90,24 @@ export const itensPorQuantidade: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'A conta que liga os quatro: o Total só muda com Entrada e Ajuste. Liberação e Atrelar tiram do Estoque sem mexer no Total (o item continua sendo da TI, só não está na prateleira); Devolução e Retorno repõem o Estoque. É por isso que Total e Estoque quase nunca são iguais — a diferença é o que está na mão das pessoas ou preso a um chamado.',
+        'A conta que liga os quatro: o Total só muda com Compra e Ajuste. A Saída tira do Em estoque sem mexer no Total (o item continua sendo da TI, só não está na prateleira); a Devolução repõe o Em estoque. É por isso que Total e Em estoque quase nunca são iguais — a diferença é o que está na mão das pessoas.',
     },
-    { tipo: 'titulo', id: 'itens-tipos', texto: 'Os seis tipos de lançamento' },
+    { tipo: 'titulo', id: 'itens-tipos', texto: 'Os tipos de lançamento' },
     {
       tipo: 'paragrafo',
-      texto: 'Os lançamentos de item têm seis tipos, cada um com um efeito no saldo:',
+      texto:
+        'Desde 31/08/2026 o item usa as MESMAS palavras do equipamento: Compra, Saída, Devolução e Ajuste. São os quatro que a tela oferece, e cada um tem um efeito no saldo:',
     },
     { tipo: 'glossario', badge: 'tipoLanc', itens: verbetesTipoLancamento() },
     {
       tipo: 'nota',
       texto:
-        'Eles andam em pares: o que sai por Liberação volta por Retorno; o que sai por Atrelar volta por Devolução. Escolher o par errado não some com a peça, mas embaralha a coluna Atrelados — e é a causa mais comum de a coluna Falta acender. Por isso o formulário de lançamento não pede o tipo pelo nome: ele pergunta "O que aconteceu?" (Chegou, Saiu da prateleira, Voltou à prateleira, Acerto de contagem) e, no saiu/voltou, se a peça estava com uma pessoa ou atrelada a um chamado — o par certo sai da resposta. Atrelar e Devolução exigem o número do chamado (é ele que amarra a ida à volta); Ajuste exige uma justificativa e aceita quantidade negativa, para dar baixa numa contagem que não bateu.',
+        'Eles andam em pares: o que sai por Saída volta por Devolução. Antes de 31/08/2026 havia um segundo par — "Atrelar" e a antiga "Devolução" de chamado —, que prendia a peça a um número de chamado e só se soltava por ali. Ele SAIU da tela: os lançamentos antigos continuam legíveis no histórico, agora com os nomes Reserva e Devolução de reserva, e nenhuma tela cria reserva nova. Ajuste exige uma justificativa e aceita quantidade negativa, para dar baixa numa contagem que não bateu.',
+    },
+    {
+      tipo: 'nota',
+      texto:
+        'Você não precisa mais lançar o item ANTES de movimentar o equipamento. Quando um acessório volta com um notebook e o sistema nunca o viu sair, ou sai numa filial sem saldo, o registro do equipamento não é mais recusado: o sistema grava sozinho um Ajuste de acerto automático, com a justificativa pronta, e segue. O painel de sucesso avisa em uma linha o que foi acertado, e o histórico mostra a linha com o texto "Acerto automático" — nada acontece em silêncio.',
     },
     {
       tipo: 'nota',

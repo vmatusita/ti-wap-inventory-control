@@ -8,6 +8,7 @@ import {
   CATEGORIA_ORDEM,
   CATEGORIA_META,
   TIPO_META,
+  TIPO_LANCAMENTO_META,
   type TipoMovimentacao,
 } from '@/lib/dominio'
 
@@ -99,8 +100,15 @@ describe('índice de busca da documentação', () => {
   it('acha pelo vocabulário DERIVADO do domínio, não só por título e resumo', () => {
     const p = paginaPorSlug('itens-por-quantidade')!
     const soCabecalho = normalizarBusca([p.titulo, p.resumo, ...(p.termos ?? [])].join(' '))
-    expect(soCabecalho).not.toContain('atrelar')
-    expect(acha('atrelar')).toContain('itens-por-quantidade')
+    // F41 — a âncora era a string literal 'atrelar', e ela morreu junto com o
+    // rótulo (decisão J1: `reserva` passou a ler-se "Reserva"). Em vez de trocar
+    // uma literal por outra, a âncora passou a ser DERIVADA: o rótulo de
+    // `liberacao` só entra nesta página pelo bloco `glossario`, nunca pelo
+    // cabeçalho — que é exatamente o mecanismo que este caso existe para provar.
+    // Assim ele acompanha o próximo renome sozinho.
+    const alvo = normalizarBusca(TIPO_LANCAMENTO_META.liberacao.rotulo)
+    expect(soCabecalho).not.toContain(alvo)
+    expect(acha(alvo)).toContain('itens-por-quantidade')
   })
 
   // A trava de CLASSE: um status, categoria ou tipo novo não pode nascer

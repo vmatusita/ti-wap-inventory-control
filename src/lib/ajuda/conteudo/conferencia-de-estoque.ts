@@ -37,7 +37,7 @@ export const conferenciaDeEstoque: PaginaAjuda = {
     {
       tipo: 'lista',
       itens: [
-        'O número que você confere é o ESTOQUE — o que está na prateleira. O que está atrelado a um chamado ou saiu com alguém não está lá para ser contado, e por isso não entra nessa coluna.',
+        'O número que você confere é o ESTOQUE — o que está na prateleira. O que está reservado para um chamado ou saiu com alguém não está lá para ser contado, e por isso não entra nessa coluna.',
         'Pré-condição: você precisa poder registrar na filial que vai conferir. Quem só consulta vê os saldos, mas não abre a conferência.',
       ],
     },

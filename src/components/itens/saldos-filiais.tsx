@@ -44,7 +44,7 @@ const COL_ITEM =
   "sticky left-0 z-10 bg-card before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:bg-muted/50 before:opacity-0 before:transition-opacity before:content-[''] group-hover:before:opacity-100"
 
 function detalhe(c: CelulaSaldo, filial: string): string {
-  return `${filial} — total ${c.total.toLocaleString('pt-BR')} · estoque ${c.estoque.toLocaleString('pt-BR')} · atrelados ${c.atrelados.toLocaleString('pt-BR')}`
+  return `${filial} — total ${c.total.toLocaleString('pt-BR')} · em estoque ${c.estoque.toLocaleString('pt-BR')} · reservado ${c.atrelados.toLocaleString('pt-BR')}`
 }
 
 export function SaldosFiliaisTabela({

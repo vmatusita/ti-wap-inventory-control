@@ -24,13 +24,13 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Falta e repor são dois avisos DIFERENTES e podem aparecer na mesma linha. Falta (selo vermelho "faltam N") é déficit real — máx(0, atrelados + liberados − total) —, ou seja, compromisso já assumido sem lastro. Repor (selo âmbar "repor") é ponto de reposição: acende quando o estoque somado de TODAS as filiais fica abaixo do estoque mínimo configurado para aquele item em Administração › Itens. Mínimo 0 = item sem acompanhamento, nunca acende. Estoque IGUAL ao mínimo também não acende: o mínimo é o piso aceitável, não o gatilho. O aviso é sempre do consolidado, nunca do saldo de uma filial — julgar pelo recorte mandaria comprar o que está sobrando na filial ao lado; por isso, na visão Por filial, o selo "repor" fica embaixo da coluna Total e nunca numa coluna de filial. O painel inicial repete a mesma conta no card "Itens para repor", que só aparece quando há algo a repor.',
+        'Falta e repor são dois avisos DIFERENTES e podem aparecer na mesma linha. Falta (selo vermelho "faltam N") é déficit real — máx(0, reservado + em uso − total) —, ou seja, compromisso já assumido sem lastro. Repor (selo âmbar "repor") é ponto de reposição: acende quando o estoque somado de TODAS as filiais fica abaixo do estoque mínimo configurado para aquele item em Administração › Itens. Mínimo 0 = item sem acompanhamento, nunca acende. Estoque IGUAL ao mínimo também não acende: o mínimo é o piso aceitável, não o gatilho. O aviso é sempre do consolidado, nunca do saldo de uma filial — julgar pelo recorte mandaria comprar o que está sobrando na filial ao lado; por isso, na visão Por filial, o selo "repor" fica embaixo da coluna Total e nunca numa coluna de filial. O painel inicial repete a mesma conta no card "Itens para repor", que só aparece quando há algo a repor.',
     },
     {
       tipo: 'lista',
       itens: [
         'Passar o mouse (ou tocar) no selo "repor" mostra a conta que o acendeu: o mínimo do item e o estoque de todas as filiais.',
-        'Passar o mouse no selo vermelho mostra o compromisso: quantas unidades estão atreladas a equipamentos e quantas há em estoque.',
+        'Passar o mouse no selo vermelho mostra o compromisso: quantas unidades estão reservadas para chamados e quantas há em estoque.',
         'O selo "ao vivo" no cabeçalho vira "atualizado agora" quando alguém lança alguma coisa enquanto você está na tela — os números se refrescam sem recarregar.',
       ],
     },

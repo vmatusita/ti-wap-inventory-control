@@ -166,14 +166,17 @@ export function HistoricoFiltros({ itens }: { itens: ItemCatalogo[] }) {
           <SelectContent>
             <SelectItem value={TODOS_TIPOS}>Todos os tipos</SelectItem>
             {/* 19/08/2026 (avulsa) — as opções agrupadas pela MESMA pergunta do
-                diálogo de lançamento ("Chegou / Saiu / Voltou / Acerto",
-                `lib/itens/escolha-tipo.ts`): quem aprendeu a lançar pela
-                resposta encontra o filtro pelo mesmo caminho. Os rótulos
-                oficiais continuam sendo o texto de cada opção. */}
+                diálogo de lançamento (`lib/itens/escolha-tipo.ts`): quem aprendeu
+                a lançar pela resposta encontra o filtro pelo mesmo caminho. Os
+                rótulos oficiais continuam sendo o texto de cada opção.
+                F41 — aqui é `tiposHistoricos`, não `tipos`: o diálogo passou a
+                oferecer QUATRO tipos, mas o histórico tem lançamentos de `reserva`
+                e `liberacao` que continuam existindo para sempre (o acervo não se
+                apaga) e precisam continuar filtráveis. */}
             {GRUPOS_ESCOLHA.map((g) => (
               <SelectGroup key={g.chave}>
                 <SelectLabel>{g.rotulo}</SelectLabel>
-                {g.tipos.map((t) => (
+                {g.tiposHistoricos.map((t) => (
                   <SelectItem key={t} value={t}>
                     {rotuloTipoLancamento(t)}
                   </SelectItem>

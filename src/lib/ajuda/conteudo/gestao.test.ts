@@ -377,7 +377,8 @@ describe('lançar itens e ler saldos', () => {
 
   it('mantém a distinção falta × repor com a fórmula real', () => {
     contem('saldos-e-estoque-minimo', 'Falta e repor são dois avisos DIFERENTES')
-    contem('saldos-e-estoque-minimo', 'máx(0, atrelados + liberados − total)')
+    // F41 — a conta é a mesma; 'atrelados' virou 'reservado' e 'liberados' virou 'em uso'.
+    contem('saldos-e-estoque-minimo', 'máx(0, reservado + em uso − total)')
     contem('saldos-e-estoque-minimo', 'estoque somado de TODAS as filiais')
   })
 

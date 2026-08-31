@@ -1,7 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { criarItemInline } from '@/lib/actions/itens'
 import {
   Select,
   SelectContent,
@@ -88,6 +91,9 @@ export function ChecklistFaltantes({
     [tipos, itensCatalogo],
   )
 
+  /** F41 — o slug da linha que está cadastrando o item agora (trava os botões). */
+  const [criando, setCriando] = useState<string | null>(null)
+
   function desfechoDe(slug: string): DesfechoLinha | null {
     if (faltantes.includes(slug)) return 'faltante'
     if (devolvidos.some((d) => d.tipoSlug === slug)) return 'devolvido'
@@ -122,6 +128,44 @@ export function ChecklistFaltantes({
       faltantes,
       devolvidos: devolvidos.map((d) => (d.tipoSlug === slug ? { ...d, itemId } : d)),
     })
+  }
+
+  // F41 — cadastra o item DESTA linha, com o nome e o tipo dela.
+  //
+  // O nome do item nasce igual ao rótulo do tipo ("Carregador"), que é o que o
+  // operador chamaria de qualquer jeito; renomear depois é edição de catálogo, do
+  // admin. `grupo: 'acessorio'` porque é o que o checklist da devolução lista —
+  // componente não vai junto com o equipamento numa devolução de desligamento.
+  //
+  // Não recarregamos o catálogo do servidor: o que o payload precisa é do `itemId`,
+  // e ele volta da própria action. A linha passa a mostrar a confirmação em vez do
+  // motivo, e o `resolucao` continua dizendo "sem_item" até o próximo carregamento
+  // — o que não afeta gravação nenhuma, porque quem manda é `escolhido.itemId`.
+  async function cadastrarDoTipo(tipo: TipoItem) {
+    setCriando(tipo.slug)
+    try {
+      const res = await criarItemInline({
+        nome: tipo.rotulo,
+        grupo: 'acessorio',
+        tipo_id: tipo.id,
+      })
+      if (!res.ok || !res.id) {
+        toast.error(res.erro ?? 'Não foi possível cadastrar o item.')
+        return
+      }
+      escolherItem(tipo.slug, res.id)
+      if (res.precisaAdminParaReativar) {
+        toast.info(
+          `"${tipo.rotulo}" já existia desativado e foi usado assim mesmo. Peça a um administrador para reativá-lo em Administração › Itens.`,
+        )
+      } else if (res.reativado) {
+        toast.success(`"${tipo.rotulo}" voltou ao catálogo.`)
+      } else {
+        toast.success(`"${tipo.rotulo}" cadastrado.`)
+      }
+    } finally {
+      setCriando(null)
+    }
   }
 
   if (tipos.length === 0) return null
@@ -188,10 +232,39 @@ export function ChecklistFaltantes({
                 </Select>
               )}
 
+              {/* F41 — O ITEM NASCE AQUI, se ainda não existir.
+                  Era o beco sem saída do checklist: tipo sem item de catálogo
+                  marcava "Voltou", a devolução gravava e o estoque não mexia — e a
+                  única saída era abandonar o fluxo, ir a /admin/itens (que o
+                  operador nem alcança), cadastrar e voltar. Agora o item é criado
+                  daqui, JÁ COM O `tipo_id` desta linha, e a próxima devolução
+                  resolve sozinha pela ponte tipo→item.
+                  Sobre não haver `podeCadastrar`: quem chega ao passo 2 do wizard
+                  está num fluxo de escrita, e a guarda de verdade é do servidor
+                  (`exigirPapel(…, 'operador')` + a policy `pode_escrever()`), que
+                  responde em pt-BR. Um flag a mais na prop só duplicaria a regra. */}
               {desfecho === 'devolvido' && resolucao.situacao === 'sem_item' && (
-                <span className="text-muted-foreground basis-full text-xs">
-                  {resolucao.motivo}
-                </span>
+                <div className="basis-full">
+                  {escolhido?.itemId ? (
+                    <span className="text-muted-foreground text-xs">
+                      Item <strong>{tipo.rotulo}</strong> cadastrado — vai repor o estoque.
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                      {resolucao.motivo}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7"
+                        disabled={criando !== null}
+                        onClick={() => cadastrarDoTipo(tipo)}
+                      >
+                        {criando === tipo.slug ? 'Cadastrando…' : `Cadastrar "${tipo.rotulo}"`}
+                      </Button>
+                    </span>
+                  )}
+                </div>
               )}
             </li>
           )

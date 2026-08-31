@@ -1100,11 +1100,24 @@ export function NovaMovimentacaoForm({
                 grupos[0]?.ativos.find((a) => a.movimentacaoId)?.movimentacaoId ?? '',
             }
           : null
-      setSucesso({ criadas: res.criadas, grupos, pendente })
+      setSucesso({
+        criadas: res.criadas,
+        grupos,
+        pendente,
+        avisoRegularizacao: res.avisoRegularizacao,
+      })
       if (res.avisosVinculo?.length) {
         // §C.3 — a devolução repôs o estoque, mas alguma linha saiu sem baixar
         // conta de ninguém. Não é erro; é o que aconteceu, dito na cara.
         for (const aviso of res.avisosVinculo) toast.info(aviso)
+      }
+      if (res.avisoRegularizacao) {
+        // F41 — o ACERTO AUTOMÁTICO. A movimentação do equipamento foi gravada, e
+        // com ela entraram no estoque unidades que o sistema não conhecia. Não é
+        // erro e não é aviso de risco: é o que aconteceu, dito com a mesma
+        // discrição do vínculo da pessoa. O que NÃO pode é acontecer em silêncio —
+        // um acerto invisível é a receita para ninguém confiar no Total.
+        toast.info(res.avisoRegularizacao)
       }
       router.refresh()
       return

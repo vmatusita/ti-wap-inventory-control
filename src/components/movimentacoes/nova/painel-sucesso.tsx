@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeftRight, Check, FileText, SkipForward } from 'lucide-react'
+import { ArrowLeftRight, Check, FileText, PackagePlus, SkipForward } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GerarTermoDialog } from '@/components/movimentacoes/gerar-termo-dialog'
 import { linkContrapartida } from '@/components/movimentacoes/nova/troca-upgrade'
@@ -289,6 +289,18 @@ export function PainelSucesso({
             .map((g) => `${rotuloTipo(g.tipo)} (${g.ativos.length})`)
             .join(' + ')}{' '}
           — a troca inteira num registro só.
+        </p>
+      )}
+      {/* F41 — O ACERTO AUTOMÁTICO, dito em UMA linha e sem alarme.
+          A movimentação do equipamento foi gravada; junto com ela entraram no
+          estoque unidades que o sistema não conhecia. É informação, não risco:
+          por isso `muted-foreground` e um ícone neutro, e não o tom de aviso.
+          O que não pode é acontecer em silêncio — um acerto invisível é a receita
+          para ninguém confiar no Total (é o risco escrito no §8 do PLANO-ITENS). */}
+      {sucesso.avisoRegularizacao && (
+        <p className="mx-auto mt-2 flex max-w-prose items-start justify-center gap-1.5 text-sm text-muted-foreground">
+          <PackagePlus className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>{sucesso.avisoRegularizacao}</span>
         </p>
       )}
       <p className="mt-1 text-sm text-muted-foreground">Fichas atualizadas:</p>

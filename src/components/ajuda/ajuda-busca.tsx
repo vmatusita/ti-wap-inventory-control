@@ -74,7 +74,7 @@ export function AjudaBusca({ children }: { children: React.ReactNode }) {
             type="search"
             value={consulta}
             onChange={(e) => setConsulta(e.target.value)}
-            placeholder="Buscar por título, assunto ou termo (ex.: emprestado, termo, atrelar)…"
+            placeholder="Buscar por título, assunto ou termo (ex.: emprestado, termo, devolução)…"
             aria-label="Buscar por título, assunto ou termo"
             className="h-9 w-full rounded-md border bg-background pr-3 pl-9 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />

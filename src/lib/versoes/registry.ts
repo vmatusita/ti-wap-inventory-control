@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.46.0',
+    data: '2026-08-31',
+    fase: 'F41',
+    titulo: 'O acessório deixou de travar a devolução do equipamento',
+    mudancas: [
+      'Marcar "Voltou" no checklist de uma devolução não derruba mais o registro. Antes, se o sistema não tivesse a saída daquele carregador anotada, ele recusava tudo — a devolução do notebook inclusive — e a tela dizia "Nada foi gravado". Agora ele grava a devolução, acerta a contagem do acessório sozinho e avisa numa linha o que fez.',
+      'A mesma coisa vale na entrega: mandar um mouse junto com o equipamento numa filial sem estoque dele deixou de ser recusado.',
+      'Você pode cadastrar um item sem sair da movimentação. No checklist, a linha que não tem item no catálogo ganhou o botão "Cadastrar", e o item nasce já com o tipo daquela linha. Nomes que só diferem por acento, maiúscula ou espaço a mais são tratados como o mesmo item.',
+      'Os itens passaram a usar as mesmas palavras dos equipamentos: Compra, Saída, Devolução e Ajuste. Sumiram "Liberação", "Atrelar" e "Retorno", que eram três nomes para coisas que o resto do sistema já chamava de outro jeito. A coluna "Atrelados" agora se chama "Reservado".',
+      'Escolher o tipo de um lançamento virou uma pergunta só, com quatro botões — antes eram duas perguntas encadeadas.',
+      'O lançamento de vários itens de uma vez virou tudo ou nada: se uma linha for recusada, nenhuma é gravada e a tela diz qual foi. Antes metade do carrinho podia entrar sem você perceber.',
+    ],
+  },
+  {
     versao: '1.45.1',
     data: '2026-08-31',
     titulo: 'A busca que não achava ninguém, e mais treze correções da revisão',

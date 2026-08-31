@@ -238,6 +238,12 @@ export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
     descricao:
       'Equipamento num estado em que ninguém está com ele (em estoque, em triagem, em manutenção, defasado, descartado ou devolvido ao fornecedor) que ainda carrega colaborador ou setor. Em operação normal isto é SEMPRE zero: desde a F36 toda movimentação apaga o detentor ao levar o equipamento para um estado sem dono. Se subir, ou alguém desfez uma movimentação antiga (o estorno e o "Apagar movimentação" restauram o retrato de antes, de propósito), ou apareceu um caminho de escrita que não passa pelo registro da movimentação — e é melhor descobrir aqui do que no relatório.',
   },
+  {
+    chave: 'reserva_aberta',
+    nome: 'Reserva de item em aberto',
+    descricao:
+      'Item por quantidade preso a um número de chamado sem caminho de volta. A reserva só é fechada por um lançamento do mesmo chamado, e desde a F41 (31/08/2026) NENHUMA tela emite esse lançamento — o par saiu do vocabulário, e a devolução do equipamento fecha o item pelo caminho comum. A migration 0127 converteu em saída as reservas que existiam (efeito no estoque: zero), e esta checagem existe para que não voltem em silêncio. Em operação normal é SEMPRE zero; se subir, alguém gravou uma reserva por fora da tela — payload forjado, script ou carga —, e a unidade correspondente está fora da prateleira sem ninguém conseguir devolvê-la.',
+  },
 ]
 
 export const TOTAL_CHECAGENS = CHECAGENS.length

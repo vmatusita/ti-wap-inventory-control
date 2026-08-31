@@ -38,7 +38,24 @@ const DIR = join(process.cwd(), 'supabase', 'migrations')
  * mesmo sem ser da fase. Ler a lista como "o que já passou por estas guardas", e
  * não como o índice da F38.
  */
-const DA_F38 = ['0116', '0117', '0118', '0119', '0120', '0121', '0122', '0123', '0124']
+const DA_F38 = [
+  '0116',
+  '0117',
+  '0118',
+  '0119',
+  '0120',
+  '0121',
+  '0122',
+  '0123',
+  '0124',
+  // F41 (31/08/2026) — as três da partição da quantidade. Entram aqui pelo motivo
+  // escrito acima: a lista é a COBERTURA, não o índice da F38. É por estar aqui que
+  // a 0126 (que recria DUAS funções) passa pelas guardas de intocáveis, de enum, de
+  // DELETE/UPDATE em massa e de `security invoker`.
+  '0125',
+  '0126',
+  '0127',
+]
 
 /** As dez que a ordem nomeia como intocáveis. */
 const INTOCAVEIS = [
@@ -151,6 +168,10 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'resolver_pendencias_item_com_lancamentos',
       'reabrir_pendencias_item_com_estornos',
       'estornar_movimentacao_com_itens',
+      // F41 — o avulso transacional. Entra na lista para que a exigência valha
+      // também para ele: RPC de acervo desta casa é `security invoker`, e a
+      // permissão por filial é da policy, nunca de um `definer` que a contorne.
+      'lancar_itens_lote',
     ]
     const tudo = arquivosDaFase()
       .map((a) => a.sql)

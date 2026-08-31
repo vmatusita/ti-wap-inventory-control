@@ -116,6 +116,7 @@ declare
   v_pos_ins  int;
   v_travas   int;
   v_tipo_id  smallint;
+  v_item_f41 smallint;   -- F41: o item sem histórico dos cenários 16 e 17
 begin
   -- =========================================================================
   -- FIXTURES
@@ -920,6 +921,92 @@ begin
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '11f; ';
     raise warning '✗ 11f % função(ões) nova(s) virou definer — a autorização saiu das policies', v_n;
+  end if;
+
+  -- =========================================================================
+  -- 16 e 17 (F41) — O QUE A PARTIÇÃO NÃO PODE TER QUEBRADO
+  -- =========================================================================
+  -- A F41 fez `criar_movimentacao_com_itens` gravar até DUAS linhas onde antes
+  -- gravava uma. As duas promessas centrais da F38 têm de sobreviver a isso, e é
+  -- aqui — no roteiro da F38, não no da F41 — que elas se defendem: quem quebrá-las
+  -- amanhã vai estar mexendo na F41 e precisa ser barrado por este arquivo.
+  --
+  -- SETUP — e ele é obrigatório: sem uma linha REALMENTE regularizada, as duas
+  -- asserções abaixo passariam com `count(*) = 0` sobre um conjunto vazio, que é o
+  -- pior tipo de teste verde. As fixtures da F38 não regularizam nada (todas as
+  -- quantidades cabem no saldo), então o cenário provoca a partição de propósito:
+  -- uma devolução com `retorno` do item B, que tem entrada mas NENHUMA saída em
+  -- aberto — exatamente o caso do print.
+  --
+  -- ITEM NOVO, sem lançamento nenhum: é o que garante `em uso em aberto = 0` e
+  -- portanto FORÇA a partição a virar acerto puro. Usar o item B daria o contrário:
+  -- ele tem saldo em aberto de OUTRAS pessoas, a partição gravaria um `retorno`
+  -- normal e nenhum acerto — e 16/17 mediriam o vazio de novo.
+  --
+  -- ⚠ O payload carrega `colaborador_id` DE PROPÓSITO, e é isso que torna o 17 uma
+  -- prova em vez de uma tautologia: mesmo com a pessoa no payload, o acerto tem de
+  -- nascer SEM vínculo. (Com `em uso em aberto = 0` não nasce linha de `retorno`
+  -- nenhuma, então a guarda por pessoa da 0118 nem entra em cena — o que se mede
+  -- aqui é a escolha da RPC, não a guarda.)
+  --
+  -- Ativo NOVO, e `created_at` explícito na saída que precede a devolução: regra da
+  -- pendência nº 5 da F37, a mesma que o cabeçalho deste arquivo cita.
+  insert into public.itens (nome, grupo, ordem)
+    values ('TESTE F38 Item F41', 'acessorio', 9992) returning id into v_item_f41;
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('ZZF38A016', 'notebook', v_f1) returning id into v_ativo4;
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador,
+                                    status_resultante, criado_por, created_at)
+  values (v_ativo4, 'saida', current_date - 4, v_f1, 'Fulano ZZF38 Um',
+          'em_uso', k_admin, now() - interval '4 days');
+
+  v_ret := public.criar_movimentacao_com_itens(
+    jsonb_build_array(jsonb_build_object(
+      'ativo_id', v_ativo4, 'tipo', 'devolucao', 'data', current_date::text,
+      'status_resultante', 'em_estoque')),
+    jsonb_build_array(jsonb_build_object(
+      'indice_movimentacao', 0, 'item_id', v_item_f41, 'tipo', 'retorno', 'quantidade', 1,
+      'data', current_date::text, 'colaborador', 'Fulano ZZF38 Um',
+      'colaborador_id', v_colab,
+      'observacao_regularizacao', 'Acerto automático (setup dos cenários 16 e 17).')),
+    k_admin);
+
+  select count(*) into v_n from public.lancamentos_item where regularizacao;
+  if v_n >= 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 16-setup a partição da F41 gravou % acerto(s) — há o que medir', v_n;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '16-setup; ';
+    raise warning '✗ 16-setup nenhum acerto foi gravado — 16 e 17 mediriam o vazio';
+  end if;
+
+  -- 16: o VÍNCULO (D13) — TODA linha nascida pela RPC aponta a movimentação, e a
+  --     linha do acerto não é exceção. Se o acerto nascesse solto, ele não
+  --     apareceria em "Itens que foram junto" e o estorno o deixaria órfão.
+  select count(*) into v_n
+    from public.lancamentos_item l
+   where l.regularizacao and l.movimentacao_id is null and l.pendencia_item_id is null;
+  if v_n = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 16 (F41) todo acerto automático nasce AMARRADO (movimentação ou pendência)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '16; ';
+    raise warning '✗ 16 % acerto(s) automático(s) solto(s) — a promessa D13 da F38 caiu', v_n;
+  end if;
+
+  -- 17: a REGRA §C.3 do vínculo com a pessoa continua sendo do `retorno`, e só
+  --     dele. O acerto é sobre a PRATELEIRA (a peça entrou no acervo), não sobre a
+  --     conta de ninguém: carregar `colaborador_id` nele inventaria dívida — e a
+  --     guarda por pessoa da 0118 passaria a medir uma soma que nunca saiu.
+  select count(*) into v_n
+    from public.lancamentos_item l
+   where l.regularizacao and l.colaborador_id is not null;
+  if v_n = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 17 (F41) o acerto automático NUNCA carrega vínculo com pessoa';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '17; ';
+    raise warning '✗ 17 % acerto(s) com colaborador_id — inventa dívida na conta de alguém', v_n;
   end if;
 
   -- =========================================================================

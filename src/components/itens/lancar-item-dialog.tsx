@@ -45,6 +45,7 @@ import {
   MSG_ESCOLHA_TIPO,
   PERGUNTA_ESCOLHA,
   TAREFA_DO_TIPO,
+  TIPOS_OFERECIDOS,
   grupoDoTipo,
   grupoPorChave,
   type GrupoEscolha,
@@ -257,8 +258,16 @@ export function LancarItemDialog({
   // Com tipo escolhido o grupo aceso é DERIVADO dele (fonte única); o estado
   // `grupoAberto` só existe para o instante entre as duas perguntas.
   const grupoAtual: GrupoEscolha | null = tipo ? grupoDoTipo(tipo).chave : grupoAberto
+  // F41 — a segunda pergunta MORREU: com o par reserva/liberacao fora da tela, cada
+  // grupo tem um tipo só e não há o que desempatar. A derivação passou a olhar o
+  // GRUPO (tem pergunta? tem mais de um tipo oferecido?) em vez de listar 'saiu' e
+  // 'voltou' pelo nome — assim o bloco some sozinho agora, e reaparece sozinho se um
+  // dia um grupo voltar a oferecer dois tipos.
+  const grupoDoAtual = grupoAtual ? grupoPorChave(grupoAtual) : null
   const grupoDuplo =
-    grupoAtual === 'saiu' || grupoAtual === 'voltou' ? grupoPorChave(grupoAtual) : null
+    grupoDoAtual && grupoDoAtual.pergunta && grupoDoAtual.tipos.length > 1
+      ? grupoDoAtual
+      : null
 
   // "Lançar da linha" (I6) — o botão de cada linha da tabela de saldos dispara o
   // CustomEvent; aqui o dialog abre já com item + filial preenchidos (na PRIMEIRA
@@ -348,7 +357,15 @@ export function LancarItemDialog({
       setFilialId(ultimo.filial_id)
     }
     setGrupoAberto(null)
-    definirTipo(ultimo.tipo)
+    // F41 — mesma guarda da filial, um parágrafo acima, agora para o TIPO: o último
+    // lançamento pode ter sido de um tipo que a tela NÃO oferece mais (`reserva` ou
+    // `liberacao`, que a decisão J1 tirou do vocabulário). Repetir com ele deixaria o
+    // operador com um tipo que ele não escolheu, não consegue reescolher pelos quatro
+    // botões, e que o trigger provavelmente recusaria — a reserva já foi fechada.
+    // Não é hipótese: a conversão da 0127 gravou `liberacao` e `saida` HOJE, em nome
+    // de quem tinha feito as reservas. Tipo fora dos oferecidos volta em branco, e o
+    // operador responde a pergunta.
+    if (TIPOS_OFERECIDOS.includes(ultimo.tipo)) definirTipo(ultimo.tipo)
     setChamado(ultimo.chamado ?? '')
     setColaborador(ultimo.colaborador ?? '')
     setData(hojeISO())

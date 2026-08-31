@@ -218,6 +218,12 @@ export type SucessoLote = {
   // Lote simples = 1 grupo; par troca/upgrade = 2 (principal primeiro).
   grupos: GrupoSucesso[]
   pendente?: ContrapartidaPendente | null
+  /**
+   * F41 — a linha sobre o que entrou no estoque por ACERTO AUTOMÁTICO. Vem do que a
+   * RPC de fato gravou, não de uma previsão. `undefined` quando não houve acerto —
+   * e aí o painel não mostra nada.
+   */
+  avisoRegularizacao?: string
 }
 
 // Serializa UM campo condicional da Config para a(s) chave(s) do input do Zod.

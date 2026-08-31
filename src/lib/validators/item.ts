@@ -300,10 +300,21 @@ export const atualizarItemSchema = itemCatalogoSchema.extend({
 // o estoque mínimo nasce no default 0 do banco (quem define ponto de reposição é
 // o admin em admin/itens, com o saldo na frente — não quem está no meio de um
 // lançamento).
-export const itemInlineSchema = itemCatalogoSchema.omit({
-  ordem: true,
-  estoque_minimo: true,
-})
+export const itemInlineSchema = itemCatalogoSchema
+  .omit({
+    ordem: true,
+    estoque_minimo: true,
+  })
+  .extend({
+    // F41 — o TIPO com que o item nasce. Criado a partir de uma linha do checklist
+    // da devolução, o item já nasce com o `tipo_id` daquela linha, e isso fecha de
+    // graça o buraco do MSG_SEM_ITEM_DO_TIPO ("nenhum item de catálogo deste tipo —
+    // a devolução foi registrada, mas o estoque não mudou"): o item que acabou de
+    // ser criado JÁ resolve pela ponte tipo→item na próxima devolução.
+    // Opcional porque o cadastro por /admin/itens e o inline fora do checklist não
+    // têm tipo nenhum a herdar.
+    tipo_id: z.number().int().positive().nullish(),
+  })
 
 /** Próxima `ordem` do grupo: 10 acima da maior existente (deixa espaço para
  *  reordenar à mão em admin/itens), 0 no grupo vazio, teto 999 do schema. */

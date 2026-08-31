@@ -107,7 +107,26 @@ describe('lancamentoItemSchema (lançamento simples — comportamento da F3B)', 
     expect(r.error?.issues.some((i) => i.message === MSG_CHAMADO_OBRIGATORIO)).toBe(true)
     expect(MSG_CHAMADO_OBRIGATORIO).toContain(TIPO_LANCAMENTO_META.reserva.rotulo)
     expect(MSG_CHAMADO_OBRIGATORIO).toContain(TIPO_LANCAMENTO_META.liberacao.rotulo)
-    expect(MSG_CHAMADO_OBRIGATORIO.toLowerCase()).not.toContain('reserva')
+
+    // F41 (31/08/2026) — AQUI HAVIA `not.toContain('reserva')`, e ele MORREU porque a
+    // REGRA mudou, não para ficar verde. Aquele proxy dizia "não use o nome INTERNO
+    // do enum"; com a decisão J1 o rótulo de TELA de `reserva` passou a ser
+    // exatamente "Reserva", e o proxy passou a proibir o texto certo.
+    //
+    // O que ele protegia continua protegido, e agora POR CONSTRUÇÃO: o bug original
+    // era um rótulo apontar para OUTRO tipo ("Liberação" era o nome de `saida` e a
+    // mensagem cobrava "liberação" de quem escolhera `liberacao`). Isso não pode
+    // mais acontecer, porque os seis rótulos são DISTINTOS entre si.
+    const rotulos = Object.values(TIPO_LANCAMENTO_META).map((m) => m.rotulo)
+    expect(new Set(rotulos).size, 'dois tipos com o mesmo rótulo').toBe(rotulos.length)
+
+    // E a mensagem não nomeia nenhum tipo que NÃO exige chamado. `retorno` fica fora
+    // da lista de propósito: o rótulo dele ("Devolução") é PREFIXO do rótulo de
+    // `liberacao` ("Devolução de reserva"), então a substring aparece pela frase
+    // inteira, não por engano — e "Devolução de reserva" é inequívoco lendo.
+    for (const t of ['entrada', 'saida', 'ajuste'] as const) {
+      expect(MSG_CHAMADO_OBRIGATORIO, t).not.toContain(TIPO_LANCAMENTO_META[t].rotulo)
+    }
   })
 
   it('ajuste sem justificativa falha', () => {

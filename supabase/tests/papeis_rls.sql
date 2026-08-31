@@ -172,6 +172,7 @@ declare
   -- É a mesma linha nas três asserções de propósito: é o que prova que a diferença
   -- está no CARGO, e não em qual linha cada um alcança.
   v_colab_f37  uuid;
+  v_item_f41   smallint;   -- F41: o item que o operador cria em 3c e não edita em 3c-quater
   v_ok         int  := 0;
   v_falhas     int  := 0;
   v_msgs       text := '';
@@ -743,12 +744,60 @@ begin
     v_ok := v_ok + 1; raise notice '✓ 3b operador recusado ao criar filial (%)', sqlstate;
   end;
 
+  -- 3c (F41 — INVERTIDO em 31/08/2026). Este cenário afirmava, até a véspera, que o
+  -- operador era RECUSADO ao criar item de catálogo. Ele virou porque a REGRA virou,
+  -- não para ficar verde: a decisão J2/D4 abriu o INSERT de `itens` a
+  -- `pode_escrever()` (migration 0125), pelo mesmo motivo, palavra por palavra, que
+  -- abriu `colaboradores` na F37/D5 — é o operador quem cadastra o acessório inline
+  -- no meio da movimentação, e exigir admin ali quebrava o fluxo na mão dele. Medido:
+  -- a maioria dos itens sequer estava cadastrada (dor D4 do docs/PLANO-ITENS.md).
+  -- Ata em docs/DECISOES.md.
+  --
+  -- É a METADE POSITIVA do par com 3c-quater, exatamente como 2j é com 3c-ter.
   begin
-    insert into public.itens (nome, grupo) values ('Item f21 op', 'acessorio');
-    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c; ';
-    raise warning '✗ 3c operador CRIOU item de catálogo (é matéria de admin)';
+    insert into public.itens (nome, grupo) values ('Item f41 op', 'acessorio')
+    returning id into v_item_f41;
+    v_ok := v_ok + 1;
+    raise notice '✓ 3c operador CRIA item de catálogo (inline no fluxo, desde a F41)';
   exception when others then
-    v_ok := v_ok + 1; raise notice '✓ 3c operador recusado ao criar item (%)', sqlstate;
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c(' || sqlstate || '); ';
+    raise warning '✗ 3c operador recusado ao criar item (% %) — o cadastro inline quebra assim', sqlstate, sqlerrm;
+  end;
+
+  -- 3c-quater (F41). A METADE NEGATIVA: o operador CRIA item, mas NÃO edita nem
+  -- desativa — isso é do nível administrador, igualzinho a colaborador. Sem esta
+  -- asserção, uma policy de UPDATE escrita por engano com `pode_escrever()` daria ao
+  -- operador o poder de renomear qualquer item do catálogo, e nada acusaria.
+  --
+  -- Molde do 3c-ter: UPDATE sob RLS não lança erro, apenas não atinge linha nenhuma.
+  -- As duas formas de negação são aceitáveis; o que não pode é `v_n > 0`.
+  begin
+    update public.itens set nome = 'Renomeado pelo operador' where id = v_item_f41;
+    get diagnostics v_n = row_count;
+    if v_n = 0 then
+      v_ok := v_ok + 1; raise notice '✓ 3c-quater operador não edita item (0 linhas — a policy de UPDATE é de admin)';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c-quater; ';
+      raise warning '✗ 3c-quater operador EDITOU % item(ns) de catálogo', v_n;
+    end if;
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 3c-quater operador recusado ao editar item (%)', sqlstate;
+  end;
+
+  -- 3c-quinquies (F41). A CHAVE de deduplicação vale para quem quer que insira: o
+  -- mesmo nome com acento e espaço a mais é recusado pelo índice único
+  -- `itens_nome_chave_uidx` (0125). Sem ele, cadastro aberto vira catálogo com
+  -- "Mochila", "mochila" e "Mochila " — três itens onde há um, e três saldos que
+  -- não somam.
+  begin
+    insert into public.itens (nome, grupo) values ('  ITEM   F41   OP  ', 'acessorio');
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c-quinquies; ';
+    raise warning '✗ 3c-quinquies a chave de item NÃO deduplicou (entrou item repetido)';
+  exception when unique_violation then
+    v_ok := v_ok + 1; raise notice '✓ 3c-quinquies nome repetido por caixa/espaço recusado pela chave (%)', sqlstate;
+  when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c-quinquies(' || sqlstate || '); ';
+    raise warning '✗ 3c-quinquies recusou pelo motivo ERRADO (% %)', sqlstate, sqlerrm;
   end;
 
   -- 3c-bis (F37). `tipos_item` é vocabulário do sistema, como motivos: o operador

@@ -331,7 +331,7 @@ export function CorpoRelatorioV2({
           <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
             <CardRelatorio
               titulo="Saldo por item"
-              subtitulo="total · estoque · atrelados · Δ · falta"
+              subtitulo="total · em estoque · reservado · Δ · falta"
               janela="foto"
               periodoJanela={periodo}
             >

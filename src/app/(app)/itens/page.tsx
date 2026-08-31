@@ -303,7 +303,7 @@ export default async function ItensPage({
             <LinkAjuda pagina="itens-por-quantidade" rotulo="Ajuda sobre itens por quantidade" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Acessórios, periféricos e componentes — total, estoque, atrelados e falta por filial.
+            Acessórios, periféricos e componentes — total, em estoque, reservado e falta por filial.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -347,13 +347,20 @@ export default async function ItensPage({
           {escreve && filiaisEscrita.length >= 2 && (
             <TransferirItemDialog itens={itensAtivos} filiais={filiaisEscrita} />
           )}
+          {/* F41 — `podeCriarItem` era `admin`, e virou `escreve`: quem lança no
+              acervo passou a CRIAR item de catálogo, porque exigir admin no meio do
+              lançamento quebrava o fluxo na mão do operador (mesma razão da F37/D5
+              com colaborador). A guarda de verdade continua no servidor
+              (`exigirPapel(…, 'operador')`) e na policy `pode_escrever()` da 0125;
+              aqui é só a tela deixar de esconder a opção. Editar e desativar item
+              seguem sendo do nível administrador. */}
           {escreve && (
             <LancarItemDialog
               itens={itensAtivos}
               filiais={filiaisEscrita}
               ultimo={ultimo}
               abrirAoMontar={primeiro(sp.lancar) === '1'}
-              podeCriarItem={admin}
+              podeCriarItem={escreve}
             />
           )}
         </div>
@@ -467,7 +474,7 @@ export default async function ItensPage({
                       <TableRow key={s.item_id}>
                         {/* "repor" fica junto do NOME, não na coluna Falta: os
                             dois avisos convivem na mesma linha e significam
-                            coisas diferentes ("faltam N" = atrelados − estoque,
+                            coisas diferentes ("faltam N" = reservado − em estoque,
                             compromisso já assumido; "repor" = previsão de
                             compra). Empilhados na mesma célula estreita, um
                             passaria por qualificador do outro. */}
@@ -497,7 +504,7 @@ export default async function ItensPage({
                             // distingui-los depende de já saber a fórmula.
                             <Badge
                               className="border-transparent bg-red-100 text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300"
-                              title={`Compromisso já assumido: ${s.atrelados.toLocaleString('pt-BR')} atrelado(s) a equipamentos e só ${s.estoque.toLocaleString('pt-BR')} em estoque`}
+                              title={`Compromisso já assumido: ${s.atrelados.toLocaleString('pt-BR')} reservado(s) para chamados e só ${s.estoque.toLocaleString('pt-BR')} em estoque`}
                             >
                               faltam {s.falta.toLocaleString('pt-BR')}
                             </Badge>

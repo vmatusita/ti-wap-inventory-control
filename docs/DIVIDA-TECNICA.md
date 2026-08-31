@@ -320,3 +320,52 @@ Ao instalar o Playwright nesta mesma data, o `npm audit` passou a acusar **5 (2 
 `npm audit fix --force` quer instalar `next@16.3.3`, que está **fora da faixa da stack fechada** —
 major/minor de framework é decisão de fase, não de manutenção, e a F40 é uma ordem de apresentação.
 **Fica registrado, não corrigido nesta ordem.**
+
+---
+
+## Emenda F41 — 31/08/2026
+
+**Uma dívida QUITADA, e ela era antiga.** O *"carrinho sem transação"* de `lancarItens` — um `for`
+de INSERTs sequenciais em que a terceira linha podia falhar e as duas primeiras ficarem gravadas —
+morreu: o lançamento avulso passa pela RPC `lancar_itens_lote` (`0126`) e é **tudo ou nada**, como o
+lote de movimentações já era desde a F38. O resultado por linha sobreviveu, porque a tela depende
+dele: a RPC etiqueta a linha culpada em `detail` (`f41_linha=N`).
+
+**Três dívidas novas, todas pequenas e todas com dono:**
+
+- **`itens_nome_uidx` ficou redundante.** O índice único antigo (sobre `lower(nome)`, da `0014`)
+  convive com o novo `itens_nome_chave_uidx` (sobre `item_chave(nome)`, `0125`), que é
+  ESTRITAMENTE mais forte — toda colisão que o antigo pega, ele também pega, e mais. Mantê-lo custa
+  um índice a mais numa tabela de 22 linhas; derrubá-lo é mudança de esquema fora do escopo da
+  ordem. `traduzErroBanco` traduz os DOIS nomes para a mesma frase, então nada quebra enquanto ele
+  existir. **Candidato a sair na próxima ordem de itens**, que já mexe nessa área.
+  Rollback quando for a hora: `drop index public.itens_nome_uidx;`
+- **A marca `regularizacao` é gravável por fora das RPCs.** Diferente de `forcado` (`0079`), que o
+  `guarda_acervo` recusa em INSERT fora da janela, `regularizacao` é uma coluna comum: um INSERT
+  direto via PostgREST pode marcá-la sem ter havido acerto nenhum. É **mislabel, não escalada de
+  privilégio** — quem faz esse INSERT já podia gravar o lançamento —, e o efeito máximo é uma linha
+  do histórico dizendo "acerto automático" sobre um ajuste manual. Aceito conscientemente: o plano
+  de área é explícito em que a marca **não é** `forcado`. Se um dia o volume de acertos virar número
+  de gestão, aí vale uma guarda.
+- **A partição é do PAR (item, filial), não da pessoa.** Se a aplicação mandar um `retorno` com
+  `colaborador_id` de alguém sem saldo, a guarda por pessoa da `0118` recusa e o lote cai — que é o
+  comportamento anterior à F41, não uma regressão. Quem protege disso é a regra §C.3 em
+  `src/lib/itens/vinculo-retorno.ts`, que derruba o vínculo quando a pessoa não tem saldo, e ela é
+  testada nos três caminhos. O buraco só se abre por payload forjado ou por bug de chamador novo.
+  **Não foi fechado de propósito:** fechá-lo exigiria a partição também por pessoa, o que o plano de
+  área não pede e o desenho não precisa.
+
+**Uma observação de ambiente, que não é dívida de código.** `supabase/tests/dev_destrutivo.sql`
+acusa **7 falhas no projeto de ENSAIO** (§6/§7, a cadeia do reset) e passa **verde no CI**, que sobe
+um Postgres novo. Nada que a F41 toca — as contagens daquele roteiro são de ativos e movimentações.
+O que falha é o ESTADO acumulado do ensaio, com dados e objetos de storage de fases anteriores. Ou o
+ensaio merece uma limpeza, ou o roteiro merece ser tolerante a resíduo; enquanto nenhum dos dois
+acontecer, **a leitura certa de `dev_destrutivo` é a do CI, não a do ensaio** — e quem rodar a pasta
+inteira no ensaio vai reencontrar isso.
+
+**O `database.ts` estava velho, e isso é dívida de processo.** Nenhuma fase regenerou os tipos desde
+a F38; quando a F41 regenerou (CLI fixada 2.109.1, contra produção), duas assinaturas de RPC mudaram
+de `string | null` para `string` e quebraram o typecheck em chamadores que a fase não tinha tocado.
+A correção foi de duas linhas e é equivalente, mas o padrão é claro: **tipos que só se regeneram
+quando alguém lembra acumulam divergência silenciosa.** Vale um passo de CI que rode `db:types` e
+falhe se o arquivo mudar.
