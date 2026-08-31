@@ -107,7 +107,9 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 | uma nova escrita | uma Server Action em `src/lib/actions/**` + o validator Zod |
 | o comportamento do import | o motor em `src/lib/import/**` (puro, testável) e/ou a RPC (migration + runbook) |
 | um template de termo | `src/templates/termos/*.docx` + mapa em `src/lib/termos/` |
-| o schema do banco | **nova** migration em `supabase/migrations/` + `npm run db:types` |
+| o schema do banco | **nova** migration em `supabase/migrations/` + `npm run db:types` **apontado para PRODUÇÃO** (`DB_TYPES_PROJECT_REF=<ref de prod>`) — a CLI **não** está linkada, e gerar do ensaio apaga do arquivo os objetos que só produção tem (F41) |
+| o **rótulo** de um tipo de lançamento de item | `TIPO_LANCAMENTO_META` em `src/lib/dominio.ts`, e só ali — o diálogo, o filtro, o histórico, o relatório, o CSV e a ajuda derivam dele. Os **valores** do enum são imutáveis (renomeá-los reescreveria a leitura do histórico) |
+| **quanto** um lançamento de item grava | as RPCs da `0126` (`criar_movimentacao_com_itens`, `resolver_pendencias_item_com_lancamentos`, `lancar_itens_lote`) — a partição da quantidade é do **Postgres**, sob a trava; `src/lib/itens/regularizacao.ts` é o espelho puro dela, para a tela **prever**, nunca para decidir |
 | **o que o operador vê numa tela** | a tela **e** a página correspondente da documentação (§11) |
 
 ## 11. Documentação do operador (`/ajuda`) — e como mantê-la

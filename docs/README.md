@@ -55,6 +55,7 @@ Escritos antes de construir um subsistema. Continuam úteis como **razão de des
 | [`PLANO-AJUDA.md`](PLANO-AJUDA.md) | A documentação do operador em `/ajuda` (F20) |
 | [`PLANO-DESIGN-SYSTEM.md`](PLANO-DESIGN-SYSTEM.md) | O sistema de design e o piloto em `/ativos` (F40) |
 | [`PLANO-CORRECAO-TRUNCAMENTO-1000.md`](PLANO-CORRECAO-TRUNCAMENTO-1000.md) | O corte de 1.000 linhas nas leituras de estoque |
+| [`PLANO-ITENS.md`](PLANO-ITENS.md) | O item passa a falar a língua do ativo — vocabulário único, cadastro passivo e o fim do bloqueio (F41/F42) |
 
 ## Exploração — ainda não é compromisso
 
@@ -66,8 +67,8 @@ Trabalho de projeto de sistema para uma direção que **ainda não foi decidida*
 
 Estes arquivos descrevem o sistema **na data em que foram escritos**. Não os atualize: se o comportamento mudou, o lugar da verdade é a spec, a matriz de regras ou o CHANGELOG.
 
-- **Relatórios de fase** — `RELATORIO-F11.md` → `RELATORIO-F40.md` (mais `F19-RELATORIO.md` e `RELATORIO-CORRECAO-TRUNCAMENTO-1000.md`): o que cada ordem entregou, com as evidências.
-- **Planos de fase** — `PLAN-F30.md`, `PLAN-F31.md`, `PLAN-F32.md`, `PLAN-F33.md`, `PLAN-F35.md`, `PLAN-F36-F39.md`, `PLAN-F39.md`, `PLAN-F40.md`: o plano medido antes de executar a fase.
+- **Relatórios de fase** — `RELATORIO-F11.md` → `RELATORIO-F41.md` (mais `F19-RELATORIO.md` e `RELATORIO-CORRECAO-TRUNCAMENTO-1000.md`): o que cada ordem entregou, com as evidências.
+- **Planos de fase** — `PLAN-F30.md`, `PLAN-F31.md`, `PLAN-F32.md`, `PLAN-F33.md`, `PLAN-F35.md`, `PLAN-F36-F39.md`, `PLAN-F39.md`, `PLAN-F40.md`, `PLAN-F41.md`: o plano medido antes de executar a fase.
 - **Análises datadas** — `ANALISE-PLANILHA-F4.md`, `ANALISE-UX-2026-08-07.md`, `ANALISE-RELATORIOS-2026-08-10.md`, `SYSTEM-DESIGN-2026-08-30.md`, `E2E-F10.md`.
 - **Evidências** — `f19-evidencias/` (capturas de tela do modo escuro), `f39-evidencias/` (os 5 modelos `.docx` renderizados para conferência visual), `perf/` (medições de TTFB em JSON, F33 e F37).
 

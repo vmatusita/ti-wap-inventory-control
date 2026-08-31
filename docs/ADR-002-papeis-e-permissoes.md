@@ -38,7 +38,9 @@ Três cargos, hierarquia estrita, e um vínculo de escrita por filial *(a F22 ac
 | Gerar termos de responsabilidade/devolução | todas | todas | vinculadas | — |
 | Estornar (ativos e itens) | ✓ | ✓ | vinculadas *(parâmetro §10.1 = sim)* | — |
 | Gerar/congelar snapshot de relatório | ✓ | ✓ | ✓ | — |
-| Administração: usuários, senhas de acesso, filiais, motivos, catálogo de itens, kits | ✓ | ✓ | — | — |
+| Administração: usuários, senhas de acesso, filiais, motivos, kits, tipos de item | ✓ | ✓ | — | — |
+| Catálogo de itens: **criar** | ✓ | ✓ | ✓ *(F41 — inline no fluxo)* | — |
+| Catálogo de itens: editar, desativar, apagar | ✓ | ✓ | — | — |
 | Import de startup ("Substituir tudo") | ✓ | ✓ | — | — |
 | **Gestão de conta**: trocar e-mail, apagar conta, encerrar sessões (F22) | ✓ | — | — | — |
 | **Conceder/revogar o cargo Dev**, e agir sobre quem é Dev (F22) | ✓ | — | — | — |
@@ -67,6 +69,24 @@ public.pode_escrever_filial(fid smallint)
 
 > ⚠ **Emenda de 30/07/2026 (F22, migrations `0071`–`0074`).** O enum ganhou `'dev'` (`add value ... before 'admin'`, para manter "ordem dos labels = ordem de força") e as funções acima passaram a ser **quatro**: `papel_atual()` também devolve NULL para perfil **arquivado** (`excluido_em is not null`, `0073`); **`e_admin()` deixou de significar "o cargo é admin" e passou a significar "o cargo é de NÍVEL administrador"** (`in ('admin','dev')`) — é essa redefinição que faz as ~20 policies de `/admin` e a guarda da RPC do import herdarem o dev **sem serem reescritas**; entram `e_dev()` (`= 'dev'`) e `pode_escrever()` ("escreve algo no acervo", espelho de `podeEscrever()` do app); e `pode_escrever_filial()` trata dev como admin. A herança tinha **dois buracos**, tapados na `0072`: `pode_escrever_filial()` não chamava `e_admin()` (tinha o seu próprio `= 'admin'`), e **cinco** policies gateavam por lista literal `papel_atual() in ('admin','operador')` — `anotacoes`, `relatorios_gerados` e as três de escrita do bucket `termos` —, que redefinição de função nenhuma alcança; as cinco passaram a chamar `pode_escrever()`, de modo que o quinto cargo, se houver, é uma linha. Ver **§13**.
 
+> ⚠ **Emenda de 31/08/2026 (F41, migration `0125`).** `itens` deixou de ser cadastro de admin **no
+> INSERT**: a policy passou de `e_admin()` para `pode_escrever()`. Com isso são **DOIS** os cadastros
+> em que o operador insere — `colaboradores` (F37/D5) e `itens` —, e a razão é a mesma, palavra por
+> palavra: é ele quem cadastra a pessoa e o acessório **inline no meio da movimentação**, e exigir
+> admin ali quebra o fluxo na mão dele. O custo de não abrir estava medido: a maioria dos itens do
+> acervo sequer estava cadastrada.
+>
+> **A abertura é cirúrgica, e o contraste importa.** Só o INSERT mudou: `admin atualiza` e
+> `admin apaga` seguem `e_admin()` — criar, sim; editar e desativar, não, exatamente como em
+> colaborador. E `tipos_item` (`0114`) **continua** `e_admin()` no INSERT, de propósito: tipo é
+> VOCABULÁRIO administrado, item é CADASTRO OPERACIONAL que nasce no fluxo. As três camadas seguem
+> alinhadas — policy `pode_escrever()`, guarda `exigirPapel(…, 'operador')` em `criarItemInline`, e
+> a tela oferecendo "Cadastrar" a quem escreve.
+>
+> O par de cenários que trava isso está em `supabase/tests/papeis_rls.sql`: **3c** (o operador CRIA)
+> e **3c-quater** (o operador NÃO edita — 0 linhas, no molde do 3c-ter). O 3c dizia o contrário até a
+> véspera, e virou porque a REGRA virou; ata em `docs/DECISOES.md`.
+
 As policies novas substituem as `using (true)` — sempre com a função embrulhada em `(select ...)`, o padrão initplan que a `0059` instituiu (avaliada uma vez por statement; custo ~zero na escala do banco, ~3 mil linhas na maior tabela). Mapa por tabela — os **verbos não mudam** (o que era insert-only continua insert-only), muda só o *quem*:
 
 | Tabela | Leitura | Escrita |
@@ -78,7 +98,8 @@ As policies novas substituem as `using (true)` — sempre com a função embrulh
 | `anotacoes`, `relatorios_gerados` | logado ativo | papel ∈ {admin, operador} → **`pode_escrever()`** desde a `0072` (inclui dev) |
 | `termos_gerados` | logado ativo | ⚠ `pode_escrever_termo(ativo_ids)` (a filial dos ativos, LIDA do banco) **E**, só na WITH CHECK, `termo_ancora_coerente(movimentacao_ids, ativo_ids)` + `arquivo_path = id‖'.docx'` — ver §4.4 (`0069`) |
 | `storage.objects` bucket `termos` | logado ativo | ⚠ cargo ∈ {admin, operador} → **`pode_escrever()`** (`0072`) **E** `pode_escrever_arquivo_termo(name)` (`0069`) |
-| `filiais`, `motivos`, `itens` (catálogo), `kits_modelos` | logado ativo | `e_admin()` |
+| `filiais`, `motivos`, `kits_modelos`, `tipos_item` | logado ativo | `e_admin()` |
+| `itens` (catálogo) | logado ativo | ⚠ **insert: `pode_escrever()`** desde a F41 (`0125`); update/delete: `e_admin()` — ver a emenda do §4 |
 | `senhas_acesso` | ⚠ **service role apenas** (ver §4.1) | ⚠ **service role apenas** |
 | `import_logs` | `e_admin()` (condição da ordem verificada — ver §4.2) | como está (RPCs) |
 | `profiles` | logado ativo | update do próprio: **só colunas `primeiro_nome`/`sobrenome`** via grant de coluna; `papel`/`ativo` ⚠ **só pelas RPCs de gestão** desde a `0074` (era o service role), com o trigger `profiles_guarda_dev` (`0073`) recusando todo o resto — inclusive o service role |

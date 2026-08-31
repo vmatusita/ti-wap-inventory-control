@@ -7711,3 +7711,226 @@ e da `0121`; as quatro do código, por `git revert`.
   análises datadas e as 7.600 linhas deste arquivo seguem intactos. `ESPECIFICACAO.md`,
   `ARQUITETURA.md` e `MATRIZ-REGRAS.md` não foram tocados: estão atualizados e são a autoridade.
 - **Reversível?** Inteiramente — é só documentação, e o conteúdo anterior do README está no git.
+
+---
+
+## 2026-08-31 · Plano de área dos itens — as quatro decisões do Johnny
+
+- **Contexto:** o Johnny relatou quatro dores do subsistema de itens (vocabulário que não casa com o do
+  ativo; o erro *"O retorno é maior que a quantidade liberada em aberto"* derrubando o lote inteiro numa
+  devolução; a tela `/itens` fora do padrão do sistema; e a exigência de lançar o item **antes** de
+  movimentar o ativo). O diagnóstico foi levantado no código e medido em produção, só-leitura, no mesmo
+  dia: **58 lançamentos de item** (todos dos últimos 30 dias, 22 deles acerto de contagem), **zero** com
+  `movimentacao_id` — o caminho de itens da F38 nunca gravou uma linha em produção —, e **apenas 4 dos 132
+  pares item×filial com saída em aberto**, contra 1.614 ativos e 3.431 movimentações. O plano completo, com
+  a causa de cada dor e as duas ordens de serviço, está em [`PLANO-ITENS.md`](PLANO-ITENS.md).
+- **As quatro decisões, tomadas pelo Johnny em 31/08/2026:**
+  1. **Vocabulário — um par só, com as palavras do ativo.** Os rótulos de `tipo_lancamento` passam a ser
+     Compra · Saída · Devolução · Ajuste (+ Transferência); o par Atrelar/Devolução-de-chamado
+     (`reserva`/`liberacao`) **sai da tela** e sobrevive só como rótulo do histórico. Os números viram
+     Total · Em estoque · Em uso. **Isto revoga a reconciliação de rótulos da F6A §A4** (16/07/2026), que
+     mantinha "Liberação/Atrelar/Retorno", e vai além da correção avulsa de 19/08/2026
+     (`escolha-tipo.ts`), que consertou o caminho até o tipo sem tocar no vocabulário. **Os valores do enum
+     não mudam** — renomeá-los reescreveria a leitura de todo o histórico.
+  2. **Regularização automática.** Quando o item volta (ou sai) sem estar registrado, o sistema grava um
+     acerto de contagem com justificativa automática, marcado como regularização e amarrado àquela
+     movimentação — e **nunca** bloqueia o registro do equipamento. A conta é partida **dentro da RPC**,
+     sob a trava que ela já adquire; `valida_lancamento_item` **não muda uma linha** e as quatro guardas
+     dela continuam de pé. É a mesma doutrina de `vinculo-retorno.ts` (F38 §C.3): a aplicação escolhe entre
+     gravações que o banco já aceita.
+  3. **`/itens` reescrita no padrão de `/ativos`**, dentro do casco da F40: filtros + uma tabela +
+     paginação; o histórico ganha rota própria. A alternativa "fundir itens no acervo" foi considerada e
+     recusada.
+  4. **Duas ordens:** F41 (banco, vocabulário, fim do bloqueio, cadastro inline pelo operador) e F42 (as
+     telas). Cada uma fecha sozinha, com versão e tag próprias — 1.46.0 e 1.47.0.
+- **Decisão derivada, registrada aqui porque abre exceção no `CLAUDE.md`:** `itens` passa a ser o **segundo**
+  cadastro em que o cargo **operador** insere (policy de INSERT de `e_admin()` para `pode_escrever()`,
+  guarda `exigirPapel(…, 'operador')`), pelo **mesmo motivo** da F37/D5 para `colaboradores` — é ele quem
+  cadastra no meio da movimentação, e exigir admin ali quebra o fluxo na mão dele. Editar, desativar e
+  apagar item continuam do nível administrador. O comentário de `criarItemInline` que dizia o contrário
+  ("é CATÁLOGO, logo exige ADMIN") é revogado por esta ata.
+- **Por quê:** o subsistema de itens não foi abandonado por preguiça — ele **bloqueia** quem tenta usá-lo.
+  Três caminhos independentes (checklist da devolução, "Itens que vão junto" na entrega e "Item recuperado"
+  na pendência) recusam o registro inteiro por falta de um saldo que só existiria se o diário estivesse
+  completo desde sempre. O diário nasceu em 17/08/2026; o acervo físico é de anos. Enquanto a pré-condição
+  não cair, nenhum ganho de vocabulário ou de tela é aproveitado.
+- **O que NÃO foi feito:** nada foi implementado — esta ata registra plano e decisões. Nenhuma migration,
+  nenhum código, nenhuma escrita em produção (as medições foram `SELECT` de contagem, sem nome, sem
+  patrimônio). Sem entrada no `CHANGELOG.md` e sem versão nova: documento interno de desenvolvedor não muda
+  nada para quem opera o sistema (regra do `docs/README.md` e item 8 do `CLAUDE.md`).
+- **Reversível?** Inteiramente — é documentação. As decisões só viram código quando a ordem F41 rodar.
+
+## 2026-08-31 · F41 · as seis decisões do Johnny para o motor dos itens
+
+- Contexto: o plano de área `docs/PLANO-ITENS.md` levantou quatro dores medidas em produção. As
+  respostas vieram do Johnny em 31/08/2026 e entram aqui como ata, para que a fase execute contra
+  uma decisão registrada e não contra uma lembrança de conversa.
+- Decisão:
+  - **J1 — um par só, com as palavras do ativo.** Compra · Saída · Devolução · Ajuste (+
+    Transferência). O par Atrelar/Devolução-de-chamado sai da tela e continua legível no histórico,
+    onde passa a ler-se **Reserva** e **Devolução de reserva**. Os números viram Total · Em estoque ·
+    Em uso, e a coluna `Atrelados` vira **Reservado**.
+  - **J2 — regulariza sozinho e avisa.** O sistema grava um acerto de contagem com justificativa
+    automática, amarrado àquela movimentação, e segue. NUNCA bloqueia o registro do equipamento.
+  - **J3 — o redesenho de `/itens` é a F42**, no padrão de `/ativos`. Nada dele é antecipado aqui.
+  - **J4 — duas ordens.** F41 é o motor; F42 são as telas. Cada uma com versão e tag próprias.
+  - **J5 — rollout completo nesta run**, até produção, incluindo a conversão das reservas abertas,
+    com backup e contagens antes/depois no padrão do `RUNBOOK-BANCO.md`.
+  - **J6 — a conversão das reservas é irreversível por construção, e ele aprovou sabendo.** Ela é
+    só-INSERT, e o `guarda_acervo` (0081) proíbe apagar lançamento: não há rollback de dado, e não há
+    como haver, porque o acervo desta casa não se apaga. O efeito no estoque é ZERO — antes e depois
+    a unidade continua fora da prateleira; o que muda é o caminho de fechamento.
+- Motivo: as quatro dores estão medidas, não relatadas de ouvido (§1 do plano), e a decisão de cada
+  uma aponta a causa, não o sintoma.
+- Reversível? J1 a J4 são de desenho e se revisitam numa fase nova. **J6 não é reversível** — está
+  dito acima com todas as letras.
+
+## 2026-08-31 · F41 · o corpo de partida veio do banco, e ele desmentiu o plano em dois pontos
+
+- Contexto: a ordem manda ler o corpo de toda função recriada por `pg_get_functiondef`, nunca de
+  migration antiga (lição da `0047`, repetida na `0109` e na `0118`). O `PLANO-ITENS.md` afirmava a
+  linhagem: `criar_movimentacao_com_itens` "0117 → 0121" e `resolver_pendencias_item_com_lancamentos`
+  "0119/0122".
+- Decisão: as duas afirmações do plano estão **erradas** e foram corrigidas no cabeçalho da `0126`.
+  A linhagem real, conferida no repositório: `criar_movimentacao_com_itens` nasceu na `0117` e foi
+  recriada pela **`0123`**; `resolver_pendencias_item_com_lancamentos` existe **só na `0119`**. As
+  recriações partiram do corpo lido do banco, com o `md5` registrado na migration.
+- Motivo: é exatamente por isso que a regra existe. Montar a recriação da fonte que o plano indicava
+  teria partido de um corpo que não é o vigente, e a perda seria silenciosa.
+- Reversível? Não se aplica — é registro de fato.
+
+## 2026-08-31 · F41 · ensaio e produção divergiam numa função (e era um comentário)
+
+- Contexto: ao ler os corpos de partida nos dois projetos,
+  `resolver_pendencias_item_com_lancamentos` veio com `md5` DIFERENTE: `e5c0240a…` (4422 bytes) em
+  produção e `8f8fc101…` (4375) no ensaio.
+- Decisão: diagnosticado por `diff` dos dois corpos. A diferença são **47 bytes de COMENTÁRIO** —
+  produção tem "(idempotência: reenviar não re-resolve nem duplica lançamento)" onde o ensaio tem
+  uma remissão curta. A lógica é byte a byte idêntica. A recriação da `0126` **converge os dois**, e
+  o fato ficou registrado no cabeçalho dela.
+- Motivo: divergência entre ambientes não se ignora nem se assume benigna — se diagnostica. Esta era
+  cosmética; a próxima pode não ser, e o hábito de olhar é o que separa as duas.
+- Reversível? Não se aplica.
+
+## 2026-08-31 · F41 · `itens.criado_por` nasce ANULÁVEL (ao contrário de colaboradores)
+
+- Contexto: a `0112` criou `colaboradores.criado_por` como `not null`. Espelhar isso em `itens`
+  travaria a migration: a tabela existe desde a `0014` e tem linhas históricas sem autor.
+- Decisão: `itens.criado_por uuid references public.profiles(id)`, **anulável**.
+- Motivo: `colaboradores` era tabela NOVA — não havia linha sem autor. Aqui há, e nulo diz
+  exatamente a verdade: "veio de antes de a autoria existir". Carimbar um autor inventado nas linhas
+  antigas seria mentir no acervo, que é a coisa que este sistema menos pode fazer.
+- Reversível? `alter table public.itens drop column criado_por;`
+
+## 2026-08-31 · F41 · o acerto automático NÃO carrega vínculo com pessoa
+
+- Contexto: a linha de `ajuste` que a RPC grava sozinha poderia herdar o `colaborador_id` da linha
+  que a originou, como faz o ajuste da baixa de pendência (`0119`).
+- Decisão: o acerto grava `colaborador_id` **nulo**. O nome (`colaborador`, texto) fica ao lado como
+  contexto do histórico.
+- Motivo: os dois ajustes têm semânticas diferentes. O da baixa é "esta pessoa perdeu este item" — a
+  conta dela é o assunto. O acerto automático é sobre a **prateleira**: a peça entrou no acervo, e
+  ninguém a deve. Herdar o vínculo inventaria dívida na conta de alguém, e a guarda por pessoa da
+  `0118` passaria a medir uma soma que nunca saiu. Travado pelos cenários 16 e 17 de
+  `supabase/tests/f38_itens_com_ativo.sql`.
+- Reversível? Uma linha na `0126`, se algum dia a leitura mudar.
+
+## 2026-08-31 · F41 · cinco testes mudaram porque a REGRA mudou
+
+- Contexto: a ordem é explícita — teste que quebra é contrato; não se altera sem registrar.
+- Decisão: cinco asserções mudaram, cada uma com a nota do porquê no próprio arquivo:
+  1. `supabase/tests/papeis_rls.sql` cen. **3c** afirmava "operador recusado ao criar item". A policy
+     de INSERT de `itens` passou a `pode_escrever()` (`0125`), então a asserção virou — e ganhou o
+     par negativo **3c-quater** (o operador NÃO edita) e o **3c-quinquies** (a chave deduplica).
+  2. `src/lib/itens/escolha-tipo.test.ts`: "todo tipo aparece em exatamente um grupo" passou a contar
+     `tiposHistoricos`, e "grupo com dois tipos tem a segunda pergunta" virou "nenhum grupo tem
+     segunda pergunta" — ela morreu com o par reserva/liberação (J1).
+  3. `src/lib/validators/item.test.ts`: `not.toContain('reserva')` era um proxy para "não use o nome
+     interno do enum"; com J1 o rótulo de TELA de `reserva` passou a ser exatamente "Reserva", e o
+     proxy passava a proibir o texto certo. Foi substituído pela propriedade que ele protegia: os
+     seis rótulos são DISTINTOS entre si, e a mensagem não nomeia tipo que não exija chamado.
+  4. `src/lib/ajuda/conteudo/referencia.test.ts`: as literais "atrelados + liberados − total",
+     "o que sai por Liberação volta por Retorno" e o array `MENSAGENS_OBRIGATORIAS` seguiram o
+     vocabulário novo — e as que davam para DERIVAR (`MSG_CHAMADO_OBRIGATORIO`,
+     `TIPO_LANCAMENTO_META`) passaram a ser derivadas, para pararem de envelhecer a cada renome.
+  5. `src/lib/ajuda/indice.test.ts`: a âncora era a string 'atrelar', que deixou de ser rótulo. Virou
+     derivada do rótulo de `liberacao`, que só entra na página pelo bloco `glossario` — que é o
+     mecanismo que o caso existe para provar.
+- Motivo: nenhuma foi alterada para ficar verde. Em cada uma, a regra que a asserção descrevia mudou
+  por decisão registrada, e a asserção nova cobra a regra nova — em três dos cinco casos, cobrando
+  mais do que antes.
+- Reversível? Reverter a regra reverte o teste.
+
+## 2026-08-31 · F41 · `npm run db:types` estava velho, e aponta para PRODUÇÃO
+
+- Contexto: a ordem manda rodar `db:types` depois do apply em ensaio, supondo a CLI "linkada ao
+  ensaio". Ela não é: não existe `supabase/.temp/`, e `scripts/gen-types.ts` exige
+  `DB_TYPES_PROJECT_REF` explícito.
+- Decisão: (a) o `database.ts` **final** é gerado a partir de **PRODUÇÃO**, depois do apply lá — o
+  ensaio NÃO serve, porque produção tem objetos que ele não tem (`_bkp_relatorios_gerados_f6a`) e
+  gerar do ensaio os apagaria do arquivo em silêncio; (b) durante o desenvolvimento o arquivo foi
+  gerado do ensaio, que é quem tinha as migrations, e regenerado de produção no fim.
+- Motivo: é o footgun que o próprio cabeçalho de `gen-types.ts` descreve ("apontar o gerador para o
+  banco errado geraria tipos errados sem ninguém notar"), com os papéis invertidos.
+- Efeito colateral encontrado, e ele é anterior à fase: regenerar com a CLI FIXADA (2.109.1) muda
+  `p_observacao` de `string | null` para `string` em `estornar_movimentacao_com_itens` e
+  `resolver_pendencias_item_com_lancamentos` — e isso quebra o typecheck em dois chamadores que
+  passavam `?? null`. **Não é da F41**: gerar de produção ANTES de qualquer migration desta fase
+  reproduz a mesma diferença. O `database.ts` commitado simplesmente estava velho, porque nenhuma
+  fase regenerava desde a F38. Os dois chamadores passaram a mandar `''`, que é EQUIVALENTE — as duas
+  RPCs fazem `nullif(btrim(coalesce(p_observacao, '')), '')` e gravam a mesma linha.
+- Reversível? Sim — `DB_TYPES_PROJECT_REF=<ref> npm run db:types` regenera a qualquer momento.
+
+## 2026-08-31 · F41 · o roteiro novo caiu na armadilha que o próprio cabeçalho dele citava
+
+- Contexto: `supabase/tests/f41_regularizacao.sql` falhava de forma INTERMITENTE no cenário 5 (o
+  estorno), com "só a última movimentação efetiva do ativo pode ser estornada".
+- Decisão: causa raiz encontrada — `now()` é constante dentro de uma transação, então as duas
+  movimentações do MESMO ativo criadas pela RPC nasciam com `created_at` idêntico, e o desempate
+  `(created_at, id)` virava sorteio de uuid. É a **regra da pendência nº 5 da F37**, que o cabeçalho
+  do próprio roteiro cita. As saídas que precedem uma devolução viraram INSERT DIRETO com
+  `created_at` explícito e anterior (a RPC não aceita `created_at` no payload, e não deve aceitar).
+- Motivo: registrado porque o erro é sedutor — o roteiro "passou" na primeira execução e só falhou na
+  segunda. Provado morto com TRÊS rodadas seguidas: 25/0, 25/0, 25/0.
+- Reversível? Não se aplica.
+
+## 2026-08-31 · F41 · o índice único antigo de `itens` ficou, e é redundante
+
+- Contexto: `itens_nome_uidx` (sobre `lower(nome)`, da `0014`) e o novo `itens_nome_chave_uidx`
+  (sobre `item_chave(nome)`, da `0125`) coexistem. O novo é ESTRITAMENTE mais forte: toda colisão que
+  o antigo pega, ele também pega.
+- Decisão: o antigo **fica**. `traduzErroBanco` passou a traduzir os DOIS nomes para a mesma frase.
+- Motivo: derrubá-lo é mudança de esquema fora do que a ordem lista, e o custo de mantê-lo é um
+  índice a mais numa tabela de 22 linhas. Anotado em `docs/DIVIDA-TECNICA.md` como candidato a sair
+  na F42, que já mexe nessa área.
+- Reversível? `drop index public.itens_nome_uidx;` quando for a hora.
+
+## 2026-08-31 · F41 · a `0126` declara `security invoker` com todas as letras
+
+- Contexto: `pg_get_functiondef` NÃO imprime `security invoker` (é o default do Postgres), então o
+  corpo lido do banco não o trazia — e a primeira escrita da `0126` o perdeu.
+- Decisão: as três funções da `0126` declaram `security invoker` explicitamente, como a `0117`, a
+  `0119` e a `0123` fazem nos arquivos delas. E `lancar_itens_lote` entrou na lista `novas` de
+  `src/lib/itens/migrations-f38.test.ts`, que passa a cobrá-lo.
+- Motivo: o comportamento era idêntico (`prosecdef = false` nos dois casos), mas recriar sem a
+  declaração trocaria uma garantia EXPLÍCITA por uma implícita — e a próxima recriação partiria de um
+  arquivo que não diz mais qual era a intenção. É a armadilha nº 2 da ordem, encontrada pelo teste.
+- Reversível? Não se aplica.
+
+## 2026-08-31 · F41 · `dev_destrutivo.sql` falha no ENSAIO e passa no CI — e isso tem explicação
+
+- Contexto: rodando os 24 roteiros no ensaio (obrigação da ordem — mexeu em função, roda a pasta
+  inteira, que foi o furo da F15), `dev_destrutivo.sql` acusou **7 falhas**: `6a_FALHOU`,
+  `6b_SOBROU`, `6d_MOV_DA_OUTRA_FILIAL_SOBROU`, `7a_FALHOU`, `7c_SOBROU_ACERVO`, `7f_TRILHA_RESET`,
+  `7g_VOCABULARIO` (101 asserções OK). Todas na cadeia do reset (§6 e §7) — e o próprio cabeçalho do
+  arquivo avisa que 6b/6d/7c são consequência de 6a.
+- Decisão: NÃO é regressão da F41, e a prova é o CI. O job `banco` sobe um Postgres NOVO, aplica
+  `0001`→`0127` em ordem e roda os 24 roteiros com `ON_ERROR_STOP`, falhando em qualquer `✗`. Ele
+  passou **verde** com esta fase aplicada (run 33428109420, `banco: success`). Logo o roteiro está
+  correto e as migrations também: o que falha é o ESTADO acumulado do projeto de ensaio.
+- Motivo: as contagens que `resetar_acervo` revalida são de `ativos`, `movimentacoes`, `anotacoes`,
+  `pendencias_item` e `termos_gerados` — nenhuma tabela que a F41 toca. O ensaio carrega dados de
+  fases anteriores e objetos de storage de execuções passadas; o CI parte do zero.
+- Reversível? Não se aplica. Fica anotado em `docs/DIVIDA-TECNICA.md`: o ensaio merece uma limpeza,
+  ou o roteiro merece ser tolerante a resíduo — e enquanto não for, a leitura certa de
+  `dev_destrutivo` é a do CI, não a do ensaio.
