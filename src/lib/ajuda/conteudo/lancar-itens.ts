@@ -181,7 +181,7 @@ export const lancarItens: PaginaAjuda = {
         [
           'A devolução é maior que a quantidade que ainda está com as pessoas.',
           'Está voltando mais do que saiu com as pessoas.',
-          'Procure o lançamento de Liberação no histórico e confira a quantidade.',
+          `Procure o lançamento de ${SAIDA} no histórico e confira a quantidade. Dentro de uma movimentação de equipamento esta recusa não aparece: o sistema acerta a contagem sozinho.`,
         ],
         [
           `${MSG_CHAMADO_OBRIGATORIO}.`,

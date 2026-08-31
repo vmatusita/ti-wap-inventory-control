@@ -162,7 +162,7 @@ export const relatorioAoVivo: PaginaAjuda = {
         { slug: 'relatorios-gerados', texto: 'Congelar este relatório numa versão' },
         { slug: 'usuarios-e-senhas', texto: 'Entregar o relatório a quem não é operador' },
         { slug: 'status-do-ativo' },
-        { slug: 'itens-por-quantidade', texto: 'O que são total, estoque, atrelados e falta' },
+        { slug: 'itens-por-quantidade', texto: 'O que são total, em estoque, reservado e falta' },
       ],
     },
   ],
