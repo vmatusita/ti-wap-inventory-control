@@ -6,6 +6,31 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 31/08/2026 — Correção pós-deploy: o redirecionamento do link antigo de itens ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.47.1**). **Um defeito da F42 que chegou a produção e que o smoke
+pós-deploy encontrou minutos depois** — está aqui porque a regra 8 do `CLAUDE.md` não abre exceção
+para "correção da própria fase", e porque o rastro importa mais que a aparência de acerto.
+
+- 🐛 **O redirecionamento do link antigo do histórico nunca disparava.** `/itens?tipo=…&de=…`
+  respondia **HTTP 200** com a tela de saldos, ignorando o recorte em silêncio — exatamente o
+  comportamento que a F42 escreveu o redirecionamento para impedir.
+- 🔍 **A causa:** a página montava a entrada da regra com `Object.entries(searchParams)`. O objeto de
+  `searchParams` do Next responde por **chave** e não se deixa **varrer**: a varredura devolvia
+  vazio, `destinoHistoricoLegado` recebia uma entrada em branco e respondia `null` — corretamente,
+  sobre uma entrada errada.
+- 🧪 **E os 29 testes daquele arquivo ficaram verdes o tempo todo**, porque montavam a entrada à mão:
+  a função pura estava certa e o **wiring** estava errado. É a lição de "teste verde não é cobertura",
+  e quem pegou foi o smoke — que é para isso que ele existe.
+- 🛡️ **A correção e a guarda:** `destinoHistoricoLegado` passou a receber um **objeto simples**, que o
+  Server Component preenche com acessos **nominais** (`sp.item`, `sp.tipo`…), e uma guarda de
+  texto-fonte nova recusa qualquer varredura de `searchParams` naquele arquivo — mais a exigência de
+  que os sete params continuem sendo lidos pelo nome.
+
+Sem migration. Relatório em [`docs/RELATORIO-F42.md`](docs/RELATORIO-F42.md).
+
+---
+
 ## 31/08/2026 — F42 · As telas: itens deixou de ser a exceção ✅ 🔒
 
 Fase (**v1.47.0**). A outra metade do [`docs/PLANO-ITENS.md`](docs/PLANO-ITENS.md): a F41 entregou o

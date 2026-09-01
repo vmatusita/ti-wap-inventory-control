@@ -74,7 +74,7 @@ A documentação do **operador** não está aqui: ela vive dentro do sistema, em
 
 ## Status
 
-**Versão no ar: `1.47.0`.** A fonte única é `src/lib/versoes/registry.ts` — `VERSOES[0]` *é* a versão publicada, e um teste trava a divergência com o `package.json`. O operador vê o mesmo histórico em `/versoes`.
+**Versão no ar: `1.47.1`.** A fonte única é `src/lib/versoes/registry.ts` — `VERSOES[0]` *é* a versão publicada, e um teste trava a divergência com o `package.json`. O operador vê o mesmo histórico em `/versoes`.
 
 Entregue da **F0 à F42**: operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo e snapshots semanais com acesso por senha, termos gerados em `.docx`, import de startup por filial, cargos e permissões no Postgres, área `/dev` com zona destrutiva, e o sistema de design com `/ativos` e as três telas de `/itens` dentro do casco.
 

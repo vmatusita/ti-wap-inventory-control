@@ -23,6 +23,15 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.47.1',
+    data: '2026-08-31',
+    titulo: 'O link antigo do histórico de itens voltou a funcionar',
+    mudancas: [
+      'Um link antigo para o histórico de itens — daqueles com o tipo e o período no endereço, salvos nos favoritos ou colados num chamado — abria a lista de saldos ignorando o recorte, em silêncio. Agora ele leva para a tela de Histórico já filtrado, como deveria desde a versão anterior.',
+      'A verificação automática que roda depois de cada publicação foi quem encontrou o problema, minutos depois de a versão entrar no ar.',
+    ],
+  },
+  {
     versao: '1.47.0',
     data: '2026-08-31',
     fase: 'F42',
