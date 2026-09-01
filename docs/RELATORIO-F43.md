@@ -363,9 +363,53 @@ abaixo do piso AA de 4,5. Foi assim que a primeira escrita da faixa de blocos (a
 texto do chip, e a medição derrubou antes do teste. Ele ficou registrado como `antes: true`, na mesma
 disciplina do véu `bg-destructive/5` do `Aviso` da F40 — para ninguém "melhorar" a tela pondo-o de volta.
 
-### 7.1 CI e rollout
+### 7.1 CI, deploy e smoke
 
-*(preenchido após o merge)*
+**Os dois jobs do CI, verdes** na execução `33514066707` (o merge `5f4d9f5`):
+
+```
+verificar -> success      (npm ci · lint · test · contraste · build)
+banco     -> success      (Supabase CLI + Postgres real, todas as migrations, os roteiros SQL)
+```
+
+O job `banco` — que a ordem de serviço avisava ter caído duas vezes por causa externa — **passou na
+primeira**. Esta fase não toca banco: `git diff v1.47.2..v1.48.0 -- supabase/` é **vazio**.
+
+**Deploy:** produção na Vercel, do commit de merge, registrado pelo GitHub:
+
+```
+{"created":"2026-09-01T13:34:15Z","env":"Production","sha":"5f4d9f5"}
+Vercel -> success
+```
+
+**Smoke pós-deploy** (`node scripts/smoke/smoke-prod.mjs`), com sessão de operador de verdade contra a
+produção:
+
+```
+  [OK   ] /itens — HTTP 307 → /login                      (sem sessão, continua barrado)
+  [OK   ] /admin/itens — HTTP 307 → /login
+  [AVISO] kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit
+          cadastrado — RLS não comprovada
+  [OK   ] /itens — HTTP 200 (296422 bytes)
+  [OK   ] /itens?visao=consolidado — HTTP 200 (296494 bytes)
+  [OK   ] /itens?visao=filiais — HTTP 200 (296482 bytes)
+  [OK   ] /itens?tipo=saida&de=2026-08-01 — HTTP 307 → /itens/historico?tipo=saida&de=2026-08-01
+  [OK   ] /itens/historico — HTTP 200 (249445 bytes)
+  [OK   ] /itens/conferencia — HTTP 200 (148677 bytes)
+  [OK   ] /admin/itens — HTTP 200 (237452 bytes)
+  ...
+========================================================================
+RESUMO · 108 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+========================================================================
+```
+
+**108 OK · 0 falha.** As duas sentinelas do `?visao=` legado continuam abrindo a tela (200, e não 404),
+e o desvio do link antigo do histórico continua devolvendo **307 de verdade** com o recorte inteiro — o
+defeito que a v1.47.2 consertou não voltou.
+
+O único **AVISO** é antigo e não é desta fase: o smoke não consegue PROVAR a RLS de `kits_modelos`
+porque não há kit cadastrado em produção para o anônimo tentar ler. É a ressalva desenhada no próprio
+script ("passou, mas com ressalva"), não uma falha.
 
 ---
 
