@@ -107,7 +107,7 @@ import type { Filial } from '@/lib/queries/filiais'
 // segundos (ata em `docs/DECISOES.md`): a matriz venceu, a matriz com o par
 // "em estoque + em uso" por célula criou dúvida nova ("por que esta filial não
 // tem a segunda linha?"), e a faixa de blocos dentro da célula do nome ficou
-// ilegível no celular — 7.751px de altura de página contra 3.449px da matriz, e
+// ilegível no celular — 7.751px de altura de página contra 2.933px da matriz, e
 // "quanto está na prateleira" virou NÃO SEI nas duas passadas. Não há alternador,
 // não há param de URL, não há preferência: se um dia outra apresentação for
 // melhor, ela se mede e se troca aqui.

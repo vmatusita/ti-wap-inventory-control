@@ -8214,9 +8214,10 @@ e da `0121`; as quatro do código, por `git revert`.
     linha 'X em uso' que as outras filiais mostram — não dá para saber se é 0 em uso ou 'sem dado'"*.
     Segunda linha condicional dentro de célula é ambiguidade, não densidade. **Recusada.**
   - **C · faixa de blocos dentro da célula do nome**: a MAIS RÁPIDA em 1440 (5 e 10 segundos para
-    responder "em quais filiais") e **reprovada no celular**: a página passou de 3.449px para
-    **7.751px** de altura, e *"quanto está na prateleira"* virou **NÃO SEI nas duas passadas**.
-    **Recusada.**
+    responder "em quais filiais") e **reprovada no celular**: a página de 390px foi a **7.751px** de
+    altura contra **2.933px** da matriz — **2,6 vezes**, medido nos PNG de
+    `docs/f43-evidencias/variantes/` —, e *"quanto está na prateleira"* virou **NÃO SEI nas duas
+    passadas**. **Recusada.**
 - Motivo: cópia paralela mediria a cópia. Medindo o mesmo componente com uma prop diferente, o que se
   comparou foi a apresentação. Feita a escolha, a prop **saiu do componente** — não fica alternador
   nenhum no código.

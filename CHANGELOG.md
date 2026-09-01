@@ -52,8 +52,8 @@ segundos, ele escolheu **uma** coisa: **onde está o item, quanto tem em cada fi
   fictícios** e o CSS do próprio app, e fotografar isso: `scripts/design/previa-itens.tsx`. Zero
   dependência nova, zero banco.
 - 📏 **E o desenho se escolheu por medição, não por gosto.** Três candidatas fotografadas e
-  submetidas ao mesmo teste; a que perdeu no celular perdeu com número (a página passou de 3.449px
-  para 7.751px de altura). **Antes:** "em quais filiais este item está?" dava **NÃO SEI nas quatro**
+  submetidas ao mesmo teste; a que perdeu no celular perdeu com número (a página de 390px foi a
+  7.751px de altura, contra 2.933px da que venceu). **Antes:** "em quais filiais este item está?" dava **NÃO SEI nas quatro**
   passadas em 1440px, e "quanto está na prateleira?" dava **NÃO SEI nas quatro** em 390px.
   **Depois:** as três perguntas com certeza nas quatro passadas, nas duas larguras e nos dois temas.
 - ✅ **A ajuda foi corrigida — inclusive em três frases que já estavam falsas desde a F42**: "o

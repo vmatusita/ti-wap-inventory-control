@@ -82,6 +82,10 @@ celular, `/itens` mostrava o nome do item e mais nada. A causa é o `whitespace-
 põe em toda célula, somado a um nome de item comprido. **Isso não estava em nenhum dos sete pontos do
 diagnóstico da ordem de serviço** — apareceu porque a fase mediu em vez de olhar.
 
+Vale registrar a contrapartida honesta: a tela nova é **mais alta** no celular — **1.979px antes,
+3.783px depois** — porque antes ela não mostrava número nenhum. Altura em troca de conteúdo é um
+negócio bom; altura em troca de nada (a candidata C, com 7.751px) não é.
+
 E no desktop a mesma medição explicou onde estava a largura: a coluna **Grupo** custava **161px** para
 repetir "Acessórios e periféricos" 24 vezes seguidas — a informação de MENOR variação da tela (o
 vocabulário tem dois valores).
@@ -279,7 +283,7 @@ paralela mediria a cópia), fotografadas e submetidas ao mesmo teste.
 | Como a filial aparece | uma coluna por filial, o saldo em estoque | idem, com `N em uso` numa segunda linha da célula | blocos `Nome N` dentro da célula do nome, ordenados por saldo |
 | 1440×900 | b e c com certeza nas duas passadas | idem | **o mais rápido** — 5 e 10 segundos |
 | 390×844 | c com certeza | **b hesitou nas duas** | **c deu NÃO SEI nas duas** |
-| Altura da página em 390px | 3.723px | 3.766px | **7.751px** |
+| Altura da página em 390px | 2.933px | 2.933px | **7.751px** (2,6×) |
 | Veredito | **ESCOLHIDA** | recusada | recusada |
 
 **Por que B caiu**, na palavra do julgamento: *"na coluna Cerrado Alto aparece só 16, sem a linha 'X em
@@ -471,7 +475,7 @@ exigia como **REVISÃO** de decisão anterior:
 6. **A prévia não cobre os três estados vazios nem o cargo `consulta` em imagem.** O script tem os
    cenários (`--cenarios vazio-filtro,vazio-cargo,vazio-catalogo,consulta`), e eles renderizam; as fotos
    não foram anexadas porque não são o critério da fase. Custo: uma linha de comando.
-7. **O julgamento do celular vê a imagem reduzida.** A foto de 390px tem 3.723px de altura e é
+7. **O julgamento do celular vê a imagem reduzida.** A foto de 390px entregue tem **3.783px** de altura e é
    apresentada ao subagente em escala reduzida — mais dura que um telefone real, onde o mesmo conteúdo
    ocupa a tela em 1:1. A régua, portanto, é conservadora: o que passa ali passa no aparelho.
 
