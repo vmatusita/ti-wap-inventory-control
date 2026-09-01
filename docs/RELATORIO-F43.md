@@ -300,7 +300,7 @@ saiu do componente — **não fica alternador nenhum no código**, e o `?visao=`
 | Arquivo | O quê |
 |---|---|
 | `src/lib/itens/distribuicao.ts` **(novo)** | as funções puras: o rótulo curto da filial (colisão-safe), a distribuição de um item entre filiais e o resumo da lista. **Nenhuma leitura nova** — tudo sai do que `getSaldosPorFilial` já devolve |
-| `src/lib/itens/distribuicao.test.ts` **(novo)** | 21 casos, incluindo os de borda: colisão de rótulo, filial sem lançamento, "repor" contado pelo CONSOLIDADO e não pelo recorte, lista vazia |
+| `src/lib/itens/distribuicao.test.ts` **(novo)** | 18 casos, incluindo os de borda: colisão de rótulo, filial sem lançamento, "repor" contado pelo CONSOLIDADO e não pelo recorte, lista vazia |
 | `src/components/itens/itens-table.tsx` | a matriz de filiais, o bloco de identidade, o `whitespace-normal` da célula do nome, o botão "Ver as N filiais", a nota do saldo fora da lista, e a linha expansível consumindo a MESMA conta |
 | `src/components/itens/identidade-do-item.tsx` **(novo)** | nome + selo "repor" + `Acessório · Mouse` — o que era três células |
 | `src/components/itens/cabecalho-de-numero.tsx` **(novo)** | rótulo + explicação curta VISÍVEL, com a `Dica` para o detalhe. Substitui o `Cabecalho` interno da tabela |
@@ -358,8 +358,9 @@ ESLint: No issues found
 [build exit=0]
 ```
 
-**Os testes foram de 3.468 para 3.504** (+36): 21 de `distribuicao.test.ts`, o resto da varredura de
-`consistencia.test.ts` sobre os arquivos novos e das asserções acrescentadas em `conteudo.test.ts`.
+**Os testes foram de 3.468 para 3.504** (+36): **18** de `distribuicao.test.ts` (o arquivo novo), o
+resto da varredura de `consistencia.test.ts` sobre os arquivos novos — ela é `it.each` sobre os
+arquivos, então cresce sozinha — e das asserções acrescentadas em `conteudo.test.ts`.
 **`PENDENTES` não cresceu** — nenhum arquivo desta fase pediu exceção à régua.
 
 **O par que REPROVA de propósito.** `muted-foreground` sobre `muted` mede **4,34:1** no tema claro —
