@@ -386,7 +386,18 @@ Saída em [`f44-evidencias/acessibilidade-ficha.txt`](f44-evidencias/acessibilid
 dia alguém trocar `<details>` por uma `<div>` com `onClick`, a coluna `expanded` vira `(ausente)` e a
 troca aparece.
 
-### 7.4 `loading.tsx` (critério 11)
+### 7.4 O `print:` — conferido, e o resultado é o desejado
+
+O zebrado é `background-color`, e navegador **não imprime fundo** por padrão
+(`print-color-adjust: economy`); o `@media print` de `globals.css` **não** liga `exact` para estas
+linhas. No papel, portanto, a listra some e a tabela volta a se dividir pelas bordas de linha — que
+é o comportamento certo: listra impressa em impressora monocromática vira faixa cinza sobre número.
+
+A `<caption>` **imprime**, porque é texto: o papel passa a carregar, no topo da tabela, a frase que
+diz de qual filial são os números. Antes desta fase, uma impressão de `/itens` filtrada não trazia
+essa informação em lugar nenhum.
+
+### 7.5 `loading.tsx` (critério 11)
 
 Os dois esqueletos ganharam a silhueta nova: em `/itens`, a **linha de escopo** e a **faixa da
 legenda** da tabela (juntas, ~44px que o conteúdo desceria sem elas); em `/ativos/[id]`, as duas
