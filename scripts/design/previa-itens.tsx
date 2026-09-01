@@ -69,6 +69,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import { ClipboardCheck, ScrollText } from 'lucide-react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -264,6 +265,11 @@ function Miolo({
   cenario: Cenario
 }) {
   const escreve = cenario !== 'consulta'
+  // ⚠ AS MESMAS TRÊS CONDIÇÕES DA `page.tsx`, e não "escreve" para tudo: Conferir
+  // exige ao menos UMA filial de escrita, Transferir exige DUAS (não se transfere
+  // sem destino). Uma prévia que afrouxa a regra de cargo fotografa uma tela que
+  // não existe para ninguém.
+  const filiaisEscrita = escreve ? FILIAIS_PREVIA : []
   const Tabela = VARIANTES[variante].Tabela
   const pagina = paginarLinhas(LINHAS, 1, 25)
   const props: PropsDaTabela = {
@@ -299,21 +305,31 @@ function Miolo({
               rotulo="Exportar saldos"
               descricao="dos itens filtrados"
             />
+            {/* Os DOIS botões de link são montados aqui, e não importados: eles
+                não são componente — são `<Button asChild><Link>` escritos dentro
+                da `page.tsx`. O que a prévia deve garantir é que sejam o MESMO
+                botão, com o mesmo ícone e a mesma regra de cargo. */}
             <Button asChild variant="outline" className="gap-2">
-              <a href="/itens/historico">Histórico</a>
+              <a href="/itens/historico">
+                <ScrollText className="size-4" />
+                Histórico
+              </a>
             </Button>
-            {escreve && (
+            {escreve && filiaisEscrita.length > 0 && (
               <Button asChild variant="outline" className="gap-2">
-                <a href="/itens/conferencia">Conferir estoque</a>
+                <a href="/itens/conferencia">
+                  <ClipboardCheck className="size-4" />
+                  Conferir estoque
+                </a>
               </Button>
             )}
-            {escreve && (
-              <TransferirItemDialog itens={CATALOGO} filiais={FILIAIS_PREVIA} />
+            {escreve && filiaisEscrita.length >= 2 && (
+              <TransferirItemDialog itens={CATALOGO} filiais={filiaisEscrita} />
             )}
             {escreve && (
               <LancarItemDialog
                 itens={CATALOGO}
-                filiais={FILIAIS_PREVIA}
+                filiais={filiaisEscrita}
                 ultimo={null}
                 podeCriarItem
               />

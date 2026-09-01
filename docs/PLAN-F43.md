@@ -113,6 +113,13 @@ largura de coluna para a distribuição por filial.
 A escolha é **por evidência**: as três são fotografadas e submetidas ao mesmo teste. A escolhida vai
 para `src/components/itens/`; as recusadas viram ata em `docs/DECISOES.md`.
 
+> **Nota de execução (01/09/2026, depois do bake-off).** As candidatas B e C foram consolidadas na
+> implementação: em vez de "chips numa coluna" e "faixa na segunda linha", a faixa foi construída UMA
+> vez, **dentro da célula do nome** — que é onde ela aparece em toda largura e onde o defeito de
+> altura no celular se revelou. A terceira candidata virou a **matriz dupla** (a mesma coluna por
+> filial, com `N em uso` numa segunda linha da célula). O que foi de fato medido, com números, está na
+> §5 do [`RELATORIO-F43.md`](RELATORIO-F43.md) — esta seção fica como o plano que se tinha antes.
+
 ## 8. O que fica FORA — não-objetivos declarados
 
 - **Banco.** Nenhuma migration, RPC, view ou policy. Os números todos já existem.

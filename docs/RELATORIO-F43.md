@@ -2,7 +2,7 @@
 
 **Executada em 01/09/2026**, em modo autônomo, na branch `f43-legibilidade-itens`.
 Ordem de serviço: [`docs/prompts/F43-legibilidade-itens-ultracode.md`](prompts/F43-legibilidade-itens-ultracode.md).
-Plano: [`docs/PLAN-F43.md`](PLAN-F43.md). Atas: [`docs/DECISOES.md`](DECISOES.md), 17 entradas na data.
+Plano: [`docs/PLAN-F43.md`](PLAN-F43.md). Atas: [`docs/DECISOES.md`](DECISOES.md), 18 entradas na data.
 Versão: **1.48.0**. **Sem migration, sem dependência nova, sem mudar regra, permissão, rota ou rótulo.**
 
 ---
@@ -123,8 +123,11 @@ Cada célula tem **quatro julgamentos**: dois temas × duas rodadas independente
 | **b** · em quais filiais | ❌ **NÃO SEI 4/4** | ✅ **certeza 4/4** | ✅ certeza 4/4 | ✅ **certeza 4/4** |
 | **c** · prateleira × pessoas | ✅ certeza 4/4 | ✅ **certeza 4/4** | ❌ **NÃO SEI 4/4** | ✅ **certeza 4/4** |
 
-**12 de 12 com certeza no depois.** Tempo estimado pelos próprios julgadores: 5, 14, 8, 5, 5, 6, 8, 5
-segundos. As respostas literais, todas, em
+**12 de 12 com certeza no depois.** Tempo estimado pelos próprios julgadores: 6, 5, 8, 6, 5, 4, 6, 4
+segundos — todos dentro do alvo. Esta é a medição da **imagem que está no repositório**, tirada do
+código que foi ao ar: depois de cada correção (inclusive as duas da revisão adversarial, §7.2) a prévia
+foi refotografada e o protocolo rodou de novo, para não haver distância entre o que se mediu e o que se
+entregou. As respostas literais, todas, em
 [`antes/teste-5-segundos.json`](f43-evidencias/antes/teste-5-segundos.json) e
 [`depois/teste-5-segundos.json`](f43-evidencias/depois/teste-5-segundos.json).
 
@@ -312,13 +315,86 @@ saiu do componente — **não fica alternador nenhum no código**, e o `?visao=`
 
 ## 7. Os quatro comandos, e os dois jobs do CI
 
-*(preenchido na §7.1 com a saída real)*
+Rodados na árvore final, com a versão já em 1.48.0. Saída real, colada:
+
+```
+===== LINT =====
+> estoque-ti-wap@1.48.0 lint
+> eslint
+ESLint: No issues found
+[lint exit=0]
+
+===== TEST =====
+> estoque-ti-wap@1.48.0 test
+> vitest run
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ Test Files  146 passed (146)
+      Tests  3504 passed (3504)
+   Start at  10:19:43
+   Duration  144.51s
+
+===== CONTRASTE =====
+| F43 | cinza sobre o chip cinza (RECUSADO na medição) | claro | muted-foreground | muted     | 4.34:1  | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| F43 | número do cartão de métrica (claro)            | claro | foreground       | card      | 19.79:1 | 3:1   | ✅ AAA |
+| F43 | número do cartão de métrica (escuro)           | escuro| foreground       | card      | 17.16:1 | 3:1   | ✅ AAA |
+| F43 | rótulo e apoio do cartão de métrica (claro)    | claro | muted-foreground | card      | 4.73:1  | 4.5:1 | ✅ AA  |
+| F43 | rótulo e apoio do cartão de métrica (escuro)   | escuro| muted-foreground | card      | 6.91:1  | 4.5:1 | ✅ AA  |
+| F43 | classificação sob o nome do item (claro)       | claro | muted-foreground | background| 4.73:1  | 4.5:1 | ✅ AA  |
+| F43 | classificação sob o nome do item (escuro)      | escuro| muted-foreground | background| 7.63:1  | 4.5:1 | ✅ AAA |
+| F43 | classificação com o mouse na linha (claro)     | claro | muted-foreground | muted/50  | 4.53:1  | 4.5:1 | ✅ AA  |
+| F43 | classificação com o mouse na linha (escuro)    | escuro| muted-foreground | muted/50  | 6.84:1  | 4.5:1 | ✅ AA  |
+| F43 | "Ver as N filiais" com o mouse em cima (claro) | claro | foreground       | muted     | 18.15:1 | 4.5:1 | ✅ AAA |
+| F43 | "Ver as N filiais" com o mouse em cima (escuro)| escuro| foreground       | muted     | 14.48:1 | 4.5:1 | ✅ AAA |
+[contraste exit=0]
+
+===== BUILD =====
+(as 33 rotas, todas presentes — nenhuma sumiu)
+[build exit=0]
+```
+
+**Os testes foram de 3.468 para 3.504** (+36): 21 de `distribuicao.test.ts`, o resto da varredura de
+`consistencia.test.ts` sobre os arquivos novos e das asserções acrescentadas em `conteudo.test.ts`.
+**`PENDENTES` não cresceu** — nenhum arquivo desta fase pediu exceção à régua.
+
+**O par que REPROVA de propósito.** `muted-foreground` sobre `muted` mede **4,34:1** no tema claro —
+abaixo do piso AA de 4,5. Foi assim que a primeira escrita da faixa de blocos (a candidata C) pintava o
+texto do chip, e a medição derrubou antes do teste. Ele ficou registrado como `antes: true`, na mesma
+disciplina do véu `bg-destructive/5` do `Aviso` da F40 — para ninguém "melhorar" a tela pondo-o de volta.
+
+### 7.1 CI e rollout
+
+*(preenchido após o merge)*
+
+---
+
+## 7.2 A revisão adversarial
+
+Quatro lentes independentes em contexto fresco — **que recurso sumiu?**, **o que quebrou por cargo ou por
+largura?**, **acessibilidade e cor**, e **a prévia mente?** —, com cada achado passado a um cético
+encarregado de **refutá-lo**. Duas lentes voltaram vazias. As outras duas acharam **dois defeitos reais**,
+e os dois haviam passado por `lint`, `test`, `contraste` e `build` verdes:
+
+1. **WCAG 2.5.3, "Label in Name" (nível A).** O botão "Ver as 5 filiais" mostrava esse texto e tinha
+   `aria-label="Ver os números por filial de {item}"` — **nenhuma palavra em comum**. `aria-label`
+   SUBSTITUI o conteúdo como nome acessível: quem navega por comando de voz diz o que LÊ e não
+   encontraria o alvo. E abaixo de `xl` este botão é o ÚNICO caminho para os números por filial.
+   **Corrigido:** o nome acessível passou a COMEÇAR pelo texto visível — `Ver as 5 filiais de {item}`.
+2. **A prévia afrouxava a regra de cargo.** "Histórico" e "Conferir estoque" eram `<a>` sem ícone, e
+   Conferir/Transferir dependiam só de `escreve`, sem as condições `filiaisEscrita.length > 0` e `>= 2`
+   da `page.tsx` — uma prévia que afrouxa a regra de cargo fotografa uma tela que não existe para
+   ninguém. **Corrigido:** mesmos ícones, mesmas três condições. As imagens foram refeitas depois disso,
+   e o teste dos 5 segundos rodou de novo sobre elas.
+
+**Régua estática não pega nome acessível divergente do rótulo visível, nem dublê que diverge do
+original.** É por isso que a revisão em contexto fresco existe.
 
 ---
 
 ## 8. Decisões
 
-**17 atas** em [`docs/DECISOES.md`](DECISOES.md), na data de 01/09/2026. As duas que a ordem de serviço
+**18 atas** em [`docs/DECISOES.md`](DECISOES.md), na data de 01/09/2026. As duas que a ordem de serviço
 exigia como **REVISÃO** de decisão anterior:
 
 1. **A distribuição por filial volta para a superfície da linha** — revisa o *esconderijo* escolhido pela

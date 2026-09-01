@@ -8380,3 +8380,23 @@ e da `0121`; as quatro do código, por `git revert`.
   não é outra fase: é a documentação da TELA que esta ordem redesenha, e deixar uma frase falsa sobre
   ela seria entregar o mapa de uma tela que não existe. As três de herança são uma linha cada.
 - Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · a revisão adversarial achou DOIS defeitos, e um deles é de acessibilidade
+
+- Contexto: quatro lentes independentes em contexto fresco (recursos que sumiram, comportamento por
+  cargo e por largura, acessibilidade e cor, e "a prévia mente?"), cada achado passado a um cético
+  encarregado de REFUTÁ-LO. Duas lentes voltaram vazias.
+- **Achado 1 — WCAG 2.5.3, "Label in Name" (nível A).** O botão novo "Ver as 5 filiais" mostrava esse
+  texto e tinha `aria-label="Ver os números por filial de {item}"` — **nenhuma palavra em comum**. Como
+  `aria-label` SUBSTITUI o conteúdo como nome acessível, quem navega por comando de voz diz o que LÊ
+  ("clicar em Ver as 5 filiais") e não encontraria o alvo. E abaixo de `xl` este botão é o ÚNICO caminho
+  para os números por filial.
+- Decisão: o `aria-label` passou a **começar pelo texto visível** — `Ver as 5 filiais de {item}`. O nome
+  do item continua lá, no fim, para distinguir as 25 linhas entre si num leitor de tela.
+- **Achado 2 — a prévia afrouxava a regra de cargo.** Os botões "Histórico" e "Conferir estoque" da
+  prévia eram `<a>` sem ícone, e Conferir/Transferir dependiam só de `escreve`, sem as condições
+  `filiaisEscrita.length > 0` e `>= 2` que a `page.tsx` aplica. Uma prévia que afrouxa a regra de cargo
+  fotografa uma tela que não existe para ninguém. Corrigido: mesmos ícones, mesmas três condições.
+- Motivo de registrar: os dois passaram por `lint`, `test`, `contraste` e `build` verdes. Régua estática
+  não pega nome acessível divergente do rótulo visível, nem dublê que diverge do original.
+- Reversível? Sim, pelo git.

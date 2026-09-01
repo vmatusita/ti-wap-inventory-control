@@ -8,27 +8,7 @@
    "largura": "1440x900",
    "rodada": 1,
    "a": {
-    "resposta": "Os itens marcados com o selo \"repor\" (abaixo do mínimo) nesta página: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". O KPI \"A repor\" no topo confirma 11 itens no total (5 deles aparecem nesta página).",
-    "confianca": "certeza"
-   },
-   "b": {
-    "resposta": "Cabo de rede Cat6 3 m está nas 5 filiais listadas: Aurora (3), Bonança (7), Cerrado Alto (16), Dunas (0) e Estância (10).",
-    "confianca": "certeza"
-   },
-   "c": {
-    "resposta": "Na prateleira (Em estoque): 36. Com as pessoas (Em uso): 40. (Total geral do item: 76.)",
-    "confianca": "certeza"
-   },
-   "d": "{\"resposta\": \"Na coluna \\\"Falta\\\" da linha do Cabo de rede Cat6 aparece um travessão (—), diferente de outras linhas como Webcam Full HD que mostra \\\"faltam 2\\\" em destaque vermelho. Não fica claro se o travessão significa déficit zero ou \\\"não calculado/não aplicável\\\" para esse item.\", \"confianca\": \"hesitei\"}",
-   "segundosEstimados": 5
-  },
-  {
-   "variante": "atual",
-   "tema": "claro",
-   "largura": "1440x900",
-   "rodada": 2,
-   "a": {
-    "resposta": "Os itens marcados com o selo \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\" (bate com o \"5 nesta página\" do card 'A repor' no topo).",
+    "resposta": "Os 5 itens com o selo laranja \"repor\" nesta página: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\" (o card do topo diz 11 itens a repor no total, mas só 5 aparecem nesta página).",
     "confianca": "certeza"
    },
    "b": {
@@ -36,11 +16,31 @@
     "confianca": "certeza"
    },
    "c": {
-    "resposta": "Em estoque (prateleira): 36. Em uso (com as pessoas): 40.",
+    "resposta": "Em estoque (na prateleira): 36. Em uso (com as pessoas): 40.",
     "confianca": "certeza"
    },
-   "d": "Sim: na linha \\\"Carregador de notebook 65 W\\\", o número em negrito \\\"31\\\" (Em estoque) vem com uma notinha cinza embaixo \\\"inclui 3 de filial fora desta lista\\\" — isso deixa em dúvida se os números por filial ao lado (Bonança 0, Cerrado Alto 8, Dunas 18, Estância 2, e Aurora 0) somam esse 31 ou não, já que parte dele é de uma filial que nem aparece nas colunas.",
-   "segundosEstimados": 14
+   "d": "Sim: a linha \"Carregador de notebook 65 W\" mostra \"31\" em Em estoque, mas com uma notinha pequena embaixo \"inclui 3 de filial fora desta lista\". Isso é confuso porque o número não bate com a soma das colunas de filial mostradas na linha (Aurora 0 + Bonança 0 + Cerrado Alto 8 + Dunas 18 + Estância 2 = 28, não 31) — não dá para saber de cara qual filial é essa \"fora da lista\" nem por que ela entra no total.",
+   "segundosEstimados": 6
+  },
+  {
+   "variante": "atual",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "a": {
+    "resposta": "Os marcados com a etiqueta \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\" (bate com \"5 nesta página\" do card \"A repor\").",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "Aurora: 3, Bonança: 7, Cerrado Alto: 16, Dunas: 0, Estância: 10.",
+    "confianca": "certeza"
+   },
+   "c": {
+    "resposta": "Em estoque (na prateleira): 36. Em uso (com as pessoas): 40.",
+    "confianca": "certeza"
+   },
+   "d": "Sim: na linha \"Carregador de notebook 65 W\", o número 31 de \"Em estoque\" vem com a nota \"inclui 3 de filial fora desta lista\" — não fica claro o que é essa filial \"fora da lista\" nem por que ela é tratada diferente das outras cinco colunas, então esse 31 não bate sozinho com a soma das colunas de filial mostradas.",
+   "segundosEstimados": 5
   },
   {
    "variante": "atual",
@@ -48,18 +48,18 @@
    "largura": "390x844",
    "rodada": 1,
    "a": {
-    "resposta": "Os itens marcados com o selo de aviso \"repor\" (triângulo amarelo): Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". O card no topo confirma: \"A repor — 11 itens abaixo do mínimo\".",
+    "resposta": "Nesta página aparecem 5 itens com o selo de aviso \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". (O card no topo diz 11 itens abaixo do mínimo no total, mas só 5 estão nesta página 1 de 2.)",
     "confianca": "certeza"
    },
    "b": {
-    "resposta": "No link \"Ver as 5 filiais\" (com a setinha ⌄), logo abaixo dos números 36/40 na própria linha do item \"Cabo de rede Cat6 3 m\" — é um accordion que expande ali mesmo.",
+    "resposta": "Na própria linha do item \"Cabo de rede Cat6 3 m\", embaixo dos números, tem um link/seta \"⌄ Ver as 5 filiais\" — é nele que eu tocaria para abrir o detalhamento por filial.",
     "confianca": "certeza"
    },
    "c": {
-    "resposta": "36 na prateleira (coluna \"Em estoque\") e 40 com as pessoas (coluna \"Em uso\").",
+    "resposta": "Em estoque (na prateleira): 36. Em uso (com as pessoas): 40.",
     "confianca": "certeza"
    },
-   "d": "{\"resposta\": \"Não na própria linha do Cat6 (36 e 40 são diretos). Mas duas linhas abaixo, em \\\"Carregador de notebook 65 W\\\", o 31 de \\\"Em estoque\\\" vem com a notinha \\\"inclui 3 de filial fora desta lista\\\" — não dá pra saber de bate-pronto qual filial é essa nem por que ela fica de fora da lista de 5.\", \"confianca\": \"hesitei\"}",
+   "d": "Ver campo 'd' respondido dentro do objeto correspondente acima (ajuste de formato).",
    "segundosEstimados": 8
   },
   {
@@ -68,99 +68,99 @@
    "largura": "390x844",
    "rodada": 2,
    "a": {
-    "resposta": "Os itens com a etiqueta amarela \"⚠️ repor\" nesta tela: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". (O card do topo diz \"A repor: 11\", mas só 5 aparecem nesta página de 25.)",
+    "resposta": "Os itens com o selo de aviso \"repor\" (abaixo do mínimo) nesta página: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\".",
     "confianca": "certeza"
    },
    "b": {
-    "resposta": "No link \"⌄ Ver as 5 filiais\", que fica dentro do próprio card do item, logo abaixo dos números 36 (Em estoque) e 40 (Em uso) — é a linha clicável com a seta para baixo, antes da linha divisória do próximo item.",
+    "resposta": "No próprio card do item \"Cabo de rede Cat6 3 m\", logo abaixo da linha \"Acessório · Cabo\": o texto \"Ver as 5 filiais\" com a setinha (v) ao lado — é um acordeão que expande a lista por filial.",
+    "confianca": "certeza"
+   },
+   "c": {
+    "resposta": "Em estoque (na prateleira): 36. Em uso (com as pessoas): 40.",
+    "confianca": "certeza"
+   },
+   "d": "Sim: os números 36 (Em estoque) e 40 (Em uso) da linha do Cabo de rede não dizem se já são a SOMA das 5 filiais ou de uma filial só — só embaixo, no \"Ver as 5 filiais\" (fechado), dá pra imaginar que são o total agregado, mas a linha em si não escreve \"total\".",
+   "segundosEstimados": 6
+  },
+  {
+   "variante": "atual",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "a": {
+    "resposta": "Nesta página, os itens com o selo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". O card do topo (\"A repor\") mostra 11 itens abaixo do mínimo no total do catálogo — só 5 deles aparecem nesta página (a lista tem 2 páginas).",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "Aparece em 5 filiais: Aurora (3), Bonança (7), Cerrado Alto (16), Dunas (0) e Estância (10).",
+    "confianca": "certeza"
+   },
+   "c": {
+    "resposta": "Na prateleira (Em estoque): 36. Com as pessoas (Em uso): 40. (Total: 76.)",
+    "confianca": "certeza"
+   },
+   "d": "Sim, a própria linha do Cabo de rede Cat6 3 m. Os cinco números por filial (3+7+16+0+10) somam 36, que bate com a coluna \"Em estoque\" (prateleira) — mas não com \"Total\" (76) nem com \"Em uso\" (40). Ou seja, essas colunas por filial parecem mostrar só o que está na prateleira em cada filial, não o total do item ali (que incluiria os equipamentos em uso com pessoas daquela filial). Batendo o olho rápido, dá pra achar que \"Cerrado Alto: 16\" é tudo que a filial tem do item, quando na verdade é só o que está guardado — pode ter mais unidades em uso lá que a tabela não separa por filial.",
+   "segundosEstimados": 5
+  },
+  {
+   "variante": "atual",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "a": {
+    "resposta": "Os que aparecem com a etiqueta laranja \"⚠ repor\" nesta página: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". O KPI \"A repor\" no topo diz 11 itens abaixo do mínimo no catálogo todo, mas só 5 aparecem nesta página (a lista tem 44 itens em 2 páginas) — os outros 6 estão na página 2, que eu não vi.",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "Aparece em 5 filiais (coluna \"em estoque\" de cada uma): Aurora 3, Bonança 7, Cerrado Alto 16, Dunas 0, Estância 10.",
+    "confianca": "certeza"
+   },
+   "c": {
+    "resposta": "Na prateleira (em estoque): 36. Com as pessoas (em uso): 40. Total: 76.",
+    "confianca": "certeza"
+   },
+   "d": "Ver campo \"d\" acima — usei o mesmo texto no formato pedido.",
+   "segundosEstimados": 4
+  },
+  {
+   "variante": "atual",
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 1,
+   "a": {
+    "resposta": "Os itens com o selo laranja \"a repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\" (são 5, batendo com o KPI \"abaixo do mínimo · 5 nesta página\").",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "No link \"Ver as 5 filiais\" (com a setinha ao lado), que fica logo abaixo do nome do item, sob a linha \"Acessório · Cabo\", do lado esquerdo da linha do Cabo de rede Cat6 3 m.",
     "confianca": "certeza"
    },
    "c": {
     "resposta": "Na prateleira (Em estoque): 36. Com as pessoas (Em uso): 40.",
     "confianca": "certeza"
    },
-   "d": "Não há dúvida na própria linha do Cabo de rede Cat6 (36/40 são diretos). O número que gera dúvida está na linha do \"Carregador de notebook 65 W\", logo acima: o \"25\" de Em uso vem com a nota \"inclui 3 de filial fora desta lista\", cujo significado exato não é óbvio de bater o olho.",
-   "segundosEstimados": 5
-  },
-  {
-   "variante": "atual",
-   "tema": "escuro",
-   "largura": "1440x900",
-   "rodada": 1,
-   "a": {
-    "resposta": "Os itens marcados com o selo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\" — bate com o \"11 a repor · 5 nesta página\" do topo.",
-    "confianca": "certeza"
-   },
-   "b": {
-    "resposta": "Aurora: 3 · Bonança: 7 · Cerrado Alto: 16 · Dunas: 0 · Estância: 10 (essas são as filiais que aparecem nas colunas da tabela).",
-    "confianca": "certeza"
-   },
-   "c": {
-    "resposta": "Na prateleira (Em estoque): 36. Com as pessoas (Em uso): 40. (Total geral do item: 76.)",
-    "confianca": "certeza"
-   },
-   "d": "Ver campo \"d\" acima.",
-   "segundosEstimados": 5
-  },
-  {
-   "variante": "atual",
-   "tema": "escuro",
-   "largura": "1440x900",
-   "rodada": 2,
-   "a": {
-    "resposta": "Os itens marcados com o selo laranja \"repor\" (5 nesta página, dos 11 abaixo do mínimo no total): Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\".",
-    "confianca": "certeza"
-   },
-   "b": {
-    "resposta": "Aurora: 3 · Bonança: 7 · Cerrado Alto: 16 · Dunas: 0 · Estância: 10.",
-    "confianca": "certeza"
-   },
-   "c": {
-    "resposta": "Em estoque (prateleira): 36. Em uso (com as pessoas): 40.",
-    "confianca": "certeza"
-   },
-   "d": "{\"resposta\": \"Não é na linha do Cabo de rede Cat6, mas a linha \\\"Carregador de notebook 65 W\\\" tem o número 31 (Em estoque) com a nota \\\"inclui 3 de filial fora desta lista\\\" — fica em dúvida o que é essa filial \\\"fora da lista\\\" e por que ela não aparece nas colunas de filiais ao lado, já que as 5 colunas mostradas (0+0+8+18+2=28) não batem sozinhas com o 31.\", \"confianca\": \"hesitei\"}",
+   "d": "{\"resposta\": \"Na própria linha do Cabo de rede Cat6 3 m, não — 36 e 40 aparecem secos, sem anotação. Mas batendo o olho na tela, o número que deixa dúvida é o \\\"31\\\" da linha Carregador de notebook 65 W, que traz um texto pequeno do lado: \\\"inclui 3 de filial fora desta lista\\\" — não fica claro se esses 3 contam ou não para o total exibido, nem qual filial é essa.\", \"confianca\": \"hesitei\"}",
    "segundosEstimados": 6
   },
   {
    "variante": "atual",
    "tema": "escuro",
    "largura": "390x844",
-   "rodada": 1,
-   "a": {
-    "resposta": "Os itens com a etiqueta laranja \"repor\": Headset com microfone (4/26), Adaptador USB-C para HDMI (1/7), Apresentador sem fio (1/3), Capa protetora para tablet (0/0) e Filtro de privacidade 14\" (1/13) — são os 5 desta página, dentro dos 11 \"abaixo do mínimo\" no total do catálogo.",
-    "confianca": "certeza"
-   },
-   "b": {
-    "resposta": "No link \"Ver as 5 filiais\" (com a seta para baixo ⌄), que fica dentro da própria linha do item, logo abaixo de \"Acessório · Cabo\" e abaixo dos números 36/40.",
-    "confianca": "certeza"
-   },
-   "c": {
-    "resposta": "Em estoque (na prateleira): 36. Em uso (com as pessoas): 40.",
-    "confianca": "certeza"
-   },
-   "d": "O \"31\" da linha \"Carregador de notebook 65 W\" (Em estoque), que vem com uma notinha pequena embaixo: \"inclui 3 de filial fora desta lista\". Não fica claro o que isso significa — de qual filial são esses 3, por que eles aparecem fora da lista de filiais do item, e se entram ou não na conta do total mostrado. Nenhuma outra linha tem esse tipo de anotação.",
-   "segundosEstimados": 8
-  },
-  {
-   "variante": "atual",
-   "tema": "escuro",
-   "largura": "390x844",
    "rodada": 2,
    "a": {
-    "resposta": "Os itens marcados com a etiqueta laranja 'repor' nesta página: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\" (bate com o resumo do topo: 'A repor: 11 abaixo do mínimo · 5 nesta página').",
+    "resposta": "Os itens com a etiqueta laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\" (são os 5 desta página, do total de 11 \"a repor\" indicado no topo).",
     "confianca": "certeza"
    },
    "b": {
-    "resposta": "No link/chevron 'Ver as 5 filiais', logo abaixo dos números da linha do item (embaixo de 'Acessório · Cabo', antes do menu '...' à direita).",
+    "resposta": "No link \"Ver as 5 filiais\" (com a setinha), que fica na parte de baixo do card do item Cabo de rede Cat6 3 m, logo abaixo dos números 36/40.",
     "confianca": "certeza"
    },
    "c": {
     "resposta": "Em estoque (na prateleira): 36. Em uso (com as pessoas): 40.",
     "confianca": "certeza"
    },
-   "d": "{\"resposta\": \"Nessa linha específica (Cabo de rede Cat6 3 m) não vi nenhuma marcação estranha nos números — 36 e 40 aparecem lisos, sem nota. O que gera dúvida é algo que notei em OUTRA linha (Carregador de notebook 65W), que traz uma notinha 'inclui 3 de filial fora desta lista' embaixo do 'Em estoque': isso sugere que nem sempre o número bate com a soma das 5 filiais visíveis, e não dá pra saber, só olhando a linha do Cabo Cat6, se o mesmo tipo de ressalva vale pra ela sem abrir o 'Ver as 5 filiais'.\", \"confianca\": \"hesitei\"}",
-   "segundosEstimados": 5
+   "d": "4",
+   "segundosEstimados": 4
   }
  ]
 }

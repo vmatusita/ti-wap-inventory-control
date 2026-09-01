@@ -189,25 +189,31 @@ function BotaoVerPorFilial({
   item: string
   filiais: number
 }) {
+  // ⚠ O `aria-label` COMEÇA pelo texto visível, e isso é o critério 2.5.3 da
+  // WCAG ("Label in Name", nível A): `aria-label` SUBSTITUI o conteúdo como nome
+  // acessível, e a primeira escrita deste botão dizia "Ver os números por filial
+  // de X" enquanto a tela mostrava "Ver as 5 filiais" — nenhuma palavra em comum.
+  // Quem navega por comando de voz diz o que LÊ ("clicar em Ver as 5 filiais") e
+  // não encontraria o alvo. O nome do item vem depois, para distinguir as 25
+  // linhas entre si num leitor de tela.
+  const rotulo = aberta
+    ? 'Esconder as filiais'
+    : filiais === 1
+      ? 'Ver a filial'
+      : `Ver as ${filiais} filiais`
   return (
     <button
       type="button"
       onClick={onClick}
       aria-expanded={aberta}
-      aria-label={
-        aberta ? `Esconder os números por filial de ${item}` : `Ver os números por filial de ${item}`
-      }
+      aria-label={`${rotulo} de ${item}`}
       // `whitespace-nowrap` está na classe porque a célula do nome é
       // `whitespace-normal`: sem ele o rótulo quebrava em duas linhas dentro de
       // uma coluna de 120px e acrescentava altura a CADA uma das 25 linhas.
       className="mt-1 -ml-1 flex h-10 items-center gap-1 rounded-md px-1 text-xs font-medium whitespace-nowrap text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none xl:hidden print:hidden"
     >
       <ChevronDown className={cn('size-4 transition-transform', aberta && 'rotate-180')} aria-hidden />
-      {aberta
-        ? 'Esconder as filiais'
-        : filiais === 1
-          ? 'Ver a filial'
-          : `Ver as ${filiais} filiais`}
+      {rotulo}
     </button>
   )
 }
