@@ -23,7 +23,8 @@ pegou).** As três estão no ar, mergeadas na `main`, com tag anotada. **Nenhuma
 | **C** | `lancar-item-dialog` **893 → 637** linhas, com a **prévia da regularização** antes de gravar. `transferir-item-dialog` **457 → 424**, reusando o carrinho compartilhado. |
 | **D** | Selo **"regularizado"** na ficha do ativo · `/itens/conferencia` no casco · subrotas no menu, na paleta e no mapa das telas · ajuda reescrita · smoke · `capturar.mjs` · versão e documentação. |
 
-11 commits, **63 arquivos**, +4.826 −1.734 linhas.
+14 commits (13 sem contar o merge), **64 arquivos**, +5.307 −1.734 linhas — a contagem inclui as duas
+correções pós-deploy do §9.
 
 ---
 
