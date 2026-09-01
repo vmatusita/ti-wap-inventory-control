@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { semComentarios } from '@/lib/layout/texto-fonte'
 import {
   destinoHistoricoLegado,
   emUsoDoSaldo,
@@ -236,7 +239,23 @@ describe('rotuloSubtituloItens', () => {
 })
 
 describe('destinoHistoricoLegado — o favorito antigo nao vira tela errada', () => {
-  const destino = (qs: string) => destinoHistoricoLegado(new URLSearchParams(qs))
+  // O helper ainda aceita querystring por comodidade de escrita, mas o que ele
+  // entrega à função é o OBJETO — a mesma forma que o Server Component monta com
+  // acessos nominais. Ver o comentário de `ParamsLegadoDeItens`: a versão anterior
+  // recebia `URLSearchParams` e escondeu, atrás de um teste verde, um wiring que
+  // nunca disparou em produção.
+  const destino = (qs: string) => {
+    const p = new URLSearchParams(qs)
+    return destinoHistoricoLegado({
+      item: p.get('item') ?? undefined,
+      tipo: p.get('tipo') ?? undefined,
+      de: p.get('de') ?? undefined,
+      ate: p.get('ate') ?? undefined,
+      busca: p.get('busca') ?? undefined,
+      filial: p.get('filial') ?? undefined,
+      page: p.get('page') ?? undefined,
+    })
+  }
 
   it('URL de saldos nao redireciona', () => {
     expect(destino('')).toBeNull()
@@ -264,6 +283,46 @@ describe('destinoHistoricoLegado — o favorito antigo nao vira tela errada', ()
     const url = destino('tipo=saida&q=mouse')
     expect(url).toBe('/itens/historico?tipo=saida')
     expect(url).not.toContain('q=')
+  })
+
+  it('a pagina le os params UM A UM, nunca varrendo o searchParams', () => {
+    // GUARDA DE REGRESSÃO, escrita depois de o defeito acontecer em PRODUÇÃO.
+    //
+    // A primeira escrita desta fase montava a entrada do redirecionamento com
+    // `Object.entries(sp)`. O objeto de `searchParams` do Next responde por CHAVE e
+    // não se deixa VARRER: a varredura devolvia vazio, a função pura recebia uma
+    // entrada em branco e o redirect nunca disparava. Os 29 testes deste arquivo
+    // ficaram VERDES o tempo todo — eles montavam a entrada à mão. Quem pegou foi o
+    // smoke pós-deploy, com `HTTP 200 sem o conteúdo esperado`.
+    //
+    // É uma guarda de TEXTO-FONTE porque a propriedade é do CÓDIGO, não do
+    // comportamento — o mesmo molde de `consistencia.test.ts` e `sidebar-colapso.test.ts`.
+    // `semComentarios`: o comentário do próprio arquivo CITA a varredura para
+    // explicar por que ela morreu, e punir quem explica é o contrário do que este
+    // repositório quer. É o mesmo recorte que `consistencia.test.ts` usa.
+    const fonte = semComentarios(
+      readFileSync(join(process.cwd(), 'src', 'app', '(app)', 'itens', 'page.tsx'), 'utf8'),
+    )
+    for (const varredura of [
+      'Object.entries(sp)',
+      'Object.keys(sp)',
+      'Object.values(sp)',
+      'Object.entries(searchParams)',
+      'Object.entries(await searchParams)',
+    ]) {
+      expect(
+        fonte.includes(varredura),
+        `itens/page.tsx varre o searchParams com ${varredura} — ele responde por CHAVE, ` +
+          'e a varredura devolve vazio EM SILÊNCIO (defeito da F42, pego pelo smoke)',
+      ).toBe(false)
+    }
+    // E os sete params do redirecionamento continuam sendo lidos pelo nome.
+    for (const nome of ['item', 'tipo', 'de', 'ate', 'busca', 'filial', 'page']) {
+      expect(
+        fonte.includes(`sp.${nome}`),
+        `itens/page.tsx nao le sp.${nome} — o redirecionamento do link antigo perde esse param`,
+      ).toBe(true)
+    }
   })
 
   it('param vazio nao conta como filtro do historico', () => {

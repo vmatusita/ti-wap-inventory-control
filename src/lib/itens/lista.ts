@@ -320,17 +320,44 @@ export const PARAMS_SO_DO_HISTORICO = ['item', 'tipo', 'de', 'ate', 'busca'] as 
 const PARAMS_COMPARTILHADOS = ['filial', 'page'] as const
 
 /**
+ * Os params que o redirecionamento olha, JÁ LIDOS pelo chamador.
+ *
+ * ⚠ É UM OBJETO SIMPLES, e a razão é um defeito que esta fase pagou em produção.
+ * A primeira escrita recebia um `URLSearchParams` que o Server Component montava
+ * com `Object.entries(searchParams)` — e em produção o redirect **nunca disparou**:
+ * `HTTP 200 sem o conteúdo esperado`, pego pelo smoke pós-deploy. O objeto de
+ * `searchParams` do Next não se deixa enumerar assim (o acesso é por CHAVE, não por
+ * varredura), então `Object.entries` devolvia vazio, `legado` nascia sem nada e a
+ * função respondia `null` — corretamente, sobre uma entrada errada.
+ *
+ * O teste unitário passava o tempo todo, porque montava o `URLSearchParams` à mão:
+ * a função pura estava certa e o WIRING estava errado. Recebendo um objeto que o
+ * chamador preenche com acessos NOMINAIS (`sp.tipo`, `sp.de`…), o erro deixa de ser
+ * possível — e `paginaLeParamsNominalmente` (em `lista.test.ts`) vigia a fonte.
+ */
+export type ParamsLegadoDeItens = {
+  item?: string
+  tipo?: string
+  de?: string
+  ate?: string
+  busca?: string
+  filial?: string
+  page?: string
+}
+
+/**
  * O destino de um link antigo de histórico, ou `null` quando a URL é de saldos.
  *
- * Recebe e devolve string de querystring — nada de `URL`, para o Server Component
- * poder chamar isto com `searchParams` já resolvido e o teste poder chamar sem DOM.
+ * Devolve o caminho pronto — nada de `URL`, para o Server Component poder passá-lo
+ * direto ao `redirect()` e o teste poder chamar sem DOM.
  */
-export function destinoHistoricoLegado(params: URLSearchParams): string | null {
-  const temHistorico = PARAMS_SO_DO_HISTORICO.some((p) => (params.get(p) ?? '').trim() !== '')
+export function destinoHistoricoLegado(params: ParamsLegadoDeItens): string | null {
+  const valor = (p: keyof ParamsLegadoDeItens) => (params[p] ?? '').trim()
+  const temHistorico = PARAMS_SO_DO_HISTORICO.some((p) => valor(p) !== '')
   if (!temHistorico) return null
   const destino = new URLSearchParams()
   for (const p of [...PARAMS_SO_DO_HISTORICO, ...PARAMS_COMPARTILHADOS]) {
-    const v = (params.get(p) ?? '').trim()
+    const v = valor(p)
     if (v) destino.set(p, v)
   }
   const qs = destino.toString()

@@ -93,12 +93,24 @@ export default async function ItensPage({
   // colado num chamado abriria os saldos ignorando o recorte EM SILÊNCIO — pior
   // que um 404, porque o operador leria a lista errada achando que é a certa.
   // A regra é pura e testada (`destinoHistoricoLegado`, lista.test.ts).
-  const legado = new URLSearchParams()
-  for (const [chave, valor] of Object.entries(sp)) {
-    const v = primeiro(valor)
-    if (v) legado.set(chave, v)
-  }
-  const destino = destinoHistoricoLegado(legado)
+  //
+  // ⚠ OS PARAMS SÃO LIDOS UM A UM, PELO NOME. A primeira escrita desta fase montava
+  // um `URLSearchParams` com `Object.entries(sp)` — e o redirect NUNCA disparou em
+  // produção: o smoke pós-deploy acusou `HTTP 200 sem o conteúdo esperado`. O objeto
+  // de `searchParams` do Next responde por CHAVE e não se deixa VARRER, então
+  // `Object.entries` devolvia vazio e a função pura recebia uma entrada em branco.
+  // Os testes ficaram verdes o tempo todo, porque montavam a entrada à mão: a regra
+  // estava certa e o wiring estava errado. Uma guarda de texto-fonte em
+  // `lista.test.ts` agora recusa qualquer varredura de `searchParams` neste arquivo.
+  const destino = destinoHistoricoLegado({
+    item: primeiro(sp.item),
+    tipo: primeiro(sp.tipo),
+    de: primeiro(sp.de),
+    ate: primeiro(sp.ate),
+    busca: primeiro(sp.busca),
+    filial: primeiro(sp.filial),
+    page: primeiro(sp.page),
+  })
   if (destino) redirect(destino)
 
   const grupoRaw = primeiro(sp.grupo)
