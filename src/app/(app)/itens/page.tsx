@@ -28,6 +28,11 @@ import { GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio'
 // sem redigitar a fórmula da coluna Falta aqui. A F42 acrescentou "Em uso" lá, e é
 // de lá que o cabeçalho da coluna nova sai.
 import { NUMEROS_ITEM } from '@/lib/ajuda/conteudo/itens-por-quantidade'
+// F44 — a legenda com ESCOPO. `NUMEROS_ITEM` não muda uma vírgula (é fonte
+// compartilhada com a página de ajuda, que descreve o significado SEM filtro): a
+// frase com o nome da filial se DERIVA dela aqui, por função pura testada, e desce
+// por prop para os cartões e para a tabela.
+import { cabecalhosComEscopo, escopoDosNumeros } from '@/lib/itens/escopo'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { CabecalhoDaPagina, Pagina } from '@/components/layout/pagina'
 import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
@@ -170,6 +175,21 @@ export default async function ItensPage({
   // ATIVO e a RPC traz ativo OU com lançamento: item desativado que ainda tem saldo
   // fica de fora do mapa e vale mínimo 0 — nunca alerta (repor.ts).
   const minimos = minimosDoCatalogo(itensAtivos)
+
+  // ⚠ F44 — DE QUEM SÃO OS NÚMEROS QUE ESTA TELA MOSTRA.
+  //
+  // Os números já seguiam o filtro desde a F42 (`saldoDoRecorte`); o que mentia era
+  // a LEGENDA — com `?filial=3`, a tela escrevia "tudo que a TI possui" embaixo de
+  // um número que é de uma filial só. `escopo` é a resposta, e ela desce por prop
+  // para as DUAS superfícies que passam a dizê-la: a linha acima dos cartões e a
+  // `<caption>` da tabela.
+  //
+  // ⚠ Ele sai de `filialIds`, e não de `filiaisVisiveis`: sem recorte a tela mostra
+  // o CONSOLIDADO da RPC (que enxerga filial desativada com saldo), e marcar as
+  // cinco filiais à mão mostra a SOMA das cinco colunas — dois números que podem
+  // divergir, e a legenda tem de dizer qual dos dois está na tela.
+  const escopo = escopoDosNumeros(filiais, filialIds)
+  const cabecalhos = cabecalhosComEscopo(NUMEROS_ITEM, escopo)
 
   // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
   // RESOLVIDA aqui faria `temFiltro` ser SEMPRE true para o operador (o padrão do
@@ -325,7 +345,8 @@ export default async function ItensPage({
           <ResumoDeItens
             resumo={resumoDaLista(filtradas, minimos)}
             resumoDaPagina={resumoDaLista(pagina.rows, minimos)}
-            cabecalhos={NUMEROS_ITEM}
+            cabecalhos={cabecalhos}
+            escopo={escopo}
           />
           <ItensTable
             rows={pagina.rows}
@@ -336,7 +357,8 @@ export default async function ItensPage({
             filiaisTransferencia={
               filiaisEscrita.length >= 2 ? filiaisEscrita.map((f) => f.id) : []
             }
-            cabecalhos={NUMEROS_ITEM}
+            cabecalhos={cabecalhos}
+            escopo={escopo}
           />
           <AtivosPaginacao
             page={pagina.page}

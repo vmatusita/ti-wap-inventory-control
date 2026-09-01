@@ -32,16 +32,27 @@ export function IdentidadeDoItem({
   item,
   grupo,
   tipoRotulo,
-  estoqueConsolidado,
+  estoqueDoRecorte,
   estoqueMinimo,
+  rotuloDoEstoque,
 }: {
   item: string
   grupo: GrupoItem
   /** O rótulo de `tipos_item` (F37), ou `null` — o catálogo antigo nasceu sem tipo. */
   tipoRotulo: string | null
-  /** Sempre o CONSOLIDADO — a regra do "repor" (Johnny, 22/07/2026). */
-  estoqueConsolidado: number | null
+  /**
+   * O estoque do RECORTE que está na tela — `linha.saldo.estoque`.
+   *
+   * ⚠ F44 — era `linha.consolidado.estoque`, sempre, pela decisão de 23/07/2026
+   * ("o mínimo compara com o consolidado, nunca com o saldo de uma filial"). O
+   * Johnny revogou essa parte em 01/09/2026: com filtro de filial, o aviso passa a
+   * ser da filial filtrada. Sem filtro, `saldo === consolidado` e nada muda. O
+   * efeito colateral está escrito no cabeçalho de `badge-repor.tsx`.
+   */
+  estoqueDoRecorte: number | null
   estoqueMinimo: number
+  /** Contra qual estoque a comparação é feita, por extenso — para a dica dizer. */
+  rotuloDoEstoque: string
 }) {
   return (
     <span className="flex flex-col gap-0.5">
@@ -49,7 +60,11 @@ export function IdentidadeDoItem({
         {item}
         {/* "repor" fica junto do NOME desde a F12, e continua: é o alarme que
             responde "o que eu preciso comprar?" — a primeira pergunta da tela. */}
-        <BadgeRepor estoqueConsolidado={estoqueConsolidado} estoqueMinimo={estoqueMinimo} />
+        <BadgeRepor
+          estoqueDoRecorte={estoqueDoRecorte}
+          estoqueMinimo={estoqueMinimo}
+          rotuloDoEstoque={rotuloDoEstoque}
+        />
       </span>
       <span className="text-xs text-muted-foreground">
         {GRUPO_ITEM_META[grupo].rotulo}

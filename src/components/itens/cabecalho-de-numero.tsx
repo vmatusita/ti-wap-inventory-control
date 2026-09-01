@@ -1,4 +1,5 @@
 import { Dica } from '@/components/ui/dica'
+import { tintaDoNumero } from '@/lib/itens/tinta'
 import { cn } from '@/lib/utils'
 
 // O CABEÇALHO DE UMA COLUNA DE NÚMERO (F43) — o rótulo E o que ele significa.
@@ -19,6 +20,15 @@ import { cn } from '@/lib/utils'
 //
 // Fonte única preservada: rótulo, `curto` e `explicacao` saem todos do MESMO
 // registro que a página de ajuda lê. Ninguém redigita vocabulário aqui.
+//
+// F44 — ENTROU A CHAVE DE COR. Cada número passou a ter uma tinta própria
+// (`src/lib/itens/tinta.ts`), e ela aparece nos TRÊS lugares: o cartão de resumo, o
+// cabeçalho da coluna e a célula. Aqui é o quadradinho ao lado do rótulo — a mesma
+// cor que o número da célula usa embaixo, para o olho ligar a coluna ao valor sem
+// contar posição.
+//
+// ⚠ `aria-hidden`: a cor é REFORÇO, nunca o dado. O rótulo e a explicação curta
+// continuam do lado dela, e são eles que dizem o que a coluna é.
 //
 // Fora do render de propósito: componente declarado DENTRO de outro é remontado a
 // cada passada (regra `react-hooks/static-components`).
@@ -45,6 +55,7 @@ export function CabecalhoDeNumero({
 }) {
   const meta = cabecalhos.find((c) => c.chave === chave)
   const nome = meta?.rotulo ?? padrao
+  const tinta = tintaDoNumero(chave)
   const miolo = (
     <span
       className={cn(
@@ -52,7 +63,12 @@ export function CabecalhoDeNumero({
         alinhamento === 'direita' ? 'items-end' : 'items-start',
       )}
     >
-      <span>{nome}</span>
+      <span className="flex items-center gap-1.5">
+        {/* A chave de cor. `rounded-xs` e não `rounded-full`: um quadradinho lê
+            como amostra de tinta, e um círculo lê como marcador de lista. */}
+        <span className={cn('size-2 shrink-0 rounded-xs', tinta.marca)} aria-hidden />
+        {nome}
+      </span>
       {/* ⚠ A explicação curta SOME abaixo de `sm`, e a medição é o motivo: em
           390px a caixa da tabela tem 356px, e "na prateleira agora" + "com as
           pessoas" nos dois cabeçalhos comiam 194px deles — sobravam 91px para o
