@@ -6,11 +6,45 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
-## 31/08/2026 — Correção pós-deploy: o redirecionamento do link antigo de itens ✅ 🔒
+## 31/08/2026 — Correção pós-deploy: o desvio do link antigo foi para o proxy ✅ 🔒
+
+Entrega avulsa fora de fase (**v1.47.2**). **A correção que de fato resolveu** o defeito da F42 que a
+v1.47.1 tentou consertar com o diagnóstico errado.
+
+- 🔍 **A causa real, provada por instrumentação e não por suposição.** Um `console.log` na página, lido
+  no dev server, mostrou que a função pura JÁ recebia a entrada certa (`{"tipo":"saida","destino":
+  "/itens/historico?tipo=saida"}`) e que `Object.keys(searchParams)` funcionava — a hipótese da
+  v1.47.1 estava errada. O `redirect()` DISPARAVA, e mesmo assim a resposta era **HTTP 200** com a
+  tela de saldos. O corpo da resposta continha `NEXT_REDIRECT` e o destino: o segmento `/itens` tem
+  `loading.tsx`, então a rota é servida em **stream** — o Next manda 200 com o esqueleto assim que a
+  navegação começa, e um `redirect()` disparado depois disso é entregue **dentro do payload RSC**,
+  para o navegador executar. O operador com JavaScript acabava na tela certa; um cliente sem JS, um
+  `curl` e o smoke, não.
+- 🔀 **A correção: o desvio mudou de lugar.** Ele foi da página para `src/lib/supabase/proxy.ts`,
+  onde acontece **antes de qualquer render** — **307 de verdade**, com o `Location` certo, sem
+  depender de JavaScript e sem a tela errada chegar a existir. Redirecionar rota legada é assunto de
+  **roteamento**. A regra continua sendo a mesma função pura testada; o proxy só a alimenta.
+- 🧪 **E o smoke passou a provar a coisa certa.** A entrada conferia o CONTEÚDO da tela de destino —
+  foi assim que ela pegou o defeito, mas por acidente. Agora ela confere o **status e o destino**
+  (`redirectEsperado`), e um **200 numa rota que deve desviar é falha explícita**, com a mensagem
+  dizendo isso. Um "redirect" que só o navegador executa deixou de passar por redirect.
+- 🛡️ **A guarda de texto-fonte mudou de alvo**: agora ela EXIGE o desvio no proxy e o PROÍBE na
+  página, com a razão escrita ao lado.
+
+Smoke pós-deploy: **108 OK · 0 falha**. Sem migration.
+
+---
+
+## 31/08/2026 — Correção pós-deploy que NÃO pegou: o diagnóstico estava errado ⚠️ 🔒
 
 Entrega avulsa fora de fase (**v1.47.1**). **Um defeito da F42 que chegou a produção e que o smoke
 pós-deploy encontrou minutos depois** — está aqui porque a regra 8 do `CLAUDE.md` não abre exceção
 para "correção da própria fase", e porque o rastro importa mais que a aparência de acerto.
+
+> ⚠️ **ESTA CORREÇÃO NÃO PEGOU, e o diagnóstico abaixo estava errado.** O smoke acusou de novo, e a
+> instrumentação local provou que a função pura já recebia a entrada certa e devolvia o destino
+> certo — `Object.entries` não era a causa. A causa real, e a correção que funcionou, estão na
+> **v1.47.2**, logo acima. A entrada fica como está por honestidade de rastro: foi o que se publicou.
 
 - 🐛 **O redirecionamento do link antigo do histórico nunca disparava.** `/itens?tipo=…&de=…`
   respondia **HTTP 200** com a tela de saldos, ignorando o recorte em silêncio — exatamente o

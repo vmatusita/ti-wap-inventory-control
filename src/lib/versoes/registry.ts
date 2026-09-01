@@ -23,12 +23,22 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.47.2',
+    data: '2026-08-31',
+    titulo: 'O link antigo do histórico de itens voltou a funcionar (de verdade)',
+    mudancas: [
+      'Um link antigo para o histórico de itens — daqueles com o tipo e o período no endereço, salvos nos favoritos ou colados num chamado — abria a lista de saldos ignorando o recorte. Agora ele leva para a tela de Histórico já filtrado, como deveria desde a versão 1.47.0.',
+      'A tentativa da versão anterior não resolveu: o desvio funcionava no navegador, mas não valia para tudo o que abre um endereço do sistema. Ele mudou de lugar e agora vale sempre.',
+      'A verificação automática que roda depois de cada publicação encontrou o problema nas duas vezes — inclusive a vez em que a correção não tinha pegado.',
+    ],
+  },
+  {
     versao: '1.47.1',
     data: '2026-08-31',
-    titulo: 'O link antigo do histórico de itens voltou a funcionar',
+    titulo: 'Uma primeira tentativa de consertar o link antigo do histórico — que não pegou',
     mudancas: [
-      'Um link antigo para o histórico de itens — daqueles com o tipo e o período no endereço, salvos nos favoritos ou colados num chamado — abria a lista de saldos ignorando o recorte, em silêncio. Agora ele leva para a tela de Histórico já filtrado, como deveria desde a versão anterior.',
-      'A verificação automática que roda depois de cada publicação foi quem encontrou o problema, minutos depois de a versão entrar no ar.',
+      'Esta versão tentou consertar o link antigo do histórico de itens e NÃO resolveu: o diagnóstico estava errado. Ela fica registrada porque foi publicada, e porque o histórico de versões deste sistema conta o que aconteceu, não o que era para ter acontecido.',
+      'Quem resolveu foi a versão 1.47.2, logo em seguida.',
     ],
   },
   {
