@@ -362,12 +362,23 @@ describe('navegação e estrutura documentadas (OS-F11 · Onda 3)', () => {
     expect(texto).toContain(normalizarBusca('Duas colunas não ordenam'))
   })
 
-  it('descreve a visão de saldos por filial, inclusive o que ela esconde (I4)', () => {
+  it('descreve a comparação entre filiais, e o que ela mostra quando a conta não fecha', () => {
+    // F42 — A REGRA MUDOU, e por isso as frases mudaram. A comparação entre
+    // filiais deixou de ser uma VISÃO (um botão que trocava as colunas da tabela
+    // inteira, e que junto escondia o filtro de filial) e virou o DETALHE de cada
+    // linha, atrás de uma setinha. Duas asserções não descreviam mais nada que
+    // existe: "Por filial põe uma coluna de estoque para CADA filial" e "o filtro
+    // de filial some da barra" — o filtro agora está sempre lá.
+    //
+    // O que continua sendo obrigatório, e é o que estas asserções cobrem: a tela
+    // explica o déficit ("faltam N") e explica quando a soma NÃO fecha com o Total.
+    // A frase dessa explicação mudou junto com o mecanismo, porque agora a lista
+    // pode estar recortada por filtro além de ter filial desativada.
     const texto = textoDaSecao(secao('itens'))
-    expect(texto).toContain(normalizarBusca('Por filial põe uma coluna de estoque para CADA filial'))
+    expect(texto).toContain(normalizarBusca('a linha se abre e mostra o mesmo item filial por filial'))
     expect(texto).toContain(normalizarBusca('faltam N'))
-    expect(texto).toContain(normalizarBusca('o filtro de filial some da barra'))
-    expect(texto).toContain(normalizarBusca('inclui N de filial desativada'))
+    expect(texto).toContain(normalizarBusca('o filtro de filial está sempre lá'))
+    expect(texto).toContain(normalizarBusca('inclui N em estoque de filial fora desta lista'))
   })
 
   it('diz que os filtros das tabelas do relatório ficam no link (T10)', () => {

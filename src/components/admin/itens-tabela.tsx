@@ -127,7 +127,9 @@ export function ItensTabela({
                   {/* Mínimo 0 sai como travessão, não como "0": zero não é um piso
                       de estoque, é a AUSÊNCIA de acompanhamento — um 0 numa coluna
                       de limites se lê como "alerta quando ficar abaixo de zero".
-                      Mesma convenção do travessão de Atrelados/Falta em /itens. */}
+                      Mesma convenção do travessão da coluna Falta em /itens.
+                      (F42 — a referência dizia "Atrelados/Falta"; a coluna
+                      Reservado saiu da tabela de /itens naquela fase.) */}
                   <TableCell className="hidden text-right tabular-nums text-muted-foreground sm:table-cell">
                     {it.estoque_minimo > 0 ? (
                       <span className="font-medium text-foreground">

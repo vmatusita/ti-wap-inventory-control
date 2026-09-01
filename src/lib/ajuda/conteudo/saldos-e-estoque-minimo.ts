@@ -34,16 +34,16 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
         'O selo "ao vivo" no cabeçalho vira "atualizado agora" quando alguém lança alguma coisa enquanto você está na tela — os números se refrescam sem recarregar.',
       ],
     },
-    { tipo: 'titulo', id: 'visoes', texto: 'As duas visões da tabela' },
+    { tipo: 'titulo', id: 'visoes', texto: 'Comparar as filiais de um item' },
     {
       tipo: 'nota',
       texto:
-        'A página Itens tem duas visões, no botão do topo, e abre na primeira. Por filial põe uma coluna de estoque para CADA filial, lado a lado, mais a coluna Total: é a resposta rápida para "onde tem mouse sobrando?", sem trocar o filtro cinco vezes. O selo "faltam N" aparece na coluna da filial onde está o déficit. Consolidado, a um clique, soma todas as filiais — ou só as filiais escolhidas no filtro.',
+        'Cada linha da tabela tem uma setinha à esquerda. Clicando nela, a linha se abre e mostra o mesmo item filial por filial: quanto tem na prateleira de cada uma, quanto está com as pessoas de cada uma, e o selo "faltam N" na filial onde houver déficit. É a resposta rápida para "onde tem mouse sobrando?", sem trocar o filtro cinco vezes. Você pode abrir quantas linhas quiser ao mesmo tempo.',
     },
     {
       tipo: 'nota',
       texto:
-        'Na visão Por filial o filtro de filial some da barra (as filiais já estão todas na tela, uma por coluna) e o recorte por filial deixa de valer também para o histórico de lançamentos logo abaixo. A busca por nome e o filtro de grupo continuam valendo nas duas visões, e a visão escolhida fica no endereço da página — o link abre do mesmo jeito para quem receber. Se a coluna Total for maior que a soma das colunas, ela mesma explica por quê ("inclui N de filial desativada") — filial desativada não ganha coluna, mas o saldo que ficou nela continua contando no Total.',
+        'Até 31/08/2026 isso era um botão "Consolidado / Por filial" no topo, que TROCAVA as colunas da tabela inteira — e era a única tela do sistema em que um filtro fazia isso. Agora a comparação é o detalhe de cada linha, e o filtro de filial está sempre lá, valendo sempre: escolher uma filial recorta os números da tabela, e a linha aberta compara só as filiais escolhidas. Se a linha aberta não somar o Total da tabela, ela mesma explica por quê ("inclui N em estoque de filial fora desta lista") — filial desativada, ou fora do filtro, não ganha linha, mas o saldo que ficou nela continua contando.',
     },
     {
       tipo: 'nota',
@@ -72,8 +72,8 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
       tipo: 'lista',
       itens: [
         '"Exportar saldos", no cabeçalho da página, gera o arquivo com os itens que estão filtrados na tela.',
-        'Duas coisas para saber antes de usar o arquivo numa reunião: o export acompanha a visão em que você está — na visão Por filial o arquivo sai com uma COLUNA POR FILIAL (mais "faltam" de cada uma, o Total e os números de todas as filiais juntas) e se chama itens-saldos-por-filial; na visão Consolidado ele sai com uma linha por item e a coluna Filial dizendo o recorte ("Consolidado", ou os nomes somados). E o estoque mínimo não vai no arquivo em nenhuma das duas: ele existe só na tela.',
-        '"Exportar histórico", no cabeçalho do histórico de lançamentos, é outro arquivo: leva os lançamentos filtrados, não os saldos.',
+        'O arquivo é um só, chamado itens-saldos, e traz tudo o que a tela mostra: uma linha por item, com Grupo, Tipo, os cinco números do recorte (Total, Em estoque, Em uso, Reservado e Falta), a coluna Filial dizendo o que ele contém ("Consolidado", ou os nomes somados) e, ao lado, uma COLUNA POR FILIAL com o estoque e o "faltam" de cada uma — o mesmo que a linha aberta mostra. Até 31/08/2026 eram dois arquivos diferentes, um por visão da tela. O estoque mínimo continua sendo a única coisa que não vai no arquivo: ele existe só na tela.',
+        '"Exportar histórico" é outro arquivo, e desde 31/08/2026 mora em outra tela: o botão está no cabeçalho de Itens → Histórico e leva os lançamentos filtrados LÁ, não os saldos daqui. Cada tela exporta o próprio recorte.',
       ],
     },
     {

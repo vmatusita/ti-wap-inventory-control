@@ -650,7 +650,7 @@ disciplina que o irmão usou, e a razão de poderem ser executadas em sessões s
 | **piloto · ativos** | `ativos/page.tsx`, `[id]/`, `novo/`, `loading.tsx`, `components/ativos/**` (sem os forms) | 3 |
 | **a · acervo** | home, `pendencias/**`, `movimentacoes/**` (telas, não os forms) | 5 |
 | **b · relatórios** | `relatorios/[filial]/`, `relatorios/gerados/**`, `components/relatorios/**` **exceto `acesso-form.tsx`** | 3 |
-| **c · admin + itens** | os 9 painéis de `/admin` + `admin/layout.tsx` + `itens/**` | 11 |
+| **c · admin + itens** | os 9 painéis de `/admin` + `admin/layout.tsx` + ~~`itens/**`~~ **(a metade de itens saiu na F42 — ver abaixo)** | 11 → **8** |
 | **d · dev, ajuda, versões, públicas** | `dev/**`, `ajuda/**`, `versoes/`, `login/`, `auth/**`, `relatorios/acesso/` + `components/relatorios/acesso-form.tsx` | 10 |
 
 **A única fronteira que precisa ser escrita à mão:** `/relatorios/acesso` mora dentro de
@@ -663,6 +663,22 @@ arquivo e não poderiam rodar em sessões separadas. Soma: 3 + 5 + 3 + 11 + 10 =
 ficha, formulário de cadastro, tabela com ordenação, esqueleto) e a única com TanStack. Se o
 sistema couber nela sem exceção, cabe no resto. Se não couber, o custo do erro é uma frente, não
 seis.
+
+> **A frente c avançou pela metade (F42, 31/08/2026).** A fase das telas de item não foi uma frente
+> do sistema de design — foi uma fase de PRODUTO, do `docs/PLANO-ITENS.md` §6 — mas ela reescreveu
+> `/itens` no casco e, junto, levou `/itens/conferencia` e a rota nova `/itens/historico`. Resultado:
+> os prefixos `src/app/(app)/itens/` e `src/components/itens/` **saíram de `PENDENTES`** e as três
+> rotas entraram em `ROTAS_MIGRADAS`. **88 violações em 30 testes viraram zero**, e a catraca de cor
+> crua desceu de 479 para **473**.
+>
+> O que SOBROU da frente c: os **9 painéis de `/admin`** e o `admin/layout.tsx` — 8 rotas. Ele
+> continua escrevendo o próprio `<h1>` e montando a barra de abas (`admin-nav.tsx`), que é o padrão
+> de subnavegação que a frente vai ter de decidir se mantém, agora que existe o precedente dos
+> subitens de menu (ata em `DECISOES.md`).
+>
+> Continuam pendentes, sem mudança: **a** (home, `/pendencias`, `/movimentacoes`), **b**
+> (relatórios), o resto de **c** (`/admin`) e **d** (`/dev`, `/ajuda`, `/versoes`, as portas
+> públicas e a casca do app). A lista `PENDENTES` **só encolhe** — foi o que aconteceu.
 
 **Cada frente termina com** `npm run lint`, `npm run test`, `npm run build` e `npm run contraste`
 verdes, a catraca de §4.2 abaixada no mesmo commit, e a conferência visual de §6.

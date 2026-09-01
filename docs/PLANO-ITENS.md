@@ -365,7 +365,7 @@ trava isso — e ganha cenários novos.
 
 ---
 
-## 6. F42 — as telas: itens deixa de ser a exceção
+## 6. F42 — as telas: itens deixa de ser a exceção ✅ ENTREGUE (v1.47.0, 31/08/2026)
 
 **Objetivo declarado:** quem sabe usar `/ativos` sabe usar `/itens` sem aprender nada novo.
 **Sem migration** (a F41 já entregou o banco), sem dependência nova.
@@ -408,15 +408,30 @@ CSV que já existe e a paginação. Chega-se por botão no cabeçalho de `/itens
 - **Ajuda:** as capturas e os passos das páginas de item.
 - **Versão `1.47.0`** (fase → MINOR), registry em linguagem de operador, tag anotada.
 
-### Checklist de aceite da F42
+### Checklist de aceite da F42 — **autoverificado em 31/08/2026** ✅
 
-1. [ ] `/itens` usa os componentes do casco; `consistencia.test.ts` deixa de listá-la como pendente.
-2. [ ] Uma tabela, um filtro, uma paginação — e a paginação pagina os itens.
-3. [ ] A comparação entre filiais existe sem toggle que troque colunas.
-4. [ ] `/itens/historico` reproduz o recorte pelo link, com export, e nada do histórico se perdeu.
-5. [ ] O diálogo de lançamento cabe em 4 botões e mostra a prévia da regularização antes de gravar.
-6. [ ] Nenhum texto de tela cita "Liberação", "Atrelar", "Retorno", "Atrelados".
-7. [ ] `lint` + `test` + `build` verdes; smoke autenticado cobrindo as rotas novas.
+Evidências, número a número, em [`RELATORIO-F42.md`](RELATORIO-F42.md).
+
+1. [x] `/itens` usa os componentes do casco; `consistencia.test.ts` deixa de listá-la como pendente.
+       **88 violações em 30 testes → zero**, com as três travas do piloto atualizadas (29→30 rotas,
+       3→6 migradas). `/itens/conferencia` e `/itens/historico` entraram junto.
+2. [x] Uma tabela, um filtro, uma paginação — e a paginação pagina os itens (`?page=` e `?pp=`,
+       o mesmo componente de `/ativos`, com salto de página e seletor de tamanho).
+3. [x] A comparação entre filiais existe sem toggle que troque colunas — virou linha expansível
+       (o chevron da F16). O param `?visao=` deixou de existir e URL antiga continua abrindo.
+4. [x] `/itens/historico` reproduz o recorte pelo link, com export, e **nada** do histórico se
+       perdeu — o filtro de FILIAL, que vinha emprestado dos saldos, virou filtro próprio. Link
+       antigo redireciona preservando o recorte.
+5. [x] O diálogo cabe em 4 botões e mostra a prévia da regularização antes de gravar, pela mesma
+       função pura da F41. **893 → 637 linhas.**
+6. [x] Nenhum texto de tela cita "Liberação", "Atrelar", "Retorno" ou "Atrelados" — o `grep` e a
+       justificativa de cada remanescente estão no relatório.
+7. [x] `lint` + `test` + `contraste` + `build` verdes (os quatro do job `verificar`), os dois jobs
+       do CI verdes, e o smoke autenticado cobrindo as rotas novas nas duas listas.
+
+**Acrescentado pela ordem de serviço, e também verificado:** "Em uso" bate com o banco (20 = 20 em
+produção, 10 = 10 em ensaio, zero divergências), `git diff v1.46.0..HEAD -- supabase/` **vazio**
+(nenhuma migration), nenhuma rota sumiu, e a versão `1.47.0` publicada com tag anotada.
 
 ---
 

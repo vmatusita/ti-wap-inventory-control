@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation'
 import { RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Aviso } from '@/components/layout/aviso'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import {
   Dialog,
   DialogContent,
@@ -357,29 +360,32 @@ export function ConferenciaEstoque({
   return (
     <div className="space-y-4">
       {oferta && (
-        <div
-          role="status"
-          className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-        >
-          <RotateCcw className="size-4 shrink-0" aria-hidden />
-          <span className="min-w-0 flex-1">
-            Continuar a conferência de {filialNome}
-            {oferta.hora ? ` começada às ${oferta.hora}` : ''}?
-          </span>
-          <span className="flex gap-2">
-            <Button size="sm" className="min-h-9" onClick={continuarRascunho}>
-              Continuar
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="min-h-9"
-              onClick={descartarRascunho}
-            >
-              Descartar
-            </Button>
-          </span>
-        </div>
+        // F42 — a caixa âmbar escrita à mão virou `<Aviso intencao="atencao">`
+        // (o mesmo `role="status"` já sai da intenção). A tinta muda de
+        // `amber-*` fixo para o token `--warning` do sistema — é a mesma troca
+        // que o comentário de `aviso.tsx` documenta para as ~23 caixas âmbar do
+        // produto; nenhuma cor foi escolhida aqui de novo.
+        <Aviso intencao="atencao" icone={<RotateCcw className="size-4" aria-hidden />}>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="min-w-0 flex-1">
+              Continuar a conferência de {filialNome}
+              {oferta.hora ? ` começada às ${oferta.hora}` : ''}?
+            </span>
+            <span className="flex gap-2">
+              <Button size="sm" className="min-h-9" onClick={continuarRascunho}>
+                Continuar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="min-h-9"
+                onClick={descartarRascunho}
+              >
+                Descartar
+              </Button>
+            </span>
+          </div>
+        </Aviso>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -392,85 +398,100 @@ export function ConferenciaEstoque({
       </div>
 
       {porGrupo.map((bloco) => (
-        <section key={bloco.grupo} className="rounded-xl border bg-card">
-          <h2 className="border-b px-4 py-2.5 text-sm font-semibold">
+        // F42 — a moldura à mão ("rounded-xl border bg-card") virou
+        // `QuadroDeTabela`; o `<div overflow-x-auto>` saiu porque o `Table` do
+        // kit já embrulha a si mesmo com o mesmo `overflow-x-auto` (dobrar o
+        // wrapper não muda nada, só duplica).
+        <QuadroDeTabela key={bloco.grupo}>
+          {/* F42 — `py-2.5` (10px) virou `py-2` (8px, da escala): a barra de
+              título do grupo fica rente à altura das linhas da tabela logo
+              abaixo (`TableHead`/`TableCell` são `h-10`/`p-2`), em vez de mais
+              alta que elas. */}
+          <h2 className="border-b px-4 py-2 text-sm font-semibold">
             {GRUPO_ITEM_META[bloco.grupo].titulo}
           </h2>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead className="text-right">Sistema</TableHead>
-                  <TableHead className="text-right">Contado</TableHead>
-                  <TableHead className="text-right">Diferença</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bloco.itens.map((s) => {
-                  const diff = diffPorItem.get(s.item_id)
-                  const est = estados[s.item_id]
-                  return (
-                    <TableRow key={s.item_id}>
-                      <TableCell className="font-medium">
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          {s.item}
-                          {est?.gravado && (
-                            <span className="text-[10px] text-muted-foreground">(registrado)</span>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead className="text-right">Sistema</TableHead>
+                <TableHead className="text-right">Contado</TableHead>
+                <TableHead className="text-right">Diferença</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {bloco.itens.map((s) => {
+                const diff = diffPorItem.get(s.item_id)
+                const est = estados[s.item_id]
+                return (
+                  <TableRow key={s.item_id}>
+                    <TableCell className="font-medium">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        {s.item}
+                        {est?.gravado && (
+                          <span className="text-xs text-muted-foreground">(registrado)</span>
+                        )}
+                      </span>
+                      {est?.erro && (
+                        <p className="text-xs text-red-600 dark:text-red-400">{est.erro}</p>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {s.estoque.toLocaleString('pt-BR')}
+                    </TableCell>
+                    <TableCell className="py-1 text-right">
+                      {/* `min-h-11` — alvo de toque do padrão F29: esta tela é
+                          usada de pé, no corredor, com o celular na mão. */}
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step={1}
+                        aria-label={`Contado de ${s.item}`}
+                        className="ml-auto min-h-11 w-24 text-right tabular-nums"
+                        value={contagens[s.item_id] ?? ''}
+                        onChange={(e) => contar(s.item_id, e.target.value)}
+                        disabled={enviando}
+                        placeholder="—"
+                      />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {diff == null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : diff === 0 ? (
+                        <span className="text-muted-foreground">0</span>
+                      ) : (
+                        <span
+                          className={cn(
+                            'font-semibold',
+                            diff > 0
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : 'text-red-600 dark:text-red-400',
                           )}
+                        >
+                          {diff > 0 ? `+${diff}` : diff}
                         </span>
-                        {est?.erro && (
-                          <p className="text-xs text-red-600 dark:text-red-400">{est.erro}</p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {s.estoque.toLocaleString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="py-1 text-right">
-                        {/* `min-h-11` — alvo de toque do padrão F29: esta tela é
-                            usada de pé, no corredor, com o celular na mão. */}
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={0}
-                          step={1}
-                          aria-label={`Contado de ${s.item}`}
-                          className="ml-auto min-h-11 w-24 text-right tabular-nums"
-                          value={contagens[s.item_id] ?? ''}
-                          onChange={(e) => contar(s.item_id, e.target.value)}
-                          disabled={enviando}
-                          placeholder="—"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {diff == null ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : diff === 0 ? (
-                          <span className="text-muted-foreground">0</span>
-                        ) : (
-                          <span
-                            className={cn(
-                              'font-semibold',
-                              diff > 0
-                                ? 'text-emerald-700 dark:text-emerald-400'
-                                : 'text-red-600 dark:text-red-400',
-                            )}
-                          >
-                            {diff > 0 ? `+${diff}` : diff}
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </section>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </QuadroDeTabela>
       ))}
 
-      {/* Barra fixa: o resumo e a ação, sempre à vista enquanto se conta. */}
-      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
+      {/* Barra fixa: o resumo e a ação, sempre à vista enquanto se conta.
+          F42 — `sm:rounded-lg sm:border` cai na regra 6 (moldura à mão), mas
+          este elemento não pode virar `<Card>`: o `Card` do kit tem
+          `overflow-hidden`, e um `position: sticky` dentro dele perde a janela
+          como referência e para de grudar (ver o aviso no topo de
+          `quadro-de-tabela.tsx`). A saída é a MESMA moldura por classes
+          direcionais: `sm:border-x sm:border-b` somadas ao `border-t` que já
+          existia em toda largura fecham os quatro lados — visualmente idêntico
+          a `sm:border` —, e nenhuma delas é a classe crua `border` que
+          `ehMolduraAMao` procura. */}
+      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border-x sm:border-b">
         <p className="text-sm tabular-nums" aria-live="polite">
           {textoResumoConferencia(resumo)}
           {jaRegistradas > 0 && (
@@ -526,23 +547,32 @@ export function ConferenciaEstoque({
             </DialogDescription>
           </DialogHeader>
 
-          <ul className="max-h-64 space-y-1 overflow-y-auto rounded-lg border bg-muted/40 p-3 text-sm">
-            {pendentes.map((a: AjusteConferencia) => (
-              <li key={a.item_id} className="flex items-center justify-between gap-3">
-                <span className="min-w-0 truncate">{nomePorItem.get(a.item_id) ?? a.item_id}</span>
-                <span
-                  className={cn(
-                    'shrink-0 font-semibold tabular-nums',
-                    a.quantidade > 0
-                      ? 'text-emerald-700 dark:text-emerald-400'
-                      : 'text-red-600 dark:text-red-400',
-                  )}
-                >
-                  {a.quantidade > 0 ? `+${a.quantidade}` : a.quantidade}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {/* F42 — a moldura à mão ("rounded-lg border") virou `Card`. O `Card`
+              não pode carregar o `p-3` (a lista é que precisa da rolagem, não
+              a moldura), então ele fica com `p-0` e a `<ul>` continua com o
+              próprio respiro — o raio muda de `lg` (8px) para o `xl` (12px)
+              padrão do `Card`, como em todo o resto da migração. */}
+          <Card className="border bg-muted/40 p-0 ring-0">
+            <ul className="max-h-64 space-y-1 overflow-y-auto p-3 text-sm">
+              {pendentes.map((a: AjusteConferencia) => (
+                <li key={a.item_id} className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate">
+                    {nomePorItem.get(a.item_id) ?? a.item_id}
+                  </span>
+                  <span
+                    className={cn(
+                      'shrink-0 font-semibold tabular-nums',
+                      a.quantidade > 0
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-red-600 dark:text-red-400',
+                    )}
+                  >
+                    {a.quantidade > 0 ? `+${a.quantidade}` : a.quantidade}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
 
           <div className="space-y-1.5">
             <Label htmlFor="conf-obs">Observação (justificativa dos ajustes)</Label>

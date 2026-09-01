@@ -2,12 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, RotateCcw, X } from 'lucide-react'
+import { Plus, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -17,15 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { buscarSaldosItens, lancarItens, type SaldosPorItem } from '@/lib/actions/itens'
-import { CampoColaborador } from '@/components/movimentacoes/nova/campo-colaborador'
+import { buscarSaldosItens, lancarItens, type SaldosDaFilial } from '@/lib/actions/itens'
 import {
   MAX_LINHAS_LOTE_ITEM,
   errosPorLinhaDoLote,
@@ -33,45 +22,31 @@ import {
   loteLancamentoItemSchema,
 } from '@/lib/validators/item'
 import { hojeISO } from '@/lib/format'
-import {
-  TIPO_LANCAMENTO_META,
-  descricaoTipoLancamento,
-  pillTipoLancamento,
-  type TipoLancamento,
-} from '@/lib/dominio'
+import { type TipoLancamento } from '@/lib/dominio'
 import {
   DICA_ACERTO_CONFERENCIA,
-  GRUPOS_ESCOLHA,
   MSG_ESCOLHA_TIPO,
-  PERGUNTA_ESCOLHA,
-  TAREFA_DO_TIPO,
   TIPOS_OFERECIDOS,
   grupoDoTipo,
   grupoPorChave,
   type GrupoEscolha,
 } from '@/lib/itens/escolha-tipo'
-import {
-  avisoQuantidadeInvalida,
-  previewEstoque,
-  textoPreview,
-} from '@/lib/itens/efeito-lancamento'
-import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { EVENTO_LANCAR_ITEM } from './lancar-item-evento'
-import { ItemCombobox } from './item-combobox'
+import { CarrinhoLinhas, type LinhaCarrinho } from '@/components/itens/carrinho-linhas'
+import { LancarItemCampos } from '@/components/itens/lancar-item-campos'
+import { LancarItemDetalheLinha } from '@/components/itens/lancar-item-detalhe-linha'
+import { EscolhaTipoLancamento } from '@/components/itens/escolha-tipo-lancamento'
 import {
-  ROTULO_ACRESCENTAR,
-  ROTULO_BAIXAR,
   aplicarSinal,
   moduloDeQuantidade,
   sentidoDeQuantidade,
 } from '@/lib/itens/sinal-ajuste'
-import { cn } from '@/lib/utils'
 import type { ItemCatalogo, UltimoLancamento } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 
-// Uma linha do carrinho (F10 · I1). `uid` é só a chave estável do React — o
-// índice não serve, porque remover uma linha do meio remontaria as seguintes.
-type LinhaCarrinho = { uid: number; itemId: number | null; quantidade: string; erro?: string }
+// A forma da linha do carrinho (F10 · I1) mudou de casa na F42: ela mora em
+// `carrinho-linhas.tsx`, junto do widget que a desenha, e os DOIS diálogos a
+// importam de lá. Antes o mesmo type estava copiado nos dois arquivos.
 
 // Lançamento de quantidade (OS 3.3.2 · F10 I1/I2): dialog enxuto, meta ≤15s.
 // A NF com 5 itens vira UM lançamento com 5 linhas sobre os campos comuns
@@ -160,7 +135,7 @@ export function LancarItemDialog({
   // ⚠ O LANÇAMENTO INVALIDA O MAPA: sem `recarga`, reabrir depois de lançar
   // mostraria o saldo de antes — com a prévia aprovando um envio que o
   // trigger recusaria.
-  const [saldos, setSaldos] = useState<SaldosPorItem>({})
+  const [saldos, setSaldos] = useState<SaldosDaFilial>({ estoque: {}, emUso: {} })
   const [saldosDe, setSaldosDe] = useState<number | null>(null)
   const pedido = useRef(0)
   const [recarga, setRecarga] = useState(0)
@@ -193,12 +168,16 @@ export function LancarItemDialog({
       .catch(() => {
         // Sem número chutado: a prévia e o combobox ficam sem saldo, só isso.
         if (meu !== pedido.current) return
-        setSaldos({})
+        setSaldos({ estoque: {}, emUso: {} })
         setSaldosDe(filialId)
       })
   }, [aberto, filialId, recarga])
 
-  const saldosAtuais = filialId != null && saldosDe === filialId ? saldos : {}
+  // F42 — o mapa virou um PAR por item (`{ estoque, emUso }`): a prévia da
+  // regularização de uma DEVOLUÇÃO precisa do que está com as pessoas, e não do
+  // que está na prateleira. Os dois saem da MESMA leitura, sem chamada a mais.
+  const saldosAtuais =
+    filialId != null && saldosDe === filialId ? saldos : { estoque: {}, emUso: {} }
 
   const catalogo = useMemo(() => {
     if (!criadosLocal.length) return itens
@@ -258,16 +237,17 @@ export function LancarItemDialog({
   // Com tipo escolhido o grupo aceso é DERIVADO dele (fonte única); o estado
   // `grupoAberto` só existe para o instante entre as duas perguntas.
   const grupoAtual: GrupoEscolha | null = tipo ? grupoDoTipo(tipo).chave : grupoAberto
-  // F41 — a segunda pergunta MORREU: com o par reserva/liberacao fora da tela, cada
-  // grupo tem um tipo só e não há o que desempatar. A derivação passou a olhar o
-  // GRUPO (tem pergunta? tem mais de um tipo oferecido?) em vez de listar 'saiu' e
-  // 'voltou' pelo nome — assim o bloco some sozinho agora, e reaparece sozinho se um
-  // dia um grupo voltar a oferecer dois tipos.
-  const grupoDoAtual = grupoAtual ? grupoPorChave(grupoAtual) : null
-  const grupoDuplo =
-    grupoDoAtual && grupoDoAtual.pergunta && grupoDoAtual.tipos.length > 1
-      ? grupoDoAtual
-      : null
+  // F42 — A SEGUNDA PERGUNTA SAIU DO ARQUIVO, e não só da tela.
+  //
+  // A F41 já a tinha matado como COMPORTAMENTO: com o par reserva/liberação fora
+  // da tela, cada grupo passou a ter um tipo só, `grupoDuplo` virou sempre `null`
+  // e o bloco de JSX ficou inatingível. Ficaram para trás 26 linhas de código
+  // morto — com um `px-2.5` e um `text-[11px]` fora da escala, que a régua passou
+  // a cobrar quando `/itens` entrou no casco. Código morto que compila e passa no
+  // lint é o que mais engana a próxima pessoa: ela lê, acredita e planeja em cima.
+  //
+  // Se um dia um grupo voltar a oferecer dois tipos, a segunda pergunta volta a ser
+  // escrita — com o vocabulário do ativo, que é o que a decisão J1 estabeleceu.
 
   // "Lançar da linha" (I6) — o botão de cada linha da tabela de saldos dispara o
   // CustomEvent; aqui o dialog abre já com item + filial preenchidos (na PRIMEIRA
@@ -451,10 +431,15 @@ export function LancarItemDialog({
           return
         }
         if (res.ok) {
+          // F42 — `avisoRegularizacao` JÁ vinha da action desde a F41 e morria aqui,
+          // descartado por um toast genérico: o operador via a prévia ANTES de gravar
+          // e nada DEPOIS. Agora a confirmação diz o que de fato entrou por acerto
+          // automático, com a mesma discrição com que a F38 avisa sobre o vínculo.
           toast.success(
             res.resultados.length > 1
               ? `${res.resultados.length} lançamentos registrados.`
               : 'Lançamento registrado.',
+            res.avisoRegularizacao ? { description: res.avisoRegularizacao } : undefined,
           )
           limpar()
           mudarAberto(false)
@@ -515,7 +500,13 @@ export function LancarItemDialog({
         <Button className="gap-2">
           <Plus className="size-4" />
           Lançar
-          <kbd className="ml-1 hidden rounded border bg-background/20 px-1 text-[10px] sm:inline">
+          {/* F42 — `rounded border` virou `rounded-full border`, e `text-[10px]`
+              virou `text-xs`. A régua trata `rounded-* + border` como CARTÃO À MÃO
+              e abre exceção justamente para `rounded-full`, que é "a geometria de
+              uma PASTILHA, de um ponto de trilho e de um avatar" (o comentário de
+              `regua-de-classes.ts`). Um keycap é exatamente isso: uma pastilha de
+              um caractere, não um agrupamento com moldura — não vira `Card`. */}
+          <kbd className="ml-1 hidden rounded-full border bg-background/20 px-1.5 text-xs sm:inline">
             L
           </kbd>
         </Button>
@@ -552,327 +543,85 @@ export function LancarItemDialog({
         )}
 
         <div className="space-y-3">
-          {/* Carrinho: uma linha por item (mesma filial/tipo/data/chamado) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label>Itens</Label>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {linhas.length}/{MAX_LINHAS_LOTE_ITEM}
-              </span>
-            </div>
-            {linhas.map((l, i) => {
-              const quantidadeNum = l.quantidade === '' ? 0 : Number(l.quantidade)
-              // Prévia do efeito (19/08/2026): item + quantidade + tipo + saldo
-              // carregado → "Estoque na filial: 14 → 12". `null` = calada (nada
-              // digitado, saldo ainda carregando, quantidade inválida) — a
-              // validação fala por ela nesses casos.
-              const previa =
-                tipo && l.itemId != null
-                  ? previewEstoque(tipo, quantidadeNum, saldosAtuais[l.itemId])
-                  : null
-              // 19/08/2026 (revisão) — achado 14: fora do Ajuste, uma
-              // quantidade negativa fazia `previewEstoque` devolver `null` (a
-              // prévia não decide nada — quem recusa de verdade é o trigger)
-              // e a prévia que estava visível sumia SEM explicação; o erro só
-              // aparecia no envio, pelo Zod. `avisoQuantidadeInvalida` cobre
-              // esse buraco. Mutuamente exclusivo com `previa` por
-              // construção (quando há aviso, `previewEstoque` já devolveu
-              // null) — o JSX abaixo garante isso também na renderização.
-              const aviso = tipo ? avisoQuantidadeInvalida(tipo, quantidadeNum) : null
-              return (
-                <div key={l.uid} className="space-y-1">
-                  <div className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <ItemCombobox
-                        itens={catalogo}
-                        valor={l.itemId}
-                        onSelecionar={(id) => atualizarLinha(l.uid, { itemId: id })}
-                        onItemCriado={itemCriado}
-                        desabilitado={enviando}
-                        podeCriarItem={podeCriarItem}
-                        descricaoAcessivel={`Item ${i + 1} do lançamento`}
-                        saldos={saldosAtuais}
-                      />
-                    </div>
-                    <Input
-                      ref={i === 0 ? qtdRef : undefined}
-                      type="number"
-                      inputMode="numeric"
-                      aria-label={`Quantidade do item ${i + 1}`}
-                      className="min-h-10 w-24 shrink-0"
-                      // ITN-05b — no Ajuste o campo só recebe o MÓDULO: o
-                      // teclado numérico do iOS não tem tecla de menos, e o
-                      // sinal vira o alternador logo abaixo.
-                      value={exigeObs ? moduloDeQuantidade(l.quantidade) : l.quantidade}
-                      onChange={(e) => {
-                        const novoValor = exigeObs
-                          ? aplicarSinal(e.target.value, sentidoDeQuantidade(l.quantidade))
-                          : e.target.value
-                        atualizarLinha(l.uid, { quantidade: novoValor })
-                      }}
-                      placeholder={exigeObs ? '3' : '10'}
-                      disabled={enviando}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Remover o item ${i + 1} do lançamento`}
-                      className="size-10 shrink-0"
-                      onClick={() => removerLinha(l.uid)}
-                      disabled={enviando || linhas.length <= 1}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </div>
-                  {/* ITN-05b — alternador por linha: aplica o sinal sobre o
-                      módulo já digitado, sem exigir a tecla de menos. Estado
-                      default "+ Acrescentar" (`sentidoDeQuantidade('')`). */}
-                  {exigeObs && (
-                    <div
-                      role="group"
-                      aria-label={`Sinal do ajuste do item ${i + 1}`}
-                      className="flex gap-1.5 pl-1"
-                    >
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={sentidoDeQuantidade(l.quantidade) === 'positivo' ? 'default' : 'outline'}
-                        aria-pressed={sentidoDeQuantidade(l.quantidade) === 'positivo'}
-                        className="min-h-10 flex-1 sm:min-h-8"
-                        onClick={() =>
-                          atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'positivo') })
-                        }
-                        disabled={enviando}
-                      >
-                        {ROTULO_ACRESCENTAR}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={sentidoDeQuantidade(l.quantidade) === 'negativo' ? 'default' : 'outline'}
-                        aria-pressed={sentidoDeQuantidade(l.quantidade) === 'negativo'}
-                        className="min-h-10 flex-1 sm:min-h-8"
-                        onClick={() =>
-                          atualizarLinha(l.uid, { quantidade: aplicarSinal(l.quantidade, 'negativo') })
-                        }
-                        disabled={enviando}
-                      >
-                        {ROTULO_BAIXAR}
-                      </Button>
-                    </div>
-                  )}
-                  {previa && (
-                    <p
-                      className={cn(
-                        'pl-1 text-xs tabular-nums',
-                        previa.recusado
-                          ? 'text-amber-700 dark:text-amber-400'
-                          : 'text-muted-foreground',
-                      )}
-                    >
-                      {textoPreview(previa)}
-                    </p>
-                  )}
-                  {/* achado 14 — mesmo tom e layout do `recusado` acima, para
-                      o mesmo lugar onde a prévia sumia calada. */}
-                  {!previa && aviso && (
-                    <p className="pl-1 text-xs text-amber-700 dark:text-amber-400">{aviso}</p>
-                  )}
-                  {l.erro && (
-                    <p className="pl-1 text-xs text-red-600 dark:text-red-400">{l.erro}</p>
-                  )}
-                </div>
-              )
-            })}
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-10 gap-1.5 sm:min-h-0"
-                onClick={adicionarLinha}
-                disabled={enviando || linhas.length >= MAX_LINHAS_LOTE_ITEM}
-              >
-                <Plus className="size-3.5" />
-                Adicionar item
-              </Button>
-            </div>
-          </div>
-
-          {/* A escolha guiada do tipo (19/08/2026 — `lib/itens/escolha-tipo.ts`).
-              Duas perguntas de operador no lugar do select de seis nomes: o par
-              certo (Liberação↔Retorno, Atrelar↔Devolução) sai da resposta. O
-              rótulo OFICIAL continua à vista — na pílula de confirmação e, nos
-              grupos duplos, miúdo dentro de cada resposta — para a ponte com o
-              histórico e o relatório. */}
-          <div className="space-y-2">
-            <Label>{PERGUNTA_ESCOLHA}</Label>
-            <div
-              role="group"
-              aria-label={PERGUNTA_ESCOLHA}
-              className="grid grid-cols-2 gap-1.5 sm:grid-cols-4"
-            >
-              {GRUPOS_ESCOLHA.map((g) => (
-                <Button
-                  key={g.chave}
-                  type="button"
-                  size="sm"
-                  variant={grupoAtual === g.chave ? 'default' : 'outline'}
-                  aria-pressed={grupoAtual === g.chave}
-                  className="min-h-10 px-2 sm:min-h-8"
-                  onClick={() => escolherGrupo(g.chave)}
-                  disabled={enviando}
-                >
-                  {g.rotulo}
-                </Button>
-              ))}
-            </div>
-            {grupoDuplo && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium">{grupoDuplo.pergunta}</p>
-                <div
-                  role="group"
-                  aria-label={grupoDuplo.pergunta ?? undefined}
-                  className="grid grid-cols-2 gap-1.5"
-                >
-                  {grupoDuplo.tipos.map((t) => (
-                    <Button
-                      key={t}
-                      type="button"
-                      variant={tipo === t ? 'default' : 'outline'}
-                      aria-pressed={tipo === t}
-                      className="h-auto min-h-10 flex-col items-start gap-0 px-2.5 py-1.5"
-                      onClick={() => definirTipo(t)}
-                      disabled={enviando}
-                    >
-                      <span className="text-sm font-medium">{TAREFA_DO_TIPO[t]}</span>
-                      <span className="text-[11px] font-normal opacity-75">
-                        {TIPO_LANCAMENTO_META[t].rotulo}
-                      </span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {tipo ? (
-              <p className="text-xs text-muted-foreground">
-                <span
-                  className={cn(
-                    'mr-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                    pillTipoLancamento(tipo),
-                  )}
-                >
-                  {TIPO_LANCAMENTO_META[tipo].rotulo}
-                </span>
-                {descricaoTipoLancamento(tipo)}
-              </p>
-            ) : (
-              erroTipo && (
-                <p role="alert" className="text-xs text-red-600 dark:text-red-400">
-                  {erroTipo}.
-                </p>
-              )
-            )}
-            {grupoAtual === 'acerto' && (
-              <p className="text-xs text-muted-foreground">{DICA_ACERTO_CONFERENCIA}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              {/* F19 — o rótulo se liga ao gatilho por htmlFor/id (P1-2): sem
-                  isso o Select só se anunciava pelo valor corrente. */}
-              <Label htmlFor="lanc-filial">Filial</Label>
-              {filiais.length === 0 ? (
-                <AvisoSemFilialDeEscrita />
-              ) : (
-                <Select
-                  value={filialId ? String(filialId) : ''}
-                  onValueChange={(v) => setFilialId(Number(v))}
-                >
-                  <SelectTrigger id="lanc-filial" className="w-full">
-                    <SelectValue placeholder="Filial" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filiais.map((f) => (
-                      <SelectItem key={f.id} value={String(f.id)}>
-                        {f.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="lanc-data">Data</Label>
-              <Input
-                id="lanc-data"
-                type="date"
-                max={hojeISO()}
-                value={data}
-                onChange={(e) => setData(e.target.value)}
+          {/* O CARRINHO (F10 · I1) — o widget mora em `carrinho-linhas.tsx` desde a
+              F42, compartilhado com o diálogo de transferência. O que é DAQUI desce
+              por `abaixoDaLinha`: o alternador de sinal do Ajuste, a prévia do
+              estoque e a prévia da regularização. */}
+          <CarrinhoLinhas
+            linhas={linhas}
+            catalogo={catalogo}
+            saldos={saldosAtuais.estoque}
+            maximo={MAX_LINHAS_LOTE_ITEM}
+            desabilitado={enviando}
+            podeCriarItem={podeCriarItem}
+            refPrimeiraQuantidade={qtdRef}
+            ondeAcessivel="do lançamento"
+            placeholderQuantidade={exigeObs ? '3' : '10'}
+            // ITN-05b — no Ajuste o campo só recebe o MÓDULO: o teclado numérico do
+            // iOS não tem tecla de menos, e o sinal vira o alternador logo abaixo.
+            valorDaQuantidade={(l) => (exigeObs ? moduloDeQuantidade(l.quantidade) : l.quantidade)}
+            onQuantidade={(uid, valor) =>
+              atualizarLinha(uid, {
+                quantidade: exigeObs
+                  ? aplicarSinal(
+                      valor,
+                      sentidoDeQuantidade(linhas.find((l) => l.uid === uid)?.quantidade ?? ''),
+                    )
+                  : valor,
+              })
+            }
+            onItem={(uid, itemId) => atualizarLinha(uid, { itemId })}
+            onRemover={removerLinha}
+            onAdicionar={adicionarLinha}
+            onItemCriado={itemCriado}
+            abaixoDaLinha={(l, i) => (
+              <LancarItemDetalheLinha
+                linha={l}
+                indice={i}
+                tipo={tipo}
+                saldos={saldosAtuais}
+                exigeSinal={exigeObs}
+                desabilitado={enviando}
+                onQuantidade={(valor) => atualizarLinha(l.uid, { quantidade: valor })}
               />
-            </div>
-          </div>
+            )}
+          />
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="lanc-chamado">
-                Chamado{precisaChamado ? '' : ' (opcional)'}
-              </Label>
-              <Input
-                id="lanc-chamado"
-                inputMode="numeric"
-                value={chamado}
-                onChange={(e) => setChamado(e.target.value)}
-                placeholder={
-                  // Na Devolução o chamado é a AMARRA com o Atrelar de origem —
-                  // é ele que fecha o par no banco (reserva aberta do chamado).
-                  tipo === 'liberacao'
-                    ? `o mesmo chamado do ${TIPO_LANCAMENTO_META.reserva.rotulo}`
-                    : 'nº do chamado'
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              {/* F37/A.4 — o campo passa a oferecer o cadastro de pessoas e a
-                  criação inline, igual ao wizard de movimentação. Antes era um
-                  <Input> cru, sem sugestão nenhuma: dos dois lugares onde se digita
-                  colaborador, este era o mais exposto a grafia divergente. O rótulo
-                  continua dinâmico por tipo e continua trazendo "(opcional)" —
-                  texto livre, e nunca bloqueia. */}
-              <CampoColaborador
-                id="lanc-colab"
-                rotulo={rotuloColaborador}
-                valor={colaborador}
-                onChange={setColaborador}
-                placeholder={tipo === 'saida' ? 'nome de quem levou' : 'a quem se destina'}
-                filialId={filialId}
-                // `filiais` já vem recortado às filiais em que este cargo ESCREVE
-                // (F21): lista vazia = cargo consulta, que não cria nada.
-                podeCadastrar={filiais.length > 0}
-              />
-              {tipo === 'saida' && !colaborador.trim() && (
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  Sem o nome, o histórico não dirá com quem o item está.
-                </p>
-              )}
-            </div>
-          </div>
+          {/* A ESCOLHA DO TIPO — quatro botões, no componente próprio desde a F42
+              (`escolha-tipo-lancamento.tsx`). Ele vem da correção avulsa de
+              19/08/2026, que trocou o select de seis nomes por perguntas de
+              operador; a F41 matou a segunda pergunta e a F42 tirou o JSX morto
+              dela do arquivo. */}
+          <EscolhaTipoLancamento
+            tipo={tipo}
+            grupoAtual={grupoAtual}
+            erro={erroTipo}
+            desabilitado={enviando}
+            dica={grupoAtual === 'acerto' ? DICA_ACERTO_CONFERENCIA : null}
+            onEscolherGrupo={escolherGrupo}
+          />
 
-          <div className="space-y-1.5">
-            <Label htmlFor="lanc-obs">
-              Observação{exigeObs ? ' (justificativa do ajuste)' : ' (opcional)'}
-            </Label>
-            <Textarea
-              id="lanc-obs"
-              value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
-              rows={2}
-              placeholder={exigeObs ? 'Por que o ajuste?' : ''}
-            />
-          </div>
+          {/* OS CAMPOS COMUNS DO LOTE — filial, data, chamado, colaborador e
+              observacao. Sairam para `lancar-item-campos.tsx` na F42: eles valem
+              para o carrinho INTEIRO (um lote e sempre da mesma filial, na mesma
+              data, com o mesmo chamado), e estavam soltos no meio do arquivo. */}
+          <LancarItemCampos
+            filiais={filiais}
+            filialId={filialId}
+            data={data}
+            chamado={chamado}
+            colaborador={colaborador}
+            observacao={observacao}
+            tipo={tipo}
+            precisaChamado={precisaChamado}
+            exigeObs={exigeObs}
+            rotuloColaborador={rotuloColaborador}
+            onFilial={setFilialId}
+            onData={setData}
+            onChamado={setChamado}
+            onColaborador={setColaborador}
+            onObservacao={setObservacao}
+          />
         </div>
 
         <DialogFooter>

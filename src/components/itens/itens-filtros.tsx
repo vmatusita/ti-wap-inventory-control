@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Columns3, Search, X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,18 +17,31 @@ import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 import type { Filial } from '@/lib/queries/filiais'
 import { baseFiltrosItens, registrarFiltrosEnviados } from './url-filtros'
 import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
-import { ehVisaoConsolidado } from '@/lib/url-params'
 
 const TODOS = '__todos'
 
-// Filtros da tela de itens (OS 3.3.1): filial, grupo, busca — via searchParams
-// (padrão server-side da F3). Mudança de filtro reseta a página do histórico.
-// F11 · I4: acumula o alternador Consolidado × Por filial (param `visao`), que
-// mora aqui porque é a mesma URL e o mesmo cuidado com navegação pendente.
+// Filtros de `/itens` — UM conjunto só, na gramática de `AtivosFiltros` (F42).
+//
+// O QUE SAIU DAQUI, e por quê: o alternador segmentado **Consolidado × Por
+// filial** (`?visao=`, F11 · I4). Ele era a única coisa no produto inteiro que
+// fazia um filtro TROCAR AS COLUNAS da tabela em vez de recortar as linhas — a
+// dor D3 do `docs/PLANO-ITENS.md`, dita pelo Johnny com todas as letras. A
+// comparação entre filiais não sumiu: virou a LINHA EXPANSÍVEL de cada item
+// (`itens-table.tsx`), atrás do mesmo chevron que os relatórios usam desde a F16.
+//
+// Efeito colateral bem-vindo: o filtro de filial passa a existir SEMPRE. Antes
+// ele desaparecia na visão padrão, e um `?filial=N` colado na URL era neutralizado
+// em silêncio no parse — comportamento que a própria F25 registrou como mudança
+// de sentido de URL antiga.
+//
+// ⚠ `baseFiltrosItens` continua aqui. Ele existe porque `useSearchParams()` só
+// reflete a URL COMMITADA, e duas trocas de filtro na mesma janela de navegação
+// pendente liam o mesmo snapshot antigo — a segunda apagava a primeira. Isso vale
+// DENTRO de um bloco (grupo, depois filial), não só entre os dois que existiam.
 export function ItensFiltros({
   filiais,
   // F25 — seleção EFETIVA de filial, resolvida no servidor (pode vir do padrão do
-  // cargo). Vazia na visão por filial, onde não há recorte.
+  // cargo, e não da URL), por isso é prop e não `params.get('filial')`.
   filiaisSelecionadas,
 }: {
   filiais: Filial[]
@@ -42,10 +55,6 @@ export function ItensFiltros({
 
   const qAtual = params.get('q') ?? ''
   const grupoAtual = params.get('grupo') ?? ''
-  // F25 — o default INVERTEU: só `visao=consolidado` desliga a visão lado a lado.
-  // A régua é a MESMA função do Server Component e do export (`ehVisaoConsolidado`
-  // em url-params.ts) — antes este teste literal vivia copiado nos três lugares.
-  const visaoFiliais = !ehVisaoConsolidado(params.get('visao'))
 
   const [busca, setBusca] = useState(qAtual)
   const [qSync, setQSync] = useState(qAtual)
@@ -54,11 +63,8 @@ export function ItensFiltros({
     setBusca(qAtual)
   }
 
-  // Empurra preservando o que já foi trocado nesta janela de navegação — inclusive
-  // o que o bloco de filtros do histórico empurrou, já que os dois escrevem na
-  // mesma URL. Ver `url-filtros.ts`.
-  function empurrar(novo: URLSearchParams, commitada: string, resetarPagina = true) {
-    if (resetarPagina) novo.delete('page')
+  function empurrar(novo: URLSearchParams, commitada: string) {
+    novo.delete('page') // qualquer mudança de filtro volta p/ a página 1
     const query = novo.toString()
     registrarFiltrosEnviados(commitada, query)
     startTransition(() => router.push(query ? `${pathname}?${query}` : pathname))
@@ -71,17 +77,12 @@ export function ItensFiltros({
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
     }
-    // Na visão "Por filial" não existe recorte de filial. O select só some
-    // quando a URL commita — durante a navegação pendente ele ainda está na
-    // tela, e o clique nele gravaria `filial` numa URL que não tem como exibir
-    // esse filtro. Quem decide é a base FRESCA (mesma disciplina de `trocarVisao`).
-    if (!ehVisaoConsolidado(novo.get('visao'))) novo.delete('filial')
     empurrar(novo, commitada)
   }
 
   // A busca só é aplicada ao SUBMETER (Enter ou botão "Pesquisar") — nunca a cada
   // tecla (buscar durante a digitação fazia o campo "voltar" ao estado anterior ao
-  // resincronizar com a URL).
+  // resincronizar com a URL). Mesma régua de `AtivosFiltros`.
   function submeterBusca() {
     const commitada = params.toString()
     const novo = baseFiltrosItens(commitada)
@@ -91,50 +92,21 @@ export function ItensFiltros({
     empurrar(novo, commitada)
   }
 
-  // Alternador de visão dos saldos. Trocar a visão NÃO mexe no conjunto do
-  // histórico, então a página dele é preservada. Ao ir para "Por filial" o
-  // param `filial` sai da URL: o select some nessa visão (é redundante ali) e um
-  // filtro invisível continuaria recortando o histórico sem o operador ver.
-  function trocarVisao(paraFiliais: boolean) {
-    const commitada = params.toString()
-    const novo = baseFiltrosItens(commitada)
-    // A comparação é com a base FRESCA (não com `visaoFiliais`, que é a URL já
-    // commitada): dois cliques na mesma janela de navegação pendente — ida e
-    // volta — não podem se anular e deixar a tela na visão errada.
-    const baseJaEstaPorFilial = !ehVisaoConsolidado(novo.get('visao'))
-    if (baseJaEstaPorFilial === paraFiliais) return
-    // F25 — os dois ramos INVERTERAM junto com o default: "Por filial" é agora a
-    // ausência do param (URL limpa no padrão) e o Consolidado é a sentinela
-    // explícita. Trocar o default sem trocar isto deixaria o botão "Consolidado"
-    // apagando o param e voltando para "Por filial" — um botão sem efeito.
-    if (paraFiliais) {
-      novo.delete('visao')
-      novo.delete('filial')
-    } else {
-      novo.set('visao', 'consolidado')
-    }
-    empurrar(novo, commitada, false)
-  }
-
-  // "Limpar" zera os filtros mas mantém a visão escolhida (trocar de visão é
-  // navegação, não filtro). A visão sai da base FRESCA, não de `visaoFiliais`
-  // (a URL já commitada): clicar "Por filial" e, com a navegação ainda pendente,
-  // "Limpar" devolvia o operador ao Consolidado — desfazendo justamente a visão
-  // que ele acabou de escolher.
+  // "Limpar" apaga FILTROS, não a forma de ver a lista: o tamanho de página (`pp`)
+  // sobrevive, exatamente como em `/ativos`. Apagar o `filial` devolve o operador
+  // ao PADRÃO DO CARGO — que é o estado de repouso da tela, não um filtro escolhido.
   function limpar() {
     setBusca('')
     const commitada = params.toString()
     const base = baseFiltrosItens(commitada)
     const novo = new URLSearchParams()
-    // Preserva a visão nas DUAS direções: agora quem precisa de param explícito é
-    // o Consolidado, e sem isto "Limpar" no Consolidado devolveria o operador para
-    // a visão por filial.
-    if (ehVisaoConsolidado(base.get('visao'))) novo.set('visao', 'consolidado')
+    const pp = base.get('pp')
+    if (pp) novo.set('pp', pp)
     empurrar(novo, commitada)
   }
 
-  // F25 — o `filial` só conta como filtro quando veio da URL, nunca quando a
-  // marcação herdou o padrão do cargo.
+  // F25 — o `filial` conta como filtro quando a URL o traz (seleção explícita OU a
+  // sentinela `todas`), e NÃO quando a marcação veio do padrão do cargo.
   const temFiltro = !!qAtual || !!params.get('filial') || !!grupoAtual
 
   return (
@@ -163,22 +135,20 @@ export function ItensFiltros({
         </Button>
       </form>
 
-      {/* Na visão "Por filial" TODAS as filiais estão na tabela — o select seria
-          redundante (decisão do Johnny, F11 · I4). */}
-      {!visaoFiliais && (
-        <FiltroFilial
-          opcoes={opcoesDeFiliais(filiais, false)}
-          selecionados={filiaisSelecionadas}
-          aplicar={(v) => aplicar({ filial: v })}
-          idPrefixo="itens-filial"
-        />
-      )}
+      <FiltroFilial
+        opcoes={opcoesDeFiliais(filiais, false)}
+        selecionados={filiaisSelecionadas}
+        aplicar={(v) => aplicar({ filial: v })}
+        idPrefixo="itens-filial"
+      />
 
       <Select
         value={grupoAtual || TODOS}
         onValueChange={(v) => aplicar({ grupo: v === TODOS ? null : v })}
       >
-        <SelectTrigger className="h-10 w-[170px] sm:h-8" aria-label="Filtrar por grupo">
+        {/* F42 — `w-[170px]` virou `w-44` (176px, da escala). Ver a nota longa em
+            `ativos-filtros.tsx` sobre as 11 larguras em pixel herdadas. */}
+        <SelectTrigger className="h-10 w-44 sm:h-8" aria-label="Filtrar por grupo">
           <SelectValue placeholder="Grupo" />
         </SelectTrigger>
         <SelectContent>
@@ -191,36 +161,12 @@ export function ItensFiltros({
         </SelectContent>
       </Select>
 
-      <div
-        role="group"
-        aria-label="Visão dos saldos"
-        className="inline-flex items-center gap-0.5 rounded-md border p-0.5"
-      >
-        <Button
-          type="button"
-          variant={visaoFiliais ? 'ghost' : 'secondary'}
-          size="sm"
-          aria-pressed={!visaoFiliais}
-          onClick={() => trocarVisao(false)}
-          className="h-10 sm:h-8"
-        >
-          Consolidado
-        </Button>
-        <Button
-          type="button"
-          variant={visaoFiliais ? 'secondary' : 'ghost'}
-          size="sm"
-          aria-pressed={visaoFiliais}
-          onClick={() => trocarVisao(true)}
-          className="h-10 gap-1.5 sm:h-8"
-        >
-          <Columns3 className="size-4" aria-hidden />
-          Por filial
-        </Button>
-      </div>
-
       {temFiltro && (
-        <Button variant="ghost" onClick={limpar} className="h-10 gap-1 text-muted-foreground sm:h-8">
+        <Button
+          variant="ghost"
+          onClick={limpar}
+          className="h-10 gap-1 text-muted-foreground sm:h-8"
+        >
           <X className="size-4" />
           Limpar
         </Button>

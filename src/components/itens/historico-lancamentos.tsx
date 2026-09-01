@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { ObsTooltip } from '@/components/relatorios/obs-tooltip'
 import { Dica } from '@/components/ui/dica'
 import { estornarLancamento } from '@/lib/actions/itens'
@@ -121,7 +123,7 @@ export function HistoricoLancamentos({
 
   return (
     <>
-      <div className="overflow-hidden rounded-lg border">
+      <QuadroDeTabela>
         <Table>
           <TableHeader>
             <TableRow>
@@ -161,7 +163,7 @@ export function HistoricoLancamentos({
                 <TableCell>
                   <span
                     className={cn(
-                      'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                      'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold',
                       pillTipoLancamento(r.tipo),
                     )}
                   >
@@ -178,16 +180,16 @@ export function HistoricoLancamentos({
                     const perna = ehPernaDeTransferencia(r.tipo, r.observacao)
                     if (!perna) return null
                     return (
-                      <span className="ml-1 text-[10px] text-muted-foreground">
+                      <span className="ml-1 text-xs text-muted-foreground">
                         ({ROTULO_PERNA_TRANSFERENCIA[perna]})
                       </span>
                     )
                   })()}
                   {r.ehEstorno && (
-                    <span className="ml-1 text-[10px] text-muted-foreground">(estorno)</span>
+                    <span className="ml-1 text-xs text-muted-foreground">(estorno)</span>
                   )}
                   {r.estornado && !r.ehEstorno && (
-                    <span className="ml-1 text-[10px] text-muted-foreground">(estornado)</span>
+                    <span className="ml-1 text-xs text-muted-foreground">(estornado)</span>
                   )}
                 </TableCell>
                 <TableCell className="font-medium">{r.item}</TableCell>
@@ -202,7 +204,15 @@ export function HistoricoLancamentos({
                   {r.colaborador ?? '—'}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
-                  <div className="max-w-[220px]">
+                  {/* F42 — `max-w-[220px]` virou `max-w-xs` (320px): não é só a
+                      largura em pixel (regra 5) — um `max-w-NN` numérico
+                      qualquer continuaria contando como largura de PÁGINA fora
+                      do casco (regra 2), porque a régua só isenta os degraus de
+                      CONTEÚDO (xs/sm/md/full/none/fit/min/max). `max-w-xs` é o
+                      mais próximo por cima que está nessa lista — e é
+                      literalmente o caso que o comentário da régua descreve
+                      ("coluna de texto curta"). */}
+                  <div className="max-w-xs">
                     <ObsTooltip texto={r.observacao} comIcone className="w-full text-xs" />
                   </div>
                 </TableCell>
@@ -240,7 +250,7 @@ export function HistoricoLancamentos({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </QuadroDeTabela>
 
       <Dialog open={!!alvo} onOpenChange={(o) => !o && fecharEstorno()}>
         <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
@@ -252,12 +262,19 @@ export function HistoricoLancamentos({
             </DialogDescription>
           </DialogHeader>
           {alvo && (
-            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+            // F42 — moldura à mão ("rounded-lg border") virou `Card`. `ring-0`
+            // para o traço continuar exatamente o `border` cinza de hoje (sem
+            // o anel do kit por cima); `gap-0` cancela o
+            // `gap-(--card-spacing)` que o Card aplica entre os filhos — sem
+            // ele, os três blocos abaixo (a linha do item e as duas linhas de
+            // detalhe) ganhariam 16px extras entre si, além do `mt-1` que já
+            // é o espaçamento de sempre.
+            <Card className="gap-0 border bg-muted/40 p-3 text-sm ring-0">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium">{alvo.item}</span>
                 <span
                   className={cn(
-                    'rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                    'rounded-full px-2 py-0.5 text-xs font-semibold',
                     pillTipoLancamento(alvo.tipo),
                   )}
                 >
@@ -273,7 +290,7 @@ export function HistoricoLancamentos({
                 Lançado por {alvo.autor_nome ?? 'desconhecido'}
                 {alvo.colaborador ? ` · para ${alvo.colaborador}` : ''}
               </p>
-            </div>
+            </Card>
           )}
           {/* F31 · ITN-01 — estorno de PERNA de transferência. Decidido AVISAR e
               não bloquear (PLAN-F31 §1.6): bloquear só aqui seria uma garantia
@@ -282,12 +299,16 @@ export function HistoricoLancamentos({
               desta fase. Então a tela diz a verdade inteira — inclusive que o
               total consolidado muda — e aponta o caminho certo. */}
           {alvo && ehPernaDeTransferencia(alvo.tipo, alvo.observacao) && (
-            <p
+            // F42 — moldura à mão virou `Card`. A TINTA ÂMBAR NÃO MUDA: mesmo
+            // par claro/escuro de sempre (mesmo ajuste de `ativos/[id]/page.tsx`,
+            // achado F40) — `ring-0` para o traço continuar exatamente o
+            // `border` de hoje, sem o anel do kit por cima.
+            <Card
               role="alert"
-              className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+              className="border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
             >
               {AVISO_ESTORNO_PERNA_TRANSFERENCIA}
-            </p>
+            </Card>
           )}
           <div className="space-y-1.5">
             <Label htmlFor="estorno-motivo">Motivo (opcional)</Label>

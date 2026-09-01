@@ -79,8 +79,23 @@ const LARGURAS = [
 /** Os dois temas. `next-themes` guarda a escolha em `localStorage.theme`. */
 const TEMAS = ['light', 'dark']
 
-/** As rotas do piloto. As frentes seguintes acrescentam as suas. */
-const ROTAS_PADRAO = ['/ativos', '/ativos/novo']
+/**
+ * As rotas JÁ MIGRADAS para o casco. As frentes seguintes acrescentam as suas.
+ *
+ * ⚠ F42 — as três rotas de item entraram aqui SEM que o script tenha rodado, e a
+ * decisão está em `docs/DECISOES.md` (31/08/2026): este repositório não tem
+ * `.env.ensaio`, e o `.env.local` aponta para PRODUÇÃO — fotografar por ele
+ * gravaria nome de colaborador e patrimônio real em PNG dentro do repo, contra a
+ * regra 2 do `CLAUDE.md`. A constante fica correta para quem tiver o ambiente
+ * amanhã fotografar sem precisar reabrir a decisão.
+ */
+const ROTAS_PADRAO = [
+  '/ativos',
+  '/ativos/novo',
+  '/itens',
+  '/itens/historico',
+  '/itens/conferencia',
+]
 
 function argumento(nome, padrao) {
   const i = process.argv.indexOf(`--${nome}`)

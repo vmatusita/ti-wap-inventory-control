@@ -55,6 +55,19 @@ const PALETA_DO_TAILWIND =
  * | --- | ---: | ---: | ---: |
  * | 30/08/2026, antes da F40 | 555 | **550** | 60 |
  * | F40 — só a fundação (tokens + `dominio.ts`) | 491 | **479** | 60 |
+ * | F42 — as telas de item no casco | — | **473** | **61** |
+ *
+ * A F42 baixou o TOTAL em 6 e SUBIU a contagem de arquivos em 1, e as duas coisas
+ * são a mesma mudança vista de dois ângulos:
+ *  · desceram 6 porque o banner âmbar da conferência virou `<Aviso intencao="atencao">`
+ *    (a tinta passou a sair do token `--warning`) e porque `saldos-filiais.tsx`,
+ *    `transferir-item-celula.tsx` e `lancar-item-linha.tsx` deixaram de existir;
+ *  · subiu 1 arquivo porque a tabela única e os pedaços do diálogo viraram cinco
+ *    componentes onde antes havia dois arquivos grandes. O vermelho do "faltam N" e
+ *    o âmbar do aviso de quantidade MUDARAM DE CASA, não nasceram: o mesmo número de
+ *    ocorrências espalhado por mais arquivos.
+ *
+ * A contagem de arquivos é registro, não teto — o que só pode descer é o TOTAL.
  *
  * A CATRACA CONTA O CÓDIGO, não o `grep`. O inventário do plano usa `grep`, que
  * não distingue código de comentário, e por isso mede 555 onde o código tem 550
@@ -66,8 +79,8 @@ const PALETA_DO_TAILWIND =
  *
  * A meta ao fim das cinco frentes é o teto abaixo de 120 (plano §7).
  */
-const TETO_PALETA_CRUA = 479
-const ARQUIVOS_COM_PALETA = 60
+const TETO_PALETA_CRUA = 473
+const ARQUIVOS_COM_PALETA = 61
 
 /**
  * Todo `.ts`/`.tsx` de `src`, SEM comentários — a mesma abrangência do grep do

@@ -40,7 +40,7 @@ export const mapaDasTelas: PaginaAjuda = {
         ['Dashboard', 'A visão do dia: quantos equipamentos em cada estado, o que foi movimentado e o que está pendente.'],
         ['Ativos', 'A lista de todos os equipamentos com patrimônio, com busca, filtros e a ficha de cada um.'],
         ['Movimentações', 'A lista do que já foi registrado — a resposta para "o que aconteceu hoje?".'],
-        ['Itens', 'Os saldos dos itens contados por quantidade e o histórico de lançamentos.'],
+        ['Itens', 'Os saldos dos itens contados por quantidade: quanto existe, quanto está na prateleira e quanto está com as pessoas. Abre duas subtelas no menu — Conferir estoque e Histórico.'],
         ['Pendências', 'A fila do que precisa de ação: termo, itens faltantes, triagem e regularizações.'],
         ['Relatórios', 'O relatório ao vivo por filial e os relatórios gerados da semana.'],
         ['Administração', `Os cadastros de apoio: usuários, senhas de acesso, filiais, motivos, kits, itens e o import. Aparece para os cargos ${PAPEL_ROTULO.admin} e ${PAPEL_ROTULO.dev}.`],
@@ -50,6 +50,15 @@ export const mapaDasTelas: PaginaAjuda = {
         ],
         ['Ajuda', 'Esta documentação.'],
       ],
+    },
+    // F42 — as subtelas de Itens não entram na tabela acima: aquela tabela é
+    // conferida contra a lista `ITENS` do `sidebar-nav.tsx`, linha a linha e na
+    // ordem (`comecar.test.ts`), e uma linha a mais quebraria a correspondência
+    // que a torna confiável. Elas ganham parágrafo próprio, logo abaixo.
+    {
+      tipo: 'paragrafo',
+      texto:
+        'Um item do menu abre subtelas: quando você está em Itens, aparecem indentadas embaixo dele "Conferir estoque" (a contagem física de uma filial, que registra as diferenças de uma vez) e "Histórico" (todo lançamento de item já registrado, com filtro por item, tipo, período, filial e busca, e o estorno de um lançamento errado). As duas também respondem pelo Ctrl+K.',
     },
     { tipo: 'titulo', id: 'mapa-cargos', texto: 'O que o seu cargo muda na tela' },
     {

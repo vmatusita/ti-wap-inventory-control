@@ -1,4 +1,5 @@
 import { PackageOpen } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { SaldoDoColaborador } from '@/lib/queries/itens'
 
 // "Com esta pessoa" (F38 · frente C) — o bloco que responde "o que o João está
@@ -77,13 +78,20 @@ export function ComEstaPessoa({
   }
 
   return (
-    <div className="rounded-lg border p-3">
-      <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
-        <PackageOpen className="size-4" aria-hidden />
-        Com esta pessoa
-      </h3>
-      {corpo}
-      {rodape}
-    </div>
+    // F42 — a moldura à mão ("rounded-lg border p-3") virou `Card`. `size="sm"`
+    // é o que faz o `CardTitle` cair pra `text-sm` sozinho (o mesmo tamanho do
+    // `<h3>` de antes) e o `--card-spacing` virar 12px — o mesmo `p-3` de antes.
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <PackageOpen className="size-4" aria-hidden />
+          Com esta pessoa
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {corpo}
+        {rodape}
+      </CardContent>
+    </Card>
   )
 }

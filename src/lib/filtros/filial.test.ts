@@ -10,7 +10,9 @@ import {
   filtroFilialPadrao,
   type PapelUsuario,
 } from '@/lib/auth/papeis'
-import { selecaoFilialIds, selecaoFilialSlugs, ehVisaoConsolidado } from '@/lib/url-params'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { selecaoFilialIds, selecaoFilialSlugs } from '@/lib/url-params'
 
 // F25 — o filtro de filial: padrão por cargo + multi-seleção.
 // Filiais 100% fictícias.
@@ -227,19 +229,19 @@ describe('resolverFiliaisSlugsSemPadrao — /relatorios/gerados (decisão §4.7)
   })
 })
 
-describe('ehVisaoConsolidado — o default de /itens inverteu', () => {
-  it('só a sentinela explícita liga o Consolidado', () => {
-    expect(ehVisaoConsolidado('consolidado')).toBe(true)
-  })
-
-  it('ausência e lixo caem na visão por filial (o padrão novo)', () => {
-    expect(ehVisaoConsolidado(undefined)).toBe(false)
-    expect(ehVisaoConsolidado(null)).toBe(false)
-    expect(ehVisaoConsolidado('')).toBe(false)
-    expect(ehVisaoConsolidado('qualquer-coisa')).toBe(false)
-  })
-
-  it('`visao=filiais` (favorito antigo) segue significando lado a lado', () => {
-    expect(ehVisaoConsolidado('filiais')).toBe(false)
+describe('a visao de /itens NAO existe mais (F42)', () => {
+  it('o param "visao" deixou de ter parser — o toggle morreu com a tela antiga', () => {
+    // A REGRA MUDOU. `ehVisaoConsolidado` escolhia entre as DUAS tabelas de
+    // `/itens`, e a F42 deixou UMA só: a comparação entre filiais virou a linha
+    // expansível de cada item. Este teste substitui os três que provavam o default
+    // invertido da F25 — eles não foram afrouxados; o objeto que eles descreviam
+    // deixou de existir (ata em `docs/DECISOES.md`, 31/08/2026).
+    //
+    // O que continua verdadeiro, e agora é o que importa: uma URL antiga com
+    // `?visao=` NÃO quebra. O param vira ruído ignorado, a rota responde 200, e o
+    // smoke cobre as duas sentinelas. A guarda de que ninguém o ressuscita está em
+    // `src/lib/actions/exportar-filtros.test.ts`.
+    const fonte = readFileSync(join(process.cwd(), 'src', 'lib', 'url-params.ts'), 'utf8')
+    expect(fonte).not.toContain('export function ehVisaoConsolidado')
   })
 })

@@ -175,6 +175,11 @@ const ROTAS = [
   { rota: '/ativos', esperado: 'login', area: 'ativos · lista' },
   { rota: '/ativos/novo', esperado: 'login', area: 'ativos · cadastro de compra' },
   { rota: '/itens', esperado: 'login', area: 'itens por quantidade (I4 · I5)' },
+  // F42 — as duas subrotas de item. `/itens/conferencia` já existia desde a F31 e
+  // nunca esteve nesta lista; `/itens/historico` nasceu agora. Rota protegida que
+  // não é conferida aqui é rota que pode vazar sem ninguém ver.
+  { rota: '/itens/historico', esperado: 'login', area: 'itens · histórico de lançamentos (F42)' },
+  { rota: '/itens/conferencia', esperado: 'login', area: 'itens · conferência de estoque (F31)' },
   { rota: '/movimentacoes', esperado: 'login', area: 'movimentações · lista (M8)' },
   { rota: '/movimentacoes/nova', esperado: 'login', area: 'movimentações · fluxo (M12)' },
   { rota: '/pendencias', esperado: 'login', area: 'pendências' },
@@ -898,33 +903,57 @@ const ROTAS_LOGADO = [
   // Lixo no param é IGNORADO, nunca derruba o Server Component.
   { rota: '/ativos?filial=abc,99999', area: 'ativos · filial inválida ignorada (F25)' },
   { rota: '/ativos/novo', area: 'ativos · cadastro de compra' },
-  // F25 — a visão PADRÃO de /itens virou "Por filial". O filtro de filial não é
-  // renderizado nessa visão (as filiais já estão todas na tela, uma por coluna),
-  // então a AUSÊNCIA do botão é o que prova qual visão abriu.
+  // F42 — AS TRÊS ENTRADAS DE /itens FORAM REESCRITAS. Elas provavam qual das duas
+  // VISÕES da tela tinha renderizado, pela presença ou ausência do botão "Filtrar
+  // por filial" (que a visão "Por filial" escondia). A fase matou o toggle: há uma
+  // tabela só, e o filtro de filial está SEMPRE na tela. O marcador que sobrevive é
+  // o mesmo texto — agora provando o contrário, que ele está lá em toda URL.
   //
-  // ⚠ `marcadorAusente`, e NÃO `marcadorProibido`: são perguntas diferentes.
-  // `marcadorProibido` é CONTROLE DE ACESSO ("esta conta não pode chegar aqui") e
-  // por isso trata um redirect como aprovação — recusar por redirect também serve.
-  // Aqui a pergunta é de CONTEÚDO ("qual visão renderizou"), e um redirect é
-  // fracasso, não sucesso: com o campo errado, /itens redirecionando passaria
-  // VERDE sem nunca ter renderizado, e a mensagem de falha acusaria "VAZAMENTO
-  // para o cargo errado" numa tela que não tem cargo nenhum envolvido.
+  // ⚠ O MARCADOR VEM DE DENTRO DO CONTEÚDO, nunca do shell. "Itens" é item da
+  // sidebar e sairia no HTML de QUALQUER rota logada; "Filtrar por filial" é o
+  // aria-label do filtro da própria tela.
   {
     rota: '/itens',
-    area: 'itens por quantidade · abre em "Por filial" (F25)',
-    marcadorAusente: 'Filtrar por filial',
-  },
-  // …e a sentinela explícita leva ao Consolidado, onde o filtro existe.
-  {
-    rota: '/itens?visao=consolidado',
-    area: 'itens · Consolidado pela sentinela (F25)',
+    area: 'itens por quantidade · uma tabela, um filtro (F42)',
     marcador: 'Filtrar por filial',
   },
-  // Link ANTIGO (`?visao=filiais`) continua significando lado a lado.
+  // As DUAS sentinelas antigas do toggle morto não podem virar 404 nem tela
+  // quebrada: o param passou a ser ruído ignorado e a tela abre igual. É o
+  // critério "nenhuma rota sumiu" da F42, provado nas duas formas que existiam.
+  {
+    rota: '/itens?visao=consolidado',
+    area: 'itens · link antigo ?visao=consolidado ainda abre (F42)',
+    marcador: 'Filtrar por filial',
+  },
   {
     rota: '/itens?visao=filiais',
-    area: 'itens · link antigo ainda vale (F25)',
-    marcadorAusente: 'Filtrar por filial',
+    area: 'itens · link antigo ?visao=filiais ainda abre (F42)',
+    marcador: 'Filtrar por filial',
+  },
+  // F42 — o HISTÓRICO em rota própria. O marcador é o rótulo do filtro de tipo,
+  // que só existe neste bloco de filtros: o <h1> "Histórico de lançamentos" não
+  // serviria sozinho, porque o botão "Histórico" do cabeçalho de /itens carrega
+  // parte da string e a paleta de comandos carrega a outra.
+  {
+    rota: '/itens/historico',
+    area: 'itens · histórico em rota própria (F42)',
+    marcador: 'Filtrar histórico por tipo',
+  },
+  // O LINK ANTIGO do histórico (os params moravam em /itens até a v1.46.0):
+  // redireciona para a rota nova preservando o recorte, em vez de abrir os saldos
+  // ignorando o filtro em silêncio. O redirect é 307 e o cliente do smoke o segue,
+  // então o marcador conferido é o da tela de DESTINO.
+  {
+    rota: '/itens?tipo=saida&de=2026-08-01',
+    area: 'itens · link antigo de histórico redireciona (F42)',
+    marcador: 'Filtrar histórico por tipo',
+  },
+  // A conferência de estoque (F31) nunca esteve na lista logada. O marcador vem do
+  // corpo da tela, e não do <h1>, pela mesma razão de sempre.
+  {
+    rota: '/itens/conferencia',
+    area: 'itens · conferência de estoque (F31)',
+    marcador: 'Conte a prateleira de uma filial',
   },
   { rota: '/movimentacoes', area: 'movimentações · lista' },
   // F26 — a rota do wizard passou a ter MARCADOR de conteúdo: até aqui ela só

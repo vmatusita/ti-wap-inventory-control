@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.47.0',
+    data: '2026-08-31',
+    fase: 'F42',
+    titulo: 'A tela de itens ficou igual à de equipamentos',
+    mudancas: [
+      'A página Itens agora é uma tabela só, com uma barra de filtros e uma paginação — do mesmo jeito que a lista de Ativos. Antes eram três telas empilhadas numa: os saldos, um botão que trocava as colunas da tabela inteira e o histórico com um segundo conjunto de filtros.',
+      'Uma coluna nova: "Em uso" diz quantas unidades estão com as pessoas. Esse número sempre existiu, mas você tinha de calculá-lo de cabeça, subtraindo o que está na prateleira do total.',
+      'Comparar as filiais virou a setinha no começo de cada linha: você abre o item e vê, filial por filial, quanto tem na prateleira e quanto está com as pessoas. O filtro de filial parou de sumir da tela — ele está sempre lá e vale sempre.',
+      'O histórico de lançamentos ganhou tela própria, em Itens → Histórico, com o filtro de filial que antes vinha emprestado dos saldos. Chega-se por ela pelo menu, pelo botão "Histórico" no topo da página Itens ou pelo menu "⋯" da linha de um item, que já abre filtrado naquele item. Links antigos continuam funcionando: eles levam para a tela nova com o mesmo recorte.',
+      'A janela de lançar quantidade ficou menor e passou a avisar ANTES de gravar quando uma unidade vai entrar por acerto automático — antes você só descobria depois.',
+      'Na ficha do equipamento, os acessórios que entraram por acerto automático aparecem com o selo "regularizado", em vez de um Ajuste sem explicação.',
+    ],
+  },
+  {
     versao: '1.46.0',
     data: '2026-08-31',
     fase: 'F41',
