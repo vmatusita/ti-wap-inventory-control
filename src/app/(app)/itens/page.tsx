@@ -22,7 +22,6 @@ import {
   paginarLinhas,
   rotuloSubtituloItens,
   tiposPorItemDoCatalogo,
-  destinoHistoricoLegado,
 } from '@/lib/itens/lista'
 import { GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio'
 // ITN-05a — a mesma explicação de UMA linha por número que a página de ajuda usa,
@@ -88,30 +87,16 @@ export default async function ItensPage({
 
   const sp = await searchParams
 
-  // O FAVORITO ANTIGO NÃO VIRA TELA ERRADA. Até a v1.46.0 o histórico morava aqui,
-  // e os cinco params dele viajavam nesta querystring. Sem este desvio, um link
-  // colado num chamado abriria os saldos ignorando o recorte EM SILÊNCIO — pior
-  // que um 404, porque o operador leria a lista errada achando que é a certa.
-  // A regra é pura e testada (`destinoHistoricoLegado`, lista.test.ts).
+  // ⚠ O REDIRECIONAMENTO DO LINK ANTIGO DO HISTÓRICO **NÃO** MORA AQUI.
   //
-  // ⚠ OS PARAMS SÃO LIDOS UM A UM, PELO NOME. A primeira escrita desta fase montava
-  // um `URLSearchParams` com `Object.entries(sp)` — e o redirect NUNCA disparou em
-  // produção: o smoke pós-deploy acusou `HTTP 200 sem o conteúdo esperado`. O objeto
-  // de `searchParams` do Next responde por CHAVE e não se deixa VARRER, então
-  // `Object.entries` devolvia vazio e a função pura recebia uma entrada em branco.
-  // Os testes ficaram verdes o tempo todo, porque montavam a entrada à mão: a regra
-  // estava certa e o wiring estava errado. Uma guarda de texto-fonte em
-  // `lista.test.ts` agora recusa qualquer varredura de `searchParams` neste arquivo.
-  const destino = destinoHistoricoLegado({
-    item: primeiro(sp.item),
-    tipo: primeiro(sp.tipo),
-    de: primeiro(sp.de),
-    ate: primeiro(sp.ate),
-    busca: primeiro(sp.busca),
-    filial: primeiro(sp.filial),
-    page: primeiro(sp.page),
-  })
-  if (destino) redirect(destino)
+  // Até a v1.46.0 o histórico era a segunda seção desta tela, e os cinco params
+  // dele viajavam nesta querystring; a F42 lhes deu rota própria. O desvio existe,
+  // e mora em `src/lib/supabase/proxy.ts` — porque um `redirect()` daqui NÃO VIRA
+  // STATUS: este segmento tem `loading.tsx`, a rota é servida em STREAM, o 200 já
+  // saiu quando o corpo começa a rodar, e o desvio acabaria entregue dentro do
+  // payload RSC (funciona no navegador, com JS; não funciona para mais ninguém).
+  // Foi o smoke pós-deploy que pegou. A regra continua sendo a mesma função pura
+  // testada — `destinoHistoricoLegado`, em `lib/itens/lista.ts` —, chamada de lá.
 
   const grupoRaw = primeiro(sp.grupo)
   const grupo = GRUPO_ITEM_ORDEM.includes(grupoRaw as GrupoItem)

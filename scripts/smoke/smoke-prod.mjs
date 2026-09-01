@@ -941,12 +941,19 @@ const ROTAS_LOGADO = [
   },
   // O LINK ANTIGO do histórico (os params moravam em /itens até a v1.46.0):
   // redireciona para a rota nova preservando o recorte, em vez de abrir os saldos
-  // ignorando o filtro em silêncio. O redirect é 307 e o cliente do smoke o segue,
-  // então o marcador conferido é o da tela de DESTINO.
+  // ignorando o filtro em silêncio.
+  //
+  // ⚠ `redirectEsperado`, e NÃO um `marcador`. Esta entrada nasceu conferindo o
+  // conteúdo da tela de DESTINO, e por isso pegou o defeito: o desvio estava na
+  // página, e de lá ele não vira status — o segmento tem `loading.tsx`, a rota é
+  // servida em stream, o 200 já saiu, e o `redirect()` acaba dentro do payload RSC.
+  // O que o smoke tem de provar é o STATUS e o DESTINO, que é o que existe para
+  // quem não roda JavaScript. Conferir o conteúdo do destino seria testar duas
+  // coisas numa e aceitar um 200 que não redirecionou de verdade.
   {
     rota: '/itens?tipo=saida&de=2026-08-01',
     area: 'itens · link antigo de histórico redireciona (F42)',
-    marcador: 'Filtrar histórico por tipo',
+    redirectEsperado: '/itens/historico?tipo=saida&de=2026-08-01',
   },
   // A conferência de estoque (F31) nunca esteve na lista logada. O marcador vem do
   // corpo da tela, e não do <h1>, pela mesma razão de sempre.
@@ -1166,7 +1173,18 @@ async function parteC(sessao) {
       } else if (codigo >= 300 && codigo < 400) {
         resposta.body?.cancel().catch(() => {})
         const destino = resposta.headers.get('location') || '(sem location)'
-        if (entrada.marcadorProibido && !destino.includes('/login')) {
+        if (entrada.redirectEsperado) {
+          // F42 — asserção de ROTEAMENTO: a rota TEM de desviar, e para o lugar
+          // certo. Um 200 aqui é falha, não sucesso; um redirect para outro destino
+          // também. O `location` pode vir absoluto (o Next devolve a URL inteira),
+          // então a comparação é por sufixo.
+          if (destino.endsWith(entrada.redirectEsperado)) {
+            status = OK
+            detalhe = `HTTP ${codigo} → ${entrada.redirectEsperado}`
+          } else {
+            detalhe = `HTTP ${codigo} → ${destino} — esperado ${entrada.redirectEsperado}`
+          }
+        } else if (entrada.marcadorProibido && !destino.includes('/login')) {
           // Recusa por redirect também serve: o que importa é não chegar na área.
           status = OK
           detalhe = `HTTP ${codigo} → ${destino} — recusada para este cargo, como deve ser`
@@ -1176,6 +1194,11 @@ async function parteC(sessao) {
           status = AVISO
           detalhe = `HTTP ${codigo} → ${destino} (sessão não aceita — check inconclusivo)`
         }
+      } else if (codigo === 200 && entrada.redirectEsperado) {
+        // F42 — o modo de falha REAL: a rota respondeu 200 em vez de desviar. Foi
+        // exatamente isto que aconteceu quando o desvio morava na página.
+        resposta.body?.cancel().catch(() => {})
+        detalhe = `HTTP 200 — nao redirecionou (esperado ${entrada.redirectEsperado})`
       } else if (codigo !== 200) {
         resposta.body?.cancel().catch(() => {})
         detalhe = `HTTP ${codigo} — esperado 200`

@@ -285,44 +285,46 @@ describe('destinoHistoricoLegado — o favorito antigo nao vira tela errada', ()
     expect(url).not.toContain('q=')
   })
 
-  it('a pagina le os params UM A UM, nunca varrendo o searchParams', () => {
+  it('o desvio do link antigo mora no PROXY, e nao na pagina', () => {
     // GUARDA DE REGRESSÃO, escrita depois de o defeito acontecer em PRODUÇÃO.
     //
-    // A primeira escrita desta fase montava a entrada do redirecionamento com
-    // `Object.entries(sp)`. O objeto de `searchParams` do Next responde por CHAVE e
-    // não se deixa VARRER: a varredura devolvia vazio, a função pura recebia uma
-    // entrada em branco e o redirect nunca disparava. Os 29 testes deste arquivo
-    // ficaram VERDES o tempo todo — eles montavam a entrada à mão. Quem pegou foi o
-    // smoke pós-deploy, com `HTTP 200 sem o conteúdo esperado`.
+    // O desvio nasceu dentro de `itens/page.tsx`, e o smoke pós-deploy o pegou:
+    // `HTTP 200 sem o conteúdo esperado`. A instrumentação mostrou por quê — o
+    // segmento `/itens` tem `loading.tsx`, então a rota é servida em STREAM: o Next
+    // manda **200 com o esqueleto** assim que a navegação começa, e um `redirect()`
+    // disparado depois disso vai DENTRO do payload RSC (`NEXT_REDIRECT` presente no
+    // corpo, status 200). O navegador obedece; um cliente sem JS, um `curl` e o
+    // smoke, não — e a resposta que chega ao mundo continua sendo a tela errada.
     //
-    // É uma guarda de TEXTO-FONTE porque a propriedade é do CÓDIGO, não do
-    // comportamento — o mesmo molde de `consistencia.test.ts` e `sidebar-colapso.test.ts`.
-    // `semComentarios`: o comentário do próprio arquivo CITA a varredura para
-    // explicar por que ela morreu, e punir quem explica é o contrário do que este
-    // repositório quer. É o mesmo recorte que `consistencia.test.ts` usa.
-    const fonte = semComentarios(
-      readFileSync(join(process.cwd(), 'src', 'app', '(app)', 'itens', 'page.tsx'), 'utf8'),
+    // No proxy o desvio acontece ANTES de qualquer render: 307 de verdade.
+    // Redirecionar rota legada é assunto de ROTEAMENTO.
+    //
+    // É guarda de TEXTO-FONTE porque a propriedade é do CÓDIGO, não do
+    // comportamento — o molde de `consistencia.test.ts` e `sidebar-colapso.test.ts`.
+    const proxy = semComentarios(
+      readFileSync(join(process.cwd(), 'src', 'lib', 'supabase', 'proxy.ts'), 'utf8'),
     )
-    for (const varredura of [
-      'Object.entries(sp)',
-      'Object.keys(sp)',
-      'Object.values(sp)',
-      'Object.entries(searchParams)',
-      'Object.entries(await searchParams)',
-    ]) {
-      expect(
-        fonte.includes(varredura),
-        `itens/page.tsx varre o searchParams com ${varredura} — ele responde por CHAVE, ` +
-          'e a varredura devolve vazio EM SILÊNCIO (defeito da F42, pego pelo smoke)',
-      ).toBe(false)
-    }
-    // E os sete params do redirecionamento continuam sendo lidos pelo nome.
+    expect(
+      proxy.includes('destinoHistoricoLegado'),
+      'o proxy parou de desviar o link antigo do historico — ele voltaria a abrir os ' +
+        'saldos ignorando o recorte, em silencio',
+    ).toBe(true)
+    // E os sete params continuam sendo lidos, um a um, pelo nome.
     for (const nome of ['item', 'tipo', 'de', 'ate', 'busca', 'filial', 'page']) {
       expect(
-        fonte.includes(`sp.${nome}`),
-        `itens/page.tsx nao le sp.${nome} — o redirecionamento do link antigo perde esse param`,
+        proxy.includes(`p.get('${nome}')`),
+        `o proxy nao le "${nome}" — o redirecionamento do link antigo perde esse param`,
       ).toBe(true)
     }
+
+    const pagina = semComentarios(
+      readFileSync(join(process.cwd(), 'src', 'app', '(app)', 'itens', 'page.tsx'), 'utf8'),
+    )
+    expect(
+      pagina.includes('destinoHistoricoLegado'),
+      'itens/page.tsx voltou a desviar o link antigo — de la o redirect NAO vira ' +
+        'status, porque o segmento tem loading.tsx e a rota e servida em stream',
+    ).toBe(false)
   })
 
   it('param vazio nao conta como filtro do historico', () => {

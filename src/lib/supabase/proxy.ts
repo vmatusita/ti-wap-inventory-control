@@ -2,6 +2,9 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { type Database } from '@/lib/types/database'
 import { VIEW_COOKIE_NAME } from '@/lib/auth/view-cookie'
+// F42 — a regra do link antigo do histórico de itens. Função PURA e testada; o
+// proxy roda no Edge, então ela não pode tocar em nada de Node — e não toca.
+import { destinoHistoricoLegado } from '@/lib/itens/lista'
 
 // Mantém a sessão do Supabase viva e faz o roteamento de acesso (spec §3):
 //  - Operador logado (domínios de lib/auth/dominios-email): acessa tudo.
@@ -92,6 +95,50 @@ export async function updateSession(request: NextRequest) {
         .getAll()
         .forEach((cookie) => redirect.cookies.set(cookie))
       return redirect
+    }
+
+    // F42 — O LINK ANTIGO DO HISTÓRICO DE ITENS, e por que ele mora AQUI.
+    //
+    // Até a v1.46.0 o histórico de lançamentos era a segunda seção de `/itens`, e
+    // os cinco params dele viajavam naquela querystring. A F42 lhe deu rota própria,
+    // e um favorito antigo — ou um link colado num chamado — abriria os saldos
+    // IGNORANDO O RECORTE em silêncio, que é pior que um 404.
+    //
+    // ⚠ A PRIMEIRA ESCRITA PÔS ISTO NA PÁGINA, e o `redirect()` de lá NÃO VIRA
+    // STATUS. O segmento `/itens` tem `loading.tsx`, então a rota é servida em
+    // STREAM: o Next manda **HTTP 200** com o esqueleto assim que a navegação
+    // começa, e um `redirect()` disparado depois disso é entregue DENTRO do payload
+    // RSC, para o navegador executar. O operador de fato acaba na tela certa — mas
+    // só com JavaScript, e o status da resposta continua 200. Foi assim que o smoke
+    // pós-deploy o pegou (`HTTP 200 sem o conteúdo esperado`), e a instrumentação
+    // confirmou: `NEXT_REDIRECT` presente no corpo, status 200.
+    //
+    // No proxy o desvio acontece ANTES de qualquer render: 307 de verdade, sem
+    // depender de JS, sem a tela errada chegar a existir. Redirecionar rota legada
+    // é assunto de ROTEAMENTO, e este é o lugar do roteamento.
+    //
+    // A REGRA continua sendo a função pura testada (`destinoHistoricoLegado`) — o
+    // proxy só a alimenta com o que a URL traz.
+    if (pathname === '/itens') {
+      const p = request.nextUrl.searchParams
+      const destinoLegado = destinoHistoricoLegado({
+        item: p.get('item') ?? undefined,
+        tipo: p.get('tipo') ?? undefined,
+        de: p.get('de') ?? undefined,
+        ate: p.get('ate') ?? undefined,
+        busca: p.get('busca') ?? undefined,
+        filial: p.get('filial') ?? undefined,
+        page: p.get('page') ?? undefined,
+      })
+      if (destinoLegado) {
+        const url = request.nextUrl.clone()
+        const [caminho, query = ''] = destinoLegado.split('?')
+        url.pathname = caminho
+        url.search = query
+        const redirect = NextResponse.redirect(url)
+        response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+        return redirect
+      }
     }
 
     // Operador logado dentro da janela: libera tudo.
