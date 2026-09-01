@@ -8524,3 +8524,21 @@ e da `0121`; as quatro do código, por `git revert`.
   diretório de trabalho**: `git worktree` (ou a isolação por worktree do próprio orquestrador) para
   qualquer agente que possa tocar em git.
 - Reversível? Não se aplica — já reconciliado.
+
+## 2026-09-01 · F44 · rollout da v1.49.0 — CI, deploy e a verificação na produção
+
+- Merge `53d5d2f` na `main`, tag anotada `v1.49.0` publicada, `origin/main` em `25a8b3c..53d5d2f`.
+- CI **33532114528**: `verificar` ✅ 5m30s e `banco` ✅ 3m13s. O job `banco` passou **na primeira**,
+  apesar do histórico de queda por causa externa que a ordem avisava — esta fase não tocou em
+  `supabase/`.
+- Deploy de produção do commit de merge: **READY** (`dpl_58WUhj6wq2yEzATR3mtsAYDZs9vg`).
+- Smoke pós-deploy: **108 OK · 1 aviso · 0 falha**. O aviso é o de sempre (`kits_modelos` · RLS não
+  comprovada por não haver kit cadastrado), o mesmo que o `RELATORIO-F43.md` registra.
+- **Verificação NA PRODUÇÃO, e ela é a que fecha o critério 1.** O HTML da prévia prova o desenho;
+  não prova o que está no ar. Com sessão de operador, contei as frases na tela real — imprimindo só
+  CONTAGENS, nunca conteúdo, porque produção tem nome e patrimônio de verdade (regra 2):
+  · `/itens` sem filtro → "tudo que a TI possui" **4×**, "de todas as filiais" **3×** (verdadeiras ali);
+  · `/itens?filial=1` → **0×** e **0×**, com a linha de escopo e a legenda da tabela presentes.
+  E a ficha, no ar: `Dados do ativo` (45.526) → `Termos` (48.252) → `Linha do tempo` (51.399) — a
+  ordem nova, medida pela posição no HTML servido.
+- Reversível? Sim — `git revert` do merge, ou rollback do deploy na Vercel (o anterior é candidato).

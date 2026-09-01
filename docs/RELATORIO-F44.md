@@ -513,4 +513,76 @@ dividir diretório de trabalho**. `git worktree` para qualquer agente que possa 
 
 ## 13. Os quatro comandos, o CI, o deploy e o smoke
 
-*(preenchido no rollout)*
+### 13.1 Os quatro comandos, no commit final
+
+```
+npm run lint       → sem uma linha de saída (0 erro, 0 aviso)
+npm run test       → Test Files 148 passed (148) · Tests 3546 passed (3546)
+npm run contraste  → exit 0 (nenhum par `exigir: true` reprovando)
+npm run build      → ✓ Compiled successfully
+```
+
+`3546` testes contra `3504` na `v1.48.0`: **+42**, sendo 30 de `escopo.ts`, 10 de `tinta.ts`, e os
+2 novos de `distribuicao.test.ts` (o cartão e o selo contando a mesma coisa; e o "sem recorte nada
+muda"). Nenhum teste foi apagado — quatro casos de `distribuicao.test.ts` **mudaram de resposta**,
+porque a regra que eles codificavam foi revogada, e o comentário no lugar diz isso.
+
+### 13.2 O CI — os dois jobs verdes
+
+Execução **33532114528**, no commit de merge `53d5d2f`:
+
+| job | resultado | duração |
+|---|---|---|
+| `verificar` (lint · test · contraste · build) | ✅ success | 5m30s |
+| `banco` (Postgres real + todas as migrations + os roteiros SQL) | ✅ success | 3m13s |
+
+O job `banco` **passou na primeira**, apesar do histórico de queda por causa externa que a ordem
+avisava. Esta fase não tocou em `supabase/` (`git diff v1.48.0..HEAD -- supabase/` vazio).
+
+### 13.3 O deploy
+
+Deploy de produção do commit de merge `53d5d2f`, registrado pela Vercel como
+**READY / target: production** (`dpl_58WUhj6wq2yEzATR3mtsAYDZs9vg`).
+
+### 13.4 O smoke pós-deploy
+
+```
+node scripts/smoke/smoke-prod.mjs --exigir-f12
+========================================================================
+RESUMO · 108 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+========================================================================
+```
+
+O único aviso é o **mesmo de sempre**, e não é desta fase: `kits_modelos · anon NÃO lê (RLS)` —
+"anon leu 0 linhas, mas não há kit cadastrado, RLS não comprovada". O `RELATORIO-F43.md` registra o
+mesmo aviso.
+
+As rotas de item, conferidas uma a uma: `/itens` 200 · `/itens/historico` 200 ·
+`/itens/conferencia` 200 · `/admin/itens` 200 · e o desvio do link antigo continua **307** para
+`/itens/historico?tipo=saida&de=2026-08-01`.
+
+### 13.5 A verificação NA PRODUÇÃO — o critério 1, ao vivo
+
+O HTML da prévia prova o desenho; ele não prova o que está no ar. Uma verificação pós-deploy,
+com sessão de operador, contou as frases **na tela real** — e imprimiu só contagens, nunca
+conteúdo (produção tem nome e patrimônio de verdade; regra 2):
+
+| rota (produção) | "tudo que a TI possui" | "de todas as filiais" | "Números de…" | a legenda da tabela |
+|---|---|---|---|---|
+| `/itens` (sem filtro) | 4 | 3 | 2 | 1 |
+| `/itens?filial=1` | **0** | **0** | 2 | 1 |
+
+**Com uma filial filtrada, no ar, a frase de escopo de TI aparece zero vezes** — e sem filtro ela
+continua, porque ali é verdadeira. É o critério 1, provado onde importa.
+
+E a ficha, também no ar — a posição de cada bloco no HTML servido:
+
+```
+Dados do ativo   45.526
+Termos           48.252
+Linha do tempo   51.399
+```
+
+A ordem é a nova. (Naquele ativo os dois blocos de item não aparecem — ele não tem acessório que
+foi junto nem pendência de item, e os dois componentes devolvem `null`. É o comportamento correto,
+e o mesmo que o cenário `sem-pendencia` da prévia fotografa.)
