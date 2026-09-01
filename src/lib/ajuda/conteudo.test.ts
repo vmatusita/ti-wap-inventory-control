@@ -381,7 +381,13 @@ describe('navegação e estrutura documentadas (OS-F11 · Onda 3)', () => {
     // porque a conta pode não fechar na LINHA (colunas de filial) e na linha
     // ABERTA (os quatro números).
     const texto = textoDaSecao(secao('itens'))
-    expect(texto).toContain(normalizarBusca('UMA COLUNA POR FILIAL, sempre visível numa tela larga'))
+    // ⚠ F44 — ESTA ASSERÇÃO FIXAVA "sempre visível numa tela larga", e a própria
+    // F44 tornou a frase falsa: com EXATAMENTE uma filial filtrada, as colunas por
+    // filial não são desenhadas (elas repetiriam a coluna "Em estoque"). Terceira
+    // vez que um teste de conteúdo trava a documentação de um comportamento que
+    // acabou de mudar. Agora ele cobra as DUAS metades da regra em vigor.
+    expect(texto).toContain(normalizarBusca('UMA COLUNA POR FILIAL quando você está comparando DUAS OU MAIS'))
+    expect(texto).toContain(normalizarBusca('Filtrando UMA filial só, essas colunas não aparecem'))
     expect(texto).toContain(normalizarBusca('Ver as N filiais'))
     expect(texto).toContain(normalizarBusca('a linha se abre e mostra o mesmo item filial por filial'))
     expect(texto).toContain(normalizarBusca('faltam N'))

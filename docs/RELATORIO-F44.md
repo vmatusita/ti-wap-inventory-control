@@ -451,7 +451,35 @@ ordem exigia, mais o incidente:
 
 ---
 
-## 10. Pendências, dívidas e próximos passos
+## 10. A revisão adversarial — cinco achados sobreviveram, e cinco foram consertados
+
+Quatro lentes independentes em contexto fresco (recursos que sumiram · cargo e largura ·
+acessibilidade e cor · a tela ainda mente?), e **cada achado passado a um cético encarregado de
+REFUTÁ-LO**, com instrução de refutar na dúvida. Seis achados; **cinco sobreviveram**, e os cinco
+eram reais. Todos corrigidos antes do rollout.
+
+| # | achado | veredito | conserto |
+|---|---|---|---|
+| 1 | **Hover derrubava o contraste AA do cinza** — `hover:bg-muted` põe `muted-foreground` a **4,34:1** (reprova). Ninguém media esse par: o da F43 continuava fixado no `muted/50` de ANTES, então `npm run contraste` passava limpo **escondendo a falha** | sobreviveu | a escada foi deslocada: listra `bg-muted/25` (4,63:1), hover de volta ao `bg-muted/50` do kit (4,53:1). Par novo medindo a classificação sobre a listra |
+| 2 | **O número grande do cartão não recebia a tinta** — o critério 6 pede a cor nos TRÊS lugares e detalha "cartão: o número grande na tinta"; só o quadradinho estava pintado | sobreviveu | `ValorComTinta`. O par já estava medido (24px semibold = texto grande, 3:1) |
+| 3 | **Português quebrado no caminho degradado** — `/itens?filial=999` produzia *"Números somados de as filiais filtradas"* e *"nas as filiais filtradas"* | sobreviveu | o rótulo degradado perdeu o artigo. **Dois testes novos** varrem as três frases COMPOSTAS em todos os escopos — testar o rótulo isolado não pegava isto |
+| 4 | **A ajuda ainda prometia a coluna por filial "sempre visível"**, que a própria F44 removeu com uma filial — **e um teste trancava a frase errada** | sobreviveu | frase e teste corrigidos. **Terceira vez** que um teste de conteúdo trava documentação recém-desatualizada |
+| 5 | **"N reservado(s) para chamado" usava o consolidado sem dizer** — o último número global mudo da linha expansível, ao lado de números já recortados | sobreviveu | ganha "em todas as filiais" **quando há recorte** |
+| 6 | O `PLAN-F44.md` afirmava que o `@media print` neutraliza a listra | **refutado** (o cético argumentou que o plano é rascunho de intenção, não documento de verdade) | corrigido mesmo assim — a afirmação era falsa, e plano com afirmação falsa envelhece mal |
+
+**O achado 1 é o mais valioso da fase**, e vale dizer por quê: os quatro comandos estavam verdes.
+`npm run contraste` media o par ANTIGO e reportava aprovação sobre uma combinação que a tela não
+usava mais. Régua que não acompanha a mudança não é régua — é carimbo. As duas lentes que voltaram
+com achado de acessibilidade e de correção pegaram exatamente o que teste estático não pega.
+
+**Uma nota honesta sobre a execução da revisão:** duas lentes relataram que a branch estava sendo
+editada **durante** a revisão (o HEAD andou de `c939c12` para `3e8e3d3` no meio). As duas
+reconferiram contra o HEAD final e disseram isso na resposta. É a mesma classe de problema do §12 —
+trabalho concorrente no mesmo diretório.
+
+---
+
+## 11. Pendências, dívidas e próximos passos
 
 | item | custo | por quê não agora |
 |---|---|---|
@@ -466,7 +494,7 @@ ordem exigia, mais o incidente:
 
 ---
 
-## 11. O incidente do `git stash`
+## 12. O incidente do `git stash`
 
 Um subagente encarregado de construir a prévia da ficha investigou avisos de lint num arquivo que
 não era dele e rodou `git stash` no **diretório de trabalho compartilhado**. As edições não
@@ -483,6 +511,6 @@ dividir diretório de trabalho**. `git worktree` para qualquer agente que possa 
 
 ---
 
-## 12. Os quatro comandos, o CI, o deploy e o smoke
+## 13. Os quatro comandos, o CI, o deploy e o smoke
 
-*(preenchido no rollout — ver §12.1 a §12.4)*
+*(preenchido no rollout)*

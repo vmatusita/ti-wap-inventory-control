@@ -43,7 +43,7 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Desde 01/09/2026 a tabela tem UMA COLUNA POR FILIAL, sempre visível numa tela larga: cada coluna leva o nome da filial no cabeçalho e mostra quanto daquele item está na PRATELEIRA dela. É a resposta a "onde tem mouse sobrando?" sem clicar em nada — e, como as colunas ficam sempre no mesmo lugar, dá para descer a vista por uma filial e comparar todos os itens dela de uma vez.',
+        'Desde 01/09/2026 a tabela tem UMA COLUNA POR FILIAL quando você está comparando DUAS OU MAIS, numa tela larga: cada coluna leva o nome da filial no cabeçalho e mostra quanto daquele item está na PRATELEIRA dela. É a resposta a "onde tem mouse sobrando?" sem clicar em nada — e, como as colunas ficam sempre no mesmo lugar, dá para descer a vista por uma filial e comparar todos os itens dela de uma vez. Filtrando UMA filial só, essas colunas não aparecem: elas repetiriam, com outro nome, o mesmo número que a coluna "Em estoque" já mostra na linha — e a legenda no alto da tabela diz que os números são daquela filial.',
     },
     {
       tipo: 'nota',

@@ -83,7 +83,12 @@ export function escopoDosNumeros(
 export function rotuloDoEscopo(escopo: EscopoDosNumeros): string {
   if (escopo.tipo === 'todas') return 'todas as filiais'
   if (escopo.tipo === 'uma') return escopo.nome
-  if (escopo.nomes.length === 0) return 'as filiais filtradas'
+  // ⚠ SEM ARTIGO, e isso é gramática, não estilo. Este rótulo é COMPOSTO por três
+  // frases que já trazem a preposição: `de ${rotulo}`, `nas ${rotulo}`,
+  // `somado de ${rotulo}`. Com "as filiais filtradas" elas viravam
+  // "Números somados de AS filiais filtradas" e "nas AS filiais filtradas" — a
+  // revisão adversarial pegou. Sem o artigo, as três saem certas.
+  if (escopo.nomes.length === 0) return 'filiais filtradas'
   return `${escopo.nomes.length} filiais`
 }
 

@@ -506,27 +506,33 @@ const PARES = [
   // Em estoque — verde, a mesma família de `STATUS_META.em_estoque`
   { item: 'F44', onde: 'número "Em estoque" na célula (claro)', texto: 'selo-em-estoque-texto', fundo: 'background', sob: ['background'], px: 16, exigir: true },
   { item: 'F44', onde: 'número "Em estoque" na célula (escuro)', texto: 'selo-em-estoque-texto', fundo: 'background', sob: ['background'], px: 16, tema: 'escuro', exigir: true },
-  { item: 'F44', onde: 'número "Em estoque" na linha listrada (claro)', texto: 'selo-em-estoque-texto', fundo: 'muted/50', sob: ['background'], px: 16, exigir: true },
-  { item: 'F44', onde: 'número "Em estoque" na linha listrada (escuro)', texto: 'selo-em-estoque-texto', fundo: 'muted/50', sob: ['background'], px: 16, tema: 'escuro', exigir: true },
-  { item: 'F44', onde: 'número "Em estoque" com o mouse na linha (claro)', texto: 'selo-em-estoque-texto', fundo: 'muted', sob: ['background'], px: 16, exigir: true },
-  { item: 'F44', onde: 'número "Em estoque" com o mouse na linha (escuro)', texto: 'selo-em-estoque-texto', fundo: 'muted', sob: ['background'], px: 16, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" na linha listrada (claro)', texto: 'selo-em-estoque-texto', fundo: 'muted/25', sob: ['background'], px: 16, exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" na linha listrada (escuro)', texto: 'selo-em-estoque-texto', fundo: 'muted/25', sob: ['background'], px: 16, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" com o mouse na linha (claro)', texto: 'selo-em-estoque-texto', fundo: 'muted/50', sob: ['background'], px: 16, exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" com o mouse na linha (escuro)', texto: 'selo-em-estoque-texto', fundo: 'muted/50', sob: ['background'], px: 16, tema: 'escuro', exigir: true },
   { item: 'F44', onde: 'número "Em estoque" no cartão (claro)', texto: 'selo-em-estoque-texto', fundo: 'card', px: 24, bold: true, exigir: true },
   { item: 'F44', onde: 'número "Em estoque" no cartão (escuro)', texto: 'selo-em-estoque-texto', fundo: 'card', px: 24, bold: true, tema: 'escuro', exigir: true },
 
   // Em uso — azul, a mesma família de `STATUS_META.em_uso`
   { item: 'F44', onde: 'número "Em uso" na célula (claro)', texto: 'selo-em-uso-texto', fundo: 'background', sob: ['background'], px: 14, exigir: true },
   { item: 'F44', onde: 'número "Em uso" na célula (escuro)', texto: 'selo-em-uso-texto', fundo: 'background', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
-  { item: 'F44', onde: 'número "Em uso" na linha listrada (claro)', texto: 'selo-em-uso-texto', fundo: 'muted/50', sob: ['background'], px: 14, exigir: true },
-  { item: 'F44', onde: 'número "Em uso" na linha listrada (escuro)', texto: 'selo-em-uso-texto', fundo: 'muted/50', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
-  { item: 'F44', onde: 'número "Em uso" com o mouse na linha (claro)', texto: 'selo-em-uso-texto', fundo: 'muted', sob: ['background'], px: 14, exigir: true },
-  { item: 'F44', onde: 'número "Em uso" com o mouse na linha (escuro)', texto: 'selo-em-uso-texto', fundo: 'muted', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em uso" na linha listrada (claro)', texto: 'selo-em-uso-texto', fundo: 'muted/25', sob: ['background'], px: 14, exigir: true },
+  { item: 'F44', onde: 'número "Em uso" na linha listrada (escuro)', texto: 'selo-em-uso-texto', fundo: 'muted/25', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em uso" com o mouse na linha (claro)', texto: 'selo-em-uso-texto', fundo: 'muted/50', sob: ['background'], px: 14, exigir: true },
+  { item: 'F44', onde: 'número "Em uso" com o mouse na linha (escuro)', texto: 'selo-em-uso-texto', fundo: 'muted/50', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
   { item: 'F44', onde: 'número "Em uso" no cartão (claro)', texto: 'selo-em-uso-texto', fundo: 'card', px: 24, bold: true, exigir: true },
   { item: 'F44', onde: 'número "Em uso" no cartão (escuro)', texto: 'selo-em-uso-texto', fundo: 'card', px: 24, bold: true, tema: 'escuro', exigir: true },
 
   // Total — o NEUTRO, e é escolha: violeta seria colisão com "Reservado", que é
   // OUTRO dos cinco números da mesma tela (ver `src/lib/itens/tinta.ts`).
-  { item: 'F44', onde: 'número "Total" na linha listrada (claro)', texto: 'muted-foreground', fundo: 'muted/50', sob: ['background'], px: 14, exigir: true },
-  { item: 'F44', onde: 'número "Total" na linha listrada (escuro)', texto: 'muted-foreground', fundo: 'muted/50', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+  // ⚠ O PAR QUE DECIDIU A ESCADA DO ZEBRADO. A classificação sob o nome do item
+  // ("Acessório · Mouse") é , e é ela que impõe o TETO: sobre
+  //  cheio ela mede 4,34:1 e REPROVA (o par 'cinza sobre o chip cinza' da F43
+  // registra isso). Por isso a listra é  e o hover voltou a ser o  do kit.
+  { item: 'F44', onde: 'classificação do item na linha listrada (claro)', texto: 'muted-foreground', fundo: 'muted/25', sob: ['background'], px: 12, exigir: true },
+  { item: 'F44', onde: 'classificação do item na linha listrada (escuro)', texto: 'muted-foreground', fundo: 'muted/25', sob: ['background'], px: 12, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Total" na linha listrada (claro)', texto: 'muted-foreground', fundo: 'muted/25', sob: ['background'], px: 14, exigir: true },
+  { item: 'F44', onde: 'número "Total" na linha listrada (escuro)', texto: 'muted-foreground', fundo: 'muted/25', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
 
   // Falta — vermelho. A CÉLULA continua sendo o selo "faltam N" (inalterado); o
   // que é novo é o número do cartão e o quadradinho da chave de cor.

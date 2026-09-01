@@ -4,6 +4,7 @@ import {
   escopoDosNumeros,
   fraseDoResumo,
   legendaDaTabela,
+  ondeDoEscopo,
   rotuloDoEscopo,
   rotuloEstoqueDoRepor,
   type LegendaDeNumero,
@@ -74,7 +75,46 @@ describe('rotuloDoEscopo e fraseDoResumo — a linha acima dos cartões', () => 
   })
 
   it('recorte sem nome conhecido degrada para o plural genérico', () => {
-    expect(rotuloDoEscopo({ tipo: 'varias', nomes: [] })).toBe('as filiais filtradas')
+    expect(rotuloDoEscopo({ tipo: 'varias', nomes: [] })).toBe('filiais filtradas')
+  })
+
+  // ⚠ O CAMINHO DEGRADADO TEM DE SAIR EM PORTUGUÊS, e este teste existe porque ele
+  // não saía: `rotuloDoEscopo` devolvia "as filiais filtradas" COM artigo, e as
+  // três frases que o compõem já trazem a preposição — o resultado era
+  // "Números somados de AS filiais filtradas" e "nas AS filiais filtradas".
+  // Testar o rótulo isolado não pega isso; só testar as frases COMPOSTAS pega.
+  it('as três frases compostas saem em português, mesmo sem nome conhecido', () => {
+    const escopo = { tipo: 'varias', nomes: [] } as const
+    const frases = [
+      fraseDoResumo(escopo),
+      `estoque ${rotuloEstoqueDoRepor(escopo)}`,
+      `o número é ${ondeDoEscopo(escopo)}`,
+    ]
+    for (const f of frases) {
+      expect(f, f).not.toMatch(/\bde as\b/)
+      expect(f, f).not.toMatch(/\bnas as\b/)
+      expect(f, f).not.toMatch(/\bem as\b/)
+    }
+    expect(fraseDoResumo(escopo)).toBe('Números somados de filiais filtradas')
+    expect(ondeDoEscopo(escopo)).toBe('nas filiais filtradas')
+    expect(rotuloEstoqueDoRepor(escopo)).toBe('estoque somado de filiais filtradas')
+  })
+
+  // A mesma varredura, agora sobre TODOS os escopos plausíveis — é a rede que pega
+  // um artigo duplicado que alguém acrescente amanhã em qualquer um dos rótulos.
+  it('nenhuma frase composta duplica artigo, em nenhum escopo', () => {
+    const escopos = [
+      { tipo: 'todas' } as const,
+      { tipo: 'uma', nome: 'Aurora' } as const,
+      { tipo: 'varias', nomes: ['Aurora', 'Dunas'] } as const,
+      { tipo: 'varias', nomes: [] } as const,
+    ]
+    for (const e of escopos) {
+      const frases = [fraseDoResumo(e), rotuloEstoqueDoRepor(e), ondeDoEscopo(e)]
+      for (const f of frases) {
+        expect(f, `${e.tipo}: ${f}`).not.toMatch(/\b(de|em|nas?|das?) as\b/)
+      }
+    }
   })
 })
 

@@ -217,15 +217,25 @@ soma dos outros dois —, e o neutro diz isso. Ele continua tendo marca própria
 - **Zebrado** calculado pelo **índice da linha em JS**, não por `even:`/`odd:` do CSS: as linhas
   saem em PARES (a linha do item e, quando aberta, a de detalhe), e `nth-child` inverteria a
   listra de todo mundo abaixo de uma linha aberta.
-- **A linha de detalhe não é listrada como se fosse outro item**: ela sobe de `bg-muted/30` para
-  `bg-muted/60`, um degrau acima da listra (30) e do hover (50), para ler como "dentro deste
-  item" e não como "próximo item".
-- **hover** (`bg-muted/50`, do kit) e **`has-aria-expanded`** continuam vencendo a listra.
+- **O TETO DA LISTRA É DE CONTRASTE, não de gosto** *(corrigido depois da revisão adversarial)*. A
+  classificação sob o nome do item é `text-muted-foreground`, e esse cinza mede 4,73:1 sobre o fundo
+  da página, 4,53:1 sobre `bg-muted/50` e **4,34:1 — REPROVA AA** sobre `bg-muted` cheio. A escada
+  final cabe dentro do que passa: listra `bg-muted/25` (4,63:1) e hover `bg-muted/50` (4,53:1), que
+  é o hover do próprio kit — **nada a sobrescrever**. O preço é uma listra mais sutil no tema claro;
+  no escuro ela é folgada.
+- **A linha de detalhe não é listrada como se fosse outro item**: ela usa `bg-muted`, mais escuro
+  que os três, e isso é seguro porque o conteúdo dela NÃO é `muted-foreground` sobre `muted`.
+- **`has-aria-expanded`** (`bg-muted/50`, do kit) continua vencendo a listra.
 - **Separador vertical mais forte**: um `border-l` entre a identidade e o bloco dos quatro
   números, irmão do que já existe antes da matriz. A tabela passa a ler
   `[quem é] | [os quatro números] | [em cada filial] | [ações]`.
-- **`print:`** — a listra usa `bg-muted`, que o `@media print` do `globals.css` já neutraliza; a
-  conferência é por foto.
+- **`print:`** — a listra é `background-color`, e navegador não imprime fundo por padrão
+  (`print-color-adjust: economy`); o `@media print` de `globals.css` **não** liga `exact` para estas
+  linhas. No papel a listra some e a tabela volta a se dividir pelas bordas, que é o resultado
+  desejado. A `<caption>` **imprime**, por ser texto — o papel passa a carregar a frase de escopo.
+  *(Esta linha foi CORRIGIDA depois da revisão adversarial: a redação original afirmava que o
+  `@media print` "já neutraliza" a listra, e ele não tem regra nenhuma sobre isso. O resultado é o
+  mesmo, mas pelo motivo certo.)*
 
 ---
 

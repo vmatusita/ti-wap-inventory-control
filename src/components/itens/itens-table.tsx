@@ -162,25 +162,41 @@ const COL: Record<string, string> = {
 // listra de tudo que vem abaixo dela — a lista mudaria de padrão ao abrir um item.
 // Com o índice da linha de DADOS, a listra é estável.
 //
-// ⚠ A ESCADA DE TRÊS DEGRAUS, e ela é MONOTÔNICA de propósito. No tema claro a
-// paleta dá pouquíssima folga — `--background` é `oklch(1)` e `--muted` é
-// `oklch(0.97)`, três por cento de amplitude para tudo. Então os três estados se
-// distribuem nela em ordem, do mais claro ao mais escuro:
+// ⚠ A ESCADA DE TRÊS DEGRAUS, e o TETO DELA É DE ACESSIBILIDADE, não de gosto.
 //
-//     linha comum   →  o fundo da página        (1.000)
-//     linha listrada →  `bg-muted/50`           (0.985)
-//     com o mouse    →  `bg-muted`              (0.970)
+// No tema claro a paleta dá pouquíssima folga: `--background` é `oklch(1)` e
+// `--muted` é `oklch(0.97)` — três por cento de amplitude para tudo. E o teto não
+// é o fim da escala: é o CONTRASTE. A linha do item carrega a classificação
+// ("Acessório · Mouse") em `text-muted-foreground`, e esse cinza mede:
 //
-// ⚠ O HOVER PRECISA SER SOBRESCRITO, e é por isso que `hover:bg-muted` aparece na
-// linha. O `TableRow` do kit traz `hover:bg-muted/50` — o MESMO valor da listra.
-// Sem trocar, passar o mouse numa linha listrada não mudaria nada, e passar numa
-// linha branca a deixaria igual à listrada: o hover viraria ruído em vez de sinal.
+//     sobre o fundo da página (1.000)   →  4,73:1   ✅
+//     sobre `bg-muted/50`     (0.985)   →  4,53:1   ✅ (0,03 acima do piso)
+//     sobre `bg-muted`        (0.970)   →  4,34:1   ❌ REPROVA AA
+//
+// A primeira escrita desta fase usava listra `bg-muted/50` e sobrescrevia o hover
+// para `bg-muted`, para o hover se distinguir da listra. A revisão adversarial
+// pegou: isso derrubaria o cinza da classificação abaixo de AA em TODA linha sob o
+// mouse — e é exatamente o par que a F43 já tinha medido e recusado
+// ("cinza sobre o chip cinza", 4,34:1, em `scripts/contraste.mjs`).
+//
+// A escada foi então DESLOCADA para caber dentro do que passa:
+//
+//     linha comum    →  o fundo da página   (1.000)   4,73:1
+//     linha listrada →  `bg-muted/25`       (0.9925)  4,63:1
+//     com o mouse    →  `bg-muted/50`       (0.985)   4,53:1   ← o hover do KIT
+//
+// Ela continua monotônica (o hover é sempre o mais escuro), e o hover volta a ser
+// o do `TableRow` — nada a sobrescrever. O preço é uma listra mais sutil no tema
+// CLARO: 0,75% de diferença em vez de 1,5%. No ESCURO ela é folgada (o card é
+// `oklch(0.205)` e o muted é `oklch(0.269)`). Cor que não pode ficar mais forte
+// sem derrubar o texto não fica mais forte — quem carrega a leitura horizontal é
+// o separador do bloco de números e a tinta de cada coluna.
 //
 // ⚠ E A LINHA DE DETALHE NÃO PODE SER LISTRADA COMO SE FOSSE OUTRO ITEM: ela usa
-// `bg-muted`, o degrau mais escuro, e não tem borda de linha nem hover — lê como
-// "dentro deste item", e não como o próximo da lista.
-const LISTRA = 'bg-muted/50'
-const HOVER = 'hover:bg-muted'
+// `bg-muted`, mais escuro que os três, e isso é seguro porque o conteúdo dela NÃO
+// é `muted-foreground` sobre `muted` — os rótulos de filial são `font-medium` na
+// cor do texto normal. Ela também não tem hover.
+const LISTRA = 'bg-muted/25'
 
 function Numero({ valor, className }: { valor: number; className?: string }) {
   return (
@@ -409,7 +425,7 @@ export function ItensTable({
             const celulasDaMatriz = distribuicaoDoItem(linha, matriz, rotulos)
             const listrada = indice % 2 === 1
             return [
-              <TableRow key={linha.item_id} className={cn(HOVER, listrada && LISTRA)}>
+              <TableRow key={linha.item_id} className={cn(listrada && LISTRA)}>
                 <TableCell className={COL.expandir}>
                   <BotaoExpandir
                     aberta={aberta}
@@ -564,6 +580,7 @@ export function ItensTable({
                       linha={linha}
                       celulas={celulas}
                       filiaisTransferencia={filiaisTransferencia}
+                      temRecorte={escopo.tipo !== 'todas'}
                     />
                   </TableCell>
                 </TableRow>
@@ -592,11 +609,14 @@ function FiliaisDoItem({
   linha,
   celulas,
   filiaisTransferencia,
+  temRecorte,
 }: {
   linha: LinhaDeItem
   /** As MESMAS células que a matriz da linha usa — uma conta só (F43). */
   celulas: readonly CelulaDeFilial[]
   filiaisTransferencia: readonly number[]
+  /** Há filtro de filial? Decide se o aviso de reservado nomeia o escopo (F44). */
+  temRecorte: boolean
 }) {
   return (
     <div className="flex flex-col gap-2 px-4 py-3">
@@ -680,10 +700,20 @@ function FiliaisDoItem({
           desta lista.
         </p>
       )}
+      {/* ⚠ F44 — ESTE AVISO USA O CONSOLIDADO, e agora DIZ isso.
+          Ele é o último número global que sobrou nesta linha: a `dl` acima já
+          mostra o reservado DE CADA FILIAL do recorte, e este parágrafo soma
+          TODAS — inclusive as que o filtro deixou de fora. Até a v1.48.0 ele
+          escrevia o número seco, e isso passava despercebido porque o resto da
+          tela também era global. Com a tela recortada e nomeada, um número global
+          mudo ao lado de números da filial vira a MESMA classe de defeito que esta
+          fase existe para consertar — a revisão adversarial pegou. A frase de
+          escopo entra só quando há recorte; sem recorte ela seria repetição. */}
       {linha.consolidado.atrelados > 0 && (
         <p className="text-xs text-muted-foreground">
-          {linha.consolidado.atrelados.toLocaleString('pt-BR')} reservado(s) para chamado —
-          nenhuma tela cria reserva nova desde 31/08/2026; o número existe para o histórico.
+          {linha.consolidado.atrelados.toLocaleString('pt-BR')} reservado(s) para chamado
+          {temRecorte ? ' em todas as filiais' : ''} — nenhuma tela cria reserva nova desde
+          31/08/2026; o número existe para o histórico.
         </p>
       )}
     </div>

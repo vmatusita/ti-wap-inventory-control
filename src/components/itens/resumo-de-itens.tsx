@@ -131,6 +131,22 @@ function RotuloComTinta({ chave, texto }: { chave: string; texto: string }) {
   )
 }
 
+/**
+ * O NÚMERO GRANDE do cartão, na tinta do número (F44).
+ *
+ * ⚠ A primeira escrita pintava só o quadradinho do rótulo, e a revisão adversarial
+ * pegou: o critério 6 da ordem diz "uma cor por número, nos TRÊS lugares — o
+ * cartão, o cabeçalho e a célula", e detalha "cartão: o número grande na tinta".
+ * Com só o quadradinho, o cartão tinha a chave de cor mas não a COR — e a mesma
+ * tinta que salta na célula sumia justo no número maior da tela.
+ *
+ * O par já estava medido: 24px semibold é "texto grande" pela WCAG (limiar 3:1), e
+ * as quatro tintas sobre `card` medem de 4,73:1 a 12,81:1.
+ */
+function ValorComTinta({ chave, valor }: { chave: string; valor: string }) {
+  return <span className={tintaDoNumero(chave).texto}>{valor}</span>
+}
+
 export function ResumoDeItens({
   resumo,
   resumoDaPagina,
@@ -170,24 +186,24 @@ export function ResumoDeItens({
       <GradeDeMetricas className="sm:grid-cols-3 lg:grid-cols-5">
         <CartaoDeMetrica
           rotulo={<RotuloComTinta chave="estoque" texto={estoque.rotulo} />}
-          valor={resumo.estoque.toLocaleString('pt-BR')}
+          valor={<ValorComTinta chave="estoque" valor={resumo.estoque.toLocaleString('pt-BR')} />}
           apoio={estoque.curto}
         />
         <CartaoDeMetrica
           rotulo={<RotuloComTinta chave="emUso" texto={emUso.rotulo} />}
-          valor={resumo.emUso.toLocaleString('pt-BR')}
+          valor={<ValorComTinta chave="emUso" valor={resumo.emUso.toLocaleString('pt-BR')} />}
           apoio={emUso.curto}
         />
         <CartaoDeMetrica
           rotulo={<RotuloComTinta chave="total" texto={total.rotulo} />}
-          valor={resumo.total.toLocaleString('pt-BR')}
+          valor={<ValorComTinta chave="total" valor={resumo.total.toLocaleString('pt-BR')} />}
           apoio={total.curto}
         />
         {extras.map((a) => (
           <CartaoDeMetrica
             key={a.chave}
             rotulo={<RotuloComTinta chave={a.chave} texto={a.rotulo} />}
-            valor={a.valor}
+            valor={<ValorComTinta chave={a.chave} valor={a.valor} />}
             apoio={a.apoio}
           />
         ))}
