@@ -452,6 +452,39 @@ const PARES = [
   { item: 'F40', onde: 'Aviso atenção (escuro)', texto: 'warning', fundo: 'warning/10', px: 14, tema: 'escuro', exigir: true },
   { item: 'F40', onde: 'Aviso informação (claro)', texto: 'muted-foreground', fundo: 'muted/50', px: 12, exigir: true },
   { item: 'F40', onde: 'Aviso informação (escuro)', texto: 'muted-foreground', fundo: 'muted/50', px: 12, tema: 'escuro', exigir: true },
+
+  // ---- F43 · a tela de itens legível ao bater o olho ----------------------
+  // A fase não inventou token nenhum: ela combinou tokens que já existiam em
+  // superfícies novas (o cartão de métrica, a classificação sob o nome do item, o
+  // botão "Ver as N filiais"). Combinação nova é par novo, e par novo se mede.
+  //
+  // ⚠ O PAR QUE A MEDIÇÃO MATOU, e por isso ele está registrado aqui: a primeira
+  // escrita da faixa de filiais (a candidata recusada) punha `muted-foreground`
+  // dentro de um chip `bg-muted`. São 4,34:1 no tema claro — REPROVA por 0,16, e
+  // sem esta linha ninguém saberia. Cinza sobre cinza é a armadilha óbvia de
+  // qualquer chip; fica escrito para ninguém "melhorar" a tela pondo-o de volta.
+  { item: 'F43', onde: 'cinza sobre o chip cinza (RECUSADO na medição)', texto: 'muted-foreground', fundo: 'muted', px: 12, antes: true },
+
+  // O número grande do cartão de métrica (`text-2xl` = 24px → piso de 3:1).
+  { item: 'F43', onde: 'número do cartão de métrica (claro)', texto: 'foreground', fundo: 'card', px: 24, exigir: true },
+  { item: 'F43', onde: 'número do cartão de métrica (escuro)', texto: 'foreground', fundo: 'card', px: 24, tema: 'escuro', exigir: true },
+  // O rótulo e a explicação curta do cartão, a 12px.
+  { item: 'F43', onde: 'rótulo e apoio do cartão de métrica (claro)', texto: 'muted-foreground', fundo: 'card', px: 12, exigir: true },
+  { item: 'F43', onde: 'rótulo e apoio do cartão de métrica (escuro)', texto: 'muted-foreground', fundo: 'card', px: 12, tema: 'escuro', exigir: true },
+  // "Acessório · Mouse" sob o nome do item, e a explicação curta sob o rótulo de
+  // cada coluna de número — as duas a 12px sobre o fundo da página (o quadro da
+  // tabela é `bg-transparent`).
+  { item: 'F43', onde: 'classificação sob o nome do item (claro)', texto: 'muted-foreground', fundo: 'background', sob: ['background'], px: 12, exigir: true },
+  { item: 'F43', onde: 'classificação sob o nome do item (escuro)', texto: 'muted-foreground', fundo: 'background', sob: ['background'], px: 12, tema: 'escuro', exigir: true },
+  // A MESMA linha com o mouse em cima: a linha da tabela acende `bg-muted/50`.
+  // Passa por 0,03 no tema claro — é o par mais apertado da tela, e é por isso
+  // que ele está aqui: mexer no token `muted` ou no `muted-foreground` derruba
+  // o `npm run contraste` em vez de degradar a tela em silêncio.
+  { item: 'F43', onde: 'classificação com o mouse na linha (claro)', texto: 'muted-foreground', fundo: 'muted/50', sob: ['background'], px: 12, exigir: true },
+  { item: 'F43', onde: 'classificação com o mouse na linha (escuro)', texto: 'muted-foreground', fundo: 'muted/50', sob: ['background'], px: 12, tema: 'escuro', exigir: true },
+  // "Ver as N filiais" — o botão do celular, com o fundo do `hover`.
+  { item: 'F43', onde: '"Ver as N filiais" com o mouse em cima (claro)', texto: 'foreground', fundo: 'muted', px: 12, exigir: true },
+  { item: 'F43', onde: '"Ver as N filiais" com o mouse em cima (escuro)', texto: 'foreground', fundo: 'muted', px: 12, tema: 'escuro', exigir: true },
 ]
 
 // ---------------------------------------------------------------------------

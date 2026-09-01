@@ -6,6 +6,68 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 01/09/2026 — F43 · `/itens` entendida ao bater o olho ✅ 🔒
+
+Fase (**v1.48.0**). A F42 consertou a **estrutura** de `/itens`; esta conserta a **leitura**. O
+critério é do Johnny, dito em 01/09/2026 olhando a tela entregue no dia anterior — *"ainda está mto
+confusa e a visualização não está boa, não consigo entender de cara o que é cada coisa, tem que ser
+algo que entenda logo ao bater o olho"* — e, perguntado sobre o que a tela tem de responder em cinco
+segundos, ele escolheu **uma** coisa: **onde está o item, quanto tem em cada filial.**
+**Sem migration, sem dependência nova, sem mudar uma regra, uma permissão ou um rótulo.**
+
+- 🏢 **A filial saiu de trás do chevron e virou coluna.** Uma coluna por filial, permanente, com o
+  saldo **em estoque** de cada uma — o nome da filial escrito UMA vez, no cabeçalho, e não 25 vezes
+  na coluna. Isso **revisa parcialmente** a escolha da F42 de mandar a comparação para a linha
+  expansível, e revisa só o esconderijo: a linha expansível continua, com os quatro números de cada
+  filial e o atalho de transferir. O `?visao=` **não volta** — aquilo era um filtro que trocava as
+  colunas em vez de recortar as linhas, e isto é apresentação permanente, sem alternador, sem param
+  de URL e sem preferência.
+- 📱 **No celular a tela voltou a ter números — e não era breakpoint, era um defeito medido.** A
+  tabela pedia **740px dentro de uma caixa de 356px**: as colunas *Em estoque* e *Em uso* existiam
+  no HTML e ficavam **fora da área visível**, atrás de uma rolagem horizontal que ninguém descobre.
+  O operador via o nome do item e mais nada. A causa era o `whitespace-nowrap` que o kit põe em toda
+  célula, somado a um nome comprido; o conserto é uma classe na célula do nome. Para os números de
+  cada filial, o botão **"Ver as 5 filiais"** — com a palavra escrita, porque um chevron mudo à
+  esquerda e um `⋯` mudo à direita não dizem qual faz o quê.
+- 🔤 **O cabeçalho passou a dizer o que o número significa.** *Em estoque · na prateleira agora*,
+  *Em uso · com as pessoas*. Até a v1.47.2 isso morava **só** dentro da dica do cabeçalho — que pede
+  um gesto, espera um tempo e no celular quase não existe. A dica continua, com a explicação inteira
+  e a fórmula da coluna Falta; o que mudou é que ela deixou de ser o único caminho. **Fonte única
+  preservada:** rótulo, explicação curta e explicação inteira saem do mesmo registro que a página de
+  ajuda lê.
+- 📊 **A tela ganhou resumo** — *Em estoque · Em uso · Total*, mais *A repor* e *Falta* quando há
+  algo a repor ou algum déficit. São os **primeiros consumidores** do `CartaoDeMetrica`, que nasceu
+  na F40 e nunca tinha sido renderizado por ninguém. Os cartões contam a lista FILTRADA, todas as
+  páginas, e **dizem quantos estão na página que está na tela** — sem isso o operador lê "11", conta
+  5 selos e desconfia do número.
+- 🏷️ **Grupo e Tipo saíram de duas colunas e viraram uma linha sob o nome.** Eram `hidden` abaixo de
+  768px e 1024px — **no celular a classificação simplesmente não existia** —, e no desktop a coluna
+  Grupo repetia "Acessórios e periféricos" 24 vezes seguidas, 140px gastos com a informação de menor
+  variação da tela. Agora aparecem em toda largura, e a tabela recuperou a largura que a matriz de
+  filiais precisava. O selo **"repor"** ganhou um ícone de alerta, para não passar despercebido no
+  meio de 25 linhas de celular.
+- 📷 **A prova é uma imagem, e ela existe pela primeira vez.** `scripts/design/capturar.mjs` se
+  recusa a fotografar produção (regra 2 do `CLAUDE.md`) e não há ambiente de ensaio — foi por isso
+  que a F42 não fotografou nada. A saída foi renderizar o **componente real** com dados **100%
+  fictícios** e o CSS do próprio app, e fotografar isso: `scripts/design/previa-itens.tsx`. Zero
+  dependência nova, zero banco.
+- 📏 **E o desenho se escolheu por medição, não por gosto.** Três candidatas fotografadas e
+  submetidas ao mesmo teste; a que perdeu no celular perdeu com número (a página passou de 3.449px
+  para 7.751px de altura). **Antes:** "em quais filiais este item está?" dava **NÃO SEI nas quatro**
+  passadas em 1440px, e "quanto está na prateleira?" dava **NÃO SEI nas quatro** em 390px.
+  **Depois:** as três perguntas com certeza nas quatro passadas, nas duas larguras e nos dois temas.
+- ✅ **A ajuda foi corrigida — inclusive em três frases que já estavam falsas desde a F42**: "o
+  histórico logo abaixo da tabela de saldos", "na visão Por filial o selo repor fica embaixo da
+  coluna Total" e "o selo repor aparece nas duas visões". O quarto estado vazio, que a F42 criou e a
+  ajuda nunca citou, entrou junto.
+
+**Zero migrations** (`git diff v1.47.2..HEAD -- supabase/` vazio). Atas em
+[`docs/DECISOES.md`](docs/DECISOES.md); plano em [`docs/PLAN-F43.md`](docs/PLAN-F43.md); relatório,
+com as imagens e as respostas literais do teste, em
+[`docs/RELATORIO-F43.md`](docs/RELATORIO-F43.md).
+
+---
+
 ## 31/08/2026 — Correção pós-deploy: o desvio do link antigo foi para o proxy ✅ 🔒
 
 Entrega avulsa fora de fase (**v1.47.2**). **A correção que de fato resolveu** o defeito da F42 que a

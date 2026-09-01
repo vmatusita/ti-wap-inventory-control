@@ -34,6 +34,10 @@ import { ExportarCsvButton } from '@/components/layout/exportar-csv-button'
 import { exportarItensSaldosCSV } from '@/lib/actions/exportar'
 import { ItensFiltros } from '@/components/itens/itens-filtros'
 import { ItensTable } from '@/components/itens/itens-table'
+// F43 — o resumo do que está FILTRADO, e os primeiros consumidores de
+// `CartaoDeMetrica`/`GradeDeMetricas` (que nasceram na F40 sem ninguém).
+import { ResumoDeItens } from '@/components/itens/resumo-de-itens'
+import { resumoDaLista } from '@/lib/itens/distribuicao'
 import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
 import { TransferirItemDialog } from '@/components/itens/transferir-item-dialog'
 import { minimosDoCatalogo } from '@/lib/itens/repor'
@@ -314,6 +318,15 @@ export default async function ItensPage({
         )
       ) : (
         <>
+          {/* F43 — os quatro números da lista FILTRADA, com a explicação curta
+              embaixo de cada um. Soma `filtradas` (todas as linhas do recorte),
+              não `pagina.rows`: um resumo que mudasse ao virar a página seria
+              outra coisa, e nenhuma delas útil. */}
+          <ResumoDeItens
+            resumo={resumoDaLista(filtradas, minimos)}
+            resumoDaPagina={resumoDaLista(pagina.rows, minimos)}
+            cabecalhos={NUMEROS_ITEM}
+          />
           <ItensTable
             rows={pagina.rows}
             filiais={filiaisVisiveis}

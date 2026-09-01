@@ -17,19 +17,33 @@ import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 // que é onde quem encontrar um lançamento antigo vai procurar o que ele significa.
 export type ChaveNumeroItem = 'total' | 'estoque' | 'emUso' | 'atrelados' | 'falta'
 
+// F43 — entrou o campo `curto`, e ele conserta um defeito de LEITURA, não é
+// enfeite: até a v1.47.2 o significado de cada número morava só na `Dica` do
+// cabeçalho, e dica é por definição o contrário de "entender ao bater o olho"
+// (no celular ela quase não existe). Agora o cabeçalho da coluna e o cartão de
+// métrica exibem esta linha de três ou quatro palavras SEMPRE, e a `Dica`
+// continua existindo para o detalhe.
+//
+// ⚠ `curto` NÃO é rótulo alternativo. Os rótulos são intocáveis (decisão do
+// Johnny, 01/09/2026: redesenho visual sim, revisão de vocabulário não) — isto é
+// a explicação comprimida, e tem de dizer a MESMA coisa que `explicacao`.
 export const NUMEROS_ITEM: readonly {
   chave: ChaveNumeroItem
   rotulo: string
+  /** A explicação em três ou quatro palavras, para caber sob o rótulo. */
+  curto: string
   explicacao: string
 }[] = [
   {
     chave: 'total',
     rotulo: 'Total',
+    curto: 'tudo que a TI possui',
     explicacao: 'Tudo que a TI possui daquele item (o patrimônio do almoxarifado).',
   },
   {
     chave: 'estoque',
     rotulo: 'Em estoque',
+    curto: 'na prateleira agora',
     explicacao: 'O que está fisicamente disponível na prateleira agora.',
   },
   {
@@ -38,6 +52,7 @@ export const NUMEROS_ITEM: readonly {
     // item com Σ saída − Σ devolução.
     chave: 'emUso',
     rotulo: 'Em uso',
+    curto: 'com as pessoas',
     explicacao:
       'Quantas unidades estão com as pessoas agora — tudo que saiu menos tudo que voltou.',
   },
@@ -47,12 +62,14 @@ export const NUMEROS_ITEM: readonly {
     // "Reservado" é a palavra que o ativo já usa para a mesma ideia.
     chave: 'atrelados',
     rotulo: 'Reservado',
+    curto: 'separado para um chamado',
     explicacao:
       'Unidades separadas para um chamado, que devem voltar. Desde 31/08/2026 nenhuma tela cria reserva nova — este número existe para o histórico e tende a ficar em zero.',
   },
   {
     chave: 'falta',
     rotulo: 'Falta',
+    curto: 'déficit já assumido',
     explicacao:
       'Déficit real: acende quando o que está reservado somado ao que está com as pessoas passa do Total — máx(0, reservado + em uso − total). Na operação normal fica sempre em zero; se acender, algum lançamento não fecha e vale conferir o histórico. É compromisso JÁ assumido, e aparece como selo vermelho "faltam N" — não é o mesmo que o aviso "repor".',
   },
@@ -94,7 +111,7 @@ export const itensPorQuantidade: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'O grupo é só organização: define em que bloco o item aparece na tabela de saldos, o filtro "Grupo" da página Itens e em qual das duas seções do relatório ele é contado. Quem cria o item escolhe o grupo em Administração › Itens, e ele pode ser trocado depois sem afetar nenhum lançamento já feito.',
+        'O grupo é só organização: aparece sob o nome do item na página Itens, alimenta o filtro "Grupo" da mesma página e diz em qual das duas seções do relatório ele é contado. Quem cria o item escolhe o grupo em Administração › Itens, e ele pode ser trocado depois sem afetar nenhum lançamento já feito.',
     },
     { tipo: 'titulo', id: 'itens-numeros', texto: 'Os números de cada item' },
     {

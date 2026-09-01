@@ -370,14 +370,23 @@ describe('navegação e estrutura documentadas (OS-F11 · Onda 3)', () => {
     // existe: "Por filial põe uma coluna de estoque para CADA filial" e "o filtro
     // de filial some da barra" — o filtro agora está sempre lá.
     //
-    // O que continua sendo obrigatório, e é o que estas asserções cobrem: a tela
-    // explica o déficit ("faltam N") e explica quando a soma NÃO fecha com o Total.
-    // A frase dessa explicação mudou junto com o mecanismo, porque agora a lista
-    // pode estar recortada por filtro além de ter filial desativada.
+    // F43 — E MUDOU DE NOVO, para o outro lado. A coluna por filial VOLTOU, agora
+    // como apresentação permanente (nunca como modo: o `?visao=` continua morto).
+    // A linha expansível não sumiu — ela é o DETALHE, com os quatro números de
+    // cada filial, e no celular é ela que responde a pergunta. A ajuda tem de
+    // descrever as DUAS superfícies, e a asserção nova cobre a que nasceu.
+    //
+    // O que continua sendo obrigatório: a tela explica o déficit ("faltam N") e
+    // explica quando a soma NÃO fecha — agora em dois lugares, com duas frases,
+    // porque a conta pode não fechar na LINHA (colunas de filial) e na linha
+    // ABERTA (os quatro números).
     const texto = textoDaSecao(secao('itens'))
+    expect(texto).toContain(normalizarBusca('UMA COLUNA POR FILIAL, sempre visível numa tela larga'))
+    expect(texto).toContain(normalizarBusca('Ver as N filiais'))
     expect(texto).toContain(normalizarBusca('a linha se abre e mostra o mesmo item filial por filial'))
     expect(texto).toContain(normalizarBusca('faltam N'))
     expect(texto).toContain(normalizarBusca('o filtro de filial está sempre lá'))
+    expect(texto).toContain(normalizarBusca('N deles em filial fora desta lista'))
     expect(texto).toContain(normalizarBusca('inclui N em estoque de filial fora desta lista'))
   })
 

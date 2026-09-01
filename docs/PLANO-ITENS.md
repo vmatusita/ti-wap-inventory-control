@@ -435,6 +435,86 @@ produção, 10 = 10 em ensaio, zero divergências), `git diff v1.46.0..HEAD -- s
 
 ---
 
+## 6b. F43 — a segunda passada na D3: da ESTRUTURA para a LEITURA ✅ ENTREGUE (v1.48.0, 01/09/2026)
+
+**Por que existe.** A F42 fechou a D3 no eixo da forma — *"a view de itens foge totalmente do padrão do
+sistema"* — e a dor voltou no dia seguinte, em outro eixo. O Johnny, olhando a tela entregue, em
+01/09/2026:
+
+> "ainda está mto confusa e a visualização não está boa, não consigo entender de cara o que é cada
+> coisa, tem que ser algo que entenda logo ao bater o olho"
+
+Perguntado sobre **o que a tela tem de responder em 5 segundos**, sem tooltip e sem contar coluna, ele
+escolheu UMA coisa: **onde está o item — quanto tem em cada filial.** Que era, exatamente, a informação
+que a F42 tinha posto atrás do chevron.
+
+**Objetivo declarado:** a tela responde essa pergunta ao bater o olho, e isso se PROVA com imagem.
+**Sem migration, sem dependência nova, sem mudar regra, permissão, rota ou rótulo.**
+
+### As três decisões do Johnny (01/09/2026)
+
+| # | Pergunta | Decisão |
+|---|---|---|
+| **J5** | Até onde vai a liberdade? | **Redesenho visual completo** — cartões, agrupamento, hierarquia de números, cor, ícone. Rotas, filtros, permissões e regras ficam como estão |
+| **J6** | O vocabulário se revisa? | **Não.** Ele recusou explicitamente. *Total · Em estoque · Em uso · Falta · Reservado* mantêm esses nomes, e `NUMEROS_ITEM` segue a fonte única |
+| **J7** | Como se prova? | **Prévia estática com dados fictícios + foto + o teste dos 5 segundos.** Sem `.env.ensaio` e com produção cheia de dado real, é o único caminho que não viola a regra 2 |
+
+### Frente A — a filial vira coluna (revisão parcial da F42)
+
+- **Uma coluna por filial**, permanente a partir de `xl`, com o saldo **em estoque** de cada uma e o nome
+  da filial escrito UMA vez, no cabeçalho. Não custou leitura nova: `getSaldosPorFilial` já devolvia
+  `porFilial` e `consolidado` numa chamada só.
+- **A linha expansível continua**, com os quatro números de cada filial e o atalho de transferir — e passou
+  a consumir a MESMA função (`distribuicaoDoItem`) que alimenta a coluna, para não haver duas contas.
+- **O `?visao=` não volta.** Aquilo era um FILTRO que trocava as colunas; isto é apresentação permanente —
+  sem alternador, sem param, sem preferência.
+
+### Frente B — o celular volta a ter números
+
+- **O defeito, medido:** a tabela pedia **740px numa caixa de 356px**. *Em estoque* e *Em uso* existiam no
+  HTML e ficavam FORA da área visível. Causa: o `whitespace-nowrap` que o kit põe em toda célula, somado a
+  um nome de item comprido. Conserto: uma classe na célula do nome.
+- Abaixo de `xl`, o chevron mudo dá lugar ao botão **"Ver as N filiais"** — com a palavra escrita, porque
+  um chevron à esquerda e um `⋯` à direita não dizem qual faz o quê (medido).
+
+### Frente C — o número deixa de ser um enigma
+
+- `NUMEROS_ITEM` ganhou o campo **`curto`**, e a explicação passou a ser VISÍVEL sob cada rótulo —
+  *na prateleira agora*, *com as pessoas*. A `Dica` continua, para o detalhe.
+- **Resumo em cartões** (`CartaoDeMetrica`, que a F40 criou e ninguém usava): *Em estoque · Em uso · Total*,
+  mais *A repor* e *Falta* quando existem. Contam a lista FILTRADA e dizem **quantos estão na página**.
+- **Grupo e Tipo** saíram de duas colunas e viraram uma linha sob o nome — aparecem em TODA largura, onde
+  antes sumiam abaixo de 768px e 1024px. O selo **"repor"** ganhou ícone.
+
+### Checklist de aceite da F43 — **autoverificado em 01/09/2026** ✅
+
+Evidências, número a número, em [`RELATORIO-F43.md`](RELATORIO-F43.md); imagens e respostas literais em
+[`f43-evidencias/`](f43-evidencias/).
+
+1. [x] **O teste dos 5 segundos passa** nas duas larguras e nos dois temas, em duas rodadas
+       independentes: **12 de 12 respostas com certeza**, nas três perguntas.
+2. [x] **A linha de base foi medida antes.** Em 1440px, "em quais filiais este item está?" deu
+       **NÃO SEI nas quatro** passadas; em 390px, "quanto está na prateleira?" deu **NÃO SEI nas quatro**.
+3. [x] A distribuição por filial é legível **sem abrir a linha e sem tooltip** em 1440px.
+4. [x] **Nenhum recurso da F42 sumiu** — tabela recurso-a-recurso no relatório, incluindo as colunas do
+       CSV, que não mudaram de nome, ordem nem conteúdo.
+5. [x] `lint` + `test` + `contraste` + `build` verdes; `consistencia.test.ts` verde **sem exceção nova**
+       (`PENDENTES` não cresceu).
+6. [x] Todo par de cor novo mede AA nos dois temas, com `exigir: true` — e o par que REPROVOU
+       (`muted-foreground` sobre `muted`, 4,34:1) ficou registrado como `antes`.
+7. [x] `loading.tsx` espelha o layout novo, com a faixa de cartões, e declara a mesma largura.
+8. [x] Nada essencial só por cor; alvo de toque ≥ 40px; `aria-label`/`aria-expanded` nos controles novos.
+9. [x] Versão **1.48.0** (é fase → MINOR), entrada no topo do registry com `fase: 'F43'`, entrada no
+       `CHANGELOG.md` na mesma data e tag anotada `v1.48.0`.
+10. [x] Merge na `main`, CI verde, deploy no ar e smoke reexecutado.
+
+**Não atendido, declarado:** a coluna por filial mostra **em estoque**, e não o total daquela filial —
+quem está *com as pessoas* de cada filial continua só na linha aberta. Foi apontado pelo julgamento em
+contexto fresco e é escolha, não esquecimento: a candidata que mostrava os dois números por célula criou
+ambiguidade pior e foi recusada por medição.
+
+---
+
 ## 7. O que **não** entra (não-objetivos declarados)
 
 - **Item com patrimônio.** Acessório continua sendo quantidade pura — spec §2. Nada aqui abre essa porta.

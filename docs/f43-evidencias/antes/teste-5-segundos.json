@@ -1,0 +1,159 @@
+{
+ "pasta": "docs/f43-evidencias/antes",
+ "variante": "atual",
+ "item": "Cabo de rede Cat6 3 m",
+ "respostas": [
+  {
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "a": {
+    "resposta": "Os itens com o selo laranja \"repor\" ao lado do nome: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\".",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "NÃO SEI — a linha do item na tabela mostra só números consolidados (Total 76 / Em estoque 36 / Em uso 40), sem quebra por filial. Existe um filtro \"Filial\" no topo da tela, mas ele está vazio/sem seleção, então não dá para saber quanto tem em cada filial só olhando esta imagem.",
+    "confianca": "nao-sei"
+   },
+   "c": {
+    "resposta": "Em estoque (na prateleira): 36. Em uso (com as pessoas): 40.",
+    "confianca": "certeza"
+   },
+   "d": "Sim: a linha \"Webcam Full HD\" traz \"faltam 2\" em vermelho na coluna Falta, mas o item já tem 15 em estoque e 15 em uso — não dá para saber se esses \"2\" são falta real para repor, pendência de devolução, ou outra coisa. Nenhuma outra linha usa esse selo vermelho (as demais mostram \"—\" nessa coluna, e o alerta de reposição de outros itens aparece como um selo laranja \"repor\" separado, ao lado do nome).",
+   "segundosEstimados": 5
+  },
+  {
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "a": {
+    "resposta": "Os itens marcados com o rótulo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". A Webcam Full HD também chama atenção, com a etiqueta vermelha \"faltam 2\" na coluna Falta.",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "NÃO SEI — a tabela não mostra divisão por filial nesta tela (há um filtro \"Filial\" no topo, mas está sem seleção, e a linha do item mostra só um total agregado). Pra ver por filial precisaria expandir a linha (seta ao lado do nome) ou aplicar o filtro, e isso eu não fiz.",
+    "confianca": "nao-sei"
+   },
+   "c": {
+    "resposta": "Na linha \"Cabo de rede Cat6 3 m\": Em estoque (prateleira) = 36; Em uso (com pessoas) = 40. Total = 76.",
+    "confianca": "certeza"
+   },
+   "d": "{\"resposta\": \"A coluna \\\"Falta\\\" me deixa em dúvida: para quase toda linha ela mostra só um traço \\\"—\\\", inclusive nas linhas que têm a etiqueta \\\"repor\\\" (ex.: Headset com microfone, com estoque baixíssimo de 4). Só a Webcam Full HD tem um número ali (\\\"faltam 2\\\"). Não entendi por que itens sinalizados pra repor não trazem também um número de falta — parece que \\\"repor\\\" e \\\"Falta\\\" são calculados por regras diferentes, e isso não fica claro batendo o olho.\", \"confianca\": \"hesitei\"}",
+   "segundosEstimados": 4
+  },
+  {
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 1,
+   "a": {
+    "resposta": "Os itens marcados com o rótulo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\".",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "Na seta (chevron ▾) que fica bem à esquerda da linha, colada ao nome \"Cabo de rede Cat6 3 m\" — é o mesmo ícone de expandir que aparece em todas as linhas da tabela.",
+    "confianca": "certeza"
+   },
+   "c": {
+    "resposta": "NÃO SEI — nesta tela a linha está fechada (colapsada) e só mostra o nome do item; não há coluna de quantidade nem divisão prateleira/com pessoas visível sem expandir a linha.",
+    "confianca": "nao-sei"
+   },
+   "d": "Não há nenhum número na linha para gerar dúvida: nesta captura a tabela (na largura mostrada) só exibe a seta de expandir e o nome do item — nenhuma quantidade aparece impressa na linha em si.",
+   "segundosEstimados": 4
+  },
+  {
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 2,
+   "a": {
+    "resposta": "Os itens marcados com o selo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\".",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "Tocaria na setinha (chevron ▾) que fica à esquerda do nome do item, na própria linha \"Cabo de rede Cat6 3 m\" — é o mesmo ícone de expandir que aparece em todas as linhas da tabela, antes do texto.",
+    "confianca": "certeza"
+   },
+   "c": {
+    "resposta": "NÃO SEI — a linha desse item está fechada/colapsada na imagem; não aparece nenhum número de prateleira nem de posse com pessoas, só o nome do item e a setinha de expandir.",
+    "confianca": "nao-sei"
+   },
+   "d": "NÃO SEI / não se aplica: nenhuma linha da tabela mostra número nenhum nesta tela — só nome do item, a setinha de expandir e, em alguns, o selo \"repor\". Não há coluna de quantidade visível no card colapsado, então não há número ali para gerar dúvida.",
+   "segundosEstimados": 5
+  },
+  {
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "a": {
+    "resposta": "Os itens com o selo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\".",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "NÃO SEI — a linha do Cabo de rede Cat6 3 m mostra só totais consolidados (Total 76, Em estoque 36, Em uso 40); não há quebra por filial visível nesta tela (o filtro \"Filial\" está vazio e a linha não está expandida).",
+    "confianca": "nao-sei"
+   },
+   "c": {
+    "resposta": "Na prateleira (Em estoque): 36. Com as pessoas (Em uso): 40.",
+    "confianca": "certeza"
+   },
+   "d": "{\"resposta\": \"Sim: a coluna \\\"Falta\\\" nessa linha mostra um traço \\\"—\\\", diferente de outras linhas (como Webcam Full HD) que mostram um selo tipo \\\"faltam 2\\\". Fica em dúvida se o traço significa \\\"falta zero\\\" ou \\\"não apurado/não se aplica\\\" — os dois casos usam representações visuais diferentes na mesma coluna.\", \"confianca\": \"hesitei\"}",
+   "segundosEstimados": 6
+  },
+  {
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "a": {
+    "resposta": "Os itens marcados com o selo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". (A Webcam Full HD tem um selo diferente, vermelho, \"faltam 2\", na coluna Falta — não é o mesmo selo de repor.)",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "NÃO SEI. A linha do Cabo de rede Cat6 3 m mostra só um total agregado (76, sendo 36 em estoque e 40 em uso) — não há coluna de filial na tabela, só um filtro \"Filial\" no topo que está vazio/não selecionado. Não dá pra dizer em quais filiais o item está nem quanto tem em cada uma só olhando esta tela.",
+    "confianca": "nao-sei"
+   },
+   "c": {
+    "resposta": "Em estoque (prateleira): 36. Em uso (com as pessoas): 40.",
+    "confianca": "certeza"
+   },
+   "d": "Sim, dois pontos: (1) o próprio \\\"Total\\\" 76 / \\\"Em estoque\\\" 36 — sem filtro de filial aplicado, não sei se esse número já é soma de várias filiais ou de uma só, o que também é a raiz da minha dúvida na pergunta b; (2) o traço \\\"—\\\" na coluna Falta nessa linha — não sei se significa \\\"0 faltando\\\" (calculado) ou \\\"não se aplica/não monitorado para este item\\\", já que outras linhas (ex. Webcam Full HD) mostram um selo colorido \\\"faltam 2\\\" em vez do traço.",
+   "segundosEstimados": 15
+  },
+  {
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 1,
+   "a": {
+    "resposta": "Os itens marcados com o rótulo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\".",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "Tocaria na setinha (chevron \"v\") à esquerda do nome do item, na linha \"Cabo de rede Cat6 3 m\" — é o único elemento clicável visível naquela linha, e parece expandir o item para mostrar mais detalhes.",
+    "confianca": "certeza"
+   },
+   "c": {
+    "resposta": "NÃO SEI — a linha, como está na tela (não expandida), mostra só a setinha e o nome do item; não aparece nenhum número de quantidade, prateleira ou pessoas para \"Cabo de rede Cat6 3 m\" nessa captura.",
+    "confianca": "nao-sei"
+   },
+   "d": "NÃO SEI — na verdade nem chega a ter dúvida sobre o SIGNIFICADO de um número, porque não vejo nenhum número na linha desse item nessa tela; só texto (nome do item) e, em algumas linhas, o rótulo \"repor\".",
+   "segundosEstimados": 5
+  },
+  {
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 2,
+   "a": {
+    "resposta": "Os que têm a etiqueta laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\".",
+    "confianca": "certeza"
+   },
+   "b": {
+    "resposta": "No ícone de seta (v) à esquerda do nome do item, na linha \"Cabo de rede Cat6 3 m\" — é o único elemento clicável da linha, presumivelmente para expandir e mostrar o detalhe por filial.",
+    "confianca": "certeza"
+   },
+   "c": {
+    "resposta": "NÃO SEI — na tela recolhida (como está na imagem) não aparece nenhum número por item, só o nome e, às vezes, a etiqueta \"repor\". Não há coluna de prateleira nem de \"com pessoas\" visível sem expandir a linha.",
+    "confianca": "nao-sei"
+   },
+   "d": "Não exatamente um número que confunde — o que chama atenção é a ausência de número: a tela se chama \"Itens por quantidade\" e lista 44 itens, mas nenhuma linha mostra quantidade nenhuma (nem total, nem prateleira, nem com pessoas) antes de expandir. Os únicos números na tela são de navegação (\"44 itens no catálogo\", \"1–25 de 44\", \"Página 1 de 2\"), não da linha do item em si.",
+   "segundosEstimados": 5
+  }
+ ]
+}
