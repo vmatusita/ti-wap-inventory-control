@@ -1,7 +1,7 @@
 import { CartaoDeMetrica, GradeDeMetricas } from '@/components/layout/cartao-de-metrica'
 import type { CabecalhoDeNumero } from '@/components/itens/cabecalho-de-numero'
 import type { ResumoDaLista } from '@/lib/itens/distribuicao'
-import { fraseDoResumo, type EscopoDosNumeros } from '@/lib/itens/escopo'
+import { fraseDoResumo, ondeDoEscopo, type EscopoDosNumeros } from '@/lib/itens/escopo'
 import { tintaDoNumero } from '@/lib/itens/tinta'
 import { cn } from '@/lib/utils'
 
@@ -49,7 +49,11 @@ import { cn } from '@/lib/utils'
 //
 // A cláusula da página só aparece quando os dois números DIVERGEM — com uma
 // página só, ela seria repetição.
-function alarmes(resumo: ResumoDaLista, daPagina?: ResumoDaLista) {
+function alarmes(
+  resumo: ResumoDaLista,
+  escopo: EscopoDosNumeros,
+  daPagina?: ResumoDaLista,
+) {
   // `chave` é a da tinta (F44): "repor" é âmbar (previsão de compra) e "falta" é
   // vermelho (compromisso já assumido) — os dois convivem e significam coisas
   // diferentes desde a F12, e agora a cor diz isso também no cartão.
@@ -59,15 +63,38 @@ function alarmes(resumo: ResumoDaLista, daPagina?: ResumoDaLista) {
       ? `${base} · ${naPagina.toLocaleString('pt-BR')} nesta página`
       : base
   if (resumo.aRepor > 0) {
+    // ⚠ O CARTÃO DIZ CONTRA QUAL ESTOQUE ESTÁ COMPARANDO, e isso saiu de uma
+    // MEDIÇÃO, não de gosto. A primeira escrita dizia só "itens abaixo do mínimo".
+    // No teste dos 5 segundos, a pergunta "quais itens precisam ser repostos, E
+    // COMPARADOS COM O QUÊ?" hesitou em 4 das 8 passadas: todos os julgamentos
+    // responderam "com o mínimo do item" e NENHUM soube dizer com qual estoque.
+    // A linha de escopo acima e a legenda da tabela nomeiam Total/Em estoque/Em
+    // uso/Falta — o "repor" é um QUINTO número, e herdava um escopo que ninguém
+    // tinha escrito. É também o critério 5 da ordem, ao pé da letra: o selo e a
+    // dica têm de deixar claro contra qual estoque comparam.
+    //
+    // ⚠ E DIZ O DENOMINADOR — "de 44 itens" —, que é o TERCEIRO desenho desta
+    // fase e o mais contraintuitivo dos três. Com o "repor" seguindo o filtro,
+    // 36 dos 44 itens acendem numa filial só (os mínimos foram configurados
+    // pensando no acervo somado, e um quinto do acervo raramente alcança um
+    // mínimo pensado para o todo). O julgamento em contexto fresco tropeçava
+    // exatamente nisso: *"a etiqueta aparece em praticamente todo item, então
+    // não dá para saber se é alerta ou só um rótulo padrão"*. Escondendo a
+    // enxurrada, a tela mentiria; NOMEANDO a proporção, ela transforma a dúvida
+    // em informação — sim, é quase tudo, e é por isso que quase tudo está
+    // marcado.
+    const onde = ondeDoEscopo(escopo)
+    const base = resumo.aRepor === 1 ? 'item abaixo do mínimo' : 'itens abaixo do mínimo'
+    const comEscopo = onde ? `${base} ${onde}` : base
+    const comTotal =
+      resumo.itens > resumo.aRepor
+        ? `de ${resumo.itens.toLocaleString('pt-BR')} ${comEscopo}`
+        : comEscopo
     lista.push({
       chave: 'repor',
       rotulo: 'A repor',
       valor: resumo.aRepor.toLocaleString('pt-BR'),
-      apoio: comPagina(
-        resumo.aRepor === 1 ? 'item abaixo do mínimo' : 'itens abaixo do mínimo',
-        resumo.aRepor,
-        daPagina?.aRepor,
-      ),
+      apoio: comPagina(comTotal, resumo.aRepor, daPagina?.aRepor),
     })
   }
   if (resumo.comFalta > 0) {
@@ -128,7 +155,7 @@ export function ResumoDeItens({
   const estoque = meta('estoque', 'Em estoque')
   const emUso = meta('emUso', 'Em uso')
   const total = meta('total', 'Total')
-  const extras = alarmes(resumo, resumoDaPagina)
+  const extras = alarmes(resumo, escopo, resumoDaPagina)
 
   return (
     <div className="flex flex-col gap-2">

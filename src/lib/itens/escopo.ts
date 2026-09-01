@@ -87,6 +87,21 @@ export function rotuloDoEscopo(escopo: EscopoDosNumeros): string {
   return `${escopo.nomes.length} filiais`
 }
 
+/**
+ * O COMPLEMENTO DE LUGAR — "em Cerrado Alto", "nas 3 filiais", ou vazio sem
+ * recorte.
+ *
+ * É ele que deixa uma frase curta herdar o escopo sem redigitá-lo: quem precisa
+ * dizer "abaixo do mínimo" acrescenta isto e vira "abaixo do mínimo em Cerrado
+ * Alto". Sem recorte devolve string VAZIA de propósito — "abaixo do mínimo em
+ * todas as filiais" é mais palavra para dizer o padrão.
+ */
+export function ondeDoEscopo(escopo: EscopoDosNumeros): string {
+  if (escopo.tipo === 'todas') return ''
+  if (escopo.tipo === 'uma') return `em ${escopo.nome}`
+  return `nas ${rotuloDoEscopo(escopo)}`
+}
+
 /** A linha acima dos cartões de resumo. Curta, e sempre presente. */
 export function fraseDoResumo(escopo: EscopoDosNumeros): string {
   if (escopo.tipo === 'varias') return `Números somados de ${rotuloDoEscopo(escopo)}`
@@ -156,7 +171,7 @@ export function cabecalhosComEscopo(
   escopo: EscopoDosNumeros,
 ): LegendaDeNumero[] {
   if (escopo.tipo === 'todas') return [...legendas]
-  const onde = escopo.tipo === 'uma' ? `em ${escopo.nome}` : `nas ${rotuloDoEscopo(escopo)}`
+  const onde = ondeDoEscopo(escopo)
   const sufixo =
     escopo.tipo === 'uma'
       ? `Nesta tela, o número é só de ${escopo.nome}.`

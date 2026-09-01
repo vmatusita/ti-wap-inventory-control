@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.49.0',
+    data: '2026-09-01',
+    fase: 'F44',
+    titulo: 'A página Itens diz de qual filial são os números que ela mostra',
+    mudancas: [
+      'Quando você filtra por uma filial, a página agora escreve de quem são os números — "Números de Linhares", em cima dos totais, e "Total, Em estoque, Em uso e Falta são de Linhares" em cima da tabela. Os números já eram daquela filial; o que faltava era a página dizer isso, e embaixo do Total ainda aparecia "tudo que a TI possui".',
+      'Filtrando UMA filial, a coluna com o nome dela sai da tabela: ela repetia, com outro rótulo, o mesmo número que a coluna "Em estoque" já mostrava na mesma linha.',
+      'Cada número ganhou uma cor: verde para "Em estoque", azul para "Em uso", vermelho para "Falta" e cinza para "Total" — a mesma cor no total do topo, no cabeçalho da coluna e no número de cada linha. São as mesmas cores com que a página de Ativos já mostra "em estoque" e "em uso".',
+      'As linhas da tabela passaram a ser listradas e ganharam um traço separando o nome do item do bloco de números, para o olho não se perder na horizontal.',
+      'O aviso "repor" passou a seguir o filtro de filial: com uma filial escolhida, ele compara o mínimo do item com o estoque DAQUELA filial, e não mais com o de todas somadas. Atenção: com uma filial filtrada, um item pode pedir reposição mesmo havendo sobra na filial ao lado — a página está falando daquela prateleira. Passar o mouse no selo mostra com qual estoque a conta foi feita.',
+      'Na ficha de um equipamento, "Itens que foram junto" e "Itens faltantes da devolução" desceram para o fim da página e abrem recolhidos, com a contagem no título: primeiro vêm os dados do equipamento, os termos e a linha do tempo. Quando há item faltante em aberto, o bloco abre sozinho e mostra um aviso com a quantidade.',
+    ],
+  },
+  {
     versao: '1.48.0',
     data: '2026-09-01',
     fase: 'F43',

@@ -1,0 +1,511 @@
+{
+ "pasta": "docs/f44-evidencias/depois",
+ "versao": "1.49.0 (depois)",
+ "item": "Cabo de rede Cat6 3 m",
+ "protocolo": "Subagente em contexto fresco, so a imagem e as perguntas. Duas rodadas independentes por imagem.",
+ "respostas": [
+  {
+   "arq": "itens__atual__padrao__uma__claro__1440x900.png",
+   "tipo": "uma",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "So da filial Cerrado Alto (filtro \"Filial 1\" aplicado, e o cabecalho da tabela diz \"Numeros de Cerrado Alto\" / \"Total, Em estoque, Em uso e Falta sao de Cerrado Alto\") - nao e de todas as filiais.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os itens marcados com a tag laranja \"repor\" (ex.: Mouse sem fio, Teclado ABNT2, Mousepad, Headset com microfone, etc.) - o card \"A repor\" mostra 36 itens abaixo do minimo (20 nesta pagina). A comparacao e contra o estoque minimo definido para o item.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Na prateleira (Em estoque): 16. Com as pessoas (Em uso): 0. (Total: 16)",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim, o azul da coluna \"Em uso\" (ex.: 18, 10, 11, 6, 3...) parece cor de link/clicavel, o que gera duvida se e so um numero informativo ou se e clicavel para alguma acao.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 30
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__1440x900.png",
+   "tipo": "uma",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Da filial Cerrado Alto (ha um filtro de Filial com 1 selecionada, e o subtitulo diz 'Numeros de Cerrado Alto' / 'Total, Em estoque, Em uso e Falta sao de Cerrado Alto'). Nao sao de todas as filiais.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os itens marcados com a etiqueta laranja 'repor' (por exemplo Mouse sem fio, Teclado ABNT2, Mousepad, Headset com microfone, Cabo HDMI 2m, Hub USB 4 portas, Webcam Full HD, Memoria RAM 8GB DDR4, entre outros). A comparacao e com o estoque minimo definido para o item: o KPI 'A repor' mostra 36 itens abaixo do minimo.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Cabo de rede Cat6 3m: 16 na prateleira (Em estoque) e 0 com as pessoas (Em uso).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Os numeros da coluna 'Em uso' aparecem em azul, a mesma cor tipica de link clicavel, o que deixa em duvida se sao numeros clicaveis/navegaveis ou so texto colorido.",
+     "confianca": "hesitei"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__390x844.png",
+   "tipo": "uma",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma filial só: Cerrado Alto (o painel diz \"Números de Cerrado Alto\" e o filtro Filial está com 1 selecionada, não \"todas\").",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Não dá pra saber quais especificamente: a etiqueta laranja \"repor\" aparece do lado do nome de TODOS os itens da lista igualmente (até no Cabo Cat6, que tem 16 em estoque). O KPI diz que a comparação é com \"o mínimo\" (\"A repor: 36 itens abaixo do mínimo nesta página\"), mas a etiqueta não parece diferenciar quem está realmente abaixo dele.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Cabo de rede Cat6 3 m: 16 na prateleira (Em estoque, verde) e 0 com as pessoas (Em uso, azul).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "O laranja da etiqueta \"repor\". Ele parece de alerta (\"precisa repor\"), mas aparece do mesmo jeito em todo item da lista, inclusive nos bem abastecidos (ex.: Cabo Cat6 com 16 em estoque) - fica sem se saber se é um aviso de estoque baixo ou só um rótulo/ação padrão de todo item.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 35
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__390x844.png",
+   "tipo": "uma",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma filial só (Cerrado Alto) — há um filtro de Filial selecionado e o card diz 'Números de Cerrado Alto', não é o consolidado de todas.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "O KPI 'A repor' mostra 36 itens abaixo do mínimo nesta página, comparado contra o mínimo de estoque de cada item. Mas na lista, a etiqueta laranja 'repor' aparece ao lado de praticamente todo item, inclusive alguns com bastante saldo (ex.: Cabo de rede Cat6 3m com 16, Cabo de energia tripolar com 8) — não dá pra saber batendo o olho quais realmente estão abaixo do mínimo.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Em estoque (verde): 16. Em uso (azul): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim: a etiqueta laranja 'repor'. Ela aparece do lado de itens com estoque alto (16, 8, 6...) e não só nos zerados/baixos, então não fica claro se laranja significa 'abaixo do mínimo' ou é só um marcador fixo do tipo item — bater o olho não deixa óbvio o critério.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 25
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__1440x900.png",
+   "tipo": "uma",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma unica filial: Cerrado Alto. O card diz \"Numeros de Cerrado Alto\" e o aviso abaixo da tabela reforca \"Total, Em estoque, Em uso e Falta sao de Cerrado Alto\" (filtro Filial = 1 selecionado).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os itens com o selo laranja \"repor\" (a maioria da lista). O card \"A repor\" mostra 36 itens, comparados contra o MINIMO de cada item (\"itens abaixo do minimo\").",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "16 na prateleira (Em estoque) e 0 com as pessoas (Em uso).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim: os numeros da coluna \"Em estoque\" aparecem ora em verde, ora em laranja/ambar, ora em cinza/branco, sem legenda explicando a diferenca - o cabecalho da coluna so tem um pontinho verde. Fica a duvida se o laranja ali quer dizer a mesma coisa que o selo \"repor\" ou e so uma variacao da propria cor verde da coluna.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 40
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__1440x900.png",
+   "tipo": "uma",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma unica filial: Cerrado Alto (o cartao de KPIs diz \"Numeros de Cerrado Alto\" e o texto abaixo confirma \"Total, Em estoque, Em uso e Falta sao de Cerrado Alto\"; o filtro Filial mostra 1 selecionada).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os itens marcados com a etiqueta laranja \"repor\" (a maioria da lista visivel, ex.: Mouse sem fio, Teclado ABNT2, Mousepad, Headset com microfone, Cabo HDMI 2m etc.), comparados com o minimo definido para cada item — o KPI \"A repor\" diz \"36 itens abaixo do minimo\".",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Na prateleira (Em estoque): 16. Com as pessoas (Em uso): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim, o verde usado na coluna \"Em estoque\": ele aparece tanto para valores altos (ex. 16) quanto para 0 (ex. Mochila para notebook, Headset, Webcam), e um 0 em verde soa como \"tudo bem\" mesmo quando o item esta com a etiqueta laranja \"repor\" ao lado do nome — a cor nao acompanha a gravidade do numero.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 30
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__390x844.png",
+   "tipo": "uma",
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma filial só: Cerrado Alto (há um filtro \"Filial\" ativo, com contador \"1\", e o resumo diz \"Números de Cerrado Alto\").",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "O card \"A repor\" mostra 36 itens abaixo do mínimo nesta página/filial (comparado ao estoque mínimo cadastrado de cada item), mas batendo o olho na lista não dá pra apontar quais são os 36 — o botão/etiqueta laranja \"repor\" aparece igual em toda linha, então não funciona como destaque de quem está abaixo do mínimo.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Em estoque (na prateleira): 16. Em uso (com as pessoas): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim: o número \"16\" de Cabo de rede Cat6 3m aparece destacado em laranja/dourado, cor diferente dos outros números da coluna (brancos) — e é a mesma cor do botão \"repor\" que aparece em toda linha. Fica confuso se esse destaque quer dizer \"este item precisa de atenção\" ou é só coincidência de estilo, porque 16 em estoque parece bem mais confortável que vários outros itens com 0.",
+     "confianca": "hesitei"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__390x844.png",
+   "tipo": "uma",
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma filial só: Cerrado Alto (o filtro mostra 1 filial selecionada e o subtítulo diz \"Números de Cerrado Alto\"), não de todas.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "O card \"A repor\" indica 36 itens abaixo do mínimo nesta página, e quase todo item da lista traz uma etiqueta laranja \"repor\" junto ao nome — comparando a quantidade em estoque com o mínimo cadastrado do item.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "16 na prateleira (em estoque) e 0 em uso (com as pessoas).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim: o número \"16\" do Cabo de rede Cat6 3m aparece destacado em azul/ciano, enquanto os demais valores de \"Em estoque\" (8, 6, 3, 2...) aparecem em branco — não fica claro por que só esse número muda de cor.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 30
+  },
+  {
+   "arq": "itens__atual__padrao__tres__claro__1440x900.png",
+   "tipo": "tres",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais (a soma das 3 filiais selecionadas no filtro \"Filial 3\": Aurora, Cerrado Alto e Estância Velha do Norte) - não é uma filial só nem necessariamente todas.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Na tabela, nas colunas à direita com o cabeçalho \"em estoque\" por filial: Aurora, Cerrado Alto e Estância (uma coluna para cada).",
+     "confianca": "certeza"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__tres__claro__1440x900.png",
+   "tipo": "tres",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais: e a soma das 3 filiais selecionadas no filtro (Aurora, Cerrado Alto e Estancia Velha do Norte), nao de todas as filiais que existem no sistema.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Nas tres ultimas colunas da tabela, a direita (Aurora, Cerrado Alto, Estancia), cada uma mostrando 'em estoque' por filial em cada linha de item.",
+     "confianca": "certeza"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__tres__claro__390x844.png",
+   "tipo": "tres",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais: o texto acima do número diz \"Números somados de 3 filiais\" (não a todas, já que há um filtro de Filial e o texto embaixo lista nominalmente 3: Aurora, Cerrado Alto e Estância Velha do Norte).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Não aparece um valor por filial na tela: cada item só mostra o total já somado (colunas Em estoque/Em uso), e para ver a quebra por filial é preciso abrir o link \"Ver as 3 filiais\" abaixo de cada item.",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 6
+  },
+  {
+   "arq": "itens__atual__padrao__tres__claro__390x844.png",
+   "tipo": "tres",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais (3, nao a todas): o texto acima dos numeros diz \"Numeros somados de 3 filiais\" e mais abaixo especifica que sao Aurora, Cerrado Alto e Estancia Velha do Norte.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Nao da pra ver o valor por filial diretamente na tela - só existe um link \"Ver as 3 filiais\" em cada linha de item (precisa clicar/expandir) e um filtro \"Filial\" no topo para escolher uma so.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 6
+  },
+  {
+   "arq": "itens__atual__padrao__tres__escuro__1440x900.png",
+   "tipo": "tres",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais: o card diz \"Números somados de 3 filiais\" (as filiais selecionadas no filtro), não a uma única filial nem a todas as filiais da empresa necessariamente.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Na tabela, nas três últimas colunas à direita, uma por filial (Aurora, Cerrado Alto, Estância), cada uma rotulada \"em estoque\".",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 7
+  },
+  {
+   "arq": "itens__atual__padrao__tres__escuro__1440x900.png",
+   "tipo": "tres",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais: e a soma de 3 filiais selecionadas no filtro (Aurora, Cerrado Alto e Estancia Velha do Norte), nao a rede toda.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Nas tres colunas da direita da tabela, uma por filial (Aurora, Cerrado Alto, Estancia), cada uma mostrando o 'em estoque' daquela filial por item.",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 8
+  },
+  {
+   "arq": "ficha__padrao__claro__1440x900.png",
+   "tipo": "ficha",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Mostra primeiro a identificação do equipamento: patrimônio WAP0001234, status \"Em uso\", tipo Notebook com Service Tag PREV-SVC-0001, e que está com Fulano de Tal (Financeiro).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Sim. Logo abaixo do cabeçalho há um aviso amarelo \"Pendência: nota fiscal da compra pendente de anexação\", e mais abaixo a seção \"Itens faltantes da devolução\" mostra \"2 em aberto\" (Mouse e Carregador).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Numa seção recolhida chamada \"Itens que foram junto (3)\", perto do fim da página, logo acima de \"Itens faltantes da devolução\".",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 15
+  },
+  {
+   "arq": "ficha__padrao__claro__1440x900.png",
+   "tipo": "ficha",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "O patrimônio WAP0001234 com o status \"Em uso\", e logo abaixo o tipo (Notebook), a Service Tag e com quem está (Fulano de Tal, Financeiro).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Sim. A seção \"Itens faltantes da devolução\" traz um selo laranja \"2 em aberto\", com Mouse e Carregador marcados com ícone de alerta (Fone de ouvido aparece como recuperado).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "No bloco \"Itens que foram junto (3)\", mais abaixo na linha do tempo, hoje recolhido/fechado.",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 15
+  },
+  {
+   "arq": "ficha__padrao__claro__390x844.png",
+   "tipo": "ficha",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Mostra primeiro o patrimônio WAP0001234 com o status \"Em uso\", o tipo \"Notebook · Service Tag PREV-SVC-0001\" e que está com Fulano de Tal (Financeiro).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Sim. Logo no topo há um aviso amarelo \"Pendência: nota fiscal da compra pendente de anexação\", e mais abaixo o bloco \"Itens faltantes da devolução\" mostra \"2 em aberto\" (Mouse e Carregador).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "No bloco \"Itens que foram junto (3)\", perto do final da tela, que diz \"Acessórios por quantidade registrados nas movimentações deste equipamento\" (aparece recolhido, com uma seta para expandir).",
+     "confianca": "certeza"
+    }
+   ]
+  },
+  {
+   "arq": "ficha__padrao__claro__390x844.png",
+   "tipo": "ficha",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Mostra primeiro a identificação do ativo: patrimônio WAP0001234 com status \"Em uso\", tipo Notebook (Service Tag PREV-SVC-0001), com Fulano de Tal (Financeiro).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Sim. No final da tela há o bloco \"Itens faltantes da devolução\" com o aviso \"2 em aberto\", listando Mouse e Carregador, cada um com botão \"Resolver\".",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Na seção \"Itens que foram junto (3)\", mais abaixo na ficha, descrita como \"Acessórios por quantidade registrados nas movimentações deste equipamento\".",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 15
+  },
+  {
+   "arq": "ficha__padrao__escuro__1440x900.png",
+   "tipo": "ficha",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Mostra a identificacao do equipamento: patrimonio WAP0001234, status \"Em uso\", que e um Notebook (Service Tag PREV-SVC-0001) e que esta com Fulano de Tal (Financeiro).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Sim. Ha um aviso laranja logo no topo: \"Pendencia: nota fiscal da compra pendente de anexacao\". Alem disso, mais abaixo, o bloco \"Itens faltantes da devolucao\" mostra \"2 em aberto\" (Mouse e Carregador).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Em uma secao recolhida chamada \"Itens que foram junto (3)\", perto do final da pagina, logo acima de \"Itens faltantes da devolucao\".",
+     "confianca": "certeza"
+    }
+   ]
+  },
+  {
+   "arq": "ficha__padrao__escuro__1440x900.png",
+   "tipo": "ficha",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Mostra primeiro o patrimônio WAP0001234 com status \"Em uso\", que é um Notebook (Service Tag PREV-SVC-0001) com o colaborador Fulano de Tal (Financeiro) — e logo abaixo um aviso de pendência: \"nota fiscal da compra pendente de anexação\".",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Sim. Dá para ver de duas formas: o banner laranja no topo (\"Pendência: nota fiscal da compra pendente de anexação\") e, mais abaixo, o bloco \"Itens faltantes da devolução\" com o selo \"2 em aberto\" (Mouse e Carregador).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Num bloco recolhido chamado \"Itens que foram junto (3)\", logo acima de \"Itens faltantes da devolução\", perto do fim da página.",
+     "confianca": "certeza"
+    }
+   ]
+  }
+ ]
+}
