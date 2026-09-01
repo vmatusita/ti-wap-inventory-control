@@ -338,22 +338,15 @@ export default async function AtivoFichaPage({
         </Card>
       )}
 
-      {/* F18 — pendências de item faltante (abertas em destaque + resolvidas como
-          auditoria). Não gruda mais no campo livre acima; ciclo próprio. */}
-      {/* F28/PND-05 — reabrir uma pendência RESOLVIDA é do nível administrador
-          (admin ou dev), não de quem apenas escreve nesta filial: desfazer um
-          desfecho é correção de registro, não operação do dia. A action recusa
-          de novo no servidor (`exigirAdmin` + `exigirEscritaEm`). */}
-      {/* F38 — o que foi junto com este equipamento (join por movimentacao_id). */}
-      <ItensQueForamJunto itens={itensJunto} />
-
-      <PendenciasItemFicha
-        patrimonio={ativo.patrimonio}
-        pendencias={pendenciasItem}
-        rotulosTipo={rotulosTipo}
-        podeResolver={podeEscreverNesta}
-        podeReabrir={eAdmin(operador?.papel)}
-      />
+      {/* ⚠ F44 — OS DOIS BLOCOS DE ITEM DESCERAM PARA O FIM DESTA PÁGINA.
+          Até a v1.48.0 eles eram renderizados AQUI, antes do card "Dados do ativo",
+          dos termos e da linha do tempo — quem abria a ficha de um notebook via
+          primeiro a lista de acessórios que saíram junto com ele. O Johnny, em
+          01/09/2026: *"preciso do historico de movimentacoes de itens mais discreto
+          ou colapsavel, para que eu possa ver antes dados do ativo, termos e linha
+          do tempo do ativo que é mais importante que os itens"*.
+          Eles agora ficam depois da linha do tempo, recolhidos, com a contagem no
+          título. Ata em `docs/DECISOES.md`. */}
 
       {/* Grid de dados */}
       <Card>
@@ -497,6 +490,35 @@ export default async function AtivoFichaPage({
           />
         </SecaoDaPagina>
       )}
+
+      {/* ============================================================
+          OS BLOCOS DE ITEM — o secundário, depois do principal (F44)
+          ============================================================
+          O EQUIPAMENTO VEM PRIMEIRO: dados, termos, linha do tempo. Só depois o
+          que saiu JUNTO com ele. Os dois abrem recolhidos, com a contagem no
+          título, e cada um sabe se some quando não há nada (`return null`).
+
+          ⚠ A ORDEM ENTRE OS DOIS É DELIBERADA: pendência ABERTA é alarme e vem
+          por último de propósito — é o bloco mais próximo do fim da rolagem, e o
+          único dos dois que abre SOZINHO quando tem o que avisar (ver o cabeçalho
+          de `pendencias-item-ficha.tsx`). Pôr o informativo antes do alarme faria
+          o alarme ficar atrás de uma lista que ninguém precisa ler.
+
+          F38 — "o que foi junto" sai do JOIN por `movimentacao_id`.
+          F18 — as pendências de item têm ciclo próprio; não grudam no campo livre.
+          F28/PND-05 — reabrir uma RESOLVIDA é do nível administrador (admin ou
+          dev), não de quem apenas escreve nesta filial: desfazer um desfecho é
+          correção de registro, não operação do dia. A action recusa de novo no
+          servidor (`exigirAdmin` + `exigirEscritaEm`). */}
+      <ItensQueForamJunto itens={itensJunto} />
+
+      <PendenciasItemFicha
+        patrimonio={ativo.patrimonio}
+        pendencias={pendenciasItem}
+        rotulosTipo={rotulosTipo}
+        podeResolver={podeEscreverNesta}
+        podeReabrir={eAdmin(operador?.papel)}
+      />
     </Pagina>
   )
 }

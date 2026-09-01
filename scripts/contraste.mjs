@@ -485,6 +485,79 @@ const PARES = [
   // "Ver as N filiais" — o botão do celular, com o fundo do `hover`.
   { item: 'F43', onde: '"Ver as N filiais" com o mouse em cima (claro)', texto: 'foreground', fundo: 'muted', px: 12, exigir: true },
   { item: 'F43', onde: '"Ver as N filiais" com o mouse em cima (escuro)', texto: 'foreground', fundo: 'muted', px: 12, tema: 'escuro', exigir: true },
+
+  // ---- F44 · cada número de /itens com a sua cor ---------------------------
+  //
+  // A tinta sai de `src/lib/itens/tinta.ts` e é a MESMA nos três lugares (cartão,
+  // cabeçalho, célula). Verde e azul são os tokens `--selo-em-estoque-texto` e
+  // `--selo-em-uso-texto`, que o produto já usa para "em estoque" e "em uso" na
+  // tela de ativos — a F40 já os mediu SOBRE O SELO (fundo `--selo-*`), e aqui
+  // eles são medidos SOBRE A PÁGINA, que é um fundo diferente e uma razão
+  // diferente. Cor reusada em superfície nova é par novo.
+  //
+  // ⚠ AS QUATRO SUPERFÍCIES DA CÉLULA, e as quatro têm de passar: a linha branca,
+  // a listra do zebrado (`muted/30`), o hover (`muted/50`) e o cartão de métrica.
+  // Medir só a primeira deixaria o número ilegível em uma linha sim, outra não.
+  //
+  // `px`/`bold`: o número de *Em estoque* na célula é 16px semibold (NÃO é "texto
+  // grande" pela WCAG, que exige 18,66px em negrito → limiar 4,5:1); o do cartão é
+  // 24px semibold, que É grande → 3:1. *Em uso* na célula é 14px.
+
+  // Em estoque — verde, a mesma família de `STATUS_META.em_estoque`
+  { item: 'F44', onde: 'número "Em estoque" na célula (claro)', texto: 'selo-em-estoque-texto', fundo: 'background', sob: ['background'], px: 16, exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" na célula (escuro)', texto: 'selo-em-estoque-texto', fundo: 'background', sob: ['background'], px: 16, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" na linha listrada (claro)', texto: 'selo-em-estoque-texto', fundo: 'muted/30', sob: ['background'], px: 16, exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" na linha listrada (escuro)', texto: 'selo-em-estoque-texto', fundo: 'muted/30', sob: ['background'], px: 16, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" com o mouse na linha (claro)', texto: 'selo-em-estoque-texto', fundo: 'muted/50', sob: ['background'], px: 16, exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" com o mouse na linha (escuro)', texto: 'selo-em-estoque-texto', fundo: 'muted/50', sob: ['background'], px: 16, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" no cartão (claro)', texto: 'selo-em-estoque-texto', fundo: 'card', px: 24, bold: true, exigir: true },
+  { item: 'F44', onde: 'número "Em estoque" no cartão (escuro)', texto: 'selo-em-estoque-texto', fundo: 'card', px: 24, bold: true, tema: 'escuro', exigir: true },
+
+  // Em uso — azul, a mesma família de `STATUS_META.em_uso`
+  { item: 'F44', onde: 'número "Em uso" na célula (claro)', texto: 'selo-em-uso-texto', fundo: 'background', sob: ['background'], px: 14, exigir: true },
+  { item: 'F44', onde: 'número "Em uso" na célula (escuro)', texto: 'selo-em-uso-texto', fundo: 'background', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em uso" na linha listrada (claro)', texto: 'selo-em-uso-texto', fundo: 'muted/30', sob: ['background'], px: 14, exigir: true },
+  { item: 'F44', onde: 'número "Em uso" na linha listrada (escuro)', texto: 'selo-em-uso-texto', fundo: 'muted/30', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em uso" com o mouse na linha (claro)', texto: 'selo-em-uso-texto', fundo: 'muted/50', sob: ['background'], px: 14, exigir: true },
+  { item: 'F44', onde: 'número "Em uso" com o mouse na linha (escuro)', texto: 'selo-em-uso-texto', fundo: 'muted/50', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'número "Em uso" no cartão (claro)', texto: 'selo-em-uso-texto', fundo: 'card', px: 24, bold: true, exigir: true },
+  { item: 'F44', onde: 'número "Em uso" no cartão (escuro)', texto: 'selo-em-uso-texto', fundo: 'card', px: 24, bold: true, tema: 'escuro', exigir: true },
+
+  // Total — o NEUTRO, e é escolha: violeta seria colisão com "Reservado", que é
+  // OUTRO dos cinco números da mesma tela (ver `src/lib/itens/tinta.ts`).
+  { item: 'F44', onde: 'número "Total" na linha listrada (claro)', texto: 'muted-foreground', fundo: 'muted/30', sob: ['background'], px: 14, exigir: true },
+  { item: 'F44', onde: 'número "Total" na linha listrada (escuro)', texto: 'muted-foreground', fundo: 'muted/30', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+
+  // Falta — vermelho. A CÉLULA continua sendo o selo "faltam N" (inalterado); o
+  // que é novo é o número do cartão e o quadradinho da chave de cor.
+  { item: 'F44', onde: 'número "Falta" no cartão (claro)', texto: 'destructive', fundo: 'card', px: 24, bold: true, exigir: true },
+  { item: 'F44', onde: 'número "Falta" no cartão (escuro)', texto: 'destructive', fundo: 'card', px: 24, bold: true, tema: 'escuro', exigir: true },
+
+  // A CHAVE DE COR — o quadradinho de 8px ao lado do rótulo. Não é texto: é
+  // elemento gráfico, e o limiar da WCAG para ele é 3:1 (`grafico: true`).
+  // ⚠ Ele é REFORÇO, nunca o dado: o rótulo e o número estão sempre ao lado.
+  { item: 'F44', onde: 'chave de cor "Em estoque" (claro)', texto: 'selo-em-estoque-texto', fundo: 'card', grafico: true, exigir: true },
+  { item: 'F44', onde: 'chave de cor "Em estoque" (escuro)', texto: 'selo-em-estoque-texto', fundo: 'card', grafico: true, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'chave de cor "Em uso" (claro)', texto: 'selo-em-uso-texto', fundo: 'card', grafico: true, exigir: true },
+  { item: 'F44', onde: 'chave de cor "Em uso" (escuro)', texto: 'selo-em-uso-texto', fundo: 'card', grafico: true, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'chave de cor "Falta" (claro)', texto: 'destructive', fundo: 'card', grafico: true, exigir: true },
+  { item: 'F44', onde: 'chave de cor "Falta" (escuro)', texto: 'destructive', fundo: 'card', grafico: true, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'chave de cor "Total" (claro)', texto: 'muted-foreground', fundo: 'card', grafico: true, exigir: true },
+  { item: 'F44', onde: 'chave de cor "Total" (escuro)', texto: 'muted-foreground', fundo: 'card', grafico: true, tema: 'escuro', exigir: true },
+
+  // A legenda de escopo — a `<caption>` da tabela e a linha acima dos cartões.
+  // São elas que NOMEIAM de qual filial é o número, e ilegibilidade aqui devolve a
+  // tela ao defeito que a fase existe para consertar.
+  { item: 'F44', onde: 'legenda de escopo da tabela (claro)', texto: 'muted-foreground', fundo: 'card', px: 14, exigir: true },
+  { item: 'F44', onde: 'legenda de escopo da tabela (escuro)', texto: 'muted-foreground', fundo: 'card', px: 14, tema: 'escuro', exigir: true },
+  { item: 'F44', onde: 'linha de escopo acima dos cartões (claro)', texto: 'foreground', fundo: 'background', sob: ['background'], px: 14, exigir: true },
+  { item: 'F44', onde: 'linha de escopo acima dos cartões (escuro)', texto: 'foreground', fundo: 'background', sob: ['background'], px: 14, tema: 'escuro', exigir: true },
+
+  // O selo "N em aberto" do bloco RECOLHIDO de pendências na ficha do ativo — é
+  // ele que faz o alarme sobreviver ao recolhimento (F44). `variant="warning"` do
+  // kit: `text-warning` sobre `bg-warning/10`.
+  { item: 'F44', onde: 'selo "N em aberto" da ficha recolhida (claro)', texto: 'warning', fundo: 'warning/10', px: 12, exigir: true },
+  { item: 'F44', onde: 'selo "N em aberto" da ficha recolhida (escuro)', texto: 'warning', fundo: 'warning/20', px: 12, tema: 'escuro', exigir: true },
 ]
 
 // ---------------------------------------------------------------------------

@@ -392,7 +392,12 @@ describe('lançar itens e ler saldos', () => {
     contem('saldos-e-estoque-minimo', 'Falta e repor são dois avisos DIFERENTES')
     // F41 — a conta é a mesma; 'atrelados' virou 'reservado' e 'liberados' virou 'em uso'.
     contem('saldos-e-estoque-minimo', 'máx(0, reservado + em uso − total)')
-    contem('saldos-e-estoque-minimo', 'estoque somado de TODAS as filiais')
+    // ⚠ F44 — AQUI ESTAVA FIXADA A STRING 'estoque somado de TODAS as filiais', e
+    // ela descrevia a regra que o Johnny revogou em 01/09/2026: o "repor" passou a
+    // seguir o filtro de filial. Um teste que exige a frase antiga mantém a suíte
+    // VERDE sobre documentação falsa — é o mesmo tropeço que o comentário do topo
+    // deste arquivo já registrava. Agora ele cobra a regra em vigor.
+    contem('saldos-e-estoque-minimo', 'SEGUE O FILTRO DE FILIAL')
   })
 
   // ---- F31 · ITN-01 — transferência entre filiais ----

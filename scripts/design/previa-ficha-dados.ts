@@ -44,10 +44,19 @@ export type CenarioFicha = 'padrao' | 'sem-pendencia' | 'consulta'
 
 // A filial do ativo — a MESMA lista fictícia da prévia de /itens (F43), nunca
 // duas listas de filial inventada divergindo entre as prévias do produto.
-const FILIAL_DA_FICHA = FILIAIS_PREVIA.find((f) => f.slug === 'cerrado-alto')
-if (!FILIAL_DA_FICHA) {
-  throw new Error('previa-ficha-dados: "cerrado-alto" sumiu de FILIAIS_PREVIA')
+//
+// ⚠ A BUSCA É EMBRULHADA NUMA FUNÇÃO, e não um `find` com `if (!x) throw` solto:
+// o estreitamento de tipo de um `const` de módulo NÃO atravessa a fronteira de
+// função (`operadorDaPrevia`, lá embaixo, voltaria a ver `Filial | undefined`), e
+// o `next build` reprova no type-check com "possibly undefined". Devolvendo o
+// valor já estreitado, quem usa recebe `Filial` em qualquer escopo.
+function filialDaPrevia(slug: string) {
+  const filial = FILIAIS_PREVIA.find((f) => f.slug === slug)
+  if (!filial) throw new Error(`previa-ficha-dados: "${slug}" sumiu de FILIAIS_PREVIA`)
+  return filial
 }
+
+const FILIAL_DA_FICHA = filialDaPrevia('cerrado-alto')
 
 /** O id do ativo fotografado — o MESMO que a rota do `Ambiente` declara. */
 export const ATIVO_ID_PREVIA = '00000000-0000-4000-8000-000000000001'

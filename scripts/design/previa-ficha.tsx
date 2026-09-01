@@ -237,6 +237,11 @@ function Dado({ label, children }: { label: string; children: React.ReactNode })
   )
 }
 
+/** Ausência de vínculo de sucessão, com o TIPO preservado — ver o uso abaixo. */
+function semVinculo(): VinculoAtivo | null {
+  return null
+}
+
 function Miolo({ cenario }: { cenario: CenarioFicha }) {
   const ativo = ativoDaPrevia()
   const movimentacoes = movimentacoesDaPrevia()
@@ -251,8 +256,15 @@ function Miolo({ cenario }: { cenario: CenarioFicha }) {
   // logo abaixo do cabeçalho, e a seção "Histórico do ativo substituído", no
   // fim — continuam copiados verbatim; simplesmente não renderizam, do mesmo
   // jeito que não renderizam na ficha real de um ativo sem vínculo.
-  const substitutoDeste: VinculoAtivo | null = null
-  const ativoAntigo: VinculoAtivo | null = null
+  //
+  // ⚠ VÊM DE UMA FUNÇÃO, e não de `const x: VinculoAtivo | null = null`: com o
+  // literal, o estreitamento de fluxo do TypeScript fixa o tipo em `null`, e os
+  // ramos `{ativoAntigo && <Link href={`/ativos/${ativoAntigo.id}`}>}` passam a
+  // ver `never` — `next build` reprova com "Property 'id' does not exist on type
+  // 'never'". Atravessando uma fronteira de função, o tipo declarado sobrevive e o
+  // bloco condicional continua sendo o MESMO código da `page.tsx`.
+  const substitutoDeste = semVinculo()
+  const ativoAntigo = semVinculo()
   const timelineAntigo: MovimentacaoTimeline[] = []
   const itensJunto = itensJuntoDaPrevia(cenario)
   const rotulosTipo = rotulosTipoDaPrevia()
@@ -425,19 +437,9 @@ function Miolo({ cenario }: { cenario: CenarioFicha }) {
         </Card>
       )}
 
-      {/* F18 — pendências de item faltante (abertas em destaque + resolvidas
-          como auditoria). F28/PND-05 — reabrir uma RESOLVIDA é do nível
-          administrador, não de quem apenas escreve nesta filial. F38 — o que
-          foi junto com este equipamento (join por movimentacao_id). */}
-      <ItensQueForamJunto itens={itensJunto} />
-
-      <PendenciasItemFicha
-        patrimonio={ativo.patrimonio}
-        pendencias={pendenciasItem}
-        rotulosTipo={rotulosTipo}
-        podeResolver={podeEscreverNesta}
-        podeReabrir={eAdmin(operador?.papel)}
-      />
+      {/* ⚠ F44 — OS DOIS BLOCOS DE ITEM DESCERAM PARA O FIM DESTA PÁGINA, e esta
+          prévia acompanha a `page.tsx` linha a linha. Prévia que mostra outra
+          ordem fotografa uma tela que não existe. */}
 
       {/* Grid de dados */}
       <Card>
@@ -575,6 +577,20 @@ function Miolo({ cenario }: { cenario: CenarioFicha }) {
           />
         </SecaoDaPagina>
       )}
+
+      {/* OS BLOCOS DE ITEM — o secundário, depois do principal (F44).
+          F38 — "o que foi junto" sai do JOIN por `movimentacao_id`.
+          F18 — as pendências de item têm ciclo próprio.
+          F28/PND-05 — reabrir uma RESOLVIDA é do nível administrador. */}
+      <ItensQueForamJunto itens={itensJunto} />
+
+      <PendenciasItemFicha
+        patrimonio={ativo.patrimonio}
+        pendencias={pendenciasItem}
+        rotulosTipo={rotulosTipo}
+        podeResolver={podeEscreverNesta}
+        podeReabrir={eAdmin(operador?.papel)}
+      />
     </Pagina>
   )
 }

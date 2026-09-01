@@ -255,6 +255,7 @@ export function ItensTable({
   filialPreset,
   filiaisTransferencia = [],
   cabecalhos,
+  escopo,
 }: {
   rows: LinhaDeItem[]
   /** As filiais que a linha compara — já recortadas pelo filtro da tela. */

@@ -444,13 +444,41 @@ describe('estoque mínimo e kits documentados (OS-F12)', () => {
     expect(texto).toContain(normalizarBusca('selo âmbar "repor"'))
   })
 
-  it('descreve a regra exata do mínimo: consolidado, 0 não alerta, igual não acende', () => {
+  // ⚠ F44 — ESTE TESTE MUDOU DE ALVO, e a razão é que ele estava PROTEGENDO A
+  // DOCUMENTAÇÃO ERRADA em vez de detectá-la — exatamente o que o comentário de
+  // `conteudo/gestao.test.ts` já registrava ter acontecido uma vez.
+  //
+  // Ele fixava as strings "estoque somado de TODAS as filiais" e "nunca do saldo
+  // de uma filial". Em 01/09/2026 o Johnny revogou essa parte da decisão de
+  // 23/07/2026: o aviso "repor" passou a SEGUIR o filtro de filial. Com as
+  // asserções antigas, a suíte ficaria VERDE enquanto a ajuda descrevesse um
+  // comportamento que o produto não tem mais — que é o pior estado possível de um
+  // teste de documentação.
+  //
+  // Agora ele cobra as três coisas que continuam verdadeiras (mínimo 0, igual não
+  // acende, o card do painel) MAIS a regra nova e o efeito colateral dela, que é
+  // justamente o que o operador precisa saber para não comprar o que sobra ao lado.
+  it('descreve a regra exata do mínimo: segue o filtro, 0 não alerta, igual não acende', () => {
     const texto = textoDaSecao(secao('itens'))
-    expect(texto).toContain(normalizarBusca('estoque somado de TODAS as filiais'))
     expect(texto).toContain(normalizarBusca('Mínimo 0 = item sem acompanhamento, nunca acende'))
     expect(texto).toContain(normalizarBusca('Estoque IGUAL ao mínimo também não acende'))
-    expect(texto).toContain(normalizarBusca('nunca do saldo de uma filial'))
+    expect(texto).toContain(normalizarBusca('SEGUE O FILTRO DE FILIAL'))
+    expect(texto).toContain(normalizarBusca('compara com o estoque DAQUELA filial'))
+    // O efeito colateral que a decisão de 23/07/2026 evitava, dito com todas as
+    // letras para quem opera — sem isto, a regra nova vira armadilha.
+    expect(texto).toContain(normalizarBusca('sobra na filial ao lado'))
     expect(texto).toContain(normalizarBusca('card "Itens para repor"'))
+  })
+
+  // ⚠ E A DIVERGÊNCIA COM O PAINEL INICIAL TEM DE ESTAR ESCRITA. O card "Itens
+  // para repor" da home lê SEMPRE o consolidado (`getSaldosItens(null)`, em
+  // `src/app/(app)/page.tsx`) e não tem filtro de filial — desde a F44 ele pode
+  // discordar da contagem de `/itens` filtrada, e as duas estão certas. Ajuda que
+  // não avisa isso transforma uma diferença legítima em suspeita de defeito.
+  it('avisa que o card do painel inicial NÃO acompanha o filtro de filial', () => {
+    const texto = textoDaSecao(secao('itens'))
+    expect(texto).toContain(normalizarBusca('esse card é SEMPRE do acervo inteiro'))
+    expect(texto).toContain(normalizarBusca('podem não bater'))
   })
 
   it('descreve o kit: onde se cria, que sobrescreve, que o checklist não bloqueia e que é cópia', () => {

@@ -14,6 +14,7 @@
 
 import { ItensTable } from '@/components/itens/itens-table'
 import type { CabecalhoDeNumero } from '@/components/itens/cabecalho-de-numero'
+import type { EscopoDosNumeros } from '@/lib/itens/escopo'
 import type { LinhaDeItem } from '@/lib/itens/lista'
 import type { MinimosPorItem } from '@/lib/itens/repor'
 import type { Filial } from '@/lib/queries/filiais'
@@ -27,6 +28,8 @@ export type PropsDaTabela = {
   filialPreset: number | null
   filiaisTransferencia?: readonly number[]
   cabecalhos: readonly CabecalhoDeNumero[]
+  /** F44 — de quem são os quatro números; vira a `<caption>` da tabela. */
+  escopo: EscopoDosNumeros
 }
 
 type Variante = {

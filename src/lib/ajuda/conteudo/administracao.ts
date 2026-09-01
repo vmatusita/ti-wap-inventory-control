@@ -121,7 +121,7 @@ export const administracao: PaginaAjuda = {
       itens: [
         'Em Administração › Itens, a tabela mostra "Nome", "Grupo", "Ordem", "Mínimo", "Lançamentos", "Status" e "Ações". Use "Novo item" ou "Editar". Acima da tabela há um campo de busca por nome ou grupo, com a contagem "N de M" ao lado — o catálogo cresce e rolar a lista inteira para achar um cabo deixou de ser o caminho.',
         'Preencha o "Nome" (é ele que aparece na busca do lançamento), escolha o "Grupo" e, se quiser, ajuste a "Ordem" — ela controla a posição do item dentro do bloco do grupo, na página de saldos.',
-        'O campo "Estoque mínimo" é o ponto de reposição: 0 significa sem alerta, e a própria tela explica que acima de 0 o item ganha o aviso "repor" quando o estoque somado de todas as filiais ficar abaixo do número. Na coluna "Mínimo", 0 aparece como travessão.',
+        'O campo "Estoque mínimo" é o ponto de reposição: 0 significa sem alerta, e acima de 0 o item ganha o aviso "repor" quando o estoque ficar abaixo do número. O mínimo é UM SÓ por item (não existe mínimo por filial); o que muda é com qual estoque ele é comparado — sem filtro, o de todas as filiais; com uma filial filtrada na página Itens, o daquela filial. Na coluna "Mínimo", 0 aparece como travessão.',
         'Item que já tem lançamento NÃO se exclui — a tela diz quantos existem e o caminho é desmarcar "Item ativo". Só item sem nenhum lançamento mostra o botão "Excluir".',
         'Nome repetido é recusado com "Já existe um item com esse nome." Se o homônimo estiver desativado, o caminho é reativá-lo em vez de criar outro.',
         'Item também pode ser criado sem passar por aqui, direto no diálogo de lançamento — é o mesmo catálogo, e por isso também é da Administração.',

@@ -102,6 +102,7 @@ import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
 import { TransferirItemDialog } from '@/components/itens/transferir-item-dialog'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 import { NUMEROS_ITEM } from '@/lib/ajuda/conteudo/itens-por-quantidade'
+import { cabecalhosComEscopo, escopoDosNumeros } from '@/lib/itens/escopo'
 import { ordenarSaldos, paginarLinhas, rotuloSubtituloItens } from '@/lib/itens/lista'
 import { resumoDaLista } from '@/lib/itens/distribuicao'
 import { TAMANHOS_PAGINA } from '@/lib/ativos/lista'
@@ -308,6 +309,10 @@ function Miolo({
       : FILIAIS_PREVIA
   const linhas = ordenarSaldos(linhasDaPrevia(filialIds))
   const pagina = paginarLinhas(linhas, 1, 25)
+  // F44 — a MESMA derivação da `page.tsx`: o escopo sai de `filialIds`, e a
+  // legenda com escopo sai de `NUMEROS_ITEM` por função pura.
+  const escopo = escopoDosNumeros(FILIAIS_PREVIA, filialIds)
+  const cabecalhos = cabecalhosComEscopo(NUMEROS_ITEM, escopo)
   const props: PropsDaTabela = {
     rows: pagina.rows,
     filiais: filiaisVisiveis,
@@ -315,7 +320,8 @@ function Miolo({
     escreve,
     filialPreset: filialIds.length === 1 ? filialIds[0] : null,
     filiaisTransferencia: FILIAIS_PREVIA.map((f) => f.id),
-    cabecalhos: NUMEROS_ITEM,
+    cabecalhos,
+    escopo,
   }
 
   const vazio = cenario.startsWith('vazio')
@@ -407,7 +413,8 @@ function Miolo({
             <ResumoDeItens
               resumo={resumoDaLista(linhas, MINIMOS)}
               resumoDaPagina={resumoDaLista(pagina.rows, MINIMOS)}
-              cabecalhos={NUMEROS_ITEM}
+              cabecalhos={cabecalhos}
+              escopo={escopo}
             />
           )}
           <Tabela {...props} />
