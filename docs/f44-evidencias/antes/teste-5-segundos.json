@@ -1,0 +1,362 @@
+{
+ "pasta": "docs/f44-evidencias/antes",
+ "versao": "1.48.0 (linha de base, antes de tocar em codigo)",
+ "item": "Cabo de rede Cat6 3 m",
+ "protocolo": "Subagente em contexto fresco, so a imagem e as perguntas. Duas rodadas independentes por imagem.",
+ "respostas": [
+  {
+   "arq": "itens__atual__padrao__uma__claro__1440x900.png",
+   "recorte": "uma",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma unica filial (o filtro \"Filial\" mostra 1 selecionada), nao de todas.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os 5 itens marcados com o selo laranja \"repor\" (Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet, Filtro de privacidade 14\") - comparados ao minimo definido para o item, ja que o KPI \"A repor\" diz \"itens abaixo do minimo\".",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Na prateleira (Em estoque): 16. Com as pessoas (Em uso): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim, o laranja/amarelo do selo \"repor\" e o mesmo tom amarelo do logo WAP no topo, entao a esta cor de destaque de alerta pode ser confundida com a cor de marca em vez de leitura imediata como \"atencao\".",
+     "confianca": "hesitei"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__1440x900.png",
+   "recorte": "uma",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Nao da pra saber o nome da filial so batendo o olho: o filtro no topo mostra 'Filial' com um badge '1' (uma filial selecionada), mas o nome dela nao aparece escrito na tela. Entao os numeros sao de UMA filial especifica, nao de todas.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "O card 'A repor' mostra 11 itens abaixo do minimo (5 nesta pagina). Na tabela, os itens com a etiqueta laranja 'repor' sao: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". A comparacao e contra o estoque MINIMO definido para cada item.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Cabo de rede Cat6 3 m: 16 na prateleira (Em estoque) e 0 com as pessoas (Em uso).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "A cor que gera duvida e o laranja/amarelo da etiqueta 'repor'. E um tom de alerta/atencao, mas nao fica claro so de bater o olho se e so um aviso informativo ou algo que exige acao imediata (nao ha, por exemplo, um vermelho mais forte pra separar 'urgente' de 'atencao').",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 35
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__390x844.png",
+   "recorte": "uma",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Parecem ser de UMA filial só (o filtro 'Filial' mostra '1' selecionada), mas não dá pra saber qual: o campo do filtro está sem texto legível na imagem.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os marcados com a etiqueta laranja 'repor': Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio e Filtro de privacidade 14\". A comparação é com o mínimo (o KPI diz 'A repor: 11 itens abaixo do mínimo').",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "16 em estoque (na prateleira) e 0 em uso (com as pessoas).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim, a etiqueta laranja 'repor'. Ela não aparece em todo item com estoque 0 (ex.: 'Suporte ergonômico para notebook' tem 0 em estoque e não tem a etiqueta), então não fica claro se laranja significa 'zerado' ou 'abaixo do mínimo' de cada item.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 50
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__390x844.png",
+   "recorte": "uma",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma filial só (filtro ativo: \"Filial\" mostra 1 selecionada, com botão \"X Limpar\"), não de todas — mas o nome da filial escolhida não está legível na imagem.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os 4 itens com a etiqueta laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio e Filtro de privacidade 14\". O comparativo é com o mínimo definido para cada item — o card \"A repor: 11 itens abaixo do mínimo nesta página\" deixa isso explícito.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Em estoque (prateleira): 16. Em uso (com as pessoas): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim, a etiqueta laranja \"repor\": do jeito que está desenhada (um chip pequeno, na mesma linha de \"Acessório · Fone\" etc.) ela mais parece uma categoria/rótulo do item do que um alerta de estoque baixo — não bate de cara como cor de alerta.",
+     "confianca": "hesitei"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__1440x900.png",
+   "recorte": "uma",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A tela esta filtrada para 1 filial (badge \"Filial 1\" no filtro), nao para todas — mas o nome da filial nao aparece visivel na tela, entao nao da pra dizer qual e.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os itens com o selo laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\" (5 nesta pagina, batendo com o card \"11 itens abaixo do minimo - 5 nesta pagina\"). Sao comparados contra o minimo definido para o item.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Cabo de rede Cat6 3 m: 16 em estoque (na prateleira) e 0 em uso (com as pessoas).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim: as colunas \"Em estoque\" e \"Cerrado Alto\" aparecem lado a lado em negrito/branco com o MESMO numero em toda linha, o que da a impressao de estarem duplicadas — nao fica claro o que cada uma representa de diferente.",
+     "confianca": "hesitei"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__1440x900.png",
+   "recorte": "uma",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "De uma filial só (o filtro mostra o botão \"Filial\" com badge \"1\", indicando 1 filial selecionada) — não é o consolidado de todas. O nome da filial não aparece na tela.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "11 itens estão \"a repor\" (abaixo do mínimo definido para o item); nesta página aparecem 5 com a tag \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". A comparação é sempre contra o estoque mínimo do item.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Cabo de rede Cat6 3 m: 16 na prateleira (Em estoque) e 0 com as pessoas (Em uso).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim — a tag laranja \"⚠ repor\". O laranja/âmbar costuma ser lido como cor de alerta/erro mais grave, mas aqui é só o sinalizador de 'abaixo do mínimo, precisa comprar/repor', não um problema urgente ou falha.",
+     "confianca": "hesitei"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__390x844.png",
+   "recorte": "uma",
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "O campo \"Filial\" está sem nada selecionado (aparece vazio, só com a seta do combobox) — então os números parecem ser de TODAS as filiais, não de uma específica.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os itens marcados com a etiqueta laranja \"repor\": Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". A comparação é com o MÍNIMO: o tile \"A repor\" no topo diz \"11 itens abaixo do mínimo nesta página\".",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Em estoque (na prateleira): 16. Em uso (com as pessoas): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim: a etiqueta \"repor\" é laranja/âmbar, uma cor bem parecida com o amarelo de destaque da marca WAP usado em outros pontos da tela — no tema escuro fica difícil, à primeira vista, distinguir se é um alerta (precisa agir) ou só uma marcação/destaque visual comum.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 25
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__390x844.png",
+   "recorte": "uma",
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Parece ser de UMA filial específica: o filtro \"Filial\" mostra a contagem \"1\" (não \"todas\"), mas o nome dela não dá pra ler no dropdown nessa resolução da imagem.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Os itens com a etiqueta laranja \"repor\" na lista visível: Headset com microfone, Adaptador USB-C para HDMI, Apresentador sem fio, Capa protetora para tablet e Filtro de privacidade 14\". A comparação é com o MÍNIMO: o card \"A repor\" no topo diz \"11 itens abaixo do mínimo nesta página\".",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c",
+     "resposta": "Cabo de rede Cat6 3 m: 16 em estoque (na prateleira) e 0 em uso (com as pessoas).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d",
+     "resposta": "Sim: o laranja/âmbar da etiqueta \"repor\" é bem parecido com o amarelo/âmbar da marca WAP no canto superior esquerdo (logo). Isso pode confundir \"alerta de que precisa repor\" com a cor de identidade visual da marca.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 30
+  },
+  {
+   "arq": "itens__atual__padrao__tres__claro__1440x900.png",
+   "recorte": "tres",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais: o filtro 'Filial' no topo mostra '3' selecionadas, e o número grande 304 parece somar essas filiais filtradas, não a rede toda.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Na tabela, em três colunas separadas por filial (Aurora, Cerrado Alto, Estância), uma para cada item/linha.",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 8
+  },
+  {
+   "arq": "itens__atual__padrao__tres__claro__1440x900.png",
+   "recorte": "tres",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais (nao a tudo): o filtro \"Filial\" no topo mostra um selo \"3\", e a tabela abaixo tem colunas separadas para 3 filiais (Aurora, Cerrado Alto, Estancia) — entao o 304 parece ser a soma dessas 3 filtradas, nao do total da rede.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Na tabela, nas tres colunas do lado direito de cada linha de item, rotuladas \"Aurora\", \"Cerrado Alto\" e \"Estancia\", cada uma com o numero em estoque daquele item naquela filial.",
+     "confianca": "certeza"
+    }
+   ]
+  },
+  {
+   "arq": "itens__atual__padrao__tres__claro__390x844.png",
+   "recorte": "tres",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A uma filial: ha um filtro de Filial ativo (com badge \"1\" e botao \"Limpar\"), entao o 304 em estoque se refere so a filial selecionada, nao a todas.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Em cada item da lista, no link \"Ver as 3 filiais\" abaixo dos numeros Em estoque/Em uso do item.",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 8
+  },
+  {
+   "arq": "itens__atual__padrao__tres__claro__390x844.png",
+   "recorte": "tres",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A uma filial (o filtro \"Filial\" no topo mostra 1 selecionada, com opcao de \"Limpar\")",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "No link \"Ver as 3 filiais\" que aparece embaixo de cada item da lista",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 8
+  },
+  {
+   "arq": "itens__atual__padrao__tres__escuro__1440x900.png",
+   "recorte": "tres",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "A algumas filiais: o filtro 'Filial' mostra um badge com o número 3 (3 filiais selecionadas), então o 304 é a soma dessas filiais filtradas, não de todas nem de uma só.",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Nas colunas da tabela à direita, uma por filial (Aurora, Cerrado Alto, Estância), com o número em estoque de cada item naquela filial.",
+     "confianca": "certeza"
+    }
+   ],
+   "segundosEstimados": 6
+  },
+  {
+   "arq": "itens__atual__padrao__tres__escuro__1440x900.png",
+   "recorte": "tres",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a",
+     "resposta": "Ao conjunto de filiais filtradas (o filtro 'Filial' mostra '3' selecionadas), nao a uma unica filial nem a 'tudo' sem filtro — e a soma das filiais marcadas no filtro.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b",
+     "resposta": "Na tabela, em tres colunas nomeadas por filial (Aurora, Cerrado Alto, Estancia), cada uma mostrando 'em estoque' daquela filial por item.",
+     "confianca": "certeza"
+    }
+   ]
+  }
+ ]
+}

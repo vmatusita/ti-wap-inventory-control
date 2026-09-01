@@ -61,9 +61,18 @@
 //   --temas       padrão `claro,escuro`
 //   --cenarios    padrão `padrao` (`consulta` = sem menu de ações; `vazio-filtro`,
 //                 `vazio-cargo`, `vazio-catalogo` = os três estados vazios)
+//   --recortes    padrão `sem` — quais filiais estão marcadas no filtro
+//                 (`sem` = nenhuma · `uma` = Cerrado Alto · `tres` = Aurora,
+//                 Cerrado Alto e Estância Velha do Norte)
 //   --so-html     não fotografa; só grava o HTML
 //
 // A pasta de saída é sempre limpa dos arquivos que esta passada regrava.
+//
+// ⚠ F44 — O RECORTE ENTROU, e sem ele esta ferramenta não servia para a fase.
+// Até a v1.48.0 a prévia fotografava SÓ a tela sem filtro — justamente o único
+// caso em que a legenda "tudo que a TI possui" não mente. O defeito que a F44
+// conserta só existe COM filtro, então uma prévia que não sabe filtrar
+// fotografaria a tela certa e provaria nada.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -245,7 +254,21 @@ type Cenario = 'padrao' | 'consulta' | 'vazio-filtro' | 'vazio-cargo' | 'vazio-c
 
 const CATALOGO = catalogoDaPrevia()
 const MINIMOS = minimosDaPrevia()
-const LINHAS = ordenarSaldos(linhasDaPrevia())
+
+/**
+ * OS TRÊS RECORTES DE FILIAL que a F44 precisa fotografar.
+ *
+ * `uma` escolhe **Cerrado Alto** de propósito: é uma filial do MEIO da lista, e
+ * não a primeira — com a primeira, a coluna redundante da matriz e a coluna
+ * "Em estoque" ficariam coladas, e a foto esconderia o problema em vez de
+ * mostrá-lo. `tres` pula filiais (1, 3 e 5) pelo mesmo motivo: a soma tem de ser
+ * visivelmente diferente do consolidado.
+ */
+const RECORTES: Record<string, { rotulo: string; filialIds: number[] }> = {
+  sem: { rotulo: 'sem filtro de filial', filialIds: [] },
+  uma: { rotulo: 'uma filial marcada (Cerrado Alto)', filialIds: [3] },
+  tres: { rotulo: 'três filiais marcadas', filialIds: [1, 3, 5] },
+}
 
 /** A Server Action do export é assíncrona e não roda na prévia — dublê inerte. */
 const EXPORT_INERTE = async () => ({
@@ -260,9 +283,11 @@ const EXPORT_INERTE = async () => ({
 function Miolo({
   variante,
   cenario,
+  recorte,
 }: {
   variante: keyof typeof VARIANTES
   cenario: Cenario
+  recorte: string
 }) {
   const escreve = cenario !== 'consulta'
   // ⚠ AS MESMAS TRÊS CONDIÇÕES DA `page.tsx`, e não "escreve" para tudo: Conferir
@@ -271,20 +296,35 @@ function Miolo({
   // não existe para ninguém.
   const filiaisEscrita = escreve ? FILIAIS_PREVIA : []
   const Tabela = VARIANTES[variante].Tabela
-  const pagina = paginarLinhas(LINHAS, 1, 25)
+
+  // ⚠ AS MESMAS DUAS LINHAS DA `page.tsx` (linhas 122-145): `filialIds` recorta os
+  // NÚMEROS e `filiaisVisiveis` são as colunas da matriz. Nada aqui é
+  // reimplementação — `linhasDaPrevia` chama `montarLinhasDeItem`, a função de
+  // verdade.
+  const filialIds = RECORTES[recorte].filialIds
+  const filiaisVisiveis =
+    filialIds.length > 0
+      ? FILIAIS_PREVIA.filter((f) => filialIds.includes(f.id))
+      : FILIAIS_PREVIA
+  const linhas = ordenarSaldos(linhasDaPrevia(filialIds))
+  const pagina = paginarLinhas(linhas, 1, 25)
   const props: PropsDaTabela = {
     rows: pagina.rows,
-    filiais: FILIAIS_PREVIA,
+    filiais: filiaisVisiveis,
     minimos: MINIMOS,
     escreve,
-    filialPreset: null,
+    filialPreset: filialIds.length === 1 ? filialIds[0] : null,
     filiaisTransferencia: FILIAIS_PREVIA.map((f) => f.id),
     cabecalhos: NUMEROS_ITEM,
   }
 
   const vazio = cenario.startsWith('vazio')
-  const temFiltro = cenario === 'vazio-filtro'
-  const temRecorteFilial = cenario === 'vazio-cargo'
+  // O recorte vem do FILTRO (é o que a foto quer mostrar), então ele conta como
+  // filtro na URL — a mesma leitura que `ehFiltroDeFilial` faz na `page.tsx`.
+  const temFiltro = cenario === 'vazio-filtro' || filialIds.length > 0
+  const temRecorteFilial =
+    cenario === 'vazio-cargo' ||
+    (filialIds.length > 0 && filialIds.length < FILIAIS_PREVIA.length)
 
   return (
     <Pagina>
@@ -338,7 +378,10 @@ function Miolo({
         }
       />
 
-      <ItensFiltros filiais={FILIAIS_PREVIA} filiaisSelecionadas={[]} />
+      <ItensFiltros
+        filiais={FILIAIS_PREVIA}
+        filiaisSelecionadas={filialIds.map(String)}
+      />
 
       {cenario === 'vazio-catalogo' ? (
         <EstadoVazio
@@ -362,7 +405,7 @@ function Miolo({
         <>
           {VARIANTES[variante].resumo && (
             <ResumoDeItens
-              resumo={resumoDaLista(LINHAS, MINIMOS)}
+              resumo={resumoDaLista(linhas, MINIMOS)}
               resumoDaPagina={resumoDaLista(pagina.rows, MINIMOS)}
               cabecalhos={NUMEROS_ITEM}
             />
@@ -448,6 +491,14 @@ async function main() {
   const tamanhos = parseLarguras(argumento('larguras', '1440x900,390x844'))
   const temas = lista(argumento('temas', 'claro,escuro')) as ('claro' | 'escuro')[]
   const cenarios = lista(argumento('cenarios', 'padrao')) as Cenario[]
+  const recortes = lista(argumento('recortes', 'sem'))
+  for (const r of recortes) {
+    if (!(r in RECORTES)) {
+      throw new Error(
+        `recorte "${r}" não existe. Disponíveis: ${Object.keys(RECORTES).join(', ')}`,
+      )
+    }
+  }
 
   const dir = resolve(RAIZ, saida)
   mkdirSync(dir, { recursive: true })
@@ -459,19 +510,33 @@ async function main() {
   const paginas: { arquivo: string; titulo: string }[] = []
   for (const variante of variantes) {
     for (const cenario of cenarios) {
-      for (const tema of temas) {
-        const corpo = renderToStaticMarkup(
-          <Ambiente busca="">
-            <CascoDublê>
-              <Miolo variante={variante as keyof typeof VARIANTES} cenario={cenario} />
-            </CascoDublê>
-          </Ambiente>,
-        )
-        const nome = `itens__${variante}__${cenario}__${tema}`
-        const titulo = `Itens · ${VARIANTES[variante as keyof typeof VARIANTES].rotulo} · ${cenario} · ${tema}`
-        writeFileSync(join(dir, `${nome}.html`), documento({ css, corpo, tema, titulo }))
-        paginas.push({ arquivo: `${nome}.html`, titulo })
-        console.log(`  ${nome}.html`)
+      for (const recorte of recortes) {
+        for (const tema of temas) {
+          // A querystring do `Ambiente` acompanha o recorte: `ItensFiltros` lê
+          // `useSearchParams` para montar os links de "Limpar" e do seletor de
+          // filial — sem isto a barra de filtros da foto contaria outra história
+          // que a tabela ao lado dela.
+          const filialIds = RECORTES[recorte].filialIds
+          const busca = filialIds.length > 0 ? `filial=${filialIds.join(',')}` : ''
+          const corpo = renderToStaticMarkup(
+            <Ambiente busca={busca}>
+              <CascoDublê>
+                <Miolo
+                  variante={variante as keyof typeof VARIANTES}
+                  cenario={cenario}
+                  recorte={recorte}
+                />
+              </CascoDublê>
+            </Ambiente>,
+          )
+          const nome = `itens__${variante}__${cenario}__${recorte}__${tema}`
+          const titulo =
+            `Itens · ${VARIANTES[variante as keyof typeof VARIANTES].rotulo}` +
+            ` · ${cenario} · ${RECORTES[recorte].rotulo} · ${tema}`
+          writeFileSync(join(dir, `${nome}.html`), documento({ css, corpo, tema, titulo }))
+          paginas.push({ arquivo: `${nome}.html`, titulo })
+          console.log(`  ${nome}.html`)
+        }
       }
     }
   }
