@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.48.0',
+    data: '2026-09-01',
+    fase: 'F43',
+    titulo: 'A página Itens diz, na própria linha, onde está cada item',
+    mudancas: [
+      'Cada item agora mostra, na própria linha, quanto tem em cada filial — uma coluna por filial, com o nome dela no cabeçalho. Antes esse número só existia clicando na setinha, um item por vez.',
+      'No celular, a lista voltou a mostrar números. A tabela pedia mais largura do que a tela tinha, e as colunas "Em estoque" e "Em uso" ficavam fora da área visível: você via o nome do item e mais nada. Para ver os números de cada filial no celular, o botão "Ver as 5 filiais" abre a linha.',
+      'Cada coluna de número passou a dizer embaixo do nome o que ela significa — "na prateleira agora", "com as pessoas". Antes isso só aparecia parando o mouse em cima, e no celular não aparecia de jeito nenhum.',
+      'Acima da tabela entraram os totais da lista como ela está filtrada: Em estoque, Em uso e Total, mais "A repor" e "Falta" quando há algo a repor ou algum déficit. Esses dois dizem também quantos estão na página que você está vendo.',
+      'O grupo e o tipo do item saíram de duas colunas e passaram a aparecer embaixo do nome — agora eles também aparecem no celular, onde antes sumiam por completo.',
+      'O aviso "repor" ganhou um ícone de alerta, para não passar despercebido no meio da lista.',
+    ],
+  },
+  {
     versao: '1.47.2',
     data: '2026-08-31',
     titulo: 'O link antigo do histórico de itens voltou a funcionar (de verdade)',

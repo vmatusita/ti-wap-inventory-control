@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Dica } from '@/components/ui/dica'
 import { precisaRepor } from '@/lib/validators/item'
@@ -34,7 +35,16 @@ export function BadgeRepor({
       texto={`Abaixo do ponto de reposição — mínimo: ${estoqueMinimo.toLocaleString('pt-BR')} · estoque de todas as filiais: ${estoqueConsolidado.toLocaleString('pt-BR')}`}
       className="inline-flex"
     >
-      <Badge className="border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+      {/* F43 — o ÍCONE entrou por medição, não por gosto. No celular, com 25
+          linhas de item numa página de 3.700px, o julgamento em contexto fresco
+          errou a lista duas vezes ao enumerar quem precisa de compra: uma passada
+          esqueceu um selo, outra incluiu um item que não tinha nenhum. Um chip de
+          texto pequeno não salta do meio de 25 linhas; com o triângulo, salta.
+          A palavra não mudou — "repor" continua "repor" —, e a cor continua a
+          mesma (âmbar: é previsão de compra, não erro; o vermelho continua sendo
+          do "faltam N"). */}
+      <Badge className="gap-1 border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+        <TriangleAlert className="size-3" aria-hidden />
         repor
       </Badge>
     </Dica>

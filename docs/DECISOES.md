@@ -8116,3 +8116,267 @@ e da `0121`; as quatro do código, por `git revert`.
     componentes; as mesmas cores, mais espalhadas). O TETO só desce; a contagem de arquivos é
     registro.
 - Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · o critério do Johnny, e a liberdade que veio junto
+
+- Contexto: a F42 entregou `/itens` no casco da F40 em 31/08/2026. No dia seguinte, olhando a tela:
+  *"ainda está mto confusa e a visualização não está boa, não consigo entender de cara o que é cada
+  coisa, tem que ser algo que entenda logo ao bater o olho"*. Perguntado sobre **o que a tela tem de
+  responder em 5 segundos**, sem tooltip e sem contar coluna, ele escolheu UMA coisa: **onde está o
+  item — quanto tem em cada filial.**
+- Decisão (Johnny, 01/09/2026), em três partes: **(1) liberdade de redesenho visual completo** —
+  reorganizar cartões, agrupamento, hierarquia de números, cor e ícone, mantendo rotas, filtros,
+  permissões e regras; **(2) o vocabulário NÃO muda** — ele recusou explicitamente revisar rótulos, e
+  *Total · Em estoque · Em uso · Falta · Reservado* continuam com esses nomes; **(3) prova visual
+  obrigatória**, porque sem imagem "ficou legível" é afirmação e não evidência.
+- Motivo: a F42 resolveu a dor D3 do `docs/PLANO-ITENS.md` (*"a view de itens foge totalmente do
+  padrão do sistema"*) no eixo da ESTRUTURA. A dor que sobrou é de LEITURA, e ela tem um dono e uma
+  pergunta — o que torna o critério mensurável em vez de opinável.
+- Reversível? Não se aplica — é decisão de produto, e ela abriu a fase.
+
+## 2026-09-01 · F43 · a linha de base foi MEDIDA antes de tocar em código
+
+- Contexto: "melhorou" sem "antes" não é afirmação verificável. A ordem de serviço exige a tela de
+  hoje fotografada e submetida ao MESMO teste.
+- Decisão: a `v1.47.2` foi fotografada em `docs/f43-evidencias/antes/` (1440×900 e 390×844, claro e
+  escuro) e julgada por **oito subagentes em contexto fresco**, dois por combinação, que só viram a
+  imagem e as quatro perguntas.
+- Motivo, e o resultado: **em 1440px, "em quais filiais este item está?" deu NÃO SEI nas quatro
+  passadas** — a distribuição existia só atrás do chevron. **Em 390px, "quanto está na prateleira e
+  quanto com as pessoas?" deu NÃO SEI nas quatro** — e a causa não estava no diagnóstico da ordem:
+  **a tabela pedia 740px numa caixa de 356px**, e as colunas *Em estoque* e *Em uso* ficavam FORA da
+  área visível. No celular, `/itens` mostrava o nome do item e mais nada. Medido com
+  `scrollWidth`/`clientWidth`, não estimado.
+- Reversível? Não se aplica — é registro.
+
+## 2026-09-01 · F43 · a prévia estática fotografa o COMPONENTE REAL, e o que nela é dublê
+
+- Contexto: `scripts/design/capturar.mjs` se recusa a fotografar produção (regra 2 do `CLAUDE.md`),
+  este repositório não tem `.env.ensaio` e o `.env.local` aponta para produção — foi por isso que a
+  F42 não fotografou nada (ata de 31/08/2026). Uma fase de legibilidade não pode aceitar isso.
+- Decisão: `scripts/design/previa-itens.tsx` renderiza o **componente real** com
+  `renderToStaticMarkup`, alimentado por um catálogo **100% fictício** (`previa-itens-dados.ts`: 44
+  itens, filiais inventadas, determinístico), dentro de um HTML com o CSS do app compilado a partir
+  do próprio `src/app/globals.css` pelo `@tailwindcss/postcss`. O Playwright fotografa.
+- O que é REAL na foto: `Pagina`, `CabecalhoDaPagina`, `ItensFiltros`, `ItensTable`,
+  `AtivosPaginacao`, `EstadoVazio`, `ResumoDeItens`, `RealtimeRefresh`, `ExportarCsvButton`, os dois
+  diálogos e o kit `ui/` — e o CSS. O que é DUBLÊ: o cabeçalho e a barra lateral do app, desenhados
+  com as MESMAS medidas do `(app)/layout.tsx` para a largura útil bater (1150px em 1440, 356px em
+  390). O que NÃO existe na foto: a fonte Geist (vem do `next/font`), que cai no fallback `system-ui`
+  declarado no próprio `globals.css`.
+- Duas notas de honestidade: o `SelectValue` do Radix aparece **vazio** na foto (ele só resolve o
+  texto do item escolhido na hidratação) — vale igualmente no "antes" e no "depois", então a
+  comparação é justa; e o `--tsconfig scripts/design/tsconfig.previa.json` **não é opcional**, porque
+  fora do bundler do Next o pacote `server-only` lança no import e `NUMEROS_ITEM` mora em
+  `lib/ajuda/`.
+- Motivo: nenhuma dependência nova (regra 3), nenhum acesso a banco, nenhum dado real — e a foto
+  mostra o que vai ao ar, não um mockup que pode divergir em silêncio.
+- Reversível? Sim, pelo git. É ferramenta de dev; não entra em build nem em CI.
+
+## 2026-09-01 · F43 · REVISÃO da F42 · a distribuição por filial volta para a superfície da linha
+
+- Contexto: a F42 mandou a comparação entre filiais para a linha expansível, e **acertou em matar o
+  `?visao=`** — um filtro que trocava as COLUNAS em vez de recortar as LINHAS, a única tela do
+  produto que fazia isso. O que ela não previu é que a pergunta que o Johnny escolheu como critério
+  dos 5 segundos é exatamente a que ficou atrás do chevron, um item por vez.
+- Decisão: `/itens` passa a ter **uma coluna por filial**, permanente, a partir de `xl`, com o saldo
+  **em estoque** de cada uma. A linha expansível **continua existindo**, com os quatro números de
+  cada filial e o atalho de transferir.
+- Motivo, e a fronteira: isto revisa o **esconderijo**, não a decisão. O `?visao=` continua morto e
+  não volta em hipótese nenhuma — não há alternador, não há param de URL, não há preferência de
+  usuário. É **apresentação permanente**, que é coisa diferente de modo. E não custou leitura nova:
+  `getSaldosPorFilial` já devolvia `porFilial` e `consolidado` numa chamada só; faltava desenho.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · REVISÃO da F42 · o PESO dos quatro números muda; a ORDEM não
+
+- Contexto: a F42 entregou *Total · Em estoque · Em uso · Falta* com peso visual quase igual — só
+  *Em estoque* tinha `font-semibold`. O olho não tinha âncora.
+- Decisão: *Em estoque* vira a âncora (um degrau de tamanho acima), *Em uso* a acompanha, *Total* e
+  *Falta* ficam atenuados. **A ordem das colunas NÃO muda.**
+- Motivo: o comentário de `NUMEROS_ITEM` diz, com todas as letras, que *"a ORDEM aqui é a ORDEM DAS
+  COLUNAS na tela"*. Reordenar as colunas obrigaria a reordenar a lista da página de ajuda junto —
+  mudança de documentação para ganhar hierarquia que o PESO já dá de graça. Escolheu-se a opção mais
+  simples e reversível (régua 4 da ordem de serviço).
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · três candidatas, escolhidas por MEDIÇÃO e não por gosto
+
+- Contexto: não existe na casa (nem no repositório irmão) um padrão pronto de distribuição de N
+  filiais dentro de uma linha de tabela. O mais próximo é `relatorios/medidor-minimo.tsx` — uma barra
+  de UM segmento dentro de célula — e o `.hbar` do `mockups/dashboard-relatorio.html`.
+- Decisão: as três candidatas foram implementadas como o **MESMO componente** com uma prop de
+  apresentação diferente, fotografadas e submetidas ao teste dos 5 segundos. Venceu a **matriz**.
+  - **A · matriz** (uma coluna por filial, o saldo em estoque): em 1440, "em quais filiais" e
+    "prateleira × pessoas" com certeza nas duas passadas. **Escolhida.**
+  - **B · matriz dupla** (a mesma coluna com `N em uso` embaixo): mesmo resultado em 1440 e **pior em
+    390** — e criou dúvida nova, dita pelo julgamento: *"na coluna Cerrado Alto aparece só 16, sem a
+    linha 'X em uso' que as outras filiais mostram — não dá para saber se é 0 em uso ou 'sem dado'"*.
+    Segunda linha condicional dentro de célula é ambiguidade, não densidade. **Recusada.**
+  - **C · faixa de blocos dentro da célula do nome**: a MAIS RÁPIDA em 1440 (5 e 10 segundos para
+    responder "em quais filiais") e **reprovada no celular**: a página passou de 3.449px para
+    **7.751px** de altura, e *"quanto está na prateleira"* virou **NÃO SEI nas duas passadas**.
+    **Recusada.**
+- Motivo: cópia paralela mediria a cópia. Medindo o mesmo componente com uma prop diferente, o que se
+  comparou foi a apresentação. Feita a escolha, a prop **saiu do componente** — não fica alternador
+  nenhum no código.
+- Reversível? Sim, pelo git; as fotos das três ficam em `docs/f43-evidencias/variantes/`.
+
+## 2026-09-01 · F43 · Grupo e Tipo saem de duas colunas e viram uma linha sob o nome
+
+- Contexto: `Grupo` era `hidden md:table-cell` e `Tipo` era `hidden lg:table-cell`. Duas
+  consequências, as duas medidas: **no celular a classificação simplesmente não existia**, e no
+  desktop a coluna Grupo repetia "Acessórios e periféricos" 24 vezes seguidas — 140px gastos com a
+  informação de MENOR variação da tela (o vocabulário tem dois valores).
+- Decisão: as duas viram uma linha `text-xs` atenuada sob o nome do item (`IdentidadeDoItem`), com o
+  rótulo CURTO de `GRUPO_ITEM_META` ("Acessório" em vez de "Acessórios e periféricos").
+- Motivo: a classificação passa a aparecer em TODA largura — ganho, não perda — e a tabela recupera a
+  largura de duas colunas, que é exatamente o que a matriz de filiais precisava. O rótulo curto **não
+  é vocabulário novo**: `GRUPO_ITEM_META` já tem os dois textos, e `rotulo` é o que
+  `rotuloGrupoItem()` devolve e o que o resto do produto usa para se referir a UM item. `titulo`
+  titulava a SEÇÃO, quando a tela tinha um bloco por grupo — e a F42 já tinha aposentado os blocos.
+- Efeito colateral registrado: o CSV **não muda** (continua levando o `titulo` na coluna Grupo), e a
+  página de ajuda foi corrigida na frase que dizia que o grupo "define em que bloco o item aparece na
+  tabela" — já falsa desde a F42.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · o cabeçalho diz o que o número significa; a `Dica` deixa de ser o único caminho
+
+- Contexto: até a `v1.47.2` o significado de *Total*, *Em estoque*, *Em uso* e *Falta* morava
+  EXCLUSIVAMENTE dentro da `Dica` do cabeçalho. Dica pede um gesto, espera um tempo e no celular
+  quase não existe — é, por definição, o contrário de "entender ao bater o olho".
+- Decisão: `NUMEROS_ITEM` ganhou o campo **`curto`** (três ou quatro palavras: "na prateleira agora",
+  "com as pessoas", "tudo que a TI possui", "déficit já assumido", "separado para um chamado"), e ele
+  aparece SEMPRE — sob o rótulo de cada coluna e sob o número de cada cartão de métrica. A `Dica`
+  continua, com a explicação inteira e a fórmula da coluna Falta.
+- Motivo: fonte ÚNICA preservada — rótulo, `curto` e `explicacao` saem do mesmo registro que a página
+  de ajuda lê, e ninguém redigita vocabulário. `curto` **não é rótulo alternativo**: os rótulos estão
+  congelados nesta fase; é a explicação comprimida, e diz a mesma coisa que `explicacao`.
+- Detalhe medido: a linha `curto` **some abaixo de `sm`**. Em 390px, "na prateleira agora" + "com as
+  pessoas" nos dois cabeçalhos comiam 194px dos 356px da caixa — sobravam 91px para o nome do item,
+  que passava a quebrar em oito linhas. No celular a explicação custaria justamente a legibilidade
+  que ela existe para dar.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · o defeito de 740px em 356px, e a única linha que o conserta
+
+- Contexto: o `TableCell` do kit shadcn é `whitespace-nowrap`. Com um nome de item comprido, a
+  largura mínima da tabela ia a **740px** — dentro de uma caixa de **356px** no celular. As colunas
+  *Em estoque* e *Em uso* existiam no HTML e ficavam fora da área visível, atrás de uma rolagem
+  horizontal que ninguém descobre.
+- Decisão: `whitespace-normal` **na célula do nome, e só nela**. O nome quebra linha e a tabela cabe.
+- Motivo: era o maior defeito medido da tela, não estava no diagnóstico da ordem de serviço, e o
+  conserto é uma classe. Nas quatro passadas de 390px do "antes", *"quanto está na prateleira"* deu
+  NÃO SEI; no "depois", certeza nas quatro.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · o botão "Ver as N filiais", e por que um chevron mudo não bastava
+
+- Contexto: abaixo de `xl` a matriz de filiais não cabe, então a linha precisa de um caminho para o
+  detalhe. Com o chevron mudo à esquerda e o `⋯` mudo à direita, o julgamento em contexto fresco a
+  390px **hesitou entre os dois** ("é o chevron ou os três pontinhos?").
+- Decisão: abaixo de `xl` a coluna do chevron some e a célula do nome ganha um botão COM RÓTULO —
+  "Ver as 5 filiais" —, alvo de toque `h-10`, `aria-expanded`, o mesmo estado do chevron. A partir de
+  `xl` o chevron volta e o botão some: lá a distribuição já está na linha, e o que a expansão
+  acrescenta é o DETALHE.
+- Detalhe também medido: a primeira escrita do rótulo era "Ver por filial (5)", e o julgamento
+  tropeçou no parêntese — *"não dá para saber se o (5) é a quantidade de filiais ou outro número"*.
+  Número solto entre parênteses não é rótulo, é charada. Com "Ver as 5 filiais", a pergunta **b** a
+  390px passou a dar certeza nas quatro passadas.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · o par de cor que a medição matou antes do teste
+
+- Contexto: a candidata da faixa de blocos punha `text-muted-foreground` dentro de um chip
+  `bg-muted` — o cinza sobre cinza que parece óbvio e ninguém mede.
+- Decisão: o par foi medido (`npm run contraste`), deu **4,34:1 no tema claro** — **reprova AA por
+  0,16** —, e o texto do chip passou a ser `text-foreground` (18,15:1), com a distinção entre "tem" e
+  "não tem" feita pelo PESO da fonte, que não custa contraste. O par reprovado ficou **registrado**
+  em `scripts/contraste.mjs` como `antes: true`, para ninguém "melhorar" a tela pondo-o de volta.
+- Motivo: é a mesma disciplina do véu `bg-destructive/5` do `Aviso` da F40 — registrar o que reprova
+  vale mais do que apagá-lo.
+- Nota: a faixa acabou recusada por outro motivo (o teste dos 5 segundos), mas a lição do par fica.
+- Reversível? Não se aplica.
+
+## 2026-09-01 · F43 · o cartão de métrica diz o escopo, porque a tabela mostra UMA página
+
+- Contexto: os cartões contam a lista FILTRADA (todas as páginas) e a tabela mostra uma página. Com o
+  cartão dizendo só "A repor: 11" e cinco selos visíveis, o julgamento em contexto fresco hesitou nas
+  duas passadas: *"deve haver mais na página 2, não sei"*. Estava certo — quem devia a resposta era a
+  tela.
+- Decisão: o apoio do cartão passou a dizer os DOIS números — "itens abaixo do mínimo · 5 nesta
+  página" —, e a cláusula da página só aparece quando os dois divergem.
+- Motivo: a diferença entre "a lista" e "a página" é inerente a resumo + paginação. Escondê-la faz o
+  operador desconfiar do número; dizê-la transforma dúvida em informação. Depois da mudança, a
+  pergunta **a** passou a dar certeza nas quatro passadas de 1440px.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · `0` e `—` na coluna de filial eram a mesma resposta com duas caras
+
+- Contexto: a primeira escrita distinguia `0` (prateleira vazia, com histórico naquela filial) de `—`
+  (a filial nunca teve o item). O julgamento parou nisso: *"fico em dúvida se 0 e — querem dizer a
+  mesma coisa"*.
+- Decisão: a coluna mostra **sempre um número**; `CelulaDeFilial` perdeu o campo `presente`.
+- Motivo: para quem pergunta "de onde eu tiro um?", "nunca teve" e "acabou" respondem a MESMA coisa —
+  dali, não. A distinção custava uma dúvida por linha e não pagava nada. Nenhuma informação se perde:
+  a linha expansível anterior à F43 já exibia zeros para filial sem registro.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · o selo "repor" ganhou ícone, e mesmo assim a pergunta (a) não fechou no celular
+
+- Contexto: no celular, com 25 linhas numa página de 3.700px, o julgamento em contexto fresco errou a
+  ENUMERAÇÃO dos itens a repor em três passadas ao longo da fase — uma esqueceu um selo, duas
+  incluíram um item que não tem selo nenhum.
+- Decisão: o selo ganhou um `TriangleAlert` de 12px ao lado da palavra. A palavra **não** mudou
+  ("repor" continua "repor"; o vocabulário está congelado) e a cor **não** mudou (âmbar é previsão de
+  compra; o vermelho continua sendo do "faltam N").
+- E o que a medição mostrou depois: no tema CLARO a 390px a resposta passou a ser exata nas duas
+  passadas; no tema ESCURO as duas passadas continuaram acrescentando **"Adaptador de tomada padrão
+  antigo"**, que tem **0 em estoque e mínimo 0** — ou seja, **não tem selo** e, por decisão de
+  22/07/2026, mínimo 0 significa "item sem acompanhamento, nunca alerta".
+- **Hipótese, e ela não é de legibilidade:** o julgamento não está lendo mal o selo — está
+  respondendo à PERGUNTA ("o que precisa ser comprado agora?") pelo DOMÍNIO, e um item com zero na
+  prateleira parece precisar de compra. A tela de ANTES acertava a enumeração por um motivo
+  incômodo: **em 390px ela não mostrava número nenhum**, então o selo era o único sinal existente.
+  Medimos que a resposta piorou porque a tela passou a mostrar mais verdade, não menos.
+- Consequência declarada: a pergunta **a** fica **NÃO ATENDIDA em 390px no tema escuro** — com as
+  respostas literais no relatório —, e o que ela revelou vira **backlog**: "mínimo 0 = sem
+  acompanhamento" é uma regra que a tela nunca diz, e um item zerado sem selo parece um esquecimento.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · o par `py-0` + `p-(--card-spacing)` do `CartaoDeMetrica` CONTINUA sem consumidor
+
+- Contexto: `cartao-de-metrica.tsx` nasceu na F40 sem ninguém e pede, no próprio cabeçalho, que quem
+  o adotar confira numa tela de verdade o par `py-0` do `Card` com o `p-(--card-spacing)` do filho
+  clicável. A ordem da F43 cita isso como oportunidade.
+- Decisão: os cartões de `/itens` são **estáticos** — sem `href`, sem `onClick` —, então **não passam
+  por esse caminho**, e o par continua sem consumidor.
+- Motivo: um cartão clicável só faria sentido se recortasse a lista por "a repor", e isso exige um
+  filtro de URL novo — explicitamente fora do escopo desta fase ("os filtros continuam exatamente
+  como estão"). Dito com todas as letras aqui e no relatório, em vez de deixado por descobrir.
+- Reversível? Não se aplica; fica como pendência com o custo declarado.
+
+## 2026-09-01 · F43 · a linha expansível passou a consumir a MESMA conta da linha
+
+- Contexto: a coluna nova e a linha expansível descrevem a mesma verdade por filial. Duas contas
+  paralelas sobre a mesma verdade é exatamente como a tela e o CSV divergiram no achado F12-W4-03.
+- Decisão: `distribuicaoDoItem` é chamada UMA vez por linha, e o resultado alimenta as duas — a
+  coluna mostra o `estoque` de cada célula, a linha expansível mostra os quatro números da MESMA
+  célula.
+- Motivo: impossível divergirem. E a função é pura, com teste (`distribuicao.test.ts`).
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F43 · a ajuda tinha três frases falsas desde a F42, e elas foram corrigidas junto
+
+- Contexto: ao conferir o que o redesenho tornava falso na documentação do operador, apareceram
+  frases que **já estavam falsas antes desta fase**: "o histórico de lançamentos, logo abaixo da
+  tabela de saldos" (o histórico ganhou rota própria na F42), "na visão Por filial, o selo repor fica
+  embaixo da coluna Total" e "o item ganha o selo repor na página Itens, nas duas visões" (a visão
+  morreu na F42). Faltava também o quarto estado vazio, "Nenhum saldo nas suas filiais".
+- Decisão: corrigidas todas, junto com as que a F43 tornou falsas, em `saldos-e-estoque-minimo` e
+  `itens-por-quantidade`. `conteudo.test.ts` ganhou asserções para a coluna por filial e para o botão
+  do celular.
+- Motivo: a regra 1 do `CLAUDE.md` manda não aproveitar para fazer trabalho de outra fase — e isto
+  não é outra fase: é a documentação da TELA que esta ordem redesenha, e deixar uma frase falsa sobre
+  ela seria entregar o mapa de uma tela que não existe. As três de herança são uma linha cada.
+- Reversível? Sim, pelo git.

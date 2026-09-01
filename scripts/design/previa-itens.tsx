@@ -87,11 +87,13 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { ItensFiltros } from '@/components/itens/itens-filtros'
+import { ResumoDeItens } from '@/components/itens/resumo-de-itens'
 import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
 import { TransferirItemDialog } from '@/components/itens/transferir-item-dialog'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 import { NUMEROS_ITEM } from '@/lib/ajuda/conteudo/itens-por-quantidade'
 import { ordenarSaldos, paginarLinhas, rotuloSubtituloItens } from '@/lib/itens/lista'
+import { resumoDaLista } from '@/lib/itens/distribuicao'
 import { TAMANHOS_PAGINA } from '@/lib/ativos/lista'
 
 import {
@@ -342,6 +344,13 @@ function Miolo({
         />
       ) : (
         <>
+          {VARIANTES[variante].resumo && (
+            <ResumoDeItens
+              resumo={resumoDaLista(LINHAS, MINIMOS)}
+              resumoDaPagina={resumoDaLista(pagina.rows, MINIMOS)}
+              cabecalhos={NUMEROS_ITEM}
+            />
+          )}
           <Tabela {...props} />
           <AtivosPaginacao
             page={pagina.page}

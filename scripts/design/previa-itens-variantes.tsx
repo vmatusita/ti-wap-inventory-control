@@ -1,18 +1,19 @@
 // AS VARIANTES DE DESENHO DA F43 — o registro que a prévia fotografa.
 //
-// `atual` aponta para o COMPONENTE REAL (`src/components/itens/itens-table.tsx`).
-// É de propósito: a mesma entrada serve para fotografar o ANTES (rodando o script
-// antes de tocar no componente) e o DEPOIS (rodando de novo depois). O que
-// distingue as duas fotos é a PASTA de saída, não uma cópia congelada do código —
-// cópia congelada é exatamente o que diverge em silêncio.
+// `atual` aponta para o COMPONENTE REAL (`src/components/itens/itens-table.tsx`)
+// com a apresentação padrão. É de propósito: a mesma entrada serve para
+// fotografar o ANTES (rodando o script antes de tocar no componente) e o DEPOIS
+// (rodando de novo depois). O que distingue as duas fotos é a PASTA de saída, não
+// uma cópia congelada do código — cópia congelada é o que diverge em silêncio.
 //
-// As demais entradas são candidatas de desenho, vivas só enquanto a fase escolhe
-// uma por evidência. A escolhida é PROMOVIDA para `src/components/itens/` e
-// re-fotografada por `atual`; as recusadas ficam registradas em
-// `docs/DECISOES.md` e saem daqui.
+// As três candidatas da fase eram o MESMO componente com uma prop de apresentação
+// diferente — nada de reescrever a tabela três vezes: o que se media era uma
+// decisão de apresentação, e medi-la em cópias paralelas mediria as cópias. Feita
+// a escolha (ata em `docs/DECISOES.md`), a prop saiu do componente e sobrou uma
+// entrada só. As fotos das três recusadas ficam em `docs/f43-evidencias/`.
 
 import { ItensTable } from '@/components/itens/itens-table'
-import type { CabecalhoDeNumero } from '@/components/itens/itens-table'
+import type { CabecalhoDeNumero } from '@/components/itens/cabecalho-de-numero'
 import type { LinhaDeItem } from '@/lib/itens/lista'
 import type { MinimosPorItem } from '@/lib/itens/repor'
 import type { Filial } from '@/lib/queries/filiais'
@@ -28,12 +29,17 @@ export type PropsDaTabela = {
   cabecalhos: readonly CabecalhoDeNumero[]
 }
 
-export const VARIANTES: Record<
-  string,
-  { rotulo: string; Tabela: (props: PropsDaTabela) => React.ReactElement }
-> = {
+type Variante = {
+  rotulo: string
+  /** O resumo em cartões aparece? A candidata `atual` da linha de base não tinha. */
+  resumo: boolean
+  Tabela: (props: PropsDaTabela) => React.ReactElement
+}
+
+export const VARIANTES: Record<string, Variante> = {
   atual: {
     rotulo: 'a tela como está no código agora',
+    resumo: true,
     Tabela: ItensTable,
   },
 }
