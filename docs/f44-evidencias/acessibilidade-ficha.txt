@@ -1,0 +1,15 @@
+
+### ficha__padrao__claro.html
+| bloco | papel (árvore de acessibilidade) | expanded | aria-expanded à mão | alvo |
+|---|---|---|---|---|
+| Itens que foram junto (3) Acessórios por q | DisclosureTriangle | **false** | nenhum | 42px ✅ |
+| Itens faltantes da devolução 2 em aberto | DisclosureTriangle | **true** | nenhum | 40px ✅ |
+
+### ficha__sem-pendencia__claro.html
+  (nenhum <details> nesta página)
+
+### ficha__consulta__claro.html
+| bloco | papel (árvore de acessibilidade) | expanded | aria-expanded à mão | alvo |
+|---|---|---|---|---|
+| Itens que foram junto (3) Acessórios por q | DisclosureTriangle | **false** | nenhum | 42px ✅ |
+| Itens faltantes da devolução 2 em aberto | DisclosureTriangle | **true** | nenhum | 40px ✅ |

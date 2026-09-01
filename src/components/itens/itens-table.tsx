@@ -162,11 +162,25 @@ const COL: Record<string, string> = {
 // listra de tudo que vem abaixo dela — a lista mudaria de padrão ao abrir um item.
 // Com o índice da linha de DADOS, a listra é estável.
 //
+// ⚠ A ESCADA DE TRÊS DEGRAUS, e ela é MONOTÔNICA de propósito. No tema claro a
+// paleta dá pouquíssima folga — `--background` é `oklch(1)` e `--muted` é
+// `oklch(0.97)`, três por cento de amplitude para tudo. Então os três estados se
+// distribuem nela em ordem, do mais claro ao mais escuro:
+//
+//     linha comum   →  o fundo da página        (1.000)
+//     linha listrada →  `bg-muted/50`           (0.985)
+//     com o mouse    →  `bg-muted`              (0.970)
+//
+// ⚠ O HOVER PRECISA SER SOBRESCRITO, e é por isso que `hover:bg-muted` aparece na
+// linha. O `TableRow` do kit traz `hover:bg-muted/50` — o MESMO valor da listra.
+// Sem trocar, passar o mouse numa linha listrada não mudaria nada, e passar numa
+// linha branca a deixaria igual à listrada: o hover viraria ruído em vez de sinal.
+//
 // ⚠ E A LINHA DE DETALHE NÃO PODE SER LISTRADA COMO SE FOSSE OUTRO ITEM: ela usa
-// `bg-muted/60`, um degrau ACIMA da listra (`/30`) e do hover (`/50`), para ler como
-// "dentro deste item". O `hover:bg-muted/50` e o `has-aria-expanded:bg-muted/50` do
-// kit continuam vencendo a listra, que é o que se quer.
-const LISTRA = 'bg-muted/30'
+// `bg-muted`, o degrau mais escuro, e não tem borda de linha nem hover — lê como
+// "dentro deste item", e não como o próximo da lista.
+const LISTRA = 'bg-muted/50'
+const HOVER = 'hover:bg-muted'
 
 function Numero({ valor, className }: { valor: number; className?: string }) {
   return (
@@ -328,7 +342,13 @@ export function ItensTable({
             `<caption>` é a semântica que o HTML já tem para "o título desta
             tabela", é anunciada por leitor de tela ANTES do conteúdo, e funciona em
             toda largura sem `colSpan` nenhum. */}
-        <caption className="mb-2 text-left text-sm text-muted-foreground">{legenda}</caption>
+        {/* `px-2` alinha com o `p-2` das células (o texto da legenda cai na mesma
+            régua vertical do nome do item); `py-3` dá à legenda uma FAIXA própria,
+            porque o `QuadroDeTabela` é `py-0` — sem ela, o texto encostava no traço
+            da moldura e ficava cortado. `border-b` fecha a faixa. */}
+        <caption className="border-b px-2 py-3 text-left text-sm text-muted-foreground">
+          {legenda}
+        </caption>
         <TableHeader>
           <TableRow>
             <TableHead className={COL.expandir}>
@@ -389,7 +409,7 @@ export function ItensTable({
             const celulasDaMatriz = distribuicaoDoItem(linha, matriz, rotulos)
             const listrada = indice % 2 === 1
             return [
-              <TableRow key={linha.item_id} className={cn(listrada && LISTRA)}>
+              <TableRow key={linha.item_id} className={cn(HOVER, listrada && LISTRA)}>
                 <TableCell className={COL.expandir}>
                   <BotaoExpandir
                     aberta={aberta}
@@ -535,11 +555,11 @@ export function ItensTable({
 
               aberta ? (
                 <TableRow key={`${linha.item_id}-filiais`} className="hover:bg-transparent">
-                  {/* F44 — `bg-muted/60` e não `/30`: com o zebrado, a listra é
-                      `/30` e o hover é `/50`. A linha de detalhe tem de ficar um
-                      degrau ACIMA das duas para ler como "dentro deste item", e não
-                      como o próximo item da lista. */}
-                  <TableCell colSpan={colunas} className="bg-muted/60 p-0">
+                  {/* F44 — `bg-muted` (o degrau mais escuro da escada) e não
+                      `/30`: com o zebrado, a listra é `/50`. A linha de detalhe
+                      tem de ficar ABAIXO das duas para ler como "dentro deste
+                      item", e não como o próximo item da lista. */}
+                  <TableCell colSpan={colunas} className="bg-muted p-0">
                     <FiliaisDoItem
                       linha={linha}
                       celulas={celulas}
