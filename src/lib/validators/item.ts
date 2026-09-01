@@ -332,12 +332,21 @@ export function proximaOrdemDoGrupo(maiorOrdem: number | null | undefined): numb
  *  "não acompanho este item"; negativo é impossível pelo check da 0042, mas aqui
  *  também desliga em vez de alertar por acidente).
  *
- *  A comparação é com o estoque CONSOLIDADO (todas as filiais somadas — decisão
- *  do Johnny 22/07/2026), nunca com o saldo de uma filial. Estoque IGUAL ao
- *  mínimo NÃO repõe: o mínimo é o piso aceitável, não o gatilho.
+ *  ⚠ O ESCOPO DO PRIMEIRO ARGUMENTO É DE QUEM CHAMA, e mudou na F44
+ *  (01/09/2026). Até a v1.48.0 ele era SEMPRE o estoque consolidado — decisão de
+ *  22/07/2026, "o mínimo é do ITEM, não da filial" —, e o parâmetro se chamava
+ *  `estoqueConsolidado`. Hoje: `/itens` passa o estoque do RECORTE (`linha.saldo`,
+ *  ver `components/itens/badge-repor.tsx`), e o card do PAINEL INICIAL continua
+ *  passando o consolidado, porque não tem filtro de filial. As duas contas estão
+ *  certas e podem divergir — a ajuda do operador avisa disso em
+ *  `lib/ajuda/conteudo/saldos-e-estoque-minimo.ts`.
+ *
+ *  O mínimo em si é UM SÓ por item (`itens.estoque_minimo`, migration 0042); não
+ *  existe mínimo por filial. Estoque IGUAL ao mínimo NÃO repõe: o mínimo é o piso
+ *  aceitável, não o gatilho.
  *
  *  Não confundir com "faltam N" (spec §7), que é `atrelados − estoque`: aquilo é
  *  compromisso já assumido; isto é previsão de compra. */
-export function precisaRepor(estoqueConsolidado: number, estoqueMinimo: number): boolean {
-  return estoqueMinimo > 0 && estoqueConsolidado < estoqueMinimo
+export function precisaRepor(estoque: number, estoqueMinimo: number): boolean {
+  return estoqueMinimo > 0 && estoque < estoqueMinimo
 }

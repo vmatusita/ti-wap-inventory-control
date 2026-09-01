@@ -338,15 +338,9 @@ export default async function AtivoFichaPage({
         </Card>
       )}
 
-      {/* ⚠ F44 — OS DOIS BLOCOS DE ITEM DESCERAM PARA O FIM DESTA PÁGINA.
-          Até a v1.48.0 eles eram renderizados AQUI, antes do card "Dados do ativo",
-          dos termos e da linha do tempo — quem abria a ficha de um notebook via
-          primeiro a lista de acessórios que saíram junto com ele. O Johnny, em
-          01/09/2026: *"preciso do historico de movimentacoes de itens mais discreto
-          ou colapsavel, para que eu possa ver antes dados do ativo, termos e linha
-          do tempo do ativo que é mais importante que os itens"*.
-          Eles agora ficam depois da linha do tempo, recolhidos, com a contagem no
-          título. Ata em `docs/DECISOES.md`. */}
+      {/* F44 — era AQUI que os dois blocos de item eram renderizados; eles
+          desceram para o fim da página. O porquê está no bloco que os recebeu,
+          logo depois da linha do tempo. */}
 
       {/* Grid de dados */}
       <Card>

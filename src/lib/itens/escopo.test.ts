@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  apoioDoRepor,
   cabecalhosComEscopo,
   escopoDosNumeros,
   fraseDoResumo,
@@ -272,5 +273,63 @@ describe('rotuloEstoqueDoRepor — o lado visível da revisão de 23/07/2026', (
   it('sob recorte, NUNCA afirma "todas as filiais" — era o defeito', () => {
     expect(rotuloEstoqueDoRepor({ tipo: 'uma', nome: 'Aurora' })).not.toContain('todas')
     expect(rotuloEstoqueDoRepor({ tipo: 'varias', nomes: ['A', 'B'] })).not.toContain('todas')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// O APOIO DO CARTÃO *A repor* — a frase que estava dentro do componente
+// ---------------------------------------------------------------------------
+//
+// ⚠ ESTES CASOS EXISTEM PORQUE UM DELES FALHAVA. Enquanto a frase era montada em
+// `alarmes()` (`components/itens/resumo-de-itens.tsx`), nenhum teste a alcançava —
+// este repositório não renderiza componente —, e a concordância seguia `aRepor` em
+// vez do denominador: com UM item a repor numa lista de 44, a tela escrevia
+// "de 44 **item** abaixo do mínimo".
+describe('apoioDoRepor — o texto de apoio do cartão "A repor"', () => {
+  it('com denominador, o substantivo concorda com o DENOMINADOR, não com a contagem', () => {
+    expect(apoioDoRepor(1, 44, { tipo: 'todas' })).toBe('de 44 itens abaixo do mínimo')
+    expect(apoioDoRepor(36, 44, { tipo: 'todas' })).toBe('de 44 itens abaixo do mínimo')
+  })
+
+  it('nunca escreve "de N item" — o defeito que a revisão da F44 pegou', () => {
+    for (const aRepor of [1, 2, 43]) {
+      const texto = apoioDoRepor(aRepor, 44, { tipo: 'uma', nome: 'Cerrado Alto' })
+      expect(texto, texto).not.toMatch(/de 44 item/)
+    }
+  })
+
+  it('sem denominador (todos acendem), concorda com a contagem do cartão', () => {
+    expect(apoioDoRepor(1, 1, { tipo: 'todas' })).toBe('item abaixo do mínimo')
+    expect(apoioDoRepor(44, 44, { tipo: 'todas' })).toBe('itens abaixo do mínimo')
+  })
+
+  it('herda o escopo, e é ele que diz de qual prateleira a tela está falando', () => {
+    expect(apoioDoRepor(3, 44, { tipo: 'uma', nome: 'Cerrado Alto' })).toBe(
+      'de 44 itens abaixo do mínimo em Cerrado Alto',
+    )
+    expect(apoioDoRepor(3, 44, { tipo: 'varias', nomes: ['Aurora', 'Dunas'] })).toBe(
+      'de 44 itens abaixo do mínimo nas 2 filiais',
+    )
+  })
+
+  it('sem recorte NÃO acrescenta lugar — "em todas as filiais" seria dizer o padrão', () => {
+    expect(apoioDoRepor(3, 44, { tipo: 'todas' })).not.toContain('em todas')
+  })
+
+  it('separa milhar em pt-BR, como todo número desta tela', () => {
+    expect(apoioDoRepor(2, 1200, { tipo: 'todas' })).toBe('de 1.200 itens abaixo do mínimo')
+  })
+
+  it('nenhum escopo duplica artigo na frase composta', () => {
+    const escopos = [
+      { tipo: 'todas' } as const,
+      { tipo: 'uma', nome: 'Aurora' } as const,
+      { tipo: 'varias', nomes: ['Aurora', 'Dunas'] } as const,
+      { tipo: 'varias', nomes: [] } as const,
+    ]
+    for (const e of escopos) {
+      const texto = apoioDoRepor(2, 44, e)
+      expect(texto, texto).not.toMatch(/(de|em|nas?|das?) as/)
+    }
   })
 })

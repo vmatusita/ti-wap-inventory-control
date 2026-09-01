@@ -51,6 +51,13 @@ try {
     const medidas = await pagina.evaluate(() =>
       [...document.querySelectorAll('details')].map((d) => {
         const s = d.querySelector('summary')
+        // `<details>` SEM `<summary>` é justamente a não-conformidade que esta
+        // ferramenta existe para acusar (o navegador desenha um triângulo genérico
+        // e não expõe nome nenhum) — então ela vira LINHA no relatório, e não uma
+        // exceção que derruba a varredura antes dos blocos seguintes.
+        if (!s) {
+          return { nome: '(sem <summary>)', aberto: d.open, escritoAMao: null, alturaPx: 0 }
+        }
         return {
           nome: s.innerText.replace(/\s+/g, ' ').trim(),
           aberto: d.open,

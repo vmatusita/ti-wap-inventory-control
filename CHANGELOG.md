@@ -6,6 +6,21 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 01/09/2026 — Revisão de código da F44 ✅ 🔒
+
+Entrega avulsa (**v1.49.1**). Passada de revisão sobre tudo o que a F44 mudou (`git diff 25a8b3c..HEAD`), com os achados corrigidos na mesma janela. **Sem migration, sem dependência nova, sem mudar rota, permissão ou o nome dos cinco números.**
+
+- 🐞 **O único defeito visível ao operador: "de 44 item abaixo do mínimo".** O texto de apoio do cartão *A repor* escolhia singular/plural pela CONTAGEM do cartão, mas imprimia o DENOMINADOR — com 1 item a repor numa lista de 44, a concordância saía errada. A frase inteira foi para `apoioDoRepor` ([`src/lib/itens/escopo.ts`](src/lib/itens/escopo.ts)), com sete casos de teste. Ela era o ÚNICO texto de escopo da F44 que tinha ficado dentro de um componente — e componente não tem teste neste repositório, que é exatamente por que o erro passou.
+- ⚡ **A tabela de `/itens` montava duas vezes as mesmas células.** `celulasDaMatriz` chamava `distribuicaoDoItem` de novo a cada linha, sendo que `matriz` é ou o próprio `filiais` ou `[]` — 125 células refeitas por render, sem nenhum resultado diferente.
+- 📌 **Três contratos ainda descreviam a regra que a F44 revogou.** O JSDoc de `LinhaDeItem.consolidado` ("é com este que o aviso repor compara"), o parâmetro `estoqueConsolidado` de `precisaRepor` e o comentário de `queries/relatorios/itens.ts`, que mandava ler uma página de ajuda reescrita para dizer o contrário. Quem ligasse um consumidor novo ao selo lendo esses três reintroduziria o defeito com o build verde.
+- 🔗 **A prévia que gera as evidências da ficha ficou amarrada à tela.** `scripts/design/previa-ficha.tsx` remonta à mão a composição de `ativos/[id]/page.tsx` — e a ORDEM dos blocos é justamente o que a F44 mudou, então a foto provava a prévia, não a página. [`src/lib/ativos/ordem-da-ficha.test.ts`](src/lib/ativos/ordem-da-ficha.test.ts) cobra que as duas sequências sejam a mesma. Foi por falta disso que o critério 1 teve de ser reconferido à mão contra a produção, por HTTP, depois do deploy.
+- 🧪 **Um erro de tipo que nenhum dos dois comandos da casa pega.** `distribuicao.test.ts` inferia `{ 1: number; 2: number }` para o mapa de mínimos e depois o indexava por `item_id`: erro `TS7053` sob `strict`, invisível para `npm run build` (que só typecheca o grafo do app) e para `npm run lint`. `npx tsc --noEmit` agora passa limpo.
+- 🧹 **E o resto:** o comentário mutilado de `scripts/contraste.mjs` (o que registra POR QUE a listra é `bg-muted/25` e não `/50`) foi restaurado; o comentário da linha de detalhe que citava a escada errada, corrigido; `LegendaDeNumero` virou a fonte única da forma (`CabecalhoDeNumero` passou a ser apelido dela); os dois `<summary>` recolhíveis passaram a usar o token `--card-spacing` em vez de `px-4` cru; `medir-acessibilidade.mjs` parou de morrer num `<details>` sem `<summary>`; e o `CLAUDE.md` recebeu `escopo.ts`, `tinta.ts` e a pasta `scripts/design/` na estrutura prescrita.
+
+Os PNG e HTML de `docs/f44-evidencias/` **não foram regerados**: nenhuma das correções muda um pixel (o token `--card-spacing` resolve para os mesmos 16px do `px-4`), e evidência de fase é histórico datado (`docs/README.md`). Achados e correções em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+---
+
 ## 01/09/2026 — F44 · `/itens` diz de qual filial é o número, e a ficha põe o equipamento antes dos itens ✅ 🔒
 
 Fase (**v1.49.0**). A F42 consertou a **estrutura** de `/itens`; a F43 consertou a **leitura**; esta conserta o **escopo** — e a ORDEM DE LEITURA da ficha do ativo. O critério é do Johnny, dito em 01/09/2026 olhando a tela que a F43 entregara horas antes: *"quando eu filtrar para filial que eu quero, aparecer direto na linha o total, em estoque, em uso e o que falta da filial que eu filtrei se for somente uma, e nao aparecer mais o total da ti"* e *"quando vou abrir detalhes de um ativo (…) preciso do historico de movimentacoes de itens mais discreto ou colapsavel, para que eu possa ver antes dados do ativo, termos e linha do tempo"*. **Sem migration, sem dependência nova, sem mudar rota, permissão ou o nome dos cinco números.**

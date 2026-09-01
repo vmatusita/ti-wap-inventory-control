@@ -23,6 +23,15 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.49.1',
+    data: '2026-09-01',
+    titulo: 'Acertos da revisão de código da F44',
+    mudancas: [
+      'Com apenas UM item abaixo do mínimo, o cartão "A repor" da página Itens escrevia "de 44 item abaixo do mínimo". Agora escreve "de 44 itens".',
+      'Fora isso, nada mudou no que você vê: o resto foram acertos por dentro — a tabela de Itens deixou de refazer duas vezes as mesmas colunas de filial a cada carregamento, e os textos de apoio da tela passaram a ser conferidos por teste.',
+    ],
+  },
+  {
     versao: '1.49.0',
     data: '2026-09-01',
     fase: 'F44',

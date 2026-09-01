@@ -130,8 +130,16 @@ export type LinhaDeItem = {
   tipoRotulo: string | null
   /** Os números do RECORTE — o que a tabela mostra. */
   saldo: NumerosDoItem
-  /** Os números de TODAS as filiais — é com este que o aviso "repor" compara
-   *  (decisão do Johnny, 22/07/2026: o mínimo é do ITEM, não da filial). */
+  /** Os números de TODAS as filiais.
+   *
+   *  ⚠ NÃO É MAIS ELE QUE O AVISO "repor" COMPARA. Até a v1.48.0 era — decisão de
+   *  22/07/2026, "o mínimo é do ITEM, não da filial" —, e a F44 revogou essa parte
+   *  (Johnny, 01/09/2026): o selo e o cartão *A repor* passaram os dois a usar
+   *  `saldo` (o estoque do RECORTE), e é isso que os faz nunca discordarem. Ver
+   *  `components/itens/badge-repor.tsx` e `lib/itens/distribuicao.ts`.
+   *
+   *  Restou como o número GLOBAL da linha: alimenta `foraDasFiliais` e o aviso de
+   *  reservado da linha expansível, que soma todas as filiais e diz isso. */
   consolidado: NumerosDoItem
   porFilial: Readonly<Record<number, NumerosDoItem>>
   /** Estoque que o consolidado tem e nenhuma das filiais listadas mostra. */

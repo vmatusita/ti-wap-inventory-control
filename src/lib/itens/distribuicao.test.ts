@@ -6,6 +6,7 @@ import {
   rotulosCurtosDeFilial,
 } from '@/lib/itens/distribuicao'
 import type { LinhaDeItem, NumerosDoItem } from '@/lib/itens/lista'
+import type { MinimosPorItem } from '@/lib/itens/repor'
 // A MESMA função pura que `BadgeRepor` chama — é ela que prova que o cartão e o
 // selo da linha contam a mesma coisa (critério 5 da F44).
 import { precisaRepor } from '@/lib/validators/item'
@@ -202,7 +203,11 @@ describe('o resumo da lista (os cartões do topo)', () => {
       // recorte cheio, consolidado vazio → o selo NÃO acende
       linha({ item_id: 2, saldo: numeros({ estoque: 99 }), consolidado: numeros({ estoque: 0 }) }),
     ]
-    const minimos = { 1: 10, 2: 10 }
+    // ⚠ TIPADO, e não inferido: sem a anotação o literal vira `{ 1: number; 2: number }`
+    // e o `minimos[l.item_id]` de duas linhas abaixo é um erro de índice sob
+    // `strict` — que `npm run build` e `npm run lint` não pegam (o build só
+    // typecheca o grafo do app), só `tsc --noEmit`.
+    const minimos: MinimosPorItem = { 1: 10, 2: 10 }
     const r = resumoDaLista(linhas, minimos)
     // O que o SELO faria, item a item — a mesma conta que `BadgeRepor` faz.
     const selosAcesos = linhas.filter((l) => precisaRepor(l.saldo.estoque, minimos[l.item_id]))

@@ -17,15 +17,19 @@ import { filialParaRpc } from '@/lib/queries/rpc-filial'
 
 // F32/RV-09 — o estoque MÍNIMO de cada item, para o micro-medidor da coluna
 // Estoque. `itens.estoque_minimo` é régua do estoque CONSOLIDADO (migration
-// 0042, comentário da coluna) — é o mesmo número que `precisaRepor` compara
-// contra `estoqueConsolidado` em validators/item.ts, nunca contra saldo por
-// filial. Por isso quem chama só invoca esta função quando `filialId` é null
-// (a aba consolidada): nas outras cinco abas, cruzar o mínimo consolidado com
-// o saldo DA FILIAL geraria alarme falso — a ajuda do operador
-// (`saldos-e-estoque-minimo.ts`) já avisa que julgar pelo recorte mandaria
-// comprar o que está sobrando na filial ao lado. Nem vale a pena LER o
-// catálogo fora do consolidado: economiza uma leitura por request em 5 das 6
-// abas.
+// 0042, comentário da coluna). Por isso quem chama só invoca esta função quando
+// `filialId` é null (a aba consolidada): nas outras cinco abas, cruzar o mínimo
+// consolidado com o saldo DA FILIAL geraria alarme falso — mandaria comprar o
+// que está sobrando na filial ao lado. Nem vale a pena LER o catálogo fora do
+// consolidado: economiza uma leitura por request em 5 das 6 abas.
+//
+// ⚠ E ISTO **NÃO** MUDOU NA F44, ainda que pareça. Em 01/09/2026 o aviso "repor"
+// da tela `/itens` passou a seguir o filtro de filial, e a ajuda do operador foi
+// reescrita para dizer isso. O RELATÓRIO é outra superfície: aqui o mínimo é um
+// medidor de leitura ao lado do saldo as-of, e não há legenda nomeando o escopo
+// como `/itens` passou a ter — sem essa legenda, propagar o recorte para as cinco
+// abas devolveria o alarme falso sem nada na tela avisando. Se um dia for para
+// mudar, o que falta é a legenda, não a conta.
 //
 // Não dá para reusar `listarItensAtivos()` (queries/itens.ts): aquela função
 // abre o próprio client de operador, e esta leitura serve TAMBÉM o visualizador

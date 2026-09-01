@@ -83,7 +83,7 @@ export function PendenciasItemFicha({
   return (
     <Card>
       <details className="group" open={temAlarme}>
-        <summary className="flex min-h-10 cursor-pointer list-none flex-wrap items-center gap-2 px-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-10 cursor-pointer list-none flex-wrap items-center gap-2 px-(--card-spacing) focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
           <PackageX className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <CardTitle className="min-w-0">Itens faltantes da devolução</CardTitle>
           {/* ⚠ A CONTAGEM FECHADA. Com pendência aberta é um SELO DE ATENÇÃO com o

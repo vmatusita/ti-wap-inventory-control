@@ -526,9 +526,10 @@ const PARES = [
   // Total — o NEUTRO, e é escolha: violeta seria colisão com "Reservado", que é
   // OUTRO dos cinco números da mesma tela (ver `src/lib/itens/tinta.ts`).
   // ⚠ O PAR QUE DECIDIU A ESCADA DO ZEBRADO. A classificação sob o nome do item
-  // ("Acessório · Mouse") é , e é ela que impõe o TETO: sobre
-  //  cheio ela mede 4,34:1 e REPROVA (o par 'cinza sobre o chip cinza' da F43
-  // registra isso). Por isso a listra é  e o hover voltou a ser o  do kit.
+  // ("Acessório · Mouse") é 'text-muted-foreground', e é ela que impõe o TETO:
+  // sobre 'bg-muted' cheio ela mede 4,34:1 e REPROVA (o par 'cinza sobre o chip
+  // cinza' da F43 registra isso). Por isso a listra é 'bg-muted/25' e o hover
+  // voltou a ser o 'bg-muted/50' do kit.
   { item: 'F44', onde: 'classificação do item na linha listrada (claro)', texto: 'muted-foreground', fundo: 'muted/25', sob: ['background'], px: 12, exigir: true },
   { item: 'F44', onde: 'classificação do item na linha listrada (escuro)', texto: 'muted-foreground', fundo: 'muted/25', sob: ['background'], px: 12, tema: 'escuro', exigir: true },
   { item: 'F44', onde: 'número "Total" na linha listrada (claro)', texto: 'muted-foreground', fundo: 'muted/25', sob: ['background'], px: 14, exigir: true },

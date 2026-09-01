@@ -67,7 +67,7 @@ export function ItensQueForamJunto({ itens }: { itens: ItemQueFoiJunto[] }) {
           // casa. `list-none` + `[&::-webkit-details-marker]:hidden` tiram o
           // triangulinho nativo, que aparece em posição e tamanho diferentes em
           // cada navegador; o chevron do produto entra no lugar dele.
-          className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden"
+          className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-(--card-spacing) focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden"
         >
           <PackageOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <span className="min-w-0 flex-1">

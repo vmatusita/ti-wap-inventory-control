@@ -198,6 +198,15 @@ const COL: Record<string, string> = {
 // cor do texto normal. Ela também não tem hover.
 const LISTRA = 'bg-muted/25'
 
+// AS QUATRO COLUNAS DO BLOCO DE NÚMEROS, na ordem em que o cabeçalho as desenha.
+//
+// ⚠ UMA LISTA SÓ, e não um literal no meio do render: é ela que a `<caption>`
+// percorre para nomear os números (`legendaDaTabela`), e o JSDoc daquela função
+// pede exatamente isto — "a partir de `NUMEROS_ITEM`, e não de uma lista
+// redigitada aqui". Uma coluna a mais (ou a volta de *Reservado*, que saiu na F42)
+// se acrescenta aqui e a legenda acompanha.
+const CHAVES_DE_NUMERO = ['total', 'estoque', 'emUso', 'falta'] as const
+
 function Numero({ valor, className }: { valor: number; className?: string }) {
   return (
     <span className={cn('tabular-nums', className)}>{valor.toLocaleString('pt-BR')}</span>
@@ -339,7 +348,7 @@ export function ItensTable({
   // `colSpan` e o navegador limita ao número real, então um teto serve.
   const colunas = 6 + matriz.length + (escreve ? 1 : 0)
 
-  const legenda = legendaDaTabela(cabecalhos, escopo, ['total', 'estoque', 'emUso', 'falta'])
+  const legenda = legendaDaTabela(cabecalhos, escopo, CHAVES_DE_NUMERO)
   const rotuloDoEstoque = rotuloEstoqueDoRepor(escopo)
 
   return (
@@ -422,7 +431,11 @@ export function ItensTable({
             // os números por filial aparecem, e é dela que sai o atalho de
             // transferir.
             const celulas = distribuicaoDoItem(linha, filiais, rotulos)
-            const celulasDaMatriz = distribuicaoDoItem(linha, matriz, rotulos)
+            // ⚠ NÃO É UMA SEGUNDA `distribuicaoDoItem`: `matriz` é ou o PRÓPRIO
+            // `filiais` (2+) ou `[]` (0 ou 1), então a matriz ou reusa as células
+            // já montadas ou não desenha nenhuma. Chamar de novo montaria as
+            // mesmas 5 células de cada uma das 25 linhas duas vezes por render.
+            const celulasDaMatriz = matriz.length > 0 ? celulas : []
             const listrada = indice % 2 === 1
             return [
               <TableRow key={linha.item_id} className={cn(listrada && LISTRA)}>
@@ -572,9 +585,11 @@ export function ItensTable({
               aberta ? (
                 <TableRow key={`${linha.item_id}-filiais`} className="hover:bg-transparent">
                   {/* F44 — `bg-muted` (o degrau mais escuro da escada) e não
-                      `/30`: com o zebrado, a listra é `/50`. A linha de detalhe
-                      tem de ficar ABAIXO das duas para ler como "dentro deste
-                      item", e não como o próximo item da lista. */}
+                      `/30`. A escada é `LISTRA` = `bg-muted/25` na linha listrada e
+                      `bg-muted/50` no hover do kit (ver o cabeçalho de `LISTRA`
+                      para o porquê do teto). A linha de detalhe tem de ficar
+                      ABAIXO das duas para ler como "dentro deste item", e não como
+                      o próximo item da lista. */}
                   <TableCell colSpan={colunas} className="bg-muted p-0">
                     <FiliaisDoItem
                       linha={linha}

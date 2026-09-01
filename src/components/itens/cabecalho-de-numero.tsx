@@ -1,4 +1,5 @@
 import { Dica } from '@/components/ui/dica'
+import type { LegendaDeNumero } from '@/lib/itens/escopo'
 import { tintaDoNumero } from '@/lib/itens/tinta'
 import { cn } from '@/lib/utils'
 
@@ -33,13 +34,17 @@ import { cn } from '@/lib/utils'
 // Fora do render de propósito: componente declarado DENTRO de outro é remontado a
 // cada passada (regra `react-hooks/static-components`).
 
-/** Rótulo, explicação curta e explicação inteira de um número — de `NUMEROS_ITEM`. */
-export type CabecalhoDeNumero = {
-  chave: string
-  rotulo: string
-  curto?: string
-  explicacao: string
-}
+/**
+ * Rótulo, explicação curta e explicação inteira de um número — de `NUMEROS_ITEM`.
+ *
+ * ⚠ É UM APELIDO, e não uma segunda declaração. A forma mora em
+ * `lib/itens/escopo.ts` (`LegendaDeNumero`), que é quem a DERIVA de `NUMEROS_ITEM`
+ * com o escopo embutido; este arquivo só a consome. Enquanto eram duas declarações
+ * idênticas ligadas por compatibilidade estrutural, um campo novo em
+ * `NUMEROS_ITEM` precisava ser lembrado nos dois lugares — e esquecer um passava
+ * no build.
+ */
+export type CabecalhoDeNumero = LegendaDeNumero
 
 export function CabecalhoDeNumero({
   cabecalhos,

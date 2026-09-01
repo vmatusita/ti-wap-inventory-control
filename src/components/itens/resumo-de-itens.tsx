@@ -1,7 +1,7 @@
 import { CartaoDeMetrica, GradeDeMetricas } from '@/components/layout/cartao-de-metrica'
 import type { CabecalhoDeNumero } from '@/components/itens/cabecalho-de-numero'
 import type { ResumoDaLista } from '@/lib/itens/distribuicao'
-import { fraseDoResumo, ondeDoEscopo, type EscopoDosNumeros } from '@/lib/itens/escopo'
+import { apoioDoRepor, fraseDoResumo, type EscopoDosNumeros } from '@/lib/itens/escopo'
 import { tintaDoNumero } from '@/lib/itens/tinta'
 import { cn } from '@/lib/utils'
 
@@ -83,18 +83,21 @@ function alarmes(
     // enxurrada, a tela mentiria; NOMEANDO a proporção, ela transforma a dúvida
     // em informação — sim, é quase tudo, e é por isso que quase tudo está
     // marcado.
-    const onde = ondeDoEscopo(escopo)
-    const base = resumo.aRepor === 1 ? 'item abaixo do mínimo' : 'itens abaixo do mínimo'
-    const comEscopo = onde ? `${base} ${onde}` : base
-    const comTotal =
-      resumo.itens > resumo.aRepor
-        ? `de ${resumo.itens.toLocaleString('pt-BR')} ${comEscopo}`
-        : comEscopo
+    //
+    // ⚠ A FRASE INTEIRA SAI DE `apoioDoRepor` (`lib/itens/escopo.ts`), e não é
+    // montada aqui. Ela nasceu montada aqui, e a revisão da F44 pegou o preço
+    // disso: a concordância seguia `aRepor` em vez do denominador e escrevia
+    // "de 44 **item** abaixo do mínimo". Componente não tem teste neste
+    // repositório; função pura tem.
     lista.push({
       chave: 'repor',
       rotulo: 'A repor',
       valor: resumo.aRepor.toLocaleString('pt-BR'),
-      apoio: comPagina(comTotal, resumo.aRepor, daPagina?.aRepor),
+      apoio: comPagina(
+        apoioDoRepor(resumo.aRepor, resumo.itens, escopo),
+        resumo.aRepor,
+        daPagina?.aRepor,
+      ),
     })
   }
   if (resumo.comFalta > 0) {

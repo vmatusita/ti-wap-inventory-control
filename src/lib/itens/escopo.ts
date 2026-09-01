@@ -193,6 +193,39 @@ export function cabecalhosComEscopo(
 }
 
 /**
+ * O APOIO DO CARTÃO *A repor* — "de 44 itens abaixo do mínimo em Cerrado Alto".
+ *
+ * ⚠ ELE MORA AQUI, E NÃO DENTRO DO COMPONENTE, pela mesma razão que todo o resto
+ * deste arquivo: este repositório não renderiza componente em teste, então a frase
+ * que o operador lê só tem prova se for função pura. Ela nasceu dentro de
+ * `alarmes()` (`components/itens/resumo-de-itens.tsx`) e veio para cá na revisão da
+ * F44 — foi exatamente ali, no único texto da fase que ficou fora deste módulo, que
+ * passou um erro de concordância.
+ *
+ * ⚠ A CONCORDÂNCIA SEGUE O NÚMERO COLADO NO SUBSTANTIVO, e não a contagem do
+ * cartão. Com denominador quem manda é `itens` ("de 44 **itens** abaixo do mínimo",
+ * mesmo com UM só a repor); sem denominador quem manda é `aRepor`. A primeira
+ * escrita olhava sempre `aRepor` e produzia "de 44 **item** abaixo do mínimo".
+ *
+ * O DENOMINADOR só entra quando há o que comparar (`itens > aRepor`): com o "repor"
+ * seguindo o filtro, uma filial sozinha acende quase tudo, e dizer "36 de 44"
+ * transforma a enxurrada em informação em vez de deixá-la parecer rótulo padrão.
+ * Quando TODOS acendem, "de 44" seria ruído.
+ */
+export function apoioDoRepor(
+  aRepor: number,
+  itens: number,
+  escopo: EscopoDosNumeros,
+): string {
+  const comDenominador = itens > aRepor
+  const contado = comDenominador ? itens : aRepor
+  const base = `${contado === 1 ? 'item' : 'itens'} abaixo do mínimo`
+  const onde = ondeDoEscopo(escopo)
+  const comEscopo = onde ? `${base} ${onde}` : base
+  return comDenominador ? `de ${itens.toLocaleString('pt-BR')} ${comEscopo}` : comEscopo
+}
+
+/**
  * O texto do estoque contra o qual o aviso "repor" está comparando — o que a `Dica`
  * do selo escreve.
  *

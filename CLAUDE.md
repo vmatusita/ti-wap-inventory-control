@@ -49,7 +49,7 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 - **Supabase**: `@supabase/supabase-js` + `@supabase/ssr` · tipos gerados por `supabase gen types typescript`
 - **Zod** + **react-hook-form** (+ `@hookform/resolvers`) · **TanStack Table** (via data-table do shadcn) · **date-fns** (locale `ptBR`) · **PapaParse** (F3 export / scripts de carga única F4) · **ExcelJS** (leitura do `.xlsx` no import de startup — F7G, MIT, aprovado pelo Johnny 20/07/2026; `serverExternalPackages`) · **sonner** (toasts, via shadcn)
 - **docxtemplater** + **pizzip** (preenchem os templates `.docx` dos termos, server-side — F5A) · **docx-preview** (preview do termo no navegador). Libs **MIT**, aprovadas pelo Johnny (PLANO-TERMOS §3.1). `serverExternalPackages` no `next.config.ts`.
-- Dev: **Supabase CLI**, **@faker-js/faker** (locale pt_BR, só em `scripts/`), **seedrandom**, **Vitest** (só funções puras), **tsx**, **Playwright** (só `scripts/design/capturar.mjs`, as fotos de tela do sistema de design — MIT, R$ 0, aprovado pelo Johnny 30/08/2026; ata em `docs/DECISOES.md`), ESLint + Prettier
+- Dev: **Supabase CLI**, **@faker-js/faker** (locale pt_BR, só em `scripts/`), **seedrandom**, **Vitest** (só funções puras), **tsx**, **Playwright** (só em `scripts/`: `design/capturar.mjs` — as fotos de tela do sistema de design —, `design/medir-tabela.mjs` e `design/medir-acessibilidade.mjs` (F44, o estado expandido na árvore de acessibilidade); `smoke-f19.mjs` o resolve por `npx`, sem depender do pacote local. MIT, R$ 0, aprovado pelo Johnny 30/08/2026; ata em `docs/DECISOES.md`), ESLint + Prettier
 - Proibidos (decisão registrada): Prisma/Drizzle, Redux/Zustand/TanStack Query, ECharts (upgrade futuro documentado), Highcharts/AG Charts/MUI X Pro, i18n, monorepo.
 
 ## Convenções
@@ -156,7 +156,13 @@ src/
       # `components/movimentacoes/nova/itens-do-lote.ts` e MUDOU PARA CÁ na revisão da
       # F39, porque o servidor a reusa em `termos/preparo.ts`: módulo de `lib/` não pode
       # depender de valor vindo do wizard — um `'use client'` lá tornaria a função
-      # `undefined` na Server Action, com o build verde. `itens-do-lote.ts` reexporta);
+      # `undefined` na Server Action, com o build verde. `itens-do-lote.ts` reexporta) e
+      # escopo.ts (DE QUEM são os números de /itens — `EscopoDosNumeros`, a legenda
+      # derivada de `NUMEROS_ITEM` e as frases que a nomeiam, inclusive o apoio do
+      # cartão *A repor*. `NUMEROS_ITEM` NÃO muda: a frase com o nome da filial se
+      # DERIVA dela e desce por prop — F44) e tinta.ts (uma cor por número, a mesma
+      # nos três lugares; classes LITERAIS, porque o Tailwind v4 varre o fonte e um
+      # nome montado em runtime não geraria CSS — F44);
       # pendencias/ inclui texto-baixa.ts (o texto da justificativa do ajuste da baixa
       # de pendência de item, função pura fora do SQL — F38 · §E);
       # movimentacoes/ inclui lote-url.ts (o `?ativos=` da seleção múltipla — F30 · ATV-03)
@@ -172,6 +178,12 @@ scripts/
                         # retaguear-cidade.mjs (F25), inserir-acessorios.mjs (F39 · §A) e
                         # evidencias-acessorios.mjs (o pacote de docs/f39-evidencias/).
                         # Conferência por padrão; grava só com --aplicar
+  design/               # prévias ESTÁTICAS e medições da tela (nunca banco):
+                        # capturar.mjs (fotos), previa-itens.tsx/-dados.ts/-variantes.tsx
+                        # (F43/F44 — a prévia de /itens, com os três recortes de filial),
+                        # previa-ficha.tsx/-dados.ts (F44 — a ficha do ativo),
+                        # prova-recorte.ts (a prova de que o número já segue o filtro),
+                        # medir-tabela.mjs e medir-acessibilidade.mjs (F44)
   perf/                 # harness de medição — medir.mjs (TTFB das rotas, F33) e
                         # medir-itens.mjs (saldo/diário de itens em ENSAIO, F37 · D6)
   import/               # carga ÚNICA do go-live (F4) — ferramenta, não feature do app
