@@ -18,7 +18,12 @@
 // de medir dois sorteios diferentes.
 
 import type { GrupoItem } from '@/lib/dominio'
-import type { LinhaDeItem, NumerosDoItem } from '@/lib/itens/lista'
+import {
+  montarLinhasDeItem,
+  type LinhaDeItem,
+  type LinhaDeSaldoPorFilial,
+  type NumerosDoItem,
+} from '@/lib/itens/lista'
 import type { MinimosPorItem } from '@/lib/itens/repor'
 import type { Filial } from '@/lib/queries/filiais'
 
@@ -132,14 +137,22 @@ function somar(a: NumerosDoItem, b: NumerosDoItem): NumerosDoItem {
 }
 
 /**
- * O catálogo fictício, pronto para descer como prop.
+ * O catálogo fictício em estado BRUTO — `porFilial` + `consolidado` de cada item,
+ * exatamente o que `getSaldosPorFilial` devolveria do banco.
  *
  * Cobre, de propósito, os casos que o desenho tem de aguentar: item em UMA filial
  * só, item espalhado nas cinco, item zerado, item abaixo do mínimo ("repor"),
  * item com déficit ("faltam N"), item com saldo em filial fora da lista
  * (`foraDasFiliais > 0`) e um nome comprido que precisa truncar.
+ *
+ * ⚠ F44 — ESTA FUNÇÃO PAROU NO SALDO BRUTO DE PROPÓSITO, e quem aplica o recorte
+ * é `montarLinhasDeItem`, a função REAL da tela (ver `linhasDaPrevia`). Antes, a
+ * prévia montava `saldo: consolidado` à mão — o que fotografava corretamente a
+ * tela SEM filtro e tornava impossível fotografar a tela COM filtro, que é
+ * justamente o caso em que a legenda mente. Uma prévia que reimplementa a
+ * aritmética da tela fotografa a reimplementação.
  */
-export function linhasDaPrevia(): LinhaDeItem[] {
+function saldosDaPrevia(): LinhaDeSaldoPorFilial[] {
   const sortear = sorteador(20260901)
   return MOLDES.map((molde, i) => {
     const item_id = 100 + i
@@ -201,25 +214,44 @@ export function linhasDaPrevia(): LinhaDeItem[] {
       for (const numeros of Object.values(porFilial)) consolidado = somar(consolidado, numeros)
     }
 
-    // Sem recorte de filial, a tabela mostra o CONSOLIDADO — é o que a tela faz
-    // quando nenhuma filial está marcada (`saldoDoRecorte`).
-    const somaVisivel = FILIAIS_PREVIA.reduce(
-      (acc, f) => acc + (porFilial[f.id]?.estoque ?? 0),
-      0,
-    )
-    const fora = consolidado.estoque - somaVisivel
-
     return {
       item_id,
       item: molde.nome,
       grupo: molde.grupo,
       ordem: i,
-      tipoRotulo: molde.tipo,
-      saldo: consolidado,
       consolidado,
       porFilial,
-      foraDasFiliais: fora > 0 ? fora : 0,
     }
+  })
+}
+
+/** `itens.id` → o rótulo do tipo, no formato que `montarLinhasDeItem` recebe. */
+function tiposDaPrevia(): Readonly<Record<number, string | null>> {
+  const mapa: Record<number, string | null> = {}
+  MOLDES.forEach((molde, i) => {
+    mapa[100 + i] = molde.tipo
+  })
+  return mapa
+}
+
+/**
+ * As linhas prontas para a tabela, JÁ RECORTADAS pelo filtro de filial — pela
+ * MESMA função que `src/app/(app)/itens/page.tsx` chama.
+ *
+ * `filialIds` vazio = sem recorte (a tela mostra o consolidado). Com ids, a tela
+ * mostra a soma célula a célula das marcadas, e `filiaisVisiveis` são as colunas
+ * que a matriz desenha — exatamente a regra da `page.tsx`.
+ */
+export function linhasDaPrevia(filialIds: readonly number[] = []): LinhaDeItem[] {
+  const visiveis =
+    filialIds.length > 0
+      ? FILIAIS_PREVIA.filter((f) => filialIds.includes(f.id)).map((f) => f.id)
+      : FILIAIS_PREVIA.map((f) => f.id)
+  return montarLinhasDeItem({
+    linhas: saldosDaPrevia(),
+    filialIds,
+    filiaisVisiveis: visiveis,
+    tiposPorItem: tiposDaPrevia(),
   })
 }
 

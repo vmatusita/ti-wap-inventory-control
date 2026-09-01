@@ -162,10 +162,22 @@ export type ResumoDaLista = {
 /**
  * Soma os números da lista JÁ FILTRADA e conta os dois alarmes.
  *
- * ⚠ O "repor" compara com o CONSOLIDADO (todas as filiais), nunca com o saldo do
- * recorte — decisão do Johnny de 22/07/2026, a mesma que `BadgeRepor` respeita.
- * Somar `saldo` e contar `consolidado` na mesma varredura é de propósito: são
- * duas perguntas diferentes sobre a mesma linha.
+ * ⚠ F44 — O "REPOR" PASSOU A SEGUIR O RECORTE, e isso REVISA a decisão de
+ * 23/07/2026 (F12 · I5), que mandava comparar sempre com o consolidado. Até a
+ * v1.48.0 esta função somava `saldo` e contava `consolidado` na MESMA varredura, e
+ * o resultado era que o cartão *A repor* era o único número da tela que não
+ * respondia ao filtro — 11 com uma filial marcada, 11 sem filtro nenhum, sem nada
+ * na superfície dizendo por quê.
+ *
+ * Agora as duas contas saem de `l.saldo`, e é isso que faz o cartão e o selo da
+ * linha NUNCA discordarem (critério 5 da ordem): os dois passam por
+ * `precisaRepor(estoque do recorte, mínimo)`. Sem recorte, `saldo === consolidado`
+ * e o número é exatamente o de antes.
+ *
+ * O efeito colateral que a decisão antiga evitava — mandar repor o que está
+ * sobrando na filial ao lado — passou a ser possível, e por isso a tela NOMEIA o
+ * escopo em duas superfícies (`fraseDoResumo` e `legendaDaTabela`, em
+ * `lib/itens/escopo.ts`) e a dica do selo diz contra qual estoque está comparando.
  */
 export function resumoDaLista(
   linhas: readonly LinhaDeItem[],
@@ -187,7 +199,7 @@ export function resumoDaLista(
     r.emUso += emUsoDoSaldo(l.saldo)
     r.atrelados += l.saldo.atrelados
     r.falta += l.saldo.falta
-    if (precisaRepor(l.consolidado.estoque, minimoDoItem(minimos, l.item_id))) r.aRepor += 1
+    if (precisaRepor(l.saldo.estoque, minimoDoItem(minimos, l.item_id))) r.aRepor += 1
     if (l.saldo.falta > 0) r.comFalta += 1
   }
   return r

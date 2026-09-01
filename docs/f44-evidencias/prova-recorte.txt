@@ -1,0 +1,99 @@
+==============================================================================
+F44 · PROVA BARATA — o número da linha de /itens já segue o filtro de filial
+==============================================================================
+Caminho exercitado: montarLinhasDeItem() → linha.saldo — o MESMO que a tabela,
+a linha expansível, os cartões de resumo e o CSV de saldos consomem.
+Dados 100% fictícios (regra 2 do CLAUDE.md).
+
+[A] SEM RECORTE  (filialIds = [] · sem recorte)
+  item                 total  estoque   em uso  reserv.  falta   fora
+  Mouse sem fio          25       13       12        0      0      0
+  Teclado ABNT2           9        4        3        2      0      0
+  Memória RAM 8GB         7        7        0        0      0      2
+  Cabo HDMI 2m            3        1        3        0      1      0
+
+[B] UMA FILIAL — Aurora (id 1)  (filialIds = [1] · Aurora)
+  item                 total  estoque   em uso  reserv.  falta   fora
+  Mouse sem fio          12        7        5        0      0      0
+  Teclado ABNT2           6        1        3        2      0      0
+  Memória RAM 8GB         0        0        0        0      0      0
+  Cabo HDMI 2m            2        0        3        0      1      0
+
+[C] DUAS FILIAIS — Aurora + Barra Nova (id 1, 2)  (filialIds = [1, 2] · Aurora + Barra Nova)
+  item                 total  estoque   em uso  reserv.  falta   fora
+  Mouse sem fio          21        9       12        0      0      0
+  Teclado ABNT2           9        4        3        2      0      0
+  Memória RAM 8GB         5        5        0        0      0      0
+  Cabo HDMI 2m            3        1        3        0      1      0
+
+[D] TRÊS FILIAIS — Aurora + Barra Nova + Corvo Branco (id 1, 2, 3)  (filialIds = [1, 2, 3] · Aurora + Barra Nova + Corvo Branco)
+  item                 total  estoque   em uso  reserv.  falta   fora
+  Mouse sem fio          25       13       12        0      0      0
+  Teclado ABNT2           9        4        3        2      0      0
+  Memória RAM 8GB         5        5        0        0      0      0
+  Cabo HDMI 2m            3        1        3        0      1      0
+
+------------------------------------------------------------------------------
+PROVA 1 · sem recorte, linha.saldo é o CONSOLIDADO da RPC (não a soma das colunas)
+------------------------------------------------------------------------------
+  OK   · Mouse sem fio: saldo === consolidado — total 25 · soma das colunas 25
+  OK   · Teclado ABNT2: saldo === consolidado — total 9 · soma das colunas 9
+  OK   · Memória RAM 8GB: saldo === consolidado — total 7 · soma das colunas 5 (diferem de propósito: filial desativada com saldo)
+  OK   · Cabo HDMI 2m: saldo === consolidado — total 3 · soma das colunas 3
+
+------------------------------------------------------------------------------
+PROVA 2 · com UMA filial, linha.saldo === porFilial[X] nos QUATRO números
+------------------------------------------------------------------------------
+  OK   · filial 1 · Mouse sem fio — total=12 estoque=7 atrelados=0 falta=0
+  OK   · filial 1 · Teclado ABNT2 — total=6 estoque=1 atrelados=2 falta=0
+  OK   · filial 1 · Memória RAM 8GB — total=0 estoque=0 atrelados=0 falta=0
+  OK   · filial 1 · Cabo HDMI 2m — total=2 estoque=0 atrelados=0 falta=1
+  OK   · filial 2 · Mouse sem fio — total=9 estoque=2 atrelados=0 falta=0
+  OK   · filial 2 · Teclado ABNT2 — total=3 estoque=3 atrelados=0 falta=0
+  OK   · filial 2 · Memória RAM 8GB — total=5 estoque=5 atrelados=0 falta=0
+  OK   · filial 2 · Cabo HDMI 2m — total=1 estoque=1 atrelados=0 falta=0
+  OK   · filial 3 · Mouse sem fio — total=4 estoque=4 atrelados=0 falta=0
+  OK   · filial 3 · Teclado ABNT2 — total=0 estoque=0 atrelados=0 falta=0
+  OK   · filial 3 · Memória RAM 8GB — total=0 estoque=0 atrelados=0 falta=0
+  OK   · filial 3 · Cabo HDMI 2m — total=0 estoque=0 atrelados=0 falta=0
+
+------------------------------------------------------------------------------
+PROVA 3 · com DUAS filiais, linha.saldo é a soma CÉLULA A CÉLULA das marcadas
+------------------------------------------------------------------------------
+  OK   · Mouse sem fio — total: 12+9=21 · estoque: 7+2=9 · atrelados: 0+0=0 · falta: 0+0=0
+  OK   · Teclado ABNT2 — total: 6+3=9 · estoque: 1+3=4 · atrelados: 2+0=2 · falta: 0+0=0
+  OK   · Memória RAM 8GB — total: 0+5=5 · estoque: 0+5=5 · atrelados: 0+0=0 · falta: 0+0=0
+  OK   · Cabo HDMI 2m — total: 2+1=3 · estoque: 0+1=1 · atrelados: 0+0=0 · falta: 1+0=1
+
+------------------------------------------------------------------------------
+PROVA 4 · "em uso" também recorta (é derivado dos quatro, não lido à parte)
+------------------------------------------------------------------------------
+  OK   · Barra Nova · Mouse sem fio — em uso = 7 (esperado 7)
+  OK   · Barra Nova · Teclado ABNT2 — em uso = 0 (esperado 0)
+  OK   · Barra Nova · Memória RAM 8GB — em uso = 0 (esperado 0)
+  OK   · Barra Nova · Cabo HDMI 2m — em uso = 0 (esperado 0)
+
+------------------------------------------------------------------------------
+PROVA 5 · a MATRIZ (coluna por filial) e a LINHA EXPANSÍVEL saem da mesma conta
+------------------------------------------------------------------------------
+  OK   · Aurora · Mouse sem fio — coluna da matriz = 7 · coluna "Em estoque" da linha = 7 ← COM UMA FILIAL AS DUAS COLUNAS MOSTRAM O MESMO NÚMERO (ponto 4 do diagnóstico)
+  OK   · Aurora · Teclado ABNT2 — coluna da matriz = 1 · coluna "Em estoque" da linha = 1 ← COM UMA FILIAL AS DUAS COLUNAS MOSTRAM O MESMO NÚMERO (ponto 4 do diagnóstico)
+  OK   · Aurora · Memória RAM 8GB — coluna da matriz = 0 · coluna "Em estoque" da linha = 0 ← COM UMA FILIAL AS DUAS COLUNAS MOSTRAM O MESMO NÚMERO (ponto 4 do diagnóstico)
+  OK   · Aurora · Cabo HDMI 2m — coluna da matriz = 0 · coluna "Em estoque" da linha = 0 ← COM UMA FILIAL AS DUAS COLUNAS MOSTRAM O MESMO NÚMERO (ponto 4 do diagnóstico)
+
+------------------------------------------------------------------------------
+PROVA 6 · os CARTÕES de resumo somam o RECORTE… e o "A repor" NÃO (o defeito nº 3)
+------------------------------------------------------------------------------
+  OK   · sem recorte: cartão "Em estoque" soma o recorte — cartão = 25 · soma das linhas na tela = 25
+         └─ "A repor" = 2 — contado sobre o CONSOLIDADO, não sobre o recorte (é o que a F44 revoga)
+  OK   · filiais [1]: cartão "Em estoque" soma o recorte — cartão = 8 · soma das linhas na tela = 8
+         └─ "A repor" = 2 — contado sobre o CONSOLIDADO, não sobre o recorte (é o que a F44 revoga)
+  OK   · filiais [1, 2]: cartão "Em estoque" soma o recorte — cartão = 19 · soma das linhas na tela = 19
+         └─ "A repor" = 2 — contado sobre o CONSOLIDADO, não sobre o recorte (é o que a F44 revoga)
+  OK   · filiais [1, 2, 3]: cartão "Em estoque" soma o recorte — cartão = 23 · soma das linhas na tela = 23
+         └─ "A repor" = 2 — contado sobre o CONSOLIDADO, não sobre o recorte (é o que a F44 revoga)
+
+==============================================================================
+RESULTADO: as 6 provas passaram. O NÚMERO ESTÁ CERTO — o defeito é de LEGENDA.
+A F44 é sobre a frase que acompanha o número, a cor e a ordem de leitura.
+==============================================================================

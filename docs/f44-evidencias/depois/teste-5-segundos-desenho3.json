@@ -1,0 +1,238 @@
+{
+ "pasta": "docs/f44-evidencias/depois",
+ "desenho": "3 (o entregue) — o cartao A repor diz o DENOMINADOR: \"36 · de 44 itens abaixo do minimo em Cerrado Alto · 20 nesta pagina\"",
+ "protocolo": "Subagente em contexto fresco, so a imagem e as perguntas. Duas rodadas independentes por imagem.",
+ "respostas": [
+  {
+   "arq": "itens__atual__padrao__uma__claro__390x844.png",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a. Os numeros desta tela sao de qual filial, ou de todas?",
+     "resposta": "Sao so de uma filial: Cerrado Alto. O cabecalho dos numeros diz \"Numeros de Cerrado Alto\" e o texto de apoio confirma \"Total, Em estoque, Em uso e Falta sao de Cerrado Alto\" (ha um filtro de Filial ativo, com 1 selecionada).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b. Quais itens precisam ser repostos agora, e comparados com o que?",
+     "resposta": "O card \"A repor\" mostra 36, com a legenda \"de 44 abaixo do minimo em Cerrado Alto nesta pagina\" — ou seja, sao 36 itens comparados contra o estoque minimo definido para cada item.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c. Do item Cabo de rede Cat6 3 m: quanto esta na prateleira e quanto esta com as pessoas?",
+     "resposta": "Em estoque (prateleira): 16. Em uso (com as pessoas): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d. Alguma cor da tela te deixa em duvida sobre o que ela quer dizer? Qual, e por que?",
+     "resposta": "Sim, a tag laranja/amarela \"repor\" ao lado de cada item. Ela aparece em praticamente todos os itens da lista, inclusive no Cabo de rede Cat6 3 m, que tem 16 unidades em estoque e 0 em uso (ou seja, bem abastecido). Isso deixa duvida se a cor laranja ali e um alerta de \"este item esta abaixo do minimo\" ou apenas um rotulo/acao fixa que aparece sempre, independente do nivel de estoque.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 40
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__390x844.png",
+   "tema": "claro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a. Os números desta tela são de qual filial, ou de todas?",
+     "resposta": "São só de uma filial: Cerrado Alto. O card de números diz \"Números de Cerrado Alto\" e há um filtro \"Filial\" com 1 selecionado no topo.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b. Quais itens precisam ser repostos agora, e comparados com o que?",
+     "resposta": "O tile \"A repor\" mostra 36, com o texto \"de 44 abaixo do mínimo em Cerrado Alto nesta página\" — ou seja, a comparação é contra o estoque mínimo definido para o item. Na lista, cada item abaixo do mínimo ganha uma etiqueta laranja \"repor\" ao lado do nome (ex.: Mouse sem fio, Teclado ABNT2, Mousepad, Cabo de rede Cat6, Hub USB, Memória RAM, entre outros exibidos na página).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c. Do item \"Cabo de rede Cat6 3 m\": quanto está na prateleira e quanto está com as pessoas?",
+     "resposta": "Em estoque (prateleira): 16. Em uso (com pessoas): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d. Alguma cor da tela te deixa em dúvida sobre o que ela quer dizer?",
+     "resposta": "Sim, o laranja/dourado. É a mesma cor usada no botão principal \"Lançar\" e na marca WAP no cabeçalho (cor de destaque/ação), e também é a cor da etiqueta \"repor\" nos itens (que é um aviso de estoque baixo). Bater o olho, fica a dúvida se aquele tom no item é \"ação disponível\" ou \"alerta\", porque a mesma cor cumpre os dois papéis na tela.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 30
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__390x844.png",
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a. Os numeros desta tela sao de qual filial, ou de todas?",
+     "resposta": "De uma filial só: Cerrado Alto (título \"Números de Cerrado Alto\" acima dos cartões, e o texto abaixo da tabela reforça \"Total, Em estoque, Em uso e Falta são de Cerrado Alto\").",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b. Quais itens precisam ser repostos agora, e comparados com o que?",
+     "resposta": "Os itens com a etiqueta laranja \"repor\" abaixo do nome (ex.: Mouse sem fio, Teclado ABNT2, Cabo de rede Cat6 3 m, entre outros ao longo da lista). A comparação é contra o mínimo definido: o cartão \"A repor\" mostra 36 itens abaixo do mínimo em Cerrado Alto (20 já aparecem nesta página).",
+     "confianca": "hesitei"
+    },
+    {
+     "pergunta": "c. Do item \"Cabo de rede Cat6 3 m\": quanto esta na prateleira e quanto esta com as pessoas?",
+     "resposta": "16 em estoque (na prateleira) e 0 em uso (com pessoas).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d. Alguma cor da tela te deixa em duvida sobre o que ela quer dizer? Qual, e por que?",
+     "resposta": "Sim, o laranja da etiqueta \"repor\": ele aparece em quase toda linha da lista, então bate o olho e não dá pra distinguir rápido se é um alerta pontual grave ou uma marcação genérica de rotina — o excesso de uso tira a força do aviso.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 20
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__390x844.png",
+   "tema": "escuro",
+   "largura": "390x844",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a. Os numeros desta tela sao de qual filial, ou de todas?",
+     "resposta": "De uma filial so: Cerrado Alto (titulo 'Numeros de Cerrado Alto' e filtro 'Filial' selecionado no topo). Nao e consolidado de todas.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b. Quais itens precisam ser repostos agora, e comparados com o que?",
+     "resposta": "Quase todos os itens da lista visivel trazem o rotulo laranja 'repor' (Mouse sem fio, Teclado, Mousepad, Headset, Mochila, Carregador, Cabo HDMI, Cabo de rede Cat6, Adaptador USB-C, Suporte ergonomico, Hub USB, Webcam, Apresentador, Fone, Capa, Caneta, Base refrigerada, Filtro de privacidade, Cabo de energia, Regua, Leitor de codigo de barras, Suporte de parede, Adaptador de tomada, Bolsa, Memoria RAM). A comparacao e contra o estoque minimo: o card 'A repor' mostra 36 de 44 abaixo do minimo em Cerrado Alto.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c. Do item 'Cabo de rede Cat6 3 m': quanto esta na prateleira e quanto esta com as pessoas?",
+     "resposta": "Em estoque (prateleira): 16. Em uso (com pessoas): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d. Alguma cor da tela te deixa em duvida sobre o que ela quer dizer? Qual, e por que?",
+     "resposta": "Sim, o laranja do rotulo 'repor' que aparece embaixo de quase todo item. Como e a mesma cor de alerta/aviso repetida em quase toda a lista, da a impressao de que a filial inteira esta em situacao critica, e nao fica claro se e so uma tag informativa (abaixo do minimo) ou um alerta de urgencia por item.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 20
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__1440x900.png",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a. Os numeros desta tela sao de qual filial, ou de todas?",
+     "resposta": "So de uma filial: Cerrado Alto (ha um filtro 'Filial' com 1 selecionada, e o texto diz 'Numeros de Cerrado Alto' / 'Total, Em estoque, Em uso e Falta sao de Cerrado Alto').",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b. Quais itens precisam ser repostos agora, e comparados com o que?",
+     "resposta": "Os itens marcados com o selo laranja 'repor' (a maioria da lista: Mouse sem fio, Teclado ABNT2, Mousepad, Headset com microfone, etc.). O tile 'A repor' mostra 36 de 44 itens abaixo do minimo em Cerrado Alto - ou seja, comparados com um estoque minimo definido para cada item.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c. Do item \"Cabo de rede Cat6 3 m\": quanto esta na prateleira e quanto esta com as pessoas?",
+     "resposta": "16 na prateleira (Em estoque) e 0 com as pessoas (Em uso).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d. Alguma cor da tela te deixa em duvida sobre o que ela quer dizer? Qual, e por que?",
+     "resposta": "O verde da coluna 'Em estoque' - ele aparece em negrito mesmo quando o valor e 0 (ex.: Headset com microfone, Webcam Full HD). Verde costuma passar a ideia de 'ok/positivo', mas ali e so a cor fixa da coluna, entao um '0' em verde pode parecer que esta tudo bem quando na verdade o item esta zerado na prateleira.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 30
+  },
+  {
+   "arq": "itens__atual__padrao__uma__claro__1440x900.png",
+   "tema": "claro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a. Os numeros desta tela sao de qual filial, ou de todas?",
+     "resposta": "Sao de uma unica filial: Cerrado Alto (titulo \"Numeros de Cerrado Alto\", filtro \"Filial (1)\" e o aviso \"Total, Em estoque, Em uso e Falta sao de Cerrado Alto\").",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b. Quais itens precisam ser repostos agora, e comparados com o que?",
+     "resposta": "Os itens com a etiqueta laranja \"repor\" ao lado do nome (a maioria da lista: Mouse sem fio, Teclado ABNT2, Mousepad, Headset com microfone, Mochila para notebook, Cabo HDMI 2m, Adaptador USB-C para HDMI, Hub USB de 4 portas, Webcam Full HD, Apresentador sem fio, Fone intra-auricular, Capa para tablet, Base refrigerada, Filtro de privacidade, Cabo de energia tripolar, Leitor de codigo de barras, Suporte articulado de parede, Bolsa de transporte, Memoria RAM, etc.). O tile \"A repor: 36 de 44 itens\" diz que a comparacao e contra o MINIMO definido para o item (\"abaixo do minimo em Cerrado Alto\").",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c. Do item \"Cabo de rede Cat6 3 m\": quanto esta na prateleira e quanto esta com as pessoas?",
+     "resposta": "Em estoque (prateleira) = 16. Em uso (com as pessoas) = 0. (Total = 16, e esse item nao tem a etiqueta \"repor\".)",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d. Alguma cor da tela te deixa em duvida sobre o que ela quer dizer?",
+     "resposta": "Sim: o verde usado na coluna \"Em estoque\". Verde normalmente le como \"positivo/ok\", mas varias linhas mostram \"0\" em verde (ex.: Mochila para notebook, Webcam Full HD, Fone intra-auricular) e outras mostram um numero verde positivo mesmo o item estando marcado \"repor\" (ex.: Cabo HDMI 2m com 8 em estoque, ainda assim com a tag laranja de reposicao). Fica ambiguo se o verde indica \"quantidade disponivel\" neutro ou \"situacao boa\", porque nos dois casos ele nao bate com o real (zero, ou item que precisa repor).",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 55
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__1440x900.png",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 1,
+   "respostas": [
+    {
+     "pergunta": "a. Os numeros desta tela sao de qual filial, ou de todas?",
+     "resposta": "Sao de uma filial so: Cerrado Alto (o filtro mostra 'Filial 1' e o texto abaixo dos cards diz 'Total, Em estoque, Em uso e Falta sao de Cerrado Alto').",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b. Quais itens precisam ser repostos agora, e comparados com o que?",
+     "resposta": "Os itens com o rotulo laranja 'repor' ao lado do nome (a maioria da lista visivel: Mouse sem fio, Teclado ABNT2, Mousepad, Headset com microfone, Mochila para notebook, Cabo HDMI 2 m, Hub USB de 4 portas, Webcam Full HD, entre outros). A comparacao e com o minimo definido para a filial: o card 'A repor' mostra 36 de 44 itens abaixo do minimo em Cerrado Alto.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c. Do item 'Cabo de rede Cat6 3 m': quanto esta na prateleira e quanto esta com as pessoas?",
+     "resposta": "16 na prateleira (Em estoque) e 0 com as pessoas (Em uso).",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d. Alguma cor da tela te deixa em duvida sobre o que ela quer dizer? Qual, e por que?",
+     "resposta": "O laranja/amarelo do rotulo 'repor' e do card 'A repor' e bem parecido com o amarelo da marca WAP no logo do cabecalho, entao bati o olho e por um instante fiquei em duvida se era so um destaque de marca ou de fato um alerta de estoque baixo.",
+     "confianca": "hesitei"
+    }
+   ],
+   "segundosEstimados": 20
+  },
+  {
+   "arq": "itens__atual__padrao__uma__escuro__1440x900.png",
+   "tema": "escuro",
+   "largura": "1440x900",
+   "rodada": 2,
+   "respostas": [
+    {
+     "pergunta": "a. Os numeros desta tela sao de qual filial, ou de todas?",
+     "resposta": "So da filial Cerrado Alto (filtro 'Filial 1' aplicado, e o texto explicita 'Total, Em estoque, Em uso e Falta sao de Cerrado Alto'). Nao e consolidado de todas as filiais.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "b. Quais itens precisam ser repostos agora, e comparados com o que?",
+     "resposta": "Os marcados com o rotulo laranja 'repor' (a maioria da lista visivel: Mouse sem fio, Teclado ABNT2, Mousepad, Headset, Mochila, Cabo HDMI 2m, Adaptador USB-C, etc). O KPI diz '36 de 44 itens abaixo do minimo em Cerrado Alto' - ou seja, comparados contra o estoque minimo definido para cada item.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "c. Do item 'Cabo de rede Cat6 3 m': quanto esta na prateleira e quanto esta com as pessoas?",
+     "resposta": "Na prateleira (Em estoque): 16. Com as pessoas (Em uso): 0.",
+     "confianca": "certeza"
+    },
+    {
+     "pergunta": "d. Alguma cor da tela te deixa em duvida sobre o que ela quer dizer? Qual, e por que?",
+     "resposta": "O verde da coluna 'Em estoque' - varios itens tem o numero em verde (ex: Cabo HDMI 2m com 8) mas ainda assim carregam o rotulo laranja 'repor' ao lado do nome. Verde costuma passar sensacao de 'ok/suficiente', mas aqui o item pode estar com verde E precisando repor ao mesmo tempo, o que confunde.",
+     "confianca": "hesitei"
+    }
+   ]
+  }
+ ]
+}

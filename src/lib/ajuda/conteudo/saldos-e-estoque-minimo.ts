@@ -24,12 +24,12 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Falta e repor são dois avisos DIFERENTES e podem aparecer na mesma linha. Falta (selo vermelho "faltam N") é déficit real — máx(0, reservado + em uso − total) —, ou seja, compromisso já assumido sem lastro. Repor (selo âmbar "repor") é ponto de reposição: acende quando o estoque somado de TODAS as filiais fica abaixo do estoque mínimo configurado para aquele item em Administração › Itens. Mínimo 0 = item sem acompanhamento, nunca acende. Estoque IGUAL ao mínimo também não acende: o mínimo é o piso aceitável, não o gatilho. O aviso é sempre do consolidado, nunca do saldo de uma filial — julgar pelo recorte mandaria comprar o que está sobrando na filial ao lado; por isso o selo "repor" fica colado no NOME do item, e nunca dentro de uma das colunas de filial. O painel inicial repete a mesma conta no card "Itens para repor", que só aparece quando há algo a repor.',
+        'Falta e repor são dois avisos DIFERENTES e podem aparecer na mesma linha. Falta (selo vermelho "faltam N") é déficit real — máx(0, reservado + em uso − total) —, ou seja, compromisso já assumido sem lastro. Repor (selo âmbar "repor") é ponto de reposição: acende quando o estoque fica abaixo do estoque mínimo configurado para aquele item em Administração › Itens. Mínimo 0 = item sem acompanhamento, nunca acende. Estoque IGUAL ao mínimo também não acende: o mínimo é o piso aceitável, não o gatilho. Desde 01/09/2026 o aviso SEGUE O FILTRO DE FILIAL: sem filtro ele compara com o estoque somado de todas as filiais; com uma filial filtrada, compara com o estoque DAQUELA filial, e a legenda no topo da página diz de quem são os números. Isso tem uma consequência que vale saber: com uma filial filtrada, um item pode acender "repor" mesmo havendo sobra na filial ao lado — a página está falando daquela prateleira, não do acervo inteiro. O selo continua colado no NOME do item, e nunca dentro de uma das colunas de filial.',
     },
     {
       tipo: 'lista',
       itens: [
-        'Passar o mouse (ou tocar) no selo "repor" mostra a conta que o acendeu: o mínimo do item e o estoque de todas as filiais.',
+        'Passar o mouse (ou tocar) no selo "repor" mostra a conta que o acendeu: o mínimo do item e o estoque com que ele foi comparado — a dica NOMEIA esse estoque ("estoque de todas as filiais", "estoque em Linhares", "estoque somado de 3 filiais"), conforme o filtro de filial da página.',
         'Passar o mouse no selo vermelho mostra o compromisso: quantas unidades estão reservadas para chamados e quantas há em estoque.',
         'O selo "ao vivo" no cabeçalho vira "atualizado agora" quando alguém lança alguma coisa enquanto você está na tela — os números se refrescam sem recarregar.',
       ],
@@ -43,7 +43,7 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
-        'Desde 01/09/2026 a tabela tem UMA COLUNA POR FILIAL, sempre visível numa tela larga: cada coluna leva o nome da filial no cabeçalho e mostra quanto daquele item está na PRATELEIRA dela. É a resposta a "onde tem mouse sobrando?" sem clicar em nada — e, como as colunas ficam sempre no mesmo lugar, dá para descer a vista por uma filial e comparar todos os itens dela de uma vez.',
+        'Desde 01/09/2026 a tabela tem UMA COLUNA POR FILIAL quando você está comparando DUAS OU MAIS, numa tela larga: cada coluna leva o nome da filial no cabeçalho e mostra quanto daquele item está na PRATELEIRA dela. É a resposta a "onde tem mouse sobrando?" sem clicar em nada — e, como as colunas ficam sempre no mesmo lugar, dá para descer a vista por uma filial e comparar todos os itens dela de uma vez. Filtrando UMA filial só, essas colunas não aparecem: elas repetiriam, com outro nome, o mesmo número que a coluna "Em estoque" já mostra na linha — e a legenda no alto da tabela diz que os números são daquela filial.',
     },
     {
       tipo: 'nota',
@@ -65,11 +65,11 @@ export const saldosEEstoqueMinimo: PaginaAjuda = {
       tipo: 'passos',
       titulo: 'Definir o estoque mínimo de um item',
       itens: [
-        'Vá a Administração › Itens e edite o item. O campo "Estoque mínimo" é o ponto de reposição daquele item, contado sobre o estoque de TODAS as filiais somadas.',
+        'Vá a Administração › Itens e edite o item. O campo "Estoque mínimo" é o ponto de reposição daquele item. O mínimo é UM SÓ por item — não existe mínimo por filial.',
         'Deixe 0 (o padrão, exibido como travessão na coluna Mínimo) para não acompanhar aquele item — nenhum aviso será emitido.',
-        'A partir de 1, sempre que o estoque consolidado ficar ABAIXO do mínimo o item ganha o selo âmbar "repor" colado ao nome, na página Itens, e entra na conta do cartão "A repor" do topo. Estoque igual ao mínimo ainda não acende: o mínimo é o piso aceitável.',
-        'O painel inicial mostra o card "Itens para repor" com os mais críticos primeiro (quem está mais longe do mínimo), o quanto falta para voltar ao mínimo e um link direto para o item. Sem nada a repor, o card não aparece.',
-        'Passar o mouse no selo mostra o mínimo e o estoque somado das filiais. O aviso é sempre do consolidado: filtrar a página por uma filial não muda quem acende.',
+        'A partir de 1, sempre que o estoque ficar ABAIXO do mínimo o item ganha o selo âmbar "repor" colado ao nome, na página Itens, e entra na conta do cartão "A repor" do topo. Os dois usam a mesma regra e o mesmo número: nunca discordam. Estoque igual ao mínimo ainda não acende — o mínimo é o piso aceitável.',
+        'Filtrar a página por uma filial MUDA quem acende (desde 01/09/2026): o aviso passa a comparar o mínimo com o estoque daquela filial. Sem filtro, ele compara com o estoque somado de todas.',
+        'O painel inicial mostra o card "Itens para repor" com os mais críticos primeiro (quem está mais longe do mínimo), o quanto falta para voltar ao mínimo e um link direto para o item. Sem nada a repor, o card não aparece. ATENÇÃO: esse card é SEMPRE do acervo inteiro — ele não tem filtro de filial. Se a página Itens estiver filtrada por uma filial, a contagem dela e a do painel podem não bater, e as duas estão certas: elas respondem perguntas diferentes.',
       ],
     },
     { tipo: 'titulo', id: 'saldos-exportar', texto: 'Levar os saldos para fora' },

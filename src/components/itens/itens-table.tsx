@@ -37,6 +37,12 @@ import {
 } from '@/lib/itens/distribuicao'
 import { emUsoDoSaldo, type LinhaDeItem, type NumerosDoItem } from '@/lib/itens/lista'
 import { minimoDoItem, type MinimosPorItem } from '@/lib/itens/repor'
+import {
+  legendaDaTabela,
+  rotuloEstoqueDoRepor,
+  type EscopoDosNumeros,
+} from '@/lib/itens/escopo'
+import { tintaDoNumero } from '@/lib/itens/tinta'
 import { cn } from '@/lib/utils'
 import type { Filial } from '@/lib/queries/filiais'
 
@@ -126,8 +132,18 @@ const COL: Record<string, string> = {
   // `whitespace-normal` anula o `whitespace-nowrap` do `TableCell` do kit SÓ
   // aqui: é o nome comprido que estourava a largura da tabela no celular.
   item: 'whitespace-normal',
-  total: 'hidden sm:table-cell text-right',
-  estoque: 'text-right',
+  // F44 — O SEPARADOR DO BLOCO DE NÚMEROS. A primeira coluna de número ganha o
+  // mesmo traço à esquerda que a primeira coluna de filial já tinha, e pela mesma
+  // razão: a tabela passa a ler `[quem é] | [os quatro números] | [em cada filial]
+  // | [ações]`, e o olho para de se perder na horizontal — que é metade do pedido
+  // ("separadores mais fortes").
+  //
+  // ⚠ ELE VAI NA COLUNA `total` E NA `estoque`, e não em uma só: `total` é
+  // `hidden sm:table-cell`, então abaixo de `sm` quem abre o bloco é `estoque`.
+  // Com o traço só em `total`, o separador sumiria justo no celular. Em `estoque`
+  // ele some a partir de `sm` (`sm:border-l-0`), quando `total` assume.
+  total: 'hidden sm:table-cell text-right border-l',
+  estoque: 'text-right border-l sm:border-l-0',
   emUso: 'text-right',
   falta: 'hidden sm:table-cell text-right',
   filial: 'hidden xl:table-cell text-right',
@@ -138,6 +154,49 @@ const COL: Record<string, string> = {
   primeiraFilial: 'border-l',
   acoes: 'w-px px-1 text-right sm:px-2 print:hidden',
 }
+
+// F44 — O ZEBRADO, e por que ele é calculado em JS e não com `even:`/`odd:`.
+//
+// As linhas saem em PARES: a linha do item e, quando ela está aberta, a linha de
+// detalhe. `nth-child` conta os DOIS, então uma única linha aberta inverteria a
+// listra de tudo que vem abaixo dela — a lista mudaria de padrão ao abrir um item.
+// Com o índice da linha de DADOS, a listra é estável.
+//
+// ⚠ A ESCADA DE TRÊS DEGRAUS, e o TETO DELA É DE ACESSIBILIDADE, não de gosto.
+//
+// No tema claro a paleta dá pouquíssima folga: `--background` é `oklch(1)` e
+// `--muted` é `oklch(0.97)` — três por cento de amplitude para tudo. E o teto não
+// é o fim da escala: é o CONTRASTE. A linha do item carrega a classificação
+// ("Acessório · Mouse") em `text-muted-foreground`, e esse cinza mede:
+//
+//     sobre o fundo da página (1.000)   →  4,73:1   ✅
+//     sobre `bg-muted/50`     (0.985)   →  4,53:1   ✅ (0,03 acima do piso)
+//     sobre `bg-muted`        (0.970)   →  4,34:1   ❌ REPROVA AA
+//
+// A primeira escrita desta fase usava listra `bg-muted/50` e sobrescrevia o hover
+// para `bg-muted`, para o hover se distinguir da listra. A revisão adversarial
+// pegou: isso derrubaria o cinza da classificação abaixo de AA em TODA linha sob o
+// mouse — e é exatamente o par que a F43 já tinha medido e recusado
+// ("cinza sobre o chip cinza", 4,34:1, em `scripts/contraste.mjs`).
+//
+// A escada foi então DESLOCADA para caber dentro do que passa:
+//
+//     linha comum    →  o fundo da página   (1.000)   4,73:1
+//     linha listrada →  `bg-muted/25`       (0.9925)  4,63:1
+//     com o mouse    →  `bg-muted/50`       (0.985)   4,53:1   ← o hover do KIT
+//
+// Ela continua monotônica (o hover é sempre o mais escuro), e o hover volta a ser
+// o do `TableRow` — nada a sobrescrever. O preço é uma listra mais sutil no tema
+// CLARO: 0,75% de diferença em vez de 1,5%. No ESCURO ela é folgada (o card é
+// `oklch(0.205)` e o muted é `oklch(0.269)`). Cor que não pode ficar mais forte
+// sem derrubar o texto não fica mais forte — quem carrega a leitura horizontal é
+// o separador do bloco de números e a tinta de cada coluna.
+//
+// ⚠ E A LINHA DE DETALHE NÃO PODE SER LISTRADA COMO SE FOSSE OUTRO ITEM: ela usa
+// `bg-muted`, mais escuro que os três, e isso é seguro porque o conteúdo dela NÃO
+// é `muted-foreground` sobre `muted` — os rótulos de filial são `font-medium` na
+// cor do texto normal. Ela também não tem hover.
+const LISTRA = 'bg-muted/25'
 
 function Numero({ valor, className }: { valor: number; className?: string }) {
   return (
@@ -226,6 +285,7 @@ export function ItensTable({
   filialPreset,
   filiaisTransferencia = [],
   cabecalhos,
+  escopo,
 }: {
   rows: LinhaDeItem[]
   /** As filiais que a linha compara — já recortadas pelo filtro da tela. */
@@ -244,9 +304,12 @@ export function ItensTable({
   /**
    * Rótulo, explicação curta e explicação inteira de cada número, vindos de
    * `NUMEROS_ITEM` (`src/lib/ajuda/conteudo/itens-por-quantidade.ts`) — a MESMA
-   * fonte da página de ajuda. Desce por PROP a partir do Server Component.
+   * fonte da página de ajuda — **já passados por `cabecalhosComEscopo`**. Descem
+   * por PROP a partir do Server Component.
    */
   cabecalhos: readonly MetaDeNumero[]
+  /** De quem são os quatro números da linha — vira a `<caption>` da tabela. */
+  escopo: EscopoDosNumeros
 }) {
   const { estaAberta, alternar } = useExpandidas()
 
@@ -254,13 +317,54 @@ export function ItensTable({
   // para todas as linhas nomearem a mesma filial do mesmo jeito.
   const rotulos = rotulosCurtosDeFilial(filiais)
 
+  // ⚠ F44 — COM EXATAMENTE UMA FILIAL, A MATRIZ NÃO É DESENHADA.
+  //
+  // `filiaisVisiveis` com um elemento faz a coluna "Cerrado Alto | em estoque"
+  // repetir, linha após linha e com outro rótulo, o número que a coluna
+  // *Em estoque* já mostra — 8/8, 2/2, 6/6, 16/16. Duas colunas com o mesmo número
+  // não são redundância inofensiva: elas SUGEREM que uma delas é outra coisa. Um
+  // julgamento em contexto fresco, que não sabia do problema, apontou isso sozinho
+  // na foto da linha de base: *"aparecem lado a lado com o MESMO número em toda
+  // linha, o que dá a impressão de estarem duplicadas"*.
+  //
+  // Quem passa a nomear a filial é a `<caption>` — e os quatro números SÃO os dela.
+  //
+  // ⚠ A LINHA EXPANSÍVEL NÃO SAI JUNTO, e a razão é que ela não é redundante: é o
+  // único lugar com o atalho de TRANSFERIR, que é da filial de ORIGEM, e o único
+  // que mostra o reservado quando ele existe. Tirar a coluna tira a duplicação;
+  // tirar a linha levaria um recurso junto.
+  const matriz = filiais.length > 1 ? filiais : []
+
   // O número de colunas visíveis no maior breakpoint — a linha de detalhe usa
   // `colSpan` e o navegador limita ao número real, então um teto serve.
-  const colunas = 6 + filiais.length + (escreve ? 1 : 0)
+  const colunas = 6 + matriz.length + (escreve ? 1 : 0)
+
+  const legenda = legendaDaTabela(cabecalhos, escopo, ['total', 'estoque', 'emUso', 'falta'])
+  const rotuloDoEstoque = rotuloEstoqueDoRepor(escopo)
 
   return (
     <QuadroDeTabela>
-      <Table>
+      {/* `caption-top` porque o kit é `caption-bottom` — legenda que explica de
+          quem são os números tem de vir ANTES deles. */}
+      <Table className="caption-top">
+        {/* ⚠ A LEGENDA DE ESCOPO, e por que ela é uma `<caption>`.
+            A ideia óbvia era uma linha de cabeçalho agrupador
+            (`<th colSpan={4}>Cerrado Alto</th>` sobre as quatro colunas de número).
+            Ela NÃO SOBREVIVE À RESPONSIVIDADE: *Total* e *Falta* são
+            `hidden sm:table-cell`, então abaixo de `sm` só duas das quatro colunas
+            existem — e `colSpan` não tem variante de breakpoint. O agrupador ou
+            mentiria a largura em 390px, ou teria de sumir justo na tela em que o
+            operador tem menos contexto.
+            `<caption>` é a semântica que o HTML já tem para "o título desta
+            tabela", é anunciada por leitor de tela ANTES do conteúdo, e funciona em
+            toda largura sem `colSpan` nenhum. */}
+        {/* `px-2` alinha com o `p-2` das células (o texto da legenda cai na mesma
+            régua vertical do nome do item); `py-3` dá à legenda uma FAIXA própria,
+            porque o `QuadroDeTabela` é `py-0` — sem ela, o texto encostava no traço
+            da moldura e ficava cortado. `border-b` fecha a faixa. */}
+        <caption className="border-b px-2 py-3 text-left text-sm text-muted-foreground">
+          {legenda}
+        </caption>
         <TableHeader>
           <TableRow>
             <TableHead className={COL.expandir}>
@@ -288,7 +392,7 @@ export function ItensTable({
                 dos quatro números a coluna mostra, para ninguém ter de adivinhar
                 nem passar o mouse. `scope="col"` liga cada número ao seu nome
                 para quem lê por leitor de tela. */}
-            {filiais.map((f, i) => (
+            {matriz.map((f, i) => (
                 <TableHead
                   key={f.id}
                   scope="col"
@@ -310,12 +414,18 @@ export function ItensTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((linha) => {
+          {rows.map((linha, indice) => {
             const aberta = estaAberta(String(linha.item_id))
             const emUso = emUsoDoSaldo(linha.saldo)
+            // A linha expansível continua listando TODAS as filiais visíveis, mesmo
+            // quando a matriz não é desenhada: no celular ela é o único lugar onde
+            // os números por filial aparecem, e é dela que sai o atalho de
+            // transferir.
             const celulas = distribuicaoDoItem(linha, filiais, rotulos)
+            const celulasDaMatriz = distribuicaoDoItem(linha, matriz, rotulos)
+            const listrada = indice % 2 === 1
             return [
-              <TableRow key={linha.item_id}>
+              <TableRow key={linha.item_id} className={cn(listrada && LISTRA)}>
                 <TableCell className={COL.expandir}>
                   <BotaoExpandir
                     aberta={aberta}
@@ -332,8 +442,11 @@ export function ItensTable({
                     item={linha.item}
                     grupo={linha.grupo}
                     tipoRotulo={linha.tipoRotulo}
-                    estoqueConsolidado={linha.consolidado.estoque}
+                    // F44 — o "repor" passou a seguir o filtro (era
+                    // `linha.consolidado.estoque`). Ver `badge-repor.tsx`.
+                    estoqueDoRecorte={linha.saldo.estoque}
                     estoqueMinimo={minimoDoItem(minimos, linha.item_id)}
+                    rotuloDoEstoque={rotuloDoEstoque}
                   />
                   {/* Abaixo de `xl` a matriz não cabe, e é ESTE botão que leva aos
                       números por filial — com a palavra escrita, e não um chevron
@@ -345,14 +458,18 @@ export function ItensTable({
                     filiais={filiais.length}
                   />
                 </TableCell>
-                <TableCell className={cn(COL.total, 'text-muted-foreground')}>
-                  <Numero valor={linha.saldo.total} />
+                <TableCell className={COL.total}>
+                  <Numero valor={linha.saldo.total} className={tintaDoNumero('total').texto} />
                 </TableCell>
                 <TableCell className={COL.estoque}>
                   {/* A ÂNCORA. Um degrau acima dos outros três — o olho precisa de
                       um lugar por onde entrar na linha, e é este número que
-                      responde "posso pegar agora?". */}
-                  <Numero valor={linha.saldo.estoque} className="text-base font-semibold" />
+                      responde "posso pegar agora?". A tinta VERDE é a mesma com que
+                      o produto já diz "em estoque" na tela de ativos (F44). */}
+                  <Numero
+                    valor={linha.saldo.estoque}
+                    className={cn('text-base font-semibold', tintaDoNumero('estoque').texto)}
+                  />
                   {/* Quanto do estoque está numa filial que esta lista NÃO mostra
                       (filial desativada com saldo). Zero é o caso normal — quando
                       não é, as colunas de filial não fecham com o consolidado, e a
@@ -380,21 +497,35 @@ export function ItensTable({
                     </span>
                   )}
                 </TableCell>
-                <TableCell className={cn(COL.emUso, emUso === 0 && 'text-muted-foreground')}>
-                  <Numero valor={emUso} />
+                <TableCell className={COL.emUso}>
+                  {/* AZUL, a mesma tinta com que o produto já diz "em uso" na tela
+                      de ativos (F44). Zero continua atenuado: um número que não
+                      existe não merece a cor de um que existe. */}
+                  <Numero
+                    valor={emUso}
+                    className={
+                      emUso === 0 ? 'text-muted-foreground' : tintaDoNumero('emUso').texto
+                    }
+                  />
                 </TableCell>
                 <TableCell className={COL.falta}>
                   <SeloFalta s={linha.saldo} />
                 </TableCell>
-                {celulas.map((c, i) => (
+                {celulasDaMatriz.map((c, i) => (
                   <TableCell
                     key={c.filialId}
                     className={cn(COL.filial, i === 0 && COL.primeiraFilial)}
                   >
+                    {/* ⚠ A COLUNA DE FILIAL MOSTRA "EM ESTOQUE", E PINTA DE VERDE
+                        POR ISSO — é o mesmo número da coluna *Em estoque*, só que
+                        de uma filial. Cor por FILIAL seria outra coisa, e o Johnny
+                        recusou explicitamente mapa de calor por quantidade aqui. */}
                     <Numero
                       valor={c.numeros.estoque}
                       className={
-                        c.numeros.estoque > 0 ? 'font-medium' : 'text-muted-foreground'
+                        c.numeros.estoque > 0
+                          ? cn('font-medium', tintaDoNumero('estoque').texto)
+                          : 'text-muted-foreground'
                       }
                     />
                   </TableCell>
@@ -440,11 +571,16 @@ export function ItensTable({
 
               aberta ? (
                 <TableRow key={`${linha.item_id}-filiais`} className="hover:bg-transparent">
-                  <TableCell colSpan={colunas} className="bg-muted/30 p-0">
+                  {/* F44 — `bg-muted` (o degrau mais escuro da escada) e não
+                      `/30`: com o zebrado, a listra é `/50`. A linha de detalhe
+                      tem de ficar ABAIXO das duas para ler como "dentro deste
+                      item", e não como o próximo item da lista. */}
+                  <TableCell colSpan={colunas} className="bg-muted p-0">
                     <FiliaisDoItem
                       linha={linha}
                       celulas={celulas}
                       filiaisTransferencia={filiaisTransferencia}
+                      temRecorte={escopo.tipo !== 'todas'}
                     />
                   </TableCell>
                 </TableRow>
@@ -473,11 +609,14 @@ function FiliaisDoItem({
   linha,
   celulas,
   filiaisTransferencia,
+  temRecorte,
 }: {
   linha: LinhaDeItem
   /** As MESMAS células que a matriz da linha usa — uma conta só (F43). */
   celulas: readonly CelulaDeFilial[]
   filiaisTransferencia: readonly number[]
+  /** Há filtro de filial? Decide se o aviso de reservado nomeia o escopo (F44). */
+  temRecorte: boolean
 }) {
   return (
     <div className="flex flex-col gap-2 px-4 py-3">
@@ -561,10 +700,20 @@ function FiliaisDoItem({
           desta lista.
         </p>
       )}
+      {/* ⚠ F44 — ESTE AVISO USA O CONSOLIDADO, e agora DIZ isso.
+          Ele é o último número global que sobrou nesta linha: a `dl` acima já
+          mostra o reservado DE CADA FILIAL do recorte, e este parágrafo soma
+          TODAS — inclusive as que o filtro deixou de fora. Até a v1.48.0 ele
+          escrevia o número seco, e isso passava despercebido porque o resto da
+          tela também era global. Com a tela recortada e nomeada, um número global
+          mudo ao lado de números da filial vira a MESMA classe de defeito que esta
+          fase existe para consertar — a revisão adversarial pegou. A frase de
+          escopo entra só quando há recorte; sem recorte ela seria repetição. */}
       {linha.consolidado.atrelados > 0 && (
         <p className="text-xs text-muted-foreground">
-          {linha.consolidado.atrelados.toLocaleString('pt-BR')} reservado(s) para chamado —
-          nenhuma tela cria reserva nova desde 31/08/2026; o número existe para o histórico.
+          {linha.consolidado.atrelados.toLocaleString('pt-BR')} reservado(s) para chamado
+          {temRecorte ? ' em todas as filiais' : ''} — nenhuma tela cria reserva nova desde
+          31/08/2026; o número existe para o histórico.
         </p>
       )}
     </div>

@@ -25,6 +25,13 @@ export default function Loading() {
           <Skeleton className="h-24 w-full rounded-lg" />
           <Skeleton className="h-24 w-full rounded-lg" />
         </div>
+        {/* F44 — os DOIS BLOCOS DE ITEM, que desceram para o fim da ficha e abrem
+            RECOLHIDOS. Fechados eles são uma faixa de ~66px cada, e não um cartão
+            cheio: o esqueleto promete a silhueta que chega, e não a de antes da
+            fase. Sem eles a página terminaria mais cedo no esqueleto e mais tarde
+            no conteúdo. */}
+        <Skeleton className="h-16 w-full rounded-lg" />
+        <Skeleton className="h-16 w-full rounded-lg" />
       </Pagina>
     </Carregando>
   )

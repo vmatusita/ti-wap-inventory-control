@@ -6,6 +6,9 @@ import {
   rotulosCurtosDeFilial,
 } from '@/lib/itens/distribuicao'
 import type { LinhaDeItem, NumerosDoItem } from '@/lib/itens/lista'
+// A MESMA função pura que `BadgeRepor` chama — é ela que prova que o cartão e o
+// selo da linha contam a mesma coisa (critério 5 da F44).
+import { precisaRepor } from '@/lib/validators/item'
 
 // A DISTRIBUIÇÃO POR FILIAL (F43) — a aritmética que sustenta a coluna nova.
 //
@@ -151,9 +154,16 @@ describe('o resumo da lista (os cartões do topo)', () => {
     expect(r).toMatchObject({ itens: 2, total: 14, estoque: 10, atrelados: 1, emUso: 3 })
   })
 
-  it('conta "a repor" pelo CONSOLIDADO, nunca pelo recorte', () => {
+  // ⚠ F44 — ESTES QUATRO CASOS MUDARAM DE RESPOSTA, e a mudança é uma REVISÃO
+  // registrada, não um conserto. Até a v1.48.0 o cartão *A repor* contava pelo
+  // CONSOLIDADO mesmo com filtro de filial (decisão de 23/07/2026, F12 · I5:
+  // "julgar pelo recorte de uma filial mandaria comprar o que está sobrando na
+  // filial ao lado"). O Johnny revogou essa parte em 01/09/2026: com filtro, o
+  // aviso é da filial filtrada. Ver `docs/DECISOES.md`.
+  it('conta "a repor" pelo RECORTE — a revisão de 01/09/2026', () => {
     // O recorte de UMA filial tem 0 na prateleira; as outras filiais têm 30.
-    // Ninguém compra o que está sobrando na filial ao lado.
+    // ATÉ A v1.48.0 ISTO NÃO ALERTAVA. Agora alerta, e é o pedido: quem opera
+    // Cerrado Alto quer saber que a prateleira DELE está vazia.
     const r = resumoDaLista(
       [
         linha({
@@ -164,27 +174,49 @@ describe('o resumo da lista (os cartões do topo)', () => {
       ],
       { 7: 10 },
     )
-    expect(r.aRepor).toBe(0)
+    expect(r.aRepor).toBe(1)
   })
 
-  it('conta "a repor" quando o consolidado está abaixo do mínimo', () => {
+  it('SEM recorte nada muda: `saldo === consolidado` e a conta é a de sempre', () => {
     const r = resumoDaLista(
       [
-        linha({ item_id: 7, consolidado: numeros({ estoque: 3 }) }),
-        linha({ item_id: 8, consolidado: numeros({ estoque: 30 }) }),
+        // Sem filtro, `montarLinhasDeItem` põe o consolidado nos dois campos.
+        linha({ item_id: 7, saldo: numeros({ estoque: 3 }), consolidado: numeros({ estoque: 3 }) }),
+        linha({
+          item_id: 8,
+          saldo: numeros({ estoque: 30 }),
+          consolidado: numeros({ estoque: 30 }),
+        }),
       ],
       { 7: 10, 8: 10 },
     )
     expect(r.aRepor).toBe(1)
   })
 
+  // ⚠ ESTE É O CRITÉRIO 5 DA F44: o cartão e o selo da linha NUNCA discordam.
+  // Os dois passam pela MESMA função pura sobre o MESMO número.
+  it('o cartão conta exatamente o que o selo da linha acende — mesma regra, mesmo número', () => {
+    const linhas = [
+      // recorte vazio, consolidado cheio → o selo acende (é do recorte)
+      linha({ item_id: 1, saldo: numeros({ estoque: 0 }), consolidado: numeros({ estoque: 99 }) }),
+      // recorte cheio, consolidado vazio → o selo NÃO acende
+      linha({ item_id: 2, saldo: numeros({ estoque: 99 }), consolidado: numeros({ estoque: 0 }) }),
+    ]
+    const minimos = { 1: 10, 2: 10 }
+    const r = resumoDaLista(linhas, minimos)
+    // O que o SELO faria, item a item — a mesma conta que `BadgeRepor` faz.
+    const selosAcesos = linhas.filter((l) => precisaRepor(l.saldo.estoque, minimos[l.item_id]))
+    expect(r.aRepor).toBe(selosAcesos.length)
+    expect(r.aRepor).toBe(1)
+  })
+
   it('mínimo ausente (item desativado com saldo) nunca alerta', () => {
-    const r = resumoDaLista([linha({ item_id: 9, consolidado: numeros({ estoque: 0 }) })], {})
+    const r = resumoDaLista([linha({ item_id: 9, saldo: numeros({ estoque: 0 }) })], {})
     expect(r.aRepor).toBe(0)
   })
 
   it('estoque IGUAL ao mínimo não repõe — o mínimo é piso, não gatilho', () => {
-    const r = resumoDaLista([linha({ item_id: 3, consolidado: numeros({ estoque: 5 }) })], { 3: 5 })
+    const r = resumoDaLista([linha({ item_id: 3, saldo: numeros({ estoque: 5 }) })], { 3: 5 })
     expect(r.aRepor).toBe(0)
   })
 

@@ -8401,3 +8401,126 @@ e da `0121`; as quatro do código, por `git revert`.
 - Motivo de registrar: os dois passaram por `lint`, `test`, `contraste` e `build` verdes. Régua estática
   não pega nome acessível divergente do rótulo visível, nem dublê que diverge do original.
 - Reversível? Sim, pelo git.
+
+## 2026-09-01 · F44 · REVISÃO — o aviso "repor" passou a seguir o filtro de filial
+
+- Contexto: até a `v1.48.0` o selo âmbar "repor" e o cartão *A repor* comparavam o mínimo do item
+  **sempre** com o estoque CONSOLIDADO, mesmo com uma filial filtrada. A decisão era da F12 · I5
+  (ata de **23/07/2026**, item "o mínimo é POR ITEM e se compara com o CONSOLIDADO"), e o motivo
+  estava escrito: *"julgar pelo recorte de uma filial mandaria comprar o que está sobrando na filial
+  ao lado"*. O Johnny, em 01/09/2026, pediu o contrário.
+- Decisão: **REVOGADA a parte do escopo** daquela ata. Com recorte de filial, `BadgeRepor` recebe
+  `linha.saldo.estoque` e `resumoDaLista` conta `aRepor` por `l.saldo.estoque`. **O que PERMANECE
+  da decisão de 23/07/2026:** o mínimo continua sendo **um só por item** (não existe mínimo por
+  filial); `0` continua significando "sem acompanhamento, nunca alerta"; estoque IGUAL ao mínimo
+  continua não acendendo; e **sem filtro nada muda** — `saldo === consolidado`.
+- O EFEITO COLATERAL, nomeado: a tela pode **pedir reposição do que está sobrando na filial ao
+  lado**. É exatamente o que a decisão antiga evitava, e agora é possível. Ele não é hipotético: na
+  prévia de 44 itens fictícios, com UMA filial marcada, o cartão saltou de **11** para **36** itens
+  "a repor", e 20 das 25 linhas da primeira página passaram a exibir o selo. A razão é estrutural —
+  os mínimos foram configurados pensando no acervo somado, e um quinto do acervo raramente alcança
+  um mínimo pensado para o todo.
+- Mitigação entregue, porque a regra nova sem ela seria armadilha: (1) a tela NOMEIA o escopo em
+  duas superfícies — a linha acima dos cartões e a `<caption>` da tabela; (2) a dica do selo diz
+  contra qual estoque comparou (*"estoque em Cerrado Alto: 1"*, e não mais *"estoque de todas as
+  filiais"*); (3) o cartão *A repor* diz *"itens abaixo do mínimo em Cerrado Alto"* — isto entrou no
+  SEGUNDO desenho, depois de a pergunta (b) do teste dos 5 segundos hesitar em 4 das 8 passadas com
+  a primeira redação; (4) a página de ajuda foi reescrita, inclusive avisando que o card do painel
+  inicial **não** acompanha o filtro e pode divergir de `/itens`.
+- Raio de alcance conferido: o card "Itens para repor" do painel inicial **não muda**. Ele lê
+  `getSaldosItens(null)` e monta o próprio bloco, sem passar por `resumoDaLista` nem por
+  `BadgeRepor`; os dois só compartilham a fórmula `precisaRepor`, que não foi tocada.
+- Próximo passo sugerido (NÃO feito nesta fase, é outra ordem): se a enxurrada de selos incomodar na
+  operação real, o caminho não é voltar atrás no escopo — é o mínimo POR FILIAL, que a ata de
+  23/07/2026 recusou por multiplicar o cadastro por cinco. Vale reabrir com o Johnny.
+- Reversível? Sim, pelo git — são três linhas (`identidade-do-item.tsx`, `distribuicao.ts`,
+  `itens-table.tsx`) mais os textos.
+
+## 2026-09-01 · F44 · a legenda com escopo é DERIVADA; o vocabulário congelado na F43 continua congelado
+
+- Contexto: o critério 1 da ordem exige que, com uma filial filtrada, **nenhuma frase da tela**
+  afirme escopo de TI — e a frase que afirmava (`"tudo que a TI possui"`) mora em `NUMEROS_ITEM`,
+  que é fonte COMPARTILHADA com a página de ajuda. Trocar o texto lá tornaria a ajuda falsa para
+  consertar a tela: a ajuda descreve o significado de cada número **sem** filtro, e tem de continuar
+  descrevendo.
+- Decisão: `NUMEROS_ITEM` **não muda uma vírgula**. A legenda com escopo se deriva dela em
+  `src/lib/itens/escopo.ts` — função pura, 28 casos de teste — e desce por prop para o cabeçalho da
+  coluna, para o cartão de métrica e para a `Dica`. Com recorte, o `curto` de *Total* vira
+  "tudo em Cerrado Alto" e a `explicacao` tem a BASE trocada (acrescentar uma ressalva não bastaria:
+  a string proibida continuaria na tela); os outros quatro números ganham a frase de escopo no fim
+  da explicação, porque o `curto` deles não afirma escopo nenhum e já é verdadeiro.
+- **Os NOMES dos cinco números não mudaram** — *Total · Em estoque · Em uso · Falta · Reservado*
+  continuam sendo o que `NUMEROS_ITEM` diz (decisão do Johnny na F43, não revogada). O que passou a
+  variar com o filtro é a frase de APOIO embaixo do número, nunca o nome dele. Há teste que trava os
+  dois lados: um exige que a frase da TI suma sob recorte, outro exige que os rótulos e as chaves
+  saiam idênticos em qualquer escopo.
+- Detalhe que a função guarda e a tela não poderia adivinhar: **"todas as filiais" é `filialIds`
+  VAZIO, e não "todas as filiais marcadas"**. Sem recorte a tela mostra o `consolidado` da RPC, que
+  enxerga a filial DESATIVADA com saldo; marcando as cinco à mão, ela mostra a SOMA das cinco
+  colunas, que pode ser menor. São dois números diferentes, e a legenda diz qual dos dois está na
+  frente do operador.
+- Escolha de superfície, e por que NÃO foi um cabeçalho agrupador: a ideia óbvia era
+  `<th colSpan={4}>Cerrado Alto</th>` sobre as quatro colunas de número. Ela não sobrevive à
+  responsividade — *Total* e *Falta* são `hidden sm:table-cell`, abaixo de `sm` só duas das quatro
+  existem, e `colSpan` não tem variante de breakpoint. `<caption>` é a semântica que o HTML já tem
+  para "o título desta tabela", é anunciada por leitor de tela ANTES do conteúdo e funciona em toda
+  largura. O kit é `caption-bottom`; esta tabela passa a `caption-top`.
+- Precedente que decidiu a redação: o **CSV já fazia isto certo desde sempre** — a coluna "Filial"
+  carimba "Consolidado" ou os nomes somados por " + ". O arquivo nunca mentiu sobre o próprio
+  escopo; era a TELA que não dizia.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F44 · a ficha do ativo põe o equipamento antes dos itens, e recolhe com `<details>`
+
+- Contexto: `ItensQueForamJunto` e `PendenciasItemFicha` eram renderizados ANTES do card "Dados do
+  ativo", dos termos e da linha do tempo — quem abria a ficha de um notebook via primeiro a lista de
+  acessórios que saíram junto com ele. Isso revisa, na prática, o lugar em que a F18 (bloco de
+  pendência de item) e a F38 (bloco "o que foi junto") os encaixaram: nenhuma das duas escolheu
+  aquela posição por leitura; cada uma acrescentou o seu bloco no topo, e o topo foi enchendo.
+- Decisão: os dois descem para DEPOIS da linha do tempo (e do histórico do ativo substituído) e
+  abrem RECOLHIDOS, com a contagem no título. Motivo, na palavra do Johnny (01/09/2026): *"é algo
+  secundário (…) preciso ver antes dados do ativo, termos e linha do tempo do ativo que é mais
+  importante que os itens"*. O equipamento é o assunto da ficha; o que saiu junto é nota de rodapé.
+- Como recolher — `<details>`/`<summary>`, **e a escolha é por CUSTO, não por gosto**: não existe
+  `Collapsible` em `src/components/ui/` e a regra 3 do `CLAUDE.md` proíbe instalar um. A alternativa
+  era `BotaoExpandir`/`useExpandidas`, que é **client** — e os dois blocos são Server Components
+  hoje. Adotá-la arrastaria `PendenciasItemFicha` (que embute dois diálogos e recebe props de cargo)
+  para o bundle do navegador sem ganho nenhum. `<details>` custa ZERO JavaScript.
+- Acessibilidade PROVADA, não afirmada: `scripts/design/medir-acessibilidade.mjs` (novo) pergunta ao
+  Chromium, pela árvore de acessibilidade do CDP, o que um leitor de tela vê. Resultado: papel
+  `DisclosureTriangle`, `expanded=false` no bloco recolhido e `true` no que abriu sozinho, **zero**
+  `aria-expanded` escrito à mão, alvos de toque de 42px e 40px.
+- ⚠ PENDÊNCIA ABERTA RECOLHIDA É UM ALARME ESCONDIDO, e o Johnny escolheu isso sabendo. O estado
+  FECHADO paga por si em três coisas: o bloco **abre sozinho** quando há pendência aberta (recolhido
+  é o estado de quem não tem alarme); a contagem é a de ABERTAS, não o total; e o `<summary>` traz um
+  `Badge variant="warning"` com o triângulo e a quantidade — a mesma gramática do selo "repor" de
+  `/itens`. O `ativo.pendencia` (campo livre, âmbar) **não se moveu**: continua no topo.
+- O selo é um Badge de TOKEN e não um cartão pintado à mão: a primeira escrita tingia o `Card` com o
+  par `amber-300/amber-50` dos cartões de dentro, e a catraca de cor crua reprovou — o arquivo
+  saltou de 14 para 18 ocorrências e o total de `src` de 473 para 483. `variant="warning"` pinta com
+  `--warning`, cujo par já estava medido (4,92:1 no claro, 7,86:1 no escuro), sem gastar uma
+  ocorrência crua sequer. Os cartões de DENTRO continuam com o âmbar herdado — migrá-los é o item AB
+  de `docs/DIVIDA-TECNICA.md`, e é trabalho de outra fase.
+- Medição: o teste dos 5 segundos sobre a ficha deu **certeza em 6/6** nas três perguntas, inclusive
+  *"este equipamento tem alguma pendência de item em aberto? como você sabe?"*.
+- Reversível? Sim, pelo git.
+
+## 2026-09-01 · F44 · um subagente rodou `git stash` no diretório compartilhado e apagou edições vivas
+
+- Contexto: o subagente encarregado de construir a prévia estática da ficha investigou avisos de
+  lint num arquivo que não era dele e rodou `git stash` para "limpar" a árvore. O diretório de
+  trabalho estava sendo editado ao vivo por esta sessão: as edições NÃO COMMITADAS de seis arquivos
+  rastreados (`badge-repor`, `cabecalho-de-numero`, `identidade-do-item`, `itens-table`,
+  `resumo-de-itens`, `distribuicao.ts`) saíram do disco. Os arquivos NOVOS sobreviveram — `git stash`
+  sem `-u` não leva o que não é rastreado.
+- Reconciliação: as seis edições foram reescritas à mão e depois COMPARADAS com
+  `git show stash@{0}:<arquivo>`. Quatro saíram idênticas; duas divergem só em redação de comentário,
+  e a versão do disco é superset. **Nenhuma linha de código se perdeu.**
+- O stash ficou no lugar: `git stash drop` foi RECUSADO pelo classificador de permissão desta
+  sessão. Ele está inerte e integralmente superado pelo que foi commitado — fica como pendência de
+  limpeza manual (`git stash drop`), registrada no relatório.
+- Decisão: prompt de subagente passa a proibir explicitamente `stash`/`checkout`/`reset` no
+  diretório de trabalho. E a proteção que de fato funciona não é combinar — é **não dividir
+  diretório de trabalho**: `git worktree` (ou a isolação por worktree do próprio orquestrador) para
+  qualquer agente que possa tocar em git.
+- Reversível? Não se aplica — já reconciliado.
