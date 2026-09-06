@@ -177,3 +177,164 @@ jobs:
       - name: Derrubar o stack local
         if: always()
         run: supabase stop || true
+
+  # ===========================================================================
+  # F46 — O MESMO TRABALHO DO JOB `banco`, SEM O DOCKER DO SUPABASE.
+  # ===========================================================================
+  # Por que ele existe: o job `banco` acima sobe o STACK INTEIRO do Supabase CLI
+  # (`supabase init` + `supabase start`) para usar dele só um Postgres. Custa 3 a 6
+  # minutos, já quebrou DUAS vezes por causa externa — as duas cicatrizes estão
+  # comentadas lá em cima, o rate limit da API de releases (24/07) e o flush do
+  # PostHog (25/07) —, depende de uma versão de CLI fixada à mão, e **não roda na
+  # máquina do Johnny**, que não tem Docker (veto de 09/08/2026).
+  #
+  # Aqui é um `services: postgres:17` do próprio runner: sem Docker do Supabase, sem
+  # CLI, sem API de terceiro no caminho crítico.
+  #
+  # ⚠ O JOB `banco` CONTINUA EXISTINDO, COM O NOME `banco`, E ISSO NÃO É OPCIONAL.
+  # Desde 05/09/2026 os *required status checks* da `main` são exatamente `verificar`
+  # e `banco`, exigidos PELO NOME. Renomear ou apagar o `banco` deixaria o check
+  # exigido sem nunca reportar, e todo PR ficaria preso em "Expected — Waiting for
+  # status to be reported" — inclusive o desta fase. Os dois rodam em paralelo, no
+  # mesmo commit, chamando o MESMO `scripts/db/rodar-roteiros.sh`: é essa igualdade
+  # de veredito que prova que o bootstrap está certo. Promover este a required (e só
+  # então remover o antigo) é entrega avulsa, depois de três pushes verdes.
+  banco-sem-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Postgres 17 = o major de PRODUÇÃO (docs/SYSTEM-DESIGN-2026-08-30.md). O
+    # `PLANEJAMENTO.md` ainda diz "15+", mas aquilo é de 09/07 e envelheceu. Rodar o
+    # CI num major diferente do de produção é um vão que esconde defeito — a mesma
+    # lição do Node 20 vs 24 comentada no job `verificar`.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Sem isto os passos começam antes de o banco aceitar conexão e o primeiro
+        # `psql` morre com "could not connect" — falha de corrida, não de código.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      # O banco dos ROTEIROS. O de determinismo é outro, criado mais abaixo.
+      BANCO: estoque
+    steps:
+      - uses: actions/checkout@v4
+
+      # `psql` não vem no runner por padrão — o job `banco` também o instala.
+      - name: Garantir psql (cliente Postgres)
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      # Falha ALTO se o serviço subir num major diferente do de produção: um CI que
+      # valida noutro major responde a pergunta errada.
+      - name: Conferir o major do Postgres do serviço
+        run: |
+          set -euo pipefail
+          psql -d postgres -tAc 'select version();'
+          num=$(psql -d postgres -tAc 'show server_version_num;')
+          echo "server_version_num = $num"
+          if [ "$((num / 10000))" -ne 17 ]; then
+            echo "::error::o serviço subiu no major $((num / 10000)), e produção é 17"
+            exit 1
+          fi
+
+      # ORDEM EXPLÍCITA, não um glob: `roles` antes de tudo (os grants dos outros três
+      # dependem das roles existirem), e a ordem tem de ser legível AQUI, não inferida
+      # de nome de arquivo. `ON_ERROR_STOP=1` porque bootstrap que falha pela metade
+      # produz um erro de migration cem linhas depois, no lugar errado.
+      - name: Criar o banco e aplicar o bootstrap (roles, auth, storage, ledger)
+        run: |
+          set -euo pipefail
+          psql -d postgres -v ON_ERROR_STOP=1 -c "create database $BANCO;"
+          for f in supabase/ci/bootstrap-roles.sql \
+                   supabase/ci/bootstrap-auth.sql \
+                   supabase/ci/bootstrap-storage.sql \
+                   supabase/ci/bootstrap-ledger.sql; do
+            echo "==== $f ===="
+            psql -d "$BANCO" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+
+      # A pasta INTEIRA, sem recorte, seja qual for a última — igual ao job antigo.
+      # `sort` no glob: o prefixo é sequencial zero-padded, então a ordem lexicográfica
+      # É a ordem de aplicação (a mesma premissa do `migrations.lock.json`).
+      # `ON_ERROR_STOP=1` em cada arquivo: a cadeia para no primeiro erro, com o nome
+      # do arquivo no log.
+      - name: Aplicar TODAS as migrations em ordem, por psql
+        run: |
+          set -euo pipefail
+          n=0
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            psql -d "$BANCO" -v ON_ERROR_STOP=1 -q -f "$f" || {
+              echo "::error::a migration $f falhou"
+              exit 1
+            }
+            n=$((n + 1))
+          done
+          echo "$n migrations aplicadas em $BANCO"
+
+      # ⚠ ESTE PASSO NÃO É "APLICAR DE NOVO", E A TROCA É DELIBERADA.
+      #
+      # A ficha da F46 pedia "aplicar de novo, provando idempotência". MEDIDO antes de
+      # decidir: impossível neste repositório, e não por pouco — a segunda passada morre
+      # na PRIMEIRA migration (`0001_profiles.sql` abre com `create table
+      # public.profiles (` sem `if not exists`). São 69 `create policy` sem `drop … if
+      # exists`, 45 `create index` sem `if not exists`, 7 `create type`, 7 `create
+      # trigger`, 4 `create view` sem `or replace`. As 126 foram escritas para rodar UMA
+      # vez, e torná-las idempotentes é EDITAR MIGRATION APLICADA — exatamente o que a
+      # trava de hash desta mesma fase passa a proibir, no mesmo commit.
+      #
+      # Então a fase trocou o critério pela pergunta que "aplicar duas vezes" tentava
+      # responder de verdade: A CADEIA PRODUZ SEMPRE O MESMO SCHEMA? Aplica-se do zero
+      # num SEGUNDO banco limpo e comparam-se as impressões digitais por classe.
+      # Divergência REPROVA. A sonda é a do `docs/RUNBOOK-BANCO.md`, que já traz
+      # normalizado o falso-positivo de CRLF de 25/07/2026.
+      #
+      # Banco SEPARADO de propósito: reaplicar por cima do banco dos roteiros poderia
+      # mudá-lo (um `update` de backfill roda de novo) e trocaria a prova do veredito
+      # por outra coisa.
+      #
+      # Nada de `|| true`, nada de `ON_ERROR_STOP` desligado, nada de saída descartada:
+      # verificação que não sabe reprovar é o que a F45 existiu para matar.
+      - name: Determinismo — a mesma cadeia, do zero, num segundo banco limpo
+        run: |
+          set -euo pipefail
+          psql -d postgres -v ON_ERROR_STOP=1 -c 'create database determinismo;'
+          for f in supabase/ci/bootstrap-roles.sql \
+                   supabase/ci/bootstrap-auth.sql \
+                   supabase/ci/bootstrap-storage.sql \
+                   supabase/ci/bootstrap-ledger.sql; do
+            psql -d determinismo -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            psql -d determinismo -v ON_ERROR_STOP=1 -q -f "$f" || {
+              echo "::error::a migration $f falhou no banco de determinismo"
+              exit 1
+            }
+          done
+          psql -d "$BANCO"     -v ON_ERROR_STOP=1 -tAF'|' -f supabase/ci/impressao-schema.sql > /tmp/fp-a.txt
+          psql -d determinismo -v ON_ERROR_STOP=1 -tAF'|' -f supabase/ci/impressao-schema.sql > /tmp/fp-b.txt
+          echo "==== impressão digital do schema, por classe ===="
+          cat /tmp/fp-a.txt
+          if ! diff -u /tmp/fp-a.txt /tmp/fp-b.txt; then
+            echo "::error::as duas aplicações da MESMA cadeia produziram schemas diferentes"
+            exit 1
+          fi
+          echo "as duas aplicações produziram schemas idênticos"
+
+      # O MESMO arquivo que o job `banco` chama, e o mesmo que `npm run db:test` chama
+      # na mesa. É esse compartilhamento que faz os dois jobs poderem ser comparados: se
+      # os vereditos divergirem, a diferença está no bootstrap, nunca no runner.
+      # `src/lib/ci-passos.test.ts` afirma que os DOIS jobs chamam este script.
+      - name: Rodar os roteiros de teste SQL (falha o CI em ✗ ou em roteiro que abortou)
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/estoque
+        run: bash scripts/db/rodar-roteiros.sh

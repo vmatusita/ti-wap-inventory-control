@@ -1,0 +1,105 @@
+SABOTAGEM 2b — migration travada APAGADA (sem nome novo no lugar)
+$ rm supabase/migrations/0031_import_logs.sql
+
+----------------------------------------------------------------------
+$ npm run test
+----------------------------------------------------------------------
+
+> estoque-ti-wap@1.50.1 test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/yukig/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/validators/migrations-lock.test.ts (14 tests | 3 failed) 131ms
+     × o lock cobre EXATAMENTE os arquivos de supabase/migrations/, sem sobra nem falta 61ms
+     × toda migration do disco está travada, e nada mais está 7ms
+     × o lock no disco é byte a byte o que `npm run db:lock` gravaria 49ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/validators/migrations-lock.test.ts > trava de hash das migrations — o estado do repositório > o lock cobre EXATAMENTE os arquivos de supabase/migrations/, sem sobra nem falta
+AssertionError: 
+1 problema(s) na trava de hash das migrations:
+  • supabase/migrations/0031_import_logs.sql está travada em supabase/migrations.lock.json mas não existe mais no disco. Migration aplicada não se apaga nem se renomeia — restaure o arquivo com o nome original. Se ela nunca chegou a nenhum banco, remova a entrada do lock à mão e diga isso no commit.
+: expected '[sumiu] supabase/migrations/0031_impo…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ [sumiu] supabase/migrations/0031_import_logs.sql está travada em supabase/migrations.lock.json mas não existe mais no disco. Migration aplicada não se apaga nem se renomeia — restaure o arquivo com o nome original. Se ela nunca chegou a nenhum banco, remova a entrada do lock à mão e diga isso no commit.
+
+ ❯ src/lib/validators/migrations-lock.test.ts:58:7
+     56|         problemas.map((p) => `  • ${p.mensagem}`).join('\n') +
+     57|         '\n',
+     58|     ).toBe('')
+       |       ^
+     59|   })
+     60|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |puro| src/lib/validators/migrations-lock.test.ts > trava de hash das migrations — o estado do repositório > toda migration do disco está travada, e nada mais está
+AssertionError: expected [ '0001_profiles.sql', …(125) ] to deeply equal [ '0001_profiles.sql', …(124) ]
+
+- Expected
++ Received
+
+@@ -26,10 +26,11 @@
+    "0025_rate_limit_senha.sql",
+    "0026_filial_serra.sql",
+    "0027_itens_total_estoque.sql",
+    "0028_v_pendencias_detalhe.sql",
+    "0030_relatorios_gerados_observacao.sql",
++   "0031_import_logs.sql",
+    "0032_import_rpcs.sql",
+    "0033_import_correcoes.sql",
+    "0034_import_melhorias.sql",
+    "0035_import_compra_data_real_no_relatorio.sql",
+    "0036_reverter_compra_abertura_baseline.sql",
+
+ ❯ src/lib/validators/migrations-lock.test.ts:67:49
+     65|       .sort()
+     66|
+     67|     expect(Object.keys(lock.migrations).sort()).toEqual(noDisco)
+       |                                                 ^
+     68|   })
+     69|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |puro| src/lib/validators/migrations-lock.test.ts > trava de hash das migrations — o estado do repositório > o lock no disco é byte a byte o que `npm run db:lock` gravaria
+AssertionError: expected '{\n  "_leia": "Trava de hash das migr…' to be '{\n  "_leia": "Trava de hash das migr…' // Object.is equality
+
+- Expected
++ Received
+
+@@ -31,10 +31,11 @@
+      "0025_rate_limit_senha.sql": "503ace55fbd9ac53d0a2f84072c499ec32d52c78cdb7fcbb1e3af26aa342ea17",
+      "0026_filial_serra.sql": "60393db202cea886231342ad6dfef62a56e4889a0e62d21d5c94d33ab97b12a6",
+      "0027_itens_total_estoque.sql": "952bcc98870f84ba61fb48cc98a47c7b95af7331cdfe95955e1e2cd221753639",
+      "0028_v_pendencias_detalhe.sql": "8bad67604b29dbd414e7e526552014ead7845e21f2521aa648a57996898b58ba",
+      "0030_relatorios_gerados_observacao.sql": "89617ba4fb7c5df5ebe310b5144e398bae6ccc2f1d96c47c4da5aea5ecb358cd",
++     "0031_import_logs.sql": "1bc6a49bdb9d29d82fcb6dae0d1dae0850ff972cbb094c92ec30dc244c26f18c",
+      "0032_import_rpcs.sql": "a64cc1bfcf0c4d7e2b1370f5e1aa4990e6d187efb0c9b12d9c60b56b95f3d1ac",
+      "0033_import_correcoes.sql": "d1d6497348aa472eea7b5af8ec96fcd1b11ae567e7dd7365daa44743d5af84f9",
+      "0034_import_melhorias.sql": "2ec54c60f5a8523c178297316c9d4284f9e6f2e4e2c16da8b6f2ecae00518240",
+      "0035_import_compra_data_real_no_relatorio.sql": "227086f31cbd5d7f7847c453c18fa9b89031c047d3bf2691440a838434da8a0a",
+      "0036_reverter_compra_abertura_baseline.sql": "5567fbfd1a3513b074813ddbda1a5f9d597a06383b73191f14ba87912c09715b",
+
+ ❯ src/lib/validators/migrations-lock.test.ts:75:46
+     73|     // é o script.
+     74|     const atual = lerLock(RAIZ)
+     75|     expect(serializarLock(atual.migrations)).toBe(
+       |                                              ^
+     76|       serializarLock(hashesDoDisco(RAIZ)),
+     77|     )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 153 passed (154)
+      Tests  3 failed | 3643 passed (3646)
+   Start at  11:38:43
+   Duration  36.78s (transform 25.75s, setup 0ms, import 479.82s, tests 13.02s, environment 30ms)
+

@@ -1,0 +1,198 @@
+SABOTAGEM 3 — migration NOVA sem regravar o lock
+$ cat > supabase/migrations/0128_sabotagem_f46.sql   (arquivo ficticio, 3 linhas)
+
+----------------------------------------------------------------------
+PARTE A — o teste reprova, e a mensagem da a linha a rodar
+$ npm run test
+----------------------------------------------------------------------
+
+> estoque-ti-wap@1.50.1 test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/yukig/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/validators/migrations-lock.test.ts (14 tests | 3 failed) 90ms
+     × o lock cobre EXATAMENTE os arquivos de supabase/migrations/, sem sobra nem falta 47ms
+     × toda migration do disco está travada, e nada mais está 5ms
+     × o lock no disco é byte a byte o que `npm run db:lock` gravaria 32ms
+ ❯ |puro| src/lib/itens/migrations-f38.test.ts (7 tests | 1 failed) 96ms
+     × nenhuma migration a partir da 0116 fica de fora da lista 18ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration a partir da 0116 fica de fora da lista
+AssertionError: migration nova sem cobertura em DA_F38: expected [ '0116', '0117', '0118', …(10) ] to deeply equal [ Array(12) ]
+
+- Expected
++ Received
+
+@@ -9,6 +9,7 @@
+    "0123",
+    "0124",
+    "0125",
+    "0126",
+    "0127",
++   "0128",
+  ]
+
+ ❯ src/lib/itens/migrations-f38.test.ts:111:67
+    109|       .map((f) => f.slice(0, 4))
+    110|       .sort()
+    111|     expect(posteriores, 'migration nova sem cobertura em DA_F38').toEq…
+       |                                                                   ^
+    112|   })
+    113|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  |puro| src/lib/validators/migrations-lock.test.ts > trava de hash das migrations — o estado do repositório > o lock cobre EXATAMENTE os arquivos de supabase/migrations/, sem sobra nem falta
+AssertionError: 
+1 problema(s) na trava de hash das migrations:
+  • supabase/migrations/0128_sabotagem_f46.sql ainda não está em supabase/migrations.lock.json. Migration nova é o fluxo normal: rode `npm run db:lock` e comite o lock no MESMO commit da migration.
+: expected '[nova] supabase/migrations/0128_sabot…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ [nova] supabase/migrations/0128_sabotagem_f46.sql ainda não está em supabase/migrations.lock.json. Migration nova é o fluxo normal: rode `npm run db:lock` e comite o lock no MESMO commit da migration.
+
+ ❯ src/lib/validators/migrations-lock.test.ts:58:7
+     56|         problemas.map((p) => `  • ${p.mensagem}`).join('\n') +
+     57|         '\n',
+     58|     ).toBe('')
+       |       ^
+     59|   })
+     60|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  |puro| src/lib/validators/migrations-lock.test.ts > trava de hash das migrations — o estado do repositório > toda migration do disco está travada, e nada mais está
+AssertionError: expected [ '0001_profiles.sql', …(125) ] to deeply equal [ '0001_profiles.sql', …(126) ]
+
+- Expected
++ Received
+
+@@ -123,7 +123,6 @@
+    "0123_ordem_dos_itens_do_lote.sql",
+    "0124_fuso_do_negocio_e_indices_fk.sql",
+    "0125_item_chave_e_regularizacao.sql",
+    "0126_lancamento_regulariza.sql",
+    "0127_conversao_reservas.sql",
+-   "0128_sabotagem_f46.sql",
+  ]
+
+ ❯ src/lib/validators/migrations-lock.test.ts:67:49
+     65|       .sort()
+     66|
+     67|     expect(Object.keys(lock.migrations).sort()).toEqual(noDisco)
+       |                                                 ^
+     68|   })
+     69|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  |puro| src/lib/validators/migrations-lock.test.ts > trava de hash das migrations — o estado do repositório > o lock no disco é byte a byte o que `npm run db:lock` gravaria
+AssertionError: expected '{\n  "_leia": "Trava de hash das migr…' to be '{\n  "_leia": "Trava de hash das migr…' // Object.is equality
+
+- Expected
++ Received
+
+@@ -127,10 +127,9 @@
+      "0122_ordem_dos_inversos.sql": "ad0a70aa546d8f99f3a5ed246bb21d6b36c0909729c85f33d0fff4711c80a5df",
+      "0123_ordem_dos_itens_do_lote.sql": "299db0920a3d3035904da8d31507dcddbe853a1fde15d7792ba62d3bc6a296cc",
+      "0124_fuso_do_negocio_e_indices_fk.sql": "1f21fff4fdae30ae4e2e4901e0f094fffe5b18e5bb4493e0d9a69aae8cb71633",
+      "0125_item_chave_e_regularizacao.sql": "4c947ef5e48bed788b8140a261b0110d1660f893fe37e11c3d50df022ed62a95",
+      "0126_lancamento_regulariza.sql": "347e3b6d5231231d7361814732728bbb167491de5a1ed6187703375b3cc00e64",
+-     "0127_conversao_reservas.sql": "db55ed4f3ba44c77c72f41c9d2db3eb8ec77cca4c7d07bf2d1595ff9db38c137",
+-     "0128_sabotagem_f46.sql": "5e595627656c0abf94bb8a4bb4aef886780e2c289a890bf8984c9a6204d28af8"
++     "0127_conversao_reservas.sql": "db55ed4f3ba44c77c72f41c9d2db3eb8ec77cca4c7d07bf2d1595ff9db38c137"
+    }
+  }
+
+
+ ❯ src/lib/validators/migrations-lock.test.ts:75:46
+     73|     // é o script.
+     74|     const atual = lerLock(RAIZ)
+     75|     expect(serializarLock(atual.migrations)).toBe(
+       |                                              ^
+     76|       serializarLock(hashesDoDisco(RAIZ)),
+     77|     )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed | 152 passed (154)
+      Tests  4 failed | 3642 passed (3646)
+   Start at  11:39:32
+   Duration  47.42s (transform 30.31s, setup 0ms, import 644.96s, tests 17.96s, environment 37ms)
+
+
+----------------------------------------------------------------------
+PARTE B — o fluxo documentado: regravar o lock no MESMO commit
+$ npm run db:lock
+----------------------------------------------------------------------
+
+> estoque-ti-wap@1.50.1 db:lock
+> tsx scripts/db/gravar-lock.ts
+
+supabase/migrations.lock.json gravado: 127 migrations.
+  + travada agora: 0128_sabotagem_f46.sql
+
+----------------------------------------------------------------------
+PARTE C — e o teste volta ao verde
+$ npm run test
+----------------------------------------------------------------------
+
+> estoque-ti-wap@1.50.1 test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/yukig/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/itens/migrations-f38.test.ts (7 tests | 1 failed) 65ms
+     × nenhuma migration a partir da 0116 fica de fora da lista 9ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration a partir da 0116 fica de fora da lista
+AssertionError: migration nova sem cobertura em DA_F38: expected [ '0116', '0117', '0118', …(10) ] to deeply equal [ Array(12) ]
+
+- Expected
++ Received
+
+@@ -9,6 +9,7 @@
+    "0123",
+    "0124",
+    "0125",
+    "0126",
+    "0127",
++   "0128",
+  ]
+
+ ❯ src/lib/itens/migrations-f38.test.ts:111:67
+    109|       .map((f) => f.slice(0, 4))
+    110|       .sort()
+    111|     expect(posteriores, 'migration nova sem cobertura em DA_F38').toEq…
+       |                                                                   ^
+    112|   })
+    113|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 153 passed (154)
+      Tests  1 failed | 3645 passed (3646)
+   Start at  11:40:23
+   Duration  43.70s (transform 19.93s, setup 0ms, import 595.41s, tests 16.29s, environment 35ms)
+
+
+
+----------------------------------------------------------------------
+NOTA DA PARTE C: sobrou 1 falha, e ela NAO e da trava desta fase.
+E src/lib/itens/migrations-f38.test.ts, uma guarda ANTERIOR (F38) que tambem
+exige que toda migration a partir da 0116 esteja numa lista dela. Ela reagiu ao
+arquivo ficticio 0128 da sabotagem, como devia. Registrado aqui para que ninguem
+leia esta saida como defeito da F46 — e como achado: quem acrescentar migration
+neste repositorio tem DUAS listas a atualizar, nao uma.
+----------------------------------------------------------------------

@@ -302,3 +302,162 @@ describe('6. os roteiros SQL seguem o molde da linha FIM', () => {
     ).toMatch(/^end(\s*\$\$;)?$/)
   })
 })
+
+// ---------------------------------------------------------------------------
+// F46 — o job de banco SEM o Docker do Supabase
+// ---------------------------------------------------------------------------
+// O job `banco` sobe o stack inteiro do Supabase CLI para usar dele só um Postgres:
+// 3 a 6 minutos, duas quebras por causa externa (rate limit da API de releases em
+// 24/07, flush do PostHog em 25/07 — as duas cicatrizes estão comentadas no YAML) e
+// nada disso roda na máquina do Johnny, que não tem Docker.
+//
+// `banco-sem-docker` faz o MESMO trabalho com `services: postgres:17`. Enquanto os
+// dois existirem, é a IGUALDADE DE VEREDITO entre eles, no mesmo commit, que prova
+// que o bootstrap declarado em `supabase/ci/` está certo — e é por isso que os dois
+// têm de chamar o MESMO runner. Um `banco-sem-docker` com loop próprio mediria outra
+// coisa, e a comparação perderia o sentido.
+const BANCO_SEM_DOCKER = corpoDoJob('banco-sem-docker')
+
+describe('7. o job de banco sem Docker existe e mede a mesma coisa', () => {
+  it('o job `banco-sem-docker` está no ci.yml', () => {
+    expect(BANCO_SEM_DOCKER.length).toBeGreaterThan(0)
+  })
+
+  it('ele chama o MESMO runner que o job `banco` — não um loop próprio', () => {
+    expect(BANCO_SEM_DOCKER).toContain('bash scripts/db/rodar-roteiros.sh')
+    expect(BANCO_SEM_DOCKER).not.toMatch(/for\s+f\s+in\s+supabase\/tests/)
+  })
+
+  it('ele passa `DATABASE_URL` para o runner (é assim que o script aponta para o serviço)', () => {
+    // O runner aceita `DATABASE_URL` desde a F45 e, quando ela falta, cai no Postgres
+    // do `supabase start` (porta 54322). Sem esta variável o job novo mediria o banco
+    // ERRADO — ou nenhum — e o passo passaria por engano.
+    expect(BANCO_SEM_DOCKER).toMatch(/DATABASE_URL:\s*postgresql:\/\//)
+  })
+
+  it('ele NÃO usa `supabase start`, `supabase init` nem `supabase/setup-cli`', () => {
+    // O ponto inteiro da fase. Se qualquer um destes voltar, o job novo virou uma
+    // segunda cópia do antigo.
+    expect(BANCO_SEM_DOCKER).not.toContain('supabase/setup-cli')
+    expect(BANCO_SEM_DOCKER).not.toMatch(/supabase\s+start/)
+    expect(BANCO_SEM_DOCKER).not.toMatch(/supabase\s+init/)
+  })
+
+  it('ele sobe um Postgres do major de PRODUÇÃO como serviço', () => {
+    expect(BANCO_SEM_DOCKER).toMatch(/image:\s*postgres:17\b/)
+    // Sem health-check os passos começam antes de o banco aceitar conexão: falha de
+    // corrida, que aparece como "could not connect" intermitente.
+    expect(BANCO_SEM_DOCKER).toContain('--health-cmd pg_isready')
+  })
+
+  it('o BOOTSTRAP é aplicado ANTES das migrations', () => {
+    // Sem `auth`/`storage`/roles no lugar, a `0001` morre na FK para `auth.users` e a
+    // `0021` morre em `storage.buckets`. A ordem não é preferência de leitura.
+    const boot = BANCO_SEM_DOCKER.indexOf('supabase/ci/bootstrap-roles.sql')
+    const migra = BANCO_SEM_DOCKER.indexOf('supabase/migrations/*.sql')
+    expect(boot, 'o passo de bootstrap sumiu').toBeGreaterThan(-1)
+    expect(migra, 'o passo que aplica as migrations sumiu').toBeGreaterThan(-1)
+    expect(boot, 'o bootstrap tem de vir antes das migrations').toBeLessThan(migra)
+  })
+
+  it('a ordem `migrations → roteiros` não inverte', () => {
+    const migra = BANCO_SEM_DOCKER.indexOf('supabase/migrations/*.sql')
+    const roteiros = BANCO_SEM_DOCKER.indexOf('bash scripts/db/rodar-roteiros.sh')
+    expect(
+      roteiros,
+      'roteiros antes das migrations é um banco vazio sendo medido',
+    ).toBeGreaterThan(migra)
+  })
+
+  it('as migrations são aplicadas com `ON_ERROR_STOP=1`, sem recorte', () => {
+    // `ON_ERROR_STOP` desligado faria o psql seguir depois do erro e o passo terminar
+    // 0 — verde sobre um banco meio aplicado.
+    expect(BANCO_SEM_DOCKER).toContain('ON_ERROR_STOP=1')
+    // A pasta INTEIRA: nenhum recorte por faixa de número. A faixa "0001→0040" escrita
+    // à mão já envelheceu uma vez, e o comentário do job antigo registra isso.
+    expect(BANCO_SEM_DOCKER).toContain('supabase/migrations/*.sql')
+  })
+
+  it('nenhum passo mascara erro com `|| true` ou saída descartada', () => {
+    // A exceção legítima do job ANTIGO (`supabase stop || true`, num passo `if: always()`
+    // de limpeza) não existe aqui: este job não tem stack para derrubar. Qualquer
+    // `|| true` neste job seria verificação que não sabe reprovar.
+    //
+    // ⚠ Sem tirar os comentários, esta asserção se autodenuncia: o próprio YAML tem um
+    // comentário dizendo "nada de `|| true`", e o `toContain` casaria com ele. Um teste
+    // que reprova pela sua própria documentação ensina a apagar o comentário.
+    const semComentario = BANCO_SEM_DOCKER.split('\n')
+      .filter((l) => !l.trimStart().startsWith('#'))
+      .join('\n')
+    expect(semComentario).not.toContain('|| true')
+    expect(semComentario).not.toMatch(/>\s*\/dev\/null/)
+  })
+
+  const ARQUIVOS_CI = [
+    'bootstrap-roles.sql',
+    'bootstrap-auth.sql',
+    'bootstrap-storage.sql',
+    'bootstrap-ledger.sql',
+    'impressao-schema.sql',
+  ]
+
+  it.each(ARQUIVOS_CI)('`supabase/ci/%s` existe e é citado pelo job', (arquivo) => {
+    expect(existsSync(join(RAIZ, 'supabase', 'ci', arquivo))).toBe(true)
+    expect(BANCO_SEM_DOCKER).toContain(`supabase/ci/${arquivo}`)
+  })
+
+  it('o bootstrap NÃO concede privilégio de tabela em `public`', () => {
+    // ⚠ A ARMADILHA DO EXCESSO, não a da falta. Um `grant … on all tables in schema
+    // public` faria `seguranca_catalogo.sql` passar por MOTIVO ERRADO e mascararia todo
+    // REVOKE futuro — o próprio `supabase/tests/papeis_rls.sql` proíbe esse atalho por
+    // escrito, e registra que o `supabase start` do job ANTIGO também não entrega esses
+    // defaults. Conceder aqui seria divergir do job antigo na direção mais perigosa:
+    // verde por um ambiente MAIS permissivo que produção.
+    const sql = ARQUIVOS_CI.map((a) => readFileSync(join(RAIZ, 'supabase', 'ci', a), 'utf8'))
+      .join('\n')
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('--'))
+      .join('\n')
+
+    expect(sql).not.toMatch(/on all tables/i)
+    expect(sql).not.toMatch(/alter default privileges/i)
+    expect(sql, 'nenhum grant sobre objeto de `public`').not.toMatch(/grant[^;]*\bon\s+public\./i)
+  })
+
+  it('o bootstrap liga RLS em `storage.objects`', () => {
+    // Nenhuma migration liga — num Supabase a tabela já vem com RLS. Num Postgres cru
+    // ela nasce DESLIGADA, e aí as 8 policies de `0021`/`0031` ficam inertes: as
+    // asserções 6a..6f de `papeis_rls.sql`, que medem que o operador NÃO alcança o
+    // objeto de filial alheia, passariam medindo nada.
+    const storage = readFileSync(join(RAIZ, 'supabase', 'ci', 'bootstrap-storage.sql'), 'utf8')
+    expect(storage).toMatch(/alter table storage\.objects enable row level security/i)
+  })
+})
+
+describe('8. o job `banco` antigo continua intacto (ele é o required check)', () => {
+  // Desde 05/09/2026 os contextos exigidos na `main` são exatamente `verificar` e
+  // `banco`, pelo NOME. Renomear ou apagar o `banco` deixaria o check exigido sem
+  // nunca reportar, e todo PR ficaria preso em "Expected — Waiting for status to be
+  // reported". Removê-lo é entrega avulsa, e só depois de o novo ser promovido.
+  it('o job se chama `banco`, e não outra coisa', () => {
+    expect(YAML).toContain('\n  banco:\n')
+  })
+
+  it('ele continua subindo o stack do Supabase CLI', () => {
+    expect(BANCO).toContain('supabase/setup-cli@v1')
+    expect(BANCO).toContain('supabase start')
+  })
+
+  it('os comentários-cicatriz dele continuam no arquivo', () => {
+    // Cada um é uma quebra real que custou um dia. Apagar o comentário é apagar o
+    // motivo, e o próximo a mexer refaz o erro.
+    expect(BANCO).toContain('TELEMETRIA DESLIGADA (25/07/2026)')
+    expect(BANCO).toContain('rate limit exceeded')
+    expect(BANCO).toContain('version: 2.109.1')
+  })
+
+  it('os DOIS jobs de banco chamam o mesmo runner', () => {
+    expect(BANCO).toContain('bash scripts/db/rodar-roteiros.sh')
+    expect(BANCO_SEM_DOCKER).toContain('bash scripts/db/rodar-roteiros.sh')
+  })
+})
