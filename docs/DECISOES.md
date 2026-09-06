@@ -8656,3 +8656,19 @@ e da `0121`; as quatro do código, por `git revert`.
 - **Motivo de virar versão (regra 8, PATCH).** Muda o comportamento do sistema de conferência e corrige uma afirmação que o CHANGELOG da v1.50.0 fez. Entrada nova no CHANGELOG ⇒ versão: **v1.50.1**, com tag.
 - **A lição, e ela vale para o plano inteiro.** A leitura de código disse que o buraco estava fechado; quem disse a verdade foi olhar a coisa rodando. É o argumento da própria F45 aplicado a ela mesma — trava que não é observada é trava em que se acredita, não que se sabe. As ~30 travas do plano multiempresa merecem, cada uma, uma observação assim depois de instaladas.
 - Reversível? Sim — `git revert`. Sem migration, sem efeito em dado.
+
+## 2026-09-05 · F45 · fechamento — deploy, smoke e o uso CONSCIENTE do bypass
+
+- **Rollout completo.** Merge do PR #22 (`362eef0`) — o primeiro a passar pelo caminho novo, e ele
+  serviu de demonstração: `verificar` ✅ e `banco` ✅, `mergeStateStatus: CLEAN`, merge liberado. O
+  portão deixa passar o que está certo, e barra o que não está (PR #21). CI do merge: ✅ 4m28s.
+- **Deploy de produção READY** (`dpl_7qLwtxYS8TWKicaGMoj7f8BatpHX`), aliado a
+  `ti-wap-inventory-control.vercel.app`. **Smoke: 108 OK · 1 aviso · 0 falha** — o aviso é o de
+  sempre (`kits_modelos`).
+- **Tags `v1.50.0` e `v1.50.1` publicadas.** Árvore limpa, nenhuma branch da fase aberta.
+- **O bypass foi usado DUAS vezes, e as duas de propósito** — é o que a ata do portão define como
+  ato consciente: no push de `588195b` (a correção do `cancel-in-progress`, antes de haver PR aberto)
+  e no ponteiro de uma linha do `CHANGELOG.md`. Nos dois casos o GitHub avisou
+  (`2 of 2 required status checks are expected`), e nos dois casos o CI rodou depois e ficou verde.
+  **Da F46 em diante o caminho é o PR** — o bypass fica para o que não é fase.
+- Reversível? Sim — `git revert`, e a proteção sai por `gh api --method DELETE`.
