@@ -126,6 +126,21 @@ describe('3. `cancel-in-progress` não vale para push na main', () => {
   it('o cancelamento está condicionado a pull_request', () => {
     expect(YAML).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}")
   })
+
+  // A metade que faltava, e que só o CI AO VIVO mostrou (v1.50.1): desligar
+  // `cancel-in-progress` não basta. Com o grupo por `ref`, os pushes na `main`
+  // continuam na mesma fila, e o GitHub cancela a execução PENDENTE quando outra
+  // entra. Aconteceu no rollout da F45 — o commit `dab346c` ficou sem CI nenhum.
+  // O grupo por SHA dá fila própria a cada commit de push.
+  it('o grupo de concorrência é por SHA em push (senão o commit pendente é descartado)', () => {
+    const linha = YAML.split('\n').find((l) => l.trim().startsWith('group:'))
+    expect(linha, 'sumiu a chave group do concurrency').toBeTruthy()
+    expect(
+      linha!,
+      'com o grupo por `ref`, um push que entra na fila cancela o anterior PENDENTE',
+    ).toContain('github.sha')
+    expect(linha!).toContain("github.event_name == 'pull_request'")
+  })
 })
 
 describe('4. o passo dos roteiros chama o script, não um loop inline', () => {

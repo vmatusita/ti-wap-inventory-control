@@ -1,0 +1,84 @@
+### PROVA 6 — o job `banco` do CI, a PRIMEIRA execução real do SQL da F45
+
+Run 34005294521, commit de merge 29f252b, 06/09/2026 02:02 UTC.
+  verificar  ✅  4m31s
+  banco      ✅  3m19s
+
+Lido com `gh run view 34005294521 --log --job=<banco>`.
+
+== As 25 linhas FIM, saída literal ==
+  FIM asof_desempate: 4 asserções, 0 falhas
+  FIM asserts_ferramenta: 7 asserções, 0 falhas
+  FIM cargo_dev: 46 asserções, 0 falhas
+  FIM conflito_filiais: 38 asserções, 0 falhas
+  FIM dev_destrutivo: 108 asserções, 0 falhas
+  FIM dominios_login: 16 asserções, 0 falhas
+  FIM f34_triagem_reserva: 21 asserções, 0 falhas
+  FIM f36_detentor: 18 asserções, 0 falhas
+  FIM f37_colaboradores_tipos: 26 asserções, 0 falhas
+  FIM f38_itens_com_ativo: 51 asserções, 0 falhas
+  FIM f41_regularizacao: 25 asserções, 0 falhas
+  FIM fuso_do_negocio: 5 asserções, 0 falhas
+  FIM import_substituir: 11 asserções, 0 falhas
+  FIM itens_extra: 4 asserções, 0 falhas
+  FIM itens_quantidade: 14 asserções, 0 falhas
+  FIM manutencao_fornecedor: 19 asserções, 0 falhas
+  FIM maquina_estados: 14 asserções, 0 falhas
+  FIM papeis_rls: 76 asserções, 0 falhas
+  FIM pendencias_import_termo: 5 asserções, 0 falhas
+  FIM pendencias_item: 13 asserções, 0 falhas
+  FIM reabrir_pendencia_item: 4 asserções, 0 falhas
+  FIM seguranca_catalogo: 8 asserções, 0 falhas
+  FIM transferencia_item: 18 asserções, 0 falhas
+  FIM transicoes_extra: 13 asserções, 0 falhas
+  FIM troca: 13 asserções, 0 falhas
+
+== O RESUMO do runner ==
+==== RESUMO ====
+  ✓ asof_desempate — 4 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 46 asserções
+  ✓ conflito_filiais — 38 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 25 asserções
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_substituir — 11 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ papeis_rls — 76 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 13 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  25 roteiro(s), 577 asserções no total
+
+TODOS os 25 contaram MAIS DE ZERO asserção (critério 7), e nenhum falhou (critério 6).
+
+== Critério 8: assert_zero_de RECUSA universo vazio — saída literal ==
+  ==== supabase/tests/asserts_ferramenta.sql ====
+  CREATE FUNCTION
+  BEGIN
+  NOTICE:  ✓ 1 universo vazio RECUSADO: assert_zero_de: universo vazio em "autoteste 1" — a asserção passaria sobre conjunto vazio (tautologia). Monte o cenário ou conte outra coisa.
+  NOTICE:  ✓ 1b universo NULL RECUSADO
+  NOTICE:  ✓ autoteste 2 (este ✓ é esperado) (0 de 7 conferidos)
+  NOTICE:  ✓ 2 zero ruins de 7 devolve true
+  NOTICE:  ✓ 3 duas linhas ruins de 7 devolve false
+  NOTICE:  ✓ 4 mais ruins que o universo RECUSADO
+  NOTICE:  ✓ 4b contagem de ruins NULA RECUSADA
+  NOTICE:  ✓ 5 `count(*) = 0` sobre conjunto vazio é VERDADE — a forma antiga passaria aqui
+  NOTICE:  FIM asserts_ferramenta: 7 asserções, 0 falhas
+
+Repare no que NÃO aparece: nenhum ✗. O caminho de falha do cenário 3 foi
+exercitado ("duas linhas ruins de 7 devolve false") com o WARNING silenciado
+por client_min_messages, exatamente como desenhado — o roteiro prova o ✗ sem
+que o ✗ reprove o roteiro.

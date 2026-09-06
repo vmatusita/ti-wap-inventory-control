@@ -6,6 +6,17 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 05/09/2026 — A conferência da fila, e o portão ligado de verdade ✅ 🔒
+
+Entrega avulsa (**v1.50.1**). Duas correções ao que a F45 entregou na véspera, e as duas vieram de **olhar o CI rodando**, não de reler o código. **Sem migration, sem dependência nova, sem tocar em tela.**
+
+- 🐞 **A correção do `cancel-in-progress` estava pela metade, e o próprio rollout da F45 provou isso.** Desligar o cancelamento em push não bastava: com o grupo de concorrência por `ref`, os pushes na `main` continuavam na mesma fila, e a regra do GitHub é que a execução que ENTRA na fila cancela a que estava **pendente**. Aconteceu de verdade três minutos depois do merge (23h05 BRT) — o run `34005575510` (commit `dab346c`) ficou pendente 1m23s e foi cancelado com `jobs: []`, ou seja, aquele commit ficou **sem conferência nenhuma**. O grupo passou a ser por SHA em push (fila própria por alteração) e continua por `ref` em PR, onde cancelar é economia legítima. `src/lib/ci-passos.test.ts` ganhou a asserção que faltava.
+- 🔒 **O portão foi LIGADO.** `verificar` e `banco` são *required status checks* na `main`, com *require pull request* e bypass na conta do Johnny — o que a F45 tinha deixado como pendência. Estado final lido de volta pela API e colado em [`docs/RELATORIO-F45.md`](docs/RELATORIO-F45.md) §8, junto da prova de ponta a ponta: um PR descartável com um roteiro deliberadamente vermelho, o job `banco` marcando ✗ e o merge **bloqueado**.
+- 📌 **Uma correção de fato no relatório da F45:** ele afirmava que o `gh` não estava instalado. **Estava** — e autenticado —, só não no PATH desta sessão; o diagnóstico saiu de um `command not found` e foi tomado como verdade sem segunda checagem. Por causa disso a fase declarou como pendência de insumo o que era alcançável na hora. O relatório foi corrigido, e a ata em [`docs/DECISOES.md`](docs/DECISOES.md) registra o erro em vez de apagá-lo.
+- ✅ **E o que estava sem prova ganhou prova.** O job `banco` do commit de merge rodou os **25 roteiros instrumentados** contra um Postgres real: **577 asserções, 0 falhas**, nenhum roteiro contando zero. Inclusive `asserts_ferramenta`, que prova que `pg_temp.assert_zero_de` recusa universo vazio — a saída literal está em `docs/f45-evidencias/prova-6-ci-banco.txt`.
+
+---
+
 ## 05/09/2026 — F45 · O portão do CI fecha, e o teste de componente ganha piso ✅ 🔒
 
 Fase (**v1.50.0**). A raiz do plano de preparação multiempresa ([`docs/PLANO-MULTIEMPRESA.md`](docs/PLANO-MULTIEMPRESA.md)): o plano deixa cerca de trinta travas anti-reincidência espalhadas pelas fases seguintes, e **todas valiam zero**, porque o CI podia marcar ✗ e a publicação acontecia igual. Uma trava que informa não é trava — é documentação do vazamento depois que ele foi ao ar. **Sem migration, sem dependência nova, sem refatorar componente nenhum.** A última migration continua sendo a `0127`.

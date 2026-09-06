@@ -23,6 +23,15 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.50.1',
+    data: '2026-09-05',
+    titulo: 'A conferência automática deixou de pular alteração que ficava na fila',
+    mudancas: [
+      'Nenhuma tela mudou. A correção é na bateria de conferências automáticas que a versão anterior instalou: quando duas alterações eram enviadas em sequência rápida, a que ficava esperando na fila era DESCARTADA sem ser conferida — e ia ao ar assim mesmo. Era metade do buraco que a versão anterior dizia ter fechado.',
+      'Agora cada alteração tem a fila dela: nenhuma espera pela outra, e nenhuma é descartada. O defeito foi encontrado observando as conferências rodarem de verdade, não lendo o texto delas.',
+    ],
+  },
+  {
     versao: '1.50.0',
     data: '2026-09-05',
     fase: 'F45',

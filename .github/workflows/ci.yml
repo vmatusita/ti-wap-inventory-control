@@ -20,8 +20,22 @@ on:
 # `github.event_name == 'pull_request'` é o único caso em que cancelamos. Em push
 # na `main` cada commit tem o CI dele, do começo ao fim — que é o que um
 # *required status check* por commit exige para significar alguma coisa.
+#
+# ⚠ E O GRUPO TAMBÉM MUDA, senão a correção fica pela metade (achado do CI AO VIVO,
+# 06/09/2026 — v1.50.1). Só desligar `cancel-in-progress` NÃO basta: com o grupo
+# por `ref`, os pushes na `main` continuam disputando a mesma fila, e a regra do
+# GitHub é que uma execução que entra na fila **cancela a que estava PENDENTE**.
+# Foi o que aconteceu de verdade: no rollout da F45, três pushes seguidos na
+# `main` deixaram o run 34005575510 (commit `dab346c`) pendente por 1m23s e
+# depois CANCELADO, com `jobs: []` — o commit ficou **sem CI nenhum**. O buraco
+# tinha mudado de forma, não sumido.
+#
+# Com o grupo por SHA no push, cada commit tem fila própria: não disputa, não
+# fica pendente, não é cancelado. Em PR o grupo continua por `ref` — é lá que o
+# cancelamento é economia legítima, porque o que interessa é o veredito do último
+# commit da branch e o intermediário nunca vira deploy.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
