@@ -21,7 +21,7 @@ A última migration continua sendo a `0127`.
 | | Antes | Depois |
 |---|---|---|
 | Editar um byte de migration aplicada | passa por tudo, **verde** | **reprova** `npm run test`, nomeando o arquivo |
-| Job de banco no CI | `banco`, 2m48s–3m52s, Docker do Supabase | `banco` **intacto** + `banco-sem-docker`, **55–57s**, sem Docker |
+| Job de banco no CI | `banco`, 2m48s–3m52s, Docker do Supabase | `banco` **intacto** + `banco-sem-docker`, **53–60s**, sem Docker |
 | Bootstrap do banco de teste | escondido numa imagem de terceiro | `supabase/ci/bootstrap-*.sql`, versionado e comentado |
 | "Aplicar duas vezes" | pedido pela ficha, nunca medido | **medido** (morre na `0001`) e trocado por prova de determinismo |
 | `src/lib/ci-passos.test.ts` | 60 casos | **81** casos |
@@ -153,8 +153,12 @@ continua verdadeira. Mas é leitura minha, e a ficha comporta a outra. Se o John
 ## 4. A prova de que a trava sabe ficar vermelha — as sabotagens
 
 A trava **nasce verde** (é varredura de catálogo, regra 4 do §4 do plano), então provar que ela
-reprova é obrigação deste relatório. Quatro sabotagens, cada uma desfeita logo depois. Saídas
-completas em `docs/f46-evidencias/sabotagem-*.txt`.
+sabe ficar vermelha é obrigação deste relatório. A ordem pede três sabotagens; são **quatro** de
+trava (§4.1 a §4.4) mais duas guardas do gravador (§4.5), cada uma desfeita logo depois. Saídas
+completas em `docs/f46-evidencias/sabotagem-*.txt` e `db-lock-recusa.txt`.
+
+E há uma sétima, de outra natureza, no §11.1: a sabotagem do próprio `ci.yml`, que prova que a
+asserção que substituiu duas tautologias sabe reprovar.
 
 ### 4.1 Sabotagem 1 — UM byte alterado numa migration antiga
 
@@ -860,22 +864,98 @@ precisa. Fica registrado em vez de silenciado.
 | 3 | Apagar ou renomear reprova | ✅ | §4.2 e §4.3, saídas coladas |
 | 4 | Migration nova: o fluxo documentado devolve o verde, e está no runbook | ✅ | §4.4 (A/B/C) + `RUNBOOK-BANCO.md` |
 | 5 | O job novo chega ao MESMO veredito do antigo no MESMO commit | ✅ | §5.5 — 25 roteiros, 577 asserções, 0 falhas, `diff` sem diferença |
-| 6 | Sem `supabase start`/`init`/`setup-cli`; tempo medido e comparado | ✅ | §5.6 — **3m52s → 57s**; asserção no `ci-passos.test.ts` |
+| 6 | Sem `supabase start`/`init`/`setup-cli`; tempo medido e comparado | ✅ | §5.6 e §13.1 — **2m48s–3m52s → 53–60s** em quatro runs; asserção no `ci-passos.test.ts` |
 | 7 | As 126 aplicam do zero por `psql` com `ON_ERROR_STOP=1`, sem recorte | ✅ | `126 migrations aplicadas em estoque` |
 | 8 | A segunda aplicação foi **medida** e o desfecho é um dos três | ✅ | §7 — opção (c), ata em `DECISOES.md` |
-| 9 | `banco` antigo intacto; required checks continuam `verificar` e `banco` | ⏳ | §8 (`+161/-0`, corpo byte a byte igual). A leitura pela API **depois do merge** está em §13 |
+| 9 | `banco` antigo intacto; required checks continuam `verificar` e `banco` | ✅ | §8 (`+161/-0`, corpo byte a byte igual) + §13.2 (lido pela API **depois** do merge: `["verificar","banco"]`) |
 | 10 | Os seis comandos limpos | ✅ | §9 |
-| 11 | Regra 8 fechada | ⏳ | `1.51.0` no `package.json`, registry e CHANGELOG feitos; **tag no commit final** |
+| 11 | Regra 8 fechada | ✅ | `1.51.0`, registry em linguagem de operador, CHANGELOG na mesma data, tag anotada `v1.51.0` publicada — §13.3 |
 | 12 | Ata com dívida A **aberta**, 2ª aplicação, divergência do `/dev`, major do Postgres | ✅ | 8 atas em `docs/DECISOES.md` |
-| 13 | PR mergeado com os checks verdes; nenhuma branch aberta; árvore limpa | ⏳ | §13 |
+| 13 | PR mergeado com os checks verdes; nenhuma branch aberta; árvore limpa | ✅ | §13.1 e §13.3 |
 
-*(9, 11 e 13 fecham no merge — §13 é atualizado com a leitura real.)*
+**Os 13, fechados.** Nenhum ficou pendente, e o fallback previsto pela ficha (entregar só a trava
+e nomear o bootstrap como backlog) não foi necessário.
 
 ---
 
 ## 13. O fechamento
 
-<!-- FECHAMENTO -->
+**PR [#23](https://github.com/vmatusita/ti-wap-inventory-control/pull/23) mergeado em 06/09/2026,
+pela própria PR (`gh pr merge --merge`), com o portão funcionando.** O bypass da conta do Johnny
+existe e **não foi usado** — esta é justamente a fase que precisa do portão de pé.
+
+Cinco commits:
+
+```
+89c455a  Merge pull request #23 from vmatusita/f46-trava-de-hash
+e9fee3a  test(f46): duas asercoes minhas eram tautologicas — a revisao adversarial apanhou
+643e87c  fix(f46): `npm run db:lock` RECUSA regravar migration ja travada, em vez de gravar e reclamar
+5b750e8  docs(f46): a linha da fase no indice de ordens e o Status do README
+4c3dc7d  docs(f46): o veredito morto do /dev, a regra 8 e o rastro da fase
+722a08d  ci(f46): o job de banco sem o Docker do Supabase, com o bootstrap declarado a vista
+3c96378  feat(f46): a trava de hash das migrations — editar migration aplicada passa a reprovar
+```
+
+### 13.1 O CI, quatro runs, todos verdes
+
+| Run | Commit | `verificar` | `banco` | `banco-sem-docker` |
+|---|---|---|---|---|
+| `34040990566` | `722a08d` (PR) | ✅ 4m39s | ✅ **3m52s** | ✅ **57s** |
+| `34042431721` | `643e87c` (PR) | ✅ 3m31s | ✅ **2m48s** | ✅ **55s** |
+| `34043037271` | `e9fee3a` (PR) | ✅ 3m12s | ✅ **3m13s** | ✅ **60s** |
+| `34043223930` | `89c455a` (**merge, na `main`**) | ✅ 4m41s | ✅ **3m06s** | ✅ **53s** |
+
+E no commit de merge os dois jobs de banco chegaram, de novo, ao mesmo veredito:
+
+```
+banco:            25 roteiro(s), 577 asserções no total
+banco-sem-docker: 25 roteiro(s), 577 asserções no total
+>>> os 25 roteiros IDENTICOS tambem no commit de merge <<<
+```
+
+**São quatro sucessos consecutivos do job novo** — acima do limiar de três que a ficha nomeia para
+promovê-lo a *required*. Isso não é feito aqui de propósito: é entrega avulsa (§14.2, item 1).
+
+### 13.2 Os required checks, lidos de volta DEPOIS do merge
+
+```
+$ gh api repos/vmatusita/ti-wap-inventory-control/branches/main/protection \
+    --jq '.required_status_checks.contexts'
+["verificar","banco"]
+
+$ git show main:.github/workflows/ci.yml | grep -E '^  [a-z][a-z0-9-]*:$'
+  verificar:
+  banco:
+  banco-sem-docker:
+```
+
+✅ **Critério 9, fechado** — os contextos exigidos continuam sendo exatamente `verificar` e `banco`,
+e o job `banco` continua existindo na `main` com esse nome. **A branch protection não foi tocada.**
+
+### 13.3 O repouso
+
+```
+$ git ls-remote --heads origin f46-trava-de-hash
+(vazio — apagada no remoto)
+
+$ git branch
+* main
+
+$ git status --short
+(vazio)
+
+$ git tag -l v1.51.0
+v1.51.0   →  89c455a (o commit de merge)
+```
+
+A tag anotada `v1.51.0` está publicada. As demais branches remotas (`dependabot/*`, `f34`,
+`claude/sweet-ramanujan-c330d8`) são **anteriores a esta fase** e não foram tocadas.
+
+✅ **Critério 11, fechado** — `1.51.0` no `package.json`, entrada no topo do `registry.ts` em
+linguagem de operador (o teste que recusa vocabulário de desenvolvedor passa), entrada no
+`CHANGELOG.md` na mesma data, e a tag anotada publicada.
+✅ **Critério 13, fechado** — PR mergeado com os dois required checks verdes, branch da fase apagada
+nos dois lados, árvore limpa.
 
 ---
 
@@ -888,8 +968,10 @@ backlog) **não foi necessário** — o bootstrap acertou na primeira tentativa.
 
 ### 14.2 Backlog aberto por esta fase
 
-1. **Promover `banco-sem-docker` a *required status check*, depois de três pushes verdes.** Entrega
-   avulsa (PATCH). O comando, pronto:
+1. **Promover `banco-sem-docker` a *required status check*.** O limiar da ficha (três pushes
+   verdes) **já passou** — foram **quatro** (§13.1), incluindo o commit de merge na `main`. Não é
+   feito aqui de propósito: a ordem proíbe tocar na branch protection nesta fase, e promover é
+   entrega avulsa (PATCH). O comando, pronto:
 
    ```bash
    gh api repos/vmatusita/ti-wap-inventory-control/branches/main/protection/required_status_checks \
