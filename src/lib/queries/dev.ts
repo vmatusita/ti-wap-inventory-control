@@ -65,7 +65,6 @@ export type Diagnostico = {
   refSupabase: string
   migracaoNoBanco: string
   migracaoNoRepo: string
-  migracoesEmDia: boolean | null
   contagens: { tabela: string; linhas: number | null }[]
 }
 
@@ -113,10 +112,24 @@ export async function getDiagnostico(migracaoNoRepo: string): Promise<Diagnostic
     refSupabase: mascararRef(process.env.NEXT_PUBLIC_SUPABASE_URL),
     migracaoNoBanco,
     migracaoNoRepo,
-    migracoesEmDia:
-      migracaoNoBanco === 'indisponível' || migracaoNoRepo === 'indisponível'
-        ? null
-        : migracaoNoBanco >= migracaoNoRepo,
+    // ⚠ AQUI HAVIA UM `migracoesEmDia`, E ELE SAIU NA F46 (06/09/2026).
+    //
+    // O cálculo era `migracaoNoBanco >= migracaoNoRepo` — comparação de STRING entre
+    // `"0127_conversao_reservas"` (o prefixo sequencial dos arquivos) e `"20260730123751"`
+    // (o carimbo de tempo de 14 dígitos que o MCP grava no ledger). **Não são a mesma
+    // grandeza**, então o booleano não tinha significado nenhum: qualquer número do banco
+    // é "maior" que qualquer nome de arquivo começado em `0`, e o campo respondia "em dia"
+    // sempre, inclusive num banco atrasado.
+    //
+    // Ele era código MORTO — nenhum componente o lia (o painel já mostrava os dois valores
+    // lado a lado, sem veredito, com o parágrafo que explica por quê). Mas código morto que
+    // calcula um veredito falso é convite: o próximo a mexer na tela acha o campo pronto no
+    // tipo e o pinta como badge. Sair é mais barato do que documentar por que não usar.
+    //
+    // O controle que FUNCIONA continua sendo a sonda de efeito por `pg_get_functiondef`
+    // (docs/RUNBOOK-BANCO.md § "O ledger NÃO é o controle de integridade"), e a dívida A
+    // continua ABERTA — a incompatibilidade entre as duas numerações é estrutural, e esta
+    // fase não a resolve.
     contagens,
   }
 }

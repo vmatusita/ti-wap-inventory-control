@@ -8,7 +8,7 @@ Cada fase do projeto é executada como uma **ordem de serviço** em `docs/prompt
 
 1. `docs/ESPECIFICACAO.md` — **o quê** construir: modelo de dados, máquina de estados (§4), vocabulários De→Para (§5), telas (§6), relatórios (§7), regras de negócio (§8).
 2. `docs/PLANEJAMENTO.md` — **como**: stack fechada (§2), estratégia de dados (§3), fases (§4), definição de pronto (§6).
-3. `supabase/migrations/` — **fonte da verdade do banco** desde a F1: cada alteração vira uma nova migration numerada (nunca editar uma já aplicada). O rascunho original `supabase/schema.sql` foi **aposentado em 21/07/2026** (histórico no git; decisão em `docs/DECISOES.md`).
+3. `supabase/migrations/` — **fonte da verdade do banco** desde a F1: cada alteração vira uma nova migration numerada (nunca editar uma já aplicada; a trava é `supabase/migrations.lock.json`, F46). O rascunho original `supabase/schema.sql` foi **aposentado em 21/07/2026** (histórico no git; decisão em `docs/DECISOES.md`).
 
 Se o código existente, a ordem de serviço e os documentos se contradisserem: resolva pela hierarquia acima (a spec manda), **registre a decisão em `docs/DECISOES.md`** e siga — não trave.
 
@@ -55,7 +55,7 @@ Autonomia com disciplina — práticas de **autoproteção do próprio agente** 
 ## Convenções
 
 - **Idioma:** UI, mensagens, erros e commits em **pt-BR**. Identificadores de domínio em português sem acento (`ativo`, `movimentacao`, `filial`); utilitários/infra em inglês (`getServerClient`, `formatDate`).
-- **Banco:** snake_case; toda alteração via nova migration em `supabase/migrations/` (nunca editar migration já aplicada). Regras de negócio críticas (máquina de estados, RLS) vivem no Postgres — a UI é a segunda linha, nunca a única.
+- **Banco:** snake_case; toda alteração via nova migration em `supabase/migrations/` (nunca editar migration já aplicada — **e desde a F46 isso é DEFESA EXECUTÁVEL, não recomendação:** `supabase/migrations.lock.json` trava o sha256 de cada arquivo e `npm run test` reprova nomeando o culpado; migration nova exige `npm run db:lock` no mesmo commit). Regras de negócio críticas (máquina de estados, RLS) vivem no Postgres — a UI é a segunda linha, nunca a única.
 - **Componentes:** Server Components por padrão; `'use client'` apenas quando necessário (forms, charts, realtime). Escritas **sempre** via Server Actions com validação Zod; leituras via funções em `src/lib/queries/`.
 - **shadcn:** componentes gerados ficam em `src/components/ui/` e não se editam sem motivo documentado.
 - **Datas** exibidas `dd/MM/yyyy`; números em tabelas com `tabular-nums`. Patrimônio exibido sempre no formato canônico (`WAP0004491`).
@@ -171,8 +171,24 @@ src/
     termos/*.docx  # 7 modelos de termo tagueados e sanitizados (F5A) — lidos em runtime
 supabase/
   migrations/      # fonte da verdade do banco a partir da F1
+  migrations.lock.json  # A TRAVA (F46): arquivo → sha256 do conteúdo normalizado (CRLF→LF).
+                        # `src/lib/validators/migrations-lock.test.ts` reprova quando uma
+                        # migration travada muda um byte, some, é renomeada, ou quando
+                        # nasce migration nova ainda não travada. Regravado SÓ por
+                        # `npm run db:lock`, e SÓ ao acrescentar migration
   tests/           # roteiros SQL auto-verificáveis (domínios de login, RLS)
+  ci/              # o bootstrap do job `banco-sem-docker` (F46) — o recorte MÍNIMO do que
+                   # o `supabase start` dava de graça, declarado à vista em vez de escondido
+                   # numa imagem de terceiro: bootstrap-roles/-auth/-storage/-ledger.sql
+                   # (aplicados NESTA ordem) e impressao-schema.sql (a sonda de fingerprint
+                   # do RUNBOOK-BANCO.md, que prova o determinismo da cadeia em dois bancos
+                   # limpos). ⚠ NENHUM grant em `public` aqui: o `supabase start` também não
+                   # os tem, os roteiros plantam os seus, e o excesso faria
+                   # `seguranca_catalogo.sql` passar por motivo errado
 scripts/
+  db/              # gravar-lock.ts (`npm run db:lock` — o único ponto que escreve o lock)
+                   # e rodar-roteiros.sh (o runner ÚNICO, chamado pelos DOIS jobs de banco
+                   # do CI e por `npm run db:test` na mesa)
   seed.ts  reset.ts     # dados fictícios (guardas anti-produção obrigatórias)
   termos/               # edição dos MODELOS .docx por script, nunca pelo Word (F25/F39):
                         # retaguear-cidade.mjs (F25), inserir-acessorios.mjs (F39 · §A) e
