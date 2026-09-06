@@ -258,13 +258,19 @@ O teste diz qual das três coisas aconteceu, e **a resposta é diferente em cada
 
 ⚠ **A resposta certa quase nunca é "regrave o lock".** Ela é a resposta certa para **um** dos três
 casos — o de migration nova. Nos outros dois, regravar apaga a prova do erro que a trava existe para
-pegar. Por isso a mensagem do caso `MUDOU` nem cita o comando, e o `npm run db:lock` grita e sai 1
-quando regrava por cima de um arquivo já travado.
+pegar. Por isso a mensagem do caso `MUDOU` nem cita o comando, e o `npm run db:lock` **RECUSA** —
+sai 1 **sem gravar nada** — quando alguma migration já travada mudou de conteúdo.
 
 **A exceção legítima, e é rara:** uma migration que **nunca chegou a banco nenhum** (nem ensaio nem
-produção) ainda pode ser corrigida no lugar — foi escrita e ainda não aplicada. Aí, sim, regrave o
-lock e **diga isso no commit**, com todas as letras. Se houver dúvida se ela chegou, a sonda de
-efeito da seção acima responde; o ledger, não.
+produção) ainda pode ser corrigida no lugar — foi escrita e ainda não aplicada. Só para esse caso
+existe a flag explícita:
+
+```bash
+npm run db:lock -- --regravar-alterada
+```
+
+E, usando-a, **diga no commit** por que a migration não tinha sido aplicada em lugar nenhum. Se
+houver dúvida se ela chegou, a **sonda de efeito** da seção acima responde; o ledger, não.
 
 ### Quem acrescenta migration atualiza DUAS listas
 
