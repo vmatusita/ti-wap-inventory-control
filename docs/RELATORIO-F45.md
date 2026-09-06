@@ -636,3 +636,51 @@ o pedido chega ao Johnny com evidência de uso, não com hipótese.
 > painel do GitHub. Se ela for desligada, o repositório volta ao estado de 05/09/2026 sem que teste
 > nenhum acuse. A única defesa possível é memória escrita: esta linha, a ata em `docs/DECISOES.md` e
 > o bloco no `README.md`.
+
+---
+
+## 13. O rollout
+
+Na ordem que o critério 14 manda — merge → deploy no ar → tag → *(ligar a proteção)* —, até onde a
+falta do `gh` permitiu.
+
+| Passo | Resultado |
+|---|---|
+| Merge `--no-ff` na `main` | `29f252b`, `origin/main` em `feb2ba0..29f252b` |
+| Tag anotada `v1.50.0` | publicada (`git push origin v1.50.0`) |
+| **Deploy de produção** | **READY** — `dpl_63Q18LNwkeDL4ivveExcbt7yWj63`, aliado a `ti-wap-inventory-control.vercel.app`, build de 62 s, região `gru1`. **Lido pela API da Vercel, não presumido** |
+| **Smoke pós-deploy** | **108 OK · 1 aviso · 0 falha** — o aviso é o de sempre (`kits_modelos` · RLS não comprovada por não haver kit cadastrado), o mesmo dos relatórios da F43 e da F44 |
+| Branch `f45-portao` | apagada nos dois lados — **repouso perfeito, nenhuma branch aberta** |
+| **CI do GitHub** | **não pôde ser lido daqui** — ver abaixo |
+| **Branch protection** | **PENDENTE** — §8 |
+
+### 13.1 Por que o resultado do CI não está aqui
+
+O repositório é **privado**, o `gh` não está instalado, e nenhum navegador com a sessão do Johnny
+está conectado a esta sessão. **Não houve improviso:** a credencial armazenada no Git Credential
+Manager **não foi extraída** para consultar a API — ela existe para o `git push`, e ficou nisso.
+
+O que dá para afirmar **sem** ler o CI: o `next build` do MESMO commit rodou em Linux, na Vercel, e
+saiu READY — o passo mais pesado do job `verificar` passou naquele ambiente. O que falta ler é o
+job `banco`, que é a **primeira execução real** dos 25 roteiros instrumentados.
+
+### 13.2 Por que se mergeou sem esse veredito
+
+O CI só roda em push na `main` ou em PR, e sem `gh` não há como abrir PR. Deixar na branch daria
+**zero** informação e ainda deixaria branch aberta, violando o "repouso perfeito" que a ficha exige.
+**Nenhuma linha de código de aplicação mudou nesta fase** — o diff em `src/` é só arquivo de teste e
+configuração de teste —, então um roteiro vermelho derruba o CI, **nunca a produção**. O smoke acima
+confirma.
+
+---
+
+## 14. A lista de retorno do Johnny, em ordem
+
+1. **Abra o CI do commit `29f252b`** e leia o job `banco`. Espere 25 linhas
+   `FIM <nome>: N asserções, 0 falhas` e o `RESUMO` no fim. Se algum ficar vermelho, a §9.1 tem a
+   tabela de sintoma → conserto.
+2. **Ligue o portão** — §8. É o passo que dá sentido a tudo o mais.
+3. **Prove que ele fecha** — §8.5, com o PR descartável. É o critério nº 1, e só você pode fechá-lo.
+4. `npm run db:test` na sua máquina, com um Postgres à mão. Se ele não rodar aí, o principal ganho
+   de ergonomia da fase não existe.
+5. `git diff v1.49.1..v1.50.0` para auditar o diff, e `docs/f45-evidencias/` para as provas.
