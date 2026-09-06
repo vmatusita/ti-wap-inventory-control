@@ -8672,3 +8672,95 @@ e da `0121`; as quatro do código, por `git revert`.
   (`2 of 2 required status checks are expected`), e nos dois casos o CI rodou depois e ficou verde.
   **Da F46 em diante o caminho é o PR** — o bypass fica para o que não é fase.
 - Reversível? Sim — `git revert`, e a proteção sai por `gh api --method DELETE`.
+
+---
+
+## 2026-09-06 · F46 · A dívida A continua ABERTA — esta fase não conciliou o ledger
+
+- Contexto: a ficha da F46 nasce da dívida técnica **A** (`docs/DIVIDA-TECNICA.md:160`, "Ledger incompatível com o repo"). A leitura ingênua dessa dívida diz "troque `supabase db push` por um aplicador próprio". É preciso registrar, com todas as letras, o que esta fase entregou e o que ela **não** entregou, para que ninguém leia o CHANGELOG e conclua que a dívida foi paga.
+- Decisão: **a dívida A permanece aberta.** O caminho de apply em produção continua sendo **MCP `apply_migration` + sonda de efeito por `pg_get_functiondef`** (`docs/RUNBOOK-BANCO.md` § "O ledger NÃO é o controle de integridade"). O que a F46 entrega é outra coisa, e só isso: (1) **o CI de banco sem Docker** e (2) **a impossibilidade de editar migration aplicada**.
+- Motivo: três razões conferidas no repositório, e nenhuma delas mudou nesta fase. (a) `supabase db push` **já é proibido por escrito** e a CLI local aponta para o ensaio — não há ferramenta insegura a trocar. (b) O ledger é furado porque o MCP grava **timestamp de 14 dígitos** enquanto os arquivos usam prefixo sequencial; um aplicador novo com hash não concilia nada — cria um **quarto** esquema de identificação ao lado dos três existentes. (c) `pg` **não está no `package.json`**, e a regra 3 do `CLAUDE.md` (stack fechada) mais a decisão 4 do plano multiempresa proíbem dependência nova na preparação. Abandonar o MCP como caminho de apply é **ADR próprio** e exige aprovação do `pg` como dependência — não é esta fase.
+- Reversível? n/a (é um registro de escopo, não uma mudança).
+
+---
+
+## 2026-09-06 · F46 · Migration nova também REPROVA a trava de hash
+
+- Contexto: **duas partes do mesmo documento discordam.** A ficha diz, com todas as letras, "arquivo novo é **aceito** e o executor regrava o lock no mesmo commit", e o Escopo da ordem repete "Arquivo novo é aceito (migration nova é o fluxo normal)". Mas a seção "A trava" da mesma ordem delega: "uma migration nova sem regravar o lock → **o comportamento é o que você decidiu e documentado**".
+- Decisão: **reprovar — o que CONTRADIZ a letra da ficha, e a contradição fica registrada em vez de maquiada.** Uma migration presente no disco e **ausente** do `migrations.lock.json` **reprova** `npm run test`, com a mensagem dando a linha exata a rodar (`npm run db:lock`) e dizendo que o lock vai no **mesmo commit** da migration. As três classes de problema têm mensagens **diferentes** — e a de *arquivo alterado* deliberadamente **não** cita `npm run db:lock`, porque ali regravar seria apagar a prova do erro que a trava existe para pegar.
+- Motivo: dois. (1) Sem isso, o critério "uma entrada por arquivo" valeria só no dia da entrega e apodreceria em silêncio a cada migration nova — o lock viraria um catálogo parcial em que ninguém confia. (2) "O executor regrava no mesmo commit" passaria a depender de alguém **lembrar**, que é exatamente o que a regra 8 do `CLAUDE.md` diz que uma regra não pode fazer ("A regra não depende de ninguém lembrar dela"). Reprovar **não bloqueia o fluxo normal**: a resposta é uma linha, e ela está na própria mensagem de erro. Entendo "aceito", na ficha, como *acrescentar migration não é ato proibido* — em contraste com editar, que é —, e isso continua verdadeiro.
+- ⚠ O que eu NÃO posso afirmar: que "aceito" já significava isto. A leitura que sustenta a escolha é que *acrescentar migration não é ato proibido* — em contraste com editar, que é —, e ela continua verdadeira; mas é leitura minha, e a ficha comporta a outra. Apontado pela revisão adversarial da fase, que criticou (com razão) a primeira versão desta ata por apresentar a escolha como interpretação em vez de contradição.
+- Reversível? sim, e barato — é UMA condição em `conferirLock` (`src/lib/validators/migrations-lock.ts`): remover a classe `nova` volta ao comportamento da letra da ficha. Há teste unitário cobrindo a classe.
+
+---
+
+## 2026-09-06 · F46 · A "segunda aplicação" virou prova de DETERMINISMO (opção c)
+
+- Contexto: a ficha pedia "aplicar de novo, provando idempotência"; a ordem exigia **medir antes de decidir** e escolher entre (a) segunda passada que reprova, (b) diagnóstico declarado com catálogo que só reprova se crescer, ou (c) outra prova de determinismo, com a substituição registrada.
+- Medição (06/09/2026, sobre as 126 com comentários de linha removidos): **a segunda passada morre na PRIMEIRA migration** — `0001_profiles.sql` abre com `create table public.profiles (` sem `if not exists` (42P07). O resto confirma que não é caso isolado: 69 `create policy` (só 8 `drop policy if exists` no repositório inteiro), 53 `create index` dos quais 45 sem `if not exists`, 7 `create type` (a sintaxe `if not exists` não existe no Postgres), 7 `create trigger` (zero `create or replace trigger`), 25 `add column` dos quais 18 sem guarda, 4 `create view` sem `or replace` (`0052` ×2, `0112` ×2), 1 `alter type add value` sem guarda (`0071`) e 1 `insert` de topo sem guarda (`0114`).
+- Decisão: **opção (c)**. O job aplica a mesma cadeia **do zero em dois bancos limpos e independentes** e compara a **impressão digital do schema por classe** — a sonda de paridade que já existia em `docs/RUNBOOK-BANCO.md`, agora executável em `supabase/ci/impressao-schema.sql` (11 classes; 665 objetos no run de 06/09). Divergência **reprova** o passo. Nada de `|| true`, `ON_ERROR_STOP` desligado ou saída descartada.
+- Motivo: (a) está morta pela medição. (b) foi descartada **pela mesma medição**: o catálogo de não-idempotentes listaria quase todos os 126 arquivos, e a pergunta "a lista cresceu?" viraria ruído — um passo cujo verde não significa nada é o que a F45 existiu para matar. Tornar as migrations idempotentes seria **editar migration aplicada**, ou seja, a fase se contradizendo no mesmo commit. A pergunta que "aplicar duas vezes" tentava responder de verdade é *a cadeia produz sempre o mesmo schema?*, e essa tem resposta — é a que interessa quando a mesma cadeia vai para ensaio e para produção. A sonda reusada já traz cicatrizadas as duas lições conhecidas: normaliza espaço em branco (o falso-positivo de CRLF de 25/07/2026, que apontou `criar_compra_lote` como divergente quando a diferença eram 47 `\r`) e não olha comentário.
+- Reversível? sim — é um passo do `ci.yml`, `git revert`.
+
+---
+
+## 2026-09-06 · F46 · O bootstrap do CI NÃO concede privilégio em `public`
+
+- Contexto: a leitura natural do risco declarado pela ficha ("o `supabase start` entrega os roles de graça; bootstrap incompleto quebra o job") sugere reproduzir os *default privileges* de um Supabase hospedado — `alter default privileges … grant all on tables to anon, authenticated, service_role`. Uma varredura exploratória desta fase chegou a apontar isso como o "achado central".
+- Decisão: **o bootstrap não concede nada em `public`.** `supabase/ci/bootstrap-roles.sql` cria as três roles (`anon`, `authenticated`, `service_role`, esta com `bypassrls`), torna `postgres` membro delas (para o `set local role` dos roteiros funcionar) e para por aí. `bootstrap-auth.sql` e `bootstrap-storage.sql` concedem apenas `usage` nos schemas `auth` e `storage`.
+- Motivo: quem já respondeu isso por escrito é o próprio roteiro, em `supabase/tests/papeis_rls.sql:60-62` — *"que o job `banco` do CI sobe com `supabase start` **não** reproduz esses defaults, então lá `authenticated` não tem nem SELECT em `public.ativos`"*. Ou seja, **o job antigo também não os tem**, e os roteiros se blindam plantando os próprios `grant` explícitos, tabela por tabela e verbo por verbo, com o comentário dizendo qual asserção usa cada um. O mesmo roteiro **proíbe por escrito** o atalho `grant … on all tables`, porque ele devolveria dentro da transação um privilégio que uma fase futura tenha revogado. Conceder no bootstrap seria divergir do job antigo na direção mais perigosa — verde por um ambiente **mais permissivo que produção** —, faria `seguranca_catalogo.sql` passar por motivo errado e mascararia todo REVOKE futuro. **A prova de que o recorte está certo não é o arquivo parecer razoável: é o veredito igual**, e ele veio — 25 roteiros, 577 asserções, 0 falhas, idênticos aos do job antigo no mesmo commit (run `34040990566`).
+- Reversível? sim — `git revert`; o job novo não é required check.
+
+---
+
+## 2026-09-06 · F46 · Postgres 17 fixado sem `select version()` de produção
+
+- Contexto: o critério exigia rodar o CI no major de produção. `docs/SYSTEM-DESIGN-2026-08-30.md` diz **17**; o `docs/PLANEJAMENTO.md` ainda diz "15+", texto de 09/07 que envelheceu. Esta máquina não alcança ensaio nem produção (o MCP do Supabase não está conectado a esta sessão, e a regra permanente 5 do `CLAUDE.md` proíbe rodar roteiro contra produção), então `select version()` não era possível daqui.
+- Decisão: **fixado `postgres:17`** no `services` do job novo, com um passo que **reprova** se o serviço subir noutro major (`show server_version_num`). O run de 06/09 registrou `PostgreSQL 17.11`.
+- Motivo: a própria ordem autoriza ("se não alcançar, fixe o major 17, registre a decisão e siga"), e o documento de arquitetura mais recente manda sobre o mais antigo. Rodar o CI num major diferente do de produção é um vão que esconde defeito — a mesma lição do Node 20 × 24 já cicatrizada no job `verificar`.
+- Reversível? sim — é um número no `ci.yml`. Se um `select version()` de produção contradisser, troca-se o número e registra-se.
+
+---
+
+## 2026-09-06 · F46 · O veredito de ledger do `/dev`: a ficha e a ordem erravam, cada uma por metade
+
+- Contexto: a ficha manda "apagar o campo *ledger em dia* do `/dev`"; a ordem de serviço (achado 3) afirma que ele **não existe** e manda não inventar remoção. Conferido, os dois estão parcialmente errados.
+- Medição: `src/components/dev/diagnostico-painel.tsx` **não** mostra veredito nenhum — exibe "Última migration do repositório" e "Versão registrada no banco" lado a lado, com um parágrafo explicando que as numerações não se comparam (a ordem acerta aqui). Mas `src/lib/queries/dev.ts` **calculava** `migracoesEmDia` como `migracaoNoBanco >= migracaoNoRepo` — comparação de **string** entre `"0127_conversao_reservas"` e `"20260730123751"` —, campo declarado no tipo `Diagnostico` e **lido por componente nenhum** (`grep -rn migracoesEmDia src/` devolvia só a declaração e o cálculo).
+- Decisão: removido `migracoesEmDia` do tipo e do retorno, com um comentário no lugar explicando o que havia ali e por que saiu. **Os dois campos informativos e o parágrafo ficaram**, exatamente como a ordem instrui ("apague o veredito, nunca os dois campos informativos"). `src/components/dev/diagnostico-painel.tsx` **não foi tocado** — a ficha o lista nas Entregas, mas não havia nada a mudar nele.
+- Motivo: era código morto, mas código morto que calcula um veredito falso é convite — o próximo a mexer na tela acha o campo pronto no tipo e o pinta como badge. E o veredito é falso por construção: qualquer carimbo de tempo de 14 dígitos é "maior" que qualquer nome de arquivo começado em `0`, então o campo respondia "em dia" sempre, inclusive num banco atrasado.
+- Reversível? sim — `git revert`; nenhuma tela muda nos dois sentidos.
+
+---
+
+## 2026-09-06 · F46 · Divergências e achados registrados sem correção (viram backlog)
+
+- Contexto: a fase encontrou três coisas fora do escopo dela. Ficam registradas para não se perderem.
+- 1. **O comentário da `0077` promete mais do que a função entrega.** `ultima_migracao_aplicada()` diz devolver NULL "se a tabela de controle não existir", e captura só `undefined_table` (42P01, *schema existe / tabela não*). Sem o **schema** `supabase_migrations`, o erro é `invalid_schema_name` (3F000), que aquele `exception when` não captura — a RPC estoura. **Não corrigido:** seria editar migration aplicada, o que esta fase passa a proibir. Mitigado no CI por `supabase/ci/bootstrap-ledger.sql`, que cria o schema (vazio) e torna o caso inalcançável. Correção real = migration nova, fase futura.
+- 2. **Quem acrescenta migration atualiza DUAS listas**, não uma: o `migrations.lock.json` (F46) e `src/lib/itens/migrations-f38.test.ts`, que desde a F38 exige que toda migration a partir da `0116` esteja numa lista dele. Descoberto durante a sabotagem 3, quando o arquivo fictício `0128` derrubou as duas. As duas reprovam sozinhas e nomeiam o arquivo; ficou escrito no `RUNBOOK-BANCO.md`.
+- 3. **Uma medição minha estava errada e foi apanhada na revisão adversarial**, antes de virar evidência: eu havia registrado que a `0007_seeds_fixos.sql` seria a primeira a quebrar numa segunda aplicação. **Está errado** — os dois `insert` dela têm `on conflict … do nothing`, e o comentário do próprio arquivo diz isso. O único `insert` de topo sem guarda em todo o repositório é o da `0114`. A primeira falha real é a `0001`, e por `create table` sem `if not exists`, não por `insert`. Fica registrado porque o número errado ia para o relatório como evidência.
+- Reversível? n/a (registro).
+
+---
+
+## 2026-09-06 · F46 · O job novo NÃO vira required check nesta fase
+
+- Contexto: os *required status checks* da `main` são `verificar` e `banco`, exigidos **pelo nome** desde 05/09/2026.
+- Decisão: `banco-sem-docker` entra em **paralelo**, sem ser required, e o job `banco` fica **intacto** (o diff do `ci.yml` é `+161 / -0`). Promovê-lo, e só então remover o antigo, é **entrega avulsa PATCH** depois de três pushes verdes — com o comando pronto no relatório.
+- Motivo: renomear ou apagar o `banco` deixaria o check exigido **sem nunca reportar**, e todo PR ficaria preso em *"Expected — Waiting for status to be reported"* — inclusive o desta fase. Além disso, enquanto os dois existirem, é a **igualdade de veredito entre eles no mesmo commit** que prova que o bootstrap está certo; matar o antigo agora seria jogar fora a régua no primeiro dia de uso. A ordem também proíbe tocar na branch protection.
+- Reversível? n/a (é a decisão de NÃO mexer).
+
+---
+
+## 2026-09-06 · F46 · A revisão adversarial: um achado sobreviveu, e ele era meu
+
+- Contexto: a ordem exige revisão adversarial com três lentes obrigatórias (o cético do bootstrap, o da trava, o do YAML), apontando **só** lacunas de correção ou de requisito declarado. Rodada com três revisores em contexto fresco e um verificador adversarial por achado, encarregado de **refutá-lo** antes de virar trabalho (padrão: refutado; só confirma quem reproduz).
+- Resultado: **12 achados levantados, 1 sobreviveu.** Bootstrap 4→0, trava 5→0, YAML 3→1.
+- O achado que sobreviveu: **duas asserções minhas eram tautológicas.** `expect(BANCO_SEM_DOCKER.length).toBeGreaterThan(0)` e `expect(YAML).toContain('\n  banco:\n')` nunca podiam falhar de forma independente, porque `corpoDoJob` já faz o `expect` por dentro e roda no CARREGAMENTO do módulo — se o job sumisse, o arquivo morria na coleta antes de qualquer `it`. Trocadas por `os jobs do ci.yml são EXATAMENTE ['verificar','banco','banco-sem-docker']` (mais um teste de que o job novo não é cabeçalho vazio), que é estritamente mais forte e **sabe** reprovar: pega job renomeado, apagado e **acrescentado** — este último não era coberto por nada. Prova em `docs/f46-evidencias/sabotagem-4-jobs-do-yaml.txt`.
+- Motivo de corrigir e não só registrar: asserção que não sabe ficar vermelha é sensação de rede, que é o que a F45 existiu para matar. Deixá-la seria a trava desta fase repetindo o defeito que ela denuncia.
+- **Convergência que vale registrar:** o cético da trava levantou que `npm run db:lock` gravava ANTES de avisar, e propôs recusar por padrão com flag explícita. O verificador o refutou **por medição** — porque eu já tinha corrigido isso no commit anterior (`643e87c`), pelo mesmo raciocínio e chegando à mesma solução (`--regravar-alterada`), enquanto escrevia o "o que este relatório não prova". Os dois estão certos; a revisão leu o commit `722a08d`. Duas análises independentes chegando ao mesmo defeito e à mesma correção é o sinal mais forte de que ele era real.
+- **Uma crítica de forma foi aceita:** a primeira versão da ata sobre "migration nova reprova" apresentava a escolha como interpretação da ficha. Não é — **contradiz a letra dela**, e o que autoriza é a delegação explícita da seção "A trava" da ordem. A ata acima foi corrigida para dizer isso de frente.
+- Refutados, mas registrados por serem verdadeiros como fato: o trigger `storage.protect_objects_delete` não está no bootstrap (nenhum roteiro o alcança por SQL — já é o §15.2 do relatório); a sonda de determinismo não olha `auth`/`supabase_migrations` nem dado de linha (é o recorte decidido, §7.3); `itens_extra.sql` 11a/11b passam por `permission denied` nos DOIS jobs (anterior à F46, §15.6 e backlog); e `grant anon, authenticated, service_role to postgres` é inócuo no `postgres:17` (a sessão já é superusuária) — a linha não concede nada a mais, mas o comentário dela promete mais do que precisa.
+- Uma refutação foi **conferida por mim depois**, porque valia: o cético disse que `auth.uid()` não era a definição oficial, citando a migration de dez/2021; existe uma de fev/2022 que redefine a função. Fui ler as duas — **o corpo de `uid()` é idêntico nas duas e ao do `bootstrap-auth.sql`**. A afirmação de fidelidade se mantém.
+- Reversível? n/a (registro), exceto a troca das asserções, que é `git revert`.
+
+---

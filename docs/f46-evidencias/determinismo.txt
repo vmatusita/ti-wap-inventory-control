@@ -1,0 +1,35 @@
+================================================================================
+ DETERMINISMO — a mesma cadeia de 126 migrations, do zero, em DOIS bancos limpos
+ run 34040990566 · commit 722a08d · PR #23 · 06/09/2026
+================================================================================
+
+Substitui a 'segunda aplicacao' que a ficha pedia. Medido: a 2a passada morre na
+PRIMEIRA migration — 0001_profiles.sql abre com 'create table public.profiles ('
+sem 'if not exists' (42P07). Torna-las idempotentes seria editar migration
+aplicada, que e o que a trava do mesmo commit passa a proibir. Opcao (c) da ordem.
+
+--- o major do servico ---
+PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+server_version_num = 170011
+
+--- as migrations ---
+126 migrations aplicadas em estoque
+
+--- a impressao digital do schema, por classe (sonda do RUNBOOK-BANCO.md) ---
+coluna|291|5e575a6217ea2ce1238cf66e4c30b9ae
+constraint|75|41e6fe5cded9c4596385501ac0daa61e
+enum|7|34837fbf7cb50082e461fd8cdad47532
+func|64|f0405e780c20c918ba77f1ad6724fbd9
+grant_func|64|e025d9a963d4503535c55f6778311df3
+indice|75|70465672f6b1b0b8eb14bf55b23dcaa0
+policy|46|388e5c0ddfdedf5dd0cc5ae585dcd254
+policy_storage|8|952a7a54d211cac72cca350b3e9dd456
+rls_flag|20|7e57bfe79594010e2a9f55e5384eabe2
+trigger|6|fd4bfe3d9468c9c5ef1d891ba570d87b
+view|9|1a3d8b7b12278469ea42d3fe15253da8
+
+--- o veredito do passo ---
+as duas aplicações produziram schemas idênticos
+
+(o passo roda 'diff -u' entre as duas impressoes e sai 1 se divergirem;
+ a ausencia de bloco de diff acima e a prova de que nao divergiram)

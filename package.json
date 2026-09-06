@@ -1,6 +1,6 @@
 {
   "name": "estoque-ti-wap",
-  "version": "1.50.1",
+  "version": "1.51.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,6 +13,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/reset.ts",
     "db:types": "tsx scripts/gen-types.ts",
+    "db:lock": "tsx scripts/db/gravar-lock.ts",
     "db:test": "bash scripts/db/rodar-roteiros.sh",
     "db:test:um": "bash scripts/db/rodar-roteiros.sh",
     "verificar:actions": "node scripts/verificar-actions-build.mjs",

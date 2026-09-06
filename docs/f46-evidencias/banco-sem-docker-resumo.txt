@@ -1,0 +1,61 @@
+================================================================================
+ JOB NOVO `banco-sem-docker` (services: postgres:17) — MESMO run, MESMO commit
+ PR #23 · 06/09/2026 · duracao 57s
+================================================================================
+==== supabase/ci/bootstrap-roles.sql ====
+==== supabase/ci/bootstrap-auth.sql ====
+==== supabase/ci/bootstrap-storage.sql ====
+==== supabase/ci/bootstrap-ledger.sql ====
+==== impressão digital do schema, por classe ====
+==== supabase/tests/asof_desempate.sql ====
+==== supabase/tests/asserts_ferramenta.sql ====
+==== supabase/tests/cargo_dev.sql ====
+==== supabase/tests/conflito_filiais.sql ====
+==== supabase/tests/dev_destrutivo.sql ====
+==== supabase/tests/dominios_login.sql ====
+==== supabase/tests/f34_triagem_reserva.sql ====
+==== supabase/tests/f36_detentor.sql ====
+==== supabase/tests/f37_colaboradores_tipos.sql ====
+==== supabase/tests/f38_itens_com_ativo.sql ====
+==== supabase/tests/f41_regularizacao.sql ====
+==== supabase/tests/fuso_do_negocio.sql ====
+==== supabase/tests/import_substituir.sql ====
+==== supabase/tests/itens_extra.sql ====
+==== supabase/tests/itens_quantidade.sql ====
+==== supabase/tests/manutencao_fornecedor.sql ====
+==== supabase/tests/maquina_estados.sql ====
+==== supabase/tests/papeis_rls.sql ====
+==== supabase/tests/pendencias_import_termo.sql ====
+==== supabase/tests/pendencias_item.sql ====
+==== supabase/tests/reabrir_pendencia_item.sql ====
+==== supabase/tests/seguranca_catalogo.sql ====
+==== supabase/tests/transferencia_item.sql ====
+==== supabase/tests/transicoes_extra.sql ====
+==== supabase/tests/troca.sql ====
+==== RESUMO ====
+  ✓ asof_desempate — 4 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 46 asserções
+  ✓ conflito_filiais — 38 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 25 asserções
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_substituir — 11 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ papeis_rls — 76 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 13 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  25 roteiro(s), 577 asserções no total

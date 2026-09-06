@@ -228,6 +228,102 @@ fora do filtro é `_bkp_relatorios_gerados_f6a`, retida em produção de propós
 
 **Estado medido em 24/07/2026:** 56 migrations no repo, **46 no ledger** *(a `0057` entrou no mesmo dia, por caminho A, no ledger de ensaio e produção)*. As 10 ausentes (`0031`–`0037`, `0039`, `0040`, `0056`) foram **todas sondadas e estão aplicadas** — inclusive a **`0056`** (as sete RPCs `rel_*` já estão com `anon` sem `execute`), que o `CHANGELOG` ainda dava como pendente de handoff.
 
+## A trava de hash das migrations (F46, 06/09/2026)
+
+**Migration aplicada nunca se edita** deixou de ser só texto. `supabase/migrations.lock.json` guarda
+o sha256 do conteúdo de cada arquivo de `supabase/migrations/`, e
+`src/lib/validators/migrations-lock.test.ts` recalcula tudo a cada `npm run test`.
+
+Por que ela existe: até aqui, um byte alterado na `0031` passava por `lint`, `test`, `build` **e
+pelo job `banco` VERDE** — porque aquele job aplica a cadeia num banco NOVO. Ele prova que as 126
+aplicam limpo; nunca que são as mesmas de ontem. Como as migrations deste repositório são aplicadas
+**por MCP, uma a uma**, e o ledger é estruturalmente incompatível com a numeração dos arquivos (a
+seção acima), editar uma já aplicada produz um repositório que diz uma coisa e um banco que faz
+outra, **sem nenhum sinal**.
+
+O hash é do conteúdo com `\r\n` → `\n`, em bytes. Não é frescura: medido em 06/09/2026, a árvore de
+trabalho no Windows tem CRLF em quase todas as migrations (`0001`: 51 linhas com CR; `0127`: 322),
+enquanto o blob do git — o que o Linux do CI recebe — é LF. Com a normalização os 126 hashes batem
+com o blob do git; sem ela a trava acusaria deriva a cada clone e seria treinada a ser ignorada.
+
+### O que fazer quando ela reprova
+
+O teste diz qual das três coisas aconteceu, e **a resposta é diferente em cada caso**.
+
+| A mensagem diz | O que aconteceu | O que fazer |
+|---|---|---|
+| `MUDOU depois de travada` | você editou uma migration já travada | **Desfaça a edição** (`git checkout -- supabase/migrations/<arquivo>`) e escreva uma **migration NOVA** com o que queria mudar. **NÃO** rode `npm run db:lock`. |
+| `não existe mais no disco` | migration travada apagada ou renomeada | Restaure o arquivo com o **nome original**. Renomear tem o mesmo efeito de editar: o ledger e o Anexo A passam a apontar para um nome que não existe. |
+| `ainda não está em … lock.json` | migration nova | `npm run db:lock`, e comite o lock **no mesmo commit** da migration. |
+
+⚠ **A resposta certa quase nunca é "regrave o lock".** Ela é a resposta certa para **um** dos três
+casos — o de migration nova. Nos outros dois, regravar apaga a prova do erro que a trava existe para
+pegar. Por isso a mensagem do caso `MUDOU` nem cita o comando, e o `npm run db:lock` **RECUSA** —
+sai 1 **sem gravar nada** — quando alguma migration já travada mudou de conteúdo.
+
+**A exceção legítima, e é rara:** uma migration que **nunca chegou a banco nenhum** (nem ensaio nem
+produção) ainda pode ser corrigida no lugar — foi escrita e ainda não aplicada. Só para esse caso
+existe a flag explícita:
+
+```bash
+npm run db:lock -- --regravar-alterada
+```
+
+E, usando-a, **diga no commit** por que a migration não tinha sido aplicada em lugar nenhum. Se
+houver dúvida se ela chegou, a **sonda de efeito** da seção acima responde; o ledger, não.
+
+### Quem acrescenta migration atualiza DUAS listas
+
+1. `supabase/migrations.lock.json`, por `npm run db:lock`.
+2. `src/lib/itens/migrations-f38.test.ts`, que já exigia (desde a F38) que toda migration a partir da
+   `0116` esteja numa lista dele.
+
+As duas reprovam sozinhas e nomeiam o arquivo — nenhuma depende de alguém lembrar.
+
+### O banco do CI na mesa (sem o Docker do Supabase)
+
+Desde a F46 o CI tem **dois** jobs de banco, rodando o MESMO `scripts/db/rodar-roteiros.sh`:
+
+- **`banco`** — o antigo, com `supabase start`. Continua sendo o *required status check*, pelo nome.
+- **`banco-sem-docker`** — `services: postgres:17`, com o bootstrap declarado em `supabase/ci/`.
+
+O segundo é reproduzível em qualquer Postgres 17 vazio, sem Docker e sem a CLI do Supabase. Na mesa:
+
+```bash
+createdb estoque
+psql -d estoque -v ON_ERROR_STOP=1 -f supabase/ci/bootstrap-roles.sql
+psql -d estoque -v ON_ERROR_STOP=1 -f supabase/ci/bootstrap-auth.sql
+psql -d estoque -v ON_ERROR_STOP=1 -f supabase/ci/bootstrap-storage.sql
+psql -d estoque -v ON_ERROR_STOP=1 -f supabase/ci/bootstrap-ledger.sql
+for f in $(ls supabase/migrations/*.sql | sort); do
+  psql -d estoque -v ON_ERROR_STOP=1 -q -f "$f" || { echo "falhou: $f"; break; }
+done
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/estoque npm run db:test
+```
+
+Esperado: `25 roteiro(s), 577 asserções no total`, zero `✗`.
+
+⚠ **O bootstrap é o recorte MÍNIMO do que o `supabase start` entrega, e o "mínimo" é deliberado nos
+dois sentidos.** Ele **não** concede privilégio nenhum em `public` — porque o `supabase start` do job
+antigo também não concede (está escrito em `supabase/tests/papeis_rls.sql`), e os roteiros plantam os
+próprios `grant`, tabela por tabela. Um `grant … on all tables` ali faria `seguranca_catalogo.sql`
+passar por **motivo errado** e mascararia todo REVOKE futuro. Se um roteiro ficar vermelho no job
+novo e verde no antigo, **o defeito é do bootstrap, nunca do roteiro**.
+
+### As migrations NÃO são idempotentes, e isso é por desenho
+
+Medido em 06/09/2026: aplicar a cadeia duas vezes no mesmo banco **morre na primeira migration** —
+a `0001` abre com `create table public.profiles (` sem `if not exists`. São 69 `create policy` sem
+`drop … if exists`, 45 `create index` sem `if not exists`, 7 `create type`, 7 `create trigger` e 4
+`create view` sem `or replace`. Elas foram escritas para rodar **uma vez**, e torná-las idempotentes
+hoje seria **editar migration aplicada** — o que a trava acima proíbe.
+
+Por isso o job novo não "aplica de novo": ele aplica a mesma cadeia **do zero em dois bancos limpos**
+e compara a impressão digital do schema por classe (`supabase/ci/impressao-schema.sql`, que é a sonda
+de paridade desta página, agora executável). Divergência reprova. É **determinismo**, não
+idempotência — e é a pergunta que interessa quando a mesma cadeia vai para ensaio e para produção.
+
+
 ## Armadilhas conhecidas (todas já aconteceram)
 - **Banco novo nasce em UTC — e o fuso do negócio é uma CONFIGURAÇÃO, não um trecho de SQL.** Desde a `0124` (30/08/2026) o banco roda em `America/Sao_Paulo`, gravado com `alter database … set timezone`. É isso que faz `current_date` nas RPCs carimbar a data certa (entre 21h e meia-noite, um banco em UTC grava o dia seguinte — o item W da dívida). A armadilha: **restore, branch de banco ou projeto novo voltam ao default de fábrica** e o sintoma só aparece à noite, no relatório de quem lançou. Mitigação: `supabase/tests/fuso_do_negocio.sql` reprova no job `banco`, e a asserção nº 4 dele é independente do horário de propósito. Ao criar qualquer banco novo, reaplique a `0124` antes de qualquer carga.
 - **Arquivo errado no SQL Editor** — rodar a migration anterior por engano (F7E: 0033 no lugar da 0034 → nada aplicado, erro `42701` depois). Mitigação: a verificação pós-apply do passo 5.

@@ -1,0 +1,35 @@
+================================================================================
+ PROVA — 'npm run db:lock' RECUSA regravar migration ja travada que mudou
+================================================================================
+Um byte alterado na 0031_import_logs.sql (a mesma alteracao da sabotagem 1).
+
+$ npm run db:lock
+
+> estoque-ti-wap@1.51.0 db:lock
+> tsx scripts/db/gravar-lock.ts
+
+
+✗ RECUSADO — nada foi gravado.
+
+  Estas migrations JÁ TRAVADAS mudaram de conteúdo:
+    ! 0031_import_logs.sql
+
+  Migration aplicada NUNCA se edita (CLAUDE.md · Convenções · Banco). Regravar o
+  lock aqui apagaria a prova do erro que a trava existe para pegar.
+
+  A saída certa, quase sempre:
+    git checkout -- supabase/migrations/0031_import_logs.sql
+  e escreva uma migration NOVA com o que você queria mudar.
+
+  A exceção, rara: se ela NUNCA chegou a ensaio nem a produção, ela ainda pode ser
+  corrigida no lugar. Nesse caso, e só nesse caso:
+    npm run db:lock -- --regravar-alterada
+  e diga no commit que ela não tinha sido aplicada em lugar nenhum.
+
+  Em dúvida se ela chegou? A sonda de efeito responde; o ledger não.
+  Ver docs/RUNBOOK-BANCO.md § "A trava de hash das migrations".
+$ echo $?
+1
+
+$ git status --short supabase/migrations.lock.json
+(saida vazia = o lock NAO foi tocado; a recusa acontece ANTES de gravar)

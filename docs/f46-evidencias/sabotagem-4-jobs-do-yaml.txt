@@ -1,0 +1,89 @@
+================================================================================
+ SABOTAGEM 4 — a asseracao que substituiu as duas tautologias SABE ficar vermelha
+================================================================================
+
+A revisao adversarial da F46 apanhou duas asercoes minhas que NUNCA podiam falhar
+de forma independente: `BANCO_SEM_DOCKER.length > 0` e `YAML.toContain('\n  banco:\n')`.
+As duas eram subsumidas pelo `expect` que `corpoDoJob` faz por dentro, no carregamento
+do modulo. Foram trocadas por 'os jobs sao EXATAMENTE verificar, banco e banco-sem-docker'.
+
+--------------------------------------------------------------------------------
+CASO A — um job NOVO que ninguem declarou (o que NADA cobria antes)
+$ npx vitest run src/lib/ci-passos.test.ts
+--------------------------------------------------------------------------------
+
+ RUN  v4.1.11 C:/Users/yukig/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/ci-passos.test.ts (81 tests | 1 failed) 95ms
+     × os jobs do ci.yml são EXATAMENTE `verificar`, `banco` e `banco-sem-docker` 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/ci-passos.test.ts > 7. o job de banco sem Docker existe e mede a mesma coisa > os jobs do ci.yml são EXATAMENTE `verificar`, `banco` e `banco-sem-docker`
+AssertionError: expected [ 'verificar', 'banco', …(2) ] to deeply equal [ 'verificar', 'banco', …(1) ]
+
+- Expected
++ Received
+
+  [
+    "verificar",
+    "banco",
+    "banco-sem-docker",
++   "job-que-ninguem-declarou",
+  ]
+
+ ❯ src/lib/ci-passos.test.ts:349:28
+    347|   // e o *required status check* parar de reportar para sempre.
+    348|   it('os jobs do ci.yml são EXATAMENTE `verificar`, `banco` e `banco-s…
+    349|     expect(nomesDosJobs()).toEqual(['verificar', 'banco', 'banco-sem-d…
+       |                            ^
+    350|   })
+    351|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 80 passed (81)
+   Start at  12:36:04
+   Duration  374ms (transform 42ms, setup 0ms, import 66ms, tests 95ms, environment 0ms)
+
+
+--------------------------------------------------------------------------------
+CASO B — o job `banco` RENOMEADO (o cenario que mataria o required check)
+$ npx vitest run src/lib/ci-passos.test.ts
+--------------------------------------------------------------------------------
+
+ RUN  v4.1.11 C:/Users/yukig/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/ci-passos.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/ci-passos.test.ts [ src/lib/ci-passos.test.ts ]
+AssertionError: o job `banco` sumiu do ci.yml: expected -1 to be greater than -1
+ ❯ corpoDoJob src/lib/ci-passos.test.ts:44:55
+     42|   const linhas = YAML.split('\n')
+     43|   const inicio = linhas.findIndex((l) => l === `  ${nome}:`)
+     44|   expect(inicio, `o job \`${nome}\` sumiu do ci.yml`).toBeGreaterThan(…
+       |                                                       ^
+     45|   let fim = linhas.length
+     46|   for (let i = inicio + 1; i < linhas.length; i++) {
+ ❯ src/lib/ci-passos.test.ts:56:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  12:36:18
+   Duration  278ms (transform 48ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
+
+--------------------------------------------------------------------------------
+NOTA: no caso B quem reprova e a guarda ANTERIOR (F45) — `corpoDoJob` faz o
+`expect` por dentro e o arquivo morre na COLETA, com a mensagem certa e nomeando
+o job. E por isso que as duas asercoes trocadas eram tautologicas: elas so seriam
+alcancadas num mundo em que a condicao delas ja e verdadeira. O caso A e o que
+NENHUMA guarda cobria antes desta troca.
+--------------------------------------------------------------------------------

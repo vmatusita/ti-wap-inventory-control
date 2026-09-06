@@ -23,6 +23,18 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.51.0',
+    data: '2026-09-06',
+    fase: 'F46',
+    titulo: 'O histórico de alterações do banco de dados ficou protegido contra reescrita',
+    mudancas: [
+      'Nenhuma tela mudou. O que mudou é uma proteção nova sobre o histórico de alterações do banco de dados: cada arquivo de alteração já aplicada passou a ter uma assinatura registrada, e mexer num deles agora REPROVA a conferência automática, dizendo o nome do arquivo. Antes essa regra existia só escrita em três documentos, e nada no sistema a fazia valer — uma alteração antiga podia ser reescrita e tudo continuava verde.',
+      'Isso importa porque as alterações do banco são aplicadas uma a uma, na ordem: reescrever uma que já foi aplicada deixa o projeto dizendo uma coisa e o banco fazendo outra, em silêncio. É o erro mais caro que existe nessa área, e agora ele é barrado antes de sair da mesa.',
+      'A bateria de conferências do banco passou a rodar em cerca de um quarto do tempo — de 3 minutos e 52 segundos para 57 segundos. Na prática, uma correção urgente termina de ser conferida bem mais cedo e chega até você mais rápido.',
+      'Essa mesma conferência deixou de depender de um programa externo que já a derrubou duas vezes por motivos que nada tinham a ver com o sistema (um limite de uso de um serviço de terceiro e uma falha de envio de estatísticas). Ela também passou a ser reproduzível na máquina do desenvolvedor, onde antes não rodava de jeito nenhum.',
+    ],
+  },
+  {
     versao: '1.50.1',
     data: '2026-09-05',
     titulo: 'A conferência automática deixou de pular alteração que ficava na fila',
