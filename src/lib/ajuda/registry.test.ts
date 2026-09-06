@@ -308,7 +308,7 @@ describe('LinkAjuda nas telas', () => {
     const fontes = [join(RAIZ, 'src', 'app'), join(RAIZ, 'src', 'components')]
     const usos: { arquivo: string; pagina: string }[] = []
     for (const raiz of fontes) {
-      for (const caminho of arquivos(raiz, (f) => f.endsWith('.tsx'))) {
+      for (const caminho of arquivos(raiz, (f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))) {
         const conteudo = readFileSync(caminho, 'utf8')
         for (const m of conteudo.matchAll(/<LinkAjuda[^>]*\bpagina="([^"]+)"/g)) {
           usos.push({ arquivo: relative(RAIZ, caminho), pagina: m[1] })
@@ -329,7 +329,7 @@ describe('LinkAjuda nas telas', () => {
   it('nenhuma tela ficou com a prop `ancora` da ajuda de página única (F6B→F19)', () => {
     const fontes = [join(RAIZ, 'src', 'app'), join(RAIZ, 'src', 'components')]
     for (const raiz of fontes) {
-      for (const caminho of arquivos(raiz, (f) => f.endsWith('.tsx'))) {
+      for (const caminho of arquivos(raiz, (f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))) {
         const conteudo = readFileSync(caminho, 'utf8')
         expect(
           /<LinkAjuda[^>]*\bancora="/.test(conteudo),

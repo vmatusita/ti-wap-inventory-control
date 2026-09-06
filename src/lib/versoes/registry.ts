@@ -23,6 +23,18 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.50.0',
+    data: '2026-09-05',
+    fase: 'F45',
+    titulo: 'O sistema passou a barrar sozinho o que quebraria a operação',
+    mudancas: [
+      'Nenhuma tela mudou. O que mudou é o que acontece ANTES de uma alteração chegar até você: a bateria de conferências automáticas passou a poder REPROVAR uma alteração, e alteração reprovada não sobe mais. Até aqui a conferência apontava o problema e a alteração ia ao ar do mesmo jeito.',
+      'As conferências do banco de dados deixaram de poder mentir. Uma conferência que morresse no meio do caminho era contada como "passou"; agora cada uma termina dizendo quantas verificações fez e quantas falharam, e a que não termina é reprovada.',
+      'As telas ganharam a primeira rede de proteção que faltava: passou a haver conferência automática sobre o que a tela realmente entrega — o título da página, o aviso vermelho que o leitor de tela precisa anunciar na hora, e a caixa de "digite para confirmar" das ações que apagam dado.',
+      'Voltou a ser conferida a cada alteração a peça que, em julho de 2026, deixou os botões de gravar fora do ar por cerca de 20 horas. A conferência existia desde então e ninguém a executava.',
+    ],
+  },
+  {
     versao: '1.49.1',
     data: '2026-09-01',
     titulo: 'Acertos da revisão de código da F44',

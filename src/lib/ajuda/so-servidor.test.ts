@@ -29,7 +29,9 @@ function arquivosTsx(dir: string): string[] {
   for (const nome of readdirSync(dir)) {
     const caminho = join(dir, nome)
     if (statSync(caminho).isDirectory()) achados.push(...arquivosTsx(caminho))
-    else if (nome.endsWith('.tsx') || nome.endsWith('.ts')) achados.push(caminho)
+    // F45: `*.test.tsx` fora — ver docs/DECISOES.md (2026-09-05 · F45).
+    else if ((nome.endsWith('.tsx') || nome.endsWith('.ts')) && !nome.endsWith('.test.tsx'))
+      achados.push(caminho)
   }
   return achados
 }
