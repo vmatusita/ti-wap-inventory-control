@@ -32,6 +32,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof   uuid;
   v_matriz smallint;
   v_lin    smallint;
@@ -71,9 +73,9 @@ begin
     values (a, 'emprestimo', 'Fulano', 'TI', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
   if v_status = 'emprestado' and v_colab = 'Fulano' then
-    raise notice '✓ 1a emprestimo de em_estoque -> emprestado (colaborador setado)';
+    v_ok := v_ok + 1; raise notice '✓ 1a emprestimo de em_estoque -> emprestado (colaborador setado)';
   else
-    raise warning '✗ 1a emprestimo: esperado emprestado/Fulano, obtido %/%', v_status, coalesce(v_colab, '(null)');
+    v_falhas := v_falhas + 1; raise warning '✗ 1a emprestimo: esperado emprestado/Fulano, obtido %/%', v_status, coalesce(v_colab, '(null)');
   end if;
 
   -- 1b — reserva de em_estoque -> reservado
@@ -84,9 +86,9 @@ begin
     values (a, 'reserva', 'Ciclano', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'reservado' then
-    raise notice '✓ 1b reserva de em_estoque -> reservado';
+    v_ok := v_ok + 1; raise notice '✓ 1b reserva de em_estoque -> reservado';
   else
-    raise warning '✗ 1b reserva: esperado reservado, obtido %', v_status;
+    v_falhas := v_falhas + 1; raise warning '✗ 1b reserva: esperado reservado, obtido %', v_status;
   end if;
 
   -- 1c — retorno_manutencao de em_manutencao -> em_estoque
@@ -99,15 +101,15 @@ begin
     values (a, 'envio_manutencao', v_matriz, 'OS-FIC-01', v_prof);            -- em_manutencao
   select status into v_status from public.ativos where id = a;
   if v_status <> 'em_manutencao' then
-    raise warning '✗ 1c precondicao: envio_manutencao deveria levar a em_manutencao, obtido %', v_status;
+    v_falhas := v_falhas + 1; raise warning '✗ 1c precondicao: envio_manutencao deveria levar a em_manutencao, obtido %', v_status;
   end if;
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'retorno_manutencao', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_estoque' then
-    raise notice '✓ 1c retorno_manutencao de em_manutencao -> em_estoque';
+    v_ok := v_ok + 1; raise notice '✓ 1c retorno_manutencao de em_manutencao -> em_estoque';
   else
-    raise warning '✗ 1c retorno_manutencao: esperado em_estoque, obtido %', v_status;
+    v_falhas := v_falhas + 1; raise warning '✗ 1c retorno_manutencao: esperado em_estoque, obtido %', v_status;
   end if;
 
   -- 1d — marcar_defasado de em_estoque -> defasado
@@ -118,9 +120,9 @@ begin
     values (a, 'marcar_defasado', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'defasado' then
-    raise notice '✓ 1d marcar_defasado de em_estoque -> defasado';
+    v_ok := v_ok + 1; raise notice '✓ 1d marcar_defasado de em_estoque -> defasado';
   else
-    raise warning '✗ 1d marcar_defasado: esperado defasado, obtido %', v_status;
+    v_falhas := v_falhas + 1; raise warning '✗ 1d marcar_defasado: esperado defasado, obtido %', v_status;
   end if;
 
   -- 1e — descarte de em_estoque -> descartado (detentor nulo)
@@ -131,9 +133,9 @@ begin
     values (a, 'descarte', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
   if v_status = 'descartado' and v_colab is null then
-    raise notice '✓ 1e descarte de em_estoque -> descartado (detentor nulo)';
+    v_ok := v_ok + 1; raise notice '✓ 1e descarte de em_estoque -> descartado (detentor nulo)';
   else
-    raise warning '✗ 1e descarte: esperado descartado/null, obtido %/%', v_status, coalesce(v_colab, '(null)');
+    v_falhas := v_falhas + 1; raise warning '✗ 1e descarte: esperado descartado/null, obtido %/%', v_status, coalesce(v_colab, '(null)');
   end if;
 
   -- =============================================================
@@ -149,10 +151,10 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
       values (a, 'devolucao', v_matriz, v_prof);
-    raise warning '✗ 2a devolucao de em_estoque: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2a devolucao de em_estoque: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2a devolucao de em_estoque rejeitada: %', sqlerrm;
-    else raise warning '✗ 2a falhou por motivo INESPERADO (nao a maquina de estados): %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2a devolucao de em_estoque rejeitada: %', sqlerrm;
+    else v_falhas := v_falhas + 1; raise warning '✗ 2a falhou por motivo INESPERADO (nao a maquina de estados): %', sqlerrm; end if;
   end;
 
   -- 2b — triagem_ok de em_uso (so em_triagem passa)
@@ -164,10 +166,10 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
       values (a, 'triagem_ok', v_matriz, v_prof);
-    raise warning '✗ 2b triagem_ok de em_uso: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2b triagem_ok de em_uso: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2b triagem_ok de em_uso rejeitada: %', sqlerrm;
-    else raise warning '✗ 2b falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2b triagem_ok de em_uso rejeitada: %', sqlerrm;
+    else v_falhas := v_falhas + 1; raise warning '✗ 2b falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- 2c — reserva de em_uso (so em_estoque reserva)
@@ -179,10 +181,10 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
       values (a, 'reserva', 'Fulano', v_matriz, v_prof);
-    raise warning '✗ 2c reserva de em_uso: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2c reserva de em_uso: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2c reserva de em_uso rejeitada: %', sqlerrm;
-    else raise warning '✗ 2c falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2c reserva de em_uso rejeitada: %', sqlerrm;
+    else v_falhas := v_falhas + 1; raise warning '✗ 2c falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- 2d — transferencia de um ativo descartado (terminal de baixa nao se transfere;
@@ -195,10 +197,10 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por)
       values (a, 'transferencia', v_matriz, v_lin, v_prof);
-    raise warning '✗ 2d transferencia de descartado: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2d transferencia de descartado: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2d transferencia de descartado rejeitada: %', sqlerrm;
-    else raise warning '✗ 2d falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2d transferencia de descartado rejeitada: %', sqlerrm;
+    else v_falhas := v_falhas + 1; raise warning '✗ 2d falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- 2e — "segunda compra no mesmo ativo". Ver NOTA do cabeçalho: compra de em_estoque
@@ -215,9 +217,9 @@ begin
     values (a, 'compra', v_matriz, v_prof);                                   -- 2a compra (auto-laço)
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_estoque' then
-    raise notice '✓ 2e.1 segunda compra de em_estoque e auto-laço ACEITO (permanece em_estoque)';
+    v_ok := v_ok + 1; raise notice '✓ 2e.1 segunda compra de em_estoque e auto-laço ACEITO (permanece em_estoque)';
   else
-    raise warning '✗ 2e.1 segunda compra de em_estoque: esperado em_estoque, obtido %', v_status;
+    v_falhas := v_falhas + 1; raise warning '✗ 2e.1 segunda compra de em_estoque: esperado em_estoque, obtido %', v_status;
   end if;
   --   2e.2 — segunda compra sobre ativo em_uso: REJEITADA
   insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
@@ -225,10 +227,10 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
       values (a, 'compra', v_matriz, v_prof);
-    raise warning '✗ 2e.2 segunda compra sobre em_uso: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2e.2 segunda compra sobre em_uso: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2e.2 segunda compra sobre em_uso rejeitada: %', sqlerrm;
-    else raise warning '✗ 2e.2 falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2e.2 segunda compra sobre em_uso rejeitada: %', sqlerrm;
+    else v_falhas := v_falhas + 1; raise warning '✗ 2e.2 falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- =============================================================
@@ -251,12 +253,12 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
       values (a, 'estorno', v_matriz, v_prof, v_est, timestamptz '2026-06-01 10:02:00+00');   -- estorno do estorno
-    raise warning '✗ 3 estorno-de-estorno: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 3 estorno-de-estorno: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%nao pode ser estornada%' or sqlerrm like '%estornada%' then
-      raise notice '✓ 3 estorno-de-estorno negado (R-ME-19): %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ 3 estorno-de-estorno negado (R-ME-19): %', sqlerrm;
     else
-      raise warning '✗ 3 falhou por motivo INESPERADO (nao o guard de estorno): %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ 3 falhou por motivo INESPERADO (nao o guard de estorno): %', sqlerrm;
     end if;
   end;
 
@@ -271,16 +273,16 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
       values (a, 'ajuste', v_matriz, 'em_manutencao', null, v_prof);          -- observacao NULL
-    raise warning '✗ 4 ajuste sem observacao: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 4 ajuste sem observacao: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%observacao%' or sqlerrm like '%justificativa%' or sqlerrm like '%Ajuste exige%' then
-      raise notice '✓ 4 ajuste sem observacao rejeitado (R-ME-20): %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ 4 ajuste sem observacao rejeitado (R-ME-20): %', sqlerrm;
     else
-      raise warning '✗ 4 falhou por motivo INESPERADO (nao a regra do ajuste): %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ 4 falhou por motivo INESPERADO (nao a regra do ajuste): %', sqlerrm;
     end if;
   end;
 
-  raise notice '=== fim do roteiro transicoes_extra (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM transicoes_extra: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 -- Nada acima e persistido:

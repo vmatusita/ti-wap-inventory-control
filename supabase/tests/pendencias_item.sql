@@ -19,6 +19,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof uuid; v_mat smallint;
   a uuid; b uuid; c uuid; d uuid;
   v_dev uuid; v_pend text; v_n int; v_colab text; v_item text;
@@ -55,20 +57,20 @@ begin
 
   select count(*), max(colaborador) into v_n, v_colab
     from public.pendencias_item where movimentacao_id = v_dev and status = 'aberta';
-  if v_n = 2 then raise notice '✓ 1a devolução com 2 itens criou 2 abertas';
-  else raise warning '✗ 1a esperado 2 abertas, obtido %', v_n; end if;
+  if v_n = 2 then v_ok := v_ok + 1; raise notice '✓ 1a devolução com 2 itens criou 2 abertas';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1a esperado 2 abertas, obtido %', v_n; end if;
 
-  if v_colab = 'Fulano Teste' then raise notice '✓ 1b colaborador da época gravado (Fulano)';
-  else raise warning '✗ 1b colaborador: esperado Fulano Teste, obtido %', coalesce(v_colab,'(null)'); end if;
+  if v_colab = 'Fulano Teste' then v_ok := v_ok + 1; raise notice '✓ 1b colaborador da época gravado (Fulano)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1b colaborador: esperado Fulano Teste, obtido %', coalesce(v_colab,'(null)'); end if;
 
   select count(*) into v_n from public.pendencias_item
     where movimentacao_id = v_dev and item in ('Mochila','Carregador');
-  if v_n = 2 then raise notice '✓ 1c os dois itens do array viraram linha';
-  else raise warning '✗ 1c itens esperados 2, obtido %', v_n; end if;
+  if v_n = 2 then v_ok := v_ok + 1; raise notice '✓ 1c os dois itens do array viraram linha';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1c itens esperados 2, obtido %', v_n; end if;
 
   select pendencia into v_pend from public.ativos where id = a;
-  if v_pend is null then raise notice '✓ 1d ativos.pendencia intacto na devolução (não vira "itens faltantes")';
-  else raise warning '✗ 1d ativos.pendencia deveria seguir null, obtido %', v_pend; end if;
+  if v_pend is null then v_ok := v_ok + 1; raise notice '✓ 1d ativos.pendencia intacto na devolução (não vira "itens faltantes")';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1d ativos.pendencia deveria seguir null, obtido %', v_pend; end if;
 
   -- ---------------------------------------------------------------
   -- 2 — devolução SEM item marcado não cria nada.
@@ -80,8 +82,8 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (b, 'devolucao', v_mat, v_prof) returning id into v_dev;
   select count(*) into v_n from public.pendencias_item where movimentacao_id = v_dev;
-  if v_n = 0 then raise notice '✓ 2 devolução sem item marcado não criou linha';
-  else raise warning '✗ 2 esperado 0 linhas, obtido %', v_n; end if;
+  if v_n = 0 then v_ok := v_ok + 1; raise notice '✓ 2 devolução sem item marcado não criou linha';
+  else v_falhas := v_falhas + 1; raise warning '✗ 2 esperado 0 linhas, obtido %', v_n; end if;
 
   -- ---------------------------------------------------------------
   -- 3 — triagem_ok NÃO mexe nas abertas NEM em ativos.pendencia (plantamos
@@ -99,11 +101,11 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'triagem_ok', v_mat, v_prof);
   select pendencia into v_pend from public.ativos where id = a;
-  if v_pend = 'sem patrimônio físico' then raise notice '✓ 3a triagem_ok preservou o trecho alheio de pendencia';
-  else raise warning '✗ 3a esperado "sem patrimônio físico", obtido %', coalesce(v_pend,'(null)'); end if;
+  if v_pend = 'sem patrimônio físico' then v_ok := v_ok + 1; raise notice '✓ 3a triagem_ok preservou o trecho alheio de pendencia';
+  else v_falhas := v_falhas + 1; raise warning '✗ 3a esperado "sem patrimônio físico", obtido %', coalesce(v_pend,'(null)'); end if;
   select count(*) into v_n from public.pendencias_item where ativo_id = a and status = 'aberta';
-  if v_n = 2 then raise notice '✓ 3b triagem_ok não mexeu nas 2 abertas';
-  else raise warning '✗ 3b esperado 2 abertas após triagem_ok, obtido %', v_n; end if;
+  if v_n = 2 then v_ok := v_ok + 1; raise notice '✓ 3b triagem_ok não mexeu nas 2 abertas';
+  else v_falhas := v_falhas + 1; raise warning '✗ 3b esperado 2 abertas após triagem_ok, obtido %', v_n; end if;
 
   -- ---------------------------------------------------------------
   -- 4 — saída SEGUINTE do mesmo ativo (agora em_estoque) para OUTRA pessoa não
@@ -114,8 +116,8 @@ begin
   select count(*), max(colaborador) into v_n, v_colab
     from public.pendencias_item where ativo_id = a and status = 'aberta';
   if v_n = 2 and v_colab = 'Fulano Teste' then
-    raise notice '✓ 4 saída p/ novo dono não mexe: 2 abertas ainda apontam Fulano (não Sicrano)';
-  else raise warning '✗ 4 esperado 2 abertas/Fulano, obtido %/%', v_n, coalesce(v_colab,'(null)'); end if;
+    v_ok := v_ok + 1; raise notice '✓ 4 saída p/ novo dono não mexe: 2 abertas ainda apontam Fulano (não Sicrano)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4 esperado 2 abertas/Fulano, obtido %/%', v_n, coalesce(v_colab,'(null)'); end if;
 
   -- ---------------------------------------------------------------
   -- 5 — estorno da devolução REMOVE as linhas dela (inverso simétrico).
@@ -127,13 +129,13 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por, created_at)
     values (c, 'devolucao', v_mat, array['mochila'], v_prof, now() - interval '1 min') returning id into v_dev;
   select count(*) into v_n from public.pendencias_item where movimentacao_id = v_dev;
-  if v_n = 1 then raise notice '✓ 5a devolução criou 1 linha (pré-estorno)';
-  else raise warning '✗ 5a esperado 1, obtido %', v_n; end if;
+  if v_n = 1 then v_ok := v_ok + 1; raise notice '✓ 5a devolução criou 1 linha (pré-estorno)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5a esperado 1, obtido %', v_n; end if;
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
     values (c, 'estorno', v_mat, v_prof, v_dev);
   select count(*) into v_n from public.pendencias_item where movimentacao_id = v_dev;
-  if v_n = 0 then raise notice '✓ 5b estorno removeu a linha da devolução';
-  else raise warning '✗ 5b esperado 0 após estorno, obtido %', v_n; end if;
+  if v_n = 0 then v_ok := v_ok + 1; raise notice '✓ 5b estorno removeu a linha da devolução';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5b esperado 0 após estorno, obtido %', v_n; end if;
 
   -- ---------------------------------------------------------------
   -- 6 — resolução (simula a Server Action resolverPendenciaItem): UPDATE grava
@@ -153,8 +155,8 @@ begin
     into v_status, v_desf, v_por, v_em
     from public.pendencias_item where movimentacao_id = v_dev;
   if v_status = 'resolvida' and v_desf = 'baixa' and v_por = v_prof and v_em is not null then
-    raise notice '✓ 6 resolução gravou desfecho/quem/quando (status resolvida, baixa)';
-  else raise warning '✗ 6 resolução: obtido %/%/%/%', v_status, v_desf, coalesce(v_por::text,'(null)'), coalesce(v_em::text,'(null)'); end if;
+    v_ok := v_ok + 1; raise notice '✓ 6 resolução gravou desfecho/quem/quando (status resolvida, baixa)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 6 resolução: obtido %/%/%/%', v_status, v_desf, coalesce(v_por::text,'(null)'), coalesce(v_em::text,'(null)'); end if;
 
   -- ---------------------------------------------------------------
   -- 7 — caminho de IMPORT não abre pendência de item. O import
@@ -170,8 +172,8 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
     values (b, 'ajuste', 'em_uso', 'import startup 20/07/2026', v_mat, v_prof);
   select count(*) into v_n from public.pendencias_item where ativo_id = b;
-  if v_n = 0 then raise notice '✓ 7 import (compra+ajuste marcados) não abriu pendência de item';
-  else raise warning '✗ 7 import abriu % pendência(s) de item (deveria 0)', v_n; end if;
+  if v_n = 0 then v_ok := v_ok + 1; raise notice '✓ 7 import (compra+ajuste marcados) não abriu pendência de item';
+  else v_falhas := v_falhas + 1; raise warning '✗ 7 import abriu % pendência(s) de item (deveria 0)', v_n; end if;
 
   -- ---------------------------------------------------------------
   -- 8 — estorno NÃO ressuscita o texto LEGADO 'itens faltantes' (F18 §A2). Uma
@@ -194,10 +196,10 @@ begin
     values (b, 'estorno', v_mat, v_prof, v_dev, timestamptz '2026-06-01 09:02:00+00');
   select pendencia into v_pend from public.ativos where id = b;
   if v_pend = 'sem patrimônio físico' then
-    raise notice '✓ 8 estorno restaura sem ressuscitar "itens faltantes" (F18 §A2)';
-  else raise warning '✗ 8 pendencia: esperado "sem patrimônio físico", obtido %', coalesce(v_pend,'(null)'); end if;
+    v_ok := v_ok + 1; raise notice '✓ 8 estorno restaura sem ressuscitar "itens faltantes" (F18 §A2)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 8 pendencia: esperado "sem patrimônio físico", obtido %', coalesce(v_pend,'(null)'); end if;
 
-  raise notice '=== fim do roteiro pendencias_item (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM pendencias_item: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 rollback;

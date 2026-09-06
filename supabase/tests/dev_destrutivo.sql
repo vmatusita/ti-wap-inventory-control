@@ -1711,6 +1711,7 @@ begin
   else
     raise warning '✗ TOTAL dev_destrutivo: % falha(s) — %', v_falhas, v_msgs;
   end if;
+  raise notice 'FIM dev_destrutivo: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 select * from _dev_destrutivo_resumo;

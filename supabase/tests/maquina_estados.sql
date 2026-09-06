@@ -20,6 +20,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof     uuid;
   v_matriz   smallint;
   v_linhares smallint;
@@ -62,34 +64,34 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'compra', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
-  if v_status = 'em_estoque' then raise notice '✓ 1a compra -> em_estoque';
-  else raise warning '✗ 1a compra: esperado em_estoque, obtido %', v_status; end if;
+  if v_status = 'em_estoque' then v_ok := v_ok + 1; raise notice '✓ 1a compra -> em_estoque';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1a compra: esperado em_estoque, obtido %', v_status; end if;
 
   insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
     values (a, 'saida', 'Colaborador Teste', 'TI', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
-  if v_status = 'em_uso' and v_colab = 'Colaborador Teste' then raise notice '✓ 1b saida -> em_uso (colaborador setado)';
-  else raise warning '✗ 1b saida: esperado em_uso/Colaborador Teste, obtido %/%', v_status, v_colab; end if;
+  if v_status = 'em_uso' and v_colab = 'Colaborador Teste' then v_ok := v_ok + 1; raise notice '✓ 1b saida -> em_uso (colaborador setado)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1b saida: esperado em_uso/Colaborador Teste, obtido %/%', v_status, v_colab; end if;
 
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'devolucao', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
-  if v_status = 'em_estoque' and v_colab is null then raise notice '✓ 1c devolucao -> em_estoque (colaborador limpo, F34)';
-  else raise warning '✗ 1c devolucao: esperado em_estoque/null, obtido %/%', v_status, v_colab; end if;
+  if v_status = 'em_estoque' and v_colab is null then v_ok := v_ok + 1; raise notice '✓ 1c devolucao -> em_estoque (colaborador limpo, F34)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1c devolucao: esperado em_estoque/null, obtido %/%', v_status, v_colab; end if;
 
   -- F34: a triagem virou OPT-IN — precisa de um envio_triagem manual para o
   -- ativo chegar a em_triagem antes do triagem_ok (senão a transicao é invalida).
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'envio_triagem', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
-  if v_status = 'em_triagem' then raise notice '✓ 1c2 envio_triagem -> em_triagem (F34, opt-in)';
-  else raise warning '✗ 1c2 envio_triagem: esperado em_triagem, obtido %', v_status; end if;
+  if v_status = 'em_triagem' then v_ok := v_ok + 1; raise notice '✓ 1c2 envio_triagem -> em_triagem (F34, opt-in)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1c2 envio_triagem: esperado em_triagem, obtido %', v_status; end if;
 
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
     values (a, 'triagem_ok', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
-  if v_status = 'em_estoque' then raise notice '✓ 1d triagem_ok -> em_estoque';
-  else raise warning '✗ 1d triagem_ok: esperado em_estoque, obtido %', v_status; end if;
+  if v_status = 'em_estoque' then v_ok := v_ok + 1; raise notice '✓ 1d triagem_ok -> em_estoque';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1d triagem_ok: esperado em_estoque, obtido %', v_status; end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 2 — transicao invalida: saida de ativo em_uso DEVE falhar
@@ -102,12 +104,12 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
       values (b, 'saida', 'Outro Teste', v_matriz, v_prof);       -- invalido
-    raise warning '✗ 2 saida de em_uso: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2 saida de em_uso: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then
-      raise notice '✓ 2 saida de em_uso rejeitada: %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ 2 saida de em_uso rejeitada: %', sqlerrm;
     else
-      raise warning '✗ 2 falhou por motivo INESPERADO (nao a maquina de estados): %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ 2 falhou por motivo INESPERADO (nao a maquina de estados): %', sqlerrm;
     end if;
   end;
 
@@ -131,9 +133,9 @@ begin
   select status, colaborador_atual, setor_atual, filial_id
     into v_status, v_colab, v_setor, v_filial from public.ativos where id = c;
   if v_status = 'em_uso' and v_colab = 'Ciclano Teste' and v_setor = 'RH' and v_filial = v_matriz then
-    raise notice '✓ 3 estorno da transferencia restaurou status/colaborador/setor/filial';
+    v_ok := v_ok + 1; raise notice '✓ 3 estorno da transferencia restaurou status/colaborador/setor/filial';
   else
-    raise warning '✗ 3 estorno: esperado em_uso/Ciclano Teste/RH/matriz, obtido %/%/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ 3 estorno: esperado em_uso/Ciclano Teste/RH/matriz, obtido %/%/%/%',
       v_status, v_colab, v_setor, v_filial;
   end if;
 
@@ -155,12 +157,12 @@ begin
     begin
       insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
         values (d, 'estorno', v_matriz, v_prof, v_saida);               -- nao-ultima
-      raise warning '✗ 4 estorno de mov. antiga: NAO falhou (deveria)';
+      v_falhas := v_falhas + 1; raise warning '✗ 4 estorno de mov. antiga: NAO falhou (deveria)';
     exception when others then
       if sqlerrm like '%ultima movimentacao%' then
-        raise notice '✓ 4 estorno de mov. antiga rejeitado: %', sqlerrm;
+        v_ok := v_ok + 1; raise notice '✓ 4 estorno de mov. antiga rejeitado: %', sqlerrm;
       else
-        raise warning '✗ 4 falhou por motivo INESPERADO (nao a regra de estorno): %', sqlerrm;
+        v_falhas := v_falhas + 1; raise warning '✗ 4 falhou por motivo INESPERADO (nao a regra de estorno): %', sqlerrm;
       end if;
     end;
   end;
@@ -183,12 +185,12 @@ begin
     begin
       insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
         values (g, 'estorno', v_linhares, v_prof, v_saida_g);           -- nao-ultima (mesmo status!)
-      raise warning '✗ 4b estorno de saida nao-ultima (mesmo status): NAO falhou (deveria)';
+      v_falhas := v_falhas + 1; raise warning '✗ 4b estorno de saida nao-ultima (mesmo status): NAO falhou (deveria)';
     exception when others then
       if sqlerrm like '%ultima movimentacao%' then
-        raise notice '✓ 4b estorno de saida nao-ultima (saida->transferencia) rejeitado: %', sqlerrm;
+        v_ok := v_ok + 1; raise notice '✓ 4b estorno de saida nao-ultima (saida->transferencia) rejeitado: %', sqlerrm;
       else
-        raise warning '✗ 4b falhou por motivo INESPERADO: %', sqlerrm;
+        v_falhas := v_falhas + 1; raise warning '✗ 4b falhou por motivo INESPERADO: %', sqlerrm;
       end if;
     end;
   end;
@@ -216,11 +218,11 @@ begin
     values (e, 'devolucao', v_matriz, array['carregador','mochila'], v_prof);
   select pendencia into v_pend from public.ativos where id = e;
   if v_pend is null then
-    raise notice '✓ 5a devolucao com itens_faltantes NAO toca ativos.pendencia (F18)';
-  else raise warning '✗ 5a pendencia: esperado null (F18), obtido %', v_pend; end if;
+    v_ok := v_ok + 1; raise notice '✓ 5a devolucao com itens_faltantes NAO toca ativos.pendencia (F18)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5a pendencia: esperado null (F18), obtido %', v_pend; end if;
   select count(*) into v_cnt from public.pendencias_item where ativo_id = e and status = 'aberta';
-  if v_cnt = 2 then raise notice '✓ 5b devolucao criou 2 pendencias_item abertas (F18)';
-  else raise warning '✗ 5b esperado 2 pendencias_item abertas, obtido %', v_cnt; end if;
+  if v_cnt = 2 then v_ok := v_ok + 1; raise notice '✓ 5b devolucao criou 2 pendencias_item abertas (F18)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5b esperado 2 pendencias_item abertas, obtido %', v_cnt; end if;
   update public.ativos set pendencia = 'sem patrimônio físico' where id = e;  -- trecho alheio
   -- F34: envio_triagem manual antes do triagem_ok (a devolucao acima ja deixou o
   -- ativo em_estoque, nao em_triagem — ver nota do cabecalho deste cenario).
@@ -230,8 +232,8 @@ begin
     values (e, 'triagem_ok', v_matriz, v_prof);
   select pendencia into v_pend from public.ativos where id = e;
   if v_pend = 'sem patrimônio físico' then
-    raise notice '✓ 5c triagem_ok preserva o trecho alheio de pendencia (F18, bug §0.1b)';
-  else raise warning '✗ 5c pendencia: esperado "sem patrimônio físico" (F18), obtido %', coalesce(v_pend,'(null)'); end if;
+    v_ok := v_ok + 1; raise notice '✓ 5c triagem_ok preserva o trecho alheio de pendencia (F18, bug §0.1b)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5c pendencia: esperado "sem patrimônio físico" (F18), obtido %', coalesce(v_pend,'(null)'); end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 6 — transferencia muda filial_id e conta nas DUAS filiais
@@ -245,16 +247,16 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por)
     values (f, 'transferencia', date '2026-12-15', v_matriz, v_linhares, v_prof);
   select filial_id into v_filial from public.ativos where id = f;
-  if v_filial = v_linhares then raise notice '✓ 6a transferencia mudou filial_id p/ linhares';
-  else raise warning '✗ 6a filial: esperado linhares, obtido %', v_filial; end if;
+  if v_filial = v_linhares then v_ok := v_ok + 1; raise notice '✓ 6a transferencia mudou filial_id p/ linhares';
+  else v_falhas := v_falhas + 1; raise warning '✗ 6a filial: esperado linhares, obtido %', v_filial; end if;
   -- Consulta a VIEW real (o artefato entregue): a transferencia deve aparecer
   -- nas DUAS filiais (origem matriz + destino linhares) no mes isolado.
   select count(distinct filial) into v_cnt from public.v_movimentacoes_mes
     where mes = date '2026-12-01' and tipo = 'transferencia' and filial in ('matriz', 'linhares');
-  if v_cnt = 2 then raise notice '✓ 6b transferencia aparece nas 2 filiais em v_movimentacoes_mes';
-  else raise warning '✗ 6b esperado 2 filiais na view, obtido %', v_cnt; end if;
+  if v_cnt = 2 then v_ok := v_ok + 1; raise notice '✓ 6b transferencia aparece nas 2 filiais em v_movimentacoes_mes';
+  else v_falhas := v_falhas + 1; raise warning '✗ 6b esperado 2 filiais na view, obtido %', v_cnt; end if;
 
-  raise notice '=== fim do roteiro (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM maquina_estados: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 -- Nada acima e persistido:

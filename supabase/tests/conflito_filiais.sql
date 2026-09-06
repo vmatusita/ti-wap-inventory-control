@@ -633,6 +633,7 @@ begin
   -- ==========================================================================
   insert into _conflito_resumo values (v_ok, v_falhas,
     format('F24 conflito entre filiais — %s ok, %s falhas', v_ok, v_falhas));
+  raise notice 'FIM conflito_filiais: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end
 $$;
 

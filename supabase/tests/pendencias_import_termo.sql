@@ -23,6 +23,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_matriz smallint;
   p1 uuid; p2 uuid; p3 uuid; p4 uuid; p5 uuid;
   v_pend text;
@@ -42,10 +44,10 @@ begin
     returning id into p1;
   select exists(select 1 from public.v_pendencias where id = p1) into v_in;
   if not v_in then
-    raise notice '✓ P1 importado em_uso sem termo NÃO está em v_pendencias';
+    v_ok := v_ok + 1; raise notice '✓ P1 importado em_uso sem termo NÃO está em v_pendencias';
   else
     select pendencia into v_pend from public.v_pendencias where id = p1;
-    raise warning '✗ P1 importado em_uso apareceu em v_pendencias como "%"', v_pend;
+    v_falhas := v_falhas + 1; raise warning '✗ P1 importado em_uso apareceu em v_pendencias como "%"', v_pend;
   end if;
 
   -- ---------------------------------------------------------------
@@ -56,9 +58,9 @@ begin
     returning id into p2;
   select pendencia into v_pend from public.v_pendencias where id = p2;
   if v_pend = 'termo pendente' then
-    raise notice '✓ P2 cadastro em_uso sem termo = "termo pendente" (regra preservada)';
+    v_ok := v_ok + 1; raise notice '✓ P2 cadastro em_uso sem termo = "termo pendente" (regra preservada)';
   else
-    raise warning '✗ P2 cadastro em_uso: esperado "termo pendente", obtido %', coalesce(v_pend, '(fora da view)');
+    v_falhas := v_falhas + 1; raise warning '✗ P2 cadastro em_uso: esperado "termo pendente", obtido %', coalesce(v_pend, '(fora da view)');
   end if;
 
   -- ---------------------------------------------------------------
@@ -71,9 +73,9 @@ begin
     returning id into p3;
   select pendencia into v_pend from public.v_pendencias where id = p3;
   if v_pend = 'sem patrimônio físico' then
-    raise notice '✓ P3 importado c/ pendência livre reclassifica p/ "%" (não "termo pendente")', v_pend;
+    v_ok := v_ok + 1; raise notice '✓ P3 importado c/ pendência livre reclassifica p/ "%" (não "termo pendente")', v_pend;
   else
-    raise warning '✗ P3 importado c/ pendência livre: esperado "sem patrimônio físico", obtido %', coalesce(v_pend, '(fora da view)');
+    v_falhas := v_falhas + 1; raise warning '✗ P3 importado c/ pendência livre: esperado "sem patrimônio físico", obtido %', coalesce(v_pend, '(fora da view)');
   end if;
 
   -- ---------------------------------------------------------------
@@ -85,9 +87,9 @@ begin
     returning id into p4;
   select pendencia into v_pend from public.v_pendencias where id = p4;
   if v_pend = 'termo pendente' then
-    raise notice '✓ P4 inferido emprestado sem termo = "termo pendente" (escopo = só importacao)';
+    v_ok := v_ok + 1; raise notice '✓ P4 inferido emprestado sem termo = "termo pendente" (escopo = só importacao)';
   else
-    raise warning '✗ P4 inferido: esperado "termo pendente", obtido %', coalesce(v_pend, '(fora da view)');
+    v_falhas := v_falhas + 1; raise warning '✗ P4 inferido: esperado "termo pendente", obtido %', coalesce(v_pend, '(fora da view)');
   end if;
 
   -- ---------------------------------------------------------------
@@ -99,12 +101,12 @@ begin
     returning id into p5;
   select exists(select 1 from public.v_pendencias where id = p5) into v_in;
   if not v_in then
-    raise notice '✓ P5 importado com termo assinado não está em v_pendencias';
+    v_ok := v_ok + 1; raise notice '✓ P5 importado com termo assinado não está em v_pendencias';
   else
-    raise warning '✗ P5 importado com termo assinado apareceu em v_pendencias';
+    v_falhas := v_falhas + 1; raise warning '✗ P5 importado com termo assinado apareceu em v_pendencias';
   end if;
 
-  raise notice '=== fim do roteiro pendencias_import_termo (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM pendencias_import_termo: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 -- Nada acima é persistido:

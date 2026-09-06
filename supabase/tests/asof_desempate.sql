@@ -28,6 +28,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof   uuid;
   v_matriz smallint;
   a uuid;         -- ativo do cenário 1 (desempate)
@@ -84,10 +86,10 @@ begin
   select status into v_asof  from public.rel_estoque_asof(null, current_date) where ativo_id = a;
   select status into v_ativo from public.ativos where id = a;
   if v_asof = 'em_uso' and v_asof = v_ativo then
-    raise notice '✓ 1 desempate (0054): ajuste vence a compra no empate (data,created_at); as-of=% = ativos=%',
+    v_ok := v_ok + 1; raise notice '✓ 1 desempate (0054): ajuste vence a compra no empate (data,created_at); as-of=% = ativos=%',
       v_asof, v_ativo;
   else
-    raise warning '✗ 1 desempate: esperado em_uso (= ativos.status), obtido as-of=% ativos=%',
+    v_falhas := v_falhas + 1; raise warning '✗ 1 desempate: esperado em_uso (= ativos.status), obtido as-of=% ativos=%',
       coalesce(v_asof::text, '(fora da view)'), v_ativo;
   end if;
 
@@ -117,23 +119,23 @@ begin
   select status into v_cur from public.ativos where id = b;
 
   if v_d1 = 'em_uso' then
-    raise notice '✓ 2a as-of D1 (2026-06-10, antes do estorno) = em_uso';
+    v_ok := v_ok + 1; raise notice '✓ 2a as-of D1 (2026-06-10, antes do estorno) = em_uso';
   else
-    raise warning '✗ 2a as-of D1: esperado em_uso, obtido %', coalesce(v_d1::text, '(fora da view)');
+    v_falhas := v_falhas + 1; raise warning '✗ 2a as-of D1: esperado em_uso, obtido %', coalesce(v_d1::text, '(fora da view)');
   end if;
   if v_now = 'em_estoque' then
-    raise notice '✓ 2b as-of hoje (par saída+estorno anulado) = em_estoque';
+    v_ok := v_ok + 1; raise notice '✓ 2b as-of hoje (par saída+estorno anulado) = em_estoque';
   else
-    raise warning '✗ 2b as-of hoje: esperado em_estoque, obtido %', coalesce(v_now::text, '(fora da view)');
+    v_falhas := v_falhas + 1; raise warning '✗ 2b as-of hoje: esperado em_estoque, obtido %', coalesce(v_now::text, '(fora da view)');
   end if;
   if v_cur = 'em_estoque' and v_cur = v_now then
-    raise notice '✓ 2c estorno restaurou ativos.status=em_estoque, batendo com o as-of de hoje';
+    v_ok := v_ok + 1; raise notice '✓ 2c estorno restaurou ativos.status=em_estoque, batendo com o as-of de hoje';
   else
-    raise warning '✗ 2c ativos.status: esperado em_estoque (= as-of hoje), obtido ativos=% as-of=%',
+    v_falhas := v_falhas + 1; raise warning '✗ 2c ativos.status: esperado em_estoque (= as-of hoje), obtido ativos=% as-of=%',
       v_cur, coalesce(v_now::text, '(fora da view)');
   end if;
 
-  raise notice '=== fim do roteiro asof_desempate (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM asof_desempate: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 -- Nada acima é persistido:

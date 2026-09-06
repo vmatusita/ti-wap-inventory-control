@@ -1018,6 +1018,7 @@ begin
   else
     raise warning '✗ TOTAL f38_itens_com_ativo: % falha(s) — %', v_falhas, v_msgs;
   end if;
+  raise notice 'FIM f38_itens_com_ativo: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 select * from _f38_resumo;

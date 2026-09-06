@@ -735,6 +735,7 @@ begin
   else
     raise warning '✗ TOTAL cargo_dev: % falha(s) — %', v_falhas, v_msgs;
   end if;
+  raise notice 'FIM cargo_dev: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 select * from _cargo_dev_resumo;

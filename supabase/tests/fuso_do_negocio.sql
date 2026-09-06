@@ -20,6 +20,8 @@
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_tz        text;
   v_gravado   text;
   v_hoje_sql  date;
@@ -31,9 +33,9 @@ begin
   -- ---------------------------------------------------------------
   v_tz := current_setting('TimeZone');
   if v_tz = 'America/Sao_Paulo' then
-    raise notice '✓ 1. a sessão roda em America/Sao_Paulo (fuso do negócio)';
+    v_ok := v_ok + 1; raise notice '✓ 1. a sessão roda em America/Sao_Paulo (fuso do negócio)';
   else
-    raise warning '✗ 1. a sessão roda em % — esperado America/Sao_Paulo. A migration 0124 foi revertida ou este banco nasceu depois dela sem reaplicá-la.', v_tz;
+    v_falhas := v_falhas + 1; raise warning '✗ 1. a sessão roda em % — esperado America/Sao_Paulo. A migration 0124 foi revertida ou este banco nasceu depois dela sem reaplicá-la.', v_tz;
   end if;
 
   -- ---------------------------------------------------------------
@@ -47,9 +49,9 @@ begin
    limit 1;
 
   if coalesce(v_gravado, '') like '%TimeZone=America/Sao_Paulo%' then
-    raise notice '✓ 2. `alter database set timezone` está gravado no catálogo';
+    v_ok := v_ok + 1; raise notice '✓ 2. `alter database set timezone` está gravado no catálogo';
   else
-    raise warning '✗ 2. o banco NÃO tem TimeZone=America/Sao_Paulo gravado (setconfig = %). Uma sessão nova voltaria a UTC.', coalesce(v_gravado, '(nenhum)');
+    v_falhas := v_falhas + 1; raise warning '✗ 2. o banco NÃO tem TimeZone=America/Sao_Paulo gravado (setconfig = %). Uma sessão nova voltaria a UTC.', coalesce(v_gravado, '(nenhum)');
   end if;
 
   -- ---------------------------------------------------------------
@@ -63,9 +65,9 @@ begin
   v_hoje_sql := current_date;
   v_hoje_fn  := public.hoje_brt();
   if v_hoje_sql = v_hoje_fn then
-    raise notice '✓ 3. current_date (%) = hoje_brt() (%)', v_hoje_sql, v_hoje_fn;
+    v_ok := v_ok + 1; raise notice '✓ 3. current_date (%) = hoje_brt() (%)', v_hoje_sql, v_hoje_fn;
   else
-    raise warning '✗ 3. current_date (%) ≠ hoje_brt() (%) — o banco está fora do fuso do negócio', v_hoje_sql, v_hoje_fn;
+    v_falhas := v_falhas + 1; raise warning '✗ 3. current_date (%) ≠ hoje_brt() (%) — o banco está fora do fuso do negócio', v_hoje_sql, v_hoje_fn;
   end if;
 
   -- ---------------------------------------------------------------
@@ -77,9 +79,9 @@ begin
   -- resposta erra em 3 horas. É o que faz o roteiro reprovar de manhã também.
   v_meia_noite := current_date::timestamptz;
   if v_meia_noite = (current_date::text || ' 00:00:00-03')::timestamptz then
-    raise notice '✓ 4. date → timestamptz ancora em 00:00 de São Paulo (%)', v_meia_noite;
+    v_ok := v_ok + 1; raise notice '✓ 4. date → timestamptz ancora em 00:00 de São Paulo (%)', v_meia_noite;
   else
-    raise warning '✗ 4. date → timestamptz ancorou em % — deveria ser 00:00 -03', v_meia_noite;
+    v_falhas := v_falhas + 1; raise warning '✗ 4. date → timestamptz ancorou em % — deveria ser 00:00 -03', v_meia_noite;
   end if;
 
   -- ---------------------------------------------------------------
@@ -92,8 +94,9 @@ begin
        and pg_get_function_identity_arguments(p.oid) = ''
        and p.provolatile = 's'
   ) then
-    raise notice '✓ 5. public.hoje_brt() existe, sem argumentos e STABLE';
+    v_ok := v_ok + 1; raise notice '✓ 5. public.hoje_brt() existe, sem argumentos e STABLE';
   else
-    raise warning '✗ 5. public.hoje_brt() sumiu, ganhou argumento ou mudou de volatilidade';
+    v_falhas := v_falhas + 1; raise warning '✗ 5. public.hoje_brt() sumiu, ganhou argumento ou mudou de volatilidade';
   end if;
+  raise notice 'FIM fuso_do_negocio: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

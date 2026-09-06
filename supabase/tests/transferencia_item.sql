@@ -407,6 +407,7 @@ begin
   else
     raise warning '✗ TOTAL transferencia_item: % falha(s) — %', v_falhas, v_msgs;
   end if;
+  raise notice 'FIM transferencia_item: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 select * from _transf_resumo;

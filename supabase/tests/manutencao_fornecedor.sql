@@ -17,6 +17,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof     uuid;
   v_matriz   smallint;
   v_linhares smallint;
@@ -59,12 +61,12 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
       values (a, 'envio_manutencao', v_matriz, v_prof);
-    raise warning '✗ 1a envio_manutencao sem chamado_fornecedor: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 1a envio_manutencao sem chamado_fornecedor: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%chamado_fornecedor%' or sqlerrm like '%movimentacoes_chamado_fornecedor_envio%' then
-      raise notice '✓ 1a envio_manutencao sem chamado do fornecedor rejeitado: %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ 1a envio_manutencao sem chamado do fornecedor rejeitado: %', sqlerrm;
     else
-      raise warning '✗ 1a falhou por motivo INESPERADO (nao a check MN1): %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ 1a falhou por motivo INESPERADO (nao a check MN1): %', sqlerrm;
     end if;
   end;
 
@@ -75,9 +77,9 @@ begin
   select chamado_fornecedor into v_cf from public.movimentacoes
     where ativo_id = a and tipo = 'envio_manutencao';
   if v_status = 'em_manutencao' and v_cf = 'OS-FORN-4401' then
-    raise notice '✓ 1b envio_manutencao com chamado do fornecedor -> em_manutencao (campo gravado)';
+    v_ok := v_ok + 1; raise notice '✓ 1b envio_manutencao com chamado do fornecedor -> em_manutencao (campo gravado)';
   else
-    raise warning '✗ 1b esperado em_manutencao/OS-FORN-4401, obtido %/%', v_status, v_cf;
+    v_falhas := v_falhas + 1; raise warning '✗ 1b esperado em_manutencao/OS-FORN-4401, obtido %/%', v_status, v_cf;
   end if;
 
   -- ---------------------------------------------------------------
@@ -87,29 +89,29 @@ begin
     values (a, 'devolucao_fornecedor', v_matriz, 'OS-FORN-4401', v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'devolvido_fornecedor' then
-    raise notice '✓ 2a devolucao_fornecedor -> devolvido_fornecedor';
+    v_ok := v_ok + 1; raise notice '✓ 2a devolucao_fornecedor -> devolvido_fornecedor';
   else
-    raise warning '✗ 2a esperado devolvido_fornecedor, obtido %', v_status;
+    v_falhas := v_falhas + 1; raise warning '✗ 2a esperado devolvido_fornecedor, obtido %', v_status;
   end if;
 
   -- 2b. de devolvido_fornecedor: transferencia DEVE falhar
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por)
       values (a, 'transferencia', v_matriz, v_linhares, v_prof);
-    raise warning '✗ 2b transferencia de devolvido_fornecedor: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2b transferencia de devolvido_fornecedor: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2b transferencia de devolvido_fornecedor rejeitada';
-    else raise warning '✗ 2b falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2b transferencia de devolvido_fornecedor rejeitada';
+    else v_falhas := v_falhas + 1; raise warning '✗ 2b falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- 2c. de devolvido_fornecedor: saida DEVE falhar
   begin
     insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
       values (a, 'saida', 'Fulano Fic', v_matriz, v_prof);
-    raise warning '✗ 2c saida de devolvido_fornecedor: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2c saida de devolvido_fornecedor: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2c saida de devolvido_fornecedor rejeitada';
-    else raise warning '✗ 2c falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2c saida de devolvido_fornecedor rejeitada';
+    else v_falhas := v_falhas + 1; raise warning '✗ 2c falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- 2d. de devolvido_fornecedor: envio_manutencao DEVE falhar (mesmo COM chamado do fornecedor:
@@ -117,18 +119,18 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
       values (a, 'envio_manutencao', v_matriz, 'OS-FORN-X', v_prof);
-    raise warning '✗ 2d envio_manutencao de devolvido_fornecedor: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2d envio_manutencao de devolvido_fornecedor: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2d envio_manutencao de devolvido_fornecedor rejeitado';
-    else raise warning '✗ 2d falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2d envio_manutencao de devolvido_fornecedor rejeitado';
+    else v_falhas := v_falhas + 1; raise warning '✗ 2d falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- 2e. de devolvido_fornecedor: ajuste (valvula de escape) DEVE funcionar
   insert into public.movimentacoes (ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
     values (a, 'ajuste', v_matriz, 'em_manutencao', 'reabertura para reenvio (teste F14)', v_prof);
   select status into v_status from public.ativos where id = a;
-  if v_status = 'em_manutencao' then raise notice '✓ 2e ajuste tira de devolvido_fornecedor (valvula de escape)';
-  else raise warning '✗ 2e esperado em_manutencao apos ajuste, obtido %', v_status; end if;
+  if v_status = 'em_manutencao' then v_ok := v_ok + 1; raise notice '✓ 2e ajuste tira de devolvido_fornecedor (valvula de escape)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 2e esperado em_manutencao apos ajuste, obtido %', v_status; end if;
 
   -- 2f. devolucao_fornecedor de estado que NAO e em_manutencao DEVE falhar
   insert into public.ativos (patrimonio, categoria, filial_id)
@@ -139,10 +141,10 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
       values (b, 'devolucao_fornecedor', v_matriz, 'OS-FORN-Z', v_prof);
-    raise warning '✗ 2f devolucao_fornecedor de em_estoque: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2f devolucao_fornecedor de em_estoque: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2f devolucao_fornecedor de em_estoque rejeitada';
-    else raise warning '✗ 2f falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2f devolucao_fornecedor de em_estoque rejeitada';
+    else v_falhas := v_falhas + 1; raise warning '✗ 2f falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- ---------------------------------------------------------------
@@ -170,10 +172,10 @@ begin
     values (c, 'estorno', v_matriz, v_prof, v_dev_mov, timestamptz '2026-06-01 10:03:00+00');
   select status into v_status from public.ativos where id = c;
   select count(*) into v_cnt from public.ativos where id = v_sub;
-  if v_status = 'em_manutencao' then raise notice '✓ 3a estorno da devolucao_fornecedor restaurou em_manutencao';
-  else raise warning '✗ 3a esperado em_manutencao apos estorno, obtido %', v_status; end if;
-  if v_cnt = 1 then raise notice '✓ 3b substituto preservado apos o estorno (imutabilidade)';
-  else raise warning '✗ 3b substituto sumiu apos estorno (nao deveria)'; end if;
+  if v_status = 'em_manutencao' then v_ok := v_ok + 1; raise notice '✓ 3a estorno da devolucao_fornecedor restaurou em_manutencao';
+  else v_falhas := v_falhas + 1; raise warning '✗ 3a esperado em_manutencao apos estorno, obtido %', v_status; end if;
+  if v_cnt = 1 then v_ok := v_ok + 1; raise notice '✓ 3b substituto preservado apos o estorno (imutabilidade)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 3b substituto sumiu apos estorno (nao deveria)'; end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 4 (MN3/MN4) — RPC devolver_ao_fornecedor COM substituto
@@ -196,24 +198,24 @@ begin
       v_prof
     );
   select status into v_status from public.ativos where id = d;
-  if v_status = 'devolvido_fornecedor' then raise notice '✓ 4a antigo -> devolvido_fornecedor (via RPC)';
-  else raise warning '✗ 4a antigo esperado devolvido_fornecedor, obtido %', v_status; end if;
+  if v_status = 'devolvido_fornecedor' then v_ok := v_ok + 1; raise notice '✓ 4a antigo -> devolvido_fornecedor (via RPC)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4a antigo esperado devolvido_fornecedor, obtido %', v_status; end if;
 
   select status, substitui_ativo_id, fornecedor into v_status, c, v_forn
     from public.ativos where id = v_subid;
   if v_status = 'em_estoque' and c = d then
-    raise notice '✓ 4b substituto nasce em_estoque com substitui_ativo_id -> antigo';
-  else raise warning '✗ 4b substituto esperado em_estoque/vinculo=antigo, obtido %/%', v_status, c; end if;
-  if v_forn = 'Proprinter Fic' then raise notice '✓ 4c fornecedor do substituto HERDADO do antigo (%).', v_forn;
-  else raise warning '✗ 4c fornecedor esperado herdado "Proprinter Fic", obtido %', v_forn; end if;
+    v_ok := v_ok + 1; raise notice '✓ 4b substituto nasce em_estoque com substitui_ativo_id -> antigo';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4b substituto esperado em_estoque/vinculo=antigo, obtido %/%', v_status, c; end if;
+  if v_forn = 'Proprinter Fic' then v_ok := v_ok + 1; raise notice '✓ 4c fornecedor do substituto HERDADO do antigo (%).', v_forn;
+  else v_falhas := v_falhas + 1; raise warning '✗ 4c fornecedor esperado herdado "Proprinter Fic", obtido %', v_forn; end if;
   -- 4d: F15/0047 — o substituto nasce por `troca`, NÃO por `compra` (o equipamento chegou
   -- por substituição do fornecedor, não por compra). A movimentação existe e aparece nas
   -- Entradas do relatório, rotulada "Troca". Espelho da asserção C3.1 de troca.sql (que
   -- também exige count(`compra`)=0 para o substituto). Antes da F15 nascia `compra`; a 0047
   -- trocou o `tipo` na RPC devolver_ao_fornecedor e este roteiro (F14) ficou para trás.
   select count(*) into v_cnt from public.movimentacoes where id = v_submov and ativo_id = v_subid and tipo = 'troca';
-  if v_cnt = 1 then raise notice '✓ 4d troca do substituto registrada (aparece nas Entradas como "Troca")';
-  else raise warning '✗ 4d troca do substituto ausente (esperado tipo `troca` — F15/0047)'; end if;
+  if v_cnt = 1 then v_ok := v_ok + 1; raise notice '✓ 4d troca do substituto registrada (aparece nas Entradas como "Troca")';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4d troca do substituto ausente (esperado tipo `troca` — F15/0047)'; end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 5 (MN3) — colisao patrimonio+service_tag do substituto: ROLLBACK TOTAL
@@ -235,17 +237,17 @@ begin
       jsonb_build_object('patrimonio','TESTEF14DUP','service_tag','STDUP','categoria','monitor'),
       v_prof
     );
-    raise warning '✗ 5a colisao do substituto: RPC NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 5a colisao do substituto: RPC NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%duplicate key%' or sqlerrm like '%ativos_patrimonio_service_tag%' or sqlerrm like '%unique%' then
-      raise notice '✓ 5a colisao do substituto rejeitada: %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ 5a colisao do substituto rejeitada: %', sqlerrm;
     else
-      raise warning '✗ 5a falhou por motivo INESPERADO: %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ 5a falhou por motivo INESPERADO: %', sqlerrm;
     end if;
   end;
   select status into v_status from public.ativos where id = b;
-  if v_status = 'em_manutencao' then raise notice '✓ 5b rollback total: a devolucao NAO entrou (antigo segue em_manutencao)';
-  else raise warning '✗ 5b antigo deveria seguir em_manutencao apos rollback, obtido %', v_status; end if;
+  if v_status = 'em_manutencao' then v_ok := v_ok + 1; raise notice '✓ 5b rollback total: a devolucao NAO entrou (antigo segue em_manutencao)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5b antigo deveria seguir em_manutencao apos rollback, obtido %', v_status; end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 6 (MN3) — RPC SEM substituto (p_substituto null): so a devolucao
@@ -267,8 +269,8 @@ begin
     );
   select status into v_status from public.ativos where id = d;
   if v_status = 'devolvido_fornecedor' and v_mov is not null and v_subid is null and v_submov is null then
-    raise notice '✓ 6 sem substituto: so a devolucao entra (substituto null)';
-  else raise warning '✗ 6 esperado devolvido_fornecedor + substituto null, obtido %/sub=%', v_status, v_subid; end if;
+    v_ok := v_ok + 1; raise notice '✓ 6 sem substituto: so a devolucao entra (substituto null)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 6 esperado devolvido_fornecedor + substituto null, obtido %/sub=%', v_status, v_subid; end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 7 (achado da revisão adversarial) — devolucao_fornecedor ZERA o
@@ -299,18 +301,18 @@ begin
     values (a, 'ajuste', v_matriz, 'em_manutencao', 'forcar manutencao (teste F14)', v_prof);
   select colaborador_atual, setor_atual into v_cf, v_forn from public.ativos where id = a;
   if v_cf is null and v_forn is null then
-    raise notice '✓ 7a ajuste para em_manutencao (estado sem dono) ZERA o detentor (F36)';
-  else raise warning '✗ 7a ajuste para em_manutencao deveria zerar o detentor (F36), obtido %/%', v_cf, v_forn; end if;
+    v_ok := v_ok + 1; raise notice '✓ 7a ajuste para em_manutencao (estado sem dono) ZERA o detentor (F36)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 7a ajuste para em_manutencao deveria zerar o detentor (F36), obtido %/%', v_cf, v_forn; end if;
   -- precondição LEGADA de 7b, plantada à mão (ver a emenda acima)
   update public.ativos set colaborador_atual = 'Fulano Fic', setor_atual = 'TI' where id = a;
   insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
     values (a, 'devolucao_fornecedor', v_matriz, 'OS-FORN-7', v_prof);
   select colaborador_atual, setor_atual into v_cf, v_forn from public.ativos where id = a;
   if v_cf is null and v_forn is null then
-    raise notice '✓ 7b devolucao_fornecedor zera colaborador/setor (espelho de descartado)';
-  else raise warning '✗ 7b detentor nao zerado apos devolucao: %/%', v_cf, v_forn; end if;
+    v_ok := v_ok + 1; raise notice '✓ 7b devolucao_fornecedor zera colaborador/setor (espelho de descartado)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 7b detentor nao zerado apos devolucao: %/%', v_cf, v_forn; end if;
 
-  raise notice '=== fim do roteiro manutencao_fornecedor (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM manutencao_fornecedor: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 rollback;

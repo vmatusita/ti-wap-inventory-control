@@ -22,6 +22,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof     uuid;
   v_matriz   smallint;
   a uuid; b uuid; c uuid;              -- ids de ativos de teste
@@ -81,22 +83,22 @@ begin
     );
   select tipo into v_tipo from public.movimentacoes where id = v_submov;
   if v_tipo = 'troca' then
-    raise notice '✓ 1a substituto nasce por movimentação `troca` (não `compra`) — via RPC';
+    v_ok := v_ok + 1; raise notice '✓ 1a substituto nasce por movimentação `troca` (não `compra`) — via RPC';
   else
-    raise warning '✗ 1a esperado tipo `troca` na mov do substituto, obtido %', v_tipo;
+    v_falhas := v_falhas + 1; raise warning '✗ 1a esperado tipo `troca` na mov do substituto, obtido %', v_tipo;
   end if;
   select status into v_status from public.ativos where id = v_subid;
   if v_status = 'em_estoque' then
-    raise notice '✓ 1b substituto (nascido por troca) fica em_estoque';
+    v_ok := v_ok + 1; raise notice '✓ 1b substituto (nascido por troca) fica em_estoque';
   else
-    raise warning '✗ 1b substituto esperado em_estoque, obtido %', v_status;
+    v_falhas := v_falhas + 1; raise warning '✗ 1b substituto esperado em_estoque, obtido %', v_status;
   end if;
   -- nenhuma `compra` foi gravada para o substituto (só a `troca`)
   select count(*) into v_cnt from public.movimentacoes where ativo_id = v_subid and tipo = 'compra';
   if v_cnt = 0 then
-    raise notice '✓ 1c o substituto NÃO tem movimentação `compra` (só a `troca`)';
+    v_ok := v_ok + 1; raise notice '✓ 1c o substituto NÃO tem movimentação `compra` (só a `troca`)';
   else
-    raise warning '✗ 1c substituto tem % movimentação(ões) `compra` (deveria ser 0)', v_cnt;
+    v_falhas := v_falhas + 1; raise warning '✗ 1c substituto tem % movimentação(ões) `compra` (deveria ser 0)', v_cnt;
   end if;
 
   -- ---------------------------------------------------------------
@@ -110,9 +112,9 @@ begin
     values (b, 'troca', v_matriz, v_prof);
   select status into v_status from public.ativos where id = b;
   if v_status = 'em_estoque' then
-    raise notice '✓ 2a troca no nascimento (em_estoque -> em_estoque)';
+    v_ok := v_ok + 1; raise notice '✓ 2a troca no nascimento (em_estoque -> em_estoque)';
   else
-    raise warning '✗ 2a esperado em_estoque após troca de nascimento, obtido %', v_status;
+    v_falhas := v_falhas + 1; raise warning '✗ 2a esperado em_estoque após troca de nascimento, obtido %', v_status;
   end if;
 
   -- 2b. troca a partir de um estado que NÃO é em_estoque DEVE falhar (inalcançável fora do nascimento)
@@ -126,10 +128,10 @@ begin
   begin
     insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
       values (c, 'troca', v_matriz, v_prof);
-    raise warning '✗ 2b troca de em_uso: NAO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2b troca de em_uso: NAO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%invalida%' then raise notice '✓ 2b troca fora do nascimento (de em_uso) rejeitada';
-    else raise warning '✗ 2b falhou por motivo INESPERADO: %', sqlerrm; end if;
+    if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2b troca fora do nascimento (de em_uso) rejeitada';
+    else v_falhas := v_falhas + 1; raise warning '✗ 2b falhou por motivo INESPERADO: %', sqlerrm; end if;
   end;
 
   -- ---------------------------------------------------------------
@@ -146,9 +148,9 @@ begin
   select status into v_status from public.ativos where id = a;
   select count(*) into v_cnt from public.ativos where id = a;
   if v_status = 'em_estoque' and v_cnt = 1 then
-    raise notice '✓ 3 estorno da troca restaura o snapshot (em_estoque) sem apagar o ativo';
+    v_ok := v_ok + 1; raise notice '✓ 3 estorno da troca restaura o snapshot (em_estoque) sem apagar o ativo';
   else
-    raise warning '✗ 3 esperado em_estoque/ativo preservado após estorno da troca, obtido %/cnt=%', v_status, v_cnt;
+    v_falhas := v_falhas + 1; raise warning '✗ 3 esperado em_estoque/ativo preservado após estorno da troca, obtido %/cnt=%', v_status, v_cnt;
   end if;
 
   -- ---------------------------------------------------------------
@@ -159,27 +161,27 @@ begin
   select nullif(concat_ws('; ',
       case when 'WAP1' is null then 'sem patrimônio físico' end,
       case when nullif('ST1','') is null then 'sem service tag' end), '') into v_expr;
-  if v_expr is null then raise notice '✓ 4a com patrimônio e com ST -> sem pendência (null)';
-  else raise warning '✗ 4a esperado null, obtido %', v_expr; end if;
+  if v_expr is null then v_ok := v_ok + 1; raise notice '✓ 4a com patrimônio e com ST -> sem pendência (null)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4a esperado null, obtido %', v_expr; end if;
   -- 4b. com patrimônio, sem ST -> 'sem service tag'
   select nullif(concat_ws('; ',
       case when 'WAP2' is null then 'sem patrimônio físico' end,
       case when nullif('','') is null then 'sem service tag' end), '') into v_expr;
-  if v_expr = 'sem service tag' then raise notice '✓ 4b com patrimônio, sem ST -> ''sem service tag''';
-  else raise warning '✗ 4b esperado ''sem service tag'', obtido %', v_expr; end if;
+  if v_expr = 'sem service tag' then v_ok := v_ok + 1; raise notice '✓ 4b com patrimônio, sem ST -> ''sem service tag''';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4b esperado ''sem service tag'', obtido %', v_expr; end if;
   -- 4c. sem patrimônio, sem ST -> 'sem patrimônio físico; sem service tag'
   select nullif(concat_ws('; ',
       case when nullif('','') is null then 'sem patrimônio físico' end,
       case when nullif('','') is null then 'sem service tag' end), '') into v_expr;
   if v_expr = 'sem patrimônio físico; sem service tag' then
-    raise notice '✓ 4c sem patrimônio E sem ST -> ''sem patrimônio físico; sem service tag''';
-  else raise warning '✗ 4c esperado ''sem patrimônio físico; sem service tag'', obtido %', v_expr; end if;
+    v_ok := v_ok + 1; raise notice '✓ 4c sem patrimônio E sem ST -> ''sem patrimônio físico; sem service tag''';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4c esperado ''sem patrimônio físico; sem service tag'', obtido %', v_expr; end if;
   -- 4d. sem patrimônio, com ST -> 'sem patrimônio físico'
   select nullif(concat_ws('; ',
       case when nullif('','') is null then 'sem patrimônio físico' end,
       case when nullif('ST4','') is null then 'sem service tag' end), '') into v_expr;
-  if v_expr = 'sem patrimônio físico' then raise notice '✓ 4d sem patrimônio, com ST -> ''sem patrimônio físico''';
-  else raise warning '✗ 4d esperado ''sem patrimônio físico'', obtido %', v_expr; end if;
+  if v_expr = 'sem patrimônio físico' then v_ok := v_ok + 1; raise notice '✓ 4d sem patrimônio, com ST -> ''sem patrimônio físico''';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4d esperado ''sem patrimônio físico'', obtido %', v_expr; end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 5 (C1.2) — import end-to-end: ST vazia importa e nasce com pendência
@@ -209,15 +211,15 @@ begin
   select pendencia into v_pb from public.ativos where filial_id = v_ft and patrimonio = 'TESTEF15IB';
   select pendencia into v_pc from public.ativos where filial_id = v_ft and patrimonio is null;
 
-  if v_pa is null then raise notice '✓ 5a import com patrimônio E service tag -> sem pendência';
-  else raise warning '✗ 5a esperado sem pendência, obtido %', v_pa; end if;
-  if v_pb = 'sem service tag' then raise notice '✓ 5b import com patrimônio, sem ST -> ''sem service tag''';
-  else raise warning '✗ 5b esperado ''sem service tag'', obtido %', v_pb; end if;
+  if v_pa is null then v_ok := v_ok + 1; raise notice '✓ 5a import com patrimônio E service tag -> sem pendência';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5a esperado sem pendência, obtido %', v_pa; end if;
+  if v_pb = 'sem service tag' then v_ok := v_ok + 1; raise notice '✓ 5b import com patrimônio, sem ST -> ''sem service tag''';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5b esperado ''sem service tag'', obtido %', v_pb; end if;
   if v_pc = 'sem patrimônio físico; sem service tag' then
-    raise notice '✓ 5c import sem patrimônio E sem ST -> ''sem patrimônio físico; sem service tag''';
-  else raise warning '✗ 5c esperado ''sem patrimônio físico; sem service tag'', obtido %', v_pc; end if;
+    v_ok := v_ok + 1; raise notice '✓ 5c import sem patrimônio E sem ST -> ''sem patrimônio físico; sem service tag''';
+  else v_falhas := v_falhas + 1; raise warning '✗ 5c esperado ''sem patrimônio físico; sem service tag'', obtido %', v_pc; end if;
 
-  raise notice '=== fim do roteiro troca (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM troca: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 rollback;

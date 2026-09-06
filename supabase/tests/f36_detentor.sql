@@ -50,6 +50,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   k_dev    uuid := gen_random_uuid();
   v_matriz smallint;
   v_lin    smallint;
@@ -93,9 +95,9 @@ begin
     from unnest(enum_range(null::public.status_ativo)) s
    where public.status_tem_detentor(s);
   if v_obtido = (select array_agg(x order by x) from unnest(v_esperado) x) then
-    raise notice '✓ a1 status_tem_detentor é verdadeiro em exatamente %', array_to_string(v_obtido, ', ');
+    v_ok := v_ok + 1; raise notice '✓ a1 status_tem_detentor é verdadeiro em exatamente %', array_to_string(v_obtido, ', ');
   else
-    raise warning '✗ a1 esperado {em_estoque…} com dono = %, obtido %',
+    v_falhas := v_falhas + 1; raise warning '✗ a1 esperado {em_estoque…} com dono = %, obtido %',
       array_to_string(v_esperado, ', '), array_to_string(v_obtido, ', ');
   end if;
 
@@ -103,9 +105,9 @@ begin
     from unnest(enum_range(null::public.status_ativo)) s
    where public.status_tem_detentor(s) is null;
   if v_cnt = 0 then
-    raise notice '✓ a2 a função responde sim/não para TODO valor do enum (nenhum nulo)';
+    v_ok := v_ok + 1; raise notice '✓ a2 a função responde sim/não para TODO valor do enum (nenhum nulo)';
   else
-    raise warning '✗ a2 % valor(es) do enum status_ativo devolveram nulo', v_cnt;
+    v_falhas := v_falhas + 1; raise warning '✗ a2 % valor(es) do enum status_ativo devolveram nulo', v_cnt;
   end if;
 
   -- =============================================================
@@ -121,9 +123,9 @@ begin
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'em_estoque' and v_colab is null and v_setor is null then
-    raise notice '✓ b1 ajuste para em_estoque ZERA colaborador e setor (o furo principal da F36)';
+    v_ok := v_ok + 1; raise notice '✓ b1 ajuste para em_estoque ZERA colaborador e setor (o furo principal da F36)';
   else
-    raise warning '✗ b1 esperado em_estoque/null/null, obtido %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ b1 esperado em_estoque/null/null, obtido %/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
@@ -140,9 +142,9 @@ begin
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'emprestado' and v_colab = 'Ciclano Preservado' and v_setor = 'Financeiro' then
-    raise notice '✓ c1 ajuste para estado COM dono PRESERVA colaborador e setor';
+    v_ok := v_ok + 1; raise notice '✓ c1 ajuste para estado COM dono PRESERVA colaborador e setor';
   else
-    raise warning '✗ c1 esperado emprestado/Ciclano Preservado/Financeiro, obtido %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ c1 esperado emprestado/Ciclano Preservado/Financeiro, obtido %/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
@@ -161,9 +163,9 @@ begin
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'em_estoque' and v_colab is null and v_setor is null then
-    raise notice '✓ d1 retorno_manutencao volta ao estoque SEM o detentor legado';
+    v_ok := v_ok + 1; raise notice '✓ d1 retorno_manutencao volta ao estoque SEM o detentor legado';
   else
-    raise warning '✗ d1 esperado em_estoque/null/null, obtido %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ d1 esperado em_estoque/null/null, obtido %/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
@@ -180,9 +182,9 @@ begin
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'defasado' and v_colab is null and v_setor is null then
-    raise notice '✓ e1 marcar_defasado zera o detentor (defasado é estado SEM dono na F36)';
+    v_ok := v_ok + 1; raise notice '✓ e1 marcar_defasado zera o detentor (defasado é estado SEM dono na F36)';
   else
-    raise warning '✗ e1 esperado defasado/null/null, obtido %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ e1 esperado defasado/null/null, obtido %/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
@@ -199,9 +201,9 @@ begin
   select status, colaborador_atual, setor_atual, filial_id
     into v_status, v_colab, v_setor, v_filial from public.ativos where id = a;
   if v_status = 'em_uso' and v_colab = 'Fulano Viajante' and v_setor = 'Comercial' and v_filial = v_lin then
-    raise notice '✓ f1 transferencia mantém o estado E o detentor (só a filial muda)';
+    v_ok := v_ok + 1; raise notice '✓ f1 transferencia mantém o estado E o detentor (só a filial muda)';
   else
-    raise warning '✗ f1 esperado em_uso/Fulano Viajante/Comercial/linhares, obtido %/%/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ f1 esperado em_uso/Fulano Viajante/Comercial/linhares, obtido %/%/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)'), v_filial;
   end if;
 
@@ -227,9 +229,9 @@ begin
     values (a, 'devolucao', 'desligamento', v_matriz, k_dev, now() - interval '1 minute');         -- em_estoque, sem dono
   select colaborador_atual into v_colab from public.ativos where id = a;
   if v_colab is null then
-    raise notice '✓ g1 a devolucao zerou o detentor (precondicao do estorno)';
+    v_ok := v_ok + 1; raise notice '✓ g1 a devolucao zerou o detentor (precondicao do estorno)';
   else
-    raise warning '✗ g1 precondicao: esperado null apos devolucao, obtido %', v_colab;
+    v_falhas := v_falhas + 1; raise warning '✗ g1 precondicao: esperado null apos devolucao, obtido %', v_colab;
   end if;
   insert into public.movimentacoes (ativo_id, tipo, filial_id, estorno_de, criado_por)
     select a, 'estorno', v_matriz, m.id, k_dev
@@ -238,9 +240,9 @@ begin
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'em_uso' and v_colab = 'Fulano Estornado' and v_setor = 'RH' then
-    raise notice '✓ g2 o estorno DEVOLVE colaborador e setor (D2: desfazer desfaz de verdade)';
+    v_ok := v_ok + 1; raise notice '✓ g2 o estorno DEVOLVE colaborador e setor (D2: desfazer desfaz de verdade)';
   else
-    raise warning '✗ g2 esperado em_uso/Fulano Estornado/RH, obtido %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ g2 esperado em_uso/Fulano Estornado/RH, obtido %/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
@@ -255,9 +257,9 @@ begin
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'reservado' and v_colab = 'Ciclano Reservou' and v_setor = 'Compras' then
-    raise notice '✓ h1 reserva continua gravando colaborador e setor do payload';
+    v_ok := v_ok + 1; raise notice '✓ h1 reserva continua gravando colaborador e setor do payload';
   else
-    raise warning '✗ h1 esperado reservado/Ciclano Reservou/Compras, obtido %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ h1 esperado reservado/Ciclano Reservou/Compras, obtido %/%/%',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
@@ -265,9 +267,9 @@ begin
     values (a, 'emprestimo', 'Beltrano Pegou', 'Producao', v_matriz, k_dev);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
   if v_status = 'emprestado' and v_colab = 'Beltrano Pegou' then
-    raise notice '✓ h2 emprestimo continua trocando o detentor';
+    v_ok := v_ok + 1; raise notice '✓ h2 emprestimo continua trocando o detentor';
   else
-    raise warning '✗ h2 esperado emprestado/Beltrano Pegou, obtido %/%',
+    v_falhas := v_falhas + 1; raise warning '✗ h2 esperado emprestado/Beltrano Pegou, obtido %/%',
       v_status, coalesce(v_colab, '(null)');
   end if;
 
@@ -278,9 +280,9 @@ begin
   select count(*) into v_cnt from public.pendencias_item
    where ativo_id = a and resolvida_em is null and item = 'carregador';
   if v_status = 'em_estoque' and v_colab is null and v_setor is null and v_cnt = 1 then
-    raise notice '✓ h3 devolucao zera o detentor E continua abrindo a pendência de item (F18 intacta)';
+    v_ok := v_ok + 1; raise notice '✓ h3 devolucao zera o detentor E continua abrindo a pendência de item (F18 intacta)';
   else
-    raise warning '✗ h3 esperado em_estoque/null/null com 1 pendência, obtido %/%/% com %',
+    v_falhas := v_falhas + 1; raise warning '✗ h3 esperado em_estoque/null/null com 1 pendência, obtido %/%/% com %',
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)'), v_cnt;
   end if;
 
@@ -301,18 +303,18 @@ begin
   select r.status, r.colaborador, r.setor into v_status, v_colab, v_setor
     from public.rel_estoque_asof(v_matriz, current_date) r where r.ativo_id = a;
   if v_status = 'em_estoque' and v_colab is null and v_setor is null then
-    raise notice '✓ i1 a leitura as-of de HOJE concorda com o ao vivo (em_estoque, sem dono)';
+    v_ok := v_ok + 1; raise notice '✓ i1 a leitura as-of de HOJE concorda com o ao vivo (em_estoque, sem dono)';
   else
-    raise warning '✗ i1 as-of hoje: esperado em_estoque/null/null, obtido %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ i1 as-of hoje: esperado em_estoque/null/null, obtido %/%/%',
       coalesce(v_status::text, '(sem linha)'), coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
   select r.status, r.colaborador, r.setor into v_status, v_colab, v_setor
     from public.rel_estoque_asof(v_matriz, current_date - 5) r where r.ativo_id = a;
   if v_status = 'em_uso' and v_colab = 'Fulano AsOf' and v_setor = 'TI' then
-    raise notice '✓ i2 a leitura as-of ANTES do ajuste continua mostrando o período como ele foi';
+    v_ok := v_ok + 1; raise notice '✓ i2 a leitura as-of ANTES do ajuste continua mostrando o período como ele foi';
   else
-    raise warning '✗ i2 as-of -5d: esperado em_uso/Fulano AsOf/TI, obtido %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ i2 as-of -5d: esperado em_uso/Fulano AsOf/TI, obtido %/%/%',
       coalesce(v_status::text, '(sem linha)'), coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
@@ -329,9 +331,9 @@ begin
   reset role;
 
   if v_antes is null then
-    raise warning '✗ j1 a checagem detentor_em_estado_sem_dono não existe na RPC (migration 0110 aplicada?)';
+    v_falhas := v_falhas + 1; raise warning '✗ j1 a checagem detentor_em_estado_sem_dono não existe na RPC (migration 0110 aplicada?)';
   else
-    raise notice '✓ j1 a décima checagem existe e responde (total atual = %)', v_antes;
+    v_ok := v_ok + 1; raise notice '✓ j1 a décima checagem existe e responde (total atual = %)', v_antes;
   end if;
 
   insert into public.ativos (patrimonio, categoria, filial_id)
@@ -347,9 +349,9 @@ begin
   reset role;
 
   if v_depois = v_antes + 1 then
-    raise notice '✓ j2 a checagem contou o ativo sujo plantado à mão (% → %)', v_antes, v_depois;
+    v_ok := v_ok + 1; raise notice '✓ j2 a checagem contou o ativo sujo plantado à mão (% → %)', v_antes, v_depois;
   else
-    raise warning '✗ j2 esperado % + 1, obtido %', v_antes, coalesce(v_depois::text, '(null)');
+    v_falhas := v_falhas + 1; raise warning '✗ j2 esperado % + 1, obtido %', v_antes, coalesce(v_depois::text, '(null)');
   end if;
 
   insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
@@ -363,9 +365,9 @@ begin
   reset role;
 
   if v_depois = v_antes then
-    raise notice '✓ j3 uma movimentação qualquer limpa a sujeira e a checagem volta a % ', v_antes;
+    v_ok := v_ok + 1; raise notice '✓ j3 uma movimentação qualquer limpa a sujeira e a checagem volta a % ', v_antes;
   else
-    raise warning '✗ j3 esperado voltar a %, obtido %', v_antes, coalesce(v_depois::text, '(null)');
+    v_falhas := v_falhas + 1; raise warning '✗ j3 esperado voltar a %, obtido %', v_antes, coalesce(v_depois::text, '(null)');
   end if;
 
   -- =============================================================
@@ -392,13 +394,13 @@ begin
     from public.ativos where id = a;
   if v_status = 'defasado' and v_colab is null and v_setor is null
      and (v_j ->> 'detentor_zerado')::boolean is true then
-    raise notice '✓ k1 forçar para defasado zera o detentor E reporta detentor_zerado = true';
+    v_ok := v_ok + 1; raise notice '✓ k1 forçar para defasado zera o detentor E reporta detentor_zerado = true';
   else
-    raise warning '✗ k1 esperado defasado/null/null com detentor_zerado=true, obtido %/%/% e %',
+    v_falhas := v_falhas + 1; raise warning '✗ k1 esperado defasado/null/null com detentor_zerado=true, obtido %/%/% e %',
       coalesce(v_status::text, '(null)'), coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)'), v_j::text;
   end if;
 
-  raise notice '=== fim do roteiro f36_detentor (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM f36_detentor: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 rollback;
