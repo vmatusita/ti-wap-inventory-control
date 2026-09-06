@@ -1,0 +1,20 @@
+### PROVA 1 — o transform de JSX funciona SEM dependencia nova
+
+Teste descartavel src/lib/descartavel-jsx.test.tsx:
+import { describe, expect, it } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
+
+describe('descartável: o transform de JSX funciona sem plugin', () => {
+  it('renderiza <div>oi</div>', () => {
+    expect(renderToStaticMarkup(<div>oi</div>)).toBe('<div>oi</div>')
+  })
+})
+
+Com o include de HOJE ('src/**/*.test.ts') o arquivo NAO e coletado:
+  No test files found, exiting with code 1
+  include: src/**/*.test.ts, scripts/import/__tests__/**/*.test.ts
+
+Com include 'src/**/*.test.tsx' (config temporaria, mesma stack, zero plugin):
+  Test Files  1 passed (1) / Tests  1 passed (1)
+
+Conclusao: o esbuild do Vitest le "jsx": "react-jsx" do tsconfig.json e transforma JSX sozinho.

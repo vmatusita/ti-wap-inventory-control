@@ -1,0 +1,13 @@
+### LINHA DE BASE — v1.49.1, commit feb2ba0, 05/09/2026
+
+npm run lint       exit 0
+npm run test       exit 0   — Test Files 149 passed (149) / Tests 3556 passed (3556)
+npm run contraste  exit 0
+npm run build      exit 0
+npx tsc --noEmit   exit 0
+node scripts/verificar-actions-build.mjs  exit 0
+  [gate] chunks com Server Actions varridos: 22
+  [gate] VERDE — nenhum identificador registrado sem binding.
+
+Arquivos coletados pelo Vitest ANTES: 149 (docs/f45-evidencias/vitest-arquivos-antes.txt)
+Testes coletados pelo Vitest ANTES: 3556 (docs/f45-evidencias/vitest-testes-antes.txt)

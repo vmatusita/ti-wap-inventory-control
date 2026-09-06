@@ -1,0 +1,23 @@
+### PROVA 2 — a lógica de reprovação do runner (psql dublê, sem banco)
+
+Um roteiro só passa quando emite a linha FIM, conta mais de zero asserções
+e não marca nenhum ✗. Cada linha abaixo roda o runner de verdade.
+
+  OK   roteiro sadio passa                    saida=0
+  OK   abortou cedo (sem linha FIM) REPROVA   saida=1
+  OK   ✗ em WARNING REPROVA                 saida=1
+  OK   ✗ em NOTICE REPROVA (novo na F45)    saida=1
+  OK   ✗ citado em texto NÃO reprova       saida=0
+  OK   zero asserção REPROVA                saida=1
+  OK   erro de psql REPROVA                   saida=1
+
+### O loop pula os arquivos _*.sql
+  roteiros em supabase/tests/ (sem _*): 24
+  roteiros que o runner mandou ao psql: 24
+  vezes em que _asserts.sql foi tratado COMO roteiro: 0 (tem de ser 0)
+  OK   pulou _asserts.sql e rodou os 24
+
+### _asserts.sql é carregado ANTES do roteiro, na MESMA sessão
+  OK   psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/_asserts.sql -f supabase/tests/troca.sql
+
+TODOS OS CENÁRIOS PASSARAM
