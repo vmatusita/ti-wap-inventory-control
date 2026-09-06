@@ -1,0 +1,17 @@
+### O projeto `puro` não perdeu um arquivo sequer (critério 9)
+
+ANTES (v1.49.1, um include só): 149 arquivos, 3556 testes
+DEPOIS (v1.50.0, dois projetos): 153 arquivos, 3631 testes
+
+== arquivos que SAÍRAM do runner (tem de ser nenhum) ==
+  (nenhum acima = nada saiu)
+
+== arquivos que ENTRARAM ==
+  src/components/layout/aviso.test.tsx
+  src/components/layout/confirmacao-digitada.test.tsx
+  src/components/layout/pagina.test.tsx
+  src/lib/ci-passos.test.ts
+
+== por projeto ==
+  testes em `puro`:        3615
+  testes em `componentes`: 16

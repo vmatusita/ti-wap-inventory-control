@@ -455,6 +455,7 @@ begin
   else
     raise warning '✗ TOTAL f37_colaboradores_tipos: % falha(s) — %', v_falhas, v_msgs;
   end if;
+  raise notice 'FIM f37_colaboradores_tipos: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 select * from _f37_resumo;

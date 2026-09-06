@@ -36,6 +36,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof    uuid;
   v_matriz  smallint;
   v_item    smallint;   -- item A: acumula os lançamentos dos cenários 1–4, 6–11
@@ -44,7 +46,7 @@ declare
   v_saida   uuid;
   v_entrada uuid;
   r         record;
-  v_ok      boolean;
+  v_recusou      boolean;
 begin
   -- F38: perfil ATIVO e escolha DETERMINÍSTICA. O `limit 1` sem `order by` e sem
   -- filtro podia cair num perfil DESATIVADO (`papel_atual()` devolve null para ele
@@ -73,9 +75,9 @@ begin
   select total, estoque, atrelados, falta into r
     from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
   if r.total = 40 and r.estoque = 28 and r.atrelados = 12 and r.falta = 0 then
-    raise notice '✓ 1: entrada 40 + reserva 12 → total 40, estoque 28, atrelados 12, falta 0';
+    v_ok := v_ok + 1; raise notice '✓ 1: entrada 40 + reserva 12 → total 40, estoque 28, atrelados 12, falta 0';
   else
-    raise warning '✗ 1: esperava total/estoque/atrelados/falta 40/28/12/0, veio %/%/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ 1: esperava total/estoque/atrelados/falta 40/28/12/0, veio %/%/%/%',
       r.total, r.estoque, r.atrelados, r.falta;
   end if;
 
@@ -86,9 +88,9 @@ begin
   select total, estoque, atrelados into r
     from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
   if r.total = 40 and r.estoque = 23 and r.atrelados = 12 then
-    raise notice '✓ 2: saída 5 → estoque 28→23, atrelados intacto 12 (saída não consome reserva), total 40';
+    v_ok := v_ok + 1; raise notice '✓ 2: saída 5 → estoque 28→23, atrelados intacto 12 (saída não consome reserva), total 40';
   else
-    raise warning '✗ 2: esperava total/estoque/atrelados 40/23/12, veio %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ 2: esperava total/estoque/atrelados 40/23/12, veio %/%/%',
       r.total, r.estoque, r.atrelados;
   end if;
 
@@ -98,9 +100,9 @@ begin
   select total, estoque, atrelados into r
     from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
   if r.total = 40 and r.estoque = 26 and r.atrelados = 9 then
-    raise notice '✓ 3: devolução 3 (ch 1001) → atrelados 12→9, estoque 23→26, total 40';
+    v_ok := v_ok + 1; raise notice '✓ 3: devolução 3 (ch 1001) → atrelados 12→9, estoque 23→26, total 40';
   else
-    raise warning '✗ 3: esperava total/estoque/atrelados 40/26/9, veio %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ 3: esperava total/estoque/atrelados 40/26/9, veio %/%/%',
       r.total, r.estoque, r.atrelados;
   end if;
 
@@ -110,9 +112,9 @@ begin
   select total, estoque, atrelados into r
     from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
   if r.total = 40 and r.estoque = 28 and r.atrelados = 9 then
-    raise notice '✓ 4: retorno 2 → liberados 5→3, estoque 26→28, total intacto 40';
+    v_ok := v_ok + 1; raise notice '✓ 4: retorno 2 → liberados 5→3, estoque 26→28, total intacto 40';
   else
-    raise warning '✗ 4: esperava total/estoque/atrelados 40/28/9, veio %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ 4: esperava total/estoque/atrelados 40/28/9, veio %/%/%',
       r.total, r.estoque, r.atrelados;
   end if;
 
@@ -128,62 +130,62 @@ begin
   select total, estoque, atrelados, falta into r
     from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item2;
   if r.total = 10 and r.estoque = 2 and r.atrelados = 8 and r.falta = 0 then
-    raise notice '✓ 5: entrada 10 + atrelar 8 → estoque 2, atrelados 8, falta 0 (atrelar não acende falta)';
+    v_ok := v_ok + 1; raise notice '✓ 5: entrada 10 + atrelar 8 → estoque 2, atrelados 8, falta 0 (atrelar não acende falta)';
   else
-    raise warning '✗ 5: esperava total/estoque/atrelados/falta 10/2/8/0, veio %/%/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ 5: esperava total/estoque/atrelados/falta 10/2/8/0, veio %/%/%/%',
       r.total, r.estoque, r.atrelados, r.falta;
   end if;
 
   -- CENARIO 6 — estoque negativo BLOQUEADO pelo trigger (item A: estoque 28).
-  v_ok := false;
+  v_recusou := false;
   begin
     insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
       values (v_item, v_matriz, 'saida', 100, '2026-06-16', v_prof);
-  exception when others then v_ok := true;
+  exception when others then v_recusou := true;
   end;
-  if v_ok then raise notice '✓ 6: saída 100 (estoque 28) rejeitada (estoque negativo)';
-  else raise warning '✗ 6: saída que estoura o estoque NÃO foi bloqueada'; end if;
+  if v_recusou then v_ok := v_ok + 1; raise notice '✓ 6: saída 100 (estoque 28) rejeitada (estoque negativo)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 6: saída que estoura o estoque NÃO foi bloqueada'; end if;
 
   -- CENARIO 7 — ajuste sem observação REJEITADO (constraint lanc_item_ajuste_obs).
   -- O ajuste -1 passa no trigger (total 39, estoque 27); a constraint é que barra.
-  v_ok := false;
+  v_recusou := false;
   begin
     insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
       values (v_item, v_matriz, 'ajuste', -1, '2026-06-16', v_prof);
-  exception when others then v_ok := true;
+  exception when others then v_recusou := true;
   end;
-  if v_ok then raise notice '✓ 7: ajuste sem observação rejeitado';
-  else raise warning '✗ 7: ajuste sem observação NÃO foi bloqueado'; end if;
+  if v_recusou then v_ok := v_ok + 1; raise notice '✓ 7: ajuste sem observação rejeitado';
+  else v_falhas := v_falhas + 1; raise warning '✗ 7: ajuste sem observação NÃO foi bloqueado'; end if;
 
   -- CENARIO 8 — devolução (liberacao) além do atrelado aberto do chamado REJEITADA
   -- (ch 1001 tem só 9 atrelados: reserva 12 − devolução 3).
-  v_ok := false;
+  v_recusou := false;
   begin
     insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
       values (v_item, v_matriz, 'liberacao', 50, '1001', '2026-06-17', v_prof);
-  exception when others then v_ok := true;
+  exception when others then v_recusou := true;
   end;
-  if v_ok then raise notice '✓ 8: devolução 50 > atrelado aberto (9) do chamado rejeitada';
-  else raise warning '✗ 8: devolução além do atrelado NÃO foi bloqueada'; end if;
+  if v_recusou then v_ok := v_ok + 1; raise notice '✓ 8: devolução 50 > atrelado aberto (9) do chamado rejeitada';
+  else v_falhas := v_falhas + 1; raise warning '✗ 8: devolução além do atrelado NÃO foi bloqueada'; end if;
 
   -- CENARIO 9 — retorno além do liberado em aberto REJEITADO (guard novo da 0027).
   -- Liberado em aberto do item A = Σsaida − Σretorno = 5 − 2 = 3.
-  v_ok := false;
+  v_recusou := false;
   begin
     insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
       values (v_item, v_matriz, 'retorno', 50, '2026-06-17', v_prof);
-  exception when others then v_ok := true;
+  exception when others then v_recusou := true;
   end;
-  if v_ok then raise notice '✓ 9: retorno 50 > liberado em aberto (3) rejeitado';
-  else raise warning '✗ 9: retorno além do liberado NÃO foi bloqueado'; end if;
+  if v_recusou then v_ok := v_ok + 1; raise notice '✓ 9: retorno 50 > liberado em aberto (3) rejeitado';
+  else v_falhas := v_falhas + 1; raise warning '✗ 9: retorno além do liberado NÃO foi bloqueado'; end if;
 
   -- CENARIO 10 — AS-OF de itens: em 06/06 só a entrada e a reserva contam.
   select total, estoque, atrelados into r
     from public.rel_saldo_itens(v_matriz, '2026-06-06') where item_id = v_item;
   if r.total = 40 and r.estoque = 28 and r.atrelados = 12 then
-    raise notice '✓ 10: as-of 06/06 → total 40, estoque 28, atrelados 12 (saídas/devoluções/retornos posteriores ignorados)';
+    v_ok := v_ok + 1; raise notice '✓ 10: as-of 06/06 → total 40, estoque 28, atrelados 12 (saídas/devoluções/retornos posteriores ignorados)';
   else
-    raise warning '✗ 10: esperava total/estoque/atrelados 40/28/12 as-of, veio %/%/%',
+    v_falhas := v_falhas + 1; raise warning '✗ 10: esperava total/estoque/atrelados 40/28/12 as-of, veio %/%/%',
       r.total, r.estoque, r.atrelados;
   end if;
 
@@ -194,7 +196,7 @@ begin
   select total, estoque into r
     from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
   if r.total <> 50 or r.estoque <> 38 then
-    raise warning '✗ 11a: após entrada 10 esperava total/estoque 50/38, veio %/%', r.total, r.estoque;
+    v_falhas := v_falhas + 1; raise warning '✗ 11a: após entrada 10 esperava total/estoque 50/38, veio %/%', r.total, r.estoque;
   end if;
   -- estorna a entrada de 10 com um ajuste −10 vinculado (inverso; exige observação).
   insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, observacao, data, criado_por, estorna_id)
@@ -203,9 +205,9 @@ begin
   select total, estoque into r
     from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
   if r.total = 40 and r.estoque = 28 then
-    raise notice '✓ 11: entrada 10 + estorno (ajuste −10 vinculado) → total volta a 40, estoque a 28';
+    v_ok := v_ok + 1; raise notice '✓ 11: entrada 10 + estorno (ajuste −10 vinculado) → total volta a 40, estoque a 28';
   else
-    raise warning '✗ 11: esperava total/estoque 40/28 após estorno, veio %/%', r.total, r.estoque;
+    v_falhas := v_falhas + 1; raise warning '✗ 11: esperava total/estoque 40/28 após estorno, veio %/%', r.total, r.estoque;
   end if;
 
   -- CENARIO 12 — AS-OF de ATIVOS com estorno no meio do período.
@@ -225,9 +227,9 @@ begin
   -- as-of 12/06 (depois da saída, antes do estorno) → em_uso
   select status into r from public.rel_estoque_asof(v_matriz, '2026-06-12') where ativo_id = v_ativo;
   if r.status = 'em_uso' then
-    raise notice '✓ 12a: as-of 12/06 (após saída) → em_uso';
+    v_ok := v_ok + 1; raise notice '✓ 12a: as-of 12/06 (após saída) → em_uso';
   else
-    raise warning '✗ 12a: esperava em_uso, veio %', r.status;
+    v_falhas := v_falhas + 1; raise warning '✗ 12a: esperava em_uso, veio %', r.status;
   end if;
   -- estorno da saída em 20/06
   insert into public.movimentacoes (ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
@@ -235,19 +237,19 @@ begin
   -- as-of 30/06 (após o estorno): saída+estorno se anulam; sobra a compra → em_estoque
   select status into r from public.rel_estoque_asof(v_matriz, '2026-06-30') where ativo_id = v_ativo;
   if r.status = 'em_estoque' then
-    raise notice '✓ 12b: as-of 30/06 (após estorno) → o par se anula, sobra a compra → em_estoque';
+    v_ok := v_ok + 1; raise notice '✓ 12b: as-of 30/06 (após estorno) → o par se anula, sobra a compra → em_estoque';
   else
-    raise warning '✗ 12b: esperava em_estoque, veio %', r.status;
+    v_falhas := v_falhas + 1; raise warning '✗ 12b: esperava em_estoque, veio %', r.status;
   end if;
   -- as-of 12/06 continua em_uso (o estorno é posterior — não conta as-of)
   select status into r from public.rel_estoque_asof(v_matriz, '2026-06-12') where ativo_id = v_ativo;
   if r.status = 'em_uso' then
-    raise notice '✓ 12c: as-of 12/06 segue em_uso (estorno de 20/06 é futuro p/ essa data)';
+    v_ok := v_ok + 1; raise notice '✓ 12c: as-of 12/06 segue em_uso (estorno de 20/06 é futuro p/ essa data)';
   else
-    raise warning '✗ 12c: esperava em_uso as-of 12/06, veio %', r.status;
+    v_falhas := v_falhas + 1; raise warning '✗ 12c: esperava em_uso as-of 12/06, veio %', r.status;
   end if;
 
-  raise notice '=== fim do roteiro de itens/as-of (ROLLBACK — nada gravado) ===';
+  raise notice 'FIM itens_quantidade: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 rollback;

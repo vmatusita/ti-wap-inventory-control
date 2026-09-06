@@ -198,6 +198,7 @@ begin
 
   -- =========================================================================
   raise notice '— reabrir_pendencia_item: % ok, % falha(s)', v_ok, v_falhas;
+  raise notice 'FIM reabrir_pendencia_item: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 rollback;

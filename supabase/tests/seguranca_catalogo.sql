@@ -25,6 +25,8 @@
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_sig    text;
   v_auth   boolean;
   v_anon   boolean;
@@ -46,15 +48,15 @@ begin
   ]
   loop
     if to_regprocedure(v_sig) is null then
-      raise warning '✗ 1 RPC de escrita não encontrada no catálogo: %', v_sig;
+      v_falhas := v_falhas + 1; raise warning '✗ 1 RPC de escrita não encontrada no catálogo: %', v_sig;
     else
       v_auth := has_function_privilege('authenticated', to_regprocedure(v_sig)::oid, 'execute');
       v_anon := has_function_privilege('anon',          to_regprocedure(v_sig)::oid, 'execute');
       v_svc  := has_function_privilege('service_role',  to_regprocedure(v_sig)::oid, 'execute');
       if v_auth and not v_anon and not v_svc then
-        raise notice '✓ 1 % é authenticated-only (anon e service_role SEM EXECUTE)', v_sig;
+        v_ok := v_ok + 1; raise notice '✓ 1 % é authenticated-only (anon e service_role SEM EXECUTE)', v_sig;
       else
-        raise warning '✗ 1 % grants errados: authenticated=% (esp. t), anon=% (esp. f), service_role=% (esp. f)',
+        v_falhas := v_falhas + 1; raise warning '✗ 1 % grants errados: authenticated=% (esp. t), anon=% (esp. f), service_role=% (esp. f)',
           v_sig, v_auth, v_anon, v_svc;
       end if;
     end if;
@@ -73,9 +75,9 @@ begin
     and left(c.relname, 1) <> '_'
     and c.relrowsecurity = false;
   if v_cnt = 0 then
-    raise notice '✓ 2 RLS ligada em todas as tabelas public (nenhuma sem RLS)';
+    v_ok := v_ok + 1; raise notice '✓ 2 RLS ligada em todas as tabelas public (nenhuma sem RLS)';
   else
-    raise warning '✗ 2 % tabela(s) public SEM RLS: %', v_cnt, v_lista;
+    v_falhas := v_falhas + 1; raise warning '✗ 2 % tabela(s) public SEM RLS: %', v_cnt, v_lista;
   end if;
 
   -- ---------------------------------------------------------------
@@ -91,9 +93,9 @@ begin
     and c.relkind = 'v'
     and not (coalesce(array_to_string(c.reloptions, ','), '') like '%security_invoker=true%');
   if v_cnt = 0 then
-    raise notice '✓ 3 todas as views public têm security_invoker=true';
+    v_ok := v_ok + 1; raise notice '✓ 3 todas as views public têm security_invoker=true';
   else
-    raise warning '✗ 3 % view(s) public SEM security_invoker=true: %', v_cnt, v_lista;
+    v_falhas := v_falhas + 1; raise warning '✗ 3 % view(s) public SEM security_invoker=true: %', v_cnt, v_lista;
   end if;
 
   -- ---------------------------------------------------------------
@@ -114,11 +116,11 @@ begin
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname = v_sig;
     if v_auth is null then
-      raise warning '✗ 4 função-gatilho ausente no catálogo: %', v_sig;
+      v_falhas := v_falhas + 1; raise warning '✗ 4 função-gatilho ausente no catálogo: %', v_sig;
     elsif v_auth = false then
-      raise notice '✓ 4 % (security_definer=%): EXECUTE revogado de authenticated e anon', v_sig, v_secdef;
+      v_ok := v_ok + 1; raise notice '✓ 4 % (security_definer=%): EXECUTE revogado de authenticated e anon', v_sig, v_secdef;
     else
-      raise warning '✗ 4 % executável por authenticated/anon (R-ACC-12/0038: deveria estar revogado)', v_sig;
+      v_falhas := v_falhas + 1; raise warning '✗ 4 % executável por authenticated/anon (R-ACC-12/0038: deveria estar revogado)', v_sig;
     end if;
   end loop;
 
@@ -128,12 +130,12 @@ begin
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname = 'valida_lancamento_item';
   if v_secdef is null then
-    raise warning '✗ 4c função-gatilho ausente no catálogo: valida_lancamento_item';
+    v_falhas := v_falhas + 1; raise warning '✗ 4c função-gatilho ausente no catálogo: valida_lancamento_item';
   elsif v_secdef then
-    raise notice '✓ 4c valida_lancamento_item é SECURITY INVOKER (não é vetor; 0038 revoga só as DEFINER)';
+    v_ok := v_ok + 1; raise notice '✓ 4c valida_lancamento_item é SECURITY INVOKER (não é vetor; 0038 revoga só as DEFINER)';
   else
-    raise warning '✗ 4c valida_lancamento_item virou SECURITY DEFINER sem revoke de EXECUTE — revise R-ACC-12/0038';
+    v_falhas := v_falhas + 1; raise warning '✗ 4c valida_lancamento_item virou SECURITY DEFINER sem revoke de EXECUTE — revise R-ACC-12/0038';
   end if;
 
-  raise notice '=== fim do roteiro seguranca_catalogo (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM seguranca_catalogo: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

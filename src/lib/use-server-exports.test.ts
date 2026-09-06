@@ -181,7 +181,10 @@ function varrerTs(dir: string): string[] {
     const caminho = join(dir, entrada.name)
     if (entrada.isDirectory()) {
       achados.push(...varrerTs(caminho))
-    } else if (/\.tsx?$/.test(entrada.name)) {
+      // F45: teste de render (`*.test.tsx`) não é módulo de produção — varredura
+      // de código não o cobra. Mesmo corte que `fronteira-rsc.test.ts` já fazia
+      // desde a F32; a ata está em docs/DECISOES.md (2026-09-05 · F45).
+    } else if (/\.tsx?$/.test(entrada.name) && !/\.test\.tsx$/.test(entrada.name)) {
       achados.push(caminho)
     }
   }

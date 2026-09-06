@@ -96,6 +96,10 @@ function fontesDeSrc(): { arquivo: string; texto: string }[] {
         continue
       }
       if (!nome.endsWith('.ts') && !nome.endsWith('.tsx')) continue
+      // F45: teste de render (`*.test.tsx`) não é tela nem componente de produção —
+      // varredura de código não o cobra. Mesmo corte que `fronteira-rsc.test.ts` já
+      // fazia desde a F32; a ata está em docs/DECISOES.md (2026-09-05 · F45).
+      if (nome.endsWith('.test.tsx')) continue
       achadas.push({
         arquivo: relative(RAIZ, caminho).split(sep).join('/'),
         texto: semComentarios(readFileSync(caminho, 'utf8')),

@@ -6,6 +6,24 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 05/09/2026 — F45 · O portão do CI fecha, e o teste de componente ganha piso ✅ 🔒
+
+Fase (**v1.50.0**). A raiz do plano de preparação multiempresa ([`docs/PLANO-MULTIEMPRESA.md`](docs/PLANO-MULTIEMPRESA.md)): o plano deixa cerca de trinta travas anti-reincidência espalhadas pelas fases seguintes, e **todas valiam zero**, porque o CI podia marcar ✗ e a publicação acontecia igual. Uma trava que informa não é trava — é documentação do vazamento depois que ele foi ao ar. **Sem migration, sem dependência nova, sem refatorar componente nenhum.** A última migration continua sendo a `0127`.
+
+- 🚧 **O portão em si — `verificar` e `banco` como *required status checks* — ficou PENDENTE.** É configuração fora do repositório, e o `gh` (GitHub CLI) não está instalado nesta máquina: a credencial de administrador é o insumo físico que o modo autônomo não fabrica. O comando pronto e o passo a passo do painel estão em [`docs/RELATORIO-F45.md`](docs/RELATORIO-F45.md) §8. **Tudo o que o portão vai barrar, porém, já está no lugar e provado** — é o resto desta lista.
+- 🔒 **Dois pushes seguidos na `main` não publicam mais um commit sem CI.** `cancel-in-progress` valia para push e para PR; o segundo push cancelava o CI do primeiro e o commit do meio ia ao ar sem validação nenhuma. Agora o cancelamento vale **só em PR**, onde é economia legítima.
+- 🧪 **Roteiro de banco que aborta no meio deixou de passar verde.** O gate era um `grep` por ✗, e quem morre na terceira asserção não emite ✗ nenhum. Os **25 roteiros** de `supabase/tests/` agora terminam com `FIM <nome>: N asserções, M falhas` — última instrução do bloco, de propósito —, e o runner reprova quem não a emite, quem conta zero asserção, e o ✗ em `NOTICE` além do `WARNING`.
+- 🔢 **Quinze roteiros não contavam asserção nenhuma — não treze.** O diagnóstico da ordem listava 13; `dominios_login` e `itens_quantidade` também não contavam, e escaparam porque têm uma variável `v_ok` **booleana** ("deu certo?") que um `grep` confunde com contador. Os quinze ganharam `v_ok`/`v_falhas`, por transformação determinística — 371 linhas alteradas que voltam **exatamente** ao original quando se remove só o incremento.
+- 🧰 **`supabase/tests/_asserts.sql` e a asserção que recusa conjunto vazio.** `pg_temp.assert_zero_de(rótulo, ruins, universo)` levanta exceção quando o universo é vazio — o repositório tem dezenas de asserções da forma `if v_n = 0 then ✓` que passam sobre nada, e roteiro tautológico é pior que roteiro nenhum. O roteiro `asserts_ferramenta.sql` prova a recusa; o runner carrega o arquivo **antes** do `begin` de cada roteiro, na mesma sessão, porque função criada dentro da transação some no `rollback`.
+- 🖥️ **`npm run db:test` roda na mesa o MESMO script que o CI roda.** O loop vivia dentro do YAML — local e CI divergiam por construção. Agora os dois chamam [`scripts/db/rodar-roteiros.sh`](scripts/db/rodar-roteiros.sh), e `npm run db:test:um supabase/tests/troca.sql` roda um só.
+- 🎯 **O gate de artefato da F13 voltou a rodar.** `scripts/verificar-actions-build.mjs` — o que existe por causa das ~20 horas em que todas as Server Actions ficaram fora do ar — não estava no `package.json` nem no CI desde que foi escrito. Virou `npm run verificar:actions` e entrou no job `verificar`, **depois** do build (ele lê o artefato).
+- 🧱 **O piso de teste de componente, grau 1, sem dependência nova.** `vitest.config.mts` virou dois projetos (`puro` e `componentes`); o render é `renderToStaticMarkup` de `react-dom/server`, que já era dependência. Três sementes, 16 asserções: o papel de acessibilidade por variante do `Aviso`, o `aria-describedby` do `ConfirmacaoDigitada` apontando para um `id` **que existe**, e o `<h1>` do `CabecalhoDaPagina`. O projeto `puro` continua coletando exatamente os mesmos 149 arquivos de antes.
+- 🔐 **A trava:** [`src/lib/ci-passos.test.ts`](src/lib/ci-passos.test.ts), 56 asserções que leem o YAML como texto e cobram que os passos existam, que os scripts existam no `package.json`, que o cancelamento não volte para push, que o loop não volte para dentro do YAML, que os 25 roteiros sigam o molde do `FIM` — e que **todo** `*.test.ts(x)` do repositório esteja coberto por algum projeto do Vitest. Esta última fecha o buraco em que teste escrito em `scripts/design/` ou `scripts/termos/` nunca rodava e ninguém ficava sabendo.
+
+Evidências em [`docs/f45-evidencias/`](docs/f45-evidencias/), plano em [`docs/PLAN-F45.md`](docs/PLAN-F45.md), relatório em [`docs/RELATORIO-F45.md`](docs/RELATORIO-F45.md), decisões em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+---
+
 ## 01/09/2026 — Revisão de código da F44 ✅ 🔒
 
 Entrega avulsa (**v1.49.1**). Passada de revisão sobre tudo o que a F44 mudou (`git diff 25a8b3c..HEAD`), com os achados corrigidos na mesma janela. **Sem migration, sem dependência nova, sem mudar rota, permissão ou o nome dos cinco números.**

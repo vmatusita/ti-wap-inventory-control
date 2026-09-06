@@ -11,3 +11,12 @@
 *.ico  binary
 *.woff  binary
 *.woff2 binary
+
+# POR QUE ISTO IMPORTA (F45, 05/09/2026) — o motivo, que faltava escrito.
+# O desenvolvimento é Windows e o CI/Vercel é Linux. Sem `eol=lf` no repositório,
+# o mesmo arquivo tem dois conteúdos: um `.sh` com CRLF não roda no runner
+# (`bash: \r: command not found`), toda comparação de conteúdo entre as duas
+# máquinas acusa deriva que não existe, e o diff de qualquer arquivo tocado no
+# Windows vira "o arquivo inteiro mudou". A partir da F45 há um script de shell
+# no caminho crítico do CI (`scripts/db/rodar-roteiros.sh`) e uma comparação
+# TS↔SQL em vários testes — as duas coisas dependem desta linha.

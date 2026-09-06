@@ -751,6 +751,7 @@ begin
   else
     raise warning '✗ TOTAL f41_regularizacao: % falha(s) — %', v_falhas, v_msgs;
   end if;
+  raise notice 'FIM f41_regularizacao: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 select * from _f41_resumo;

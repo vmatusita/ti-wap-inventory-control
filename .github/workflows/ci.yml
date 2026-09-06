@@ -9,9 +9,20 @@ on:
   pull_request:
 
 # Um push novo no mesmo ref cancela a execução anterior (economiza minutos).
+#
+# ⚠ MAS SÓ EM PR (F45, 05/09/2026). Até aqui o cancelamento valia também para
+# `push: branches: [main]`, e ali ele era um BURACO, não economia: dois pushes
+# seguidos na `main` cancelavam o CI do primeiro, e **o commit intermediário ia
+# para produção sem validação nenhuma** — a Vercel publica por push, não por
+# resultado de CI. Em PR o cancelamento é legítimo: o que interessa é o veredito
+# do último commit da branch, e o intermediário nunca vira deploy.
+#
+# `github.event_name == 'pull_request'` é o único caso em que cancelamos. Em push
+# na `main` cada commit tem o CI dele, do começo ao fim — que é o que um
+# *required status check* por commit exige para significar alguma coisa.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verificar:
@@ -48,7 +59,9 @@ jobs:
       - run: npm ci
       - name: Lint
         run: npm run lint
-      - name: Testes (Vitest — funções puras)
+      # F45: dois projetos agora — `puro` (funções puras) e `componentes`
+      # (render estático por renderToStaticMarkup, sem dependência nova).
+      - name: Testes (Vitest — funções puras e render de componente)
         run: npm run test
       # F29/UXG-07 — o medidor de contraste WCAG existia desde a F19 e rodava só à
       # mão, quando alguém lembrava. Ele lê os MESMOS arquivos que o navegador
@@ -60,6 +73,21 @@ jobs:
         run: npm run contraste
       - name: Build (inclui type-check do TypeScript)
         run: npm run build
+      # F45 — o gate de ARTEFATO, que existia desde a F13 e que NINGUÉM rodava:
+      # `scripts/verificar-actions-build.mjs` não estava no `package.json` nem no
+      # CI. Ele existe por causa das ~20 HORAS em que TODAS as Server Actions das
+      # rotas logadas ficaram fora do ar em produção (F13, 23/07/2026), por um
+      # re-export de TIPO com especificadores dentro de um módulo `'use server'`:
+      # o transform emite o identificador em `ensureServerEntryExports([...])`
+      # enquanto o `import type` correspondente já foi apagado, e o módulo morre
+      # com `ReferenceError` na AVALIAÇÃO. Nada disso falha em lint, test, build
+      # ou `next dev` — o GET das rotas continua respondendo 200; só o POST de
+      # action quebra.
+      #
+      # A POSIÇÃO NÃO É LIVRE: ele lê `.next/server`, então tem de vir DEPOIS do
+      # build. Sai 0 quando todo identificador registrado tem binding no chunk.
+      - name: Gate de artefato — Server Actions com binding (F13)
+        run: npm run verificar:actions
 
   # Dívida técnica (item C): rede de teste do BANCO. Antes o CI só validava
   # TypeScript — as migrations, a máquina de estados (trigger) e os saldos de
@@ -116,27 +144,22 @@ jobs:
         # Stack completo (sem -x): nomes de serviço variam entre versões da CLI e um
         # nome inválido derruba o start. Confiabilidade > velocidade (poucos minutos).
         run: supabase start
-      - name: Rodar os roteiros de teste SQL (falha o CI em ✗)
-        run: |
-          set -o pipefail
-          DBURL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-          # Operador de teste (@wap.ind.br): o trigger handle_new_user cria o profile
-          # que os roteiros usam como `criado_por`.
-          psql "$DBURL" -v ON_ERROR_STOP=1 -c "insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at) values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', 'ci@wap.ind.br', '', now(), now(), now());"
-          fail=0
-          for f in supabase/tests/*.sql; do
-            echo "==== $f ===="
-            if ! out=$(psql "$DBURL" -v ON_ERROR_STOP=1 -f "$f" 2>&1); then
-              echo "$out"; echo "::error::erro de psql em $f"; fail=1; continue
-            fi
-            echo "$out"
-            # Falha REAL = `raise warning '✗ …'` → psql imprime "WARNING:  ✗". O '✗' em
-            # NOTICE informativo (ex.: "procure por ✗") NÃO conta como falha.
-            if echo "$out" | grep -Eq 'WARNING:.*✗'; then
-              echo "::error::roteiro $f marcou ✗ (cenário falhou)"; fail=1
-            fi
-          done
-          exit $fail
+      # F45 — O LOOP SAIU DAQUI. Até aqui ele vivia dentro deste YAML, e por isso
+      # não existia forma de rodar os roteiros na máquina do desenvolvedor com o
+      # MESMO código: local e CI divergiam por construção, e a divergência só
+      # aparecia depois do push. Agora os dois lados chamam o mesmo arquivo —
+      # aqui, e `npm run db:test` na mesa. O script é quem carrega `_asserts.sql`
+      # antes de cada roteiro (na mesma sessão de psql, senão `pg_temp` some no
+      # rollback), pula `_*.sql`, EXIGE a linha `FIM <nome>: N asserções, M
+      # falhas` — roteiro que abortava cedo passava VERDE, porque o gate era um
+      # `grep` por ✗ e quem morre na terceira asserção não emite ✗ nenhum — e
+      # conta `NOTICE:  ✗` como falha, além de `WARNING:  ✗`.
+      #
+      # `src/lib/ci-passos.test.ts` afirma que este passo chama o script, e não um
+      # loop inline: é assim que este tipo de gate morre, alguém "simplifica" o
+      # YAML e ninguém percebe por seis meses.
+      - name: Rodar os roteiros de teste SQL (falha o CI em ✗ ou em roteiro que abortou)
+        run: bash scripts/db/rodar-roteiros.sh
       - name: Derrubar o stack local
         if: always()
         run: supabase stop || true

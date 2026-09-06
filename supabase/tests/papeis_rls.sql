@@ -1211,6 +1211,7 @@ begin
   else
     raise warning '✗ TOTAL papeis_rls: % falha(s) — %', v_falhas, v_msgs;
   end if;
+  raise notice 'FIM papeis_rls: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 select * from _papeis_resumo;

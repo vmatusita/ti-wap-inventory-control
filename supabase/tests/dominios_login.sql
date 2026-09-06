@@ -23,9 +23,11 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   r        record;
   v_id     uuid;
-  v_ok     boolean;
+  v_aceitou boolean;
   v_err    text;
   v_nome   text;
   v_qtd    int;
@@ -55,37 +57,37 @@ begin
         '00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated',
         r.email, '', now(), now(), now()
       );
-      v_ok := true;
+      v_aceitou := true;
     exception when others then
-      v_ok := false;
+      v_aceitou := false;
       v_err := sqlerrm;
     end;
 
-    if v_ok <> r.esperado then
-      raise warning '✗ %: esperava %, veio % (%) [erro: %]',
+    if v_aceitou <> r.esperado then
+      v_falhas := v_falhas + 1; raise warning '✗ %: esperava %, veio % (%) [erro: %]',
         coalesce(r.email, '<null>'),
         case when r.esperado then 'ACEITO' else 'RECUSADO' end,
-        case when v_ok then 'ACEITO' else 'RECUSADO' end,
+        case when v_aceitou then 'ACEITO' else 'RECUSADO' end,
         r.descricao, coalesce(v_err, '-');
     elsif not r.esperado and v_err not like 'Login restrito%' then
       -- Recusou, mas por outro motivo (NOT NULL, unique...): o teste nao provaria
       -- a trava de dominio. Falha de proposito.
-      raise warning '✗ %: recusado por erro ALHEIO ao trigger de dominio: %',
+      v_falhas := v_falhas + 1; raise warning '✗ %: recusado por erro ALHEIO ao trigger de dominio: %',
         coalesce(r.email, '<null>'), v_err;
     else
-      raise notice '✓ % → % (%)',
+      v_ok := v_ok + 1; raise notice '✓ % → % (%)',
         coalesce(r.email, '<null>'),
-        case when v_ok then 'aceito' else 'recusado' end,
+        case when v_aceitou then 'aceito' else 'recusado' end,
         r.descricao;
     end if;
 
     -- Quem entrou tem que sair com profile criado pelo trigger (nome = e-mail).
-    if v_ok then
+    if v_aceitou then
       select nome into v_nome from public.profiles where id = v_id;
       if v_nome = r.email then
-        raise notice '  ✓ profile criado para % (nome = e-mail)', r.email;
+        v_ok := v_ok + 1; raise notice '  ✓ profile criado para % (nome = e-mail)', r.email;
       else
-        raise warning '✗ profile de %: esperava nome = e-mail, veio %',
+        v_falhas := v_falhas + 1; raise warning '✗ profile de %: esperava nome = e-mail, veio %',
           r.email, coalesce(v_nome, '<sem profile>');
       end if;
     end if;
@@ -97,12 +99,12 @@ begin
                   'ian@latam.stefanini.com.mx', 'joao@wap.ind.br.exemplo.com',
                   'kim@br.stefanini.com');
   if v_qtd = 0 then
-    raise notice '✓ nenhum e-mail recusado deixou profile no banco';
+    v_ok := v_ok + 1; raise notice '✓ nenhum e-mail recusado deixou profile no banco';
   else
-    raise warning '✗ % profile(s) de e-mail recusado sobraram', v_qtd;
+    v_falhas := v_falhas + 1; raise warning '✗ % profile(s) de e-mail recusado sobraram', v_qtd;
   end if;
 
-  raise notice '=== fim do roteiro de dominios de login (ROLLBACK — nada gravado) ===';
+  raise notice 'FIM dominios_login: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 rollback;

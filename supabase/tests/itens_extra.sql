@@ -33,6 +33,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof    uuid;
   v_matriz  smallint;
   v_item    smallint;   -- item A: R-ITE-02 e R-ITE-11
@@ -73,12 +75,12 @@ begin
     insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, observacao, data, criado_por)
       values (v_item, v_matriz, 'ajuste', -10, 'Ajuste que levaria o total abaixo de zero',
               '2026-06-02', v_prof);
-    raise warning '✗ R-ITE-02: ajuste −10 (total −5) NÃO foi bloqueado (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ R-ITE-02: ajuste −10 (total −5) NÃO foi bloqueado (deveria)';
   exception when others then
     if sqlerrm ilike '%negativ%' or sqlerrm ilike '%total%' or sqlerrm ilike '%estoque%' then
-      raise notice '✓ R-ITE-02: entrada 5 + ajuste −10 (total −5) rejeitado pelo trigger: %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ R-ITE-02: entrada 5 + ajuste −10 (total −5) rejeitado pelo trigger: %', sqlerrm;
     else
-      raise warning '✗ R-ITE-02 falhou por motivo INESPERADO (não o guard total<0): %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ R-ITE-02 falhou por motivo INESPERADO (não o guard total<0): %', sqlerrm;
     end if;
   end;
 
@@ -106,9 +108,9 @@ begin
   reset role;
   select quantidade into v_q from public.lancamentos_item where id = v_lanc;
   if v_q = 7 and v_rows <= 0 then
-    raise notice '✓ R-ITE-11a: UPDATE como authenticated não alterou a linha (linhas afetadas=%, quantidade segue 7)', v_rows;
+    v_ok := v_ok + 1; raise notice '✓ R-ITE-11a: UPDATE como authenticated não alterou a linha (linhas afetadas=%, quantidade segue 7)', v_rows;
   else
-    raise warning '✗ R-ITE-11a: UPDATE mudou a linha imutável (linhas afetadas=%, quantidade=%)', v_rows, v_q;
+    v_falhas := v_falhas + 1; raise warning '✗ R-ITE-11a: UPDATE mudou a linha imutável (linhas afetadas=%, quantidade=%)', v_rows, v_q;
   end if;
 
   -- 11b — DELETE como authenticated não remove a linha.
@@ -124,9 +126,9 @@ begin
   reset role;
   select exists(select 1 from public.lancamentos_item where id = v_lanc) into v_exists;
   if v_exists and v_rows <= 0 then
-    raise notice '✓ R-ITE-11b: DELETE como authenticated não removeu a linha (linhas afetadas=%)', v_rows;
+    v_ok := v_ok + 1; raise notice '✓ R-ITE-11b: DELETE como authenticated não removeu a linha (linhas afetadas=%)', v_rows;
   else
-    raise warning '✗ R-ITE-11b: DELETE removeu a linha imutável (linhas afetadas=%, existe=%)', v_rows, v_exists;
+    v_falhas := v_falhas + 1; raise warning '✗ R-ITE-11b: DELETE removeu a linha imutável (linhas afetadas=%, existe=%)', v_rows, v_exists;
   end if;
 
   -- ---------------------------------------------------------------
@@ -138,15 +140,15 @@ begin
     values ('ZZF19 Mouse', 'acessorio', 998) returning id into v_item2;
   begin
     insert into public.itens (nome, grupo, ordem) values ('zzf19 mouse', 'acessorio', 997);
-    raise warning '✗ R-ITE-22: ''zzf19 mouse'' após ''ZZF19 Mouse'' NÃO foi bloqueado (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ R-ITE-22: ''zzf19 mouse'' após ''ZZF19 Mouse'' NÃO foi bloqueado (deveria)';
   exception
     when unique_violation then
-      raise notice '✓ R-ITE-22: nome duplicado case-insensitive rejeitado (23505): %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ R-ITE-22: nome duplicado case-insensitive rejeitado (23505): %', sqlerrm;
     when others then
-      raise warning '✗ R-ITE-22 falhou por motivo INESPERADO (não unique_violation): %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ R-ITE-22 falhou por motivo INESPERADO (não unique_violation): %', sqlerrm;
   end;
 
-  raise notice '=== fim do roteiro itens_extra (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM itens_extra: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 -- Nada acima é persistido:

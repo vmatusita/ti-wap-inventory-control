@@ -1,0 +1,48 @@
+### PROVA 2 — a lógica de reprovação do runner (psql dublê, sem banco)
+
+Um roteiro só passa quando emite a linha FIM, conta mais de zero asserções
+e não marca nenhum ✗. Cada linha abaixo roda o runner de verdade.
+
+  OK   roteiro sadio passa                    saida=0
+  OK   abortou cedo (sem linha FIM) REPROVA   saida=1
+  OK   ✗ em WARNING REPROVA                 saida=1
+  OK   ✗ em NOTICE REPROVA (novo na F45)    saida=1
+  OK   ✗ citado em texto NÃO reprova       saida=0
+  OK   zero asserção REPROVA                saida=1
+  OK   erro de psql REPROVA                   saida=1
+
+### O loop pula os arquivos _*.sql
+  roteiros em supabase/tests/ (sem _*): 24
+  roteiros que o runner mandou ao psql: 24
+  vezes em que _asserts.sql foi tratado COMO roteiro: 0 (tem de ser 0)
+  OK   pulou _asserts.sql e rodou os 24
+
+### _asserts.sql é carregado ANTES do roteiro, na MESMA sessão
+  OK   psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/_asserts.sql -f supabase/tests/troca.sql
+
+TODOS OS CENÁRIOS PASSARAM
+
+### Os dois comandos npm funcionam na máquina do desenvolvedor (Windows + Git Bash)
+Mesmo dublê de psql, invocando pelo npm em vez de por bash direto — é o caminho
+que o Johnny vai usar.
+
+  $ npm run db:test:um supabase/tests/troca.sql
+  > bash scripts/db/rodar-roteiros.sh supabase/tests/troca.sql
+  DUBLE: supabase/tests/troca.sql
+  ==== RESUMO ====
+    ✓ troca — 3 asserções
+    1 roteiro(s), 3 asserções no total          <- o argumento chega (npm 11.9.0 repassa sem `--`)
+
+  $ npm run db:test
+    ✓ transferencia_item — 3 asserções
+    ✓ transicoes_extra — 3 asserções
+    ✓ troca — 3 asserções
+    25 roteiro(s), 75 asserções no total        <- os 25, e nenhum `_*.sql`
+
+### O texto com acento funciona em locale C (o runner do GitHub pode não ter LANG)
+  LC_ALL=C  sed  -> asserções=15 falhas=0
+  LC_ALL=C  grep -> "FIM troca: 15 asserções, 0 falhas"  casa OK
+  LC_ALL=C  grep -> "WARNING:  ✗ 1a falhou"              detecta OK
+  LC_ALL=C  grep -> "NOTICE:  === fim (procure por ✗)"   ignora o informativo OK
+
+  bash 5.2.37 (Git Bash) · npm 11.9.0 · ubuntu-latest do GitHub roda bash 5.x

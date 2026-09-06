@@ -40,6 +40,8 @@ begin;
 
 do $$
 declare
+  v_ok      int := 0;   -- F45: quantas asserções passaram
+  v_falhas  int := 0;   -- F45: quantas falharam (a linha FIM soma as duas)
   v_prof      uuid;
   v_fa        smallint;   -- F19 Teste A (happy path + negativos)
   v_fb        smallint;   -- F19 Teste B (substituir tudo)
@@ -110,38 +112,38 @@ begin
 
   -- 1a — retorno
   if (v_result->>'ativos_criados') = '2' then
-    raise notice '✓ 1a retorno ativos_criados = 2';
-  else raise warning '✗ 1a retorno ativos_criados: esperado 2, obtido %', coalesce(v_result->>'ativos_criados','(null)'); end if;
+    v_ok := v_ok + 1; raise notice '✓ 1a retorno ativos_criados = 2';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1a retorno ativos_criados: esperado 2, obtido %', coalesce(v_result->>'ativos_criados','(null)'); end if;
 
   -- 1b — a filial passa a ter os 2 ativos
   select count(*) into v_cnt from public.ativos where filial_id = v_fa;
-  if v_cnt = 2 then raise notice '✓ 1b filial A tem 2 ativos após o import';
-  else raise warning '✗ 1b ativos na filial A: esperado 2, obtido %', v_cnt; end if;
+  if v_cnt = 2 then v_ok := v_ok + 1; raise notice '✓ 1b filial A tem 2 ativos após o import';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1b ativos na filial A: esperado 2, obtido %', v_cnt; end if;
 
   -- 1c — R-IMP-10: sem service tag → pendência contém 'sem service tag'
   select pendencia into v_pend from public.ativos where filial_id = v_fa and patrimonio = 'ZZF190005678';
   if coalesce(v_pend,'') like '%sem service tag%' then
-    raise notice '✓ 1c ativo sem service tag nasce com pendência "%" (R-IMP-10)', v_pend;
-  else raise warning '✗ 1c pendência sem-service-tag: esperado conter "sem service tag", obtido %', coalesce(v_pend,'(null)'); end if;
+    v_ok := v_ok + 1; raise notice '✓ 1c ativo sem service tag nasce com pendência "%" (R-IMP-10)', v_pend;
+  else v_falhas := v_falhas + 1; raise warning '✗ 1c pendência sem-service-tag: esperado conter "sem service tag", obtido %', coalesce(v_pend,'(null)'); end if;
 
   -- 1d — controle: com patrimônio + tag → sem pendência
   select pendencia into v_pend from public.ativos where filial_id = v_fa and patrimonio = 'WAP0001234';
-  if v_pend is null then raise notice '✓ 1d ativo com patrimônio + service tag nasce sem pendência';
-  else raise warning '✗ 1d pendência WAP0001234: esperado null, obtido %', v_pend; end if;
+  if v_pend is null then v_ok := v_ok + 1; raise notice '✓ 1d ativo com patrimônio + service tag nasce sem pendência';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1d pendência WAP0001234: esperado null, obtido %', v_pend; end if;
 
   -- 1e — R-IMP-13: toda compra de abertura é baseline (observação 'import startup …')
   select count(*) into v_cnt from public.movimentacoes m
     join public.ativos a on a.id = m.ativo_id
    where a.filial_id = v_fa and m.tipo = 'compra' and m.observacao like 'import startup%';
-  if v_cnt = 2 then raise notice '✓ 1e as 2 compras de abertura têm observação "import startup …" (R-IMP-13, baseline)';
-  else raise warning '✗ 1e compras baseline: esperado 2 com "import startup%%", obtido %', v_cnt; end if;
+  if v_cnt = 2 then v_ok := v_ok + 1; raise notice '✓ 1e as 2 compras de abertura têm observação "import startup …" (R-IMP-13, baseline)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 1e compras baseline: esperado 2 com "import startup%%", obtido %', v_cnt; end if;
 
   select m.observacao into v_obs from public.movimentacoes m
     join public.ativos a on a.id = m.ativo_id
    where a.filial_id = v_fa and a.patrimonio = 'WAP0001234' and m.tipo = 'compra' limit 1;
   if coalesce(v_obs,'') like 'import startup%' then
-    raise notice '✓ 1e (exemplo) observação da compra = "%"', v_obs;
-  else raise warning '✗ 1e observação da compra: esperado "import startup …", obtido %', coalesce(v_obs,'(null)'); end if;
+    v_ok := v_ok + 1; raise notice '✓ 1e (exemplo) observação da compra = "%"', v_obs;
+  else v_falhas := v_falhas + 1; raise warning '✗ 1e observação da compra: esperado "import startup …", obtido %', coalesce(v_obs,'(null)'); end if;
 
   -- ---------------------------------------------------------------
   -- CENARIO 2 — R-IMP-21: p_contagens NULL DEVE ser recusado (janela TOCTOU
@@ -150,12 +152,12 @@ begin
   -- ---------------------------------------------------------------
   begin
     v_result := public.importar_ativos_substituir(p_plano_a, 'backups-import/f19-teste-a.json', null::jsonb);
-    raise warning '✗ 2 contagens NULL: NÃO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 2 contagens NULL: NÃO falhou (deveria)';
   exception when others then
     if sqlerrm like '%contagens%' or sqlerrm like '%preview%' then
-      raise notice '✓ 2 contagens NULL rejeitado: %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ 2 contagens NULL rejeitado: %', sqlerrm;
     else
-      raise warning '✗ 2 falhou por motivo INESPERADO (não a revalidação): %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ 2 falhou por motivo INESPERADO (não a revalidação): %', sqlerrm;
     end if;
   end;
 
@@ -168,12 +170,12 @@ begin
       p_plano_a, '',
       jsonb_build_object('ativos',2,'movimentacoes',2,'anotacoes',0,'termos',0)
     );
-    raise warning '✗ 3 backup vazio: NÃO falhou (deveria)';
+    v_falhas := v_falhas + 1; raise warning '✗ 3 backup vazio: NÃO falhou (deveria)';
   exception when others then
     if sqlerrm like '%backup%' then
-      raise notice '✓ 3 backup vazio rejeitado: %', sqlerrm;
+      v_ok := v_ok + 1; raise notice '✓ 3 backup vazio rejeitado: %', sqlerrm;
     else
-      raise warning '✗ 3 falhou por motivo INESPERADO (não a guarda de backup): %', sqlerrm;
+      v_falhas := v_falhas + 1; raise warning '✗ 3 falhou por motivo INESPERADO (não a guarda de backup): %', sqlerrm;
     end if;
   end;
 
@@ -202,22 +204,22 @@ begin
   select count(*) into v_cnt  from public.ativos where filial_id = v_fb;
   select count(*) into v_cnt2 from public.ativos where filial_id = v_fb and patrimonio = 'ZZF19OLD001';
   if v_cnt = 1 and v_cnt2 = 0 then
-    raise notice '✓ 4a filial B tem só o ativo do plano; o pré-existente foi apagado (R-IMP-02)';
-  else raise warning '✗ 4a filial B: esperado 1 ativo e velho=0, obtido % ativos e velho=%', v_cnt, v_cnt2; end if;
+    v_ok := v_ok + 1; raise notice '✓ 4a filial B tem só o ativo do plano; o pré-existente foi apagado (R-IMP-02)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4a filial B: esperado 1 ativo e velho=0, obtido % ativos e velho=%', v_cnt, v_cnt2; end if;
 
   -- 4b — o novo ativo veio do plano com origem 'importacao'
   select count(*) into v_cnt from public.ativos
    where filial_id = v_fb and patrimonio = 'ZZF19NEW001' and origem = 'importacao';
-  if v_cnt = 1 then raise notice '✓ 4b ativo do plano presente com origem = importacao';
-  else raise warning '✗ 4b ativo do plano (origem importacao): esperado 1, obtido %', v_cnt; end if;
+  if v_cnt = 1 then v_ok := v_ok + 1; raise notice '✓ 4b ativo do plano presente com origem = importacao';
+  else v_falhas := v_falhas + 1; raise warning '✗ 4b ativo do plano (origem importacao): esperado 1, obtido %', v_cnt; end if;
 
   -- 4c — R-IMP-03: a outra filial (A) ficou intacta
   select count(*) into v_cnt from public.ativos where filial_id = v_fa;
   if v_cnt = v_fa_before then
-    raise notice '✓ 4c outra filial (A) intacta após substituir B: % ativos (R-IMP-03)', v_cnt;
-  else raise warning '✗ 4c filial A alterada por substituição de B: esperado %, obtido %', v_fa_before, v_cnt; end if;
+    v_ok := v_ok + 1; raise notice '✓ 4c outra filial (A) intacta após substituir B: % ativos (R-IMP-03)', v_cnt;
+  else v_falhas := v_falhas + 1; raise warning '✗ 4c filial A alterada por substituição de B: esperado %, obtido %', v_fa_before, v_cnt; end if;
 
-  raise notice '=== fim do roteiro import_substituir (procure por ✗ acima; nenhum = tudo passou) ===';
+  raise notice 'FIM import_substituir: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
 -- Nada acima é persistido:
