@@ -42,7 +42,7 @@ Variáveis de ambiente (todas descritas em `.env.example`):
 | `npm run verificar:actions` | Gate de artefato: procura Server Action registrada sem binding no build. **Rode depois de `npm run build`** — ele lê `.next/server` |
 | `npm run carga` | Carga única do go-live (`scripts/import/`; guardas `CARGA_*`) — ferramenta, não feature |
 
-O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: o job `verificar` (`lint` → `test` → `contraste` → `build` → `verificar:actions`) e o job `banco`, que sobe um Postgres, aplica **todas as migrations** em ordem e roda os roteiros de `supabase/tests/` pelo mesmo script que `npm run db:test` chama. Desde a F45 o cancelamento de execução em andamento vale **só em PR**: em push na `main` cada commit tem o CI dele do começo ao fim.
+O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: o job `verificar` (`lint` → `test` → `contraste` → `build` → `verificar:actions`) e o job `banco`, que sobe um Postgres, aplica **todas as migrations** em ordem e roda os roteiros de `supabase/tests/` pelo mesmo script que `npm run db:test` chama. Desde a F45 o cancelamento de execução em andamento vale **só em PR**: em push na `main` cada commit tem o CI dele do começo ao fim. Desde a **F46** há um **terceiro** job, `banco-sem-docker`, que faz o mesmo trabalho do `banco` com `services: postgres:17` e o bootstrap declarado em [`supabase/ci/`](supabase/ci/) — 57s contra 3m52s, sem o Docker do Supabase e sem a CLI, e reproduzível em qualquer Postgres 17 vazio (ver [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md)). Os dois rodam em paralelo e têm de chegar ao MESMO veredito; o `banco` continua sendo o *required check*, e o novo ainda não é.
 
 > **O portão da `main` está LIGADO desde 05/09/2026 (F45)** — decisão do Johnny, ata em [`docs/DECISOES.md`](docs/DECISOES.md). `verificar` e `banco` são *required status checks*, com *require pull request* (0 aprovações) e **bypass na conta do Johnny** (`enforce_admins: false`). Provado de ponta a ponta: um PR com um roteiro SQL deliberadamente vermelho teve o merge recusado com *"the base branch policy prohibits the merge"* — [`docs/RELATORIO-F45.md`](docs/RELATORIO-F45.md) §8.5.
 >
@@ -82,9 +82,9 @@ A documentação do **operador** não está aqui: ela vive dentro do sistema, em
 
 ## Status
 
-**Versão no ar: `1.50.1`.** A fonte única é `src/lib/versoes/registry.ts` — `VERSOES[0]` *é* a versão publicada, e um teste trava a divergência com o `package.json`. O operador vê o mesmo histórico em `/versoes`.
+**Versão no ar: `1.51.0`.** A fonte única é `src/lib/versoes/registry.ts` — `VERSOES[0]` *é* a versão publicada, e um teste trava a divergência com o `package.json`. O operador vê o mesmo histórico em `/versoes`.
 
-Entregue da **F0 à F45**: operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo e snapshots semanais com acesso por senha, termos gerados em `.docx`, import de startup por filial, cargos e permissões no Postgres, área `/dev` com zona destrutiva, e o sistema de design com `/ativos` e as três telas de `/itens` dentro do casco — a lista de itens mostrando, na própria linha, quanto tem em cada filial, e dizendo por extenso de qual filial são os números quando há filtro.
+Entregue da **F0 à F46**: operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo e snapshots semanais com acesso por senha, termos gerados em `.docx`, import de startup por filial, cargos e permissões no Postgres, área `/dev` com zona destrutiva, e o sistema de design com `/ativos` e as três telas de `/itens` dentro do casco — a lista de itens mostrando, na própria linha, quanto tem em cada filial, e dizendo por extenso de qual filial são os números quando há filtro.
 
 - **O que mudou, fase a fase:** [`CHANGELOG.md`](CHANGELOG.md) — toda entrada tem uma versão correspondente
 - **O que falta:** seção *Pendências (roadmap)* no fim do [`CHANGELOG.md`](CHANGELOG.md)
