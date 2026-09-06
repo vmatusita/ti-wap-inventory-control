@@ -639,6 +639,32 @@ o pedido chega ao Johnny com evidência de uso, não com hipótese.
 
 ---
 
+## 12.5 Os 15 critérios de aceitação, autoverificados
+
+Saída em `docs/f45-evidencias/criterios-autoverificados.txt`. **Onze ✅, dois ⚠ e dois PENDENTES** —
+e os quatro que não fecharam são os mesmos dois problemas de ambiente, nomeados no topo deste
+documento.
+
+| # | Critério | Estado |
+|---|---|---|
+| 1 | Um commit que quebre roteiro SQL não chega em produção | **PENDENTE** — depende do portão (§8.5 tem a sequência) |
+| 2 | `verificar`/`banco` como *required checks* + PR + bypass | **PENDENTE** — `gh` ausente; comando pronto no §8 |
+| 3 | `cancel-in-progress` em PR e **não** em push na `main` | ✅ |
+| 4 | `verificar:actions` no CI, depois do build, saindo 0 | ✅ |
+| 5 | `npm run db:test` usa o MESMO script do CI | ✅ (com dublê; `db:test:um` passa o argumento) |
+| 6 | Os roteiros terminam com `FIM`, e o runner falha sem ela | ✅ 25/25 têm a linha; o cenário "abortou" reprova |
+| 7 | Nenhum roteiro conta zero asserção | ✅ regra no runner — a contagem REAL só sai no CI (§9.1) |
+| 8 | `assert_zero_de` recusa universo vazio, com teste | ⚠ escrito e revisado; **saída real só no CI** |
+| 9 | `npm run test` executa `.test.tsx`; `puro` igual a antes | ✅ 16 em `componentes`; `puro` com os mesmos 149 arquivos |
+| 10 | Varreduras verdes; `TETO_PALETA_CRUA` não subiu | ✅ 473/61, os mesmos |
+| 11 | `lint`, `test`, `contraste`, `build`, `tsc --noEmit` limpos | ✅ os cinco, mais `verificar:actions` |
+| 12 | Ata do portão em `DECISOES.md` **e** no `README.md`, com data | ✅ quatro atas |
+| 13 | Regra 8: `1.50.0` + registry + CHANGELOG + tag | ✅ os três passos, tag publicada |
+| 14 | Rollout na ordem | ⚠ merge/tag/deploy feitos e **verificados**; CI não lido; proteção pendente |
+| 15 | Repouso perfeito | ✅ árvore limpa, branch apagada nos dois lados |
+
+---
+
 ## 13. O rollout
 
 Na ordem que o critério 14 manda — merge → deploy no ar → tag → *(ligar a proteção)* —, até onde a
