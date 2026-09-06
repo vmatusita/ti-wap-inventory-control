@@ -495,10 +495,16 @@ teste; e o MCP do Supabase — o caminho que o `RUNBOOK-BANCO.md:100` documenta 
 ENSAIO — **não está conectado nesta sessão**.
 
 Foram escritos `_asserts.sql`, `asserts_ferramenta.sql` e a instrumentação de 24 roteiros **sem que
-uma linha rodasse contra um Postgres**. Em lugar da execução, três defesas: o dublê de `psql` (§2.1),
-a prova mecânica do diff (§3.2) e uma revisão adversarial com lente específica de sintaxe e
-semântica de PL/pgSQL — 24 agentes, 511 leituras de arquivo, e **nenhum defeito de SQL, de runner ou
-de trava sobreviveu à refutação**.
+uma linha rodasse contra um Postgres**. Em lugar da execução, **quatro defesas**:
+
+1. o **dublê de `psql`** (§2.1) — nove cenários da lógica de reprovação do runner;
+2. a **prova mecânica do diff** (§3.2) — 371 linhas alteradas que revertem exato, zero divergências;
+3. a **aridade de todo `raise`** — `%` a mais ou a menos num `raise` é erro de execução em
+   PL/pgSQL, e foi justamente em 371 linhas de `raise` que a instrumentação inseriu texto.
+   **1264 chamadas conferidas nos 25 roteiros, 0 com aridade suspeita**
+   (`docs/f45-evidencias/prova-5-aridade-raise.txt`);
+4. uma **revisão adversarial** com lente específica de sintaxe e semântica de PL/pgSQL — 24 agentes,
+   511 leituras de arquivo, e **nenhum defeito de SQL, de runner ou de trava sobreviveu à refutação**.
 
 **O que conferir, e é o item 1 da lista de retorno:** o job `banco` do CI no commit de merge.
 Espere ver 25 linhas `FIM <nome>: N asserções, 0 falhas` e o `RESUMO` no fim.

@@ -1,0 +1,13 @@
+### PROVA 5 — a aridade de todo `raise` dos roteiros
+
+Placeholder `%` a mais ou a menos num `raise` é erro de EXECUÇÃO em PL/pgSQL
+("too few/many parameters specified for RAISE"), e não há Postgres nesta máquina
+para pegá-lo. Como a instrumentação da F45 inseriu texto em 371 linhas de `raise`,
+a aridade foi conferida mecanicamente em TODAS as chamadas dos 25 roteiros — com
+continuação de linha, `%%` como escape, e vírgula de nível superior (fora de
+parênteses e de string).
+
+  1264 chamadas de raise conferidas · 0 com aridade suspeita
+
+É uma das três defesas que substituem a execução (ver §9.1 do relatório): esta,
+o dublê de psql (prova 2), e o diff que reverte exato (prova 4).
