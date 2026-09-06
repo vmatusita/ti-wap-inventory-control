@@ -52,8 +52,40 @@ function corpoDoJob(nome: string): string {
   return linhas.slice(inicio, fim).join('\n')
 }
 
+/** O YAML sem as linhas de comentário — para asserções que falam do que EXECUTA. */
+function semComentarios(yaml: string): string {
+  return yaml
+    .split('\n')
+    .filter((l) => !l.trimStart().startsWith('#'))
+    .join('\n')
+}
+
+/**
+ * O job MAIS o bloco de comentário que vem logo acima dele.
+ *
+ * ⚠ Existe porque `corpoDoJob` começa na linha `  <nome>:` e, no YAML, o comentário que
+ * explica um job vive ACIMA dele. Sem isto, uma asserção sobre os comentários-cicatriz
+ * passaria a olhar um texto que não os contém — e reprovaria por engano, empurrando quem
+ * fosse "consertar" a apagar a asserção em vez do defeito.
+ */
+function blocoDoJob(nome: string): string {
+  const linhas = YAML.split('\n')
+  const cabecalho = linhas.findIndex((l) => l === `  ${nome}:`)
+  expect(cabecalho, `o job \`${nome}\` sumiu do ci.yml`).toBeGreaterThan(-1)
+  let inicio = cabecalho
+  while (inicio > 0 && /^ {2}#/.test(linhas[inicio - 1])) inicio--
+  return linhas.slice(inicio, cabecalho).join('\n') + '\n' + corpoDoJob(nome)
+}
+
 const VERIFICAR = corpoDoJob('verificar')
-const BANCO = corpoDoJob('banco')
+
+// O job de banco. Chamou-se `banco` até a v1.51.1 (06/09/2026), quando o job antigo — o
+// que subia o stack Docker do Supabase CLI — foi removido e este ficou sozinho. O nome é
+// contrato: ele é o *required status check* da `main`, cobrado PELO NOME (ver describe 8).
+//
+// `blocoDoJob` e não `corpoDoJob`: as cicatrizes que o describe 8 cobra moram no comentário
+// de cabeçalho, que é justamente o que uma remoção de job leva junto sem ninguém notar.
+const BANCO_SEM_DOCKER = blocoDoJob('banco-sem-docker')
 
 describe('1. o job `verificar` mantém os passos que reprovam', () => {
   const OBRIGATORIOS = [
@@ -105,7 +137,7 @@ describe('2. todo `npm run X` do CI tem script no package.json', () => {
   it('`db:test` e `db:test:um` chamam o MESMO runner que o CI chama', () => {
     expect(PACOTE.scripts['db:test']).toContain('scripts/db/rodar-roteiros.sh')
     expect(PACOTE.scripts['db:test:um']).toContain('scripts/db/rodar-roteiros.sh')
-    expect(BANCO).toContain('scripts/db/rodar-roteiros.sh')
+    expect(BANCO_SEM_DOCKER).toContain('scripts/db/rodar-roteiros.sh')
   })
 })
 
@@ -144,12 +176,12 @@ describe('3. `cancel-in-progress` não vale para push na main', () => {
 })
 
 describe('4. o passo dos roteiros chama o script, não um loop inline', () => {
-  it('o job `banco` chama `bash scripts/db/rodar-roteiros.sh`', () => {
-    expect(BANCO).toContain('bash scripts/db/rodar-roteiros.sh')
+  it('o job de banco chama `bash scripts/db/rodar-roteiros.sh`', () => {
+    expect(BANCO_SEM_DOCKER).toContain('bash scripts/db/rodar-roteiros.sh')
   })
 
   it('o loop `for f in supabase/tests/*.sql` NÃO voltou para o YAML', () => {
-    expect(BANCO).not.toMatch(/for\s+f\s+in\s+supabase\/tests/)
+    expect(BANCO_SEM_DOCKER).not.toMatch(/for\s+f\s+in\s+supabase\/tests/)
   })
 
   it('o runner existe', () => {
@@ -306,17 +338,13 @@ describe('6. os roteiros SQL seguem o molde da linha FIM', () => {
 // ---------------------------------------------------------------------------
 // F46 — o job de banco SEM o Docker do Supabase
 // ---------------------------------------------------------------------------
-// O job `banco` sobe o stack inteiro do Supabase CLI para usar dele só um Postgres:
-// 3 a 6 minutos, duas quebras por causa externa (rate limit da API de releases em
-// 24/07, flush do PostHog em 25/07 — as duas cicatrizes estão comentadas no YAML) e
-// nada disso roda na máquina do Johnny, que não tem Docker.
+// Até a v1.51.1 havia DOIS jobs de banco, e era a IGUALDADE DE VEREDITO entre eles,
+// no mesmo commit, que provava que o bootstrap declarado em `supabase/ci/` estava
+// certo. Provada essa igualdade em cinco runs seguidos, o antigo saiu (describe 8).
 //
-// `banco-sem-docker` faz o MESMO trabalho com `services: postgres:17`. Enquanto os
-// dois existirem, é a IGUALDADE DE VEREDITO entre eles, no mesmo commit, que prova
-// que o bootstrap declarado em `supabase/ci/` está certo — e é por isso que os dois
-// têm de chamar o MESMO runner. Um `banco-sem-docker` com loop próprio mediria outra
-// coisa, e a comparação perderia o sentido.
-const BANCO_SEM_DOCKER = corpoDoJob('banco-sem-docker')
+// Com um só, a régua que resta é outra e continua valendo: o job e a mesa rodam o
+// MESMO `scripts/db/rodar-roteiros.sh`. Um job com loop próprio mediria outra coisa,
+// e local × CI voltariam a divergir por construção — que é o buraco que a F45 fechou.
 
 /**
  * Os nomes dos jobs, lidos do bloco `jobs:` — e SÓ de dentro dele.
@@ -345,8 +373,8 @@ describe('7. o job de banco sem Docker existe e mede a mesma coisa', () => {
   // Esta aqui é estritamente mais forte e SABE falhar: pega job renomeado, job apagado e job
   // novo que ninguém declarou — inclusive o cenário que mais importa, `banco` virar outro nome
   // e o *required status check* parar de reportar para sempre.
-  it('os jobs do ci.yml são EXATAMENTE `verificar`, `banco` e `banco-sem-docker`', () => {
-    expect(nomesDosJobs()).toEqual(['verificar', 'banco', 'banco-sem-docker'])
+  it('os jobs do ci.yml são EXATAMENTE `verificar` e `banco-sem-docker`', () => {
+    expect(nomesDosJobs()).toEqual(['verificar', 'banco-sem-docker'])
   })
 
   it('`banco-sem-docker` é um job de verdade, não um cabeçalho vazio', () => {
@@ -371,11 +399,17 @@ describe('7. o job de banco sem Docker existe e mede a mesma coisa', () => {
   })
 
   it('ele NÃO usa `supabase start`, `supabase init` nem `supabase/setup-cli`', () => {
-    // O ponto inteiro da fase. Se qualquer um destes voltar, o job novo virou uma
-    // segunda cópia do antigo.
-    expect(BANCO_SEM_DOCKER).not.toContain('supabase/setup-cli')
-    expect(BANCO_SEM_DOCKER).not.toMatch(/supabase\s+start/)
-    expect(BANCO_SEM_DOCKER).not.toMatch(/supabase\s+init/)
+    // O ponto inteiro da fase. Se qualquer um destes voltar, o job voltou a ser o
+    // antigo.
+    //
+    // ⚠ Sem tirar os comentários, esta asserção se autodenuncia — desde a v1.51.1 o
+    // cabeçalho do job NARRA os dois incidentes que tiraram a CLI do caminho crítico,
+    // e ali as palavras `supabase start`/`init` aparecem de propósito. Um teste que
+    // reprova pela própria documentação ensina a apagar o comentário, que é
+    // exatamente o que não se quer.
+    expect(semComentarios(BANCO_SEM_DOCKER)).not.toContain('supabase/setup-cli')
+    expect(semComentarios(BANCO_SEM_DOCKER)).not.toMatch(/supabase\s+start/)
+    expect(semComentarios(BANCO_SEM_DOCKER)).not.toMatch(/supabase\s+init/)
   })
 
   it('ele sobe um Postgres do major de PRODUÇÃO como serviço', () => {
@@ -421,9 +455,7 @@ describe('7. o job de banco sem Docker existe e mede a mesma coisa', () => {
     // ⚠ Sem tirar os comentários, esta asserção se autodenuncia: o próprio YAML tem um
     // comentário dizendo "nada de `|| true`", e o `toContain` casaria com ele. Um teste
     // que reprova pela sua própria documentação ensina a apagar o comentário.
-    const semComentario = BANCO_SEM_DOCKER.split('\n')
-      .filter((l) => !l.trimStart().startsWith('#'))
-      .join('\n')
+    const semComentario = semComentarios(BANCO_SEM_DOCKER)
     expect(semComentario).not.toContain('|| true')
     expect(semComentario).not.toMatch(/>\s*\/dev\/null/)
   })
@@ -469,37 +501,53 @@ describe('7. o job de banco sem Docker existe e mede a mesma coisa', () => {
   })
 })
 
-describe('8. o job `banco` antigo continua intacto (ele é o required check)', () => {
-  // Desde 05/09/2026 os contextos exigidos na `main` são exatamente `verificar` e
-  // `banco`, pelo NOME. Renomear ou apagar o `banco` deixaria o check exigido sem
-  // nunca reportar, e todo PR ficaria preso em "Expected — Waiting for status to be
-  // reported". Removê-lo é entrega avulsa, e só depois de o novo ser promovido.
-  it('o nome `banco` continua sendo o de um job, e é DIFERENTE do job novo', () => {
-    // A existência do nome já é coberta, e de forma falsificável, pela asserção do describe 7
-    // (`os jobs são EXATAMENTE …`). O que sobra de específico aqui é o que a remoção futura do
-    // job antigo vai tentar fazer: colapsar os dois num só. Quando isso acontecer, será de
-    // propósito — e este teste é o lugar onde a mudança tem de ser encarada.
-    const nomes = nomesDosJobs()
-    expect(nomes).toContain('banco')
-    expect(nomes).toContain('banco-sem-docker')
-    expect(new Set(nomes).size, 'nome de job repetido no ci.yml').toBe(nomes.length)
+describe('8. o job `banco` antigo saiu — e o que ele ensinou não saiu com ele', () => {
+  // O job `banco` (Supabase CLI + Docker) foi REMOVIDO na v1.51.1, depois de:
+  //   (a) chegar ao MESMO veredito do job novo em cinco runs seguidos, e
+  //   (b) a branch protection já exigir `banco-sem-docker` — nunca antes, senão o
+  //       próprio PR de remoção ficaria preso em "Expected — Waiting for status".
+  //
+  // ⚠ O QUE ESTE DESCRIBE DEFENDE AGORA NÃO É A AUSÊNCIA — é a MEMÓRIA. Apagar um
+  // job apaga junto os comentários que explicam por que ele era assim, e é aí que a
+  // decisão volta a ser tomada do zero daqui a um ano. Os dois incidentes que
+  // tiraram a CLI do caminho crítico foram MOVIDOS para o cabeçalho do job vivo, e
+  // é isso que as asserções abaixo cobram.
+
+  it('nenhum vestígio executável do stack do Supabase CLI voltou ao YAML', () => {
+    // Fora dos comentários: nenhum `uses: supabase/setup-cli`, nenhum `supabase
+    // start`/`init`. Se alguém "restaurar" o job antigo, esta reprova.
+    const semComentario = semComentarios(YAML)
+    expect(semComentario).not.toContain('supabase/setup-cli')
+    expect(semComentario).not.toMatch(/supabase\s+(start|init|stop)/)
+    expect(semComentario).not.toContain('SUPABASE_TELEMETRY_DISABLED')
   })
 
-  it('ele continua subindo o stack do Supabase CLI', () => {
-    expect(BANCO).toContain('supabase/setup-cli@v1')
-    expect(BANCO).toContain('supabase start')
+  it('as duas cicatrizes continuam escritas no YAML, agora no job vivo', () => {
+    // Cada uma é uma quebra real, por causa EXTERNA, que custou um dia. Elas são o
+    // motivo de não haver CLI no caminho crítico — apagá-las convida o próximo a
+    // voltar atrás "porque o `supabase start` é mais simples".
+    expect(BANCO_SEM_DOCKER, 'sumiu a cicatriz do rate limit (24/07/2026)').toContain(
+      'rate limit',
+    )
+    expect(BANCO_SEM_DOCKER, 'sumiu a cicatriz do flush do PostHog (25/07/2026)').toContain(
+      'PostHog',
+    )
+    expect(BANCO_SEM_DOCKER, 'sumiu o veto de Docker (09/08/2026)').toContain('Docker')
   })
 
-  it('os comentários-cicatriz dele continuam no arquivo', () => {
-    // Cada um é uma quebra real que custou um dia. Apagar o comentário é apagar o
-    // motivo, e o próximo a mexer refaz o erro.
-    expect(BANCO).toContain('TELEMETRIA DESLIGADA (25/07/2026)')
-    expect(BANCO).toContain('rate limit exceeded')
-    expect(BANCO).toContain('version: 2.109.1')
+  it('o job vivo avisa que o NOME dele é o required check', () => {
+    // A armadilha que a remoção do job antigo quase criou, e que vai reaparecer no
+    // dia em que alguém quiser renomear este: trocar o nome sem trocar a proteção
+    // deixa o check exigido sem nunca reportar, e o PR trava sem nada vermelho na
+    // tela para explicar. O aviso tem de morar ao lado do nome.
+    expect(BANCO_SEM_DOCKER).toContain('required status check')
+    expect(BANCO_SEM_DOCKER).toContain('required_status_checks')
   })
 
-  it('os DOIS jobs de banco chamam o mesmo runner', () => {
-    expect(BANCO).toContain('bash scripts/db/rodar-roteiros.sh')
+  it('o runner continua sendo o mesmo arquivo que `npm run db:test` chama', () => {
+    // Era a igualdade entre os dois jobs que provava o bootstrap; com um só, o que
+    // resta é a igualdade entre o CI e a mesa. Ela não pode se perder junto.
     expect(BANCO_SEM_DOCKER).toContain('bash scripts/db/rodar-roteiros.sh')
+    expect(PACOTE.scripts['db:test']).toContain('scripts/db/rodar-roteiros.sh')
   })
 })

@@ -6,6 +6,19 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 06/09/2026 — O job de banco antigo saiu, e o novo virou o portão ✅ 🔒
+
+Entrega avulsa (**v1.51.1**). O fecho da F46: o job `banco-sem-docker` virou *required status check* e o job `banco` — o que subia o stack Docker do Supabase CLI — foi **removido**. **Sem migration, sem dependência nova, sem tocar em tela.**
+
+- ⚡ **A conferência do banco caiu de ~3 minutos para menos de 1, para todo PR.** Os dois jobs rodaram em paralelo por **cinco runs**, chamando o mesmo [`scripts/db/rodar-roteiros.sh`](scripts/db/rodar-roteiros.sh), e chegaram ao **mesmo veredito** todas as vezes (25 roteiros, **577 asserções, 0 falhas**). Era essa igualdade que provava que o bootstrap declarado em [`supabase/ci/`](supabase/ci/) estava certo; provada, o antigo perdeu a função.
+- 🔐 **A ordem não foi livre, e é a parte que mais importa.** Primeiro a branch protection passou a exigir `banco-sem-docker` (com os **dois** jobs ainda existindo, para nenhum contexto ficar sem reportar); só **depois** o job `banco` saiu. O inverso trancaria o próprio PR de remoção em *"Expected — Waiting for status to be reported"* — sem nada vermelho na tela para explicar por quê. Os contextos exigidos na `main` agora são `verificar` e `banco-sem-docker`; nada mais da proteção mudou (PR obrigatório, 0 aprovações, bypass do Johnny, sem force push).
+- 🧠 **As duas cicatrizes do job antigo foram MOVIDAS, não apagadas.** Remover um job leva junto os comentários que explicam por que ele era daquele jeito — e é aí que a decisão volta a ser tomada do zero um ano depois. O rate limit da API de releases (24/07/2026) e o flush do PostHog (25/07/2026), que são o motivo de **não** haver CLI de terceiro no caminho crítico, agora vivem no cabeçalho do job que sobrou, com o texto do erro original.
+- 🔒 **A trava mudou de alvo junto.** [`src/lib/ci-passos.test.ts`](src/lib/ci-passos.test.ts) deixou de defender a *existência* do job antigo e passa a defender a **memória** dele: nenhum vestígio executável do stack do Supabase CLI voltou ao YAML, as duas cicatrizes continuam escritas, o job vivo avisa que o **nome dele é contrato** com a branch protection, e a lista de jobs é exatamente `verificar` + `banco-sem-docker`. Duas sabotagens provam que ela reprova — em [`docs/f46-evidencias/`](docs/f46-evidencias/).
+
+Decisões em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-09-06 · pós-F46).
+
+---
+
 ## 06/09/2026 — F46 · A trava de hash das migrations e o CI de banco sem Docker ✅ 🔒
 
 Fase (**v1.51.0**). Duas coisas que o repositório repetia por escrito e não defendia com código. A primeira: *"nunca edite uma migration já aplicada"* está no [`CLAUDE.md`](CLAUDE.md), no [`RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md) e na regra 8 do §4 do [plano multiempresa](docs/PLANO-MULTIEMPRESA.md) — e **nada impedia**: um byte alterado na `0031` passava por `lint`, `test`, `build` e pelo job `banco` **verde**, porque aquele job aplica a cadeia num banco NOVO (ele prova que as 126 aplicam limpo, nunca que são as mesmas de ontem). A segunda: o job `banco` subia o **stack Docker inteiro do Supabase CLI** para usar dele só um Postgres. **Sem migration, sem dependência nova, sem mudança de schema, sem tocar na branch protection.** A última migration continua sendo a `0127`.

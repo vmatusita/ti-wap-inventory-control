@@ -8764,3 +8764,17 @@ e da `0121`; as quatro do código, por `git revert`.
 - Reversível? n/a (registro), exceto a troca das asserções, que é `git revert`.
 
 ---
+
+## 2026-09-06 · pós-F46 · O job `banco` antigo removido, e o novo promovido a required (v1.51.1)
+
+- Contexto: a F46 deixou os dois jobs de banco em paralelo e nomeou no backlog "promover `banco-sem-docker` a required depois de três pushes verdes; remover o antigo é entrega avulsa PATCH". O Johnny pediu as duas coisas.
+- Decisão: feitas, **nesta ordem, que não é livre**: (1) `gh api --method PATCH .../protection/required_status_checks` trocando os contextos para `["verificar","banco-sem-docker"]` **com os dois jobs ainda existindo**; (2) só então o PR que remove o job `banco` do `ci.yml`.
+- Motivo da ordem: o inverso trancaria o próprio PR de remoção. Enquanto `banco` for contexto exigido, um PR que o apaga **nunca produz esse check** — o PR fica preso em *"Expected — Waiting for status to be reported"*, sem nada vermelho na tela, e a única saída seria o bypass. Também não dá para fazer em três passos (acrescentar o novo → remover o job → tirar o antigo dos contextos): o passo do meio esbarra no mesmo bloqueio. A troca direta dos contextos é o único caminho em que nenhum contexto exigido fica sem reportar em momento nenhum.
+- Base para promover: **cinco runs seguidos** com os dois jobs no mesmo commit e o **mesmo veredito** (25 roteiros, 577 asserções, 0 falhas, resumo idêntico por `diff`) — acima do limiar de três da ficha. Tempos: antigo 2m48s–3m52s, novo 53–60s.
+- ⚠ **O que quase se perdeu junto, e foi salvo:** o job antigo era o ÚNICO lugar onde os dois incidentes que tiraram a CLI do caminho crítico estavam documentados em detalhe — o rate limit da API de releases (24/07/2026, com o texto do erro) e o flush do PostHog (25/07/2026, com as quatro linhas da saída). Apagar o job apagaria os dois comentários, e daqui a um ano alguém proporia voltar ao `supabase start` "porque é mais simples", sem nada no repositório para contradizer. Os dois foram **movidos** para o cabeçalho do job vivo, com o texto original.
+- A trava mudou de alvo: `src/lib/ci-passos.test.ts` deixou de afirmar que o job antigo existe e passa a afirmar que **nenhum vestígio executável** dele voltou, que as duas cicatrizes continuam escritas, e que o job vivo avisa que **o nome dele é contrato** com a branch protection. Nasceu com duas sabotagens provando que reprova (`docs/f46-evidencias/sabotagem-5-memoria-do-job-antigo.txt`) — a lição do achado da revisão adversarial da F46, que apanhou duas asserções minhas que nunca podiam falhar.
+- Uma peça nova no teste: `blocoDoJob(nome)`, que devolve o job MAIS o comentário logo acima dele. `corpoDoJob` começa na linha `  <nome>:`, e no YAML o comentário que explica um job vive ACIMA — sem isso, uma asserção sobre cicatriz olharia um texto que não as contém e reprovaria por engano, empurrando quem fosse "consertar" a apagar a asserção em vez do defeito.
+- **O nome `banco-sem-docker` foi mantido**, como o Johnny pediu ("promova o banco-sem-docker a required"). Ele descreve um contraste que já não existe, e renomeá-lo para `banco` é defensável — mas custa outra edição de branch protection no mesmo movimento, senão o check exigido para de reportar. Fica como opção registrada, não como pendência.
+- Reversível? Sim, e em duas partes independentes: `git revert` devolve o job antigo ao YAML; `gh api --method PATCH` devolve os contextos. Se for para reverter, **os contextos primeiro** — pela mesma razão da ordem acima.
+
+---

@@ -23,6 +23,15 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.51.1',
+    data: '2026-09-06',
+    titulo: 'A conferência do banco de dados ficou quatro vezes mais rápida para todo mundo',
+    mudancas: [
+      'Nenhuma tela mudou. A versão anterior instalou uma conferência de banco de dados mais rápida e a deixou rodando lado a lado com a antiga, para comparar as duas. Elas deram exatamente o mesmo resultado cinco vezes seguidas, então a antiga foi desligada.',
+      'O efeito prático: a bateria que confere o banco antes de qualquer alteração ir ao ar caiu de cerca de 3 minutos para menos de 1. Uma correção urgente termina de ser conferida bem mais cedo — e a conferência deixou de depender de um programa externo que já a derrubou duas vezes por motivos que nada tinham a ver com o sistema.',
+    ],
+  },
+  {
     versao: '1.51.0',
     data: '2026-09-06',
     fase: 'F46',
