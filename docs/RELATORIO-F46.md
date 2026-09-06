@@ -21,11 +21,11 @@ A última migration continua sendo a `0127`.
 | | Antes | Depois |
 |---|---|---|
 | Editar um byte de migration aplicada | passa por tudo, **verde** | **reprova** `npm run test`, nomeando o arquivo |
-| Job de banco no CI | `banco`, 3m52s, Docker do Supabase | `banco` **intacto** + `banco-sem-docker`, **57s**, sem Docker |
+| Job de banco no CI | `banco`, 2m48s–3m52s, Docker do Supabase | `banco` **intacto** + `banco-sem-docker`, **55–57s**, sem Docker |
 | Bootstrap do banco de teste | escondido numa imagem de terceiro | `supabase/ci/bootstrap-*.sql`, versionado e comentado |
 | "Aplicar duas vezes" | pedido pela ficha, nunca medido | **medido** (morre na `0001`) e trocado por prova de determinismo |
-| `src/lib/ci-passos.test.ts` | 60 casos | **80** casos |
-| Suíte total | 3.632 testes | **3.666** testes (154 arquivos) |
+| `src/lib/ci-passos.test.ts` | 60 casos | **81** casos |
+| Suíte total | 3.632 testes | **3.667** testes (154 arquivos) |
 
 ---
 
@@ -122,18 +122,31 @@ as três para a mesma saída errada — regravar o lock.
 
 ### 3.4 A decisão que a ordem delegou
 
-A ficha diz "arquivo novo é aceito"; a ordem delegou o comportamento ("é o que você decidiu e
-documentado"). **Escolhi reprovar**, com a mensagem dando a linha a rodar. Motivos, ata em
-`docs/DECISOES.md`:
+**Isto CONTRADIZ a letra da ficha, e a contradição fica registrada em vez de maquiada.** A ficha
+diz, com todas as letras, *"arquivo novo é **aceito** e o executor regrava o lock no mesmo commit"*,
+e o Escopo da ordem repete *"Arquivo novo é aceito (migration nova é o fluxo normal)"*. Eu escolhi
+**reprovar**.
 
-1. Sem isso o critério 1 ("uma entrada por arquivo") valeria só no dia da entrega e apodreceria em
-   silêncio a cada migration nova.
+O que autoriza a escolha não é uma releitura conveniente daquela frase — é a delegação explícita, na
+seção "A trava" da própria ordem: *"uma migration nova sem regravar o lock → **o comportamento é o
+que você decidiu e documentado**"*. Duas partes do mesmo documento discordam; a que delega é a mais
+específica, e ela manda decidir e documentar. É o que esta seção e a ata em `docs/DECISOES.md` fazem.
+
+Os motivos:
+
+1. Sem isso, o critério de aceitação 1 ("uma entrada por arquivo") valeria **só no dia da entrega** e
+   apodreceria em silêncio a cada migration nova — o lock viraria um catálogo parcial em que
+   ninguém confia.
 2. "O executor regrava no mesmo commit" passaria a depender de alguém **lembrar** — que é
-   exatamente o que a regra 8 do `CLAUDE.md` diz que uma regra não pode fazer.
-3. Reprovar **não bloqueia o fluxo normal**: a resposta é uma linha, e ela está na mensagem.
+   exatamente o que a regra 8 do `CLAUDE.md` diz que uma regra não pode fazer ("A regra não depende
+   de ninguém lembrar dela").
+3. Reprovar **não bloqueia o fluxo normal**: a resposta é uma linha, e ela está dentro da própria
+   mensagem de erro.
 
-"Aceito", na ficha, quer dizer *acrescentar migration não é ato proibido*, em contraste com editar.
-Isso continua verdadeiro.
+O que eu **não** posso afirmar é que "aceito" já significava isso. A leitura que sustenta a escolha
+é que *acrescentar migration não é ato proibido* — em contraste com editar, que é —, e essa
+continua verdadeira. Mas é leitura minha, e a ficha comporta a outra. Se o Johnny preferir a letra,
+é remover a classe `nova` de `conferirLock`: uma condição, com teste unitário próprio.
 
 ---
 
@@ -399,6 +412,20 @@ Os dois jobs rodaram no **mesmo run**, sobre o **mesmo commit**.
 | `banco` (antigo) | ✅ success | 15:01:32 | 15:05:24 | **3m52s** |
 | `banco-sem-docker` (novo) | ✅ success | 15:01:32 | 15:02:29 | **57s** |
 
+E um **segundo** run, no commit seguinte, porque um único número de tempo não é medição:
+
+**Run `34042431721` · commit `643e87c`**
+
+| Job | Conclusão | Duração |
+|---|---|---|
+| `verificar` | ✅ success | 3m31s |
+| `banco` (antigo) | ✅ success | **2m48s** |
+| `banco-sem-docker` (novo) | ✅ success | **55s** |
+
+Os dois jobs também chegaram a **25 roteiros / 577 asserções** no run 2, com os 25 detalhes
+idênticos entre si (`diff` sem diferença). O job antigo variou 2m48s–3m52s entre os dois runs; o
+novo, 55s–57s. **A razão (≈3× a 4×) é robusta; o número exato de um run só, não.**
+
 <table>
 <tr><th>Job <code>banco</code> — <code>supabase start</code></th><th>Job <code>banco-sem-docker</code> — <code>postgres:17</code></th></tr>
 <tr><td><pre>
@@ -661,7 +688,7 @@ $ npm run lint
 
 $ npm run test
  Test Files  154 passed (154)
-      Tests  3666 passed (3666)
+      Tests  3667 passed (3667)
    Duration  44.14s
 
 $ npm run contraste
@@ -701,7 +728,7 @@ $ npx tsc --noEmit
 | `supabase/ci/bootstrap-ledger.sql` | **novo** | O schema do ledger, vazio — §6.2 |
 | `supabase/ci/impressao-schema.sql` | **novo** | A sonda do RUNBOOK, agora executável |
 | `.github/workflows/ci.yml` | `+161 / -0` | O job `banco-sem-docker`. O antigo **não foi tocado** |
-| `src/lib/ci-passos.test.ts` | 60 → 80 casos | Dois `describe` novos: o job novo e a integridade do antigo |
+| `src/lib/ci-passos.test.ts` | 60 → 81 casos | Dois `describe` novos: o job novo e a integridade do antigo |
 | `src/lib/queries/dev.ts` | sai `migracoesEmDia` | §6.1 |
 | `src/lib/versoes/registry.ts` | entrada `1.51.0` | Regra 8 |
 | `CHANGELOG.md` | entrada de 06/09/2026 | Regra 8 |
@@ -715,7 +742,112 @@ $ npx tsc --noEmit
 
 ## 11. A revisão adversarial
 
-<!-- REVISAO -->
+Três céticos independentes, em contexto fresco, com as lentes que a ordem torna obrigatórias — e
+**cada achado passou por um verificador adversarial** encarregado de **refutá-lo** antes de virar
+trabalho (padrão: refutado; só confirma quem reproduz o problema). 15 agentes no total.
+
+| Lente | Achados levantados | Sobreviveram à refutação |
+|---|---|---|
+| **O cético do bootstrap** — *"esse privilégio existe no `supabase start` ou você o inventou? algum roteiro passa a passar por motivo diferente?"* | 4 | **0** |
+| **O cético da trava** — *"ela reprova mesmo? sob renomeio? sob arquivo novo? sob CRLF?"* | 5 | **0** (uma já corrigida — ver abaixo) |
+| **O cético do YAML** — *"o job antigo continua idêntico? o required check continua reportando? algum comentário-cicatriz foi perdido?"* | 3 | **1** |
+
+### 11.1 O achado que sobreviveu, e a correção
+
+**Duas das minhas asserções novas eram tautológicas — nunca podiam falhar de forma independente.**
+
+`corpoDoJob(nome)` faz `expect(inicio, …).toBeGreaterThan(-1)` **por dentro**, e roda no
+**carregamento do módulo** (`const BANCO = corpoDoJob('banco')`). Se um job sumisse, o arquivo
+inteiro morria na coleta, antes de qualquer `it` nomeado. Ou seja: chegar a executar
+`expect(BANCO_SEM_DOCKER.length).toBeGreaterThan(0)` e `expect(YAML).toContain('\n  banco:\n')` já
+pressupunha que a condição que elas "verificavam" era verdadeira.
+
+Asserção que não sabe ficar vermelha é **sensação de rede** — exatamente o que a F45 existiu para
+matar. Deixá-las seria a trava desta fase repetindo o defeito que ela denuncia.
+
+**As duas foram substituídas por uma estritamente mais forte:**
+
+```ts
+it('os jobs do ci.yml são EXATAMENTE `verificar`, `banco` e `banco-sem-docker`', () => {
+  expect(nomesDosJobs()).toEqual(['verificar', 'banco', 'banco-sem-docker'])
+})
+```
+
+(`nomesDosJobs()` lê só o bloco `jobs:` — uma regex solta sobre o arquivo devolveria `push`, de
+`on: push:`, como se fosse job.) Mais um teste de que `banco-sem-docker` é **um job de verdade** e
+não um cabeçalho vazio (`runs-on`, `steps`, ≥ 6 passos).
+
+**E, desta vez, a prova de que a substituta sabe reprovar** — `docs/f46-evidencias/sabotagem-4-jobs-do-yaml.txt`:
+
+```
+CASO A — um job NOVO que ninguém declarou (o que NADA cobria antes)
+AssertionError: expected [ 'verificar', 'banco', …(2) ] to deeply equal [ 'verificar', 'banco', …(1) ]
++   "job-que-ninguem-declarou",
+ Test Files  1 failed (1)
+      Tests  1 failed | 80 passed (81)
+
+CASO B — o job `banco` RENOMEADO (o cenário que mataria o required check)
+AssertionError: o job `banco` sumiu do ci.yml: expected -1 to be greater than -1
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
+No caso B quem reprova é a guarda **anterior** (F45), na coleta — e é justamente por isso que as
+duas asserções trocadas eram tautológicas. **O caso A é o que nenhuma guarda cobria.**
+
+### 11.2 O achado da trava que o verificador refutou — porque eu já o tinha corrigido
+
+O cético da trava levantou, com precisão, que *"`npm run db:lock` grava por cima do hash de uma
+migration já travada e alterada **antes** de avisar e sair 1"*, com a correção sugerida: *"por
+padrão RECUSAR escrever […] exigindo uma flag explícita"*.
+
+O verificador o **refutou por medição**: no arquivo real o `process.exit(1)` está **antes** do
+`writeFileSync`, e ele reproduziu os dois caminhos. Os dois estão certos — o cético leu o commit
+`722a08d`, e eu tinha corrigido exatamente isso em `643e87c`, pelo mesmo raciocínio e chegando à
+mesma solução (`--regravar-alterada`), enquanto escrevia o §15 deste relatório (§4.5).
+
+Vale registrar: **a revisão adversarial e eu convergimos, de forma independente, no mesmo defeito e
+na mesma correção.** É o sinal mais forte que este relatório tem de que o achado era real.
+
+### 11.3 As refutações que valem registro
+
+- **"`auth.uid()` não é a definição oficial"** — **refutado, e conferido por mim depois.** O cético
+  comparou com `20211202183645_update_auth_uid.up.sql`; existe uma migration **posterior**,
+  `20220224000811_update_auth_functions.up.sql`, que redefine a função. Fui ler as duas: **o corpo
+  de `uid()` é idêntico nas duas versões**, e idêntico ao do `bootstrap-auth.sql`. A afirmação do
+  §5.3 se mantém.
+- **"o trigger `storage.protect_objects_delete` não está no bootstrap"** — verdadeiro como fato,
+  refutado como defeito: é **exatamente** o risco que o §15.2 já nomeia e aceita (objeto de
+  plataforma que nenhum roteiro exercita hoje). Nenhum dos 25 o alcança por SQL — os dois roteiros
+  que o citam o fazem em comentário, dizendo que ele não é testável por SQL.
+- **"a sonda de determinismo não olha `auth`/`supabase_migrations` nem dado de linha"** —
+  verdadeiro, e é o recorte **decidido e documentado** (§7.3, §15.5). Não é achado escondido.
+- **"`itens_extra.sql` 11a/11b passam por `permission denied`, não pela imutabilidade"** —
+  verdadeiro, e **idêntico nos dois jobs**: é anterior à F46, está no §15.6 e no backlog. Corrigi-lo
+  exigiria mexer num roteiro, o que a ordem proíbe.
+- **"reprovar migration nova contradiz a letra da ficha"** — o cético tem razão quanto à **letra**,
+  e a crítica de forma é justa: eu havia escrito a ata como se fosse interpretação, não contradição.
+  Corrigido — a ata e o §3.4 agora dizem que **contradiz a letra da ficha**, que a ordem delegou
+  explicitamente a decisão, e por que a escolha se sustenta assim mesmo.
+
+### 11.4 O que a revisão conferiu e estava certo
+
+Entre outros, com evidência colhida pelos próprios revisores: as três roles batem **byte a byte**
+com `supabase/postgres` (conferido ao vivo); **nenhum** `grant` em `public` no bootstrap, e nenhuma
+das 4 checagens de `seguranca_catalogo.sql` depende de privilégio que o bootstrap conceda;
+`storage.objects` tem as colunas que as 8 policies e os inserts dos roteiros exigem, e a RLS ligada
+é necessária; `bootstrap-ledger.sql` resolve o `invalid_schema_name` da `0077` e nenhum roteiro
+chama aquela RPC; zero extensão necessária (incluindo `pg_net`, `pgsodium`, `vault`, `pg_cron`);
+`auth.users` tem exatamente as colunas que os três corpos de trigger leem e as 9 que o runner
+insere; o `ci.yml` é `+161/-0` e o corpo do job `banco` é byte a byte o de antes.
+
+Uma imprecisão de comentário foi apontada e é justa: `grant anon, authenticated, service_role to
+postgres` é **inócuo** no `postgres:17` oficial, porque a sessão já é superusuária e pode
+`set role` sem ser membro. A linha não concede privilégio real a mais e não engana nenhuma checagem
+(`pg_has_role` não aparece em migration nenhuma); o comentário dela é que promete mais do que
+precisa. Fica registrado em vez de silenciado.
+
+---
 
 ---
 
@@ -841,8 +973,9 @@ Honestidade sobre os limites, no padrão da F45.
    **Isto é anterior à F46 e idêntico nos dois jobs** — não é divergência introduzida por esta fase,
    e corrigi-lo exigiria mexer num roteiro, o que a ordem proíbe. Vai para o backlog (§14.2, item 4).
 
-7. **O tempo de 57s é de UM run.** Não é média de várias execuções, e o runner do GitHub varia.
-   A ordem de grandeza (≈4× mais rápido) é robusta; o número exato não.
+7. **Os tempos são de DOIS runs, não de uma bateria.** O job antigo variou 2m48s–3m52s e o novo
+   55s–57s. A razão (≈3× a 4× mais rápido) é robusta; um número exato não é média de nada, e o
+   runner do GitHub varia com a carga da nuvem.
 
 8. **A trava nasceu verde.** Ela é varredura de catálogo (regra 4 do §4 do plano permite). As quatro
    sabotagens do §4 são a compensação, mas são sabotagens **que eu escolhi** — não uma prova de que

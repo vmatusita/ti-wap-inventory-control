@@ -318,9 +318,44 @@ describe('6. os roteiros SQL seguem o molde da linha FIM', () => {
 // coisa, e a comparação perderia o sentido.
 const BANCO_SEM_DOCKER = corpoDoJob('banco-sem-docker')
 
+/**
+ * Os nomes dos jobs, lidos do bloco `jobs:` — e SÓ de dentro dele.
+ *
+ * ⚠ O recorte não é frescura: `on: push: branches:` também tem chaves em indentação 2
+ * (`  push:`), e uma regex solta sobre o arquivo inteiro devolveria `push` como se fosse job.
+ */
+function nomesDosJobs(): string[] {
+  const i = YAML.indexOf('\njobs:\n')
+  expect(i, 'sumiu o bloco `jobs:` do ci.yml').toBeGreaterThan(-1)
+  return [...YAML.slice(i).matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)].map((m) => m[1])
+}
+
 describe('7. o job de banco sem Docker existe e mede a mesma coisa', () => {
-  it('o job `banco-sem-docker` está no ci.yml', () => {
-    expect(BANCO_SEM_DOCKER.length).toBeGreaterThan(0)
+  // ⚠ ESTA ASSERÇÃO SUBSTITUIU DUAS TAUTOLOGIAS, apanhadas na revisão adversarial da F46.
+  //
+  // Havia aqui um `expect(BANCO_SEM_DOCKER.length).toBeGreaterThan(0)` e, no describe 8, um
+  // `expect(YAML).toContain('\n  banco:\n')`. As duas NUNCA podiam falhar de forma
+  // independente: `corpoDoJob` já faz `expect(inicio).toBeGreaterThan(-1)` por DENTRO, e ele
+  // roda no carregamento do módulo (linhas `const BANCO = …` / `const BANCO_SEM_DOCKER = …`).
+  // Se o job sumisse, o arquivo inteiro morria na coleta, antes de qualquer `it` nomeado — ou
+  // seja, chegar a executar aquelas duas linhas já pressupunha o que elas "verificavam".
+  // Asserção que não sabe ficar vermelha é sensação de rede, que é o que a F45 existiu para
+  // matar; deixá-las seria a trava desta fase repetindo o defeito que ela denuncia.
+  //
+  // Esta aqui é estritamente mais forte e SABE falhar: pega job renomeado, job apagado e job
+  // novo que ninguém declarou — inclusive o cenário que mais importa, `banco` virar outro nome
+  // e o *required status check* parar de reportar para sempre.
+  it('os jobs do ci.yml são EXATAMENTE `verificar`, `banco` e `banco-sem-docker`', () => {
+    expect(nomesDosJobs()).toEqual(['verificar', 'banco', 'banco-sem-docker'])
+  })
+
+  it('`banco-sem-docker` é um job de verdade, não um cabeçalho vazio', () => {
+    expect(BANCO_SEM_DOCKER).toMatch(/^\s{4}runs-on:/m)
+    expect(BANCO_SEM_DOCKER).toMatch(/^\s{4}steps:/m)
+    expect(
+      BANCO_SEM_DOCKER.match(/^\s{6}- (name|uses):/gm)?.length ?? 0,
+      'o job perdeu passos',
+    ).toBeGreaterThanOrEqual(6)
   })
 
   it('ele chama o MESMO runner que o job `banco` — não um loop próprio', () => {
@@ -439,8 +474,15 @@ describe('8. o job `banco` antigo continua intacto (ele é o required check)', (
   // `banco`, pelo NOME. Renomear ou apagar o `banco` deixaria o check exigido sem
   // nunca reportar, e todo PR ficaria preso em "Expected — Waiting for status to be
   // reported". Removê-lo é entrega avulsa, e só depois de o novo ser promovido.
-  it('o job se chama `banco`, e não outra coisa', () => {
-    expect(YAML).toContain('\n  banco:\n')
+  it('o nome `banco` continua sendo o de um job, e é DIFERENTE do job novo', () => {
+    // A existência do nome já é coberta, e de forma falsificável, pela asserção do describe 7
+    // (`os jobs são EXATAMENTE …`). O que sobra de específico aqui é o que a remoção futura do
+    // job antigo vai tentar fazer: colapsar os dois num só. Quando isso acontecer, será de
+    // propósito — e este teste é o lugar onde a mudança tem de ser encarada.
+    const nomes = nomesDosJobs()
+    expect(nomes).toContain('banco')
+    expect(nomes).toContain('banco-sem-docker')
+    expect(new Set(nomes).size, 'nome de job repetido no ci.yml').toBe(nomes.length)
   })
 
   it('ele continua subindo o stack do Supabase CLI', () => {
