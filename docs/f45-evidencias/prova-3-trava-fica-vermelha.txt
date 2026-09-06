@@ -1,0 +1,57 @@
+### PROVA 3 — a trava src/lib/ci-passos.test.ts SABE ficar vermelha
+
+Ela nasce VERDE, porque é varredura de catálogo (regra 4 do §4 do plano: onde a
+trava não pode nascer vermelha, ela vem no mesmo commit e a prova de que reprova
+vai no relatório). São quatro sabotagens, uma de cada vez, cada uma desfeita logo
+depois — a árvore volta limpa em todas.
+
+== VERDE de partida ==
+  Test Files  1 passed (1)
+  Tests  59 passed (59)
+
+== (actions) alguém remove o passo `verificar:actions` para o CI ficar mais rápido ==
+  ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+  FAIL  |puro| src/lib/ci-passos.test.ts > 1. o job `verificar` mantém os passos que reprovam > roda `npm run verificar:actions`
+  AssertionError: expected '  verificar:\n    runs-on: ubuntu-lat…' to contain 'npm run verificar:actions'
+  FAIL  |puro| src/lib/ci-passos.test.ts > 1. o job `verificar` mantém os passos que reprovam > `verificar:actions` vem DEPOIS do build (ele lê `.next/server`)
+  AssertionError: expected -1 to be greater than -1
+  FAIL  |puro| src/lib/ci-passos.test.ts > 2. todo `npm run X` do CI tem script no package.json > o YAML chama pelo menos seis scripts (guarda do próprio teste)
+  AssertionError: expected 5 to be greater than or equal to 6
+  Test Files  1 failed (1)
+  (desfeito — árvore limpa)
+
+== (cancel) devolveram `cancel-in-progress: true` (o buraco do commit intermediário na main) ==
+  Test Files  1 failed (1)
+  Tests  2 failed | 57 passed (59)
+  ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+  FAIL  |puro| src/lib/ci-passos.test.ts > 3. `cancel-in-progress` não vale para push na main > `cancel-in-progress` não é `true` incondicional
+  AssertionError: com `true` fixo, dois pushes seguidos na main publicam o commit do meio sem CI: expected 'cancel-in-progress: true' not to be 'cancel-in-progress: true' // Object.is equality
+  FAIL  |puro| src/lib/ci-passos.test.ts > 3. `cancel-in-progress` não vale para push na main > o cancelamento está condicionado a pull_request
+  AssertionError: expected 'name: CI\n\n# Portão de qualidade aut…' to contain 'cancel-in-progress: ${{ github.event_…'
+  (desfeito — arvore limpa)
+
+== (loop) o loop voltou para dentro do YAML (local e CI voltam a divergir) ==
+  Test Files  1 failed (1)
+  Tests  3 failed | 56 passed (59)
+  ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+  FAIL  |puro| src/lib/ci-passos.test.ts > 2. todo `npm run X` do CI tem script no package.json > `db:test` e `db:test:um` chamam o MESMO runner que o CI chama
+  AssertionError: expected '  banco:\n    runs-on: ubuntu-latest\…' to contain 'scripts/db/rodar-roteiros.sh'
+  FAIL  |puro| src/lib/ci-passos.test.ts > 4. o passo dos roteiros chama o script, não um loop inline > o job `banco` chama `bash scripts/db/rodar-roteiros.sh`
+  AssertionError: expected '  banco:\n    runs-on: ubuntu-latest\…' to contain 'bash scripts/db/rodar-roteiros.sh'
+  FAIL  |puro| src/lib/ci-passos.test.ts > 4. o passo dos roteiros chama o script, não um loop inline > o loop `for f in supabase/tests/*.sql` NÃO voltou para o YAML
+  AssertionError: expected '  banco:\n    runs-on: ubuntu-latest\…' not to match /for\s+f\s+in\s+supabase\/tests/tests
+  (desfeito — arvore limpa)
+
+== (cobertura) o `include` voltou ao recorte de antes da F45 e alguém escreveu scripts/design/descartavel.test.ts ==
+  Test Files  1 failed (1)
+  Tests  1 failed | 58 passed (59)
+  ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+  FAIL  |puro| src/lib/ci-passos.test.ts > 5. cobertura do runner — nenhum teste do repositório fica fora > todo arquivo `*.test.*` está coberto por algum projeto do Vitest
+  AssertionError: estes arquivos de teste NÃO rodam em projeto nenhum (src/**/*.test.ts, scripts/import/__tests__/**/*.test.ts, src/**/*.test.tsx): expected [ Array(1) ] to deeply equal []
+  (desfeito — arvore limpa)
+
+== o que NÃO dá para provar aqui ==
+A recusa de universo vazio por pg_temp.assert_zero_de exige um Postgres, e esta
+máquina não tem Docker (veto do Johnny, F30) nem Supabase local. O roteiro
+supabase/tests/asserts_ferramenta.sql existe para prová-la e roda no job `banco`
+do CI — a saída real está lá, não aqui. Ver §9 do relatório.

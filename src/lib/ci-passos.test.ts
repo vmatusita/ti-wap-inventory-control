@@ -27,7 +27,7 @@ import { join, relative, sep } from 'node:path'
 //     `.test.tsx` não casava, e teste escrito em `scripts/env-guard.ts`,
 //     `scripts/design/` ou `scripts/termos/` nunca rodava e ninguém ficava
 //     sabendo. Esta é a asserção que impede o buraco de voltar.
-//  6. Os 24 roteiros SQL seguem o molde da linha `FIM` — porque as fases
+//  6. Os roteiros SQL seguem o molde da linha `FIM` — porque as fases
 //     seguintes vão escrever roteiro novo, e o runner reprova quem não a emite.
 
 const RAIZ = process.cwd()
@@ -208,16 +208,33 @@ describe('5. cobertura do runner — nenhum teste do repositório fica fora', ()
     return achados
   }
 
-  it('todo arquivo `*.test.*` está coberto por algum projeto do Vitest', async () => {
-    const config = (await import('../../vitest.config.mts')).default as {
-      test?: { projects?: { test?: { name?: string; include?: string[] } }[] }
-    }
-    const projetos = config.test?.projects ?? []
-    expect(projetos.length, 'a config perdeu os projetos').toBeGreaterThanOrEqual(2)
+  // A config é lida como TEXTO, pelo mesmo motivo que o YAML: `import()` de um
+  // `.mts` é recusado por `tsc --noEmit` (TS5097 — só com
+  // `allowImportingTsExtensions`), e afrouxar o tsconfig inteiro para um teste
+  // sair verde é o tipo de troca que esta fase existe para não fazer.
+  const CONFIG_VITEST = readFileSync(join(RAIZ, 'vitest.config.mts'), 'utf8')
 
-    const padroes = projetos.flatMap((p) => p.test?.include ?? [])
-    expect(padroes.length).toBeGreaterThan(0)
+  /** Os `include: [...]` da config, um array por projeto, na ordem. */
+  function includesDaConfig(): string[][] {
+    return [...CONFIG_VITEST.matchAll(/include:\s*\[([^\]]*)\]/g)].map((m) =>
+      [...m[1].matchAll(/'([^']+)'/g)].map((s) => s[1]),
+    )
+  }
 
+  /** Os `name: '...'` de dentro de `test: { … }` — os nomes dos projetos. */
+  function nomesDosProjetos(): string[] {
+    return [...CONFIG_VITEST.matchAll(/name:\s*'([^']+)'/g)].map((m) => m[1])
+  }
+
+  it('a leitura da config funciona (guarda do próprio teste)', () => {
+    const blocos = includesDaConfig()
+    expect(blocos.length, 'não achei os `include:` de vitest.config.mts').toBeGreaterThanOrEqual(2)
+    expect(blocos.flat().length).toBeGreaterThanOrEqual(3)
+    expect(blocos.flat().every((p) => p.includes('*.test.'))).toBe(true)
+  })
+
+  it('todo arquivo `*.test.*` está coberto por algum projeto do Vitest', () => {
+    const padroes = includesDaConfig().flat()
     const testes = testesDoRepo(RAIZ)
     expect(testes.length, 'a varredura não achou teste nenhum — ela está quebrada').toBeGreaterThan(100)
 
@@ -228,13 +245,17 @@ describe('5. cobertura do runner — nenhum teste do repositório fica fora', ()
     ).toEqual([])
   })
 
-  it('os dois projetos se chamam `puro` e `componentes`', async () => {
-    const config = (await import('../../vitest.config.mts')).default as {
-      test?: { projects?: { test?: { name?: string } }[] }
-    }
-    const nomes = (config.test?.projects ?? []).map((p) => p.test?.name)
+  it('os dois projetos se chamam `puro` e `componentes`', () => {
+    const nomes = nomesDosProjetos()
     expect(nomes).toContain('puro')
     expect(nomes).toContain('componentes')
+  })
+
+  it('o projeto `componentes` coleta `.test.tsx`, e o `puro` não', () => {
+    const padroes = includesDaConfig().flat()
+    expect(padroes.some((p) => p.endsWith('*.test.tsx'))).toBe(true)
+    // O piso de componente só vale se um `.test.tsx` for realmente coletado.
+    expect(casa('src/**/*.test.tsx', 'src/components/layout/aviso.test.tsx')).toBe(true)
   })
 })
 

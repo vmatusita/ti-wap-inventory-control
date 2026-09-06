@@ -52,7 +52,7 @@ begin
   -- 1b. universo NULL é o mesmo caso (um `select count(*) into` que não achou
   --     linha devolve null, e é assim que a tautologia costuma chegar).
   begin
-    v_res := pg_temp.assert_zero_de('autoteste 1b', 0, null);
+    v_res := pg_temp.assert_zero_de('autoteste 1b', 0, null::bigint);
     v_falhas := v_falhas + 1;
     raise warning '✗ 1b assert_zero_de ACEITOU universo NULL (devolveu %)', v_res;
   exception when others then
@@ -102,7 +102,7 @@ begin
 
   -- 4b. contagem de ruins NULA idem.
   begin
-    v_res := pg_temp.assert_zero_de('autoteste 4b', null, 7);
+    v_res := pg_temp.assert_zero_de('autoteste 4b', null::bigint, 7);
     v_falhas := v_falhas + 1;
     raise warning '✗ 4b aceitou contagem de ruins NULA (devolveu %)', v_res;
   exception when others then

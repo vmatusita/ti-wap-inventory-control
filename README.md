@@ -38,9 +38,13 @@ Variáveis de ambiente (todas descritas em `.env.example`):
 | `npm run db:reset` | Zera as tabelas de dados (exige as guardas do `.env.local`) |
 | `npm run db:types` | Regenera `src/lib/types/database.ts` a partir do schema |
 | `npm run contraste` | Confere o contraste das cores do sistema de design (F40) |
+| `npm run db:test` · `npm run db:test:um <arquivo>` | Roda os roteiros SQL de `supabase/tests/` — **o MESMO script que o CI roda** (`scripts/db/rodar-roteiros.sh`). Precisa de um Postgres: `DATABASE_URL=…`, ou o local do `supabase start` (porta 54322). Nunca aponte para produção |
+| `npm run verificar:actions` | Gate de artefato: procura Server Action registrada sem binding no build. **Rode depois de `npm run build`** — ele lê `.next/server` |
 | `npm run carga` | Carga única do go-live (`scripts/import/`; guardas `CARGA_*`) — ferramenta, não feature |
 
-O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: um job de `lint + test + build` e um job de **banco** que sobe um Postgres, aplica **todas as migrations** em ordem e roda os roteiros de `supabase/tests/`.
+O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: o job `verificar` (`lint` → `test` → `contraste` → `build` → `verificar:actions`) e o job `banco`, que sobe um Postgres, aplica **todas as migrations** em ordem e roda os roteiros de `supabase/tests/` pelo mesmo script que `npm run db:test` chama. Desde a F45 o cancelamento de execução em andamento vale **só em PR**: em push na `main` cada commit tem o CI dele do começo ao fim.
+
+> **O portão da `main` (F45, 05/09/2026) — decisão do Johnny, registrada em [`docs/DECISOES.md`](docs/DECISOES.md).** `verificar` e `banco` são para ser *required status checks* na `main`, com *require pull request* e bypass na conta do Johnny. **Consequência aceita: da F46 em diante toda fase vira PR**, com espera do job `banco`; usar o bypass passa a ser ato consciente. **O RISCO, dito por escrito:** essa proteção é configuração **fora do repositório**, e **nenhuma trava interna impede que alguém a desligue no painel** — `src/lib/ci-passos.test.ts` defende os passos do CI, não a proteção da branch. **Estado em 05/09/2026: PENDENTE** — o `gh` (GitHub CLI) não está instalado na máquina de desenvolvimento e a credencial de administrador é insumo que só o Johnny tem; o comando pronto e o passo a passo do painel estão em [`docs/RELATORIO-F45.md`](docs/RELATORIO-F45.md) §8.
 
 ## Stack (decidida em 09/07/2026)
 
@@ -74,9 +78,9 @@ A documentação do **operador** não está aqui: ela vive dentro do sistema, em
 
 ## Status
 
-**Versão no ar: `1.49.0`.** A fonte única é `src/lib/versoes/registry.ts` — `VERSOES[0]` *é* a versão publicada, e um teste trava a divergência com o `package.json`. O operador vê o mesmo histórico em `/versoes`.
+**Versão no ar: `1.50.0`.** A fonte única é `src/lib/versoes/registry.ts` — `VERSOES[0]` *é* a versão publicada, e um teste trava a divergência com o `package.json`. O operador vê o mesmo histórico em `/versoes`.
 
-Entregue da **F0 à F44**: operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo e snapshots semanais com acesso por senha, termos gerados em `.docx`, import de startup por filial, cargos e permissões no Postgres, área `/dev` com zona destrutiva, e o sistema de design com `/ativos` e as três telas de `/itens` dentro do casco — a lista de itens mostrando, na própria linha, quanto tem em cada filial, e dizendo por extenso de qual filial são os números quando há filtro.
+Entregue da **F0 à F45**: operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo e snapshots semanais com acesso por senha, termos gerados em `.docx`, import de startup por filial, cargos e permissões no Postgres, área `/dev` com zona destrutiva, e o sistema de design com `/ativos` e as três telas de `/itens` dentro do casco — a lista de itens mostrando, na própria linha, quanto tem em cada filial, e dizendo por extenso de qual filial são os números quando há filtro.
 
 - **O que mudou, fase a fase:** [`CHANGELOG.md`](CHANGELOG.md) — toda entrada tem uma versão correspondente
 - **O que falta:** seção *Pendências (roadmap)* no fim do [`CHANGELOG.md`](CHANGELOG.md)

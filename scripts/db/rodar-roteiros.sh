@@ -30,7 +30,7 @@
 #
 # COMO USAR
 #
-#     npm run db:test                             # os 24 roteiros
+#     npm run db:test                             # todos os roteiros da pasta
 #     npm run db:test:um supabase/tests/troca.sql # um só
 #     DATABASE_URL=postgresql://… npm run db:test # contra outro banco
 #

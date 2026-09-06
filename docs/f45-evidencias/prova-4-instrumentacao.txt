@@ -1,0 +1,42 @@
+### PROVA 4 — a instrumentação dos roteiros NÃO mudou cenário nenhum
+
+A regra da transformação: toda linha ALTERADA tem de voltar EXATAMENTE ao original
+quando se removem só os prefixos de contador (`v_ok := v_ok + 1; ` /
+`v_falhas := v_falhas + 1; `) e os dois renomes (`v_aceitou`→`v_ok`,
+`v_recusou`→`v_ok`). Linha puramente ACRESCENTADA só pode ser declare de contador ou
+a linha FIM; puramente REMOVIDA, só o rodapé antigo `=== fim do roteiro …`.
+Os dois arquivos NOVOS da fase ficam fora desta conta e são listados à parte.
+
+  (só espaço) dominios_login.sql: "v_ok     boolean;" → "v_aceitou boolean;"
+
+pares que voltam EXATAMENTE ao original ................ 371
+pares que voltam a menos de ESPAÇO (só realinhamento) .. 1
+linhas puramente acrescentadas (declare + FIM) ......... 54  (15 × 2 declare + 24 FIM = 54)
+linhas puramente removidas (o rodapé antigo) ........... 14  (os 14 roteiros que tinham rodapé)
+DIVERGÊNCIAS .......................................... 0
+
+roteiros com linha alterada (15 dos 24):
+  asof_desempate.sql              8 linhas
+  dominios_login.sql             14 linhas
+  f34_triagem_reserva.sql        47 linhas
+  f36_detentor.sql               36 linhas
+  fuso_do_negocio.sql            10 linhas
+  import_substituir.sql          24 linhas
+  itens_extra.sql                10 linhas
+  itens_quantidade.sql           38 linhas
+  manutencao_fornecedor.sql      44 linhas
+  maquina_estados.sql            31 linhas
+  pendencias_import_termo.sql    10 linhas
+  pendencias_item.sql            26 linhas
+  seguranca_catalogo.sql         13 linhas
+  transicoes_extra.sql           34 linhas
+  troca.sql                      27 linhas
+
+roteiros que só ganharam a linha FIM (já contavam antes):
+  cargo_dev.sql, conflito_filiais.sql, dev_destrutivo.sql, f37_colaboradores_tipos.sql, f38_itens_com_ativo.sql, f41_regularizacao.sql, papeis_rls.sql, reabrir_pendencia_item.sql, transferencia_item.sql
+
+arquivos NOVOS da fase (não entram na conta acima):
+  supabase/tests/_asserts.sql
+  supabase/tests/asserts_ferramenta.sql
+
+NENHUM CENÁRIO MUDOU.
