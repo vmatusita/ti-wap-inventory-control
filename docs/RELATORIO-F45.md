@@ -8,17 +8,30 @@ marcar ✗ e a Vercel publicava igual — uma trava que informa não é trava, �
 depois que ele foi ao ar. Junto do portão vieram as três coisas que só fazem sentido no mesmo
 commit: a honestidade dos roteiros SQL, o runner único, e o piso de teste de componente.
 
-> ## O que ficou pendente, dito antes de tudo
+> ## ⚠ ESTE RELATÓRIO FOI CORRIGIDO — leia isto antes do resto
 >
-> Duas coisas, e as duas pela mesma causa: **o `gh` (GitHub CLI) não está instalado nesta máquina**,
-> e **não há Docker nem Postgres aqui** (veto do Johnny, F30).
+> A primeira versão dele, escrita em 05/09/2026, deixava **duas pendências** e atribuía as duas à
+> falta de insumo da máquina. **Uma das duas causas era FALSA.**
 >
-> 1. **O portão em si não foi ligado.** `verificar` e `banco` ainda não são *required status checks*.
->    O comando pronto e o passo a passo do painel estão na **§8**. É o item 1 da lista de retorno.
-> 2. **O SQL desta fase nunca foi executado.** Quem o roda pela primeira vez é o job `banco` do CI,
->    no commit de merge. A **§9** diz o que conferir e o que fazer se ficar vermelho.
+> **O `gh` (GitHub CLI) ESTAVA instalado, e autenticado.** Só não estava no `PATH` desta sessão —
+> ele mora em `C:\Program Files\GitHub CLI\gh.exe`, e um `gh --version` no bash devolvia
+> `command not found`. Tomei esse `command not found` como prova de ausência e não conferi de
+> segunda forma. Por causa disso a fase declarou como "insumo físico que só o Johnny tem" algo que
+> estava ao alcance da mão o tempo todo. **O erro é meu, e a §15 conta como ele aconteceu.**
 >
-> Tudo o mais foi executado e está provado neste documento, com saída real.
+> Com o `gh`, no mesmo dia, as duas pendências fecharam:
+>
+> 1. **O portão está LIGADO e PROVADO.** `verificar` e `banco` são *required status checks* na
+>    `main`, com *require pull request* e bypass do Johnny — e um PR descartável com um roteiro
+>    deliberadamente vermelho teve o merge **BLOQUEADO** (§8 e `prova-7-portao-fecha.txt`).
+> 2. **O SQL foi executado.** O job `banco` do commit de merge rodou os 25 roteiros contra um
+>    Postgres real: **577 asserções, 0 falhas** (§9 e `prova-6-ci-banco.txt`).
+>
+> E ler o CI revelou um defeito que nenhuma leitura de código tinha achado: a correção do
+> `cancel-in-progress` estava **pela metade** (§16). Foi corrigida na `v1.50.1`.
+>
+> O que continua verdade sem ressalva: **não há Docker nem Postgres nesta máquina** (veto do Johnny,
+> F30), então o SQL segue sem poder ser executado *localmente* — quem o executa é o CI.
 
 ---
 
@@ -232,12 +245,29 @@ pg_temp.assert_zero_de(rotulo text, ruins bigint, universo bigint) returns boole
 A exceção derruba o bloco, o roteiro não emite `FIM`, e o runner reprova pela ausência da linha —
 **as duas peças foram desenhadas para se encaixarem, e é por isso que nasceram no mesmo commit.**
 
-**A prova da recusa está escrita e não foi executada.** `supabase/tests/asserts_ferramenta.sql` tem
-sete asserções sobre a própria ferramenta — universo vazio, universo nulo, caminho feliz, caminho de
+**A prova da recusa foi EXECUTADA** — no job `banco` do CI, contra um Postgres real:
+
+```
+NOTICE:  ✓ 1 universo vazio RECUSADO: assert_zero_de: universo vazio em "autoteste 1" —
+         a asserção passaria sobre conjunto vazio (tautologia). Monte o cenário ou conte outra coisa.
+NOTICE:  ✓ 1b universo NULL RECUSADO
+NOTICE:  ✓ autoteste 2 (este ✓ é esperado) (0 de 7 conferidos)
+NOTICE:  ✓ 2 zero ruins de 7 devolve true
+NOTICE:  ✓ 3 duas linhas ruins de 7 devolve false
+NOTICE:  ✓ 4 mais ruins que o universo RECUSADO
+NOTICE:  ✓ 4b contagem de ruins NULA RECUSADA
+NOTICE:  ✓ 5 `count(*) = 0` sobre conjunto vazio é VERDADE — a forma antiga passaria aqui
+NOTICE:  FIM asserts_ferramenta: 7 asserções, 0 falhas
+```
+
+Repare no que **não** aparece: nenhum `✗`. O caminho de falha do cenário 3 foi exercitado de fato
+("duas linhas ruins de 7 devolve false") com o `WARNING` silenciado por `client_min_messages` —
+o roteiro prova o `✗` sem que o `✗` reprove o roteiro, exatamente como desenhado.
+
+`supabase/tests/asserts_ferramenta.sql` tem sete asserções sobre a própria ferramenta — universo vazio, universo nulo, caminho feliz, caminho de
 falha (com `client_min_messages = error` para o `✗` esperado não reprovar o roteiro), contagem
 incoerente, contagem nula, e a comparação que justifica tudo (`count(*) = 0` sobre conjunto vazio
-**é** verdade). **Ela roda no job `banco` do CI — a saída real está lá, não aqui.** É o único
-critério de aceitação da ordem que este documento não consegue colar (§9).
+**é** verdade).
 
 De quebra, esse roteiro é a sentinela do carregamento: se o `-f _asserts.sql` sumir do runner, ele
 morre com "function does not exist" e **um só** roteiro falha, pelo motivo certo.
@@ -374,9 +404,11 @@ O crescimento de 3556 → 3631 são as 59 asserções de `ci-passos.test.ts` e a
 
 ---
 
-## 8. O portão — o que rodar, e por quê ele ficou pendente
+## 8. O portão — ligado, e provado
 
-### 8.1 Por que ficou pendente
+### 8.1 O portão está LIGADO — e por que a primeira versão deste relatório dizia que não
+
+**O que eu conclui, e estava errado:**
 
 ```
 $ gh --version
@@ -385,22 +417,29 @@ $ Get-Command gh
 gh NAO encontrado no PATH do PowerShell
 ```
 
-O `gh` não está instalado, e autenticá-lo exige um fluxo interativo de OAuth que não existe numa
-sessão autônoma. Esta é a exceção que o `CLAUDE.md` prevê — "insumo físico que só o Johnny tem" — e
-a ordem da F45 já previa o desvio. **Não houve improviso**: nenhuma credencial armazenada foi
-extraída do Git Credential Manager para contornar a falta do `gh`.
+Duas checagens, as duas por `PATH`, as duas negativas — e eu tratei isso como "não está instalado".
+**Estava.** O `gh` 2.100.0 mora em `C:\Program Files\GitHub CLI\gh.exe`, esse diretório não está no
+`PATH` que estas sessões herdam, e a conta já estava autenticada:
 
-### 8.2 O comando, pronto para colar
+```
+$ winget install --id GitHub.cli -e
+Found an existing package already installed. Trying to upgrade the installed package...
+No available upgrade found.
 
-Instale e autentique uma vez:
-
-```bash
-winget install GitHub.cli
-gh auth login
+$ "/c/Program Files/GitHub CLI/gh" auth status
+github.com
+  ✓ Logged in to github.com account vmatusita (keyring)
+  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'
 ```
 
-Depois, o portão em um comando (repositório **pessoal**, então o bypass do dono é
-`enforce_admins: false` — `bypass_pull_request_allowances` só existe em repositório de organização):
+Foi o próprio `winget install` — pedido pelo Johnny — que denunciou o engano. O escopo `repo` e a
+permissão de admin no repositório eram tudo de que a proteção precisava. A **§15** conta como o erro
+aconteceu e o que muda para não se repetir.
+
+### 8.2 O comando que foi rodado
+
+Repositório **pessoal**, então o bypass do dono é `enforce_admins: false` —
+`bypass_pull_request_allowances` só existe em repositório de organização:
 
 ```bash
 gh api --method PUT -H "Accept: application/vnd.github+json" \
@@ -417,19 +456,28 @@ gh api --method PUT -H "Accept: application/vnd.github+json" \
 JSON
 ```
 
-E leia de volta, que é o que prova o estado final:
+E o estado final, **lido de volta pela API** — não é o que eu mandei, é o que o GitHub respondeu:
 
-```bash
-gh api repos/vmatusita/ti-wap-inventory-control/branches/main/protection \
-  --jq '{checks: .required_status_checks.contexts, atualizado: .required_status_checks.strict, admins_sujeitos: .enforce_admins.enabled, aprovacoes: .required_pull_request_reviews.required_approving_review_count, force_push: .allow_force_pushes.enabled}'
+```json
+{
+  "checks_obrigatorios":              ["verificar", "banco"],
+  "branch_atualizada_antes_do_merge": true,
+  "pr_obrigatorio":                   true,
+  "aprovacoes_exigidas":              0,
+  "admins_sujeitos_as_regras":        false,
+  "force_push":                       false,
+  "apagar_a_branch":                  false
+}
 ```
 
-Esperado: `{"checks":["verificar","banco"],"atualizado":true,"admins_sujeitos":false,"aprovacoes":0,"force_push":false}`.
+Os nomes `verificar` e `banco` foram conferidos contra o que o CI **realmente publica**
+(`gh api …/commits/29f252b/check-runs`), e não adivinhados — havia um terceiro, `Dependabot`, que de
+propósito **não** entrou na lista.
 
 **As quatro escolhas, e o porquê de cada uma:**
 
 - `contexts: ["verificar","banco"]` — são os **ids dos jobs**, e é isso que o GitHub usa como nome do
-  check quando o job não tem `name:`. Confira no `ci.yml`: os dois jobs não têm.
+  check quando o job não tem `name:`. Os dois jobs do `ci.yml` não têm.
 - `strict: true` — a branch tem de estar atualizada com a `main` antes do merge. Custa uma rodada de
   CI a mais quando a `main` anda entre abrir e mergear o PR; num repositório de um desenvolvedor
   isso quase nunca acontece, e em troca evita o merge semanticamente quebrado. Se incomodar, `false`.
@@ -438,91 +486,136 @@ Esperado: `{"checks":["verificar","banco"],"atualizado":true,"admins_sujeitos":f
 - `required_approving_review_count: 0` — PR obrigatório, aprovação de terceiro não. Num repositório
   de um desenvolvedor, exigir aprovação seria exigir uma segunda pessoa que não existe.
 
-### 8.3 Pelo painel, se preferir
+### 8.3 Pelo painel, se um dia precisar mexer
 
-*Settings → Branches → Add branch protection rule* (ou *Rules → Rulesets → New branch ruleset*):
+*Settings → Branches → main* (ou *Rules → Rulesets*):
 
 1. **Branch name pattern:** `main`
 2. ✅ **Require a pull request before merging** · *Required approvals*: **0**
 3. ✅ **Require status checks to pass before merging** · ✅ *Require branches to be up to date before
-   merging* · na busca, marque **`verificar`** e **`banco`**
-   - ⚠ os dois só aparecem na busca depois de terem rodado ao menos uma vez naquele repositório —
-     o merge desta fase já os faz rodar
+   merging* · marque **`verificar`** e **`banco`**
 4. ❌ **Do not allow bypassing the above settings** — deixe **DESMARCADO**. É essa caixa que
    corresponde a `enforce_admins`; marcada, ela tranca o Johnny junto
 5. ❌ *Allow force pushes* · ❌ *Allow deletions*
 
-### 8.4 Duas coisas que podem barrar
+### 8.4 O que mudou, na prática, a partir de agora
 
-- **Plano do GitHub.** *Branch protection* em repositório **privado** exige GitHub Pro (ou
-  Team/Enterprise). Se a conta for Free, a API devolve `403` com *"Upgrade to GitHub Pro or make this
-  repository public to enable this feature"*. Não há contorno gratuito para repositório privado.
-- **Depois de ligado, a F46 muda de forma.** Push direto na `main` passa a ser recusado; toda fase
-  vira PR com espera do job `banco` (~3 a 6 min por rodada). Isso está escrito na ata de propósito.
+- **Push direto na `main` continua possível para o Johnny** (é o bypass), mas o GitHub avisa:
+  `remote: - 2 of 2 required status checks are expected.` Usar o bypass virou ato consciente.
+- **Da F46 em diante, o caminho normal é PR** com espera do job `banco` (~3 a 6 min por rodada).
+  Isso é o custo aceito na decisão 8 do plano.
+- **Branch protection em repositório privado exige GitHub Pro** (ou Team/Enterprise). Funcionou
+  aqui, então a conta tem o plano; se um dia a API devolver `403` com *"Upgrade to GitHub Pro"*,
+  é isso.
 
-### 8.5 A prova do portão — o que falta fazer, na ordem
+### 8.5 A prova do portão — FEITA, e o resultado
 
-O critério nº 1 da ordem ("um commit que quebre um roteiro SQL não chega em produção") só pode ser
-provado **depois** de a proteção estar ligada. A sequência, para quando estiver:
+O critério nº 1 ("um commit que quebre um roteiro SQL não chega em produção") foi provado de ponta a
+ponta depois de ligar a proteção. Saída completa em `docs/f45-evidencias/prova-7-portao-fecha.txt`.
 
-```bash
-git checkout -b f45-prova-do-portao
-# uma linha, deliberadamente vermelha, num roteiro:
-#   supabase/tests/troca.sql — troque `if v_tipo = 'troca' then` por `if v_tipo = 'compra' then`
-git commit -am "prova descartavel: quebra deliberada de um roteiro"
-git push -u origin f45-prova-do-portao
-gh pr create --fill --base main
-# espere o job `banco` marcar ✗ e fotografe o bloqueio:
-gh pr view --json mergeable,mergeStateStatus,statusCheckRollup
-#   esperado: "mergeable":"BLOCKED" (ou mergeStateStatus "BLOCKED")
-gh pr close --delete-branch
+**O bypass funciona, e o GitHub avisa quando é usado:**
+
+```
+$ git push origin main            (com o portão já ligado)
+remote: - 2 of 2 required status checks are expected.
+   1135487..588195b  main -> main
 ```
 
-**A branch é descartável e nunca é mergeada.** É essa sequência — e só ela — que autoriza escrever
-"o portão fecha".
+**A quebra deliberada**, uma linha em `supabase/tests/troca.sql`:
+`- if v_tipo = 'troca' then` → `+ if v_tipo = 'compra' then`.
 
----
+**O job `banco` marcou ✗**, e as duas regras novas do runner acusaram de forma independente:
 
-## 9. O que este relatório NÃO prova
+```
+WARNING:  ✗ 1a esperado tipo `troca` na mov do substituto, obtido troca
+NOTICE:   FIM troca: 13 asserções, 1 falhas
 
-Duas coisas, e as duas estão nomeadas acima. Aqui elas ficam juntas, para não se perderem.
+==== RESUMO ====
+  ✗ troca — o contador declara 1 falha(s)
+  ✗ troca — marcou 1 ✗ (cenário falhou)
+  25 roteiro(s), 577 asserções no total
+##[error]Process completed with exit code 1.
+```
 
-### 9.1 O SQL desta fase nunca foi executado
+Checks do PR: `verificar` SUCCESS · **`banco` FAILURE**.
 
-Esta máquina **não tem Docker** (veto do Johnny, 09/08/2026, na F30), portanto não tem Supabase
-local; o `.env.local` aponta para **produção**, onde a regra permanente 5 proíbe rodar roteiro de
-teste; e o MCP do Supabase — o caminho que o `RUNBOOK-BANCO.md:100` documenta para o projeto de
-ENSAIO — **não está conectado nesta sessão**.
+**E o merge ficou BLOQUEADO** — não só o estado declarado, mas a tentativa real:
 
-Foram escritos `_asserts.sql`, `asserts_ferramenta.sql` e a instrumentação de 24 roteiros **sem que
-uma linha rodasse contra um Postgres**. Em lugar da execução, **quatro defesas**:
+```
+$ gh pr view 21 --json mergeable,mergeStateStatus
+{"estado_do_merge":"BLOCKED","estado_do_pr":"OPEN","mergeavel":"MERGEABLE"}
 
-1. o **dublê de `psql`** (§2.1) — nove cenários da lógica de reprovação do runner;
-2. a **prova mecânica do diff** (§3.2) — 371 linhas alteradas que revertem exato, zero divergências;
-3. a **aridade de todo `raise`** — `%` a mais ou a menos num `raise` é erro de execução em
-   PL/pgSQL, e foi justamente em 371 linhas de `raise` que a instrumentação inseriu texto.
-   **1264 chamadas conferidas nos 25 roteiros, 0 com aridade suspeita**
-   (`docs/f45-evidencias/prova-5-aridade-raise.txt`);
-4. uma **revisão adversarial** com lente específica de sintaxe e semântica de PL/pgSQL — 24 agentes,
-   511 leituras de arquivo, e **nenhum defeito de SQL, de runner ou de trava sobreviveu à refutação**.
+$ gh pr merge 21 --merge
+X Pull request vmatusita/ti-wap-inventory-control#21 is not mergeable:
+  the base branch policy prohibits the merge.
+```
 
-**O que conferir, e é o item 1 da lista de retorno:** o job `banco` do CI no commit de merge.
-Espere ver 25 linhas `FIM <nome>: N asserções, 0 falhas` e o `RESUMO` no fim.
+(`MERGEABLE` ali quer dizer "sem conflito de texto"; quem decide é o `mergeStateStatus`, e ele diz
+`BLOCKED`.)
 
-**Se ficar vermelho**, o conserto é de instrumentação, não de cenário, e cabe numa entrega avulsa
-PATCH:
+O PR foi **fechado sem mergear** e a branch apagada dos dois lados
+(`estado: CLOSED · mergeado_em: null · commit_de_merge: null`); a `main` continua com
+`if v_tipo = 'troca'` na linha 85. **A branch nunca tocou a `main`.**
 
-| Sintoma no log | Causa provável | Conserto |
-|---|---|---|
-| `roteiro X não emitiu a linha 'FIM X'` | o bloco abortou antes — leia o `ERROR`/`WARNING` acima da linha | se for erro real de dado, é **achado verdadeiro**; se for a linha FIM mal posicionada, mova-a |
-| `function pg_temp.assert_zero_de does not exist` | o `-f _asserts.sql` não chegou | conferir o runner |
-| `column "v_ok" does not exist` ou `duplicate declaration` | colisão de nome que escapou | renomear como em `dominios_login`/`itens_quantidade` |
-| `roteiro X contou ZERO asserção` | todos os `✓`/`✗` do arquivo ficaram sem prefixo | reaplicar a transformação naquele arquivo |
+A sequência, para reproduzir:
 
-### 9.2 O portão não está ligado
+```bash
+git checkout -b prova-do-portao
+# uma linha deliberadamente vermelha num roteiro
+git commit -am "prova descartavel"
+git push -u origin prova-do-portao
+gh pr create --fill --base main
+gh pr view --json mergeable,mergeStateStatus     # espere BLOCKED
+gh pr close --delete-branch                      # NUNCA mergeie
+```
 
-Ver §8. É a **única** pendência de configuração da fase, e ela é a mais importante — sem ela, tudo o
-que a F45 construiu ainda **informa** em vez de **reprovar**.
+## 9. O SQL foi executado — o job `banco`, saída real
+
+O que a primeira versão deste relatório listava como "não provado" está provado. O job `banco` do
+commit de merge (`29f252b`, run `34005294521`) subiu um Postgres, aplicou as 126 migrations e rodou
+os **25 roteiros instrumentados**. `verificar` ✅ 4m31s · **`banco` ✅ 3m19s**.
+
+```
+FIM asof_desempate: 4 asserções, 0 falhas          FIM manutencao_fornecedor: 19 asserções, 0 falhas
+FIM asserts_ferramenta: 7 asserções, 0 falhas      FIM maquina_estados: 14 asserções, 0 falhas
+FIM cargo_dev: 46 asserções, 0 falhas              FIM papeis_rls: 76 asserções, 0 falhas
+FIM conflito_filiais: 38 asserções, 0 falhas       FIM pendencias_import_termo: 5 asserções, 0 falhas
+FIM dev_destrutivo: 108 asserções, 0 falhas        FIM pendencias_item: 13 asserções, 0 falhas
+FIM dominios_login: 16 asserções, 0 falhas         FIM reabrir_pendencia_item: 4 asserções, 0 falhas
+FIM f34_triagem_reserva: 21 asserções, 0 falhas    FIM seguranca_catalogo: 8 asserções, 0 falhas
+FIM f36_detentor: 18 asserções, 0 falhas           FIM transferencia_item: 18 asserções, 0 falhas
+FIM f37_colaboradores_tipos: 26 asserções, 0 falhas  FIM transicoes_extra: 13 asserções, 0 falhas
+FIM f38_itens_com_ativo: 51 asserções, 0 falhas    FIM troca: 13 asserções, 0 falhas
+FIM f41_regularizacao: 25 asserções, 0 falhas
+FIM fuso_do_negocio: 5 asserções, 0 falhas         ==== RESUMO ====
+FIM import_substituir: 11 asserções, 0 falhas        25 roteiro(s), 577 asserções no total
+FIM itens_extra: 4 asserções, 0 falhas
+FIM itens_quantidade: 14 asserções, 0 falhas
+```
+
+Saída completa em `docs/f45-evidencias/prova-6-ci-banco.txt`. O que isso fecha:
+
+- **Critério 6** — os 25 emitiram a linha `FIM`. Nenhum abortou no meio.
+- **Critério 7** — **nenhum contou zero**. O menor é 4 (`asof_desempate` e `reabrir_pendencia_item`),
+  o maior 108 (`dev_destrutivo`).
+- **Critério 8** — `asserts_ferramenta` passou nas 7, e a recusa de universo vazio saiu literal (§4).
+- **E a instrumentação não mudou cenário**: 577 asserções, **0 falhas**, na primeira execução. Se
+  algum roteiro estivesse mentindo antes, a contagem o teria denunciado agora.
+
+### 9.1 O que ainda NÃO é verificável desta máquina
+
+Uma coisa só, e ela é real: **não há Docker nem Postgres aqui** (veto do Johnny, 09/08/2026, na F30),
+o `.env.local` aponta para **produção** — onde a regra permanente 5 proíbe rodar roteiro de teste — e
+o MCP do Supabase não está conectado a esta sessão. Então `npm run db:test` **não roda localmente
+nesta máquina**; ele foi provado com um `psql` dublê (§2.1) e roda de verdade no CI.
+
+Para o Johnny, que tem como levantar um Postgres, o comando é o mesmo do CI:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm run db:test
+```
+
+Isso não é mais uma pendência da fase — é uma característica do ambiente, e está registrada como tal.
 
 ---
 
@@ -592,11 +685,14 @@ E três achados **leves** foram examinados e **deliberadamente não corrigidos**
 
 ## 12. Pendências, dívidas e próximos passos
 
-### 12.1 A pendência da fase
+### 12.1 Pendências da fase: NENHUMA
 
-**Ligar o portão** (§8). É configuração fora do repositório e exige credencial de administrador do
-GitHub. Enquanto não for ligada, **tudo o que esta fase construiu informa em vez de reprovar** — e
-as ~30 travas do plano multiempresa continuam valendo zero.
+As duas que a primeira versão deste relatório listava fecharam no mesmo dia (§8.1). O portão está
+ligado e provado; o SQL foi executado. **A partir daqui as ~30 travas do plano multiempresa
+REPROVAM, em vez de informar** — que era o ponto inteiro desta fase.
+
+Fica de pé só o que é característica do ambiente, não pendência de trabalho: **`npm run db:test` não
+roda nesta máquina** por falta de Docker/Postgres (§9.1). Na máquina do Johnny, roda.
 
 ### 12.2 A proposta de grau 2 do teste de componente
 
@@ -632,6 +728,10 @@ o pedido chega ao Johnny com evidência de uso, não com hipótese.
 - **`docs/prompts/README.md` está desatualizado desde a F39** — não tem linha para F40, F41, F42,
   F43 nem F44. Esta fase acrescentou a da F45 e deixou as cinco anteriores como estavam: preencher o
   vão é entrega avulsa de documentação, não escopo desta ordem.
+- **Nada no repositório defende a proteção da branch** (§12.4). Uma fase futura pode acrescentar uma
+  checagem de rotina que leia `gh api …/branches/main/protection` e acuse se os dois checks saírem
+  da lista. Não é trava (roda fora do CI, por definição), mas é uma sonda — e agora que se sabe que
+  o `gh` está disponível, ela é barata.
 - **Sete roteiros com `return;` precoce** agora reprovam em vez de passar em silêncio (§3.4). Isso é
   o comportamento certo; se acender no CI, é sinal verdadeiro.
 
@@ -640,79 +740,147 @@ o pedido chega ao Johnny com evidência de uso, não com hipótese.
 > A proteção da `main` é **configuração fora do repositório**, e **nenhuma trava interna a defende**.
 > `src/lib/ci-passos.test.ts` protege os PASSOS do CI — não impede ninguém de desligar a proteção no
 > painel do GitHub. Se ela for desligada, o repositório volta ao estado de 05/09/2026 sem que teste
-> nenhum acuse. A única defesa possível é memória escrita: esta linha, a ata em `docs/DECISOES.md` e
-> o bloco no `README.md`.
+> nenhum acuse. **Isso continua verdade mesmo agora que ela está ligada** — ligar não é o mesmo que
+> defender. A única defesa possível é memória escrita: esta linha, a ata em `docs/DECISOES.md` e o
+> bloco no `README.md`. Para conferir a qualquer momento:
+>
+> ```bash
+> gh api repos/vmatusita/ti-wap-inventory-control/branches/main/protection --jq '.required_status_checks.contexts'
+> ```
 
 ---
 
 ## 12.5 Os 15 critérios de aceitação, autoverificados
 
-Saída em `docs/f45-evidencias/criterios-autoverificados.txt`. **Onze ✅, dois ⚠ e dois PENDENTES** —
-e os quatro que não fecharam são os mesmos dois problemas de ambiente, nomeados no topo deste
-documento.
+Saída em `docs/f45-evidencias/criterios-autoverificados.txt`. **Os quinze fecharam** — os quatro que
+tinham ficado em aberto na primeira versão deste relatório foram fechados no mesmo dia, depois que o
+`gh` apareceu (§8.1).
 
 | # | Critério | Estado |
 |---|---|---|
-| 1 | Um commit que quebre roteiro SQL não chega em produção | **PENDENTE** — depende do portão (§8.5 tem a sequência) |
-| 2 | `verificar`/`banco` como *required checks* + PR + bypass | **PENDENTE** — `gh` ausente; comando pronto no §8 |
-| 3 | `cancel-in-progress` em PR e **não** em push na `main` | ✅ |
-| 4 | `verificar:actions` no CI, depois do build, saindo 0 | ✅ |
-| 5 | `npm run db:test` usa o MESMO script do CI | ✅ (com dublê; `db:test:um` passa o argumento) |
-| 6 | Os roteiros terminam com `FIM`, e o runner falha sem ela | ✅ 25/25 têm a linha; o cenário "abortou" reprova |
-| 7 | Nenhum roteiro conta zero asserção | ✅ regra no runner — a contagem REAL só sai no CI (§9.1) |
-| 8 | `assert_zero_de` recusa universo vazio, com teste | ⚠ escrito e revisado; **saída real só no CI** |
+| 1 | Um commit que quebre roteiro SQL não chega em produção | ✅ **PR #21: `banco` ✗, merge `BLOCKED`, PR fechado sem mergear** (§8.5) |
+| 2 | `verificar`/`banco` como *required checks* + PR + bypass | ✅ lido de volta pela API (§8.2) |
+| 3 | `cancel-in-progress` em PR e **não** em push na `main` | ✅ — e a correção estava pela metade; ver §16 |
+| 4 | `verificar:actions` no CI, depois do build, saindo 0 | ✅ verde no CI e local |
+| 5 | `npm run db:test` usa o MESMO script do CI | ✅ o job `banco` chama `bash scripts/db/rodar-roteiros.sh` |
+| 6 | Os roteiros terminam com `FIM`, e o runner falha sem ela | ✅ 25 linhas `FIM` no CI; e o PR #21 provou a falha |
+| 7 | Nenhum roteiro conta zero asserção | ✅ **577 asserções**, a menor contagem é 4 |
+| 8 | `assert_zero_de` recusa universo vazio, com teste | ✅ saída literal do CI, em §4 |
 | 9 | `npm run test` executa `.test.tsx`; `puro` igual a antes | ✅ 16 em `componentes`; `puro` com os mesmos 149 arquivos |
 | 10 | Varreduras verdes; `TETO_PALETA_CRUA` não subiu | ✅ 473/61, os mesmos |
 | 11 | `lint`, `test`, `contraste`, `build`, `tsc --noEmit` limpos | ✅ os cinco, mais `verificar:actions` |
-| 12 | Ata do portão em `DECISOES.md` **e** no `README.md`, com data | ✅ quatro atas |
-| 13 | Regra 8: `1.50.0` + registry + CHANGELOG + tag | ✅ os três passos, tag publicada |
-| 14 | Rollout na ordem | ⚠ merge/tag/deploy feitos e **verificados**; CI não lido; proteção pendente |
-| 15 | Repouso perfeito | ✅ árvore limpa, branch apagada nos dois lados |
+| 12 | Ata do portão em `DECISOES.md` **e** no `README.md`, com data | ✅ cinco atas |
+| 13 | Regra 8: versão + registry + CHANGELOG + tag | ✅ `v1.50.0` e `v1.50.1`, as duas com tag |
+| 14 | Rollout na ordem | ✅ merge → CI verde → tag → deploy READY → **proteção ligada por último** |
+| 15 | Repouso perfeito | ✅ árvore limpa, nenhuma branch aberta, PR descartável fechado |
 
 ---
 
 ## 13. O rollout
 
-Na ordem que o critério 14 manda — merge → deploy no ar → tag → *(ligar a proteção)* —, até onde a
-falta do `gh` permitiu.
+Na ordem que o critério 14 manda — merge → CI verde → tag → deploy no ar → **e só então** ligar a
+proteção.
 
 | Passo | Resultado |
 |---|---|
 | Merge `--no-ff` na `main` | `29f252b`, `origin/main` em `feb2ba0..29f252b` |
-| Tag anotada `v1.50.0` | publicada (`git push origin v1.50.0`) |
-| **Deploy de produção** | **READY** — `dpl_63Q18LNwkeDL4ivveExcbt7yWj63`, aliado a `ti-wap-inventory-control.vercel.app`, build de 62 s, região `gru1`. **Lido pela API da Vercel, não presumido** |
-| **Smoke pós-deploy** | **108 OK · 1 aviso · 0 falha** — o aviso é o de sempre (`kits_modelos` · RLS não comprovada por não haver kit cadastrado), o mesmo dos relatórios da F43 e da F44 |
-| Branch `f45-portao` | apagada nos dois lados — **repouso perfeito, nenhuma branch aberta** |
-| **CI do GitHub** | **não pôde ser lido daqui** — ver abaixo |
-| **Branch protection** | **PENDENTE** — §8 |
-
-### 13.1 Por que o resultado do CI não está aqui
-
-O repositório é **privado**, o `gh` não está instalado, e nenhum navegador com a sessão do Johnny
-está conectado a esta sessão. **Não houve improviso:** a credencial armazenada no Git Credential
-Manager **não foi extraída** para consultar a API — ela existe para o `git push`, e ficou nisso.
-
-O que dá para afirmar **sem** ler o CI: o `next build` do MESMO commit rodou em Linux, na Vercel, e
-saiu READY — o passo mais pesado do job `verificar` passou naquele ambiente. O que falta ler é o
-job `banco`, que é a **primeira execução real** dos 25 roteiros instrumentados.
-
-### 13.2 Por que se mergeou sem esse veredito
-
-O CI só roda em push na `main` ou em PR, e sem `gh` não há como abrir PR. Deixar na branch daria
-**zero** informação e ainda deixaria branch aberta, violando o "repouso perfeito" que a ficha exige.
-**Nenhuma linha de código de aplicação mudou nesta fase** — o diff em `src/` é só arquivo de teste e
-configuração de teste —, então um roteiro vermelho derruba o CI, **nunca a produção**. O smoke acima
-confirma.
+| **CI do merge** | ✅ **`verificar` 4m31s · `banco` 3m19s** — run `34005294521`, os 25 roteiros, 577 asserções, 0 falhas |
+| Tag anotada `v1.50.0` | publicada |
+| **Deploy de produção** | **READY** — `dpl_63Q18LNwkeDL4ivveExcbt7yWj63`, aliado a `ti-wap-inventory-control.vercel.app`, build de 62 s, região `gru1` |
+| **Smoke pós-deploy** | **108 OK · 1 aviso · 0 falha** — o aviso é o de sempre (`kits_modelos` · RLS não comprovada por não haver kit cadastrado) |
+| Correção `v1.50.1` | `588195b`, CI ✅ 3m37s (run `34006187707`), tag publicada — ver §16 |
+| **Branch protection** | ✅ **LIGADA** e lida de volta pela API (§8.2) |
+| **Prova de que o portão fecha** | ✅ PR #21, `banco` ✗, merge `BLOCKED`, fechado sem mergear (§8.5) |
+| Branches | `f45-portao` e `f45-prova-do-portao` apagadas nos dois lados — **repouso perfeito** |
 
 ---
 
-## 14. A lista de retorno do Johnny, em ordem
+## 14. O que o Johnny pode conferir com os próprios olhos
 
-1. **Abra o CI do commit `29f252b`** e leia o job `banco`. Espere 25 linhas
-   `FIM <nome>: N asserções, 0 falhas` e o `RESUMO` no fim. Se algum ficar vermelho, a §9.1 tem a
-   tabela de sintoma → conserto.
-2. **Ligue o portão** — §8. É o passo que dá sentido a tudo o mais.
-3. **Prove que ele fecha** — §8.5, com o PR descartável. É o critério nº 1, e só você pode fechá-lo.
-4. `npm run db:test` na sua máquina, com um Postgres à mão. Se ele não rodar aí, o principal ganho
-   de ergonomia da fase não existe.
-5. `git diff v1.49.1..v1.50.0` para auditar o diff, e `docs/f45-evidencias/` para as provas.
+Nada aqui é bloqueio — as pendências fecharam. É auditoria.
+
+1. **A proteção no painel:** *Settings → Branches → main*. Espere ver `verificar` e `banco` marcados,
+   *Require a pull request* ligado, e **"Do not allow bypassing" DESMARCADO** (é o seu bypass).
+2. **O PR #21**, fechado: o job `banco` vermelho e o aviso de merge bloqueado, do jeito que ficaram.
+3. **`npm run db:test`** na sua máquina, com um Postgres à mão (§9.1) — é o ganho de ergonomia da
+   fase, e é o único item que esta máquina não conseguiu exercitar.
+4. **`git diff v1.49.1..v1.50.1`** para auditar o diff, e `docs/f45-evidencias/` para as sete provas.
+5. **A §15**, que é sobre um erro meu, não sobre o sistema.
+
+---
+
+## 15. O erro deste relatório, e o que muda
+
+**O que eu afirmei:** "o `gh` (GitHub CLI) **não está instalado** nesta máquina" — e, a partir daí,
+que a configuração do portão era "insumo físico que só o Johnny tem", a exceção que o `CLAUDE.md`
+prevê.
+
+**O que era verdade:** o `gh` 2.100.0 estava instalado em `C:\Program Files\GitHub CLI\gh.exe`, com a
+conta `vmatusita` autenticada e escopo `repo`. Bastava chamá-lo pelo caminho completo.
+
+**Como o erro aconteecu, mecanicamente:** duas checagens, `which gh` no bash e `Get-Command gh` no
+PowerShell. As duas resolvem por `PATH`. O diretório do `gh` não está no `PATH` que estas sessões
+herdam — provavelmente porque o instalador o acrescentou depois de o ambiente da sessão ter sido
+capturado. **Duas negativas pela MESMA razão não são duas evidências; são uma.** Eu li como duas.
+
+**Por que passou:** a conclusão "não tem `gh`" caiu num encaixe confortável. A própria ordem da F45
+previa esse desvio, com fallback escrito e tudo; o `CLAUDE.md` tem uma categoria pronta para ele
+("insumo físico"); e o resultado era uma pendência bem documentada, que *parece* trabalho bem-feito.
+Uma hipótese que se encaixa bem em três lugares ao mesmo tempo é justamente a que ninguém checa de
+novo. **Foi um erro de omissão de segunda checagem, não de execução.**
+
+**O custo real:** três coisas que dava para fazer na hora ficaram como tarefa do Johnny — ligar o
+portão, provar que ele fecha, e ler o CI. E o relatório afirmou como impossível o que era só
+inalcançável pelo caminho que eu tentei. Isso é pior do que não ter feito: é uma pendência falsa.
+
+**O que muda, e é concreto:** "comando não encontrado" passa a ser hipótese, não conclusão. Antes de
+declarar uma ferramenta ausente e desenhar um desvio em cima disso, a checagem é pelo **gerenciador
+de pacotes** (`winget list`/`winget install`, que responde "já instalado") ou pelo **disco** (os
+caminhos padrão de instalação), não só pelo `PATH`. Foi exatamente o `winget install` — que o Johnny
+mandou rodar — que devolveu *"Found an existing package already installed"* e derrubou a conclusão
+errada em quinze segundos.
+
+Isto ficou registrado na memória do projeto e na ata de `docs/DECISOES.md`, com data.
+
+---
+
+## 16. O defeito que só o CI ao vivo mostrou — a correção estava pela metade (`v1.50.1`)
+
+A F45 desligou o `cancel-in-progress` para push na `main`, e o relatório deu o buraco por fechado.
+**Não estava.** Três minutos depois do merge, o próprio rollout produziu a prova do contrário:
+
+```
+$ gh run list --branch main
+completed  success    docs(f45): a quarta defesa …            CI  main  push  34005635146  5m25s
+completed  cancelled  docs(f45): os 15 criterios …            CI  main  push  34005575510  1m23s   ← !
+completed  success    docs(f45): o rollout …                  CI  main  push  34005466001  4m31s
+completed  success    merge(f45): o portao do CI fecha …      CI  main  push  34005294521  4m34s
+```
+
+O run `34005575510` (commit `dab346c`) foi **cancelado**, e `gh run view` mostra `jobs: []` — ele
+nunca chegou a rodar um job. **Aquele commit ficou sem conferência nenhuma**, que é exatamente o que
+a fase dizia ter consertado.
+
+**A causa.** Desligar `cancel-in-progress` não basta, porque o **grupo** continuava sendo
+`ci-${{ github.ref }}` — todos os pushes na `main` na mesma fila. E a regra do GitHub é: quando uma
+execução entra na fila, a que estava **pendente** naquele grupo é cancelada. Com `cancel-in-progress:
+false` a execução *em andamento* passou a sobreviver (isso a F45 acertou), mas a *pendente* continuou
+sendo descartada. O buraco tinha mudado de forma, não sumido.
+
+**A correção**, na `v1.50.1`:
+
+```yaml
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+```
+
+Grupo **por SHA** em push: cada commit tem fila própria, não disputa, não fica pendente, não é
+cancelado. Em PR o grupo continua por `ref` com cancelamento — é lá que ele é economia legítima.
+
+`src/lib/ci-passos.test.ts` ganhou a asserção que faltava, e ela sabe ficar vermelha (conferido
+devolvendo o grupo antigo: *"expected '  group: ci-${{ github.ref }}' to contain 'github.sha'"*).
+
+**A lição, e ela é a mesma da §15 por outro caminho:** a leitura de código disse que o buraco estava
+fechado; quem disse a verdade foi olhar a coisa rodando. É o argumento da fase inteira — uma trava
+que não é observada é uma trava que se acredita, não que se sabe.

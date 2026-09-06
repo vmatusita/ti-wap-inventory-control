@@ -1,0 +1,71 @@
+### PROVA 7 — O PORTÃO FECHA. É o critério nº 1, e é executável.
+
+Feita em 05/09/2026 (23h BRT), DEPOIS de ligar a proteção. A branch
+`f45-prova-do-portao` é descartável e NUNCA foi mergeada.
+
+== 1. A proteção, lida de volta pela API ==
+  $ gh api repos/vmatusita/ti-wap-inventory-control/branches/main/protection
+
+  checks_obrigatorios ............... ["verificar","banco"]
+  branch_atualizada_antes_do_merge .. true
+  pr_obrigatorio .................... true
+  aprovacoes_exigidas ............... 0
+  admins_sujeitos_as_regras ......... false   <- o bypass do Johnny
+  force_push ........................ false
+  apagar_a_branch ................... false
+
+== 2. O bypass funciona, e o GitHub AVISA quando é usado ==
+  $ git push origin main            (com o portão já ligado)
+  remote: - 2 of 2 required status checks are expected.
+     1135487..588195b  main -> main
+
+  O push passa porque quem empurra é o dono; e o aviso é o que transforma
+  "usar o bypass" em ato consciente, como a ata prometeu.
+
+== 3. A quebra deliberada — UMA linha ==
+  supabase/tests/troca.sql, cenário 1a:
+    -  if v_tipo = 'troca' then
+    +  if v_tipo = 'compra' then
+
+== 4. O job `banco` marcou ✗ ==
+  WARNING:  ✗ 1a esperado tipo `troca` na mov do substituto, obtido troca
+  NOTICE:   FIM troca: 13 asserções, 1 falhas
+
+  ==== RESUMO ====
+    ✗ troca — o contador declara 1 falha(s)
+    ✗ troca — marcou 1 ✗ (cenário falhou)
+    25 roteiro(s), 577 asserções no total
+  ##[error]Process completed with exit code 1.
+
+  Repare que as DUAS regras novas do runner acusaram, de forma independente: o
+  contador da linha FIM e o marcador ✗. E os 577 do total não se moveram — a
+  instrumentação é estável.
+
+  Checks do PR:  verificar SUCCESS · banco FAILURE
+
+== 5. O MERGE FICOU BLOQUEADO — a evidência que autoriza dizer "o portão fecha" ==
+  $ gh pr view 21 --json mergeable,mergeStateStatus
+  {"estado_do_merge":"BLOCKED","estado_do_pr":"OPEN","mergeavel":"MERGEABLE"}
+
+  E a tentativa REAL de mergear, não só o estado declarado:
+  $ gh pr merge 21 --merge
+  X Pull request vmatusita/ti-wap-inventory-control#21 is not mergeable:
+    the base branch policy prohibits the merge.
+  To have the pull request merged after all the requirements have been met,
+    add the `--auto` flag.
+  To use administrator privileges to immediately merge the pull request,
+    add the `--admin` flag.
+
+  ("MERGEABLE" ali quer dizer "sem conflito de texto"; quem decide é o
+   mergeStateStatus, e ele diz BLOCKED.)
+
+== 6. Encerramento ==
+  $ gh pr close 21 --delete-branch
+  ✓ Closed pull request #21
+  ✓ Deleted branch f45-prova-do-portao
+
+  estado: CLOSED · mergeado_em: null · commit_de_merge: null
+  A branch sumiu dos dois lados, e a `main` continua com `if v_tipo = 'troca'`
+  (linha 85 de supabase/tests/troca.sql).
+
+Um commit que quebra um roteiro SQL NÃO chega em produção. Provado, não afirmado.
