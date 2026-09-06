@@ -187,8 +187,9 @@ supabase/
                    # `seguranca_catalogo.sql` passar por motivo errado
 scripts/
   db/              # gravar-lock.ts (`npm run db:lock` — o único ponto que escreve o lock)
-                   # e rodar-roteiros.sh (o runner ÚNICO, chamado pelos DOIS jobs de banco
-                   # do CI e por `npm run db:test` na mesa)
+                   # e rodar-roteiros.sh (o runner ÚNICO, chamado pelo job de banco do CI
+                   # — `banco-sem-docker`, que é required check — e por `npm run db:test`
+                   # na mesa. O job `banco` antigo, com Docker do Supabase, saiu na v1.51.1)
   seed.ts  reset.ts     # dados fictícios (guardas anti-produção obrigatórias)
   termos/               # edição dos MODELOS .docx por script, nunca pelo Word (F25/F39):
                         # retaguear-cidade.mjs (F25), inserir-acessorios.mjs (F39 · §A) e

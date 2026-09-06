@@ -103,102 +103,74 @@ jobs:
       - name: Gate de artefato — Server Actions com binding (F13)
         run: npm run verificar:actions
 
-  # Dívida técnica (item C): rede de teste do BANCO. Antes o CI só validava
-  # TypeScript — as migrations, a máquina de estados (trigger) e os saldos de
-  # itens não tinham nenhuma verificação automática. Este job sobe um Postgres
-  # REAL pelo Supabase CLI, aplica TODAS as migrations de supabase/migrations/ em
-  # ordem — a pasta INTEIRA, sem recorte, seja qual for a última (prova que aplicam
-  # limpo, inclusive as recriações de RPC que só rodavam à mão em produção) — e roda
-  # os roteiros de teste SQL de comportamento, falhando o CI quando algum cenário
-  # marca ✗. (Aqui havia "0001→0040" escrito à mão; a faixa envelheceu no primeiro
-  # lote de migrations novas e sugeria um recorte que nunca existiu.)
-  banco:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # TELEMETRIA DESLIGADA (25/07/2026). O job quebrou com o `supabase init` saindo 1
-    # DEPOIS de ter feito o trabalho:
-    #     Finished supabase init.
-    #     Timeout while shutting down PostHog. Some events may not have been sent.
-    #     Error: Process completed with exit code 1
-    # Ou seja: o init deu certo e o CLI ainda assim retornou erro, porque o envio de
-    # telemetria ao PostHog não conseguiu fechar a tempo no runner. Com `bash -e`, o
-    # exit 1 derruba o passo — um CI que quebra por rede de terceiro, não por defeito
-    # do repositório (mesma classe do rate limit que fixou a versão do CLI acima).
-    #
-    # As duas variáveis são as documentadas pelo Supabase (guides/local-development/
-    # cli/getting-started §Telemetry): a específica e a convenção ampla `DO_NOT_TRACK`.
-    # Com elas o CLI nem tenta falar com o PostHog, então não há flush para estourar.
-    # Vale para TODOS os passos do job (init, start, stop) por estar no nível do job.
-    env:
-      SUPABASE_TELEMETRY_DISABLED: 1
-      DO_NOT_TRACK: 1
-    steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-        with:
-          # VERSÃO FIXA, e não `latest` (24/07/2026: o CI do banco quebrou com
-          # "Failed to resolve latest Supabase CLI release: rate limit exceeded").
-          # `latest` faz a action perguntar à API de releases do GitHub qual é a
-          # última — chamada ANÔNIMA no runner, e o limite de 60/h é por IP
-          # compartilhado entre todos os jobs da nuvem do Actions: quebra sozinho,
-          # sem ninguém mexer no repositório. Com versão fixa a action instala
-          # pelo npm e a API nem entra na história.
-          #
-          # 2.109.1 é a mesma CLI usada no desenvolvimento. Isso conserta um
-          # segundo problema, o que o comentário do `supabase start` abaixo já
-          # temia: com `latest`, o CI podia subir com uma CLI diferente da do
-          # desenvolvedor e falhar por diferença de versão, não por defeito.
-          # Para atualizar: `npx supabase@latest --version` e troque o número.
-          version: 2.109.1
-      - name: Garantir psql (cliente Postgres)
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Inicializar config do Supabase (gera config.toml da versão da CLI)
-        run: printf 'n\nn\n' | supabase init
-      - name: Subir Postgres local + aplicar TODAS as migrations
-        # Stack completo (sem -x): nomes de serviço variam entre versões da CLI e um
-        # nome inválido derruba o start. Confiabilidade > velocidade (poucos minutos).
-        run: supabase start
-      # F45 — O LOOP SAIU DAQUI. Até aqui ele vivia dentro deste YAML, e por isso
-      # não existia forma de rodar os roteiros na máquina do desenvolvedor com o
-      # MESMO código: local e CI divergiam por construção, e a divergência só
-      # aparecia depois do push. Agora os dois lados chamam o mesmo arquivo —
-      # aqui, e `npm run db:test` na mesa. O script é quem carrega `_asserts.sql`
-      # antes de cada roteiro (na mesma sessão de psql, senão `pg_temp` some no
-      # rollback), pula `_*.sql`, EXIGE a linha `FIM <nome>: N asserções, M
-      # falhas` — roteiro que abortava cedo passava VERDE, porque o gate era um
-      # `grep` por ✗ e quem morre na terceira asserção não emite ✗ nenhum — e
-      # conta `NOTICE:  ✗` como falha, além de `WARNING:  ✗`.
-      #
-      # `src/lib/ci-passos.test.ts` afirma que este passo chama o script, e não um
-      # loop inline: é assim que este tipo de gate morre, alguém "simplifica" o
-      # YAML e ninguém percebe por seis meses.
-      - name: Rodar os roteiros de teste SQL (falha o CI em ✗ ou em roteiro que abortou)
-        run: bash scripts/db/rodar-roteiros.sh
-      - name: Derrubar o stack local
-        if: always()
-        run: supabase stop || true
-
   # ===========================================================================
-  # F46 — O MESMO TRABALHO DO JOB `banco`, SEM O DOCKER DO SUPABASE.
+  # A REDE DE TESTE DO BANCO. Sem Docker, sem a CLI do Supabase.
   # ===========================================================================
-  # Por que ele existe: o job `banco` acima sobe o STACK INTEIRO do Supabase CLI
-  # (`supabase init` + `supabase start`) para usar dele só um Postgres. Custa 3 a 6
-  # minutos, já quebrou DUAS vezes por causa externa — as duas cicatrizes estão
-  # comentadas lá em cima, o rate limit da API de releases (24/07) e o flush do
-  # PostHog (25/07) —, depende de uma versão de CLI fixada à mão, e **não roda na
-  # máquina do Johnny**, que não tem Docker (veto de 09/08/2026).
+  # POR QUE ESTE JOB EXISTE (dívida técnica, item C). Antes dele o CI só validava
+  # TypeScript: as migrations, a máquina de estados (trigger) e os saldos de itens
+  # não tinham verificação automática nenhuma. Ele sobe um Postgres REAL, aplica
+  # TODAS as migrations de `supabase/migrations/` em ordem — a pasta INTEIRA, sem
+  # recorte, seja qual for a última (prova que aplicam limpo, inclusive as
+  # recriações de RPC que só rodavam à mão em produção) — e roda os roteiros de
+  # teste SQL de comportamento, reprovando quando algum cenário marca ✗.
+  # (Aqui já houve "0001→0040" escrito à mão; a faixa envelheceu no primeiro lote
+  # de migrations novas e sugeria um recorte que nunca existiu.)
   #
-  # Aqui é um `services: postgres:17` do próprio runner: sem Docker do Supabase, sem
-  # CLI, sem API de terceiro no caminho crítico.
+  # ---------------------------------------------------------------------------
+  # POR QUE ELE NÃO USA O `supabase start` — as duas cicatrizes, preservadas
+  # ---------------------------------------------------------------------------
+  # Até a v1.51.1 (06/09/2026) este trabalho era feito por um job `banco` que
+  # subia o STACK DOCKER INTEIRO do Supabase CLI (`supabase init` + `supabase
+  # start`) para usar dele só um Postgres. Ele custava 3 a 6 minutos e quebrou
+  # DUAS vezes por causa externa, sem ninguém tocar no repositório. Os dois
+  # incidentes estão aqui porque são o motivo de o desenho atual não ter CLI
+  # nenhuma no caminho crítico — apagá-los convidaria o próximo a voltar atrás:
   #
-  # ⚠ O JOB `banco` CONTINUA EXISTINDO, COM O NOME `banco`, E ISSO NÃO É OPCIONAL.
-  # Desde 05/09/2026 os *required status checks* da `main` são exatamente `verificar`
-  # e `banco`, exigidos PELO NOME. Renomear ou apagar o `banco` deixaria o check
-  # exigido sem nunca reportar, e todo PR ficaria preso em "Expected — Waiting for
-  # status to be reported" — inclusive o desta fase. Os dois rodam em paralelo, no
-  # mesmo commit, chamando o MESMO `scripts/db/rodar-roteiros.sh`: é essa igualdade
-  # de veredito que prova que o bootstrap está certo. Promover este a required (e só
-  # então remover o antigo) é entrega avulsa, depois de três pushes verdes.
+  #  1. RATE LIMIT DA API DE RELEASES (24/07/2026). Com `version: latest`, a
+  #     action `supabase/setup-cli` perguntava à API de releases do GitHub qual
+  #     era a última versão — chamada ANÔNIMA no runner, e o limite de 60/h é por
+  #     IP compartilhado entre todos os jobs da nuvem do Actions. O CI do banco
+  #     quebrou com "Failed to resolve latest Supabase CLI release: rate limit
+  #     exceeded". A mitigação de então foi fixar a versão à mão (2.109.1), que
+  #     resolvia o rate limit e criava a manutenção de acompanhar um número.
+  #
+  #  2. FLUSH DO POSTHOG (25/07/2026). O `supabase init` passou a sair 1 DEPOIS
+  #     de ter feito o trabalho:
+  #         Finished supabase init.
+  #         Timeout while shutting down PostHog. Some events may not have been sent.
+  #         Error: Process completed with exit code 1
+  #     O init deu certo e o CLI retornou erro assim mesmo, porque o envio de
+  #     telemetria não fechou a tempo no runner. Com `bash -e`, o exit 1 derrubava
+  #     o passo — CI quebrado por rede de terceiro, não por defeito do
+  #     repositório. A mitigação de então foi `SUPABASE_TELEMETRY_DISABLED=1` +
+  #     `DO_NOT_TRACK=1`.
+  #
+  # As duas mitigações funcionaram, e as duas eram remendos sobre a mesma causa
+  # raiz: uma ferramenta de terceiro no caminho crítico de um job que só precisa
+  # de um Postgres. E havia uma terceira consequência, que remendo nenhum
+  # resolvia — nada disso rodava na máquina do Johnny, que **não tem Docker**
+  # (veto de 09/08/2026).
+  #
+  # `services: postgres:17` do próprio runner mata as três de uma vez: sem Docker
+  # do Supabase, sem CLI, sem API de terceiro, e reproduzível em qualquer Postgres
+  # 17 vazio (a receita está em `docs/RUNBOOK-BANCO.md` § "O banco do CI na mesa").
+  # O que o `supabase start` dava de graça está declarado à vista em
+  # `supabase/ci/bootstrap-*.sql`, versionado, em vez de escondido numa imagem.
+  #
+  # ---------------------------------------------------------------------------
+  # ⚠ O NOME DESTE JOB É CONTRATO — `banco-sem-docker` é *required status check*
+  # ---------------------------------------------------------------------------
+  # Desde 06/09/2026 (v1.51.1) os contextos exigidos na `main` são exatamente
+  # `verificar` e `banco-sem-docker`, cobrados PELO NOME. Renomear ou apagar este
+  # job deixa o check exigido **sem nunca reportar**, e todo PR fica preso em
+  # "Expected — Waiting for status to be reported" — sem nada vermelho na tela
+  # para explicar por quê. Trocar o nome exige, no MESMO movimento, um
+  # `gh api --method PATCH …/protection/required_status_checks`.
+  #
+  # A remoção do job `banco` antigo foi feita DEPOIS de ele e este chegarem ao
+  # MESMO veredito (25 roteiros, 577 asserções, 0 falhas) em cinco runs seguidos,
+  # e depois de a proteção já exigir este — nunca antes, senão o próprio PR de
+  # remoção ficaria trancado do lado de fora. Ver `docs/RELATORIO-F46.md` §5.5.
   banco-sem-docker:
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -282,12 +282,19 @@ As duas reprovam sozinhas e nomeiam o arquivo — nenhuma depende de alguém lem
 
 ### O banco do CI na mesa (sem o Docker do Supabase)
 
-Desde a F46 o CI tem **dois** jobs de banco, rodando o MESMO `scripts/db/rodar-roteiros.sh`:
+O CI tem **um** job de banco: **`banco-sem-docker`** — `services: postgres:17`, com o bootstrap
+declarado em `supabase/ci/`, rodando o MESMO `scripts/db/rodar-roteiros.sh` que `npm run db:test`
+chama na mesa. Ele é o *required status check* da `main`, ao lado de `verificar`.
 
-- **`banco`** — o antigo, com `supabase start`. Continua sendo o *required status check*, pelo nome.
-- **`banco-sem-docker`** — `services: postgres:17`, com o bootstrap declarado em `supabase/ci/`.
+> **Histórico, porque o nome do job confunde quem chega agora.** Até a **v1.51.1** (06/09/2026)
+> havia dois: o `banco` original, que subia o stack Docker do Supabase CLI, e este. Os dois rodaram
+> em paralelo por cinco runs, chamando o mesmo runner, e a **igualdade de veredito entre eles**
+> (25 roteiros, 577 asserções, 0 falhas) foi o que provou que o bootstrap declarado estava certo.
+> Só então o antigo saiu. O nome `banco-sem-docker` ficou: renomeá-lo exige, no mesmo movimento,
+> trocar o *required status check* na branch protection — senão o check exigido para de reportar e
+> todo PR trava sem nada vermelho na tela.
 
-O segundo é reproduzível em qualquer Postgres 17 vazio, sem Docker e sem a CLI do Supabase. Na mesa:
+Ele é reproduzível em qualquer Postgres 17 vazio, sem Docker e sem a CLI do Supabase. Na mesa:
 
 ```bash
 createdb estoque

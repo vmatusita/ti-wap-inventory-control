@@ -1,0 +1,41 @@
+================================================================================
+ SABOTAGEM 5 — as asercoes que substituem a guarda do job antigo SABEM reprovar
+================================================================================
+Remover um job apaga junto os comentarios que explicam por que ele era assim.
+O describe 8 deixou de defender a EXISTENCIA do job antigo e passou a defender
+a MEMORIA dele. Estas sao as duas provas de que ele sabe ficar vermelho.
+
+--------------------------------------------------------------------------------
+CASO A — alguem 'restaura' o stack do Supabase CLI no YAML
+--------------------------------------------------------------------------------
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected 'name: CI\n\non:\n  push:\n    branche…' not to contain 'supabase/setup-cli'
+- supabase/setup-cli
++       - uses: supabase/setup-cli@v1
+    520|     expect(semComentario).not.toContain('supabase/setup-cli')
+ Test Files  1 failed (1)
+
+--------------------------------------------------------------------------------
+CASO B — alguem 'limpa' o cabecalho e apaga as duas cicatrizes
+--------------------------------------------------------------------------------
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected [ 'verificar', 'banco', …(1) ] to deeply equal [ 'verificar', 'banco-sem-docker' ]
+AssertionError: expected 'name: CI\n\non:\n  push:\n    branche…' not to contain 'supabase/setup-cli'
+AssertionError: sumiu a cicatriz do rate limit (24/07/2026): expected '  # =================================…' to contain 'rate limit'
+    529|     expect(BANCO_SEM_DOCKER, 'sumiu a cicatriz do rate limit (24/07/20…
+AssertionError: expected '  # =================================…' to contain 'required_status_checks'
+
+--------------------------------------------------------------------------------
+CASO B — alguem 'limpa' o cabecalho e apaga as duas cicatrizes
+--------------------------------------------------------------------------------
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: sumiu a cicatriz do rate limit (24/07/2026): expected '  # =================================…' to contain 'rate limit'
+    529|     expect(BANCO_SEM_DOCKER, 'sumiu a cicatriz do rate limit (24/07/20…
+ Test Files  1 failed (1)
+      Tests  1 failed | 80 passed (81)
+
+--------------------------------------------------------------------------------
+As duas provam o que o describe 8 passou a defender: nao a ausencia do job
+antigo, mas a MEMORIA do porque ele saiu. Um job removido leva junto os
+comentarios que explicam a decisao — e e ai que ela volta a ser tomada do zero.
+--------------------------------------------------------------------------------
