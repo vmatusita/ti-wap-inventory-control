@@ -1,16 +1,22 @@
 CRITÉRIOS DE ACEITAÇÃO DA F45 — autoverificação item a item
-1  Um commit que quebre roteiro SQL não chega em produção .......... PENDENTE (depende do portão; §8.5 tem a sequência)
-2  verificar/banco como required checks + require PR + bypass ....... PENDENTE — gh ausente; comando pronto no §8
-3  cancel-in-progress vale em PR e NÃO em push na main ............. ✅ ci.yml:25, e a trava reprova se voltar
-4  verificar:actions roda no CI depois do build, e sai 0 ........... ✅ ci.yml passo 8 do job verificar; exit 0 local
-5  npm run db:test roda e usa o MESMO script do CI ................. ✅ provado com dublê; db:test:um passa o argumento
-6  Os roteiros terminam com FIM, e o runner falha sem ela .......... ✅ 25/25 têm a linha; cenário 'abortou' reprova
-7  Nenhum roteiro conta zero asserção .............................. ✅ regra no runner; contagem REAL só no CI (§9.1)
-8  assert_zero_de recusa universo vazio, com teste .................. ⚠ escrito (asserts_ferramenta.sql); saída real só no CI
-9  npm run test executa .test.tsx; puro roda o mesmo de antes ...... ✅ 16 testes em componentes; puro 149 arquivos idênticos
-10 As varreduras verdes; TETO_PALETA_CRUA não subiu ................ ✅ 473/61, os mesmos; decisão em DECISOES.md
-11 lint, test, contraste, build e tsc --noEmit limpos .............. ✅ os cinco exit 0 (+ verificar:actions)
-12 A ata do portão em DECISOES.md e no README, com data ............ ✅ quatro atas; README com o bloco e o risco
-13 Regra 8: 1.50.0 + registry + CHANGELOG + tag v1.50.0 ............ ✅ os três passos, tag publicada
-14 Rollout: merge → CI → tag → deploy → proteção ................... ⚠ merge/tag/deploy feitos e verificados; CI não lido; proteção pendente
-15 Repouso perfeito — nada pela metade, nenhuma branch aberta ...... ✅ árvore limpa, f45-portao apagada nos dois lados
+(atualizado em 05/09/2026, depois de ligar o portão — os QUINZE fecharam)
+
+1  Um commit que quebre roteiro SQL não chega em produção .......... ✅ PR #21: banco ✗, merge BLOCKED, fechado sem mergear
+2  verificar/banco como required checks + require PR + bypass ....... ✅ lido de volta pela API; enforce_admins=false é o bypass
+3  cancel-in-progress vale em PR e NÃO em push na main ............. ✅ e o grupo passou a ser por SHA (v1.50.1) — ver §16
+4  verificar:actions roda no CI depois do build, e sai 0 ........... ✅ verde no CI e local
+5  npm run db:test roda e usa o MESMO script do CI ................. ✅ o job banco chama bash scripts/db/rodar-roteiros.sh
+6  Os roteiros terminam com FIM, e o runner falha sem ela .......... ✅ 25 linhas FIM no CI; o PR #21 provou a falha
+7  Nenhum roteiro conta zero asserção .............................. ✅ 577 asserções; a menor contagem é 4
+8  assert_zero_de recusa universo vazio, com teste .................. ✅ saída literal do job banco
+9  npm run test executa .test.tsx; puro roda o mesmo de antes ...... ✅ 16 em componentes; puro com os mesmos 149 arquivos
+10 As varreduras verdes; TETO_PALETA_CRUA não subiu ................ ✅ 473/61, os mesmos
+11 lint, test, contraste, build e tsc --noEmit limpos .............. ✅ os cinco, mais verificar:actions
+12 A ata do portão em DECISOES.md e no README, com data ............ ✅ cinco atas
+13 Regra 8: versão + registry + CHANGELOG + tag .................... ✅ v1.50.0 e v1.50.1, as duas com tag
+14 Rollout: merge → CI verde → tag → deploy → proteção ............. ✅ nessa ordem; a proteção foi o último passo
+15 Repouso perfeito — nada pela metade, nenhuma branch aberta ...... ✅ árvore limpa, PR descartável fechado, branches apagadas
+
+O QUE NÃO É PENDÊNCIA, É AMBIENTE:
+   npm run db:test não roda NESTA máquina (sem Docker, veto do Johnny na F30).
+   Na máquina do Johnny, com um Postgres à mão, roda — é o mesmo script do CI.

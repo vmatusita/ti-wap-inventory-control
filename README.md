@@ -44,7 +44,11 @@ Variáveis de ambiente (todas descritas em `.env.example`):
 
 O CI (`.github/workflows/ci.yml`) roda em todo push na `main` e em qualquer PR: o job `verificar` (`lint` → `test` → `contraste` → `build` → `verificar:actions`) e o job `banco`, que sobe um Postgres, aplica **todas as migrations** em ordem e roda os roteiros de `supabase/tests/` pelo mesmo script que `npm run db:test` chama. Desde a F45 o cancelamento de execução em andamento vale **só em PR**: em push na `main` cada commit tem o CI dele do começo ao fim.
 
-> **O portão da `main` (F45, 05/09/2026) — decisão do Johnny, registrada em [`docs/DECISOES.md`](docs/DECISOES.md).** `verificar` e `banco` são para ser *required status checks* na `main`, com *require pull request* e bypass na conta do Johnny. **Consequência aceita: da F46 em diante toda fase vira PR**, com espera do job `banco`; usar o bypass passa a ser ato consciente. **O RISCO, dito por escrito:** essa proteção é configuração **fora do repositório**, e **nenhuma trava interna impede que alguém a desligue no painel** — `src/lib/ci-passos.test.ts` defende os passos do CI, não a proteção da branch. **Estado em 05/09/2026: PENDENTE** — o `gh` (GitHub CLI) não está instalado na máquina de desenvolvimento e a credencial de administrador é insumo que só o Johnny tem; o comando pronto e o passo a passo do painel estão em [`docs/RELATORIO-F45.md`](docs/RELATORIO-F45.md) §8.
+> **O portão da `main` está LIGADO desde 05/09/2026 (F45)** — decisão do Johnny, ata em [`docs/DECISOES.md`](docs/DECISOES.md). `verificar` e `banco` são *required status checks*, com *require pull request* (0 aprovações) e **bypass na conta do Johnny** (`enforce_admins: false`). Provado de ponta a ponta: um PR com um roteiro SQL deliberadamente vermelho teve o merge recusado com *"the base branch policy prohibits the merge"* — [`docs/RELATORIO-F45.md`](docs/RELATORIO-F45.md) §8.5.
+>
+> **Consequência aceita: da F46 em diante o caminho normal é PR**, com espera do job `banco` (~3 a 6 min). O push direto continua passando para o Johnny — é o bypass —, e o GitHub avisa (`2 of 2 required status checks are expected`): usá-lo virou ato consciente.
+>
+> **O RISCO, dito por escrito:** a proteção é configuração **fora do repositório**, e **nenhuma trava interna impede que alguém a desligue no painel** — `src/lib/ci-passos.test.ts` defende os passos do CI, não a proteção da branch. Ligar não é defender. Para conferir: `gh api repos/vmatusita/ti-wap-inventory-control/branches/main/protection --jq '.required_status_checks.contexts'`.
 
 ## Stack (decidida em 09/07/2026)
 
@@ -78,7 +82,7 @@ A documentação do **operador** não está aqui: ela vive dentro do sistema, em
 
 ## Status
 
-**Versão no ar: `1.50.0`.** A fonte única é `src/lib/versoes/registry.ts` — `VERSOES[0]` *é* a versão publicada, e um teste trava a divergência com o `package.json`. O operador vê o mesmo histórico em `/versoes`.
+**Versão no ar: `1.50.1`.** A fonte única é `src/lib/versoes/registry.ts` — `VERSOES[0]` *é* a versão publicada, e um teste trava a divergência com o `package.json`. O operador vê o mesmo histórico em `/versoes`.
 
 Entregue da **F0 à F45**: operação completa de ativos e movimentações, itens por quantidade, relatórios ao vivo e snapshots semanais com acesso por senha, termos gerados em `.docx`, import de startup por filial, cargos e permissões no Postgres, área `/dev` com zona destrutiva, e o sistema de design com `/ativos` e as três telas de `/itens` dentro do casco — a lista de itens mostrando, na própria linha, quanto tem em cada filial, e dizendo por extenso de qual filial são os números quando há filtro.
 
