@@ -134,7 +134,7 @@ jobs:
       DO_NOT_TRACK: 1
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           # VERSÃO FIXA, e não `latest` (24/07/2026: o CI do banco quebrou com
           # "Failed to resolve latest Supabase CLI release: rate limit exceeded").
