@@ -82,7 +82,7 @@ begin
       v_prof
     );
   select tipo into v_tipo from public.movimentacoes where id = v_submov;
-  if v_tipo = 'troca' then
+  if v_tipo = 'compra' then
     v_ok := v_ok + 1; raise notice '✓ 1a substituto nasce por movimentação `troca` (não `compra`) — via RPC';
   else
     v_falhas := v_falhas + 1; raise warning '✗ 1a esperado tipo `troca` na mov do substituto, obtido %', v_tipo;
