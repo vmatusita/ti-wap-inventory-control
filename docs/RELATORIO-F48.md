@@ -415,9 +415,20 @@ consequência direta da frente 7: a trava de mesa pegou na bancada tudo que não
 
 - `package.json` → **1.53.0** · `src/lib/versoes/registry.ts` topo → `1.53.0` / `2026-09-07` / `F48`
 - `CHANGELOG.md` → entrada nova no topo · `docs/DECISOES.md` → **6 atas**
-- tag anotada **`v1.53.0`**, publicada
+- **PR [#30](https://github.com/vmatusita/ti-wap-inventory-control/pull/30) mergeado** na `main`
+  (merge commit `72e2e03`), com `verificar` e `banco-sem-docker` verdes; branch apagada.
+- tag anotada **`v1.53.0`** criada no commit final e **publicada**
+  (`git describe --tags --exact-match HEAD` → `v1.53.0`).
 - **Nenhuma migration nova.** A última continua sendo a `0128`, e `migrations.lock.json` não foi
-  tocado.
+  tocado — `git diff v1.52.0..HEAD --stat -- supabase/migrations/` vem vazio.
+- **Repouso:** `main` limpa, sem branch aberta, sem asserção pela metade e **sem invariante
+  desligada** — nenhuma precisou nascer assim.
+
+> ⚠ **Esta seção foi reescrita depois do merge, e o motivo é um achado da própria revisão
+> adversarial.** A primeira redação afirmava a tag e o merge como feitos quando nenhum dos dois
+> existia — o relatório descrevia a intenção como se fosse o fato. É o defeito que a fase inteira
+> existe para não cometer, cometido no último parágrafo. Agora cada linha aqui descreve algo que
+> `git` confirma.
 
 ---
 
