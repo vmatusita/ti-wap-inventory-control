@@ -189,7 +189,33 @@ scripts/
   db/              # gravar-lock.ts (`npm run db:lock` — o único ponto que escreve o lock)
                    # e rodar-roteiros.sh (o runner ÚNICO, chamado pelo job de banco do CI
                    # — `banco-sem-docker`, que é required check — e por `npm run db:test`
-                   # na mesa. O job `banco` antigo, com Docker do Supabase, saiu na v1.51.1)
+                   # na mesa. O job `banco` antigo, com Docker do Supabase, saiu na v1.51.1).
+                   # F47 acrescentou as DUAS ferramentas que provam o rig, as duas
+                   # incondicionais no `banco-sem-docker`:
+                   #  · run-mutation-tests.mjs (`npm run db:test:mutations`) — o INJETOR:
+                   #    quebra o banco de propósito e exige que o roteiro acuse o CENÁRIO
+                   #    NOMEADO. Controle verde primeiro (senão aborta ANTES de mutar), um
+                   #    banco descartável por mutação, e sonda que prova que a mutação pegou.
+                   #    ⚠ o runner sai 1 quando o roteiro fica vermelho, e para o injetor
+                   #    isso é SUCESSO — a inversão está comentada no motor, não a "conserte"
+                   #  · mutacoes.mjs — o CATÁLOGO, separado do motor DE PROPÓSITO: a F51 e a
+                   #    F52 acrescentam quebras mexendo só aqui. Traz o lote ATIVO e a
+                   #    QUARENTENA declarada (não executável; toda entrada nomeia a fase que
+                   #    a adota, e há teste exigindo isso e o teto de um terço do lote)
+                   #  · corpo-vigente.mjs — resolve o corpo VIVO de uma função varrendo as
+                   #    migrations da maior para a menor; `trocarNoCorpo` recusa a troca que
+                   #    viraria no-op silencioso. É o que permite mutar função de 400 linhas
+                   #    sem colar uma cópia que envelhece
+                   #  · saida-roteiro.mjs — a leitura da saída: TOKEN, nunca substring (`2c`
+                   #    é prefixo de `2c-bis`, e em dev_destrutivo o rótulo `1` é prefixo de
+                   #    outros dezenove)
+                   #  · diff-tipos.mjs (`npm run db:types:diff`) + tipos-conjuntos.mjs — o
+                   #    GATE DE DERIVA: compara CONJUNTOS entre o catálogo do Postgres e o
+                   #    `src/lib/types/database.ts` (lido pelo compilador TypeScript, que já
+                   #    é dependência). Reprova SÓ quando o BANCO tem o que o arquivo não tem
+                   #    — a direção contrária é legítima e tem três motivos registrados.
+                   #    ⚠ ele compara com o banco DO CI: a deriva de PRODUÇÃO continua
+                   #    invisível até alguém rodar `npm run db:types`
   seed.ts  reset.ts     # dados fictícios (guardas anti-produção obrigatórias)
   termos/               # edição dos MODELOS .docx por script, nunca pelo Word (F25/F39):
                         # retaguear-cidade.mjs (F25), inserir-acessorios.mjs (F39 · §A) e
@@ -223,6 +249,7 @@ Se a estrutura real divergir desta ao começar uma ordem, PARE e reporte a difer
 
 - `npm run dev` · `npm run build` · `npm run lint`
 - A partir da F1: `npm run db:seed` (popula fictício), `npm run db:reset` (zera), `npm run db:types` (regenera `src/lib/types/database.ts`)
+- Banco (precisam de um Postgres; `DATABASE_URL` aponta o alvo): `npm run db:test` (os roteiros de `supabase/tests/`), `npm run db:lock` (regrava a trava de hash — **obrigatório** no mesmo commit da migration nova) e, desde a **F47**, `npm run db:test:mutations` (o injetor de mutações) e `npm run db:types:diff` (o gate de deriva de tipos). Os dois últimos rodam incondicionalmente no `banco-sem-docker`
 - Supabase local (opcional): `supabase start` / `supabase db reset`
 - Só na janela do go-live (F4): `npm run carga` (`scripts/import/` — guardas obrigatórias; não é feature)
 
