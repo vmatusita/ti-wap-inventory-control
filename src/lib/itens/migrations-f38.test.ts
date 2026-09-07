@@ -60,7 +60,6 @@ const DA_F38 = [
   // F38. Ela não recria função nenhuma, mas passa pelas guardas de DELETE/UPDATE em
   // massa e de `security invoker` como qualquer outra — que é o ponto.
   '0128',
-  '0129', // SABOTAGEM TEMPORARIA DA F47 — sai no commit seguinte
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

@@ -55,6 +55,25 @@ import { join } from 'node:path'
 import { MUTACOES, QUARENTENA } from './mutacoes.mjs'
 import { emitiuLinhaFim, rotulosCaidos } from './saida-roteiro.mjs'
 
+/**
+ * Diagnóstico vai TUDO para stdout — inclusive as linhas `::error::`.
+ *
+ * ⚠ Não é preferência de estilo. Misturar `console.log` e `console.error` num script de
+ * CI produz um log EMBARALHADO: os dois fluxos são bufferizados de forma independente
+ * quando a saída é um pipe, e o GitHub Actions os intercala na ordem em que chegam, não
+ * na ordem em que foram escritos. Medido na F47 (run 34074976775): a mensagem
+ * "O CONTROLE NÃO FECHOU VERDE" apareceu NO MEIO da listagem do controle, quinze linhas
+ * antes do ✗ que a causou — o leitor precisa reconstruir a ordem para entender o
+ * veredito, e uma ferramenta de diagnóstico com log fora de ordem é uma ferramenta em
+ * que se confia menos.
+ *
+ * `::error::` funciona em stdout: os workflow commands do GitHub Actions são lidos dos
+ * dois fluxos.
+ */
+function erro(msg) {
+  console.log(msg)
+}
+
 const RAIZ = process.cwd()
 const RUNNER = join('scripts', 'db', 'rodar-roteiros.sh')
 const PASTA_ROTEIROS = join('supabase', 'tests')
@@ -154,7 +173,7 @@ function log(...a) {
 function main() {
   const lote = FILTRO ? MUTACOES.filter((m) => FILTRO.has(m.id)) : MUTACOES
   if (lote.length === 0) {
-    console.error('::error::nenhuma mutação selecionada — confira o `--apenas`')
+    erro('::error::nenhuma mutação selecionada — confira o `--apenas`')
     return 1
   }
 
@@ -172,7 +191,7 @@ function main() {
 
   for (const r of roteirosDoLote) {
     if (!existsSync(join(RAIZ, PASTA_ROTEIROS, r))) {
-      console.error(`::error::o roteiro ${PASTA_ROTEIROS}/${r} não existe`)
+      erro(`::error::o roteiro ${PASTA_ROTEIROS}/${r} não existe`)
       return 1
     }
   }
@@ -184,14 +203,14 @@ function main() {
   const caminhos = roteirosDoLote.map((r) => `${PASTA_ROTEIROS}/${r}`)
   const controle = rodarRoteiros(URL_BASE, caminhos)
   if (controle.erro) {
-    console.error(`::error::não consegui executar ${RUNNER}: ${controle.erro}`)
+    erro(`::error::não consegui executar ${RUNNER}: ${controle.erro}`)
     return 1
   }
   if (controle.codigo !== 0) {
     log(controle.saida)
-    console.error('')
-    console.error('::error::O CONTROLE NÃO FECHOU VERDE — abortando ANTES de mutar.')
-    console.error(
+    erro('')
+    erro('::error::O CONTROLE NÃO FECHOU VERDE — abortando ANTES de mutar.')
+    erro(
       '::error::Um roteiro já vermelho faria TODAS as mutações "serem detectadas". ' +
         'Conserte o roteiro (ou o banco) e rode de novo; nada foi mutado.',
     )
@@ -199,7 +218,7 @@ function main() {
   }
   const caidosNoControle = rotulosCaidos(controle.saida)
   if (caidosNoControle.size > 0) {
-    console.error(
+    erro(
       `::error::o runner saiu 0 mas há ✗ na saída do controle (${[...caidosNoControle].join(', ')}) — ` +
         'o parser do injetor e o do runner discordam. Abortando.',
     )
@@ -235,7 +254,7 @@ function main() {
     psql(URL_BASE, `drop database if exists ${banco}`)
     const criou = psql(URL_BASE, `create database ${banco} template ${bancoBase}`)
     if (!criou.ok) {
-      console.error(`::error::não consegui criar o banco ${banco}: ${criou.saida.trim()}`)
+      erro(`::error::não consegui criar o banco ${banco}: ${criou.saida.trim()}`)
       return 1
     }
 
@@ -347,9 +366,9 @@ function main() {
 
   log('')
   for (const f of falhas) {
-    console.error(`::error::[${f.resultado}] ${f.id} (${f.roteiro}) — ${f.detalhe}`)
+    erro(`::error::[${f.resultado}] ${f.id} (${f.roteiro}) — ${f.detalhe}`)
   }
-  console.error(
+  erro(
     `::error::${falhas.length} de ${linhas.length} mutação(ões) não terminaram como "detectada".`,
   )
   return 1

@@ -1,0 +1,25 @@
+# SABOTAGEM 4 (criterio 7) — coluna nova sem "npm run db:types" DERRUBA o CI
+# run 34075219394 (PR #27), 07/09/2026
+#
+# A migration temporaria 0129_SABOTAGEM_F47.sql acrescentou uma coluna a
+# "ativos", e o database.ts NAO foi regenerado.
+#
+# O gate ficou vermelho NOMEANDO a coluna, com a instrucao do que fazer.
+# O job parou ali: determinismo, roteiros e injetor ficaram "skipped".
+#
+# O buraco que isso fecha nao e hipotese: a ata da F41 registra que o
+# database.ts commitado ficou velho por tres fases seguidas.
+
+---- gate de deriva de tipos ----
+O BANCO tem objeto que `src/lib/types/database.ts` NÃO conhece — o arquivo está velho.
+banco ....... 30 relações · 300 colunas · 59 funções
+
+database.ts . 30 relações · 299 colunas · 59 funções
+colunas ausentes no database.ts (1):
+  · ativos.sabotagem_f47
+
+Como resolver: rode `npm run db:types` (ele lê DB_TYPES_PROJECT_REF e SUPABASE_ACCESS_TOKEN)
+e comite o `src/lib/types/database.ts` regerado, no mesmo commit da migration.
+
+##[error]o database.ts está velho: 1 objeto(s) do banco não estão nele.
+##[error]Process completed with exit code 1.

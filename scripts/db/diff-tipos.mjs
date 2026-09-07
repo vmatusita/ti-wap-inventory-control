@@ -76,6 +76,25 @@ import {
   mensagemDeDeriva,
 } from './tipos-conjuntos.mjs'
 
+/**
+ * Diagnóstico vai TUDO para stdout — inclusive as linhas `::error::`.
+ *
+ * ⚠ Não é preferência de estilo. Misturar `console.log` e `console.error` num script de
+ * CI produz um log EMBARALHADO: os dois fluxos são bufferizados de forma independente
+ * quando a saída é um pipe, e o GitHub Actions os intercala na ordem em que chegam, não
+ * na ordem em que foram escritos. Medido na F47 (run 34074976775): a mensagem
+ * "O CONTROLE NÃO FECHOU VERDE" apareceu NO MEIO da listagem do controle, quinze linhas
+ * antes do ✗ que a causou — o leitor precisa reconstruir a ordem para entender o
+ * veredito, e uma ferramenta de diagnóstico com log fora de ordem é uma ferramenta em
+ * que se confia menos.
+ *
+ * `::error::` funciona em stdout: os workflow commands do GitHub Actions são lidos dos
+ * dois fluxos.
+ */
+function erro(msg) {
+  console.log(msg)
+}
+
 const RAIZ = process.cwd()
 const ARQUIVO_TIPOS = join(RAIZ, 'src', 'lib', 'types', 'database.ts')
 const URL_PADRAO = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
@@ -122,11 +141,11 @@ function listar(sql) {
     maxBuffer: 32 * 1024 * 1024,
   })
   if (r.error) {
-    console.error(`::error::não consegui executar o psql: ${r.error.message}`)
+    erro(`::error::não consegui executar o psql: ${r.error.message}`)
     process.exit(1)
   }
   if (r.status !== 0) {
-    console.error(`::error::consulta ao catálogo falhou:\n${r.stderr ?? ''}`)
+    erro(`::error::consulta ao catálogo falhou:\n${r.stderr ?? ''}`)
     process.exit(1)
   }
   return (r.stdout ?? '')
@@ -147,7 +166,7 @@ function main() {
   // vazio nunca tem nada que o repositório não tenha: o gate passaria VERDE sem ter
   // medido nada. Verificação que não sabe reprovar é o que a F45 existiu para matar.
   if (banco.relacoes.size < 10 || banco.funcoes.size < 10) {
-    console.error(
+    erro(
       `::error::o banco tem ${banco.relacoes.size} relação(ões) e ${banco.funcoes.size} função(ões) ` +
         `em \`public\` — isso não é o schema deste projeto. As migrations foram aplicadas em ${URL}?`,
     )
@@ -184,11 +203,11 @@ function main() {
     return 0
   }
 
-  console.error('')
-  console.error(mensagemDeDeriva(deriva))
-  console.error('')
+  erro('')
+  erro(mensagemDeDeriva(deriva))
+  erro('')
   const quantos = deriva.relacoes.length + deriva.colunas.length + deriva.funcoes.length
-  console.error(`::error::o database.ts está velho: ${quantos} objeto(s) do banco não estão nele.`)
+  erro(`::error::o database.ts está velho: ${quantos} objeto(s) do banco não estão nele.`)
   return 1
 }
 
