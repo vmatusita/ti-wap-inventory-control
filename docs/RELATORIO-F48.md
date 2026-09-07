@@ -13,13 +13,13 @@ Ficha de escopo: `docs/PLANO-MULTIEMPRESA.md` §5 → F48. Plano: `docs/PLAN-F48
 | o que | antes | depois |
 |---|---|---|
 | roteiros SQL | 25 | **28** |
-| asserções nos roteiros | 577 | **609** |
+| asserções nos roteiros | 577 | **613** |
 | superfícies de segurança enumeradas | **0 de 4** | **4 de 4** |
 | mutações ativas do injetor | 28 | **39** — todas detectadas pelo cenário nomeado |
-| em quarentena | 5 (15%) | **2 (6%)** |
+| em quarentena | 5 (15%) | **2 (4,9%)** |
 | asserções que passavam sobre conjunto vazio, nomeadas pela F47 | 3 abertas | **3 fechadas** |
 | regras de acesso na `MATRIZ-REGRAS.md` | R-ACC-28 | **R-ACC-35** |
-| travas de mesa dos catálogos (rodam sem Postgres) | 0 | **94** |
+| travas de mesa dos catálogos (rodam sem Postgres) | 0 | **97** |
 | migrations | 128 | **128** — nenhuma nova, de propósito |
 
 **A fase não corrigiu uma única policy, função, grant ou RLS.** Ela enumerou e congelou a linha
@@ -34,7 +34,7 @@ A ordem manda não acreditar em nenhum dos sete pontos e medir cada um. O que **
 | # | o que a ordem afirmava | o que medi | veredito |
 |---|---|---|---|
 | 1 | a mesa não tem Postgres nem Docker | `winget list` (nada), `ls "/c/Program Files/{PostgreSQL,Docker}"` (nada), `which psql pg_ctl docker` (nada) — as três negativas, pelo MÉTODO | **confirmado** |
-| 2 | o runner recusa roteiro com zero asserção e sem `FIM` | lido em `rodar-roteiros.sh`: as quatro reprovações (a) ausência da linha `FIM`, (b) `N = 0`, (c) `M ≠ 0`, (d) `NOTICE\|WARNING: ✗` | **confirmado** — e por isso `isolamento_tenant.sql` nasceu com 10 asserções reais |
+| 2 | o runner recusa roteiro com zero asserção e sem `FIM` | lido em `rodar-roteiros.sh`: as quatro reprovações (a) ausência da linha `FIM`, (b) `N = 0`, (c) `M ≠ 0`, (d) `NOTICE\|WARNING: ✗` | **confirmado** — e por isso `isolamento_tenant.sql` nasceu com 11 asserções reais |
 | 3 | a varredura de `empresa_id` não é escrevível hoje | `grep -rn "empresa_id" supabase/migrations/` → **0** | **confirmado** |
 | 4 | as asserções 2 e 3 de `seguranca_catalogo.sql` já são duas das varreduras pedidas | lido no arquivo | **confirmado** → Decisão 2 |
 | 5 | `senhas_acesso` e `senha_tentativas` têm RLS ligada e zero policy | confirmado, **e apareceu uma TERCEIRA**: `public.ambiente` (`0090`) | **confirmado e ampliado** |
@@ -97,7 +97,7 @@ inteira: a asserção lê `has_function_privilege` **ao vivo**, não o históric
 ✓ 6a  toda INVOKER alcançável por anon está declarada nominalmente (0 de 27)
 ✓ 6b  toda exceção declarada ainda descreve o banco                (0 de 5)
 
---- catalogo_policies.sql (14 asserções) ---
+--- catalogo_policies.sql (15 asserções) ---
 ✓ 1a    toda tabela de public está CLASSIFICADA negócio × infra   (0 de 21)
 ✓ 1b    todo nome classificado ainda existe no catálogo           (0 de 21)
 ✓ 2     toda tabela de NEGÓCIO tem policy de SELECT               (0 de 16)
@@ -107,11 +107,12 @@ inteira: a asserção lê `has_function_privilege` **ao vivo**, não o históric
 ✓ 5     nenhuma policy com predicado equivalente a `true`         (0 de 55)
 ✓ 6a    o piso `papel_atual()` continua nas 15 congeladas         (0 de 15)
 ✓ 6b    as 3 que decidem por CARGO não afrouxaram para o piso     (0 de 3)
+✓ 6c    toda policy de SELECT de public está numa das duas listas  (0 de 18)
 ✓ 7     nenhuma policy de storage.objects decide só por bucket_id (0 de 8)
 ✓ 8a/8b o conjunto de policies de Storage é o congelado           (0 de 8, 0 de 8)
 ✓ 9a/9b a publication do Realtime é a congelada                   (0 de 3, 0 de 3)
 
---- isolamento_tenant.sql (10 asserções) ---
+--- isolamento_tenant.sql (11 asserções) ---
 ✓ 1   o papel do roteiro (postgres) ignora RLS
 ✓ 2   `authenticated` NÃO ignora RLS
 ✓ 3   `anon` NÃO ignora RLS
@@ -122,6 +123,7 @@ inteira: a asserção lê `has_function_privilege` **ao vivo**, não o históric
 ✓ 8a  o universo foi contado como postgres ANTES do ataque (2 linhas)
 ✓ 8b  a operação FALHOU                                           (0 de 2)
 ✓ 8c  de volta como postgres, o dado original continua INTACTO    (0 de 2)
+✓ 8d  o MESMO operador ESCREVE na filial VINCULADA (1 linha)
 ```
 
 Saída completa em `docs/f48-evidencias/catalogos-no-banco-do-ci.txt`.
@@ -264,7 +266,7 @@ A forma proibida **existiu**, e a mutação é ela.
 qualquer mutação e exige os roteiros VERDES. Uma sabotagem "ser detectada" por um catálogo que já
 estivesse vermelho é estruturalmente impossível — o motor aborta antes de mutar.
 
-Saída real: `docs/f48-evidencias/sabotagens-A-E-no-banco.txt` e `injetor-lote-31.txt`.
+Saída real: `docs/f48-evidencias/sabotagens-A-E-no-banco.txt` e `injetor-lote-39.txt`.
 
 ### 7.2 Sabotagem F, sem banco: **11 sabotagens — e três delas pegaram fraqueza de verdade**
 
@@ -342,7 +344,7 @@ do que a ficha supunha.** O que faltava era ser obrigado a continuar assim.
 
 | # | critério | evidência |
 |---|---|---|
-| 1 | `catalogo_policies.sql` verde, N > 0, com linha `FIM` | **14 asserções, 0 falhas** — `catalogos-no-banco-do-ci.txt` |
+| 1 | `catalogo_policies.sql` verde, N > 0, com linha `FIM` | **15 asserções, 0 falhas** — `catalogos-no-banco-do-ci.txt` |
 | 2 | cobre as TRÊS superfícies declarativas, com asserção própria | policies de `public` (1a–6b), Storage (7, 8a, 8b), Realtime (9a, 9b) |
 | 3 | nenhuma policy com predicado `true`; o número está no relatório | asserção 5: **0 de 55** |
 | 4 | tabela de negócio sem SELECT reprova; exceção nominal declarada | asserções 2/3/4 + sabotagem A (`1a`,`3`); as **3** exceções com motivo e migration |
@@ -350,12 +352,12 @@ do que a ficha supunha.** O que faltava era ser obrigado a continuar assim.
 | 6 | `catalogo_secdef.sql` verde, deriva de `prosecdef`, prova `search_path` e `anon` | **8 asserções, 0 falhas**; 3 e 4: **0 de 37** cada |
 | 7 | `security definer` nova não classificada REPROVA — provado por sabotagem | mutação `catalogo-security-definer-nova-nao-classificada` → **✗ 1a**, detectada |
 | 8 | exceção nominal de `valida_lancamento_item` com motivo escrito | asserção 5 do `catalogo_secdef`, dupla (INVOKER **e** fora da tabela-verdade) |
-| 9 | `isolamento_tenant.sql` verde, N > 0, bloco de grants, convenção no cabeçalho, **sem** `empresa_id` | **10 asserções, 0 falhas**; trava de mesa describe 5 cobra as duas metades |
+| 9 | `isolamento_tenant.sql` verde, N > 0, bloco de grants, convenção no cabeçalho, **sem** `empresa_id` | **11 asserções, 0 falhas**; trava de mesa describe 5 cobra as duas metades |
 | 10 | Decisão 2 tomada, registrada e aplicada: UM lugar só | ata + ponteiros nos quatro arquivos + describe 6 + sabotagem F.6 |
-| 11 | os quatro cenários fortalecidos; as três mutações no lote ativo e **detectadas** | §6; `injetor-lote-31.txt` — **31/31**, depois **39/39** |
+| 11 | os quatro cenários fortalecidos; as três mutações no lote ativo e **detectadas** | §6; `injetor-lote-39.txt` — **31/31**, depois **39/39** |
 | 12 | `MATRIZ-REGRAS.md` com a emenda F48 | R-ACC-29 a R-ACC-35, com as duas razões da `0070`, o `42P17` e as quatro superfícies |
 | 13 | `lint`, `test`, `build`, `tsc` limpos | §11 |
-| 14 | `db:test` verde para os **28** roteiros; `db:types:diff` verde | **28 roteiros, 609 asserções**; gate de tipos verde no mesmo job |
+| 14 | `db:test` verde para os **28** roteiros; `db:types:diff` verde | **28 roteiros, 613 asserções**; gate de tipos verde no mesmo job |
 | 15 | versão **1.53.0**, registry, tag, CHANGELOG | §11 |
 | 16 | PR mergeado com os dois checks verdes; `main` em repouso | §11 |
 
@@ -379,7 +381,7 @@ do que a ficha supunha.** O que faltava era ser obrigado a continuar assim.
   materializadas (não há nenhuma), as extensões (nenhuma migration cria uma — o que torna a
   pergunta "alguma tabela de `public` veio de extensão?" **estruturalmente não respondível** por
   leitura de migration) e a superfície HTTP/RSC, que é a F49.
-- **Não prova que os 609 asserções cobrem tudo.** Prova que, nos cenários que as 39 mutações miram,
+- **Não prova que as 613 asserções cobrem tudo.** Prova que, nos cenários que as 39 mutações miram,
   os roteiros acusam o defeito certo. A quarentena mostra que pelo menos dois caminhos continuam
   sem cenário.
 - **Não prova que a classificação negócio × infra está certa para a virada.** Ela está *escrita*,
@@ -394,7 +396,7 @@ do que a ficha supunha.** O que faltava era ser obrigado a continuar assim.
 
 ```
 npm run lint      → limpo
-npm run test      → 159 arquivos, 4005 testes, 0 falhas   (eram 158 / 3873)
+npm run test      → 159 arquivos, 4008 testes, 0 falhas   (eram 158 / 3873)
 npx tsc --noEmit  → limpo
 npm run build     → ver §11.2
 ```
@@ -403,7 +405,7 @@ npm run build     → ver §11.2
 
 | job | resultado |
 |---|---|
-| `banco-sem-docker` | **verde** — 28 roteiros, 609 asserções, 0 falhas · 39/39 mutações detectadas · gate de tipos verde |
+| `banco-sem-docker` | **verde** — 28 roteiros, 613 asserções, 0 falhas · 39/39 mutações detectadas · gate de tipos verde |
 | `verificar` | **verde** |
 
 Os três catálogos passaram **no primeiro push**, o que é incomum numa mesa sem Postgres e é

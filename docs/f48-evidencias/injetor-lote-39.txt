@@ -1,0 +1,149 @@
+=== O LOTE DE 39 MUTAÇÕES, VERDE — E AS TRÊS PROMOVIDAS DA QUARENTENA ===
+PR #30 · run 34168954030 · job banco-sem-docker · npm run db:test:mutations (estado FINAL)
+
+As três que a F47 declarou INDETECTÁVEIS, com a fase F48 escrita ao lado, são as linhas
+[10], [11] e [23]. Elas são a PROVA de que a frente 6 funcionou — não o diff.
+
+As oito de [32] a [39] são as sabotagens A-E dos catálogos novos, escritas como mutação
+PERMANENTE para rodarem a cada push em vez de uma vez só. Ver docs/f48-evidencias/
+sabotagens-A-E-no-banco.txt.
+
+mutações ativas ..... 39
+em quarentena ....... 2 (declaradas, NÃO executadas)
+roteiros do lote .... cargo_dev.sql, catalogo_policies.sql, catalogo_secdef.sql, conflito_filiais.sql, dev_destrutivo.sql, import_substituir.sql, papeis_rls.sql, seguranca_catalogo.sql
+
+---- CONTROLE: os roteiros do lote, SEM mutação nenhuma ----
+controle verde: 8 roteiro(s), nenhum ✗.
+
+[1/39] rls-movimentacao-confia-na-filial-declarada  →  papeis_rls.sql  (espera ✗ 2c-bis, 2c-ter)
+      ✓ detectada — também caíram (efeito colateral): 2g  (1034 ms)
+[2/39] rls-lancamento-de-item-confere-papel-e-esquece-filial  →  papeis_rls.sql  (espera ✗ 2e)
+      ✓ detectada  (317 ms)
+[3/39] rls-edicao-de-ativo-confere-papel-e-esquece-filial  →  papeis_rls.sql  (espera ✗ 2g)
+      ✓ detectada  (303 ms)
+[4/39] rls-piso-de-leitura-aberto-em-ativos  →  papeis_rls.sql  (espera ✗ 4d)
+      ✓ detectada  (310 ms)
+[5/39] rls-desligada-em-senhas-de-acesso  →  papeis_rls.sql  (espera ✗ 3d, 5f)
+      ✓ detectada  (306 ms)
+[6/39] rls-auditoria-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 3f)
+      ✓ detectada  (304 ms)
+[7/39] rls-trilha-do-import-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 3e)
+      ✓ detectada  (1115 ms)
+[8/39] rls-bucket-de-backup-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 6e)
+      ✓ detectada  (441 ms)
+[9/39] rls-termo-perde-as-invariantes-da-ancora  →  papeis_rls.sql  (espera ✗ 2i-bis-3)
+      ✓ detectada  (289 ms)
+[10/39] ancora-do-termo-sempre-coerente  →  papeis_rls.sql  (espera ✗ 2i-bis-3)
+      ✓ detectada  (274 ms)
+[11/39] leitura-de-colaboradores-sem-piso  →  papeis_rls.sql  (espera ✗ 4i)
+      ✓ detectada — também caíram (efeito colateral): 1i-bis, 3c-ter  (436 ms)
+[12/39] catalogo-rls-desligada-numa-tabela  →  seguranca_catalogo.sql  (espera ✗ 2)
+      ✓ detectada  (301 ms)
+[13/39] catalogo-tabela-de-backup-sem-rls  →  seguranca_catalogo.sql  (espera ✗ 2)
+      ✓ detectada  (434 ms)
+[14/39] catalogo-view-sem-security-invoker  →  seguranca_catalogo.sql  (espera ✗ 3)
+      ✓ detectada  (416 ms)
+[15/39] catalogo-funcao-gatilho-executavel-por-authenticated  →  seguranca_catalogo.sql  (espera ✗ 4)
+      ✓ detectada  (235 ms)
+[16/39] catalogo-gatilho-de-lancamento-vira-definer  →  seguranca_catalogo.sql  (espera ✗ 4c)
+      ✓ detectada  (360 ms)
+[17/39] catalogo-rpc-de-escrita-executavel-por-anon  →  seguranca_catalogo.sql  (espera ✗ 1)
+      ✓ detectada  (233 ms)
+[18/39] dev-guarda-de-gestao-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2a, 2b, 2c, 2e)
+      ✓ detectada — também caíram (efeito colateral): 2i, 2i-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 4a, 4b, 4c  (309 ms)
+[19/39] dev-apagar-conta-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2f-bis)
+      ✓ detectada — também caíram (efeito colateral): 3a, 3b, 4a  (427 ms)
+[20/39] dev-encerrar-sessoes-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2f)
+      ✓ detectada  (473 ms)
+[21/39] dev-trigger-deixa-conceder-cargo-por-update-direto  →  cargo_dev.sql  (espera ✗ 2h)
+      ✓ detectada  (301 ms)
+[22/39] dev-auxiliar-de-gestao-executavel-por-authenticated  →  cargo_dev.sql  (espera ✗ 5e)
+      ✓ detectada  (274 ms)
+[23/39] gestao-encerrar-sessoes-mira-o-alvo-errado  →  cargo_dev.sql  (espera ✗ 3d)
+      ✓ detectada  (270 ms)
+[24/39] destrutivo-justificativa-sem-tamanho-minimo  →  dev_destrutivo.sql  (espera ✗ 12b, 12e)
+      ✓ detectada  (320 ms)
+[25/39] destrutivo-guarda-do-acervo-aceita-update  →  dev_destrutivo.sql  (espera ✗ 2i, 2k)
+      ✓ detectada  (402 ms)
+[26/39] destrutivo-guarda-do-acervo-aceita-delete  →  dev_destrutivo.sql  (espera ✗ 2j, 2l, 2m, 13c)
+      ✓ detectada  (416 ms)
+[27/39] destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho  →  dev_destrutivo.sql  (espera ✗ 2f, 2n)
+      ✓ detectada — também caíram (efeito colateral): 2h  (416 ms)
+[28/39] import-sem-revalidacao-de-contagens  →  import_substituir.sql  (espera ✗ 2)
+      ✓ detectada  (261 ms)
+[29/39] import-sem-exigencia-de-backup  →  import_substituir.sql  (espera ✗ 3)
+      ✓ detectada  (283 ms)
+[30/39] conflito-justificativa-sem-tamanho-minimo  →  conflito_filiais.sql  (espera ✗ 5f)
+      ✓ detectada — também caíram (efeito colateral): 4a, 4b, 3b  (278 ms)
+[31/39] conflito-confirmacao-com-numero-errado-aceita  →  conflito_filiais.sql  (espera ✗ 5d, 5e)
+      ✓ detectada — também caíram (efeito colateral): 4a, 4b, 4e, 3b  (275 ms)
+[32/39] catalogo-tabela-nova-nao-classificada  →  catalogo_policies.sql  (espera ✗ 1a, 3)
+      ✓ detectada  (262 ms)
+[33/39] catalogo-policy-volta-a-ser-sempre-verdadeira  →  catalogo_policies.sql  (espera ✗ 5, 6a)
+      ✓ detectada  (251 ms)
+[34/39] catalogo-force-row-level-security-ligado  →  catalogo_policies.sql  (espera ✗ 4-bis)
+      ✓ detectada  (247 ms)
+[35/39] catalogo-tabela-nova-na-publication-do-realtime  →  catalogo_policies.sql  (espera ✗ 9a)
+      ✓ detectada  (249 ms)
+[36/39] catalogo-storage-decide-so-por-bucket  →  catalogo_policies.sql  (espera ✗ 7)
+      ✓ detectada  (256 ms)
+[37/39] catalogo-security-definer-nova-nao-classificada  →  catalogo_secdef.sql  (espera ✗ 1a)
+      ✓ detectada  (248 ms)
+[38/39] catalogo-security-definer-com-search-path-solto  →  catalogo_secdef.sql  (espera ✗ 3)
+      ✓ detectada  (247 ms)
+[39/39] catalogo-security-definer-executavel-por-anon  →  catalogo_secdef.sql  (espera ✗ 4)
+      ✓ detectada  (258 ms)
+
+==============================================================================================================
+RESULTADO DO LOTE
+==============================================================================================================
+mutação                                                    roteiro                 cenário esperado  caiu?             tempo
+--------------------------------------------------------------------------------------------------------------
+rls-movimentacao-confia-na-filial-declarada                papeis_rls.sql          2c-bis,2c-ter  detectada           1034 ms
+                                                           └─ também caíram (efeito colateral): 2g
+rls-lancamento-de-item-confere-papel-e-esquece-filial      papeis_rls.sql          2e             detectada            317 ms
+rls-edicao-de-ativo-confere-papel-e-esquece-filial         papeis_rls.sql          2g             detectada            303 ms
+rls-piso-de-leitura-aberto-em-ativos                       papeis_rls.sql          4d             detectada            310 ms
+rls-desligada-em-senhas-de-acesso                          papeis_rls.sql          3d,5f          detectada            306 ms
+rls-auditoria-visivel-a-quem-escreve                       papeis_rls.sql          3f             detectada            304 ms
+rls-trilha-do-import-visivel-a-quem-escreve                papeis_rls.sql          3e             detectada           1115 ms
+rls-bucket-de-backup-visivel-a-quem-escreve                papeis_rls.sql          6e             detectada            441 ms
+rls-termo-perde-as-invariantes-da-ancora                   papeis_rls.sql          2i-bis-3       detectada            289 ms
+ancora-do-termo-sempre-coerente                            papeis_rls.sql          2i-bis-3       detectada            274 ms
+leitura-de-colaboradores-sem-piso                          papeis_rls.sql          4i             detectada            436 ms
+                                                           └─ também caíram (efeito colateral): 1i-bis, 3c-ter
+catalogo-rls-desligada-numa-tabela                         seguranca_catalogo.sql  2              detectada            301 ms
+catalogo-tabela-de-backup-sem-rls                          seguranca_catalogo.sql  2              detectada            434 ms
+catalogo-view-sem-security-invoker                         seguranca_catalogo.sql  3              detectada            416 ms
+catalogo-funcao-gatilho-executavel-por-authenticated       seguranca_catalogo.sql  4              detectada            235 ms
+catalogo-gatilho-de-lancamento-vira-definer                seguranca_catalogo.sql  4c             detectada            360 ms
+catalogo-rpc-de-escrita-executavel-por-anon                seguranca_catalogo.sql  1              detectada            233 ms
+dev-guarda-de-gestao-aceita-nivel-admin                    cargo_dev.sql           2a,2b,2c,2e    detectada            309 ms
+                                                           └─ também caíram (efeito colateral): 2i, 2i-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 4a, 4b, 4c
+dev-apagar-conta-aceita-nivel-admin                        cargo_dev.sql           2f-bis         detectada            427 ms
+                                                           └─ também caíram (efeito colateral): 3a, 3b, 4a
+dev-encerrar-sessoes-aceita-nivel-admin                    cargo_dev.sql           2f             detectada            473 ms
+dev-trigger-deixa-conceder-cargo-por-update-direto         cargo_dev.sql           2h             detectada            301 ms
+dev-auxiliar-de-gestao-executavel-por-authenticated        cargo_dev.sql           5e             detectada            274 ms
+gestao-encerrar-sessoes-mira-o-alvo-errado                 cargo_dev.sql           3d             detectada            270 ms
+destrutivo-justificativa-sem-tamanho-minimo                dev_destrutivo.sql      12b,12e        detectada            320 ms
+destrutivo-guarda-do-acervo-aceita-update                  dev_destrutivo.sql      2i,2k          detectada            402 ms
+destrutivo-guarda-do-acervo-aceita-delete                  dev_destrutivo.sql      2j,2l,2m,13c   detectada            416 ms
+destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho  dev_destrutivo.sql      2f,2n          detectada            416 ms
+                                                           └─ também caíram (efeito colateral): 2h
+import-sem-revalidacao-de-contagens                        import_substituir.sql   2              detectada            261 ms
+import-sem-exigencia-de-backup                             import_substituir.sql   3              detectada            283 ms
+conflito-justificativa-sem-tamanho-minimo                  conflito_filiais.sql    5f             detectada            278 ms
+                                                           └─ também caíram (efeito colateral): 4a, 4b, 3b
+conflito-confirmacao-com-numero-errado-aceita              conflito_filiais.sql    5d,5e          detectada            275 ms
+                                                           └─ também caíram (efeito colateral): 4a, 4b, 4e, 3b
+catalogo-tabela-nova-nao-classificada                      catalogo_policies.sql   1a,3           detectada            262 ms
+catalogo-policy-volta-a-ser-sempre-verdadeira              catalogo_policies.sql   5,6a           detectada            251 ms
+catalogo-force-row-level-security-ligado                   catalogo_policies.sql   4-bis          detectada            247 ms
+catalogo-tabela-nova-na-publication-do-realtime            catalogo_policies.sql   9a             detectada            249 ms
+catalogo-storage-decide-so-por-bucket                      catalogo_policies.sql   7              detectada            256 ms
+catalogo-security-definer-nova-nao-classificada            catalogo_secdef.sql     1a             detectada            248 ms
+catalogo-security-definer-com-search-path-solto            catalogo_secdef.sql     3              detectada            247 ms
+catalogo-security-definer-executavel-por-anon              catalogo_secdef.sql     4              detectada            258 ms
+--------------------------------------------------------------------------------------------------------------
+39/39 detectadas pelo cenário nomeado · 13831 ms no total
