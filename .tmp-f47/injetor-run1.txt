@@ -1,0 +1,1841 @@
+﻿2026-09-07T01:50:50.0747377Z Current runner version: '2.337.0'
+##[group]Runner Image Provisioner
+Hosted Compute Agent
+Version: 20260828.587
+Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+Build Date: 2026-08-28T16:44:25Z
+Worker ID: {775f4740-691a-45e6-91bd-2534db4e0893}
+Azure Region: westus
+##[endgroup]
+##[group]Operating System
+Ubuntu
+24.04.4
+LTS
+##[endgroup]
+##[group]Runner Image
+Image: ubuntu-24.04
+Version: 20260831.293.1
+Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260831.293/images/ubuntu/Ubuntu2404-Readme.md
+Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260831.293
+##[endgroup]
+##[group]GITHUB_TOKEN Permissions
+Contents: read
+Metadata: read
+Packages: read
+##[endgroup]
+Secret source: Actions
+Prepare workflow directory
+Prepare all required actions
+Getting action download info
+Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+Complete job name: banco-sem-docker
+##[group]Checking docker version
+##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+'1.48'
+Docker daemon API version: '1.48'
+##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+'1.48'
+Docker client API version: '1.48'
+##[endgroup]
+##[group]Clean up resources from previous jobs
+##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=7a339c"
+##[command]/usr/bin/docker network prune --force --filter "label=7a339c"
+##[endgroup]
+##[group]Create local container network
+##[command]/usr/bin/docker network create --label 7a339c github_network_38f88db5c6174cab9984c8243368c576
+ed5d59eaf2e370e2791d1d80895a0aeb950713c3c79fe4dd59b31632c84af0e4
+##[endgroup]
+##[group]Starting postgres service container
+##[command]/usr/bin/docker pull postgres:17
+17: Pulling from library/postgres
+6310eb16bf42: Pulling fs layer
+fe2da2a59a9b: Pulling fs layer
+eaab134eadf6: Pulling fs layer
+817ead34cefa: Pulling fs layer
+d0f06d4f424f: Pulling fs layer
+bfe09aaa1eb8: Pulling fs layer
+0f14f3be7f09: Pulling fs layer
+238c3936b37c: Pulling fs layer
+08ebf9a3f23c: Pulling fs layer
+499f168a6c10: Pulling fs layer
+937fed8f5fd1: Pulling fs layer
+de0bd328703b: Pulling fs layer
+a06335df3cea: Pulling fs layer
+7bae2b43bca3: Pulling fs layer
+817ead34cefa: Waiting
+d0f06d4f424f: Waiting
+bfe09aaa1eb8: Waiting
+0f14f3be7f09: Waiting
+238c3936b37c: Waiting
+08ebf9a3f23c: Waiting
+499f168a6c10: Waiting
+937fed8f5fd1: Waiting
+de0bd328703b: Waiting
+a06335df3cea: Waiting
+7bae2b43bca3: Waiting
+fe2da2a59a9b: Verifying Checksum
+fe2da2a59a9b: Download complete
+eaab134eadf6: Verifying Checksum
+eaab134eadf6: Download complete
+6310eb16bf42: Verifying Checksum
+6310eb16bf42: Download complete
+817ead34cefa: Verifying Checksum
+817ead34cefa: Download complete
+d0f06d4f424f: Verifying Checksum
+d0f06d4f424f: Download complete
+bfe09aaa1eb8: Verifying Checksum
+bfe09aaa1eb8: Download complete
+0f14f3be7f09: Verifying Checksum
+0f14f3be7f09: Download complete
+238c3936b37c: Verifying Checksum
+238c3936b37c: Download complete
+499f168a6c10: Verifying Checksum
+499f168a6c10: Download complete
+937fed8f5fd1: Verifying Checksum
+937fed8f5fd1: Download complete
+de0bd328703b: Verifying Checksum
+de0bd328703b: Download complete
+a06335df3cea: Verifying Checksum
+a06335df3cea: Download complete
+08ebf9a3f23c: Verifying Checksum
+08ebf9a3f23c: Download complete
+7bae2b43bca3: Verifying Checksum
+7bae2b43bca3: Download complete
+6310eb16bf42: Pull complete
+fe2da2a59a9b: Pull complete
+eaab134eadf6: Pull complete
+817ead34cefa: Pull complete
+d0f06d4f424f: Pull complete
+bfe09aaa1eb8: Pull complete
+0f14f3be7f09: Pull complete
+238c3936b37c: Pull complete
+08ebf9a3f23c: Pull complete
+499f168a6c10: Pull complete
+937fed8f5fd1: Pull complete
+de0bd328703b: Pull complete
+a06335df3cea: Pull complete
+7bae2b43bca3: Pull complete
+Digest: sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
+Status: Downloaded newer image for postgres:17
+docker.io/library/postgres:17
+##[command]/usr/bin/docker create --name f7a362615723456c81391e160d046665_postgres17_183ded --label 7a339c --network github_network_38f88db5c6174cab9984c8243368c576 --network-alias postgres -p 5432:5432 --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 10 -e "POSTGRES_PASSWORD=postgres" -e GITHUB_ACTIONS=true -e CI=true postgres:17
+921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+##[command]/usr/bin/docker start 921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+##[command]/usr/bin/docker ps --all --filter id=921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd Up Less than a second (health: starting)
+##[command]/usr/bin/docker port 921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+5432/tcp -> 0.0.0.0:5432
+5432/tcp -> [::]:5432
+##[endgroup]
+##[group]Waiting for all services to be ready
+##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+starting
+postgres service is starting, waiting 2 seconds before checking again.
+##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+starting
+postgres service is starting, waiting 4 seconds before checking again.
+##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+starting
+postgres service is starting, waiting 6 seconds before checking again.
+##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+healthy
+postgres service is healthy.
+##[endgroup]
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+##[group]Run actions/checkout@v4
+with:
+  repository: vmatusita/ti-wap-inventory-control
+  token: ***
+  ssh-strict: true
+  ssh-user: git
+  persist-credentials: true
+  clean: true
+  sparse-checkout-cone-mode: true
+  fetch-depth: 1
+  fetch-tags: false
+  show-progress: true
+  lfs: false
+  submodules: false
+  set-safe-directory: true
+  allow-unsafe-pr-checkout: false
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+##[endgroup]
+Syncing repository: vmatusita/ti-wap-inventory-control
+##[group]Getting Git version info
+Working directory is '/home/runner/work/ti-wap-inventory-control/ti-wap-inventory-control'
+[command]/usr/bin/git version
+git version 2.55.0
+##[endgroup]
+Temporarily overriding HOME='/home/runner/work/_temp/dd6675a2-8772-46f7-a9ad-6f685a2b213e' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/ti-wap-inventory-control/ti-wap-inventory-control
+Deleting the contents of '/home/runner/work/ti-wap-inventory-control/ti-wap-inventory-control'
+##[group]Initializing the repository
+[command]/usr/bin/git init /home/runner/work/ti-wap-inventory-control/ti-wap-inventory-control
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /home/runner/work/ti-wap-inventory-control/ti-wap-inventory-control/.git/
+[command]/usr/bin/git remote add origin https://github.com/vmatusita/ti-wap-inventory-control
+##[endgroup]
+##[group]Disabling automatic garbage collection
+[command]/usr/bin/git config --local gc.auto 0
+##[endgroup]
+##[group]Setting up auth
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+[command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+##[endgroup]
+##[group]Fetching the repository
+[command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +bdebca800be43629b166e424f64a699a7442c951:refs/remotes/pull/27/merge
+From https://github.com/vmatusita/ti-wap-inventory-control
+ * [new ref]         bdebca800be43629b166e424f64a699a7442c951 -> pull/27/merge
+##[endgroup]
+##[group]Determining the checkout info
+##[endgroup]
+[command]/usr/bin/git sparse-checkout disable
+[command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+##[group]Checking out the ref
+[command]/usr/bin/git checkout --progress --force refs/remotes/pull/27/merge
+Note: switching to 'refs/remotes/pull/27/merge'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at bdebca8 Merge a9e33ee25c03e63ac6173be3b761037aaeaee43e into 553b2f83043779aa2110e53c44173443b8460d1f
+##[endgroup]
+[command]/usr/bin/git log -1 --format=%H
+bdebca800be43629b166e424f64a699a7442c951
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+##[group]Run actions/setup-node@v4
+with:
+  node-version: 24
+  cache: npm
+  always-auth: false
+  check-latest: false
+  token: ***
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+##[endgroup]
+Found in cache @ /opt/hostedtoolcache/node/24.20.0/x64
+(node:2430) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+##[group]Environment details
+(Use `node --trace-deprecation ...` to show where the warning was created)
+node: v24.20.0
+npm: 11.19.0
+yarn: 1.22.22
+##[endgroup]
+[command]/opt/hostedtoolcache/node/24.20.0/x64/bin/npm config get cache
+/home/runner/.npm
+Cache hit for: node-cache-Linux-x64-npm-85a07f69ed99622a753fbb5cd44038701ace8d691adfaf0ac863dc768adb56ee
+(node:2430) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Received 4194304 of 166609896 (2.5%), 4.0 MBs/sec
+Received 117440512 of 166609896 (70.5%), 56.0 MBs/sec
+Received 166609896 of 166609896 (100.0%), 62.3 MBs/sec
+Cache Size: ~159 MB (166609896 B)
+[command]/usr/bin/tar -xf /home/runner/work/_temp/372b9b45-da62-466e-b1eb-1ae4f9e3c956/cache.tzst -P -C /home/runner/work/ti-wap-inventory-control/ti-wap-inventory-control --use-compress-program unzstd
+Cache restored successfully
+Cache restored from key: node-cache-Linux-x64-npm-85a07f69ed99622a753fbb5cd44038701ace8d691adfaf0ac863dc768adb56ee
+##[group]Run npm ci
+npm ci
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+##[endgroup]
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated fstream@1.0.12: This package is no longer supported.
+npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated eslint@9.39.5: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+
+added 853 packages, and audited 854 packages in 22s
+
+261 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (2 moderate, 3 high)
+npm warn install-scripts 3 packages have install scripts not yet covered by allowScripts:
+
+npm warn install-scripts   esbuild@0.28.2 (postinstall: node install.js)
+To address all issues (including breaking changes), run:
+npm warn install-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)
+npm warn install-scripts   unrs-resolver@1.12.2 (postinstall: node postinstall.js)
+  npm audit fix --force
+
+npm warn install-scripts
+Run `npm audit` for details.
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+##[group]Run sudo apt-get update && sudo apt-get install -y postgresql-client
+sudo apt-get update && sudo apt-get install -y postgresql-client
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+##[endgroup]
+Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+Get:7 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
+Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [441 kB]
+Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [394 kB]
+Get:10 https://dl.google.com/linux/chrome-stable/deb stable/main amd64 Packages [1401 B]
+Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1260 kB]
+Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [292 kB]
+Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
+Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1690 kB]
+Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [339 kB]
+Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1536 kB]
+Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [352 kB]
+Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5764 B]
+Get:21 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1002 kB]
+Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [212 kB]
+Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.5 kB]
+Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1206 kB]
+Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [241 kB]
+Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.2 kB]
+Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1437 kB]
+Get:29 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [334 kB]
+Fetched 11.8 MB in 2s (6503 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following NEW packages will be installed:
+  postgresql-client
+0 upgraded, 1 newly installed, 0 to remove and 38 not upgraded.
+Need to get 11.6 kB of archives.
+After this operation, 17.4 kB of additional disk space will be used.
+Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 postgresql-client all 16+257build1.1 [11.6 kB]
+Fetched 11.6 kB in 0s (77.3 kB/s)
+Selecting previously unselected package postgresql-client.
+(Reading database ... 
+(Reading database ... 5%
+(Reading database ... 10%
+(Reading database ... 15%
+(Reading database ... 20%
+(Reading database ... 25%
+(Reading database ... 30%
+(Reading database ... 35%
+(Reading database ... 40%
+(Reading database ... 45%
+(Reading database ... 50%
+(Reading database ... 55%
+(Reading database ... 60%
+(Reading database ... 65%
+(Reading database ... 70%
+(Reading database ... 75%
+(Reading database ... 80%
+(Reading database ... 85%
+(Reading database ... 90%
+(Reading database ... 95%
+(Reading database ... 100%
+(Reading database ... 201676 files and directories currently installed.)
+Preparing to unpack .../postgresql-client_16+257build1.1_all.deb ...
+Unpacking postgresql-client (16+257build1.1) ...
+Setting up postgresql-client (16+257build1.1) ...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+##[group]Run set -euo pipefail
+set -euo pipefail
+psql -d postgres -tAc 'select version();'
+num=$(psql -d postgres -tAc 'show server_version_num;')
+echo "server_version_num = $num"
+if [ "$((num / 10000))" -ne 17 ]; then
+  echo "::error::o serviço subiu no major $((num / 10000)), e produção é 17"
+  exit 1
+fi
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+##[endgroup]
+PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+server_version_num = 170011
+##[group]Run set -euo pipefail
+set -euo pipefail
+psql -d postgres -v ON_ERROR_STOP=1 -c "create database $BANCO;"
+for f in supabase/ci/bootstrap-roles.sql \
+         supabase/ci/bootstrap-auth.sql \
+         supabase/ci/bootstrap-storage.sql \
+         supabase/ci/bootstrap-ledger.sql; do
+  echo "==== $f ===="
+  psql -d "$BANCO" -v ON_ERROR_STOP=1 -q -f "$f"
+done
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+##[endgroup]
+CREATE DATABASE
+==== supabase/ci/bootstrap-roles.sql ====
+==== supabase/ci/bootstrap-auth.sql ====
+==== supabase/ci/bootstrap-storage.sql ====
+==== supabase/ci/bootstrap-ledger.sql ====
+##[group]Run set -euo pipefail
+set -euo pipefail
+n=0
+for f in $(ls supabase/migrations/*.sql | sort); do
+  psql -d "$BANCO" -v ON_ERROR_STOP=1 -q -f "$f" || {
+    echo "::error::a migration $f falhou"
+    exit 1
+  }
+  n=$((n + 1))
+done
+echo "$n migrations aplicadas em $BANCO"
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+##[endgroup]
+psql:supabase/migrations/0009_realtime.sql:25: WARNING:  "wal_level" is insufficient to publish logical changes
+HINT:  Set "wal_level" to "logical" before creating subscriptions.
+psql:supabase/migrations/0032_import_rpcs.sql:45: NOTICE:  function public.importar_ativos_substituir(jsonb,text) does not exist, skipping
+psql:supabase/migrations/0034_import_melhorias.sql:66: NOTICE:  index "ativos_service_tag_sem_patrimonio_uidx" does not exist, skipping
+psql:supabase/migrations/0039_drop_backups_orfaos.sql:29: NOTICE:  table "_f8_backup_matriz_compras" does not exist, skipping
+psql:supabase/migrations/0039_drop_backups_orfaos.sql:30: NOTICE:  table "_f7k_backup_modelo" does not exist, skipping
+psql:supabase/migrations/0058_drop_backup_f18.sql:49: NOTICE:  table "_f18_backup_pendencia" does not exist, skipping
+psql:supabase/migrations/0076_promover_dev.sql:71: NOTICE:  F22/0076: 0 das 2 contas de EMAILS_DEV existem em auth.users; total de perfis dev agora = 0.
+psql:supabase/migrations/0076_promover_dev.sql:71: NOTICE:  F22/0076: falta(m) conta(s) — convide pela tela /admin/usuarios e o cargo dev é aplicado no convite.
+psql:supabase/migrations/0127_conversao_reservas.sql:169: NOTICE:  F41 (0127): 0 reserva(s) aberta(s) convertida(s) em saída.
+psql:supabase/migrations/0128_adota_bkp_relatorios_f6a.sql:104: NOTICE:  policy "dev le backup f6a" for relation "public._bkp_relatorios_gerados_f6a" does not exist, skipping
+127 migrations aplicadas em estoque
+##[group]Run npm run db:types:diff
+npm run db:types:diff
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+  DATABASE_URL: ***127.0.0.1:5432/estoque
+##[endgroup]
+
+> estoque-ti-wap@1.51.1 db:types:diff
+> node scripts/db/diff-tipos.mjs
+
+---- gate de deriva de tipos ----
+banco ....... 30 relações · 299 colunas · 59 funções
+database.ts . 30 relações · 299 colunas · 59 funções
+
+VERDE: o database.ts conhece tudo o que o banco tem.
+##[group]Run set -euo pipefail
+set -euo pipefail
+psql -d postgres -v ON_ERROR_STOP=1 -c 'create database determinismo;'
+for f in supabase/ci/bootstrap-roles.sql \
+         supabase/ci/bootstrap-auth.sql \
+         supabase/ci/bootstrap-storage.sql \
+         supabase/ci/bootstrap-ledger.sql; do
+  psql -d determinismo -v ON_ERROR_STOP=1 -q -f "$f"
+done
+for f in $(ls supabase/migrations/*.sql | sort); do
+  psql -d determinismo -v ON_ERROR_STOP=1 -q -f "$f" || {
+    echo "::error::a migration $f falhou no banco de determinismo"
+    exit 1
+  }
+done
+psql -d "$BANCO"     -v ON_ERROR_STOP=1 -tAF'|' -f supabase/ci/impressao-schema.sql > /tmp/fp-a.txt
+psql -d determinismo -v ON_ERROR_STOP=1 -tAF'|' -f supabase/ci/impressao-schema.sql > /tmp/fp-b.txt
+echo "==== impressão digital do schema, por classe ===="
+cat /tmp/fp-a.txt
+if ! diff -u /tmp/fp-a.txt /tmp/fp-b.txt; then
+  echo "::error::as duas aplicações da MESMA cadeia produziram schemas diferentes"
+  exit 1
+fi
+echo "as duas aplicações produziram schemas idênticos"
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+##[endgroup]
+CREATE DATABASE
+psql:supabase/ci/bootstrap-roles.sql:58: NOTICE:  role "postgres" has already been granted membership in role "anon" by role "postgres"
+psql:supabase/ci/bootstrap-roles.sql:58: NOTICE:  role "postgres" has already been granted membership in role "authenticated" by role "postgres"
+psql:supabase/ci/bootstrap-roles.sql:58: NOTICE:  role "postgres" has already been granted membership in role "service_role" by role "postgres"
+psql:supabase/migrations/0009_realtime.sql:25: WARNING:  "wal_level" is insufficient to publish logical changes
+HINT:  Set "wal_level" to "logical" before creating subscriptions.
+psql:supabase/migrations/0032_import_rpcs.sql:45: NOTICE:  function public.importar_ativos_substituir(jsonb,text) does not exist, skipping
+psql:supabase/migrations/0034_import_melhorias.sql:66: NOTICE:  index "ativos_service_tag_sem_patrimonio_uidx" does not exist, skipping
+psql:supabase/migrations/0039_drop_backups_orfaos.sql:29: NOTICE:  table "_f8_backup_matriz_compras" does not exist, skipping
+psql:supabase/migrations/0039_drop_backups_orfaos.sql:30: NOTICE:  table "_f7k_backup_modelo" does not exist, skipping
+psql:supabase/migrations/0058_drop_backup_f18.sql:49: NOTICE:  table "_f18_backup_pendencia" does not exist, skipping
+psql:supabase/migrations/0076_promover_dev.sql:71: NOTICE:  F22/0076: 0 das 2 contas de EMAILS_DEV existem em auth.users; total de perfis dev agora = 0.
+psql:supabase/migrations/0076_promover_dev.sql:71: NOTICE:  F22/0076: falta(m) conta(s) — convide pela tela /admin/usuarios e o cargo dev é aplicado no convite.
+psql:supabase/migrations/0127_conversao_reservas.sql:169: NOTICE:  F41 (0127): 0 reserva(s) aberta(s) convertida(s) em saída.
+psql:supabase/migrations/0128_adota_bkp_relatorios_f6a.sql:104: NOTICE:  policy "dev le backup f6a" for relation "public._bkp_relatorios_gerados_f6a" does not exist, skipping
+==== impressão digital do schema, por classe ====
+coluna|291|5e575a6217ea2ce1238cf66e4c30b9ae
+constraint|75|41e6fe5cded9c4596385501ac0daa61e
+enum|7|34837fbf7cb50082e461fd8cdad47532
+func|64|f0405e780c20c918ba77f1ad6724fbd9
+grant_func|64|e025d9a963d4503535c55f6778311df3
+indice|75|70465672f6b1b0b8eb14bf55b23dcaa0
+policy|47|dac2e3da1cc842a0c00e4ab190a52214
+policy_storage|8|952a7a54d211cac72cca350b3e9dd456
+rls_flag|20|7e57bfe79594010e2a9f55e5384eabe2
+trigger|6|fd4bfe3d9468c9c5ef1d891ba570d87b
+view|9|1a3d8b7b12278469ea42d3fe15253da8
+as duas aplicações produziram schemas idênticos
+##[group]Run bash scripts/db/rodar-roteiros.sh
+bash scripts/db/rodar-roteiros.sh
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+  DATABASE_URL: ***127.0.0.1:5432/estoque
+##[endgroup]
+==== supabase/tests/asof_desempate.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/asof_desempate.sql:139: NOTICE:  ✓ 1 desempate (0054): ajuste vence a compra no empate (data,created_at); as-of=em_uso = ativos=em_uso
+psql:supabase/tests/asof_desempate.sql:139: NOTICE:  ✓ 2a as-of D1 (2026-06-10, antes do estorno) = em_uso
+psql:supabase/tests/asof_desempate.sql:139: NOTICE:  ✓ 2b as-of hoje (par saída+estorno anulado) = em_estoque
+psql:supabase/tests/asof_desempate.sql:139: NOTICE:  ✓ 2c estorno restaurou ativos.status=em_estoque, batendo com o as-of de hoje
+psql:supabase/tests/asof_desempate.sql:139: NOTICE:  FIM asof_desempate: 4 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/asserts_ferramenta.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 1 universo vazio RECUSADO: assert_zero_de: universo vazio em "autoteste 1" — a asserção passaria sobre conjunto vazio (tautologia). Monte o cenário ou conte outra coisa.
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 1b universo NULL RECUSADO
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ autoteste 2 (este ✓ é esperado) (0 de 7 conferidos)
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 2 zero ruins de 7 devolve true
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 3 duas linhas ruins de 7 devolve false
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 4 mais ruins que o universo RECUSADO
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 4b contagem de ruins NULA RECUSADA
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 5 `count(*) = 0` sobre conjunto vazio é VERDADE — a forma antiga passaria aqui
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  FIM asserts_ferramenta: 7 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/cargo_dev.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+GRANT
+DO
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1z papel_atual()=dev e e_dev()/e_admin()/pode_escrever() = true
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1a dev INSERE em motivos (policy e_admin)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1b dev LÊ eventos_admin (1 linhas)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1c dev LÊ import_logs (1 linhas)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1d dev passou pela guarda de cargo da RPC de import (falhou adiante, por outro motivo: P0001)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1e dev INSERE ativo nas DUAS filiais, sem vínculo
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1f dev ANOTA (policy pode_escrever)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1g dev GERA snapshot de relatório (policy pode_escrever)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1h dev GRAVA no bucket termos (policy pode_escrever)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2a admin recusado ao conceder dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2b admin recusado ao rebaixar dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2c admin recusado ao desativar dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2d admin recusado ao apagar dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2e admin recusado ao mexer em vínculo de dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2f admin recusado ao encerrar sessões (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2f-bis admin recusado ao apagar usuário comum (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2g request forjado do admin recusado (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2g-bis admin AINDA promove um não-dev (consulta → operador)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2h service role recusado ao conceder dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2i service role recusado ao rebaixar dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2i-bis service role recusado ao desativar dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2j service role recusado ao apagar perfil dev (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2j-bis a rede NÃO atrapalha update de perfil comum
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 5d existe_outro_admin_ativo() conta os devs (nível administrador)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 5e as auxiliares de gestão não são executáveis por authenticated
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 3a dev CONCEDE o cargo dev
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 3b dev REBAIXA outro dev
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 3c dev DESATIVA um usuário
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 3d dev ENCERRA sessões (0 removida[s])
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 5a dev recusado ao mudar o próprio cargo (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 5b dev recusado ao desativar a si mesmo (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 5c dev recusado ao apagar a si mesmo (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6a dev APAGA um usuário com histórico
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6b o perfil da vítima foi ARQUIVADO (excluido_em preenchido, ativo=false)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6c a movimentação do apagado sobrevive e o join resolve o nome (Fulano de Teste)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6c-bis a anotação do apagado sobrevive com o nome do autor
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6d os vínculos do apagado foram limpos
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6e o apagado não tem cargo e não lê o acervo (0 ativos)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6f a conta do apagado sai de auth.users (a 0073 destravou)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6g o histórico sobrevive à remoção da conta, com o nome do autor
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 6h o e-mail do apagado pode ser convidado de novo
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 4a operador: e_dev=false, e_admin=false, pode_escrever=true
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 4b operador recusado ao mudar cargo (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 4c operador recusado ao apagar usuário (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 4d consulta: e_dev/e_admin/pode_escrever todos false
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 4e consulta recusada ao desativar (42501)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  === cargo_dev: 46 asserções OK, 0 falhas ===
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  FIM cargo_dev: 46 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 46 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/conflito_filiais.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 1a  o par em duas filiais entrou: 4 grupos de conflito (com e sem patrimônio)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 1b  oito ativos em conflito (2 por grupo)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 1c  ativo sozinho e ativo sem identidade ficam FORA da fonte de conflito
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 1d  duplicata na MESMA filial (com patrimônio) recusada pelo índice
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 1e  duplicata na MESMA filial (sem patrimônio) recusada pelo índice parcial
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 1f  mesmo patrimônio com outra service tag NÃO entra no grupo (o par é exato)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 2a  o lado com movimentação fora da carga tem tem_historico_real = true
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 2b  o lado só-carga-do-import tem tem_historico_real = false
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 2c  o resumo separa carga (2 movs, 1 fora da carga)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 2d  corrigir a identidade de um lado desfaz o conflito automaticamente
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 2e  grupo de TRÊS filiais é representável
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 5a  o cargo operador foi recusado (42501)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 5a  o cargo consulta foi recusado (42501)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 5b  grants: authenticated=true, anon=false, service_role=false
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 5c  as funções auxiliares ficam FORA da API de RPC
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 5d  confirmação sem o número é recusada (22023)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 5e  confirmação com o número errado é recusada
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 5f  justificativa com menos de 10 caracteres é recusada
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 4a  lista com ativo fora de conflito é recusada por inteiro (42501)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 4b  depois da recusa, NENHUM dos dois foi apagado
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 4c  ativo sem identidade (sem patrimônio e sem tag) é recusado
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 4d  id inexistente é recusado (P0002)
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 4e  id repetido é deduplicado: "APAGAR 3" não confere para 1 ativo
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 3a  apagou UM lado e devolveu as contagens
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 3b  o grupo continua (2 lados) depois de apagar o terceiro
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 3c  a trilha traz justificativa, backup e os selecionados
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 3d  o backup jsonb guarda a linha do ativo apagado
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 3e  "apagar ambos" funciona e o grupo some da fonte
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 3f  o rastro (movimentações) do cadastro apagado foi junto
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 8a  termo que cobre ativo fora da seleção recusa a exclusão
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 8b  termo só da seleção é apagado e o .docx volta para a action limpar
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 7a  transferir para a filial do gêmeo é recusado com mensagem própria
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 7b  transferência para filial LIVRE continua funcionando
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 9a  o estorno da transferência devolveu o ativo à filial de origem
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 6a  guarda_acervo continua instalada nas três tabelas
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 6b  a janela GUC fica FECHADA depois de a RPC estourar
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 6c  apagar_ativo (F23, cargo dev) continua funcionando
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  ✓ 6d  o admin continua SEM apagar_ativo — a exceção da F24 é só a mesa
+psql:supabase/tests/conflito_filiais.sql:638: NOTICE:  FIM conflito_filiais: 38 asserções, 0 falhas
+DO
+ ok | falhas |                   detalhe                    
+----+--------+----------------------------------------------
+ 38 |      0 | F24 conflito entre filiais — 38 ok, 0 falhas
+(1 row)
+
+ROLLBACK
+==== supabase/tests/dev_destrutivo.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+DO
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1a nenhuma das 7 RPCs destrutivas é executável por service_role
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1b resetar_dados_ficticios: service_role executa, authenticated NÃO
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1c as duas auxiliares saíram da API e as OITO ferramentas continuam executáveis por authenticated
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1c-bis dev_checagens_integridade: service_role NÃO executa, authenticated sim
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em apagar_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em apagar_movimentacao() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em apagar_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em resetar_acervo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em resetar_itens() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em forcar_estado_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em forcar_saldo_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em apagar_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em apagar_movimentacao() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em apagar_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em resetar_acervo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em resetar_itens() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em forcar_estado_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em forcar_saldo_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em apagar_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em apagar_movimentacao() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em apagar_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em resetar_acervo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em resetar_itens() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em forcar_estado_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em forcar_saldo_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1x request forjado do admin (DELETE direto em ativos) não apagou nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em apagar_ativo() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em apagar_movimentacao() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em apagar_item() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em resetar_acervo() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em resetar_itens() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em forcar_estado_ativo() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em forcar_saldo_item() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1z sem a linha 'desenvolvimento' em public.ambiente, o reset de dados fictícios é recusado ANTES da confirmação (42501) — é esta a trava que segura produção dentro do próprio banco
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1z-bis com a base marcada, o service role ALCANÇA a função e é a confirmação que barra (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2a UPDATE em movimentacoes como authenticated não alterou nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2b DELETE em movimentacoes como authenticated não removeu nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2c UPDATE em lancamentos_item como authenticated não alterou nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2d DELETE em lancamentos_item como authenticated não removeu nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2e DELETE em ativos como authenticated (dev logado) não removeu nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2f INSERT com forcado = true recusado em movimentacoes (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2g o UPDATE LEGÍTIMO em ativos continua passando
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2h o INSERT NORMAL de movimentação continua passando E derivando o estado (em_uso)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2i UPDATE em movimentacoes recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2j DELETE em movimentacoes recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2k UPDATE em lancamentos_item recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2l DELETE em lancamentos_item recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2m DELETE em ativos recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2n INSERT com forcado = true recusado também para o DONO (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2o TRUNCATE em movimentacoes recusado para authenticated (42501, privilégio revogado)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2p nenhuma das 6 tabelas do acervo tem TRUNCATE para anon, authenticated ou service_role
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3a dev APAGA o ativo com rastro inteiro: {"rotulo": "WAP0009301", "termos": 1, "ativo_id": "1c780e91-1879-4c5a-8b31-eaae5e8ca551", "anotacoes": 1, "movimentacoes": 3, "arquivos_termos": ["71f64d20-9977-4fad-8375-2e92addae483.docx"], "pendencias_item": 1, "ponteiros_anulados": 1}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3b nada do ativo apagado sobrou
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3c o retorno da RPC conta certo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3d o substituto sobreviveu com substitui_ativo_id anulado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3e a RPC devolve o caminho do .docx para a action apagar, e o objeto segue no bucket
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3f o par patrimônio+service tag voltou a ser usável
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3g a trilha ativo_apagado foi gravada com justificativa e backup
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3h apagar_ativo RECUSA termo de lote misto (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4a apagar a ÚLTIMA devolve o ativo ao snapshot_anterior
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4b movimentação do MEIO recusada (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4c a ÚNICA movimentação é recusada apontando "Apagar ativo" (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4d movimentação citada por termo é recusada (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4e a movimentação ESTORNADA é recusada — o estorno vem depois (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4e-bis apagar um ESTORNO é recusado (42501) — o estorno-strip não é reversível
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4e-ter a recusa não deixou efeito colateral (em_estoque|<nulo>|3)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4f com data fora de ordem, a RPC NÃO considera "a última" a compra de 2026-09-05 — ela ordena por (created_at, id)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4f-bis "a última" é a SAÍDA de 2018-06-20 (created_at mais recente, data mais antiga)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4g par com created_at idêntico: o AJUSTE é recusado, com mensagem própria (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4g-bis o OUTRO membro do par também é recusado — é recusa, não sorteio de uuid
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4h a recusa do empate é ESTREITA: a movimentação POSTERIOR, com created_at próprio, continua apagável (restou o par empatado, ativo em_estoque)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 5a dev APAGA um item do catálogo COM lançamentos: {"nome": "F23 Mouse Ficticio", "item_id": 2, "lancamentos": 2}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 5b saldo era 12; item, lançamentos e a linha do saldo sumiram juntos
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9a dev FORÇA o estado de um ativo: {"de": "em_uso", "para": "descartado", "rotulo": "WAP0009901", "alterado": true, "ativo_id": "8dbf815c-3cac-4fea-9d72-e66af5e846d3", "detentor_zerado": true, "movimentacao_id": "6a5fb1f1-41b8-415d-97c5-ac31d3b826c1"}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9b a ficha derivou para o estado forçado (descartado)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9c num estado terminal o detentor é zerado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9d a movimentação nasceu forcado=true, tipo ajuste, justificativa em observacao
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9e os três relatórios devolvem os MESMOS números antes e depois de forçar (8/8/8)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9f em estado NÃO terminal o detentor é preservado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 10a forçar o saldo de 3 para 12 grava o lançamento de delta 9
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 10b forçar PARA BAIXO também chega ao alvo (5), por lançamento marcado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 11a o ESTORNO comum continua funcionando (com estorno-strip da pendência)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12a apagar_ativo recusa confirmação errada (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12b justificativa com menos de 10 caracteres é recusada (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12c apagar_item recusa nome errado na confirmação (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12d o reset por filial exige o NOME da filial (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12e a mesma guarda de justificativa vale para FORÇAR (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 13a a RPC estourou DEPOIS de abrir a janela (23514): Estoque insuficiente: a operação deixaria -10 na prateleira (não pode ficar negativo).
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 13b depois do erro, estoque.dev_destrutivo = off
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 13c com a janela fechada, o DELETE direto continua recusado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8a reset RECUSADO porque o backup não existe no bucket (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8a-bis nada foi apagado na recusa por backup ausente (0 ativos)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8b reset RECUSADO por contagens divergentes (40001)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8c reset RECUSADO sem revalidação de contagens (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8d reset RECUSADO: o backup existe no bucket, mas é do recorte errado (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6a dev RESETA o acervo da filial Matriz: {"ativos": 16, "rotulo": "Matriz", "termos": 2, "alcance": "filial", "anotacoes": 0, "filial_id": 1, "movimentacoes": 28, "restam_ativos": 0, "arquivos_termos": ["ef606a36-dafc-4345-b2b0-8d0c7154a82f.docx", "73b2f822-77d8-4f0f-abce-ff597d61e177.docx"], "pendencias_item": 0}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6b a filial resetada ficou sem nenhum ativo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6c o reset da filial Matriz não apagou ativo nenhum da filial CD Afonso Pena (1 antes, 1 depois), inclusive o que migrou para lá
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6d uma movimentação REGISTRADA na filial CD Afonso Pena, de um ativo que HOJE está na filial Matriz, É APAGADA junto com o ativo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6e uma movimentação REGISTRADA na filial Matriz, cujo ativo já migrou para a CD Afonso Pena, NÃO é apagada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7a dev RESETA o acervo INTEIRO com a frase RESETAR TUDO: {"ativos": 1, "rotulo": "RESETAR TUDO", "termos": 0, "alcance": "global", "anotacoes": 0, "filial_id": null, "movimentacoes": 1, "restam_ativos": 0, "arquivos_termos": [], "pendencias_item": 0}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7b dev RESETA os lançamentos de itens de todas as filiais
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7c o reset global zerou o acervo inteiro
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7d os CADASTROS sobreviveram ao reset global
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7d-bis o item do catálogo continua lá — resetar_itens leva os LANÇAMENTOS
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7e relatorios_gerados, eventos_admin e import_logs sobreviveram
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7f os dois resets globais deixaram trilha, cada um com o caminho do SEU backup
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7g os SETE verbos novos da F23 foram gravados em eventos_admin
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  === dev_destrutivo: 108 asserções OK, 0 falhas ===
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  FIM dev_destrutivo: 108 asserções, 0 falhas
+DO
+ ok  | falhas | detalhe 
+-----+--------+---------
+ 108 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/dominios_login.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ ana@wap.ind.br → aceito (dominio WAP (o de sempre))
+psql:supabase/tests/dominios_login.sql:108: NOTICE:    ✓ profile criado para ana@wap.ind.br (nome = e-mail)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ ANA.MAIUSCULA@WAP.IND.BR → aceito (caixa alta — a checagem e case-insensitive)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:    ✓ profile criado para ANA.MAIUSCULA@WAP.IND.BR (nome = e-mail)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ bruno@stefanini.com → aceito (Stefanini (novo em 22/07/2026))
+psql:supabase/tests/dominios_login.sql:108: NOTICE:    ✓ profile criado para bruno@stefanini.com (nome = e-mail)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ carla@latam.stefanini.com → aceito (Stefanini LATAM (novo em 22/07/2026))
+psql:supabase/tests/dominios_login.sql:108: NOTICE:    ✓ profile criado para carla@latam.stefanini.com (nome = e-mail)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ <null> → recusado (e-mail nulo (cadastro so por telefone))
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ dora@gmail.com → recusado (dominio de fora)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ eva@fake-stefanini.com → recusado (sufixo parecido SEM o @ — nao pode passar)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ gil@stefanini.com.br → recusado (dominio vizinho (.com.br) nao entra)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ ian@latam.stefanini.com.mx → recusado (sufixo alem do dominio nao entra)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ joao@wap.ind.br.exemplo.com → recusado (dominio WAP no meio do endereco nao entra)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ kim@br.stefanini.com → recusado (subdominio nao listado nao entra)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ nenhum e-mail recusado deixou profile no banco
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  FIM dominios_login: 16 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/f34_triagem_reserva.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ a devolucao de em_uso -> em_estoque (colaborador e setor limpos, F34)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ b devolucao de emprestado -> em_estoque (F34)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ c devolucao com itens_faltantes: em_estoque E 2 pendencias_item abertas (F34+F18)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ d envio_triagem de em_estoque -> em_triagem (F34, opt-in)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ e1 envio_triagem de em_uso rejeitada: Movimentacao envio_triagem invalida para ativo ZZF34TRI02 no estado em_uso
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ e2 envio_triagem de emprestado rejeitada: Movimentacao envio_triagem invalida para ativo ZZF34TRI03 no estado emprestado
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ e3 envio_triagem de reservado rejeitada: Movimentacao envio_triagem invalida para ativo ZZF34TRI04 no estado reservado
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ e4 envio_triagem de em_triagem rejeitada: Movimentacao envio_triagem invalida para ativo ZZF34TRI05 no estado em_triagem
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ f1 triagem_ok de em_triagem -> em_estoque (continua valendo)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ f2 triagem_ok de em_estoque rejeitada: Movimentacao triagem_ok invalida para ativo ZZF34TRI05 no estado em_estoque
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ g1 reserva de em_estoque -> reservado (Fulano da Silva Ficticio/TI)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ g2 re-reserva: continua reservado, colaborador/setor viram os NOVOS (Ciclano Ficticio/Financeiro)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ g3 as duas reservas ficam registradas na linha do tempo (sem estorno/ajuste)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ h re-reserva sem colaborador (inserida por fora do app): trigger aceita, detentor fica NULO — o app recusa, o banco não
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i1 saida de em_triagem -> em_uso (ninguem fica preso na triagem)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i2 descarte de em_triagem -> descartado
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i3 envio_manutencao de em_triagem -> em_manutencao
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i4 marcar_defasado de em_triagem -> defasado
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i5 transferencia de em_triagem: continua em_triagem, muda para linhares
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ j1 ajuste para em_estoque (estado sem dono) ZERA o detentor (F36)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ j2 envio_triagem zera o detentor legado (0109/0110: em_triagem nao tem dono)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  FIM f34_triagem_reserva: 21 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/f36_detentor.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ a1 status_tem_detentor é verdadeiro em exatamente emprestado, em_uso, reservado
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ a2 a função responde sim/não para TODO valor do enum (nenhum nulo)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ b1 ajuste para em_estoque ZERA colaborador e setor (o furo principal da F36)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ c1 ajuste para estado COM dono PRESERVA colaborador e setor
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ d1 retorno_manutencao volta ao estoque SEM o detentor legado
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ e1 marcar_defasado zera o detentor (defasado é estado SEM dono na F36)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ f1 transferencia mantém o estado E o detentor (só a filial muda)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ g1 a devolucao zerou o detentor (precondicao do estorno)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ g2 o estorno DEVOLVE colaborador e setor (D2: desfazer desfaz de verdade)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ h1 reserva continua gravando colaborador e setor do payload
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ h2 emprestimo continua trocando o detentor
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ h3 devolucao zera o detentor E continua abrindo a pendência de item (F18 intacta)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ i1 a leitura as-of de HOJE concorda com o ao vivo (em_estoque, sem dono)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ i2 a leitura as-of ANTES do ajuste continua mostrando o período como ele foi
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ j1 a décima checagem existe e responde (total atual = 0)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ j2 a checagem contou o ativo sujo plantado à mão (0 → 1)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ j3 uma movimentação qualquer limpa a sujeira e a checagem volta a 0 
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ k1 forçar para defasado zera o detentor E reporta detentor_zerado = true
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  FIM f36_detentor: 18 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/f37_colaboradores_tipos.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a1 colaborador_chave('  João   Silva  ') = 'joao silva'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a2 colaborador_chave('JOAO SILVA') = 'joao silva'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a3 colaborador_chave('joão  silva') = 'joao silva'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a4 colaborador_chave('José  Antônio   Peçanha') = 'jose antonio pecanha'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a5 colaborador_chave('Ção Ñandú Ünico') = 'cao nandu unico'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a6 colaborador_chave(E'Maria\tdos\nSantos') = 'maria dos santos'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a7 colaborador_chave(E'\tFulano\r\n') = 'fulano'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a8 a coluna GERADA nome_chave devolve o mesmo valor que colaborador_chave() direto ('fulano zzf37a chave')
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ b1 segunda grafia (mesma chave normalizada) recusada pelo índice único (sqlstate 23505)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ c1 nome em branco recusado pelo check colaboradores_nome_nao_vazio (sqlstate 23514)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ d1 movimentacoes grava colaborador (texto) E colaborador_id no mesmo INSERT
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ d2 lancamentos_item grava colaborador (texto) E colaborador_id no mesmo INSERT
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ e1 UPDATE de colaborador_id em movimentacoes recusado pela guarda_acervo (sqlstate 42501)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ e2 UPDATE de colaborador_id em lancamentos_item recusado pela guarda_acervo (sqlstate 42501)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ f1 a view agrupa as 3 grafias na mesma chave (ocorrencias=3, grafias=3, ja_cadastrado=false)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ f2 depois do cadastro a view marca ja_cadastrado=true com colaborador_id correto
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ f3 nome só de tab/CR/NBSP não vira grupo na fila (0 grupos sem pessoa, com as 3 linhas gravadas)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ f4 lista e resumo contam o mesmo número de grupos pendentes (1, e não zero dos dois lados)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g1 tipos_item tem exatamente 7 linhas
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g2 os 7 slugs batem exatamente com o esperado: cabo, carregador, fone, mochila, mouse, mousepad, teclado
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g3 o slug fone exibe o rótulo "Fone de ouvido"
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g4 slug fora do formato ('Fone Maiusculo') recusado pelo check (sqlstate 23514)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g5 slug duplicado ('carregador') recusado pelo unique (sqlstate 23505)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ h1 itens.tipo_id é anulável — item de catálogo criado sem tipo
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ h2 tipo_id inexistente (32000) recusado pela FK (sqlstate 23503)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ i1 todo slug de itens_faltantes/pendencias_item.item tem tipo correspondente em tipos_item (0 órfãos)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  === f37_colaboradores_tipos: 26 asserções OK, 0 falhas ===
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  FIM f37_colaboradores_tipos: 26 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 26 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/f38_itens_com_ativo.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 0 âncora: a leitura de saldo enxerga as entradas (Total=30, Estoque=30)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1a a RPC gravou 2 movimentações e 2 lançamentos
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1b cada item aponta a movimentação do SEU equipamento (D13)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1c lancamentos_item NÃO tem ativo_id (a verdade mora num lugar só)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1d o lançamento avulso continua nascendo sem vínculo — e assim fica
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1e a FK de movimentacao_id é IMEDIATA (a RPC insere a movimentação antes)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 2a o lote com uma linha inválida foi recusado (P0001, Movimentacao saida invalida para ativo ZZF38A001 no estado e)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 2b ZERO movimentações e ZERO lançamentos sobraram (mov 2→2, lanc 5→5)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 2c a linha VÁLIDA do lote recusado também não gravou nada
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 3a a trava advisory está no corpo e vem ANTES do primeiro INSERT
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 3b a ordenação determinística dos pares continua no corpo
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 3c os ATIVOS também são travados em ordem, antes do primeiro INSERT
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 3d as travas dos DOIS pares foram tomadas (2 advisory na transação)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 4a Σ com_a_pessoa (2) + sem vínculo (1) = liberados (3) — nenhum número mudou
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 5a retorno acima do que a pessoa tem (2) foi recusado
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 5b retorno DENTRO do saldo da pessoa continua passando
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 6a retorno SEM colaborador_id passa como sempre passou (entrega antiga funciona igual)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 6b o retorno sem vínculo não tirou da conta de ninguém (a de quem tem saldo segue em 1)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 7a a devolução com item faltante abriu a pendência pelo trigger (byte a byte)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 7b recuperado: estoque 28→29 (+1) e Total 30 inalterado
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 7c recuperado: a conta da pessoa baixou 1 (2→1)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 7d a pendência ficou resolvida
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 12a reenviar não re-resolveu (0) nem duplicou lançamento (1 linhas)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 9a reabrir sem os inversos foi RECUSADO — nunca deixa lançamento órfão
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 9b a recusa voltou tudo: a pendência continua resolvida
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 9c reabrir com os inversos funciona, e a pendência volta a aberta
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 9d o inverso aponta o original por estorna_id, uma vez só
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 8a a baixa gravou DOIS lançamentos (retorno + ajuste), não um
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 8b baixa: Total 30→29 (−1) e estoque 27 de volta ao que era
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 8c baixa: a conta da pessoa baixou 1 (1→<NULL>) — o item não fica com ela para sempre
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 10a a pendência guarda o SLUG literal, como sempre guardou
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 10b movimentacoes.itens_faltantes continua com os mesmos slugs
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 10c a ponte tipo→item resolve um único item ativo (o caso que não pergunta nada)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 15a reabrir uma BAIXA funciona mesmo com os inversos na ordem pior (a 0122 reordena)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 15b desfazer a baixa devolveu o Total (29→30) e deixou o estoque onde estava (27)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 15c a pendência da baixa voltou a ABERTA
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 13a estorno sem os inversos dos itens foi RECUSADO — nunca meio estorno
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 13b o estorno devolveu o item à prateleira junto com o equipamento (12→15)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 13c o ativo voltou ao estado anterior (aplicar_movimentacao intocada)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 14 nenhuma das 10 funções intocadas carrega marca da F38 no corpo
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 14a a ÚNICA função recriada (valida_lancamento_item) tem o bloco novo — o teste acima não é vazio
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 14b tipo_lancamento continua com 6 valores — nenhum enum novo
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11 grants de public.criar_movimentacao_com_itens : authenticated sim, anon e service_role não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11 grants de public.resolver_pendencias_item_com_lancamentos : authenticated sim, anon e service_role não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11 grants de public.reabrir_pendencias_item_com_estornos : authenticated sim, anon e service_role não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11 grants de public.estornar_movimentacao_com_itens : authenticated sim, anon e service_role não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11e rel_saldo_colaborador: authenticated sim, anon não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11f as cinco funções novas são SECURITY INVOKER
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 16-setup a partição da F41 gravou 1 acerto(s) — há o que medir
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 16 (F41) todo acerto automático nasce AMARRADO (movimentação ou pendência)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 17 (F41) o acerto automático NUNCA carrega vínculo com pessoa
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  === f38_itens_com_ativo: 51 asserções OK, 0 falhas (ROLLBACK — nada gravado) ===
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  FIM f38_itens_com_ativo: 51 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 51 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/f41_regularizacao.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 0 âncora: item B com total 4 e estoque 3 (1 em uso)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 1 o caso do print GRAVA: 1 linha de acerto, total 1, estoque 1
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 1b as DUAS movimentações do equipamento existem
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 1c o acerto está AMARRADO à movimentação e marcado
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 2 os três números fecham: total +1 (=5), estoque +2 (=5), em uso 0
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 2b gravou `retorno 1` + `ajuste +1` marcado
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 3 a entrega sem saldo grava a saída e regulariza (total 3, estoque 0)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 4 "Item recuperado" funciona sem saldo prévio (total 6, estoque 6)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 5 o estorno desfez as DUAS linhas (total 4, estoque 3)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 5b estorno sem o inverso do acerto é recusado (23514)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 6 o avulso regulariza IGUAL ao checklist (total +2, estoque +2)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 6b avulso é tudo-ou-nada: ZERO linhas sobraram (23514)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 7 o trigger continua recusando retorno acima do aberto (23514)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 7b o trigger continua recusando saída acima do estoque (23514)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 8 toda linha marcada é `ajuste` POSITIVO — a marca não vazou
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 8b todo acerto automático carrega justificativa
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 9 sem justificativa a RPC recusa com a mensagem certa
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 10 a leitura é INCREMENTAL: 1 retorno + 1 acerto no mesmo lote
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 11 item_chave normaliza igual a colaborador_chave (a 0125 se declara espelho)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 11b nome repetido por caixa/espaço é recusado pela chave
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 12 dev_checagens_integridade tem ONZE blocos
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 12b a checagem `reserva_aberta` está no corpo
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 12c nenhuma reserva em aberto
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 13 as três RPCs da F41 são SECURITY INVOKER
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 13b exatamente 4 funções, sem SOBRECARGA
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  === f41_regularizacao: 25 asserções OK, 0 falhas (ROLLBACK — nada gravado) ===
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  FIM f41_regularizacao: 25 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 25 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/fuso_do_negocio.sql ====
+CREATE FUNCTION
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 1. a sessão roda em America/Sao_Paulo (fuso do negócio)
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 2. `alter database set timezone` está gravado no catálogo
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 3. current_date (2026-09-06) = hoje_brt() (2026-09-06)
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 4. date → timestamptz ancora em 00:00 de São Paulo (2026-09-06 00:00:00-03)
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 5. public.hoje_brt() existe, sem argumentos e STABLE
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  FIM fuso_do_negocio: 5 asserções, 0 falhas
+DO
+==== supabase/tests/import_substituir.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1a retorno ativos_criados = 2
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1b filial A tem 2 ativos após o import
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1c ativo sem service tag nasce com pendência "sem service tag" (R-IMP-10)
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1d ativo com patrimônio + service tag nasce sem pendência
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1e as 2 compras de abertura têm observação "import startup …" (R-IMP-13, baseline)
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1e (exemplo) observação da compra = "import startup 06/09/2026"
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 2 contagens NULL rejeitado: Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 3 backup vazio rejeitado: Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 4a filial B tem só o ativo do plano; o pré-existente foi apagado (R-IMP-02)
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 4b ativo do plano presente com origem = importacao
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 4c outra filial (A) intacta após substituir B: 2 ativos (R-IMP-03)
+psql:supabase/tests/import_substituir.sql:223: NOTICE:  FIM import_substituir: 11 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/itens_extra.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  ✓ R-ITE-02: entrada 5 + ajuste −10 (total −5) rejeitado pelo trigger: Ajuste inválido: deixaria o item com total -5 (não pode ficar negativo).
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  ✓ R-ITE-11a: UPDATE como authenticated não alterou a linha (linhas afetadas=-1, quantidade segue 7)
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  ✓ R-ITE-11b: DELETE como authenticated não removeu a linha (linhas afetadas=-1)
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  ✓ R-ITE-22: nome duplicado case-insensitive rejeitado (23505): duplicate key value violates unique constraint "itens_nome_uidx"
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  FIM itens_extra: 4 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/itens_quantidade.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 1: entrada 40 + reserva 12 → total 40, estoque 28, atrelados 12, falta 0
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 2: saída 5 → estoque 28→23, atrelados intacto 12 (saída não consome reserva), total 40
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 3: devolução 3 (ch 1001) → atrelados 12→9, estoque 23→26, total 40
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 4: retorno 2 → liberados 5→3, estoque 26→28, total intacto 40
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 5: entrada 10 + atrelar 8 → estoque 2, atrelados 8, falta 0 (atrelar não acende falta)
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 6: saída 100 (estoque 28) rejeitada (estoque negativo)
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 7: ajuste sem observação rejeitado
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 8: devolução 50 > atrelado aberto (9) do chamado rejeitada
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 9: retorno 50 > liberado em aberto (3) rejeitado
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 10: as-of 06/06 → total 40, estoque 28, atrelados 12 (saídas/devoluções/retornos posteriores ignorados)
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 11: entrada 10 + estorno (ajuste −10 vinculado) → total volta a 40, estoque a 28
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 12a: as-of 12/06 (após saída) → em_uso
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 12b: as-of 30/06 (após estorno) → o par se anula, sobra a compra → em_estoque
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 12c: as-of 12/06 segue em_uso (estorno de 20/06 é futuro p/ essa data)
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  FIM itens_quantidade: 14 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/manutencao_fornecedor.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 1a envio_manutencao sem chamado do fornecedor rejeitado: new row for relation "movimentacoes" violates check constraint "movimentacoes_chamado_fornecedor_envio"
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 1b envio_manutencao com chamado do fornecedor -> em_manutencao (campo gravado)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2a devolucao_fornecedor -> devolvido_fornecedor
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2b transferencia de devolvido_fornecedor rejeitada
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2c saida de devolvido_fornecedor rejeitada
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2d envio_manutencao de devolvido_fornecedor rejeitado
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2e ajuste tira de devolvido_fornecedor (valvula de escape)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2f devolucao_fornecedor de em_estoque rejeitada
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 3a estorno da devolucao_fornecedor restaurou em_manutencao
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 3b substituto preservado apos o estorno (imutabilidade)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 4a antigo -> devolvido_fornecedor (via RPC)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 4b substituto nasce em_estoque com substitui_ativo_id -> antigo
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 4c fornecedor do substituto HERDADO do antigo (Proprinter Fic).
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 4d troca do substituto registrada (aparece nas Entradas como "Troca")
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 5a colisao do substituto rejeitada: duplicate key value violates unique constraint "ativos_patrimonio_service_tag_uidx"
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 5b rollback total: a devolucao NAO entrou (antigo segue em_manutencao)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 6 sem substituto: so a devolucao entra (substituto null)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 7a ajuste para em_manutencao (estado sem dono) ZERA o detentor (F36)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 7b devolucao_fornecedor zera colaborador/setor (espelho de descartado)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  FIM manutencao_fornecedor: 19 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/maquina_estados.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1a compra -> em_estoque
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1b saida -> em_uso (colaborador setado)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1c devolucao -> em_estoque (colaborador limpo, F34)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1c2 envio_triagem -> em_triagem (F34, opt-in)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1d triagem_ok -> em_estoque
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 2 saida de em_uso rejeitada: Movimentacao saida invalida para ativo TESTE0000002 no estado em_uso
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 3 estorno da transferencia restaurou status/colaborador/setor/filial
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 4 estorno de mov. antiga rejeitado: So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 4b estorno de saida nao-ultima (saida->transferencia) rejeitado: So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 5a devolucao com itens_faltantes NAO toca ativos.pendencia (F18)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 5b devolucao criou 2 pendencias_item abertas (F18)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 5c triagem_ok preserva o trecho alheio de pendencia (F18, bug §0.1b)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 6a transferencia mudou filial_id p/ linhares
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 6b transferencia aparece nas 2 filiais em v_movimentacoes_mes
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  FIM maquina_estados: 14 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/papeis_rls.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+GRANT
+DO
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1a papel_atual() = consulta
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1b consulta LÊ ativos (4 linhas)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1b-bis consulta ATIVO lê profiles (5 linhas, sem recursão)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1b-ter consulta ATIVO lê a view v_estoque_atual (4 linhas)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1i consulta ATIVO lê tipos_item (7 linhas)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1j consulta ATIVO lê colaboradores (0 linhas)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1i-bis consulta recusada ao criar colaborador (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1c consulta recusada ao inserir ativo (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1d consulta não atualiza ativo (0 linhas afetadas)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1e consulta recusada ao inserir movimentação (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1f consulta recusada ao lançar item (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1g consulta recusada ao anotar (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 1h consulta recusada ao gerar relatório (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2a pode_escrever_filial: f1=true, f2=false
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2b operador MOVIMENTA na filial vinculada (f1)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2c operador recusado na filial não vinculada (f2, 42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2c-bis filial_id mentido é recusado (42501) — a guarda da 0067 está no ar
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2c-ter o ativo da filial não vinculada NÃO migrou
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2d operador LANÇA item na filial vinculada
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2e operador recusado ao lançar na não vinculada (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2e-bis estorno de item não cruza filial (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2e-ter estorno legítimo na própria filial aceito
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2f operador ATUALIZA ativo da filial vinculada
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2g operador não alcança ativo da filial não vinculada
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2g-bis RPC de compra recusada na filial não vinculada (42501, Sem permissao de escrita na filial 2 (cadastro de compra).)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2g-ter RPC de compra ACEITA na filial vinculada (f1)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2i-bis operador não APAGA termo de filial não vinculada
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2i-bis-2 operador não REESCREVE termo de filial não vinculada
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2i-bis-3 `ativo_ids` mentido é recusado (42501) — a âncora está no ar
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2i-bis-4 operador não toca o .docx de termo alheio (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2i-ter operador SOBE o .docx do termo novo (nome sem linha)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2i-ter-2 operador GERA termo na filial vinculada
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2i-ter-3 operador REGERA o termo dele (update do próprio)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2h transferência legítima f1→f2 aceita (destino segue livre)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 2j operador CRIA colaborador (inline no fluxo), inclusive de filial não vinculada
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3a operador recusado ao criar motivo (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3b operador recusado ao criar filial (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3c operador CRIA item de catálogo (inline no fluxo, desde a F41)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3c-quater operador não edita item (0 linhas — a policy de UPDATE é de admin)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3c-quinquies nome repetido por caixa/espaço recusado pela chave (23505)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3c-bis operador recusado ao criar tipo de item (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3c-ter operador não edita colaborador (0 linhas — a policy de UPDATE é de admin)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3d operador NÃO lê senhas_acesso (existe 1 linha, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3e operador NÃO lê import_logs (existe 1 linha, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3f operador NÃO lê eventos_admin (existe 1 linha, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3f-bis operador não forja a trilha do import (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3g operador recusado ao mexer em profiles.papel (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3h operador ainda edita o próprio nome/sobrenome
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 3i RPC de import recusa operador com a mensagem certa
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4a papel_atual() é NULL para perfil desativado
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4b desativado não escreve na filial VINCULADA (f1)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4c desativado recusado ao movimentar (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4d desativado NÃO LÊ ativos (existem linhas, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4e desativado NÃO LÊ profiles (a equipe toda)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4f desativado NÃO LISTA os .docx de termo
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4g desativado NÃO LÊ nem pela view v_estoque_atual
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4h desativado NÃO LÊ tipos_item (existem 7 linhas, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 4i desativado NÃO LÊ colaboradores (existe 1, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5a e_admin() = true
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5b admin escreve nas duas filiais sem vínculo
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5c admin cria motivo
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5c-bis admin cria tipo de item
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5c-ter admin edita colaborador (1 linha)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5d admin movimenta na filial sem vínculo (f2)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5e admin LÊ eventos_admin (1 linha(s))
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5e-bis admin LÊ import_logs (1 linha(s))
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5f nem o admin lê senhas_acesso por sessão (existe 1 linha, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5g nem o admin muda papel por sessão (42501), só o service role
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5h admin alcança termo degenerado (ativo_ids vazio) para limpar
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 5i admin APAGA termo de filial em que não tem vínculo
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 6a consulta recusada ao subir no bucket termos (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 6b consulta não lê o bucket backups-import (existe 1, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 6c operador SOBE arquivo no bucket termos
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 6d operador recusado no bucket backups-import (42501)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 6e operador não LISTA backups-import (existe 1, viu 0)
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  ✓ 6f admin LÊ backups-import (1 objeto(s))
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  === papeis_rls: 76 asserções OK, 0 falhas ===
+psql:supabase/tests/papeis_rls.sql:1215: NOTICE:  FIM papeis_rls: 76 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 76 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/pendencias_import_termo.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P1 importado em_uso sem termo NÃO está em v_pendencias
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P2 cadastro em_uso sem termo = "termo pendente" (regra preservada)
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P3 importado c/ pendência livre reclassifica p/ "sem patrimônio físico" (não "termo pendente")
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P4 inferido emprestado sem termo = "termo pendente" (escopo = só importacao)
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P5 importado com termo assinado não está em v_pendencias
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  FIM pendencias_import_termo: 5 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/pendencias_item.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 1a devolução com 2 itens criou 2 abertas
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 1b colaborador da época gravado (Fulano)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 1c os dois itens do array viraram linha
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 1d ativos.pendencia intacto na devolução (não vira "itens faltantes")
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 2 devolução sem item marcado não criou linha
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 3a triagem_ok preservou o trecho alheio de pendencia
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 3b triagem_ok não mexeu nas 2 abertas
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 4 saída p/ novo dono não mexe: 2 abertas ainda apontam Fulano (não Sicrano)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 5a devolução criou 1 linha (pré-estorno)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 5b estorno removeu a linha da devolução
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 6 resolução gravou desfecho/quem/quando (status resolvida, baixa)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 7 import (compra+ajuste marcados) não abriu pendência de item
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 8 estorno restaura sem ressuscitar "itens faltantes" (F18 §A2)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  FIM pendencias_item: 13 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/reabrir_pendencia_item.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  ✓ 1 operador vinculado RESOLVE a pendência (aberta → resolvida)
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  ✓ 2 operador vinculado NÃO reabre — a linha continua resolvida
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  ✓ 3 operador de OUTRA filial não reabre
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  ✓ 4 nível administrador REABRE (resolvida → aberta)
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  — reabrir_pendencia_item: 4 ok, 0 falha(s)
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  FIM reabrir_pendencia_item: 4 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/seguranca_catalogo.sql ====
+CREATE FUNCTION
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 1 public.criar_compra_lote(jsonb, uuid) é authenticated-only (anon e service_role SEM EXECUTE)
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 1 public.devolver_ao_fornecedor(uuid, jsonb, jsonb, uuid) é authenticated-only (anon e service_role SEM EXECUTE)
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 1 public.importar_ativos_substituir(jsonb, text, jsonb, jsonb) é authenticated-only (anon e service_role SEM EXECUTE)
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 2 RLS ligada em todas as tabelas public (nenhuma sem RLS)
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 3 todas as views public têm security_invoker=true
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 4 aplicar_movimentacao (security_definer=t): EXECUTE revogado de authenticated e anon
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 4 handle_new_user (security_definer=t): EXECUTE revogado de authenticated e anon
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 4c valida_lancamento_item é SECURITY INVOKER (não é vetor; 0038 revoga só as DEFINER)
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  FIM seguranca_catalogo: 8 asserções, 0 falhas
+DO
+==== supabase/tests/transferencia_item.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 0 âncora: a leitura de saldo enxerga as entradas (A=30, B=12)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 1a a RPC devolveu 2 (itens transferidos)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 1b 2 itens viraram 4 linhas (um par por item)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 1c a perna da ORIGEM é −10 e diz "para onde foi"
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 1d a perna do DESTINO é +10 e diz "de onde veio"
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 2a Total consolidado INALTERADO — A: 30→30, B: 12→12
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 2b o estoque mexeu dos dois lados: origem 30→20, destino 0→10
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 2c o caminho "intuitivo" INFLA o Total (30→40) — é isto que a transferência evita
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 3a as 4 travas (2 itens × 2 filiais) estão nas mãos da transação
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 3b as travas são pedidas em ordem (item_id, filial_id) ANTES do primeiro insert
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 4a saldo insuficiente na origem recusa (Ajuste inválido: deixaria o item com total -9979 (não pode ficar negativo).)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 4b nada parcial sobrou (3 linhas antes e depois)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 5 origem = destino recusa (A filial de destino nao pode ser a mesma da origem.)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 6 item repetido recusa (O item 23 aparece duas vezes na transferencia — some as quantidades.)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 7 grants: authenticated sim, anon e service_role não
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 8a operador vinculado só à origem é recusado no destino (Sem permissao de escrita na filial 2 (destino da transferencia).)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 8b a recusa não deixou perna solta (3 linhas antes e depois)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 8c com vínculo nas DUAS filiais, o mesmo operador transfere
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  === transferencia_item: 18 asserções OK, 0 falhas (ROLLBACK — nada gravado) ===
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  FIM transferencia_item: 18 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 18 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/transicoes_extra.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1a emprestimo de em_estoque -> emprestado (colaborador setado)
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1b reserva de em_estoque -> reservado
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1c retorno_manutencao de em_manutencao -> em_estoque
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1d marcar_defasado de em_estoque -> defasado
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1e descarte de em_estoque -> descartado (detentor nulo)
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2a devolucao de em_estoque rejeitada: Movimentacao devolucao invalida para ativo ZZF19INV01 no estado em_estoque
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2b triagem_ok de em_uso rejeitada: Movimentacao triagem_ok invalida para ativo ZZF19INV02 no estado em_uso
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2c reserva de em_uso rejeitada: Movimentacao reserva invalida para ativo ZZF19INV03 no estado em_uso
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2d transferencia de descartado rejeitada: Movimentacao transferencia invalida para ativo ZZF19INV04 no estado descartado
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2e.1 segunda compra de em_estoque e auto-laço ACEITO (permanece em_estoque)
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2e.2 segunda compra sobre em_uso rejeitada: Movimentacao compra invalida para ativo ZZF19INV05 no estado em_uso
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 3 estorno-de-estorno negado (R-ME-19): Esta movimentacao nao pode ser estornada
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 4 ajuste sem observacao rejeitado (R-ME-20): Ajuste exige status_resultante e observacao (justificativa)
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  FIM transicoes_extra: 13 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/troca.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 1a substituto nasce por movimentação `troca` (não `compra`) — via RPC
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 1b substituto (nascido por troca) fica em_estoque
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 1c o substituto NÃO tem movimentação `compra` (só a `troca`)
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 2a troca no nascimento (em_estoque -> em_estoque)
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 2b troca fora do nascimento (de em_uso) rejeitada
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 3 estorno da troca restaura o snapshot (em_estoque) sem apagar o ativo
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 4a com patrimônio e com ST -> sem pendência (null)
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 4b com patrimônio, sem ST -> 'sem service tag'
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 4c sem patrimônio E sem ST -> 'sem patrimônio físico; sem service tag'
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 4d sem patrimônio, com ST -> 'sem patrimônio físico'
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 5a import com patrimônio E service tag -> sem pendência
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 5b import com patrimônio, sem ST -> 'sem service tag'
+psql:supabase/tests/troca.sql:223: NOTICE:  ✓ 5c import sem patrimônio E sem ST -> 'sem patrimônio físico; sem service tag'
+psql:supabase/tests/troca.sql:223: NOTICE:  FIM troca: 13 asserções, 0 falhas
+DO
+ROLLBACK
+
+==== RESUMO ====
+  ✓ asof_desempate — 4 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 46 asserções
+  ✓ conflito_filiais — 38 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 25 asserções
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_substituir — 11 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ papeis_rls — 76 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 13 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  25 roteiro(s), 577 asserções no total
+##[group]Run npm run db:test:mutations
+npm run db:test:mutations
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+  DATABASE_URL: ***127.0.0.1:5432/estoque
+##[endgroup]
+
+> estoque-ti-wap@1.51.1 db:test:mutations
+> node scripts/db/run-mutation-tests.mjs
+
+==============================================================================
+INJETOR DE MUTAÇÕES (F47)
+==============================================================================
+banco base .......... estoque
+mutações ativas ..... 27
+em quarentena ....... 4 (declaradas, NÃO executadas)
+roteiros do lote .... cargo_dev.sql, conflito_filiais.sql, dev_destrutivo.sql, import_substituir.sql, papeis_rls.sql, seguranca_catalogo.sql
+
+---- CONTROLE: os roteiros do lote, SEM mutação nenhuma ----
+controle verde: 6 roteiro(s), nenhum ✗.
+
+[1/27] rls-movimentacao-confia-na-filial-declarada  →  papeis_rls.sql  (espera ✗ 2c-bis, 2c-ter)
+      ✓ detectada — também caíram (efeito colateral): 2g  (598 ms)
+[2/27] rls-lancamento-de-item-confere-papel-e-esquece-filial  →  papeis_rls.sql  (espera ✗ 2e)
+      ✓ detectada  (420 ms)
+[3/27] rls-edicao-de-ativo-confere-papel-e-esquece-filial  →  papeis_rls.sql  (espera ✗ 2g)
+      ✓ detectada  (427 ms)
+[4/27] rls-piso-de-leitura-aberto-em-ativos  →  papeis_rls.sql  (espera ✗ 4d)
+      ✓ detectada  (434 ms)
+[5/27] rls-desligada-em-senhas-de-acesso  →  papeis_rls.sql  (espera ✗ 3d, 5f)
+      ✓ detectada  (427 ms)
+[6/27] rls-auditoria-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 3f)
+      ✓ detectada  (429 ms)
+[7/27] rls-trilha-do-import-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 3e)
+      ✓ detectada  (467 ms)
+[8/27] rls-bucket-de-backup-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 6e)
+      ✓ detectada  (431 ms)
+[9/27] rls-ancora-do-termo-sempre-coerente  →  papeis_rls.sql  (espera ✗ 2i-bis-3)
+      ✗ NÃO detectada — esperava ✗ em [2i-bis-3], NÃO caiu [2i-bis-3]; caiu de fato [nada]  (429 ms)
+[10/27] catalogo-rls-desligada-numa-tabela  →  seguranca_catalogo.sql  (espera ✗ 2)
+      ✓ detectada  (372 ms)
+[11/27] catalogo-view-sem-security-invoker  →  seguranca_catalogo.sql  (espera ✗ 3)
+      ✓ detectada  (369 ms)
+[12/27] catalogo-funcao-gatilho-executavel-por-authenticated  →  seguranca_catalogo.sql  (espera ✗ 4)
+      ✓ detectada  (369 ms)
+[13/27] catalogo-gatilho-de-lancamento-vira-definer  →  seguranca_catalogo.sql  (espera ✗ 4c)
+      ✓ detectada  (367 ms)
+[14/27] catalogo-rpc-de-escrita-executavel-por-anon  →  seguranca_catalogo.sql  (espera ✗ 1)
+      ✓ detectada  (371 ms)
+[15/27] dev-guarda-de-gestao-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2a, 2b, 2c, 2e)
+      ✓ detectada — também caíram (efeito colateral): 2i, 2i-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 4a, 4b, 4c  (407 ms)
+[16/27] dev-apagar-conta-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2f-bis)
+      ✓ detectada — também caíram (efeito colateral): 3a, 3b, 4a  (402 ms)
+[17/27] dev-encerrar-sessoes-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2f)
+      ✓ detectada  (399 ms)
+[18/27] dev-trigger-deixa-conceder-cargo-por-update-direto  →  cargo_dev.sql  (espera ✗ 2h)
+      ✓ detectada  (396 ms)
+[19/27] dev-auxiliar-de-gestao-executavel-por-authenticated  →  cargo_dev.sql  (espera ✗ 5e)
+      ✓ detectada  (399 ms)
+[20/27] destrutivo-justificativa-sem-tamanho-minimo  →  dev_destrutivo.sql  (espera ✗ 12b, 12e)
+      ✓ detectada  (484 ms)
+[21/27] destrutivo-guarda-do-acervo-aceita-update  →  dev_destrutivo.sql  (espera ✗ 2i, 2k)
+      ✓ detectada  (496 ms)
+[22/27] destrutivo-guarda-do-acervo-aceita-delete  →  dev_destrutivo.sql  (espera ✗ 2j, 2l, 2m, 13c)
+      ✓ detectada  (485 ms)
+[23/27] destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho  →  dev_destrutivo.sql  (espera ✗ 2f, 2n)
+      ✓ detectada — também caíram (efeito colateral): 2h  (491 ms)
+[24/27] import-sem-revalidacao-de-contagens  →  import_substituir.sql  (espera ✗ 2)
+      ✓ detectada  (389 ms)
+[25/27] import-sem-exigencia-de-backup  →  import_substituir.sql  (espera ✗ 3)
+      ✓ detectada  (403 ms)
+[26/27] conflito-justificativa-sem-tamanho-minimo  →  conflito_filiais.sql  (espera ✗ 5f)
+      ✓ detectada — também caíram (efeito colateral): 4a, 4b, 3b  (420 ms)
+[27/27] conflito-confirmacao-com-numero-errado-aceita  →  conflito_filiais.sql  (espera ✗ 5d, 5e)
+      ✓ detectada — também caíram (efeito colateral): 4a, 4b, 4e, 3b  (428 ms)
+##[error][NÃO detectada] rls-ancora-do-termo-sempre-coerente (papeis_rls.sql) — esperava ✗ em [2i-bis-3], NÃO caiu [2i-bis-3]; caiu de fato [nada]
+
+##[error]1 de 27 mutação(ões) não terminaram como "detectada".
+==============================================================================================================
+RESULTADO DO LOTE
+==============================================================================================================
+mutação                                                    roteiro                 cenário esperado  caiu?             tempo
+--------------------------------------------------------------------------------------------------------------
+rls-movimentacao-confia-na-filial-declarada                papeis_rls.sql          2c-bis,2c-ter  detectada            598 ms
+                                                           └─ também caíram (efeito colateral): 2g
+rls-lancamento-de-item-confere-papel-e-esquece-filial      papeis_rls.sql          2e             detectada            420 ms
+rls-edicao-de-ativo-confere-papel-e-esquece-filial         papeis_rls.sql          2g             detectada            427 ms
+rls-piso-de-leitura-aberto-em-ativos                       papeis_rls.sql          4d             detectada            434 ms
+rls-desligada-em-senhas-de-acesso                          papeis_rls.sql          3d,5f          detectada            427 ms
+rls-auditoria-visivel-a-quem-escreve                       papeis_rls.sql          3f             detectada            429 ms
+rls-trilha-do-import-visivel-a-quem-escreve                papeis_rls.sql          3e             detectada            467 ms
+rls-bucket-de-backup-visivel-a-quem-escreve                papeis_rls.sql          6e             detectada            431 ms
+rls-ancora-do-termo-sempre-coerente                        papeis_rls.sql          2i-bis-3       NÃO detectada        429 ms
+                                                           └─ esperava ✗ em [2i-bis-3], NÃO caiu [2i-bis-3]; caiu de fato [nada]
+catalogo-rls-desligada-numa-tabela                         seguranca_catalogo.sql  2              detectada            372 ms
+catalogo-view-sem-security-invoker                         seguranca_catalogo.sql  3              detectada            369 ms
+catalogo-funcao-gatilho-executavel-por-authenticated       seguranca_catalogo.sql  4              detectada            369 ms
+catalogo-gatilho-de-lancamento-vira-definer                seguranca_catalogo.sql  4c             detectada            367 ms
+catalogo-rpc-de-escrita-executavel-por-anon                seguranca_catalogo.sql  1              detectada            371 ms
+dev-guarda-de-gestao-aceita-nivel-admin                    cargo_dev.sql           2a,2b,2c,2e    detectada            407 ms
+                                                           └─ também caíram (efeito colateral): 2i, 2i-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 4a, 4b, 4c
+dev-apagar-conta-aceita-nivel-admin                        cargo_dev.sql           2f-bis         detectada            402 ms
+                                                           └─ também caíram (efeito colateral): 3a, 3b, 4a
+dev-encerrar-sessoes-aceita-nivel-admin                    cargo_dev.sql           2f             detectada            399 ms
+dev-trigger-deixa-conceder-cargo-por-update-direto         cargo_dev.sql           2h             detectada            396 ms
+dev-auxiliar-de-gestao-executavel-por-authenticated        cargo_dev.sql           5e             detectada            399 ms
+destrutivo-justificativa-sem-tamanho-minimo                dev_destrutivo.sql      12b,12e        detectada            484 ms
+destrutivo-guarda-do-acervo-aceita-update                  dev_destrutivo.sql      2i,2k          detectada            496 ms
+destrutivo-guarda-do-acervo-aceita-delete                  dev_destrutivo.sql      2j,2l,2m,13c   detectada            485 ms
+destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho  dev_destrutivo.sql      2f,2n          detectada            491 ms
+                                                           └─ também caíram (efeito colateral): 2h
+import-sem-revalidacao-de-contagens                        import_substituir.sql   2              detectada            389 ms
+import-sem-exigencia-de-backup                             import_substituir.sql   3              detectada            403 ms
+conflito-justificativa-sem-tamanho-minimo                  conflito_filiais.sql    5f             detectada            420 ms
+                                                           └─ também caíram (efeito colateral): 4a, 4b, 3b
+conflito-confirmacao-com-numero-errado-aceita              conflito_filiais.sql    5d,5e          detectada            428 ms
+                                                           └─ também caíram (efeito colateral): 4a, 4b, 4e, 3b
+--------------------------------------------------------------------------------------------------------------
+26/27 detectadas pelo cenário nomeado · 11509 ms no total
+
+QUARENTENA — 4 quebra(s) REAL(is) que o rig de hoje não sabe acusar.
+Nada aqui foi executado. Cada entrada nomeia a fase que a adota.
+  · conflito-serializacao-por-advisory-lock  [conflito_filiais.sql · adota: F52]
+      Nenhuma asserção do roteiro abre uma SEGUNDA conexão. Dentro de uma transação psql sozinha, remover a trava não muda resultado nenhum — o roteiro fica verde e a mutação se disfarçaria de "asserção fraca" quando o que falta é um cenário CONCORRENTE, que só existe escrevendo catálogo novo.
+  · conflito-backup-em-arquivo-sem-prefixo-do-digest  [conflito_filiais.sql · adota: F52]
+      A maior seleção que o roteiro monta tem 2 ativos, muito abaixo do teto de 25 — o ramo de backup em arquivo nunca roda. Detectar exige um cenário com 26 ativos, que é catálogo novo.
+  · gestao-encerrar-sessoes-mira-o-alvo-errado  [cargo_dev.sql · adota: F48]
+      O cenário 3d aceita "0 sessões removidas" como sucesso: ele só confere que não houve exceção, nunca que o delete mirou o usuário certo. É asserção sobre conjunto vazio, e fortalecê-la é matéria da F48.
+  · leitura-de-colaboradores-sem-piso  [papeis_rls.sql · adota: F48]
+      O roteiro não planta NENHUMA linha em `colaboradores` antes de 1j/4i: as duas asserções passam sobre conjunto vazio, e "viu 0 linhas" continua verdadeiro com a RLS desligada. Precisa de fixture, que é catálogo novo.
+
+##[error]Process completed with exit code 1.
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Post job cleanup.
+[command]/usr/bin/git version
+git version 2.55.0
+Temporarily overriding HOME='/home/runner/work/_temp/36f16e6b-d060-4213-87d3-0b67a3cf1b97' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/ti-wap-inventory-control/ti-wap-inventory-control
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+[command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Print service container logs: f7a362615723456c81391e160d046665_postgres17_183ded
+##[command]/usr/bin/docker logs --details 921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+ initdb: warning: enabling "trust" authentication for local connections
+ initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+ The files belonging to this database system will be owned by user "postgres".
+ This user must also own the server process.
+ 
+ The database cluster will be initialized with locale "en_US.utf8".
+ The default database encoding has accordingly been set to "UTF8".
+ The default text search configuration will be set to "english".
+ 
+ Data page checksums are disabled.
+ 
+ fixing permissions on existing directory /var/lib/postgresql/data ... ok
+ creating subdirectories ... ok
+ selecting dynamic shared memory implementation ... posix
+ selecting default "max_connections" ... 100
+ selecting default "shared_buffers" ... 128MB
+ selecting default time zone ... Etc/UTC
+ creating configuration files ... ok
+ running bootstrap script ... ok
+ performing post-bootstrap initialization ... ok
+ syncing data to disk ... ok
+ 
+ 
+ Success. You can now start the database server using:
+ 
+     pg_ctl -D /var/lib/postgresql/data -l logfile start
+ 
+ waiting for server to start....2026-09-07 01:51:06.695 UTC [47] LOG:  starting PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+ 2026-09-07 01:51:06.696 UTC [47] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+ 2026-09-07 01:51:06.699 UTC [50] LOG:  database system was shut down at 2026-09-07 01:51:06 UTC
+ 2026-09-07 01:51:06.703 UTC [47] LOG:  database system is ready to accept connections
+  done
+ server started
+ 
+ /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+ 
+ waiting for server to shut down...2026-09-07 01:51:06.815 UTC [47] LOG:  received fast shutdown request
+ .2026-09-07 01:51:06.816 UTC [47] LOG:  aborting any active transactions
+ 2026-09-07 01:51:06.819 UTC [47] LOG:  background worker "logical replication launcher" (PID 53) exited with exit code 1
+ 2026-09-07 01:51:06.820 UTC [48] LOG:  shutting down
+ 2026-09-07 01:51:06.820 UTC [48] LOG:  checkpoint starting: shutdown immediate
+ 2026-09-07 01:51:06.822 UTC [48] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.003 s; sync files=2, longest=0.001 s, average=0.001 s; distance=0 kB, estimate=0 kB; lsn=0/14EF800, redo lsn=0/14EF800
+ 2026-09-07 01:51:06.827 UTC [47] LOG:  database system is shut down
+  done
+ server stopped
+ 
+ PostgreSQL init process complete; ready for start up.
+ 
+ 2026-09-07 01:51:06.938 UTC [1] LOG:  starting PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+ 2026-09-07 01:51:06.938 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+ 2026-09-07 01:51:06.938 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+ 2026-09-07 01:51:06.939 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+ 2026-09-07 01:51:06.944 UTC [61] LOG:  database system was shut down at 2026-09-07 01:51:06 UTC
+ 2026-09-07 01:51:06.949 UTC [1] LOG:  database system is ready to accept connections
+ 2026-09-07 01:51:16.042 UTC [73] FATAL:  role "root" does not exist
+ 2026-09-07 01:51:26.117 UTC [81] FATAL:  role "root" does not exist
+ 2026-09-07 01:51:36.238 UTC [89] FATAL:  role "root" does not exist
+ 2026-09-07 01:51:46.359 UTC [97] FATAL:  role "root" does not exist
+ 2026-09-07 01:51:56.452 UTC [105] FATAL:  role "root" does not exist
+ 2026-09-07 01:52:06.615 UTC [116] FATAL:  role "root" does not exist
+ 2026-09-07 01:52:08.309 UTC [130] WARNING:  "wal_level" is insufficient to publish logical changes
+ 2026-09-07 01:52:08.309 UTC [130] HINT:  Set "wal_level" to "logical" before creating subscriptions.
+ 2026-09-07 01:52:08.309 UTC [130] CONTEXT:  SQL statement "create publication supabase_realtime"
+ 	PL/pgSQL function inline_code_block line 4 at SQL statement
+ 2026-09-07 01:52:14.930 UTC [265] WARNING:  "wal_level" is insufficient to publish logical changes
+ 2026-09-07 01:52:14.930 UTC [265] HINT:  Set "wal_level" to "logical" before creating subscriptions.
+ 2026-09-07 01:52:14.930 UTC [265] CONTEXT:  SQL statement "create publication supabase_realtime"
+ 	PL/pgSQL function inline_code_block line 4 at SQL statement
+ 2026-09-07 01:52:16.723 UTC [311] FATAL:  role "root" does not exist
+ 2026-09-07 01:52:20.865 UTC [396] WARNING:  ✗ autoteste 3 — o ✗ deste é esperado e está escondido: 2 de 7 fora da regra
+ 2026-09-07 01:52:20.865 UTC [396] CONTEXT:  PL/pgSQL function pg_temp_80.assert_zero_de(text,bigint,bigint) line 26 at RAISE
+ 	PL/pgSQL function inline_code_block line 50 at assignment
+ 2026-09-07 01:52:24.243 UTC [433] WARNING:  ✗ 2c-bis operador MOVIMENTOU ativo da filial não vinculada declarando a própria filial (a 0067 não está no ar)
+ 2026-09-07 01:52:24.243 UTC [433] CONTEXT:  PL/pgSQL function inline_code_block line 330 at RAISE
+ 2026-09-07 01:52:24.244 UTC [433] WARNING:  ✗ 2c-ter o ativo saiu da filial 2 e foi para a 1 — o trigger definer moveu
+ 2026-09-07 01:52:24.244 UTC [433] CONTEXT:  PL/pgSQL function inline_code_block line 342 at RAISE
+ 2026-09-07 01:52:24.248 UTC [433] WARNING:  ✗ 2g operador ATUALIZOU ativo da filial NÃO vinculada
+ 2026-09-07 01:52:24.248 UTC [433] CONTEXT:  PL/pgSQL function inline_code_block line 412 at RAISE
+ 2026-09-07 01:52:24.274 UTC [433] WARNING:  ✗ TOTAL papeis_rls: 3 falha(s) — 2c-bis_FURO_ABERTO; 2c-ter_ATIVO_MIGROU; 2g; 
+ 2026-09-07 01:52:24.274 UTC [433] CONTEXT:  PL/pgSQL function inline_code_block line 1065 at RAISE
+ 2026-09-07 01:52:24.331 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:24.486 UTC [59] LOG:  checkpoint complete: wrote 2543 buffers (15.5%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.062 s, sync=0.091 s, total=0.156 s; sync files=978, longest=0.030 s, average=0.001 s; distance=20379 kB, estimate=20379 kB; lsn=0/28D6848, redo lsn=0/28D67F0
+ 2026-09-07 01:52:24.820 UTC [440] WARNING:  ✗ 2e operador LANÇOU item na filial NÃO vinculada
+ 2026-09-07 01:52:24.820 UTC [440] CONTEXT:  PL/pgSQL function inline_code_block line 360 at RAISE
+ 2026-09-07 01:52:24.849 UTC [440] WARNING:  ✗ TOTAL papeis_rls: 1 falha(s) — 2e; 
+ 2026-09-07 01:52:24.849 UTC [440] CONTEXT:  PL/pgSQL function inline_code_block line 1065 at RAISE
+ 2026-09-07 01:52:24.904 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:24.908 UTC [59] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5844 kB, estimate=18926 kB; lsn=0/2E8BAD8, redo lsn=0/2E8BA80
+ 2026-09-07 01:52:25.247 UTC [447] WARNING:  ✗ 2g operador ATUALIZOU ativo da filial NÃO vinculada
+ 2026-09-07 01:52:25.247 UTC [447] CONTEXT:  PL/pgSQL function inline_code_block line 412 at RAISE
+ 2026-09-07 01:52:25.274 UTC [447] WARNING:  ✗ TOTAL papeis_rls: 1 falha(s) — 2g; 
+ 2026-09-07 01:52:25.274 UTC [447] CONTEXT:  PL/pgSQL function inline_code_block line 1065 at RAISE
+ 2026-09-07 01:52:25.332 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:25.336 UTC [59] LOG:  checkpoint complete: wrote 12 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.002 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5847 kB, estimate=17618 kB; lsn=0/3441968, redo lsn=0/3441910
+ 2026-09-07 01:52:25.700 UTC [454] WARNING:  ✗ 4d desativado LEU 5 ativo(s) — a 0070 não está no ar
+ 2026-09-07 01:52:25.700 UTC [454] CONTEXT:  PL/pgSQL function inline_code_block line 806 at RAISE
+ 2026-09-07 01:52:25.709 UTC [454] WARNING:  ✗ TOTAL papeis_rls: 1 falha(s) — 4d_LE_ACERVO; 
+ 2026-09-07 01:52:25.709 UTC [454] CONTEXT:  PL/pgSQL function inline_code_block line 1065 at RAISE
+ 2026-09-07 01:52:25.766 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:25.770 UTC [59] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.002 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5844 kB, estimate=16441 kB; lsn=0/39F6C58, redo lsn=0/39F6C00
+ 2026-09-07 01:52:26.122 UTC [461] WARNING:  ✗ 3d operador LEU 1 linha(s) de senhas_acesso — o hash está exposto
+ 2026-09-07 01:52:26.122 UTC [461] CONTEXT:  PL/pgSQL function inline_code_block line 691 at RAISE
+ 2026-09-07 01:52:26.132 UTC [461] WARNING:  ✗ 5f admin leu 1 linha(s) de senhas_acesso — o hash voltou a ficar exposto
+ 2026-09-07 01:52:26.132 UTC [461] CONTEXT:  PL/pgSQL function inline_code_block line 952 at RAISE
+ 2026-09-07 01:52:26.136 UTC [461] WARNING:  ✗ TOTAL papeis_rls: 2 falha(s) — 3d; 5f; 
+ 2026-09-07 01:52:26.136 UTC [461] CONTEXT:  PL/pgSQL function inline_code_block line 1065 at RAISE
+ 2026-09-07 01:52:26.195 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:26.199 UTC [59] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5845 kB, estimate=15381 kB; lsn=0/3FAC3E8, redo lsn=0/3FAC390
+ 2026-09-07 01:52:26.552 UTC [468] WARNING:  ✗ 3f operador LEU 1 linha(s) de eventos_admin
+ 2026-09-07 01:52:26.552 UTC [468] CONTEXT:  PL/pgSQL function inline_code_block line 709 at RAISE
+ 2026-09-07 01:52:26.565 UTC [468] WARNING:  ✗ TOTAL papeis_rls: 1 falha(s) — 3f; 
+ 2026-09-07 01:52:26.565 UTC [468] CONTEXT:  PL/pgSQL function inline_code_block line 1065 at RAISE
+ 2026-09-07 01:52:26.622 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:26.627 UTC [59] LOG:  checkpoint complete: wrote 14 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.001 s, sync=0.002 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5850 kB, estimate=14428 kB; lsn=0/4562E90, redo lsn=0/4562E38
+ 2026-09-07 01:52:26.832 UTC [480] FATAL:  role "root" does not exist
+ 2026-09-07 01:52:27.020 UTC [483] WARNING:  ✗ 3e operador LEU 1 linha(s) de import_logs
+ 2026-09-07 01:52:27.020 UTC [483] CONTEXT:  PL/pgSQL function inline_code_block line 700 at RAISE
+ 2026-09-07 01:52:27.034 UTC [483] WARNING:  ✗ TOTAL papeis_rls: 1 falha(s) — 3e; 
+ 2026-09-07 01:52:27.034 UTC [483] CONTEXT:  PL/pgSQL function inline_code_block line 1065 at RAISE
+ 2026-09-07 01:52:27.091 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:27.095 UTC [59] LOG:  checkpoint complete: wrote 15 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5859 kB, estimate=13571 kB; lsn=0/4B1BC88, redo lsn=0/4B1BC30
+ 2026-09-07 01:52:27.464 UTC [490] WARNING:  ✗ 6e operador listou 1 objeto(s) de backups-import
+ 2026-09-07 01:52:27.464 UTC [490] CONTEXT:  PL/pgSQL function inline_code_block line 1041 at RAISE
+ 2026-09-07 01:52:27.465 UTC [490] WARNING:  ✗ TOTAL papeis_rls: 1 falha(s) — 6e; 
+ 2026-09-07 01:52:27.465 UTC [490] CONTEXT:  PL/pgSQL function inline_code_block line 1065 at RAISE
+ 2026-09-07 01:52:27.523 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:27.527 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.002 s, sync=0.001 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5846 kB, estimate=12799 kB; lsn=0/50D1818, redo lsn=0/50D17C0
+ 2026-09-07 01:52:27.952 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:27.956 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5846 kB, estimate=12103 kB; lsn=0/56871B0, redo lsn=0/5687158
+ 2026-09-07 01:52:28.268 UTC [504] WARNING:  ✗ 2 1 tabela(s) public SEM RLS: motivos
+ 2026-09-07 01:52:28.268 UTC [504] CONTEXT:  PL/pgSQL function inline_code_block line 70 at RAISE
+ 2026-09-07 01:52:28.327 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:28.330 UTC [59] LOG:  checkpoint complete: wrote 10 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.004 s; sync files=7, longest=0.001 s, average=0.001 s; distance=5802 kB, estimate=11473 kB; lsn=0/5C31D30, redo lsn=0/5C31CD8
+ 2026-09-07 01:52:28.640 UTC [511] WARNING:  ✗ 3 1 view(s) public SEM security_invoker=true: v_estoque_atual
+ 2026-09-07 01:52:28.640 UTC [511] CONTEXT:  PL/pgSQL function inline_code_block line 88 at RAISE
+ 2026-09-07 01:52:28.696 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:28.700 UTC [59] LOG:  checkpoint complete: wrote 12 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.001 s, sync=0.001 s, total=0.004 s; sync files=7, longest=0.001 s, average=0.001 s; distance=5806 kB, estimate=10907 kB; lsn=0/61DD698, redo lsn=0/61DD640
+ 2026-09-07 01:52:29.008 UTC [518] WARNING:  ✗ 4 aplicar_movimentacao executável por authenticated/anon (R-ACC-12/0038: deveria estar revogado)
+ 2026-09-07 01:52:29.008 UTC [518] CONTEXT:  PL/pgSQL function inline_code_block line 113 at RAISE
+ 2026-09-07 01:52:29.064 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:29.069 UTC [59] LOG:  checkpoint complete: wrote 10 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.006 s; sync files=7, longest=0.001 s, average=0.001 s; distance=5800 kB, estimate=10396 kB; lsn=0/6787A20, redo lsn=0/67879C8
+ 2026-09-07 01:52:29.379 UTC [525] WARNING:  ✗ 4c valida_lancamento_item virou SECURITY DEFINER sem revoke de EXECUTE — revise R-ACC-12/0038
+ 2026-09-07 01:52:29.379 UTC [525] CONTEXT:  PL/pgSQL function inline_code_block line 127 at RAISE
+ 2026-09-07 01:52:29.434 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:29.437 UTC [59] LOG:  checkpoint complete: wrote 12 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.004 s; sync files=7, longest=0.001 s, average=0.001 s; distance=5805 kB, estimate=9937 kB; lsn=0/6D32F38, redo lsn=0/6D32EE0
+ 2026-09-07 01:52:29.745 UTC [532] WARNING:  ✗ 1 public.criar_compra_lote(jsonb, uuid) grants errados: authenticated=t (esp. t), anon=t (esp. f), service_role=f (esp. f)
+ 2026-09-07 01:52:29.745 UTC [532] CONTEXT:  PL/pgSQL function inline_code_block line 34 at RAISE
+ 2026-09-07 01:52:29.803 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:29.807 UTC [59] LOG:  checkpoint complete: wrote 10 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.001 s, sync=0.001 s, total=0.004 s; sync files=7, longest=0.001 s, average=0.001 s; distance=5800 kB, estimate=9523 kB; lsn=0/72DD2B0, redo lsn=0/72DD258
+ 2026-09-07 01:52:30.136 UTC [539] WARNING:  ✗ 2a ADMIN CONCEDEU o cargo dev (deveria ser recusado)
+ 2026-09-07 01:52:30.136 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 216 at RAISE
+ 2026-09-07 01:52:30.137 UTC [539] WARNING:  ✗ 2b ADMIN REBAIXOU um dev (deveria ser recusado)
+ 2026-09-07 01:52:30.137 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 225 at RAISE
+ 2026-09-07 01:52:30.138 UTC [539] WARNING:  ✗ 2c ADMIN DESATIVOU um dev (deveria ser recusado)
+ 2026-09-07 01:52:30.138 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 234 at RAISE
+ 2026-09-07 01:52:30.139 UTC [539] WARNING:  ✗ 2e ADMIN alterou os vínculos de um dev (deveria ser recusado)
+ 2026-09-07 01:52:30.139 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 252 at RAISE
+ 2026-09-07 01:52:30.142 UTC [539] WARNING:  ✗ 2i SERVICE ROLE rebaixou um dev por UPDATE direto
+ 2026-09-07 01:52:30.142 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 322 at RAISE
+ 2026-09-07 01:52:30.142 UTC [539] WARNING:  ✗ 2i-bis SERVICE ROLE desativou um dev por UPDATE direto
+ 2026-09-07 01:52:30.142 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 330 at RAISE
+ 2026-09-07 01:52:30.144 UTC [539] WARNING:  ✗ 3a dev recusado ao conceder dev (42501) Só um desenvolvedor pode gerir o cargo Desenvolvedor.
+ 2026-09-07 01:52:30.144 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 399 at RAISE
+ 2026-09-07 01:52:30.145 UTC [539] WARNING:  ✗ 3b dev recusado ao rebaixar outro dev (42501) Só um desenvolvedor pode gerir o cargo Desenvolvedor.
+ 2026-09-07 01:52:30.145 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 414 at RAISE
+ 2026-09-07 01:52:30.145 UTC [539] WARNING:  ✗ 3c dev recusado ao desativar (42501) Esta ação é restrita a administradores.
+ 2026-09-07 01:52:30.145 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 430 at RAISE
+ 2026-09-07 01:52:30.146 UTC [539] WARNING:  ✗ 3d dev recusado ao encerrar sessões (42501) Só um desenvolvedor pode gerir o cargo Desenvolvedor.
+ 2026-09-07 01:52:30.146 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 439 at RAISE
+ 2026-09-07 01:52:30.147 UTC [539] WARNING:  ✗ 6a dev não conseguiu apagar a vítima (42501) Esta ação é restrita a administradores.
+ 2026-09-07 01:52:30.147 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 483 at RAISE
+ 2026-09-07 01:52:30.147 UTC [539] WARNING:  ✗ 6b o perfil arquivado não está no estado esperado (0 linha[s])
+ 2026-09-07 01:52:30.147 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 494 at RAISE
+ 2026-09-07 01:52:30.149 UTC [539] WARNING:  ✗ 6e o apagado ainda tem papel=operador e leu 4 ativo(s)
+ 2026-09-07 01:52:30.149 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 540 at RAISE
+ 2026-09-07 01:52:30.151 UTC [539] WARNING:  ✗ 4a operador com e_dev=t e_admin=t pode_escrever=t
+ 2026-09-07 01:52:30.151 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 595 at RAISE
+ 2026-09-07 01:52:30.152 UTC [539] WARNING:  ✗ 4b OPERADOR mudou o cargo de alguém (deveria ser recusado)
+ 2026-09-07 01:52:30.152 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 602 at RAISE
+ 2026-09-07 01:52:30.153 UTC [539] WARNING:  ✗ 4c OPERADOR apagou um usuário (deveria ser recusado)
+ 2026-09-07 01:52:30.153 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 610 at RAISE
+ 2026-09-07 01:52:30.154 UTC [539] WARNING:  ✗ TOTAL cargo_dev: 16 falha(s) — 2a_ADMIN_PROMOVEU_DEV; 2b_ADMIN_REBAIXOU_DEV; 2c_ADMIN_DESATIVOU_DEV; 2e_ADMIN_MEXEU_VINCULO_DEV; 2i_SERVICE_ROLE_REBAIXOU_DEV; 2i-bis_SERVICE_ROLE_DESATIVOU_DEV; 3a; 3b; 3c; 3d; 6a_NAO_APAGOU; 6b_PERFIL_SUMIU; 6e_APAGADO_AINDA_LE; 4a; 4b_OPERADOR_MUDOU_CARGO; 4c_OPERADOR_APAGOU; 
+ 2026-09-07 01:52:30.154 UTC [539] CONTEXT:  PL/pgSQL function inline_code_block line 646 at RAISE
+ 2026-09-07 01:52:30.212 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:30.216 UTC [59] LOG:  checkpoint complete: wrote 15 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5837 kB, estimate=9155 kB; lsn=0/7890930, redo lsn=0/78908D8
+ 2026-09-07 01:52:30.544 UTC [546] WARNING:  ✗ 2f-bis ADMIN apagou um usuário comum (deveria ser privativo do dev)
+ 2026-09-07 01:52:30.544 UTC [546] CONTEXT:  PL/pgSQL function inline_code_block line 270 at RAISE
+ 2026-09-07 01:52:30.547 UTC [546] WARNING:  ✗ 3a dev recusado ao conceder dev (P0002) Usuário não encontrado (ou já apagado).
+ 2026-09-07 01:52:30.547 UTC [546] CONTEXT:  PL/pgSQL function inline_code_block line 399 at RAISE
+ 2026-09-07 01:52:30.548 UTC [546] WARNING:  ✗ 3b dev recusado ao rebaixar outro dev (P0002) Usuário não encontrado (ou já apagado).
+ 2026-09-07 01:52:30.548 UTC [546] CONTEXT:  PL/pgSQL function inline_code_block line 414 at RAISE
+ 2026-09-07 01:52:30.554 UTC [546] WARNING:  ✗ 4a operador com e_dev=f e_admin=f pode_escrever=f
+ 2026-09-07 01:52:30.554 UTC [546] CONTEXT:  PL/pgSQL function inline_code_block line 595 at RAISE
+ 2026-09-07 01:52:30.556 UTC [546] WARNING:  ✗ TOTAL cargo_dev: 4 falha(s) — 2f-bis_ADMIN_APAGOU; 3a; 3b; 4a; 
+ 2026-09-07 01:52:30.556 UTC [546] CONTEXT:  PL/pgSQL function inline_code_block line 646 at RAISE
+ 2026-09-07 01:52:30.613 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:30.619 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.002 s, total=0.006 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5831 kB, estimate=8822 kB; lsn=0/7E42758, redo lsn=0/7E42700
+ 2026-09-07 01:52:30.948 UTC [553] WARNING:  ✗ 2f ADMIN encerrou sessões (deveria ser privativo do dev)
+ 2026-09-07 01:52:30.948 UTC [553] CONTEXT:  PL/pgSQL function inline_code_block line 261 at RAISE
+ 2026-09-07 01:52:30.961 UTC [553] WARNING:  ✗ TOTAL cargo_dev: 1 falha(s) — 2f_ADMIN_ENCERROU_SESSAO; 
+ 2026-09-07 01:52:30.961 UTC [553] CONTEXT:  PL/pgSQL function inline_code_block line 646 at RAISE
+ 2026-09-07 01:52:31.015 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:31.019 UTC [59] LOG:  checkpoint complete: wrote 14 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.001 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5836 kB, estimate=8524 kB; lsn=0/83F5A78, redo lsn=0/83F5A20
+ 2026-09-07 01:52:31.345 UTC [560] WARNING:  ✗ 2h SERVICE ROLE concedeu o cargo dev por UPDATE direto
+ 2026-09-07 01:52:31.345 UTC [560] CONTEXT:  PL/pgSQL function inline_code_block line 314 at RAISE
+ 2026-09-07 01:52:31.356 UTC [560] WARNING:  ✗ TOTAL cargo_dev: 1 falha(s) — 2h_SERVICE_ROLE_CONCEDEU_DEV; 
+ 2026-09-07 01:52:31.356 UTC [560] CONTEXT:  PL/pgSQL function inline_code_block line 646 at RAISE
+ 2026-09-07 01:52:31.412 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:31.416 UTC [59] LOG:  checkpoint complete: wrote 15 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5836 kB, estimate=8255 kB; lsn=0/89A8D60, redo lsn=0/89A8D08
+ 2026-09-07 01:52:31.744 UTC [567] WARNING:  ✗ 5e uma auxiliar de gestão voltou a ser executável por authenticated
+ 2026-09-07 01:52:31.744 UTC [567] CONTEXT:  PL/pgSQL function inline_code_block line 377 at RAISE
+ 2026-09-07 01:52:31.754 UTC [567] WARNING:  ✗ TOTAL cargo_dev: 1 falha(s) — 5e_AUXILIAR_EXPOSTA; 
+ 2026-09-07 01:52:31.754 UTC [567] CONTEXT:  PL/pgSQL function inline_code_block line 646 at RAISE
+ 2026-09-07 01:52:31.811 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:31.815 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5829 kB, estimate=8012 kB; lsn=0/8F5A408, redo lsn=0/8F5A3B0
+ 2026-09-07 01:52:32.209 UTC [574] WARNING:  ✗ 12b apagar_ativo aceitou justificativa de 5 caracteres
+ 2026-09-07 01:52:32.209 UTC [574] CONTEXT:  PL/pgSQL function inline_code_block line 1181 at RAISE
+ 2026-09-07 01:52:32.211 UTC [574] WARNING:  ✗ 12e forcar_estado_ativo aceitou justificativa de 5 caracteres
+ 2026-09-07 01:52:32.211 UTC [574] CONTEXT:  PL/pgSQL function inline_code_block line 1220 at RAISE
+ 2026-09-07 01:52:32.236 UTC [574] WARNING:  ✗ TOTAL dev_destrutivo: 2 falha(s) — 12b_JUSTIFICATIVA; 12e_JUSTIFICATIVA_FORCAR; 
+ 2026-09-07 01:52:32.236 UTC [574] CONTEXT:  PL/pgSQL function inline_code_block line 1574 at RAISE
+ 2026-09-07 01:52:32.296 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:32.300 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.002 s, sync=0.001 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5931 kB, estimate=7804 kB; lsn=0/95253E8, redo lsn=0/9525390
+ 2026-09-07 01:52:32.643 UTC [581] WARNING:  ✗ 2i o DONO alterou uma movimentação por UPDATE direto
+ 2026-09-07 01:52:32.643 UTC [581] CONTEXT:  PL/pgSQL function inline_code_block line 431 at RAISE
+ 2026-09-07 01:52:32.644 UTC [581] WARNING:  ✗ 2k o DONO alterou um lançamento por UPDATE direto
+ 2026-09-07 01:52:32.644 UTC [581] CONTEXT:  PL/pgSQL function inline_code_block line 457 at RAISE
+ 2026-09-07 01:52:32.728 UTC [581] WARNING:  ✗ TOTAL dev_destrutivo: 2 falha(s) — 2i_DONO_ALTEROU; 2k_DONO_ALTEROU_LANC; 
+ 2026-09-07 01:52:32.728 UTC [581] CONTEXT:  PL/pgSQL function inline_code_block line 1574 at RAISE
+ 2026-09-07 01:52:32.792 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:32.796 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5933 kB, estimate=7617 kB; lsn=0/9AF0920, redo lsn=0/9AF08C8
+ 2026-09-07 01:52:33.143 UTC [588] WARNING:  ✗ 2j o DONO apagou uma movimentação por DELETE direto
+ 2026-09-07 01:52:33.143 UTC [588] CONTEXT:  PL/pgSQL function inline_code_block line 444 at RAISE
+ 2026-09-07 01:52:33.144 UTC [588] WARNING:  ✗ 2l o DONO apagou um lançamento por DELETE direto
+ 2026-09-07 01:52:33.144 UTC [588] CONTEXT:  PL/pgSQL function inline_code_block line 470 at RAISE
+ 2026-09-07 01:52:33.145 UTC [588] WARNING:  ✗ 2m recusado por outro motivo (23503): update or delete on table "ativos" violates foreign key constraint "movimentacoes_ativo_id_fkey" on table "movimentacoes"
+ 2026-09-07 01:52:33.145 UTC [588] CONTEXT:  PL/pgSQL function inline_code_block line 489 at RAISE
+ 2026-09-07 01:52:33.200 UTC [588] WARNING:  ✗ 13c o DELETE direto passou depois do erro — a janela vazou
+ 2026-09-07 01:52:33.200 UTC [588] CONTEXT:  PL/pgSQL function inline_code_block line 1268 at RAISE
+ 2026-09-07 01:52:33.221 UTC [588] WARNING:  ✗ TOTAL dev_destrutivo: 4 falha(s) — 2j_DONO_APAGOU; 2l_DONO_APAGOU_LANC; 2m_MOTIVO_ERRADO; 13c_JANELA_VAZOU; 
+ 2026-09-07 01:52:33.221 UTC [588] CONTEXT:  PL/pgSQL function inline_code_block line 1574 at RAISE
+ 2026-09-07 01:52:33.278 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:33.283 UTC [59] LOG:  checkpoint complete: wrote 15 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.002 s, sync=0.001 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5936 kB, estimate=7449 kB; lsn=0/A0BCC90, redo lsn=0/A0BCC38
+ 2026-09-07 01:52:33.621 UTC [595] WARNING:  ✗ 2f um INSERT comum gravou forcado = true em movimentacoes
+ 2026-09-07 01:52:33.621 UTC [595] CONTEXT:  PL/pgSQL function inline_code_block line 379 at RAISE
+ 2026-09-07 01:52:33.622 UTC [595] WARNING:  ✗ 2h a guarda bloqueou um INSERT normal de movimentação: Movimentacao saida invalida para ativo WAP0009201 no estado em_uso
+ 2026-09-07 01:52:33.622 UTC [595] CONTEXT:  PL/pgSQL function inline_code_block line 422 at RAISE
+ 2026-09-07 01:52:33.624 UTC [595] WARNING:  ✗ 2n o DONO gravou forcado = true em lancamentos_item
+ 2026-09-07 01:52:33.624 UTC [595] CONTEXT:  PL/pgSQL function inline_code_block line 497 at RAISE
+ 2026-09-07 01:52:33.712 UTC [595] WARNING:  ✗ TOTAL dev_destrutivo: 3 falha(s) — 2f_MARCA_MENTIDA; 2h_INSERT_NORMAL_BLOQUEADO; 2n_MARCA_MENTIDA_DONO; 
+ 2026-09-07 01:52:33.712 UTC [595] CONTEXT:  PL/pgSQL function inline_code_block line 1574 at RAISE
+ 2026-09-07 01:52:33.770 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:33.774 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5926 kB, estimate=7297 kB; lsn=0/A6867A0, redo lsn=0/A686748
+ 2026-09-07 01:52:34.100 UTC [602] WARNING:  ✗ 2 contagens NULL: NÃO falhou (deveria)
+ 2026-09-07 01:52:34.100 UTC [602] CONTEXT:  PL/pgSQL function inline_code_block line 115 at RAISE
+ 2026-09-07 01:52:34.160 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:34.165 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5829 kB, estimate=7150 kB; lsn=0/AC37F00, redo lsn=0/AC37EA8
+ 2026-09-07 01:52:34.505 UTC [609] WARNING:  ✗ 3 backup vazio: NÃO falhou (deveria)
+ 2026-09-07 01:52:34.505 UTC [609] CONTEXT:  PL/pgSQL function inline_code_block line 133 at RAISE
+ 2026-09-07 01:52:34.563 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:34.568 UTC [59] LOG:  checkpoint complete: wrote 15 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.002 s, sync=0.001 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5830 kB, estimate=7018 kB; lsn=0/B1E97D0, redo lsn=0/B1E9778
+ 2026-09-07 01:52:34.905 UTC [616] WARNING:  ✗ 5f  justificativa curta foi ACEITA
+ 2026-09-07 01:52:34.905 UTC [616] CONTEXT:  PL/pgSQL function inline_code_block line 298 at RAISE
+ 2026-09-07 01:52:34.906 UTC [616] WARNING:  ✗ 4a  recusa por outro motivo: P0002 / Ativo(s) não encontrado(s): 6c3b6506-1293-435e-8d4b-6dda6f9a135c. Nada foi apagado — recarregue a página.
+ 2026-09-07 01:52:34.906 UTC [616] CONTEXT:  PL/pgSQL function inline_code_block line 318 at RAISE
+ 2026-09-07 01:52:34.906 UTC [616] WARNING:  ✗ 4b  a recusa apagou alguma coisa
+ 2026-09-07 01:52:34.906 UTC [616] CONTEXT:  PL/pgSQL function inline_code_block line 326 at RAISE
+ 2026-09-07 01:52:34.912 UTC [616] WARNING:  ✗ 3b  esperava 2 lados restantes, veio <NULL>
+ 2026-09-07 01:52:34.912 UTC [616] CONTEXT:  PL/pgSQL function inline_code_block line 383 at RAISE
+ 2026-09-07 01:52:34.985 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:34.990 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.005 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5856 kB, estimate=6902 kB; lsn=0/B7A1930, redo lsn=0/B7A18D8
+ 2026-09-07 01:52:35.324 UTC [623] WARNING:  ✗ 5d  confirmação incompleta foi ACEITA
+ 2026-09-07 01:52:35.324 UTC [623] CONTEXT:  PL/pgSQL function inline_code_block line 274 at RAISE
+ 2026-09-07 01:52:35.324 UTC [623] WARNING:  ✗ 5e  recusa por outro motivo: P0002
+ 2026-09-07 01:52:35.324 UTC [623] CONTEXT:  PL/pgSQL function inline_code_block line 291 at RAISE
+ 2026-09-07 01:52:35.325 UTC [623] WARNING:  ✗ 4a  recusa por outro motivo: P0002 / Ativo(s) não encontrado(s): abd9c24c-e052-43ed-b55c-e3de7ef50d8f. Nada foi apagado — recarregue a página.
+ 2026-09-07 01:52:35.325 UTC [623] CONTEXT:  PL/pgSQL function inline_code_block line 318 at RAISE
+ 2026-09-07 01:52:35.326 UTC [623] WARNING:  ✗ 4b  a recusa apagou alguma coisa
+ 2026-09-07 01:52:35.326 UTC [623] CONTEXT:  PL/pgSQL function inline_code_block line 326 at RAISE
+ 2026-09-07 01:52:35.328 UTC [623] WARNING:  ✗ 4e  recusa por outro motivo: P0002
+ 2026-09-07 01:52:35.328 UTC [623] CONTEXT:  PL/pgSQL function inline_code_block line 362 at RAISE
+ 2026-09-07 01:52:35.332 UTC [623] WARNING:  ✗ 3b  esperava 2 lados restantes, veio <NULL>
+ 2026-09-07 01:52:35.332 UTC [623] CONTEXT:  PL/pgSQL function inline_code_block line 383 at RAISE
+ 2026-09-07 01:52:35.416 UTC [59] LOG:  checkpoint starting: immediate force wait
+ 2026-09-07 01:52:35.419 UTC [59] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.004 s; sync files=9, longest=0.001 s, average=0.001 s; distance=5860 kB, estimate=6798 kB; lsn=0/BD5AB28, redo lsn=0/BD5AAD0
+Stop and remove container: f7a362615723456c81391e160d046665_postgres17_183ded
+##[command]/usr/bin/docker rm --force 921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+921297df07e3184d0593aea37faa5c48f41ca7dd01f4163818519693f1ba37cd
+Remove container network: github_network_38f88db5c6174cab9984c8243368c576
+##[command]/usr/bin/docker network rm github_network_38f88db5c6174cab9984c8243368c576
+github_network_38f88db5c6174cab9984c8243368c576
+Cleaning up orphan processes
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
