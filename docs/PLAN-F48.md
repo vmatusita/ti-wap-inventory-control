@@ -286,7 +286,7 @@ por `e_dev()` — e isso também é congelado, nominalmente, para que uma delas 
 ### 3.3 `isolamento_tenant.sql` — o arcabouço que já vale com uma empresa
 
 **Com** `begin; … rollback;` (planta fixture). Traz o bloco de grants espelhado de
-`papeis_rls.sql:90-127` com o mesmo comentário e a mesma trava, o cabeçalho com a convenção de
+`papeis_rls.sql:91-146` (a ficha diz 90-127; MEDI o arquivo — o bloco começa no `grant select on` da linha 91 e termina no `$trava$;` da 146) com o mesmo comentário e a mesma trava, o cabeçalho com a convenção de
 honestidade, a linha vazia da chave de recorte e o ponteiro da Decisão 2.
 
 **⚠ Ele NÃO pode ser esqueleto vazio:** `rodar-roteiros.sh` reprova roteiro que conte zero asserção
