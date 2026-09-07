@@ -372,6 +372,20 @@ jobs:
       # check. Um gate que fica verde sem ter rodado é pior do que gate nenhum, porque
       # ninguém sabe que ele não rodou. O custo medido — ~26s de Node + o lote — cabe
       # inteiro na folga deste job contra o `verificar`, que domina o relógio.
+      # ⚠⚠ SABOTAGEM TEMPORÁRIA DA F47 — ESTE PASSO SAI NO COMMIT SEGUINTE.
+      # Prova o critério 2: a execução de CONTROLE é a primeira coisa que o injetor faz, e
+      # um roteiro já vermelho o faz ABORTAR ANTES DE MUTAR, com mensagem própria. Sem
+      # essa guarda, um roteiro vermelho faria TODAS as mutações "serem detectadas" e o
+      # relatório sairia triunfante medindo nada.
+      #
+      # A quebra entra AQUI, depois do passo dos roteiros (que já passou verde, acima) e
+      # antes do injetor — é o único ponto em que o controle fica vermelho sem que o
+      # veredito do job já tenha sido dado por outro motivo.
+      - name: SABOTAGEM TEMPORÁRIA — quebrar o banco antes do injetor
+        env:
+          PGDATABASE: estoque
+        run: psql -v ON_ERROR_STOP=1 -c 'alter table public.motivos disable row level security;'
+
       - name: Injetor de mutações — cada quebra tem de ser acusada pelo cenário NOMEADO
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/estoque
