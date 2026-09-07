@@ -239,26 +239,33 @@ const PAPEIS_RLS = [
     policies: [{ nome: 'backups-import leitura operador', tabela: 'storage.objects' }],
   },
   {
-    id: 'rls-ancora-do-termo-sempre-coerente',
+    id: 'rls-termo-perde-as-invariantes-da-ancora',
     roteiro: 'papeis_rls.sql',
     classe: 'guarda-neutralizada',
     derruba: ['2i-bis-3'],
     porque:
-      'A checagem de coerência entre os ativos e as movimentações do termo passa a devolver sempre `true` — o operador queima a vaga única do termo citando movimentação de filial alheia e declarando ativo da própria.',
-    sql: `create or replace function public.termo_ancora_coerente(
-  p_movimentacao_ids uuid[],
-  p_ativo_ids        uuid[]
-) returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$ select true $$;  ${MARCA}`,
+      'A 0069 parcialmente revertida: sobra o gate de FILIAL do termo e somem as duas invariantes que tornam `ativo_ids` não-forjável. O operador queima a vaga única citando movimentação de filial alheia e declarando ativo da própria — a filial vizinha nunca mais gera aquele termo.',
+    // ⚠ AS DUAS CONJUNÇÕES SAEM JUNTAS, E ISSO É UM ACHADO, NÃO UMA ESCOLHA.
+    // Medido no primeiro ciclo de CI (run 34074319187): neutralizar SÓ
+    // `termo_ancora_coerente` NÃO derruba 2i-bis-3 — o INSERT do cenário usa
+    // `arquivo_path = 'forjado.docx'` com um `id` sorteado, então a invariante
+    // `arquivo_path = id::text || '.docx'` já o recusa sozinha. E remover só a
+    // invariante do path também não derruba: a âncora barra. O cenário prova a
+    // CONJUNÇÃO, não a âncora — apesar de a mensagem de ✓ dele dizer "a âncora está
+    // no ar". A mutação isolada da âncora está na QUARENTENA, com a fase que adota.
+    sql: `alter policy "operador insere" on public.termos_gerados
+  with check (
+    coalesce(array_length(ativo_ids, 1), 0) > 0
+    and public.pode_escrever_termo(ativo_ids)
+  );`,
     prova: {
-      sql: `select public.termo_ancora_coerente(
-              array[]::uuid[], array['00000000-0000-0000-0000-000000000001'::uuid])`,
-      espera: 't',
+      sql: `select coalesce(with_check, '') like '%termo_ancora_coerente%'
+              from pg_policies
+             where schemaname = 'public' and tablename = 'termos_gerados'
+               and policyname = 'operador insere'`,
+      espera: 'f',
     },
+    policies: [{ nome: 'operador insere', tabela: 'public.termos_gerados' }],
   },
 ]
 
@@ -692,6 +699,24 @@ export const QUARENTENA = [
     sql: 'trocar o alvo do delete em encerrar_sessoes_usuario',
     indetectavel:
       'O cenário 3d aceita "0 sessões removidas" como sucesso: ele só confere que não houve exceção, nunca que o delete mirou o usuário certo. É asserção sobre conjunto vazio, e fortalecê-la é matéria da F48.',
+    fase: 'F48',
+  },
+  {
+    id: 'ancora-do-termo-sempre-coerente',
+    roteiro: 'papeis_rls.sql',
+    classe: 'asseracao-fraca',
+    derruba: ['(2i-bis-3 não isola a âncora)'],
+    porque:
+      '`termo_ancora_coerente` passa a devolver sempre `true`: `ativo_ids` volta a ser forjável, e é sobre ele que a autorização por filial decide.',
+    sql: `create or replace function public.termo_ancora_coerente(
+  p_movimentacao_ids uuid[], p_ativo_ids uuid[]
+) returns boolean language sql stable security definer set search_path = public
+as $$ select true $$;`,
+    // ⚠ ESTA ENTRADA É O ACHADO MAIS INTERESSANTE DA FASE, e ela foi MEDIDA, não
+    // suposta: no primeiro ciclo de CI (run 34074319187) a mutação aplicou, a sonda
+    // confirmou que pegou, e o cenário 2i-bis-3 continuou VERDE.
+    indetectavel:
+      'O cenário 2i-bis-3 monta o INSERT com `arquivo_path = \'forjado.docx\'` e um `id` sorteado — a quarta conjunção da policy (`arquivo_path = id::text || \'.docx\'`) já o recusa sozinha, antes de a âncora importar. O cenário prova a CONJUNÇÃO das quatro invariantes, embora a mensagem de ✓ dele afirme "a âncora está no ar", que é mais do que ele sabe. Isolar a âncora exige um cenário cujo `arquivo_path` seja coerente e cuja ÚNICA barreira seja ela — catálogo novo, que é matéria da F48.',
     fase: 'F48',
   },
   {
