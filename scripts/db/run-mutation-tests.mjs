@@ -85,7 +85,20 @@ const URL_BASE = process.env.DATABASE_URL || URL_PADRAO
 const ARGS = process.argv.slice(2)
 const iApenas = ARGS.indexOf('--apenas')
 const FILTRO =
-  iApenas === -1 ? null : new Set((ARGS[iApenas + 1] ?? '').split(',').map((s) => s.trim()))
+  iApenas === -1
+    ? null
+    : // ⚠ `.filter(Boolean)` depois do `trim`: sem ele, uma vírgula sobrando (`a,b,`) deixa
+      // uma string VAZIA no conjunto, e a guarda de correspondência parcial lá embaixo a
+      // trata como "id que não existe" — abortando com a mensagem terminando em branco,
+      // sem nomear id nenhum, mesmo com todos os ids reais válidos. A guarda foi
+      // acrescentada na revisão adversarial; este filtro é o defeito que ELA introduziu,
+      // apanhado na RE-revisão.
+      new Set(
+        (ARGS[iApenas + 1] ?? '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s !== ''),
+      )
 
 // ---------------------------------------------------------------------------
 // psql

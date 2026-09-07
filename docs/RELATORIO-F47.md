@@ -20,7 +20,7 @@ Terceira fase do `docs/PLANO-MULTIEMPRESA.md` (§5, Bloco A), depois da F45 (o r
 | Deriva do `database.ts` | invisível até alguém reparar | reprovada a cada CI, **nomeando o objeto** |
 | Tabelas em `public` no banco do CI | 20 | 21 (a `_bkp_` órfã entrou no versionamento) |
 | Isenção por prefixo em `seguranca_catalogo.sql` | `and left(relname,1) <> '_'` | **removida** |
-| Asserções de mesa (Vitest) que rodam **sem banco** | 3 667 | 3 870 (**+203**) |
+| Asserções de mesa (Vitest) que rodam **sem banco** | 3 667 | 3 873 (**+206**) |
 | Job `banco-sem-docker` | 62s | 86s |
 | Relógio do CI (o job `verificar`, em paralelo) | 280s | **280s — não se mexeu** |
 | Migrations | 127 | 128 |
@@ -395,7 +395,7 @@ O comentário que ficou no lugar diz o que saiu, por quê, e por que só podia s
 | 3 | Desligar uma asserção de `papeis_rls.sql` faz o injetor acusar **a mutação correspondente** como não detectada, nomeando-a | ✅ | `rls-piso-de-leitura-aberto-em-ativos … NÃO detectada — esperava ✗ em [4d], NÃO caiu [4d]` · `sabotagem-1-e-2-injetor.txt` |
 | 4 | Mutação que não aplica é reportada como "não aplicou", nunca como "não detectada" | ✅ | `sabotagem-f47-sql-que-nao-aplica … NÃO aplicou — … policy … does not exist` · mesmo arquivo |
 | 5 | O lote tem 20–30 mutações ativas, nos seis roteiros, e **ao menos uma** do tipo "confere o papel e esquece o escopo" | ✅ | **28** ativas: papeis_rls 9, seguranca_catalogo 6, cargo_dev 5, dev_destrutivo 4, import_substituir 2, conflito_filiais 2. **Duas** da classe `papel-sem-escopo`, com teste de mesa exigindo que existam e que o SQL troque mesmo `pode_escrever_filial(…)` por `pode_escrever()` |
-| 6 | `npm run test` verde na mesa, **sem banco**, cobrindo catálogo, rótulos, `corpoVigente` e o parser do gate | ✅ | `158 arquivos, 3 873 testes, 0 falhas` — 203 asserções a mais que a linha de base (3 667) |
+| 6 | `npm run test` verde na mesa, **sem banco**, cobrindo catálogo, rótulos, `corpoVigente` e o parser do gate | ✅ | `158 arquivos, 3 873 testes, 0 falhas` — **206** asserções a mais que a linha de base (3 667) |
 | 7 | Acrescentar coluna sem `npm run db:types` **derruba o CI**, nomeando a coluna | ✅ | `colunas ausentes no database.ts (1): · ativos.sabotagem_f47` · `sabotagem-4-gate-de-tipos-vermelho.txt` |
 | 8 | O gate está **verde** contra o estado atual, e a assimetria está escrita com os três motivos | ✅ | `30 relações · 299 colunas · 59 funções` dos dois lados · `criterio-8-gate-de-tipos-verde.txt`; os três motivos no cabeçalho de `diff-tipos.mjs` e em §4.1 |
 | 9 | A `0128` aplica limpo **no banco do CI** e **em produção**, sem apagar os 2 snapshots | ⚠ **metade provada** | No CI: aplicou em **dois** bancos independentes (o passo de determinismo refaz a cadeia do zero e compara as impressões — idênticas). **Em produção NÃO foi aplicada** — o MCP do Supabase não está conectado nesta sessão. Pendência nomeada em §10 e em `docs/DECISOES.md` |
@@ -499,5 +499,15 @@ Seis lentes independentes em contexto fresco (detecção por acidente · rótulo
 | 4 | **Critérios 13 e 14 marcados ✅ citando uma §11 que era placeholder** — e os fatos que eles exigem (tag publicada, PR mergeado) ainda não existiam. O cético conferiu: `git tag -l 'v1.52*'` vazio, `gh pr view 27` com `state: OPEN`. | **O achado mais importante dos quatro**, e o mais constrangedor: um relatório que declara cumprido o que ainda não aconteceu é exatamente o que esta fase existe para tornar impossível. Os dois viraram 🟡 com o motivo escrito, e só ficam ✅ no commit pós-merge, quando os fatos existirem. |
 
 **Os dois refutados**, registrados porque a refutação também é resultado: um deles apontava o mesmo `--apenas` sob outra lente e foi absorvido pelo achado 1; o outro pedia validação de escopo novo, que a regra de ouro da revisão e o escopo negativo da fase vetam.
+
+### 12.1 A RE-revisão — e a correção que introduziu um defeito
+
+As quatro correções voltaram para uma segunda rodada, em contexto fresco. **Dois achados novos, os dois meus, os dois corrigidos:**
+
+1. **A correção 1 introduziu uma regressão.** A guarda nova contra `--apenas` com id inexistente passou a **abortar com `--apenas a,b,`** — vírgula sobrando — mesmo com os dois ids válidos: o `split(',')` deixava uma string **vazia** no conjunto, e a guarda a tratava como "id que não existe", com a mensagem terminando em branco, sem nomear ninguém. O revisor **reproduziu** rodando o comando. Corrigido com um `.filter((s) => s !== '')` na construção do filtro, e conferido nos dois sentidos: vírgula sobrando agora seleciona as duas mutações; id com typo continua sendo nomeado.
+
+2. **Aritmética inconsistente no próprio relatório.** O critério 6 dizia "203 asserções a mais", enquanto a §11.1 — escrita na mesma correção — dizia "+206". `3 873 − 3 667 = 206`. O 203 estava errado nos três lugares (esta tabela, o critério 6 e o `CHANGELOG.md`); os três foram corrigidos.
+
+A lição, que vale registrar porque é a mesma da fase inteira: **uma correção também precisa de quem a tente derrubar.** A guarda que eu escrevi para tornar uma flag honesta nasceu com um caso em que ela mentia de outro jeito — e só apareceu porque alguém em contexto fresco rodou o comando em vez de ler o diff.
 
 **O que os revisores conferiram e estava certo** (vale registrar, é o que dá peso ao pequeno número de achados): nenhuma outra mutação é detectada por acidente da família do `2i-bis-3`; nenhum rótulo em `derruba` é prefixo ambíguo de outro, e `rotulosCaidos` os distingue de fato; o injetor não tem caminho que saia 0 sem ter medido; a `0128` aplica nos dois estados iniciais; e nenhuma asserção do *describe* 9 é tautológica (provado à parte, §6.5).
