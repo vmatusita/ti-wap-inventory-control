@@ -168,6 +168,10 @@ declare
   v_mov_t2     uuid;
   v_termo_f2   uuid;   -- a VÍTIMA: termo de ativo da filial NÃO vinculada
   v_termo_novo uuid;   -- o termo que o operador gera legitimamente na filial dele
+  -- F48 — o id do termo FORJADO de 2i-bis-3, sorteado ANTES do insert. Sem ele não há
+  -- como dar ao ataque um `arquivo_path` coerente, e sem `arquivo_path` coerente a quarta
+  -- conjunção da policy recusa antes de a âncora importar. Ver o comentário do cenário.
+  v_termo_forjado uuid;
   -- F37 — o colaborador que o OPERADOR cria (2j) e que só o ADMIN edita (3c-ter/5c-ter).
   -- É a mesma linha nas três asserções de propósito: é o que prova que a diferença
   -- está no CARGO, e não em qual linha cada um alcança.
@@ -178,6 +182,9 @@ declare
   v_msgs       text := '';
   v_n          int;
   v_papel      text;
+  -- F48 — o universo de `colaboradores`, contado como postgres na fixture. É o que
+  -- transforma 1j e 4i em asserções de verdade (ver o comentário da fixture).
+  v_colabs     bigint;
 begin
   -- =========================================================================
   -- FIXTURES (como postgres — antes de qualquer troca de papel)
@@ -280,6 +287,31 @@ begin
   insert into storage.objects (bucket_id, name, owner)
   values ('termos', v_termo_f2::text || '.docx', k_admin);
 
+  -- FIXTURE DE `colaboradores` (F48). Plantada AQUI, como postgres (que ignora RLS), e
+  -- CONTADA logo abaixo — antes de 1j e muito antes de 4i.
+  --
+  -- ⚠⚠ POR QUE ELA NÃO EXISTIA, E POR QUE A AUSÊNCIA IMPORTAVA. Até a F47, o roteiro não
+  -- plantava linha nenhuma em `colaboradores` antes de 1j/4i (a de 2j nasce no meio da
+  -- seção 2, e só se aquele INSERT der certo). As duas asserções contavam sobre conjunto
+  -- possivelmente VAZIO, e "viu 0 linhas" continuava verdadeiro com a RLS DESLIGADA — a
+  -- mutação `leitura-de-colaboradores-sem-piso` foi para a quarentena da F47 por isso,
+  -- nomeando esta fase. Com N linhas plantadas e contadas, `4i` passa a distinguir: com a
+  -- RLS desligada o desativado veria as N, e o cenário fica vermelho.
+  --
+  -- DUAS linhas, e não uma: uma só faria "viu 1" e "viu tudo" coincidirem, e 1j não
+  -- conseguiria afirmar que o cargo mais fraco enxerga o CADASTRO INTEIRO.
+  insert into public.colaboradores (nome, filial_id, criado_por) values
+    ('Fulano F48 Um',   v_f1, k_admin),
+    ('Fulana F48 Dois', v_f2, k_admin);
+  select count(*) into v_colabs from public.colaboradores;
+  if v_colabs >= 2 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 0a fixture de colaboradores contada como postgres ANTES de 1j/4i (% linha[s])', v_colabs;
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '0a_FIXTURE_COLAB; ';
+    raise warning '✗ 0a a fixture de colaboradores não montou (contei %) — 1j e 4i voltariam a ser tautologia', v_colabs;
+  end if;
+
   -- =========================================================================
   -- 1 — CONSULTA: lê tudo, não escreve nada
   -- =========================================================================
@@ -338,9 +370,19 @@ begin
     raise warning '✗ 1i consulta viu só % tipo(s) de item — o piso de leitura fechou demais', v_n;
   end if;
 
+  -- 1j (F48). Antes ele só provava que a leitura não foi RECUSADA — "0 linhas com
+  -- sucesso ≠ 42501" — e isso continua verdade com a RLS desligada. Agora ele exige que
+  -- o cargo mais fraco ATIVO veja o cadastro INTEIRO (as `v_colabs` plantadas na
+  -- fixture): é o outro lado do gate da 0070, o que pega um piso que feche demais.
   begin
     select count(*) into v_n from public.colaboradores;
-    v_ok := v_ok + 1; raise notice '✓ 1j consulta ATIVO lê colaboradores (% linhas)', v_n;
+    if v_n = v_colabs then
+      v_ok := v_ok + 1;
+      raise notice '✓ 1j consulta ATIVO lê colaboradores — viu as % de % plantadas', v_n, v_colabs;
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '1j; ';
+      raise warning '✗ 1j consulta ATIVO viu % de % colaboradores — o piso de leitura fechou demais', v_n, v_colabs;
+    end if;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1j; ';
     raise warning '✗ 1j consulta recusada ao ler colaboradores (% %)', sqlstate, sqlerrm;
@@ -626,16 +668,41 @@ begin
   -- Queimar a VAGA: a chave única é (tipo, movimentacao_ids). Sem `termo_ancora_coerente`, o
   -- atacante cita as movimentações da f2 declarando ativo PRÓPRIO — passa o gate de filial e a
   -- f2 nunca mais gera aquele termo (é o dano da 0068, em documento).
+  --
+  -- ⚠⚠ ESTE CENÁRIO FOI FORTALECIDO NA F48 (07/09/2026), e o motivo é o achado mais
+  -- interessante da F47 (RELATORIO-F47.md §3.5), MEDIDO e não suposto: no run 34074319187
+  -- a mutação que neutraliza `termo_ancora_coerente` aplicou, a sonda confirmou que pegou,
+  -- e este cenário continuou VERDE. A policy `operador insere` (0069:346-352) tem QUATRO
+  -- conjunções no `with check` —
+  --     coalesce(array_length(ativo_ids, 1), 0) > 0
+  --     and public.pode_escrever_termo(ativo_ids)
+  --     and public.termo_ancora_coerente(movimentacao_ids, ativo_ids)
+  --     and arquivo_path = id::text || '.docx'
+  -- — e o INSERT antigo usava `id = gen_random_uuid()` inline com
+  -- `arquivo_path = 'forjado.docx'`: a QUARTA recusava sozinha, antes de a âncora importar.
+  -- O cenário provava a CONJUNÇÃO das quatro, embora a mensagem de ✓ afirmasse "a âncora
+  -- está no ar" — mais do que ele sabia.
+  --
+  -- O conserto é dar ao INSERT um `arquivo_path` COERENTE, para que as outras três passem
+  -- de propósito e a âncora seja a ÚNICA barreira restante:
+  --   1ª — `array_length(ativo_ids, 1) = 1` > 0                              ✔ passa
+  --   2ª — `pode_escrever_termo(array[v_ativo_t1])`: o ativo é da filial DELE ✔ passa
+  --   4ª — `arquivo_path = v_termo_forjado::text || '.docx'`                 ✔ passa
+  --   3ª — a ÂNCORA: `ativo_ids` teria de ser `{v_ativo_t2}` (o conjunto derivado de
+  --        `v_mov_t2`), e o atacante declarou `{v_ativo_t1}`                 ✘ RECUSA
+  -- É exatamente esta forma que a mutação `ancora-do-termo-sempre-coerente` (promovida da
+  -- quarentena na F48) exercita no CI.
+  v_termo_forjado := gen_random_uuid();
   begin
     insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador,
                                        dados, arquivo_path, gerado_por)
-    values (gen_random_uuid(), 'responsabilidade_desktop', array[v_mov_t2], array[v_ativo_t1],
-            'x', '{}'::jsonb, 'forjado.docx', k_operador);
+    values (v_termo_forjado, 'responsabilidade_desktop', array[v_mov_t2], array[v_ativo_t1],
+            'x', '{}'::jsonb, v_termo_forjado::text || '.docx', k_operador);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-bis-3_VAGA_QUEIMADA; ';
-    raise warning '✗ 2i-bis-3 operador QUEIMOU a vaga de termo da filial % (âncora não conferida)', v_f2;
+    raise warning '✗ 2i-bis-3 operador QUEIMOU a vaga de termo da filial % — a ÂNCORA não conferiu `ativo_ids` (as outras três conjunções passaram de propósito)', v_f2;
   exception when others then
     v_ok := v_ok + 1;
-    raise notice '✓ 2i-bis-3 `ativo_ids` mentido é recusado (%) — a âncora está no ar', sqlstate;
+    raise notice '✓ 2i-bis-3 `ativo_ids` mentido é recusado (%) com `arquivo_path` COERENTE — a ÚNICA barreira restante era `termo_ancora_coerente`, e ela recusou', sqlstate;
   end;
 
   -- E o .docx: sobrescrever o path da f2 (o caso do upload interrompido, em que a LINHA existe e
@@ -911,6 +978,18 @@ begin
   -- =========================================================================
   -- 4 — DESATIVADO: `ativo=false` fecha tudo, mesmo COM vínculo na filial 1
   -- =========================================================================
+  -- F48 — RECONTA o universo de `colaboradores` como postgres, AGORA, imediatamente
+  -- antes de trocar de papel. A seção 2 acrescentou a linha de 2j, e a contagem da
+  -- fixture ficou defasada.
+  --
+  -- ⚠ NÃO É COSMÉTICO. `assert_zero_de` recusa `ruins > universo` levantando exceção — e
+  -- é exatamente esse o caso quando a RLS de `colaboradores` está desligada: o desativado
+  -- veria as 3 linhas contra um universo de 2, o roteiro morreria ANTES da linha FIM e o
+  -- injetor leria "roteiro abortou" em vez de "o cenário 4i acusou". A mutação seria
+  -- reprovada pelo motivo certo com o nome errado, que é o diagnóstico que a F47 pagou
+  -- caro para não ter.
+  select count(*) into v_colabs from public.colaboradores;
+
   set local role authenticated;
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_inativo, 'role', 'authenticated')::text, true);
@@ -990,12 +1069,18 @@ begin
     raise warning '✗ 4h desativado leu % tipo(s) de item — a policy ficou using(true)', v_n;
   end if;
 
+  -- 4i (F48). A metade que DISTINGUE: com a RLS de `colaboradores` desligada, o
+  -- desativado veria as linhas plantadas. Por `assert_zero_de`, com o universo REAL
+  -- contado como postgres na fixture (`v_colabs`, asserção 0a) — e não mais por
+  -- `if v_n = 0`, que era verdade sobre a tabela vazia e por isso não provava nada.
+  -- Note que `v_colabs` é o piso da fixture: 2j pode ter acrescentado mais uma, e mais
+  -- linhas só tornam a asserção mais forte.
   select count(*) into v_n from public.colaboradores;
-  if v_n = 0 then
-    v_ok := v_ok + 1; raise notice '✓ 4i desativado NÃO LÊ colaboradores (existe 1, viu 0)';
+  if pg_temp.assert_zero_de('4i desativado NÃO LÊ colaboradores', v_n, v_colabs) then
+    v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4i_LE_COLABS; ';
-    raise warning '✗ 4i desativado leu % colaborador(es)', v_n;
+    raise warning '✗ 4i desativado leu % colaborador(es) de % plantados — o piso da 0070 caiu em `colaboradores`', v_n, v_colabs;
   end if;
 
   reset role;

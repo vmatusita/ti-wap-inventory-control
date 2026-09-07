@@ -117,6 +117,9 @@ declare
   v_papel     text;
   v_txt       text;
   v_bool      boolean;
+  -- F48 — as duas metades do "o delete mirou o ALVO" do cenário 3d.
+  v_sessoes_alvo  bigint;
+  v_sessoes_outro bigint;
 begin
   -- =========================================================================
   -- FIXTURES (como postgres — antes de qualquer troca de papel)
@@ -520,14 +523,77 @@ begin
     raise warning '✗ 3c dev recusado ao desativar (%) %', sqlstate, sqlerrm;
   end;
 
-  -- 3d. dev ENCERRA SESSÕES (0 sessões é resultado válido — o que se mede é a autorização)
+  -- 3d. dev ENCERRA SESSÕES — e encerra as DO ALVO, não as de outra pessoa.
+  --
+  -- ⚠⚠ FORTALECIDO NA F48 (07/09/2026). A versão anterior chamava a RPC e aceitava
+  -- "0 sessões removidas" como sucesso: ela só conferia que não houve exceção, nunca que
+  -- o `delete` mirou o usuário certo. Num banco novo `auth.sessions` nasce VAZIA, então o
+  -- cenário passava sobre conjunto vazio — trocar `p_alvo` por qualquer outra variável
+  -- dentro de `encerrar_sessoes_usuario` (0074:378) continuaria devolvendo 0 e o roteiro
+  -- continuaria verde. A mutação `gestao-encerrar-sessoes-mira-o-alvo-errado` foi para a
+  -- quarentena da F47 por isso, nomeando esta fase.
+  --
+  -- Agora o cenário planta o universo e prova as DUAS metades, que é o que "mirar o alvo"
+  -- quer dizer: as sessões do ALVO somem, e as de OUTRA pessoa continuam lá. Uma metade
+  -- sozinha não distingue — um `delete` sem `where` derrubaria as duas e a primeira
+  -- metade ficaria feliz.
+  --
+  -- `auth.sessions` tem só `id` e `user_id` obrigatórios, tanto no Supabase hospedado
+  -- quanto no bootstrap do CI (`supabase/ci/bootstrap-auth.sql:63`), que a criou
+  -- justamente para este `delete` não errar no parse.
+  --
+  -- ⚠ A FIXTURE E A CONTAGEM VÃO COMO `postgres`, e a CHAMADA vai como o dev. Não é
+  -- estilo: `authenticated` não tem grant nenhum no schema `auth` — nem no CI nem num
+  -- projeto hospedado —, então plantar ou contar de dentro da sessão do dev morreria em
+  -- `permission denied` e o cenário mediria privilégio em vez de autorização. Quem apaga
+  -- é a RPC, que é `security definer` e roda como o dono.
+  reset role;
+  insert into auth.sessions (id, user_id) values
+    (gen_random_uuid(), k_operador),
+    (gen_random_uuid(), k_operador),
+    (gen_random_uuid(), k_admin);          -- a TESTEMUNHA: não pode cair junto
+  select count(*) into v_sessoes_alvo  from auth.sessions where user_id = k_operador;
+  select count(*) into v_sessoes_outro from auth.sessions where user_id = k_admin;
+
+  if v_sessoes_alvo = 2 and v_sessoes_outro = 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 3d-fixture universo plantado e contado como postgres ANTES da chamada (2 sessões do alvo, 1 da testemunha)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3d-fixture; ';
+    raise warning '✗ 3d-fixture não montou: % sessões do alvo (esp. 2) e % da testemunha (esp. 1) — 3d voltaria a ser tautologia', v_sessoes_alvo, v_sessoes_outro;
+  end if;
+
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
+
+  v_n := -1;   -- sentinela: distingue "a RPC nem rodou" de "a RPC devolveu 0"
   begin
     select public.encerrar_sessoes_usuario(k_operador) into v_n;
-    v_ok := v_ok + 1; raise notice '✓ 3d dev ENCERRA sessões (% removida[s])', v_n;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3d; ';
     raise warning '✗ 3d dev recusado ao encerrar sessões (%) %', sqlstate, sqlerrm;
   end;
+
+  -- A conferência, DE VOLTA COMO POSTGRES: as duas metades do "mirou o alvo".
+  reset role;
+  select count(*) into v_sessoes_alvo  from auth.sessions where user_id = k_operador;
+  select count(*) into v_sessoes_outro from auth.sessions where user_id = k_admin;
+
+  if v_n = 2 and v_sessoes_alvo = 0 and v_sessoes_outro = 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 3d dev encerra as sessões DO ALVO: a RPC devolveu 2, sobrou 0 dele, e a 1 da testemunha continua lá';
+  elsif v_n = -1 then
+    null;   -- a RPC levantou exceção; o ✗ já saiu acima, não conte a falha duas vezes
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '3d_ALVO_ERRADO; ';
+    raise warning '✗ 3d o delete NÃO mirou o alvo: a RPC devolveu % (esp. 2), sobraram % sessões do alvo (esp. 0) e % da testemunha (esp. 1)',
+      v_n, v_sessoes_alvo, v_sessoes_outro;
+  end if;
+
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
 
   -- =========================================================================
   -- 5 — AUTOPROTEÇÃO (numerada 5 para casar com o índice do cabeçalho)

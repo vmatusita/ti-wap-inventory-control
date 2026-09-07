@@ -8837,3 +8837,62 @@ e da `0121`; as quatro do código, por `git revert`.
 - Reversível? a pendência não muda nada; o apply, quando acontecer, reverte por `drop policy` + `disable row level security`.
 
 ---
+
+---
+
+## 2026-09-07 · F48 · Decisão 1 — o critério de tabela de NEGÓCIO, e as 21 classificadas nome a nome
+
+- **Contexto:** `catalogo_policies.sql` afirma "toda tabela de negócio tem policy de SELECT". Sem um critério escrito, "negócio" vira o que der na cabeça de quem escreve, e a classificação — que a F63/F65 vai herdar para decidir quem recebe `empresa_id` — nasce sem procedência.
+- **Decisão:** o critério é **NEGÓCIO = o conteúdo pertence ao acervo ou à operação de UMA empresa e, na virada multiempresa, vai precisar da chave de recorte; INFRA = o conteúdo é do mecanismo do sistema (identidade da conta, marcador de ambiente, backup congelado) e não se recorta por empresa, ou se recortará por outro caminho (`membros`), em fase própria.** Resultado: **16 negócio / 5 infra**, com o motivo escrito para cada infra dentro do próprio roteiro.
+- **Motivo:** o critério concorrente — "aparece como cadastro numa tela de operação" — foi avaliado e **descartado por evidência, não por gosto**: ele classifica `eventos_admin` e `import_logs` como infra, e o `PLANO-MULTIEMPRESA.md` §6 → F62 diz, por escrito, ao descrever a varredura de recorte, que iterar por lista à mão é o erro e que *"`eventos_admin` é exatamente a tabela que uma lista à mão esqueceria"*. Uma trilha de auditoria das ações sobre o acervo da empresa A é dado da empresa A. `senhas_acesso` é negócio por determinação da ficha do plano, e o critério concorda.
+- **Divergência registrada:** uma das frentes de exploração propôs 14/7 aplicando o critério da tela. A diferença está em três tabelas — `eventos_admin` e `import_logs` (que ficaram em NEGÓCIO pelo motivo acima) e `senha_tentativas` (que ficou em INFRA: guarda um IP e um contador, nada de empresa nenhuma, e a própria `0025:19` a chama de *"Infra de segurança"*).
+- **Reversível?** Sim — é a lista `k_negocio`/`k_infra` em `supabase/tests/catalogo_policies.sql`. Trocar uma tabela de lado é uma linha, e a asserção 1a garante que nenhuma fique fora das duas.
+
+---
+
+## 2026-09-07 · F48 · Decisão 1-bis — `public.ambiente` é a TERCEIRA tabela deny-all, e a exceção nominal vale para as três
+
+- **Contexto:** a ordem avisava de **duas** tabelas com RLS ligada e zero policy (`senhas_acesso`, `senha_tentativas`) e mandava procurar uma terceira armadilha de calibragem. Medindo as 21 tabelas, apareceu: **`public.ambiente`** (`0090`) está na mesma condição, de propósito — a própria migration escreve *"Sem NENHUMA policy: invisível para anon e authenticated. Só o dono (…) enxerga — mesmo idioma de `senhas_acesso`/`senha_tentativas`"*.
+- **Decisão:** as **três** entram como exceção **NOMINAL** na lista `k_sem_select`, cada uma com o motivo escrito e a migration citada (`0012`, `0025`, `0090`) — e **a asserção irmã cobra que TODA tabela de `public` sem policy de SELECT, de qualquer classe, esteja nessa lista**. Classificar como "infra" **não** isenta.
+- **Motivo:** sem a segunda metade, "infra" viraria isenção por CATEGORIA — o mesmo defeito da isenção por prefixo `_` que a F47 arrancou de `seguranca_catalogo.sql`, com outro nome. E a lista é conferida em **simetria**: nome declarado deny-all que passe a TER policy de SELECT também reprova, para a exceção não sobreviver ao motivo que a criou. Há trava de mesa cobrando motivo **e** migration na mesma linha de comentário, e os nomes são lidos DO `.sql`, não escritos à mão no teste.
+- **Reversível?** Sim — remover um nome da lista faz a asserção 2 ou 3 acusar na hora, que é o comportamento correto.
+
+---
+
+## 2026-09-07 · F48 · Decisão 2 — as varreduras schema-wide FICAM em `seguranca_catalogo.sql`
+
+- **Contexto:** as asserções **2** (RLS ligada em toda tabela de `public`) e **3** (`security_invoker` em toda view) de `seguranca_catalogo.sql` são também pedidas pela ficha da F48 em `isolamento_tenant.sql`. Duas fontes para o mesmo fato é como um gate morre: a que envelhecer primeiro vira a mentira.
+- **Decisão:** **ficam onde estão.** Os três arquivos novos apontam para lá, e `seguranca_catalogo.sql` ganhou o ponteiro de volta para os dois catálogos novos mais a nota de não-duplicação deliberada. **Um caminho ou o outro, nunca os dois.**
+- **Motivo (medido, não estimado):** migrar custaria reapontar **3 mutações ativas** do injetor que miram aqueles dois rótulos (`catalogo-rls-desligada-numa-tabela` e `catalogo-tabela-de-backup-sem-rls` → rótulo `2`; `catalogo-view-sem-security-invoker` → rótulo `3`) mais um ciclo de CI, **por ganho de cobertura ZERO**. Somam-se dois custos que não são de número: (a) o motivo escrito da remoção da isenção por prefixo (F47) vive no cabeçalho da asserção 2, e mover a asserção órfã o motivo; (b) o `RELATORIO-F47.md` §6.6 cita a asserção 2 **nominalmente**, como a prova permanente do caso da tabela `_` sem RLS — mover faz um relatório já publicado apontar para o vazio. Uma terceira opção (levá-las para `catalogo_policies.sql`) foi avaliada: conceitualmente defensável, mesmo custo, ganho de arrumação. Descartada.
+- **Trava:** `src/lib/validators/catalogos-seguranca.test.ts` describe 6 reprova se qualquer arquivo novo citar `relrowsecurity` ou `security_invoker`, **e** reprova se algum deles deixar de apontar para `seguranca_catalogo.sql`. Sabotagem F.6 prova as duas metades.
+- **Reversível?** Sim, e barato: mover as duas asserções e reapontar as três mutações.
+
+---
+
+## 2026-09-07 · F48 · Decisão 3 — desvio vira ACHADO; as quatro superfícies nasceram VERDES
+
+- **Contexto:** a ficha diz que a fase só enumera. Faltava a régua para o caso de um catálogo encontrar um desvio real ao ser escrito.
+- **Decisão (a régua, adotada sem emenda):** desvio vira **ACHADO no relatório, com severidade e ata**; a asserção nasce **cobrando o estado correto**; se isso a fizer nascer vermelha, ela entra **declarada e desligada por comentário, com a fase que a liga**, e isso é **manchete** do relatório. Nunca se afrouxa a asserção em silêncio até ficar verde.
+- **Aplicação:** **não foi preciso usá-la.** As quatro superfícies nasceram verdes contra o banco do CI, e **nenhuma invariante ficou desligada**. Três observações saem como informativas, não como desvio a corrigir: (1) `public.ambiente` (ver Decisão 1-bis) — desenho documentado, não defeito; (2) **cinco funções INVOKER são alcançáveis por `anon`** (`chave_identidade_ativo`, `hoje_brt`, `mov_da_carga_import`, `status_apos_movimentacao`, `valida_lancamento_item`) — severidade **baixa**: as cinco são `immutable`/`stable` puras ou de gatilho, não leem tabela por conta própria e, sendo INVOKER, rodam com o privilégio de quem chama; entraram declaradas nominalmente, com a asserção simétrica que reprova uma INVOKER nova alcançável por `anon` fora da lista; (3) a divergência 55 × 54 policies, explicada pela `0128` ter nascido depois da ficha.
+- **Reversível?** Não se aplica — nada foi alterado no banco.
+
+---
+
+## 2026-09-07 · F48 · As três mutações da quarentena voltaram ao lote, e o teto do catálogo subiu
+
+- **Contexto:** a F47 deixou 5 entradas em quarentena, três delas com `fase: 'F48'` — todas da mesma classe (`asseracao-fraca`: o cenário que deveria acusá-las passava sobre conjunto vazio).
+- **Decisão:** a F48 **fortaleceu os quatro cenários** (`2i-bis-3`, `1j`/`4i` de `papeis_rls.sql`, `3d` de `cargo_dev.sql`) e devolveu as três mutações ao lote ATIVO **no mesmo commit** da asserção correspondente. Além delas, **oito mutações NOVAS** foram escritas para provar que os catálogos novos sabem ficar vermelhos. Lote: **28 → 39**. Quarentena: **5 → 2** (4,9%, muito abaixo do terço da régua).
+- **Motivo de as sabotagens serem mutação permanente, e não um log:** a ordem exige provar com saída real que cada catálogo sabe reprovar; a mesa não tem Postgres, então o injetor é a única máquina honesta. Escritas em `mutacoes.mjs`, as provas rodam **a cada push**, no *required check*, em vez de existirem uma vez. É o que a F47 fez com a tabela `_` sem RLS (§6.6 do relatório dela).
+- **Travas que cederam, cada uma com o motivo escrito no código:** (a) o teto de `MUTACOES.length` foi de **30 para 44** — 30 era a folga da F47, não régua de desenho; (b) `rotuloExisteNoFonte` passou a reconhecer a forma `assert_zero_de`, porque os catálogos novos emitem o ✗ pela ferramenta, em runtime — recusar essa forma empurraria roteiro novo de volta para o `if v_n = 0 then ✓` que a F45 existiu para matar, e a régua de token inteiro continua valendo nas duas formas, com guarda própria; (c) o teste que compara corpo de função passou a tolerar função **inexistente** nas migrations (o caso da mutação que CRIA uma `security definer` nova), cobrando nela a mesma régua de não-destruição, para a exceção não virar buraco.
+- **Resultado medido no CI:** **39/39 detectadas pelo cenário nomeado**, incluindo as três promovidas — que é a prova de que a frente 6 funcionou. Evidências em `docs/f48-evidencias/injetor-lote-39.txt` e `sabotagens-A-E-no-banco.txt`.
+- **Reversível?** Sim — `git revert`. As três voltam à quarentena e os quatro cenários voltam à forma fraca.
+
+---
+
+## 2026-09-07 · F48 · A `0128` continua sem aplicar em produção — pendência herdada da F47
+
+- **Contexto:** a F47 deixou uma pendência: a migration `0128_adota_bkp_relatorios_f6a.sql` não foi aplicada em produção porque o MCP do Supabase não estava conectado naquela sessão. A ordem da F48 manda tentar de novo e **seguir se não der**.
+- **Decisão:** conferi no início da fase — **o MCP do Supabase não está disponível nesta sessão** (busca por ferramenta não devolve nenhuma `apply_migration`/`execute_sql`). Não insisti, não inventei caminho alternativo e não toquei em credencial, como a ordem manda. A pendência é **carregada** para o relatório da F48 com o mesmo texto honesto.
+- **Motivo:** é bloqueio de ACESSO, não de código. O repositório e o CI ficam consistentes assim mesmo; em produção a tabela continua sem policy nenhuma (deny-all por ausência), que é o estado de hoje e **não é regressão**.
+- **Consequência que vale registrar:** a `0128` é também a explicação da única divergência numérica desta fase — a ficha do plano contava **54** policies (o estado de produção) e o catálogo mede **55** (o estado das migrations). Os dois números estão certos, cada um no seu universo, e o apply os reconcilia.
+- **Reversível?** Não se aplica — nada foi feito.

@@ -21,6 +21,40 @@
 -- prosecdef=false — é exatamente o que torna esse grant inofensivo. Se um dia se
 -- quiser defesa-em-profundidade também aqui, basta uma migration nova revogando
 -- o EXECUTE; então este 4c pode virar a mesma checagem dos 4a/4b.
+--
+-- =============================================================
+-- ONDE MORA O RESTO DA ENUMERAÇÃO (F48, 07/09/2026 — Decisão 2)
+-- =============================================================
+-- Este arquivo deixou de ser o único catálogo de segurança do repositório. A F48
+-- acrescentou dois irmãos, e a divisão é por VOCABULÁRIO de catálogo:
+--
+--   · `supabase/tests/catalogo_policies.sql` — as policies de `public`, as de
+--     `storage.objects` e a publication do Realtime (`pg_policies`,
+--     `pg_publication_tables`), mais a tabela-verdade negócio × infra e o
+--     `relforcerowsecurity` de R-ACC-29.
+--   · `supabase/tests/catalogo_secdef.sql` — a tabela-verdade das funções
+--     `security definer` (`pg_proc.prosecdef`, `proconfig`, ACLs), mais as INVOKER
+--     alcançáveis por `anon`.
+--   · `supabase/tests/isolamento_tenant.sql` — o arcabouço do isolamento entre
+--     inquilinos: o bloco de grants, a convenção de honestidade e o rig. Os cenários
+--     A↔B nascem na F62.
+--
+-- ⚠ AS ASSERÇÕES 2 E 3 DESTE ARQUIVO NÃO FORAM DUPLICADAS LÁ, E ISSO É DELIBERADO.
+-- A ficha da F48 pedia as duas varreduras schema-wide (RLS ligada em toda tabela de
+-- `public`; `security_invoker` em toda view) também em `isolamento_tenant.sql`. Duas
+-- fontes para o mesmo fato é como um gate morre: a que envelhecer primeiro vira a
+-- mentira. A decisão, com o custo medido, foi mantê-las AQUI, porque:
+--   (a) três mutações ativas do injetor miram os rótulos `2` e `3` deste arquivo
+--       (`catalogo-rls-desligada-numa-tabela`, `catalogo-tabela-de-backup-sem-rls`,
+--       `catalogo-view-sem-security-invoker`) — migrar custaria reapontar as três por
+--       ganho de cobertura ZERO;
+--   (b) o motivo escrito da remoção da isenção por prefixo (F47) vive no cabeçalho da
+--       asserção 2, logo abaixo, e mover a asserção órfã o motivo;
+--   (c) o `docs/RELATORIO-F47.md` §6.6 cita a asserção 2 deste arquivo nominalmente,
+--       como a prova permanente do caso da tabela `_` sem RLS.
+-- Os três arquivos novos apontam para cá; nenhum deles cita `relrowsecurity` ou
+-- `security_invoker`, e há teste de mesa cobrando isso
+-- (`src/lib/validators/catalogos-seguranca.test.ts`, describe 6).
 -- =============================================================
 
 do $$

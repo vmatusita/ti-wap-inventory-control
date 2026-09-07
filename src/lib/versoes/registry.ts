@@ -23,6 +23,18 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.53.0',
+    data: '2026-09-07',
+    fase: 'F48',
+    titulo: 'O sistema passou a manter uma lista de quem pode ver o quê',
+    mudancas: [
+      'Nenhuma tela mudou. Existem quatro caminhos por onde a informação sai do sistema — as regras que dizem quem enxerga cada tabela, as regras dos arquivos de termo guardados, as consultas que rodam com poder de administrador e o canal que atualiza a tela sozinha quando alguém registra uma movimentação. Até agora nenhum desses quatro tinha uma lista de conferência: dava para acrescentar um caminho novo e nada avisava.',
+      'Agora os quatro são conferidos automaticamente antes de qualquer alteração ir ao ar, e a conferência é feita perguntando ao próprio banco de dados, não lendo uma lista escrita à mão que envelhece. Se aparecer uma tabela nova sem alguém ter decidido quem pode lê-la, ou uma regra que deixe todo mundo ver tudo, a alteração é barrada.',
+      'As três tabelas que hoje ninguém enxerga de propósito — as senhas de acesso aos relatórios, o controle de tentativas de senha e um marcador interno — ficaram declaradas nominalmente, cada uma com o motivo escrito. Antes elas apenas não apareciam em lugar nenhum, o que é indistinguível de esquecimento.',
+      'A conferência foi testada quebrando o sistema de propósito onze vezes: cada quebra precisou ser acusada pela conferência certa, e todas foram. Quatro verificações que pareciam funcionar mas passariam mesmo com o defeito presente foram corrigidas.',
+    ],
+  },
+  {
     versao: '1.52.0',
     data: '2026-09-06',
     fase: 'F47',

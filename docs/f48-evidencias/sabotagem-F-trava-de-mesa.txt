@@ -1,0 +1,73 @@
+=== SABOTAGEM F (sem banco) — a trava da frente 7 sabe reprovar? ===
+src/lib/validators/catalogos-seguranca.test.ts · F48 · 07/09/2026
+
+Cada sabotagem é APLICADA no arquivo real, MEDIDA pelo `npm run test` e REVERTIDA.
+A saída abaixo é real — nenhuma linha foi escrita à mão.
+
+⚠ NOTA DE PROCEDÊNCIA: a primeira rodada desta bateria deixou TRÊS sabotagens
+   passarem (F.2, F.3 e F.7). Duas eram fraqueza de verdade da trava — ela listava
+   as exceções à mão em vez de lê-las do `.sql`, e media a QUANTIDADE de chamadas de
+   `assert_zero_de` em vez da FORMA da asserção. As duas foram corrigidas, e as
+   sabotagens abaixo são as versões que exercitam o defeito de verdade.
+
+F.1  reintroduzir a isenção por PREFIXO (a regressão exata que a F47 arrancou)
+      alvo ......... supabase/tests/catalogo_policies.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "reintroduziu a isenção por prefixo"
+
+F.2  tirar a MIGRATION da exceção nominal de `ambiente` (isenção sem procedência)
+      alvo ......... supabase/tests/catalogo_policies.sql
+      reprovou? .... SIM   (2 falharam, 92 passaram)
+      mensagem ..... a esperada — "não cita a migration 0090"
+
+F.3  acrescentar uma exceção nominal NOVA, sem motivo escrito (a lista fingindo ser derivada)
+      alvo ......... supabase/tests/catalogo_secdef.sql
+      reprovou? .... SIM   (1 falharam, 94 passaram)
+      mensagem ..... a esperada — "sem uma linha de comentário que diga POR QUÊ"
+
+F.4  escrever a varredura de `empresa_id` em CÓDIGO (a coluna não existe)
+      alvo ......... supabase/tests/isolamento_tenant.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "cita empresa_id em CÓDIGO"
+
+F.5  quebrar a SIMETRIA: tirar a conferência da LISTA para o catálogo (`k_storage`)
+      alvo ......... supabase/tests/catalogo_policies.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "k_storage não é conferido da LISTA para o catálogo"
+
+F.6  duplicar a varredura schema-wide de RLS (a Decisão 2 proíbe: duas fontes, um fato)
+      alvo ......... supabase/tests/isolamento_tenant.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "duplica a varredura de relrowsecurity"
+
+F.7  trocar uma chamada de `assert_zero_de` pela forma TAUTOLÓGICA (`if v_x = 0 then` ✓)
+      alvo ......... supabase/tests/catalogo_secdef.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "forma que a F47 mediu 58 vezes"
+
+F.8  apagar a linha FIM (o roteiro abortaria em silêncio e o runner não saberia)
+      alvo ......... supabase/tests/catalogo_policies.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "sem a linha FIM no molde da F45"
+
+F.9  plantar dado REAL da WAP num roteiro (regra permanente 2 do CLAUDE.md)
+      alvo ......... supabase/tests/catalogo_policies.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "patrimônio fora da faixa fictícia"
+
+F.10  transformar o catálogo em LISTA: tirar o sentido catálogo→lista de `k_secdef`
+      alvo ......... supabase/tests/catalogo_secdef.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "k_secdef não é conferido do CATÁLOGO para a lista"
+
+F.11  devolver o UPDATE de TABELA em `profiles` (a escalada passaria por engano)
+      alvo ......... supabase/tests/isolamento_tenant.sql
+      reprovou? .... SIM   (1 falharam, 93 passaram)
+      mensagem ..... a esperada — "grant update (primeiro_nome, sobrenome)"
+
+=== ESTADO FINAL, depois de reverter as 11 ===
+ Test Files  1 passed (1)
+      Tests  94 passed (94)
+   Duration  294ms (transform 39ms, setup 0ms, import 61ms, tests 34ms, environment 0ms)
+
+TODAS as 11 sabotagens foram detectadas, cada uma pela mensagem certa.
