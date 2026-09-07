@@ -502,3 +502,62 @@ describe('8. os roteiros novos não escrevem onde não devem', () => {
     expect(sql, `${nome}.sql cita um host de produção`).not.toMatch(/supabase\.co\b/)
   })
 })
+
+describe('9. o bloco de grants e os arrays que o espelham não se separam', () => {
+  // ACHADO DA REVISÃO ADVERSARIAL DESTA FASE. O comentário de `isolamento_tenant.sql`
+  // prometia que acrescentar uma tabela ao bloco de grants sem acrescentá-la aos arrays
+  // `k_leitura`/`k_escrita` "ficaria visível" — e não ficava: as asserções 5 e 6 varrem
+  // os ARRAYS, não o bloco. A promessa era falsa, e este describe é o que a torna
+  // verdadeira.
+  //
+  // A conferência mora AQUI e não no SQL por um motivo mecânico: é conferência do fonte
+  // contra si mesmo, e SQL não enxerga o próprio arquivo. Nos DOIS sentidos: tabela no
+  // bloco e fora do array (a asserção não mediria aquele grant), e nome no array e fora
+  // do bloco (a asserção mediria um grant que este roteiro não concede — e passaria ou
+  // falharia por causa do AMBIENTE, não do bloco, que é a mentira mais cara possível
+  // num arquivo cujo trabalho é impedir `permission denied` disfarçado).
+
+  // ⚠ SEM OS COMENTÁRIOS, e a razão é concreta: o cabeçalho do bloco de grants CITA
+  // `grant select on all tables in schema public` para explicar por que essa forma é
+  // proibida. Casar o fonte cru pegaria a CITAÇÃO em vez do comando — o teste mediria a
+  // documentação. (Foi exatamente o que aconteceu na primeira tentativa.)
+  const SQL = semComentarios(fonte('isolamento_tenant'))
+  const BRUTO = fonte('isolamento_tenant')
+
+  /** As tabelas de um `grant <verbos> on <lista> to authenticated;` do roteiro. */
+  function tabelasDoGrant(prefixo: string): string[] {
+    const re = new RegExp(`${prefixo}\\s*([\\s\\S]*?)\\s+to authenticated;`)
+    const m = re.exec(SQL)
+    expect(m, `não achei o bloco \`${prefixo} … to authenticated;\``).not.toBeNull()
+    return [...m![1].matchAll(/public\.([a-z_0-9]+)/g)].map((x) => x[1])
+  }
+
+  /** Os literais de um `<nome> text[] := array[…]` — lidos do fonte BRUTO. */
+  function nomesDoArray(nome: string): string[] {
+    const m = new RegExp(`${nome} text\\[\\] := array\\[([^\\]]*)\\]`).exec(BRUTO)
+    expect(m, `não achei o array ${nome}`).not.toBeNull()
+    return [...m![1].matchAll(/'([^']+)'/g)].map((x) => x[1])
+  }
+
+  it('a leitura do fonte funciona (guarda do próprio teste)', () => {
+    // Sem esta guarda, um regex quebrado faria as duas asserções abaixo compararem
+    // duas listas vazias e passarem por vazio.
+    expect(tabelasDoGrant('grant select on').length).toBeGreaterThanOrEqual(3)
+    expect(nomesDoArray('k_leitura').length).toBeGreaterThanOrEqual(3)
+    expect(tabelasDoGrant('grant insert, update, delete on').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('LEITURA: o bloco de grants e `k_leitura` são o MESMO conjunto', () => {
+    expect(
+      [...tabelasDoGrant('grant select on')].sort(),
+      'o bloco `grant select on` e o array `k_leitura` divergiram — a asserção 5 mediria outra coisa',
+    ).toEqual([...nomesDoArray('k_leitura')].sort())
+  })
+
+  it('ESCRITA: o bloco de grants e `k_escrita` são o MESMO conjunto', () => {
+    expect(
+      [...tabelasDoGrant('grant insert, update, delete on')].sort(),
+      'o bloco `grant insert, update, delete on` e o array `k_escrita` divergiram — a asserção 6 mediria outra coisa',
+    ).toEqual([...nomesDoArray('k_escrita')].sort())
+  })
+})
