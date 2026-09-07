@@ -48,6 +48,7 @@ declare
   v_cnt    bigint;
   v_univ   bigint;
   v_lista  text;
+  v_secdef boolean;
 
   -- -----------------------------------------------------------------------
   -- A TABELA-VERDADE — as 37 `security definer` de `public`, classificadas.
@@ -96,7 +97,9 @@ declare
   --   · hoje_brt                (0124) — `stable`, devolve `now()` no fuso do negócio.
   --   · mov_da_carga_import     (0092) — `immutable`, um `like` sobre o argumento.
   --   · status_apos_movimentacao(0109) — `immutable`, a máquina de estados em `case`.
-  --   · valida_lancamento_item  (0118) — função de GATILHO. Ver a asserção 5.
+  --   · valida_lancamento_item — GATILHO (0118), e a única cujo EXECUTE a 0038 deixou de
+  --     propósito: sendo INVOKER, o grant é inofensivo. Ver a asserção 5, e o motivo por
+  --     inteiro em `seguranca_catalogo.sql:16-23`.
   -- As cinco são INVOKER: rodam com o privilégio de QUEM chama, então nem o `anon`
   -- com EXECUTE alcança dado que a RLS não lhe daria de qualquer jeito.
   -- -----------------------------------------------------------------------
@@ -235,23 +238,24 @@ begin
   --     Se um dia ela virar DEFINER, as duas metades acusam, e as asserções 4 e 4c de
   --     `seguranca_catalogo.sql` acusam junto.
   -- ---------------------------------------------------------------
-  select count(*) into v_cnt
+  --     ⚠ Ela é escrita na forma POSITIVA (`bool_and(not prosecdef)`, o mesmo idioma da
+  --     asserção 4c de `seguranca_catalogo.sql`) e não como "a contagem de definer é
+  --     zero". As duas dariam o mesmo veredito hoje, mas a forma negativa é a que passa
+  --     sobre conjunto vazio: com a função ausente do catálogo, "zero definer" é
+  --     verdade e o ✓ sairia sobre nada. `bool_and` devolve NULL sobre conjunto vazio, e
+  --     o NULL é tratado como ✗ logo abaixo — que é o veredito honesto.
+  select bool_and(not p.prosecdef) into v_secdef
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'valida_lancamento_item';
-  if v_cnt = 0 then
+  if v_secdef is null then
     v_falhas := v_falhas + 1;
     raise warning '✗ 5 valida_lancamento_item sumiu do catálogo — a exceção nominal ficou órfã';
+  elsif v_secdef and not ('valida_lancamento_item' = any (k_secdef)) then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5 valida_lancamento_item é INVOKER de propósito e está FORA da tabela-verdade (0038; motivo em seguranca_catalogo.sql:16-23)';
   else
-    select count(*) into v_cnt
-      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-     where n.nspname = 'public' and p.proname = 'valida_lancamento_item' and p.prosecdef;
-    if v_cnt = 0 and not ('valida_lancamento_item' = any (k_secdef)) then
-      v_ok := v_ok + 1;
-      raise notice '✓ 5 valida_lancamento_item é INVOKER de propósito e está FORA da tabela-verdade (0038; motivo em seguranca_catalogo.sql:16-23)';
-    else
-      v_falhas := v_falhas + 1;
-      raise warning '✗ 5 valida_lancamento_item virou SECURITY DEFINER (ou entrou na tabela-verdade) — revise R-ACC-12/0038 e a asserção 4c de seguranca_catalogo.sql';
-    end if;
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5 valida_lancamento_item virou SECURITY DEFINER (ou entrou na tabela-verdade) — revise R-ACC-12/0038 e a asserção 4c de seguranca_catalogo.sql';
   end if;
 
   -- ---------------------------------------------------------------
