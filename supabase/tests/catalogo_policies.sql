@@ -402,6 +402,41 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
+  -- ---------------------------------------------------------------
+  -- 6c — O SENTIDO QUE FALTAVA: do CATÁLOGO para a lista.
+  --
+  --     ⚠ ESTA ASSERÇÃO NASCEU DA REVISÃO ADVERSARIAL DA PRÓPRIA FASE, e o achado era
+  --     justo: 6a e 6b varrem `unnest(…)` — as duas vão da LISTA para o catálogo. Sem
+  --     esta terceira, uma tabela de negócio NOVA, com policy de SELECT citando
+  --     `papel_atual()`, entraria sem reprovar em lugar nenhum: a 1a a cobraria por estar
+  --     classificada, a 2 por ter SELECT, e o PISO dela não passaria por decisão nenhuma.
+  --     Era exatamente "a lista escrita à mão fingindo ser derivada" que esta fase existe
+  --     para não ter — e nos outros conjuntos deste arquivo (`k_negocio`+`k_infra`,
+  --     `k_sem_select`, `k_storage`, `k_realtime`) as duas direções já estavam lá. A
+  --     assimetria não tinha razão de ser.
+  --
+  --     O universo é o conjunto das tabelas com policy de SELECT em `public`: toda uma
+  --     tem de estar em UMA das duas listas — a do piso ou a do cargo.
+  -- ---------------------------------------------------------------
+  select count(distinct p.tablename) into v_univ
+    from pg_policies p
+   where p.schemaname = 'public' and p.cmd = 'SELECT';
+
+  select count(*), coalesce(string_agg(distinct p.tablename, ', ' order by p.tablename), '')
+    into v_cnt, v_lista
+    from pg_policies p
+   where p.schemaname = 'public' and p.cmd = 'SELECT'
+     and not (p.tablename = any (k_piso_papel))
+     and not (p.tablename = any (k_piso_cargo));
+  if pg_temp.assert_zero_de(
+       '6c toda policy de SELECT de public está numa das duas listas do piso' ||
+       case when v_cnt > 0 then ' — não decidida(s): ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
   -- ===============================================================
   -- BLOCO 2 — AS POLICIES DE `storage.objects`
   -- ===============================================================

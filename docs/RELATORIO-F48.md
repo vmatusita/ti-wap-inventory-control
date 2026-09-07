@@ -307,13 +307,25 @@ terceira.
 default do Postgres (EXECUTE para `PUBLIC`), são alcançáveis por `/rest/v1/rpc/*` com a chave
 pública.
 
-**Por que a severidade é baixa, e não média:** as cinco são `immutable`/`stable` **puras** (leem só
-os próprios argumentos) ou de **gatilho**; nenhuma lê tabela por conta própria, e, sendo INVOKER,
-rodam com o privilégio de **quem chama** — o `anon` não alcança nada que a RLS não lhe daria de
-qualquer jeito. **Não corrigi**, e o motivo é o escopo: a ordem proíbe tocar em grant. O que a fase
-faz é **enumerá-las nominalmente**, com a asserção simétrica que reprova uma INVOKER **nova**
-alcançável por `anon` fora da lista. Se o Johnny quiser defesa em profundidade, é uma migration de
-cinco `revoke` e a lista `k_invoker_anon` esvazia.
+**Por que a severidade é baixa, e não média — e a distinção entre as quatro e a quinta importa:**
+
+- **As quatro primeiras são PURAS.** `immutable`/`stable`, calculam sobre os próprios argumentos e
+  **não tocam tabela nenhuma**. Um `anon` que as chame recebe aritmética de texto e uma data.
+- **`valida_lancamento_item` é a exceção, e o motivo dela é outro.** Ela **lê**
+  `public.lancamentos_item` (`0118:146-147`). O que a torna inofensiva são duas coisas
+  independentes: é `returns trigger`, então uma chamada por `/rest/v1/rpc/*` **falha** — não há
+  `NEW`/`OLD` fora de um trigger; e, sendo INVOKER, a leitura vale com o privilégio de **quem
+  chama** e passa pela RLS de `lancamentos_item` como qualquer outra.
+
+> ⚠ A primeira redação deste parágrafo dizia *"nenhuma lê tabela por conta própria"* — **falso**
+> para `valida_lancamento_item`, e a revisão adversarial pegou. A conclusão prática não muda, mas
+> a justificativa escrita estava errada, e num relatório de segurança isso importa mais do que a
+> conclusão: é ela que alguém vai reler daqui a um ano para decidir se ainda vale.
+
+**Não corrigi**, e o motivo é o escopo: a ordem proíbe tocar em grant. O que a fase faz é
+**enumerá-las nominalmente**, com a asserção simétrica que reprova uma INVOKER **nova** alcançável
+por `anon` fora da lista. Se o Johnny quiser defesa em profundidade, é uma migration de cinco
+`revoke` e a lista `k_invoker_anon` esvazia.
 
 ### 8.3 A divergência 55 × 54 policies · severidade **informativa**
 

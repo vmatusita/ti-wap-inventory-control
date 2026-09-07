@@ -96,9 +96,21 @@ para este nome?", o resultado é **zero**. O CI é o árbitro final — a asser�
 **As 5 INVOKER sem revoke** (o complemento honesto do quadro, e o que a asserção nova vai declarar
 nominalmente): `chave_identidade_ativo` (`0099`, `immutable`), `hoje_brt` (`0124`, `stable`),
 `mov_da_carga_import` (`0092`, `immutable`), `status_apos_movimentacao` (`0109`, `immutable`) e
-`valida_lancamento_item` (`0118`, gatilho). **Todas puras ou de gatilho** — nenhuma lê tabela por
-conta própria, e como são INVOKER rodam com o privilégio de quem chama. Não carregam privilégio;
-por isso a asserção nova as declara nominalmente com o motivo, em vez de isentar "as INVOKER".
+`valida_lancamento_item` (`0118`, gatilho).
+
+**As quatro primeiras são PURAS** — `immutable`/`stable`, calculam sobre os próprios argumentos e
+não tocam tabela nenhuma. **A quinta é GATILHO, e o motivo dela é outro:** `valida_lancamento_item`
+**lê `public.lancamentos_item`** (`0118:146-147`), mas (a) é `returns trigger`, então uma chamada
+por `/rest/v1/rpc/*` falha — não há `NEW`/`OLD` fora de um trigger; e (b) sendo INVOKER, a leitura
+vale com o privilégio de QUEM CHAMA e passa pela RLS de `lancamentos_item` como qualquer outra.
+Nenhuma das cinco carrega privilégio; por isso a asserção nova as declara nominalmente **com o
+motivo de cada uma**, em vez de isentar "as INVOKER" por categoria.
+
+> **⚠ Correção da primeira versão deste plano (mesmo dia).** Ela dizia, das cinco, *"nenhuma lê
+> tabela por conta própria"* — **falso** para `valida_lancamento_item`. A revisão adversarial
+> pegou. A conclusão prática não muda (o `EXECUTE` continua inofensivo), mas a justificativa
+> escrita estava errada, e num relatório de segurança é ela que alguém relê daqui a um ano para
+> decidir se ainda vale.
 
 ### 1.3 Policies de `storage.objects` — **8**, e nenhuma decide só por `bucket_id`
 
@@ -147,22 +159,31 @@ quanto remover reprova.
 > backup congelado de uma fase — e não se recorta por empresa, ou se recortará por outro caminho
 > (`membros`), em fase própria.
 
-**INFRA — 4, cada uma com o motivo escrito:**
+**INFRA — 5, cada uma com o motivo escrito:**
 
 | tabela | motivo | migration |
 |---|---|---|
 | `profiles` | Identidade da CONTA, não do acervo. Na virada, o cargo migra para `membros.papel` (plano §5 → F62, decisão 6): quem se recorta é o vínculo, não a pessoa. | `0001` |
 | `operador_filiais` | Vínculo de ESCRITA de uma conta. Mesmo destino de `profiles`: vira `membros`. | `0061` |
+| `senha_tentativas` | Rate-limit por IP. Guarda um IP e um contador — nada de empresa nenhuma, nem sequer a senha a que a tentativa se referia —, e a própria migration a chama de *"Infra de segurança"*. | `0025:19` |
 | `ambiente` | Marcador de DEPLOY. O `comment on table` da `0090` diz com todas as letras: *"Não é configuração da aplicação: nada no app lê esta tabela"*. Único consumidor: `resetar_dados_ficticios()`. | `0090` |
 | `_bkp_relatorios_gerados_f6a` | Backup CONGELADO de uma fase, adotado no versionamento pela `0128`. O cabeçalho da `0128:101` diz *"histórico congelado; ninguém grava nela nunca mais"*. | `0128` |
 
-**NEGÓCIO — 17:** `anotacoes`, `ativos`, `colaboradores`, `eventos_admin`, `filiais`,
+**NEGÓCIO — 16:** `anotacoes`, `ativos`, `colaboradores`, `eventos_admin`, `filiais`,
 `import_logs`, `itens`, `kits_modelos`, `lancamentos_item`, `motivos`, `movimentacoes`,
-`pendencias_item`, `relatorios_gerados`, `senha_tentativas`, `senhas_acesso`, `termos_gerados`,
-`tipos_item`.
+`pendencias_item`, `relatorios_gerados`, `senhas_acesso`, `termos_gerados`, `tipos_item`.
 
 `senhas_acesso` é NEGÓCIO por determinação da ficha ("a virada precisa dela lá") e o critério
 concorda: é a porta de leitura dos relatórios *de uma empresa*.
+
+> **⚠ EMENDA À PRIMEIRA VERSÃO DESTE PLANO (mesmo dia).** Escrevi primeiro **17 negócio / 4
+> infra**, com `senha_tentativas` em NEGÓCIO. O crítico de completude da exploração apontou que a
+> `0025:19` a chama, na própria migration, de *"Infra de segurança"* — e o critério concorda:
+> guarda um IP e um contador, e não se recorta por empresa. **Passou para INFRA.** A mudança de
+> classe **não altera asserção nenhuma**: a asserção 3 cobra que toda tabela sem policy de SELECT,
+> de QUALQUER classe, esteja na lista nominal de deny-all, e `senha_tentativas` continua lá com o
+> mesmo motivo e a mesma migration. A decisão final está em `docs/DECISOES.md`
+> (2026-09-07 · F48 · Decisão 1) e é a que o código aplica.
 
 **⚠ A ARMADILHA, e o remédio.** Três tabelas têm RLS ligada e **ZERO policy**, de propósito
 (deny-all por ausência; só o dono e as `security definer` dele entram):
@@ -170,7 +191,7 @@ concorda: é a porta de leitura dos relatórios *de uma empresa*.
 | tabela | classe | migration que a deixou assim | motivo escrito na migration |
 |---|---|---|---|
 | `senhas_acesso` | negócio | `0005` cria duas, **`0012` dropa as duas** | a porta pública por senha é servida pelo service role |
-| `senha_tentativas` | negócio | `0025` liga a RLS e nunca cria policy | idem, rate-limit da mesma porta |
+| `senha_tentativas` | infra | `0025` liga a RLS e nunca cria policy | idem, rate-limit da mesma porta |
 | `ambiente` | infra | `0090:53-56` | *"Sem NENHUMA policy: invisível para anon e authenticated. Só o dono (…) enxerga — mesmo idioma de `senhas_acesso`/`senha_tentativas`"* |
 
 A asserção ingênua *"toda tabela de negócio tem policy de SELECT"* nasce **VERMELHA sobre a tabela
