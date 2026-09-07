@@ -402,10 +402,10 @@ O comentário que ficou no lugar diz o que saiu, por quê, e por que só podia s
 | 10 | `seguranca_catalogo.sql` sem a isenção por prefixo e **continua verde**; uma tabela `_` sem RLS o derruba | ✅ | Verde em todos os ciclos desde o primeiro. A mutação **permanente** `catalogo-tabela-de-backup-sem-rls` cria `public._sabotagem_f47_sem_rls` sem RLS e é detectada por `✗ 2` — a cada CI, não uma vez só |
 | 11 | `npm run lint`, `npm run test`, `npm run build` e `npx tsc --noEmit` limpos | ✅ | §11.1, com a saída real dos quatro |
 | 12 | `migrations.lock.json` regravado; `npm run test` verde prova que a trava aceita a nova | ✅ | 127 entradas, a `0128` travada; `migrations-lock.test.ts` e `migrations-f38.test.ts` verdes (as **duas** listas, como o runbook exige) |
-| 13 | Versão **1.52.0** no `package.json`, no topo do `registry.ts` (2–6 mudanças em linguagem de operador) e no `CHANGELOG.md`, com a tag `v1.52.0` anotada e publicada | 🟡 **três quartos** | Os três arquivos estão feitos e travados por teste (`registry.test.ts` casa a versão com o `package.json`; `cobertura-changelog.test.ts` exige versão para toda entrada nova). **A tag ainda não existe**: neste repositório ela aponta para o COMMIT DE MERGE (conferido: `v1.51.0` → `89c455a`, `v1.51.1` → `553b2f8`), então ela só pode nascer depois do critério 14. Fechado em §11.2 |
-| 14 | PR mergeado com `verificar` e `banco-sem-docker` verdes; branch protection intocada | 🟡 **pendente por construção** | O PR [#27](https://github.com/vmatusita/ti-wap-inventory-control/pull/27) está aberto com os dois checks **verdes** (run 34076235971). O merge é o último ato da fase e não pode estar feito num relatório que é commitado ANTES dele. Fechado em §11.3, com os contextos exigidos lidos DE VOLTA |
+| 13 | Versão **1.52.0** no `package.json`, no topo do `registry.ts` (2–6 mudanças em linguagem de operador) e no `CHANGELOG.md`, com a tag `v1.52.0` anotada e publicada | ✅ | §11.2 — os três lugares, os dois testes que os travam, e a tag lida DE VOLTA do remoto (`23c39e7` → `ff51817`, o commit de merge) |
+| 14 | PR mergeado com `verificar` e `banco-sem-docker` verdes; branch protection intocada | ✅ | §11.3 — o merge, os dois checks verdes de novo na `main` (run 34077640733) e os contextos exigidos lidos DE VOLTA, **idênticos** aos de antes da fase |
 
-> ⚠ **Por que 13 e 14 estão amarelos aqui, e não verdes.** A primeira versão desta tabela os marcava ✅ apontando para uma §11 que ainda era um placeholder — evidência que não existia. Foi um achado da revisão adversarial (§12), e ele estava certo: um relatório que declara cumprido o que ainda não aconteceu é exatamente o tipo de afirmação que esta fase inteira existe para tornar impossível. Eles viram ✅ no commit pós-merge, quando os fatos existirem.
+> ⚠ **Estes dois passaram por 🟡 antes de virarem ✅, e isso está registrado de propósito.** A primeira versão desta tabela os marcava ✅ apontando para uma §11 que ainda era placeholder — evidência que não existia. Foi um achado da revisão adversarial (§12, achado 4), e ele estava certo: um relatório que declara cumprido o que ainda não aconteceu é exatamente o tipo de afirmação que esta fase inteira existe para tornar impossível. Eles só ficaram verdes agora, no commit pós-merge, com os fatos na mão.
 
 ---
 
@@ -477,11 +477,60 @@ $ npx tsc --noEmit
 
 ### 11.2 A versão e a tag
 
-*(preenchido no commit pós-merge.)*
+Os três lugares, e os dois testes que os travam:
 
-### 11.3 O merge e o repouso
+| onde | valor |
+|---|---|
+| `package.json` → `version` | `1.52.0` |
+| `src/lib/versoes/registry.ts` → `VERSOES[0].versao` | `1.52.0` (`fase: 'F47'`, data `2026-09-06`, **4 mudanças** em linguagem de operador) |
+| `CHANGELOG.md` → entrada do topo | `06/09/2026 — F47 · O injetor de mutações e o gate de deriva ✅ 🔒 (v1.52.0)` |
 
-*(preenchido no commit pós-merge.)*
+`registry.test.ts` recusa divergência com o `package.json` e recusa vocabulário de desenvolvedor nas mudanças; `cobertura-changelog.test.ts` derruba o `npm run test` se uma entrada nova do CHANGELOG ficar sem versão na mesma data. Os dois passam.
+
+**A tag, lida de volta do remoto:**
+
+```
+$ git ls-remote --tags origin | grep v1.52.0
+23c39e7091a443fd2ce377197d838237a21c1f0a  refs/tags/v1.52.0
+ff51817156b41e58c2512efd15818250108e988d  refs/tags/v1.52.0^{}
+
+$ git log --oneline -1 v1.52.0
+ff51817 Merge pull request #27 from vmatusita/f47-injetor-mutacoes
+```
+
+Anotada (o objeto de tag `23c39e7` é distinto do commit) e apontando para o **commit de merge**, que é a convenção deste repositório — conferida antes de criar: `v1.51.0` → `89c455a`, `v1.51.1` → `553b2f8`, os dois merges.
+
+### 11.3 O merge, os checks e o repouso
+
+**O PR [#27](https://github.com/vmatusita/ti-wap-inventory-control/pull/27) foi mergeado** com os dois *required status checks* verdes no commit final `d0b5778` (run 34077328022). Depois do merge, o CI rodou de novo na `main` (run 34077640733) e os dois passaram outra vez:
+
+```
+{"conclusion":"success","status":"completed"}
+{"conclusion":"success","name":"banco-sem-docker"}
+{"conclusion":"success","name":"verificar"}
+```
+
+**A branch protection, lida DE VOLTA depois do merge** — prova, não afirmação:
+
+```
+$ gh api repos/vmatusita/ti-wap-inventory-control/branches/main/protection
+{
+  "contexts": ["verificar", "banco-sem-docker"],
+  "strict": true,
+  "aprovacoes": 0,
+  "enforce_admins": false,
+  "force_push": false
+}
+```
+
+**Idêntica ao que era antes da fase.** Nenhum contexto acrescentado, nenhum removido — as duas ferramentas novas entraram como **passos** dentro de um check que já era exigido, que é exatamente a razão da Decisão 2.
+
+**O repouso (regra 2 do §4 do plano).** Se o projeto parar aqui por dois meses, o estado é terminal e válido:
+
+- as duas ferramentas rodam a cada CI, incondicionalmente, e reprovam sozinhas;
+- o catálogo tem 28 quebras ativas e 5 em quarentena, todas com a fase adotante escrita — nenhuma esperando decisão;
+- a `0128` está aplicada no CI e travada no lock; em produção ela **não** está, e a única consequência é a divergência descrita em §10.1, que não quebra nada e está nomeada;
+- nenhuma dupla escrita, nenhuma coluna esperando backfill, nenhuma flag pendente, nenhuma branch aberta com trabalho.
 
 ---
 
