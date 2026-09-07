@@ -83,7 +83,7 @@
 begin;
 
 -- ---------------------------------------------------------------------------
--- PRIVILÉGIOS DE TABELA — espelho de `papeis_rls.sql:92-146`
+-- PRIVILÉGIOS DE TABELA — espelho de `papeis_rls.sql:91-146` (do `grant select on` ao `$trava$;`)
 -- ---------------------------------------------------------------------------
 -- Um projeto Supabase HOSPEDADO concede a `anon`/`authenticated` os privilégios de
 -- TABELA do schema public por *default privilege*, e nenhuma migration deste repo os

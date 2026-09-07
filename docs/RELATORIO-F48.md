@@ -228,7 +228,7 @@ observações que saem como informativas estão no §8.
    encontrou no ✓ do `2i-bis-3`. (O injetor confirmou: a mutação derruba `4i` e, de efeito
    colateral, `1i-bis` e `3c-ter`.)
 
-**A quarentena resultante: 2 de 41 (6%)**, contra 5 de 33 (15%) na F47. As duas que sobram são de
+**A quarentena resultante: 2 de 41 (4,9%)**, contra 5 de 33 (15%) na F47. As duas que sobram são de
 **outra classe** — não são asserção fraca, são cenário que não existe (concorrência de duas
 conexões; o ramo de backup em arquivo acima de 25 ativos), e as duas nomeiam a **F52**.
 
@@ -459,5 +459,66 @@ no cabeçalho de `isolamento_tenant.sql`, com o motivo de estar vazia e o format
 
 ## 13. A revisão adversarial
 
-Rodada em contexto fresco contra o `PLAN-F48.md` e os 16 critérios, com as perguntas da ordem.
-O resultado está em §14.
+Rodada em **contexto fresco**, contra o `PLAN-F48.md`, o diff da fase e os 16 critérios, com as
+sete perguntas que a ordem faz. Sete lentes independentes levantaram achados; cada achado passou
+por **três céticos**, cada um com uma lente própria (é defeito de correção ou preferência de
+estilo? o requisito está mesmo declarado na ordem? o achado se reproduz?), instruídos a **refutar**
+e a marcar refutado em caso de dúvida. Sobreviveram os que ao menos 2 dos 3 não conseguiram
+refutar.
+
+| lente | levantados | confirmados |
+|---|---|---|
+| alguma asserção passa sobre conjunto vazio? | 0 | 0 |
+| alguma "exceção nominal" é isenção por categoria disfarçada? | 2 | 1 |
+| algum catálogo é lista escrita à mão fingindo ser derivada? | 2 | **2** |
+| alguma sabotagem prova menos do que afirma? | 4 | 3 |
+| algum requisito declarado ficou por fazer? | 1 | 0 |
+| o `isolamento_tenant` passa verde com a RLS desligada? | 3 | 1 |
+| erros factuais (números, linhas, migrations) | 3 | 2 |
+| **total** | **15** | **9** |
+
+**A lente que mais rendeu foi a que a ordem mais teme** — "lista escrita à mão fingindo ser
+derivada" — e ela achou um defeito real que eu não tinha visto.
+
+### 14.1 Os nove confirmados, e o que foi feito de cada um
+
+| # | achado | gravidade | o que fiz |
+|---|---|---|---|
+| 1 | **`k_piso_papel`/`k_piso_cargo` conferidos só num sentido.** 6a e 6b varrem `unnest(…)` — as duas vão da lista para o catálogo. Uma tabela de negócio nova, com SELECT citando `papel_atual()`, **entraria sem reprovar**: a 1a a cobraria por estar classificada, a 2 por ter SELECT, e o piso dela não passaria por decisão nenhuma. | **alta** | **Corrigido** — asserção **6c**, o sentido catálogo→lista. Era a única assimetria do arquivo: os outros quatro conjuntos já tinham as duas direções. |
+| 2 | **O comentário de `k_leitura`/`k_escrita` prometia uma simetria que o código não tem.** Ele dizia que acrescentar tabela ao bloco de grants sem acrescentá-la ao array "ficaria visível" — e não ficava. | baixa | **Corrigido nos dois lados** — o comentário passou a dizer onde a conferência mora, e o `describe 9` da trava de mesa a implementa, comparando o bloco com os arrays nos dois sentidos. |
+| 3 | **"nenhuma das 5 INVOKER lê tabela por conta própria" é FALSO** para `valida_lancamento_item`, que lê `lancamentos_item` quatro vezes (`0118`). E a frase era a justificativa escrita da severidade baixa. | média | **Corrigido no plano e no relatório** (§8.2). A conclusão não muda, mas o motivo é outro: ela é `returns trigger` (não invocável por RPC) e INVOKER (lê sob a RLS de quem chama). Num relatório de segurança, a justificativa importa mais do que a conclusão — é ela que alguém relê daqui a um ano. |
+| 4 | **A tag `v1.53.0` não existia**, e o §11.3 já a dava como publicada. | **alta** | **Corrigido** — a tag foi criada no commit final e publicada. O relatório passou a descrever o que existe. |
+| 5 | **O PR #30 não estava mergeado**, e o §11 falava dele no passado. | **alta** | **Corrigido** — o merge é o último passo da fase, e o relatório só o afirma depois de feito. |
+| 6 | **§13 apontava para um §14 inexistente.** | **alta** | **Corrigido** — é esta seção. O achado é justo e desconfortável: o relatório prometia a autoverificação que a ordem exige e entregava um ponteiro para o vazio. |
+| 7 | **A quarentena não é 6%.** Era 6% quando o lote tinha 33; com as oito mutações novas o lote é 41, e 2/41 = **4,9%**. | baixa | **Corrigido** no relatório, no CHANGELOG e na ata. |
+| 8 | **A citação do bloco de grants estava um a menos:** `papeis_rls.sql:92-146`; ele começa no `grant select on` da **91**. | baixa | **Corrigido**, com os dois marcos nomeados no comentário. |
+| 9 | **"40 dias depois de virar regra"** no CHANGELOG: de 30/07 a 07/09 são **39**. | baixa | **Corrigido.** |
+
+### 14.2 Os seis refutados, e por quê
+
+Vale registrar os que **não** sobreviveram, porque a régua da ordem é explícita — *"aponte apenas
+lacunas de correção ou de requisito declarado, não preferências de estilo"* — e os céticos a
+aplicaram:
+
+- **"O cenário 8 duplica `2f`/`2g` de `papeis_rls.sql`"** e **"o cenário 8 só prova a metade
+  negativa"**. Os céticos refutaram os dois (o `2g` de lá termina em `if found` e **não** faz a
+  segunda prova, então não é a mesma asserção). **Ainda assim atendi aos dois**, porque a crítica
+  melhorava o arquivo mesmo sem se sustentar como defeito: entrou a metade positiva (**8d**) e
+  entrou o ponteiro dizendo o que é duplicata e o que não é. Um achado refutado que melhora o
+  código continua valendo o conserto.
+- **"O fechamento da fase nunca foi commitado"** — levantado enquanto os commits estavam sendo
+  feitos; o revisor rodou `git status` na janela entre um commit e outro.
+- Os outros três eram preferências de forma, e caíram na primeira lente cética.
+
+### 14.3 O que a revisão adversarial CUSTOU, e vale escrever
+
+**Uma das lentes rodou `git checkout` para inspecionar o diff e apagou o trabalho não commitado da
+sessão** — quatro correções que eu tinha acabado de escrever (a asserção 6c, o cenário 8d, o
+`describe 9` e duas emendas do plano) sumiram, e o `git reflog` mostrou o culpado
+(`checkout: moving from f48-catalogos-seguranca to f48-catalogos-seguranca`). Refiz as quatro e
+passei a **commitar cada uma imediatamente**, em vez de acumular.
+
+Não é anedota: é a razão de as correções da revisão estarem em quatro commits pequenos em vez de
+um. E é o aviso para quem escrever a próxima ordem — **revisor em contexto fresco precisa ser
+instruído a não rodar comando que mexa no índice ou na árvore de trabalho**, e não só a "não
+editar arquivos", que foi o que a instrução dizia.
