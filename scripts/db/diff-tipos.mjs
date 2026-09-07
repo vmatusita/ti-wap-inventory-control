@@ -57,7 +57,7 @@
 //     linha a rever — de propósito, com decisão registrada.
 //   · COLUNAS: `attnum > 0 and not attisdropped` — fora as colunas de sistema
 //     (`tableoid`, `xmin`) e as dropadas que ainda ocupam um `attnum`.
-//   · FUNÇÕES: `prokind = 'f'` e retorno diferente de `trigger`. É A REGRA MAIS
+//   · FUNÇÕES: `prokind = 'f'` e retorno fora de (`trigger`, `event_trigger`). É A REGRA MAIS
 //     ARRISCADA DE ERRAR, e por isso foi MEDIDA antes de escrita: as migrations
 //     definem 64 funções em `public`; o `database.ts` lista 59; a diferença são
 //     EXATAMENTE as cinco que retornam `trigger` (`aplicar_movimentacao`,
@@ -125,13 +125,20 @@ const SQL_COLUNAS = `
      and not a.attisdropped
    order by 1`
 
+// ⚠ `event_trigger` entra na exclusão junto com `trigger`, e não é zelo vazio: o
+// gerador oficial exclui os DOIS (o filtro dele é `!['trigger','event_trigger']
+// .includes(return_type)`). Hoje não existe nenhum `event trigger` neste repositório
+// — conferido por grep em `supabase/migrations/` e `supabase/ci/` —, então esta
+// metade da regra não muda número nenhum agora. Ela existe para o dia em que alguém
+// criar um: sem ela, o gate nasceria vermelho por MOTIVO LEGÍTIMO, e um passo de CI
+// que falha por motivo legítimo é desabilitado na terceira vez.
 const SQL_FUNCOES = `
   select distinct p.proname
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.prokind = 'f'
-     and pg_get_function_result(p.oid) <> 'trigger'
+     and pg_get_function_result(p.oid) not in ('trigger', 'event_trigger')
    order by 1`
 
 /** Uma coluna, N linhas. */
