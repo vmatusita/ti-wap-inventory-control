@@ -1,0 +1,23 @@
+# Criterio 8 — o gate de deriva VERDE contra o estado atual
+# run 34074587440 (PR #27), 07/09/2026
+#
+# Os dois lados batem EXATAMENTE: 30 relacoes, 299 colunas, 59 funcoes.
+# Zero residuo nas duas direcoes — a regra de inclusao da opcao (b)
+# (prokind='f' e retorno diferente de trigger; relkind in ('r','p','v');
+# attnum>0 e nao attisdropped) reproduz o recorte do gerador oficial.
+
+---- gate de deriva de tipos ----
+banco ....... 30 relações · 299 colunas · 59 funções
+database.ts . 30 relações · 299 colunas · 59 funções
+
+VERDE: o database.ts conhece tudo o que o banco tem.
+##[group]Run set -euo pipefail
+
+# E o passo dos roteiros, ja SEM a isencao por prefixo em seguranca_catalogo.sql:
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 1 public.criar_compra_lote(jsonb, uuid) é authenticated-only (anon e service_role SEM EXECUTE)
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 1 public.devolver_ao_fornecedor(uuid, jsonb, jsonb, uuid) é authenticated-only (anon e service_role SEM EXECUTE)
+psql:supabase/tests/seguranca_catalogo.sql:156: NOTICE:  ✓ 1 public.importar_ativos_substituir(jsonb, text, jsonb, jsonb) é authenticated-only (anon e service_role SEM EXECUTE)
+
+# Tempo do job banco-sem-docker: 01:55:53 -> 01:57:19 = 86s
+# (era 62s antes da F47; o job verificar, em paralelo, custa 280s —
+#  o relogio do CI nao se mexeu. E a medicao da Decisao 2.)

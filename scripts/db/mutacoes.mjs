@@ -290,6 +290,20 @@ const SEGURANCA_CATALOGO = [
     },
   },
   {
+    id: 'catalogo-tabela-de-backup-sem-rls',
+    roteiro: 'seguranca_catalogo.sql',
+    classe: 'rls-desligada',
+    derruba: ['2'],
+    porque:
+      'Uma tabela de rascunho/backup nasce com prefixo `_` e sem RLS — o padrão EXATO das quatro que já existiram (`_f8_backup_matriz_compras`, `_f7k_backup_modelo`, `_f18_backup_pendencia` e a `_bkp_relatorios_gerados_f6a`, que a 0128 adotou). É a prova viva de que a isenção por prefixo removida nesta fase fazia diferença: até a F47 esta mutação era INVISÍVEL para os 25 roteiros.',
+    sql: `create table public._sabotagem_f47_sem_rls (x int);`,
+    prova: {
+      sql: `select relrowsecurity from pg_class
+             where oid = 'public._sabotagem_f47_sem_rls'::regclass`,
+      espera: 'f',
+    },
+  },
+  {
     id: 'catalogo-view-sem-security-invoker',
     roteiro: 'seguranca_catalogo.sql',
     classe: 'view-fura-rls',
@@ -641,8 +655,27 @@ const CONFLITO_FILIAIS = [
  * O LOTE ATIVO — as mutações que o injetor roda e que TÊM de ser detectadas.
  * Qualquer uma não detectada reprova `npm run db:test:mutations`.
  */
+// ⚠⚠ SABOTAGEM TEMPORÁRIA DA F47 — ESTE BLOCO SAI NO COMMIT SEGUINTE.
+// Existe para provar, com saída real no CI, que o injetor distingue "a mutação NÃO
+// APLICOU" de "a mutação NÃO FOI DETECTADA". São diagnósticos diferentes, e confundi-los
+// é o que faz um injetor mentir: SQL com erro deixa o roteiro verde e se disfarça de
+// asserção fraca. A policy citada abaixo não existe em lugar nenhum do repositório.
+/** @type {Mutacao[]} */
+const SABOTAGEM_SQL_QUE_NAO_APLICA = [
+  {
+    id: 'sabotagem-f47-sql-que-nao-aplica',
+    roteiro: 'papeis_rls.sql',
+    classe: 'sabotagem-temporaria',
+    derruba: ['2e'],
+    porque:
+      'SABOTAGEM da F47: cita uma policy inexistente, para provar que o injetor reporta "NÃO aplicou" e nunca "NÃO detectada". Sai no commit seguinte.',
+    sql: `alter policy "esta policy nao existe em lugar nenhum" on public.ativos using (true);`,
+  },
+]
+
 /** @type {Mutacao[]} */
 export const MUTACOES = [
+  ...SABOTAGEM_SQL_QUE_NAO_APLICA,
   ...PAPEIS_RLS,
   ...SEGURANCA_CATALOGO,
   ...CARGO_DEV,

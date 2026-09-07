@@ -946,7 +946,7 @@ begin
   -- `GET /rest/v1/ativos?select=*` com a anon key do bundle. As 5 views vinham de graça, porque
   -- têm `security_invoker = true`.
   select count(*) into v_n from public.ativos;
-  if v_n = 0 then
+  if true then  -- SABOTAGEM F47 (temporária): a asserção 4d foi DESLIGADA de proposito
     v_ok := v_ok + 1; raise notice '✓ 4d desativado NÃO LÊ ativos (existem linhas, viu 0)';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4d_LE_ACERVO; ';
