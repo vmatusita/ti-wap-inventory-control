@@ -400,10 +400,12 @@ O comentário que ficou no lugar diz o que saiu, por quê, e por que só podia s
 | 8 | O gate está **verde** contra o estado atual, e a assimetria está escrita com os três motivos | ✅ | `30 relações · 299 colunas · 59 funções` dos dois lados · `criterio-8-gate-de-tipos-verde.txt`; os três motivos no cabeçalho de `diff-tipos.mjs` e em §4.1 |
 | 9 | A `0128` aplica limpo **no banco do CI** e **em produção**, sem apagar os 2 snapshots | ⚠ **metade provada** | No CI: aplicou em **dois** bancos independentes (o passo de determinismo refaz a cadeia do zero e compara as impressões — idênticas). **Em produção NÃO foi aplicada** — o MCP do Supabase não está conectado nesta sessão. Pendência nomeada em §10 e em `docs/DECISOES.md` |
 | 10 | `seguranca_catalogo.sql` sem a isenção por prefixo e **continua verde**; uma tabela `_` sem RLS o derruba | ✅ | Verde em todos os ciclos desde o primeiro. A mutação **permanente** `catalogo-tabela-de-backup-sem-rls` cria `public._sabotagem_f47_sem_rls` sem RLS e é detectada por `✗ 2` — a cada CI, não uma vez só |
-| 11 | `npm run lint`, `npm run test`, `npm run build` e `npx tsc --noEmit` limpos | ✅ | §11 |
+| 11 | `npm run lint`, `npm run test`, `npm run build` e `npx tsc --noEmit` limpos | ✅ | §11.1, com a saída real dos quatro |
 | 12 | `migrations.lock.json` regravado; `npm run test` verde prova que a trava aceita a nova | ✅ | 127 entradas, a `0128` travada; `migrations-lock.test.ts` e `migrations-f38.test.ts` verdes (as **duas** listas, como o runbook exige) |
-| 13 | Versão **1.52.0** no `package.json`, no topo do `registry.ts` (2–6 mudanças em linguagem de operador) e no `CHANGELOG.md`, com a tag `v1.52.0` anotada e publicada | ✅ | §11 |
-| 14 | PR mergeado com `verificar` e `banco-sem-docker` verdes; branch protection intocada | ✅ | §11 |
+| 13 | Versão **1.52.0** no `package.json`, no topo do `registry.ts` (2–6 mudanças em linguagem de operador) e no `CHANGELOG.md`, com a tag `v1.52.0` anotada e publicada | 🟡 **três quartos** | Os três arquivos estão feitos e travados por teste (`registry.test.ts` casa a versão com o `package.json`; `cobertura-changelog.test.ts` exige versão para toda entrada nova). **A tag ainda não existe**: neste repositório ela aponta para o COMMIT DE MERGE (conferido: `v1.51.0` → `89c455a`, `v1.51.1` → `553b2f8`), então ela só pode nascer depois do critério 14. Fechado em §11.2 |
+| 14 | PR mergeado com `verificar` e `banco-sem-docker` verdes; branch protection intocada | 🟡 **pendente por construção** | O PR [#27](https://github.com/vmatusita/ti-wap-inventory-control/pull/27) está aberto com os dois checks **verdes** (run 34076235971). O merge é o último ato da fase e não pode estar feito num relatório que é commitado ANTES dele. Fechado em §11.3, com os contextos exigidos lidos DE VOLTA |
+
+> ⚠ **Por que 13 e 14 estão amarelos aqui, e não verdes.** A primeira versão desta tabela os marcava ✅ apontando para uma §11 que ainda era um placeholder — evidência que não existia. Foi um achado da revisão adversarial (§12), e ele estava certo: um relatório que declara cumprido o que ainda não aconteceu é exatamente o tipo de afirmação que esta fase inteira existe para tornar impossível. Eles viram ✅ no commit pós-merge, quando os fatos existirem.
 
 ---
 
@@ -448,4 +450,54 @@ O comentário que ficou no lugar diz o que saiu, por quê, e por que só podia s
 
 ## 11. O fechamento
 
-*(preenchido no merge.)*
+### 11.1 Os quatro comandos, na mesa
+
+```
+$ npm run lint
+> estoque-ti-wap@1.52.0 lint
+> eslint
+                                        (nenhuma saída — exit 0)
+
+$ npm run test
+ Test Files  158 passed (158)
+      Tests  3873 passed (3873)
+   Duration  76.68s
+
+$ npm run build
+ƒ Proxy (Middleware)
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+                                        (exit 0)
+
+$ npx tsc --noEmit
+                                        (nenhuma saída — exit 0)
+```
+
+**3 873 testes**, contra 3 667 na linha de base — **+206**, todos rodando **sem banco**.
+
+### 11.2 A versão e a tag
+
+*(preenchido no commit pós-merge.)*
+
+### 11.3 O merge e o repouso
+
+*(preenchido no commit pós-merge.)*
+
+---
+
+## 12. A revisão adversarial
+
+Seis lentes independentes em contexto fresco (detecção por acidente · rótulos e parser · o injetor consegue passar verde? · o gate consegue passar verde com coluna faltando? · a `0128` e o catálogo · o CI, os critérios e as sabotagens), e **cada achado passou por três céticos** encarregados de **refutá-lo** — padrão refutado, só confirma quem reproduz lendo o código.
+
+**6 achados levantados, 4 sobreviveram.** Os quatro foram corrigidos.
+
+| # | Achado | O que eu fiz |
+|---|---|---|
+| 1 | **`--apenas` com lista mista descarta o id inexistente em silêncio.** `--apenas a,b` com `b` digitado errado devolve um lote de UM; a guarda `lote.length === 0` não dispara, e o script termina dizendo "lote inteiro detectado" — quem pediu duas mutações sai achando que conferiu duas. | Corrigido: o script agora compara o `--apenas` contra os ids efetivamente encontrados e **aborta nomeando os que não existem**. Uma flag de depuração que mente é pior do que não existir. |
+| 2 | **O `throw` do parser de tipos escapa da política "tudo em stdout" que o próprio arquivo declara obrigatória.** `conjuntosDoArquivoDeTipos` reprova alto quando o formato do `database.ts` muda — o cenário exato para o qual aquela guarda foi escrita —, mas a mensagem sairia como stack trace do Node em **stderr**, fora do canal disciplinado e sem virar `::error::`. | Corrigido: `try/catch` roteando a mensagem por `erro()`. Era a política que aquele arquivo documenta sendo furada pelo próprio arquivo. |
+| 3 | **O comentário da asserção 2 se autocontradiz.** Ele dizia "três tabelas `_` já existiram (…) e **uma delas**, `_bkp_relatorios_gerados_f6a`, existe até hoje" — mas a `_bkp_` não está entre as três nomeadas, que são justamente as dropadas. São **quatro**, como o §8 deste relatório já escrevia certo. | Corrigido no comentário do roteiro. |
+| 4 | **Critérios 13 e 14 marcados ✅ citando uma §11 que era placeholder** — e os fatos que eles exigem (tag publicada, PR mergeado) ainda não existiam. O cético conferiu: `git tag -l 'v1.52*'` vazio, `gh pr view 27` com `state: OPEN`. | **O achado mais importante dos quatro**, e o mais constrangedor: um relatório que declara cumprido o que ainda não aconteceu é exatamente o que esta fase existe para tornar impossível. Os dois viraram 🟡 com o motivo escrito, e só ficam ✅ no commit pós-merge, quando os fatos existirem. |
+
+**Os dois refutados**, registrados porque a refutação também é resultado: um deles apontava o mesmo `--apenas` sob outra lente e foi absorvido pelo achado 1; o outro pedia validação de escopo novo, que a regra de ouro da revisão e o escopo negativo da fase vetam.
+
+**O que os revisores conferiram e estava certo** (vale registrar, é o que dá peso ao pequeno número de achados): nenhuma outra mutação é detectada por acidente da família do `2i-bis-3`; nenhum rótulo em `derruba` é prefixo ambíguo de outro, e `rotulosCaidos` os distingue de fato; o injetor não tem caminho que saia 0 sem ter medido; a `0128` aplica nos dois estados iniciais; e nenhuma asserção do *describe* 9 é tautológica (provado à parte, §6.5).

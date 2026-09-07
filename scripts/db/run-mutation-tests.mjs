@@ -176,6 +176,18 @@ function main() {
     erro('::error::nenhuma mutação selecionada — confira o `--apenas`')
     return 1
   }
+  // ⚠ CORRESPONDÊNCIA PARCIAL TAMBÉM É ERRO. `--apenas a,b` com `b` digitado errado
+  // devolve um lote de UM, a guarda acima não dispara, e o script termina dizendo
+  // "lote inteiro detectado" — quem pediu duas mutações sai achando que conferiu duas.
+  // Uma flag de depuração que mente é pior do que não existir.
+  if (FILTRO) {
+    const encontrados = new Set(lote.map((m) => m.id))
+    const semDono = [...FILTRO].filter((id) => !encontrados.has(id))
+    if (semDono.length > 0) {
+      erro(`::error::o \`--apenas\` cita id que não existe no catálogo: ${semDono.join(', ')}`)
+      return 1
+    }
+  }
 
   const bancoBase = nomeDoBancoBase()
   const roteirosDoLote = [...new Set(lote.map((m) => m.roteiro))].sort()

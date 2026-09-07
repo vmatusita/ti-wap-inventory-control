@@ -70,9 +70,9 @@ begin
   -- Havia aqui um `and left(c.relname, 1) <> '_'`, sem motivo escrito, e ele era a
   -- categoria por onde qualquer backup futuro escapava: uma tabela nascida
   -- `_scratch` sem RLS não era cobrada por asserção nenhuma deste arquivo. Não era
-  -- hipótese — três tabelas `_` já existiram (`_f8_backup_matriz_compras`,
-  -- `_f7k_backup_modelo`, `_f18_backup_pendencia`, dropadas pelas 0039/0058) e uma
-  -- delas, `_bkp_relatorios_gerados_f6a`, existe até hoje.
+  -- hipótese — QUATRO tabelas `_` já existiram: `_f8_backup_matriz_compras`,
+  -- `_f7k_backup_modelo` e `_f18_backup_pendencia`, dropadas pelas 0039/0058, mais
+  -- `_bkp_relatorios_gerados_f6a`, que continua lá e que a migration 0128 adotou.
   --
   -- Compare com a asserção 3 (views), logo abaixo: ela nunca teve isenção nenhuma.
   -- Era essa a assimetria, e ela não tinha razão de ser.

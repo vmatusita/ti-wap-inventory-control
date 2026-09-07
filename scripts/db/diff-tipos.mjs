@@ -180,7 +180,20 @@ function main() {
     return 1
   }
 
-  const repo = conjuntosDoArquivoDeTipos(readFileSync(ARQUIVO_TIPOS, 'utf8'))
+  // ⚠ O `throw` do parser tem de passar pela MESMA porta que o resto do diagnóstico.
+  // `conjuntosDoArquivoDeTipos` reprova alto quando o formato do `database.ts` muda (o
+  // dia em que a CLI do Supabase mudar de versão, que é o cenário para o qual aquela
+  // guarda foi escrita). Sem este try/catch a mensagem sairia como stack trace do Node
+  // em STDERR — fora do canal que o cabeçalho deste arquivo declara obrigatório, e sem
+  // virar anotação `::error::` no Actions. Seria a política que este arquivo documenta
+  // sendo furada pelo próprio arquivo.
+  let repo
+  try {
+    repo = conjuntosDoArquivoDeTipos(readFileSync(ARQUIVO_TIPOS, 'utf8'))
+  } catch (e) {
+    erro(`::error::${e instanceof Error ? e.message : String(e)}`)
+    return 1
+  }
   const deriva = compararConjuntos(banco, repo)
 
   console.log('---- gate de deriva de tipos ----')
