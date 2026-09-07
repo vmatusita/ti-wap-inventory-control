@@ -55,6 +55,11 @@ const DA_F38 = [
   '0125',
   '0126',
   '0127',
+  // F47 (06/09/2026) — a adoção de `_bkp_relatorios_gerados_f6a` no versionamento.
+  // Entra aqui pelo mesmo motivo escrito acima: a lista é a COBERTURA, não o índice da
+  // F38. Ela não recria função nenhuma, mas passa pelas guardas de DELETE/UPDATE em
+  // massa e de `security invoker` como qualquer outra — que é o ponto.
+  '0128',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

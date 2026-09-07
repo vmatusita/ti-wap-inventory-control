@@ -16,6 +16,8 @@
     "db:lock": "tsx scripts/db/gravar-lock.ts",
     "db:test": "bash scripts/db/rodar-roteiros.sh",
     "db:test:um": "bash scripts/db/rodar-roteiros.sh",
+    "db:test:mutations": "node scripts/db/run-mutation-tests.mjs",
+    "db:types:diff": "node scripts/db/diff-tipos.mjs",
     "verificar:actions": "node scripts/verificar-actions-build.mjs",
     "carga": "tsx scripts/import/carga.ts"
   },
