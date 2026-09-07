@@ -149,9 +149,18 @@ declare
   v_lista    text;
   v_bypass   boolean;
 
-  -- As tabelas/verbos que o bloco de grants acima concede. A asserção 3 mede o EFEITO
-  -- de cada par: é a lista do bloco, e ela existe para que acrescentar linha lá sem
-  -- acrescentar aqui (ou o contrário) fique visível.
+  -- As tabelas/verbos que o bloco de grants acima concede. As asserções 5 e 6 medem, no
+  -- banco, o EFEITO de cada par — é o que impede "vi zero linhas" de ser `permission
+  -- denied` disfarçado.
+  --
+  -- ⚠ A SIMETRIA COM O BLOCO DE GRANTS NÃO É CONFERIDA AQUI, E SIM NA MESA. Uma tabela
+  -- concedida lá em cima e esquecida nestes arrays passaria despercebida por estas
+  -- asserções — elas varrem os ARRAYS, não o bloco. Quem confere os dois lados é
+  -- `src/lib/validators/catalogos-seguranca.test.ts` (describe 9), que lê este arquivo
+  -- como TEXTO e compara o bloco `grant … on` com os arrays, nos dois sentidos. Mora lá
+  -- porque é conferência do fonte contra si mesmo, e SQL não enxerga o próprio arquivo.
+  -- (A primeira versão deste comentário prometia a simetria como se ela existisse aqui;
+  -- a revisão adversarial da fase pegou a promessa falsa, e a trava de mesa nasceu dela.)
   k_leitura text[] := array['ativos', 'filiais', 'profiles'];
   k_escrita text[] := array['ativos'];
 begin
@@ -330,6 +339,21 @@ begin
   --
   -- Sem 8c, "recusou" e "recusou mas um trigger definer escreveu assim mesmo" são
   -- indistinguíveis — e este banco TEM triggers que escrevem fora de policy.
+  --
+  --   8d — E A METADE POSITIVA, sem a qual as três de cima não distinguem "a RLS recorta
+  --        certo" de "ninguém escreve em `ativos`". Um roteiro que só prove RECUSA fica
+  --        VERDE com a escrita inteiramente quebrada — que é a versão do defeito desta
+  --        fase aplicada a ela mesma.
+  --
+  -- ⚠ RELAÇÃO COM `papeis_rls.sql` — o que aqui é duplicata, e o que NÃO é.
+  -- Os cenários `2f`/`2g` de lá já provam o par permissão/recusa do UPDATE de `ativos`
+  -- por filial, e 8b/8d são de fato o mesmo fato. O que este cenário ACRESCENTA, e é a
+  -- razão de ele existir aqui, é **8c**: o `2g` termina em `if found` — ele confere que a
+  -- operação não achou linha, e nunca volta como `postgres` para conferir que o dado
+  -- original continua intacto. Essa segunda prova é a metade que a convenção de
+  -- honestidade deste arquivo exige, e é o molde que os cenários A↔B da F62 vão copiar
+  -- inteiro. Se um dia alguém unificar os dois, que seja por decisão escrita — e que a
+  -- segunda prova sobreviva à unificação.
   -- =========================================================================
   select count(*) into v_univ
     from public.ativos where filial_id = v_f2 and modelo = 'modelo-original-f48';
@@ -371,6 +395,30 @@ begin
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;
+  end if;
+
+  -- 8d — A METADE POSITIVA. O MESMO operador, na filial em que ELE escreve.
+  -- Sem ela, 8a/8b/8c ficariam verdes num banco em que ninguém escreve em `ativos` — e o
+  -- arcabouço estaria provando "está tudo trancado", não "o recorte recorta".
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, modelo)
+  values ('WAP0009483', 'F48TST3', 'notebook', v_f1, 'cadastro', 'modelo-original-f48');
+
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
+
+  update public.ativos set modelo = 'editado-pelo-operador-f48'
+   where filial_id = v_f1 and patrimonio = 'WAP0009483';
+  get diagnostics v_cnt = row_count;
+
+  reset role;
+
+  if v_cnt = 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 8d o MESMO operador ESCREVE na filial VINCULADA (1 linha) — o recorte recorta, não tranca tudo';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 8d o operador não escreveu na filial VINCULADA (% linhas de 1) — 8b/8c passariam por escrita quebrada, não por recorte', v_cnt;
   end if;
 
   raise notice 'FIM isolamento_tenant: % asserções, % falhas', v_ok + v_falhas, v_falhas;
