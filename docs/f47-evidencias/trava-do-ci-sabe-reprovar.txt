@@ -1,0 +1,34 @@
+# A TRAVA NOVA SABE FICAR VERMELHA — o describe 9 de src/lib/ci-passos.test.ts
+#
+# Cada sabotagem foi aplicada, o Vitest rodou so naquele arquivo, e o original
+# foi restaurado. E a licao da revisao adversarial da F46, que apanhou duas
+# assercoes que nunca podiam falhar de forma independente.
+#
+# Gerado em 06/09/2026 na mesa, sem banco.
+
+## SABOTAGEM: o passo do injetor sai do YAML
+   assercao que deveria reprovar: "o job chama os dois — e chama o script de verdade, não um eco"
+   resultado: REPROVOU (correto)
+
+## SABOTAGEM: o passo do gate de tipos vira CONDICIONAL (`if:`)
+   assercao que deveria reprovar: "nenhum dos dois é CONDICIONAL"
+   resultado: REPROVOU (correto)
+
+## SABOTAGEM: o injetor ganha `|| true`
+   assercao que deveria reprovar: "nenhum dos dois mascara erro"
+   resultado: REPROVOU (correto)
+
+## SABOTAGEM: o `npm ci` sai do job de banco
+   assercao que deveria reprovar: "o job instala as dependências ANTES do gate de tipos"
+   resultado: REPROVOU (correto)
+
+## SABOTAGEM: o script `db:test:mutations` some do package.json
+   assercao que deveria reprovar: "os dois scripts existem no `package.json`"
+   resultado: REPROVOU (correto)
+
+## SABOTAGEM: o injetor deixa de reusar o runner (reimplementa o parsing)
+   assercao que deveria reprovar: "o injetor não reimplementa o runner — ele reusa `rodar-roteiros.sh`"
+   resultado: REPROVOU (correto)
+
+# TODAS as seis sabotagens foram reprovadas pela trava. Nenhuma assercao do
+# describe 9 e tautologica.

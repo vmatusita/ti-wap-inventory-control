@@ -335,7 +335,22 @@ Evidência: `docs/f47-evidencias/sabotagem-4-gate-de-tipos-vermelho.txt`. Revers
 
 **Uma confirmação que veio de graça, e vale registrar:** ao montar esta evidência eu escrevi backticks dentro de um `node -e "…"` no bash, e o shell os interpretou como substituição de comando — **executou `npm run db:types` sem eu pedir**. O script recusou escrever (`[db:types] A saída da CLI não parece TypeScript válido` → `O database.ts existente NÃO foi alterado`) e o arquivo ficou intacto, confirmado por `git status`. É exatamente o footgun que `scripts/gen-types.ts` foi escrito para fechar em 14/07/2026, funcionando por acidente dois meses depois.
 
-### 6.5 A quinta prova, permanente: a tabela `_` sem RLS
+### 6.5 A trava do CI sabe reprovar — seis sabotagens, na mesa
+
+A revisão adversarial da F46 apanhou **duas asserções minhas que nunca podiam falhar de forma independente**. Para não repetir o defeito, o *describe* 9 de `src/lib/ci-passos.test.ts` foi submetido a seis sabotagens, cada uma aplicada, medida e revertida — tudo na mesa, sem banco:
+
+| sabotagem | asserção que deveria reprovar | resultado |
+|---|---|---|
+| o passo do injetor sai do YAML | "o job chama os dois — e chama o script de verdade" | REPROVOU ✅ |
+| o gate de tipos vira condicional (`if:`) | "nenhum dos dois é CONDICIONAL" | REPROVOU ✅ |
+| o injetor ganha `\|\| true` | "nenhum dos dois mascara erro" | REPROVOU ✅ |
+| o `npm ci` sai do job | "o job instala as dependências ANTES do gate" | REPROVOU ✅ |
+| `db:test:mutations` some do `package.json` | "os dois scripts existem no `package.json`" | REPROVOU ✅ |
+| o injetor reimplementa o runner | "o injetor reusa `rodar-roteiros.sh`" | REPROVOU ✅ |
+
+**Nenhuma asserção do describe 9 é tautológica.** Evidência: `docs/f47-evidencias/trava-do-ci-sabe-reprovar.txt`; a árvore voltou limpa depois de cada uma.
+
+### 6.6 A prova permanente: a tabela `_` sem RLS
 
 A ordem pedia uma sabotagem para provar que a isenção por prefixo removida fazia diferença. Ela virou coisa melhor: **uma mutação permanente do lote**, `catalogo-tabela-de-backup-sem-rls`, que cria `public._sabotagem_f47_sem_rls (x int)` sem RLS e exige `✗ 2` de `seguranca_catalogo.sql`.
 
