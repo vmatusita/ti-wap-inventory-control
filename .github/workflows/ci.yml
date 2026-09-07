@@ -202,6 +202,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ⚠ ESTE JOB PASSOU A PRECISAR DE NODE (F47, 06/09/2026), e a decisão foi MEDIDA.
+      # Até a v1.51.1 ele era `psql` puro, o que era uma virtude — nada de instalar, nada
+      # de resolver dependência. As duas ferramentas da F47 mudam isso: o gate de deriva
+      # lê o `src/lib/types/database.ts` pelo COMPILADOR TypeScript (que já é dependência
+      # do projeto; regex de linha perde 5 das 59 funções, medido) e o injetor de mutações
+      # é um módulo Node.
+      #
+      # O custo real, medido no run 34048772118: `setup-node` 4s + `npm ci` 22s = 26s.
+      # O job inteiro custava 62s e o `verificar` custa 280s — os dois rodam em PARALELO,
+      # então o relógio do CI não se mexe. Não é otimismo: é a mesma medição que decidiu
+      # a Decisão 2 desta fase (ver `docs/RELATORIO-F47.md`).
+      #
+      # `cache: npm` é o que mantém os 22s em 22s. Mesma versão do `verificar` de
+      # propósito — dois majors de Node no mesmo CI seria o vão que o comentário daquele
+      # job descreve, de dentro para fora.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Instalar dependências (o gate de tipos e o injetor são Node)
+        run: npm ci
+
       # `psql` não vem no runner por padrão — o job `banco` também o instala.
       - name: Garantir psql (cliente Postgres)
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -252,6 +274,26 @@ jobs:
             n=$((n + 1))
           done
           echo "$n migrations aplicadas em $BANCO"
+
+      # O GATE DE DERIVA DE TIPOS (F47). A POSIÇÃO NÃO É LIVRE: ele compara o banco com o
+      # `src/lib/types/database.ts`, então vem DEPOIS das migrations — antes delas ele
+      # mediria um banco vazio e passaria verde sem ter medido nada (o script tem guarda
+      # própria contra isso, e ela reprova).
+      #
+      # O buraco que ele fecha: hoje uma migration pode acrescentar coluna e ninguém é
+      # obrigado a rodar `npm run db:types`. Já aconteceu, e está escrito na ata da F41 —
+      # "o `database.ts` commitado simplesmente estava velho, porque nenhuma fase
+      # regenerava desde a F38".
+      #
+      # ⚠ Ele reprova SÓ numa direção: quando o BANCO tem o que o arquivo não tem. O
+      # contrário é legítimo por três motivos registrados (PostgrestVersion vem do
+      # servidor; o arquivo tem hand-fixes deliberados de nulabilidade; ele é gerado de
+      # PRODUÇÃO, que tem objeto que nenhuma migration cria). Um passo de CI que falha por
+      # motivo legítimo é desabilitado na terceira vez.
+      - name: Gate de deriva — o `database.ts` conhece tudo o que o banco tem
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/estoque
+        run: npm run db:types:diff
 
       # ⚠ ESTE PASSO NÃO É "APLICAR DE NOVO", E A TROCA É DELIBERADA.
       #
@@ -310,3 +352,27 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/estoque
         run: bash scripts/db/rodar-roteiros.sh
+
+      # O INJETOR DE MUTAÇÕES (F47). O passo acima pergunta "os roteiros passam?"; este
+      # pergunta a que ninguém tinha feito em 25 roteiros e 577 asserções: **eles sabem
+      # ficar VERMELHOS?** Ele quebra o banco de propósito, uma quebra por vez, e exige
+      # que o roteiro acuse o CENÁRIO NOMEADO — nunca "deu ✗ em algum lugar".
+      #
+      # DEPOIS dos roteiros de propósito: se o acervo de asserções já estiver vermelho, o
+      # veredito honesto é o do passo acima, e o injetor aborta sozinho na execução de
+      # controle em vez de reportar 27 mutações "detectadas" por um roteiro que já falhava.
+      #
+      # Cada mutação roda contra um banco PRÓPRIO (`create database … template estoque`),
+      # descartado depois — não há reversão para errar, e o banco `estoque` medido pelo
+      # passo acima fica intacto.
+      #
+      # ⚠ INCONDICIONAL, e isso é a Decisão 2 da fase. A ficha admitia gatear por label de
+      # PR; a documentação oficial do GitHub diz, com todas as letras, que um job ou passo
+      # PULADO por `if:` reporta status "Success" e não impede o merge nem sendo required
+      # check. Um gate que fica verde sem ter rodado é pior do que gate nenhum, porque
+      # ninguém sabe que ele não rodou. O custo medido — ~26s de Node + o lote — cabe
+      # inteiro na folga deste job contra o `verificar`, que domina o relógio.
+      - name: Injetor de mutações — cada quebra tem de ser acusada pelo cenário NOMEADO
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/estoque
+        run: npm run db:test:mutations

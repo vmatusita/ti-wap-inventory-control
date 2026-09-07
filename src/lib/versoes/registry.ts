@@ -23,6 +23,18 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.52.0',
+    data: '2026-09-06',
+    fase: 'F47',
+    titulo: 'As conferências automáticas passaram a ser conferidas elas mesmas',
+    mudancas: [
+      'Nenhuma tela mudou. O sistema tem uma bateria de conferências que roda antes de qualquer alteração ir ao ar — ela testa se um operador consegue mexer em equipamento de filial que não é a dele, se alguém que foi desligado ainda enxerga o acervo, se as ferramentas que apagam registro exigem mesmo justificativa. Até agora ninguém tinha verificado se essas conferências sabem ACUSAR quando o defeito existe de verdade.',
+      'Agora existe uma ferramenta que quebra o sistema de propósito, 28 vezes, e exige que a conferência certa acuse a quebra certa — não basta "deu erro em algum lugar". As 28 são defeitos reais, do tipo que já aconteceu: a permissão que confere o cargo e esquece a filial, a pessoa desativada que continua lendo, a exigência de justificativa que some. Todas as 28 foram acusadas.',
+      'Cinco quebras ficaram de fora, e isso está declarado por escrito: são casos que a bateria de hoje não consegue enxergar, cada um com o nome da etapa futura que vai cobri-lo. Uma delas foi descoberta por essa própria ferramenta — uma conferência que dizia provar uma coisa e provava outra.',
+      'Uma segunda ferramenta passou a comparar, a cada alteração, o desenho do banco de dados com a cópia que o sistema usa para se orientar. Antes ela podia envelhecer em silêncio, e já envelheceu: uma vez o sistema ficou meses trabalhando com uma cópia desatualizada sem ninguém perceber.',
+    ],
+  },
+  {
     versao: '1.51.1',
     data: '2026-09-06',
     titulo: 'A conferência do banco de dados ficou quatro vezes mais rápida para todo mundo',

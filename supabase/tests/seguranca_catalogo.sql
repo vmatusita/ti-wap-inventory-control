@@ -63,8 +63,24 @@ begin
   end loop;
 
   -- ---------------------------------------------------------------
-  -- 2 — RLS ligada em TODA tabela do schema public que NÃO começa com '_'
-  --     (R-ACC-07). relkind r=tabela, p=particionada.
+  -- 2 — RLS ligada em TODA tabela do schema public, SEM EXCEÇÃO (R-ACC-07).
+  --     relkind r=tabela, p=particionada.
+  --
+  -- ⚠ A ISENÇÃO POR PREFIXO SAIU NA F47 (06/09/2026), e a remoção é o ponto.
+  -- Havia aqui um `and left(c.relname, 1) <> '_'`, sem motivo escrito, e ele era a
+  -- categoria por onde qualquer backup futuro escapava: uma tabela nascida
+  -- `_scratch` sem RLS não era cobrada por asserção nenhuma deste arquivo. Não era
+  -- hipótese — QUATRO tabelas `_` já existiram: `_f8_backup_matriz_compras`,
+  -- `_f7k_backup_modelo` e `_f18_backup_pendencia`, dropadas pelas 0039/0058, mais
+  -- `_bkp_relatorios_gerados_f6a`, que continua lá e que a migration 0128 adotou.
+  --
+  -- Compare com a asserção 3 (views), logo abaixo: ela nunca teve isenção nenhuma.
+  -- Era essa a assimetria, e ela não tinha razão de ser.
+  --
+  -- A remoção só foi possível DEPOIS da migration 0128, que adota
+  -- `_bkp_relatorios_gerados_f6a` no versionamento com RLS ligada. Fora dessa ordem
+  -- a asserção nasceria vermelha por causa da própria tabela que a fase estava
+  -- trazendo para dentro — vermelho por motivo legítimo, que é como um gate morre.
   -- ---------------------------------------------------------------
   select count(*), coalesce(string_agg(c.relname, ', ' order by c.relname), '')
     into v_cnt, v_lista
@@ -72,7 +88,6 @@ begin
   join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public'
     and c.relkind in ('r', 'p')
-    and left(c.relname, 1) <> '_'
     and c.relrowsecurity = false;
   if v_cnt = 0 then
     v_ok := v_ok + 1; raise notice '✓ 2 RLS ligada em todas as tabelas public (nenhuma sem RLS)';

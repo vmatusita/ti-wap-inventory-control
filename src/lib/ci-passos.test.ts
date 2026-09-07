@@ -551,3 +551,114 @@ describe('8. o job `banco` antigo saiu — e o que ele ensinou não saiu com ele
     expect(PACOTE.scripts['db:test']).toContain('scripts/db/rodar-roteiros.sh')
   })
 })
+
+// ---------------------------------------------------------------------------
+// F47 — o injetor de mutações e o gate de deriva de tipos
+// ---------------------------------------------------------------------------
+// O describe 7 pergunta "o job mede o banco?". Este pergunta as duas coisas que a F47
+// acrescentou: o `database.ts` acompanha o banco, e os roteiros SABEM ficar vermelhos.
+//
+// ⚠ A LISTA DE JOBS NÃO MUDOU, E ISSO É A DECISÃO 2 DA FASE, não um esquecimento.
+// Medido no run 34048772118: um job PRÓPRIO pagaria de novo os ~41s de overhead fixo
+// (subir o `postgres:17` 26s + instalar `psql` 15s) que o job existente já pagou, contra
+// ~6-8s de reaplicar bootstrap+migrations — e, como a proteção da `main` não se toca
+// nesta fase, um job novo NUNCA seria required check: seria um portão que não fecha.
+// Como PASSO dentro do job que já é required, o gate vale desde o primeiro dia.
+describe('9. as duas ferramentas da F47 rodam de verdade no CI', () => {
+  const PASSOS = semComentarios(BANCO_SEM_DOCKER)
+
+  it('os dois scripts existem no `package.json` e apontam para os arquivos reais', () => {
+    expect(PACOTE.scripts['db:test:mutations']).toBe('node scripts/db/run-mutation-tests.mjs')
+    expect(PACOTE.scripts['db:types:diff']).toBe('node scripts/db/diff-tipos.mjs')
+  })
+
+  const ARQUIVOS = [
+    'run-mutation-tests.mjs', // o motor
+    'mutacoes.mjs', // o catálogo — separado do motor, para a F51/F52 mexerem só aqui
+    'corpo-vigente.mjs', // resolve o corpo VIVO de uma função nas migrations
+    'saida-roteiro.mjs', // a leitura da saída: token, nunca substring
+    'diff-tipos.mjs', // o gate de deriva
+    'tipos-conjuntos.mjs', // as peças puras do gate
+  ]
+
+  it.each(ARQUIVOS)('`scripts/db/%s` existe', (arquivo) => {
+    expect(existsSync(join(RAIZ, 'scripts', 'db', arquivo))).toBe(true)
+  })
+
+  it('o job chama os dois — e chama o script de verdade, não um eco', () => {
+    expect(PASSOS).toContain('npm run db:types:diff')
+    expect(PASSOS).toContain('npm run db:test:mutations')
+  })
+
+  it('nenhum dos dois é CONDICIONAL', () => {
+    // ⚠ A restrição inegociável da fase, confirmada na documentação oficial do GitHub:
+    // um job ou passo PULADO por `if:` reporta status "Success" e não impede o merge,
+    // mesmo sendo required check. Gatear estes dois por label de PR (que era a opção da
+    // ficha) os deixaria verdes sem terem rodado — e ninguém saberia. Esta asserção é o
+    // que impede alguém de "aliviar o CI" acrescentando um `if:` mais tarde.
+    const linhas = PASSOS.split('\n')
+    for (const alvo of ['npm run db:types:diff', 'npm run db:test:mutations']) {
+      const i = linhas.findIndex((l) => l.includes(alvo))
+      expect(i, `o passo de \`${alvo}\` sumiu do job`).toBeGreaterThan(-1)
+      // A janela do passo: do `- name:` anterior até a linha do comando.
+      let inicio = i
+      while (inicio > 0 && !/^\s{6}- (name|uses):/.test(linhas[inicio])) inicio--
+      const passo = linhas.slice(inicio, i + 1).join('\n')
+      expect(passo, `\`${alvo}\` virou condicional — passo pulado reporta SUCESSO`).not.toMatch(
+        /^\s*if:/m,
+      )
+    }
+  })
+
+  it('nenhum dos dois mascara erro', () => {
+    // Repete o espírito do describe 7 para os passos novos: uma verificação que não sabe
+    // reprovar é o que a F45 existiu para matar.
+    const trecho = PASSOS.slice(PASSOS.indexOf('npm run db:types:diff') - 400)
+    expect(trecho).not.toContain('|| true')
+    expect(trecho).not.toMatch(/>\s*\/dev\/null/)
+    expect(trecho).not.toContain('continue-on-error')
+  })
+
+  it('o gate de tipos roda DEPOIS das migrations', () => {
+    // Antes delas ele mediria um banco vazio: conjunto vazio nunca tem nada que o
+    // repositório não tenha, e o passo passaria VERDE sem ter medido nada. (O script tem
+    // guarda própria contra isso; esta asserção evita chegar lá.)
+    const migra = PASSOS.indexOf('supabase/migrations/*.sql')
+    const gate = PASSOS.indexOf('npm run db:types:diff')
+    expect(migra).toBeGreaterThan(-1)
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate, 'o gate de tipos antes das migrations mede um banco vazio').toBeGreaterThan(migra)
+  })
+
+  it('o injetor roda DEPOIS dos roteiros', () => {
+    // Se o acervo de asserções já estiver vermelho, o veredito honesto é o do passo dos
+    // roteiros. O injetor aborta sozinho na execução de controle, mas ler o vermelho na
+    // ordem certa poupa quem depura.
+    const roteiros = PASSOS.indexOf('bash scripts/db/rodar-roteiros.sh')
+    const injetor = PASSOS.indexOf('npm run db:test:mutations')
+    expect(injetor).toBeGreaterThan(roteiros)
+  })
+
+  it('o job instala as dependências ANTES do gate de tipos', () => {
+    // O gate lê o `database.ts` pelo COMPILADOR TypeScript, que vive em `node_modules`.
+    // Sem `npm ci` antes, o passo morre em "Cannot find package 'typescript'" — falha por
+    // ambiente, no meio de um required check.
+    const npmci = PASSOS.indexOf('npm ci')
+    const gate = PASSOS.indexOf('npm run db:types:diff')
+    expect(npmci, 'o job perdeu o `npm ci`').toBeGreaterThan(-1)
+    expect(npmci).toBeLessThan(gate)
+    expect(PASSOS, 'sem setup-node o `npm ci` usa o Node do runner, não o major do projeto')
+      .toContain('actions/setup-node')
+  })
+
+  it('o injetor não reimplementa o runner — ele reusa `rodar-roteiros.sh`', () => {
+    // Um segundo runner divergiria do primeiro, e a divergência só apareceria no dia em
+    // que importasse. É a mesma razão de o job e a mesa chamarem o mesmo arquivo.
+    const motor = readFileSync(join(RAIZ, 'scripts', 'db', 'run-mutation-tests.mjs'), 'utf8')
+    expect(motor).toContain('rodar-roteiros.sh')
+    // E ele documenta a INVERSÃO do código de saída: o runner sai 1 quando o roteiro fica
+    // vermelho, e para o injetor isso é SUCESSO. Sem o aviso escrito, o próximo leitor
+    // "conserta" isso.
+    expect(motor, 'a inversão do código de saída tem de estar escrita').toMatch(/INVERSÃO/)
+  })
+})

@@ -1,0 +1,58 @@
+# SABOTAGEM 3 (criterio 2) — o CONTROLE vermelho aborta ANTES de mutar
+# run 34074976775 (PR #27), 07/09/2026
+#
+# Um passo TEMPORARIO do CI quebrou o banco (RLS de public.motivos desligada)
+# DEPOIS do passo dos roteiros — que passou verde — e ANTES do injetor.
+#
+# O injetor rodou a execucao de CONTROLE, encontrou papeis_rls.sql e
+# seguranca_catalogo.sql vermelhos, e ABORTOU com mensagem propria.
+#
+# A PROVA DE QUE NADA FOI MUTADO, conferida no log inteiro:
+#   · ocorrencias de "RESULTADO DO LOTE" ....... 0
+#   · linhas de mutacao aplicada "[n/28]" ...... 0
+#
+# Sem essa guarda, um roteiro ja vermelho faria TODAS as 28 mutacoes serem
+# reportadas como "detectadas" e o relatorio sairia triunfante medindo nada.
+
+==============================================================================
+INJETOR DE MUTAÇÕES (F47)
+==============================================================================
+banco base .......... estoque
+mutações ativas ..... 28
+em quarentena ....... 5 (declaradas, NÃO executadas)
+roteiros do lote .... cargo_dev.sql, conflito_filiais.sql, dev_destrutivo.sql, import_substituir.sql, papeis_rls.sql, seguranca_catalogo.sql
+
+---- CONTROLE: os roteiros do lote, SEM mutação nenhuma ----
+==== supabase/tests/cargo_dev.sql ====
+
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+GRANT
+DO
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1z papel_atual()=dev e e_dev()/e_admin()/pode_escrever() = true
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1a dev INSERE em motivos (policy e_admin)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1b dev LÊ eventos_admin (1 linhas)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1c dev LÊ import_logs (1 linhas)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1d dev passou pela guarda de cargo da RPC de import (falhou adiante, por outro motivo: P0001)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1e dev INSERE ativo nas DUAS filiais, sem vínculo
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1f dev ANOTA (policy pode_escrever)
+##[error]O CONTROLE NÃO FECHOU VERDE — abortando ANTES de mutar.
+##[error]Um roteiro já vermelho faria TODAS as mutações "serem detectadas". Conserte o roteiro (ou o banco) e rode de novo; nada foi mutado.
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1g dev GERA snapshot de relatório (policy pode_escrever)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 1h dev GRAVA no bucket termos (policy pode_escrever)
+psql:supabase/tests/cargo_dev.sql:739: NOTICE:  ✓ 2a admin recusado ao conceder dev (42501)
+
+... (o log completo mostra o controle percorrendo os 6 roteiros) ...
+
+# Os ✗ que o CONTROLE encontrou:
+ 2026-09-07 02:04:42.998 UTC [415] WARNING:  ✗ 3a operador CRIOU motivo (é matéria de admin)
+ 2026-09-07 02:04:43.013 UTC [415] WARNING:  ✗ TOTAL papeis_rls: 1 falha(s) — 3a; 
+ 2026-09-07 02:04:43.074 UTC [416] WARNING:  ✗ 2 1 tabela(s) public SEM RLS: motivos
+
+# A mensagem propria do injetor:
+##[error]O CONTROLE NÃO FECHOU VERDE — abortando ANTES de mutar.
+##[error]Um roteiro já vermelho faria TODAS as mutações "serem detectadas". Conserte o roteiro (ou o banco) e rode de novo; nada foi mutado.
