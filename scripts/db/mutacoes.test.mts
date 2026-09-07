@@ -47,22 +47,40 @@ function escaparRegex(s: string): string {
  * as 74 linhas dele, e os outros roteiros usam um.
  */
 function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
-  return new RegExp(`✗\\s+${escaparRegex(rotulo)}(?=[\\s:'])`).test(fonte)
+  if (new RegExp(`✗\\s+${escaparRegex(rotulo)}(?=[\\s:'])`).test(fonte)) return true
+  // A SEGUNDA FORMA — F48. Os catálogos novos (`catalogo_policies.sql`,
+  // `catalogo_secdef.sql`, `isolamento_tenant.sql`) emitem o ✗ pela FERRAMENTA:
+  // `pg_temp.assert_zero_de(rotulo, ruins, universo)` monta `raise warning '✗ %: …'`
+  // em tempo de execução, então o `✗ <rótulo>` literal não existe no fonte deles.
+  //
+  // ⚠ Recusar essa forma empurraria os roteiros novos de volta para o `if v_n = 0 then ✓`,
+  // que é a tautologia que a F45 criou a ferramenta para matar — a trava de mesa não
+  // pode ter opinião sobre COMO se conta, só sobre o rótulo existir de verdade.
+  //
+  // O rótulo é o começo do PRIMEIRO argumento da chamada, e a régua é a mesma: token
+  // inteiro, nunca prefixo (o lookahead exige espaço ou aspas logo depois, então `1a`
+  // não casa dentro de `1a-bis`).
+  return new RegExp(
+    `assert_zero_de\\(\\s*'${escaparRegex(rotulo)}(?=[\\s'])`,
+  ).test(fonte)
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 36 mutações ATIVAS', () => {
-    // ⚠ O TETO SUBIU DE 30 PARA 36 NA F48 (07/09/2026), e o motivo é escrito para não
-    // virar hábito. A F47 fechou com 28 ativas e 5 em quarentena; a F48 fortaleceu os
-    // quatro cenários que a quarentena nomeava e promoveu TRÊS entradas de volta ao lote
-    // — 31. O teto de 30 era a folga da F47, não uma régua de desenho.
+  it('tem entre 20 e 44 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 30 PARA 44 NA F48 (07/09/2026), e o motivo é escrito para não
+    // virar hábito. A F47 fechou com 28 ativas e 5 em quarentena. A F48 (a) fortaleceu os
+    // quatro cenários que a quarentena nomeava e promoveu TRÊS entradas de volta ao lote,
+    // e (b) escreveu OITO mutações novas — as sabotagens obrigatórias dos catálogos
+    // novos, que a ordem exige provar e que, escritas aqui, deixam de ser um log de uma
+    // tarde e passam a rodar a cada push. 28 + 3 + 8 = 39. O teto de 30 era a folga da
+    // F47, não uma régua de desenho.
     //
     // A régua de desenho é a de baixo (a quarentena abaixo de um terço) e a do injetor
     // rodar INCONDICIONALMENTE no CI. O teto existe só para que um lote que cresça sem
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(36)
+    expect(MUTACOES.length).toBeLessThanOrEqual(44)
   })
 
   it('os `id` são únicos', () => {
@@ -133,6 +151,14 @@ describe('2. todo rótulo em `derruba` existe DE VERDADE no roteiro', () => {
     expect(rotuloExisteNoFonte(fonte, '2c')).toBe(false)
     // E aceita os DOIS espaços de conflito_filiais.sql.
     expect(rotuloExisteNoFonte("raise warning '✗ 1a  esperava 4 grupos'", '1a')).toBe(true)
+  })
+
+  it('o casador reconhece a forma `assert_zero_de`, e ali também não aceita prefixo (F48)', () => {
+    const viaFerramenta = "  if pg_temp.assert_zero_de(\n       '9a nenhuma tabela NOVA na publication' ||"
+    expect(rotuloExisteNoFonte(viaFerramenta, '9a')).toBe(true)
+    expect(rotuloExisteNoFonte(viaFerramenta, '9')).toBe(false)
+    // Rótulo que não existe em forma nenhuma continua reprovando.
+    expect(rotuloExisteNoFonte(viaFerramenta, '9b')).toBe(false)
   })
 })
 
@@ -216,7 +242,22 @@ describe('5. dados 100% sintéticos (regra 2 do CLAUDE.md)', () => {
       const defs = definicoesDeFuncao(m.sql)
       if (defs.length !== 1) continue
       const d = defs[0]
-      const vigente = corpoVigente(`${d.esquema}.${d.nome}(${d.tipos.join(', ')})`, RAIZ).sql
+      let vigente: string
+      try {
+        vigente = corpoVigente(`${d.esquema}.${d.nome}(${d.tipos.join(', ')})`, RAIZ).sql
+      } catch {
+        // F48 — a mutação CRIA uma função que não existe nas migrations (é o caso de
+        // `catalogo-security-definer-nova-nao-classificada`, que sabota justamente o
+        // "função nova entra sem ninguém decidir"). Não há corpo anterior para comparar,
+        // e a regra que este bloco protege — "a mutação não ACRESCENTA destruição a uma
+        // função existente" — não se aplica. A régua que se aplica é a do bloco de cima,
+        // e ela é cobrada aqui explicitamente para a exceção não virar buraco.
+        expect(
+          m.sql.match(DESTRUTIVO),
+          `${m.id} cria uma função nova E executa perda de dado`,
+        ).toBeNull()
+        continue
+      }
       const antes = (vigente.match(DESTRUTIVO) ?? []).length
       const depois = (m.sql.match(DESTRUTIVO) ?? []).length
       expect(depois, `${m.id} acrescentou comando destrutivo ao corpo da função`).toBeLessThanOrEqual(

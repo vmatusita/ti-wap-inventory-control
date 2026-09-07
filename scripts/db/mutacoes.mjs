@@ -739,6 +739,151 @@ const CONFLITO_FILIAIS = [
  * Qualquer uma não detectada reprova `npm run db:test:mutations`.
  */
 /** @type {Mutacao[]} */
+// =============================================================================
+// catalogo_policies.sql e catalogo_secdef.sql — as superfícies que a F48 enumerou
+// =============================================================================
+// ⚠ POR QUE ESTAS OITO SÃO MUTAÇÃO PERMANENTE, E NÃO UMA SABOTAGEM DE UMA VEZ SÓ.
+//
+// A ordem da F48 exige provar, com saída real, que cada catálogo novo sabe ficar
+// vermelho: tabela sem RLS, policy `using (true)`, `security definer` não classificada,
+// `search_path` solto, EXECUTE de `anon`, tabela nova na publication, policy de Storage
+// que decide só por `bucket_id`. A mesa não tem Postgres, então a única forma honesta de
+// provar isso é o injetor — e uma vez escritas AQUI, as provas deixam de ser um log de
+// uma tarde e passam a rodar a cada push, incondicionalmente, como required check.
+//
+// É a mesma lógica que fez a F47 transformar a tabela `_` sem RLS numa mutação
+// permanente (§6.6 do relatório dela) em vez de num print.
+//
+// ⚠ A EXECUÇÃO DE CONTROLE do injetor roda ANTES de qualquer mutação e exige os dois
+// roteiros VERDES. Uma destas entradas "ser detectada" por um catálogo que já estivesse
+// vermelho é estruturalmente impossível — o motor aborta antes de mutar.
+/** @type {Mutacao[]} */
+const CATALOGOS_F48 = [
+  {
+    id: 'catalogo-tabela-nova-nao-classificada',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'catalogo-nao-enumerado',
+    derruba: ['1a', '3'],
+    porque:
+      'Uma tabela nasce em `public` e ninguém decide se ela é de NEGÓCIO ou de INFRA. É o caminho por onde uma tabela entraria no sistema sem nunca passar pela pergunta "esta precisa da chave de recorte?" — a pergunta que a virada multiempresa inteira depende de alguém ter respondido.',
+    // Derruba DUAS: `1a` (não classificada) e `3` (sem policy de SELECT e fora da lista
+    // nominal de deny-all). As duas juntas são o desenho: classificar não basta, e ter
+    // policy não basta — a tabela nova tem de passar pelas duas perguntas.
+    sql: `create table public._sabotagem_f48_nao_classificada (x int);`,
+    prova: {
+      sql: `select to_regclass('public._sabotagem_f48_nao_classificada') is not null`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'catalogo-policy-volta-a-ser-sempre-verdadeira',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'predicado-sempre-verdadeiro',
+    derruba: ['5', '6a'],
+    porque:
+      'Uma policy de leitura volta a `using (true)` — o modelo de nível único que as 0059→0107 desmontaram policy por policy. Com uma empresa isso já apaga o piso de perfil ATIVO da 0070; com duas, é o vazamento entre inquilinos na forma mais direta que existe.',
+    sql: `alter policy "leitura operador" on public.motivos using (true);`,
+    prova: {
+      sql: `select coalesce(qual, '') = 'true' from pg_policies
+             where schemaname = 'public' and tablename = 'motivos'
+               and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.motivos' }],
+  },
+  {
+    id: 'catalogo-force-row-level-security-ligado',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['4-bis'],
+    porque:
+      'R-ACC-29 desobedecida: `force row level security` faz a RLS valer também para o DONO, e o sistema conta com o contrário em dois lugares independentes — a recursão de `papel_atual()` em `profiles` (42P17 em toda leitura, para todo mundo) e as escritas fora de policy de `aplicar_movimentacao` e do gatilho da 0051. A regra existia desde a 0070 e NENHUMA asserção conferia se estava sendo cumprida.',
+    sql: `alter table public.motivos force row level security;`,
+    prova: {
+      sql: `select relforcerowsecurity from pg_class where oid = 'public.motivos'::regclass`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'catalogo-tabela-nova-na-publication-do-realtime',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'superficie-nao-enumerada',
+    derruba: ['9a'],
+    porque:
+      'Uma tabela entra na publication `supabase_realtime` e passa a empurrar cada linha alterada para quem estiver inscrito. Era a única superfície de LEITURA sem inventário nenhum no repositório — nem no tripwire do viewer, nem em papeis_rls.sql —, e na virada multiempresa é um canal direto entre inquilinos.',
+    sql: `alter publication supabase_realtime add table public.ativos;`,
+    prova: {
+      sql: `select exists (select 1 from pg_publication_tables
+                            where pubname = 'supabase_realtime'
+                              and schemaname = 'public' and tablename = 'ativos')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'catalogo-storage-decide-so-por-bucket',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'predicado-sem-acesso',
+    derruba: ['7'],
+    porque:
+      'A policy de leitura do bucket `termos` volta a decidir SÓ por `bucket_id`. Não é hipótese: é o predicado que a 0070 encontrou no ar e substituiu, e a reversão dele está escrita na própria migration (0070:137). O furo que ele deixava está em 0070:202-207 — quem foi DESATIVADO continuava conseguindo `createSignedUrl` de qualquer .docx enquanto o token vivia, e o .docx traz nome do colaborador, setor e patrimônios.',
+    sql: `alter policy "termos leitura operador" on storage.objects
+  using (bucket_id = 'termos');`,
+    prova: {
+      sql: `select coalesce(qual, '') not ilike '%papel_atual%' from pg_policies
+             where schemaname = 'storage' and tablename = 'objects'
+               and policyname = 'termos leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'termos leitura operador', tabela: 'storage.objects' }],
+  },
+  {
+    id: 'catalogo-security-definer-nova-nao-classificada',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'catalogo-nao-enumerado',
+    derruba: ['1a'],
+    porque:
+      'Uma função `security definer` nasce e ninguém decide que ela deve existir. Cada uma delas roda com o privilégio do DONO e IGNORA a RLS das tabelas que lê e escreve: é a superfície mais concentrada de poder do banco, e até a F48 uma função nova entrava nela sem nada no repositório se mexer.',
+    // O `revoke` faz parte da mutação DE PROPÓSITO: sem ele a função nasceria com o
+    // EXECUTE default de PUBLIC e derrubaria também a asserção 4, misturando dois fatos.
+    // Com ele, esta mutação isola exatamente um: "não classificada".
+    sql: `create function public.sabotagem_f48_definer() returns int
+language sql security definer set search_path = public as $sab$ select 1 $sab$;
+revoke all on function public.sabotagem_f48_definer() from public, anon;`,
+    prova: {
+      sql: `select prosecdef from pg_proc
+             where oid = 'public.sabotagem_f48_definer()'::regprocedure`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'catalogo-security-definer-com-search-path-solto',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['3'],
+    porque:
+      'Uma `security definer` perde o `search_path` travado (R-ACC-13): quem controla o `search_path` da sessão planta um schema com uma função homônima, e a definer a executa com o privilégio do dono. `e_admin()` é o alvo certo para a demonstração — é ela que metade das policies de `/admin` consulta.',
+    sql: `alter function public.e_admin() reset search_path;`,
+    prova: {
+      sql: `select proconfig is null from pg_proc
+             where oid = 'public.e_admin()'::regprocedure`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'catalogo-security-definer-executavel-por-anon',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'grant-devolvido',
+    derruba: ['4'],
+    porque:
+      'Uma `security definer` volta a ser executável pela chave pública, sem sessão nenhuma, por `/rest/v1/rpc/*`. `papel_atual()` é o alvo mais eloquente: ela lê `profiles` como o DONO, então um `anon` com EXECUTE consulta o cargo de quem quiser. O default do Postgres é EXECUTE para PUBLIC — função nova nasce aberta, e é o revoke que a fecha; o que faltava não era revogar, era SER OBRIGADO a revogar.',
+    sql: `grant execute on function public.papel_atual() to anon;`,
+    prova: {
+      sql: `select has_function_privilege('anon', 'public.papel_atual()'::regprocedure, 'execute')`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
   ...PAPEIS_RLS,
   ...SEGURANCA_CATALOGO,
@@ -746,6 +891,7 @@ export const MUTACOES = [
   ...DEV_DESTRUTIVO,
   ...IMPORT_SUBSTITUIR,
   ...CONFLITO_FILIAIS,
+  ...CATALOGOS_F48,
 ]
 
 /**
