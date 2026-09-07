@@ -252,7 +252,13 @@ const PAPEIS_RLS = [
     // `arquivo_path = id::text || '.docx'` já o recusa sozinha. E remover só a
     // invariante do path também não derruba: a âncora barra. O cenário prova a
     // CONJUNÇÃO, não a âncora — apesar de a mensagem de ✓ dele dizer "a âncora está
-    // no ar". A mutação isolada da âncora está na QUARENTENA, com a fase que adota.
+    // no ar".
+    //
+    // ⚠ EMENDA F48 (07/09/2026): o cenário 2i-bis-3 foi FORTALECIDO — o INSERT passou a
+    // usar `arquivo_path = <id>::text || '.docx'`, coerente, de modo que a âncora seja a
+    // ÚNICA barreira restante. Com isso a mutação isolada saiu da quarentena e virou
+    // `ancora-do-termo-sempre-coerente`, logo abaixo. Esta continua no lote por medir
+    // outra coisa: a reversão PARCIAL da 0069, com as duas invariantes saindo juntas.
     sql: `alter policy "operador insere" on public.termos_gerados
   with check (
     coalesce(array_length(ativo_ids, 1), 0) > 0
@@ -266,6 +272,56 @@ const PAPEIS_RLS = [
       espera: 'f',
     },
     policies: [{ nome: 'operador insere', tabela: 'public.termos_gerados' }],
+  },
+  // ---------------------------------------------------------------------------
+  // F48 (07/09/2026) — DUAS PROMOVIDAS DA QUARENTENA DA F47.
+  //
+  // As duas ficaram na quarentena da F47 com a fase F48 escrita ao lado, e o motivo era
+  // o MESMO nos dois casos: o cenário que deveria acusá-las passava sobre conjunto
+  // vazio. A F48 fortaleceu os cenários — que é conserto de ROTEIRO, não de policy — e
+  // por isso elas voltam ao lote ativo. O que prova que a frente 6 funcionou não é o
+  // diff: é o injetor, aqui, no CI.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'ancora-do-termo-sempre-coerente',
+    roteiro: 'papeis_rls.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['2i-bis-3'],
+    porque:
+      '`termo_ancora_coerente` passa a devolver sempre `true`: `ativo_ids` volta a ser forjável, e é sobre ele que a autorização por filial decide. O operador queima a vaga única do termo da filial vizinha citando as movimentações dela e declarando ativo da própria.',
+    // ⚠ POR QUE ELA SÓ FUNCIONA AGORA. Medida INDETECTÁVEL na F47 (run 34074319187): a
+    // mutação aplicou, a sonda confirmou que pegou, e o cenário continuou VERDE, porque
+    // o INSERT usava `arquivo_path = 'forjado.docx'` e a QUARTA conjunção da policy
+    // (`arquivo_path = id::text || '.docx'`) já o recusava antes de a âncora importar.
+    // A F48 deu ao ataque um `arquivo_path` coerente; agora a âncora é a única barreira
+    // restante, e neutralizá-la derruba o cenário de verdade.
+    sql: `create or replace function public.termo_ancora_coerente(
+  p_movimentacao_ids uuid[], p_ativo_ids uuid[]
+) returns boolean language sql stable security definer set search_path = public
+as $$ select true $$;`,
+    prova: {
+      sql: `select pg_get_functiondef('public.termo_ancora_coerente(uuid[], uuid[])'::regprocedure)
+              like '%select true%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'leitura-de-colaboradores-sem-piso',
+    roteiro: 'papeis_rls.sql',
+    classe: 'rls-desligada',
+    derruba: ['4i'],
+    porque:
+      'Desligar a RLS de `colaboradores` expõe o cadastro de PESSOAS a perfil desativado — o mesmo piso de leitura da 0070 que a mutação de `ativos` exercita, sobre a tabela que guarda nome, setor e filial de quem recebe equipamento.',
+    // ⚠ `derruba` é SÓ `4i`, e não `1j` — a distinção foi medida, não suposta. Com a RLS
+    // desligada, o cargo `consulta` ATIVO continua vendo as duas linhas plantadas, então
+    // `1j` (o lado POSITIVO do gate) não distingue e continua verde. Quem distingue é o
+    // desativado: `4i`. Declarar `1j` aqui seria afirmar mais do que a mutação prova —
+    // exatamente o defeito que a F47 encontrou no ✓ do 2i-bis-3.
+    sql: `alter table public.colaboradores disable row level security;`,
+    prova: {
+      sql: `select relrowsecurity from pg_class where oid = 'public.colaboradores'::regclass`,
+      espera: 'f',
+    },
   },
 ]
 
@@ -458,6 +514,33 @@ const CARGO_DEV = [
     sql: `grant execute on function public.existe_outro_admin_ativo(uuid) to authenticated;`,
     prova: {
       sql: `select has_function_privilege('authenticated', 'public.existe_outro_admin_ativo(uuid)'::regprocedure, 'execute')`,
+      espera: 't',
+    },
+  },
+  // ---------------------------------------------------------------------------
+  // F48 (07/09/2026) — a TERCEIRA promovida da quarentena da F47.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'gestao-encerrar-sessoes-mira-o-alvo-errado',
+    roteiro: 'cargo_dev.sql',
+    classe: 'alvo-trocado',
+    derruba: ['3d'],
+    porque:
+      'O `delete from auth.sessions` de `encerrar_sessoes_usuario` passa a mirar `auth.uid()` em vez de `p_alvo`: o dev que tenta derrubar a sessão de OUTRA pessoa derruba a própria, e a RPC devolve sucesso do mesmo jeito. É a classe de defeito mais silenciosa que existe — a autorização está certa, o alvo é que não.',
+    // ⚠ POR QUE ELA SÓ FUNCIONA AGORA. Na F47 o cenário 3d aceitava "0 sessões removidas"
+    // como sucesso: num banco novo `auth.sessions` nasce VAZIA, e ele só conferia que não
+    // houve exceção. A F48 plantou o universo (2 sessões do alvo + 1 de uma testemunha) e
+    // passou a exigir as DUAS metades — as do alvo somem, a da testemunha fica. Com o
+    // alvo trocado, a RPC devolve 0, as 2 do alvo continuam lá e o cenário acusa.
+    sql: mutarFuncao(
+      'public.encerrar_sessoes_usuario(uuid)',
+      '  delete from auth.sessions where user_id = p_alvo;',
+      `  delete from auth.sessions where user_id = auth.uid();  ${MARCA}`,
+      'gestao-encerrar-sessoes-mira-o-alvo-errado',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.encerrar_sessoes_usuario(uuid)'::regprocedure)
+              like '%where user_id = auth.uid();  --%'`,
       espera: 't',
     },
   },
@@ -676,6 +759,19 @@ export const MUTACOES = [
  *
  * Se um dia a quarentena passar de um terço do lote, isso é a manchete do
  * relatório da fase, não uma nota de rodapé.
+ *
+ * ⚠ EMENDA F48 (07/09/2026) — A QUARENTENA CAIU DE 5 PARA 2, E ISSO É O PONTO.
+ * As três entradas que traziam `fase: 'F48'` eram todas da mesma classe: `asseracao-
+ * fraca`, isto é, o cenário que deveria acusá-las passava sobre CONJUNTO VAZIO. A F48
+ * fortaleceu os quatro cenários correspondentes (`2i-bis-3`, `1j`/`4i` de
+ * `papeis_rls.sql` e `3d` de `cargo_dev.sql`) — conserto de ROTEIRO, não de policy — e
+ * as três voltaram ao lote ATIVO. As duas que sobram são de outra classe: não são
+ * asserção fraca, são CENÁRIO QUE NÃO EXISTE (concorrência de duas conexões; o ramo de
+ * backup em arquivo acima de 25 ativos), e as duas nomeiam a F52.
+ *
+ * A leitura honesta: a quarentena esvaziou porque a fase seguinte a adotou, que é
+ * exatamente o que o campo `fase` existe para fazer acontecer. Ela não é escape hatch
+ * enquanto alguém, em algum momento, for obrigado a olhar para ela.
  */
 /** @type {EmQuarentena[]} */
 export const QUARENTENA = [
@@ -702,47 +798,5 @@ export const QUARENTENA = [
     indetectavel:
       'A maior seleção que o roteiro monta tem 2 ativos, muito abaixo do teto de 25 — o ramo de backup em arquivo nunca roda. Detectar exige um cenário com 26 ativos, que é catálogo novo.',
     fase: 'F52',
-  },
-  {
-    id: 'gestao-encerrar-sessoes-mira-o-alvo-errado',
-    roteiro: 'cargo_dev.sql',
-    classe: 'asseracao-fraca',
-    derruba: ['(3d não distingue)'],
-    porque:
-      'Trocar `p_alvo` por outro usuário no `delete from auth.sessions` derrubaria a sessão da pessoa errada — e a RPC continuaria devolvendo sucesso.',
-    sql: 'trocar o alvo do delete em encerrar_sessoes_usuario',
-    indetectavel:
-      'O cenário 3d aceita "0 sessões removidas" como sucesso: ele só confere que não houve exceção, nunca que o delete mirou o usuário certo. É asserção sobre conjunto vazio, e fortalecê-la é matéria da F48.',
-    fase: 'F48',
-  },
-  {
-    id: 'ancora-do-termo-sempre-coerente',
-    roteiro: 'papeis_rls.sql',
-    classe: 'asseracao-fraca',
-    derruba: ['(2i-bis-3 não isola a âncora)'],
-    porque:
-      '`termo_ancora_coerente` passa a devolver sempre `true`: `ativo_ids` volta a ser forjável, e é sobre ele que a autorização por filial decide.',
-    sql: `create or replace function public.termo_ancora_coerente(
-  p_movimentacao_ids uuid[], p_ativo_ids uuid[]
-) returns boolean language sql stable security definer set search_path = public
-as $$ select true $$;`,
-    // ⚠ ESTA ENTRADA É O ACHADO MAIS INTERESSANTE DA FASE, e ela foi MEDIDA, não
-    // suposta: no primeiro ciclo de CI (run 34074319187) a mutação aplicou, a sonda
-    // confirmou que pegou, e o cenário 2i-bis-3 continuou VERDE.
-    indetectavel:
-      'O cenário 2i-bis-3 monta o INSERT com `arquivo_path = \'forjado.docx\'` e um `id` sorteado — a quarta conjunção da policy (`arquivo_path = id::text || \'.docx\'`) já o recusa sozinha, antes de a âncora importar. O cenário prova a CONJUNÇÃO das quatro invariantes, embora a mensagem de ✓ dele afirme "a âncora está no ar", que é mais do que ele sabe. Isolar a âncora exige um cenário cujo `arquivo_path` seja coerente e cuja ÚNICA barreira seja ela — catálogo novo, que é matéria da F48.',
-    fase: 'F48',
-  },
-  {
-    id: 'leitura-de-colaboradores-sem-piso',
-    roteiro: 'papeis_rls.sql',
-    classe: 'asseracao-fraca',
-    derruba: ['(1j e 4i não distinguem)'],
-    porque:
-      'Desligar a RLS de `colaboradores` exporia o cadastro de pessoas a perfil desativado — o mesmo piso de leitura da 0070 que a mutação de `ativos` exercita.',
-    sql: 'alter table public.colaboradores disable row level security',
-    indetectavel:
-      'O roteiro não planta NENHUMA linha em `colaboradores` antes de 1j/4i: as duas asserções passam sobre conjunto vazio, e "viu 0 linhas" continua verdadeiro com a RLS desligada. Precisa de fixture, que é catálogo novo.',
-    fase: 'F48',
   },
 ]

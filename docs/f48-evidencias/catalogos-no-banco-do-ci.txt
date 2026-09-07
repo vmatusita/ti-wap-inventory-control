@@ -1,0 +1,80 @@
+=== OS TRÊS CATÁLOGOS NOVOS, VERDES CONTRA O BANCO DO CI ===
+PR #30 · run 34166050772 · job banco-sem-docker · 1m39s · 07/09/2026
+Postgres construído das migrations 0001→0128 pelo bootstrap de supabase/ci/.
+
+⚠ ESTE É O ÚNICO NÚMERO QUE VALE. Tudo em docs/PLAN-F48.md foi medido por
+   LEITURA ESTÁTICA das migrations, porque a mesa não tem Postgres. O que segue
+   é o catálogo do Postgres respondendo.
+
+--- catalogo_secdef.sql ---
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  ✓ 1a toda `security definer` de public está CLASSIFICADA (0 de 37 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  ✓ 1b todo nome classificado existe e continua `security definer` (0 de 37 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  ✓ 2 nenhum nome `security definer` tem mais de uma assinatura viva (0 de 37 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  ✓ 3 `search_path` travado em toda `security definer` (0 de 37 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  ✓ 4 nenhuma `security definer` executável por anon (0 de 37 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  ✓ 5 valida_lancamento_item é INVOKER de propósito e está FORA da tabela-verdade (0038; motivo em seguranca_catalogo.sql:16-23)
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  ✓ 6a toda INVOKER alcançável por anon está declarada nominalmente (0 de 27 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  ✓ 6b toda exceção declarada ainda descreve o banco (0 de 5 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:311: NOTICE:  FIM catalogo_secdef: 8 asserções, 0 falhas
+
+--- catalogo_policies.sql ---
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 1a toda tabela de public está CLASSIFICADA negócio × infra (0 de 21 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 1b todo nome classificado ainda existe no catálogo (0 de 21 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 2 toda tabela de NEGÓCIO tem policy de SELECT (0 de 16 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 3 nenhuma tabela de public fica sem SELECT por CATEGORIA (0 de 21 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 4 toda exceção deny-all ainda descreve o banco (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 4-bis `force row level security` desligado em toda tabela de public (R-ACC-29) (0 de 21 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 5 nenhuma policy com predicado equivalente a `true` (0 de 55 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 6a o piso `papel_atual()` continua nas 15 policies de SELECT congeladas (0 de 15 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 6b as 3 que decidem por CARGO não afrouxaram para o piso (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 7 nenhuma policy de storage.objects decide só por `bucket_id` (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 8a nenhuma policy de Storage fora do conjunto congelado (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 8b nenhuma policy de Storage congelada sumiu (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 9a nenhuma tabela NOVA na publication do Realtime (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  ✓ 9b nenhuma das 3 congeladas saiu da publication (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:537: NOTICE:  FIM catalogo_policies: 14 asserções, 0 falhas
+
+--- isolamento_tenant.sql ---
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 1 o papel do roteiro (postgres) ignora RLS — contar com ele conta o universo REAL
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 2 `authenticated` NÃO ignora RLS — "viu zero linhas" é a policy trabalhando
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 3 `anon` NÃO ignora RLS
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 4 `service_role` ignora RLS (desenho — é a premissa do trigger guarda_acervo da 0081)
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 5 o bloco de grants concedeu LEITURA — sem isso "viu zero" seria permission denied (0 de 3 conferidos)
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 6 o bloco de grants concedeu ESCRITA — recusa por privilégio se disfarça de recusa por policy (0 de 1 conferidos)
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 7 `profiles` recebe UPDATE de COLUNA e não de TABELA (espelho da 0063)
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 8a o universo foi contado como postgres ANTES do ataque (2 linhas na filial não vinculada)
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 8b a operação FALHOU: operador não reescreveu ativo de filial não vinculada (0 de 2 conferidos)
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  ✓ 8c de volta como postgres, o dado original continua INTACTO (a segunda prova da recusa) (0 de 2 conferidos)
+psql:supabase/tests/isolamento_tenant.sql:377: NOTICE:  FIM isolamento_tenant: 10 asserções, 0 falhas
+
+--- RESUMO DOS 28 ROTEIROS ---
+==== RESUMO ====
+  ✓ asof_desempate — 4 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 46 asserções
+  ✓ catalogo_policies — 14 asserções
+  ✓ catalogo_secdef — 8 asserções
+  ✓ conflito_filiais — 38 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 25 asserções
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_substituir — 11 asserções
+  ✓ isolamento_tenant — 10 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ papeis_rls — 76 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 13 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  28 roteiro(s), 609 asserções no total

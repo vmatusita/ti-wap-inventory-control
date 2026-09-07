@@ -51,9 +51,18 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 30 mutações ATIVAS', () => {
+  it('tem entre 20 e 36 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 30 PARA 36 NA F48 (07/09/2026), e o motivo é escrito para não
+    // virar hábito. A F47 fechou com 28 ativas e 5 em quarentena; a F48 fortaleceu os
+    // quatro cenários que a quarentena nomeava e promoveu TRÊS entradas de volta ao lote
+    // — 31. O teto de 30 era a folga da F47, não uma régua de desenho.
+    //
+    // A régua de desenho é a de baixo (a quarentena abaixo de um terço) e a do injetor
+    // rodar INCONDICIONALMENTE no CI. O teto existe só para que um lote que cresça sem
+    // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
+    // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(30)
+    expect(MUTACOES.length).toBeLessThanOrEqual(36)
   })
 
   it('os `id` são únicos', () => {
