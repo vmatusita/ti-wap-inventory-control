@@ -332,7 +332,7 @@ begin
     select 1 from public.import_logs l
      where l.filial_id = p_filial
        and l.arquivo_hash = v_hash
-       and l.criado_em > now() - interval '24 hours'
+       and l.created_at > now() - interval '24 hours'
   ) then
     raise exception 'Este mesmo arquivo já foi importado nesta filial nas últimas 24 horas. Nada foi apagado — se a reimportação é intencional, aguarde a janela ou corrija o arquivo.'
       using errcode = '22023';
@@ -910,7 +910,7 @@ $$;
 -- A consulta nova de `import_validar_plano` é exatamente por esta tripla. Sem o índice ela
 -- varre `import_logs` inteira a cada import — hoje barato, e caro no dia em que não for.
 create index if not exists import_logs_filial_hash_idx
-  on public.import_logs (filial_id, arquivo_hash, criado_em desc);
+  on public.import_logs (filial_id, arquivo_hash, created_at desc);
 
 comment on index public.import_logs_filial_hash_idx is
   'F52: serve a janela de 24h de idempotência do import (import_validar_plano). A tripla é a da consulta: filial, hash do arquivo, e o mais recente primeiro.';

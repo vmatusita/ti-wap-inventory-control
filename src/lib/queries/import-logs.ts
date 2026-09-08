@@ -272,6 +272,11 @@ export type ImportLogRow = {
   anotacoesApagadas: number
   termosApagados: number
   backupPath: string
+  /** F52 — o sha-256 do arquivo original. É a chave da janela de 24 h de idempotência
+   *  que `import_validar_plano` aplica: sem mostrá-lo aqui, a tela não teria como
+   *  explicar por que um reimport foi recusado ("mesmo arquivo"), nem o operador teria
+   *  como conferir se é mesmo o mesmo. Vazio nos logs anteriores à coluna. */
+  arquivoHash: string
   /** F7B — quantas correções foram declaradas na tela neste import (0 nos antigos). */
   correcoes: number
   /** F24 — quantos conflitos entre filiais este import abriu (0 nos anteriores à fase:
@@ -291,7 +296,7 @@ export async function listarImportLogs(
       // ⚠ As colunas são listadas UMA A UMA e o mapeamento abaixo é manual: coluna nova
       // que não entre nesta string simplesmente não chega ao histórico, e o TypeScript
       // não avisa.
-      'id, total_linhas, ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, conflitos_abertos, created_at, filiais(nome, slug), profiles(nome)',
+      'id, arquivo_hash, total_linhas, ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, conflitos_abertos, created_at, filiais(nome, slug), profiles(nome)',
     )
     .order('created_at', { ascending: false })
     .limit(limite)
@@ -309,6 +314,7 @@ export async function listarImportLogs(
     anotacoesApagadas: l.anotacoes_apagadas,
     termosApagados: l.termos_apagados,
     backupPath: l.backup_path,
+    arquivoHash: l.arquivo_hash ?? '',
     // jsonb (default '[]'); imports da F7 e qualquer valor fora do formato → 0.
     correcoes: Array.isArray(l.correcoes) ? l.correcoes.length : 0,
     // F24 — int not null default 0 (migration 0094); imports anteriores à fase → 0.

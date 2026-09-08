@@ -28,12 +28,19 @@ import {
 } from '@/lib/queries/import-logs'
 import type { Filial } from '@/lib/queries/filiais'
 import type { Json } from '@/lib/types/database'
+import { confirmacaoImportConfere, prefixoBackupImport } from '@/lib/validators/importar'
 
 // Server Actions da tela admin/importar (OS-F7 / W3). Escritas com validação Zod;
 // TODO acesso ao banco/Storage/RPC pelo client autenticado do operador (a RPC
 // `importar_ativos_substituir` usa auth.uid() e só concede EXECUTE ao authenticated
-// — jamais service_role). O conteúdo do CSV nunca é persistido nem logado: só o
-// hash viaja no plano.
+// — jamais service_role).
+//
+// ⚠ CORRIGIDO NA F52: este comentário afirmava que "o conteúdo do CSV nunca é persistido
+// nem logado: só o hash viaja no plano". É FALSO desde a 0033. O plano carrega os campos
+// já interpretados de cada linha, e `import_logs.correcoes` guarda os valores CRUS de
+// célula ("de" e "para") de cada correção aplicada no preview — que é justamente o ponto
+// da coluna: auditoria = arquivo original (hash) + correções → plano. O que NÃO é
+// persistido é o ARQUIVO em si; o conteúdo das células corrigidas, sim.
 //
 // F21 — as QUATRO actions deste módulo exigem ADMIN, não só sessão. O import de startup
 // é a operação mais destrutiva do sistema (DELETE do acervo inteiro de uma filial) e a
@@ -345,8 +352,17 @@ export async function aplicarImport(input: {
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
   if (!filial.ativo) return { ok: false, erro: 'Filial inativa: import bloqueado.' }
 
-  // Confirmação estilo GitHub: o texto tem de ser o nome EXATO da filial.
-  if (confirmacaoTexto !== filial.nome) {
+  // Confirmação estilo GitHub: o texto tem de ser o nome da filial.
+  //
+  // F52 — a régua passou a ser `confirmacaoImportConfere` (a da casa: caixa e espaço nas
+  // pontas toleradas) em vez da igualdade exata que estava aqui, e a MESMA régua roda
+  // agora DENTRO da RPC. Duas razões:
+  //   · a conferência não podia continuar parando aqui — quem chamasse a RPC direto, com
+  //     a anon key e o próprio JWT, pulava o campo de confirmação inteiro;
+  //   · `upper(btrim())` é ESTRITAMENTE mais permissiva que a igualdade exata, então
+  //     nenhum import que era aceito ontem passa a ser recusado hoje. Adotar a igualdade
+  //     exata no banco faria o contrário, e é o que esta fase não pode fazer.
+  if (!confirmacaoImportConfere(confirmacaoTexto, filial.nome)) {
     return {
       ok: false,
       erro: `Confirmação incorreta: digite exatamente "${filial.nome}" para prosseguir.`,
@@ -392,7 +408,11 @@ export async function aplicarImport(input: {
 
   // Backup PRIMEIRO (autoproteção CLAUDE.md: destrutivo → backup antes). Falha no
   // upload aborta ANTES da RPC.
-  const backupPath = `${filial.slug}/${timestampArquivo()}.json`
+  // F52 — POR ID, e sob o prefixo que a RPC agora EXIGE (`prefixo_backup_import`).
+  // Antes era `<slug>/<timestamp>.json`: um caminho que a RPC aceitava sem conferir nada
+  // além de ser não-vazio, e cujo slug colide no dia em que deixar de ser único global —
+  // com `upsert:false`, o segundo import falharia por causa do primeiro.
+  const backupPath = `${prefixoBackupImport(filial.id)}${timestampArquivo()}.json`
   try {
     const acervo = await exportarAcervoFilial(client, filial.id)
     const backup = {
@@ -420,8 +440,14 @@ export async function aplicarImport(input: {
   // (mov concorrente apagada fora do backup / dois applies simultâneos).
   // `p_correcoes` (F7B) é trilha de auditoria: a RPC só grava em import_logs —
   // auditoria do import = arquivo original (hash) + correções → plano.
+  //
+  // F52 — a confirmação digitada viaja DENTRO de `p_plano`, e não como parâmetro novo:
+  // acrescentar parâmetro (mesmo com `default`) cria uma função NOVA, porque
+  // `create or replace` casa pela LISTA DE TIPOS dos argumentos. O overload quebraria
+  // `seguranca_catalogo.sql`, que resolve a assinatura de 4 argumentos e exige UMA linha.
+  const planoComConfirmacao = { ...plano, confirmacao: confirmacaoTexto }
   const { data, error } = await client.rpc('importar_ativos_substituir', {
-    p_plano: plano as unknown as Json,
+    p_plano: planoComConfirmacao as unknown as Json,
     p_backup_path: backupPath,
     p_contagens: custoPreview as unknown as Json,
     p_correcoes: correcoes as unknown as Json,

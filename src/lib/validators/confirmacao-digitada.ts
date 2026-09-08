@@ -10,11 +10,14 @@
  *
  * ⚠ A régua de "o que conta como igual" continua em CADA TELA, de propósito — não foi
  * unificada, só a MENSAGEM:
- *   · import (`aplicarImport`, `actions/importar.ts`): o servidor compara IGUALDADE
- *     EXATA (`confirmacaoTexto !== filial.nome`, sem trim/caixa) — confirmado lendo a
- *     action; a RPC `importar_ativos_substituir` nem repete essa checagem, ela é só da
- *     Server Action. Afrouxar o cliente aqui habilitaria um botão que o servidor
- *     recusaria mesmo assim.
+ *   · import (`aplicarImport`, `actions/importar.ts`): ATUALIZADO NA F52. Era o caso
+ *     divergente — igualdade EXATA na Server Action, e a RPC não repetia a checagem
+ *     (quem chamasse a RPC direto pulava o campo inteiro). Agora a action usa
+ *     `confirmacaoImportConfere` (`validators/importar.ts`) e a RPC aplica a MESMA
+ *     régua por dentro, com `upper(btrim(coalesce(...)))`. Ou seja: o import deixou de
+ *     ser a exceção e passou a tolerar caixa e espaço nas pontas, como os outros dois.
+ *     A mudança é um AFROUXAMENTO deliberado: tudo o que era aceito antes continua
+ *     sendo, e nada que era recusado passou a ser aceito por engano.
  *   · apagar conta (`validarExclusaoDeUsuario`, `validators/admin.ts`) e Zona destrutiva
  *     (`confirmacaoConfere`, `validators/dev-destrutivo.ts`): toleram caixa e espaço nas
  *     pontas — confirmado lendo a action/validator E as RPCs (0074 nem checa a

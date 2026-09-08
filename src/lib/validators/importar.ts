@@ -193,3 +193,47 @@ export function parseCorrecoesJson(valor: FormDataEntryValue | null): ParseCorre
   }
   return parseCorrecoes(json)
 }
+
+// ---------------------------------------------------------------------------
+// A CONFIRMAÇÃO DIGITADA DO IMPORT — a gêmea TS da régua que a RPC aplica (F52)
+// ---------------------------------------------------------------------------
+// ⚠ ESTA FUNÇÃO E A EXPRESSÃO SQL SÃO UMA RÉGUA SÓ, e é de propósito.
+//
+// Até a F52 havia DUAS: a Server Action comparava por IGUALDADE EXATA
+// (`confirmacaoTexto !== filial.nome`) e a RPC não comparava nada — quem chamasse
+// `/rest/v1/rpc/importar_ativos_substituir` direto pulava a conferência inteira. Agora a
+// RPC confere, e por isso as duas pontas precisam responder a MESMA coisa: uma régua na
+// tela e outra no banco é uma confirmação que ora confere e ora não, sem que ninguém
+// consiga dizer por quê. É a lição que a `0100` aprendeu à força com o digest da seleção.
+//
+// A régua escolhida é a da CASA — `upper(btrim(coalesce(...)))`, as oito irmãs destrutivas
+// de `0082`/`0083`/`0087`/`0089` — e não a igualdade exata que a action usava. O motivo é
+// o critério de não-regressão: `upper(btrim())` é ESTRITAMENTE MAIS PERMISSIVA que a
+// igualdade exata, então tudo o que a tela aceitava ontem continua sendo aceito hoje.
+// Adotar a igualdade exata no banco faria o contrário — passaria a recusar o que a tela
+// já aceitava em alguma ponta —, e guarda de escopo que recusa operação legítima é
+// exatamente o que esta fase não pode fazer.
+//
+// O espelho SQL é conferido por `src/lib/validators/import-confirmacao-sql.test.ts`, que
+// lê a migration VIGENTE e prova que a expressão lá é esta régua, não outra.
+export function confirmacaoImportConfere(digitado: string, esperado: string): boolean {
+  const a = (digitado ?? '').trim().toLocaleUpperCase('pt-BR')
+  const b = (esperado ?? '').trim().toLocaleUpperCase('pt-BR')
+  return a !== '' && a === b
+}
+
+/**
+ * O prefixo obrigatório do backup de um import de startup.
+ *
+ * ⚠ Espelha `public.prefixo_backup_import(smallint)` (migration 0132), pelo mesmo motivo
+ * pelo qual aquela função existe: a Server Action GRAVA o backup neste caminho e a RPC
+ * RECUSA o que não estiver sob ele. Se as duas divergirem, todo import passa a ser
+ * recusado com "o backup informado não é o backup DESTA filial" — e o caminho estaria
+ * certo dos dois lados, só que diferentes.
+ *
+ * Por ID e não por slug: o slug colide quando deixar de ser único global, e com
+ * `upsert:false` o segundo import falharia por causa do primeiro.
+ */
+export function prefixoBackupImport(filialId: number): string {
+  return `import/filial-${filialId}/`
+}
