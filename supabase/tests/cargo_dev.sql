@@ -847,13 +847,21 @@ begin
     -- comportamento observável hoje — uma guarda que sempre aceita é indetectável por
     -- efeito, por definição. A única forma de provar que a fechadura está no CAMINHO — e não
     -- só documentada em comentário — é ler o corpo COMPILADO da função com
-    -- pg_get_functiondef e procurar a citação. Quando a F65 der corpo real à guarda, aí sim
-    -- have haverá cenário de efeito (um alvo fora do escopo recusado); até lá, esta asserção
-    -- é quem denuncia se a chamada sumir numa recriação futura de exigir_gestao_de.
+    -- pg_get_functiondef e procurar a CHAMADA. Quando a F65 der corpo real à guarda, aí
+    -- haverá cenário de efeito (um alvo fora do escopo recusado); até lá, esta asserção é
+    -- quem denuncia se a chamada sumir numa recriação futura de exigir_gestao_de.
+    --
+    -- ⚠ A ÂNCORA É A CHAMADA INTEIRA, NUNCA O NOME CRU — e isto foi aprendido pelo
+    -- injetor, não deduzido. `pg_get_functiondef` devolve o corpo COM os comentários, e o
+    -- comentário que a 0132 escreveu em volta da guarda CITA `mesmo_escopo_de_gestao` (é
+    -- ele que explica por que a condição existe). Com âncora pelo nome, a mutação
+    -- `f52-escopo-de-gestao-some-do-corpo` — que remove exatamente o `if` — deixava esta
+    -- asserção VERDE, e o injetor a reportou como "NÃO detectada". Uma prova de presença
+    -- que casa com a documentação da coisa, em vez da coisa, não prova presença nenhuma.
     begin
       select pg_get_functiondef('public.exigir_gestao_de(uuid, public.papel_usuario)'::regprocedure)
         into v_corpo;
-      if v_corpo like '%mesmo_escopo_de_gestao%' then
+      if v_corpo like '%not public.mesmo_escopo_de_gestao(p_alvo)%' then
         v_ok := v_ok + 1; raise notice '✓ 7c exigir_gestao_de CITA mesmo_escopo_de_gestao no corpo (prova de presença)';
       else
         v_falhas := v_falhas + 1; v_msgs := v_msgs || '7c_GUARDA_SUMIU; ';
