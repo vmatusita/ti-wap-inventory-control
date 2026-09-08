@@ -40,6 +40,20 @@ begin;
 -- resto do cenário.
 grant select, insert, update, delete on storage.objects to authenticated;
 
+-- ⚠ E `select` para `anon` TAMBÉM — senão a asserção 2b passa pelo motivo errado.
+--
+-- Ela existe para provar que a POLICY barra quem não tem sessão. Sem o grant, quem
+-- barra é a camada de baixo: o Postgres recusa com "permission denied for table
+-- objects" antes de olhar policy nenhuma, o roteiro ABORTA, e a linha `FIM` não sai.
+-- Pior seria se ele não abortasse: a asserção diria "anon não leu nada" e estaria
+-- medindo a ausência do grant, não a presença da regra.
+--
+-- Em PRODUÇÃO `anon` TEM esse grant (o Supabase o concede) e é a policy que o barra —
+-- que é exatamente o cenário que este roteiro precisa reproduzir. Conceder aqui não
+-- afrouxa nada: o grant abre a porta da tabela, e é a policy, sob teste, que decide
+-- se alguma linha atravessa. É a mesma disciplina do grant de `authenticated` acima.
+grant select on storage.objects to anon;
+
 do $$
 declare
   -- identidades fictícias (uuid fixo, hex válido — o prefixo f50a marca a fase)
@@ -119,6 +133,20 @@ begin
   if pg_temp.assert_zero_de(
        '0b a fixture montou os dois objetos do bucket `termos`',
        case when v_univ >= 2 then 0 else 1 end, 1) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ⚠ RLS LIGADA em `storage.objects` — a asserção que impede a 2b de passar por
+  -- acidente. Este roteiro concede `select` a `anon` de propósito (para que quem o
+  -- barre seja a POLICY, e não a falta de grant); se a RLS estivesse desligada, esse
+  -- mesmo grant o faria ler TUDO e a 2b acusaria — mas acusaria a coisa certa pelo
+  -- caminho errado, e sem dizer o motivo. Aqui o motivo fica dito.
+  select relrowsecurity into v_existe from pg_class where oid = 'storage.objects'::regclass;
+  if pg_temp.assert_zero_de(
+       '0c RLS ligada em storage.objects (sem ela, nenhuma asserção abaixo significa nada)',
+       case when v_existe then 0 else 1 end, 1) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;
