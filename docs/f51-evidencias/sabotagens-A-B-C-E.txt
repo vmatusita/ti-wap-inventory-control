@@ -1,0 +1,61 @@
+# F51 — SABOTAGENS A, B, C e E na mesa (sem banco)
+#
+# Cada uma muta a 0131, roda a trava, mostra o veredito e RESTAURA o arquivo.
+# O sha256 do fim prova que nada ficou sujo.
+#
+# A trava verde (estado limpo): 31 asserções, 31 passaram.
+
+############################################################
+# SABOTAGEM A — 'delete from public.ativos' na ORQUESTRADORA
+############################################################
+# A decomposicao desfeita: a funcao de topo volta a apagar acervo
+# por conta propria. E o modo mais direto de a promessa da F51 morrer.
+# ocorrencias da string no arquivo agora: 4
+ Test Files  1 failed (1)
+      Tests  2 failed | 29 passed (31)
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a orquestradora NÃO contém o delete
+AssertionError: a orquestradora voltou a apagar acervo por conta própria — a decomposição da F51 foi desfeita: expected 'create or replace function public.imp…' not to contain 'delete from public.ativos'
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > exatamente UMA função da cadeia contém o delete
+AssertionError: expected [ 'importar_ativos_substituir', …(1) ] to deeply equal [ 'import_apagar_acervo_filial' ]
+
+############################################################
+# SABOTAGEM B — o delete numa SEGUNDA auxiliar do import
+############################################################
+# Duas portas em vez de uma: import_criar_ativos passa a apagar.
+# ocorrencias da string no arquivo agora: 4
+ Test Files  1 failed (1)
+      Tests  2 failed | 29 passed (31)
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_criar_ativos` NÃO contém o delete
+AssertionError: import_criar_ativos passou a apagar acervo: a cadeia do import tem DUAS portas, e a promessa da F51 é uma: expected 'create or replace function public.imp…' not to contain 'delete from public.ativos'
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > exatamente UMA função da cadeia contém o delete
+AssertionError: expected [ 'import_apagar_acervo_filial', …(1) ] to deeply equal [ 'import_apagar_acervo_filial' ]
+
+############################################################
+# SABOTAGEM C — auxiliar ORFA (a orquestradora deixa de chamar)
+############################################################
+# O modo REALISTA de esta decomposicao apodrecer: a funcao continua
+# existindo, o SQL continua valido, e ela simplesmente nunca roda.
+# A vitima natural e a conferencia — ela nao lanca no caminho feliz,
+# entao roteiro nenhum acusaria a ausencia dela.
+ Test Files  1 failed (1)
+      Tests  1 failed | 30 passed (31)
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_conferir_resultado`
+AssertionError: a orquestradora não menciona import_conferir_resultado em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_conferir_resultado'
+
+############################################################
+# SABOTAGEM E — o trecho que uma mutacao procura MUDA
+############################################################
+# A rede do fato 7: se uma migration futura mexer no trecho que a
+# mutacao afrouxa, trocarNoCorpo tem de reprovar ALTO em vez de
+# aplicar um no-op silencioso que o injetor leria como 'nao detectada'.
+# (o trecho de import_validar_plano foi reescrito, mesmo efeito, outra forma)
+### trocarNoCorpo REPROVOU ALTO:
+trocarNoCorpo (mutação import-sem-exigencia-de-backup): o trecho não existe no corpo vigente — a migration mudou e a mutação viraria um no-op silencioso. Trecho procurado:
+  if coalesce(btrim(p_backup_path), '') = '' then
+
+############################################################
+# ESTADO FINAL
+############################################################
+# b02ce73b31eb6237bf6323d599071f1d254ba78f401f6375cfad0e367b7f3b81 *supabase/migrations/0131_import_decomposto.sql
+# sha original: b02ce73b31eb6237bf6323d599071f1d254ba78f401f6375cfad0e367b7f3b81
+# (diff vazio acima = o arquivo voltou byte a byte)

@@ -69,6 +69,11 @@ const DA_F38 = [
   // F50 — o grant que faltava ao lado dos cinco revoke da 0129 (o CI provou a
   // divergencia: em producao o grant explicito ja existia, no banco do CI nao).
   '0130',
+  // F51 (08/09/2026) — a decomposição da RPC de import em oito auxiliares. Mesmo
+  // motivo de sempre: a lista é COBERTURA. Ela é a PRIMEIRA migration desta faixa
+  // a recriar uma função que apaga acervo, e foi ela que expôs o exagero da
+  // varredura de DELETE logo abaixo — ver a nota lá.
+  '0131',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */
@@ -92,19 +97,33 @@ function arquivosDaFase(): { nome: string; sql: string }[] {
     .map((nome) => ({ nome, sql: readFileSync(join(DIR, nome), 'utf8') }))
 }
 
+/** O SQL sem as linhas de comentário `--`. */
+function semComentarios(sql: string): string {
+  return sql
+    .split('\n')
+    .filter((l) => !l.trimStart().startsWith('--'))
+    .join('\n')
+}
+
+/**
+ * O SQL sem os CORPOS dollar-quoted (`$$ … $$`), isto é: só o que a migration
+ * EXECUTA ao ser aplicada. Corpo de função é texto que o Postgres guarda, não
+ * comando que ele roda — a distinção que a F51 tornou necessária (ver a asserção
+ * de DELETE abaixo, e a "guarda da guarda" que prova que ela não virou peneira).
+ */
+function semCorposDeFuncao(sql: string): string {
+  return sql.replace(/\$\$[\s\S]*?\$\$/g, '\n/* corpo de função */\n')
+}
+
 /**
  * Os nomes de função que um SQL DEFINE — só `create [or replace] function`, e só
  * fora de comentário de linha. Comentário citando o nome de uma função (que as
  * migrations desta casa fazem o tempo todo) não conta como recriação.
  */
 function funcoesDefinidas(sql: string): string[] {
-  const semComentario = sql
-    .split('\n')
-    .filter((l) => !l.trimStart().startsWith('--'))
-    .join('\n')
   const re = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z_][a-z0-9_]*)/gi
   const nomes: string[] = []
-  for (const m of semComentario.matchAll(re)) nomes.push(m[1].toLowerCase())
+  for (const m of semComentarios(sql).matchAll(re)) nomes.push(m[1].toLowerCase())
   return nomes
 }
 
@@ -148,31 +167,59 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
 
   it('nenhum valor novo de enum entra na fase', () => {
     for (const { nome, sql } of arquivosDaFase()) {
-      const semComentario = sql
-        .split('\n')
-        .filter((l) => !l.trimStart().startsWith('--'))
-        .join('\n')
-      expect(semComentario, `${nome} acrescenta valor de enum`).not.toMatch(
+      expect(semComentarios(sql), `${nome} acrescenta valor de enum`).not.toMatch(
         /alter\s+type\s+[^;]*add\s+value/i,
       )
     }
   })
 
-  it('nenhuma migration da fase apaga registro do acervo', () => {
+  it('nenhuma migration da fase apaga registro do acervo AO SER APLICADA', () => {
+    // ⚠ A REGRA É SOBRE O QUE EXECUTA NO APPLY, e a distinção passou a importar na
+    // F51 (08/09/2026). Até a 0130, a varredura era um grep cru sobre o arquivo
+    // inteiro, e funcionava porque nenhuma migration da faixa recriava função
+    // destrutiva. A 0131 é a primeira: ela recria `importar_ativos_substituir` e
+    // cria `import_apagar_acervo_filial`, cujo corpo TEM `delete from
+    // public.ativos` — o import de startup apaga a filial antes de gravar, é o
+    // desenho dele desde a 0032. Um `create or replace function` não apaga nada
+    // ao ser aplicado; um `delete` de TOPO, sim.
+    //
+    // O grep cru reprovava a 0131 por motivo legítimo — e gate que nasce vermelho
+    // por motivo legítimo é gate que alguém desliga (asserção da F48). A correção
+    // não foi afrouxar a régua: foi apontá-la para o que ela sempre quis dizer.
+    // Um `delete` de topo continua reprovando, e a asserção logo abaixo prova
+    // isso em vez de confiar em quem leu.
+    //
+    // O mesmo raciocínio, com as mesmas palavras, já estava em
+    // `scripts/db/mutacoes.test.mts` (describe 5).
     for (const { nome, sql } of arquivosDaFase()) {
-      const semComentario = sql
-        .split('\n')
-        .filter((l) => !l.trimStart().startsWith('--'))
-        .join('\n')
+      const deTopo = semCorposDeFuncao(semComentarios(sql))
       for (const tabela of ['movimentacoes', 'lancamentos_item', 'ativos']) {
-        expect(semComentario, `${nome} apaga de ${tabela}`).not.toMatch(
+        expect(deTopo, `${nome} apaga de ${tabela} no apply`).not.toMatch(
           new RegExp(`delete\\s+from\\s+(public\\.)?${tabela}\\b`, 'i'),
         )
-        expect(semComentario, `${nome} atualiza ${tabela} em massa`).not.toMatch(
+        expect(deTopo, `${nome} atualiza ${tabela} em massa no apply`).not.toMatch(
           new RegExp(`update\\s+(public\\.)?${tabela}\\s+set`, 'i'),
         )
       }
     }
+  })
+
+  it('a varredura de DELETE ainda reprova um comando de TOPO (guarda da guarda)', () => {
+    // Sem esta asserção, a correção acima seria indistinguível de ter desligado a
+    // anterior: os dois passam verde num repositório limpo. Aqui a diferença
+    // aparece — o `delete` dentro do corpo é ignorado, o de topo não.
+    const dentroDoCorpo = [
+      'create or replace function public.f() returns void',
+      'language plpgsql as $$',
+      'begin',
+      '  delete from public.ativos where filial_id = 1;',
+      'end $$;',
+    ].join('\n')
+    const noTopo = `${dentroDoCorpo}\n\ndelete from public.ativos where filial_id = 1;\n`
+
+    const re = /delete\s+from\s+(public\.)?ativos\b/i
+    expect(semCorposDeFuncao(dentroDoCorpo), 'corpo de função deveria ser ignorado').not.toMatch(re)
+    expect(semCorposDeFuncao(noTopo), 'delete de TOPO deveria continuar sendo pego').toMatch(re)
   })
 
   it('toda função NOVA da fase é declarada security invoker', () => {

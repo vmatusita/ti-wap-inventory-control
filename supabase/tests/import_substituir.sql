@@ -4,7 +4,20 @@
 -- roteiro cobria a RPC até aqui. Este arquivo é NOVO e independente (não mexe
 -- nos demais roteiros — lição F15/F17).
 --
--- Cobre 4 cenários (regras R-IMP-* da spec §10.2 + hardening 0040):
+-- Cobre uma SEÇÃO 0 e 4 cenários (regras R-IMP-* da spec §10.2 + hardening 0040):
+--   0. F51 (0131) — cada auxiliar do import, exercitada ISOLADAMENTE, numa
+--      terceira filial ('F19 Teste C') para não tocar o que os cenários 1→4 leem:
+--        0a  import_validar_plano recusa plano vazio;
+--        0b  import_revalidar_contagens recusa contagem que não bate com o vivo;
+--        0c  import_contar_conflitos = 0 numa filial sem conflito;
+--        0d  import_gravar_trilha devolve log_id e grava a linha;
+--        0e  as 8 auxiliares estão FECHADAS nos quatro papéis (ACL real);
+--        0f  import_conferir_resultado acusa estado fora do alvo (o caminho que
+--            o import feliz NUNCA percorre);
+--        0g  import_apagar_acervo_filial esvazia a filial e devolve as contagens;
+--        0h  o par import_criar_ativos + import_lancar_movimentacoes.
+--      A seção roda como `postgres` — ver a nota no corpo sobre por que isso
+--      NÃO contradiz o `revoke` das auxiliares.
 --   1. Happy path — plano de 2 ativos fictícios numa FILIAL DE TESTE nova:
 --        1a  o retorno traz ativos_criados = 2;
 --        1b  a filial passa a ter os 2 ativos;
@@ -45,6 +58,7 @@ declare
   v_prof      uuid;
   v_fa        smallint;   -- F19 Teste A (happy path + negativos)
   v_fb        smallint;   -- F19 Teste B (substituir tudo)
+  v_fc        smallint;   -- F51 Teste C (seção 0 — as auxiliares, isoladas)
   v_result    jsonb;
   v_cnt       int;
   v_cnt2      int;
@@ -53,6 +67,13 @@ declare
   v_fa_before int;
   p_plano_a   jsonb;
   p_plano_b   jsonb;
+  -- F51 · seção 0
+  v_total     int;
+  v_apagado   jsonb;
+  v_log       uuid;
+  v_ativo_c   uuid;
+  v_abertas   int;
+  p_plano_c   jsonb;
 begin
   -- F38: perfil ATIVO e escolha DETERMINÍSTICA. O `limit 1` sem `order by` e sem
   -- filtro podia cair num perfil DESATIVADO (`papel_atual()` devolve null para ele
@@ -88,6 +109,186 @@ begin
   -- filiais de teste (id smallint identity → gerado; slug único, inéditos)
   insert into public.filiais (slug, nome) values ('zzf19-teste-a', 'F19 Teste A') returning id into v_fa;
   insert into public.filiais (slug, nome) values ('zzf19-teste-b', 'F19 Teste B') returning id into v_fb;
+  insert into public.filiais (slug, nome) values ('zzf19-teste-c', 'F19 Teste C') returning id into v_fc;
+
+  -- ===============================================================
+  -- SEÇÃO 0 (F51) — cada auxiliar do import, exercitada ISOLADAMENTE
+  -- ===============================================================
+  -- Por que ela existe: desde a 0131 a RPC é uma ORQUESTRADORA sobre oito
+  -- auxiliares (`import_validar_plano`, `import_revalidar_contagens`,
+  -- `import_apagar_acervo_filial`, `import_criar_ativos`,
+  -- `import_lancar_movimentacoes`, `import_conferir_resultado`,
+  -- `import_contar_conflitos`, `import_gravar_trilha`). Os cenários 1→4 provam
+  -- o COMPORTAMENTO DE PONTA A PONTA e continuam idênticos ao que provavam antes
+  -- da decomposição — é essa igualdade, rótulo a rótulo, que é a prova de
+  -- equivalência da F51. O que eles NÃO fazem é acusar uma auxiliar que quebre
+  -- num caminho que o caminho feliz não percorre: `import_conferir_resultado`
+  -- nunca lança quando o import dá certo, e `import_contar_conflitos` /
+  -- `import_gravar_trilha` não têm asserção própria em lugar nenhum. Sem esta
+  -- seção, as mutações dessas três seriam "não detectadas" por CONJUNTO VAZIO —
+  -- exatamente o defeito que o injetor existe para acusar.
+  --
+  -- ⚠ ESTA SEÇÃO RODA COMO `postgres`, E ISSO NÃO CONTRADIZ O `revoke`.
+  -- As oito nascem com `revoke all … from public, anon, authenticated,
+  -- service_role`: nenhuma é alcançável pela API. Mas `revoke` NÃO ALCANÇA O
+  -- DONO — o dono de uma função sempre pode executá-la, e o roteiro inteiro roda
+  -- na role de conexão do psql (`postgres`), sem `set local role` em lugar
+  -- nenhum. Então poder chamá-las aqui não prova que elas estejam abertas, e não
+  -- contradiz coisa alguma. Quem prova que estão FECHADAS é a asserção `0e`
+  -- abaixo, que lê o ACL real com `has_function_privilege` e `proacl`.
+  --
+  -- Trabalha numa TERCEIRA filial ('F19 Teste C'), de propósito: as filiais A e B
+  -- têm de chegar aos cenários 1→4 exatamente como chegavam antes, ou a
+  -- comparação antes × depois deixaria de significar alguma coisa.
+
+  -- 0a — import_validar_plano RECUSA plano vazio (bloco 1c da 0094).
+  begin
+    v_total := public.import_validar_plano(
+      jsonb_build_object('filialId', v_fc, 'ativos', '[]'::jsonb),
+      'backups-import/f51-c.json', '[]'::jsonb, v_fc);
+    v_falhas := v_falhas + 1; raise warning '✗ 0a plano vazio: import_validar_plano NÃO recusou (deveria)';
+  exception when others then
+    if sqlerrm like '%vazio%' then
+      v_ok := v_ok + 1; raise notice '✓ 0a import_validar_plano recusa plano vazio: %', sqlerrm;
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 0a recusou por motivo INESPERADO: %', sqlerrm;
+    end if;
+  end;
+
+  -- 0b — import_revalidar_contagens RECUSA contagens que não batem com o vivo.
+  -- A filial C está vazia (0 ativos); passamos 7 de propósito.
+  begin
+    perform public.import_revalidar_contagens(
+      jsonb_build_object('ativos',7,'movimentacoes',0,'anotacoes',0,'termos',0), v_fc);
+    v_falhas := v_falhas + 1; raise warning '✗ 0b contagens divergentes: import_revalidar_contagens NÃO recusou (deveria)';
+  exception when others then
+    if sqlerrm like '%mudou desde o preview%' then
+      v_ok := v_ok + 1; raise notice '✓ 0b import_revalidar_contagens recusa contagem divergente: %', sqlerrm;
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 0b recusou por motivo INESPERADO: %', sqlerrm;
+    end if;
+  end;
+
+  -- 0c — import_contar_conflitos devolve 0 numa filial sem conflito nenhum.
+  v_cnt := public.import_contar_conflitos(v_fc);
+  if v_cnt = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 0c import_contar_conflitos = 0 numa filial sem conflito';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 0c import_contar_conflitos: esperado 0, obtido %', v_cnt;
+  end if;
+
+  -- 0d — import_gravar_trilha grava a linha e devolve o id.
+  v_log := public.import_gravar_trilha(
+    jsonb_build_object('arquivoHash','ZZF19HASHC','totalLinhasDados',1),
+    v_fc, 'backups-import/f51-c.json', '[]'::jsonb, v_prof, 1, 0, 0, 0, 0);
+  select count(*) into v_cnt from public.import_logs where id = v_log;
+  if v_log is not null and v_cnt = 1 then
+    v_ok := v_ok + 1; raise notice '✓ 0d import_gravar_trilha devolveu log_id e gravou a linha em import_logs';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 0d import_gravar_trilha: log_id=% linhas=%', coalesce(v_log::text,'(null)'), v_cnt;
+  end if;
+
+  -- 0e — as OITO auxiliares estão FECHADAS. Lê o ACL real, não a intenção.
+  --   `has_function_privilege` cobre anon/authenticated/service_role; o PUBLIC
+  --   não é role e por isso é conferido no `proacl` (a entrada que começa com
+  --   `=` é a do PUBLIC). É a lição da F50: revogar de `anon` sem revogar de
+  --   `public` é no-op SILENCIOSO — o privilégio continua lá, por outro caminho.
+  select count(*) into v_abertas
+    from (values
+      ('public.import_validar_plano(jsonb,text,jsonb,smallint)'),
+      ('public.import_revalidar_contagens(jsonb,smallint)'),
+      ('public.import_apagar_acervo_filial(smallint)'),
+      ('public.import_criar_ativos(jsonb,smallint)'),
+      ('public.import_lancar_movimentacoes(uuid,jsonb,smallint,uuid,date,text)'),
+      ('public.import_conferir_resultado(jsonb,smallint,integer,integer)'),
+      ('public.import_contar_conflitos(smallint)'),
+      ('public.import_gravar_trilha(jsonb,smallint,text,jsonb,uuid,integer,integer,integer,integer,integer)')
+    ) f(assinatura)
+    cross join (values ('anon'),('authenticated'),('service_role')) r(rolname)
+   where has_function_privilege(r.rolname, f.assinatura, 'execute');
+
+  select v_abertas + count(*) into v_abertas
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname like 'import\_%'
+     and array_to_string(coalesce(p.proacl, '{}'::aclitem[]), ',') like '=%X%';
+
+  if v_abertas = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 0e as 8 auxiliares do import estão fechadas nos quatro papéis (public, anon, authenticated, service_role)';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 0e há % concessão(ões) de EXECUTE viva(s) nas auxiliares do import — a superfície de RPC cresceu', v_abertas;
+  end if;
+
+  -- 0f — import_conferir_resultado ACUSA estado que não bate com o plano (5b).
+  --   Este é o cenário que os caminhos 1→4 nunca percorrem: no import feliz o
+  --   estado SEMPRE bate, então a conferência nunca lança e uma quebra nela
+  --   passaria despercebida.
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id)
+  values ('ZZF19S0001', 'ZZF19STC1', 'notebook', v_fc) returning id into v_ativo_c;
+  p_plano_c := jsonb_build_object(
+    'filialId', v_fc, 'ativos', jsonb_build_array(
+      jsonb_build_object('patrimonio','ZZF19S0001','serviceTag','ZZF19STC1',
+                         'categoria','notebook','estadoAlvo','em_uso','colaborador','Fulano')));
+  begin
+    perform public.import_conferir_resultado(p_plano_c, v_fc, 1, 1);
+    v_falhas := v_falhas + 1; raise warning '✗ 0f estado divergente: import_conferir_resultado NÃO acusou (o ativo está em_estoque, o plano pede em_uso)';
+  exception when others then
+    if sqlerrm like '%Divergência de estado%' then
+      v_ok := v_ok + 1; raise notice '✓ 0f import_conferir_resultado acusa estado fora do alvo: %', sqlerrm;
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 0f acusou por motivo INESPERADO: %', sqlerrm;
+    end if;
+  end;
+
+  -- 0g — import_apagar_acervo_filial apaga o acervo DA FILIAL e devolve as
+  --   quatro contagens. Roda dentro da janela `estoque.dev_destrutivo`, que é
+  --   aberta e fechada AQUI porque quem a abre é sempre quem orquestra — a
+  --   auxiliar não tem essa chave, e essa é a razão de ela não ser uma terceira
+  --   porta (0080/0081).
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
+  values (v_ativo_c, 'compra', current_date, v_fc, 'ZZF19 seção 0', v_prof);
+  insert into public.anotacoes (ativo_id, texto, criado_por) values (v_ativo_c, 'ZZF19 nota', v_prof);
+
+  perform set_config('estoque.dev_destrutivo', 'on', true);
+  v_apagado := public.import_apagar_acervo_filial(v_fc);
+  perform set_config('estoque.dev_destrutivo', 'off', true);
+
+  select count(*) into v_cnt from public.ativos where filial_id = v_fc;
+  if v_cnt = 0
+     and (v_apagado->>'movs_apagadas')::int = 1
+     and (v_apagado->>'anotacoes_apagadas')::int = 1
+     and (v_apagado->>'termos_apagados')::int = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 0g import_apagar_acervo_filial esvaziou a filial e devolveu as contagens (movs=1, anotações=1, termos=0)';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 0g import_apagar_acervo_filial: ativos restantes=%, contagens=%', v_cnt, v_apagado;
+  end if;
+
+  -- 0h — import_criar_ativos + import_lancar_movimentacoes, o par que a
+  --   orquestradora chama POR ATIVO (Decisão 2 da F51).
+  v_ativo_c := public.import_criar_ativos(
+    jsonb_build_object('patrimonio','ZZF19S0002','serviceTag','ZZF19STC2',
+                       'categoria','notebook','estadoAlvo','em_uso','colaborador','Fulano'),
+    v_fc);
+  perform public.import_lancar_movimentacoes(
+    v_ativo_c,
+    jsonb_build_object('patrimonio','ZZF19S0002','serviceTag','ZZF19STC2',
+                       'categoria','notebook','estadoAlvo','em_uso','colaborador','Fulano'),
+    v_fc, v_prof, current_date, 'import startup 01/01/2026');
+  select count(*) into v_cnt from public.movimentacoes
+   where ativo_id = v_ativo_c and observacao like 'import startup%';
+  select count(*) into v_cnt2 from public.ativos
+   where id = v_ativo_c and origem = 'importacao' and status = 'em_uso' and colaborador_atual = 'Fulano';
+  if v_cnt = 2 and v_cnt2 = 1 then
+    v_ok := v_ok + 1; raise notice '✓ 0h o par criar+lançar produziu ativo importacao/em_uso com posse e as 2 movimentações marcadas';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 0h par criar+lançar: movimentações marcadas=% (esperado 2), ativo conferido=% (esperado 1)', v_cnt, v_cnt2;
+  end if;
+
+  -- Limpa a filial C para que os cenários 1→4 encontrem o mundo como sempre
+  -- encontraram. Nada disto persiste (o rollback do fim cuida), mas
+  -- `import_contar_conflitos` do cenário 4 lê TODAS as filiais.
+  perform set_config('estoque.dev_destrutivo', 'on', true);
+  perform public.import_apagar_acervo_filial(v_fc);
+  perform set_config('estoque.dev_destrutivo', 'off', true);
 
   -- ---------------------------------------------------------------
   -- CENARIO 1 — happy path: 2 ativos fictícios na filial A.

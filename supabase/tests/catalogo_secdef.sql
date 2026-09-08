@@ -3,7 +3,7 @@
 -- =============================================================
 -- POR QUE ELE EXISTE
 --
--- O sistema tem 37 funções `security definer` — cada uma roda com o privilégio do
+-- O sistema tem 46 funções `security definer` — cada uma roda com o privilégio do
 -- DONO e, por construção, IGNORA a RLS das tabelas que lê e escreve. É a superfície
 -- mais concentrada de poder do banco, e até hoje **ninguém a enumerava**. Uma função
 -- `security definer` nova podia nascer executável por `anon`, ou com `search_path`
@@ -51,8 +51,11 @@ declare
   v_secdef boolean;
 
   -- -----------------------------------------------------------------------
-  -- A TABELA-VERDADE — as 37 `security definer` de `public`, classificadas.
-  -- Medidas em 07/09/2026 sobre as migrations 0001→0128. Ordem alfabética;
+  -- A TABELA-VERDADE — as 46 `security definer` de `public`, classificadas.
+  -- Medidas em 08/09/2026 sobre as migrations 0001→0131. Ordem alfabética;
+  -- (eram 38 até a 0130; a F51 acrescentou as 8 auxiliares do import. O número
+  --  do cabeçalho dizia 37 e já estava desatualizado por 1 desde a 0129, que
+  --  trouxe `pode_ler_arquivo_termo` — corrigido aqui junto.)
   -- o comentário de cada bloco diz POR QUE aquele grupo precisa ser definer.
   -- -----------------------------------------------------------------------
   k_secdef text[] := array[
@@ -84,6 +87,18 @@ declare
     'rotulo_alcance_reset',
     -- Import de startup (0094): apaga a filial e recarrega, dentro de uma janela.
     'importar_ativos_substituir',
+    -- As OITO auxiliares do import (F51, 0131). A RPC de 393 linhas virou uma
+    -- orquestradora fina sobre elas, e cada uma herdou o `security definer` da
+    -- função que as gerou: a semântica de privilégio não pode passar a depender de
+    -- QUEM CHAMA, ou extrair código teria mudado comportamento em silêncio.
+    -- Elas NÃO são API — `revoke all … from public, anon, authenticated,
+    -- service_role` nas oito; só a orquestradora as alcança. E
+    -- `import_apagar_acervo_filial` é a ÚNICA da cadeia com
+    -- `delete from public.ativos`, invariante conferida sem banco por
+    -- src/lib/validators/import-uma-porta.test.ts.
+    'import_validar_plano', 'import_revalidar_contagens', 'import_apagar_acervo_filial',
+    'import_criar_ativos', 'import_lancar_movimentacoes', 'import_conferir_resultado',
+    'import_contar_conflitos', 'import_gravar_trilha',
     -- Porta pública por senha (0025): conta tentativa por IP sem sessão nenhuma.
     'registrar_tentativa_senha',
     -- Área /dev (0077/0127): diagnóstico só-leitura, com SQL FIXO por dentro.
