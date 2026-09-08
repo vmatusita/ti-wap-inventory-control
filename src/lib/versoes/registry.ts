@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.56.0',
+    data: '2026-09-08',
+    fase: 'F51',
+    titulo: 'O import de startup continua igual — mudou o que custa dar manutenção nele',
+    mudancas: [
+      'Nenhuma tela mudou. O import de startup faz exatamente o que fazia: substitui o acervo de uma filial, avisa o que apagou e registra tudo no histórico, com as mesmas mensagens de recusa nos mesmos momentos.',
+      'O que mudou é por dentro. Aquela operação era uma peça única de quase 400 linhas, e qualquer ajuste nela — mesmo de três linhas — exigia reescrever a peça inteira. Foi assim que um defeito conhecido atravessou cinco revisões sem ser corrigido: quem mexia copiava o texto antigo e levava o defeito junto. Agora ela é montada com oito peças separadas e nomeadas, e mexer numa não obriga a tocar nas outras.',
+      'A parte que apaga o acervo da filial ficou isolada numa peça só, e existe uma conferência automática que reprova qualquer alteração futura que espalhe esse poder para uma segunda peça. Antes isso era uma intenção escrita; agora é conferido a cada alteração.',
+      'As oito peças novas não ficam disponíveis pela internet: só a operação de import as usa. Isso é conferido automaticamente a cada alteração, olhando a permissão de verdade no banco.',
+      'Para ter certeza de que nada mudou de comportamento, a bateria de testes do import foi rodada antes e depois da mudança e comparada resposta por resposta — as onze conferências existentes deram resultado idêntico, palavra por palavra. Outras oito foram acrescentadas, uma para cada peça nova.',
+    ],
+  },
+  {
     versao: '1.55.0',
     data: '2026-09-08',
     fase: 'F50',

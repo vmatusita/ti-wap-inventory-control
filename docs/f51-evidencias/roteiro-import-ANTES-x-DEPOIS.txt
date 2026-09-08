@@ -1,0 +1,54 @@
+# F51 — A PROVA DE EQUIVALÊNCIA: o roteiro ANTES × DEPOIS, rótulo a rótulo
+#
+# ANTES : CI run 34239718796 — última migration 0130 (RPC monolítica de 393 linhas)
+# DEPOIS: CI run 34244162444 — última migration 0131 (orquestradora + 8 auxiliares)
+# Os dois no MESMO rig: postgres:17 limpo do runner, migrations aplicadas em ordem.
+#
+# ------------------------------------------------------------------------
+# 1) OS RÓTULOS
+# ------------------------------------------------------------------------
+# ANTES  (11): 1a 1b 1c 1d 1e 1e 2 3 4a 4b 4c 
+# DEPOIS (19): 0a 0b 0c 0d 0e 0f 0g 0h 1a 1b 1c 1d 1e 1e 2 3 4a 4b 4c 
+#
+# Nenhum rótulo do ANTES sumiu. Os 8 a mais são a seção 0, que a F51 acrescenta.
+#
+# ------------------------------------------------------------------------
+# 2) AS MENSAGENS — a forma FORTE da prova
+# ------------------------------------------------------------------------
+# Comparar rótulos provaria pouco: um rótulo passa verde dizendo outra coisa.
+# Então o diff é do TEXTO INTEIRO das 11 asserções originais, incluindo as
+# mensagens de exceção que os cenários 2 e 3 imprimem — que é onde uma mudança
+# de comportamento apareceria primeiro.
+#
+$ diff <(11 mensagens ✓ do ANTES) <(as mesmas 11 do DEPOIS)
+# (DIFF VAZIO — texto idêntico, caractere a caractere)
+
+# ------------------------------------------------------------------------
+# 3) A SAÍDA DEPOIS, na íntegra
+# ------------------------------------------------------------------------
+2026-09-08T15:22:25.3234549Z ==== supabase/tests/import_substituir.sql ====
+2026-09-08T15:22:25.3995877Z CREATE FUNCTION
+2026-09-08T15:22:25.4025663Z BEGIN
+2026-09-08T15:22:25.4040461Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0a import_validar_plano recusa plano vazio: Plano de import vazio: ao menos 1 ativo é obrigatório.
+2026-09-08T15:22:25.4044511Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0b import_revalidar_contagens recusa contagem divergente: O estado da filial mudou desde o preview/backup (ativos 0/7, movs 0/0, anotações 0/0, termos 0/0). Gere o preview novamente antes de aplicar.
+2026-09-08T15:22:25.4048207Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0c import_contar_conflitos = 0 numa filial sem conflito
+2026-09-08T15:22:25.4050447Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0d import_gravar_trilha devolveu log_id e gravou a linha em import_logs
+2026-09-08T15:22:25.4053123Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0e as 8 auxiliares do import estão fechadas nos quatro papéis (public, anon, authenticated, service_role)
+2026-09-08T15:22:25.4057377Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0f import_conferir_resultado acusa estado fora do alvo: Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.
+2026-09-08T15:22:25.4060581Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0g import_apagar_acervo_filial esvaziou a filial e devolveu as contagens (movs=1, anotações=1, termos=0)
+2026-09-08T15:22:25.4063388Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0h o par criar+lançar produziu ativo importacao/em_uso com posse e as 2 movimentações marcadas
+2026-09-08T15:22:25.4065757Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 1a retorno ativos_criados = 2
+2026-09-08T15:22:25.4067547Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 1b filial A tem 2 ativos após o import
+2026-09-08T15:22:25.4070099Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 1c ativo sem service tag nasce com pendência "sem service tag" (R-IMP-10)
+2026-09-08T15:22:25.4072306Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 1d ativo com patrimônio + service tag nasce sem pendência
+2026-09-08T15:22:25.4074913Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 1e as 2 compras de abertura têm observação "import startup …" (R-IMP-13, baseline)
+2026-09-08T15:22:25.4077445Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 1e (exemplo) observação da compra = "import startup 08/09/2026"
+2026-09-08T15:22:25.4080405Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 2 contagens NULL rejeitado: Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).
+2026-09-08T15:22:25.4083518Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 3 backup vazio rejeitado: Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).
+2026-09-08T15:22:25.4086658Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 4a filial B tem só o ativo do plano; o pré-existente foi apagado (R-IMP-02)
+2026-09-08T15:22:25.4088947Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 4b ativo do plano presente com origem = importacao
+2026-09-08T15:22:25.4091237Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 4c outra filial (A) intacta após substituir B: 2 ativos (R-IMP-03)
+2026-09-08T15:22:25.4093288Z psql:supabase/tests/import_substituir.sql:424: NOTICE:  FIM import_substituir: 19 asserções, 0 falhas
+2026-09-08T15:22:25.4094406Z DO
+2026-09-08T15:22:25.4095292Z ROLLBACK
+2026-09-08T15:22:25.4139199Z ==== supabase/tests/isolamento_tenant.sql ====

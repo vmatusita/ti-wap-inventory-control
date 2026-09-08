@@ -1,0 +1,28 @@
+# F51 · critério 6 — o REVOKE das oito auxiliares é REAL, provado contra um
+# Postgres de verdade (não contra a intenção do SQL).
+#
+# ⚠ A ordem pedia has_function_privilege 'do ensaio'. Não foi possível: esta
+# sessão não tem MCP Supabase conectado, e o apply da 0131 é caminho B do
+# runbook por construção (o gate do modo automático bloqueia DDL com
+# 'delete from public.ativos'). A substituição é MELHOR do que uma promessa de
+# handoff: a prova virou ASSERÇÃO DO ROTEIRO (rótulo 0e), que roda a cada push
+# contra o postgres:17 do CI com as 131 migrations aplicadas — e vai continuar
+# rodando depois que esta fase acabar.
+#
+# O que 0e mede, e por que nos QUATRO papéis:
+#   · anon / authenticated / service_role → has_function_privilege(...,'execute')
+#   · PUBLIC não é role: é conferido no proacl (a entrada que abre com '=').
+#     É a lição da F50 — revogar de anon sem revogar de public é NO-OP
+#     SILENCIOSO, o privilégio continua lá por outro caminho.
+#   São 8 funções × 3 papéis + a varredura de PUBLIC. Qualquer concessão viva
+#   faz a contagem passar de zero e o roteiro fica vermelho.
+#
+# CI run 34244162444, job banco-sem-docker:
+
+psql:supabase/tests/import_substituir.sql:424: NOTICE:  ✓ 0e as 8 auxiliares do import estão fechadas nos quatro papéis (public, anon, authenticated, service_role)
+
+# E o catálogo confirma o total pelo outro lado — o próprio injetor imprime
+# '1 de 46 fora da regra' ao sabotar uma security definer, isto é: o banco tem
+# 46 security definer, exatamente o que k_secdef passou a classificar (38 + 8).
+#   1 de 46 fora da regra
+#   1 de 46 fora da regra

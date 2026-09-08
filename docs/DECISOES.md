@@ -9082,3 +9082,80 @@ Revisão em contexto fresco, quatro lentes independentes (comportamento do usuá
 - Motivo: medido — o fecho partindo só das rotas **perde** `viewer-header.tsx` e `viewer-nav.tsx`, porque os dois são importados por `app/(app)/layout.tsx`, o layout do grupo inteiro, cujo caminho não contém o segmento `relatorios`. São justamente as peças que carregam a navegação real do visualizador (é `viewer-nav.tsx` que a última asserção do arquivo confere ter `lerHrefAoVivo`). Seguir a ordem ao pé da letra teria trocado a rede por um furo com cara de melhoria. Tomar `(app)/layout.tsx` como raiz resolveria pelo caminho errado: ele serve também o shell do operador e traria dezenas de `href` legítimos como falsos positivos.
 - Números: superfície por pasta **46** arquivos; fecho derivado **131**, sendo 7 de `components/layout/`.
 - Reversível? Sim.
+
+## 2026-09-08 · F51 · Decisão 1 — as oito auxiliares nascem `security definer`, não `invoker`
+
+- Contexto: dentro de uma `SECURITY DEFINER`, `current_user` já é o dono, então uma auxiliar INVOKER chamada dali roda com os mesmos privilégios. INVOKER **funcionaria**, e encolheria a superfície mais concentrada de poder do banco em vez de crescê-la em oito. Medido o que cada escolha custa aos catálogos: `catalogo_secdef.sql` cobra de toda `security definer` estar em `k_secdef` (1a), continuar existindo (1b), ter `search_path` travado (3) e **não ser executável por `anon`** (4) — repare que ele **não** cobra `authenticated` nem `service_role`. `seguranca_catalogo.sql` asserção 1 varre um array FIXO de 3 RPCs de escrita e exige `authenticated=EXECUTE`, o oposto do que se quer das auxiliares.
+- Decisão: **DEFINER**, com `revoke all … from public, anon, authenticated, service_role` e `set search_path = public` nas oito. `k_secdef` vai de **38 para 46** no mesmo commit da migration.
+- Motivo: o contrato desta fase é "nenhuma mudança de comportamento, nunca em silêncio". DEFINER preserva a semântica de privilégio da função de hoje em **qualquer contexto de chamada, presente ou futuro**. INVOKER faria a semântica depender de **quem chama** — propriedade que hoje não existe —, e no dia em que a orquestradora, ou um chamador novo, deixasse de ser definer, as oito mudariam de comportamento sem uma linha de diff. Extrair código não pode introduzir dependência de contexto que o código não tinha. O que protege as auxiliares é o `revoke`, e ele é o mesmo nos dois desenhos.
+- Reversível? Sim — trocar `security definer` por `security invoker` nas oito e tirar os oito nomes de `k_secdef`.
+
+## 2026-09-08 · F51 · Decisão 2 — a orquestradora MANTÉM o laço e chama duas auxiliares por ativo
+
+- Contexto: a ordem temia que separar o bloco 4 em duas passagens mudasse `created_at` e o `id desc` do desempate que `rel_estoque_asof` usa. **A medição contraria a premissa**: `movimentacoes.created_at` é `default now()` (`0003:91`) — a hora da **transação**, idêntica para todas as linhas de um mesmo import — e `id` é `gen_random_uuid()`. **Nenhuma das duas chaves carrega ordem de inserção**; o desempate real cai em `data desc` e `(tipo='ajuste') desc`, que vêm do dado. O que depende de ordem de verdade é o **trigger** `trg_aplicar_movimentacao`, que deriva `ativos.status` linha a linha — e o bloco 4d roda depois do 4c de propósito, senão o trigger do ajuste pisa na posse do plano.
+- Decisão: opção **(a)** — o laço fica na orquestradora, que chama `import_criar_ativos` e `import_lancar_movimentacoes` **uma vez por ativo**. O 4d fica dentro de `import_lancar_movimentacoes`, e não em `import_criar_ativos`, porque é a única colocação que preserva "depois do 4c".
+- Motivo: equivalência por **construção** em vez de por prova. A opção (c) exigiria carregar os `id` gerados entre as passagens e demonstrar a ordem por cenário; a (b) contrariaria a lista da ficha sem ganho. Custo medido de (a): duas chamadas de função plpgsql por ativo, numa operação que roda **uma vez por filial na janela de go-live**, com planilha da ordem de mil linhas, e que já faz milhares de statements DML e quatro DELETEs de acervo. Não descartei (a) por desempenho porque o desempenho não é o que está em jogo aqui.
+- Reversível? Sim, mas não de graça: voltar a duas passagens exigiria a prova de ordem que esta decisão evita.
+
+## 2026-09-08 · F51 · Decisão 3 — a conferência vira a OITAVA auxiliar
+
+- Contexto: a lista de sete da ficha deixa os blocos 5/5b/5c/5d — **78 linhas** (`0094:337-414`), com um `except`/`union all` de 40 — sem dono. Argumento contra extrair: verificação que sai da função que orquestra é verificação que alguém esquece de chamar.
+- Decisão: extrair, como `import_conferir_resultado`. São **oito** auxiliares, não sete.
+- Motivo: o argumento contra **está respondido pela trava desta mesma fase**, que afirma que a orquestradora referencia cada auxiliar **pelo nome**. Uma chamada esquecida derruba `npm run test` sem banco — e foi exatamente isso que a sabotagem **C** demonstrou. O risco que justificava manter os 78 na orquestradora deixou de existir no momento em que a trava passou a existir. Do outro lado: é o trecho mais denso do corpo e o que a F52 e a virada vão querer mudar.
+- Reversível? Sim — reinlinar o corpo e tirar o nome da lista da trava.
+
+## 2026-09-08 · F51 · Decisão 4 — o `pg_advisory_xact_lock` sobe para a função de topo
+
+- Contexto: o lock está hoje no meio do bloco 1a (`0094:116`), entre a resolução da filial e a guarda de backup, e é ele que serializa dois applies simultâneos da mesma filial. A ficha manda a janela `estoque.dev_destrutivo` ficar no topo e é silenciosa sobre o lock. Um lock tomado dentro de uma auxiliar continuaria valendo (é `xact`), então isto é legibilidade e superfície, não correção.
+- Decisão: sobe para a orquestradora, pela **mesma régua** da janela. A **ordem não muda**: resolve a filial (1a), trava, e só então chama `import_validar_plano` — exatamente a sequência da `0094`, com todas as recusas na mesma posição relativa.
+- Motivo: os dois são efeitos locais à transação que um leitor precisa ver em quem orquestra. Serialização escondida dentro de um validador é o tipo de fato que some numa releitura — e o custo de escondê-la só aparece no dia de um deadlock, que é o pior dia para descobrir onde o lock estava.
+- Reversível? Sim — mover a linha de volta para dentro de `import_validar_plano`.
+
+## 2026-09-08 · F51 · Decisão 5 — a trava mora em `src/lib/validators/`, e reusa `corpoVigente()`
+
+- Contexto: três candidatos. A ficha dizia `src/lib/import/import-uma-porta.test.ts`; a convenção da casa para trava que lê migration é `src/lib/validators/` (onde estão `migrations-lock`, `transicoes-sql`, `detentor-sql` e `tipos-item-sql`); e `scripts/db/` é onde vivem os testes que já importam `corpo-vigente.mjs`. **Medido, porque a ordem manda medir e não supor**: uma sonda em `src/lib/validators/` importando `../../../scripts/db/corpo-vigente.mjs` passou em `npx tsc --noEmit` **e** no Vitest (`tsconfig` inclui `**/*.ts`, `allowJs: true`, `moduleResolution: bundler`). A restrição técnica que empurraria o arquivo para `scripts/db/` **não existe**.
+- Decisão: `src/lib/validators/import-uma-porta.test.ts` — a pasta da convenção, o nome da ficha. E **reuso `corpoVigente()`** em vez de reimplementar o resolvedor.
+- Motivo: os quatro validadores irmãos reimplementam o resolvedor inline, cada um o seu (medido — nenhum importa de `scripts/`). Uma **quinta** reimplementação seria a segunda fonte do mesmo fato, que é como um gate morre (F48 · Decisão 2); e o cabeçalho do `corpo-vigente.mjs` diz, por escrito, que o módulo existe **para esta fase**. A sabotagem E prova o valor do reuso: `trocarNoCorpo` reprova ALTO quando o trecho procurado muda.
+- Reversível? Sim — o arquivo é autocontido.
+
+## 2026-09-08 · F51 · Decisão 6 — o `database.ts` por hand-fix nominal, e o apply é caminho B
+
+- Contexto: a `0131` cria 8 funções `public` novas, e `npm run db:types:diff` reprova enquanto o arquivo de tipos não as conhecer (`tipos-conjuntos.mjs:156` compara **conjuntos de nomes** e acusa o que o BANCO tem e o arquivo não). Esse gate é passo do `banco-sem-docker`, que é *required check*. O caminho limpo seria aplicar em produção e regenerar — **indisponível**: não há MCP Supabase nesta sessão, não há `psql`, não há Docker, e `npm run db:types` gera de um projeto real. E, mesmo houvesse, o **gate do modo automático bloqueia DDL que contenha `delete from public.ativos`** (`RUNBOOK-BANCO.md:45`) — a `0131` contém, em `import_apagar_acervo_filial`.
+- Decisão: **hand-fix nominal** das 8 entradas no `database.ts`, com comentário datado dizendo que foi à mão e por quê (precedente em `DECISOES.md:448`). O apply vai por **caminho B**, com handoff em `scratchpad/f51-handoff-apply-0131.sql`, e fica como **pendência nomeada** no relatório.
+- Motivo: afrouxar o `diff-tipos.mjs` para passar não era opção — o gate existe para acusar exatamente esta situação. O hand-fix satisfaz o gate pelo que ele cobra (o **nome**), e a primeira regeneração após o apply reescreve as entradas sozinha, levando o comentário junto. O apply desta migration ser humano-no-circuito é **por construção, não por azar de sessão**: qualquer sessão futura esbarra no mesmo gate.
+- Reversível? Sim — `npm run db:types` depois do apply desfaz o hand-fix por cima.
+
+## 2026-09-08 · F51 · Frente 5 — o par `status_apos_movimentacao` × `rel_estoque_asof` JÁ estava fechado
+
+- Contexto: a ficha da F51 manda extrair `tipos_que_zeram_detentor()` porque "a assimetria entre as duas listas de tipos já foi bug". A ordem manda medir antes de fazer.
+- Medição: **a F36/`0110` já entregou o item com outro nome.** `public.status_tem_detentor(public.status_ativo)` está em `0110:46-50`, e o `comment on function` (`0110:52-53`) se declara *"fonte única do zeramento de colaborador/setor em aplicar_movimentacao, rel_estoque_asof e forcar_estado_ativo"*. `rel_estoque_asof` a chama nas **duas** expressões de detentor (`0110:294` colaborador, `0110:300` setor); `aplicar_movimentacao` em `0110:194` e `:198`; `forcar_estado_ativo` em `:387`, `:406` e `:415`. Está protegida por `src/lib/validators/detentor-sql.test.ts`, que afirma a igualdade TS↔SQL sobre todo o enum. E `status_apos_movimentacao` (vigente em `0109:38-62`) **não contém lista de tipos que zeram detentor** — ela mapeia `(estado, tipo) → estado`, outra pergunta. As quatro cópias manuais que existiam antes da `0110` foram eliminadas por ela.
+- Decisão: **nenhum código.** A entrega da frente é esta ata.
+- Motivo: não há "duas listas para pôr lado a lado" porque não há duas listas. Criar uma terceira função para um fato já unificado seria o defeito, não a entrega.
+- Reversível? N/A.
+
+## 2026-09-08 · F51 · Ata técnica — o md5 do corpo antigo, e por que ele não compara ambientes
+
+- O método do runbook para registrar o corpo de uma função é `md5(regexp_replace(pg_get_functiondef(oid), E'\\s+', ' ', 'g'))` — **normalizado**. Ele está no bloco 0 do handoff (`scratchpad/f51-handoff-apply-0131.sql`), a ser colhido **antes** do apply em cada ambiente, e é o que permite reverter para o corpo que realmente estava lá.
+- **`md5` CRU não compara ambientes.** Em 25/07/2026 ele apontou `criar_compra_lote` como divergente entre ensaio e produção e a conclusão era **falsa**: a diferença era o fim de linha (CRLF em produção, LF no ensaio — 1.664 contra 1.617 bytes, exatamente os 47 `\r`), que depende de **como** o SQL foi aplicado, não do que ele faz. Para comparar ambientes existe a **sonda de paridade** do `RUNBOOK-BANCO.md`.
+- E `md5` de `pg_get_functiondef` **não compara bancos diferentes**: o servidor reconstrói o texto, e formatação/versão mudam o hash sem que uma linha de corpo mude. Foi a lição que a F38 pagou (o cenário de md5 passou no ensaio e derrubou o job `banco`). É por isso que a prova de equivalência desta fase é o **diff da saída do roteiro**, e não um hash.
+
+## 2026-09-08 · F51 · A varredura de DELETE da `migrations-f38.test.ts` foi APONTADA, não afrouxada
+
+- Contexto: `DA_F38` é a lista de COBERTURA — toda migration a partir da `0116` entra nela, e uma das guardas é "nenhuma migration da fase apaga registro do acervo", por grep cru sobre o arquivo inteiro. A `0131` é a **primeira migration da faixa a recriar uma função destrutiva**, e o grep a reprovou por motivo inteiramente legítimo: `import_apagar_acervo_filial` tem `delete from public.ativos` no **corpo**, e é para ter.
+- Decisão: a varredura passou a ignorar os corpos dollar-quoted (`semCorposDeFuncao`), medindo **o que a migration EXECUTA ao ser aplicada**. Um `delete` de topo continua reprovando, e há uma **asserção nova** ("guarda da guarda") que prova a diferença em vez de confiar em quem leu.
+- Motivo: um `create or replace function` não apaga nada ao ser aplicado; um `delete` solto, sim. Gate que nasce vermelho por motivo legítimo é gate que alguém desliga (asserção da F48). Isto é **apontar a régua para o que ela sempre quis dizer**, não afrouxá-la — e o mesmo raciocínio, com as mesmas palavras, já estava escrito em `scripts/db/mutacoes.test.mts` (describe 5). A saída vermelha está guardada em `docs/f51-evidencias/sabotagem-D-invariante-global.txt`, porque ela **é** a sabotagem D que a ordem pedia, encontrada de verdade em vez de simulada.
+- Reversível? Sim — a função auxiliar tem três linhas.
+
+## 2026-09-08 · F51 · O teto de mutações sobe de 44 para 48
+
+- Contexto: 39 ativas antes da fase (**medido — a ordem falava em 41**). A F51 reaponta as 2 do import e escreve 7 novas (uma por auxiliar sem cobertura, mais a que prova que a asserção de ACL sabe ficar vermelha), fechando em **47**. O teto de `mutacoes.test.mts` era 44.
+- Decisão: teto **48**, com o motivo escrito no próprio teste — que é o que a linha da F48 manda fazer ("Se a F51/F52 precisarem de mais, sobem o número E escrevem por quê").
+- Motivo: 48 e não 47 porque a F52 acrescenta guardas de escopo e vai precisar de folga; teto colado no número de hoje força outra decisão daqui a uma semana, e é assim que um teto vira ritual. A régua de desenho continua sendo a quarentena abaixo de um terço e o injetor rodar incondicionalmente no CI.
+- Reversível? Sim — é um número num teste.
+
+## 2026-09-08 · F51 · Ata de rollout — as duas mutações que o CI reprovou, e o que elas ensinaram
+
+- **O CI é que pegou, e as duas eram defeito da MUTAÇÃO, não da `0131`** (run 34243304117, `banco-sem-docker`). O controle fechou **verde** — os 8 roteiros do lote, com a seção 0 inteira, passaram contra a migration aplicada num Postgres real.
+- **`import-sem-revalidacao-de-contagens` saiu "NÃO detectada".** Trocar a condição por `if false then` só neutralizava a revalidação **enquanto existia o resíduo do item N** logo abaixo: com `p_contagens` nulo, aquele segundo `if` também era falso e o bloco sumia inteiro. A `0131` removeu o resíduo (código morto, sempre verdadeiro onde era avaliado), e sem ele a mesma troca deixa o corpo seguir com os sentinelas `-1` do `coalesce`, que não batem com o vivo e levantam a exceção de "estado mudou desde o preview". O roteiro via a RPC recusar e marcava ✓. Corrigida para sair **pela porta** (`return;`), que é o defeito de verdade que ela diz imitar.
+- **`import-apagar-acervo-esquece-as-anotacoes` fazia o roteiro ABORTAR, não ficar vermelho.** `anotacoes.ativo_id` tem FK para `ativos` (`0017:8`), então deixar as anotações vivas faz o `delete from public.ativos` seguinte estourar violação de chave e matar o bloco antes da linha `FIM`. O injetor reporta **ABORTOU**, que é diagnóstico diferente de "detectada" — e merece ser, porque nesse caminho o roteiro não chegou a afirmar nada. Passou a **mentir a contagem** (`v_anot_apagadas := 0`), mesma classe de defeito sem a cascata. A mesma armadilha vale para `movimentacoes`: as três tabelas-filha são apagadas **antes** de `ativos` justamente por causa dessas FKs.
+- **Ganho lateral:** a revalidação ficou com as duas metades provadas em separado — uma mutação para a **recusa** (cenário `2`) e outra para a **comparação** (cenário `0b`) —, para que nenhuma passe de carona na outra.

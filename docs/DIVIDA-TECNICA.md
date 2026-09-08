@@ -114,7 +114,44 @@ A causa-raiz é simples e corrigível: **o TypeScript tem `hojeISO()` (`src/lib/
 
 A troca dentro de `importar_ativos_substituir` continua sujeita ao caminho B do runbook (a função contém `delete from ativos`) — mas `0084` e `0104` **não têm essa trava** e podem ser corrigidas direto.
 
-### X — A RPC do import é reescrita inteira a cada mudança — e é isso que espalha os defeitos `[Prio 21]` *(novo — 12/08/2026)*
+### X — A RPC do import é reescrita inteira a cada mudança — e é isso que espalha os defeitos `[Prio 21]` — **ABATIDO na F51 (08/09/2026)** ✅
+
+> **ABATIDO.** A migration `0131` trocou a peça única por uma **orquestradora fina sobre oito
+> auxiliares nomeadas**. O diagnóstico abaixo fica preservado — ele é o que justificou a fase —, e o
+> que segue é a medição do que mudou.
+>
+> **A métrica que importa é o custo da PRÓXIMA mudança, e ele caiu de 393 para 23–130 linhas:**
+>
+> | Função | Linhas | O que uma mudança nela custa reemitir |
+> |---|---:|---|
+> | orquestradora `importar_ativos_substituir` | 130 | a ordem das etapas, a janela, o lock, a guarda de cargo |
+> | `import_conferir_resultado` | 92 | a conferência pós-insert |
+> | `import_validar_plano` | 90 | tudo o que se recusa antes de escrever |
+> | `import_lancar_movimentacoes` | 57 | compra de abertura, ajuste, sync de posse |
+> | `import_revalidar_contagens` | 49 | a janela TOCTOU |
+> | `import_criar_ativos` | 47 | o INSERT do ativo |
+> | `import_apagar_acervo_filial` | 43 | **os quatro DELETEs — e só ela os tem** |
+> | `import_contar_conflitos` | 23 | a contagem de conflitos entre filiais |
+> | **total** | **566** | — |
+>
+> **Mediana: 49 linhas.** A guarda de escopo que a F52 vai pôr no import (`pode_escrever_filial`)
+> custa reemitir **130** — a orquestradora — em vez das 393 de antes. O `arquivo_hash` custa 130. Uma
+> mudança na conferência custa 92 e **não toca** o código que apaga acervo.
+>
+> ⚠ **O total SUBIU 44%** (393 → 566), e isso é honesto declarar: cada função carrega cabeçalho,
+> `declare`, `revoke` e `comment` próprios. A dívida nunca foi "há linhas demais" — era **"o único
+> jeito de mudar qualquer coisa é reescrever tudo"**, e é isso que acabou. Foi exatamente esse
+> mecanismo que fez o item **N** sobreviver a cinco revisões.
+>
+> **O que a F51 NÃO abateu:** as **onze cópias históricas** continuam na cadeia, resíduo do item N
+> incluído — migration aplicada não se edita, e desde a F46 isso é defesa executável. O que mudou é
+> que a **décima segunda cópia não vai existir**. E `criar_compra_lote` (4 recriações) e
+> `devolver_ao_fornecedor` (2), citadas abaixo como tendo "a mesma doença em grau menor",
+> **continuam intactas** — não eram escopo desta fase.
+>
+> Trava: `src/lib/validators/import-uma-porta.test.ts` (R-ACC-45). Relatório: `docs/RELATORIO-F51.md`.
+
+
 
 `importar_ativos_substituir` tem uma cópia integral em **11 migrations**: `0032`, `0033`, `0034`, `0035`, `0036`, `0037`, `0040`, `0048`, `0064`, `0080`, `0094` — cada uma de ~300 a 470 linhas. As migrations somam 18.784 linhas, e as onze cópias respondem por uma fatia desproporcional disso.
 

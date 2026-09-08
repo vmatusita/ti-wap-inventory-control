@@ -1,0 +1,55 @@
+############################################################
+# SABOTAGEM G — delete REAL escondido atras de um -- que mora
+#                DENTRO de um literal de texto
+############################################################
+# A trava ANTIGA (linha.replace(/--.*$/,'')) cortava a linha no -- do
+# literal e nao via o delete depois dele. Os 31 testes passavam com DUAS
+# portas destrutivas de verdade no corpo. Achado da revisao adversarial.
+# inserido em import_criar_ativos, linha 374:
+#     v_sonda := 'a--b'; delete from public.ativos where false;
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_criar_ativos` NÃO contém o delete
+AssertionError: import_criar_ativos passou a apagar acervo: a cadeia do import tem DUAS portas, e a promessa da F51 é uma: expected 'create or replace function public.imp…' not to contain 'delete from public.ativos'
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > exatamente UMA função da cadeia contém o delete
+AssertionError: expected [ 'import_apagar_acervo_filial', …(1) ] to deeply equal [ 'import_apagar_acervo_filial' ]
+ Test Files  1 failed (1)
+      Tests  2 failed | 31 passed (33)
+
+############################################################
+# SABOTAGEM H — a chamada real trocada por uma STRING com o nome
+############################################################
+# A trava ANTIGA aceitava o nome da auxiliar dentro de um literal como
+# 'referencia'. A auxiliar ficava ORFA e a suite continuava verde — o que
+# invalidava a premissa da Decisao 3 da fase.
+#   inserido em 794:  raise notice 'import_conferir_resultado skip debug';
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_conferir_resultado`
+AssertionError: a orquestradora não menciona import_conferir_resultado em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_conferir_resultado'
+ Test Files  1 failed (1)
+      Tests  1 failed | 32 passed (33)
+
+############################################################
+# SABOTAGEM I — remover UM item da lista AUXILIARES
+############################################################
+# Antes da correcao: a suite caia de 31 para 28 testes, TODOS VERDES.
+# A auxiliar removida deixava de ser checada em tres lugares e nada
+# acusava a perda de cobertura. E o modo como um merge malfeito da F52
+# (que mexe nesta area) apagaria a rede sem ninguem perceber.
+# itens restantes na lista: 7
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a lista classifica EXATAMENTE as `import_*` que as migrations definem
+AssertionError: expected [ 'import_apagar_acervo_filial', …(6) ] to deeply equal [ 'import_apagar_acervo_filial', …(7) ]
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 4. a trava não mente (guardas do próprio teste) > a lista de auxiliares não tem repetido nem a própria orquestradora
+AssertionError: expected 7 to be 8 // Object.is equality
+ Test Files  1 failed (1)
+      Tests  2 failed | 28 passed (30)
+
+############################################################
+# ESTADO FINAL
+############################################################
+# sha migration esperado: b02ce73b31eb6237bf6323d599071f1d254ba78f401f6375cfad0e367b7f3b81
+# b02ce73b31eb6237bf6323d599071f1d254ba78f401f6375cfad0e367b7f3b81 *supabase/migrations/0131_import_decomposto.sql
+# sha trava esperado:     efccdd60ba04835c8e15a285660a0f1c3862df1273bc505832655cbca504a65b
+# efccdd60ba04835c8e15a285660a0f1c3862df1273bc505832655cbca504a65b *src/lib/validators/import-uma-porta.test.ts
+# (sem diff na migration = restaurada byte a byte)
+
+# E a trava, no estado limpo:
+ Test Files  1 passed (1)
+      Tests  33 passed (33)

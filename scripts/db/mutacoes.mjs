@@ -850,6 +850,29 @@ const IMPORT_SUBSTITUIR = [
     },
   },
   {
+    id: 'import-auxiliar-destrutiva-vira-api',
+    roteiro: 'import_substituir.sql',
+    classe: 'superficie-de-rpc-aumentada',
+    derruba: ['0e'],
+    porque:
+      'A auxiliar que APAGA o acervo de uma filial passa a ser chamável pela API: qualquer logado, com a anon key e o próprio JWT, alcança /rest/v1/rpc/import_apagar_acervo_filial e apaga uma filial inteira — sem passar pela guarda de admin, sem backup, sem revalidação de contagens e sem trilha, porque todas essas coisas moram na orquestradora.',
+    // ⚠ ESTA É A MUTAÇÃO QUE PROVA QUE `0e` NÃO É TAUTOLOGIA. A asserção conta
+    // concessões vivas e espera ZERO — e uma asserção que espera zero é
+    // exatamente a que pode estar contando sobre conjunto vazio sem ninguém
+    // notar. Aqui a concessão existe de verdade e a contagem tem de sair de zero.
+    //
+    // É também a quebra mais perigosa do lote: decompor uma `security definer`
+    // REORGANIZA a superfície, não a reduz, e o que mantém as oito fora da API é
+    // uma linha de `revoke` por função. Um `grant` esquecido numa migration futura
+    // é indistinguível deste comando.
+    sql: `grant execute on function public.import_apagar_acervo_filial(smallint) to authenticated;  ${MARCA}`,
+    prova: {
+      sql: `select has_function_privilege('authenticated',
+              'public.import_apagar_acervo_filial(smallint)', 'execute')`,
+      espera: 't',
+    },
+  },
+  {
     id: 'import-trilha-com-id-perdido',
     roteiro: 'import_substituir.sql',
     classe: 'trilha-ausente',

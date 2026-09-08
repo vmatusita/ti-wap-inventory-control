@@ -1,5 +1,12 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { corpoVigente, listarMigrations } from '../../../scripts/db/corpo-vigente.mjs'
+import {
+  corpoVigente,
+  definicoesDeFuncao,
+  listarMigrations,
+  PASTA_MIGRATIONS,
+} from '../../../scripts/db/corpo-vigente.mjs'
 
 // =============================================================================
 // A TRAVA DA F51 — na cadeia do import, `delete from public.ativos` mora numa
@@ -91,21 +98,53 @@ function nomeSimples(assinatura: string): string {
 }
 
 /**
- * O corpo vigente, com os comentários de linha REMOVIDOS.
+ * O corpo vigente reduzido ao **código que executa**: sem literais de texto e sem
+ * comentários de linha.
  *
- * ⚠ Não é preciosismo. O corpo da orquestradora cita `delete from public.ativos`
- * em comentário para explicar o que a auxiliar faz — e um grep cru leria isso
- * como código. A mesma armadilha derrubaria a asserção ao contrário: uma
- * migration que só MENCIONE a string num cabeçalho não pode contar como
- * ocorrência. O `--` até o fim da linha é a única forma de comentário que as
- * migrations deste repositório usam dentro de corpo de função.
+ * ⚠ A ORDEM DAS DUAS LIMPEZAS IMPORTA, e ignorá-la deixava a trava CEGA. A
+ * revisão adversarial desta fase demonstrou os dois furos editando a `0131` de
+ * verdade e vendo os 31 testes passarem:
+ *
+ *   · `v_sonda := 'a--b'; delete from public.ativos where false;` — o `--` mora
+ *     DENTRO de um literal. Cortar a linha no primeiro `--` escondia o `delete`
+ *     REAL que vinha depois, na mesma linha: uma segunda porta destrutiva no
+ *     corpo, e a suíte verde.
+ *   · `raise notice 'import_conferir_resultado(…) skip debug';` no lugar da
+ *     chamada real — o nome da auxiliar dentro de uma STRING satisfazia o
+ *     `toContain` do describe 3, e a auxiliar órfã passava. Isso atingia em cheio
+ *     a premissa da Decisão 3 ("uma chamada esquecida derruba `npm run test`").
+ *
+ * Então: **primeiro somem os literais** (`'…'`, com o `''` escapado tratado), e só
+ * depois some o `--` até o fim da linha. Nome de função dentro de texto deixa de
+ * contar como referência; `--` dentro de texto deixa de cortar código.
+ *
+ * Tirar os comentários continua sendo necessário na outra direção: o corpo da
+ * orquestradora CITA `delete from public.ativos` em comentário para explicar o
+ * que a auxiliar faz, e um grep cru leria isso como código.
  */
-function corpoSemComentarios(assinatura: string): string {
+function codigoVivo(assinatura: string): string {
   const { sql } = corpoVigente(assinatura)
   return sql
+    .replace(/'(?:[^']|'')*'/g, "''")
     .split('\n')
     .map((linha) => linha.replace(/--.*$/, ''))
     .join('\n')
+}
+
+/**
+ * Todo nome `import_*` que as migrations DEFINEM — o detector que alimenta a
+ * conferência nos dois sentidos. Lê definições de verdade (`create [or replace]
+ * function`), não menções em comentário, `grant` ou `revoke`.
+ */
+function auxiliaresDefinidasNasMigrations(): string[] {
+  const nomes = new Set<string>()
+  for (const arquivo of listarMigrations()) {
+    const sql = readFileSync(join(process.cwd(), ...PASTA_MIGRATIONS, arquivo), 'utf8')
+    for (const d of definicoesDeFuncao(sql)) {
+      if (d.esquema === 'public' && d.nome.startsWith('import_')) nomes.add(d.nome)
+    }
+  }
+  return [...nomes].sort()
 }
 
 describe('1. a cadeia do import existe e está inteira', () => {
@@ -117,6 +156,19 @@ describe('1. a cadeia do import existe e está inteira', () => {
 
   it('a orquestradora existe, com a assinatura de 4 argumentos', () => {
     expect(() => corpoVigente(ORQUESTRADORA)).not.toThrow()
+  })
+
+  it('a lista classifica EXATAMENTE as `import_*` que as migrations definem', () => {
+    // A SIMETRIA, no molde do `catalogo_secdef.sql`, e numa asserção só:
+    //   · auxiliar nova que ninguém declarou aqui  → sobra na direita, reprova;
+    //   · nome declarado que sumiu das migrations  → sobra na esquerda, reprova;
+    //   · item removido da lista sem sumir do SQL  → reprova.
+    //
+    // O terceiro caso é o que a revisão adversarial MEDIU: remover um item que não
+    // fosse `A_PORTA` fazia a suíte cair de 31 para 28 testes, TODOS VERDES — a
+    // auxiliar deixava de ser checada em três lugares e nada acusava a perda de
+    // cobertura. Sem esta linha, `AUXILIARES` seria documentação, não classificação.
+    expect(AUXILIARES.map(nomeSimples).sort()).toEqual(auxiliaresDefinidasNasMigrations())
   })
 
   it.each(AUXILIARES.map((a) => [nomeSimples(a), a] as const))(
@@ -132,12 +184,12 @@ describe('2. uma porta só: `delete from public.ativos` na cadeia do import', ()
     // A metade que ninguém lembra de escrever. Se `import_apagar_acervo_filial`
     // deixasse de apagar, as asserções de baixo continuariam verdes — e estariam
     // provando que ninguém apaga, que é o oposto do que se quer saber.
-    expect(corpoSemComentarios(A_PORTA)).toContain(DELETE_DE_ATIVOS)
+    expect(codigoVivo(A_PORTA)).toContain(DELETE_DE_ATIVOS)
   })
 
   it('a orquestradora NÃO contém o delete', () => {
     expect(
-      corpoSemComentarios(ORQUESTRADORA),
+      codigoVivo(ORQUESTRADORA),
       'a orquestradora voltou a apagar acervo por conta própria — a decomposição da F51 foi desfeita',
     ).not.toContain(DELETE_DE_ATIVOS)
   })
@@ -146,7 +198,7 @@ describe('2. uma porta só: `delete from public.ativos` na cadeia do import', ()
     'a auxiliar `%s` NÃO contém o delete',
     (nome, assinatura) => {
       expect(
-        corpoSemComentarios(assinatura),
+        codigoVivo(assinatura),
         `${nome} passou a apagar acervo: a cadeia do import tem DUAS portas, e a promessa da F51 é uma`,
       ).not.toContain(DELETE_DE_ATIVOS)
     },
@@ -156,7 +208,7 @@ describe('2. uma porta só: `delete from public.ativos` na cadeia do import', ()
     // A forma agregada, que pega o caso que as asserções individuais não pegam:
     // alguém acrescenta uma auxiliar nova à lista E ao SQL, com o delete dentro.
     const comDelete = [ORQUESTRADORA, ...AUXILIARES].filter((a) =>
-      corpoSemComentarios(a).includes(DELETE_DE_ATIVOS),
+      codigoVivo(a).includes(DELETE_DE_ATIVOS),
     )
     expect(comDelete.map(nomeSimples)).toEqual([nomeSimples(A_PORTA)])
   })
@@ -167,7 +219,7 @@ describe('3. a orquestradora referencia cada auxiliar pelo NOME', () => {
   // reescreve a orquestradora, esquece de chamar uma das oito, e o SQL continua
   // válido — a função órfã simplesmente nunca roda. A conferência pós-insert é a
   // vítima natural (ela não lança no caminho feliz, então nenhum roteiro acusa).
-  const corpo = () => corpoSemComentarios(ORQUESTRADORA)
+  const corpo = () => codigoVivo(ORQUESTRADORA)
 
   it.each(AUXILIARES.map((a) => [nomeSimples(a), a] as const))(
     'a orquestradora chama `%s`',
@@ -192,7 +244,7 @@ describe('4. a trava não mente (guardas do próprio teste)', () => {
   it('o leitor de corpo NÃO ignora o código', () => {
     // O contrário do de cima: um filtro guloso demais (que apagasse a linha
     // inteira ao ver `--`) esconderia o próprio delete e deixaria tudo verde.
-    const limpo = corpoSemComentarios(A_PORTA)
+    const limpo = codigoVivo(A_PORTA)
     expect(limpo).toContain(DELETE_DE_ATIVOS)
     expect(limpo).toContain('delete from public.movimentacoes')
   })
@@ -201,5 +253,39 @@ describe('4. a trava não mente (guardas do próprio teste)', () => {
     expect(new Set(AUXILIARES).size).toBe(AUXILIARES.length)
     expect(AUXILIARES).not.toContain(ORQUESTRADORA)
     expect(AUXILIARES).toContain(A_PORTA)
+    // A decomposição da F51 tem OITO auxiliares. Não substitui a conferência de
+    // conjunto do describe 1 — torna a intenção legível e pega o caso degenerado
+    // de a lista e o SQL encolherem juntos.
+    expect(AUXILIARES.length).toBe(8)
+  })
+
+  it('LITERAL DE TEXTO não esconde código nem finge referência (as duas evasões medidas)', () => {
+    // As duas foram demonstradas na revisão adversarial editando a `0131` de
+    // verdade e vendo os 31 testes passarem. Sem estas asserções, a correção de
+    // `codigoVivo` seria indistinguível de não ter corrigido nada.
+    const limpa = (sql: string) =>
+      sql
+        .replace(/'(?:[^']|'')*'/g, "''")
+        .split('\n')
+        .map((l) => l.replace(/--.*$/, ''))
+        .join('\n')
+
+    // (1) `--` DENTRO de um literal não pode cortar o código que vem depois.
+    expect(
+      limpa(`  v_sonda := 'a--b'; ${DELETE_DE_ATIVOS} where false;`),
+      'o delete real ficou invisível atrás de um -- dentro de string',
+    ).toContain(DELETE_DE_ATIVOS)
+
+    // (2) o NOME de uma auxiliar dentro de um literal não vale como referência.
+    expect(
+      limpa(`  raise notice 'import_conferir_resultado(…) skip debug';`),
+      'nome em string contou como chamada — a auxiliar órfã passaria',
+    ).not.toContain('import_conferir_resultado')
+
+    // (3) o comentário de verdade continua descartado (a direção original).
+    expect(limpa(`  -- ${DELETE_DE_ATIVOS} fica na auxiliar`)).not.toContain(DELETE_DE_ATIVOS)
+
+    // (4) o `''` escapado não desalinha o casamento de aspas.
+    expect(limpa(`  v := 'o''brien'; ${DELETE_DE_ATIVOS} where false;`)).toContain(DELETE_DE_ATIVOS)
   })
 })
