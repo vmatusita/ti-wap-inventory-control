@@ -8896,3 +8896,72 @@ e da `0121`; as quatro do código, por `git revert`.
 - **Motivo:** é bloqueio de ACESSO, não de código. O repositório e o CI ficam consistentes assim mesmo; em produção a tabela continua sem policy nenhuma (deny-all por ausência), que é o estado de hoje e **não é regressão**.
 - **Consequência que vale registrar:** a `0128` é também a explicação da única divergência numérica desta fase — a ficha do plano contava **54** policies (o estado de produção) e o catálogo mede **55** (o estado das migrations). Os dois números estão certos, cada um no seu universo, e o apply os reconcilia.
 - **Reversível?** Não se aplica — nada foi feito.
+
+---
+
+## 2026-09-07 · F49 · Decisão 1 — a trava reconhece a INDIRETA DE UM NÍVEL (e não se desfazem os helpers)
+
+- **Contexto:** quatro exports de `actions/exportar.ts` são guardados por um helper local, `barrado()`, que chama `exigirPapel(supabase, 'consulta')` e devolve a mensagem. Uma trava que lesse só o corpo do export daria quatro falsos positivos. A ordem oferecia (a) ensinar a trava a resolver um nível de indireção local, ou (b) inlinear `exigirPapel` nos quatro e matar o `barrado()`.
+- **Decisão:** **(a)**, e o custo que decidiu foi medido no próprio código, não estimado: o padrão do helper local **não é uma exceção de um arquivo, é a convenção de dois**. Além de `exportar.ts`, `actions/compras.ts` concentra as três sugestões de compra num helper `sugerir()` que já carrega o piso de caracteres, o `try/catch` e o log. A opção (b) obrigaria a duplicar `createClient()` + `exigirPapel` **sete** vezes (4 + 3) e a espalhar por sete lugares o comentário de doze linhas da F21 que explica a doutrina do piso — pioraria o código para agradar a um teste.
+- **A guarda contra virar peneira, que é o preço de (a):** a trava reconhece como guardado o export que chama uma função **declarada no mesmo arquivo** cujo corpo chama uma das cinco guardas **diretamente**. Um nível, e só um. Provado por sabotagem (**C**, em `docs/f49-evidencias/`): cadeia de DOIS níveis (`export → nivelUm → nivelDois → exigirAdmin`) **reprova**, e helper **homônimo** — uma função chamada `barrado` que não guarda nada — também reprova, porque o que a trava reconhece é a DECLARAÇÃO local, nunca o nome.
+- **Consequência boa e não prevista:** a guarda das três de compra pôde nascer dentro do `sugerir()`, num lugar só, **depois** do piso de 2 caracteres — o que evita uma ida ao Supabase por tecla digitada antes da segunda letra, no caminho mais quente do sistema. Com a opção (b) a guarda teria de vir antes ou ser repetida três vezes.
+- **Reversível?** Sim. A leitura da indireta é uma função de ~30 linhas em `src/lib/actions/guardas-de-action.ts`; removê-la faz os sete exports caírem como "sem guarda", que é um teste vermelho, não um furo.
+
+---
+
+## 2026-09-07 · F49 · Decisão 2 — `prefixo-busca.ts` SAI de `queries/` (vira `src/lib/busca/prefixo.ts`)
+
+- **Contexto:** a F49 passou a exigir `import 'server-only'` em todo módulo de `src/lib/queries/`. `queries/prefixo-busca.ts` era o **único** módulo da pasta que não toca o banco: uma constante (`MIN_PREFIXO_SUGESTAO`) e uma regex que neutraliza curingas do ILIKE. Ele seria a única exceção da catraca, logo na estreia dela.
+- **Decisão:** **mover** para `src/lib/busca/prefixo.ts` (opção (a) da ordem), com `git mv` para preservar histórico. Três imports reescritos: `queries/colaboradores.ts:6`, `queries/movimentacoes.ts:20` e o próprio teste, que continua importando o valor direto e **sem `vi.mock`**.
+- **Motivo:** a alternativa (b) — deixá-lo e declarar `server-only` num módulo puro que não precisa — custaria zero hoje e duas coisas depois: proibiria, sem razão, que um Client Component um dia validasse o prefixo antes de chamar o servidor; e faria a catraca nascer com uma exceção. Uma catraca que estreia com exceção estreia afrouxada. Com a mudança, `src/lib/queries/` volta a significar exatamente uma coisa — "toca o banco" — e a lista `DISPENSADOS` de `servidor-apenas.test.ts` é **vazia**.
+- **Onde ficou registrado:** no cabeçalho do próprio arquivo movido, com o motivo por escrito (é lá que quem for mexer vai olhar).
+- **Reversível?** Sim — `git mv` de volta e três imports. Mas então a catraca precisa de uma exceção nominal com motivo, e o motivo teria de ser melhor do que "estava aqui antes".
+
+---
+
+## 2026-09-07 · F49 · Decisão 3 — o custo da guarda foi MEDIDO antes de entrar, e ele não dói
+
+- **Contexto:** a guarda acrescenta duas idas à rede (`auth.getUser()` + `rpc('papel_atual')`) a nove leituras, seis delas em campo com debounce **por tecla**. A régua combinada era: a guarda FICA, o número vai para o relatório como manchete, e mitigação (se houver) vira proposta escrita para a F60 — nunca remover a guarda de um caminho "porque é quente", nem trocá-la por `idOperador()`.
+- **O instrumento é NOVO, e a ordem previa que fosse:** `scripts/perf/medir.mjs` é **só GET** por regra escrita no cabeçalho dele, e Server Action não é rota GET (é POST com header `Next-Action`, cujo id o compilador troca a cada build). `scripts/perf/medir-guarda.mjs` mede a **parcela da guarda**, isolada, contra o Supabase de produção, com sessão de operador real pela mesma cascata de credencial (`PERF_*`/`SMOKE_*`), só leitura, zero dependência nova, e herdando o método: aquecimento descartado, 15 rodadas em round-robin, mediana e p95 por interpolação.
+- **O número:** **72,7 ms de mediana e 90,5 ms de p95** por chamada (o PAR, medido de verdade em sequência — não a soma das medianas isoladas). Rodado antes e depois das nove guardas, com o mesmo método e ambiente: **0,9 ms de diferença**, ou seja, ruído — e era o esperado, porque o que a fase mudou foi *quantas* actions fazem as duas chamadas, não *quanto* elas custam. Rodar duas vezes serve para provar que a medição é reprodutível.
+- **Veredito: não dói no caminho que importa,** por três razões medidas e não opinadas. (1) O debounce de 300 ms já limita a uma chamada por pausa de digitação, e a busca que a guarda protege custa outra ida ao banco de qualquer forma. (2) O número é um **teto pessimista**: foi medido da mesa, e a lambda da Vercel fala com o Supabase na MESMA região (GRU1, desde a F33). (3) `cargoDoRequest` é `cache()` por requisição desde a F21 (`acesso.ts:260`), então a segunda guarda do mesmo request custa **zero** — a mitigação que a ficha propunha já estava no ar.
+- **Nada foi proposto para a F60,** e é uma conclusão, não uma omissão: com o `cache()` já valendo, não sobrou mitigação de custo sem contrapartida. A única que existiria — memoizar o VÍNCULO — está proibida por escrito no comentário de `cargoDoRequest`, porque mataria a revogação no request seguinte (ADR-002 §4).
+- **Reversível?** A medição é reexecutável (`node scripts/perf/medir-guarda.mjs`); os JSONs estão em `docs/perf/`.
+
+---
+
+## 2026-09-07 · F49 · A trava varre o `src/` INTEIRO, e não só `src/lib/actions/`
+
+- **Contexto:** a ficha mandava a trava varrer os módulos `'use server'` de `src/lib/actions/`. Medindo, apareceu **um módulo `'use server'` fora da pasta**: `src/app/(app)/dev/acoes-export.ts`, com `exportarAuditoriaCSV`.
+- **Decisão:** varrer o `src/` inteiro, usando `ehModuloUseServer` (o detector de prólogo que `use-server-exports.ts` já tinha, e que é mais correto que um grep: entende aspas simples e duplas, comentário antes da diretiva, e recusa `'use server'` dentro de função).
+- **Motivo:** o módulo de fora **já estava guardado** (`exigirDev`), então a rede larga custou zero verde e fechou o caminho de escrever a próxima action dentro de `src/app/**`, onde uma trava restrita à pasta não olharia. Uma fronteira que só cobre uma pasta é uma fronteira com uma porta ao lado.
+- **Reversível?** Sim, mas não há motivo: o total medido é 89 exports em 20 módulos, e restringir só reduziria a cobertura.
+
+---
+
+## 2026-09-07 · F49 · `SEM_GUARDA` tem SEIS entradas, e não as cinco da ficha
+
+- **Contexto:** a ordem previa cinco isenções nominais (os 4 exports de `auth.ts` + `entrarComSenha`). A varredura encontrou uma sexta Server Action sem guarda nenhuma e legitimamente sem: **`senhas.ts::sairVisualizacao`**.
+- **Decisão:** entra em `SEM_GUARDA` com motivo escrito, e `TETO_SEM_GUARDA` nasce em **6**.
+- **Motivo:** ela é o LOGOUT do visualizador — apaga o próprio cookie e redireciona. Não lê nem escreve dado nenhum, e exigir cargo ali prenderia na visualização justamente quem não tem cargo. É o mesmo argumento de `auth.ts::signOut`, que a ficha já isentava; a ficha simplesmente não enxergou o gêmeo dela.
+- **Como apareceu:** medição própria, confirmada de forma independente pelo agente de conferência da fase (que também mediu 19 exports sem guarda direta, contra os 18 da ordem — a diferença é exatamente esta função).
+- **Reversível?** Encolher a lista é sempre permitido (a catraca só reprova crescimento). Guardar `sairVisualizacao` seria um erro de produto, não um ganho de segurança.
+
+---
+
+## 2026-09-07 · F49 · ACHADO — o `npm run build` NÃO pega import de valor NÃO USADO
+
+- **Contexto:** ao provar a sabotagem E (módulo `'use client'` importando valor de `@/lib/queries`), a suposição de trabalho era que a proibição em teste fosse redundante com o build, que já quebra por causa do `server-only`.
+- **O que foi medido:** a sabotagem foi rodada **duas vezes**. Com o binding **USADO**, o build quebra e o Turbopack imprime a cadeia inteira até `server-only` (evidência `E2`). Com o binding importado e **NÃO USADO**, o `npm run build` **passa limpo, exit 0** — o compilador elide o import antes de o grafo do cliente alcançar `server-only`.
+- **Consequência:** a metade (2) de `servidor-apenas.test.ts` **não é redundante**. O import morto entra no repositório sem nada reclamar e fica esperando a primeira linha que o use — que é exatamente como uma fronteira volta a ser atravessada meses depois, num commit que "só usa o que já estava importado". O cabeçalho do teste e a mensagem de falha foram corrigidos para dizer isso; a redação anterior afirmava que o build pegava o caso, e estava errada.
+- **Reversível?** Não se aplica — é um fato medido sobre a ferramenta, não uma escolha.
+
+---
+
+## 2026-09-07 · F49 · A `0128` continua sem aplicar em produção — pendência herdada da F47 e da F48
+
+- **Contexto:** `supabase/migrations/0128_adota_bkp_relatorios_f6a.sql` segue sem aplicar em produção. A ordem da F49 mandava tentar, pelo caminho A do `RUNBOOK-BANCO.md`, **se** o MCP do Supabase estivesse conectado nesta sessão.
+- **O que foi conferido:** o MCP do Supabase **não está disponível** nesta sessão (a lista de servidores conectados não o traz; os que exigem autenticação estão declarados como tal e não incluem um servidor Supabase utilizável). Não há caminho de apply seguro a partir daqui.
+- **Decisão:** **não insistir, não inventar caminho alternativo, não mexer em credencial** — exatamente como a ordem instrui e como a F47 e a F48 registraram antes. A pendência é carregada adiante com o mesmo texto honesto.
+- **O que falta para resolver:** uma sessão com o MCP do Supabase conectado (ou o Studio aberto pelo Johnny), rodando a migration e as três consultas do bloco *VERIFICAÇÃO PÓS-APPLY* — a terceira tem de devolver **2**.
+- **Nota:** esta fase **não tocou o banco**. Nenhuma migration nova, nenhum roteiro SQL alterado, `git diff` com zero arquivos em `supabase/`. `npm run db:lock` não foi executado porque não havia migration para travar.
