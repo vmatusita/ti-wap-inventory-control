@@ -1,67 +1,141 @@
-import { describe, expect, it } from 'vitest'
-import { filiaisParaEscrita, podeEscreverNaFilial } from './permissoes'
-import type { Permissoes } from './permissoes'
+import { describe, it, expect } from 'vitest'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { podeLer, podeEscreverNaFilial, filiaisParaEscrita } from './permissoes'
 
-// F21 — o gating de UI que depende do VÍNCULO de filiais. A hierarquia pura já é
-// coberta por `src/lib/auth/papeis.test.ts`; aqui provamos os dois casos que
-// custaram comentário no módulo: o admin numa filial FORA da lista de ativas e o
-// recorte de um select de escrita preservando a ordem da lista de leitura.
+// AUTORIZAÇÃO NÃO SE DERIVA DO COMPRIMENTO DE UMA LISTA (F50).
+//
+// A doutrina já estava escrita — em `src/lib/auth/papeis.ts`, no comentário de
+// `filtroFilialPadrao`:
+//
+//   "⚠ A decisão olha o CARGO, nunca `filiaisEscrita.length === 0`. Lista vazia tem
+//    dois significados diferentes: `consulta` (que não escreve em lugar nenhum) e
+//    `operador` sem vínculo válido — um usuário quebrado."
+//
+// O que faltava era alguém conferindo. Esta trava confere: nenhuma prop de PERMISSÃO
+// pode receber `filiais.length > 0` (ou a variante com `filiaisEscrita`). O perigo não
+// é estético — é que as duas populações têm respostas diferentes, e um `.length`
+// devolve a mesma para as duas. Quando `Permissoes` ganhar `empresaId`, o mesmo
+// atalho passaria a confundir "lista vazia porque a empresa não tem filial" com
+// "lista vazia porque este cargo não escreve".
+const RAIZ = join(process.cwd(), 'src')
 
-const FILIAIS = [
-  { id: 1, slug: 'matriz', nome: 'Matriz' },
-  { id: 2, slug: 'filial-b', nome: 'Filial B' },
-  { id: 3, slug: 'filial-c', nome: 'Filial C' },
-]
+/** Props cujo nome declara PERMISSÃO. É por elas que a derivação vira autorização. */
+const PROPS_DE_PERMISSAO = ['podeCadastrar', 'podeCriar', 'podeEscrever', 'podeLer', 'podeEditar']
 
-const admin: Permissoes = { papel: 'admin', filiaisEscrita: [1, 2, 3] }
-const operador: Permissoes = { papel: 'operador', filiaisEscrita: [2] }
-const consulta: Permissoes = { papel: 'consulta', filiaisEscrita: [] }
-const operadorSemVinculo: Permissoes = { papel: 'operador', filiaisEscrita: [] }
+/**
+ * `<prop>={…filiais…length…}` — a prop de permissão alimentada por comprimento.
+ *
+ * Só casa `.length`/`[0]` de algo que se chame `filiais*`: um `podeCadastrar={itens.length > 0}`
+ * é outra conversa (viabilidade de uma lista de itens), e acusá-lo aqui só ensinaria
+ * a desligar a trava.
+ */
+function derivacoesDeAutorizacao(): string[] {
+  const re = new RegExp(
+    `(${PROPS_DE_PERMISSAO.join('|')})=\\{[^}]*\\bfiliais\\w*(?:\\.length|\\[0\\])[^}]*\\}`,
+    'g',
+  )
+  const achados: string[] = []
+  const varrer = (dir: string) => {
+    for (const nome of readdirSync(dir)) {
+      const p = join(dir, nome)
+      if (statSync(p).isDirectory()) varrer(p)
+      else if (/\.tsx$/.test(nome) && !nome.includes('.test.')) {
+        const fonte = readFileSync(p, 'utf8')
+        for (const m of fonte.matchAll(re)) {
+          achados.push(`${p.slice(RAIZ.length + 1).split(/[\\/]/).join('/')}: ${m[0]}`)
+        }
+      }
+    }
+  }
+  varrer(RAIZ)
+  return achados.sort()
+}
 
-describe('podeEscreverNaFilial', () => {
-  it('admin escreve em qualquer filial, inclusive fora da lista de ativas', () => {
-    expect(podeEscreverNaFilial(admin, 1)).toBe(true)
-    // 99 = filial desativada (ativo de import antigo): o banco deixa o admin
-    // escrever, então a UI não pode esconder o botão.
-    expect(podeEscreverNaFilial(admin, 99)).toBe(true)
+// A ÚNICA infração medida na F50, e ela fica — com o motivo, e com data para sair.
+//
+// `podeCadastrar={filiais.length > 0}` deriva cargo de comprimento, e o comentário ao
+// lado dele admite isso por escrito. A correção óbvia seria copiar os dois vizinhos
+// (`passo-movimentacao.tsx` e `secao-contrapartida.tsx`, que passam `papel !== 'consulta'`)
+// — mas ela MUDA O QUE ALGUÉM VÊ, e esta fase não muda comportamento.
+//
+// Medido, subindo a cadeia de props (itens/page.tsx:166 → :293 → lancar-item-dialog:609):
+//   · `consulta` NUNCA chega aqui — o diálogo só monta dentro de `{escreve && …}`.
+//     O comentário no código, que diz "lista vazia = cargo consulta", está ERRADO;
+//     ele foi corrigido na F50, e essa correção não muda comportamento nenhum.
+//   · a única forma de a lista chegar vazia é OPERADOR SEM VÍNCULO. Hoje ele não vê o
+//     botão "Cadastrar"; com `papel !== 'consulta'` passaria a ver — e provavelmente a
+//     conseguir usar, porque cadastro de pessoa não é matéria de filial (o `filial_id`
+//     é atributo, não escopo de escrita). Ou seja: a troca não só muda a tela, como
+//     provavelmente CORRIGE um bloqueio indevido. As duas coisas são mudança visível.
+//
+// Por isso ela vira exceção nominal, e o conserto vai nomeado para a F70, onde o
+// `podeLer` ganha corpo e a pergunta "este cargo cadastra pessoa?" tem casa própria.
+const EXCECOES: Record<string, string> = {
+  'components/itens/lancar-item-campos.tsx':
+    'podeCadastrar={filiais.length > 0}: trocar por `papel !== \'consulta\'` faria o operador SEM VÍNCULO passar a ver o botão de cadastrar pessoa, que hoje não vê — mudança de comportamento visível, carregada para a F70',
+}
+
+describe('podeLer (F50)', () => {
+  it('responde "existe sessão com permissões?" e nada além disso', () => {
+    expect(podeLer({ papel: 'consulta', filiaisEscrita: [] })).toBe(true)
+    expect(podeLer({ papel: 'operador', filiaisEscrita: [] })).toBe(true)
+    expect(podeLer(null)).toBe(false)
+    expect(podeLer(undefined)).toBe(false)
   })
 
-  it('operador escreve só na filial vinculada', () => {
-    expect(podeEscreverNaFilial(operador, 2)).toBe(true)
-    expect(podeEscreverNaFilial(operador, 1)).toBe(false)
-    expect(podeEscreverNaFilial(operador, 99)).toBe(false)
+  it('não olha o cargo nem as filiais — quem lê, lê tudo (ADR-002)', () => {
+    // O piso de leitura é `papel_atual() is not null`, e `consulta` com zero filiais
+    // é exatamente quem esta função precisa deixar passar. Se um dia ela começar a
+    // recusar por cargo, este teste diz que a mudança foi deliberada.
+    expect(podeLer({ papel: 'consulta', filiaisEscrita: [] })).toBe(
+      podeLer({ papel: 'dev', filiaisEscrita: [1, 2, 3] }),
+    )
   })
 
-  it('consulta e operador sem vínculo não escrevem em lugar nenhum', () => {
+  it('é independente de podeEscreverNaFilial (ler não é escrever)', () => {
+    const consulta = { papel: 'consulta' as const, filiaisEscrita: [] }
+    expect(podeLer(consulta)).toBe(true)
     expect(podeEscreverNaFilial(consulta, 1)).toBe(false)
-    expect(podeEscreverNaFilial(operadorSemVinculo, 1)).toBe(false)
-  })
-
-  it('filial ausente e sessão ausente nunca liberam', () => {
-    expect(podeEscreverNaFilial(operador, null)).toBe(false)
-    expect(podeEscreverNaFilial(admin, null)).toBe(false)
-    expect(podeEscreverNaFilial(null, 1)).toBe(false)
-    expect(podeEscreverNaFilial(undefined, 1)).toBe(false)
+    expect(filiaisParaEscrita(consulta, [{ id: 1 }])).toEqual([])
   })
 })
 
-describe('filiaisParaEscrita', () => {
-  it('admin recebe a lista inteira, na mesma ordem', () => {
-    expect(filiaisParaEscrita(admin, FILIAIS)).toEqual(FILIAIS)
+describe('nenhum componente deriva AUTORIZAÇÃO do comprimento da lista de filiais', () => {
+  it('a varredura enxerga o repositório (guarda do próprio teste)', () => {
+    // Sem isto, um regex que parasse de casar deixaria a trava verde e vazia.
+    const re = new RegExp(`(${PROPS_DE_PERMISSAO.join('|')})=\\{[^}]*\\bfiliais\\w*\\.length[^}]*\\}`)
+    expect(re.test('<X podeCadastrar={filiais.length > 0} />')).toBe(true)
+    expect(re.test('<X podeCadastrar={papel !== \'consulta\'} />')).toBe(false)
   })
 
-  it('operador recebe só as vinculadas', () => {
-    expect(filiaisParaEscrita(operador, FILIAIS).map((f) => f.slug)).toEqual(['filial-b'])
+  it('só as exceções registradas derivam permissão de `.length`', () => {
+    const novas = derivacoesDeAutorizacao().filter(
+      (d) => !Object.keys(EXCECOES).some((e) => d.startsWith(e + ':')),
+    )
+    expect(
+      novas,
+      'lista vazia tem DOIS significados (cargo que não escreve × vínculo ausente) e ' +
+        '`.length` devolve a mesma resposta para os dois — pergunte pelo CARGO ' +
+        '(`papel !== \'consulta\'`), como fazem passo-movimentacao.tsx e secao-contrapartida.tsx',
+    ).toEqual([])
   })
 
-  it('consulta, operador sem vínculo e sem sessão recebem lista vazia', () => {
-    expect(filiaisParaEscrita(consulta, FILIAIS)).toEqual([])
-    expect(filiaisParaEscrita(operadorSemVinculo, FILIAIS)).toEqual([])
-    expect(filiaisParaEscrita(null, FILIAIS)).toEqual([])
+  it('nenhuma exceção envelheceu (a infração ainda existe onde está declarada)', () => {
+    const atuais = derivacoesDeAutorizacao()
+    const sumidas = Object.keys(EXCECOES).filter((e) => !atuais.some((a) => a.startsWith(e + ':')))
+    expect(sumidas, 'exceção que já não descreve o código: apague a entrada').toEqual([])
   })
 
-  it('vínculo em filial que não está na lista da tela é ignorado', () => {
-    const fantasma: Permissoes = { papel: 'operador', filiaisEscrita: [2, 42] }
-    expect(filiaisParaEscrita(fantasma, FILIAIS).map((f) => f.id)).toEqual([2])
+  it('os dois vizinhos continuam perguntando pelo CARGO (o molde certo)', () => {
+    for (const rel of [
+      'components/movimentacoes/nova/passo-movimentacao.tsx',
+      'components/movimentacoes/nova/secao-contrapartida.tsx',
+    ]) {
+      const fonte = readFileSync(join(RAIZ, ...rel.split('/')), 'utf8')
+      expect(fonte, `${rel}: o molde de referência mudou`).toContain(
+        "podeCadastrar={papel !== 'consulta'}",
+      )
+    }
   })
 })

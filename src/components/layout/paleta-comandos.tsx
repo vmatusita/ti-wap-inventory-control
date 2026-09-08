@@ -32,15 +32,27 @@
 //    dele, que esconder um botão é ergonomia. Quem impede a ação é a guarda dentro da
 //    Server Action, não a ausência da entrada nesta lista.
 //
-// 3. O `podeLer` DA F50 PRECISA ALCANÇAR ESTE ARQUIVO. Quando `permissoes.ts` ganhar
-//    essa pergunta, o ponto de entrada é o filtro das entradas de navegação (as
-//    mesmas passagens (106/109/312/441) onde `soAdmin`/`soDev`/`podeEscrever` já são
-//    consultados) — e não o resultado da busca de ativos, que é assunto de recorte de
-//    filial (F57/F70), não de leitura.
+// 3. O `podeLer` DA F50 CHEGOU — e entrou onde este cabeçalho dizia que entraria: no
+//    filtro das entradas de navegação, ao lado de `soAdmin`/`soDev`, e NÃO no
+//    resultado da busca de ativos (que é recorte de filial, assunto de F57/F70, não
+//    de leitura). Ele desce por prop do `(app)/layout.tsx`, resolvido por
+//    `podeLer(operador)` de `@/components/layout/permissoes`, junto de `podeEscrever`,
+//    `eAdmin` e `eDev`.
 //
-// ⚠ O `{r.filial_nome}` do resultado (linha 556) FICA. Tirá-lo mudaria o que o
-// operador vê hoje e anteciparia recorte que não é desta fase — decisão do
-// Johnny, 08/09/2026.
+//    Hoje ele é `true` para todo mundo que vê esta paleta — o ramo do layout que a
+//    monta está inteiro dentro do `if (operador)` —, então NADA mudou de aparência.
+//    O ganho é ter UM lugar para mudar quando o piso de leitura deixar de ser
+//    universal, em vez de sete perguntas "existe operador?" espalhadas.
+//
+//    ⚠ Os números de linha que este item citava (106/109/312/441) estavam VELHOS —
+//    medido na F50: `soAdmin` está na 115, `soDev` na 118, o tipo de `podeEscrever`
+//    na 321 e o grupo "Ações" na 450; só o filtro de navegação continuou na 441.
+//    Por isso este item passou a citar os nomes, e não as linhas: nome não envelhece
+//    a cada `import` novo. (O item 1 tem o mesmo defeito: o import que ele chama de
+//    "linha 75" está na 84.)
+//
+// ⚠ O `{r.filial_nome}` do resultado FICA. Tirá-lo mudaria o que o operador vê hoje e
+// anteciparia recorte que não é desta fase — decisão do Johnny, 08/09/2026.
 
 import {
   createContext,
@@ -293,6 +305,7 @@ export function PaletaComandosProvider({
   children,
   paginasAjuda = [],
   podeEscrever = false,
+  podeLer = true,
   eAdmin = false,
   eDev = false,
   hrefRelatorios,
@@ -319,6 +332,18 @@ export function PaletaComandosProvider({
    * pelo `dev/layout.tsx`, então esquecer a prop dá menu incompleto, nunca vazamento.
    */
   podeEscrever?: boolean
+  /**
+   * F50 — "esta sessão lê alguma coisa?", resolvido por `podeLer` em
+   * `@/components/layout/permissoes` e descido pelo `(app)/layout.tsx`, junto dos
+   * outros três. Governa o grupo "Ir para": um atalho de navegação para quem não lê
+   * é um atalho para uma tela que o servidor recusa.
+   *
+   * Default `true`, e o default é a parte pensada: os outros três são `false` porque
+   * são PERMISSÕES a mais, e esquecer a prop tem de fechar. Este é o PISO de leitura —
+   * esquecer a prop tem de deixar o menu como estava, não esvaziá-lo. Falhar fechado
+   * aqui daria uma paleta vazia por um bug de fiação, sem nada explicando o sumiço.
+   */
+  podeLer?: boolean
   eAdmin?: boolean
   eDev?: boolean
 }) {
@@ -438,13 +463,13 @@ export function PaletaComandosProvider({
   const rotas = useMemo(
     () =>
       ROTAS.filter(
-        (r) => (eAdmin || !r.soAdmin) && (eDev || !r.soDev) && casa(r, termo),
+        (r) => podeLer && (eAdmin || !r.soAdmin) && (eDev || !r.soDev) && casa(r, termo),
       ).map((r) =>
         r.href === '/relatorios/geral' && hrefRelatorios
           ? { ...r, href: hrefRelatorios }
           : r,
       ),
-    [termo, eAdmin, eDev, hrefRelatorios],
+    [termo, podeLer, eAdmin, eDev, hrefRelatorios],
   )
   const acoes = useMemo(
     () => (podeEscrever ? ACOES.filter((a) => casa(a, termo)) : []),

@@ -134,8 +134,22 @@ export function LancarItemCampos({
             onChange={onColaborador}
             placeholder={tipo === 'saida' ? 'nome de quem levou' : 'a quem se destina'}
             filialId={filialId}
-            // `filiais` já vem recortado às filiais em que este cargo ESCREVE (F21):
-            // lista vazia = cargo consulta, que não cria nada.
+            // `filiais` já vem recortado às filiais em que este cargo ESCREVE (F21).
+            //
+            // ⚠ CORREÇÃO DE FATO (F50): o comentário anterior dizia "lista vazia =
+            // cargo consulta, que não cria nada". Medido, isso está errado — o
+            // `consulta` NUNCA chega até aqui, porque `itens/page.tsx` só monta o
+            // diálogo dentro de `{escreve && …}`. A única forma de a lista chegar
+            // vazia é OPERADOR SEM VÍNCULO, e para ele esconder o cadastro é
+            // provavelmente indevido: cadastro de pessoa não é matéria de filial
+            // (o `filial_id` é atributo, não escopo de escrita).
+            //
+            // Derivar permissão do COMPRIMENTO de uma lista é o padrão que
+            // `lib/auth/papeis.ts:173` proíbe por escrito, e os dois campos irmãos
+            // (`passo-movimentacao.tsx`, `secao-contrapartida.tsx`) já perguntam
+            // `papel !== 'consulta'`. Trocar aqui MUDARIA o que essa pessoa vê, então
+            // não é desta fase: fica registrado como exceção nominal em
+            // `components/layout/permissoes.test.ts` e nomeado para a F70.
             podeCadastrar={filiais.length > 0}
           />
           {tipo === 'saida' && !colaborador.trim() && (

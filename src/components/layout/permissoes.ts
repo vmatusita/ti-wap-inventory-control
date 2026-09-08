@@ -1,9 +1,10 @@
-// Gating de UI por CARGO (F21) — as duas perguntas que as TELAS fazem e que
+// Gating de UI por CARGO (F21) — as três perguntas que as TELAS fazem e que
 // `@/lib/auth/papeis` não responde sozinho, porque dependem do vínculo de
 // filiais de quem está logado:
 //
 //   1. "mostro o CTA desta ficha?"  → `podeEscreverNaFilial`
 //   2. "que filiais o select de ESCRITA oferece?" → `filiaisParaEscrita`
+//   3. "esta sessão lê alguma coisa?" → `podeLer` (F50)
 //
 // Módulo PURO de propósito (sem `server-only`, sem Supabase, sem JSX): é
 // importado por Server Components (as páginas, que resolvem o operador) e por
@@ -44,6 +45,30 @@ export function podeEscreverNaFilial(
   if (!p || filialId == null || !podeEscrever(p.papel)) return false
   if (eAdmin(p.papel)) return true
   return p.filiaisEscrita.includes(filialId)
+}
+
+// Esta sessão LÊ alguma coisa?
+//
+// Hoje a resposta é trivial, e é trivial de propósito: a ADR-002 dá o app inteiro em
+// modo leitura a todo logado ATIVO — o piso é `papel_atual() is not null` no banco
+// (migrations 0070/0073), e do lado da UI isso é exatamente "existe `Permissoes`?".
+// Perfil desativado ou arquivado não chega aqui com objeto nenhum.
+//
+// O valor desta função não é o corpo dela, é o LUGAR. Hoje as telas perguntam "existe
+// operador?" de sete formas diferentes espalhadas; quando o piso de leitura deixar de
+// ser universal — é a virada multiempresa, onde `Permissoes` ganha `empresaId` e a
+// pergunta passa a ser "lê nesta empresa?" —, existe UM ponto para mudar, e quem já o
+// consulta herda a resposta nova sem ser reescrito.
+//
+// ⚠ O que ela NÃO responde: "pode ler O QUÊ". Recorte por filial é F57; recorte por
+// empresa é F70. Esta função responde sim/não, nunca "quais linhas".
+//
+// ⚠ E vale o aviso do fim deste cabeçalho: esconder um item de menu é ergonomia, não
+// segurança. Quem impede a leitura é a RLS; quem impede a ação é a guarda da Server
+// Action. Um `podeLer` que devolvesse `true` por engano não abriria porta nenhuma —
+// só deixaria um atalho visível para uma tela que o servidor recusaria.
+export function podeLer(p: Permissoes | null | undefined): boolean {
+  return p !== null && p !== undefined
 }
 
 // As filiais que um select de ESCRITA pode oferecer, preservando a ORDEM e a

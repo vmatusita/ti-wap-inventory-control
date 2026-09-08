@@ -124,13 +124,15 @@ function arquivosDaSuperficie(): string[] {
 // real. Um tripwire pode dar falso positivo (alguém escreveu um exemplo num
 // comentário, o teste fica vermelho e a pessoa reescreve a frase); não pode dar
 // falso negativo. A F32 pagou uma rodada vermelha por isso, em viewer-nav.tsx.
-const RE_HREF = /href=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/g
+// Os dois casos de aspas fecham em si mesmos; o template abre e é entregue ao
+// extrator abaixo, que sabe contar aninhamento (ver o ⚠ logo em seguida).
+const RE_HREF = /href=(?:"([^"]*)"|\{'([^']*)'\}|\{`)/g
 
 // ⚠ FALSO NEGATIVO CORRIGIDO NA F50 — template com crase ANINHADA.
 //
-// O `RE_HREF` acima exige que o template não tenha nenhuma crase por dentro
-// (`[^`]*`). Só que crase aninhada é JSX corriqueiro, e a superfície tinha um caso
-// real: `link-ajuda.tsx` escreve
+// Até aqui o terceiro ramo do `RE_HREF` era ``\{`([^`]*)`\}``, que exige um template
+// SEM nenhuma crase por dentro. Só que crase aninhada é JSX corriqueiro, e a
+// superfície tinha um caso real: `link-ajuda.tsx` escreve
 //
 //     href={`/ajuda/${pagina}${ancora ? `#${ancora}` : ''}`}
 //
@@ -141,10 +143,9 @@ const RE_HREF = /href=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/g
 // um detector que não o enxerga.
 //
 // É exatamente o modo de falha que o comentário acima proíbe: falso positivo custa
-// uma frase reescrita, falso negativo custa o vazamento. Por isso o extrator abaixo
-// não é regex — ele lê o template contando `${` e `}`, e só fecha na crase do nível
-// de fora. O `RE_HREF` permanece para os dois casos simples e para a asserção que
-// prova que o detector acha.
+// uma frase reescrita, falso negativo custa o vazamento. Por isso o fim do template
+// não é decidido por regex — o extrator abaixo lê contando `${` e `}`, e só fecha na
+// crase do nível de fora.
 function hrefDeTemplate(fonte: string, inicio: number): { href: string; fim: number } | null {
   let i = inicio
   let profundidade = 0
@@ -179,17 +180,17 @@ function hrefDeTemplate(fonte: string, inicio: number): { href: string; fim: num
 
 function hrefsLiterais(fonte: string): string[] {
   const achados: string[] = []
-  const re = /href=(?:"([^"]*)"|\{'([^']*)'\}|\{`)/g
+  RE_HREF.lastIndex = 0
   let m: RegExpExecArray | null
-  while ((m = re.exec(fonte))) {
+  while ((m = RE_HREF.exec(fonte))) {
     if (m[1] !== undefined || m[2] !== undefined) {
       achados.push(m[1] ?? m[2] ?? '')
       continue
     }
-    const t = hrefDeTemplate(fonte, re.lastIndex)
+    const t = hrefDeTemplate(fonte, RE_HREF.lastIndex)
     if (t) {
       achados.push(t.href)
-      re.lastIndex = t.fim
+      RE_HREF.lastIndex = t.fim
     }
   }
   return achados
