@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { ehModuloUseServer } from '@/lib/use-server-exports'
-import { GUARDAS, guardasDosExports } from '@/lib/actions/guardas-de-action'
+import { GUARDAS, guardasDosExports, usaExportDefault } from '@/lib/actions/guardas-de-action'
 
 // A TRAVA DA FRONTEIRA HTTP — F49. RODA SEM BANCO.
 //
@@ -320,6 +320,22 @@ describe('toda Server Action exportada tem guarda ou isenção nominal', () => {
     const alvo = achados.find((a) => a.nome === nome)
     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined()
     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+  })
+})
+
+describe('o ponto cego conhecido é RUIDOSO, não silencioso', () => {
+  // `use-server-exports.ts` aceita `export default async function` num módulo
+  // 'use server', mas a leitura de guardas casa `function <nome>` e a default
+  // costuma ser anônima: uma action escrita assim passaria sem ser vista. Hoje não
+  // existe nenhuma; se aparecer, o teste reprova mandando ensinar a leitura.
+  it.each(MODULOS)('%s não usa export default', (arquivo) => {
+    expect(
+      usaExportDefault(readFileSync(join(process.cwd(), arquivo), 'utf8')),
+      `${arquivo} usa \`export default\` num módulo 'use server'.\n` +
+        `A leitura de guardas NÃO sabe ler essa forma (ela casa \`function <nome>\`), então\n` +
+        `essa action passaria pela trava sem ser vista. Ensine \`guardasDosExports\` a lê-la —\n` +
+        `NÃO acrescente exceção, e não troque a forma só para calar o teste.`,
+    ).toBe(false)
   })
 })
 

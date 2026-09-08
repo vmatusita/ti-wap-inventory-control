@@ -176,12 +176,30 @@ function guardaChamadaEm(corpo: string): NomeDeGuarda | null {
 }
 
 /**
+ * O módulo usa `export default` — a forma que esta leitura NÃO sabe ler.
+ *
+ * `use-server-exports.ts` ACEITA `export default async function` num módulo
+ * `'use server'` (é export de função async, e o transform lida com ela), mas a
+ * varredura daqui casa `function <nome>`, e a default costuma ser anônima. Ou
+ * seja: uma action escrita nessa forma passaria por esta trava sem ser vista.
+ *
+ * Hoje não existe nenhuma no repositório (medido em 07/09/2026: 89 exports, todos
+ * `export async function`). Em vez de deixar o ponto cego calado, o teste REPROVA
+ * se um aparecer — a mensagem manda ensinar a leitura, não abrir exceção. Ponto
+ * cego silencioso é o que faz uma trava parecer mais forte do que é.
+ */
+export function usaExportDefault(fonte: string): boolean {
+  return /^export\s+default\b/m.test(limpar(fonte, true))
+}
+
+/**
  * Os exports de um módulo `'use server'`, cada um com a guarda que o protege
  * (direta ou por helper local de UM nível) — ou `null` quando não há nenhuma.
  *
  * Só considera `export async function`: é a única forma que o transform de
  * Server Actions registra como endpoint (`use-server-exports.ts` é quem impede
- * as outras de existirem num módulo desses).
+ * as outras de existirem num módulo desses). A exceção conhecida —
+ * `export default` — é acusada por `usaExportDefault`, não ignorada.
  */
 export function guardasDosExports(fonte: string): ExportDeAction[] {
   const limpo = limpar(fonte, true)
