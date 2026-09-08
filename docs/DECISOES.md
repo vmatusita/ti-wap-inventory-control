@@ -8990,3 +8990,95 @@ Revisão em contexto fresco, quatro lentes independentes (comportamento do usuá
 6. **Meia evidência para a alegação extraordinária.** O achado "o build não pega import de valor NÃO USADO" tinha arquivo de evidência só para a metade *usada* (o build quebrando). A metade que sustenta a alegação — o build passando limpo — não tinha prova salva. Gerada em `docs/f49-evidencias/E3-...`: **exit 0, zero ocorrências de `server-only` na saída**, com a trava pegando o mesmo caso logo abaixo.
 
 **Nota de método:** durante a revisão, um dos agentes deixou momentaneamente um arquivo de rascunho (`__scratch_check.mts`) na raiz do repositório, e uma execução de `npm run build` falhou por causa dele — `Failed to type check`, no arquivo do rascunho, **depois** de `✓ Compiled successfully`. Diagnosticado e reexecutado limpo. Fica registrado porque a falha era ruído, e tomá-la por resultado teria invertido a conclusão do achado 6.
+
+## 2026-09-08 · F50 · Decisão 1 — os arrastados pela regra da assinatura
+
+- Contexto: a ficha previa que a regra derivada da assinatura arrastaria QUATRO módulos (`tipos-item.ts`, `conflitos.ts`, `import-logs.ts`, `pendencias-detalhe.ts`). Medido: são **14** módulos com função EXPORTADA aceitando client resolvido, e **três** formas de assinatura, não duas — a terceira, `Awaited<ReturnType<typeof createClient>>`, a ficha não previa.
+- Decisão: `tipos-item.ts` entra na superfície (dois call-sites com `acesso.client`, em `[filial]/page.tsx:131` e `gerados/[id]/page.tsx:57`). `conflitos.ts`, `import-logs.ts`, `ativos.ts`, `colaboradores.ts` e `queries/itens.ts` viram exceção nominal com o call-site medido. `pendencias-detalhe.ts` **não é nem uma coisa nem outra**: as três funções exportadas dele criam o próprio client com `createClient()`, e só duas funções INTERNAS recebem um — ele não forma superfície.
+- Motivo: a prova estrutural é que a superfície inteira importa de `@/lib/queries/` apenas `filiais`, `relatorios` e `rpc-filial` — nenhum dos cinco. E a distinção exportada × interna é o que dá valor à regra: tratá-la como "qualquer função que receba client" encheria a lista de exceções com arquivos que nunca estiveram em risco.
+- Reversível? Sim — a superfície e as exceções são duas listas em `fronteira-viewer.test.ts`.
+
+## 2026-09-08 · F50 · Decisão 2 — nenhum `filter` no Realtime, e o gancho sem literal
+
+- Contexto: a ficha mandava "acrescentar `filter:` com o valor que hoje não recorta nada" nas três assinaturas.
+- Decisão: **nenhum filtro foi emitido.** As três assinaturas passaram a tirar as opções de uma única função (`opcoesDaAssinatura`), que hoje devolve o objeto sem `filter`.
+- Motivo: três medições, e cada uma sozinha já bastaria. (1) A rota `relatorios/[filial]/page.tsx` serve o CONSOLIDADO (`geral`, `filialId = null`) e a filial específica com o MESMO `<RealtimeRefresh />`, sem prop nenhuma — e no consolidado as consultas leem as cinco filiais, então a tela precisa acordar com INSERT de qualquer uma. (2) Duas das três montagens do componente nem são de relatório: são `/itens` e `/itens/historico`. (3) `anotacoes` **não tem `filial_id`** (`0017:6-13`); ela se liga por `ativo_id → ativos.filial_id`, e `postgres_changes` filtra coluna da própria linha, não faz join. A régua adotada: não emitir filtro que não se consiga provar total — um filtro errado não dá erro, ele faz o canal parar de acordar em silêncio, o selo "ao vivo" mente, e ninguém percebe por semanas.
+- Registro obrigatório: **o Realtime NÃO passa por `src/lib/queries`.** Ele fala direto com o Postgres pelo WebSocket do Supabase, então **não herda nenhum recorte** que a virada multiempresa ponha na camada de queries — nem `empresa_id` em `select`, nem guarda em RPC. E `postgres_changes` entrega o **payload da linha** ao navegador, não um aviso de que algo mudou. A trava de verdade é RLS na publication `supabase_realtime`, que não existe hoje.
+- Reversível? Sim — `opcoesDaAssinatura` é uma função de três linhas.
+
+## 2026-09-08 · F50 · Decisão 3 — a assinatura de `chaveDoEscopo`
+
+- Contexto: a função precisa servir a dois consumidores com naturezas diferentes: o nome do canal de tempo real (esta fase) e o prefixo das 7 chaves de armazenamento do navegador (fase seguinte).
+- Decisão: módulo puro `src/lib/escopo/chave.ts` com `chaveDoEscopo(): string` mais dois compositores, `nomeDoCanal(base)` e `chaveDeStorage(base)`.
+- Motivo: `chaveDeStorage('compra:defaults')` devolve exatamente `'wap:compra:defaults'`, que é a chave literal de hoje — e há teste afirmando isso para as seis chaves. Um prefixo diferente faria todo rascunho e toda preferência já gravados sumirem no primeiro deploy, e "sumiu meu rascunho" é o tipo de regressão que ninguém liga à refatoração que a causou. Um `chaveDoEscopo()` que só servisse a canal obrigaria a fase seguinte a criar o segundo, e aí existiriam dois lugares para mudar na virada.
+- Medição relacionada: são **7** chaves com prefixo `wap:` mais `wap-sidebar` (prefixo com hífen). Das 7, só **uma** é `localStorage` — `wap:compra:defaults`, que guarda `{categoria, filialId}` —, e não três como a ficha dizia.
+- Reversível? Sim — módulo novo, sem consumidor além do nome do canal.
+
+## 2026-09-08 · F50 · Decisão 4 — travar o auto-refresh sem jsdom
+
+- Contexto: o `ViewerAutoRefresh` ganhou três comportamentos novos (pausa em aba oculta, refresh único ao voltar, coalesce). Nenhum dos dois projetos do Vitest tem jsdom, e acrescentá-lo seria dependência nova.
+- Decisão: extrair a regra para função pura `deveRefrescar` em `auto-refresh-decisao.ts`, testada no projeto `puro`, mais quatro asserções de fiação sobre o componente.
+- Motivo: a alternativa era afirmar que o fonte "menciona `visibilityState`", o que prova grafia e não comportamento. A regra 3 do CLAUDE.md proíbe a dependência. O padrão tem precedente na casa — `layout/sidebar-preferencia.ts` e `itens/conferencia/rascunho.ts`.
+- Correção de fato: a ordem datava esse padrão "desde a F45". Medido, `sidebar-preferencia.ts` é da **F30** e `relatorio-visitado.ts` da **F32**; o que a F45 trouxe foi o segundo *projeto* do Vitest, não o padrão de extração.
+- Reversível? Sim.
+
+## 2026-09-08 · F50 · Decisão 5 — `lancar-item-campos.tsx:139` fica, como exceção nominal
+
+- Contexto: `podeCadastrar={filiais.length > 0}` deriva permissão do comprimento de uma lista, padrão que `lib/auth/papeis.ts:173` proíbe por escrito. Os dois campos irmãos usam `papel !== 'consulta'`.
+- Decisão: **não corrigir nesta fase.** Vira exceção nominal registrada em `permissoes.test.ts`, com o conserto carregado para a fase do seletor de empresa. O comentário ao lado, que estava factualmente errado, **foi** corrigido.
+- Motivo: medido subindo a cadeia de props (`itens/page.tsx:166` → `:293` → `lancar-item-dialog.tsx:609`), o diálogo só é montado dentro de `{escreve && …}`. Consequências: (a) o cargo `consulta` **nunca** chega ao componente, então o comentário que dizia "lista vazia = cargo consulta" estava errado; (b) a única forma de a lista chegar vazia é **operador sem vínculo**, e para ele a troca faria o botão de cadastrar pessoa APARECER onde hoje não aparece — e provavelmente funcionar, porque cadastro de pessoa não é matéria de filial (o `filial_id` é atributo, não escopo de escrita). Isso é mudança de comportamento visível, que esta fase declara não fazer. Corrigir o comentário errado não muda comportamento nenhum, e por isso entrou.
+- Medição relacionada: **22** ocorrências de `filiais.length`/`filiais[0]` (não ~11), sendo 18 código e 4 comentário. Classificadas: **1** de autorização, 17 de ergonomia. Duas que um parecer inicial classificou como autorização (`itens/page.tsx:283` e `:358`, `filiaisEscrita.length >= 2`) foram reclassificadas: `>= 2` não deriva cargo, deriva **viabilidade** — transferir item exige origem e destino, e a pergunta de cargo está literalmente ao lado (`escreve &&`).
+- Reversível? Sim — apagar a entrada da lista de exceções e trocar a prop.
+
+## 2026-09-08 · F50 · Decisão 6 — o `database.ts` conheceu a função nova pelo caminho limpo
+
+- Contexto: `db:types:diff` reprova quando o banco tem o que o arquivo não tem, e é *required check*. A `0129` cria `pode_ler_arquivo_termo`.
+- Decisão: caminho (a) — aplicar a `0129` em produção e regenerar com `npm run db:types` apontado para produção, commitando o arquivo. Sem hand-fix.
+- Motivo: o MCP do Supabase **estava conectado** nesta sessão (produção `pbtjcalbmepmrqzprusb`, `ACTIVE_HEALTHY`).
+- Observação: o diff traz, além da entrada nova, reformatação cosmética de genéricos vinda da CLI 2.109.1. É output honesto do gerador, não edição manual; `tsc --noEmit` e `npm run build` passam limpos.
+- Reversível? Sim — `git revert` do arquivo gerado.
+
+## 2026-09-08 · F50 · A `0066` NÃO foi editada, apesar de a ordem pedir
+
+- Contexto: a ordem de serviço mandava reescrever o comentário da `0066:44-46`, que diz que a leitura do bucket `termos` "fica como está de propósito" — frase superada pela `0070` §B e pela `0129`.
+- Decisão: **não editar.** O esclarecimento histórico foi escrito na `0129`, que é a migration nova.
+- Motivo: migration aplicada nunca se edita (CLAUDE.md · Convenções · Banco), e desde a F46 isso é defesa executável — `migrations.lock.json` trava o sha256 e `npm run test` reprova. Cheguei a fazer a edição e a revertei ao perceber. A regra permanente vence o pedido da ordem. Além disso, o comentário da `0066` descreve corretamente o que *aquela* migration fez no dia em que rodou: migration é registro histórico, não documentação viva. Quem for atrás da regra de leitura segue a cadeia `0021 → 0066 → 0070 → 0129` e chega ao lugar certo.
+- Reversível? Não se aplica — nada foi alterado.
+
+## 2026-09-08 · F50 · O `revoke ... from anon` era no-op silencioso — o ensaio pegou
+
+- Contexto: apply da `0129` em produção. O projeto de ensaio (`sgmvldiizsrjbxzzpmhh`) está INACTIVE, então cada migration foi validada em `begin; … rollback;` contra produção antes do apply.
+- Decisão: corrigir os cinco `revoke` de `from anon` para `from public, anon` **antes** de aplicar, e regravar a trava de hash com `--regravar-alterada`.
+- Motivo: o ensaio devolveu `ainda_com_anon = 5` depois dos revokes. A ACL das cinco era `{=X/postgres, postgres=X/postgres, anon=X/postgres, authenticated=X/postgres, service_role=X/postgres}` — o `=X` sem papel à esquerda é o grant ao pseudo-papel PUBLIC, de onde `anon` herda. Revogar só do grant próprio deixava o segundo caminho de pé, e o comando "rodava com sucesso" sem mudar nada. É exatamente por isso que a `0069` escreve `from public, anon` para `pode_escrever_arquivo_termo`, cuja ACL já era a limpa. Re-ensaiado: `ainda_com_anon = 0`, `auth_preservado = 5`, 88 objetos do bucket intactos.
+- Sobre a trava de hash: a versão TRAVADA da `0129` nunca chegou a banco nenhum — o ensaio pegou o defeito antes do apply, e o que foi aplicado é a versão corrigida, que é o hash que ficou travado. É a exceção que o próprio `db:lock` descreve.
+- Reversível? Sim — o bloco de REVERSÃO está no rodapé da `0129`, e a ordem dele importa (a policy larga a função antes do drop).
+
+## 2026-09-08 · F50 · `k_invoker_anon` esvaziada exigiu uma asserção nova, não só uma lista vazia
+
+- Contexto: a ordem mandava esvaziar `k_invoker_anon` em `catalogo_secdef.sql` no mesmo commit da `0129`, dizendo que "a asserção 6b acusa a lista obsoleta na hora".
+- Decisão: esvaziar a lista (a ordem é cumprida), **guardar a 6b** atrás de um `if`, e criar `k_invoker_revogadas` com os cinco nomes mais a asserção **6c**, que prova que eles continuam sem `EXECUTE` para `anon`.
+- Motivo: medido — esvaziar a lista crua faria a 6b **explodir**, não acusar. `array_length(array[]::text[], 1)` devolve NULL, e `assert_zero_de` levanta exceção com universo NULL ou 0 (de propósito, para recusar asserção sobre conjunto vazio). O bloco abortaria, a linha `FIM` não sairia, e o runner reprovaria por ausência dela. Com o guarda, a lista muda de papel: de *exceção tolerada* para *revogação provada* — que é uma trava melhor do que a que se perdeu, porque `drop`+`create` de uma função NÃO preserva grants, e é assim que uma revogação se desfaz sem ninguém notar.
+- Efeito colateral tratado: `catalogos-seguranca.test.ts` (a trava da F48) passou a ler `k_invoker_revogadas` também — sem isso, a guarda "há exceções para conferir" cairia de 8 para 3 e acusaria, corretamente, que a varredura passou a olhar quase nada.
+- Reversível? Sim.
+
+## 2026-09-08 · F50 · Três travas existentes reagiram, e as três eram bugs latentes
+
+- Contexto: depois da `0129`, `npm run test` acusou três falhas.
+- Decisão: corrigir a causa raiz das três, em vez de acomodar.
+- Motivo: (1) `transicoes-sql.test.ts` elegia "a migration vigente da matriz" por **qualquer menção** ao nome `status_apos_movimentacao`, embora o próprio comentário dissesse "a que a REDEFINE". A `0129` só revoga o `EXECUTE` dela e, sendo a de maior número, virou a eleita — um arquivo sem `return case`, que derrubava o teste no import. Passou a casar `create or replace function`. Qualquer migration futura que apenas cite a função teria causado o mesmo. (2) `migrations-f38.test.ts` (a lista de COBERTURA das varreduras) ganhou a `0129`. (3) `catalogos-seguranca.test.ts`, como descrito na ata acima.
+- Reversível? Sim.
+
+## 2026-09-08 · F50 · O falso negativo no detector de href, exposto pela derivação por imports
+
+- Contexto: ao trocar a superfície do `confinamento-viewer.test.ts` por um fecho de imports, `components/layout/link-ajuda.tsx` entrou na varredura.
+- Decisão: corrigir o extrator de `href` (que deixou de ser regex e passou a contar `${` e `}`), e registrar `link-ajuda.tsx` como **quarta** exceção, com mecanismo novo — `guardaEm`, que confere a guarda nos CHAMADORES.
+- Motivo: o `RE_HREF` exigia template sem crase por dentro, e o componente escreve `` href={`/ajuda/${pagina}${ancora ? `#${ancora}` : ''}`} `` — a crase aninhada fazia o href sumir da varredura inteira. Enquanto o componente morava fora da superfície não havia consequência; a derivação o trouxe para dentro. O próprio cabeçalho do arquivo diz que um tripwire pode dar falso positivo mas não pode dar falso negativo, e essa doutrina obrigou a correção. O mecanismo `guardaEm` foi necessário porque a guarda de um componente reusado não mora nele — e as duas páginas escrevem a mesma pergunta de formas diferentes (`ehOperador` × `acesso.modo === 'operador'`), então cada chamador traz o seu literal: uma guarda única passaria por acidente.
+- Reversível? Sim.
+
+## 2026-09-08 · F50 · As raízes do grafo incluem o chrome do viewer
+
+- Contexto: a ordem descrevia a superfície derivada como o fecho "a partir das rotas de relatório".
+- Decisão: as raízes são as três rotas **mais** os três componentes do chrome do viewer (os fixos de hoje).
+- Motivo: medido — o fecho partindo só das rotas **perde** `viewer-header.tsx` e `viewer-nav.tsx`, porque os dois são importados por `app/(app)/layout.tsx`, o layout do grupo inteiro, cujo caminho não contém o segmento `relatorios`. São justamente as peças que carregam a navegação real do visualizador (é `viewer-nav.tsx` que a última asserção do arquivo confere ter `lerHrefAoVivo`). Seguir a ordem ao pé da letra teria trocado a rede por um furo com cara de melhoria. Tomar `(app)/layout.tsx` como raiz resolveria pelo caminho errado: ele serve também o shell do operador e traria dezenas de `href` legítimos como falsos positivos.
+- Números: superfície por pasta **46** arquivos; fecho derivado **131**, sendo 7 de `components/layout/`.
+- Reversível? Sim.

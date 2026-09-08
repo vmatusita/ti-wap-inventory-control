@@ -1,0 +1,9 @@
+=== SABOTAGEM H — 'empresa' acrescentada a CampoFiltro ===
+     × CampoFiltro não conhece a empresa 4ms
+     × nem `empresa_id`, nem nenhum apelido dela, aparece no hook 6ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/components/relatorios/use-filtros-tabela.test.ts > use-filtros-tabela: recorte de leitura, nunca de autorização > CampoFiltro não conhece a empresa
+AssertionError: este hook filtra o que JÁ CHEGOU ao navegador: um filtro de `empresa` aqui daria a aparência de separação entre empresas sem a separação. Quem decide o que chega é o servidor — a RLS, e o código das queries de relatório para o viewer por senha.: expected [ 'filial', 'empresa', …(3) ] to not include 'empresa'
+     43|         'a aparência de separação entre empresas sem a separação. Quem…
+     45|     ).not.toContain('empresa')
+ FAIL  |puro| src/components/relatorios/use-filtros-tabela.test.ts > use-filtros-tabela: recorte de leitura, nunca de autorização > nem `empresa_id`, nem nenhum apelido dela, aparece no hook

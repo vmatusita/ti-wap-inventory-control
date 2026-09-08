@@ -1,0 +1,57 @@
+=== APPLY EM PRODUCAO (projeto pbtjcalbmepmrqzprusb) — 08/09/2026 ===
+
+Ensaio: o projeto de ensaio (sgmvldiizsrjbxzzpmhh) esta INACTIVE. Cada migration foi
+validada antes do apply em `begin; ... rollback;` contra producao — valida sintaxe e
+efeito sem persistir. Nenhum roteiro de teste rodou contra producao (regra 5).
+
+--- 0128 (pendente havia TRES fases) ---
+ENSAIO: snapshots=2, policies=1 -> revertido.
+APPLY: success.
+VERIFICACAO POS-APPLY (as tres consultas do bloco da migration):
+ 1) 8 colunas, TODAS is_nullable = YES
+ 2) rls_ligada = true | 1 policy: "dev le backup f6a | SELECT | {authenticated}"
+ 3) snapshots = 2      <- o valor que a ordem exigia
+
+--- 0129 ---
+ESTADO ANTES: 88 objetos no bucket `termos`.
+
+ENSAIO 1 (a versao que estava travada):
+  objetos=88, policy_ok=true, ainda_com_anon=5   <- OS REVOKES NAO SURTIRAM EFEITO
+
+  Causa medida na ACL das cinco:
+    {=X/postgres, postgres=X/postgres, anon=X/postgres, authenticated=X/postgres, service_role=X/postgres}
+  O `=X` sem papel a esquerda e o grant ao pseudo-papel PUBLIC. `anon` alcancava a
+  funcao por DOIS caminhos, e `revoke ... from anon` so cortava um.
+  Compare com pode_escrever_arquivo_termo (0069, que ja fazia `from public, anon`):
+    {postgres=X/postgres, authenticated=X/postgres, service_role=X/postgres}
+
+ENSAIO 2 (corrigido para `from public, anon`):
+  objetos=88, policy_ok=true, ainda_com_anon=0, auth_preservado=5, anon_na_nova=false
+
+APPLY: success.
+VERIFICACAO POS-APPLY (as quatro consultas do bloco da migration):
+ 1) pode_ler_arquivo_termo: prosecdef=true, anon=false, auth=true
+    ACL {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+    -> IDENTICA a da irma de escrita
+ 2) policy: ((bucket_id = 'termos'::text) AND ( SELECT pode_ler_arquivo_termo(objects.name) ))
+ 3) as cinco: anon_executa=false, auth_executa=true, ACL limpa nas cinco
+ 4) objetos do bucket `termos`: 88  <- o MESMO numero de antes
+
+--- ADVISORS (security) depois do apply ---
+Sem regressao. `pode_ler_arquivo_termo` aparece em
+`authenticated_security_definer_function_executable` junto das outras 26, inclusive a
+irma `pode_escrever_arquivo_termo` — e por desenho: a policy precisa que
+`authenticated` a execute. A 0128 REMOVEU um alerta: `_bkp_relatorios_gerados_f6a`
+nao aparece mais em `rls_enabled_no_policy` (as tres restantes — ambiente,
+senha_tentativas, senhas_acesso — sao deny-all deliberados, ja declarados em
+k_sem_select).
+
+--- SMOKE (node scripts/smoke/smoke-prod.mjs) ---
+RESUMO · 108 OK · 1 aviso · 0 n/a (pre-F12) · 0 falha
+  [OK]    termos_gerados · contagem — 85 termos gerados
+  [AVISO] kits_modelos · anon NAO le (RLS) — anon leu 0 linhas, mas nao ha kit
+          cadastrado — RLS nao comprovada   <- PRE-EXISTENTE, tautologia por universo
+          vazio, sem relacao com esta fase.
+
+E o que o smoke prova aqui: o banco COM a 0129 nao quebrou a aplicacao que esta no
+ar. A policy nova nao tirou a leitura de ninguem.

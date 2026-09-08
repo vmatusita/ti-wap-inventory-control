@@ -21,6 +21,7 @@ import { PaletaComandosProvider } from '@/components/layout/paleta-comandos'
 import { INDICE_PALETA } from '@/lib/ajuda/indice'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { eAdmin, eDev, podeEscrever } from '@/lib/auth/papeis'
+import { podeLer } from '@/components/layout/permissoes'
 import { versaoAtual } from '@/lib/versoes/registry'
 
 // F35 — a versao no ar desce por PROP para o shell (pe da sidebar, no desktop e
@@ -102,6 +103,12 @@ export default async function AppLayout({
   // enxerga a area /dev. Resolvido aqui, junto dos outros, para nenhuma peca consultar o
   // banco de novo (o mesmo motivo do comentario acima).
   const dev = eDev(operador.papel)
+    // F50 — a pergunta de LEITURA, resolvida no mesmo lugar que as de escrita e
+    // descendo por prop pela mesma via. Hoje ela é `true` para todo mundo que chega
+    // aqui (este ramo inteiro está dentro do `if (operador)`), e é justamente por
+    // isso que ela pode entrar sem mudar uma linha do que alguém vê. Quando o piso de
+    // leitura deixar de ser universal, é este ponto que muda.
+    const leitura = podeLer(operador)
     // F25 — o destino de "Relatórios" também é resolvido UMA vez aqui e desce por
     // prop para a sidebar e a paleta (que a espelha): o operador vai para a aba da
     // filial dele, os demais para o Consolidado.
@@ -142,6 +149,7 @@ export default async function AppLayout({
           <PaletaComandosProvider
             paginasAjuda={INDICE_PALETA}
             podeEscrever={escreve}
+            podeLer={leitura}
             eAdmin={admin}
             eDev={dev}
             hrefRelatorios={hrefRelatorios}

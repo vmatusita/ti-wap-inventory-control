@@ -60,6 +60,15 @@ const DA_F38 = [
   // F38. Ela não recria função nenhuma, mas passa pelas guardas de DELETE/UPDATE em
   // massa e de `security invoker` como qualquer outra — que é o ponto.
   '0128',
+  // F50 (08/09/2026) — `pode_ler_arquivo_termo` + a policy de SELECT do bucket
+  // `termos` + os cinco `revoke` de `anon`. Mesmo motivo: a lista é COBERTURA. Ela
+  // interessa em particular às guardas de `security invoker` e de intocáveis, porque
+  // esta migration MENCIONA `status_apos_movimentacao` (para revogar o EXECUTE dela)
+  // sem redefini-la — e é bom que uma varredura confira essa distinção.
+  '0129',
+  // F50 — o grant que faltava ao lado dos cinco revoke da 0129 (o CI provou a
+  // divergencia: em producao o grant explicito ja existia, no banco do CI nao).
+  '0130',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

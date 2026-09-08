@@ -23,6 +23,29 @@ import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 // e não dava para compartilhar por link). Mesmo padrão do resto do app, onde o
 // período do relatório (`preset`/`de`/`ate`) já vive nos searchParams.
 //
+// ---------------------------------------------------------------------------
+// ⚠ O QUE ESTE HOOK É, E O QUE ELE NUNCA PODE VIRAR (F50)
+// ---------------------------------------------------------------------------
+// Ele filtra O QUE JÁ CHEGOU. As linhas já estão no navegador de quem abriu a tela —
+// o servidor as buscou, montou e enviou — e o que acontece aqui é o leitor escolhendo
+// quais delas quer OLHAR. Isso é recorte de leitura VOLUNTÁRIA: ergonomia de tabela,
+// da mesma família de ordenar por coluna ou esconder uma seção.
+//
+// **Nunca é recorte de AUTORIZAÇÃO.** Quem decide o que CHEGA é o servidor: a RLS no
+// Postgres e, para o visualizador por senha, o código das queries de relatório
+// (`queries/relatorios/fronteira-viewer.test.ts` guarda essa fronteira). Um
+// `Array.filter` no cliente não esconde nada de ninguém — o dado já está lá, visível
+// no HTML, no cache do navegador e na aba de rede.
+//
+// Por que escrever isto agora, se `filial` já é um `CampoFiltro` há fases: porque
+// `filial` aqui é benigno e o precedente não é. Todo logado ATIVO lê todas as filiais
+// (ADR-002), então filtrar por filial no cliente não esconde nada que o leitor não
+// pudesse ver — é conveniência, e correta. `empresa` seria outra coisa inteiramente:
+// linhas de outra empresa não podem CHEGAR ao navegador, e acrescentar `'empresa'` à
+// união abaixo criaria a aparência de separação sem a separação. O teste
+// `use-filtros-tabela.test.ts` recusa esse acréscimo pelo nome, e o recado dele é
+// para o dia em que alguém achar que este é o lugar mais fácil de resolver tenant.
+//
 // Duas disciplinas vieram da revisão adversarial da F11 e não se pode perder de
 // vista: o descarte de valor inválido é PEGAJOSO (`decidirFiltros`) e a
 // gravação na URL é ADIADA enquanto houver navegação em voo (`navegacaoEmVoo`).

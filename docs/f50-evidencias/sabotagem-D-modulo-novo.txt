@@ -1,0 +1,6 @@
+=== SABOTAGEM D — modulo novo em queries/ com client, nao declarado ===
+     × todo módulo que ACEITA client resolvido está declarado (superfície ou exceção) 22ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: quem aceita client resolvido pode receber o client do VIEWER (service_role): declare cada um na superfície, ou como exceção nominal com o motivo medido: expected [ 'queries/modulo-novo-sabotagem.ts' ] to deeply equal []
++   "queries/modulo-novo-sabotagem.ts",
+      Tests  1 failed | 13 passed (14)

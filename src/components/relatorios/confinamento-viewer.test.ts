@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 // CONFINAMENTO DO VISUALIZADOR POR SENHA — o tripwire dos LINKS (F29).
 //
@@ -20,26 +20,108 @@ import { join } from 'node:path'
 
 const RAIZ = join(process.cwd(), 'src')
 
-// A superfície que o VIEWER renderiza: as três rotas de relatório, os componentes de
-// relatório e o chrome reduzido dele.
+// ---------------------------------------------------------------------------
+// A SUPERFÍCIE, DERIVADA DO GRAFO DE IMPORTS (F50)
+// ---------------------------------------------------------------------------
+// Até a F50 a superfície vinha da PASTA: seis caminhos fixos mais `readdirSync` de
+// `components/relatorios/`. Funcionava enquanto tudo o que o viewer renderiza morasse
+// naquela pasta — e a F61 quebra essa premissa de propósito, levando componentes de
+// `layout/` para dentro das telas de relatório. Um componente de `layout/` com um
+// `href` para fora entraria HOJE sem que nada acusasse.
+//
+// Agora a superfície é o FECHO TRANSITIVO de imports (relativos e por alias `@/`,
+// parando na fronteira de `src/`) a partir das RAÍZES abaixo.
+//
+// ⚠ AS RAÍZES INCLUEM O CHROME DO VIEWER, e isso não é conservadorismo: é correção.
+// Medido na F50 — partir só das rotas de `/relatorios/**` perde `viewer-header.tsx` e
+// `viewer-nav.tsx`, porque os dois são importados por `app/(app)/layout.tsx`, o layout
+// do GRUPO INTEIRO, cujo caminho não tem o segmento `relatorios`. São justamente as
+// duas peças que carregam a navegação real do visualizador (é `viewer-nav.tsx` que a
+// última asserção deste arquivo confere ter `lerHrefAoVivo`). Derivar "só das rotas"
+// teria trocado esta rede por um furo — com cara de melhoria.
+//
+// Tomar `(app)/layout.tsx` como raiz resolveria o mesmo problema pelo caminho errado:
+// ele serve TAMBÉM o shell do operador (sidebar, paleta, menu), e arrastaria para cá
+// dezenas de `href` para `/ativos`, `/admin`, `/movimentacoes` — todos legítimos, e
+// todos falsos positivos aqui. A raiz certa é o ramo que o VIEWER renderiza.
+const RAIZES = [
+  join(RAIZ, 'app', '(app)', 'relatorios', '[filial]', 'page.tsx'),
+  join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', 'page.tsx'),
+  join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', '[id]', 'page.tsx'),
+  join(RAIZ, 'components', 'layout', 'viewer-header.tsx'),
+  join(RAIZ, 'components', 'layout', 'viewer-nav.tsx'),
+  join(RAIZ, 'components', 'layout', 'nav-rolavel.tsx'),
+]
+
+// A superfície nunca pode ENCOLHER sem que alguém mexa neste número. Uma refatoração
+// que quebre a resolução de imports faria o fecho despencar para as 6 raízes e o
+// arquivo inteiro passaria a varrer quase nada — verde, e sem rede. A catraca só
+// SOBE: quando a superfície crescer de verdade, atualize o número e diga por quê.
+//
+// F50 (08/09/2026): medido **134** arquivos no fecho, contra 46 da varredura por
+// pasta. Sete deles vêm de `components/layout/` — `filtro-filial`, `link-ajuda`,
+// `marca`, `nav-rolavel`, `progresso-navegacao`, `viewer-header`, `viewer-nav` —, e
+// é essa faixa que a pasta não cobria.
+//
+// O piso é 125 e não 134 de propósito: um arquivo a menos por refatoração legítima
+// (dois componentes que viram um) não deve pedir commit nesta linha. Uma queda de
+// DEZ é outra conversa, e é a que este número existe para forçar — 134 − 10 = 124,
+// abaixo do piso, então ela reprova.
+//
+// ⚠ A folga é de NOVE, e o número acima tem de acompanhar o fecho. A revisão
+// adversarial desta fase pegou as duas coisas erradas de uma vez: o comentário dizia
+// 131 (o fecho no commit que criou a trava) enquanto o fecho já era 134 — a própria
+// F50 acrescentou `lib/escopo/chave.ts`, `auto-refresh-decisao.ts` e
+// `assinatura-realtime.ts` depois —, e o piso 120 dava folga de 14, o que tornava a
+// frase "uma queda de dez" literalmente falsa. Comentário que promete uma margem que
+// o número não entrega é pior do que comentário nenhum: quem lê acha que está
+// protegido de algo de que não está.
+const SUPERFICIE_MINIMA = 125
+
+const EXTENSOES = ['.ts', '.tsx', '/index.ts', '/index.tsx']
+
+/** Resolve um especificador de import para um arquivo real dentro de `src/`, ou `null`. */
+function resolverImport(deArquivo: string, spec: string): string | null {
+  let base: string
+  if (spec.startsWith('@/')) base = join(RAIZ, spec.slice(2))
+  else if (spec.startsWith('.')) base = join(dirname(deArquivo), spec)
+  else return null // pacote externo: fora de src/, não é superfície nossa
+  for (const ext of ['', ...EXTENSOES]) {
+    const tentativa = base + ext
+    if (existsSync(tentativa) && statSync(tentativa).isFile()) return tentativa
+  }
+  return null
+}
+
+/**
+ * O fecho transitivo de imports a partir das raízes.
+ *
+ * ⚠ Só enxerga import ESTÁTICO — é o que dá para conferir sem executar. Medido na
+ * F50: zero `next/dynamic`, `React.lazy` ou `await import(...)` nas rotas e nos
+ * componentes alcançados, então hoje o grafo estático é completo. Se um import
+ * dinâmico aparecer, esta varredura fica cega nele e a peça precisa virar raiz.
+ */
 function arquivosDaSuperficie(): string[] {
-  const fixos = [
-    join(RAIZ, 'app', '(app)', 'relatorios', '[filial]', 'page.tsx'),
-    join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', 'page.tsx'),
-    join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', '[id]', 'page.tsx'),
-    join(RAIZ, 'components', 'layout', 'viewer-header.tsx'),
-    join(RAIZ, 'components', 'layout', 'viewer-nav.tsx'),
-    join(RAIZ, 'components', 'layout', 'nav-rolavel.tsx'),
-  ]
-  const dirRel = join(RAIZ, 'components', 'relatorios')
-  const componentes = readdirSync(dirRel)
-    .filter((f) => f.endsWith('.tsx'))
-    // `acesso-form` é a porta PÚBLICA (a tela de digitar a senha), anterior à sessão
-    // de visualização: o "/login" dela é para o operador que caiu ali por engano, e
-    // não um link oferecido a quem já está lendo relatório.
-    .filter((f) => f !== 'acesso-form.tsx')
-    .map((f) => join(dirRel, f))
-  return [...fixos, ...componentes]
+  const vistos = new Set<string>()
+  const fila = [...RAIZES]
+  while (fila.length) {
+    const atual = fila.pop()!
+    if (vistos.has(atual)) continue
+    vistos.add(atual)
+    const fonte = readFileSync(atual, 'utf8')
+    // `import … from 'x'`, `export … from 'x'` e `import 'x'`.
+    for (const m of fonte.matchAll(/(?:from|import)\s*['"]([^'"]+)['"]/g)) {
+      const alvo = resolverImport(atual, m[1])
+      if (alvo && !vistos.has(alvo)) fila.push(alvo)
+    }
+  }
+  // `acesso-form.tsx` é a porta PÚBLICA (a tela de digitar a senha), anterior à sessão
+  // de visualização: o "/login" dela é para o operador que caiu ali por engano, e não
+  // um link oferecido a quem já está lendo relatório. Antes ele era excluído À MÃO de
+  // um `readdirSync`; agora ele simplesmente não é alcançado, porque a rota
+  // `/relatorios/acesso` não é raiz. O motivo continua escrito porque continua sendo o
+  // motivo — e porque é ele que explica por que a rota pública ficou fora das raízes.
+  return [...vistos].sort()
 }
 
 // `href="/x"`, `href={'/x'}` e `href={`/x/${id}`}` — só os LITERAIS, que é o que dá
@@ -52,12 +134,74 @@ function arquivosDaSuperficie(): string[] {
 // real. Um tripwire pode dar falso positivo (alguém escreveu um exemplo num
 // comentário, o teste fica vermelho e a pessoa reescreve a frase); não pode dar
 // falso negativo. A F32 pagou uma rodada vermelha por isso, em viewer-nav.tsx.
-const RE_HREF = /href=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/g
+// Os dois casos de aspas fecham em si mesmos; o template abre e é entregue ao
+// extrator abaixo, que sabe contar aninhamento (ver o ⚠ logo em seguida).
+const RE_HREF = /href=(?:"([^"]*)"|\{'([^']*)'\}|\{`)/g
+
+// ⚠ FALSO NEGATIVO CORRIGIDO NA F50 — template com crase ANINHADA.
+//
+// Até aqui o terceiro ramo do `RE_HREF` era ``\{`([^`]*)`\}``, que exige um template
+// SEM nenhuma crase por dentro. Só que crase aninhada é JSX corriqueiro, e a
+// superfície tinha um caso real: `link-ajuda.tsx` escreve
+//
+//     href={`/ajuda/${pagina}${ancora ? `#${ancora}` : ''}`}
+//
+// — o `` `#${ancora}` `` interno faz o regex parar cedo e não casar NADA. O href
+// sumia da varredura inteira. Enquanto esse componente estava fora da superfície
+// (por morar em `layout/`), o defeito não tinha consequência; a derivação por
+// imports o trouxe para dentro, e aí um href não-interno estaria sendo varrido por
+// um detector que não o enxerga.
+//
+// É exatamente o modo de falha que o comentário acima proíbe: falso positivo custa
+// uma frase reescrita, falso negativo custa o vazamento. Por isso o fim do template
+// não é decidido por regex — o extrator abaixo lê contando `${` e `}`, e só fecha na
+// crase do nível de fora.
+function hrefDeTemplate(fonte: string, inicio: number): { href: string; fim: number } | null {
+  let i = inicio
+  let profundidade = 0
+  let texto = ''
+  while (i < fonte.length) {
+    const c = fonte[i]
+    if (c === '\\') {
+      texto += fonte.slice(i, i + 2)
+      i += 2
+      continue
+    }
+    if (c === '$' && fonte[i + 1] === '{') {
+      profundidade++
+      texto += '${'
+      i += 2
+      continue
+    }
+    if (c === '}' && profundidade > 0) {
+      profundidade--
+      texto += '}'
+      i++
+      continue
+    }
+    // Crase no nível de fora fecha o template; dentro de `${…}` ela abre/fecha um
+    // template interno, que não nos interessa senão para não parar aqui.
+    if (c === '`' && profundidade === 0) return { href: texto, fim: i }
+    texto += c
+    i++
+  }
+  return null
+}
 
 function hrefsLiterais(fonte: string): string[] {
   const achados: string[] = []
-  for (const m of fonte.matchAll(RE_HREF)) {
-    achados.push(m[1] ?? m[2] ?? m[3] ?? '')
+  RE_HREF.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = RE_HREF.exec(fonte))) {
+    if (m[1] !== undefined || m[2] !== undefined) {
+      achados.push(m[1] ?? m[2] ?? '')
+      continue
+    }
+    const t = hrefDeTemplate(fonte, RE_HREF.lastIndex)
+    if (t) {
+      achados.push(t.href)
+      RE_HREF.lastIndex = t.fim
+    }
   }
   return achados
 }
@@ -70,7 +214,20 @@ function ehInterno(href: string): boolean {
 // Destinos FORA de /relatorios que existem nesta superfície — cada um atrás de uma
 // guarda de cargo. O teste confere que a guarda continua no arquivo: apagá-la é o
 // jeito realista de o link vazar, muito mais do que alguém escrever um href novo.
-const EXCECOES: { arquivo: string; href: string; guarda: string; porque: string }[] = [
+//
+// `guardaEm` (F50) — a guarda de um componente REUSADO não mora nele. A derivação por
+// imports trouxe `layout/link-ajuda.tsx` para a superfície, e ele não tem (nem deve
+// ter) `ehOperador` por dentro: é um botão genérico, usado em dezenas de telas. Quem
+// decide se o viewer o vê é a PÁGINA. Então a exceção aponta os arquivos onde a
+// guarda de verdade está, e é lá que ela é conferida — mesma disciplina das outras
+// três (apagar a guarda é o jeito realista de o link vazar), só que no lugar certo.
+const EXCECOES: {
+  arquivo: string
+  href: string
+  guarda: string
+  porque: string
+  guardaEm?: { arquivo: string; guarda: string }[]
+}[] = [
   {
     arquivo: 'celulas.tsx',
     href: '/ativos/${ativoId}',
@@ -90,13 +247,99 @@ const EXCECOES: { arquivo: string; href: string; guarda: string; porque: string 
     porque:
       'a seção de Pendências só existe para o operador; `comLink` espelha `links`, que o snapshot e o viewer nunca recebem',
   },
+  {
+    arquivo: 'link-ajuda.tsx',
+    href: '/ajuda/${pagina}${ancora ? `#${ancora}` : \'\'}',
+    guarda: 'o gate de cada página que monta <LinkAjuda>',
+    porque:
+      'o botão de ajuda é genérico e não tem cargo por dentro; quem o esconde do viewer é a página que o monta (F50)',
+    // ⚠ As duas páginas escrevem a MESMA pergunta de formas diferentes — uma usa a
+    // variável `ehOperador`, a outra compara `acesso.modo` na hora. Por isso cada
+    // chamador traz o seu literal: uma guarda única aqui só passaria por acidente,
+    // e passar por acidente é o que faz uma trava envelhecer sem ninguém notar.
+    guardaEm: [
+      {
+        arquivo: 'app/(app)/relatorios/[filial]/page.tsx',
+        guarda: '{ehOperador && ( <LinkAjuda',
+      },
+      {
+        arquivo: 'app/(app)/relatorios/gerados/page.tsx',
+        guarda: "{acesso.modo === 'operador' && ( <LinkAjuda",
+      },
+    ],
+  },
 ]
+
+/**
+ * A guarda da exceção continua no lugar?
+ *
+ * Sem `guardaEm`, ela mora no próprio arquivo do href (as três exceções originais).
+ * Com `guardaEm`, mora nos CHAMADORES, e TODOS precisam tê-la: basta uma página
+ * montar o componente sem o gate para o link vazar naquela tela.
+ */
+function guardaIntacta(
+  excecao: { guarda: string; guardaEm?: { arquivo: string; guarda: string }[] },
+  fonteDoArquivo: string,
+): boolean {
+  if (!excecao.guardaEm) return fonteDoArquivo.includes(excecao.guarda)
+  // Espaços normalizados: o gate e a montagem ficam em linhas diferentes, e um
+  // reflow do Prettier não pode derrubar a trava (mesma disciplina do teste dos
+  // segmentos, mais abaixo).
+  return excecao.guardaEm.every((g) =>
+    readFileSync(join(RAIZ, ...g.arquivo.split('/')), 'utf8')
+      .replace(/\s+/g, ' ')
+      .includes(g.guarda),
+  )
+}
 
 describe('confinamento do visualizador: nenhum link da superfície de relatório sai de /relatorios/**', () => {
   const arquivos = arquivosDaSuperficie()
 
   it('enxerga a superfície (sanidade do caminho)', () => {
     expect(arquivos.length).toBeGreaterThan(10)
+  })
+
+  // A catraca. Ver o comentário de `SUPERFICIE_MINIMA`: o modo realista de esta rede
+  // sumir não é alguém apagá-la, é a derivação parar de resolver e o fecho encolher
+  // em silêncio, deixando o arquivo verde e vazio.
+  it('a superfície derivada não ENCOLHEU (catraca que só sobe)', () => {
+    expect(
+      arquivos.length,
+      `o fecho de imports caiu para ${arquivos.length} (mínimo ${SUPERFICIE_MINIMA}). ` +
+        'Ou a resolução de imports quebrou, ou a superfície mudou de verdade — no segundo caso, suba o número e escreva por quê.',
+    ).toBeGreaterThanOrEqual(SUPERFICIE_MINIMA)
+  })
+
+  // A prova de que trocamos a rede por uma rede MAIOR, não por um furo: tudo o que a
+  // superfície por PASTA cobria continua coberto. Se a derivação perder qualquer um
+  // destes, o teste diz o nome do arquivo perdido.
+  it('a superfície derivada CONTÉM tudo o que a superfície por pasta continha', () => {
+    const dirRel = join(RAIZ, 'components', 'relatorios')
+    const antiga = [
+      ...RAIZES,
+      ...readdirSync(dirRel)
+        .filter((f) => f.endsWith('.tsx') && f !== 'acesso-form.tsx')
+        .map((f) => join(dirRel, f)),
+    ]
+    const perdidos = antiga
+      .filter((a) => !arquivos.includes(a))
+      .map((a) => a.slice(RAIZ.length + 1).split(/[\\/]/).join('/'))
+    expect(
+      perdidos,
+      'a derivação por imports perdeu arquivo que a varredura por pasta cobria — isso é trocar rede por furo',
+    ).toEqual([])
+  })
+
+  // O que a pasta NÃO cobria e agora entra: componentes de `layout/` alcançados por
+  // tela de relatório. É o pré-requisito declarado da F61 — sem isto, ela levaria
+  // componentes de `layout/` para dentro do viewer fora de qualquer varredura.
+  it('a superfície alcança componentes de layout/ importados por tela de relatório', () => {
+    const deLayout = arquivos
+      .filter((a) => a.includes(join('components', 'layout')))
+      .map((a) => a.split(/[\\/]/).pop()!)
+    expect(deLayout, 'nenhum componente de layout/ no fecho — a derivação não está seguindo imports').toContain(
+      'link-ajuda.tsx',
+    )
   })
 
   it('todo href literal é interno, ou é uma exceção registrada com a guarda intacta', () => {
@@ -111,7 +354,7 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
           vazamentos.push(`${nome}: href "${href}" sai de /relatorios e não está registrado`)
           continue
         }
-        if (!fonte.includes(excecao.guarda)) {
+        if (!guardaIntacta(excecao, fonte)) {
           vazamentos.push(
             `${nome}: a guarda "${excecao.guarda}" sumiu — o href "${href}" ficaria exposto ao visualizador`,
           )
@@ -132,14 +375,19 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
     expect(hrefsLiterais("<Link href={'/pendencias'}>")).toEqual(['/pendencias'])
     // …e que ele reprovaria um vazamento real.
     expect(hrefsLiterais('<Link href="/ativos">').every(ehInterno)).toBe(false)
+    // F50 — o caso que ele NÃO achava: template com crase aninhada. Este `expect` é o
+    // que impede a correção de ser desfeita por um "simplifiquei o regex".
+    expect(hrefsLiterais('<Link href={`/ajuda/${p}${a ? `#${a}` : \'\'}`}>')).toEqual([
+      "/ajuda/${p}${a ? `#${a}` : ''}",
+    ])
   })
 
-  it('as três exceções registradas ainda existem (a lista não envelheceu para MAIS)', () => {
+  it('as exceções registradas ainda existem (a lista não envelheceu para MAIS)', () => {
     for (const e of EXCECOES) {
       const caminho = arquivos.find((a) => a.endsWith(e.arquivo))
       expect(caminho, `${e.arquivo} saiu da superfície — revise a exceção`).toBeDefined()
       const fonte = readFileSync(caminho!, 'utf8')
-      expect(fonte, `${e.arquivo}: a guarda de "${e.porque}" sumiu`).toContain(e.guarda)
+      expect(guardaIntacta(e, fonte), `${e.arquivo}: a guarda de "${e.porque}" sumiu`).toBe(true)
     }
   })
 

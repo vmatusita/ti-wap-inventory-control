@@ -130,6 +130,8 @@
     "0125_item_chave_e_regularizacao.sql": "4c947ef5e48bed788b8140a261b0110d1660f893fe37e11c3d50df022ed62a95",
     "0126_lancamento_regulariza.sql": "347e3b6d5231231d7361814732728bbb167491de5a1ed6187703375b3cc00e64",
     "0127_conversao_reservas.sql": "db55ed4f3ba44c77c72f41c9d2db3eb8ec77cca4c7d07bf2d1595ff9db38c137",
-    "0128_adota_bkp_relatorios_f6a.sql": "8eac89cfee15052e811b515c57d34be37918c63cd96a9a12231238e27b166769"
+    "0128_adota_bkp_relatorios_f6a.sql": "8eac89cfee15052e811b515c57d34be37918c63cd96a9a12231238e27b166769",
+    "0129_leitura_termo_e_revoke_invoker.sql": "f9ea6664937f3b0bfbc98bfb6882e2093abd7a125b26feee1da94f78814a1d78",
+    "0130_grant_invoker_authenticated.sql": "0e5ecd0ec5f5188b8222cbce60034bf20b5df8666368a91f1ac19b005fc8c50a"
   }
 }

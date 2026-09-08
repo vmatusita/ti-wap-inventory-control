@@ -71,6 +71,11 @@ declare
     -- `ativos`, nunca a declarada pelo cliente — é o que as torna não-forjáveis.
     'estorno_item_coerente', 'pode_escrever_arquivo_termo', 'pode_escrever_termo',
     'termo_ancora_coerente', 'exigir_identidade_livre_na_filial',
+    -- `pode_ler_arquivo_termo` (0129) — a irmã de LEITURA da `pode_escrever_arquivo_termo`,
+    -- e `security definer` pelo mesmo motivo delas: chama `papel_atual()`, que lê
+    -- `profiles`, cuja policy chama `papel_atual()` de volta. Rodar como INVOKER
+    -- fecharia o ciclo (42P17). É a policy de SELECT do bucket `termos` que a usa.
+    'pode_ler_arquivo_termo',
     -- Zona destrutiva (0082→0100): cada uma com `exigir_dev_para_destruir()` por
     -- dentro, backup obrigatório e trilha na MESMA transação.
     'apagar_ativo', 'apagar_item', 'apagar_movimentacao', 'apagar_ativos_conflito_filiais',
@@ -98,12 +103,36 @@ declare
   --   · mov_da_carga_import     (0092) — `immutable`, um `like` sobre o argumento.
   --   · status_apos_movimentacao(0109) — `immutable`, a máquina de estados em `case`.
   --   · valida_lancamento_item — GATILHO (0118), e a única cujo EXECUTE a 0038 deixou de
-  --     propósito: sendo INVOKER, o grant é inofensivo. Ver a asserção 5, e o motivo por
-  --     inteiro em `seguranca_catalogo.sql:16-23`.
+  --     propósito ao revogar só as duas SECURITY DEFINER. É também a única que LÊ TABELA
+  --     (`public.lancamentos_item`). O que a torna inofensiva NÃO é "não tocar tabela"
+  --     — a primeira redação do achado F48 dizia isso e estava errada, como a revisão
+  --     adversarial apontou. São duas coisas independentes: é `returns trigger`, então
+  --     chamá-la por `/rest/v1/rpc/*` FALHA (não há NEW/OLD fora de um trigger); e,
+  --     sendo INVOKER, a leitura passa pela RLS de `lancamentos_item` como qualquer
+  --     outra. Ver a asserção 5 e `seguranca_catalogo.sql:16-23`.
   -- As cinco são INVOKER: rodam com o privilégio de QUEM chama, então nem o `anon`
-  -- com EXECUTE alcança dado que a RLS não lhe daria de qualquer jeito.
+  -- com EXECUTE alcançava dado que a RLS não lhe daria de qualquer jeito.
+  --
+  -- ⚠ F50/0129 — O EXECUTE DE `anon` FOI REVOGADO NAS CINCO. Não porque houvesse
+  -- vazamento (não havia, pelos motivos acima), mas porque superfície que não precisa
+  -- existir não deve existir — defesa em profundidade, e o dia que
+  -- `seguranca_catalogo.sql:22-23` já previa por escrito. Consequência para este
+  -- roteiro: `k_invoker_anon` ficou VAZIA e as cinco migraram para
+  -- `k_invoker_revogadas`, que a asserção 6c vigia. Ver o comentário de cada lista.
   -- -----------------------------------------------------------------------
-  k_invoker_anon text[] := array[
+  -- F50/0129 — A LISTA ESTÁ VAZIA, e isso é o desfecho, não um esquecimento.
+  -- As cinco tiveram o EXECUTE de `anon` revogado pela 0129. A 6a passa a exigir que
+  -- NENHUMA invoker seja alcançável por `anon`, sem exceção — que é a forma forte.
+  k_invoker_anon text[] := array[]::text[];
+
+  -- ...e as cinco não somem daqui: mudam de PAPEL. Antes eram exceções toleradas;
+  -- agora são revogações PROVADAS. A asserção 6c abaixo afirma que continuam sem
+  -- EXECUTE para `anon` — sem ela, um `grant` de volta (por engano, ou por uma
+  -- migration futura que recrie a função e herde o default do Supabase) passaria
+  -- despercebido, porque a 6a só enxerga o que está FORA da lista e a lista está
+  -- vazia. Recriar função com `create or replace` preserva os grants; recriar com
+  -- `drop`+`create` NÃO, e é assim que uma revogação silenciosamente se desfaz.
+  k_invoker_revogadas text[] := array[
     'chave_identidade_ativo', 'hoje_brt', 'mov_da_carga_import',
     'status_apos_movimentacao', 'valida_lancamento_item'
   ];
@@ -290,18 +319,59 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
+  -- 6b só tem sujeito quando há exceção declarada. Com a lista VAZIA (o estado desde
+  -- a 0129) ela não é "verde": ela não existe.
+  --
+  -- ⚠ E o cuidado NÃO é estético: `array_length(array[]::text[], 1)` devolve NULL, e
+  -- `assert_zero_de` LEVANTA EXCEÇÃO com universo NULL ou 0 — de propósito, para
+  -- recusar asserção sobre conjunto vazio. Chamá-la aqui com a lista vazia abortaria
+  -- o bloco inteiro, a linha `FIM` não sairia, e o runner reprovaria o roteiro por
+  -- ausência de FIM. O guarda abaixo é o que separa "não há o que afirmar" de
+  -- "quebrou".
+  if array_length(k_invoker_anon, 1) is not null then
+    select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
+      into v_cnt, v_lista
+      from unnest(k_invoker_anon) as nome
+     where not exists (
+       select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public' and p.prokind = 'f' and not p.prosecdef
+          and p.proname = nome and has_function_privilege('anon', p.oid, 'execute')
+     );
+    if pg_temp.assert_zero_de(
+         '6b toda exceção declarada ainda descreve o banco' ||
+         case when v_cnt > 0 then ' — obsoleta(s): ' || v_lista else '' end,
+         v_cnt, array_length(k_invoker_anon, 1)::bigint) then
+      v_ok := v_ok + 1;
+    else
+      v_falhas := v_falhas + 1;
+    end if;
+  else
+    raise notice '✓ 6b sem exceção declarada — nada a envelhecer (a 6c prova as revogações)';
+    v_ok := v_ok + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 6c — AS REVOGAÇÕES CONTINUAM DE PÉ (F50/0129).
+  --
+  --      A 6a enumera o que está FORA da lista de exceções; com a lista vazia, ela
+  --      já cobre "nenhuma invoker é alcançável por anon". O que ela NÃO cobre é o
+  --      caso em que a função some ou muda de nome — aí não há nada para achar, e o
+  --      silêncio parece aprovação. Esta afirma o outro lado: as cinco existem, são
+  --      INVOKER, e `anon` não as executa.
+  -- ---------------------------------------------------------------
   select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
     into v_cnt, v_lista
-    from unnest(k_invoker_anon) as nome
+    from unnest(k_invoker_revogadas) as nome
    where not exists (
      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.prokind = 'f' and not p.prosecdef
-        and p.proname = nome and has_function_privilege('anon', p.oid, 'execute')
+        and p.proname = nome
+        and not has_function_privilege('anon', p.oid, 'execute')
    );
   if pg_temp.assert_zero_de(
-       '6b toda exceção declarada ainda descreve o banco' ||
-       case when v_cnt > 0 then ' — obsoleta(s): ' || v_lista else '' end,
-       v_cnt, array_length(k_invoker_anon, 1)::bigint) then
+       '6c as cinco INVOKER da 0129 seguem sem EXECUTE para anon' ||
+       case when v_cnt > 0 then ' — regrediu/sumiu: ' || v_lista else '' end,
+       v_cnt, array_length(k_invoker_revogadas, 1)::bigint) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;

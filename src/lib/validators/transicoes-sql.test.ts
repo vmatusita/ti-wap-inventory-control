@@ -33,9 +33,16 @@ const TODOS_STATUS = Constants.public.Enums.status_ativo as readonly StatusAtivo
 function migrationVigenteDaMatriz(): { arquivo: string; sql: string } {
   const arquivos = readdirSync(DIR_MIGRACOES)
     .filter((f) => f.endsWith('.sql'))
+    // ⚠ `create or replace function`, e não só o NOME da função — corrigido na F50.
+    // O comentário desta função sempre disse "a que a REDEFINE", mas o filtro casava
+    // qualquer menção. A `0129` só REVOGA o EXECUTE de `anon` dela
+    // (`revoke execute on function public.status_apos_movimentacao(…)`) e, por ser a
+    // de maior número, passou a ser eleita como "a vigente" — um arquivo sem
+    // `return case`, que derrubava o teste inteiro no import. Qualquer migration
+    // futura que apenas cite a função (um grant, um comentário) teria o mesmo efeito.
     .filter((f) =>
       readFileSync(join(DIR_MIGRACOES, f), 'utf8').includes(
-        'function public.status_apos_movimentacao',
+        'create or replace function public.status_apos_movimentacao',
       ),
     )
     .sort() // 0004 < 0024 < 0045 < 0047 — prefixo numérico zero-padded ordena lexicograficamente

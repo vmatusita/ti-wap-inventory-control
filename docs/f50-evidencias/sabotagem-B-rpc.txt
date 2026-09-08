@@ -1,0 +1,6 @@
+=== SABOTAGEM B — .rpc('alguma_coisa_nova') em estoque.ts ===
+     × toda RPC chamada pela superfície está na lista BRANCA 17ms
+     × as listas brancas descrevem o que a superfície REALMENTE lê (não envelheceram) 7ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
++   "queries/relatorios/estoque.ts → alguma_coisa_nova",
+      Tests  2 failed | 12 passed (14)

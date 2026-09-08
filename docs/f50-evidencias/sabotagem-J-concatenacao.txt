@@ -1,0 +1,6 @@
+=== SABOTAGEM J — concatenacao que comeca com nome BRANCO (achado da revisao adversarial) ===
+codigo: client.from('ativos' + '_arquivo_oculto')  -- 'ativos' ESTA na lista branca
+     × nenhum `.from(` ou `.rpc(` com argumento montado em runtime 31ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
++   "queries/relatorios/comum.ts: from('ativos' + '_arquivo_oculto'",
+      Tests  1 failed | 16 passed (17)

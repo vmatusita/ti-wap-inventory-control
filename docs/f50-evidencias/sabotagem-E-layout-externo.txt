@@ -1,0 +1,15 @@
+=== SABOTAGEM E — componente de layout/ com href externo, importado por tela de relatorio ===
+
+Criado src/components/layout/sabotagem-externa.tsx com <Link href="/admin/usuarios">,
+e importado por src/app/(app)/relatorios/gerados/page.tsx.
+
+--- (1) o confinamento DERIVADO (F50) ACUSA: ---
+     × todo href literal é interno, ou é uma exceção registrada com a guarda intacta 48ms
++   "sabotagem-externa.tsx: href \"/admin/usuarios\" sai de /relatorios e não está registrado"
+      Tests  1 failed | 10 passed (11)
+
+--- (2) a superficie POR PASTA (a de antes da F50) NAO acusaria: ---
+superficie POR PASTA: 46 arquivos
+ela inclui sabotagem-externa.tsx? NAO -> o href /admin/usuarios passaria CALADO
+
+Conclusao: e exatamente o furo que a F61 abriria, e que a derivacao por grafo fecha.

@@ -12,15 +12,29 @@ export type DbClient = SupabaseClient<Database>
 
 export type Filial = { id: number; nome: string; slug: string }
 
+// ⚠ LÊ O `error` — e é uma linha que separa "quebrou" de "quebrou em silêncio".
+//
+// Até a F50 esta função fazia `const { data } = await …` e descartava o `error`:
+// qualquer falha virava `null`, e `null` vira `notFound()` em TODA rota de relatório
+// — para o operador E para o visualizador por senha —, sem uma linha de log.
+//
+// Hoje `filiais.slug` é `unique` GLOBAL (`0003_tabelas.sql:11`), então não havia bug
+// ativo: `maybeSingle()` sobre uma coluna única devolve 0 ou 1 linha, nunca duas. O
+// conserto é PREVENTIVO, e a prevenção tem data marcada: quando a unicidade do slug
+// passar a ser por empresa, dois slugs iguais em empresas diferentes farão o
+// PostgREST devolver PGRST116 ("mais de uma linha"), e a versão antiga transformaria
+// isso num 404 mudo em todo relatório — o modo de falha mais caro de diagnosticar,
+// porque a tela não mente: ela some.
 export async function resolverFilialPorSlug(
   client: DbClient,
   slug: string,
 ): Promise<Filial | null> {
-  const { data } = await client
+  const { data, error } = await client
     .from('filiais')
     .select('id, nome, slug')
     .eq('slug', slug)
     .maybeSingle()
+  if (error) throw new Error(`Falha ao resolver a filial "${slug}": ${error.message}`)
   return data ?? null
 }
 

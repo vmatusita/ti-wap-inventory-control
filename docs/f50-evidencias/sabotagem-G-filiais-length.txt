@@ -1,0 +1,9 @@
+=== SABOTAGEM G — podeCadastrar={filiais.length > 0} num componente novo ===
+     × só as exceções registradas derivam permissão de `.length` 81ms
+     × os dois vizinhos continuam perguntando pelo CARGO (o molde certo) 7ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: lista vazia tem DOIS significados (cargo que não escreve × vínculo ausente) e `.length` devolve a mesma resposta para os dois — pergunte pelo CARGO (`papel !== 'consulta'`), como fazem passo-movimentacao.tsx e secao-contrapartida.tsx: expected [ Array(1) ] to deeply equal []
++   "components/movimentacoes/nova/passo-movimentacao.tsx: podeCadastrar={filiais.length > 0}",
+    120|         '(`papel !== \'consulta\'`), como fazem passo-movimentacao.tsx…
+AssertionError: components/movimentacoes/nova/passo-movimentacao.tsx: o molde de referência mudou: expected '\'use client\'\n\nimport { Check, Che…' to contain 'podeCadastrar={papel !== \'consulta\'}'
+      Tests  2 failed | 5 passed (7)

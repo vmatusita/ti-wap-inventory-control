@@ -1,0 +1,6 @@
+=== SABOTAGEM L — desestruturacao do client (achado da revisao adversarial) ===
+     × nenhuma rota guarda `acesso.client` numa variável 34ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: apelidar o client do viewer esconde o call-site de toda auditoria por `acesso.client`: expected [ '(app)/relatorios/gerados/page.tsx' ] to deeply equal []
++   "(app)/relatorios/gerados/page.tsx",
+      Tests  1 failed | 16 passed (17)

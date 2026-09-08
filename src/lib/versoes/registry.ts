@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.55.0',
+    data: '2026-09-08',
+    fase: 'F50',
+    titulo: 'O relatório aberto e esquecido parou de se recarregar sozinho a noite inteira',
+    mudancas: [
+      'Uma aba de relatório deixada aberta em segundo plano parava de se atualizar sozinha a cada minuto. Quando você volta para ela, o relatório se atualiza uma vez e o horário ao lado do botão Atualizar acompanha. Quem está com a aba à vista não percebe diferença nenhuma.',
+      'O botão Atualizar e a atualização automática deixaram de se atropelar: se as duas coincidirem, o relatório é buscado uma vez só, em vez de duas seguidas.',
+      'O termo de responsabilidade continua sendo visto exatamente por quem já o via. A regra de quem pode abrir os arquivos de termo passou a ficar num lugar só, o que foi conferido arquivo por arquivo antes e depois: os 88 termos guardados seguem acessíveis a todo usuário ativo, e continuam fechados para quem foi desativado.',
+      'Nenhuma outra tela mudou de aparência ou de comportamento.',
+      'Foram criadas cinco conferências automáticas que rodam antes de qualquer alteração ir ao ar. Elas vigiam a tela de relatório aberta por senha: que dado sensível não passe a aparecer nela, e que nenhum link leve o convidado para fora do relatório — o que o desconectaria no meio da leitura.',
+    ],
+  },
+  {
     versao: '1.54.0',
     data: '2026-09-07',
     fase: 'F49',

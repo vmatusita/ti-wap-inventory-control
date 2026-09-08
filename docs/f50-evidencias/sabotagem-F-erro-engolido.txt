@@ -1,0 +1,6 @@
+=== SABOTAGEM F — um SETIMO const { data } = await em queries/ ===
+     × nenhum caso NOVO — a lista de congelados só encolhe 22ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: descartar o `error` faz a falha virar tela vazia, sem log: converta para `const { data, error }` e lance, ou congele aqui com o motivo escrito: expected [ 'motivos.ts::sabotagemErroEngolido' ] to deeply equal []
++   "motivos.ts::sabotagemErroEngolido",
+      Tests  1 failed | 4 passed (5)
