@@ -328,12 +328,16 @@ begin
   -- 5a — em runtime: sessão de nível administrador PASSA em pode_escrever_filial
   -- mesmo para uma filial que NÃO EXISTE (32000) — a função não confere existência
   -- nem vínculo nenhum para dev/admin, então "qualquer filial" é literal.
-  if public.pode_escrever_filial(32000) then
+  -- ⚠ O `::smallint` e OBRIGATORIO aqui pelo mesmo motivo do 1a: a conversao de
+  -- `integer` para `smallint` no Postgres e de ATRIBUICAO, nao implicita, e um literal
+  -- cru resolve para "function does not exist" — o que ABORTA o roteiro em vez de
+  -- deixar a assercao vermelha. (32000 cabe em smallint; o teto e 32767.)
+  if public.pode_escrever_filial(32000::smallint) then
     v_ok := v_ok + 1;
-    raise notice '✓ 5a sessão de nível administrador PASSA em pode_escrever_filial(32000), filial inexistente — o par positivo da guarda nova';
+    raise notice '✓ 5a sessão de nível administrador PASSA em pode_escrever_filial(32000::smallint), filial inexistente — o par positivo da guarda nova';
   else
     v_falhas := v_falhas + 1;
-    raise warning '✗ 5a sessão de nível administrador NÃO passou em pode_escrever_filial(32000)';
+    raise warning '✗ 5a sessão de nível administrador NÃO passou em pode_escrever_filial(32000::smallint)';
   end if;
 
   -- 5a-bis — pelo CORPO de pode_escrever_filial: o ramo dev/admin devolve true ANTES
