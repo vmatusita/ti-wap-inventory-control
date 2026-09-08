@@ -1,3 +1,4 @@
+import 'server-only'
 import { parseISO, differenceInCalendarDays } from 'date-fns'
 import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
 import { CATEGORIA_ORDEM, STATUS_ORDEM } from '@/lib/dominio'

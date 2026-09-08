@@ -1,3 +1,4 @@
+import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { sanearFiltrosAuditoria } from '@/lib/auditoria'
 import type { Json } from '@/lib/types/database'

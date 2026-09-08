@@ -1,3 +1,4 @@
+import 'server-only'
 import { periodoAnterior, type Periodo } from '@/lib/relatorios/periodo'
 import type { SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
 import { listarFiliais } from '@/lib/queries/filiais'

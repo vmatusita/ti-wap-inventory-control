@@ -1,3 +1,4 @@
+import 'server-only'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 import { OBS_SALDO_INICIAL } from '@/lib/dominio'
 import type { Periodo } from '@/lib/relatorios/periodo'

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { compraLoteSchema, type CompraLoteInput } from '@/lib/validators/compra'
 import { chavePatrimonio } from '@/lib/patrimonio'
-import { exigirEscrita } from '@/lib/auth/acesso'
+import { exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
 import {
   sugestoesMarcas,
   sugestoesModelos,
@@ -186,6 +186,21 @@ export async function registrarCompra(
 // sistemática de RLS/rede tem de ser visível.
 // ---------------------------------------------------------------------------
 
+// F49 — a guarda das três mora AQUI, e não repetida em cada export: `sugerir` já é
+// o lugar onde o piso de caracteres, o log e a degradação são decididos uma vez só.
+// A trava `guardas-de-action.test.ts` reconhece o padrão (helper local de UM nível)
+// justamente porque desfazê-lo para agradar a um teste pioraria o código.
+//
+// Piso da hierarquia, e não `idOperador`: os três cargos sugerem por igual, e quem
+// NÃO atende é o perfil DESATIVADO (`papel_atual()` devolve NULL) — que não deve
+// continuar enumerando marcas, modelos e FORNECEDORES do acervo por request direto
+// até o token expirar. Mesma razão de `exportar.ts` e de
+// `buscarAtivosRecentesDoOperador`.
+//
+// ⚠ A ORDEM importa: o piso de caracteres vem ANTES da guarda, de propósito. Abaixo
+// de `MIN_CHARS_SUGESTAO` a função já devolvia `[]` sem tocar o banco — não há o que
+// proteger, e adiantar a guarda custaria uma ida ao Supabase A CADA TECLA digitada
+// antes da segunda letra. Nada vaza no caminho curto porque ele não lê nada.
 async function sugerir(
   rotulo: string,
   prefixo: string,
@@ -193,6 +208,12 @@ async function sugerir(
 ): Promise<string[]> {
   if (prefixo.trim().length < MIN_CHARS_SUGESTAO) return []
   try {
+    const supabase = await createClient()
+    const aut = await exigirPapel(supabase, 'consulta')
+    // Degradação CALADA e idêntica à do `catch` abaixo: sugestão é conforto, e o
+    // campo é texto livre que continua aceitando o que for digitado. Um perfil
+    // ativo nunca chega aqui.
+    if (!aut.ok) return []
     return await consultar()
   } catch (err) {
     console.error(`[sugestoes] falha ao sugerir ${rotulo}:`, err)

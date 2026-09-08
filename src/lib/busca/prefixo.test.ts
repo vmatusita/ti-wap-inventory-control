@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { MIN_PREFIXO_SUGESTAO, prefixoSeguro } from '@/lib/queries/prefixo-busca'
+import { MIN_PREFIXO_SUGESTAO, prefixoSeguro } from '@/lib/busca/prefixo'
 
 // A neutralização de curinga dos campos que sugerem enquanto se digita.
 //

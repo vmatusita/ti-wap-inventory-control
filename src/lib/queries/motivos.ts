@@ -1,3 +1,4 @@
+import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { TipoMovimentacao } from '@/lib/dominio'
 

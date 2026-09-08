@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect , vi } from 'vitest'
+
+// F49 — um módulo de `@/lib/queries/**` (ou algo que ele alcança) passou a declarar
+// `import 'server-only'`, que é a fronteira RSC: ele existe para QUEBRAR o build se um
+// Client Component importar a query. No ambiente `node` do Vitest esse import lança
+// sempre, então o stub vazio. Não afrouxa nada — quem prova a fronteira é o
+// `npm run build` (ver `src/lib/queries/servidor-apenas.test.ts`).
+vi.mock('server-only', () => ({}))
 import { paginaPorSlug } from '@/lib/ajuda/registry'
 import { textoDoBloco } from '@/lib/ajuda/indice'
 import { normalizarBusca } from '@/lib/ajuda/busca'

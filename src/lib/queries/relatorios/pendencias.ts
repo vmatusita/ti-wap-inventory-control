@@ -1,3 +1,4 @@
+import 'server-only'
 import {
   ILIKE_ITENS_FALTANTES,
   OR_PATRIMONIO,

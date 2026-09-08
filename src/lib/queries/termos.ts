@@ -1,3 +1,4 @@
+import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { TermoTipo } from '@/lib/termos/tipos'
 import type { CamposTermo } from '@/lib/validators/termo'

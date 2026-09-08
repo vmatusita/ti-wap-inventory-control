@@ -1,3 +1,4 @@
+import 'server-only'
 import type { DbClient } from '@/lib/queries/relatorios'
 import type { AnySnapshot } from '@/lib/relatorios/tipos'
 import { ehUuid } from '@/lib/url-params'
