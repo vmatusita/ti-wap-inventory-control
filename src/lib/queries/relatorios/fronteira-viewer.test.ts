@@ -69,7 +69,14 @@ const TIPO_CLIENT =
 // arquivo que nunca esteve em risco. Mesmo caso: `eventos-admin.ts`, `movimentacoes.ts`.
 function nomesExportados(fonte: string): Set<string> {
   const nomes = new Set<string>()
-  for (const m of fonte.matchAll(/export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/g)) nomes.add(m[1])
+  // ⚠ `default` no meio — achado da revisão adversarial da F50. A versão anterior
+  // exigia `function` logo depois de `export`, e `export default function lerAlgo(…)`
+  // não casava: o nome nunca entrava no conjunto, o arquivo inteiro era descartado da
+  // derivação, e um módulo novo com client resolvido passava calado. Para essa forma,
+  // a assinatura mentia tanto quanto a pasta — que é justamente o que este arquivo
+  // existe para não deixar acontecer.
+  for (const m of fonte.matchAll(/export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/g))
+    nomes.add(m[1])
   for (const m of fonte.matchAll(/export\s+(?:const|let|var)\s+([A-Za-z0-9_]+)/g)) nomes.add(m[1])
   for (const m of fonte.matchAll(/export\s*\{([^}]*)\}/g)) {
     for (const parte of m[1].split(',')) {
@@ -200,10 +207,61 @@ const RPCS: Record<string, string> = {
   rel_frescor_itens: 'a data do último lançamento por item',
 }
 
-/** `.from('literal')` / `.rpc('literal')` — e SÓ o literal. */
+// `.from('literal')` / `.rpc('literal', …)` — e SÓ o literal INTEIRO.
+//
+// ⚠ O `[,)]` no fim não é enfeite: ele é o que separa um literal de uma EXPRESSÃO que
+// começa com literal. Sem ele, o regex casava `'ativos'` dentro de
+// `.from('ativos' + '_arquivo_oculto')` e devolvia `ativos` — um nome que ESTÁ na
+// lista branca. A tabela realmente lida em runtime (`ativos_arquivo_oculto`) não
+// aparecia em lugar nenhum, e a chamada era registrada como leitura legítima do nome
+// branco. Pior: a varredura de não-literais tinha `(?!')`, que descartava de propósito
+// tudo que começasse com aspa — então as duas travas se cancelavam e nenhuma acusava.
+//
+// Achado da revisão adversarial da F50, provado ao vivo com
+// `client.from('ativos' + '_arquivo_oculto')` em `comum.ts`: 14 testes verdes. É o
+// vetor exato que a inversão para lista branca existe para fechar — uma tabela nova
+// cujo nome comece com um prefixo já branco atravessaria a fronteira do viewer, que
+// roda sob `service_role`, sem RLS.
+//
+// `.rpc()` aceita segundo argumento (os parâmetros), daí `,` valer tanto quanto `)`.
+// UMA varredura, que classifica — em vez de duas peneiras independentes que podiam
+// se cancelar (foi assim que a concatenação passava: literal para uma, "começa com
+// aspa, ignore" para a outra).
+type Chamada = { receptor: string; argumento: string; literal: string | null }
+
+function chamadasDe(fonte: string, metodo: 'from' | 'rpc'): Chamada[] {
+  const re = new RegExp(`([A-Za-z0-9_$]*)\\.${metodo}\\(`, 'g')
+  const achadas: Chamada[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(fonte))) {
+    // O primeiro argumento: até a vírgula ou o parêntese do NÍVEL de topo.
+    let i = re.lastIndex
+    let prof = 0
+    let arg = ''
+    while (i < fonte.length) {
+      const c = fonte[i]
+      if (c === '(' || c === '[' || c === '{') prof++
+      else if (c === ')' && prof === 0) break
+      else if (c === ')' || c === ']' || c === '}') prof--
+      else if (c === ',' && prof === 0) break
+      else if (c === '\n') break
+      arg += c
+      i++
+    }
+    const argumento = arg.trim()
+    // Literal PURO: a string inteira é uma constante entre aspas. `'ativos' + '_x'`
+    // não é — e é exatamente o caso que passava por literal antes.
+    const puro = /^'([^']*)'$/.exec(argumento)
+    achadas.push({ receptor: m[1], argumento, literal: puro ? puro[1] : null })
+  }
+  return achadas
+}
+
 function chamadasLiterais(fonte: string, metodo: 'from' | 'rpc'): string[] {
-  const re = new RegExp(`\\.${metodo}\\(\\s*'([^']+)'`, 'g')
-  return [...fonte.matchAll(re)].map((m) => m[1])
+  return chamadasDe(fonte, metodo)
+    .filter((c) => !RECEPTORES_NAO_POSTGREST.has(c.receptor))
+    .map((c) => c.literal)
+    .filter((n): n is string => n !== null)
 }
 
 // Argumento que NÃO é string literal: variável, template, concatenação. Uma lista
@@ -217,16 +275,35 @@ function chamadasLiterais(fonte: string, metodo: 'from' | 'rpc'): string[] {
 // isenção genérica: qualquer outro receptor continua sendo examinado.
 const RECEPTORES_NAO_POSTGREST = new Set(['Array'])
 
+// TODA chamada, e depois subtrai as que são literal INTEIRO. É o inverso da versão
+// anterior, que perguntava "começa com aspa?" — pergunta que respondia "sim" para a
+// concatenação e a deixava passar pelas duas peneiras.
 function chamadasNaoLiterais(fonte: string, metodo: 'from' | 'rpc'): string[] {
-  const re = new RegExp(`([A-Za-z0-9_$]*)\\.${metodo}\\(\\s*(?!')([^)\\n]{0,60})`, 'g')
-  return [...fonte.matchAll(re)]
-    .filter((m) => !RECEPTORES_NAO_POSTGREST.has(m[1]))
-    .map((m) => `${metodo}(${m[2].trim()}`)
+  return chamadasDe(fonte, metodo)
+    .filter((c) => !RECEPTORES_NAO_POSTGREST.has(c.receptor))
+    .filter((c) => c.literal === null)
+    .map((c) => `${metodo}(${c.argumento}`)
 }
 
 // O que o viewer JAMAIS pode ler. Redundante com a lista branca de propósito: esta
 // pega a menção em QUALQUER forma (string montada, comentário, import), não só em
 // `.from('…')`. Custa um grep e cobre o que a allow-list, por construção, não vê.
+// As formas de guardar o client numa variável — as TRÊS, não só a com ponto.
+//
+// ⚠ `const { client } = acesso` e `acesso['client']` apagam o rastro exatamente como
+// `const c = acesso.client`, e a versão anterior só pegava a terceira. As duas
+// primeiras são sintaxe corriqueira, não exótica — achado da revisão adversarial da
+// F50, provado ao vivo. A partir daqui quem quiser apelidar o client tem de inventar
+// uma forma nova, e é essa a diferença entre uma trava e um lembrete.
+const APELIDA_CLIENT = [
+  // const c = acesso.client
+  /(?:const|let|var)\s+[A-Za-z0-9_]+\s*=\s*[A-Za-z0-9_]+\.client\b/,
+  // const { client } = acesso   /   const { client: c } = acesso
+  /(?:const|let|var)\s*\{[^}]*\bclient\b[^}]*\}\s*=\s*[A-Za-z0-9_]+/,
+  // const c = acesso['client']  /  acesso["client"]
+  /(?:const|let|var)\s+[A-Za-z0-9_]+\s*=\s*[A-Za-z0-9_]+\[\s*['"]client['"]\s*\]/,
+]
+
 const PROIBIDOS = [
   { termo: 'senhas_acesso', motivo: 'expõe o hash da senha de acesso' },
   { termo: 'senha_tentativas', motivo: 'infra de rate-limit por IP' },
@@ -246,6 +323,49 @@ describe('fronteira do viewer (A5): queries de relatório não tocam tabelas sen
     // A forma-expressão (`export const x = cache(function x(client?…))`) tem de entrar:
     // é `filiais.ts`, e perdê-la foi o defeito que esta reescrita corrige.
     expect(candidatos).toContain('queries/filiais.ts')
+  })
+
+  // As três formas que a revisão adversarial da F50 provou que ESCAPAVAM. Cada uma
+  // custou uma sabotagem ao vivo com os 14 testes verdes — e por isso viraram
+  // asserção de comportamento, não comentário.
+  it('o leitor de exports pega `export default function` (achado da revisão)', () => {
+    // A regex antiga exigia `function` logo após `export`; com `default` no meio o
+    // nome não entrava, e o módulo inteiro sumia da derivação.
+    expect(nomesExportados('export default async function lerAlgo(c) {}')).toContain('lerAlgo')
+    expect(nomesExportados('export function a(){}\nexport const b = 1')).toEqual(
+      new Set(['a', 'b']),
+    )
+  })
+
+  it('a lista branca não é enganada por CONCATENAÇÃO que começa com nome branco', () => {
+    // O vetor: `'ativos'` está na lista, `'ativos' + '_oculto'` não é `ativos`.
+    const sabotado = "client.from('ativos' + '_arquivo_oculto').select('*')"
+    expect(chamadasLiterais(sabotado, 'from'), 'a concatenação foi lida como literal').toEqual([])
+    expect(chamadasNaoLiterais(sabotado, 'from').length, 'a concatenação não foi acusada').toBe(1)
+    // …e o literal de verdade continua sendo lido como literal.
+    expect(chamadasLiterais("client.from('ativos').select('id')", 'from')).toEqual(['ativos'])
+    // `.rpc()` tem segundo argumento, e isso não pode confundir o detector.
+    expect(chamadasLiterais("client.rpc('rel_resumo', { p: 1 })", 'rpc')).toEqual(['rel_resumo'])
+    expect(chamadasNaoLiterais("client.rpc('rel_resumo', { p: 1 })", 'rpc')).toEqual([])
+    expect(chamadasNaoLiterais("client.rpc('rel' + '_oculto', {})", 'rpc').length).toBe(1)
+  })
+
+  it('a trava de apelido pega as TRÊS formas de guardar o client', () => {
+    const casos = [
+      'const c = acesso.client',
+      'const { client } = acesso',
+      'const { client: c } = acesso',
+      "const c = acesso['client']",
+      'let c = acesso.client',
+    ]
+    for (const caso of casos) {
+      expect(
+        APELIDA_CLIENT.some((re) => re.test(caso)),
+        `a trava não pegou: ${caso}`,
+      ).toBe(true)
+    }
+    // E não acusa uso direto, que é o padrão CERTO e tem de continuar passando.
+    expect(APELIDA_CLIENT.some((re) => re.test('listarFiliais(acesso.client)'))).toBe(false)
   })
 
   it('todo módulo que ACEITA client resolvido está declarado (superfície ou exceção)', () => {
@@ -354,7 +474,7 @@ describe('fronteira do viewer (A5): queries de relatório não tocam tabelas sen
         if (statSync(p).isDirectory()) varrer(p)
         else if (/\.tsx?$/.test(nome) && !nome.includes('.test.')) {
           const fonte = readFileSync(p, 'utf8')
-          if (/(?:const|let|var)\s+[A-Za-z0-9_]+\s*=\s*[A-Za-z0-9_]+\.client\b/.test(fonte)) {
+          if (APELIDA_CLIENT.some((re) => re.test(fonte))) {
             infratores.push(p.slice(raizApp.length + 1).split(/[\\/]/).join('/'))
           }
         }

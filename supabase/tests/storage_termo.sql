@@ -25,6 +25,21 @@
 
 begin;
 
+-- ⚠ GRANT DE TABELA, antes do bloco — e ele é obrigatório, não higiene.
+--
+-- RLS decide QUAIS LINHAS um papel vê; o GRANT decide se ele pode olhar a tabela.
+-- São duas camadas, e a de baixo tem de existir para a de cima significar alguma
+-- coisa. No banco do CI, construído pelas migrations mais o bootstrap declarado em
+-- `supabase/ci/`, `bootstrap-storage.sql` concede apenas `usage on schema storage` —
+-- o grant de TABELA em `storage.objects` não vem de lugar nenhum. Sem esta linha o
+-- roteiro morre com "permission denied for table objects" na primeira leitura como
+-- `authenticated`, e o runner reprova por ausência da linha FIM.
+--
+-- `papeis_rls.sql:132` faz exatamente isto, pelo mesmo motivo e para as mesmas
+-- asserções de storage. Está dentro do `begin; … rollback;`, então some junto com o
+-- resto do cenário.
+grant select, insert, update, delete on storage.objects to authenticated;
+
 do $$
 declare
   -- identidades fictícias (uuid fixo, hex válido — o prefixo f50a marca a fase)

@@ -66,6 +66,9 @@ const DA_F38 = [
   // esta migration MENCIONA `status_apos_movimentacao` (para revogar o EXECUTE dela)
   // sem redefini-la — e é bom que uma varredura confira essa distinção.
   '0129',
+  // F50 — o grant que faltava ao lado dos cinco revoke da 0129 (o CI provou a
+  // divergencia: em producao o grant explicito ja existia, no banco do CI nao).
+  '0130',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

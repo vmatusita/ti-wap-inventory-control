@@ -58,15 +58,25 @@ const RAIZES = [
 // arquivo inteiro passaria a varrer quase nada — verde, e sem rede. A catraca só
 // SOBE: quando a superfície crescer de verdade, atualize o número e diga por quê.
 //
-// F50 (08/09/2026): medido **131** arquivos no fecho, contra 46 da varredura por
+// F50 (08/09/2026): medido **134** arquivos no fecho, contra 46 da varredura por
 // pasta. Sete deles vêm de `components/layout/` — `filtro-filial`, `link-ajuda`,
 // `marca`, `nav-rolavel`, `progresso-navegacao`, `viewer-header`, `viewer-nav` —, e
 // é essa faixa que a pasta não cobria.
 //
-// O piso é 120 e não 131 de propósito: um arquivo a menos por refatoração legítima
+// O piso é 125 e não 134 de propósito: um arquivo a menos por refatoração legítima
 // (dois componentes que viram um) não deve pedir commit nesta linha. Uma queda de
-// dez é outra conversa, e é a que este número existe para forçar.
-const SUPERFICIE_MINIMA = 120
+// DEZ é outra conversa, e é a que este número existe para forçar — 134 − 10 = 124,
+// abaixo do piso, então ela reprova.
+//
+// ⚠ A folga é de NOVE, e o número acima tem de acompanhar o fecho. A revisão
+// adversarial desta fase pegou as duas coisas erradas de uma vez: o comentário dizia
+// 131 (o fecho no commit que criou a trava) enquanto o fecho já era 134 — a própria
+// F50 acrescentou `lib/escopo/chave.ts`, `auto-refresh-decisao.ts` e
+// `assinatura-realtime.ts` depois —, e o piso 120 dava folga de 14, o que tornava a
+// frase "uma queda de dez" literalmente falsa. Comentário que promete uma margem que
+// o número não entrega é pior do que comentário nenhum: quem lê acha que está
+// protegido de algo de que não está.
+const SUPERFICIE_MINIMA = 125
 
 const EXTENSOES = ['.ts', '.tsx', '/index.ts', '/index.tsx']
 

@@ -1,0 +1,6 @@
+=== SABOTAGEM K — export default function (achado da revisao adversarial) ===
+     × todo módulo que ACEITA client resolvido está declarado (superfície ou exceção) 31ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: quem aceita client resolvido pode receber o client do VIEWER (service_role): declare cada um na superfície, ou como exceção nominal com o motivo medido: expected [ 'queries/sabotagem-default.ts' ] to deeply equal []
++   "queries/sabotagem-default.ts",
+      Tests  1 failed | 16 passed (17)

@@ -71,6 +71,11 @@ declare
     -- `ativos`, nunca a declarada pelo cliente — é o que as torna não-forjáveis.
     'estorno_item_coerente', 'pode_escrever_arquivo_termo', 'pode_escrever_termo',
     'termo_ancora_coerente', 'exigir_identidade_livre_na_filial',
+    -- `pode_ler_arquivo_termo` (0129) — a irmã de LEITURA da `pode_escrever_arquivo_termo`,
+    -- e `security definer` pelo mesmo motivo delas: chama `papel_atual()`, que lê
+    -- `profiles`, cuja policy chama `papel_atual()` de volta. Rodar como INVOKER
+    -- fecharia o ciclo (42P17). É a policy de SELECT do bucket `termos` que a usa.
+    'pode_ler_arquivo_termo',
     -- Zona destrutiva (0082→0100): cada uma com `exigir_dev_para_destruir()` por
     -- dentro, backup obrigatório e trilha na MESMA transação.
     'apagar_ativo', 'apagar_item', 'apagar_movimentacao', 'apagar_ativos_conflito_filiais',
