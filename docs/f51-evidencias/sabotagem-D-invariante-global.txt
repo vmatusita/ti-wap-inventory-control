@@ -1,0 +1,51 @@
+# F51 · SABOTAGEM D (real, não sintética) — a invariante escrita na forma GLOBAL
+# nasce vermelha POR MOTIVO LEGÍTIMO.
+#
+# A ordem pedia que eu escrevesse a invariante do delete na forma global e
+# mostrasse-a reprovando por causa de apagar_ativo e das RPCs de reset. O
+# repositório já tinha uma varredura assim, e ela mordeu de verdade:
+# src/lib/itens/migrations-f38.test.ts cobra 'nenhuma migration da fase apaga
+# registro do acervo' por GREP CRU sobre o arquivo inteiro. A 0131 é a primeira
+# migration da faixa >= 0116 a recriar uma função que apaga acervo — e o grep
+# não distingue 'apaga AO SER APLICADA' de 'tem um delete no CORPO de uma
+# função'. Um create or replace não apaga nada.
+#
+# É o gate que nasce vermelho por motivo legítimo, que é o gate que alguém
+# desliga (asserção da F48). A correção NÃO foi afrouxar: foi tirar os corpos
+# de função da varredura, de modo que um delete de TOPO continue reprovando —
+# com uma asserção nova que prova justamente isso.
+#
+# O mesmo raciocínio já estava escrito em scripts/db/mutacoes.test.mts,
+# describe 5: 'A REGRA É SOBRE O QUE EXECUTA'.
+
+$ npx vitest run src/lib/itens/migrations-f38.test.ts   # com a 0131 na lista, ANTES da correção
+  v_log_id := public.import_gravar_trilha(
+    p_plano, v_filial, p_backup_path, p_correcoes, v_uid,
+    v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados, v_conflitos
+  );
+  return jsonb_build_object(
+    'log_id',                   v_log_id,
+    'filial_id',                v_filial,
+    'ativos_criados',           v_ativos_criados,
+    'movs_apagadas',            v_movs_apagadas,
+    'anotacoes_apagadas',       v_anot_apagadas,
+    'termos_apagados',          v_termos_apagados,
+    'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
+    'conflitos_abertos',        v_conflitos
+  );
+end $$;
+revoke all on function public.importar_ativos_substituir(jsonb, text, jsonb, jsonb) from public, anon, service_role;
+grant execute on function public.importar_ativos_substituir(jsonb, text, jsonb, jsonb) to authenticated;
+"
+ ❯ src/lib/itens/migrations-f38.test.ts:173:65
+    171|         .join('\n')
+    172|       for (const tabela of ['movimentacoes', 'lancamentos_item', 'ativ…
+    173|         expect(semComentario, `${nome} apaga de ${tabela}`).not.toMatc…
+       |                                                                 ^
+    174|           new RegExp(`delete\\s+from\\s+(public\\.)?${tabela}\\b`, 'i'…
+    175|         )
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  12:09:28
+   Duration  835ms (transform 72ms, setup 0ms, import 114ms, tests 123ms, environment 0ms)

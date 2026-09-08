@@ -644,6 +644,28 @@ const DEV_DESTRUTIVO = [
 // =============================================================================
 // import_substituir.sql — o import de startup, que APAGA a filial antes de gravar
 // =============================================================================
+// ⚠ AS DUAS PRIMEIRAS FORAM REAPONTADAS NA F51 (08/09/2026), e o motivo é o que
+// esta família toda existe para provar. Até a 0130, `importar_ativos_substituir`
+// era uma função de 393 linhas com TODAS as guardas no próprio corpo. A 0131 a
+// decompôs numa orquestradora sobre oito auxiliares, e os dois trechos que estas
+// mutações afrouxam MUDARAM DE FUNÇÃO: a guarda de backup foi para
+// `import_validar_plano` e a revalidação de contagens para
+// `import_revalidar_contagens`.
+//
+// Reapontar não foi opcional nem adiável. `mutarFuncao()` chama `corpoVigente()`
+// no CORPO DO MÓDULO — não é lazy. No instante em que a 0131 moveu os trechos,
+// `trocarNoCorpo` passaria a lançar no `import` deste arquivo, derrubando o
+// carregamento INTEIRO do catálogo: `mutacoes.test.mts` e
+// `npm run db:test:mutations` parariam de rodar por completo, não só as duas do
+// import. É o "falhar ALTO" que o cabeçalho de `corpo-vigente.mjs` promete, e o
+// raio dele é o lote todo — por isso migration e reapontamento vão no MESMO
+// commit.
+//
+// As SEIS seguintes são novas: uma por auxiliar cuja quebra derruba um rótulo.
+// Três delas (conferir/contar/gravar) só têm o que derrubar por causa da SEÇÃO 0
+// do roteiro — no caminho feliz do import essas três nunca lançam nem são lidas,
+// e sem cenário próprio a mutação sairia "não detectada" por CONJUNTO VAZIO, que
+// é o diagnóstico errado: acusaria de fraca uma asserção que nem existia.
 /** @type {Mutacao[]} */
 const IMPORT_SUBSTITUIR = [
   {
@@ -653,15 +675,49 @@ const IMPORT_SUBSTITUIR = [
     derruba: ['2'],
     porque:
       'Reabre o TOCTOU que a 0040 fechou: uma chamada forjada sem as contagens volta a pular por inteiro a revalidação do estado vivo — o acervo da filial é apagado sobre uma foto velha da tela.',
+    // ⚠ ELA SAI PELA PORTA (`return`), não afrouxa a condição — e a diferença foi
+    // MEDIDA no CI da F51 (run 34243304117), não deduzida. A forma antiga trocava
+    // a condição por `if false then`, e isso funcionava enquanto a 0094 tinha,
+    // logo abaixo do raise, o resíduo do item N (`if p_contagens is not null and
+    // jsonb_typeof(…) = 'object' then`) envolvendo o bloco inteiro: com
+    // `p_contagens` nulo, aquele segundo `if` também era falso e a revalidação
+    // sumia por completo. A 0131 removeu o resíduo — ele era código MORTO, sempre
+    // verdadeiro no ponto em que era avaliado —, e sem ele a mesma troca deixa o
+    // corpo seguir com os sentinelas `-1` do `coalesce`, que NÃO batem com o vivo
+    // e levantam a exceção de "estado mudou desde o preview". O roteiro via a RPC
+    // recusar, marcava ✓, e a mutação saía "NÃO detectada" — a asserção estava
+    // certa, a quebra é que não quebrava nada.
     sql: mutarFuncao(
-      'public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)',
-      `  if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then`,
-      `  if false then  ${MARCA}`,
+      'public.import_revalidar_contagens(jsonb, smallint)',
+      `    raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';`,
+      `    return;  ${MARCA}`,
       'import-sem-revalidacao-de-contagens',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)'::regprocedure)
-              like '%2b. revalidação%if false then  --%'`,
+      sql: `select pg_get_functiondef('public.import_revalidar_contagens(jsonb, smallint)'::regprocedure)
+              like '%2b. revalidação%return;  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-revalidacao-nao-compara-o-vivo',
+    roteiro: 'import_substituir.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['0b'],
+    porque:
+      'A OUTRA metade do TOCTOU: as contagens chegam, mas ninguém as compara com o estado real da filial. O preview pode ter sido gerado ontem, alguém pode ter cadastrado dez ativos desde então, e o import apaga tudo assim mesmo — a guarda vira ritual.',
+    // A primeira mutação prova que a RECUSA existe; esta prova que a COMPARAÇÃO
+    // existe. Separá-las é o que impede uma metade de passar de carona na outra.
+    sql: mutarFuncao(
+      'public.import_revalidar_contagens(jsonb, smallint)',
+      `  if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
+     or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then`,
+      `  if false then  ${MARCA}`,
+      'import-revalidacao-nao-compara-o-vivo',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_revalidar_contagens(jsonb, smallint)'::regprocedure)
+              like '%if false then  --%'`,
       espera: 't',
     },
   },
@@ -673,14 +729,166 @@ const IMPORT_SUBSTITUIR = [
     porque:
       'O import destrutivo passa a aceitar chamada sem caminho de backup: o acervo da filial é apagado sem que nada tenha sido exportado antes. É a rede da operação mais perigosa do sistema saindo em silêncio.',
     sql: mutarFuncao(
-      'public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)',
+      'public.import_validar_plano(jsonb, text, jsonb, smallint)',
       `  if coalesce(btrim(p_backup_path), '') = '' then`,
       `  if false then  ${MARCA}`,
       'import-sem-exigencia-de-backup',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)'::regprocedure)
+      sql: `select pg_get_functiondef('public.import_validar_plano(jsonb, text, jsonb, smallint)'::regprocedure)
               like '%1b. backup obrigatório%if false then  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-trilha-do-apagado-mente-nas-anotacoes',
+    roteiro: 'import_substituir.sql',
+    classe: 'contagem-mentida',
+    derruba: ['0g'],
+    porque:
+      'A contagem de anotações destruídas volta zerada. O número que o operador vê ao fim do import, e o que fica gravado em import_logs como registro do que a operação apagou, param de descrever o que aconteceu de verdade — numa operação cujo único registro do estrago é esse.',
+    // ⚠ ELA MENTE A CONTAGEM, não deixa de apagar — e o motivo foi MEDIDO no CI da
+    // F51 (run 34243304117). A forma anterior neutralizava o próprio
+    // `delete from public.anotacoes`, e o resultado não era "mutação detectada":
+    // era o roteiro ABORTANDO. `anotacoes.ativo_id` tem FK para `ativos` (0017:8),
+    // então deixar as anotações vivas faz o `delete from public.ativos` seguinte
+    // estourar violação de chave estrangeira e derrubar o bloco inteiro antes da
+    // linha FIM. O injetor reporta ABORTOU, que é diagnóstico diferente de
+    // "detectada" — e mereceria ser, porque nesse caminho o roteiro não chegou a
+    // afirmar nada. Mesma armadilha vale para movimentacoes: as três tabelas-filha
+    // do acervo são apagadas ANTES de `ativos` justamente por causa dessas FKs.
+    sql: mutarFuncao(
+      'public.import_apagar_acervo_filial(smallint)',
+      `  get diagnostics v_anot_apagadas = row_count;`,
+      `  v_anot_apagadas := 0;  ${MARCA}`,
+      'import-trilha-do-apagado-mente-nas-anotacoes',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_apagar_acervo_filial(smallint)'::regprocedure)
+              like '%v_anot_apagadas := 0;  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-ativo-nasce-sem-origem-importacao',
+    roteiro: 'import_substituir.sql',
+    classe: 'procedencia-perdida',
+    derruba: ['4b'],
+    porque:
+      'O ativo trazido pela planilha de startup passa a nascer como se tivesse sido cadastrado à mão. A procedência é o que separa o acervo importado do que o operador digitou, e é por ela que se audita um go-live que deu errado.',
+    sql: mutarFuncao(
+      'public.import_criar_ativos(jsonb, smallint)',
+      `    'importacao',`,
+      `    'cadastro',  ${MARCA}`,
+      'import-ativo-nasce-sem-origem-importacao',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_criar_ativos(jsonb, smallint)'::regprocedure)
+              like '%''cadastro'',  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-compra-de-abertura-sem-marcador',
+    roteiro: 'import_substituir.sql',
+    classe: 'baseline-vira-movimento-real',
+    derruba: ['1e', '0h'],
+    porque:
+      'A compra de abertura perde o marcador "import startup" e deixa de ser baseline: o acervo pré-existente inteiro passa a aparecer como ENTRADA no relatório do mês do go-live. É o defeito que a F8 reverteu à mão depois de a F7H o ter causado.',
+    sql: mutarFuncao(
+      'public.import_lancar_movimentacoes(uuid, jsonb, smallint, uuid, date, text)',
+      `    p_filial, p_obs_marcador, p_uid`,
+      `    p_filial, 'compra normal', p_uid  ${MARCA}`,
+      'import-compra-de-abertura-sem-marcador',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_lancar_movimentacoes(uuid, jsonb, smallint, uuid, date, text)'::regprocedure)
+              like '%''compra normal'', p_uid  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-conferencia-de-estado-cega',
+    roteiro: 'import_substituir.sql',
+    classe: 'conferencia-neutralizada',
+    derruba: ['0f'],
+    porque:
+      'A conferência pós-insert para de comparar o estado gravado com o estado-alvo do plano. O import passa a jurar que deu certo mesmo quando um ativo ficou em estado diferente do que a planilha mandava — e a transação commita a divergência em vez de recusá-la.',
+    sql: mutarFuncao(
+      'public.import_conferir_resultado(jsonb, smallint, integer, integer)',
+      `      and a.status <> (x->>'estadoAlvo')::public.status_ativo
+  ) then`,
+      `      and false  ${MARCA}
+  ) then`,
+      'import-conferencia-de-estado-cega',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_conferir_resultado(jsonb, smallint, integer, integer)'::regprocedure)
+              like '%and false  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-contagem-de-conflitos-mentida',
+    roteiro: 'import_substituir.sql',
+    classe: 'numero-inventado',
+    derruba: ['0c'],
+    porque:
+      'O número de conflitos entre filiais gravado no histórico do import deixa de vir de v_conflitos_filiais — a MESMA fonte que a mesa de /pendencias lê. O histórico e a tela passam a discordar sobre quantas pendências o go-live abriu, que é exatamente o que a F24 desenhou para não poder acontecer.',
+    sql: mutarFuncao(
+      'public.import_contar_conflitos(smallint)',
+      `  select count(*) into v_conflitos
+    from public.v_conflitos_filiais c
+   where c.filial_id = p_filial;`,
+      `  v_conflitos := 99;  ${MARCA}`,
+      'import-contagem-de-conflitos-mentida',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_contar_conflitos(smallint)'::regprocedure)
+              like '%v_conflitos := 99;  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-auxiliar-destrutiva-vira-api',
+    roteiro: 'import_substituir.sql',
+    classe: 'superficie-de-rpc-aumentada',
+    derruba: ['0e'],
+    porque:
+      'A auxiliar que APAGA o acervo de uma filial passa a ser chamável pela API: qualquer logado, com a anon key e o próprio JWT, alcança /rest/v1/rpc/import_apagar_acervo_filial e apaga uma filial inteira — sem passar pela guarda de admin, sem backup, sem revalidação de contagens e sem trilha, porque todas essas coisas moram na orquestradora.',
+    // ⚠ ESTA É A MUTAÇÃO QUE PROVA QUE `0e` NÃO É TAUTOLOGIA. A asserção conta
+    // concessões vivas e espera ZERO — e uma asserção que espera zero é
+    // exatamente a que pode estar contando sobre conjunto vazio sem ninguém
+    // notar. Aqui a concessão existe de verdade e a contagem tem de sair de zero.
+    //
+    // É também a quebra mais perigosa do lote: decompor uma `security definer`
+    // REORGANIZA a superfície, não a reduz, e o que mantém as oito fora da API é
+    // uma linha de `revoke` por função. Um `grant` esquecido numa migration futura
+    // é indistinguível deste comando.
+    sql: `grant execute on function public.import_apagar_acervo_filial(smallint) to authenticated;  ${MARCA}`,
+    prova: {
+      sql: `select has_function_privilege('authenticated',
+              'public.import_apagar_acervo_filial(smallint)', 'execute')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-trilha-com-id-perdido',
+    roteiro: 'import_substituir.sql',
+    classe: 'trilha-ausente',
+    derruba: ['0d'],
+    porque:
+      'O id da linha de import_logs deixa de voltar para quem chamou. O retorno da RPC leva log_id nulo, e a tela que abre o histórico daquele import — com o backup_path, o autor e a contagem do que foi destruído — perde o ponteiro para a trilha da operação mais perigosa do sistema.',
+    sql: mutarFuncao(
+      'public.import_gravar_trilha(jsonb, smallint, text, jsonb, uuid, integer, integer, integer, integer, integer)',
+      `  returning id into v_log_id;`,
+      `  returning id into v_log_id;
+  v_log_id := null;  ${MARCA}`,
+      'import-trilha-com-id-perdido',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_gravar_trilha(jsonb, smallint, text, jsonb, uuid, integer, integer, integer, integer, integer)'::regprocedure)
+              like '%v_log_id := null;  --%'`,
       espera: 't',
     },
   },

@@ -204,7 +204,17 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     readFileSync(join(RAIZ, 'src', 'lib', 'types', 'database.ts'), 'utf8'),
   )
 
-  it('lê as 30 relações (21 tabelas + 9 views) e as 60 funções', () => {
+  it('lê as 30 relações (21 tabelas + 9 views) e as 68 funções', () => {
+    // ⚠ 08/09/2026 (F51): as funções passaram de 60 para 68 — as OITO auxiliares do
+    // import que a migration 0131 cria. Elas entraram no `database.ts` À MÃO, e não
+    // pelo gerador: `npm run db:types` lê um projeto REAL pela Management API, e a
+    // 0131 ainda não foi aplicada (o apply dela é caminho B do RUNBOOK-BANCO, porque
+    // o classificador do modo automático bloqueia DDL com `delete from
+    // public.ativos`). Sem as entradas, o gate de deriva reprovaria o
+    // `banco-sem-docker` assim que o Postgres do CI aplicasse a 0131 — e afrouxar o
+    // gate para passar não era opção. O comentário datado está no próprio
+    // `database.ts`, e a primeira regeneração após o apply reescreve tudo sozinha.
+    //
     // ⚠ 08/09/2026 (F50): as funções passaram de 59 para 60. A migration 0129 criou
     // `pode_ler_arquivo_termo` e o `npm run db:types` de produção a trouxe para o
     // arquivo. O número SUBIU porque o banco ganhou uma função — que é exatamente o
@@ -219,7 +229,7 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // regrediu foi o parser — e um parser que perde nomes do lado do repositório faz o
     // gate acusar deriva que não existe.
     expect(real.relacoes.size).toBe(30)
-    expect(real.funcoes.size).toBe(60)
+    expect(real.funcoes.size).toBe(68)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 

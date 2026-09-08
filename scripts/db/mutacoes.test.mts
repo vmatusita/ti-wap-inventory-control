@@ -66,7 +66,18 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 44 mutações ATIVAS', () => {
+  it('tem entre 20 e 48 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 44 PARA 48 NA F51 (08/09/2026). A fase decompôs
+    // `importar_ativos_substituir` (393 linhas) em oito auxiliares e escreveu UMA
+    // MUTAÇÃO POR AUXILIAR — sem isso, sete das oito nasceriam sem ninguém provar
+    // que os roteiros sabem ficar vermelhos quando elas quebram, que é a única
+    // coisa que o injetor mede. Duas das oito são as do import REAPONTADAS (não
+    // somam), então o lote foi de 39 para 45.
+    //
+    // 48 e não 45: a F52 acrescenta guardas de escopo e vai precisar de folga, e
+    // um teto colado no número de hoje só força outra decisão daqui a uma semana —
+    // que é como um teto vira ritual. A régua de desenho continua sendo a de baixo
+    // (quarentena abaixo de um terço) e o injetor rodar INCONDICIONALMENTE no CI.
     // ⚠ O TETO SUBIU DE 30 PARA 44 NA F48 (07/09/2026), e o motivo é escrito para não
     // virar hábito. A F47 fechou com 28 ativas e 5 em quarentena. A F48 (a) fortaleceu os
     // quatro cenários que a quarentena nomeava e promoveu TRÊS entradas de volta ao lote,
@@ -80,7 +91,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(44)
+    expect(MUTACOES.length).toBeLessThanOrEqual(48)
   })
 
   it('os `id` são únicos', () => {

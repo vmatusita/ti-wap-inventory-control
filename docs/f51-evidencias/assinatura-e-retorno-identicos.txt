@@ -1,0 +1,34 @@
+# F51 · critério 2 — a assinatura e o retorno da orquestradora, byte a byte
+#
+# 0094: assinatura nas linhas 49-58, retorno nas 441-450
+# 0131: assinatura nas linhas 686-695, retorno nas 805-814
+
+$ diff <(sed -n '49,58p' 0094) <(sed -n '686,695p' 0131)
+(diff VAZIO — idêntica)
+
+--- a assinatura, na íntegra ---
+create or replace function public.importar_ativos_substituir(
+  p_plano       jsonb,
+  p_backup_path text,
+  p_contagens   jsonb,
+  p_correcoes   jsonb default '[]'::jsonb
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+
+$ diff <(sed -n '441,450p' 0094) <(sed -n '805,814p' 0131)
+(diff VAZIO — idêntico)
+
+--- o retorno, na íntegra: 8 chaves, mesma ordem, mesmos nomes ---
+  return jsonb_build_object(
+    'log_id',                   v_log_id,
+    'filial_id',                v_filial,
+    'ativos_criados',           v_ativos_criados,
+    'movs_apagadas',            v_movs_apagadas,
+    'anotacoes_apagadas',       v_anot_apagadas,
+    'termos_apagados',          v_termos_apagados,
+    'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
+    'conflitos_abertos',        v_conflitos
+  );

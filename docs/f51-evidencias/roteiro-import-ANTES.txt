@@ -1,0 +1,27 @@
+# F51 — saída do import_substituir.sql ANTES da migration 0131 (o GABARITO)
+#
+# Origem: CI run 34239718796, job banco-sem-docker (id 102106489817), PR #34.
+# Commit da branch f51-decomposicao-rpc-import com a 0130 como ÚLTIMA migration.
+# Banco: postgres:17 limpo do runner; migrations 0001→0130 aplicadas em ordem.
+# Extraído por: gh run view --job=102106489817 --log
+#
+# A migration 0131 tem de reproduzir estas 11 asserções RÓTULO A RÓTULO.
+# (Medido: 11 asserções, não as 12 que a ordem de serviço supunha — a 12ª linha
+#  do bloco é o FIM, que é contador, não asserção.)
+#
+2026-09-08T14:41:30.5323189Z ==== supabase/tests/import_substituir.sql ====
+2026-09-08T14:41:30.5945405Z CREATE FUNCTION
+2026-09-08T14:41:30.5966647Z BEGIN
+2026-09-08T14:41:30.5973315Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1a retorno ativos_criados = 2
+2026-09-08T14:41:30.5974871Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1b filial A tem 2 ativos após o import
+2026-09-08T14:41:30.5978909Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1c ativo sem service tag nasce com pendência "sem service tag" (R-IMP-10)
+2026-09-08T14:41:30.5983529Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1d ativo com patrimônio + service tag nasce sem pendência
+2026-09-08T14:41:30.5985777Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1e as 2 compras de abertura têm observação "import startup …" (R-IMP-13, baseline)
+2026-09-08T14:41:30.5988314Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 1e (exemplo) observação da compra = "import startup 08/09/2026"
+2026-09-08T14:41:30.5991294Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 2 contagens NULL rejeitado: Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).
+2026-09-08T14:41:30.5994320Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 3 backup vazio rejeitado: Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).
+2026-09-08T14:41:30.5997421Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 4a filial B tem só o ativo do plano; o pré-existente foi apagado (R-IMP-02)
+2026-09-08T14:41:30.5999570Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 4b ativo do plano presente com origem = importacao
+2026-09-08T14:41:30.6001649Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  ✓ 4c outra filial (A) intacta após substituir B: 2 ativos (R-IMP-03)
+2026-09-08T14:41:30.6003973Z psql:supabase/tests/import_substituir.sql:223: NOTICE:  FIM import_substituir: 11 asserções, 0 falhas
+2026-09-08T14:41:30.6005028Z DO

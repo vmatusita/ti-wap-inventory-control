@@ -1478,6 +1478,63 @@ export type Database = {
         Returns: Json
       }
       hoje_brt: { Args: never; Returns: string }
+      // ⚠ AS OITO ABAIXO FORAM ESCRITAS À MÃO — F51, 08/09/2026.
+      // `npm run db:types` gera este arquivo a partir de um projeto REAL (a
+      // Management API, via `DB_TYPES_PROJECT_REF`), e a `0131` ainda não foi
+      // aplicada: o apply dela é caminho B do RUNBOOK-BANCO, porque o
+      // classificador do modo automático bloqueia DDL que contenha
+      // `delete from public.ativos` — e ela contém, em
+      // `import_apagar_acervo_filial`. Sem estas entradas, `npm run db:types:diff`
+      // reprova o `banco-sem-docker` (que é required check) assim que o Postgres
+      // do CI aplicar a 0131: o gate compara CONJUNTOS DE NOMES e acusa o que o
+      // BANCO tem e o arquivo não (`scripts/db/tipos-conjuntos.mjs:156`).
+      // Afrouxar o gate não era opção; o precedente de hand-fix está em
+      // `docs/DECISOES.md:448`.
+      // Na PRIMEIRA regeneração após o apply em produção, o gerador reescreve
+      // estas linhas sozinho — e este comentário sai junto.
+      // Nenhuma é API: as oito nascem com `revoke all … from public, anon,
+      // authenticated, service_role`. Só a orquestradora as alcança.
+      import_apagar_acervo_filial: { Args: { p_filial: number }; Returns: Json }
+      import_conferir_resultado: {
+        Args: { p_criados: number; p_filial: number; p_plano: Json; p_total: number }
+        Returns: undefined
+      }
+      import_contar_conflitos: { Args: { p_filial: number }; Returns: number }
+      import_criar_ativos: { Args: { p_elemento: Json; p_filial: number }; Returns: string }
+      import_gravar_trilha: {
+        Args: {
+          p_anotacoes: number
+          p_backup_path: string
+          p_conflitos: number
+          p_correcoes: Json
+          p_criados: number
+          p_filial: number
+          p_movs: number
+          p_plano: Json
+          p_termos: number
+          p_uid: string
+        }
+        Returns: string
+      }
+      import_lancar_movimentacoes: {
+        Args: {
+          p_ativo: string
+          p_data_import: string
+          p_elemento: Json
+          p_filial: number
+          p_obs_marcador: string
+          p_uid: string
+        }
+        Returns: undefined
+      }
+      import_revalidar_contagens: {
+        Args: { p_contagens: Json; p_filial: number }
+        Returns: undefined
+      }
+      import_validar_plano: {
+        Args: { p_backup_path: string; p_correcoes: Json; p_filial: number; p_plano: Json }
+        Returns: number
+      }
       importar_ativos_substituir: {
         Args: {
           p_backup_path: string
