@@ -672,18 +672,52 @@ const IMPORT_SUBSTITUIR = [
     id: 'import-sem-revalidacao-de-contagens',
     roteiro: 'import_substituir.sql',
     classe: 'guarda-neutralizada',
-    derruba: ['2', '0b'],
+    derruba: ['2'],
     porque:
       'Reabre o TOCTOU que a 0040 fechou: uma chamada forjada sem as contagens volta a pular por inteiro a revalidação do estado vivo — o acervo da filial é apagado sobre uma foto velha da tela.',
+    // ⚠ ELA SAI PELA PORTA (`return`), não afrouxa a condição — e a diferença foi
+    // MEDIDA no CI da F51 (run 34243304117), não deduzida. A forma antiga trocava
+    // a condição por `if false then`, e isso funcionava enquanto a 0094 tinha,
+    // logo abaixo do raise, o resíduo do item N (`if p_contagens is not null and
+    // jsonb_typeof(…) = 'object' then`) envolvendo o bloco inteiro: com
+    // `p_contagens` nulo, aquele segundo `if` também era falso e a revalidação
+    // sumia por completo. A 0131 removeu o resíduo — ele era código MORTO, sempre
+    // verdadeiro no ponto em que era avaliado —, e sem ele a mesma troca deixa o
+    // corpo seguir com os sentinelas `-1` do `coalesce`, que NÃO batem com o vivo
+    // e levantam a exceção de "estado mudou desde o preview". O roteiro via a RPC
+    // recusar, marcava ✓, e a mutação saía "NÃO detectada" — a asserção estava
+    // certa, a quebra é que não quebrava nada.
     sql: mutarFuncao(
       'public.import_revalidar_contagens(jsonb, smallint)',
-      `  if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then`,
-      `  if false then  ${MARCA}`,
+      `    raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';`,
+      `    return;  ${MARCA}`,
       'import-sem-revalidacao-de-contagens',
     ),
     prova: {
       sql: `select pg_get_functiondef('public.import_revalidar_contagens(jsonb, smallint)'::regprocedure)
-              like '%2b. revalidação%if false then  --%'`,
+              like '%2b. revalidação%return;  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-revalidacao-nao-compara-o-vivo',
+    roteiro: 'import_substituir.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['0b'],
+    porque:
+      'A OUTRA metade do TOCTOU: as contagens chegam, mas ninguém as compara com o estado real da filial. O preview pode ter sido gerado ontem, alguém pode ter cadastrado dez ativos desde então, e o import apaga tudo assim mesmo — a guarda vira ritual.',
+    // A primeira mutação prova que a RECUSA existe; esta prova que a COMPARAÇÃO
+    // existe. Separá-las é o que impede uma metade de passar de carona na outra.
+    sql: mutarFuncao(
+      'public.import_revalidar_contagens(jsonb, smallint)',
+      `  if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
+     or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then`,
+      `  if false then  ${MARCA}`,
+      'import-revalidacao-nao-compara-o-vivo',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_revalidar_contagens(jsonb, smallint)'::regprocedure)
+              like '%if false then  --%'`,
       espera: 't',
     },
   },
@@ -707,22 +741,31 @@ const IMPORT_SUBSTITUIR = [
     },
   },
   {
-    id: 'import-apagar-acervo-esquece-as-anotacoes',
+    id: 'import-trilha-do-apagado-mente-nas-anotacoes',
     roteiro: 'import_substituir.sql',
-    classe: 'destruicao-parcial-silenciosa',
+    classe: 'contagem-mentida',
     derruba: ['0g'],
     porque:
-      'O "Substituir tudo" deixa de apagar as anotações da filial: elas sobrevivem apontando para ativos que não existem mais, e a contagem devolvida ao operador mente sobre o que foi destruído. Ninguém percebe até alguém abrir a ficha de um ativo que sumiu.',
+      'A contagem de anotações destruídas volta zerada. O número que o operador vê ao fim do import, e o que fica gravado em import_logs como registro do que a operação apagou, param de descrever o que aconteceu de verdade — numa operação cujo único registro do estrago é esse.',
+    // ⚠ ELA MENTE A CONTAGEM, não deixa de apagar — e o motivo foi MEDIDO no CI da
+    // F51 (run 34243304117). A forma anterior neutralizava o próprio
+    // `delete from public.anotacoes`, e o resultado não era "mutação detectada":
+    // era o roteiro ABORTANDO. `anotacoes.ativo_id` tem FK para `ativos` (0017:8),
+    // então deixar as anotações vivas faz o `delete from public.ativos` seguinte
+    // estourar violação de chave estrangeira e derrubar o bloco inteiro antes da
+    // linha FIM. O injetor reporta ABORTOU, que é diagnóstico diferente de
+    // "detectada" — e mereceria ser, porque nesse caminho o roteiro não chegou a
+    // afirmar nada. Mesma armadilha vale para movimentacoes: as três tabelas-filha
+    // do acervo são apagadas ANTES de `ativos` justamente por causa dessas FKs.
     sql: mutarFuncao(
       'public.import_apagar_acervo_filial(smallint)',
-      `  delete from public.anotacoes
-   where ativo_id in (select id from public.ativos where filial_id = p_filial);`,
-      `  delete from public.anotacoes where false;  ${MARCA}`,
-      'import-apagar-acervo-esquece-as-anotacoes',
+      `  get diagnostics v_anot_apagadas = row_count;`,
+      `  v_anot_apagadas := 0;  ${MARCA}`,
+      'import-trilha-do-apagado-mente-nas-anotacoes',
     ),
     prova: {
       sql: `select pg_get_functiondef('public.import_apagar_acervo_filial(smallint)'::regprocedure)
-              like '%delete from public.anotacoes where false;%'`,
+              like '%v_anot_apagadas := 0;  --%'`,
       espera: 't',
     },
   },
