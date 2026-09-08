@@ -14,11 +14,12 @@ import type { PapelUsuario } from '@/lib/auth/papeis'
 // justamente porque ali o RLS não é a segunda linha. Este arquivo é o outro caso, e
 // até agora ele não estava escrito em lugar nenhum.
 //
-// Das 9 funções exportadas aqui, CINCO usam `createAdminClient()` — service role, que
-// tem `rolbypassrls` e passa por fora de toda policy: `lerContasAuth` (o helper de
-// `listarUsuarios`), `idsDeAdminsAtivos`, `perfilPorEmail`, `emailDoUsuario`,
-// `getEstadoUsuario` e `listarSenhasAcesso`. São 6 invocações num total de 22 no
-// repositório inteiro — a maior concentração num só arquivo.
+// Das 9 funções exportadas aqui, SEIS chegam ao service role — `createAdminClient()`,
+// que tem `rolbypassrls` e passa por fora de toda policy. Cinco o chamam DIRETAMENTE
+// (`idsDeAdminsAtivos`, `perfilPorEmail`, `emailDoUsuario`, `getEstadoUsuario`,
+// `listarSenhasAcesso`) e a sexta, `listarUsuarios`, chega por `lerContasAuth` — o
+// helper NÃO exportado da linha 102. São 6 invocações num total de 22 no repositório
+// inteiro: a maior concentração num só arquivo.
 //
 // E o que ele lê são PESSOAS, não inventário. Essa é a diferença que importa:
 //   · `auth.admin.listUsers` (linha ~69, em `lerContasAuth`) ENUMERA O PROJETO AUTH
