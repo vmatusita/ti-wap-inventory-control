@@ -3,6 +3,8 @@
 -- (F24 — migrations 0091 índices por filial, 0092 fonte derivada, 0093 a RPC de exclusão,
 --  0094 o contador no import, 0095 vocabulário + 9ª checagem, 0096 data de entrada,
 --  0097 transferência/estorno para a filial do gêmeo).
+-- F52 (0132) acrescentou o §10: a guarda de escopo `exigir_ativos_da_empresa`, chamada por
+-- `apagar_ativos_conflito_filiais` depois da etapa (3) do lock — hoje NO-OP (uma empresa só).
 --
 -- Roda no job `banco` do CI (psql, ON_ERROR_STOP=1) e é auto-verificável no SQL editor / MCP.
 -- Mesmo padrão dos demais roteiros da pasta:
@@ -40,6 +42,10 @@
 --      transferência para filial LIVRE continua passando
 --   8  TERMO DE LOTE misto recusa; termo que cobre só a seleção passa
 --   9  O ESTORNO COMUM continua funcionando (a regressão mais perigosa da fase)
+--  10  (F52/0132) exigir_ativos_da_empresa existe, fechada nos quatro papéis, é CITADA por
+--      apagar_ativos_conflito_filiais na ORDEM certa (depois do lock, antes da revalidação,
+--      fora da janela destrutiva) — e a exclusão LEGÍTIMA de um conflito continua passando
+--      com a guarda nova no caminho
 --
 -- Ao final, uma linha em `_conflito_resumo` com os contadores — é assim que se lê o resultado
 -- pelo MCP, que engole NOTICE/WARNING.
@@ -99,6 +105,13 @@ declare
   v_ok int := 0; v_falhas int := 0;
   v_n int; v_reais int; v_bool boolean; v_jsonb jsonb;
   v_cargos uuid[]; v_nomes text[] := array['operador', 'consulta'];
+
+  -- §10 (F52) — a guarda de escopo nova, exigir_ativos_da_empresa
+  v_def         text;  -- pg_get_functiondef de apagar_ativos_conflito_filiais
+  v_pos_call    int;   -- posição da chamada a exigir_ativos_da_empresa
+  v_pos_etapa3  int;   -- posição da etapa (3) do lock em dois tempos
+  v_pos_ident   int;   -- posição de "with ident as (" (a revalidação do grupo)
+  v_pos_janela  int;   -- posição do set_config que ABRE a janela dev_destrutivo
 begin
   -- ==========================================================================
   -- FIXTURES
@@ -628,6 +641,106 @@ begin
     v_falhas := v_falhas + 1; raise warning '✗ 6d  recusa por outro motivo: %', SQLSTATE;
   end;
 
+  reset role;
+
+  -- ==========================================================================
+  -- §10  F52 (0132) — A GUARDA DE ESCOPO NOVA: exigir_ativos_da_empresa
+  -- ==========================================================================
+  -- A 0132 acrescenta `exigir_ativos_da_empresa`, chamada de dentro de
+  -- `apagar_ativos_conflito_filiais` depois da etapa (3) do lock em dois tempos e
+  -- antes da revalidação do grupo. Hoje ela NÃO LEVANTA NUNCA (uma empresa só) —
+  -- então este bloco não prova recusa (não há o que recusar ainda); prova que a
+  -- FECHADURA está no lugar certo e que o caminho feliz segue de pé com ela no
+  -- meio. É o PAR da guarda no-op que a regra 1 da ordem F52 exige: um cenário
+  -- que recusaria o alheio (aqui, hoje, inerte) e um que aceita o legítimo (10d).
+
+  -- (a) a função existe, é SECURITY DEFINER e está FECHADA nos quatro papéis —
+  --     o mesmo padrão de `import_substituir.sql:191-219` (asserção 0e), aqui
+  --     para uma função só. O PUBLIC não é role: sua concessão vive em `proacl`,
+  --     não em `has_function_privilege` — revogar de `anon` sem revogar de
+  --     `public` é no-op silencioso (a lição da F50, registrada em MEMORY.md).
+  select count(*) into v_n
+    from (values ('anon'), ('authenticated'), ('service_role')) r(rolname)
+   where has_function_privilege(r.rolname, 'public.exigir_ativos_da_empresa(uuid[])', 'execute');
+
+  select v_n + count(*) into v_n
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'exigir_ativos_da_empresa'
+     and array_to_string(coalesce(p.proacl, '{}'::aclitem[]), ',') like '=%X%';
+
+  if v_n = 0 then
+    v_ok := v_ok + 1; raise notice '✓ 10a exigir_ativos_da_empresa está fechada nos quatro papéis (public, anon, authenticated, service_role)';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 10a exigir_ativos_da_empresa tem % concessão(ões) de EXECUTE viva(s) — a superfície de RPC cresceu', v_n;
+  end if;
+
+  -- (b) apagar_ativos_conflito_filiais CITA a guarda, e na ORDEM certa: depois da
+  --     etapa (3) do lock (o comentário que só existe ali, "trava o RESTO do
+  --     grupo") e antes da revalidação ("with ident as ("). position() sobre o
+  --     texto REAL do corpo no catálogo — não sobre o arquivo da migration — é
+  --     o que prova que a guarda não foi parar antes dos locks NO BANCO QUE VAI
+  --     RODAR, e não só na leitura humana do .sql.
+  select pg_get_functiondef(p.oid) into v_def
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'apagar_ativos_conflito_filiais';
+
+  v_pos_call   := position('public.exigir_ativos_da_empresa(v_ids)' in v_def);
+  v_pos_etapa3 := position('trava o RESTO do grupo' in v_def);
+  v_pos_ident  := position('with ident as (' in v_def);
+
+  if v_pos_call > 0 and v_pos_etapa3 > 0 and v_pos_ident > 0
+     and v_pos_etapa3 < v_pos_call and v_pos_call < v_pos_ident then
+    v_ok := v_ok + 1; raise notice '✓ 10b a chamada a exigir_ativos_da_empresa vem DEPOIS da etapa (3) do lock e ANTES da revalidação do grupo';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 10b ordem errada ou chamada sumiu do corpo (etapa3=%, chamada=%, with ident=%)', v_pos_etapa3, v_pos_call, v_pos_ident;
+  end if;
+
+  -- (c) a chamada fica FORA da janela `estoque.dev_destrutivo`: a posição da
+  --     chamada tem de ser MENOR que a do set_config que ABRE a janela — o
+  --     'on', não o 'off' (que fecha, duas vezes, mais abaixo). A busca usa
+  --     aspas reais (via chr(39)) para casar só com o SET_CONFIG de verdade, e
+  --     não com o comentário que apenas MENCIONA `estoque.dev_destrutivo` entre
+  --     crases, mais acima no corpo (o que daria posição menor por engano).
+  v_pos_janela := position(
+    (chr(39) || 'estoque.dev_destrutivo' || chr(39) || ', ' || chr(39) || 'on' || chr(39))
+    in v_def);
+
+  if v_pos_janela > 0 and v_pos_call < v_pos_janela then
+    v_ok := v_ok + 1; raise notice '✓ 10c a chamada acontece FORA da janela destrutiva — não há guarda a desarmar';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 10c a chamada está dentro (ou depois) da abertura da janela dev_destrutivo (chamada=%, janela=%)', v_pos_call, v_pos_janela;
+  end if;
+
+  -- (d) O PAR POSITIVO — a decisão 1 da ordem F52. v_t1/v_t2 (§7/§9) NUNCA foram
+  --     apagados por este roteiro e SEGUEM em conflito: apagar um grupo
+  --     LEGÍTIMO continua funcionando com exigir_ativos_da_empresa no meio do
+  --     caminho. §3a/§3e/§8b já provavam isso de passagem (todas rodaram DEPOIS
+  --     da 0132 aplicada); este é o rótulo EXPLÍCITO que a ordem pede.
+  select count(*) into v_n from public.v_conflitos_filiais where ativo_id in (v_t1, v_t2);
+  if v_n = 2 then
+    v_ok := v_ok + 1; raise notice '✓ 10d-fixture o par v_t1/v_t2 segue em conflito, intacto para o par positivo';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 10d-fixture v_t1/v_t2 não está mais em conflito (% lado(s)) — a fixture não serve mais para o par positivo', v_n;
+  end if;
+
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
+  begin
+    v_jsonb := public.apagar_ativos_conflito_filiais(
+      array[v_t1, v_t2], 'APAGAR 2',
+      'par positivo da guarda de escopo F52: exclusao legitima de conflito continua passando');
+    if (v_jsonb->>'ativos')::int = 2
+       and not exists (select 1 from public.ativos where id in (v_t1, v_t2)) then
+      v_ok := v_ok + 1; raise notice '✓ 10d o par da guarda: exclusão LEGÍTIMA de um grupo em conflito continua funcionando com exigir_ativos_da_empresa no caminho';
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 10d a exclusão legítima não bateu com a guarda nova no caminho: %', v_jsonb;
+    end if;
+  exception when others then
+    v_falhas := v_falhas + 1; raise warning '✗ 10d a exclusão legítima QUEBROU com a guarda nova no caminho: % / %', SQLSTATE, SQLERRM;
+  end;
   reset role;
 
   -- ==========================================================================

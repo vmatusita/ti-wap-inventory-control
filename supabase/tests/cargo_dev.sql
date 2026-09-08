@@ -238,16 +238,29 @@ begin
   -- 1d. a RPC mais destrutiva do sistema NÃO recusa o dev POR CARGO. Ela vai falhar (o plano
   -- é vazio), mas a mensagem não pode ser a da guarda de cargo — é assim que se separa
   -- "recusado por ser quem é" de "recusado porque o pedido era inválido".
+  --
+  -- ⚠ FORTALECIDO NA F52 (08/09/2026). A versão anterior só conferia se sqlerrm continha
+  -- "administradores" — então QUALQUER outra exceção (42883 função inexistente, 42P01
+  -- tabela inexistente, erro de tipo no jsonb…) caía no ramo `else` e era contada como
+  -- "✓ dev passou pela guarda de cargo", quando na verdade a RPC (ou algo que ela chama)
+  -- nem chegou a rodar. Agora o SQLSTATE entra na conferência ANTES da mensagem: 42883 e
+  -- 42P01 são reprovados explicitamente — objeto ausente não é "passou pela guarda por
+  -- outro motivo", é fixture (ou a própria migration 0131/0132) fora do lugar, e quem tem
+  -- de gritar é o teste, não aplaudir. Fortalecer não é afrouxar: tudo que 1d reprovava
+  -- antes (a mensagem com "administradores") continua reprovando, sem exceção.
   begin
     perform public.importar_ativos_substituir('{}'::jsonb, 'f22/x.csv', '{}'::jsonb, '[]'::jsonb);
     v_ok := v_ok + 1; raise notice '✓ 1d dev passou pela guarda de cargo da RPC de import';
   exception when others then
-    if lower(sqlerrm) like '%administradores%' then
+    if sqlstate in ('42883', '42P01') then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '1d_FUNCAO_OU_TABELA_AUSENTE; ';
+      raise warning '✗ 1d a RPC de import (ou algo que ela chama) não existe (%) % — isto NÃO é "passou pela guarda", é objeto ausente', sqlstate, sqlerrm;
+    elsif lower(sqlerrm) like '%administradores%' then
       v_falhas := v_falhas + 1; v_msgs := v_msgs || '1d_RECUSOU_DEV; ';
       raise warning '✗ 1d a RPC de import recusou o DEV por cargo: %', sqlerrm;
     else
       v_ok := v_ok + 1;
-      raise notice '✓ 1d dev passou pela guarda de cargo da RPC de import (falhou adiante, por outro motivo: %)', sqlstate;
+      raise notice '✓ 1d dev passou pela guarda de cargo da RPC de import (falhou adiante, por outro motivo: % %)', sqlstate, sqlerrm;
     end if;
   end;
 
@@ -791,6 +804,281 @@ begin
   end;
 
   reset role;
+
+  -- =========================================================================
+  -- 7 — F52: AS GUARDAS DE ESCOPO NO-OP (migration 0132)
+  -- =========================================================================
+  -- Roda por ÚLTIMO, como postgres (herdado do `reset role;` acima), e cada bloco troca de
+  -- papel só quando precisa. As quatro funções novas/alteradas da 0132 nascem FECHADAS nos
+  -- quatro papéis (doutrina da 0078, a mesma que a 5e já prova para exigir_gestao_de e
+  -- existe_outro_admin_ativo) — então, como em 5d/5e, a única forma de CHAMAR a maioria
+  -- delas fora de outra security definer é como superusuário, que ignora GRANT/REVOKE.
+  --
+  -- Rótulos fora de ordem numérica de propósito (7h/7i/7f ficam por último): 7j precisa de
+  -- k_admin com sessão administrativa VÁLIDA, e 7h neutraliza k_admin (ativo=false) para
+  -- isolar a trava do último administrador do ruído dos três admins/devs que o resto do
+  -- arquivo já plantou. Trocar a ordem quebraria 7j. Nada DEPOIS desta seção depende do
+  -- estado de nível administrador, então mexer nele aqui é seguro — mesma lógica do
+  -- comentário de k_alvo lá em cima (linha ~100).
+  declare
+    k_admin_a  uuid := '00000000-f52a-4000-8000-0000000000a1';
+    k_admin_b  uuid := '00000000-f52a-4000-8000-0000000000a2';
+    v_corpo    text;
+    v_faltando text := '';
+    v_rpc      text;
+    v_result_1 boolean;
+    v_result_2 boolean;
+    v_qtde     int;
+    v_nargs    int;
+    v_args     text;
+    v_n2       int;
+    v_outros_admins uuid[];
+  begin
+    -- 7c. O CORPO de exigir_gestao_de CITA mesmo_escopo_de_gestao.
+    -- ⚠ ISTO É PROVA DE PRESENÇA, NÃO DE EFEITO — e é deliberado escrever por quê.
+    -- mesmo_escopo_de_gestao devolve `true` para TODO alvo (F52: com uma empresa só, ela é
+    -- inerte por definição). Logo nenhum cenário de entrada/saída DISTINGUE "a chamada está
+    -- lá" de "a chamada nunca existiu": os dois mundos produzem exatamente o mesmo
+    -- comportamento observável hoje — uma guarda que sempre aceita é indetectável por
+    -- efeito, por definição. A única forma de provar que a fechadura está no CAMINHO — e não
+    -- só documentada em comentário — é ler o corpo COMPILADO da função com
+    -- pg_get_functiondef e procurar a citação. Quando a F65 der corpo real à guarda, aí sim
+    -- have haverá cenário de efeito (um alvo fora do escopo recusado); até lá, esta asserção
+    -- é quem denuncia se a chamada sumir numa recriação futura de exigir_gestao_de.
+    begin
+      select pg_get_functiondef('public.exigir_gestao_de(uuid, public.papel_usuario)'::regprocedure)
+        into v_corpo;
+      if v_corpo like '%mesmo_escopo_de_gestao%' then
+        v_ok := v_ok + 1; raise notice '✓ 7c exigir_gestao_de CITA mesmo_escopo_de_gestao no corpo (prova de presença)';
+      else
+        v_falhas := v_falhas + 1; v_msgs := v_msgs || '7c_GUARDA_SUMIU; ';
+        raise warning '✗ 7c exigir_gestao_de NÃO cita mesmo_escopo_de_gestao — a fechadura de pertencimento saiu do caminho';
+      end if;
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7c; ';
+      raise warning '✗ 7c não foi possível ler o corpo de exigir_gestao_de (%) %', sqlstate, sqlerrm;
+    end;
+
+    -- 7d. As CINCO RPCs de gestão continuam citando exigir_gestao_de — a prova de que UMA
+    -- condição protege as cinco, e de que nenhuma recriação (nesta fase ou numa futura)
+    -- deixou alguma delas para trás.
+    v_faltando := '';
+    foreach v_rpc in array array[
+      'public.definir_papel_usuario(uuid, public.papel_usuario)',
+      'public.definir_status_usuario(uuid, boolean)',
+      'public.definir_vinculos_usuario(uuid, smallint[])',
+      'public.apagar_usuario(uuid)',
+      'public.encerrar_sessoes_usuario(uuid)'
+    ]
+    loop
+      begin
+        select pg_get_functiondef(v_rpc::regprocedure) into v_corpo;
+        if v_corpo is null or v_corpo not like '%exigir_gestao_de%' then
+          v_faltando := v_faltando || v_rpc || '; ';
+        end if;
+      exception when others then
+        v_faltando := v_faltando || v_rpc || '(ausente:' || sqlstate || '); ';
+      end;
+    end loop;
+    if v_faltando = '' then
+      v_ok := v_ok + 1; raise notice '✓ 7d as cinco RPCs de gestão continuam citando exigir_gestao_de';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7d_RPC_SEM_GUARDA; ';
+      raise warning '✗ 7d RPC(s) sem citar exigir_gestao_de (ou ausente[s]): %', v_faltando;
+    end if;
+
+    -- 7g. SEM OVERLOAD: existe_outro_admin_ativo tem de ser UMA função só, de 2 argumentos.
+    -- A 0132 faz DROP da versão de 1 argumento antes do CREATE da de 2 — precisamente para
+    -- isto: se as duas coexistissem, as TRÊS chamadas de 1 argumento que já vivem dentro de
+    -- definir_papel_usuario/definir_status_usuario/apagar_usuario (0074) levantariam 42725
+    -- "function ... is not unique" em tempo de EXECUÇÃO, sem erro nenhum no apply da
+    -- migration. Medido por CONTAGEM e ARIDADE (pronargs), não por comparação textual do
+    -- args formatados — mais robusto a como o Postgres deparse a DEFAULT.
+    select count(*), max(p.pronargs)
+      into v_qtde, v_nargs
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'existe_outro_admin_ativo';
+    select pg_get_function_identity_arguments(p.oid)
+      into v_args
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'existe_outro_admin_ativo'
+     limit 1;
+    if v_qtde = 1 and v_nargs = 2 then
+      v_ok := v_ok + 1; raise notice '✓ 7g existe_outro_admin_ativo é UMA função só, com 2 argumentos (%)', v_args;
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7g_OVERLOAD; ';
+      raise warning '✗ 7g existe_outro_admin_ativo: % função(ões) no catálogo, aridade=% (args=%) — esperado 1 função com 2 argumentos (a de 1 argumento não pode ter sobrado, senão as três chamadas de 1 argumento das RPCs levantariam 42725)', v_qtde, v_nargs, v_args;
+    end if;
+
+    -- 7a. mesmo_escopo_de_gestao EXISTE e devolve TRUE para um alvo real — o par positivo
+    -- (ACEITA O LEGÍTIMO) que prova que a fechadura no-op não passou a recusar ninguém.
+    begin
+      select public.mesmo_escopo_de_gestao(k_operador) into v_bool;
+      if v_bool = true then
+        v_ok := v_ok + 1; raise notice '✓ 7a mesmo_escopo_de_gestao(alvo real) = true — aceita o legítimo';
+      else
+        v_falhas := v_falhas + 1; v_msgs := v_msgs || '7a_DEVOLVEU_FALSE; ';
+        raise warning '✗ 7a mesmo_escopo_de_gestao devolveu false para um alvo real (esperado true hoje, com uma empresa só)';
+      end if;
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7a; ';
+      raise warning '✗ 7a mesmo_escopo_de_gestao não pôde ser chamada (%) %', sqlstate, sqlerrm;
+    end;
+
+    -- 7b. mesmo_escopo_de_gestao FECHADA nos quatro papéis — mesma forma da 5e (que já prova
+    -- isto para exigir_gestao_de/existe_outro_admin_ativo), agora para a função nova da 0132.
+    begin
+      if not has_function_privilege('public', 'public.mesmo_escopo_de_gestao(uuid)', 'execute')
+         and not has_function_privilege('anon', 'public.mesmo_escopo_de_gestao(uuid)', 'execute')
+         and not has_function_privilege('authenticated', 'public.mesmo_escopo_de_gestao(uuid)', 'execute')
+         and not has_function_privilege('service_role', 'public.mesmo_escopo_de_gestao(uuid)', 'execute') then
+        v_ok := v_ok + 1; raise notice '✓ 7b mesmo_escopo_de_gestao fechada nos quatro papéis (public/anon/authenticated/service_role)';
+      else
+        v_falhas := v_falhas + 1; v_msgs := v_msgs || '7b_ABERTA; ';
+        raise warning '✗ 7b mesmo_escopo_de_gestao está executável por algum papel além do dono';
+      end if;
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7b; ';
+      raise warning '✗ 7b has_function_privilege(mesmo_escopo_de_gestao) levantou (%) %', sqlstate, sqlerrm;
+    end;
+
+    -- 7e. EQUIVALÊNCIA: existe_outro_admin_ativo(alvo) [1 argumento, usa o DEFAULT] e
+    -- existe_outro_admin_ativo(alvo, null) [2 argumentos, escopo EXPLÍCITO null] têm de
+    -- devolver o MESMO valor — é o que prova que as três chamadas de 1 argumento que já
+    -- vivem dentro de definir_papel_usuario/definir_status_usuario/apagar_usuario (0074)
+    -- continuam corretas depois do DROP+CREATE da 0132, sem precisar recriar as três RPCs.
+    begin
+      select public.existe_outro_admin_ativo(k_admin)       into v_result_1;
+      select public.existe_outro_admin_ativo(k_admin, null) into v_result_2;
+      if v_result_1 = v_result_2 then
+        v_ok := v_ok + 1; raise notice '✓ 7e existe_outro_admin_ativo(alvo) = existe_outro_admin_ativo(alvo, null) = %', v_result_1;
+      else
+        v_falhas := v_falhas + 1; v_msgs := v_msgs || '7e_DIVERGIU; ';
+        raise warning '✗ 7e existe_outro_admin_ativo diverge entre 1 e 2 argumentos: % vs %', v_result_1, v_result_2;
+      end if;
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7e; ';
+      raise warning '✗ 7e existe_outro_admin_ativo levantou (%) %', sqlstate, sqlerrm;
+    end;
+
+    -- 7j. PAR POSITIVO PARA definir_vinculos_usuario. Hoje ela só aparece no rótulo 2e, e só
+    -- no lado NEGATIVO (admin recusado ao mexer no vínculo de um DEV) — cego ao efeito real
+    -- da RPC. Aqui um NÍVEL ADMINISTRADOR (k_admin) vincula um OPERADOR (k_operador, que
+    -- hoje só está em v_f1 — linha 161) à filial v_f2, e prova que a linha nova aparece E a
+    -- antiga some: a guarda de pertencimento da 0132 (mesmo_escopo_de_gestao, inerte hoje)
+    -- não quebrou o caminho legítimo. Tem de rodar ANTES de 7h neutralizar k_admin.
+    set local role authenticated;
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
+    begin
+      perform public.definir_vinculos_usuario(k_operador, array[v_f2]::smallint[]);
+      v_ok := v_ok + 1; raise notice '✓ 7j admin CHAMA definir_vinculos_usuario sobre um operador sem levantar exceção';
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7j; ';
+      raise warning '✗ 7j admin recusado ao vincular um operador a uma filial (%) %', sqlstate, sqlerrm;
+    end;
+    reset role;
+
+    select count(*) into v_n
+      from public.operador_filiais where usuario_id = k_operador and filial_id = v_f2;
+    select count(*) into v_n2
+      from public.operador_filiais where usuario_id = k_operador and filial_id = v_f1;
+    if v_n = 1 and v_n2 = 0 then
+      v_ok := v_ok + 1; raise notice '✓ 7j-bis o vínculo gravou de verdade: operador ligado a v_f2, o vínculo antigo (v_f1) foi substituído';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7j-bis_NAO_GRAVOU; ';
+      raise warning '✗ 7j-bis vínculo não gravou como esperado: % linha(s) em v_f2 (esp. 1), % em v_f1 (esp. 0)', v_n, v_n2;
+    end if;
+
+    -- 7h/7i/7f. A TRAVA DO ÚLTIMO ADMINISTRADOR, ISOLADA DO RUÍDO AMBIENTE. Neutraliza
+    -- (ativo=false) TODO admin/dev ativo que já exista no banco — não só k_dev/k_dev2/k_admin,
+    -- que este arquivo planta. ⚠ MEDIDO EM ENSAIO (08/09/2026): a primeira versão desta
+    -- seção só neutralizava os TRÊS fixtures conhecidos, e o rótulo 7h reprovou lá — porque
+    -- o projeto de ensaio (diferente do Postgres NOVO do CI que o cabeçalho promete) já tem
+    -- conta(s) real(is) de nível administrador cadastradas, e a contagem enxergou essa sobra.
+    -- A CAPTURA a seguir funciona nos dois mundos: num banco novo de CI, `v_outros_admins`
+    -- sai vazio (k_dev/k_dev2/k_admin são os únicos, e entram aqui); num banco povoado
+    -- (ensaio/produção), pega TODO mundo — a neutralização é revertida pelo `rollback;` no
+    -- fim do arquivo, e nenhuma outra sessão enxerga o estado intermediário (MVCC: mudança
+    -- não commitada é invisível fora desta transação). k_dev/k_dev2 são cargo dev: tocar
+    -- ativo/papel/excluido_em deles fora do caminho oficial é recusado até para o
+    -- superusuário (seção 2h/2i/2i-bis acima) — por isso a janela `estoque.gestao_usuarios`,
+    -- a MESMA técnica que a fixture inicial usa para plantar k_dev/k_dev2 (linhas ~163-169).
+    select coalesce(array_agg(p.id), '{}'::uuid[])
+      into v_outros_admins
+      from public.profiles p
+     where p.papel in ('dev', 'admin') and p.ativo and p.excluido_em is null;
+
+    perform set_config('estoque.gestao_usuarios', 'on', true);
+    update public.profiles set ativo = false where id = any (v_outros_admins);
+    perform set_config('estoque.gestao_usuarios', 'off', true);
+
+    insert into auth.users (id, instance_id, aud, role, email,
+                            encrypted_password, email_confirmed_at, created_at, updated_at)
+    values
+      (k_admin_a, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+       'f52.admin.a@wap.ind.br', '', now(), now(), now());
+    update public.profiles set primeiro_nome = 'Beltrana', sobrenome = 'Administradora',
+           papel = 'admin', ativo = true
+     where id = k_admin_a;
+
+    -- 7h. Com UM SÓ administrador ativo no banco (k_admin_a), a trava do último admin
+    -- CONTINUA travando: existe_outro_admin_ativo() tem de devolver false.
+    begin
+      select public.existe_outro_admin_ativo(k_admin_a) into v_bool;
+      if v_bool = false then
+        v_ok := v_ok + 1; raise notice '✓ 7h existe_outro_admin_ativo(único admin ativo) = false — a trava do último administrador continua travando';
+      else
+        v_falhas := v_falhas + 1; v_msgs := v_msgs || '7h_TRAVA_QUEBROU; ';
+        raise warning '✗ 7h com um único admin ativo, existe_outro_admin_ativo() devolveu true — a trava do último administrador quebrou';
+      end if;
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7h; ';
+      raise warning '✗ 7h existe_outro_admin_ativo() levantou (%) %', sqlstate, sqlerrm;
+    end;
+
+    insert into auth.users (id, instance_id, aud, role, email,
+                            encrypted_password, email_confirmed_at, created_at, updated_at)
+    values
+      (k_admin_b, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+       'f52.admin.b@wap.ind.br', '', now(), now(), now());
+    update public.profiles set primeiro_nome = 'Ciclana', sobrenome = 'Administradora',
+           papel = 'admin', ativo = true
+     where id = k_admin_b;
+
+    -- 7i. PAR POSITIVO de 7h: com um SEGUNDO admin ativo (k_admin_b), a trava ACEITA.
+    begin
+      select public.existe_outro_admin_ativo(k_admin_a) into v_bool;
+      if v_bool = true then
+        v_ok := v_ok + 1; raise notice '✓ 7i existe_outro_admin_ativo(k_admin_a) = true agora que k_admin_b existe — a trava ACEITA quando há outro';
+      else
+        v_falhas := v_falhas + 1; v_msgs := v_msgs || '7i_NAO_ACEITOU; ';
+        raise warning '✗ 7i com DOIS admins ativos, existe_outro_admin_ativo() ainda devolveu false';
+      end if;
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7i; ';
+      raise warning '✗ 7i existe_outro_admin_ativo() levantou (%) %', sqlstate, sqlerrm;
+    end;
+
+    -- 7f. ESCOPO NULO NÃO RECUSA TUDO: com os DOIS admins fictícios de 7h/7i no ar, o
+    -- p_escopo EXPLÍCITO null tem de continuar TRUE. Se a guarda estivesse escrita como
+    -- `and coluna = p_escopo` (igualdade crua, em vez da disjunção `p_escopo is null or
+    -- true`), a comparação viraria NULL, o `exists` devolveria false, e ESTA asserção é
+    -- quem denunciaria — silenciosamente, a trava do último administrador passaria a
+    -- recusar TODO rebaixamento/desativação, mesmo havendo outro admin de sobra.
+    begin
+      select public.existe_outro_admin_ativo(k_admin_a, null) into v_bool;
+      if v_bool = true then
+        v_ok := v_ok + 1; raise notice '✓ 7f existe_outro_admin_ativo(alvo, escopo=>null) = true — escopo nulo não recusa tudo';
+      else
+        v_falhas := v_falhas + 1; v_msgs := v_msgs || '7f_ESCOPO_NULO_RECUSOU; ';
+        raise warning '✗ 7f existe_outro_admin_ativo(alvo, null) devolveu false com outro admin existindo — o escopo nulo está recusando tudo';
+      end if;
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7f; ';
+      raise warning '✗ 7f existe_outro_admin_ativo(alvo, null) levantou (%) %', sqlstate, sqlerrm;
+    end;
+  end;
 
   -- =========================================================================
   -- RESUMO (a linha que o MCP consegue ler — ele engole NOTICE/WARNING)

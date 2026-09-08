@@ -66,7 +66,21 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 48 mutações ATIVAS', () => {
+  it('tem entre 20 e 56 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 48 PARA 56 NA F52 (08/09/2026), e o motivo é este.
+    //
+    // A F52 acrescentou SETE guardas de escopo no-op e OITO mutações — uma por guarda,
+    // mais uma segunda para `mesmo_escopo_de_gestao`. A segunda existe por uma razão que
+    // vale escrever, porque ela é a lição da fase inteira: uma guarda que devolve `true`
+    // é INDETECTÁVEL POR EFEITO. Remover a chamada não muda resultado nenhum. Então cada
+    // guarda no-op precisa de DOIS eixos de mutação:
+    //   · PRESENÇA — remover a chamada derruba a asserção que lê `pg_get_functiondef`;
+    //   · EFEITO   — fazer a guarda devolver `false` derruba os cenários POSITIVOS, e é
+    //     a única prova de que a condição está mesmo NO CAMINHO das cinco RPCs.
+    // Sem o segundo eixo, a fase teria entregue uma condição que talvez nem executasse.
+    // 47 + 8 = 55, e o teto vai a 56 (uma de folga, não oito: teto largo demais deixa de
+    // ser decisão).
+    //
     // ⚠ O TETO SUBIU DE 44 PARA 48 NA F51 (08/09/2026). A fase decompôs
     // `importar_ativos_substituir` (393 linhas) em oito auxiliares e escreveu UMA
     // MUTAÇÃO POR AUXILIAR — sem isso, sete das oito nasceriam sem ninguém provar
@@ -91,7 +105,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(48)
+    expect(MUTACOES.length).toBeLessThanOrEqual(56)
   })
 
   it('os `id` são únicos', () => {

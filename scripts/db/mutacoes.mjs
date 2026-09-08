@@ -1092,6 +1092,191 @@ revoke all on function public.sabotagem_f48_definer() from public, anon;`,
   },
 ]
 
+
+// =============================================================================
+// F52 — as guardas de escopo NO-OP (migration 0132)
+// =============================================================================
+// ⚠ A DIFICULDADE PRÓPRIA DESTA FAMÍLIA, e por que ela é escrita assim.
+//
+// Uma guarda que devolve `true` é INDETECTÁVEL POR EFEITO, por definição: remover a
+// chamada a `mesmo_escopo_de_gestao` de dentro de `exigir_gestao_de` não muda resultado
+// nenhum, porque a função só sabe dizer "sim". Um injetor ingênuo concluiria daí que o
+// roteiro é fraco — e estaria errado: não há efeito a detectar.
+//
+// A saída é mutar nos DOIS eixos, e cada um cobre o que o outro não vê:
+//   · PRESENÇA — remover a chamada. O que cai é a asserção que lê `pg_get_functiondef` e
+//     exige que o corpo CITE a guarda. É a única coisa observável hoje, e é o que impede a
+//     guarda de sumir numa recriação futura (o mecanismo causal que a F51 documentou).
+//   · EFEITO   — fazer a guarda devolver `false`. Aí o no-op deixa de ser no-op e TUDO que
+//     depende dela tem de ficar vermelho. É a prova de que a guarda está mesmo NO CAMINHO
+//     das cinco RPCs, e não pendurada num ramo que ninguém percorre.
+//
+// Sem o segundo eixo, a fase teria entregue uma condição que talvez nem executasse.
+/** @type {Mutacao[]} */
+const F52_GUARDAS = [
+  {
+    id: 'f52-escopo-de-gestao-some-do-corpo',
+    roteiro: 'cargo_dev.sql',
+    classe: 'guarda-removida',
+    derruba: ['7c'],
+    porque:
+      'Remove a chamada a `mesmo_escopo_de_gestao` de dentro de `exigir_gestao_de` — a guarda de pertencimento das CINCO RPCs de conta. É a forma REALISTA de o defeito nascer: a RPC é recriada em cadeia, e o método de mudá-la sempre foi copiar o corpo e editar o trecho novo. Uma condição de quatro linhas se perde numa recriação sem que roteiro nenhum de comportamento acuse, porque hoje ela não tem efeito.',
+    sql: mutarFuncao(
+      'public.exigir_gestao_de(uuid, public.papel_usuario)',
+      `  if not public.mesmo_escopo_de_gestao(p_alvo) then
+    raise exception 'Este usuário não pertence à sua organização.'
+      using errcode = '42501';
+  end if;`,
+      `  ${MARCA}
+  -- (a guarda de pertencimento foi removida daqui)`,
+      'f52-escopo-de-gestao-some-do-corpo',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.exigir_gestao_de(uuid, public.papel_usuario)'::regprocedure)
+              not like '%mesmo_escopo_de_gestao%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f52-escopo-de-gestao-passa-a-recusar',
+    roteiro: 'cargo_dev.sql',
+    classe: 'no-op-deixou-de-ser-no-op',
+    derruba: ['7a', '7j'],
+    porque:
+      'O eixo do EFEITO: faz `mesmo_escopo_de_gestao` devolver `false`. Se a guarda estiver mesmo no caminho das cinco RPCs, o cenário que ACEITA O LEGÍTIMO (7a) e o par positivo de `definir_vinculos_usuario` (7j) têm de ficar vermelhos. Se ficarem verdes, a condição foi escrita mas não é percorrida — que é o modo de falha silenciosa desta fase inteira.',
+    sql: mutarFuncao(
+      'public.mesmo_escopo_de_gestao(uuid)',
+      '  select true',
+      `  select false  ${MARCA}`,
+      'f52-escopo-de-gestao-passa-a-recusar',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.mesmo_escopo_de_gestao(uuid)'::regprocedure)
+              like '%select false%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f52-admin-ativo-volta-a-igualdade-crua',
+    roteiro: 'cargo_dev.sql',
+    classe: 'escopo-nulo-recusa-tudo',
+    derruba: ['7f', '7i'],
+    porque:
+      'Troca a disjunção GUARDADA (`p_escopo is null or true`) por igualdade CRUA contra NULL. É o risco que o plano da fase nomeia por escrito: escopo ausente faz a comparação virar NULL, o `exists` devolve false, e a trava do último administrador passa a RECUSAR TUDO — toda troca de cargo, toda desativação, todo apagamento de conta. Um defeito silencioso trocado por um travamento barulhento.',
+    sql: mutarFuncao(
+      'public.existe_outro_admin_ativo(uuid, uuid)',
+      '       and (p_escopo is null or true)',
+      `       and null::uuid = p_escopo  ${MARCA}`,
+      'f52-admin-ativo-volta-a-igualdade-crua',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.existe_outro_admin_ativo(uuid, uuid)'::regprocedure)
+              like '%null::uuid = p_escopo%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f52-import-perde-a-guarda-de-filial',
+    roteiro: 'import_fora_da_unidade.sql',
+    classe: 'guarda-removida',
+    derruba: ['5a-ter'],
+    porque:
+      'Remove `pode_escrever_filial(v_filial)` da orquestradora do import. Ela é a única das RPCs destrutivas que ficou de fora da varredura da 0064, recebe a filial do PAYLOAD e faz `delete from public.ativos where filial_id = v_filial` sem teto, dentro da janela que desarma a `guarda_acervo`. Hoje a condição é inerte (nível administrador escreve em toda filial), e é justamente por ser inerte que alguém a "simplificaria" por parecer redundante.',
+    sql: mutarFuncao(
+      'public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)',
+      `  if not public.pode_escrever_filial(v_filial) then
+    raise exception 'Você não tem permissão de escrita na filial % — o import foi recusado.', v_filial
+      using errcode = '42501';
+  end if;`,
+      `  ${MARCA}
+  -- (a guarda de filial foi removida daqui)`,
+      'f52-import-perde-a-guarda-de-filial',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)'::regprocedure)
+              not like '%pode_escrever_filial%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f52-backup-do-import-aceita-qualquer-prefixo',
+    roteiro: 'import_fora_da_unidade.sql',
+    classe: 'guarda-afrouxada',
+    derruba: ['2a'],
+    porque:
+      'Afrouxa a conferência de PREFIXO do backup do import: volta ao ritual de string que existia antes da fase, em que qualquer caminho não-vazio passava — inclusive o backup de OUTRA filial. O backup é a única rede embaixo de um DELETE sem teto.',
+    sql: mutarFuncao(
+      'public.import_validar_plano(jsonb, text, jsonb, smallint)',
+      "  if btrim(p_backup_path) not like v_prefixo || '%' then",
+      `  if false and btrim(p_backup_path) not like v_prefixo || '%' then  ${MARCA}`,
+      'f52-backup-do-import-aceita-qualquer-prefixo',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_validar_plano(jsonb, text, jsonb, smallint)'::regprocedure)
+              like '%if false and btrim(p_backup_path)%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f52-import-volta-a-nao-conferir-confirmacao',
+    roteiro: 'import_fora_da_unidade.sql',
+    classe: 'guarda-removida',
+    derruba: ['3a'],
+    porque:
+      'Remove a conferência da confirmação digitada de DENTRO da RPC. Volta ao estado anterior à fase, em que a confirmação parava na Server Action e quem chamasse `/rest/v1/rpc/importar_ativos_substituir` direto, com a anon key e o próprio JWT, pulava o campo inteiro.',
+    sql: mutarFuncao(
+      'public.import_validar_plano(jsonb, text, jsonb, smallint)',
+      "  if upper(btrim(coalesce(v_confirmacao, ''))) <> upper(btrim(coalesce(v_filial_nome, ''))) then",
+      `  if false then  ${MARCA}`,
+      'f52-import-volta-a-nao-conferir-confirmacao',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_validar_plano(jsonb, text, jsonb, smallint)'::regprocedure)
+              not like '%upper(btrim(coalesce(v_confirmacao%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f52-import-perde-a-janela-de-idempotencia',
+    roteiro: 'import_fora_da_unidade.sql',
+    classe: 'guarda-removida',
+    derruba: ['4a'],
+    porque:
+      'Remove a janela de 24 h por `arquivo_hash`. Sem ela, dois applies do mesmo arquivo passam — e o SEGUNDO apaga tudo o que o primeiro criou, com uuids novos e os termos destruídos. A coluna existe desde a 0031 com o comentário "idempotência" e nunca foi lida até esta fase.',
+    sql: mutarFuncao(
+      'public.import_validar_plano(jsonb, text, jsonb, smallint)',
+      "  if v_hash <> '' and exists (",
+      `  if false and v_hash <> '' and exists (  ${MARCA}`,
+      'f52-import-perde-a-janela-de-idempotencia',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_validar_plano(jsonb, text, jsonb, smallint)'::regprocedure)
+              like '%if false and v_hash%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f52-mesa-perde-a-guarda-de-pertencimento',
+    roteiro: 'conflito_filiais.sql',
+    classe: 'guarda-removida',
+    derruba: ['10b'],
+    porque:
+      'Remove `exigir_ativos_da_empresa(v_ids)` de `apagar_ativos_conflito_filiais`. É a MESMA classe da primeira mutação desta família, e no lugar mais perigoso: a mesa é a ÚNICA exceção à exclusividade do dev sobre exclusão de ativo, e a RPC é recriada em cadeia (0093 → 0098 → 0100 → 0132). A guarda foi extraída como função própria exatamente para que a chamada seja UMA linha que o diff denuncia se sumir.',
+    sql: mutarFuncao(
+      'public.apagar_ativos_conflito_filiais(uuid[], text, text, text)',
+      '  perform public.exigir_ativos_da_empresa(v_ids);',
+      `  ${MARCA}
+  -- (a guarda de pertencimento foi removida daqui)`,
+      'f52-mesa-perde-a-guarda-de-pertencimento',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.apagar_ativos_conflito_filiais(uuid[], text, text, text)'::regprocedure)
+              not like '%exigir_ativos_da_empresa%'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
   ...PAPEIS_RLS,
   ...SEGURANCA_CATALOGO,
@@ -1100,6 +1285,7 @@ export const MUTACOES = [
   ...IMPORT_SUBSTITUIR,
   ...CONFLITO_FILIAIS,
   ...CATALOGOS_F48,
+  ...F52_GUARDAS,
 ]
 
 /**
@@ -1133,13 +1319,27 @@ export const QUARENTENA = [
     id: 'conflito-serializacao-por-advisory-lock',
     roteiro: 'conflito_filiais.sql',
     classe: 'concorrencia',
+    // ⚠ REAPONTADA PELA F52 (08/09/2026), de F52 para F55, e o motivo é escrito porque
+    // reapontar em silêncio é mover uma promessa. Esta entrada NÃO é uma asserção que
+    // falta: ela exige uma CAPACIDADE que o rig não tem. Um roteiro é um `psql` só,
+    // dentro de `begin; … rollback;`; detectar a perda do advisory lock exige DUAS
+    // conexões travando as mesmas linhas em ordens opostas ao mesmo tempo. Isso é um
+    // harness em Node com dois `psql` — construção nova, do tamanho de
+    // `run-mutation-tests.mjs`, e escopo de outra fase.
+    //
+    // O que a F52 FEZ a respeito, e que não é nada: ela acrescentou uma guarda DENTRO
+    // desta RPC e, junto, as asserções `10b`/`10c` de `conflito_filiais.sql`, que provam
+    // por `position()` que a chamada nova está DEPOIS da etapa (3) do lock e ANTES da
+    // janela `estoque.dev_destrutivo`. Isso não substitui o cenário concorrente — não
+    // detecta a REMOÇÃO do advisory lock —, mas fecha o risco que a própria F52
+    // introduziria: o de a guarda nova ter sido posta antes dos locks.
     derruba: ['(nenhum rótulo de hoje)'],
     porque:
       'A `pg_advisory_xact_lock` que a 0100 acrescentou serializa duas sessões que apagam grupos de conflito que se cruzam — sem ela, o lock em dois tempos deixa duas transações travarem as mesmas linhas em ordens opostas e uma delas morre em deadlock.',
     sql: 'remover a chamada a pg_advisory_xact_lock de apagar_ativos_conflito_filiais',
     indetectavel:
       'Nenhuma asserção do roteiro abre uma SEGUNDA conexão. Dentro de uma transação psql sozinha, remover a trava não muda resultado nenhum — o roteiro fica verde e a mutação se disfarçaria de "asserção fraca" quando o que falta é um cenário CONCORRENTE, que só existe escrevendo catálogo novo.',
-    fase: 'F52',
+    fase: 'F55',
   },
   {
     id: 'conflito-backup-em-arquivo-sem-prefixo-do-digest',
@@ -1151,6 +1351,22 @@ export const QUARENTENA = [
     sql: 'afrouxar a conferência do caminho do backup em apagar_ativos_conflito_filiais',
     indetectavel:
       'A maior seleção que o roteiro monta tem 2 ativos, muito abaixo do teto de 25 — o ramo de backup em arquivo nunca roda. Detectar exige um cenário com 26 ativos, que é catálogo novo.',
-    fase: 'F52',
+    // ⚠ REAPONTADA PELA F52 (08/09/2026), de F52 para F54, com o motivo escrito porque
+    // reapontar em silêncio é mover uma promessa.
+    //
+    // Esta entrada é ESCREVÍVEL hoje — bastam 26 ativos fictícios por `generate_series`,
+    // e nisso ela difere da irmã acima, que exige uma capacidade que o rig não tem. A
+    // razão de não a adotar aqui não é dificuldade: é ENDEREÇO. Ela é sobre o BACKUP do
+    // conflito (o ramo em arquivo, acima de 25 ativos, e a amarra pelo digest da
+    // seleção), e a F52 é sobre guardas de ESCOPO. A F54 — "o backup deixa de mentir, e a
+    // restauração é ensaiada" — é a fase cujo assunto é exatamente este, e ela já vai
+    // abrir os caminhos de backup para mexer neles.
+    //
+    // Fica registrado, para quem pegar a F54: o cenário que falta é (a) montar 26 ativos
+    // em conflito, (b) provar que a RPC EXIGE backup em arquivo acima do teto, e (c)
+    // provar que ela RECUSA um caminho que não esteja sob `conflito/<digest dos ids>/` —
+    // a correção que a 0100 fez porque conferir só o prefixo aceitava o backup de OUTRA
+    // exclusão.
+    fase: 'F54',
   },
 ]
