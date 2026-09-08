@@ -342,9 +342,15 @@ begin
 
   -- 5a-bis — pelo CORPO de pode_escrever_filial: o ramo dev/admin devolve true ANTES
   -- de qualquer leitura de operador_filiais (a tabela que recorta por vínculo).
+  --
+  -- ⚠ A ÂNCORA É A CLÁUSULA `from public.operador_filiais`, e NÃO o nome cru da tabela.
+  -- O nome cru aparece ANTES, no COMENTÁRIO da própria função ("…escreve em toda
+  -- filial, sem linha em operador_filiais"), e `pg_get_functiondef` devolve o corpo COM
+  -- os comentários — então a comparação de posições media o comentário contra o código e
+  -- reprovava uma função correta. Casar com a LEITURA é o que torna a asserção honesta.
   select pg_get_functiondef('public.pode_escrever_filial(smallint)'::regprocedure) into v_def;
   v_pos_dev := position('in (''dev'', ''admin'')' in v_def);
-  v_pos_fil := position('operador_filiais' in v_def);
+  v_pos_fil := position('from public.operador_filiais' in v_def);
   if v_pos_dev > 0 and v_pos_fil > 0 and v_pos_dev < v_pos_fil then
     v_ok := v_ok + 1;
     raise notice '✓ 5a-bis o corpo de pode_escrever_filial devolve true para dev/admin ANTES de consultar operador_filiais (posições % < %)', v_pos_dev, v_pos_fil;
@@ -353,11 +359,16 @@ begin
     raise warning '✗ 5a-bis pode_escrever_filial: ramo dev/admin não aparece mais antes do recorte por filial (dev em %, operador_filiais em %)', v_pos_dev, v_pos_fil;
   end if;
 
-  -- 5a-ter — pelo CORPO de importar_ativos_substituir: a chamada nova continua lá.
-  -- Ela é EXTRAÍDA, e não inline, porque a orquestradora é recriada em cadeia — é
-  -- exatamente o mecanismo pelo qual uma guarda inline se perde na recriação seguinte.
+  -- 5a-ter — pelo CORPO de importar_ativos_substituir: a CHAMADA nova continua lá.
+  --
+  -- ⚠ A ÂNCORA É A CHAMADA INTEIRA (`not public.pode_escrever_filial(v_filial)`), e não
+  -- o nome cru. O comentário que a 0132 escreveu em volta da guarda CITA o nome três
+  -- vezes (é ele que explica por que a condição não deve ser "simplificada"), então uma
+  -- asserção pelo nome cru continuaria VERDE mesmo com a chamada removida — e a mutação
+  -- `f52-import-perde-a-guarda-de-filial`, que remove exatamente o `if`, sairia como
+  -- "não detectada". Uma asserção que não sabe ficar vermelha não prova nada.
   select pg_get_functiondef('public.importar_ativos_substituir(jsonb,text,jsonb,jsonb)'::regprocedure) into v_def;
-  v_pos_call := position('pode_escrever_filial' in v_def);
+  v_pos_call := position('not public.pode_escrever_filial(v_filial)' in v_def);
   if v_pos_call > 0 then
     v_ok := v_ok + 1;
     raise notice '✓ 5a-ter o corpo de importar_ativos_substituir CHAMA pode_escrever_filial';
