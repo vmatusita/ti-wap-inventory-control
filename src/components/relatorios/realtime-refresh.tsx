@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { carimboAtualizado } from '@/lib/relatorios/carimbo-hora'
+import { nomeDoCanal } from '@/lib/escopo/chave'
+import { TABELAS_ASSINADAS, opcoesDaAssinatura } from '@/lib/relatorios/assinatura-realtime'
 
 // Tempo real p/ OPERADOR logado (OS-F3 3.4 / F3B 3.10.4): assina INSERTs em
 // `movimentacoes`, `lancamentos_item` e `anotacoes` (Supabase Realtime) e faz
@@ -46,12 +48,17 @@ export function RealtimeRefresh() {
       }, 2000)
     }
 
-    const canal = supabase
-      .channel('relatorio-tempo-real')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'movimentacoes' }, aoMudar)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lancamentos_item' }, aoMudar)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'anotacoes' }, aoMudar)
-      .subscribe()
+    // F50 — nome do canal PARAMETRIZADO pelo escopo (`nomeDoCanal`), e as três
+    // assinaturas saindo de UMA função (`opcoesDaAssinatura`) em vez de três objetos
+    // montados à mão. Hoje o resultado é byte a byte o de antes: mesmo evento, mesmo
+    // schema, mesmas três tabelas, nenhum `filter`. O que mudou é onde se mexe para
+    // que deixe de ser — ver o cabeçalho de `lib/relatorios/assinatura-realtime.ts`,
+    // inclusive o aviso de que este caminho NÃO passa por `lib/queries` e portanto
+    // não herda recorte nenhum que a virada ponha lá.
+    const canal = TABELAS_ASSINADAS.reduce(
+      (c, tabela) => c.on('postgres_changes', opcoesDaAssinatura(tabela), aoMudar),
+      supabase.channel(nomeDoCanal('relatorio-tempo-real')),
+    ).subscribe()
 
     // RV-16 — o fallback de foco também é um refresh de verdade (o operador
     // volta pra aba e vê dado novo); o carimbo acompanha, senão "atualizado
