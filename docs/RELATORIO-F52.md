@@ -169,6 +169,11 @@ As duas de `import_validar_plano` são o cabeçalho do bloco `1b` e o `raise` qu
    a asserção `5e` não ficava vermelha, **abortava o roteiro inteiro**.
 4. **Um QUINTO comentário mentiroso**, além dos quatro previstos: `importar-wizard.tsx` dizia
    que a RPC "nem repete essa checagem". A partir desta fase, repete.
+5. **O `3i` de `papeis_rls.sql` não tinha sido fortalecido** na primeira passada — só o `1d`.
+   O ramo `else` seguia contando como ✓ qualquer exceção, inclusive `42883`/`42P01`. Pego na
+   autoverificação do critério 6, **antes** da revisão adversarial; corrigido do mesmo jeito
+   que o `1d`, e pelo mesmo motivo: numa fase que **recria** a RPC de import, confundir
+   "objeto ausente" com "a guarda recusou" é exatamente o erro que não se pode cometer.
 
 ---
 
@@ -181,7 +186,7 @@ As duas de `import_validar_plano` são o cabeçalho do bloco `1b` e o `raise` qu
 | 3 | Parâmetro de escopo; trava do último admin continua; escopo nulo não recusa tudo | ✅ `7e`–`7i` |
 | 4 | A conta de plataforma na ata **e** no cabeçalho do roteiro | ✅ |
 | 5 | `definir_vinculos_usuario` ganhou par positivo | ✅ `7j`, `7j-bis` |
-| 6 | `1d` e `3i` distinguem `42883`/`42P01` de recusa, sem exigir menos | ✅ |
+| 6 | `1d` e `3i` distinguem `42883`/`42P01` de recusa, sem exigir menos | ✅ **`3i` ficou de fora na primeira passada** — pego na autoverificação, não pela revisão |
 | 7 | `pode_escrever_filial` em conjunção, entre filial e advisory lock | ✅ `5a`, `5a-bis`, `5a-ter` |
 | 8 | `prefixo_backup_import` por id + cascata de três com `22023` | ✅ `1a`, `1b`, `2a`–`2c` |
 | 9 | `erros.ts` com frase própria; teste de que não diz "deste reset" | ✅ `2d` |
@@ -223,6 +228,23 @@ Uma guarda com só o lado "recusa" não prova que é no-op — prova o contrári
 ---
 
 ## 9. O que este relatório NÃO prova
+
+0. **"No-op" vale para as guardas de PERTENCIMENTO — não para o pacote inteiro.** A
+   revisão adversarial levantou isto, e é justo: das sete guardas da fase, **quatro** são
+   literalmente inertes hoje (`mesmo_escopo_de_gestao`, o escopo de
+   `existe_outro_admin_ativo`, `pode_escrever_filial` no import e `exigir_ativos_da_empresa`).
+   As **três da Frente B** mudam comportamento de verdade, e é para isso que existem:
+   - **backup (prefixo + existência)** e **confirmação digitada** são no-op *pela tela* — a
+     Server Action já grava no caminho certo e já confere a confirmação antes de chamar.
+     Quem passa a ser recusado é **quem chama a RPC direto**, pela anon key com o próprio
+     JWT, pulando a tela. Era exatamente esse o buraco.
+   - **a idempotência de 24 h muda comportamento INCLUSIVE pela tela.** Reaplicar o mesmo
+     arquivo na mesma filial dentro da janela era aceito, e o segundo import apagava o que
+     o primeiro tinha criado. Agora é recusado, com mensagem própria. **Isso é correção de
+     um defeito de integridade, não um no-op** — e está assim no CHANGELOG e na ata.
+   O critério 23 ("nenhuma operação legítima passou a ser recusada") continua satisfeito:
+   reimportar o mesmo arquivo duas vezes em 24 h **não era uma operação legítima**, era o
+   bug. E o escape existe e está provado (`4b` e `4c`).
 
 1. **Uma guarda que devolve `true` é INDETECTÁVEL POR EFEITO.** O que se provou é a **presença**
    dela no caminho — o corpo cita a chamada, o catálogo a conhece, e a mutação de efeito derruba
