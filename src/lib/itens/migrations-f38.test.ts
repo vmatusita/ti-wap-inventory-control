@@ -74,6 +74,13 @@ const DA_F38 = [
   // a recriar uma função que apaga acervo, e foi ela que expôs o exagero da
   // varredura de DELETE logo abaixo — ver a nota lá.
   '0131',
+  // F52 (08/09/2026) — as guardas de escopo no-op. Mesmo motivo de sempre: a lista é
+  // COBERTURA, não o índice da F38. Ela interessa em particular às guardas de intocáveis
+  // e de DELETE/UPDATE em massa, porque recria DUAS funções cujo corpo contém
+  // `delete from public.ativos` (`importar_ativos_substituir` e
+  // `apagar_ativos_conflito_filiais`) — e é justamente a distinção "corpo de função que o
+  // Postgres GUARDA" vs. "comando que a migration RODA" que a 0131 obrigou a escrever.
+  '0132',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */
