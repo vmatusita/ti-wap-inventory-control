@@ -153,8 +153,36 @@ prova que as oito estão fechadas é a asserção `0e`, que lê o **ACL real**.
 | **D** | a invariante na forma **global** | **encontrada de verdade, não simulada** — ver abaixo |
 | **E** | mudar o trecho que uma mutação procura | `trocarNoCorpo` **reprovou ALTO**: *"a migration mudou e a mutação viraria um no-op silencioso"* |
 | **F** | neutralizar a guarda de backup / a revalidação | é o que as mutações `import-sem-exigencia-de-backup` e `import-sem-revalidacao-de-contagens` fazem — **detectadas** pelos cenários `3` e `2` no CI |
+| **G** | `v_sonda := 'a--b'; delete … where false;` numa auxiliar não autorizada | 2 de 33 — o `--` dentro do literal **não** esconde mais o delete |
+| **H** | a chamada real trocada por `raise notice 'import_conferir_resultado skip debug';` | 1 de 33 — nome em string **não** conta mais como referência |
+| **I** | remover UM item de `AUXILIARES` | 2 de 33 — a lista virou classificação conferida nos dois sentidos |
 
-Após A, B, C e E o arquivo foi restaurado e conferido por **sha256** — `git diff` vazio.
+Após cada uma o arquivo foi restaurado e conferido por **sha256** — `git diff` vazio.
+
+### 4.2 G, H e I vieram da revisão adversarial, e elas eram furos de verdade
+
+A revisão em contexto fresco não encontrou defeito na `0131`. Encontrou **na trava** — e o achado é o
+tipo que só aparece quando alguém tenta furar de propósito:
+
+- `corpoSemComentarios` cortava a linha no primeiro `--` **sem saber se ele estava dentro de uma
+  string**. Com `v_sonda := 'a--b'; delete from public.ativos where false;` numa auxiliar não
+  autorizada, o delete real ficava invisível e os 31 testes passavam **com duas portas destrutivas no
+  corpo** — exatamente o que a trava existe para impedir.
+- Pior: o **nome** de uma auxiliar dentro de um literal satisfazia o `toContain` da checagem de órfã.
+  Trocar a chamada real por um `raise notice` com o nome na string deixava a auxiliar órfã e a suíte
+  verde. Isso atingia em cheio a premissa da **Decisão 3** ("uma chamada esquecida derruba
+  `npm run test`") — o argumento com que eu justifiquei extrair a conferência.
+- E remover **um** item de `AUXILIARES` fazia a suíte cair de 31 para 28 testes, **todos verdes**: a
+  auxiliar deixava de ser checada em três lugares e nada acusava a perda de cobertura.
+
+**Correção:** `codigoVivo()` limpa os **literais antes** dos comentários — a ordem é o que importa —, e
+`AUXILIARES` virou **classificação conferida nos dois sentidos** contra o que as migrations definem,
+no molde do `catalogo_secdef.sql`. Mais três asserções que **provam** as correções em vez de confiar em
+quem leu. A trava passou de 31 para **33** asserções.
+
+Registro honesto: a primeira versão da trava teria sido mergeada com esses furos se a revisão não
+tivesse tentado furá-la. É o argumento da própria fase — asserção que ninguém tentou quebrar é
+sensação de rede.
 
 ### 4.1 A sabotagem D aconteceu sozinha
 
@@ -174,10 +202,12 @@ quem leu. O mesmo raciocínio, com as mesmas palavras, já estava em `scripts/db
 
 ## 5. O injetor — e as duas mutações que o CI reprovou
 
-**47 ativas** (39 + 8), 2 em quarentena (as duas são da F52; esta fase não as tocou). Teto 44 → **48**,
+**47 ativas** (39 + 8), 2 em quarentena (as duas são da F52; esta fase não as tocou). Teto 44 → **48**, com o motivo escrito no próprio teste, como a linha da F48 manda.
 com o motivo escrito no próprio teste, como a linha da F48 manda.
 
-No lote medido: **46/46 acusadas pelo cenário NOMEADO**, controle verde antes de mutar.
+No lote final (CI 34248964404): **47/47 acusadas pelo cenário NOMEADO**, com o controle verde antes
+de mutar — se o acervo de asserções já estivesse vermelho, o injetor abortaria em vez de reportar 47
+"detectadas" por um roteiro que já falhava.
 
 As nove do import:
 
