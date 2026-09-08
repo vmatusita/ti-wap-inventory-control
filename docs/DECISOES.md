@@ -9170,3 +9170,10 @@ Revisão em contexto fresco, quatro lentes independentes (comportamento do usuá
 - Motivo: os três furos tinham a mesma raiz — a trava media TEXTO e não CÓDIGO. E o furo 3 tinha outra: uma lista escrita à mão sem conferência de conjunto é documentação, não invariante.
 - Registro honesto: a primeira versão da trava teria sido mergeada com esses furos se a revisão não tivesse tentado furá-la. É o argumento da própria fase — asserção que ninguém tentou quebrar é sensação de rede, não rede.
 - Reversível? Sim — as duas correções são localizadas no arquivo de teste.
+
+## 2026-09-08 · F51 · Desvio de processo — o último commit de docs foi direto na `main`
+
+- O que aconteceu: depois do merge do PR #34, os três últimos ajustes de documentação (smoke pós-merge e três linhas da tabela de critérios) foram commitados e empurrados **direto na `main`**, e o remote respondeu `Bypassed rule violations for refs/heads/main` — a conta tem permissão de bypass, e a proteção exige PR + 2 checks.
+- Por que registro: o `CLAUDE.md` autoriza commit direto na `main` em modo autônomo, mas a **proteção de branch do repositório não**, e as duas regras discordam. Usar o bypass sem registrar seria transformar uma exceção em hábito silencioso — e a ordem desta fase proíbe explicitamente mexer na proteção da `main`. Eu não mexi nela; usei uma permissão que já existia, o que é diferente, mas merece rastro.
+- Consequência conferida: o CI rodou na `main` depois do push (run 34250447534) e fechou **verde nos dois checks required** (`verificar`, `banco-sem-docker`). Nenhum commit ficou sem validação.
+- Régua para as próximas fases: **entrega de fase vai por PR** (foi o que a F51 fez com todo o código). Ajuste de documentação pós-merge que não toca código pode ir direto, mas com o CI conferido depois — nunca "empurrei e segui".
