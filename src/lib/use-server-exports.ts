@@ -104,7 +104,13 @@ type Estado = 'codigo' | 'linha' | 'bloco' | 'aspa' | 'aspas' | 'crase'
 // número da linha do achado tem de continuar batendo com o arquivo real.
 // Os delimitadores de string são preservados: `ehModuloUseServer` precisa deles
 // para reconhecer a diretiva do prólogo.
-function limpar(fonte: string, apagarStrings: boolean): string {
+// F49 — EXPORTADA (era local) para que `guardas-de-action.ts` reuse a MESMA
+// neutralização em vez de escrever a segunda. A trava das guardas precisa
+// exatamente disto: um `exigirPapel` citado num comentário ou dentro de uma
+// string não pode contar como guarda, e é este `limpar(fonte, true)` que apaga
+// os dois. Duas cópias de um neutralizador de comentário é como um dos dois
+// envelhece sem ninguém notar — foi o argumento que criou `busca/prefixo.ts`.
+export function limpar(fonte: string, apagarStrings: boolean): string {
   const saida: string[] = []
   const manter = (c: string) => saida.push(c)
   const branco = (c: string) => saida.push(c === '\n' ? '\n' : ' ')

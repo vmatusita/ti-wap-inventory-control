@@ -1,3 +1,4 @@
+import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { chavePatrimonio, SEM_PATRIMONIO } from '@/lib/patrimonio'
 import { paginarTodos } from '@/lib/queries/relatorios/comum'

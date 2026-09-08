@@ -1,3 +1,4 @@
+import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type {
   CategoriaAtivo,
@@ -17,7 +18,7 @@ import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import {
   MIN_PREFIXO_SUGESTAO,
   prefixoSeguro,
-} from '@/lib/queries/prefixo-busca'
+} from '@/lib/busca/prefixo'
 
 // Estado do ativo ANTES da movimentacao (usado no dialog de estorno — o ativo
 // volta a este estado). Gravado pelo trigger em `snapshot_anterior` (jsonb).
@@ -306,7 +307,7 @@ const MAX_SUGESTOES = 10
 
 // `prefixoSeguro` e `MIN_PREFIXO_SUGESTAO` moravam AQUI e foram copiados verbatim
 // para queries/colaboradores.ts na F37. Na revisão de 28/08/2026 as duas cópias
-// viraram uma só em `queries/prefixo-busca.ts`: o conjunto neutralizado é regra de
+// viraram uma só em `busca/prefixo.ts`: o conjunto neutralizado é regra de
 // segurança do ILIKE, e manter duas listas era garantir que um dia elas divergiriam.
 
 async function sugestoesDeColuna(

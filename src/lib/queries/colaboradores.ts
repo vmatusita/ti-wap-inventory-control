@@ -1,9 +1,10 @@
+import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import {
   MIN_PREFIXO_SUGESTAO,
   prefixoSeguro,
-} from '@/lib/queries/prefixo-busca'
+} from '@/lib/busca/prefixo'
 import { chaveColaborador, chavesDistintas } from '@/lib/colaboradores/chave'
 
 // Leituras do cadastro de pessoas (F37 · D5). Rota só do operador — usam o client do

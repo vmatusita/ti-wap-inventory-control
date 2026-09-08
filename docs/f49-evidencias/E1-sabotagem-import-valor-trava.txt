@@ -1,0 +1,5 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/queries/servidor-apenas.test.ts > nenhum módulo cliente importa VALOR de lib/queries > nenhum import de valor
+  src/components/movimentacoes/ativo-combobox.tsx:19 — import { buscarAtivosParaCombobox, type AtivoResumo } from '@/lib/queries/ativos'
++   "src/components/movimentacoes/ativo-combobox.tsx:19 — import { buscarAtivosParaCombobox, type AtivoResumo } from '@/lib/queries/ativos'",
+      Tests  1 failed | 51 passed (52)

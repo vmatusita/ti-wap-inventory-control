@@ -19,6 +19,9 @@ import {
   type SaldoDaPessoa,
 } from '@/lib/itens/vinculo-retorno'
 import { avisoDeRegularizacao, textoDaRegularizacao } from '@/lib/itens/regularizacao'
+// F49 — o teto do lote de `buscarResumoDeAtivosPorIds`. Reusa a constante que o
+// cadastro de compra já usa em vez de inventar um segundo número para a mesma ideia.
+import { MAX_LOTE_COMPRA } from '@/lib/patrimonio'
 import {
   buscarAtivosParaCombobox,
   buscarAtivosPorPatrimonios,
@@ -736,6 +739,14 @@ export async function buscarAtivosParaMovimentacao(
   term: string,
 ): Promise<AtivoResumo[]> {
   try {
+    // F49 — piso da hierarquia, e nao `idOperador`: os tres cargos buscam por igual,
+    // e quem NAO atende e o perfil DESATIVADO. Esta e a action mais quente do sistema
+    // (a paleta de comandos a chama com debounce POR TECLA, em toda tela) e tambem a
+    // que mais entrega: ela ENUMERA o acervo por patrimonio.
+    const supabase = await createClient()
+    const aut = await exigirPapel(supabase, 'consulta')
+    // Mesma degradacao calada do `catch` abaixo — combobox nao ganha mensagem nova.
+    if (!aut.ok) return []
     return await buscarAtivosParaCombobox(term)
   } catch (err) {
     // Degrada para lista vazia (o combobox roda com debounce e nao deve derrubar
@@ -788,6 +799,14 @@ export async function resolverPatrimoniosParaLote(
   }
 
   try {
+    // F49 — a recusa usa o canal de `erro` que esta funcao JA tem (o dialog exibe),
+    // e nao uma excecao: nada muda de forma. Perfil ativo nunca chega aqui.
+    const supabase = await createClient()
+    const aut = await exigirPapel(supabase, 'consulta')
+    if (!aut.ok) {
+      return { ...resolucaoVazia(), erro: aut.erro, invalidos: parse.invalidos }
+    }
+
     const candidatosPorPatrimonio = new Map<string, AtivoResumo[]>()
     // Patrimonio nao-canonico (F7J) e buscado nas DUAS formas — normalizada e
     // exatamente como o operador colou: o `in` do PostgREST e case-sensitive e o
@@ -903,6 +922,12 @@ export async function buscarColaboradoresDoCampo(
   }
   if (prefixo.trim().length < 2) return vazio
   try {
+    // F49 — guarda DEPOIS do piso de 2 caracteres, de proposito: abaixo dele a funcao
+    // ja devolvia `vazio` sem tocar o banco, e adiantar a guarda custaria uma ida ao
+    // Supabase a cada tecla antes da segunda letra. Recusa devolve o MESMO `vazio`.
+    const supabase = await createClient()
+    const aut = await exigirPapel(supabase, 'consulta')
+    if (!aut.ok) return vazio
     return await sugestoesDoCampoColaborador(prefixo)
   } catch (err) {
     console.error('[buscarColaboradoresDoCampo] falha ao carregar sugestões:', err)
@@ -914,6 +939,10 @@ export async function buscarColaboradoresDoCampo(
 export async function buscarSugestoesSetores(prefixo: string): Promise<string[]> {
   if (prefixo.trim().length < 2) return []
   try {
+    // F49 — mesma ordem e mesma degradacao calada de `buscarColaboradoresDoCampo`.
+    const supabase = await createClient()
+    const aut = await exigirPapel(supabase, 'consulta')
+    if (!aut.ok) return []
     return await sugestoesSetores(prefixo)
   } catch (err) {
     console.error('[buscarSugestoesSetores] falha nas sugestões:', err)
@@ -928,6 +957,11 @@ export async function buscarPossiveisDuplicatasDoDia(
   pares: ParMovimentacaoDia[],
 ): Promise<PossivelDuplicataDia[]> {
   try {
+    // F49 — recusa devolve "nenhuma duplicata", que e exatamente o que o `catch`
+    // desta funcao ja faz: ela e AVISO, nao trava, e nunca derruba o registro.
+    const supabase = await createClient()
+    const aut = await exigirPapel(supabase, 'consulta')
+    if (!aut.ok) return []
     return await possiveisDuplicatasDoDia(pares)
   } catch (err) {
     console.error('[buscarPossiveisDuplicatasDoDia] falha ao checar duplicatas:', err)
@@ -941,6 +975,23 @@ export async function buscarResumoDeAtivosPorIds(
   ids: string[],
 ): Promise<AtivoResumo[]> {
   try {
+    // F49 — TETO. Esta action recebe uma lista de ids VINDA DO CLIENTE e devolve o
+    // resumo de cada um: sem teto, uma chamada podia pedir o acervo inteiro de uma
+    // vez, e o "rascunho" viraria o caminho barato de dump. `MAX_LOTE_COMPRA` (200) e
+    // o teto que o proprio sistema ja usa para lote, e um rascunho real nunca chega
+    // perto dele.
+    //
+    // O teto vai na ACTION e nao na query: `buscarAtivosResumoPorIds` serve outros
+    // chamadores de dentro do servidor, que nao vem da rede.
+    if (ids.length > MAX_LOTE_COMPRA) {
+      console.error(
+        `[buscarResumoDeAtivosPorIds] lote acima do teto (${ids.length} > ${MAX_LOTE_COMPRA})`,
+      )
+      return []
+    }
+    const supabase = await createClient()
+    const aut = await exigirPapel(supabase, 'consulta')
+    if (!aut.ok) return []
     return await buscarAtivosResumoPorIds(ids)
   } catch (err) {
     console.error('[buscarResumoDeAtivosPorIds] falha ao restaurar o rascunho:', err)

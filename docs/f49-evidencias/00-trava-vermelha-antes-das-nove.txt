@@ -1,0 +1,240 @@
+
+ RUN  v4.1.11 C:/Users/yukig/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/actions/guardas-de-action.test.ts (16 tests | 11 failed) 76ms
+     × nenhum export ficou sem guarda e sem motivo escrito 26ms
+     × src/lib/actions/movimentacoes.ts::buscarAtivosParaMovimentacao está guardada, e não isenta 3ms
+     × src/lib/actions/movimentacoes.ts::resolverPatrimoniosParaLote está guardada, e não isenta 3ms
+     × src/lib/actions/movimentacoes.ts::buscarColaboradoresDoCampo está guardada, e não isenta 2ms
+     × src/lib/actions/movimentacoes.ts::buscarSugestoesSetores está guardada, e não isenta 3ms
+     × src/lib/actions/movimentacoes.ts::buscarPossiveisDuplicatasDoDia está guardada, e não isenta 3ms
+     × src/lib/actions/movimentacoes.ts::buscarResumoDeAtivosPorIds está guardada, e não isenta 2ms
+     × src/lib/actions/compras.ts::buscarSugestoesMarca está guardada, e não isenta 1ms
+     × src/lib/actions/compras.ts::buscarSugestoesModelo está guardada, e não isenta 1ms
+     × src/lib/actions/compras.ts::buscarSugestoesFornecedor está guardada, e não isenta 1ms
+     × toda isenção traz motivo escrito, e não um rótulo 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > nenhum export ficou sem guarda e sem motivo escrito
+AssertionError: Server Action exportada SEM guarda e SEM isenção nominal.
+Uma action é um endpoint HTTP: sem uma das cinco guardas (exigirPapel, exigirAdmin, exigirDev, exigirEscrita, exigirEscritaEm),
+qualquer sessão válida — inclusive a de um perfil DESATIVADO — a alcança por POST direto.
+
+  src/lib/actions/compras.ts::buscarSugestoesMarca (linha 203)
+  src/lib/actions/compras.ts::buscarSugestoesModelo (linha 207)
+  src/lib/actions/compras.ts::buscarSugestoesFornecedor (linha 214)
+  src/lib/actions/movimentacoes.ts::buscarAtivosParaMovimentacao (linha 735)
+  src/lib/actions/movimentacoes.ts::resolverPatrimoniosParaLote (linha 779)
+  src/lib/actions/movimentacoes.ts::buscarColaboradoresDoCampo (linha 896)
+  src/lib/actions/movimentacoes.ts::buscarSugestoesSetores (linha 914)
+  src/lib/actions/movimentacoes.ts::buscarPossiveisDuplicatasDoDia (linha 927)
+  src/lib/actions/movimentacoes.ts::buscarResumoDeAtivosPorIds (linha 940)
+
+Corrija acrescentando a guarda. Isentar só se NÃO houver o que autorizar,
+e então a entrada em SEM_GUARDA precisa de motivo escrito + subir TETO_SEM_GUARDA.: expected [ { …(4) }, { …(4) }, { …(4) }, …(6) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "arquivo": "src/lib/actions/compras.ts",
++     "chave": "src/lib/actions/compras.ts::buscarSugestoesMarca",
++     "linha": 203,
++     "nome": "buscarSugestoesMarca",
++   },
++   {
++     "arquivo": "src/lib/actions/compras.ts",
++     "chave": "src/lib/actions/compras.ts::buscarSugestoesModelo",
++     "linha": 207,
++     "nome": "buscarSugestoesModelo",
++   },
++   {
++     "arquivo": "src/lib/actions/compras.ts",
++     "chave": "src/lib/actions/compras.ts::buscarSugestoesFornecedor",
++     "linha": 214,
++     "nome": "buscarSugestoesFornecedor",
++   },
++   {
++     "arquivo": "src/lib/actions/movimentacoes.ts",
++     "chave": "src/lib/actions/movimentacoes.ts::buscarAtivosParaMovimentacao",
++     "linha": 735,
++     "nome": "buscarAtivosParaMovimentacao",
++   },
++   {
++     "arquivo": "src/lib/actions/movimentacoes.ts",
++     "chave": "src/lib/actions/movimentacoes.ts::resolverPatrimoniosParaLote",
++     "linha": 779,
++     "nome": "resolverPatrimoniosParaLote",
++   },
++   {
++     "arquivo": "src/lib/actions/movimentacoes.ts",
++     "chave": "src/lib/actions/movimentacoes.ts::buscarColaboradoresDoCampo",
++     "linha": 896,
++     "nome": "buscarColaboradoresDoCampo",
++   },
++   {
++     "arquivo": "src/lib/actions/movimentacoes.ts",
++     "chave": "src/lib/actions/movimentacoes.ts::buscarSugestoesSetores",
++     "linha": 914,
++     "nome": "buscarSugestoesSetores",
++   },
++   {
++     "arquivo": "src/lib/actions/movimentacoes.ts",
++     "chave": "src/lib/actions/movimentacoes.ts::buscarPossiveisDuplicatasDoDia",
++     "linha": 927,
++     "nome": "buscarPossiveisDuplicatasDoDia",
++   },
++   {
++     "arquivo": "src/lib/actions/movimentacoes.ts",
++     "chave": "src/lib/actions/movimentacoes.ts::buscarResumoDeAtivosPorIds",
++     "linha": 940,
++     "nome": "buscarResumoDeAtivosPorIds",
++   },
++ ]
+
+ ❯ src/lib/actions/guardas-de-action.test.ts:157:7
+    155|             `e então a entrada em SEM_GUARDA precisa de motivo escrito…
+    156|         : undefined,
+    157|     ).toEqual([])
+       |       ^
+    158|   })
+    159|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/movimentacoes.ts::buscarAtivosParaMovimentacao está guardada, e não isenta
+AssertionError: src/lib/actions/movimentacoes.ts::buscarAtivosParaMovimentacao perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/movimentacoes.ts::resolverPatrimoniosParaLote está guardada, e não isenta
+AssertionError: src/lib/actions/movimentacoes.ts::resolverPatrimoniosParaLote perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/movimentacoes.ts::buscarColaboradoresDoCampo está guardada, e não isenta
+AssertionError: src/lib/actions/movimentacoes.ts::buscarColaboradoresDoCampo perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/movimentacoes.ts::buscarSugestoesSetores está guardada, e não isenta
+AssertionError: src/lib/actions/movimentacoes.ts::buscarSugestoesSetores perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/movimentacoes.ts::buscarPossiveisDuplicatasDoDia está guardada, e não isenta
+AssertionError: src/lib/actions/movimentacoes.ts::buscarPossiveisDuplicatasDoDia perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/movimentacoes.ts::buscarResumoDeAtivosPorIds está guardada, e não isenta
+AssertionError: src/lib/actions/movimentacoes.ts::buscarResumoDeAtivosPorIds perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/compras.ts::buscarSugestoesMarca está guardada, e não isenta
+AssertionError: src/lib/actions/compras.ts::buscarSugestoesMarca perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/compras.ts::buscarSugestoesModelo está guardada, e não isenta
+AssertionError: src/lib/actions/compras.ts::buscarSugestoesModelo perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/compras.ts::buscarSugestoesFornecedor está guardada, e não isenta
+AssertionError: src/lib/actions/compras.ts::buscarSugestoesFornecedor perdeu a guarda: expected null not to be null
+ ❯ src/lib/actions/guardas-de-action.test.ts:169:58
+    167|     const alvo = achados.find((a) => a.nome === nome)
+    168|     expect(alvo, `${chave} não foi encontrada no arquivo`).toBeDefined…
+    169|     expect(alvo!.guarda, `${chave} perdeu a guarda`).not.toBeNull()
+       |                                                          ^
+    170|   })
+    171| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/11]⎯
+
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > a lista de isenções é uma catraca — só encolhe > toda isenção traz motivo escrito, e não um rótulo
+AssertionError: src/lib/actions/senhas.ts::sairVisualizacao: o motivo precisa terminar em frase: expected 'É o LOGOUT do visualizador: apaga o p…' to match /\.$/
+
+- Expected:
+/\.$/
+
++ Received:
+"É o LOGOUT do visualizador: apaga o próprio cookie e redireciona. Não lê nem escreve dado nenhum, e exigir cargo prenderia na visualização justamente quem não tem cargo. (Ausente da ficha da F49, que previa cinco isenções — achado da medição, 07/09/2026.)"
+
+ ❯ src/lib/actions/guardas-de-action.test.ts:187:70
+    185|       // "é admin", "não precisa", "é interno" são rótulos, não motivo…
+    186|       // precisa dizer O QUE defende aquele caminho no lugar da guarda.
+    187|       expect(motivo, `${chave}: o motivo precisa terminar em frase`).t…
+       |                                                                      ^
+    188|     }
+    189|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/11]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  11 failed | 5 passed (16)
+   Start at  23:02:03
+   Duration  576ms (transform 41ms, setup 0ms, import 289ms, tests 76ms, environment 0ms)
+

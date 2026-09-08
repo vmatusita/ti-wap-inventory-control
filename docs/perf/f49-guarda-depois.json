@@ -1,0 +1,48 @@
+{
+  "rotulo": "depois",
+  "alvo": "supabase (projeto de produção) — medido da mesa",
+  "node": "v24.14.0",
+  "inicio": "2026-09-08T02:18:49.411Z",
+  "fim": "2026-09-08T02:18:53.414Z",
+  "metodo": {
+    "aquecimento": 2,
+    "repeticoes": 15,
+    "ordem": "round-robin (cada rodada mede as três medidas uma vez, na mesma ordem)",
+    "percentil": "interpolação linear entre postos",
+    "sessao": "operador real, login por senha (cascata PERF_*/SMOKE_*)",
+    "escrita": "nenhuma — só getUser e papel_atual(), ambos de leitura",
+    "o_que_nao_mede": "o tempo da tela; a lambda da Vercel fala com o Supabase por caminho de rede mais curto e mede MENOS. Também não mede o efeito do cache() de cargoDoRequest: aqui cada rodada é um request novo."
+  },
+  "medidas": [
+    {
+      "medida": "auth.getUser()",
+      "papel": "o que `idOperador()` faz — valida o JWT no servidor de Auth",
+      "amostras": 15,
+      "mediana_ms": 38.5,
+      "p95_ms": 55.9,
+      "min_ms": 34.8,
+      "max_ms": 66.5,
+      "falhas": 0
+    },
+    {
+      "medida": "rpc('papel_atual')",
+      "papel": "o que `lerPapel()` faz — lê o cargo vigente no Postgres",
+      "amostras": 15,
+      "mediana_ms": 33.7,
+      "p95_ms": 53.8,
+      "min_ms": 28.3,
+      "max_ms": 56.3,
+      "falhas": 0
+    },
+    {
+      "medida": "o PAR (getUser + papel_atual)",
+      "papel": "o custo TOTAL que `exigirPapel` acrescenta na 1ª chamada de um request",
+      "amostras": 15,
+      "mediana_ms": 72.7,
+      "p95_ms": 90.5,
+      "min_ms": 63.5,
+      "max_ms": 92.6,
+      "falhas": 0
+    }
+  ]
+}

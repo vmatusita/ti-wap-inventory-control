@@ -1,0 +1,6 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > nenhum export ficou sem guarda e sem motivo escrito
+  src/lib/actions/tipos-item.ts::listarTudoSemGuarda (linha 164)
++     "chave": "src/lib/actions/tipos-item.ts::listarTudoSemGuarda",
++     "nome": "listarTudoSemGuarda",
+      Tests  1 failed | 15 passed (16)

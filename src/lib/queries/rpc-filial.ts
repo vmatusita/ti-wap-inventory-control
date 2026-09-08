@@ -1,3 +1,4 @@
+import 'server-only'
 // `p_filial` das RPCs de relatório: a ponte entre "consolidado = NULL" e um tipo GERADO que
 // não sabe disso.
 //

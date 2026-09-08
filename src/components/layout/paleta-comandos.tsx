@@ -1,5 +1,47 @@
 'use client'
 
+// A PALETA DE COMANDOS (Ctrl+K) — e as duas coisas que ela é, além de um atalho.
+//
+// 1. É UM DOS DOIS CALL-SITES QUENTES DE `buscarAtivosParaMovimentacao` (import na
+//    linha 75; a busca com debounce por volta da 376-399): debounce de 300 ms a
+//    partir de 2 caracteres, disparado A CADA TECLA.
+//
+//    O outro é `components/movimentacoes/ativo-combobox.tsx` (linha ~110), com
+//    debounce e piso IDÊNTICOS. Os dois se distinguem pelo alcance, não pela
+//    mecânica: a paleta está montada em TODA tela do shell do operador e responde a
+//    Ctrl+K, mas é um atalho OPCIONAL; o combobox aparece em menos telas e é
+//    OBRIGATÓRIO — toda movimentação passa por ele. **Não há medição no repositório
+//    que diga qual dos dois é mais chamado**, e por isso este comentário não afirma
+//    que a paleta é "o mais quente": seria suposição escrita como fato.
+//
+//    O que importa para a F49 vale para os dois: a guarda que ela acrescentou àquela
+//    action (`exigirPapel(supabase, 'consulta')`) foi MEDIDA antes de entrar — 72,7 ms
+//    de mediana e 90,5 ms de p95 por chamada, contra o Supabase de produção, visto da
+//    mesa (`docs/perf/f49-guarda.json`). Nem a paleta nem o combobox ganharam uma
+//    linha de código por causa disso: a guarda mora na action, e daqui ela é de graça.
+//
+// 2. É UMA SUPERFÍCIE DE AUTORIZAÇÃO DE UI **PARALELA** AO `sidebar-nav`. As flags
+//    `soAdmin`/`soDev` (declaradas em 106 e 109) e o `podeEscrever` (declarado em 312,
+//    filtrando o grupo "Ações" na 441) decidem o que cada cargo VÊ aqui — e são uma
+//    segunda cópia da mesma pergunta que a sidebar já faz. O comentário da lista de
+//    navegação diz "Espelha o sidebar-nav.tsx" — espelho é exatamente o problema,
+//    porque um espelho envelhece sozinho. O lugar onde essa pergunta deveria morar é
+//    `src/components/layout/permissoes.ts`, que já concentra a decisão para a sidebar.
+//
+//    ⚠ E ISTO NÃO É SEGURANÇA — o próprio `permissoes.ts` diz, no fim do cabeçalho
+//    dele, que esconder um botão é ergonomia. Quem impede a ação é a guarda dentro da
+//    Server Action, não a ausência da entrada nesta lista.
+//
+// 3. O `podeLer` DA F50 PRECISA ALCANÇAR ESTE ARQUIVO. Quando `permissoes.ts` ganhar
+//    essa pergunta, o ponto de entrada é o filtro das entradas de navegação (as
+//    mesmas passagens (106/109/312/441) onde `soAdmin`/`soDev`/`podeEscrever` já são
+//    consultados) — e não o resultado da busca de ativos, que é assunto de recorte de
+//    filial (F57/F70), não de leitura.
+//
+// ⚠ O `{r.filial_nome}` do resultado (linha 556) FICA. Tirá-lo mudaria o que o
+// operador vê hoje e anteciparia recorte que não é desta fase — decisão do
+// Johnny, 08/09/2026.
+
 import {
   createContext,
   useCallback,

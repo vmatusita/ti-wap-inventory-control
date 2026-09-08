@@ -1,0 +1,8 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/movimentacoes.ts::buscarSugestoesSetores está guardada, e não isenta
+AssertionError: src/lib/actions/movimentacoes.ts::buscarSugestoesSetores não pode estar em SEM_GUARDA — ela TEM guarda: expected true to be false // Object.is equality
+    164|     expect(chave in SEM_GUARDA, `${chave} não pode estar em SEM_GUARDA…
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > a lista de isenções é uma catraca — só encolhe > tem no máximo 6 entradas
+AssertionError: SEM_GUARDA cresceu. Isentar uma action de autorização é uma DECISÃO: registre o motivo em docs/DECISOES.md e suba TETO_SEM_GUARDA à mão, no mesmo commit.: expected 7 to be less than or equal to 6
+    179|       'SEM_GUARDA cresceu. Isentar uma action de autorização é uma DEC…
+      Tests  2 failed | 14 passed (16)

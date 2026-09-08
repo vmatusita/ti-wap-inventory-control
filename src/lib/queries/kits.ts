@@ -1,3 +1,4 @@
+import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { kitPayloadSchema, type KitPayload } from '@/lib/validators/kit'
 import type { Json } from '@/lib/types/database'

@@ -1,0 +1,5 @@
+     × src/lib/actions/kits.ts 5ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/superficie-admin.test.ts > todo arquivo que usa service role está declarado, com motivo e guarda > src/lib/actions/kits.ts
+AssertionError: src/lib/actions/kits.ts invoca createAdminClient() e NÃO está declarado em superficie-admin.test.ts.
+      Tests  1 failed | 13 passed (14)

@@ -1,0 +1,10 @@
+     × nenhum export ficou sem guarda e sem motivo escrito 24ms
+     × src/lib/actions/movimentacoes.ts::buscarSugestoesSetores está guardada, e não isenta 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > nenhum export ficou sem guarda e sem motivo escrito
+  src/lib/actions/movimentacoes.ts::buscarSugestoesSetores (linha 939)
++     "chave": "src/lib/actions/movimentacoes.ts::buscarSugestoesSetores",
++     "nome": "buscarSugestoesSetores",
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > src/lib/actions/movimentacoes.ts::buscarSugestoesSetores está guardada, e não isenta
+AssertionError: src/lib/actions/movimentacoes.ts::buscarSugestoesSetores perdeu a guarda: expected null not to be null
+      Tests  2 failed | 14 passed (16)

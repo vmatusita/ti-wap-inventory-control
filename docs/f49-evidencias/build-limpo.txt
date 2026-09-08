@@ -1,0 +1,63 @@
+
+> estoque-ti-wap@1.54.0 build
+> next build
+
+▲ Next.js 16.2.12 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.6s
+  Running TypeScript ...
+  Finished TypeScript in 13.4s ...
+  Collecting page data using 17 workers ...
+  Generating static pages using 17 workers (0/32) ...
+  Generating static pages using 17 workers (8/32) 
+  Generating static pages using 17 workers (16/32) 
+  Generating static pages using 17 workers (24/32) 
+✓ Generating static pages using 17 workers (32/32) in 795ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /admin/colaboradores
+├ ƒ /admin/filiais
+├ ƒ /admin/importar
+├ ƒ /admin/itens
+├ ƒ /admin/kits
+├ ƒ /admin/motivos
+├ ƒ /admin/senhas
+├ ƒ /admin/tipos-item
+├ ƒ /admin/usuarios
+├ ƒ /ajuda
+├ ƒ /ajuda/[slug]
+├ ƒ /ajuda/manual
+├ ƒ /ativos
+├ ƒ /ativos/[id]
+├ ƒ /ativos/novo
+├ ƒ /auth/confirm
+├ ƒ /auth/definir-senha
+├ ƒ /dev
+├ ƒ /dev/destrutivo
+├ ƒ /itens
+├ ƒ /itens/conferencia
+├ ƒ /itens/historico
+├ ○ /login
+├ ƒ /movimentacoes
+├ ƒ /movimentacoes/devolucao-fornecedor
+├ ƒ /movimentacoes/nova
+├ ƒ /pendencias
+├ ƒ /relatorios/[filial]
+├ ƒ /relatorios/acesso
+├ ƒ /relatorios/gerados
+├ ƒ /relatorios/gerados/[id]
+└ ƒ /versoes
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

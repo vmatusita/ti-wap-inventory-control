@@ -1,3 +1,4 @@
+import 'server-only'
 // Barrel público da camada de dados dos relatórios (OS-F3 3.6). O que era o
 // god-file queries/relatorios.ts virou módulos coesos por responsabilidade
 // (comum · estoque · movimentacoes · pendencias · itens · snapshot); este barrel

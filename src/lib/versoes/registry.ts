@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.54.0',
+    data: '2026-09-07',
+    fase: 'F49',
+    titulo: 'Quem foi desativado parou de conseguir consultar o acervo por fora das telas',
+    mudancas: [
+      'Nenhuma tela mudou de aparência ou de comportamento. Quem usa o sistema normalmente não vai notar diferença nenhuma — as buscas, as sugestões de nome e de setor e o "Colar lista" continuam exatamente como estavam.',
+      'O que mudou é o que acontece com uma conta DESATIVADA. Antes, desativar alguém tirava essa pessoa de todas as telas na hora, mas a busca de equipamentos e as sugestões de marca, modelo, fornecedor, pessoa e setor ainda respondiam a ela por um tempo, se alguém soubesse chamá-las direto, por fora do sistema. Nove consultas estavam nessa situação e agora conferem o acesso antes de responder.',
+      'A restauração de um rascunho de movimentação passou a ter limite de 200 equipamentos por vez — o mesmo teto que o cadastro de compra já usa. Rascunho de verdade nunca chega perto disso; o limite fecha o caminho de pedir o acervo inteiro de uma vez.',
+      'A conferência do custo foi feita antes de a mudança entrar: cada consulta protegida ficou cerca de 7 centésimos de segundo mais lenta, e só na primeira vez dentro de cada tela. Como as buscas já esperam você parar de digitar por 3 décimos de segundo antes de consultar, isso não é perceptível.',
+      'Foram criadas três conferências automáticas que rodam antes de qualquer alteração ir ao ar: uma exige que toda consulta ao acervo confira o acesso (ou tenha o motivo escrito de por que não confere), outra impede que uma consulta ao banco seja levada por engano para dentro do navegador, e a terceira mantém a lista de todos os pontos do sistema que leem dados com poder de administrador, cada um com o motivo e a proteção anotados.',
+    ],
+  },
+  {
     versao: '1.53.0',
     data: '2026-09-07',
     fase: 'F48',

@@ -1,3 +1,4 @@
+import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import { ehUuid } from '@/lib/url-params'
