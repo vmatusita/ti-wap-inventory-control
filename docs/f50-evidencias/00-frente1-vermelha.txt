@@ -1,0 +1,40 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/queries/relatorios/fronteira-viewer.test.ts (6 tests | 1 failed) 47ms
+     × todo módulo que ACEITA client resolvido está declarado (superfície ou exceção) 22ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/queries/relatorios/fronteira-viewer.test.ts > fronteira do viewer (A5): queries de relatório não tocam tabelas sensíveis > todo módulo que ACEITA client resolvido está declarado (superfície ou exceção)
+AssertionError: quem aceita client resolvido pode receber o client do VIEWER (service_role): declare cada um na superfície, ou como exceção nominal com o motivo medido: expected [ 'queries/ativos.ts', …(5) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "queries/ativos.ts",
++   "queries/colaboradores.ts",
++   "queries/conflitos.ts",
++   "queries/import-logs.ts",
++   "queries/itens.ts",
++   "queries/tipos-item.ts",
++ ]
+
+ ❯ src/lib/queries/relatorios/fronteira-viewer.test.ts:218:7
+    216|       'quem aceita client resolvido pode receber o client do VIEWER (s…
+    217|         'declare cada um na superfície, ou como exceção nominal com o …
+    218|     ).toEqual([])
+       |       ^
+    219|   })
+    220|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  09:18:05
+   Duration  464ms (transform 60ms, setup 0ms, import 88ms, tests 47ms, environment 0ms)
+

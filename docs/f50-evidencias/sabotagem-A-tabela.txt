@@ -1,0 +1,8 @@
+=== SABOTAGEM A — .from('senhas_acesso') em comum.ts ===
+     × toda tabela lida pela superfície está na lista BRANCA 16ms
+     × nenhuma query referencia "senhas_acesso" (expõe o hash da senha de acesso) 8ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
++   "queries/relatorios/comum.ts → senhas_acesso",
+ FAIL  |puro| src/lib/queries/relatorios/fronteira-viewer.test.ts > fronteira do viewer (A5): queries de relatório não tocam tabelas sensíveis > nenhuma query referencia "senhas_acesso" (expõe o hash da senha de acesso)
+AssertionError: viewer roda sob service_role: uma query a senhas_acesso vazaria expõe o hash da senha de acesso: expected [ 'relatorios/comum.ts' ] to deeply equal []
+      Tests  2 failed | 12 passed (14)
