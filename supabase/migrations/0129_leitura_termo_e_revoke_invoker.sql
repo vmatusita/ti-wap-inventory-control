@@ -119,11 +119,25 @@ alter policy "termos leitura operador" on storage.objects
 -- ⚠ `authenticated` NÃO é revogado. As cinco são usadas por triggers e por SQL de
 -- funções que rodam na sessão do operador; tirar o EXECUTE dele quebraria escrita de
 -- verdade. O alvo é `anon`, que é quem não tem por que alcançá-las.
-revoke execute on function public.chave_identidade_ativo(text, text) from anon;
-revoke execute on function public.hoje_brt() from anon;
-revoke execute on function public.mov_da_carga_import(text) from anon;
-revoke execute on function public.status_apos_movimentacao(public.status_ativo, public.tipo_movimentacao) from anon;
-revoke execute on function public.valida_lancamento_item() from anon;
+--
+-- ⚠ E O REVOKE PRECISA INCLUIR `public` — sem isso ele é NO-OP, e silencioso.
+-- Medido em produção (ensaio em `begin; … rollback;` antes deste apply): a ACL das
+-- cinco é
+--     {=X/postgres, postgres=X/postgres, anon=X/postgres, authenticated=X/postgres, service_role=X/postgres}
+-- e aquele `=X` sem papel à esquerda é o grant ao pseudo-papel PUBLIC. `anon` alcança
+-- a função por DOIS caminhos: o grant próprio e a herança de PUBLIC. Revogar só do
+-- primeiro deixa o segundo de pé, e `has_function_privilege('anon', …)` continua
+-- devolvendo true — o revoke "roda com sucesso" e não muda nada.
+--
+-- É exatamente o que a 0069 já fazia para `pode_escrever_arquivo_termo` (`from public,
+-- anon`), e a ACL dela mostra o resultado certo: {postgres, authenticated, service_role},
+-- sem `=X` e sem `anon`. `authenticated` e `service_role` têm grant EXPLÍCITO nas
+-- cinco, então revogar PUBLIC não os alcança — conferido na mesma consulta.
+revoke execute on function public.chave_identidade_ativo(text, text) from public, anon;
+revoke execute on function public.hoje_brt() from public, anon;
+revoke execute on function public.mov_da_carga_import(text) from public, anon;
+revoke execute on function public.status_apos_movimentacao(public.status_ativo, public.tipo_movimentacao) from public, anon;
+revoke execute on function public.valida_lancamento_item() from public, anon;
 
 -- ---------- VERIFICAÇÃO PÓS-APPLY ----------
 --   -- 1) a função existe, é SECURITY DEFINER e `anon` NÃO a executa:
