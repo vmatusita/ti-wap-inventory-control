@@ -32,6 +32,18 @@
 --        4c  OUTRA filial fica intacta (R-IMP-03 — a RPC nunca toca relatorios_gerados
 --            nem o acervo de outra filial).
 --
+-- F52 (migration 0132) — FIXTURE, não expectativa. As três guardas novas de
+-- import_validar_plano (cascata de backup sob o prefixo da filial + objeto existente
+-- em storage.objects, confirmação digitada = nome da filial, idempotência de 24h por
+-- arquivo_hash) entram ANTES de tudo o que este roteiro já testava. Todo caminho POSITIVO
+-- (seções 0a, 1, 2 e 4) passou a exigir: backup real sob `import/filial-<id>/`, a chave
+-- `confirmacao` no plano e — quando dois imports tocam a mesma filial na mesma transação —
+-- `arquivoHash` distinto entre eles. Nenhuma asserção mudou de SIGNIFICADO: só os
+-- caminhos, os objetos de storage e as chaves dos planos foram corrigidos para o formato
+-- real. O PAR recusa/aceita de cada guarda nova (a prova de que ela é no-op verificável)
+-- já está coberto por `supabase/tests/import_fora_da_unidade.sql` — este roteiro não o
+-- duplica.
+--
 -- Convenção do job `banco` do CI: cada asserção emite
 --   NOTICE  '✓ …'  quando bate com o esperado;
 --   WARNING '✗ …'  quando NÃO bate (o CI falha em qualquer `WARNING: ✗`).
@@ -74,6 +86,15 @@ declare
   v_ativo_c   uuid;
   v_abertas   int;
   p_plano_c   jsonb;
+  -- F52 (migration 0132): a cascata de backup + confirmação digitada + idempotência
+  -- agora vivem dentro de import_validar_plano — os planos e caminhos deste roteiro
+  -- precisam refletir isso (ver docs/DECISOES.md, F52).
+  v_prefixo_a text;   -- prefixo do backup da filial A (import/filial-<id>/)
+  v_prefixo_b text;   -- idem, filial B
+  v_prefixo_c text;   -- idem, filial C
+  p_plano_a2  jsonb;  -- variante de p_plano_a com arquivoHash distinto (cenário 2 —
+                      -- evita colidir com o hash já gravado por import_gravar_trilha
+                      -- no cenário 1, dentro da mesma janela de 24h)
 begin
   -- F38: perfil ATIVO e escolha DETERMINÍSTICA. O `limit 1` sem `order by` e sem
   -- filtro podia cair num perfil DESATIVADO (`papel_atual()` devolve null para ele
@@ -111,6 +132,20 @@ begin
   insert into public.filiais (slug, nome) values ('zzf19-teste-b', 'F19 Teste B') returning id into v_fb;
   insert into public.filiais (slug, nome) values ('zzf19-teste-c', 'F19 Teste C') returning id into v_fc;
 
+  -- F52 (migration 0132): desde a 0132, import_validar_plano exige que o backup
+  -- informado esteja sob o prefixo import/filial-<id>/ DESTA filial e que o objeto
+  -- exista de verdade em storage.objects (bucket backups-import) — mesma técnica de
+  -- `supabase/tests/import_fora_da_unidade.sql`. Um objeto "existe.json" por filial
+  -- de teste cobre todo caminho positivo deste roteiro (cenários 1, 2, 4 e a seção 0a).
+  v_prefixo_a := public.prefixo_backup_import(v_fa);
+  v_prefixo_b := public.prefixo_backup_import(v_fb);
+  v_prefixo_c := public.prefixo_backup_import(v_fc);
+
+  insert into storage.objects (bucket_id, name, owner) values
+    ('backups-import', v_prefixo_a || 'existe.json', v_prof),
+    ('backups-import', v_prefixo_b || 'existe.json', v_prof),
+    ('backups-import', v_prefixo_c || 'existe.json', v_prof);
+
   -- ===============================================================
   -- SEÇÃO 0 (F51) — cada auxiliar do import, exercitada ISOLADAMENTE
   -- ===============================================================
@@ -142,10 +177,14 @@ begin
   -- comparação antes × depois deixaria de significar alguma coisa.
 
   -- 0a — import_validar_plano RECUSA plano vazio (bloco 1c da 0094).
+  -- F52: para a execução CHEGAR no bloco 1c, o backup e a confirmação (blocos 1b e
+  -- 1b-ter, que agora vêm ANTES) têm de passar — backup sob o prefixo da filial C e
+  -- existente em storage.objects, confirmação = nome da filial. Sem arquivoHash: a
+  -- guarda de idempotência (1b-quater) é pulada de propósito (v_hash = '').
   begin
     v_total := public.import_validar_plano(
-      jsonb_build_object('filialId', v_fc, 'ativos', '[]'::jsonb),
-      'backups-import/f51-c.json', '[]'::jsonb, v_fc);
+      jsonb_build_object('filialId', v_fc, 'confirmacao', 'F19 Teste C', 'ativos', '[]'::jsonb),
+      v_prefixo_c || 'existe.json', '[]'::jsonb, v_fc);
     v_falhas := v_falhas + 1; raise warning '✗ 0a plano vazio: import_validar_plano NÃO recusou (deveria)';
   exception when others then
     if sqlerrm like '%vazio%' then
@@ -178,9 +217,11 @@ begin
   end if;
 
   -- 0d — import_gravar_trilha grava a linha e devolve o id.
+  -- F52: import_gravar_trilha não valida storage.objects (só import_validar_plano faz);
+  -- o caminho aqui só precisa seguir o formato real — sem exigir o objeto no bucket.
   v_log := public.import_gravar_trilha(
     jsonb_build_object('arquivoHash','ZZF19HASHC','totalLinhasDados',1),
-    v_fc, 'backups-import/f51-c.json', '[]'::jsonb, v_prof, 1, 0, 0, 0, 0);
+    v_fc, v_prefixo_c || 'trilha-0d.json', '[]'::jsonb, v_prof, 1, 0, 0, 0, 0);
   select count(*) into v_cnt from public.import_logs where id = v_log;
   if v_log is not null and v_cnt = 1 then
     v_ok := v_ok + 1; raise notice '✓ 0d import_gravar_trilha devolveu log_id e gravou a linha em import_logs';
@@ -296,8 +337,10 @@ begin
   --   ativo 2: ZZF190005678 SEM service tag ('')    → nasce 'sem service tag'.
   --   Ambos em_estoque (sem ajuste de reconciliação → só a compra de abertura).
   -- ---------------------------------------------------------------
+  -- F52: confirmacao tem de casar com o nome da filial (upper/btrim tolerado); o
+  -- backup tem de estar sob o prefixo desta filial e existir em storage.objects.
   p_plano_a := jsonb_build_object(
-    'filialId', v_fa, 'arquivoHash', 'ZZF19HASHA', 'totalLinhasDados', 2,
+    'filialId', v_fa, 'confirmacao', 'F19 Teste A', 'arquivoHash', 'ZZF19HASHA', 'totalLinhasDados', 2,
     'ativos', jsonb_build_array(
       jsonb_build_object('patrimonio','WAP0001234','serviceTag','ZZF19ST01',
                          'categoria','notebook','estadoAlvo','em_estoque','marca','ZZ Marca'),
@@ -307,7 +350,7 @@ begin
   );
   v_result := public.importar_ativos_substituir(
     p_plano_a,
-    'backups-import/f19-teste-a.json',
+    v_prefixo_a || 'existe.json',
     jsonb_build_object('ativos',0,'movimentacoes',0,'anotacoes',0,'termos',0)   -- filial nova = 0,0,0,0
   );
 
@@ -350,9 +393,17 @@ begin
   -- CENARIO 2 — R-IMP-21: p_contagens NULL DEVE ser recusado (janela TOCTOU
   --   fechada na 0040: sem a revalidação, um cliente forjado pularia a guarda e
   --   poderia apagar acervo que mudou entre o backup e o delete).
+  --
+  --   F52: import_validar_plano roda ANTES da revalidação de contagens dentro da
+  --   orquestradora — então, para este cenário chegar até o bloco que ele testa, o
+  --   plano tem de PASSAR pela cascata de backup/confirmação/idempotência primeiro.
+  --   Reusar o arquivoHash do cenário 1 ('ZZF19HASHA') colidiria com a linha que o
+  --   cenário 1 já gravou em import_logs para a filial A (idempotência de 24h) e
+  --   recusaria por um motivo INESPERADO — por isso p_plano_a2 troca só o hash.
   -- ---------------------------------------------------------------
+  p_plano_a2 := p_plano_a || jsonb_build_object('arquivoHash', 'ZZF19HASHA2');
   begin
-    v_result := public.importar_ativos_substituir(p_plano_a, 'backups-import/f19-teste-a.json', null::jsonb);
+    v_result := public.importar_ativos_substituir(p_plano_a2, v_prefixo_a || 'existe.json', null::jsonb);
     v_falhas := v_falhas + 1; raise warning '✗ 2 contagens NULL: NÃO falhou (deveria)';
   exception when others then
     if sqlerrm like '%contagens%' or sqlerrm like '%preview%' then
@@ -373,8 +424,15 @@ begin
     );
     v_falhas := v_falhas + 1; raise warning '✗ 3 backup vazio: NÃO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%backup%' then
-      v_ok := v_ok + 1; raise notice '✓ 3 backup vazio rejeitado: %', sqlerrm;
+    -- ⚠ F52: a asserção passou a exigir a mensagem ESPECÍFICA da primeira guarda da
+    -- cascata, e não qualquer texto que contenha "backup". Motivo: desde a 0132 há TRÊS
+    -- guardas de backup, e um caminho vazio também não casa o prefixo — então desligar a
+    -- PRIMEIRA deixava a SEGUNDA recusar, com outra mensagem que também contém "backup",
+    -- e este cenário continuava verde. A mutação `import-sem-exigencia-de-backup` saía
+    -- como "não detectada" por isso. Exigir a frase própria é fortalecer, não afrouxar:
+    -- tudo o que reprovava antes continua reprovando.
+    if sqlerrm like '%exige backup_path%' then
+      v_ok := v_ok + 1; raise notice '✓ 3 backup vazio rejeitado pela PRIMEIRA guarda da cascata: %', sqlerrm;
     else
       v_falhas := v_falhas + 1; raise warning '✗ 3 falhou por motivo INESPERADO (não a guarda de backup): %', sqlerrm;
     end if;
@@ -388,8 +446,10 @@ begin
   insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF19OLD001', 'notebook', v_fb);
   select count(*) into v_fa_before from public.ativos where filial_id = v_fa;   -- outra filial (A) antes = 2
 
+  -- F52: confirmacao = nome desta filial (B), backup sob o prefixo desta filial e
+  -- existente em storage.objects.
   p_plano_b := jsonb_build_object(
-    'filialId', v_fb, 'arquivoHash', 'ZZF19HASHB', 'totalLinhasDados', 1,
+    'filialId', v_fb, 'confirmacao', 'F19 Teste B', 'arquivoHash', 'ZZF19HASHB', 'totalLinhasDados', 1,
     'ativos', jsonb_build_array(
       jsonb_build_object('patrimonio','ZZF19NEW001','serviceTag','ZZF19STB1',
                          'categoria','notebook','estadoAlvo','em_estoque')
@@ -397,7 +457,7 @@ begin
   );
   v_result := public.importar_ativos_substituir(
     p_plano_b,
-    'backups-import/f19-teste-b.json',
+    v_prefixo_b || 'existe.json',
     jsonb_build_object('ativos',1,'movimentacoes',0,'anotacoes',0,'termos',0)   -- reflete o vivo (1 pré-existente, 0 movs)
   );
 

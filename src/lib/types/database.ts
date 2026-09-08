@@ -1441,6 +1441,10 @@ export type Database = {
         Args: { p_estorna_id: string; p_filial: number; p_item: number }
         Returns: boolean
       }
+      exigir_ativos_da_empresa: {
+        Args: { p_ids: string[] }
+        Returns: undefined
+      }
       exigir_dev_para_destruir: {
         Args: { p_justificativa: string }
         Returns: undefined
@@ -1457,7 +1461,7 @@ export type Database = {
         Returns: undefined
       }
       existe_outro_admin_ativo: {
-        Args: { p_excluindo: string }
+        Args: { p_escopo?: string; p_excluindo: string }
         Returns: boolean
       }
       forcar_estado_ativo: {
@@ -1549,6 +1553,10 @@ export type Database = {
         Args: { p_criado_por: string; p_linhas: Json }
         Returns: Json
       }
+      mesmo_escopo_de_gestao: {
+        Args: { p_alvo: string }
+        Returns: boolean
+      }
       mov_da_carga_import: { Args: { p_observacao: string }; Returns: boolean }
       papel_atual: {
         Args: never
@@ -1563,6 +1571,10 @@ export type Database = {
       pode_escrever_termo: { Args: { p_ativo_ids: string[] }; Returns: boolean }
       pode_ler_arquivo_termo: { Args: { p_nome: string }; Returns: boolean }
       prefixo_backup_conflito: { Args: never; Returns: string }
+      prefixo_backup_import: {
+        Args: { p_filial: number }
+        Returns: string
+      }
       prefixo_backup_reset: {
         Args: { p_bloco: string; p_filial: number }
         Returns: string

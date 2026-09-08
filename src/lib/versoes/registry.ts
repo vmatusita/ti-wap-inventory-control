@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.57.0',
+    data: '2026-09-08',
+    fase: 'F52',
+    titulo: 'Trancas novas em volta das contas, do import e da mesa de conflitos',
+    mudancas: [
+      'Nenhuma tela mudou de aparência, e nenhuma tarefa do dia a dia passou a ser recusada. O que entrou foram trancas — cada uma conferida nos dois sentidos: que ela recusa o que tem de recusar, e que ela deixa passar tudo o que já passava.',
+      'O import de startup ficou bem mais difícil de usar por engano. Antes ele aceitava qualquer texto no lugar do arquivo de segurança; agora confere que o arquivo é mesmo o daquela filial e que ele existe de verdade antes de apagar qualquer coisa.',
+      'A confirmação que você digita para liberar o import passou a valer também do lado do servidor. Antes ela era conferida só na tela, e ficou mais tolerante: pode digitar com espaço sobrando ou trocando maiúsculas e minúsculas, como já acontecia nas outras telas de operação perigosa.',
+      'Importar duas vezes o mesmo arquivo na mesma filial dentro de 24 horas passou a ser recusado, com um aviso explicando o motivo. Antes o segundo import apagava tudo o que o primeiro tinha criado, sem avisar ninguém. Se a reimportação for mesmo necessária, basta corrigir o arquivo ou aguardar as 24 horas.',
+      'A tela de histórico de imports passou a mostrar a identificação do arquivo usado em cada carga, que é justamente o que a nova recusa por arquivo repetido usa para decidir.',
+      'Três avisos internos que descreviam o sistema de forma errada foram corrigidos — inclusive um que dizia que o conteúdo das planilhas nunca era guardado, quando as correções feitas na tela de conferência sempre foram guardadas.',
+    ],
+  },
+  {
     versao: '1.56.0',
     data: '2026-09-08',
     fase: 'F51',

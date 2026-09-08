@@ -959,13 +959,26 @@ begin
   end;
 
   -- 3i. RPC do import recusa não-admin (guarda interna da 0064)
+  --
+  -- ⚠ FORTALECIDO NA F52 (08/09/2026), pelo mesmo motivo e da mesma forma que o rótulo 1d
+  -- de `cargo_dev.sql`. A versão anterior contava como ✓ QUALQUER exceção: o ramo `else`
+  -- aplaudia tanto "a guarda de cargo recusou" quanto "a função não existe" (42883),
+  -- "a tabela não existe" (42P01) ou um erro de tipo. Numa fase que RECRIA a RPC de
+  -- import, essa é exatamente a confusão que não se pode ter: objeto ausente não é guarda
+  -- funcionando, é fixture (ou migration) fora do lugar — e quem tem de gritar é o teste.
+  --
+  -- Fortalecer não é afrouxar: tudo o que 3i reprovava antes (o operador EXECUTAR a RPC)
+  -- continua reprovando, e agora dois desfechos que passavam em silêncio também reprovam.
   begin
     perform public.importar_ativos_substituir('{"filialId":1,"ativos":[]}'::jsonb,
                                               'backup/teste', '{}'::jsonb, '[]'::jsonb);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3i; ';
     raise warning '✗ 3i operador executou a RPC de import (deveria exigir admin)';
   exception when others then
-    if sqlerrm like '%administradores%' then
+    if sqlstate in ('42883', '42P01') then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '3i_FUNCAO_OU_TABELA_AUSENTE; ';
+      raise warning '✗ 3i a RPC de import (ou algo que ela chama) não existe (%) % — isto NÃO é "a guarda recusou", é objeto ausente', sqlstate, sqlerrm;
+    elsif sqlerrm like '%administradores%' then
       v_ok := v_ok + 1; raise notice '✓ 3i RPC de import recusa operador com a mensagem certa';
     else
       v_ok := v_ok + 1;

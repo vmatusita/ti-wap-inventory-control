@@ -236,6 +236,34 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (m.includes('estado mudou desde a prévia') || m.includes('estado mudou desde a previa')) {
     return 'O estado mudou desde a prévia/backup — alguém registrou algo enquanto você confirmava. Nada foi apagado: gere a prévia novamente.'
   }
+  // ---- F52: as recusas NOVAS do import de startup e das guardas de escopo ----
+  //
+  // ⚠ TODAS as frases abaixo são LEXICALMENTE DISJUNTAS das que já existem neste arquivo,
+  // e isso é requisito, não coincidência. A mais perigosa é a do backup: o ramo do RESET
+  // (mais acima) casa "backup informado não existe" e responde com instruções de OUTRA
+  // ferramenta — "gere a prévia novamente", e o import não tem prévia de reset. Por isso a
+  // RPC do import diz "o backup deste import não foi encontrado", que não é capturado por
+  // ramo nenhum anterior. Há teste provando que o texto que chega ao operador do import
+  // NÃO fala em "deste reset".
+  if (m.includes(`backup deste import não foi encontrado`) || m.includes(`backup deste import nao foi encontrado`)) {
+    return 'O backup deste import não foi encontrado no armazenamento. NADA foi apagado — refaça o preview para gerar o backup de novo.'
+  }
+  if (m.includes(`não é o backup desta filial`) || m.includes(`nao e o backup desta filial`)) {
+    return 'O backup informado não é o backup desta filial. NADA foi apagado — refaça o preview para gerar o backup certo.'
+  }
+  if (m.includes(`confirmação do import não confere`) || m.includes(`confirmacao do import nao confere`)) {
+    return 'A confirmação não confere. Digite exatamente o nome da filial mostrado ao lado do campo — sem abreviar.'
+  }
+  if (m.includes(`já foi importado nesta filial`) || m.includes(`ja foi importado nesta filial`)) {
+    return 'Este mesmo arquivo já foi importado nesta filial nas últimas 24 horas. NADA foi apagado — se a reimportação é mesmo intencional, corrija o arquivo ou aguarde a janela de 24 horas.'
+  }
+  if (m.includes(`não tem permissão de escrita na filial`) || m.includes(`nao tem permissao de escrita na filial`)) {
+    return 'Você não tem permissão de escrita nesta filial — o import foi recusado. NADA foi apagado.'
+  }
+  if (m.includes(`não pertence à sua organização`) || m.includes(`nao pertence a sua organizacao`)) {
+    return 'Este usuário não pertence à sua organização — a ação foi recusada.'
+  }
+
   if (m.includes('saldo alvo precisa ser')) {
     return 'O saldo alvo precisa ser zero ou maior.'
   }
@@ -257,9 +285,16 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (m.includes('ativo(s) não encontrado') || m.includes('ativo(s) nao encontrado')) {
     return 'Um dos cadastros selecionados já não existe — alguém resolveu este conflito enquanto a sua página estava aberta. Nada foi apagado: recarregue a mesa.'
   }
-  // ⚠ Vem ANTES do ramo de backup do RESET (F23), que casa "backup informado não existe" e
-  // responde com instruções de OUTRA ferramenta ("gere a prévia novamente" — a mesa não tem
-  // prévia). Por isso a mensagem da RPC da mesa diz "backup dos conflitos".
+  // ⚠ CORRIGIDO NA F52. Este comentário dizia que o ramo abaixo "vem ANTES do ramo de
+  // backup do RESET (F23)". Não vem — o do reset está mais ACIMA neste mesmo arquivo, e
+  // sempre esteve. A afirmação descrevia uma proteção que não existe.
+  //
+  // O que de fato protege os dois ramos é que as strings são DISJUNTAS: o do reset casa
+  // "backup informado não existe" e este casa "backup dos conflitos não existe" — nenhuma
+  // é substring da outra, então a ORDEM FÍSICA é irrelevante. Era a segunda metade do
+  // comentário original ("por isso a mensagem da RPC da mesa diz backup dos conflitos")
+  // que estava certa, e ela é a regra de verdade: mensagem nova de backup NASCE disjunta.
+  // É a régua que a F52 seguiu ao escrever "o backup deste import não foi encontrado".
   if (m.includes('backup dos conflitos não existe') || m.includes('backup dos conflitos nao existe')) {
     return 'O backup desta exclusão não foi encontrado no armazenamento. NADA foi apagado — refaça a seleção e tente de novo.'
   }

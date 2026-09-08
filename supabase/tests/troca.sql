@@ -192,16 +192,29 @@ begin
     returning id into v_ft;
   -- contexto de operador para a RPC (usa auth.uid() sem fallback).
   perform set_config('request.jwt.claims', json_build_object('sub', v_prof::text)::text, true);
+
+  -- F52 (migration 0132): o import passou a exigir três coisas que este roteiro não
+  -- dava, porque elas não existiam quando ele foi escrito:
+  --   · o backup sob o prefixo DESTA filial (`import/filial-<id>/`) e EXISTENTE em
+  --     `storage.objects` — antes bastava qualquer texto não-vazio;
+  --   · a chave `confirmacao` no plano, casando com o nome da filial;
+  --   · `arquivo_hash` que não colida com um import da mesma filial nas últimas 24 h.
+  -- Isto é conserto de FIXTURE: o cenário 1 continua testando o que testava (o
+  -- substituto nasce por `troca`, e não por `compra`).
+  insert into storage.objects (bucket_id, name, owner)
+    values ('backups-import', public.prefixo_backup_import(v_ft) || 'existe.json', v_prof);
+
   perform public.importar_ativos_substituir(
     jsonb_build_object(
       'filialId', v_ft::text, 'totalLinhasDados', 3, 'arquivoHash', 'hash-teste-f15',
+      'confirmacao', 'Filial Teste F15',
       'ativos', jsonb_build_array(
         jsonb_build_object('patrimonio','TESTEF15IA','serviceTag','STF15IA','categoria','notebook','estadoAlvo','em_estoque'),
         jsonb_build_object('patrimonio','TESTEF15IB','serviceTag','','categoria','notebook','estadoAlvo','em_estoque'),
         jsonb_build_object('patrimonio', null,        'serviceTag','','categoria','notebook','estadoAlvo','em_estoque')
       )
     ),
-    'backup-teste-f15',
+    public.prefixo_backup_import(v_ft) || 'existe.json',
     jsonb_build_object('ativos', 0, 'movimentacoes', 0, 'anotacoes', 0, 'termos', 0),
     '[]'::jsonb
   );

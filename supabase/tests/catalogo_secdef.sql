@@ -3,7 +3,7 @@
 -- =============================================================
 -- POR QUE ELE EXISTE
 --
--- O sistema tem 46 funções `security definer` — cada uma roda com o privilégio do
+-- O sistema tem 48 funções `security definer` — cada uma roda com o privilégio do
 -- DONO e, por construção, IGNORA a RLS das tabelas que lê e escreve. É a superfície
 -- mais concentrada de poder do banco, e até hoje **ninguém a enumerava**. Uma função
 -- `security definer` nova podia nascer executável por `anon`, ou com `search_path`
@@ -51,11 +51,16 @@ declare
   v_secdef boolean;
 
   -- -----------------------------------------------------------------------
-  -- A TABELA-VERDADE — as 46 `security definer` de `public`, classificadas.
-  -- Medidas em 08/09/2026 sobre as migrations 0001→0131. Ordem alfabética;
-  -- (eram 38 até a 0130; a F51 acrescentou as 8 auxiliares do import. O número
-  --  do cabeçalho dizia 37 e já estava desatualizado por 1 desde a 0129, que
-  --  trouxe `pode_ler_arquivo_termo` — corrigido aqui junto.)
+  -- A TABELA-VERDADE — as 48 `security definer` de `public`, classificadas.
+  -- Medidas em 08/09/2026 sobre as migrations 0001→0132. Ordem alfabética;
+  -- (eram 38 até a 0130; a F51 acrescentou as 8 auxiliares do import — 46. O
+  --  número do cabeçalho dizia 37 e já estava desatualizado por 1 desde a
+  --  0129, que trouxe `pode_ler_arquivo_termo` — corrigido aqui junto. A F52
+  --  (0132) acrescentou DUAS: `mesmo_escopo_de_gestao` e
+  --  `exigir_ativos_da_empresa` — 48. `prefixo_backup_import`, também nova na
+  --  0132, FICA FORA desta lista de propósito: é `immutable`, sem
+  --  `security definer`, molde de `prefixo_backup_reset`/`prefixo_backup_conflito`,
+  --  que também não entram aqui pelo mesmo motivo.)
   -- o comentário de cada bloco diz POR QUE aquele grupo precisa ser definer.
   -- -----------------------------------------------------------------------
   k_secdef text[] := array[
@@ -67,6 +72,13 @@ declare
     'apagar_usuario', 'definir_papel_usuario', 'definir_status_usuario',
     'definir_vinculos_usuario', 'encerrar_sessoes_usuario', 'exigir_gestao_de',
     'existe_outro_admin_ativo',
+    -- `mesmo_escopo_de_gestao` (0132/F52) — a guarda de PERTENCIMENTO chamada
+    -- de dentro de `exigir_gestao_de`, entre a checagem P0002 do alvo e o ramo
+    -- de cargo. Devolve `true` hoje (uma empresa só) — a F65 lhe dá corpo
+    -- real trocando só esta função. `security definer` pelo mesmo motivo das
+    -- irmãs acima: chamada de dentro de uma `security definer` que já roda
+    -- como o dono, sem precisar de grant nenhum.
+    'mesmo_escopo_de_gestao',
     -- Gatilhos (0057/0081/0073/0110): escrevem FORA de policy, contando com o
     -- bypass do dono. É a segunda razão de `force row level security` ser proibido.
     'aplicar_movimentacao', 'handle_new_user', 'guarda_acervo', 'profiles_guarda_dev',
@@ -85,6 +97,13 @@ declare
     'exigir_dev_para_destruir', 'forcar_estado_ativo', 'forcar_saldo_item',
     'previa_reset', 'resetar_acervo', 'resetar_itens', 'resetar_dados_ficticios',
     'rotulo_alcance_reset',
+    -- `exigir_ativos_da_empresa` (0132/F52) — a guarda de PERTENCIMENTO da mesa
+    -- de conflitos entre filiais, chamada por `apagar_ativos_conflito_filiais`
+    -- depois da etapa (3) do lock (nunca antes: leitura própria de `ativos`
+    -- exige linha já travada) e fora da janela `estoque.dev_destrutivo`. Não
+    -- levanta hoje (uma empresa só) — a F65 lhe dá corpo real. Ver
+    -- `conflito_filiais.sql` §10 para a prova da posição.
+    'exigir_ativos_da_empresa',
     -- Import de startup (0094): apaga a filial e recarrega, dentro de uma janela.
     'importar_ativos_substituir',
     -- As OITO auxiliares do import (F51, 0131). A RPC de 393 linhas virou uma

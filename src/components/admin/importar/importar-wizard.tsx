@@ -38,7 +38,10 @@ import type {
 } from '@/lib/import'
 import { extrairPatrimonioDoHostname } from '@/lib/import/deparas'
 import { TAMANHO_MAX_ARQUIVO, TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
-import { dicaConfirmacaoNaoConfere } from '@/lib/validators/confirmacao-digitada'
+import {
+  confirmacaoImportConfere,
+  dicaConfirmacaoNaoConfere,
+} from '@/lib/validators/confirmacao-digitada'
 import { TabelaErros } from '@/components/admin/importar/tabela-erros'
 import { GruposErros } from '@/components/admin/importar/grupos-erros'
 import { CorrecoesAplicadas } from '@/components/admin/importar/correcoes-aplicadas'
@@ -268,14 +271,19 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     [previa],
   )
 
-  // ADM-07 (F27) — dica quando o texto digitado não bate com o nome da filial. O
-  // SERVIDOR (`aplicarImport`, actions/importar.ts) compara IGUALDADE EXATA
-  // (`confirmacaoTexto !== filial.nome`, sem trim/caixa — confirmado lendo a action; a
-  // RPC `importar_ativos_substituir` nem repete essa checagem, ela é só da Server
-  // Action) — então o cliente CONTINUA exato aqui: afrouxar habilitaria um botão que o
-  // servidor recusaria do mesmo jeito. Só a MENSAGEM foi unificada com as outras duas
-  // telas de confirmação digitada (decisão em docs/DECISOES.md).
-  const confereConfirmacao = confirmacao === (previa?.filial.nome ?? '')
+  // ADM-07 (F27) — dica quando o texto digitado não bate com o nome da filial.
+  //
+  // ⚠ ATUALIZADO NA F52, e o comentário anterior descrevia um mundo que deixou de
+  // existir. Ele dizia que o servidor compara IGUALDADE EXATA e que "a RPC nem repete
+  // essa checagem". As duas metades ficaram falsas: a Server Action passou a usar
+  // `confirmacaoImportConfere`, e a RPC `importar_ativos_substituir` passou a conferir
+  // a confirmação POR DENTRO, com a mesma régua (`upper(btrim(coalesce(...)))`).
+  //
+  // Com isso o raciocínio antigo se INVERTEU: manter o cliente exato deixaria o botão
+  // desabilitado para um texto que o servidor ACEITARIA. Agora as TRÊS pontas — tela,
+  // action e banco — leem a mesma função, que é a regra que a fase inteira defende:
+  // duas réguas para a mesma pergunta é o defeito.
+  const confereConfirmacao = confirmacaoImportConfere(confirmacao, previa?.filial.nome ?? '')
   const dicaConfirmacao = previa
     ? dicaConfirmacaoNaoConfere(confirmacao, confereConfirmacao, previa.filial.nome)
     : null

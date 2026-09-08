@@ -74,6 +74,54 @@ Fluxo humano-no-circuito (o que já se faz desde a F7):
 6. **Recarregar o cache do PostgREST**: `notify pgrst, 'reload schema';` (senão a API não enxerga a nova assinatura).
 7. **Smoke só-leitura de produção** (ver o padrão nas atas de F7* em `docs/DECISOES.md`).
 
+## `security definer` — três exigências que não se negociam (F52)
+
+Uma função `security definer` roda como o **dono** e **passa por fora de toda policy de RLS**.
+As policies não a alcançam, então a autorização dela **tem de ser interna** — não existe
+segunda linha. Estas três valem para toda `security definer` nova ou recriada, e a terceira é
+a que a F52 acrescentou.
+
+1. **Autorização por dentro, antes de qualquer efeito.** A guarda de cargo (`e_admin()`,
+   `e_dev()`, `pode_escrever()`, `exigir_dev_para_destruir()`) vem **antes** da primeira
+   escrita, da primeira trava e da primeira leitura que o chamador possa influenciar. Mover uma
+   guarda para depois de um `lock` muda a ordem em que a recusa acontece — e num botão
+   destrutivo isso é a diferença entre "recusado" e "recusado com o acervo já travado".
+
+2. **Privilégio explícito, e mínimo.** `revoke all … from public, anon, service_role` sempre; e
+   `grant execute … to authenticated` **só** se a função for API de verdade. Auxiliar chamada
+   por `perform` de dentro de outra `security definer` **não precisa de grant nenhum** — ela
+   roda como o dono. A palavra `public` no `revoke` é obrigatória: sem ela o revoke de `anon` é
+   no-op (medido na F50). ⚠ O padrão "abre na fase, fecha na fase seguinte depois do advisor"
+   já aconteceu **duas vezes** (`0074`→`0078` e `0082`→`0088`). Nasça fechada.
+
+3. **Toda `security definer` que receba id do cliente confere ESCOPO antes de qualquer efeito.**
+   "Id do cliente" é qualquer parâmetro que aponte para um objeto do acervo ou uma conta:
+   `uuid`, `uuid[]`, `smallint` de filial — **e `text` de caminho ou nome** (`p_backup_path`,
+   `pode_escrever_arquivo_termo(p_nome text)`). O parâmetro `text` conta, e é justamente o que
+   uma varredura ingênua esquece.
+
+   O que é "conferir escopo": perguntar se **aquele objeto é de quem está chamando** — não só
+   se quem chama tem patente. `e_admin()` responde "você é administrador?"; ela **não** responde
+   "esta filial é sua?". As duas perguntas são diferentes, e é a segunda que falta quando um
+   id vem do payload.
+
+   A trava executável disso é `supabase/tests/definer_sem_tenant.sql`, e ela reprova **por
+   função NOMEADA, nunca por prefixo**: as cinco RPCs de conta citam `exigir_gestao_de` e
+   passariam verdes por um critério de prefixo `exigir_`. Exceção é **nominal**, com o motivo
+   escrito e a migration que a criou **na mesma linha** — a mesma doutrina dos catálogos da F48.
+
+   ⚠ **Nem toda função sem guarda no corpo é um furo.** `estorno_item_coerente` (`0068`) e
+   `termo_ancora_coerente` (`0069`) recebem id do cliente e sozinhas não protegem nada: a
+   autorização está **ANDada ao lado, na mesma expressão da policy**. Reprová-las seria reprovar
+   código seguro — por isso a trava é híbrida (universo derivado do catálogo × lista nominal
+   classificada), e não uma varredura de texto.
+
+   E o inverso também existe: `pode_ler_arquivo_termo` (`0129`) recebe `p_nome text`, é
+   alcançável por `authenticated`, e **ignora o parâmetro de propósito** — o corpo é só
+   `papel_atual() is not null`. Isso é "todo logado ativo lê todo termo", intencional até a F67
+   fechar por join. Nenhuma automação distingue "ignora de propósito" de "esqueceram": só uma
+   decisão humana escrita.
+
 ## Rollback — a regra geral
 
 Toda migration entra com o rollback **escrito antes do apply**, no rodapé do próprio arquivo. O histórico do anexo A mostra que ele quase sempre cai num destes quatro moldes:
