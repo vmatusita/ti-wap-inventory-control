@@ -220,6 +220,14 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // arquivo. O número SUBIU porque o banco ganhou uma função — que é exatamente o
     // caso em que ele deve subir, e a conversa que este teste existe para forçar.
     //
+    // ⚠ 08/09/2026 (F52): as funções passaram de 68 para 71. A migration 0132 criou
+    // `mesmo_escopo_de_gestao`, `exigir_ativos_da_empresa` e `prefixo_backup_import`, e o
+    // `database.ts` as ganhou por HAND-FIX datado — não por `npm run db:types`, porque a
+    // 0132 ainda não foi aplicada (ela é caminho B e depende da 0131, também pendente).
+    // `existe_outro_admin_ativo` também mudou de assinatura, mas o nome é o mesmo e o
+    // conjunto conta NOMES, então ela não move este número. O número SUBIU porque o banco
+    // ganhou funções — o caso em que ele deve subir.
+    //
     // Números MEDIDOS em 06/09/2026 no arquivo real. Relações e funções são EXATOS de
     // propósito: elas mudam raramente, e quando mudarem é porque alguém rodou
     // `npm run db:types` — que é justamente o momento de reler este teste. As colunas
@@ -229,7 +237,7 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // regrediu foi o parser — e um parser que perde nomes do lado do repositório faz o
     // gate acusar deriva que não existe.
     expect(real.relacoes.size).toBe(30)
-    expect(real.funcoes.size).toBe(68)
+    expect(real.funcoes.size).toBe(71)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 

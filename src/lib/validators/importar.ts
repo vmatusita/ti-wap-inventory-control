@@ -197,7 +197,7 @@ export function parseCorrecoesJson(valor: FormDataEntryValue | null): ParseCorre
 // ---------------------------------------------------------------------------
 // A CONFIRMAÇÃO DIGITADA DO IMPORT — a gêmea TS da régua que a RPC aplica (F52)
 // ---------------------------------------------------------------------------
-// ⚠ ESTA FUNÇÃO E A EXPRESSÃO SQL SÃO UMA RÉGUA SÓ, e é de propósito.
+// ⚠ A RÉGUA MORA EM `confirmacao-digitada.ts` — aqui só se REEXPORTA.
 //
 // Até a F52 havia DUAS: a Server Action comparava por IGUALDADE EXATA
 // (`confirmacaoTexto !== filial.nome`) e a RPC não comparava nada — quem chamasse
@@ -216,11 +216,10 @@ export function parseCorrecoesJson(valor: FormDataEntryValue | null): ParseCorre
 //
 // O espelho SQL é conferido por `src/lib/validators/import-confirmacao-sql.test.ts`, que
 // lê a migration VIGENTE e prova que a expressão lá é esta régua, não outra.
-export function confirmacaoImportConfere(digitado: string, esperado: string): boolean {
-  const a = (digitado ?? '').trim().toLocaleUpperCase('pt-BR')
-  const b = (esperado ?? '').trim().toLocaleUpperCase('pt-BR')
-  return a !== '' && a === b
-}
+// O motivo da mudança de casa é de BUNDLE: o wizard do import é Client Component, e
+// ESTE módulo importa o motor de CSV/XLSX de `@/lib/import`. Importar a régua daqui
+// arrastaria esse motor para o bundle do cliente — a lição que a F39 aprendeu à força.
+export { confirmacaoImportConfere } from '@/lib/validators/confirmacao-digitada'
 
 /**
  * O prefixo obrigatório do backup de um import de startup.

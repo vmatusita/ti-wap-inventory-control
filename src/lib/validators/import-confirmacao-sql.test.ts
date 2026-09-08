@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { confirmacaoImportConfere, prefixoBackupImport } from '@/lib/validators/importar'
+import { confirmacaoImportConfere } from '@/lib/validators/confirmacao-digitada'
+import { prefixoBackupImport } from '@/lib/validators/importar'
 
 // GUARDA DE SINCRONIA TS↔SQL DA CONFIRMAÇÃO E DO PREFIXO DO IMPORT (F52).
 //
