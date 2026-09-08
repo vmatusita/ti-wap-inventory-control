@@ -424,8 +424,15 @@ begin
     );
     v_falhas := v_falhas + 1; raise warning '✗ 3 backup vazio: NÃO falhou (deveria)';
   exception when others then
-    if sqlerrm like '%backup%' then
-      v_ok := v_ok + 1; raise notice '✓ 3 backup vazio rejeitado: %', sqlerrm;
+    -- ⚠ F52: a asserção passou a exigir a mensagem ESPECÍFICA da primeira guarda da
+    -- cascata, e não qualquer texto que contenha "backup". Motivo: desde a 0132 há TRÊS
+    -- guardas de backup, e um caminho vazio também não casa o prefixo — então desligar a
+    -- PRIMEIRA deixava a SEGUNDA recusar, com outra mensagem que também contém "backup",
+    -- e este cenário continuava verde. A mutação `import-sem-exigencia-de-backup` saía
+    -- como "não detectada" por isso. Exigir a frase própria é fortalecer, não afrouxar:
+    -- tudo o que reprovava antes continua reprovando.
+    if sqlerrm like '%exige backup_path%' then
+      v_ok := v_ok + 1; raise notice '✓ 3 backup vazio rejeitado pela PRIMEIRA guarda da cascata: %', sqlerrm;
     else
       v_falhas := v_falhas + 1; raise warning '✗ 3 falhou por motivo INESPERADO (não a guarda de backup): %', sqlerrm;
     end if;

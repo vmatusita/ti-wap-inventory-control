@@ -511,9 +511,12 @@ const CARGO_DEV = [
     derruba: ['5e'],
     porque:
       'Um GRANT distraído devolve a `authenticated` uma auxiliar interna que a 0078 tirou da API pública de propósito — ela é chamada só de DENTRO das RPCs de gestão.',
-    sql: `grant execute on function public.existe_outro_admin_ativo(uuid) to authenticated;`,
+    // ⚠ F52: a assinatura passou a ser (uuid, uuid) — a de 1 argumento foi DROPADA na
+    // 0132. Com a antiga, o `grant` era RECUSADO ("function does not exist") e a mutação
+    // saía como "NÃO aplicou" em vez de exercitar o cenário.
+    sql: `grant execute on function public.existe_outro_admin_ativo(uuid, uuid) to authenticated;`,
     prova: {
-      sql: `select has_function_privilege('authenticated', 'public.existe_outro_admin_ativo(uuid)'::regprocedure, 'execute')`,
+      sql: `select has_function_privilege('authenticated', 'public.existe_outro_admin_ativo(uuid, uuid)'::regprocedure, 'execute')`,
       espera: 't',
     },
   },
@@ -1131,9 +1134,12 @@ const F52_GUARDAS = [
   -- (a guarda de pertencimento foi removida daqui)`,
       'f52-escopo-de-gestao-some-do-corpo',
     ),
+    // ⚠ A SONDA MIRA A CHAMADA, NÃO O NOME. `pg_get_functiondef` devolve o corpo COM os
+    // comentários, e o comentário que a 0132 escreveu em volta da guarda CITA o nome —
+    // uma sonda por nome cru diria que a mutação "não pegou" quando ela pegou.
     prova: {
       sql: `select pg_get_functiondef('public.exigir_gestao_de(uuid, public.papel_usuario)'::regprocedure)
-              not like '%mesmo_escopo_de_gestao%'`,
+              not like '%not public.mesmo_escopo_de_gestao(p_alvo)%'`,
       espera: 't',
     },
   },
@@ -1163,11 +1169,19 @@ const F52_GUARDAS = [
     derruba: ['7f', '7i'],
     porque:
       'Troca a disjunção GUARDADA (`p_escopo is null or true`) por igualdade CRUA contra NULL. É o risco que o plano da fase nomeia por escrito: escopo ausente faz a comparação virar NULL, o `exists` devolve false, e a trava do último administrador passa a RECUSAR TUDO — toda troca de cargo, toda desativação, todo apagamento de conta. Um defeito silencioso trocado por um travamento barulhento.',
+    // ⚠ `create or replace` À FORÇA. O corpo vigente desta função na 0132 é um
+    // `create function` PURO — ela vem logo depois de um `drop`, porque acrescentar
+    // parâmetro cria assinatura nova. Reemitir esse texto colide com a função que já
+    // existe ("already exists with same argument types") e a mutação sai como "NÃO
+    // aplicou". O `replace` abaixo devolve o `or replace` que o corpo original não tem.
     sql: mutarFuncao(
       'public.existe_outro_admin_ativo(uuid, uuid)',
       '       and (p_escopo is null or true)',
       `       and null::uuid = p_escopo  ${MARCA}`,
       'f52-admin-ativo-volta-a-igualdade-crua',
+    ).replace(
+      'create function public.existe_outro_admin_ativo',
+      'create or replace function public.existe_outro_admin_ativo',
     ),
     prova: {
       sql: `select pg_get_functiondef('public.existe_outro_admin_ativo(uuid, uuid)'::regprocedure)
@@ -1192,9 +1206,11 @@ const F52_GUARDAS = [
   -- (a guarda de filial foi removida daqui)`,
       'f52-import-perde-a-guarda-de-filial',
     ),
+    // ⚠ Mesma armadilha da anterior: o comentário da 0132 cita `pode_escrever_filial`
+    // três vezes, então a sonda tem de mirar a CHAMADA.
     prova: {
       sql: `select pg_get_functiondef('public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)'::regprocedure)
-              not like '%pode_escrever_filial%'`,
+              not like '%not public.pode_escrever_filial(v_filial)%'`,
       espera: 't',
     },
   },

@@ -168,12 +168,29 @@ begin
                          'categoria', 'notebook', 'estadoAlvo', 'em_estoque')));
 
   -- 2a — backup SEM o prefixo da filial (caminho de outra operação/lugar qualquer).
+  --
+  -- ⚠ O OBJETO PRECISA EXISTIR em storage.objects, e isso é o que torna a asserção
+  -- HONESTA. A cascata tem três guardas em sequência; se o caminho de 2a também não
+  -- existisse, a guarda da EXISTÊNCIA recusaria mesmo com a do PREFIXO desligada, e este
+  -- cenário passaria verde sobre uma guarda removida — foi exatamente o que o injetor
+  -- acusou (`f52-backup-do-import-aceita-qualquer-prefixo`, "NÃO detectada"). Fazendo o
+  -- objeto existir, o PREFIXO passa a ser a ÚNICA razão da recusa, e o cenário isola a
+  -- guarda que diz isolar.
+  insert into storage.objects (bucket_id, name, owner)
+    values ('backups-import', 'zzf52/fora-do-prefixo.json', v_prof);
   begin
-    perform public.import_validar_plano(v_plano, 'algum/outro/caminho.json', '[]'::jsonb, v_f1);
+    perform public.import_validar_plano(v_plano, 'zzf52/fora-do-prefixo.json', '[]'::jsonb, v_f1);
     v_falhas := v_falhas + 1; raise warning '✗ 2a backup sem o prefixo da filial: NÃO recusou (deveria)';
   exception when others then
     if sqlstate = '22023' then
-      v_ok := v_ok + 1; raise notice '✓ 2a backup sem o prefixo da filial recusado (%): %', sqlstate, sqlerrm;
+      -- E a mensagem tem de ser a do PREFIXO, não a da existência — senão o cenário
+      -- voltaria a passar por motivo errado no dia em que a ordem da cascata mudasse.
+      if sqlerrm like '%não é o backup DESTA filial%' then
+        v_ok := v_ok + 1; raise notice '✓ 2a backup sem o prefixo da filial recusado pela guarda do PREFIXO (%): %', sqlstate, sqlerrm;
+      else
+        v_falhas := v_falhas + 1;
+        raise warning '✗ 2a recusado, mas NÃO pela guarda do prefixo (a cascata mudou de ordem?): %', sqlerrm;
+      end if;
     else
       v_falhas := v_falhas + 1; raise warning '✗ 2a recusou por motivo INESPERADO (%): %', sqlstate, sqlerrm;
     end if;
