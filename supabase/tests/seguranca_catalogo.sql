@@ -16,11 +16,24 @@
 -- aplicar_movimentacao e handle_new_user, essa função-gatilho é SECURITY INVOKER
 -- — roda com o privilégio de QUEM chama, não do dono; não é vetor de
 -- escalonamento e o advisor do Supabase não a aponta. Por isso a migration 0038
--- revoga o EXECUTE SÓ das DUAS funções SECURITY DEFINER e deixa esta com o grant
--- default do Supabase (authenticated/anon com EXECUTE). A asserção 4c prova
--- prosecdef=false — é exatamente o que torna esse grant inofensivo. Se um dia se
--- quiser defesa-em-profundidade também aqui, basta uma migration nova revogando
--- o EXECUTE; então este 4c pode virar a mesma checagem dos 4a/4b.
+-- revoga o EXECUTE SÓ das DUAS funções SECURITY DEFINER. A asserção 4c prova
+-- prosecdef=false — é exatamente o que torna o grant dela inofensivo.
+--
+-- ⚠ ATUALIZADO NA F50 (08/09/2026): "aquele dia" chegou. A migration 0129 revogou o
+-- EXECUTE de `anon` desta e das outras quatro INVOKER alcançáveis pela anon key —
+-- defesa em profundidade, não conserto de vazamento. Duas consequências para quem lê
+-- este arquivo:
+--   · o grant default do Supabase (authenticated + anon) NÃO vale mais para ela:
+--     `anon` foi revogado, `authenticated` continua (triggers e SQL de sessão a usam);
+--   · o 4c continua provando `prosecdef = false`, e NÃO virou a checagem dos 4a/4b —
+--     aqueles exigem EXECUTE revogado de authenticated E anon, e revogar
+--     `authenticated` aqui quebraria escrita de verdade. A prova da revogação de
+--     `anon` mora em `catalogo_secdef.sql`, asserção 6c.
+--
+-- ⚠ E a justificativa da inofensividade dela é OUTRA, corrigida pela revisão
+-- adversarial da F48: ela LÊ `public.lancamentos_item`. O que a protege não é "não
+-- tocar tabela" — é ser `returns trigger` (chamá-la por `/rest/v1/rpc/*` falha, não há
+-- NEW/OLD fora de um trigger) e ser INVOKER (a leitura passa pela RLS de quem chama).
 --
 -- =============================================================
 -- ONDE MORA O RESTO DA ENUMERAÇÃO (F48, 07/09/2026 — Decisão 2)

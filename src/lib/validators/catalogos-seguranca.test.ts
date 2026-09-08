@@ -136,6 +136,13 @@ describe('3. toda exceção NOMINAL vem com motivo escrito e a migration que a c
   const ARRAYS: { arquivo: string; array: string }[] = [
     { arquivo: 'catalogo_policies', array: 'k_sem_select' },
     { arquivo: 'catalogo_secdef', array: 'k_invoker_anon' },
+    // F50 — `k_invoker_anon` ESVAZIOU (a 0129 revogou o EXECUTE de `anon` das cinco),
+    // e os cinco nomes migraram para `k_invoker_revogadas`, que a asserção 6c vigia.
+    // Ele entra aqui porque é a MESMA classe de declaração nominal: uma lista de
+    // nomes que precisa dizer, por escrito e com procedência, por que cada um está
+    // lá. Sem esta entrada, a guarda "há exceções para conferir" cairia de 8 para 3 e
+    // acusaria — corretamente — que a varredura passou a olhar quase nada.
+    { arquivo: 'catalogo_secdef', array: 'k_invoker_revogadas' },
   ]
 
   /** Os literais de um `<nome> text[] := array[ … ];` do roteiro. */

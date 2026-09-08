@@ -166,9 +166,15 @@ declare
 
   -- As funções do MODELO DE ACESSO. Uma policy de Storage que não cite NENHUMA delas
   -- está decidindo só por `bucket_id` — a forma que esta fase proíbe.
+  --
+  -- ⚠ `pode_ler_arquivo_termo` entrou na F50 (0129) e a entrada é OBRIGATÓRIA, não
+  -- cosmética: a policy "termos leitura operador" deixou de citar `papel_atual`
+  -- diretamente e passou a chamar a função nova, que o encapsula. Sem o nome aqui,
+  -- esta asserção acusaria a policy de "decidir só por bucket_id" — exatamente o
+  -- oposto do que a 0129 fez.
   k_funcoes_acesso text[] := array[
     'papel_atual', 'e_admin', 'e_dev', 'pode_escrever', 'pode_escrever_filial',
-    'pode_escrever_termo', 'pode_escrever_arquivo_termo'
+    'pode_escrever_termo', 'pode_escrever_arquivo_termo', 'pode_ler_arquivo_termo'
   ];
 
   -- =======================================================================
