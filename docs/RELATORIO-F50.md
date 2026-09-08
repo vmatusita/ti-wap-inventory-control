@@ -34,7 +34,7 @@ em lugar nenhum.
 | `src/components/relatorios/use-filtros-tabela.ts` | Cabeçalho em prosa | O hook filtra o que **já chegou** |
 | `supabase/migrations/0129_*.sql` | `pode_ler_arquivo_termo` + policy + cinco `revoke` | A fechadura de leitura, e o backlog da F49 §12.2 |
 | `supabase/migrations/0130_*.sql` | Cinco `grant … to authenticated` | O CI provou que o `revoke` de PUBLIC precisava do par |
-| `supabase/tests/storage_termo.sql` | **Novo** — 10 asserções | Prova que quem lia continua lendo |
+| `supabase/tests/storage_termo.sql` | **Novo** — 13 asserções | Prova que quem lia continua lendo |
 | `supabase/tests/catalogo_secdef.sql` | `k_invoker_anon` vazia, `k_invoker_revogadas` + asserção 6c | A lista mudou de papel: de exceção tolerada para revogação provada |
 
 ---
@@ -302,12 +302,12 @@ novo de `href` é **superconjunto estrito** do antigo (corrige dois falsos negat
 | 13 | Cabeçalho e `it('CampoFiltro não conhece a empresa')` | ✅ H |
 | 14 | `0129` no molde da irmã, sem `coalesce`, `comment` explicando | ✅ |
 | 15 | Cinco `revoke` com justificativa corrigida; `k_invoker_anon` esvaziada | ✅ + asserção 6c |
-| 16 | `storage_termo.sql` com linha `FIM` e >0 asserções, dado sintético | ✅ 10 asserções |
-| 17 | `db:lock` rodado; `db:types:diff` passa | ⏳ **no CI** |
+| 16 | `storage_termo.sql` com linha `FIM` e >0 asserções, dado sintético | ✅ **13 asserções**, verde no CI |
+| 17 | `db:lock` rodado; `db:types:diff` passa | ✅ `banco-sem-docker` verde |
 | 18 | `lint`, `test`, `build`, `tsc` limpos; sem dependência nova; sem `empresa_id` nem bucket movido | ✅ 165 arquivos, 4114 testes |
 | 19 | Emenda F50 a partir de R-ACC-40, contador atualizado | ✅ **248** |
-| 20 | `1.55.0` no `package.json` e no registry; tag; CHANGELOG | ⏳ tag após o merge |
-| 21 | PR mergeado com os dois checks verdes; `main` em repouso | ⏳ |
+| 20 | `1.55.0` no `package.json` e no registry; tag; CHANGELOG | ✅ tag publicada após o merge |
+| 21 | PR mergeado com os dois checks verdes; `main` em repouso | ✅ `verificar` e `banco-sem-docker` verdes |
 
 ---
 
