@@ -1,0 +1,100 @@
+{
+  "rotulo": "f49-guarda",
+  "o_que_e": "O custo de `exigirPapel(supabase, 'consulta')` — a guarda que a F49 acrescentou a nove Server Actions de leitura, sete delas em campo com debounce por tecla.",
+  "como_ler": "A guarda faz DUAS idas à rede na primeira chamada de um request: auth.getUser() (valida o JWT no servidor de Auth) e rpc(papel_atual) (lê o cargo no Postgres). O número da fase é a linha \"o PAR\", medida de verdade em sequência — não a soma das medianas isoladas.",
+  "ambiente": {
+    "alvo": "supabase (projeto de produção) — medido da mesa",
+    "origem": "a mesa (Windows, conexão doméstica) — NÃO a lambda da Vercel",
+    "sessao": "operador real, login por senha (cascata PERF_*/SMOKE_*)",
+    "node": "v24.14.0"
+  },
+  "metodo": {
+    "aquecimento": 2,
+    "repeticoes": 15,
+    "ordem": "round-robin (cada rodada mede as três medidas uma vez, na mesma ordem)",
+    "percentil": "interpolação linear entre postos",
+    "sessao": "operador real, login por senha (cascata PERF_*/SMOKE_*)",
+    "escrita": "nenhuma — só getUser e papel_atual(), ambos de leitura",
+    "o_que_nao_mede": "o tempo da tela; a lambda da Vercel fala com o Supabase por caminho de rede mais curto e mede MENOS. Também não mede o efeito do cache() de cargoDoRequest: aqui cada rodada é um request novo."
+  },
+  "antes": {
+    "inicio": "2026-09-08T01:54:36.092Z",
+    "fim": "2026-09-08T01:54:40.524Z",
+    "medidas": [
+      {
+        "medida": "auth.getUser()",
+        "papel": "o que `idOperador()` faz — valida o JWT no servidor de Auth",
+        "amostras": 15,
+        "mediana_ms": 36.7,
+        "p95_ms": 45,
+        "min_ms": 32.8,
+        "max_ms": 53,
+        "falhas": 0
+      },
+      {
+        "medida": "rpc('papel_atual')",
+        "papel": "o que `lerPapel()` faz — lê o cargo vigente no Postgres",
+        "amostras": 15,
+        "mediana_ms": 34.1,
+        "p95_ms": 48.7,
+        "min_ms": 30.2,
+        "max_ms": 59.1,
+        "falhas": 0
+      },
+      {
+        "medida": "o PAR (getUser + papel_atual)",
+        "papel": "o custo TOTAL que `exigirPapel` acrescenta na 1ª chamada de um request",
+        "amostras": 15,
+        "mediana_ms": 71.8,
+        "p95_ms": 94.8,
+        "min_ms": 62,
+        "max_ms": 95.2,
+        "falhas": 0
+      }
+    ]
+  },
+  "depois": {
+    "inicio": "2026-09-08T02:18:49.411Z",
+    "fim": "2026-09-08T02:18:53.414Z",
+    "medidas": [
+      {
+        "medida": "auth.getUser()",
+        "papel": "o que `idOperador()` faz — valida o JWT no servidor de Auth",
+        "amostras": 15,
+        "mediana_ms": 38.5,
+        "p95_ms": 55.9,
+        "min_ms": 34.8,
+        "max_ms": 66.5,
+        "falhas": 0
+      },
+      {
+        "medida": "rpc('papel_atual')",
+        "papel": "o que `lerPapel()` faz — lê o cargo vigente no Postgres",
+        "amostras": 15,
+        "mediana_ms": 33.7,
+        "p95_ms": 53.8,
+        "min_ms": 28.3,
+        "max_ms": 56.3,
+        "falhas": 0
+      },
+      {
+        "medida": "o PAR (getUser + papel_atual)",
+        "papel": "o custo TOTAL que `exigirPapel` acrescenta na 1ª chamada de um request",
+        "amostras": 15,
+        "mediana_ms": 72.7,
+        "p95_ms": 90.5,
+        "min_ms": 63.5,
+        "max_ms": 92.6,
+        "falhas": 0
+      }
+    ]
+  },
+  "veredito": {
+    "custo_por_chamada_mediana_ms": 72.7,
+    "custo_por_chamada_p95_ms": 90.5,
+    "delta_antes_depois_ms": 0.9,
+    "leitura_do_delta": "Ruído, e era o esperado: o instrumento mede as duas chamadas ao Supabase, que são as mesmas antes e depois — o que a F49 mudou foi QUANTAS actions passam a fazê-las, não quanto elas custam. Rodar duas vezes serve para provar que a medição é reprodutível e que o número não foi colhido num instante bom.",
+    "dói": "Não no caminho que importa, e o motivo é medida, não opinião. (a) O debounce de 300 ms já limita a UMA chamada por pausa de digitação, e a busca que ela protege custa outra ida ao banco de qualquer forma. (b) Este número é um TETO pessimista: foi medido da mesa, e a lambda da Vercel fala com o Supabase na MESMA região (GRU1, desde a F33) — em produção o custo real é menor. (c) `cargoDoRequest` é `cache()` por requisição desde a F21 (acesso.ts:260), então a SEGUNDA guarda do mesmo request custa zero.",
+    "o_que_nao_prova": "Não é o tempo da tela, e não mede a Server Action de ponta a ponta: Server Action não é rota GET (é POST com header Next-Action, cujo id muda a cada build), e por isso `scripts/perf/medir.mjs` — que é só GET por regra do cabeçalho dele — não servia. Mede a PARCELA da guarda, isolada, contra o Supabase real."
+  }
+}

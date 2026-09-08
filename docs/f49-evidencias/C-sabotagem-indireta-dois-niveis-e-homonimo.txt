@@ -1,0 +1,8 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/guardas-de-action.test.ts > toda Server Action exportada tem guarda ou isenção nominal > nenhum export ficou sem guarda e sem motivo escrito
+  src/lib/actions/tipos-item.ts::exportComDoisNiveis (linha 174)
+  src/lib/actions/tipos-item.ts::exportComHomonimo (linha 184)
++     "chave": "src/lib/actions/tipos-item.ts::exportComDoisNiveis",
++     "nome": "exportComDoisNiveis",
++     "chave": "src/lib/actions/tipos-item.ts::exportComHomonimo",
++     "nome": "exportComHomonimo",

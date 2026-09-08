@@ -1,0 +1,20 @@
+> Build error occurred
+Error: Turbopack build failed with 3 errors:
+Ecmascript file had an error
+  #3 [Client Component Browser]:
+    ./src/lib/supabase/server.ts [Client Component Browser]
+    ./src/lib/queries/ativos.ts [Client Component Browser]
+    ./src/components/movimentacoes/ativo-combobox.tsx [Client Component Browser]
+    ./src/components/movimentacoes/nova/passo-ativos.tsx [Client Component Browser]
+    ./src/components/movimentacoes/nova-movimentacao-form.tsx [Client Component Browser]
+  #4 [Client Component SSR]:
+    ./src/lib/supabase/server.ts [Client Component SSR]
+    ./src/lib/queries/ativos.ts [Client Component SSR]
+    ./src/components/movimentacoes/ativo-combobox.tsx [Client Component SSR]
+    ./src/components/movimentacoes/nova/passo-ativos.tsx [Client Component SSR]
+    ./src/components/movimentacoes/nova-movimentacao-form.tsx [Client Component SSR]
+You're importing a module that depends on "server-only". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+[31m[1m>[0m [90m1 |[0m [36mimport[0m [32m'server-only'[0m
+Ecmascript file had an error
+  #3 [Client Component Browser]:
+    ./src/lib/queries/ativos.ts [Client Component Browser]

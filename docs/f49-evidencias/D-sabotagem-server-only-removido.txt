@@ -1,0 +1,4 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/queries/servidor-apenas.test.ts > todo módulo de lib/queries declara server-only > src/lib/queries/ativos.ts
+AssertionError: src/lib/queries/ativos.ts não declara `import 'server-only'`.
+      Tests  1 failed | 51 passed (52)

@@ -6,6 +6,43 @@ import type { PapelUsuario } from '@/lib/auth/papeis'
 
 // Leituras das telas de administração (só ADMIN a partir da F21 — o gate está em
 // admin/layout.tsx e, para cada escrita, na guarda `exigirAdmin()` da action).
+//
+// ⚠ ESTE É O SEGUNDO MÓDULO SEM RLS DO SISTEMA (F49, 07/09/2026)
+// ---------------------------------------------------------------
+// O primeiro é `queries/relatorios/**`, que o VISUALIZADOR POR SENHA alcança com
+// service role — e que tem um tripwire próprio, `relatorios/fronteira-viewer.test.ts`,
+// justamente porque ali o RLS não é a segunda linha. Este arquivo é o outro caso, e
+// até agora ele não estava escrito em lugar nenhum.
+//
+// Das 9 funções exportadas aqui, CINCO usam `createAdminClient()` — service role, que
+// tem `rolbypassrls` e passa por fora de toda policy: `lerContasAuth` (o helper de
+// `listarUsuarios`), `idsDeAdminsAtivos`, `perfilPorEmail`, `emailDoUsuario`,
+// `getEstadoUsuario` e `listarSenhasAcesso`. São 6 invocações num total de 22 no
+// repositório inteiro — a maior concentração num só arquivo.
+//
+// E o que ele lê são PESSOAS, não inventário. Essa é a diferença que importa:
+//   · `auth.admin.listUsers` (linha ~69, em `lerContasAuth`) ENUMERA O PROJETO AUTH
+//     INTEIRO, página a página até o teto de `AUTH_PAGINAS_MAX` × `AUTH_POR_PAGINA`
+//     = 50 × 200 = 10 mil contas. De cada uma vêm e-mail, último login e situação de
+//     banimento. Não há filtro de filial, de cargo ou de qualquer outra coisa: o teto
+//     existe só para o laço não ser infinito.
+//   · `perfilPorEmail` faz a mesma varredura para achar o dono de um e-mail antes de
+//     emitir um link de recuperação.
+//   · `idsDeAdminsAtivos` e `getEstadoUsuario` precisam enxergar o conjunto REAL de
+//     administradores — é isso que sustenta a trava de "não fique sem administrador",
+//     que seria burlável se a RLS escondesse o alvo de quem pergunta.
+//
+// O que separa tudo isso de qualquer sessão logada é APENAS o código à volta: o
+// `exigirAdmin`/`exigirDev` das actions que chamam estas funções, e o
+// `getOperador` + `eAdmin` de `admin/layout.tsx` para as duas listagens que só as
+// páginas alcançam. Nenhuma policy participa. Se uma dessas funções passar a ser
+// chamada de um caminho sem guarda, não há segunda linha para segurar.
+//
+// O censo de TODOS os arquivos que invocam `createAdminClient()` — cada um com o
+// motivo pelo qual a RLS não serve e o nome da guarda que o protege — está em
+// `src/lib/supabase/superficie-admin.test.ts`, que reprova quando nasce um arquivo
+// novo fora da lista. Na virada multiempresa essa lista é a agenda do recorte por
+// tenant: aqui não haverá policy para fazer o recorte, e ele terá de ser escrito.
 
 export type UsuarioAdmin = {
   id: string

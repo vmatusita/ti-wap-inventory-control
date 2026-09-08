@@ -127,6 +127,159 @@ function exportsSemGuarda(): Achado[] {
   return fora
 }
 
+// ---------------------------------------------------------------------------
+// (a) A leitura em si — as formas que ela PRECISA recusar
+// ---------------------------------------------------------------------------
+//
+// Sem estes casos, a varredura poderia estar verde por não saber ler nada. Cada um
+// aqui é uma forma de fazer a trava dizer "guardado" sobre código que não está.
+
+describe('guardasDosExports — o que NÃO conta como guarda', () => {
+  const cabecalho = "'use server'\n"
+
+  it('guarda citada só num COMENTÁRIO não conta', () => {
+    const fonte =
+      cabecalho +
+      ['export async function f() {', '  // aqui deveria ter um exigirPapel(supabase, ', '  return []', '}'].join(
+        '\n',
+      )
+    expect(guardasDosExports(fonte)[0].guarda).toBeNull()
+  })
+
+  it('guarda dentro de uma STRING não conta', () => {
+    const fonte =
+      cabecalho +
+      ['export async function f() {', "  return ['exigirPapel(supabase)']", '}'].join('\n')
+    expect(guardasDosExports(fonte)[0].guarda).toBeNull()
+  })
+
+  it('indireta de DOIS níveis não conta', () => {
+    // O helper que o export chama precisa ter a guarda ELE MESMO. Cadeia arbitrária
+    // é como uma trava vira peneira — ver o cabeçalho de guardas-de-action.ts.
+    const fonte =
+      cabecalho +
+      [
+        'async function nivelDois() {',
+        '  const aut = await exigirAdmin(supabase)',
+        '  return aut.ok',
+        '}',
+        'async function nivelUm() {',
+        '  return nivelDois()',
+        '}',
+        'export async function f() {',
+        '  if (!(await nivelUm())) return []',
+        '  return [1]',
+        '}',
+      ].join('\n')
+    const alvo = guardasDosExports(fonte).find((x) => x.nome === 'f')
+    expect(alvo!.guarda).toBeNull()
+  })
+
+  it('helper HOMÔNIMO sem guarda não conta (o nome não é o que autoriza)', () => {
+    const fonte =
+      cabecalho +
+      [
+        'async function barrado() {',
+        '  return null',
+        '}',
+        'export async function f() {',
+        '  const negado = await barrado()',
+        '  if (negado) return []',
+        '  return [1]',
+        '}',
+      ].join('\n')
+    const alvo = guardasDosExports(fonte).find((x) => x.nome === 'f')
+    expect(alvo!.guarda).toBeNull()
+  })
+
+  it('`idOperador` não é guarda — responde "existe sessão?", não "pode?"', () => {
+    const fonte =
+      cabecalho +
+      ['export async function f() {', '  const uid = await idOperador(supabase)', '  if (!uid) return []', '  return [1]', '}'].join(
+        '\n',
+      )
+    expect(guardasDosExports(fonte)[0].guarda).toBeNull()
+  })
+
+  it('nome que apenas COMEÇA com o de uma guarda não conta', () => {
+    const fonte =
+      cabecalho + ['export async function f() {', '  exigirPapelDeMentira(supabase)', '  return []', '}'].join('\n')
+    expect(guardasDosExports(fonte)[0].guarda).toBeNull()
+  })
+})
+
+describe('guardasDosExports — o que CONTA como guarda', () => {
+  const cabecalho = "'use server'\n"
+
+  it('chamada direta no corpo', () => {
+    const fonte =
+      cabecalho +
+      ['export async function f() {', "  const aut = await exigirPapel(s, 'consulta')", '  if (!aut.ok) return []', '  return [1]', '}'].join(
+        '\n',
+      )
+    const r = guardasDosExports(fonte)[0]
+    expect(r.guarda).toBe('exigirPapel')
+    expect(r.via).toBe('direta')
+  })
+
+  it('helper local de UM nível (o padrão de barrado()/sugerir())', () => {
+    const fonte =
+      cabecalho +
+      [
+        'async function barrado() {',
+        "  const aut = await exigirPapel(s, 'consulta')",
+        '  return aut.ok ? null : aut.erro',
+        '}',
+        'export async function f() {',
+        '  const negado = await barrado()',
+        '  if (negado) return []',
+        '  return [1]',
+        '}',
+      ].join('\n')
+    const alvo = guardasDosExports(fonte).find((x) => x.nome === 'f')!
+    expect(alvo.guarda).toBe('exigirPapel')
+    expect(alvo.via).toBe('indireta')
+    expect(alvo.helper).toBe('barrado')
+  })
+
+  it('enxerga o corpo inteiro quando o parâmetro é objeto MULTILINHA', () => {
+    // A forma que quebrou a primeira versão desta leitura: `}): Promise<X> {` começa
+    // com `}` na coluna 0 sem fechar a função.
+    const fonte =
+      cabecalho +
+      [
+        'export async function f(input: {',
+        '  a: string',
+        '}): Promise<number[]> {',
+        '  const aut = await exigirEscrita(s, 1)',
+        '  if (!aut.ok) return []',
+        '  return [1]',
+        '}',
+      ].join('\n')
+    expect(guardasDosExports(fonte)[0].guarda).toBe('exigirEscrita')
+  })
+
+  it('enxerga o corpo inteiro quando o RETORNO é genérico multilinha', () => {
+    // A forma que escondeu o `exigirAdmin` de `resumoExclusaoConflito`.
+    const fonte =
+      cabecalho +
+      [
+        'export async function f(input: {',
+        '  ids: string[]',
+        '}): Promise<',
+        '  Resultado<{',
+        '    a: number',
+        '  }>',
+        '> {',
+        '  const aut = await exigirAdmin(s)',
+        '  if (!aut.ok) return []',
+        '  return [1]',
+        '}',
+      ].join('\n')
+    expect(guardasDosExports(fonte)[0].guarda).toBe('exigirAdmin')
+  })
+})
+
 describe('a varredura enxerga o repositório (guarda do próprio teste)', () => {
   it('encontra módulos "use server"', () => {
     expect(MODULOS.length).toBeGreaterThan(0)
