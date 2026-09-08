@@ -475,7 +475,12 @@ begin
 
   -- 5e. E as duas auxiliares NÃO estão mais expostas na API (0078). Medir aqui é barato e
   -- impede que um `grant` distraído as devolva sem ninguém notar.
-  if not has_function_privilege('authenticated', 'public.existe_outro_admin_ativo(uuid)', 'execute')
+  -- F52: a assinatura passou a ser (uuid, uuid) — a de 1 argumento foi DROPADA na 0132,
+  -- porque mantê-la ao lado da nova faria a chamada de 1 argumento (que as três RPCs da
+  -- 0074 fazem) levantar 42725 "function is not unique". ⚠ `has_function_privilege` com
+  -- assinatura inexistente LEVANTA exceção em vez de devolver false: citar a antiga aqui
+  -- não deixava a asserção vermelha, ABORTAVA o roteiro inteiro.
+  if not has_function_privilege('authenticated', 'public.existe_outro_admin_ativo(uuid, uuid)', 'execute')
      and not has_function_privilege('authenticated', 'public.exigir_gestao_de(uuid, public.papel_usuario)', 'execute') then
     v_ok := v_ok + 1; raise notice '✓ 5e as auxiliares de gestão não são executáveis por authenticated';
   else

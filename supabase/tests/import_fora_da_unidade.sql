@@ -116,11 +116,15 @@ begin
   -- =========================================================================
 
   -- 1a — concatenação pura, não depende de a filial 1 existir de verdade.
-  if public.prefixo_backup_import(1) = 'import/filial-1/' then
+  -- ⚠ O `::smallint` é OBRIGATÓRIO: a função recebe `smallint`, e a conversão de
+  -- `integer` para `smallint` no Postgres é de ATRIBUIÇÃO, não implícita — um literal
+  -- `1` cru resolve para "function public.prefixo_backup_import(integer) does not exist"
+  -- e ABORTA o roteiro, em vez de deixar a asserção vermelha.
+  if public.prefixo_backup_import(1::smallint) = 'import/filial-1/' then
     v_ok := v_ok + 1; raise notice '✓ 1a prefixo_backup_import(1) = "import/filial-1/"';
   else
     v_falhas := v_falhas + 1;
-    raise warning '✗ 1a prefixo_backup_import(1): esperado "import/filial-1/", obtido "%"', public.prefixo_backup_import(1);
+    raise warning '✗ 1a prefixo_backup_import(1): esperado "import/filial-1/", obtido "%"', public.prefixo_backup_import(1::smallint);
   end if;
 
   -- 1b — fechada nos quatro papéis, pelo ACL real (não pela intenção do comentário).
