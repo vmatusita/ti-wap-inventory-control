@@ -348,17 +348,18 @@ As outras formas sondadas no mesmo lote já estavam corretas e viraram caso de t
 | 16 | `db:test` e `db:test:mutations` sem nada de novo | ✅ | nada em `supabase/` mudou; ver §11 |
 | 17 | emenda na matriz a partir de R-ACC-36, contador atualizado | ✅ | 239 → **243** |
 | 18 | v1.54.0 no `package.json` e no registry; CHANGELOG | ✅ | §10 |
-| 18b | **tag anotada `v1.54.0` publicada** | ⏳ **no merge** | ver nota abaixo |
-| 19 | PR mergeado com os dois checks verdes; `main` em repouso | ⏳ **em andamento** | §11 |
+| 18b | **tag anotada `v1.54.0` publicada** | ✅ | aponta para o merge `296979a`; `git ls-remote --tags origin` a lista |
+| 19 | PR mergeado com os dois checks verdes; `main` em repouso | ✅ | PR #32, `verificar` 4m35s + `banco-sem-docker` 1m43s |
 
-> **Nota sobre 18b e 19 — e sobre um erro deste próprio checklist.** A primeira versão desta
-> tabela marcava o critério 18 como ✅ incluindo a tag, que **ainda não existia**. A revisão
-> adversarial pegou (`git tag -l` parava em `v1.53.0`), e a correção está aqui em vez de
-> escondida: a tag aponta para o **commit de merge** na `main` — é o precedente do repositório
-> (`v1.53.0` aponta para o merge da F48, não para um commit da branch) — e por isso só pode
-> existir depois do merge. Marcar como feito o que ainda não foi é exatamente a classe de erro
-> que o modo de autoverificação torna possível, e que esta fase não deveria cometer no relatório
-> que descreve a si mesma.
+> **Nota sobre 18b — e sobre um erro deste próprio checklist.** A primeira versão desta tabela
+> marcava o critério 18 como ✅ **incluindo a tag, que ainda não existia**. A revisão adversarial
+> pegou (`git tag -l` parava em `v1.53.0`), e a correção fica registrada aqui em vez de
+> silenciosamente sobrescrita. A tag aponta para o **commit de merge** na `main` — precedente do
+> repositório (`v1.53.0` aponta para o merge da F48, não para um commit da branch) — e por isso
+> só podia existir depois do merge; o erro não foi a sequência, foi ter marcado ✅ antes.
+> Marcar como feito o que ainda não foi é exatamente a classe de erro que o modo de
+> autoverificação torna possível, e que esta fase, cujo assunto é justamente a diferença entre
+> o que se afirma e o que o código faz, não deveria cometer no relatório que descreve a si mesma.
 
 ---
 
@@ -395,6 +396,23 @@ git diff main --stat -- supabase/  → VAZIO
 
 O `npm run build` é a quarta trava, de graça: é ele que prova a fronteira RSC de ponta a ponta
 com o grafo real do bundler. Rodou limpo com os 27 módulos declarando `server-only`.
+
+**No CI, no commit final:** `verificar` **pass (4m35s)** e `banco-sem-docker` **pass (1m43s)** —
+os dois *required checks*. O segundo é o que roda `npm run db:test` e `npm run db:test:mutations`
+contra um Postgres limpo, e ele passar sem nada de novo é a confirmação do critério 16: esta
+fase não tocou o banco.
+
+**Smoke contra produção, depois do deploy** (`node scripts/smoke/smoke-prod.mjs`):
+
+```
+RESUMO · 108 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+```
+
+Nenhuma tela regrediu — inclusive as seis que passam pelas actions guardadas. O único aviso
+(`kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não
+comprovada`) é **anterior a esta fase** e não tem relação com ela: é o smoke dizendo,
+honestamente, que não consegue provar uma RLS sobre uma tabela vazia — a mesma doutrina de
+"viu zero linhas não é prova" que a F48 escreveu em `isolamento_tenant.sql`.
 
 Diff total da fase: **67 arquivos, +3177 / −22**. As 22 remoções são os 22 topos de arquivo
 onde a linha `import 'server-only'` foi inserida (o `sed` conta a linha reescrita), o move de
