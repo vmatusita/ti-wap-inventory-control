@@ -1,0 +1,4147 @@
+# F51 — a trava NASCENDO VERMELHA, antes de as auxiliares existirem
+#
+# Comando: npx vitest run src/lib/validators/import-uma-porta.test.ts
+# Estado do repo: migration 0131 AINDA NÃO ESCRITA (última = 0130).
+#
+# Isto é evidência de relatório, não estado intermediário a esconder
+# (regra 4 do §4 do PLANO-MULTIEMPRESA: a trava antes da correção).
+# 28 falharam, 3 passaram — as 3 que passam são as guardas do próprio teste
+# que não dependem das auxiliares (há migrations para varrer; a orquestradora
+# existe; a lista não tem repetido).
+#
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/validators/import-uma-porta.test.ts (31 tests | 28 failed) 932ms
+     × a auxiliar `import_validar_plano` existe em alguma migration 45ms
+     × a auxiliar `import_revalidar_contagens` existe em alguma migration 56ms
+     × a auxiliar `import_apagar_acervo_filial` existe em alguma migration 46ms
+     × a auxiliar `import_criar_ativos` existe em alguma migration 38ms
+     × a auxiliar `import_lancar_movimentacoes` existe em alguma migration 36ms
+     × a auxiliar `import_conferir_resultado` existe em alguma migration 52ms
+     × a auxiliar `import_contar_conflitos` existe em alguma migration 41ms
+     × a auxiliar `import_gravar_trilha` existe em alguma migration 43ms
+     × a auxiliar autorizada CONTÉM o delete (senão a trava vigia o nada) 35ms
+     × a orquestradora NÃO contém o delete 30ms
+     × a auxiliar `import_validar_plano` NÃO contém o delete 66ms
+     × a auxiliar `import_revalidar_contagens` NÃO contém o delete 49ms
+     × a auxiliar `import_criar_ativos` NÃO contém o delete 38ms
+     × a auxiliar `import_lancar_movimentacoes` NÃO contém o delete 30ms
+     × a auxiliar `import_conferir_resultado` NÃO contém o delete 34ms
+     × a auxiliar `import_contar_conflitos` NÃO contém o delete 31ms
+     × a auxiliar `import_gravar_trilha` NÃO contém o delete 26ms
+     × exatamente UMA função da cadeia contém o delete 34ms
+     × a orquestradora chama `import_validar_plano` 19ms
+     × a orquestradora chama `import_revalidar_contagens` 17ms
+     × a orquestradora chama `import_apagar_acervo_filial` 14ms
+     × a orquestradora chama `import_criar_ativos` 10ms
+     × a orquestradora chama `import_lancar_movimentacoes` 11ms
+     × a orquestradora chama `import_conferir_resultado` 12ms
+     × a orquestradora chama `import_contar_conflitos` 12ms
+     × a orquestradora chama `import_gravar_trilha` 14ms
+     × o leitor de corpo IGNORA comentário de linha 28ms
+     × o leitor de corpo NÃO ignora o código 34ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 28 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a auxiliar `import_validar_plano` existe em alguma migration
+AssertionError: expected [Function] to not throw an error but 'Error: corpoVigente: nenhuma migratio…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: corpoVigente: nenhuma migration define public.import_validar_plano(jsonb, text, jsonb, smallint)"
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:125:50
+    123|     'a auxiliar `%s` existe em alguma migration',
+    124|     (_nome, assinatura) => {
+    125|       expect(() => corpoVigente(assinatura)).not.toThrow()
+       |                                                  ^
+    126|     },
+    127|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a auxiliar `import_revalidar_contagens` existe em alguma migration
+AssertionError: expected [Function] to not throw an error but 'Error: corpoVigente: nenhuma migratio…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: corpoVigente: nenhuma migration define public.import_revalidar_contagens(jsonb, smallint)"
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:125:50
+    123|     'a auxiliar `%s` existe em alguma migration',
+    124|     (_nome, assinatura) => {
+    125|       expect(() => corpoVigente(assinatura)).not.toThrow()
+       |                                                  ^
+    126|     },
+    127|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a auxiliar `import_apagar_acervo_filial` existe em alguma migration
+AssertionError: expected [Function] to not throw an error but 'Error: corpoVigente: nenhuma migratio…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: corpoVigente: nenhuma migration define public.import_apagar_acervo_filial(smallint)"
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:125:50
+    123|     'a auxiliar `%s` existe em alguma migration',
+    124|     (_nome, assinatura) => {
+    125|       expect(() => corpoVigente(assinatura)).not.toThrow()
+       |                                                  ^
+    126|     },
+    127|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a auxiliar `import_criar_ativos` existe em alguma migration
+AssertionError: expected [Function] to not throw an error but 'Error: corpoVigente: nenhuma migratio…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: corpoVigente: nenhuma migration define public.import_criar_ativos(jsonb, smallint)"
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:125:50
+    123|     'a auxiliar `%s` existe em alguma migration',
+    124|     (_nome, assinatura) => {
+    125|       expect(() => corpoVigente(assinatura)).not.toThrow()
+       |                                                  ^
+    126|     },
+    127|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a auxiliar `import_lancar_movimentacoes` existe em alguma migration
+AssertionError: expected [Function] to not throw an error but 'Error: corpoVigente: nenhuma migratio…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: corpoVigente: nenhuma migration define public.import_lancar_movimentacoes(uuid, jsonb, smallint, uuid, date, text)"
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:125:50
+    123|     'a auxiliar `%s` existe em alguma migration',
+    124|     (_nome, assinatura) => {
+    125|       expect(() => corpoVigente(assinatura)).not.toThrow()
+       |                                                  ^
+    126|     },
+    127|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a auxiliar `import_conferir_resultado` existe em alguma migration
+AssertionError: expected [Function] to not throw an error but 'Error: corpoVigente: nenhuma migratio…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: corpoVigente: nenhuma migration define public.import_conferir_resultado(jsonb, smallint, integer, integer)"
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:125:50
+    123|     'a auxiliar `%s` existe em alguma migration',
+    124|     (_nome, assinatura) => {
+    125|       expect(() => corpoVigente(assinatura)).not.toThrow()
+       |                                                  ^
+    126|     },
+    127|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a auxiliar `import_contar_conflitos` existe em alguma migration
+AssertionError: expected [Function] to not throw an error but 'Error: corpoVigente: nenhuma migratio…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: corpoVigente: nenhuma migration define public.import_contar_conflitos(smallint)"
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:125:50
+    123|     'a auxiliar `%s` existe em alguma migration',
+    124|     (_nome, assinatura) => {
+    125|       expect(() => corpoVigente(assinatura)).not.toThrow()
+       |                                                  ^
+    126|     },
+    127|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 1. a cadeia do import existe e está inteira > a auxiliar `import_gravar_trilha` existe em alguma migration
+AssertionError: expected [Function] to not throw an error but 'Error: corpoVigente: nenhuma migratio…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: corpoVigente: nenhuma migration define public.import_gravar_trilha(jsonb, smallint, text, jsonb, uuid, integer, integer, integer, integer, integer)"
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:125:50
+    123|     'a auxiliar `%s` existe em alguma migration',
+    124|     (_nome, assinatura) => {
+    125|       expect(() => corpoVigente(assinatura)).not.toThrow()
+       |                                                  ^
+    126|     },
+    127|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar autorizada CONTÉM o delete (senão a trava vigia o nada)
+Error: corpoVigente: nenhuma migration define public.import_apagar_acervo_filial(smallint)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:135:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a orquestradora NÃO contém o delete
+AssertionError: a orquestradora voltou a apagar acervo por conta própria — a decomposição da F51 foi desfeita: expected 'create or replace function public.imp…' not to contain 'delete from public.ativos'
+
+- Expected
++ Received
+
+- delete from public.ativos
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:142:11
+    140|       corpoSemComentarios(ORQUESTRADORA),
+    141|       'a orquestradora voltou a apagar acervo por conta própria — a de…
+    142|     ).not.toContain(DELETE_DE_ATIVOS)
+       |           ^
+    143|   })
+    144|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_validar_plano` NÃO contém o delete
+Error: corpoVigente: nenhuma migration define public.import_validar_plano(jsonb, text, jsonb, smallint)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:149:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_revalidar_contagens` NÃO contém o delete
+Error: corpoVigente: nenhuma migration define public.import_revalidar_contagens(jsonb, smallint)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:149:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_criar_ativos` NÃO contém o delete
+Error: corpoVigente: nenhuma migration define public.import_criar_ativos(jsonb, smallint)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:149:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_lancar_movimentacoes` NÃO contém o delete
+Error: corpoVigente: nenhuma migration define public.import_lancar_movimentacoes(uuid, jsonb, smallint, uuid, date, text)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:149:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_conferir_resultado` NÃO contém o delete
+Error: corpoVigente: nenhuma migration define public.import_conferir_resultado(jsonb, smallint, integer, integer)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:149:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_contar_conflitos` NÃO contém o delete
+Error: corpoVigente: nenhuma migration define public.import_contar_conflitos(smallint)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:149:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > a auxiliar `import_gravar_trilha` NÃO contém o delete
+Error: corpoVigente: nenhuma migration define public.import_gravar_trilha(jsonb, smallint, text, jsonb, uuid, integer, integer, integer, integer, integer)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:149:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 2. uma porta só: `delete from public.ativos` na cadeia do import > exatamente UMA função da cadeia contém o delete
+Error: corpoVigente: nenhuma migration define public.import_validar_plano(jsonb, text, jsonb, smallint)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:159:7
+ ❯ src/lib/validators/import-uma-porta.test.ts:158:54
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_validar_plano`
+AssertionError: a orquestradora não menciona import_validar_plano em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_validar_plano'
+
+- Expected
++ Received
+
+- import_validar_plano
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:178:9
+    176|         corpo(),
+    177|         `a orquestradora não menciona ${nome} em lugar nenhum — auxili…
+    178|       ).toContain(nome)
+       |         ^
+    179|     },
+    180|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_revalidar_contagens`
+AssertionError: a orquestradora não menciona import_revalidar_contagens em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_revalidar_contagens'
+
+- Expected
++ Received
+
+- import_revalidar_contagens
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:178:9
+    176|         corpo(),
+    177|         `a orquestradora não menciona ${nome} em lugar nenhum — auxili…
+    178|       ).toContain(nome)
+       |         ^
+    179|     },
+    180|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_apagar_acervo_filial`
+AssertionError: a orquestradora não menciona import_apagar_acervo_filial em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_apagar_acervo_filial'
+
+- Expected
++ Received
+
+- import_apagar_acervo_filial
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:178:9
+    176|         corpo(),
+    177|         `a orquestradora não menciona ${nome} em lugar nenhum — auxili…
+    178|       ).toContain(nome)
+       |         ^
+    179|     },
+    180|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_criar_ativos`
+AssertionError: a orquestradora não menciona import_criar_ativos em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_criar_ativos'
+
+- Expected
++ Received
+
+- import_criar_ativos
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:178:9
+    176|         corpo(),
+    177|         `a orquestradora não menciona ${nome} em lugar nenhum — auxili…
+    178|       ).toContain(nome)
+       |         ^
+    179|     },
+    180|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_lancar_movimentacoes`
+AssertionError: a orquestradora não menciona import_lancar_movimentacoes em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_lancar_movimentacoes'
+
+- Expected
++ Received
+
+- import_lancar_movimentacoes
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:178:9
+    176|         corpo(),
+    177|         `a orquestradora não menciona ${nome} em lugar nenhum — auxili…
+    178|       ).toContain(nome)
+       |         ^
+    179|     },
+    180|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_conferir_resultado`
+AssertionError: a orquestradora não menciona import_conferir_resultado em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_conferir_resultado'
+
+- Expected
++ Received
+
+- import_conferir_resultado
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:178:9
+    176|         corpo(),
+    177|         `a orquestradora não menciona ${nome} em lugar nenhum — auxili…
+    178|       ).toContain(nome)
+       |         ^
+    179|     },
+    180|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_contar_conflitos`
+AssertionError: a orquestradora não menciona import_contar_conflitos em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_contar_conflitos'
+
+- Expected
++ Received
+
+- import_contar_conflitos
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:178:9
+    176|         corpo(),
+    177|         `a orquestradora não menciona ${nome} em lugar nenhum — auxili…
+    178|       ).toContain(nome)
+       |         ^
+    179|     },
+    180|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 3. a orquestradora referencia cada auxiliar pelo NOME > a orquestradora chama `import_gravar_trilha`
+AssertionError: a orquestradora não menciona import_gravar_trilha em lugar nenhum — auxiliar órfã: ela existe, ninguém a chama: expected 'create or replace function public.imp…' to contain 'import_gravar_trilha'
+
+- Expected
++ Received
+
+- import_gravar_trilha
++ create or replace function public.importar_ativos_substituir(
++   p_plano       jsonb,
++   p_backup_path text,
++   p_contagens   jsonb,
++   p_correcoes   jsonb default '[]'::jsonb
++ ) returns jsonb
++ language plpgsql
++ security definer
++ set search_path = public
++ as $$
++ declare
++   v_uid              uuid    := auth.uid();
++   v_filial           smallint;
++   v_filial_ativa     boolean;
++   v_total_plano      int;
++   v_data_import      date    := current_date;
++   v_obs_marcador     text    := 'import startup ' || to_char(current_date, 'DD/MM/YYYY');
++   e                  jsonb;
++   v_ativo_id         uuid;
++   v_estado           public.status_ativo;
++   v_ativos_criados   int     := 0;
++   v_movs_apagadas    int     := 0;
++   v_anot_apagadas    int     := 0;
++   v_termos_apagados  int     := 0;
++   v_arquivos_termos  text[]  := '{}';
++   v_conferidos       int;
++   v_esp_ativos       int;
++   v_esp_movs         int;
++   v_esp_anot         int;
++   v_esp_termos       int;
++   v_liv_movs         int;
++   v_liv_anot         int;
++   v_liv_termos       int;
++   v_log_id           uuid;
++   
++   v_conflitos        int     := 0;
++ begin
++   
++   if v_uid is null then
++     raise exception 'Operador não autenticado: o import só roda numa sessão de operador.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   
++   if not public.e_admin() then
++     raise exception 'Apenas administradores podem executar o import de startup.'
++       using errcode = '42501';
++   end if;
++
++   
++   v_filial := (p_plano->>'filialId')::smallint;
++   select ativo into v_filial_ativa from public.filiais where id = v_filial;
++   if v_filial_ativa is null then
++     raise exception 'Filial % não encontrada.', v_filial;
++   end if;
++   if v_filial_ativa is false then
++     raise exception 'Filial % está inativa: import bloqueado.', v_filial;
++   end if;
++
++   perform pg_advisory_xact_lock(hashtext('import_substituir'), v_filial::int);
++
++   
++   if coalesce(btrim(p_backup_path), '') = '' then
++     raise exception 'Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).';
++   end if;
++
++   
++   if p_correcoes is not null and jsonb_typeof(p_correcoes) <> 'array' then
++     raise exception 'Correções do import inválidas: esperado um array JSON (recebido %).',
++       jsonb_typeof(p_correcoes);
++   end if;
++
++   
++   if jsonb_typeof(p_plano->'ativos') <> 'array'
++      or jsonb_array_length(p_plano->'ativos') < 1 then
++     raise exception 'Plano de import vazio: ao menos 1 ativo é obrigatório.';
++   end if;
++   v_total_plano := jsonb_array_length(p_plano->'ativos');
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     
++     
++     
++     
++     
++     if (e->>'patrimonio') is not null
++        and (btrim(e->>'patrimonio') = '' or length(e->>'patrimonio') > 60) then
++       raise exception 'Patrimônio inválido no plano: "%" (vazio ou longo demais — máx. 60 caracteres).',
++         e->>'patrimonio';
++     end if;
++     if not (e->>'categoria' = any (enum_range(null::public.categoria_ativo)::text[])) then
++       raise exception 'Categoria inválida "%" no ativo % (fora do enum categoria_ativo).',
++         e->>'categoria', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++     if not (e->>'estadoAlvo' = any (enum_range(null::public.status_ativo)::text[])) then
++       raise exception 'Estado-alvo inválido "%" no ativo % (fora do enum status_ativo).',
++         e->>'estadoAlvo', coalesce(e->>'patrimonio', '(sem patrimônio)');
++     end if;
++   end loop;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is not null
++     group by (x->>'patrimonio'), coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único.';
++   end if;
++
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     where (x->>'patrimonio') is null and coalesce(x->>'serviceTag','') <> ''
++     group by coalesce(x->>'serviceTag','')
++     having count(*) > 1
++   ) then
++     raise exception 'Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from public.termos_gerados t
++     where exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id = v_filial)
++       and exists (select 1 from unnest(t.ativo_ids) aid
++                     join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++   ) then
++     raise exception 'Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes.';
++   end if;
++
++   
++   
++   
++   
++   
++   if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then
++     raise exception 'Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).';
++   end if;
++   if p_contagens is not null and jsonb_typeof(p_contagens) = 'object' then
++     v_esp_ativos := coalesce((p_contagens->>'ativos')::int, -1);
++     v_esp_movs   := coalesce((p_contagens->>'movimentacoes')::int, -1);
++     v_esp_anot   := coalesce((p_contagens->>'anotacoes')::int, -1);
++     v_esp_termos := coalesce((p_contagens->>'termos')::int, -1);
++
++     select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++     select count(*) into v_liv_movs from public.movimentacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_anot from public.anotacoes
++      where ativo_id in (select id from public.ativos where filial_id = v_filial);
++     select count(*) into v_liv_termos from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial);
++
++     if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
++        or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then
++       raise exception 'O estado da filial mudou desde o preview/backup (ativos %/%, movs %/%, anotações %/%, termos %/%). Gere o preview novamente antes de aplicar.',
++         v_conferidos, v_esp_ativos, v_liv_movs, v_esp_movs, v_liv_anot, v_esp_anot, v_liv_termos, v_esp_termos;
++     end if;
++   end if;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'on', true);
++   delete from public.movimentacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_movs_apagadas = row_count;
++
++   delete from public.anotacoes
++    where ativo_id in (select id from public.ativos where filial_id = v_filial);
++   get diagnostics v_anot_apagadas = row_count;
++
++   with del as (
++     delete from public.termos_gerados t
++      where exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id = v_filial)
++        and not exists (select 1 from unnest(t.ativo_ids) aid
++                      join public.ativos a on a.id = aid where a.filial_id <> v_filial)
++     returning t.arquivo_path
++   )
++   select coalesce(array_agg(arquivo_path), '{}'::text[]), count(*)::int
++     into v_arquivos_termos, v_termos_apagados
++     from del;
++
++   delete from public.ativos where filial_id = v_filial;
++
++   
++   
++   
++   perform set_config('estoque.dev_destrutivo', 'off', true);
++
++   
++   for e in select jsonb_array_elements(p_plano->'ativos')
++   loop
++     v_estado := (e->>'estadoAlvo')::public.status_ativo;
++
++     
++     
++     
++     
++     
++     insert into public.ativos (
++       patrimonio, patrimonio_original, service_tag, categoria,
++       marca, modelo, fornecedor, memoria, armazenamento, processador, hostname,
++       filial_id, origem, observacoes, pendencia
++     ) values (
++       e->>'patrimonio',
++       nullif(e->>'patrimonioOriginal', ''),
++       nullif(e->>'serviceTag', ''),
++       (e->>'categoria')::public.categoria_ativo,
++       nullif(e->>'marca', ''),
++       nullif(e->>'modelo', ''),
++       nullif(e->>'fornecedor', ''),
++       nullif(e->>'memoria', ''),
++       nullif(e->>'armazenamento', ''),
++       nullif(e->>'processador', ''),
++       nullif(e->>'hostname', ''),
++       v_filial,
++       'importacao',
++       nullif(e->>'observacoes', ''),
++       nullif(
++         concat_ws('; ',
++           case when (e->>'patrimonio') is null then 'sem patrimônio físico' end,
++           case when nullif(e->>'serviceTag', '') is null then 'sem service tag' end
++         ),
++         ''
++       )
++     )
++     returning id into v_ativo_id;
++
++     
++     
++     
++     
++     
++     
++     
++     
++     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
++     values (
++       v_ativo_id, 'compra',
++       coalesce(nullif(e->>'dataEntrada', '')::date, v_data_import),
++       v_filial, v_obs_marcador, v_uid
++     );
++
++     
++     
++     
++     if v_estado <> 'em_estoque' then
++       insert into public.movimentacoes (
++         ativo_id, tipo, data, filial_id, colaborador, setor, chamado,
++         observacao, status_resultante, criado_por
++       ) values (
++         v_ativo_id, 'ajuste',
++         coalesce(nullif(e->>'dataAjuste', '')::date, v_data_import),
++         v_filial,
++         nullif(e->>'colaborador', ''), nullif(e->>'setor', ''), nullif(e->>'chamado', ''),
++         v_obs_marcador, v_estado, v_uid
++       );
++     end if;
++
++     
++     if v_estado in ('em_uso', 'emprestado', 'reservado') then
++       update public.ativos set
++         colaborador_atual = nullif(e->>'colaborador', ''),
++         setor_atual       = nullif(e->>'setor', ''),
++         updated_at        = now()
++       where id = v_ativo_id;
++     end if;
++
++     v_ativos_criados := v_ativos_criados + 1;
++   end loop;
++
++   
++   if v_ativos_criados <> v_total_plano then
++     raise exception 'Divergência: % ativos criados para % no plano.', v_ativos_criados, v_total_plano;
++   end if;
++   select count(*) into v_conferidos from public.ativos where filial_id = v_filial;
++   if v_conferidos <> v_total_plano then
++     raise exception 'Divergência: % ativos na filial após import, % no plano.', v_conferidos, v_total_plano;
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status <> (x->>'estadoAlvo')::public.status_ativo
++   ) then
++     raise exception 'Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.';
++   end if;
++
++   
++   if exists (
++     select 1
++     from jsonb_array_elements(p_plano->'ativos') x
++     join public.ativos a
++       on a.patrimonio is not distinct from (x->>'patrimonio')
++      and coalesce(a.service_tag, '') = coalesce(x->>'serviceTag', '')
++      and a.filial_id = v_filial
++     where ((x->>'patrimonio') is not null or coalesce(x->>'serviceTag', '') <> '')
++       and a.status in ('em_uso', 'emprestado', 'reservado')
++       and coalesce(a.colaborador_atual, '') <> coalesce(x->>'colaborador', '')
++   ) then
++     raise exception 'Divergência de colaborador após import: ativo em posse sem o colaborador do plano.';
++   end if;
++
++   
++   if exists (
++     (
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++       except
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++     )
++     union all
++     (
++       select a.status::text as estado,
++              coalesce(a.colaborador_atual, '') as colaborador,
++              count(*) as n
++       from public.ativos a
++       where a.filial_id = v_filial
++         and a.patrimonio is null and coalesce(a.service_tag, '') = ''
++       group by 1, 2
++       except
++       select coalesce(x->>'estadoAlvo', '') as estado,
++              case when (x->>'estadoAlvo') in ('em_uso','emprestado','reservado')
++                   then coalesce(x->>'colaborador', '') else '' end as colaborador,
++              count(*) as n
++       from jsonb_array_elements(p_plano->'ativos') x
++       where (x->>'patrimonio') is null and coalesce(x->>'serviceTag', '') = ''
++       group by 1, 2
++     )
++   ) then
++     raise exception 'Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco.';
++   end if;
++
++   
++   
++   
++   
++   
++   
++   
++   select count(*) into v_conflitos
++     from public.v_conflitos_filiais c
++    where c.filial_id = v_filial;
++
++   
++   insert into public.import_logs (
++     filial_id, modo, arquivo_hash, total_linhas,
++     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
++     backup_path, correcoes, criado_por, conflitos_abertos
++   ) values (
++     v_filial, 'substituir',
++     coalesce(p_plano->>'arquivoHash', ''),
++     coalesce((p_plano->>'totalLinhasDados')::int, 0),
++     v_ativos_criados, v_movs_apagadas, v_anot_apagadas, v_termos_apagados,
++     p_backup_path, coalesce(p_correcoes, '[]'::jsonb), v_uid, v_conflitos
++   )
++   returning id into v_log_id;
++
++   return jsonb_build_object(
++     'log_id',                   v_log_id,
++     'filial_id',                v_filial,
++     'ativos_criados',           v_ativos_criados,
++     'movs_apagadas',            v_movs_apagadas,
++     'anotacoes_apagadas',       v_anot_apagadas,
++     'termos_apagados',          v_termos_apagados,
++     'arquivos_termos_apagados', to_jsonb(v_arquivos_termos),
++     'conflitos_abertos',        v_conflitos
++   );
++ end $$;
+
+ ❯ src/lib/validators/import-uma-porta.test.ts:178:9
+    176|         corpo(),
+    177|         `a orquestradora não menciona ${nome} em lugar nenhum — auxili…
+    178|       ).toContain(nome)
+       |         ^
+    179|     },
+    180|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 4. a trava não mente (guardas do próprio teste) > o leitor de corpo IGNORA comentário de linha
+Error: corpoVigente: nenhuma migration define public.import_apagar_acervo_filial(smallint)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ src/lib/validators/import-uma-porta.test.ts:188:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/28]⎯
+
+ FAIL  |puro| src/lib/validators/import-uma-porta.test.ts > 4. a trava não mente (guardas do próprio teste) > o leitor de corpo NÃO ignora o código
+Error: corpoVigente: nenhuma migration define public.import_apagar_acervo_filial(smallint)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ corpoSemComentarios src/lib/validators/import-uma-porta.test.ts:104:19
+ ❯ src/lib/validators/import-uma-porta.test.ts:195:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/28]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  28 failed | 3 passed (31)
+   Start at  11:50:08
+   Duration  1.51s (transform 91ms, setup 0ms, import 132ms, tests 932ms, environment 0ms)
+
