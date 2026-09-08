@@ -204,7 +204,12 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     readFileSync(join(RAIZ, 'src', 'lib', 'types', 'database.ts'), 'utf8'),
   )
 
-  it('lê as 30 relações (21 tabelas + 9 views) e as 59 funções', () => {
+  it('lê as 30 relações (21 tabelas + 9 views) e as 60 funções', () => {
+    // ⚠ 08/09/2026 (F50): as funções passaram de 59 para 60. A migration 0129 criou
+    // `pode_ler_arquivo_termo` e o `npm run db:types` de produção a trouxe para o
+    // arquivo. O número SUBIU porque o banco ganhou uma função — que é exatamente o
+    // caso em que ele deve subir, e a conversa que este teste existe para forçar.
+    //
     // Números MEDIDOS em 06/09/2026 no arquivo real. Relações e funções são EXATOS de
     // propósito: elas mudam raramente, e quando mudarem é porque alguém rodou
     // `npm run db:types` — que é justamente o momento de reler este teste. As colunas
@@ -214,7 +219,7 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // regrediu foi o parser — e um parser que perde nomes do lado do repositório faz o
     // gate acusar deriva que não existe.
     expect(real.relacoes.size).toBe(30)
-    expect(real.funcoes.size).toBe(59)
+    expect(real.funcoes.size).toBe(60)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 
