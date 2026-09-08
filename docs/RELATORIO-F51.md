@@ -286,9 +286,15 @@ função que apaga acervo**, e a regra 5 do `CLAUDE.md` vale pelo que a função
 **2. O `database.ts`.** As 8 entradas entraram **à mão**, com comentário datado. A primeira
 regeneração após o apply as reescreve e leva o comentário junto.
 
-**3. O smoke.** `node scripts/smoke/smoke-prod.mjs` só faz sentido depois do deploy, que depende do
-apply. E — dito por extenso — **o smoke nunca exercitou o import**, que é destrutivo e só roda na
-janela de go-live de uma filial.
+**3. O smoke — rodado, e o que ele diz.** `node scripts/smoke/smoke-prod.mjs` depois do merge:
+**108 OK, 1 aviso, 0 falha** (`docs/f51-evidencias/smoke-pos-merge.txt`). O aviso é **pré-existente e
+sem relação com esta fase**: não há kit cadastrado, então a RLS de `kits_modelos` não pode ser
+comprovada por leitura.
+
+O que ele prova é que o merge **não regrediu nada** — o hand-fix do `database.ts` é só TIPO, apagado
+em runtime, então produção segue com a RPC monolítica da `0094` e todas as rotas respondendo. O que
+ele **não** prova, dito por extenso: **o smoke nunca exercitou o import**, que é destrutivo e só roda
+na janela de go-live de uma filial.
 
 ---
 
@@ -299,7 +305,7 @@ janela de go-live de uma filial.
 | 1 | Migration é a `0131`, com `db:lock` no mesmo commit | ✅ |
 | 2 | Assinatura e retorno byte a byte iguais, por diff | ✅ diff vazio nos dois |
 | 3 | Auxiliares da ficha existem; a 8ª decidida e registrada | ✅ Decisão 3 |
-| 4 | `import_apagar_acervo_filial` é a única com o delete; trava reprova quando sabotada | ✅ sabotagens A, B |
+| 4 | `import_apagar_acervo_filial` é a única com o delete; trava reprova quando sabotada | ✅ sabotagens A, B, G, I |
 | 5 | Cabeçalho nomeia os lugares legítimos; sem teto de tamanho | ✅ **quatro** (medido) |
 | 6 | `revoke` nos quatro papéis, provado | ✅ asserção `0e` contra banco real (§6) |
 | 7 | Janela no topo, com motivo; Decisão 4 registrada | ✅ |
@@ -316,8 +322,8 @@ janela de go-live de uma filial.
 | 18 | Apply tentado; handoff e pendência nomeados | ⚠️ **caminho B** — §7 |
 | 19 | Matriz com R-ACC-45→48, contador 252 | ✅ |
 | 20 | Dívida **X** abatida, com o número real de linhas | ✅ mediana 49 (era 393) |
-| 21 | Versão 1.56.0, registry, CHANGELOG, tag | ✅ |
-| 22 | PR mergeado com os dois checks verdes | ✅ |
+| 21 | Versão 1.56.0, registry, CHANGELOG, tag | ✅ tag anotada `v1.56.0` publicada |
+| 22 | PR mergeado com os dois checks verdes | ✅ PR 34, merge `852c88d`, CI 34249621048; branch apagada, `main` limpa |
 
 ---
 

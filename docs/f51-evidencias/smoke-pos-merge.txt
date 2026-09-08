@@ -1,0 +1,22 @@
+# F51 — smoke de produção DEPOIS do merge (08/09/2026)
+#
+# ⚠ O QUE ELE NÃO EXERCITA: o IMPORT. Ele é destrutivo (apaga o acervo de uma
+# filial) e só roda na janela de go-live de uma filial — nenhum smoke o toca, e
+# nunca tocou. Dizer isso vale mais do que deixar implícito.
+#
+# ⚠ E a 0131 NÃO está aplicada em produção (caminho B — ver §7 do relatório).
+# O que este smoke prova é que o merge não regrediu nada: o hand-fix do
+# database.ts é só TIPO, apagado em runtime, então produção segue com a RPC
+# monolítica da 0094 e todas as rotas respondendo.
+#
+# O 1 AVISO é PRÉ-EXISTENTE e não tem relação com esta fase: não há kit
+# cadastrado, então a RLS de kits_modelos não pode ser comprovada por leitura.
+
+  [OK   ] /ajuda/mensagens-de-erro — HTTP 200 (206948 bytes)
+  [OK   ] /ajuda/problemas-comuns — HTTP 200 (127961 bytes)
+  [OK   ] /ajuda/problemas-import-e-acesso — HTTP 200 (136064 bytes)
+  sessão encerrada (signOut).
+
+========================================================================
+RESUMO · 108 OK · 1 aviso · 0 n/a (pré-F12) · 0 falha
+========================================================================
