@@ -2,14 +2,23 @@
 
 // A PALETA DE COMANDOS (Ctrl+K) — e as duas coisas que ela é, além de um atalho.
 //
-// 1. É O CALL-SITE MAIS QUENTE DE `buscarAtivosParaMovimentacao` (import na linha 75;
-//    a busca com debounce por volta da 376-399). Debounce de 300 ms a partir de 2
-//    caracteres, disponível em TODA tela, para TODO logado: nenhum outro caminho
-//    chama uma Server Action de leitura com essa frequência. É por isso que a guarda
-//    que a F49 acrescentou àquela action (`exigirPapel(supabase, 'consulta')`) foi
-//    medida antes de entrar — 71,8 ms de mediana por chamada, contra o Supabase de
-//    produção, visto da mesa. A paleta não ganhou uma linha de código por causa disso:
-//    a guarda mora na action, e daqui ela é de graça.
+// 1. É UM DOS DOIS CALL-SITES QUENTES DE `buscarAtivosParaMovimentacao` (import na
+//    linha 75; a busca com debounce por volta da 376-399): debounce de 300 ms a
+//    partir de 2 caracteres, disparado A CADA TECLA.
+//
+//    O outro é `components/movimentacoes/ativo-combobox.tsx` (linha ~110), com
+//    debounce e piso IDÊNTICOS. Os dois se distinguem pelo alcance, não pela
+//    mecânica: a paleta está montada em TODA tela do shell do operador e responde a
+//    Ctrl+K, mas é um atalho OPCIONAL; o combobox aparece em menos telas e é
+//    OBRIGATÓRIO — toda movimentação passa por ele. **Não há medição no repositório
+//    que diga qual dos dois é mais chamado**, e por isso este comentário não afirma
+//    que a paleta é "o mais quente": seria suposição escrita como fato.
+//
+//    O que importa para a F49 vale para os dois: a guarda que ela acrescentou àquela
+//    action (`exigirPapel(supabase, 'consulta')`) foi MEDIDA antes de entrar — 72,7 ms
+//    de mediana e 90,5 ms de p95 por chamada, contra o Supabase de produção, visto da
+//    mesa (`docs/perf/f49-guarda.json`). Nem a paleta nem o combobox ganharam uma
+//    linha de código por causa disso: a guarda mora na action, e daqui ela é de graça.
 //
 // 2. É UMA SUPERFÍCIE DE AUTORIZAÇÃO DE UI **PARALELA** AO `sidebar-nav`. As flags
 //    `soAdmin`/`soDev` (declaradas em 106 e 109) e o `podeEscrever` (declarado em 312,

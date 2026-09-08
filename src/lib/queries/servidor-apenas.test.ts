@@ -167,7 +167,13 @@ export type ImportDeQuery = {
  *   `import '…'`                        → VALOR  (efeito colateral: executa o módulo)
  */
 export function importsDeQuery(fonte: string): ImportDeQuery[] {
-  const limpo = limpar(fonte, false)
+  // `;` vira quebra de linha antes da varredura: as regexes abaixo ancoram em INÍCIO
+  // DE LINHA, e dois statements na mesma linha (`import type {A} from 'x'; import
+  // {b} from 'y'`) esconderiam o segundo — que pode ser justamente o de valor. O
+  // Prettier nunca produz essa forma, mas `npm run lint` roda só o ESLint, então
+  // nada no CI a impede fisicamente. Trocar `;` por `\n` preserva a contagem de
+  // achados sem depender da formatação.
+  const limpo = limpar(fonte, false).split(';').join('\n')
   const achados: ImportDeQuery[] = []
   // Multilinha (`[\s\S]`) para alcançar `import type {\n A,\n B\n} from …`, mas com
   // `from` TEMPERADO: `(?!\bfrom\b)` impede o miolo de atravessar o `from` de OUTRO
@@ -210,6 +216,34 @@ export function importsDeQuery(fonte: string): ImportDeQuery[] {
   while ((m = reEfeito.exec(limpo)) !== null) {
     const linha = limpo.slice(0, m.index).split('\n').length
     achados.push({ linha, declaracao: m[0].trim(), temValor: true })
+  }
+
+  // RE-EXPORT: `export { x } from '@/lib/queries/y'` num módulo cliente arrasta o
+  // VALOR para o grafo do cliente exatamente como um import faria — e não começa com
+  // `import`, então as duas regexes acima não o veem. Mesma lógica especificador a
+  // especificador: `export type { A } from` é tipo; `export { A } from` é valor;
+  // `export * from` é valor (não dá para saber o que vem, e o `*` arrasta tudo).
+  const reReexport = /^[ \t]*export\b((?:(?!\bfrom\b)[\s\S])*?)from\s*['"](@\/lib\/queries[^'"]*)['"]/gm
+  while ((m = reReexport.exec(limpo)) !== null) {
+    const miolo = m[1]
+    const linha = limpo.slice(0, m.index).split('\n').length
+    const declaracao = m[0].replace(/\s+/g, ' ').trim()
+    if (/^\s*type\b/.test(miolo)) {
+      achados.push({ linha, declaracao, temValor: false })
+      continue
+    }
+    const chaves = /\{([\s\S]*)\}/.exec(miolo)
+    if (!chaves) {
+      // `export * from` — arrasta tudo, inclusive valor.
+      achados.push({ linha, declaracao, temValor: true })
+      continue
+    }
+    const algumDeValor = chaves[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .some((e) => !/^type\s/.test(e))
+    achados.push({ linha, declaracao, temValor: algumDeValor })
   }
   return achados
 }
@@ -309,6 +343,30 @@ describe('importsDeQuery distingue tipo de valor', () => {
 
   it('ignora import de outro caminho', () => {
     expect(importsDeQuery("import { a } from '@/lib/actions/ativos'")).toHaveLength(0)
+  })
+
+  // --- RE-EXPORT: não começa com `import`, e arrasta o valor do mesmo jeito.
+  it.each([
+    ['re-export de VALOR', "export { a } from '@/lib/queries/ativos'", true],
+    ['re-export de TIPO', "export type { A } from '@/lib/queries/ativos'", false],
+    ['re-export com type inline', "export { type A } from '@/lib/queries/ativos'", false],
+    ['re-export MISTO', "export { type A, b } from '@/lib/queries/ativos'", true],
+    ['re-export estrela', "export * from '@/lib/queries/ativos'", true],
+  ])('%s', (_nome, fonte, esperado) => {
+    const r = importsDeQuery(fonte)
+    expect(r, `não reconheceu o re-export: ${fonte}`).toHaveLength(1)
+    expect(r[0].temValor).toBe(esperado)
+  })
+
+  it('enxerga o SEGUNDO statement quando dois dividem a mesma linha', () => {
+    // O Prettier nunca produz esta forma, mas `npm run lint` roda só o ESLint —
+    // nada no CI a impede. Sem a normalização do `;`, o segundo (que é o de VALOR)
+    // ficaria invisível.
+    const fonte =
+      "import type { A } from '@/lib/queries/ativos'; import { b } from '@/lib/queries/itens'"
+    const r = importsDeQuery(fonte)
+    expect(r).toHaveLength(2)
+    expect(r.some((x) => x.temValor)).toBe(true)
   })
 })
 

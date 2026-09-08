@@ -92,9 +92,18 @@ type Declaracao = {
   corpo: string
 }
 
-// Declaração de função de TOPO (coluna 0). Cobre as quatro formas que existem no
-// repositório: `export async function f`, `async function f`, `function f` e
-// `export default async function`. Arrow em `const f = async () => {}` também.
+// Declaração de função de TOPO (coluna 0) COM NOME. Cobre as três formas que
+// existem no repositório: `export async function f`, `async function f` e
+// `function f`. Arrow em `const f = async () => {}` também (pelo RE_DECL_ARROW).
+//
+// ⚠ NÃO cobre `export default async function` — e isso é uma LACUNA CONHECIDA, não
+// um descuido: depois de `export ` esta regex só aceita `async` ou `function`, e a
+// default costuma ser anônima (não há nome para casar). `use-server-exports.ts`
+// ACEITA essa forma num módulo 'use server', então uma action escrita assim seria
+// invisível AQUI — nem apareceria como "sem guarda". Quem fecha o buraco é
+// `usaExportDefault` (abaixo), que faz o teste REPROVAR se uma aparecer, em vez de
+// deixar a varredura calada. Ensinar esta regex a lê-la é preferível a manter a
+// recusa, no dia em que alguém precisar da forma.
 const RE_DECL_FUNCAO = /^(export\s+)?(async\s+)?function\s+([A-Za-z0-9_$]+)\s*[(<]/
 const RE_DECL_ARROW =
   /^(export\s+)?const\s+([A-Za-z0-9_$]+)\s*(?::[^=]*)?=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z0-9_$]+)\s*(?::[^=]*)?=>/

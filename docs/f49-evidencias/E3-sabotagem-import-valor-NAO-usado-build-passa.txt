@@ -1,0 +1,33 @@
+SABOTAGEM E3 — import de VALOR em modulo 'use client', porem NAO USADO.
+
+E a metade EXTRAORDINARIA da alegacao da F49: e ela que sustenta que a trava
+(2) de servidor-apenas.test.ts NAO e redundante com o 'npm run build'.
+Compare com E2, onde o MESMO import, uma vez USADO, derruba o build.
+
+$ sed -n '19p' src/components/movimentacoes/ativo-combobox.tsx
+import { buscarAtivosParaCombobox, type AtivoResumo } from '@/lib/queries/ativos'
+
+O binding 'buscarAtivosParaCombobox' aparece UMA vez no arquivo — a do proprio
+import. Nao ha uso nenhum:
+$ grep -c 'buscarAtivosParaCombobox' src/components/movimentacoes/ativo-combobox.tsx
+1
+
+$ npm run build
+...
+└ ƒ /versoes
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+EXIT CODE: 0   <- PASSA LIMPO
+ocorrencias de 'server-only' / 'Failed to compile' / 'Failed to type check' na saida: 0
+
+CONCLUSAO: o compilador elide o binding nao usado ANTES de o grafo do cliente
+alcancar 'server-only'. O import morto entra no repositorio sem nada reclamar e
+fica esperando a primeira linha que o use. Quem o pega e a trava, nao o build.
+
+(A trava PEGA este mesmo caso — ver E1, que roda sobre exatamente esta sabotagem.)

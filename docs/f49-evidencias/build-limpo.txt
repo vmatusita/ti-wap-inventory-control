@@ -1,5 +1,5 @@
 
-> estoque-ti-wap@1.53.0 build
+> estoque-ti-wap@1.54.0 build
 > next build
 
 ▲ Next.js 16.2.12 (Turbopack)
@@ -8,15 +8,15 @@
   · serverActions
 
   Creating an optimized production build ...
-✓ Compiled successfully in 7.7s
+✓ Compiled successfully in 6.6s
   Running TypeScript ...
-  Finished TypeScript in 14.4s ...
+  Finished TypeScript in 13.4s ...
   Collecting page data using 17 workers ...
   Generating static pages using 17 workers (0/32) ...
   Generating static pages using 17 workers (8/32) 
   Generating static pages using 17 workers (16/32) 
   Generating static pages using 17 workers (24/32) 
-✓ Generating static pages using 17 workers (32/32) in 1144ms
+✓ Generating static pages using 17 workers (32/32) in 795ms
   Finalizing page optimization ...
 
 Route (app)

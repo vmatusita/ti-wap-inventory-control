@@ -298,6 +298,34 @@ afirmava que o build pegava o caso, e estava errada.
 
 ---
 
+## 7-bis. ACHADO da autoverificação — o ponto cego de `export default`
+
+Sondando a própria leitura com formas que ela poderia engolir, apareceu um ponto cego real:
+`use-server-exports.ts` **aceita** `export default async function` num módulo `'use server'` (é
+export de função async, e o transform lida com ela), mas `guardasDosExports` casa
+`function <nome>` — e a default costuma ser anônima. Uma action escrita nessa forma **passaria
+pela trava sem ser vista**.
+
+Não existe nenhuma hoje (89 exports, todos `export async function`). Em vez de deixar o ponto
+cego calado, `usaExportDefault` o acusa: o teste reprova se um aparecer, e a mensagem manda
+**ensinar a leitura** — não abrir exceção, nem trocar a forma só para calar o teste. Provado
+quebrando de propósito.
+
+As outras formas sondadas no mesmo lote já estavam corretas e viraram caso de teste:
+
+| forma | conta como guarda? | certo? |
+|---|---|---|
+| `exigirPapel` em comentário | não | ✅ |
+| `exigirPapel` em string | não | ✅ |
+| `exigirPapel` em **template literal** | não | ✅ |
+| `exigirPapel` dentro de **regex literal** | não | ✅ |
+| `exigirPapel` apenas **importada**, nunca chamada | não | ✅ |
+| `exigirPapelDeMentira(` (prefixo do nome) | não | ✅ |
+| `idOperador` | não | ✅ (é o ponto: ele não autoriza) |
+| guarda em **ramo morto** (`if (false)`) | **sim** | limitação **declarada** no cabeçalho — a trava prova que a guarda é *chamada*, não que é *alcançada* |
+
+---
+
 ## 8. Os 19 critérios, autoverificados
 
 | # | Critério | Estado | Evidência |
@@ -319,8 +347,18 @@ afirmava que o build pegava o caso, e estava errada.
 | 15 | lint, test, build e tsc limpos; zero arquivos em `supabase/` | ✅ | §10 |
 | 16 | `db:test` e `db:test:mutations` sem nada de novo | ✅ | nada em `supabase/` mudou; ver §11 |
 | 17 | emenda na matriz a partir de R-ACC-36, contador atualizado | ✅ | 239 → **243** |
-| 18 | v1.54.0 no `package.json` e no registry; tag anotada; CHANGELOG | ✅ | §10 |
-| 19 | PR mergeado com os dois checks verdes; `main` em repouso | — | §11 |
+| 18 | v1.54.0 no `package.json` e no registry; CHANGELOG | ✅ | §10 |
+| 18b | **tag anotada `v1.54.0` publicada** | ⏳ **no merge** | ver nota abaixo |
+| 19 | PR mergeado com os dois checks verdes; `main` em repouso | ⏳ **em andamento** | §11 |
+
+> **Nota sobre 18b e 19 — e sobre um erro deste próprio checklist.** A primeira versão desta
+> tabela marcava o critério 18 como ✅ incluindo a tag, que **ainda não existia**. A revisão
+> adversarial pegou (`git tag -l` parava em `v1.53.0`), e a correção está aqui em vez de
+> escondida: a tag aponta para o **commit de merge** na `main` — é o precedente do repositório
+> (`v1.53.0` aponta para o merge da F48, não para um commit da branch) — e por isso só pode
+> existir depois do merge. Marcar como feito o que ainda não foi é exatamente a classe de erro
+> que o modo de autoverificação torna possível, e que esta fase não deveria cometer no relatório
+> que descreve a si mesma.
 
 ---
 
