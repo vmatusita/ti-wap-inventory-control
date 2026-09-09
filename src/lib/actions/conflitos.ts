@@ -8,6 +8,7 @@ import {
   avisoDaLimpeza,
   copiarEntaoRemoverTermos,
   prefixoDasCopias,
+  descartarBackupNaoUsado,
   raizDoConflito,
 } from '@/lib/storage/copiar-antes-de-remover'
 import { exigirAdmin } from '@/lib/auth/acesso'
@@ -75,26 +76,6 @@ function digestDaSelecao(ativoIds: string[]): string {
   return createHash('md5').update(ordenados.join(','), 'utf8').digest('hex')
 }
 
-/**
- * Apaga o backup que subiu para uma exclusão que a RPC recusou.
- *
- * Sem isto o bucket acumula `conflito/…json` que não correspondem a exclusão nenhuma — e
- * esses órfãos são justamente o material de um replay: caminho válido, existente e sob o
- * prefixo certo. O digest no nome já impede reusar o backup de OUTRA seleção; limpar a
- * sobra fecha o reuso da MESMA seleção depois que o estado mudou. É melhor esforço: falhar
- * aqui não muda o resultado (nada foi apagado), só registra no log.
- */
-async function descartarBackupNaoUsado(caminho: string): Promise<void> {
-  try {
-    const { error } = await createAdminClient().storage.from('backups-import').remove([caminho])
-    if (error) throw new Error(error.message)
-  } catch (err) {
-    console.error('[conflitos] backup órfão no bucket (a RPC recusou e a remoção falhou)', {
-      caminho,
-      erro: err instanceof Error ? err.message : String(err),
-    })
-  }
-}
 
 /**
  * Remove os `.docx` do bucket `termos` DEPOIS do commit da RPC.
@@ -237,6 +218,19 @@ export async function apagarConflito(input: {
             exportadoEm: new Date().toISOString(),
             motivo: 'exclusão de conflito entre filiais',
             ativoIds,
+            contagens: {
+              ativos: acervo.ativos.length,
+              movimentacoes: acervo.movimentacoes.length,
+              anotacoes: acervo.anotacoes.length,
+              pendencias_item: acervo.pendencias_item.length,
+              termos_gerados: acervo.termos_gerados.length,
+            },
+            // F54 — LEVANTADO POR MEDIÇÃO: `apagar_ativos_conflito_filiais` (corpo vigente
+            // da 0100) apaga `pendencias_item`, `termos_gerados`, `anotacoes`,
+            // `movimentacoes` e `ativos`, e `acervoDosAtivos` lê as cinco. Diferença VAZIA.
+            // Os `.docx` deixaram de faltar nesta fase: vão para
+            // `conflito/<digest>/termos/` antes de saírem do bucket.
+            nao_incluido: [],
             // o retrato legível (o que a mesa mostrava) …
             lados,
             // … e as linhas de verdade, que é o que restaura.
@@ -284,7 +278,7 @@ export async function apagarConflito(input: {
     })
     // A RPC recusou: nada foi apagado, então o backup que subiu antes dela não cobre
     // exclusão nenhuma e não pode ficar no bucket. Ver `descartarBackupNaoUsado`.
-    if (backupPath) await descartarBackupNaoUsado(backupPath)
+    if (backupPath) await descartarBackupNaoUsado(createAdminClient(), backupPath)
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
 

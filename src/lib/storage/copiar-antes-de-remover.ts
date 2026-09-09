@@ -260,3 +260,35 @@ export function avisoDaLimpeza(r: ResultadoCopiaRemocao, total: number): string 
   }
   return `${partes.join('; ')}. Eles ficaram órfãos — a checagem "arquivo de termo órfão" da área do desenvolvedor vai contá-los.`
 }
+
+/**
+ * Apaga o BACKUP que subiu para uma operação que a RPC RECUSOU.
+ *
+ * Sem isto o bucket acumula backups que não correspondem a exclusão nenhuma — e esses
+ * órfãos são justamente o material de um replay: caminho válido, existente e sob o prefixo
+ * certo. O digest (conflito) e o id da filial (import) já impedem reusar o backup de OUTRA
+ * operação; limpar a sobra fecha o reuso da MESMA depois que o estado mudou.
+ *
+ * É MELHOR ESFORÇO, e aqui isso é correto: falhar não muda o resultado (nada foi apagado),
+ * e o que sobra a 12ª checagem de integridade conta. É o oposto do contrato da cópia, onde
+ * falhar em silêncio custaria um documento assinado.
+ *
+ * ⚠ O CLIENT VEM DE FORA pelo mesmo motivo do resto do módulo: `conflitos.ts` usa o
+ * administrativo e `importar.ts` usa o de SESSÃO, porque o cabeçalho daquele módulo proíbe
+ * service role. A policy de DELETE do bucket é `e_admin()` e quem chega aqui já passou por
+ * `exigirAdmin` — conferido na migration 0066.
+ */
+export async function descartarBackupNaoUsado(
+  client: ClientStorage,
+  caminho: string,
+): Promise<void> {
+  try {
+    const { error } = await client.storage.from('backups-import').remove([caminho])
+    if (error) throw new Error(error.message)
+  } catch (err) {
+    console.error('[storage] backup órfão no bucket (a RPC recusou e a remoção falhou)', {
+      caminho,
+      erro: err instanceof Error ? err.message : String(err),
+    })
+  }
+}

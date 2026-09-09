@@ -37,6 +37,7 @@ import {
 import {
   avisoDaLimpeza,
   copiarEntaoRemoverTermos,
+  descartarBackupNaoUsado,
   prefixoDasCopias,
   raizDoBackupEmArquivo,
 } from '@/lib/storage/copiar-antes-de-remover'
@@ -437,6 +438,23 @@ export async function aplicarImport(input: {
       exportadoEm: new Date().toISOString(),
       filial: { id: filial.id, slug: filial.slug, nome: filial.nome },
       contagens: custoPreview,
+      // F54 — o que este backup NÃO leva. Um backup que documenta os próprios limites é a
+      // única defesa contra restaurar acreditando ter restaurado tudo.
+      //
+      // ⚠ A lista foi LEVANTADA POR MEDIÇÃO, comparando o que a RPC vigente EM PRODUÇÃO
+      // apaga com o que o exportador lê, tabela a tabela (a tabela está em
+      // `docs/PLAN-F54.md` §3). Para as TABELAS a diferença é VAZIA: a RPC apaga
+      // `movimentacoes`, `anotacoes`, `termos_gerados` e `ativos`, e é exatamente isso que
+      // `exportarAcervoFilial` lê. Os `.docx` deixaram de faltar nesta fase.
+      //
+      // O que sobra é uma assimetria conhecida, e ela é sobre o FUTURO: a RPC do import
+      // não apaga `pendencias_item` e o exportador não a lê. Hoje nada se perde, porque
+      // nada é apagado. No dia em que a RPC aprender a apagá-la — e a lacuna já está
+      // registrada em `queries/dev-destrutivo.ts:364-366` —, o backup ficaria incompleto
+      // SEM QUE NADA AVISASSE. É para esse dia que a linha existe.
+      nao_incluido: [
+        'pendencias_item — o import não apaga esta tabela, e por isso o backup também não a lê. Se a RPC passar a apagá-la, este backup deixa de ser suficiente para restaurar.',
+      ],
       ...acervo,
     }
     const corpo = new Blob([JSON.stringify(backup)], { type: 'application/json' })
@@ -481,6 +499,39 @@ export async function aplicarImport(input: {
       details: error.details,
       filialId: plano.filialId,
     })
+
+    // F54 — A RPC RECUSOU: nada foi apagado, então o backup que subiu antes dela não cobre
+    // exclusão nenhuma e não pode ficar no bucket. Sem isto, `backups-import` acumula
+    // arquivos sob prefixo VÁLIDO que não correspondem a exclusão nenhuma — e um órfão sob
+    // prefixo válido é material de replay, além de virar contagem na 12ª checagem.
+    //
+    // ⚠ É ESTE RAMO, E SÓ ESTE. O ramo do `safeParse` logo abaixo é o oposto: lá a RPC
+    // CONCLUIU, os dados já foram substituídos, e o backup é a única cópia do que sumiu —
+    // descartá-lo ali destruiria a prova. Errar de ramo aqui é o defeito mais caro que esta
+    // fase poderia introduzir, e há teste que prova que o `safeParse` NÃO descarta.
+    //
+    // Client de SESSÃO, como todo o resto deste módulo (o cabeçalho proíbe service role).
+    // A policy de DELETE do bucket `backups-import` é `e_admin()`, e quem chegou aqui já
+    // passou por `exigirAdmin` — conferido na 0066, não suposto.
+    await descartarBackupNaoUsado(client, backupPath)
+
+    // A trilha do fracasso. `import_executado` só é gravado quando dá certo, então até aqui
+    // um import recusado não deixava rastro NENHUM na aba Auditoria — só uma linha no log do
+    // servidor, que ninguém lê. `eventos_admin.acao` não tem check constraint (medido: só PK
+    // e FK), então o verbo novo entra sem migration.
+    await registrarEventoAdmin({
+      acao: 'import_falhou',
+      autor: aut.uid,
+      alvo: filial.slug,
+      detalhe: {
+        filial_id: filial.id,
+        filial_nome: filial.nome,
+        arquivo_hash: plano.arquivoHash,
+        erro_codigo: error.code ?? null,
+        backup_descartado: backupPath,
+      },
+    })
+
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
 

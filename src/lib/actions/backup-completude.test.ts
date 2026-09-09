@@ -124,10 +124,10 @@ const CLASSIFICADOS: Record<string, Classificacao> = {
   },
 
   // --- Os dispensados: não são a única cópia de nada. ---
-  'src/lib/actions/conflitos.ts::[caminho]': {
+  'src/lib/storage/copiar-antes-de-remover.ts::[caminho]': {
     tipo: 'dispensado',
     motivo:
-      'Apaga o BACKUP que a própria action acabou de subir, no ramo em que a RPC RECUSOU a exclusão — nada foi apagado, então esse backup não cobre exclusão nenhuma e é sobra, não prova. Copiá-lo seria guardar cópia de um arquivo que existe só por um instante e que o `descartarBackupNaoUsado` existe para não deixar no bucket (o órfão sob prefixo válido é material de replay).',
+      'Apaga o BACKUP que a própria operação acabou de subir, no ramo em que a RPC RECUSOU a exclusão — nada foi apagado, então esse backup não cobre exclusão nenhuma e é sobra, não prova. Copiá-lo seria guardar cópia de um arquivo que existe só por um instante e que o `descartarBackupNaoUsado` existe para não deixar no bucket (o órfão sob prefixo válido é material de replay).',
   },
   'src/lib/actions/termos.ts::orfaos.map((o) => o.arquivo_path)': {
     tipo: 'dispensado',

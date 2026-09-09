@@ -24,6 +24,11 @@ export const ACOES_ADMIN = [
   'senha_revogada',
   'senha_reativada',
   'import_executado',
+  // F54 — o import que a RPC RECUSOU. Antes desta fase um import recusado não deixava
+  // rastro NENHUM na aba Auditoria (só uma linha no log do servidor, que ninguém lê), e o
+  // backup que subira antes da RPC ficava no bucket sem cobrir exclusão nenhuma. Este
+  // verbo registra as duas coisas: que houve tentativa, e que o backup foi descartado.
+  'import_falhou',
   // F23 — as ferramentas DESTRUTIVAS da /dev, todas privativas do cargo Desenvolvedor.
   // ⚠ Estes sete são gravados DENTRO das próprias RPCs (migrations 0082/0083/0084), na mesma
   // transação da operação — e não por `registrarEventoAdmin`. O motivo está no cabeçalho da
@@ -60,6 +65,7 @@ export const ACAO_ROTULO: Record<AcaoAdmin, string> = {
   senha_revogada: 'Senha de acesso revogada',
   senha_reativada: 'Senha de acesso reativada',
   import_executado: 'Import de startup executado',
+  import_falhou: 'Import de startup recusado',
   ativo_apagado: 'Ativo apagado',
   movimentacao_apagada: 'Movimentação apagada',
   item_apagado: 'Item apagado',
