@@ -254,11 +254,23 @@ regeneração agora é idempotente byte a byte.
 3. **A asserção de equivalência é quase tautológica no dia em que roda** (a coluna foi gerada pela
    expressão contra a qual está sendo comparada). O valor dela é **completude** hoje e
    **regressão** daí em diante.
-4. **E ela JÁ diverge ao vivo, por desenho.** Rodando a mesma consulta contra produção horas
-   depois do apply, a revisão adversarial mediu **1 e depois 3 linhas divergentes** — movimentações
-   reais registradas no intervalo. Isso **não é defeito**: é `ordem` sendo híbrida (ranking no
-   passado, ordem de inserção no futuro), exatamente o que a Decisão 3 prevê. Quem reexecutar a
-   checagem depois vai ver divergência crescente, e ela é o **sinal**, não o alarme.
+4. **E ela JÁ diverge ao vivo, por desenho — mas não pelo motivo que a intuição sugere.**
+   Rodando a mesma consulta contra produção horas depois do apply: **1**, depois **3**, depois
+   **4** linhas divergentes, com o acervo indo de 3497 a **3503** (operadores trabalhando).
+   Abri as 4 e a leitura importa, porque a explicação fácil está **errada**: elas **não** são
+   retroativas (`data = 2026-09-09`, gravadas em `2026-09-09`). São **dois pares** — `ordem`
+   3543/3544 e 3546/3547 — gravados **na mesma transação**, portanto com o mesmo `created_at`.
+   Dentro de cada par, `ordem` os ordena pela **inserção** e a quádrupla os ordena pelo
+   `(tipo='ajuste')`+`id`, e as duas discordam.
+
+   Ou seja: o que a asserção `3b` mede contra a tabela viva não é "o backfill quebrou" — é
+   **"a régua nova ainda concorda com o sorteio antigo?"**. A partir da primeira movimentação
+   nova, a resposta é **não**, e ter de ser não: é para isso que a fase existe. `ordem` é
+   híbrida por construção (ranking no passado, ordem de inserção no futuro, Decisão 3), e no
+   futuro ela é a verdade — o `last-insert-wins` que a `0054` já perseguia. Quem reexecutar a
+   checagem contra produção vai ver divergência crescente; ela é o **sinal**, não o alarme.
+   ⚠ Por isso `3b` é uma asserção do **roteiro**, que roda no banco limpo do CI sobre as linhas
+   que ele mesmo monta — **não** uma sonda para apontar contra produção.
 5. **O ensaio é rehearsal de mecânica, não de semântica** — ele não tem uma única linha em empate
    compra × ajuste (Sabotagem A). O que o ensaio provou: que as três migrations aplicam, que a
    coluna fecha com a forma certa e que a sequência fica à frente.
