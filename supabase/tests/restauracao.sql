@@ -47,6 +47,9 @@ declare
   v_ativo   uuid;
   v_mov_a   uuid;
   v_mov_s   uuid;
+  -- O id da SONDA do cenario 2a: proprio, para que um INSERT que passe (a mutacao)
+  -- nao colida com a restauracao literal do 2b.
+  v_sonda   constant uuid := '54000000-0000-4000-8000-0000000000a2';
   v_mov_b   uuid;
 
   -- O "backup": o retrato que o restaurador teria em mãos.
@@ -178,12 +181,24 @@ begin
   -- ---- 2a. SEM `overriding system value` o INSERT é RECUSADO ---------------
   -- É a primeira parede que o restaurador ingênuo encontra, e ela é BOA: falha alto
   -- e cedo. A ruim é a de baixo (2c), que falha baixo e tarde.
+  -- ⚠ A SONDA USA UM ID PRÓPRIO, E LIMPA O QUE ELA MESMA DEIXAR. O motivo foi MEDIDO
+  -- pelo injetor de mutações, não previsto: com a mutação
+  -- `ordem-deixa-de-ser-generated-always` a coluna vira `by default`, este INSERT
+  -- PASSA (que é o defeito, e o `2a` cai como devia) — mas, usando `v_mov_a`, ele
+  -- deixava a linha na tabela, e o `2b` logo abaixo colidia na chave primária. O
+  -- roteiro MORRIA no meio, sem emitir a linha `FIM`, e o injetor reportava
+  -- "roteiro abortou" em vez de "mutação detectada". Uma asserção que derruba o
+  -- roteiro inteiro converte um diagnóstico certo no diagnóstico errado.
   begin
     insert into public.movimentacoes (id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at)
-    values (v_mov_a, v_bkp_ordem_a, v_ativo, 'compra', current_date - 30, v_f1, k_autor,
+    values (v_sonda, v_bkp_ordem_a, v_ativo, 'compra', current_date - 30, v_f1, k_autor,
             now() - interval '30 days');
     v_falhas := v_falhas + 1;
     raise warning '✗ 2a o INSERT com `ordem` explícita PASSOU sem `overriding system value` — a coluna deixou de ser `generated always`, e o restaurador da F54 está escrito para um banco que não existe mais';
+    -- Limpa a sonda para que o resto do roteiro rode e a linha FIM saia.
+    perform set_config('estoque.dev_destrutivo', 'on', true);
+    delete from public.movimentacoes where id = v_sonda;
+    perform set_config('estoque.dev_destrutivo', 'off', true);
   exception when generated_always then
     v_ok := v_ok + 1;
     raise notice '✓ 2a sem `overriding system value` o INSERT é RECUSADO (generated always)';
