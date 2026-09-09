@@ -686,11 +686,18 @@ begin
                            'return query', '')))
          / length('return query')
     into v_n;
-  if v_n = 11 then
-    v_ok := v_ok + 1; raise notice '✓ 12 dev_checagens_integridade tem ONZE blocos';
+  -- ⚠ ESTE NÚMERO É UMA CONTAGEM, e toda fase que acrescenta checagem tem de bumpá-lo.
+  -- Ele nasceu em 11 na F41 e foi para 12 na F54 (`0136`, a checagem `backup_orfao`).
+  -- A F54 descobriu isso do jeito certo — o `banco-sem-docker` ficou vermelho com
+  -- "esperava 11 checagens, achei 12" —, que é exatamente o modo de falha que a regra
+  -- "rode TODOS os roteiros ao mexer em função" (RUNBOOK-BANCO.md, herdada da F15/F17)
+  -- existe para pegar: `lint`/`test`/`build` locais não executam SQL, e só o job de banco
+  -- vê a divergência.
+  if v_n = 12 then
+    v_ok := v_ok + 1; raise notice '✓ 12 dev_checagens_integridade tem DOZE blocos';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12; ';
-    raise warning '✗ 12 esperava 11 checagens, achei %', v_n;
+    raise warning '✗ 12 esperava 12 checagens, achei %', v_n;
   end if;
 
   if pg_get_functiondef('public.dev_checagens_integridade()'::regprocedure)

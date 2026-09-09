@@ -309,7 +309,17 @@ begin
   -- restore de outro ambiente, o piloto da F73. Restaurar no MESMO banco não expõe
   -- o defeito (a sequência ficou alta), e é por isso que este cenário a empurra
   -- para trás de propósito, em vez de esperar que a sorte o produza.
-  perform setval(v_seq, 1, false);
+  --
+  -- ⚠ E O ALVO É A `ordem` QUE ESTE ROTEIRO ACABOU DE RESTAURAR, não o valor 1 — a
+  -- primeira versão fazia `setval(v_seq, 1, false)` e passou no ENSAIO (onde existem
+  -- 3.239 movimentações reais, e `ordem = 1` existe) mas FALHOU no `banco-sem-docker`:
+  -- lá a tabela só tem as linhas deste roteiro, e como os roteiros anteriores já
+  -- consumiram a sequência (o `rollback` desfaz as linhas, NÃO a sequência), a `ordem`
+  -- restaurada é alta e `1` não colide com nada. A asserção passava a medir o acervo do
+  -- ambiente, e não a armadilha. Apontando para `v_bkp_ordem_a - 1`, o próximo valor é
+  -- exatamente uma `ordem` que ESTE roteiro pôs na tabela — determinístico em qualquer
+  -- banco.
+  perform setval(v_seq, v_bkp_ordem_a - 1, true);
 
   begin
     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
