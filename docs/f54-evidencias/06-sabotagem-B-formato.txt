@@ -1,0 +1,63 @@
+############################################################
+# SABOTAGEM B.1 — acrescentar TABELA ao backup sem bumpar a versao
+#   (uma chave nova no cabecalho do import)
+############################################################
+sabotado
+     × backup do IMPORT (aplicarImport) 18ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/backup-formato.test.ts > 1. os cabeçalhos de backup casam versão × conjunto de chaves > backup do IMPORT (aplicarImport)
+AssertionError: backup do IMPORT (aplicarImport): as chaves de topo mudaram sem que a `versao` mudasse. Se acrescentou TABELA ao backup, bumpe a `versao` e declare o conjunto novo; se a chave só DESCREVE o arquivo (como `nao_incluido`), acrescente-a ao conjunto da versão atual, com o motivo escrito.: expected [ '...acervo', 'contagens', …(5) ] to deeply equal [ '...acervo', 'contagens', …(4) ]
+      Tests  1 failed | 13 passed (14)
+
+############################################################
+# SABOTAGEM B.2 — tabela nova ENTRANDO PELO ESPALHAMENTO
+#   (o furo que o describe 1 sozinho nao veria)
+############################################################
+sabotado: tabela nova no tipo do espalhamento
+     × `AcervoFilial` tem exatamente as quatro tabelas que a RPC do import apaga 14ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: o backup do import passou a levar outro conjunto de tabelas. Isso é mudança de FORMATO: bumpe a `versao` do cabeçalho e declare o conjunto novo em `backup-formato.test.ts`.: expected [ 'anotacoes', 'ativos', …(3) ] to deeply equal [ 'anotacoes', 'ativos', …(2) ]
+    212|       'o backup do import passou a levar outro conjunto de tabelas. Is…
+      Tests  1 failed | 13 passed (14)
+
+############################################################
+# SABOTAGEM B.3 — bumpar a versao SEM declarar o formato novo
+############################################################
+sabotado: versao 2 nao declarada
+     × backup do IMPORT (aplicarImport) 14ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/backup-formato.test.ts > 1. os cabeçalhos de backup casam versão × conjunto de chaves > backup do IMPORT (aplicarImport)
+AssertionError: backup do IMPORT (aplicarImport): o código grava `versao: 2`, e esta suíte não declara essa versão. Bumpou? Declare o conjunto de chaves da versão nova em `formatos`.: expected undefined to be defined
+      Tests  1 failed | 13 passed (14)
+
+############################################################
+# RESTAURADO
+############################################################
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+
+############################################################
+# SABOTAGEM B.4 — tabela nova no backup do RESET sem bumpar
+#   (o furo que a revisao adversarial mediu: a trava cobria
+#    1 dos 3 backups)
+############################################################
+sabotado: tabela_nova no backup do reset/acervo
+     × backup do RESET, bloco ACERVO 23ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/backup-formato.test.ts > 1. os cabeçalhos de backup casam versão × conjunto de chaves > backup do RESET, bloco ACERVO
+AssertionError: backup do RESET, bloco ACERVO: as chaves de topo mudaram sem que a `versao` mudasse. Se acrescentou TABELA ao backup, bumpe a `versao` e declare o conjunto novo; se a chave só DESCREVE o arquivo (como `nao_incluido`), acrescente-a ao conjunto da versão atual, com o motivo escrito.: expected [ 'anotacoes', 'ativos', …(11) ] to deeply equal [ 'anotacoes', 'ativos', …(10) ]
+
+############################################################
+# SABOTAGEM B.5 — tabela nova pelo espalhamento do CONFLITO
+############################################################
+sabotado: tabela_nova no tipo de acervoDosAtivos
+     × `acervoDosAtivos` tem exatamente as cinco tabelas que a RPC do conflito apaga 22ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: o backup do conflito passou a levar outro conjunto de tabelas. Bumpe a `versao` do cabeçalho e declare o conjunto novo.: expected [ 'anotacoes', 'ativos', …(4) ] to deeply equal [ 'anotacoes', 'ativos', …(3) ]
+    273|       'o backup do conflito passou a levar outro conjunto de tabelas. …
+
+############################################################
+# RESTAURADO
+############################################################
+ Test Files  1 passed (1)
+      Tests  17 passed (17)

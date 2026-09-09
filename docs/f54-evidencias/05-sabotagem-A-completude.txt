@@ -1,0 +1,58 @@
+############################################################
+# SABOTAGEM A.1 — remover a CHAMADA da copia (a porta unica)
+############################################################
+sabotado: a copia sumiu, o remove continua
+     × `src/lib/storage/copiar-antes-de-remover.ts::loteRemocao` remove a lista CONFIRMADA pela cópia, e a cópia vem antes 80ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: src/lib/storage/copiar-antes-de-remover.ts::loteRemocao: `copiados` não vem de `await copiarArtefatosParaBackup(…)` — a cópia sumiu, ou a lista removida passou a ter outra origem: expected false to be true // Object.is equality
+      Tests  1 failed | 14 passed (15)
+
+############################################################
+# SABOTAGEM A.2 — a copia FICA, mas cobre OUTRO conjunto
+############################################################
+sabotado: copia intacta, remove sobre caminhos
+     × `src/lib/storage/copiar-antes-de-remover.ts::loteRemocao` remove a lista CONFIRMADA pela cópia, e a cópia vem antes 74ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: src/lib/storage/copiar-antes-de-remover.ts::loteRemocao: o `remove(loteRemocao)` não descende de `copiados` — a remoção está sobre um conjunto que a cópia não confirmou: expected false to be true // Object.is equality
+      Tests  1 failed | 14 passed (15)
+
+############################################################
+# SABOTAGEM A.3 — acrescentar um remove NOVO, nao classificado
+############################################################
+sabotado: remove novo em termos.ts, sem classificacao
+     × classifica EXATAMENTE as remoções que existem no fonte 82ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
++   "src/lib/actions/termos.ts::alvos",
+      Tests  1 failed | 14 passed (15)
+Updated 1 path from the index
+
+############################################################
+# RESTAURADO
+############################################################
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+############################################################
+# SABOTAGEM A.4 (da revisao adversarial) — a copia FICA, mas o
+#   remove recebe a UNIAO com a lista que FALHOU
+############################################################
+sabotado: remove recebe copiados.concat(falharam)
+     × `src/lib/storage/copiar-antes-de-remover.ts::loteRemocao` remove a lista CONFIRMADA pela cópia, e a cópia vem antes 103ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: src/lib/storage/copiar-antes-de-remover.ts::loteRemocao: o `remove(loteRemocao)` recebe `copiados.concat(falharam).slice(i, i + LOTE_REMOCAO)`, que não é uma das formas autorizadas (copiados | copiados.slice(i, i + LOTE_REMOCAO)). Qualquer união, concatenação ou filtro sobre `copiados` pode reintroduzir caminho que a cópia NÃO confirmou.: expected false to be true // Object.is equality
+      Tests  1 failed | 15 passed (16)
+
+############################################################
+# SABOTAGEM A.5 (da revisao) — remove com bucket em VARIAVEL
+############################################################
+sabotado: from(bucket).remove(alvos), bucket em variavel
+     × nenhum `.remove(` usa bucket em VARIÁVEL — senão o universo fica inauditável 133ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/backup-completude.test.ts > 1. o universo de remoções de Storage está inteiro e classificado > nenhum `.remove(` usa bucket em VARIÁVEL — senão o universo fica inauditável
+      Tests  1 failed | 15 passed (16)
+Updated 1 path from the index
+
+############################################################
+# RESTAURADO
+############################################################
+ Test Files  1 passed (1)
+      Tests  16 passed (16)

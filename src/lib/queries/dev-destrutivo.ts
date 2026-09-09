@@ -399,7 +399,27 @@ export async function montarBackupDoReset(
       const q = supabase.from('lancamentos_item').select('*').order('id').range(from, to)
       return (filialId !== null ? q.eq('filial_id', filialId) : q) as unknown as PromiseLike<Pagina>
     })
-    return { bloco, filial_id: filialId, gerado_em, lancamentos_item: lancamentos }
+  // F54 — CABEÇALHO COMPLETO (Decisão 4). Este backup não tinha `versao` nem `contagens`,
+  // e os dois faltavam por motivos diferentes: sem `versao` a trava de formato não teria o
+  // que congelar, e sem `contagens` a conferência de restauração não teria com o que
+  // comparar o que foi reinserido. Ganharam ambos, e `versao` nasce em 1.
+  //
+  // ⚠ O QUE ACONTECE COM OS BACKUPS ANTIGOS: os que já estão no bucket não têm os campos e
+  // não vão ganhar (não se reescreve backup). O restaurador trata `versao` ausente como 0
+  // e, nesse caso, NÃO tenta a conferência de contagens — ele diz por escrito que aquele
+  // arquivo é anterior ao campo. A diferença entre "não conferi" e "conferi e bateu" tem
+  // de aparecer na saída, senão a ausência vira falso conforto.
+    return {
+      versao: 1,
+      bloco,
+      filial_id: filialId,
+      gerado_em,
+      contagens: { lancamentos_item: lancamentos.length },
+      // O reset de itens apaga `lancamentos_item` e nada mais — e é exatamente isso que
+      // este backup lê. Medido contra o corpo vigente de `resetar_itens` (0089).
+      nao_incluido: [],
+      lancamentos_item: lancamentos,
+    }
   }
 
   // ACERVO. O recorte é pelo ATIVO (a filial em que ele está HOJE) — igual ao da RPC.
@@ -413,6 +433,9 @@ export async function montarBackupDoReset(
   const LOTE = 100
   const lotes: string[][] = []
   for (let i = 0; i < ids.length; i += LOTE) lotes.push(ids.slice(i, i + LOTE))
+
+  /** Os ids do recorte, para o bloco de ponteiros que atravessam a fronteira (F23). */
+  const doRecorte = new Set(ids)
 
   async function porAtivo(
     tabela: 'movimentacoes' | 'anotacoes' | 'pendencias_item',
@@ -448,18 +471,48 @@ export async function montarBackupDoReset(
   ])
 
   // Termos: referenciam por `ativo_ids uuid[]`, sem FK — a régua é a mesma da RPC.
-  const todosTermos = await todas(
-    'Falha ao exportar termos',
-    (from, to) =>
-      supabase.from('termos_gerados').select('*').order('id').range(from, to) as unknown as PromiseLike<Pagina>,
-  )
-  const doRecorte = new Set(ids)
-  const termos_gerados =
-    filialId === null
-      ? todosTermos
-      : todosTermos.filter((t) =>
-          ((t.ativo_ids as string[] | null) ?? []).some((x) => doRecorte.has(x)),
-        )
+  //
+  // ⚠ GÊMEO de `exportarAcervoFilial` (queries/import-logs.ts): mexeu num, mexa no outro.
+  // Os dois liam a tabela INTEIRA e filtravam em TypeScript; a F54 passou os dois para o
+  // recorte no BANCO (`&&` sobre `ativo_ids`, em lotes de 100, com o índice GIN
+  // `termos_gerados_ativos_gin`). A medição, o cruzamento e a razão de a troca não ser por
+  // velocidade estão escritos por extenso lá — aqui não se repete o número, só a régua.
+  //
+  // A ficha da F54 nomeava só o exportador do import. Este tinha a MESMA leitura sem
+  // recorte, e deixar metade da classe corrigida seria a pior das três saídas: a próxima
+  // pessoa a ler os dois encontraria duas réguas e teria de adivinhar qual é a boa.
+  //
+  // ⚠ DEDUPLICAÇÃO: termo de lote que cruze dois lotes de ids volta duas vezes, e linha
+  // repetida no backup vira violação de chave primária na restauração.
+  //
+  // O alcance GLOBAL (`filialId is null`) continua lendo a tabela inteira — ali não há
+  // recorte a aplicar: o reset global apaga TODOS os termos, e ler tudo é o recorte certo.
+  let termos_gerados: Record<string, unknown>[]
+  if (filialId === null) {
+    termos_gerados = await todas(
+      'Falha ao exportar termos',
+      (from, to) =>
+        supabase.from('termos_gerados').select('*').order('id').range(from, to) as unknown as PromiseLike<Pagina>,
+    )
+  } else {
+    const porId = new Map<string, Record<string, unknown>>()
+    for (const lote of lotes) {
+      const parte = await todas(
+        'Falha ao exportar termos',
+        (from, to) =>
+          supabase
+            .from('termos_gerados')
+            .select('*')
+            .overlaps('ativo_ids', lote)
+            .order('id')
+            .range(from, to) as unknown as PromiseLike<Pagina>,
+      )
+      for (const t of parte) porId.set(String(t.id), t)
+    }
+    termos_gerados = [...porId.values()].sort((a, b) =>
+      String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0,
+    )
+  }
 
   // ⚠ OS PONTEIROS QUE ATRAVESSAM O RECORTE — achado da revisão adversarial da F23.
   // `resetar_acervo` faz `update ativos set substitui_ativo_id = null where substitui_ativo_id
@@ -494,10 +547,34 @@ export async function montarBackupDoReset(
           return acc.filter((a) => !doRecorte.has(String(a.id)))
         })()
 
+  // F54 — CABEÇALHO COMPLETO (Decisão 4). Este backup não tinha `versao` nem `contagens`,
+  // e os dois faltavam por motivos diferentes: sem `versao` a trava de formato não teria o
+  // que congelar, e sem `contagens` a conferência de restauração não teria com o que
+  // comparar o que foi reinserido. Ganharam ambos, e `versao` nasce em 1.
+  //
+  // ⚠ O QUE ACONTECE COM OS BACKUPS ANTIGOS: os que já estão no bucket não têm os campos e
+  // não vão ganhar (não se reescreve backup). O restaurador trata `versao` ausente como 0
+  // e, nesse caso, NÃO tenta a conferência de contagens — ele diz por escrito que aquele
+  // arquivo é anterior ao campo. A diferença entre "não conferi" e "conferi e bateu" tem
+  // de aparecer na saída, senão a ausência vira falso conforto.
   return {
+    versao: 1,
     bloco,
     filial_id: filialId,
     gerado_em,
+    contagens: {
+      ativos: ativos.length,
+      movimentacoes: movimentacoes.length,
+      anotacoes: anotacoes.length,
+      pendencias_item: pendencias_item.length,
+      termos_gerados: termos_gerados.length,
+    },
+    // F54 — LEVANTADO POR MEDIÇÃO, não redigido de memória: `resetar_acervo` (corpo
+    // vigente da 0089) apaga `pendencias_item`, `termos_gerados`, `anotacoes`,
+    // `movimentacoes` e `ativos` — e este exportador lê as cinco. A diferença é VAZIA.
+    // Os `.docx` deixaram de faltar nesta fase: eles são copiados para
+    // `<caminho deste JSON sem .json>/termos/` antes de serem removidos do bucket.
+    nao_incluido: [],
     ativos,
     movimentacoes,
     anotacoes,

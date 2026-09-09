@@ -4,6 +4,13 @@ import { createHash } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  avisoDaLimpeza,
+  copiarEntaoRemoverTermos,
+  prefixoDasCopias,
+  descartarBackupNaoUsado,
+  raizDoConflito,
+} from '@/lib/storage/copiar-antes-de-remover'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { acervoDosAtivos, ladosDosAtivos } from '@/lib/queries/conflitos'
@@ -49,9 +56,6 @@ function revalidar(): void {
   for (const r of ROTAS) revalidatePath(r)
 }
 
-/** Teto por chamada de `remove()`. A API de Storage aceita até 1000 chaves por requisição. */
-const LOTE_REMOCAO = 500
-
 /**
  * O DIGEST da seleção — é ele que amarra o arquivo de backup a ESTES cadastros.
  *
@@ -72,26 +76,6 @@ function digestDaSelecao(ativoIds: string[]): string {
   return createHash('md5').update(ordenados.join(','), 'utf8').digest('hex')
 }
 
-/**
- * Apaga o backup que subiu para uma exclusão que a RPC recusou.
- *
- * Sem isto o bucket acumula `conflito/…json` que não correspondem a exclusão nenhuma — e
- * esses órfãos são justamente o material de um replay: caminho válido, existente e sob o
- * prefixo certo. O digest no nome já impede reusar o backup de OUTRA seleção; limpar a
- * sobra fecha o reuso da MESMA seleção depois que o estado mudou. É melhor esforço: falhar
- * aqui não muda o resultado (nada foi apagado), só registra no log.
- */
-async function descartarBackupNaoUsado(caminho: string): Promise<void> {
-  try {
-    const { error } = await createAdminClient().storage.from('backups-import').remove([caminho])
-    if (error) throw new Error(error.message)
-  } catch (err) {
-    console.error('[conflitos] backup órfão no bucket (a RPC recusou e a remoção falhou)', {
-      caminho,
-      erro: err instanceof Error ? err.message : String(err),
-    })
-  }
-}
 
 /**
  * Remove os `.docx` do bucket `termos` DEPOIS do commit da RPC.
@@ -111,31 +95,19 @@ async function descartarBackupNaoUsado(caminho: string): Promise<void> {
  * · O `data` de `remove()` é CONFERIDO, e não só o `error`: a API responde 200 com a lista
  *   do que realmente saiu, então uma remoção parcial não levanta erro nenhum.
  */
-async function limparArquivosDeTermo(caminhos: string[]): Promise<string | null> {
+async function limparArquivosDeTermo(
+  caminhos: string[],
+  prefixoDestino: string,
+): Promise<string | null> {
   if (caminhos.length === 0) return null
 
+  // F54 — COPIA antes de remover, e NÃO remove o que não copiou. O gêmeo byte a byte que
+  // vivia aqui e em `dev-destrutivo.ts` virou UMA porta em
+  // `lib/storage/copiar-antes-de-remover.ts`. Os motivos escritos acima continuam valendo
+  // inteiros — o que mudou é que agora existe cópia, e falhar a cópia IMPEDE a remoção.
   const admin = createAdminClient()
-  const naoRemovidos: string[] = []
-
-  for (let i = 0; i < caminhos.length; i += LOTE_REMOCAO) {
-    const lote = caminhos.slice(i, i + LOTE_REMOCAO)
-    try {
-      const { data, error } = await admin.storage.from('termos').remove(lote)
-      if (error) throw new Error(error.message)
-      const saiu = new Set((data ?? []).map((o) => o.name))
-      naoRemovidos.push(...lote.filter((c) => !saiu.has(c)))
-    } catch (err) {
-      console.error('[conflitos] falha ao remover .docx do bucket termos', {
-        lote: lote.length,
-        erro: err instanceof Error ? err.message : String(err),
-      })
-      naoRemovidos.push(...lote)
-    }
-  }
-
-  if (naoRemovidos.length === 0) return null
-  console.error('[conflitos] .docx que ficaram órfãos no bucket', { naoRemovidos })
-  return `Os cadastros foram apagados, mas ${naoRemovidos.length} de ${caminhos.length} arquivo(s) .docx não saíram do armazenamento. Eles ficaram órfãos — a checagem "arquivo de termo órfão" da área do desenvolvedor vai contá-los.`
+  const r = await copiarEntaoRemoverTermos(admin, { prefixoDestino, caminhos })
+  return avisoDaLimpeza(r, caminhos.length)
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +218,35 @@ export async function apagarConflito(input: {
             exportadoEm: new Date().toISOString(),
             motivo: 'exclusão de conflito entre filiais',
             ativoIds,
+            contagens: {
+              ativos: acervo.ativos.length,
+              movimentacoes: acervo.movimentacoes.length,
+              anotacoes: acervo.anotacoes.length,
+              pendencias_item: acervo.pendencias_item.length,
+              termos_gerados: acervo.termos_gerados.length,
+            },
+            // F54 — LEVANTADO POR MEDIÇÃO: `apagar_ativos_conflito_filiais` (corpo vigente
+            // da 0100) apaga `pendencias_item`, `termos_gerados`, `anotacoes`,
+            // `movimentacoes` e `ativos`, e `acervoDosAtivos` lê as cinco. Para as
+            // TABELAS a diferença é vazia, e os `.docx` deixaram de faltar nesta fase:
+            // vão para `conflito/<digest>/termos/` antes de saírem do bucket.
+            //
+            // ⚠ MAS A RPC NÃO SÓ APAGA — ELA TAMBÉM MUTA LINHA QUE SOBREVIVE, e essa é a
+            // linha abaixo. Achado da revisão adversarial da F54: o corpo vigente faz
+            // `update public.ativos set substitui_ativo_id = null where
+            // substitui_ativo_id = any(v_ids) and not (id = any(v_ids))` — o ponteiro do
+            // SUBSTITUTO, que fica na filial dele e não entra no recorte. `acervoDosAtivos`
+            // lê só as linhas dos ids selecionados, então esse ponteiro se perde **fora**
+            // do backup, e a RPC guarda só a CONTAGEM (`ponteiros_anulados`).
+            //
+            // É a mesma classe que `montarBackupDoReset` já trata com o bloco
+            // `ponteiros_perdidos` (F23). Aqui ela é DECLARADA e não capturada: capturar
+            // exigiria uma leitura nova em `acervoDosAtivos`, e a régua desta fase é que
+            // o `nao_incluido` diga a verdade — um `[]` errado é pior que uma linha
+            // honesta. Vira backlog junto com o resto da família.
+            nao_incluido: [
+              'ativos.substitui_ativo_id de ativos FORA da seleção — a RPC anula o ponteiro do substituto (que fica na filial dele) e este backup lê só as linhas dos ids selecionados. A contagem sobrevive no evento (`ponteiros_anulados`); os ids, não.',
+            ],
             // o retrato legível (o que a mesa mostrava) …
             lados,
             // … e as linhas de verdade, que é o que restaura.
@@ -293,7 +294,7 @@ export async function apagarConflito(input: {
     })
     // A RPC recusou: nada foi apagado, então o backup que subiu antes dela não cobre
     // exclusão nenhuma e não pode ficar no bucket. Ver `descartarBackupNaoUsado`.
-    if (backupPath) await descartarBackupNaoUsado(backupPath)
+    if (backupPath) await descartarBackupNaoUsado(createAdminClient(), backupPath)
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
 
@@ -305,7 +306,15 @@ export async function apagarConflito(input: {
   }
 
   // ---- limpeza dos .docx, DEPOIS do commit ----
-  const aviso = await limparArquivosDeTermo(ret.arquivos_termos ?? [])
+  // F54 — a raiz das cópias é `conflito/<digest>`, IGUAL acima e abaixo do teto de 25.
+  // Abaixo dele não existe backup em arquivo (o backup é jsonb inline no evento), e o
+  // digest da seleção é a única âncora presente nos dois casos. Ele é o mesmo valor que a
+  // RPC confere no prefixo (0100) e que `digest_selecao_conflito()` recalcula em SQL — por
+  // isso a 12ª checagem reconhece estas cópias sem registro novo.
+  const aviso = await limparArquivosDeTermo(
+    ret.arquivos_termos ?? [],
+    prefixoDasCopias(raizDoConflito(digestDaSelecao(ativoIds))),
+  )
 
   revalidar()
 

@@ -1,0 +1,88 @@
+
+=== DIFF: corpo da 0127 (11 checagens) -> corpo da 0136 (12) ===
+120a121,201
+> 
+>   -- ---------------------------------------------------------------------------
+>   -- 12ª (F54) — BACKUP ÓRFÃO em `backups-import`
+>   -- ---------------------------------------------------------------------------
+>   -- Objeto no bucket dos backups que não corresponde a operação nenhuma. Duas
+>   -- populações caem aqui, e as duas merecem: o backup que subiu para uma operação
+>   -- que a RPC RECUSOU (a partir da F54 o import descarta o dele sozinho; o reset e
+>   -- o conflito abaixo do teto não descartam) e o resíduo histórico de antes de a
+>   -- trilha existir — medidos 10 em produção em 09/09/2026, todos de julho.
+>   --
+>   -- ⚠ O PREDICADO NÃO FILTRA POR PREFIXO, e isso é decisão, não descuido. Os 22
+>   -- objetos que existem hoje estão TODOS na forma histórica `<slug>/<carimbo>.json`;
+>   -- a forma atual (`import/filial-<id>/…`, F52) ainda não produziu nenhum. Um
+>   -- predicado que reconhecesse só a forma nova acusaria os 22 de uma vez, e um que
+>   -- listasse as duas nasceria desatualizado na terceira. A pergunta certa é "alguém
+>   -- registrou este caminho?", e ela é agnóstica de forma.
+>   --
+>   -- ⚠ AS CÓPIAS DE `.docx` (F54) NÃO SÃO ÓRFÃS, e reconhecê-las é a metade difícil.
+>   -- Elas moram em `<raiz>/termos/<arquivo>`, e a RAIZ é sempre um valor que a própria
+>   -- operação JÁ gravou, DENTRO da transação dela:
+>   --   · import, reset e conflito acima do teto → o `backup_path` sem o `.json`;
+>   --   · apagar ativo                           → `detalhe->>'ativo_id'` (RPC 0082);
+>   --   · conflito abaixo do teto                → o digest da seleção, recalculado a
+>   --     partir de `detalhe->'selecionados'` com as funções que a 0100 já criou.
+>   -- É por isso que a F54 não precisou de evento nem de manifesto novo: não há escrita
+>   -- posterior que possa falhar em silêncio e transformar cópia legítima em órfã.
+>   --
+>   -- ⚠ SÓ `bucket_id` e `name` de `storage.objects`. O `bootstrap-storage.sql` do CI é
+>   -- o recorte MÍNIMO e NÃO tem a coluna `metadata` — um predicado que a usasse passaria
+>   -- aqui e morreria no `banco-sem-docker`.
+>   --
+>   -- ⚠ `not exists`, nunca `not in`: um NULL no subselect faria o `not in` devolver NULL
+>   -- para toda linha, a contagem sairia ZERO, e a checagem estaria "verde" por não
+>   -- enxergar nada. É o modo de falha mais silencioso que uma checagem pode ter.
+>   return query
+>   with registrados as (
+>     select l.backup_path as caminho
+>       from public.import_logs l
+>      where l.backup_path is not null
+>     union
+>     select e.detalhe->>'backup_path'
+>       from public.eventos_admin e
+>      where nullif(e.detalhe->>'backup_path', '') is not null
+>   ),
+>   copias as (
+>     select o.name
+>       from storage.objects o
+>      where o.bucket_id = 'backups-import'
+>        and o.name ~ '/termos/[^/]+$'
+>        and (
+>          exists (
+>            select 1 from registrados r
+>             where r.caminho = regexp_replace(o.name, '/termos/[^/]+$', '.json')
+>          )
+>          or exists (
+>            select 1 from public.eventos_admin ea
+>             where ea.acao = 'ativo_apagado'
+>               and 'ativo/' || (ea.detalhe->>'ativo_id') || '/'
+>                   = substring(o.name from '^(ativo/[0-9a-fA-F-]{36}/)termos/')
+>          )
+>          or exists (
+>            select 1 from public.eventos_admin ea
+>             where ea.acao = 'conflito_filiais_resolvido'
+>               and jsonb_typeof(ea.detalhe->'selecionados') = 'array'
+>               and public.prefixo_backup_conflito()
+>                   || public.digest_selecao_conflito(
+>                        array(select (x->>'ativo_id')::uuid
+>                                from jsonb_array_elements(ea.detalhe->'selecionados') x)) || '/'
+>                   = substring(o.name from '^(conflito/[0-9a-f]{32}/)termos/')
+>          )
+>        )
+>   ),
+>   d as (
+>     select o.name as item
+>       from storage.objects o
+>      where o.bucket_id = 'backups-import'
+>        and not exists (select 1 from registrados r where r.caminho = o.name)
+>        and not exists (select 1 from copias c where c.name = o.name)
+>   )
+>   select 'backup_orfao'::text, count(*)::bigint,
+>          coalesce((array_agg(d.item order by d.item))[1:5], array[]::text[]) from d;
+
+=== CONTAGEM ===
+linhas ACRESCENTADAS: 81
+linhas REMOVIDAS:     0

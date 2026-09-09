@@ -1,0 +1,46 @@
+
+=== 1. GERAR o .docx fictício a partir do modelo REAL do sistema ===
+gerado: f54e0000-0000-4000-8000-000000000001.docx — 58019 bytes
+contém "Fulano de Teste": true
+contém "WAP0054777": true
+
+=== 2. SUBIR para o bucket `termos` e criar a linha do acervo ===
+upload termos/f54e0000-0000-4000-8000-000000000001.docx: HTTP 200
+linha de termos_gerados criada, apontando para o .docx
+
+=== 3. COPIAR para o backup — a convenção de caminho da F54 ===
+prefixo das cópias: reset/acervo/filial-1/2026-09-09T18-00-00-000Z/termos/
+copy termos → backups-import: HTTP 200 {"Key":"backups-import/reset/acervo/filial-1/2026-09-09T18-00-00-000Z/termos/f54e0000-0000-4000-8000-000000000001.docx",
+
+=== 4. APAGAR do acervo — a linha e o .docx (o que o reset faz) ===
+remove termos/f54e0000-0000-4000-8000-000000000001.docx: HTTP 200
+o .docx ainda está no acervo? HTTP 400 (404 = sumiu, como devia)
+linha de termos_gerados: 0 (0 = apagada)
+
+=== 5. RESTAURAR — a cópia volta para o acervo, e a linha também ===
+baixar a cópia do backup: HTTP 200
+bytes restaurados: 58019 (original: 58019)
+re-upload em termos/: HTTP 200
+linha de termos_gerados restaurada
+
+=== 6. O .docx RESTAURADO ABRE, e é o mesmo documento ===
+idêntico byte a byte ao original: true
+abre como .docx válido (PizZip leu word/document.xml): true
+contém "Fulano de Teste": true
+contém "WAP0054777": true
+gravado: docs/f54-evidencias/11-termo-restaurado-ficticio.docx
+
+=== 7. A CHECAGEM 12 não acusa a cópia como órfã ===
+órfãos no ensaio AGORA: 1
+  · reset/acervo/filial-1/2026-09-09T18-00-00-000Z/termos/f54e0000-0000-4000-8000-000000000001.docx
+
+⚠ A cópia aparece como órfã porque NESTE ensaio o backup JSON não foi registrado
+   em `eventos_admin` (a RPC de reset não rodou — apaguei a linha à mão para isolar
+   o Storage). Num reset de verdade a RPC grava o `backup_path` na mesma transação,
+   e é isso que faz a raiz `<backup_path sem .json>/termos/` ser reconhecida.
+   O passo 8 prova isso plantando o registro.
+
+=== 8. COM o backup registrado, a cópia deixa de ser órfã ===
+órfãos depois de registrar o backup: 0
+
+=== FIM DO ENSAIO ===

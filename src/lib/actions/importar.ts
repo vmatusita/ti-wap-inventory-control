@@ -29,6 +29,18 @@ import {
 import type { Filial } from '@/lib/queries/filiais'
 import type { Json } from '@/lib/types/database'
 import { confirmacaoImportConfere, prefixoBackupImport } from '@/lib/validators/importar'
+import {
+  escopoDeGestaoAtual,
+  escopoDoImportLog,
+  pertenceAoEscopo,
+} from '@/lib/escopo/pertencimento'
+import {
+  avisoDaLimpeza,
+  copiarEntaoRemoverTermos,
+  descartarBackupNaoUsado,
+  prefixoDasCopias,
+  raizDoBackupEmArquivo,
+} from '@/lib/storage/copiar-antes-de-remover'
 
 // Server Actions da tela admin/importar (OS-F7 / W3). Escritas com validação Zod;
 // TODO acesso ao banco/Storage/RPC pelo client autenticado do operador (a RPC
@@ -58,6 +70,23 @@ import { confirmacaoImportConfere, prefixoBackupImport } from '@/lib/validators/
 
 // Limite de tamanho do arquivo: `TAMANHO_MAX_ARQUIVO` (fonte única em
 // `@/lib/import/limites`, compartilhada com o wizard).
+
+/**
+ * Os SQLSTATE em que a RPC do import RECUSOU — isto é, em que se sabe que ela **não**
+ * commitou. Só eles autorizam descartar o backup que subiu antes dela.
+ *
+ * ⚠ A LISTA É FECHADA DE PROPÓSITO, e a régua é "sei que não commitou", não "deu erro":
+ *   · `P0001` — os `raise exception` da própria RPC (confirmação, contagens, guardas);
+ *   · `22023` — parâmetro inválido, a família que as guardas de backup/confirmação usam;
+ *   · `42501` — recusa de permissão (`e_admin()` por dentro);
+ *   · `57014` — `statement_timeout`: o servidor abortou a transação, então nada entrou.
+ *
+ * Erro de REDE ou de gateway (504 do edge, conexão derrubada) chega aqui **sem código**
+ * ou com código de outra família — e nesses a RPC pode ter commitado do outro lado.
+ * Na dúvida o backup FICA: um órfão a mais no bucket custa a 12ª checagem contá-lo;
+ * um backup descartado por engano custa a única cópia do que sumiu.
+ */
+const RECUSAS_DA_RPC = new Set(['P0001', '22023', '42501', '57014'])
 
 /**
  * A mensagem que o operador vê quando a LEITURA do arquivo falha. `ErroArquivoImport`
@@ -163,6 +192,12 @@ export type ResultadoImport = {
   anotacoesApagadas: number
   termosApagados: number
   arquivosTermosRemovidos: number
+  /**
+   * F54 — o que NÃO saiu limpo da limpeza dos `.docx`, em pt-BR, ou ausente quando tudo
+   * correu bem. Existe porque a fase inverteu o contrato: o documento assinado cuja cópia
+   * de segurança falhar NÃO é mais apagado, e o operador precisa saber que ele ficou.
+   */
+  avisoTermos?: string
   /** F7B — correções gravadas em `import_logs.correcoes` (= o que o histórico conta). */
   correcoesAplicadas: number
   /**
@@ -420,6 +455,23 @@ export async function aplicarImport(input: {
       exportadoEm: new Date().toISOString(),
       filial: { id: filial.id, slug: filial.slug, nome: filial.nome },
       contagens: custoPreview,
+      // F54 — o que este backup NÃO leva. Um backup que documenta os próprios limites é a
+      // única defesa contra restaurar acreditando ter restaurado tudo.
+      //
+      // ⚠ A lista foi LEVANTADA POR MEDIÇÃO, comparando o que a RPC vigente EM PRODUÇÃO
+      // apaga com o que o exportador lê, tabela a tabela (a tabela está em
+      // `docs/PLAN-F54.md` §3). Para as TABELAS a diferença é VAZIA: a RPC apaga
+      // `movimentacoes`, `anotacoes`, `termos_gerados` e `ativos`, e é exatamente isso que
+      // `exportarAcervoFilial` lê. Os `.docx` deixaram de faltar nesta fase.
+      //
+      // O que sobra é uma assimetria conhecida, e ela é sobre o FUTURO: a RPC do import
+      // não apaga `pendencias_item` e o exportador não a lê. Hoje nada se perde, porque
+      // nada é apagado. No dia em que a RPC aprender a apagá-la — e a lacuna já está
+      // registrada em `queries/dev-destrutivo.ts:364-366` —, o backup ficaria incompleto
+      // SEM QUE NADA AVISASSE. É para esse dia que a linha existe.
+      nao_incluido: [
+        'pendencias_item — o import não apaga esta tabela, e por isso o backup também não a lê. Se a RPC passar a apagá-la, este backup deixa de ser suficiente para restaurar.',
+      ],
       ...acervo,
     }
     const corpo = new Blob([JSON.stringify(backup)], { type: 'application/json' })
@@ -464,6 +516,57 @@ export async function aplicarImport(input: {
       details: error.details,
       filialId: plano.filialId,
     })
+
+    // F54 — A RPC RECUSOU: nada foi apagado, então o backup que subiu antes dela não cobre
+    // exclusão nenhuma e não pode ficar no bucket. Sem isto, `backups-import` acumula
+    // arquivos sob prefixo VÁLIDO que não correspondem a exclusão nenhuma — e um órfão sob
+    // prefixo válido é material de replay, além de virar contagem na 12ª checagem.
+    //
+    // ⚠ É ESTE RAMO, E SÓ ESTE. O ramo do `safeParse` logo abaixo é o oposto: lá a RPC
+    // CONCLUIU, os dados já foram substituídos, e o backup é a única cópia do que sumiu —
+    // descartá-lo ali destruiria a prova. Errar de ramo aqui é o defeito mais caro que esta
+    // fase poderia introduzir, e há teste que prova que o `safeParse` NÃO descarta.
+    //
+    // Client de SESSÃO, como todo o resto deste módulo (o cabeçalho proíbe service role).
+    // A policy de DELETE do bucket `backups-import` é `e_admin()`, e quem chegou aqui já
+    // passou por `exigirAdmin` — conferido na 0066, não suposto.
+    //
+    // ⚠⚠ E SÓ QUANDO A RPC RECUSOU DE VERDADE, não a qualquer erro. `error` do
+    // supabase-js cobre também falha de REDE e de gateway (504 do edge, conexão
+    // derrubada) — e nesses casos a RPC pode ter COMMITADO do outro lado. Descartar ali
+    // apagaria a única cópia do que sumiu, que é exatamente o defeito que o parágrafo
+    // acima diz existir para evitar. Por isso o descarte é gateado pelos SQLSTATE de
+    // RECUSA: os `raise` da própria RPC (`P0001`), a violação de regra que ela levanta
+    // (`22023`), a falta de permissão (`42501`) e o timeout de statement (`57014`, em
+    // que a transação é abortada pelo servidor). Erro sem código, ou com código de
+    // outra família, NÃO descarta — na dúvida, o backup fica.
+    // (Achado da revisão adversarial: o gatilho era `if (error)`, sem filtrar.)
+    if (RECUSAS_DA_RPC.has(error.code ?? '')) {
+      await descartarBackupNaoUsado(client, backupPath)
+    } else {
+      console.error(
+        '[importar] a RPC falhou com código inesperado — o backup NÃO foi descartado, porque não dá para saber se ela chegou a commitar',
+        { code: error.code, backupPath },
+      )
+    }
+
+    // A trilha do fracasso. `import_executado` só é gravado quando dá certo, então até aqui
+    // um import recusado não deixava rastro NENHUM na aba Auditoria — só uma linha no log do
+    // servidor, que ninguém lê. `eventos_admin.acao` não tem check constraint (medido: só PK
+    // e FK), então o verbo novo entra sem migration.
+    await registrarEventoAdmin({
+      acao: 'import_falhou',
+      autor: aut.uid,
+      alvo: filial.slug,
+      detalhe: {
+        filial_id: filial.id,
+        filial_nome: filial.nome,
+        arquivo_hash: plano.arquivoHash,
+        erro_codigo: error.code ?? null,
+        backup_descartado: backupPath,
+      },
+    })
+
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
 
@@ -477,22 +580,30 @@ export async function aplicarImport(input: {
     }
   }
 
-  // Remove do bucket `termos` os .docx dos termos apagados (best-effort): se
-  // falhar, o import já valeu — órfãos no Storage são toleráveis (só registra).
-  let arquivosTermosRemovidos = 0
+  // COPIA os .docx dos termos apagados para o backup e SÓ ENTÃO os remove do bucket
+  // `termos` — F54.
+  //
+  // ⚠ ISTO INVERTEU O CONTRATO. Até aqui a remoção era best-effort ("se falhar, o import
+  // já valeu — órfãos no Storage são toleráveis"), e o backup que subiu antes da RPC
+  // levava só as LINHAS. Restaurar devolvia `termos_gerados` apontando para .docx que não
+  // existiam mais — um documento ASSINADO por uma pessoa, destruído sem cópia. Agora a
+  // cópia vem antes, e o que não copiar NÃO é removido.
+  //
+  // ⚠ A cópia acontece DEPOIS da RPC porque a lista de arquivos vem no RETORNO dela. Não
+  // dá para listá-la no JSON do backup, que subiu antes — e é por isso que o caminho das
+  // cópias é DETERMINÍSTICO: `<backup_path sem .json>/termos/`, que o restaurador e a 12ª
+  // checagem recalculam sem precisar de manifesto.
+  //
+  // O client é o de SESSÃO, o mesmo que remove — o cabeçalho deste módulo proíbe service
+  // role, e as policies de Storage (0066/0069) deixam o admin de sessão copiar (`copy()`
+  // exige SELECT na origem e INSERT no destino).
   const arquivos = ret.data.arquivos_termos_apagados
-  if (arquivos.length > 0) {
-    try {
-      const { error: rmErr } = await client.storage.from('termos').remove(arquivos)
-      if (rmErr) {
-        console.error('[importar] falha ao remover termos do bucket:', rmErr.message)
-      } else {
-        arquivosTermosRemovidos = arquivos.length
-      }
-    } catch (e) {
-      console.error('[importar] exceção ao remover termos do bucket:', e)
-    }
-  }
+  const limpeza = await copiarEntaoRemoverTermos(client, {
+    prefixoDestino: prefixoDasCopias(raizDoBackupEmArquivo(backupPath)),
+    caminhos: arquivos,
+  })
+  const arquivosTermosRemovidos = limpeza.removidos.length
+  const avisoTermos = avisoDaLimpeza(limpeza, arquivos.length)
 
   // Trilha de auditoria (F21). `import_logs` já registra o import em detalhe; esta linha
   // existe para que a aba Auditoria de /admin/usuarios conte a história administrativa
@@ -536,6 +647,7 @@ export async function aplicarImport(input: {
       anotacoesApagadas: ret.data.anotacoes_apagadas,
       termosApagados: ret.data.termos_apagados,
       arquivosTermosRemovidos,
+      ...(avisoTermos ? { avisoTermos } : {}),
       correcoesAplicadas: correcoes.length,
       conflitosAbertos: ret.data.conflitos_abertos,
     },
@@ -556,11 +668,23 @@ export async function urlBackup(logId: string): Promise<UrlBackupResult> {
 
   const { data: log, error } = await client
     .from('import_logs')
-    .select('backup_path')
+    .select('id, backup_path')
     .eq('id', logId)
     .maybeSingle()
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   if (!log) return { ok: false, erro: 'Import não encontrado.' }
+
+  // A FECHADURA DE PERTENCIMENTO (F54) — hoje um NO-OP, e é o ponto de injeção da
+  // F62/F69. Esta é a cadeia mais curta de download do dump alheio, e ela é pela
+  // APLICAÇÃO: a URL assinada nasce aqui, com a credencial de quem já passou por
+  // `exigirAdmin`, e o Storage não tem como saber que aquele admin é de outra
+  // empresa. Arrumar policy de bucket NÃO fecha isto. Com uma empresa só,
+  // `pertenceAoEscopo` sempre responde `true` e nada muda para ninguém — ver
+  // `src/lib/escopo/pertencimento.ts` para por que ela é uma comparação de verdade
+  // e não um `return true`.
+  if (!pertenceAoEscopo(escopoDeGestaoAtual(), escopoDoImportLog(log))) {
+    return { ok: false, erro: 'Import não encontrado.' }
+  }
 
   const { data: signed, error: sErr } = await client.storage
     .from('backups-import')

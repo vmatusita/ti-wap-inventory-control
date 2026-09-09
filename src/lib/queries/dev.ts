@@ -252,6 +252,12 @@ export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
       'Equipamento num estado em que ninguém está com ele (em estoque, em triagem, em manutenção, defasado, descartado ou devolvido ao fornecedor) que ainda carrega colaborador ou setor. Em operação normal isto é SEMPRE zero: desde a F36 toda movimentação apaga o detentor ao levar o equipamento para um estado sem dono. Se subir, ou alguém desfez uma movimentação antiga (o estorno e o "Apagar movimentação" restauram o retrato de antes, de propósito), ou apareceu um caminho de escrita que não passa pelo registro da movimentação — e é melhor descobrir aqui do que no relatório.',
   },
   {
+    chave: 'backup_orfao',
+    nome: 'Arquivo de segurança sem operação correspondente',
+    descricao:
+      'Arquivo guardado na área de segurança que não corresponde a nenhuma operação registrada. Aparece em dois casos: o arquivo foi gerado para uma operação que o sistema acabou recusando (nada foi apagado, e a sobra ficou), ou é resíduo antigo, de antes de o sistema passar a registrar o caminho de cada arquivo. Não trava nada e não é sinal de problema sozinho — é faxina. Desde 09/09/2026 os documentos de responsabilidade (.docx) também são guardados aqui antes de qualquer exclusão, e essas cópias NÃO são contadas: o sistema reconhece cada uma pela operação que a gerou.',
+  },
+  {
     chave: 'reserva_aberta',
     nome: 'Reserva de item em aberto',
     descricao:

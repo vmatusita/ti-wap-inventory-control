@@ -46,6 +46,12 @@
 --      apagar_ativos_conflito_filiais na ORDEM certa (depois do lock, antes da revalidação,
 --      fora da janela destrutiva) — e a exclusão LEGÍTIMA de um conflito continua passando
 --      com a guarda nova no caminho
+--  11  (F54/0100) O BACKUP EM ARQUIVO, acima do teto de 25 ativos: sem caminho a RPC
+--      RECUSA; caminho fora do prefixo `conflito/`, ou sob o digest de OUTRO lote, RECUSA;
+--      caminho sob `conflito/<digest desta seleção>/` com o objeto no bucket APAGA os 26.
+--      É a adoção da quarentena `conflito-backup-em-arquivo-sem-prefixo-do-digest`
+--      (`scripts/db/mutacoes.mjs`), que a F52 reapontou para esta fase: até aqui a maior
+--      seleção do roteiro tinha 2 ativos e o ramo do backup em arquivo nunca rodava.
 --
 -- Ao final, uma linha em `_conflito_resumo` com os contadores — é assim que se lê o resultado
 -- pelo MCP, que engole NOTICE/WARNING.
@@ -112,6 +118,14 @@ declare
   v_pos_etapa3  int;   -- posição da etapa (3) do lock em dois tempos
   v_pos_ident   int;   -- posição de "with ident as (" (a revalidação do grupo)
   v_pos_janela  int;   -- posição do set_config que ABRE a janela dev_destrutivo
+
+  -- §11 (F54) — o lote ACIMA do teto de backup inline e os quatro caminhos de backup
+  v_lote          uuid[];  -- os 26 ativos em conflito (13 pares × 2 lados)
+  v_sub           uuid[];  -- um SUBCONJUNTO deles: o digest de "outra exclusão"
+  v_path_ok       text;    -- conflito/<digest dos 26>/…  + objeto no bucket  → o único válido
+  v_path_errado   text;    -- conflito/<digest do subconjunto>/… + objeto no bucket
+  v_path_fora     text;    -- fora do prefixo conflito/, mas com objeto no bucket
+  v_path_fantasma text;    -- digest certo, objeto NÃO plantado
 begin
   -- ==========================================================================
   -- FIXTURES
@@ -741,6 +755,179 @@ begin
   exception when others then
     v_falhas := v_falhas + 1; raise warning '✗ 10d a exclusão legítima QUEBROU com a guarda nova no caminho: % / %', SQLSTATE, SQLERRM;
   end;
+  reset role;
+
+  -- ==========================================================================
+  -- §11  F54 — O BACKUP EM ARQUIVO, ACIMA DO TETO DE 25 ATIVOS
+  -- ==========================================================================
+  -- A adoção da quarentena `conflito-backup-em-arquivo-sem-prefixo-do-digest`
+  -- (`scripts/db/mutacoes.mjs`), reapontada pela F52 para esta fase. O que faltava não era
+  -- asserção fraca: era CENÁRIO INEXISTENTE — a maior seleção que este roteiro montava tinha
+  -- 2 ativos, e `v_inline := (v_n <= 25)` mandava tudo pelo backup jsonb. O ramo do backup em
+  -- ARQUIVO, com as três guardas em cascata que a 0100 escreveu, nunca era executado.
+  --
+  -- As três guardas, na ordem em que a RPC as aplica (0100, migração vigente na 0132):
+  --   (1) o caminho VEIO?                    → 22023 "exige backup em arquivo"
+  --   (2) está sob conflito/<digest>/ ?      → 22023 "não é o backup desta operação"
+  --   (3) o objeto EXISTE em storage.objects → 22023 "não existe no bucket"
+  -- A (2) é a correção que a 0100 fez: conferir só o prefixo `conflito/` aceitava o backup de
+  -- QUALQUER outra exclusão que estivesse no bucket — inclusive a sobra de uma tentativa
+  -- recusada —, e com ele até 200 cadastros sumiam com um "backup" que não continha nenhum.
+  --
+  -- ⚠ POR QUE OS 26 NASCEM AQUI, E NÃO NO BLOCO DE FIXTURES. §1a e §1b contam os grupos e os
+  -- ativos em conflito do banco INTEIRO (4 grupos, 8 ativos). Treze grupos a mais no começo
+  -- derrubariam as duas por aritmética, e não por regressão. Este bloco é o ÚLTIMO do
+  -- roteiro: nada depois dele conta conflito global.
+  --
+  -- ⚠ POR QUE 13 PARES, e não 26 ativos numa filial com 26 gêmeos na outra. As duas formas
+  -- dão a mesma seleção de 26 ativos em conflito; a primeira custa 26 linhas e a segunda, 52.
+  -- Como a seleção leva os DOIS lados de cada par, todos os 26 estão em conflito no instante
+  -- da chamada, que é o que a revalidação da RPC exige. Dados 100% fictícios (regra 2):
+  -- patrimônios WAP0009601..WAP0009613, service tags F24-ST-L01..L13.
+  with novos as (
+    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
+    select 'WAP00096' || lpad(g::text, 2, '0'),
+           'F24-ST-L' || lpad(g::text, 2, '0'),
+           'notebook',
+           f.fid,
+           'importacao'
+      from generate_series(1, 13) g
+      cross join (values (v_f1::smallint), (v_f2::smallint)) f(fid)
+    returning id
+  )
+  select coalesce(array_agg(id), '{}'::uuid[]) into v_lote from novos;
+
+  -- Os caminhos são montados AQUI, como dono da transação: `digest_selecao_conflito` e
+  -- `prefixo_backup_conflito` são fechadas nos quatro papéis (é o que a §5c prova), então
+  -- chamá-las depois do `set local role authenticated` daria 42501 e abortaria o roteiro.
+  v_sub           := v_lote[1:13];
+  v_path_ok       := public.prefixo_backup_conflito() || public.digest_selecao_conflito(v_lote) || '/lote-f54.json';
+  v_path_errado   := public.prefixo_backup_conflito() || public.digest_selecao_conflito(v_sub)  || '/lote-f54.json';
+  v_path_fora     := 'zzf54/fora-do-prefixo.json';
+  v_path_fantasma := public.prefixo_backup_conflito() || public.digest_selecao_conflito(v_lote) || '/nao-existe.json';
+
+  -- ⚠ OS OBJETOS DE 11c E 11e PRECISAM EXISTIR, e é isso que torna as duas asserções
+  -- HONESTAS. A cascata tem três guardas em sequência: se o caminho também não existisse no
+  -- bucket, a guarda (3) recusaria mesmo com a (2) desligada, e os dois cenários ficariam
+  -- verdes sobre uma guarda removida. Fazendo o objeto existir, o DIGEST passa a ser a única
+  -- razão da recusa. Mesma lição de `import_fora_da_unidade.sql` §2a (F52).
+  insert into storage.objects (bucket_id, name, owner) values
+    ('backups-import', v_path_ok,     k_admin),
+    ('backups-import', v_path_errado, k_admin),
+    ('backups-import', v_path_fora,   k_admin);
+
+  -- (a) a fixture existe e é do TAMANHO certo — sem isto, as quatro recusas abaixo poderiam
+  --     estar recusando por "ativo fora de conflito", e não pelo backup.
+  select count(*) into v_n from public.v_conflitos_filiais where ativo_id = any (v_lote);
+  if cardinality(v_lote) = 26 and v_n = 26 then
+    v_ok := v_ok + 1; raise notice '✓ 11a os 26 cadastros fictícios entraram e TODOS estão em conflito entre filiais (acima do teto de 25 que obriga backup em arquivo)';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 11a a fixture dos 26 não montou: % ids, % em conflito', cardinality(v_lote), v_n;
+  end if;
+
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
+
+  -- (b) GUARDA 1 — acima do teto, sem caminho de backup, a RPC EXIGE o arquivo.
+  --     `p_backup_path` tem default null: a chamada de três argumentos é exatamente o que a
+  --     mesa manda hoje para qualquer seleção pequena, e é o que não pode passar aqui.
+  begin
+    perform public.apagar_ativos_conflito_filiais(
+      v_lote, 'APAGAR 26', 'acima do teto o backup em arquivo e obrigatorio');
+    v_falhas := v_falhas + 1; raise warning '✗ 11b 26 ativos SEM caminho de backup: a RPC apagou (deveria exigir arquivo)';
+  exception when others then
+    if SQLSTATE = '22023' and SQLERRM like '%exige backup em arquivo%' then
+      v_ok := v_ok + 1; raise notice '✓ 11b acima do teto, sem caminho de backup, a RPC recusa (22023): %', SQLERRM;
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 11b recusa por outro motivo: % / %', SQLSTATE, SQLERRM;
+    end if;
+  end;
+
+  -- (c) GUARDA 2, metade do PREFIXO — o objeto existe no bucket, mas fora de `conflito/`.
+  begin
+    perform public.apagar_ativos_conflito_filiais(
+      v_lote, 'APAGAR 26', 'backup que existe no bucket mas fora do prefixo conflito', v_path_fora);
+    v_falhas := v_falhas + 1; raise warning '✗ 11c backup fora do prefixo conflito/ foi ACEITO';
+  exception when others then
+    if SQLSTATE = '22023' and SQLERRM like '%não é o backup desta operação%' then
+      v_ok := v_ok + 1; raise notice '✓ 11c backup fora do prefixo conflito/ é recusado pela guarda do caminho (22023)';
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 11c recusa por outro motivo: % / %', SQLSTATE, SQLERRM;
+    end if;
+  end;
+
+  -- (d) GUARDA 3 — caminho impecável (prefixo e digest DESTE lote) e objeto que não existe.
+  --     Fica ANTES de 11e de propósito: é a guarda que sobra quando a do digest cai, e ela
+  --     precisa ser exercitada por um caminho que a do digest deixaria passar.
+  begin
+    perform public.apagar_ativos_conflito_filiais(
+      v_lote, 'APAGAR 26', 'caminho certo mas o arquivo nao foi para o bucket', v_path_fantasma);
+    v_falhas := v_falhas + 1; raise warning '✗ 11d backup inexistente no bucket foi ACEITO';
+  exception when others then
+    if SQLSTATE = '22023' and SQLERRM like '%não existe no bucket%' then
+      v_ok := v_ok + 1; raise notice '✓ 11d backup sob o digest certo mas ausente do bucket é recusado (22023)';
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 11d recusa por outro motivo: % / %', SQLSTATE, SQLERRM;
+    end if;
+  end;
+
+  -- (e) GUARDA 2, a metade do DIGEST — O CENÁRIO QUE A QUARENTENA PEDIA. O caminho está sob
+  --     `conflito/`, o objeto EXISTE no bucket e mesmo assim tem de ser recusado, porque o
+  --     digest é o de OUTRA seleção (um subconjunto destes mesmos ids). Sem a conferência do
+  --     digest, este é o backup que apagaria 26 cadastros sem conter 13 deles.
+  begin
+    perform public.apagar_ativos_conflito_filiais(
+      v_lote, 'APAGAR 26', 'exclusao de 26 conflitos acima do teto do backup inline', v_path_errado);
+    v_falhas := v_falhas + 1; raise warning '✗ 11e o backup de OUTRA seleção foi aceito — a amarra pelo digest (0100) não está pegando';
+  exception when others then
+    if SQLSTATE = '22023' and SQLERRM like '%não é o backup desta operação%' then
+      v_ok := v_ok + 1; raise notice '✓ 11e backup sob conflito/ mas com o digest de outra seleção é recusado (22023)';
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 11e recusa por outro motivo: % / %', SQLSTATE, SQLERRM;
+    end if;
+  end;
+
+  -- (f) as quatro recusas são all-or-nothing de verdade, não só mensagem.
+  select count(*) into v_n from public.ativos where id = any (v_lote);
+  if v_n = 26 then
+    v_ok := v_ok + 1; raise notice '✓ 11f depois das quatro recusas de backup, os 26 continuam no acervo';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 11f alguma recusa apagou: sobraram % dos 26', v_n;
+  end if;
+
+  -- (g) O PAR POSITIVO, e o isolamento da guarda: MESMA seleção, MESMA justificativa, mesmo
+  --     bucket — só o CAMINHO muda, do digest alheio (11e) para o do próprio lote. Se 11e e
+  --     11g não fossem o mesmo cenário com o caminho trocado, a recusa de 11e poderia estar
+  --     vindo de qualquer outra coisa.
+  begin
+    v_jsonb := public.apagar_ativos_conflito_filiais(
+      v_lote, 'APAGAR 26', 'exclusao de 26 conflitos acima do teto do backup inline', v_path_ok);
+    select count(*) into v_n from public.ativos where id = any (v_lote);
+    if (v_jsonb->>'ativos')::int = 26 and v_n = 0 then
+      v_ok := v_ok + 1; raise notice '✓ 11g com o backup do PRÓPRIO lote no bucket, a RPC apaga os 26 acima do teto';
+    else
+      v_falhas := v_falhas + 1; raise warning '✗ 11g a exclusão acima do teto não bateu: % / sobraram % ativos', v_jsonb, v_n;
+    end if;
+  exception when others then
+    v_falhas := v_falhas + 1; raise warning '✗ 11g a exclusão com o backup certo QUEBROU: % / %', SQLSTATE, SQLERRM;
+  end;
+
+  -- (h) e a TRILHA diz a verdade sobre o backup: acima do teto ele é ARQUIVO, o caminho fica
+  --     registrado e o campo jsonb NÃO vem preenchido (é o `v_inline` que decide os dois).
+  --     O filtro é pelo tamanho do lote, e não por `order by quando desc`: todos os eventos
+  --     desta transação carimbam o MESMO now(), e o desempate seria sorteio.
+  select detalhe into v_jsonb from public.eventos_admin
+   where acao = 'conflito_filiais_resolvido' and detalhe->>'ativos' = '26' limit 1;
+  if v_jsonb is not null
+     and (v_jsonb->>'backup_em_arquivo')::boolean
+     and v_jsonb->>'backup_path' = v_path_ok
+     and v_jsonb->'backup' = 'null'::jsonb then
+    v_ok := v_ok + 1; raise notice '✓ 11h a trilha marca backup_em_arquivo, guarda o caminho conferido e NÃO duplica o backup em jsonb';
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ 11h a trilha do lote acima do teto não bate: %', v_jsonb;
+  end if;
+
   reset role;
 
   -- ==========================================================================

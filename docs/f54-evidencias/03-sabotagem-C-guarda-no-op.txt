@@ -1,0 +1,29 @@
+############################################################
+# SABOTAGEM C.1 — apagar a CHAMADA da guarda em urlBackup
+############################################################
+sabotado
+     × `urlBackup (a URL assinada do dump)` chama `pertenceAoEscopo` dentro da própria função 26ms
+     × `urlBackup (a URL assinada do dump)` alimenta a guarda com o escopo do ATOR e o do RECURSO 19ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/escopo/pertencimento.test.ts > 1. PRESENÇA — os dois pontos chamam a guarda > `urlBackup (a URL assinada do dump)` chama `pertenceAoEscopo` dentro da própria função
+AssertionError: urlBackup (a URL assinada do dump): a fechadura de pertencimento sumiu deste caminho — é a cadeia de download do dump alheio, e ela é pela APLICAÇÃO (policy de bucket não a fecha): expected 'export async function urlBackup(logId…' to contain 'pertenceAoEscopo'
+     81|         `${p.rotulo}: a fechadura de pertencimento sumiu deste caminho…
+ FAIL  |puro| src/lib/escopo/pertencimento.test.ts > 1. PRESENÇA — os dois pontos chamam a guarda > `urlBackup (a URL assinada do dump)` alimenta a guarda com o escopo do ATOR e o do RECURSO
+AssertionError: expected 'export async function urlBackup(logId…' to contain 'escopoDeGestaoAtual()'
+      Tests  2 failed | 9 passed (11)
+
+############################################################
+# SABOTAGEM C.2 — a guarda devolve true por OUTRO caminho
+############################################################
+sabotado
+     × escopos diferentes → false 10ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/escopo/pertencimento.test.ts > 2. EFEITO — a guarda COMPARA, e não devolve `true` > escopos diferentes → false
+AssertionError: expected true to be false // Object.is equality
+      Tests  1 failed | 10 passed (11)
+
+############################################################
+# RESTAURADO — as duas metades voltam verdes
+############################################################
+ Test Files  1 passed (1)
+      Tests  11 passed (11)

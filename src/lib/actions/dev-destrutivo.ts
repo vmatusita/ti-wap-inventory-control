@@ -25,6 +25,13 @@ import {
   resetarSchema,
   validarOperacaoDestrutiva,
 } from '@/lib/validators/dev-destrutivo'
+import {
+  avisoDaLimpeza,
+  copiarEntaoRemoverTermos,
+  prefixoDasCopias,
+  raizDoAtivo,
+  raizDoBackupEmArquivo,
+} from '@/lib/storage/copiar-antes-de-remover'
 
 // Server Actions da ZONA DESTRUTIVA da /dev (F23) — apagar, resetar e forçar.
 //
@@ -59,11 +66,8 @@ function revalidar(rotas: readonly string[]): void {
   revalidatePath('/dev/destrutivo')
 }
 
-/** Teto por chamada de `remove()`. A API de Storage aceita até 1000 chaves por requisição. */
-const LOTE_REMOCAO = 500
-
 /**
- * Remove os `.docx` do bucket `termos` DEPOIS do commit da RPC.
+ * Copia para o backup e remove os `.docx` do bucket `termos`, DEPOIS do commit da RPC.
  *
  * ⚠ Por que não é a RPC que faz isto: `storage.objects` tem o trigger
  * `protect_objects_delete` (BEFORE DELETE FOR EACH STATEMENT), que recusa TODA exclusão de
@@ -83,33 +87,36 @@ const LOTE_REMOCAO = 500
  * ⚠ O RETORNO `data` de `remove()` É CONFERIDO, e não só o `error`: a API responde 200 com a
  * lista do que REALMENTE saiu, então uma remoção PARCIAL (chave inexistente, corrida com
  * outra limpeza) não levanta erro nenhum. Sem esta conferência, um reset que removesse metade
- * dos arquivos reportaria sucesso limpo.
+ * dos arquivos reportaria sucesso limpo. (A conferência mudou de casa na F54 — ela agora
+ * mora na porta única, junto com a cópia, mas o motivo dela é este e continua valendo.)
+ *
+ * ⚠ F54 — E AGORA ELA COPIA ANTES. O `prefixoDestino` é derivado pelo CHAMADOR, porque cada
+ * um tem uma âncora diferente: `apagarAtivo` usa `ativo/<id>` (o backup dela é jsonb inline
+ * no evento, não há arquivo) e `resetarBloco` usa o caminho do JSON sem a extensão.
  */
-async function limparArquivosDeTermo(caminhos: string[]): Promise<string | null> {
+async function limparArquivosDeTermo(
+  caminhos: string[],
+  prefixoDestino: string,
+): Promise<string | null> {
   if (caminhos.length === 0) return null
 
+  // F54 — COPIA antes de remover, e NÃO remove o que não copiou. A implementação inteira
+  // mora em `lib/storage/copiar-antes-de-remover.ts`, que é a PORTA ÚNICA: era aqui e no
+  // gêmeo de `conflitos.ts` que os `.docx` sumiam sem cópia nenhuma, e concentrar a
+  // remoção num lugar só é o que permite à trava `backup-completude.test.ts` ser uma
+  // asserção sobre ESTRUTURA em vez de um grep espalhado por quatro arquivos.
+  //
+  // ⚠ O CONTRATO INVERTEU. Antes esta função removia em best-effort e devolvia AVISO;
+  // agora falhar a cópia IMPEDE a remoção daquele arquivo. Órfão no bucket é
+  // infinitamente melhor que documento assinado perdido, e o sistema já convive com
+  // órfãos — a 8ª checagem existe para contá-los.
+  //
+  // O client ADMINISTRATIVO continua sendo o desta casa, e é ele que copia: "a cópia usa
+  // o MESMO client de quem remove" não é simetria decorativa — uniformizar reintroduziria
+  // service role no import, cujo cabeçalho o proíbe com todas as letras.
   const admin = createAdminClient()
-  const naoRemovidos: string[] = []
-
-  for (let i = 0; i < caminhos.length; i += LOTE_REMOCAO) {
-    const lote = caminhos.slice(i, i + LOTE_REMOCAO)
-    try {
-      const { data, error } = await admin.storage.from('termos').remove(lote)
-      if (error) throw new Error(error.message)
-      const saiu = new Set((data ?? []).map((o) => o.name))
-      naoRemovidos.push(...lote.filter((c) => !saiu.has(c)))
-    } catch (err) {
-      console.error('[dev-destrutivo] falha ao remover .docx do bucket termos', {
-        lote: lote.length,
-        erro: err instanceof Error ? err.message : String(err),
-      })
-      naoRemovidos.push(...lote)
-    }
-  }
-
-  if (naoRemovidos.length === 0) return null
-  console.error('[dev-destrutivo] .docx que ficaram órfãos no bucket', { naoRemovidos })
-  return `O registro foi apagado, mas ${naoRemovidos.length} de ${caminhos.length} arquivo(s) .docx não saíram do armazenamento. Eles ficaram órfãos — a checagem "arquivo de termo órfão" da /dev vai contá-los, e a remoção precisa ser feita pelo painel do Supabase.`
+  const r = await copiarEntaoRemoverTermos(admin, { prefixoDestino, caminhos })
+  return avisoDaLimpeza(r, caminhos.length)
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +216,14 @@ export async function apagarAtivo(input: {
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   const r = (data ?? {}) as { arquivos_termos?: string[]; movimentacoes?: number; termos?: number }
-  const aviso = await limparArquivosDeTermo(r.arquivos_termos ?? [])
+  // F54 — a raiz das cópias é `ativo/<id>`. Esta action NÃO tem backup em arquivo (o dela
+  // é jsonb inline no evento `ativo_apagado`, escrito pela RPC na mesma transação), então
+  // a âncora é o próprio id do ativo — que a RPC já grava em `detalhe->>'ativo_id'`. É por
+  // isso que a 12ª checagem reconhece estas cópias sem precisar de registro novo.
+  const aviso = await limparArquivosDeTermo(
+    r.arquivos_termos ?? [],
+    prefixoDasCopias(raizDoAtivo(ativoId)),
+  )
 
   revalidar(ROTAS_ACERVO)
   return {
@@ -396,7 +410,16 @@ export async function resetarBloco(input: {
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   const r = (data ?? {}) as Record<string, unknown> & { arquivos_termos?: string[] }
-  const aviso = bloco === 'acervo' ? await limparArquivosDeTermo(r.arquivos_termos ?? []) : null
+  // F54 — a raiz das cópias é o caminho do JSON do backup sem a extensão. O JSON já subiu
+  // (antes da RPC, como manda a autoproteção), e a lista de `.docx` só existe agora, no
+  // retorno dela — por isso o JSON não pode listar as cópias, e o caminho é derivado.
+  const aviso =
+    bloco === 'acervo'
+      ? await limparArquivosDeTermo(
+          r.arquivos_termos ?? [],
+          prefixoDasCopias(raizDoBackupEmArquivo(backupPath)),
+        )
+      : null
 
   revalidar(bloco === 'acervo' ? ROTAS_ACERVO : ROTAS_ITENS)
   return { ok: true, aviso: aviso ?? undefined, dados: { ...r, backup_path: backupPath } }

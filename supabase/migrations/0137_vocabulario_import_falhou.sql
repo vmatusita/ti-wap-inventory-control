@@ -1,0 +1,38 @@
+-- =============================================================================
+-- 0137_vocabulario_import_falhou.sql — F54, 09/09/2026
+-- =============================================================================
+-- O verbo `import_falhou` entra no vocabulário da trilha administrativa.
+--
+-- POR QUE ELE EXISTE. Até a F54, um import que a RPC RECUSAVA não deixava rastro
+-- NENHUM na aba Auditoria: `import_executado` só é gravado quando dá certo, e o que
+-- sobrava do fracasso era uma linha no log do servidor, que ninguém lê. Pior: o
+-- backup que subira ANTES da RPC ficava no bucket sem cobrir exclusão nenhuma — um
+-- objeto sob prefixo válido, que é justamente o material de um replay. A F54 passou
+-- a descartar esse backup e a registrar a tentativa; este verbo é o registro.
+--
+-- ⚠ POR QUE UMA MIGRATION SÓ PARA UM COMENTÁRIO. `eventos_admin.acao` é TEXT de
+-- propósito (a 0065 escreveu o motivo: ação nova não deve exigir migration), então o
+-- vocabulário fechado mora no TypeScript. Mas o `comment` da coluna é a ÚNICA cópia
+-- dele que alguém lendo o banco encontra, e `src/lib/validators/dev-destrutivo.test.ts`
+-- exige que os dois listem os MESMOS verbos — a regra "mexeu aqui, mexa lá" da 0065,
+-- virada teste. Sem esta migration, `npm run test` reprova, e com razão.
+--
+-- ⚠ E POR QUE NÃO ENTROU NA 0136. Porque a 0136 já estava APLICADA em ensaio e em
+-- produção quando o teste acusou a divergência. Editar migration aplicada é proibido
+-- (regra 8 do §4; `migrations.lock.json` reprova nomeando o culpado), e a saída certa
+-- para "faltou uma linha na migration anterior" é sempre a migration seguinte.
+--
+-- ⚠ SÓ-LEITURA no sentido que importa: um `comment on column` não toca dado, não
+-- muda estrutura e não recria função. Não bate no gate do modo automático: caminho A.
+--
+-- ORDEM DE ROLLBACK (o inverso da de apply — regra 10 do §4):
+--   1. produção: reemitir o `comment on column` da 0095 (sem `import_falhou`);
+--   2. ensaio: idem;
+--   3. reverter, no MESMO movimento, `import_falhou` de `ACOES_ADMIN`/`ACAO_ROTULO`
+--      em `src/lib/auditoria.ts` e a chamada em `src/lib/actions/importar.ts` —
+--      vocabulário no TypeScript sem o verbo no comentário reprova o `npm run test`,
+--      e é a mesma trava que obrigou esta migration a existir, na direção contrária.
+-- =============================================================================
+
+comment on column public.eventos_admin.acao is
+  'F54 (era F24/F23/F22/F21): o que aconteceu. TEXT e não enum de propósito — ação nova não deve exigir migration. Vocabulário fechado, espelhado em src/lib/auditoria.ts (ACOES_ADMIN/ACAO_ROTULO): convite_gerado, convite_reenviado, papel_alterado, vinculos_alterados, usuario_desativado, usuario_reativado, email_alterado, usuario_apagado, sessoes_encerradas, senha_criada, senha_revogada, senha_reativada, import_executado, import_falhou, ativo_apagado, movimentacao_apagada, item_apagado, acervo_resetado, itens_resetados, estado_forcado, saldo_forcado, conflito_filiais_resolvido. Os três da F22 (email_alterado, usuario_apagado, sessoes_encerradas) e os SETE da F23 (ativo_apagado, movimentacao_apagada, item_apagado, acervo_resetado, itens_resetados, estado_forcado, saldo_forcado) são privativos do cargo dev. O da F24 (conflito_filiais_resolvido) é do NÍVEL ADMINISTRADOR (admin ou dev) — é a única exclusão de ativo fora da Zona destrutiva, e alcança exclusivamente ativo que esteja num grupo de conflito entre filiais. O da F54 (import_falhou) é gravado pela Server Action, e não por RPC: ele registra a tentativa de import que a RPC recusou e o descarte do backup que já havia subido — antes dele, import recusado não deixava rastro nenhum na trilha. Os sete da F23 e o da F24 são gravados DENTRO das próprias RPCs, na mesma transação da operação — se a trilha falhar, a exclusão não acontece. Mexeu aqui, mexa lá — e vice-versa.';

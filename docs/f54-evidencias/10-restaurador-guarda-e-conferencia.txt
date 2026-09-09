@@ -1,0 +1,55 @@
+############################################################
+# 1. A GUARDA — DATABASE_URL de PRODUCAO, forma DIRETA
+############################################################
+
+[GUARDA] Execução recusada: o ref "pbtjcalbmepmrqzprusb" é PRODUÇÃO (docs/RUNBOOK-BANCO.md).
+Este script NUNCA restaura em produção — nem com confirmação, nem com variável
+de ambiente. Aponte DATABASE_URL e NEXT_PUBLIC_SUPABASE_URL para o projeto de
+ensaio, ou para um Postgres descartável.
+
+exit=1
+
+############################################################
+# 2. A GUARDA — DATABASE_URL de PRODUCAO, forma POOLER
+#    (o ref viaja no NOME DE USUARIO, nao no host)
+############################################################
+
+[GUARDA] Execução recusada: o ref "pbtjcalbmepmrqzprusb" é PRODUÇÃO (docs/RUNBOOK-BANCO.md).
+Este script NUNCA restaura em produção — nem com confirmação, nem com variável
+de ambiente. Aponte DATABASE_URL e NEXT_PUBLIC_SUPABASE_URL para o projeto de
+ensaio, ou para um Postgres descartável.
+
+exit=1
+
+############################################################
+# 3. CONFERENCIA (sem --aplicar) contra um alvo NAO-producao
+############################################################
+
+Backup: C:/Users/VICTOR~1.MAT/AppData/Local/Temp/claude/C--Users-victor-matusita-ti-wap-inventory-control/5560d41a-16bd-4193-9673-ac5162aeadc5/scratchpad/bkp-ficticio.json
+Formato: versão 1
+Exportado em: 2026-09-09T12:00:00.000Z
+
+Linhas por tabela:
+  ativos                  1
+  movimentacoes           2
+  pendencias_item         1
+  lancamentos_item        0
+  anotacoes               0
+  termos_gerados          1
+  TOTAL                   5
+
+O que este backup declara NÃO levar:
+  (nada — o backup se declara completo para o que a operação apaga)
+
+Contagens do cabeçalho × linhas no arquivo:
+  ativos             cabeçalho=1  arquivo=1  ok
+  movimentacoes      cabeçalho=2  arquivo=2  ok
+  anotacoes          cabeçalho=0  arquivo=0  ok
+  pendencias_item    cabeçalho=1  arquivo=1  ok
+  termos_gerados     cabeçalho=1  arquivo=1  ok
+
+Cópias de .docx deste backup: C:/Users/VICTOR~1.MAT/AppData/Local/Temp/claude/C--Users-victor-matusita-ti-wap-inventory-control/5560d41a-16bd-4193-9673-ac5162aeadc5/scratchpad/bkp-ficticio/termos/
+
+--- CONFERÊNCIA (nada foi escrito). Rode de novo com --aplicar para valer. ---
+SQL gerado: 48 linhas.
+exit=0
