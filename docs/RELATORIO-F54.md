@@ -94,7 +94,6 @@ produzido a conclusão errada. Evidência completa em `docs/f54-evidencias/02`.
 | asserções de `restauracao.sql` | — | **13** |
 | mutações ATIVAS | 58 | **63** (teto 59 → 64) |
 | mutações em QUARENTENA | 3 | **2** |
-
 | migrations | 135 | **137** (`0029` é gap real) |
 | asserções SQL no total | 685 | **706** |
 
