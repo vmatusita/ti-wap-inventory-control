@@ -943,6 +943,24 @@ const CONFLITO_FILIAIS = [
       espera: 't',
     },
   },
+  {
+    id: 'conflito-backup-em-arquivo-sem-prefixo-do-digest',
+    roteiro: 'conflito_filiais.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['11e', '11f', '11g', '11h'],
+    porque:
+      'Afrouxa a conferencia do caminho do backup para olhar SO o prefixo de conflito, sem o digest da selecao. E exatamente o furo que a 0100 fechou: conferir so o prefixo aceita o backup de QUALQUER outra exclusao de conflito que por acaso esteja no bucket — inclusive o resto de uma tentativa recusada. Com o digest, o proprio nome do arquivo vira uma afirmacao verificavel sobre QUAIS ids ele cobre.',
+    sql: mutarFuncao(
+      'public.apagar_ativos_conflito_filiais(uuid[], text, text, text)',
+      "    if btrim(p_backup_path) not like public.prefixo_backup_conflito() || v_digest || '/%' then",
+      `    if btrim(p_backup_path) not like public.prefixo_backup_conflito() || '%' then  ${MARCA}`,
+      'conflito-backup-em-arquivo-sem-prefixo-do-digest',
+    ),
+    prova: {
+      sql: "select position('not like public.prefixo_backup_conflito() || ''%'' then  --' in pg_get_functiondef('public.apagar_ativos_conflito_filiais(uuid[],text,text,text)'::regprocedure)) > 0",
+      espera: 't',
+    },
+  },
 ]
 
 /**
@@ -1523,34 +1541,6 @@ export const QUARENTENA = [
     indetectavel:
       'Nenhuma asserção do roteiro abre uma SEGUNDA conexão. Dentro de uma transação psql sozinha, remover a trava não muda resultado nenhum — o roteiro fica verde e a mutação se disfarçaria de "asserção fraca" quando o que falta é um cenário CONCORRENTE, que só existe escrevendo catálogo novo.',
     fase: 'F55',
-  },
-  {
-    id: 'conflito-backup-em-arquivo-sem-prefixo-do-digest',
-    roteiro: 'conflito_filiais.sql',
-    classe: 'caminho-nao-exercitado',
-    derruba: ['(nenhum rótulo de hoje)'],
-    porque:
-      'Acima de 25 ativos o backup do conflito vira ARQUIVO, e a 0100 exige que o caminho esteja sob o digest da seleção — conferir só o prefixo aceitava o backup de OUTRA exclusão.',
-    sql: 'afrouxar a conferência do caminho do backup em apagar_ativos_conflito_filiais',
-    indetectavel:
-      'A maior seleção que o roteiro monta tem 2 ativos, muito abaixo do teto de 25 — o ramo de backup em arquivo nunca roda. Detectar exige um cenário com 26 ativos, que é catálogo novo.',
-    // ⚠ REAPONTADA PELA F52 (08/09/2026), de F52 para F54, com o motivo escrito porque
-    // reapontar em silêncio é mover uma promessa.
-    //
-    // Esta entrada é ESCREVÍVEL hoje — bastam 26 ativos fictícios por `generate_series`,
-    // e nisso ela difere da irmã acima, que exige uma capacidade que o rig não tem. A
-    // razão de não a adotar aqui não é dificuldade: é ENDEREÇO. Ela é sobre o BACKUP do
-    // conflito (o ramo em arquivo, acima de 25 ativos, e a amarra pelo digest da
-    // seleção), e a F52 é sobre guardas de ESCOPO. A F54 — "o backup deixa de mentir, e a
-    // restauração é ensaiada" — é a fase cujo assunto é exatamente este, e ela já vai
-    // abrir os caminhos de backup para mexer neles.
-    //
-    // Fica registrado, para quem pegar a F54: o cenário que falta é (a) montar 26 ativos
-    // em conflito, (b) provar que a RPC EXIGE backup em arquivo acima do teto, e (c)
-    // provar que ela RECUSA um caminho que não esteja sob `conflito/<digest dos ids>/` —
-    // a correção que a 0100 fez porque conferir só o prefixo aceitava o backup de OUTRA
-    // exclusão.
-    fase: 'F54',
   },
   {
     id: 'f53-view-de-conflitos-perde-o-desempate',
