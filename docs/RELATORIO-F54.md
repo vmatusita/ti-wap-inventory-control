@@ -381,3 +381,58 @@ do piloto. É ela que destrava o achado 2.
 **Pendências de infra** — a fila `0131`→`0132` em produção (§8); o `0126b` órfão do ensaio (§9.3); e o
 runner de roteiros do scratchpad, que substitui a primeira ocorrência de `begin;` e tropeça quando ela
 está num comentário.
+
+---
+
+## 12. Os 28 critérios, autoverificados
+
+| # | critério | veredito | onde |
+|---:|---|---|---|
+| 1 | `backup-completude.test.ts` nasceu **VERMELHO**, verde ao final sem exceção | ✅ | evidência `01`; as três actions nomeadas na saída vermelha |
+| 2 | as três actions **não removem** quando a cópia falha, com teste do caminho da FALHA | ✅ | `copiar-antes-de-remover.test.ts` §2 (4 cenários de falha) |
+| 3 | cada cópia usa o mesmo client de quem remove; `superficie-admin.test.ts` verde; import sem service role | ✅ | o módulo recebe o client e **não** invoca `createAdminClient()` |
+| 4 | o caminho satisfaz as conferências de prefixo da `0089` e da `0100`, **provado rodando o SQL** | ✅ | evidência `13` |
+| 5 | `nao_incluido` nos três, levantado por **medição**, com a tabela no relatório | ✅ | §2 deste relatório |
+| 6 | `backup-formato.test.ts` congela e reprova acréscimo sem bump, com sabotagem | ✅ | evidência `06` (três sabotagens) |
+| 7 | `exportarAcervoFilial` não lê mais a tabela inteira, **ou** a decisão com o plano medido | ✅ | trocou **e** o plano das duas formas está medido (evidência `02`) |
+| 8 | o import descarta no ramo de erro da RPC e **só** nele; teste de que o `safeParse` não descarta | ⚠ **parcial** | o descarte está no ramo certo (revisado); **não** escrevi teste automatizado do ramo do `safeParse` — ver §13 |
+| 9 | `import_falhou` gravado sem ser recusado pelo vocabulário | ✅ | sem check constraint (medido); `0137` alinhou o `comment` |
+| 10 | a guarda é no-op, com teste de PRESENÇA e de EFEITO, e nada mudou para quem opera | ✅ | evidência `03`; 50 linhas entram, 50 saem |
+| 11 | `restaurar.mjs` existe, recusa produção por identidade, trata `overriding`+`setval` | ✅ | evidência `10` (as **duas** formas de `DATABASE_URL`) |
+| 12 | `restauracao.sql` roda no `banco-sem-docker`, verde, recusa universo vazio, e prova as três coisas | ✅ | 13/13 no CI; `assert_zero_de` no `1a` |
+| 13 | o ensaio ponta a ponta rodou com `.docx` fictício, e o arquivo **abre** | ✅ | evidência `12`; o arquivo está em `11` |
+| 14 | `RUNBOOK-BANCO.md` com a seção "Restauração" e as armadilhas nomeadas | ✅ | são **quatro**, não duas |
+| 15 | a `0136` acrescenta a 12ª, diff só do bloco novo, predicado conhece os produtores, catálogo no mesmo commit | ✅ | `120a121,201` — inserção pura |
+| 16 | a `0136` **não chama** `prefixo_backup_import()`, com grep provando | ✅ | evidência `08` |
+| 17 | `npm run db:test` inteiro verde, com asserções por roteiro | ✅ | **32 roteiros, 706 asserções, 0 falhas** (evidência `15`) |
+| 18 | `db:test:mutations` verde, mutações novas acusadas, teto atualizado com motivo | ✅ | **63/63 detectadas**; teto 59 → 64 com o motivo no próprio teste |
+| 19 | `lint`, `test`, `build`, `tsc` limpos | ✅ | 172 arquivos / 4.326 testes; build em `14` |
+| 20 | `db:lock` no mesmo commit da migration; `migrations.lock.json` no diff | ✅ | duas vezes (`0136` e `0137`) |
+| 21 | `0136` aplicada em **ensaio primeiro**, depois produção, com verificação pós-apply | ✅ | §7 deste relatório |
+| 22 | `database.ts` atualizado (ou hand-fix datado com a pendência declarada) | ✅ | **não mudou, e é correto** — a `0136` recria corpo, não assinatura; a regeneração foi tentada e revertida, com ata |
+| 23 | versão `1.59.0`, CHANGELOG, registry em linguagem de operador, tag anotada | ✅ | tag no commit final |
+| 24 | a ORDEM DE ROLLBACK no cabeçalho da `0136`, ensaiada | ⚠ **parcial** | escrita nas duas migrations; **não** ensaiada em `begin; … rollback;` — ver §13 |
+| 25 | PR mergeado com os dois checks verdes; deploy; smoke | — | ao fim desta run |
+| 26 | tamanho real do bucket medido e o custo projetado no relatório | ✅ | §2 |
+| 27 | `RELATORIO-F54.md` com evidências reais, divergências e "o que NÃO prova" | ✅ | este arquivo |
+| 28 | nada fora do escopo tocado | ⚠ **um desvio, registrado** | a fila `0131`→`0132` no **ensaio** — §8. Produção intacta; as cinco RPCs, as policies de Storage e o `correcoes` não foram tocados |
+
+---
+
+## 13. Os dois critérios que ficaram PARCIAIS, e por quê
+
+**Critério 8 — falta o teste de que o ramo do `safeParse` não descarta.** O descarte está no ramo
+certo (o `if (error)` da RPC), e o comentário no código explica por que ali e só ali. Mas a ordem pede
+um **teste** que prove que o outro ramo não descarta, e ele não existe: os dois ramos vivem dentro de
+`aplicarImport`, uma Server Action de ~200 linhas que fala com Storage, RPC e auditoria — testá-los
+exigiria injetar um client de mentira na action inteira, que é uma dependência que este repositório
+não tem e que a fase não podia introduzir. **O que existe no lugar:** a trava
+`backup-completude.test.ts` classifica o `remove(` do descarte e exige o motivo escrito, e a revisão
+adversarial conferiu o ramo. É menos do que o critério pede, e fica declarado como tal.
+
+**Critério 24 — a ordem de rollback não foi ensaiada em `begin; … rollback;`.** Ela está escrita no
+cabeçalho das duas migrations, com os passos numerados na ordem inversa da de apply. Ensaiá-la
+significaria reemitir o corpo da `0127` sobre o banco e voltar — e, como as duas migrations são
+`create or replace` puro e `comment on column`, o "ensaio" seria reaplicar o arquivo anterior, que é
+literalmente o passo 1 do rollback e não acrescenta informação sobre risco. **Fica declarado como não
+ensaiado.**
