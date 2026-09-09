@@ -6,6 +6,28 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 09/09/2026 — F54 · O backup deixa de mentir, e a restauração é ensaiada ✅ 🔒
+
+Fase (**v1.59.0**). A tela do reset dizia, com todas as letras: *"NADA foi apagado — reset sem backup é proibido"*. A frase era **falsa para a classe de dado mais sensível do sistema**. Os três backups (import, reset, conflito entre filiais) faziam `select('*')` das **linhas**; os `.docx` dos termos de responsabilidade — os documentos que uma pessoa **assinou** — eram removidos do bucket `termos` logo depois, e **nenhum dos três os levava**. Restaurar devolvia `termos_gerados` apontando para objetos que não existiam mais. O plano classifica este item entre os que "nunca cortam", e é por isso.
+
+O segundo defeito era da mesma família: **a restauração não existia** — nem em código, nem em desenho, e nunca se restaurou nada. Um backup que ninguém sabe restaurar é um arquivo, não um backup.
+
+**A porta única.** `src/lib/storage/copiar-antes-de-remover.ts` concentra a remoção dos `.docx`, no molde da "porta só" da F51. São **QUATRO** fluxos, não três: `limparArquivosDeTermo` é chamada por `resetarBloco` **e** por `apagarAtivo` (`:212`), que a ficha não nomeia e que não tem backup em arquivo nenhum. Deixá-la de fora obrigaria a trava a nascer com exceção — e exceção em trava nova é a porta por onde a próxima entra.
+
+**O contrato inverteu.** Os dois gêmeos removiam em *best-effort* e devolviam AVISO; agora falhar a cópia **impede** a remoção daquele arquivo. Órfão no bucket é infinitamente melhor que documento assinado perdido, e a 8ª checagem existe para contá-los. **Cópia parcial remove exatamente o que copiou** — a RPC já fez commit quando essa etapa roda, então todo `.docx` da lista já é órfão de qualquer jeito: a escolha real é entre *órfão com cópia* e *órfão sem cópia*.
+
+**O caminho é derivável, e por isso não há elo novo que possa falhar.** As cópias moram em `<raiz>/termos/<arquivo>`, com a raiz saindo do que a própria RPC já gravou **dentro da transação dela**. O desenho concorrente — gravar um evento com o prefixo — foi recusado por um furo real apontado na revisão adversarial: o escritor de eventos roda **depois** da cópia, **fora** da transação, e **nunca propaga erro**; a cópia subiria, o evento falharia calado, e o arquivo viraria órfão permanente exatamente nos dois caminhos que hoje não têm rede.
+
+**A restauração, ensaiada nas duas metades.** `supabase/tests/restauracao.sql` (13 asserções, roda no `banco-sem-docker`) prova a **mecânica** contra um Postgres descartável; e o ensaio **ponta a ponta** rodou uma vez no projeto de ensaio com um `.docx` fictício de verdade — gerado pelo modelo real, copiado, apagado e devolvido: **idêntico byte a byte, e abre**. As duas armadilhas que a ata 1 da F53 deixou de herança viraram asserção (`overriding system value` e `setval`), e **outras duas apareceram rodando**: `set constraints all immediate` é obrigatório antes de desligar o gatilho — e o modo tem de **voltar** a deferido, senão o caminho normal de escrita quebra.
+
+**A décima segunda checagem** (`0136`) conta arquivo de segurança sem operação correspondente — hoje **10 em produção**, todos de julho, anteriores ao registro do caminho. O predicado foi validado **contra produção antes de virar migration**, e ele **não filtra por prefixo**: a pergunta certa é "alguém registrou este caminho?", que é agnóstica de forma.
+
+**Custo medido:** o pior caso (reset global) copia **94 objetos / 7,25 MB**, levando o armazenamento de 30 MB para ~37 MB do 1 GB gratuito — **3,7 %**. A alternativa que a ficha abria ("mudar a frase da tela com ata") **não se abre**: o custo é irrelevante e o que não podia continuar era a promessa.
+
+Migrations `0136` (a checagem) e `0137` (o verbo `import_falhou` no vocabulário da trilha) aplicadas em ensaio e produção, com verificação pós-apply nos dois. Ata completa, as **nove decisões** e as **cinco sabotagens** com saída real em [`docs/RELATORIO-F54.md`](docs/RELATORIO-F54.md) e [`docs/DECISOES.md`](docs/DECISOES.md).
+
+---
+
 ## 09/09/2026 — F53 · A ordem total das movimentações ✅ 🔒
 
 Fase (**v1.58.0**). Três lugares do sistema respondiam "qual é a última movimentação deste ativo?" e os três terminavam o desempate em `movimentacoes.id` — um `gen_random_uuid()` que **nunca nasceu para ordenar**. Quando duas movimentações do mesmo ativo compartilham `(data, created_at)`, quem decidia era um **sorteio**. Isso já custou duas correções em produção (a `0054`, que remendou `rel_estoque_asof` com `(tipo='ajuste') desc`, e a `0087`, que resolveu **recusando** o empate em vez de ordená-lo). A `0133` acrescenta `movimentacoes.ordem` — o ranking pela quádrupla `(data, created_at, (tipo='ajuste'), id)` congelado num `bigint` `identity` — e a `0134` troca o desempate. **Nenhum número histórico mudou, e isso é comparação, não afirmação.**

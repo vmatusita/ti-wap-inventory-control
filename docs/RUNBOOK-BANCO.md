@@ -139,6 +139,117 @@ Três exigências que não se negociam:
 2. **Operação que toca dado exporta backup antes** (linhas em `scratchpad/`, ou o jsonb/arquivo que as RPCs destrutivas já gravam sozinhas) e confere **contagens antes = depois**.
 3. **Rollback que reabre um furo de segurança só faz sentido junto do rollback completo da fase.** Várias entradas do anexo A dizem isso explicitamente — desfazer só a policy deixa o sistema pior que antes da migration.
 
+## Restauração — recolocar DADO a partir de um backup (F54, 09/09/2026)
+
+**Rollback e restauração são coisas diferentes, e confundi-las custa caro.** Tudo o que está
+acima trata de *reverter DDL* — desfazer o que uma migration criou. Esta seção trata de
+*recolocar dado que uma operação destrutiva apagou*: o import de startup, o reset da Zona
+destrutiva, o "apagar ativo" e a exclusão de conflito entre filiais.
+
+> **Por que não o `restore` do Supabase.** Ele restaura o **projeto inteiro**. Hoje isso já é
+> canhão para mosquito; no multiempresa levaria os outros clientes de volta ao ponto do backup.
+> É por isso que a F73 (o piloto) depende do restaurador desta seção e não daquele botão.
+
+### O que existe
+
+| peça | onde | para quê |
+|---|---|---|
+| a ferramenta | `scripts/db/restaurar.mjs` | lê o backup, confere e aplica |
+| a prova mecânica | `supabase/tests/restauracao.sql` | 13 asserções, rodam no `banco-sem-docker` |
+| a prova ponta a ponta | `docs/f54-evidencias/12-ensaio-ponta-a-ponta.txt` | com `.docx` de verdade, no ensaio |
+
+```bash
+DATABASE_URL=postgresql://… node scripts/db/restaurar.mjs <backup.json>            # confere
+DATABASE_URL=postgresql://… node scripts/db/restaurar.mjs <backup.json> --aplicar  # aplica
+```
+
+Sem `--aplicar` ele não escreve nada. **Ele recusa qualquer ref de produção**, nas duas formas
+de `DATABASE_URL` (a direta, com o ref no host, e a do *pooler*, com o ref no nome de usuário —
+que é a que o painel do Supabase oferece primeiro).
+
+### A ordem de inserção
+
+`ativos` → `movimentacoes` → `pendencias_item` → `lancamentos_item` → `anotacoes` → `termos_gerados`
+
+Derivada das 24 FKs do acervo. As auto-FKs (`ativos.substitui_ativo_id`, `movimentacoes.estorno_de`,
+`lancamentos_item.estorna_id`) **não são deferráveis**: inserir com a coluna nula e fazer `update`
+depois. **Nenhuma FK do acervo tem `ON DELETE CASCADE`** — tudo o que some está escrito no corpo da
+RPC, e por isso o backup consegue ser completo.
+
+### As quatro armadilhas
+
+Todas viraram asserção em `supabase/tests/restauracao.sql`. Estão aqui porque quem restaura às
+três da manhã lê o runbook, não o roteiro.
+
+**1. `movimentacoes.ordem` é `generated always as identity`** (F53). Sem `overriding system value`
+o INSERT é **recusado**. Esta é a armadilha boa: falha alto e cedo.
+
+**2. …e `overriding system value` NÃO avança a sequência.** Sem `setval` depois, a **primeira**
+movimentação registrada após a restauração viola `movimentacoes_ordem_uidx`. Esta é a ruim: falha
+baixo e tarde, na cara do operador, dias depois, longe do restore.
+
+```sql
+select setval(pg_get_serial_sequence('public.movimentacoes','ordem'),
+              coalesce((select max(ordem) from public.movimentacoes), 1), true);
+```
+
+⚠ Ela só morde de verdade quando a sequência do banco de destino está **atrás** — projeto novo,
+outro ambiente, o piloto. Restaurar no mesmo banco não expõe o defeito, então não confie em ter
+visto passar.
+
+**3. `trg_aplicar_movimentacao` é BEFORE INSERT e faz DUAS coisas.** Recalcula `ativos.status` *e*
+**insere `pendencias_item` sozinho** numa `devolucao` com itens faltantes. Restaurar com ele ligado
+não é "deixar a máquina de estados derivar": é **duplicar** a pendência que o backup já traz
+(medido — cenário 3c). Desligue-o dentro da transação:
+
+```sql
+alter table public.movimentacoes disable trigger trg_aplicar_movimentacao;
+-- … os inserts …
+alter table public.movimentacoes enable trigger trg_aplicar_movimentacao;
+```
+
+**4. `set constraints all immediate` é obrigatório antes do `alter table` — e o modo tem de VOLTAR.**
+`pendencias_item.movimentacao_id` é a **única** FK `DEFERRABLE INITIALLY DEFERRED` do acervo. Com
+eventos de constraint pendentes, o Postgres recusa o `alter table … disable trigger` com
+`55006: cannot ALTER TABLE … because it has pending trigger events`.
+
+E a segunda metade, que é a que pega: **`set constraints all immediate` vale para o resto da
+transação**, e o caminho **normal** de escrita depende do modo deferido — `aplicar_movimentacao`
+insere `pendencias_item` apontando para `new.id`, uma linha de `movimentacoes` que ainda não
+existe. Com a FK imediata, isso vira `23503` para quem só registrou uma devolução. **Devolva o
+modo antes de soltar o banco para uso normal.**
+
+> As duas metades da armadilha 4 foram descobertas **rodando**, não lendo — a primeira derrubou o
+> roteiro, e a segunda derrubou o roteiro de novo, um passo depois.
+
+### E os `.docx`? (o que a F54 consertou)
+
+Desde a F54 os documentos de responsabilidade são **copiados para o backup antes** de saírem do
+bucket `termos`, e **não são removidos se a cópia falhar**. Eles moram em:
+
+```
+<caminho do backup sem o .json>/termos/<arquivo>.docx     ← import, reset, conflito acima de 25
+ativo/<id do ativo>/termos/<arquivo>.docx                  ← apagar ativo
+conflito/<digest da seleção>/termos/<arquivo>.docx         ← conflito abaixo de 25
+```
+
+A raiz é sempre **derivável** do que a RPC já gravou na própria transação — não há manifesto nem
+evento novo para consultar (nem para falhar). Restaurar um `.docx` é baixá-lo dali e subi-lo de
+volta em `termos/<arquivo>.docx`, com o mesmo nome.
+
+### Quando o backup não tem o que você quer restaurar
+
+Leia o `nao_incluido` do cabeçalho — o `restaurar.mjs` **imprime** esse campo, não o ignora. E note
+a diferença que a saída faz questão de mostrar:
+
+- **`versao: 0`** (backups do reset anteriores à F54) — o arquivo **não declara os próprios limites**
+  e a conferência de contagens **não foi feita**. Isso não é o mesmo que "está completo".
+- **`nao_incluido: []`** — o backup se declara completo para o que aquela operação apaga.
+
+Se o que falta for uma tabela que a RPC apagou e o exportador não leu, **não invente**: o dado não
+está no arquivo. O caminho é a trilha (`eventos_admin`, que guarda o backup em jsonb para as
+exclusões pequenas) ou o `import_logs`.
+
 ## Roteiros de teste SQL — rode TODOS ao mexer em função/trigger (regra nova, F17)
 
 **Mudou uma função, um trigger, a máquina de estados ou uma RPC (qualquer `create or replace` de função, ou um `add value` de enum que muda comportamento)? Rode TODOS os roteiros de `supabase/tests/*.sql` antes do push — não só o roteiro novo da fase.**

@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.59.0',
+    data: '2026-09-09',
+    fase: 'F54',
+    titulo: 'O arquivo de segurança passou a levar junto os documentos assinados',
+    mudancas: [
+      'Antes de apagar o acervo de uma filial, o sistema sempre gerou um arquivo de segurança — e a tela dizia, com todas as letras, que nada seria apagado sem ele. A frase não valia para os termos de responsabilidade: o arquivo guardava os registros, mas os documentos assinados em si eram apagados do armazenamento e não iam junto. Agora eles vão, e são copiados ANTES de qualquer exclusão.',
+      'Documento cuja cópia falhar não é mais apagado. Ele fica onde está, inteiro, e a tela avisa quantos ficaram — antes ele sumia mesmo assim, e a mensagem dizia que estava tudo guardado.',
+      'A devolução desses arquivos foi ensaiada de verdade, com um documento de teste: gerado, copiado, apagado e devolvido ao lugar. O arquivo restaurado abriu igual ao original, sem perder um byte. Até esta versão ninguém nunca tinha devolvido nada.',
+      'Cada arquivo de segurança passou a declarar por escrito o que ele NÃO leva. Quem for usá-lo um dia lê os limites dele no próprio arquivo, em vez de descobrir na hora errada.',
+      'A área do desenvolvedor ganhou uma décima segunda conferência: arquivos de segurança que sobraram sem operação correspondente. São restos de tentativas que o sistema recusou, ou de antes de o caminho de cada arquivo passar a ser registrado — hoje há dez deles guardados.',
+      'Um import recusado passou a deixar registro na aba de auditoria, e o arquivo de segurança que tinha acabado de ser gerado para ele é descartado. Antes a tentativa não deixava rastro nenhum e o arquivo ficava para trás.',
+    ],
+  },
+  {
     versao: '1.58.0',
     data: '2026-09-09',
     fase: 'F53',

@@ -101,6 +101,9 @@ const DA_F38 = [
   // o corpo vigente da `0127` é uma INSERÇÃO PURA de 81 linhas (`120a121,201`), zero
   // removidas — as onze anteriores continuam byte a byte. Nenhum dado tocado.
   '0136',
+  // F54 — a `0137` e SO um `comment on column` (o verbo `import_falhou` no vocabulario
+  // da trilha). Nao toca dado, nao muda estrutura, nao recria funcao.
+  '0137',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

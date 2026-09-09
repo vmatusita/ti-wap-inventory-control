@@ -65,9 +65,13 @@ declare
 begin
   select id into v_f1 from public.filiais where ativo order by id limit 1;
   if v_f1 is null then
-    raise warning '✗ 0 o banco precisa de ao menos UMA filial ativa para este roteiro';
-    raise notice 'FIM restauracao: 1 asserções, 1 falhas';
-    return;
+    -- ⚠ `raise exception`, e NÃO um `return` com a linha FIM. O molde da F45 exige UMA
+    -- linha FIM por roteiro, e ela tem de ser a última instrução do bloco — uma segunda,
+    -- num atalho de saída, quebra a regra (medido: `ci-passos.test.ts` reprovou a
+    -- primeira versão deste arquivo por exatamente isso). Abortando alto, o roteiro não
+    -- emite FIM nenhum e o runner o marca como "abortou antes do fim", que é o veredito
+    -- correto para "o cenário não pôde ser montado".
+    raise exception 'restauracao: o banco precisa de ao menos UMA filial ativa para este roteiro';
   end if;
 
   -- O trigger `handle_new_user` cria o profile (e exige domínio corporativo — 0041/0057).

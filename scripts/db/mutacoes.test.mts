@@ -66,7 +66,27 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 59 mutações ATIVAS', () => {
+  it('tem entre 20 e 64 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 59 PARA 64 NA F54 (09/09/2026). A fase escreveu o roteiro
+    // `restauracao.sql`, que é o primeiro a exercitar a RESTAURAÇÃO, e ele nasceu com
+    // QUATRO quebras próprias — uma por obstáculo que o restaurador enfrenta e que
+    // ninguém vigiava:
+    //   · a identidade `always` de `movimentacoes.ordem` virando `by default`;
+    //   · o índice único da `ordem` sumindo;
+    //   · `guarda_acervo` deixando passar `forcado = true` fora da janela;
+    //   · `aplicar_movimentacao` parando de abrir pendência de item.
+    // As duas primeiras não são hipóteses: descrevem o estado do banco ANTES da
+    // `0133`, e a ata 1 da F53 as nomeia como "custo herdado pela F54". A quarta é a
+    // que vigia a PREMISSA da Decisão 7 — é porque o trigger insere pendência que
+    // restaurar com ele ligado duplica a linha do backup; se isso mudar, o desenho do
+    // restaurador precisa ser reavaliado, e quem tem de descobrir é o injetor.
+    // 58 + 4 = 62, teto 64 (duas de folga — a mesma régua de folga da F52 e da F53,
+    // porque teto colado no número de hoje força outra decisão na semana seguinte, que
+    // é como um teto vira ritual).
+    //
+    // A régua de DESENHO continua sendo a de baixo (quarentena abaixo de um terço) e o
+    // injetor rodando INCONDICIONALMENTE no `banco-sem-docker`.
+    //
     // ⚠ O TETO SUBIU DE 56 PARA 59 NA F53 (09/09/2026). A fase acrescentou a coluna
     // `movimentacoes.ordem` e trocou o desempate em três objetos (0134); TRÊS das
     // travas novas ganharam mutação — uma por objeto tocado (`rel_estoque_asof`
@@ -117,7 +137,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(59)
+    expect(MUTACOES.length).toBeLessThanOrEqual(64)
   })
 
   it('os `id` são únicos', () => {
