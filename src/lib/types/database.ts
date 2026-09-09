@@ -650,17 +650,6 @@ export type Database = {
         }
         Relationships: []
       }
-      // ⚠ `movimentacoes.ordem` FOI TRANSPLANTADA À MÃO — F53, 09/09/2026.
-      // A coluna existe em produção (a `0133` foi aplicada), e `npm run db:types` a gera
-      // exatamente nesta forma (`ordem: number` / `ordem?: never` / `ordem?: never`, que é
-      // como o gerador do Supabase renderiza `generated always as identity` — igual a
-      // `filiais.id`, `itens.id` e `tipos_item.id`). O problema é o RESTO da regeneração:
-      // ela APAGA as oito entradas escritas à mão pela F51 e o `p_escopo` da F52, porque a
-      // `0131` e a `0132` seguem pendentes de apply (caminho B do RUNBOOK-BANCO). Sem elas,
-      // `npm run db:types:diff` reprova o `banco-sem-docker`, que é required check. Então
-      // rodou-se o gerador, conferiu-se o que ele produz para `ordem`, e só isso foi
-      // transplantado. Uma regeneração limpa volta a ser possível quando a 0131/0132 forem
-      // aplicadas — e aí este comentário sai junto com os da F51.
       movimentacoes: {
         Row: {
           ativo_id: string
@@ -1496,29 +1485,21 @@ export type Database = {
         Returns: Json
       }
       hoje_brt: { Args: never; Returns: string }
-      // ⚠ AS OITO ABAIXO FORAM ESCRITAS À MÃO — F51, 08/09/2026.
-      // `npm run db:types` gera este arquivo a partir de um projeto REAL (a
-      // Management API, via `DB_TYPES_PROJECT_REF`), e a `0131` ainda não foi
-      // aplicada: o apply dela é caminho B do RUNBOOK-BANCO, porque o
-      // classificador do modo automático bloqueia DDL que contenha
-      // `delete from public.ativos` — e ela contém, em
-      // `import_apagar_acervo_filial`. Sem estas entradas, `npm run db:types:diff`
-      // reprova o `banco-sem-docker` (que é required check) assim que o Postgres
-      // do CI aplicar a 0131: o gate compara CONJUNTOS DE NOMES e acusa o que o
-      // BANCO tem e o arquivo não (`scripts/db/tipos-conjuntos.mjs:156`).
-      // Afrouxar o gate não era opção; o precedente de hand-fix está em
-      // `docs/DECISOES.md:448`.
-      // Na PRIMEIRA regeneração após o apply em produção, o gerador reescreve
-      // estas linhas sozinho — e este comentário sai junto.
-      // Nenhuma é API: as oito nascem com `revoke all … from public, anon,
-      // authenticated, service_role`. Só a orquestradora as alcança.
       import_apagar_acervo_filial: { Args: { p_filial: number }; Returns: Json }
       import_conferir_resultado: {
-        Args: { p_criados: number; p_filial: number; p_plano: Json; p_total: number }
+        Args: {
+          p_criados: number
+          p_filial: number
+          p_plano: Json
+          p_total: number
+        }
         Returns: undefined
       }
       import_contar_conflitos: { Args: { p_filial: number }; Returns: number }
-      import_criar_ativos: { Args: { p_elemento: Json; p_filial: number }; Returns: string }
+      import_criar_ativos: {
+        Args: { p_elemento: Json; p_filial: number }
+        Returns: string
+      }
       import_gravar_trilha: {
         Args: {
           p_anotacoes: number
@@ -1550,7 +1531,12 @@ export type Database = {
         Returns: undefined
       }
       import_validar_plano: {
-        Args: { p_backup_path: string; p_correcoes: Json; p_filial: number; p_plano: Json }
+        Args: {
+          p_backup_path: string
+          p_correcoes: Json
+          p_filial: number
+          p_plano: Json
+        }
         Returns: number
       }
       importar_ativos_substituir: {
@@ -1567,10 +1553,7 @@ export type Database = {
         Args: { p_criado_por: string; p_linhas: Json }
         Returns: Json
       }
-      mesmo_escopo_de_gestao: {
-        Args: { p_alvo: string }
-        Returns: boolean
-      }
+      mesmo_escopo_de_gestao: { Args: { p_alvo: string }; Returns: boolean }
       mov_da_carga_import: { Args: { p_observacao: string }; Returns: boolean }
       papel_atual: {
         Args: never
@@ -1585,10 +1568,7 @@ export type Database = {
       pode_escrever_termo: { Args: { p_ativo_ids: string[] }; Returns: boolean }
       pode_ler_arquivo_termo: { Args: { p_nome: string }; Returns: boolean }
       prefixo_backup_conflito: { Args: never; Returns: string }
-      prefixo_backup_import: {
-        Args: { p_filial: number }
-        Returns: string
-      }
+      prefixo_backup_import: { Args: { p_filial: number }; Returns: string }
       prefixo_backup_reset: {
         Args: { p_bloco: string; p_filial: number }
         Returns: string
