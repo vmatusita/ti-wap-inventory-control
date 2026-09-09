@@ -13,10 +13,42 @@
 // =============================================================================
 
 import { readFileSync, writeFileSync } from 'node:fs'
-import { corpoVigente, trocarNoCorpo } from './corpo-vigente.mjs'
+import { join } from 'node:path'
+import {
+  PASTA_MIGRATIONS,
+  definicoesDeFuncao,
+  listarMigrations,
+  trocarNoCorpo,
+} from './corpo-vigente.mjs'
 
 const APLICAR = process.argv.includes('--aplicar')
 const DESTINO = 'supabase/migrations/0134_desempate_por_ordem.sql'
+const TETO = '0134' // a própria migration que este script gera
+
+/**
+ * O corpo vigente ANTES da `0134` — o mesmo `corpoVigente()` da casa, só que com TETO.
+ *
+ * ⚠ POR QUE O TETO EXISTE, e por que a ausência dele era um defeito real: `corpoVigente()`
+ * varre as migrations da MAIOR para a menor. Assim que a `0134` passa a existir no disco,
+ * ela vira o corpo vigente de `rel_estoque_asof` e de `aplicar_movimentacao` — e este
+ * script, que procura trocar o trecho ANTIGO, passa a reprovar com "o trecho não existe".
+ * Ou seja: rodava uma vez e nunca mais. A prova do diff mínimo, que o cabeçalho da `0134`
+ * e o CHANGELOG citam como evidência, deixava de ser REEXECUTÁVEL — que é justamente o
+ * defeito que este script existe para não ter (o `corpo-vigente.mjs` nasceu na F47 contra
+ * cópias que envelhecem). Com o teto, `node scripts/db/gerar-0134.mjs` volta a rodar em
+ * qualquer momento e a reproduzir o mesmo diff, hoje e daqui a um ano.
+ * Achado da revisão adversarial da própria F53.
+ */
+function corpoVigenteAntesDoTeto(assinatura, teto = TETO) {
+  const nome = assinatura.slice(0, assinatura.indexOf('(')).replace(/^public\./, '')
+  const arquivos = listarMigrations().filter((f) => f.slice(0, 4) < teto)
+  for (let i = arquivos.length - 1; i >= 0; i--) {
+    const sql = readFileSync(join(process.cwd(), ...PASTA_MIGRATIONS, arquivos[i]), 'utf8')
+    const casadas = definicoesDeFuncao(sql).filter((d) => d.nome === nome)
+    if (casadas.length > 0) return { sql: casadas[casadas.length - 1].texto, arquivo: arquivos[i] }
+  }
+  throw new Error(`gerar-0134: nenhuma migration abaixo de ${teto} define ${nome}`)
+}
 
 /** Conta as linhas que diferem entre dois corpos (removidas / acrescentadas). */
 function diffLinhas(antes, depois) {
@@ -32,7 +64,7 @@ const relatorio = []
 // ---------------------------------------------------------------------------
 // 1) rel_estoque_asof — o `order by` do CTE `ult`
 // ---------------------------------------------------------------------------
-const asof = corpoVigente('rel_estoque_asof(smallint, date)')
+const asof = corpoVigenteAntesDoTeto('rel_estoque_asof(smallint, date)')
 const ASOF_DE = `    order by e.ativo_id, e.data desc, e.created_at desc,
              (e.tipo = 'ajuste') desc,
              e.id desc`
@@ -43,7 +75,7 @@ relatorio.push({ objeto: 'rel_estoque_asof', vigente: asof.arquivo, ...diffLinha
 // ---------------------------------------------------------------------------
 // 2) aplicar_movimentacao — a trava do estorno
 // ---------------------------------------------------------------------------
-const aplicar = corpoVigente('aplicar_movimentacao()')
+const aplicar = corpoVigenteAntesDoTeto('aplicar_movimentacao()')
 const TRAVA_DE = `        and (m.created_at, m.id) > (v_orig.created_at, v_orig.id)`
 const TRAVA_PARA = `        and (m.created_at, m.ordem) > (v_orig.created_at, v_orig.ordem)`
 const aplicarNovo = trocarNoCorpo(aplicar.sql, TRAVA_DE, TRAVA_PARA, 'f53-trava-estorno')
