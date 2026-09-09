@@ -1,0 +1,303 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative, sep } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { limpar } from '@/lib/use-server-exports'
+
+// =============================================================================
+// A TRAVA DA F54 — quem apaga artefato de Storage COPIA antes, e a classe inteira
+// está classificada.
+// =============================================================================
+// POR QUE ELA EXISTE
+//
+// A tela do reset diz, com todas as letras: "NADA foi apagado — reset sem backup é
+// proibido" (`dev-destrutivo.ts`). A frase era FALSA para uma classe inteira de dado.
+// O backup do import, o do reset e o do conflito fazem `select('*')` das LINHAS; os
+// `.docx` dos termos de responsabilidade — os documentos que uma pessoa ASSINOU —
+// eram apagados do bucket `termos` logo depois, e nenhum dos três backups os levava.
+// Restaurar devolvia `termos_gerados` apontando para objetos que não existiam mais.
+//
+// Esta suíte transforma "copiamos antes de apagar" de intenção em invariante
+// conferida a cada `npm run test`, SEM BANCO e SEM STORAGE. Ela lê o FONTE.
+//
+// ⚠ ELA PEGA A CLASSE, NÃO AS TRÊS AÇÕES DA FASE. A régua é "apagar artefato de
+// Storage", e o universo é TODA chamada `.from('<bucket>').remove(` do `src/`. Cada
+// uma tem de estar classificada aqui — ou como `copia-antes` (o artefato é a única
+// cópia de algo, então some só depois de copiado), ou como `dispensado` com o motivo
+// ESCRITO. Chamada nova sem classificação reprova. É deliberadamente o molde de
+// `superficie-admin.test.ts` (F49): declarar o universo é o que faz a trava crescer
+// junto com o sistema, em vez de envelhecer no dia seguinte.
+//
+// ⚠ POR QUE `dispensado` NÃO É "EXCEÇÃO". A ordem de serviço avisa que exceção em
+// trava nova é a porta por onde a próxima entra, e ela tem razão. A diferença é que
+// aqui `dispensado` não afrouxa a régua: ele CLASSIFICA um caso que não é da classe.
+// Apagar um backup que não cobre exclusão nenhuma, ou apagar um `.docx` que acabou de
+// subir e cuja linha nunca chegou a existir, não é "apagar sem copiar" — é apagar algo
+// que não é a única cópia de nada. O que a trava proíbe é a classificação SILENCIOSA:
+// os dois campos são obrigatórios, e a frase tem de ser uma frase.
+//
+// ⚠ A COMPARAÇÃO É PELO ARGUMENTO, NÃO PELA PALAVRA "copiar". Uma trava que só
+// procurasse a existência de uma chamada de cópia no arquivo passaria verde com a
+// cópia cobrindo OUTRO conjunto de caminhos — que é precisamente o defeito realista
+// (copiar `lote` e remover `todos`, ou copiar a lista antiga depois de um refactor).
+// Por isso o casamento é entre o TEXTO DO ARGUMENTO do `remove(` e o do `copiar(`.
+// =============================================================================
+
+const RAIZ_SRC = join(process.cwd(), 'src')
+
+/**
+ * A remoção de objeto de Storage, na forma exata em que o código a escreve. O grupo 1 é o
+ * bucket; o argumento NÃO entra na regex de propósito — ver `argumentoDe`.
+ */
+const RE_REMOVE = /\.from\(\s*'([a-z-]+)'\s*\)\s*\.remove\(/g
+
+/**
+ * O texto do argumento do `remove(`, lido por BALANCEAMENTO DE PARÊNTESES a partir do
+ * `(` de abertura.
+ *
+ * ⚠ Uma regex não serve aqui, e o custo de descobrir isso tarde seria a trava mentindo.
+ * A primeira versão desta suíte usava `\(\s*([^\n]*?)\s*\)` e, no primeiro `npm run test`,
+ * leu `remove(orfaos.map((o) => o.arquivo_path))` como o argumento `orfaos.map((o` — o
+ * casamento não-guloso para no PRIMEIRO `)`, que ali é o da arrow function. Uma chave
+ * truncada é pior que uma chave errada: ela ainda casa com a declaração se a declaração
+ * também estiver truncada, e as duas envelhecem juntas sem ninguém notar.
+ */
+function argumentoDe(fonte: string, aberturaDoRemove: number): string | null {
+  let nivel = 0
+  for (let i = aberturaDoRemove; i < fonte.length; i++) {
+    const c = fonte[i]
+    if (c === '(') nivel++
+    else if (c === ')') {
+      nivel--
+      if (nivel === 0) return fonte.slice(aberturaDoRemove + 1, i).replace(/\s+/g, ' ').trim()
+    }
+  }
+  return null
+}
+
+/**
+ * A cópia obrigatória. É UMA função só, em `src/lib/storage/copiar-antes-de-remover.ts`,
+ * e o nome dela é o que esta trava procura — no molde da "porta só" da F51.
+ */
+const NOME_COPIA = 'copiarArtefatosParaBackup'
+
+type Classificacao =
+  | { tipo: 'copia-antes'; motivo: string }
+  | { tipo: 'dispensado'; motivo: string }
+
+/**
+ * O universo classificado, arquivo:argumento por arquivo:argumento.
+ *
+ * A chave é `<caminho relativo>::<texto do argumento>` — o argumento entra na chave de
+ * propósito: dois `remove(` no mesmo arquivo sobre conjuntos diferentes são dois fatos
+ * diferentes, e colapsá-los num só esconderia exatamente o caso que a fase existe para
+ * pegar.
+ */
+const CLASSIFICADOS: Record<string, Classificacao> = {
+  // --- A classe protegida: o `.docx` é a única cópia de um documento assinado. ---
+  "src/lib/storage/copiar-antes-de-remover.ts::caminhos": {
+    tipo: 'copia-antes',
+    motivo:
+      'A PORTA ÚNICA. Os quatro fluxos destrutivos que apagam `.docx` do bucket `termos` (import, reset, apagar ativo e conflito entre filiais) passam todos por aqui, e é aqui que a cópia acontece antes da remoção. Concentrar a remoção num ponto só é o que permite a esta trava ser uma asserção sobre estrutura, e não um grep espalhado por quatro arquivos que envelhecem em ritmos diferentes.',
+  },
+
+  // --- Os dispensados: não são a única cópia de nada. ---
+  'src/lib/actions/conflitos.ts::[caminho]': {
+    tipo: 'dispensado',
+    motivo:
+      'Apaga o BACKUP que a própria action acabou de subir, no ramo em que a RPC RECUSOU a exclusão — nada foi apagado, então esse backup não cobre exclusão nenhuma e é sobra, não prova. Copiá-lo seria guardar cópia de um arquivo que existe só por um instante e que o `descartarBackupNaoUsado` existe para não deixar no bucket (o órfão sob prefixo válido é material de replay).',
+  },
+  'src/lib/actions/termos.ts::orfaos.map((o) => o.arquivo_path)': {
+    tipo: 'dispensado',
+    motivo:
+      'Apaga a VARIANTE SUPERADA do mesmo termo — o sistema mantém uma versão por conjunto de movimentações, e regerar o termo (trocar monitor interno por home office, por exemplo) descarta a anterior. ⚠ ACHADO DA F54, REGISTRADO E NÃO CORRIGIDO AQUI: este é o único caminho em que um `.docx` que JÁ pertenceu ao acervo some sem cópia. Guardá-lo exige decidir por quanto tempo, e retenção é decisão de produto explicitamente fora do escopo desta fase (ver docs/RELATORIO-F54.md, backlog).',
+  },
+  'src/lib/actions/termos.ts::[arquivoPath]': {
+    tipo: 'dispensado',
+    motivo:
+      'COMPENSA um insert que falhou: o `.docx` subiu segundos antes, nesta mesma função, e a linha de `termos_gerados` não chegou a existir (corrida no índice único tipo+movimentações). O objeto nunca entrou no acervo, ninguém o assinou e nada aponta para ele — removê-lo é desfazer o próprio passo, não apagar documento.',
+  },
+}
+
+/** Arquivos que a varredura ignora: os próprios testes. */
+function ehTeste(caminho: string): boolean {
+  return /\.test\.tsx?$/.test(caminho)
+}
+
+function varrer(dir: string): string[] {
+  const saida: string[] = []
+  for (const ent of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, ent.name)
+    if (ent.isDirectory()) saida.push(...varrer(p))
+    else if (/\.tsx?$/.test(ent.name) && !ehTeste(ent.name)) saida.push(p)
+  }
+  return saida
+}
+
+type Sitio = {
+  /** caminho relativo com barras normais, para casar com as chaves declaradas */
+  arquivo: string
+  bucket: string
+  /** o texto do argumento do `remove(`, normalizado */
+  argumento: string
+  chave: string
+  /** o fonte já sem comentários (strings preservadas: o bucket vem de uma delas) */
+  fonte: string
+}
+
+/**
+ * Todo `.from('<bucket>').remove(<arg>)` do `src/`, lido sobre o fonte SEM COMENTÁRIOS.
+ *
+ * `limpar(fonte, false)` neutraliza comentário e preserva o conteúdo das strings — as duas
+ * coisas de que esta trava precisa ao mesmo tempo: um `remove(` citado em comentário não é
+ * uma chamada, e o nome do bucket só existe dentro de um literal. Reusa o tokenizador da
+ * F49 em vez de escrever um terceiro neutralizador (o motivo está escrito lá).
+ */
+function sitiosDeRemocao(): Sitio[] {
+  const achados: Sitio[] = []
+  for (const abs of varrer(RAIZ_SRC)) {
+    const bruto = readFileSync(abs, 'utf8')
+    if (!bruto.includes('.remove(')) continue
+    const fonte = limpar(bruto, false)
+    const arquivo = ['src', relative(RAIZ_SRC, abs)].join('/').split(sep).join('/')
+    for (const m of fonte.matchAll(RE_REMOVE)) {
+      // `m.index + m[0].length - 1` é o `(` do próprio `remove(`.
+      const argumento = argumentoDe(fonte, m.index + m[0].length - 1)
+      if (argumento === null) continue
+      achados.push({
+        arquivo,
+        bucket: m[1],
+        argumento,
+        chave: `${arquivo}::${argumento}`,
+        fonte,
+      })
+    }
+  }
+  return achados
+}
+
+describe('1. o universo de remoções de Storage está inteiro e classificado', () => {
+  it('há arquivos para varrer (guarda do próprio teste)', () => {
+    // Sem isto, uma varredura que devolvesse vazio — um `RAIZ_SRC` errado, um filtro
+    // guloso — faria todas as asserções abaixo passarem por vacuidade. É a tautologia
+    // que `pg_temp.assert_zero_de` mata do lado do SQL, escrita do lado do TypeScript.
+    expect(varrer(RAIZ_SRC).length).toBeGreaterThan(200)
+  })
+
+  it('a varredura encontra remoções de Storage (senão a trava vigia o nada)', () => {
+    expect(sitiosDeRemocao().length).toBeGreaterThan(0)
+  })
+
+  it('classifica EXATAMENTE as remoções que existem no fonte', () => {
+    // A SIMETRIA, no molde do `import-uma-porta.test.ts`:
+    //   · remoção nova que ninguém classificou   → sobra na direita, reprova;
+    //   · classificação de uma remoção que sumiu → sobra na esquerda, reprova;
+    //   · argumento que mudou (a cópia agora cobre outro conjunto) → a chave muda, reprova.
+    const noFonte = [...new Set(sitiosDeRemocao().map((s) => s.chave))].sort()
+    const declaradas = Object.keys(CLASSIFICADOS).sort()
+    expect(noFonte).toEqual(declaradas)
+  })
+})
+
+describe('2. quem é `copia-antes` copia o MESMO conjunto, antes de remover', () => {
+  const sitios = () => sitiosDeRemocao().filter((s) => CLASSIFICADOS[s.chave]?.tipo === 'copia-antes')
+
+  it('existe pelo menos um sítio `copia-antes` (senão esta seção vigia o nada)', () => {
+    expect(sitios().length).toBeGreaterThan(0)
+  })
+
+  it.each(Object.entries(CLASSIFICADOS).filter(([, c]) => c.tipo === 'copia-antes').map(([k]) => k))(
+    '`%s` chama a cópia com o MESMO argumento, ANTES do remove',
+    (chave) => {
+      const s = sitiosDeRemocao().find((x) => x.chave === chave)
+      expect(s, `o sítio ${chave} sumiu do fonte`).toBeDefined()
+      if (!s) return
+
+      const posRemove = s.fonte.indexOf(`.remove(`)
+      // A cópia tem de aparecer ANTES da remoção no arquivo. É a asserção mais grosseira
+      // possível sobre ordem — e é de propósito: uma trava textual não sabe executar o
+      // programa, e fingir que sabe (analisando fluxo) seria uma precisão que ela não tem.
+      // A ordem REAL (a cópia falhou → não remove) é provada pelo teste de comportamento
+      // em `copiar-antes-de-remover.test.ts`, que é quem responde por isso.
+      const posCopia = s.fonte.indexOf(NOME_COPIA)
+      expect(posCopia, `${chave}: não há chamada a ${NOME_COPIA} neste arquivo`).toBeGreaterThan(-1)
+      expect(posCopia, `${chave}: a cópia aparece DEPOIS do remove`).toBeLessThan(posRemove)
+
+      // E o casamento que importa: a cópia cobre o MESMO conjunto de caminhos.
+      const reCopia = new RegExp(`${NOME_COPIA}\\s*\\([^)]*?\\b${s.argumento.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
+      expect(
+        reCopia.test(s.fonte),
+        `${chave}: existe cópia, mas ela não cobre o argumento \`${s.argumento}\` — a cópia e a remoção estão sobre conjuntos DIFERENTES`,
+      ).toBe(true)
+    },
+  )
+})
+
+describe('3. os dispensados têm motivo ESCRITO, e não só a etiqueta', () => {
+  const dispensados = Object.entries(CLASSIFICADOS).filter(([, c]) => c.tipo === 'dispensado')
+
+  it('há dispensados classificados (senão esta seção vigia o nada)', () => {
+    expect(dispensados.length).toBeGreaterThan(0)
+  })
+
+  it.each(dispensados.map(([k, c]) => [k, c] as const))('`%s` explica por que não é da classe', (_k, c) => {
+    // O mesmo piso do `superficie-admin.test.ts`: "é assim mesmo" não é motivo. Uma frase
+    // curta demais é o sintoma de uma classificação feita para calar a trava.
+    expect(c.motivo.length).toBeGreaterThan(120)
+    expect(c.motivo).toMatch(/\.$/)
+  })
+
+  it('nenhum dispensado mora no bucket `termos` sem dizer por que o objeto não é única cópia', () => {
+    // O bucket `termos` guarda documento ASSINADO. Dispensar uma remoção DELE exige que o
+    // motivo diga, com estas palavras, por que aquele objeto não é a única cópia de nada.
+    for (const s of sitiosDeRemocao()) {
+      const c = CLASSIFICADOS[s.chave]
+      if (!c || c.tipo !== 'dispensado' || s.bucket !== 'termos') continue
+      expect(
+        /nunca entrou no acervo|superada|única cópia|nunca chegou a existir/i.test(c.motivo),
+        `${s.chave}: dispensado no bucket \`termos\` sem dizer por que o objeto não é a única cópia de nada`,
+      ).toBe(true)
+    }
+  })
+})
+
+describe('4. a trava não mente (guardas do próprio teste)', () => {
+  it('o leitor IGNORA `.remove(` citado em comentário', () => {
+    const fonte = limpar(`// await x.from('termos').remove(lista)\nconst a = 1\n`, false)
+    expect([...fonte.matchAll(RE_REMOVE)].length).toBe(0)
+  })
+
+  /** O argumento do primeiro `remove(` de um trecho — o mesmo caminho que a varredura usa. */
+  const argDe = (trecho: string): string | null => {
+    const fonte = limpar(trecho, false)
+    const m = [...fonte.matchAll(RE_REMOVE)][0]
+    return m ? argumentoDe(fonte, m.index + m[0].length - 1) : null
+  }
+
+  it('o leitor NÃO ignora o código de verdade', () => {
+    const fonte = limpar(`await x.from('termos').remove(lote)\n`, false)
+    const m = [...fonte.matchAll(RE_REMOVE)]
+    expect(m.length).toBe(1)
+    expect(m[0][1]).toBe('termos')
+    expect(argDe(`await x.from('termos').remove(lote)\n`)).toBe('lote')
+  })
+
+  it('o argumento é lido por BALANCEAMENTO, não até o primeiro `)`', () => {
+    // O furo real, medido no primeiro `npm run test` desta suíte: a arrow function tem um
+    // `)` no meio, e a leitura ingênua devolvia `orfaos.map((o`.
+    expect(argDe(`x.from('termos').remove(orfaos.map((o) => o.arquivo_path))`)).toBe(
+      'orfaos.map((o) => o.arquivo_path)',
+    )
+  })
+
+  it('argumento diferente é sítio diferente (o caso "a cópia cobre outro conjunto")', () => {
+    // Se a chave ignorasse o argumento, trocar `remove(lote)` por `remove(todos)` deixando
+    // a cópia em `lote` seria invisível. Esta asserção documenta que não é.
+    expect(argDe(`x.from('termos').remove(lote)`)).not.toBe(argDe(`x.from('termos').remove(todos)`))
+  })
+
+  it('a classificação não tem chave repetida nem etiqueta fora do vocabulário', () => {
+    const tipos = Object.values(CLASSIFICADOS).map((c) => c.tipo)
+    expect(new Set(tipos).size).toBeLessThanOrEqual(2)
+    for (const t of tipos) expect(['copia-antes', 'dispensado']).toContain(t)
+  })
+})

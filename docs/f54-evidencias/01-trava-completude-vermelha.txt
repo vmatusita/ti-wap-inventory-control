@@ -1,0 +1,48 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/actions/backup-completude.test.ts (15 tests | 3 failed) 688ms
+     × classifica EXATAMENTE as remoções que existem no fonte 144ms
+     × existe pelo menos um sítio `copia-antes` (senão esta seção vigia o nada) 115ms
+     × `src/lib/storage/copiar-antes-de-remover.ts::caminhos` chama a cópia com o MESMO argumento, ANTES do remove 129ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/actions/backup-completude.test.ts > 1. o universo de remoções de Storage está inteiro e classificado > classifica EXATAMENTE as remoções que existem no fonte
+AssertionError: expected [ …(6) ] to deeply equal [ …(4) ]
+
+- Expected
++ Received
+
+  [
+    "src/lib/actions/conflitos.ts::[caminho]",
++   "src/lib/actions/conflitos.ts::lote",
++   "src/lib/actions/dev-destrutivo.ts::lote",
++   "src/lib/actions/importar.ts::arquivos",
+    "src/lib/actions/termos.ts::[arquivoPath]",
+    "src/lib/actions/termos.ts::orfaos.map((o) => o.arquivo_path)",
+-   "src/lib/storage/copiar-antes-de-remover.ts::caminhos",
+  ]
+
+ ❯ src/lib/actions/backup-completude.test.ts:197:21
+    195|     const noFonte = [...new Set(sitiosDeRemocao().map((s) => s.chave))…
+    196|     const declaradas = Object.keys(CLASSIFICADOS).sort()
+    197|     expect(noFonte).toEqual(declaradas)
+       |                     ^
+    198|   })
+    199| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |puro| src/lib/actions/backup-completude.test.ts > 2. quem é `copia-antes` copia o MESMO conjunto, antes de remover > existe pelo menos um sítio `copia-antes` (senão esta seção vigia o nada)
+AssertionError: expected 0 to be greater than 0
+ ❯ src/lib/actions/backup-completude.test.ts:205:29
+    203|
+    204|   it('existe pelo menos um sítio `copia-antes` (senão esta seção vigia…
+    205|     expect(sitios().length).toBeGreaterThan(0)
+       |                             ^
+    206|   })
+    207|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
