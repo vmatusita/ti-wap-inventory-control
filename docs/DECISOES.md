@@ -9409,6 +9409,11 @@ Revisão em contexto fresco, quatro lentes independentes (comportamento do usuá
 - Reversível? a decisão não; o apply sim.
 
 ## 2026-09-09 · Rollout · A sonda de paridade achou crase em comentário — e o que isso denuncia
+- ⚠️ **ESTA ATA FOI CORRIGIDA NO MESMO DIA. O diagnóstico abaixo está ERRADO** — ele generaliza, a
+  partir de uma função só (`apagar_item`), uma explicação que não vale para as outras duas, e conclui
+  uma causa que não é a causa. Leia a ata *"As três reemitidas, e o diagnóstico da crase estava errado"*,
+  mais abaixo. O que continua válido aqui: a divergência era **só em comentário**, e a prova disso é o
+  fingerprint com comentários removidos.
 - Contexto: depois do apply, a sonda de paridade do runbook mostrou as 10 classes com a **mesma contagem** nos dois ambientes e **9 com o mesmo fingerprint**. A décima, `func`, divergia.
 - Decisão: **abrir a diferença antes de reportá-la** (a regra que a lição de 25/07/2026 escreveu). São três funções — `apagar_ativo`, `apagar_item`, `reabrir_pendencias_item_com_estornos` — e a diferença é **crase de markdown dentro de comentário**: o repositório e o ensaio têm `` `itens_nome_uidx` ``, produção tem `itens_nome_uidx`. Semanticamente inerte, e **anterior** a esta janela.
 - Motivo: provado, não suposto — o fingerprint calculado com os comentários de linha removidos é **idêntico** nos dois projetos (`98bf752c5fbf5a48b05f7edcceac9d2e`, 76 funções cada). Todo corpo executável de produção é hoje igual ao do ensaio.
@@ -9420,3 +9425,16 @@ Revisão em contexto fresco, quatro lentes independentes (comportamento do usuá
 - Decisão: registradas as quatro, com as `version` na mesma convenção que o ensaio usa (`20260901000131`…`20260901000137`), depois de **conferir o efeito de cada uma no banco**: as 8 auxiliares da `0131`, as 3 funções novas da `0132`, a 12ª checagem no corpo de `dev_checagens_integridade` (`0136`) e o verbo `import_falhou` no comentário de `eventos_admin.acao` (`0137`).
 - Motivo: a regra do Anexo A é explícita — *"registrar no ledger uma migration que não esteja aplicada é pior que a divergência"*. Por isso o efeito veio antes do registro, e não o contrário. Deixar `0136`/`0137` de fora seria consertar metade de um ledger que eu tinha acabado de ler inteiro.
 - Reversível? sim, `delete` das mesmas quatro `version`.
+
+## 2026-09-09 · Rollout · As três reemitidas, e o diagnóstico da crase estava ERRADO
+- Contexto: o Johnny mandou reemitir `apagar_ativo`, `apagar_item` e `reabrir_pendencias_item_com_estornos` a partir da `0082`/`0122`, para a sonda de paridade fechar em 10 de 10. Antes de aplicar, contei as crases bloco a bloco no repositório — e o resultado **derrubou a explicação que eu tinha escrito horas antes**: `apagar_movimentacao` tem QUATRO crases e **batia**; `reabrir_pendencias_item_com_estornos` tem ZERO e **divergia**.
+- ⚠️ O que a medição linha a linha (md5 por linha, nos dois projetos) mostrou de fato — **três variantes** do mesmo comentário em circulação:
+  - `apagar_item` — produção tinha `(itens_nome_uidx, ...)`; ensaio tinha `` (`itens_nome_uidx`, ...) ``; **o repositório tem as crases E `(§1.3 da ordem)`**, que nenhum dos dois bancos tinha.
+  - `apagar_ativo` — o mesmo bloco de comentário em três redações e dois tamanhos (produção 4 linhas, ensaio e repositório 5); o repositório é o único com *"como manda o §2.2 da ordem"*.
+  - `reabrir_pendencias_item_com_estornos` — duas linhas reescritas, **sem crase nenhuma envolvida**; aqui o ensaio já batia com o repositório e só produção estava atrás.
+- Decisão: reemitir os três `create or replace` recortados por script das migrations **vigentes** (`0082` linhas 96-235 e 434-507; `0122` linhas 56-164), com o `sha256` do arquivo de origem conferido contra o `migrations.lock.json`, **em produção E no ensaio**. Sem `revoke`/`grant`/`comment` junto: `create or replace` de assinatura idêntica preserva grants, e a classe `grant_func` já batia — mexer ali seria risco sem ganho. Resultado: `func` = `bf4bddddb44ef22d8b64c80fb83e4e95` nos dois, `grant_func` inalterada, **as 10 classes fechadas**.
+- ⚠️ Motivo pelo qual o ENSAIO também precisou: descoberto no meio do caminho que ele **não era a referência** — para `apagar_ativo`/`apagar_item` o ensaio carregava uma variante intermediária, e depois do apply em produção era o ensaio que estava atrás. A referência é o **repositório** (`CLAUDE.md`: *"supabase/migrations/ — fonte da verdade do banco"*), nunca o banco gêmeo.
+- ⚠️ **A CAUSA REAL, e a lição que fica:** não é colagem manual perdendo bytes. É **edição de comentário em migration já aplicada** — o caminho `npm run db:lock -- --regravar-alterada`, que a casa autoriza justamente porque a parte executável não muda (há duas atas usando-o, em 08/09 e 09/09). O efeito colateral que ninguém tinha escrito: **cada edição dessas deixa para trás TODO banco que já aplicou aquela migration**, em silêncio e para sempre, porque nada reaplica a função. Só a sonda de paridade acusa — e ela só é rodada em janela de apply.
+- ⚠️ **E derruba a inferência que eu tinha tirado do diagnóstico errado.** A ata anterior concluía que o achado era *"um argumento medido a favor de aplicar por script em vez de colagem"*. **Não é** — a origem da divergência não tem nada a ver com o caminho do apply. O argumento a favor do script continua de pé pelos motivos dele (fidelidade de 90 KB, incidente F7E), mas não por este achado.
+- Pendência que isto abre: `--regravar-alterada` deveria exigir a reemissão da função nos ambientes já aplicados, ou a sonda de paridade deveria rodar fora de janela de apply. Nenhuma das duas foi feita aqui — fica nomeado.
+- Reversível? sim: reemitir os corpos anteriores. Mas não faz sentido — o estado atual é o único que casa com o repositório.
