@@ -316,10 +316,14 @@ begin
   -- lá a tabela só tem as linhas deste roteiro, e como os roteiros anteriores já
   -- consumiram a sequência (o `rollback` desfaz as linhas, NÃO a sequência), a `ordem`
   -- restaurada é alta e `1` não colide com nada. A asserção passava a medir o acervo do
-  -- ambiente, e não a armadilha. Apontando para `v_bkp_ordem_a - 1`, o próximo valor é
-  -- exatamente uma `ordem` que ESTE roteiro pôs na tabela — determinístico em qualquer
-  -- banco.
-  perform setval(v_seq, v_bkp_ordem_a - 1, true);
+  -- ambiente, e não a armadilha. Apontando para uma `ordem` que ESTE roteiro pôs na
+  -- tabela, o próximo valor colide sempre — em qualquer banco, com ou sem acervo.
+  --
+  -- ⚠ O ALVO É A `ordem` DA SAÍDA (a SEGUNDA movimentação), e não a da compra. Se este
+  -- roteiro rodar SOZINHO (`npm run db:test:um restauracao`) num banco recém-criado, a
+  -- compra recebe `ordem = 1` e `setval(…, 0)` estouraria com "value 0 is out of bounds".
+  -- A segunda movimentação tem `ordem >= 2` por construção, então `- 1` é sempre válido.
+  perform setval(v_seq, v_bkp_ordem_s - 1, true);
 
   begin
     insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
