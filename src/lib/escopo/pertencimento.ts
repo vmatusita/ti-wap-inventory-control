@@ -69,7 +69,12 @@ export function escopoDeGestaoAtual(): EscopoDeGestao {
  * no-op verificável em vez de uma promessa em comentário (o mesmo argumento escrito em
  * `mesmo_escopo_de_gestao`, migration 0132).
  */
-export function escopoDoImportLog(_linha: { id: string }): EscopoDeGestao {
+export function escopoDoImportLog(linha: { id: string }): EscopoDeGestao {
+  // `void` e não `_linha`: o prefixo com underline calaria o lint mas também apagaria o
+  // nome do parâmetro, e o nome é metade da documentação aqui. Assim ele continua se
+  // chamando `linha`, e a linha abaixo diz em código o que o comentário diz em prosa —
+  // que ela é recebida e deliberadamente não consultada, até a F62.
+  void linha
   return ESCOPO_UNICO
 }
 
