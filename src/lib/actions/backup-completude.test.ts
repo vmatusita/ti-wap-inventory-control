@@ -162,13 +162,17 @@ function ehTeste(caminho: string): boolean {
   return /\.test\.tsx?$/.test(caminho)
 }
 
+let cacheArquivos: string[] | null = null
+
 function varrer(dir: string): string[] {
+  if (dir === RAIZ_SRC && cacheArquivos) return cacheArquivos
   const saida: string[] = []
   for (const ent of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, ent.name)
     if (ent.isDirectory()) saida.push(...varrer(p))
     else if (/\.tsx?$/.test(ent.name) && !ehTeste(ent.name)) saida.push(p)
   }
+  if (dir === RAIZ_SRC) cacheArquivos = saida
   return saida
 }
 
@@ -191,7 +195,19 @@ type Sitio = {
  * uma chamada, e o nome do bucket só existe dentro de um literal. Reusa o tokenizador da
  * F49 em vez de escrever um terceiro neutralizador (o motivo está escrito lá).
  */
+/**
+ * O resultado da varredura, MEMOIZADO.
+ *
+ * ⚠ Sem isto a suíte relê o `src/` inteiro (mais de 200 arquivos) a cada asserção e a
+ * cada caso de `it.each` — medido: o `npm run test` local saltou de ~98 s para ~260 s
+ * quando as asserções novas entraram. Uma trava que custa dois minutos e meio de CI a
+ * cada push é uma trava que alguém vai querer desligar, e o custo não tinha nada a ver
+ * com o que ela protege.
+ */
+let cacheSitios: Sitio[] | null = null
+
 function sitiosDeRemocao(): Sitio[] {
+  if (cacheSitios) return cacheSitios
   const achados: Sitio[] = []
   for (const abs of varrer(RAIZ_SRC)) {
     const bruto = readFileSync(abs, 'utf8')
@@ -211,6 +227,7 @@ function sitiosDeRemocao(): Sitio[] {
       })
     }
   }
+  cacheSitios = achados
   return achados
 }
 
