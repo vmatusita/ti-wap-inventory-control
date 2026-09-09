@@ -1,0 +1,995 @@
+banco-sem-docker	Rodar os roteiros de teste SQL (falha o CI em ✗ ou em roteiro que abortou)	﻿2026-09-09T13:45:16.1121146Z ##[group]Run bash scripts/db/rodar-roteiros.sh
+^[[36;1mbash scripts/db/rodar-roteiros.sh^[[0m
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+  DATABASE_URL: ***127.0.0.1:5432/estoque
+##[endgroup]
+==== supabase/tests/asof_desempate.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 3a compra e ajuste com (data,created_at) IGUAIS recebem ordem distinta e ordenada (compra=1, ajuste=2), e o par resolve para o AJUSTE (em_uso) só por ordem — sem precisar de (tipo='ajuste') no desempate
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 3b equivalencia total: a ordem ASC por `ordem` reproduz a ordem ASC pela quadrupla (data, created_at, tipo=ajuste, id), em TODAS as linhas de movimentacoes (0 de 2 conferidos)
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 1 desempate (0054): ajuste vence a compra no empate (data,created_at); as-of=em_uso = ativos=em_uso
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 2a as-of D1 (2026-06-10, antes do estorno) = em_uso
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 2b as-of hoje (par saída+estorno anulado) = em_estoque
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 2c estorno restaurou ativos.status=em_estoque, batendo com o as-of de hoje
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 3c duas movimentacoes gravadas na MESMA transacao recebem ordem distinta e CRESCENTE (8, 9)
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 4a a trava do estorno ((created_at, ordem)) recusa estornar a PENULTIMA movimentacao: So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 4b a trava do estorno ACEITA estornar a ULTIMA movimentacao (devolucao), id=b64c18cf-e12f-4101-8f49-3e9cf08b926c
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 4c a trava recusa estornar a COMPRA empatada em created_at (o ajuste tem ordem maior) — so a regua (created_at, ordem) chega a esta resposta
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 4d a mesma trava ACEITA estornar o ajuste (a ultima por ordem, apesar do id menor)
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 5a guarda_acervo recusa UPDATE em movimentacoes com 42501: Registro histórico não se altera: movimentacoes é imutável. Para desfazer um efeito, registre um estorno; correção técnica é pela área do desenvolvedor.
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 6a rel_estoque_asof (data desc, ordem desc) responde em_uso (M1, mais recente por DATA); só por ordem desc responderia em_manutencao (M2, retroativa) — as duas DIVERGEM, e a funcao real fica do lado certo
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 7a a sequencia nao ficou atras do max(ordem): INSERT novo recebeu max+1 (21), sem violar o unico
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 7b o indice unico morde: ordem repetida (21) foi recusada por movimentacoes_ordem_uidx
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 10a nenhuma das 31 funcoes/views de public que citam movimentacoes desempata por id, fora das 3 excecoes nominais (apagar_ativo, apagar_ativos_conflito_filiais, apagar_movimentacao)
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 10b auto-sabotagem: a varredura da 10a ACUSA _f53_sabotagem_ordem_por_id (desempata movimentacoes por m.id desc, fora das excecoes) — o gate SABE reprovar
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  ✓ 10c em apagar_movimentacao, a recusa de empate (posicao 1969) vem ANTES da comparacao por id (posicao 2415) — o id e INALCANCAVEL ali, e por isso a 10a a trata como excecao
+psql:supabase/tests/asof_desempate.sql:687: NOTICE:  FIM asof_desempate: 18 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/asserts_ferramenta.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 1 universo vazio RECUSADO: assert_zero_de: universo vazio em "autoteste 1" — a asserção passaria sobre conjunto vazio (tautologia). Monte o cenário ou conte outra coisa.
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 1b universo NULL RECUSADO
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ autoteste 2 (este ✓ é esperado) (0 de 7 conferidos)
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 2 zero ruins de 7 devolve true
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 3 duas linhas ruins de 7 devolve false
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 4 mais ruins que o universo RECUSADO
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 4b contagem de ruins NULA RECUSADA
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  ✓ 5 `count(*) = 0` sobre conjunto vazio é VERDADE — a forma antiga passaria aqui
+psql:supabase/tests/asserts_ferramenta.sql:130: NOTICE:  FIM asserts_ferramenta: 7 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/cargo_dev.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+GRANT
+DO
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1z papel_atual()=dev e e_dev()/e_admin()/pode_escrever() = true
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1a dev INSERE em motivos (policy e_admin)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1b dev LÊ eventos_admin (1 linhas)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1c dev LÊ import_logs (1 linhas)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1d dev passou pela guarda de cargo da RPC de import (falhou adiante, por outro motivo: P0001 Filial <NULL> não encontrada.)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1e dev INSERE ativo nas DUAS filiais, sem vínculo
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1f dev ANOTA (policy pode_escrever)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1g dev GERA snapshot de relatório (policy pode_escrever)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 1h dev GRAVA no bucket termos (policy pode_escrever)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2a admin recusado ao conceder dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2b admin recusado ao rebaixar dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2c admin recusado ao desativar dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2d admin recusado ao apagar dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2e admin recusado ao mexer em vínculo de dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2f admin recusado ao encerrar sessões (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2f-bis admin recusado ao apagar usuário comum (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2g request forjado do admin recusado (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2g-bis admin AINDA promove um não-dev (consulta → operador)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2h service role recusado ao conceder dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2i service role recusado ao rebaixar dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2i-bis service role recusado ao desativar dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2j service role recusado ao apagar perfil dev (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 2j-bis a rede NÃO atrapalha update de perfil comum
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 5d existe_outro_admin_ativo() conta os devs (nível administrador)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 5e as auxiliares de gestão não são executáveis por authenticated
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 3a dev CONCEDE o cargo dev
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 3b dev REBAIXA outro dev
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 3c dev DESATIVA um usuário
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 3d-fixture universo plantado e contado como postgres ANTES da chamada (2 sessões do alvo, 1 da testemunha)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 3d dev encerra as sessões DO ALVO: a RPC devolveu 2, sobrou 0 dele, e a 1 da testemunha continua lá
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 5a dev recusado ao mudar o próprio cargo (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 5b dev recusado ao desativar a si mesmo (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 5c dev recusado ao apagar a si mesmo (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6a dev APAGA um usuário com histórico
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6b o perfil da vítima foi ARQUIVADO (excluido_em preenchido, ativo=false)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6c a movimentação do apagado sobrevive e o join resolve o nome (Fulano de Teste)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6c-bis a anotação do apagado sobrevive com o nome do autor
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6d os vínculos do apagado foram limpos
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6e o apagado não tem cargo e não lê o acervo (0 ativos)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6f a conta do apagado sai de auth.users (a 0073 destravou)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6g o histórico sobrevive à remoção da conta, com o nome do autor
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 6h o e-mail do apagado pode ser convidado de novo
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 4a operador: e_dev=false, e_admin=false, pode_escrever=true
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 4b operador recusado ao mudar cargo (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 4c operador recusado ao apagar usuário (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 4d consulta: e_dev/e_admin/pode_escrever todos false
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 4e consulta recusada ao desativar (42501)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7c exigir_gestao_de CITA mesmo_escopo_de_gestao no corpo (prova de presença)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7d as cinco RPCs de gestão continuam citando exigir_gestao_de
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7g existe_outro_admin_ativo é UMA função só, com 2 argumentos (p_excluindo uuid, p_escopo uuid)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7a mesmo_escopo_de_gestao(alvo real) = true — aceita o legítimo
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7b mesmo_escopo_de_gestao fechada nos quatro papéis (public/anon/authenticated/service_role)
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7e existe_outro_admin_ativo(alvo) = existe_outro_admin_ativo(alvo, null) = t
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7j admin CHAMA definir_vinculos_usuario sobre um operador sem levantar exceção
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7j-bis o vínculo gravou de verdade: operador ligado a v_f2, o vínculo antigo (v_f1) foi substituído
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7h existe_outro_admin_ativo(único admin ativo) = false — a trava do último administrador continua travando
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7i existe_outro_admin_ativo(k_admin_a) = true agora que k_admin_b existe — a trava ACEITA quando há outro
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  ✓ 7f existe_outro_admin_ativo(alvo, escopo=>null) = true — escopo nulo não recusa tudo
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  === cargo_dev: 58 asserções OK, 0 falhas ===
+psql:supabase/tests/cargo_dev.sql:1106: NOTICE:  FIM cargo_dev: 58 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 58 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/catalogo_policies.sql ====
+CREATE FUNCTION
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 1a toda tabela de public está CLASSIFICADA negócio × infra (0 de 21 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 1b todo nome classificado ainda existe no catálogo (0 de 21 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 2 toda tabela de NEGÓCIO tem policy de SELECT (0 de 16 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 3 nenhuma tabela de public fica sem SELECT por CATEGORIA (0 de 21 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 4 toda exceção deny-all ainda descreve o banco (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 4-bis `force row level security` desligado em toda tabela de public (R-ACC-29) (0 de 21 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 5 nenhuma policy com predicado equivalente a `true` (0 de 55 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 6a o piso `papel_atual()` continua nas 15 policies de SELECT congeladas (0 de 15 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 6b as 3 que decidem por CARGO não afrouxaram para o piso (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 6c toda policy de SELECT de public está numa das duas listas do piso (0 de 18 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 7 nenhuma policy de storage.objects decide só por `bucket_id` (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 8a nenhuma policy de Storage fora do conjunto congelado (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 8b nenhuma policy de Storage congelada sumiu (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 9a nenhuma tabela NOVA na publication do Realtime (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  ✓ 9b nenhuma das 3 congeladas saiu da publication (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:578: NOTICE:  FIM catalogo_policies: 15 asserções, 0 falhas
+DO
+==== supabase/tests/catalogo_secdef.sql ====
+CREATE FUNCTION
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 1a toda `security definer` de public está CLASSIFICADA (0 de 48 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 1b todo nome classificado existe e continua `security definer` (0 de 48 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 2 nenhum nome `security definer` tem mais de uma assinatura viva (0 de 48 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 3 `search_path` travado em toda `security definer` (0 de 48 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 4 nenhuma `security definer` executável por anon (0 de 48 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 5 valida_lancamento_item é INVOKER de propósito e está FORA da tabela-verdade (0038; motivo em seguranca_catalogo.sql:16-23)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 6a toda INVOKER alcançável por anon está declarada nominalmente (0 de 28 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 6b sem exceção declarada — nada a envelhecer (a 6c prova as revogações)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  ✓ 6c as cinco INVOKER da 0129 seguem sem EXECUTE para anon (0 de 5 conferidos)
+psql:supabase/tests/catalogo_secdef.sql:415: NOTICE:  FIM catalogo_secdef: 9 asserções, 0 falhas
+DO
+==== supabase/tests/conflito_filiais.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 1a  o par em duas filiais entrou: 4 grupos de conflito (com e sem patrimônio)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 1b  oito ativos em conflito (2 por grupo)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 1c  ativo sozinho e ativo sem identidade ficam FORA da fonte de conflito
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 1d  duplicata na MESMA filial (com patrimônio) recusada pelo índice
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 1e  duplicata na MESMA filial (sem patrimônio) recusada pelo índice parcial
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 1f  mesmo patrimônio com outra service tag NÃO entra no grupo (o par é exato)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 2a  o lado com movimentação fora da carga tem tem_historico_real = true
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 2b  o lado só-carga-do-import tem tem_historico_real = false
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 2c  o resumo separa carga (2 movs, 1 fora da carga)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 2d  corrigir a identidade de um lado desfaz o conflito automaticamente
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 2e  grupo de TRÊS filiais é representável
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 5a  o cargo operador foi recusado (42501)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 5a  o cargo consulta foi recusado (42501)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 5b  grants: authenticated=true, anon=false, service_role=false
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 5c  as funções auxiliares ficam FORA da API de RPC
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 5d  confirmação sem o número é recusada (22023)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 5e  confirmação com o número errado é recusada
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 5f  justificativa com menos de 10 caracteres é recusada
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 4a  lista com ativo fora de conflito é recusada por inteiro (42501)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 4b  depois da recusa, NENHUM dos dois foi apagado
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 4c  ativo sem identidade (sem patrimônio e sem tag) é recusado
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 4d  id inexistente é recusado (P0002)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 4e  id repetido é deduplicado: "APAGAR 3" não confere para 1 ativo
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 3a  apagou UM lado e devolveu as contagens
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 3b  o grupo continua (2 lados) depois de apagar o terceiro
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 3c  a trilha traz justificativa, backup e os selecionados
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 3d  o backup jsonb guarda a linha do ativo apagado
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 3e  "apagar ambos" funciona e o grupo some da fonte
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 3f  o rastro (movimentações) do cadastro apagado foi junto
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 8a  termo que cobre ativo fora da seleção recusa a exclusão
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 8b  termo só da seleção é apagado e o .docx volta para a action limpar
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 7a  transferir para a filial do gêmeo é recusado com mensagem própria
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 7b  transferência para filial LIVRE continua funcionando
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 9a  o estorno da transferência devolveu o ativo à filial de origem
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 6a  guarda_acervo continua instalada nas três tabelas
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 6b  a janela GUC fica FECHADA depois de a RPC estourar
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 6c  apagar_ativo (F23, cargo dev) continua funcionando
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 6d  o admin continua SEM apagar_ativo — a exceção da F24 é só a mesa
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 10a exigir_ativos_da_empresa está fechada nos quatro papéis (public, anon, authenticated, service_role)
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 10b a chamada a exigir_ativos_da_empresa vem DEPOIS da etapa (3) do lock e ANTES da revalidação do grupo
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 10c a chamada acontece FORA da janela destrutiva — não há guarda a desarmar
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 10d-fixture o par v_t1/v_t2 segue em conflito, intacto para o par positivo
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  ✓ 10d o par da guarda: exclusão LEGÍTIMA de um grupo em conflito continua funcionando com exigir_ativos_da_empresa no caminho
+psql:supabase/tests/conflito_filiais.sql:751: NOTICE:  FIM conflito_filiais: 43 asserções, 0 falhas
+DO
+ ok | falhas |                   detalhe                    
+----+--------+----------------------------------------------
+ 43 |      0 | F24 conflito entre filiais — 43 ok, 0 falhas
+(1 row)
+
+ROLLBACK
+==== supabase/tests/definer_sem_tenant.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/definer_sem_tenant.sql:346: NOTICE:  ✓ 1a toda security definer que recebe id do cliente e é alcançável por authenticated está classificada (0 de 21 conferidos)
+psql:supabase/tests/definer_sem_tenant.sql:346: NOTICE:  ✓ 1b todo nome classificado ainda é security definer, alcançável por authenticated e recebe id do cliente (0 de 21 conferidos)
+psql:supabase/tests/definer_sem_tenant.sql:346: NOTICE:  ✓ 1c nenhum nome está em k_escopo_ok e k_escopo_excecao ao mesmo tempo (0 de 18 conferidos)
+psql:supabase/tests/definer_sem_tenant.sql:346: NOTICE:  ✓ 2 toda exceção tem motivo escrito (>40 caracteres) e a migration (4 dígitos) na mesma posição (0 de 3 conferidos)
+psql:supabase/tests/definer_sem_tenant.sql:346: NOTICE:  ✓ 3 classificação por FUNÇÃO NOMEADA — as 5 RPCs de conta citam algo com prefixo "exigir_" (passariam "ok" por um critério de prefixo), mas pode_escrever_termo, também em k_escopo_ok, não cita nada com esse prefixo: um critério de prefixo a reprovaria por engano
+psql:supabase/tests/definer_sem_tenant.sql:346: NOTICE:  ✓ sabotagem a varredura ACUSA _f52_sabotagem_definer_sem_tenant — security definer NOVA, recebe uuid, alcançável por authenticated, sem guarda nenhuma por dentro, e fora das duas listas. O gate SABE reprovar; a função nasce e morre neste begin/rollback, nada sobra no banco
+psql:supabase/tests/definer_sem_tenant.sql:346: NOTICE:  FIM definer_sem_tenant: 6 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/dev_destrutivo.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+DO
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1a nenhuma das 7 RPCs destrutivas é executável por service_role
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1b resetar_dados_ficticios: service_role executa, authenticated NÃO
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1c as duas auxiliares saíram da API e as OITO ferramentas continuam executáveis por authenticated
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1c-bis dev_checagens_integridade: service_role NÃO executa, authenticated sim
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em apagar_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em apagar_movimentacao() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em apagar_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em resetar_acervo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em resetar_itens() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em forcar_estado_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 admin recusado em forcar_saldo_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em apagar_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em apagar_movimentacao() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em apagar_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em resetar_acervo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em resetar_itens() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em forcar_estado_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 operador recusado em forcar_saldo_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em apagar_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em apagar_movimentacao() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em apagar_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em resetar_acervo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em resetar_itens() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em forcar_estado_ativo() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1 consulta recusado em forcar_saldo_item() pela guarda de cargo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1x request forjado do admin (DELETE direto em ativos) não apagou nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em apagar_ativo() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em apagar_movimentacao() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em apagar_item() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em resetar_acervo() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em resetar_itens() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em forcar_estado_ativo() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1y service role recusado em forcar_saldo_item() (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1z sem a linha 'desenvolvimento' em public.ambiente, o reset de dados fictícios é recusado ANTES da confirmação (42501) — é esta a trava que segura produção dentro do próprio banco
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 1z-bis com a base marcada, o service role ALCANÇA a função e é a confirmação que barra (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2a UPDATE em movimentacoes como authenticated não alterou nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2b DELETE em movimentacoes como authenticated não removeu nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2c UPDATE em lancamentos_item como authenticated não alterou nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2d DELETE em lancamentos_item como authenticated não removeu nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2e DELETE em ativos como authenticated (dev logado) não removeu nada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2f INSERT com forcado = true recusado em movimentacoes (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2g o UPDATE LEGÍTIMO em ativos continua passando
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2h o INSERT NORMAL de movimentação continua passando E derivando o estado (em_uso)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2i UPDATE em movimentacoes recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2j DELETE em movimentacoes recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2k UPDATE em lancamentos_item recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2l DELETE em lancamentos_item recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2m DELETE em ativos recusado para o DONO pela guarda (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2n INSERT com forcado = true recusado também para o DONO (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2o TRUNCATE em movimentacoes recusado para authenticated (42501, privilégio revogado)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 2p nenhuma das 6 tabelas do acervo tem TRUNCATE para anon, authenticated ou service_role
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3a dev APAGA o ativo com rastro inteiro: {"rotulo": "WAP0009301", "termos": 1, "ativo_id": "9d987c7e-dfa9-49af-b8c6-fb5ff74dd4a2", "anotacoes": 1, "movimentacoes": 3, "arquivos_termos": ["c146d2aa-64d0-43ed-9ed7-eef038431744.docx"], "pendencias_item": 1, "ponteiros_anulados": 1}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3b nada do ativo apagado sobrou
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3c o retorno da RPC conta certo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3d o substituto sobreviveu com substitui_ativo_id anulado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3e a RPC devolve o caminho do .docx para a action apagar, e o objeto segue no bucket
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3f o par patrimônio+service tag voltou a ser usável
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3g a trilha ativo_apagado foi gravada com justificativa e backup
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 3h apagar_ativo RECUSA termo de lote misto (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4a apagar a ÚLTIMA devolve o ativo ao snapshot_anterior
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4b movimentação do MEIO recusada (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4c a ÚNICA movimentação é recusada apontando "Apagar ativo" (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4d movimentação citada por termo é recusada (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4e a movimentação ESTORNADA é recusada — o estorno vem depois (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4e-bis apagar um ESTORNO é recusado (42501) — o estorno-strip não é reversível
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4e-ter a recusa não deixou efeito colateral (em_estoque|<nulo>|3)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4f com data fora de ordem, a RPC NÃO considera "a última" a compra de 2026-09-08 — ela ordena por (created_at, id)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4f-bis "a última" é a SAÍDA de 2018-06-23 (created_at mais recente, data mais antiga)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4g par com created_at idêntico: o AJUSTE é recusado, com mensagem própria (42501)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4g-bis o OUTRO membro do par também é recusado — é recusa, não sorteio de uuid
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 4h a recusa do empate é ESTREITA: a movimentação POSTERIOR, com created_at próprio, continua apagável (restou o par empatado, ativo em_estoque)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 5a dev APAGA um item do catálogo COM lançamentos: {"nome": "F23 Mouse Ficticio", "item_id": 2, "lancamentos": 2}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 5b saldo era 12; item, lançamentos e a linha do saldo sumiram juntos
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9a dev FORÇA o estado de um ativo: {"de": "em_uso", "para": "descartado", "rotulo": "WAP0009901", "alterado": true, "ativo_id": "dda09823-2b06-4f2f-a6ea-20894fa9a92b", "detentor_zerado": true, "movimentacao_id": "2b7cbe91-21a1-4693-9848-27ab11f505ee"}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9b a ficha derivou para o estado forçado (descartado)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9c num estado terminal o detentor é zerado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9d a movimentação nasceu forcado=true, tipo ajuste, justificativa em observacao
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9e os três relatórios devolvem os MESMOS números antes e depois de forçar (8/8/8)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 9f em estado NÃO terminal o detentor é preservado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 10a forçar o saldo de 3 para 12 grava o lançamento de delta 9
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 10b forçar PARA BAIXO também chega ao alvo (5), por lançamento marcado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 11a o ESTORNO comum continua funcionando (com estorno-strip da pendência)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12a apagar_ativo recusa confirmação errada (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12b justificativa com menos de 10 caracteres é recusada (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12c apagar_item recusa nome errado na confirmação (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12d o reset por filial exige o NOME da filial (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 12e a mesma guarda de justificativa vale para FORÇAR (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 13a a RPC estourou DEPOIS de abrir a janela (23514): Estoque insuficiente: a operação deixaria -10 na prateleira (não pode ficar negativo).
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 13b depois do erro, estoque.dev_destrutivo = off
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 13c com a janela fechada, o DELETE direto continua recusado
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8a reset RECUSADO porque o backup não existe no bucket (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8a-bis nada foi apagado na recusa por backup ausente (0 ativos)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8b reset RECUSADO por contagens divergentes (40001)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8c reset RECUSADO sem revalidação de contagens (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 8d reset RECUSADO: o backup existe no bucket, mas é do recorte errado (22023)
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6a dev RESETA o acervo da filial Matriz: {"ativos": 16, "rotulo": "Matriz", "termos": 2, "alcance": "filial", "anotacoes": 0, "filial_id": 1, "movimentacoes": 28, "restam_ativos": 0, "arquivos_termos": ["657d09a7-3c42-4c5a-8ddd-27a31cc4aaa0.docx", "c6c346ca-a661-4040-9163-bf5185369197.docx"], "pendencias_item": 0}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6b a filial resetada ficou sem nenhum ativo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6c o reset da filial Matriz não apagou ativo nenhum da filial CD Afonso Pena (1 antes, 1 depois), inclusive o que migrou para lá
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6d uma movimentação REGISTRADA na filial CD Afonso Pena, de um ativo que HOJE está na filial Matriz, É APAGADA junto com o ativo
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 6e uma movimentação REGISTRADA na filial Matriz, cujo ativo já migrou para a CD Afonso Pena, NÃO é apagada
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7a dev RESETA o acervo INTEIRO com a frase RESETAR TUDO: {"ativos": 1, "rotulo": "RESETAR TUDO", "termos": 0, "alcance": "global", "anotacoes": 0, "filial_id": null, "movimentacoes": 1, "restam_ativos": 0, "arquivos_termos": [], "pendencias_item": 0}
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7b dev RESETA os lançamentos de itens de todas as filiais
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7c o reset global zerou o acervo inteiro
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7d os CADASTROS sobreviveram ao reset global
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7d-bis o item do catálogo continua lá — resetar_itens leva os LANÇAMENTOS
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7e relatorios_gerados, eventos_admin e import_logs sobreviveram
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7f os dois resets globais deixaram trilha, cada um com o caminho do SEU backup
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  ✓ 7g os SETE verbos novos da F23 foram gravados em eventos_admin
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  === dev_destrutivo: 108 asserções OK, 0 falhas ===
+psql:supabase/tests/dev_destrutivo.sql:1715: NOTICE:  FIM dev_destrutivo: 108 asserções, 0 falhas
+DO
+ ok  | falhas | detalhe 
+-----+--------+---------
+ 108 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/dominios_login.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ ana@wap.ind.br → aceito (dominio WAP (o de sempre))
+psql:supabase/tests/dominios_login.sql:108: NOTICE:    ✓ profile criado para ana@wap.ind.br (nome = e-mail)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ ANA.MAIUSCULA@WAP.IND.BR → aceito (caixa alta — a checagem e case-insensitive)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:    ✓ profile criado para ANA.MAIUSCULA@WAP.IND.BR (nome = e-mail)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ bruno@stefanini.com → aceito (Stefanini (novo em 22/07/2026))
+psql:supabase/tests/dominios_login.sql:108: NOTICE:    ✓ profile criado para bruno@stefanini.com (nome = e-mail)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ carla@latam.stefanini.com → aceito (Stefanini LATAM (novo em 22/07/2026))
+psql:supabase/tests/dominios_login.sql:108: NOTICE:    ✓ profile criado para carla@latam.stefanini.com (nome = e-mail)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ <null> → recusado (e-mail nulo (cadastro so por telefone))
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ dora@gmail.com → recusado (dominio de fora)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ eva@fake-stefanini.com → recusado (sufixo parecido SEM o @ — nao pode passar)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ gil@stefanini.com.br → recusado (dominio vizinho (.com.br) nao entra)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ ian@latam.stefanini.com.mx → recusado (sufixo alem do dominio nao entra)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ joao@wap.ind.br.exemplo.com → recusado (dominio WAP no meio do endereco nao entra)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ kim@br.stefanini.com → recusado (subdominio nao listado nao entra)
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  ✓ nenhum e-mail recusado deixou profile no banco
+psql:supabase/tests/dominios_login.sql:108: NOTICE:  FIM dominios_login: 16 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/f34_triagem_reserva.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ a devolucao de em_uso -> em_estoque (colaborador e setor limpos, F34)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ b devolucao de emprestado -> em_estoque (F34)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ c devolucao com itens_faltantes: em_estoque E 2 pendencias_item abertas (F34+F18)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ d envio_triagem de em_estoque -> em_triagem (F34, opt-in)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ e1 envio_triagem de em_uso rejeitada: Movimentacao envio_triagem invalida para ativo ZZF34TRI02 no estado em_uso
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ e2 envio_triagem de emprestado rejeitada: Movimentacao envio_triagem invalida para ativo ZZF34TRI03 no estado emprestado
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ e3 envio_triagem de reservado rejeitada: Movimentacao envio_triagem invalida para ativo ZZF34TRI04 no estado reservado
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ e4 envio_triagem de em_triagem rejeitada: Movimentacao envio_triagem invalida para ativo ZZF34TRI05 no estado em_triagem
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ f1 triagem_ok de em_triagem -> em_estoque (continua valendo)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ f2 triagem_ok de em_estoque rejeitada: Movimentacao triagem_ok invalida para ativo ZZF34TRI05 no estado em_estoque
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ g1 reserva de em_estoque -> reservado (Fulano da Silva Ficticio/TI)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ g2 re-reserva: continua reservado, colaborador/setor viram os NOVOS (Ciclano Ficticio/Financeiro)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ g3 as duas reservas ficam registradas na linha do tempo (sem estorno/ajuste)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ h re-reserva sem colaborador (inserida por fora do app): trigger aceita, detentor fica NULO — o app recusa, o banco não
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i1 saida de em_triagem -> em_uso (ninguem fica preso na triagem)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i2 descarte de em_triagem -> descartado
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i3 envio_manutencao de em_triagem -> em_manutencao
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i4 marcar_defasado de em_triagem -> defasado
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ i5 transferencia de em_triagem: continua em_triagem, muda para linhares
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ j1 ajuste para em_estoque (estado sem dono) ZERA o detentor (F36)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  ✓ j2 envio_triagem zera o detentor legado (0109/0110: em_triagem nao tem dono)
+psql:supabase/tests/f34_triagem_reserva.sql:416: NOTICE:  FIM f34_triagem_reserva: 21 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/f36_detentor.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ a1 status_tem_detentor é verdadeiro em exatamente emprestado, em_uso, reservado
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ a2 a função responde sim/não para TODO valor do enum (nenhum nulo)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ b1 ajuste para em_estoque ZERA colaborador e setor (o furo principal da F36)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ c1 ajuste para estado COM dono PRESERVA colaborador e setor
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ d1 retorno_manutencao volta ao estoque SEM o detentor legado
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ e1 marcar_defasado zera o detentor (defasado é estado SEM dono na F36)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ f1 transferencia mantém o estado E o detentor (só a filial muda)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ g1 a devolucao zerou o detentor (precondicao do estorno)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ g2 o estorno DEVOLVE colaborador e setor (D2: desfazer desfaz de verdade)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ h1 reserva continua gravando colaborador e setor do payload
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ h2 emprestimo continua trocando o detentor
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ h3 devolucao zera o detentor E continua abrindo a pendência de item (F18 intacta)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ i1 a leitura as-of de HOJE concorda com o ao vivo (em_estoque, sem dono)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ i2 a leitura as-of ANTES do ajuste continua mostrando o período como ele foi
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ j1 a décima checagem existe e responde (total atual = 0)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ j2 a checagem contou o ativo sujo plantado à mão (0 → 1)
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ j3 uma movimentação qualquer limpa a sujeira e a checagem volta a 0 
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  ✓ k1 forçar para defasado zera o detentor E reporta detentor_zerado = true
+psql:supabase/tests/f36_detentor.sql:404: NOTICE:  FIM f36_detentor: 18 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/f37_colaboradores_tipos.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a1 colaborador_chave('  João   Silva  ') = 'joao silva'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a2 colaborador_chave('JOAO SILVA') = 'joao silva'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a3 colaborador_chave('joão  silva') = 'joao silva'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a4 colaborador_chave('José  Antônio   Peçanha') = 'jose antonio pecanha'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a5 colaborador_chave('Ção Ñandú Ünico') = 'cao nandu unico'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a6 colaborador_chave(E'Maria\tdos\nSantos') = 'maria dos santos'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a7 colaborador_chave(E'\tFulano\r\n') = 'fulano'
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ a8 a coluna GERADA nome_chave devolve o mesmo valor que colaborador_chave() direto ('fulano zzf37a chave')
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ b1 segunda grafia (mesma chave normalizada) recusada pelo índice único (sqlstate 23505)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ c1 nome em branco recusado pelo check colaboradores_nome_nao_vazio (sqlstate 23514)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ d1 movimentacoes grava colaborador (texto) E colaborador_id no mesmo INSERT
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ d2 lancamentos_item grava colaborador (texto) E colaborador_id no mesmo INSERT
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ e1 UPDATE de colaborador_id em movimentacoes recusado pela guarda_acervo (sqlstate 42501)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ e2 UPDATE de colaborador_id em lancamentos_item recusado pela guarda_acervo (sqlstate 42501)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ f1 a view agrupa as 3 grafias na mesma chave (ocorrencias=3, grafias=3, ja_cadastrado=false)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ f2 depois do cadastro a view marca ja_cadastrado=true com colaborador_id correto
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ f3 nome só de tab/CR/NBSP não vira grupo na fila (0 grupos sem pessoa, com as 3 linhas gravadas)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ f4 lista e resumo contam o mesmo número de grupos pendentes (1, e não zero dos dois lados)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g1 tipos_item tem exatamente 7 linhas
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g2 os 7 slugs batem exatamente com o esperado: cabo, carregador, fone, mochila, mouse, mousepad, teclado
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g3 o slug fone exibe o rótulo "Fone de ouvido"
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g4 slug fora do formato ('Fone Maiusculo') recusado pelo check (sqlstate 23514)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ g5 slug duplicado ('carregador') recusado pelo unique (sqlstate 23505)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ h1 itens.tipo_id é anulável — item de catálogo criado sem tipo
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ h2 tipo_id inexistente (32000) recusado pela FK (sqlstate 23503)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  ✓ i1 todo slug de itens_faltantes/pendencias_item.item tem tipo correspondente em tipos_item (0 órfãos)
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  === f37_colaboradores_tipos: 26 asserções OK, 0 falhas ===
+psql:supabase/tests/f37_colaboradores_tipos.sql:459: NOTICE:  FIM f37_colaboradores_tipos: 26 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 26 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/f38_itens_com_ativo.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 0 âncora: a leitura de saldo enxerga as entradas (Total=30, Estoque=30)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1a a RPC gravou 2 movimentações e 2 lançamentos
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1b cada item aponta a movimentação do SEU equipamento (D13)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1c lancamentos_item NÃO tem ativo_id (a verdade mora num lugar só)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1d o lançamento avulso continua nascendo sem vínculo — e assim fica
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 1e a FK de movimentacao_id é IMEDIATA (a RPC insere a movimentação antes)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 2a o lote com uma linha inválida foi recusado (P0001, Movimentacao saida invalida para ativo ZZF38A001 no estado e)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 2b ZERO movimentações e ZERO lançamentos sobraram (mov 2→2, lanc 5→5)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 2c a linha VÁLIDA do lote recusado também não gravou nada
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 3a a trava advisory está no corpo e vem ANTES do primeiro INSERT
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 3b a ordenação determinística dos pares continua no corpo
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 3c os ATIVOS também são travados em ordem, antes do primeiro INSERT
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 3d as travas dos DOIS pares foram tomadas (2 advisory na transação)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 4a Σ com_a_pessoa (2) + sem vínculo (1) = liberados (3) — nenhum número mudou
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 5a retorno acima do que a pessoa tem (2) foi recusado
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 5b retorno DENTRO do saldo da pessoa continua passando
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 6a retorno SEM colaborador_id passa como sempre passou (entrega antiga funciona igual)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 6b o retorno sem vínculo não tirou da conta de ninguém (a de quem tem saldo segue em 1)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 7a a devolução com item faltante abriu a pendência pelo trigger (byte a byte)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 7b recuperado: estoque 28→29 (+1) e Total 30 inalterado
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 7c recuperado: a conta da pessoa baixou 1 (2→1)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 7d a pendência ficou resolvida
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 12a reenviar não re-resolveu (0) nem duplicou lançamento (1 linhas)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 9a reabrir sem os inversos foi RECUSADO — nunca deixa lançamento órfão
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 9b a recusa voltou tudo: a pendência continua resolvida
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 9c reabrir com os inversos funciona, e a pendência volta a aberta
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 9d o inverso aponta o original por estorna_id, uma vez só
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 8a a baixa gravou DOIS lançamentos (retorno + ajuste), não um
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 8b baixa: Total 30→29 (−1) e estoque 27 de volta ao que era
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 8c baixa: a conta da pessoa baixou 1 (1→<NULL>) — o item não fica com ela para sempre
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 10a a pendência guarda o SLUG literal, como sempre guardou
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 10b movimentacoes.itens_faltantes continua com os mesmos slugs
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 10c a ponte tipo→item resolve um único item ativo (o caso que não pergunta nada)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 15a reabrir uma BAIXA funciona mesmo com os inversos na ordem pior (a 0122 reordena)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 15b desfazer a baixa devolveu o Total (29→30) e deixou o estoque onde estava (27)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 15c a pendência da baixa voltou a ABERTA
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 13a estorno sem os inversos dos itens foi RECUSADO — nunca meio estorno
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 13b o estorno devolveu o item à prateleira junto com o equipamento (12→15)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 13c o ativo voltou ao estado anterior (aplicar_movimentacao intocada)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 14 nenhuma das 10 funções intocadas carrega marca da F38 no corpo
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 14a a ÚNICA função recriada (valida_lancamento_item) tem o bloco novo — o teste acima não é vazio
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 14b tipo_lancamento continua com 6 valores — nenhum enum novo
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11 grants de public.criar_movimentacao_com_itens : authenticated sim, anon e service_role não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11 grants de public.resolver_pendencias_item_com_lancamentos : authenticated sim, anon e service_role não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11 grants de public.reabrir_pendencias_item_com_estornos : authenticated sim, anon e service_role não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11 grants de public.estornar_movimentacao_com_itens : authenticated sim, anon e service_role não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11e rel_saldo_colaborador: authenticated sim, anon não
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 11f as cinco funções novas são SECURITY INVOKER
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 16-setup a partição da F41 gravou 1 acerto(s) — há o que medir
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 16 (F41) todo acerto automático nasce AMARRADO (movimentação ou pendência)
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  ✓ 17 (F41) o acerto automático NUNCA carrega vínculo com pessoa
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  === f38_itens_com_ativo: 51 asserções OK, 0 falhas (ROLLBACK — nada gravado) ===
+psql:supabase/tests/f38_itens_com_ativo.sql:1022: NOTICE:  FIM f38_itens_com_ativo: 51 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 51 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/f41_regularizacao.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 0 âncora: item B com total 4 e estoque 3 (1 em uso)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 1 o caso do print GRAVA: 1 linha de acerto, total 1, estoque 1
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 1b as DUAS movimentações do equipamento existem
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 1c o acerto está AMARRADO à movimentação e marcado
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 2 os três números fecham: total +1 (=5), estoque +2 (=5), em uso 0
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 2b gravou `retorno 1` + `ajuste +1` marcado
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 3 a entrega sem saldo grava a saída e regulariza (total 3, estoque 0)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 4 "Item recuperado" funciona sem saldo prévio (total 6, estoque 6)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 5 o estorno desfez as DUAS linhas (total 4, estoque 3)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 5b estorno sem o inverso do acerto é recusado (23514)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 6 o avulso regulariza IGUAL ao checklist (total +2, estoque +2)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 6b avulso é tudo-ou-nada: ZERO linhas sobraram (23514)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 7 o trigger continua recusando retorno acima do aberto (23514)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 7b o trigger continua recusando saída acima do estoque (23514)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 8 toda linha marcada é `ajuste` POSITIVO — a marca não vazou
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 8b todo acerto automático carrega justificativa
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 9 sem justificativa a RPC recusa com a mensagem certa
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 10 a leitura é INCREMENTAL: 1 retorno + 1 acerto no mesmo lote
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 11 item_chave normaliza igual a colaborador_chave (a 0125 se declara espelho)
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 11b nome repetido por caixa/espaço é recusado pela chave
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 12 dev_checagens_integridade tem ONZE blocos
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 12b a checagem `reserva_aberta` está no corpo
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 12c nenhuma reserva em aberto
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 13 as três RPCs da F41 são SECURITY INVOKER
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  ✓ 13b exatamente 4 funções, sem SOBRECARGA
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  === f41_regularizacao: 25 asserções OK, 0 falhas (ROLLBACK — nada gravado) ===
+psql:supabase/tests/f41_regularizacao.sql:755: NOTICE:  FIM f41_regularizacao: 25 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 25 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/fuso_do_negocio.sql ====
+CREATE FUNCTION
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 1. a sessão roda em America/Sao_Paulo (fuso do negócio)
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 2. `alter database set timezone` está gravado no catálogo
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 3. current_date (2026-09-09) = hoje_brt() (2026-09-09)
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 4. date → timestamptz ancora em 00:00 de São Paulo (2026-09-09 00:00:00-03)
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  ✓ 5. public.hoje_brt() existe, sem argumentos e STABLE
+psql:supabase/tests/fuso_do_negocio.sql:102: NOTICE:  FIM fuso_do_negocio: 5 asserções, 0 falhas
+DO
+==== supabase/tests/import_fora_da_unidade.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 1a prefixo_backup_import(1) = "import/filial-1/"
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 1b prefixo_backup_import fechada nos quatro papéis (0 de 4 conferidos)
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 2a backup sem o prefixo da filial recusado pela guarda do PREFIXO (22023): O backup informado não é o backup DESTA filial (esperado sob "import/filial-6/"). Nada foi apagado.
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 2b backup com prefixo mas inexistente recusado (22023): O backup deste import não foi encontrado no armazenamento (import/filial-6/nao-existe.json). Nada foi apagado.
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 2d a mensagem de 2b não contém "backup informado não existe" (não cai no ramo do RESET): O backup deste import não foi encontrado no armazenamento (import/filial-6/nao-existe.json). Nada foi apagado.
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 2c backup com prefixo e existente PASSA (import_validar_plano devolveu 1)
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 3a confirmação errada recusada DENTRO da RPC (22023): A confirmação do import não confere: digite exatamente "F52 Teste A" para substituir o acervo desta filial.
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 3b confirmação "  f52 teste a  " (espaço + caixa trocada) PASSA — a régua é upper(btrim())
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 4a mesmo hash/mesma filial dentro de 24h recusado (22023): Este mesmo arquivo já foi importado nesta filial nas últimas 24 horas. Nada foi apagado — se a reimportação é intencional, aguarde a janela ou corrija o arquivo.
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 4b mesmo hash em OUTRA filial PASSA (a janela de idempotência é por filial)
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 4c mesmo hash/mesma filial fora da janela de 24h (48h atrás) PASSA — reimport legítimo
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 5a sessão de nível administrador PASSA em pode_escrever_filial(32000::smallint), filial inexistente — o par positivo da guarda nova
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 5a-bis o corpo de pode_escrever_filial devolve true para dev/admin ANTES de consultar operador_filiais (posições 473 < 600)
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  ✓ 5a-ter o corpo de importar_ativos_substituir CHAMA pode_escrever_filial
+psql:supabase/tests/import_fora_da_unidade.sql:398: NOTICE:  FIM import_fora_da_unidade: 14 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/import_substituir.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 0a import_validar_plano recusa plano vazio: Plano de import vazio: ao menos 1 ativo é obrigatório.
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 0b import_revalidar_contagens recusa contagem divergente: O estado da filial mudou desde o preview/backup (ativos 0/7, movs 0/0, anotações 0/0, termos 0/0). Gere o preview novamente antes de aplicar.
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 0c import_contar_conflitos = 0 numa filial sem conflito
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 0d import_gravar_trilha devolveu log_id e gravou a linha em import_logs
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 0e as 8 auxiliares do import estão fechadas nos quatro papéis (public, anon, authenticated, service_role)
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 0f import_conferir_resultado acusa estado fora do alvo: Divergência de estado após import: algum ativo (com patrimônio ou tag) não ficou no estado-alvo.
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 0g import_apagar_acervo_filial esvaziou a filial e devolveu as contagens (movs=1, anotações=1, termos=0)
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 0h o par criar+lançar produziu ativo importacao/em_uso com posse e as 2 movimentações marcadas
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 1a retorno ativos_criados = 2
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 1b filial A tem 2 ativos após o import
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 1c ativo sem service tag nasce com pendência "sem service tag" (R-IMP-10)
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 1d ativo com patrimônio + service tag nasce sem pendência
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 1e as 2 compras de abertura têm observação "import startup …" (R-IMP-13, baseline)
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 1e (exemplo) observação da compra = "import startup 09/09/2026"
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 2 contagens NULL rejeitado: Revalidação de contagens obrigatória: gere o preview novamente antes de aplicar (p_contagens ausente ou inválido).
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 3 backup vazio rejeitado pela PRIMEIRA guarda da cascata: Import destrutivo exige backup_path (o acervo da filial deve ser exportado antes).
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 4a filial B tem só o ativo do plano; o pré-existente foi apagado (R-IMP-02)
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 4b ativo do plano presente com origem = importacao
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  ✓ 4c outra filial (A) intacta após substituir B: 2 ativos (R-IMP-03)
+psql:supabase/tests/import_substituir.sql:484: NOTICE:  FIM import_substituir: 19 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/isolamento_tenant.sql ====
+CREATE FUNCTION
+BEGIN
+GRANT
+GRANT
+GRANT
+DO
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 1 o papel do roteiro (postgres) ignora RLS — contar com ele conta o universo REAL
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 2 `authenticated` NÃO ignora RLS — "viu zero linhas" é a policy trabalhando
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 3 `anon` NÃO ignora RLS
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 4 `service_role` ignora RLS (desenho — é a premissa do trigger guarda_acervo da 0081)
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 5 o bloco de grants concedeu LEITURA — sem isso "viu zero" seria permission denied (0 de 3 conferidos)
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 6 o bloco de grants concedeu ESCRITA — recusa por privilégio se disfarça de recusa por policy (0 de 1 conferidos)
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 7 `profiles` recebe UPDATE de COLUNA e não de TABELA (espelho da 0063)
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 8a o universo foi contado como postgres ANTES do ataque (2 linhas na filial não vinculada)
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 8b a operação FALHOU: operador não reescreveu ativo de filial não vinculada (0 de 2 conferidos)
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 8c de volta como postgres, o dado original continua INTACTO (a segunda prova da recusa) (0 de 2 conferidos)
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  ✓ 8d o MESMO operador ESCREVE na filial VINCULADA (1 linha) — o recorte recorta, não tranca tudo
+psql:supabase/tests/isolamento_tenant.sql:425: NOTICE:  FIM isolamento_tenant: 11 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/itens_extra.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  ✓ R-ITE-02: entrada 5 + ajuste −10 (total −5) rejeitado pelo trigger: Ajuste inválido: deixaria o item com total -5 (não pode ficar negativo).
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  ✓ R-ITE-11a: UPDATE como authenticated não alterou a linha (linhas afetadas=-1, quantidade segue 7)
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  ✓ R-ITE-11b: DELETE como authenticated não removeu a linha (linhas afetadas=-1)
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  ✓ R-ITE-22: nome duplicado case-insensitive rejeitado (23505): duplicate key value violates unique constraint "itens_nome_uidx"
+psql:supabase/tests/itens_extra.sql:152: NOTICE:  FIM itens_extra: 4 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/itens_quantidade.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 1: entrada 40 + reserva 12 → total 40, estoque 28, atrelados 12, falta 0
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 2: saída 5 → estoque 28→23, atrelados intacto 12 (saída não consome reserva), total 40
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 3: devolução 3 (ch 1001) → atrelados 12→9, estoque 23→26, total 40
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 4: retorno 2 → liberados 5→3, estoque 26→28, total intacto 40
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 5: entrada 10 + atrelar 8 → estoque 2, atrelados 8, falta 0 (atrelar não acende falta)
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 6: saída 100 (estoque 28) rejeitada (estoque negativo)
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 7: ajuste sem observação rejeitado
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 8: devolução 50 > atrelado aberto (9) do chamado rejeitada
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 9: retorno 50 > liberado em aberto (3) rejeitado
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 10: as-of 06/06 → total 40, estoque 28, atrelados 12 (saídas/devoluções/retornos posteriores ignorados)
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 11: entrada 10 + estorno (ajuste −10 vinculado) → total volta a 40, estoque a 28
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 12a: as-of 12/06 (após saída) → em_uso
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 12b: as-of 30/06 (após estorno) → o par se anula, sobra a compra → em_estoque
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  ✓ 12c: as-of 12/06 segue em_uso (estorno de 20/06 é futuro p/ essa data)
+psql:supabase/tests/itens_quantidade.sql:253: NOTICE:  FIM itens_quantidade: 14 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/manutencao_fornecedor.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 1a envio_manutencao sem chamado do fornecedor rejeitado: new row for relation "movimentacoes" violates check constraint "movimentacoes_chamado_fornecedor_envio"
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 1b envio_manutencao com chamado do fornecedor -> em_manutencao (campo gravado)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2a devolucao_fornecedor -> devolvido_fornecedor
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2b transferencia de devolvido_fornecedor rejeitada
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2c saida de devolvido_fornecedor rejeitada
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2d envio_manutencao de devolvido_fornecedor rejeitado
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2e ajuste tira de devolvido_fornecedor (valvula de escape)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 2f devolucao_fornecedor de em_estoque rejeitada
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 3a estorno da devolucao_fornecedor restaurou em_manutencao
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 3b substituto preservado apos o estorno (imutabilidade)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 4a antigo -> devolvido_fornecedor (via RPC)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 4b substituto nasce em_estoque com substitui_ativo_id -> antigo
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 4c fornecedor do substituto HERDADO do antigo (Proprinter Fic).
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 4d troca do substituto registrada (aparece nas Entradas como "Troca")
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 5a colisao do substituto rejeitada: duplicate key value violates unique constraint "ativos_patrimonio_service_tag_uidx"
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 5b rollback total: a devolucao NAO entrou (antigo segue em_manutencao)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 6 sem substituto: so a devolucao entra (substituto null)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 7a ajuste para em_manutencao (estado sem dono) ZERA o detentor (F36)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  ✓ 7b devolucao_fornecedor zera colaborador/setor (espelho de descartado)
+psql:supabase/tests/manutencao_fornecedor.sql:316: NOTICE:  FIM manutencao_fornecedor: 19 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/maquina_estados.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1a compra -> em_estoque
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1b saida -> em_uso (colaborador setado)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1c devolucao -> em_estoque (colaborador limpo, F34)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1c2 envio_triagem -> em_triagem (F34, opt-in)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 1d triagem_ok -> em_estoque
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 2 saida de em_uso rejeitada: Movimentacao saida invalida para ativo TESTE0000002 no estado em_uso
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 3 estorno da transferencia restaurou status/colaborador/setor/filial
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 4 estorno de mov. antiga rejeitado: So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 4b estorno de saida nao-ultima (saida->transferencia) rejeitado: So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 5a devolucao com itens_faltantes NAO toca ativos.pendencia (F18)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 5b devolucao criou 2 pendencias_item abertas (F18)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 5c triagem_ok preserva o trecho alheio de pendencia (F18, bug §0.1b)
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 6a transferencia mudou filial_id p/ linhares
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  ✓ 6b transferencia aparece nas 2 filiais em v_movimentacoes_mes
+psql:supabase/tests/maquina_estados.sql:260: NOTICE:  FIM maquina_estados: 14 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/papeis_rls.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+GRANT
+GRANT
+DO
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 0a fixture de colaboradores contada como postgres ANTES de 1j/4i (2 linha[s])
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1a papel_atual() = consulta
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1b consulta LÊ ativos (4 linhas)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1b-bis consulta ATIVO lê profiles (5 linhas, sem recursão)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1b-ter consulta ATIVO lê a view v_estoque_atual (4 linhas)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1i consulta ATIVO lê tipos_item (7 linhas)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1j consulta ATIVO lê colaboradores — viu as 2 de 2 plantadas
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1i-bis consulta recusada ao criar colaborador (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1c consulta recusada ao inserir ativo (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1d consulta não atualiza ativo (0 linhas afetadas)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1e consulta recusada ao inserir movimentação (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1f consulta recusada ao lançar item (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1g consulta recusada ao anotar (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 1h consulta recusada ao gerar relatório (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2a pode_escrever_filial: f1=true, f2=false
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2b operador MOVIMENTA na filial vinculada (f1)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2c operador recusado na filial não vinculada (f2, 42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2c-bis filial_id mentido é recusado (42501) — a guarda da 0067 está no ar
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2c-ter o ativo da filial não vinculada NÃO migrou
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2d operador LANÇA item na filial vinculada
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2e operador recusado ao lançar na não vinculada (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2e-bis estorno de item não cruza filial (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2e-ter estorno legítimo na própria filial aceito
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2f operador ATUALIZA ativo da filial vinculada
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2g operador não alcança ativo da filial não vinculada
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2g-bis RPC de compra recusada na filial não vinculada (42501, Sem permissao de escrita na filial 2 (cadastro de compra).)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2g-ter RPC de compra ACEITA na filial vinculada (f1)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2i-bis operador não APAGA termo de filial não vinculada
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2i-bis-2 operador não REESCREVE termo de filial não vinculada
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2i-bis-3 `ativo_ids` mentido é recusado (42501) com `arquivo_path` COERENTE — a ÚNICA barreira restante era `termo_ancora_coerente`, e ela recusou
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2i-bis-4 operador não toca o .docx de termo alheio (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2i-ter operador SOBE o .docx do termo novo (nome sem linha)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2i-ter-2 operador GERA termo na filial vinculada
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2i-ter-3 operador REGERA o termo dele (update do próprio)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2h transferência legítima f1→f2 aceita (destino segue livre)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 2j operador CRIA colaborador (inline no fluxo), inclusive de filial não vinculada
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3a operador recusado ao criar motivo (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3b operador recusado ao criar filial (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3c operador CRIA item de catálogo (inline no fluxo, desde a F41)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3c-quater operador não edita item (0 linhas — a policy de UPDATE é de admin)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3c-quinquies nome repetido por caixa/espaço recusado pela chave (23505)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3c-bis operador recusado ao criar tipo de item (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3c-ter operador não edita colaborador (0 linhas — a policy de UPDATE é de admin)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3d operador NÃO lê senhas_acesso (existe 1 linha, viu 0)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3e operador NÃO lê import_logs (existe 1 linha, viu 0)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3f operador NÃO lê eventos_admin (existe 1 linha, viu 0)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3f-bis operador não forja a trilha do import (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3g operador recusado ao mexer em profiles.papel (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3h operador ainda edita o próprio nome/sobrenome
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 3i RPC de import recusa operador com a mensagem certa
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4a papel_atual() é NULL para perfil desativado
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4b desativado não escreve na filial VINCULADA (f1)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4c desativado recusado ao movimentar (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4d desativado NÃO LÊ ativos (existem linhas, viu 0)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4e desativado NÃO LÊ profiles (a equipe toda)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4f desativado NÃO LISTA os .docx de termo
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4g desativado NÃO LÊ nem pela view v_estoque_atual
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4h desativado NÃO LÊ tipos_item (existem 7 linhas, viu 0)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 4i desativado NÃO LÊ colaboradores (0 de 3 conferidos)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5a e_admin() = true
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5b admin escreve nas duas filiais sem vínculo
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5c admin cria motivo
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5c-bis admin cria tipo de item
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5c-ter admin edita colaborador (1 linha)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5d admin movimenta na filial sem vínculo (f2)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5e admin LÊ eventos_admin (1 linha(s))
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5e-bis admin LÊ import_logs (1 linha(s))
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5f nem o admin lê senhas_acesso por sessão (existe 1 linha, viu 0)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5g nem o admin muda papel por sessão (42501), só o service role
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5h admin alcança termo degenerado (ativo_ids vazio) para limpar
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 5i admin APAGA termo de filial em que não tem vínculo
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 6a consulta recusada ao subir no bucket termos (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 6b consulta não lê o bucket backups-import (existe 1, viu 0)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 6c operador SOBE arquivo no bucket termos
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 6d operador recusado no bucket backups-import (42501)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 6e operador não LISTA backups-import (existe 1, viu 0)
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  ✓ 6f admin LÊ backups-import (1 objeto(s))
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  === papeis_rls: 77 asserções OK, 0 falhas ===
+psql:supabase/tests/papeis_rls.sql:1313: NOTICE:  FIM papeis_rls: 77 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 77 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/pendencias_import_termo.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P1 importado em_uso sem termo NÃO está em v_pendencias
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P2 cadastro em_uso sem termo = "termo pendente" (regra preservada)
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P3 importado c/ pendência livre reclassifica p/ "sem patrimônio físico" (não "termo pendente")
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P4 inferido emprestado sem termo = "termo pendente" (escopo = só importacao)
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  ✓ P5 importado com termo assinado não está em v_pendencias
+psql:supabase/tests/pendencias_import_termo.sql:110: NOTICE:  FIM pendencias_import_termo: 5 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/pendencias_item.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 1a devolução com 2 itens criou 2 abertas
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 1b colaborador da época gravado (Fulano)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 1c os dois itens do array viraram linha
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 1d ativos.pendencia intacto na devolução (não vira "itens faltantes")
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 2 devolução sem item marcado não criou linha
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 3a triagem_ok preservou o trecho alheio de pendencia
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 3b triagem_ok não mexeu nas 2 abertas
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 4 saída p/ novo dono não mexe: 2 abertas ainda apontam Fulano (não Sicrano)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 5a devolução criou 1 linha (pré-estorno)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 5b estorno removeu a linha da devolução
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 6 resolução gravou desfecho/quem/quando (status resolvida, baixa)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 7 import (compra+ajuste marcados) não abriu pendência de item
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  ✓ 8 estorno restaura sem ressuscitar "itens faltantes" (F18 §A2)
+psql:supabase/tests/pendencias_item.sql:203: NOTICE:  FIM pendencias_item: 13 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/reabrir_pendencia_item.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  ✓ 1 operador vinculado RESOLVE a pendência (aberta → resolvida)
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  ✓ 2 operador vinculado NÃO reabre — a linha continua resolvida
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  ✓ 3 operador de OUTRA filial não reabre
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  ✓ 4 nível administrador REABRE (resolvida → aberta)
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  — reabrir_pendencia_item: 4 ok, 0 falha(s)
+psql:supabase/tests/reabrir_pendencia_item.sql:202: NOTICE:  FIM reabrir_pendencia_item: 4 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/seguranca_catalogo.sql ====
+CREATE FUNCTION
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  ✓ 1 public.criar_compra_lote(jsonb, uuid) é authenticated-only (anon e service_role SEM EXECUTE)
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  ✓ 1 public.devolver_ao_fornecedor(uuid, jsonb, jsonb, uuid) é authenticated-only (anon e service_role SEM EXECUTE)
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  ✓ 1 public.importar_ativos_substituir(jsonb, text, jsonb, jsonb) é authenticated-only (anon e service_role SEM EXECUTE)
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  ✓ 2 RLS ligada em todas as tabelas public (nenhuma sem RLS)
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  ✓ 3 todas as views public têm security_invoker=true
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  ✓ 4 aplicar_movimentacao (security_definer=t): EXECUTE revogado de authenticated e anon
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  ✓ 4 handle_new_user (security_definer=t): EXECUTE revogado de authenticated e anon
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  ✓ 4c valida_lancamento_item é SECURITY INVOKER (não é vetor; 0038 revoga só as DEFINER)
+psql:supabase/tests/seguranca_catalogo.sql:203: NOTICE:  FIM seguranca_catalogo: 8 asserções, 0 falhas
+DO
+==== supabase/tests/storage_termo.sql ====
+CREATE FUNCTION
+BEGIN
+GRANT
+GRANT
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 0a a função pode_ler_arquivo_termo existe (0129 aplicada) (0 de 1 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 0b a fixture montou os dois objetos do bucket `termos` (0 de 1 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 0c RLS ligada em storage.objects (sem ela, nenhuma asserção abaixo significa nada) (0 de 1 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 1a admin lê os dois objetos do bucket `termos` (0 de 2 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 1b operador lê os dois objetos do bucket `termos` (0 de 2 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 1c consulta lê os dois objetos do bucket `termos` (a 0066 exige) (0 de 2 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 2a perfil DESATIVADO não lê objeto nenhum do bucket `termos` (0 de 2 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 2b anon não lê objeto nenhum do bucket `termos` (0 de 2 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 3a logado ATIVO: a função devolve true (a regra é a sessão, não o arquivo) (0 de 1 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 3b DESATIVADO: a função devolve false MESMO para objeto existente (nada de coalesce(…, true) aqui) (0 de 1 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 4a a policy de SELECT de `termos` chama pode_ler_arquivo_termo (0 de 1 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 4b a policy continua exigindo bucket_id (não vale para bucket futuro) (0 de 1 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  ✓ 5a anon não executa pode_ler_arquivo_termo (0 de 1 conferidos)
+psql:supabase/tests/storage_termo.sql:306: NOTICE:  FIM storage_termo: 13 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/transferencia_item.sql ====
+CREATE FUNCTION
+BEGIN
+CREATE TABLE
+GRANT
+GRANT
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 0 âncora: a leitura de saldo enxerga as entradas (A=30, B=12)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 1a a RPC devolveu 2 (itens transferidos)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 1b 2 itens viraram 4 linhas (um par por item)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 1c a perna da ORIGEM é −10 e diz "para onde foi"
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 1d a perna do DESTINO é +10 e diz "de onde veio"
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 2a Total consolidado INALTERADO — A: 30→30, B: 12→12
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 2b o estoque mexeu dos dois lados: origem 30→20, destino 0→10
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 2c o caminho "intuitivo" INFLA o Total (30→40) — é isto que a transferência evita
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 3a as 4 travas (2 itens × 2 filiais) estão nas mãos da transação
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 3b as travas são pedidas em ordem (item_id, filial_id) ANTES do primeiro insert
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 4a saldo insuficiente na origem recusa (Ajuste inválido: deixaria o item com total -9979 (não pode ficar negativo).)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 4b nada parcial sobrou (3 linhas antes e depois)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 5 origem = destino recusa (A filial de destino nao pode ser a mesma da origem.)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 6 item repetido recusa (O item 23 aparece duas vezes na transferencia — some as quantidades.)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 7 grants: authenticated sim, anon e service_role não
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 8a operador vinculado só à origem é recusado no destino (Sem permissao de escrita na filial 2 (destino da transferencia).)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 8b a recusa não deixou perna solta (3 linhas antes e depois)
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  ✓ 8c com vínculo nas DUAS filiais, o mesmo operador transfere
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  === transferencia_item: 18 asserções OK, 0 falhas (ROLLBACK — nada gravado) ===
+psql:supabase/tests/transferencia_item.sql:411: NOTICE:  FIM transferencia_item: 18 asserções, 0 falhas
+DO
+ ok | falhas | detalhe 
+----+--------+---------
+ 18 |      0 | 
+(1 row)
+
+ROLLBACK
+==== supabase/tests/transicoes_extra.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1a emprestimo de em_estoque -> emprestado (colaborador setado)
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1b reserva de em_estoque -> reservado
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1c retorno_manutencao de em_manutencao -> em_estoque
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1d marcar_defasado de em_estoque -> defasado
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 1e descarte de em_estoque -> descartado (detentor nulo)
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2a devolucao de em_estoque rejeitada: Movimentacao devolucao invalida para ativo ZZF19INV01 no estado em_estoque
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2b triagem_ok de em_uso rejeitada: Movimentacao triagem_ok invalida para ativo ZZF19INV02 no estado em_uso
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2c reserva de em_uso rejeitada: Movimentacao reserva invalida para ativo ZZF19INV03 no estado em_uso
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2d transferencia de descartado rejeitada: Movimentacao transferencia invalida para ativo ZZF19INV04 no estado descartado
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2e.1 segunda compra de em_estoque e auto-laço ACEITO (permanece em_estoque)
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 2e.2 segunda compra sobre em_uso rejeitada: Movimentacao compra invalida para ativo ZZF19INV05 no estado em_uso
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 3 estorno-de-estorno negado (R-ME-19): Esta movimentacao nao pode ser estornada
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  ✓ 4 ajuste sem observacao rejeitado (R-ME-20): Ajuste exige status_resultante e observacao (justificativa)
+psql:supabase/tests/transicoes_extra.sql:286: NOTICE:  FIM transicoes_extra: 13 asserções, 0 falhas
+DO
+ROLLBACK
+==== supabase/tests/troca.sql ====
+CREATE FUNCTION
+BEGIN
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 1a substituto nasce por movimentação `troca` (não `compra`) — via RPC
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 1b substituto (nascido por troca) fica em_estoque
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 1c o substituto NÃO tem movimentação `compra` (só a `troca`)
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 2a troca no nascimento (em_estoque -> em_estoque)
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 2b troca fora do nascimento (de em_uso) rejeitada
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 3 estorno da troca restaura o snapshot (em_estoque) sem apagar o ativo
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 4a com patrimônio e com ST -> sem pendência (null)
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 4b com patrimônio, sem ST -> 'sem service tag'
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 4c sem patrimônio E sem ST -> 'sem patrimônio físico; sem service tag'
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 4d sem patrimônio, com ST -> 'sem patrimônio físico'
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 5a import com patrimônio E service tag -> sem pendência
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 5b import com patrimônio, sem ST -> 'sem service tag'
+psql:supabase/tests/troca.sql:236: NOTICE:  ✓ 5c import sem patrimônio E sem ST -> 'sem patrimônio físico; sem service tag'
+psql:supabase/tests/troca.sql:236: NOTICE:  FIM troca: 13 asserções, 0 falhas
+DO
+ROLLBACK
+
+==== RESUMO ====
+  ✓ asof_desempate — 18 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 58 asserções
+  ✓ catalogo_policies — 15 asserções
+  ✓ catalogo_secdef — 9 asserções
+  ✓ conflito_filiais — 43 asserções
+  ✓ definer_sem_tenant — 6 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 25 asserções
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_fora_da_unidade — 14 asserções
+  ✓ import_substituir — 19 asserções
+  ✓ isolamento_tenant — 11 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ papeis_rls — 77 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 13 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ storage_termo — 13 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  31 roteiro(s), 685 asserções no total
