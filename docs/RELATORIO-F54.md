@@ -430,9 +430,9 @@ está num comentário.
 | 20 | `db:lock` no mesmo commit da migration; `migrations.lock.json` no diff | ✅ | duas vezes (`0136` e `0137`) |
 | 21 | `0136` aplicada em **ensaio primeiro**, depois produção, com verificação pós-apply | ✅ | §7 deste relatório |
 | 22 | `database.ts` atualizado (ou hand-fix datado com a pendência declarada) | ✅ | **não mudou, e é correto** — a `0136` recria corpo, não assinatura; a regeneração foi tentada e revertida, com ata |
-| 23 | versão `1.59.0`, CHANGELOG, registry em linguagem de operador, tag anotada | ⚠ **parcial ao escrever** | versão, CHANGELOG e registry ✅; a **tag** só existe depois do merge — ver §14 |
+| 23 | versão `1.59.0`, CHANGELOG, registry em linguagem de operador, tag anotada | ✅ | tag `v1.59.0` publicada depois do merge — §15 |
 | 24 | a ORDEM DE ROLLBACK no cabeçalho da `0136`, ensaiada | ⚠ **parcial** | escrita nas duas migrations; **não** ensaiada em `begin; … rollback;` — ver §13 |
-| 25 | PR mergeado com os dois checks verdes; deploy; smoke | — | ao fim desta run |
+| 25 | PR mergeado com os dois checks verdes; deploy; smoke | ✅ | §15 — 108 OK, 1 aviso pré-existente, 0 falha |
 | 26 | tamanho real do bucket medido e o custo projetado no relatório | ✅ | §2 |
 | 27 | `RELATORIO-F54.md` com evidências reais, divergências e "o que NÃO prova" | ✅ | este arquivo |
 | 28 | nada fora do escopo tocado | ⚠ **um desvio, registrado** | a fila `0131`→`0132` no **ensaio** — §8. Produção intacta; as cinco RPCs, as policies de Storage e o `correcoes` não foram tocados |
@@ -539,3 +539,41 @@ guarda no-op nas duas metades; as duas armadilhas da ata da F53; a ausência de 
 as dependências da `0136`; o diff de inserção pura; **nenhum dado real** em evidência, teste ou
 fixture; e o escopo — nenhuma das cinco RPCs recriada, a fila `0131`/`0132` intocada **no repositório**,
 policies de Storage intactas, `import_logs.correcoes` intacto.
+
+---
+
+## 15. O fechamento
+
+| passo | resultado |
+|---|---|
+| PR [#37](https://github.com/vmatusita/ti-wap-inventory-control/pull/37) | **mergeado** — `MERGEABLE / CLEAN`, 22 commits, 48 arquivos |
+| `banco-sem-docker` | **pass** (1m54s) — 32 roteiros, 706 asserções, 63/63 mutações |
+| `verificar` | **pass** (4m39s) — lint, 4.335 testes, contraste, build, gate de artefato |
+| tag anotada `v1.59.0` | **publicada** |
+| deploy | **Vercel success** na `main` |
+| smoke pós-deploy | **108 OK · 1 aviso · 0 falha** |
+
+**O aviso do smoke é pré-existente e não é desta fase:** `kits_modelos · anon NÃO lê (RLS) — anon leu
+0 linhas, mas não há kit cadastrado — RLS não comprovada`. É a própria ferramenta recusando-se a
+afirmar sobre conjunto vazio — a mesma doutrina do `assert_zero_de`.
+
+⚠ **O que o smoke NÃO exercita, e é quase tudo desta fase:** ele não roda o import (destrutivo, só na
+janela de go-live de uma filial), não roda o reset (que nunca rodou em produção), não abre a mesa de
+conflitos (exige um conflito aberto) e não chama `dev_checagens_integridade` (exige o cargo dev). Ele
+prova que a aplicação **no ar** continua respondendo e que as leituras reais funcionam com uma sessão
+de operador de verdade — nada além disso.
+
+### Produção, no fechamento
+
+| | |
+|---|---|
+| checagens de integridade | **12** |
+| verbo `import_falhou` no vocabulário do banco | presente |
+| fila `0131`→`0132` | **PENDENTE**, como a ordem exige |
+| acervo | ativos=1621, mov=3507, termos=93, import_logs=12 |
+| buckets | `termos`=96, `backups-import`=22 |
+
+⚠ **O acervo cresceu durante a fase** — +1 ativo, +4 movimentações, +2 termos, +2 objetos no bucket —
+e isso é **operação normal**: o sistema está em uso diário. A afirmação de §7 ("contagens antes =
+depois") vale para o instante do apply, que é quando ela foi medida e onde ela importa: a migration
+não tocou dado. Estes números são outro instante, e crescer é o que se espera deles.
