@@ -95,10 +95,13 @@ produzido a conclusão errada. Evidência completa em `docs/f54-evidencias/02`.
 | mutações ATIVAS | 58 | **63** (teto 59 → 64) |
 | mutações em QUARENTENA | 3 | **2** |
 
-**A execução verde do `banco-sem-docker`** (run 34378647343, 1m49s): **32 roteiros, 706 asserções,
-zero falhas**, e o injetor com **63/63 detectadas pelo cenário NOMEADO** — as cinco que a F54
-acrescentou (quatro novas + a promovida da quarentena) incluídas. Saída em `docs/f54-evidencias/15`.
 | migrations | 135 | **137** (`0029` é gap real) |
+| asserções SQL no total | 685 | **706** |
+
+**A execução verde do `banco-sem-docker`** (run 34378647343, commit `63f4834`, 1m49s): **32 roteiros,
+706 asserções, zero falhas**, e o injetor com **63/63 detectadas pelo cenário NOMEADO** — as cinco que
+a F54 acrescentou (quatro novas + a promovida da quarentena) incluídas, cada uma acusada pelo rótulo
+que ela nomeia. Saída completa em `docs/f54-evidencias/15`.
 
 ---
 
