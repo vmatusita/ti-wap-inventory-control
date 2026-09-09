@@ -61,6 +61,22 @@ const RAIZ_SRC = join(process.cwd(), 'src')
 const RE_REMOVE = /\.from\(\s*'([a-z-]+)'\s*\)\s*\.remove\(/g
 
 /**
+ * TODA chamada `.remove(` sobre um `.from(...)`, com o bucket em literal **ou em
+ * variável**.
+ *
+ * ⚠ ELA EXISTE PORQUE A DE CIMA TEM UM PONTO CEGO, e a revisão adversarial o
+ * demonstrou: `const bucket = BUCKET_TERMOS; await client.storage.from(bucket).remove(x)`
+ * passava VERDE, apesar de o cabeçalho desta suíte afirmar que o universo é "TODA
+ * chamada". Uma trava que declara um universo maior do que consegue enxergar é pior que
+ * uma que declara o universo certo: ela dá a sensação de cobertura que não tem.
+ *
+ * A régua nova: o bucket em VARIÁVEL é proibido nos caminhos que apagam artefato — não
+ * porque seja feio, mas porque torna o universo inauditável por leitura do fonte. Quem
+ * precisar de bucket dinâmico terá de mudar esta trava junto, de propósito.
+ */
+const RE_REMOVE_QUALQUER = /\.from\(\s*[^)]*\)\s*\.remove\(/g
+
+/**
  * O texto do argumento do `remove(`, lido por BALANCEAMENTO DE PARÊNTESES a partir do
  * `(` de abertura.
  *
@@ -210,6 +226,27 @@ describe('1. o universo de remoções de Storage está inteiro e classificado', 
     expect(sitiosDeRemocao().length).toBeGreaterThan(0)
   })
 
+  it('nenhum `.remove(` usa bucket em VARIÁVEL — senão o universo fica inauditável', () => {
+    // O ponto cego que a revisão adversarial mediu: `from(bucket).remove(x)` escapava
+    // da varredura por literal, e a trava ficava verde sobre uma remoção que ela nem
+    // enxergava. Aqui as duas contagens têm de bater — toda remoção que EXISTE é uma
+    // remoção que a classificação CONSEGUE ver.
+    let comLiteral = 0
+    let qualquer = 0
+    for (const abs of varrer(RAIZ_SRC)) {
+      const bruto = readFileSync(abs, 'utf8')
+      if (!bruto.includes('.remove(')) continue
+      const fonte = limpar(bruto, false)
+      comLiteral += [...fonte.matchAll(RE_REMOVE)].length
+      qualquer += [...fonte.matchAll(RE_REMOVE_QUALQUER)].length
+    }
+    expect(qualquer).toBeGreaterThan(0)
+    expect(
+      comLiteral,
+      'há `.remove(` cujo bucket não é um literal — a classificação abaixo não o enxerga, e o universo que esta suíte declara vigiar deixou de ser o universo que ela vê',
+    ).toBe(qualquer)
+  })
+
   it('classifica EXATAMENTE as remoções que existem no fonte', () => {
     // A SIMETRIA, no molde do `import-uma-porta.test.ts`:
     //   · remoção nova que ninguém classificou   → sobra na direita, reprova;
@@ -265,10 +302,22 @@ describe('2. quem é `copia-antes` copia o MESMO conjunto, antes de remover', ()
         `${chave}: \`${c.listaConfirmada}\` não vem de \`await ${NOME_COPIA}(…)\` — a cópia sumiu, ou a lista removida passou a ter outra origem`,
       ).toBe(true)
 
-      const reDescende = new RegExp(`\\b${s.argumento}\\b\\s*=\\s*${c.listaConfirmada}\\b`)
+      // ⚠ A EXPRESSÃO INTEIRA, e não o prefixo dela. A primeira versão casava
+      // `\b<arg>\b\s*=\s*copiados\b` — um PREFIXO —, e a revisão adversarial passou com
+      // `const loteRemocao = copiados.concat(falharam).slice(…)`: a união com a lista
+      // que FALHOU casava, e a trava ficava verde apagando exatamente o `.docx` sem
+      // cópia. Agora o lado direito é lido INTEIRO (até o fim da linha) e comparado
+      // contra as formas autorizadas — qualquer outra coisa reprova, inclusive as que
+      // ninguém pensou em proibir.
+      const mAtrib = new RegExp(`\\b${s.argumento}\\b\\s*=\\s*([^\\n]+)`).exec(s.fonte)
+      const direita = (mAtrib?.[1] ?? '').trim().replace(/;$/, '')
+      const AUTORIZADAS = [
+        c.listaConfirmada,
+        `${c.listaConfirmada}.slice(i, i + LOTE_REMOCAO)`,
+      ]
       expect(
-        s.argumento === c.listaConfirmada || reDescende.test(s.fonte),
-        `${chave}: o \`remove(${s.argumento})\` não descende de \`${c.listaConfirmada}\` — a remoção está sobre um conjunto que a cópia não confirmou`,
+        s.argumento === c.listaConfirmada || AUTORIZADAS.includes(direita),
+        `${chave}: o \`remove(${s.argumento})\` recebe \`${direita}\`, que não é uma das formas autorizadas (${AUTORIZADAS.join(' | ')}). Qualquer união, concatenação ou filtro sobre \`${c.listaConfirmada}\` pode reintroduzir caminho que a cópia NÃO confirmou.`,
       ).toBe(true)
 
       // (3) E o negativo explícito: a remoção NÃO pode ser da lista de ENTRADA, que inclui

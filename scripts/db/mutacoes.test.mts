@@ -80,9 +80,11 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // que vigia a PREMISSA da Decisão 7 — é porque o trigger insere pendência que
     // restaurar com ele ligado duplica a linha do backup; se isso mudar, o desenho do
     // restaurador precisa ser reavaliado, e quem tem de descobrir é o injetor.
-    // 58 + 4 = 62, teto 64 (duas de folga — a mesma régua de folga da F52 e da F53,
-    // porque teto colado no número de hoje força outra decisão na semana seguinte, que
-    // é como um teto vira ritual).
+    // 58 + 4 novas + 1 PROMOVIDA da quarentena = 63, teto 64 (uma de folga — a mesma
+    // régua da F52 e da F53, porque teto colado no número de hoje força outra decisão na
+    // semana seguinte, que é como um teto vira ritual). A promovida é
+    // , que a F52 reapontou para a F54
+    // com o cenário escrito — e que esta fase adotou em vez de reapontar de novo.
     //
     // A régua de DESENHO continua sendo a de baixo (quarentena abaixo de um terço) e o
     // injetor rodando INCONDICIONALMENTE no `banco-sem-docker`.

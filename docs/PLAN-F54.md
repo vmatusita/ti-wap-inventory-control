@@ -309,7 +309,7 @@ coluna `metadata`**, e um predicado que a usasse morreria no `banco-sem-docker`.
 ## 6. As provas de prefixo, rodadas (critério 4)
 
 O SQL das duas conferências, contra um caminho de cópia de exemplo, está em
-`docs/f54-evidencias/04-conferencias-de-prefixo.md`.
+`docs/f54-evidencias/13-conferencias-de-prefixo.md`.
 
 O predicado da checagem 12 foi rodado **contra produção** e devolveu **exatamente os 10 órfãos
 reais**, nominalmente, com 73 raízes derivadas e 12 caminhos registrados.

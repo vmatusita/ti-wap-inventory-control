@@ -59,7 +59,9 @@
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 // -----------------------------------------------------------------------------
 // A GUARDA — por IDENTIDADE, nunca por consistência
@@ -123,15 +125,37 @@ export function exigirNaoProducao(refs) {
 // -----------------------------------------------------------------------------
 // psql — o mesmo caminho que `run-mutation-tests.mjs` e `rodar-roteiros.sh` usam
 // -----------------------------------------------------------------------------
+/**
+ * Roda SQL por `psql`, passando-o num ARQUIVO (`-f`) e nunca num argumento (`-c`).
+ *
+ * ⚠ `-c` NÃO SERVE AQUI, e o motivo é um teto do sistema operacional, não de estilo.
+ * O SQL de uma restauração é um INSERT com todas as linhas do backup: medido em
+ * produção, `movimentacoes` soma **2,85 MB** e `ativos` **1,17 MB**. O limite por
+ * argumento é 128 KiB no Linux (`MAX_ARG_STRLEN`) e menor ainda no Windows —
+ * reproduzido nesta mesa: 30.000 caracteres passam, 40.000 dão `ENAMETOOLONG`. Com
+ * `-c`, o script só aplicaria backups de umas trinta linhas, e falharia em qualquer
+ * um de verdade — sem que nada no caminho feliz denunciasse.
+ * (Achado da revisão adversarial, reproduzido antes de corrigir.)
+ */
 function psql(url, sql, { silencioso = false } = {}) {
-  const r = spawnSync('psql', ['-v', 'ON_ERROR_STOP=1', '-q', url, '-c', sql], {
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })
-  if (r.status !== 0 && !silencioso) {
-    throw new Error(`psql falhou:\n${r.stderr || r.stdout}`)
+  const arquivo = join(tmpdir(), `restaurar-${process.pid}-${sql.length}.sql`)
+  writeFileSync(arquivo, sql, 'utf8')
+  try {
+    const r = spawnSync('psql', ['-v', 'ON_ERROR_STOP=1', '-q', url, '-f', arquivo], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    })
+    if (r.status !== 0 && !silencioso) {
+      throw new Error(`psql falhou:\n${r.stderr || r.stdout}`)
+    }
+    return r
+  } finally {
+    try {
+      unlinkSync(arquivo)
+    } catch {
+      /* o arquivo é temporário: não conseguir apagá-lo não invalida a restauração */
+    }
   }
-  return r
 }
 
 function psqlValor(url, sql) {
@@ -183,6 +207,14 @@ function literal(v) {
   if (typeof v === 'number') return String(v)
   if (typeof v === 'boolean') return v ? 'true' : 'false'
   if (Array.isArray(v)) {
+    // ⚠ ARRAY VAZIO NÃO PODE VIRAR `array[]` — o Postgres recusa com
+    // `42P18: cannot determine type of empty array`, e a transação inteira morre.
+    // Não é hipótese: produção tem **73** movimentações com `itens_faltantes = '{}'`,
+    // então qualquer backup que contenha uma delas abortava a restauração.
+    // O literal `'{}'` não tem esse problema: no contexto de um INSERT o Postgres o
+    // converte para o tipo da COLUNA, que é justamente o que se quer aqui.
+    // (Achado da revisão adversarial, reproduzido antes de corrigir.)
+    if (v.length === 0) return `'{}'`
     return `array[${v.map((x) => literal(x)).join(',')}]`
   }
   if (typeof v === 'object') return `${literal(JSON.stringify(v))}::jsonb`
@@ -220,6 +252,16 @@ function montarTransacao(backup, caminho) {
   partes.push('set constraints all immediate;')
   // Armadilha 3.
   partes.push('alter table public.movimentacoes disable trigger trg_aplicar_movimentacao;')
+  // ⚠ SÃO DOIS GATILHOS VIVOS, NÃO UM — e a Decisão 7 tratou o problema como se fosse
+  // um só. `lancamentos_item` está na ORDEM_DE_INSERCAO e tem
+  // `trg_valida_lancamento_item` (BEFORE INSERT ROW), que levanta `check_violation` em
+  // "Estoque insuficiente" e nos dois irmãos. Num INSERT multi-linha o BEFORE ROW NÃO
+  // enxerga as linhas anteriores do MESMO comando: toda saída/retorno/liberação do
+  // backup seria validada contra o estado ANTERIOR à restauração, e o backup do reset
+  // de itens — o único que contém `lancamentos_item`, e cujo cabeçalho a Decisão 4
+  // acabou de completar — seria irrestaurável por construção.
+  // (Achado da revisão adversarial.)
+  partes.push('alter table public.lancamentos_item disable trigger trg_valida_lancamento_item;')
   // A janela: o backup PODE conter linhas com `forcado = true`, que `guarda_acervo`
   // recusaria fora dela (0079/0081).
   partes.push("select set_config('estoque.dev_destrutivo','on',true);")
@@ -230,6 +272,7 @@ function montarTransacao(backup, caminho) {
   }
 
   partes.push("select set_config('estoque.dev_destrutivo','off',true);")
+  partes.push('alter table public.lancamentos_item enable trigger trg_valida_lancamento_item;')
   partes.push('alter table public.movimentacoes enable trigger trg_aplicar_movimentacao;')
   // Armadilha 4, segunda metade: devolve o modo que o caminho normal de escrita exige.
   partes.push('set constraints all deferred;')

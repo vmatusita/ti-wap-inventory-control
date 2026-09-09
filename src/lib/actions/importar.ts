@@ -72,6 +72,23 @@ import {
 // `@/lib/import/limites`, compartilhada com o wizard).
 
 /**
+ * Os SQLSTATE em que a RPC do import RECUSOU — isto é, em que se sabe que ela **não**
+ * commitou. Só eles autorizam descartar o backup que subiu antes dela.
+ *
+ * ⚠ A LISTA É FECHADA DE PROPÓSITO, e a régua é "sei que não commitou", não "deu erro":
+ *   · `P0001` — os `raise exception` da própria RPC (confirmação, contagens, guardas);
+ *   · `22023` — parâmetro inválido, a família que as guardas de backup/confirmação usam;
+ *   · `42501` — recusa de permissão (`e_admin()` por dentro);
+ *   · `57014` — `statement_timeout`: o servidor abortou a transação, então nada entrou.
+ *
+ * Erro de REDE ou de gateway (504 do edge, conexão derrubada) chega aqui **sem código**
+ * ou com código de outra família — e nesses a RPC pode ter commitado do outro lado.
+ * Na dúvida o backup FICA: um órfão a mais no bucket custa a 12ª checagem contá-lo;
+ * um backup descartado por engano custa a única cópia do que sumiu.
+ */
+const RECUSAS_DA_RPC = new Set(['P0001', '22023', '42501', '57014'])
+
+/**
  * A mensagem que o operador vê quando a LEITURA do arquivo falha. `ErroArquivoImport`
  * é o erro que o leitor escreve para ele — teto de linhas/colunas estourado, com o
  * número e o limite — e passa inteiro. Qualquer outra exceção (zip corrompido, falha
@@ -513,7 +530,25 @@ export async function aplicarImport(input: {
     // Client de SESSÃO, como todo o resto deste módulo (o cabeçalho proíbe service role).
     // A policy de DELETE do bucket `backups-import` é `e_admin()`, e quem chegou aqui já
     // passou por `exigirAdmin` — conferido na 0066, não suposto.
-    await descartarBackupNaoUsado(client, backupPath)
+    //
+    // ⚠⚠ E SÓ QUANDO A RPC RECUSOU DE VERDADE, não a qualquer erro. `error` do
+    // supabase-js cobre também falha de REDE e de gateway (504 do edge, conexão
+    // derrubada) — e nesses casos a RPC pode ter COMMITADO do outro lado. Descartar ali
+    // apagaria a única cópia do que sumiu, que é exatamente o defeito que o parágrafo
+    // acima diz existir para evitar. Por isso o descarte é gateado pelos SQLSTATE de
+    // RECUSA: os `raise` da própria RPC (`P0001`), a violação de regra que ela levanta
+    // (`22023`), a falta de permissão (`42501`) e o timeout de statement (`57014`, em
+    // que a transação é abortada pelo servidor). Erro sem código, ou com código de
+    // outra família, NÃO descarta — na dúvida, o backup fica.
+    // (Achado da revisão adversarial: o gatilho era `if (error)`, sem filtrar.)
+    if (RECUSAS_DA_RPC.has(error.code ?? '')) {
+      await descartarBackupNaoUsado(client, backupPath)
+    } else {
+      console.error(
+        '[importar] a RPC falhou com código inesperado — o backup NÃO foi descartado, porque não dá para saber se ela chegou a commitar',
+        { code: error.code, backupPath },
+      )
+    }
 
     // A trilha do fracasso. `import_executado` só é gravado quando dá certo, então até aqui
     // um import recusado não deixava rastro NENHUM na aba Auditoria — só uma linha no log do

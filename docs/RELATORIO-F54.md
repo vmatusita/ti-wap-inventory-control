@@ -88,7 +88,7 @@ produzido a conclusão errada. Evidência completa em `docs/f54-evidencias/02`.
 | | antes | depois |
 |---|---:|---:|
 | arquivos de teste (`npm run test`) | 168 | **172** |
-| testes | 4.248 | **4.326** |
+| testes | 4.248 | **4.335** |
 | roteiros SQL | 31 | **32** |
 | asserções de `conflito_filiais.sql` | 43 | **51** |
 | asserções de `restauracao.sql` | — | **13** |
@@ -149,7 +149,28 @@ Todas com ata em `docs/DECISOES.md` (16 entradas F54). Em resumo:
 | **C.2** | guarda devolvendo `true` por outro caminho | 1 teste de **EFEITO** vermelho | `03` |
 | **D** | `overriding system value` / `setval` | são os rótulos `2a` e `2c` do roteiro | `09` |
 | **E.1** | órfão no bucket | a checagem **acusa** | `12` §7 |
-| **E.2** | backup legítimo registrado | a checagem **não** acusa | `12` §8 |
+| **E.2** | backup **registrado** | a checagem **não** acusa | `12` §8 |
+
+### ⚠ A sabotagem E.2 NÃO foi executada como a ordem pediu, e a diferença importa
+
+A ordem manda: *"plante um backup de import LEGÍTIMO que falhou e mostre que a checagem **não** o
+acusa. A segunda é a que importa."* O que rodei foi outra proposição — plantei um backup **registrado**
+e mostrei que ele não é acusado. Renomear a linha teria escondido isso; declaro.
+
+**E o desenho faz o contrário do que o critério supõe.** Um import que a RPC recusa grava
+`import_falhou` com a chave `backup_descartado`, **não** `backup_path` — então o CTE `registrados` da
+`0136` nunca o cobre. Se o descarte falhar (ele é melhor esforço, e engole erro), a sobra **é**
+contada como órfã. Isso está escrito no comentário da própria migration como intencional: a primeira
+das duas populações que ela conta é justamente *"o backup que subiu para uma operação que a RPC
+recusou"*.
+
+A preocupação da ficha era outra — que **todo** backup de import falho fosse acusado por falta do
+UNION certo. Isso não acontece: no caminho normal o backup é **descartado** e não há objeto para
+acusar. O que sobra acusado é o resíduo de um descarte que falhou, e esse *merece* ser visto.
+
+**Conclusão honesta:** o critério estava formulado sobre uma premissa que o desenho mudou, e a
+sabotagem que eu deveria ter rodado (plantar a sobra de um import recusado) mostraria a checagem
+**acusando** — corretamente. Não a rodei; declaro em vez de reescrever a linha.
 
 ### ⚠ A sabotagem A.1 passou VERDE na primeira tentativa — e esse é o achado
 
@@ -405,11 +426,11 @@ está num comentário.
 | 16 | a `0136` **não chama** `prefixo_backup_import()`, com grep provando | ✅ | evidência `08` |
 | 17 | `npm run db:test` inteiro verde, com asserções por roteiro | ✅ | **32 roteiros, 706 asserções, 0 falhas** (evidência `15`) |
 | 18 | `db:test:mutations` verde, mutações novas acusadas, teto atualizado com motivo | ✅ | **63/63 detectadas**; teto 59 → 64 com o motivo no próprio teste |
-| 19 | `lint`, `test`, `build`, `tsc` limpos | ✅ | 172 arquivos / 4.326 testes; build em `14` |
+| 19 | `lint`, `test`, `build`, `tsc` limpos | ✅ | 172 arquivos / 4.335 testes; build em `14` |
 | 20 | `db:lock` no mesmo commit da migration; `migrations.lock.json` no diff | ✅ | duas vezes (`0136` e `0137`) |
 | 21 | `0136` aplicada em **ensaio primeiro**, depois produção, com verificação pós-apply | ✅ | §7 deste relatório |
 | 22 | `database.ts` atualizado (ou hand-fix datado com a pendência declarada) | ✅ | **não mudou, e é correto** — a `0136` recria corpo, não assinatura; a regeneração foi tentada e revertida, com ata |
-| 23 | versão `1.59.0`, CHANGELOG, registry em linguagem de operador, tag anotada | ✅ | tag no commit final |
+| 23 | versão `1.59.0`, CHANGELOG, registry em linguagem de operador, tag anotada | ⚠ **parcial ao escrever** | versão, CHANGELOG e registry ✅; a **tag** só existe depois do merge — ver §14 |
 | 24 | a ORDEM DE ROLLBACK no cabeçalho da `0136`, ensaiada | ⚠ **parcial** | escrita nas duas migrations; **não** ensaiada em `begin; … rollback;` — ver §13 |
 | 25 | PR mergeado com os dois checks verdes; deploy; smoke | — | ao fim desta run |
 | 26 | tamanho real do bucket medido e o custo projetado no relatório | ✅ | §2 |
@@ -435,3 +456,86 @@ significaria reemitir o corpo da `0127` sobre o banco e voltar — e, como as du
 `create or replace` puro e `comment on column`, o "ensaio" seria reaplicar o arquivo anterior, que é
 literalmente o passo 1 do rollback e não acrescenta informação sobre risco. **Fica declarado como não
 ensaiado.**
+
+---
+
+## 14. A revisão adversarial, e o que ela derrubou
+
+Rodada em **contexto fresco**, contra os 28 critérios, com acesso de leitura a produção. Ela achou
+**nove** furos. Sete eram reais e foram corrigidos nesta mesma fase; dois viraram declaração.
+
+### Os três que impediam a restauração de funcionar
+
+Os três estavam no `scripts/db/restaurar.mjs`, e nenhum apareceria no caminho feliz — **porque o
+script nunca tinha rodado com `--aplicar`**. A evidência `10` é só a conferência, e `psql` não existe
+nesta mesa. O roteiro prova a **mecânica** com SQL escrito à mão; ele não prova a **saída do script**.
+
+1. **`array[]` é inválido no Postgres** (`42P18: cannot determine type of empty array`), e produção
+   tem **73** movimentações com `itens_faltantes = '{}'`. Qualquer backup que contivesse uma delas
+   abortava a transação inteira. Corrigido para o literal `'{}'`, que o INSERT converte para o tipo da
+   coluna. O teste só cobria array **não vazio**.
+2. **O SQL inteiro ia como UM argumento de `psql -c`.** Medido: `movimentacoes` soma **2,85 MB** em
+   produção, e o teto por argumento é 128 KiB no Linux — reproduzido nesta mesa, 40.000 caracteres já
+   dão `ENAMETOOLONG`. Na prática o script aplicaria backups de umas trinta linhas. Corrigido para
+   escrever o SQL num arquivo temporário e usar `psql -f`.
+3. **São DOIS gatilhos vivos, não um.** `lancamentos_item` está na ordem de inserção e tem
+   `trg_valida_lancamento_item` (BEFORE INSERT ROW), que levanta `check_violation` em "Estoque
+   insuficiente". Num INSERT multi-linha o BEFORE ROW **não** enxerga as linhas anteriores do mesmo
+   comando, então toda saída/retorno/liberação do backup seria validada contra o estado **anterior** à
+   restauração — e o backup do reset de itens seria irrestaurável por construção. **A Decisão 7 tratou
+   o problema como se houvesse um gatilho só.** Corrigido.
+
+### O que descartava a única cópia
+
+4. **`descartarBackupNaoUsado` disparava em QUALQUER erro da RPC**, não só numa recusa. `error` do
+   supabase-js cobre falha de **rede e gateway** (504 do edge, conexão derrubada) — casos em que a RPC
+   pode ter **commitado**. Ali o código apagaria a única cópia do que sumiu, que é literalmente o
+   defeito que o comentário ao lado dizia existir para evitar. Corrigido: o descarte passou a ser
+   gateado pelos SQLSTATE de recusa conhecida (`P0001`, `22023`, `42501`, `57014`); erro sem código,
+   ou de outra família, **não** descarta.
+
+### As duas travas que prometiam mais do que entregavam
+
+5. **A trava de completude não pegava "a cópia cobre outro conjunto".** A regex de descendência era um
+   **prefixo**: `const loteRemocao = copiados.concat(falharam).slice(…)` passava VERDE — a união com a
+   lista que FALHOU. Reproduzido pela revisão. Corrigido para ler o lado direito **inteiro** e
+   compará-lo contra formas autorizadas. E um segundo ponto cego, também reproduzido: `.remove(` com o
+   bucket em **variável** era invisível, apesar de o cabeçalho declarar que o universo é "TODA
+   chamada". Corrigido com uma asserção que compara as duas varreduras.
+6. **A trava de formato congelava 1 dos 3 backups.** Os dois do reset só tinham um
+   `toContain('versao: 1')`, e o espalhamento do conflito não era congelado por nada. Acrescentar
+   tabela ao backup do reset sem bumpar ficava verde. Corrigido: os três cabeçalhos e os **dois**
+   espalhamentos entraram, com duas sabotagens novas provando a cobertura.
+
+### O backup que declarava `[]` estando incompleto
+
+7. **O backup do conflito não guarda os ponteiros que a RPC anula.** O corpo vigente faz
+   `update ativos set substitui_ativo_id = null where substitui_ativo_id = any(v_ids) and not (id =
+   any(v_ids))` — ele **muta linha que sobrevive**, fora do recorte, e `acervoDosAtivos` lê só as
+   linhas dos ids selecionados. É a mesma classe que `montarBackupDoReset` trata com o bloco
+   `ponteiros_perdidos`. Aqui ela é **declarada** no `nao_incluido` (capturá-la exigiria leitura nova),
+   e a régua da fase é que o campo diga a verdade: um `[]` errado é pior que uma linha honesta.
+
+### Os dois que viraram declaração, não correção
+
+8. **A sabotagem E.2 não foi executada como a ordem pediu** — está declarado em §4, com o motivo pelo
+   qual o desenho faz o contrário do que o critério supunha.
+9. **`acervoDosAtivos` ficou como a terceira régua** de leitura de `termos_gerados`: ela continua
+   lendo a tabela inteira e filtrando em memória. Não viola critério (o 7 nomeia só
+   `exportarAcervoFilial`), mas contradiz o motivo escrito da Decisão 5 — "corrigir metade da classe
+   deixaria duas réguas". Sobrou uma terceira. **Backlog.**
+
+### E os números que ela pegou
+
+`4.331` testes onde o relatório dizia `4.326` (hoje **4.335**, depois das asserções novas); o
+comentário do teto dizendo `58 + 4 = 62` quando o lote tem **63** (a promovida da quarentena também
+soma); o `PLAN-F54.md` apontando para uma evidência `04` que é a `13`; e — a única linha falsificável
+e falsa da tabela de autoverificação — o critério 23 marcado ✅ com a **tag ainda não criada**.
+Todos corrigidos.
+
+**O que ela confirmou OK**, com evidência própria: os quatro chamadores da porta única; o descarte no
+ramo certo em relação ao `safeParse`; o `nao_incluido` contra o corpo vigente **em produção**; a
+guarda no-op nas duas metades; as duas armadilhas da ata da F53; a ausência de asserção por vacuidade;
+as dependências da `0136`; o diff de inserção pura; **nenhum dado real** em evidência, teste ou
+fixture; e o escopo — nenhuma das cinco RPCs recriada, a fila `0131`/`0132` intocada **no repositório**,
+policies de Storage intactas, `import_logs.correcoes` intacto.

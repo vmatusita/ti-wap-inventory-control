@@ -167,6 +167,51 @@ const CABECALHOS: Cabecalho[] = [
       ],
     },
   },
+  // ⚠ OS DOIS DO RESET ENTRARAM DEPOIS, e o motivo é um furo que a revisão adversarial
+  // mediu: a suíte declarava congelar "os três backups" e congelava UM (o do import) —
+  // o do conflito estava aqui, mas os dois do reset só eram conferidos por um
+  // `toContain('versao: 1')` no describe 3. Acrescentar tabela ao backup do reset sem
+  // bumpar a `versao` ficava VERDE. Uma trava que cobre um terço do que declara cobrir
+  // é pior que uma que declara o terço: ela promete o resto.
+  {
+    rotulo: 'backup do RESET, bloco ACERVO',
+    arquivo: 'src/lib/queries/dev-destrutivo.ts',
+    // A âncora é CÓDIGO, não comentário: `fonteViva` roda `limpar`, que apaga
+    // comentário — um marcador em comentário some antes de a busca acontecer (medido).
+    ancora: 'return {\n    versao: 1,\n    bloco,',
+    formatos: {
+      1: [
+        'anotacoes',
+        'ativos',
+        'bloco',
+        'contagens',
+        'filial_id',
+        'gerado_em',
+        'movimentacoes',
+        'nao_incluido',
+        'pendencias_item',
+        'ponteiros_perdidos',
+        'termos_gerados',
+        'versao',
+      ],
+    },
+  },
+  {
+    rotulo: 'backup do RESET, bloco ITENS',
+    arquivo: 'src/lib/queries/dev-destrutivo.ts',
+    ancora: 'return {\n      versao: 1,\n      bloco,',
+    formatos: {
+      1: [
+        'bloco',
+        'contagens',
+        'filial_id',
+        'gerado_em',
+        'lancamentos_item',
+        'nao_incluido',
+        'versao',
+      ],
+    },
+  },
 ]
 
 describe('1. os cabeçalhos de backup casam versão × conjunto de chaves', () => {
@@ -211,6 +256,22 @@ describe('2. o que o espalhamento esconde — as TABELAS do backup do import', (
       chavesDeTopo(fonte, abre),
       'o backup do import passou a levar outro conjunto de tabelas. Isso é mudança de FORMATO: bumpe a `versao` do cabeçalho e declare o conjunto novo em `backup-formato.test.ts`.',
     ).toEqual(['anotacoes', 'ativos', 'movimentacoes', 'termos_gerados'])
+  })
+
+  it('`acervoDosAtivos` tem exatamente as cinco tabelas que a RPC do conflito apaga', () => {
+    // O segundo espalhamento, que ficara de fora: `...acervo` do backup do conflito vem
+    // daqui, e uma tabela nova entraria por ele sem tocar o cabeçalho. Mesmo furo do de
+    // cima, medido pela revisão adversarial.
+    const fonte = fonteViva('src/lib/queries/conflitos.ts')
+    const pos = fonte.indexOf('export async function acervoDosAtivos(')
+    expect(pos, 'a função `acervoDosAtivos` sumiu ou foi renomeada').toBeGreaterThan(-1)
+    // O `{` do tipo de RETORNO — o primeiro depois do `Promise<`.
+    const abre = fonte.indexOf('{', fonte.indexOf('Promise<', pos))
+
+    expect(
+      chavesDeTopo(fonte, abre),
+      'o backup do conflito passou a levar outro conjunto de tabelas. Bumpe a `versao` do cabeçalho e declare o conjunto novo.',
+    ).toEqual(['anotacoes', 'ativos', 'movimentacoes', 'pendencias_item', 'termos_gerados'])
   })
 })
 

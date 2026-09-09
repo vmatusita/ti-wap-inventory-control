@@ -227,10 +227,26 @@ export async function apagarConflito(input: {
             },
             // F54 — LEVANTADO POR MEDIÇÃO: `apagar_ativos_conflito_filiais` (corpo vigente
             // da 0100) apaga `pendencias_item`, `termos_gerados`, `anotacoes`,
-            // `movimentacoes` e `ativos`, e `acervoDosAtivos` lê as cinco. Diferença VAZIA.
-            // Os `.docx` deixaram de faltar nesta fase: vão para
-            // `conflito/<digest>/termos/` antes de saírem do bucket.
-            nao_incluido: [],
+            // `movimentacoes` e `ativos`, e `acervoDosAtivos` lê as cinco. Para as
+            // TABELAS a diferença é vazia, e os `.docx` deixaram de faltar nesta fase:
+            // vão para `conflito/<digest>/termos/` antes de saírem do bucket.
+            //
+            // ⚠ MAS A RPC NÃO SÓ APAGA — ELA TAMBÉM MUTA LINHA QUE SOBREVIVE, e essa é a
+            // linha abaixo. Achado da revisão adversarial da F54: o corpo vigente faz
+            // `update public.ativos set substitui_ativo_id = null where
+            // substitui_ativo_id = any(v_ids) and not (id = any(v_ids))` — o ponteiro do
+            // SUBSTITUTO, que fica na filial dele e não entra no recorte. `acervoDosAtivos`
+            // lê só as linhas dos ids selecionados, então esse ponteiro se perde **fora**
+            // do backup, e a RPC guarda só a CONTAGEM (`ponteiros_anulados`).
+            //
+            // É a mesma classe que `montarBackupDoReset` já trata com o bloco
+            // `ponteiros_perdidos` (F23). Aqui ela é DECLARADA e não capturada: capturar
+            // exigiria uma leitura nova em `acervoDosAtivos`, e a régua desta fase é que
+            // o `nao_incluido` diga a verdade — um `[]` errado é pior que uma linha
+            // honesta. Vira backlog junto com o resto da família.
+            nao_incluido: [
+              'ativos.substitui_ativo_id de ativos FORA da seleção — a RPC anula o ponteiro do substituto (que fica na filial dele) e este backup lê só as linhas dos ids selecionados. A contagem sobrevive no evento (`ponteiros_anulados`); os ids, não.',
+            ],
             // o retrato legível (o que a mesa mostrava) …
             lados,
             // … e as linhas de verdade, que é o que restaura.
