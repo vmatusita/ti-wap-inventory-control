@@ -1,0 +1,16 @@
+=== CRITERIO 16 — a 0136 nao CHAMA prefixo_backup_import() ===
+--- toda ocorrencia da string no arquivo ---
+15:-- ⚠ NÃO CHAMA `prefixo_backup_import()`. Ela nasce na 0132, que NÃO está aplicada
+
+--- ocorrencias que sao CHAMADA (fora de comentario) ---
+NENHUMA — a unica mencao esta num comentario que explica por que ela NAO e chamada.
+
+=== GATE — comando de exclusao sobre o acervo, fora de comentario ===
+NENHUM — so-leitura, caminho A.
+
+=== FUNCOES CHAMADAS que precisam existir no banco ===
+public.dev_checagens_integridade(
+public.digest_selecao_conflito(
+public.e_dev(
+public.prefixo_backup_conflito(
+public.status_tem_detentor(

@@ -137,6 +137,7 @@
     "0132_guardas_de_escopo.sql": "a6800baeb7a276b296d8fb5a3e658cddb90e8af1e33d3c75a63f99cbe3c07d05",
     "0133_ordem_das_movimentacoes.sql": "0f5902e3caa31fdbf50bf3dc5defd6e1ebd67f38518aecd6bc5753c219bda0d7",
     "0134_desempate_por_ordem.sql": "c87918640c4ec4505f6feba955d795bf7fe7dfc1057ca98086f0910a64be5719",
-    "0135_indice_data_ordem.sql": "63c4916efc749fd13edcfb13e068c99e792ae5f7576f55c75362168d79457467"
+    "0135_indice_data_ordem.sql": "63c4916efc749fd13edcfb13e068c99e792ae5f7576f55c75362168d79457467",
+    "0136_checagem_backup_orfao.sql": "ea21f8a11e9c872870566e6c495325c7e927b22b942fda6a03aafc73fe1cab97"
   }
 }

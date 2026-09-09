@@ -96,6 +96,11 @@ const DA_F38 = [
   // F53 — a `0135` é só um índice (`data desc, ordem desc`), o que a medição de plano pediu
   // depois que a `0134` trocou a régua da lista. Nenhuma função, nenhum dado.
   '0135',
+  // F54 — a `0136` recria `dev_checagens_integridade` (só-leitura, área /dev) para
+  // acrescentar a DÉCIMA SEGUNDA checagem: backup órfão em `backups-import`. O diff contra
+  // o corpo vigente da `0127` é uma INSERÇÃO PURA de 81 linhas (`120a121,201`), zero
+  // removidas — as onze anteriores continuam byte a byte. Nenhum dado tocado.
+  '0136',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */
