@@ -134,6 +134,8 @@
     "0129_leitura_termo_e_revoke_invoker.sql": "f9ea6664937f3b0bfbc98bfb6882e2093abd7a125b26feee1da94f78814a1d78",
     "0130_grant_invoker_authenticated.sql": "0e5ecd0ec5f5188b8222cbce60034bf20b5df8666368a91f1ac19b005fc8c50a",
     "0131_import_decomposto.sql": "b02ce73b31eb6237bf6323d599071f1d254ba78f401f6375cfad0e367b7f3b81",
-    "0132_guardas_de_escopo.sql": "a6800baeb7a276b296d8fb5a3e658cddb90e8af1e33d3c75a63f99cbe3c07d05"
+    "0132_guardas_de_escopo.sql": "a6800baeb7a276b296d8fb5a3e658cddb90e8af1e33d3c75a63f99cbe3c07d05",
+    "0133_ordem_das_movimentacoes.sql": "0f5902e3caa31fdbf50bf3dc5defd6e1ebd67f38518aecd6bc5753c219bda0d7",
+    "0134_desempate_por_ordem.sql": "e2e87d42b1ca51dc274092bf5ec133872fa93dbf22afa3099626a17e09b6debb"
   }
 }

@@ -1,0 +1,506 @@
+[
+  {
+    "data": "2024-01-08",
+    "filial": "geral",
+    "linhas": 1,
+    "impressao": "f5d2a8cf53ac8d97eb6ea69471d778b2"
+  },
+  {
+    "data": "2024-01-08",
+    "filial": "1",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-01-08",
+    "filial": "2",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-01-08",
+    "filial": "3",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-01-08",
+    "filial": "4",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-01-08",
+    "filial": "5",
+    "linhas": 1,
+    "impressao": "f5d2a8cf53ac8d97eb6ea69471d778b2"
+  },
+  {
+    "data": "2024-01-08",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-06-15",
+    "filial": "geral",
+    "linhas": 3,
+    "impressao": "54842ae5befc6644f6a1fed19ad5174c"
+  },
+  {
+    "data": "2024-06-15",
+    "filial": "1",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-06-15",
+    "filial": "2",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-06-15",
+    "filial": "3",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-06-15",
+    "filial": "4",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-06-15",
+    "filial": "5",
+    "linhas": 3,
+    "impressao": "54842ae5befc6644f6a1fed19ad5174c"
+  },
+  {
+    "data": "2024-06-15",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2024-12-01",
+    "filial": "geral",
+    "linhas": 194,
+    "impressao": "3bcb52f7af91d15e3b60e6390a92685d"
+  },
+  {
+    "data": "2024-12-01",
+    "filial": "1",
+    "linhas": 170,
+    "impressao": "e5b18e876f58d580784771bfd3c22f6a"
+  },
+  {
+    "data": "2024-12-01",
+    "filial": "2",
+    "linhas": 1,
+    "impressao": "f688002875eb7a0d47e74ab6e6d9d3e7"
+  },
+  {
+    "data": "2024-12-01",
+    "filial": "3",
+    "linhas": 10,
+    "impressao": "e7387b7b1de28a661b5607ebb3cce6ec"
+  },
+  {
+    "data": "2024-12-01",
+    "filial": "4",
+    "linhas": 1,
+    "impressao": "5ff5e743b7d963a8e44933a8b2dfaac5"
+  },
+  {
+    "data": "2024-12-01",
+    "filial": "5",
+    "linhas": 12,
+    "impressao": "7c17ca4042b34b2b618049a004660729"
+  },
+  {
+    "data": "2024-12-01",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2025-06-01",
+    "filial": "geral",
+    "linhas": 362,
+    "impressao": "ea71bfbbb644b269852fba3d147d01ca"
+  },
+  {
+    "data": "2025-06-01",
+    "filial": "1",
+    "linhas": 301,
+    "impressao": "9faf5b9462eabac6b67a7c3e6f58c428"
+  },
+  {
+    "data": "2025-06-01",
+    "filial": "2",
+    "linhas": 21,
+    "impressao": "471b9a95d1e9b8dd6d3f642abdf23920"
+  },
+  {
+    "data": "2025-06-01",
+    "filial": "3",
+    "linhas": 13,
+    "impressao": "3f156a8526dfbbef12d578434491f08a"
+  },
+  {
+    "data": "2025-06-01",
+    "filial": "4",
+    "linhas": 4,
+    "impressao": "7e4c74f61d6be4e39759e40280e21771"
+  },
+  {
+    "data": "2025-06-01",
+    "filial": "5",
+    "linhas": 23,
+    "impressao": "4469a0a5f2cd6f870b5e6476d20e3fe7"
+  },
+  {
+    "data": "2025-06-01",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2026-03-01",
+    "filial": "geral",
+    "linhas": 994,
+    "impressao": "6ac00cad921c066a2dbd31a26f8f02a7"
+  },
+  {
+    "data": "2026-03-01",
+    "filial": "1",
+    "linhas": 771,
+    "impressao": "da8e41c10176197cbf7db53cb895e9a4"
+  },
+  {
+    "data": "2026-03-01",
+    "filial": "2",
+    "linhas": 32,
+    "impressao": "30779d896d2b53ab781f25698d1daf5c"
+  },
+  {
+    "data": "2026-03-01",
+    "filial": "3",
+    "linhas": 115,
+    "impressao": "3e7323818d25cc3396017bf8226c2c72"
+  },
+  {
+    "data": "2026-03-01",
+    "filial": "4",
+    "linhas": 42,
+    "impressao": "fe49d29cc40ec9d8f3cd3c6bbd82df4c"
+  },
+  {
+    "data": "2026-03-01",
+    "filial": "5",
+    "linhas": 34,
+    "impressao": "ab0df351648ba9da9c19170f5f9cff41"
+  },
+  {
+    "data": "2026-03-01",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2026-07-27",
+    "filial": "geral",
+    "linhas": 1556,
+    "impressao": "b3bd937e1e5c3241cb36a36a0bb672e1"
+  },
+  {
+    "data": "2026-07-27",
+    "filial": "1",
+    "linhas": 1188,
+    "impressao": "6ec0015f017fab0fd8b1b6e6c970063b"
+  },
+  {
+    "data": "2026-07-27",
+    "filial": "2",
+    "linhas": 130,
+    "impressao": "b330c7b9c03bdc20317940d8627b2994"
+  },
+  {
+    "data": "2026-07-27",
+    "filial": "3",
+    "linhas": 143,
+    "impressao": "293924a6719ed3458acc76c5a98be095"
+  },
+  {
+    "data": "2026-07-27",
+    "filial": "4",
+    "linhas": 44,
+    "impressao": "24456603f43b03aee5fa50aaf1ac04c4"
+  },
+  {
+    "data": "2026-07-27",
+    "filial": "5",
+    "linhas": 51,
+    "impressao": "2b64b969de9138939f351f6fe9b22c4f"
+  },
+  {
+    "data": "2026-07-27",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2026-07-31",
+    "filial": "geral",
+    "linhas": 1556,
+    "impressao": "b3bd937e1e5c3241cb36a36a0bb672e1"
+  },
+  {
+    "data": "2026-07-31",
+    "filial": "1",
+    "linhas": 1188,
+    "impressao": "6ec0015f017fab0fd8b1b6e6c970063b"
+  },
+  {
+    "data": "2026-07-31",
+    "filial": "2",
+    "linhas": 130,
+    "impressao": "b330c7b9c03bdc20317940d8627b2994"
+  },
+  {
+    "data": "2026-07-31",
+    "filial": "3",
+    "linhas": 143,
+    "impressao": "293924a6719ed3458acc76c5a98be095"
+  },
+  {
+    "data": "2026-07-31",
+    "filial": "4",
+    "linhas": 44,
+    "impressao": "24456603f43b03aee5fa50aaf1ac04c4"
+  },
+  {
+    "data": "2026-07-31",
+    "filial": "5",
+    "linhas": 51,
+    "impressao": "2b64b969de9138939f351f6fe9b22c4f"
+  },
+  {
+    "data": "2026-07-31",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2026-08-04",
+    "filial": "geral",
+    "linhas": 1560,
+    "impressao": "d5a8ff6238e7a5b6059ade40d0ccef6e"
+  },
+  {
+    "data": "2026-08-04",
+    "filial": "1",
+    "linhas": 1192,
+    "impressao": "d91b5ef3634312c2a462b0766f4bdf76"
+  },
+  {
+    "data": "2026-08-04",
+    "filial": "2",
+    "linhas": 130,
+    "impressao": "b330c7b9c03bdc20317940d8627b2994"
+  },
+  {
+    "data": "2026-08-04",
+    "filial": "3",
+    "linhas": 143,
+    "impressao": "293924a6719ed3458acc76c5a98be095"
+  },
+  {
+    "data": "2026-08-04",
+    "filial": "4",
+    "linhas": 44,
+    "impressao": "24456603f43b03aee5fa50aaf1ac04c4"
+  },
+  {
+    "data": "2026-08-04",
+    "filial": "5",
+    "linhas": 51,
+    "impressao": "2b64b969de9138939f351f6fe9b22c4f"
+  },
+  {
+    "data": "2026-08-04",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2026-08-17",
+    "filial": "geral",
+    "linhas": 1560,
+    "impressao": "d5a8ff6238e7a5b6059ade40d0ccef6e"
+  },
+  {
+    "data": "2026-08-17",
+    "filial": "1",
+    "linhas": 1192,
+    "impressao": "d91b5ef3634312c2a462b0766f4bdf76"
+  },
+  {
+    "data": "2026-08-17",
+    "filial": "2",
+    "linhas": 130,
+    "impressao": "b330c7b9c03bdc20317940d8627b2994"
+  },
+  {
+    "data": "2026-08-17",
+    "filial": "3",
+    "linhas": 143,
+    "impressao": "293924a6719ed3458acc76c5a98be095"
+  },
+  {
+    "data": "2026-08-17",
+    "filial": "4",
+    "linhas": 44,
+    "impressao": "24456603f43b03aee5fa50aaf1ac04c4"
+  },
+  {
+    "data": "2026-08-17",
+    "filial": "5",
+    "linhas": 51,
+    "impressao": "2b64b969de9138939f351f6fe9b22c4f"
+  },
+  {
+    "data": "2026-08-17",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2026-09-01",
+    "filial": "geral",
+    "linhas": 1560,
+    "impressao": "d5a8ff6238e7a5b6059ade40d0ccef6e"
+  },
+  {
+    "data": "2026-09-01",
+    "filial": "1",
+    "linhas": 1192,
+    "impressao": "d91b5ef3634312c2a462b0766f4bdf76"
+  },
+  {
+    "data": "2026-09-01",
+    "filial": "2",
+    "linhas": 130,
+    "impressao": "b330c7b9c03bdc20317940d8627b2994"
+  },
+  {
+    "data": "2026-09-01",
+    "filial": "3",
+    "linhas": 143,
+    "impressao": "293924a6719ed3458acc76c5a98be095"
+  },
+  {
+    "data": "2026-09-01",
+    "filial": "4",
+    "linhas": 44,
+    "impressao": "24456603f43b03aee5fa50aaf1ac04c4"
+  },
+  {
+    "data": "2026-09-01",
+    "filial": "5",
+    "linhas": 51,
+    "impressao": "2b64b969de9138939f351f6fe9b22c4f"
+  },
+  {
+    "data": "2026-09-01",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2026-09-04",
+    "filial": "geral",
+    "linhas": 1560,
+    "impressao": "d5a8ff6238e7a5b6059ade40d0ccef6e"
+  },
+  {
+    "data": "2026-09-04",
+    "filial": "1",
+    "linhas": 1192,
+    "impressao": "d91b5ef3634312c2a462b0766f4bdf76"
+  },
+  {
+    "data": "2026-09-04",
+    "filial": "2",
+    "linhas": 130,
+    "impressao": "b330c7b9c03bdc20317940d8627b2994"
+  },
+  {
+    "data": "2026-09-04",
+    "filial": "3",
+    "linhas": 143,
+    "impressao": "293924a6719ed3458acc76c5a98be095"
+  },
+  {
+    "data": "2026-09-04",
+    "filial": "4",
+    "linhas": 44,
+    "impressao": "24456603f43b03aee5fa50aaf1ac04c4"
+  },
+  {
+    "data": "2026-09-04",
+    "filial": "5",
+    "linhas": 51,
+    "impressao": "2b64b969de9138939f351f6fe9b22c4f"
+  },
+  {
+    "data": "2026-09-04",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  },
+  {
+    "data": "2026-09-08",
+    "filial": "geral",
+    "linhas": 1560,
+    "impressao": "d5a8ff6238e7a5b6059ade40d0ccef6e"
+  },
+  {
+    "data": "2026-09-08",
+    "filial": "1",
+    "linhas": 1192,
+    "impressao": "d91b5ef3634312c2a462b0766f4bdf76"
+  },
+  {
+    "data": "2026-09-08",
+    "filial": "2",
+    "linhas": 130,
+    "impressao": "b330c7b9c03bdc20317940d8627b2994"
+  },
+  {
+    "data": "2026-09-08",
+    "filial": "3",
+    "linhas": 143,
+    "impressao": "293924a6719ed3458acc76c5a98be095"
+  },
+  {
+    "data": "2026-09-08",
+    "filial": "4",
+    "linhas": 44,
+    "impressao": "24456603f43b03aee5fa50aaf1ac04c4"
+  },
+  {
+    "data": "2026-09-08",
+    "filial": "5",
+    "linhas": 51,
+    "impressao": "2b64b969de9138939f351f6fe9b22c4f"
+  },
+  {
+    "data": "2026-09-08",
+    "filial": "6",
+    "linhas": 0,
+    "impressao": "1205e40569037712b104f12cb4534293"
+  }
+]
