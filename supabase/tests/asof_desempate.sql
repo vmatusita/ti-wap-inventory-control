@@ -162,12 +162,21 @@ begin
     values ('ZZF5300301', 'notebook', v_matriz);
   select id into h from public.ativos where patrimonio = 'ZZF5300301';
 
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
-    values (h, 'compra', v_data_3a, v_matriz, v_prof)
+  -- ⚠ ids EXPLÍCITOS, e a razão é determinismo, não estilo. Com `gen_random_uuid()`,
+  -- a régua ANTIGA (`… created_at desc, id desc`) escolhe entre a compra e o ajuste
+  -- por SORTEIO — que é justamente o defeito que 3a existe para acusar. O resultado:
+  -- a mutação `f53-asof-volta-ao-desempate-por-id` derrubava 3a em ~metade das
+  -- execuções. **Medido no CI (run 34357436376): ela caiu no ensaio e NÃO caiu no
+  -- banco limpo do CI**, e o injetor reportou "NÃO detectada" — o diagnóstico errado,
+  -- acusando de fraca uma asserção que está certa. id ALTO na compra e BAIXO no
+  -- ajuste (o mesmo arranjo do CENÁRIO 1, escrito pela 0054 com o mesmo propósito)
+  -- faz a régua antiga errar SEMPRE e a nova acertar SEMPRE.
+  insert into public.movimentacoes (id, ativo_id, tipo, data, filial_id, criado_por)
+    values ('ffffffff-ffff-4fff-8fff-fffffffffff3', h, 'compra', v_data_3a, v_matriz, v_prof)
     returning ordem into v_ordem_compra;
 
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por)
-    values (h, 'ajuste', v_data_3a, v_matriz, 'em_uso',
+  insert into public.movimentacoes (id, ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por)
+    values ('00000000-0000-4000-8000-000000000031', h, 'ajuste', v_data_3a, v_matriz, 'em_uso',
             'F53 3a: reconciliacao de import (mesmo instante da compra)', v_prof)
     returning ordem into v_ordem_ajuste;
 
