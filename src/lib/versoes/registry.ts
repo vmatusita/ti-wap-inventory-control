@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.58.0',
+    data: '2026-09-09',
+    fase: 'F53',
+    titulo: 'O sistema parou de sortear qual movimentação é a mais recente',
+    mudancas: [
+      'Sempre que duas movimentações eram registradas no mesmo instante — o que acontece a cada lote, e aconteceu com todos os equipamentos que vieram da carga inicial —, o sistema não tinha como saber qual das duas era a mais recente, e escolhia por sorteio. A escolha podia até mudar de uma consulta para a outra. Agora cada movimentação recebe um número de ordem próprio, e a resposta é sempre a mesma.',
+      'O botão Estornar passou a apontar para a movimentação certa. Em 643 equipamentos ele oferecia a Compra da carga inicial, com data de 2024, em vez do Ajuste bem mais recente que foi registrado no mesmo instante — e desfazer a Compra teria reposto um estado antigo. Nos 643 casos a escolha nova coincide com o estado que a ficha do equipamento já mostrava.',
+      'O botão "Repetir última" da tela de nova movimentação passou a copiar mesmo a sua última movimentação. Quando a sua ação anterior tinha sido um lote, ele copiava motivo, pessoa e setor de um equipamento sorteado entre os do lote.',
+      'A tela de conflitos entre filiais passou a mostrar sempre o mesmo tipo de última movimentação para cada equipamento. Era o único lugar do sistema onde o empate não tinha nenhum critério de desempate.',
+      'Os relatórios de período passado continuam com exatamente os mesmos números — nenhum histórico foi reescrito. Isso foi conferido em 12 datas espalhadas por todo o acervo, filial por filial e no consolidado, comparando a saída antes e depois da mudança nos dois ambientes.',
+    ],
+  },
+  {
     versao: '1.57.0',
     data: '2026-09-08',
     fase: 'F52',

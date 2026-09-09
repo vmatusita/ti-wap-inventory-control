@@ -61,9 +61,18 @@
 -- =============================================================================
 -- ORDEM DE ROLLBACK — o inverso do apply, e ANTES do rollback da 0133
 -- =============================================================================
---   1) create or replace function public.rel_estoque_asof(smallint, date) — corpo da 0110
---   2) create or replace function public.aplicar_movimentacao()           — corpo da 0110
---   3) create or replace view public.v_conflitos_filiais                  — corpo da 0096
+-- ⚠ ESCRITO EM PROSA, DE PROPÓSITO — e a razão é uma armadilha medida nesta própria fase.
+-- `scripts/db/corpo-vigente.mjs` resolve o corpo VIVO de uma função varrendo as migrations
+-- da maior para a menor, e ele TIRA OS COMENTÁRIOS antes de procurar. Um `create or replace
+-- function public.rel_estoque_asof(...)` escrito aqui como comentário vira, para ele, uma
+-- definição de verdade — e como a linha não fecha com `;`, o scanner engole o corpo REAL
+-- logo abaixo. Medido: com a receita em pseudo-SQL, `corpoVigente('rel_estoque_asof(smallint,
+-- date)')` devolvia 76 linhas começando pelo comentário. Isso quebraria as mutações desta
+-- mesma fase, que partem de `corpoVigente`. Receita de rollback se DESCREVE; não se cola.
+--
+--   1) reemitir a função `public.rel_estoque_asof(smallint, date)` com o corpo da `0110`
+--   2) reemitir a função de gatilho `public.aplicar_movimentacao()` com o corpo da `0110`
+--   3) reemitir a view `public.v_conflitos_filiais` com o corpo da `0096`
 --   4) notify pgrst, 'reload schema';
 -- ⚠ Só DEPOIS disso é que a 0133 pode ser revertida: os corpos acima citam `ordem`, e um
 --   `drop column ordem cascade` com a 0134 ainda no ar levaria as funções junto.

@@ -650,6 +650,17 @@ export type Database = {
         }
         Relationships: []
       }
+      // ⚠ `movimentacoes.ordem` FOI TRANSPLANTADA À MÃO — F53, 09/09/2026.
+      // A coluna existe em produção (a `0133` foi aplicada), e `npm run db:types` a gera
+      // exatamente nesta forma (`ordem: number` / `ordem?: never` / `ordem?: never`, que é
+      // como o gerador do Supabase renderiza `generated always as identity` — igual a
+      // `filiais.id`, `itens.id` e `tipos_item.id`). O problema é o RESTO da regeneração:
+      // ela APAGA as oito entradas escritas à mão pela F51 e o `p_escopo` da F52, porque a
+      // `0131` e a `0132` seguem pendentes de apply (caminho B do RUNBOOK-BANCO). Sem elas,
+      // `npm run db:types:diff` reprova o `banco-sem-docker`, que é required check. Então
+      // rodou-se o gerador, conferiu-se o que ele produz para `ordem`, e só isso foi
+      // transplantado. Uma regeneração limpa volta a ser possível quando a 0131/0132 forem
+      // aplicadas — e aí este comentário sai junto com os da F51.
       movimentacoes: {
         Row: {
           ativo_id: string
@@ -668,6 +679,7 @@ export type Database = {
           itens_faltantes: string[] | null
           motivo: string | null
           observacao: string | null
+          ordem: number
           setor: string | null
           snapshot_anterior: Json | null
           status_anterior: Database["public"]["Enums"]["status_ativo"] | null
@@ -693,6 +705,7 @@ export type Database = {
           itens_faltantes?: string[] | null
           motivo?: string | null
           observacao?: string | null
+          ordem?: never
           setor?: string | null
           snapshot_anterior?: Json | null
           status_anterior?: Database["public"]["Enums"]["status_ativo"] | null
@@ -718,6 +731,7 @@ export type Database = {
           itens_faltantes?: string[] | null
           motivo?: string | null
           observacao?: string | null
+          ordem?: never
           setor?: string | null
           snapshot_anterior?: Json | null
           status_anterior?: Database["public"]["Enums"]["status_ativo"] | null

@@ -88,8 +88,14 @@ const TIMELINE_SELECT =
   'origem:filiais!movimentacoes_filial_id_fkey(nome), ' +
   'destino:filiais!movimentacoes_filial_destino_id_fkey(nome)'
 
-// Linha do tempo do ativo. Ordenada por created_at desc (empate: pela data).
-// created_at e monotonico por ativo em producao (cada mov e uma transacao).
+// Linha do tempo do ativo. Ordenada por created_at desc, com `ordem` como
+// desempate exato — o empate de created_at e ROTINA (lote e import gravam N
+// linhas na mesma transacao), nao excecao. Esta e a MESMA regua da trava do
+// estorno em `aplicar_movimentacao` (banco, migration 0134): as duas
+// respondem "o que foi gravado por ultimo" e tem de casar byte a byte, porque
+// `components/ativos/linha-do-tempo.tsx` usa `movimentacoes[0].id` para
+// decidir se mostra o botao "Estornar" — se divergirem, a UI oferece um
+// botao que o banco recusa (F53, docs/PLAN-F53.md, Decisao 5).
 export async function listarMovimentacoesDoAtivo(
   ativoId: string,
 ): Promise<MovimentacaoTimeline[]> {
@@ -99,9 +105,9 @@ export async function listarMovimentacoesDoAtivo(
   // de um ativo é pequeno hoje, mas nada no schema o limita — um ativo de pool
   // com empréstimo/devolução semanal por anos acumula milhares de linhas —, e
   // aqui um corte silencioso seria pior que num agregado: o operador veria uma
-  // linha do tempo faltando história, sem aviso nenhum. Desempate por `id`
-  // porque `created_at`+`data` empatam quando um lote grava tudo na mesma
-  // transação, e ordenação com empate não pagina.
+  // linha do tempo faltando história, sem aviso nenhum. Desempate por `ordem`
+  // porque `created_at` empata quando um lote grava tudo na mesma transação,
+  // e ordenação com empate não pagina — `ordem` é o único total (F53).
   const rows = await paginarTodos<RawTimelineRow>(
     'Falha ao carregar a linha do tempo',
     (from, to) =>
@@ -110,8 +116,7 @@ export async function listarMovimentacoesDoAtivo(
         .select(TIMELINE_SELECT)
         .eq('ativo_id', ativoId)
         .order('created_at', { ascending: false })
-        .order('data', { ascending: false })
-        .order('id', { ascending: false })
+        .order('ordem', { ascending: false })
         .range(from, to),
   )
   return rows.map((r) => {
@@ -163,6 +168,7 @@ export async function ultimoEnvioManutencao(
     .eq('ativo_id', ativoId)
     .eq('tipo', 'envio_manutencao')
     .order('created_at', { ascending: false })
+    .order('ordem', { ascending: false })
     .limit(1)
     .maybeSingle()
   if (error)
@@ -198,6 +204,7 @@ export async function ultimaMovimentacaoDoUsuario(
     .neq('tipo', 'compra')
     .neq('tipo', 'troca')
     .order('created_at', { ascending: false })
+    .order('ordem', { ascending: false })
     .limit(1)
     .maybeSingle()
 
@@ -266,6 +273,7 @@ export async function ultimosAtivosMovimentadosDoOperador(
     .neq('tipo', 'compra')
     .neq('tipo', 'troca')
     .order('created_at', { ascending: false })
+    .order('ordem', { ascending: false })
     .limit(JANELA_RECENTES)
 
   if (error)
@@ -634,8 +642,9 @@ function listaSelect(inner: boolean): string {
 // pela mesma razão do histórico de itens: filtrar por `created_at` divergiria do
 // que o operador vê (uma movimentação de ontem registrada hoje). A ordem segue
 // `data` primeiro, para a coluna visível não aparecer fora de sequência;
-// `created_at` e `id` desempatam e deixam a paginação determinística (conferido
-// no DEV: zero linhas repetidas entre a página 1 e a 2).
+// `ordem` desempata (empate de `data`+`created_at` é rotina — lote e import
+// gravam N linhas juntas) e é a chave total que deixa a paginação
+// determinística (F53).
 function queryLista(
   supabase: Awaited<ReturnType<typeof createClient>>,
   params: ListarMovimentacoesParams,
@@ -677,8 +686,7 @@ function queryLista(
 
   return q
     .order('data', { ascending: false })
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
+    .order('ordem', { ascending: false })
 }
 
 // Faixa pedida além do fim do resultado. O PostgREST responde 416 com este

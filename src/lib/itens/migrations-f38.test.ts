@@ -81,6 +81,21 @@ const DA_F38 = [
   // `apagar_ativos_conflito_filiais`) — e é justamente a distinção "corpo de função que o
   // Postgres GUARDA" vs. "comando que a migration RODA" que a 0131 obrigou a escrever.
   '0132',
+  // F53 (09/09/2026) — a ordem total das movimentações. Mesmo motivo de sempre: a lista é
+  // COBERTURA. A `0133` é a PRIMEIRA migration desta faixa a fazer UPDATE em massa numa
+  // tabela de acervo — ela abre a janela `estoque.dev_destrutivo` para o backfill de
+  // `movimentacoes.ordem` e a fecha logo depois, inclusive no caminho de erro. É exatamente
+  // o caso que as guardas de UPDATE/DELETE em massa aqui existem para vigiar, e o que a
+  // torna aceitável é que o comando é `set ordem = <ranking>`, sem tocar nenhuma outra
+  // coluna — provado por hash do par `(id, data, created_at, tipo)` antes e depois.
+  '0133',
+  // F53 — a `0134` recria `aplicar_movimentacao` (que está em INTOCAVEIS logo abaixo) e
+  // `rel_estoque_asof`, trocando UMA linha em cada: o desempate deixa de terminar no uuid
+  // de `id`. Nenhuma delas apaga acervo.
+  '0134',
+  // F53 — a `0135` é só um índice (`data desc, ordem desc`), o que a medição de plano pediu
+  // depois que a `0134` trocou a régua da lista. Nenhuma função, nenhum dado.
+  '0135',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */
@@ -151,12 +166,47 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     expect(posteriores, 'migration nova sem cobertura em DA_F38').toEqual(DA_F38)
   })
 
+  // ⚠ EXCEÇÃO NOMINAL, com o motivo e a migration na MESMA linha (a doutrina dos catálogos
+  // da F48, reafirmada pela F52). A régua NÃO foi afrouxada: ela continua reprovando
+  // qualquer outra migration que toque uma intocável, e continua reprovando a `0134` se ela
+  // recriar uma intocável DIFERENTE das nomeadas aqui. O que mudou é que a exceção passou a
+  // ser declarada em vez de impossível — que é o mesmo movimento que a F51 fez uma asserção
+  // abaixo, quando o grep cru de DELETE reprovava a `0131` por motivo legítimo.
+  //
+  // Precisa existir porque recriar `aplicar_movimentacao` NÃO é um efeito colateral da F53:
+  // é a fase inteira. A trava do estorno vive dentro dela, desempatava por `id` (um
+  // `gen_random_uuid()`) e, medido em produção, apontava a linha errada em 643 dos 1620
+  // ativos. O que torna a exceção aceitável é o DIFF, provado por `scripts/db/gerar-0134.mjs`
+  // (que deriva o corpo VIGENTE e troca UM trecho, em vez de colar uma cópia que envelhece):
+  // 1 linha removida, 1 acrescentada.
+  const RECRIACOES_AUTORIZADAS: Record<string, readonly string[]> = {
+    // F53 — a `0134` troca o desempate. `aplicar_movimentacao` é intocável; `rel_estoque_asof`
+    // não está em INTOCAVEIS, mas é nomeada aqui para que a exceção seja EXAUSTIVA.
+    '0134': ['aplicar_movimentacao', 'rel_estoque_asof'],
+  }
+
   it('NENHUMA função intocável é recriada pelas migrations da fase', () => {
     for (const { nome, sql } of arquivosDaFase()) {
       const definidas = funcoesDefinidas(sql)
+      const liberadas = RECRIACOES_AUTORIZADAS[nome.slice(0, 4)] ?? []
       for (const proibida of INTOCAVEIS) {
+        if (liberadas.includes(proibida)) continue
         expect(definidas, `${nome} recria ${proibida}`).not.toContain(proibida)
       }
+    }
+  })
+
+  // A guarda da exceção: sem ela, `RECRIACOES_AUTORIZADAS` seria um cheque em branco — bastaria
+  // a `0134` recriar mais uma função para passar despercebida. Aqui a lista é EXAUSTIVA: a
+  // migration nomeada recria EXATAMENTE o que a exceção declara, nem mais nem menos.
+  it('a exceção nominal é exaustiva — a migration liberada não recria nada além do declarado', () => {
+    for (const [num, liberadas] of Object.entries(RECRIACOES_AUTORIZADAS)) {
+      const arquivo = arquivosDaFase().find((a) => a.nome.startsWith(num))
+      expect(arquivo, `${num} está em RECRIACOES_AUTORIZADAS mas não existe no disco`).toBeDefined()
+      const definidas = funcoesDefinidas(arquivo!.sql).sort()
+      expect(definidas, `${num} recria função fora da exceção declarada`).toEqual(
+        [...liberadas].sort(),
+      )
     }
   })
 

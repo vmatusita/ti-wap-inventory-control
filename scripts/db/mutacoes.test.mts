@@ -66,7 +66,19 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 56 mutações ATIVAS', () => {
+  it('tem entre 20 e 59 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 56 PARA 59 NA F53 (09/09/2026). A fase acrescentou a coluna
+    // `movimentacoes.ordem` e trocou o desempate em três objetos (0134); TRÊS das
+    // travas novas ganharam mutação — uma por objeto tocado (`rel_estoque_asof`
+    // duas vezes, com réguas DIFERENTES: volta ao `id` e vira `ordem` pura; e a
+    // trava do estorno em `aplicar_movimentacao`). 55 + 3 = 58, teto 59 (uma de
+    // folga, a mesma régua da F52). A QUARTA trava — `v_conflitos_filiais` perdendo
+    // `, m2.ordem desc` — não entrou no lote: nenhum roteiro lê `ultima_mov_tipo`
+    // sob empate hoje, então foi para a quarentena (`f53-view-de-conflitos-perde-
+    // o-desempate`, fase F53B) em vez de inflar o lote com uma mutação que sairia
+    // "não detectada" por conjunto vazio — o mesmo diagnóstico errado que a F47/F48
+    // já haviam identificado e que esta fase não repete.
+    //
     // ⚠ O TETO SUBIU DE 48 PARA 56 NA F52 (08/09/2026), e o motivo é este.
     //
     // A F52 acrescentou SETE guardas de escopo no-op e OITO mutações — uma por guarda,
@@ -105,7 +117,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(56)
+    expect(MUTACOES.length).toBeLessThanOrEqual(59)
   })
 
   it('os `id` são únicos', () => {

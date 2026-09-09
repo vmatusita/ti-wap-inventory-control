@@ -1293,6 +1293,92 @@ const F52_GUARDAS = [
   },
 ]
 
+// =============================================================================
+// F53 — a ORDEM TOTAL de `movimentacoes` (coluna `ordem`, migrations 0133/0134)
+// =============================================================================
+// ⚠ AS TRÊS TRAVAS NOVAS DA FASE, NA ORDEM DO PLANO (D3/D4/D7). Cada uma reverte a
+// migration 0134 num objeto por vez, resolvida pelo corpo VIGENTE — nunca colada —
+// porque `rel_estoque_asof` e `aplicar_movimentacao` já foram recriadas por essa
+// migration e continuarão sendo recriadas por qualquer fase futura que as toque.
+//
+// As duas primeiras miram o roteiro `asof_desempate.sql`, que outro agente está
+// estendendo EM PARALELO com os rótulos 3a/3b/3c/4a/4b/5a/6a/7a/10a/10b/10c — os
+// rótulos usados aqui (`3a`, `4c`, `6a`) existem nele quando o injetor rodar.
+/** @type {Mutacao[]} */
+const F53_ORDEM = [
+  {
+    id: 'f53-asof-volta-ao-desempate-por-id',
+    roteiro: 'asof_desempate.sql',
+    classe: 'desempate-de-ordem-vira-uuid',
+    derruba: ['3a'],
+    porque:
+      'Reverte o CTE `ult` de rel_estoque_asof ao desempate antigo por `id` (uuid sorteado), tirando `ordem` da régua. É o mesmo cara-ou-coroa que a 0054 tentou consertar com `(tipo=\'ajuste\') desc` e que a F53 mediu errando o ajuste em 643 dos 1270 pares compra+ajuste empatados de produção.',
+    sql: mutarFuncao(
+      'public.rel_estoque_asof(smallint, date)',
+      'order by e.ativo_id, e.data desc, e.ordem desc',
+      'order by e.ativo_id, e.data desc, e.created_at desc, e.id desc',
+      'f53-asof-volta-ao-desempate-por-id',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.rel_estoque_asof(smallint, date)'::regprocedure)
+              like '%e.data desc, e.created_at desc, e.id desc%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f53-trava-do-estorno-volta-ao-uuid',
+    roteiro: 'asof_desempate.sql',
+    classe: 'desempate-de-ordem-vira-uuid',
+    // ⚠ `4c`, e NÃO `4a` — medido, não deduzido. A Sabotagem C desta fase aplicou esta
+    // mutação contra o roteiro e `4a`/`4b` continuaram VERDES: eles montam a saída e a
+    // devolução com `created_at` DISTINTOS (10:00 e 10:01), e sobre `created_at` distinto
+    // as duas réguas concordam SEMPRE. `4a` prova que a trava funciona; ele não prova nada
+    // sobre QUAL régua ela usa. `4c` (e o par positivo `4d`) foram escritos por causa
+    // disto: eles montam o empate de `created_at` do import, com uuid ALTO na compra e
+    // BAIXO no ajuste, que é o único arranjo em que as duas réguas dão respostas
+    // diferentes. Apontar `4a` aqui teria feito o injetor reportar "não detectada" — o
+    // diagnóstico errado, acusando de fraca uma asserção que está certa.
+    derruba: ['4c'],
+    porque:
+      'A trava do estorno em aplicar_movimentacao volta a comparar `(created_at, id)`. Nos 643 ativos de produção em que `created_at` empata, o uuid aleatório decide de novo qual é "a última movimentação efetiva" — e nesses casos a régua velha aceita estornar a COMPRA de abertura de 2024 em vez do ajuste de 2026, o sorteio exato que a D4 do PLAN-F53 mediu (643 de 643 apontando o ajuste com `ordem`, 0 de 643 sem ela).',
+    sql: mutarFuncao(
+      'public.aplicar_movimentacao()',
+      '(m.created_at, m.ordem) > (v_orig.created_at, v_orig.ordem)',
+      '(m.created_at, m.id) > (v_orig.created_at, v_orig.id)',
+      'f53-trava-do-estorno-volta-ao-uuid',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.aplicar_movimentacao()'::regprocedure)
+              like '%(m.created_at, m.id) > (v_orig.created_at, v_orig.id)%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f53-asof-passa-a-ordenar-so-por-ordem',
+    roteiro: 'asof_desempate.sql',
+    classe: 'regua-as-of-perde-a-data',
+    derruba: ['6a'],
+    porque:
+      'Tira `data desc` da frente do CTE `ult` e deixa só `ordem desc` — a régua PURA que a D3 do PLAN-F53 recusou por escrito: uma movimentação retroativa lançada amanhã ganharia `ordem` maior e passaria a vencer o as-of de um período em que ela não era a verdade (63,7% do acervo de produção é retroativo).',
+    // ⚠ SÓ 6a, DE PROPÓSITO — é a única asserção que distingue a régua mista
+    // (`data desc, ordem desc`) da pura (`ordem desc`). Sobre o acervo de hoje as
+    // duas concordam (o backfill tem `data` como primeira componente do rank), então
+    // 3a/3b/3c continuam ✓ com esta mutação — não é lacuna, é a linha exata que o
+    // PLAN-F53 traçou entre as duas réguas.
+    sql: mutarFuncao(
+      'public.rel_estoque_asof(smallint, date)',
+      'order by e.ativo_id, e.data desc, e.ordem desc',
+      'order by e.ativo_id, e.ordem desc',
+      'f53-asof-passa-a-ordenar-so-por-ordem',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.rel_estoque_asof(smallint, date)'::regprocedure)
+              like '%order by e.ativo_id, e.ordem desc%'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
   ...PAPEIS_RLS,
   ...SEGURANCA_CATALOGO,
@@ -1302,6 +1388,7 @@ export const MUTACOES = [
   ...CONFLITO_FILIAIS,
   ...CATALOGOS_F48,
   ...F52_GUARDAS,
+  ...F53_ORDEM,
 ]
 
 /**
@@ -1384,5 +1471,20 @@ export const QUARENTENA = [
     // a correção que a 0100 fez porque conferir só o prefixo aceitava o backup de OUTRA
     // exclusão.
     fase: 'F54',
+  },
+  {
+    id: 'f53-view-de-conflitos-perde-o-desempate',
+    roteiro: 'conflito_filiais.sql',
+    classe: 'desempate-ausente',
+    // ⚠ NASCE EM QUARENTENA, não no lote ativo — decidido lendo os dois roteiros que
+    // poderiam acusá-la, não por suposição. `derruba` do PAR abaixo é o que ela
+    // encostaria SE existisse cenário: nenhum dos dois hoje lê `ultima_mov_tipo`.
+    derruba: ['(nenhum rótulo de hoje)'],
+    porque:
+      'Tira `, m2.ordem desc` do order by que resolve `ultima_mov_tipo` em v_conflitos_filiais — a ÚNICA régua de "última movimentação" da base inteira que a D7 do PLAN-F53 encontrou sem desempate nenhum, com 1448 ativos de produção em empate de created_at esperando por ela.',
+    sql: 'remover `, m2.ordem desc` do order by da subconsulta `ultima_mov_tipo` em v_conflitos_filiais',
+    indetectavel:
+      'Nenhum roteiro lê o valor de `ultima_mov_tipo` sob um cenário de empate. `conflito_filiais.sql` confere contagens e grupos de v_conflitos_filiais, nunca esse campo; `asof_desempate.sql` — a extensão paralela da F53, rótulos 3a..10c — só exercita `rel_estoque_asof` e a trava do estorno de `aplicar_movimentacao`, nunca a view de conflitos. Detectar exige catálogo novo: um grupo de conflito entre filiais cujas movimentações empatam em (data, created_at), com a asserção lendo a coluna.',
+    fase: 'F53B',
   },
 ]

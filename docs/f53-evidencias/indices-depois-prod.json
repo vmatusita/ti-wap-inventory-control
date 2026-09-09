@@ -1,0 +1,67 @@
+[
+  {
+    "indice": "mov_ativo_idx",
+    "idx_scan": 144962,
+    "idx_tup_read": 1059214
+  },
+  {
+    "indice": "movimentacoes_pkey",
+    "idx_scan": 74610,
+    "idx_tup_read": 81548
+  },
+  {
+    "indice": "movimentacoes_ordem_lista_idx",
+    "idx_scan": 16070,
+    "idx_tup_read": 1534080
+  },
+  {
+    "indice": "movimentacoes_estorno_de_idx",
+    "idx_scan": 12813,
+    "idx_tup_read": 110517
+  },
+  {
+    "indice": "mov_filial_data_idx",
+    "idx_scan": 10993,
+    "idx_tup_read": 13581130
+  },
+  {
+    "indice": "mov_created_idx",
+    "idx_scan": 3102,
+    "idx_tup_read": 257041
+  },
+  {
+    "indice": "movimentacoes_colaborador_idx",
+    "idx_scan": 556,
+    "idx_tup_read": 133741
+  },
+  {
+    "indice": "movimentacoes_filial_destino_id_idx",
+    "idx_scan": 504,
+    "idx_tup_read": 1602382
+  },
+  {
+    "indice": "movimentacoes_criado_por_idx",
+    "idx_scan": 461,
+    "idx_tup_read": 24606
+  },
+  {
+    "indice": "movimentacoes_data_ordem_idx",
+    "idx_scan": 9,
+    "idx_tup_read": 15745
+  },
+  {
+    "indice": "movimentacoes_ordem_uidx",
+    "idx_scan": 6,
+    "idx_tup_read": 10493
+  },
+  {
+    "indice": "movimentacoes_forcado_idx",
+    "idx_scan": 2,
+    "idx_tup_read": 0
+  },
+  {
+    "indice": "movimentacoes_motivo_idx",
+    "idx_scan": 0,
+    "idx_tup_read": 0
+  }
+]

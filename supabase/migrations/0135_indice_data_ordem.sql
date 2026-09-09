@@ -1,0 +1,72 @@
+-- Migration 0135 — F53: o índice que a régua nova pede (Decisão 8).
+--
+-- Depende da 0133 (a coluna `ordem`) e da 0134 (a régua nova). ⚠ ORDEM DE APPLY: 0133 → 0134 → 0135.
+--
+-- =============================================================================
+-- POR QUE ELE EXISTE — a medição, não a suposição
+-- =============================================================================
+-- A 0134 trocou a ordenação da lista de `/movimentacoes` de
+-- `data desc, created_at desc, id desc` para `data desc, ordem desc`. O índice que servia a
+-- régua antiga é `movimentacoes_ordem_lista_idx (data desc, created_at desc, id desc)`
+-- (`0105`, o 3º mais usado da tabela: 15.523 scans). Ele cobre o PREFIXO `data` da régua nova
+-- e mais nada — e o Postgres resolve a segunda chave com um nó de `Incremental Sort`.
+--
+-- MEDIDO em produção, `explain (analyze, buffers)` do mesmo `limit 30`:
+--   ANTES  → Index Scan using movimentacoes_ordem_lista_idx · 5 buffers · 0,337 ms
+--   DEPOIS → Incremental Sort sobre o mesmo Index Scan · 15 buffers · 0,530 ms
+--
+-- ⚠ O NÚMERO ABSOLUTO NÃO É O ARGUMENTO — a mecânica é. `Incremental Sort` processa cada
+-- grupo de `data` igual POR INTEIRO antes de conseguir ordenar por `ordem` dentro dele, e só
+-- então decide quais linhas entram no top-30. Medido no ensaio, sem cache quente: para
+-- devolver **30** linhas o executor leu **1544** linhas do índice, tocando 114 buffers.
+--
+-- E os grupos grandes NÃO são hipotéticos: o import de abertura cria exatamente esse padrão.
+-- Em produção, `2026-07-27` tem **514** movimentações na mesma `data` (a segunda maior,
+-- `2026-07-31`, tem 378). O custo do `Incremental Sort` escala com o TAMANHO DO MAIOR GRUPO
+-- DE `data`, não com o tamanho da tabela nem com o `LIMIT` — ou seja, cada novo go-live de
+-- filial (que é a rotina do sistema, não a exceção) piora esta consulta. É por isso que
+-- "a tabela é pequena, tanto faz" seria a leitura errada: a tabela é pequena e o grupo não.
+--
+-- MEDIDO com o índice candidato, em `begin; create index …; explain …; rollback;` no ensaio:
+--   Index Scan using <candidato> · 6 buffers · 0,835 ms — sem nó de Sort, e o custo deixa de
+--   depender do tamanho do grupo de `data`.
+--
+-- O QUE **NÃO** ENTRA, e por quê — `(ativo_id, created_at desc, ordem desc)` para a linha do
+-- tempo da ficha: medido, ela **não regrediu**. `mov_ativo_idx (ativo_id, data desc)` NUNCA
+-- cobriu a ordenação por `created_at` — a consulta já pagava um `Sort` antes da F53 —, e
+-- trocar a segunda chave de `(data, id)` para `ordem` não muda a forma do plano (Bitmap Index
+-- Scan + Sort, 17 → 14 buffers, tempo dentro do ruído). Além disso esse `Sort` é limitado
+-- pelo número de movimentações de UM ativo (hoje no máximo 8 em todo o acervo), que cresce
+-- devagar. Criar índice sem regressão medida seria pagar manutenção de escrita por nada.
+-- Fica NOMEADO no backlog da F60, para o caso de o padrão de acesso mudar.
+--
+-- ⚠ `movimentacoes_ordem_lista_idx` **NÃO é dropado** — está fora do escopo desta ordem, e a
+-- decisão de aposentá-lo é da F60, com o `idx_scan` dele medido como insumo.
+--
+-- ADITIVA: cria UM índice. Nenhuma linha é tocada, nenhuma função recriada, nenhum grant muda.
+-- Não bate no gate → caminho **A**: ensaio primeiro, produção depois.
+--
+-- =============================================================================
+-- ORDEM DE ROLLBACK — e ela é a PRIMEIRA da cadeia da F53 a ser desfeita
+-- =============================================================================
+--   1) drop index if exists public.movimentacoes_data_ordem_idx;
+-- Depois desta, se for o caso: a 0134 (reemitindo os corpos da 0110 e da 0096) e só então a
+-- 0133 (`drop column ordem`). Dropar o índice não muda resultado nenhum — só o plano.
+
+create index movimentacoes_data_ordem_idx
+  on public.movimentacoes (data desc, ordem desc);
+
+comment on index public.movimentacoes_data_ordem_idx is
+  'F53: serve a ordenação fixa da lista de /movimentacoes (`data desc, ordem desc`, src/lib/queries/movimentacoes.ts · queryLista). Sem ele o plano vira Index Scan + Incremental Sort sobre movimentacoes_ordem_lista_idx, cujo custo escala com o tamanho do maior grupo de `data` — e o import de abertura cria grupos de centenas de linhas (514 em 2026-07-27). Molde e motivo da 0105.';
+
+-- ---------- VERIFICAÇÃO PÓS-APPLY ----------
+--   -- 1) o índice existe e tem a definição certa:
+--   select indexdef from pg_indexes
+--    where schemaname='public' and indexname='movimentacoes_data_ordem_idx';
+--   -- esperado: ... USING btree (data DESC, ordem DESC)
+--
+--   -- 2) o plano voltou a ser Index Scan PURO, sem nó de Sort:
+--   explain (analyze, buffers)
+--     select * from public.movimentacoes order by data desc, ordem desc limit 30;
+--   -- esperado: Index Scan using movimentacoes_data_ordem_idx — e NENHUM
+--   --           'Incremental Sort' nem 'Sort' no plano.
