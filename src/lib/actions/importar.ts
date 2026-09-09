@@ -34,6 +34,12 @@ import {
   escopoDoImportLog,
   pertenceAoEscopo,
 } from '@/lib/escopo/pertencimento'
+import {
+  avisoDaLimpeza,
+  copiarEntaoRemoverTermos,
+  prefixoDasCopias,
+  raizDoBackupEmArquivo,
+} from '@/lib/storage/copiar-antes-de-remover'
 
 // Server Actions da tela admin/importar (OS-F7 / W3). Escritas com validação Zod;
 // TODO acesso ao banco/Storage/RPC pelo client autenticado do operador (a RPC
@@ -168,6 +174,12 @@ export type ResultadoImport = {
   anotacoesApagadas: number
   termosApagados: number
   arquivosTermosRemovidos: number
+  /**
+   * F54 — o que NÃO saiu limpo da limpeza dos `.docx`, em pt-BR, ou ausente quando tudo
+   * correu bem. Existe porque a fase inverteu o contrato: o documento assinado cuja cópia
+   * de segurança falhar NÃO é mais apagado, e o operador precisa saber que ele ficou.
+   */
+  avisoTermos?: string
   /** F7B — correções gravadas em `import_logs.correcoes` (= o que o histórico conta). */
   correcoesAplicadas: number
   /**
@@ -482,22 +494,30 @@ export async function aplicarImport(input: {
     }
   }
 
-  // Remove do bucket `termos` os .docx dos termos apagados (best-effort): se
-  // falhar, o import já valeu — órfãos no Storage são toleráveis (só registra).
-  let arquivosTermosRemovidos = 0
+  // COPIA os .docx dos termos apagados para o backup e SÓ ENTÃO os remove do bucket
+  // `termos` — F54.
+  //
+  // ⚠ ISTO INVERTEU O CONTRATO. Até aqui a remoção era best-effort ("se falhar, o import
+  // já valeu — órfãos no Storage são toleráveis"), e o backup que subiu antes da RPC
+  // levava só as LINHAS. Restaurar devolvia `termos_gerados` apontando para .docx que não
+  // existiam mais — um documento ASSINADO por uma pessoa, destruído sem cópia. Agora a
+  // cópia vem antes, e o que não copiar NÃO é removido.
+  //
+  // ⚠ A cópia acontece DEPOIS da RPC porque a lista de arquivos vem no RETORNO dela. Não
+  // dá para listá-la no JSON do backup, que subiu antes — e é por isso que o caminho das
+  // cópias é DETERMINÍSTICO: `<backup_path sem .json>/termos/`, que o restaurador e a 12ª
+  // checagem recalculam sem precisar de manifesto.
+  //
+  // O client é o de SESSÃO, o mesmo que remove — o cabeçalho deste módulo proíbe service
+  // role, e as policies de Storage (0066/0069) deixam o admin de sessão copiar (`copy()`
+  // exige SELECT na origem e INSERT no destino).
   const arquivos = ret.data.arquivos_termos_apagados
-  if (arquivos.length > 0) {
-    try {
-      const { error: rmErr } = await client.storage.from('termos').remove(arquivos)
-      if (rmErr) {
-        console.error('[importar] falha ao remover termos do bucket:', rmErr.message)
-      } else {
-        arquivosTermosRemovidos = arquivos.length
-      }
-    } catch (e) {
-      console.error('[importar] exceção ao remover termos do bucket:', e)
-    }
-  }
+  const limpeza = await copiarEntaoRemoverTermos(client, {
+    prefixoDestino: prefixoDasCopias(raizDoBackupEmArquivo(backupPath)),
+    caminhos: arquivos,
+  })
+  const arquivosTermosRemovidos = limpeza.removidos.length
+  const avisoTermos = avisoDaLimpeza(limpeza, arquivos.length)
 
   // Trilha de auditoria (F21). `import_logs` já registra o import em detalhe; esta linha
   // existe para que a aba Auditoria de /admin/usuarios conte a história administrativa
@@ -541,6 +561,7 @@ export async function aplicarImport(input: {
       anotacoesApagadas: ret.data.anotacoes_apagadas,
       termosApagados: ret.data.termos_apagados,
       arquivosTermosRemovidos,
+      ...(avisoTermos ? { avisoTermos } : {}),
       correcoesAplicadas: correcoes.length,
       conflitosAbertos: ret.data.conflitos_abertos,
     },

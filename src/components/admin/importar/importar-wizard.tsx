@@ -1000,6 +1000,21 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               </div>
             )}
 
+            {/* F54 — os documentos de responsabilidade que NÃO puderam ser copiados para o
+                arquivo de segurança não são mais apagados. Quando isso acontece, o
+                operador tem de saber: o cadastro sumiu, mas o documento continua lá. */}
+            {resultado.resultado.avisoTermos && (
+              <div className="rounded-lg border border-warning/40 bg-warning/5 p-4">
+                <div className="flex items-center gap-2 font-medium text-warning">
+                  <AlertTriangle className="size-4" />
+                  Documentos de responsabilidade
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {resultado.resultado.avisoTermos}
+                </p>
+              </div>
+            )}
+
             {resultado.resultado.correcoesAplicadas > 0 && (
               <p className="text-sm text-muted-foreground">
                 <strong className="tabular-nums">

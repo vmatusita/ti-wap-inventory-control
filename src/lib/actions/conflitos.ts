@@ -4,6 +4,12 @@ import { createHash } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  avisoDaLimpeza,
+  copiarEntaoRemoverTermos,
+  prefixoDasCopias,
+  raizDoConflito,
+} from '@/lib/storage/copiar-antes-de-remover'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { acervoDosAtivos, ladosDosAtivos } from '@/lib/queries/conflitos'
@@ -48,9 +54,6 @@ const ROTAS = ['/', '/ativos', '/movimentacoes', '/pendencias', '/relatorios/ger
 function revalidar(): void {
   for (const r of ROTAS) revalidatePath(r)
 }
-
-/** Teto por chamada de `remove()`. A API de Storage aceita até 1000 chaves por requisição. */
-const LOTE_REMOCAO = 500
 
 /**
  * O DIGEST da seleção — é ele que amarra o arquivo de backup a ESTES cadastros.
@@ -111,31 +114,19 @@ async function descartarBackupNaoUsado(caminho: string): Promise<void> {
  * · O `data` de `remove()` é CONFERIDO, e não só o `error`: a API responde 200 com a lista
  *   do que realmente saiu, então uma remoção parcial não levanta erro nenhum.
  */
-async function limparArquivosDeTermo(caminhos: string[]): Promise<string | null> {
+async function limparArquivosDeTermo(
+  caminhos: string[],
+  prefixoDestino: string,
+): Promise<string | null> {
   if (caminhos.length === 0) return null
 
+  // F54 — COPIA antes de remover, e NÃO remove o que não copiou. O gêmeo byte a byte que
+  // vivia aqui e em `dev-destrutivo.ts` virou UMA porta em
+  // `lib/storage/copiar-antes-de-remover.ts`. Os motivos escritos acima continuam valendo
+  // inteiros — o que mudou é que agora existe cópia, e falhar a cópia IMPEDE a remoção.
   const admin = createAdminClient()
-  const naoRemovidos: string[] = []
-
-  for (let i = 0; i < caminhos.length; i += LOTE_REMOCAO) {
-    const lote = caminhos.slice(i, i + LOTE_REMOCAO)
-    try {
-      const { data, error } = await admin.storage.from('termos').remove(lote)
-      if (error) throw new Error(error.message)
-      const saiu = new Set((data ?? []).map((o) => o.name))
-      naoRemovidos.push(...lote.filter((c) => !saiu.has(c)))
-    } catch (err) {
-      console.error('[conflitos] falha ao remover .docx do bucket termos', {
-        lote: lote.length,
-        erro: err instanceof Error ? err.message : String(err),
-      })
-      naoRemovidos.push(...lote)
-    }
-  }
-
-  if (naoRemovidos.length === 0) return null
-  console.error('[conflitos] .docx que ficaram órfãos no bucket', { naoRemovidos })
-  return `Os cadastros foram apagados, mas ${naoRemovidos.length} de ${caminhos.length} arquivo(s) .docx não saíram do armazenamento. Eles ficaram órfãos — a checagem "arquivo de termo órfão" da área do desenvolvedor vai contá-los.`
+  const r = await copiarEntaoRemoverTermos(admin, { prefixoDestino, caminhos })
+  return avisoDaLimpeza(r, caminhos.length)
 }
 
 // ---------------------------------------------------------------------------
@@ -305,7 +296,15 @@ export async function apagarConflito(input: {
   }
 
   // ---- limpeza dos .docx, DEPOIS do commit ----
-  const aviso = await limparArquivosDeTermo(ret.arquivos_termos ?? [])
+  // F54 — a raiz das cópias é `conflito/<digest>`, IGUAL acima e abaixo do teto de 25.
+  // Abaixo dele não existe backup em arquivo (o backup é jsonb inline no evento), e o
+  // digest da seleção é a única âncora presente nos dois casos. Ele é o mesmo valor que a
+  // RPC confere no prefixo (0100) e que `digest_selecao_conflito()` recalcula em SQL — por
+  // isso a 12ª checagem reconhece estas cópias sem registro novo.
+  const aviso = await limparArquivosDeTermo(
+    ret.arquivos_termos ?? [],
+    prefixoDasCopias(raizDoConflito(digestDaSelecao(ativoIds))),
+  )
 
   revalidar()
 

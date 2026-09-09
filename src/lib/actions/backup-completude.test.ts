@@ -35,11 +35,21 @@ import { limpar } from '@/lib/use-server-exports'
 // que não é a única cópia de nada. O que a trava proíbe é a classificação SILENCIOSA:
 // os dois campos são obrigatórios, e a frase tem de ser uma frase.
 //
-// ⚠ A COMPARAÇÃO É PELO ARGUMENTO, NÃO PELA PALAVRA "copiar". Uma trava que só
+// ⚠ A ASSERÇÃO É SOBRE A CADEIA, NÃO SOBRE A PALAVRA "copiar". Uma trava que só
 // procurasse a existência de uma chamada de cópia no arquivo passaria verde com a
-// cópia cobrindo OUTRO conjunto de caminhos — que é precisamente o defeito realista
-// (copiar `lote` e remover `todos`, ou copiar a lista antiga depois de um refactor).
-// Por isso o casamento é entre o TEXTO DO ARGUMENTO do `remove(` e o do `copiar(`.
+// cópia cobrindo OUTRO conjunto de caminhos — o defeito realista depois de um
+// refactor. Por isso ela confere três elos, e o do meio é o que tem dentes:
+//   1. a cópia aparece ANTES do `remove(` no arquivo;
+//   2. o argumento do `remove(` DESCENDE da lista que a cópia CONFIRMOU
+//      (`listaConfirmada`), e não da lista de ENTRADA (`listaDeEntrada`);
+//   3. e explicitamente NÃO é a lista de entrada — trocar uma pela outra é uma
+//      edição de uma palavra, e apagaria o `.docx` que não foi copiado.
+//
+// ⚠ ELA NÃO SABE EXECUTAR O PROGRAMA, e não finge saber. "A cópia falhou, então não
+// removeu" é comportamento, e quem responde por isso é
+// `copiar-antes-de-remover.test.ts`. Esta aqui responde por outra pergunta, e é a que
+// não tem quem responda: "o repositório continua descrevendo uma porta só, e ela
+// continua removendo só o que confirmou?".
 // =============================================================================
 
 const RAIZ_SRC = join(process.cwd(), 'src')
@@ -81,7 +91,18 @@ function argumentoDe(fonte: string, aberturaDoRemove: number): string | null {
 const NOME_COPIA = 'copiarArtefatosParaBackup'
 
 type Classificacao =
-  | { tipo: 'copia-antes'; motivo: string }
+  | {
+      tipo: 'copia-antes'
+      motivo: string
+      /**
+       * O identificador que guarda a lista do que a cópia CONFIRMOU, e do qual o argumento
+       * do `remove(` tem de descender. É este campo que dá dentes à trava: sem ele, ela só
+       * saberia dizer que a palavra "copiar" aparece no arquivo.
+       */
+      listaConfirmada: string
+      /** A lista de ENTRADA — a que o `remove(` NÃO pode usar, porque inclui o que falhou. */
+      listaDeEntrada: string
+    }
   | { tipo: 'dispensado'; motivo: string }
 
 /**
@@ -94,10 +115,12 @@ type Classificacao =
  */
 const CLASSIFICADOS: Record<string, Classificacao> = {
   // --- A classe protegida: o `.docx` é a única cópia de um documento assinado. ---
-  "src/lib/storage/copiar-antes-de-remover.ts::caminhos": {
+  'src/lib/storage/copiar-antes-de-remover.ts::loteRemocao': {
     tipo: 'copia-antes',
     motivo:
       'A PORTA ÚNICA. Os quatro fluxos destrutivos que apagam `.docx` do bucket `termos` (import, reset, apagar ativo e conflito entre filiais) passam todos por aqui, e é aqui que a cópia acontece antes da remoção. Concentrar a remoção num ponto só é o que permite a esta trava ser uma asserção sobre estrutura, e não um grep espalhado por quatro arquivos que envelhecem em ritmos diferentes.',
+    listaConfirmada: 'copiados',
+    listaDeEntrada: 'caminhos',
   },
 
   // --- Os dispensados: não são a única cópia de nada. ---
@@ -205,29 +228,57 @@ describe('2. quem é `copia-antes` copia o MESMO conjunto, antes de remover', ()
     expect(sitios().length).toBeGreaterThan(0)
   })
 
-  it.each(Object.entries(CLASSIFICADOS).filter(([, c]) => c.tipo === 'copia-antes').map(([k]) => k))(
-    '`%s` chama a cópia com o MESMO argumento, ANTES do remove',
-    (chave) => {
+  const copiaAntes = Object.entries(CLASSIFICADOS).filter(
+    (e): e is [string, Extract<Classificacao, { tipo: 'copia-antes' }>] => e[1].tipo === 'copia-antes',
+  )
+
+  it.each(copiaAntes.map(([k, c]) => [k, c] as const))(
+    '`%s` remove a lista CONFIRMADA pela cópia, e a cópia vem antes',
+    (chave, c) => {
       const s = sitiosDeRemocao().find((x) => x.chave === chave)
       expect(s, `o sítio ${chave} sumiu do fonte`).toBeDefined()
       if (!s) return
 
-      const posRemove = s.fonte.indexOf(`.remove(`)
-      // A cópia tem de aparecer ANTES da remoção no arquivo. É a asserção mais grosseira
-      // possível sobre ordem — e é de propósito: uma trava textual não sabe executar o
-      // programa, e fingir que sabe (analisando fluxo) seria uma precisão que ela não tem.
-      // A ordem REAL (a cópia falhou → não remove) é provada pelo teste de comportamento
-      // em `copiar-antes-de-remover.test.ts`, que é quem responde por isso.
+      // (1) A cópia aparece ANTES da remoção no arquivo. É a asserção mais grosseira
+      // possível sobre ordem, e é de propósito: uma leitura do fonte não executa o
+      // programa, e fingir que analisa fluxo seria uma precisão que ela não tem. A ordem
+      // REAL — a cópia falhou, então não remove — é provada pelo teste de comportamento em
+      // `copiar-antes-de-remover.test.ts`, que é quem responde por isso.
+      const posRemove = s.fonte.indexOf('.remove(')
       const posCopia = s.fonte.indexOf(NOME_COPIA)
       expect(posCopia, `${chave}: não há chamada a ${NOME_COPIA} neste arquivo`).toBeGreaterThan(-1)
       expect(posCopia, `${chave}: a cópia aparece DEPOIS do remove`).toBeLessThan(posRemove)
 
-      // E o casamento que importa: a cópia cobre o MESMO conjunto de caminhos.
-      const reCopia = new RegExp(`${NOME_COPIA}\\s*\\([^)]*?\\b${s.argumento.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
+      // (2) A CADEIA, que é o que dá dentes à trava. O argumento do `remove(` tem de
+      // DESCENDER da lista que a cópia confirmou — não da lista de entrada. É aqui que a
+      // trava pega o caso realista: "a cópia existe, mas cobre outro conjunto".
+      // ⚠ A REGEX EXIGE A ATRIBUIÇÃO, e o motivo foi MEDIDO. A primeira versão aceitava
+      // também "`copiarArtefatosParaBackup` aparece a até 200 caracteres de `copiados`" —
+      // e a sabotagem A.1 (trocar a chamada por `const copiados = params.caminhos`) passou
+      // VERDE, porque aquele ramo casava com a DEFINIÇÃO da função, que mora neste mesmo
+      // arquivo e declara `const copiados: string[] = []` no próprio corpo. Uma trava que
+      // casa com a definição em vez da chamada prova que o nome existe, não que ele é
+      // usado — que é o erro que a F51 documentou e este arquivo repetiu.
+      const reOrigem = new RegExp(`\\b${c.listaConfirmada}\\b[^=\\n]{0,60}=\\s*await\\s+${NOME_COPIA}\\s*\\(`)
       expect(
-        reCopia.test(s.fonte),
-        `${chave}: existe cópia, mas ela não cobre o argumento \`${s.argumento}\` — a cópia e a remoção estão sobre conjuntos DIFERENTES`,
+        reOrigem.test(s.fonte),
+        `${chave}: \`${c.listaConfirmada}\` não vem de \`await ${NOME_COPIA}(…)\` — a cópia sumiu, ou a lista removida passou a ter outra origem`,
       ).toBe(true)
+
+      const reDescende = new RegExp(`\\b${s.argumento}\\b\\s*=\\s*${c.listaConfirmada}\\b`)
+      expect(
+        s.argumento === c.listaConfirmada || reDescende.test(s.fonte),
+        `${chave}: o \`remove(${s.argumento})\` não descende de \`${c.listaConfirmada}\` — a remoção está sobre um conjunto que a cópia não confirmou`,
+      ).toBe(true)
+
+      // (3) E o negativo explícito: a remoção NÃO pode ser da lista de ENTRADA, que inclui
+      // o que falhou ao copiar. Trocar uma pela outra é exatamente o defeito que esta fase
+      // existe para impedir, e é uma edição de uma palavra.
+      expect(
+        s.argumento,
+        `${chave}: o remove voltou a usar \`${c.listaDeEntrada}\` — isso apaga o .docx que NÃO foi copiado`,
+      ).not.toBe(c.listaDeEntrada)
+      expect(new RegExp(`\\b${s.argumento}\\b\\s*=\\s*${c.listaDeEntrada}\\b`).test(s.fonte)).toBe(false)
     },
   )
 })
