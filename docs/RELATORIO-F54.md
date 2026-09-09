@@ -244,6 +244,43 @@ e **revertі**.
 
 ---
 
+## 7-bis. O que o `banco-sem-docker` pegou, e que a mesa não pegaria
+
+O job ficou **vermelho no primeiro push**, com duas falhas. As duas eram reais, e nenhuma
+apareceria aqui: `lint`, `test` e `build` **não executam SQL**.
+
+**1. `f41_regularizacao.sql`: "esperava 11 checagens, achei 12".** Aquele roteiro conta os blocos de
+`dev_checagens_integridade` e exigia ONZE. A `0136` fez doze. É exatamente o modo de falha que a regra
+*"rode TODOS os roteiros ao mexer em função"* existe para pegar (lição da F15/F17): rodei o roteiro
+**novo** contra o ensaio, e não o conjunto. O número é uma **contagem**, e toda fase que acrescenta
+checagem tem de bumpá-la — o comentário agora diz isso, para o próximo não descobrir do mesmo jeito.
+⚠ Não é "editar teste para ficar verde": a asserção não estava errada, ela codificava um número que
+esta fase muda **de propósito**.
+
+**2. `restauracao.sql`, rótulo `2c`: "o INSERT seguinte PASSOU com a sequência atrás".** Esta é a
+interessante, e é um defeito **meu**, não do sistema. O cenário fazia `setval(seq, 1, false)` e
+esperava colisão. **Passou no ensaio e falhou no CI**, e a diferença não é sorte — é semântica:
+
+- no **ensaio** existem 3.239 movimentações reais, então `ordem = 1` existe e colide;
+- no **CI** a tabela só tem as linhas do próprio roteiro, e como os roteiros anteriores já consumiram
+  a sequência (o `rollback` desfaz as **linhas**, não a **sequência**), a `ordem` restaurada é alta e
+  `1` não colide com nada.
+
+A asserção estava medindo **o acervo do ambiente**, não a armadilha. Teria passado para sempre no
+ensaio e reprovado para sempre no CI, e nenhuma das duas coisas diz nada sobre `setval`. Corrigida
+para apontar à `ordem` que **o próprio roteiro** acabou de restaurar.
+
+⚠ **O que isso significa para a evidência 09:** a execução verde no ensaio era verdadeira, mas o `2c`
+lá estava passando **pelo motivo errado**. Quem pegou foi o CI — que é para isso que ele é *required
+check*, e é a razão de a ordem mandar ler a saída dele em vez de supor.
+
+E uma terceira, que o CI **ainda não** pegaria porque a ordem alfabética dos roteiros a esconde:
+`setval(v_bkp_ordem_a - 1, …)` estouraria com *"value 0 is out of bounds"* se `restauracao.sql`
+rodasse **sozinho** num banco recém-criado (a compra receberia `ordem = 1`). Corrigido para apontar à
+segunda movimentação, que tem `ordem >= 2` por construção.
+
+---
+
 ## 8. ⚠ O desvio: a fila `0131`→`0132` foi aplicada no ENSAIO
 
 A ordem proíbe: *"não aplique, não reordene, não a inclua no PR"*. Um subagente encarregado de adotar
