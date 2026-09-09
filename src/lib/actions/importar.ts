@@ -29,6 +29,11 @@ import {
 import type { Filial } from '@/lib/queries/filiais'
 import type { Json } from '@/lib/types/database'
 import { confirmacaoImportConfere, prefixoBackupImport } from '@/lib/validators/importar'
+import {
+  escopoDeGestaoAtual,
+  escopoDoImportLog,
+  pertenceAoEscopo,
+} from '@/lib/escopo/pertencimento'
 
 // Server Actions da tela admin/importar (OS-F7 / W3). Escritas com validação Zod;
 // TODO acesso ao banco/Storage/RPC pelo client autenticado do operador (a RPC
@@ -556,11 +561,23 @@ export async function urlBackup(logId: string): Promise<UrlBackupResult> {
 
   const { data: log, error } = await client
     .from('import_logs')
-    .select('backup_path')
+    .select('id, backup_path')
     .eq('id', logId)
     .maybeSingle()
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   if (!log) return { ok: false, erro: 'Import não encontrado.' }
+
+  // A FECHADURA DE PERTENCIMENTO (F54) — hoje um NO-OP, e é o ponto de injeção da
+  // F62/F69. Esta é a cadeia mais curta de download do dump alheio, e ela é pela
+  // APLICAÇÃO: a URL assinada nasce aqui, com a credencial de quem já passou por
+  // `exigirAdmin`, e o Storage não tem como saber que aquele admin é de outra
+  // empresa. Arrumar policy de bucket NÃO fecha isto. Com uma empresa só,
+  // `pertenceAoEscopo` sempre responde `true` e nada muda para ninguém — ver
+  // `src/lib/escopo/pertencimento.ts` para por que ela é uma comparação de verdade
+  // e não um `return true`.
+  if (!pertenceAoEscopo(escopoDeGestaoAtual(), escopoDoImportLog(log))) {
+    return { ok: false, erro: 'Import não encontrado.' }
+  }
 
   const { data: signed, error: sErr } = await client.storage
     .from('backups-import')

@@ -3,6 +3,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { chavePatrimonio, SEM_PATRIMONIO } from '@/lib/patrimonio'
 import { paginarTodos } from '@/lib/queries/relatorios/comum'
 import type { Database } from '@/lib/types/database'
+import {
+  escopoDeGestaoAtual,
+  escopoDoImportLog,
+  pertenceAoEscopo,
+} from '@/lib/escopo/pertencimento'
 
 // Leituras da tela admin/importar (OS-F7 / W3): custo da substituição por filial,
 // histórico de imports e export do acervo para o backup pré-import. Todas recebem
@@ -328,7 +333,15 @@ export async function listarImportLogs(
     .limit(limite)
   if (error) throw new Error(`Falha ao listar imports: ${error.message}`)
 
-  return (data ?? []).map((l) => ({
+  // A FECHADURA DE PERTENCIMENTO (F54) — hoje um NO-OP, e é o ponto de injeção da
+  // F62/F69, o mesmo de `urlBackup`. Todo admin vê o histórico de todas as filiais, e
+  // isso é o desenho de hoje, não um defeito de hoje: com uma empresa só,
+  // `pertenceAoEscopo` responde `true` para toda linha e a lista sai idêntica. O filtro
+  // fica ANTES do mapeamento de propósito — na virada, a linha de outra empresa não
+  // deve nem chegar a ser convertida em `ImportLogRow`.
+  return (data ?? [])
+    .filter((l) => pertenceAoEscopo(escopoDeGestaoAtual(), escopoDoImportLog(l)))
+    .map((l) => ({
     id: l.id,
     filialNome: l.filiais?.nome ?? '—',
     filialSlug: l.filiais?.slug ?? '',
