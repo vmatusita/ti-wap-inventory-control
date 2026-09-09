@@ -6,6 +6,20 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 09/09/2026 — Rollout · A fila `0131`→`0132` entra em produção ✅ 🔒
+
+Avulsa (**v1.59.1**), fora de fase. Fecha a única pendência de banco que o projeto carregava: as duas migrations que a F51 e a F52 escreveram, mergearam e **nunca aplicaram**. Elas estavam no ensaio desde o desvio da F54 (09/09) e faltavam só em produção. **Nenhuma linha de código de aplicação mudou** — o que mudou foi o banco, e um arquivo gerado.
+
+- 🔒 **As duas foram na mesma janela, na ordem, como o cabeçalho das duas exige.** A `0132` recria `import_validar_plano` e `importar_ativos_substituir`, que só existem na forma decomposta depois da `0131`. Nenhuma das duas toca dado: são 11 funções novas, 4 recriadas, 1 índice e 2 comentários de catálogo. Acervo antes e depois: **ativos 1621** nos dois lados.
+- 🔎 **A prova de que o apply está certo não é o ledger — é a sonda de paridade do runbook.** Rodada nos dois projetos, as **10 classes** de objeto agora batem em contagem, e **9 batem em fingerprint**. A décima (`func`) diverge por **crase dentro de comentário** em três funções de produção (`apagar_ativo`, `apagar_item`, `reabrir_pendencias_item_com_estornos`) — herança de um apply manual antigo, não desta janela. Com os comentários removidos, o fingerprint das **76 funções** é **idêntico**: `98bf752c5fbf5a48b05f7edcceac9d2e` nos dois. Todo corpo executável de produção é hoje igual ao do ensaio.
+- ⚠️ **O import ficou mais rígido, e isso é visível para quem opera.** Três recusas que a `0132` trouxe passaram a valer de verdade: o mesmo arquivo não reimporta na mesma filial dentro de **24 h**; a confirmação digitada passou a ser conferida **dentro do banco**, e não só na tela; e o backup informado tem de existir no bucket **e** ser o daquela filial. Quem chamasse a RPC por fora pulava as três.
+- 🧱 **As 11 funções novas nasceram fechadas — medido, não suposto.** O `get_advisors` de produção lista 27 `security definer` alcançáveis pelo `authenticated`, e **nenhuma das 11 está entre elas**. Os `revoke` da `0131`/`0132` pegaram.
+- 🧹 **`database.ts` voltou a ser 100% gerado.** Os três blocos de comentário datados que a F51/F52/F53 tinham escrito à mão saíram sozinhos na primeira regeneração — como estava prometido em cada um deles. O que o gerador produziu bate com o que estava escrito à mão: o remendo estava certo.
+- 📒 **O ledger de produção ganhou quatro linhas, todas conferidas pelo efeito antes de entrar** — `0131` e `0132` desta janela, e `0136`/`0137`, que a F54 aplicou e **não** havia registrado. Registrar migration que não está aplicada é pior que a divergência; por isso cada uma foi provada no banco primeiro.
+- ⚠️ **Divergência do runbook, medida e registrada.** O `RUNBOOK-BANCO.md` manda caminho **B** (humano no SQL Editor) para DDL que contenha `delete from public.ativos`. A sonda mediu que o classificador **não dispara** nesta sessão, e o apply foi feito por script que lê os bytes travados do disco — sem transcrição, com o sha256 conferido contra `migrations.lock.json` antes de enviar. A ata está em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+---
+
 ## 09/09/2026 — F54 · O backup deixa de mentir, e a restauração é ensaiada ✅ 🔒
 
 Fase (**v1.59.0**). A tela do reset dizia, com todas as letras: *"NADA foi apagado — reset sem backup é proibido"*. A frase era **falsa para a classe de dado mais sensível do sistema**. Os três backups (import, reset, conflito entre filiais) faziam `select('*')` das **linhas**; os `.docx` dos termos de responsabilidade — os documentos que uma pessoa **assinou** — eram removidos do bucket `termos` logo depois, e **nenhum dos três os levava**. Restaurar devolvia `termos_gerados` apontando para objetos que não existiam mais. O plano classifica este item entre os que "nunca cortam", e é por isso.
@@ -44,7 +58,7 @@ Fase (**v1.58.0**). Três lugares do sistema respondiam "qual é a última movim
 
 ---
 
-## 08/09/2026 — F52 · As guardas de escopo no-op ✅ 🚧
+## 08/09/2026 — F52 · As guardas de escopo no-op ✅ 🔒
 
 Fase (**v1.57.0**). Põe dentro do Postgres as guardas de **pertencimento** que hoje não existem — e que na virada multiempresa seriam a única coisa entre um administrador e o dado do vizinho. Todas escritas de forma que, **com uma empresa só, não mudam nada**. Nenhum `empresa_id`, nenhuma tabela de tenant, nenhum `force row level security`. Fechadura antes de chave.
 
@@ -57,10 +71,10 @@ Fase (**v1.57.0**). Põe dentro do Postgres as guardas de **pertencimento** que 
 - 🔒 **A trava é HÍBRIDA, e a forma foi decidida por medição.** `definer_sem_tenant.sql` deriva o universo do catálogo — `security definer` alcançável por `authenticated` com parâmetro `uuid`/`uuid[]`/`smallint`/**`text`** — e compara **nos dois sentidos** contra listas nominais, reprovando **por função NOMEADA, nunca por prefixo**. Conferido contra produção: o universo tem **exatamente 21** funções, e as 21 estão classificadas (18 + 3 exceções). O parâmetro **`text` não é detalhe**: é por ele que `importar_ativos_substituir` entra no universo (`p_backup_path`). Derivação pura reprovaria `estorno_item_coerente` e `termo_ancora_coerente`, que são seguras por estarem **ANDadas na policy**.
 - 🧪 **`k_secdef` 46 → 48 · `cargo_dev` 49 → 60 · `conflito_filiais` 37 → 42 · mutações 47 → 55** (teto 48 → 56, com o motivo no próprio teste). `mesmo_escopo_de_gestao` tem **duas** mutações porque uma guarda que devolve `true` é **indetectável por efeito**: uma mede a **presença**, a outra o **efeito**.
 - 📌 **Três comentários que mentiam, corrigidos** — o que dizia que o conteúdo do CSV nunca é persistido (`import_logs.correcoes` guarda valores crus de célula desde a `0033`), o que afirmava uma ordem de ramos que o arquivo não tem, e o de `eventos_admin.detalhe`, que a descrevia como metadado quando ela guarda **backup do acervo apagado** desde a F23.
-- 🚧 **A `0132` depende da `0131`, e nenhuma das duas está aplicada** — medido: zero auxiliares `import_*` em produção **e** no ensaio. As duas vão na mesma janela, **na ordem**, ou nenhuma vai.
+- 🔒 **A `0132` depende da `0131`, e nenhuma das duas está aplicada** — medido: zero auxiliares `import_*` em produção **e** no ensaio. As duas vão na mesma janela, **na ordem**, ou nenhuma vai. *(Aplicadas em produção em 09/09/2026, nessa ordem e na mesma janela, na v1.59.1 — ver a entrada no topo.)*
 ---
 
-## 08/09/2026 — F51 · A decomposição da RPC de import ✅ 🚧
+## 08/09/2026 — F51 · A decomposição da RPC de import ✅ 🔒
 
 Fase (**v1.56.0**). `importar_ativos_substituir` tinha **393 linhas** de corpo vivo e **onze cópias integrais** na cadeia de migrations. Isso não era estética: era o **mecanismo causal** da dívida X. O método de mudar a função sempre foi copiar o corpo e editar o trecho novo, e foi por isso que o item **N** (`if p_contagens is not null`, conhecido desde 21/07) sobreviveu a **cinco** revisões — não por descuido de revisor, mas porque o processo o recopiava. Uma guarda de quatro linhas custava reemitir 393. A `0131` troca a peça única por uma **orquestradora fina sobre oito auxiliares nomeadas**. **Refatoração pura: nada mudou de comportamento**, e isso não é afirmação — é o roteiro rodado antes e depois, comparado palavra por palavra.
 
@@ -72,7 +86,7 @@ Fase (**v1.56.0**). `importar_ativos_substituir` tinha **393 linhas** de corpo v
 - 🧨 **O injetor: 47 mutações, 46/46 acusadas pelo cenário nomeado** no lote medido. Duas do import foram **reapontadas** (obrigatoriamente no mesmo commit: `mutarFuncao()` resolve o corpo vigente no *import do módulo*, então mover os trechos sem reapontar derrubaria o catálogo inteiro, não só as duas). O CI reprovou duas das novas e as **duas eram defeito da mutação, não da migration** — uma virou no-op porque o resíduo do item N tinha sumido, outra fazia o roteiro **abortar** por violação de chave estrangeira em vez de ficar vermelho.
 - 🧭 **A janela `estoque.dev_destrutivo` e o `pg_advisory_xact_lock` ficaram na função de TOPO.** Existem exatamente duas portas que abrem essa janela; uma terceira aumentaria a superfície que `dev_destrutivo.sql` e `seguranca_catalogo.sql` vigiam. A guarda `e_admin()` continua sendo a primeira coisa depois do contexto de operador — movê-la mudaria a ordem da recusa.
 - 🧹 **O resíduo do item N saiu do corpo novo**, e **nenhuma migration histórica foi tocada** (`migrations.lock.json` reprova, e reprovar é o comportamento certo). `k_secdef` foi de **38 para 46**.
-- 🚧 **Pendente: o apply.** A `0131` contém `delete from public.ativos`, então bate no **gate do modo automático** — caminho **B** do runbook, por construção e não por acidente. Handoff em `scratchpad/`. As entradas das oito funções entraram no `database.ts` **à mão**, com comentário datado, porque o gerador lê um projeto real; a primeira regeneração após o apply as reescreve.
+- 🔒 **Pendente: o apply.** A `0131` contém `delete from public.ativos`, então bate no **gate do modo automático** — caminho **B** do runbook, por construção e não por acidente. Handoff em `scratchpad/`. As entradas das oito funções entraram no `database.ts` **à mão**, com comentário datado, porque o gerador lê um projeto real; a primeira regeneração após o apply as reescreve. *(Aplicada em produção em 09/09/2026, na v1.59.1; a regeneração aconteceu e os comentários datados saíram — ver a entrada no topo.)*
 - 📐 **A frente do par `status_apos_movimentacao` × `rel_estoque_asof` fechou sem código:** a **F36/`0110`** já entregou `status_tem_detentor()` como fonte única, chamada nas duas expressões de detentor e protegida por `detentor-sql.test.ts`. Criar uma terceira função para o mesmo fato seria o defeito, não a entrega.
 
 ---

@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.59.1',
+    data: '2026-09-09',
+    titulo: 'O import de startup passou a recusar o que antes deixava passar',
+    mudancas: [
+      'Importar o mesmo arquivo duas vezes na mesma filial deixou de ser possível dentro de 24 horas. Antes as duas passavam, e a segunda apagava tudo o que a primeira tinha criado — inclusive os termos de responsabilidade. Se a reimportação for intencional mesmo, é só esperar a janela ou corrigir o arquivo.',
+      'A confirmação digitada antes de substituir o acervo de uma filial — o nome da filial, com todas as letras — passou a ser conferida pelo próprio sistema, e não apenas pela tela.',
+      'O arquivo de segurança informado no import agora precisa existir de verdade e ser o daquela filial. Antes bastava que o campo estivesse preenchido.',
+      'As telas de administração de contas ganharam uma verificação a mais sobre quem pode agir sobre quem. Hoje ela não muda nenhuma resposta: foi instalada agora para já estar no lugar no dia em que o sistema atender mais de uma empresa.',
+    ],
+  },
+  {
     versao: '1.59.0',
     data: '2026-09-09',
     fase: 'F54',
