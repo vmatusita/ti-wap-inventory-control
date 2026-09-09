@@ -42,7 +42,7 @@ quem decidia era um **sorteio**. Esta fase troca o sorteio por uma sequência, *
 | `estornar_movimentacao_com_itens` | ordena só o payload; corpo vigente **0122** | "0122" | confere |
 | `v_conflitos_filiais.ultima_mov_tipo` | **`0096:76-80`** | "0092:170-174" | a linha diverge |
 | Pares compra+ajuste empatados | **1270**; **1448** ativos com empate de `created_at`; **2540** linhas em empate | — | o empate é rotina |
-| Asserções (todos os roteiros) | **633 → 648** | — | `asof_desempate`: **4 → 18** |
+| Asserções (todos os roteiros) | **671 → 685** (31 roteiros) | — | `asof_desempate`: **4 → 18** |
 | Mutações | **55 → 58** ativas, **2 → 3** em quarentena, teto **56 → 59** | — | — |
 | `movimentacoes` em publication | **sim** (`supabase_realtime`), **zero** replication slots | não medido | UPDATE emite WAL, ninguém consome |
 | `trg_aplicar_movimentacao` | **BEFORE INSERT apenas** | — | o backfill **não** re-executa a máquina de estados |
@@ -188,7 +188,7 @@ import**, não com o da tabela: cada go-live de filial piora a consulta.
 | 8 | Nenhuma função viva desempata por `id`; exceções nomeadas | ✅ (`10a`/`10b`/`10c`, 3 exceções) |
 | 9 | As duas leituras usam a mesma régua; linha do tempo estável | ✅ |
 | 10 | O diff da `0134` é só a linha do desempate | ✅ (3/1, 1/1, 1/1) |
-| 11 | `npm run db:test` inteiro verde | ✅ **no CI** (`banco-sem-docker`); 648 sítios |
+| 11 | `npm run db:test` inteiro verde | ✅ **no CI**: 31 roteiros, **671 → 685** asserções, 0 falhas |
 | 12 | `npm run db:test:mutations` verde, mutações acusadas pelo rótulo nomeado | ✅ (58/58 — ver §6) |
 | 13 | `lint`, `test`, `build`, `tsc` limpos | ✅ (167 arquivos, **4233** testes) |
 | 14 | `db:lock` no mesmo commit; lock no diff | ✅ |

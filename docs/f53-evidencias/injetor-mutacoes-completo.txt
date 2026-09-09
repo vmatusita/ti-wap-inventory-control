@@ -1,0 +1,231 @@
+banco-sem-docker	Injetor de mutações — cada quebra tem de ser acusada pelo cenário NOMEADO	﻿2026-09-09T13:45:18.3670762Z ##[group]Run npm run db:test:mutations
+^[[36;1mnpm run db:test:mutations^[[0m
+shell: /usr/bin/bash -e {0}
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  BANCO: estoque
+  DATABASE_URL: ***127.0.0.1:5432/estoque
+##[endgroup]
+
+> estoque-ti-wap@1.58.0 db:test:mutations
+> node scripts/db/run-mutation-tests.mjs
+
+==============================================================================
+INJETOR DE MUTAÇÕES (F47)
+==============================================================================
+banco base .......... estoque
+mutações ativas ..... 58
+em quarentena ....... 3 (declaradas, NÃO executadas)
+roteiros do lote .... asof_desempate.sql, cargo_dev.sql, catalogo_policies.sql, catalogo_secdef.sql, conflito_filiais.sql, dev_destrutivo.sql, import_fora_da_unidade.sql, import_substituir.sql, papeis_rls.sql, seguranca_catalogo.sql
+
+---- CONTROLE: os roteiros do lote, SEM mutação nenhuma ----
+controle verde: 10 roteiro(s), nenhum ✗.
+
+[1/58] rls-movimentacao-confia-na-filial-declarada  →  papeis_rls.sql  (espera ✗ 2c-bis, 2c-ter)
+      ✓ detectada — também caíram (efeito colateral): 2g  (1061 ms)
+[2/58] rls-lancamento-de-item-confere-papel-e-esquece-filial  →  papeis_rls.sql  (espera ✗ 2e)
+      ✓ detectada  (384 ms)
+[3/58] rls-edicao-de-ativo-confere-papel-e-esquece-filial  →  papeis_rls.sql  (espera ✗ 2g)
+      ✓ detectada  (380 ms)
+[4/58] rls-piso-de-leitura-aberto-em-ativos  →  papeis_rls.sql  (espera ✗ 4d)
+      ✓ detectada  (382 ms)
+[5/58] rls-desligada-em-senhas-de-acesso  →  papeis_rls.sql  (espera ✗ 3d, 5f)
+      ✓ detectada  (382 ms)
+[6/58] rls-auditoria-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 3f)
+      ✓ detectada  (380 ms)
+[7/58] rls-trilha-do-import-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 3e)
+      ✓ detectada  (380 ms)
+[8/58] rls-bucket-de-backup-visivel-a-quem-escreve  →  papeis_rls.sql  (espera ✗ 6e)
+      ✓ detectada  (382 ms)
+[9/58] rls-termo-perde-as-invariantes-da-ancora  →  papeis_rls.sql  (espera ✗ 2i-bis-3)
+      ✓ detectada  (385 ms)
+[10/58] ancora-do-termo-sempre-coerente  →  papeis_rls.sql  (espera ✗ 2i-bis-3)
+      ✓ detectada  (381 ms)
+[11/58] leitura-de-colaboradores-sem-piso  →  papeis_rls.sql  (espera ✗ 4i)
+      ✓ detectada — também caíram (efeito colateral): 1i-bis, 3c-ter  (376 ms)
+[12/58] catalogo-rls-desligada-numa-tabela  →  seguranca_catalogo.sql  (espera ✗ 2)
+      ✓ detectada  (331 ms)
+[13/58] catalogo-tabela-de-backup-sem-rls  →  seguranca_catalogo.sql  (espera ✗ 2)
+      ✓ detectada  (330 ms)
+[14/58] catalogo-view-sem-security-invoker  →  seguranca_catalogo.sql  (espera ✗ 3)
+      ✓ detectada  (329 ms)
+[15/58] catalogo-funcao-gatilho-executavel-por-authenticated  →  seguranca_catalogo.sql  (espera ✗ 4)
+      ✓ detectada  (330 ms)
+[16/58] catalogo-gatilho-de-lancamento-vira-definer  →  seguranca_catalogo.sql  (espera ✗ 4c)
+      ✓ detectada  (332 ms)
+[17/58] catalogo-rpc-de-escrita-executavel-por-anon  →  seguranca_catalogo.sql  (espera ✗ 1)
+      ✓ detectada  (639 ms)
+[18/58] dev-guarda-de-gestao-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2a, 2b, 2c, 2e)
+      ✓ detectada — também caíram (efeito colateral): 2i, 2i-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 4a, 4b, 4c  (357 ms)
+[19/58] dev-apagar-conta-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2f-bis)
+      ✓ detectada — também caíram (efeito colateral): 3a, 3b, 4a, 7j, 7j-bis  (361 ms)
+[20/58] dev-encerrar-sessoes-aceita-nivel-admin  →  cargo_dev.sql  (espera ✗ 2f)
+      ✓ detectada  (360 ms)
+[21/58] dev-trigger-deixa-conceder-cargo-por-update-direto  →  cargo_dev.sql  (espera ✗ 2h)
+      ✓ detectada  (381 ms)
+[22/58] dev-auxiliar-de-gestao-executavel-por-authenticated  →  cargo_dev.sql  (espera ✗ 5e)
+      ✓ detectada  (363 ms)
+[23/58] gestao-encerrar-sessoes-mira-o-alvo-errado  →  cargo_dev.sql  (espera ✗ 3d)
+      ✓ detectada  (356 ms)
+[24/58] destrutivo-justificativa-sem-tamanho-minimo  →  dev_destrutivo.sql  (espera ✗ 12b, 12e)
+      ✓ detectada  (467 ms)
+[25/58] destrutivo-guarda-do-acervo-aceita-update  →  dev_destrutivo.sql  (espera ✗ 2i, 2k)
+      ✓ detectada  (403 ms)
+[26/58] destrutivo-guarda-do-acervo-aceita-delete  →  dev_destrutivo.sql  (espera ✗ 2j, 2l, 2m, 13c)
+      ✓ detectada  (410 ms)
+[27/58] destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho  →  dev_destrutivo.sql  (espera ✗ 2f, 2n)
+      ✓ detectada — também caíram (efeito colateral): 2h  (406 ms)
+[28/58] import-sem-revalidacao-de-contagens  →  import_substituir.sql  (espera ✗ 2)
+      ✓ detectada  (403 ms)
+[29/58] import-revalidacao-nao-compara-o-vivo  →  import_substituir.sql  (espera ✗ 0b)
+      ✓ detectada  (346 ms)
+[30/58] import-sem-exigencia-de-backup  →  import_substituir.sql  (espera ✗ 3)
+      ✓ detectada  (795 ms)
+[31/58] import-trilha-do-apagado-mente-nas-anotacoes  →  import_substituir.sql  (espera ✗ 0g)
+      ✓ detectada  (355 ms)
+[32/58] import-ativo-nasce-sem-origem-importacao  →  import_substituir.sql  (espera ✗ 4b)
+      ✓ detectada — também caíram (efeito colateral): 0h  (367 ms)
+[33/58] import-compra-de-abertura-sem-marcador  →  import_substituir.sql  (espera ✗ 1e, 0h)
+      ✓ detectada  (345 ms)
+[34/58] import-conferencia-de-estado-cega  →  import_substituir.sql  (espera ✗ 0f)
+      ✓ detectada  (354 ms)
+[35/58] import-contagem-de-conflitos-mentida  →  import_substituir.sql  (espera ✗ 0c)
+      ✓ detectada  (356 ms)
+[36/58] import-auxiliar-destrutiva-vira-api  →  import_substituir.sql  (espera ✗ 0e)
+      ✓ detectada  (351 ms)
+[37/58] import-trilha-com-id-perdido  →  import_substituir.sql  (espera ✗ 0d)
+      ✓ detectada  (348 ms)
+[38/58] conflito-justificativa-sem-tamanho-minimo  →  conflito_filiais.sql  (espera ✗ 5f)
+      ✓ detectada — também caíram (efeito colateral): 4a, 4b, 3b  (367 ms)
+[39/58] conflito-confirmacao-com-numero-errado-aceita  →  conflito_filiais.sql  (espera ✗ 5d, 5e)
+      ✓ detectada — também caíram (efeito colateral): 4a, 4b, 4e, 3b  (368 ms)
+[40/58] catalogo-tabela-nova-nao-classificada  →  catalogo_policies.sql  (espera ✗ 1a, 3)
+      ✓ detectada  (338 ms)
+[41/58] catalogo-policy-volta-a-ser-sempre-verdadeira  →  catalogo_policies.sql  (espera ✗ 5, 6a)
+      ✓ detectada  (380 ms)
+[42/58] catalogo-force-row-level-security-ligado  →  catalogo_policies.sql  (espera ✗ 4-bis)
+      ✓ detectada  (331 ms)
+[43/58] catalogo-tabela-nova-na-publication-do-realtime  →  catalogo_policies.sql  (espera ✗ 9a)
+      ✓ detectada  (479 ms)
+[44/58] catalogo-storage-decide-so-por-bucket  →  catalogo_policies.sql  (espera ✗ 7)
+      ✓ detectada  (480 ms)
+[45/58] catalogo-security-definer-nova-nao-classificada  →  catalogo_secdef.sql  (espera ✗ 1a)
+      ✓ detectada  (335 ms)
+[46/58] catalogo-security-definer-com-search-path-solto  →  catalogo_secdef.sql  (espera ✗ 3)
+      ✓ detectada  (337 ms)
+[47/58] catalogo-security-definer-executavel-por-anon  →  catalogo_secdef.sql  (espera ✗ 4)
+      ✓ detectada  (366 ms)
+[48/58] f52-escopo-de-gestao-some-do-corpo  →  cargo_dev.sql  (espera ✗ 7c)
+      ✓ detectada  (361 ms)
+[49/58] f52-escopo-de-gestao-passa-a-recusar  →  cargo_dev.sql  (espera ✗ 7a, 7j)
+      ✓ detectada — também caíram (efeito colateral): 2g-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 7j-bis  (347 ms)
+[50/58] f52-admin-ativo-volta-a-igualdade-crua  →  cargo_dev.sql  (espera ✗ 7f, 7i)
+      ✓ detectada — também caíram (efeito colateral): 5d, 3b, 4a, 4b, 4d, 7j, 7j-bis  (359 ms)
+[51/58] f52-import-perde-a-guarda-de-filial  →  import_fora_da_unidade.sql  (espera ✗ 5a-ter)
+      ✓ detectada  (336 ms)
+[52/58] f52-backup-do-import-aceita-qualquer-prefixo  →  import_fora_da_unidade.sql  (espera ✗ 2a)
+      ✓ detectada  (330 ms)
+[53/58] f52-import-volta-a-nao-conferir-confirmacao  →  import_fora_da_unidade.sql  (espera ✗ 3a)
+      ✓ detectada  (327 ms)
+[54/58] f52-import-perde-a-janela-de-idempotencia  →  import_fora_da_unidade.sql  (espera ✗ 4a)
+      ✓ detectada  (329 ms)
+[55/58] f52-mesa-perde-a-guarda-de-pertencimento  →  conflito_filiais.sql  (espera ✗ 10b)
+      ✓ detectada  (366 ms)
+[56/58] f53-asof-volta-ao-desempate-por-id  →  asof_desempate.sql  (espera ✗ 3a)
+      ✓ detectada — também caíram (efeito colateral): 1, 10a  (362 ms)
+[57/58] f53-trava-do-estorno-volta-ao-uuid  →  asof_desempate.sql  (espera ✗ 4c)
+      ✓ detectada — também caíram (efeito colateral): 4d, 10a  (373 ms)
+[58/58] f53-asof-passa-a-ordenar-so-por-ordem  →  asof_desempate.sql  (espera ✗ 6a)
+      ✓ detectada  (376 ms)
+
+==============================================================================================================
+RESULTADO DO LOTE
+==============================================================================================================
+mutação                                                    roteiro                     cenário esperado  caiu?             tempo
+--------------------------------------------------------------------------------------------------------------
+rls-movimentacao-confia-na-filial-declarada                papeis_rls.sql              2c-bis,2c-ter  detectada           1061 ms
+                                                           └─ também caíram (efeito colateral): 2g
+rls-lancamento-de-item-confere-papel-e-esquece-filial      papeis_rls.sql              2e             detectada            384 ms
+rls-edicao-de-ativo-confere-papel-e-esquece-filial         papeis_rls.sql              2g             detectada            380 ms
+rls-piso-de-leitura-aberto-em-ativos                       papeis_rls.sql              4d             detectada            382 ms
+rls-desligada-em-senhas-de-acesso                          papeis_rls.sql              3d,5f          detectada            382 ms
+rls-auditoria-visivel-a-quem-escreve                       papeis_rls.sql              3f             detectada            380 ms
+rls-trilha-do-import-visivel-a-quem-escreve                papeis_rls.sql              3e             detectada            380 ms
+rls-bucket-de-backup-visivel-a-quem-escreve                papeis_rls.sql              6e             detectada            382 ms
+rls-termo-perde-as-invariantes-da-ancora                   papeis_rls.sql              2i-bis-3       detectada            385 ms
+ancora-do-termo-sempre-coerente                            papeis_rls.sql              2i-bis-3       detectada            381 ms
+leitura-de-colaboradores-sem-piso                          papeis_rls.sql              4i             detectada            376 ms
+                                                           └─ também caíram (efeito colateral): 1i-bis, 3c-ter
+catalogo-rls-desligada-numa-tabela                         seguranca_catalogo.sql      2              detectada            331 ms
+catalogo-tabela-de-backup-sem-rls                          seguranca_catalogo.sql      2              detectada            330 ms
+catalogo-view-sem-security-invoker                         seguranca_catalogo.sql      3              detectada            329 ms
+catalogo-funcao-gatilho-executavel-por-authenticated       seguranca_catalogo.sql      4              detectada            330 ms
+catalogo-gatilho-de-lancamento-vira-definer                seguranca_catalogo.sql      4c             detectada            332 ms
+catalogo-rpc-de-escrita-executavel-por-anon                seguranca_catalogo.sql      1              detectada            639 ms
+dev-guarda-de-gestao-aceita-nivel-admin                    cargo_dev.sql               2a,2b,2c,2e    detectada            357 ms
+                                                           └─ também caíram (efeito colateral): 2i, 2i-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 4a, 4b, 4c
+dev-apagar-conta-aceita-nivel-admin                        cargo_dev.sql               2f-bis         detectada            361 ms
+                                                           └─ também caíram (efeito colateral): 3a, 3b, 4a, 7j, 7j-bis
+dev-encerrar-sessoes-aceita-nivel-admin                    cargo_dev.sql               2f             detectada            360 ms
+dev-trigger-deixa-conceder-cargo-por-update-direto         cargo_dev.sql               2h             detectada            381 ms
+dev-auxiliar-de-gestao-executavel-por-authenticated        cargo_dev.sql               5e             detectada            363 ms
+gestao-encerrar-sessoes-mira-o-alvo-errado                 cargo_dev.sql               3d             detectada            356 ms
+destrutivo-justificativa-sem-tamanho-minimo                dev_destrutivo.sql          12b,12e        detectada            467 ms
+destrutivo-guarda-do-acervo-aceita-update                  dev_destrutivo.sql          2i,2k          detectada            403 ms
+destrutivo-guarda-do-acervo-aceita-delete                  dev_destrutivo.sql          2j,2l,2m,13c   detectada            410 ms
+destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho  dev_destrutivo.sql          2f,2n          detectada            406 ms
+                                                           └─ também caíram (efeito colateral): 2h
+import-sem-revalidacao-de-contagens                        import_substituir.sql       2              detectada            403 ms
+import-revalidacao-nao-compara-o-vivo                      import_substituir.sql       0b             detectada            346 ms
+import-sem-exigencia-de-backup                             import_substituir.sql       3              detectada            795 ms
+import-trilha-do-apagado-mente-nas-anotacoes               import_substituir.sql       0g             detectada            355 ms
+import-ativo-nasce-sem-origem-importacao                   import_substituir.sql       4b             detectada            367 ms
+                                                           └─ também caíram (efeito colateral): 0h
+import-compra-de-abertura-sem-marcador                     import_substituir.sql       1e,0h          detectada            345 ms
+import-conferencia-de-estado-cega                          import_substituir.sql       0f             detectada            354 ms
+import-contagem-de-conflitos-mentida                       import_substituir.sql       0c             detectada            356 ms
+import-auxiliar-destrutiva-vira-api                        import_substituir.sql       0e             detectada            351 ms
+import-trilha-com-id-perdido                               import_substituir.sql       0d             detectada            348 ms
+conflito-justificativa-sem-tamanho-minimo                  conflito_filiais.sql        5f             detectada            367 ms
+                                                           └─ também caíram (efeito colateral): 4a, 4b, 3b
+conflito-confirmacao-com-numero-errado-aceita              conflito_filiais.sql        5d,5e          detectada            368 ms
+                                                           └─ também caíram (efeito colateral): 4a, 4b, 4e, 3b
+catalogo-tabela-nova-nao-classificada                      catalogo_policies.sql       1a,3           detectada            338 ms
+catalogo-policy-volta-a-ser-sempre-verdadeira              catalogo_policies.sql       5,6a           detectada            380 ms
+catalogo-force-row-level-security-ligado                   catalogo_policies.sql       4-bis          detectada            331 ms
+catalogo-tabela-nova-na-publication-do-realtime            catalogo_policies.sql       9a             detectada            479 ms
+catalogo-storage-decide-so-por-bucket                      catalogo_policies.sql       7              detectada            480 ms
+catalogo-security-definer-nova-nao-classificada            catalogo_secdef.sql         1a             detectada            335 ms
+catalogo-security-definer-com-search-path-solto            catalogo_secdef.sql         3              detectada            337 ms
+catalogo-security-definer-executavel-por-anon              catalogo_secdef.sql         4              detectada            366 ms
+f52-escopo-de-gestao-some-do-corpo                         cargo_dev.sql               7c             detectada            361 ms
+f52-escopo-de-gestao-passa-a-recusar                       cargo_dev.sql               7a,7j          detectada            347 ms
+                                                           └─ também caíram (efeito colateral): 2g-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 7j-bis
+f52-admin-ativo-volta-a-igualdade-crua                     cargo_dev.sql               7f,7i          detectada            359 ms
+                                                           └─ também caíram (efeito colateral): 5d, 3b, 4a, 4b, 4d, 7j, 7j-bis
+f52-import-perde-a-guarda-de-filial                        import_fora_da_unidade.sql  5a-ter         detectada            336 ms
+f52-backup-do-import-aceita-qualquer-prefixo               import_fora_da_unidade.sql  2a             detectada            330 ms
+f52-import-volta-a-nao-conferir-confirmacao                import_fora_da_unidade.sql  3a             detectada            327 ms
+f52-import-perde-a-janela-de-idempotencia                  import_fora_da_unidade.sql  4a             detectada            329 ms
+f52-mesa-perde-a-guarda-de-pertencimento                   conflito_filiais.sql        10b            detectada            366 ms
+f53-asof-volta-ao-desempate-por-id                         asof_desempate.sql          3a             detectada            362 ms
+                                                           └─ também caíram (efeito colateral): 1, 10a
+f53-trava-do-estorno-volta-ao-uuid                         asof_desempate.sql          4c             detectada            373 ms
+                                                           └─ também caíram (efeito colateral): 4d, 10a
+f53-asof-passa-a-ordenar-so-por-ordem                      asof_desempate.sql          6a             detectada            376 ms
+--------------------------------------------------------------------------------------------------------------
+58/58 detectadas pelo cenário nomeado · 22695 ms no total
+
+QUARENTENA — 3 quebra(s) REAL(is) que o rig de hoje não sabe acusar.
+Nada aqui foi executado. Cada entrada nomeia a fase que a adota.
+  · conflito-serializacao-por-advisory-lock  [conflito_filiais.sql · adota: F55]
+      Nenhuma asserção do roteiro abre uma SEGUNDA conexão. Dentro de uma transação psql sozinha, remover a trava não muda resultado nenhum — o roteiro fica verde e a mutação se disfarçaria de "asserção fraca" quando o que falta é um cenário CONCORRENTE, que só existe escrevendo catálogo novo.
+  · conflito-backup-em-arquivo-sem-prefixo-do-digest  [conflito_filiais.sql · adota: F54]
+      A maior seleção que o roteiro monta tem 2 ativos, muito abaixo do teto de 25 — o ramo de backup em arquivo nunca roda. Detectar exige um cenário com 26 ativos, que é catálogo novo.
+  · f53-view-de-conflitos-perde-o-desempate  [conflito_filiais.sql · adota: F53B]
+      Nenhum roteiro lê o valor de `ultima_mov_tipo` sob um cenário de empate. `conflito_filiais.sql` confere contagens e grupos de v_conflitos_filiais, nunca esse campo; `asof_desempate.sql` — a extensão paralela da F53, rótulos 3a..10c — só exercita `rel_estoque_asof` e a trava do estorno de `aplicar_movimentacao`, nunca a view de conflitos. Detectar exige catálogo novo: um grupo de conflito entre filiais cujas movimentações empatam em (data, created_at), com a asserção lendo a coluna.
+
+Lote inteiro detectado pelo cenário nomeado.
