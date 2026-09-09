@@ -219,7 +219,6 @@ export async function exportarAcervoFilial(
   filialId: number,
 ): Promise<AcervoFilial> {
   const ids = await idsDaFilial(client, filialId)
-  const filialSet = new Set(ids)
 
   // Todas as leituras do backup são paginadas: o corte de 1.000 do PostgREST deixaria
   // o backup INCOMPLETO na Matriz (1.217 ativos) — e um backup que não bate com o que
@@ -247,13 +246,40 @@ export async function exportarAcervoFilial(
     anotacoes.push(...parte)
   }
 
-  const todosTermos = await paginarTodos<Row<'termos_gerados'>>(
-    'Falha ao exportar termos',
-    (from, to) => client.from('termos_gerados').select('*').order('id').range(from, to),
-  )
-  const termos_gerados = todosTermos.filter((t) =>
-    t.ativo_ids.some((a) => filialSet.has(a)),
-  )
+  // Termos: `ativo_ids uuid[]`, sem FK — a régua é a mesma da RPC. O recorte é do BANCO
+  // (`&&`, o operador de interseção de arrays), em lotes, e não mais uma leitura da tabela
+  // INTEIRA filtrada em TypeScript. Era a única das quatro leituras deste exportador sem
+  // recorte: ela trazia para a memória do servidor toda linha de `termos_gerados` do
+  // sistema — inclusive as de filiais que este import não toca.
+  //
+  // ⚠ O CUSTO FOI MEDIDO ANTES DA TROCA, e ele não é gratuito hoje (09/09/2026, produção):
+  //   · tabela inteira:            1 ida ao banco,  1,07 ms (Seq Scan de 91 linhas)
+  //   · `&&` por lote de 100:     12 idas ao banco, 1,26 ms cada (Bitmap Index Scan)
+  // Com 91 termos e 1.140 ativos na Matriz, ler tudo é MAIS RÁPIDO — o cruzamento fica em
+  // torno de 12.000 termos, quando as páginas de 1.000 igualam os lotes de 100. O que se
+  // compra aqui não é tempo: é ESCOPO (o servidor deixa de ver linha fora do recorte) e a
+  // memória, que passa a crescer com o recorte e não com a tabela. Numa operação
+  // deliberada, rara e já medida em segundos — que antes desta leitura já faz ~24 idas ao
+  // banco —, +11 idas é preço declarado, não regressão descoberta depois.
+  //
+  // O índice existe e é usado: `termos_gerados_ativos_gin` (GIN sobre `ativo_ids`). Sem
+  // ele cada lote seria um seq scan, e a troca seria treze varreduras no lugar de uma —
+  // por isso ele foi conferido no plano, não suposto.
+  //
+  // ⚠ DEDUPLICAÇÃO OBRIGATÓRIA. Um termo de LOTE cujos `ativo_ids` caiam em dois lotes
+  // diferentes volta DUAS vezes. A leitura antiga não tinha como duplicar; esta tem, e uma
+  // linha repetida no backup vira violação de chave primária na hora de restaurar — o
+  // defeito apareceria meses depois, no único momento em que o backup precisa funcionar.
+  const porId = new Map<string, Row<'termos_gerados'>>()
+  for (const lote of emLotes(ids)) {
+    const parte = await paginarTodos<Row<'termos_gerados'>>(
+      'Falha ao exportar termos',
+      (from, to) =>
+        client.from('termos_gerados').select('*').overlaps('ativo_ids', lote).order('id').range(from, to),
+    )
+    for (const t of parte) porId.set(t.id, t)
+  }
+  const termos_gerados = [...porId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 
   return { ativos, movimentacoes, anotacoes, termos_gerados }
 }

@@ -414,6 +414,9 @@ export async function montarBackupDoReset(
   const lotes: string[][] = []
   for (let i = 0; i < ids.length; i += LOTE) lotes.push(ids.slice(i, i + LOTE))
 
+  /** Os ids do recorte, para o bloco de ponteiros que atravessam a fronteira (F23). */
+  const doRecorte = new Set(ids)
+
   async function porAtivo(
     tabela: 'movimentacoes' | 'anotacoes' | 'pendencias_item',
   ): Promise<Record<string, unknown>[]> {
@@ -448,18 +451,48 @@ export async function montarBackupDoReset(
   ])
 
   // Termos: referenciam por `ativo_ids uuid[]`, sem FK — a régua é a mesma da RPC.
-  const todosTermos = await todas(
-    'Falha ao exportar termos',
-    (from, to) =>
-      supabase.from('termos_gerados').select('*').order('id').range(from, to) as unknown as PromiseLike<Pagina>,
-  )
-  const doRecorte = new Set(ids)
-  const termos_gerados =
-    filialId === null
-      ? todosTermos
-      : todosTermos.filter((t) =>
-          ((t.ativo_ids as string[] | null) ?? []).some((x) => doRecorte.has(x)),
-        )
+  //
+  // ⚠ GÊMEO de `exportarAcervoFilial` (queries/import-logs.ts): mexeu num, mexa no outro.
+  // Os dois liam a tabela INTEIRA e filtravam em TypeScript; a F54 passou os dois para o
+  // recorte no BANCO (`&&` sobre `ativo_ids`, em lotes de 100, com o índice GIN
+  // `termos_gerados_ativos_gin`). A medição, o cruzamento e a razão de a troca não ser por
+  // velocidade estão escritos por extenso lá — aqui não se repete o número, só a régua.
+  //
+  // A ficha da F54 nomeava só o exportador do import. Este tinha a MESMA leitura sem
+  // recorte, e deixar metade da classe corrigida seria a pior das três saídas: a próxima
+  // pessoa a ler os dois encontraria duas réguas e teria de adivinhar qual é a boa.
+  //
+  // ⚠ DEDUPLICAÇÃO: termo de lote que cruze dois lotes de ids volta duas vezes, e linha
+  // repetida no backup vira violação de chave primária na restauração.
+  //
+  // O alcance GLOBAL (`filialId is null`) continua lendo a tabela inteira — ali não há
+  // recorte a aplicar: o reset global apaga TODOS os termos, e ler tudo é o recorte certo.
+  let termos_gerados: Record<string, unknown>[]
+  if (filialId === null) {
+    termos_gerados = await todas(
+      'Falha ao exportar termos',
+      (from, to) =>
+        supabase.from('termos_gerados').select('*').order('id').range(from, to) as unknown as PromiseLike<Pagina>,
+    )
+  } else {
+    const porId = new Map<string, Record<string, unknown>>()
+    for (const lote of lotes) {
+      const parte = await todas(
+        'Falha ao exportar termos',
+        (from, to) =>
+          supabase
+            .from('termos_gerados')
+            .select('*')
+            .overlaps('ativo_ids', lote)
+            .order('id')
+            .range(from, to) as unknown as PromiseLike<Pagina>,
+      )
+      for (const t of parte) porId.set(String(t.id), t)
+    }
+    termos_gerados = [...porId.values()].sort((a, b) =>
+      String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0,
+    )
+  }
 
   // ⚠ OS PONTEIROS QUE ATRAVESSAM O RECORTE — achado da revisão adversarial da F23.
   // `resetar_acervo` faz `update ativos set substitui_ativo_id = null where substitui_ativo_id
