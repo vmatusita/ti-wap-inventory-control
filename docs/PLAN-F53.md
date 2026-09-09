@@ -3,6 +3,15 @@
 > Plano de execução da F53. Escrito **antes** da implementação, com as contagens reais medidas
 > contra **produção** (`pbtjcalbmepmrqzprusb`) e **ensaio** (`sgmvldiizsrjbxzzpmhh`) em 09/09/2026.
 > Fonte da ordem: `docs/prompts/F53-ordem-das-movimentacoes-ultracode.md`.
+>
+> ⚠ **Este arquivo é o plano PRÉ-implementação e foi deixado como estava escrito** — ele é o
+> registro do que se sabia antes de executar, e reescrevê-lo apagaria justamente a informação
+> de onde a execução divergiu. O que a implementação mudou está em
+> **[`RELATORIO-F53.md`](RELATORIO-F53.md)**, §6. Em resumo, três coisas: (a) nasceu uma
+> **`0135`** (o índice `(data desc, ordem desc)`) que o plano não previa, porque a medição de
+> plano acusou regressão; (b) o roteiro foi de 4 para **18** asserções, e não para as 14 que a §4
+> lista — `4c`, `4d` e `7b` nasceram das **sabotagens**, que encontraram o roteiro cego; (c) a
+> mutação da trava do estorno aponta `4c`, não `4a`, porque `4a` não discrimina as réguas.
 
 ## 0. As medições de partida (e onde elas divergem da ordem)
 
