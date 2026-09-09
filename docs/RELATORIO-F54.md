@@ -279,6 +279,21 @@ E uma terceira, que o CI **ainda não** pegaria porque a ordem alfabética dos r
 rodasse **sozinho** num banco recém-criado (a compra receberia `ordem = 1`). Corrigido para apontar à
 segunda movimentação, que tem `ordem >= 2` por construção.
 
+**3. O INJETOR pegou a quarta**, e o diagnóstico dele estava certo pelo motivo certo. A mutação
+`ordem-deixa-de-ser-generated-always` saiu como **"roteiro abortou"**, e não como "detectada": com a
+coluna virando `by default`, o INSERT do `2a` **passa** (que é o defeito, e o `2a` cai como devia) —
+mas ele usava `v_mov_a`, deixava a linha na tabela, e o `2b` logo abaixo colidia na chave primária. O
+roteiro **morria no meio**, sem emitir a linha `FIM`.
+
+⚠ **A lição vale escrita: uma asserção que derruba o roteiro inteiro converte um diagnóstico certo no
+diagnóstico errado.** O injetor mede *"o cenário NOMEADO acusou?"*, e um roteiro morto não acusa nada
+— mesmo tendo acusado. Corrigido com uma sonda de id próprio que se limpa no caminho em que o INSERT
+passa. Conferido no ensaio com a mutação aplicada dentro da mesma transação: sem ela **13/0**; com ela
+**HTTP 201, 12 ok / 1 falha, e a falha é o `2a`** — detectada, por um rótulo só.
+
+**Três ciclos de CI**, e cada um pegou uma classe diferente: o roteiro defasado, a asserção que media
+o ambiente, e a asserção que matava o roteiro. Nenhuma das três apareceria nesta mesa.
+
 ---
 
 ## 8. ⚠ O desvio: a fila `0131`→`0132` foi aplicada no ENSAIO
