@@ -194,9 +194,9 @@ import**, não com o da tabela: cada go-live de filial piora a consulta.
 | 14 | `db:lock` no mesmo commit; lock no diff | ✅ |
 | 15 | `0133`/`0134` aplicadas em ensaio e produção + `notify pgrst` | ✅ (e a `0135`) |
 | 16 | `database.ts` com `ordem` | ✅ (transplante à mão, comentado e datado) |
-| 17 | v1.58.0, CHANGELOG, registry, tag anotada | ✅ |
+| 17 | v1.58.0, CHANGELOG, registry, tag anotada | ✅ tag `v1.58.0` publicada |
 | 18 | ORDEM DE ROLLBACK no cabeçalho das migrations | ✅ (nas três) |
-| 19 | PR mergeado com os dois checks verdes; deploy; smoke | ✅ |
+| 19 | PR mergeado com os dois checks verdes; deploy; smoke | ✅ merge `0309b03`; run [34361373436](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/34361373436) verde nos dois; smoke **108 OK / 0 falha** |
 | 20 | Este relatório | ✅ |
 | 21 | Nada fora do escopo tocado | ✅ (confirmado na revisão) |
 
@@ -280,7 +280,12 @@ regeneração agora é idempotente byte a byte.
    **extra**, e alguns falham lá por artefato de ambiente: `definer_sem_tenant` (ensaio sem a
    `0129`) e `f37_colaboradores_tipos` (asserção `i1` sobre dados reais de produção). Nenhum
    deles falha no CI.
-8. **O smoke de produção não exercita o import, a mesa de conflitos, nem o estorno.**
+8. **O smoke de produção não exercita nada do que esta fase mudou.** Ele fechou **108 OK / 1 aviso
+   / 0 falha** depois do merge (`docs/f53-evidencias/smoke-pos-merge.txt`), e o que ele prova é que
+   a aplicação **no ar** responde e que as leituras reais funcionam com uma sessão de operador de
+   verdade — **não** que a régua nova está certa. Ele não registra movimentação, não estorna, não
+   abre a mesa de conflitos e não roda o import. O único aviso (`kits_modelos · anon NÃO lê (RLS)`
+   — "não há kit cadastrado, RLS não comprovada") é **anterior à F53** e não tem relação com ela.
 9. **`v_conflitos_filiais` mudou sem asserção que a cubra** — a mutação
    `f53-view-de-conflitos-perde-o-desempate` está em **quarentena** (fase F53B), porque nenhum
    roteiro lê `ultima_mov_tipo` sob empate. Incluí-la no lote ativo produziria "não detectada" por
