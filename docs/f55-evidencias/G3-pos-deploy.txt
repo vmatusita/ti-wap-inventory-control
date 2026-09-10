@@ -1,0 +1,63 @@
+PÓS-DEPLOY — F55 na PRODUÇÃO, 10/09/2026
+
+Merge da PR #40 → commit `605d1c0` na `main` → deploy automático da Vercel.
+Tag anotada `v1.60.0` publicada no mesmo commit.
+
+══ 1. A SONDA RESPONDE, SEM SESSÃO ═════════════════════════════════════
+
+GET https://ti-wap-inventory-control.vercel.app/api/saude   (sem cookie, sem header de autorização)
+
+  HTTP 200 
+  cache-control: no-store
+  content-type: application/json
+  x-matched-path: /api/saude
+  x-vercel-cache: MISS
+
+  {"ok":true,"versao":"1.60.0","commit":"605d1c0","banco":"ok","ms":207}
+
+  ⚠ `versao` e `commit` batem com o que foi mergeado, `banco: ok` é uma ida
+    REAL ao Postgres, e `cache-control: no-store` — uma sonda que respondesse
+    de cache mediria o passado.
+
+══ 2. E O PROXY CONTINUA INTERCEPTANDO TODO O RESTO ═════════════════════
+
+    O achado da revisão adversarial, provado NO AR: sem o `$` no matcher, uma
+    rota cujo caminho começasse com a string `api/saude` nasceria SEM SESSÃO.
+
+  /api/saude              HTTP 200                                       (a sonda — a ÚNICA fora do proxy)
+  /api/saude-financeira   HTTP 307 → /login?next=%2Fapi%2Fsaude-financeira (o nome que a revisão inventou)
+  /api/saudeanimal        HTTP 307 → /login?next=%2Fapi%2Fsaudeanimal    (o outro)
+  /api/saude/interna      HTTP 307 → /login?next=%2Fapi%2Fsaude%2Finterna (e o subcaminho)
+  /api/qualquer-coisa     HTTP 307 → /login?next=%2Fapi%2Fqualquer-coisa (rota de API nova nasce PROTEGIDA)
+  /ativos                 HTTP 307 → /login?next=%2Fativos               (a lista)
+  /dev                    HTTP 307 → /login?next=%2Fdev                  (a área do desenvolvedor)
+  /admin/usuarios         HTTP 307 → /login?next=%2Fadmin%2Fusuarios     (a administração)
+  /login                  HTTP 200                                       (a porta pública)
+
+  ⚠ 200 só para `/api/saude` e `/login`. As três rotas que a revisão inventou
+    levam 307 para o login, como qualquer rota nova — que é a garantia escrita
+    no comentário de `src/proxy.ts` e que, antes do `$`, era FALSA.
+
+══ 3. O SMOKE COMPLETO ═════════════════════════════════════════════════
+
+$ SMOKE_URL_APP=… SMOKE_VERSAO_ESPERADA=1.60.0 node scripts/smoke/smoke-prod.mjs
+
+    credenciais: presentes (mascaradas)
+    .env.local: 15 variável(is) carregada(s)
+  PARTE A — sem sessão · https://ti-wap-inventory-control.vercel.app
+    [OK   ] /api/saude — banco ok · versao 1.60.0 · commit 605d1c0
+  PARTE B — logado · https://pbtjcalbmepmrqzprusb.supabase.co
+    [OK   ] sessão · login — sessão de operador aberta (conta mascarada)
+    [AVISO] kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não comprovada
+  PARTE C — rotas do app COM sessão · https://ti-wap-inventory-control.vercel.app
+    sessão encerrada (signOut).
+  ========================================================================
+  RESUMO · 109 OK · 1 aviso · 0 n/a · 0 falha
+  ========================================================================
+
+  ⚠ O único aviso é de ESTADO DE DADO, não de sistema: não há kit cadastrado em
+    produção, então a RLS de `kits_modelos` não tem o que provar. É o mesmo
+    aviso das fases anteriores.
+
+FIM. Nenhum patrimônio, nome ou valor de credencial aparece acima: a Parte B
+mede TAMANHO de resposta, nunca conteúdo.

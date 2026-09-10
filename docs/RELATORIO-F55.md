@@ -460,7 +460,7 @@ e o que `B2` mede.
 | 16 | `cobertura.test` reprova chave sem política — provado com chave fictícia | ✅ caso "SABOTAGEM" no próprio arquivo |
 | 17 | `saude.yml` só com `schedule` + `dispatch`, permissões mínimas, sem eco de secret, travado | ✅ 36 casos |
 | 18 | Alarme provado de ponta a ponta no ENSAIO | ⏳ ver §9 |
-| 19 | Dispatch contra produção com a conta nova, veredito certo | ⏳ ver §9 |
+| 19 | Dispatch contra produção com a conta nova, veredito certo | ✅ §9 · run 34522300336, verde nas duas partes |
 | 20 | Custo e projeção na ata, lado a lado com o consumo medido | ✅ `D1` |
 | 21 | Guardas recusam; `restaurar` aceita local; `import/guard` intacto | ✅ `E1` |
 | 22 | `.env.example` cobre o que o código lê; o teste morde | ✅ |
@@ -472,7 +472,7 @@ e o que `B2` mede.
 | 28 | `database.ts` atualizado | ✅ regenerado de produção |
 | 29 | `1.60.0`, CHANGELOG, registry, tag | ✅ (tag no fechamento) |
 | 30 | Ordem de rollback no cabeçalho, ensaiada só no ensaio | ✅ `C2` passo 4 |
-| 31 | PR mergeado com os dois checks verdes; deploy; smoke pós-deploy | ⏳ ver §9 |
+| 31 | PR mergeado com os dois checks verdes; deploy; smoke pós-deploy | ✅ §9 e `G3` · 109 OK, 0 falha |
 | 32 | Relatório com evidências, roteiro no topo, divergências e "o que não prova" | ✅ este arquivo |
 | 33 | Nada fora do escopo tocado | ✅ §10 |
 
@@ -481,7 +481,47 @@ e o que `B2` mede.
 
 # 9. O alarme de ponta a ponta, e o fechamento
 
-*(preenchido depois do merge — o `workflow_dispatch` só existe com o arquivo na branch padrão)*
+## O fechamento
+
+| passo | resultado |
+|---|---|
+| CI da PR #40 | `verificar` ✅ · `banco-sem-docker` ✅ (os dois required checks) |
+| Merge | `605d1c0` na `main`, 10/09/2026 19:33 UTC |
+| Tag | `v1.60.0` anotada, publicada no mesmo commit |
+| Deploy | automático da Vercel, no merge |
+| `/api/saude` no ar | **HTTP 200** · `versao 1.60.0` · `commit 605d1c0` · `banco: ok` · `cache-control: no-store` |
+| Smoke pós-deploy | **109 OK · 1 aviso · 0 falha** (o aviso é de estado de dado: não há kit cadastrado, então a RLS de `kits_modelos` não tem o que provar) |
+
+Tudo em `docs/f55-evidencias/G3-pos-deploy.txt`.
+
+**E o achado do proxy foi provado NO AR, não só em teste.** `/api/saude` responde 200 sem sessão; as
+três rotas que a revisão adversarial inventou — `/api/saude-financeira`, `/api/saudeanimal`,
+`/api/saude/interna` — levam **307 para o login**, como qualquer rota de API nova. Antes do `$`, as
+duas primeiras teriam nascido sem sessão.
+
+## Critério 19 — o disparo contra PRODUÇÃO, com a conta nova
+
+`gh workflow run saude.yml -f alvo=producao -f partes=ab` →
+[run 34522300336](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/34522300336),
+**sucesso nas duas partes**. O que a Parte B imprimiu:
+
+```
+SONDA DE INTEGRIDADE · alvo=producao · ***
+  [OK   ] sessão aberta com a conta de consulta (conta mascarada)
+  [OK   ] leitura de filiais com sessão (1 linha)
+  [OK   ] leitura de ativos com sessão (1 linha)
+  [OK   ] resumo de integridade: 12 chaves
+  todas as doze dentro da linha de base.
+VEREDITO: verde.
+
+alarme: par (producao, integridade) · verde · ação: nada
+  nada a fazer (verde, e não havia alarme aberto)
+```
+
+Repare em três coisas. A conta é a **`consulta`** criada nesta fase, e ela lê — o piso de leitura é
+`papel_atual() is not null`, não `e_admin()`. O resumo devolveu **as doze**, o que exercita a defesa
+contra a falha do próprio detector (chave que some vira achado, não silêncio). E o URL do alvo saiu
+**mascarado** (`***`) no log do Actions, pelo mascaramento de secret — sem eco nenhum.
 
 ---
 
