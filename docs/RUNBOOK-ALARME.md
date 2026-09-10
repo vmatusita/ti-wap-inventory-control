@@ -48,6 +48,19 @@ identificadores). É essa tela que diz **o quê**, não só **quanto**.
 
 ### 3. Aja pela tabela abaixo
 
+### ⚠ Se você escrever no corpo da issue
+
+Pode escrever à vontade — o alarme reescreve o corpo a cada disparo, então a sua nota some no
+próximo. **Comentário é o lugar de escrever**: ele fica.
+
+E, se editar o corpo mesmo assim, repare que na última linha há um comentário de HTML —
+`<!-- f55-impressao: … -->`. É por ele que o alarme sabe se o estado **mudou** desde o último
+disparo, e é o que decide se você recebe uma notificação nova ou não. Se ele for embora junto com a
+sua edição, o alarme **não inventa**: no disparo seguinte ele atualiza o corpo em silêncio (o que
+repõe a marca) e só volta a comentar no disparo depois desse, quando tiver com o que comparar. O
+preço de apagar a marca é **um** ciclo sem comentário — nunca uma issue duplicada, nunca uma issue
+que deixa de fechar.
+
 ---
 
 ## O que cada checagem quer dizer
