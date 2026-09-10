@@ -1,0 +1,38 @@
+SABOTAGEM D (parte 1) — AS DOZE PECAS SAO BYTE A BYTE AS MESMAS
+F55 · 10/09/2026 · prova de que a 0138 MOVEU o SQL, nao o reescreveu
+
+1) O corpo VIGENTE de dev_checagens_integridade, resolvido por scripts/db/corpo-vigente.mjs:
+   arquivo: 0136_checagem_backup_orfao.sql   (nenhuma migration posterior a redefine)
+
+2) Recorte das doze checagens, tirado DIRETO do arquivo 0136 (linhas 55..243):
+   linhas: 189
+
+3) Recorte do corpo do NUCLEO dentro da 0138 (linhas 109..297):
+   linhas: 189
+
+4) diff 0136 x 0138 — as doze pecas:
+   (vazio) IDENTICOS, byte a byte.
+
+5) contagem de blocos:
+   'return query' no recorte da 0136: 12
+   'return query' no nucleo da 0138 : 12
+   chaves no recorte da 0136        : 12
+   chaves no nucleo da 0138         : 12
+
+6) as doze chaves, na ordem, dentro do nucleo da 0138:
+        1	patrimonio_duplicado
+        2	ativo_filial_inativa
+        3	termo_sem_arquivo
+        4	perfil_sem_conta
+        5	conta_sem_perfil
+        6	pendencia_de_estornada
+        7	operador_sem_filial
+        8	arquivo_termo_orfao
+        9	conflito_entre_filiais
+       10	detentor_em_estado_sem_dono
+       11	reserva_aberta
+       12	backup_orfao
+
+7) o SQL das doze existe em UM lugar so (grep no repositorio, fora de migrations antigas):
+   funcoes que contem o bloco 'patrimonio_duplicado' na 0138:
+   ocorrencias na 0138: 1

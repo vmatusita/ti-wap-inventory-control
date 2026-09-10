@@ -270,12 +270,78 @@ export function registrarFalha(entrada: EntradaFalha): void {
     }
   }
   try {
-    // eslint-disable-next-line no-console -- este é O funil; a trava de
-    // `observabilidade-fonte.test.ts` isenta este arquivo e a porta
-    // `observabilidade.ts`, e SÓ os dois.
+    // O ÚNICO console.* de servidor que a trava de observabilidade-fonte.test.ts
+    // aceita — este arquivo e a porta observabilidade.ts, e mais nada.
     console.error(linha)
   } catch {
     // console indisponível: não há para onde reportar, e reportar não é a
     // missão de quem chamou.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// O erro de REQUEST (F55 · Frente A · `src/instrumentation.ts`)
+// ---------------------------------------------------------------------------
+
+/**
+ * O recorte de `request` e de `context` que o `onRequestError` do Next entrega e
+ * que este funil aceita. É de propósito que ele NÃO tem `headers` nem `path`:
+ * um tipo que não os carrega é uma trava melhor que um comentário pedindo para
+ * não os logar.
+ *
+ * ⚠ `request.path` do Next VEM COM A QUERYSTRING — a doc local diz isso
+ * literalmente (`instrumentation.md:103`, *"resource path, e.g. /blog?name=foo"*),
+ * e a busca de `/ativos` carrega nome e patrimônio nela. `request.headers` traz
+ * o cookie da sessão. Nenhum dos dois entra aqui.
+ */
+export type ErroDeRequest = {
+  /** `context.routePath` — o caminho do ARQUIVO (`/app/ativos/[id]`), nunca a URL. */
+  rota: string
+  /** `context.routeType` — `render` | `route` | `action` | `proxy`. */
+  tipo: string
+  /** `context.renderSource`, quando houver. */
+  origem?: string | null
+  /** `request.method`. */
+  metodo: string
+  /** O erro, como veio. */
+  erro: unknown
+}
+
+/**
+ * A linha JSON de um erro de request. Função PURA e **sem nenhuma API exclusiva
+ * de Node** — `src/instrumentation.ts` vale para os dois runtimes do Next, e
+ * `observabilidade-fonte.test.ts` prova a ausência lendo o fonte, em vez de
+ * criar uma rota Edge só para a prova.
+ */
+export function linhaDeErroDeRequest(entrada: ErroDeRequest): string {
+  const digest = (entrada.erro as { digest?: unknown } | null | undefined)?.digest
+  const registro = {
+    evt: 'erro-de-request' as const,
+    rota: redigirTexto(String(entrada.rota || 'rota-desconhecida')),
+    tipo: redigirTexto(String(entrada.tipo || 'desconhecido')),
+    origem: entrada.origem ? redigirTexto(String(entrada.origem)) : null,
+    metodo: redigirTexto(String(entrada.metodo || '')),
+    digest: digest === undefined || digest === null ? null : redigirTexto(String(digest)),
+    // O mesmo campo reservado do multiempresa da `linhaDeFalha`.
+    empresa: null as string | null,
+    erro: erroEstruturado(entrada.erro),
+  }
+  return JSON.stringify(registro)
+}
+
+/** Escreve a linha de erro de request. NUNCA lança, pelo mesmo motivo do funil. */
+export function registrarErroDeRequest(entrada: ErroDeRequest): void {
+  let linha: string
+  try {
+    linha = linhaDeErroDeRequest(entrada)
+  } catch {
+    return
+  }
+  try {
+    // O ÚNICO console.* de servidor que a trava de observabilidade-fonte.test.ts
+    // aceita — este arquivo e a porta observabilidade.ts, e mais nada.
+    console.error(linha)
+  } catch {
+    // sem console, não há para onde reportar.
   }
 }

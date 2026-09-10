@@ -7,6 +7,10 @@ import {
   ehModuloUseClient,
   ehModuloUseServer,
 } from '@/lib/observabilidade-fonte'
+import { limpar } from '@/lib/use-server-exports'
+
+/** O fonte sem comentário nem conteúdo de string — a mesma neutralização das travas. */
+const limparParaBusca = (fonte: string) => limpar(fonte, true)
 
 // AS DUAS TRAVAS DE FORMA DA OBSERVABILIDADE (F55 · Frente A).
 //
@@ -150,7 +154,16 @@ describe('catchesEngolidoresEmExportadas', () => {
 // razão de eles existirem. Dois arquivos porque a porta carrega `server-only` (e
 // por isso não é importável no Vitest) e a lógica mora na metade pura; o motivo
 // está no cabeçalho de `observabilidade-linha.ts`.
-const FUNIL = ['src/lib/observabilidade.ts', 'src/lib/observabilidade-linha.ts']
+// `src/instrumentation.ts` entra aqui porque ele É o funil do erro de REQUEST:
+// o hook `onRequestError` do Next é chamado pelo runtime, fora de qualquer
+// `catch` nosso, e escreve a linha direto — chamar `registrarFalha` de lá daria
+// a linha de FALHA (com `escopo`/`ctx`) no lugar da linha de ERRO DE REQUEST
+// (com `rota`/`tipo`/`digest`), que é outro registro.
+const FUNIL = [
+  'src/lib/observabilidade.ts',
+  'src/lib/observabilidade-linha.ts',
+  'src/instrumentation.ts',
+]
 
 /**
  * As EXCEÇÕES NOMINAIS de Client Component, com o motivo de cada uma.
@@ -286,5 +299,81 @@ describe('(b) nenhum `} catch {` engolidor em módulo "use server"', () => {
             achados.map((a) => `  linha ${a.linha} em ${a.funcao}(): ${a.trecho}`).join('\n')
         : undefined,
     ).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// (c) `src/instrumentation.ts` — a trava do que ele NÃO pode logar
+// ---------------------------------------------------------------------------
+
+describe('(c) `src/instrumentation.ts` e o formatador dele', () => {
+  const INSTRUMENTACAO = 'src/instrumentation.ts'
+  const FORMATADOR = 'src/lib/observabilidade-linha.ts'
+  const fonteInstrumentacao = readFileSync(join(process.cwd(), INSTRUMENTACAO), 'utf8')
+  const fonteFormatador = readFileSync(join(process.cwd(), FORMATADOR), 'utf8')
+
+  it('o arquivo existe e exporta `onRequestError`', () => {
+    expect(fonteInstrumentacao).toMatch(/export function onRequestError\s*\(/)
+  })
+
+  // ⚠ `request.headers` traz o cookie da sessão do Supabase, e `request.path`
+  // VEM COM A QUERYSTRING (a doc local do Next 16 é explícita:
+  // `03-file-conventions/instrumentation.md:103`) — a busca de `/ativos` leva
+  // nome e patrimônio nela. O que se loga é `context.routePath`, o caminho do
+  // ARQUIVO da rota.
+  it.each([
+    ['headers', /request\s*\??\s*\.\s*headers\b/],
+    ['path', /request\s*\??\s*\.\s*path\b/],
+  ] as const)('nunca lê `request.%s`', (campo, re) => {
+    expect(
+      limparParaBusca(fonteInstrumentacao),
+      `src/instrumentation.ts leu request.${campo} — cookie de sessão e querystring com ` +
+        `nome/patrimônio NÃO entram no log (F55 · Frente A)`,
+    ).not.toMatch(re)
+  })
+
+  it('nunca desestrutura `headers` ou `path` do request', () => {
+    expect(limparParaBusca(fonteInstrumentacao)).not.toMatch(
+      /const\s*\{[^}]*\b(headers|path)\b[^}]*\}\s*=\s*request/,
+    )
+  })
+
+  // O arquivo vale para os DOIS runtimes do Next (`instrumentation.md:127`).
+  // Prova por LEITURA DO FONTE — criar uma rota Edge só para provar isto seria
+  // superfície nova em produção por causa de um teste.
+  const NODE_EXCLUSIVO = [
+    ["import de 'node:'", /from\s+['"]node:/],
+    ['require(', /\brequire\s*\(/],
+    ['Buffer', /\bBuffer\b/],
+    ['__dirname', /\b__dirname\b/],
+    ['__filename', /\b__filename\b/],
+    ["import de 'fs'", /from\s+['"]fs['"]/],
+    ["import de 'path'", /from\s+['"]path['"]/],
+    ['process.cwd', /\bprocess\s*\.\s*cwd\b/],
+  ] as const
+
+  it.each(NODE_EXCLUSIVO.map(([nome]) => nome))(
+    'o formatador e a instrumentação não usam %s',
+    (nome) => {
+      const re = NODE_EXCLUSIVO.find(([n]) => n === nome)![1]
+      for (const [arquivo, fonte] of [
+        [INSTRUMENTACAO, fonteInstrumentacao],
+        [FORMATADOR, fonteFormatador],
+      ] as const) {
+        expect(
+          limparParaBusca(fonte),
+          `${arquivo} usa ${nome}, que não existe no runtime Edge — o formatador do ` +
+            `onRequestError tem de valer nos dois (F55 · Frente A)`,
+        ).not.toMatch(re)
+      }
+    },
+  )
+
+  // O funil da instrumentação importa a metade PURA de propósito: `server-only`
+  // lança fora da condição `react-server`, e `instrumentation.ts` não roda na
+  // camada RSC.
+  it('importa a metade pura do funil, não a porta `server-only`', () => {
+    expect(fonteInstrumentacao).toContain("from '@/lib/observabilidade-linha'")
+    expect(fonteInstrumentacao).not.toMatch(/from\s+['"]@\/lib\/observabilidade['"]/)
   })
 })

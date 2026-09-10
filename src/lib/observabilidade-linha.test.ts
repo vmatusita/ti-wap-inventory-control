@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   erroEstruturado,
+  linhaDeErroDeRequest,
   linhaDeFalha,
   redigirTexto,
+  registrarErroDeRequest,
   registrarFalha,
   sanearContexto,
 } from '@/lib/observabilidade-linha'
@@ -309,4 +311,81 @@ describe('a regex de chave sensível não é gulosa nem míope', () => {
       }
     },
   )
+})
+
+// ---------------------------------------------------------------------------
+// O erro de REQUEST (`src/instrumentation.ts`)
+// ---------------------------------------------------------------------------
+
+describe('linhaDeErroDeRequest', () => {
+  it('leva rota, tipo, origem, método e digest — e `empresa`', () => {
+    const erro = Object.assign(new Error('caiu no render'), { digest: '3141592653' })
+    const o = JSON.parse(
+      linhaDeErroDeRequest({
+        rota: '/app/ativos/[id]',
+        tipo: 'render',
+        origem: 'server-rendering',
+        metodo: 'GET',
+        erro,
+      }),
+    )
+    expect(o).toMatchObject({
+      evt: 'erro-de-request',
+      rota: '/app/ativos/[id]',
+      tipo: 'render',
+      origem: 'server-rendering',
+      metodo: 'GET',
+      digest: '3141592653',
+      empresa: null,
+    })
+    expect(o.erro.mensagem).toBe('caiu no render')
+  })
+
+  it('sem digest não inventa digest', () => {
+    const o = JSON.parse(
+      linhaDeErroDeRequest({ rota: '/app/page', tipo: 'render', metodo: 'GET', erro: 'x' }),
+    )
+    expect(o.digest).toBeNull()
+  })
+
+  it('erro que nasce no proxy tem tipo `proxy` e passa igual', () => {
+    const o = JSON.parse(
+      linhaDeErroDeRequest({ rota: '/proxy', tipo: 'proxy', metodo: 'GET', erro: new Error('x') }),
+    )
+    expect(o.tipo).toBe('proxy')
+  })
+
+  it('a redação vale aqui também — e-mail na mensagem não sai', () => {
+    const linha = linhaDeErroDeRequest({
+      rota: '/app/admin/usuarios/page',
+      tipo: 'render',
+      metodo: 'GET',
+      erro: new Error('conta zezinho.ficticio@wap.ind.br recusada'),
+    })
+    expect(linha).not.toContain('zezinho.ficticio')
+  })
+
+  it('é UMA linha e não lança com rota/método ausentes', () => {
+    const linha = linhaDeErroDeRequest({
+      rota: undefined as unknown as string,
+      tipo: undefined as unknown as string,
+      metodo: undefined as unknown as string,
+      erro: null,
+    })
+    expect(linha).not.toContain('\n')
+    expect(JSON.parse(linha).rota).toBe('rota-desconhecida')
+  })
+
+  it('`registrarErroDeRequest` nunca lança', () => {
+    const espiao = vi.spyOn(console, 'error').mockImplementation(() => {
+      throw new Error('console morreu')
+    })
+    try {
+      expect(() =>
+        registrarErroDeRequest({ rota: '/x', tipo: 'route', metodo: 'GET', erro: 'y' }),
+      ).not.toThrow()
+    } finally {
+      espiao.mockRestore()
+    }
+  })
 })

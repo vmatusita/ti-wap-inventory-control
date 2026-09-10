@@ -1,0 +1,72 @@
+SABOTAGEM A (parte 2) — AS TRAVAS CONTINUAM MORDENDO DEPOIS DA MIGRACAO
+F55 · 10/09/2026
+
+Reintroduzidos DE PROPOSITO, so para esta prova:
+  (1) UM console.error numa pagina de src/app/(app)/page.tsx
+  (2) UM '} catch {' numa funcao EXPORTADA de src/lib/actions/itens.ts ('use server')
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+ ❯ |puro| src/lib/observabilidade-fonte.test.ts (50 tests | 2 failed) 62ms
+     × nenhum arquivo de servidor chama console fora do funil 7ms
+     × src/lib/actions/itens.ts 4ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/observabilidade-fonte.test.ts > (a) nenhum `console.*` em código de servidor fora do funil > nenhum arquivo de servidor chama console fora do funil
+AssertionError: console.* em código de SERVIDOR fora do funil (src/lib/observabilidade.ts, src/lib/observabilidade-linha.ts, src/instrumentation.ts) — use registrarFalha({ escopo, erro, ctx }) (F55 · Frente A):
+  src/app/(app)/page.tsx:97 [console.error] function sabotagemF55() { console.error('sabotagem: console de servidor de volta') }: expected [ Array(1) ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "  src/app/(app)/page.tsx:97 [console.error] function sabotagemF55() { console.error('sabotagem: console de servidor de volta') }",
++ ]
+ ❯ src/lib/observabilidade-fonte.test.ts:225:7
+    223|             `registrarFalha({ escopo, erro, ctx }) (F55 · Frente A):\n…
+    224|         : undefined,
+    225|     ).toEqual([])
+       |       ^
+    226|   })
+    227|
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ FAIL  |puro| src/lib/observabilidade-fonte.test.ts > (b) nenhum `} catch {` engolidor em módulo "use server" > src/lib/actions/itens.ts
+AssertionError: src/lib/actions/itens.ts: `} catch {` sem binding em função EXPORTADA de módulo 'use server' — a exceção some sem rastro. Dê um nome ao erro e chame registrarFalha (F55 · Frente A):
+  linha 80 em lancarItens(): try { void 0 } catch { void 0 }: expected [ { linha: 80, …(2) } ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   {
++     "funcao": "lancarItens",
++     "linha": 80,
++     "trecho": "try { void 0 } catch { void 0 }",
++   },
++ ]
+ ❯ src/lib/observabilidade-fonte.test.ts:301:7
+    299|             achados.map((a) => `  linha ${a.linha} em ${a.funcao}(): $…
+    300|         : undefined,
+    301|     ).toEqual([])
+       |       ^
+    302|   })
+    303| })
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+ Test Files  1 failed (1)
+      Tests  2 failed | 48 passed (50)
+   Start at  13:39:55
+   Duration  1.08s (transform 74ms, setup 0ms, import 775ms, tests 62ms, environment 0ms)
+
+== a diretiva, nao a mencao: os dois arquivos que so CITAM 'use server' ==
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 49 skipped (50)
+   Start at  13:40:07
+   Duration  956ms (transform 60ms, setup 0ms, import 736ms, tests 5ms, environment 0ms)
+
+
+== e, restaurados os dois arquivos sabotados, tudo verde de novo ==
+
+ Test Files  1 passed (1)
+      Tests  50 passed (50)
+   Start at  13:40:10
+   Duration  1.08s (transform 63ms, setup 0ms, import 818ms, tests 66ms, environment 0ms)
+
