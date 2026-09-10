@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin, exigirPapel } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   colaboradorInlineSchema,
@@ -348,7 +349,11 @@ export async function buscarSaldoDoColaborador(
     ])
     return { ok: true, saldos, semVinculo }
   } catch (err) {
-    console.error('[buscarSaldoDoColaborador] falha:', err)
+    registrarFalha({
+      escopo: 'colaboradores.saldo-colaborador',
+      erro: err,
+      operador: cargo.uid,
+    })
     return {
       ok: false,
       saldos: [],

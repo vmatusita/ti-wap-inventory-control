@@ -130,10 +130,16 @@ describe('fallback — código desconhecido nunca vaza o texto cru do Postgres e
     expect(out).toBe('Não foi possível concluir a operação. Tente novamente.')
     expect(out).not.toContain('postgres')
     expect(out).not.toContain('42P01')
-    expect(spyErro).toHaveBeenCalledWith(
-      '[traduzErroBanco] erro não mapeado',
-      { code: 'XX999', mensagem: CRU },
-    )
+    // F55 (10/09/2026) — o rastro mudou de FORMA, não de existência: o par
+    // `{ code, mensagem }` que a F7F mandou registrar continua saindo inteiro, agora
+    // nos campos nativos do funil (`erro.codigo` e `erro.mensagem`), numa LINHA
+    // JSON só. O requisito medido aqui — "o texto cru nunca chega na tela, mas
+    // chega no servidor" — é o mesmo; é o objeto que se mexeu, por desenho.
+    expect(spyErro).toHaveBeenCalledOnce()
+    const linha = JSON.parse(String(spyErro.mock.calls[0][0]))
+    expect(linha.escopo).toBe('erros.nao-mapeado')
+    expect(linha.erro.codigo).toBe('XX999')
+    expect(linha.erro.mensagem).toBe(CRU)
   })
 
   it('fora de produção devolve a mensagem crua (debug) — e ainda LOGA o par {code, mensagem}', () => {
@@ -146,10 +152,11 @@ describe('fallback — código desconhecido nunca vaza o texto cru do Postgres e
   it('mensagem null/undefined não quebra e loga com mensagem null', () => {
     vi.stubEnv('NODE_ENV', 'production')
     expect(traduzErroBanco(null, null)).toBe('Não foi possível concluir a operação. Tente novamente.')
-    expect(spyErro).toHaveBeenCalledWith(
-      '[traduzErroBanco] erro não mapeado',
-      { code: null, mensagem: null },
-    )
+    expect(spyErro).toHaveBeenCalledOnce()
+    const linha = JSON.parse(String(spyErro.mock.calls[0][0]))
+    expect(linha.escopo).toBe('erros.nao-mapeado')
+    expect(linha.erro.codigo).toBeNull()
+    expect(linha.erro.mensagem).toBe('[sem mensagem]')
   })
 })
 

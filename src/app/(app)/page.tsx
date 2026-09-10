@@ -26,6 +26,7 @@ import { KpiTiles, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { cn } from '@/lib/utils'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
 export const metadata = {
@@ -157,7 +158,11 @@ export default async function DashboardPage() {
   // conseguiu ler — o resto do dashboard continua de pé.
   const pendenciasErro = pendenciasRes.error
   if (pendenciasErro) {
-    console.error('[dashboard] falha ao ler v_fila_pendencias:', pendenciasErro.message)
+    registrarFalha({
+      escopo: 'dashboard.fila-pendencias',
+      erro: pendenciasErro,
+      operador: operador?.id ?? null,
+    })
   }
   const pendencias = (pendenciasRes.data ?? []) as PendenciaHome[]
 

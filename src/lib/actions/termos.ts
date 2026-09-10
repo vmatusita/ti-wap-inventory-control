@@ -9,6 +9,7 @@ import Docxtemplater from 'docxtemplater'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   confirmarAssinaturaSchema,
@@ -347,7 +348,7 @@ export async function prepararTermo(input: {
   // desde esta fase, e criar um segundo era relê a sessão à toa.
   const [tiposParaObservacao, perfilDoTecnico, voltaram] = await Promise.all([
     listarTiposItem(supabase).catch((err) => {
-      console.error('[prepararTermo] falha ao listar tipos de item:', err)
+      registrarFalha({ escopo: 'termos.preparar-tipos-item', erro: err, operador: uid })
       return []
     }),
     // Responsável de TI = operador logado (automático, §4.2).
@@ -608,7 +609,8 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
   let buffer: Buffer
   try {
     buffer = await renderizarDocx(tipo, dados)
-  } catch {
+  } catch (erro) {
+    registrarFalha({ escopo: 'termos.montar-documento', erro })
     return { ok: false, erro: 'Não foi possível montar o documento do termo.' }
   }
 

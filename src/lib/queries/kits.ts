@@ -1,5 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import { registrarFalha } from '@/lib/observabilidade'
 import { kitPayloadSchema, type KitPayload } from '@/lib/validators/kit'
 import type { Json } from '@/lib/types/database'
 
@@ -40,9 +41,10 @@ const KIT_SELECT = 'id, nome, payload, ativo, created_at'
 function parseKit(r: RawKitRow): Kit | null {
   const parsed = kitPayloadSchema.safeParse(r.payload)
   if (!parsed.success) {
-    console.error('[queries/kits] payload de kit fora do contrato — kit ignorado', {
-      id: r.id,
-      issue: parsed.error.issues[0]?.message ?? null,
+    registrarFalha({
+      escopo: 'kits.payload-invalido',
+      erro: parsed.error,
+      ctx: { id: r.id },
     })
     return null
   }

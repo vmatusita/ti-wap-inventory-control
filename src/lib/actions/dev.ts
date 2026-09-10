@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirDev } from '@/lib/auth/acesso'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { emailDoUsuario, getEstadoUsuario, idsDeAdminsAtivos } from '@/lib/queries/admin'
 import { rodarChecagens, type Checagem } from '@/lib/queries/dev'
@@ -75,7 +76,7 @@ export async function alterarEmailUsuario(input: {
     if (/already|registered|exists|duplicate/.test(msg)) {
       return { ok: false, erro: 'Já existe uma conta com esse e-mail.' }
     }
-    console.error('[dev] falha ao alterar e-mail', r.error)
+    registrarFalha({ escopo: 'dev.alterar-email', erro: r.error, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível alterar o e-mail. Tente de novo em instantes.' }
   }
 
@@ -127,7 +128,7 @@ export async function apagarUsuario(input: {
   } catch (err) {
     // FALHA FECHADA, como em `carregarAlvo` de actions/admin.ts: sem saber quantas contas de
     // nível administrador sobram, recusa em vez de supor.
-    console.error('[dev] falha ao carregar o alvo da exclusão', err)
+    registrarFalha({ escopo: 'dev.apagar-usuario-alvo', erro: err, operador: aut.uid })
     return {
       ok: false,
       erro: 'Não foi possível conferir a situação desta conta. Tente de novo em instantes.',
@@ -171,7 +172,11 @@ export async function apagarUsuario(input: {
   revalidatePath('/dev')
 
   if (!contaRemovida) {
-    console.error('[dev] perfil arquivado, mas a conta do Auth não foi removida', del.error)
+    registrarFalha({
+      escopo: 'dev.apagar-usuario-auth-nao-removida',
+      erro: del.error,
+      operador: aut.uid,
+    })
 
     // ⚠ ACHADO DA REVISÃO ADVERSARIAL (30/07): "tente apagar de novo" era um conselho que
     // NÃO SE PODE SEGUIR. O perfil já saiu da lista (arquivado), então não há mais linha nem
@@ -184,7 +189,13 @@ export async function apagarUsuario(input: {
     // sobra pendente é só a liberação do e-mail — que a checagem "perfil sem conta" da /dev
     // não pega (o caso é o inverso), então o aviso precisa dizer o que fazer à mão.
     const ban = await admin.auth.admin.updateUserById(usuarioId, { ban_duration: '876000h' })
-    if (ban.error) console.error('[dev] e o ban de emergência também falhou', ban.error)
+    if (ban.error) {
+      registrarFalha({
+        escopo: 'dev.apagar-usuario-ban-emergencia',
+        erro: ban.error,
+        operador: aut.uid,
+      })
+    }
 
     return {
       ok: true,
@@ -254,7 +265,7 @@ export async function rodarChecagensIntegridade(): Promise<
   try {
     return { ok: true, checagens: await rodarChecagens() }
   } catch (err) {
-    console.error('[dev] falha ao rodar as checagens', err)
+    registrarFalha({ escopo: 'dev.checagens-integridade', erro: err, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível rodar as checagens agora.' }
   }
 }

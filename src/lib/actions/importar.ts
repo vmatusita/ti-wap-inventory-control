@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
   csvCorrigidoDeArquivo,
@@ -317,26 +318,36 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   // confirmação. Desde a 0091 o índice é por filial e não há colisão a evitar: a detecção
   // continua para AVISAR, porque dois cadastros do mesmo aparelho em filiais diferentes é
   // um conflito que alguém precisa resolver — na mesa de /pendencias, não aqui.
+  // F7C ampliado (F7E, contrato §1.5): DUAS identidades a conferir em outra filial —
+  // (1) os pares COM patrimônio (comportamento F7C original); (2) os SEM patrimônio
+  // COM service tag, pela tag (índice parcial novo). O motor devolve ambos em
+  // `candidatos` (patrimonio null para os sem-plaqueta). `paresEmOutrasFiliais`
+  // devolve um mapa cujas chaves casam EXATAMENTE com as que `plano.ts` monta na 2ª
+  // passada (`chavePatrimonio(...)` para os com patrimônio; `∅::<service tag exata>`
+  // para os nulos-com-tag). Sem colisão nenhuma, a 2ª passada nem roda — o motor
+  // continua o único juiz.
+  const patrimonios = validacao.candidatos
+    .map((c) => c.patrimonio)
+    .filter((p): p is string => p !== null)
+  const tagsSemPatrimonio = validacao.candidatos.flatMap((c) =>
+    c.patrimonio === null && c.serviceTag ? [c.serviceTag] : [],
+  )
   try {
-    // F7C ampliado (F7E, contrato §1.5): DUAS identidades a conferir em outra filial —
-    // (1) os pares COM patrimônio (comportamento F7C original); (2) os SEM patrimônio
-    // COM service tag, pela tag (índice parcial novo). O motor devolve ambos em
-    // `candidatos` (patrimonio null para os sem-plaqueta). `paresEmOutrasFiliais`
-    // devolve um mapa cujas chaves casam EXATAMENTE com as que `plano.ts` monta na 2ª
-    // passada (`chavePatrimonio(...)` para os com patrimônio; `∅::<service tag exata>`
-    // para os nulos-com-tag). Sem colisão nenhuma, a 2ª passada nem roda — o motor
-    // continua o único juiz.
-    const patrimonios = validacao.candidatos
-      .map((c) => c.patrimonio)
-      .filter((p): p is string => p !== null)
-    const tagsSemPatrimonio = validacao.candidatos.flatMap((c) =>
-      c.patrimonio === null && c.serviceTag ? [c.serviceTag] : [],
-    )
     const emOutras = await paresEmOutrasFiliais(client, filial.id, patrimonios, tagsSemPatrimonio)
     if (emOutras.size > 0) {
       validacao = await validarArquivoImport(buffer, filialSel, undefined, corrRes.correcoes, emOutras)
     }
-  } catch {
+  } catch (erro) {
+    registrarFalha({
+      escopo: 'import.pares-outras-filiais',
+      erro,
+      ctx: {
+        filialId: filial.id,
+        patrimonios: patrimonios.length,
+        tagsSemPatrimonio: tagsSemPatrimonio.length,
+      },
+      operador: aut.uid,
+    })
     return {
       ok: false,
       erro: 'Não foi possível conferir os patrimônios contra as outras filiais. Tente novamente.',
@@ -349,7 +360,13 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
     const r = await custoSubstituir(client, filial.id)
     custo = r.custo
     termosMultiFilial = r.termosMultiFilial
-  } catch {
+  } catch (erro) {
+    registrarFalha({
+      escopo: 'import.custo-preview',
+      erro,
+      ctx: { filialId: filial.id },
+      operador: aut.uid,
+    })
     return { ok: false, erro: 'Não foi possível calcular o que será apagado. Tente novamente.' }
   }
 
@@ -412,7 +429,13 @@ export async function aplicarImport(input: {
     const r = await custoSubstituir(client, filial.id)
     atual = r.custo
     termosMultiFilial = r.termosMultiFilial
-  } catch {
+  } catch (erro) {
+    registrarFalha({
+      escopo: 'import.custo-revalidar',
+      erro,
+      ctx: { filialId: filial.id },
+      operador: aut.uid,
+    })
     return { ok: false, erro: 'Não foi possível revalidar o estado da filial. Tente novamente.' }
   }
 
@@ -481,7 +504,13 @@ export async function aplicarImport(input: {
     if (upErr) {
       return { ok: false, erro: `Falha ao gravar o backup — import cancelado: ${upErr.message}` }
     }
-  } catch {
+  } catch (erro) {
+    registrarFalha({
+      escopo: 'import.backup-acervo',
+      erro,
+      ctx: { filialId: filial.id, backupPath },
+      operador: aut.uid,
+    })
     return { ok: false, erro: 'Falha ao gerar o backup do acervo. Import cancelado.' }
   }
 
@@ -506,15 +535,15 @@ export async function aplicarImport(input: {
   })
   if (error) {
     // F7F — diagnóstico: o erro da RPC caía no genérico cego (traduzErroBanco só
-    // casava por substring da mensagem e ignorava o SQLSTATE). Agora logamos o
+    // casava por substring da mensagem e ignorava o SQLSTATE). Agora registramos o
     // code/mensagem/detalhes ANTES de traduzir (nunca vaza para a operadora, mas
     // fica no servidor) e passamos o `error.code` para o mapa — timeout (57014),
     // índice do import (23505) e raises P0001 da RPC viram mensagem acionável.
-    console.error('[importar] aplicarImport RPC error', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      filialId: plano.filialId,
+    registrarFalha({
+      escopo: 'import.rpc-substituir',
+      erro: error,
+      ctx: { filialId: plano.filialId },
+      operador: aut.uid,
     })
 
     // F54 — A RPC RECUSOU: nada foi apagado, então o backup que subiu antes dela não cobre
@@ -544,10 +573,12 @@ export async function aplicarImport(input: {
     if (RECUSAS_DA_RPC.has(error.code ?? '')) {
       await descartarBackupNaoUsado(client, backupPath)
     } else {
-      console.error(
-        '[importar] a RPC falhou com código inesperado — o backup NÃO foi descartado, porque não dá para saber se ela chegou a commitar',
-        { code: error.code, backupPath },
-      )
+      registrarFalha({
+        escopo: 'import.rpc-backup-nao-descartado',
+        erro: error,
+        ctx: { backupPath },
+        operador: aut.uid,
+      })
     }
 
     // A trilha do fracasso. `import_executado` só é gravado quando dá certo, então até aqui

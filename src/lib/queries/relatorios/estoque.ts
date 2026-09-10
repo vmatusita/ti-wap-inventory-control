@@ -1,4 +1,5 @@
 import 'server-only'
+import { registrarFalha } from '@/lib/observabilidade'
 import { parseISO, differenceInCalendarDays } from 'date-fns'
 import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
 import { CATEGORIA_ORDEM, STATUS_ORDEM } from '@/lib/dominio'
@@ -155,7 +156,7 @@ export async function lerEstadoAtivos(
 // não pode derrubar as contagens que não dependem dele. Por isso o corpo inteiro
 // vive num try/catch: se qualquer uma das reconstruções as-of falhar (a RPC
 // `rel_estoque_asof` lança em erro, ver `lerEstadoAtivos`), a rejeição é
-// registrada com `console.error` e a função devolve `undefined` — o mesmo valor
+// registrada com `registrarFalha` e a função devolve `undefined` — o mesmo valor
 // que "período curto demais" já produz, e que o resto do sistema já sabe tratar
 // como "sem card". Sem o try/catch, essa rejeição subiria pelo `Promise.all` de
 // `getSnapshotRelatorioV2` e derrubaria a rota inteira (500) por causa de um
@@ -193,7 +194,7 @@ export async function getSerieEstado(
     // derrubar o relatório inteiro (KPIs, categoria×status etc. não dependem
     // desta série). Loga e degrada para "o card não se aplica" — ver o bloco
     // DEGRADAÇÃO acima.
-    console.error('Falha ao montar a série de evolução do estoque (card opcional):', err)
+    registrarFalha({ escopo: 'relatorios.serie-estado', erro: err })
     return undefined
   }
 }

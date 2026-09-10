@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { exigirPapel } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import { formatDate, hojeISO } from '@/lib/format'
 import { CAP_EXPORT, gerarCsv, nomeArquivoCsv, type ColunaCsv } from '@/lib/csv'
 import {
@@ -435,7 +436,7 @@ export async function exportarAtivosCSV(filtros: string): Promise<ResultadoExpor
       truncado: linhas.length < total,
     }
   } catch (err) {
-    console.error('[exportarAtivosCSV] falha ao exportar ativos:', err)
+    registrarFalha({ escopo: 'exportar.ativos', erro: err })
     return falha('Falha ao exportar os ativos. Tente novamente.')
   }
 }
@@ -493,7 +494,7 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
       truncado: linhas.length < total,
     }
   } catch (err) {
-    console.error('[exportarPendenciasCSV] falha ao exportar pendências:', err)
+    registrarFalha({ escopo: 'exportar.pendencias', erro: err })
     return falha('Falha ao exportar as pendências. Tente novamente.')
   }
 }
@@ -558,7 +559,7 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
       truncado: linhas.length < filtrados.length,
     }
   } catch (err) {
-    console.error('[exportarItensSaldosCSV] falha ao exportar saldos:', err)
+    registrarFalha({ escopo: 'exportar.itens-saldos', erro: err })
     return falha('Falha ao exportar os saldos. Tente novamente.')
   }
 }
@@ -579,7 +580,7 @@ export async function exportarItensHistoricoCSV(
       truncado: linhas.length < total,
     }
   } catch (err) {
-    console.error('[exportarItensHistoricoCSV] falha ao exportar histórico:', err)
+    registrarFalha({ escopo: 'exportar.itens-historico', erro: err })
     return falha('Falha ao exportar o histórico. Tente novamente.')
   }
 }

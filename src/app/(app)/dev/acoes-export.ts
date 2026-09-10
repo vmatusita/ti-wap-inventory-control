@@ -17,6 +17,7 @@ import { descreverDetalhe } from '@/components/admin/usuarios/detalhe-evento'
 import { listarFiliaisParaVinculo } from '@/lib/queries/admin'
 import type { ResultadoExportCsv } from '@/lib/actions/exportar'
 import type { Json } from '@/lib/types/database'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // Export CSV da TRILHA DE AUDITORIA — só do cargo Desenvolvedor (F22).
 //
@@ -196,7 +197,7 @@ export async function exportarAuditoriaCSV(filtros: string): Promise<ResultadoEx
       truncado: linhas.length < total,
     }
   } catch (err) {
-    console.error('[exportarAuditoriaCSV] falha ao exportar a auditoria:', err)
+    registrarFalha({ escopo: 'dev.exportar-auditoria-csv', erro: err, operador: aut.uid })
     return falha('Falha ao exportar a auditoria. Tente novamente.')
   }
 }

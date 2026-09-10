@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirDev } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
   alvoDaMovimentacao,
@@ -136,7 +137,7 @@ export async function buscarAtivosParaDestruir(input: {
   try {
     return { ok: true, dados: await buscarAtivosDestrutivo(input.termo ?? '') }
   } catch (err) {
-    console.error('[dev-destrutivo] falha ao buscar ativos', err)
+    registrarFalha({ escopo: 'dev-destrutivo.buscar-ativos', erro: err, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível buscar agora. Tente de novo em instantes.' }
   }
 }
@@ -150,7 +151,7 @@ export async function carregarFicha(input: {
   try {
     return { ok: true, dados: await carregarFichaDestrutiva(input.ativoId) }
   } catch (err) {
-    console.error('[dev-destrutivo] falha ao carregar a ficha', err)
+    registrarFalha({ escopo: 'dev-destrutivo.carregar-ficha', erro: err, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível carregar este ativo agora.' }
   }
 }
@@ -165,7 +166,7 @@ export async function calcularPreviaReset(input: {
   try {
     return { ok: true, dados: await previaDoReset(input.bloco, input.filialId) }
   } catch (err) {
-    console.error('[dev-destrutivo] falha ao calcular a prévia', err)
+    registrarFalha({ escopo: 'dev-destrutivo.calcular-previa', erro: err, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível calcular o tamanho deste reset agora.' }
   }
 }
@@ -351,7 +352,7 @@ export async function resetarBloco(input: {
   try {
     previa = await previaDoReset(bloco, filialId)
   } catch (err) {
-    console.error('[dev-destrutivo] falha ao calcular a prévia do reset', err)
+    registrarFalha({ escopo: 'dev-destrutivo.resetar-previa', erro: err, operador: aut.uid })
     return {
       ok: false,
       erro: 'Não foi possível conferir o tamanho deste reset agora. Nada foi apagado — tente de novo em instantes.',
@@ -389,7 +390,7 @@ export async function resetarBloco(input: {
       })
     if (erroUpload) throw new Error(erroUpload.message)
   } catch (err) {
-    console.error('[dev-destrutivo] falha ao gravar o backup do reset', err)
+    registrarFalha({ escopo: 'dev-destrutivo.resetar-backup', erro: err, operador: aut.uid })
     return {
       ok: false,
       erro: 'Não foi possível gravar o backup. NADA foi apagado — reset sem backup é proibido.',

@@ -2,6 +2,7 @@ import 'server-only'
 import type { DbClient } from '@/lib/queries/relatorios'
 import type { AnySnapshot } from '@/lib/relatorios/tipos'
 import { ehUuid } from '@/lib/url-params'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // Histórico e leitura dos relatórios GERADOS (snapshots — spec §7.1 / OS-F3 3.8).
 // Recebe o client resolvido (operador OU visualizador por senha) — ambos leem.
@@ -175,7 +176,7 @@ export async function listarRelatoriosGerados(
     // Falhar aqui só custa a badge — a lista continua de pé, sem afirmar vigência
     // que não pôde conferir (o `Map` vazio faz `superada` ser false em todas).
     if (eVersoes) {
-      console.error('[gerados] falha ao conferir versões superadas', eVersoes)
+      registrarFalha({ escopo: 'gerados.versoes-superadas', erro: eVersoes })
     } else {
       for (const v of versoes ?? []) {
         const k = chaveVersao(v.periodo_de, v.periodo_ate, v.filial_id)
@@ -240,8 +241,8 @@ export async function vizinhosDoRelatorio(
 
   // Falha de leitura aqui tira a NAVEGAÇÃO, não o relatório: degrada para "não há
   // vizinho" em vez de derrubar a página inteira do snapshot congelado.
-  if (ant.error) console.error('[gerados] falha ao buscar o período anterior', ant.error)
-  if (prox.error) console.error('[gerados] falha ao buscar o próximo período', prox.error)
+  if (ant.error) registrarFalha({ escopo: 'gerados.periodo-anterior', erro: ant.error })
+  if (prox.error) registrarFalha({ escopo: 'gerados.periodo-proximo', erro: prox.error })
 
   const limpar = (v: typeof ant.data): VizinhoRelatorio | null =>
     v ? { id: v.id, periodo_de: v.periodo_de, periodo_ate: v.periodo_ate } : null

@@ -23,6 +23,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { eAdmin, eDev, podeEscrever } from '@/lib/auth/papeis'
 import { podeLer } from '@/components/layout/permissoes'
 import { versaoAtual } from '@/lib/versoes/registry'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // F35 — a versao no ar desce por PROP para o shell (pe da sidebar, no desktop e
 // no Sheet do celular). Constante de modulo, e nao chamada por request: o
@@ -80,7 +81,7 @@ export default async function AppLayout({
     // é memoizada por request de qualquer forma), e o `catch` continua degradando
     // para o pior caso aceitável: selo global e menu sem a linha de filiais.
     const filiaisDoShell = await listarFiliais().catch((e) => {
-      console.error('[layout] falha ao ler as filiais do shell', e)
+      registrarFalha({ escopo: 'layout.filiais-shell', erro: e, operador: operador.id })
       return [] as Awaited<ReturnType<typeof listarFiliais>>
     })
     const filiaisDoSelo =

@@ -100,7 +100,13 @@ describe('gerarRelatorio — a leitura de versão não pode voltar a engolir o e
   })
 
   it('a falha deixa rastro no servidor', () => {
-    expect(FONTE).toContain('[relatorios] falha ao ler a versão vigente')
+    // F55 (10/09/2026) — o rastro MUDOU DE FORMA, não de existência: o
+    // `console.error('[relatorios] falha ao ler a versão vigente', …)` virou uma
+    // chamada ao funil, com o prefixo `[relatorios]` transformado em ESCOPO. O
+    // que este caso mede — "a leitura que falha deixa rastro" — continua sendo
+    // exatamente o mesmo requisito; é o objeto que se mexeu, por desenho.
+    expect(FONTE).toContain('registrarFalha(')
+    expect(FONTE).toContain("escopo: 'relatorios.versao-vigente'")
   })
 })
 

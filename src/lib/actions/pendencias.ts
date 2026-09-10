@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   reabrirPendenciaItemSchema,
@@ -156,8 +157,8 @@ async function montarLancamentosDaResolucao(
   // Falha de leitura do CATÁLOGO não bloqueia (a doutrina da §E: resolver nunca
   // falha por causa do catálogo), mas também não pode ser invisível: sem estas
   // linhas, a pendência resolveria sem lançamento e ninguém saberia por quê.
-  if (eTipos) console.error('[resolverPendenciaItem] falha ao ler tipos_item:', eTipos)
-  if (eItens) console.error('[resolverPendenciaItem] falha ao ler o catálogo de itens:', eItens)
+  if (eTipos) registrarFalha({ escopo: 'pendencias.resolver-tipos-item', erro: eTipos })
+  if (eItens) registrarFalha({ escopo: 'pendencias.resolver-catalogo-itens', erro: eItens })
 
   const vinculos = await resolverColaboradoresPorNome(
     supabase,

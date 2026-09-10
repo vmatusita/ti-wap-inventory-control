@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   loteComItensSchema,
@@ -551,7 +552,7 @@ async function montarItensJunto(
       .select('id, nome')
       .in('id', ids)
     if (error) {
-      console.error('[montarItensJunto] falha ao ler o nome dos itens:', error.message)
+      registrarFalha({ escopo: 'movimentacoes.itens-junto-nomes', erro: error })
     } else {
       for (const i of itens ?? []) nomes.set(i.id, i.nome)
     }
@@ -752,7 +753,7 @@ export async function buscarAtivosParaMovimentacao(
     // Degrada para lista vazia (o combobox roda com debounce e nao deve derrubar
     // o fluxo por um hiccup transitorio), mas NAO silencia: registra no log do
     // servidor para que uma falha sistematica (RLS/config/rede) seja visivel.
-    console.error('[buscarAtivosParaMovimentacao] falha na busca de ativos:', err)
+    registrarFalha({ escopo: 'movimentacoes.buscar-ativos-combobox', erro: err })
     return []
   }
 }
@@ -869,7 +870,7 @@ export async function resolverPatrimoniosParaLote(
       invalidos: parse.invalidos,
     }
   } catch (err) {
-    console.error('[resolverPatrimoniosParaLote] falha ao resolver o lote:', err)
+    registrarFalha({ escopo: 'movimentacoes.resolver-lote-colado', erro: err })
     return {
       ...resolucaoVazia(),
       erro: 'Não foi possível consultar os ativos agora. Tente de novo.',
@@ -892,7 +893,7 @@ export async function buscarAtivosRecentesDoOperador(
     if (!aut.ok) return []
     return await ultimosAtivosMovimentadosDoOperador(aut.uid, limite ?? 8)
   } catch (err) {
-    console.error('[buscarAtivosRecentesDoOperador] falha ao carregar recentes:', err)
+    registrarFalha({ escopo: 'movimentacoes.ativos-recentes-operador', erro: err })
     return []
   }
 }
@@ -930,7 +931,7 @@ export async function buscarColaboradoresDoCampo(
     if (!aut.ok) return vazio
     return await sugestoesDoCampoColaborador(prefixo)
   } catch (err) {
-    console.error('[buscarColaboradoresDoCampo] falha ao carregar sugestões:', err)
+    registrarFalha({ escopo: 'movimentacoes.sugestoes-colaborador', erro: err })
     return vazio
   }
 }
@@ -945,7 +946,7 @@ export async function buscarSugestoesSetores(prefixo: string): Promise<string[]>
     if (!aut.ok) return []
     return await sugestoesSetores(prefixo)
   } catch (err) {
-    console.error('[buscarSugestoesSetores] falha nas sugestões:', err)
+    registrarFalha({ escopo: 'movimentacoes.sugestoes-setor', erro: err })
     return []
   }
 }
@@ -964,7 +965,7 @@ export async function buscarPossiveisDuplicatasDoDia(
     if (!aut.ok) return []
     return await possiveisDuplicatasDoDia(pares)
   } catch (err) {
-    console.error('[buscarPossiveisDuplicatasDoDia] falha ao checar duplicatas:', err)
+    registrarFalha({ escopo: 'movimentacoes.duplicatas-do-dia', erro: err })
     return []
   }
 }
@@ -984,9 +985,11 @@ export async function buscarResumoDeAtivosPorIds(
     // O teto vai na ACTION e nao na query: `buscarAtivosResumoPorIds` serve outros
     // chamadores de dentro do servidor, que nao vem da rede.
     if (ids.length > MAX_LOTE_COMPRA) {
-      console.error(
-        `[buscarResumoDeAtivosPorIds] lote acima do teto (${ids.length} > ${MAX_LOTE_COMPRA})`,
-      )
+      registrarFalha({
+        escopo: 'movimentacoes.resumo-lote-acima-do-teto',
+        erro: 'lote acima do teto',
+        ctx: { total: ids.length, teto: MAX_LOTE_COMPRA },
+      })
       return []
     }
     const supabase = await createClient()
@@ -994,7 +997,7 @@ export async function buscarResumoDeAtivosPorIds(
     if (!aut.ok) return []
     return await buscarAtivosResumoPorIds(ids)
   } catch (err) {
-    console.error('[buscarResumoDeAtivosPorIds] falha ao restaurar o rascunho:', err)
+    registrarFalha({ escopo: 'movimentacoes.resumo-lote-restaurar', erro: err })
     return []
   }
 }

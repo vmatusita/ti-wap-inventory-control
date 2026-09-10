@@ -30,6 +30,7 @@ import { ViewerAutoRefresh } from '@/components/relatorios/viewer-auto-refresh'
 import { GerarRelatorioDialog } from '@/components/relatorios/gerar-relatorio-dialog'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2). Estático (não por filial): o nome
 // exato da filial já está no `<h1>` da própria tela.
@@ -132,7 +133,11 @@ export default async function RelatorioFilialPage({
       // Degrada, nunca derruba: sem o mapa, o item faltante sai com o slug cru —
       // o fallback desenhado. Derrubar o relatório inteiro por causa de um
       // vocabulário de exibição seria trocar o essencial pelo acessório.
-      console.error('[relatorios/[filial]] falha ao listar tipos de item:', err)
+      registrarFalha({
+        escopo: 'relatorios.ao-vivo-tipos-item',
+        erro: err,
+        operador: acesso.modo === 'operador' ? acesso.operador.id : null,
+      })
       return []
     }),
   ])

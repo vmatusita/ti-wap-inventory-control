@@ -12,6 +12,7 @@ import {
   raizDoConflito,
 } from '@/lib/storage/copiar-antes-de-remover'
 import { exigirAdmin } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { acervoDosAtivos, ladosDosAtivos } from '@/lib/queries/conflitos'
 // `import type` é permitido num módulo 'use server' — a regra da F13 proíbe EXPORTAR o que
@@ -270,7 +271,8 @@ export async function apagarConflito(input: {
           erro: `Falha ao gravar o backup — nada foi apagado: ${upErr.message}`,
         }
       }
-    } catch {
+    } catch (erro) {
+      registrarFalha({ escopo: 'conflitos.backup-cadastros', erro })
       return { ok: false, erro: 'Falha ao gerar o backup dos cadastros. Nada foi apagado.' }
     }
   }
@@ -286,11 +288,11 @@ export async function apagarConflito(input: {
     p_backup_path: backupPath as unknown as string,
   })
   if (error) {
-    console.error('[conflitos] apagarConflito RPC error', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      ativos: ativoIds.length,
+    registrarFalha({
+      escopo: 'conflitos.apagar-rpc',
+      erro: error,
+      ctx: { ativos: ativoIds.length },
+      operador: aut.uid,
     })
     // A RPC recusou: nada foi apagado, então o backup que subiu antes dela não cobre
     // exclusão nenhuma e não pode ficar no bucket. Ver `descartarBackupNaoUsado`.

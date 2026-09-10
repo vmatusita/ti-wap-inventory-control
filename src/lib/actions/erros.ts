@@ -1,4 +1,5 @@
 import { MSG_CHAMADO_OBRIGATORIO } from '@/lib/validators/item'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // Contrato de retorno padrão das Server Actions simples (ok + erro opcional).
 // Antes redefinido como AdminResult/ItemActionResult/EditarAtivoResult/
@@ -369,7 +370,13 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   // Fallback: SEMPRE registra o par { code, mensagem } no servidor — assim o
   // próximo erro deixa de ser cego (F7F). Em dev devolve a mensagem crua (debug);
   // em produção NUNCA vaza o texto interno do Postgres para a operadora.
-  console.error('[traduzErroBanco] erro não mapeado', { code: code ?? null, mensagem: mensagem ?? null })
+  // O par `{ code, mensagem }` vai nos campos NATIVOS do funil (`erro.codigo` e
+  // `erro.mensagem`), não num `ctx` paralelo: é exatamente o formato que o funil
+  // existe para padronizar, e é o mesmo par que o `descreverErro` do smoke usa.
+  registrarFalha({
+    escopo: 'erros.nao-mapeado',
+    erro: { code: code ?? null, message: mensagem ?? null },
+  })
   if (process.env.NODE_ENV !== 'production') {
     return mensagem ?? 'Não foi possível concluir a operação.'
   }

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin, exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { hojeISO } from '@/lib/format'
 import {
@@ -145,7 +146,8 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
       .from('itens')
       .select('id, nome')
       .in('id', ids)
-    if (erroCat) console.error('[lancarItens] falha ao ler o nome dos itens:', erroCat.message)
+    if (erroCat)
+      registrarFalha({ escopo: 'itens.lancar-nomes-item', erro: erroCat, operador: uid })
     else for (const i of cat ?? []) nomesDeItem.set(i.id, i.nome)
   }
 
@@ -470,7 +472,7 @@ export async function buscarSaldosItens(filialId: number): Promise<SaldosDaFilia
     for (const s of saldos) emUso[s.item_id] = emUsoDoSaldo(s)
     return { estoque: estoquePorItem(saldos), emUso }
   } catch (err) {
-    console.error('[buscarSaldosItens] falha ao carregar saldos:', err)
+    registrarFalha({ escopo: 'itens.buscar-saldos', erro: err })
     return vazio
   }
 }

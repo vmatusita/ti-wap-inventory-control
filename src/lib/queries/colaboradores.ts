@@ -6,6 +6,7 @@ import {
   prefixoSeguro,
 } from '@/lib/busca/prefixo'
 import { chaveColaborador, chavesDistintas } from '@/lib/colaboradores/chave'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // Leituras do cadastro de pessoas (F37 · D5). Rota só do operador — usam o client do
 // servidor com a sessão dele (RLS `authenticated`), como o resto de src/lib/queries.
@@ -227,7 +228,7 @@ export async function resolverColaboradoresPorNome(
     .select('id, nome_chave')
     .in('nome_chave', chaves)
   if (error) {
-    console.error('[resolverColaboradoresPorNome] falha ao resolver', error.message)
+    registrarFalha({ escopo: 'colaboradores.resolver-por-nome', erro: error })
     return mapa
   }
   for (const r of (data ?? []) as { id: string; nome_chave: string | null }[]) {
@@ -390,9 +391,11 @@ export async function sugestoesDoCampoColaborador(
     ['cadastro exato', exato],
   ] as const) {
     if (r.error) {
-      console.error(
-        `[sugestoesDoCampoColaborador] falha em ${rotulo}: ${r.error.message}`,
-      )
+      registrarFalha({
+        escopo: 'colaboradores.sugestoes-campo',
+        erro: r.error,
+        ctx: { tabela: rotulo },
+      })
     }
   }
 

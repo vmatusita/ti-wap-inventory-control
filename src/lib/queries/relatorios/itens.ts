@@ -1,4 +1,5 @@
 import 'server-only'
+import { registrarFalha } from '@/lib/observabilidade'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 import { OBS_SALDO_INICIAL } from '@/lib/dominio'
 import type { Periodo } from '@/lib/relatorios/periodo'
@@ -50,7 +51,7 @@ import { filialParaRpc } from '@/lib/queries/rpc-filial'
 // deveriam alertar — o catálogo inteiro da WAP passa dessa marca. `paginarTodos`
 // LANÇA em erro (é assim que ele detecta o corte silencioso no caminho feliz),
 // mas o mínimo é enfeite de leitura, não número do relatório: falhar aqui não
-// pode derrubar a página inteira, então a exceção vira `console.error` e lista
+// pode derrubar a página inteira, então a exceção vira `registrarFalha` e lista
 // vazia — sem catálogo, os itens ficam sem `minimo` e a célula volta a ser
 // exatamente a de antes desta fase, que é a degradação certa.
 async function lerMinimosDoCatalogo(
@@ -67,10 +68,7 @@ async function lerMinimosDoCatalogo(
           .range(from, to),
     )
   } catch (e) {
-    console.error(
-      'Falha ao ler o mínimo do catálogo de itens',
-      e instanceof Error ? e.message : e,
-    )
+    registrarFalha({ escopo: 'relatorios.minimos-catalogo', erro: e })
     return []
   }
 }

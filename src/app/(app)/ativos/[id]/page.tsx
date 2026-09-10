@@ -43,6 +43,7 @@ import {
 } from '@/lib/auth/acesso'
 import { podeEscreverNaFilial } from '@/components/layout/permissoes'
 import { eAdmin } from '@/lib/auth/papeis'
+import { registrarFalha } from '@/lib/observabilidade'
 
 function Dado({
   label,
@@ -135,7 +136,7 @@ export default async function AtivoFichaPage({
       // `rotuloTipoItem` cai no slug cru — o fallback desenhado. Derrubar ativos/[id]
       // inteira por causa de um vocabulário de exibição seria trocar o essencial
       // pelo acessório.
-      console.error('[ativos/[id]] falha ao listar tipos de item:', err)
+      registrarFalha({ escopo: 'ativos.ficha-tipos-item', erro: err })
       return []
     }),
   ])

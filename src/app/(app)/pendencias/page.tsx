@@ -29,6 +29,7 @@ import {
 } from '@/components/pendencias/mesa-conflitos'
 import { contarGruposConflito, listarConflitos } from '@/lib/queries/conflitos'
 import { eAdmin } from '@/lib/auth/papeis'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
 export const metadata = {
@@ -184,7 +185,7 @@ export default async function PendenciasPage({
       // `rotuloTipoItem` cai no slug cru — o fallback desenhado. Derrubar pendencias
       // inteira por causa de um vocabulário de exibição seria trocar o essencial
       // pelo acessório.
-      console.error('[pendencias] falha ao listar tipos de item:', err)
+      registrarFalha({ escopo: 'pendencias.tipos-item', erro: err, operador: operador.id })
       return []
     }),
   ])

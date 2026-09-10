@@ -9,6 +9,7 @@ import type { DbClient } from '@/lib/auth/acesso'
 import { PAPEL_ROTULO, eDev } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { DOMINIOS_OPERADOR, DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { getSaldosItens } from '@/lib/queries/itens'
@@ -127,7 +128,7 @@ export async function convidarUsuario(input: {
     try {
       alvo = await perfilPorEmail(email)
     } catch (err) {
-      console.error('[admin/usuarios] falha ao conferir de quem é o e-mail do convite', err)
+      registrarFalha({ escopo: 'admin.usuarios-email-convite', erro: err, operador: aut.uid })
       return {
         ok: false,
         erro: 'Não foi possível conferir esse e-mail agora. Tente de novo em instantes.',
@@ -285,7 +286,7 @@ export async function gerarLinkDeAcesso(input: { email: string }): Promise<Convi
     try {
       alvo = await perfilPorEmail(email)
     } catch (err) {
-      console.error('[admin/usuarios] falha ao conferir de quem é o e-mail do link', err)
+      registrarFalha({ escopo: 'admin.usuarios-email-acesso', erro: err, operador: aut.uid })
       return {
         ok: false,
         erro: 'Não foi possível conferir esse e-mail agora. Tente de novo em instantes.',
@@ -401,7 +402,7 @@ async function carregarAlvo(
   } catch (err) {
     // FALHA FECHADA: sem conseguir contar os admins ativos, recusa a gravação. O contrário
     // (seguir e supor que sobra alguém) é justamente como se perde o último administrador.
-    console.error('[admin/usuarios] falha ao carregar o estado do usuário', err)
+    registrarFalha({ escopo: 'admin.usuarios-carregar-estado', erro: err })
     return {
       erro: 'Não foi possível conferir a situação atual deste usuário. Tente de novo em instantes.',
     }
@@ -556,7 +557,7 @@ export async function definirStatusUsuario(input: {
   revalidatePath('/admin/usuarios')
 
   if (!loginBloqueado) {
-    console.error('[admin/usuarios] falha ao (des)banir no Auth', ban.error)
+    registrarFalha({ escopo: 'admin.usuarios-ban', erro: ban.error, operador: aut.uid })
     // A metade que importa já valeu; devolver `ok: false` faria o admin repetir a ação
     // achando que nada aconteceu. O texto diz exatamente o que ficou pendente.
     return {
