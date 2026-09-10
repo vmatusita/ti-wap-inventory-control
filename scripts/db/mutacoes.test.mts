@@ -66,7 +66,23 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 64 mutações ATIVAS', () => {
+  it('tem entre 20 e 68 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 64 PARA 68 NA F55 (10/09/2026). A fase escreveu o roteiro
+    // `integridade_alarme.sql`, que é o primeiro a exercitar as DOZE checagens de
+    // integridade uma a uma, e ele nasceu com QUATRO quebras próprias — uma por
+    // promessa que o alarme faz e que nada vigiava:
+    //   · o núcleo para de contar uma checagem (ela responde ZERO, e o alarme fica
+    //     verde sobre uma corrupção que existe — a falha mais silenciosa possível);
+    //   · o resumo de integridade vira alcançável por `anon` (as contagens da
+    //     empresa inteira pela chave pública, sem sessão);
+    //   · o resumo passa a devolver a coluna `amostra` (patrimônio e nome de pessoa
+    //     indo para dentro de um secret do GitHub e do corpo de uma issue);
+    //   · o rótulo de ambiente vira alcançável por `authenticated`.
+    // Nenhuma das quatro quebra `lint`, `build` ou `tsc`: só o roteiro as vê, que
+    // é exatamente o que o injetor existe para provar.
+    // 63 + 4 = 67, teto 68 (uma de folga — a mesma régua da F52, F53 e F54, porque
+    // teto colado no número de hoje força outra decisão na semana seguinte, e é
+    // assim que um teto vira ritual).
     // ⚠ O TETO SUBIU DE 59 PARA 64 NA F54 (09/09/2026). A fase escreveu o roteiro
     // `restauracao.sql`, que é o primeiro a exercitar a RESTAURAÇÃO, e ele nasceu com
     // QUATRO quebras próprias — uma por obstáculo que o restaurador enfrenta e que
@@ -139,7 +155,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(64)
+    expect(MUTACOES.length).toBeLessThanOrEqual(68)
   })
 
   it('os `id` são únicos', () => {
