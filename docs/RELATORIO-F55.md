@@ -515,6 +515,12 @@ e o que `B2` mede.
 
 Tudo em `docs/f55-evidencias/G3-pos-deploy.txt`.
 
+**Uma medição de operação que vale registrar:** logo depois de um deploy, a primeira batida na sonda
+custou **3.429 ms** (partida a frio da função serverless); com a função quente, **179–207 ms**. Como
+o agendado bate de 6 em 6 horas, ele vai pegar a função fria **quase sempre**. Não há risco de alarme
+falso por isso — o teto do `smoke-prod.mjs` é de **20 s**, e ainda há a releitura de confirmação
+antes de abrir issue —, mas é o número a ter em mente antes de alguém apertar esse teto um dia.
+
 **E o achado do proxy foi provado NO AR, não só em teste.** `/api/saude` responde 200 sem sessão; as
 três rotas que a revisão adversarial inventou — `/api/saude-financeira`, `/api/saudeanimal`,
 `/api/saude/interna` — levam **307 para o login**, como qualquer rota de API nova. Antes do `$`, as
