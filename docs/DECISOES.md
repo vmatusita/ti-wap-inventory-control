@@ -9722,8 +9722,13 @@ roteiro do `RELATORIO-F55.md` §1.8. **Nada da F55 dependia dele.**
   parou de responder consulta nenhuma — nem `select 1` —, pelo MCP **e** pelo PostgREST com a chave
   de serviço, em `filiais`, `ativos`, `profiles`, `tipos_item`, `movimentacoes` e `itens`. O
   `postgres_logs` registra três *"canceling statement due to statement timeout"* (19:30, 19:31,
-  19:32 — as três tentativas) e **nada depois**: as requisições seguintes nem viram consulta. O
-  `edge_logs` só tem as duas sondas anônimas, que respondem 401 em milissegundos. O painel diz
+  19:32 — as três tentativas pelo MCP) e nada depois. **Daí NÃO se conclui que as requisições
+  seguintes não chegaram ao banco:** as sondas por PostgREST abortam do lado do cliente em 12–20 s,
+  antes do `statement_timeout` do servidor, e consulta cortada assim pode não deixar linha. A
+  ausência de `checkpoint` desde 18:51 também não diz nada — a cadência deles segue a escrita, e o
+  histórico do ensaio tem vãos de duas e três horas quando ninguém escreve. O que está medido é que
+  as consultas param de voltar; ONDE elas travam, não sei. O `edge_logs` só tem as duas sondas
+  anônimas, que respondem 401 em milissegundos. O painel diz
   `ACTIVE_HEALTHY`. Vinte minutos antes, o mesmo ensaio atendeu a prova `B2` inteira; produção, no
   mesmo instante, respondeu tudo.
 - **Decisão:** **não forçar.** Não pausei nem restaurei o projeto, não tentei matar backend por

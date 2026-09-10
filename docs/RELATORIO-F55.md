@@ -560,10 +560,16 @@ issue **fechar sozinha**.
 **O que aconteceu:** o `UPDATE` saiu às 19:29 UTC e a conexão **estourou o tempo**. Dali em diante o
 Postgres do ensaio parou de responder consulta nenhuma — nem `select 1`, nem leitura de `filiais`,
 `ativos`, `profiles`, `tipos_item`, `movimentacoes` ou `itens`, pelo MCP **e** pelo PostgREST com a
-chave de serviço. O `postgres_logs` mostra três *"canceling statement due to statement timeout"*
-(19:30, 19:31, 19:32 — as minhas três tentativas) e **nada depois**: as requisições seguintes nem
-chegam a virar consulta. O painel diz `ACTIVE_HEALTHY`; a produção, no mesmo instante, respondeu
-tudo. **Vinte minutos antes, o mesmo ensaio tinha atendido a prova `B2` inteira.**
+chave de serviço. O painel diz `ACTIVE_HEALTHY`; a produção, no mesmo instante, respondeu tudo.
+**Vinte minutos antes, o mesmo ensaio tinha atendido a prova `B2` inteira.**
+
+O que o `postgres_logs` mostra, e só isso: três *"canceling statement due to statement timeout"* em
+19:30, 19:31 e 19:32 — as minhas três tentativas pelo MCP —, e nada depois. **Não concluo daí que as
+requisições seguintes não chegaram ao banco.** As minhas sondas por PostgREST abortam do lado do
+cliente em 12–20 s, bem antes do `statement_timeout` do servidor; uma consulta cortada assim pode não
+deixar linha nenhuma. E a ausência de `checkpoint` desde 18:51 também não diz nada: a cadência deles
+segue a escrita, e o histórico do próprio ensaio tem vãos de duas e três horas quando ninguém
+escreve. **O que está medido é que as consultas param de voltar; onde elas travam, eu não sei.**
 
 **⚠ E daí decorre uma pendência de estado que eu não consigo fechar:** não sei dizer se aquele
 `UPDATE` chegou a ser gravado. Se chegou, **a filial `serra` (id 4) está inativa no ensaio** e
