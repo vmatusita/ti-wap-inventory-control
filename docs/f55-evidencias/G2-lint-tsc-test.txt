@@ -1,21 +1,37 @@
 VERIFICACAO FINAL — F55, 10/09/2026
 
+Refeita depois das correções da revisão adversarial (5 defeitos) e da prova B2.
+
 === npm run lint ===
+
 
 > estoque-ti-wap@1.60.0 lint
 > eslint
 
-exit=0
-
 === npx tsc --noEmit ===
-exit=0
+
+(sem saída — limpo)
 
 === npm run test ===
+
+
+> estoque-ti-wap@1.60.0 test
+> vitest run
+
+
  RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
 
 
- Test Files  178 passed (178)
-      Tests  4548 passed (4548)
-   Start at  15:16:35
-   Duration  133.45s (transform 26.07s, setup 0ms, import 688.81s, tests 41.13s, environment 80ms)
+ Test Files  180 passed (180)
+      Tests  4611 passed (4611)
+   Start at  16:20:28
+   Duration  95.33s (transform 11.32s, setup 0ms, import 486.98s, tests 35.69s, environment 83ms)
 
+=== npm run verificar:actions ===
+
+
+> estoque-ti-wap@1.60.0 verificar:actions
+> node scripts/verificar-actions-build.mjs
+
+[gate] chunks com Server Actions varridos: 39
+[gate] VERDE — nenhum identificador registrado sem binding.

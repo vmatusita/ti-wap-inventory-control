@@ -82,8 +82,57 @@ export type EntradaFalha = {
  * qualquer coisa que não seja letra (o `_` inclusive) e continua não casando
  * `monkey`/`keyboard`.
  */
-const CHAVE_SENSIVEL =
-  /senha|password|token|secret|segredo|service_role|api[-_]?key|(?:^|[^a-z])key(?:[^a-z]|$)|chave|hash|cpf|authorization|cookie|bearer|credential/i
+const CHAVE_SENSIVEL = new RegExp(
+  [
+    'senha',
+    'password',
+    'token',
+    'secret',
+    'segredo',
+    'service_role',
+    'api[-_]?key',
+    // `key` sem `\b` — ver o ⚠ acima.
+    '(?:^|[^a-z])key(?:[^a-z]|$)',
+    'chave',
+    'hash',
+    'cpf',
+    'authorization',
+    'cookie',
+    'bearer',
+    // ⚠ AS QUATRO ABAIXO ENTRARAM PELA REVISÃO ADVERSARIAL (10/09/2026), e a
+    // primeira é a que dói: a lista tinha a palavra INGLESA `credential` e não a
+    // PORTUGUESA — sendo que o vocabulário desta casa é português
+    // (`actions/importar.ts`, `escopo/pertencimento.ts`, `supabase/admin.ts` todos
+    // dizem "credencial"). Um `ctx: { credencialDeServico: … }` saía inteiro.
+    // O RADICAL, nao a palavra: `credencial` nao casa `credenciais` (o plural
+    // troca o `l` por `is`), e foi assim que o caso do plural nasceu vermelho.
+    'credencia',
+    'credential',
+    // `auth`, `pwd` e `jwt` como PALAVRA — separadas por qualquer coisa que não
+    // seja letra, o `_` inclusive. `autor` e `author` não casam (a letra seguinte
+    // é `o`); `authenticated` casa, e redigir um booleano é custo aceitável.
+    '(?:^|[^a-z])auth(?:[^a-z]|$)',
+    '(?:^|[^a-z])pwd(?:[^a-z]|$)',
+    '(?:^|[^a-z])jwt(?:[^a-z]|$)',
+  ].join('|'),
+  'i',
+)
+
+/**
+ * A chave, normalizada ANTES de passar pela regex de sensibilidade.
+ *
+ * ⚠ SEM ISTO, `jwtClaims` E `authToken` VAZAM. As formas de palavra acima
+ * pedem que o trecho termine em algo que não seja letra — e numa chave
+ * camelCase o que vem depois é uma MAIÚSCULA. Como a regex é
+ * case-insensitive, `[^a-z]` também não casa `C`: a fronteira nunca fecha.
+ * Separar o camelCase resolve os dois casos de uma vez, e deixa a regex
+ * lidando só com `_`, `-` e `.` — que é o que ela sabe fazer.
+ *
+ * Achado da revisão adversarial de 10/09/2026, junto com `credencial`.
+ */
+function normalizarChave(chave: string): string {
+  return chave.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
+}
 
 /** O que se troca por um rótulo, em ORDEM (o mais específico primeiro). */
 const PADROES_DE_VALOR: { re: RegExp; por: string }[] = [
@@ -94,7 +143,12 @@ const PADROES_DE_VALOR: { re: RegExp; por: string }[] = [
   // Chaves novas da Supabase (`sb_publishable_…`, `sb_secret_…`).
   { re: /\bsb_(?:publishable|secret)_[A-Za-z0-9_-]{8,}/g, por: '[token]' },
   { re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, por: '[e-mail]' },
-  { re: /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, por: '[cpf]' },
+  // ⚠ CPF COM PONTUAÇÃO PARCIAL, e não só a canônica — achado da revisão
+  // adversarial (10/09/2026). `123456789-09`, `123.456.789.09` e `123.456789-09`
+  // não batiam na forma exata NEM no fallback de onze dígitos corridos (a
+  // pontuação quebra a corrida), e saíam inteiros. Aqui cada separador é
+  // opcional e independente, o que cobre as dezesseis combinações.
+  { re: /\b\d{3}[.\-\s]?\d{3}[.\-\s]?\d{3}[.\-\s]?\d{2}\b/g, por: '[cpf]' },
   { re: /\(\d{2}\)\s?\d{4,5}-?\d{4}/g, por: '[telefone]' },
   { re: /\b\d{4,5}-\d{4}\b/g, por: '[telefone]' },
   // Onze dígitos seguidos: CPF ou celular com DDD, sem formatação nenhuma.
@@ -160,7 +214,7 @@ function sanear(valor: unknown, profundidade: number, vistos: WeakSet<object>): 
       break
     }
     n++
-    saida[redigirTexto(chave)] = CHAVE_SENSIVEL.test(chave)
+    saida[redigirTexto(chave)] = CHAVE_SENSIVEL.test(normalizarChave(chave))
       ? '[redigido]'
       : sanear(v, profundidade + 1, vistos)
   }

@@ -29,7 +29,15 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { appendFileSync } from 'node:fs'
-import { corpoDoAlarme, decidirIssue, impressaoDoEstado, issueDoPar, tituloDoAlarme } from './alarme.mjs'
+import {
+  corpoDoAlarme,
+  decidirIssue,
+  impressaoDoCorpo,
+  impressaoDoEstado,
+  issueDoPar,
+  MARCA_DE_IMPRESSAO,
+  tituloDoAlarme,
+} from './alarme.mjs'
 
 const LABEL = 'alarme'
 
@@ -56,12 +64,10 @@ function gh(args, entrada) {
   })
 }
 
-/** A impressão do estado viaja DENTRO do corpo, num comentário de HTML. */
-const MARCA = (impressao) => `<!-- f55-impressao: ${impressao} -->`
-function impressaoDoCorpo(corpo) {
-  const m = /<!-- f55-impressao: (.*?) -->/.exec(corpo ?? '')
-  return m ? m[1] : ''
-}
+// ⚠ A marca e a leitura dela moram em `alarme.mjs`, o módulo PURO. Este arquivo
+// chama `main()` na importação: o que ficasse aqui, teste nenhum alcançaria — e
+// foi exatamente aqui que a revisão adversarial achou o defeito de 10/09/2026.
+const MARCA = MARCA_DE_IMPRESSAO
 
 function veredito() {
   if (caminhoVeredito) {

@@ -9643,3 +9643,72 @@ e 2; a prova do alarme é por `workflow_dispatch` contra o ensaio, não pelo dis
 o proxy roda no Edge. No Next 16 ele roda **sempre em Node** e não aceita troca (a doc local,
 `02-guides/upgrading/version-16.md:629`). A decisão de arquitetura que o comentário justifica continua
 válida pelos motivos dela; só a justificativa envelheceu. Fica nomeado — mexer ali não é escopo desta fase.
+
+### A revisão adversarial, e o que ela mudou
+
+Quatro revisores em **contexto fresco** (nenhum viu a conversa de execução), um por lente — o funil, a
+sonda e a `0138`, o alarme, as credenciais —, mais um consolidador que reverificou por conta própria
+tudo que veio marcado como GRAVE. Cinco defeitos, todos corrigidos, todos com o caso que os pega:
+
+1. **`CHAVE_SENSIVEL` não tinha `credencial`** — só o inglês `credential`. A palavra que este
+   repositório usa é a portuguesa (`actions/importar.ts`, `escopo/pertencimento.ts`,
+   `supabase/admin.ts`). Entrou o stem `credencia`, que cobre as duas línguas e o plural.
+2. **`auth`, `pwd` e `jwt` não casavam como palavra** — e `jwtClaims`/`authToken` escapariam de
+   qualquer jeito, porque **a fronteira `\b` nunca fecha em camelCase** sob o flag `i`. A correção
+   não foi acrescentar padrão: foi `normalizarChave`, que quebra `jwtClaims` em `jwt_claims` **antes**
+   de testar. Padrão a mais só adia o problema; normalizar a chave o resolve.
+3. **CPF com pontuação parcial** (`123456789-09`, `123.456.789.09`) não batia em nada.
+4. **O `matcher` do proxy excluía `api/saude` por PREFIXO** — `/api/saude-financeira` nasceria sem
+   sessão, o contrário do que o comentário do próprio arquivo promete. Entrou o `$`, e entrou
+   `src/proxy.test.ts` para provar rota a rota. Nota: a trava de `saude-workflow.test.ts` **não
+   pegaria isso** — ela lê o YAML do workflow, não o regex do proxy.
+5. **A impressão do estado do alarme não sobrevivia a uma edição manual do corpo da issue.** Sem a
+   marca de HTML, o run seguinte anunciava *"o estado MUDOU"* sem nada ter mudado. `impressaoDoCorpo`
+   passou a devolver **`null` para "não sei"** — que é coisa diferente de `''`, "medi e não há chave em
+   alarme" — e `decidirIssue` escolhe o **silêncio** diante da dúvida: atualiza o corpo (o que repõe a
+   marca) e espera o próximo run. Anunciar mudança que não houve manda alguém procurar no banco um
+   movimento que não existiu, e alarme que mente uma vez perde o crédito das outras.
+
+   No caminho, as duas funções **saíram de `alarme-issue.mjs` e foram para `alarme.mjs`**: o primeiro
+   chama `main()` na importação, e o que morava lá **nenhum teste alcançava** — que é exatamente por
+   que o defeito viveu ali.
+
+O sexto achado do consolidador não era código: era o **relatório**. Os critérios 8 e 9 estavam
+marcados `✅` **sem citar evidência**, quebrando o padrão de todas as linhas vizinhas, num ponto em
+que a ordem pedia prova nominal. Estava certo, e virou `docs/f55-evidencias/B2-sabotagem-sonda.txt`.
+
+### O falso verde do `head` é da BIBLIOTECA, não do banco
+
+A nota de 22/07/2026 em `scripts/smoke/smoke-prod.mjs` dizia que `count: 'exact', head: true` numa
+relação inexistente devolve *"HTTP 204, count null, error NULL"*. A medição da `B2`, contra o ensaio,
+**confirma isso à letra** — e mostra que o 204 **não vem do PostgREST**: no fio, a tabela que não
+existe recebe **404 nas duas formas**. Quem cunha o 204 é o `@supabase/supabase-js`, que numa
+requisição `head` não tem corpo de erro para ler e entrega `{ error: null, count: null, status: 204 }`.
+
+- Contexto: a ordem exigia provar a sonda contra uma relação que não existe, e a prova acabou dizendo
+  mais do que se pedia.
+- Decisão: **manter a regra e reescrever a justificativa dela** — a nota no `smoke-prod.mjs` agora
+  aponta para a `B2` e nomeia onde o 204 nasce.
+- Motivo: a conclusão prática não muda e fica mais firme (só a forma **com corpo** devolve o erro), mas
+  a causa importa: quem acreditasse que o banco responde 204 poderia "consertar" o problema trocando de
+  endpoint. O que há a fazer é não usar `head` quando a pergunta é "o banco respondeu?".
+
+### Um bloqueio do classificador, e um incidente que não é da branch
+
+O revisor da lente "credenciais", ao inspecionar o `.env.local`, escreveu um `awk` de redação que
+falhou e **imprimiu quatro credenciais em claro na transcrição dele** — `VIEW_SESSION_SECRET`,
+`MS_CLIENT_SECRET`, a chave publicável do ensaio e o par `SMOKE_EMAIL`/`SMOKE_SENHA` (conta
+administrativa de **produção**). Ele reportou o próprio erro e mudou de método no resto da revisão.
+Nada saiu para o repositório, para o CI ou para serviço externo; a exposição é local, num arquivo de
+transcrição desta máquina.
+
+A contenção tentada — um script que lia o `.env.local` e a transcrição no MESMO processo e trocava
+cada valor por `[REDIGIDO-F55:<NOME>]`, sem imprimir valor, recusando gravar se quebrasse o JSONL —
+**foi barrada pelo classificador de segurança**. Conforme a ordem: não reformulei para passar, não
+tentei outra operação de credencial em seguida, registrei o bloqueio e segui para trabalho que não é
+credencial. O passo e as quatro credenciais a girar estão no `INVENTARIO-CREDENCIAIS.md` §9 e no
+roteiro do `RELATORIO-F55.md` §1.8. **Nada da F55 dependia dele.**
+
+- A regra que o incidente acrescenta: **redigir por filtro de texto falha ABERTO.** Um `awk` que erra o
+  padrão imprime tudo. Quem precisa olhar um `.env*` conta linhas, lista nomes ou tira hash — não filtra
+  o valor esperando que o filtro acerte.

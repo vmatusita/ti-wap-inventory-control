@@ -27,6 +27,14 @@ export const config = {
     // ⚠ E so `api/saude`, nunca `api` inteiro: rota nova de API nasce protegida
     // por padrao, que e o certo. A Parte A do smoke prova as duas metades — esta
     // responde 200, e as outras 17 continuam desviando.
-    '/((?!_next/static|_next/image|favicon.ico|api/saude|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    //
+    // ⚠ E o `$` NAO E DECORACAO. Sem ele o `(?!…)` casa por PREFIXO, e QUALQUER
+    // rota futura cujo caminho comece com a string `api/saude` — um
+    // `/api/saude-financeira`, um `/api/saudeanimal` — nasceria sem sessao,
+    // driblando o proxy, contrariando a frase acima. Medido: com `api/saude` as
+    // duas escapam; com `api/saude$` so a rota exata escapa. Achado da revisao
+    // adversarial de 10/09/2026, e a trava de `src/lib/saude-workflow.test.ts`
+    // nao pegaria isso — quem pega e `src/proxy.test.ts`.
+    '/((?!_next/static|_next/image|favicon.ico|api/saude$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

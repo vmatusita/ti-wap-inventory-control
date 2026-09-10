@@ -181,3 +181,45 @@ aponta para produção com `SEED_CONFIRM=sim`, o risco que a F55 fechou aqui con
    `gh variable list --json name --jq '.[].name'`.
 5. **O que se registra é NOME, REF, HOST e TAMANHO** — nunca o valor, nem em ata, nem em relatório, nem em
    issue, nem em mensagem de commit.
+
+---
+
+## 9. ⚠ Incidente de 10/09/2026 — quatro credenciais expostas por um REVISOR
+
+**O que houve.** Na revisão adversarial da F55, um dos quatro revisores (lente "credenciais"),
+ao inspecionar o `.env.local`, escreveu um `awk` para redigir a linha de
+`SUPABASE_SERVICE_ROLE_KEY`. O filtro redigiu essa e **não redigiu as demais**. Foram para a
+transcrição da sessão dele, em texto claro:
+
+| nome | o que é | onde mais ele vive |
+|---|---|---|
+| `VIEW_SESSION_SECRET` | assina o cookie de visualização por senha dos relatórios | Vercel (§4) |
+| `MS_CLIENT_SECRET` | *client secret* do app do SharePoint | Azure (§6) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | chave **publicável** do ENSAIO | painel da Supabase |
+| `SMOKE_EMAIL` / `SMOKE_SENHA` | conta administrativa de **PRODUÇÃO** do ritual pós-deploy | Supabase Auth de produção |
+
+Ele reportou o próprio erro, parou de usar aquela forma e passou a medir por contagem, nome e hash
+no resto da revisão.
+
+**O alcance.** Local. Nada saiu para o repositório, para o CI, para uma issue ou para serviço
+externo — a varredura por padrão sobre o repositório inteiro (`RELATORIO-F55.md` §10) está limpa. Os
+valores estão num arquivo de transcrição desta máquina, em
+`~/.claude/projects/<projeto>/<sessão>/subagents/workflows/wf_5e43ef5a-788/`.
+
+**A tentativa de contenção, e o bloqueio.** O agente escreveu um script que lia o `.env.local` e a
+transcrição no MESMO processo e trocava cada valor por `[REDIGIDO-F55:<NOME>]`, sem imprimir valor
+(saída = nome + contagem) e recusando gravar se a troca quebrasse o JSONL. **O classificador de
+segurança do modo autônomo barrou a execução.** Conforme a ordem da F55, o agente não reformulou
+para passar, não tentou por outro caminho, registrou o bloqueio e seguiu para trabalho que não é
+credencial.
+
+**Pendência para o Johnny — dois caminhos, e o segundo dispensa o primeiro:**
+
+1. **apagar a pasta** `wf_5e43ef5a-788` (é transcrição de agente, não artefato da casa; o que cada
+   revisor achou está resumido no `RELATORIO-F55.md` §7.1); **ou**
+2. **girar as quatro.** Se for girar só uma, gire a **senha da conta de produção** (`SMOKE_SENHA`):
+   as outras três são de ensaio, de sessão de visualização ou de um integrador provavelmente morto.
+
+**A regra que este incidente acrescenta ao §8:** redigir por filtro de texto é frágil — um `awk`
+que erra o padrão falha ABERTO, imprimindo tudo. Quem precisa olhar um `.env*` conta linhas, lista
+nomes (`grep -oE '^[A-Z0-9_]+'`) ou tira hash; não filtra o valor esperando que o filtro acerte.

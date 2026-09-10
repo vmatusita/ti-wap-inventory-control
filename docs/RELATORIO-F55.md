@@ -94,11 +94,39 @@ o alarme só toca se o número **subir**.
 Os conflitos são os únicos com uma mesa própria pronta: `/pendencias` → *Conflitos entre filiais*.
 Quando você resolver alguns, a sonda vai imprimir *"a linha de base pode DESCER para N"*.
 
+### 8. ⚠ Quatro credenciais para girar, por causa de um incidente da REVISÃO
+
+Este item nasceu depois dos outros sete, e é o único com uma data e um motivo concretos.
+
+Um dos quatro revisores adversariais, ao inspecionar o `.env.local`, escreveu um `awk` de redação
+que falhou e **imprimiu em claro, na transcrição dele**, quatro credenciais: `VIEW_SESSION_SECRET`,
+`MS_CLIENT_SECRET`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e o par `SMOKE_EMAIL`/`SMOKE_SENHA` — este
+último a conta administrativa de **produção** do ritual pós-deploy. Ele reportou o próprio erro e
+parou de usar aquela forma. Nada saiu para o repositório, para o CI, para uma issue ou para serviço
+externo: a exposição é **local**, num arquivo de transcrição desta máquina, em
+`~/.claude/projects/<projeto>/<sessão>/subagents/workflows/wf_5e43ef5a-788/`.
+
+Eu tentei redigir aquele arquivo por script (lendo e gravando no mesmo processo, trocando cada valor
+por `[REDIGIDO-F55:<NOME>]`, sem imprimir nada) e **o classificador de segurança barrou**. Não
+reformulei e não tentei por outro caminho, que é o que a ordem manda. Então sobra para você, e há
+dois caminhos — o segundo dispensa o primeiro:
+
+- **apagar a pasta** `wf_5e43ef5a-788` inteira (é transcrição de agente, não artefato da casa; o
+  relatório de cada revisor está resumido na §7.1 e nada se perde); **ou**
+- **girar as quatro**: `VIEW_SESSION_SECRET` (item 3 acima já pedia, agora com motivo datado),
+  `MS_CLIENT_SECRET` (item 6, se o espelho estiver morto isso já resolve), a chave publicável do
+  ensaio no painel da Supabase, e a **senha da conta `SMOKE_EMAIL` de produção**.
+
+Se for girar só uma, gire a **senha de produção**: as outras três são de ensaio, de sessão de
+visualização ou de um integrador provavelmente morto.
+
 ---
 
 *Nada além disso ficou com você. As unidades de credencial (a conta `consulta` de produção e os
 oito secrets, a troca do `.env.local`, a conta fictícia do ensaio, e o token para o cofre) rodaram
-todas, na ordem, e o classificador não barrou nenhum passo.*
+todas, na ordem, e o classificador não barrou nenhuma delas. **Ele barrou um passo, e um só:** a
+redação do arquivo de transcrição do revisor, descrita no item 8 — que é contenção de um incidente
+do processo de revisão, não entrega da F55. Nenhuma parte desta fase dependia dele.*
 
 ---
 
@@ -218,6 +246,30 @@ por CUSTO: o proxy roda antes de tudo, e um ramo interno só decide **depois** d
 `createServerClient` + `auth.getUser()` — uma ida ao serviço de Auth a cada batida da sonda, para
 nada.
 
+**A Sabotagem C está provada em duas metades, porque ela tem duas metades.** O caminho de erro do
+handler é exercitado em `src/app/api/saude/route.test.ts` (7 casos): sem configuração → 503; com um
+host que não existe → 503; a resposta carrega versão e commit **mesmo no 503**, tem exatamente cinco
+chaves, não é cacheável, e não vaza `filiais`, endereço, nome de variável, stack nem `PGRST`. A outra
+metade — *a relação inexistente NÃO diz ok* — não cabe num teste de unidade, porque o nome da tabela
+é **fixo** dentro da rota e pôr um parâmetro ali só para o teste seria abrir uma porta em produção
+por causa de um teste. Ela foi medida contra o ENSAIO de verdade, com a chave publicável, e está em
+`docs/f55-evidencias/B2-sabotagem-sonda.txt`.
+
+E essa medição **corrigiu o entendimento da casa sobre o falso verde**. A nota de 22/07/2026 em
+`scripts/smoke/smoke-prod.mjs` dizia que `count: 'exact', head: true` numa relação inexistente
+devolve *"HTTP 204, count null, error NULL"*. Confirma-se à letra — mas o 204 **não vem do
+PostgREST**: no fio, a tabela que não existe recebe **404 nas duas formas**. Quem cunha o 204 é o
+`@supabase/supabase-js`, que numa requisição `head` não tem corpo de erro para ler e entrega
+`{ error: null, count: null, status: 204 }`. O falso verde é da **biblioteca engolindo um 404**, não
+uma peculiaridade do banco — o que torna a regra mais forte, não mais fraca: só a forma **com corpo**
+devolve o erro, e é a forma com corpo que a rota usa. A nota no `smoke-prod.mjs` foi atualizada para
+apontar para a medição.
+
+**O `$` do matcher também nasceu de uma medição, não de uma revisão de texto.** Sem ele o `(?!…)`
+casa por PREFIXO, e `/api/saude-financeira` ou `/api/saudeanimal` nasceriam **sem sessão** — o
+contrário do que o comentário do próprio arquivo promete. `src/proxy.test.ts` (24 casos) prova rota a
+rota qual entra no proxy e qual não entra, com as quatro variantes de prefixo entre elas.
+
 ## Frente C — o banco
 
 `supabase/migrations/0138_resumo_integridade_e_rotulo.sql` e
@@ -229,7 +281,7 @@ cobra: `catalogo_secdef.sql` (as três novas por nome, 48 → 51),
 
 | arquivo | o que é |
 |---|---|
-| `scripts/smoke/alarme.mjs` + `.test.mts` | a lógica, **pura**, com 30 casos |
+| `scripts/smoke/alarme.mjs` + `.test.mts` | a lógica, **pura**, com 41 casos |
 | `scripts/smoke/integridade.mjs` | a sonda logada, `fetch` puro, zero dependência |
 | `scripts/smoke/alarme-issue.mjs` | a conversa com as issues |
 | `scripts/smoke/linha-de-base.json` | a política, por alvo |
@@ -345,6 +397,7 @@ real dentro.
 | C2 | `C2-apply-0138.txt` | o apply nos dois bancos, a verificação pós-apply, os mesmos totais antes × depois, e o **ensaio da ordem de rollback** |
 | D1 | `D1-custo-de-minutos.txt` | o consumo medido job a job, a estimativa do workflow novo, e o 404 da API de billing |
 | D2 | `D2-banco-sem-docker.txt` | 32 → 33 roteiros, 706 → 745 asserções, e as quatro mutações novas detectadas pelo rótulo NOMEADO |
+| B2 | `B2-sabotagem-sonda.txt` | a sonda contra uma **relação que não existe**, no ensaio, pela chave publicável: a forma da rota devolve `PGRST205` → 503; a forma com `head` devolve `error: null` → diria 'ok'; e o HTTP cru mostra **404 nas duas**, provando que o falso verde é da BIBLIOTECA, não do banco |
 | E1 | `E1-guardas-recusam.txt` | **seis** recusas com saída real: `db:reset` com ref inventado e com ref de produção; as três formas de "o banco não confirma o rótulo" (resposta simulada, e declarada); `restaurar.mjs` com ref inventado e com produção; e ele **aceitando** Postgres local sem ref |
 | G1/G2 | `G1-build.txt`, `G2-lint-tsc-test.txt` | `build`, `lint`, `tsc` e `test` limpos, colados por inteiro |
 
@@ -354,6 +407,34 @@ A da redação (A2) foi a que pagou: `\bkey\b` **não casa `SUPABASE_SERVICE_ROL
 é caractere de palavra e não há fronteira antes do `KEY`. A chave mais perigosa do repositório
 saía inteira sob o nome dela mesma. Corrigido, com caso de regressão que cobre as seis variáveis
 de nome composto que o repositório usa.
+
+## 7.1 A revisão adversarial, e os cinco defeitos que ela achou
+
+Quatro revisores em **contexto fresco** — nenhum deles viu esta conversa —, um por lente (o funil, a
+sonda e a `0138`, o alarme, as credenciais), mais um consolidador que reverificou por conta própria
+tudo que veio marcado como GRAVE. Todos mediram rodando comando, não lendo o meu texto. O que
+acharam:
+
+| # | onde | o que era | gravidade |
+|---|---|---|---|
+| 1 | `observabilidade-linha.ts` | `CHAVE_SENSIVEL` tinha o inglês `credential` e **não o português `credencial`** — que é a palavra que este repositório usa (`actions/importar.ts`, `escopo/pertencimento.ts`, `supabase/admin.ts`). Um `ctx: { credencialDeServico }` saía inteiro | **GRAVE** |
+| 2 | `observabilidade-linha.ts` | `auth`, `pwd` e `jwt` não casavam como palavra; e `jwtClaims`/`authToken` escapavam de qualquer forma, porque **a fronteira `\b` nunca fecha em camelCase** sob o flag `i` | **GRAVE** |
+| 3 | `observabilidade-linha.ts` | CPF com pontuação **parcial** (`123456789-09`, `123.456.789.09`) não batia nem no formato canônico nem no fallback de 11 dígitos corridos | **GRAVE** |
+| 4 | `proxy.ts` | o comentário prometia exclusão exata de `api/saude`, mas o `(?!…)` casa por **prefixo**: `/api/saude-financeira` nasceria sem sessão | MENOR |
+| 5 | `alarme-issue.mjs` | a impressão do estado não sobrevive a uma edição manual do corpo da issue; sem a marca, o run seguinte anunciava **"o estado MUDOU"** sem nada ter mudado | MENOR |
+
+Os cinco estão corrigidos, cada um com o caso que o pega: `normalizarChave` (que resolve o camelCase
+de uma vez, quebrando `jwtClaims` em `jwt_claims` antes de testar) e o stem `credencia`, no funil; o
+`$` e `src/proxy.test.ts`, no proxy; e `impressaoDoCorpo` devolvendo **`null` para "não sei"** em vez
+de `''`, com `decidirIssue` escolhendo o silêncio diante da dúvida — porque anunciar uma mudança que
+não houve manda alguém procurar no banco um movimento que não existiu. Esse último saiu de
+`alarme-issue.mjs` e foi para `alarme.mjs` no caminho: onde estava, o módulo chama `main()` na
+importação e **nenhum teste o alcançaria** — que é exatamente por isso que o defeito viveu ali.
+
+O sexto achado do consolidador não era um defeito de código: era **o meu relatório**. Os critérios 8
+e 9 estavam marcados `✅` **sem citar evidência**, quebrando o padrão de todas as linhas vizinhas,
+num ponto em que a ordem pedia prova nominal. Estava certo. É o que a seção da Frente B agora conta,
+e o que `B2` mede.
 
 ---
 
@@ -368,8 +449,8 @@ de nome composto que o repositório usa.
 | 5 | Redação provada por sabotagem | ✅ `A2` |
 | 6 | `instrumentation.ts` sem header e sem querystring; formatador sem API de Node, provado por teste | ✅ bloco (c) de `observabilidade-fonte.test.ts` |
 | 7 | Erro provocado aparece estruturado no log da Vercel, sem dado pessoal | ✅ `B1`, com as duas metades |
-| 8 | `/api/saude` 200 com versão e commit, 503 com o banco fora, sem cache, sem schema, sem proxy | ✅ |
-| 9 | Asserções 4 e 6 do `catalogo_secdef` intactas; sem o falso verde do HEAD | ✅ |
+| 8 | `/api/saude` 200 com versão e commit, 503 com o banco fora, sem cache, sem schema, sem proxy | ✅ `route.test.ts` (7 casos) e `B2` |
+| 9 | Asserções 4 e 6 do `catalogo_secdef` intactas; sem o falso verde do HEAD | ✅ `B2`, contra uma relação que não existe |
 | 10 | A `0138`; o SQL das doze num lugar só; `dev_checagens_integridade` devolve o mesmo | ✅ `C1` e `C2` |
 | 11 | `integridade_alarme.sql` planta os doze e afirma paridade, recusas, ausência de amostra e rótulo | ✅ 38 asserções, 0 falhas no CI |
 | 12 | `catalogo_secdef` acolhe as três; `definer_sem_tenant` fica sem elas, com o porquê | ✅ |
@@ -456,6 +537,39 @@ primeira execução — as duas `SMOKE_*` nasciam sem estar declaradas como prev
 trava funcionando antes de qualquer estrago. Nenhuma cópia do arquivo antigo foi guardada: o que
 esta fase tirou dele existe no painel da Supabase e na Vercel.
 
+A prova `B2` seguiu a mesma disciplina, por um caminho ainda mais curto: a chave entrou pelo
+`--env-file` do próprio Node, **direto do `.env.local` para o `process.env` do processo**, sem
+passar por variável minha, por `echo` ou por arquivo intermediário. O script tem uma guarda de alvo
+que **recusa rodar** se o ref não for o do ensaio — sabotagem não encosta em produção — e a
+evidência gravada foi varrida pelos mesmos padrões acima: zero achados.
+
+### ⚠ UM INCIDENTE, e ele não é da branch
+
+**Um dos quatro revisores adversariais imprimiu credenciais em claro na transcrição dele.** Ao
+inspecionar o `.env.local`, escreveu um `awk` para redigir a linha do `SUPABASE_SERVICE_ROLE_KEY` e
+o filtro falhou em redigir as **demais** linhas. Foram para a transcrição da sessão dele, em texto
+claro: `VIEW_SESSION_SECRET`, `MS_CLIENT_SECRET`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e o par
+`SMOKE_EMAIL`/`SMOKE_SENHA` — que é a conta administrativa de **produção** usada no ritual pós-deploy.
+Ele mesmo reportou o próprio erro, parou de usar aquela forma e passou a medir por contagem, nome e
+hash no resto da revisão.
+
+Isso **não é um vazamento da F55**: nada saiu para o repositório, para o CI, para uma issue ou para
+qualquer serviço externo — a varredura por padrão acima cobre o repositório inteiro e está limpa. É
+um incidente do **processo de revisão**, e o estrago é local: os valores estão num arquivo de
+transcrição, nesta máquina, em
+`~/.claude/projects/<projeto>/<sessão>/subagents/workflows/wf_5e43ef5a-788/`.
+
+**O que eu tentei fazer e não consegui:** escrevi um script que lia o `.env.local` e a transcrição no
+MESMO processo e trocava cada valor por `[REDIGIDO-F55:<NOME>]`, sem imprimir valor nenhum (a saída
+seria nome + contagem) e recusando gravar se a troca quebrasse o JSONL. **O classificador de
+segurança do modo autônomo barrou a execução.** Conforme a ordem manda, não reformulei para passar,
+não tentei por outro caminho, não encostei em outra operação de credencial em seguida, e segui para
+trabalho que não é credencial. O passo está no roteiro do topo. Nada da F55 dependia dele.
+
+**O que fica para você:** a decisão de girar. As quatro estão no `INVENTARIO-CREDENCIAIS.md`, agora
+com a data e o motivo. `VIEW_SESSION_SECRET` e `MS_CLIENT_SECRET` já estavam pendurados lá antes
+disso por outras razões; o que mudou é que agora há **motivo datado** para os quatro.
+
 ---
 
 # 11. O que este relatório NÃO prova
@@ -478,7 +592,11 @@ esta fase tirou dele existe no painel da Supabase e na Vercel.
    servidor desses mesmos erros é o que o `onRequestError` apanha — mas o que a pessoa vê no
    console do navegador dela continua invisível para nós.
 6. **A sonda prova "responde", não "responde certo".** `/api/saude` diz que a aplicação está de pé
-   e que o Postgres respondeu. Ela não olha um número na tela.
+   e que o Postgres respondeu. Ela não olha um número na tela. E a Sabotagem C, agora provada nas
+   duas metades (`route.test.ts` + `B2`), mede a FORMA da pergunta — `select('id').limit(1)` contra
+   uma relação que não existe — contra o **ensaio**, não contra o handler rodando na Vercel: o
+   caminho `erro → catch → 503` está coberto por teste, e o `PGRST205` está medido no ar, mas os
+   dois não foram costurados numa única execução do handler contra um banco quebrado de verdade.
 7. **A prova do `onRequestError` foi de UM tipo de erro.** `routeType: 'route'`, numa prévia. A
    doc afirma que o hook também é chamado para `render`, `action` e `proxy`, e o formatador trata
    os quatro igual — mas só um foi exercitado no ar.

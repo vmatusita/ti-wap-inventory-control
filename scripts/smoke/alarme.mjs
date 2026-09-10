@@ -138,11 +138,21 @@ export function issueDoPar(issues, alvo, parte) {
  *               o "última verificação" ficar fresco, sem notificar ninguém);
  * `fechar`    — verde e havia issue (com comentário dizendo que voltou);
  * `nada`      — verde e não havia issue. O dia normal.
+ *
+ * ⚠ `impressao: null` significa NÃO SEI, e não "mudou". Uma issue de alarme é um
+ * documento que gente edita: alguém escreve uma nota no corpo e leva junto o
+ * comentário de HTML que carrega a impressão. Se "não sei" caísse no ramo do
+ * `!==`, o run seguinte anunciaria "o estado MUDOU" sem nada ter mudado — e o
+ * primeiro instinto de quem lesse seria abrir o banco atrás de um movimento que
+ * não existiu. Diante da dúvida, o alarme atualiza o corpo em silêncio (o que
+ * repõe a marca) e espera o próximo run, que já terá a impressão de volta.
+ * Achado MENOR da revisão adversarial de 10/09/2026, provado por execução.
  */
 export function decidirIssue({ vermelho, issueAberta, impressaoAtual }) {
   if (vermelho) {
     if (!issueAberta) return { acao: 'abrir' }
-    return issueAberta.impressao === impressaoAtual
+    const naoSei = issueAberta.impressao === null || issueAberta.impressao === undefined
+    return naoSei || issueAberta.impressao === impressaoAtual
       ? { acao: 'atualizar', numero: issueAberta.number }
       : { acao: 'comentar', numero: issueAberta.number }
   }
@@ -160,6 +170,24 @@ export function impressaoDoEstado(achados) {
     .map((a) => `${a.chave}=${a.total ?? 'ausente'}/${a.base ?? '?'}`)
     .sort()
     .join(';')
+}
+
+/** A impressão viaja DENTRO do corpo da issue, num comentário de HTML. */
+export const MARCA_DE_IMPRESSAO = (impressao) => `<!-- f55-impressao: ${impressao} -->`
+
+/**
+ * A impressão lida de volta do corpo de uma issue.
+ *
+ * ⚠ `null` quando a marca NÃO está lá, e nunca `''`. São coisas diferentes:
+ * `''` é "medi, e não há chave em alarme"; `null` é "não sei qual era o estado"
+ * — o que acontece quando alguém edita o corpo à mão e leva a marca junto.
+ * Confundir as duas fazia o run seguinte anunciar "o estado MUDOU" sem nada ter
+ * mudado. Mora aqui, e não em `alarme-issue.mjs`, porque lá o módulo chama
+ * `main()` na importação e não há como um teste alcançá-lo.
+ */
+export function impressaoDoCorpo(corpo) {
+  const m = /<!-- f55-impressao: (.*?) -->/.exec(corpo ?? '')
+  return m ? m[1] : null
 }
 
 // ---------------------------------------------------------------------------

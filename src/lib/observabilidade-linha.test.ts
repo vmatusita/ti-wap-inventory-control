@@ -389,3 +389,62 @@ describe('linhaDeErroDeRequest', () => {
     }
   })
 })
+
+
+// ---------------------------------------------------------------------------
+// REGRESSÃO DA REVISÃO ADVERSARIAL (10/09/2026)
+// ---------------------------------------------------------------------------
+// Três achados, os três reais, os três de REDAÇÃO — que é a promessa central do
+// funil. Nenhum deles quebrava teste nenhum: eles simplesmente deixavam o valor
+// sair.
+
+describe('REGRESSÃO: nomes de chave que a primeira lista NÃO cobria', () => {
+  it.each([
+    // ⚠ O ACHADO QUE MAIS DÓI: a lista tinha `credential` (inglês) e o
+    // vocabulário desta casa é PORTUGUÊS — `actions/importar.ts`,
+    // `escopo/pertencimento.ts` e `supabase/admin.ts` todos dizem "credencial".
+    'credencial',
+    'credencialDeServico',
+    'credenciais',
+    // `auth`, `pwd` e `jwt` como palavra
+    'auth',
+    'authToken',
+    'x-auth',
+    'pwd',
+    'user_pwd',
+    'jwt',
+    'jwtClaims',
+  ])('chave `%s` não deixa o valor sair', (chave) => {
+    const linha = linhaDeFalha({ escopo: 'x', erro: 'y', ctx: { [chave]: 'zz-ficticio-zz' } })
+    expect(linha, `a chave ${chave} deixou o valor sair`).not.toContain('zz-ficticio-zz')
+  })
+
+  it.each(['autor', 'author', 'autorizado_em', 'automatico'])(
+    '`%s` NÃO é tratada como sensível (a fronteira de palavra segura isso)',
+    (chave) => {
+      const o = JSON.parse(linhaDeFalha({ escopo: 'x', erro: 'y', ctx: { [chave]: 'visivel' } }))
+      expect(o.ctx[chave]).toBe('visivel')
+    },
+  )
+})
+
+describe('REGRESSÃO: CPF com pontuação PARCIAL', () => {
+  it.each([
+    ['canônico', '123.456.789-09'],
+    ['sem pontuação', '12345678909'],
+    ['só o hífen', '123456789-09'],
+    ['ponto no lugar do hífen', '123.456.789.09'],
+    ['pontuação faltando no meio', '123.456789-09'],
+    ['separado por espaço', '123 456 789 09'],
+    ['primeiro ponto só', '123.45678909'],
+  ])('%s não sai da mensagem do erro', (_nome, cpf) => {
+    const linha = linhaDeFalha({ escopo: 'x', erro: new Error(`documento ${cpf} recusado`) })
+    expect(linha, `o CPF ${cpf} saiu inteiro`).not.toContain(cpf)
+    expect(linha).toMatch(/\[cpf/)
+  })
+
+  it('um número que NÃO tem cara de CPF continua saindo (o log tem de servir)', () => {
+    const o = JSON.parse(linhaDeFalha({ escopo: 'x', erro: 'y', ctx: { linhas: 12345, filial: 3 } }))
+    expect(o.ctx).toEqual({ linhas: 12345, filial: 3 })
+  })
+})

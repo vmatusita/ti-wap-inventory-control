@@ -424,6 +424,12 @@ function conferirColunas(linha, esperadas) {
 // Contagem de linhas SEM `head: true`. Medido na produção em 22/07/2026:
 //   .select('id', { count: 'exact', head: true })  numa relação INEXISTENTE
 //   → HTTP 204, count null, error NULL.
+// ⚠ REMEDIDO na F55 (10/09/2026, `docs/f55-evidencias/B2-sabotagem-sonda.txt`):
+// o 204 CONFIRMA-SE à letra, mas ele NÃO vem do PostgREST — no fio a resposta é
+// 404 nas duas formas. Quem cunha o 204 é o `@supabase/supabase-js`: numa
+// requisição `head` a resposta de erro não tem corpo para ele ler, e ele entrega
+// `{ error: null, count: null, status: 204 }`. O falso verde é da biblioteca, não
+// do banco — o que só reforça a regra abaixo.
 // Ou seja: com `head` o smoke daria "0 linhas" em vez de acusar a tabela sumida —
 // um falso verde justamente no cenário que este script existe para pegar. A forma
 // GET com `.limit(1)` devolve a MESMA contagem exata e, aí sim, o 404/PGRST205.

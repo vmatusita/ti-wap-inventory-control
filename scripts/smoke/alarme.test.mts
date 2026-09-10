@@ -6,8 +6,10 @@ import {
   corpoDoAlarme,
   decidirIssue,
   filtrarPorReleitura,
+  impressaoDoCorpo,
   impressaoDoEstado,
   issueDoPar,
+  MARCA_DE_IMPRESSAO,
   tabelaDoResumo,
   tituloDoAlarme,
 } from './alarme.mjs'
@@ -184,6 +186,82 @@ describe('decidirIssue — o estado é POR PAR (alvo, parte)', () => {
   it('verde sem issue: nada — o dia normal', () => {
     expect(decidirIssue({ vermelho: false, issueAberta: null, impressaoAtual: '' })).toEqual({
       acao: 'nada',
+    })
+  })
+
+  // ⚠ ACHADO DA REVISÃO ADVERSARIAL DE 10/09/2026 (MENOR, provado por execução).
+  // A issue de alarme é um documento que gente edita: escreve-se uma nota no
+  // corpo e leva-se junto o comentário de HTML que carrega a impressão. Antes,
+  // "não sei" e "mudou" eram a mesma coisa, e o run seguinte anunciava uma
+  // mudança que não houve — mandando alguém procurar no banco um movimento
+  // inexistente. Agora a dúvida é SILENCIOSA: atualiza o corpo (o que repõe a
+  // marca) e espera o próximo run.
+  it.each([[null], [undefined]])(
+    'vermelho com a impressão %s (a marca sumiu do corpo): ATUALIZA em silêncio, não comenta',
+    (impressao) => {
+      const r = decidirIssue({
+        vermelho: true,
+        issueAberta: { number: 7, impressao },
+        impressaoAtual: 'a=1/0',
+      })
+      expect(r).toEqual({ acao: 'atualizar', numero: 7 })
+    },
+  )
+
+  it('mas a impressão VAZIA continua sendo uma medição, e não uma dúvida', () => {
+    // `''` é "medi, e nenhuma chave está em alarme" — diferente de `null`. Com o
+    // estado atual não vazio, isso é uma mudança de verdade, e comenta.
+    const r = decidirIssue({
+      vermelho: true,
+      issueAberta: { number: 7, impressao: '' },
+      impressaoAtual: 'a=1/0',
+    })
+    expect(r).toEqual({ acao: 'comentar', numero: 7 })
+  })
+})
+
+describe('a marca da impressão no corpo da issue', () => {
+  it('vai e volta inteira', () => {
+    const impressao = 'ativo_filial_inativa=45/0;backup_orfao=11/10'
+    const corpo = `## O que falhou\n\n(tabela)\n\n${MARCA_DE_IMPRESSAO(impressao)}`
+    expect(impressaoDoCorpo(corpo)).toBe(impressao)
+  })
+
+  it('a medição vazia volta como STRING vazia, não como dúvida', () => {
+    expect(impressaoDoCorpo(`corpo\n\n${MARCA_DE_IMPRESSAO('')}`)).toBe('')
+  })
+
+  it.each([
+    ['', 'corpo vazio'],
+    ['## O que falhou\n\nalguém reescreveu o corpo à mão', 'a marca foi apagada'],
+    ['<!-- f55-impressao: sem o fechamento', 'a marca ficou pela metade'],
+    ['<!-- outra-marca: x -->', 'a marca é de outra coisa'],
+  ])('sem marca legível (%s → %s): devolve null, que é "não sei"', (corpo) => {
+    expect(impressaoDoCorpo(corpo)).toBeNull()
+  })
+
+  it('corpo ausente não derruba a leitura', () => {
+    expect(impressaoDoCorpo(undefined)).toBeNull()
+    expect(impressaoDoCorpo(null)).toBeNull()
+  })
+
+  // O ciclo inteiro: corpo real do alarme → marca → leitura → decisão.
+  it('PONTA A PONTA: o corpo que o alarme escreve devolve a MESMA decisão no run seguinte', () => {
+    const achados = [{ chave: 'ativo_filial_inativa', total: 45, base: 0, motivo: 'acima da base' }]
+    const impressao = impressaoDoEstado(achados)
+    const corpo = `${corpoDoAlarme({
+      alvo: 'ensaio',
+      parte: 'integridade',
+      achados,
+      podeDescer: [],
+      linkDoRun: 'https://exemplo/run/1',
+      medidoEm: '2026-09-10T12:00:00.000Z',
+    })}\n\n${MARCA_DE_IMPRESSAO(impressao)}`
+
+    const issueAberta = { number: 3, impressao: impressaoDoCorpo(corpo) }
+    expect(decidirIssue({ vermelho: true, issueAberta, impressaoAtual: impressao })).toEqual({
+      acao: 'atualizar',
+      numero: 3,
     })
   })
 })
