@@ -146,9 +146,11 @@ describe('catchesEngolidoresEmExportadas', () => {
 // (b) a varredura REAL do `src/` — o que impede o retorno
 // ---------------------------------------------------------------------------
 
-// O FUNIL. É o único lugar do servidor que pode escrever no console — é a razão
-// de ele existir.
-const FUNIL = 'src/lib/observabilidade.ts'
+// O FUNIL. São os únicos lugares do servidor que podem escrever no console — é a
+// razão de eles existirem. Dois arquivos porque a porta carrega `server-only` (e
+// por isso não é importável no Vitest) e a lógica mora na metade pura; o motivo
+// está no cabeçalho de `observabilidade-linha.ts`.
+const FUNIL = ['src/lib/observabilidade.ts', 'src/lib/observabilidade-linha.ts']
 
 /**
  * As EXCEÇÕES NOMINAIS de Client Component, com o motivo de cada uma.
@@ -194,7 +196,7 @@ describe('(a) nenhum `console.*` em código de servidor fora do funil', () => {
   })
 
   const doServidor = comConsole.filter(
-    (a) => !ehModuloUseClient(a.fonte) && a.arquivo !== FUNIL,
+    (a) => !ehModuloUseClient(a.fonte) && !FUNIL.includes(a.arquivo),
   )
 
   it('nenhum arquivo de servidor chama console fora do funil', () => {
@@ -204,7 +206,7 @@ describe('(a) nenhum `console.*` em código de servidor fora do funil', () => {
     expect(
       linhas,
       linhas.length
-        ? `console.* em código de SERVIDOR fora de ${FUNIL} — use ` +
+        ? `console.* em código de SERVIDOR fora do funil (${FUNIL.join(", ")}) — use ` +
             `registrarFalha({ escopo, erro, ctx }) (F55 · Frente A):\n${linhas.join('\n')}`
         : undefined,
     ).toEqual([])
