@@ -99,9 +99,15 @@ jobs:
         id: sonda
         env:
           SMOKE_URL_APP: ${{ vars.SMOKE_URL_APP }}
-          SMOKE_VERSAO_ESPERADA: ''
         run: |
           set +e
+          # A versão do CHECKOUT, para a sonda comparar com a que `/api/saude`
+          # devolve. Divergência é AVISO, nunca falha: entre o merge e a
+          # publicação há uma janela em que a versão antiga ainda responde, e
+          # isso não é o app quebrado. Divergência que PERSISTE, sim, é deploy
+          # que não subiu — e ela fica visível no resumo de todo disparo.
+          SMOKE_VERSAO_ESPERADA="$(node -p "require('./package.json').version")"
+          export SMOKE_VERSAO_ESPERADA
           node scripts/smoke/smoke-prod.mjs --sem-sessao
           codigo=$?
           if [ "$codigo" -ne 0 ]; then
