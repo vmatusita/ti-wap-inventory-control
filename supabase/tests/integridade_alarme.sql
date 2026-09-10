@@ -854,6 +854,36 @@ begin
       v_falhas := v_falhas + 1;
       raise warning 'b2b sqlstate obtido: %', v_st2;
     end if;
+
+    -- b2c — A SUPERFÍCIE, e não só o comportamento.
+    --
+    -- ⚠ O INJETOR ENSINOU ESTA ASSERÇÃO. A mutação
+    -- `resumo-de-integridade-alcancavel-por-anon` devolve a `anon` o EXECUTE da
+    -- função, e b2a continuava VERDE: com o grant de volta, `anon` ainda leva
+    -- 42501 — só que da guarda interna (`papel_atual() is null`), não da falta de
+    -- privilégio. Os dois caminhos dão o mesmo sqlstate, e um roteiro que só olha
+    -- o comportamento não distingue "fechado" de "aberto mas vazio".
+    --
+    -- A diferença IMPORTA: com o grant, a função passa a ser anunciada pelo
+    -- PostgREST em `/rest/v1/rpc/` para a chave pública, e vira superfície — a
+    -- mesma que a asserção 4 de `catalogo_secdef.sql` vigia no schema inteiro.
+    if pg_temp.assert_zero_de(
+         'b2c anon NÃO tem EXECUTE sobre checagens_integridade_resumo (a superfície, não o comportamento)',
+         case when has_function_privilege('anon', 'public.checagens_integridade_resumo()', 'execute')
+              then 1 else 0 end, 1) then
+      v_ok := v_ok + 1;
+    else
+      v_falhas := v_falhas + 1;
+    end if;
+
+    if pg_temp.assert_zero_de(
+         'b2d authenticated TEM EXECUTE sobre checagens_integridade_resumo (senão o alarme não lê nada)',
+         case when has_function_privilege('authenticated', 'public.checagens_integridade_resumo()', 'execute')
+              then 0 else 1 end, 1) then
+      v_ok := v_ok + 1;
+    else
+      v_falhas := v_falhas + 1;
+    end if;
   exception when others then
     reset role;
     v_falhas := v_falhas + 2;
@@ -962,6 +992,35 @@ begin
       else
         v_falhas := v_falhas + 1;
       end if;
+    end if;
+
+    -- c4/c5 — QUEM ALCANÇA a função, e não só o que ela devolve.
+    --
+    -- ⚠ O INJETOR ENSINOU ESTAS DUAS. A mutação
+    -- `rotulo-de-ambiente-alcancavel-por-authenticated` dá o EXECUTE a qualquer
+    -- logado, e c1..c3 continuavam VERDES: elas medem o VALOR devolvido, que não
+    -- muda com o grant. Só que o valor é o de MENOS: a função existe para o
+    -- `scripts/env-guard.ts` confirmar a identidade da base, e alcançável por
+    -- `authenticated` ela vira uma dica de infraestrutura que a API entrega a
+    -- quem só deveria ler acervo. O privilégio dela é o precedente de
+    -- `resetar_dados_ficticios`: service_role, e mais ninguém.
+    if pg_temp.assert_zero_de(
+         'c4 rotulo_de_ambiente é alcançável SÓ pela service_role (authenticated e anon não)',
+         case when has_function_privilege('authenticated', 'public.rotulo_de_ambiente()', 'execute')
+                or has_function_privilege('anon', 'public.rotulo_de_ambiente()', 'execute')
+              then 1 else 0 end, 1) then
+      v_ok := v_ok + 1;
+    else
+      v_falhas := v_falhas + 1;
+    end if;
+
+    if pg_temp.assert_zero_de(
+         'c5 service_role TEM EXECUTE sobre rotulo_de_ambiente (senão o env-guard não confirma nada)',
+         case when has_function_privilege('service_role', 'public.rotulo_de_ambiente()', 'execute')
+              then 0 else 1 end, 1) then
+      v_ok := v_ok + 1;
+    else
+      v_falhas := v_falhas + 1;
     end if;
   exception when others then
     reset role;

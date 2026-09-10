@@ -1496,7 +1496,13 @@ const F55_INTEGRIDADE = [
     id: 'nucleo-perde-uma-checagem',
     roteiro: 'integridade_alarme.sql',
     classe: 'checagem-cega',
-    derruba: ['11', 'estrutura'],
+    // ⚠ `11a`, e NÃO `11`/`estrutura` — o injetor corrigiu a primeira escrita.
+    // O roteiro rotula os cenários com letra (`11a` mede o delta +1, `11b` a
+    // volta), e `estrutura` conta os blocos `return query`, que esta mutação NÃO
+    // muda: ela deixa o bloco no lugar e mata o predicado. É justamente a forma
+    // silenciosa que interessa — a checagem responde, responde ZERO, e o alarme
+    // fica verde sobre uma corrupção que existe.
+    derruba: ['11a'],
     porque:
       'Faz o nucleo parar de contar reserva_aberta: o bloco continua la, mas o predicado nunca casa. E a falha mais silenciosa que uma checagem pode ter — ela responde, responde ZERO, e o alarme fica verde sobre uma corrupcao que existe. O roteiro planta uma reserva em aberto e exige o delta +1; sem o predicado, o delta e zero.',
     sql: mutarFuncao(
@@ -1514,7 +1520,13 @@ const F55_INTEGRIDADE = [
     id: 'resumo-de-integridade-alcancavel-por-anon',
     roteiro: 'integridade_alarme.sql',
     classe: 'superficie-publica',
-    derruba: ['b2'],
+    // ⚠ `b2c`, e NÃO `b2a` — o injetor corrigiu a primeira escrita, e o motivo é
+    // o entregável. Com o grant de volta, `anon` AINDA leva 42501: só que da
+    // guarda interna, não da falta de privilégio. Os dois caminhos dão o mesmo
+    // sqlstate, e `b2a` continuava verde. A asserção `b2c` foi ACRESCENTADA ao
+    // roteiro por causa desta mutação, e olha a SUPERFÍCIE (`has_function_privilege`),
+    // que é o que muda.
+    derruba: ['b2c'],
     porque:
       'Devolve a anon o EXECUTE do resumo de integridade. Com a chave publica, qualquer um passaria a ler as contagens das doze checagens por /rest/v1/rpc — quantos conflitos, quantos backups orfaos e quantos perfis sem conta a empresa tem, sem sessao nenhuma. E o mesmo furo que a assercao 4 do catalogo_secdef vigia no schema inteiro, aqui no objeto novo.',
     sql: 'grant execute on function public.checagens_integridade_resumo() to anon;',
@@ -1555,7 +1567,10 @@ const F55_INTEGRIDADE = [
     id: 'rotulo-de-ambiente-alcancavel-por-authenticated',
     roteiro: 'integridade_alarme.sql',
     classe: 'superficie-publica',
-    derruba: ['C'],
+    // ⚠ `c4`, e NÃO `C` — mesma lição. `c1`..`c3` medem o VALOR devolvido, que
+    // não muda com o grant; a asserção `c4` foi ACRESCENTADA ao roteiro por causa
+    // desta mutação e mede QUEM ALCANÇA a função.
+    derruba: ['c4'],
     porque:
       'Devolve a authenticated o EXECUTE do rotulo de ambiente. Ele existe para o env-guard confirmar, do lado do BANCO, que a base e a de desenvolvimento — e por isso e alcancavel so pela service_role, o mesmo privilegio de resetar_dados_ficticios. Aberto a qualquer logado, ele vira uma dica de infraestrutura que a API entrega a quem so deveria ler acervo.',
     sql: 'grant execute on function public.rotulo_de_ambiente() to authenticated;',
