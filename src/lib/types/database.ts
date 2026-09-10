@@ -1379,6 +1379,21 @@ export type Database = {
         Args: { p_patrimonio: string; p_service_tag: string }
         Returns: string
       }
+      checagens_integridade_nucleo: {
+        Args: never
+        Returns: {
+          amostra: string[]
+          chave: string
+          total: number
+        }[]
+      }
+      checagens_integridade_resumo: {
+        Args: never
+        Returns: {
+          chave: string
+          total: number
+        }[]
+      }
       colaborador_chave: { Args: { p_nome: string }; Returns: string }
       criar_compra_lote: {
         Args: { p_criado_por: string; p_itens: Json }
@@ -1706,6 +1721,7 @@ export type Database = {
         Returns: Json
       }
       rotulo_alcance_reset: { Args: { p_filial: number }; Returns: string }
+      rotulo_de_ambiente: { Args: never; Returns: string }
       status_apos_movimentacao: {
         Args: {
           p_status: Database["public"]["Enums"]["status_ativo"]

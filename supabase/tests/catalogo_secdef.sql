@@ -3,7 +3,8 @@
 -- =============================================================
 -- POR QUE ELE EXISTE
 --
--- O sistema tem 48 funções `security definer` — cada uma roda com o privilégio do
+-- O sistema tem 51 funções `security definer` (48 quando este arquivo nasceu na
+-- F48; as três da 0138/F55 fecham a conta) — cada uma roda com o privilégio do
 -- DONO e, por construção, IGNORA a RLS das tabelas que lê e escreve. É a superfície
 -- mais concentrada de poder do banco, e até hoje **ninguém a enumerava**. Uma função
 -- `security definer` nova podia nascer executável por `anon`, ou com `search_path`
@@ -51,8 +52,10 @@ declare
   v_secdef boolean;
 
   -- -----------------------------------------------------------------------
-  -- A TABELA-VERDADE — as 48 `security definer` de `public`, classificadas.
-  -- Medidas em 08/09/2026 sobre as migrations 0001→0132. Ordem alfabética;
+  -- A TABELA-VERDADE — as 51 `security definer` de `public`, classificadas.
+  -- Medidas em 10/09/2026 sobre as migrations 0001→0138 (eram 48 até a 0137; a
+  -- F55 acrescentou TRÊS na 0138 — as três no fim desta lista, com o motivo).
+  -- Ordem alfabética dentro de cada bloco. O histórico da contagem:
   -- (eram 38 até a 0130; a F51 acrescentou as 8 auxiliares do import — 46. O
   --  número do cabeçalho dizia 37 e já estava desatualizado por 1 desde a
   --  0129, que trouxe `pode_ler_arquivo_termo` — corrigido aqui junto. A F52
@@ -121,7 +124,32 @@ declare
     -- Porta pública por senha (0025): conta tentativa por IP sem sessão nenhuma.
     'registrar_tentativa_senha',
     -- Área /dev (0077/0127): diagnóstico só-leitura, com SQL FIXO por dentro.
-    'dev_checagens_integridade', 'ultima_migracao_aplicada'
+    'dev_checagens_integridade', 'ultima_migracao_aplicada',
+    -- Integridade e ambiente (0138/F55) — as TRÊS novas, 51 no total.
+    --
+    -- `checagens_integridade_nucleo` é o SQL das doze checagens, extraído
+    -- VERBATIM do corpo da 0136 para que não existisse uma segunda cópia dele.
+    -- Herdou o `security definer` da função que a gerou — a semântica de
+    -- privilégio não pode passar a depender de QUEM CHAMA, ou extrair código
+    -- teria mudado comportamento em silêncio (o mesmo argumento das oito
+    -- auxiliares do import, F51). Ela NÃO é API: `revoke all … from public,
+    -- anon, authenticated, service_role`, e só as duas portas a alcançam,
+    -- rodando como o dono.
+    'checagens_integridade_nucleo',
+    -- `checagens_integridade_resumo` é a porta do ALARME: guarda
+    -- `papel_atual() is not null` (o piso de leitura da 0070/0073, decisão do
+    -- Johnny de 10/09/2026) e projeção `(chave, total)` — sem a coluna
+    -- `amostra`, que é a que carrega patrimônio e nome. É `authenticated` quem
+    -- a executa, e é ela que o smoke agendado lê uma vez por dia com uma conta
+    -- de cargo `consulta`.
+    'checagens_integridade_resumo',
+    -- `rotulo_de_ambiente` lê `public.ambiente` (0090), que tem `revoke all`
+    -- até para o `service_role` — por isso a leitura tem de ser por função, e
+    -- por isso ela é definer. Alcançável SÓ pela `service_role`, o mesmo
+    -- privilégio de `resetar_dados_ficticios`; é o `scripts/env-guard.ts` que a
+    -- consome, para confirmar no BANCO a identidade que hoje ele confere só
+    -- pelo ref do projeto.
+    'rotulo_de_ambiente'
   ];
 
   -- -----------------------------------------------------------------------

@@ -1,0 +1,119 @@
+APPLY DA 0138 — ENSAIO PRIMEIRO, DEPOIS PRODUCAO (F55 · 10/09/2026)
+Runbook: docs/RUNBOOK-BANCO.md, "Aplicar uma migration" (A) e "Conferir o estado do banco".
+So-leitura: nenhuma exclusao de acervo, o gate do modo automatico nao disparou.
+
+===============================================================================
+PASSO 1 — CONFERENCIA DE ESTADO ANTES DE QUALQUER DDL
+===============================================================================
+
+ENSAIO (sgmvldiizsrjbxzzpmhh)
+  dev_checagens_integridade()  secdef=true  volatile=s  dono=postgres  overloads=1
+                               auth=true  service_role=false  anon=false
+  checagens_integridade_nucleo / _resumo / rotulo_de_ambiente : NAO EXISTEM (correto)
+  public.ambiente : 1 linha, rotulo 'desenvolvimento'
+  security definer em public : 48
+
+PRODUCAO (pbtjcalbmepmrqzprusb)
+  dev_checagens_integridade()  identica ao ensaio (mesma assinatura, mesmos grants)
+  public.ambiente : 0 linhas (vazia de proposito)
+  security definer em public : 48
+
+LINHA DE BASE DAS DOZE, medida ANTES por TRANSCRICAO do SQL de contagem do corpo da
+0136 (a funcao nao foi chamada pelo MCP: ela exige e_dev, e o MCP nao tem JWT de dev):
+
+  chave                        PRODUCAO  ENSAIO
+  patrimonio_duplicado                0       0
+  ativo_filial_inativa                0       0
+  termo_sem_arquivo                   0       0
+  perfil_sem_conta                    0       0
+  conta_sem_perfil                    0       0
+  pendencia_de_estornada              0       0
+  operador_sem_filial                 0       1
+  arquivo_termo_orfao                 3       0
+  conflito_entre_filiais             69       0
+  detentor_em_estado_sem_dono         0       0
+  reserva_aberta                      0       0
+  backup_orfao                       10       0
+
+===============================================================================
+PASSO 2 — ENSAIO
+===============================================================================
+
+apply_migration('resumo_integridade_e_rotulo') -> {"success": true}
+
+Verificacao pos-apply:
+  checagens_integridade_nucleo()   secdef=true s postgres overloads=1 anon=f auth=f srv=f sp=t
+  checagens_integridade_resumo()   secdef=true s postgres overloads=1 anon=f auth=T srv=f sp=t
+  dev_checagens_integridade()      secdef=true s postgres overloads=1 anon=f auth=T srv=f sp=t
+  rotulo_de_ambiente()             secdef=true s postgres overloads=1 anon=f auth=f srv=T sp=t
+                                   ^^^ os grants de dev_checagens_integridade sobreviveram
+                                       ao `create or replace`, como o runbook promete e como
+                                       dev_destrutivo.sql:294-301 exige.
+
+  rotulo_de_ambiente()  ->  'desenvolvimento'
+
+  OS MESMOS TOTAIS ANTES x DEPOIS — o nucleo chamado como postgres devolve
+  exatamente a tabela transcrita acima (operador_sem_filial=1, as outras onze em 0).
+
+  resumo sob sessao de perfil ATIVO (JWT simulado, begin..rollback) : 12 chaves
+  resumo como anon                                                  : 42501 permission denied
+  resumo como authenticated SEM `sub` no JWT                        : 42501 "Esta consulta exige uma conta ativa."
+  retorno do resumo : TABLE(chave text, total bigint)   <- SEM a coluna `amostra`
+  retorno do nucleo : TABLE(chave text, total bigint, amostra text[])
+
+===============================================================================
+PASSO 3 — PRODUCAO
+===============================================================================
+
+apply_migration('resumo_integridade_e_rotulo') -> {"success": true}
+notify pgrst, 'reload schema';   (a superficie da API mudou: funcao nova)
+
+Verificacao pos-apply:
+  FUNCAO checagens_integridade_nucleo()   secdef=true anon=false auth=false srv=false overloads=1 sp=true
+  FUNCAO checagens_integridade_resumo()   secdef=true anon=false auth=true  srv=false overloads=1 sp=true
+  FUNCAO dev_checagens_integridade()      secdef=true anon=false auth=true  srv=false overloads=1 sp=true
+  FUNCAO rotulo_de_ambiente()             secdef=true anon=false auth=false srv=true  overloads=1 sp=true
+  RETORNO checagens_integridade_resumo    TABLE(chave text, total bigint)
+  RETORNO checagens_integridade_nucleo    TABLE(chave text, total bigint, amostra text[])
+  rotulo_de_ambiente()                    (NULL — producao)   <- correto: producao nao e dev
+  resumo sob sessao ativa                 12 chaves
+  anon                                    42501 permission denied for function checagens_integridade_resumo
+
+CONTAGENS DE ACERVO — ANTES = DEPOIS (a migration nao toca dado):
+  ativos             1621  ->  1621
+  movimentacoes      3520  ->  3520
+  lancamentos_item    117  ->   117
+  termos_gerados       98  ->    98
+  profiles             15  ->    15
+  security definer em public   48  ->  51   (as tres novas, e so elas)
+
+OS MESMOS TOTAIS ANTES x DEPOIS, em producao — o nucleo devolve:
+  arquivo_termo_orfao 3 | conflito_entre_filiais 69 | backup_orfao 10 | as outras nove 0
+  ...identico a transcricao do passo 1. A 0138 MOVEU o SQL; nao mudou o que ele conta.
+
+ACHADO NOVO DE SEGURANCA — UM SO, E DECLARADO DE ANTEMAO:
+  `security definer` alcancavel por `authenticated`:  27  ->  28
+  a 28a e `checagens_integridade_resumo`, e ela e assim de proposito (decisao do
+  Johnny, 10/09/2026: a conta do smoke agendado e de cargo `consulta`). Nenhum
+  outro achado novo — o runbook manda reverter diante de achado novo, e este
+  estava declarado na ordem antes do apply.
+
+===============================================================================
+PASSO 4 — ENSAIO DA ORDEM DE ROLLBACK (SO NO ENSAIO, em begin..rollback)
+===============================================================================
+
+  0 antes: nucleo existe ................................ 1
+  0 antes: dev tem N blocos `return query` .............. 1     (delega ao nucleo)
+  3a drop resumo ........................................ ok
+  3b drop rotulo ........................................ ok
+  3c reemite dev inline (o corpo das doze de volta) ..... ok
+  3d drop nucleo ........................................ ok
+  4 depois: nucleo existe ............................... 0
+  4 depois: resumo existe ............................... 0
+  4 depois: dev tem N blocos `return query` ............. 12    (as doze de volta)
+  4 depois: dev cita reserva_aberta ..................... true
+  4 depois: dev cita backup_orfao ....................... true
+  4 depois: dev tem a guarda e_dev ...................... true
+
+Conferido logo em seguida, FORA da transacao: as quatro funcoes continuam de pe no
+ensaio (nucleo 12 blocos, resumo 1, dev 1, rotulo 0) — o ensaio nao deixou rastro.
