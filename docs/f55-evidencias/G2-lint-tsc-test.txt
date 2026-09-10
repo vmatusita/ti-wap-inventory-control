@@ -1,0 +1,21 @@
+VERIFICACAO FINAL — F55, 10/09/2026
+
+=== npm run lint ===
+
+> estoque-ti-wap@1.60.0 lint
+> eslint
+
+exit=0
+
+=== npx tsc --noEmit ===
+exit=0
+
+=== npm run test ===
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  178 passed (178)
+      Tests  4548 passed (4548)
+   Start at  15:16:35
+   Duration  133.45s (transform 26.07s, setup 0ms, import 688.81s, tests 41.13s, environment 80ms)
+

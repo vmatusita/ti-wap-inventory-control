@@ -16,6 +16,40 @@ import { MUTACOES, QUARENTENA } from './mutacoes.mjs'
 // trabalho do `npm run db:test:mutations`.
 
 const RAIZ = process.cwd()
+
+/**
+ * O corpo VIGENTE de cada função que uma mutação reescreve, resolvido UMA VEZ, no
+ * import deste arquivo.
+ *
+ * POR QUE NÃO DENTRO DO `it`. `corpoVigente` varre as 137 migrations de trás
+ * para frente a cada chamada — são 38 mutações que reescrevem função, e uma delas
+ * (`catalogo-security-definer-nova-nao-classificada`) cria função que NÃO existe,
+ * o que força a varredura COMPLETA. Medido: ~650 ms num processo sozinho e sem
+ * disputa. Sob a suíte inteira — 178 arquivos disputando CPU e disco no Windows —
+ * isso passou dos 5 s de teto por teste do Vitest, e o caso abaixo ficou vermelho
+ * por TEMPO, não por asserção. Entrou na conta quando as quatro mutações da F55
+ * acrescentaram mais um arquivo a cada varredura.
+ *
+ * ⚠ O QUE MUDA É O CUSTO, NÃO A ASSERÇÃO. E ele vai para o IMPORT de propósito:
+ * o próprio `mutacoes.mjs` já chama `corpoVigente` uma vez por mutação ao ser
+ * importado (é o que `mutarFuncao` faz), então esse é um custo que este arquivo
+ * comprovadamente aguenta. A memoização fica AQUI, e não em `corpo-vigente.mjs`,
+ * para não mudar o comportamento do injetor por causa de um teste.
+ */
+const VIGENTE_POR_MUTACAO: Map<string, string | null> = new Map(
+  MUTACOES.map((m) => {
+    const defs = definicoesDeFuncao(m.sql)
+    if (defs.length !== 1) return [m.id, null] as const
+    const d = defs[0]
+    try {
+      return [m.id, corpoVigente(`${d.esquema}.${d.nome}(${d.tipos.join(', ')})`, RAIZ).sql] as const
+    } catch {
+      // A mutação CRIA uma função que não existe nas migrations. `undefined`
+      // distingue esse caso de `null` (não é definição única de função).
+      return [m.id, undefined as unknown as string] as const
+    }
+  }),
+)
 const PASTA_ROTEIROS = join(RAIZ, 'supabase', 'tests')
 
 /** Os seis roteiros que a ficha da F47 nomeia como alvo do lote. */
@@ -316,11 +350,8 @@ describe('5. dados 100% sintéticos (regra 2 do CLAUDE.md)', () => {
     for (const m of MUTACOES) {
       const defs = definicoesDeFuncao(m.sql)
       if (defs.length !== 1) continue
-      const d = defs[0]
-      let vigente: string
-      try {
-        vigente = corpoVigente(`${d.esquema}.${d.nome}(${d.tipos.join(', ')})`, RAIZ).sql
-      } catch {
+      const vigente = VIGENTE_POR_MUTACAO.get(m.id)
+      if (vigente === undefined) {
         // F48 — a mutação CRIA uma função que não existe nas migrations (é o caso de
         // `catalogo-security-definer-nova-nao-classificada`, que sabota justamente o
         // "função nova entra sem ninguém decidir"). Não há corpo anterior para comparar,
@@ -333,6 +364,7 @@ describe('5. dados 100% sintéticos (regra 2 do CLAUDE.md)', () => {
         ).toBeNull()
         continue
       }
+      if (vigente === null) continue
       const antes = (vigente.match(DESTRUTIVO) ?? []).length
       const depois = (m.sql.match(DESTRUTIVO) ?? []).length
       expect(depois, `${m.id} acrescentou comando destrutivo ao corpo da função`).toBeLessThanOrEqual(

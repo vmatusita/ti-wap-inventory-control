@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.60.0',
+    data: '2026-09-10',
+    fase: 'F55',
+    titulo: 'O sistema passou a se conferir sozinho e a avisar quando quebra',
+    mudancas: [
+      'Nenhuma tela mudou nesta versão. O que mudou é que o sistema passou a se olhar sozinho: de seis em seis horas ele confere que as páginas estão no ar, e uma vez por dia refaz as doze conferências de integridade que antes só rodavam quando alguém abria a tela de diagnóstico. Se alguma coisa sair do lugar, o aviso chega por e-mail — em vez de esperar alguém tropeçar no problema.',
+      'Quando uma falha acontece do lado do servidor, ela passa a deixar um registro no mesmo formato, sempre. Antes cada ponto do sistema anotava de um jeito, e havia seis lugares — os mais perigosos, no meio da importação de uma filial — em que a falha simplesmente sumia: a tela dizia "Import cancelado" e não sobrava como descobrir por quê.',
+      'Nada de senha, de chave de acesso, de e-mail, de CPF ou de telefone entra nesses registros. Cada um deles é apagado antes de a anotação ser gravada, inclusive quando aparece no meio da mensagem de erro — e isso é conferido por teste.',
+      'As conferências de integridade ganharam uma prova de que enxergam mesmo o que dizem enxergar: cada um dos doze problemas que elas procuram é criado de propósito num banco de testes descartável, e cada uma tem de acusar o seu. Até aqui, das doze, só uma tinha essa prova.',
+      'As ferramentas de dados fictícios ficaram mais difíceis de apontar para o lugar errado. Antes elas só recusavam um endereço conhecido de produção; agora exigem estar num ambiente de ensaio reconhecido, e o próprio banco confirma que é ele antes de qualquer coisa ser apagada.',
+    ],
+  },
+  {
     versao: '1.59.1',
     data: '2026-09-09',
     titulo: 'O import de startup passou a recusar o que antes deixava passar',

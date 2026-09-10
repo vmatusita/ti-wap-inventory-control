@@ -10,6 +10,8 @@ Este diretório tem 60+ arquivos, e a maior parte é **histórico**. Esta págin
 | Entender o código que já existe | [`ARQUITETURA.md`](ARQUITETURA.md) — sobretudo §10, *"quero mudar X → mexo em Y"* |
 | Trabalhar aqui pela primeira vez | [`ONBOARDING.md`](ONBOARDING.md) |
 | Aplicar uma migration ou mexer no banco | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) |
+| **Chegou uma issue de alarme** — a sonda ficou vermelha | [`RUNBOOK-ALARME.md`](RUNBOOK-ALARME.md) — o que cada checagem quer dizer, onde olhar e o que **não** fazer |
+| Saber onde vive uma credencial (por NOME, nunca o valor) | [`INVENTARIO-CREDENCIAIS.md`](INVENTARIO-CREDENCIAIS.md) |
 | Saber por que algo foi decidido assim | [`DECISOES.md`](DECISOES.md) — atas em ordem cronológica, append-only |
 | Achar onde mora uma regra de negócio | [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) — cada regra com localização e prova |
 | Saber quem pode fazer o quê | [`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md) e [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md) |
@@ -38,6 +40,8 @@ Mantidos atualizados; espera-se que digam a verdade sobre o sistema de hoje.
 | [`ARQUITETURA.md`](ARQUITETURA.md) | Modelo mental, camadas do código, onde mora cada regra |
 | [`ONBOARDING.md`](ONBOARDING.md) | Do clone à primeira mudança em produção |
 | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) | Procedimento de migrations, o "gate", rollback, armadilhas — o anexo A é histórico |
+| [`RUNBOOK-ALARME.md`](RUNBOOK-ALARME.md) | O alarme de saúde e de integridade (F55): o que cada uma das doze checagens quer dizer, o que fazer quando a issue chega, e o que NUNCA fazer (subir a linha de base, plantar estado em produção, apagar achado) |
+| [`INVENTARIO-CREDENCIAIS.md`](INVENTARIO-CREDENCIAIS.md) | Onde cada credencial vive, quem a lê, quem é dona e quando gira — **por NOME, nunca o valor** (F55) |
 | [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) | Matriz viva: cada regra de negócio, onde ela mora e o que a prova |
 | [`PLANO-MULTIEMPRESA.md`](PLANO-MULTIEMPRESA.md) | O plano das 28 fases F45→F73 (preparação e virada multiempresa), de 04/09/2026. **A ficha de cada fase no §5 é a fonte da verdade do escopo dela** — onde a ordem de serviço e ela divergirem, vale a ficha |
 | [`DECISOES.md`](DECISOES.md) | Rastro de auditoria das decisões autônomas (append-only, nunca reescrito) |
