@@ -31,7 +31,8 @@ defeito. Ata completa em [`docs/DECISOES.md`](docs/DECISOES.md); o procedimento 
 - ✅ **`/api/saude`**, o primeiro route handler da casa: 200 com versão, commit e uma ida REAL ao banco;
   503 quando o banco não responde. **Sem abrir superfície nenhuma para `anon`** — nenhuma função nova,
   nenhum grant novo, as duas travas do catálogo de `security definer` intactas — e sem o falso verde do
-  `head: true`, que numa relação inexistente devolve "0 linhas" em vez de acusar a tabela sumida.
+  `head: true`, que numa relação inexistente **não acusa erro nenhum**, e faria a sonda dizer "está tudo
+  bem" com a tabela sumida. Provado contra o ensaio, nas duas formas.
 - 🔒 **A migration `0138` tirou o SQL das doze checagens de integridade de dentro da função da `/dev`** e o
   pôs num núcleo, **byte a byte** (189 linhas idênticas, conferidas por diff). Sobre ele, duas portas: a da
   `/dev`, com a mesma assinatura e o mesmo resultado, e `checagens_integridade_resumo()`, que devolve só
