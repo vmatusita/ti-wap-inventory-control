@@ -1,5 +1,6 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { registrarFalha } from '@/lib/observabilidade'
 import type { AcaoAdmin } from '@/lib/auditoria'
 import type { Json } from '@/lib/types/database'
 
@@ -42,11 +43,17 @@ export async function registrarEventoAdmin(evento: EventoAdmin): Promise<void> {
     // Em compensação o erro é logado ALTO e com o evento inteiro, para não sumir: é assim
     // que se descobre que a auditoria parou (mesmo idioma do fallback de `traduzErroBanco`,
     // que sempre loga `{ code, mensagem }`).
-    console.error('[auditoria] FALHA ao registrar evento administrativo', {
-      acao: evento.acao,
-      autor: evento.autor,
-      alvo: evento.alvo ?? null,
-      erro: err instanceof Error ? err.message : String(err),
+    registrarFalha({
+      escopo: 'auditoria.registro-evento',
+      erro: err,
+      ctx: {
+        acao: evento.acao,
+        autor: evento.autor,
+        // `alvo` é o e-mail do convidado (ver o tipo `EventoAdmin` acima) e fica aqui de
+        // propósito: é a prova viva de por que o funil redige por VALOR, não por nome de
+        // chave — nenhum nome de campo aqui denuncia segredo, e o dado é pessoal do mesmo jeito.
+        alvo: evento.alvo ?? null,
+      },
     })
   }
 }

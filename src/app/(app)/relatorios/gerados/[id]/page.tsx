@@ -10,6 +10,7 @@ import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
 import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2). Estático: o snapshot (filial +
 // período) já está no banner e no `<h1>` da própria tela.
@@ -57,7 +58,11 @@ export default async function RelatorioGeradoPage({
     listarTiposItem(acesso.client).catch((err): TipoItem[] => {
       // Degrada, nunca derruba (mesma razão da rota ao vivo): sem o mapa, o item
       // faltante sai com o slug cru, e o snapshot continua abrindo.
-      console.error('[relatorios/gerados/[id]] falha ao listar tipos de item:', err)
+      registrarFalha({
+        escopo: 'relatorios.gerados-tipos-item',
+        erro: err,
+        operador: acesso.modo === 'operador' ? acesso.operador.id : null,
+      })
       return []
     }),
     vizinhosDoRelatorio(acesso.client, {

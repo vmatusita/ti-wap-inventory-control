@@ -78,6 +78,8 @@ function mutarFuncao(assinatura, de, para, id) {
   return trocarNoCorpo(corpoVigente(assinatura).sql, de, para, id)
 }
 
+const CIFRAO = String.fromCharCode(36)
+
 const MARCA = '-- MUTAÇÃO F47 (injetor): o trecho abaixo foi deliberadamente afrouxado.'
 
 // =============================================================================
@@ -1475,6 +1477,110 @@ const F54_RESTAURACAO = [
   },
 ]
 
+// =============================================================================
+// integridade_alarme.sql — as doze checagens e as duas portas (F55, 0138)
+// =============================================================================
+// A F55 tirou o SQL das doze de dentro de `dev_checagens_integridade` e o pôs em
+// `checagens_integridade_nucleo`, com DUAS portas por cima: a da /dev (guarda
+// `e_dev`) e `checagens_integridade_resumo` (guarda `papel_atual() is not null`,
+// e só `(chave, total)`). O alarme agendado lê a segunda todo dia com uma conta
+// de cargo `consulta`, e o corpo da issue que ele abre nasce dela.
+//
+// As quatro quebras abaixo são as que transformariam o alarme numa decoração:
+// uma checagem que some do núcleo, um resumo alcançável sem sessão, um resumo
+// que devolve amostra, e o rótulo do ambiente alcançável por quem tem sessão.
+// NENHUMA delas quebra `lint`, `build` ou `tsc` — só o roteiro as vê.
+/** @type {Mutacao[]} */
+const F55_INTEGRIDADE = [
+  {
+    id: 'nucleo-perde-uma-checagem',
+    roteiro: 'integridade_alarme.sql',
+    classe: 'checagem-cega',
+    // ⚠ `11a`, e NÃO `11`/`estrutura` — o injetor corrigiu a primeira escrita.
+    // O roteiro rotula os cenários com letra (`11a` mede o delta +1, `11b` a
+    // volta), e `estrutura` conta os blocos `return query`, que esta mutação NÃO
+    // muda: ela deixa o bloco no lugar e mata o predicado. É justamente a forma
+    // silenciosa que interessa — a checagem responde, responde ZERO, e o alarme
+    // fica verde sobre uma corrupção que existe.
+    derruba: ['11a'],
+    porque:
+      'Faz o nucleo parar de contar reserva_aberta: o bloco continua la, mas o predicado nunca casa. E a falha mais silenciosa que uma checagem pode ter — ela responde, responde ZERO, e o alarme fica verde sobre uma corrupcao que existe. O roteiro planta uma reserva em aberto e exige o delta +1; sem o predicado, o delta e zero.',
+    sql: mutarFuncao(
+      'public.checagens_integridade_nucleo()',
+      '     where l.chamado is not null\n     group by i.nome, f.nome, l.chamado',
+      `     where l.chamado is not null and false ${MARCA}\n     group by i.nome, f.nome, l.chamado`,
+      'nucleo-perde-uma-checagem',
+    ),
+    prova: {
+      sql: "select pg_get_functiondef(p.oid) like '%l.chamado is not null and false%' from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'checagens_integridade_nucleo'",
+      espera: 't',
+    },
+  },
+  {
+    id: 'resumo-de-integridade-alcancavel-por-anon',
+    roteiro: 'integridade_alarme.sql',
+    classe: 'superficie-publica',
+    // ⚠ `b2c`, e NÃO `b2a` — o injetor corrigiu a primeira escrita, e o motivo é
+    // o entregável. Com o grant de volta, `anon` AINDA leva 42501: só que da
+    // guarda interna, não da falta de privilégio. Os dois caminhos dão o mesmo
+    // sqlstate, e `b2a` continuava verde. A asserção `b2c` foi ACRESCENTADA ao
+    // roteiro por causa desta mutação, e olha a SUPERFÍCIE (`has_function_privilege`),
+    // que é o que muda.
+    derruba: ['b2c'],
+    porque:
+      'Devolve a anon o EXECUTE do resumo de integridade. Com a chave publica, qualquer um passaria a ler as contagens das doze checagens por /rest/v1/rpc — quantos conflitos, quantos backups orfaos e quantos perfis sem conta a empresa tem, sem sessao nenhuma. E o mesmo furo que a assercao 4 do catalogo_secdef vigia no schema inteiro, aqui no objeto novo.',
+    sql: 'grant execute on function public.checagens_integridade_resumo() to anon;',
+    prova: {
+      sql: "select has_function_privilege('anon', 'public.checagens_integridade_resumo()', 'execute')",
+      espera: 't',
+    },
+  },
+  {
+    id: 'resumo-de-integridade-devolve-amostra',
+    roteiro: 'integridade_alarme.sql',
+    classe: 'vazamento-de-dado',
+    derruba: ['b3'],
+    porque:
+      'Faz o resumo devolver TAMBEM a coluna amostra. E ela que carrega patrimonio, nome de pessoa e filial — e o resumo e justamente o que uma conta guardada num secret do GitHub le todo dia, e o que alimenta o corpo de uma issue do repositorio. A garantia "contagem, nunca linha de dado" vive nesta assinatura, e em nenhum outro lugar.',
+    sql: [
+      'drop function public.checagens_integridade_resumo();',
+      'create or replace function public.checagens_integridade_resumo()',
+      'returns table(chave text, total bigint, amostra text[])',
+      'language plpgsql stable security definer set search_path = public',
+      `as ${CIFRAO}mut${CIFRAO}`,
+      'begin',
+      '  if public.papel_atual() is null then',
+      "    raise exception 'Esta consulta exige uma conta ativa.' using errcode = '42501';",
+      '  end if;',
+      '  return query select n.chave, n.total, n.amostra from public.checagens_integridade_nucleo() n;',
+      'end;',
+      `${CIFRAO}mut${CIFRAO};`,
+      'revoke all on function public.checagens_integridade_resumo() from public, anon, service_role;',
+      'grant execute on function public.checagens_integridade_resumo() to authenticated;',
+    ].join('\n'),
+    prova: {
+      sql: "select pg_get_function_result(p.oid) ilike '%amostra%' from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'checagens_integridade_resumo'",
+      espera: 't',
+    },
+  },
+  {
+    id: 'rotulo-de-ambiente-alcancavel-por-authenticated',
+    roteiro: 'integridade_alarme.sql',
+    classe: 'superficie-publica',
+    // ⚠ `c4`, e NÃO `C` — mesma lição. `c1`..`c3` medem o VALOR devolvido, que
+    // não muda com o grant; a asserção `c4` foi ACRESCENTADA ao roteiro por causa
+    // desta mutação e mede QUEM ALCANÇA a função.
+    derruba: ['c4'],
+    porque:
+      'Devolve a authenticated o EXECUTE do rotulo de ambiente. Ele existe para o env-guard confirmar, do lado do BANCO, que a base e a de desenvolvimento — e por isso e alcancavel so pela service_role, o mesmo privilegio de resetar_dados_ficticios. Aberto a qualquer logado, ele vira uma dica de infraestrutura que a API entrega a quem so deveria ler acervo.',
+    sql: 'grant execute on function public.rotulo_de_ambiente() to authenticated;',
+    prova: {
+      sql: "select has_function_privilege('authenticated', 'public.rotulo_de_ambiente()', 'execute')",
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -1487,6 +1593,7 @@ export const MUTACOES = [
   ...F52_GUARDAS,
   ...F53_ORDEM,
   ...F54_RESTAURACAO,
+  ...F55_INTEGRIDADE,
 ]
 
 /**
@@ -1540,7 +1647,24 @@ export const QUARENTENA = [
     sql: 'remover a chamada a pg_advisory_xact_lock de apagar_ativos_conflito_filiais',
     indetectavel:
       'Nenhuma asserção do roteiro abre uma SEGUNDA conexão. Dentro de uma transação psql sozinha, remover a trava não muda resultado nenhum — o roteiro fica verde e a mutação se disfarçaria de "asserção fraca" quando o que falta é um cenário CONCORRENTE, que só existe escrevendo catálogo novo.',
-    fase: 'F55',
+    // ⚠ REAPONTADA PELA F55 (10/09/2026), de F55 para F73 — e, de novo, o motivo é
+    // escrito, porque reapontar em silêncio é mover uma promessa.
+    //
+    // A F55 é a fase da observabilidade: funil de erro, sonda de saúde e alarme de
+    // integridade. Ela leu esta entrada e MEDIU o que ela pede — um harness em Node
+    // com DUAS conexões `psql` simultâneas travando as mesmas linhas em ordens
+    // opostas. Isso não é um cenário a mais num roteiro; é construção nova, e
+    // construí-la aqui seria a fase seguinte antecipada (regra 1 do CLAUDE.md, e a
+    // regra 3 do §4 do PLANO-MULTIEMPRESA).
+    //
+    // O destino agora é a F73 porque é a única ficha do plano que JÁ EXIGE, por
+    // conta própria, um provador com DUAS sessões simultâneas: o canário de
+    // isolamento ("a Parte B roda com sessões de dois tenants reais e afirma que
+    // cada um vê só o seu"). Quem construir aquele provador tem, no mesmo movimento,
+    // a capacidade que falta aqui — e a F55 deixou a Parte B do smoke agendado
+    // desenhada para receber a segunda sessão sem ser reescrita
+    // (`scripts/smoke/integridade.mjs`, cabeçalho).
+    fase: 'F73',
   },
   {
     id: 'f53-view-de-conflitos-perde-o-desempate',

@@ -681,8 +681,21 @@ begin
   -- =========================================================================
   -- 12 — A 11ª CHECAGEM DE INTEGRIDADE
   -- =========================================================================
-  select (length(pg_get_functiondef('public.dev_checagens_integridade()'::regprocedure))
-          - length(replace(pg_get_functiondef('public.dev_checagens_integridade()'::regprocedure),
+  -- ⚠ O OBJETO MEDIDO MUDOU DE LUGAR NA F55 (0138), POR DESENHO — e este caso
+  -- mudou com ele, não para "ficar verde".
+  --
+  -- Até a `0137` as doze checagens moravam DENTRO de `dev_checagens_integridade`.
+  -- A `0138` extraiu o SQL delas, VERBATIM, para `checagens_integridade_nucleo()`,
+  -- porque o alarme agendado precisa das CONTAGENS sem ser dev, e um resumo que
+  -- chamasse a função da /dev por dentro recusaria (`security definer` troca o
+  -- `current_user`, não o JWT que `e_dev()` lê). A porta da /dev passou a ser a
+  -- guarda `e_dev()` mais uma delegação — UM `return query`.
+  --
+  -- Contar os blocos DELA depois disso mediria a delegação, não as checagens. É o
+  -- núcleo que passa a ser contado aqui. A prova de que nada foi reescrito no
+  -- caminho é o diff byte a byte em `docs/f55-evidencias/C1-doze-pecas-byte-a-byte.txt`.
+  select (length(pg_get_functiondef('public.checagens_integridade_nucleo()'::regprocedure))
+          - length(replace(pg_get_functiondef('public.checagens_integridade_nucleo()'::regprocedure),
                            'return query', '')))
          / length('return query')
     into v_n;
@@ -694,18 +707,34 @@ begin
   -- existe para pegar: `lint`/`test`/`build` locais não executam SQL, e só o job de banco
   -- vê a divergência.
   if v_n = 12 then
-    v_ok := v_ok + 1; raise notice '✓ 12 dev_checagens_integridade tem DOZE blocos';
+    v_ok := v_ok + 1; raise notice '✓ 12 checagens_integridade_nucleo tem DOZE blocos';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12; ';
     raise warning '✗ 12 esperava 12 checagens, achei %', v_n;
   end if;
 
-  if pg_get_functiondef('public.dev_checagens_integridade()'::regprocedure)
+  if pg_get_functiondef('public.checagens_integridade_nucleo()'::regprocedure)
        ilike '%reserva_aberta%' then
     v_ok := v_ok + 1; raise notice '✓ 12b a checagem `reserva_aberta` está no corpo';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12b; ';
     raise warning '✗ 12b a checagem `reserva_aberta` sumiu do corpo';
+  end if;
+
+  -- 12b-bis (F55) — a OUTRA metade da mudança: a porta da /dev NÃO pode ter
+  -- voltado a carregar o SQL das doze. Se ela tiver mais de um `return query`,
+  -- alguém recolou as checagens lá dentro e o SQL passou a existir em dois
+  -- lugares — a doença que a F51 curou nas onze cópias da RPC de import.
+  select (length(pg_get_functiondef('public.dev_checagens_integridade()'::regprocedure))
+          - length(replace(pg_get_functiondef('public.dev_checagens_integridade()'::regprocedure),
+                           'return query', '')))
+         / length('return query')
+    into v_n;
+  if v_n = 1 then
+    v_ok := v_ok + 1; raise notice '✓ 12b-bis dev_checagens_integridade DELEGA (um return query só)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '12b-bis; ';
+    raise warning '✗ 12b-bis dev_checagens_integridade tem % blocos — o SQL das doze voltou a ter duas cópias', v_n;
   end if;
 
   -- E ela responde ZERO no acervo deste roteiro (nenhuma reserva foi criada).

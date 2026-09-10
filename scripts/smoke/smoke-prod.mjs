@@ -7,7 +7,7 @@
 // operador de verdade. Roda antes do rollout (baseline) e depois de cada deploy.
 //
 //   node scripts/smoke/smoke-prod.mjs
-//   node scripts/smoke/smoke-prod.mjs --exigir-f12    (depois do rollout da F12)
+//   node scripts/smoke/smoke-prod.mjs --sem-sessao    (só a Parte A, puro fetch)
 //
 // REGRAS QUE ESTE ARQUIVO NÃO QUEBRA (CLAUDE.md):
 //  - Nenhum segredo aqui dentro. Tudo vem de variável de ambiente.
@@ -20,13 +20,21 @@
 //
 // Este arquivo mora em `scripts/` (versionado) e não em `scratchpad/`, que o
 // `.gitignore` do projeto ignora inteiro — ver scripts/smoke/README.md.
+//
+// F55 — `@supabase/supabase-js` NÃO é mais import estático: vira
+// `await import(...)` dentro de `parteB()` (ver o comentário lá). A Parte A
+// (`--sem-sessao`) é puro `fetch` e não precisa de `npm ci` para rodar — o que
+// importa porque o smoke agendado (`saude.yml`) roda a Parte A a cada 6h e
+// minuto de Actions em repositório privado custa (medido: ~830 min por job em
+// 8,85 dias de uso atual, projeção ~2.800-3.200/mes contra uma cota de 2.000
+// ou 3.000) — e uma queda do registro do npm no meio de uma sonda agendada
+// viraria FALHA por motivo errado (o npm caiu, não o app).
 // ---------------------------------------------------------------------------
 
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspect } from 'node:util'
-import { createClient } from '@supabase/supabase-js'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 const RAIZ = join(AQUI, '..', '..')
@@ -80,8 +88,13 @@ const email = process.env.SMOKE_EMAIL || ''
 const senha = process.env.SMOKE_SENHA || ''
 
 const argv = process.argv.slice(2)
-const exigirF12 = argv.includes('--exigir-f12') || process.env.SMOKE_EXIGIR_F12 === '1'
 const somenteParteA = argv.includes('--sem-sessao')
+
+// Resolvido por `await import('@supabase/supabase-js')` dentro de parteB() — a
+// Parte A não toca nisso. Os checks de PARTE B que precisam montar um client
+// próprio (ex.: o client anon dentro de um check) leem daqui, porque por essa
+// altura o import dinâmico já rodou. Ver o comentário no topo do arquivo.
+let criarCliente
 
 // ---------------------------------------------------------------------------
 // 2. Máscara de segredos — usada em TODA saída
@@ -133,7 +146,12 @@ function descreverErro(erro) {
 
 const OK = 'OK'
 const AVISO = 'AVISO' // passou, mas com ressalva (não derruba o exit code)
-const NA = 'n/a' // pré-F12: tabela/coluna ainda não existe no ambiente
+// F55 — NÃO É MAIS "pré-F12". Schema ausente para migration que já está em
+// produção há semanas virou FALHA (ver os 9 checks abaixo). O que sobrou de
+// NA é OUTRA classe: estado de DADO, não de schema — hoje só o check
+// "rel_saldo_colaborador" quando não há colaborador cadastrado ainda. Não
+// confundir as duas: schema ausente é regressão; dado ausente é normal.
+const NA = 'n/a' // estado de DADO (não de schema) — ver comentário acima
 const FALHA = 'FALHA'
 
 /** @type {{parte: string, nome: string, area: string, status: string, detalhe: string}[]} */
@@ -190,6 +208,11 @@ const ROTAS = [
   { rota: '/admin/importar', esperado: 'login', area: 'admin · import de startup' },
   { rota: '/relatorios/geral', esperado: 'acesso-relatorio', area: 'relatório ao vivo (T10)' },
   { rota: '/relatorios/gerados', esperado: 'acesso-relatorio', area: 'relatórios gerados' },
+  // F55 — a sonda sem sessão. NÃO usa `checarRota`: não é HTML com marcador,
+  // é JSON cujo formato muda com o resultado (200 × 503). `propria` desvia
+  // para `checarSaude` (definida logo abaixo) em vez de forçar o formato
+  // genérico a entender um corpo de rota de saúde.
+  { rota: '/api/saude', area: 'observabilidade · sonda sem sessão (F55)', propria: true },
 ]
 // Nota: rotas NOVAS de operador (ex.: /admin/kits, da F12) não entram aqui.
 // Sem sessão o proxy redireciona ANTES de rotear, então uma rota inexistente
@@ -287,11 +310,78 @@ async function checarRota(entrada) {
   return { status: FALHA, detalhe: `HTTP ${codigo} — esperado redirect para ${destino}` }
 }
 
+// F55 — checagem PRÓPRIA de `/api/saude`. Diferente de `checarRota`: o corpo é
+// JSON, não HTML, e o formato do JSON muda com o resultado (200 × 503). Regras:
+//  · 200 + ok:true + banco:'ok' → OK, com versao e commit no detalhe;
+//  · 503 → FALHA (banco não respondeu);
+//  · qualquer outro status, JSON inválido, ou "versao" ausente → FALHA;
+//  · um 3xx aqui é o PROXY interceptando a rota (não devia — ver
+//    src/app/api/saude/route.ts) — o detalhe tem de nomear essa causa, não só
+//    dizer "status inesperado".
+// Nunca imprime o corpo inteiro: só versao, commit e banco entram no detalhe.
+async function checarSaude(entrada) {
+  const alvo = `${urlApp}${entrada.rota}`
+  let resposta
+  try {
+    resposta = await baixar(alvo)
+  } catch (erro) {
+    return { status: FALHA, detalhe: `sem resposta (${descreverErro(erro)})` }
+  }
+
+  const codigo = resposta.status
+
+  if (codigo >= 300 && codigo < 400) {
+    const location = resposta.headers.get('location') || '(sem header location)'
+    resposta.body?.cancel().catch(() => {})
+    return {
+      status: FALHA,
+      detalhe: `HTTP ${codigo} → ${location} — o proxy está interceptando /api/saude (não devia)`,
+    }
+  }
+
+  let corpo
+  try {
+    corpo = await resposta.json()
+  } catch {
+    resposta.body?.cancel().catch(() => {})
+    return { status: FALHA, detalhe: `HTTP ${codigo} com corpo que não é JSON válido` }
+  }
+
+  const versao = typeof corpo?.versao === 'string' && corpo.versao ? corpo.versao : undefined
+  const commit = typeof corpo?.commit === 'string' && corpo.commit ? corpo.commit : '?'
+  const banco = corpo?.banco
+
+  if (!versao) {
+    return { status: FALHA, detalhe: `HTTP ${codigo} sem "versao" no corpo` }
+  }
+
+  if (codigo === 503) {
+    return { status: FALHA, detalhe: `HTTP 503 — banco não respondeu (versao ${versao}, commit ${commit})` }
+  }
+
+  if (codigo !== 200 || corpo?.ok !== true || banco !== 'ok') {
+    return { status: FALHA, detalhe: `HTTP ${codigo} — resposta inesperada (banco: ${banco ?? '?'})` }
+  }
+
+  // SMOKE_VERSAO_ESPERADA é para o agendado (Frente A, feita em paralelo): AVISO,
+  // nunca FALHA, porque a janela entre o merge e a publicação pode pegar a sonda
+  // no meio — a versão antiga ainda respondendo não é o app quebrado.
+  const versaoEsperada = process.env.SMOKE_VERSAO_ESPERADA
+  if (versaoEsperada && versaoEsperada !== versao) {
+    return {
+      status: AVISO,
+      detalhe: `versao ${versao} ≠ SMOKE_VERSAO_ESPERADA ${versaoEsperada} (commit ${commit}) — pode ser a janela entre o merge e a publicação`,
+    }
+  }
+
+  return { status: OK, detalhe: `banco ok · versao ${versao} · commit ${commit}` }
+}
+
 async function parteA() {
   log('')
   log(`PARTE A — sem sessão · ${urlApp}`)
   for (const entrada of ROTAS) {
-    const { status, detalhe } = await checarRota(entrada)
+    const { status, detalhe } = entrada.propria ? await checarSaude(entrada) : await checarRota(entrada)
     registrar('A', entrada.rota, entrada.area, status, detalhe)
   }
 }
@@ -334,6 +424,12 @@ function conferirColunas(linha, esperadas) {
 // Contagem de linhas SEM `head: true`. Medido na produção em 22/07/2026:
 //   .select('id', { count: 'exact', head: true })  numa relação INEXISTENTE
 //   → HTTP 204, count null, error NULL.
+// ⚠ REMEDIDO na F55 (10/09/2026, `docs/f55-evidencias/B2-sabotagem-sonda.txt`):
+// o 204 CONFIRMA-SE à letra, mas ele NÃO vem do PostgREST — no fio a resposta é
+// 404 nas duas formas. Quem cunha o 204 é o `@supabase/supabase-js`: numa
+// requisição `head` a resposta de erro não tem corpo para ele ler, e ele entrega
+// `{ error: null, count: null, status: 204 }`. O falso verde é da biblioteca, não
+// do banco — o que só reforça a regra abaixo.
 // Ou seja: com `head` o smoke daria "0 linhas" em vez de acusar a tabela sumida —
 // um falso verde justamente no cenário que este script existe para pegar. A forma
 // GET com `.limit(1)` devolve a MESMA contagem exata e, aí sim, o 404/PGRST205.
@@ -373,8 +469,10 @@ const CHECKS = [
         .select('telefone, imei, pulsus')
         .limit(1)
       if (error) {
+        // F55 — a 0101 está em produção há semanas: ausência de schema aqui é
+        // regressão, não estado esperado. NA virou FALHA.
         if (ehAusenciaDeSchema(error)) {
-          return { status: NA, detalhe: 'colunas ausentes (migration 0101 não aplicada?)' }
+          return { status: FALHA, detalhe: 'colunas ausentes (migration 0101 não aplicada?)' }
         }
         throw error
       }
@@ -393,8 +491,9 @@ const CHECKS = [
     async executar(db) {
       const { data, error } = await db.from('filiais').select('slug, ativo, cidade')
       if (error) {
+        // F55 — mesma razão da 0101: a 0102 já está em produção. NA virou FALHA.
         if (ehAusenciaDeSchema(error)) {
-          return { status: NA, detalhe: 'coluna ausente (migration 0102 não aplicada?)' }
+          return { status: FALHA, detalhe: 'coluna ausente (migration 0102 não aplicada?)' }
         }
         throw error
       }
@@ -697,11 +796,11 @@ const CHECKS = [
   {
     nome: 'itens.estoque_minimo (I5)',
     area: 'F12 · estoque mínimo',
-    preF12: true,
     async executar(db) {
       const { data, error } = await db.from('itens').select('id, estoque_minimo').limit(1)
       if (error) {
-        if (ehAusenciaDeSchema(error)) return { status: NA, detalhe: 'coluna ainda não existe — pré-F12' }
+        // F55 — a F12 está em produção há muito: ausência de schema é FALHA.
+        if (ehAusenciaDeSchema(error)) return { status: FALHA, detalhe: 'coluna ainda não existe' }
         throw error
       }
       if (!data?.length) return { status: AVISO, detalhe: 'coluna existe; catálogo vazio' }
@@ -713,13 +812,13 @@ const CHECKS = [
   {
     nome: 'kits_modelos (M12) · leitura autenticada',
     area: 'F12 · kits de movimentação',
-    preF12: true,
     async executar(db, ctx) {
       const { count, erro } = lerContagem(await consultaContagem(db, 'kits_modelos'))
       if (erro) {
+        // F55 — idem: tabela ausente aqui já é regressão, não "ainda não migrou".
         if (ehAusenciaDeSchema(erro)) {
           ctx.kitsAusente = true
-          return { status: NA, detalhe: 'tabela ainda não existe — pré-F12' }
+          return { status: FALHA, detalhe: 'tabela ainda não existe' }
         }
         throw erro
       }
@@ -731,17 +830,21 @@ const CHECKS = [
   {
     nome: 'kits_modelos · anon NÃO lê (RLS)',
     area: 'F12 · segurança',
-    preF12: true,
     async executar(_db, ctx) {
-      if (ctx.kitsAusente !== false) return { status: NA, detalhe: 'tabela ainda não existe — pré-F12' }
+      // F55 — o check anterior (leitura autenticada) já vira FALHA se a tabela
+      // sumiu; aqui não há mais ramo NA para "esperar" esse estado. Só pula a
+      // ida ao banco quando o check anterior CONFIRMOU a ausência (=== true);
+      // se ele falhou por outro motivo (ctx.kitsAusente indefinido), tenta a
+      // leitura mesmo assim — ela mesma detecta e reporta o schema ausente.
+      if (ctx.kitsAusente === true) return { status: FALHA, detalhe: 'tabela ainda não existe' }
       // Client SEM sessão: a RLS tem de recusar (ou devolver zero linha).
-      const anon = createClient(urlSupabase, chaveAnon, {
+      const anon = criarCliente(urlSupabase, chaveAnon, {
         auth: { persistSession: false, autoRefreshToken: false },
       })
       const { data, error } = await anon.from('kits_modelos').select('id').limit(1)
       if (error) {
         // Tabela sumida NÃO é "RLS funcionando" — seria um falso verde de segurança.
-        if (ehAusenciaDeSchema(error)) return { status: NA, detalhe: 'tabela ainda não existe — pré-F12' }
+        if (ehAusenciaDeSchema(error)) return { status: FALHA, detalhe: 'tabela ainda não existe' }
         return { status: OK, detalhe: `anon recusado pelo banco (${error.code || 'erro'})` }
       }
       if (data?.length) return { status: FALHA, detalhe: `anon leu ${data.length} linha(s) de kits_modelos` }
@@ -817,8 +920,9 @@ const CHECKS = [
         .select('id, movimentacao_id, pendencia_item_id')
         .limit(1)
       if (error) {
+        // F55 — 0116/0119 já estão em produção: ausência de schema é FALHA.
         if (ehAusenciaDeSchema(error)) {
-          return { status: NA, detalhe: 'colunas ausentes (migrations 0116/0119 não aplicadas?)' }
+          return { status: FALHA, detalhe: 'colunas ausentes (migrations 0116/0119 não aplicadas?)' }
         }
         throw error
       }
@@ -834,8 +938,13 @@ const CHECKS = [
     },
   },
 
-  // F38 — a leitura "Com esta pessoa" (0118). Responde para um colaborador que
-  // existe; sem cadastro nenhum, é NA e não falha (produção começou com zero).
+  // F38 — a leitura "Com esta pessoa" (0118).
+  // F55 — schema ausente (tabela `colaboradores` ou a RPC) é FALHA: as duas já
+  // estão em produção. O que continua NA é OUTRA coisa, de OUTRA classe: zero
+  // colaborador cadastrado é estado de DADO (não de schema) — legítimo mesmo
+  // com o schema presente, porque produção pode legitimamente não ter nenhum
+  // cadastro ainda. Não dá para plantar um colaborador fictício num smoke que
+  // roda contra produção (CLAUDE.md — nunca dado, nem fictício, fora de seed).
   {
     nome: 'rel_saldo_colaborador · a conta por pessoa (F38)',
     area: 'itens · saldo por pessoa',
@@ -845,18 +954,18 @@ const CHECKS = [
         .select('id')
         .limit(1)
       if (ePessoa) {
-        if (ehAusenciaDeSchema(ePessoa)) return { status: NA, detalhe: 'colaboradores ausente' }
+        if (ehAusenciaDeSchema(ePessoa)) return { status: FALHA, detalhe: 'colaboradores ausente' }
         throw ePessoa
       }
       if (!pessoa?.length) {
-        return { status: NA, detalhe: 'nenhum colaborador cadastrado ainda' }
+        return { status: NA, detalhe: 'nenhum colaborador cadastrado ainda (estado de dado, não de schema)' }
       }
       const { data, error } = await db.rpc('rel_saldo_colaborador', {
         p_colaborador: pessoa[0].id,
       })
       if (error) {
         if (ehAusenciaDeSchema(error)) {
-          return { status: NA, detalhe: 'RPC ausente (migration 0118 não aplicada?)' }
+          return { status: FALHA, detalhe: 'RPC ausente (migration 0118 não aplicada?)' }
         }
         throw error
       }
@@ -1261,6 +1370,12 @@ async function parteB() {
 
   log(`PARTE B — logado · ${urlSupabase}`)
 
+  // F55 — import DINÂMICO, e só aqui: a Parte A (`--sem-sessao`) é puro `fetch`
+  // e não precisa de `npm ci` para rodar. Ver o comentário no topo do arquivo
+  // (custo de CI + o npm caindo não pode virar alarme falso na sonda agendada).
+  const { createClient } = await import('@supabase/supabase-js')
+  criarCliente = createClient // os checks que montam um client próprio leem esta variável
+
   const db = createClient(urlSupabase, chaveAnon, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
@@ -1291,13 +1406,7 @@ async function parteB() {
       } catch (erro) {
         resultado = { status: FALHA, detalhe: descreverErro(erro) }
       }
-      let status = resultado.status
-      let detalhe = resultado.detalhe
-      if (status === NA && exigirF12) {
-        status = FALHA
-        detalhe = `${detalhe} — exigido por --exigir-f12`
-      }
-      registrar('B', check.nome, check.area, status, detalhe)
+      registrar('B', check.nome, check.area, resultado.status, resultado.detalhe)
     }
 
     // Parte C usa a MESMA sessão — precisa rodar antes do signOut do finally.
@@ -1324,13 +1433,14 @@ function resumo() {
 
   log('')
   log('='.repeat(72))
-  log(
-    `RESUMO · ${conta(OK)} OK · ${conta(AVISO)} aviso · ${naos.length} n/a (pré-F12) · ${falhas.length} falha`,
-  )
+  log(`RESUMO · ${conta(OK)} OK · ${conta(AVISO)} aviso · ${naos.length} n/a · ${falhas.length} falha`)
 
   if (naos.length) {
     log('')
-    log('n/a — pré-F12 (a migration correspondente ainda não está neste ambiente):')
+    // F55 — não é mais "pré-F12": schema ausente virou FALHA. O que sobra aqui
+    // é estado de DADO (ex.: zero colaborador cadastrado) — legítimo mesmo com
+    // o schema presente, e não indica migration faltando.
+    log('n/a — estado de dado (não de schema; o schema correspondente já está aplicado):')
     for (const r of naos) log(`  · ${r.nome}`)
   }
 
@@ -1357,7 +1467,6 @@ async function main() {
   log(`  supabase..: ${urlSupabase || '(não configurado)'}`)
   log(`  credenciais: ${email && senha ? 'presentes (mascaradas)' : 'ausentes'}`)
   log(`  .env.local: ${envCarregadas} variável(is) carregada(s)`)
-  log(`  modo......: ${exigirF12 ? 'exigindo F12 (n/a vira falha)' : 'tolerante a pré-F12'}`)
 
   await parteA()
   await parteB()

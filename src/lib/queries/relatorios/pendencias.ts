@@ -1,4 +1,5 @@
 import 'server-only'
+import { registrarFalha } from '@/lib/observabilidade'
 import {
   ILIKE_ITENS_FALTANTES,
   OR_PATRIMONIO,
@@ -110,10 +111,16 @@ export async function getPendencias(
   // justamente o sintoma do bug que estes baldes acabaram de consertar; o clamp fica
   // (o chip não pode mostrar número negativo), mas agora deixa rastro no servidor.
   if (resto < 0) {
-    console.error(
-      `[pendencias] baldes sobrepostos em ${filialSlugs.join('+') || 'geral'}: somam ${somaBaldes} de um total de ${total}. ` +
+    registrarFalha({
+      escopo: 'pendencias.baldes-sobrepostos',
+      erro:
         'Uma linha da fila casa mais de um predicado (pendência `;`-joinable?) — ver lib/pendencias/filtro.ts.',
-    )
+      ctx: {
+        filiais: filialSlugs.join('+') || 'geral',
+        somaBaldes,
+        total,
+      },
+    })
   }
 
   const chips: ChipPendencia[] = [

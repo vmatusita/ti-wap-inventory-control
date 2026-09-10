@@ -23,6 +23,7 @@ import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { getOperador, MSG_SOMENTE_LEITURA } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { Eye } from 'lucide-react'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
 export const metadata = {
@@ -139,7 +140,7 @@ export default async function NovaMovimentacaoPage({
     // só, sem round-trip extra, e o `revalidatePath('/movimentacoes/nova')` das
     // actions de kit já mantém a lista fresca.
     listarKitsAtivos().catch((err): Kit[] => {
-      console.error('[movimentacoes/nova] falha ao listar kits:', err)
+      registrarFalha({ escopo: 'movimentacoes.nova-kits', erro: err })
       return []
     }),
     getOperador(),
@@ -149,11 +150,11 @@ export default async function NovaMovimentacaoPage({
     // causa vai para o log do servidor. Sem eles a devolução continua funcionando
     // (o checklist some, o array de faltantes continua vazio).
     listarTiposItem().catch((err): TipoItem[] => {
-      console.error('[movimentacoes/nova] falha ao listar tipos de item:', err)
+      registrarFalha({ escopo: 'movimentacoes.nova-tipos-item', erro: err })
       return []
     }),
     listarItensAdmin().catch((err): ItemAdmin[] => {
-      console.error('[movimentacoes/nova] falha ao listar o catálogo de itens:', err)
+      registrarFalha({ escopo: 'movimentacoes.nova-catalogo-itens', erro: err })
       return []
     }),
   ])

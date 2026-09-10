@@ -1,5 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import { registrarFalha } from '@/lib/observabilidade'
 import { type CategoriaAtivo } from '@/lib/dominio'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import type { DbClient } from '@/lib/auth/acesso'
@@ -122,7 +123,7 @@ export async function contarPendenciasAbertas(
   const { count, error } = await q
 
   if (error) {
-    console.error(`Falha ao contar pendências: ${error.message}`)
+    registrarFalha({ escopo: 'pendencias.contar-abertas', erro: error })
     return 0
   }
   return count ?? 0
@@ -182,7 +183,7 @@ async function buscarServiceTags(
   if (ids.length === 0) return new Map()
   const { data, error } = await client.from('ativos').select('id, service_tag').in('id', ids)
   if (error) {
-    console.error(`Falha ao buscar service tag das pendências de patrimônio: ${error.message}`)
+    registrarFalha({ escopo: 'pendencias.buscar-service-tags', erro: error })
     return new Map()
   }
   return new Map((data ?? []).map((a) => [a.id as string, a.service_tag as string | null]))

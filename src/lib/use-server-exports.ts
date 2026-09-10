@@ -233,19 +233,44 @@ export function limpar(fonte: string, apagarStrings: boolean): string {
 const RE_DIRETIVA = /^\s*(['"])([^'"]*)\1\s*;?\s*$/
 
 /**
- * O arquivo declara `'use server'` no PRÓLOGO do módulo (e não dentro de uma
- * função, nem só num comentário)? Só nesse caso o transform de Server Actions
- * roda sobre ele.
+ * O arquivo declara `<diretiva>` no PRÓLOGO do módulo (e não dentro de uma
+ * função, nem só num comentário)?
+ *
+ * F55 — EXTRAÍDA de `ehModuloUseServer` (que agora a chama) porque a trava de
+ * `} catch {}` e a trava de `console.*` precisam da MESMA leitura de prólogo
+ * para `'use server'` e para `'use client'`. Escrever o segundo leitor era o
+ * caminho para os dois divergirem — o mesmo argumento que fez `limpar` virar
+ * export na F49. E a leitura tem de ser da DIRETIVA, não da palavra: dois
+ * arquivos do repositório (`lib/actions/guardas-de-action.ts` e este) citam
+ * `'use server'` em COMENTÁRIO nas primeiras linhas sem serem módulo de Server
+ * Action, e `limpar(fonte, false)` é o que os separa.
  */
-export function ehModuloUseServer(fonte: string): boolean {
+export function temDiretivaNoPrologo(fonte: string, diretiva: string): boolean {
   for (const linha of limpar(fonte, false).split('\n')) {
     if (linha.trim() === '') continue
     const m = RE_DIRETIVA.exec(linha)
     // Primeira linha de CÓDIGO: o prólogo acabou.
     if (!m) return false
-    if (m[2].trim() === 'use server') return true
+    if (m[2].trim() === diretiva) return true
   }
   return false
+}
+
+/**
+ * O arquivo declara `'use server'` no PRÓLOGO do módulo (e não dentro de uma
+ * função, nem só num comentário)? Só nesse caso o transform de Server Actions
+ * roda sobre ele.
+ */
+export function ehModuloUseServer(fonte: string): boolean {
+  return temDiretivaNoPrologo(fonte, 'use server')
+}
+
+/**
+ * O arquivo declara `'use client'` no PRÓLOGO do módulo? É a fronteira que
+ * separa "loga no navegador de quem opera" de "loga no servidor" (F55).
+ */
+export function ehModuloUseClient(fonte: string): boolean {
+  return temDiretivaNoPrologo(fonte, 'use client')
 }
 
 // `export` como palavra de abertura da linha. `export:` (propriedade de objeto)

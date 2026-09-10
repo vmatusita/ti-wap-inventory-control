@@ -16,6 +16,40 @@ import { MUTACOES, QUARENTENA } from './mutacoes.mjs'
 // trabalho do `npm run db:test:mutations`.
 
 const RAIZ = process.cwd()
+
+/**
+ * O corpo VIGENTE de cada função que uma mutação reescreve, resolvido UMA VEZ, no
+ * import deste arquivo.
+ *
+ * POR QUE NÃO DENTRO DO `it`. `corpoVigente` varre as 137 migrations de trás
+ * para frente a cada chamada — são 38 mutações que reescrevem função, e uma delas
+ * (`catalogo-security-definer-nova-nao-classificada`) cria função que NÃO existe,
+ * o que força a varredura COMPLETA. Medido: ~650 ms num processo sozinho e sem
+ * disputa. Sob a suíte inteira — 178 arquivos disputando CPU e disco no Windows —
+ * isso passou dos 5 s de teto por teste do Vitest, e o caso abaixo ficou vermelho
+ * por TEMPO, não por asserção. Entrou na conta quando as quatro mutações da F55
+ * acrescentaram mais um arquivo a cada varredura.
+ *
+ * ⚠ O QUE MUDA É O CUSTO, NÃO A ASSERÇÃO. E ele vai para o IMPORT de propósito:
+ * o próprio `mutacoes.mjs` já chama `corpoVigente` uma vez por mutação ao ser
+ * importado (é o que `mutarFuncao` faz), então esse é um custo que este arquivo
+ * comprovadamente aguenta. A memoização fica AQUI, e não em `corpo-vigente.mjs`,
+ * para não mudar o comportamento do injetor por causa de um teste.
+ */
+const VIGENTE_POR_MUTACAO: Map<string, string | null> = new Map(
+  MUTACOES.map((m) => {
+    const defs = definicoesDeFuncao(m.sql)
+    if (defs.length !== 1) return [m.id, null] as const
+    const d = defs[0]
+    try {
+      return [m.id, corpoVigente(`${d.esquema}.${d.nome}(${d.tipos.join(', ')})`, RAIZ).sql] as const
+    } catch {
+      // A mutação CRIA uma função que não existe nas migrations. `undefined`
+      // distingue esse caso de `null` (não é definição única de função).
+      return [m.id, undefined as unknown as string] as const
+    }
+  }),
+)
 const PASTA_ROTEIROS = join(RAIZ, 'supabase', 'tests')
 
 /** Os seis roteiros que a ficha da F47 nomeia como alvo do lote. */
@@ -66,7 +100,23 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 64 mutações ATIVAS', () => {
+  it('tem entre 20 e 68 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 64 PARA 68 NA F55 (10/09/2026). A fase escreveu o roteiro
+    // `integridade_alarme.sql`, que é o primeiro a exercitar as DOZE checagens de
+    // integridade uma a uma, e ele nasceu com QUATRO quebras próprias — uma por
+    // promessa que o alarme faz e que nada vigiava:
+    //   · o núcleo para de contar uma checagem (ela responde ZERO, e o alarme fica
+    //     verde sobre uma corrupção que existe — a falha mais silenciosa possível);
+    //   · o resumo de integridade vira alcançável por `anon` (as contagens da
+    //     empresa inteira pela chave pública, sem sessão);
+    //   · o resumo passa a devolver a coluna `amostra` (patrimônio e nome de pessoa
+    //     indo para dentro de um secret do GitHub e do corpo de uma issue);
+    //   · o rótulo de ambiente vira alcançável por `authenticated`.
+    // Nenhuma das quatro quebra `lint`, `build` ou `tsc`: só o roteiro as vê, que
+    // é exatamente o que o injetor existe para provar.
+    // 63 + 4 = 67, teto 68 (uma de folga — a mesma régua da F52, F53 e F54, porque
+    // teto colado no número de hoje força outra decisão na semana seguinte, e é
+    // assim que um teto vira ritual).
     // ⚠ O TETO SUBIU DE 59 PARA 64 NA F54 (09/09/2026). A fase escreveu o roteiro
     // `restauracao.sql`, que é o primeiro a exercitar a RESTAURAÇÃO, e ele nasceu com
     // QUATRO quebras próprias — uma por obstáculo que o restaurador enfrenta e que
@@ -139,7 +189,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(64)
+    expect(MUTACOES.length).toBeLessThanOrEqual(68)
   })
 
   it('os `id` são únicos', () => {
@@ -300,11 +350,8 @@ describe('5. dados 100% sintéticos (regra 2 do CLAUDE.md)', () => {
     for (const m of MUTACOES) {
       const defs = definicoesDeFuncao(m.sql)
       if (defs.length !== 1) continue
-      const d = defs[0]
-      let vigente: string
-      try {
-        vigente = corpoVigente(`${d.esquema}.${d.nome}(${d.tipos.join(', ')})`, RAIZ).sql
-      } catch {
+      const vigente = VIGENTE_POR_MUTACAO.get(m.id)
+      if (vigente === undefined) {
         // F48 — a mutação CRIA uma função que não existe nas migrations (é o caso de
         // `catalogo-security-definer-nova-nao-classificada`, que sabota justamente o
         // "função nova entra sem ninguém decidir"). Não há corpo anterior para comparar,
@@ -317,6 +364,7 @@ describe('5. dados 100% sintéticos (regra 2 do CLAUDE.md)', () => {
         ).toBeNull()
         continue
       }
+      if (vigente === null) continue
       const antes = (vigente.match(DESTRUTIVO) ?? []).length
       const depois = (m.sql.match(DESTRUTIVO) ?? []).length
       expect(depois, `${m.id} acrescentou comando destrutivo ao corpo da função`).toBeLessThanOrEqual(

@@ -104,6 +104,14 @@ const DA_F38 = [
   // F54 — a `0137` e SO um `comment on column` (o verbo `import_falhou` no vocabulario
   // da trilha). Nao toca dado, nao muda estrutura, nao recria funcao.
   '0137',
+  // F55 (10/09/2026) — a `0138` decompõe `dev_checagens_integridade` em um NÚCLEO
+  // (o SQL das doze checagens, movido byte a byte) mais duas portas, e acrescenta
+  // `checagens_integridade_resumo` e `rotulo_de_ambiente`. Entra aqui pelo motivo
+  // escrito acima: a lista é COBERTURA, não o índice da F38. Ela interessa em
+  // particular à guarda de intocáveis (recria UMA função existente e só uma) e à
+  // de `security invoker` — as três novas são `security definer`, e as três estão
+  // em `supabase/tests/catalogo_secdef.sql` no mesmo commit.
+  '0138',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

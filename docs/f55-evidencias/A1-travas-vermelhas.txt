@@ -1,0 +1,285 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/observabilidade-fonte.test.ts (37 tests | 4 failed) 119ms
+     × nenhum arquivo de servidor chama console fora do funil 11ms
+     × src/lib/actions/conflitos.ts 3ms
+     × src/lib/actions/importar.ts 4ms
+     × src/lib/actions/termos.ts 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/observabilidade-fonte.test.ts > (a) nenhum `console.*` em código de servidor fora do funil > nenhum arquivo de servidor chama console fora do funil
+AssertionError: console.* em código de SERVIDOR fora de src/lib/observabilidade.ts — use registrarFalha({ escopo, erro, ctx }) (F55 · Frente A):
+  src/app/(app)/ativos/[id]/page.tsx:138 [console.error] console.error('[ativos/[id]] falha ao listar tipos de item:', err)
+  src/app/(app)/dev/acoes-export.ts:199 [console.error] console.error('[exportarAuditoriaCSV] falha ao exportar a auditoria:', err)
+  src/app/(app)/layout.tsx:83 [console.error] console.error('[layout] falha ao ler as filiais do shell', e)
+  src/app/(app)/movimentacoes/nova/page.tsx:142 [console.error] console.error('[movimentacoes/nova] falha ao listar kits:', err)
+  src/app/(app)/movimentacoes/nova/page.tsx:152 [console.error] console.error('[movimentacoes/nova] falha ao listar tipos de item:', err)
+  src/app/(app)/movimentacoes/nova/page.tsx:156 [console.error] console.error('[movimentacoes/nova] falha ao listar o catálogo de itens:', err)
+  src/app/(app)/page.tsx:160 [console.error] console.error('[dashboard] falha ao ler v_fila_pendencias:', pendenciasErro.message)
+  src/app/(app)/pendencias/page.tsx:187 [console.error] console.error('[pendencias] falha ao listar tipos de item:', err)
+  src/app/(app)/relatorios/gerados/[id]/page.tsx:60 [console.error] console.error('[relatorios/gerados/[id]] falha ao listar tipos de item:', err)
+  src/app/(app)/relatorios/[filial]/page.tsx:135 [console.error] console.error('[relatorios/[filial]] falha ao listar tipos de item:', err)
+  src/lib/actions/admin.ts:130 [console.error] console.error('[admin/usuarios] falha ao conferir de quem é o e-mail do convite', err)
+  src/lib/actions/admin.ts:288 [console.error] console.error('[admin/usuarios] falha ao conferir de quem é o e-mail do link', err)
+  src/lib/actions/admin.ts:404 [console.error] console.error('[admin/usuarios] falha ao carregar o estado do usuário', err)
+  src/lib/actions/admin.ts:559 [console.error] console.error('[admin/usuarios] falha ao (des)banir no Auth', ban.error)
+  src/lib/actions/colaboradores.ts:351 [console.error] console.error('[buscarSaldoDoColaborador] falha:', err)
+  src/lib/actions/compras.ts:160 [console.error] console.error('[registrarCompra] falha ao gravar telefone/IMEI/Pulsus', eExtras)
+  src/lib/actions/compras.ts:219 [console.error] console.error(`[sugestoes] falha ao sugerir ${rotulo}:`, err)
+  src/lib/actions/conflitos.ts:289 [console.error] console.error('[conflitos] apagarConflito RPC error', {
+  src/lib/actions/dev-destrutivo.ts:139 [console.error] console.error('[dev-destrutivo] falha ao buscar ativos', err)
+  src/lib/actions/dev-destrutivo.ts:153 [console.error] console.error('[dev-destrutivo] falha ao carregar a ficha', err)
+  src/lib/actions/dev-destrutivo.ts:168 [console.error] console.error('[dev-destrutivo] falha ao calcular a prévia', err)
+  src/lib/actions/dev-destrutivo.ts:354 [console.error] console.error('[dev-destrutivo] falha ao calcular a prévia do reset', err)
+  src/lib/actions/dev-destrutivo.ts:392 [console.error] console.error('[dev-destrutivo] falha ao gravar o backup do reset', err)
+  src/lib/actions/dev.ts:78 [console.error] console.error('[dev] falha ao alterar e-mail', r.error)
+  src/lib/actions/dev.ts:130 [console.error] console.error('[dev] falha ao carregar o alvo da exclusão', err)
+  src/lib/actions/dev.ts:174 [console.error] console.error('[dev] perfil arquivado, mas a conta do Auth não foi removida', del.error)
+  src/lib/actions/dev.ts:187 [console.error] if (ban.error) console.error('[dev] e o ban de emergência também falhou', ban.error)
+  src/lib/actions/dev.ts:257 [console.error] console.error('[dev] falha ao rodar as checagens', err)
+  src/lib/actions/erros.ts:372 [console.error] console.error('[traduzErroBanco] erro não mapeado', { code: code ?? null, mensagem: mensagem ?? null })
+  src/lib/actions/exportar.ts:438 [console.error] console.error('[exportarAtivosCSV] falha ao exportar ativos:', err)
+  src/lib/actions/exportar.ts:496 [console.error] console.error('[exportarPendenciasCSV] falha ao exportar pendências:', err)
+  src/lib/actions/exportar.ts:561 [console.error] console.error('[exportarItensSaldosCSV] falha ao exportar saldos:', err)
+  src/lib/actions/exportar.ts:582 [console.error] console.error('[exportarItensHistoricoCSV] falha ao exportar histórico:', err)
+  src/lib/actions/importar.ts:513 [console.error] console.error('[importar] aplicarImport RPC error', {
+  src/lib/actions/importar.ts:547 [console.error] console.error(
+  src/lib/actions/itens.ts:148 [console.error] if (erroCat) console.error('[lancarItens] falha ao ler o nome dos itens:', erroCat.message)
+  src/lib/actions/itens.ts:473 [console.error] console.error('[buscarSaldosItens] falha ao carregar saldos:', err)
+  src/lib/actions/movimentacoes.ts:554 [console.error] console.error('[montarItensJunto] falha ao ler o nome dos itens:', error.message)
+  src/lib/actions/movimentacoes.ts:755 [console.error] console.error('[buscarAtivosParaMovimentacao] falha na busca de ativos:', err)
+  src/lib/actions/movimentacoes.ts:872 [console.error] console.error('[resolverPatrimoniosParaLote] falha ao resolver o lote:', err)
+  src/lib/actions/movimentacoes.ts:895 [console.error] console.error('[buscarAtivosRecentesDoOperador] falha ao carregar recentes:', err)
+  src/lib/actions/movimentacoes.ts:933 [console.error] console.error('[buscarColaboradoresDoCampo] falha ao carregar sugestões:', err)
+  src/lib/actions/movimentacoes.ts:948 [console.error] console.error('[buscarSugestoesSetores] falha nas sugestões:', err)
+  src/lib/actions/movimentacoes.ts:967 [console.error] console.error('[buscarPossiveisDuplicatasDoDia] falha ao checar duplicatas:', err)
+  src/lib/actions/movimentacoes.ts:987 [console.error] console.error(
+  src/lib/actions/movimentacoes.ts:997 [console.error] console.error('[buscarResumoDeAtivosPorIds] falha ao restaurar o rascunho:', err)
+  src/lib/actions/pendencias.ts:159 [console.error] if (eTipos) console.error('[resolverPendenciaItem] falha ao ler tipos_item:', eTipos)
+  src/lib/actions/pendencias.ts:160 [console.error] if (eItens) console.error('[resolverPendenciaItem] falha ao ler o catálogo de itens:', eItens)
+  src/lib/actions/relatorios.ts:203 [console.error] console.error('[relatorios] falha ao ler a versão vigente do período', error)
+  src/lib/actions/termos.ts:350 [console.error] console.error('[prepararTermo] falha ao listar tipos de item:', err)
+  src/lib/auditoria-registro.ts:45 [console.error] console.error('[auditoria] FALHA ao registrar evento administrativo', {
+  src/lib/auth/acesso.ts:113 [console.error] console.error('[acesso] falha ao ler papel_atual()', error)
+  src/lib/auth/acesso.ts:140 [console.error] console.error('[acesso] falha ao ler pode_escrever_filial()', { filialId, error })
+  src/lib/auth/acesso.ts:185 [console.error] console.error('[acesso] falha ao ler o perfil do operador', erroPerfil)
+  src/lib/queries/admin.ts:126 [console.error] console.error('[admin/usuarios] falha ao listar contas do Auth', err)
+  src/lib/queries/colaboradores.ts:230 [console.error] console.error('[resolverColaboradoresPorNome] falha ao resolver', error.message)
+  src/lib/queries/colaboradores.ts:393 [console.error] console.error(
+  src/lib/queries/conflitos.ts:220 [console.error] console.error(`Falha ao contar conflitos entre filiais: ${(e as Error).message}`)
+  src/lib/queries/dev.ts:104 [console.error] if (error) console.error('[dev] falha ao ler a última migration aplicada', error)
+  src/lib/queries/dev.ts:277 [console.error] console.error('[dev] falha ao rodar as checagens de integridade', error)
+  src/lib/queries/gerados.ts:178 [console.error] console.error('[gerados] falha ao conferir versões superadas', eVersoes)
+  src/lib/queries/gerados.ts:243 [console.error] if (ant.error) console.error('[gerados] falha ao buscar o período anterior', ant.error)
+  src/lib/queries/gerados.ts:244 [console.error] if (prox.error) console.error('[gerados] falha ao buscar o próximo período', prox.error)
+  src/lib/queries/itens.ts:655 [console.error] console.error('[saldosPorColaborador] falha ao ler o saldo:', error)
+  src/lib/queries/itens.ts:683 [console.error] console.error('[lancamentosSemVinculo] falha ao contar:', error)
+  src/lib/queries/itens.ts:725 [console.error] console.error('[itensQueForamJunto] falha ao ler:', error)
+  src/lib/queries/itens.ts:816 [console.error] console.error('[acessoriosDasMovimentacoes] falha ao ler:', error)
+  src/lib/queries/kits.ts:43 [console.error] console.error('[queries/kits] payload de kit fora do contrato — kit ignorado', {
+  src/lib/queries/pendencias-detalhe.ts:125 [console.error] console.error(`Falha ao contar pendências: ${error.message}`)
+  src/lib/queries/pendencias-detalhe.ts:185 [console.error] console.error(`Falha ao buscar service tag das pendências de patrimônio: ${error.message}`)
+  src/lib/queries/relatorios/estoque.ts:196 [console.error] console.error('Falha ao montar a série de evolução do estoque (card opcional):', err)
+  src/lib/queries/relatorios/itens.ts:70 [console.error] console.error(
+  src/lib/queries/relatorios/pendencias.ts:113 [console.error] console.error(
+  src/lib/storage/copiar-antes-de-remover.ts:169 [console.error] console.error('[storage] falha ao copiar .docx para o backup — o original NÃO será removido', {
+  src/lib/storage/copiar-antes-de-remover.ts:229 [console.error] console.error('[storage] falha ao remover .docx já copiado', {
+  src/lib/storage/copiar-antes-de-remover.ts:289 [console.error] console.error('[storage] backup órfão no bucket (a RPC recusou e a remoção falhou)', {: expected [ …(76) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "  src/app/(app)/ativos/[id]/page.tsx:138 [console.error] console.error('[ativos/[id]] falha ao listar tipos de item:', err)",
++   "  src/app/(app)/dev/acoes-export.ts:199 [console.error] console.error('[exportarAuditoriaCSV] falha ao exportar a auditoria:', err)",
++   "  src/app/(app)/layout.tsx:83 [console.error] console.error('[layout] falha ao ler as filiais do shell', e)",
++   "  src/app/(app)/movimentacoes/nova/page.tsx:142 [console.error] console.error('[movimentacoes/nova] falha ao listar kits:', err)",
++   "  src/app/(app)/movimentacoes/nova/page.tsx:152 [console.error] console.error('[movimentacoes/nova] falha ao listar tipos de item:', err)",
++   "  src/app/(app)/movimentacoes/nova/page.tsx:156 [console.error] console.error('[movimentacoes/nova] falha ao listar o catálogo de itens:', err)",
++   "  src/app/(app)/page.tsx:160 [console.error] console.error('[dashboard] falha ao ler v_fila_pendencias:', pendenciasErro.message)",
++   "  src/app/(app)/pendencias/page.tsx:187 [console.error] console.error('[pendencias] falha ao listar tipos de item:', err)",
++   "  src/app/(app)/relatorios/gerados/[id]/page.tsx:60 [console.error] console.error('[relatorios/gerados/[id]] falha ao listar tipos de item:', err)",
++   "  src/app/(app)/relatorios/[filial]/page.tsx:135 [console.error] console.error('[relatorios/[filial]] falha ao listar tipos de item:', err)",
++   "  src/lib/actions/admin.ts:130 [console.error] console.error('[admin/usuarios] falha ao conferir de quem é o e-mail do convite', err)",
++   "  src/lib/actions/admin.ts:288 [console.error] console.error('[admin/usuarios] falha ao conferir de quem é o e-mail do link', err)",
++   "  src/lib/actions/admin.ts:404 [console.error] console.error('[admin/usuarios] falha ao carregar o estado do usuário', err)",
++   "  src/lib/actions/admin.ts:559 [console.error] console.error('[admin/usuarios] falha ao (des)banir no Auth', ban.error)",
++   "  src/lib/actions/colaboradores.ts:351 [console.error] console.error('[buscarSaldoDoColaborador] falha:', err)",
++   "  src/lib/actions/compras.ts:160 [console.error] console.error('[registrarCompra] falha ao gravar telefone/IMEI/Pulsus', eExtras)",
++   "  src/lib/actions/compras.ts:219 [console.error] console.error(`[sugestoes] falha ao sugerir ${rotulo}:`, err)",
++   "  src/lib/actions/conflitos.ts:289 [console.error] console.error('[conflitos] apagarConflito RPC error', {",
++   "  src/lib/actions/dev-destrutivo.ts:139 [console.error] console.error('[dev-destrutivo] falha ao buscar ativos', err)",
++   "  src/lib/actions/dev-destrutivo.ts:153 [console.error] console.error('[dev-destrutivo] falha ao carregar a ficha', err)",
++   "  src/lib/actions/dev-destrutivo.ts:168 [console.error] console.error('[dev-destrutivo] falha ao calcular a prévia', err)",
++   "  src/lib/actions/dev-destrutivo.ts:354 [console.error] console.error('[dev-destrutivo] falha ao calcular a prévia do reset', err)",
++   "  src/lib/actions/dev-destrutivo.ts:392 [console.error] console.error('[dev-destrutivo] falha ao gravar o backup do reset', err)",
++   "  src/lib/actions/dev.ts:78 [console.error] console.error('[dev] falha ao alterar e-mail', r.error)",
++   "  src/lib/actions/dev.ts:130 [console.error] console.error('[dev] falha ao carregar o alvo da exclusão', err)",
++   "  src/lib/actions/dev.ts:174 [console.error] console.error('[dev] perfil arquivado, mas a conta do Auth não foi removida', del.error)",
++   "  src/lib/actions/dev.ts:187 [console.error] if (ban.error) console.error('[dev] e o ban de emergência também falhou', ban.error)",
++   "  src/lib/actions/dev.ts:257 [console.error] console.error('[dev] falha ao rodar as checagens', err)",
++   "  src/lib/actions/erros.ts:372 [console.error] console.error('[traduzErroBanco] erro não mapeado', { code: code ?? null, mensagem: mensagem ?? null })",
++   "  src/lib/actions/exportar.ts:438 [console.error] console.error('[exportarAtivosCSV] falha ao exportar ativos:', err)",
++   "  src/lib/actions/exportar.ts:496 [console.error] console.error('[exportarPendenciasCSV] falha ao exportar pendências:', err)",
++   "  src/lib/actions/exportar.ts:561 [console.error] console.error('[exportarItensSaldosCSV] falha ao exportar saldos:', err)",
++   "  src/lib/actions/exportar.ts:582 [console.error] console.error('[exportarItensHistoricoCSV] falha ao exportar histórico:', err)",
++   "  src/lib/actions/importar.ts:513 [console.error] console.error('[importar] aplicarImport RPC error', {",
++   "  src/lib/actions/importar.ts:547 [console.error] console.error(",
++   "  src/lib/actions/itens.ts:148 [console.error] if (erroCat) console.error('[lancarItens] falha ao ler o nome dos itens:', erroCat.message)",
++   "  src/lib/actions/itens.ts:473 [console.error] console.error('[buscarSaldosItens] falha ao carregar saldos:', err)",
++   "  src/lib/actions/movimentacoes.ts:554 [console.error] console.error('[montarItensJunto] falha ao ler o nome dos itens:', error.message)",
++   "  src/lib/actions/movimentacoes.ts:755 [console.error] console.error('[buscarAtivosParaMovimentacao] falha na busca de ativos:', err)",
++   "  src/lib/actions/movimentacoes.ts:872 [console.error] console.error('[resolverPatrimoniosParaLote] falha ao resolver o lote:', err)",
++   "  src/lib/actions/movimentacoes.ts:895 [console.error] console.error('[buscarAtivosRecentesDoOperador] falha ao carregar recentes:', err)",
++   "  src/lib/actions/movimentacoes.ts:933 [console.error] console.error('[buscarColaboradoresDoCampo] falha ao carregar sugestões:', err)",
++   "  src/lib/actions/movimentacoes.ts:948 [console.error] console.error('[buscarSugestoesSetores] falha nas sugestões:', err)",
++   "  src/lib/actions/movimentacoes.ts:967 [console.error] console.error('[buscarPossiveisDuplicatasDoDia] falha ao checar duplicatas:', err)",
++   "  src/lib/actions/movimentacoes.ts:987 [console.error] console.error(",
++   "  src/lib/actions/movimentacoes.ts:997 [console.error] console.error('[buscarResumoDeAtivosPorIds] falha ao restaurar o rascunho:', err)",
++   "  src/lib/actions/pendencias.ts:159 [console.error] if (eTipos) console.error('[resolverPendenciaItem] falha ao ler tipos_item:', eTipos)",
++   "  src/lib/actions/pendencias.ts:160 [console.error] if (eItens) console.error('[resolverPendenciaItem] falha ao ler o catálogo de itens:', eItens)",
++   "  src/lib/actions/relatorios.ts:203 [console.error] console.error('[relatorios] falha ao ler a versão vigente do período', error)",
++   "  src/lib/actions/termos.ts:350 [console.error] console.error('[prepararTermo] falha ao listar tipos de item:', err)",
++   "  src/lib/auditoria-registro.ts:45 [console.error] console.error('[auditoria] FALHA ao registrar evento administrativo', {",
++   "  src/lib/auth/acesso.ts:113 [console.error] console.error('[acesso] falha ao ler papel_atual()', error)",
++   "  src/lib/auth/acesso.ts:140 [console.error] console.error('[acesso] falha ao ler pode_escrever_filial()', { filialId, error })",
++   "  src/lib/auth/acesso.ts:185 [console.error] console.error('[acesso] falha ao ler o perfil do operador', erroPerfil)",
++   "  src/lib/queries/admin.ts:126 [console.error] console.error('[admin/usuarios] falha ao listar contas do Auth', err)",
++   "  src/lib/queries/colaboradores.ts:230 [console.error] console.error('[resolverColaboradoresPorNome] falha ao resolver', error.message)",
++   "  src/lib/queries/colaboradores.ts:393 [console.error] console.error(",
++   "  src/lib/queries/conflitos.ts:220 [console.error] console.error(`Falha ao contar conflitos entre filiais: ${(e as Error).message}`)",
++   "  src/lib/queries/dev.ts:104 [console.error] if (error) console.error('[dev] falha ao ler a última migration aplicada', error)",
++   "  src/lib/queries/dev.ts:277 [console.error] console.error('[dev] falha ao rodar as checagens de integridade', error)",
++   "  src/lib/queries/gerados.ts:178 [console.error] console.error('[gerados] falha ao conferir versões superadas', eVersoes)",
++   "  src/lib/queries/gerados.ts:243 [console.error] if (ant.error) console.error('[gerados] falha ao buscar o período anterior', ant.error)",
++   "  src/lib/queries/gerados.ts:244 [console.error] if (prox.error) console.error('[gerados] falha ao buscar o próximo período', prox.error)",
++   "  src/lib/queries/itens.ts:655 [console.error] console.error('[saldosPorColaborador] falha ao ler o saldo:', error)",
++   "  src/lib/queries/itens.ts:683 [console.error] console.error('[lancamentosSemVinculo] falha ao contar:', error)",
++   "  src/lib/queries/itens.ts:725 [console.error] console.error('[itensQueForamJunto] falha ao ler:', error)",
++   "  src/lib/queries/itens.ts:816 [console.error] console.error('[acessoriosDasMovimentacoes] falha ao ler:', error)",
++   "  src/lib/queries/kits.ts:43 [console.error] console.error('[queries/kits] payload de kit fora do contrato — kit ignorado', {",
++   "  src/lib/queries/pendencias-detalhe.ts:125 [console.error] console.error(`Falha ao contar pendências: ${error.message}`)",
++   "  src/lib/queries/pendencias-detalhe.ts:185 [console.error] console.error(`Falha ao buscar service tag das pendências de patrimônio: ${error.message}`)",
++   "  src/lib/queries/relatorios/estoque.ts:196 [console.error] console.error('Falha ao montar a série de evolução do estoque (card opcional):', err)",
++   "  src/lib/queries/relatorios/itens.ts:70 [console.error] console.error(",
++   "  src/lib/queries/relatorios/pendencias.ts:113 [console.error] console.error(",
++   "  src/lib/storage/copiar-antes-de-remover.ts:169 [console.error] console.error('[storage] falha ao copiar .docx para o backup — o original NÃO será removido', {",
++   "  src/lib/storage/copiar-antes-de-remover.ts:229 [console.error] console.error('[storage] falha ao remover .docx já copiado', {",
++   "  src/lib/storage/copiar-antes-de-remover.ts:289 [console.error] console.error('[storage] backup órfão no bucket (a RPC recusou e a remoção falhou)', {",
++ ]
+
+ ❯ src/lib/observabilidade-fonte.test.ts:210:7
+    208|             `registrarFalha({ escopo, erro, ctx }) (F55 · Frente A):\n…
+    209|         : undefined,
+    210|     ).toEqual([])
+       |       ^
+    211|   })
+    212|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  |puro| src/lib/observabilidade-fonte.test.ts > (b) nenhum `} catch {` engolidor em módulo "use server" > src/lib/actions/conflitos.ts
+AssertionError: src/lib/actions/conflitos.ts: `} catch {` sem binding em função EXPORTADA de módulo 'use server' — a exceção some sem rastro. Dê um nome ao erro e chame registrarFalha (F55 · Frente A):
+  linha 273 em apagarConflito(): } catch {: expected [ { linha: 273, …(2) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "funcao": "apagarConflito",
++     "linha": 273,
++     "trecho": "} catch {",
++   },
++ ]
+
+ ❯ src/lib/observabilidade-fonte.test.ts:286:7
+    284|             achados.map((a) => `  linha ${a.linha} em ${a.funcao}(): $…
+    285|         : undefined,
+    286|     ).toEqual([])
+       |       ^
+    287|   })
+    288| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  |puro| src/lib/observabilidade-fonte.test.ts > (b) nenhum `} catch {` engolidor em módulo "use server" > src/lib/actions/importar.ts
+AssertionError: src/lib/actions/importar.ts: `} catch {` sem binding em função EXPORTADA de módulo 'use server' — a exceção some sem rastro. Dê um nome ao erro e chame registrarFalha (F55 · Frente A):
+  linha 339 em validarImport(): } catch {
+  linha 352 em validarImport(): } catch {
+  linha 415 em aplicarImport(): } catch {
+  linha 484 em aplicarImport(): } catch {: expected [ { linha: 339, …(2) }, …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "funcao": "validarImport",
++     "linha": 339,
++     "trecho": "} catch {",
++   },
++   {
++     "funcao": "validarImport",
++     "linha": 352,
++     "trecho": "} catch {",
++   },
++   {
++     "funcao": "aplicarImport",
++     "linha": 415,
++     "trecho": "} catch {",
++   },
++   {
++     "funcao": "aplicarImport",
++     "linha": 484,
++     "trecho": "} catch {",
++   },
++ ]
+
+ ❯ src/lib/observabilidade-fonte.test.ts:286:7
+    284|             achados.map((a) => `  linha ${a.linha} em ${a.funcao}(): $…
+    285|         : undefined,
+    286|     ).toEqual([])
+       |       ^
+    287|   })
+    288| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  |puro| src/lib/observabilidade-fonte.test.ts > (b) nenhum `} catch {` engolidor em módulo "use server" > src/lib/actions/termos.ts
+AssertionError: src/lib/actions/termos.ts: `} catch {` sem binding em função EXPORTADA de módulo 'use server' — a exceção some sem rastro. Dê um nome ao erro e chame registrarFalha (F55 · Frente A):
+  linha 611 em gerarTermo(): } catch {: expected [ { linha: 611, …(2) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "funcao": "gerarTermo",
++     "linha": 611,
++     "trecho": "} catch {",
++   },
++ ]
+
+ ❯ src/lib/observabilidade-fonte.test.ts:286:7
+    284|             achados.map((a) => `  linha ${a.linha} em ${a.funcao}(): $…
+    285|         : undefined,
+    286|     ).toEqual([])
+       |       ^
+    287|   })
+    288| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 33 passed (37)
+   Start at  13:07:03
+   Duration  1.60s (transform 101ms, setup 0ms, import 1.15s, tests 119ms, environment 0ms)
+

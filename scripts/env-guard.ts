@@ -45,14 +45,21 @@ function refFromUrl(url: string): string | null {
   }
 }
 
-// Refs de PRODUCAO — o seed/reset ficticio nunca roda neles, aconteca o que
-// acontecer com o .env.local (CLAUDE.md regra 2 e 5; topologia em
-// docs/RUNBOOK-BANCO.md). Descoberto na F11 (22/07/2026): as guardas abaixo so
-// comparavam SEED_PROJECT_REF com a URL — um teste de CONSISTENCIA, nao de
-// IDENTIDADE. Com os dois apontando para producao (que era o estado do
-// .env.local naquele dia) as tres guardas passavam e `npm run db:reset`
-// zeraria o acervo real. Esta lista e a trava que faltava.
-const REFS_DE_PRODUCAO = ['pbtjcalbmepmrqzprusb'] as const
+// A PERMISSAO — so o ensaio roda dados ficticios (CLAUDE.md regra 2 e 5; topologia
+// em docs/RUNBOOK-BANCO.md). Ate a F55 esta era uma lista de NEGACAO com UM item
+// (REFS_DE_PRODUCAO): um ref INVENTADO, ou um projeto de producao NOVO, passava. A
+// F55 (10/09/2026) inverteu: o ref TEM de estar nesta lista. Descoberto na F11
+// (22/07/2026): as guardas abaixo so comparavam SEED_PROJECT_REF com a URL — um
+// teste de CONSISTENCIA, nao de IDENTIDADE. Com os dois apontando para producao (que
+// era o estado do .env.local naquele dia) as tres guardas passavam e
+// `npm run db:reset` zeraria o acervo real.
+const REFS_DE_ENSAIO = ['sgmvldiizsrjbxzzpmhh'] as const
+
+// Refs de PRODUCAO conhecidos, usados SO para dar a mensagem CERTA quando alguem
+// aponta para la. A permissao de verdade e REFS_DE_ENSAIO, acima — um ref de
+// producao NOVO que nao esteja aqui ainda cai no "ref desconhecido" (mensagem
+// generica), RECUSADO do mesmo jeito.
+const REFS_DE_PRODUCAO_CONHECIDOS = ['pbtjcalbmepmrqzprusb'] as const
 
 // Valida as guardas e devolve a config. Lanca com mensagem clara se algo falhar
 // — o script NUNCA prossegue sem passar por aqui.
@@ -88,16 +95,23 @@ export function assertGuardsAndGetConfig(): GuardedConfig {
     )
   }
   // Trava final: nem SEED_CONFIRM=sim nem SEED_PROJECT_REF batendo com a URL
-  // liberam um ref conhecido de producao. Apontar o .env.local para o projeto
+  // liberam um ref fora da lista de ensaio. Apontar o .env.local para o projeto
   // de ensaio e a unica saida — e e a saida certa.
   for (const ref of [actualRef, expectedRef]) {
-    if (ref && (REFS_DE_PRODUCAO as readonly string[]).includes(ref)) {
+    if (!ref) continue
+    if ((REFS_DE_ENSAIO as readonly string[]).includes(ref)) continue
+    if ((REFS_DE_PRODUCAO_CONHECIDOS as readonly string[]).includes(ref)) {
       errs.push(
         `O ref "${ref}" e PRODUCAO (docs/RUNBOOK-BANCO.md). Dados ficticios nunca entram nela. ` +
           'Aponte NEXT_PUBLIC_SUPABASE_URL e SEED_PROJECT_REF para o projeto de ensaio antes de rodar seed/reset.',
       )
-      break
+    } else {
+      errs.push(
+        `O ref "${ref}" nao esta na lista de ensaio permitida (REFS_DE_ENSAIO em scripts/env-guard.ts). ` +
+          'Aponte NEXT_PUBLIC_SUPABASE_URL e SEED_PROJECT_REF para o projeto de ensaio antes de rodar seed/reset.',
+      )
     }
+    break
   }
 
   if (errs.length > 0) {
@@ -106,6 +120,44 @@ export function assertGuardsAndGetConfig(): GuardedConfig {
   }
 
   return { url, serviceRoleKey, projectRef: actualRef as string }
+}
+
+// O SEGUNDO PORTAO (F55, 10/09/2026): depois que o ref passa pela guarda acima, o
+// PROPRIO BANCO confirma a identidade. `public.rotulo_de_ambiente()` (migration
+// 0138) e `security definer`, alcancavel SO pela service_role, e devolve
+// 'desenvolvimento' no ensaio e NULL em producao — a defesa de um ref inventado que
+// por acaso resolvesse para um projeto de verdade, ou de uma producao nova e vazia
+// que passaria pela condicao de DADO que o `db:seed` ja tinha (banco sem ativo).
+//
+// ⚠ ASSINCRONA DE PROPOSITO, e por isso e uma funcao separada de
+// `assertGuardsAndGetConfig`: aquela continua SINCRONA e roda PRIMEIRO — a guarda de
+// ref nunca depende de rede para recusar um ref fora da lista. Esta funcao e chamada
+// por scripts/reset.ts e scripts/seed.ts logo apos criar o cliente administrativo,
+// ANTES de qualquer leitura ou escrita de dado.
+//
+// Falha na CHAMADA (rede fora, funcao ausente, sem permissao) e RECUSA — falha
+// fechada: um banco que nao consegue confirmar a propria identidade nao e um banco
+// de desenvolvimento confirmado.
+export async function exigirBancoDeDesenvolvimento(
+  db: ReturnType<typeof createAdminClient>,
+): Promise<void> {
+  const { data, error } = await db.rpc('rotulo_de_ambiente')
+  if (error) {
+    console.error(
+      '\n[GUARDA] Execucao recusada:\n- ' +
+        `Nao consegui confirmar o ambiente pelo banco (public.rotulo_de_ambiente() falhou: ${error.message}). ` +
+        'Falha na checagem e recusa (falha fechada) — o script nao prossegue sem a confirmacao do proprio banco.\n',
+    )
+    process.exit(1)
+  }
+  if (data !== 'desenvolvimento') {
+    console.error(
+      '\n[GUARDA] Execucao recusada:\n- ' +
+        `O banco nao se identifica como ambiente de desenvolvimento (rotulo_de_ambiente() = ${JSON.stringify(data)}). ` +
+        'Dados ficticios nunca entram num banco que nao confirma ser o ensaio.\n',
+    )
+    process.exit(1)
+  }
 }
 
 // Cliente administrativo (service role) — sem sessao. Intencionalmente SEM o

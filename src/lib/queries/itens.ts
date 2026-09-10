@@ -1,5 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import { registrarFalha } from '@/lib/observabilidade'
 import { hojeISO } from '@/lib/format'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
@@ -652,7 +653,7 @@ export async function saldosPorColaborador(
   for (let i = 0; i < distintos.length; i++) {
     const { data, error } = respostas[i]
     if (error) {
-      console.error('[saldosPorColaborador] falha ao ler o saldo:', error)
+      registrarFalha({ escopo: 'itens.saldos-colaboradores', erro: error })
       return { ok: false, erro: MSG_SALDO_INDISPONIVEL }
     }
     mapa.set(distintos[i], (data ?? []) as SaldoDoColaborador[])
@@ -680,7 +681,7 @@ export async function lancamentosSemVinculo(): Promise<number> {
     .not('colaborador', 'is', null)
   if (error) {
     // Degrada para 0 (o aviso some) em vez de derrubar a tela por um contador.
-    console.error('[lancamentosSemVinculo] falha ao contar:', error)
+    registrarFalha({ escopo: 'itens.lancamentos-sem-vinculo', erro: error })
     return 0
   }
   return count ?? 0
@@ -722,7 +723,7 @@ export async function itensQueForamJunto(ativoId: string): Promise<ItemQueFoiJun
     .order('data', { ascending: false })
     .order('created_at', { ascending: false })
   if (error) {
-    console.error('[itensQueForamJunto] falha ao ler:', error)
+    registrarFalha({ escopo: 'itens.junto-do-ativo', erro: error })
     return []
   }
   type Row = {
@@ -813,7 +814,7 @@ export async function acessoriosDasMovimentacoes(
   if (error) {
     // Degrada para vazio (o campo abre em branco e continua editável) em vez de
     // derrubar a preparação do termo por causa do pré-preenchimento de um campo.
-    console.error('[acessoriosDasMovimentacoes] falha ao ler:', error)
+    registrarFalha({ escopo: 'itens.acessorios-movimentacao', erro: error })
     return { lancamentos: [], tipos: [] }
   }
   type Row = {

@@ -6,6 +6,66 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations de
 
 ---
 
+## 10/09/2026 — F55 · Observabilidade, sonda e alarme de integridade ✅ 🔒
+
+**v1.60.0** · migration `0138` · Fase **invisível ao operador**: nenhuma tela mudou. O que mudou é que o
+sistema passou a se conferir sozinho e a avisar quando quebra, em vez de esperar alguém tropeçar no
+defeito. Ata completa em [`docs/DECISOES.md`](docs/DECISOES.md); o procedimento de resposta ao alarme em
+[`docs/RUNBOOK-ALARME.md`](docs/RUNBOOK-ALARME.md).
+
+- ✅ **Toda falha do lado do servidor passa por UM funil.** As **76** chamadas soltas de `console.error` —
+  cada uma no formato que quem escreveu escolheu — viraram `registrarFalha({ escopo, erro, ctx })`, uma
+  LINHA JSON por falha, com `empresa` já reservado para o multiempresa. E os **SEIS** blocos `} catch {`
+  que engoliam a exceção em Server Action estão extintos; os quatro mais caros descartavam a falha do
+  **backup do acervo** e mostravam *"Import cancelado"* sem deixar como saber por quê. Duas travas
+  estáticas impedem os dois de voltarem, e **nasceram vermelhas** contra o repositório de antes.
+- 🔎 **A redação foi provada por sabotagem, e a sabotagem achou um furo real.** O funil redige por NOME de
+  chave **e por VALOR** — e é a segunda que importa: `auditoria-registro.ts` loga `alvo`, que o tipo
+  descreve como "e-mail do convidado", e nenhum nome de chave casaria uma regex de segredo ali. ⚠ A regex
+  `\bkey\b` **não casava `SUPABASE_SERVICE_ROLE_KEY`** (o `_` é caractere de palavra): a chave mais
+  perigosa do repositório saía inteira sob o nome dela mesma. Corrigido, com caso de regressão.
+- ✅ **`src/instrumentation.ts`** apanha o erro que NINGUÉM tratou — o que sobe de um Server Component, o
+  da Server Action que estoura, o que nasce no proxy. Loga rota, tipo, origem, método e digest; **nunca
+  header** (o cookie da sessão está lá) e **nunca `request.path`** (ele vem com a querystring, e a busca de
+  `/ativos` leva nome e patrimônio nela). As duas ausências são travadas por teste que lê o fonte.
+- ✅ **`/api/saude`**, o primeiro route handler da casa: 200 com versão, commit e uma ida REAL ao banco;
+  503 quando o banco não responde. **Sem abrir superfície nenhuma para `anon`** — nenhuma função nova,
+  nenhum grant novo, as duas travas do catálogo de `security definer` intactas — e sem o falso verde do
+  `head: true`, que numa relação inexistente **não acusa erro nenhum**, e faria a sonda dizer "está tudo
+  bem" com a tabela sumida. Provado contra o ensaio, nas duas formas.
+- 🔒 **A migration `0138` tirou o SQL das doze checagens de integridade de dentro da função da `/dev`** e o
+  pôs num núcleo, **byte a byte** (189 linhas idênticas, conferidas por diff). Sobre ele, duas portas: a da
+  `/dev`, com a mesma assinatura e o mesmo resultado, e `checagens_integridade_resumo()`, que devolve só
+  `(chave, total)` — **sem a coluna de amostra**, que é a que carrega patrimônio e nome — para qualquer
+  conta logada e ativa. Copiar o SQL seria a doença que a F51 curou nas onze cópias da RPC de import.
+- ✅ **`supabase/tests/integridade_alarme.sql` planta os DOZE estados impossíveis** e prova que cada
+  checagem o enxerga. Até aqui, das doze, **só uma** tinha um roteiro que plantava e media. Quatro mutações
+  novas no injetor vigiam as promessas do alarme (teto 64 → 68).
+- ✅ **`.github/workflows/saude.yml`** roda a sonda sem sessão de 6 em 6 horas e a de integridade uma vez
+  por dia, com uma conta **nova, de cargo `consulta`** — a que lê tudo e não escreve nada. Quando alguma
+  fica vermelha, ele **abre uma issue**; quando volta, **fecha sozinho**. O estado é por par `(alvo,
+  parte)`: com uma issue só, o verde de 6 em 6 horas fecharia todo dia o alarme diário, e ele piscaria para
+  sempre. **Sem `npm ci` em nenhuma das partes** — minuto de Actions custa (o CI já consome perto do teto
+  do plano), e queda do registro do npm viraria alarme falso.
+- 🔎 **"Hoje-zero" não é "todas", e a linha de base é por alvo.** Produção tem achado real em três chaves
+  (3 arquivos de termo órfãos, 69 grupos de conflito, 10 backups órfãos) e o ensaio em uma. Um alarme que
+  falhasse acima de zero em todas nasceria vermelho no primeiro dia. A linha de base versionada **só
+  desce**; subir é decisão do Johnny, com ata. E o avaliador **fecha em falha**: chave que aparece sem
+  política alarma, chave esperada que some alarma — foi assim que duas checagens sumiram em silêncio na
+  `0098`.
+- ✅ **As guardas de ambiente viraram lista de PERMISSÃO, e agora o BANCO confirma.** `REFS_DE_PRODUCAO`
+  virou `REFS_DE_ENSAIO`: ref inventado passa a ser recusado, não só o ref conhecido de produção. E depois
+  do ref, `rotulo_de_ambiente()` tem de responder "desenvolvimento" — o que passa a valer para o **seed**,
+  cuja única trava além da lista era uma condição de dado (ele recusa base que já tem ativo), e uma
+  produção nova e vazia passaria.
+- 🔒 **O `.env.local` desta máquina deixou de apontar para PRODUÇÃO** — o estado que a F11 descobriu em
+  22/07/2026 e que teria zerado o acervo real. `SEED_CONFIRM` e a chave de serviço ficaram vazias, o
+  `SUPABASE_ACCESS_TOKEN` saiu para o cofre do sistema, e `docs/INVENTARIO-CREDENCIAIS.md` passou a
+  registrar, **por nome e nunca por valor**, onde cada credencial vive e quando gira.
+- 🚧 **O que esta fase NÃO resolve, e está escrito:** ninguém vigia o vigia (se o agendamento parar, o
+  alarme silencia sem aviso); a checagem vê o banco num instante, não continuamente; e os achados que a
+  linha de base revelou em produção **não foram consertados** — achado é dado, e dado se relata.
+
 ## 09/09/2026 — Rollout · A fila `0131`→`0132` entra em produção ✅ 🔒
 
 Avulsa (**v1.59.1**), fora de fase. Fecha a única pendência de banco que o projeto carregava: as duas migrations que a F51 e a F52 escreveram, mergearam e **nunca aplicaram**. Elas estavam no ensaio desde o desvio da F54 (09/09) e faltavam só em produção. **Nenhuma linha de código de aplicação mudou** — o que mudou foi o banco, e um arquivo gerado.

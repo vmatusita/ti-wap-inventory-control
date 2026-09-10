@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { paginarPorIds, paginarTodos } from '@/lib/queries/relatorios/comum'
+import { registrarFalha } from '@/lib/observabilidade'
 import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
 import type { DbClient } from '@/lib/auth/acesso'
 import type { GrupoConflito, LadoConflito } from '@/lib/pendencias/conflitos'
@@ -217,7 +218,7 @@ export async function contarConflitosAbertos(
     const client = await createClient()
     return await contarGruposConflito(client, filialSlugs)
   } catch (e) {
-    console.error(`Falha ao contar conflitos entre filiais: ${(e as Error).message}`)
+    registrarFalha({ escopo: 'conflitos.contar-abertos', erro: e })
     return 0
   }
 }

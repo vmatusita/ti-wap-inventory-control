@@ -1,0 +1,71 @@
+SABOTAGEM C — A SONDA CONTRA UMA RELAÇÃO QUE NÃO EXISTE
+F55 · Frente B · critérios 8 e 9 · medido em 10/09/2026
+
+Alvo: o projeto de ENSAIO (`sgmvldiizsrjbxzzpmhh`), pela chave PUBLICÁVEL — a mesma que
+o navegador carrega. Nenhum valor de credencial aparece nesta evidência:
+a chave entrou pelo `--env-file` do Node e não passou por mão nenhuma.
+
+A PERGUNTA: `src/app/api/saude/route.ts:74-79` faz exatamente
+
+    db.from('filiais').select('id').limit(1).abortSignal(AbortSignal.timeout(8000))
+    if (error) throw error   →   catch  →   banco = "falha"  →  503
+
+e o que se mede abaixo é ESSA forma, com um nome de tabela que não existe.
+
+══ 1. A FORMA QUE A SONDA USA — .select('id').limit(1), SEM head ═══════
+
+  from('filiais')
+      error : null
+      data  : []
+      →  banco: 'ok'  →  HTTP 200
+
+  from('tabela_que_nao_existe_f55')
+      error : [PGRST205] Could not find the table 'public.tabela_que_nao_existe_f55' in
+      data  : null
+      →  banco: 'falha'  →  HTTP 503
+
+  ⚠ A relação que NÃO EXISTE devolve ERRO (PGRST205). A sonda diz FALHA,
+    que é o veredito certo: 503. É ISSO que o critério 9 pede.
+
+  ⚠ A relação que EXISTE devolve `[]` — a RLS de `filiais` não entrega uma
+    linha sequer para a chave pública (as quatro policies dela são
+    {authenticated}) — e ainda assim `error` é null. A sonda pergunta "o
+    Postgres respondeu?", não "o que ele tem". Lista vazia é RESPOSTA.
+
+══ 2. O FALSO VERDE, REPRODUZIDO — count:exact + head:true ══════════════
+   (a forma que a casa mediu em 22/07/2026 e que a rota NÃO usa)
+
+  from('filiais', { count: 'exact', head: true })
+      error : null
+      count : 0
+      status: 200 ""
+      →  uma sonda escrita assim diria  banco: 'ok'
+
+  from('tabela_que_nao_existe_f55', { count: 'exact', head: true })
+      error : null
+      count : null
+      status: 204 "No Content"
+      →  uma sonda escrita assim diria  banco: 'ok'
+
+══ 3. O MESMO, NO HTTP CRU — sem a biblioteca no meio ═══════════════════
+
+  select('id').limit(1)  · existe     →  HTTP 200  content-range: */*
+  select('id').limit(1)  · NÃO existe →  HTTP 404
+  head + count:exact     · existe     →  HTTP 200  content-range: */0
+  head + count:exact     · NÃO existe →  HTTP 404
+
+  ⚠ E AQUI A MEDIÇÃO DIZ MAIS DO QUE A NOTA DE 22/07 DIZIA. No fio, o
+    PostgREST é HONESTO nas DUAS formas: a tabela que não existe recebe 404,
+    com `head` ou sem. O 204 da seção 2 não vem do servidor — ele é cunhado
+    DENTRO do `@supabase/supabase-js`: numa requisição `head`, a resposta de
+    erro não tem corpo para o cliente ler, e ele devolve
+    `{ error: null, count: null, status: 204, statusText: "No Content" }`.
+    Ou seja: o falso verde não é uma peculiaridade do banco, é a BIBLIOTECA
+    engolindo um 404. A nota de 22/07 (`smoke-prod.mjs:424-426`) registrou o
+    que se via da borda — 204/null/null — e está CONFIRMADA aqui, à letra;
+    o que esta medição acrescenta é ONDE o 204 nasce. A conclusão prática
+    não muda e fica mais firme: só a forma COM corpo devolve o erro, e é a
+    forma com corpo que a rota usa.
+
+FIM. Nenhum dado de ninguém foi lido: as duas leituras contra `filiais`
+voltaram vazias por RLS, e a terceira tabela não existe.

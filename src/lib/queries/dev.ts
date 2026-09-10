@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { exigirDev } from '@/lib/auth/acesso'
+import { registrarFalha } from '@/lib/observabilidade'
 import type { DbClient } from '@/lib/auth/acesso'
 import {
   juntarCatalogoComResultados,
@@ -101,7 +102,7 @@ export async function getDiagnostico(migracaoNoRepo: string): Promise<Diagnostic
   // dela é `e_dev()`, que o service role nunca satisfaz (ver `sessaoDeDev`).
   let migracaoNoBanco = 'indisponível'
   const { data, error } = await supabase.rpc('ultima_migracao_aplicada')
-  if (error) console.error('[dev] falha ao ler a última migration aplicada', error)
+  if (error) registrarFalha({ escopo: 'dev.ultima-migracao', erro: error })
   if (!error && typeof data === 'string' && data.length > 0) migracaoNoBanco = data
 
   return {
@@ -274,7 +275,7 @@ export async function rodarChecagens(): Promise<Checagem[]> {
 
   const { data, error } = await supabase.rpc('dev_checagens_integridade')
   if (error) {
-    console.error('[dev] falha ao rodar as checagens de integridade', error)
+    registrarFalha({ escopo: 'dev.checagens-integridade', erro: error })
     return CHECAGENS.map((c) => ({ ...c, achados: null, amostra: [], erro: error.message }))
   }
 

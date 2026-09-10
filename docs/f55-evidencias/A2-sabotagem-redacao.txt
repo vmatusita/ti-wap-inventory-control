@@ -1,0 +1,26 @@
+SABOTAGEM B — a redação do funil (F55 · Frente A), rodada em 10/09/2026
+Valores 100% FICTÍCIOS. Nenhum segredo real entrou neste arquivo.
+
+### ctx com senha/token/apiKey/hash/cpf
+{"evt":"falha","escopo":"sabotagem.nomes","empresa":null,"operador":null,"erro":{"nome":"Error","codigo":null,"mensagem":"falhou"},"ctx":{"senha":"[redigido]","token":"[redigido]","apiKey":"[redigido]","hash":"[redigido]","cpf":"[redigido]","SUPABASE_SERVICE_ROLE_KEY":"[redigido]","filial":3}}
+
+### e-mail sob chave INOCENTE (`alvo`, como a auditoria loga)
+{"evt":"falha","escopo":"auditoria","empresa":null,"operador":null,"erro":{"nome":"erro","codigo":null,"mensagem":"convite recusado"},"ctx":{"alvo":"[e-mail]","acao":"convite_enviado"}}
+
+### e-mail DENTRO de Error.message
+{"evt":"falha","escopo":"admin.usuarios","empresa":null,"operador":null,"erro":{"nome":"Error","codigo":null,"mensagem":"a conta [e-mail] ja existe"}}
+
+### erro do PostgREST com details e hint
+{"evt":"falha","escopo":"ativos.cadastro","empresa":null,"operador":null,"erro":{"nome":"erro","codigo":"23505","mensagem":"duplicate key value violates unique constraint"}}
+
+### telefone e CPF cru na mensagem
+{"evt":"falha","escopo":"compras.extras","empresa":null,"operador":null,"erro":{"nome":"Error","codigo":null,"mensagem":"nao gravei o telefone [telefone] nem o documento [cpf-ou-telefone]"}}
+
+### JWT sob chave inocente
+{"evt":"falha","escopo":"sonda","empresa":null,"operador":null,"erro":{"nome":"erro","codigo":null,"mensagem":"sem resposta"},"ctx":{"url":"/rest/v1/x?apikey=[token]"}}
+
+### ctx CIRCULAR
+{"evt":"falha","escopo":"sabotagem.circular","empresa":null,"operador":null,"erro":{"nome":"erro","codigo":null,"mensagem":"y"},"ctx":{"a":1,"eu":"[circular]"}}
+
+### ctx GIGANTE (5000 itens)
+{"evt":"falha","escopo":"sabotagem.gigante","empresa":null,"operador":null,"erro":{"nome":"erro","codigo":null,"mensagem":"y"},"ctx":{"itens":["item-0","item-1","item-2","item-3","item-4","item-5","item-6","item-7","item-8","item-9","item-10","item-11","item-12","item-13","item-14","item-15","item-16","item-17","item-18","item-19","[+4980 itens]"]}} …(linha inteira: 351 chars)

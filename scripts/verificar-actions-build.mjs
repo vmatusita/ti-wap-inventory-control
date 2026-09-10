@@ -52,7 +52,28 @@ function arquivosJs(dir) {
  * vermelho por falso positivo — o custo de um falso negativo já é coberto pela
  * guarda de fonte).
  */
-function temBinding(fonte, id) {
+/**
+ * ⚠ O IDENTIFICADOR ENTRA ESCAPADO, e isto não é zelo: sem escapar, um export
+ * minificado chamado `$` vira a ÂNCORA DE FIM DE STRING dentro da expressão
+ * regular. Nenhuma das cinco formas casa, e o gate acusa como "sem binding" um
+ * identificador perfeitamente ligado — falso positivo PERMANENTE para esse nome.
+ *
+ * Aconteceu de verdade na F55 (10/09/2026): o minificador alocou `$` para uma
+ * Server Action de `src/lib/actions/termos.ts`, o chunk trazia
+ * `async function $(a){…}` a 6.387 caracteres do começo, e o job `verificar`
+ * ficou VERMELHO com `[root-of-the-server]__0p9moo6._.js → $`.
+ *
+ * Falso positivo é o pior defeito que um gate pode ter, porque o conserto que
+ * ele convida é desligá-lo. Nada aqui ficou mais permissivo: um `$` que de fato
+ * NÃO tenha binding continua sendo acusado — e o `IDENTIFICADOR` logo abaixo já
+ * aceitava `$` como nome válido desde sempre.
+ */
+function escaparRegex(texto) {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, (c) => `\\${c}`)
+}
+
+function temBinding(fonte, idBruto) {
+  const id = escaparRegex(idBruto)
   const formas = [
     new RegExp(String.raw`function\s+${id}\s*\(`),
     new RegExp(String.raw`\b${id}\s*=[^=]`),

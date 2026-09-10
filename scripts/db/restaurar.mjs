@@ -51,7 +51,7 @@
 // -----------------------------------------------------------------------------
 // O QUE ELE NÃO FAZ
 // -----------------------------------------------------------------------------
-// · Não aponta para produção. Nunca. Ver `REFS_DE_PRODUCAO` abaixo.
+// · Não aponta para produção. Nunca. Ver `REFS_DE_ENSAIO` abaixo.
 // · Não decide o que restaurar: ele restaura o que está no arquivo. Recorte é assunto
 //   de quem escolheu o backup.
 // · Não repõe o que o backup não traz. É para isso que existe o campo `nao_incluido`
@@ -64,9 +64,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 // -----------------------------------------------------------------------------
-// A GUARDA — por IDENTIDADE, nunca por consistência
+// A GUARDA — por PERMISSÃO, nunca por consistência (F55 inverteu a F11)
 // -----------------------------------------------------------------------------
-// ⚠ ESPELHA `REFS_DE_PRODUCAO` de `scripts/env-guard.ts`, e a duplicação é obrigada:
+// Até a F55 (10/09/2026) esta era uma lista de NEGAÇÃO com um item
+// (`REFS_DE_PRODUCAO`): um ref INVENTADO, ou um projeto de produção NOVO, passava.
+// Agora é uma lista de PERMISSÃO — o ref TEM de estar em `REFS_DE_ENSAIO` — MAIS o
+// caso legítimo do CI: uma `DATABASE_URL` de Postgres LOCAL, sem ref nenhum, também
+// passa (é assim que o `banco-sem-docker` roda `db:test:mutations`). Essa exceção NÃO
+// existe em `scripts/env-guard.ts`: lá um ref ausente já é erro de configuração antes
+// desta guarda ser alcançada — as duas semânticas são diferentes de propósito.
+//
+// ⚠ ESPELHA `REFS_DE_ENSAIO` de `scripts/env-guard.ts`, e a duplicação é obrigada:
 // este arquivo é `.mjs` e aquele é `.ts` — um não importa o outro sem transpilar. O
 // que impede as duas listas de divergirem é `scripts/db/restaurar-guarda.test.mts`,
 // que lê os DOIS arquivos e exige que os conjuntos sejam iguais.
@@ -76,7 +84,13 @@ import { join } from 'node:path'
 // IDENTIDADE. Com os dois apontando para produção (que era o estado do `.env.local`
 // naquele dia) as três guardas passavam, e `npm run db:reset` teria zerado o acervo
 // real. Consistência não protege de nada quando o erro é coerente.
-const REFS_DE_PRODUCAO = ['pbtjcalbmepmrqzprusb']
+const REFS_DE_ENSAIO = ['sgmvldiizsrjbxzzpmhh']
+
+// Refs de PRODUÇÃO conhecidos, usados SÓ para dar a mensagem CERTA quando alguém
+// aponta para lá. A permissão de verdade é `REFS_DE_ENSAIO`, acima — um ref de
+// produção NOVO que não esteja aqui ainda cai no "ref não permitido" genérico,
+// RECUSADO do mesmo jeito.
+const REFS_DE_PRODUCAO_CONHECIDOS = ['pbtjcalbmepmrqzprusb']
 
 /** O `<ref>` de uma URL `https://<ref>.supabase.co`, ou null. */
 export function refDaUrl(url) {
@@ -107,17 +121,32 @@ export function refDaDatabaseUrl(dbUrl) {
   return null
 }
 
-/** Recusa qualquer ref de produção, venha de onde vier. Sai do processo. */
-export function exigirNaoProducao(refs) {
-  const proibidos = refs.filter((r) => r && REFS_DE_PRODUCAO.includes(r))
-  if (proibidos.length > 0) {
-    console.error(
-      `\n[GUARDA] Execução recusada: o ref "${proibidos[0]}" é PRODUÇÃO ` +
-        '(docs/RUNBOOK-BANCO.md).\n' +
-        'Este script NUNCA restaura em produção — nem com confirmação, nem com variável\n' +
-        'de ambiente. Aponte DATABASE_URL e NEXT_PUBLIC_SUPABASE_URL para o projeto de\n' +
-        'ensaio, ou para um Postgres descartável.\n',
-    )
+/**
+ * Só passam: um ref de `REFS_DE_ENSAIO`, ou NENHUM ref (Postgres local, sem
+ * subdomínio do Supabase — o caso legítimo do CI). Qualquer outro ref é recusado;
+ * a mensagem muda conforme ele bater com um dos conhecidos de produção ou não.
+ * Sai do processo.
+ */
+export function exigirAmbientePermitido(refs) {
+  for (const ref of refs) {
+    if (!ref) continue // sem ref = Postgres local, caso legítimo do CI
+    if (REFS_DE_ENSAIO.includes(ref)) continue
+    if (REFS_DE_PRODUCAO_CONHECIDOS.includes(ref)) {
+      console.error(
+        `\n[GUARDA] Execução recusada: o ref "${ref}" é PRODUÇÃO ` +
+          '(docs/RUNBOOK-BANCO.md).\n' +
+          'Este script NUNCA restaura em produção — nem com confirmação, nem com variável\n' +
+          'de ambiente. Aponte DATABASE_URL e NEXT_PUBLIC_SUPABASE_URL para o projeto de\n' +
+          'ensaio, ou para um Postgres descartável.\n',
+      )
+    } else {
+      console.error(
+        `\n[GUARDA] Execução recusada: o ref "${ref}" não está na lista de ensaio\n` +
+          'permitida (REFS_DE_ENSAIO em scripts/db/restaurar.mjs). Aponte DATABASE_URL e\n' +
+          'NEXT_PUBLIC_SUPABASE_URL para o projeto de ensaio, ou para um Postgres\n' +
+          'descartável sem ref (como no CI).\n',
+      )
+    }
     process.exit(1)
   }
 }
@@ -294,7 +323,7 @@ async function baixarDoBucket(caminho) {
       'Para ler do bucket é preciso NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.',
     )
   }
-  exigirNaoProducao([refDaUrl(url)])
+  exigirAmbientePermitido([refDaUrl(url)])
   const r = await fetch(`${url}/storage/v1/object/backups-import/${caminho}`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
   })
@@ -316,7 +345,10 @@ async function main() {
 
   const dbUrl = process.env.DATABASE_URL
   // A guarda roda ANTES de qualquer leitura, e sobre TODAS as fontes de ref.
-  exigirNaoProducao([refDaDatabaseUrl(dbUrl), refDaUrl(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')])
+  exigirAmbientePermitido([
+    refDaDatabaseUrl(dbUrl),
+    refDaUrl(process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''),
+  ])
 
   const backup = existsSync(caminho)
     ? JSON.parse(readFileSync(caminho, 'utf8'))
@@ -399,4 +431,4 @@ if (process.argv[1] && process.argv[1].endsWith('restaurar.mjs')) {
   })
 }
 
-export { REFS_DE_PRODUCAO, montarTransacao }
+export { REFS_DE_ENSAIO, REFS_DE_PRODUCAO_CONHECIDOS, montarTransacao }

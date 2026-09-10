@@ -15,6 +15,28 @@ import { fileURLToPath } from 'node:url'
 const alias = {
   // Mesmo alias do tsconfig (@/* -> src/*), para os imports funcionarem.
   '@': fileURLToPath(new URL('./src', import.meta.url)),
+  // F55 — `server-only` resolvido para o MÓDULO VAZIO que o próprio pacote
+  // publica.
+  //
+  // O pacote tem um `exports` com a condição `react-server`: nela ele resolve
+  // para `empty.js` (um no-op); em qualquer outra, para `index.js`, que LANÇA
+  // incondicionalmente ("This module cannot be imported from a Client Component
+  // module"). O Vitest não declara a condição `react-server`, então todo teste
+  // que importasse — mesmo TRANSITIVAMENTE — um módulo com `import
+  // 'server-only'` morria na avaliação, antes da primeira asserção.
+  //
+  // Até a F55 isso passava despercebido porque nenhum módulo testado importava
+  // um só-servidor. Quando o funil de falha (`registrarFalha`) entrou em 36
+  // arquivos, `src/lib/actions/erros.test.ts` — que testa a função PURA
+  // `traduzErroBanco` — parou de conseguir carregar o próprio módulo. A escolha
+  // era ou espalhar a metade pura do funil por toda parte (e a promessa da
+  // ficha, "o funil é `server-only`", virava letra morta), ou dizer ao runner
+  // qual condição ele está simulando. É isto.
+  //
+  // ⚠ Isto NÃO afrouxa nada em PRODUÇÃO: o build do Next continua resolvendo o
+  // pacote pela condição real, e um Client Component que importe um módulo
+  // só-servidor continua quebrando o build — que é onde a promessa vale.
+  'server-only': fileURLToPath(new URL('./node_modules/server-only/empty.js', import.meta.url)),
 }
 
 export default defineConfig({

@@ -9438,3 +9438,277 @@ Revisão em contexto fresco, quatro lentes independentes (comportamento do usuá
 - ⚠️ **E derruba a inferência que eu tinha tirado do diagnóstico errado.** A ata anterior concluía que o achado era *"um argumento medido a favor de aplicar por script em vez de colagem"*. **Não é** — a origem da divergência não tem nada a ver com o caminho do apply. O argumento a favor do script continua de pé pelos motivos dele (fidelidade de 90 KB, incidente F7E), mas não por este achado.
 - Pendência que isto abre: `--regravar-alterada` deveria exigir a reemissão da função nos ambientes já aplicados, ou a sonda de paridade deveria rodar fora de janela de apply. Nenhuma das duas foi feita aqui — fica nomeado.
 - Reversível? sim: reemitir os corpos anteriores. Mas não faz sentido — o estado atual é o único que casa com o repositório.
+
+---
+
+## 2026-09-10 · F55 — Observabilidade, sonda e alarme de integridade
+
+*Onze decisões, todas tomadas contra medição do disco e dos dois bancos. Onde a medição contrariou a
+ficha do `PLANO-MULTIEMPRESA.md` §5 → F55, a medição venceu e a divergência está declarada aqui e no
+`docs/RELATORIO-F55.md`.*
+
+### Decisão 1 — o resumo de integridade não chama a função da /dev por dentro; o SQL das doze MUDA DE CASA
+
+- **Contexto.** A ficha manda `checagens_integridade_resumo()` chamar `dev_checagens_integridade()` por
+  dentro. Medido no corpo vigente (`0136:43-46`): ela abre com `if not public.e_dev()`, e `e_dev()` lê
+  `papel_atual()` → `auth.uid()`, **o JWT de quem chama**. `security definer` troca o `current_user`;
+  **não troca o JWT**. O desenho da ficha nasce recusando todo mundo que não é dev — inclusive a conta que
+  ia rodar o smoke.
+- **Escolha.** O SQL das doze saiu para `public.checagens_integridade_nucleo()`, **VERBATIM**, e as duas
+  portas viraram guarda + delegação. Núcleo fechado nos quatro papéis; o resumo com
+  `papel_atual() is not null` e projeção `(chave, total)`.
+- **Motivo.** A saída óbvia — copiar o SQL das doze para dentro do resumo — é a doença que a F51 curou nas
+  onze cópias da RPC de import: duas cópias do mesmo SQL é como uma das duas envelhece sem ninguém notar.
+- **Prova.** `docs/f55-evidencias/C1`: diff das doze peças contra a `0136`, **189 linhas idênticas byte a
+  byte**, 12 `return query` dos dois lados. E `C2`: os mesmos totais antes × depois nos dois bancos.
+
+### Decisão 2 — a política do alarme é hoje-zero × catraca, POR ALVO, e a linha de base só DESCE
+
+- **Contexto.** "Hoje-zero" não é "todas". Medido em 10/09/2026: produção tem `arquivo_termo_orfao` 3,
+  `conflito_entre_filiais` 69 e `backup_orfao` 10; o ensaio tem `operador_sem_filial` 1. Um alarme que
+  falhasse acima de zero em todas nasceria vermelho no primeiro dia — e alarme que nasce vermelho é alarme
+  que se aprende a ignorar.
+- **Escolha.** Um número por chave **por alvo**, em `scripts/smoke/linha-de-base.json`. O alarme dispara
+  quando o total PASSA dele. A linha de base **só desce** (a sonda avisa quando pode); **subir é decisão do
+  Johnny, com ata** — subir sozinho é apagar o alarme em vez de resolver o achado.
+- **Por ALVO, e não uma linha só:** o ensaio tem um operador sem filial que produção não tem, e produção
+  tem conflitos e órfãos que o ensaio não tem. Uma linha única faria o disparo contra o ensaio alarmar
+  sozinho todo dia.
+- **A releitura de confirmação:** só `backup_orfao`, depois de **90 s**, pelo falso positivo transitório
+  que a própria F54 documentou (um backup em voo aparece contado por alguns segundos). As outras onze
+  alarmam na primeira leitura — inventar espera para todas seria atrasar o alarme de verdade por causa de
+  uma checagem.
+- ⚠ **`conflito_entre_filiais` caiu de 137 (04/08) para 69 (10/09).** O valor "normal" desta chave se
+  MOVE; é mais um argumento para a catraca e contra um número mágico no código.
+
+### Decisão 3 — a redação é por NOME de chave E por VALOR
+
+- **Contexto.** A trava da ficha olha só o NOME (`/senha|token|key|hash|cpf/i`). Mas
+  `lib/auditoria-registro.ts:45` loga `alvo`, e o próprio tipo diz o que é: *"e-mail do convidado"*.
+  **Nenhum nome de chave casa a regex, e o valor é pessoal do mesmo jeito.**
+- **Escolha.** Os dois. Por valor: e-mail, CPF (formatado e cru), telefone, JWT e chave publicável da
+  Supabase. Vale para TODA string que sai do funil, **inclusive `erro.mensagem`** — um `raise` de plpgsql
+  com `%` carrega valor. `details` e `hint` do PostgREST nunca saem (o precedente escrito do
+  `descreverErro` do smoke).
+- ⚠ **PATRIMÔNIO NÃO É REDIGIDO, e é decisão.** Ele não é dado pessoal, é o identificador que faz um log
+  de erro ser acionável, e o log do servidor é o lugar dele. O que nunca carrega amostra é o ALARME: o
+  resumo devolve contagem, e o corpo da issue não tem por onde receber um patrimônio.
+- ⚠ **A sabotagem achou um furo REAL na primeira execução:** `\bkey\b` NÃO casa
+  `SUPABASE_SERVICE_ROLE_KEY`, porque `_` é caractere de palavra e não há fronteira antes do `KEY`. A
+  chave mais perigosa do repositório saía inteira sob o nome dela mesma. Corrigido, com caso de regressão.
+
+### Decisão 4 — a trava de console alcança TODO o servidor, não `lib/actions` + `lib/queries`
+
+- **Medição.** A trava da ficha alcançaria **59 das 76**. As outras 17 — 10 em `app/(app)`, 3 em
+  `lib/storage`, 3 em `lib/auth` e 1 na auditoria — ficariam livres para voltar no dia seguinte.
+- **Escolha.** Todo o `src/` de servidor, com uma lista NOMINAL de **dez** Client Components (os oito
+  `error.tsx`, o `global-error.tsx` e o botão de exportar CSV), cujo tamanho o próprio teste afirma.
+- **Custo.** Um falso positivo custa um teste vermelho; um furo custa um log solto que ninguém acha.
+
+### Decisão 5 — a ida ao banco de `/api/saude` é uma leitura pela chave pública, sem `head`
+
+- **Contexto.** `anon` não executa função nenhuma, e há DUAS travas dizendo isso (asserções 4 e 6a do
+  `catalogo_secdef.sql`, com `k_invoker_anon` vazia desde a `0129`). Uma RPC nova para `anon` derrubaria
+  as duas.
+- **Escolha.** `select('id').limit(1)` em `public.filiais` pela chave publicável. **Zero superfície nova**:
+  nenhuma função, nenhum grant. Medido: as quatro policies de `filiais` são `{authenticated}`, então
+  `anon` recebe lista VAZIA — a resposta prova que o Postgres respondeu, não o que ele tem.
+- ⚠ **Sem `head: true`.** Medido pela casa em 22/07/2026 e escrito em `smoke-prod.mjs:334-341`:
+  `count:'exact', head:true` numa relação INEXISTENTE devolve 204/null/null. Uma sonda feita assim diria
+  "banco ok" com a tabela sumida — falso verde exatamente no cenário que ela existe para pegar.
+
+### Decisão 6 — a Parte B agendada NÃO roda a Parte C
+
+- **Medição.** Com uma conta de cargo `consulta`, **6 dos 65 checks da Parte C** (`/admin/usuarios`,
+  `/admin/itens`, `/admin/kits`, `/admin/importar`, `/admin/colaboradores`, `/admin/tipos-item`) caem no
+  ramo genérico de 3xx e viram **AVISO** com o texto *"sessão não aceita — check inconclusivo"*. O texto
+  **mente sobre a causa**: a sessão FOI aceita; o que faltou foi CARGO. Eles ficariam permanentemente
+  cegos, e sem derrubar o exit code.
+- **Escolha.** O agendado roda a sonda sem sessão (Parte A) e uma sonda de integridade nova
+  (`scripts/smoke/integridade.mjs`): login + leituras de prova de sessão + o resumo. A Parte C continua
+  sendo o ritual pós-deploy local, com a conta admin.
+- ⚠ **E ela é `fetch` puro, sem dependência.** Duas razões medidas: minuto de Actions em repositório
+  privado custa (o `ci.yml` já consome ~830 min de job em 8,85 dias, projeção ~2.800–3.200/mês contra uma
+  cota de 2.000 ou 3.000), e uma queda do registro do npm viraria ALARME FALSO. O `smoke-prod.mjs` passou
+  a importar o `supabase-js` por `await import()` dentro da Parte B, então `--sem-sessao` também roda sem
+  `npm ci`.
+- **Sem credencial, no agendado, é FALHA.** Local continua tolerante — lá há um humano lendo a saída.
+
+### Decisão 7 — o `.env.example` cobre por CLASSE, e o teste conhece as de SISTEMA
+
+- **Medição.** O `.env.example` documentava 6 variáveis; o código lê **51** nomes de `process.env`.
+- **Escolha.** Quatro classes — aplicação, dados fictícios, ferramenta, e uma nota sobre as de sistema
+  (`NODE_ENV`, `VERCEL_*`, `HOME`, `LOCALAPPDATA`, `VITEST`, `CI`), que não se declaram porque quem as
+  define é o ambiente. `scripts/env-exemplo.test.ts` lê o fonte e reprova variável nova não classificada.
+
+### Decisão 8 — três consumidores, três semânticas
+
+| consumidor | semântica | por quê |
+|---|---|---|
+| `scripts/env-guard.ts` (seed/reset) | ref em `REFS_DE_ENSAIO` **E** o banco confirma `'desenvolvimento'` | é quem escreve dado fictício |
+| `scripts/db/restaurar.mjs` | ref em `REFS_DE_ENSAIO` **OU** Postgres local sem ref | o CI restaura contra `DATABASE_URL` local, e isso não é erro |
+| `scripts/import/guard.ts` | **intacto**, sem lista | a carga do go-live vai a produção por desenho |
+
+⚠ **A confirmação pelo BANCO é a parte nova, e ela vale para o `db:seed`.** Até aqui o seed só era
+segurado pela lista e por uma condição de DADO (ele recusa base que já tem ativo) — uma base de produção
+NOVA, vazia, passaria. Agora `rotulo_de_ambiente()` tem de responder `'desenvolvimento'`, e falha na
+checagem é RECUSA (falha fechada).
+
+### Decisão 9 — o nascimento da conta `consulta`
+
+- **Escolha.** API administrativa (`createUser`) para criar, e `definir_papel_usuario` **com a sessão de
+  um administrador** para o cargo — assim o evento tem autor de verdade. Endereço derivado por
+  sub-endereçamento (`+agendado`) do endereço da conta de smoke que já existia; senha por `crypto`, nunca
+  exibida.
+- **Motivo do sub-endereçamento:** a caixa tem de ser a mesma pessoa. Inventar um endereço no domínio da
+  WAP arriscaria a caixa de outra pessoa — o domínio é real.
+- **Conferido antes de qualquer secret subir:** cargo `consulta`, perfil ativo, **zero** vínculo em
+  `operador_filiais`, ela LÊ o resumo (12 chaves) e **NÃO** alcança a função da `/dev` (HTTP 403).
+- ⚠ **A RPC não escreve a trilha; quem escreve é a Server Action.** Como o nascimento foi por script, o
+  evento `papel_alterado` foi gravado em `eventos_admin` pelo mesmo caminho e com o mesmo vocabulário.
+- **Conferido depois:** a linha de base de produção não se mexeu (3 / 69 / 10, o resto zero) — a conta
+  nova não acendeu `operador_sem_filial` nem `conta_sem_perfil`.
+
+### Decisão 10 — a prova do `onRequestError` é numa prévia, em branch descartável
+
+- Branch descartável, **só push, sem PR** (PR dispara CI, custa minuto e deixaria mergeável um erro de
+  propósito), erro provocado numa prévia da Vercel, lido pelo MCP. Nunca mergeada, apagada no fim.
+- **Gatilho permanente de erro em rota pública de produção é proibido.**
+
+### Decisão 11 — dois documentos novos, na convenção da casa
+
+`docs/RUNBOOK-ALARME.md` (o procedimento de resposta, para onde a issue aponta) e
+`docs/INVENTARIO-CREDENCIAIS.md` (por NOME, nunca valor). Os dois indexados em `docs/README.md`. A regra
+nova da matriz entrou como emenda F55 na família **`R-ACC`**, de `R-ACC-60` a `R-ACC-62` — o próximo id
+livre, medido.
+
+---
+
+### Ata de execução — o que aconteceu, e o que quase deu errado
+
+**A `0138` foi aplicada em ensaio e depois em produção**, caminho A, com a verificação pós-apply do
+runbook. Contagens de acervo antes = depois (ativos 1621, movimentações 3520, lançamentos 117, termos 98,
+perfis 15). `security definer` em `public`: 48 → 51. **Um único achado novo de segurança**, declarado de
+antemão: `checagens_integridade_resumo` alcançável por `authenticated` (27 → 28). Ordem de rollback
+ensaiada **só no ensaio**, em `begin … rollback`: as doze voltam inline, o núcleo some, e a transação não
+deixou rastro (conferido fora dela).
+
+⚠ **EDITEI UMA MIGRATION JÁ APLICADA, pelo caminho que a casa autoriza — e a ata de 09/09 avisa do efeito
+colateral, então aqui vai a conferência que ela pede.** O cabeçalho da `0138` continha, na ORDEM DE
+ROLLBACK, um pseudo-SQL da forma `create or replace function public.dev_checagens_integridade() …`.
+`scripts/db/corpo-vigente.mjs` varre o TEXTO do arquivo e leu aquilo como definição de verdade — engolindo
+o corpo real do núcleo. `cobertura.test.mts` acusou: *"nenhuma migration define
+public.checagens_integridade_nucleo()"*. É exatamente a armadilha que o cabeçalho da `0136` descreve sobre
+o gate.
+- **O que mudou:** só linhas de comentário. Medido: `git diff` do arquivo, filtrando `--`, devolve
+  **ZERO** linhas de SQL executável.
+- **O que foi aplicado nos bancos nunca teve o cabeçalho:** o texto enviado começa em
+  `create or replace function`.
+- **A conferência que a ata de 09/09 pede, feita:** `md5(pg_get_functiondef(...))` das quatro funções, com
+  e sem comentários, **idêntico nos dois bancos** — `788214aa153d66587ca876524d3f65c5` /
+  `6b32fb772654b9f2e372285295e8d89b` para o núcleo, e os outros três iguais nas duas formas. **Nenhum
+  banco ficou para trás.**
+- `npm run db:lock -- --regravar-alterada` usado com isso escrito.
+
+**A Frente F rodou inteira, na ordem 1 → 2a → 2b → 3, e o classificador não barrou nenhum passo.**
+- **Unidade 1 (produção):** conta `consulta` criada, conferida e os quatro secrets no ar — nessa ordem.
+- **Unidade 2a:** o `.env.local` passou a apontar para o ENSAIO. As `SMOKE_*` receberam os valores de
+  PRODUÇÃO **antes** da troca (a cascata do smoke é `SMOKE_*` → `NEXT_PUBLIC_*`, e sem isso o smoke
+  pós-deploy passaria a sondar o ensaio sem ninguém notar). `SUPABASE_SERVICE_ROLE_KEY` e `SEED_CONFIRM`
+  ficaram **vazias**; `VIEW_SESSION_SECRET` ganhou um valor local novo. **Conferência por hash antes de
+  gravar** — e ela ACUSOU na primeira execução (as duas `SMOKE_*` nasciam sem estar na lista de previstas),
+  o que é a trava funcionando.
+- **Unidade 2b:** chave de serviço do ensaio pela Management API, no mesmo processo; a persona fictícia
+  `seed.consulta@wap.ind.br` criada no ensaio **sem rodar o seed** (que recusaria: o ensaio tem 1.602
+  ativos); os quatro secrets do ensaio e a variable pública.
+- **Unidade 3:** `SUPABASE_ACCESS_TOKEN` saiu do `.env.local` para o **Gerenciador de Credenciais do
+  Windows**. ⚠ Variável de usuário PERSISTENTE do Windows **não** seria melhora: ela é herdada por todo
+  processo, inclusive pelo `npm run dev`. Medido antes, **com um token falso**: `supabase login` lê da
+  ENTRADA PADRÃO (não precisa de `--token`, que deixaria o valor na linha de comando), e o destino é o
+  cofre — o arquivo de texto `~/.supabase/access-token`, que é o fallback da CLI, **não existe**. Depois,
+  `npm run db:types` rodou **sem a variável** e gerou arquivo idêntico. A configuração do MCP desta máquina
+  **não cita** este token (comparado por hash, dentro do processo).
+
+**A quarentena que a F52 apontou para a F55 foi REAPONTADA para a F73**, com o motivo escrito:
+`conflito-serializacao-por-advisory-lock` exige um harness em Node com DUAS conexões `psql` simultâneas —
+construção nova, e antecipá-la aqui seria a fase seguinte antecipada. A F73 é a única ficha que já exige,
+por conta própria, um provador com duas sessões (o canário de isolamento).
+
+**Divergências contra a ficha, todas declaradas:** a migration é a `0138` e a versão a `1.60.0`, não a
+`0135`; o resumo devolve `(chave, total)` e não `(chave, quantidade)`; a guarda é `papel_atual() is not
+null` e não `e_admin()` (decisão do Johnny); são 76 chamadas de servidor e 10 exceções de cliente, não 94
+e 2; a prova do alarme é por `workflow_dispatch` contra o ensaio, não pelo disparo agendado.
+
+**Um comentário desatualizado achado de passagem, e NÃO corrigido:** `src/lib/supabase/proxy.ts:6` diz que
+o proxy roda no Edge. No Next 16 ele roda **sempre em Node** e não aceita troca (a doc local,
+`02-guides/upgrading/version-16.md:629`). A decisão de arquitetura que o comentário justifica continua
+válida pelos motivos dela; só a justificativa envelheceu. Fica nomeado — mexer ali não é escopo desta fase.
+
+### A revisão adversarial, e o que ela mudou
+
+Quatro revisores em **contexto fresco** (nenhum viu a conversa de execução), um por lente — o funil, a
+sonda e a `0138`, o alarme, as credenciais —, mais um consolidador que reverificou por conta própria
+tudo que veio marcado como GRAVE. Cinco defeitos, todos corrigidos, todos com o caso que os pega:
+
+1. **`CHAVE_SENSIVEL` não tinha `credencial`** — só o inglês `credential`. A palavra que este
+   repositório usa é a portuguesa (`actions/importar.ts`, `escopo/pertencimento.ts`,
+   `supabase/admin.ts`). Entrou o stem `credencia`, que cobre as duas línguas e o plural.
+2. **`auth`, `pwd` e `jwt` não casavam como palavra** — e `jwtClaims`/`authToken` escapariam de
+   qualquer jeito, porque **a fronteira `\b` nunca fecha em camelCase** sob o flag `i`. A correção
+   não foi acrescentar padrão: foi `normalizarChave`, que quebra `jwtClaims` em `jwt_claims` **antes**
+   de testar. Padrão a mais só adia o problema; normalizar a chave o resolve.
+3. **CPF com pontuação parcial** (`123456789-09`, `123.456.789.09`) não batia em nada.
+4. **O `matcher` do proxy excluía `api/saude` por PREFIXO** — `/api/saude-financeira` nasceria sem
+   sessão, o contrário do que o comentário do próprio arquivo promete. Entrou o `$`, e entrou
+   `src/proxy.test.ts` para provar rota a rota. Nota: a trava de `saude-workflow.test.ts` **não
+   pegaria isso** — ela lê o YAML do workflow, não o regex do proxy.
+5. **A impressão do estado do alarme não sobrevivia a uma edição manual do corpo da issue.** Sem a
+   marca de HTML, o run seguinte anunciava *"o estado MUDOU"* sem nada ter mudado. `impressaoDoCorpo`
+   passou a devolver **`null` para "não sei"** — que é coisa diferente de `''`, "medi e não há chave em
+   alarme" — e `decidirIssue` escolhe o **silêncio** diante da dúvida: atualiza o corpo (o que repõe a
+   marca) e espera o próximo run. Anunciar mudança que não houve manda alguém procurar no banco um
+   movimento que não existiu, e alarme que mente uma vez perde o crédito das outras.
+
+   No caminho, as duas funções **saíram de `alarme-issue.mjs` e foram para `alarme.mjs`**: o primeiro
+   chama `main()` na importação, e o que morava lá **nenhum teste alcançava** — que é exatamente por
+   que o defeito viveu ali.
+
+O sexto achado do consolidador não era código: era o **relatório**. Os critérios 8 e 9 estavam
+marcados `✅` **sem citar evidência**, quebrando o padrão de todas as linhas vizinhas, num ponto em
+que a ordem pedia prova nominal. Estava certo, e virou `docs/f55-evidencias/B2-sabotagem-sonda.txt`.
+
+### O falso verde do `head` é da BIBLIOTECA, não do banco
+
+A nota de 22/07/2026 em `scripts/smoke/smoke-prod.mjs` dizia que `count: 'exact', head: true` numa
+relação inexistente devolve *"HTTP 204, count null, error NULL"*. A medição da `B2`, contra o ensaio,
+**confirma isso à letra** — e mostra que o 204 **não vem do PostgREST**: no fio, a tabela que não
+existe recebe **404 nas duas formas**. Quem cunha o 204 é o `@supabase/supabase-js`, que numa
+requisição `head` não tem corpo de erro para ler e entrega `{ error: null, count: null, status: 204 }`.
+
+- Contexto: a ordem exigia provar a sonda contra uma relação que não existe, e a prova acabou dizendo
+  mais do que se pedia.
+- Decisão: **manter a regra e reescrever a justificativa dela** — a nota no `smoke-prod.mjs` agora
+  aponta para a `B2` e nomeia onde o 204 nasce.
+- Motivo: a conclusão prática não muda e fica mais firme (só a forma **com corpo** devolve o erro), mas
+  a causa importa: quem acreditasse que o banco responde 204 poderia "consertar" o problema trocando de
+  endpoint. O que há a fazer é não usar `head` quando a pergunta é "o banco respondeu?".
+
+### Um bloqueio do classificador, e um incidente que não é da branch
+
+O revisor da lente "credenciais", ao inspecionar o `.env.local`, escreveu um `awk` de redação que
+falhou e **imprimiu quatro credenciais em claro na transcrição dele** — `VIEW_SESSION_SECRET`,
+`MS_CLIENT_SECRET`, a chave publicável do ensaio e o par `SMOKE_EMAIL`/`SMOKE_SENHA` (conta
+administrativa de **produção**). Ele reportou o próprio erro e mudou de método no resto da revisão.
+Nada saiu para o repositório, para o CI ou para serviço externo; a exposição é local, num arquivo de
+transcrição desta máquina.
+
+A contenção tentada — um script que lia o `.env.local` e a transcrição no MESMO processo e trocava
+cada valor por `[REDIGIDO-F55:<NOME>]`, sem imprimir valor, recusando gravar se quebrasse o JSONL —
+**foi barrada pelo classificador de segurança**. Conforme a ordem: não reformulei para passar, não
+tentei outra operação de credencial em seguida, registrei o bloqueio e segui para trabalho que não é
+credencial. O passo e as quatro credenciais a girar estão no `INVENTARIO-CREDENCIAIS.md` §9 e no
+roteiro do `RELATORIO-F55.md` §1.8. **Nada da F55 dependia dele.**
+
+- A regra que o incidente acrescenta: **redigir por filtro de texto falha ABERTO.** Um `awk` que erra o
+  padrão imprime tudo. Quem precisa olhar um `.env*` conta linhas, lista nomes ou tira hash — não filtra
+  o valor esperando que o filtro acerte.

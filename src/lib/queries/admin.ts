@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { registrarFalha } from '@/lib/observabilidade'
 import type { TipoMovimentacao } from '@/lib/dominio'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 
@@ -123,7 +124,7 @@ async function lerContasAuth(): Promise<{
     }
     return { porId, aviso: null }
   } catch (err) {
-    console.error('[admin/usuarios] falha ao listar contas do Auth', err)
+    registrarFalha({ escopo: 'admin.usuarios-contas-auth', erro: err })
     return {
       porId,
       aviso:

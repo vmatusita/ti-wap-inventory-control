@@ -10,6 +10,8 @@ Este diretório tem 60+ arquivos, e a maior parte é **histórico**. Esta págin
 | Entender o código que já existe | [`ARQUITETURA.md`](ARQUITETURA.md) — sobretudo §10, *"quero mudar X → mexo em Y"* |
 | Trabalhar aqui pela primeira vez | [`ONBOARDING.md`](ONBOARDING.md) |
 | Aplicar uma migration ou mexer no banco | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) |
+| **Chegou uma issue de alarme** — a sonda ficou vermelha | [`RUNBOOK-ALARME.md`](RUNBOOK-ALARME.md) — o que cada checagem quer dizer, onde olhar e o que **não** fazer |
+| Saber onde vive uma credencial (por NOME, nunca o valor) | [`INVENTARIO-CREDENCIAIS.md`](INVENTARIO-CREDENCIAIS.md) |
 | Saber por que algo foi decidido assim | [`DECISOES.md`](DECISOES.md) — atas em ordem cronológica, append-only |
 | Achar onde mora uma regra de negócio | [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) — cada regra com localização e prova |
 | Saber quem pode fazer o quê | [`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md) e [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md) |
@@ -38,6 +40,8 @@ Mantidos atualizados; espera-se que digam a verdade sobre o sistema de hoje.
 | [`ARQUITETURA.md`](ARQUITETURA.md) | Modelo mental, camadas do código, onde mora cada regra |
 | [`ONBOARDING.md`](ONBOARDING.md) | Do clone à primeira mudança em produção |
 | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) | Procedimento de migrations, o "gate", rollback, armadilhas — o anexo A é histórico |
+| [`RUNBOOK-ALARME.md`](RUNBOOK-ALARME.md) | O alarme de saúde e de integridade (F55): o que cada uma das doze checagens quer dizer, o que fazer quando a issue chega, e o que NUNCA fazer (subir a linha de base, plantar estado em produção, apagar achado) |
+| [`INVENTARIO-CREDENCIAIS.md`](INVENTARIO-CREDENCIAIS.md) | Onde cada credencial vive, quem a lê, quem é dona e quando gira — **por NOME, nunca o valor** (F55) |
 | [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) | Matriz viva: cada regra de negócio, onde ela mora e o que a prova |
 | [`PLANO-MULTIEMPRESA.md`](PLANO-MULTIEMPRESA.md) | O plano das 28 fases F45→F73 (preparação e virada multiempresa), de 04/09/2026. **A ficha de cada fase no §5 é a fonte da verdade do escopo dela** — onde a ordem de serviço e ela divergirem, vale a ficha |
 | [`DECISOES.md`](DECISOES.md) | Rastro de auditoria das decisões autônomas (append-only, nunca reescrito) |
@@ -69,8 +73,8 @@ Trabalho de projeto de sistema para uma direção que **ainda não foi decidida*
 
 Estes arquivos descrevem o sistema **na data em que foram escritos**. Não os atualize: se o comportamento mudou, o lugar da verdade é a spec, a matriz de regras ou o CHANGELOG.
 
-- **Relatórios de fase** — `RELATORIO-F11.md` → `RELATORIO-F53.md` (mais `F19-RELATORIO.md` e `RELATORIO-CORRECAO-TRUNCAMENTO-1000.md`): o que cada ordem entregou, com as evidências. As pastas `f45-evidencias/` a `f53-evidencias/` guardam as saídas reais das sabotagens que provam que cada trava sabe ficar vermelha — leia-as junto com o relatório da fase, nunca no lugar dele.
-- **Planos de fase** — `PLAN-F30.md`, `PLAN-F31.md`, `PLAN-F32.md`, `PLAN-F33.md`, `PLAN-F35.md`, `PLAN-F36-F39.md`, `PLAN-F39.md`, `PLAN-F40.md`, `PLAN-F41.md`, `PLAN-F42.md`, `PLAN-F43.md`, `PLAN-F44.md`, `PLAN-F45.md`: o plano medido antes de executar a fase.
+- **Relatórios de fase** — `RELATORIO-F11.md` → `RELATORIO-F55.md` (mais `F19-RELATORIO.md` e `RELATORIO-CORRECAO-TRUNCAMENTO-1000.md`): o que cada ordem entregou, com as evidências. As pastas `f45-evidencias/` a `f55-evidencias/` guardam as saídas reais das sabotagens que provam que cada trava sabe ficar vermelha — leia-as junto com o relatório da fase, nunca no lugar dele.
+- **Planos de fase** — `PLAN-F30.md`, `PLAN-F31.md`, `PLAN-F32.md`, `PLAN-F33.md`, `PLAN-F35.md`, `PLAN-F36-F39.md`, `PLAN-F39.md`, `PLAN-F40.md`, `PLAN-F41.md`, `PLAN-F42.md`, `PLAN-F43.md`, `PLAN-F44.md`, `PLAN-F45.md`, `PLAN-F55.md`: o plano medido antes de executar a fase.
 - **Análises datadas** — `ANALISE-PLANILHA-F4.md`, `ANALISE-UX-2026-08-07.md`, `ANALISE-RELATORIOS-2026-08-10.md`, `SYSTEM-DESIGN-2026-08-30.md`, `E2E-F10.md`.
 - **Evidências** — `f19-evidencias/` (capturas de tela do modo escuro), `f39-evidencias/` (os 5 modelos `.docx` renderizados para conferência visual), `f43-evidencias/` (a tela `/itens` antes e depois, mais as três candidatas de desenho, com as respostas literais do teste dos 5 segundos em `teste-5-segundos.json`), `f44-evidencias/` (a mesma tela nos TRÊS recortes de filial — sem filtro, uma filial, três filiais — e a ficha do ativo, mais a prova de que o número já seguia o filtro em `prova-recorte.txt` e a medição do estado expandido em `acessibilidade-ficha.txt`), `f45-evidencias/` (as quatro provas da F45: o transform de JSX sem dependência, a lógica de reprovação do runner de roteiros contra um `psql` dublê, as quatro sabotagens que fazem a trava do CI ficar vermelha, e o diff da instrumentação dos roteiros que reverte exato — mais a saída dos cinco comandos e a lista de arquivos do Vitest antes/depois), `perf/` (medições de TTFB em JSON, F33 e F37).
 

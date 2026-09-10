@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { registrarFalha } from '@/lib/observabilidade'
 import { lerSessaoView, VIEW_COOKIE_NAME } from '@/lib/auth/senha-sessao'
 import { PAPEL_ROTULO, eAdmin, filiaisDeEscrita, papelAtende } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
@@ -110,7 +111,7 @@ async function lerPapel(supabase: DbClient): Promise<LeituraPapel> {
   if (error) {
     // Logado ALTO: é assim que se descobre que o banco caiu, em vez de ler o sintoma como
     // "todo mundo foi desativado".
-    console.error('[acesso] falha ao ler papel_atual()', error)
+    registrarFalha({ escopo: 'acesso.papel-atual', erro: error })
     return { ok: false }
   }
   return { ok: true, papel: (data as PapelUsuario | null) ?? null }
@@ -137,7 +138,7 @@ async function lerVinculo(
 ): Promise<LeituraVinculo> {
   const { data, error } = await supabase.rpc('pode_escrever_filial', { fid: filialId })
   if (error) {
-    console.error('[acesso] falha ao ler pode_escrever_filial()', { filialId, error })
+    registrarFalha({ escopo: 'acesso.pode-escrever-filial', erro: error, ctx: { filialId } })
     return { ok: false }
   }
   return { ok: true, pode: data === true }
@@ -182,7 +183,7 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
   // a assinatura desta função (~17 chamadores): quem monta mensagem são as GUARDAS, que já
   // distinguem por MSG_FALHA_AO_CONFERIR.
   if (erroPerfil) {
-    console.error('[acesso] falha ao ler o perfil do operador', erroPerfil)
+    registrarFalha({ escopo: 'acesso.perfil-operador', erro: erroPerfil })
     return null
   }
 

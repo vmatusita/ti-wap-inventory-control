@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { exigirPapel } from '@/lib/auth/acesso'
 import { createClient } from '@/lib/supabase/server'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { formatDate, hojeISO } from '@/lib/format'
 import { semanaUtilCorrente } from '@/lib/relatorios/periodo'
@@ -200,7 +201,7 @@ async function lerUltimaVersao(
     .limit(1)
     .maybeSingle()
   if (error) {
-    console.error('[relatorios] falha ao ler a versão vigente do período', error)
+    registrarFalha({ escopo: 'relatorios.versao-vigente', erro: error })
     return { ok: false }
   }
   return {
@@ -243,7 +244,7 @@ export async function consultarVersaoDoPeriodo(input: {
 
   // Aqui a falha de leitura degrada para "não sei" (o `null` do retorno): perder o
   // AVISO não é perder a geração, e um erro que não é do operador atrapalharia mais
-  // do que ajuda. O `console.error` de `lerUltimaVersao` deixa o rastro no servidor.
+  // do que ajuda. O `registrarFalha` de `lerUltimaVersao` deixa o rastro no servidor.
   const leitura = await lerUltimaVersao(client, de, ate, filial?.id ?? null)
   if (!leitura.ok || !leitura.ultima) return null
   return {

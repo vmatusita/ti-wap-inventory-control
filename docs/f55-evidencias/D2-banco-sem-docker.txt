@@ -1,0 +1,51 @@
+O JOB banco-sem-docker — ANTES x DEPOIS (F55, 10/09/2026)
+run 34515480510, os dois checks obrigatorios VERDES
+
+                          ANTES (F54)   DEPOIS (F55)
+  roteiros ..............     32            33   (+ integridade_alarme)
+  assercoes .............    706           745   (+39)
+  mutacoes ativas .......     63            67   (+4), teto 64 -> 68
+  quarentena ............      2             2   (uma reapontada F55 -> F73)
+
+=== os 33 roteiros, com a contagem de cada um ===
+  ✓ asof_desempate — 18 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 58 asserções
+  ✓ catalogo_policies — 15 asserções
+  ✓ catalogo_secdef — 9 asserções
+  ✓ conflito_filiais — 51 asserções
+  ✓ definer_sem_tenant — 6 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 26 asserções
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_fora_da_unidade — 14 asserções
+  ✓ import_substituir — 19 asserções
+  ✓ integridade_alarme — 38 asserções
+  ✓ isolamento_tenant — 11 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ papeis_rls — 77 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 13 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ restauracao — 13 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ storage_termo — 13 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  33 roteiro(s), 745 asserções no total
+
+=== o injetor ===
+nucleo-perde-uma-checagem                                  integridade_alarme.sql      11a              detectada            643 ms
+resumo-de-integridade-alcancavel-por-anon                  integridade_alarme.sql      b2c              detectada            844 ms
+resumo-de-integridade-devolve-amostra                      integridade_alarme.sql      b3               detectada            672 ms
+rotulo-de-ambiente-alcancavel-por-authenticated            integridade_alarme.sql      c4               detectada            506 ms
+67/67 detectadas pelo cenário nomeado · 33083 ms no total

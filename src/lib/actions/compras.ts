@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { compraLoteSchema, type CompraLoteInput } from '@/lib/validators/compra'
 import { chavePatrimonio } from '@/lib/patrimonio'
@@ -157,7 +158,11 @@ export async function registrarCompra(
   if (extrasCelular) {
     const { error: eExtras } = await supabase.from('ativos').update(extrasCelular).in('id', ids)
     if (eExtras) {
-      console.error('[registrarCompra] falha ao gravar telefone/IMEI/Pulsus', eExtras)
+      registrarFalha({
+        escopo: 'compras.extras-celular',
+        erro: eExtras,
+        operador: aut.uid,
+      })
       // ⚠ O erro NÃO derruba a compra (o ativo existe; repetir criaria duplicata),
       // mas tem de chegar a quem digitou. Antes ele morria no log do servidor: a
       // tela dava sucesso, o operador ia embora achando que o IMEI estava salvo, e
@@ -216,7 +221,7 @@ async function sugerir(
     if (!aut.ok) return []
     return await consultar()
   } catch (err) {
-    console.error(`[sugestoes] falha ao sugerir ${rotulo}:`, err)
+    registrarFalha({ escopo: 'compras.sugestoes', erro: err, ctx: { rotulo } })
     return []
   }
 }

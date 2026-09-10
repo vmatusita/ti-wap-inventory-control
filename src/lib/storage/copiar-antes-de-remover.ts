@@ -1,5 +1,6 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { registrarFalha } from '@/lib/observabilidade'
 
 // A PORTA ÚNICA DE REMOÇÃO DE `.docx` — F54.
 //
@@ -166,10 +167,10 @@ export async function copiarArtefatosParaBackup(
       if (r.ok) copiados.push(r.caminho)
       else {
         falharam.push(r.caminho)
-        console.error('[storage] falha ao copiar .docx para o backup — o original NÃO será removido', {
-          caminho: r.caminho,
-          destino: `${BUCKET_BACKUPS}/${prefixoDestino}${r.caminho}`,
+        registrarFalha({
+          escopo: 'storage.copia-termo-backup',
           erro: r.erro,
+          ctx: { caminho: r.caminho, destino: `${BUCKET_BACKUPS}/${prefixoDestino}${r.caminho}` },
         })
       }
     }
@@ -226,9 +227,10 @@ export async function copiarEntaoRemoverTermos(
       const saiu = new Set((data ?? []).map((o) => o.name))
       for (const c of loteRemocao) (saiu.has(c) ? removidos : naoRemovidos).push(c)
     } catch (err) {
-      console.error('[storage] falha ao remover .docx já copiado', {
-        lote: loteRemocao.length,
-        erro: err instanceof Error ? err.message : String(err),
+      registrarFalha({
+        escopo: 'storage.remocao-termo',
+        erro: err,
+        ctx: { lote: loteRemocao.length },
       })
       naoRemovidos.push(...loteRemocao)
     }
@@ -286,9 +288,10 @@ export async function descartarBackupNaoUsado(
     const { error } = await client.storage.from('backups-import').remove([caminho])
     if (error) throw new Error(error.message)
   } catch (err) {
-    console.error('[storage] backup órfão no bucket (a RPC recusou e a remoção falhou)', {
-      caminho,
-      erro: err instanceof Error ? err.message : String(err),
+    registrarFalha({
+      escopo: 'storage.backup-orfao',
+      erro: err,
+      ctx: { caminho },
     })
   }
 }
