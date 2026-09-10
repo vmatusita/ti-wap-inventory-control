@@ -1,0 +1,186 @@
+# =============================================================================
+# Saúde — a sonda agendada e o alarme de integridade (F55, 10/09/2026)
+# =============================================================================
+# Faz o sistema avisar quando quebra, em vez de esperar alguém abrir a tela.
+#
+#   Parte A — a sonda SEM SESSÃO, de 6 em 6 horas: as rotas públicas + /api/saude.
+#   Parte B — a sonda LOGADA, uma vez por dia: lê as contagens das doze checagens
+#             de integridade com uma conta de cargo `consulta` e compara com a
+#             linha de base versionada (`scripts/smoke/linha-de-base.json`).
+#
+# ⚠ ARQUIVO PRÓPRIO, NUNCA UM JOB DO `ci.yml`. Duas razões medidas:
+# `src/lib/ci-passos.test.ts` afirma que os jobs do `ci.yml` são EXATAMENTE
+# `verificar` e `banco-sem-docker` (um job novo lá derruba o teste); e o
+# `banco-sem-docker` é REQUIRED CHECK — uma sonda que fala com produção nunca
+# pode bloquear um merge.
+#
+# ⚠ NÃO RODA EM `push` NEM EM `pull_request`, e não é check obrigatório. Um PR
+# não pode ficar vermelho porque a produção teve um soluço.
+#
+# CUSTO. O repositório é PRIVADO e minuto de Actions é cobrado. Medido em
+# 10/09/2026: o `ci.yml` consome ~830 min de job em 8,85 dias (≈2.800–3.200
+# min/mês), contra uma cota de 2.000 (Free) ou 3.000 (Pro/Team). Por isso este
+# workflow **não roda `npm ci` em nenhuma das duas partes**: a Parte A é `fetch`
+# puro (o `smoke-prod.mjs` importa o `supabase-js` só dentro da Parte B, por
+# `await import`) e a sonda de integridade não tem dependência nenhuma. Cada
+# execução é ~1 min; 4/dia + 1/dia ≈ 150 min/mês.
+# Isso também tira um modo de FALSO ALARME: uma queda do registro do npm deixaria
+# a sonda vermelha por um motivo que não é o sistema.
+#
+# ⚠ O AGENDAMENTO ATRASA, E PODE SER DESCARTADO. A doc do GitHub é explícita:
+# sob carga alta o evento `schedule` atrasa e *"some queued jobs may be dropped"*,
+# e a carga é maior no começo de cada hora. Daí o minuto quebrado.
+# E workflow agendado só roda na branch PADRÃO — `workflow_dispatch` também só
+# existe com o arquivo na `main`.
+#
+# ⚠ NENHUM `echo` DE SECRET, em passo nenhum. Credencial entra por `env:` a
+# partir de `secrets.*`, e os scripts mascaram qualquer eco acidental.
+name: Saúde
+
+on:
+  schedule:
+    # Parte A (sonda sem sessão) — 03:17, 09:17, 15:17 e 21:17 UTC
+    #                            = 00:17, 06:17, 12:17 e 18:17 de Brasília.
+    - cron: '17 3,9,15,21 * * *'
+    # Parte B (integridade) — 09:43 UTC = 06:43 de Brasília, antes do expediente.
+    - cron: '43 9 * * *'
+  workflow_dispatch:
+    inputs:
+      alvo:
+        description: 'Contra qual banco'
+        type: choice
+        options: [producao, ensaio]
+        default: producao
+      partes:
+        description: 'Quais partes rodar'
+        type: choice
+        options: [ab, a, b]
+        default: ab
+
+# Mínimas, e nada além: ler o repositório e mexer nas issues do alarme.
+permissions:
+  contents: read
+  issues: write
+
+# Sem sobreposição: duas execuções do mesmo alvo brigariam pela mesma issue.
+# `cancel-in-progress: false` de propósito — cancelar uma sonda no meio é o mesmo
+# que não ter sondado.
+concurrency:
+  group: saude-${{ inputs.alvo || 'producao' }}
+  cancel-in-progress: false
+
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # PARTE A — sem sessão. Sem segredo, sem npm ci, sem banco.
+  # ---------------------------------------------------------------------------
+  sonda:
+    name: Parte A · sonda sem sessão
+    if: >-
+      github.event_name == 'schedule' && github.event.schedule == '17 3,9,15,21 * * *'
+      || github.event_name == 'workflow_dispatch' && contains(inputs.partes, 'a')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # `inputs` vem VAZIO num disparo agendado, e o `||` resolve para o padrão.
+    # As duas variáveis moram no JOB, não no topo do arquivo: a doc não garante o
+    # contexto `inputs` num `env:` de nível de workflow.
+    env:
+      ALVO: ${{ inputs.alvo || 'producao' }}
+      LINK_DO_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # o mesmo do ci.yml
+
+      # Sem `npm ci`: a Parte A é `fetch` puro. Ver o cabeçalho.
+      - name: Sonda sem sessão (com releitura de confirmação)
+        id: sonda
+        env:
+          SMOKE_URL_APP: ${{ vars.SMOKE_URL_APP }}
+          SMOKE_VERSAO_ESPERADA: ''
+        run: |
+          set +e
+          node scripts/smoke/smoke-prod.mjs --sem-sessao
+          codigo=$?
+          if [ "$codigo" -ne 0 ]; then
+            # RELEITURA: queda de rede passageira não abre issue. Uma segunda
+            # tentativa custa segundos e evita acordar alguém por um soluço.
+            echo "::notice::a primeira leitura falhou — relendo em 60s para confirmar"
+            sleep 60
+            node scripts/smoke/smoke-prod.mjs --sem-sessao
+            codigo=$?
+          fi
+          echo "resultado=$([ "$codigo" -eq 0 ] && echo ok || echo falha)" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Alarme do par (alvo, sonda)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/smoke/alarme-issue.mjs \
+            --alvo="$ALVO" --parte=sonda \
+            --resultado="${{ steps.sonda.outputs.resultado }}" \
+            --motivo="a sonda sem sessão falhou nas DUAS leituras — rota pública fora do ar, /api/saude em 503, ou rota protegida vazando" \
+            --run-url="$LINK_DO_RUN"
+
+  # ---------------------------------------------------------------------------
+  # PARTE B — logada, com a conta de cargo `consulta`.
+  # ---------------------------------------------------------------------------
+  integridade:
+    name: Parte B · integridade
+    if: >-
+      github.event_name == 'schedule' && github.event.schedule == '43 9 * * *'
+      || github.event_name == 'workflow_dispatch' && contains(inputs.partes, 'b')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ALVO: ${{ inputs.alvo || 'producao' }}
+      LINK_DO_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Sem `npm ci`: `integridade.mjs` fala com o PostgREST por `fetch`.
+      #
+      # ⚠ A CONTA É DE CARGO `consulta` (decisão do Johnny, 10/09/2026): ela LÊ
+      # tudo, como todo logado ativo já lê, e não escreve nada, não importa e não
+      # gere conta. Se o secret vazar, o que se perde é leitura — e é por isso que
+      # o resumo devolve só `(chave, total)`, sem uma linha de dado.
+      #
+      # ⚠ CREDENCIAL AUSENTE É FALHA, e o próprio script cuida disso: no agendado,
+      # a sonda que não olha nada não pode reportar verde.
+      - name: Sonda de integridade
+        id: integridade
+        env:
+          # ⚠ OS DOIS CONJUNTOS ENTRAM, e é o SCRIPT que escolhe pelo `--alvo`.
+          # A forma tentadora — `inputs.alvo == 'ensaio' && secrets.X_ENSAIO ||
+          # secrets.X_PRODUCAO` — tem um modo de falha silencioso e grave: com o
+          # secret do ensaio ausente, o `||` CAI NO DE PRODUÇÃO, e um disparo que
+          # pedia ensaio sondaria produção sem avisar. Aqui ausência é ausência, e
+          # o script recusa.
+          SMOKE_SUPABASE_URL_PRODUCAO: ${{ secrets.SMOKE_SUPABASE_URL_PRODUCAO }}
+          SMOKE_SUPABASE_ANON_KEY_PRODUCAO: ${{ secrets.SMOKE_SUPABASE_ANON_KEY_PRODUCAO }}
+          SMOKE_EMAIL_PRODUCAO: ${{ secrets.SMOKE_EMAIL_PRODUCAO }}
+          SMOKE_SENHA_PRODUCAO: ${{ secrets.SMOKE_SENHA_PRODUCAO }}
+          SMOKE_SUPABASE_URL_ENSAIO: ${{ secrets.SMOKE_SUPABASE_URL_ENSAIO }}
+          SMOKE_SUPABASE_ANON_KEY_ENSAIO: ${{ secrets.SMOKE_SUPABASE_ANON_KEY_ENSAIO }}
+          SMOKE_EMAIL_ENSAIO: ${{ secrets.SMOKE_EMAIL_ENSAIO }}
+          SMOKE_SENHA_ENSAIO: ${{ secrets.SMOKE_SENHA_ENSAIO }}
+        run: |
+          set +e
+          node scripts/smoke/integridade.mjs --alvo="$ALVO" --saida=veredito.json
+          exit 0
+
+      - name: Alarme do par (alvo, integridade)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/smoke/alarme-issue.mjs \
+            --alvo="$ALVO" --parte=integridade \
+            --veredito=veredito.json \
+            --run-url="$LINK_DO_RUN"

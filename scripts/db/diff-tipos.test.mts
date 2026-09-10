@@ -236,8 +236,13 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // Se qualquer um dos três CAIR sem que uma migration tenha removido nada, quem
     // regrediu foi o parser — e um parser que perde nomes do lado do repositório faz o
     // gate acusar deriva que não existe.
+    // F55 (10/09/2026): 71 -> 74. A `0138` acrescentou TRES funcoes —
+    // `checagens_integridade_nucleo`, `checagens_integridade_resumo` e
+    // `rotulo_de_ambiente` — e o `database.ts` foi regenerado DE PRODUCAO depois do
+    // apply. E o caso em que este numero deve subir, e o momento de reler o teste e
+    // exatamente este.
     expect(real.relacoes.size).toBe(30)
-    expect(real.funcoes.size).toBe(71)
+    expect(real.funcoes.size).toBe(74)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 

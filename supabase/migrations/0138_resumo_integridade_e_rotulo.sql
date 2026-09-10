@@ -72,8 +72,13 @@
 --   3. só então o SQL, nesta ordem (quem depende primeiro):
 --        drop function public.checagens_integridade_resumo();
 --        drop function public.rotulo_de_ambiente();
---        create or replace function public.dev_checagens_integridade() …
---            reemitindo o corpo INTEIRO da 0136 (as doze checagens inline);
+--        reemitir `dev_checagens_integridade` com o corpo INTEIRO da 0136 (as
+--            doze checagens inline), por substituição pura da definição;
+--            ⚠ a frase acima NÃO usa a forma literal do comando de propósito:
+--            `scripts/db/corpo-vigente.mjs` varre o texto do arquivo, e um
+--            pseudo-SQL de cabeçalho é lido como se fosse definição de verdade —
+--            engolindo o corpo real. Foi exatamente o que aconteceu na primeira
+--            escrita deste arquivo, e o `cobertura.test.mts` acusou;
 --        drop function public.checagens_integridade_nucleo();
 --   4. `notify pgrst, 'reload schema';` — a superfície da API mudou (funções
 --      sumiram), e sem isso o PostgREST ainda as anuncia;

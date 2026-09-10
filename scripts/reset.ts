@@ -21,6 +21,7 @@
 import {
   assertGuardsAndGetConfig,
   createAdminClient,
+  exigirBancoDeDesenvolvimento,
   loadEnvLocal,
 } from './env-guard'
 
@@ -29,6 +30,9 @@ async function main() {
   loadEnvLocal()
   const cfg = assertGuardsAndGetConfig()
   const db = createAdminClient(cfg)
+  // O segundo portao (F55): o PROPRIO BANCO confirma o ambiente, antes de
+  // qualquer leitura ou escrita de dado.
+  await exigirBancoDeDesenvolvimento(db)
 
   console.log(`[reset] projeto: ${cfg.projectRef}`)
 

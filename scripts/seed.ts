@@ -37,6 +37,7 @@ import { chaveColaborador } from '../src/lib/colaboradores/chave'
 import {
   assertGuardsAndGetConfig,
   createAdminClient,
+  exigirBancoDeDesenvolvimento,
   loadEnvLocal,
   type GuardedConfig,
 } from './env-guard'
@@ -1724,6 +1725,9 @@ async function main() {
   const cfg: GuardedConfig = assertGuardsAndGetConfig()
   faker.seed(FAKER_SEED)
   const db = createAdminClient(cfg)
+  // O segundo portao (F55): o PROPRIO BANCO confirma o ambiente, antes de
+  // qualquer leitura ou escrita de dado.
+  await exigirBancoDeDesenvolvimento(db)
   console.log(`[seed] projeto: ${cfg.projectRef}`)
 
   // Pre-requisitos de dados.

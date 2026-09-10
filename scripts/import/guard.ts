@@ -1,5 +1,14 @@
 // Ferramenta de go-live/emergência — o sistema NÃO tem importação; ver spec §10.
 //
+// F55 (10/09/2026) — POR QUE ESTA GUARDA FICA FORA DA INVERSÃO de `scripts/env-guard.ts`
+// e `scripts/db/restaurar.mjs` (lista de NEGAÇÃO virou lista de PERMISSÃO). A carga do
+// go-live vai a PRODUÇÃO por desenho: `CARGA_PROJECT_REF` aponta para o ensaio OU para
+// produção, dependendo de qual banco está recebendo a carga real. Por isso ela NÃO tem
+// (e não pode ter) uma lista de refs permitidos — qualquer lista fecharia a porta que
+// esta ferramenta existe para abrir. A guarda dela é outra: CONSISTÊNCIA (o ref
+// declarado em `CARGA_PROJECT_REF` bate com o ref da URL em uso) mais a confirmação
+// explícita (`CARGA_CONFIRM=sim`) — nunca identidade por lista.
+//
 // Guardas da carga (ordem F4 §3.2.2) — PRIMEIRAS linhas executadas, antes de
 // qualquer leitura do banco:
 //   CARGA_CONFIRM=sim            confirmação explícita

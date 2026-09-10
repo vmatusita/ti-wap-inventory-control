@@ -140,6 +140,6 @@
     "0135_indice_data_ordem.sql": "63c4916efc749fd13edcfb13e068c99e792ae5f7576f55c75362168d79457467",
     "0136_checagem_backup_orfao.sql": "ea21f8a11e9c872870566e6c495325c7e927b22b942fda6a03aafc73fe1cab97",
     "0137_vocabulario_import_falhou.sql": "d44fc4862ae94c644140e6fccb1302869618627677c1559e34d840d851a8a0fb",
-    "0138_resumo_integridade_e_rotulo.sql": "d4e975aea0577bc965bcc0f772d62214e0830e4c5fa671a1aa25663746afa8b5"
+    "0138_resumo_integridade_e_rotulo.sql": "07c486f6593b7274f0e86af21c8845b55c9ff1e9b9ea1ffd16dbdc95723d88fa"
   }
 }
