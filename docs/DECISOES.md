@@ -9712,3 +9712,34 @@ roteiro do `RELATORIO-F55.md` §1.8. **Nada da F55 dependia dele.**
 - A regra que o incidente acrescenta: **redigir por filtro de texto falha ABERTO.** Um `awk` que erra o
   padrão imprime tudo. Quem precisa olhar um `.env*` conta linhas, lista nomes ou tira hash — não filtra
   o valor esperando que o filtro acerte.
+
+### O ensaio caiu no meio da prova do alarme (critério 18) — 10/09/2026, 19:29 UTC
+
+- **Contexto:** o critério 18 pede o alarme provado de ponta a ponta com uma inconsistência plantada
+  no ENSAIO. O plantio escolhido foi `update public.filiais set ativo = false where id = 4` (slug
+  `serra`, 45 ativos medidos antes), que leva `ativo_filial_inativa` de 0 para 45.
+- **O que houve:** o `UPDATE` saiu e a conexão estourou o tempo. Dali em diante o Postgres do ensaio
+  parou de responder consulta nenhuma — nem `select 1` —, pelo MCP **e** pelo PostgREST com a chave
+  de serviço, em `filiais`, `ativos`, `profiles`, `tipos_item`, `movimentacoes` e `itens`. O
+  `postgres_logs` registra três *"canceling statement due to statement timeout"* (19:30, 19:31,
+  19:32 — as três tentativas) e **nada depois**: as requisições seguintes nem viram consulta. O
+  `edge_logs` só tem as duas sondas anônimas, que respondem 401 em milissegundos. O painel diz
+  `ACTIVE_HEALTHY`. Vinte minutos antes, o mesmo ensaio atendeu a prova `B2` inteira; produção, no
+  mesmo instante, respondeu tudo.
+- **Decisão:** **não forçar.** Não pausei nem restaurei o projeto, não tentei matar backend por
+  caminho lateral, e não fechei a issue de alarme na mão. Registrei, provei o que dava para provar, e
+  pus o resto no roteiro do Johnny.
+- **Motivo:** um banco que não responde é um estado que eu não consigo inspecionar; reiniciar por
+  fora, às cegas, é a classe de ação que a autoproteção do modo autônomo existe para evitar. E a
+  issue #41 é um alarme **verdadeiro** — o ensaio está mesmo fora. Fechá-la seria calar o alarme em
+  vez de resolver o achado, a primeira coisa que o `RUNBOOK-ALARME.md` proíbe.
+- **Pendência de estado, declarada:** não sei se aquele `UPDATE` gravou. Se gravou, `serra` está
+  inativa no ensaio e precisa voltar (`set ativo = true`). É o primeiro comando do roteiro quando o
+  banco voltar. **Produção não foi tocada.**
+
+**O que ficou provado assim mesmo:** disparei `-f alvo=ensaio -f partes=b` e o alarme abriu **sozinho**
+a issue #41, com título **por par** (`[alarme] ensaio · integridade`), label, tabela do achado, link
+do runbook, link do run e a impressão do estado — e **sem amostra nenhuma**. E o par
+`(producao, integridade)`, verde seis minutos antes, ficou sem issue: a decisão mais importante do
+alarme, provada no ar. O caminho de ABRIR está fechado com falha real; o de FECHAR continua provado
+só por teste de unidade (`alarme.test.mts`), porque exige o ensaio de volta.

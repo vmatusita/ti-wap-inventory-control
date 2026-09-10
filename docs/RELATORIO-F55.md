@@ -9,8 +9,29 @@
 
 # 1. O ROTEIRO DO JOHNNY — o que ficou com você
 
-*Nada aqui é urgente a ponto de precisar ser feito hoje. Os itens 1 e 2 são os que fecham riscos
-que ainda estão abertos; os outros são higiene.*
+*Só o item 0 tem pressa, e ele é do ENSAIO — produção está inteira e provada (§9). Os itens 1 e 2
+fecham riscos ainda abertos; os outros são higiene.*
+
+### 0. ⚠ O ENSAIO caiu no meio da última prova, e há uma issue de alarme aberta
+
+**O banco do ensaio parou de responder consulta nenhuma às 19:29 UTC de 10/09** — nem `select 1`,
+pelo MCP e pelo PostgREST. O painel diz `ACTIVE_HEALTHY`. Produção não foi afetada em nada. A
+história inteira, com os logs, está na §9.
+
+Quando ele voltar, **nesta ordem**:
+
+1. **Desfaça o plantio, que pode ter acontecido.** Eu mandei
+   `update public.filiais set ativo = false where id = 4` (a filial `serra`) e a conexão estourou —
+   **não sei dizer se gravou**. Confira e reponha:
+   ```sql
+   select id, slug, ativo from public.filiais order by id;
+   update public.filiais set ativo = true where id = 4;  -- se estiver false
+   ```
+   Enquanto estiver `false`, a checagem `ativo_filial_inativa` do ensaio acusa **45**.
+2. **Não feche a [issue #41](https://github.com/vmatusita/ti-wap-inventory-control/issues/41) na
+   mão.** Ela está aberta porque o ensaio está mesmo fora — é o alarme funcionando. Rode
+   `gh workflow run saude.yml -f alvo=ensaio -f partes=b` e ela **se fecha sozinha**, que é o que
+   falta provar do critério 18.
 
 ### 1. Confira as notificações do GitHub (2 minutos)
 
@@ -459,7 +480,7 @@ e o que `B2` mede.
 | 15 | Linha de base medida nos dois bancos, versionada, com política e releitura | ✅ §2 |
 | 16 | `cobertura.test` reprova chave sem política — provado com chave fictícia | ✅ caso "SABOTAGEM" no próprio arquivo |
 | 17 | `saude.yml` só com `schedule` + `dispatch`, permissões mínimas, sem eco de secret, travado | ✅ 36 casos |
-| 18 | Alarme provado de ponta a ponta no ENSAIO | ⏳ ver §9 |
+| 18 | Alarme provado de ponta a ponta no ENSAIO | ⚠ METADE · §9 — abrir provado no ar (issue #41, run 34522863999); fechar só por teste, o ensaio caiu |
 | 19 | Dispatch contra produção com a conta nova, veredito certo | ✅ §9 · run 34522300336, verde nas duas partes |
 | 20 | Custo e projeção na ata, lado a lado com o consumo medido | ✅ `D1` |
 | 21 | Guardas recusam; `restaurar` aceita local; `import/guard` intacto | ✅ `E1` |
@@ -522,6 +543,49 @@ Repare em três coisas. A conta é a **`consulta`** criada nesta fase, e ela lê
 `papel_atual() is not null`, não `e_admin()`. O resumo devolveu **as doze**, o que exercita a defesa
 contra a falha do próprio detector (chave que some vira achado, não silêncio). E o URL do alvo saiu
 **mascarado** (`***`) no log do Actions, pelo mascaramento de secret — sem eco nenhum.
+
+## Critério 18 — o alarme de ponta a ponta: METADE provada, e por um motivo que não era o plano
+
+**O que eu ia fazer:** plantar `ativo_filial_inativa` no ENSAIO com
+`update public.filiais set ativo = false where id = 4` (slug `serra`, **45 ativos**, medidos antes),
+disparar `-f alvo=ensaio -f partes=b`, ver o alarme abrir a issue, desfazer, disparar de novo e ver a
+issue **fechar sozinha**.
+
+**O que aconteceu:** o `UPDATE` saiu às 19:29 UTC e a conexão **estourou o tempo**. Dali em diante o
+Postgres do ensaio parou de responder consulta nenhuma — nem `select 1`, nem leitura de `filiais`,
+`ativos`, `profiles`, `tipos_item`, `movimentacoes` ou `itens`, pelo MCP **e** pelo PostgREST com a
+chave de serviço. O `postgres_logs` mostra três *"canceling statement due to statement timeout"*
+(19:30, 19:31, 19:32 — as minhas três tentativas) e **nada depois**: as requisições seguintes nem
+chegam a virar consulta. O painel diz `ACTIVE_HEALTHY`; a produção, no mesmo instante, respondeu
+tudo. **Vinte minutos antes, o mesmo ensaio tinha atendido a prova `B2` inteira.**
+
+**⚠ E daí decorre uma pendência de estado que eu não consigo fechar:** não sei dizer se aquele
+`UPDATE` chegou a ser gravado. Se chegou, **a filial `serra` (id 4) está inativa no ensaio** e
+precisa voltar com `update public.filiais set ativo = true where id = 4`. É o **primeiro** comando a
+rodar quando o banco voltar — está no roteiro do topo. Nada disso toca produção.
+
+**O que ficou provado assim mesmo, e não é pouco.** Disparei
+`gh workflow run saude.yml -f alvo=ensaio -f partes=b` →
+[run 34522863999](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/34522863999),
+**vermelho**, e o alarme abriu **sozinho** a
+[issue #41](https://github.com/vmatusita/ti-wap-inventory-control/issues/41):
+
+- **título por PAR** — `[alarme] ensaio · integridade` —, com o label `alarme`;
+- o corpo com a tabela do achado (`(sessão)` · motivo *"The operation was aborted due to timeout"*),
+  o link do runbook, o link do run e a impressão do estado no comentário de HTML;
+- **nenhuma amostra, nenhum nome, nenhum patrimônio** — o resumo não tem por onde entregar isso;
+- e o par `(producao, integridade)`, verde no disparo de seis minutos antes, **ficou sem issue** —
+  a decisão mais importante do alarme, provada no ar e não só em teste.
+
+Ou seja: **o caminho de ABRIR está provado de ponta a ponta, com uma falha real** — só que a falha
+foi *o banco não responde*, e não *a inconsistência plantada*. O caminho de **FECHAR sozinho**
+continua provado apenas por teste de unidade (`alarme.test.mts`, 41 casos), porque fechá-lo exige o
+ensaio de volta.
+
+**Isto não é um alarme de mentira que eu deva apagar.** A issue #41 está aberta porque o ensaio
+está mesmo fora — é o alarme fazendo exatamente o trabalho dele. Fechá-la na mão seria calar o
+alarme em vez de resolver o achado, que é a primeira coisa que o `RUNBOOK-ALARME.md` proíbe. Ela se
+fecha sozinha no primeiro disparo verde depois que o banco voltar.
 
 ---
 
