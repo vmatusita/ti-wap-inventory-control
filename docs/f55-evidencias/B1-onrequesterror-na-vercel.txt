@@ -1,0 +1,81 @@
+O `onRequestError` NO LOG DA VERCEL — a prova do criterio 7 (F55, 10/09/2026)
+
+COMO FOI FEITA (Decisao 10, e o desenho importa)
+------------------------------------------------
+Branch DESCARTAVEL `zz-f55-prova-onrequesterror`, SO COM PUSH, sem PR — um PR
+dispararia o CI (minuto de Actions custa) e deixaria mergeavel um erro de
+proposito. A branch NUNCA foi mergeada e foi apagada no fim.
+
+Nela, e SO nela, duas coisas:
+  · `src/app/api/zz-prova-erro/route.ts`, que lanca de proposito;
+  · `api/zz-prova-erro` acrescentado a exclusao do `matcher` do proxy.
+
+⚠ A SEGUNDA FOI DESCOBERTA RODANDO, e ela e um achado por si so: a primeira
+tentativa de bater na rota caiu em `/login`. O `matcher` da F55 exclui `api/saude`
+e NADA MAIS — nem `api` inteiro. Rota nova de API nasce PROTEGIDA, que e o certo,
+e isso ficou provado sem querer.
+
+⚠ GATILHO PERMANENTE DE ERRO EM ROTA PUBLICA DE PRODUCAO E PROIBIDO. Isto viveu
+numa previa, por alguns minutos, atras da protecao de SSO da Vercel.
+
+Previa: dpl_EN1mTkCHaJBQSzE4z9EJua5Er22C (branch zz-f55-prova-onrequesterror)
+Lido pelo MCP da Vercel: get_runtime_logs, projeto prj_sUTqyUqhj7ZwGv8h5CAXMnpbU3fb
+
+
+PROVA 1 — a linha estruturada aparece
+=====================================
+
+### 18:37:39 GET /api/zz-prova-erro 500 [error/serverless]
+dep=dpl_EN1mTkCHaJBQSzE4z9EJua5Er22C branch=zz-f55-prova-onrequesterror cache=MISS
+    Error: prova F55 do onRequestError: erro provocado de proposito numa previa
+        at m (.next/server/chunks/[root-of-the-server]__05vbi47._.js:1:1120)
+    {"evt":"erro-de-request","rota":"/api/zz-prova-erro","tipo":"route","origem":null,"metodo":"GET","digest":null,"empresa":null,"erro":{"nome":"Error","codigo":null,"mensagem":"prova F55 do onRequestError: erro provocado de proposito numa previa"}}
+
+O que a linha traz, campo a campo:
+  evt      "erro-de-request"   — distingue do funil de falha (`evt: "falha"`)
+  rota     "/api/zz-prova-erro" — `context.routePath`: o caminho do ARQUIVO
+  tipo     "route"             — `context.routeType`
+  origem   null                — `context.renderSource`, ausente num route handler
+  metodo   "GET"               — `request.method`, e NADA MAIS de `request`
+  digest   null                — o erro nao tinha
+  empresa  null                — o campo RESERVADO do multiempresa (F62), presente desde ja
+  erro     { nome, codigo, mensagem }
+
+O que a linha NAO traz: header (o cookie da sessao esta la), `request.path`
+(que vem COM a querystring), stack de aplicacao, variavel de ambiente.
+
+
+PROVA 2 — a QUERYSTRING nao vaza, e esta e a metade que importa
+===============================================================
+
+Segunda batida na MESMA rota, agora com uma querystring carregando um nome e um
+patrimonio (ficticios, prefixo ZZF55):
+
+    GET /api/zz-prova-erro?busca=Fulano+Ficticio&patrimonio=ZZF55SEGREDO
+
+### 18:38:11 GET /api/zz-prova-erro 500 [error/serverless]
+dep=dpl_EN1mTkCHaJBQSzE4z9EJua5Er22C branch=zz-f55-prova-onrequesterror cache=MISS
+    Error: prova F55 do onRequestError: erro provocado de proposito numa previa
+        at m (.next/server/chunks/[root-of-the-server]__05vbi47._.js:1:1120)
+    {"evt":"erro-de-request","rota":"/api/zz-prova-erro","tipo":"route","origem":null,"metodo":"GET","digest":null,"empresa":null,"erro":{"nome":"Error","codigo":null,"mensagem":"prova F55 do onRequestError: erro provocado de proposito numa previa"}}
+
+⚠ `"rota":"/api/zz-prova-erro"` — SEM a querystring.
+⚠ Nem "Fulano Ficticio" nem "ZZF55SEGREDO" aparecem em lugar nenhum da linha.
+
+É exatamente o modo de vazamento que a doc local do Next 16 avisa
+(`03-file-conventions/instrumentation.md:103`: *"resource path, e.g. /blog?name=foo"*)
+e que a busca de `/ativos` produziria todo dia: `?busca=<nome da pessoa>`.
+O que se loga e `context.routePath`, e nao `request.path`.
+
+A ausencia dos dois campos e travada por teste que le o FONTE de
+`src/instrumentation.ts` (`src/lib/observabilidade-fonte.test.ts`, bloco (c)),
+para que ela nao dependa de alguem lembrar.
+
+
+O QUE ESTA PROVA NAO PROVA
+==========================
+· Que o `onRequestError` pega TODO erro de request — ela prova um erro de
+  `routeType: 'route'`. A doc local afirma que ele tambem e chamado para
+  `render`, `action` e `proxy` (`instrumentation.md:110,123`), e o formatador
+  trata os quatro do mesmo jeito, mas so este foi exercitado no ar.
+· Que o log da Vercel guarda a linha por muito tempo — a retencao e do plano.

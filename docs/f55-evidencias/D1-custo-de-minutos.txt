@@ -1,0 +1,47 @@
+O CUSTO EM MINUTOS DE ACTIONS — medido em 10/09/2026 (F55)
+
+Repositorio PRIVADO: minuto de Actions e cobrado contra a cota da conta.
+
+=== CONSUMO DO MES ATE AQUI (workflow CI, 01 a 10/09) ===
+runs do workflow CI entre 01 e 10/09: 136
+jobs medidos: 272 | janela real: 9.77 dias
+soma EXATA (min de parede): 840.0
+soma ARREDONDADA por job ao minuto: 962
+   verificar            132 jobs 553.5 min | media 4.19 min
+   banco-sem-docker     104 jobs 171.2 min | media 1.65 min
+   banco                36 jobs 115.3 min | media 3.20 min
+projecao mensal (30 dias), exata: 2579 min
+projecao mensal (30 dias), arredondada: 2953 min
+
+=== A COTA — NAO E LEGIVEL POR ESTE TOKEN ===
+{"message":"Not Found","documentation_url":"https://docs.github.com/rest/billing/billing#get-github-actions-billing-for-a-user","status":"404"}gh: Not Found (HTTP 404)
+gh: This API operation needs the "user" scope. To request it, run:  gh auth refresh -h github.com -s user
+   (o token do gh nao tem o escopo `user`; a doc oficial diz: Free 2.000 min/mes
+    em repositorio privado, Pro e Team 3.000. Conferir em github.com/settings/billing
+    e passo do Johnny.)
+
+=== O QUE O `saude.yml` ACRESCENTA ===
+
+Desenho: NENHUMA das duas partes roda `npm ci`.
+  · Parte A  = `smoke-prod.mjs --sem-sessao`, `fetch` puro (o `supabase-js` passou
+               a ser importado DENTRO da Parte B, por `await import`);
+  · Parte B  = `integridade.mjs`, zero dependencia.
+Cada job e: checkout + setup-node + um script de rede + o passo do alarme.
+
+ESTIMATIVA, antes do primeiro disparo:
+  Parte A ....... 4 execucoes/dia  x ~1 min  =   4 min/dia
+  Parte B ....... 1 execucao/dia   x ~1 min  =   1 min/dia
+                                              ------------
+                                                 5 min/dia  ~= 150 min/mes
+
+Isso e ~5% do teto do plano Pro (3.000) e ~7,5% do Free (2.000), sobre um consumo
+medido de 2.579 a 2.953 min/mes. E a folga e estreita: o CI SOZINHO ja esta perto
+do teto, e se a cota acabar o CI (os dois checks obrigatorios) e o alarme param
+JUNTOS. Esta e a razao de desenho de nao haver `npm ci` aqui.
+
+⚠ A ESTIMATIVA NAO E MEDICAO. O primeiro disparo agendado MEDE, e o numero real
+entra no relatorio da proxima fase. Se passar da estimativa, a frequencia muda por
+PR novo — nao por ajuste em silencio.
+
+⚠ E o CUSTO DESTA FASE no CI: cada push da branch custou ~6 min (verificar ~4,2 +
+banco-sem-docker ~1,7). Os pushes foram agrupados de proposito.
