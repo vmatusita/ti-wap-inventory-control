@@ -61,3 +61,6 @@ carga-*.json
 
 # scratchpad de sessão (SQL avulso, rascunhos) — nunca versionar
 /scratchpad/
+
+# Arquivos de trabalho que scripts de prova criam na raiz e apagam no fim (F55).
+zz-*
