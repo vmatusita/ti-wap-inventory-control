@@ -342,7 +342,10 @@ begin
     v_ok := v_ok + 1; raise notice '✓ 5d admin INSERE apelido (id=%)', v_novo_id;
 
     delete from public.unidades_apelidos where id = v_novo_id;
-    if not found then
+    -- FOUND é verdadeiro quando o DELETE afetou ao menos uma linha. A primeira versão
+    -- deste cenário lia `if not found` e marcava ✗ justamente quando o DELETE dava
+    -- certo — o CI da F56 (run 34636086388) acusou; a migration estava certa.
+    if found then
       v_ok := v_ok + 1; raise notice '✓ 5e admin APAGA o apelido que acabou de incluir';
     else
       v_falhas := v_falhas + 1; v_msgs := v_msgs || '5e; '; raise warning '✗ 5e o DELETE do admin não afetou a linha esperada';
