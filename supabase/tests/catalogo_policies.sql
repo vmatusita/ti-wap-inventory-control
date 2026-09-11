@@ -70,11 +70,18 @@ declare
   -- nunca sobre lista de 20 nomes — `eventos_admin` é exatamente a tabela que uma lista
   -- à mão esqueceria" (PLANO-MULTIEMPRESA.md, §6 → F62). Uma trilha de auditoria das
   -- ações sobre o acervo da empresa A é dado da empresa A. NEGÓCIO.
+  --
+  -- F56 · Frente D acrescenta as QUATRO tabelas do vocabulário do import
+  -- (`unidades_apelidos`, `import_termos_categoria`, `import_termos_estado`,
+  -- `import_prefixos_patrimonio`): o critério é o mesmo — o De→Para de UMA empresa
+  -- (os apelidos de UNIDADE em particular) é dado dessa empresa, e a F64 vai
+  -- precisar da chave de recorte nelas como em qualquer outro catálogo administrado.
   k_negocio text[] := array[
     'anotacoes', 'ativos', 'colaboradores', 'eventos_admin', 'filiais',
-    'import_logs', 'itens', 'kits_modelos', 'lancamentos_item', 'motivos',
-    'movimentacoes', 'pendencias_item', 'relatorios_gerados', 'senhas_acesso',
-    'termos_gerados', 'tipos_item'
+    'import_logs', 'import_prefixos_patrimonio', 'import_termos_categoria',
+    'import_termos_estado', 'itens', 'kits_modelos', 'lancamentos_item',
+    'motivos', 'movimentacoes', 'pendencias_item', 'relatorios_gerados',
+    'senhas_acesso', 'termos_gerados', 'tipos_item', 'unidades_apelidos'
   ];
 
   -- INFRA — cinco, cada uma com o motivo escrito. Nenhuma entra por categoria:
@@ -130,8 +137,9 @@ declare
   -- O PISO DE LEITURA CONGELADO (R-ACC-25, migration 0070).
   --
   -- `profiles.ativo = false` fecha também a LEITURA, no request seguinte. O piso é
-  -- `(select public.papel_atual()) is not null`, e ele está EXATAMENTE nestas 15
-  -- policies de SELECT de `public` — nem uma a mais, nem uma a menos.
+  -- `(select public.papel_atual()) is not null`, e ele está EXATAMENTE nestas 19
+  -- policies de SELECT de `public` — nem uma a mais, nem uma a menos (15 até a F55;
+  -- a F56 acrescenta as quatro tabelas do vocabulário do import, mesmo piso).
   --
   -- ⚠ A comparação é por `ilike '%papel_atual%'` e NÃO por igualdade de texto:
   -- `pg_policies.qual` devolve a expressão NORMALIZADA pelo Postgres. O que a
@@ -140,9 +148,11 @@ declare
   -- reprovaria por reescrita do planejador, que é ruído, não defeito.
   -- =======================================================================
   k_piso_papel text[] := array[
-    'anotacoes', 'ativos', 'colaboradores', 'filiais', 'itens', 'kits_modelos',
+    'anotacoes', 'ativos', 'colaboradores', 'filiais', 'import_prefixos_patrimonio',
+    'import_termos_categoria', 'import_termos_estado', 'itens', 'kits_modelos',
     'lancamentos_item', 'motivos', 'movimentacoes', 'operador_filiais',
-    'pendencias_item', 'profiles', 'relatorios_gerados', 'termos_gerados', 'tipos_item'
+    'pendencias_item', 'profiles', 'relatorios_gerados', 'termos_gerados', 'tipos_item',
+    'unidades_apelidos'
   ];
 
   -- As TRÊS que decidem por CARGO em vez do piso, e por quê — congeladas junto, para

@@ -1,0 +1,72 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/import/prefixos.test.ts (4 tests | 2 failed) 82ms
+     × o seed da 0139 tem 7 prefixos (guarda do próprio teste) 35ms
+     × o seed (banco) e PREFIXOS_CONHECIDOS (script F4) são o MESMO conjunto de 7 40ms
+ ❯ |puro| src/lib/import/vocabulario-chave-sql.test.ts (0 test)
+ ❯ |puro| src/lib/import/vocabulario-sql.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/vocabulario-chave-sql.test.ts [ src/lib/import/vocabulario-chave-sql.test.ts ]
+Error: corpoVigente: nenhuma migration define public.vocabulario_chave(text)
+ ❯ corpoVigente scripts/db/corpo-vigente.mjs:303:9
+    301|   }
+    302|
+    303|   throw new Error(
+       |         ^
+    304|     `corpoVigente: nenhuma migration define ${alvo.esquema}.${alvo.nom…
+    305|       (alvo.tipos ? `(${alvo.tipos.join(', ')})` : ''),
+ ❯ src/lib/import/vocabulario-chave-sql.test.ts:199:28
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  |puro| src/lib/import/vocabulario-sql.test.ts [ src/lib/import/vocabulario-sql.test.ts ]
+Error: nenhuma migration contém "insert into public.unidades_apelidos (filial_id, apelido)" — a 0139 (vocabulário do import) ainda não existe
+ ❯ migracaoComAncora src/lib/import/vocabulario-sql.test.ts:44:11
+     42|   const arquivo = achadas.at(-1)
+     43|   if (!arquivo) {
+     44|     throw new Error(
+       |           ^
+     45|       `nenhuma migration contém "${ancora}" — a 0139 (vocabulário do i…
+     46|     )
+ ❯ src/lib/import/vocabulario-sql.test.ts:218:28
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/prefixos.test.ts > prefixos de patrimônio: seed da 0139 × PREFIXOS_CONHECIDOS do script da F4 > o seed da 0139 tem 7 prefixos (guarda do próprio teste)
+Error: nenhuma migration semeia import_prefixos_patrimonio — a 0139 (vocabulário do import) ainda não existe
+ ❯ migracaoDoSeed src/lib/import/prefixos.test.ts:42:11
+     40|   const arquivo = arquivos.at(-1)
+     41|   if (!arquivo) {
+     42|     throw new Error(
+       |           ^
+     43|       'nenhuma migration semeia import_prefixos_patrimonio — a 0139 (v…
+     44|     )
+ ❯ src/lib/import/prefixos.test.ts:62:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  |puro| src/lib/import/prefixos.test.ts > prefixos de patrimônio: seed da 0139 × PREFIXOS_CONHECIDOS do script da F4 > o seed (banco) e PREFIXOS_CONHECIDOS (script F4) são o MESMO conjunto de 7
+Error: nenhuma migration semeia import_prefixos_patrimonio — a 0139 (vocabulário do import) ainda não existe
+ ❯ migracaoDoSeed src/lib/import/prefixos.test.ts:42:11
+     40|   const arquivo = arquivos.at(-1)
+     41|   if (!arquivo) {
+     42|     throw new Error(
+       |           ^
+     43|       'nenhuma migration semeia import_prefixos_patrimonio — a 0139 (v…
+     44|     )
+ ❯ src/lib/import/prefixos.test.ts:67:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  2 failed | 2 passed (4)
+   Start at  14:03:25
+   Duration  5.45s (transform 351ms, setup 0ms, import 112ms, tests 82ms, environment 1ms)
+

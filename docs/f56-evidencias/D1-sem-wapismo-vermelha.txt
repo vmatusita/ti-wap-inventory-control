@@ -1,0 +1,388 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/import/sem-wapismo.test.ts (2 tests | 1 failed) 1652ms
+     × nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria 1606ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/sem-wapismo.test.ts > sem-wapismo: nenhuma palavra da WAP em literal de código-fonte (F56 · Decisão 12) > nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria
+AssertionError: 59 literal(is) com vocabulário da WAP fora da allowlist:
+  src/lib/import/deparas.ts:156 — "WAP"
+  src/lib/import/deparas.ts:156 — "PRO"
+  src/lib/import/deparas.ts:156 — "LEA"
+  src/lib/import/deparas.ts:156 — "TEC"
+  src/lib/import/deparas.ts:156 — "STF"
+  src/lib/import/deparas.ts:156 — "PAT"
+  src/lib/import/deparas.ts:156 — "NOO"
+  src/lib/import/deparas.ts:196 — "matriz"
+  src/lib/import/deparas.ts:196 — "Matriz"
+  src/lib/import/deparas.ts:197 — "matriz sao marcos"
+  src/lib/import/deparas.ts:197 — "Matriz"
+  src/lib/import/deparas.ts:198 — "cd-afp"
+  src/lib/import/deparas.ts:198 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:199 — "cd afp"
+  src/lib/import/deparas.ts:199 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:200 — "cd-pena"
+  src/lib/import/deparas.ts:200 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:201 — "cd pena"
+  src/lib/import/deparas.ts:201 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:202 — "cd-afonso pena"
+  src/lib/import/deparas.ts:202 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:203 — "cd afonso pena"
+  src/lib/import/deparas.ts:203 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:204 — "cd-afonsopena"
+  src/lib/import/deparas.ts:204 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:205 — "afonso pena"
+  src/lib/import/deparas.ts:205 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:206 — "eusebio"
+  src/lib/import/deparas.ts:206 — "Eusébio"
+  src/lib/import/deparas.ts:207 — "filial-ce"
+  src/lib/import/deparas.ts:207 — "Eusébio"
+  src/lib/import/deparas.ts:208 — "filial ce"
+  src/lib/import/deparas.ts:208 — "Eusébio"
+  src/lib/import/deparas.ts:209 — "serra"
+  src/lib/import/deparas.ts:209 — "Serra"
+  src/lib/import/deparas.ts:210 — "serra park"
+  src/lib/import/deparas.ts:210 — "Serra"
+  src/lib/import/deparas.ts:211 — "linhares"
+  src/lib/import/deparas.ts:211 — "Linhares"
+  src/lib/import/deparas.ts:212 — "filial - linhares"
+  src/lib/import/deparas.ts:212 — "Linhares"
+  src/lib/import/deparas.ts:213 — "filial linhares"
+  src/lib/import/deparas.ts:213 — "Linhares"
+  src/lib/import/deparas.ts:222 — "Matriz"
+  src/lib/import/deparas.ts:222 — "matriz"
+  src/lib/import/deparas.ts:223 — "CD-Afonso Pena"
+  src/lib/import/deparas.ts:224 — "Linhares"
+  src/lib/import/deparas.ts:224 — "linhares"
+  src/lib/import/deparas.ts:225 — "Eusébio"
+  src/lib/import/deparas.ts:225 — "eusebio"
+  src/lib/import/deparas.ts:226 — "Serra"
+  src/lib/import/deparas.ts:226 — "serra"
+  src/lib/import/deparas.ts:293 — "rt wap"
+  src/lib/import/deparas.ts:294 — "posse wap"
+  src/lib/import/tipos.ts:84 — "Matriz"
+  src/lib/import/tipos.ts:85 — "CD-Afonso Pena"
+  src/lib/import/tipos.ts:86 — "Linhares"
+  src/lib/import/tipos.ts:87 — "Eusébio"
+  src/lib/import/tipos.ts:88 — "Serra": expected [ { …(3) }, { …(3) }, { …(3) }, …(56) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 156,
++     "texto": "WAP",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 156,
++     "texto": "PRO",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 156,
++     "texto": "LEA",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 156,
++     "texto": "TEC",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 156,
++     "texto": "STF",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 156,
++     "texto": "PAT",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 156,
++     "texto": "NOO",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 196,
++     "texto": "matriz",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 196,
++     "texto": "Matriz",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 197,
++     "texto": "matriz sao marcos",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 197,
++     "texto": "Matriz",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 198,
++     "texto": "cd-afp",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 198,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 199,
++     "texto": "cd afp",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 199,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 200,
++     "texto": "cd-pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 200,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 201,
++     "texto": "cd pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 201,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 202,
++     "texto": "cd-afonso pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 202,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 203,
++     "texto": "cd afonso pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 203,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 204,
++     "texto": "cd-afonsopena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 204,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 205,
++     "texto": "afonso pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 205,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 206,
++     "texto": "eusebio",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 206,
++     "texto": "Eusébio",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 207,
++     "texto": "filial-ce",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 207,
++     "texto": "Eusébio",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 208,
++     "texto": "filial ce",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 208,
++     "texto": "Eusébio",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 209,
++     "texto": "serra",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 209,
++     "texto": "Serra",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 210,
++     "texto": "serra park",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 210,
++     "texto": "Serra",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 211,
++     "texto": "linhares",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 211,
++     "texto": "Linhares",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 212,
++     "texto": "filial - linhares",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 212,
++     "texto": "Linhares",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 213,
++     "texto": "filial linhares",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 213,
++     "texto": "Linhares",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 222,
++     "texto": "Matriz",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 222,
++     "texto": "matriz",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 223,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 224,
++     "texto": "Linhares",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 224,
++     "texto": "linhares",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 225,
++     "texto": "Eusébio",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 225,
++     "texto": "eusebio",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 226,
++     "texto": "Serra",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 226,
++     "texto": "serra",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 293,
++     "texto": "rt wap",
++   },
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 294,
++     "texto": "posse wap",
++   },
++   {
++     "arquivo": "src/lib/import/tipos.ts",
++     "linha": 84,
++     "texto": "Matriz",
++   },
++   {
++     "arquivo": "src/lib/import/tipos.ts",
++     "linha": 85,
++     "texto": "CD-Afonso Pena",
++   },
++   {
++     "arquivo": "src/lib/import/tipos.ts",
++     "linha": 86,
++     "texto": "Linhares",
++   },
++   {
++     "arquivo": "src/lib/import/tipos.ts",
++     "linha": 87,
++     "texto": "Eusébio",
++   },
++   {
++     "arquivo": "src/lib/import/tipos.ts",
++     "linha": 88,
++     "texto": "Serra",
++   },
++ ]
+
+ ❯ src/lib/import/sem-wapismo.test.ts:217:116
+    215|         .map((v) => `  ${v.arquivo}:${v.linha} — ${JSON.stringify(v.te…
+    216|         .join('\n')
+    217|       expect(violacoes, `${violacoes.length} literal(is) com vocabulár…
+       |                                                                                                                    ^
+    218|         [],
+    219|       )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  14:02:40
+   Duration  2.41s (transform 118ms, setup 0ms, import 487ms, tests 1.65s, environment 0ms)
+

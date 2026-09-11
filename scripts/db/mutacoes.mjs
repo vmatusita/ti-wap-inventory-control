@@ -1581,6 +1581,43 @@ const F55_INTEGRIDADE = [
   },
 ]
 
+// =============================================================================
+// vocabulario_import.sql — o vocabulário do import vira dado (F56 · Frente D)
+// =============================================================================
+// As DUAS mecânicas que fecham a ambiguidade da Decisão 2 (PLAN-F56.md): o gatilho
+// da diagonal nome×apelido, e o índice único nome×nome. As duas quebras imitam o
+// mesmo defeito de fundo — "duas linhas do vocabulário passam a apontar para a
+// mesma unidade, e nada no banco avisa" —, cada uma por um mecanismo diferente.
+/** @type {Mutacao[]} */
+const F56_VOCABULARIO = [
+  {
+    id: 'vocabulario-perde-a-guarda-de-ambiguidade',
+    roteiro: 'vocabulario_import.sql',
+    classe: 'guarda-removida',
+    derruba: ['6a'],
+    porque:
+      'Derruba o gatilho que barra apelido igual ao NOME de outra filial. Sem ele, dois vocabularios validos e ambiguos coexistem: quem digita na coluna Site o nome de uma filial deixa de saber se a linha e dessa filial ou de OUTRA que cadastrou o mesmo texto como apelido — a identidade da unidade, que a Decisao 2 desta fase existe para tornar univoca, volta a ser ambigua, calada.',
+    sql: 'drop trigger unidades_apelidos_vocabulario_guarda on public.unidades_apelidos;',
+    prova: {
+      sql: "select count(*) = 0 from pg_trigger where tgname = 'unidades_apelidos_vocabulario_guarda'",
+      espera: 't',
+    },
+  },
+  {
+    id: 'vocabulario-perde-o-indice-de-nome-unico',
+    roteiro: 'vocabulario_import.sql',
+    classe: 'trava-removida',
+    derruba: ['6e'],
+    porque:
+      'Derruba o indice unico que impede duas filiais com o mesmo nome normalizado. Sem ele, renomear uma filial para o nome (so com caixa ou acento diferentes) de outra ja existente passa limpo, e o import de startup fica sem saber para qual das duas uma linha do CSV pertence — a mesma ambiguidade nome×nome que a Decisao 2 fecha, agora sem a trava que a fecha.',
+    sql: 'drop index public.filiais_nome_chave_uidx;',
+    prova: {
+      sql: "select count(*) = 0 from pg_class where relname = 'filiais_nome_chave_uidx'",
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -1594,6 +1631,7 @@ export const MUTACOES = [
   ...F53_ORDEM,
   ...F54_RESTAURACAO,
   ...F55_INTEGRIDADE,
+  ...F56_VOCABULARIO,
 ]
 
 /**

@@ -1,0 +1,37 @@
+# F56 — sonda de paridade ensaio × produção ANTES de qualquer DDL da fase (11/09/2026)
+
+Consulta: a sonda normalizada de 10 classes do docs/RUNBOOK-BANCO.md (§ "Sonda de paridade"),
+rodada pelo MCP da Supabase (execute_sql, só leitura) nos dois projetos. Só contagens e impressões
+digitais de catálogo — nenhum dado de negócio.
+
+Pré-condições conferidas na mesma hora, nos dois bancos:
+- ledger termina em `resumo_integridade_e_rotulo` (0138);
+- não existem: public.unidades_apelidos, public.import_termos_categoria, public.import_termos_estado,
+  public.import_prefixos_patrimonio, as funções vocabulario_chave / vocabulario_unidades_guarda,
+  nem o índice filiais_nome_chave_uidx;
+- a collation "und-x-icu" existe (provedor ICU nos dois; en_US.UTF-8, UTF8);
+- filiais: produção 6, ensaio 5.
+
+classe      | objetos | impressão (produção)              | impressão (ensaio)                 | igual
+------------+---------+-----------------------------------+------------------------------------+------
+coluna      |     292 | 88e6f573d19f65608c0d60555b74b24d  | 88e6f573d19f65608c0d60555b74b24d   | sim
+constraint  |      75 | 41e6fe5cded9c4596385501ac0daa61e  | 41e6fe5cded9c4596385501ac0daa61e   | sim
+enum        |       7 | 34837fbf7cb50082e461fd8cdad47532  | 34837fbf7cb50082e461fd8cdad47532   | sim
+func        |      79 | ed90ce6802f06583f90f68570781b5ff  | ed90ce6802f06583f90f68570781b5ff   | sim
+grant_func  |      79 | 12c54eef0bcf5f1d957beec9414b7353  | 12c54eef0bcf5f1d957beec9414b7353   | sim
+indice      |      78 | f2875f6ee18a8404c856567636d5be56  | f2875f6ee18a8404c856567636d5be56   | sim
+policy      |      47 | dac2e3da1cc842a0c00e4ab190a52214  | dac2e3da1cc842a0c00e4ab190a52214   | sim
+rls_flag    |      20 | 7e57bfe79594010e2a9f55e5384eabe2  | 7e57bfe79594010e2a9f55e5384eabe2   | sim
+trigger     |       6 | fd4bfe3d9468c9c5ef1d891ba570d87b  | fd4bfe3d9468c9c5ef1d891ba570d87b   | sim
+view        |       9 | 667064b2620246551d5bbd726e5c456e  | 667064b2620246551d5bbd726e5c456e   | sim
+
+Conclusão: os dois bancos estão em paridade de schema nas 10 classes antes da fase. A linha do
+`0126b_lancamento_regulariza_contadores` que só existe no ledger do ensaio (F54 §9.3) é divergência de
+LEDGER, não de schema — a sonda não a enxerga. Qualquer divergência depois do apply da 0139/0140 é
+atribuível à fase.
+
+Corpos vigentes das três funções que a 0140 vai recriar (md5 do prosrc normalizado, medido pela
+medição F1 da fase): arquivo = produção = ensaio —
+- import_apagar_acervo_filial(smallint)                   e313d1feb28b33ee29436e81c2ae1a70 (0131)
+- import_revalidar_contagens(jsonb, smallint)             3ad2f66b50aab234a579b74a154600f0 (0131)
+- importar_ativos_substituir(jsonb, text, jsonb, jsonb)   8ab118c36b7ba00ab8647445a52d89a1 (0132)

@@ -9780,6 +9780,77 @@ só por teste de unidade (`alarme.test.mts`), porque exige o ensaio de volta.
 
 ---
 
+## 2026-09-11 · F56 (Frente D, primeira metade) · o banco do vocabulário — migration 0139
+
+Escopo desta ata: só o que a primeira metade da Frente D decidiu (o banco), não a segunda metade
+(motor por parâmetro, actions, página, `sem-wapismo` verde — de outro agente, depois).
+
+- **Apelido × apelido NÃO entra na guarda `vocabulario_unidades_guarda` — fica só no índice único
+  (23505).** O texto da ordem, lido linha a linha, listava a colisão "apelido = apelido de outra
+  filial" como uma das condições que a guarda deveria recusar com `P0001` — mas o `PLAN-F56.md`
+  (Decisão 2, "as decisões valem") é explícito: *"apelido × apelido: índice único em
+  `unidades_apelidos.apelido_chave`"*, ao lado de *"nome × apelido (a DIAGONAL que nenhum dos dois
+  índices acima cobre)"* como o único caso que precisa de gatilho. E os critérios de aceitação (item
+  6) pedem literalmente `apelido = apelido de outra filial (23505)`. As três fontes não concordam
+  entre si; resolvi pela hierarquia que o `PLAN-F56.md` pede (ele é o "plano aprovado") e pela
+  redundância dos critérios de aceitação: a guarda cobre só a diagonal nome↔apelido; apelido↔apelido
+  (mesma filial ou outra) é o índice único, sem mensagem amigável. Escrevi o motivo dentro do próprio
+  cabeçalho da migration e do corpo da função (`vocabulario_unidades_guarda`), para quem ler o SQL sem
+  este histórico não reintroduzir o terceiro `if` por engano.
+- **A classe de espaço são 25 code points, INCLUSIVE U+1680 (Ogham Space Mark)** — não 24. A minha
+  própria bateria de teste (`vocabulario-chave-sql.test.ts`, função `espacosDoJsAoVivo`, varredura
+  0..0xFFFF contra `/\s/` do JavaScript, rodada de verdade nesta sessão) confirma 25, batendo com o
+  fato 7 do cabeçalho da ordem ("25 code points, inclusive U+FEFF e U+1680"). O relatório de medição
+  B (arquivo `B-enums-regex-normalizacao.md`, item "Resultado 1") mediu 24 e não cita U+1680 — mas a
+  bateria dele testava as faixas `U+0300–U+036F`, `U+1E00–U+1EFF`, `U+2000–U+206F`, `U+3000`,
+  `U+FEFF`, `U+FB00–U+FB06`: nenhuma delas cobre `U+1680` (que fica isolado, fora de todas), então o
+  "24" daquele relatório é um artefato de bateria incompleta, não uma medição que contradiz o fato 7.
+  A migration (`vocabulario_chave`) e o roteiro/teste usam 25, com U+1680 incluído — provado
+  comportamentalmente (`'a' || chr(5760) || 'b'` → `'a b'`) no roteiro `vocabulario_import.sql` e na
+  guarda TS↔SQL.
+- **`collate "und-x-icu"` vai no ARGUMENTO de `lower()`, não no resultado.** Meu primeiro rascunho
+  escreveu `lower(regexp_replace(...)) collate "und-x-icu"` — sintaticamente válido, mas
+  semanticamente inerte: `COLLATE` sobre o RESULTADO de uma função só relabela a collation do valor
+  já computado, não muda o algoritmo de minúsculas que `lower()` usou internamente (que deriva da
+  collation do seu PRÓPRIO argumento). A forma corrigida —
+  `lower((regexp_replace(...)) collate "und-x-icu")` — força a collation ANTES de `lower()` rodar.
+  Isto importa de verdade para o caso `İ` (I maiúsculo turco com ponto, U+0130): sob `und-x-icu` ele
+  decompõe em NFD → `I` + combining dot, e como o diacrítico já foi removido antes do `lower`, o
+  resultado é `i` puro — sob uma collation diferente (ou sob a forma errada do COLLATE) o resultado
+  poderia divergir. Não encontrei este bug por leitura; encontrei rodando a guarda TS↔SQL contra o
+  roteiro (o caso `İstanbul` → `istanbul` do bloco PARES_NORMALIZACAO) — ele só passaria por acidente
+  se a diferença não importasse para aquele caractere específico, então bati o SQL igual à recomendação
+  padrão do Postgres para "case mapping sob uma collation específica" antes de confiar no teste.
+- **`database.ts`: hand-fix COM comentário datado.** A medição C (`C-catalogos.md`, item 5) já havia
+  provado que `tipos-conjuntos.mjs` lê o arquivo pelo COMPILADOR TypeScript, não por regex — um
+  comentário `// hand-fix F56 — substituído pela regeneração de produção` acima de cada tabela/função
+  nova não quebra o gate de deriva. Usei o comentário nos quatro blocos de tabela e no bloco da
+  função `vocabulario_chave`.
+- **`scripts/db/diff-tipos.test.mts` também mudou** (30→34 relações, 74→75 funções) — não estava na
+  minha lista de arquivos por nome, mas é a MESMA guarda que a `tipos_item`/F51/F52/F55 já
+  atualizaram cada vez que uma tabela ou função nova entrou em `database.ts`: sem atualizá-la,
+  `npm run test` reprovaria citando os números antigos. Tratei como consequência direta e obrigatória
+  do hand-fix, não como trabalho de outra frente.
+- **O teto do injetor subiu de 68 para 70** (`mutacoes.test.mts`) — 67 mutações ativas + 2 novas
+  (`vocabulario-perde-a-guarda-de-ambiguidade`, `vocabulario-perde-o-indice-de-nome-unico`) = 69, uma
+  de folga acima, na mesma régua que toda fase anterior usou (F51 a F55).
+- **`papeis_rls.sql` NÃO foi tocado.** A medição C (checklist de catálogos) marca isso como
+  "recomendado, não travado por gate nenhum" para tabela nova — e a própria ordem pede um roteiro
+  NOVO e dedicado (`vocabulario_import.sql`) para toda a cobertura de RLS e ambiguidade desta fase.
+  Duplicar os mesmos cenários em `papeis_rls.sql` também custaria manutenção sem ganho de cobertura.
+  Registrado aqui para quem procurar `unidades_apelidos`/`import_termos_*` nos dois blocos de grant
+  daquele arquivo e não encontrar: é decisão, não esquecimento.
+- **Pendência explícita para quem herdar a segunda metade da Frente D:** o allowlist de
+  `sem-wapismo.test.ts` cobre hoje só o que esta metade encontrou rodando a varredura (registry.ts,
+  ajuda/conteudo/**, quatro linhas de placeholder de UI, três linhas de identificador de layout em
+  `lib/import/**`). A saída vermelha atual (`docs/f56-evidencias/D1-sem-wapismo-vermelha.txt`) acusa
+  EXATAMENTE `deparas.ts` (54 literais) e `tipos.ts` (5 literais) — nenhum arquivo fora do import. Se
+  a segunda metade abrir novos arquivos em `src/**` e eles também violarem o vocabulário, o allowlist
+  pode precisar de entradas novas; a régua para decidir (nominal, arquivo:linha, motivo escrito) já
+  está no teste.
+
+---
+
 ## 2026-09-11 · F56 (Frente C) · os tetos e o arquivo desalinhado — limites.ts fonte única
 
 Escopo desta ata: os números finais das Decisões 6, 7 e 8 do `PLAN-F56.md`, o que mudou em relação ao
@@ -9886,3 +9957,85 @@ PLAN e por quê, e as decisões de desenho que a ordem/plano não fechavam por c
   arquivo de evidência em vez de gastar mais tempo isolando com `global.gc()` forçado — o que importa
   para a decisão (nenhum caso passa de ~550 MB, longe do teto de 2 GB) se sustenta de qualquer jeito.
 
+---
+
+## 2026-09-11 · F56 (Frente D, primeira metade) · correção pós-revisão adversarial
+
+Escopo desta ata: os dois apontamentos de uma revisão adversarial sobre a entrega original da Frente D
+(primeira metade), registrada na ata acima. Corrige pela causa, não afrouxa nenhuma trava.
+
+- **`vocabulario_unidades_guarda()` lia `new.apelido_chave` dentro do próprio gatilho `BEFORE INSERT OR
+  UPDATE` de `unidades_apelidos` — bug real, não estilo.** `apelido_chave` é
+  `generated always as (public.vocabulario_chave(apelido)) stored`; a documentação do Postgres
+  (ddl-generated-columns) é explícita: colunas geradas armazenadas só existem DEPOIS que os gatilhos
+  BEFORE terminam, e não é permitido lê-las dentro de um. No INSERT isso faz `new.apelido_chave` chegar
+  NULL dentro do gatilho — a comparação `vocabulario_chave(f.nome) = v_chave` nunca bate, e a guarda da
+  diagonal nome×apelido (a própria razão da Decisão 2 / deste gatilho) vira no-op silencioso: os
+  cenários 6a/6c/6f/6g de `vocabulario_import.sql` esperam P0001 e não o receberiam. Pior ainda: o SEED
+  (seção 8 desta mesma migration) insere as 13 linhas de `unidades_apelidos` disparando este mesmo
+  gatilho — dependendo de como o Postgres trata o acesso, a própria aplicação da migration podia falhar.
+  Corrigido para `v_chave := public.vocabulario_chave(new.apelido);` — a chave computada a partir da
+  coluna BASE (sempre disponível num gatilho BEFORE), exatamente como o branch `filiais` da mesma
+  função já fazia (`v_chave := public.vocabulario_chave(new.nome);`, a duas dezenas de linhas abaixo) —
+  eu tinha o molde certo ao lado e não segui ele no branch novo. Não há como confirmar nesta mesa (sem
+  psql/CLI Supabase); só o CI, rodando `vocabulario_import.sql` contra Postgres de verdade, prova.
+  `npm run db:lock` regravado depois da correção.
+- **A contagem "57 literais" de `deparas.ts` na ata anterior estava errada — o número real, tanto
+  rodando o teste de novo quanto no próprio arquivo de evidência já salvo
+  (`docs/f56-evidencias/D1-sem-wapismo-vermelha.txt`, que abre com "59 literal(is)"), é 54 (+ 5 de
+  `tipos.ts` = 59, não 62).** Não vi a divergência entre o número que escrevi de memória e a evidência
+  que eu mesmo tinha acabado de salvar — corrigido para bater com o arquivo. Não muda nada desta
+  metade; é a referência que a segunda metade da Frente D vai usar ao apagar as constantes.
+
+---
+
+## 2026-09-11 · F56 (Frente D, primeira metade) · segunda rodada de revisão adversarial
+
+Escopo: dois apontamentos NOVOS (diferentes dos da rodada acima), sobre arquivos que a rodada
+anterior não tocou.
+
+- **Cenário 4e de `supabase/tests/vocabulario_import.sql` testava a exceção errada — a fixture violava
+  o CHECK antes de chegar perto do índice único parcial.** A linha original inseria
+  `('zzf56 segundo', 'em_estoque', 'Estoque')` para provar `import_termos_estado_estado_rotulo_uidx`
+  (um segundo termo com rótulo para o mesmo `estado`). Mas `vocabulario_chave('Estoque')` = `'estoque'`
+  ≠ `'zzf56 segundo'` — essa linha já falha no CHECK `import_termos_estado_rotulo_volta_ao_termo`
+  primeiro. A ordem não é uma corrida: o Postgres avalia `CHECK` em `ExecConstraints()` ANTES de
+  `ExecInsertIndexTuples()` (a gravação nos índices, inclusive o único parcial) — é documentado e
+  determinístico. Então o SQLSTATE real é `check_violation` (23514), não `unique_violation` (23505); o
+  bloco `exception when unique_violation ... when others ...` caía no ramo `others` e o cenário 4e
+  reprovava SEMPRE, com migration e banco corretos — um defeito na FIXTURE do teste, não no banco.
+  Não pude confirmar contra um Postgres real nesta mesa (sem psql/CLI Supabase); a conclusão vem da
+  leitura da ordem de avaliação de constraints do Postgres (`ExecConstraints` antes de
+  `ExecInsertIndexTuples`), não de suposição. Corrigido trocando a fixture para
+  `('zzf56 estoque dois', 'em_estoque', 'Zzf56 Estoque Dois')`: o rótulo normaliza de volta ao próprio
+  termo (`vocabulario_chave('Zzf56 Estoque Dois')` = `'zzf56 estoque dois'` — o CHECK passa) e o
+  ESTADO `em_estoque` já tem a linha do seed `'estoque'`/`'Estoque'` com rótulo não nulo — é aí, e só
+  aí, que o índice único parcial recusa de verdade, com `unique_violation`. Comentário acrescentado no
+  próprio roteiro explicando a ordem de avaliação, para o próximo cenário "4x" não repetir o erro.
+- **Hand-fix de `unidades_apelidos` em `src/lib/types/database.ts` divergia do padrão real do gerador
+  para coluna gerada sem `not null` explícito.** `apelido_chave` tipava `string` (não-nulável) no `Row`
+  e estava AUSENTE de `Insert`/`Update` — mas a coluna é
+  `generated always as (public.vocabulario_chave(apelido)) stored`, sem `not null`, exatamente como
+  `colaboradores.nome_chave` (migration `0112`) e `itens.nome_chave` (`0125`/F38), ambas já presentes
+  no mesmo arquivo — geradas de verdade por `npm run db:types` contra banco real, não por hand-fix — e
+  as duas são `string | null` no `Row` e `campo?: string | null` em `Insert`/`Update`. O Postgres não
+  infere `NOT NULL` de coluna gerada só porque a fonte é `NOT NULL` e a função é `STRICT` —
+  nulabilidade é `attnotnull` de catálogo, que só existe com `not null` explícito (ausente na `0139`).
+  Como `scripts/db/diff-tipos.test.mts` compara só o CONJUNTO de nomes `relação.coluna` entre os dois
+  lados (não tipo/nulabilidade), essa divergência não reprovava em lugar nenhum do CI — só leitura
+  manual ou a regeneração real revelava. Corrigido para o mesmo molde: `apelido_chave: string | null`
+  no `Row`, `apelido_chave?: string | null` em `Insert` e `Update`. Como a `0139` continua não aplicada
+  em ensaio/produção, isso não muda contrato nenhum em produção — só alinha o hand-fix ao que
+  `npm run db:types` vai produzir quando a migration for aplicada de verdade.
+
+**Verificação desta rodada (nesta mesa):** `npx tsc --noEmit` limpo; `npm run lint` sem erros/avisos;
+`npm run build` verde (a mudança em `database.ts` é tipo compartilhado por todo o app, então rodei o
+build mesmo sem ter mexido em rota); `npm run test` → 4850/4851 verdes, a única falha é
+`sem-wapismo.test.ts` (trava vermelha esperada da Frente D2, fora de escopo aqui) — os arquivos que
+este apontamento tocou (`vocabulario-sql.test.ts`, `vocabulario-chave-sql.test.ts`,
+`prefixos.test.ts`) e o gate de deriva de tipos (`diff-tipos.test.mts`) passaram isolados também.
+`npm run db:lock` rodado de novo por precaução (a `0139` não foi tocada nesta rodada — só o roteiro
+`.sql` de teste e `database.ts` — e de fato o hash gravado não mudou). Sem `git commit`.
+
+**O que só o CI prova:** o cenário 4e corrigido (que o `unique_violation` realmente acontece contra
+Postgres de verdade) — sem psql/CLI Supabase nesta mesa.

@@ -1147,6 +1147,90 @@ export type Database = {
         }
         Relationships: []
       }
+      // hand-fix F56 — substituído pela regeneração de produção
+      unidades_apelidos: {
+        Row: {
+          apelido: string
+          apelido_chave: string | null
+          created_at: string
+          filial_id: number
+          id: number
+        }
+        Insert: {
+          apelido: string
+          apelido_chave?: string | null
+          created_at?: string
+          filial_id: number
+          id?: never
+        }
+        Update: {
+          apelido?: string
+          apelido_chave?: string | null
+          created_at?: string
+          filial_id?: number
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unidades_apelidos_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // hand-fix F56 — substituído pela regeneração de produção
+      import_termos_categoria: {
+        Row: {
+          categoria: Database["public"]["Enums"]["categoria_ativo"]
+          rotulo: string | null
+          termo: string
+        }
+        Insert: {
+          categoria: Database["public"]["Enums"]["categoria_ativo"]
+          rotulo?: string | null
+          termo: string
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["categoria_ativo"]
+          rotulo?: string | null
+          termo?: string
+        }
+        Relationships: []
+      }
+      // hand-fix F56 — substituído pela regeneração de produção
+      import_termos_estado: {
+        Row: {
+          estado: Database["public"]["Enums"]["status_ativo"]
+          rotulo: string | null
+          termo: string
+        }
+        Insert: {
+          estado: Database["public"]["Enums"]["status_ativo"]
+          rotulo?: string | null
+          termo: string
+        }
+        Update: {
+          estado?: Database["public"]["Enums"]["status_ativo"]
+          rotulo?: string | null
+          termo?: string
+        }
+        Relationships: []
+      }
+      // hand-fix F56 — substituído pela regeneração de produção
+      import_prefixos_patrimonio: {
+        Row: {
+          prefixo: string
+        }
+        Insert: {
+          prefixo: string
+        }
+        Update: {
+          prefixo?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_colaboradores_consolidacao: {
@@ -1751,6 +1835,8 @@ export type Database = {
         Returns: number
       }
       ultima_migracao_aplicada: { Args: never; Returns: string }
+      // hand-fix F56 — substituído pela regeneração de produção
+      vocabulario_chave: { Args: { p_texto: string }; Returns: string }
     }
     Enums: {
       categoria_ativo:

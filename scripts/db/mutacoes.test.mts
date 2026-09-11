@@ -100,7 +100,18 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 68 mutações ATIVAS', () => {
+  it('tem entre 20 e 70 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 68 PARA 70 NA F56 (11/09/2026). A fase escreveu o roteiro
+    // `vocabulario_import.sql` (o vocabulário do import virando dado, migration
+    // 0139) e ele nasceu com DUAS quebras próprias — as duas mecânicas que fecham a
+    // ambiguidade da Decisão 2 do PLAN-F56.md:
+    //   · o gatilho que barra apelido igual ao NOME de outra filial desaparece
+    //     (a diagonal nome×apelido volta a aceitar calada);
+    //   · o índice único de nome de filial desaparece (duas filiais passam a poder
+    //     ter o mesmo nome normalizado, sem erro nenhum).
+    // 67 + 2 = 69, teto 70 (uma de folga — a mesma régua de toda fase anterior:
+    // teto colado no número de hoje força outra decisão na semana seguinte).
+    //
     // ⚠ O TETO SUBIU DE 64 PARA 68 NA F55 (10/09/2026). A fase escreveu o roteiro
     // `integridade_alarme.sql`, que é o primeiro a exercitar as DOZE checagens de
     // integridade uma a uma, e ele nasceu com QUATRO quebras próprias — uma por
@@ -189,7 +200,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(68)
+    expect(MUTACOES.length).toBeLessThanOrEqual(70)
   })
 
   it('os `id` são únicos', () => {
