@@ -52,14 +52,15 @@ export type { CsvCru, RegistroImport } from './parse'
 export type {
   AtivoPlano,
   CampoEditavel,
-  CategoriaAtivo,
+  CategoriaImport,
   CorrecaoImport,
   ErroImport,
+  EstadoAlvoImport,
+  EstadoPlanilha,
   FilialOficial,
   FilialSelecionada,
   GrupoErro,
   LayoutImport,
   PlanoImport,
-  StatusAtivo,
   ValidacaoImport,
 } from './tipos'

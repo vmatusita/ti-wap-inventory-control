@@ -1,0 +1,8 @@
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  2 passed (2)
+      Tests  7 passed | 140 skipped (147)
+   Start at  12:15:09
+   Duration  4.32s (transform 489ms, setup 0ms, import 8.03s, tests 31ms, environment 0ms)
+

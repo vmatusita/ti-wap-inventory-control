@@ -9748,3 +9748,294 @@ do runbook, link do run e a impressão do estado — e **sem amostra nenhuma**. 
 `(producao, integridade)`, verde seis minutos antes, ficou sem issue: a decisão mais importante do
 alarme, provada no ar. O caminho de ABRIR está fechado com falha real; o de FECHAR continua provado
 só por teste de unidade (`alarme.test.mts`), porque exige o ensaio de volta.
+
+---
+
+## 2026-09-11 · F56 (Frente B) · `npm run build` não type-checa arquivo sem importador na app — CI ganhou `npm run typecheck`
+
+- Contexto: a Decisão 4 do `PLAN-F56.md` e o fato 17 da ordem assumiam que o `@ts-expect-error` do
+  utilitário estrito (`ExcluirDaUniao`) ficaria protegido por **dois** caminhos: `npx tsc --noEmit` e
+  `npm run build` (o passo "Build (inclui type-check do TypeScript)" do job `verificar` do CI, contra o
+  MESMO `tsconfig.json`). A prova por sabotagem do critério 8
+  (`docs/f56-evidencias/B2-sabotagem-ts-expect-error.txt`) mediu o contrário: com `src/lib/import/
+  enums-sql.test.ts` sabotado (o valor fora da união trocado por um que já pertence a ela, OU
+  `ExcluirDaUniao` trocado por `Exclude<>` cru), `npx tsc --noEmit` reprova (TS2578, as duas vezes) mas
+  `npm run build` passa limpo — com `.next` apagado antes de cada rodada (elimina cache incremental
+  como explicação) e reproduzido duas vezes.
+- Decisão: **acrescentei o script `typecheck` (`tsc --noEmit`) ao `package.json`** e um passo próprio
+  no CI, "Checagem de tipo completa (tsc --noEmit)" (`.github/workflows/ci.yml`, job `verificar`, logo
+  depois de "Testes"), rodando `npm run typecheck`. O rótulo do passo "Build" mudou de "inclui
+  type-check do TypeScript" (falso, como a medição prova) para "inclui type-check PARCIAL do
+  TypeScript", com comentário apontando para o passo novo.
+- Motivo: o type-check embutido do `next build` só percorre o GRAFO de módulos que a aplicação importa
+  a partir de `src/app/**` (páginas, layouts, Server Actions, componentes…) — não todo arquivo que o
+  `tsconfig.json` inclui. Um `.test.ts` que carrega só ASSERÇÕES DE TIPO (nenhum código de runtime, e
+  nenhum arquivo da app o importa) fica fora desse grafo e, portanto, invisível para o `next build`,
+  mesmo casando com `include: ["**/*.ts", ...]`. Sem o passo novo, o critério 8 ("prova por sabotagem,
+  num caminho de CI que reprova") seria verdade só na intenção — a sabotagem passaria pelo CI de
+  verdade. Isto é dentro do escopo da Frente B: sem o passo, a própria trava que a Decisão 4 pede não
+  tem caminho de CI que a sustente.
+- Reversível? sim — `git revert` no commit que acrescenta o passo e o script; os dois são aditivos
+  (nenhum passo existente mudou de comportamento, só de rótulo).
+
+---
+
+## 2026-09-11 · F56 (Frente D, primeira metade) · o banco do vocabulário — migration 0139
+
+Escopo desta ata: só o que a primeira metade da Frente D decidiu (o banco), não a segunda metade
+(motor por parâmetro, actions, página, `sem-wapismo` verde — de outro agente, depois).
+
+- **Apelido × apelido NÃO entra na guarda `vocabulario_unidades_guarda` — fica só no índice único
+  (23505).** O texto da ordem, lido linha a linha, listava a colisão "apelido = apelido de outra
+  filial" como uma das condições que a guarda deveria recusar com `P0001` — mas o `PLAN-F56.md`
+  (Decisão 2, "as decisões valem") é explícito: *"apelido × apelido: índice único em
+  `unidades_apelidos.apelido_chave`"*, ao lado de *"nome × apelido (a DIAGONAL que nenhum dos dois
+  índices acima cobre)"* como o único caso que precisa de gatilho. E os critérios de aceitação (item
+  6) pedem literalmente `apelido = apelido de outra filial (23505)`. As três fontes não concordam
+  entre si; resolvi pela hierarquia que o `PLAN-F56.md` pede (ele é o "plano aprovado") e pela
+  redundância dos critérios de aceitação: a guarda cobre só a diagonal nome↔apelido; apelido↔apelido
+  (mesma filial ou outra) é o índice único, sem mensagem amigável. Escrevi o motivo dentro do próprio
+  cabeçalho da migration e do corpo da função (`vocabulario_unidades_guarda`), para quem ler o SQL sem
+  este histórico não reintroduzir o terceiro `if` por engano.
+- **A classe de espaço são 25 code points, INCLUSIVE U+1680 (Ogham Space Mark)** — não 24. A minha
+  própria bateria de teste (`vocabulario-chave-sql.test.ts`, função `espacosDoJsAoVivo`, varredura
+  0..0xFFFF contra `/\s/` do JavaScript, rodada de verdade nesta sessão) confirma 25, batendo com o
+  fato 7 do cabeçalho da ordem ("25 code points, inclusive U+FEFF e U+1680"). O relatório de medição
+  B (arquivo `B-enums-regex-normalizacao.md`, item "Resultado 1") mediu 24 e não cita U+1680 — mas a
+  bateria dele testava as faixas `U+0300–U+036F`, `U+1E00–U+1EFF`, `U+2000–U+206F`, `U+3000`,
+  `U+FEFF`, `U+FB00–U+FB06`: nenhuma delas cobre `U+1680` (que fica isolado, fora de todas), então o
+  "24" daquele relatório é um artefato de bateria incompleta, não uma medição que contradiz o fato 7.
+  A migration (`vocabulario_chave`) e o roteiro/teste usam 25, com U+1680 incluído — provado
+  comportamentalmente (`'a' || chr(5760) || 'b'` → `'a b'`) no roteiro `vocabulario_import.sql` e na
+  guarda TS↔SQL.
+- **`collate "und-x-icu"` vai no ARGUMENTO de `lower()`, não no resultado.** Meu primeiro rascunho
+  escreveu `lower(regexp_replace(...)) collate "und-x-icu"` — sintaticamente válido, mas
+  semanticamente inerte: `COLLATE` sobre o RESULTADO de uma função só relabela a collation do valor
+  já computado, não muda o algoritmo de minúsculas que `lower()` usou internamente (que deriva da
+  collation do seu PRÓPRIO argumento). A forma corrigida —
+  `lower((regexp_replace(...)) collate "und-x-icu")` — força a collation ANTES de `lower()` rodar.
+  Isto importa de verdade para o caso `İ` (I maiúsculo turco com ponto, U+0130): sob `und-x-icu` ele
+  decompõe em NFD → `I` + combining dot, e como o diacrítico já foi removido antes do `lower`, o
+  resultado é `i` puro — sob uma collation diferente (ou sob a forma errada do COLLATE) o resultado
+  poderia divergir. Não encontrei este bug por leitura; encontrei rodando a guarda TS↔SQL contra o
+  roteiro (o caso `İstanbul` → `istanbul` do bloco PARES_NORMALIZACAO) — ele só passaria por acidente
+  se a diferença não importasse para aquele caractere específico, então bati o SQL igual à recomendação
+  padrão do Postgres para "case mapping sob uma collation específica" antes de confiar no teste.
+- **`database.ts`: hand-fix COM comentário datado.** A medição C (`C-catalogos.md`, item 5) já havia
+  provado que `tipos-conjuntos.mjs` lê o arquivo pelo COMPILADOR TypeScript, não por regex — um
+  comentário `// hand-fix F56 — substituído pela regeneração de produção` acima de cada tabela/função
+  nova não quebra o gate de deriva. Usei o comentário nos quatro blocos de tabela e no bloco da
+  função `vocabulario_chave`.
+- **`scripts/db/diff-tipos.test.mts` também mudou** (30→34 relações, 74→75 funções) — não estava na
+  minha lista de arquivos por nome, mas é a MESMA guarda que a `tipos_item`/F51/F52/F55 já
+  atualizaram cada vez que uma tabela ou função nova entrou em `database.ts`: sem atualizá-la,
+  `npm run test` reprovaria citando os números antigos. Tratei como consequência direta e obrigatória
+  do hand-fix, não como trabalho de outra frente.
+- **O teto do injetor subiu de 68 para 70** (`mutacoes.test.mts`) — 67 mutações ativas + 2 novas
+  (`vocabulario-perde-a-guarda-de-ambiguidade`, `vocabulario-perde-o-indice-de-nome-unico`) = 69, uma
+  de folga acima, na mesma régua que toda fase anterior usou (F51 a F55).
+- **`papeis_rls.sql` NÃO foi tocado.** A medição C (checklist de catálogos) marca isso como
+  "recomendado, não travado por gate nenhum" para tabela nova — e a própria ordem pede um roteiro
+  NOVO e dedicado (`vocabulario_import.sql`) para toda a cobertura de RLS e ambiguidade desta fase.
+  Duplicar os mesmos cenários em `papeis_rls.sql` também custaria manutenção sem ganho de cobertura.
+  Registrado aqui para quem procurar `unidades_apelidos`/`import_termos_*` nos dois blocos de grant
+  daquele arquivo e não encontrar: é decisão, não esquecimento.
+- **Pendência explícita para quem herdar a segunda metade da Frente D:** o allowlist de
+  `sem-wapismo.test.ts` cobre hoje só o que esta metade encontrou rodando a varredura (registry.ts,
+  ajuda/conteudo/**, quatro linhas de placeholder de UI, três linhas de identificador de layout em
+  `lib/import/**`). A saída vermelha atual (`docs/f56-evidencias/D1-sem-wapismo-vermelha.txt`) acusa
+  EXATAMENTE `deparas.ts` (54 literais) e `tipos.ts` (5 literais) — nenhum arquivo fora do import. Se
+  a segunda metade abrir novos arquivos em `src/**` e eles também violarem o vocabulário, o allowlist
+  pode precisar de entradas novas; a régua para decidir (nominal, arquivo:linha, motivo escrito) já
+  está no teste.
+
+---
+
+## 2026-09-11 · F56 (Frente C) · os tetos e o arquivo desalinhado — limites.ts fonte única
+
+Escopo desta ata: os números finais das Decisões 6, 7 e 8 do `PLAN-F56.md`, o que mudou em relação ao
+PLAN e por quê, e as decisões de desenho que a ordem/plano não fechavam por completo.
+
+- **Decisão 6 — os números finais são os que a remedição C2 já havia confirmado**, sem ajuste:
+  `TAMANHO_MAX_ARQUIVO` 1 MiB, `MAX_LINHAS_PLANILHA` 2.000, `MAX_COLUNAS_PLANILHA` 40,
+  `MAX_BYTES_CONTEUDO` 768 KiB, `MAX_CORRECOES` 500, `MAX_CRU`/`MAX_PARA` 120/120,
+  `LIMITE_CORPO_PLATAFORMA` 4.500.000 B, `FOLGA_MINIMA` 1,5, `ORCAMENTO_RESPOSTA_PREVIEW` 2.000.000 B.
+  Remedi os cinco corpos DEPOIS de implementar o motor (não confiei nos números da C2, que mediu ANTES
+  do fix do O(N²) e antes do orçamento de resposta existir de verdade): script versionado
+  `scripts/perf/medir-corpos-import.mts`, saída em `docs/f56-evidencias/C2-conta-dos-corpos.txt`. O
+  pior corpo é o 2 (resposta de `validarImport`, 1.943.783 B, folga 2,32×) — os outros quatro folgam
+  mais.
+- **O achado que mais mexeu no resultado não estava na lista de decisões do PLAN: o O(N²) das
+  mensagens de duplicata (achado C2 §1.3).** `plano.ts` embutia `linhas.join(', ')` — a lista INTEIRA
+  de linhas do grupo — dentro da mensagem de CADA membro; um grupo de N duplicatas gerava N mensagens
+  de tamanho O(N), e o corpo 2 crescia QUADRATICAMENTE (medido: N=1.142 → 14,4 MB; N=2.000 → 45,4 MB,
+  SÓ desse card). O conserto (`resumoLinhas`, plano.ts) cita só as 10 primeiras linhas + "e mais N" —
+  `grupo.linhas` continua com a lista completa, só a MENSAGEM deixa de reescrevê-la por membro. Depois
+  do conserto, o mesmo cenário (N=2.000) caiu para 616.342 B — 73× menor — e nem precisou do degrau de
+  orçamento (K=500 já bastou). Sem este achado, nenhuma configuração de `ORCAMENTO_RESPOSTA_PREVIEW`
+  razoável teria salvado o corpo 2 desse cenário: o degrau reduz erros INDIVIDUAIS por tipo, não o
+  tamanho de uma mensagem que o motor monta errado.
+- **Decisão 7 — `MAX_XML_DESCOMPRIMIDO` = 32 MiB, não os 80 MB que a medição isolada da Decisão 7
+  propunha.** Custo que decidiu: com `MAX_BYTES_CONTEUDO` (768 KiB) já em vigor, um `.xlsx` LEGÍTIMO e
+  IMPORTÁVEL nunca passa de ~6,6 MB de XML descomprimido (2,83 MB medidos pela C2 para um `.xlsx` no
+  teto de conteúdo com 40 colunas compactas, dobrado para o pior escape de `&`/`<`/`>`) — 32 MiB é ~5×
+  esse pior caso legítimo, folga generosa sem reservar memória à toa numa function da Vercel. **Sem
+  checagem por `<dimension ref="…">`**, por desenho explícito do coordenador: ela pode faltar OU
+  MENTIR (T2/C2), e formatação em linhas vazias a infla sem dado nenhum — um teto baseado nela
+  recusaria arquivo legítimo por engano. Confirmei isso na prática: gerei um `.xlsx` no teto de
+  conteúdo (768 KiB) MAIS formatação (preenchimento/borda) em 8.000 linhas vazias além dos dados — o
+  hábito real de quem seleciona a coluna inteira no Excel — e o XML descomprimido continuou bem abaixo
+  de 32 MiB (aceito, não recusado); não precisei subir o teto (`docs/f56-evidencias/C4-xlsx-antes-do-load.txt`,
+  caso 1b). **Recusa de caractere de controle NÃO entrou** — a Decisão 6 do PLAN cogitava um bloqueante
+  dedicado (`caractere_invalido`) para células com C0 (que o JSON escapa em até 6 bytes por caractere);
+  não implementei porque `conferirTetos` já conta o conteúdo pelos bytes ESCAPADOS PARA JSON
+  (`Buffer.byteLength(JSON.stringify(celula)) - 2`) — um caractere de controle já paga o próprio custo
+  de escape na soma contra `MAX_BYTES_CONTEUDO`; um teto dedicado seria redundante com o que o teto de
+  bytes já cobre, sem abrir nenhum buraco novo.
+- **A checagem de linhas/colunas SAIU de `xlsx.ts` e foi para `conferirTetos` (limites.ts), chamada
+  UMA VEZ em `analisar()` — não em dois lugares.** O `lerXlsx` de antes recusava DEPOIS do `load` mas
+  ANTES de materializar todas as linhas (economia pequena); decidi não preservar esse early-return
+  duplicado porque (a) o teto pré-load da Decisão 7 já garante que nenhum `.xlsx` aceito pelo `load`
+  pode ter decomposto mais que 32 MiB, então o custo de materializar `MAX_LINHAS_PLANILHA`-e-pouco
+  linhas de sobra é baixo; (b) ter DOIS pontos de checagem (um em `xlsx.ts`, outro em `analisar()`)
+  reabriria exatamente o problema que motivou "o CSV passa a ter os MESMOS tetos e mensagens que o
+  `.xlsx`" — duas fontes da mesma régua que podem divergir. `lerLinha` (xlsx.ts) passou a entregar
+  células ALÉM do cabeçalho sem truncar (Decisão 8) em vez de as tetos de linha/coluna, que hoje são só
+  do `conferirTetos`.
+- **Decisão 8 — linha desalinhada é EXCLUÍDA do CSV antes de `aplicarCorrecoes`/`extrairRegistros`,
+  não só marcada.** A ordem não fechava isso explicitamente. Decidi excluir porque uma linha com célula
+  a mais NO MEIO do array desloca todas as colunas seguintes — deixá-la seguir para `extrairRegistros`
+  leria valor de coluna ERRADA em silêncio (ex.: o "Status" de uma linha desalinhada podendo cair na
+  célula que era "Situação"), o exato defeito de corrupção silenciosa que esta régua existe para
+  evitar. Como o `bloqueante` já derruba o plano de qualquer forma, excluir a linha do CSV que segue
+  adiante evita erros SECUNDÁRIOS confusos (categoria/estado bobos derivados de valor deslocado) sem
+  mudar o resultado (plano continua null). `linha_desalinhada` some do CSV corrigido também —
+  correções (`op: 'editar'` etc.) nessa linha viram no-op (linha não encontrada), consistente com "a
+  estrutura se conserta no arquivo, nunca por correção da tela".
+- **`linha_desalinhada` e `valor_longo_demais` se agrupam diferente.** `linha_desalinhada` cai no
+  molde de `header_invalido` (UM card para todas as linhas — é defeito de arquivo inteiro, não vale a
+  pena um card por linha quando pode haver centenas). `valor_longo_demais` agrupa por COLUNA (ex.: "3
+  valores longos demais em Observação" separado de "2 em Modelo") — mais informativo que juntar tudo
+  ou espalhar um card por linha. Os dois caem em `correcao.kind: 'nenhuma'` (informativo, sem ação —
+  o `default` de `correcaoDoGrupo` já cobre, não precisou de `case` novo lá).
+- **O orçamento de resposta (`orcamento.ts`) tem piso de 1 por tipo, NUNCA 0** — a diferença
+  deliberada contra a proposta original da medição C2 (que testava até K=0/"zero itens"). Zero itens
+  de um tipo faria a tela parecer que aquele tipo de erro sumiu, quando na verdade ele só não está
+  listado — mentira por omissão. Com o piso em 1, o operador sempre vê pelo menos UM exemplar de cada
+  tipo de problema, e `resumo.detalhe.totalBloqueantes`/`totalAvisos` (nunca reduzidos) contam a
+  verdade nos números agregados que a tela usa em vez de `.length` dos arrays.
+- **`grupo.linhas` e `grupo.chave` NUNCA são tocados pelo degrau — mesmo no pior caso (K=1).** É o
+  que garante que a correção em massa (que casa pela `chave`) continue funcionando mesmo quando o
+  arquivo estourou o orçamento: o operador aplica "Definir todos como X" e o motor reanalisa do zero
+  (o orçamento roda de novo sobre o resultado novo, sem estado acumulado).
+- **`MAX_CORRECOES`/`MAX_CRU`/`MAX_PARA` migraram de `validators/importar.ts` para `limites.ts`**
+  (fonte única dos tetos do import), com `validators/importar.ts` reexportando `MAX_CORRECOES` por
+  compatibilidade (um teste existente importava dali). Isso encolheu de 20.000/500/200 para 500/120/120
+  — `importar.test.ts` (que constrói arrays de `MAX_CORRECOES` elementos) ficou MAIS RÁPIDO como
+  efeito colateral (arrays de 500/501 em vez de 20.000/20.001).
+- **`LIMITES_CAMPO_PLANO` é `satisfies Record<keyof AtivoPlano, ...>`** (os 18 campos nomeados
+  explicitamente, não `keyof AtivoPlano` direto — TypeScript não permite importar um tipo de outro
+  módulo só para o `satisfies` sem o `import type`, e preferi listar as chaves à mão com o comentário
+  de que espelham `AtivoPlano` a criar uma dependência de tipo de `limites.ts` → `tipos.ts` que
+  poderia parecer implicar dependência de RUNTIME — `limites.ts` continua um leaf puro, zero import de
+  valor de `tipos.ts`). Se `AtivoPlano` ganhar/perder campo em `tipos.ts` sem este objeto acompanhar,
+  o `tsc`/build reprovam — é a mesma guarda estrutural que o resto da casa já usa em vocabulários
+  fechados.
+- **Testes que mudaram por desenho** (números/comportamento, não bug): os dois testes de
+  `xlsx.test.ts` que chamavam `lerXlsx` diretamente esperando `ErroArquivoImport` de linha/coluna —
+  agora exercitam `validarArquivoImport` (o teto saiu de `xlsx.ts`); `correcoes.test.ts` — um
+  `resumo.toEqual` ganhou o campo `detalhe` novo; `importar.test.ts` — `MAX_CORRECOES` mudou de
+  20.000 para 500 (o teste já usava a CONSTANTE, não o número cru, então só ficou mais rápido).
+- **A prova de sabotagem (C3) rodou de verdade**: subi `MAX_LINHAS_PLANILHA` para 2.500 sem tocar o
+  carimbo → `limites.test.ts` foi vermelho pela mensagem certa (não um erro genérico); desfiz e
+  reconfirmei verde. As demonstrações de CSV-no-teto/célula-a-mais/células-vazias-à-direita rodaram
+  contra o motor JÁ CORRIGIDO (não há código para sabotar ali — são comportamentos, não números).
+- **Custo que NÃO investiguei a fundo**: o `picoRssMB` de `docs/f56-evidencias/C4-xlsx-antes-do-load.txt`
+  mistura memória da geração da fixture com a da leitura medida (mesmo processo, GC preguiçoso) — cada
+  caso roda em processo FILHO separado (então a comparação ENTRE casos vale), mas o número absoluto de
+  cada linha é um limite superior, não um delta isolado perfeito. Documentei a ressalva no próprio
+  arquivo de evidência em vez de gastar mais tempo isolando com `global.gc()` forçado — o que importa
+  para a decisão (nenhum caso passa de ~550 MB, longe do teto de 2 GB) se sustenta de qualquer jeito.
+
+---
+
+## 2026-09-11 · F56 (Frente D, primeira metade) · correção pós-revisão adversarial
+
+Escopo desta ata: os dois apontamentos de uma revisão adversarial sobre a entrega original da Frente D
+(primeira metade), registrada na ata acima. Corrige pela causa, não afrouxa nenhuma trava.
+
+- **`vocabulario_unidades_guarda()` lia `new.apelido_chave` dentro do próprio gatilho `BEFORE INSERT OR
+  UPDATE` de `unidades_apelidos` — bug real, não estilo.** `apelido_chave` é
+  `generated always as (public.vocabulario_chave(apelido)) stored`; a documentação do Postgres
+  (ddl-generated-columns) é explícita: colunas geradas armazenadas só existem DEPOIS que os gatilhos
+  BEFORE terminam, e não é permitido lê-las dentro de um. No INSERT isso faz `new.apelido_chave` chegar
+  NULL dentro do gatilho — a comparação `vocabulario_chave(f.nome) = v_chave` nunca bate, e a guarda da
+  diagonal nome×apelido (a própria razão da Decisão 2 / deste gatilho) vira no-op silencioso: os
+  cenários 6a/6c/6f/6g de `vocabulario_import.sql` esperam P0001 e não o receberiam. Pior ainda: o SEED
+  (seção 8 desta mesma migration) insere as 13 linhas de `unidades_apelidos` disparando este mesmo
+  gatilho — dependendo de como o Postgres trata o acesso, a própria aplicação da migration podia falhar.
+  Corrigido para `v_chave := public.vocabulario_chave(new.apelido);` — a chave computada a partir da
+  coluna BASE (sempre disponível num gatilho BEFORE), exatamente como o branch `filiais` da mesma
+  função já fazia (`v_chave := public.vocabulario_chave(new.nome);`, a duas dezenas de linhas abaixo) —
+  eu tinha o molde certo ao lado e não segui ele no branch novo. Não há como confirmar nesta mesa (sem
+  psql/CLI Supabase); só o CI, rodando `vocabulario_import.sql` contra Postgres de verdade, prova.
+  `npm run db:lock` regravado depois da correção.
+- **A contagem "57 literais" de `deparas.ts` na ata anterior estava errada — o número real, tanto
+  rodando o teste de novo quanto no próprio arquivo de evidência já salvo
+  (`docs/f56-evidencias/D1-sem-wapismo-vermelha.txt`, que abre com "59 literal(is)"), é 54 (+ 5 de
+  `tipos.ts` = 59, não 62).** Não vi a divergência entre o número que escrevi de memória e a evidência
+  que eu mesmo tinha acabado de salvar — corrigido para bater com o arquivo. Não muda nada desta
+  metade; é a referência que a segunda metade da Frente D vai usar ao apagar as constantes.
+
+---
+
+## 2026-09-11 · F56 (Frente D, primeira metade) · segunda rodada de revisão adversarial
+
+Escopo: dois apontamentos NOVOS (diferentes dos da rodada acima), sobre arquivos que a rodada
+anterior não tocou.
+
+- **Cenário 4e de `supabase/tests/vocabulario_import.sql` testava a exceção errada — a fixture violava
+  o CHECK antes de chegar perto do índice único parcial.** A linha original inseria
+  `('zzf56 segundo', 'em_estoque', 'Estoque')` para provar `import_termos_estado_estado_rotulo_uidx`
+  (um segundo termo com rótulo para o mesmo `estado`). Mas `vocabulario_chave('Estoque')` = `'estoque'`
+  ≠ `'zzf56 segundo'` — essa linha já falha no CHECK `import_termos_estado_rotulo_volta_ao_termo`
+  primeiro. A ordem não é uma corrida: o Postgres avalia `CHECK` em `ExecConstraints()` ANTES de
+  `ExecInsertIndexTuples()` (a gravação nos índices, inclusive o único parcial) — é documentado e
+  determinístico. Então o SQLSTATE real é `check_violation` (23514), não `unique_violation` (23505); o
+  bloco `exception when unique_violation ... when others ...` caía no ramo `others` e o cenário 4e
+  reprovava SEMPRE, com migration e banco corretos — um defeito na FIXTURE do teste, não no banco.
+  Não pude confirmar contra um Postgres real nesta mesa (sem psql/CLI Supabase); a conclusão vem da
+  leitura da ordem de avaliação de constraints do Postgres (`ExecConstraints` antes de
+  `ExecInsertIndexTuples`), não de suposição. Corrigido trocando a fixture para
+  `('zzf56 estoque dois', 'em_estoque', 'Zzf56 Estoque Dois')`: o rótulo normaliza de volta ao próprio
+  termo (`vocabulario_chave('Zzf56 Estoque Dois')` = `'zzf56 estoque dois'` — o CHECK passa) e o
+  ESTADO `em_estoque` já tem a linha do seed `'estoque'`/`'Estoque'` com rótulo não nulo — é aí, e só
+  aí, que o índice único parcial recusa de verdade, com `unique_violation`. Comentário acrescentado no
+  próprio roteiro explicando a ordem de avaliação, para o próximo cenário "4x" não repetir o erro.
+- **Hand-fix de `unidades_apelidos` em `src/lib/types/database.ts` divergia do padrão real do gerador
+  para coluna gerada sem `not null` explícito.** `apelido_chave` tipava `string` (não-nulável) no `Row`
+  e estava AUSENTE de `Insert`/`Update` — mas a coluna é
+  `generated always as (public.vocabulario_chave(apelido)) stored`, sem `not null`, exatamente como
+  `colaboradores.nome_chave` (migration `0112`) e `itens.nome_chave` (`0125`/F38), ambas já presentes
+  no mesmo arquivo — geradas de verdade por `npm run db:types` contra banco real, não por hand-fix — e
+  as duas são `string | null` no `Row` e `campo?: string | null` em `Insert`/`Update`. O Postgres não
+  infere `NOT NULL` de coluna gerada só porque a fonte é `NOT NULL` e a função é `STRICT` —
+  nulabilidade é `attnotnull` de catálogo, que só existe com `not null` explícito (ausente na `0139`).
+  Como `scripts/db/diff-tipos.test.mts` compara só o CONJUNTO de nomes `relação.coluna` entre os dois
+  lados (não tipo/nulabilidade), essa divergência não reprovava em lugar nenhum do CI — só leitura
+  manual ou a regeneração real revelava. Corrigido para o mesmo molde: `apelido_chave: string | null`
+  no `Row`, `apelido_chave?: string | null` em `Insert` e `Update`. Como a `0139` continua não aplicada
+  em ensaio/produção, isso não muda contrato nenhum em produção — só alinha o hand-fix ao que
+  `npm run db:types` vai produzir quando a migration for aplicada de verdade.
+
+**Verificação desta rodada (nesta mesa):** `npx tsc --noEmit` limpo; `npm run lint` sem erros/avisos;
+`npm run build` verde (a mudança em `database.ts` é tipo compartilhado por todo o app, então rodei o
+build mesmo sem ter mexido em rota); `npm run test` → 4850/4851 verdes, a única falha é
+`sem-wapismo.test.ts` (trava vermelha esperada da Frente D2, fora de escopo aqui) — os arquivos que
+este apontamento tocou (`vocabulario-sql.test.ts`, `vocabulario-chave-sql.test.ts`,
+`prefixos.test.ts`) e o gate de deriva de tipos (`diff-tipos.test.mts`) passaram isolados também.
+`npm run db:lock` rodado de novo por precaução (a `0139` não foi tocada nesta rodada — só o roteiro
+`.sql` de teste e `database.ts` — e de fato o hash gravado não mudou). Sem `git commit`.
+
+**O que só o CI prova:** o cenário 4e corrigido (que o `unique_violation` realmente acontece contra
+Postgres de verdade) — sem psql/CLI Supabase nesta mesa.

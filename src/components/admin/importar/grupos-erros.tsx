@@ -20,11 +20,11 @@ import { cn } from '@/lib/utils'
 import { extrairPatrimonioDoHostname, SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 import type {
-  CategoriaAtivo,
+  CategoriaImport,
   CorrecaoImport,
+  EstadoAlvoImport,
   GrupoErro,
   RegistroImport,
-  StatusAtivo,
 } from '@/lib/import'
 import { rotuloTipoErro, VAZIO } from '@/components/admin/importar/rotulos'
 import {
@@ -62,11 +62,8 @@ type CtrlProps = {
   setCampo: (chave: string, valor: string) => void
 }
 
-const CATEGORIAS = Object.entries(TIPO_CANONICO) as [CategoriaAtivo, string][]
-const ESTADOS = Object.entries(SITUACAO_CANONICA) as [
-  Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>,
-  string,
-][]
+const CATEGORIAS = Object.entries(TIPO_CANONICO) as [CategoriaImport, string][]
+const ESTADOS = Object.entries(SITUACAO_CANONICA) as [EstadoAlvoImport, string][]
 
 function plural(n: number, singular: string, pluralTxt: string): string {
   return n === 1 ? singular : pluralTxt
@@ -262,7 +259,7 @@ function CardCategoria({
   ...comuns
 }: CtrlProps & {
   grupo: GrupoErro
-  sugestao: CategoriaAtivo | null
+  sugestao: CategoriaImport | null
 }) {
   const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
   const categoria = massaEfetiva(grupo, rascunho)
@@ -318,7 +315,7 @@ function CardEstado({
   grupo: GrupoErro
   statusDe: string
   situacaoDe: string
-  sugestao: Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'> | null
+  sugestao: EstadoAlvoImport | null
 }) {
   const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
   const estado = massaEfetiva(grupo, rascunho)
@@ -1115,8 +1112,9 @@ export function GruposErros({
         switch (grupo.correcao.kind) {
           case 'categoria': {
             // O guard `s !== 'outro'` que vivia aqui sumiu em 30/08/2026 junto com o
-            // enum-fantasma (dívida técnica, item I): `CategoriaAtivo` do MOTOR não
-            // tem mais o valor que o CSV nunca produz, então não há o que descartar.
+            // enum-fantasma (dívida técnica, item I): `CategoriaImport` do MOTOR
+            // (F56 · Frente B — antes `CategoriaAtivo`, redeclarada à mão) não tem
+            // mais o valor que o CSV nunca produz, então não há o que descartar.
             return (
               <CardCategoria
                 key={chaveReact}

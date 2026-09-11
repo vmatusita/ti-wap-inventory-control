@@ -1,0 +1,400 @@
+F56 · Frente C — a conta final dos cinco corpos (Decisão 6 do PLAN-F56.md)
+Data: 11/09/2026. Repositório `ti-wap-inventory-control`, branch
+`f56-import-sem-wapismo-e-sem-bomba`. Números FINAIS — depois da correção (§Decisão
+6/7/8 aplicadas): `TAMANHO_MAX_ARQUIVO=1 MiB`, `MAX_LINHAS_PLANILHA=2.000`,
+`MAX_COLUNAS_PLANILHA=40`, `MAX_BYTES_CONTEUDO=768 KiB`, `MAX_CORRECOES=500`,
+`MAX_CRU=MAX_PARA=120`, `LIMITE_CORPO_PLATAFORMA=4.500.000 B`, `FOLGA_MINIMA=1,5`,
+`ORCAMENTO_RESPOSTA_PREVIEW=2.000.000 B`.
+
+Gerado por `scripts/perf/medir-corpos-import.mts` (versionado), com o
+SERIALIZADOR REAL do Next (`encodeReply`/`renderToReadableStream` do
+`react-server-dom-webpack`, exigindo `NODE_OPTIONS=--conditions=react-server`) e
+o MOTOR REAL de `src/lib/import` — a redução do orçamento de resposta
+(`aplicarOrcamentoResposta`, `orcamento.ts`) já roda DENTRO de
+`validarCsvImport`/`validarArquivoImport`: este script não simula nada, só mede
+o que sai de verdade.
+
+Comando exato:
+  NODE_OPTIONS="--conditions=react-server" npx tsx scripts/perf/medir-corpos-import.mts todos
+
+Dados 100% FICTÍCIOS (WAP9xxxxxx; nenhum nome de colaborador real) — CLAUDE.md
+regra 2.
+
+===========================================================================
+TABELA FINAL — as cinco desigualdades (corpo ≤ LIMITE_CORPO_PLATAFORMA / FOLGA_MINIMA
+= 4.500.000 / 1,5 = 3.000.000 B)
+===========================================================================
+
+| Corpo | Pior caso medido | Bytes | % de 4,5 MB | Folga sobre 4,5 MB | Cabe com folga ≥1,5×? |
+|---|---|---:|---:|---:|:---:|
+| 1 = 4 (pedido, multipart real) | CSV 1 MiB + 500 correções no teto | 1.193.983 | 26,5% | 3,77× | SIM |
+| 2 (resposta validarImport, JÁ com o orçamento aplicado) | N=2.000, "2.000 Sites distintos" (Flight) | 1.943.783 | 43,2% | 2,32× | SIM |
+| 3 (pedido aplicarImport) | N=2.000, 1.024 KiB conteúdo + 1.000 correções (combinado pior×pior) | 1.838.884 | 40,9% | 2,45× | SIM |
+| 5 (resposta baixarCsvCorrigido) | N=2.000, 1.024 KiB, estilo aspas/barras (Flight) | 811.281 | 18,0% | 5,55× | SIM |
+
+Os CINCO corpos cabem com folga ≥ 1,5× (a exigida) — o pior (corpo 2) fica em
+2,32×, bem acima do mínimo. O corpo 1/4 do `.xlsx` equivalente (1.179.479 B) é
+menor que o do CSV — não é o pior caso.
+
+===========================================================================
+CORPO 2 — o achado mais importante: o fix do O(N²) (achado C2 §1.3) + o
+orçamento de resposta (Decisão 6, item 3), TRABALHANDO JUNTOS
+===========================================================================
+
+ANTES da correção (medição C2, `docs/f56-medicoes/c2/C2-tetos-remedidos.md`,
+motor no estado de HEAD, sem `resumoLinhas`/sem `aplicarOrcamentoResposta`):
+cenário "duplicata em TODA linha" (1 grupo gigante) — N=1.142 → 13.966.130 B de
+JSON; N=2.000 → 45.055.760 B. Não linear em N (crescimento QUADRÁTICO: 1,75× mais
+linhas deu 3,23× mais bytes).
+
+DEPOIS (este script, motor real com as duas correções aplicadas):
+
+| Cenário | N | JSON | Flight | Flight/JSON | reduzido? | K (mantidosPorTipo) |
+|---|---:|---:|---:|---:|:---:|---:|
+| (a) 4 bloqueantes/linha | 1.142 | 1.410.393 | 1.410.396 | 1,000 | sim | 500 |
+| (a) 4 bloqueantes/linha | 2.000 | 1.183.959 | 1.183.962 | 1,000 | sim | 500 |
+| (b) todo aviso possível | 1.142 | 1.439.615 | 1.439.618 | 1,000 | sim | 200 |
+| (b) todo aviso possível | 2.000 | 1.690.137 | 1.690.140 | 1,000 | sim | 200 |
+| (c) duplicata em TODA linha | 1.142 | 1.339.128 | 1.127.855 | 0,842 | NÃO | — |
+| (c) duplicata em TODA linha | 2.000 | 616.342 | 616.345 | 1,000 | sim | 500 |
+| (d) 2.000/1.142 Sites distintos | 1.142 | 1.737.568 | 1.737.571 | 1,000 | sim | 200 |
+| (d) 2.000/1.142 Sites distintos | 2.000 | 1.943.780 | 1.943.783 | 1,000 | sim | 50 |
+| válida (baseline) | 1.142 | 895.675 | 895.678 | 1,000 | não | — |
+| válida (baseline) | 2.000 | 1.235.385 | 1.235.388 | 1,000 | não | — |
+
+O cenário (c) — o que explodia O(N²) — caiu de **45.055.760 B para 616.342 B**
+(N=2.000): uma redução de **73×**, e agora nem precisa do degrau mais agressivo
+(K=500 já basta). Em N=1.142 o fix sozinho (sem precisar reduzir NADA — `reduzido:
+false`) já deixa o corpo em 1.339.128 B, MENOS da metade do que a versão SEM-fix
+tinha no cenário mais fácil.
+
+**Razão Flight/JSON máxima observada: 1,000-1,001** (a resposta em Flight nunca é
+significativamente maior que o JSON equivalente — o codec do Flight não paga
+overhead extra pela estrutura desta resposta). **Mínima: 0,842** (cenário (c) em
+N=1.142, sem redução — o Flight fica 16% MENOR que o JSON, porque o codec
+deduplica strings repetidas entre `bloqueantes`/`grupos[].erros`/`contexto`
+melhor que o `JSON.stringify` cru). Nenhum cenário medido chega perto de um
+Flight/JSON > 1,1 — o gate do motor (`Buffer.byteLength(JSON.stringify(v))`,
+`orcamento.ts`) é uma medida CONSERVADORA da resposta real na rede, nunca
+otimista.
+
+O PIOR corpo 2 de todos (N=2.000, "2.000 Sites distintos", 1.943.783 B de
+Flight) fica em 97,2% do orçamento de 2.000.000 B — o degrau escolheu K=50 por
+ser o MAIOR K que ainda cabe (o algoritmo tenta 500→200→50→10→1 nesta ordem e
+para no primeiro que cabe); folga de 2,32× ainda sobra contra o limite REAL da
+plataforma (4,5 MB), que é o que importa para o `413`.
+
+===========================================================================
+CORPO 3 — pedido de aplicarImport (pior caso ACEITO)
+===========================================================================
+
+| Configuração | bytes arquivo | corpo3 (pedido, string) | % de 4,5 MB | Folga |
+|---|---:|---:|---:|---:|
+| 768 KiB conteúdo · 500 corr · multibyte | 649.295 | 1.541.564 | 34,3% | 2,92× |
+| 768 KiB conteúdo · 500 corr · aspas/barras | 742.205 | 1.644.474 | 36,5% | 2,74× |
+| 768 KiB conteúdo · 1.000 corr · multibyte | 649.295 | 1.687.064 | 37,5% | 2,67× |
+| 512 KiB conteúdo · 500 corr | 499.295 | 1.391.564 | 30,9% | 3,23× |
+| 1.024 KiB conteúdo · 500 corr | 801.115 | 1.693.384 | 37,6% | 2,66× |
+| 1.024 KiB conteúdo · 1.000 corr (combinado pior×pior) | 801.115 | 1.838.884 | 40,9% | **2,45×** |
+
+Todas as linhas com `planoOk: true` (nenhum bloqueante inesperado — os campos
+gerados ficam dentro de `LIMITES_CAMPO_PLANO`, nenhum `valor_longo_demais`
+acidental). Confirma C2 byte a byte (mesmas seis linhas, mesmos números): o motor
+não mudou o corpo 3 nesta frente além do que já estava certo.
+
+===========================================================================
+CORPOS 1/4 — multipart real (`File`), arquivo no teto + 500 correções no teto
+===========================================================================
+
+| Formato | alvo arquivo | N (ajustado) | bytes arquivo real | corpo1/4 (multipart) | % de 4,5 MB | Folga |
+|---|---:|---:|---:|---:|---:|---:|
+| CSV | 1 MiB | 951 | 1.048.207 | 1.193.983 | 26,5% | 3,77× |
+| .xlsx | 1 MiB (comprimido) | 15.547 | 1.033.645 | 1.179.479 | 26,2% | 3,82× |
+
+Achado colateral (Decisão 7): o `.xlsx` de 1 MiB comprimido aceitou 15.547
+linhas — muito acima de `MAX_LINHAS_PLANILHA` (2.000). Confirma que o teto de
+BYTES do arquivo não limita a quantidade de dado que um `.xlsx` carrega — é
+`MAX_LINHAS_PLANILHA`, aplicado por `conferirTetos` (chamado de `analisar()`
+DEPOIS de `lerXlsx` devolver o `CsvCru` completo), que recusaria este arquivo
+específico.
+
+===========================================================================
+CORPO 5 — resposta de baixarCsvCorrigido (pior escape)
+===========================================================================
+
+| N | conteúdo | estilo | bytes CSV corrigido | JSON | Flight (corpo5) | Flight/JSON | % de 4,5 MB |
+|---:|---:|---|---:|---:|---:|---:|---:|
+| 2.000 | 768 KiB | aspas/barras | 642.205 | 824.267 | 642.281 | 0,779 | 14,3% |
+| 2.000 | 1.024 KiB | aspas/barras | 811.205 | 1.039.277 | 811.281 | 0,781 | 18,0% |
+| 1.142 | 768 KiB | aspas/barras | 575.773 | 737.999 | 575.849 | 0,780 | 12,8% |
+
+Corpo 5 é, de longe, o mais folgado (folga ≥ 5,55×) — o Flight é ~22% MENOR que
+o JSON (o CSV já vem com aspas duplicadas RFC4180; o `JSON.stringify` as escapa
+de novo, o codec do Flight não paga esse custo para strings grandes). Confirma
+C2 byte a byte.
+
+===========================================================================
+SAÍDA BRUTA (JSON completo do script)
+===========================================================================
+{
+  "corpo2_n1142": [
+    {
+      "cenario": "a_bloqueante4",
+      "n": 1142,
+      "bytesArquivo": 684263,
+      "json": 1410393,
+      "flight": 1410396,
+      "flightSobreJson": 1,
+      "bloqueantes": 2000,
+      "avisos": 0,
+      "grupos": 4,
+      "totalBloqueantes": 4568,
+      "totalAvisos": 0,
+      "reduzido": true,
+      "mantidosPorTipo": 500
+    },
+    {
+      "cenario": "b_avisos",
+      "n": 1142,
+      "bytesArquivo": 484784,
+      "json": 1439615,
+      "flight": 1439618,
+      "flightSobreJson": 1,
+      "bloqueantes": 0,
+      "avisos": 800,
+      "grupos": 3,
+      "totalBloqueantes": 0,
+      "totalAvisos": 3046,
+      "reduzido": true,
+      "mantidosPorTipo": 200
+    },
+    {
+      "cenario": "c_duplicata",
+      "n": 1142,
+      "bytesArquivo": 495833,
+      "json": 1339128,
+      "flight": 1127855,
+      "flightSobreJson": 0.842,
+      "bloqueantes": 1142,
+      "avisos": 0,
+      "grupos": 1,
+      "totalBloqueantes": 1142,
+      "totalAvisos": 0,
+      "reduzido": false,
+      "mantidosPorTipo": null
+    },
+    {
+      "cenario": "d_sites_distintos",
+      "n": 1142,
+      "bytesArquivo": 683121,
+      "json": 1737568,
+      "flight": 1737571,
+      "flightSobreJson": 1,
+      "bloqueantes": 800,
+      "avisos": 0,
+      "grupos": 1145,
+      "totalBloqueantes": 4568,
+      "totalAvisos": 0,
+      "reduzido": true,
+      "mantidosPorTipo": 200
+    },
+    {
+      "cenario": "valida",
+      "n": 1142,
+      "bytesArquivo": 508395,
+      "json": 895675,
+      "flight": 895678,
+      "flightSobreJson": 1,
+      "bloqueantes": 0,
+      "avisos": 0,
+      "grupos": 0,
+      "totalBloqueantes": 0,
+      "totalAvisos": 0,
+      "reduzido": false,
+      "mantidosPorTipo": null
+    }
+  ],
+  "corpo2_n2000": [
+    {
+      "cenario": "a_bloqueante4",
+      "n": 2000,
+      "bytesArquivo": 706205,
+      "json": 1183959,
+      "flight": 1183962,
+      "flightSobreJson": 1,
+      "bloqueantes": 2000,
+      "avisos": 0,
+      "grupos": 4,
+      "totalBloqueantes": 8000,
+      "totalAvisos": 0,
+      "reduzido": true,
+      "mantidosPorTipo": 500
+    },
+    {
+      "cenario": "b_avisos",
+      "n": 2000,
+      "bytesArquivo": 523532,
+      "json": 1690137,
+      "flight": 1690140,
+      "flightSobreJson": 1,
+      "bloqueantes": 0,
+      "avisos": 800,
+      "grupos": 3,
+      "totalBloqueantes": 0,
+      "totalAvisos": 5334,
+      "reduzido": true,
+      "mantidosPorTipo": 200
+    },
+    {
+      "cenario": "c_duplicata",
+      "n": 2000,
+      "bytesArquivo": 556205,
+      "json": 616342,
+      "flight": 616345,
+      "flightSobreJson": 1,
+      "bloqueantes": 500,
+      "avisos": 0,
+      "grupos": 1,
+      "totalBloqueantes": 2000,
+      "totalAvisos": 0,
+      "reduzido": true,
+      "mantidosPorTipo": 500
+    },
+    {
+      "cenario": "d_sites_distintos",
+      "n": 2000,
+      "bytesArquivo": 704205,
+      "json": 1943780,
+      "flight": 1943783,
+      "flightSobreJson": 1,
+      "bloqueantes": 200,
+      "avisos": 0,
+      "grupos": 2003,
+      "totalBloqueantes": 8000,
+      "totalAvisos": 0,
+      "reduzido": true,
+      "mantidosPorTipo": 50
+    },
+    {
+      "cenario": "valida",
+      "n": 2000,
+      "bytesArquivo": 558205,
+      "json": 1235385,
+      "flight": 1235388,
+      "flightSobreJson": 1,
+      "bloqueantes": 0,
+      "avisos": 0,
+      "grupos": 0,
+      "totalBloqueantes": 0,
+      "totalAvisos": 0,
+      "reduzido": false,
+      "mantidosPorTipo": null
+    }
+  ],
+  "corpo3": [
+    {
+      "n": 2000,
+      "budgetKiB": 768,
+      "nCorrecoes": 500,
+      "bytesArquivo": 649295,
+      "corpo3": 1541564,
+      "planoOk": true,
+      "bloqueantes": 0
+    },
+    {
+      "n": 2000,
+      "budgetKiB": 768,
+      "nCorrecoes": 500,
+      "bytesArquivo": 742205,
+      "corpo3": 1644474,
+      "planoOk": true,
+      "bloqueantes": 0
+    },
+    {
+      "n": 2000,
+      "budgetKiB": 768,
+      "nCorrecoes": 1000,
+      "bytesArquivo": 649295,
+      "corpo3": 1687064,
+      "planoOk": true,
+      "bloqueantes": 0
+    },
+    {
+      "n": 2000,
+      "budgetKiB": 512,
+      "nCorrecoes": 500,
+      "bytesArquivo": 499295,
+      "corpo3": 1391564,
+      "planoOk": true,
+      "bloqueantes": 0
+    },
+    {
+      "n": 2000,
+      "budgetKiB": 1024,
+      "nCorrecoes": 500,
+      "bytesArquivo": 801115,
+      "corpo3": 1693384,
+      "planoOk": true,
+      "bloqueantes": 0
+    },
+    {
+      "n": 2000,
+      "budgetKiB": 1024,
+      "nCorrecoes": 1000,
+      "bytesArquivo": 801115,
+      "corpo3": 1838884,
+      "planoOk": true,
+      "bloqueantes": 0
+    }
+  ],
+  "corpo1e4": [
+    {
+      "formato": "csv",
+      "alvoArquivoBytes": 1048576,
+      "n": 951,
+      "bytesArquivoReal": 1048207,
+      "corpo1e4": 1193983
+    },
+    {
+      "formato": "xlsx",
+      "alvoArquivoBytes": 1048576,
+      "n": 15547,
+      "bytesArquivoReal": 1033645,
+      "corpo1e4": 1179479
+    }
+  ],
+  "corpo5": [
+    {
+      "n": 2000,
+      "budgetKiB": 768,
+      "style": "quotes",
+      "bytesArquivo": 642205,
+      "bytesConteudoCorrigido": 642205,
+      "json": 824267,
+      "corpo5Flight": 642281
+    },
+    {
+      "n": 2000,
+      "budgetKiB": 1024,
+      "style": "quotes",
+      "bytesArquivo": 811205,
+      "bytesConteudoCorrigido": 811205,
+      "json": 1039277,
+      "corpo5Flight": 811281
+    },
+    {
+      "n": 1142,
+      "budgetKiB": 768,
+      "style": "quotes",
+      "bytesArquivo": 575773,
+      "bytesConteudoCorrigido": 575773,
+      "json": 737999,
+      "corpo5Flight": 575849
+    }
+  ],
+  "limites": {
+    "LIMITE_CORPO_PLATAFORMA": 4500000,
+    "FOLGA_MINIMA": 1.5,
+    "TETO_COM_FOLGA": 3000000
+  }
+}

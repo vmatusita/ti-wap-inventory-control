@@ -16,11 +16,11 @@ import { hojeIso, parseData, SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/impo
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 import type {
   CampoEditavel,
-  CategoriaAtivo,
+  CategoriaImport,
   CorrecaoImport,
+  EstadoAlvoImport,
   GrupoErro,
   RegistroImport,
-  StatusAtivo,
 } from '@/lib/import'
 
 /** Rascunho da tela: chave (do campo) → valor digitado/escolhido. */
@@ -121,7 +121,7 @@ export function opsDoGrupo(
           op: 'substituir',
           campo: 'tipo',
           de: grupo.chave,
-          para: TIPO_CANONICO[cat as CategoriaAtivo],
+          para: TIPO_CANONICO[cat as CategoriaImport],
         },
       ]
     }
@@ -133,9 +133,7 @@ export function opsDoGrupo(
           op: 'substituir_estado',
           statusDe: c.statusDe,
           situacaoDe: c.situacaoDe,
-          para: SITUACAO_CANONICA[
-            est as Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>
-          ],
+          para: SITUACAO_CANONICA[est as EstadoAlvoImport],
         },
       ]
     }

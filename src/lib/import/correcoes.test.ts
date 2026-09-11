@@ -614,14 +614,17 @@ describe('agruparErros', () => {
     })
   })
 
-  it('filial fora do De→Para: o grupo de Site não promete correção (kind nenhuma)', () => {
-    // Uma filial nova cadastrada em admin/filiais não está no De→Para da spec §5:
-    // `filialAlvo` é null, TODO Site diverge e nenhuma correção de Site fecha o
-    // erro. O card tem de ser informativo — antes oferecia "Definir como {filial}",
-    // um botão que aplicava (porOp 1) e deixava o mesmo bloqueante de pé.
+  it('filial fora do De→Para: um card só, informativo, e nenhum card de Site', () => {
+    // Uma filial nova cadastrada em admin/filiais não está no De→Para da spec §5.
+    // Até a F56, TODO Site divergia e cada linha virava `site_divergente` (o card era
+    // informativo desde a revisão da F7B, porque nenhuma correção de Site fechava o
+    // erro). Desde a F56 (Frente A) o motor emite UM bloqueante
+    // `filial_fora_do_vocabulario` e não confere a coluna Site linha a linha: o
+    // defeito é do cadastro, não do arquivo. Este teste mudou por desenho (ata da F56).
     const nova: FilialSelecionada = { id: 9, slug: 'filial-teste', nome: 'Filial Teste' }
     const r = validar([rowMatriz({ Site: 'Filial Teste' })], [], nova)
-    const grupo = r.grupos.find((g) => g.tipo === 'site_divergente')
+    expect(r.grupos.some((g) => g.tipo === 'site_divergente')).toBe(false)
+    const grupo = r.grupos.find((g) => g.tipo === 'filial_fora_do_vocabulario')
     expect(grupo?.correcao.kind).toBe('nenhuma')
   })
 
@@ -1076,7 +1079,14 @@ describe('retrocompatibilidade F7 — sem correções, nada muda', () => {
     expect(r.plano!.ativos).toHaveLength(1)
     // F24 — `conflitos: 0` é a prova de §2.2: um CSV SEM conflito sai byte a byte igual
     // ao que saía antes da fase (mesmos erros, avisos, grupos, plano e contagens).
-    expect(r.resumo).toEqual({ conflitos: 0, criar: 1, semData: 0, semPatrimonio: 0, semServiceTag: 1, patrimonioDoHostname: 0, layout: 'matriz', linhasRemovidas: 0 })
+    // F56 · Frente C — `resumo.detalhe` é novo (o veredito do orçamento de resposta,
+    // `orcamento.ts`); um CSV pequeno nunca estoura o orçamento, então `reduzido` é
+    // sempre `false` e os totais batem com os arrays vazios acima.
+    expect(r.resumo).toEqual({
+      conflitos: 0, criar: 1, semData: 0, semPatrimonio: 0, semServiceTag: 1, patrimonioDoHostname: 0,
+      layout: 'matriz', linhasRemovidas: 0,
+      detalhe: { reduzido: false, totalBloqueantes: 0, totalAvisos: 0, mantidosPorTipo: null },
+    })
   })
 
   it('CSV vazio (0 linhas de dados) sem correções: comportamento da F7 preservado', () => {

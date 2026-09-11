@@ -17,6 +17,9 @@ import {
 import { correcoesSchema, parseCorrecoesJson } from '@/lib/validators/importar'
 import {
   ErroArquivoImport,
+  LIMITES_CAMPO_PLANO,
+  MAX_ARQUIVO_HASH,
+  MAX_LINHAS_PLANILHA,
   TAMANHO_MAX_ARQUIVO,
   TAMANHO_MAX_ROTULO,
 } from '@/lib/import/limites'
@@ -103,38 +106,44 @@ function mensagemDeLeitura(e: unknown): string {
 
 // ---- schemas -------------------------------------------------------------
 
+// F56 · Frente C (Decisão 6, critério 12) — os `.max()` abaixo usam a MESMA
+// constante que o MOTOR usa para recusar a célula longa demais ANTES do plano
+// existir (`LIMITES_CAMPO_PLANO`, `plano.ts`/`limites.ts`, bloqueante
+// `valor_longo_demais`): o preview NUNCA produz um plano que este schema (ou a
+// RPC, cujo teto de patrimônio é o mesmo 60) recusaria. `.nullable()` continua
+// (F7E): o Zod aplica `.max()` só quando o valor não é `null`.
 const ativoPlanoSchema = z.object({
   // F7E — patrimônio OPCIONAL: null importa com pendência "sem patrimônio físico"
   // (a RPC grava a pendência quando null). Se este campo não fosse nullable, o
   // `safeParse` do aplicar recusaria o plano inteiro por causa de 1 ativo sem plaqueta.
-  patrimonio: z.string().nullable(),
-  patrimonioOriginal: z.string(),
-  serviceTag: z.string().nullable(),
-  categoria: z.string(),
-  marca: z.string().nullable(),
-  modelo: z.string().nullable(),
-  fornecedor: z.string().nullable(),
-  memoria: z.string().nullable(),
-  armazenamento: z.string().nullable(),
-  processador: z.string().nullable(),
-  hostname: z.string().nullable(),
-  observacoes: z.string().nullable(),
-  dataEntrada: z.string().nullable(),
+  patrimonio: z.string().max(LIMITES_CAMPO_PLANO.patrimonio).nullable(),
+  patrimonioOriginal: z.string().max(LIMITES_CAMPO_PLANO.patrimonioOriginal),
+  serviceTag: z.string().max(LIMITES_CAMPO_PLANO.serviceTag).nullable(),
+  categoria: z.string().max(LIMITES_CAMPO_PLANO.categoria),
+  marca: z.string().max(LIMITES_CAMPO_PLANO.marca).nullable(),
+  modelo: z.string().max(LIMITES_CAMPO_PLANO.modelo).nullable(),
+  fornecedor: z.string().max(LIMITES_CAMPO_PLANO.fornecedor).nullable(),
+  memoria: z.string().max(LIMITES_CAMPO_PLANO.memoria).nullable(),
+  armazenamento: z.string().max(LIMITES_CAMPO_PLANO.armazenamento).nullable(),
+  processador: z.string().max(LIMITES_CAMPO_PLANO.processador).nullable(),
+  hostname: z.string().max(LIMITES_CAMPO_PLANO.hostname).nullable(),
+  observacoes: z.string().max(LIMITES_CAMPO_PLANO.observacoes).nullable(),
+  dataEntrada: z.string().max(LIMITES_CAMPO_PLANO.dataEntrada).nullable(),
   // F7E — data do ajuste de reconciliação (yyyy-MM-dd): entrega resolvida ??
   // dataEntrada ?? null. TEM de estar no schema: o Zod DESCARTA chaves fora do
   // shape, então sem esta linha o `dataAjuste` sairia do plano antes de chegar à RPC.
-  dataAjuste: z.string().nullable(),
-  estadoAlvo: z.string(),
-  colaborador: z.string().nullable(),
-  setor: z.string().nullable(),
-  chamado: z.string().nullable(),
+  dataAjuste: z.string().max(LIMITES_CAMPO_PLANO.dataAjuste).nullable(),
+  estadoAlvo: z.string().max(LIMITES_CAMPO_PLANO.estadoAlvo),
+  colaborador: z.string().max(LIMITES_CAMPO_PLANO.colaborador).nullable(),
+  setor: z.string().max(LIMITES_CAMPO_PLANO.setor).nullable(),
+  chamado: z.string().max(LIMITES_CAMPO_PLANO.chamado).nullable(),
 })
 
 const planoImportSchema = z.object({
   filialId: z.number().int().positive(),
-  arquivoHash: z.string().min(1),
-  totalLinhasDados: z.number().int().nonnegative(),
-  ativos: z.array(ativoPlanoSchema).min(1),
+  arquivoHash: z.string().min(1).max(MAX_ARQUIVO_HASH),
+  totalLinhasDados: z.number().int().nonnegative().max(MAX_LINHAS_PLANILHA),
+  ativos: z.array(ativoPlanoSchema).min(1).max(MAX_LINHAS_PLANILHA),
 })
 
 const custoSchema = z.object({

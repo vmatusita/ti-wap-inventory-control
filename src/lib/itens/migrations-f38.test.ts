@@ -112,6 +112,15 @@ const DA_F38 = [
   // de `security invoker` — as três novas são `security definer`, e as três estão
   // em `supabase/tests/catalogo_secdef.sql` no mesmo commit.
   '0138',
+  // F56 · Frente D (11/09/2026) — a `0139` é o vocabulário do import virando dado:
+  // uma função IMMUTABLE nova (`vocabulario_chave`), quatro tabelas, um índice de
+  // expressão em `filiais` e uma função-gatilho nova (`vocabulario_unidades_guarda`,
+  // `security invoker` — não entra na lista de `security definer` nenhuma). Não
+  // recria função existente nenhuma (passa pela guarda de intocáveis sem exceção
+  // nova), não mexe em enum, e não tem DELETE/UPDATE de topo (é inteiramente
+  // aditiva — as quatro tabelas nascem vazias e são semeadas pelo próprio INSERT
+  // dela, nunca por um UPDATE em `ativos`/`movimentacoes`/`lancamentos_item`).
+  '0139',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

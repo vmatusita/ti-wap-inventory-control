@@ -1,0 +1,110 @@
+F56 · Frente C — sabotagem dos tetos (Decisão 6/8), com tudo verde antes
+Data: 11/09/2026. Estado: `npm run test`/`limites.test.ts` verdes ANTES de cada
+sabotagem abaixo (confirmado); cada sabotagem foi DESFEITA logo em seguida
+(nenhuma ficou no commit).
+
+===========================================================================
+(a) Aumentar MAX_LINHAS_PLANILHA SEM refazer a conta → limites.test.ts vermelho
+===========================================================================
+
+Sabotagem: `src/lib/import/limites.ts:50`, `MAX_LINHAS_PLANILHA = 2_000` →
+`MAX_LINHAS_PLANILHA = 2_500` (só o número — nenhum comentário, nenhuma
+constante derivada, nenhuma "conta refeita").
+
+Comando: `npx vitest run src/lib/import/limites.test.ts`
+
+Saída real (recortada — o teste completo está em
+`docs/f56-evidencias/` junto deste arquivo em espírito, reproduzida aqui por
+inteiro):
+
+  ❯ |puro| src/lib/import/limites.test.ts (18 tests | 1 failed) 921ms
+       × nenhuma constante muda sem a conta ser refeita (rode scripts/perf/medir-corpos-import.mts) 17ms
+
+  FAIL  |puro| src/lib/import/limites.test.ts > carimbo — os números para os quais
+  a conta foi feita > nenhuma constante muda sem a conta ser refeita (rode
+  scripts/perf/medir-corpos-import.mts)
+  AssertionError: uma constante de src/lib/import/limites.ts mudou sem a conta
+  ser refeita — rode `NODE_OPTIONS="--conditions=react-server" npx tsx
+  scripts/perf/medir-corpos-import.mts` de novo, atualize este carimbo E as
+  cinco desigualdades abaixo com os números novos, e registre o porquê em
+  docs/DECISOES.md.: expected { TAMANHO_MAX_ARQUIVO: 1048576, …(12) } to
+  deeply equal { TAMANHO_MAX_ARQUIVO: 1048576, …(12) }
+
+  - Expected
+  + Received
+
+  @@ -24,11 +24,11 @@
+     "MAX_ARQUIVO_HASH": 128,
+     "MAX_BYTES_CONTEUDO": 786432,
+     "MAX_COLUNAS_PLANILHA": 40,
+     "MAX_CORRECOES": 500,
+     "MAX_CRU": 120,
+  -   "MAX_LINHAS_PLANILHA": 2000,
+  +   "MAX_LINHAS_PLANILHA": 2500,
+     "MAX_PARA": 120,
+     "MAX_XML_DESCOMPRIMIDO": 33554432,
+     "ORCAMENTO_RESPOSTA_PREVIEW": 2000000,
+     "TAMANHO_MAX_ARQUIVO": 1048576,
+
+   Test Files  1 failed (1)
+        Tests  1 failed | 17 passed (18)
+
+Vermelho pelo motivo CERTO: a mensagem nomeia exatamente o que fazer (rodar o
+script de medição de novo) — não um erro genérico de asserção.
+
+Desfeito: `MAX_LINHAS_PLANILHA` voltou a `2_000`. Confirmado verde de novo:
+`Test Files 1 passed (1) · Tests 18 passed (18)`.
+
+===========================================================================
+(b) CSV com MAX_LINHAS_PLANILHA + 1 linhas de dados → recusado com a mensagem
+===========================================================================
+
+Script de demonstração (`zz-sabotagem-bcd.mts` — gitignorado por `zz-*`,
+apagado logo depois de rodar, no molde de `C2-tetos-remedidos.md`), motor REAL
+(`validarCsvImport`):
+
+  === (b) CSV com MAX_LINHAS_PLANILHA + 1 linhas de dados ===
+  recusado: true | A planilha tem 2.001 linhas de dados e o limite do import é
+  2.000. Divida o arquivo por filial ou remova as linhas sobrando e envie de
+  novo.
+
+`ErroArquivoImport` lançada, mensagem com o número exato (2.001) e o limite
+(2.000) — a mesma régua para CSV que já valia para `.xlsx`.
+
+===========================================================================
+(c) CSV com um `;` a mais numa linha → linha_desalinhada
+===========================================================================
+
+  === (c) CSV com um ; a mais na linha 2 ===
+  plano null? true
+  bloqueantes: [ 'linha_desalinhada@2' ]
+
+A linha com a célula extra ("VALOR SOBRANDO" além da largura útil do
+cabeçalho) vira bloqueante `linha_desalinhada` na linha física certa (2); o
+plano não sai (`plano === null`).
+
+===========================================================================
+(d) O MESMO arquivo, com colunas vazias à direita + `\n` final → aceito
+===========================================================================
+
+  === (d) mesmo arquivo, colunas vazias à direita + \n final — aceito ===
+  plano null? false | bloqueantes: []
+  ativos no plano: 2
+
+Trocando a célula "sobrando com valor" por colunas VAZIAS à direita (`;;;`
+sem conteúdo) e acrescentando `\r\n` final ao arquivo — os dois casos que a
+régua tem de TOLERAR (Decisão 8) — o mesmo arquivo passa limpo: zero
+bloqueantes, plano com os 2 ativos. Confirma que a régua distingue "célula a
+mais com VALOR" (recusa) de "separador sobrando sem valor" (aceita), e que
+`\n` final não é tratado como linha desalinhada.
+
+===========================================================================
+Conclusão
+===========================================================================
+As quatro sabotagens/demonstrações se comportaram exatamente como a Decisão 6/8
+exige: o carimbo pega mudança de constante sem remedição (a); os tetos novos do
+CSV recusam com a mensagem do leitor (b); a régua de desalinhamento distingue
+célula-a-mais-com-valor (recusa, c) de separador-sobrando-sem-valor (aceita, d).
+Nenhuma sabotagem ficou no código — `(a)` foi revertida e reconfirmada verde;
+`(b)/(c)/(d)` não tocaram código nenhum (só exercitaram o motor já corrigido com
+fixtures descartáveis).

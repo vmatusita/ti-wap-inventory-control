@@ -23,7 +23,7 @@ import {
   patrimonioVazio,
   resolverDataEntrega,
 } from './deparas'
-import type { CategoriaAtivo, StatusAtivo } from './tipos'
+import type { CategoriaImport, EstadoAlvoImport } from './tipos'
 
 // Nenhum dado real — tudo fictício (padrão WAP0001234 / "Fulano").
 
@@ -105,10 +105,7 @@ describe('estadoPlanilha (precedência Situação > Status — DECISOES 15/07)',
 // F7B — tabelas canônicas reversas: o que a tela GRAVA na célula tem que voltar
 // ao estado/categoria pretendido pelo mesmo De→Para que valida o CSV.
 describe('SITUACAO_CANONICA (F7B §3.4) — ciclo fechado com estadoPlanilha', () => {
-  const ESPERADOS: Exclude<
-    StatusAtivo,
-    'descartado' | 'devolvido_fornecedor'
-  >[] = [
+  const ESPERADOS: EstadoAlvoImport[] = [
     'em_estoque',
     'em_uso',
     'reservado',
@@ -157,7 +154,7 @@ describe('SITUACAO_CANONICA (F7B §3.4) — ciclo fechado com estadoPlanilha', (
 })
 
 describe('TIPO_CANONICO (F7B) — ciclo fechado com mapearCategoria', () => {
-  it.each(['notebook', 'desktop', 'monitor', 'celular', 'tablet'] as CategoriaAtivo[])(
+  it.each(['notebook', 'desktop', 'monitor', 'celular', 'tablet'] as CategoriaImport[])(
     '%s → termo → volta à mesma categoria',
     (categoria) => {
       expect(mapearCategoria(TIPO_CANONICO[categoria])).toBe(categoria)

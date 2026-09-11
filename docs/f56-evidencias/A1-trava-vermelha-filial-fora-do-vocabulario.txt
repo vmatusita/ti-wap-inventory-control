@@ -1,0 +1,60 @@
+    628|     expect(grupo?.correcao.kind).toBe('nenhuma')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  |puro| src/lib/import/plano.test.ts > filial fora do vocabulário (F56 — Frente A) > emite UM bloqueante filial_fora_do_vocabulario e nenhum site_divergente
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/lib/import/plano.test.ts:231:82
+    229|     )
+    230|     expect(r.plano).toBeNull()
+    231|     expect(r.bloqueantes.filter((e) => e.tipo === 'filial_fora_do_voca…
+       |                                                                                  ^
+    232|     expect(r.bloqueantes.some((e) => e.tipo === 'site_divergente')).to…
+    233|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  |puro| src/lib/import/plano.test.ts > filial fora do vocabulário (F56 — Frente A) > a mensagem aponta o cadastro, não o arquivo
+TypeError: Cannot read properties of undefined (reading 'mensagem')
+ ❯ src/lib/import/plano.test.ts:238:17
+    236|     const r = validarMatriz([rowMatriz({ Site: 'Filial Inventada' })],…
+    237|     const erro = r.bloqueantes.find((e) => e.tipo === 'filial_fora_do_…
+    238|     expect(erro.mensagem).toContain('Filial Inventada')
+       |                 ^
+    239|     expect(erro.mensagem).toContain('vocabulário')
+    240|     expect(erro.mensagem).toContain('não está no arquivo')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  |puro| src/lib/import/plano.test.ts > filial fora do vocabulário (F56 — Frente A) > o card é informativo (kind nenhuma), um só
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/lib/import/plano.test.ts:249:20
+    247|     )
+    248|     const grupos = r.grupos.filter((g) => g.tipo === 'filial_fora_do_v…
+    249|     expect(grupos).toHaveLength(1)
+       |                    ^
+    250|     expect(grupos[0]!.correcao.kind).toBe('nenhuma')
+    251|     expect(r.grupos.some((g) => g.tipo === 'site_divergente')).toBe(fa…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  4 failed | 3 passed | 140 skipped (147)
+   Start at  12:11:03
+   Duration  4.51s (transform 333ms, setup 0ms, import 8.33s, tests 59ms, environment 0ms)
+

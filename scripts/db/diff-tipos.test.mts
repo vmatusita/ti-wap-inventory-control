@@ -204,7 +204,7 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     readFileSync(join(RAIZ, 'src', 'lib', 'types', 'database.ts'), 'utf8'),
   )
 
-  it('lê as 30 relações (21 tabelas + 9 views) e as 68 funções', () => {
+  it('lê as 34 relações (25 tabelas + 9 views) e as 75 funções', () => {
     // ⚠ 08/09/2026 (F51): as funções passaram de 60 para 68 — as OITO auxiliares do
     // import que a migration 0131 cria. Elas entraram no `database.ts` À MÃO, e não
     // pelo gerador: `npm run db:types` lê um projeto REAL pela Management API, e a
@@ -241,8 +241,18 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // `rotulo_de_ambiente` — e o `database.ts` foi regenerado DE PRODUCAO depois do
     // apply. E o caso em que este numero deve subir, e o momento de reler o teste e
     // exatamente este.
-    expect(real.relacoes.size).toBe(30)
-    expect(real.funcoes.size).toBe(74)
+    //
+    // F56 · Frente D (11/09/2026): relações 30 -> 34, funções 74 -> 75. A `0139`
+    // (vocabulário do import) cria QUATRO tabelas (`unidades_apelidos`,
+    // `import_termos_categoria`, `import_termos_estado`,
+    // `import_prefixos_patrimonio`) e UMA função IMMUTABLE nova
+    // (`vocabulario_chave`) — o `database.ts` as ganhou por HAND-FIX datado (a
+    // `0139` ainda não foi aplicada em nenhum banco real; `npm run db:types`
+    // substitui o hand-fix depois do apply). `vocabulario_unidades_guarda` NÃO
+    // entra nesta contagem — é função-gatilho (`returns trigger`), a mesma regra
+    // que já exclui `aplicar_movimentacao`/`guarda_acervo` logo abaixo.
+    expect(real.relacoes.size).toBe(34)
+    expect(real.funcoes.size).toBe(75)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 

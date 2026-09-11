@@ -2,15 +2,37 @@
 // 7 dígitos com zeros à esquerda (ex.: WAP4491 → WAP0004491). Puras — servem no
 // cliente (preview do lote de compra) e no servidor (validação).
 
-export const PATRIMONIO_CANONICAL_RE = /^[A-Z]{2,4}\d{7}$/
+// F56 · Frente B (Decisão 5, fato 18) — as PARTES compartilhadas do formato,
+// numa fonte só: até a F56 o literal `[A-Z]{2,4}` estava hardcoded QUATRO vezes
+// (aqui embaixo, em `canonicalizarPatrimonio` e duas vezes em `expandirFaixa`) —
+// mais uma quinta vez, com a divergência deliberada de 1-7 dígitos, em
+// `PATRIMONIO_EMBUTIDO_RE` (`src/lib/import/deparas.ts`). As quatro cópias de
+// regex abaixo DERIVAM destas duas constantes por `new RegExp(...)`; a de
+// deparas.ts importa `PREFIXO_PATRIMONIO_FONTE` (e `DIGITOS_PATRIMONIO`, para o
+// teto do `{1,…}`) — nunca reescreve o literal. `patrimonio-sql.test.ts` prova
+// a derivação e prova (Decisão 5) que nenhum corpo SQL vigente reimplementa o
+// formato. Comportamento idêntico ao de antes da F56 — `patrimonio.test.ts`
+// (41 casos) passa sem mudança de asserção.
+export const PREFIXO_PATRIMONIO_FONTE = '[A-Z]{2,4}'
+export const DIGITOS_PATRIMONIO = 7
+
+export const PATRIMONIO_CANONICAL_RE = new RegExp(
+  `^${PREFIXO_PATRIMONIO_FONTE}\\d{${DIGITOS_PATRIMONIO}}$`,
+)
 
 // Máximo de unidades por lote de compra (guarda anti-abuso na faixa).
 export const MAX_LOTE_COMPRA = 200
 
+const CANONICALIZAR_RE = new RegExp(`^(${PREFIXO_PATRIMONIO_FONTE})(\\d+)$`)
+
 // Normaliza para o formato canônico; null se não reconhecer prefixo+dígitos.
+// `\d+` fica LIVRE de propósito (não `\d{DIGITOS_PATRIMONIO}`): o teto de 7
+// dígitos SIGNIFICATIVOS é conferido abaixo, em código, DEPOIS de colapsar os
+// zeros à esquerda — unificar para `\d{7}` fixo quebraria entradas como
+// "WAP0000001" (10 dígitos crus, 1 significativo).
 export function canonicalizarPatrimonio(raw: string): string | null {
   const t = raw.trim().toUpperCase().replace(/[\s-]/g, '')
-  const m = t.match(/^([A-Z]{2,4})(\d+)$/)
+  const m = t.match(CANONICALIZAR_RE)
   if (!m) return null
   const prefixo = m[1]
   const significativos = m[2].replace(/^0+/, '') || '0'
@@ -130,6 +152,11 @@ export function erroTetoLista(qtd: number): string | null {
   return `A lista tem ${qtd} itens; o máximo por lote é ${MAX_LOTE_COMPRA}.`
 }
 
+// Reaproveita as MESMAS partes da canônica (prefixo + DIGITOS_PATRIMONIO dígitos
+// exatos) — aqui `ini`/`fim` JÁ passaram por `canonicalizarPatrimonio`, então
+// sempre têm exatamente 7 dígitos; o `!` do match assume isso.
+const FAIXA_RE = new RegExp(`^(${PREFIXO_PATRIMONIO_FONTE})(\\d{${DIGITOS_PATRIMONIO}})$`)
+
 // Faixa: mesmo prefixo, do inicial ao final (inclusive). N unidades do mesmo modelo.
 export function expandirFaixa(
   inicioRaw: string,
@@ -139,8 +166,8 @@ export function expandirFaixa(
   const fim = canonicalizarPatrimonio(fimRaw)
   if (!ini) return { erro: `Patrimônio inicial inválido: "${inicioRaw}"` }
   if (!fim) return { erro: `Patrimônio final inválido: "${fimRaw}"` }
-  const pi = ini.match(/^([A-Z]{2,4})(\d{7})$/)!
-  const pf = fim.match(/^([A-Z]{2,4})(\d{7})$/)!
+  const pi = ini.match(FAIXA_RE)!
+  const pf = fim.match(FAIXA_RE)!
   if (pi[1] !== pf[1]) {
     return { erro: 'A faixa precisa ter o mesmo prefixo nos dois patrimônios.' }
   }

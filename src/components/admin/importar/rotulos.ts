@@ -23,6 +23,8 @@ export const ROTULO_CAMPO: Record<CampoEditavel, string> = {
  *  não estiver aqui cai no próprio identificador (nunca some da tela). */
 const ROTULO_TIPO_ERRO: Record<string, string> = {
   site_divergente: 'Site',
+  // F56 — a filial selecionada não está no vocabulário de unidades (erro de cadastro).
+  filial_fora_do_vocabulario: 'Filial fora do vocabulário',
   categoria_desconhecida: 'Tipo',
   patrimonio_invalido: 'Patrimônio',
   patrimonio_vazio: 'Sem patrimônio', // F7E — aviso: importa sem patrimônio (pendência)
@@ -40,6 +42,11 @@ const ROTULO_TIPO_ERRO: Record<string, string> = {
   header_invalido: 'Cabeçalho',
   correcao_invalida: 'Correção inválida',
   plano_vazio: 'Plano vazio',
+  // F56 · Frente C — linha cujo nº de células não bate com o cabeçalho (Decisão 8)
+  // e célula acima do teto do campo (critério 12): os dois se corrigem no ARQUIVO,
+  // nunca pela tela.
+  linha_desalinhada: 'Linha desalinhada',
+  valor_longo_demais: 'Valor longo demais',
 }
 
 export function rotuloTipoErro(tipo: string): string {

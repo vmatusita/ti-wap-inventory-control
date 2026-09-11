@@ -46,6 +46,15 @@ export const ACOES_ADMIN = [
   // administrador (admin OU dev) alcança. Também é gravada DENTRO da RPC
   // (`apagar_ativos_conflito_filiais`, migrations 0093/0098/0100), na mesma transação.
   'conflito_filiais_resolvido',
+  // F56 — a tela de apelidos de unidade (Administração › Filiais): inclusão e remoção
+  // de um apelido do vocabulário do import (migration 0139), do nível administrador.
+  // Trocar um apelido é remover e incluir — cada metade vira sua própria linha.
+  'apelido_incluido',
+  'apelido_removido',
+  // F56 — o smoke do import (scripts/smoke/) cria a persona fictícia
+  // seed.admin@wap.ind.br fora do fluxo de convite (auth.admin.createUser direto),
+  // então não há convite_gerado que preceda o cadastro dela.
+  'usuario_criado',
 ] as const
 
 export type AcaoAdmin = (typeof ACOES_ADMIN)[number]
@@ -74,6 +83,9 @@ export const ACAO_ROTULO: Record<AcaoAdmin, string> = {
   estado_forcado: 'Estado do ativo forçado',
   saldo_forcado: 'Saldo de item forçado',
   conflito_filiais_resolvido: 'Conflito entre filiais resolvido',
+  apelido_incluido: 'Apelido de filial incluído',
+  apelido_removido: 'Apelido de filial removido',
+  usuario_criado: 'Conta criada por script (sem convite)',
 }
 
 // As que APAGAM ou FORÇAM de forma irreversível: as sete da Zona destrutiva (F23) mais a

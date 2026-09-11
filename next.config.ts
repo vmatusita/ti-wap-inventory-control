@@ -6,17 +6,27 @@ const nextConfig: NextConfig = {
   // server-side no leitor de .xlsx do import (src/lib/import/xlsx.ts, F7G).
   // Mantê-las externas evita que o bundler quebre seus require dinâmicos.
   serverExternalPackages: ["docxtemplater", "pizzip", "exceljs"],
-  // F7F — o "Substituir tudo" (admin/importar) envia o plano JÁ serializado à
-  // Server Action `aplicarImport`. Um plano de ~1.200 ativos (maior filial real)
-  // serializa em ~0,7 MB (plano + correções, medido) — abaixo, mas perto do teto
-  // PADRÃO de 1 MB do Next para Server Actions. Um inventário maior ou observações
-  // longas passariam de 1 MB e o Next devolveria HTTP 413 ANTES da action rodar
-  // (silencioso). 8 MB dá >10x de folga sobre o pior caso medido, ainda longe de
-  // qualquer abuso. Chave/formato confirmados na doc do Next 16 (serverActions
-  // bodySizeLimit; aceita '500kb'/'3mb'/'8mb' ou bytes). Cap do CSV bruto segue 5 MB.
+  // F7F / F56 (Frente C, fato 22, Decisão 6) — o "Substituir tudo" (admin/importar)
+  // envia o plano JÁ serializado à Server Action `aplicarImport`.
+  //
+  // ⚠ CORRIGIDO NA F56: este comentário dizia "8 MB dá >10x de folga" contra o
+  // teto PADRÃO de 1 MB do Next. Isso ignorava o limite de quem hospeda: a Vercel
+  // corta pedido E RESPOSTA de qualquer Function em 4,5 MB — ANTES do Next sequer
+  // rodar (`413 FUNCTION_PAYLOAD_TOO_LARGE`, doc "Vercel Functions Limits") —, e
+  // 8 MB configurados aqui só valeriam no `next dev`/hospedagem própria: em
+  // produção a Vercel recusaria em 4,5 MB de qualquer forma, sem o Next nunca
+  // saber (nem log, nem `import_logs`). `bodySizeLimit` agora é o MESMO nº de
+  // bytes de `LIMITE_CORPO_PLATAFORMA` (`src/lib/import/limites.ts`), para o
+  // `next dev` local se comportar como produção. O nº aceita bytes OU string
+  // (`'500kb'`/`'3mb'`) — doc local: `node_modules/next/dist/docs/01-app/
+  // 03-api-reference/05-config/01-next-config-js/serverActions.md`. Os cinco
+  // corpos que atravessam este limite (os três pedidos e as duas respostas de
+  // `validarImport`/`baixarCsvCorrigido`) estão medidos, com folga ≥ 1,5×, em
+  // `docs/f56-evidencias/C2-conta-dos-corpos.txt`. Cap do arquivo bruto: 1 MB
+  // (`TAMANHO_MAX_ARQUIVO`).
   experimental: {
     serverActions: {
-      bodySizeLimit: "8mb",
+      bodySizeLimit: 4_500_000,
     },
   },
   // Os templates .docx são lidos do filesystem em runtime (readFile). Garante que

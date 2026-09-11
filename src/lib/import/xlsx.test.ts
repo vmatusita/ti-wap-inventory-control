@@ -131,10 +131,17 @@ describe('validarArquivoImport — paridade CSV × XLSX', () => {
   })
 })
 
-describe('lerXlsx — tetos de tamanho (dívida técnica item T, 30/08/2026)', () => {
-  // ANTES desta correção o leitor TRUNCAVA em silêncio (`Math.min`): a linha 20.001 e a
+describe('lerXlsx × conferirTetos — tetos de tamanho (dívida técnica item T, 30/08/2026; unificados na F56 · Frente C)', () => {
+  // ANTES desta correção o leitor TRUNCAVA em silêncio (`Math.min`): a linha 2.001 e a
   // coluna 41 sumiam sem aviso, e o passo seguinte do import apaga o acervo da filial e o
   // recria a partir do plano. Ativo que deixa de existir sem sinal. Agora recusa.
+  //
+  // F56 · Frente C — a checagem de linhas/colunas SAIU de `lerXlsx` (que só faz o teto
+  // PRÉ-load do `.xlsx`, Decisão 7) e foi para `conferirTetos` (`limites.ts`), chamada
+  // por `analisar()` — o MESMO ponto para CSV e `.xlsx`. Por isso estes testes agora
+  // exercitam `validarArquivoImport` (o caminho real), não `lerXlsx` isolado — que, por
+  // si, não rejeita mais planilha grande/larga (ela só NÃO TRUNCA, o que os testes de
+  // "aceita exatamente no teto" abaixo continuam provando direto no leitor).
   //
   // As planilhas gigantes são montadas com linha ESPARSA (`getRow(n)` direto): o ExcelJS
   // guarda as linhas num mapa esparso, então `rowCount` = n sem materializar n linhas —
@@ -148,33 +155,106 @@ describe('lerXlsx — tetos de tamanho (dívida técnica item T, 30/08/2026)', (
   }
 
   it('recusa planilha com mais linhas de dados que o teto, dizendo o número e o limite', async () => {
-    // header (1) + 20.001 linhas de dados
+    // header (1) + (MAX_LINHAS_PLANILHA + 1) linhas de dados
     const buf = await planilhaComUltimaLinha(MAX_LINHAS_PLANILHA + 2)
-    await expect(lerXlsx(buf)).rejects.toBeInstanceOf(ErroArquivoImport)
-    await expect(lerXlsx(buf)).rejects.toThrow('20.001 linhas')
-    await expect(lerXlsx(buf)).rejects.toThrow('o limite do import é 20.000')
+    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toBeInstanceOf(ErroArquivoImport)
+    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toThrow(
+      `${(MAX_LINHAS_PLANILHA + 1).toLocaleString('pt-BR')} linhas`,
+    )
+    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toThrow(
+      `o limite do import é ${MAX_LINHAS_PLANILHA.toLocaleString('pt-BR')}`,
+    )
   })
 
-  it('aceita a planilha EXATAMENTE no teto de linhas (o limite não é off-by-one)', async () => {
+  it('aceita a planilha EXATAMENTE no teto de linhas (o limite não é off-by-one) — lerXlsx não trunca', async () => {
     const buf = await planilhaComUltimaLinha(MAX_LINHAS_PLANILHA + 1)
     const csv = await lerXlsx(buf)
     expect(csv.linhas).toHaveLength(MAX_LINHAS_PLANILHA)
     // e a ÚLTIMA linha continua chegando ao motor — é o que o truncamento comia
     expect(csv.linhas.at(-1)!.linha).toBe(MAX_LINHAS_PLANILHA + 1)
     expect(csv.linhas.at(-1)!.celulas[0]).toBe('WAP0001234')
+    // e `validarArquivoImport` (que roda `conferirTetos`) aceita — não rejeita.
+    await expect(validarArquivoImport(buf, FILIAL, HOJE)).resolves.toBeTruthy()
   })
 
   it('recusa planilha mais larga que o teto de colunas em vez de cortar à direita', async () => {
     const header = Array.from({ length: MAX_COLUNAS_PLANILHA + 1 }, (_, i) => `Col ${i + 1}`)
     const buf = await montarXlsx(header, [['x']])
-    await expect(lerXlsx(buf)).rejects.toBeInstanceOf(ErroArquivoImport)
-    await expect(lerXlsx(buf)).rejects.toThrow('41 colunas')
+    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toBeInstanceOf(ErroArquivoImport)
+    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toThrow('41 colunas')
   })
 
-  it('aceita a planilha EXATAMENTE no teto de colunas', async () => {
+  it('aceita a planilha EXATAMENTE no teto de colunas — lerXlsx não trunca', async () => {
     const header = Array.from({ length: MAX_COLUNAS_PLANILHA }, (_, i) => `Col ${i + 1}`)
     const buf = await montarXlsx(header, [['x']])
     const csv = await lerXlsx(buf)
     expect(csv.header).toHaveLength(MAX_COLUNAS_PLANILHA)
+  })
+})
+
+describe('lerXlsx — Decisão 8 (F56 · Frente C): valor à direita do cabeçalho não é truncado', () => {
+  it('lerLinha entrega célula além do cabeçalho em vez de descartá-la', async () => {
+    const buf = await montarXlsx(['A', 'B'], [['x', 'y', 'z']]) // 3ª célula sem coluna nomeada
+    const csv = await lerXlsx(buf)
+    expect(csv.header).toEqual(['A', 'B'])
+    expect(csv.linhas[0]!.celulas).toEqual(['x', 'y', 'z'])
+  })
+
+  it('.xlsx com valor à direita do cabeçalho é recusado por linha_desalinhada (via validarArquivoImport)', async () => {
+    const linhasXlsxComSobra: unknown[][] = [
+      [
+        'Matriz', 'Dell', 'Notebook', 'Latitude 5490', 'WAP', 'ST-1', 'WAP0001234',
+        '16GB', '512GB', 'i5', 'NB-1', dataUTC(2026, 3, 10),
+        'Estoque', 'Guardada', dataUTC(2026, 2, 1), '', '', 'ok', 'VALOR SOBRANDO',
+      ],
+    ]
+    const buf = await montarXlsx(HEADER_MATRIZ, linhasXlsxComSobra)
+    const v = await validarArquivoImport(buf, FILIAL, HOJE)
+    expect(v.plano).toBeNull()
+    expect(v.bloqueantes.some((e) => e.tipo === 'linha_desalinhada')).toBe(true)
+  })
+})
+
+describe('lerXlsx — Decisão 7 (F56 · Frente C): teto do XML descomprimido, ANTES do load', () => {
+  // "Bomba disfarçada" no molde da medição C2 (docs/f56-evidencias/C4-xlsx-antes-do-load.txt):
+  // dimensão PEQUENA/legítima (1 linha, 1 coluna — passaria qualquer teto de
+  // linhas/colunas por maior que fosse a bomba), mas o CONTEÚDO da célula é
+  // massivamente repetitivo. O DEFLATE comprime isso a quase nada; descomprimido,
+  // estoura MAX_XML_DESCOMPRIMIDO (32 MiB) — sem o `wb.xlsx.load` nunca rodar. A
+  // PRÓPRIA REJEIÇÃO (`lerXlsx`) fica na casa dos milissegundos (prova de
+  // correção); quem é lento aqui é só MONTAR a fixture (`writeBuffer` gerando e
+  // comprimindo 35M caracteres) — daí o timeout maior, para não ficar flácido sob
+  // contenção de CPU quando a suíte inteira roda em paralelo. A medição de
+  // tempo/RSS "de verdade" da REJEIÇÃO está em
+  // `docs/f56-evidencias/C4-xlsx-antes-do-load.txt`, via
+  // `scripts/perf/xlsx-pre-load.mts`, em processo filho com teto de heap.
+  it('recusa .xlsx cuja célula descomprime além do teto, ANTES de qualquer wb.xlsx.load', async () => {
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Bomba')
+    // 35.000.000 caracteres repetidos — comprime a poucos KB (DEFLATE é ~1.000:1
+    // em conteúdo assim), descomprime acima de 32 MiB.
+    ws.getCell('A1').value = 'a'.repeat(35_000_000)
+    const buf = new Uint8Array(
+      (await wb.xlsx.writeBuffer({
+        zip: { compression: 'DEFLATE', compressionOptions: { level: 9 } },
+        useStyles: false,
+      } as never)) as ArrayBuffer,
+    )
+    // A bomba comprimida é minúscula perto do conteúdo real — prova que o
+    // arquivo em si passaria despercebido por um teto de TAMANHO DE ARQUIVO.
+    expect(buf.byteLength).toBeLessThan(100_000)
+    await expect(lerXlsx(buf)).rejects.toBeInstanceOf(ErroArquivoImport)
+    await expect(lerXlsx(buf)).rejects.toThrow('XML')
+  }, 30_000)
+
+  it('.xlsx legítimo (conteúdo normal) não é afetado pelo teto pré-load', async () => {
+    const buf = await montarXlsx(HEADER_MATRIZ, [
+      [
+        'Matriz', 'Dell', 'Notebook', 'Latitude 5490', 'WAP', 'ST-1', 'WAP0001234',
+        '16GB', '512GB', 'i5', 'NB-1', dataUTC(2026, 3, 10),
+        'Estoque', 'Guardada', dataUTC(2026, 2, 1), '', '', 'ok',
+      ],
+    ])
+    await expect(lerXlsx(buf)).resolves.toBeTruthy()
   })
 })
