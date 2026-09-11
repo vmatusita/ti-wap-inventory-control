@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { parseData } from '@/lib/import'
 import { hojeIso } from '@/lib/import/deparas'
+import { MAX_CORRECOES, MAX_CRU, MAX_PARA } from '@/lib/import/limites'
 import type { CampoEditavel, CorrecaoImport } from '@/lib/import'
 
 // Schema das CORREÇÕES do import de startup (OS-F7B / W3). Único lugar do schema:
@@ -21,17 +22,11 @@ import type { CampoEditavel, CorrecaoImport } from '@/lib/import'
 // `@/lib/import`, que re-exporta `plano.ts` (node:crypto). Client Component que
 // precise da mesma régua importa dos módulos-folha (`@/lib/import/deparas`).
 
-/** Teto de operações por import. F7D (17/07/2026) removeu o limite prático de 300
- *  (o Johnny corrige em lote/global — um CSV bem sujo passa fácil de 300 ops): este
- *  teto é só uma rede contra payload absurdo forjado FORA da tela. Invisível no uso
- *  real — a maior filial tem 1.217 ativos, e cada ativo gera no máximo ~1 op. */
-export const MAX_CORRECOES = 20_000
-
-// Tetos de tamanho: uma correção escreve UMA célula de planilha. `de`/`statusDe`/
-// `situacaoDe` são valores CRUS do CSV (podem ser vazios — Site em branco é um
-// caso real de `site_desconhecido`); `para` é digitado por quem corrige.
-const MAX_PARA = 200
-const MAX_CRU = 500
+// F56 · Frente C (Decisão 6) — `MAX_CORRECOES`/`MAX_CRU`/`MAX_PARA` migraram para
+// `@/lib/import/limites`, a FONTE ÚNICA dos tetos do import (compartilhada com o
+// leitor de arquivo e com `actions/importar.ts`). Reexportado por conveniência de
+// quem já importava `MAX_CORRECOES` daqui.
+export { MAX_CORRECOES }
 
 /** Whitelist de campos corrigíveis — espelha `CampoEditavel` (motor W1). */
 const CAMPOS_EDITAVEIS = [

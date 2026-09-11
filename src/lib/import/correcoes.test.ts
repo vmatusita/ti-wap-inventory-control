@@ -1079,7 +1079,14 @@ describe('retrocompatibilidade F7 — sem correções, nada muda', () => {
     expect(r.plano!.ativos).toHaveLength(1)
     // F24 — `conflitos: 0` é a prova de §2.2: um CSV SEM conflito sai byte a byte igual
     // ao que saía antes da fase (mesmos erros, avisos, grupos, plano e contagens).
-    expect(r.resumo).toEqual({ conflitos: 0, criar: 1, semData: 0, semPatrimonio: 0, semServiceTag: 1, patrimonioDoHostname: 0, layout: 'matriz', linhasRemovidas: 0 })
+    // F56 · Frente C — `resumo.detalhe` é novo (o veredito do orçamento de resposta,
+    // `orcamento.ts`); um CSV pequeno nunca estoura o orçamento, então `reduzido` é
+    // sempre `false` e os totais batem com os arrays vazios acima.
+    expect(r.resumo).toEqual({
+      conflitos: 0, criar: 1, semData: 0, semPatrimonio: 0, semServiceTag: 1, patrimonioDoHostname: 0,
+      layout: 'matriz', linhasRemovidas: 0,
+      detalhe: { reduzido: false, totalBloqueantes: 0, totalAvisos: 0, mantidosPorTipo: null },
+    })
   })
 
   it('CSV vazio (0 linhas de dados) sem correções: comportamento da F7 preservado', () => {

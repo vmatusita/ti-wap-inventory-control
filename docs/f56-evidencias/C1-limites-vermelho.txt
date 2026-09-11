@@ -1,0 +1,383 @@
+F56 · Frente C — trava vermelha de src/lib/import/limites.test.ts, EXECUTADA AO VIVO contra o repositório do começo da frente
+Data: 11/09/2026.
+
+MÉTODO (substitui a reconstrução que estava neste arquivo): uma worktree temporária e DESTACADA no commit b804cdd
+(o HEAD de quando a Frente C começou), com node_modules ligado por junction ao da árvore principal, só com o
+src/lib/import/limites.test.ts NOVO copiado para dentro. Duas execuções reais do Vitest da própria worktree:
+  (1) o repositório de b804cdd tal como estava;
+  (2) o mesmo, trocando SÓ o next.config.ts pelo desta frente — para a trava passar da coleta e acusar a conta
+      contra as constantes antigas de limites.ts.
+A junction foi removida antes da worktree (rmdir no link, nunca no alvo) e a worktree apagada em seguida.
+Nenhum dado real: o teste gera CSVs fictícios em memória.
+
+================ EXECUÇÃO 1 — b804cdd intacto ================
+
+ RUN  v4.1.11 C:/Users/victor.matusita/AppData/Local/Temp/f56-wt-b804
+
+ ❯ |puro| src/lib/import/limites.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts [ src/lib/import/limites.test.ts ]
+Error: bodySizeLimit não encontrado em next.config.ts (formato mudou?)
+ ❯ bodySizeLimitDoNextConfig src/lib/import/limites.test.ts:97:19
+     95|     const texto = readFileSync(join(process.cwd(), 'next.config.ts'), …
+     96|     const m = texto.match(/bodySizeLimit:\s*([0-9_]+)/)
+     97|     if (!m) throw new Error('bodySizeLimit não encontrado em next.conf…
+       |                   ^
+     98|     return Number(m[1]!.replace(/_/g, ''))
+     99|   }
+ ❯ src/lib/import/limites.test.ts:101:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  15:46:12
+   Duration  8.08s (transform 444ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
+exit=1
+
+================ EXECUÇÃO 2 — b804cdd + next.config.ts desta frente ================
+
+ RUN  v4.1.11 C:/Users/victor.matusita/AppData/Local/Temp/f56-wt-b804
+
+ ❯ |puro| src/lib/import/limites.test.ts (18 tests | 17 failed) 1213ms
+     × nenhuma constante muda sem a conta ser refeita (rode scripts/perf/medir-corpos-import.mts) 21ms
+     × bodySizeLimit do next.config.ts é o mesmo nº de bytes de LIMITE_CORPO_PLATAFORMA 2ms
+     × corpo 1 = corpo 4 (pedido de validarImport/baixarCsvCorrigido — arquivo + correções) 1ms
+     × corpo 2 (resposta de validarImport — a ValidacaoImport inteira, com o orçamento aplicado) 1ms
+     × corpo 3 (pedido de aplicarImport — plano + correções + custo + confirmação) 1ms
+     × corpo 5 (resposta de baixarCsvCorrigido — o CSV corrigido) 1ms
+     × aceita no teto exato de linhas e colunas 118ms
+     × recusa 1 linha acima do teto, com a mensagem do leitor 50ms
+     × recusa 1 coluna acima do teto 1ms
+     × colunas vazias à direita do cabeçalho não contam para o teto de colunas 3ms
+     × recusa conteúdo acima do teto de bytes (célula gigante) 2ms
+     × aceita conteúdo no teto (soma de várias células, com folga para o cabeçalho) 1ms
+     × quatro bloqueantes por linha 107ms
+     × duplicata em toda linha (o achado O(N²) da medição C2) 364ms
+     × 2.000 Sites distintos (muitos grupos pequenos) 123ms
+     × arquivo válido com o máximo de avisos 89ms
+     × o piso do degrau nunca chega a 0 por tipo, mesmo no pior caso 324ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 17 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > carimbo — os números para os quais a conta foi feita > nenhuma constante muda sem a conta ser refeita (rode scripts/perf/medir-corpos-import.mts)
+AssertionError: uma constante de src/lib/import/limites.ts mudou sem a conta ser refeita — rode `NODE_OPTIONS="--conditions=react-server" npx tsx scripts/perf/medir-corpos-import.mts` de novo, atualize este carimbo E as cinco desigualdades abaixo com os números novos, e registre o porquê em docs/DECISOES.md.: expected { TAMANHO_MAX_ARQUIVO: 5242880, …(12) } to deeply equal { TAMANHO_MAX_ARQUIVO: 1048576, …(12) }
+
+- Expected
++ Received
+
+  {
+-   "FOLGA_MINIMA": 1.5,
+-   "LIMITES_CAMPO_PLANO": {
+-     "armazenamento": 40,
+-     "categoria": 30,
+-     "chamado": 40,
+-     "colaborador": 120,
+-     "dataAjuste": 10,
+-     "dataEntrada": 10,
+-     "estadoAlvo": 30,
+-     "fornecedor": 80,
+-     "hostname": 60,
+-     "marca": 60,
+-     "memoria": 40,
+-     "modelo": 120,
+-     "observacoes": 500,
+-     "patrimonio": 60,
+-     "patrimonioOriginal": 60,
+-     "processador": 80,
+-     "serviceTag": 60,
+-     "setor": 80,
+-   },
+-   "LIMITE_CORPO_PLATAFORMA": 4500000,
+-   "MAX_ARQUIVO_HASH": 128,
+-   "MAX_BYTES_CONTEUDO": 786432,
++   "FOLGA_MINIMA": undefined,
++   "LIMITES_CAMPO_PLANO": undefined,
++   "LIMITE_CORPO_PLATAFORMA": undefined,
++   "MAX_ARQUIVO_HASH": undefined,
++   "MAX_BYTES_CONTEUDO": undefined,
+    "MAX_COLUNAS_PLANILHA": 40,
+-   "MAX_CORRECOES": 500,
+-   "MAX_CRU": 120,
+-   "MAX_LINHAS_PLANILHA": 2000,
+-   "MAX_PARA": 120,
+-   "MAX_XML_DESCOMPRIMIDO": 33554432,
+-   "ORCAMENTO_RESPOSTA_PREVIEW": 2000000,
+-   "TAMANHO_MAX_ARQUIVO": 1048576,
++   "MAX_CORRECOES": undefined,
++   "MAX_CRU": undefined,
++   "MAX_LINHAS_PLANILHA": 20000,
++   "MAX_PARA": undefined,
++   "MAX_XML_DESCOMPRIMIDO": undefined,
++   "ORCAMENTO_RESPOSTA_PREVIEW": undefined,
++   "TAMANHO_MAX_ARQUIVO": 5242880,
+  }
+
+ ❯ src/lib/import/limites.test.ts:61:7
+     59|         'de novo, atualize este carimbo E as cinco desigualdades abaix…
+     60|         'e registre o porquê em docs/DECISOES.md.',
+     61|     ).toEqual({
+       |       ^
+     62|       TAMANHO_MAX_ARQUIVO: 1 * 1024 * 1024,
+     63|       MAX_LINHAS_PLANILHA: 2_000,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > as cinco desigualdades — corpo ≤ min(bodySizeLimit, LIMITE_CORPO_PLATAFORMA) / FOLGA_MINIMA > bodySizeLimit do next.config.ts é o mesmo nº de bytes de LIMITE_CORPO_PLATAFORMA
+AssertionError: expected 4500000 to be undefined // Object.is equality
+
+- Expected:
+undefined
+
++ Received:
+4500000
+
+ ❯ src/lib/import/limites.test.ts:105:41
+    103|   it('bodySizeLimit do next.config.ts é o mesmo nº de bytes de LIMITE_…
+    104|     // Decisão 6: alinhado de propósito — o `next dev` local se compor…
+    105|     expect(bodySizeLimitDoNextConfig()).toBe(LIMITE_CORPO_PLATAFORMA)
+       |                                         ^
+    106|   })
+    107|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > as cinco desigualdades — corpo ≤ min(bodySizeLimit, LIMITE_CORPO_PLATAFORMA) / FOLGA_MINIMA > corpo 1 = corpo 4 (pedido de validarImport/baixarCsvCorrigido — arquivo + correções)
+AssertionError: expected 1193983 to be less than or equal to NaN
+ ❯ src/lib/import/limites.test.ts:117:47
+    115|
+    116|   it('corpo 1 = corpo 4 (pedido de validarImport/baixarCsvCorrigido — …
+    117|     expect(CORPO1_CORPO4_MULTIPART_PIOR_CASO).toBeLessThanOrEqual(TETO…
+       |                                               ^
+    118|   })
+    119|   it('corpo 2 (resposta de validarImport — a ValidacaoImport inteira, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > as cinco desigualdades — corpo ≤ min(bodySizeLimit, LIMITE_CORPO_PLATAFORMA) / FOLGA_MINIMA > corpo 2 (resposta de validarImport — a ValidacaoImport inteira, com o orçamento aplicado)
+AssertionError: expected 1943783 to be less than or equal to NaN
+ ❯ src/lib/import/limites.test.ts:120:39
+    118|   })
+    119|   it('corpo 2 (resposta de validarImport — a ValidacaoImport inteira, …
+    120|     expect(CORPO2_RESPOSTA_PIOR_CASO).toBeLessThanOrEqual(TETO_COM_FOL…
+       |                                       ^
+    121|   })
+    122|   it('corpo 3 (pedido de aplicarImport — plano + correções + custo + c…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > as cinco desigualdades — corpo ≤ min(bodySizeLimit, LIMITE_CORPO_PLATAFORMA) / FOLGA_MINIMA > corpo 3 (pedido de aplicarImport — plano + correções + custo + confirmação)
+AssertionError: expected 1838884 to be less than or equal to NaN
+ ❯ src/lib/import/limites.test.ts:123:45
+    121|   })
+    122|   it('corpo 3 (pedido de aplicarImport — plano + correções + custo + c…
+    123|     expect(CORPO3_PEDIDO_APLICAR_PIOR_CASO).toBeLessThanOrEqual(TETO_C…
+       |                                             ^
+    124|   })
+    125|   it('corpo 5 (resposta de baixarCsvCorrigido — o CSV corrigido)', () …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > as cinco desigualdades — corpo ≤ min(bodySizeLimit, LIMITE_CORPO_PLATAFORMA) / FOLGA_MINIMA > corpo 5 (resposta de baixarCsvCorrigido — o CSV corrigido)
+AssertionError: expected 811281 to be less than or equal to NaN
+ ❯ src/lib/import/limites.test.ts:126:53
+    124|   })
+    125|   it('corpo 5 (resposta de baixarCsvCorrigido — o CSV corrigido)', () …
+    126|     expect(CORPO5_RESPOSTA_CSV_CORRIGIDO_PIOR_CASO).toBeLessThanOrEqua…
+       |                                                     ^
+    127|   })
+    128| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > conferirTetos > aceita no teto exato de linhas e colunas
+AssertionError: expected [Function] to not throw an error but 'TypeError: (0 , __vite_ssr_import_3__…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"TypeError: (0 , __vite_ssr_import_3__.conferirTetos) is not a function"
+
+ ❯ src/lib/import/limites.test.ts:145:42
+    143|   it('aceita no teto exato de linhas e colunas', () => {
+    144|     const csv = csvDe(MAX_COLUNAS_PLANILHA, MAX_LINHAS_PLANILHA, () =>…
+    145|     expect(() => conferirTetos(csv)).not.toThrow()
+       |                                          ^
+    146|   })
+    147|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > conferirTetos > recusa 1 linha acima do teto, com a mensagem do leitor
+AssertionError: expected error to be instance of ErroArquivoImport
+
+- Expected:
+[Function ErroArquivoImport]
+
++ Received:
+TypeError {
+  "message": "(0 , __vite_ssr_import_3__.conferirTetos) is not a function",
+}
+
+ ❯ src/lib/import/limites.test.ts:150:38
+    148|   it('recusa 1 linha acima do teto, com a mensagem do leitor', () => {
+    149|     const csv = csvDe(5, MAX_LINHAS_PLANILHA + 1, () => 'x')
+    150|     expect(() => conferirTetos(csv)).toThrow(ErroArquivoImport)
+       |                                      ^
+    151|     expect(() => conferirTetos(csv)).toThrow(`${(MAX_LINHAS_PLANILHA +…
+    152|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > conferirTetos > recusa 1 coluna acima do teto
+AssertionError: expected error to be instance of ErroArquivoImport
+
+- Expected:
+[Function ErroArquivoImport]
+
++ Received:
+TypeError {
+  "message": "(0 , __vite_ssr_import_3__.conferirTetos) is not a function",
+}
+
+ ❯ src/lib/import/limites.test.ts:156:38
+    154|   it('recusa 1 coluna acima do teto', () => {
+    155|     const csv = csvDe(MAX_COLUNAS_PLANILHA + 1, 1, () => 'x')
+    156|     expect(() => conferirTetos(csv)).toThrow(ErroArquivoImport)
+       |                                      ^
+    157|     expect(() => conferirTetos(csv)).toThrow(`${MAX_COLUNAS_PLANILHA +…
+    158|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > conferirTetos > colunas vazias à direita do cabeçalho não contam para o teto de colunas
+AssertionError: expected [Function] to not throw an error but 'TypeError: (0 , __vite_ssr_import_3__…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"TypeError: (0 , __vite_ssr_import_3__.conferirTetos) is not a function"
+
+ ❯ src/lib/import/limites.test.ts:163:42
+    161|     const header = [...Array.from({ length: MAX_COLUNAS_PLANILHA }, (_…
+    162|     const csv: CsvCru = { header, linhas: [{ linha: 2, celulas: ['x'] …
+    163|     expect(() => conferirTetos(csv)).not.toThrow()
+       |                                          ^
+    164|   })
+    165|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > conferirTetos > recusa conteúdo acima do teto de bytes (célula gigante)
+AssertionError: expected error to be instance of ErroArquivoImport
+
+- Expected:
+[Function ErroArquivoImport]
+
++ Received:
+TypeError {
+  "message": "(0 , __vite_ssr_import_3__.conferirTetos) is not a function",
+}
+
+ ❯ src/lib/import/limites.test.ts:168:38
+    166|   it('recusa conteúdo acima do teto de bytes (célula gigante)', () => {
+    167|     const csv = csvDe(1, 1, () => 'a'.repeat(MAX_BYTES_CONTEUDO + 1))
+    168|     expect(() => conferirTetos(csv)).toThrow(ErroArquivoImport)
+       |                                      ^
+    169|     expect(() => conferirTetos(csv)).toThrow(/conteúdo/i)
+    170|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > conferirTetos > aceita conteúdo no teto (soma de várias células, com folga para o cabeçalho)
+AssertionError: expected [Function] to not throw an error but 'TypeError: (0 , __vite_ssr_import_3__…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"TypeError: (0 , __vite_ssr_import_3__.conferirTetos) is not a function"
+
+ ❯ src/lib/import/limites.test.ts:176:42
+    174|     const porCelula = Math.floor((MAX_BYTES_CONTEUDO - 100) / 10)
+    175|     const csv = csvDe(10, 1, () => 'a'.repeat(porCelula))
+    176|     expect(() => conferirTetos(csv)).not.toThrow()
+       |                                          ^
+    177|   })
+    178| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > pior caso patológico (motor real, N=2.000) cabe no ORCAMENTO_RESPOSTA_PREVIEW > quatro bloqueantes por linha
+TypeError: Cannot read properties of undefined (reading 'totalBloqueantes')
+ ❯ src/lib/import/limites.test.ts:244:29
+    242|     const linhas = Array.from({ length: N }, (_, i) => linhaBloqueante…
+    243|     const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-0…
+    244|     expect(v.resumo.detalhe.totalBloqueantes).toBe(4 * N)
+       |                             ^
+    245|     expect(bytesJson(v)).toBeLessThanOrEqual(ORCAMENTO_RESPOSTA_PREVIE…
+    246|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > pior caso patológico (motor real, N=2.000) cabe no ORCAMENTO_RESPOSTA_PREVIEW > duplicata em toda linha (o achado O(N²) da medição C2)
+TypeError: Cannot read properties of undefined (reading 'totalBloqueantes')
+ ❯ src/lib/import/limites.test.ts:251:29
+    249|     const linhas = Array.from({ length: N }, (_, i) => linhaDuplicataC…
+    250|     const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-0…
+    251|     expect(v.resumo.detalhe.totalBloqueantes).toBe(N)
+       |                             ^
+    252|     expect(bytesJson(v)).toBeLessThanOrEqual(ORCAMENTO_RESPOSTA_PREVIE…
+    253|     // A mensagem de CADA bloqueante nunca embute a lista inteira de l…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > pior caso patológico (motor real, N=2.000) cabe no ORCAMENTO_RESPOSTA_PREVIEW > 2.000 Sites distintos (muitos grupos pequenos)
+TypeError: expected value must be number or bigint, received "undefined"
+ ❯ src/lib/import/limites.test.ts:262:26
+    260|     const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-0…
+    261|     expect(v.grupos.length).toBeGreaterThan(N) // ~N grupos de site_di…
+    262|     expect(bytesJson(v)).toBeLessThanOrEqual(ORCAMENTO_RESPOSTA_PREVIE…
+       |                          ^
+    263|   })
+    264|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > pior caso patológico (motor real, N=2.000) cabe no ORCAMENTO_RESPOSTA_PREVIEW > arquivo válido com o máximo de avisos
+TypeError: Cannot read properties of undefined (reading 'totalAvisos')
+ ❯ src/lib/import/limites.test.ts:268:29
+    266|     const linhas = Array.from({ length: N }, (_, i) => linhaAvisosCurt…
+    267|     const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-0…
+    268|     expect(v.resumo.detalhe.totalAvisos).toBeGreaterThan(0)
+       |                             ^
+    269|     expect(bytesJson(v)).toBeLessThanOrEqual(ORCAMENTO_RESPOSTA_PREVIE…
+    270|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/17]⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > pior caso patológico (motor real, N=2.000) cabe no ORCAMENTO_RESPOSTA_PREVIEW > o piso do degrau nunca chega a 0 por tipo, mesmo no pior caso
+TypeError: Cannot read properties of undefined (reading 'reduzido')
+ ❯ src/lib/import/limites.test.ts:275:26
+    273|     const linhas = Array.from({ length: N }, (_, i) => linhaDuplicataC…
+    274|     const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-0…
+    275|     if (v.resumo.detalhe.reduzido) {
+       |                          ^
+    276|       const porTipo = new Map<string, number>()
+    277|       for (const b of v.bloqueantes) porTipo.set(b.tipo, (porTipo.get(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/17]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  17 failed | 1 passed (18)
+   Start at  15:46:40
+   Duration  8.51s (transform 420ms, setup 0ms, import 6.75s, tests 1.21s, environment 0ms)
+
+exit=1

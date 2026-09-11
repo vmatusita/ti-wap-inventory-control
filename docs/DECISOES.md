@@ -9777,3 +9777,112 @@ só por teste de unidade (`alarme.test.mts`), porque exige o ensaio de volta.
   tem caminho de CI que a sustente.
 - Reversível? sim — `git revert` no commit que acrescenta o passo e o script; os dois são aditivos
   (nenhum passo existente mudou de comportamento, só de rótulo).
+
+---
+
+## 2026-09-11 · F56 (Frente C) · os tetos e o arquivo desalinhado — limites.ts fonte única
+
+Escopo desta ata: os números finais das Decisões 6, 7 e 8 do `PLAN-F56.md`, o que mudou em relação ao
+PLAN e por quê, e as decisões de desenho que a ordem/plano não fechavam por completo.
+
+- **Decisão 6 — os números finais são os que a remedição C2 já havia confirmado**, sem ajuste:
+  `TAMANHO_MAX_ARQUIVO` 1 MiB, `MAX_LINHAS_PLANILHA` 2.000, `MAX_COLUNAS_PLANILHA` 40,
+  `MAX_BYTES_CONTEUDO` 768 KiB, `MAX_CORRECOES` 500, `MAX_CRU`/`MAX_PARA` 120/120,
+  `LIMITE_CORPO_PLATAFORMA` 4.500.000 B, `FOLGA_MINIMA` 1,5, `ORCAMENTO_RESPOSTA_PREVIEW` 2.000.000 B.
+  Remedi os cinco corpos DEPOIS de implementar o motor (não confiei nos números da C2, que mediu ANTES
+  do fix do O(N²) e antes do orçamento de resposta existir de verdade): script versionado
+  `scripts/perf/medir-corpos-import.mts`, saída em `docs/f56-evidencias/C2-conta-dos-corpos.txt`. O
+  pior corpo é o 2 (resposta de `validarImport`, 1.943.783 B, folga 2,32×) — os outros quatro folgam
+  mais.
+- **O achado que mais mexeu no resultado não estava na lista de decisões do PLAN: o O(N²) das
+  mensagens de duplicata (achado C2 §1.3).** `plano.ts` embutia `linhas.join(', ')` — a lista INTEIRA
+  de linhas do grupo — dentro da mensagem de CADA membro; um grupo de N duplicatas gerava N mensagens
+  de tamanho O(N), e o corpo 2 crescia QUADRATICAMENTE (medido: N=1.142 → 14,4 MB; N=2.000 → 45,4 MB,
+  SÓ desse card). O conserto (`resumoLinhas`, plano.ts) cita só as 10 primeiras linhas + "e mais N" —
+  `grupo.linhas` continua com a lista completa, só a MENSAGEM deixa de reescrevê-la por membro. Depois
+  do conserto, o mesmo cenário (N=2.000) caiu para 616.342 B — 73× menor — e nem precisou do degrau de
+  orçamento (K=500 já bastou). Sem este achado, nenhuma configuração de `ORCAMENTO_RESPOSTA_PREVIEW`
+  razoável teria salvado o corpo 2 desse cenário: o degrau reduz erros INDIVIDUAIS por tipo, não o
+  tamanho de uma mensagem que o motor monta errado.
+- **Decisão 7 — `MAX_XML_DESCOMPRIMIDO` = 32 MiB, não os 80 MB que a medição isolada da Decisão 7
+  propunha.** Custo que decidiu: com `MAX_BYTES_CONTEUDO` (768 KiB) já em vigor, um `.xlsx` LEGÍTIMO e
+  IMPORTÁVEL nunca passa de ~6,6 MB de XML descomprimido (2,83 MB medidos pela C2 para um `.xlsx` no
+  teto de conteúdo com 40 colunas compactas, dobrado para o pior escape de `&`/`<`/`>`) — 32 MiB é ~5×
+  esse pior caso legítimo, folga generosa sem reservar memória à toa numa function da Vercel. **Sem
+  checagem por `<dimension ref="…">`**, por desenho explícito do coordenador: ela pode faltar OU
+  MENTIR (T2/C2), e formatação em linhas vazias a infla sem dado nenhum — um teto baseado nela
+  recusaria arquivo legítimo por engano. Confirmei isso na prática: gerei um `.xlsx` no teto de
+  conteúdo (768 KiB) MAIS formatação (preenchimento/borda) em 8.000 linhas vazias além dos dados — o
+  hábito real de quem seleciona a coluna inteira no Excel — e o XML descomprimido continuou bem abaixo
+  de 32 MiB (aceito, não recusado); não precisei subir o teto (`docs/f56-evidencias/C4-xlsx-antes-do-load.txt`,
+  caso 1b). **Recusa de caractere de controle NÃO entrou** — a Decisão 6 do PLAN cogitava um bloqueante
+  dedicado (`caractere_invalido`) para células com C0 (que o JSON escapa em até 6 bytes por caractere);
+  não implementei porque `conferirTetos` já conta o conteúdo pelos bytes ESCAPADOS PARA JSON
+  (`Buffer.byteLength(JSON.stringify(celula)) - 2`) — um caractere de controle já paga o próprio custo
+  de escape na soma contra `MAX_BYTES_CONTEUDO`; um teto dedicado seria redundante com o que o teto de
+  bytes já cobre, sem abrir nenhum buraco novo.
+- **A checagem de linhas/colunas SAIU de `xlsx.ts` e foi para `conferirTetos` (limites.ts), chamada
+  UMA VEZ em `analisar()` — não em dois lugares.** O `lerXlsx` de antes recusava DEPOIS do `load` mas
+  ANTES de materializar todas as linhas (economia pequena); decidi não preservar esse early-return
+  duplicado porque (a) o teto pré-load da Decisão 7 já garante que nenhum `.xlsx` aceito pelo `load`
+  pode ter decomposto mais que 32 MiB, então o custo de materializar `MAX_LINHAS_PLANILHA`-e-pouco
+  linhas de sobra é baixo; (b) ter DOIS pontos de checagem (um em `xlsx.ts`, outro em `analisar()`)
+  reabriria exatamente o problema que motivou "o CSV passa a ter os MESMOS tetos e mensagens que o
+  `.xlsx`" — duas fontes da mesma régua que podem divergir. `lerLinha` (xlsx.ts) passou a entregar
+  células ALÉM do cabeçalho sem truncar (Decisão 8) em vez de as tetos de linha/coluna, que hoje são só
+  do `conferirTetos`.
+- **Decisão 8 — linha desalinhada é EXCLUÍDA do CSV antes de `aplicarCorrecoes`/`extrairRegistros`,
+  não só marcada.** A ordem não fechava isso explicitamente. Decidi excluir porque uma linha com célula
+  a mais NO MEIO do array desloca todas as colunas seguintes — deixá-la seguir para `extrairRegistros`
+  leria valor de coluna ERRADA em silêncio (ex.: o "Status" de uma linha desalinhada podendo cair na
+  célula que era "Situação"), o exato defeito de corrupção silenciosa que esta régua existe para
+  evitar. Como o `bloqueante` já derruba o plano de qualquer forma, excluir a linha do CSV que segue
+  adiante evita erros SECUNDÁRIOS confusos (categoria/estado bobos derivados de valor deslocado) sem
+  mudar o resultado (plano continua null). `linha_desalinhada` some do CSV corrigido também —
+  correções (`op: 'editar'` etc.) nessa linha viram no-op (linha não encontrada), consistente com "a
+  estrutura se conserta no arquivo, nunca por correção da tela".
+- **`linha_desalinhada` e `valor_longo_demais` se agrupam diferente.** `linha_desalinhada` cai no
+  molde de `header_invalido` (UM card para todas as linhas — é defeito de arquivo inteiro, não vale a
+  pena um card por linha quando pode haver centenas). `valor_longo_demais` agrupa por COLUNA (ex.: "3
+  valores longos demais em Observação" separado de "2 em Modelo") — mais informativo que juntar tudo
+  ou espalhar um card por linha. Os dois caem em `correcao.kind: 'nenhuma'` (informativo, sem ação —
+  o `default` de `correcaoDoGrupo` já cobre, não precisou de `case` novo lá).
+- **O orçamento de resposta (`orcamento.ts`) tem piso de 1 por tipo, NUNCA 0** — a diferença
+  deliberada contra a proposta original da medição C2 (que testava até K=0/"zero itens"). Zero itens
+  de um tipo faria a tela parecer que aquele tipo de erro sumiu, quando na verdade ele só não está
+  listado — mentira por omissão. Com o piso em 1, o operador sempre vê pelo menos UM exemplar de cada
+  tipo de problema, e `resumo.detalhe.totalBloqueantes`/`totalAvisos` (nunca reduzidos) contam a
+  verdade nos números agregados que a tela usa em vez de `.length` dos arrays.
+- **`grupo.linhas` e `grupo.chave` NUNCA são tocados pelo degrau — mesmo no pior caso (K=1).** É o
+  que garante que a correção em massa (que casa pela `chave`) continue funcionando mesmo quando o
+  arquivo estourou o orçamento: o operador aplica "Definir todos como X" e o motor reanalisa do zero
+  (o orçamento roda de novo sobre o resultado novo, sem estado acumulado).
+- **`MAX_CORRECOES`/`MAX_CRU`/`MAX_PARA` migraram de `validators/importar.ts` para `limites.ts`**
+  (fonte única dos tetos do import), com `validators/importar.ts` reexportando `MAX_CORRECOES` por
+  compatibilidade (um teste existente importava dali). Isso encolheu de 20.000/500/200 para 500/120/120
+  — `importar.test.ts` (que constrói arrays de `MAX_CORRECOES` elementos) ficou MAIS RÁPIDO como
+  efeito colateral (arrays de 500/501 em vez de 20.000/20.001).
+- **`LIMITES_CAMPO_PLANO` é `satisfies Record<keyof AtivoPlano, ...>`** (os 18 campos nomeados
+  explicitamente, não `keyof AtivoPlano` direto — TypeScript não permite importar um tipo de outro
+  módulo só para o `satisfies` sem o `import type`, e preferi listar as chaves à mão com o comentário
+  de que espelham `AtivoPlano` a criar uma dependência de tipo de `limites.ts` → `tipos.ts` que
+  poderia parecer implicar dependência de RUNTIME — `limites.ts` continua um leaf puro, zero import de
+  valor de `tipos.ts`). Se `AtivoPlano` ganhar/perder campo em `tipos.ts` sem este objeto acompanhar,
+  o `tsc`/build reprovam — é a mesma guarda estrutural que o resto da casa já usa em vocabulários
+  fechados.
+- **Testes que mudaram por desenho** (números/comportamento, não bug): os dois testes de
+  `xlsx.test.ts` que chamavam `lerXlsx` diretamente esperando `ErroArquivoImport` de linha/coluna —
+  agora exercitam `validarArquivoImport` (o teto saiu de `xlsx.ts`); `correcoes.test.ts` — um
+  `resumo.toEqual` ganhou o campo `detalhe` novo; `importar.test.ts` — `MAX_CORRECOES` mudou de
+  20.000 para 500 (o teste já usava a CONSTANTE, não o número cru, então só ficou mais rápido).
+- **A prova de sabotagem (C3) rodou de verdade**: subi `MAX_LINHAS_PLANILHA` para 2.500 sem tocar o
+  carimbo → `limites.test.ts` foi vermelho pela mensagem certa (não um erro genérico); desfiz e
+  reconfirmei verde. As demonstrações de CSV-no-teto/célula-a-mais/células-vazias-à-direita rodaram
+  contra o motor JÁ CORRIGIDO (não há código para sabotar ali — são comportamentos, não números).
+- **Custo que NÃO investiguei a fundo**: o `picoRssMB` de `docs/f56-evidencias/C4-xlsx-antes-do-load.txt`
+  mistura memória da geração da fixture com a da leitura medida (mesmo processo, GC preguiçoso) — cada
+  caso roda em processo FILHO separado (então a comparação ENTRE casos vale), mas o número absoluto de
+  cada linha é um limite superior, não um delta isolado perfeito. Documentei a ressalva no próprio
+  arquivo de evidência em vez de gastar mais tempo isolando com `global.gc()` forçado — o que importa
+  para a decisão (nenhum caso passa de ~550 MB, longe do teto de 2 GB) se sustenta de qualquer jeito.
+

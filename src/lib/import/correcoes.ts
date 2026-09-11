@@ -453,7 +453,17 @@ function chaveDoGrupo(
     case 'plano_vazio':
     // F56 (Frente A) — defeito de cadastro, não de arquivo: um card só.
     case 'filial_fora_do_vocabulario':
+    // F56 (Frente C, Decisão 8) — desalinhamento é defeito de ESTRUTURA do
+    // arquivo (célula a mais/a menos), não de conteúdo de uma célula: um card só
+    // reúne TODAS as linhas desalinhadas, no molde de `header_invalido`.
+    case 'linha_desalinhada':
       return ''
+    // F56 (Frente C, critério 12) — valor acima do teto do campo: agrupa por
+    // COLUNA (um card por campo, ex.: "3 valores longos demais em Observação"),
+    // nunca pelo valor cru (que já foi abreviado para exibição em `erro.valor`,
+    // e distintos valores longos raramente coincidem byte a byte).
+    case 'valor_longo_demais':
+      return erro.coluna
     default:
       return erro.valor
   }
@@ -522,7 +532,9 @@ function correcaoDoGrupo(tipo: string, chave: string, filialNome: string): Grupo
     case 'estado_em_uso_sem_colaborador':
       return { kind: 'colaborador' }
     default:
-      // header_invalido, linha_sem_chave, correcao_invalida, plano_vazio
+      // header_invalido, linha_sem_chave, correcao_invalida, plano_vazio,
+      // linha_desalinhada e valor_longo_demais (F56 · Frente C) — estrutura/
+      // conteúdo se conserta no ARQUIVO, não por correção da tela.
       return { kind: 'nenhuma' }
   }
 }

@@ -50,12 +50,20 @@ import {
   decodificarCsv,
   detectarLayout,
   extrairRegistros,
+  linhasDesalinhadas,
   mapaColunas,
   parseCsv,
   type CsvCru,
   type RegistroImport,
 } from './parse'
 import { lerXlsx, pareceXlsx } from './xlsx'
+import {
+  abreviar60,
+  conferirTetos,
+  LIMITES_CAMPO_PLANO,
+  msgValorLongoDemais,
+} from './limites'
+import { aplicarOrcamentoResposta } from './orcamento'
 import type {
   AtivoPlano,
   CorrecaoImport,
@@ -65,6 +73,44 @@ import type {
   LayoutImport,
   ValidacaoImport,
 } from './tipos'
+
+/** Rótulo pt-BR de cada campo do `AtivoPlano`, para a mensagem de
+ *  `valor_longo_demais` (F56 · Frente C, critério 12) — mesma chave de
+ *  `LIMITES_CAMPO_PLANO`. */
+const ROTULO_CAMPO_MOTOR: Record<keyof typeof LIMITES_CAMPO_PLANO, string> = {
+  patrimonio: 'Patrimônio',
+  patrimonioOriginal: 'Patrimônio (original)',
+  serviceTag: 'Service Tag',
+  categoria: 'Tipo',
+  marca: 'Marca',
+  modelo: 'Modelo',
+  fornecedor: 'Fornecedor',
+  memoria: 'Memória',
+  armazenamento: 'Armazenamento',
+  processador: 'Processador',
+  hostname: 'Hostname',
+  observacoes: 'Observação',
+  dataEntrada: 'Data de entrada',
+  dataAjuste: 'Data de ajuste',
+  estadoAlvo: 'Situação',
+  colaborador: 'Colaborador',
+  setor: 'Setor',
+  chamado: 'Chamado',
+}
+
+/** Resumo de uma lista de linhas para MENSAGEM (nunca para `grupo.linhas`, que
+ *  fica sempre completo): as 10 primeiras + "e mais N" — F56 · Frente C, achado
+ *  C2 §1.3. Embutir a lista INTEIRA em CADA mensagem de um grupo de N linhas
+ *  fazia o corpo da resposta crescer O(N²) (N mensagens de tamanho O(N) cada):
+ *  medido, N=1.142 → 14,4 MB de JSON só nesse card; N=2.000 → 45,4 MB (3,16×
+ *  maior para 1,75× mais linhas — o crescimento quadrático, não linear). Limitar
+ *  a mensagem a um resumo O(1) resolve a causa raiz; `grupo.linhas` (calculado
+ *  uma vez por grupo, nunca reescrito por membro) já carrega a lista completa. */
+const LINHAS_NA_MENSAGEM = 10
+function resumoLinhas(linhas: readonly number[]): string {
+  if (linhas.length <= LINHAS_NA_MENSAGEM) return linhas.join(', ')
+  return `${linhas.slice(0, LINHAS_NA_MENSAGEM).join(', ')} e mais ${linhas.length - LINHAS_NA_MENSAGEM}`
+}
 
 // ---------------------------------------------------------------------------
 
@@ -261,6 +307,27 @@ export function montarPlanoImport(
       setor,
       chamado: extrairChamado(reg.glpi),
     }
+
+    // F56 · Frente C (critério 12) — célula acima do teto do CAMPO: o motor
+    // RECUSA a linha ANTES de virar `AtivoPlano` (nunca trunca o valor do plano —
+    // a doutrina "recusar, nunca cortar" da dívida T). `ErroImport.valor` leva só
+    // os 60 primeiros caracteres (exibição); o plano, quando existir, nunca leva
+    // este ativo — a linha nem chega a `candidatos.push` abaixo.
+    for (const campo of Object.keys(LIMITES_CAMPO_PLANO) as (keyof AtivoPlano)[]) {
+      const valorCampo = ativo[campo]
+      if (typeof valorCampo !== 'string') continue
+      const limite = LIMITES_CAMPO_PLANO[campo]
+      if (valorCampo.length > limite) {
+        bloq(
+          ROTULO_CAMPO_MOTOR[campo],
+          abreviar60(valorCampo),
+          'valor_longo_demais',
+          msgValorLongoDemais(ROTULO_CAMPO_MOTOR[campo], reg.linha, valorCampo.length, limite),
+        )
+      }
+    }
+    if (bloqueado) continue
+
     // Chave de DEDUPE (linhas repetidas no MESMO CSV). Com patrimônio → a chave da
     // F7 (tag UPPERCASED, espelha coalesce(service_tag,'') do índice). Sem patrimônio
     // e com tag → `∅::<tag-uppercased>` (o índice parcial novo: duas linhas sem
@@ -303,6 +370,12 @@ function analisar(
   correcoes: CorrecaoImport[],
   existentesEmOutraFilial: ReadonlyMap<string, string>,
 ): ValidacaoImport {
+  // F56 · Frente C (Decisão 6, critério 10) — PRIMEIRA LINHA de `analisar()`, antes
+  // de qualquer outra validação: os tetos de linhas/colunas/conteúdo, IGUAIS para
+  // CSV e `.xlsx` (o CSV não tinha teto nenhum até aqui). Lança `ErroArquivoImport`
+  // — atravessa o `catch` da action até o operador, como o `.xlsx` já fazia.
+  conferirTetos(csvOriginal)
+
   const det = detectarLayout(csvOriginal.header)
 
   const bloqueantes: ErroImport[] = []
@@ -323,7 +396,7 @@ function analisar(
         `Faltando: [${det.faltando.join(', ') || '—'}]. Sobrando: [${det.sobrando.join(', ') || '—'}]`,
     }
     bloqueantes.push(erro)
-    return {
+    return aplicarOrcamentoResposta({
       bloqueantes,
       avisos,
       grupos: [
@@ -333,10 +406,44 @@ function analisar(
       correcoes: { aplicadas: 0, porOp: correcoes.map(() => 0) },
       candidatos: [],
       plano: null,
-      resumo: { criar: 0, semData: 0, semPatrimonio: 0, semServiceTag: 0, patrimonioDoHostname: 0, conflitos: 0, layout: det.maisProximo, linhasRemovidas: 0 },
-    }
+      resumo: {
+        criar: 0, semData: 0, semPatrimonio: 0, semServiceTag: 0, patrimonioDoHostname: 0, conflitos: 0,
+        layout: det.maisProximo, linhasRemovidas: 0,
+        detalhe: { reduzido: false, totalBloqueantes: 1, totalAvisos: 0, mantidosPorTipo: null },
+      },
+    })
   }
   const layout: LayoutImport = det.layout
+
+  // F56 · Frente C (Decisão 8) — desalinhamento: linha com célula A MAIS (valor
+  // além da largura útil do cabeçalho) ou A MENOS. Roda sobre o CSV ORIGINAL,
+  // ANTES das correções — estrutura não se corrige por célula, e uma linha
+  // desalinhada tem o mapeamento célula↔coluna quebrado: deixá-la seguir para
+  // `extrairRegistros` leria valor da coluna ERRADA em silêncio (o próprio
+  // defeito que esta régua existe para impedir). As linhas afetadas são
+  // excluídas do CSV que segue adiante; cada uma vira UM bloqueante aqui.
+  const desalinhadas = linhasDesalinhadas(csvOriginal)
+  const linhasDesalinhadasSet = new Set(desalinhadas.map((d) => d.linha))
+  if (desalinhadas.length > 0) {
+    const porLinhaOriginal = new Map(csvOriginal.linhas.map((l) => [l.linha, l.celulas]))
+    for (const d of desalinhadas) {
+      const celulas = porLinhaOriginal.get(d.linha) ?? []
+      bloqueantes.push({
+        linha: d.linha,
+        coluna: '—',
+        valor: celulas.filter((c) => c !== '').join(' | '),
+        tipo: 'linha_desalinhada',
+        mensagem: `a linha ${d.linha} tem ${d.contagemCelulas} células; o cabeçalho tem ${d.larguraUtil} colunas`,
+      })
+    }
+  }
+  const csvSemDesalinhamento: CsvCru =
+    linhasDesalinhadasSet.size === 0
+      ? csvOriginal
+      : {
+          header: csvOriginal.header,
+          linhas: csvOriginal.linhas.filter((l) => !linhasDesalinhadasSet.has(l.linha)),
+        }
 
   // ---- F7B: correções nas CÉLULAS, antes da extração dos registros ----------
   const {
@@ -344,7 +451,7 @@ function analisar(
     porOp,
     linhasRemovidas,
     invalidas,
-  } = aplicarCorrecoes(csvOriginal, correcoes, mapaColunas(csvOriginal.header), filial.nome)
+  } = aplicarCorrecoes(csvSemDesalinhamento, correcoes, mapaColunas(csvOriginal.header), filial.nome)
   bloqueantes.push(...invalidas)
 
   const { registros, descartadas, totalLinhasDados } = extrairRegistros(csv)
@@ -401,6 +508,10 @@ function analisar(
   for (const grupo of porChave.values()) {
     if (grupo.length < 2) continue
     const linhas = grupo.map((c) => c.linha).sort((a, b) => a - b)
+    // F56 · Frente C (achado C2 §1.3) — calculado UMA VEZ por grupo, nunca dentro
+    // do laço por membro (era isso que fazia o corpo crescer O(N²) — ver o
+    // comentário de `resumoLinhas`, acima).
+    const linhasResumo = resumoLinhas(linhas)
     const ref = grupo[0]!.ativo
     // F7E — colisão entre linhas SEM patrimônio: a identidade é a service tag (índice
     // parcial novo). Nulo-sem-tag nunca chega aqui (chave única por linha), então todo
@@ -412,7 +523,7 @@ function analisar(
           coluna: 'Service Tag',
           valor: c.ativo.serviceTag ?? '',
           tipo: 'par_duplicado',
-          mensagem: `service tag "${c.ativo.serviceTag}" repetida em linhas sem patrimônio (colide no índice parcial de service tag) — linhas ${linhas.join(', ')}`,
+          mensagem: `service tag "${c.ativo.serviceTag}" repetida em linhas sem patrimônio (colide no índice parcial de service tag) — linhas ${linhasResumo}`,
         })
       }
       continue
@@ -428,8 +539,8 @@ function analisar(
         valor: semTag ? patr : `${patr} + ${c.ativo.serviceTag ?? ''}`,
         tipo: semTag ? 'patrimonio_duplicado_sem_service_tag' : 'par_duplicado',
         mensagem: semTag
-          ? `patrimônio ${patr} repetido sem service tag (colide no índice único) — linhas ${linhas.join(', ')}`
-          : `par patrimônio+service tag repetido no CSV — linhas ${linhas.join(', ')}`,
+          ? `patrimônio ${patr} repetido sem service tag (colide no índice único) — linhas ${linhasResumo}`
+          : `par patrimônio+service tag repetido no CSV — linhas ${linhasResumo}`,
       })
     }
   }
@@ -516,7 +627,12 @@ function analisar(
   // `filialPorLinha`: assim o contador é sempre o que a tela mostra, e não um estado
   // intermediário que poderia divergir se a régua mudasse de novo.
   const conflitos = avisos.filter((a) => a.tipo === 'patrimonio_em_outra_filial').length
-  const resumo = { criar: ativos.length, semData, semPatrimonio, semServiceTag, patrimonioDoHostname, conflitos, layout, linhasRemovidas }
+  // `detalhe` é placeholder aqui — SEMPRE recalculado por `aplicarOrcamentoResposta`
+  // (chamado em todo `return` abaixo), que é quem de fato decide se reduziu.
+  const resumo: ValidacaoImport['resumo'] = {
+    criar: ativos.length, semData, semPatrimonio, semServiceTag, patrimonioDoHostname, conflitos, layout, linhasRemovidas,
+    detalhe: { reduzido: false, totalBloqueantes: 0, totalAvisos: 0, mantidosPorTipo: null },
+  }
 
   // F7B — agrupamento + contexto das linhas com erro/aviso (a tela corrige a
   // linha inteira, não a célula solta). `registros` já vem CORRIGIDO.
@@ -537,7 +653,7 @@ function analisar(
   }))
 
   if (bloqueantes.length > 0) {
-    return {
+    return aplicarOrcamentoResposta({
       bloqueantes,
       avisos,
       grupos,
@@ -546,7 +662,7 @@ function analisar(
       candidatos: listaCandidatos,
       plano: null,
       resumo,
-    }
+    })
   }
 
   const plano: ValidacaoImport['plano'] = {
@@ -555,7 +671,7 @@ function analisar(
     totalLinhasDados,
     ativos,
   }
-  return {
+  return aplicarOrcamentoResposta({
     bloqueantes,
     avisos,
     grupos,
@@ -564,7 +680,7 @@ function analisar(
     candidatos: listaCandidatos,
     plano,
     resumo,
-  }
+  })
 }
 
 /**

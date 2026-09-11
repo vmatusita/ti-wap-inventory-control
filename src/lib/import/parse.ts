@@ -46,16 +46,24 @@ export type CsvCru = {
   linhas: { celulas: string[]; linha: number }[]
 }
 
-/** Decodifica + PapaParse `;`. Erros fatais de parse viram Error. */
+/** Decodifica + PapaParse `;`. Erros fatais de parse viram Error.
+ *
+ * F56 (fato 3) — o PapaParse só emite o tipo de erro `'FieldMismatch'` quando a
+ * opção `header: true` é usada (linha com nº de campos diferente do cabeçalho); a
+ * chamada abaixo NÃO passa `header` (dados crus, como arrays — `header` fica
+ * `false` por padrão), então esse tipo NUNCA aparece aqui. O filtro que excluía
+ * `FieldMismatch` dos erros "fatais" era código morto desde sempre — removido. O
+ * desalinhamento de linha (célula a mais/a menos que a largura útil do cabeçalho)
+ * tem checagem PRÓPRIA (`linhasDesalinhadas`, Decisão 8 da F56), que não depende
+ * do Papa: ele nunca notou esse problema, e continua sem notar. */
 export function parseCsv(texto: string): CsvCru {
   const res = Papa.parse<string[]>(texto, {
     delimiter: ';',
     skipEmptyLines: false,
     dynamicTyping: false,
   })
-  const fatais = res.errors.filter((e) => e.type !== 'FieldMismatch')
-  if (fatais.length > 0) {
-    throw new Error(`Falha ao ler o CSV: ${fatais[0]!.message} (linha ${fatais[0]!.row})`)
+  if (res.errors.length > 0) {
+    throw new Error(`Falha ao ler o CSV: ${res.errors[0]!.message} (linha ${res.errors[0]!.row})`)
   }
   const dados = res.data
   if (dados.length === 0) return { header: [], linhas: [] }
@@ -134,6 +142,56 @@ export function detectarLayout(headers: string[]): DeteccaoLayout {
 }
 
 // ---------------------------------------------------------------------------
+// Desalinhamento (F56 · Frente C, Decisão 8) — linha cujo nº de células não bate
+// com a largura ÚTIL do cabeçalho é sinal de arquivo desalinhado (um `;` a mais ou
+// a menos desloca todas as colunas seguintes), não erro de conteúdo de UMA célula.
+// Estrutura não se corrige por célula — é o mesmo tratamento de `header_invalido`.
+
+/** Índice da ÚLTIMA coluna do cabeçalho com nome (normalizado) + 1 — a largura
+ *  ÚTIL. Colunas vazias à direita (separador sobrando) NÃO contam — o mesmo
+ *  critério que `detectarLayout`/`conferirTetos` (`limites.ts`) já usam para
+ *  tolerar cabeçalho com `;` a mais no fim. Cabeçalho 100% vazio → 0. */
+export function larguraUtil(header: string[]): number {
+  for (let i = header.length - 1; i >= 0; i--) {
+    if (normalizarHeader(header[i]!) !== '') return i + 1
+  }
+  return 0
+}
+
+/** Uma linha do CSV/`.xlsx` cujo nº de células não bate com a largura útil do
+ *  cabeçalho — célula A MAIS (com valor não vazio além da largura útil) ou célula
+ *  A MENOS. `contagemCelulas` é o nº de células que a linha TEM (não o que sobra). */
+export type LinhaDesalinhada = { linha: number; contagemCelulas: number; larguraUtil: number }
+
+/**
+ * Varre o `CsvCru` ORIGINAL (antes de qualquer correção — Decisão 8) procurando
+ * linhas desalinhadas, pulando linha 100% vazia (mesmo critério de `linhaVazia`
+ * abaixo — o `\n` final e a linha em branco do meio do arquivo viram `['']` com
+ * `skipEmptyLines:false` e não são desalinhamento).
+ *
+ * No `.xlsx`, `lerLinha` (xlsx.ts) já entrega as células ALÉM do cabeçalho sem
+ * truncar — é o que permite esta mesma régua acusar "valor à direita" nos dois
+ * formatos; célula A MENOS não existe no `.xlsx` (a linha é sempre completada até
+ * a largura lida). No CSV, o Papa preserva tanto a linha curta (`skipEmptyLines:
+ * false` não completa) quanto a longa (não corta célula a mais) — os dois casos
+ * chegam aqui intactos.
+ */
+export function linhasDesalinhadas(csv: CsvCru): LinhaDesalinhada[] {
+  const largura = larguraUtil(csv.header)
+  const achados: LinhaDesalinhada[] = []
+  for (const { celulas, linha } of csv.linhas) {
+    if (linhaVazia(celulas)) continue
+    if (celulas.length > largura) {
+      const sobrouValor = celulas.slice(largura).some((c) => c !== '')
+      if (sobrouValor) achados.push({ linha, contagemCelulas: celulas.length, larguraUtil: largura })
+    } else if (celulas.length < largura) {
+      achados.push({ linha, contagemCelulas: celulas.length, larguraUtil: largura })
+    }
+  }
+  return achados
+}
+
+// ---------------------------------------------------------------------------
 // Registro cru (colunas por NOME; Termo de Ativos e Grade não são extraídos).
 
 export type RegistroImport = {
@@ -176,7 +234,10 @@ function campo(celulas: string[], mapa: Map<string, number>, nome: string): stri
   return i === undefined ? '' : (celulas[i] ?? '')
 }
 
-function linhaVazia(celulas: string[]): boolean {
+/** Linha 100% vazia (todas as células em branco) — o mesmo critério usado por
+ *  `extrairRegistros` (pula em silêncio) e por `linhasDesalinhadas` (Decisão 8:
+ *  linha em branco / `\n` final não é desalinhamento). Exportada na F56. */
+export function linhaVazia(celulas: string[]): boolean {
   return celulas.every((c) => c === '')
 }
 

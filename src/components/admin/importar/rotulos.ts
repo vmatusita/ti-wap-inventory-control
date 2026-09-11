@@ -42,6 +42,11 @@ const ROTULO_TIPO_ERRO: Record<string, string> = {
   header_invalido: 'Cabeçalho',
   correcao_invalida: 'Correção inválida',
   plano_vazio: 'Plano vazio',
+  // F56 · Frente C — linha cujo nº de células não bate com o cabeçalho (Decisão 8)
+  // e célula acima do teto do campo (critério 12): os dois se corrigem no ARQUIVO,
+  // nunca pela tela.
+  linha_desalinhada: 'Linha desalinhada',
+  valor_longo_demais: 'Valor longo demais',
 }
 
 export function rotuloTipoErro(tipo: string): string {

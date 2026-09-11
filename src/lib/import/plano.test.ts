@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { validarCsvImport } from './plano'
+import { ErroArquivoImport, LIMITES_CAMPO_PLANO, MAX_COLUNAS_PLANILHA, MAX_LINHAS_PLANILHA } from './limites'
 import type { FilialSelecionada } from './tipos'
 
 // ===========================================================================
@@ -672,5 +673,161 @@ describe('F7K — modelo sem marca duplicada', () => {
   it('modelo que não repete a marca é preservado', () => {
     const r = validarMatriz([rowMatriz({ Marca: 'Dell', Modelo: 'Latitude 5490' })])
     expect(r.plano!.ativos[0]!.modelo).toBe('Latitude 5490')
+  })
+})
+
+// ===========================================================================
+// F56 · Frente C — conferirTetos no CSV (Decisão 6, critério 10). Antes desta
+// fase o CSV não tinha teto de linha/coluna/conteúdo nenhum — só o `.xlsx`.
+
+describe('F56 · Frente C — conferirTetos no CSV', () => {
+  it('recusa CSV com mais linhas de dados que o teto, com a mensagem do leitor', () => {
+    const linhas = Array.from({ length: MAX_LINHAS_PLANILHA + 1 }, (_, i) =>
+      rowMatriz({ 'Patrimônio': `WAP${String(i + 1).padStart(7, '0')}` }),
+    )
+    expect(() => validarMatriz(linhas)).toThrow(ErroArquivoImport)
+    expect(() => validarMatriz(linhas)).toThrow(`${(MAX_LINHAS_PLANILHA + 1).toLocaleString('pt-BR')} linhas`)
+    expect(() => validarMatriz(linhas)).toThrow(`${MAX_LINHAS_PLANILHA.toLocaleString('pt-BR')}`)
+  })
+
+  it('aceita CSV EXATAMENTE no teto de linhas (não é off-by-one)', () => {
+    const linhas = Array.from({ length: MAX_LINHAS_PLANILHA }, (_, i) =>
+      rowMatriz({ 'Patrimônio': `WAP${String(i + 1).padStart(7, '0')}` }),
+    )
+    expect(() => validarMatriz(linhas)).not.toThrow()
+  })
+
+  it('recusa CSV com mais colunas que o teto', () => {
+    const header = Array.from({ length: MAX_COLUNAS_PLANILHA + 1 }, (_, i) => `Col${i + 1}`).join(';')
+    const texto = [header, Array.from({ length: MAX_COLUNAS_PLANILHA + 1 }, () => 'x').join(';')].join('\n')
+    expect(() => validarCsvImport(buf(texto), MATRIZ, HOJE)).toThrow(ErroArquivoImport)
+    expect(() => validarCsvImport(buf(texto), MATRIZ, HOJE)).toThrow(`${MAX_COLUNAS_PLANILHA + 1} colunas`)
+  })
+
+  it('recusa quando o conteúdo total das células passa do teto de bytes', () => {
+    // Uma célula ENORME sozinha já estoura MAX_BYTES_CONTEUDO (768 KiB) — o
+    // teto de CONTEÚDO roda ANTES de qualquer `.max()` por campo (que só vale
+    // depois que a linha vira candidato a `AtivoPlano`).
+    const linhas = [rowMatriz({ Observação: 'a'.repeat(800_000) })]
+    expect(() => validarMatriz(linhas)).toThrow(ErroArquivoImport)
+    expect(() => validarMatriz(linhas)).toThrow(/conteúdo/i)
+  })
+})
+
+// ===========================================================================
+// F56 · Frente C — linha_desalinhada (Decisão 8). Célula a mais/a menos que a
+// largura útil do cabeçalho é estrutura, não conteúdo — recusa, não corrige.
+
+describe('F56 · Frente C — linha_desalinhada', () => {
+  it('célula A MAIS (com valor) além da largura útil → bloqueante na linha certa', () => {
+    const linhaComSobra = linhaDe(H_MATRIZ.split(';'), rowMatriz()) + ';VALOR SOBRANDO'
+    const texto = [H_MATRIZ, linhaComSobra].join('\n')
+    const r = validarCsvImport(buf(texto), MATRIZ, HOJE)
+    expect(r.plano).toBeNull()
+    expect(r.bloqueantes).toEqual([
+      expect.objectContaining({ linha: 2, tipo: 'linha_desalinhada' }),
+    ])
+  })
+
+  it('célula A MENOS que a largura útil → bloqueante (mensagem com a linha e a contagem)', () => {
+    const colunas = H_MATRIZ.split(';').length
+    const linhaCurta = Array.from({ length: colunas - 1 }, () => 'x').join(';') // falta 1 célula
+    const texto = [H_MATRIZ, linhaCurta].join('\n')
+    const r = validarCsvImport(buf(texto), MATRIZ, HOJE)
+    expect(r.plano).toBeNull()
+    const erro = r.bloqueantes.find((e) => e.tipo === 'linha_desalinhada')
+    expect(erro).toBeDefined()
+    expect(erro!.linha).toBe(2)
+    expect(erro!.mensagem).toContain(`${colunas - 1} células`)
+    expect(erro!.mensagem).toContain(`${colunas} colunas`)
+  })
+
+  it('colunas vazias à direita, linha em branco, `;` dentro de aspas, CRLF e `\\n` final continuam passando', () => {
+    const linhaValida = linhaDe(
+      H_MATRIZ.split(';'),
+      rowMatriz({ 'Patrimônio': 'WAP0001111', Observação: '"nota; com ponto e vírgula"' }),
+    )
+    const linhaComColunasVaziasADireita =
+      linhaDe(H_MATRIZ.split(';'), rowMatriz({ 'Patrimônio': 'WAP0002222' })) + ';;;' // só separador, sem valor
+    const linhaEmBranco = Array.from({ length: H_MATRIZ.split(';').length }, () => '').join(';')
+    const texto =
+      [H_MATRIZ, linhaValida, linhaComColunasVaziasADireita, linhaEmBranco].join('\r\n') + '\r\n' // CRLF + \n final
+    const comBom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), buf(texto)])
+    const r = validarCsvImport(comBom, MATRIZ, HOJE)
+    expect(r.bloqueantes.filter((e) => e.tipo === 'linha_desalinhada')).toEqual([])
+    expect(r.plano).not.toBeNull()
+    expect(r.plano!.ativos).toHaveLength(2) // as 2 linhas com Site/Patrimônio; a em branco é pulada
+  })
+})
+
+// ===========================================================================
+// F56 · Frente C — valor_longo_demais (critério 12). O motor recusa a CÉLULA
+// acima do teto do campo ANTES do plano existir — nunca trunca.
+
+describe('F56 · Frente C — valor_longo_demais', () => {
+  it('célula acima do teto do campo vira bloqueante; a linha some do plano; as demais continuam', () => {
+    const limite = LIMITES_CAMPO_PLANO.observacoes
+    const r = validarMatriz([
+      rowMatriz({ 'Patrimônio': 'WAP0001111', Observação: 'x'.repeat(limite + 1) }),
+      rowMatriz({ 'Patrimônio': 'WAP0002222' }), // linha válida, sem observação longa
+    ])
+    expect(r.plano).toBeNull() // 1 bloqueante já derruba o plano
+    const erro = r.bloqueantes.find((e) => e.tipo === 'valor_longo_demais')
+    expect(erro).toBeDefined()
+    expect(erro!.coluna).toBe('Observação')
+    expect(erro!.mensagem).toContain(String(limite + 1))
+    expect(erro!.mensagem).toContain(String(limite))
+    // Exibição abreviada (60 + "…") — NUNCA o valor inteiro no `ErroImport.valor`.
+    expect(erro!.valor.length).toBeLessThanOrEqual(61)
+    expect(erro!.valor.endsWith('…')).toBe(true)
+
+    // Removendo a correção manual: sem a linha ofensora, a outra segue válida —
+    // prova que só a linha com o campo longo é recusada, não o arquivo inteiro.
+    const r2 = validarMatriz([rowMatriz({ 'Patrimônio': 'WAP0002222' })])
+    expect(r2.plano).not.toBeNull()
+    expect(r2.plano!.ativos).toHaveLength(1)
+  })
+
+  it('não trunca — a linha simplesmente não vira AtivoPlano', () => {
+    const limite = LIMITES_CAMPO_PLANO.marca
+    const r = validarMatriz([rowMatriz({ Marca: 'M'.repeat(limite + 5) })])
+    expect(r.plano).toBeNull()
+    // Nenhum `AtivoPlano` foi montado para esta linha — não há valor truncado
+    // circulando em lugar nenhum do resultado (nem em `candidatos`, que guarda
+    // só patrimônio/serviceTag, não os campos de texto livre).
+    expect(r.candidatos).toEqual([])
+  })
+})
+
+// ===========================================================================
+// F56 · Frente C — achado C2 §1.3: a mensagem de duplicata não embute a lista
+// inteira de linhas (era O(N²): N mensagens de tamanho O(N) cada).
+
+describe('F56 · Frente C — mensagem de duplicata não cresce com o tamanho do grupo', () => {
+  it('grupo de 15 linhas duplicadas: mensagem cita só as 10 primeiras + "e mais 5"; grupo.linhas fica completo', () => {
+    const linhas = Array.from({ length: 15 }, () =>
+      rowMatriz({ 'Patrimônio': 'WAP0009999', 'Service Tag': 'ST-DUP' }),
+    )
+    const r = validarMatriz(linhas)
+    const duplicados = r.bloqueantes.filter((e) => e.tipo === 'par_duplicado')
+    expect(duplicados).toHaveLength(15)
+    for (const e of duplicados) {
+      expect(e.mensagem).toContain('e mais 5')
+      expect(e.mensagem.length).toBeLessThan(200) // nunca O(N) por mensagem
+    }
+    // `grupo.linhas` continua com as 15 linhas — a lista completa NÃO some, só
+    // deixa de ser reescrita dentro de cada mensagem individual.
+    const grupo = r.grupos.find((g) => g.tipo === 'par_duplicado')
+    expect(grupo?.linhas).toHaveLength(15)
+  })
+
+  it('grupo de 3 linhas (abaixo do limite de 10): mensagem lista todas, sem "e mais"', () => {
+    const linhas = Array.from({ length: 3 }, () =>
+      rowMatriz({ 'Patrimônio': 'WAP0008888', 'Service Tag': 'ST-DUP2' }),
+    )
+    const r = validarMatriz(linhas)
+    const erro = r.bloqueantes.find((e) => e.tipo === 'par_duplicado')
+    expect(erro!.mensagem).not.toContain('e mais')
+    expect(erro!.mensagem).toContain('2, 3, 4') // linhas físicas 2-4 (header=1)
   })
 })

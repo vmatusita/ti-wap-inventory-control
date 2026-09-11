@@ -246,5 +246,24 @@ export type ValidacaoImport = {
     conflitos: number
     layout: LayoutImport
     linhasRemovidas: number
+    /**
+     * F56 · Frente C — o veredito do orçamento de resposta (`orcamento.ts`,
+     * `ORCAMENTO_RESPOSTA_PREVIEW`), aplicado no FIM de `analisar()`. `reduzido =
+     * false` no caminho comum (a resposta já cabia — `totalBloqueantes`/
+     * `totalAvisos` são os MESMOS números que `bloqueantes.length`/`avisos.length`
+     * dariam); `reduzido = true` quando o preview teve erros demais para listar
+     * todos — `bloqueantes`/`avisos`/`grupos[].erros` trazem só até
+     * `mantidosPorTipo` itens de CADA tipo (nunca 0 — o piso é 1), mas
+     * `totalBloqueantes`/`totalAvisos` continuam os totais REAIS. A tela usa estes
+     * totais (nunca `.length` dos arrays, que sub-contariam quando reduzido) para
+     * os números que mostra ao operador.
+     */
+    detalhe: {
+      reduzido: boolean
+      totalBloqueantes: number
+      totalAvisos: number
+      /** Nº de erros mantidos por tipo neste degrau — `null` quando não reduziu. */
+      mantidosPorTipo: number | null
+    }
   }
 }

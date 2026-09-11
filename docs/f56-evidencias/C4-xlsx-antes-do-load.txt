@@ -1,0 +1,144 @@
+F56 · Frente C — Decisão 7: o `.xlsx` descomprimido, medido DEPOIS do conserto
+Data: 11/09/2026. `src/lib/import/xlsx.ts` com `confirmarTamanhoDescomprimido`
+(parser manual do diretório central do zip + `zlib.inflateRawSync` com
+`maxOutputLength`, sem dependência nova, SEM checagem por `<dimension>`).
+
+Script: `scripts/perf/xlsx-pre-load.mts` (versionado). Cada caso rodou em
+PROCESSO FILHO SEPARADO (nunca no processo da sessão) — RSS de processo é
+cumulativo, então medir vários casos no mesmo processo contaminaria a leitura de
+um com a alocação do anterior. Comando exato de cada linha:
+
+  node --max-old-space-size=1024 --import tsx scripts/perf/xlsx-pre-load.mts <caso>
+
+Nenhuma fixture foi commitada — tudo gerado em memória a cada execução (dados
+100% fictícios: "WAP0001234" repetido, sem nome de colaborador).
+
+⚠ RESSALVA DE MÉTODO sobre RSS: a geração da fixture (ExcelJS `writeBuffer`)
+roda no MESMO processo, logo antes da chamada medida (`lerXlsx`/
+`validarArquivoImport`) — o `picoRssMB` reportado inclui memória que pode não
+ter sido liberada pelo GC entre a geração e a leitura (o processo não força
+`global.gc()`). Os números abaixo são, portanto, um LIMITE SUPERIOR razoável,
+não uma medição isolada e perfeita do delta da própria leitura — mas cada caso
+roda ISOLADO (processo próprio), então a comparação ENTRE casos continua válida.
+O que importa para a decisão — nenhum caso passou de ~550 MB, muito abaixo dos
+2 GB padrão de uma Vercel Function — se sustenta de qualquer forma.
+
+===========================================================================
+CASO 1 — `.xlsx` LEGÍTIMO, no teto de conteúdo (2.000 linhas × 40 colunas,
+768 KiB de conteúdo antes de comprimir)
+===========================================================================
+  bytesArquivo (comprimido):  184.416 B (0,18 MiB)
+  rejeitado:                  NÃO
+  linhas lidas:                2.000
+  colunas lidas:                 40
+  tempoMs:                  1.873,10
+  picoRssMB:                   228,5
+
+O `.xlsx` legítimo passa, sem ser afetado pelo teto pré-load — confirma que a
+Decisão 7 não introduz falso positivo contra um arquivo real de inventário.
+
+===========================================================================
+CASO 1b — CONFIRMAÇÃO EXIGIDA: `.xlsx` legítimo no teto de CONTEÚDO (768 KiB)
++ formatação (preenchimento/borda) em 8.000 linhas VAZIAS além dos dados — o
+hábito real de quem seleciona a coluna inteira no Excel "por via das dúvidas"
+===========================================================================
+  bytesArquivo (comprimido):  819.418 B (0,78 MiB — ainda abaixo de
+                                TAMANHO_MAX_ARQUIVO, 1 MiB)
+  rejeitado:                   NÃO
+  linhas lidas:                10.000  (2.000 de dados + 8.000 vazias formatadas)
+  colunas lidas:                   40
+  tempoMs:                    6.309,03
+  picoRssMB:                    522,7
+
+CONFIRMADO: mesmo com 8.000 × 40 = 320.000 células vazias FORMATADAS além dos
+dados, o XML descomprimido continua abaixo de `MAX_XML_DESCOMPRIMIDO` (32 MiB)
+— não precisou subir o teto. O `.xlsx` da OOXML guarda a referência de estilo
+(`s="N"`) por célula, não o estilo inteiro repetido — barato em bytes mesmo
+para centenas de milhares de células. Esta é exatamente a razão pela qual a
+Decisão 7 NÃO usa `<dimension ref="…">` como teto: aquele atributo declarado
+cobriria estas 8.000 linhas vazias como se fossem "dado" e um teto baseado nele
+recusaria este arquivo LEGÍTIMO por engano (falso positivo) — enquanto o teto
+real (tamanho descomprimido de verdade, via `inflateRawSync`) aceita
+corretamente porque o CONTEÚDO real é pequeno, não importa quantas linhas a
+dimensão declare.
+
+===========================================================================
+CASO 2 — bomba DISFARÇADA (dimensão pequena/legítima — 3 linhas × 1 coluna —,
+célula com conteúdo massivamente repetitivo; alvo ~45 MB descomprimidos)
+===========================================================================
+  bytesArquivo (comprimido):   50.228 B (0,05 MiB — passaria QUALQUER teto de
+                                TAMANHO_MAX_ARQUIVO, e a dimensão 3×1 passaria
+                                QUALQUER teto de linhas/colunas)
+  rejeitado:                   SIM — ErroArquivoImport
+  mensagem: "O arquivo Excel expande para mais de 32 MB de XML depois de
+             descomprimido — bem mais do que uma planilha de inventário
+             legítima produz. Confira se o arquivo não está corrompido ou foi
+             construído de forma incomum (célula com conteúdo repetitivo
+             demais), e envie de novo."
+  tempoMs:                        134,65   ← MILISSEGUNDOS
+  picoRssMB:                      212,4
+
+A recusa acontece ANTES do `wb.xlsx.load` — o `zlib.inflateRawSync` com
+`maxOutputLength` para assim que o total descomprimido cruzaria
+`MAX_XML_DESCOMPRIMIDO` (32 MiB), sem nunca materializar a bomba inteira.
+134 ms é a ORDEM DE GRANDEZA que a medição C2 já havia previsto (ali, contra uma
+bomba de ~300 MB descomprimidos, a rejeição saiu em 14,5-14,7 ms com 75-77 MB de
+RSS — o número absoluto de RSS aqui é maior por causa da ressalva de método
+acima, não porque a defesa ficou mais cara).
+
+===========================================================================
+CASO 3 — bomba "ALTA" (100.000 linhas, valor CURTO repetido — "WAP0001234" em
+3 colunas): o teto PRÉ-load NÃO pega, POR DESENHO
+===========================================================================
+
+  bytesArquivo (comprimido): 1.113.511 B (1,06 MiB)
+
+  (a) `lerXlsx` isolado (sem `conferirTetos`):
+    rejeitado:  NÃO
+    linhas lidas: 100.000
+    tempoMs:    2.978,81
+    picoRssMB:    530,3
+
+  (b) pipeline completo (`validarArquivoImport` → `analisar()` →
+      `conferirTetos`, a 2ª linha de defesa):
+    rejeitado:  SIM — ErroArquivoImport
+    mensagem: "A planilha tem 100.000 linhas de dados e o limite do import é
+               2.000. Divida o arquivo por filial ou remova as linhas sobrando
+               e envie de novo."
+    tempoMs:    2.028,29
+    picoRssMB:    521,6
+
+ISTO É O DESENHO PRETENDIDO, não uma lacuna: com conteúdo CURTO repetido, o XML
+descomprimido de 100 mil linhas fica bem abaixo de 32 MiB (a razão de
+descompressão de texto curto e pouco repetitivo, ao contrário da bomba
+disfarçada, não chega perto do teto teórico do DEFLATE) — então o teto PRÉ-load
+corretamente NÃO recusa (ele não deveria: recusar aqui seria falso positivo
+contra um arquivo cujo conteúdo real é pequeno). Quem pega este caso é a 2ª
+linha de defesa, `MAX_LINHAS_PLANILHA` via `conferirTetos` — mais lenta (exige
+o `load` completo primeiro, ~2-3 s aqui) mas SEM RISCO DE MEMÓRIA (RSS fica na
+casa de 500 MB, longe do teto de 2 GB padrão da Vercel — T2 já havia
+estabelecido essa faixa). A Decisão 7 documenta explicitamente esta divisão de
+trabalho: "os tetos PÓS-load continuam (a dimensão pode faltar OU MENTIR)" — e
+aqui é a MESMA razão pela qual o teto pré-load não tenta ler `<dimension>`
+nenhuma: ele defende contra EXPLOSÃO DE MEMÓRIA (conteúdo que descomprime
+desproporcionalmente), não contra "muitas linhas" — essa segunda categoria de
+ataque já tem defesa própria, mais barata de implementar corretamente
+(contagem real pós-parse, nunca um metadado que pode mentir).
+
+===========================================================================
+RESUMO
+===========================================================================
+| Caso | Recusado? | Onde | Tempo | RSS pico |
+|---|:---:|---|---:|---:|
+| Legítimo (2.000×40, no teto de conteúdo) | não | — | 1.873 ms | 228 MB |
+| Legítimo + formatação em 8.000 linhas vazias (confirmação exigida) | não | — | 6.309 ms | 523 MB |
+| Disfarçada (3×1, ~45 MB descomprimidos) | SIM | pré-load (Decisão 7) | **135 ms** | 212 MB |
+| Alta (100k linhas curtas) — só lerXlsx | não (por desenho) | — | 2.979 ms | 530 MB |
+| Alta (100k linhas curtas) — pipeline completo | SIM | pós-load (`conferirTetos`) | 2.028 ms | 522 MB |
+
+A bomba que ameaçaria memória (disfarçada) é pega ~15-20× mais rápido que o
+tempo que levaria para simplesmente ABRIR o arquivo (comparar com o caso
+"alta", que carrega de verdade em ~3 s) — e nunca chega perto de estourar RSS.
+A bomba que só ameaça linhas (alta) é pega de qualquer forma, pela defesa
+correta para aquela classe de ataque, sem risco de memória em nenhum dos dois
+casos.

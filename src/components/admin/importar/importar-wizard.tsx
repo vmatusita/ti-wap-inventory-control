@@ -271,6 +271,21 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
     [previa],
   )
 
+  // F56 · Frente C — o orçamento de resposta (`orcamento.ts`) pode ter reduzido
+  // `bloqueantes`/`avisos` a um DETALHE parcial (arquivo com erros demais para
+  // listar todos); `resumo.detalhe` sempre traz os TOTAIS reais, que a tela usa
+  // no lugar de `.length` dos arrays — no caminho comum (não reduzido) são o
+  // mesmo número, então não muda nada visível quando o arquivo é normal.
+  const detalheReduzido = previa?.validacao.resumo.detalhe.reduzido ?? false
+  const totalBloqueantes = previa?.validacao.resumo.detalhe.totalBloqueantes ?? 0
+  // `totalAvisos` do motor inclui `patrimonio_do_hostname` (informativo, fora de
+  // "avisos a corrigir"); `resumo.patrimonioDoHostname` é a MESMA contagem, sempre
+  // completa (calculada antes do orçamento reduzir nada) — a subtração dá o total
+  // real de `avisosParaCorrigir`, mesmo quando o array em si veio reduzido.
+  const totalAvisosParaCorrigir =
+    (previa?.validacao.resumo.detalhe.totalAvisos ?? 0) -
+    (previa?.validacao.resumo.patrimonioDoHostname ?? 0)
+
   // ADM-07 (F27) — dica quando o texto digitado não bate com o nome da filial.
   //
   // ⚠ ATUALIZADO NA F52, e o comentário anterior descrevia um mundo que deixou de
@@ -589,20 +604,18 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums">
               <span
                 className={cn(
-                  previa.validacao.bloqueantes.length > 0
-                    ? 'font-medium text-destructive'
-                    : 'text-muted-foreground',
+                  totalBloqueantes > 0 ? 'font-medium text-destructive' : 'text-muted-foreground',
                 )}
               >
-                {previa.validacao.bloqueantes.length.toLocaleString('pt-BR')} bloqueantes
+                {totalBloqueantes.toLocaleString('pt-BR')} bloqueantes
               </span>
               <span className="text-muted-foreground">·</span>
               <span
                 className={cn(
-                  avisosParaCorrigir.length > 0 ? 'text-warning' : 'text-muted-foreground',
+                  totalAvisosParaCorrigir > 0 ? 'text-warning' : 'text-muted-foreground',
                 )}
               >
-                {avisosParaCorrigir.length.toLocaleString('pt-BR')} avisos
+                {totalAvisosParaCorrigir.toLocaleString('pt-BR')} avisos
               </span>
               <span className="text-muted-foreground">·</span>
               <span className="text-muted-foreground">
@@ -630,6 +643,23 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 <span className="ml-auto text-muted-foreground">Reanalisando…</span>
               )}
             </div>
+
+            {/* F56 · Frente C — o arquivo tem erros demais para listar todos no
+                preview (o orçamento de resposta reduziu o detalhe individual); os
+                números acima e os totais dos grupos continuam certos, só a LISTA
+                de erro a erro é que veio parcial. */}
+            {detalheReduzido && (
+              <div
+                role="status"
+                className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"
+              >
+                Este arquivo tem erros demais para listar um a um — os totais acima
+                e as linhas de cada grupo estão certos, mas alguns cards mostram só
+                uma amostra dos erros individuais daquele tipo. Corrija em massa
+                pelos cards abaixo (eles valem para TODAS as linhas do grupo) em vez
+                de rolar a lista completa.
+              </div>
+            )}
 
             {aplicavel ? (
               <>
@@ -717,7 +747,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                   Import bloqueado
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {previa.validacao.bloqueantes.length > 0
+                  {totalBloqueantes > 0
                     ? 'Corrija os erros abaixo — em massa ou linha a linha. O arquivo enviado não é alterado: a análise refaz sozinha a cada correção.'
                     : previa.termosMultiFilial.length > 0
                       ? 'Há termo(s) que misturam esta filial com outra. Resolva os termos antes de substituir.'
@@ -781,8 +811,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
                 <Download className="size-4" />
                 {baixandoCsv ? 'Gerando…' : 'Baixar CSV corrigido'}
               </Button>
-              {(previa.validacao.bloqueantes.length > 0 ||
-                avisosParaCorrigir.length > 0) && (
+              {(totalBloqueantes > 0 || totalAvisosParaCorrigir > 0) && (
                 <>
                   <Button
                     variant="outline"
@@ -811,19 +840,19 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
 
             {listaAberta && (
               <div className="space-y-5">
-                {previa.validacao.bloqueantes.length > 0 && (
+                {totalBloqueantes > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-destructive">
-                      Bloqueantes ({previa.validacao.bloqueantes.length})
+                      Bloqueantes ({totalBloqueantes.toLocaleString('pt-BR')})
                     </h3>
                     <TabelaErros erros={previa.validacao.bloqueantes} />
                   </div>
                 )}
 
-                {avisosParaCorrigir.length > 0 && (
+                {totalAvisosParaCorrigir > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold">
-                      Avisos ({avisosParaCorrigir.length})
+                      Avisos ({totalAvisosParaCorrigir.toLocaleString('pt-BR')})
                     </h3>
                     <TabelaErros erros={avisosParaCorrigir} />
                   </div>
