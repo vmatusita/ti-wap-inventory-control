@@ -1,0 +1,25 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |componentes| src/components/admin/filial-apelidos.test.tsx (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |componentes| src/components/admin/filial-apelidos.test.tsx [ src/components/admin/filial-apelidos.test.tsx ]
+Error: Cannot find module './filial-apelidos' imported from C:/Users/victor.matusita/ti-wap-inventory-control/src/components/admin/filial-apelidos.test.tsx
+ ❯ src/components/admin/filial-apelidos.test.tsx:4:1
+      2| import { renderToStaticMarkup } from 'react-dom/server'
+      3|
+      4| import { FilialApelidos, type ApelidoDeFilial } from './filial-apelido…
+       | ^
+      5|
+      6| // TRAVA (F56 · Frente E · Decisão 13) — grau 1, no molde das três sem…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  16:00:39
+   Duration  891ms (transform 130ms, setup 0ms, import 0ms, tests 0ms, environment 1ms)
+

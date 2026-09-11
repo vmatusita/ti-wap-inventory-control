@@ -21,6 +21,7 @@ import {
 import { validarCsvImport } from './plano'
 import type { CsvCru } from './parse'
 import type { FilialSelecionada } from './tipos'
+import type { VocabularioImport } from './vocabulario'
 
 // F56 · Frente C — a TRAVA dos tetos do import (Decisão 6 do PLAN-F56.md; critério
 // 11). Nasceu VERMELHA contra os números de HOJE, antes da correção (saída em
@@ -185,6 +186,21 @@ describe('conferirTetos', () => {
 // que exige NODE_OPTIONS=react-server e não roda aqui).
 
 const FILIAL: FilialSelecionada = { id: 1, slug: 'matriz', nome: 'Matriz' }
+
+// F56 · Frente D — o vocabulário deixou de ser hardcoded; o motor recebe
+// `VocabularioImport` por parâmetro. Fixture mínima (só o que este arquivo usa —
+// Notebook/Estoque/Saída e o prefixo WAP, para a auto-detecção pelo hostname).
+const VOCAB: VocabularioImport = {
+  filiais: [{ id: FILIAL.id, nome: FILIAL.nome, ativa: true }],
+  apelidos: [],
+  categorias: [{ termo: 'notebook', categoria: 'notebook', rotulo: 'Notebook' }],
+  estados: [
+    { termo: 'saida', estado: 'em_uso', rotulo: 'Saída' },
+    { termo: 'estoque', estado: 'em_estoque', rotulo: 'Estoque' },
+  ],
+  prefixosPatrimonio: ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'],
+}
+
 const H20 = [
   'Site', 'Marca', 'Tipo', 'Modelo', 'Fornecedor', 'Service Tag', 'Patrimônio',
   'Memória', 'Armazenamento', 'Processador', 'Hostname', 'Data de Entrega',
@@ -240,14 +256,14 @@ function bytesJson(v: unknown): number {
 describe('pior caso patológico (motor real, N=2.000) cabe no ORCAMENTO_RESPOSTA_PREVIEW', () => {
   it('quatro bloqueantes por linha', () => {
     const linhas = Array.from({ length: N }, (_, i) => linhaBloqueante4Curta(i, false))
-    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-09-11')
+    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, VOCAB, '2026-09-11')
     expect(v.resumo.detalhe.totalBloqueantes).toBe(4 * N)
     expect(bytesJson(v)).toBeLessThanOrEqual(ORCAMENTO_RESPOSTA_PREVIEW)
   })
 
   it('duplicata em toda linha (o achado O(N²) da medição C2)', () => {
     const linhas = Array.from({ length: N }, (_, i) => linhaDuplicataCurta(i))
-    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-09-11')
+    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, VOCAB, '2026-09-11')
     expect(v.resumo.detalhe.totalBloqueantes).toBe(N)
     expect(bytesJson(v)).toBeLessThanOrEqual(ORCAMENTO_RESPOSTA_PREVIEW)
     // A mensagem de CADA bloqueante nunca embute a lista inteira de linhas — só um
@@ -257,21 +273,21 @@ describe('pior caso patológico (motor real, N=2.000) cabe no ORCAMENTO_RESPOSTA
 
   it('2.000 Sites distintos (muitos grupos pequenos)', () => {
     const linhas = Array.from({ length: N }, (_, i) => linhaBloqueante4Curta(i, true))
-    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-09-11')
+    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, VOCAB, '2026-09-11')
     expect(v.grupos.length).toBeGreaterThan(N) // ~N grupos de site_divergente + os fixos
     expect(bytesJson(v)).toBeLessThanOrEqual(ORCAMENTO_RESPOSTA_PREVIEW)
   })
 
   it('arquivo válido com o máximo de avisos', () => {
     const linhas = Array.from({ length: N }, (_, i) => linhaAvisosCurta(i))
-    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-09-11')
+    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, VOCAB, '2026-09-11')
     expect(v.resumo.detalhe.totalAvisos).toBeGreaterThan(0)
     expect(bytesJson(v)).toBeLessThanOrEqual(ORCAMENTO_RESPOSTA_PREVIEW)
   })
 
   it('o piso do degrau nunca chega a 0 por tipo, mesmo no pior caso', () => {
     const linhas = Array.from({ length: N }, (_, i) => linhaDuplicataCurta(i))
-    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, '2026-09-11')
+    const v = validarCsvImport(montarCsvTexto(linhas), FILIAL, VOCAB, '2026-09-11')
     if (v.resumo.detalhe.reduzido) {
       const porTipo = new Map<string, number>()
       for (const b of v.bloqueantes) porTipo.set(b.tipo, (porTipo.get(b.tipo) ?? 0) + 1)

@@ -47,12 +47,12 @@ describe('parseCsv', () => {
 
 describe('detectarLayout (conjunto de nomes normalizados)', () => {
   it('reconhece os 3 layouts', () => {
-    expect(detectarLayout(H_MATRIZ.split(';')).layout).toBe('matriz')
-    expect(detectarLayout(H_CD.split(';')).layout).toBe('cd')
-    expect(detectarLayout(H_PADRAO20.split(';')).layout).toBe('padrao20')
+    expect(detectarLayout(H_MATRIZ.split(';')).layout).toBe('colunas18')
+    expect(detectarLayout(H_CD.split(';')).layout).toBe('colunas16')
+    expect(detectarLayout(H_PADRAO20.split(';')).layout).toBe('colunas20')
   })
   it('tolera coluna vazia à direita (separador sobrando)', () => {
-    expect(detectarLayout([...H_MATRIZ.split(';'), ''].join(';').split(';')).layout).toBe('matriz')
+    expect(detectarLayout([...H_MATRIZ.split(';'), ''].join(';').split(';')).layout).toBe('colunas18')
   })
   it('header quebrado → layout null + faltando/sobrando', () => {
     const semPatrimonio = H_MATRIZ.split(';').filter((c) => c !== 'Patrimônio')

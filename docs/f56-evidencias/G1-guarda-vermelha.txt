@@ -1,0 +1,24 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| scripts/smoke/guarda-ensaio.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| scripts/smoke/guarda-ensaio.test.ts [ scripts/smoke/guarda-ensaio.test.ts ]
+Error: Cannot find module './guarda-ensaio' imported from C:/Users/victor.matusita/ti-wap-inventory-control/scripts/smoke/guarda-ensaio.test.ts
+ ❯ scripts/smoke/guarda-ensaio.test.ts:2:1
+      1| import { describe, expect, it } from 'vitest'
+      2| import { confereAmbienteDeEnsaio, type EnvSmokeImport } from './guarda…
+       | ^
+      3|
+      4| // A GUARDA do smoke do import no ENSAIO (F56 · Frente G), provada em …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  16:57:33
+   Duration  1.46s (transform 176ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+

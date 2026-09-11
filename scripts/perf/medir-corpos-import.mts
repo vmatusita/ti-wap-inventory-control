@@ -23,6 +23,7 @@ import { createRequire } from 'node:module'
 import ExcelJS from 'exceljs'
 import { validarCsvImport, csvCorrigidoDeArquivo } from '../../src/lib/import/index'
 import type { CorrecaoImport, FilialSelecionada } from '../../src/lib/import/tipos'
+import type { VocabularioImport } from '../../src/lib/import/vocabulario'
 
 const require = createRequire(import.meta.url)
 const clientMod = require('next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.node.production.js')
@@ -78,6 +79,34 @@ function headerDoLayout(l: Layout): string[] {
 }
 
 const FILIAL: FilialSelecionada = { id: 1, slug: 'matriz', nome: 'Matriz' }
+
+// F56 · Frente D (segunda metade) — o vocabulário deixou de ser hardcoded; o
+// motor recebe `VocabularioImport` por parâmetro (a mesma assinatura nova que
+// as actions usam, lendo do banco). Fixture mínima — só o que este script gera
+// nas linhas fictícias (Notebook/Estoque/Saída/Manutenção e os 7 prefixos, para
+// o cenário de patrimônio auto-preenchido pelo hostname).
+const VOCAB: VocabularioImport = {
+  filiais: [{ id: FILIAL.id, nome: FILIAL.nome, ativa: true }],
+  apelidos: [],
+  categorias: [
+    { termo: 'notebook', categoria: 'notebook', rotulo: 'Notebook' },
+    { termo: 'desktop', categoria: 'desktop', rotulo: 'Desktop' },
+    { termo: 'monitor', categoria: 'monitor', rotulo: 'Monitor' },
+    { termo: 'celular', categoria: 'celular', rotulo: 'Celular' },
+    { termo: 'tablet', categoria: 'tablet', rotulo: 'Tablet' },
+  ],
+  estados: [
+    { termo: 'saida', estado: 'em_uso', rotulo: 'Saída' },
+    { termo: 'estoque', estado: 'em_estoque', rotulo: 'Estoque' },
+    { termo: 'reservado', estado: 'reservado', rotulo: 'Reservado' },
+    { termo: 'emprestimo', estado: 'emprestado', rotulo: 'Empréstimo' },
+    { termo: 'validar', estado: 'em_triagem', rotulo: 'Validar' },
+    { termo: 'manutencao', estado: 'em_manutencao', rotulo: 'Manutenção' },
+    { termo: 'defasado', estado: 'defasado', rotulo: 'Defasado' },
+    { termo: 'descartado', estado: 'descartado', rotulo: null },
+  ],
+  prefixosPatrimonio: ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'],
+}
 
 // ---------------------------------------------------------------------------
 // Preenchimento de célula
@@ -257,7 +286,7 @@ async function medirCorpo2(n: number, layout: Layout): Promise<Record<string, un
   const linhas: Record<string, unknown>[] = []
   for (const cenario of cenarios) {
     const bytes = montarCenario(cenario, n, layout, scaleTeto, 'teto', 'ascii')
-    const v = validarCsvImport(bytes, FILIAL, '2026-09-11', [], new Map())
+    const v = validarCsvImport(bytes, FILIAL, VOCAB, '2026-09-11', [], new Map())
     const json = Buffer.byteLength(JSON.stringify(v), 'utf8')
     const flight = await bytesDaResposta(v)
     linhas.push({
@@ -303,7 +332,7 @@ async function medirCorpo3(n: number, budgetKiB: number, nCorrecoes: number, sty
     })
   }
 
-  const validacao = validarCsvImport(bytes, FILIAL, '2026-09-11', correcoes, new Map())
+  const validacao = validarCsvImport(bytes, FILIAL, VOCAB, '2026-09-11', correcoes, new Map())
   const input = {
     plano: validacao.plano,
     confirmacaoTexto: FILIAL.nome,
@@ -405,7 +434,7 @@ async function medirCorpo5(): Promise<Record<string, unknown>[]> {
     const scale = escalaPara(c.n, c.budgetKiB * 1024)
     const linhas = Array.from({ length: c.n }, (_, i) => linhaValida(i, 'padrao20', scale, 'teto', c.style))
     const bytes = montarCsv('padrao20', linhas)
-    const conteudo = await csvCorrigidoDeArquivo(bytes, [], FILIAL.nome)
+    const conteudo = await csvCorrigidoDeArquivo(bytes, [], VOCAB, FILIAL.nome)
     const resposta = { ok: true, nome: 'import-corrigido-matriz.csv', conteudo }
     const flight = await bytesDaResposta(resposta)
     const json = Buffer.byteLength(JSON.stringify(resposta), 'utf8')

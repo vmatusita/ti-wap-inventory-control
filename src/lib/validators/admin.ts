@@ -313,6 +313,23 @@ export const atualizarFilialSchema = filialSchema.extend({
   cidade: z.string().trim().max(120).optional(),
 })
 
+// ---- Apelidos de unidade (F56 · Frente E · Decisão 13) ----
+// O teto de 80 é o MESMO de `filialSchema.nome` — os 13 apelidos históricos do
+// seed da 0139 vão até 18 caracteres ("matriz sao marcos", "filial - linhares"),
+// e manter o mesmo número evita um caso especial sem necessidade (é o mesmo teto
+// que `motivoSchema.rotulo` e `senhaSchema.rotulo` já usam para texto curto de
+// vocabulário).
+export const MAX_TAMANHO_APELIDO = 80
+
+export const apelidoFilialSchema = z.object({
+  filialId: z.number().int().positive(),
+  apelido: z.string().trim().min(2, 'Informe o apelido').max(MAX_TAMANHO_APELIDO),
+})
+
+export const removerApelidoUnidadeSchema = z.object({
+  apelidoId: z.number().int().positive(),
+})
+
 // ---- Motivos ----
 const tiposMov = Constants.public.Enums.tipo_movimentacao
 export const motivoSchema = z.object({

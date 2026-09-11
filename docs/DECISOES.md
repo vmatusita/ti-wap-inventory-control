@@ -10039,3 +10039,215 @@ este apontamento tocou (`vocabulario-sql.test.ts`, `vocabulario-chave-sql.test.t
 
 **O que só o CI prova:** o cenário 4e corrigido (que o `unique_violation` realmente acontece contra
 Postgres de verdade) — sem psql/CLI Supabase nesta mesa.
+
+---
+
+## 2026-09-11 · F56 (Frente F) · a bomba de FK — Decisão 9 implementada
+
+Escopo desta ata: a metade SQL da Frente F — migration `0140_import_desarma_fk.sql`, o catálogo de
+mutações, o roteiro `import_substituir.sql` (cenário 5), o restaurador (`scripts/db/restaurar.mjs`) e
+`restauracao.sql` (cenários 6/7). NÃO toquei `src/lib/import/**`, `src/lib/actions/importar.ts`,
+`src/lib/queries/import-logs.ts` nem `src/lib/queries/vocabulario-import.ts` — são da metade
+TypeScript da mesma Frente F e de outras duas frentes em paralelo, fora do meu escopo por instrução
+explícita.
+
+**A ordem, implementada exatamente como o fato 27/Decisão 9 do `PLAN-F56.md` descrevem** — dentro de
+`import_apagar_acervo_filial`, ANTES do que já apagava: (1) desvincula `lancamentos_item.pendencia_
+item_id` dos lançamentos que resolveram pendências do acervo; (2) desvincula `lancamentos_item.
+movimentacao_id` dos lançamentos presos a movimentações do acervo; (3) apaga `pendencias_item` do
+acervo; (4) anula `ativos.substitui_ativo_id` dos substitutos de OUTRA filial (`filial_id <>
+p_filial`); (5) o que já apagava (movimentações — UM `delete` só, `anotacoes`, `termos_gerados`,
+`ativos`). A ordem é forçada pelas duas FKs IMEDIATAS de `lancamentos_item` (paths 3/4): sem
+desvincular antes, o `delete from pendencias_item`/`movimentacoes` estoura `23503` no meio do próprio
+comando. `movimentacoes.estorno_de` (auto-FK) **não precisou de tratamento**: o `delete from
+movimentacoes` continua UM statement, e para FK não-deferrable o Postgres confere no fim do comando —
+um estorno e a movimentação original do mesmo ativo somem juntos no mesmo `DELETE`.
+
+**Achados de gatilho, confirmados por leitura (não hipótese):** `trg_valida_lancamento_item`
+(0015/0118) é `BEFORE INSERT` só — os dois `UPDATE` de desvínculo não o disparam.
+`lancamentos_item_guarda_acervo` (0081) recusa UPDATE fora da janela `estoque.dev_destrutivo`, que a
+orquestradora já abre antes de chamar a auxiliar — os dois UPDATEs passam livres. `pendencias_item`
+está DE PROPÓSITO fora de `guarda_acervo` (uma das três "FORA" do cabeçalho da 0081): o `DELETE` nunca
+precisou da janela. `ativos_guarda_acervo` só recusa DELETE, nunca UPDATE — o `update ativos set
+substitui_ativo_id = null` passaria mesmo fora da janela; fica dentro por simetria.
+
+**As quatro chaves novas** (`pendencias_item`, `lancamentos_movimentacao`, `lancamentos_pendencia`,
+`ponteiros_substituto`) usam `coalesce(…, 0)` em `import_revalidar_contagens`, NUNCA `-1` — divergência
+DECLARADA contra o precedente do reset (`0083`/`0089`, que usa `-1` porque lá as cinco chaves sempre
+foram obrigatórias). Com `-1`, todo import na janela entre o apply da `0140` e o deploy do código novo
+seria recusado mesmo em filial sem pendência/lançamento preso nenhum (CD Afonso Pena, Serra) — pior do
+que o `23503` cru de hoje. Com `0`, só as filiais que já estouravam continuam recusadas, agora com
+mensagem. Analisei as DUAS direções do deploy fora de ordem (caminho B do runbook, por causa do `delete
+from public.ativos` em `import_apagar_acervo_filial`) e escrevi a prova no cabeçalho da migration: RPC
+nova + código velho → código velho não manda as 4 chaves novas → `coalesce(…,0)` → só as filiais
+problemáticas recusam, com mensagem; código novo + RPC velha (só se a `0140` ficar presa) → a RPC velha
+ignora as 3 chaves a mais no retorno (Zod sem `.strict()`, precedente `conflitos_abertos`) e continua
+vulnerável ao `23503` cru — regressão de UX, nunca de segurança.
+
+**O retorno da orquestradora** ganha `pendencias_apagadas`, `lancamentos_desvinculados` (a SOMA dos dois
+elos — não separo por elo no retorno, só na ação, pelo mesmo padrão de `movs_apagadas`) e
+`ponteiros_anulados`, lidos do jsonb que a auxiliar devolve.
+
+**As quatro mutações presas ao texto** (fato 33): `import-sem-revalidacao-de-contagens` e
+`import-trilha-do-apagado-mente-nas-anotacoes` sobreviveram INTACTAS (o texto que procuram não mudou de
+lugar nem de forma). `import-revalidacao-nao-compara-o-vivo` PRECISOU ser reapontada — a condição de
+duas linhas da `0131` virou OITO na `0140` — e ganhou um segundo rótulo (`5a`, ao lado do `0b` que já
+existia) porque desligar a condição inteira também derruba o cenário novo que testa a revalidação
+isolada. `f52-import-perde-a-guarda-de-filial` sobreviveu intacta (o bloco `pode_escrever_filial` é
+anterior a tudo que a `0140` toca). Acrescentei uma QUINTA mutação nova e ISOLADA
+(`import-revalidacao-ignora-pendencia-nova-do-acervo`, comentando só a linha `or v_liv_pend <>
+v_esp_pend`) para provar que esquecer de comparar UMA chave nova, sozinha, não fica escondida atrás das
+outras sete continuando certas — e MAIS QUATRO (uma por metade do conserto:
+`import-nao-desvincula-lancamento-da-pendencia`, `import-nao-desvincula-lancamento-da-movimentacao`,
+`import-nao-apaga-pendencias-do-acervo`, `import-nao-anula-ponteiro-de-substituto`), todas com
+`derruba: ['5c']` — as quatro convergem no MESMO ponto de explosão (a explicação: um `BEGIN…EXCEPTION…
+END` do plpgsql é um savepoint implícito, então quando a RPC estoura `23503` em QUALQUER um dos quatro
+passos, TUDO que rodou antes dentro daquela chamada é desfeito — não só o passo mutado — e o cenário 5c
+é o único rótulo que sempre flipa; 5d-5g não precisam entrar em `derruba` porque flipariam junto, mas
+não são o rótulo que garante a detecção). Teto de `mutacoes.test.mts` subiu de 70 para 75 (69 + 5 novas
+= 74; a mutação reapontada não soma), com o motivo escrito no próprio teste. `MUTACOES.length` = 74,
+`QUARENTENA.length` = 2 (inalterado) — confirmado rodando o módulo (`node -e "import(...)"`), sem banco.
+
+**O cenário 5 de `import_substituir.sql`** monta as cinco fixtures exatas do pedido (filial D = acervo,
+filial E = outra filial) e testa, com rótulos próprios: `5a`/`5a-bis`/`5b` a revalidação (sem as chaves
+novas com pendência viva → recusa; só uma chave errada isolada → recusa; as oito certas → passa); `5c`
+o import completo sob `set constraints all immediate`/`deferred` (fato 35) não estourando por FK; `5d`
+a `5g` cada desvínculo/apagamento/anulação; `5h`/`5i` o ativo TRANSFERIDO (pendência e o próprio ativo)
+INTOCADOS — prova de que o critério é a filial ATUAL, nunca a histórica; `5j`/`5k` o saldo do item
+(`rel_saldo_itens`) e com o colaborador (`rel_saldo_colaborador`) IDÊNTICOS antes/depois — a régua do
+fato 32, "o que se prova, não se supõe"; `5l` as três chaves do retorno com os números certos. Não pude
+rodar contra Postgres real (sem psql/Docker nesta mesa); revisei o SQL à mão duas vezes, com atenção
+especial ao `valida_lancamento_item` (a ordem entrada→saída→retorno dos lançamentos-fixture foi
+desenhada para nunca deixar o saldo negativo) e ao efeito do savepoint implícito do `BEGIN…EXCEPTION…
+END` sobre o estado pós-falha (documentado acima).
+
+**O restaurador (`versao: 2`):** `MAIOR_VERSAO_CONHECIDA = 2`; `main()` recusa (`process.exit(1)`,
+ANTES de montar qualquer SQL) `versaoDoBackup(backup) > 2`. `sqlDeReligarElos`/`sqlDeReligarPonteiros`
+(puras, exportadas) montam UM `UPDATE` cada, dentro da janela (o de `lancamentos_item`) e sem
+precisar dela (o de `ativos`, porque `ativos_guarda_acervo` só recusa DELETE) — `montarTransacao` os
+chama DEPOIS das inserções (as linhas que eles religam já existem) e ANTES de fechar a janela.
+**Decisão sobre o backup do RESET:** os dois blocos são ativados por PRESENÇA da chave
+(`backup.lancamentos_desvinculados`/`backup.ponteiros_perdidos`), NUNCA por `backup.versao` — porque o
+backup do reset é `versao: 1` (a F54 só acrescentou `versao`/`contagens`, nunca bumpou para 2) e grava
+`ponteiros_perdidos` desde a F23, com a MESMA forma. Isso fecha a lacuna pré-existente do restaurador
+para o backup do reset "de graça", sem mudar nada do que ele restaura hoje quando a chave está ausente
+(`lancamentos_desvinculados` nunca existiu lá, então esse bloco simplesmente não entra). Testado em
+`restaurar-guarda.test.mts` (describes 11-14, 21 casos novos, todos verdes) e em `restauracao.sql`
+(cenários 6a-6c/7a — 6c prova que o MESMO UPDATE de religação é recusado por `guarda_acervo` fora da
+janela, no molde do cenário 5a/5b já existente no arquivo).
+
+**Verificação nesta mesa (sem psql/Docker):**
+- `npm run db:lock` — `0140_import_desarma_fk.sql` travada (139 migrations).
+- `npx vitest run scripts/db/ src/lib/itens/migrations-f38.test.ts src/lib/validators/import-uma-porta.test.ts`
+  → **423/423 verdes** (inclui `mutacoes.test.mts` com as 74 mutações, `corpo-vigente.test.mts`,
+  `restaurar-guarda.test.mts` com os 4 describes novos, `saida-roteiro.test.mts`, `diff-tipos.test.mts`).
+- `npm run lint` → 0 erros (1 warning pré-existente em `src/lib/import/vocabulario-sql.test.ts`, fora
+  do meu escopo).
+- `npx tsc --noEmit` → 106 erros, **todos** em `src/lib/import/**`, `src/components/admin/importar/**`
+  e `src/lib/queries/vocabulario-import.ts` — os arquivos das duas frentes paralelas que a ordem
+  proibiu explicitamente de tocar (confirmado por grep: zero erros em qualquer arquivo desta Frente F).
+  Não são meus para consertar.
+- `npm run test` (suíte inteira) → **4895/4969 verdes, 74 falhas** — as 74 estão em
+  `src/components/admin/importar/**`, `src/lib/import/**`, `src/lib/actions/guardas-de-action.test.ts`,
+  `src/lib/patrimonio-sql.test.ts` e `src/lib/queries/relatorios/fronteira-viewer.test.ts` — as mesmas
+  frentes em edição concorrente. Confirmado por `grep` na lista de arquivos falhos: zero falhas em
+  `supabase/migrations/0140`, `scripts/db/**` ou `src/lib/itens/migrations-f38.test.ts`.
+- `npm run build` **não rodado** (instrução explícita: outros agentes usam a pasta `.next`).
+- `npm run db:test`/`npm run db:test:mutations` (o injetor de verdade) **não rodam nesta mesa** — sem
+  Postgres/psql/Docker. É o que o `banco-sem-docker` do CI prova.
+
+**Pendência que fica declarada:** o cenário 5 e os cenários 6/7 de `restauracao.sql` nunca rodaram
+contra um Postgres de verdade nesta sessão — a prova de que o SQL é aceito (sintaxe, FKs, saldo,
+ordem de constraints) é só a leitura cuidadosa registrada acima. Primeira coisa a olhar se o
+`banco-sem-docker` falhar: a fórmula de saldo em `rel_saldo_itens`/`rel_saldo_colaborador` (copiada por
+leitura do corpo vigente, não executada) e o savepoint implícito do bloco `BEGIN…EXCEPTION…END` do
+cenário 5c.
+
+---
+
+## 2026-09-11 · F56 (Frente E) · os apelidos de unidade em Administração › Filiais — Decisão 13 implementada
+
+Escopo desta ata: a tela de apelidos (Decisão 13 do PLAN-F56, critérios 20/21), a pré-checagem pura de
+colisão (`src/lib/unidades/dono-do-termo.ts`), as duas Server Actions
+(`incluirApelidoUnidade`/`removerApelidoUnidade`), a extensão de `criarFilial`/`atualizarFilial` para
+recusar nome colidente, e as traduções novas em `erros.ts`. Rodou em PARALELO com a Frente D2 na mesma
+árvore — as decisões abaixo já contam com isso.
+
+- **O padrão novo: apresentação extraída para FORA do `Dialog`, testável em grau 1.** Confirma o achado
+  da medição E (`scratchpad/f56-medicoes/E-filiais-tela.md`, §5): o Portal do Radix (`<DialogContent>`)
+  nunca monta sob `renderToStaticMarkup` — `mounted` só vira `true` dentro de um `useLayoutEffect`, que o
+  SSR de teste (grau 1, F45: sem jsdom, sem Testing Library) nunca executa. Nenhum teste alcançaria o
+  conteúdo do `FilialDialog`. `FilialApelidos` (`src/components/admin/filial-apelidos.tsx`) nasce como
+  componente de APRESENTAÇÃO puro — sem `useRouter`, sem chamar Server Action, tudo por prop — composto
+  DENTRO do `<DialogContent>` do `FilialDialog` (que segue não-testável, como já era) mas testável
+  standalone. É a PRIMEIRA vez que este repositório extrai apresentação de dentro de um Dialog só para
+  caber no piso grau 1: os três moldes anteriores (`aviso.tsx`, `confirmacao-digitada.tsx`, `pagina.tsx`)
+  nunca estiveram dentro de um Portal. Trava provada vermelha pelo motivo certo (módulo inexistente —
+  `docs/f56-evidencias/E1-componente-vermelho.txt`) antes de o componente nascer (movi o arquivo para
+  `.bak`, rodei o teste, restaurei); verde depois, 12/12
+  (`docs/f56-evidencias/E2-componente-verde.txt`).
+- **`dono-do-termo.ts` é a MESMA função pura para os dois lados da colisão** — apelido novo × nome/apelido
+  de filial existente (`mensagemColisaoApelido`), e nome novo/renomeado × nome/apelido de filial existente
+  (`mensagemColisaoNomeFilial`) — as duas montadas sobre um único `encontrarDonoDoTermo`, para não deixar
+  duas implementações divergentes da mesma régua de ambiguidade (Decisão 2 do PLAN-F56) nascerem em
+  `unidades-apelidos.ts` e em `admin.ts`. A chave é `normalizarTexto` de `src/lib/import/deparas.ts`
+  (arquivo da Frente D2 — só importado aqui, nunca editado), o MESMO espelho que
+  `public.vocabulario_chave` usa no banco (migration `0139`, Frente D). 17 testes cobrindo nome×apelido,
+  caixa/acento, a própria filial (nos dois sentidos: apelido igual ao próprio nome, e renomear para um
+  apelido da própria filial) e filial INATIVA continuando dona (Decisão 2 — "toda filial é unidade
+  conhecida").
+- **`criarFilial`/`atualizarFilial`: o `error.message.includes('duplicate')` ad hoc precisou virar
+  `includes('filiais_slug_key')`.** Achado ao escrever a pré-checagem: o catch genérico de "duplicate"
+  que já existia nas duas actions (antes desta frente, medição E §1) intercepta QUALQUER violação de
+  unicidade da tabela `filiais` — inclusive a nova `filiais_nome_chave_uidx` (Decisão 2, migration
+  `0139`) — e sempre devolvia "Já existe uma filial com esse slug", mesmo quando a colisão real fosse de
+  NOME. Sem o ajuste, a corrida rara (pré-checagem verde, dois admins simultâneos) mostraria ao operador
+  uma mensagem enganosa. Troquei a substring genérica pelo NOME da constraint de slug
+  (`filiais_slug_key`, confirmado ao vivo em produção pela medição E §3), deixando toda OUTRA violação de
+  unicidade cair em `traduzErroBanco` — que agora reconhece `filiais_nome_chave_uidx` também. Não é
+  trabalho fora do "nada mais muda nelas" da ordem: é consequência direta e necessária de dar a mensagem
+  certa para a colisão de nome que a própria ordem pediu.
+- **O backstop de corrida em `erros.ts` (o P0001 do gatilho `vocabulario_unidades_guarda`) NÃO extrai o
+  nome dinâmico da mensagem do banco**, mesmo a mensagem do Postgres já sendo escrita para o operador (em
+  pt-BR, já nomeando termo e filial — comentário da migration `0139`, Frente D). Segui a doutrina já
+  escrita no cabeçalho de `erros.ts` ("nunca vazar mensagem crua do Postgres para a operadora") e o
+  precedente dos blocos F21-F24 do mesmo arquivo (nenhum extrai valor dinâmico de dentro da mensagem do
+  banco por regex) — e a recomendação da medição E (§6.4): a pré-checagem síncrona
+  (`encontrarDonoDoTermo`) já dá a mensagem PRECISA antes de qualquer escrita; o ramo em `erros.ts` só
+  existe para a corrida rara (dois admins ao mesmo tempo) e devolve uma frase GENÉRICA ("este nome ou
+  apelido já está em uso... atualize a página e tente de novo").
+- **A intenção do `Aviso` de "zero apelidos" é `atencao` (role="status"), não `informacao`.** É
+  orientação ativa — o import falhará se a coluna Site não vier com o nome exato — não um fato passivo; a
+  mesma régua que `aviso.tsx` já documenta ("atenção informa, não interrompe").
+- **`listarVocabularioDeUnidades` (nova, em `src/lib/queries/admin.ts`) NÃO aceita client por parâmetro**
+  — cria o próprio via `createClient()`, no mesmo molde de `getSaldosItens`/`listarFiliaisAdmin` já
+  existentes no arquivo (e não no molde `DbClient`/`Awaited<ReturnType<typeof createClient>>` que outras
+  queries de relatório usam). Decisão deliberada: essa segunda forma é exatamente o que o tripwire
+  `fronteira-viewer.test.ts` varre para decidir se uma função pode alcançar o client de SERVICE_ROLE do
+  visualizador por senha — como esta query nunca é chamada por rota de relatório (só por Server Action de
+  admin), aceitar client por parâmetro a colocaria no radar do tripwire à toa, exigindo uma entrada de
+  exceção sem motivo real.
+- **Achado cross-frente, fora do meu escopo (Frente D2) — reportado, não corrigido:** com a árvore em
+  09/09 16:1x (D2 ativamente reescrevendo `src/lib/import/**` em paralelo), `npx tsc --noEmit` e
+  `npm run test` isolados acusam `src/lib/queries/relatorios/fronteira-viewer.test.ts` porque
+  `queries/vocabulario-import.ts` (Decisão 3 do PLAN, `lerVocabularioImport`) ainda não está declarado na
+  superfície/exceção do tripwire do viewer — e o mesmo arquivo tem dois erros de tipo (`categoria`/
+  `estado` não estreitados para `CategoriaImport`/`EstadoPlanilha`). Todas as outras falhas do
+  `npm run test`/`npx tsc --noEmit` desta rodada (`enums-sql`, `patrimonio-sql`, `sem-wapismo`,
+  `vocabulario-sql`, `correcoes`, `deparas`, `limites`, `parse`, `plano`, `resolver-patrimonio`, `xlsx`,
+  `ops-grupo` — todos em `src/lib/import/**`/`components/admin/importar/**` — e `scripts/db/
+  mutacoes.test.mts`) são de arquivos das Frentes B/C/D2/F, ativamente em edição durante esta sessão;
+  nenhuma toca arquivo desta frente.
+
+**Verificação desta frente (isolada, nos arquivos que ela tocou):** `dono-do-termo.test.ts` 17/17 verde;
+`filial-apelidos.test.tsx` 12/12 verde; `npx tsc --noEmit` sem erro em nenhum arquivo de
+`src/lib/unidades/**`, `src/lib/actions/{admin,erros,unidades-apelidos}.ts`, `src/lib/queries/admin.ts`,
+`src/lib/validators/admin.ts` ou `src/components/admin/filial-*`; `npm run lint` limpo (0 erro/aviso, todo
+o projeto). `npm run build` do repositório INTEIRO rodou de verdade (Turbopack "Compiled successfully in
+74s") e só falhou na etapa de TypeScript por causa de `scripts/perf/medir-corpos-import.mts:260` (Frente
+D2 — `validarCsvImport` já pede o parâmetro `VocabularioImport` novo, e o script de medição ainda não foi
+atualizado para ele) — nenhum arquivo desta frente aparece no erro. Com o `.next/server` que o compile
+chegou a produzir, `node scripts/verificar-actions-build.mjs` (o gate de binding de Server Actions) saiu
+VERDE (39 chunks varridos, nenhum identificador sem binding) — inclusive `unidades-apelidos.ts`. O
+`npm run test`/`npx tsc --noEmit`/`npm run build` limpos do repositório INTEIRO ficam para depois das
+outras frentes terminarem (a árvore está sendo escrita ao vivo por elas); resultado no relatório final.

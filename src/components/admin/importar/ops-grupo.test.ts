@@ -8,7 +8,31 @@ import {
   resumoOps,
   type Rascunho,
 } from './ops-grupo'
-import type { CorrecaoImport, GrupoErro, RegistroImport } from '@/lib/import'
+import type { CorrecaoImport, GrupoErro, RegistroImport, VocabularioCliente } from '@/lib/import'
+
+// F56 · Frente D (segunda metade) — `TIPO_CANONICO`/`SITUACAO_CANONICA` saíram
+// de `deparas.ts`; `opsDoGrupo`/`grupoPronto` recebem o vocabulário (a fatia de
+// CLIENTE) por parâmetro. Fixture com os mesmos 5 rótulos de categoria e 7 de
+// estado que estavam hardcoded.
+const VOCAB: VocabularioCliente = {
+  categorias: [
+    { categoria: 'notebook', rotulo: 'Notebook' },
+    { categoria: 'desktop', rotulo: 'Desktop' },
+    { categoria: 'monitor', rotulo: 'Monitor' },
+    { categoria: 'celular', rotulo: 'Celular' },
+    { categoria: 'tablet', rotulo: 'Tablet' },
+  ],
+  estados: [
+    { estado: 'em_estoque', rotulo: 'Estoque' },
+    { estado: 'em_uso', rotulo: 'Saída' },
+    { estado: 'reservado', rotulo: 'Reservado' },
+    { estado: 'emprestado', rotulo: 'Empréstimo' },
+    { estado: 'em_triagem', rotulo: 'Validar' },
+    { estado: 'em_manutencao', rotulo: 'Manutenção' },
+    { estado: 'defasado', rotulo: 'Defasado' },
+  ],
+  prefixosPatrimonio: ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'],
+}
 
 // Dados 100% FICTÍCIOS (WAP0001234 / "Fulano"). O módulo é puro (sem React) — o
 // Vitest o pega por src/**/*.test.ts.
@@ -62,21 +86,21 @@ describe('categoria (massa) — a sugestão pré-selecionada conta', () => {
   })
 
   it('pronto sem o operador tocar (usa a sugestão) e emite 1 substituir de massa', () => {
-    expect(grupoPronto(g, {}, {})).toBe(true)
-    expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([
+    expect(grupoPronto(g, {}, {}, VOCAB)).toBe(true)
+    expect(opsDoGrupo(g, {}, {}, FILIAL, VOCAB)).toEqual([
       { op: 'substituir', campo: 'tipo', de: 'Notbook', para: 'Notebook' },
     ])
   })
 
   it('sem sugestão e sem escolha → não pronto, nenhuma op', () => {
     const semSug = grupo({ ...g, correcao: { kind: 'categoria', sugestao: null } })
-    expect(grupoPronto(semSug, {}, {})).toBe(false)
-    expect(opsDoGrupo(semSug, {}, {}, FILIAL)).toEqual([])
+    expect(grupoPronto(semSug, {}, {}, VOCAB)).toBe(false)
+    expect(opsDoGrupo(semSug, {}, {}, FILIAL, VOCAB)).toEqual([])
   })
 
   it('a escolha do operador sobrepõe a sugestão', () => {
     const r: Rascunho = { [chaveMassa(g)]: 'desktop' }
-    expect(opsDoGrupo(g, r, {}, FILIAL)).toEqual([
+    expect(opsDoGrupo(g, r, {}, FILIAL, VOCAB)).toEqual([
       { op: 'substituir', campo: 'tipo', de: 'Notbook', para: 'Desktop' },
     ])
   })
@@ -91,10 +115,10 @@ describe('estado (massa)', () => {
   })
 
   it('não pronto sem escolha; pronto e grava o termo canônico ao escolher', () => {
-    expect(grupoPronto(g, {}, {})).toBe(false)
+    expect(grupoPronto(g, {}, {}, VOCAB)).toBe(false)
     const r: Rascunho = { [chaveMassa(g)]: 'em_estoque' }
-    expect(grupoPronto(g, r, {})).toBe(true)
-    expect(opsDoGrupo(g, r, {}, FILIAL)).toEqual([
+    expect(grupoPronto(g, r, {}, VOCAB)).toBe(true)
+    expect(opsDoGrupo(g, r, {}, FILIAL, VOCAB)).toEqual([
       { op: 'substituir_estado', statusDe: 'Ativo', situacaoDe: 'Xablau', para: 'Estoque' },
     ])
   })
@@ -103,8 +127,8 @@ describe('estado (massa)', () => {
 describe('site_desconhecido / remoções — ação fixa, sempre pronta', () => {
   it('site desconhecido vira a filial selecionada', () => {
     const g = grupo({ tipo: 'site_divergente', chave: 'Matrz', linhas: [2], correcao: { kind: 'site_desconhecido' } })
-    expect(grupoPronto(g, {}, {})).toBe(true)
-    expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([
+    expect(grupoPronto(g, {}, {}, VOCAB)).toBe(true)
+    expect(opsDoGrupo(g, {}, {}, FILIAL, VOCAB)).toEqual([
       { op: 'substituir', campo: 'site', de: 'Matrz', para: 'Matriz' },
     ])
   })
@@ -116,8 +140,8 @@ describe('site_desconhecido / remoções — ação fixa, sempre pronta', () => 
       linhas: [9, 11],
       correcao: { kind: 'site_outra_filial' },
     })
-    expect(grupoPronto(g, {}, {})).toBe(true)
-    expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([
+    expect(grupoPronto(g, {}, {}, VOCAB)).toBe(true)
+    expect(opsDoGrupo(g, {}, {}, FILIAL, VOCAB)).toEqual([
       { op: 'remover_linha', linha: 9 },
       { op: 'remover_linha', linha: 11 },
     ])
@@ -136,8 +160,8 @@ describe('site_desconhecido / remoções — ação fixa, sempre pronta', () => 
       linhas: [9, 11],
       correcao: { kind: 'existe_em_outra_filial', filial: 'Linhares' },
     })
-    expect(grupoPronto(g, {}, {})).toBe(false)
-    expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([])
+    expect(grupoPronto(g, {}, {}, VOCAB)).toBe(false)
+    expect(opsDoGrupo(g, {}, {}, FILIAL, VOCAB)).toEqual([])
   })
 })
 
@@ -149,16 +173,16 @@ describe('patrimônio (pontual) — F7F: PARCIAIS entram no lote', () => {
   const g = grupo({ tipo: 'patrimonio_invalido', chave: '', linhas: [2, 3], correcao: { kind: 'patrimonio' } })
 
   it('nada preenchido → não pronto, faltam 2, nenhuma op', () => {
-    expect(grupoPronto(g, {}, contexto)).toBe(false)
+    expect(grupoPronto(g, {}, contexto, VOCAB)).toBe(false)
     expect(faltamNoGrupo(g, {}, contexto)).toBe(2)
-    expect(opsDoGrupo(g, {}, contexto, FILIAL)).toEqual([])
+    expect(opsDoGrupo(g, {}, contexto, FILIAL, VOCAB)).toEqual([])
   })
 
   it('só uma preenchida → PRONTO (F7F), a op da preenchida sai, faltam 1', () => {
     const r: Rascunho = { [chaveLinha(2, 'patrimonio')]: 'wap 1011' }
-    expect(grupoPronto(g, r, contexto)).toBe(true)
+    expect(grupoPronto(g, r, contexto, VOCAB)).toBe(true)
     expect(faltamNoGrupo(g, r, contexto)).toBe(1)
-    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([
+    expect(opsDoGrupo(g, r, contexto, FILIAL, VOCAB)).toEqual([
       { op: 'editar', linha: 2, campo: 'patrimonio', para: 'wap 1011' },
     ])
   })
@@ -179,8 +203,8 @@ describe('patrimônio (pontual) — F7F: PARCIAIS entram no lote', () => {
       [chaveLinha(2, 'patrimonio')]: 'WAP0001011',
       [chaveLinha(3, 'patrimonio')]: 'WAP0001012',
     }
-    expect(grupoPronto(g3, r, ctx3)).toBe(true)
-    expect(opsDoGrupo(g3, r, ctx3, FILIAL)).toHaveLength(2)
+    expect(grupoPronto(g3, r, ctx3, VOCAB)).toBe(true)
+    expect(opsDoGrupo(g3, r, ctx3, FILIAL, VOCAB)).toHaveLength(2)
     expect(faltamNoGrupo(g3, r, ctx3)).toBe(1)
   })
 
@@ -189,16 +213,16 @@ describe('patrimônio (pontual) — F7F: PARCIAIS entram no lote', () => {
       [chaveLinha(2, 'patrimonio')]: 'WAP0001011',
       [chaveLinha(3, 'patrimonio')]: 'WAP0001012',
     }
-    expect(grupoPronto(g, r, contexto)).toBe(true)
+    expect(grupoPronto(g, r, contexto, VOCAB)).toBe(true)
     expect(faltamNoGrupo(g, r, contexto)).toBe(0)
-    expect(opsDoGrupo(g, r, contexto, FILIAL)).toHaveLength(2)
+    expect(opsDoGrupo(g, r, contexto, FILIAL, VOCAB)).toHaveLength(2)
   })
 
   it('linha não-canônica é excluída, mas ≥1 canônica já deixa o grupo pronto (F7F)', () => {
     const r: Rascunho = { [chaveLinha(2, 'patrimonio')]: 'lixo', [chaveLinha(3, 'patrimonio')]: 'WAP0001012' }
-    expect(grupoPronto(g, r, contexto)).toBe(true)
+    expect(grupoPronto(g, r, contexto, VOCAB)).toBe(true)
     expect(faltamNoGrupo(g, r, contexto)).toBe(1)
-    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([
+    expect(opsDoGrupo(g, r, contexto, FILIAL, VOCAB)).toEqual([
       { op: 'editar', linha: 3, campo: 'patrimonio', para: 'WAP0001012' },
     ])
   })
@@ -219,23 +243,23 @@ describe('patrimonio_vazio (aviso, F7E) — opcional, fora do lote, só as preen
   })
 
   it('nunca fica pronto (preencher é opcional) e faltam = 0', () => {
-    expect(grupoPronto(g, {}, contexto)).toBe(false)
+    expect(grupoPronto(g, {}, contexto, VOCAB)).toBe(false)
     expect(faltamNoGrupo(g, {}, contexto)).toBe(0)
-    expect(opsDoGrupo(g, {}, contexto, FILIAL)).toEqual([])
+    expect(opsDoGrupo(g, {}, contexto, FILIAL, VOCAB)).toEqual([])
   })
 
   it('emite editar só das linhas preenchidas com patrimônio canônico', () => {
     // linha 2 preenchida (canoniza → WAP0001234); linha 3 fica em branco.
     const r: Rascunho = { [chaveLinha(2, 'patrimonio')]: 'wap 1234' }
-    expect(grupoPronto(g, r, contexto)).toBe(false)
-    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([
+    expect(grupoPronto(g, r, contexto, VOCAB)).toBe(false)
+    expect(opsDoGrupo(g, r, contexto, FILIAL, VOCAB)).toEqual([
       { op: 'editar', linha: 2, campo: 'patrimonio', para: 'wap 1234' },
     ])
   })
 
   it('valor preenchido que não canoniza não é emitido', () => {
     const r: Rascunho = { [chaveLinha(2, 'patrimonio')]: 'lixo' }
-    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([])
+    expect(opsDoGrupo(g, r, contexto, FILIAL, VOCAB)).toEqual([])
   })
 })
 
@@ -244,18 +268,18 @@ describe('data (pontual) — futura/inválida não deixa pronto', () => {
   const g = grupo({ tipo: 'sem_data_entrada', chave: '', linhas: [2], correcao: { kind: 'data' } })
 
   it('vazio não fica pronto', () => {
-    expect(grupoPronto(g, {}, contexto)).toBe(false)
+    expect(grupoPronto(g, {}, contexto, VOCAB)).toBe(false)
   })
 
   it('data futura não fica pronta', () => {
     const r: Rascunho = { [chaveLinha(2, 'dataInclusao')]: '01/01/2099' }
-    expect(grupoPronto(g, r, contexto)).toBe(false)
+    expect(grupoPronto(g, r, contexto, VOCAB)).toBe(false)
   })
 
   it('data válida fica pronta e emite editar dataInclusao', () => {
     const r: Rascunho = { [chaveLinha(2, 'dataInclusao')]: '10/01/2025' }
-    expect(grupoPronto(g, r, contexto)).toBe(true)
-    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([
+    expect(grupoPronto(g, r, contexto, VOCAB)).toBe(true)
+    expect(opsDoGrupo(g, r, contexto, FILIAL, VOCAB)).toEqual([
       { op: 'editar', linha: 2, campo: 'dataInclusao', para: '10/01/2025' },
     ])
   })
@@ -267,8 +291,8 @@ describe('colaborador (pontual) — igual ao original não conta', () => {
 
   it('preenchido fica pronto', () => {
     const r: Rascunho = { [chaveLinha(2, 'colaborador')]: 'Fulano de Tal / TI' }
-    expect(grupoPronto(g, r, contexto)).toBe(true)
-    expect(opsDoGrupo(g, r, contexto, FILIAL)).toEqual([
+    expect(grupoPronto(g, r, contexto, VOCAB)).toBe(true)
+    expect(opsDoGrupo(g, r, contexto, FILIAL, VOCAB)).toEqual([
       { op: 'editar', linha: 2, campo: 'colaborador', para: 'Fulano de Tal / TI' },
     ])
   })
@@ -277,14 +301,14 @@ describe('colaborador (pontual) — igual ao original não conta', () => {
 describe('duplicata / nenhuma — nunca entram no lote', () => {
   it('duplicata não fica pronta e não emite nada pelo lote', () => {
     const g = grupo({ tipo: 'par_duplicado', chave: '', linhas: [14, 15], correcao: { kind: 'duplicata' } })
-    expect(grupoPronto(g, {}, {})).toBe(false)
-    expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([])
+    expect(grupoPronto(g, {}, {}, VOCAB)).toBe(false)
+    expect(opsDoGrupo(g, {}, {}, FILIAL, VOCAB)).toEqual([])
   })
 
   it('nenhuma nunca', () => {
     const g = grupo({ tipo: 'header_invalido', chave: '', linhas: [1], correcao: { kind: 'nenhuma' } })
-    expect(grupoPronto(g, {}, {})).toBe(false)
-    expect(opsDoGrupo(g, {}, {}, FILIAL)).toEqual([])
+    expect(grupoPronto(g, {}, {}, VOCAB)).toBe(false)
+    expect(opsDoGrupo(g, {}, {}, FILIAL, VOCAB)).toEqual([])
   })
 })
 

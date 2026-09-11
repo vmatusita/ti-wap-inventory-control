@@ -11,16 +11,18 @@
 // (válida, não futura), estado/categoria só pelos vocabulários canônicos.
 //
 // VALOR só dos módulos-folha PUROS do motor (o barrel `@/lib/import` re-exporta
-// `plano.ts`, que puxa node:crypto e é server-only); daqui só TIPO.
-import { hojeIso, parseData, SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
+// `plano.ts`, que puxa node:crypto e é server-only); daqui só TIPO. F56 ·
+// Frente D — o vocabulário de categoria/estado chega por PARÂMETRO
+// (`VocabularioCliente`, a fatia de cliente): nunca mais TIPO_CANONICO/
+// SITUACAO_CANONICA hardcoded.
+import { hojeIso, parseData } from '@/lib/import/deparas'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 import type {
   CampoEditavel,
-  CategoriaImport,
   CorrecaoImport,
-  EstadoAlvoImport,
   GrupoErro,
   RegistroImport,
+  VocabularioCliente,
 } from '@/lib/import'
 
 /** Rascunho da tela: chave (do campo) → valor digitado/escolhido. */
@@ -110,30 +112,33 @@ export function opsDoGrupo(
   rascunho: Rascunho,
   contexto: Contexto,
   filialNome: string,
+  vocabulario: VocabularioCliente,
 ): CorrecaoImport[] {
   const c = grupo.correcao
   switch (c.kind) {
     case 'categoria': {
       const cat = massaEfetiva(grupo, rascunho)
-      if (!(cat in TIPO_CANONICO)) return []
+      const entrada = vocabulario.categorias.find((x) => x.categoria === cat)
+      if (!entrada) return []
       return [
         {
           op: 'substituir',
           campo: 'tipo',
           de: grupo.chave,
-          para: TIPO_CANONICO[cat as CategoriaImport],
+          para: entrada.rotulo,
         },
       ]
     }
     case 'estado': {
       const est = massaEfetiva(grupo, rascunho)
-      if (!(est in SITUACAO_CANONICA)) return []
+      const entrada = vocabulario.estados.find((x) => x.estado === est)
+      if (!entrada) return []
       return [
         {
           op: 'substituir_estado',
           statusDe: c.statusDe,
           situacaoDe: c.situacaoDe,
-          para: SITUACAO_CANONICA[est as EstadoAlvoImport],
+          para: entrada.rotulo,
         },
       ]
     }
@@ -208,13 +213,18 @@ export function opsDoGrupo(
  *   (preencher vazio é opcional, duplicata e conflito entre filiais são decisão
  *   humana — F24).
  */
-export function grupoPronto(grupo: GrupoErro, rascunho: Rascunho, contexto: Contexto): boolean {
+export function grupoPronto(
+  grupo: GrupoErro,
+  rascunho: Rascunho,
+  contexto: Contexto,
+  vocabulario: VocabularioCliente,
+): boolean {
   const c = grupo.correcao
   switch (c.kind) {
     case 'categoria':
-      return massaEfetiva(grupo, rascunho) in TIPO_CANONICO
+      return vocabulario.categorias.some((x) => x.categoria === massaEfetiva(grupo, rascunho))
     case 'estado':
-      return massaEfetiva(grupo, rascunho) in SITUACAO_CANONICA
+      return vocabulario.estados.some((x) => x.estado === massaEfetiva(grupo, rascunho))
     case 'site_desconhecido':
     case 'site_outra_filial':
       return true

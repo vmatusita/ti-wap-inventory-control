@@ -95,6 +95,39 @@ declare
   p_plano_a2  jsonb;  -- variante de p_plano_a com arquivoHash distinto (cenário 2 —
                       -- evita colidir com o hash já gravado por import_gravar_trilha
                       -- no cenário 1, dentro da mesma janela de 24h)
+
+  -- =================================================================
+  -- CENÁRIO 5 (F56 · Frente F, migration 0140) — a bomba de FK (fatos 27-35).
+  -- Filiais D e E, isoladas de A/B/C: D é o acervo que o "Substituir tudo"
+  -- substitui; E é a "outra filial" do substituto e do ativo transferido.
+  -- =================================================================
+  v_fd              smallint;
+  v_fe              smallint;
+  v_prefixo_d       text;
+  v_item_d          smallint;
+  v_colab_d         uuid;
+  v_ativo_d1        uuid;   -- hospeda os fixtures (i) e (ii)
+  v_mov_d1          uuid;
+  v_lanc_setup      uuid;   -- entrada avulsa: só para o saldo do item não ficar negativo
+  v_lanc_d1         uuid;   -- fixture (i): saida presa a v_mov_d1
+  v_pend_aberta     uuid;   -- fixture (ii)
+  v_ativo_d2        uuid;
+  v_mov_d2          uuid;
+  v_pend_resolvida  uuid;   -- fixture (iii)
+  v_lanc_d2         uuid;   -- fixture (iii): retorno preso a v_pend_resolvida
+  v_ativo_e_sub     uuid;   -- fixture (iv)
+  v_ativo_d3        uuid;   -- fixture (v): nasce em D, migra para E ANTES do import
+  v_mov_d3          uuid;
+  v_pend_transferido uuid;
+  p_plano_d         jsonb;
+  v_result5         jsonb;
+  v_mid             uuid;
+  v_pid             uuid;
+  v_sub             uuid;
+  v_saldo_item_antes    bigint;
+  v_saldo_item_depois   bigint;
+  v_saldo_colab_antes   bigint;
+  v_saldo_colab_depois  bigint;
 begin
   -- F38: perfil ATIVO e escolha DETERMINÍSTICA. O `limit 1` sem `order by` e sem
   -- filtro podia cair num perfil DESATIVADO (`papel_atual()` devolve null para ele
@@ -479,6 +512,274 @@ begin
   if v_cnt = v_fa_before then
     v_ok := v_ok + 1; raise notice '✓ 4c outra filial (A) intacta após substituir B: % ativos (R-IMP-03)', v_cnt;
   else v_falhas := v_falhas + 1; raise warning '✗ 4c filial A alterada por substituição de B: esperado %, obtido %', v_fa_before, v_cnt; end if;
+
+  -- =================================================================
+  -- CENÁRIO 5 (F56 · Frente F, migration 0140) — a bomba de FK (fatos 27-35):
+  -- o "Substituir tudo" deixa de estourar por chave estrangeira. Filial D
+  -- isolada de A/B/C; filial E é a "outra filial" (substituto + transferido).
+  --
+  -- ⚠ set constraints all immediate ANTES da RPC, e all deferred LOGO DEPOIS
+  -- (fato 35): a FK adiada de pendencias_item.movimentacao_id só é conferida de
+  -- verdade aqui — o roteiro inteiro roda dentro de um begin;…rollback; e essa
+  -- FK nunca chega ao commit. Sem isto, um erro de ORDEM nela passaria verde
+  -- no CI e só estouraria no commit de produção.
+  -- =================================================================
+  insert into public.filiais (slug, nome) values ('zzf56-teste-d', 'F56 Teste D') returning id into v_fd;
+  insert into public.filiais (slug, nome) values ('zzf56-teste-e', 'F56 Teste E') returning id into v_fe;
+
+  v_prefixo_d := public.prefixo_backup_import(v_fd);
+  insert into storage.objects (bucket_id, name, owner)
+  values ('backups-import', v_prefixo_d || 'existe.json', v_prof);
+
+  insert into public.itens (nome, grupo) values ('ZZF56 Item', 'acessorio') returning id into v_item_d;
+  insert into public.colaboradores (nome, criado_por) values ('ZZF56 Fulano', v_prof) returning id into v_colab_d;
+
+  -- ---- fixtures (i) e (ii): um ativo com lançamento preso a MOVIMENTAÇÃO e
+  --      pendência ABERTA, os dois do mesmo ativo do acervo ---------------
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id) values
+    ('ZZF56D0001', 'ZZF56STD1', 'notebook', v_fd) returning id into v_ativo_d1;
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
+  values (v_ativo_d1, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d1;
+
+  -- entrada avulsa: só para o saldo do item não ficar negativo com a saída abaixo
+  -- (valida_lancamento_item, 0118: `saida` sem `entrada` prévia estoura "estoque
+  -- insuficiente"). Sem vínculo nenhum — nem movimentacao_id nem pendencia_item_id
+  -- — então nem é tocada pelo desvínculo, nem apagada: prova que o conserto NÃO
+  -- toca lançamento que já não tinha o problema.
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (v_item_d, v_fd, 'entrada', 5, current_date, v_prof) returning id into v_lanc_setup;
+
+  -- fixture (i): saída presa à movimentação do acervo (o "o que foi junto").
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                       movimentacao_id, colaborador_id, criado_por)
+  values (v_item_d, v_fd, 'saida', 1, current_date, v_mov_d1, v_colab_d, v_prof)
+  returning id into v_lanc_d1;
+
+  -- fixture (ii): pendência ABERTA do acervo (à mão, como restauracao.sql:267-268
+  -- — funciona porque o roteiro roda como `postgres`, que ignora RLS).
+  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
+  values (v_ativo_d1, v_mov_d1, 'carregador', v_fd, 'ZZF56 Fulano') returning id into v_pend_aberta;
+
+  -- ---- fixture (iii): pendência RESOLVIDA com lançamento (o elo pendencia_item_id) ----
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id) values
+    ('ZZF56D0002', 'ZZF56STD2', 'notebook', v_fd) returning id into v_ativo_d2;
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
+  values (v_ativo_d2, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d2;
+  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador,
+                                      status, desfecho, resolvida_em, resolvida_por)
+  values (v_ativo_d2, v_mov_d2, 'mouse', v_fd, 'ZZF56 Fulano',
+          'resolvida', 'recuperado', now(), v_prof) returning id into v_pend_resolvida;
+  -- retorno SEM colaborador_id: mantém o saldo do colaborador (5k) preso só ao
+  -- lançamento (i), provando que desvincular não mexe em tipo/quantidade/pessoa.
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                       pendencia_item_id, criado_por)
+  values (v_item_d, v_fd, 'retorno', 1, current_date, v_pend_resolvida, v_prof)
+  returning id into v_lanc_d2;
+
+  -- ---- fixture (iv): substituto em OUTRA filial (E) apontando para o acervo (D) ----
+  insert into public.ativos (patrimonio, categoria, filial_id, substitui_ativo_id) values
+    ('ZZF56E0001', 'notebook', v_fe, v_ativo_d1) returning id into v_ativo_e_sub;
+
+  -- ---- fixture (v): ativo TRANSFERIDO — nasceu em D (pendência com filial_id=D
+  --      da ÉPOCA), hoje mora em E. Prova que o critério é a filial ATUAL, nunca
+  --      a histórica (fato 29: contar pela época daria um número diferente e
+  --      apagaria a pendência de um ativo que já não é mais do acervo). ----
+  insert into public.ativos (patrimonio, categoria, filial_id) values
+    ('ZZF56D0003', 'notebook', v_fd) returning id into v_ativo_d3;
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
+  values (v_ativo_d3, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d3;
+  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
+  values (v_ativo_d3, v_mov_d3, 'mochila', v_fd, 'ZZF56 Outro') returning id into v_pend_transferido;
+  update public.ativos set filial_id = v_fe where id = v_ativo_d3;  -- "hoje" está em E
+
+  -- ---- o saldo ANTES (a régua "desvincular ≠ mudar saldo", fato 32) --------
+  select estoque into v_saldo_item_antes
+    from public.rel_saldo_itens(v_fd, current_date) where item_id = v_item_d;
+  select com_a_pessoa into v_saldo_colab_antes
+    from public.rel_saldo_colaborador(v_colab_d) where item_id = v_item_d and filial_id = v_fd;
+
+  -- ---- 5a — a revalidação SEM as quatro chaves novas, com pendência VIVA:
+  --      RECUSA (P0001) — nunca "não confira" (a dívida N revivida) ----------
+  begin
+    perform public.import_revalidar_contagens(
+      jsonb_build_object('ativos', 2, 'movimentacoes', 2, 'anotacoes', 0, 'termos', 0),
+      v_fd);
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5a revalidação SEM as chaves novas: NÃO recusou (deveria, com pendência viva)';
+  exception when others then
+    if sqlerrm like '%mudou desde o preview%' then
+      v_ok := v_ok + 1;
+      raise notice '✓ 5a revalidação sem as chaves novas recusa quando há pendência viva: %', sqlerrm;
+    else
+      v_falhas := v_falhas + 1;
+      raise warning '✗ 5a recusou por motivo INESPERADO: %', sqlerrm;
+    end if;
+  end;
+
+  -- ---- 5a-bis — a revalidação com as OUTRAS sete chaves certas e SÓ
+  --      `pendencias_item` errada: RECUSA (isola a chave, pega o esquecimento
+  --      de UMA comparação que as outras sete não cobririam de carona) --------
+  begin
+    perform public.import_revalidar_contagens(
+      jsonb_build_object(
+        'ativos', 2, 'movimentacoes', 2, 'anotacoes', 0, 'termos', 0,
+        'pendencias_item', 0,  -- errado de propósito: o vivo é 2
+        'lancamentos_movimentacao', 1, 'lancamentos_pendencia', 1, 'ponteiros_substituto', 1
+      ),
+      v_fd);
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5a-bis revalidação com SÓ pendencias_item errada: NÃO recusou (deveria)';
+  exception when others then
+    if sqlerrm like '%mudou desde o preview%' then
+      v_ok := v_ok + 1;
+      raise notice '✓ 5a-bis revalidação recusa quando SÓ pendencias_item diverge: %', sqlerrm;
+    else
+      v_falhas := v_falhas + 1;
+      raise warning '✗ 5a-bis recusou por motivo INESPERADO: %', sqlerrm;
+    end if;
+  end;
+
+  -- ---- 5b — a revalidação com as OITO chaves certas: PASSA -----------------
+  begin
+    perform public.import_revalidar_contagens(
+      jsonb_build_object(
+        'ativos', 2, 'movimentacoes', 2, 'anotacoes', 0, 'termos', 0,
+        'pendencias_item', 2, 'lancamentos_movimentacao', 1,
+        'lancamentos_pendencia', 1, 'ponteiros_substituto', 1
+      ),
+      v_fd);
+    v_ok := v_ok + 1;
+    raise notice '✓ 5b revalidação com as oito chaves certas PASSA';
+  exception when others then
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5b revalidação com as oito chaves certas recusou (não deveria): %', sqlerrm;
+  end;
+
+  -- ---- 5c — o import completo (a orquestradora) NÃO estoura por FK ---------
+  p_plano_d := jsonb_build_object(
+    'filialId', v_fd, 'confirmacao', 'F56 Teste D', 'arquivoHash', 'ZZF56HASHD', 'totalLinhasDados', 1,
+    'ativos', jsonb_build_array(
+      jsonb_build_object('patrimonio', 'ZZF56D9999', 'serviceTag', 'ZZF56STD9',
+                         'categoria', 'notebook', 'estadoAlvo', 'em_estoque')
+    )
+  );
+  set constraints all immediate;
+  begin
+    v_result5 := public.importar_ativos_substituir(
+      p_plano_d,
+      v_prefixo_d || 'existe.json',
+      jsonb_build_object(
+        'ativos', 2, 'movimentacoes', 2, 'anotacoes', 0, 'termos', 0,
+        'pendencias_item', 2, 'lancamentos_movimentacao', 1,
+        'lancamentos_pendencia', 1, 'ponteiros_substituto', 1
+      )
+    );
+    v_ok := v_ok + 1;
+    raise notice '✓ 5c import da filial D com os cinco caminhos de FK cruzada NÃO estourou';
+  exception
+    when foreign_key_violation then
+      v_falhas := v_falhas + 1;
+      raise warning '✗ 5c import estourou por FK (23503) — o conserto não cobriu um dos cinco caminhos: %', sqlerrm;
+    when others then
+      v_falhas := v_falhas + 1;
+      raise warning '✗ 5c import falhou por motivo INESPERADO (não FK): %', sqlerrm;
+  end;
+  set constraints all deferred;
+
+  -- ---- 5d — o lançamento (i) ficou SEM o elo de movimentação ---------------
+  select movimentacao_id into v_mid from public.lancamentos_item where id = v_lanc_d1;
+  if v_mid is null then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5d o lançamento preso à movimentação do acervo foi desvinculado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5d lancamentos_item.movimentacao_id ainda aponta para %', v_mid;
+  end if;
+
+  -- ---- 5e — o lançamento (iii) ficou SEM o elo de pendência ----------------
+  select pendencia_item_id into v_pid from public.lancamentos_item where id = v_lanc_d2;
+  if v_pid is null then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5e o lançamento que resolveu a pendência foi desvinculado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5e lancamentos_item.pendencia_item_id ainda aponta para %', v_pid;
+  end if;
+
+  -- ---- 5f — as DUAS pendências do acervo (aberta e resolvida) sumiram ------
+  select count(*) into v_cnt from public.pendencias_item where id in (v_pend_aberta, v_pend_resolvida);
+  if v_cnt = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5f as duas pendências do acervo foram apagadas';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5f sobraram % pendência(s) do acervo', v_cnt;
+  end if;
+
+  -- ---- 5g — o substituto em E EXISTE e teve o ponteiro anulado -------------
+  select count(*) into v_cnt from public.ativos where id = v_ativo_e_sub;
+  select substitui_ativo_id into v_sub from public.ativos where id = v_ativo_e_sub;
+  if v_cnt = 1 and v_sub is null then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5g o substituto em outra filial continua existindo, com o ponteiro anulado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5g substituto ausente (%) ou substitui_ativo_id ainda aponta para %', v_cnt, v_sub;
+  end if;
+
+  -- ---- 5h — a pendência do ativo TRANSFERIDO (hoje em E) ficou INTOCADA ----
+  select count(*) into v_cnt from public.pendencias_item where id = v_pend_transferido;
+  if v_cnt = 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5h a pendência do ativo transferido (hoje em outra filial) ficou intocada';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5h pendência do transferido: esperava 1, restam % (usou filial_id histórico?)', v_cnt;
+  end if;
+
+  -- ---- 5i — o próprio ativo TRANSFERIDO continua em E, intocado ------------
+  select count(*) into v_cnt from public.ativos where id = v_ativo_d3 and filial_id = v_fe;
+  if v_cnt = 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5i o ativo transferido continua existindo na filial E, intocado pelo import de D';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5i o ativo transferido sumiu ou voltou para D';
+  end if;
+
+  -- ---- 5j — o saldo do item em D é IDÊNTICO antes × depois -----------------
+  select estoque into v_saldo_item_depois
+    from public.rel_saldo_itens(v_fd, current_date) where item_id = v_item_d;
+  if v_saldo_item_depois = v_saldo_item_antes then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5j saldo do item em D idêntico antes/depois (%): desvincular não mudou quantidade', v_saldo_item_antes;
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5j saldo do item mudou: antes %, depois %', v_saldo_item_antes, v_saldo_item_depois;
+  end if;
+
+  -- ---- 5k — o saldo COM O COLABORADOR é IDÊNTICO antes × depois ------------
+  select com_a_pessoa into v_saldo_colab_depois
+    from public.rel_saldo_colaborador(v_colab_d) where item_id = v_item_d and filial_id = v_fd;
+  if v_saldo_colab_depois = v_saldo_colab_antes then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5k saldo com o colaborador idêntico antes/depois (%)', v_saldo_colab_antes;
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5k saldo do colaborador mudou: antes %, depois %', v_saldo_colab_antes, v_saldo_colab_depois;
+  end if;
+
+  -- ---- 5l — o retorno da RPC traz as TRÊS chaves novas com os números certos
+  if v_result5 is not null
+     and (v_result5->>'pendencias_apagadas') = '2'
+     and (v_result5->>'lancamentos_desvinculados') = '2'
+     and (v_result5->>'ponteiros_anulados') = '1' then
+    v_ok := v_ok + 1;
+    raise notice '✓ 5l retorno da RPC: pendencias_apagadas=2, lancamentos_desvinculados=2, ponteiros_anulados=1';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 5l retorno da RPC incompleto ou com números errados: %', coalesce(v_result5::text, '(null)');
+  end if;
 
   raise notice 'FIM import_substituir: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

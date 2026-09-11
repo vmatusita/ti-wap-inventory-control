@@ -270,3 +270,139 @@ pessoa logada** confere depois de um deploy grande. Faça numa **janela anônima
   app estar no ar. Se acrescentar cobertura à Parte A, mantenha-a livre de
   qualquer import que force a resolução de um pacote — é o que preserva essa
   garantia.
+
+---
+
+## Smoke do import no ENSAIO (F56)
+
+Um segundo smoke, separado deste (`smoke-prod.mjs` é só-leitura e só fala com
+PRODUÇÃO): prova a operação mais destrutiva da casa — o "Substituir tudo" do
+import de startup (`Administração › Importar`) — contra o projeto de **ENSAIO**,
+nunca contra produção. É a prova que faltava desde a F51 (o relatório dela dizia,
+com todas as letras, "o smoke nunca exercitou o import").
+
+```bash
+npx tsx scripts/smoke/import-ensaio.ts
+```
+
+Com o `.env.local` da raiz no lugar (ele já aponta para o ensaio desde a F55) —
+nenhuma outra variável precisa ser exportada. O script carrega o arquivo sozinho
+(`loadEnvLocal`, de `scripts/env-guard.ts`) e recusa seguir se o ambiente não for
+o ensaio — ver "A guarda", abaixo.
+
+### O que ele faz — três passes
+
+1. **Passe 1 — a unidade que o código não conhecia.** Cria a filial `sede` (se
+   ainda não existir) pela tela de Administração › Filiais, cadastra um apelido
+   dela pela tela nova de apelidos (F56 · Frente E — é assim que essa tela entra
+   na prova), e roda "Substituir tudo" com uma planilha 100% fictícia cuja coluna
+   Site mistura o nome próprio e o apelido. Confere no banco que os ativos
+   nasceram na filial certa.
+2. **Passe 2 — a bomba, no mundo real.** Antes do segundo import, cria — pelas
+   RPCs do próprio sistema (`lancar_itens_lote`, `criar_movimentacao_com_itens`),
+   com a sessão da persona, nunca com service role — um lançamento de item PRESO
+   a uma movimentação e uma PENDÊNCIA de item aberta, os dois estados que a bomba
+   de FK (F56 · Frente F) apaga/desvincula hoje com `23503`. Roda um SEGUNDO
+   "Substituir tudo" (arquivo diferente do passe 1 — a idempotência de 24h
+   recusaria o mesmo arquivo) e confere: o saldo do item não mudou, a pendência
+   sumiu do acervo e está dentro do backup (`versão 2`), e o lançamento ficou sem
+   vínculo de movimentação.
+3. **Passe 3 — a WAP não regride.** Só **PREVIEW** (nunca aplica) nas cinco
+   filiais reais do ensaio, com os 18 termos históricos da coluna Site (13
+   apelidos + os 5 nomes próprios, semeados pela migration `0139`) — prova que
+   nenhum deles caiu em "filial fora do vocabulário".
+
+Em volta dos três passes: a foto das doze checagens de integridade
+(`checagens_integridade_resumo()`) ANTES e DEPOIS, comparadas — têm de ficar
+idênticas — e a persona sempre desativada no final, mesmo se algo falhar no meio
+(um `finally`).
+
+### A forma (Decisão 11 do `PLAN-F56.md`)
+
+Playwright dirigindo o `next dev` local apontado para o ensaio, no MOLDE de
+`scripts/design/capturar.mjs` (sobe o servidor filho, confere o ref, só então
+dirige o navegador) — é o único jeito de exercitar o caminho REAL: login,
+`validarImport` lendo o vocabulário do BANCO, o backup subindo no bucket,
+`aplicarImport` e a RPC de import. As **fixtures do passe 2** (o lançamento e a
+pendência) nascem por FORA do wizard — pela RPC do sistema, com a sessão da
+persona — porque elas não são o import: são o "mundo real" que já existia antes
+dele. `Server Actions não são importáveis por um script solto`
+(`createClient()` chama `cookies()` de `next/headers`, que exige uma requisição
+real do Next) — é por isso que as fixtures chamam a RPC direto, e por isso que só
+o Playwright prova o caminho inteiro do import.
+
+### As credenciais — o que ele lê, e o que NUNCA lê
+
+| Variável | Para quê |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | o projeto a apontar — TEM de ser o ensaio |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | a sessão "de cabeça" da persona (fora do navegador), para as RPCs do passe 2 e as leituras de conferência |
+| `SUPABASE_SERVICE_ROLE_KEY` | criar/desativar a persona e ler o backup no bucket |
+
+**Nunca `SMOKE_*`** — essas três variáveis (`SMOKE_SUPABASE_URL`, `SMOKE_EMAIL`,
+`SMOKE_SENHA`) apontam para **PRODUÇÃO**, com a conta ADMIN do ritual pós-deploy
+(ver a seção acima). Um script que as lesse miraria produção como admin por
+engano; este nem as declara no tipo do ambiente que aceita, e um teste por
+`Proxy` (`guarda-ensaio.test.ts`) prova que o corpo da guarda nunca acessa uma
+propriedade `SMOKE_*` do objeto.
+
+### A guarda — dois portões, antes de qualquer login
+
+`scripts/smoke/guarda-ensaio.ts` (função pura testável: `guarda-ensaio.test.ts`,
+`npx vitest run scripts/smoke/guarda-ensaio.test.ts`):
+
+1. `confereAmbienteDeEnsaio` — síncrona, sem rede: o ref de
+   `NEXT_PUBLIC_SUPABASE_URL` tem de estar na lista de PERMISSÃO `REFS_DE_ENSAIO`
+   (`scripts/env-guard.ts`) e nunca ser o ref de produção conhecido.
+2. `confereRotuloDeEnsaio` — com o client de SERVIÇO, pergunta ao PRÓPRIO BANCO
+   `rotulo_de_ambiente()` (migration `0138`) e recusa se a resposta não for
+   `'desenvolvimento'`.
+
+As duas rodam ANTES do primeiro login — nunca depois.
+
+### A persona — `seed.admin@wap.ind.br`
+
+Definida em `scripts/seed.ts` mas **criada aqui sem rodar o seed** (o ensaio já
+tem 1.602+ ativos; rodar o seed duplicaria dado — molde da unidade 2b da F55,
+`docs/DECISOES.md`). `scripts/smoke/persona.ts`:
+
+- `auth.admin.createUser` na primeira execução, `auth.admin.updateUserById` nas
+  seguintes — **nunca** convite, **nunca** "esqueci a senha" (o domínio
+  `wap.ind.br` é real e as duas vias mandariam e-mail de verdade);
+- senha `crypto.randomBytes` **gerada na execução**, só em memória — nunca
+  escrita em arquivo, log, evidência ou argumento de linha de comando;
+- `papel = 'admin'` e `ativo = true` gravados por escrita DIRETA em `profiles`
+  com o client de serviço (as RPCs `definir_papel_usuario`/`definir_status_usuario`
+  recusariam a própria service role — "ninguém age sobre o próprio acesso");
+- trilha em `eventos_admin` pelos verbos já existentes (`usuario_criado`,
+  `papel_alterado`, `usuario_reativado`, `usuario_desativado` — os quatro já
+  estão no `comment on column` da migration `0139`), gravada pelo próprio script
+  (não há Server Action nesse caminho para gravá-la sozinha);
+- **desativada no fim, sempre** (`desativarPersona`, num `finally` do roteiro
+  principal) — mesmo que o smoke tenha falhado no meio.
+
+### O que fica no ensaio depois
+
+A filial **`sede` é uma fixture PERMANENTE** do ensaio — não é apagada ao final.
+É dado 100% fictício, criado pelo próprio smoke (nunca por um seed rodado), e
+documentado aqui de propósito: se você olhar o ensaio depois e encontrar uma
+filial "Sede" com um punhado de ativos fictícios, é este script, funcionando como
+esperado. Os arquivos CSV gerados a cada execução ficam em `scratchpad/`
+(ignorado pelo git) e não precisam ser apagados à mão.
+
+### O que ele NÃO prova
+
+- A UI do wizard **não** é testada por um teste automatizado próprio — os
+  seletores de `import-ensaio.ts` são conferidos manualmente contra o código no
+  momento de escrever o script (comentário `// SELETOR-A-CONFERIR` nos pontos
+  onde a tela ainda podia mudar depois dessa leitura); uma mudança de rótulo ou
+  de papel ARIA no wizard pode quebrar o script sem quebrar o produto.
+- **Não roda em CI** (precisa de `next dev` + Playwright + credencial do ensaio) —
+  é um ritual manual, como o roteiro de 12 passos acima, não uma trava automática.
+- **Não prova as outras quatro RPCs destrutivas** (reset de acervo, mesa de
+  conflitos, apagar ativo, apagar movimentação) — o backlog nomeado da F56 diz
+  que elas têm o mesmo defeito de FK; este smoke não os exercita.
+- **Não prova o caminho da Server Action** que fica ANTES da RPC do import
+  (a Zod de `aplicarImport`, a checagem de `termosMultiFilial`, a revalidação de
+  estado) além do que o próprio wizard já exercita ao rodar de verdade — não há
+  um teste de contrato isolado dessa camada aqui.

@@ -2,9 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { resolverPatrimonio } from '@/lib/import/resolver-patrimonio'
 import { patrimonioVazio } from '@/lib/import/deparas'
 
+// F56 · Frente D (segunda metade) — os prefixos válidos de patrimônio chegam
+// por PARÂMETRO (`VocabularioImport.prefixosPatrimonio`); os mesmos 7 de sempre,
+// aqui como fixture local do teste.
+const PREFIXOS = ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO']
+
 // Chama a escada como o motor faz: `eraVazio` = patrimonioVazio(cru).
-const r = (cru: string, hostname: string | null = null, forcado = false) =>
-  resolverPatrimonio(cru, patrimonioVazio(cru), hostname, forcado)
+const r = (cru: string, hostname: string | null = null, forcado = false, prefixos = PREFIXOS) =>
+  resolverPatrimonio(cru, patrimonioVazio(cru), hostname, forcado, prefixos)
 
 describe('resolverPatrimonio — escada de precedência (dívida técnica, item F)', () => {
   it('(1) célula canônica → usa, sem aviso/bloqueante', () => {

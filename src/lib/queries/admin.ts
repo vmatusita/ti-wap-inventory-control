@@ -326,6 +326,9 @@ export async function listarFiliaisParaVinculo(): Promise<FilialParaVinculo[]> {
   return data ?? []
 }
 
+/** Um apelido de unidade (F56 · Frente E, migration 0139: `unidades_apelidos`). */
+export type ApelidoDeFilial = { id: number; apelido: string }
+
 export type FilialAdmin = {
   id: number
   slug: string
@@ -334,18 +337,28 @@ export type FilialAdmin = {
   /** F25 — cidade que assina o termo. '' = ainda não cadastrada. */
   cidade: string
   totalAtivos: number
+  /** F56 — os apelidos dela na coluna Site do import (Administração › Filiais). */
+  apelidos: ApelidoDeFilial[]
 }
 
 export async function listarFiliaisAdmin(): Promise<FilialAdmin[]> {
   const client = await createClient()
-  const [{ data: filiais }, { data: estoque }] = await Promise.all([
+  const [{ data: filiais }, { data: estoque }, { data: apelidos }] = await Promise.all([
     client.from('filiais').select('id, slug, nome, ativo, cidade').order('nome'),
     client.from('v_estoque_atual').select('filial, total'),
+    client.from('unidades_apelidos').select('id, filial_id, apelido').order('apelido'),
   ])
 
   const totalPorSlug = new Map<string, number>()
   for (const e of estoque ?? []) {
     if (e.filial) totalPorSlug.set(e.filial, (totalPorSlug.get(e.filial) ?? 0) + (e.total ?? 0))
+  }
+
+  const apelidosPorFilial = new Map<number, ApelidoDeFilial[]>()
+  for (const a of apelidos ?? []) {
+    const lista = apelidosPorFilial.get(a.filial_id) ?? []
+    lista.push({ id: a.id, apelido: a.apelido })
+    apelidosPorFilial.set(a.filial_id, lista)
   }
 
   return (filiais ?? []).map((f) => ({
@@ -355,7 +368,32 @@ export async function listarFiliaisAdmin(): Promise<FilialAdmin[]> {
     ativo: f.ativo,
     cidade: f.cidade,
     totalAtivos: totalPorSlug.get(f.slug) ?? 0,
+    apelidos: apelidosPorFilial.get(f.id) ?? [],
   }))
+}
+
+/**
+ * TODAS as filiais (ativas e inativas — Decisão 2 do PLAN-F56: "toda filial é
+ * unidade conhecida") e TODOS os apelidos, para a pré-conferência de colisão do
+ * vocabulário de unidades (`src/lib/unidades/dono-do-termo.ts`). Usada pelas
+ * Server Actions que escrevem nome de filial ou apelido — nunca por uma tela.
+ */
+export async function listarVocabularioDeUnidades(): Promise<{
+  filiais: { id: number; nome: string }[]
+  apelidos: { filialId: number; apelido: string }[]
+}> {
+  const client = await createClient()
+  const [{ data: filiais, error: eFiliais }, { data: apelidos, error: eApelidos }] = await Promise.all([
+    client.from('filiais').select('id, nome'),
+    client.from('unidades_apelidos').select('filial_id, apelido'),
+  ])
+  if (eFiliais) throw new Error(`Falha ao ler filiais: ${eFiliais.message}`)
+  if (eApelidos) throw new Error(`Falha ao ler apelidos de unidade: ${eApelidos.message}`)
+
+  return {
+    filiais: (filiais ?? []).map((f) => ({ id: f.id, nome: f.nome })),
+    apelidos: (apelidos ?? []).map((a) => ({ filialId: a.filial_id, apelido: a.apelido })),
+  }
 }
 
 export type MotivoAdmin = {

@@ -222,6 +222,20 @@ export function versaoDoBackup(cabecalho) {
   return typeof cabecalho?.versao === 'number' ? cabecalho.versao : 0
 }
 
+/**
+ * A maior versão de backup que ESTE restaurador sabe restaurar por inteiro.
+ *
+ * F56 (Frente F, 0140): até aqui, uma versão DESCONHECIDA (maior que a que o
+ * script entende) era ignorada em silêncio — `montarTransacao` só lê as chaves
+ * que conhece (`ORDEM_DE_INSERCAO` + os dois blocos condicionados a `versao >=
+ * 2`, abaixo) e simplesmente não vê as chaves de uma versão 3 futura. O script
+ * terminaria dizendo "Restaurado." sem avisar que faltou religar alguma coisa —
+ * a mesma lacuna que o critério 17 desta fase pede para fechar. `main()` recusa
+ * (`process.exit(1)`) ANTES de montar a transação quando `versaoDoBackup(...) >
+ * MAIOR_VERSAO_CONHECIDA`.
+ */
+export const MAIOR_VERSAO_CONHECIDA = 2
+
 /** O prefixo onde as cópias de `.docx` daquele backup moram (F54). */
 export function prefixoDasCopias(caminhoDoBackup) {
   return `${caminhoDoBackup.replace(/\.json$/, '')}/termos/`
@@ -274,6 +288,67 @@ export function sqlDaSequencia() {
   ].join('\n')
 }
 
+// -----------------------------------------------------------------------------
+// Versão 2 (F56 · Frente F, 0140) — religar os dois elos de `lancamentos_item`
+// e o ponteiro de `ativos.substitui_ativo_id` que o conserto da FK desvinculou
+// -----------------------------------------------------------------------------
+
+/**
+ * O UPDATE que religa, NUM SÓ COMANDO, os dois elos de cada `lancamentos_item`
+ * que o conserto da FK do import (0140) desvinculou — `backup.
+ * lancamentos_desvinculados` é `[{ id, movimentacao_id, pendencia_item_id }]`,
+ * a PRÉ-IMAGEM de cada linha ANTES do desvínculo (nunca sob o nome de uma
+ * tabela: `sqlDeInsercao` a tentaria inserir como linha nova).
+ *
+ * Não precisa de trigger nenhum: `trg_valida_lancamento_item` é BEFORE INSERT
+ * só (fato 32 da F56 — um UPDATE não o dispara), e a janela
+ * `estoque.dev_destrutivo` (que `lancamentos_item_guarda_acervo`, 0081, exige
+ * para UPDATE) já está aberta no ponto de `montarTransacao` onde isto entra.
+ */
+export function sqlDeReligarElos(linhas) {
+  if (!linhas || linhas.length === 0) return null
+  const valores = linhas
+    .map((l) => `(${literal(l.id)}, ${literal(l.movimentacao_id)}, ${literal(l.pendencia_item_id)})`)
+    .join(',\n  ')
+  return [
+    'update public.lancamentos_item as li',
+    '   set movimentacao_id   = v.movimentacao_id,',
+    '       pendencia_item_id = v.pendencia_item_id',
+    '  from (values',
+    `  ${valores}`,
+    '  ) as v(id, movimentacao_id, pendencia_item_id)',
+    ' where li.id = v.id;',
+  ].join('\n')
+}
+
+/**
+ * O UPDATE que religa `ativos.substitui_ativo_id` dos ativos de OUTRA filial
+ * que o conserto da FK anulou — `backup.ponteiros_perdidos` (linhas INTEIRAS,
+ * `select('*')`, no molde de `src/lib/queries/dev-destrutivo.ts:517-546`).
+ *
+ * ⚠ MESMO NOME, e de propósito: `montarBackupDoReset` grava um bloco
+ * `ponteiros_perdidos` desde a F23/F54 e este restaurador NUNCA o leu — lacuna
+ * PRÉ-EXISTENTE à F56, fechada aqui para os DOIS formatos de uma vez, porque
+ * este bloco é ativado por PRESENÇA da chave (não pela `versao` do cabeçalho):
+ * o backup do reset é `versao: 1` e a `ponteiros_perdidos` dele tem exatamente
+ * a mesma forma. Decisão registrada em docs/DECISOES.md (F56, Frente F).
+ *
+ * Sem janela: `ativos_guarda_acervo` (0081) só recusa DELETE, nunca UPDATE — mas
+ * este bloco roda dentro da janela por simetria com o de cima, não por exigência.
+ */
+export function sqlDeReligarPonteiros(linhas) {
+  if (!linhas || linhas.length === 0) return null
+  const valores = linhas.map((l) => `(${literal(l.id)}, ${literal(l.substitui_ativo_id)})`).join(',\n  ')
+  return [
+    'update public.ativos as a',
+    '   set substitui_ativo_id = v.substitui_ativo_id',
+    '  from (values',
+    `  ${valores}`,
+    '  ) as v(id, substitui_ativo_id)',
+    ' where a.id = v.id;',
+  ].join('\n')
+}
+
 function montarTransacao(backup, caminho) {
   const partes = ['begin;']
 
@@ -298,6 +373,25 @@ function montarTransacao(backup, caminho) {
   for (const tabela of ORDEM_DE_INSERCAO) {
     const sql = sqlDeInsercao(tabela, backup[tabela])
     if (sql) partes.push(`-- ${tabela}: ${backup[tabela].length} linha(s)`, sql)
+  }
+
+  // F56 (0140) — versão 2: religa os dois elos de `lancamentos_item` e o
+  // ponteiro de substituto, DEPOIS das inserções (as linhas que eles apontam
+  // já existem) e AINDA dentro da janela. Por PRESENÇA da chave, não por
+  // `versao` — ver o cabeçalho de `sqlDeReligarPonteiros` sobre o backup do reset.
+  const sqlElos = sqlDeReligarElos(backup.lancamentos_desvinculados)
+  if (sqlElos) {
+    partes.push(
+      `-- lancamentos_desvinculados: ${backup.lancamentos_desvinculados.length} elo(s) religado(s)`,
+      sqlElos,
+    )
+  }
+  const sqlPonteiros = sqlDeReligarPonteiros(backup.ponteiros_perdidos)
+  if (sqlPonteiros) {
+    partes.push(
+      `-- ponteiros_perdidos: ${backup.ponteiros_perdidos.length} ponteiro(s) religado(s)`,
+      sqlPonteiros,
+    )
   }
 
   partes.push("select set_config('estoque.dev_destrutivo','off',true);")
@@ -355,6 +449,23 @@ async function main() {
     : await baixarDoBucket(caminho)
 
   const versao = versaoDoBackup(backup)
+
+  // F56 (Frente F, critério 17) — RECUSA versão acima da que este script
+  // conhece. Antes disto a lacuna era o oposto do que parece seguro: uma
+  // versão desconhecida era ACEITA e processada como se fosse a última
+  // conhecida — as chaves novas dela simplesmente não eram lidas por
+  // `ORDEM_DE_INSERCAO` nem pelos dois blocos de religação acima, e o script
+  // terminava dizendo "Restaurado." sem avisar que faltou alguma coisa. Isso
+  // vale ANTES de imprimir qualquer coisa do backup: nenhum comando é montado.
+  if (versao > MAIOR_VERSAO_CONHECIDA) {
+    console.error(
+      `\n[restaurar] este restaurador conhece até a versão ${MAIOR_VERSAO_CONHECIDA}; o backup ` +
+        `"${caminho}" é da versão ${versao} — atualize o script antes de restaurar (ele ` +
+        'ignoraria em silêncio as chaves que ainda não conhece).',
+    )
+    process.exit(1)
+  }
+
   console.log(`\nBackup: ${caminho}`)
   console.log(`Formato: versão ${versao}${versao === 0 ? ' (anterior ao campo — ver abaixo)' : ''}`)
   if (backup.exportadoEm || backup.gerado_em) {

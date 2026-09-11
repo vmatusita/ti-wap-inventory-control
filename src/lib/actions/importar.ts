@@ -8,12 +8,15 @@ import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
+  categoriasImportaveis,
   csvCorrigidoDeArquivo,
+  estadosImportaveis,
   validarArquivoImport,
   type CorrecaoImport,
   type PlanoImport,
   type ValidacaoImport,
 } from '@/lib/import'
+import { lerVocabularioImport } from '@/lib/queries/vocabulario-import'
 import { correcoesSchema, parseCorrecoesJson } from '@/lib/validators/importar'
 import {
   ErroArquivoImport,
@@ -71,6 +74,17 @@ import {
 // em `@/lib/validators/importar`). Elas alimentam o motor no preview e viram
 // trilha de auditoria no aplicar (`import_logs.correcoes`) — o arquivo enviado
 // continua imutável e o `arquivoHash` continua sendo o do arquivo ORIGINAL.
+//
+// F56 · Frente D (segunda metade, Decisão 3 do PLAN-F56.md) — o vocabulário do
+// import (unidades/categoria/situação/prefixos) saiu do código: `validarImport` e
+// `baixarCsvCorrigido` (as DUAS actions que rodam o motor) leem o vocabulário do
+// BANCO A CADA CHAMADA (`lerVocabularioImport`), nunca de um campo do `FormData` —
+// o cliente NUNCA envia vocabulário nenhum, e um vocabulário forjado no pedido não
+// mudaria nada porque `lerPedidoFormData` (abaixo) só lê `arquivo`/`filialId`/
+// `correcoes` (prova: `src/lib/actions/importar.test.ts`). `aplicarImport` NÃO roda
+// o motor — o plano já chega PRONTO do preview —, mas lê o vocabulário que ELA
+// leu (nunca o do cliente) para recusar um plano com `categoria`/`estadoAlvo` fora
+// dos valores importáveis (critério 6).
 
 // Limite de tamanho do arquivo: `TAMANHO_MAX_ARQUIVO` (fonte única em
 // `@/lib/import/limites`, compartilhada com o wizard).
@@ -261,6 +275,36 @@ function lerFilialId(formData: FormData): { ok: true; filialId: number } | { ok:
   return { ok: true, filialId }
 }
 
+export type PedidoImportFormData =
+  | { ok: true; filialId: number; arquivo: File; correcoes: CorrecaoImport[] }
+  | { ok: false; erro: string }
+
+/**
+ * A ÚNICA leitura do `FormData` do wizard (F56 · Frente D, critério 6/7) — as
+ * DUAS actions que recebem o arquivo (`validarImport`, `baixarCsvCorrigido`)
+ * chamam esta função, e só ela. Lê exatamente TRÊS chaves: `arquivo`,
+ * `filialId` e `correcoes` — nenhuma outra, nunca um campo de vocabulário
+ * (que o cliente nem tem por que enviar: as duas actions leem o vocabulário do
+ * BANCO a cada chamada, `lerVocabularioImport`). Async só para caber no
+ * contrato de Server Action deste módulo (`'use server'` exige função async em
+ * todo export de topo) — não há `await` real aqui.
+ *
+ * PURA quanto ao `FormData`: não fala com o banco. `src/lib/actions/
+ * importar.test.ts` prova as duas metades do critério 7 — (a) um `FormData`
+ * com um campo de vocabulário FORJADO a mais não muda o resultado (porque esta
+ * função nunca o lê); (b) uma varredura de `src/lib/actions/importar.ts`
+ * reprova se aparecer `formData.get(` de qualquer chave fora destas três.
+ */
+export async function lerPedidoFormData(formData: FormData): Promise<PedidoImportFormData> {
+  const idRes = lerFilialId(formData)
+  if (!idRes.ok) return idRes
+  const arqRes = lerArquivoImport(formData)
+  if (!arqRes.ok) return arqRes
+  const corrRes = parseCorrecoesJson(formData.get('correcoes'))
+  if (!corrRes.ok) return { ok: false, erro: corrRes.erro }
+  return { ok: true, filialId: idRes.filialId, arquivo: arqRes.arquivo, correcoes: corrRes.correcoes }
+}
+
 async function filialPorId(
   client: Awaited<ReturnType<typeof createClient>>,
   id: number,
@@ -289,26 +333,33 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   const aut = await exigirAdmin(client)
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
-  const idRes = lerFilialId(formData)
-  if (!idRes.ok) return idRes
-  const arqRes = lerArquivoImport(formData)
-  if (!arqRes.ok) return arqRes
+  // F56 · Frente D — a ÚNICA leitura do FormData: arquivo/filialId/correcoes, nunca
+  // um campo de vocabulário (critério 6/7; ver o comentário no topo do arquivo).
+  const pedido = await lerPedidoFormData(formData)
+  if (!pedido.ok) return pedido
 
-  // F7B — correções da tela (ausente = []). Estrutura/whitelist/cap/datas aqui; o
-  // que depende do CSV vira `correcao_invalida` no motor.
-  const corrRes = parseCorrecoesJson(formData.get('correcoes'))
-  if (!corrRes.ok) return { ok: false, erro: corrRes.erro }
-
-  const filial = await filialPorId(client, idRes.filialId)
+  const filial = await filialPorId(client, pedido.filialId)
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
   if (!filial.ativo) return { ok: false, erro: 'Filial inativa: import bloqueado.' }
+
+  // F56 · Frente D — o vocabulário do import (unidades/categoria/situação/prefixos)
+  // vem do BANCO, lido A CADA CHAMADA — nunca do cliente e nunca de um cache entre
+  // chamadas: um apelido cadastrado agora mesmo em Administração › Filiais tem de
+  // valer já no próximo preview.
+  let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
+  try {
+    vocabulario = await lerVocabularioImport(client)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
+    return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }
+  }
 
   const filialSel = { id: filial.id, slug: filial.slug, nome: filial.nome }
   let validacao: ValidacaoImport
   let buffer: ArrayBuffer
   try {
-    buffer = await arqRes.arquivo.arrayBuffer()
-    validacao = await validarArquivoImport(buffer, filialSel, undefined, corrRes.correcoes)
+    buffer = await pedido.arquivo.arrayBuffer()
+    validacao = await validarArquivoImport(buffer, filialSel, vocabulario, undefined, pedido.correcoes)
   } catch (e) {
     // Item T (30/08/2026): o leitor de planilha RECUSA arquivo acima dos tetos em vez de
     // truncar em silêncio, e a mensagem dele é escrita para o operador (diz o número e o
@@ -344,7 +395,7 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   try {
     const emOutras = await paresEmOutrasFiliais(client, filial.id, patrimonios, tagsSemPatrimonio)
     if (emOutras.size > 0) {
-      validacao = await validarArquivoImport(buffer, filialSel, undefined, corrRes.correcoes, emOutras)
+      validacao = await validarArquivoImport(buffer, filialSel, vocabulario, undefined, pedido.correcoes, emOutras)
     }
   } catch (erro) {
     registrarFalha({
@@ -412,6 +463,29 @@ export async function aplicarImport(input: {
   const filial = await filialPorId(client, plano.filialId)
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
   if (!filial.ativo) return { ok: false, erro: 'Filial inativa: import bloqueado.' }
+
+  // F56 · Frente D (critério 6) — `aplicarImport` NÃO roda o motor (o plano já chega
+  // PRONTO do preview), mas confere que TODO ativo do plano tem `categoria` e
+  // `estadoAlvo` entre os valores IMPORTÁVEIS do vocabulário que ELA MESMA leu do
+  // banco agora — nunca de um vocabulário que o cliente pudesse ter mandado (que
+  // esta action nem lê: `aplicarSchema` só confere `z.string()`, não pertencimento).
+  // Fecha "o servidor nunca julga com o vocabulário do cliente" também para quem
+  // não passa pelo motor inteiro.
+  let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
+  try {
+    vocabulario = await lerVocabularioImport(client)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
+    return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }
+  }
+  const categoriasValidas = new Set<string>(categoriasImportaveis(vocabulario).map((c) => c.categoria))
+  const estadosValidos = new Set<string>(estadosImportaveis(vocabulario).map((e) => e.estado))
+  const planoDentroDoVocabulario = plano.ativos.every(
+    (a) => categoriasValidas.has(a.categoria) && estadosValidos.has(a.estadoAlvo),
+  )
+  if (!planoDentroDoVocabulario) {
+    return { ok: false, erro: 'Plano de import inválido. Gere o preview novamente.' }
+  }
 
   // Confirmação estilo GitHub: o texto tem de ser o nome da filial.
   //
@@ -746,26 +820,31 @@ export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvC
   const aut = await exigirAdmin(client)
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
-  const idRes = lerFilialId(formData)
-  if (!idRes.ok) return idRes
-  const arqRes = lerArquivoImport(formData)
-  if (!arqRes.ok) return arqRes
+  // F56 · Frente D — a ÚNICA leitura do FormData (ver o comentário no topo do arquivo).
+  const pedido = await lerPedidoFormData(formData)
+  if (!pedido.ok) return pedido
 
-  const corrRes = parseCorrecoesJson(formData.get('correcoes'))
-  if (!corrRes.ok) return { ok: false, erro: corrRes.erro }
-
-  const filial = await filialPorId(client, idRes.filialId)
+  const filial = await filialPorId(client, pedido.filialId)
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
 
+  // F56 · Frente D — o vocabulário do BANCO, lido a cada chamada (nunca do cliente).
+  let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
   try {
-    const buffer = await arqRes.arquivo.arrayBuffer()
+    vocabulario = await lerVocabularioImport(client)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
+    return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }
+  }
+
+  try {
+    const buffer = await pedido.arquivo.arrayBuffer()
     // Sem BOM — quem baixa põe o BOM (padrão de export do projeto).
     // A filial vai junto: sem ela o motor não roda a metade "para = a filial
     // selecionada" da regra do Site e o artefato sairia com uma op que o preview
     // recusou (revisão adversarial da F7B) — o baixado tem de espelhar o preview.
     // F7G — se a entrada foi .xlsx, o artefato sai como CSV corrigido reimportável
     // (datas já normalizadas em dd/MM/aaaa).
-    const conteudo = await csvCorrigidoDeArquivo(buffer, corrRes.correcoes, filial.nome)
+    const conteudo = await csvCorrigidoDeArquivo(buffer, pedido.correcoes, vocabulario, filial.nome)
     return { ok: true, nome: `import-corrigido-${filial.slug}.csv`, conteudo }
   } catch (e) {
     if (e instanceof ErroArquivoImport) return { ok: false, erro: e.message }

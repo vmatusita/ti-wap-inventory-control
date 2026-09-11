@@ -35,6 +35,7 @@ import type {
   PlanoImport,
   RegistroImport,
   ValidacaoImport,
+  VocabularioCliente,
 } from '@/lib/import'
 import { extrairPatrimonioDoHostname } from '@/lib/import/deparas'
 import { TAMANHO_MAX_ARQUIVO, TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
@@ -116,9 +117,11 @@ function NumeroGrande({
 function PainelHostname({
   avisos,
   contexto,
+  prefixosPatrimonio,
 }: {
   avisos: ErroImport[]
   contexto: Record<number, RegistroImport>
+  prefixosPatrimonio: readonly string[]
 }) {
   const doHostname = avisos.filter((a) => a.tipo === 'patrimonio_do_hostname')
   if (doHostname.length === 0) return null
@@ -150,7 +153,7 @@ function PainelHostname({
           <tbody>
             {doHostname.map((a) => {
               const hostname = contexto[a.linha]?.hostname ?? ''
-              const preenchido = extrairPatrimonioDoHostname(hostname)
+              const preenchido = extrairPatrimonioDoHostname(hostname, prefixosPatrimonio)
               const original = a.valor?.trim() ? a.valor.trim() : '(vazio)'
               return (
                 <tr key={a.linha} className="border-t">
@@ -210,7 +213,17 @@ function Stepper({ passo }: { passo: number }) {
 // revalida tudo do zero pelo motor. O arquivo nunca é alterado; a lista de
 // correções zera ao trocar arquivo ou filial (OS-F7B §3.8 — previsível vence
 // esperto).
-export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
+export function ImportarWizard({
+  filiais,
+  vocabulario,
+}: {
+  filiais: Filial[]
+  /** F56 · Frente D — a fatia de CLIENTE do vocabulário (`paraCliente`, lida uma
+   *  vez pela página): categorias/estados IMPORTÁVEIS (com rótulo) e os prefixos
+   *  de patrimônio. Só para EXIBIR — o servidor nunca julga com o que veio daqui;
+   *  as duas actions do motor leem o vocabulário INTEIRO do banco a cada chamada. */
+  vocabulario: VocabularioCliente
+}) {
   const router = useRouter()
   const [passo, setPasso] = useState(1)
   const [filialId, setFilialId] = useState<string>('')
@@ -777,6 +790,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
             <PainelHostname
               avisos={previa.validacao.avisos}
               contexto={previa.validacao.contexto}
+              prefixosPatrimonio={vocabulario.prefixosPatrimonio}
             />
 
             {/* Cards acionáveis: um por grupo de erro/aviso (F7B) */}
@@ -790,6 +804,7 @@ export function ImportarWizard({ filiais }: { filiais: Filial[] }) {
               tiposAviso={tiposAviso}
               pendente={analisando}
               onCorrigir={corrigir}
+              vocabulario={vocabulario}
             />
 
             <CorrecoesAplicadas

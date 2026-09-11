@@ -124,6 +124,19 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (m.includes('ativos_patrimonio_service_tag')) {
     return 'Já existe um ativo com esse patrimônio e service tag nesta filial.'
   }
+  // ---- F56: o vocabulário de unidades (nome de filial × apelido, migration 0139) ----
+  // Backstop de corrida das Decisões 1/2/13 do PLAN-F56 — a pré-checagem em
+  // `src/lib/unidades/dono-do-termo.ts` já nomeia a filial dona ANTES de escrever
+  // (em `criarFilial`/`atualizarFilial` e em `incluirApelidoUnidade`); estes dois
+  // ramos só cobrem o caso raro de dois admins colidindo ao mesmo tempo, com uma
+  // frase GENÉRICA — nunca extraindo o nome dinâmico da mensagem do banco (não há
+  // precedente neste arquivo para isso, e não é este ramo que abre o primeiro).
+  if (m.includes('filiais_nome_chave_uidx')) {
+    return 'Já existe uma filial com este nome (a comparação ignora acento, maiúscula e espaço a mais). Atualize a página e tente de novo.'
+  }
+  if (m.includes('unidades_apelidos_apelido_chave_uidx')) {
+    return 'Este apelido já está cadastrado para alguma filial. Atualize a página e tente de novo.'
+  }
   // Demais violações de unicidade (corrida de versão de relatório, termo já
   // gerado para o mesmo conjunto etc.): mensagem genérica de recarregar.
   if (m.includes('duplicate key') || m.includes('unique constraint')) {
@@ -325,6 +338,30 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
     m.includes('os dois cadastros nao podem ficar na mesma filial')
   ) {
     return 'A filial de destino já tem um cadastro deste mesmo equipamento (mesmo patrimônio e mesma service tag). Resolva o conflito entre filiais na aba "Conflitos entre filiais" de Pendências antes de mover o ativo.'
+  }
+
+  // ---- F56: o gatilho `vocabulario_unidades_guarda` (migration 0139, Decisão 2) ----
+  // A diagonal nome×apelido — cadastrar um apelido igual ao nome de outra filial,
+  // renomear uma filial para um termo que já é apelido de alguém, ou tentar
+  // apelidar uma filial com o próprio nome dela. A mensagem do gatilho JÁ é em
+  // pt-BR e já nomeia o termo e a filial dona (é escrita para o operador, não
+  // para o log) — mesmo assim não a repassamos verbatim (regra do fallback
+  // logado, abaixo, e o precedente dos blocos F21-F24 acima: nenhum deles extrai
+  // valor dinâmico de dentro da mensagem do banco). A pré-checagem em
+  // `dono-do-termo.ts` é quem dá a mensagem PRECISA, ANTES de chegar aqui; este
+  // ramo só existe para a corrida rara (dois admins ao mesmo tempo) que passa
+  // pela pré-checagem verde.
+  if (
+    m.includes('já é o próprio nome da filial') ||
+    m.includes('ja e o proprio nome da filial') ||
+    m.includes('não pode repetir o nome de outra filial') ||
+    m.includes('nao pode repetir o nome de outra filial') ||
+    m.includes('já é apelido desta própria filial') ||
+    m.includes('ja e apelido desta propria filial') ||
+    m.includes('já é apelido de outra filial') ||
+    m.includes('ja e apelido de outra filial')
+  ) {
+    return 'Este nome ou apelido já está em uso (por outra filial, ou por esta mesma do outro lado). Atualize a página para ver qual, e tente de novo.'
   }
 
   // 42501 = insufficient_privilege: cobre tanto "new row violates row-level security

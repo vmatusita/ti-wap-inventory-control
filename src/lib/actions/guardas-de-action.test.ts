@@ -70,10 +70,14 @@ const SEM_GUARDA: Record<string, string> = {
     'É a porta do VISUALIZADOR e é pública por desenho: quem a chama não tem conta nenhuma. A defesa é anterior à autorização — rate-limit persistente por IP antes de qualquer verificação (senhas.ts:52-70) e comparação por `crypto.scrypt`. Exigir cargo aqui fecharia a entrada do relatório por senha.',
   'src/lib/actions/senhas.ts::sairVisualizacao':
     'É o LOGOUT do visualizador: apaga o próprio cookie e redireciona. Não lê nem escreve dado nenhum, e exigir cargo prenderia na visualização justamente quem não tem cargo. (Ausente da ficha da F49, que previa cinco isenções — achado da medição, 07/09/2026.)',
+
+  // --- F56 (Frente D) — leitura PURA do FormData, sem banco.
+  'src/lib/actions/importar.ts::lerPedidoFormData':
+    'PURA: só lê arquivo/filialId/correcoes do FormData recebido (regex/JSON.parse) — nenhuma chamada ao banco, nenhuma escrita, nenhum dado sensível devolvido além do que o próprio chamador acabou de enviar. Exportada (e não módulo-privada) só para o teste do critério 7 da F56 exercitá-la direto — as DUAS actions que de fato tocam o banco com o resultado dela (`validarImport`, `baixarCsvCorrigido`) continuam atrás de `exigirAdmin`.',
 }
 
 /** Teto da catraca. Ver o caso "a lista de isenções só encolhe". */
-const TETO_SEM_GUARDA = 6
+const TETO_SEM_GUARDA = 7
 
 // As nove que a F49 corrigiu. Estão aqui NOMEADAS para que o teste reprove se alguma
 // delas for "resolvida" por isenção em vez de por guarda — o atalho que esvaziaria a

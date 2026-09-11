@@ -23,10 +23,22 @@
 import ExcelJS from 'exceljs'
 import { lerXlsx } from '../../src/lib/import/xlsx'
 import { validarArquivoImport } from '../../src/lib/import/plano'
+import type { VocabularioImport } from '../../src/lib/import/vocabulario'
 import { ErroArquivoImport } from '../../src/lib/import/limites'
 import type { FilialSelecionada } from '../../src/lib/import/tipos'
 
 const FILIAL: FilialSelecionada = { id: 1, slug: 'matriz', nome: 'Matriz' }
+
+// F56 · Frente D (segunda metade) — o motor recebe o vocabulário por parâmetro;
+// este script só precisa reconhecer "Notebook"/"Estoque" (a fixture mínima do
+// próprio gerador de linhas legítimas, abaixo).
+const VOCAB: VocabularioImport = {
+  filiais: [{ id: FILIAL.id, nome: FILIAL.nome, ativa: true }],
+  apelidos: [],
+  categorias: [{ termo: 'notebook', categoria: 'notebook', rotulo: 'Notebook' }],
+  estados: [{ termo: 'estoque', estado: 'em_estoque', rotulo: 'Estoque' }],
+  prefixosPatrimonio: ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'],
+}
 
 function amostrarRss(): { parar: () => number } {
   let pico = process.memoryUsage().rss
@@ -205,7 +217,7 @@ async function main() {
     // Pipeline REAL (`validarArquivoImport` → `analisar()` → `conferirTetos`):
     // a 2ª linha de defesa (`MAX_LINHAS_PLANILHA`) pega depois do `load`.
     await medir('bomba-alta-100000-linhas-pipeline-completo-conferirTetos', async () => {
-      const v = await validarArquivoImport(bytes, FILIAL, '2026-09-11')
+      const v = await validarArquivoImport(bytes, FILIAL, VOCAB, '2026-09-11')
       return { bloqueantes: v.bloqueantes.map((b) => b.tipo) }
     })
   } else {

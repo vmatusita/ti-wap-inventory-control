@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarImportLogs } from '@/lib/queries/import-logs'
+import { lerVocabularioImport } from '@/lib/queries/vocabulario-import'
+import { paraCliente } from '@/lib/import'
 import { formatDateTime } from '@/lib/format'
 import {
   Table,
@@ -30,9 +32,10 @@ export const metadata = {
 // Leituras pelo client autenticado (com a sessão de admin).
 export default async function AdminImportarPage() {
   const client = await createClient()
-  const [filiais, logs] = await Promise.all([
+  const [filiais, logs, vocabulario] = await Promise.all([
     listarFiliais(client),
     listarImportLogs(client),
+    lerVocabularioImport(client),
   ])
 
   return (
@@ -49,7 +52,12 @@ export default async function AdminImportarPage() {
         <LinkAjuda pagina="import-de-startup" rotulo="Ajuda sobre o import de startup" />
       </div>
 
-      <ImportarWizard filiais={filiais} />
+      {/* F56 · Frente D — SÓ a fatia de cliente (`paraCliente`) desce por prop: o
+          Server Component leu o vocabulário inteiro (`filiais`/`apelidos` inclusos)
+          para as duas actions do motor lerem de novo do banco; o wizard e os cards
+          recebem só o que precisam para EXIBIR (Select, "Definir como", o painel do
+          hostname) — nunca julgam com ele. */}
+      <ImportarWizard filiais={filiais} vocabulario={paraCliente(vocabulario)} />
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Histórico de imports</h2>

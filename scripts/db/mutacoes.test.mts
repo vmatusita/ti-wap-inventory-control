@@ -100,7 +100,28 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 70 mutações ATIVAS', () => {
+  it('tem entre 20 e 75 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 70 PARA 75 NA F56 · FRENTE F (11/09/2026). A `0140`
+    // recria as três funções da cadeia do import para tratar os cinco caminhos
+    // de FK do fato 27 (a bomba do "Substituir tudo"), e ganhou CINCO mutações
+    // próprias:
+    //   · a condição de revalidação (`import-revalidacao-nao-compara-o-vivo`)
+    //     REAPONTADA — de duas linhas (0131) para oito (0140), uma por chave; o
+    //     rótulo `5a` entrou ao lado do `0b` que já existia, porque desligar a
+    //     condição inteira prova as oito de uma vez;
+    //   · uma mutação NOVA e isolada (`import-revalidacao-ignora-pendencia-
+    //     nova-do-acervo`) que remove SÓ a comparação de `pendencias_item`,
+    //     deixando as outras sete intactas — sem ela, esquecer de comparar UMA
+    //     chave nova ficaria escondido atrás das outras sete continuando certas;
+    //   · quatro mutações "sem-X" em `import_apagar_acervo_filial`, uma por
+    //     passo novo (desvincular o elo da pendência, desvincular o elo da
+    //     movimentação, apagar as pendências, anular o ponteiro de substituto) —
+    //     cada uma reabre um dos cinco caminhos de FK e o cenário 5 do roteiro
+    //     (`import_substituir.sql`) acusa o mesmo `23503` não tratado.
+    // 69 + 1 nova (a de pendências isolada) + 4 novas (fk-nao-tratada) = 74,
+    // teto 75 (uma de folga — a mesma régua de toda fase anterior). A mutação
+    // "reapontada" não soma: ela já existia no lote de 69.
+    //
     // ⚠ O TETO SUBIU DE 68 PARA 70 NA F56 (11/09/2026). A fase escreveu o roteiro
     // `vocabulario_import.sql` (o vocabulário do import virando dado, migration
     // 0139) e ele nasceu com DUAS quebras próprias — as duas mecânicas que fecham a
@@ -200,7 +221,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(70)
+    expect(MUTACOES.length).toBeLessThanOrEqual(75)
   })
 
   it('os `id` são únicos', () => {

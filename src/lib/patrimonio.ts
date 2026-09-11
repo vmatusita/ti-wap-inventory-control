@@ -23,6 +23,18 @@ export const PATRIMONIO_CANONICAL_RE = new RegExp(
 // Máximo de unidades por lote de compra (guarda anti-abuso na faixa).
 export const MAX_LOTE_COMPRA = 200
 
+// F56 · Frente D (segunda metade) — exemplo de FORMATO para mensagens ao
+// operador, nunca um prefixo fixo no código: o import lista os prefixos
+// oficiais no banco (`import_prefixos_patrimonio`, migration 0139), e as
+// mensagens que precisam ILUSTRAR o formato (prefixo + 7 dígitos) usam o
+// PRIMEIRO prefixo do vocabulário que a chamada recebeu — nunca um literal
+// hardcoded. Sem prefixo nenhum (vocabulário vazio, defeito de cadastro), cai
+// num prefixo neutro de exemplo ("AB"), que não corresponde a nenhum prefixo
+// real — só ilustra a FORMA.
+export function exemploFormatoPatrimonio(prefixo: string | undefined): string {
+  return `${prefixo ?? 'AB'}0001234`
+}
+
 const CANONICALIZAR_RE = new RegExp(`^(${PREFIXO_PATRIMONIO_FONTE})(\\d+)$`)
 
 // Normaliza para o formato canônico; null se não reconhecer prefixo+dígitos.

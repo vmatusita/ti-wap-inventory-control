@@ -1,19 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { hojeISO } from '@/lib/format'
 import {
-  CATEGORIAS_TERMOS,
-  ESTADOS_CORRIGIVEIS,
-  SITUACAO_CANONICA,
-  TIPO_CANONICO,
   chaveServiceTag,
-  estadoPlanilha,
   extrairChamado,
-  extrairPatrimonioDoHostname,
   hojeIso,
-  filialPorSlug,
   limparCampo,
-  mapearCategoria,
-  mapearUnidade,
   modeloSemMarca,
   normalizarHeader,
   normalizarServiceTag,
@@ -23,9 +14,16 @@ import {
   patrimonioVazio,
   resolverDataEntrega,
 } from './deparas'
-import type { CategoriaImport, EstadoAlvoImport } from './tipos'
 
 // Nenhum dado real — tudo fictício (padrão WAP0001234 / "Fulano").
+//
+// F56 · Frente D (segunda metade) — `mapearUnidade`/`filialPorSlug`/
+// `mapearCategoria`/`estadoPlanilha`/`extrairPatrimonioDoHostname`/
+// `TIPO_CANONICO`/`SITUACAO_CANONICA` SAÍRAM deste arquivo (o vocabulário virou
+// parâmetro, `./vocabulario.ts`) — os testes deles moraram para
+// `vocabulario.test.ts`. O que continua aqui é o que NÃO depende de
+// vocabulário: normalização de texto, datas, service tag, patrimônio
+// "vazio-na-prática" e os campos auxiliares.
 
 describe('normalizarTexto / normalizarHeader', () => {
   it('remove acento, minúsculas, `:` final e colapsa espaços', () => {
@@ -48,122 +46,6 @@ describe('limparCampo', () => {
     expect(limparCampo('')).toBeNull()
     expect(limparCampo('   ')).toBeNull()
     expect(limparCampo('  Dell  Latitude ')).toBe('Dell Latitude')
-  })
-})
-
-describe('mapearUnidade (De→Para de unidades, spec §5 ampliado)', () => {
-  it('aplica os apelidos reais das planilhas', () => {
-    expect(mapearUnidade('Serra Park')).toBe('Serra')
-    expect(mapearUnidade('Filial-CE')).toBe('Eusébio')
-    expect(mapearUnidade('CD-PENA')).toBe('CD-Afonso Pena')
-    expect(mapearUnidade('Afonso Pena')).toBe('CD-Afonso Pena')
-    expect(mapearUnidade('Matriz ')).toBe('Matriz')
-    expect(mapearUnidade('Filial - Linhares')).toBe('Linhares')
-  })
-  it('desconhecido → null', () => {
-    expect(mapearUnidade('Fábrica X')).toBeNull()
-    expect(mapearUnidade('')).toBeNull()
-  })
-})
-
-describe('filialPorSlug', () => {
-  it('slug do banco → filial oficial', () => {
-    expect(filialPorSlug('cd-afonso-pena')).toBe('CD-Afonso Pena')
-    expect(filialPorSlug('matriz')).toBe('Matriz')
-    expect(filialPorSlug('eusebio')).toBe('Eusébio')
-    expect(filialPorSlug('inexistente')).toBeNull()
-  })
-})
-
-describe('mapearCategoria (Tipo → enum; desconhecido = null p/ bloqueante)', () => {
-  it('conhecidos', () => {
-    expect(mapearCategoria('Notebook')).toBe('notebook')
-    expect(mapearCategoria('CELULAR')).toBe('celular')
-    expect(mapearCategoria('Monitor')).toBe('monitor')
-  })
-  it('desconhecido/vazio → null (F7 §3 bloqueia)', () => {
-    expect(mapearCategoria('Teclado')).toBeNull()
-    expect(mapearCategoria('')).toBeNull()
-  })
-})
-
-describe('estadoPlanilha (precedência Situação > Status — DECISOES 15/07)', () => {
-  it('Situação vence quando preenchida', () => {
-    expect(estadoPlanilha('Estoque', 'Descarte')).toBe('descartado')
-    expect(estadoPlanilha('Estoque', 'Manutenção')).toBe('em_manutencao')
-  })
-  it('sem Situação → Status', () => {
-    expect(estadoPlanilha('Remanejo', '')).toBe('em_uso')
-    expect(estadoPlanilha('Estoque', '')).toBe('em_estoque')
-  })
-  it('fora da tabela → null', () => {
-    expect(estadoPlanilha('Foo', '')).toBeNull()
-    expect(estadoPlanilha('', '')).toBeNull()
-  })
-})
-
-// F7B — tabelas canônicas reversas: o que a tela GRAVA na célula tem que voltar
-// ao estado/categoria pretendido pelo mesmo De→Para que valida o CSV.
-describe('SITUACAO_CANONICA (F7B §3.4) — ciclo fechado com estadoPlanilha', () => {
-  const ESPERADOS: EstadoAlvoImport[] = [
-    'em_estoque',
-    'em_uso',
-    'reservado',
-    'emprestado',
-    'em_triagem',
-    'em_manutencao',
-    'defasado',
-  ]
-
-  it('cobre os 7 estados (descartado e devolvido ao fornecedor ficam de fora — baixa)', () => {
-    expect(Object.keys(SITUACAO_CANONICA).sort()).toEqual([...ESPERADOS].sort())
-    expect(Object.keys(SITUACAO_CANONICA)).not.toContain('descartado')
-  })
-
-  it.each(ESPERADOS)('%s → termo → volta ao mesmo estado (Situação vence Status)', (estado) => {
-    const termo = SITUACAO_CANONICA[estado]
-    expect(estadoPlanilha('', termo)).toBe(estado)
-    // Situação preenchida vence QUALQUER Status na linha — é o que faz a
-    // correção em massa de estado funcionar gravando só em Situação.
-    expect(estadoPlanilha('Descarte', termo)).toBe(estado)
-  })
-
-  it('os termos canônicos são exatamente os da OS-F7B §3.4', () => {
-    expect(SITUACAO_CANONICA).toEqual({
-      em_estoque: 'Estoque',
-      em_uso: 'Saída',
-      reservado: 'Reservado',
-      emprestado: 'Empréstimo',
-      em_triagem: 'Validar',
-      em_manutencao: 'Manutenção',
-      defasado: 'Defasado',
-    })
-  })
-
-  it('todo termo canônico está entre os corrigíveis; nenhum corrigível vira descartado', () => {
-    for (const termo of Object.values(SITUACAO_CANONICA)) {
-      expect(ESTADOS_CORRIGIVEIS).toContain(normalizarTexto(termo))
-    }
-    for (const termo of ESTADOS_CORRIGIVEIS) {
-      expect(estadoPlanilha('', termo)).not.toBe('descartado')
-      expect(estadoPlanilha('', termo)).not.toBeNull()
-    }
-    expect(ESTADOS_CORRIGIVEIS).not.toContain('descarte')
-    expect(ESTADOS_CORRIGIVEIS).not.toContain('descartado')
-  })
-})
-
-describe('TIPO_CANONICO (F7B) — ciclo fechado com mapearCategoria', () => {
-  it.each(['notebook', 'desktop', 'monitor', 'celular', 'tablet'] as CategoriaImport[])(
-    '%s → termo → volta à mesma categoria',
-    (categoria) => {
-      expect(mapearCategoria(TIPO_CANONICO[categoria])).toBe(categoria)
-    },
-  )
-
-  it('todo termo do vocabulário mapeia; `outro` não é alcançável pelo CSV', () => {
-    for (const termo of CATEGORIAS_TERMOS) expect(mapearCategoria(termo)).not.toBeNull()
-    expect(Object.keys(TIPO_CANONICO)).not.toContain('outro')
   })
 })
 
@@ -330,62 +212,6 @@ describe('patrimonioVazio (F7E)', () => {
       '--', '---', '...', '???', '//', '*', '- - -',
     ]) {
       expect(patrimonioVazio(v), `"${v}" deveria ser vazio-na-prática (F7-pós)`).toBe(true)
-    }
-  })
-})
-
-// F7F (OS §1) — extrai do HOSTNAME o patrimônio canônico embutido. É a MESMA régua
-// que o motor (plano.ts) e a UI (botão 1-clique / painel) usam — extrator único.
-describe('extrairPatrimonioDoHostname (F7F)', () => {
-  it('hostname com token canônico embutido → canônico limpo', () => {
-    expect(extrairPatrimonioDoHostname('NB-WAP0001234')).toBe('WAP0001234')
-    expect(extrairPatrimonioDoHostname('DESKTOP-WAP0004491')).toBe('WAP0004491')
-    expect(extrairPatrimonioDoHostname('wap0001234')).toBe('WAP0001234') // caixa baixa sobe
-    expect(extrairPatrimonioDoHostname('LEA0000057-PC')).toBe('LEA0000057') // token no início
-  })
-
-  // F7-pós (Johnny 20/07/2026): prefixo de patrimônio conhecido + MENOS de 7 dígitos é
-  // aceito e completado com zeros (PRO3694 → PRO0003694).
-  it('prefixo conhecido + <7 dígitos → completa os zeros', () => {
-    expect(extrairPatrimonioDoHostname('NB-PRO3694')).toBe('PRO0003694')
-    expect(extrairPatrimonioDoHostname('PRO3694')).toBe('PRO0003694')
-    expect(extrairPatrimonioDoHostname('NB-WAP001')).toBe('WAP0000001') // 3 dígitos agora resolvem
-    expect(extrairPatrimonioDoHostname('DESKTOP-PAT000376')).toBe('PAT0000376')
-    expect(extrairPatrimonioDoHostname('STF42-PC')).toBe('STF0000042')
-  })
-
-  it('prefixo DESCONHECIDO no hostname → null (não vira patrimônio, mesmo com dígitos)', () => {
-    expect(extrairPatrimonioDoHostname('PC-01')).toBeNull() // PC não é prefixo de patrimônio
-    expect(extrairPatrimonioDoHostname('SALA-5')).toBeNull()
-    expect(extrairPatrimonioDoHostname('NB-2')).toBeNull()
-    expect(extrairPatrimonioDoHostname('DESKTOP-SALA')).toBeNull() // sem número
-    // pula o prefixo desconhecido e acha o conhecido depois
-    expect(extrairPatrimonioDoHostname('PC01-WAP0001234')).toBe('WAP0001234')
-    expect(extrairPatrimonioDoHostname('')).toBeNull()
-    expect(extrairPatrimonioDoHostname(null)).toBeNull()
-    expect(extrairPatrimonioDoHostname(undefined)).toBeNull()
-  })
-
-  it('não confunde número de 8+ dígitos com o token (exige token delimitado, ≤7 dígitos)', () => {
-    expect(extrairPatrimonioDoHostname('NB-WAP00012345')).toBeNull() // 8 dígitos, ambíguo
-    expect(extrairPatrimonioDoHostname('SERIAL12345678')).toBeNull()
-  })
-
-  // INJEÇÃO (OS §1): o extrator só captura o token canônico [A-Z]{2,4}\d{7} (ou nada)
-  // e NUNCA executa/interpola nada. O valor devolvido é SEMPRE o canônico limpo —
-  // qualquer payload em volta (=cmd, aspas, ;, OR 1=1, rm -rf) é descartado.
-  it('injeção: extrai só o token limpo, descarta o payload em volta', () => {
-    expect(extrairPatrimonioDoHostname('=cmd()')).toBeNull()
-    expect(extrairPatrimonioDoHostname(" OR 1=1")).toBeNull()
-    expect(extrairPatrimonioDoHostname('=WAP0001234')).toBe('WAP0001234') // dropa o '='
-    expect(extrairPatrimonioDoHostname('WAP0001234; rm -rf /')).toBe('WAP0001234')
-    expect(extrairPatrimonioDoHostname("WAP0001234' OR '1'='1")).toBe('WAP0001234')
-    expect(extrairPatrimonioDoHostname('"WAP0001234"')).toBe('WAP0001234')
-    expect(extrairPatrimonioDoHostname('=cmd()|WAP0001234')).toBe('WAP0001234')
-    expect(extrairPatrimonioDoHostname("'; DROP TABLE ativos; --")).toBeNull()
-    // o valor devolvido casa sempre o formato canônico — nunca um payload
-    for (const h of ['=WAP0001234', 'WAP0001234; rm -rf', '"WAP0001234"']) {
-      expect(extrairPatrimonioDoHostname(h)).toMatch(/^[A-Z]{2,4}\d{7}$/)
     }
   })
 })

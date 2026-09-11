@@ -34,7 +34,10 @@ export type GuardedConfig = {
   projectRef: string
 }
 
-function refFromUrl(url: string): string | null {
+// Exportada desde a F56 (Frente G): `scripts/smoke/guarda-ensaio.mjs` precisa do
+// MESMO parser de ref que as guardas de seed/reset usam — nunca uma segunda cópia
+// do regex. Comportamento idêntico ao de antes (a função não mudou).
+export function refFromUrl(url: string): string | null {
   // https://<ref>.supabase.co  ->  <ref>
   try {
     const host = new URL(url).hostname
@@ -53,13 +56,20 @@ function refFromUrl(url: string): string | null {
 // teste de CONSISTENCIA, nao de IDENTIDADE. Com os dois apontando para producao (que
 // era o estado do .env.local naquele dia) as tres guardas passavam e
 // `npm run db:reset` zeraria o acervo real.
-const REFS_DE_ENSAIO = ['sgmvldiizsrjbxzzpmhh'] as const
+// Exportada desde a F56 (Frente G): a guarda do smoke do import
+// (`scripts/smoke/guarda-ensaio.mjs`) reaproveita esta MESMA lista de permissão em
+// vez de manter uma terceira cópia do ref do ensaio (a segunda é
+// `scripts/design/capturar.mjs:70`, independente de propósito — ferramenta de
+// outra classe). Só o `export` mudou; o conteúdo e o comentário acima continuam os
+// mesmos.
+export const REFS_DE_ENSAIO = ['sgmvldiizsrjbxzzpmhh'] as const
 
 // Refs de PRODUCAO conhecidos, usados SO para dar a mensagem CERTA quando alguem
 // aponta para la. A permissao de verdade e REFS_DE_ENSAIO, acima — um ref de
 // producao NOVO que nao esteja aqui ainda cai no "ref desconhecido" (mensagem
 // generica), RECUSADO do mesmo jeito.
-const REFS_DE_PRODUCAO_CONHECIDOS = ['pbtjcalbmepmrqzprusb'] as const
+// Exportada desde a F56 (Frente G) pelo mesmo motivo de REFS_DE_ENSAIO acima.
+export const REFS_DE_PRODUCAO_CONHECIDOS = ['pbtjcalbmepmrqzprusb'] as const
 
 // Valida as guardas e devolve a config. Lanca com mensagem clara se algo falhar
 // — o script NUNCA prossegue sem passar por aqui.
