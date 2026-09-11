@@ -77,6 +77,21 @@ jobs:
       # (render estático por renderToStaticMarkup, sem dependência nova).
       - name: Testes (Vitest — funções puras e render de componente)
         run: npm run test
+      # F56 · Frente B — achado por MEDIÇÃO (sabotagem real, docs/f56-evidencias/
+      # B2-sabotagem-ts-expect-error.txt): "Build (inclui type-check do
+      # TypeScript)", abaixo, NÃO cobre todo o projeto — o type-check embutido do
+      # `next build` só percorre o GRAFO de módulos que a app importa (páginas,
+      # actions, componentes…), não todo arquivo que o `tsconfig.json` inclui. Um
+      # `*.test.ts` sem importador nenhum na árvore de `src/app/**` (o caso de
+      # `enums-sql.test.ts`, que carrega as asserções de TIPO do `@ts-expect-error`
+      # do fato 17/critério 8) fica INVISÍVEL para o `next build`: uma sabotagem
+      # nele passou pelo `npm run build` (exit 0) com o `.next` limpo, duas vezes.
+      # Só `npx tsc --noEmit -p .` — o MESMO `tsconfig.json`, mas sem o recorte do
+      # grafo — pegou o erro (TS2578). Esta trava é o que faz o critério 8 ("prova
+      # por sabotagem, num caminho de CI que reprova") ser verdade de fato, e não
+      # só na intenção do Decisão 4.
+      - name: Checagem de tipo completa (tsc --noEmit)
+        run: npm run typecheck
       # F29/UXG-07 — o medidor de contraste WCAG existia desde a F19 e rodava só à
       # mão, quando alguém lembrava. Ele lê os MESMOS arquivos que o navegador
       # (node_modules/tailwindcss/theme.css + src/app/globals.css), é Node puro sem
@@ -85,7 +100,11 @@ jobs:
       # cai abaixo do mínimo — é o próprio script que decide, não este arquivo.
       - name: Contraste (WCAG 2.1 AA)
         run: npm run contraste
-      - name: Build (inclui type-check do TypeScript)
+      # ⚠ "Inclui type-check" é PARCIAL — só o que o next build alcança pelo grafo
+      # de módulos da app (ver o comentário do passo "Checagem de tipo completa"
+      # acima, que cobre o resto: arquivos fora do grafo, como testes de TIPO
+      # isolados).
+      - name: Build (inclui type-check parcial do TypeScript)
         run: npm run build
       # F45 — o gate de ARTEFATO, que existia desde a F13 e que NINGUÉM rodava:
       # `scripts/verificar-actions-build.mjs` não estava no `package.json` nem no

@@ -34,39 +34,51 @@
 // `bloqueantes`), porque é o array que define o tier. Remover a linha continua sendo
 // uma saída, agora OPCIONAL. `resumo.conflitos` conta as linhas nessa situação.
 //
-// Os enums de domínio são declarados localmente (como em scripts/import/tipos.ts
-// da F4) para manter o motor autocontido e independente dos tipos GERADOS do
-// banco (src/lib/types/database.ts). Os valores coincidem 1:1 com os enums do
-// Postgres — se um enum mudar no banco, mude aqui também.
+// Os enums de domínio DERIVAM de `Enums<...>` (src/lib/types/database.ts, os
+// tipos GERADOS do banco) através do utilitário estrito `ExcluirDaUniao<T, U
+// extends T>` (src/lib/tipos-estritos.ts) — nunca mais redeclarados à mão
+// (F56 · Frente B, Decisão 4; fato 16 registra o histórico: `StatusAtivo`
+// local ficou para trás quando o banco ganhou `devolvido_fornecedor` na F14,
+// e `CategoriaAtivo` local nunca teve `outro` — o `Exclude<>` CRU que
+// excluía esses valores era um no-op silencioso, fato 17, porque um valor
+// fora da união não faz `Exclude<T, U>` reclamar). `ExcluirDaUniao` fecha
+// esse buraco: `U extends T` transforma "excluir valor que não pertence à
+// união" em erro de compilação.
 
+import type { Enums } from '@/lib/types/database'
+import type { ExcluirDaUniao } from '@/lib/tipos-estritos'
 import type { RegistroImport } from './parse'
 
-export type StatusAtivo =
-  | 'em_estoque'
-  | 'reservado'
-  | 'em_uso'
-  | 'emprestado'
-  | 'em_triagem'
-  | 'em_manutencao'
-  | 'defasado'
-  | 'descartado'
+/**
+ * O estado que a PLANILHA pode declarar (Status/Situação, spec §5) — o enum
+ * `status_ativo` do banco MENOS `devolvido_fornecedor` (F14: baixa terminal
+ * que não é um estado de planilha de startup; o import nunca a tem como
+ * origem nem como alvo). Inclui `descartado` — a planilha PODE declarar um
+ * ativo descartado (vira bloqueante `estado_descartado`); só o ALVO do plano
+ * (`AtivoPlano.estadoAlvo`, abaixo) exclui esse valor também.
+ */
+export type EstadoPlanilha = ExcluirDaUniao<Enums<'status_ativo'>, 'devolvido_fornecedor'>
 
 /**
- * As categorias que o import de startup PRODUZ. Deliberadamente MENOR que o enum
- * `categoria_ativo` do banco (que tem também `outro`, usado no cadastro manual):
- * `mapearCategoria` devolve `null` para o que não reconhece — nunca `outro` —, e a
- * linha vira erro corrigível no preview, com um termo real do vocabulário.
- *
- * `outro` morou aqui até 30/08/2026 (dívida técnica, item I). Como valor inalcançável,
- * ele só cobrava pedágio: três `Exclude<CategoriaAtivo, 'outro'>` e um guard de runtime
- * que existia "só para satisfazer o tipo". Tirar o valor foi o que apagou os quatro.
+ * O estado que o PLANO pode ter como ALVO (`AtivoPlano.estadoAlvo`) —
+ * `EstadoPlanilha` menos `descartado`: um ativo descartado num CSV de
+ * startup é bloqueante (`estado_descartado`, `plano.ts`), então nunca chega a
+ * virar `AtivoPlano`. É o tipo de `SITUACAO_CANONICA` (`deparas.ts`) — a
+ * exclusão deixou de ser no-op (fato 16): antes de F56, `Exclude<StatusAtivo,
+ * 'descartado' | 'devolvido_fornecedor'>` já não continha
+ * `devolvido_fornecedor` na união local, então o segundo membro não excluía
+ * nada; agora `EstadoPlanilha` inclui `descartado` de verdade, e excluí-lo
+ * tira um membro real.
  */
-export type CategoriaAtivo =
-  | 'notebook'
-  | 'desktop'
-  | 'monitor'
-  | 'celular'
-  | 'tablet'
+export type EstadoAlvoImport = ExcluirDaUniao<EstadoPlanilha, 'descartado'>
+
+/**
+ * As categorias que o import de startup PRODUZ — o enum `categoria_ativo` do
+ * banco MENOS `outro` (usado só no cadastro manual): `mapearCategoria`
+ * devolve `null` para o que não reconhece — nunca `outro` —, e a linha vira
+ * erro corrigível no preview, com um termo real do vocabulário.
+ */
+export type CategoriaImport = ExcluirDaUniao<Enums<'categoria_ativo'>, 'outro'>
 
 export type FilialOficial =
   | 'Matriz'
@@ -96,7 +108,7 @@ export type AtivoPlano = {
   patrimonio: string | null // canônico (WAP0004491); null = SEM patrimônio (F7E — importa com pendência "sem patrimônio físico")
   patrimonioOriginal: string // como veio no CSV (guarda o cru mesmo quando patrimonio é null)
   serviceTag: string | null
-  categoria: CategoriaAtivo
+  categoria: CategoriaImport
   marca: string | null
   modelo: string | null
   fornecedor: string | null
@@ -107,7 +119,7 @@ export type AtivoPlano = {
   observacoes: string | null // Observação do CSV (sobrescreve sempre; vazio = null)
   dataEntrada: string | null // yyyy-MM-dd = mais antiga válida entre Inclusão/Entrega resolvida; null = SEM data válida
   dataAjuste: string | null // F7E — yyyy-MM-dd do ajuste de reconciliação: entrega resolvida ?? dataEntrada ?? null (RPC usa a data do import quando null)
-  estadoAlvo: StatusAtivo // precedência Situação>Status, De→Para spec §5
+  estadoAlvo: EstadoAlvoImport // precedência Situação>Status, De→Para spec §5; nunca 'descartado' (bloqueante antes de virar AtivoPlano)
   colaborador: string | null
   setor: string | null
   chamado: string | null // GLPI
@@ -175,8 +187,8 @@ export type GrupoErro = {
   erros: ErroImport[] // os erros individuais do grupo (para expandir)
   correcao:
     | { kind: 'existe_em_outra_filial'; filial: string } // F24: aviso — a linha importa e abre conflito
-    | { kind: 'categoria'; sugestao: CategoriaAtivo | null }
-    | { kind: 'estado'; statusDe: string; situacaoDe: string; sugestao: StatusAtivo | null }
+    | { kind: 'categoria'; sugestao: CategoriaImport | null }
+    | { kind: 'estado'; statusDe: string; situacaoDe: string; sugestao: EstadoPlanilha | null }
     | { kind: 'site_desconhecido' } // ação única: definir como a filial selecionada
     | { kind: 'site_outra_filial' } // ação única: remover linhas (decisão 4 do Johnny)
     // (o kind `existe_em_outra_filial`, declarado acima, deixou de ser "só-remover" na

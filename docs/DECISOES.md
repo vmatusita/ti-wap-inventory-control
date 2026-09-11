@@ -9748,3 +9748,32 @@ do runbook, link do run e a impressão do estado — e **sem amostra nenhuma**. 
 `(producao, integridade)`, verde seis minutos antes, ficou sem issue: a decisão mais importante do
 alarme, provada no ar. O caminho de ABRIR está fechado com falha real; o de FECHAR continua provado
 só por teste de unidade (`alarme.test.mts`), porque exige o ensaio de volta.
+
+---
+
+## 2026-09-11 · F56 (Frente B) · `npm run build` não type-checa arquivo sem importador na app — CI ganhou `npm run typecheck`
+
+- Contexto: a Decisão 4 do `PLAN-F56.md` e o fato 17 da ordem assumiam que o `@ts-expect-error` do
+  utilitário estrito (`ExcluirDaUniao`) ficaria protegido por **dois** caminhos: `npx tsc --noEmit` e
+  `npm run build` (o passo "Build (inclui type-check do TypeScript)" do job `verificar` do CI, contra o
+  MESMO `tsconfig.json`). A prova por sabotagem do critério 8
+  (`docs/f56-evidencias/B2-sabotagem-ts-expect-error.txt`) mediu o contrário: com `src/lib/import/
+  enums-sql.test.ts` sabotado (o valor fora da união trocado por um que já pertence a ela, OU
+  `ExcluirDaUniao` trocado por `Exclude<>` cru), `npx tsc --noEmit` reprova (TS2578, as duas vezes) mas
+  `npm run build` passa limpo — com `.next` apagado antes de cada rodada (elimina cache incremental
+  como explicação) e reproduzido duas vezes.
+- Decisão: **acrescentei o script `typecheck` (`tsc --noEmit`) ao `package.json`** e um passo próprio
+  no CI, "Checagem de tipo completa (tsc --noEmit)" (`.github/workflows/ci.yml`, job `verificar`, logo
+  depois de "Testes"), rodando `npm run typecheck`. O rótulo do passo "Build" mudou de "inclui
+  type-check do TypeScript" (falso, como a medição prova) para "inclui type-check PARCIAL do
+  TypeScript", com comentário apontando para o passo novo.
+- Motivo: o type-check embutido do `next build` só percorre o GRAFO de módulos que a aplicação importa
+  a partir de `src/app/**` (páginas, layouts, Server Actions, componentes…) — não todo arquivo que o
+  `tsconfig.json` inclui. Um `.test.ts` que carrega só ASSERÇÕES DE TIPO (nenhum código de runtime, e
+  nenhum arquivo da app o importa) fica fora desse grafo e, portanto, invisível para o `next build`,
+  mesmo casando com `include: ["**/*.ts", ...]`. Sem o passo novo, o critério 8 ("prova por sabotagem,
+  num caminho de CI que reprova") seria verdade só na intenção — a sabotagem passaria pelo CI de
+  verdade. Isto é dentro do escopo da Frente B: sem o passo, a própria trava que a Decisão 4 pede não
+  tem caminho de CI que a sustente.
+- Reversível? sim — `git revert` no commit que acrescenta o passo e o script; os dois são aditivos
+  (nenhum passo existente mudou de comportamento, só de rótulo).

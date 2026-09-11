@@ -1,0 +1,199 @@
+F56 · Frente B — travas vermelhas contra o código de HOJE (antes da correção)
+==============================================================================
+Medido em 11/09/2026, no commit f7cee4b (HEAD da branch
+f56-import-sem-wapismo-e-sem-bomba no início da Frente B), ANTES de qualquer
+edição de src/lib/tipos-estritos.ts, src/lib/import/tipos.ts,
+src/lib/import/deparas.ts, src/lib/import/plano.ts, src/lib/patrimonio.ts,
+src/lib/import/index.ts, src/components/admin/importar/ops-grupo.ts ou
+src/components/admin/importar/grupos-erros.tsx (Decisões 4 e 5).
+
+Único ajuste feito ANTES desta medição: `export` acrescentado à declaração
+`const ESTADOS` em src/lib/import/deparas.ts (nenhuma outra mudança na linha).
+Isto NÃO é parte da correção (Decisão 4/5) — é andaime necessário para
+`enums-sql.test.ts` ter uma testemunha em RUNTIME de `EstadoPlanilha`
+independente de `SITUACAO_CANONICA` (ver a nota "por que ESTADOS ficou
+exportado" na seção 1 abaixo). Sem ele o arquivo nem compilaria (import de
+valor inexistente), e o motivo do vermelho deixaria de ser "união diverge do
+banco" para virar "import quebrado" — exatamente o que a ordem pede para
+evitar.
+
+Comandos rodados, nesta ordem, contra o código tal como ficou depois desse
+único ajuste:
+  1. npx vitest run src/lib/patrimonio-sql.test.ts
+  2. npx vitest run src/lib/import/enums-sql.test.ts
+  3. npx tsc --noEmit   (projeto inteiro)
+
+------------------------------------------------------------------------------
+1. src/lib/patrimonio-sql.test.ts — Vitest: 8 failed | 86 passed (94 testes)
+------------------------------------------------------------------------------
+
+As 8 falhas — TODAS pelo motivo certo, "fonte compartilhada inexistente"
+(Decisão 5 ainda não implementada em src/lib/patrimonio.ts):
+
+  FAIL > DIGITOS_PATRIMONIO é 7 (o tamanho do bloco de dígitos do formato canônico)
+    AssertionError: expected undefined to be 7
+
+  FAIL > PREFIXO_PATRIMONIO_FONTE é o literal do prefixo (2 a 4 letras maiúsculas)
+    AssertionError: expected undefined to be '[A-Z]{2,4}'
+
+  FAIL > o literal `[A-Z]{2,4}` aparece em CÓDIGO (fora de comentário) SÓ UMA
+         VEZ — na exportação da fonte
+    AssertionError: expected 4 to be 1
+    (hoje o literal está hardcoded 4 vezes: PATRIMONIO_CANONICAL_RE,
+    canonicalizarPatrimonio, e duas vezes em expandirFaixa — fato 18)
+
+  FAIL > nenhuma cópia (fora de comentário) de patrimonio.ts hardcoda `\d{7}`
+         — todas interpolam DIGITOS_PATRIMONIO
+    AssertionError: expected (o texto de patrimonio.ts) not to match /\d\{7\}/
+    (bate: \d{7} aparece hardcoded em PATRIMONIO_CANONICAL_RE e duas vezes em
+    expandirFaixa)
+
+  FAIL > PATRIMONIO_CANONICAL_RE é `new RegExp` construída a partir da fonte
+         (não mais um literal `/…/`)
+    AssertionError: expected '^[A-Z]{2,4}\d{7}$' to be '^undefined\d{undefined}$'
+    (o lado esquerdo é o .source do regex LITERAL de hoje; o lado direito é o
+    que a fonte AINDA-INEXISTENTE produziria — os dois batem só depois da
+    Decisão 5)
+
+  FAIL > deparas.ts NÃO hardcoda `[A-Z]{2,4}` em código — PATRIMONIO_EMBUTIDO_RE
+         importa a fonte de patrimonio.ts
+    AssertionError: PATRIMONIO_EMBUTIDO_RE ainda é um regex literal com
+    `[A-Z]{2,4}` embutido; deparas.ts não referencia PREFIXO_PATRIMONIO_FONTE
+
+  FAIL > a do hostname usa {1,DIGITOS} EXPLÍCITO (a divergência deliberada —
+         aceita 1-7 dígitos, não só 7)
+    AssertionError: expected (o texto de deparas.ts) to contain '${DIGITOS_PATRIMONIO}}'
+
+  FAIL > a divergência do hostname está documentada em comentário (não é
+         acidente)
+    AssertionError: expected (o texto de deparas.ts) to match /divergência deliberada/
+    (o comentário de hoje, linha ~163, usa outra redação — "a mudança é
+    aceitar <7 dígitos..."; a Decisão 5 pede o rótulo explícito "divergência
+    deliberada" no comentário novo)
+
+Os 86 testes que JÁ NASCEM VERDES (a describe "nenhum corpo VIGENTE de função
+SQL valida FORMATO de patrimônio", fato 19) SÓ PODEM nascer verdes — e a razão
+está registrada aqui como a ordem pede: o fato 19 já era verdade ANTES desta
+fase (medido, não é efeito colateral desta trava). Desde a F7J (20/07/2026) o
+SQL vigente não valida mais o FORMATO do patrimônio — o Postgres barra só
+sanidade (vazio ou > 60 caracteres) e o TypeScript é o único juiz do formato.
+Os 86 corpos vigentes (a varredura cobre TODA a cadeia de migrations, com
+`drop function` corretamente contabilizado — ver nota abaixo) e o teste
+específico de `import_validar_plano` já confirmam isso hoje; a Decisão 5 não
+muda o SQL, só o TS — por isso este lado do arquivo já nasce verde, e
+continuará verde depois da correção.
+
+  NOTA — bug encontrado e corrigido NA PRÓPRIA CONSTRUÇÃO da trava, antes desta
+  medição: a primeira versão da varredura (`todosOsCorposVigentes`) ignorava
+  `drop function`, e por isso classificava
+  `public.importar_ativos_substituir(jsonb, text, jsonb)` (a sobrecarga de 3
+  parâmetros, ORIGINAL da migration 0032) como "vigente" — quando na verdade a
+  migration 0033 a DERRUBA explicitamente
+  (`drop function if exists public.importar_ativos_substituir(jsonb, text,
+  jsonb);`) antes de criar a versão de 4 parâmetros (o `p_correcoes` novo muda
+  a lista de tipos, então `create or replace` NÃO substitui a sobrecarga
+  antiga — são duas funções Postgres distintas até o drop explícito). Esse
+  corpo de 0032 TINHA o `{2,4}` executável (era a validação de formato
+  original, pré-F7J) — um falso-positivo que teria acusado um defeito que não
+  existe mais. Corrigido acrescentando `assinaturasDropadasNoArquivo` à
+  varredura (remove do mapa antes de aplicar os `create` do mesmo arquivo).
+  Rodado ANTES e DEPOIS do conserto para confirmar: 9 falhas (com o
+  falso-positivo) → 8 falhas (só as legítimas) na mesma leva. Este episódio é
+  parte do processo de escrever a TRAVA em si, não da correção da Decisão
+  4/5 — registrado aqui por transparência (a ordem pede a saída REAL).
+
+------------------------------------------------------------------------------
+2. src/lib/import/enums-sql.test.ts — Vitest: 3 failed | 18 passed (21 testes)
+------------------------------------------------------------------------------
+
+As 3 falhas — pelo motivo certo, "arquivo não-teste usa Exclude< cru" (fato
+17, a metade do defeito que O VITEST consegue enxergar — o Vitest não checa
+TIPO, então a outra metade do fato 17/16 mora só no tsc, seção 3 abaixo):
+
+  FAIL > src\lib\import\deparas.ts não usa Exclude< cru
+  FAIL > src\components\admin\importar\grupos-erros.tsx não usa Exclude< cru
+  FAIL > src\components\admin\importar\ops-grupo.ts não usa Exclude< cru
+    AssertionError: expected (o texto do arquivo, sem comentário) not to match /\bExclude</
+    (os três têm `Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>`
+    hoje — deparas.ts:317, grupos-erros.tsx:67 e :321, ops-grupo.ts:137)
+
+Os 18 testes que JÁ NASCEM VERDES são, em sua maioria, a comparação em RUNTIME
+das seção 1 do arquivo (categoria/estado batem em VALOR com Constants hoje,
+mesmo a união local não vindo estruturalmente de Enums<...> — ver explicação
+abaixo) e as guardas do próprio teste. Isto é ESPERADO e está documentado no
+próprio arquivo: não há como ler uma UNIÃO DE TIPOS em runtime (tipo é
+apagado na compilação); a prova de que a união realmente DERIVA do banco (e
+não apenas "tem os mesmos valores hoje, por coincidência") é a prova de TIPO
+da seção 2 — e essa só o `tsc` confere (seção 3 abaixo), porque o Vitest
+(esbuild, transpile-only, sem `test.typecheck` em vitest.config.mts) nunca
+verificou tipo.
+
+  POR QUE A COMPARAÇÃO EM RUNTIME (seção 1 do arquivo) JÁ BATE HOJE, mesmo com
+  o defeito do fato 16 presente: `StatusAtivo` local (8 valores, hoje
+  hardcoded em tipos.ts) e `Enums<'status_ativo'>` menos 'devolvido_fornecedor'
+  (também 8 valores) têm, POR COINCIDÊNCIA, exatamente o MESMO CONJUNTO de
+  valores — porque quando `devolvido_fornecedor` foi acrescentado ao enum do
+  banco (F14), ninguém atualizou `tipos.ts` (é EXATAMENTE o fato 16). Duas
+  uniões de string literal com o mesmo conjunto de valores são, para o
+  TypeScript, ESTRUTURALMENTE o mesmo tipo — não há diferença DE VALOR para um
+  teste em runtime enxergar hoje. O defeito real não é "os valores divergem
+  agora" — é "nada credencia essa igualdade a se manter se o banco mudar de
+  novo", que é precisamente o que a asserção de TIPO (seção 2) e o
+  `@ts-expect-error` (seção 3) travam, e só o `tsc` confere.
+
+------------------------------------------------------------------------------
+3. npx tsc --noEmit (projeto inteiro) — exit 2
+------------------------------------------------------------------------------
+
+Saída relevante às duas travas (a saída completa, incluindo 5 erros de
+arquivos `zz-f56-c2-*` que NÃO são desta frente — são arquivos de trabalho do
+outro agente medindo em paralelo nesta sessão, avisado no prompt da ordem —
+está peritida abaixo, sem edição):
+
+  src/lib/import/enums-sql.test.ts(6,15): error TS2305: Module '"./tipos"' has
+    no exported member 'CategoriaImport'.
+  src/lib/import/enums-sql.test.ts(6,32): error TS2305: Module '"./tipos"' has
+    no exported member 'EstadoAlvoImport'.
+  src/lib/import/enums-sql.test.ts(6,50): error TS2305: Module '"./tipos"' has
+    no exported member 'EstadoPlanilha'.
+  src/lib/import/enums-sql.test.ts(7,37): error TS2307: Cannot find module
+    '@/lib/tipos-estritos' or its corresponding type declarations.
+  src/lib/import/enums-sql.test.ts(139,1): error TS2578: Unused
+    '@ts-expect-error' directive.
+  src/lib/patrimonio-sql.test.ts(4,10): error TS2305: Module '"./patrimonio"'
+    has no exported member 'DIGITOS_PATRIMONIO'.
+  src/lib/patrimonio-sql.test.ts(4,55): error TS2305: Module '"./patrimonio"'
+    has no exported member 'PREFIXO_PATRIMONIO_FONTE'.
+
+  (+ 5 erros em zz-f56-c2-harness.mts e zz-f56-c2-xlsx.mts — arquivos de
+  trabalho zz-f56-c2-* de OUTRO agente medindo em paralelo nesta sessão
+  (avisado no prompt da ordem: "não os toque"); não relacionados à Frente B,
+  ignorados aqui.)
+
+Os SETE erros da Frente B são exatamente o motivo certo, "fonte compartilhada
+inexistente": `CategoriaImport`/`EstadoAlvoImport`/`EstadoPlanilha` ainda não
+existem em `./tipos` (Decisão 4 não implementada), `@/lib/tipos-estritos`
+ainda não existe (Decisão 4), e `DIGITOS_PATRIMONIO`/`PREFIXO_PATRIMONIO_FONTE`
+ainda não existem em `./patrimonio` (Decisão 5).
+
+O SÉTIMO erro (`enums-sql.test.ts(139,1): Unused '@ts-expect-error'
+directive`) é o mais interessante e MERECE explicação: a linha 139 é
+`ExemploComValorForaDaUniao = ExcluirDaUniao<EstadoPlanilhaEsperada,
+'descartado' | 'devolvido_fornecedor'>`, marcada com `@ts-expect-error`
+esperando que o TIPO 'devolvido_fornecedor' fora da união dispare um erro de
+compilação. Como `ExcluirDaUniao` (importado de um módulo que NÃO EXISTE
+ainda) resolve para o tipo `any` de erro do próprio TypeScript, a linha NÃO
+produz o erro de restrição esperado — e a diretiva `@ts-expect-error` sobra
+sem uso, o que é, ela mesma, um erro de compilação (TS2578). Isto é
+precisamente o comportamento que a Decisão 4 describe e que a seção 3 do
+arquivo documenta: depois que `ExcluirDaUniao<T, U extends T>` existir de
+verdade, este MESMO erro (TS2578) só reaparece se alguém SABOTAR o utilitário
+de volta para `Exclude<>` cru — é o mecanismo do critério 8, provado na B2.
+
+==============================================================================
+RESUMO: as duas travas nascem vermelhas, no total, por 13 falhas de Vitest (8
++ 3, mais 2 guardas-do-próprio-teste que não avaliei aqui por já baterem hoje)
+e 7 erros de tsc — todos rastreáveis a "união local diverge do enum do banco"
+(fato 16/17) ou "fonte compartilhada inexistente" (Decisão 4/5), nenhum por
+caminho de import acidentalmente quebrado. Nenhum dado real em nenhuma
+asserção, mensagem ou fixture deste arquivo ou dos dois arquivos de teste.

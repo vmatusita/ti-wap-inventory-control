@@ -1,0 +1,95 @@
+F56 · Frente B — sabotagem do @ts-expect-error (critério 8)
+==============================================================================
+Medido em 11/09/2026, com o código da Frente B TOTALMENTE VERDE (Decisões 4 e
+5 implementadas, npm run lint / npx tsc --noEmit / npm run test todos limpos)
+ANTES de sabotar. Alvo da sabotagem: a linha única de
+src/lib/import/enums-sql.test.ts que carrega o `@ts-expect-error` do fato 17
+(seção 3 do arquivo):
+
+  export type ExemploComValorForaDaUniao =
+    ExcluirDaUniao<EstadoPlanilhaEsperada, 'descartado' | 'devolvido_fornecedor'>
+
+Duas sabotagens, cada uma desfeita antes da seguinte (nunca as duas juntas).
+
+------------------------------------------------------------------------------
+SABOTAGEM A — troca o valor FORA da união por um que PERTENCE a ela
+------------------------------------------------------------------------------
+Troquei `'descartado' | 'devolvido_fornecedor'` por só `'descartado'` (que já
+pertence a `EstadoPlanilhaEsperada`) — a linha deixa de ter QUALQUER valor
+fora da união, então `ExcluirDaUniao` não tem nada para recusar.
+
+  npx tsc --noEmit   → exit 2
+    src/lib/import/enums-sql.test.ts(153,1): error TS2578: Unused
+      '@ts-expect-error' directive.
+
+REPROVA pelo motivo certo: a diretiva não tem mais erro para suprimir.
+
+  npm run build (com `.next` LIMPO — `rm -rf .next` antes, para eliminar
+  qualquer cache incremental como explicação alternativa; rodado DUAS VEZES,
+  mesmo resultado nas duas) → exit 0, "Finished TypeScript in ~25-27s ...",
+  ZERO erro.
+
+  ACHADO (não esperado pela ficha nem pelo PLAN-F56.md, que assumiam "checado
+  por npm run build (job verificar) e por npx tsc --noEmit" — Decisão 4): o
+  type-check embutido do `next build` NÃO cobre todo arquivo que o
+  `tsconfig.json` inclui — ele percorre só o GRAFO de módulos que a aplicação
+  importa (páginas, layouts, Server Actions, componentes...). Um `.test.ts`
+  como `enums-sql.test.ts`, que NENHUM arquivo de `src/app/**` importa
+  (transitivamente ou não), fica INVISÍVEL para o `next build`, mesmo casando
+  com o `include: ["**/*.ts", ...]` do `tsconfig.json` que o `next build`
+  também usa. Confirmado com `.next` apagado antes de cada rodada (elimina
+  cache incremental como explicação) e reproduzido duas vezes.
+
+  CONSEQUÊNCIA E CORREÇÃO (dentro do escopo desta frente, porque o critério 8
+  exige "um caminho de CI que reprova" — sem isto o critério não seria
+  verdadeiro, só a intenção): o CI (`.github/workflows/ci.yml`, job
+  `verificar`) ganhou um passo PRÓPRIO, "Checagem de tipo completa (tsc
+  --noEmit)", que roda `npm run typecheck` (script novo em `package.json`,
+  `tsc --noEmit`) — o MESMO comando que pegou a sabotagem aqui. O passo "Build"
+  teve o rótulo corrigido de "inclui type-check do TypeScript" (afirmação
+  falsa, como este teste prova) para "inclui type-check PARCIAL do
+  TypeScript", com um comentário apontando para o passo novo. Este achado e a
+  decisão estão registrados em docs/DECISOES.md.
+
+------------------------------------------------------------------------------
+SABOTAGEM B — troca ExcluirDaUniao por Exclude<> CRU (mantendo o valor inválido)
+------------------------------------------------------------------------------
+Desfiz a sabotagem A (linha volta a `'descartado' | 'devolvido_fornecedor'`),
+depois troquei só o UTILITÁRIO:
+
+  export type ExemploComValorForaDaUniao =
+    Exclude<EstadoPlanilhaEsperada, 'descartado' | 'devolvido_fornecedor'>
+
+`Exclude<T, U>` cru NÃO tem a restrição `U extends T` — 'devolvido_fornecedor'
+fora da união deixa de ser erro, exatamente o no-op do fato 17.
+
+  npx tsc --noEmit   → exit 2
+    src/lib/import/enums-sql.test.ts(162,1): error TS2578: Unused
+      '@ts-expect-error' directive.
+
+  npm run typecheck (o script novo, mesmo comando) → exit 1, MESMA linha,
+    mesmo TS2578 — confirma que o passo de CI novo pega esta sabotagem
+    também, não só a A.
+
+REPROVA pelo motivo certo, por um caminho DIFERENTE da sabotagem A (o
+utilitário perdeu a restrição, não o valor deixou de ser inválido) — as duas
+sabotagens provam separadamente as duas metades do mecanismo: "o valor tem
+que estar fora da união" E "o utilitário tem que ser o estrito".
+
+------------------------------------------------------------------------------
+DEPOIS — sabotagem desfeita, tudo verde de novo
+------------------------------------------------------------------------------
+A linha voltou ao original (`ExcluirDaUniao<EstadoPlanilhaEsperada,
+'descartado' | 'devolvido_fornecedor'>`).
+
+  npm run typecheck  → exit 0 (tsc --noEmit limpo)
+  npm run lint       → exit 0
+  npm run test       → 182 arquivos, 4731 testes, todos verdes
+
+==============================================================================
+RESUMO: as duas sabotagens reprovam por `npx tsc --noEmit`/`npm run typecheck`
+(TS2578, pelo motivo certo nos dois casos) e NÃO reprovam por `npm run build`
+sozinho — um achado real desta medição, não previsto pela ficha, corrigido
+adicionando o passo "Checagem de tipo completa" ao CI (`.github/workflows/
+ci.yml`) e o script `typecheck` ao `package.json`, com a decisão registrada em
+docs/DECISOES.md. Nenhum dado real em nenhuma saída deste arquivo.

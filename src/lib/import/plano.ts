@@ -60,9 +60,9 @@ import type {
   AtivoPlano,
   CorrecaoImport,
   ErroImport,
+  EstadoPlanilha,
   FilialSelecionada,
   LayoutImport,
-  StatusAtivo,
   ValidacaoImport,
 } from './tipos'
 
@@ -184,6 +184,19 @@ export function montarPlanoImport(
     // Patrimônio null (vazio-na-prática) NÃO bloqueia — só invalidez o faz (via
     // `bloq`). Por isso o guard não olha mais `!patrimonio`.
     if (bloqueado || !categoria || !estado) continue
+
+    // F56 · Frente B (Decisão 4) — estreitamento EXPLÍCITO de `estado` para
+    // `EstadoAlvoImport` (sem 'descartado'), para `AtivoPlano.estadoAlvo`
+    // abaixo. Em TEMPO DE EXECUÇÃO este `continue` é morto: o `else if
+    // (estado === 'descartado')` lá em cima (item 4) já chamou `bloq(...)`,
+    // que já forçou o `continue` da linha acima — nenhum registro com
+    // `estado === 'descartado'` sobrevive até aqui. Mas o TypeScript não
+    // enxerga essa dependência CRUZADA entre a variável `bloqueado` (setada
+    // dentro de `bloq`) e o valor de `estado`: sem esta linha, `estado`
+    // continuaria tipado como `EstadoPlanilha` (que INCLUI 'descartado') no
+    // resto da função, e `estadoAlvo: estado` abaixo não compilaria contra
+    // `EstadoAlvoImport`. É o estreitamento que a Decisão 4 pede.
+    if (estado === 'descartado') continue
 
     // ------- linha válida: monta o AtivoPlano (campos do alinhamento F7 §3) ---
     const serviceTag = normalizarServiceTag(reg.serviceTag)
@@ -621,4 +634,4 @@ export async function csvCorrigidoDeArquivo(
 }
 
 // Re-export do tipo de estado para consumidores que só importam daqui.
-export type { StatusAtivo }
+export type { EstadoPlanilha }

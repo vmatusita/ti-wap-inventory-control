@@ -12,9 +12,13 @@
 //     normalizarServiceTag / chaveServiceTag / extrairChamado
 // Os scripts da F4 permanecem intocados (ferramenta histórica do go-live).
 
-import { canonicalizarPatrimonio } from '@/lib/patrimonio'
+import {
+  canonicalizarPatrimonio,
+  DIGITOS_PATRIMONIO,
+  PREFIXO_PATRIMONIO_FONTE,
+} from '@/lib/patrimonio'
 import { hojeISO } from '@/lib/format'
-import type { CategoriaAtivo, FilialOficial, StatusAtivo } from './tipos'
+import type { CategoriaImport, EstadoAlvoImport, EstadoPlanilha, FilialOficial } from './tipos'
 
 // ---------------------------------------------------------------------------
 // Texto
@@ -163,7 +167,17 @@ export const PREFIXOS_PATRIMONIO = new Set(['WAP', 'PRO', 'LEA', 'TEC', 'STF', '
 // Antes exigia EXATAMENTE 7 dígitos e QUALQUER prefixo; a mudança é aceitar <7 dígitos e
 // travar por prefixo conhecido. Fica em deparas.ts (folha client-safe) p/ o motor
 // (plano.ts) E a UI usarem a MESMA régua — sem duplicar o extrator.
-const PATRIMONIO_EMBUTIDO_RE = /(?:^|[^A-Z0-9])([A-Z]{2,4})(\d{1,7})(?![0-9])/g
+//
+// F56 · Frente B (Decisão 5) — deriva do MESMO prefixo de `@/lib/patrimonio`
+// (`PREFIXO_PATRIMONIO_FONTE`), mas com a quantificação `{1,DIGITOS_PATRIMONIO}`
+// EXPLÍCITA aqui, e não `{DIGITOS_PATRIMONIO}` fixo. É a divergência deliberada
+// do comentário acima ("aceitar <7 dígitos e travar por prefixo conhecido") — o
+// hostname pode embutir um patrimônio com MENOS de 7 dígitos
+// (`PRO3694`→`PRO0003694`), diferente da canônica e da faixa, que exigem os 7.
+const PATRIMONIO_EMBUTIDO_RE = new RegExp(
+  `(?:^|[^A-Z0-9])(${PREFIXO_PATRIMONIO_FONTE})(\\d{1,${DIGITOS_PATRIMONIO}})(?![0-9])`,
+  'g',
+)
 
 export function extrairPatrimonioDoHostname(hostname: string | null | undefined): string | null {
   const h = (hostname ?? '').toUpperCase()
@@ -225,7 +239,7 @@ export function filialPorSlug(slug: string): FilialOficial | null {
 // Categoria (Tipo → enum). F7 §3: desconhecido é BLOQUEANTE — por isso aqui
 // devolvemos null (a F4 devolvia 'outro' silenciosamente).
 
-const CATEGORIAS: Record<string, CategoriaAtivo> = {
+const CATEGORIAS: Record<string, CategoriaImport> = {
   'notebook': 'notebook',
   'desktop': 'desktop',
   'monitor': 'monitor',
@@ -234,7 +248,7 @@ const CATEGORIAS: Record<string, CategoriaAtivo> = {
 }
 
 /** Categoria da planilha → enum; fora do vocabulário → null (chamador bloqueia). */
-export function mapearCategoria(raw: string | null | undefined): CategoriaAtivo | null {
+export function mapearCategoria(raw: string | null | undefined): CategoriaImport | null {
   return CATEGORIAS[normalizarTexto(raw ?? '')] ?? null
 }
 
@@ -245,9 +259,11 @@ export const CATEGORIAS_TERMOS: readonly string[] = Object.keys(CATEGORIAS)
  * F7B — tabela reversa de `CATEGORIAS`: enum → termo que a UI grava na célula Tipo.
  * `outro` fica de fora porque o vocabulário do CSV não tem termo que resolva para
  * ele (`mapearCategoria` nunca devolve 'outro') — categoria desconhecida se corrige
- * para uma das 5 conhecidas ou a linha sai do import.
+ * para uma das 5 conhecidas ou a linha sai do import. Exaustivo por construção
+ * (`Record<CategoriaImport, string>`): `enums-sql.test.ts` lê `Object.keys(...)`
+ * em runtime como testemunha de `CategoriaImport` (F56 · Frente B).
  */
-export const TIPO_CANONICO: Record<CategoriaAtivo, string> = {
+export const TIPO_CANONICO: Record<CategoriaImport, string> = {
   notebook: 'Notebook',
   desktop: 'Desktop',
   monitor: 'Monitor',
@@ -258,7 +274,11 @@ export const TIPO_CANONICO: Record<CategoriaAtivo, string> = {
 // ---------------------------------------------------------------------------
 // Estado da planilha (spec §4; precedência Situação > Status — DECISOES 15/07)
 
-const ESTADOS: Record<string, StatusAtivo> = {
+// Exportado (F56 · Frente B) só para `enums-sql.test.ts` ler os VALORES em runtime
+// como testemunha independente de `EstadoPlanilha` (o `Record<EstadoAlvoImport,
+// string>` de `SITUACAO_CANONICA` já testemunha `EstadoAlvoImport`; `ESTADOS` é a
+// ÚNICA fonte, no código de produção, que cobre também `descartado`).
+export const ESTADOS: Record<string, EstadoPlanilha> = {
   'saida': 'em_uso',
   'remanejo': 'em_uso',
   'guardada': 'em_estoque',
@@ -286,7 +306,7 @@ const ESTADOS: Record<string, StatusAtivo> = {
 export function estadoPlanilha(
   status: string | null | undefined,
   situacao: string | null | undefined,
-): StatusAtivo | null {
+): EstadoPlanilha | null {
   const sit = normalizarTexto(situacao ?? '')
   const sta = normalizarTexto(status ?? '')
   const efetivo = sit !== '' ? sit : sta
@@ -313,10 +333,14 @@ export const ESTADOS_CORRIGIVEIS: readonly string[] = Object.entries(ESTADOS)
  */
 // F14: `devolvido_fornecedor` também fica de fora (baixa terminal, como descartado):
 // não é um estado da planilha legada de startup — o import nunca o tem como alvo.
-export const SITUACAO_CANONICA: Record<
-  Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>,
-  string
-> = {
+// F56 · Frente B (Decisão 4): o tipo é `Record<EstadoAlvoImport, string>` —
+// `EstadoAlvoImport` JÁ exclui `descartado` (e `EstadoPlanilha`, do qual deriva,
+// já exclui `devolvido_fornecedor`). Antes da F56 isto era
+// `Record<Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>, string>`
+// com `StatusAtivo` local (8 valores, sem `devolvido_fornecedor`) — a exclusão
+// de `devolvido_fornecedor` era um NO-OP (fato 16/17): ele já não estava na
+// união, então excluí-lo não mudava nada. `EstadoAlvoImport` fecha esse buraco.
+export const SITUACAO_CANONICA: Record<EstadoAlvoImport, string> = {
   em_estoque: 'Estoque',
   em_uso: 'Saída',
   reservado: 'Reservado',

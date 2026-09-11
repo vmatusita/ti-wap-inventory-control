@@ -1,0 +1,76 @@
+F56 · Frente B — identidade comportamental da regex de patrimônio (Decisão 5)
+==============================================================================
+Medido em 11/09/2026, script em scratch (fora do repositório, apagado ao final
+da fase — nenhum arquivo dele entra no repositório):
+  <scratchpad da sessão>/f56-medicoes/b-impl/
+    patrimonio-old.ts          — cópia LITERAL de src/lib/patrimonio.ts @ HEAD
+                                  (f7cee4b, antes da Frente B; `git show
+                                  HEAD:src/lib/patrimonio.ts`)
+    deparas-old.ts              — cópia LITERAL de src/lib/import/deparas.ts @ HEAD
+    hostname-old.ts             — só o trecho do hostname de deparas-old.ts
+                                   (PREFIXOS_PATRIMONIO, PATRIMONIO_EMBUTIDO_RE,
+                                   extrairPatrimonioDoHostname), extraído para
+                                   rodar isolado sem o resto de deparas.ts
+    patrimonio-old-wrapper.ts   — reexporta patrimonio-old.ts com nomes
+                                   sufixados "Old" (evita colisão de
+                                   identificador com a implementação nova)
+    rodar.mts                   — o diferencial: importa a implementação ANTIGA
+                                   (arquivos acima) e a NOVA (os arquivos DE
+                                   VERDADE do repositório, por `file://` URL
+                                   absoluto) no MESMO processo, gera entradas
+                                   sintéticas e compara
+
+Comando: `cd <repo> && npx tsx <scratch>/rodar.mts` (o `cd` é necessário para o
+alias `@/*` resolver dentro dos módulos reais importados). Rodado DUAS VEZES
+(seeds diferentes — os geradores usam `crypto.randomInt`, não determinístico),
+mesmo resultado nas duas.
+
+------------------------------------------------------------------------------
+Geradores (100% sintéticos — nenhum patrimônio, hostname ou dado real)
+------------------------------------------------------------------------------
+- Prefixo: 1 a 5 letras minúsculas aleatórias (1 e 5 são os limites INVÁLIDOS
+  de propósito — o formato exige 2 a 4).
+- Separador: `''`, `-`, ` `, `  `, `' - '`, `\t`.
+- Dígitos: 0 a 9 dígitos aleatórios, às vezes com zeros à esquerda.
+- Espaços nas pontas: aleatórios, 0 a 3 de cada lado.
+- Caixa: maiúscula, minúscula ou MISTA caractere a caractere.
+- Lixo puro: 1 a 8 caracteres de um alfabeto com símbolos, letras e dígitos
+  (nenhum formato de patrimônio reconhecível).
+- Hostname sintético: 1 a 3 "partes" unidas por `-`/`_`/`.`/nada, cada parte
+  um token de prefixo (conhecido OU desconhecido) + 0-8 dígitos, OU lixo puro,
+  OU um número solto, OU letras soltas — para exercitar prefixo
+  conhecido/desconhecido, dígitos de 0 a 8 (o `{1,7}` da divergência
+  deliberada) e delimitação.
+- Pares de faixa: 60% mesmo prefixo com delta pequeno (caminho feliz), 20%
+  prefixos diferentes (erro "mesmo prefixo"), 20% uma ponta inválida (lixo).
+
+------------------------------------------------------------------------------
+Resultado (rodada 1)
+------------------------------------------------------------------------------
+  canonicalizarPatrimonio:         25.000 casos (20.000 "entrada de célula" +
+                                    5.000 lixo puro)
+  PATRIMONIO_CANONICAL_RE.test:    25.000 casos (20.000 canônica-like + 5.000
+                                    entrada crua)
+  expandirFaixa:                   20.000 casos (pares completos — compara o
+                                    RESULTADO INTEIRO: `itens` OU `erro`)
+  extrairPatrimonioDoHostname:     20.000 casos
+  TOTAL:                           90.000 casos
+  DIFERENÇAS:                      0
+
+------------------------------------------------------------------------------
+Resultado (rodada 2 — seed diferente, confirmação)
+------------------------------------------------------------------------------
+  TOTAL: 90.000 casos
+  DIFERENÇAS: 0
+
+==============================================================================
+RESUMO: 180.000 comparações no total (90.000 × 2 rodadas independentes), ZERO
+diferenças entre a implementação ANTIGA (regex literal hardcoded) e a NOVA
+(regex composta por `new RegExp` a partir de `PREFIXO_PATRIMONIO_FONTE`/
+`DIGITOS_PATRIMONIO`, Decisão 5) — para as quatro funções/objetos que usam o
+formato de patrimônio: `canonicalizarPatrimonio`, `PATRIMONIO_CANONICAL_RE`,
+`expandirFaixa` e `extrairPatrimonioDoHostname` (a última com a divergência
+deliberada `{1,7}` preservada). Confirma "comportamento idêntico" também pelos
+41 testes já existentes de `patrimonio.test.ts`, que passam SEM MUDANÇA DE
+ASSERÇÃO (`npm run test`). Nenhum dado real em nenhum arquivo do diferencial
+nem neste resumo.
