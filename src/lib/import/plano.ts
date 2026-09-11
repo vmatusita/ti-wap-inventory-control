@@ -109,16 +109,24 @@ export function montarPlanoImport(
     }
 
     // 1) Site = filial escolhida (após De→Para). Import nunca transfere.
-    const filialLinha = mapearUnidade(reg.site)
-    if (filialAlvo === null || filialLinha !== filialAlvo) {
-      bloq(
-        'Site',
-        reg.site,
-        'site_divergente',
-        filialLinha === null
-          ? `Site "${reg.site}" não corresponde a nenhuma filial conhecida (esperado: ${filialNome})`
-          : `Site "${reg.site}" (${filialLinha}) ≠ filial selecionada (${filialNome}); o import não transfere ativo entre filiais`,
-      )
+    //
+    // F56 (Frente A): com `filialAlvo` null — a filial selecionada está FORA do vocabulário
+    // de unidades — a coluna Site não é conferida linha a linha. Quem chama (`analisar`)
+    // emite UM bloqueante `filial_fora_do_vocabulario`, e o plano não sai. Até a F56, TODA
+    // linha virava `site_divergente` com uma mensagem que culpava o ARQUIVO pelo que é um
+    // buraco do CADASTRO — e o card nem tinha correção a oferecer.
+    if (filialAlvo !== null) {
+      const filialLinha = mapearUnidade(reg.site)
+      if (filialLinha !== filialAlvo) {
+        bloq(
+          'Site',
+          reg.site,
+          'site_divergente',
+          filialLinha === null
+            ? `Site "${reg.site}" não corresponde a nenhuma filial conhecida (esperado: ${filialNome})`
+            : `Site "${reg.site}" (${filialLinha}) ≠ filial selecionada (${filialNome}); o import não transfere ativo entre filiais`,
+        )
+      }
     }
 
     // 2) Patrimônio — a escada de precedência (F7-pós/F7J, decisão do Johnny 20/07/2026)
@@ -340,6 +348,21 @@ function analisar(
   }
 
   const filialAlvo = filialPorSlug(filial.slug) ?? mapearUnidade(filial.nome)
+  // F56 (Frente A) — a filial selecionada fora do vocabulário de unidades é UM erro de
+  // cadastro, e não N erros de arquivo. Um bloqueante só, com a mensagem verdadeira; o resto
+  // da análise segue (os outros erros das linhas continuam úteis), mas o plano não sai.
+  if (filialAlvo === null) {
+    bloqueantes.push({
+      linha: 0,
+      coluna: 'Site',
+      valor: filial.nome,
+      tipo: 'filial_fora_do_vocabulario',
+      mensagem:
+        `A filial selecionada (${filial.nome}) não está no vocabulário de unidades do import, ` +
+        'e por isso nenhuma linha pode ser conferida pela coluna Site. O problema não está no ' +
+        'arquivo: a filial precisa ser cadastrada no vocabulário do import antes de importar.',
+    })
+  }
   // F7J: linhas que o operador mandou FORÇAR o patrimônio cru (op `forcar_patrimonio`).
   const forcados = new Set(
     correcoes.filter((c) => c.op === 'forcar_patrimonio').map((c) => c.linha),

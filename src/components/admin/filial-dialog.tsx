@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Aviso } from '@/components/layout/aviso'
 import { atualizarFilial, criarFilial } from '@/lib/actions/admin'
 
 function slugify(s: string): string {
@@ -153,6 +154,18 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
             hora de gerar.
           </p>
         </div>
+
+        {/* F56 (Frente A) — o import de startup não reconhece a filial pelo cadastro: ele
+            confere a coluna Site da planilha pelo vocabulário de unidades. Sem este aviso,
+            criar uma filial parece deixá-la pronta para importar, e o primeiro import dela
+            é recusado. */}
+        <Aviso intencao="informacao">
+          <p>
+            O import de startup reconhece a coluna Site da planilha só pelo vocabulário
+            de unidades. Uma filial que ainda não esteja nele tem o import recusado com a
+            mensagem «filial fora do vocabulário».
+          </p>
+        </Aviso>
 
         {edicao && (
           <label className="flex items-center gap-2 text-sm">

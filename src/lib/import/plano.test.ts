@@ -211,6 +211,52 @@ describe('Site (import nunca transfere)', () => {
   })
 })
 
+describe('filial fora do vocabulário (F56 — Frente A)', () => {
+  // Uma filial que o vocabulário de unidades não conhece (a "Filial de Teste" de
+  // produção, ou qualquer filial nova) não tem como ser conferida pela coluna Site.
+  // Antes, TODA linha virava `site_divergente` com uma mensagem que culpava o ARQUIVO.
+  // O defeito é de CADASTRO: o motor emite UM bloqueante, com a mensagem verdadeira.
+  const INVENTADA: FilialSelecionada = { id: 99, slug: 'filial-inventada', nome: 'Filial Inventada' }
+
+  it('emite UM bloqueante filial_fora_do_vocabulario e nenhum site_divergente', () => {
+    const r = validarMatriz(
+      [
+        rowMatriz({ Site: 'Filial Inventada', 'Patrimônio': 'WAP0001234' }),
+        rowMatriz({ Site: 'Filial Inventada', 'Patrimônio': 'WAP0001235' }),
+        rowMatriz({ Site: 'Qualquer coisa', 'Patrimônio': 'WAP0001236' }),
+      ],
+      INVENTADA,
+    )
+    expect(r.plano).toBeNull()
+    expect(r.bloqueantes.filter((e) => e.tipo === 'filial_fora_do_vocabulario')).toHaveLength(1)
+    expect(r.bloqueantes.some((e) => e.tipo === 'site_divergente')).toBe(false)
+  })
+
+  it('a mensagem aponta o cadastro, não o arquivo', () => {
+    const r = validarMatriz([rowMatriz({ Site: 'Filial Inventada' })], INVENTADA)
+    const erro = r.bloqueantes.find((e) => e.tipo === 'filial_fora_do_vocabulario')!
+    expect(erro.mensagem).toContain('Filial Inventada')
+    expect(erro.mensagem).toContain('vocabulário')
+    expect(erro.mensagem).toContain('não está no arquivo')
+  })
+
+  it('o card é informativo (kind nenhuma), um só', () => {
+    const r = validarMatriz(
+      [rowMatriz({ Site: 'Filial Inventada' }), rowMatriz({ Site: 'Filial Inventada', 'Patrimônio': 'WAP0001299' })],
+      INVENTADA,
+    )
+    const grupos = r.grupos.filter((g) => g.tipo === 'filial_fora_do_vocabulario')
+    expect(grupos).toHaveLength(1)
+    expect(grupos[0]!.correcao.kind).toBe('nenhuma')
+    expect(r.grupos.some((g) => g.tipo === 'site_divergente')).toBe(false)
+  })
+
+  it('os outros erros da linha continuam aparecendo (o preview segue útil)', () => {
+    const r = validarMatriz([rowMatriz({ Site: 'Filial Inventada', Tipo: 'Impressora' })], INVENTADA)
+    expect(r.bloqueantes.some((e) => e.tipo === 'categoria_desconhecida')).toBe(true)
+  })
+})
+
 describe('estado (precedência Situação > Status; descartado bloqueia)', () => {
   it('Estoque|Descarte → estado_descartado bloqueante', () => {
     const r = validarMatriz([rowMatriz({ Status: 'Estoque', Situação: 'Descarte' })])

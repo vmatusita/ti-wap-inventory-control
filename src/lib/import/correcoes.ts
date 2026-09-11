@@ -451,6 +451,8 @@ function chaveDoGrupo(
     case 'header_invalido':
     case 'linha_sem_chave':
     case 'plano_vazio':
+    // F56 (Frente A) — defeito de cadastro, não de arquivo: um card só.
+    case 'filial_fora_do_vocabulario':
       return ''
     default:
       return erro.valor
@@ -462,11 +464,14 @@ function correcaoDoGrupo(tipo: string, chave: string, filialNome: string): Grupo
     case 'site_divergente': {
       const alvo = mapearUnidade(filialNome)
       // Borda: a filial SELECIONADA não está no De→Para da spec §5 (ex.: uma
-      // filial nova cadastrada em admin/filiais). `montarPlanoImport` compara
-      // contra `filialAlvo` null, então TODO Site diverge e nenhuma correção de
-      // Site fecha o erro. Oferecer "Definir como {filial}" seria um botão que o
-      // operador clica para sempre (revisão adversarial da F7B, 17/07/2026): o
-      // card vira informativo. O conserto é cadastrar a unidade no De→Para.
+      // filial nova cadastrada em admin/filiais). Oferecer "Definir como {filial}"
+      // seria um botão que o operador clica para sempre (revisão adversarial da F7B,
+      // 17/07/2026): o card é informativo.
+      //
+      // F56 (Frente A): o preview não chega mais a este ramo — com a filial fora do
+      // vocabulário, `analisar` emite o bloqueante único `filial_fora_do_vocabulario` e
+      // `montarPlanoImport` não confere o Site linha a linha. O ramo fica como defesa para
+      // quem chamar `agruparErros` direto com um `site_divergente` dessa filial.
       if (alvo === null) return { kind: 'nenhuma' }
       const unidade = mapearUnidade(chave)
       // Site desconhecido (typo) → corrigível para a filial selecionada.

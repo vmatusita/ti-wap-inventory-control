@@ -614,14 +614,17 @@ describe('agruparErros', () => {
     })
   })
 
-  it('filial fora do De→Para: o grupo de Site não promete correção (kind nenhuma)', () => {
-    // Uma filial nova cadastrada em admin/filiais não está no De→Para da spec §5:
-    // `filialAlvo` é null, TODO Site diverge e nenhuma correção de Site fecha o
-    // erro. O card tem de ser informativo — antes oferecia "Definir como {filial}",
-    // um botão que aplicava (porOp 1) e deixava o mesmo bloqueante de pé.
+  it('filial fora do De→Para: um card só, informativo, e nenhum card de Site', () => {
+    // Uma filial nova cadastrada em admin/filiais não está no De→Para da spec §5.
+    // Até a F56, TODO Site divergia e cada linha virava `site_divergente` (o card era
+    // informativo desde a revisão da F7B, porque nenhuma correção de Site fechava o
+    // erro). Desde a F56 (Frente A) o motor emite UM bloqueante
+    // `filial_fora_do_vocabulario` e não confere a coluna Site linha a linha: o
+    // defeito é do cadastro, não do arquivo. Este teste mudou por desenho (ata da F56).
     const nova: FilialSelecionada = { id: 9, slug: 'filial-teste', nome: 'Filial Teste' }
     const r = validar([rowMatriz({ Site: 'Filial Teste' })], [], nova)
-    const grupo = r.grupos.find((g) => g.tipo === 'site_divergente')
+    expect(r.grupos.some((g) => g.tipo === 'site_divergente')).toBe(false)
+    const grupo = r.grupos.find((g) => g.tipo === 'filial_fora_do_vocabulario')
     expect(grupo?.correcao.kind).toBe('nenhuma')
   })
 
